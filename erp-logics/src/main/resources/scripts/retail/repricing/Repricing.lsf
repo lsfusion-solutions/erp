@@ -1,7 +1,7 @@
 MODULE Repricing;
 
 REQUIRE RepricingCommittee, Store, Pricing, StockDocumentSkuLedger, PriceListCalc, RepricingOperation, PriceListLedger, 
-        PriceListStore;
+        PriceListStore, OrderLedger;
 
 NAMESPACE Repricing;
 
@@ -680,21 +680,262 @@ show(UserRepricingDetail d) += ACTION show(d);
 show[SkuLedger](RepricingDetail ledger) += ACTION show(ledger);
 
 //-- SKU
-@defineDocumentSkuPriceListTypeSystemLedger(userRepricing, accountPriceListType, departmentStore, );
-@extendFormDocumentSku(userRepricing, userRepricingDetail, userRepricing, p, sku, departmentStore);
+//@defineDocumentSkuPriceListTypeSystemLedger(userRepricing, accountPriceListType, departmentStore, ){
+//    @defineDocumentSku(userRepricing, sku, departmentStore, ){
+//    @defineDocumentSku(userRepricing, userRepricingDetail, sku, departmentStore, ){
+//    userRepricingDetail (sku, userRepricing, stock) =  GROUP MAX (UserRepricingDetail userRepricingDetail)
+//        BY sku(userRepricingDetail), userRepricing(userRepricingDetail), departmentStore(userRepricingDetail);
+//    userRepricingDetail (Sku sku, UserRepricing userRepricing) = userRepricingDetail(sku, userRepricing, departmentStore(userRepricing));
+//
+//    currentBalance 'Остаток' (Sku sku, UserRepricing userRepricing) = currentBalance(sku, departmentStore(userRepricing));
+//    prevCurrentBalance 'Остаток' (Sku sku, UserRepricing userRepricing) = prevCurrentBalance(sku, departmentStore(userRepricing));
+////    backgroundQuantitySku###object 'Цвет' (sku, object) = RGB(255,128,128) IF quantity###detail###skuProp###object(sku, object) AND NOT
+////        (quantity###detail###skuProp###object(sku, object) <= currentBalanceSku###object(sku, object));
+//    backgroundQuantity 'Цвет' (sku, userRepricing) = ABSTRACT CASE COLOR (Sku, UserRepricing);  
+//
+//    overChangeQuantityValueSku = ACTION ABSTRACT LIST (UserRepricingDetail);
+//
+//    changeQuantityValue(Sku sku, UserRepricing userRepricing, NUMERIC[16,5] n) = ACTION {
+//        IF userRepricingDetail(sku, userRepricing) THEN {
+//            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+//                quantity(UserRepricingDetail userRepricingDetail) <- n WHERE userRepricingDetail == userRepricingDetail(sku, userRepricing);
+//                overChangeQuantityValueSku(userRepricingDetail(sku, userRepricing));
+//            } ELSE {
+//                FOR userRepricingDetail(sku, userRepricing) == UserRepricingDetail d DO
+//                    DELETE d;
+//            }
+//        } ELSE {
+//            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+//                FOR NEW d = UserRepricingDetail DO {
+//                    userRepricing(d) <- userRepricing;
+//                    sku(d) <- sku;
+//                    quantity (d) <- n;
+//                    overChangeQuantityValueSku(d);
+//                }
+//            }
+//        }
+//    }
+//
+//    changeQuantity(Sku sku, UserRepricing userRepricing) = ACTION {
+//        INPUTX n = NUMERIC[16,5] DO
+//            changeQuantityValue(sku, userRepricing, n);
+//    }
+//
+//    // Выбор всего остатка
+//    allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, UserRepricing);
+//    changeAllQuantity(Sku sku, UserRepricing userRepricing) = ACTION {
+//        INPUTX b = BOOLEAN DO {
+//            allQuantity (sku,userRepricing) <- b;
+//            changeQuantityValue(sku, userRepricing, prevCurrentBalance(sku,userRepricing) IF b);
+//        } 
+//    }
+//
+//};
+//};
+//    price 'Цена' (Sku sku, UserRepricing userRepricing) = prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, departmentStore(userRepricing), dateTime(userRepricing));
+//};
 
-@defineDocumentBatchPriceListTypeSystemLedger(userRepricing, accountPriceListType, departmentStore, );
-@extendFormDocumentBatch(userRepricing, userRepricing, p);
+stock(UserRepricingDetail detail) = departmentStore(detail);
+
+@defineDocumentSkuStockPriceListTypeSystemLedger(userRepricing, accountPriceListType, ); 
+
+@extendFormDocumentSkuStock(userRepricing, userRepricing, p, legalEntityStock, );
+//@extendFormDocumentSku(userRepricing, userRepricingDetail, userRepricing, p, sku, departmentStore){
+//
+//    backgroundPickName 'Цвет в подборе' = ABSTRACT CASE COLOR (Sku, UserRepricing);
+//    hideQuantitySkuDocument = ABSTRACT BOOLEAN (UserRepricing);
+//    showQuantitySkuDocument = NOT hideQuantitySkuDocument(UserRepricing o); 
+//    
+//    showMovementSku 'Показать движение по складу' (Sku ks, UserRepricing p) = ACTION showMovementSku(ks, departmentStore(p));
+//    showMovementPriceSku 'Показать изменение цены по складу' (Sku ks, UserRepricing p) = ACTION showMovementPriceSku(ks, departmentStore(p));
+//        
+//    EXTEND FORM userRepricing
+//
+//        TREE skuTree sk = SkuGroup PARENT parent
+//        PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+//        ORDER BY order(sk), skuTreeName
+//        FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+//
+//        OBJECTS ks=Sku
+//        PROPERTIES READONLY      inputName = name(ks) ON SHORTCUT showMovementSku(ks, p) ON SHORTCUT showMovementPriceSku(ks, p) BACKGROUND backgroundPickName(ks, p)
+//        PROPERTIES(ks) READONLY  BACKGROUND backgroundPickName(ks, p) idBarcode, id SHOWIF showIDs(), shortNameUOM
+//        PROPERTIES(ks, p) quantityUserRepricingDetail ON CHANGE changeQuantity(ks, p) 
+//                                    BACKGROUND backgroundQuantity(ks, p) SHOWIF showQuantitySkuDocument(p)
+//                                    QUICKFILTER inputName,
+//                                 prevCurrentBalance READONLY,
+//                                 allQuantity ON CHANGE changeAllQuantity(ks, p),
+//                                 price READONLY
+//        PROPERTIES               addSku() TODRAW ks, edit(ks), copy(ks)
+//
+//        FILTERS                isParent(sk, ks)
+//        FILTERGROUP activeSku FILTER 'Активные' active(ks) DEFAULT
+//
+//        ORDER BY inputName
+//    ;
+//
+//    seekSkuBarcode(UserRepricing userRepricing, VARSTRING[15] barcode) = ACTION { 
+//        IF skuBarcode(barcode, date(userRepricing)) THEN {
+//            SEEK userRepricing.ks = skuBarcode(barcode, date(userRepricing));     
+//        } ELSE {
+//            MESSAGE 'Штрихкод не найден.';
+//        }
+//    }
+//    
+//    seekOverSku(UserRepricing userRepricing) = ACTION {
+//        INPUTX s = VARSTRING[15] DO {
+//            seekSkuBarcode(userRepricing, s);
+//        }        
+//    };
+//    seekSku 'Поиск по штрихкоду:' (UserRepricing userRepricing) = DATA LOCAL VARSTRING[15] (UserRepricing) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
+//                                                                            ON CHANGE seekOverSku(userRepricing);       
+//    EXTEND FORM userRepricing
+//        PROPERTIES(p) TODRAW ks seekSku    
+//    ;
+//    DESIGN userRepricing {
+//        mainTabbed {
+//            NEW itemBox {
+//                caption = 'Подбор';
+//                type = SPLITH;
+//                fill = 1;
+//                MOVE skuTree.tree.box { caption = 'Группы SKU'; }
+//                NEW skuMainPane {
+//                    fill = 3;
+//                    type = CONTAINERV;
+//                    NEW skuSelectPane {
+//                        fill = 1;
+//                        type = CONTAINERV;
+//                        NEW skuPane {
+//                            type = CONTAINERV;
+//                            caption = 'Товары';
+//                            fill = 1;
+//                            NEW skuTopPane {
+//                                caption = 'Поиск товара';
+//                                MOVE PROPERTY(seekSku(p));
+//                            }
+//                            MOVE ks.box;               
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//        PROPERTY(prevCurrentBalance(ks, p)) { background = #FFEEEE; }
+//        PROPERTY(quantityUserRepricingDetail(ks, p)) { background = #D4FFD4; }
+//    }
+//};
+
+@defineDocumentBatchStockPriceListTypeSystemLedger(userRepricing, accountPriceListType, );
+ 
+@extendFormDocumentBatchStock(userRepricing, userRepricing, p, legalEntityStock, );
+
+//@defineDocumentBatchPriceListTypeSystemLedger(userRepricing, accountPriceListType, departmentStore, ){
+//    @defineDocumentBatch(userRepricing, batch, sku, departmentStore, ){
+//    @defineDocumentBatch(userRepricing, userRepricingDetail, batch, sku, departmentStore, ){
+//    userRepricingDetail (batch, userRepricing, stock) =  GROUP MAX (UserRepricingDetail userRepricingDetail)
+//        BY batch(userRepricingDetail), userRepricing(userRepricingDetail), departmentStore(userRepricingDetail);
+//    userRepricingDetail (Batch batch, UserRepricing userRepricing) = userRepricingDetail(batch, userRepricing, departmentStore(userRepricing));
+//
+//    currentBalance 'Остаток' (Batch batch, UserRepricing userRepricing) = currentBalance(batch, departmentStore(userRepricing));
+//    prevCurrentBalance 'Остаток' (Batch batch, UserRepricing userRepricing) = prevCurrentBalance(batch, departmentStore(userRepricing));
+//
+//    quantityUserRepricingDetail 'Кол-во товара в документе' (batch, userRepricing) = GROUP SUM quantity(UserRepricingDetail userRepricingDetail)
+//        BY batch(userRepricingDetail), userRepricing(userRepricingDetail);
+//
+//    backgroundQuantity 'Цвет' (batch, userRepricing) = ABSTRACT CASE COLOR (Batch, UserRepricing);  
+//
+//    overChangeQuantityValueBatch = ACTION ABSTRACT LIST (UserRepricingDetail);
+//
+//    changeQuantityValue(Batch batch, UserRepricing userRepricing, NUMERIC[16,5] n) = ACTION {
+//        IF userRepricingDetail(batch, userRepricing) THEN {
+//            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+//                quantity(UserRepricingDetail userRepricingDetail) <- n WHERE userRepricingDetail == userRepricingDetail(batch, userRepricing);
+//                overChangeQuantityValueBatch(userRepricingDetail(batch, userRepricing));
+//            } ELSE {
+//                FOR userRepricingDetail(batch, userRepricing) == UserRepricingDetail d DO
+//                    DELETE d;
+//            }
+//        } ELSE {
+//            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+//                FOR NEW d = UserRepricingDetail DO {
+//                    userRepricing(d) <- userRepricing;
+//                    sku(d) <- sku(batch);
+//                    batch(d) <- batch;
+//                    quantity (d) <- n;
+//                    overChangeQuantityValueBatch(d);
+//                }
+//            }
+//        }
+//    }
+//
+//    changeQuantity(Batch batch, UserRepricing userRepricing) = ACTION {
+//        INPUTX n = NUMERIC[16,5] DO
+//            changeQuantityValue(batch, userRepricing, n);
+//    }
+//
+//    // Выбор всего остатка
+//    allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, UserRepricing);
+//    changeAllQuantity(Batch batch, UserRepricing userRepricing)= ACTION {
+//        INPUTX b = BOOLEAN DO {
+//            allQuantity (batch,userRepricing) <- b;
+//            changeQuantityValue(batch, userRepricing, prevCurrentBalance(batch,userRepricing) IF b);
+//        }
+//    }
+//
+//};
+//};
+//    price 'Цена' (Batch batch, UserRepricing userRepricing) = prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, departmentStore(userRepricing), dateTime(userRepricing));
+//};
+//@extendFormDocumentBatch(userRepricing, userRepricing, p){
+//    @extendFormDocumentBatch(userRepricing, userRepricingDetail, userRepricing, p, batch){
+//
+//    EXTEND FORM userRepricing
+//
+//        OBJECTS b=Batch GRID
+//        PROPERTIES READONLY SHOWIF showBatch(p) nameSku(b), idBarcodeSku(b), shortNameUOM(b), id(b), name(b)
+//        PROPERTIES(b, p) SHOWIF showBatch(p) quantityUserRepricingDetail ON CHANGE changeQuantity(b, p) 
+//                                BACKGROUND backgroundQuantity(b, p)
+//                                QUICKFILTER nameSku(b),
+//                                prevCurrentBalance READONLY,
+//                                allQuantity ON CHANGE changeAllQuantity(b, p),
+//                                price READONLY
+////                                viewPriceBatch###object READONLY
+//
+//        FILTERS                isParent(sk, b),
+//                               activeSku(b)
+//
+//        ORDER BY nameSku(b)
+//    ;                                        
+//
+//    DESIGN userRepricing {
+//        skuSelectPane {
+//            type = TABBED;
+//
+//            MOVE b.box {
+//                caption = 'Партии';
+//            }
+//        }
+//        PROPERTY(prevCurrentBalance(b, p)) { background = #FFEEEE; }
+//        PROPERTY(quantityUserRepricingDetail(b, p)) { background = #D4FFD4; }
+//    }
+//};
+//};
+
+shipmentDateTime(Repricing repricing) = dateTime(repricing);
+
+@extendFormDocumentSkuStockOrderLedger(repricing, userRepricing, p, departmentStore);
+
+@extendFormDocumentSkuStockOrderLedgerAll(userRepricing, userRepricing, p);
+
+@extendFormDocumentBatchStockOrderLedger(userRepricing, userRepricing, p);
 
 EXTEND FORM userRepricing
 
     FILTERGROUP filter
-        FILTER 'С остатком ' prevCurrentBalance(ks, p) 'F10' DEFAULT
-        FILTER 'В документе ' quantityUserRepricingDetail(ks, p) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(ks, st) 'F10' DEFAULT
+        FILTER 'В документе ' quantity(ks, p, st) 'F9'
 
     FILTERGROUP filterBatch
-        FILTER 'С остатком ' prevCurrentBalance(b, p) 'F8' DEFAULT
-        FILTER 'В документе ' quantityUserRepricingDetail(b, p) 'F7'
+        FILTER 'С остатком ' prevCurrentBalance(b, sto) 'F8' DEFAULT
+        FILTER 'В документе ' quantity(b, p, sto) 'F7'
 ;
 
 

@@ -447,31 +447,86 @@ DESIGN terminalDocuments {
 
 //----------------------------- Макросы для документов --------------------------------//
 
+//META defineAddDetailDialogTerminal (object, skuProp, stockProp)
+//    @defineAddDetailDialogTerminalInner (object, ###object, skuProp, stockProp);
+//END
+//
+//META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
+//    in = ABSTRACT BOOLEAN (TerminalDocumentType, class);
+//    overAddDialogTerminal##class = ACTION ABSTRACT (class, TerminalDocument);
+//    overAddDetailDialogTerminal##class##Detail = ACTION ABSTRACT (class##Detail, TerminalDocumentDetail);
+//    
+//    addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object) = ACTION {
+//        in(TerminalDocumentType t) <- in(t, object);
+//        filterStock() <- stockProp(object);
+//        
+//        DIALOG terminalDocuments OBJECTS td INPUT DO {
+//            used(td) <- TRUE ;
+//            overAddDialogTerminal##class(object, td);
+//
+//            FOR terminalDocument(TerminalDocumentDetail tdd) == td ORDER number(tdd) NEW o = class##Detail DO {
+//                object(o) <- object;
+//                skuProp(o) <- sku(tdd);
+//                quantity(o) <- quantity(tdd);
+//                overAddDetailDialogTerminal##class##Detail(o, tdd);
+//            }
+//        }
+//    } TOOLBAR;
+//END
+
 META defineAddDetailDialogTerminal (object, skuProp, stockProp)
     @defineAddDetailDialogTerminalInner (object, ###object, skuProp, stockProp);
 END
 
 META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
     in = ABSTRACT BOOLEAN (TerminalDocumentType, class);
+    quantity = DATA LOCAL NUMERIC[16,5] (Sku);
     overAddDialogTerminal##class = ACTION ABSTRACT (class, TerminalDocument);
-    overAddDetailDialogTerminal##class##Detail = ACTION ABSTRACT (class##Detail, TerminalDocumentDetail);
-    
-    addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object) = ACTION {
-        in(TerminalDocumentType t) <- in(t, object);
-        filterStock() <- stockProp(object);
-        
-        DIALOG terminalDocuments OBJECTS td INPUT DO {
-            used(td) <- TRUE ;
-            overAddDialogTerminal##class(object, td);
+    overAddDetailDialogTerminal##class##Detail = ACTION ABSTRACT (class##Detail, TerminalDocument);
 
-            FOR terminalDocument(TerminalDocumentDetail tdd) == td ORDER number(tdd) NEW o = class##Detail DO {
-                object(o) <- object;
-                skuProp(o) <- sku(tdd);
-                quantity(o) <- quantity(tdd);
-                overAddDetailDialogTerminal##class##Detail(o, tdd);
+    addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object) = ACTION {
+        IF isPosted(object) THEN {
+            MESSAGE 'Вы пытаетесь импортировать в проведенный документ. Распроведите его.';
+        } ELSE {
+            in(TerminalDocumentType t) <- in(t, object);
+            filterStock() <- stockProp(object);
+            DIALOG terminalDocuments OBJECTS td INPUT DO {
+                IF NOT [=GROUP SUM 1 IF include(TerminalDocument td)]() THEN {
+                    include(td) <- TRUE;
+                }
+                used(TerminalDocument t) <- TRUE WHERE include(td);
+                overAddDialogTerminal##class(object, td);
+                        
+                quantity(Sku sku) <- [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd)](sku);   
+                FOR [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd)](Sku sku) DO {
+                    FOR explicitBatchLedger(stockProp(object)) AND quantity(sku(Batch b)) AND sku(b) == sku AND 
+                        prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object) > 0.0 
+                        ORDER dateTime(b) NEW o = class##Detail DO {
+                        object(o) <- object;
+                        sku(o) <- sku;
+                        quantity(o) <- IF quantity(sku(b)) > (prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object))
+                            THEN prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object)
+                            ELSE quantity(sku(b));
+                        batch(o) <- b;
+                        quantity(sku) <- quantity(sku) (-) quantity(o);
+                        overAddDetailDialogTerminal##class##Detail(o, td);                        
+                        IF sku IS Sku AND NOT quantity(sku)
+                            THEN BREAK;
+                    }    
+                    FOR quantity(sku) NEW o = class##Detail DO {
+                        object(o) <- object;
+                        sku(o) <- sku; 
+                        quantity(o) <- quantity(sku);   
+                        quantity(sku) <- quantity(sku) (-) quantity(o); 
+                        overAddDetailDialogTerminal##class##Detail(o, td);                        
+                        IF sku IS Sku AND NOT quantity(sku)
+                            THEN BREAK;                                                                         
+                    }
+                }
+                include(TerminalDocument t) <- NULL;
             }
-        }
-    } TOOLBAR;
+        }   
+    } TOOLBAR;        
 END
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //

@@ -799,9 +799,9 @@ META extendFormDocumentSkuStockOrderLedgerOver(object, form, concrete, stockProp
     reviewReserve 'Резерв' (Sku sku, Stock stock, ###object object) = ACTION {
         IF shipmentDateTime(object) THEN {
             FOR t == shipmentDateTime(object) DO
-                NEWSESSION SH###concrete##W orderSkuLedger OBJECTS t = t, st = stock, sk = sku ;
+                NEWSESSION SHOW orderSkuLedger OBJECTS t = t, st = stock, sk = sku ;
         } ELSE {
-            NEWSESSION SH###concrete##W orderSkuLedgerNotDate OBJECTS st = stock, sk = sku ;
+            NEWSESSION SHOW orderSkuLedgerNotDate OBJECTS st = stock, sk = sku ;
         }        
     }  
     @defineReserveSku(object###Detail, stockProp); 
@@ -855,17 +855,17 @@ META extendFormDocumentBatchStockOrderLedger(object, form, concrete)
 
     reviewReserve 'Резерв' (Batch batch, Stock stock, ###object object) = ACTION {
         IF shipmentDateTime(object) THEN {
-            SH###concrete##W orderBatchLedger OBJECTS t=shipmentDateTime(object), st=stock, bt = batch ;
+            SHOW orderBatchLedger OBJECTS t=shipmentDateTime(object), st=stock, bt = batch ;
         } ELSE {
-            SH###concrete##W orderBatchLedgerNotDate OBJECTS st=stock, bt = batch ;                                                         
+            SHOW orderBatchLedgerNotDate OBJECTS st=stock, bt = batch ;                                                         
         }
     }    
 
     EXTEND FORM form
-        PROPERTIES SHOWIF sh##concrete##wBatch(concrete) BEFORE prevCurrentBalance(b, sto) 
+        PROPERTIES SHOWIF showBatch(concrete) BEFORE prevCurrentBalance(b, sto) 
                    prevAvailableQuantity(b, sto, concrete) ON CHANGE reviewReserve(b, sto, concrete)
 
-        PROPERTIES SHOWIF sh##concrete##wBatch(concrete) AFTER prevCurrentBalance(b, sto)
+        PROPERTIES SHOWIF showBatch(concrete) AFTER prevCurrentBalance(b, sto)
                    prevReserveBPurchase(b, sto, concrete) ON CHANGE reviewReserve(b, sto, concrete),
                    prevReserveBSale(b, sto, concrete) ON CHANGE reviewReserve(b, sto, concrete),
                    prevCurrentReservePurchase(b, sto) ON CHANGE reviewReserve(b, sto, concrete),

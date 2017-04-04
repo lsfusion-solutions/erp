@@ -4,51 +4,53 @@ REQUIRE SaleInvoice, Terminal;
 
 NAMESPACE Sale;
 
-//@defineAddDetailDialogTerminal(userInvoice, sku, supplierStock);
+@defineAddDetailDialogTerminal(userInvoice, sku, supplierStock);
 
-in = ABSTRACT BOOLEAN (TerminalDocumentType, UserInvoice);
-quantity = DATA LOCAL NUMERIC[16,5] (Sku);
 
-addDetailDialogTerminalUserInvoiceDetail 'Импорт из ТСД' (UserInvoice invoice) = ACTION {
-    IF isPosted(invoice) THEN {
-        MESSAGE 'Вы пытаетесь импортировать в проведенный документ. Распроведите его.';
-    } ELSE {
-        in(TerminalDocumentType t) <- in(t, invoice);
-        filterStock() <- supplierStock(invoice);
-        DIALOG terminalDocuments OBJECTS td INPUT DO {
-            IF NOT [=GROUP SUM 1 IF include(TerminalDocument td)]() THEN {
-                include(td) <- TRUE;
-            }
-            used(TerminalDocument t) <- TRUE WHERE include(td);
-                    
-            quantity(Sku sku) <- [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd)](sku);   
-            FOR [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd)](Sku sku) DO {
-                FOR explicitBatchLedger(supplierStock(invoice)) AND quantity(sku(Batch b)) AND sku(b) == sku AND 
-                    prevAvailableQuantity(b, supplierStock(invoice)) (-) [=GROUP SUM quantity(UserInvoiceDetail detail) BY batch(detail), invoice(detail)](b, invoice) > 0.0 
-                    ORDER dateTime(b) NEW o = UserInvoiceDetail DO {
-                    userInvoice(o) <- invoice;
-                    sku(o) <- sku;
-                    quantity(o) <- IF quantity(sku(b)) > (prevAvailableQuantity(b, supplierStock(invoice)) (-) [=GROUP SUM quantity(UserInvoiceDetail detail) BY batch(detail), invoice(detail)](b, invoice))
-                        THEN prevAvailableQuantity(b, supplierStock(invoice)) (-) [=GROUP SUM quantity(UserInvoiceDetail detail) BY batch(detail), invoice(detail)](b, invoice)
-                        ELSE quantity(sku(b));
-                    batch(o) <- b;
-                    quantity(sku) <- quantity(sku) (-) quantity(o);
-                    IF sku IS Sku AND NOT quantity(sku)
-                        THEN BREAK;
-                }    
-                FOR quantity(sku) NEW o = UserInvoiceDetail DO {
-                    userInvoice(o) <- invoice;
-                    sku(o) <- sku; 
-                    quantity(o) <- quantity(sku);   
-                    quantity(sku) <- quantity(sku) (-) quantity(o);   
-                    IF sku IS Sku AND NOT quantity(sku)
-                        THEN BREAK;                                                                         
-                }
-            }
-            include(TerminalDocument t) <- NULL;
-        }
-    }    
-} TOOLBAR;
+
+//in = ABSTRACT BOOLEAN (TerminalDocumentType, UserInvoice);
+//quantity = DATA LOCAL NUMERIC[16,5] (Sku);
+//
+//addDetailDialogTerminalUserInvoiceDetail 'Импорт из ТСД' (UserInvoice invoice) = ACTION {
+//    IF isPosted(invoice) THEN {
+//        MESSAGE 'Вы пытаетесь импортировать в проведенный документ. Распроведите его.';
+//    } ELSE {
+//        in(TerminalDocumentType t) <- in(t, invoice);
+//        filterStock() <- supplierStock(invoice);
+//        DIALOG terminalDocuments OBJECTS td INPUT DO {
+//            IF NOT [=GROUP SUM 1 IF include(TerminalDocument td)]() THEN {
+//                include(td) <- TRUE;
+//            }
+//            used(TerminalDocument t) <- TRUE WHERE include(td);
+//                    
+//            quantity(Sku sku) <- [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd)](sku);   
+//            FOR [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd)](Sku sku) DO {
+//                FOR explicitBatchLedger(supplierStock(invoice)) AND quantity(sku(Batch b)) AND sku(b) == sku AND 
+//                    prevAvailableQuantity(b, supplierStock(invoice)) (-) [=GROUP SUM quantity(UserInvoiceDetail detail) BY batch(detail), invoice(detail)](b, invoice) > 0.0 
+//                    ORDER dateTime(b) NEW o = UserInvoiceDetail DO {
+//                    userInvoice(o) <- invoice;
+//                    sku(o) <- sku;
+//                    quantity(o) <- IF quantity(sku(b)) > (prevAvailableQuantity(b, supplierStock(invoice)) (-) [=GROUP SUM quantity(UserInvoiceDetail detail) BY batch(detail), invoice(detail)](b, invoice))
+//                        THEN prevAvailableQuantity(b, supplierStock(invoice)) (-) [=GROUP SUM quantity(UserInvoiceDetail detail) BY batch(detail), invoice(detail)](b, invoice)
+//                        ELSE quantity(sku(b));
+//                    batch(o) <- b;
+//                    quantity(sku) <- quantity(sku) (-) quantity(o);
+//                    IF sku IS Sku AND NOT quantity(sku)
+//                        THEN BREAK;
+//                }    
+//                FOR quantity(sku) NEW o = UserInvoiceDetail DO {
+//                    userInvoice(o) <- invoice;
+//                    sku(o) <- sku; 
+//                    quantity(o) <- quantity(sku);   
+//                    quantity(sku) <- quantity(sku) (-) quantity(o);   
+//                    IF sku IS Sku AND NOT quantity(sku)
+//                        THEN BREAK;                                                                         
+//                }
+//            }
+//            include(TerminalDocument t) <- NULL;
+//        }
+//    }    
+//} TOOLBAR;
 
 EXTEND FORM userInvoice 
     PROPERTIES(i) addDetailDialogTerminalUserInvoiceDetail
