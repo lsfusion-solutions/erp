@@ -349,9 +349,11 @@ FORM machineryPriceTransactions 'Загрузки прайса в оборудо
     FILTERS isCompany(s)
 
     OBJECTS t = MachineryPriceTransaction LAST
-    PROPERTIES(t) READONLY OBJVALUE, snapshot, nameGroupMachinery, nameStock, date, 
-                           time, description, dateTimeProcessing, 
-                           succeeded, dateTimeSucceeded, canceled, 
+    PROPERTIES(t) READONLY
+                           OBJVALUE, snapshot, nameGroupMachinery, nameStock, date, 
+                           time, description, dateTimeProcessing 
+    PROPERTIES(t) READONLYIF isReadonly()
+                           succeeded , dateTimeSucceeded, canceled, 
                            quantityMachineryPriceTransactionError BACKGROUND quantityMachineryPriceTransactionError(t),
                            npps TOOLBAR SHOWIF snapshot(t)
     PROPERTIES(t) READONLY createdNameUser, createdHostnameComputer
@@ -370,6 +372,8 @@ FORM machineryPriceTransactions 'Загрузки прайса в оборудо
     FILTERS machineryPriceTransaction(e) == t
 ;
 @extendFormFilterStockAccess(s, machineryPriceTransactions);
+
+@extendFormEditable(machineryPriceTransactions);
 
 DESIGN machineryPriceTransactions {
     NEW header {
@@ -1069,8 +1073,9 @@ EXTEND FORM machineryPriceTransactions
     PROPERTIES(dt) val = OBJVALUE 
 
     OBJECTS tt = MachineryPriceTransaction LAST
-    PROPERTIES(tt) READONLY  OBJVALUE, snapshot, nameGroupMachinery, nameStock, date, 
-                            time, description, dateTimeProcessing, 
+    PROPERTIES(tt) READONLY OBJVALUE, snapshot READONLY, nameGroupMachinery, nameStock, date, 
+                            time, description, dateTimeProcessing
+    PROPERTIES(tt) READONLYIF isReadonly()
                             succeeded, dateTimeSucceeded, canceled, 
                             quantityMachineryPriceTransactionError BACKGROUND quantityMachineryPriceTransactionError(tt),
                             npps PANEL SHOWIF snapshot(tt)
