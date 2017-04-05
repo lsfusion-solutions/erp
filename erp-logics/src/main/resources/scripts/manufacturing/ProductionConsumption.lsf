@@ -848,14 +848,17 @@ CONSTRAINT percQuantity(operation(ProductDetail pd)) AND isPosted(pd)
         
 fromOutputProductsSum(ProductDetail pd) = consumedSumComponentDetail(order(pd), BOM(pd))*( 100.0 - percSum(operation(pd)))/100.0;
 toOutputProductsSum(ProductDetail pd) = consumedSumComponentDetail(order(pd), BOM(pd))*( 100.0 + percSum(operation(pd)))/100.0;       
-CONSTRAINT percSum(operation(ProductDetail pd)) AND isPosted(pd)
+CONSTRAINT (CHANGED(isPosted(ProductDetail pd)) OR CHANGED(consumedSumComponentDetail(order(pd), BOM(pd))) OR CHANGED(operation(pd))) 
+    AND percSum(operation(pd)) AND isPosted(pd)
     AND NOT ((OVERRIDE 0.0, outputProductsSumProductDetail(order(pd), BOM(pd))) >= (OVERRIDE 0.0, fromOutputProductsSum(pd)) AND (OVERRIDE 0.0, outputProductsSumProductDetail(order(pd), BOM(pd))) <= (OVERRIDE 0.0, toOutputProductsSum(pd)))
         MESSAGE 'Внимание!!! Отклонение между компонентом и изделиями не попадает в допустимый процент по сумме.';
         
-CONSTRAINT percSum(operation(Order order)) AND isPosted(order)
+CONSTRAINT (CHANGED(isPosted(Order order)) OR CHANGED(consumedSumComponentDetail(order)) OR CHANGED(outputProductsSumProductDetail(order)) OR CHANGED(operation(order)) ) 
+    AND percSum(operation(order)) AND isPosted(order)
     AND consumedSumComponentDetail(order) AND NOT outputProductsSumProductDetail(order)
         MESSAGE 'Для заказа не задан список произведенных изделий';
               
-CONSTRAINT percQuantity(operation(Order order)) AND isPosted(order)
+CONSTRAINT (CHANGED(isPosted(Order order)) OR CHANGED(consumedQuantityComponentDetail(order)) OR CHANGED(outputQuantityProductDetail(order)) OR CHANGED(operation(order)) )
+    AND percQuantity(operation(order)) AND isPosted(order)
     AND consumedQuantityComponentDetail(order) AND NOT outputQuantityProductDetail(order)
         MESSAGE 'Для заказа не задан список произведенных изделий';                 
