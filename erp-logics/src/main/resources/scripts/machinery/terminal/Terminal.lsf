@@ -515,7 +515,16 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
                             overAddDetailDialogTerminal##class##Detail(o, td);                        
                             IF sku IS Sku AND NOT quantity(sku)
                                 THEN BREAK;
-                        }    
+                        } 
+                        FOR quantity(sku) NEW o = class##Detail DO {
+                            object(o) <- object;
+                            sku(o) <- sku; 
+                            quantity(o) <- quantity(sku);   
+                            quantity(sku) <- quantity(sku) (-) quantity(o); 
+                            overAddDetailDialogTerminal##class##Detail(o, td);                        
+                            IF sku IS Sku AND NOT quantity(sku)
+                                THEN BREAK;                                                                         
+                        }                           
                     } 
                 }    
                 ELSE {   
