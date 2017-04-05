@@ -482,7 +482,6 @@ END
 
 META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
     in = ABSTRACT BOOLEAN (TerminalDocumentType, class);
-    quantity = DATA LOCAL NUMERIC[16,5] (Sku);
     overAddDialogTerminal##class = ACTION ABSTRACT (class, TerminalDocument);
     overAddDetailDialogTerminal##class##Detail = ACTION ABSTRACT (class##Detail, TerminalDocument);
 
@@ -499,7 +498,8 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
                 used(TerminalDocument t) <- TRUE WHERE include(t);
                 overAddDialogTerminal##class(object, td);
                 
-                IF explicitBatchLedger(stockProp(object)) THEN {        
+                IF explicitBatchLedger(stockProp(object)) THEN {      
+                    LOCAL quantity = NUMERIC[16,5] (Sku);
                     quantity(Sku sku) <- [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd)](sku);   
                     FOR [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd)](Sku sku) DO {
                         FOR explicitBatchLedger(stockProp(object)) AND quantity(sku(Batch b)) AND sku(b) == sku AND 
