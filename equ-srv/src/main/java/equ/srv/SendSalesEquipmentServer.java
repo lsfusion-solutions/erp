@@ -2,6 +2,7 @@ package equ.srv;
 
 import com.google.common.base.Throwables;
 import equ.api.cashregister.CashDocument;
+import equ.api.cashregister.CashRegisterInfo;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -34,14 +35,66 @@ import static org.apache.commons.lang3.StringUtils.trim;
 
 public class SendSalesEquipmentServer {
 
+    static ScriptingLogicsModule cashRegisterLM;
     static ScriptingLogicsModule collectionLM;
     static ScriptingLogicsModule equipmentCashRegisterLM;
     static ScriptingLogicsModule zReportLM;
 
     public static void init(BusinessLogics BL) {
+        cashRegisterLM = BL.getModule("EquipmentCashRegister");
         collectionLM = BL.getModule("Collection");
         equipmentCashRegisterLM = BL.getModule("EquipmentCashRegister");
         zReportLM = BL.getModule("ZReport");
+    }
+
+    public static List<CashRegisterInfo> readCashRegisterInfo(DBManager dbManager, String sidEquipmentServer) throws RemoteException, SQLException {
+        List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<>();
+        if (cashRegisterLM != null) {
+            try (DataSession session = dbManager.createSession()) {
+
+                KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
+                KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
+
+                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "groupCashRegister", groupCashRegisterExpr, "cashRegister", cashRegisterExpr);
+                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+
+                String[] cashRegisterNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery", "disableSalesCashRegister"};
+                LCP[] cashRegisterProperties = cashRegisterLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]", "disableSales[CashRegister]");
+                for (int i = 0; i < cashRegisterProperties.length; i++) {
+                    query.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterExpr));
+                }
+
+                String[] groupCashRegisterNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery",
+                        "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister",
+                        "idStockGroupMachinery", "section", "documentsClosedDate"};
+                LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "nameModel[GroupMachinery]",
+                        "overDepartmentNumberCashRegister[GroupMachinery]", "pieceCode[GroupCashRegister]", "weightCode[GroupCashRegister]", "idStock[GroupMachinery]",
+                        "section[GroupCashRegister]", "documentsClosedDate[GroupCashRegister]");
+                for (int i = 0; i < groupCashRegisterProperties.length; i++) {
+                    query.addProperty(groupCashRegisterNames[i], groupCashRegisterProperties[i].getExpr(groupCashRegisterExpr));
+                }
+
+                query.and(cashRegisterLM.findProperty("handlerModel[GroupMachinery]").getExpr(groupCashRegisterExpr).getWhere());
+                //query.and(cashRegisterLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr).getWhere());
+                query.and(cashRegisterLM.findProperty("groupMachinery[Machinery]").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
+                query.and(cashRegisterLM.findProperty("sidEquipmentServer[GroupMachinery]").getExpr(groupCashRegisterExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
+                query.and(cashRegisterLM.findProperty("active[GroupCashRegister]").getExpr(groupCashRegisterExpr).getWhere());
+
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+
+                for (ImMap<Object, Object> row : result.values()) {
+                    CashRegisterInfo c = new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
+                            (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
+                            (String) row.get("overDirectoryMachinery"), (Integer) row.get("overDepartmentNumberGroupCashRegister"),
+                            (String) row.get("idStockGroupMachinery"), row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
+                            (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"), (Date) row.get("documentsClosedDate"));
+                    cashRegisterInfoList.add(c);
+                }
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return cashRegisterInfoList;
     }
 
     public static Set<String> readCashDocumentSet(DBManager dbManager) throws IOException, SQLException {
