@@ -1,6 +1,6 @@
 MODULE EVATReport;
 
-REQUIRE EVAT;
+REQUIRE EVAT, SaleInvoiceEvat;
 
 NAMESPACE EVAT;
 
@@ -8,10 +8,13 @@ countEVAT 'К-во док-ов' = GROUP SUM 1 BY EVATDocument(EVAT e) MINCHARWID
 countCompletedEVAT 'К-во док-ов (COMPLETED)' = GROUP SUM 1 IF statusServerStatus(EVAT e) == EVATServerStatus.completed BY EVATDocument(e) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 VATSumEVAT 'Сумма НДС док-ов' = GROUP SUM totalVATSum(EVAT e) BY EVATDocument(e) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
+filterTypeReport = DATA LOCAL EVATType ();
+nameFilterTypeReport 'Тип' = name(filterTypeReport());
+
 FORM EVATReport 'Сверка ЭСЧФ'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
     PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
-    PROPERTIES() nameFilterType
+    PROPERTIES() nameFilterTypeReport
        
     OBJECTS doc = EVATDocument
     PROPERTIES (doc) READONLY nameType, isPosted, number, series, date, time, name, VATSum, VATSumEVAT, countEVAT, countCompletedEVAT, objectClassName 
@@ -19,7 +22,7 @@ FORM EVATReport 'Сверка ЭСЧФ'
         
     FILTERS overNeedCreateEVAT(doc),
             date(doc) >= dFrom, date(doc) <= dTo,
-            type(doc) == filterType() OR ( doc IS EVATDocument AND NOT filterType())
+            type(doc) == filterTypeReport() OR ( doc IS EVATDocument AND NOT filterTypeReport())
             
     OBJECTS e = EVAT
     PROPERTIES(e) in
@@ -34,24 +37,23 @@ FORM EVATReport 'Сверка ЭСЧФ'
         FILTER 'Не содержит COMPLETED' countEVAT(doc) AND NOT (countEVAT(doc) == countCompletedEVAT(doc)) 'F9'
         FILTER 'Отклонения в суммах' NOT (VATSum(doc) == VATSumEVAT(doc)) 'F8'
         FILTER 'Расхождения' (NOT (countEVAT(doc) == countCompletedEVAT(doc))) OR 
-                             (NOT (VATSum(doc) == VATSumEVAT(doc))) 'F7' DEFAULT 
-     
+                             (NOT (VATSum(doc) == VATSumEVAT(doc))) 'F7' DEFAULT      
 ;
+
 DESIGN EVATReport {
     main {
         NEW top {
-            caption = 'Фильтры';
             type = CONTAINERH;
-            MOVE dates.box;
+            MOVE dates.box {caption = 'Период';}
             NEW type {
                 caption = 'Тип счет-фактуры';
-                MOVE PROPERTY (nameFilterType());
+                MOVE PROPERTY (nameFilterTypeReport());
             }
         }
         NEW header {
             fill = 1;
             type = SPLITV;
-            MOVE doc.box{fill = 2;}
+            MOVE doc.box {fill = 2;}
             MOVE e.box;
         }
         PROPERTY (VATSumEVAT(doc)){background = RGB(255,238,238);}
@@ -64,5 +66,85 @@ DESIGN EVATReport {
 NAVIGATOR {
     financeNavigator {
         ADD EVATReport;
+    }
+}
+
+setFilterType() = ACTION {
+   filterTypeReport() <- EVATType.sale; 
+}  
+
+EXTEND FORM EVATReport
+    EVENTS ON INIT setFilterType()
+;
+
+// -------------------------------- Отчет с разбивкой по ставкам НДС --------------------------------------------------
+
+docVATSumRate10 'Сумма НДС по ставке 10% документа' = GROUP SUM VATSumRange(EVATDocument e, Range r) IF valueCurrentRate(r) == 10.0 BY e;
+VATSumRate10 'Сумма НДС по ставке 10%' = GROUP SUM vatSum(EVATDetail d) IF vatRate(d) == 10.0 BY evat(d);
+sumWithVATRate10 'Сумма c НДС по ставке 10%' = GROUP SUM sumWithVAT(EVATDetail d) IF vatRate(d) == 10.0 BY evat(d);
+docVATSumRate10EVAT 'Сумма НДС по ставке 10% ЭСЧФ' = GROUP SUM VATSumRate10(EVAT e) BY EVATDocument(e);
+docSumWithVATRate10EVAT 'Сумма c НДС по ставке 10% ЭСЧФ' = GROUP SUM sumWithVATRate10(EVAT e) BY EVATDocument(e);
+
+docVATSumRate20 'Сумма НДС по ставке 20% документа' = GROUP SUM VATSumRange(EVATDocument e, Range r) IF valueCurrentRate(r) == 20.0 BY e;
+VATSumRate20 'Сумма НДС по ставке 20%' = GROUP SUM vatSum(EVATDetail d) IF vatRate(d) == 20.0 BY evat(d);
+sumWithVATRate20 'Сумма c НДС по ставке 20%' = GROUP SUM sumWithVAT(EVATDetail d) IF vatRate(d) == 20.0 BY evat(d);
+docVATSumRate20EVAT 'Сумма НДС по ставке 20% ЭСЧФ' =  GROUP SUM VATSumRate20(EVAT e) BY EVATDocument(e);
+docSumWithVATRate20EVAT 'Сумма c НДС по ставке 20% ЭСЧФ' = GROUP SUM sumWithVATRate20(EVAT e) BY EVATDocument(e);
+
+docVATSumRate0 'Сумма НДС по ставке 0% документа' = GROUP SUM VATSumRange(EVATDocument e, Range r) IF valueCurrentRate(r) == 0.0 BY e;
+VATSumRate0 'Сумма НДС по ставке 0%' = GROUP SUM vatSum(EVATDetail d) IF vatRate(d) == 0.0 BY evat(d);
+sumWithVATRate0 'Сумма c НДС по ставке 0%' = GROUP SUM sumWithVAT(EVATDetail d) IF vatRate(d) == 0.0 BY evat(d);
+docVATSumRate0EVAT 'Сумма НДС по ставке 0% ЭСЧФ' = GROUP SUM VATSumRate0(EVAT e) BY EVATDocument(e);
+docSumWithVATRate0EVAT 'Сумма c НДС по ставке 0% ЭСЧФ' = GROUP SUM sumWithVATRate0(EVAT e) BY EVATDocument(e);
+
+docVATSumRateOther 'Сумма НДС по расчетной ставке документа' = GROUP SUM VATSumRange(EVATDocument e, Range r) 
+    IF valueCurrentRate(r) != 10.0 AND valueCurrentRate(r) != 20.0 AND valueCurrentRate(r) != 0.0 BY e;
+VATSumRateOther 'Сумма НДС по расчетной ставке' = GROUP SUM vatSum(EVATDetail d) 
+    IF vatRate(d) != 10.0 AND vatRate(d) != 20.0 AND vatRate(d) != 0.0 BY evat(d);
+sumWithVATRateOther 'Сумма c НДС по расчетной ставке' = GROUP SUM sumWithVAT(EVATDetail d) 
+    IF vatRate(d) != 10.0 AND vatRate(d) != 20.0 AND vatRate(d) != 0.0 BY evat(d);
+docVATSumRateOtherEVAT 'Сумма НДС по расчетной ставке ЭСЧФ' = GROUP SUM VATSumRateOther(EVAT e) BY EVATDocument(e);
+docSumWithVATRateOtherEVAT 'Сумма c НДС по расчетной ставке ЭСЧФ' = GROUP SUM sumWithVATRateOther(EVAT e) BY EVATDocument(e);
+
+sumWithVAT 'Сумма c НДС' = GROUP SUM sumWithVATRange(EVATDocument e, Range r) BY e;
+
+FORM reportDistinctVAT 'Отчет о выставленных ЭСЧФ'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
+    PROPERTIES() nameFilterTypeReport 
+       
+    OBJECTS doc = EVATDocument
+    PROPERTIES (doc) name, nameCustomer, sumWithVAT, docVATSumRate20, docVATSumRate10, docVATSumRate0, docVATSumRateOther,
+                     docVATSumRate20EVAT, docSumWithVATRate20EVAT, docVATSumRate10EVAT, docSumWithVATRate10EVAT,
+                     docVATSumRate0EVAT, docSumWithVATRate0EVAT, docVATSumRateOtherEVAT, docSumWithVATRateOtherEVAT
+    ORDER BY nameCustomer(doc)
+    FILTERS overNeedCreateEVAT(doc), 
+            date(doc) >= dFrom, date(doc) <= dTo,
+            type(doc) == filterTypeReport() OR ( doc IS EVATDocument AND NOT filterTypeReport())
+    
+    OBJECTS doc1 = EVATDocument //чтобы в отчёте были и документы без ЭСЧФ
+    FILTERS doc1 == doc    
+            
+    OBJECTS e = EVAT
+    PROPERTIES(e) name, VATSumRate20, sumWithVATRate20, VATSumRate10, sumWithVATRate10, VATSumRate0, sumWithVATRate0, 
+                    VATSumRateOther, sumWithVATRateOther
+    FILTERS EVATDocument(e) == doc     
+;
+
+reportDistinctVAT 'Отчет о выставленных ЭСЧФ (xlsx)' (DATE df, DATE dt) = ACTION {
+    PRINT reportDistinctVAT OBJECTS dFrom = df, dTo = dt XLSX;
+} IMAGE 'print.png' IN print;
+
+
+EXTEND FORM EVATReport
+    PROPERTIES (dFrom, dTo) reportDistinctVAT
+;
+
+DESIGN EVATReport {
+    top {
+         NEW report{
+             caption = 'Печатная форма';
+             MOVE PROPERTY (reportDistinctVAT(dFrom, dTo));
+         } 
     }
 }

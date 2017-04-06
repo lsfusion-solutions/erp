@@ -89,6 +89,10 @@ VATSum= ABSTRACT CASE OVERRIDE FIRST NUMERIC[18,4](Purchase.Invoice);
 VATSum (Purchase.Invoice i) += WHEN i IS Purchase.Invoice THEN NUMERIC[18,4](customsVATSumInvoiceDetail(i));
 VATSum[EVATDocument] (Purchase.Invoice i) += NUMERIC[18,4](VATSum(i));
 
+VATSumRange[EVATDocument, Range](Purchase.Invoice i, Range r) += [= GROUP SUM VATSum(Purchase.InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
+sumWithVATRange[EVATDocument, Range](Purchase.Invoice i, Range r) += [= GROUP SUM invoiceSum(Purchase.InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
+customer[EVATDocument](Purchase.Invoice i) += customer(i);
+
 //priceRound (InvoiceDetail d) += WHEN currency(d) THEN defaultRound(currency(d));
 
 createEVATPurchaseInvoice 'Накладные (закупка)' (DATE dFrom, DATE dTo) = ACTION {

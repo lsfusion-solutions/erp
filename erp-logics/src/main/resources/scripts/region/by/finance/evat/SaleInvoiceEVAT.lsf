@@ -39,6 +39,13 @@ needCreateEVAT[EVATDocument](SaleReturn.Invoice i) += WHEN eVAT(operation(i)) AN
 VATSum[EVATDocument] (Sale.Invoice i) += NUMERIC[18,4](VATSumInvoiceDetail(i));
 VATSum[EVATDocument] (SaleReturn.Invoice i) += NUMERIC[18,4](-VATSumInvoiceDetail(i));
 
+VATSumRange[EVATDocument, Range](Sale.Invoice i, Range r) += [= GROUP SUM VATSum(Sale.InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
+VATSumRange[EVATDocument, Range](SaleReturn.Invoice i, Range r) += [= GROUP SUM -VATSum(SaleReturn.InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
+sumWithVATRange[EVATDocument, Range](Sale.Invoice i, Range r) += [= GROUP SUM invoiceSum(Sale.InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
+sumWithVATRange[EVATDocument, Range](SaleReturn.Invoice i, Range r) += [= GROUP SUM -invoiceSum(SaleReturn.InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
+customer[EVATDocument](Sale.Invoice i) += customer(i);
+customer[EVATDocument](SaleReturn.Invoice i) += customer(i);
+
 createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dTo) = ACTION {
     FOR eVAT(operation(Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND 
         NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND

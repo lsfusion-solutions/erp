@@ -20,6 +20,10 @@ type[EVATDocument](PurchaseReturn.Invoice i) += EVATType.purchaseReturn IF i IS 
 needCreateEVAT[EVATDocument](Invoice i) += WHEN includeEVAT(i)  THEN TRUE;
 VATSum[EVATDocument] (PurchaseReturn.Invoice i) += NUMERIC[18,4](VATSumInvoiceDetail(i));
 
+VATSumRange[EVATDocument, Range](PurchaseReturn.Invoice i, Range r) += [= GROUP SUM VATSum(PurchaseReturn.InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
+sumWithVATRange[EVATDocument, Range](PurchaseReturn.Invoice i, Range r) += [= GROUP SUM invoiceSum(PurchaseReturn.InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
+customer[EVATDocument](PurchaseReturn.Invoice i) += customer(i);
+
 overCreateEVATPurchaseReturnInvoice = ACTION ABSTRACT LIST (EVAT, PurchaseReturn.Invoice);
 
 createEVATPurchaseReturnInvoice 'Накладные (закупка-возврат)' (DATE dFrom, DATE dTo) = ACTION {

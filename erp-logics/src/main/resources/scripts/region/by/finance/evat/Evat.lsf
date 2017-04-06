@@ -17,6 +17,11 @@ series 'Серия' = ABSTRACT STRING[2] (EVATDocument) IN numbered FIXEDCHARWID
 seriesNumber 'Серия/Номер' (EVATDocument d) = CONCAT '', series(d), number(d) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;
 
 VATSum 'Сумма НДС' = ABSTRACT NUMERIC[18,4] (EVATDocument) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+VATSumRange 'Сумма НДС по шкале' = ABSTRACT NUMERIC[18,4] (EVATDocument, Range) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+sumWithVATRange 'Сумма c НДС по шкале' = ABSTRACT NUMERIC[18,4] (EVATDocument, Range) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+customer 'Покупатель' = ABSTRACT LegalEntity (EVATDocument);
+nameCustomer 'Покупатель' (EVATDocument d)= name(customer(d));
 
 dateTime 'Дата/время' = ABSTRACT DATETIME (EVATDocument);
 date 'Дата' (EVATDocument document) = toDate(dateTime(document));
@@ -272,6 +277,8 @@ countryCodeConsignee 'Код страны грузополучателя' = DATA
 unpConsignee 'УНП грузополучателя'  = DATA VARSTRING[50] (EVAT) IN consignee;
 shippingAddressConsignee 'Адрес доставки' = DATA VARSTRING[150] (EVAT) IN consignee;
 
+name 'Название документа' (EVAT e) = 'ЭСЧФ' + ' № ' + seriesNumber(e) + ' от ' + date(e) + 
+        (IF exported(e) THEN ' Выставлен, ' ELSE '') + (IF NOT exported(e) THEN ' Не выставлен, ' ELSE '') + captionStatus(e);
 //Товар
 CLASS EVATDetail 'Строка электронного счёта-фактуры';
 TABLE evatDetail(EVATDetail);
