@@ -191,8 +191,8 @@ public class TerminalDocumentEquipmentServer {
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).barcodeDocumentDetail);
 
-                ImportField nameTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("name[TerminalDocumentDetail]"));
-                props.add(new ImportProperty(nameTerminalDocumentDetailField, terminalLM.findProperty("name[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                ImportField nameTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("dataName[TerminalDocumentDetail]"));
+                props.add(new ImportProperty(nameTerminalDocumentDetailField, terminalLM.findProperty("dataName[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                 fields.add(nameTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).nameDocumentDetail);

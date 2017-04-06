@@ -37,8 +37,6 @@ FORM terminalModels 'Модели ТСД'
 CLASS Terminal 'ТСД' : Machinery;
 TABLE terminal (Terminal);
 
-is (Terminal machinery) = machinery IS Terminal;
-
 groupTerminal = DATA GroupTerminal (Terminal) NOT NULL DELETE;
 groupMachinery(Terminal machinery) += groupTerminal(machinery);
 
@@ -275,21 +273,19 @@ price 'Цена' = DATA NUMERIC[16,4] (TerminalDocumentDetail) IN base;
 sum 'Сумма' = DATA NUMERIC[18,4] (TerminalDocumentDetail) IN base;
 sum(TerminalDocumentDetail d) <- round2(quantity(d) * price(d)) WHEN CHANGED(quantity(d)) OR CHANGED(price(d)); 
 
-name 'Наименование' = DATA VARSTRING[200] (TerminalDocumentDetail) IN base;
-isNew 'Новый товар' = DATA BOOLEAN (TerminalDocumentDetail) IN base;
 comment 'Комментарий' = DATA VARSTRING[100] (TerminalDocumentDetail) IN base;
 dateTimeScan 'Время сканирования' = DATA DATETIME (TerminalDocumentDetail) IN base;
 
 stock 'Склад' (TerminalDocumentDetail detail) = stock(terminalDocument(detail));  
 
 sku = DATA Sku (TerminalDocumentDetail) INDEXED;
-WHEN SESSION CHANGED(barcode(TerminalDocumentDetail d)) OR CHANGED(date(d)) DO {
-    sku(d) <- OVERRIDE sku(barcode(d)), sku(barcode(barcode(d), (OVERRIDE currentDate(), date(d)))) WHERE barcode(d);
-}
+nameSku 'Наименование' (TerminalDocumentDetail d) = name(sku(d));
+dataName 'Наименование' = DATA VARSTRING[200] (TerminalDocumentDetail);
+name 'Наименование' (TerminalDocumentDetail d) = OVERRIDE nameSku(d), dataName(d) IN base;
 
-WHEN SESSION CHANGED(sku(TerminalDocumentDetail d)) AND NOT CHANGED(name(d)) DO {
-    name(d) <- VARSTRING[200](name(sku(d)));
-} 
+WHEN SESSION SETCHANGED(barcode(TerminalDocumentDetail d)) DO {
+    sku(d) <- OVERRIDE sku(barcode(d)), skuBarcode(barcode(d));
+}
 
 migratedSku = DATA BOOLEAN ();
 onStarted () += ACTION {
