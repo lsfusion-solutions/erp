@@ -156,6 +156,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         DeleteBarcodeEquipmentServer.init(getBusinessLogics());
         MachineryExchangeEquipmentServer.init(getBusinessLogics());
         SendSalesEquipmentServer.init(getBusinessLogics());
+        StopListEquipmentServer.init(getBusinessLogics());
         TerminalDocumentEquipmentServer.init(getBusinessLogics());
     }
 
@@ -1017,16 +1018,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public void succeedStopList(String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException {
-        try (DataSession session = getDbManager().createSession()) {
-            DataObject stopListObject = (DataObject) stopListLM.findProperty("stopList[STRING[18]]").readClasses(session, new DataObject(numberStopList));
-            for(String idStock : idStockSet) {
-                DataObject stockObject = (DataObject) stopListLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
-                stopListLM.findProperty("succeeded[Stock,StopList]").change(true, session, stockObject, stopListObject);
-            }
-            session.apply(getBusinessLogics(), getStack());
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        }
+        StopListEquipmentServer.succeedStopList(getBusinessLogics(), getStack(), getDbManager(), numberStopList, idStockSet);
     }
 
 
