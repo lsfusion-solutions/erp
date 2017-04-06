@@ -150,7 +150,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                         try {
                             processTransactionLogger.info(String.format("ukm4 mysql: export to table signal %s records", versionTransactionMap.size()));
-                            sendTransactionBatchMap.putAll(waitSignals(conn, versionTransactionMap, timeout));
+                            sendTransactionBatchMap.putAll(waitSignals(conn, versionTransactionMap, transaction.id, timeout));
                         } finally {
                             if (conn != null)
                                 conn.close();
@@ -553,7 +553,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private Map<Integer, SendTransactionBatch> waitSignals(Connection conn, Map<Integer, Integer> versionMap, int timeout) {
+    private Map<Integer, SendTransactionBatch> waitSignals(Connection conn, Map<Integer, Integer> versionMap, long transactionId, int timeout) {
         Map<Integer, SendTransactionBatch> batchResult = new HashMap<>();
         try {
             int count = 0;
@@ -561,7 +561,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 versionMap = waitForSignalsExecution(conn, versionMap);
                 if (!versionMap.isEmpty()) {
                     if (count > (timeout / 5)) {
-                        String message = String.format("data was sent to db but signal record(s) %s was not deleted", versionMap.keySet());
+                        String message = String.format("UKM transaction %s: data was sent to db but signal record(s) %s was not deleted", transactionId, versionMap.keySet());
                         processTransactionLogger.error(message);
                         for (Integer transaction : versionMap.values()) {
                             batchResult.put(transaction, new SendTransactionBatch(new RuntimeException(message)));
@@ -569,7 +569,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         break;
                     } else {
                         count++;
-                        processTransactionLogger.info(String.format("Waiting for deletion of signal record(s) %s in base", versionMap.keySet()));
+                        processTransactionLogger.info(String.format("UKM transaction %s: waiting for deletion of signal record(s) %s in base", transactionId, versionMap.keySet()));
                         Thread.sleep(5000);
                     }
                 }
