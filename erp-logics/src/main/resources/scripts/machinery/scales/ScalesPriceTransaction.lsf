@@ -21,6 +21,15 @@ createMachineryPriceTransaction (GroupScales groupMachinery) += ACTION {
 
 skip(GroupScales groupMachinery, Barcode barcode) += WHEN groupMachinery IS GroupScales AND charLength(id(barcode)) != 5 THEN TRUE;
 
-skipSnapshot(ScalesPriceTransaction t) += groupScales(t) AND skipSnapshotMachinery(mainRole(currentUser()));
+skipSnapshot 'Отключить загрузку целиком' = DATA BOOLEAN (GroupScales);
+EXTEND FORM groupScales
+    PROPERTIES(grs) skipSnapshot
+;
+
+EXTEND FORM groupsScales
+    PROPERTIES(grs) READONLYIF isReadonly() skipSnapshot
+;
+
+skipSnapshot(ScalesPriceTransaction t) += (groupScales(t) AND skipSnapshotMachinery(mainRole(currentUser()))) OR skipSnapshot(groupScales(t));
 
 skipLastTransaction(GroupScales g) += g IS GroupScales;
