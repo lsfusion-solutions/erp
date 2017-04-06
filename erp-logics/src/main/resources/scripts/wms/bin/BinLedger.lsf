@@ -397,13 +397,16 @@ META deriveDocumentBinsProperty(object, readProp, writeProp, stockProp)
         WHEN CHANGED(operation(o)) OR CHANGED(stockProp(o));    
 END
 
-META deriveFormBinsProperty (form, object) 
+META deriveFormBinsProperty (form, object)
+    overInBin = ABSTRACT Bin (###object###detail);
+    overOutBin = ABSTRACT Bin (###object###detail);
+    
     WHEN SESSION FORMS form (CHANGED(inBin(object(###object###detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(inBin(detail)) DO {
-             inBin(detail) <- inBin(object(detail));
+             inBin(detail) <- OVERRIDE inBin(object(detail)), overInBin(detail);
     }
 
     WHEN SESSION FORMS form (CHANGED(outBin(object(###object###detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) DO {
-        outBin(detail) <- outBin(object(detail));
+        outBin(detail) <- OVERRIDE outBin(object(detail)), overOutBin(detail);
     }    
 END
 
@@ -419,7 +422,7 @@ META deriveInvoiceBins (inRead, inWrite, outRead, outWrite, stockProp)
     @deriveDocumentBinsProperty(UserInvoice, inRead, inWrite, stockProp);
     @deriveDocumentBinsProperty(UserInvoice, outRead, outWrite, stockProp);
     
-    @deriveFormBinsProperty (userInvoice);            
+    @deriveFormBinsProperty (userInvoice);
 END
 
 META deriveDocumentBins (object, form, inRead, inWrite, outRead, outWrite, stockProp)
