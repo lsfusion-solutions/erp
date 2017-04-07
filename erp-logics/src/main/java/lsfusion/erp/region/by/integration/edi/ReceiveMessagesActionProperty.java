@@ -366,7 +366,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 barcode = null;
                 GTIN = dataGTIN;
             }
-            String id = documentNumber + "/" + i++;
+            String id = supplierGLN + "/" + documentNumber;
+            String idDetail = id + "/" + i++;
             String action = lineElement.getChildText("action");
             String actionObject = getAction(action);
             BigDecimal quantityOrdered = parseBigDecimal(lineElement.getChildText("quantityOrdered"));
@@ -376,12 +377,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             BigDecimal sumNDS = parseBigDecimal(lineElement.getChildText("priceNDS"));
 
             if (barcode != null)
-                firstData.add(Arrays.<Object>asList(documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                        deliveryDateTimeFirst, deliveryDateTimeSecond, id, barcode, dataGTIN, actionObject, quantityOrdered, quantityAccepted, price,
+                firstData.add(Arrays.<Object>asList(id, documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+                        deliveryDateTimeFirst, deliveryDateTimeSecond, idDetail, barcode, dataGTIN, actionObject, quantityOrdered, quantityAccepted, price,
                         sumNoNDS, sumNDS));
             else
-                secondData.add(Arrays.<Object>asList(documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                        deliveryDateTimeFirst, deliveryDateTimeSecond, id, GTIN, dataGTIN, actionObject, quantityOrdered, quantityAccepted, price,
+                secondData.add(Arrays.<Object>asList(id, documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+                        deliveryDateTimeFirst, deliveryDateTimeSecond, idDetail, GTIN, dataGTIN, actionObject, quantityOrdered, quantityAccepted, price,
                         sumNoNDS, sumNDS));
         }
         return new DocumentData(documentNumber, firstData, secondData);
@@ -410,10 +411,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
 
-            ImportField numberEOrderResponseField = new ImportField(findProperty("number[EOrderResponse]"));
+            ImportField idEOrderResponseField = new ImportField(findProperty("id[EOrderResponse]"));
             ImportKey<?> eOrderResponseKey = new ImportKey((CustomClass) findClass("EOrderResponse"),
-                    findProperty("eOrderResponse[VARSTRING[24]]").getMapping(numberEOrderResponseField));
+                    findProperty("eOrderResponse[VARSTRING[100]]").getMapping(idEOrderResponseField));
             keys.add(eOrderResponseKey);
+            props.add(new ImportProperty(idEOrderResponseField, findProperty("id[EOrderResponse]").getMapping(eOrderResponseKey)));
+            fields.add(idEOrderResponseField);
+
+            ImportField numberEOrderResponseField = new ImportField(findProperty("number[EOrderResponse]"));
             props.add(new ImportProperty(numberEOrderResponseField, findProperty("number[EOrderResponse]").getMapping(eOrderResponseKey)));
             fields.add(numberEOrderResponseField);
 
@@ -585,7 +590,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 GTIN = dataGTIN;
             }
 
-            String id = documentNumber + "/" + i++;
+            String id = supplierGLN + "/" + documentNumber;
+            String idDetail = id + "/" + i++;
             BigDecimal quantityOrdered = parseBigDecimal(lineElement.getChildText("quantityOrdered"));
             BigDecimal quantityDespatch = parseBigDecimal(lineElement.getChildText("quantityDespatch"));
             BigDecimal valueVAT = parseBigDecimal(lineElement.getChildText("vat"));
@@ -594,12 +600,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             BigDecimal lineItemAmount = parseBigDecimal(lineElement.getChildText("lineItemAmount"));
             BigDecimal lineItemAmountCharges = parseBigDecimal(lineElement.getChildText("lineItemAmountCharges"));
             if (barcode != null)
-                firstData.add(Arrays.<Object>asList(documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                        deliveryDateTimeFirst, id, barcode, dataGTIN, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
+                firstData.add(Arrays.<Object>asList(id, documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+                        deliveryDateTimeFirst, idDetail, barcode, dataGTIN, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
                         lineItemAmount, lineItemAmountCharges));
             else
-                secondData.add(Arrays.<Object>asList(documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                        deliveryDateTimeFirst, id, GTIN, dataGTIN, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
+                secondData.add(Arrays.<Object>asList(id, documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+                        deliveryDateTimeFirst, idDetail, GTIN, dataGTIN, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
                         lineItemAmount, lineItemAmountCharges));
         }
         return new DocumentData(documentNumber, firstData, secondData);
@@ -618,10 +624,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
 
-            ImportField numberEOrderDespatchAdviceField = new ImportField(findProperty("number[EOrderDespatchAdvice]"));
+            ImportField idEOrderDespatchAdviceField = new ImportField(findProperty("id[EOrderDespatchAdvice]"));
             ImportKey<?> eOrderDespatchAdviceKey = new ImportKey((CustomClass) findClass("EOrderDespatchAdvice"),
-                    findProperty("eOrderDespatchAdvice[VARSTRING[24]]").getMapping(numberEOrderDespatchAdviceField));
+                    findProperty("eOrderDespatchAdvice[VARSTRING[100]]").getMapping(idEOrderDespatchAdviceField));
             keys.add(eOrderDespatchAdviceKey);
+            props.add(new ImportProperty(idEOrderDespatchAdviceField, findProperty("id[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey)));
+            fields.add(idEOrderDespatchAdviceField);
+
+            ImportField numberEOrderDespatchAdviceField = new ImportField(findProperty("number[EOrderDespatchAdvice]"));
             props.add(new ImportProperty(numberEOrderDespatchAdviceField, findProperty("number[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey)));
             fields.add(numberEOrderDespatchAdviceField);
 
