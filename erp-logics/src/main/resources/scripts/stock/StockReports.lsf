@@ -487,10 +487,10 @@ FORM printListBackSheet 'Оборотная ведомость'
     FILTERS s IS Sku AND st IS Stock AND df IS DATE AND dt IS DATE // фильтр, чтобы сохранилась старая иерархия
 ;
 
-printListBackSheet 'Списком' (Stock stock, DATE dateFrom, DATE dateTo) =
-    ACTION PRINT printListBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo   IMAGE 'print.png' IN print;
-xlsListBackSheet 'Списком (XLS)' (Stock stock, DATE dateFrom, DATE dateTo) =
-    ACTION PRINT printListBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo XLS IMAGE 'print.png' IN print;
+printListBackSheet 'Списком' (Stock stock, DATE dateFrom, DATE dateTo, GroupType gt) =
+    ACTION PRINT printListBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo, gt = gt  IMAGE 'print.png' IN print;
+xlsListBackSheet 'Списком (XLS)' (Stock stock, DATE dateFrom, DATE dateTo, GroupType gt) =
+    ACTION PRINT printListBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo, gt = gt XLS IMAGE 'print.png' IN print;
 
 FORM printBackSheet 'Оборотная ведомость'
     OBJECTS df=DATE PANEL
@@ -534,11 +534,11 @@ FORM printBackSheet 'Оборотная ведомость'
     FILTERS s IS Sku AND st IS Stock AND df IS DATE AND dt IS DATE // фильтр, чтобы сохранилась старая иерархия
 ;
 
-printBackSheet 'По группам' (Stock stock, DATE dateFrom, DATE dateTo) =
-    ACTION PRINT printBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo   IMAGE 'print.png' IN print;
+printBackSheet 'По группам' (Stock stock, DATE dateFrom, DATE dateTo, GroupType gt) =
+    ACTION PRINT printBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo, gt = gt  IMAGE 'print.png' IN print;
 
-xlsBackSheet 'По группам (XLS)' (Stock stock, DATE dateFrom, DATE dateTo) =
-    ACTION PRINT printBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo XLS IMAGE 'print.png' IN print;
+xlsBackSheet 'По группам (XLS)' (Stock stock, DATE dateFrom, DATE dateTo, GroupType gt) =
+    ACTION PRINT printBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo,  gt=gt XLS IMAGE 'print.png' IN print;
 
 fillDocumentReport 'Подбор документа'() = ACTION {
     DIALOG documents OBJECTS d INPUT DO {
@@ -586,7 +586,7 @@ FORM reportBackSheet 'Оборотная ведомость'
     
     PROPERTIES(s, st) READONLY balanceB, sumB
     PROPERTIES(s, st) READONLY quantityIn, sumIn, quantityOut, sumOut
-    PROPERTIES(st, df, dt) printListBackSheet, xlsListBackSheet, printBackSheet, xlsBackSheet
+    PROPERTIES(st, df, dt, gt) printListBackSheet, xlsListBackSheet, printBackSheet, xlsBackSheet
     PROPERTIES(s, st) READONLY balanceA, sumA
 
     FILTERGROUP include FILTER 'Отмеченные' include(gt, s) DEFAULT 
@@ -640,10 +640,10 @@ DESIGN reportBackSheet {
                 NEW printSkuContainer {
                     type = CONTAINERH;
                     caption = 'Печать';
-                    MOVE PROPERTY(printListBackSheet(st,df,dt));
-                    MOVE PROPERTY(xlsListBackSheet(st,df,dt));
-                    MOVE PROPERTY(printBackSheet(st,df,dt));
-                    MOVE PROPERTY(xlsBackSheet(st,df,dt));
+                    MOVE PROPERTY(printListBackSheet(st,df,dt,gt));
+                    MOVE PROPERTY(xlsListBackSheet(st,df,dt,gt));
+                    MOVE PROPERTY(printBackSheet(st,df,dt,gt));
+                    MOVE PROPERTY(xlsBackSheet(st,df,dt,gt));
                 }
                 MOVE s.box;
                 PROPERTY(balanceB(s, st)){caption = 'Остаток на начало периода';}
