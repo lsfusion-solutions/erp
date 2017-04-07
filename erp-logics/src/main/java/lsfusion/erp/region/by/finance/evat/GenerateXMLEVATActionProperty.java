@@ -451,6 +451,8 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             BigDecimal sum = (BigDecimal) entry.get("sum");
             BigDecimal exciseSum = (BigDecimal) entry.get("exciseSum");
             BigDecimal vatRate = (BigDecimal) entry.get("vatRate");
+            if(vatRate == null)
+                vatRate = BigDecimal.ZERO;
             BigDecimal vatSum = (BigDecimal) entry.get("vatSum");
             BigDecimal sumWithVat = (BigDecimal) entry.get("sumWithVAT");
 
