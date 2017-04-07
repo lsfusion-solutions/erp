@@ -56,13 +56,14 @@ priceBinOrder 'Цена заказа' (BinTransferDetail d) = price(binOrderDeta
 fromBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), outBin(binOrderDetail) PERSISTENT;
 toBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), inBin(binOrderDetail) PERSISTENT;
 
+extraFromBinTransfer 'Заказано (доп.)' = ABSTRACT NUMERIC[16,5](Sku, UserBinOrder);
 prevFromBinTransfer 'Заказано' (Sku sku, Bin bin) = PREV(fromBinTransfer(sku, bin));
 prevToBinTransfer 'Заказано' (Sku sku, Bin bin) = PREV(toBinTransfer(sku, bin));
 
 availableQuantity 'Доступно' (Sku sku, Bin bin) = prevCurrentBalance(sku, bin) (+) prevToBinTransfer(sku, bin) (-) prevFromBinTransfer(sku, bin);
 
 inAvailableQuantity 'Доступно (ячейка в)' (Sku sku, UserBinOrder order) = availableQuantity(sku, inBin(order));
-outAvailableQuantity 'Доступно (ячейка из)' (Sku sku, UserBinOrder order) = availableQuantity(sku, outBin(order));
+outAvailableQuantity 'Доступно (ячейка из)' (Sku sku, UserBinOrder order) = availableQuantity(sku, outBin(order)) (-) extraFromBinTransfer(sku, order);
 
 allAvailableBinQuantityUserBinOrder 'Все доступное кол-во (ячейка из)' = DATA LOCAL BOOLEAN (Sku, Stock);
 changeAllAvailableBinQuantity(Sku sku, UserBinOrder userBinOrder, Stock stock) = ACTION {
