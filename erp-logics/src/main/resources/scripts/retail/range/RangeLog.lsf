@@ -1,0 +1,162 @@
+MODULE RangeLog;
+
+REQUIRE Range;
+NAMESPACE Range;
+
+//----------------- Логирование изменений в документах ------------------- //
+
+CLASS RangeLog 'Запись лога матрицы';
+TABLE rangeLog(RangeLog);
+
+disableRangeLog 'Отключить запись лога матрицы' = DATA BOOLEAN ();
+enableRangeLog = TRUE AND NOT disableRangeLog();
+
+EXTEND FORM options
+    PROPERTIES() disableRangeLog
+;
+
+DESIGN options { 
+    log { 
+        MOVE PROPERTY(disableRangeLog()) FIRST;   
+    } 
+}
+
+sku = DATA Sku (RangeLog) INDEXED;
+nameSku 'SKU' (RangeLog l) = name(sku(l)) MINCHARWIDTH 30 PREFCHARWIDTH 60;
+idSku 'Код' (RangeLog l) = id(sku(l));
+idBarcodeSku'Штрихкод' (RangeLog l) = idBarcode(sku(l));
+
+name 'Наименование матрицы' = DATA VARISTRING[255] (RangeLog)  MINCHARWIDTH 30 PREFCHARWIDTH 60 IN recognize;
+
+range= DATA Range (RangeLog);
+
+
+level = DATA RangeLevel (RangeLog);
+nameLevel 'Уровень' (RangeLog l) = name(level(l));
+
+session = DATA Session (RangeLog); 
+hostnameComputer 'Имя компьютера' = DATA VARISTRING[100] (RangeLog); 
+userLogin 'Логин пользователя' = DATA STRING[30] (RangeLog); 
+nameContact 'Имя пользователя' =  DATA VARSTRING[100] (RangeLog) IN recognize;
+dateTimeSession 'Время' = DATA DATETIME (RangeLog) IN recognize;
+dateSession 'Дата' (RangeLog d) = DATE(dateTimeSession(d));
+timeSession 'Время' (RangeLog d) = TIME(dateTimeSession(d));
+
+dateTimeRev 'Версия' = DATA DATETIME (RangeLog) IN recognize;
+
+@defineLog (RangeLog, 'изменений матрицы', log, dateSession);
+
+
+CLASS TypeChange 'Тип изменения' {
+    add 'Добавление',
+    change 'Изменение',
+    delete 'Удаление'
+}
+
+typeChange= DATA TypeChange (RangeLog);
+nameTypeChange 'Тип изменения' (RangeLog l) = staticCaption(typeChange(l)) IN recognize;
+
+note 'Примечание' = DATA VARSTRING[500] (RangeLog) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+isLast (RangeRev v) = rangeRev(range(v),currentDate()) == v;
+
+rangeRev 'Версия' = GROUP LAST RangeRev rev
+                                       BY range(rev)
+                                       ORDER dateTime(rev), rev
+                                       WHERE date(rev)COMPLEX;
+
+
+
+WHEN (SETCHANGED (level(rangeRev(Range r), Sku s))) AND NOT PREV(level(rangeRev(r),s))  AND NOT disableRangeLog()  DO { 
+    FOR NEW d = RangeLog DO {
+        range(d) <- r;
+        sku(d) <- s;
+        name(d) <- name(r);
+        level(d) <- level(rangeRev(r),s);
+        dateTimeRev(d) <- dateTime(rangeRev(r));
+        typeChange(d) <- TypeChange.add;
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());   
+    }
+}
+WHEN (SETCHANGED (level(rangeRev(Range r), Sku s))) AND PREV(level(rangeRev(r),s))  AND NOT disableRangeLog()  DO { 
+    FOR NEW d = RangeLog DO {
+        range(d) <- r;
+        sku(d) <- s;
+        name(d) <- name(r);
+        level(d) <- level(rangeRev(r),s);
+        dateTimeRev(d) <- dateTime(rangeRev(r));        
+        note(d) <- VARSTRING[500](CONCAT ' ','До: '+PREV(name(level(rangeRev(r),s))), '. Версия: '+PREV(dateTime(rangeRev(r))));  
+        typeChange(d) <- TypeChange.change;
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());   
+    }
+}
+WHEN (DROPPED (level(rangeRev(Range r), Sku s) AS RangeLevel) )  AND NOT disableRangeLog()  DO { 
+    FOR NEW d = RangeLog DO {
+        range(d) <- r;
+        sku(d) <- s;
+        name(d) <- name(r);
+        note(d) <- VARSTRING[500](CONCAT ' ','До: '+PREV(name(level(rangeRev(r),s))), '. Версия: '+PREV(dateTime(rangeRev(r))));  
+        typeChange(d) <- TypeChange.delete;
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());   
+    }
+}
+                                                                                                             
+META defineRangeLogForm(form, concrete)
+    @defineRangeLogForm(form, concrete, skuHistory);
+END
+
+META defineRangeLogForm(form, concrete, container)
+    EXTEND FORM form
+        OBJECTS dLog=RangeLog GRID
+        PROPERTIES(dLog) SHOWIF enableRangeLog() READONLY idSku, idBarcodeSku, nameSku, dateTimeRev, nameLevel, hostnameComputer, userLogin, dateSession, timeSession, nameTypeChange, note
+        FILTERS range(dLog) == concrete
+
+    ;
+    
+    DESIGN form {
+        container { 
+            MOVE dLog.box;
+        }    
+    }   
+END
+
+DESIGN ranges {
+    range{
+        NEW log {
+            fill = 1;
+            type = TABBED;
+            MOVE s.box;
+        }        
+    }
+}
+
+@defineRangeLogForm(ranges, r, log);
+
+FORM rangeLogs 'Журнал изменения матрицы'
+    OBJECTS d=RangeLog
+    PROPERTIES(d) READONLY name, idSku, idBarcodeSku, nameSku, dateTimeRev, nameLevel, hostnameComputer, userLogin, dateSession, timeSession, nameTypeChange, note
+;
+
+DESIGN rangeLogs {
+    main {
+        MOVE d.box;
+        MOVE functions.box;        
+    }
+}
+
+NAVIGATOR {
+    systemEvents {
+        ADD rangeLogs;
+    }
+}

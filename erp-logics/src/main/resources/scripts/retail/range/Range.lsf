@@ -297,6 +297,9 @@ changeNameFilterSupplier(RangeRev v, PriceListType p, DepartmentStore d) = ACTIO
 
 backgroundRange = ABSTRACT CASE COLOR (Sku);
 
+skipSwowDepartment = ABSTRACT BOOLEAN (RangeRev);
+swowDepartment (RangeRev v) = v IS RangeRev AND NOT skipSwowDepartment(v);
+
 FORM rangeRev 'Версия ассортиментной матрицы'
     OBJECTS v = RangeRev PANEL
     PROPERTIES(v) dateTime
@@ -305,7 +308,7 @@ FORM rangeRev 'Версия ассортиментной матрицы'
     PROPERTIES(pt) SELECTOR name[PriceListType]
 
     OBJECTS d = DepartmentStore PANEL
-    PROPERTIES(d) SELECTOR name
+    PROPERTIES(d) SELECTOR name SHOWIF swowDepartment(v)
 
     PROPERTIES() nameFilterSupplier ON CHANGE changeNameFilterSupplier(v, pt, d) 
 
@@ -319,14 +322,15 @@ FORM rangeRev 'Версия ассортиментной матрицы'
     OBJECTS s = Sku
     PROPERTIES(s) READONLY BACKGROUND backgroundRange(s) idBarcode, id SHOWIF showIDs(), name ON SHORTCUT showMovementSku(s, d) ON SHORTCUT showMovementPriceSku(s, d), nameUOM
     PROPERTIES(s) amountPack ON CHANGE changePack(s) 
-    PROPERTIES READONLY    nameCompanyA(pt, s, d, v),
+    PROPERTIES READONLY    SHOWIF swowDepartment(v)  
+                           nameCompanyA(pt, s, d, v),
                            priceA(pt, s, d, v),
                            retailPriceA(s, d, v),
                            markup(s, d),
                            valueVAT(s, d, v),
                            markupA(pt, s, d, v)
     PROPERTIES(v, s) nameLevel
-    PROPERTIES READONLY currentBalance(s,d), quantitySold(s,d,dFrom,dTo), sumSold(s,d,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF swowDepartment(v) currentBalance(s,d), quantitySold(s,d,dFrom,dTo), sumSold(s,d,dFrom,dTo)
     PROPERTIES currentBalanceDepartments(s) ON CHANGE reviewCurrentBalance(s), quantitySoldDepartments(s,dFrom,dTo) ON CHANGE reviewSoldStoreDate(s, dFrom, dTo), 
                sumSoldDepartments(s,dFrom,dTo) ON CHANGE reviewSoldStoreDate(s, dFrom, dTo)
                
