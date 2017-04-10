@@ -11,10 +11,7 @@ import lsfusion.server.session.DataSession;
 import org.apache.commons.lang.ArrayUtils;
 import org.springframework.util.Assert;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.math.BigDecimal;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -82,6 +79,7 @@ public class NewLandBoardDaemon extends BoardDaemon {
 
             try {
 
+                //DataInputStream inFromClient = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
                 BufferedReader inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 DataOutputStream outToClient = new DataOutputStream(socket.getOutputStream());
                 String barcode = inFromClient.readLine();
@@ -97,6 +95,7 @@ public class NewLandBoardDaemon extends BoardDaemon {
                     barcode = barcode.length() > 1 ? barcode.substring(1) : barcode;
                     byte[] message = readMessage(BL, barcode, ip);
                     outToClient.write(message);
+                    terminalLogger.info(String.format("NewLand successed request ip %s, barcode %s", ip, barcode));
                 }
 
                 //Thread.sleep(3000);
