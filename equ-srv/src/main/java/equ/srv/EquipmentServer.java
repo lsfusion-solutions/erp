@@ -1000,20 +1000,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public void errorStopListReport(String numberStopList, Exception e) throws RemoteException, SQLException {
-        try (DataSession session = getDbManager().createSession()) {
-            DataObject errorObject = session.addObject((ConcreteCustomClass) stopListLM.findClass("StopListError"));
-            ObjectValue stopListObject = stopListLM.findProperty("stopList[STRING[18]]").readClasses(session, new DataObject(numberStopList));
-            stopListLM.findProperty("stopList[StopListError]").change(stopListObject.getValue(), session, errorObject);
-            stopListLM.findProperty("data[StopListError]").change(e.toString(), session, errorObject);
-            stopListLM.findProperty("date[StopListError]").change(getCurrentTimestamp(), session, errorObject);
-            OutputStream os = new ByteArrayOutputStream();
-            e.printStackTrace(new PrintStream(os));
-            stopListLM.findProperty("errorTrace[StopListError]").change(os.toString(), session, errorObject);
-
-            session.apply(getBusinessLogics(), getStack());
-        } catch (Exception e2) {
-            throw Throwables.propagate(e2);
-        }
+        StopListEquipmentServer.errorStopListReport(getBusinessLogics(), getStack(), getDbManager(), numberStopList, e);
     }
 
     @Override
