@@ -1,0 +1,160 @@
+MODULE AgreementLog;
+
+REQUIRE Agreement;
+
+NAMESPACE Agreement;
+
+CLASS AgreementLog 'Запись лога соглашений';
+TABLE agreementLog(AgreementLog);
+
+document = DATA Agreement (AgreementLog);// INDEXED;
+
+seriesNumber 'Серия/Номер' = DATA VARSTRING[28] (AgreementLog) IN recognize;
+dateTimeDocument 'Дата и время соглашения' = DATA DATETIME(AgreementLog) IN recognize;
+fromDateTime 'Дата/время с' = DATA DATETIME(AgreementLog);
+toDateTime 'Дата/время по' = DATA DATETIME(AgreementLog);
+suppliers 'Поставщики' = DATA VARSTRING[150] (AgreementLog) IN recognize;
+
+session = DATA Session (AgreementLog); 
+hostnameComputer 'Имя компьютера' = DATA VARISTRING[100] (AgreementLog); 
+userLogin 'Логин пользователя' = DATA STRING[30] (AgreementLog); 
+nameContact 'Имя пользователя' =  DATA VARSTRING[100] (AgreementLog) IN recognize;
+dateTimeSession 'Время' = DATA DATETIME (AgreementLog) IN recognize;
+dateSession 'Дата' (AgreementLog el) = DATE(dateTimeSession(el));
+
+CLASS TypeAgreementChange 'Тип изменения' {
+    add 'Добавление',
+    delete 'Удаление',
+    changeFrom 'Изменение даты/времени с',
+    changeTo 'Изменение даты/времени по',
+    changeSuppliers 'Изменение поставщиков'
+}
+
+typeChange= DATA TypeAgreementChange (AgreementLog);
+nameTypeChange 'Тип изменения' (AgreementLog l) = staticCaption(typeChange(l)) IN recognize;
+note 'Примечание' = DATA VARSTRING[255] (AgreementLog) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
+WHEN SET (Agreement e IS Agreement) DO {
+    FOR NEW l = AgreementLog DO {        
+        document(l) <- e;
+        seriesNumber(l) <- seriesNumber(e); 
+        dateTimeDocument(l) <- dateTime(e);   
+        fromDateTime(l) <- fromDateTime(e);
+        toDateTime(l) <- toDateTime(e);
+        typeChange(l) <- TypeAgreementChange.add;
+        session(l) <- currentSession();
+        hostnameComputer(l) <- hostnameComputerConnection(currentSession());
+        userLogin(l) <- userLoginConnection(currentSession()); 
+        nameContact(l) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(l) <- dateTime(currentSession());             
+        note(l) <- VARSTRING[255]('Добавлен документ');              
+        suppliers(l) <- supplier(e);
+    }
+}
+
+WHEN DROPPED (Agreement e IS Agreement) DO {
+    FOR NEW l = AgreementLog DO {       
+        seriesNumber(l) <- PREV(seriesNumber(e));  
+        dateTimeDocument(l) <- PREV(dateTime(e));   
+        fromDateTime(l) <- PREV(fromDateTime(e));
+        toDateTime(l) <- PREV(toDateTime(e));
+        typeChange(l) <- TypeAgreementChange.delete;
+        session(l) <- currentSession();
+        hostnameComputer(l) <- hostnameComputerConnection(currentSession());
+        userLogin(l) <- userLoginConnection(currentSession()); 
+        nameContact(l) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(l) <- dateTime(currentSession());        
+        note(l) <- VARSTRING[255]('Удален документ');         
+        suppliers(l) <- PREV (supplier(e));
+    }
+}
+
+WHEN CHANGED(fromDateTime(Agreement e)) DO {
+    FOR NEW l = AgreementLog DO {
+        document(l) <- e;
+        seriesNumber(l) <- seriesNumber(e); 
+        dateTimeDocument(l) <- dateTime(e);   
+        fromDateTime(l) <- fromDateTime(e);
+        toDateTime(l) <- toDateTime(e);
+        typeChange(l) <- TypeAgreementChange.changeFrom;
+        session(l) <- currentSession();
+        hostnameComputer(l) <- hostnameComputerConnection(currentSession());
+        userLogin(l) <- userLoginConnection(currentSession()); 
+        nameContact(l) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(l) <- dateTime(currentSession());             
+        note(l) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', IF PREV(fromDateTime(e)) THEN VARSTRING[20](PREV(fromDateTime(e))) ELSE 'пусто');      
+        suppliers(l) <- supplier(e);
+    }
+}  
+  
+WHEN CHANGED(toDateTime(Agreement e)) DO {
+    FOR NEW l = AgreementLog DO {
+        document(l) <- e;
+        seriesNumber(l) <- seriesNumber(e); 
+        dateTimeDocument(l) <- dateTime(e);   
+        fromDateTime(l) <- fromDateTime(e);
+        toDateTime(l) <- toDateTime(e);
+        typeChange(l) <- TypeAgreementChange.changeTo;
+        session(l) <- currentSession();
+        hostnameComputer(l) <- hostnameComputerConnection(currentSession());
+        userLogin(l) <- userLoginConnection(currentSession()); 
+        nameContact(l) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(l) <- dateTime(currentSession());             
+        note(l) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', IF PREV(toDateTime(e)) THEN VARSTRING[20](PREV(toDateTime(e))) ELSE 'пусто');      
+        suppliers(l) <- supplier(e);
+    }
+}      
+
+WHEN CHANGED(supplier(Agreement e)) DO {
+    FOR NEW l = AgreementLog DO {
+        document(l) <- e;
+        seriesNumber(l) <- seriesNumber(e); 
+        dateTimeDocument(l) <- dateTime(e);   
+        fromDateTime(l) <- fromDateTime(e);
+        toDateTime(l) <- toDateTime(e);
+        typeChange(l) <- TypeAgreementChange.changeSuppliers;
+        session(l) <- currentSession();
+        hostnameComputer(l) <- hostnameComputerConnection(currentSession());
+        userLogin(l) <- userLoginConnection(currentSession()); 
+        nameContact(l) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(l) <- dateTime(currentSession());             
+        note(l) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', IF PREV(supplier(e)) THEN VARSTRING[20](PREV(supplier(e))) ELSE 'пусто');      
+        suppliers(l) <- supplier(e);
+    }
+}      
+
+FORM AgreementLogs 'Журнал изменения соглашений'
+    OBJECTS d = AgreementLog
+    PROPERTIES(d) READONLY seriesNumber, dateTimeDocument, fromDateTime, toDateTime, suppliers,
+                  hostnameComputer, userLogin, dateTimeSession, nameTypeChange, note
+;
+
+DESIGN AgreementLogs {
+    main {
+        MOVE d.box;
+        MOVE functions.box;        
+    }
+}
+
+NAVIGATOR {
+    systemEvents {
+        ADD AgreementLogs;
+    }
+}
+
+EXTEND FORM agreement
+    OBJECTS l = AgreementLog
+    PROPERTIES(l) READONLY seriesNumber, dateTimeDocument, fromDateTime, toDateTime, suppliers,
+                  hostnameComputer, userLogin, dateTimeSession, nameTypeChange, note
+    FILTERS document(l) == a
+;
+
+DESIGN agreement {
+    tabContainer{
+        NEW documentHistory {
+            caption = 'История';
+            type = CONTAINERV;
+            MOVE l.box;
+        }        
+    }
+}
