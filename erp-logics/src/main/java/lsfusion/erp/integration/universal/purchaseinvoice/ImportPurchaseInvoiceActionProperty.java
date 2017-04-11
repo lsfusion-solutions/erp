@@ -129,7 +129,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                             String script = (String) findProperty("script[ImportType]").read(context, importTypeObject);
                             if(script != null && !script.isEmpty()) {
-                                findProperty("executionScript[ImportType]").change(String.format("run() = ACTION {%s;\n};", script), session, (DataObject) importTypeObject);
+                                findProperty("executionScript[ImportType]").change(String.format("run() = {%s;\n};", script), session, (DataObject) importTypeObject);
                                 findAction("executeScript[ImportType]").execute(context, importTypeObject);
                             }
 
