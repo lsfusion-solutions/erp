@@ -835,8 +835,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Integer groupMachinery = (Integer) stockEntry.get("nppGroupMachinery").getValue();
                         Set<String> itemsInGroupMachinerySet = new HashSet<>();
                         if(!itemsInGroupMachineryMap.containsKey(groupMachinery)) {
-                            for (String item : getInGroupMachineryItemSet(session, stopListObject, stockResult.getKey(j).get("groupMachinery")))
-                                itemsInGroupMachinerySet.add(item);
+                            itemsInGroupMachinerySet.addAll(StopListEquipmentServer.getInGroupMachineryItemSet(session, stopListObject, stockResult.getKey(j).get("groupMachinery")));
                             itemsInGroupMachineryMap.put(groupMachinery, itemsInGroupMachinerySet);
                         }
                     }

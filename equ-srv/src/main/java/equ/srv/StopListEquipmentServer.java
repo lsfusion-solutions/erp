@@ -2,12 +2,21 @@ package equ.srv;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.DateConverter;
+import lsfusion.base.col.MapFact;
+import lsfusion.base.col.interfaces.immutable.ImMap;
+import lsfusion.base.col.interfaces.immutable.ImOrderMap;
+import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.interop.Compare;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.context.ExecutionStack;
+import lsfusion.server.data.SQLHandledException;
+import lsfusion.server.data.expr.KeyExpr;
+import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
@@ -18,7 +27,10 @@ import java.rmi.RemoteException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.Set;
+
+import static org.apache.commons.lang3.StringUtils.trim;
 
 public class StopListEquipmentServer {
     static ScriptingLogicsModule stopListLM;
@@ -26,6 +38,24 @@ public class StopListEquipmentServer {
     public static void init(BusinessLogics BL) {
         stopListLM = BL.getModule("StopList");
     }
+
+    public static Set<String> getInGroupMachineryItemSet(DataSession session, DataObject stopListObject, DataObject groupMachineryObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Set<String> inGroupMachineryItemSet = new HashSet<>();
+
+        KeyExpr sldExpr = new KeyExpr("stopListDetail");
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+        query.addProperty("idSkuStopListDetail", stopListLM.findProperty("idSku[StopListDetail]").getExpr(sldExpr));
+        query.and(stopListLM.findProperty("in[GroupMachinery,StopListDetail]").getExpr(groupMachineryObject.getExpr(), sldExpr).getWhere());
+        query.and(stopListLM.findProperty("stopList[StopListDetail]").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+        for (int i = 0; i < result.size(); i++) {
+            String idItem = trim((String) result.getValue(i).get("idSkuStopListDetail"));
+            inGroupMachineryItemSet.add(idItem);
+        }
+        return inGroupMachineryItemSet;
+    }
+
 
 
     public static void errorStopListReport(BusinessLogics BL, ExecutionStack stack, DBManager dbManager, String numberStopList, Exception e) throws RemoteException, SQLException {
