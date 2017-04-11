@@ -572,20 +572,51 @@ DESIGN articles {
 replace = ACTION ABSTRACT LIST (Article, Article);
 in 'Отм.' = DATA LOCAL BOOLEAN (Article);
 
-replace 'Объединить'(Article article) = {
-    FOR in(Article a) DO{
-        IF a != article THEN {
-            article(Item item) <- article WHERE article(item) == a;
-            
-            replace(a,article);
-            
-            in(a) <- NULL;
-            DELETE a;
-        } ELSE {
-            MESSAGE 'Выделенный артикул не может совпадать с объединяемым';
+FORM confirmReplaceArticle 'Объединяемые артикулов'
+    OBJECTS article = Article PANEL 
+
+    OBJECTS a = Article  
+    PROPERTIES(a) READONLY id, caption
+    FILTERS a==article
+
+    OBJECTS a2 = Article
+    PROPERTIES(a2) in
+    PROPERTIES(a2) READONLY id, caption
+    FILTERS in(a2)
+;
+
+DESIGN confirmReplaceArticle {
+    REMOVE article.box;
+    NEW splitContainer{
+        type = SPLITV;
+        fill = 1;
+        MOVE a.box{
+            caption = 'Основной артикул';
         }
+        MOVE a2.box{
+            caption = 'Удаляемый артикул';
+        }           
     }
-    apply();
+    MOVE functions.box;
+}
+
+replace 'Объединить'(Article article) = {
+    IF noEventsInTransactionItem() THEN setNoEventsInTransaction();
+    DIALOG confirmReplaceArticle OBJECTS a=article DO {
+        FOR in(Article a) AND article IS Article DO {
+            IF a != article THEN {
+                article(Item item) <- article WHERE article(item) == a;
+                replace(a, article);
+                in(a) <- NULL;
+                DELETE a;            
+            } ELSE {
+                MESSAGE 'Выделенный артикул не может совпадать с объединяемым';
+            }
+        }
+        apply();
+    }
+    in(Item i) <- NULL;           
+    IF noEventsInTransactionItem() THEN dropNoEventsInTransaction();   
 } CONFIRM;
 
 
@@ -599,7 +630,10 @@ META defineEventChangedArticle(property)
         property(i) <- property(article(i));
 END
 
-@defineEventChangedArticle(caption);
+//@defineEventChangedArticle(caption);
+
+WHEN SESSION CHANGED(caption(article(Item i))) AND NOT CHANGED(caption(i)) AND NOT caption(i) DO         
+    caption(i) <- caption(article(i));
 
 @defineEventChangedArticle(itemGroup);
 @defineEventChangedArticle(country);
