@@ -1,0 +1,92 @@
+MODULE SaleOrderReplace;
+
+REQUIRE SaleInvoice;
+
+NAMESPACE Sale;
+
+toShowSelected = ABSTRACT BOOLEAN (UserOrder);
+
+additionalCheck = ABSTRACT BOOLEAN();
+additionalCheckException = ABSTRACT VARSTRING[100]();
+
+countSelectedOrder 'Кол-во отм.' = GROUP SUM 1 IF selected(Order order);
+countSelectedUserOrder 'Кол-во отм. (польз.)' = GROUP SUM 1 IF selected(UserOrder order) AND order IS UserOrder;
+
+countSelectedSupplier 'Кол-во поставщиков' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY supplier(order)](LegalEntity supplier);
+minSupplier = GROUP MIN LegalEntity supplier IF [= GROUP SUM 1 IF selected(Order order) BY supplier(order)](supplier);
+
+countSelectedCustomer 'Кол-во покупателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY customer(order)](LegalEntity customer);
+minCustomer = GROUP MIN LegalEntity customer IF [= GROUP SUM 1 IF selected(Order order) BY customer(order)](customer);
+
+countSelectedSupplierStock 'Кол-во складов поставщика' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY supplierStock(order)](Stock supplierStock);
+minSupplierStock = GROUP MIN Stock supplierStock IF [= GROUP SUM 1 IF selected(Order order) BY supplierStock(order)](supplierStock);       
+
+countSelectedCustomerStock 'Кол-во складов покупателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY customerStock(order)](Stock customerStock);
+minCustomerStock = GROUP MIN Stock customerStock IF [= GROUP SUM 1 IF selected(Order order) BY customerStock(order)](customerStock);
+
+countSelectedOperation 'Кол-во операций' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY operation(order)](Operation operation);
+minOperation = GROUP MIN Operation operation IF [= GROUP SUM 1 IF selected(Order order) BY operation(order)](operation);
+
+
+@defineOption(groupSkuSaleOrderReplace, 'Группировать строки по товару при объединении заказов (продажа)', optionsContainer);
+
+replace 'Объединить'(UserOrder order) = {
+    IF countSelectedOrder() THEN {
+        IF  countSelectedUserOrder() == countSelectedOrder() THEN {
+            IF  additionalCheck() THEN {
+                IF (NOT countSelectedSupplier()==1) OR (NOT countSelectedCustomer() == 1) OR (NOT countSelectedSupplierStock() ==1) OR (NOT countSelectedCustomerStock()==1) OR (NOT countSelectedOperation()==1) THEN {
+                    MESSAGE 'Отмечены заказы с разными операциями, покупателями, поставщиками или их складами';               
+                } ELSE {                  
+                    IF (NOT minSupplier() == supplier[Order](order)) OR (NOT minSupplierStock() == supplierStock[Order](order)) OR (NOT minCustomer() == customer[Order](order)) OR (NOT minCustomerStock() == customerStock[Order](order)) OR (NOT minOperation() == operation[Order](order)) THEN {
+                        MESSAGE 'У отмеченных и выбранного заказов разные операции, покупатели, поставщики или их склады';               
+                    } ELSE {  
+                        IF NOT groupSkuSaleOrderReplace() THEN {
+                            FOR selected(Order o) AND order(OrderDetail detail)==o NEW d = UserOrderDetail DO {
+                                userOrder(d) <- order;
+                                sku(d) <- sku(detail);
+                                batch(d) <- batch(detail);
+                                quantity(d) <- quantity(detail);
+                                price(d) <- price(detail);
+                                invoicePrice(d) <- invoicePrice(detail);
+                                priceListType(d) <- priceListType(detail);      
+                                shipmentDataDate(d) <- shipmentDataDate(detail);         
+                                shipmentDataTime(d) <- shipmentDataTime(detail);        
+                                closeDataDate(d) <- closeDataDate(detail);                                         
+                            }
+                        } ELSE {
+                            selected(order) <- TRUE;
+                                                    
+                            LOCAL qty = NUMERIC[16,5](Sku);
+                            qty(Sku s) <- [=GROUP SUM quantity(UserOrderDetail d) IF selected(userOrder(d)) BY sku(d)](s);
+                            
+                            LOCAL maxDetail = UserOrderDetail(Sku);
+                            maxDetail(Sku s) <- [=GROUP MAX UserOrderDetail d IF selected(userOrder(d)) BY sku(d)](s);
+                            
+                            FOR qty(Sku s) AND s == sku(UserOrderDetail nd) AND userOrder(nd) == order DO {
+                                quantity(nd) <- qty(s);
+                            }
+                            
+                            FOR qty(Sku s) AND NOT [= GROUP SUM 1  BY sku(UserOrderDetail nd), userOrder(nd)](s, order) NEW d = UserOrderDetail DO {
+                                userOrder(d) <- order;
+                                sku(d) <- s;
+                                quantity(d) <- qty(s);
+                                price(d) <- price(maxDetail(s));
+                                invoicePrice(d) <- invoicePrice(maxDetail(s));
+                            }
+                            selected(order) <- NULL;
+                        }    
+
+                        DELETE UserOrder o WHERE selected(o);
+                        apply();
+                    }
+                }    
+            } ELSE {
+                MESSAGE additionalCheckException();
+            } 
+        } ELSE {
+          MESSAGE 'Отмечены заказы разных классов';
+        }        
+    } ELSE {
+        MESSAGE 'Нет отмеченных заказов';
+    }                
+} CONFIRM;  
