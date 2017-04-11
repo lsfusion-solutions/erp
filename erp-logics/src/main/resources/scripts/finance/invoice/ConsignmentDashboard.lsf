@@ -31,14 +31,14 @@ DESIGN options {
 }
 overPrintConsignment  =  ACTION ABSTRACT LIST (Order);
 
-printConsignment 'Создать накладные'(Order order) = ACTION {
+printConsignment 'Создать накладные'(Order order) = {
     IF countInConsignmentPrintOrder() THEN {
         IF countInConsignmentPrintTrip() > 1 THEN {
             MESSAGE 'Выберите заказы одного рейса';
         } ELSE {
             inCreatePickingUserInvoicePosted(Order o) <- inConsignmentPrint(o);
             IF createNotPickedInvoice()
-                THEN addUserInvoice(order)
+                THEN addUserInvoice(order);
                 ELSE createPickingUserInvoicePosted(order);
             FOR createdUser(Invoice.Invoice i, Order o) DO {
                 trip(i) <- trip(o);
@@ -56,7 +56,7 @@ printConsignment 'Создать накладные'(Order order) = ACTION {
         }
     } ELSE {
         IF createNotPickedInvoice()
-            THEN addUserInvoice(order)
+            THEN addUserInvoice(order);
             ELSE createPickingUserInvoicePosted(order);
         FOR createdUser(Invoice.Invoice i, order) DO {
             trip(i) <- trip(order);
@@ -84,21 +84,21 @@ backgroundStatusPickingPicking 'Цвет' (Order order) =  CASE
       WHEN calcFull(order) THEN RGB(255,238,165)
 ; 
 
-changeTrip(Order order) = ACTION {
+changeTrip(Order order) = {
     DIALOG dialogDateTrips OBJECTS d = date(order), t = trip(order) INPUT NULL DO {
         trip (order) <- t;
         apply();
     }            
 }
 
-changeNumber (Invoice.Invoice invoice) = ACTION {
+changeNumber (Invoice.Invoice invoice) = {
     INPUTX s = VARSTRING[28] DO {
         number(invoice) <- s;         
         apply();
     }    
 }
 
-changeSeries (Invoice.Invoice invoice) = ACTION {
+changeSeries (Invoice.Invoice invoice) = {
     INPUTX s = STRING[2] DO {
         series(invoice) <- s;
         apply();

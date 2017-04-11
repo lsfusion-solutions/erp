@@ -57,7 +57,7 @@ shipmentTime(SaleReturnInvoice invoice) += saleReturnShipmentTime(invoice(invoic
 shipmentQuantity(SaleReturnInvoiceDetail detail) += saleReturnShipmentQuantity(invoiceDetail(detail));
 shipmentPrice(SaleReturnInvoiceDetail detail) += saleReturnShipmentPrice(invoiceDetail(detail));
 shipmentSum (SaleReturnInvoiceDetail detail) += saleReturnShipmentSum(invoiceDetail(detail));
-edit (SaleReturnInvoiceDetail detail) += ACTION edit(invoiceDetail(detail));
+edit (SaleReturnInvoiceDetail detail) += { edit(invoiceDetail(detail)); }
 
 showSaleReturnShipment(UserInvoice i) = createSaleReturnShipment(i) OR createSaleReturnInvoice(i); 
 showSaleReturnShipment(UserInvoiceDetail d) = showSaleReturnShipment(userInvoice(d)); 
@@ -104,7 +104,7 @@ EXTEND FORM invoices
 
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userInvoice, accountPriceListType, saleReturnShipment, , sku, supplierStock);
 
-receiveShipment (SaleReturnInvoice invoice)+= ACTION  {
+receiveShipment (SaleReturnInvoice invoice)+= {
     IF invoice IS SaleReturnInvoice THEN {
         createSaleReturnShipment(Invoice i) <- TRUE WHERE i == invoice(invoice);
         saleReturnShipmentDate(Invoice i) <- currentDate() WHERE i == invoice(invoice);
@@ -112,7 +112,7 @@ receiveShipment (SaleReturnInvoice invoice)+= ACTION  {
     } 
 };
 
-deleteCreate (SaleReturn.InvoiceShipment shipment)+= WHEN invoice(shipment) IS SaleReturnInvoice THEN  ACTION  {
+deleteCreate (SaleReturn.InvoiceShipment shipment)+= WHEN invoice(shipment) IS SaleReturnInvoice THEN  {
     createSaleReturnShipment(Invoice invoice) <- NULL WHERE invoice == invoice(invoice(shipment));          
 };
 

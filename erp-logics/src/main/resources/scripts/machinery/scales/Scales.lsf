@@ -163,10 +163,10 @@ id 'Код формата этикетки' = DATA INTEGER (LabelFormat) IN base
 idTo (labelFormat) = GROUP AGGR LabelFormat labelFormat BY id(labelFormat) WHERE labelFormat IS LabelFormat;
 
 file = DATA CUSTOMFILE (LabelFormat);
-loadFile 'Загрузить файл этикетки' (LabelFormat labelFormat) = ACTION LOADFILE file(labelFormat) IN base;
+loadFile 'Загрузить файл этикетки' (LabelFormat labelFormat) = { LOADFILE file(labelFormat); } IN base;
 
 fileMessage = DATA CUSTOMFILE (LabelFormat);
-loadFileMessage 'Загрузить файл спец.сообщений' (LabelFormat labelFormat) = ACTION LOADFILE fileMessage(labelFormat) IN base;
+loadFileMessage 'Загрузить файл спец.сообщений' (LabelFormat labelFormat) = { LOADFILE fileMessage(labelFormat); } IN base;
 
 scalesModel 'Модель весов'= DATA ScalesModel (LabelFormat);
 nameScalesModel 'Модель весов' (LabelFormat labelFormat) = name(scalesModel(labelFormat));
@@ -188,7 +188,7 @@ FORM labelFormats 'Форматы этикеток весов'
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
-loadDefaultScalesModel 'Добавить модель весов'(VARISTRING[110] stringOne, VARSTRING[200] stringTwo) = ACTION  {
+loadDefaultScalesModel 'Добавить модель весов'(VARISTRING[110] stringOne, VARSTRING[200] stringTwo) = {
     IF NOT scalesName(stringOne) THEN {
         FOR NEW sm = ScalesModel DO {
              ASSIGN name(sm) <- stringOne;
@@ -197,7 +197,7 @@ loadDefaultScalesModel 'Добавить модель весов'(VARISTRING[110
     }
 }
 
-loadDefaultScalesModels 'Загрузить стандартные модели весов'() = ACTION {
+loadDefaultScalesModels 'Загрузить стандартные модели весов'() = {
     EXEC loadDefaultScalesModel('Весы Digi', 'equ.clt.handler.digi.DigiHandler');
     EXEC loadDefaultScalesModel('Весы EasyCSV', 'equ.clt.handler.easy.EasyCSVHandler');
     EXEC loadDefaultScalesModel('Весы Штрих-Принт', 'equ.clt.handler.shtrihPrint.ShtrihPrintHandler');
@@ -211,7 +211,7 @@ loadDefaultScalesModels 'Загрузить стандартные модели 
 @implementLoadDefaultData(loadDefaultScalesModels);
 
 // --------------------------------------- Генерация групп весов -------------------------------- //
-loadDefaultGroup 'Сгенерировать группу весов'(PriceListType priceListType, Stock stock, ScalesModel model, INTEGER num) = ACTION {
+loadDefaultGroup 'Сгенерировать группу весов'(PriceListType priceListType, Stock stock, ScalesModel model, INTEGER num) = {
     FOR NEW g = GroupScales DO {
         stock(g) <- stock;
         priceListType(g) <- priceListType;

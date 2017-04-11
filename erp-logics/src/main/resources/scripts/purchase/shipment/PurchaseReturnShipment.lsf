@@ -45,14 +45,14 @@ operation[Shipment.Shipment](Shipment s)+=operation(s);
 
 @deriveDocumentOperationProperty(UserInvoice, createShipment);
 
-overFillInvoice(UserShipment s, Invoice i) += ACTION {
+overFillInvoice(UserShipment s, Invoice i) += {
     ASSIGN operation(s) <- operation(i);
 }
 
 operation(InvoiceShipment shipment) += operation(invoice(shipment));
 
 // Добавляем в копирование поставок
-overCopy(Shipment s, UserShipment d) += ACTION {
+overCopy(Shipment s, UserShipment d) += {
     ASSIGN operation(d) <- operation(s);
 }
 @defineOperationFilterProperty(shipment, s, shipments, nameFilterShipmentSupplier);
@@ -183,8 +183,8 @@ legalEntityStock(Shipment ledger) += supplierStock(ledger);
 operation[StockDocumentLedger](Shipment ledger) += operation(ledger);
 isReturn(Shipment ledger) += ledger IS Shipment;
 
-edit[StockDocumentLedger](Shipment l) += ACTION edit(l);
-close[StockDocumentLedger](Shipment l) += ACTION close(l);
+edit[StockDocumentLedger](Shipment l) += { edit(l); }
+close[StockDocumentLedger](Shipment l) += { close(l); }
 
 overSkipStockDocumentLedger = ABSTRACT BOOLEAN (Shipment);
 
@@ -200,8 +200,8 @@ sum[OutSkuLedger] (ShipmentDetail ledger) += sum(ledger);
 cost(ShipmentDetail detail, Batch batch) += cost[SkuLedger,Batch](detail, batch) IF detail IS ShipmentDetail;
 cost(InvoiceDetail ledger, Batch batch) += -cost (ledger, batch); 
 
-edit[SkuLedger](ShipmentDetail d) += ACTION edit(d);
-show[SkuLedger](ShipmentDetail d) += ACTION show(d);
+edit[SkuLedger](ShipmentDetail d) += { edit(d); }
+show[SkuLedger](ShipmentDetail d) += { show(d); }
 // ------------------------------- Проведение по товарному отчету ------------------------ //
 
 stockDocumentLedger(ShipmentDetail ledger) += shipment(ledger);

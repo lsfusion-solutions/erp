@@ -5,26 +5,30 @@ REQUIRE PriceList, PriceListOperation, MachineryPriceTransaction;
 NAMESPACE PriceList;
 
 @Machinery.implementPriceTransactionDocument(PriceList, company);
-createPriceListMachinery 'Загрузить в оборудование'(PriceTransactionDocument priceList) = ACTION NEWSESSION {
-    ASSIGN createMachineryPriceTransaction(Sku sku) <- TRUE IF countPriceListDetail(sku, priceList);
-    ASSIGN createMachineryPriceTransactionDocument() <- priceList;
-    FOR in(priceList, Stock stock) DO {
-        EXEC createMachineryPriceTransaction(stock);   
-    }            
-    ASSIGN sent(priceList) <- TRUE;
-    
-    apply();
+createPriceListMachinery 'Загрузить в оборудование'(PriceTransactionDocument priceList) = {
+	NEWSESSION {
+	    ASSIGN createMachineryPriceTransaction(Sku sku) <- TRUE IF countPriceListDetail(sku, priceList);
+	    ASSIGN createMachineryPriceTransactionDocument() <- priceList;
+	    FOR in(priceList, Stock stock) DO {
+	        EXEC createMachineryPriceTransaction(stock);   
+	    }            
+	    ASSIGN sent(priceList) <- TRUE;
+	    
+	    apply();
+	}
 } TOOLBAR CONFIRM;
 
-createSnapshotPriceListMachinery 'Перегрузить все позиции'(PriceTransactionDocument priceList) = ACTION NEWSESSION {
-    createMachineryPriceTransactionSnapshot() <- TRUE;
-    createMachineryPriceTransaction(Sku sku) <- TRUE IF countPriceListDetail(sku, priceList);
-    createMachineryPriceTransactionDocument() <- priceList;
-    FOR in(priceList, Stock stock) DO {
-        createMachineryPriceTransaction(stock);   
-    }  
-    sent(priceList) <- TRUE;
-    apply();
+createSnapshotPriceListMachinery 'Перегрузить все позиции'(PriceTransactionDocument priceList) = {
+	NEWSESSION {
+	    createMachineryPriceTransactionSnapshot() <- TRUE;
+	    createMachineryPriceTransaction(Sku sku) <- TRUE IF countPriceListDetail(sku, priceList);
+	    createMachineryPriceTransactionDocument() <- priceList;
+	    FOR in(priceList, Stock stock) DO {
+	        createMachineryPriceTransaction(stock);   
+	    }  
+	    sent(priceList) <- TRUE;
+	    apply();
+	}
 } CONFIRM;
 
 showCreateMachineryPriceTransaction 'Показывать' (PriceList priceList) = isPosted(priceList) AND NOT skip(priceList)

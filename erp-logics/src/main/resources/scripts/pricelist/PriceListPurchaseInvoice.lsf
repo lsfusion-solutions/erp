@@ -4,22 +4,24 @@ REQUIRE PurchaseInvoice, PriceList;
 
 NAMESPACE PriceList;
 
-createPriceListPurchase 'Прайс-лист'(Purchase.Invoice purchaseInvoice) = ACTION NEWSESSION {
-    FOR NEW p = UserPriceList DO {
-        fromDate(p) <- date(purchaseInvoice);
-        fromTime(p) <- time(purchaseInvoice);
-        company(p) <- customer(purchaseInvoice);
-        allStocks(p) <- TRUE;
-        currency(p) <- OVERRIDE currency(purchaseInvoice), homeCurrency(purchaseInvoice);
-
-        FOR invoice(Purchase.InvoiceDetail id)==purchaseInvoice NEW pd=UserPriceListDetail DO {
-            userPriceList(pd) <- p;
-            sku[PriceListDetail](pd) <- Purchase.sku(id);
-        }
-
-        SHOW userPriceList OBJECTS p = p, tt = customerStock(purchaseInvoice) MANAGESESSION DOCKED;
-    }
-
+createPriceListPurchase 'Прайс-лист'(Purchase.Invoice purchaseInvoice) = {
+	NEWSESSION {
+	    FOR NEW p = UserPriceList DO {
+	        fromDate(p) <- date(purchaseInvoice);
+	        fromTime(p) <- time(purchaseInvoice);
+	        company(p) <- customer(purchaseInvoice);
+	        allStocks(p) <- TRUE;
+	        currency(p) <- OVERRIDE currency(purchaseInvoice), homeCurrency(purchaseInvoice);
+	
+	        FOR invoice(Purchase.InvoiceDetail id)==purchaseInvoice NEW pd=UserPriceListDetail DO {
+	            userPriceList(pd) <- p;
+	            sku[PriceListDetail](pd) <- Purchase.sku(id);
+	        }
+	
+	        SHOW userPriceList OBJECTS p = p, tt = customerStock(purchaseInvoice) MANAGESESSION DOCKED;
+	    }
+	
+	}
 } TOOLBAR;
 
 EXTEND FORM invoices

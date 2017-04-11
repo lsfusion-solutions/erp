@@ -33,7 +33,7 @@ overSetMarkupManagementRetailPrice = ACTION ABSTRACT LIST(DepartmentStore, Opera
 overSetManagementRetailPrice = ACTION ABSTRACT LIST (DepartmentStore, DATETIME);
 
 includeExtraDashboardRepricing = ACTION ABSTRACT (Stock, Operation, DATETIME);
-calculateDashboardRepricing 'По надбавкам и прайсам'(Stock d, Operation o, DATETIME dt) = ACTION {
+calculateDashboardRepricing 'По надбавкам и прайсам'(Stock d, Operation o, DATETIME dt) = {
     DIALOG dialogSkuGroup DO {              
         IF onStockPriceListRepricing() THEN {
             managementRetailPrice (Sku sku) <- priceA((OVERRIDE retailCalcPriceListType(d), calcPriceListType(o)), sku, d, dt) 
@@ -62,7 +62,7 @@ calculateDashboardRepricing 'По надбавкам и прайсам'(Stock d,
     }
 } TOOLBAR;
 
-calculateDashboardManagementRepricing 'По прайсам'(Stock d, Operation o, DATETIME dt) = ACTION {
+calculateDashboardManagementRepricing 'По прайсам'(Stock d, Operation o, DATETIME dt) = {
     managementRetailPrice(Sku sku) <- NULL;
     IF onStockPriceListRepricing() THEN {
         managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt)
@@ -88,7 +88,7 @@ repForm =  DATA LOCAL UserRepricing();
 
 overCreateDashboardRepricingNotForm= ACTION ABSTRACT LIST (UserRepricing);
 
-createDashboardRepricingNotForm 'Создать переоценку'(Stock d, Operation o, DATETIME dt) = ACTION {
+createDashboardRepricingNotForm 'Создать переоценку'(Stock d, Operation o, DATETIME dt) = {
     IF [ = GROUP SUM 1 IF inDashboardRepricing(Sku sku)]() THEN {
         FOR NEW r = UserRepricing DO {
             departmentStore(r) <- d;
@@ -113,12 +113,14 @@ createDashboardRepricingNotForm 'Создать переоценку'(Stock d, O
     }
 } TOOLBAR;
 
-createDashboardRepricing 'Создать переоценку'(Stock d, Operation o, DATETIME dt) = ACTION NEWSESSION NESTED LOCAL  {
-    createDashboardRepricingNotForm(d, o, dt);
-    DIALOG userRepricing OBJECTS p = repForm() MANAGESESSION DOCKED NOCANCEL DO {
-        inDashboardRepricing(Sku sku) <- NULL;
-    }
-    repForm() <- NULL;      
+createDashboardRepricing 'Создать переоценку'(Stock d, Operation o, DATETIME dt) = {
+	NEWSESSION NESTED LOCAL  {
+	    createDashboardRepricingNotForm(d, o, dt);
+	    DIALOG userRepricing OBJECTS p = repForm() MANAGESESSION DOCKED NOCANCEL DO {
+	        inDashboardRepricing(Sku sku) <- NULL;
+	    }
+	    repForm() <- NULL;      
+	}
 }  
 
 EXTEND FORM options
@@ -140,17 +142,19 @@ nameToManagementRepricingOperation 'Операция для переоценки
 
 createOverManagementRepricing = ACTION ABSTRACT LIST (Stock);
 
-createManagementRepricingAllStocks 'Создать автоматическую переоценку упр.'() = ACTION NEWSESSION {
-    IF isOverManagementRepricingAllStocks() THEN {
-        createOverManagementRepricingAllStocks();
-    } ELSE {   
-        FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementRepricing(department)  DO {
-            calculateDashboardManagementRepricing(department, toManagementRepricingOperation(), currentDateTime());
-            createDashboardRepricingNotForm(department, toManagementRepricingOperation(), currentDateTime()); 
-            createOverManagementRepricing(department);
-        } 
-    }
-    apply();
+createManagementRepricingAllStocks 'Создать автоматическую переоценку упр.'() = {
+	NEWSESSION {
+	    IF isOverManagementRepricingAllStocks() THEN {
+	        createOverManagementRepricingAllStocks();
+	    } ELSE {   
+	        FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementRepricing(department)  DO {
+	            calculateDashboardManagementRepricing(department, toManagementRepricingOperation(), currentDateTime());
+	            createDashboardRepricingNotForm(department, toManagementRepricingOperation(), currentDateTime()); 
+	            createOverManagementRepricing(department);
+	        } 
+	    }
+	    apply();
+	}
 }
 //--------------------------------
 //FORM cc 'Дооценка'

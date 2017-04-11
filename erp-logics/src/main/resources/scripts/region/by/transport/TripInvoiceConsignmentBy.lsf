@@ -7,7 +7,7 @@ driver(Invoice invoice) += WHEN driver(trip(invoice)) THEN driver(trip(invoice))
 waybill(Invoice invoice) += seriesNumber(trip(invoice));
 
 META setTripPropTrip(prop)
-    setTrip###prop##Trip(Invoice invoice) = ACTION {
+    setTrip###prop##Trip(Invoice invoice) = {
         ASSIGN prop(invoice) <- prop(trip(invoice));
     }
     WHEN CHANGED(prop(trip(Invoice invoice))) DO EXEC setTrip###prop##Trip(invoice);
@@ -26,7 +26,7 @@ nameForwarder 'Товар к перевозке принял (экспедито
 
 overForwarder= OVERRIDE  driver(Trip t), dataForwarder(t);
 
-setTripForwarderTrip(Invoice invoice) = ACTION {
+setTripForwarderTrip(Invoice invoice) = {
     ASSIGN dataForwarder(invoice) <- overForwarder(trip(invoice));
 }
 WHEN CHANGED(overForwarder(trip(Invoice invoice))) DO EXEC setTripForwarderTrip(invoice);
@@ -57,18 +57,18 @@ documentNameCurrency 'Валюта в накладной сокр.' (Trip trip) 
 
 //Время прибытия                              
 timeOfArrival 'Время прибытия' = DATA TIME (Trip);
-setTripDateTimeTrip(Invoice invoice) = ACTION {
+setTripDateTimeTrip(Invoice invoice) = {
     ASSIGN arrivalTime(invoice) <- dateTimeToDateTime(date(invoice), timeOfArrival(trip(invoice)));
 }
 WHEN CHANGED(dateTime(trip(Invoice invoice))) DO EXEC setTripDateTimeTrip(invoice);
 
 downtime 'Время простоя (мин.)' = DATA  INTEGER (Trip);
-setTripDowntimeTrip(Invoice invoice) = ACTION {
+setTripDowntimeTrip(Invoice invoice) = {
     ASSIGN downtime(invoice) <- downtime(trip(invoice));
 }
 WHEN CHANGED(downtime(trip(Invoice invoice))) DO EXEC setTripDowntimeTrip(invoice);
 
-overCopy(Trip t, Trip trip) += ACTION {
+overCopy(Trip t, Trip trip) += {
     ASSIGN issuanceAllowed(t) <- issuanceAllowed(trip);         
     ASSIGN issuanceExecuted(t) <- issuanceExecuted(trip);        
     ASSIGN dataForwarder(t) <- dataForwarder(trip);        
@@ -82,7 +82,7 @@ overCopy(Trip t, Trip trip) += ACTION {
     ASSIGN downtime(t) <- downtime(trip);
 }
 
-printHorizontalConsignment 'Печать ТТН-1 (гор.)' (Trip trip) = ACTION {
+printHorizontalConsignment 'Печать ТТН-1 (гор.)' (Trip trip) = {
     FOR in(trip, Invoice invoice) DO {
         EXEC printHorizontalA(invoice);
         EXEC printHorizontalB(invoice);
@@ -90,7 +90,7 @@ printHorizontalConsignment 'Печать ТТН-1 (гор.)' (Trip trip) = ACTIO
     };
 } TOOLBAR;
 
-printVerticalConsignment 'Печать ТТН-1 (верт.)' (Trip trip) = ACTION {
+printVerticalConsignment 'Печать ТТН-1 (верт.)' (Trip trip) = {
     FOR in(trip, Invoice invoice) DO {
         EXEC printVerticalA(invoice);
         EXEC printVerticalB(invoice);

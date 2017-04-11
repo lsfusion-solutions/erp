@@ -214,7 +214,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     @extendFormDocumentSkuStock(userCreditNote, userCreditNote, c, legalEntityProp, stockProp);
     
     edit 'Редактировать' (userCreditNote) = ACTION EDITFORM UserCreditNote;
-    edit(UserCreditNote c) += ACTION edit(c);
+    edit(UserCreditNote c) += { edit(c); }
     
     isUserOpened(UserCreditNote c)=  isOpened[CreditNote](c) AND is(c);
         
@@ -291,11 +291,13 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     @extendFormEditable(creditNotes);
     @defineFilterIsOpened (creditNote, creditNotes, c); 
     edit 'Редактировать' = ACTION ABSTRACT LIST  (CreditNoteDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-    edit(UserCreditNoteDetail d) = ACTION NEWSESSION {
-        SHOW userCreditNote OBJECTS c = userCreditNote(d), d = d MANAGESESSION DOCKED;
-    }
+    edit(UserCreditNoteDetail d) = {
+	NEWSESSION {
+	        SHOW userCreditNote OBJECTS c = userCreditNote(d), d = d MANAGESESSION DOCKED;
+	    }
+}
     
-    edit(UserCreditNoteDetail d) += ACTION edit(d);  
+    edit(UserCreditNoteDetail d) += { edit(d); }  
     
 //--  Связь акта и накладной
     invoiceDetail = ABSTRACT InvoiceDetail (CreditNoteDetail) PERSISTENT;
@@ -357,7 +359,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
         caseToShip (invoiceDetail) AND isPosted(invoiceDetail) 
         AND isNotCharge(sku(invoiceDetail)) AND NOT skipCreateCreditNote(invoiceDetail) PERSISTENT;
 
-    overCopy(UserInvoice s, UserInvoice d) += ACTION {
+    overCopy(UserInvoice s, UserInvoice d) += {
         ASSIGN createCreditNote(d) <- createCreditNote(s);
     }
 
@@ -461,8 +463,8 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     VATSum (InvoiceCreditNoteDetail creditNoteDetail) += VATSum(creditNoteDetail);
     invoiceSum (InvoiceCreditNoteDetail creditNoteDetail) += invoiceSum(creditNoteDetail);
     
-    edit(InvoiceCreditNote c) += ACTION EXEC edit(invoice(c));
-    edit(InvoiceCreditNoteDetail d) += ACTION edit(invoiceDetail(d));
+    edit(InvoiceCreditNote c) += { EXEC edit(invoice(c)); }
+    edit(InvoiceCreditNoteDetail d) += { edit(invoiceDetail(d)); }
     
    documentQuantity (InvoiceCreditNoteDetail d) += quantity(invoiceDetail(d)); 
    documentSum (InvoiceCreditNoteDetail d) += sum(invoiceDetail(d)); 

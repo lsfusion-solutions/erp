@@ -303,10 +303,10 @@ DESIGN departmentStore {
 }
 
 edit 'Редактировать' = ACTION EDITFORM DepartmentStore;
-edit(DepartmentStore stock) += ACTION edit(stock);
+edit(DepartmentStore stock) += { edit(stock); }
 
 editSession 'Редактировать' = ACTION EDITFORM SESSION DepartmentStore;
-editSession(DepartmentStore stock) += ACTION editSession(stock);
+editSession(DepartmentStore stock) += { editSession(stock); }
 
 FORM departmentStores 'Отделы магазинов'
     TREE treeStore a=STRING[3], t=ChainStores, st=StoreType, s=Store
@@ -348,7 +348,7 @@ DESIGN departmentStores {
 }
 @extendFormFilterStockAccess(d, departmentStores, company);
 
-change(Store store) = ACTION {
+change(Store store) = {
     INPUTX s = VARSTRING[100] DO {
         name(store) <- s;
         IF s THEN {
@@ -502,11 +502,13 @@ META defineDocumentDepartmentStore (object)
     @defineDocumentDetailDepartmentStore(object);
 END
 
-addStore 'Добавить магазин'(LegalEntity legalEntity) = ACTION NESTEDSESSION{
-    FOR NEW st = Store DO {
-        ASSIGN legalEntity(st) <- legalEntity;
-        SHOW store OBJECTS s = st MANAGESESSION DOCKED;
-    }
+addStore 'Добавить магазин'(LegalEntity legalEntity) = {
+	NESTEDSESSION{
+	    FOR NEW st = Store DO {
+	        ASSIGN legalEntity(st) <- legalEntity;
+	        SHOW store OBJECTS s = st MANAGESESSION DOCKED;
+	    }
+	}
 }
 
 EXTEND FORM legalEntity

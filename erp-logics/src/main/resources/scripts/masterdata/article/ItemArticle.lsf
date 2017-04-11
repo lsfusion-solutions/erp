@@ -51,7 +51,7 @@ brand 'Бренд' = DATA Brand (Article);
 nameBrand 'Бренд' (Article a) = name(brand(a)) IN itemBase;
 idBrand 'Бренд' (Article a) = id(brand(a));
 siteBrand 'Адрес сайта' (Article a) = site(brand(a));
-overReplace (Brand new,Brand o) += ACTION {
+overReplace (Brand new,Brand o) += {
     brand(Article article) <- new WHERE brand(article) == o;
 }
 
@@ -62,21 +62,21 @@ CONSTRAINT brand(Article article) AND itemGroup(article) AND countDataItemGroup(
 // Производитель
 manufacturer 'Производитель' = DATA Manufacturer (Article);
 nameManufacturer 'Производитель' (Article a) = name(manufacturer(a)) IN itemBase;
-overReplace (Manufacturer new,Manufacturer o) += ACTION {
+overReplace (Manufacturer new,Manufacturer o) += {
     manufacturer(Article article) <- new WHERE manufacturer(article) == o;
 }
 // Производитель
 country = DATA Country (Article);
 nameCountry 'Страна' (Article a) = name(country(a)) IN itemBase;
-overReplace (Country new,Country o) += ACTION {
+overReplace (Country new,Country o) += {
     country(Article article) <- new WHERE country(article) == o;
 }
 // Изображение артикула
 TABLE imagesArticle (Article);
 image 'Изображение' = DATA IMAGEFILE (Article) TABLE imagesArticle;
-loadImage 'Загрузить изображение' (Article a) = ACTION LOADFILE image(a);
+loadImage 'Загрузить изображение' (Article a) = { LOADFILE image(a); }
 
-saveImage 'Сохранить изображение' (Article article) = ACTION {
+saveImage 'Сохранить изображение' (Article article) = {
     LOCAL fileName=VARSTRING[255]();
     fileName() <- OVERRIDE id(article), caption(article);
     SAVEFILE image(article) NAME fileName();
@@ -259,7 +259,7 @@ count 'Кол-во цветов для артикля' (color,article) = GROUP S
 
 color  = DATA Color(Article);
 nameColor 'Цвет' (Article Article) = name(color(Article)) IN itemArticle;
-overReplace (Color new,Color o) += ACTION {
+overReplace (Color new,Color o) += {
     color(Article article) <- new WHERE color(article) == o;
 }
 EXTEND FORM article PROPERTIES(a) nameColor;
@@ -278,7 +278,7 @@ shortNameUOM 'Краткое наименование' (Article article)=  short
 
 WHEN SESSION CHANGED(itemGroup(Article a)) AND NOT UOM(a) DO
     UOM(a) <- UOM(itemGroup(a));
-overReplace (UOM new,UOM o) += ACTION {
+overReplace (UOM new,UOM o) += {
     UOM(Article article) <- new WHERE UOM(article) == o;
 }
 //  Состав
@@ -403,7 +403,7 @@ count 'Кол-во размеров для артикля' (size,article) = GROU
 maxSku (article, color, size) = GROUP MAX Item sku
     BY article(sku), calcColor(sku), calcSize(sku);
 
-overCopy(Item s, Item d) += ACTION {
+overCopy(Item s, Item d) += {
     article(d) <- article(s);
     color(d) <- color(s);
     size(d) <- size(s);
@@ -572,7 +572,7 @@ DESIGN articles {
 replace = ACTION ABSTRACT LIST (Article, Article);
 in 'Отм.' = DATA LOCAL BOOLEAN (Article);
 
-replace 'Объединить'(Article article) = ACTION {
+replace 'Объединить'(Article article) = {
     FOR in(Article a) DO{
         IF a != article THEN {
             article(Item item) <- article WHERE article(item) == a;

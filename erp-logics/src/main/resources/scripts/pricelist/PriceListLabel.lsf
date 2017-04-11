@@ -17,15 +17,17 @@ FORM selectDepartmentStore 'Выбор отделов магазина для п
         FILTER 'Активный' active(d) 'F10' DEFAULT    
 ;
 
-createPriceListLabel 'Распечатать ценники'(PriceTransactionDocument priceList) = ACTION NEWSESSION {
-    DIALOG selectDepartmentStore OBJECTS p = priceList, d INPUT DO {
-        select(Sku sku, LabelType labelType, d) <- countPriceListDetail(sku,priceList) AND in(labelType, sku, d);   
-    
-        createLabelTransaction(d);  
-        priceTransactionDocument(LabelTransaction t) <- priceList WHERE t == addedTransaction();
-        
-        apply();
-    }
+createPriceListLabel 'Распечатать ценники'(PriceTransactionDocument priceList) = {
+	NEWSESSION {
+	    DIALOG selectDepartmentStore OBJECTS p = priceList, d INPUT DO {
+	        select(Sku sku, LabelType labelType, d) <- countPriceListDetail(sku,priceList) AND in(labelType, sku, d);   
+	    
+	        createLabelTransaction(d);  
+	        priceTransactionDocument(LabelTransaction t) <- priceList WHERE t == addedTransaction();
+	        
+	        apply();
+	    }
+	}
 } TOOLBAR;
 
 select 'Вкл.' = DATA LOCAL BOOLEAN (LabelType, DepartmentStore);
@@ -47,7 +49,7 @@ FORM selectDepartmentStoreLabelType 'Выбор магазина и ценник
     FILTERS in(l,d)        
 ;
 
-createSelectedSkuStockSnapshotLabel 'Перепечатать ценники'(PriceTransactionDocument priceList) = ACTION {    
+createSelectedSkuStockSnapshotLabel 'Перепечатать ценники'(PriceTransactionDocument priceList) = {    
     DIALOG selectDepartmentStoreLabelType OBJECTS p = priceList, d INPUT DO {
         select(Sku sku) <- TRUE IF countPriceListDetail(sku,priceList);   
         FOR select(LabelType type, d) DO {
@@ -73,7 +75,7 @@ DESIGN priceLists {
 }
 
 overFillDocument = ACTION ABSTRACT (LabelTransactionDetail, DocumentDetail); 
-fillDocument 'Подбор документа'(LabelTransaction labelTransaction) = ACTION {
+fillDocument 'Подбор документа'(LabelTransaction labelTransaction) = {
     DIALOG documents OBJECTS d INPUT DO {
         FOR document(DocumentDetail documentDetail) == d NEW i = LabelTransactionDetail DO {
             labelTransaction(i) <- labelTransaction;
@@ -85,7 +87,7 @@ fillDocument 'Подбор документа'(LabelTransaction labelTransaction
     }
 } TOOLBAR;
 
-overFillDocument (LabelTransactionDetail i, DocumentDetail d) += ACTION {
+overFillDocument (LabelTransactionDetail i, DocumentDetail d) += {
     batch(i) <- batch(d);
 }
 

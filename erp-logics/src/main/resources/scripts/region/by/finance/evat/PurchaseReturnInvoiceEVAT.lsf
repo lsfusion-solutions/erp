@@ -26,7 +26,7 @@ customer[EVATDocument](PurchaseReturn.Invoice i) += customer(i);
 
 overCreateEVATPurchaseReturnInvoice = ACTION ABSTRACT LIST (EVAT, PurchaseReturn.Invoice);
 
-createEVATPurchaseReturnInvoice 'Накладные (закупка-возврат)' (DATE dFrom, DATE dTo) = ACTION {
+createEVATPurchaseReturnInvoice 'Накладные (закупка-возврат)' (DATE dFrom, DATE dTo) = {
     IF dFrom IS DATE AND dTo IS DATE THEN {
         FOR includeEVAT(Invoice i) AND isPosted(i) AND NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo NEW e = EVAT DO {
             EVATDocument(e) <- i;            
@@ -84,7 +84,7 @@ createEVATPurchaseReturnInvoice 'Накладные (закупка-возвра
             sumWithVAT(ed) <- invoiceSum(id);
             
             IF valueVAT(id) == 0 THEN
-                descriptionType(ed) <- DescriptionType.vatExcemption
+                descriptionType(ed) <- DescriptionType.vatExcemption;
             ELSE
                 descriptionType(ed) <- DescriptionType.deductionInFull;
             }

@@ -40,14 +40,14 @@ CONSTRAINT stock(UserConsumption o) AND NOT  isCompany(stock(o))
 
 @showDocumentInterfaceDetailBatch(consumption);
 @defineDocumentInterfaceDetailBatch(consumption, batch);
-changeBatch(UserConsumptionDetail detail) = ACTION {
+changeBatch(UserConsumptionDetail detail) = {
     DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
                              t = dateTime(detail),
                              sk = sku(detail),
                              bt = batch(detail) INPUT NULL DO
         batch(detail) <- bt;
 }
-replace(Sku s, Batch b) += ACTION { sku(UserConsumptionDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += { sku(UserConsumptionDetail detail) <- s WHERE batch(detail) == b;}
 
 
     
@@ -160,7 +160,7 @@ recBruttoQuantityOutput 'Рекур.кол-во' (BOM, order, component) = GROUP
 
 calcComponentConsumedQuantity (ComponentDetail d) = recBruttoQuantityOutput(BOM(d), order(d), component(d)) * quantityCoeff(d) * OVERRIDE 1.0, multiplierSubstituteTo(bruttoSku(d), substituteSku(d));
 calcSkuConsumedQuantity (ComponentDetail d) = recBruttoQuantityOutput(BOM(d), order(d), bruttoSku(d)) * quantityCoeff(d) * OVERRIDE 1.0, multiplierSubstituteTo(bruttoSku(d), substituteSku(d));
-createOutputComponent 'Заполнить списание'(Order order) = ACTION  {
+createOutputComponent 'Заполнить списание'(Order order) = {
     consumedQuantity(ComponentDetail d) <- calcComponentConsumedQuantity(d) WHERE order(d) == order AND component(d);
     consumedQuantity(ComponentDetail d) <- calcSkuConsumedQuantity(d) WHERE order(d) == order AND NOT component(d);
 } TOOLBAR;
@@ -247,7 +247,7 @@ DESIGN consumptionOrders {
     }
 }
 
-fillOrder 'Заполнить на основе производственного заказа'(UserConsumption userConsumption) =  ACTION {
+fillOrder 'Заполнить на основе производственного заказа'(UserConsumption userConsumption) =  {
     DIALOG consumptionOrders OBJECTS s = stock(userConsumption), o INPUT DO {
         FOR order(ComponentDetail componentDetail) == o NEW d = UserConsumptionDetail DO {
             userConsumption(d) <- userConsumption;
@@ -269,8 +269,8 @@ sumItemOutStockDocumentLedger 'Сумма расхода, товар' (ledger) =
 type(Consumption l) += OVERRIDE 'Списание сырья (пр-во)' IF l IS Consumption, typeStockDocumentLedger(l);
 sumItem (Consumption ledger) += OVERRIDE sumItemConsumptionDetail(ledger), sumItemOutStockDocumentLedger(ledger);
 sumContainer (Consumption ledger) += sumContainerConsumptionDetail(ledger);
-edit[StockDocumentLedger](Consumption l) += ACTION edit(l);
-close[StockDocumentLedger](Consumption l) += ACTION close(l);
+edit[StockDocumentLedger](Consumption l) += { edit(l); }
+close[StockDocumentLedger](Consumption l) += { close(l); }
 
 // Проводим по регистру
 @implementSkuLedgerOutFIFO(ConsumptionDetail, sku, stock);
@@ -363,8 +363,8 @@ quantity(OrderConsumptionDetail consumptionDetail) += consumedQuantity(component
 price(OrderConsumptionDetail consumptionDetail) += price(componentDetail(consumptionDetail));
 sum(OrderConsumptionDetail consumptionDetail) += consumedSum(componentDetail(consumptionDetail));
 
-edit(OrderConsumption consumption) += ACTION edit(order(consumption));
-close(OrderConsumption consumption) += ACTION isClosed(Order o) <- TRUE WHERE o == order(consumption);
+edit(OrderConsumption consumption) += { edit(order(consumption)); }
+close(OrderConsumption consumption) += { isClosed(Order o) <- TRUE WHERE o == order(consumption); }
 
 operation(OrderConsumption output) += operation(order(output));
 // --------------------------- Формы Списания ---------------------------------
@@ -461,32 +461,40 @@ WHEN SESSION FORMS userConsumption CHANGED(batch(UserConsumptionDetail detail)) 
 //                    ELSE priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, skuUserConsumptionDetail(detail), stockUserConsumptionDetail(detail), dateTimeUserConsumptionDetail(detail));
                     
 edit 'Редактировать' = ACTION ABSTRACT LIST  (ConsumptionDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserConsumptionDetail d) = ACTION NEWSESSION {
-    SHOW userConsumption OBJECTS o = userConsumption(d), d = d MANAGESESSION DOCKED;
+edit(UserConsumptionDetail d) = {
+	NEWSESSION {
+	    SHOW userConsumption OBJECTS o = userConsumption(d), d = d MANAGESESSION DOCKED;
+	}
 }
 
-edit(UserConsumptionDetail d) += ACTION edit(d);
-edit[SkuLedger](ConsumptionDetail batch) += ACTION edit(batch);
+edit(UserConsumptionDetail d) += { edit(d); }
+edit[SkuLedger](ConsumptionDetail batch) += { edit(batch); }
                        
-edit(ComponentDetail d) = ACTION NEWSESSION {
-    SHOW order OBJECTS o = order(d), cd = d MANAGESESSION DOCKED;
+edit(ComponentDetail d) = {
+	NEWSESSION {
+	    SHOW order OBJECTS o = order(d), cd = d MANAGESESSION DOCKED;
+	}
 }
 
-edit(OrderConsumptionDetail d) += ACTION edit(componentDetail(d));
+edit(OrderConsumptionDetail d) += { edit(componentDetail(d)); }
 
 show 'Просмотреть' = ACTION ABSTRACT LIST  (ConsumptionDetail) TOOLBAR;
-show(UserConsumptionDetail d) = ACTION NEWSESSION {
-    SHOW userConsumption OBJECTS o = userConsumption(d), d = d DOCKED READONLY ;
+show(UserConsumptionDetail d) = {
+	NEWSESSION {
+	    SHOW userConsumption OBJECTS o = userConsumption(d), d = d DOCKED READONLY ;
+	}
 }
 
-show(UserConsumptionDetail d) += ACTION show(d);
-show[SkuLedger](ConsumptionDetail batch) += ACTION show(batch);
+show(UserConsumptionDetail d) += { show(d); }
+show[SkuLedger](ConsumptionDetail batch) += { show(batch); }
                        
-show(ComponentDetail d) = ACTION NEWSESSION {
-    SHOW order OBJECTS o = order(d), cd = d DOCKED READONLY;
+show(ComponentDetail d) = {
+	NEWSESSION {
+	    SHOW order OBJECTS o = order(d), cd = d DOCKED READONLY;
+	}
 }
 
-show(OrderConsumptionDetail d) += ACTION show(componentDetail(d));
+show(OrderConsumptionDetail d) += { show(componentDetail(d)); }
 
 
 
@@ -513,27 +521,29 @@ show(OrderConsumptionDetail d) += ACTION show(componentDetail(d));
 @defineMovementBatch(userConsumptionDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
 
 edit 'Редактировать' (userConsumption) = ACTION EDITFORM UserConsumption;
-edit(UserConsumption consumption) += ACTION edit(consumption);
+edit(UserConsumption consumption) += { edit(consumption); }
 
-copy 'Копировать'(UserConsumption userConsumption) = ACTION NEWSESSION {
-    FOR NEW o = UserConsumption DO {
-        ASSIGN stock(o) <- stock(userConsumption);
-        ASSIGN currency(o) <- currency(userConsumption);
-        ASSIGN priceListType(o) <- priceListType(userConsumption);
-        ASSIGN note(o) <- note(userConsumption);
-
-        FOR userConsumption(UserConsumptionDetail userConsumptionDetail) == userConsumption DO {
-            FOR NEW d=UserConsumptionDetail DO {
-                ASSIGN userConsumption(d) <- o;
-                ASSIGN sku(d) <- sku(userConsumptionDetail);
-                ASSIGN quantity(d) <- quantity(userConsumptionDetail);
-                ASSIGN priceListType(d) <- priceListType(userConsumptionDetail);
-//                ASSIGN priceUserConsumptionDetail(d) <- priceUserConsumptionDetail(userConsumptionDetail);
-                ASSIGN componentDetail(d) <- componentDetail(userConsumptionDetail);
-            }
-        }
-        SHOW userConsumption OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
-    }
+copy 'Копировать'(UserConsumption userConsumption) = {
+	NEWSESSION {
+	    FOR NEW o = UserConsumption DO {
+	        ASSIGN stock(o) <- stock(userConsumption);
+	        ASSIGN currency(o) <- currency(userConsumption);
+	        ASSIGN priceListType(o) <- priceListType(userConsumption);
+	        ASSIGN note(o) <- note(userConsumption);
+	
+	        FOR userConsumption(UserConsumptionDetail userConsumptionDetail) == userConsumption DO {
+	            FOR NEW d=UserConsumptionDetail DO {
+	                ASSIGN userConsumption(d) <- o;
+	                ASSIGN sku(d) <- sku(userConsumptionDetail);
+	                ASSIGN quantity(d) <- quantity(userConsumptionDetail);
+	                ASSIGN priceListType(d) <- priceListType(userConsumptionDetail);
+	//                ASSIGN priceUserConsumptionDetail(d) <- priceUserConsumptionDetail(userConsumptionDetail);
+	                ASSIGN componentDetail(d) <- componentDetail(userConsumptionDetail);
+	            }
+	        }
+	        SHOW userConsumption OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR;
 
 EXTEND FORM userConsumption
@@ -622,57 +632,59 @@ requiredQuantitySubstitute 'Кол-во (всего) (компонент)' (orde
 balance = DATA LOCAL NUMERIC[16,3] (Sku);
 left = DATA LOCAL NUMERIC[16,3] (Sku);
 
-addUserConsumptionProduction 'Списание сырья'(Order order) =  ACTION NEWSESSION {
-    balance(Sku sku) <-  NUMERIC[16,3](balanceB(sku, componentsStock(order), dateTime(order)));
-    left(Sku sku) <-  NUMERIC[16,3](requiredQuantitySubstitute(order, sku));
-
-    FOR NEW o = UserConsumption DO {
-        stock(o) <- componentsStock(order);
-        priceListType(o) <- priceListType(order);
-        note(o) <- note(order);
-        
-        FOR left(Sku sku) > 0 DO {
-                
-            FOR balance(sku) > 0 NEW d = UserConsumptionDetail DO {
-                userConsumption(d) <- o;
-                sku(d) <- sku;
-                quantity(d) <- IF balance(sku) >= left(sku) THEN left(sku) ELSE balance(sku);
-                left(sku) <- left(sku) (-) quantity(d);
-                balance(sku) <- balance(sku) (-) quantity(d);  
-            }
-             
-            IF left(sku) > 0 THEN {
-                FOR fromSku(Substitute substitute) == sku AND toSku(substitute) == Sku s AND balance(s) > 0 ORDER balance(toSku(substitute))
-                    NEW d = UserConsumptionDetail DO {
-                    userConsumption(d) <- o;
-                    sku(d) <- s;
-                                               
-                    quantity(d) <- IF (balance(s)) >= (left(sku) * multiplier(substitute)) 
-                                                            THEN (left(sku) * multiplier(substitute)) ELSE balance(s);                        
-                    
-                    left(sku) <- left(sku) (-) (quantity(d) / multiplier(substitute) IF multiplier(substitute) != 0);                            
-                    
-                    balance(s) <- balance(s) (-) quantity(d);
-                    
-                    IF NOT (left(sku) > 0) THEN
-                        BREAK;
-                }                                              
-            }                                    
-        }
-
-        IF [= GROUP SUM 1 IF left(Sku sku) > 0]() THEN {
-            MESSAGE 'Внимание !!! Не хватает остатка для компонент : \n' + [= GROUP CONCAT name(Sku sku) IF left(sku) > 0, '\n' ORDER name(sku)]();
-        }
-        
-        FOR left(Sku sku) NEW d = UserConsumptionDetail DO {
-            userConsumption(d) <- o;
-            sku(d) <- sku;
-            quantity(d) <- left(sku);
-        }
-        
-
-        SHOW userConsumption OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
-    }
+addUserConsumptionProduction 'Списание сырья'(Order order) =  {
+	NEWSESSION {
+	    balance(Sku sku) <-  NUMERIC[16,3](balanceB(sku, componentsStock(order), dateTime(order)));
+	    left(Sku sku) <-  NUMERIC[16,3](requiredQuantitySubstitute(order, sku));
+	
+	    FOR NEW o = UserConsumption DO {
+	        stock(o) <- componentsStock(order);
+	        priceListType(o) <- priceListType(order);
+	        note(o) <- note(order);
+	        
+	        FOR left(Sku sku) > 0 DO {
+	                
+	            FOR balance(sku) > 0 NEW d = UserConsumptionDetail DO {
+	                userConsumption(d) <- o;
+	                sku(d) <- sku;
+	                quantity(d) <- IF balance(sku) >= left(sku) THEN left(sku) ELSE balance(sku);
+	                left(sku) <- left(sku) (-) quantity(d);
+	                balance(sku) <- balance(sku) (-) quantity(d);  
+	            }
+	             
+	            IF left(sku) > 0 THEN {
+	                FOR fromSku(Substitute substitute) == sku AND toSku(substitute) == Sku s AND balance(s) > 0 ORDER balance(toSku(substitute))
+	                    NEW d = UserConsumptionDetail DO {
+	                    userConsumption(d) <- o;
+	                    sku(d) <- s;
+	                                               
+	                    quantity(d) <- IF (balance(s)) >= (left(sku) * multiplier(substitute)) 
+	                                                            THEN (left(sku) * multiplier(substitute)) ELSE balance(s);                        
+	                    
+	                    left(sku) <- left(sku) (-) (quantity(d) / multiplier(substitute) IF multiplier(substitute) != 0);                            
+	                    
+	                    balance(s) <- balance(s) (-) quantity(d);
+	                    
+	                    IF NOT (left(sku) > 0) THEN
+	                        BREAK;
+	                }                                              
+	            }                                    
+	        }
+	
+	        IF [= GROUP SUM 1 IF left(Sku sku) > 0]() THEN {
+	            MESSAGE 'Внимание !!! Не хватает остатка для компонент : \n' + [= GROUP CONCAT name(Sku sku) IF left(sku) > 0, '\n' ORDER name(sku)]();
+	        }
+	        
+	        FOR left(Sku sku) NEW d = UserConsumptionDetail DO {
+	            userConsumption(d) <- o;
+	            sku(d) <- sku;
+	            quantity(d) <- left(sku);
+	        }
+	        
+	
+	        SHOW userConsumption OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR;
 
 //bruttoQuantityUserConsumptionDetail 'Кол-во' = DATA NUMERIC[16,3] (UserConsumptionDetail); // по строке компонента

@@ -165,7 +165,7 @@ FORM naturalLossGroups 'Справочник норм естественной �
             country(sg) == c OR sg IS SubNaturalLossGroup AND NOT c
 ;
 
-seekDefaultCountryNaturalLoss() = ACTION {
+seekDefaultCountryNaturalLoss() = {
     IF defaultCountry() THEN {
         SEEK naturalLossGroups.c = defaultCountry();
     }
@@ -303,7 +303,7 @@ sum 'Сумма' (naturalLoss) = GROUP SUM sum(NaturalLossDetail naturalLossDeta
 
 overFillDetail =  ACTION ABSTRACT LIST (NaturalLoss);
 
-toSaleFillDetail 'Заполнить на основе продаж'(NaturalLoss naturalLoss) = ACTION {
+toSaleFillDetail 'Заполнить на основе продаж'(NaturalLoss naturalLoss) = {
     IF countNaturalLossDetail(naturalLoss) THEN {
         ASK 'Существующие строки будут удалены.' DO
             DELETE NaturalLossDetail d WHERE naturalLoss(d) == naturalLoss;
@@ -345,7 +345,7 @@ quantityPurchaseDepartment 'Поступило' (sku, stock, dateFrom, dateTo, s
               AND subNaturalLossGroup(country(stock(ledger)), sku(ledger)) == subNaturalLossGroup(subNaturalLossGroupDetail)
               BY sku(ledger), stock(ledger), dateFrom, dateTo, subNaturalLossGroupDetail;
               
-toPurchaseFillDetail 'Заполнить на основе поступлений'(NaturalLoss naturalLoss) = ACTION {
+toPurchaseFillDetail 'Заполнить на основе поступлений'(NaturalLoss naturalLoss) = {
 
     IF countNaturalLossDetail(naturalLoss) THEN {
         ASK 'Существующие строки будут удалены.' DO
@@ -529,14 +529,14 @@ NAVIGATOR {
 
 //------------------- Справочник норм естественной убыли----------------------------//
 
-loadDefaultNaturalLossGroup 'Добавить нормы естественной убыли'(STRING[3] idCountry, VARISTRING[110] string) = ACTION  {
+loadDefaultNaturalLossGroup 'Добавить нормы естественной убыли'(STRING[3] idCountry, VARISTRING[110] string) = {
     FOR NEW cg = NaturalLossGroup DO {
          name(cg) <- string;
          country(cg) <- country(idCountry);
     }
 }
 
-loadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли'(STRING[3] idCountry, VARISTRING[110] string, VARISTRING[110] stringOne, STRING[3] stringTwo, NUMERIC[10,5] numeric) = ACTION  {
+loadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли'(STRING[3] idCountry, VARISTRING[110] string, VARISTRING[110] stringOne, STRING[3] stringTwo, NUMERIC[10,5] numeric) = {
     FOR NEW g = SubNaturalLossGroup DO {
         parent(g) <- naturalLossGroup(string);
         name(g) <-  stringOne;
@@ -555,7 +555,7 @@ loadDefaultSubNaturalLossGroup 'Добавить нормы естественн
 }
 
 //-- Для сезонов
-overLoadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли'(STRING[3] idCountry, VARISTRING[110] string, VARISTRING[110] stringOne, STRING[3] stringTwo) = ACTION  {
+overLoadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли'(STRING[3] idCountry, VARISTRING[110] string, VARISTRING[110] stringOne, STRING[3] stringTwo) = {
     FOR NEW g = SubNaturalLossGroup DO {
         parent(g) <- naturalLossGroup(string);
         name(g) <-  stringOne;
@@ -564,7 +564,7 @@ overLoadDefaultSubNaturalLossGroup 'Добавить нормы естестве
     }
 }
 
-overLoadDefaultSubNaturalLossGroupDetail 'Добавить нормы естественной убыли'(STRING[3] id, NUMERIC[10,5] numeric, INTEGER dayFrom, INTEGER monthFrom, INTEGER dayTo, INTEGER monthTo) = ACTION  {
+overLoadDefaultSubNaturalLossGroupDetail 'Добавить нормы естественной убыли'(STRING[3] id, NUMERIC[10,5] numeric, INTEGER dayFrom, INTEGER monthFrom, INTEGER dayTo, INTEGER monthTo) = {
     FOR NEW d = SubNaturalLossGroupDetail  DO {
         subNaturalLossGroup(d) <- subNaturalLossGroupId(id);
         percent(d) <- numeric;

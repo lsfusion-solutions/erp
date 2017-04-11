@@ -36,9 +36,9 @@ backgroundCountVATCustomsException 'Цвет' (Country country,Sku item) = RGB(2
 // todo : workaround, так как нельзя в сессионных событиях обращаться к форме
 dateArticleCustomsAttributesDashboard 'Дата' = DATA DATE (User);
 dateArticleCustomsAttributesDashboard 'Дата' () = dateArticleCustomsAttributesDashboard(currentUser());
-setDateArticleCustomsAttributesDashboard() = ACTION dateArticleCustomsAttributesDashboard(User u) <- currentDate() WHERE u == currentUser();
+setDateArticleCustomsAttributesDashboard() = { dateArticleCustomsAttributesDashboard(User u) <- currentDate() WHERE u == currentUser(); }
 
-changeDateArticleCustomsAttributesDashboard() = ACTION {
+changeDateArticleCustomsAttributesDashboard() = {
     INPUTX d = DATE DO
         dateArticleCustomsAttributesDashboard(User u) <- d WHERE u == currentUser();
 }
@@ -166,7 +166,7 @@ DESIGN articleCustomsAttributesDashboard {
 }
 
 // -- Проставляем страну по умолчанию
-seekDefaultCountryArticleCustomsAttributesDashboard() = ACTION {
+seekDefaultCountryArticleCustomsAttributesDashboard() = {
     IF defaultCountry() THEN {
         SEEK articleCustomsAttributesDashboard.c = defaultCountry();
     }
@@ -176,7 +176,7 @@ EXTEND FORM articleCustomsAttributesDashboard
 ;
 
 
-completeArticleCustomsAttributesDashboard 'Подтвердить все'(Country country) = ACTION {   
+completeArticleCustomsAttributesDashboard 'Подтвердить все'(Country country) = {   
     LOCAL k = INTEGER ();
     k() <- 0;
     
@@ -229,13 +229,13 @@ defaultVATCustomsException (country, item, date) =
               (surelySizeBrush(customsGroup(exception)) AND toInteger(sizeBrushCustoms(item)) > limitSizeBrush(exception))
           BY country, item, date;
 
-fillDefaultVATCustomsException 'Рассчитать льготу'(Country country, Item item) = ACTION {
+fillDefaultVATCustomsException 'Рассчитать льготу'(Country country, Item item) = {
     VATCustomsException(country, item) <- defaultVATCustomsException (country, item, dateArticleCustomsAttributesDashboard())
         WHERE defaultVATCustomsException (country, item, dateArticleCustomsAttributesDashboard());
 
 } SHORTCUT nameVATCustomsException[Country,Item];
 
-fillDefaultVATCustomsException 'Рассчитать льготу для всех'(Country country) = ACTION {
+fillDefaultVATCustomsException 'Рассчитать льготу для всех'(Country country) = {
     FOR [= FILTER articleCustomsAttributesDashboard.i](Item item) DO {
         fillDefaultVATCustomsException(country, item);
     }
@@ -254,20 +254,20 @@ countDefaultShortVATCustomsException (country, item, date) =
               dateTo(exception) < date
           BY country, item, date;
           
-fillDefaultShortVATCustomsException 'Установить льготу'(Country country, Item item) = ACTION {
+fillDefaultShortVATCustomsException 'Установить льготу'(Country country, Item item) = {
     VATCustomsException(country, item) <- defaultShortVATCustomsException (country, item, dateArticleCustomsAttributesDashboard())
         WHERE defaultShortVATCustomsException (country, item, dateArticleCustomsAttributesDashboard()) AND countDefaultShortVATCustomsException(country, item, dateArticleCustomsAttributesDashboard())==1;
 
 } SHORTCUT nameVATCustomsException[Country,Item];
 
-fillDefaultShortVATCustomsException 'Установить льготу для всех'(Country country) = ACTION {
+fillDefaultShortVATCustomsException 'Установить льготу для всех'(Country country) = {
     FOR [= FILTER articleCustomsAttributesDashboard.i](Item item) DO {
         fillDefaultShortVATCustomsException(country, item);
     }
 } SHORTCUT nameVATCustomsException[Country,Item];           
           
 // -- Заполнение по матрице
-mapAllExSizeItem 'Заполнить размер (бел) для всех по соответствию'() = ACTION {
+mapAllExSizeItem 'Заполнить размер (бел) для всех по соответствию'() = {
    FOR [= FILTER articleCustomsAttributesDashboard.i](Item i)  AND NOT exSize(i) DO
        mapExSize(i);
 };
@@ -280,31 +280,31 @@ DESIGN articleCustomsAttributesDashboard {
     PROPERTY(exSize(i)) { minimumCharWidth = 3; preferredCharWidth = 10;} 
 }
 
-mapAllSizeHeightItem 'Заполнить рост для всех по соответствию'() = ACTION {
+mapAllSizeHeightItem 'Заполнить рост для всех по соответствию'() = {
    FOR [= FILTER articleCustomsAttributesDashboard.i](Item i)  AND NOT sizeHeightCustoms(i) DO
        mapSizeHeightCustoms(i);
 } SHORTCUT nameSizeHeightCustoms[Item];
-mapAllSizeChestItem 'Заполнить обхват груди для всех по соответствию'() = ACTION {
+mapAllSizeChestItem 'Заполнить обхват груди для всех по соответствию'() = {
    FOR [= FILTER articleCustomsAttributesDashboard.i](Item i) AND NOT sizeChestCustoms(i) DO
        mapSizeChestCustoms(i);
 } SHORTCUT sizeChestCustoms[Item];
-mapAllSizeNeckItem 'Заполнить обхват шеи для всех по соответствию'() = ACTION {
+mapAllSizeNeckItem 'Заполнить обхват шеи для всех по соответствию'() = {
    FOR [= FILTER articleCustomsAttributesDashboard.i](Item i) AND NOT sizeNeckCustoms(i) DO
        mapSizeNeckCustoms(i);
 } SHORTCUT sizeNeckCustoms[Item];
-mapAllFootLengthItem 'Заполнить длину стопы для всех по соответствию'() = ACTION {
+mapAllFootLengthItem 'Заполнить длину стопы для всех по соответствию'() = {
    FOR [= FILTER articleCustomsAttributesDashboard.i](Item i) AND NOT footLengthCustoms(i) DO
        mapFootLengthCustoms(i);
 } SHORTCUT footLengthCustoms[Item];
-mapAllInsoleLengthItem 'Заполнить длину стельки для всех по соответствию'() = ACTION {
+mapAllInsoleLengthItem 'Заполнить длину стельки для всех по соответствию'() = {
    FOR [= FILTER articleCustomsAttributesDashboard.i](Item i) AND NOT insoleLengthCustoms(i) DO
        mapInsoleLengthCustoms(i);
 } SHORTCUT insoleLengthCustoms[Item];
-mapAllSizeHeadItem 'Заполнить обхват головы для всех по соответствию'() = ACTION {
+mapAllSizeHeadItem 'Заполнить обхват головы для всех по соответствию'() = {
    FOR [= FILTER articleCustomsAttributesDashboard.i](Item i) AND NOT sizeHeadCustoms(i) DO
        mapSizeHeadCustoms(i);
 } SHORTCUT sizeHeadCustoms[Item];
-mapAllSizeBrushItem 'Заполнить обхват кисти для всех по соответствию'() = ACTION {
+mapAllSizeBrushItem 'Заполнить обхват кисти для всех по соответствию'() = {
    FOR [= FILTER articleCustomsAttributesDashboard.i](Item i) AND NOT sizeBrushCustoms(i) DO
        mapSizeBrushCustoms(i);
 } SHORTCUT sizeBrushCustoms[Item];

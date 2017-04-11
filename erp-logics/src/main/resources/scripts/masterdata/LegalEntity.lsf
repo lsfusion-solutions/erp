@@ -67,7 +67,7 @@ CONSTRAINT country(ownership(LegalEntity legalEntity)) != country(legalEntity)
 
 fullName 'Полное наименование' = DATA VARISTRING[200] (LegalEntity) IN law MINCHARWIDTH 50 PREFCHARWIDTH 50;
 
-setFullName 'Заполнить из наименования' (LegalEntity l) = ACTION {
+setFullName 'Заполнить из наименования' (LegalEntity l) = {
     fullName(l) <- CONCAT ' ', nameOwnership(l), name(l);
 }
 
@@ -233,7 +233,7 @@ DESIGN confirmReplaceLegalEntity {
 replace = ACTION ABSTRACT LIST (LegalEntity, LegalEntity);
 preReplace = ACTION ABSTRACT LIST (LegalEntity, LegalEntity);
 
-replace 'Объединить'(LegalEntity legalEntity) = ACTION {
+replace 'Объединить'(LegalEntity legalEntity) = {
     setNoEventsInTransaction();
     
     DIALOG confirmReplaceLegalEntity OBJECTS l=legalEntity DO {
@@ -373,7 +373,7 @@ DESIGN dialogLegalEntities {
     }
 }
 
-copy 'Копировать' (LegalEntity l) = ACTION {
+copy 'Копировать' (LegalEntity l) = {
     NEWSESSION {
         FOR NEW newL = LegalEntity DO {
             name(newL) <- name(l);
@@ -562,7 +562,7 @@ DESIGN customerLegalEntities {
     }
 }
 META defineDocumentDialogLegalEntity(objectClass, filter, prefix)
-    change###prefix###filter(###objectClass o) = ACTION {
+    change###prefix###filter(###objectClass o) = {
         DIALOG filter###legalEntities OBJECTS l = prefix(o) CHANGE DO {
         }
     }
@@ -583,7 +583,7 @@ META defineDocumentHeaderLegalEntity (object, contact, contactCaption)
     name###contact contactCaption (###object object)= name(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
     fullName###contact contactCaption###' (полное наименование)' (###object object)= fullName(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
     address###contact contactCaption###' (адрес)' (###object object)= address(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
-    replace(LegalEntity l, LegalEntity o) += ACTION {ASSIGN contact(###object object) <- o WHERE contact(object) == l;} 
+    replace(LegalEntity l, LegalEntity o) += {ASSIGN contact(###object object) <- o WHERE contact(object) == l;} 
 END
 META defineDocumentAbstractHeaderLegalEntity (object, contact, contactCaption)
     contact (object) = ABSTRACT LegalEntity (###object) PERSISTENT;
@@ -704,13 +704,13 @@ END
 
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
-loadDefaultStaticOwnership 'Добавить Формы собственности'(VARISTRING[100] iname, STRING[10] isname, STRING[3] sidCountry, static) = ACTION {    //статик класс
+loadDefaultStaticOwnership 'Добавить Формы собственности'(VARISTRING[100] iname, STRING[10] isname, STRING[3] sidCountry, static) = {    //статик класс
         ASSIGN name(Ownership t) <- iname WHERE t == static;
         ASSIGN shortName(Ownership t) <- isname WHERE t == static;       
         ASSIGN country(Ownership t) <- country(sidCountry) WHERE t == static;
 }
 
-loadDefaultOwnership 'Добавить Формы собственности'(VARISTRING[100] iname, STRING[10] isname, STRING[3] sidCountry) = ACTION {
+loadDefaultOwnership 'Добавить Формы собственности'(VARISTRING[100] iname, STRING[10] isname, STRING[3] sidCountry) = {
     FOR NEW t = Ownership DO {
         ASSIGN name(t) <- iname;
         ASSIGN shortName(t) <- isname;
@@ -726,14 +726,14 @@ loadDefaultOwnerships 'Загрузить стандартные формы со
 
 //--
 
-loadDefaultLegalEntityGroup 'Добавить группы организаций'(VARISTRING[100] iname, VARSTRING[100] id) = ACTION {
+loadDefaultLegalEntityGroup 'Добавить группы организаций'(VARISTRING[100] iname, VARSTRING[100] id) = {
     FOR NEW lg = LegalEntityGroup DO {
         name(lg) <- iname;
         id(lg) <- id;
 
     }
 }
-loadDefaultRecLegalEntityGroup 'Добавить группы организаций (рекурсивно)'(VARISTRING[100] iname, VARSTRING[100] id, VARSTRING[100] idParent) = ACTION {
+loadDefaultRecLegalEntityGroup 'Добавить группы организаций (рекурсивно)'(VARISTRING[100] iname, VARSTRING[100] id, VARSTRING[100] idParent) = {
     FOR NEW lg = LegalEntityGroup DO {
         name(lg) <- iname;
         id(lg) <- id;

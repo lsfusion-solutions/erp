@@ -95,7 +95,7 @@ CLASS ConsumptionPricingDetail 'Строка акта расценки на ос
 
 @defineDocumentAggregation(consumption, consumptionPricing, createPricing);
 
-printPricing 'Акт расценки' (Consumption consumption) = ACTION print(consumptionPricing(consumption)) IMAGE 'print.png' IN print;
+printPricing 'Акт расценки' (Consumption consumption) = { print(consumptionPricing(consumption)); } IMAGE 'print.png' IN print;
 EXTEND FORM consumptions
     PROPERTIES(o)  printPricing SHOWIF createPricing(o)
 ;
@@ -164,9 +164,9 @@ valueRetailVAT(ConsumptionPricingDetail pricingDetail) += valueRetailVAT(pricing
 @defineDocumentAggregationDetailProperty (consumption, consumptionPricing, retailVATSum, 'Сумма НДС');
 retailVATSum(ConsumptionPricingDetail pricingDetail) += retailVATSum(pricingDetail);
 
-edit (ConsumptionPricingDetail d)+= ACTION edit(consumptionDetail(d));
+edit (ConsumptionPricingDetail d)+= { edit(consumptionDetail(d)); }
 
-edit (ConsumptionPricing p)+= ACTION edit(consumption(p));
+edit (ConsumptionPricing p)+= { edit(consumption(p)); }
 //--
 quantity (consumption, consumptionPricing) = GROUP SUM quantity(consumptionDetail(ConsumptionPricingDetail detail)) BY consumption(consumptionDetail(detail)), consumptionPricing(detail);
 

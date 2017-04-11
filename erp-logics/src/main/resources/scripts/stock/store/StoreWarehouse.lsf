@@ -2,66 +2,68 @@ MODULE StoreWarehouse;
 
 REQUIRE StoreSkuLedger, WarehouseSkuLedger, PriceStockGroupWarehouse, PriceListStore, WriteOff;
 
-changeClassWarehouse 'Сделать магазином'(Stock warehouse) = ACTION NEWSESSION {
-
-    LOCAL n = VARSTRING[110]();
-    LOCAL a = VARSTRING[100]();
-    LOCAL le = LegalEntity();
-    LOCAL la = NUMERIC[10,5]();
-    LOCAL lo = NUMERIC[10,5]();
-    LOCAL i = INTEGER();
-    LOCAL ac = BOOLEAN();
-    LOCAL w = WriteOffCommittee();
-    LOCAL e = Employee();
-    LOCAL ee = Employee();
-    LOCAL eee = Employee();
-    LOCAL b = BOOLEAN();
-    LOCAL r = BOOLEAN (Employee);
-    LOCAL id = VARSTRING[100]();
-
-    n() <- name[Warehouse](warehouse);
-    a() <- address[Warehouse](warehouse);
-    le() <- legalEntity[Warehouse](warehouse);
-    la() <- latitude[Warehouse](warehouse);
-    lo() <- longitude[Warehouse](warehouse);
-    i() <- quantityDaysClose[Warehouse](warehouse);
-    ac() <- autoCloseOrders[Warehouse](warehouse);
-    w() <- writeOffCommittee(warehouse);
-    e() <- responsiblePerson(warehouse);
-    ee() <- booker(warehouse);
-    eee() <- controller(warehouse);
-    b() <- explicitBatchLedger[Warehouse](warehouse);
-    id() <- id[Warehouse](warehouse);
-
-    FOR in(warehouse, Employee employee) DO {
-        r(employee) <- in(warehouse, employee);
-    }
-
-    CHANGECLASS warehouse TO DepartmentStore;
-
-    FOR NEW s = Store DO{
-        name(s) <- n();
-        address(s) <- a();
-        legalEntity(s) <- le();
-        latitude(s) <- la();
-        longitude(s) <- lo();
-
-        name[DepartmentStore](warehouse) <- n();
-        store(warehouse) <- s;
-        quantityDaysClose[DepartmentStore](warehouse) <- i();
-        autoCloseOrders[DepartmentStore](warehouse) <- ac();
-        writeOffCommittee(warehouse) <- w();
-        dataResponsiblePerson(warehouse, DATE date) <- e() WHERE date == currentDate();
-        dataBooker(warehouse, DATE date) <- ee() WHERE date == currentDate();
-        dataController(warehouse, DATE date) <- eee() WHERE date == currentDate();
-        explicitBatchLedger[DepartmentStore](warehouse) <- b();
-        id[Warehouse](warehouse) <- id();
-        FOR r(Employee employee) DO {
-            in(warehouse, employee) <- r(employee);
-        }
-
-        SHOW store OBJECTS s=s MANAGESESSION DOCKED NOCANCEL;
-    }
+changeClassWarehouse 'Сделать магазином'(Stock warehouse) = {
+	NEWSESSION {
+	
+	    LOCAL n = VARSTRING[110]();
+	    LOCAL a = VARSTRING[100]();
+	    LOCAL le = LegalEntity();
+	    LOCAL la = NUMERIC[10,5]();
+	    LOCAL lo = NUMERIC[10,5]();
+	    LOCAL i = INTEGER();
+	    LOCAL ac = BOOLEAN();
+	    LOCAL w = WriteOffCommittee();
+	    LOCAL e = Employee();
+	    LOCAL ee = Employee();
+	    LOCAL eee = Employee();
+	    LOCAL b = BOOLEAN();
+	    LOCAL r = BOOLEAN (Employee);
+	    LOCAL id = VARSTRING[100]();
+	
+	    n() <- name[Warehouse](warehouse);
+	    a() <- address[Warehouse](warehouse);
+	    le() <- legalEntity[Warehouse](warehouse);
+	    la() <- latitude[Warehouse](warehouse);
+	    lo() <- longitude[Warehouse](warehouse);
+	    i() <- quantityDaysClose[Warehouse](warehouse);
+	    ac() <- autoCloseOrders[Warehouse](warehouse);
+	    w() <- writeOffCommittee(warehouse);
+	    e() <- responsiblePerson(warehouse);
+	    ee() <- booker(warehouse);
+	    eee() <- controller(warehouse);
+	    b() <- explicitBatchLedger[Warehouse](warehouse);
+	    id() <- id[Warehouse](warehouse);
+	
+	    FOR in(warehouse, Employee employee) DO {
+	        r(employee) <- in(warehouse, employee);
+	    }
+	
+	    CHANGECLASS warehouse TO DepartmentStore;
+	
+	    FOR NEW s = Store DO{
+	        name(s) <- n();
+	        address(s) <- a();
+	        legalEntity(s) <- le();
+	        latitude(s) <- la();
+	        longitude(s) <- lo();
+	
+	        name[DepartmentStore](warehouse) <- n();
+	        store(warehouse) <- s;
+	        quantityDaysClose[DepartmentStore](warehouse) <- i();
+	        autoCloseOrders[DepartmentStore](warehouse) <- ac();
+	        writeOffCommittee(warehouse) <- w();
+	        dataResponsiblePerson(warehouse, DATE date) <- e() WHERE date == currentDate();
+	        dataBooker(warehouse, DATE date) <- ee() WHERE date == currentDate();
+	        dataController(warehouse, DATE date) <- eee() WHERE date == currentDate();
+	        explicitBatchLedger[DepartmentStore](warehouse) <- b();
+	        id[Warehouse](warehouse) <- id();
+	        FOR r(Employee employee) DO {
+	            in(warehouse, employee) <- r(employee);
+	        }
+	
+	        SHOW store OBJECTS s=s MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } CONFIRM TOOLBAR;
 
 EXTEND FORM warehouses

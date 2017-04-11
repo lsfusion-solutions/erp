@@ -88,38 +88,40 @@ percentSumExecutionService '% исп. заявки (сумма)' (LegalEntity su
 
 overCreateServiceStatusDetail =  ACTION ABSTRACT LIST ();
 
-createServiceStatusDetail 'Заполнить статусы качества' (DATE dFrom, DATE dTo) = ACTION NEWSESSION {
-    isChange(LegalEntity l) <- NULL;
-    
-    LOCAL prev = ServiceStatus(LegalEntity);
-    prev(LegalEntity l) <- serviceStatus(lastServiceStatusDetail(l)) WHERE isSupplier(l);
-    FOR isSupplier(LegalEntity l) AND NOT notCalcServiceStatus(l) AND NOT isCompany(l) NEW d = ServiceStatusDetail DO {
-    
-        legalEntity(d) <- l;
-        fromDate(d) <- dFrom;
-        toDate(d) <- dTo;
-        percService(d) <- OVERRIDE 0.0 IF sumService(l,fromDate(d),toDate(d)), percentSumExecutionService(l,fromDate(d),toDate(d));
-        IF percService(d) AND dataPercService(l) THEN {
-            
-            IF percService(d) >= dataPercService(l) THEN {
-                serviceStatus(d) <- ServiceStatus.good;
-            } ELSE {
-                serviceStatus(d) <- IF prevStatus(legalEntity(d),sumMonth (dFrom, -1)) == ServiceStatus.warning
-                                        THEN ServiceStatus.stopping 
-                                        ELSE ServiceStatus.warning;    
-            }                 
-        }
-        isChange(l) <- TRUE WHERE (prev(l) OR serviceStatus(d)) AND NOT (prev(l) == serviceStatus(d));                
-    }
-    apply();
-    overCreateServiceStatusDetail();
+createServiceStatusDetail 'Заполнить статусы качества' (DATE dFrom, DATE dTo) = {
+	NEWSESSION {
+	    isChange(LegalEntity l) <- NULL;
+	    
+	    LOCAL prev = ServiceStatus(LegalEntity);
+	    prev(LegalEntity l) <- serviceStatus(lastServiceStatusDetail(l)) WHERE isSupplier(l);
+	    FOR isSupplier(LegalEntity l) AND NOT notCalcServiceStatus(l) AND NOT isCompany(l) NEW d = ServiceStatusDetail DO {
+	    
+	        legalEntity(d) <- l;
+	        fromDate(d) <- dFrom;
+	        toDate(d) <- dTo;
+	        percService(d) <- OVERRIDE 0.0 IF sumService(l,fromDate(d),toDate(d)), percentSumExecutionService(l,fromDate(d),toDate(d));
+	        IF percService(d) AND dataPercService(l) THEN {
+	            
+	            IF percService(d) >= dataPercService(l) THEN {
+	                serviceStatus(d) <- ServiceStatus.good;
+	            } ELSE {
+	                serviceStatus(d) <- IF prevStatus(legalEntity(d),sumMonth (dFrom, -1)) == ServiceStatus.warning
+	                                        THEN ServiceStatus.stopping 
+	                                        ELSE ServiceStatus.warning;    
+	            }                 
+	        }
+	        isChange(l) <- TRUE WHERE (prev(l) OR serviceStatus(d)) AND NOT (prev(l) == serviceStatus(d));                
+	    }
+	    apply();
+	    overCreateServiceStatusDetail();
+	}
 }
 
-createServiceStatusDetail() = ACTION {
+createServiceStatusDetail() = {
     createServiceStatusDetail(firstDayOfMonth(sumMonth (currentDate(), -1)), lastDayOfMonth(sumMonth (currentDate(), -1)));
 };
 
-changeServiceStatusDetail (LegalEntity l) = ACTION {
+changeServiceStatusDetail (LegalEntity l) = {
     NEWSESSION {
         IF NOT notCalcServiceStatus(l) THEN {
             DIALOG serviceStatus OBJECTS t INPUT DO {

@@ -106,12 +106,12 @@ nameInBin 'Ячейка (в)' (DepartmentStore departmentStore) = name(inBin(dep
 outBin 'Ячейка (из)' = DATA Bin (DepartmentStore);
 nameOutBin 'Ячейка (из)' (DepartmentStore departmentStore) = name(outBin(departmentStore));
 
-setInBin (DepartmentStore departmentStore) = ACTION {
+setInBin (DepartmentStore departmentStore) = {
     DIALOG dialogBinStock OBJECTS s = departmentStore, b = inBin(departmentStore) INPUT NULL DO
         inBin(departmentStore) <- b;
 }
    
-setOutBin (DepartmentStore departmentStore) = ACTION {
+setOutBin (DepartmentStore departmentStore) = {
     DIALOG dialogBinStock OBJECTS s = departmentStore, b = outBin(departmentStore) INPUT NULL DO 
         outBin(departmentStore) <- b;
 }
@@ -127,7 +127,7 @@ DESIGN departmentStore {
     }
 }
 
-generateReceiptSaleSkuLedgers 'Создать продажи по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = ACTION {
+generateReceiptSaleSkuLedgers 'Создать продажи по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = {
     FOR date(ReceiptSaleSkuLedger ledger)>= dFrom AND date(ledger)<= dTo AND departmentStore(ledger)==departmentStore AND 
         outBin(departmentStore) AND NOT receiptSaleSkuLedger(ledger) NEW bl = ReceiptSaleSkuBinLedger DO {
             receiptSaleSkuLedger(bl) <- ledger;
@@ -140,7 +140,7 @@ generateReceiptSaleSkuLedgers 'Создать продажи по ячейкам
     APPLY{};
 }
 
-generateReceiptReturnSkuLedgers 'Создать возвраты по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = ACTION {
+generateReceiptReturnSkuLedgers 'Создать возвраты по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = {
     FOR date(ReceiptReturnSkuLedger ledger)>= dFrom AND date(ledger)<= dTo AND departmentStore(ledger)==departmentStore AND 
         outBin(departmentStore) AND NOT receiptReturnSkuLedger(ledger) NEW bl = ReceiptReturnSkuBinLedger DO {
             receiptReturnSkuLedger(bl) <- ledger;
@@ -153,12 +153,12 @@ generateReceiptReturnSkuLedgers 'Создать возвраты по ячейк
     APPLY{};
 }
 
-generateReceiptSkuLedgers 'Создать продажи по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = ACTION {
+generateReceiptSkuLedgers 'Создать продажи по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = {
     generateReceiptSaleSkuLedgers(departmentStore, dFrom, dTo);
     generateReceiptReturnSkuLedgers(departmentStore, dFrom, dTo);   
 } CONFIRM;
 
-deleteReceiptSkuLedgers 'Очистить' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = ACTION {
+deleteReceiptSkuLedgers 'Очистить' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = {
     DELETE ReceiptSkuBinLedger ledger WHERE date(ledger)>= dFrom AND date(ledger)<= dTo AND departmentStore(ledger)==departmentStore;
     APPLY {};
 } CONFIRM;

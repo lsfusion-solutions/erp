@@ -4,24 +4,26 @@ REQUIRE ProductionOutput, SalePurchaseShipment;
 
 NAMESPACE Production;
 
-createShipment 'Создать поставку для ГП'(Output output) = ACTION NEWSESSION {
-
-    FOR NEW sh = Sale.UserShipment DO {
-        supplier(sh) <- legalEntityStock(output);
-        customer(sh) <- legalEntityStock(output);
-        supplierStock(sh) <- stock(output);
-        createPurchase(sh) <- TRUE;
-        note(sh) <- VARSTRING[100](description(output));
-
-        FOR output(OutputDetail outputDetail) == output NEW d = Sale.UserShipmentDetail DO {
-            userShipment(d) <- sh;
-            sku(d) <- sku(outputDetail);
-            quantity(d) <- quantity(outputDetail);
-            price(d) <- price(outputDetail);
-        }
-
-        SHOW Sale.userShipment OBJECTS s = sh MANAGESESSION DOCKED NOCANCEL;
-    }
+createShipment 'Создать поставку для ГП'(Output output) = {
+	NEWSESSION {
+	
+	    FOR NEW sh = Sale.UserShipment DO {
+	        supplier(sh) <- legalEntityStock(output);
+	        customer(sh) <- legalEntityStock(output);
+	        supplierStock(sh) <- stock(output);
+	        createPurchase(sh) <- TRUE;
+	        note(sh) <- VARSTRING[100](description(output));
+	
+	        FOR output(OutputDetail outputDetail) == output NEW d = Sale.UserShipmentDetail DO {
+	            userShipment(d) <- sh;
+	            sku(d) <- sku(outputDetail);
+	            quantity(d) <- quantity(outputDetail);
+	            price(d) <- price(outputDetail);
+	        }
+	
+	        SHOW Sale.userShipment OBJECTS s = sh MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR;
 
 EXTEND FORM outputs

@@ -56,7 +56,7 @@ selected 'Отм.' = DATA LOCAL BOOLEAN (BinOrder);
 @defineNumeratedDefault(UserBinOrder, 'Заказы на перемещение по ячейкам ', 'ЗП');
 
 disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (UserBinOrder);
-overPrePost 'Провести' (UserBinOrder o) = ACTION {
+overPrePost 'Провести' (UserBinOrder o) = {
     IF NOT disablePosted(o) THEN {
         isPosted(o) <- TRUE;
     } 
@@ -166,7 +166,7 @@ DESIGN userBinOrder {
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (BinOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit 'Редактировать' = ACTION EDITFORM UserBinOrder;
-edit(UserBinOrder order) += ACTION edit(order);
+edit(UserBinOrder order) += { edit(order); }
 
 overShowEdit = ABSTRACT BOOLEAN (BinOrder);
 overShowDelete = ABSTRACT BOOLEAN (BinOrder); 
@@ -180,32 +180,34 @@ overShowDelete (UserBinOrder o) += isUserOpened(o) AND NOT skipToShowDelete(o);
 
 overCopy = ACTION ABSTRACT LIST (UserBinOrderDetail, BinOrderDetail);
 overCopy = ACTION ABSTRACT LIST (BinOrder, UserBinOrder);
-copy 'Копировать'(BinOrder order) = ACTION NEWSESSION {
-    FOR NEW o = UserBinOrder DO {
-        inBin(o) <- inBin(order);
-        outBin(o) <- outBin(order);
-        note(o) <- note(order);
-
-        EXEC overCopy(order, o);
-
-        FOR binOrder(BinOrderDetail orderDetail) == order DO {
-            FOR NEW d=UserBinOrderDetail DO {
-                userBinOrder(d) <- o;
-                sku(d) <- sku(orderDetail);
-                quantity(d) <- quantity(orderDetail);
-                
-                EXEC overCopy(d, orderDetail);
-            }
-        }
-
-        SHOW userBinOrder OBJECTS o = o MANAGESESSION DOCKED;
-    }
+copy 'Копировать'(BinOrder order) = {
+	NEWSESSION {
+	    FOR NEW o = UserBinOrder DO {
+	        inBin(o) <- inBin(order);
+	        outBin(o) <- outBin(order);
+	        note(o) <- note(order);
+	
+	        EXEC overCopy(order, o);
+	
+	        FOR binOrder(BinOrderDetail orderDetail) == order DO {
+	            FOR NEW d=UserBinOrderDetail DO {
+	                userBinOrder(d) <- o;
+	                sku(d) <- sku(orderDetail);
+	                quantity(d) <- quantity(orderDetail);
+	                
+	                EXEC overCopy(d, orderDetail);
+	            }
+	        }
+	
+	        SHOW userBinOrder OBJECTS o = o MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
     
 //-- Копирование строк     
 overCopy = ACTION ABSTRACT LIST (UserBinOrderDetail, UserBinOrderDetail);
 
-copy 'Копировать'(UserBinOrderDetail detail) = ACTION {
+copy 'Копировать'(UserBinOrderDetail detail) = {
     FOR NEW d = UserBinOrderDetail DO {          
 
         userBinOrder(d) <- userBinOrder(detail);
@@ -348,14 +350,14 @@ DESIGN binOrders 'Заказы на перемещение по ячейкам' 
 inBin 'Ячейка (в)' = DATA Bin (Operation, Stock);
 nameInBin 'Ячейка (в)' (Operation operation, Stock stock) = name(inBin(operation, stock)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
 
-setInBin (Operation operation, Stock stock) = ACTION {
+setInBin (Operation operation, Stock stock) = {
     DIALOG dialogBinStock OBJECTS s = stock, b = inBin(operation, stock) CHANGE DO {}
 }
     
 outBin 'Ячейка (из)' = DATA Bin (Operation, Stock);
 nameOutBin 'Ячейка (из)' (Operation operation, Stock stock) = name(outBin(operation, stock)) MINCHARWIDTH 10 PREFCHARWIDTH 20;;
 
-setOutBin (Operation operation, Stock stock) = ACTION {
+setOutBin (Operation operation, Stock stock) = {
     DIALOG dialogBinStock OBJECTS s = stock, b = outBin(operation, stock) CHANGE DO {}
 }
 
@@ -395,7 +397,7 @@ backgroundOutBin (Sku sku, BinOrder order) = RGB(240, 240, 224) IF sku IS Sku AN
 backgroundInBin (Sku sku, BinOrder order) = RGB(244, 255, 189) IF sku IS Sku AND order IS BinOrder;
 
 allOutBinQuantityUserBinOrder 'Весь остаток (ячейка из)' = DATA LOCAL BOOLEAN (Sku, Stock);
-changeAllOutBinQuantity(Sku sku, UserBinOrder userBinOrder, Stock stock) = ACTION {
+changeAllOutBinQuantity(Sku sku, UserBinOrder userBinOrder, Stock stock) = {
     INPUTX b = BOOLEAN DO {
         allOutBinQuantityUserBinOrder (sku,stock) <- b;
         changeQuantityValue(sku, userBinOrder, stock, prevCurrentBalanceOutBin(sku,userBinOrder) IF b);
@@ -428,7 +430,7 @@ DESIGN userBinOrder {
 packQuantity 'Кол-во упаковок в документе' (sku, userBinOrder, stock) = GROUP SUM packQuantity(UserBinOrderDetail userBinOrderDetail)
     BY sku(userBinOrderDetail), userBinOrder(userBinOrderDetail), stock(userBinOrderDetail);
 
-changePackQuantity(Sku sku, UserBinOrder userBinOrder, Stock stock) = ACTION {
+changePackQuantity(Sku sku, UserBinOrder userBinOrder, Stock stock) = {
     INPUTX n = NUMERIC[16,5] DO
         IF userBinOrderDetail(sku, userBinOrder, stock) THEN {
             IF n THEN {
@@ -451,7 +453,7 @@ changePackQuantity(Sku sku, UserBinOrder userBinOrder, Stock stock) = ACTION {
         }
 }
 
-changeAmountPack(Sku sku, UserBinOrder userBinOrder, Stock stock) = ACTION {
+changeAmountPack(Sku sku, UserBinOrder userBinOrder, Stock stock) = {
     INPUTX n = NUMERIC[14,3] DO {
         IF userBinOrderDetail(sku, userBinOrder, stock) THEN {
             IF n THEN {
@@ -504,7 +506,7 @@ FORM printBinOrder 'Заказ на перемещение'
     FILTERS binOrder(d) == o
 ;
 
-printBinOrder 'Печать заказа' (BinOrder order) = ACTION {
+printBinOrder 'Печать заказа' (BinOrder order) = {
     PRINT printBinOrder OBJECTS o = order;
 } IMAGE 'print.png' IN print;
 

@@ -97,9 +97,9 @@ barcodePack(SaleOrderDetail orderDetail) +=  barcodePack(orderDetail(orderDetail
 amountPack(SaleOrderDetail orderDetail) +=  amountPack(orderDetail(orderDetail));
 packQuantity(SaleOrderDetail orderDetail) +=  packQuantity(orderDetail(orderDetail));
 
-edit(SaleOrder order) += ACTION EXEC edit(order(order));
+edit(SaleOrder order) += { EXEC edit(order(order)); }
 createdUser(SaleOrder order) += createdUser(order(order));
-edit(SaleOrderDetail order) += ACTION EXEC edit(orderDetail(order));
+edit(SaleOrderDetail order) += { EXEC edit(orderDetail(order)); }
 
 @defineOperationProperty(createSale, 'Заказ (продажа)', createContainer);
 
@@ -126,48 +126,50 @@ DESIGN userOrder {
 }
 //-- Действие
 
-moveUserOrder 'Заказ (продажа)'(Order order) =  ACTION NEWSESSION{
-    FOR NEW o = Sale.UserOrder DO {
-
-        shipmentDate(o) <- shipmentDate(order);
-        shipmentTime(o) <- shipmentTime(order);
-        agreement(o) <- agreement(order);
-        priceListType(o) <- priceListType(order);
-        supplier(o) <- supplier(order);
-        customer(o) <- customer(order);
-        supplierStock(o) <- supplierStock(order);
-        customerStock(o) <- customerStock(order);
-        number(o) <- number(order);
-        series(o) <- series(order);
-        note(o) <- note(order);
-        currency(o) <- currency(order);
-        showPack(o) <- showPack(order);
-        closeDate(o) <- closeDate(order);
-        operation(o) <- saleOperation(operation(order));
-
-        FOR order(OrderDetail detail)==order NEW d = Sale.UserOrderDetail DO {
-
-            userOrder(d) <- o;
-            shipmentDataDate(d) <- shipmentDataDate(detail);
-            shipmentDataTime(d) <- shipmentDataTime(detail);
-            priceListType(d) <- priceListType(detail);
-
-            sku(d) <- sku(detail);
-            quantity (d) <- quantity(detail);
-            VAT (d) <- VAT(detail);
-            valueVAT (d) <- valueVAT(detail);
-            price (d) <- price(detail);
-            invoicePrice (d) <- invoicePrice(detail);
-
-            barcodePack (d) <- barcodePack(detail);
-            amountPack (d) <- amountPack(detail);
-            packQuantity (d) <- packQuantity(detail);
-            closeDataDate (d) <- closeDataDate(detail);
-
-        }
-
-    SHOW Sale.userOrder OBJECTS o = o MANAGESESSION DOCKED;
-    }
+moveUserOrder 'Заказ (продажа)'(Order order) =  {
+	NEWSESSION{
+	    FOR NEW o = Sale.UserOrder DO {
+	
+	        shipmentDate(o) <- shipmentDate(order);
+	        shipmentTime(o) <- shipmentTime(order);
+	        agreement(o) <- agreement(order);
+	        priceListType(o) <- priceListType(order);
+	        supplier(o) <- supplier(order);
+	        customer(o) <- customer(order);
+	        supplierStock(o) <- supplierStock(order);
+	        customerStock(o) <- customerStock(order);
+	        number(o) <- number(order);
+	        series(o) <- series(order);
+	        note(o) <- note(order);
+	        currency(o) <- currency(order);
+	        showPack(o) <- showPack(order);
+	        closeDate(o) <- closeDate(order);
+	        operation(o) <- saleOperation(operation(order));
+	
+	        FOR order(OrderDetail detail)==order NEW d = Sale.UserOrderDetail DO {
+	
+	            userOrder(d) <- o;
+	            shipmentDataDate(d) <- shipmentDataDate(detail);
+	            shipmentDataTime(d) <- shipmentDataTime(detail);
+	            priceListType(d) <- priceListType(detail);
+	
+	            sku(d) <- sku(detail);
+	            quantity (d) <- quantity(detail);
+	            VAT (d) <- VAT(detail);
+	            valueVAT (d) <- valueVAT(detail);
+	            price (d) <- price(detail);
+	            invoicePrice (d) <- invoicePrice(detail);
+	
+	            barcodePack (d) <- barcodePack(detail);
+	            amountPack (d) <- amountPack(detail);
+	            packQuantity (d) <- packQuantity(detail);
+	            closeDataDate (d) <- closeDataDate(detail);
+	
+	        }
+	
+	    SHOW Sale.userOrder OBJECTS o = o MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
 EXTEND FORM orders

@@ -144,7 +144,7 @@ notIgnoreCashRegisterServerCashRegisterModel(GroupCashRegister gcr) = gcr IS Gro
 showSection(GroupCashRegister gcr) = showSection(model(gcr));
 
 overChangeDirectory = ACTION ABSTRACT LIST (GroupCashRegister);
-changeDirectory(GroupCashRegister group) = ACTION {     
+changeDirectory(GroupCashRegister group) = {     
     INPUTX s = VARSTRING[200] DO {
         directory(group) <- s;
         overChangeDirectory(group);
@@ -216,45 +216,47 @@ DESIGN groupCashRegister{
 }
 
 overCopy = ACTION ABSTRACT LIST (GroupCashRegister, GroupCashRegister);
-copy 'Копировать'(GroupCashRegister old) = ACTION NEWSESSION {
-    FOR NEW new = GroupCashRegister DO {
-        npp(new) <- npp(old);
-        departmentNumber(new) <- departmentNumber(old);
-        stock(new) <- stock(old);
-        name(new) <- name(old);
-        pieceCode(new) <- pieceCode(old);
-        weightCode(new) <- weightCode(old);
-        filterSku(new) <- filterSku(old);
-        in(new, SkuGroup s) <- in(old, s);
-        priceListType(new) <- priceListType(old);
-        cashRegisterModel(new) <- cashRegisterModel(old);
-        directory(new) <- directory(old);
-        startDate(new) <- startDate(old);
-        notDetailed(new) <- notDetailed(old);
-        inactive(new) <- inactive(old);
-        section(new) <- section(old);
-        
-        overCopy(old, new);
-        
-        ASK 'Копировать кассы?' DO {
-            FOR old == groupCashRegister(CashRegister oldCash) NEW newCash = CashRegister DO {
-                groupCashRegister(newCash) <- new;
-                npp(newCash) <- npp(oldCash);
-                shortDescription(newCash) <- shortDescription(oldCash);
-                description(newCash) <- description(oldCash);
-                port(newCash) <- port(oldCash);
-                ip(newCash) <- ip(oldCash);
-                comPort(newCash) <- comPort(oldCash);
-                baudRate(newCash) <- baudRate(oldCash);
-                disableSales(newCash) <- disableSales(oldCash);
-                dataDirectory(newCash) <- dataDirectory(oldCash);
-                date(newCash) <- date(oldCash);
-                computer(newCash) <- computer(oldCash);
-            }
-        }
-        
-        SHOW groupCashRegister OBJECTS grc = new MANAGESESSION DOCKED NOCANCEL;
-    }
+copy 'Копировать'(GroupCashRegister old) = {
+	NEWSESSION {
+	    FOR NEW new = GroupCashRegister DO {
+	        npp(new) <- npp(old);
+	        departmentNumber(new) <- departmentNumber(old);
+	        stock(new) <- stock(old);
+	        name(new) <- name(old);
+	        pieceCode(new) <- pieceCode(old);
+	        weightCode(new) <- weightCode(old);
+	        filterSku(new) <- filterSku(old);
+	        in(new, SkuGroup s) <- in(old, s);
+	        priceListType(new) <- priceListType(old);
+	        cashRegisterModel(new) <- cashRegisterModel(old);
+	        directory(new) <- directory(old);
+	        startDate(new) <- startDate(old);
+	        notDetailed(new) <- notDetailed(old);
+	        inactive(new) <- inactive(old);
+	        section(new) <- section(old);
+	        
+	        overCopy(old, new);
+	        
+	        ASK 'Копировать кассы?' DO {
+	            FOR old == groupCashRegister(CashRegister oldCash) NEW newCash = CashRegister DO {
+	                groupCashRegister(newCash) <- new;
+	                npp(newCash) <- npp(oldCash);
+	                shortDescription(newCash) <- shortDescription(oldCash);
+	                description(newCash) <- description(oldCash);
+	                port(newCash) <- port(oldCash);
+	                ip(newCash) <- ip(oldCash);
+	                comPort(newCash) <- comPort(oldCash);
+	                baudRate(newCash) <- baudRate(oldCash);
+	                disableSales(newCash) <- disableSales(oldCash);
+	                dataDirectory(newCash) <- dataDirectory(oldCash);
+	                date(newCash) <- date(oldCash);
+	                computer(newCash) <- computer(oldCash);
+	            }
+	        }
+	        
+	        SHOW groupCashRegister OBJECTS grc = new MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR;
 
 FORM groupsCashRegister 'Группы касс'
@@ -319,7 +321,7 @@ EXTEND FORM stores
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 cashRegisterSID (cashRegisterModel) = GROUP MAX CashRegisterModel scalesModel BY sid (scalesModel);
 
-loadDefaultCashRegisterModel 'Добавить модель касс'(VARISTRING[110] iname, VARSTRING[20] isid, VARSTRING[200] ihandler, BOOLEAN iShowSection, BOOLEAN iIgnoreCashRegisterServer) = ACTION  {
+loadDefaultCashRegisterModel 'Добавить модель касс'(VARISTRING[110] iname, VARSTRING[20] isid, VARSTRING[200] ihandler, BOOLEAN iShowSection, BOOLEAN iIgnoreCashRegisterServer) = {
     IF NOT cashRegisterSID(isid) THEN {
         FOR NEW crm = CashRegisterModel DO {
              name(crm) <- iname;
@@ -331,7 +333,7 @@ loadDefaultCashRegisterModel 'Добавить модель касс'(VARISTRING
     }
 }
 
-loadDefaultCashRegisterModels 'Загрузить стандартные модели касс'() = ACTION {
+loadDefaultCashRegisterModels 'Загрузить стандартные модели касс'() = {
     EXEC loadDefaultCashRegisterModel('Кассы Atol', 'Atol', 'equ.clt.handler.atol.AtolHandler', NULL, NULL);
     EXEC loadDefaultCashRegisterModel('Кассы EasyCSV', 'EasyCSVC', 'equ.clt.handler.easy.EasyCSVHandler', NULL, NULL);
     EXEC loadDefaultCashRegisterModel('Кассы Kristal', 'Kristal', 'equ.clt.handler.kristal.KristalHandler', NULL, NULL);
@@ -353,7 +355,7 @@ loadDefaultCashRegisterModels 'Загрузить стандартные мод�
 @implementLoadDefaultData(loadDefaultCashRegisterModels);
 
 // --------------------------------------- Генерация групп касс -------------------------------- //
-loadDefaultGroup 'Сгенерировать группу касс'(PriceListType priceListType, Stock stock, CashRegisterModel model, INTEGER num) = ACTION {
+loadDefaultGroup 'Сгенерировать группу касс'(PriceListType priceListType, Stock stock, CashRegisterModel model, INTEGER num) = {
     FOR NEW g = GroupCashRegister DO {
         departmentStore(g) <- stock;
         priceListType(g) <- priceListType;

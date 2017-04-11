@@ -81,7 +81,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
     countBlanketOrderDetail 'Кол-во строк по складу '(stock, blanketOrder) = GROUP SUM 1 BY supplierStock(BlanketOrderDetail blanketOrderDetail), blanketOrder(blanketOrderDetail);
     in 'В заказе' (blanketOrder, stock) = DATA BOOLEAN (BlanketOrder, Stock); //customerStock
     in###customerFilter 'Отм.' (BlanketOrder blanketOrder, Stock stock) = in(customerFilter(blanketOrder), stock);
-    replace(Stock s, Stock o) += ACTION {ASSIGN in(BlanketOrder blanketOrder, o) <- TRUE WHERE in(blanketOrder, s) AND NOT in(blanketOrder, o);}   
+    replace(Stock s, Stock o) += {ASSIGN in(BlanketOrder blanketOrder, o) <- TRUE WHERE in(blanketOrder, s) AND NOT in(blanketOrder, o);}   
 
     @defineDocumentHeaderAgreement (blanketOrder);
     @deriveDocumentHeaderAgreement (blanketOrder, supplier, customer, 'множественный заказ'###sign, NS);
@@ -285,16 +285,18 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
 
     edit 'Редактировать' = ACTION EDITFORM BlanketOrder;
 
-    edit(BlanketOrderDetail d) = ACTION NEWSESSION {
-        SHOW blanketOrder OBJECTS o = blanketOrder(d), d = d MANAGESESSION DOCKED;
-    }
+    edit(BlanketOrderDetail d) = {
+	NEWSESSION {
+	        SHOW blanketOrder OBJECTS o = blanketOrder(d), d = d MANAGESESSION DOCKED;
+	    }
+}
 
 //-- SKU
     @defineDocumentSkuStockExtra(blanketOrder, sku, supplierStock, customerStock);
     @extendFormDocumentSkuStockExtraCustom(blanketOrder, blanketOrder, o, supplier, supplierStock, customerStock);
     
     currentBlanketOrderBlanketOrder() = DATA LOCAL Object ();
-    setCurrentBlanketOrderBlanketOrder(Object o) = ACTION currentBlanketOrderBlanketOrder() <- o;
+    setCurrentBlanketOrderBlanketOrder(Object o) = { currentBlanketOrderBlanketOrder() <- o; }
     
     EXTEND FORM blanketOrder
         EVENTS ON CHANGE o setCurrentBlanketOrderBlanketOrder(o)
@@ -313,37 +315,39 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
     
     overCopy = ACTION ABSTRACT LIST (BlanketOrder, BlanketOrder);
     overCopy = ACTION ABSTRACT LIST (BlanketOrderDetail, BlanketOrderDetail);
-    copy 'Копировать'(BlanketOrder order) = ACTION NEWSESSION {
-        FOR NEW o = BlanketOrder DO {
-            supplier(o) <- supplier(order);
-            supplierStock(o) <- supplierStock(order);
-            customerFilter(o) <- customerFilter(order);
-            
-            in(o,Stock stock) <- in(order,stock) WHERE stock IS Stock;
-            agreement(o,Stock stock) <- agreement(order,stock) WHERE stock IS Stock;
-            priceListType(o,Stock stock) <- priceListType(order,stock) WHERE stock IS Stock;
-            
-            currency(o) <- currency(order);
-            agreement(o) <- agreement(order);
-            note(o) <- note(order);
-
-            EXEC overCopy(o, order);
-
-            FOR blanketOrder(BlanketOrderDetail detail) == order DO {
-                FOR NEW d=BlanketOrderDetail DO {
-                    blanketOrder(d) <- o;
-                    sku(d) <- sku(detail);
-                    quantity(d) <- quantity(detail);
-                    
-                    customerFilter##Stock(d) <- customerFilter##Stock(detail);
-                    
-                    overCopy(d, detail);
-                }
-            }
-
-            SHOW blanketOrder OBJECTS o = o MANAGESESSION DOCKED;
-        }
-    } TOOLBAR;
+    copy 'Копировать'(BlanketOrder order) = {
+	NEWSESSION {
+	        FOR NEW o = BlanketOrder DO {
+	            supplier(o) <- supplier(order);
+	            supplierStock(o) <- supplierStock(order);
+	            customerFilter(o) <- customerFilter(order);
+	            
+	            in(o,Stock stock) <- in(order,stock) WHERE stock IS Stock;
+	            agreement(o,Stock stock) <- agreement(order,stock) WHERE stock IS Stock;
+	            priceListType(o,Stock stock) <- priceListType(order,stock) WHERE stock IS Stock;
+	            
+	            currency(o) <- currency(order);
+	            agreement(o) <- agreement(order);
+	            note(o) <- note(order);
+	
+	            EXEC overCopy(o, order);
+	
+	            FOR blanketOrder(BlanketOrderDetail detail) == order DO {
+	                FOR NEW d=BlanketOrderDetail DO {
+	                    blanketOrder(d) <- o;
+	                    sku(d) <- sku(detail);
+	                    quantity(d) <- quantity(detail);
+	                    
+	                    customerFilter##Stock(d) <- customerFilter##Stock(detail);
+	                    
+	                    overCopy(d, detail);
+	                }
+	            }
+	
+	            SHOW blanketOrder OBJECTS o = o MANAGESESSION DOCKED;
+	        }
+	    }
+} TOOLBAR;
 
     FORM blanketOrders 'Множественные заказы' 
         OBJECTS o = BlanketOrder
@@ -491,7 +495,7 @@ META defineOrderBlanketOrder(sign)
     invoiceSum(BlanketOrderOrderDetail detail) += invoiceSum(blanketOrderDetail(detail));
     VATSum(BlanketOrderOrderDetail detail) += VATSum(blanketOrderDetail(detail));
 
-    edit(BlanketOrderOrder order) += ACTION EXEC edit(blanketOrder(order));
+    edit(BlanketOrderOrder order) += { EXEC edit(blanketOrder(order)); }
     createdUser(BlanketOrderOrder order) += createdUser(blanketOrder(order));
 
 END
@@ -499,7 +503,7 @@ END
 // Партии приход
 META defineBlanketOrderBatch(legalEntityProp, stockProp, stockExtra)
     @defineDocumentDetailBatch(blanketOrder, batch);
-    overCopy(BlanketOrderDetail d, BlanketOrderDetail detail) += ACTION {      
+    overCopy(BlanketOrderDetail d, BlanketOrderDetail detail) += {      
         batch(d) <- batch(detail);
     } 
 
@@ -521,7 +525,7 @@ META defineBlanketOrderBatch(legalEntityProp, stockProp, stockExtra)
 END
 
 META defineBlanketOrderBatchDialogStock(stockProp)
-    changeBatch(BlanketOrderDetail blanketOrderDetail) = ACTION {
+    changeBatch(BlanketOrderDetail blanketOrderDetail) = {
         DIALOG dialogBatchStockOut OBJECTS st = stockProp(blanketOrderDetail),
                                       t = dateTime(blanketOrderDetail),
                                       sk = sku(blanketOrderDetail),

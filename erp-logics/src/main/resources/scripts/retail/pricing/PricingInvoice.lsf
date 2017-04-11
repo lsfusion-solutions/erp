@@ -191,7 +191,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
         FILTERS user###concrete(pd) == i             
     ;
     
-    seekPricing (User###concrete##Detail d) = ACTION {
+    seekPricing (User###concrete##Detail d) = {
         SEEK userInvoice.pd = d;
     }
 
@@ -242,7 +242,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
         PROPERTIES(d) READONLY BACKGROUND backgroundRetail(i) pricingQuantity AFTER quantity(d)  SHOWIF toShowPricing(i)
     ;
     
-    overCopy[User###concrete##Detail,User###concrete##Detail](User###concrete##Detail d, User###concrete##Detail detail) += ACTION {      
+    overCopy[User###concrete##Detail,User###concrete##Detail](User###concrete##Detail d, User###concrete##Detail detail) += {      
         retailPrice(d) <- retailPrice(detail);          
         retailMarkup(d) <- retailMarkup(detail);            
     }  
@@ -260,7 +260,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     @defineDocumentAggregation(invoice, concrete###pricing, needToPricing);
     Pricing.concrete##Detail(###concrete##PricingDetail detail) += concrete##Detail(detail);
 
-    printPricing 'Акт расценки' (###concrete invoice) = ACTION print(concrete##Pricing(invoice)) IMAGE 'print.png' IN print;
+    printPricing 'Акт расценки' (###concrete invoice) = { print(concrete##Pricing(invoice)); } IMAGE 'print.png' IN print;
     EXTEND FORM invoices
         PROPERTIES(i)  printPricing SHOWIF createPricing(i)
     ;
@@ -310,7 +310,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     currency  (###concrete##Pricing concrete###pricing) = currency(concrete(concrete###pricing));
     currency (###concrete##Pricing pricing) += currency(pricing);
     
-    edit(###concrete##Pricing pricing) += ACTION edit(concrete(pricing));
+    edit(###concrete##Pricing pricing) += { edit(concrete(pricing)); }
 
     pricingCommittee(###concrete##Pricing pricing) += pricingCommittee(concrete(pricing));
     dataFormedMan (###concrete##Pricing pricing) += dataFormedMan(concrete(pricing));
@@ -465,7 +465,7 @@ META defineInvoicePricingRelation(sign, stockProp)
         }
     }
 
-    fillInvoice 'Заполнить на основе накладной'(UserPricing userPricing) =  ACTION {
+    fillInvoice 'Заполнить на основе накладной'(UserPricing userPricing) =  {
         DIALOG pricingInvoices OBJECTS s = supplier(userPricing), c = departmentStore(userPricing), i INPUT DO {
             FOR invoice(InvoiceDetail invoiceDetail) == i AND
                 stockProp(invoiceDetail) == departmentStore(userPricing) AND

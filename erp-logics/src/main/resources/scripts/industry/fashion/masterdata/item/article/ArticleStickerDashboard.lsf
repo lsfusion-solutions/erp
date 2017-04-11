@@ -10,7 +10,7 @@ completedSticker 'Обработан' = DATA BOOLEAN (Item);
 notCompletedSticker 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedSticker(i) BY article(i);
 completedSticker 'Обработан' = Article a IS Article AND NOT notCompletedSticker(a);
 
-changeCompletedSticker (Article article) = ACTION {
+changeCompletedSticker (Article article) = {
     INPUTX b = BOOLEAN DO
         completedSticker(Item item) <- b WHERE article(item) == article; 
 }
@@ -27,12 +27,12 @@ nameLabelType 'Тип ценника' (Sku sku)= name(defaultLabelType(sku)) MIN
 defaultLabelType (article) = GROUP MAX LabelType type IF in(type, Item sku) BY article(sku);
 nameLabelType 'Тип ценника' (Article article)= name(defaultLabelType(article)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
-changeDefaultLabelType(Article article) = ACTION {
+changeDefaultLabelType(Article article) = {
     DIALOG labelTypes OBJECTS l INPUT NULL DO
         dataIn(LabelType t, Item sku) <- t == l WHERE article(sku) == article;
 }
 
-changeDefaultLabelType(Sku sku) = ACTION {
+changeDefaultLabelType(Sku sku) = {
     DIALOG labelTypes OBJECTS l INPUT NULL DO
         dataIn(LabelType t, sku) <- t == l;
 }
@@ -66,7 +66,7 @@ inCurrentUser 'Отм.' (ItemGroup itemGroup) = in(currentUser(), itemGroup);
 inCurrentUser 'Отм.' (Article article) = in(currentUser(), article); 
 itemGroupsCurrentUser () = itemGroups(currentUser());
 
-checkInCurrentUser(ItemGroup itemGroup) = ACTION {
+checkInCurrentUser(ItemGroup itemGroup) = {
     INPUTX b = BOOLEAN DO    
         dataIn(User user, itemGroup) <- b WHERE user == currentUser();    
 }
@@ -231,7 +231,7 @@ DESIGN articleStickerDashboard {
 
 // ----- Подтверждение всех артикулов --------- //
 
-completeArticleStickerDashboard 'Подтвердить все'() = ACTION {   
+completeArticleStickerDashboard 'Подтвердить все'() = {   
     LOCAL k = INTEGER ();
     k() <- 0;
     
@@ -254,7 +254,7 @@ EXTEND FORM  articleStickerDashboard
 // --------- Заполнение по матрице соответствия      
 overMapStickerItem = ACTION ABSTRACT LIST (Item);
 
-mapStickerItem 'Заполнить атрибуты для всех по соответствию'() = ACTION {
+mapStickerItem 'Заполнить атрибуты для всех по соответствию'() = {
    FOR [= FILTER articleStickerDashboard.i](Item i)  DO {
         IF NOT sizeHeight(i) THEN mapSizeHeight(i);
         IF NOT sizeChest(i) THEN mapSizeChest(i);
@@ -275,62 +275,62 @@ mapStickerItem 'Заполнить атрибуты для всех по соо�
 EXTEND FORM articleStickerDashboard
     PROPERTIES mapStickerItem() TODRAW i;
 
-mapAllSizeHeightStickerItem 'Заполнить рост для всех по соответствию'() = ACTION {
+mapAllSizeHeightStickerItem 'Заполнить рост для всех по соответствию'() = {
    FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeHeight(i) DO
        mapSizeHeight(i);
 } SHORTCUT sizeHeight[Item];
 
-mapAllSizeChestStickerItem 'Заполнить обхват груди для всех по соответствию'() = ACTION {
+mapAllSizeChestStickerItem 'Заполнить обхват груди для всех по соответствию'() = {
    FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeChest(i) DO
        mapSizeChest(i);
 } SHORTCUT sizeChest[Item];
 
-mapAllSizeUnderChestStickerItem 'Заполнить обхват под грудью для всех по соответствию'() = ACTION {
+mapAllSizeUnderChestStickerItem 'Заполнить обхват под грудью для всех по соответствию'() = {
    FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeUnderChest(i) DO
        mapSizeUnderChest(i);
 } SHORTCUT sizeUnderChest[Item];
 
-mapAllSizeCupBraStickerItem 'Заполнить размер чашечки для всех по соответствию'() = ACTION {
+mapAllSizeCupBraStickerItem 'Заполнить размер чашечки для всех по соответствию'() = {
    FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeCupBra(i) DO
        mapSizeCupBra(i);
 } SHORTCUT sizeCupBra[Item];
 
-mapAllSizeHipsStickerItem 'Заполнить обхват бедер для всех по соответствию'() = ACTION {
+mapAllSizeHipsStickerItem 'Заполнить обхват бедер для всех по соответствию'() = {
    FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeHips(i) DO
        mapSizeHips(i);
 } SHORTCUT sizeHips[Item];     
 
-mapAllSizeWaistStickerItem 'Заполнить обхват талии для всех по соответствию'() = ACTION {
+mapAllSizeWaistStickerItem 'Заполнить обхват талии для всех по соответствию'() = {
    FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeWaist(i) DO
        mapSizeWaist(i);
 } SHORTCUT sizeWaist[Item];  
   
-mapAllSizeNeckStickerItem 'Заполнить обхват шеи для всех по соответствию'() = ACTION {
+mapAllSizeNeckStickerItem 'Заполнить обхват шеи для всех по соответствию'() = {
    FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeNeck(i) DO
        mapSizeNeck(i);
 } SHORTCUT sizeNeck[Item];      
 
-mapAllSizeHeadStickerItem 'Заполнить обхват головы для всех по соответствию'() = ACTION {
+mapAllSizeHeadStickerItem 'Заполнить обхват головы для всех по соответствию'() = {
    FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeHead(i) DO
        mapSizeHead(i);
 } SHORTCUT sizeHead[Item];  
 
-mapAllSizeHandStickerItem 'Заполнить обхват кисти для всех по соответствию'() = ACTION {
+mapAllSizeHandStickerItem 'Заполнить обхват кисти для всех по соответствию'() = {
    FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeHand(i) DO
        mapSizeHand(i);
 } SHORTCUT sizeHand[Item];  
                             
-mapAllFootLengthStickerItem 'Заполнить длину стопы для всех по соответствию'() = ACTION {
+mapAllFootLengthStickerItem 'Заполнить длину стопы для всех по соответствию'() = {
    FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT footLength(i) DO
        mapFootLength(i);
 } SHORTCUT footLength[Item];  
 
-mapAllIsEACArticle 'Заполнить "EAC" для всех по наименованию'() = ACTION {
+mapAllIsEACArticle 'Заполнить "EAC" для всех по наименованию'() = {
    FOR [= FILTER articleStickerDashboard.sta](Article a, DepartmentStore dep)  DO 
        mapIsEAC(a);
 } SHORTCUT isEAC[Article]; 
 
-mapAllLegLengthItem 'Заполнить длину ноги по внутр.поверхности для всех по соответствию'() = ACTION {
+mapAllLegLengthItem 'Заполнить длину ноги по внутр.поверхности для всех по соответствию'() = {
    FOR [= FILTER articleStickerDashboard.i](Item i)   DO 
        mapLegLength(i);
 } SHORTCUT legLength[Item];
@@ -357,7 +357,7 @@ countInDepartmentStores = GROUP SUM 1 IF inLabel(Article a, DepartmentStore st) 
 
 dataLastBatch = ABSTRACT Batch (Sku);
 
-createSnapshotPricing 'Пример ценника'(Article article, DepartmentStore dep) = ACTION {
+createSnapshotPricing 'Пример ценника'(Article article, DepartmentStore dep) = {
     IF countInLabelArticles() THEN {
         IF countLabelTypeArticles() == 1 THEN {
             FOR countInDepartmentStores(DepartmentStore st) NEW t = LabelTransaction DO {          

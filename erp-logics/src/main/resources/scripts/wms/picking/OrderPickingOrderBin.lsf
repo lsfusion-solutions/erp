@@ -21,12 +21,12 @@ META defineOrderPickingOrderBin(stockProp)
     quantity 'Кол-во' = GROUP SUM quantity(UserOrderDetail d) BY userOrder(d), bin(d);
 
     pickingNumber 'Номер комплектации' = GROUP MAX pickingNumber(UserOrderDetail d) BY userOrder(d), bin(d);
-    changePickingNumber(UserOrder o, Bin b) = ACTION {
+    changePickingNumber(UserOrder o, Bin b) = {
         INPUTX i = INTEGER DO
             pickingNumber(UserOrderDetail d) <- i WHERE userOrder(d) == o AND bin(d) == b;
     }
 
-    calculatePickingNumber(UserOrder o) = ACTION {
+    calculatePickingNumber(UserOrder o) = {
         LOCAL countDetail = INTEGER();
         countDetail() <- (countUserOrderDetail(o) + pickingOrderCount(o) - 1) / pickingOrderCount(o);
 
@@ -46,7 +46,7 @@ META defineOrderPickingOrderBin(stockProp)
         }   
     }
 
-    changePickingOrderCount(UserOrder o) = ACTION {
+    changePickingOrderCount(UserOrder o) = {
         INPUTX i = INTEGER DO {
             pickingOrderCount(o) <- MIN (MAX i, 1), 5;
             calculatePickingNumber(o);

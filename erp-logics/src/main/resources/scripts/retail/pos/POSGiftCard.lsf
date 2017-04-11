@@ -9,7 +9,7 @@ giftCardAsNotPaymentCurrentCashRegister 'Не пробивать сертифи�
 giftCardAsNotPaymentText 'Текст между товарным чеком и кассовым чеком' = ABSTRACT TEXT (Receipt);
 
 //продажа подарочных сертификатов
-overChangeBarcodeGiftCard(VARSTRING[30] string, Receipt receipt) = ACTION {
+overChangeBarcodeGiftCard(VARSTRING[30] string, Receipt receipt) = {
     IF giftCardSeriesNumber(string) AND receipt IS Receipt AND string IS VARSTRING[30] THEN {
         LOCAL giftCard = GiftCard();
         giftCard() <- giftCardSeriesNumber(string);
@@ -30,11 +30,11 @@ overChangeBarcodeGiftCard(VARSTRING[30] string, Receipt receipt) = ACTION {
     }
 } TOOLBAR;
 
-overChangeBarcodeSale(VARSTRING[30] string, Receipt receipt) += ACTION overChangeBarcodeGiftCard(string, receipt);
+overChangeBarcodeSale(VARSTRING[30] string, Receipt receipt) += { overChangeBarcodeGiftCard(string, receipt); }
 
 // Оплата сертификатом
 
-addPaymentGiftCard 'Оплатить сертификатом'(Receipt receipt) = ACTION {
+addPaymentGiftCard 'Оплатить сертификатом'(Receipt receipt) = {
     DIALOG barcodeInput DO
         IF isSold(giftCardSeriesNumber(barcodeInput())) AND barcodeInput() IS VARSTRING[15] AND 
            NOT isExpiredDate(giftCardSeriesNumber(barcodeInput())) THEN {
@@ -60,7 +60,7 @@ DESIGN groupCashRegister{
 
 EXTEND FORM groupsCashRegister PROPERTIES(grc) READONLY giftCardAsNotPayment;
 
-overCopy(GroupCashRegister old, GroupCashRegister new ) += ACTION giftCardAsNotPayment(new) <- giftCardAsNotPayment(old); 
+overCopy(GroupCashRegister old, GroupCashRegister new ) += { giftCardAsNotPayment(new) <- giftCardAsNotPayment(old); } 
 
 EXTEND FORM postReceiptPayment
     PROPERTIES addPaymentGiftCard(r) TODRAW p SHOWIF allowPaymentGiftCard()
@@ -100,6 +100,6 @@ sumBonusFIFOReceiptGiftCardSaleDetail (ReceiptGiftCardSaleDetail detail) =
 //        BY receipt(detail)
 //        ORDER detail;       
         
-overPostBonus(Receipt r) += ACTION {
+overPostBonus(Receipt r) += {
     bonusPaid(ReceiptGiftCardSaleDetail detail) <- sumBonusFIFOReceiptGiftCardSaleDetail(detail) WHERE receipt(detail) == r;
 }       

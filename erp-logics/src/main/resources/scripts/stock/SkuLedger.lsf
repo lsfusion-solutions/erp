@@ -803,7 +803,7 @@ quantity (OutFIFOSkuLedger ledger, Batch batch) =
 quantity (DataSkuLedger ledger, Batch batch) = MULTI quantity[InLIFOSkuLedger,Batch](ledger, batch) (+) 0, // (+) 0 делается, чтобы все 0 стали NULL 
                                                    quantity[OutFIFOSkuLedger,Batch](ledger, batch);
 
-resetCost 'Перерассчитать себестоимость'(DataSkuLedger ledger) = ACTION { //NEWSESSION AUTOAPPLY {
+resetCost 'Перерассчитать себестоимость'(DataSkuLedger ledger) = { //NEWSESSION AUTOAPPLY {
     ASSIGN cost(ledger, Batch batch) <- NULL;
     ASSIGN cost(ledger, Batch batch) <- quantity(ledger, batch);
 }
@@ -813,7 +813,7 @@ resetCost 'Перерассчитать себестоимость'(DataSkuLedge
 changedCost 'Перерасчитывалась себестоимость' = DATA LOCAL BOOLEAN (DataSkuLedger);
 
 changedSession = DATA LOCAL BOOLEAN (DataSkuLedger);
-updateDataSkuLedgerBatchCost() = ACTION {
+updateDataSkuLedgerBatchCost() = {
     cost(DataSkuLedger ledger, Batch batch) <- NULL WHERE changedSession(ledger);
 
     LOCAL ordered = INTEGER (DataSkuLedger);
@@ -844,24 +844,30 @@ ON { // eventChangeLedger - так как внутрь рекурсивного 
         }
 }
 
-setDataSkuLedgerBatchCost 'Дорассчитать себестоимость'() = ACTION NEWSESSION {
-    APPLY SINGLE { 
-        changedSession(DataSkuLedger ledger) <- needToCost(ledger);
-        updateDataSkuLedgerBatchCost();
-    }
+setDataSkuLedgerBatchCost 'Дорассчитать себестоимость'() = {
+	NEWSESSION {
+	    APPLY SINGLE { 
+	        changedSession(DataSkuLedger ledger) <- needToCost(ledger);
+	        updateDataSkuLedgerBatchCost();
+	    }
+	}
 } CONFIRM;
 
-resetDataSkuLedgerBatchCost 'Перерассчитать себестоимость'() = ACTION NEWSESSION {
-    DIALOG dialogDate OBJECTS d INPUT DO
-        APPLY SINGLE { 
-            changedSession(DataSkuLedger ledger) <- date[SkuLedger](ledger) >= d AND isPosted[SkuLedger](ledger);
-            updateDataSkuLedgerBatchCost();
-        }
+resetDataSkuLedgerBatchCost 'Перерассчитать себестоимость'() = {
+	NEWSESSION {
+	    DIALOG dialogDate OBJECTS d INPUT DO
+	        APPLY SINGLE { 
+	            changedSession(DataSkuLedger ledger) <- date[SkuLedger](ledger) >= d AND isPosted[SkuLedger](ledger);
+	            updateDataSkuLedgerBatchCost();
+	        }
+	}
 } CONFIRM;
 
-clearDataSkuLedgerBatchCost 'Сбросить всю себестоимость'() = ACTION NEWSESSION {
-    ASSIGN cost(DataSkuLedger ledger, Batch batch) <- NULL;
-    apply();
+clearDataSkuLedgerBatchCost 'Сбросить всю себестоимость'() = {
+	NEWSESSION {
+	    ASSIGN cost(DataSkuLedger ledger, Batch batch) <- NULL;
+	    apply();
+	}
 } CONFIRM;
 
 currentBalance 'Текущий остаток' (SkuLedger bil, Batch bt) = currentBalance(bt, stock(bil));
@@ -955,12 +961,12 @@ DESIGN costSkuBatchLedger {
 // ------------------------------------------------ Остатки по товарам ---------------------------------------- //
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Sku) EDITKEY 'F3';
-resetAllSelectedSku 'Сбросить для всех'() = ACTION {
+resetAllSelectedSku 'Сбросить для всех'() = {
     select(Sku sku) <- NULL WHERE select(sku);
 } SHORTCUT select[Sku];
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Sku, Stock) EDITKEY 'F3';
-resetAllSelectedSkuStock 'Сбросить для всех'() = ACTION {
+resetAllSelectedSkuStock 'Сбросить для всех'() = {
     select(Sku sku, Stock stock) <- NULL WHERE select(sku, stock);
 } SHORTCUT select[Sku,Stock];
 
@@ -1700,7 +1706,7 @@ END
 //замена товара у партии
 allowReplaceItem = DATA LOCAL BOOLEAN ();
 
-setSku 'Сменить товар'(Batch batch) = ACTION {
+setSku 'Сменить товар'(Batch batch) = {
     DIALOG skus OBJECTS s INPUT DO {  
         allowReplaceItem() <- TRUE;
         replace(s, batch);

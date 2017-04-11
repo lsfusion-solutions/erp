@@ -59,7 +59,7 @@ FORM dataPriceListTypes 'Пользовательские виды цен'
 ;
 
 edit 'Редактировать' = ACTION EDITFORM DataPriceListType;
-edit(DataPriceListType priceListType) += ACTION edit(priceListType);
+edit(DataPriceListType priceListType) += { edit(priceListType); }
 
 EXTEND FORM priceListTypes
     PROPERTIES(pt) NEWSESSION addDataPriceListType = NEW[DataPriceListType]
@@ -72,17 +72,19 @@ DESIGN priceListTypes {
     }
 }
 
-overCopy (DataPriceListType priceListType) += ACTION NEWSESSION {
-    IF priceListType IS DataPriceListType THEN {
-        FOR NEW p = DataPriceListType DO {
-            batchLedger(p) <- batchLedger(priceListType);
-            includeVAT(p) <- includeVAT(priceListType);
-            roundCondition(p) <- roundCondition(priceListType);
-            currency(p) <- currency(priceListType);
-                                    
-            SHOW dataPriceListType OBJECTS d=p MANAGESESSION DOCKED; 
-        }
-    }
+overCopy (DataPriceListType priceListType) += {
+	NEWSESSION {
+	    IF priceListType IS DataPriceListType THEN {
+	        FOR NEW p = DataPriceListType DO {
+	            batchLedger(p) <- batchLedger(priceListType);
+	            includeVAT(p) <- includeVAT(priceListType);
+	            roundCondition(p) <- roundCondition(priceListType);
+	            currency(p) <- currency(priceListType);
+	                                    
+	            SHOW dataPriceListType OBJECTS d=p MANAGESESSION DOCKED; 
+	        }
+	    }
+	}
 }
 
 // --------------------------- Прайс-листы ------------------------- //
@@ -239,12 +241,12 @@ createdComputer (UserPriceListDetail d) += createdComputer(userPriceList(d));
 @defineDocumentInterfaceDetailBatch(priceList, batch);
 //@deriveDocumentDetailPricePriceListTypeVATBatch(userPriceList, stockProp, userPriceList);
 
-changePurchaseBatch(UserPriceListDetail userPriceListDetail) = ACTION {
+changePurchaseBatch(UserPriceListDetail userPriceListDetail) = {
     DIALOG dialogBatch OBJECTS sk = sku(userPriceListDetail), bt = batch(userPriceListDetail) INPUT NULL DO
         batch(userPriceListDetail) <- bt;
 }
 
-replace(Sku s, Batch b) += ACTION { sku(UserPriceListDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += { sku(UserPriceListDetail detail) <- s WHERE batch(detail) == b;}
 //@defineBalancesBatch(priceListDetail); //-- показываем по нажатию правой клавиши остатки партии
 //@defineBalancesBatch(userPriceListDetail); //-- показываем по нажатию правой клавиши остатки партии
 //@defineMovementBatch(priceListDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
@@ -290,11 +292,11 @@ currentPrice 'Действующая цена' (UserPriceListDetail priceListDet
 // Рассчитываем цены для строк
 viewPrice 'Цена' = DATA LOCAL NUMERIC[16,4] (UserPriceListDetail, PriceListType);
 
-updateViewPriceDetail(UserPriceListDetail d, PriceListType t, Stock s) = ACTION {
+updateViewPriceDetail(UserPriceListDetail d, PriceListType t, Stock s) = {
     viewPrice(d, t) <- currentPrice(d, t, s);
 }
 
-updateViewPriceDetail (UserPriceListDetail d, Stock s) = ACTION {
+updateViewPriceDetail (UserPriceListDetail d, Stock s) = {
     FOR show(userPriceList(d), PriceListType t) NOINLINE (t) DO
         updateViewPriceDetail(d, t, s);
 }
@@ -341,7 +343,7 @@ detail= GROUP SUM 1 BY sku(UserPriceListDetail detail), userPriceList(detail);
 
 in 'Вкл.' (Sku sku, UserPriceList price) = TRUE IF detail(sku, price);
 
-changeIn(Sku sku, UserPriceList priceList) = ACTION {
+changeIn(Sku sku, UserPriceList priceList) = {
     INPUTX b = BOOLEAN DO
         IF detail(sku, priceList) THEN {
             IF NOT b THEN
@@ -360,7 +362,7 @@ detail(batch, price) = GROUP SUM 1 IF Batch batch == batch(UserPriceListDetail d
 
 in 'Вкл.' (Batch batch, UserPriceList price) = TRUE IF detail(batch, price);
 
-changeIn(Batch batch, UserPriceList priceList) = ACTION {
+changeIn(Batch batch, UserPriceList priceList) = {
     INPUTX b = BOOLEAN DO
         IF detail(batch, priceList) THEN {
             IF NOT b THEN
@@ -386,7 +388,7 @@ sku[DocumentDetail](PriceListDetail priceList) += sku(priceList);
 
 document(PriceListDetail detail) += priceList(detail);
 
-fillDocument 'Подбор документа'(UserPriceList userPriceList) = ACTION {
+fillDocument 'Подбор документа'(UserPriceList userPriceList) = {
     DIALOG documents OBJECTS d INPUT DO
         FOR document(DocumentDetail documentDetail) == d NEW i = UserPriceListDetail DO {
             userPriceList(i) <- userPriceList;
@@ -447,7 +449,7 @@ filterPriceListType (UserPriceList userPriceList, Batch batch, Stock stock) =
     currentPrice (batch, userPriceList, stock) OR
     (batch IS Batch AND stock IS Stock AND NOT filterPriceListType(userPriceList));
     
-editSku 'Редактировать SKU' (UserPriceListDetail d) = ACTION edit(sku(d));   
+editSku 'Редактировать SKU' (UserPriceListDetail d) = { edit(sku(d)); }   
    
 nameCompanyB 'Организация' (LedgerPriceListType type, Stock stock, UserPriceListDetail d) = name(companyB(type, sku(d), stock ,fromDateTime[PriceListDetail](d)));    
 toShow (PriceList p, LedgerPriceListType to) = show(p, to) AND to IS LedgerPriceListType AND differentOrganizations(to);          
@@ -819,11 +821,13 @@ DESIGN userPriceList {
 }
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (PriceListDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserPriceListDetail d) = ACTION NEWSESSION {
-    SHOW userPriceList OBJECTS p = userPriceList(d), d = d MANAGESESSION DOCKED;
+edit(UserPriceListDetail d) = {
+	NEWSESSION {
+	    SHOW userPriceList OBJECTS p = userPriceList(d), d = d MANAGESESSION DOCKED;
+	}
 }
-edit(UserPriceListDetail d) += ACTION edit(d);   
-edit(PriceListDetail d) += ACTION edit(d);
+edit(UserPriceListDetail d) += { edit(d); }   
+edit(PriceListDetail d) += { edit(d); }
     
 // -------------------------------- Изменение цен для строк ------------------------------ //
 
@@ -891,11 +895,11 @@ DESIGN chooseMarkUpSkuUserPriceList {
 
 // ----------------------- Для отмеченных строк ------------------------ //
 isSelected 'Отм' = DATA LOCAL BOOLEAN (UserPriceListDetail);
-changeMarkUpChosenSku 'Изменить цену для отмеченных строк'(UserPriceList userPriceList, Stock stock) = ACTION {
+changeMarkUpChosenSku 'Изменить цену для отмеченных строк'(UserPriceList userPriceList, Stock stock) = {
     DIALOG chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList, pt INPUT, nt INPUT, m INPUT, n INPUT DO {
         IF NOT [= GROUP SUM 1 IF isSelected(UserPriceListDetail priceListDetail)
                       BY userPriceList(priceListDetail)](userPriceList) THEN
-            MESSAGE 'Выберите хотя бы одну позицию'
+            MESSAGE 'Выберите хотя бы одну позицию';
         ELSE {
             LOCAL prev = NUMERIC[16,4] (UserPriceListDetail);
             IF pt != nt AND in[UserPriceList,DataPriceListType](userPriceList, pt) THEN {
@@ -961,7 +965,7 @@ DESIGN userPriceList{
 }
 
 // ---------------------- Для всех строк ----------------------- //
-changeMarkUpSku 'Изменить цену для всех строк'(UserPriceList userPriceList, Stock stock) = ACTION {
+changeMarkUpSku 'Изменить цену для всех строк'(UserPriceList userPriceList, Stock stock) = {
     DIALOG chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList, pt INPUT, nt INPUT, m INPUT, n INPUT DO {
         LOCAL prev = NUMERIC[16,4] (UserPriceListDetail);
         IF pt != nt AND in[UserPriceList,DataPriceListType](userPriceList, pt) THEN {
@@ -1028,12 +1032,12 @@ DESIGN userPriceList{
 
 edit 'Редактировать' = ACTION EDITFORM UserPriceList;
 edit 'Редактировать' = ACTION ABSTRACT LIST (PriceList) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit (UserPriceList p) += ACTION edit(p);
+edit (UserPriceList p) += { edit(p); }
 // ------------------ Копирование прайс-листов ------------------- //
 
 copyAbstractData = ACTION ABSTRACT LIST (PriceList, UserPriceList);
 
-copyData(PriceList priceList, UserPriceList userPriceList) = ACTION {
+copyData(PriceList priceList, UserPriceList userPriceList) = {
         currency(userPriceList) <- currency[UserPriceList](priceList);
         company(userPriceList) <- company[UserPriceList](priceList);
         companyStock(userPriceList) <- companyStock[UserPriceList](priceList);
@@ -1051,7 +1055,7 @@ copyData(PriceList priceList, UserPriceList userPriceList) = ACTION {
         }
 }
 
-copySession 'Копировать'(PriceList priceList) = ACTION {
+copySession 'Копировать'(PriceList priceList) = {
 
     FOR NEW u = UserPriceList DO {
         EXEC copyData(priceList, u);
@@ -1059,35 +1063,41 @@ copySession 'Копировать'(PriceList priceList) = ACTION {
     }
 }
 
-copy 'Копировать'(PriceList priceList) = ACTION NEWSESSION {
-
-    FOR NEW u = UserPriceList DO {
-        EXEC copyData(priceList, u);
-        SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
-    }
+copy 'Копировать'(PriceList priceList) = {
+	NEWSESSION {
+	
+	    FOR NEW u = UserPriceList DO {
+	        EXEC copyData(priceList, u);
+	        SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+	    }
+	}
 }
 
-updateSession 'Обновить'(PriceList priceList) = ACTION NESTEDSESSION {
-
-    FOR NEW u = UserPriceList DO {
-        copyData(priceList, u);
-        DIALOG userPriceList OBJECTS p = u MANAGESESSION DOCKED NOCANCEL DO {
-            toDate[UserPriceList](priceList) <- fromDate(u);
-            toTime[UserPriceList](priceList) <- fromTime(u);
-        }
-    }
-
+updateSession 'Обновить'(PriceList priceList) = {
+	NESTEDSESSION {
+	
+	    FOR NEW u = UserPriceList DO {
+	        copyData(priceList, u);
+	        DIALOG userPriceList OBJECTS p = u MANAGESESSION DOCKED NOCANCEL DO {
+	            toDate[UserPriceList](priceList) <- fromDate(u);
+	            toTime[UserPriceList](priceList) <- fromTime(u);
+	        }
+	    }
+	
+	}
 }
-update 'Обновить'(PriceList priceList) = ACTION NEWSESSION {
-
-    FOR NEW u = UserPriceList DO {
-        copyData(priceList, u);
-        DIALOG userPriceList OBJECTS p = u MANAGESESSION DOCKED NOCANCEL DO {
-            toDate[UserPriceList](priceList) <- fromDate(u);
-            toTime[UserPriceList](priceList) <- fromTime(u);
-            apply();
-        }
-    }
+update 'Обновить'(PriceList priceList) = {
+	NEWSESSION {
+	
+	    FOR NEW u = UserPriceList DO {
+	        copyData(priceList, u);
+	        DIALOG userPriceList OBJECTS p = u MANAGESESSION DOCKED NOCANCEL DO {
+	            toDate[UserPriceList](priceList) <- fromDate(u);
+	            toTime[UserPriceList](priceList) <- fromTime(u);
+	            apply();
+	        }
+	    }
+	}
 }
 
 print 'Распечатать' = ACTION ABSTRACT LIST (PriceList);
@@ -1222,7 +1232,7 @@ NAVIGATOR {
 
 // Заполнение на основании
 
-addUnderPriceList 'Заполнить на основании'(UserPriceList p) = ACTION {
+addUnderPriceList 'Заполнить на основании'(UserPriceList p) = {
     DIALOG priceLists OBJECTS p INPUT pt DO
         FOR priceList(PriceListDetail detail) == pt NEW d = UserPriceListDetail DO {
             userPriceList(d) <- p;
@@ -1259,18 +1269,20 @@ FORM printPriceList 'Прайс'
 ;
 
 printPrint 'Распечатать' (PriceList priceList) =
-    ACTION PRINT printPriceList OBJECTS p = priceList   IMAGE 'print.png' IN print;
+    { PRINT printPriceList OBJECTS p = priceList; }   IMAGE 'print.png' IN print;
 
-print(PriceList priceList) += ACTION printPrint(priceList);
+print(PriceList priceList) += { printPrint(priceList); }
 
 // ------------------------- Расширяем форму LegalEntity ----------------------- //
 overAdd= ACTION ABSTRACT LIST (UserPriceList);
-addUserPriceList 'Добавить'(LegalEntity legalEntity) = ACTION NESTEDSESSION {
-    FOR NEW u = UserPriceList DO {
-        company(u) <- legalEntity;
-        overAdd(u); 
-        SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
-    }
+addUserPriceList 'Добавить'(LegalEntity legalEntity) = {
+	NESTEDSESSION {
+	    FOR NEW u = UserPriceList DO {
+	        company(u) <- legalEntity;
+	        overAdd(u); 
+	        SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
 EXTEND FORM legalEntity
@@ -1313,7 +1325,7 @@ equals (PriceList priceList1, PriceList priceList2) = company(priceList1) == com
                                                     priceList1 != priceList2;
 
 
-findEqualsPriceLists 'Найти дубликаты прайсов'() = ACTION {
+findEqualsPriceLists 'Найти дубликаты прайсов'() = {
     FOR UserPriceList p1 IS UserPriceList NOINLINE DO {
         FOR equals(p1, PriceList p2) NOINLINE DO {
             ASSIGN dataIn[UserPriceList,Stock](p2, Stock s) <- dataIn(p1, s) WHERE dataIn(p1, s);

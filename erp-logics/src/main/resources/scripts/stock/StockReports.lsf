@@ -75,7 +75,7 @@ sumOutSku = DATA LOCAL NUMERIC[18,4] (Group, Stock);
 balanceASku = DATA LOCAL NUMERIC[16,5] (Group, Stock);
 sumASku = DATA LOCAL NUMERIC[18,4] (Group, Stock);
 
-fillReportBackSheetData 'Рассчитать'(Stock st, GroupType gt, DATE df, DATE dt) = ACTION {
+fillReportBackSheetData 'Рассчитать'(Stock st, GroupType gt, DATE df, DATE dt) = {
 
     balanceA(Sku sk, st) <- balanceA(sk, st, dt);
     sumA(Sku sk, st) <- sumA(sk, st, dt);
@@ -166,7 +166,7 @@ sumASessionSku 'Сумма на конец дня (по группе)' (group, s
 
 // ---- Отчет по остаткам
 
-fillReportBalanceData 'Рассчитать'(Stock st, GroupType gt, DATETIME dt) = ACTION {
+fillReportBalanceData 'Рассчитать'(Stock st, GroupType gt, DATETIME dt) = {
 
     balanceB(Sku sk, st) <- balanceB(sk, st, dt);
     sumB(Sku sk, st) <- sumB(sk, st, dt);
@@ -249,7 +249,7 @@ FORM printListBalanceSkusStock 'Остатки по товарам'
 ;
 
 printListBalanceSkus 'Списком' (Stock stock, DATETIME dateTime, GroupType gtype) =
-    ACTION PRINT printListBalanceSkusStock OBJECTS st = stock, d = dateTime, gt = gtype IMAGE 'print.png' IN print;
+    { PRINT printListBalanceSkusStock OBJECTS st = stock, d = dateTime, gt = gtype; } IMAGE 'print.png' IN print;
 
 accountPriceB 'Цена учетная' (Sku sku, Stock st, DATETIME dateTime) = priceB[LedgerPriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, st, dateTime);   
 
@@ -286,7 +286,7 @@ FORM printBalanceSkusStock 'Остатки по товарам'
 ;
 
 printBalanceSkus 'По группам' (Stock stock, DATETIME dateTime, GroupType gtype) =
-    ACTION PRINT printBalanceSkusStock OBJECTS st = stock, d = dateTime, gt = gtype IMAGE 'print.png' IN print;
+    { PRINT printBalanceSkusStock OBJECTS st = stock, d = dateTime, gt = gtype; } IMAGE 'print.png' IN print;
 
 //остатки по партиям
 FORM printListBalanceBatchesStock 'Остатки по партиям'
@@ -311,7 +311,7 @@ FORM printListBalanceBatchesStock 'Остатки по партиям'
 ;
 
 printListBalanceBatches 'Списком' (Stock stock, DATETIME dateTime, GroupType gtype) =
-    ACTION PRINT printListBalanceBatchesStock OBJECTS st = stock, d = dateTime, gt = gtype  IMAGE 'print.png' IN print;
+    { PRINT printListBalanceBatchesStock OBJECTS st = stock, d = dateTime, gt = gtype; }  IMAGE 'print.png' IN print;
 
 FORM printBalanceBatchesStock 'Остатки по партиям'
     OBJECTS d = DATETIME PANEL
@@ -343,7 +343,7 @@ FORM printBalanceBatchesStock 'Остатки по партиям'
 ;
 
 printBalanceBatches 'По группам' (Stock stock, DATETIME dateTime, GroupType gtype) =
-    ACTION PRINT printBalanceBatchesStock OBJECTS st = stock, d = dateTime, gt = gtype  IMAGE 'print.png' IN print;
+    { PRINT printBalanceBatchesStock OBJECTS st = stock, d = dateTime, gt = gtype; }  IMAGE 'print.png' IN print;
 
 balanceRecBSku 'Остаток (всего)' (group, stock, dateTime) =
     GROUP SUM balanceB (Sku sku, Stock stock, DATETIME dateTime) IF isParent(Group group, sku)
@@ -488,9 +488,9 @@ FORM printListBackSheet 'Оборотная ведомость'
 ;
 
 printListBackSheet 'Списком' (Stock stock, DATE dateFrom, DATE dateTo, GroupType gt) =
-    ACTION PRINT printListBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo, gt = gt  IMAGE 'print.png' IN print;
+    { PRINT printListBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo, gt = gt; }  IMAGE 'print.png' IN print;
 xlsListBackSheet 'Списком (XLS)' (Stock stock, DATE dateFrom, DATE dateTo, GroupType gt) =
-    ACTION PRINT printListBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo, gt = gt XLS IMAGE 'print.png' IN print;
+    { PRINT printListBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo, gt = gt XLS; } IMAGE 'print.png' IN print;
 
 FORM printBackSheet 'Оборотная ведомость'
     OBJECTS df=DATE PANEL
@@ -535,18 +535,18 @@ FORM printBackSheet 'Оборотная ведомость'
 ;
 
 printBackSheet 'По группам' (Stock stock, DATE dateFrom, DATE dateTo, GroupType gt) =
-    ACTION PRINT printBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo, gt = gt  IMAGE 'print.png' IN print;
+    { PRINT printBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo, gt = gt; }  IMAGE 'print.png' IN print;
 
 xlsBackSheet 'По группам (XLS)' (Stock stock, DATE dateFrom, DATE dateTo, GroupType gt) =
-    ACTION PRINT printBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo,  gt=gt XLS IMAGE 'print.png' IN print;
+    { PRINT printBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo,  gt=gt XLS; } IMAGE 'print.png' IN print;
 
-fillDocumentReport 'Подбор документа'() = ACTION {
+fillDocumentReport 'Подбор документа'() = {
     DIALOG documents OBJECTS d INPUT DO {
         include(Sku sku) <- TRUE WHERE [ = GROUP SUM 1 BY document(DocumentDetail d), sku(d)](d, sku);
     }
 } TOOLBAR;
 
-deleteInDataSessionReport 'Очистить выборку'() = ACTION {
+deleteInDataSessionReport 'Очистить выборку'() = {
     include(Sku sku) <- NULL;
     formRefresh();
 } TOOLBAR;

@@ -89,11 +89,11 @@ sumInLIFO(PaymentRequest paymentRequest, InContractLedger inContractLedger) =
               BY paymentRequest
               ORDER DESC date(inContractLedger), number(inContractLedger), inContractLedger;
 
-writeFIFO 'Расписать по FIFO'(PaymentRequest paymentRequest) = ACTION {
+writeFIFO 'Расписать по FIFO'(PaymentRequest paymentRequest) = {
     cost(paymentRequest, InContractLedger inContractLedger) <- sumInFIFO(paymentRequest, inContractLedger);
 }
 
-writeLIFO 'Расписать по LIFO'(PaymentRequest paymentRequest) = ACTION {
+writeLIFO 'Расписать по LIFO'(PaymentRequest paymentRequest) = {
     cost(paymentRequest, InContractLedger inContractLedger) <- sumInLIFO(paymentRequest, inContractLedger);
 }
 
@@ -208,18 +208,20 @@ requestedDebt 'Неоплаченных требований' (contract) =
 toRequest 'Необходимо выставить требований' (Contract contract, DATE date) = balanceA(contract, date) (-) requestedDebt(contract);
 
 overCreateRequests = ACTION ABSTRACT LIST (PaymentRequest);
-createPaymentRequest 'Выставить платежное требование'(Contract contract, DATE date) = ACTION NEWSESSION {
-    FOR NEW pr = PaymentRequest DO {
-        date(pr) <- date;
-        payer(pr) <- partyB(contract);
-        beneficiary(pr) <- partyA(contract);
-        contract(pr) <- contract;
-        sum(pr) <- toRequest(contract, date);
-        cost(pr, InContractLedger inContractLedger) <- sumInFIFO(pr, inContractLedger)
-            WHERE contract(pr) == contract(inContractLedger);
-        overCreateRequests(pr);
-        SHOW paymentRequest OBJECTS p = pr MANAGESESSION DOCKED;
-    }
+createPaymentRequest 'Выставить платежное требование'(Contract contract, DATE date) = {
+	NEWSESSION {
+	    FOR NEW pr = PaymentRequest DO {
+	        date(pr) <- date;
+	        payer(pr) <- partyB(contract);
+	        beneficiary(pr) <- partyA(contract);
+	        contract(pr) <- contract;
+	        sum(pr) <- toRequest(contract, date);
+	        cost(pr, InContractLedger inContractLedger) <- sumInFIFO(pr, inContractLedger)
+	            WHERE contract(pr) == contract(inContractLedger);
+	        overCreateRequests(pr);
+	        SHOW paymentRequest OBJECTS p = pr MANAGESESSION DOCKED;
+	    }
+	}
 }
 
 EXTEND FORM contractLedger
@@ -251,7 +253,7 @@ DESIGN contractLedger {
     }
 }
 
-createPaymentRequests 'Выставить платежные требования'(DATE date) = ACTION {
+createPaymentRequests 'Выставить платежные требования'(DATE date) = {
     LOCAL count = INTEGER();
     count() <- 0;
     FOR toRequest(Contract contract, date) > 0 AND (partyA(contract) == partyA() OR (isCompany(partyA(contract)) AND NOT partyA()))

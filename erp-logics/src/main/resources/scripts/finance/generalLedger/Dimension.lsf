@@ -29,7 +29,7 @@ dimensionsType 'Субконто' (GLAccount) = GROUP CONCAT VARSTRING[255](name
                                                 BY GLAccount
                                                 ORDER order (GLAccount,dimensionType) MINCHARWIDTH 40 PREFCHARWIDTH 80 PERSISTENT;
 
-overCopy(GLAccount from, GLAccount to) += ACTION {
+overCopy(GLAccount from, GLAccount to) += {
     ASSIGN order(to, DimensionType dimensionType) <- order(from, dimensionType);
 }
 
@@ -56,7 +56,7 @@ CONSTRAINT credit(UserGeneralLedger userGeneralLedger,DimensionType dimensionTyp
     CHECKED BY credit[UserGeneralLedger,DimensionType]
         MESSAGE 'Субконто (кредит) проводки должен соответствовать субконто';
 
-overCopy(GeneralLedger from, UserGeneralLedger to) += ACTION {
+overCopy(GeneralLedger from, UserGeneralLedger to) += {
     debit(to, DimensionType dimensionType) <- debit(from, dimensionType);
     credit(to, DimensionType dimensionType) <- credit(from, dimensionType);
 }
@@ -323,7 +323,7 @@ idDimensionsCredit 'Субконто (кредит)' (ledger) = GROUP CONCAT VAR
                                                                       ORDER orderCredit (ledger, dimensionType) MINCHARWIDTH 5 PREFCHARWIDTH 15;
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
-loadDefaultGLAccount 'Добавить субконто'(INTEGER integer, VARSTRING[20] sidType, VARSTRING[20] sidAccount, DimensionType type) = ACTION {
+loadDefaultGLAccount 'Добавить субконто'(INTEGER integer, VARSTRING[20] sidType, VARSTRING[20] sidAccount, DimensionType type) = {
     ASSIGN order(GLAccount g,type) <- integer WHERE g == GLAccountIdTypeIdGLAccount(sidType, sidAccount);
 }
 loadDefaultDimensionGLAccounts 'Загрузить стандартный субконто для счетов' () = ACTION ABSTRACT LIST () IN loadDefault;

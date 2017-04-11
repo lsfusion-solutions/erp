@@ -112,7 +112,7 @@ FORM messageOrders 'Сообщение'
     PROPERTIES () messageEmailOrders TODRAW o
 ;
 
-calcEmailCustomer 'Отправить заказ поставщику' (Order.Order order) = ACTION EMAIL
+calcEmailCustomer 'Отправить заказ поставщику' (Order.Order order) = { EMAIL
     FROM OVERRIDE fromEmailOrders(), email(createdUser(order))
     SUBJECT 'Заказ №' + seriesNumber(order) + ' на '  + shipmentDate(order)+ ' от ' + nameCustomer(order)
     TO (OVERRIDE email(supplier(order)), email(supplierStock(order)))
@@ -120,7 +120,7 @@ calcEmailCustomer 'Отправить заказ поставщику' (Order.Or
     ATTACH XLSX 
            NAME number(order) + '/' + shipmentDate(order) // без кирилицы должно быть
            printOrderXLS OBJECTS o=order
-;
+; }
 
 overEmailList = ABSTRACT VARSTRING[400](Order);
 
@@ -128,47 +128,51 @@ EXTEND CLASS TypeChange{
     email 'Отправлен поставщику'
 }
 
-logSendDocumentOrder(Purchase.Order o) = ACTION FOR NEW d = DocumentLog DO {
-    document(d) <- o;
-    typeDocument(d) <- objectClassName(o);
-    numberDocument(d) <- number(o);  
-    seriesDocument(d) <- series(o); 
-    dateDocument(d) <- date(o);
-    typeChange(d) <- TypeChange.email;
-    note(d) <- VARSTRING[255](OVERRIDE email(supplier(o)), email(supplierStock(o)), overEmailList(o));      
-    session(d) <- currentSession();  
-    hostnameComputer(d) <- hostnameCurrentComputer();
-    userLogin(d) <- login(currentUser()); 
-    nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
-    dateTimeSession(d) <- currentDateTime();  
-    supplierStock(d) <- supplierStock(o);
-    customerStock(d) <- customerStock(o);
-    
-    PRINT printOrderXLS OBJECTS o = o XLSX TO formExportFile;
-    file(d) <- formExportFile();
+logSendDocumentOrder(Purchase.Order o) = {
+	FOR NEW d = DocumentLog DO {
+	    document(d) <- o;
+	    typeDocument(d) <- objectClassName(o);
+	    numberDocument(d) <- number(o);  
+	    seriesDocument(d) <- series(o); 
+	    dateDocument(d) <- date(o);
+	    typeChange(d) <- TypeChange.email;
+	    note(d) <- VARSTRING[255](OVERRIDE email(supplier(o)), email(supplierStock(o)), overEmailList(o));      
+	    session(d) <- currentSession();  
+	    hostnameComputer(d) <- hostnameCurrentComputer();
+	    userLogin(d) <- login(currentUser()); 
+	    nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
+	    dateTimeSession(d) <- currentDateTime();  
+	    supplierStock(d) <- supplierStock(o);
+	    customerStock(d) <- customerStock(o);
+	    
+	    PRINT printOrderXLS OBJECTS o = o XLSX TO formExportFile;
+	    file(d) <- formExportFile();
+	}
 }
 
 overEmailCustomer = ACTION ABSTRACT LIST (Order.Order);
 consumedEmailCustomer = DATA LOCAL BOOLEAN (Order.Order);
 
-emailCustomerSingle 'Отправить заказ поставщику' (Purchase.Order order) = ACTION NEWSESSION {
-    
-    overEmailCustomer(order);
-
-    IF NOT consumedEmailCustomer(order) THEN {
-        IF (OVERRIDE email(supplier(order)), email(supplierStock(order)), overEmailList(order)) THEN {
-            isSent(order) <- TRUE;
-            IF NOT disableDocumentLog() THEN logSendDocumentOrder(order);
-            sentDateTime(order) <- currentDateTime();
-            calcEmailCustomer(order);
-            
-        } ELSE MESSAGE 'Заказ №' + number(order) + ': у поставщика не задан e-mail';
-    }
-    
-    apply();
+emailCustomerSingle 'Отправить заказ поставщику' (Purchase.Order order) = {
+	NEWSESSION {
+	    
+	    overEmailCustomer(order);
+	
+	    IF NOT consumedEmailCustomer(order) THEN {
+	        IF (OVERRIDE email(supplier(order)), email(supplierStock(order)), overEmailList(order)) THEN {
+	            isSent(order) <- TRUE;
+	            IF NOT disableDocumentLog() THEN logSendDocumentOrder(order);
+	            sentDateTime(order) <- currentDateTime();
+	            calcEmailCustomer(order);
+	            
+	        } ELSE MESSAGE 'Заказ №' + number(order) + ': у поставщика не задан e-mail';
+	    }
+	    
+	    apply();
+	}
 } TOOLBAR;
 
-emailCustomer 'Отправить заказы поставщикам' (Purchase.Order order)= ACTION {
+emailCustomer 'Отправить заказы поставщикам' (Purchase.Order order)= {
     selected(order) <- TRUE;
     
     FOR selected(Order o) DO 
@@ -222,7 +226,7 @@ disablePosted (UserOrder o) += (orderConfirmation(agreement(o)) OR orderConfirma
 
 //для планировщика
 skipPostConfirmed = ABSTRACT BOOLEAN (UserOrder); 
-postConfirmedOrders 'Провести подтвержденные заказы'() = ACTION {
+postConfirmedOrders 'Провести подтвержденные заказы'() = {
     FOR isConfirmed(Purchase.UserOrder o) AND NOT isPosted(o) AND NOT isClosed(o) AND NOT skipPostConfirmed(o) DO NEWSESSION {
         isPosted(o) <- TRUE;
         APPLY {};

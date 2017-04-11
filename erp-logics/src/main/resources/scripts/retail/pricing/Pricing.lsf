@@ -283,7 +283,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
 END
 
 META recalculateDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form, prefixTime, cap, concrete)
-    recalculate###prefix##Price 'Пересчитать розн. цену'###cap () = ACTION {
+    recalculate###prefix##Price 'Пересчитать розн. цену'###cap () = {
         FOR sku(###idetail detail)  AND CalcPriceListType priceListType == prefix##PriceListType(detail) 
             AND RoundCondition roundCondition == roundCondition(priceListType, sku(detail))    
             AND pricingDocument(priceListType) AND [= FILTER form.concrete](detail) NOINLINE (priceListType, roundCondition) INLINE DO {
@@ -319,7 +319,7 @@ META changeDocumentDetailMarkupCustomPrefix(detail, prefixA, prefixB, prefixC, p
         prefixB###price(detail),
         value###prefixD##VAT(detail));
 
-    change###prefixA##Price(###detail detail) = ACTION {
+    change###prefixA##Price(###detail detail) = {
         INPUTX n = NUMERIC[16,4] DO {
             prefixA###price(detail) <- n;
             prefixD###markup(detail) <- calc###prefixD##Markup(detail) WHERE calc###prefixD##Markup(detail);
@@ -334,7 +334,7 @@ META changeDocumentDetailPriceCustomPrefix(detail, prefixA, prefixB, prefixC, pr
         prefixD###markup(detail),
         value###prefixD##VAT(detail))), prefixCondition###roundCondition(detail));
 
-    change###prefixD##Markup(###detail detail) = ACTION {
+    change###prefixD##Markup(###detail detail) = {
         INPUTX n = NUMERIC[8,3] DO {
             prefixD###markup(detail) <- n;
             prefixA###price(detail) <- calc###prefixA##Price(detail) WHERE calc###prefixA##Price(detail);
@@ -392,7 +392,7 @@ META changeDocumentDetailPricePrefix(detail, prefixA, prefixB, prefixC, prefixD,
         prefixE###markup(detail),
         value###prefixE##VAT(detail))), roundCondition(detail));
 
-    change###prefixA##Price(###detail detail) = ACTION {
+    change###prefixA##Price(###detail detail) = {
         INPUTX n = NUMERIC[16,4] DO {
             prefixA##Price(detail) <- n;
             IF n THEN
@@ -605,7 +605,7 @@ isReturn 'Обратный' = ABSTRACT BOOLEAN (Pricing);
 @showDocumentInterfaceDetailBatch(pricing);
 @defineDocumentInterfaceDetailBatch(pricing, batch);
 
-changeBatch(UserPricingDetail detail) = ACTION {
+changeBatch(UserPricingDetail detail) = {
     DIALOG dialogBatchStockOut OBJECTS st = departmentStore(detail),
                              t = dateTime(detail),
                              sk = sku(detail),
@@ -656,7 +656,7 @@ FORM pricing 'Акт расценки (печать)'
     FILTERS pricing(d) == p
 ;
 
-print 'Акт расценки' (Pricing pricing) = ACTION PRINT pricing OBJECTS p = pricing   IMAGE 'print.png' IN print;
+print 'Акт расценки' (Pricing pricing) = { PRINT pricing OBJECTS p = pricing; }   IMAGE 'print.png' IN print;
 
 // --------------------------- Формы --------------------------------- //
 edit 'Редактировать' = ACTION ABSTRACT LIST (Pricing) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
@@ -773,15 +773,17 @@ DESIGN userPricing {
 @extendFormDocumentBatch(userPricing, userPricing, p);
 
 edit 'Редактировать' (userPricing) = ACTION EDITFORM UserPricing;
-edit(UserPricing p) += ACTION edit(p);
+edit(UserPricing p) += { edit(p); }
 
 isUserOpened(UserPricing p)=  isOpened[Pricing](p) AND is(p);
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (PricingDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserPricingDetail d) = ACTION NEWSESSION {
-    SHOW userPricing OBJECTS p = userPricing(d), d = d MANAGESESSION DOCKED;
+edit(UserPricingDetail d) = {
+	NEWSESSION {
+	    SHOW userPricing OBJECTS p = userPricing(d), d = d MANAGESESSION DOCKED;
+	}
 }
-edit(UserPricingDetail d) += ACTION edit(d);  
+edit(UserPricingDetail d) += { edit(d); }  
 
 FORM pricings 'Акты расценки' 
     OBJECTS p = Pricing LAST
@@ -1076,7 +1078,7 @@ price (PricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice
 
 in (PricingDetail ledger, DepartmentStore stock) += departmentStore(ledger) == stock;
 
-edit[PriceListLedger](PricingDetail d) += ACTION edit(d);
+edit[PriceListLedger](PricingDetail d) += { edit(d); }
 
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userPricing, supplierPricingPriceListType, , sku, departmentStore);
 

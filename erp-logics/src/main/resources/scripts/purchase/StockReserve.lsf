@@ -32,7 +32,7 @@ stockReserveDays 'Страховой запас (дн.)' (Stock stock, Sku sku) 
     nearestStockReserveDays(stock, skuGroup(sku)),
     dataStockReserveDays(stock, sku);
 
-fillReserveFromTo 'Проставить кол-во исходя из продаж в день и запаса(дн.) '(Stock stock, DATE date, DATE dFrom, DATE dTo) = ACTION {
+fillReserveFromTo 'Проставить кол-во исходя из продаж в день и запаса(дн.) '(Stock stock, DATE date, DATE dFrom, DATE dTo) = {
     FOR stockReserveDays(stock, Sku sku) AND averageSold(sku,stock,dFrom,dTo) DO {
         ASSIGN dataStockReserve(stock, sku, date) <- averageSold(sku,stock,dFrom,dTo)*stockReserveDays(stock,sku);
     }
@@ -52,7 +52,7 @@ DESIGN options {
         MOVE PROPERTY(nameDefaultStockReservePriceListType());
     }
 }
-setDefaultPriceListType() = ACTION filterPriceListTypeStock() <- defaultStockReservePriceListType();
+setDefaultPriceListType() = { filterPriceListTypeStock() <- defaultStockReservePriceListType(); }
 
 filterPriceListType (Sku sku, Stock stock, DATE date, TIME time) =
     priceB (filterPriceListTypeStock(), sku, stock, dateTimeToDateTime(date, time)) OR

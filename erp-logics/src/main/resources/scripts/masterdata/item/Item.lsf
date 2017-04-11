@@ -30,7 +30,7 @@ parent (ItemGroup itemGroup) += parent(itemGroup);
 
 in 'Отм.' = DATA LOCAL BOOLEAN (ItemGroup);
 
-moveItemGroup 'Перенести отмеченные группы в текущую'(itemGroup) = ACTION {
+moveItemGroup 'Перенести отмеченные группы в текущую'(itemGroup) = {
 
     FOR in(ItemGroup i) DO{
         IF i != itemGroup THEN {
@@ -183,14 +183,14 @@ CONSTRAINT customGroupType(customGroup(CustomGroupType type, Item item)) != type
 
 // Атрибуты
 dataImage 'Изображение' = DATA IMAGEFILE (Item);
-loadImage 'Загрузить изображение' (Item item) = ACTION LOADFILE dataImage(item);
+loadImage 'Загрузить изображение' (Item item) = { LOADFILE dataImage(item); }
 overImage '' = ABSTRACT IMAGEFILE (Item);
 
 image (Item item) = OVERRIDE dataImage (item), overImage (item);
-openImage 'Открыть изображение' (Item item) = ACTION OPENFILE image(item);
+openImage 'Открыть изображение' (Item item) = { OPENFILE image(item); }
 hasImage (Item item) = TRUE IF image(item) PERSISTENT;
 
-nullImage 'Сбросить'(Item item) = ACTION {
+nullImage 'Сбросить'(Item item) = {
     image(item) <- NULL;
 }
 
@@ -307,7 +307,7 @@ DESIGN item {
 }
 
 seekBarcode 'Штрихкод' = DATA LOCAL VARSTRING[15] ();
-seekSkuBarcode() = ACTION {
+seekSkuBarcode() = {
     INPUTX s = VARSTRING[15] DO {
         seek(skuBarcode(s, currentDate()));
         IF NOT skuBarcode(s, currentDate()) THEN
@@ -319,14 +319,14 @@ disallowEditing 'Запретить редактирование' = ABSTRACT BOO
 enableEditing = Item s IS Item AND NOT disallowEditing(s);
 disallowEditing[Sku](Item sku) += disallowEditing(sku);
 
-edit(Item sku) += ACTION {
+edit(Item sku) += {
     IF NOT disallowEditing(sku) THEN {
         [= ACTION EDITFORM Item](sku);
     } ELSE {
         MESSAGE 'Запрещено редактировать товар после обработки.';
     } 
 };
-addSku () += ACTION [= ACTION ADDFORM Item]();
+addSku () += { [= ACTION ADDFORM Item](); }
 
 background = ABSTRACT CASE COLOR (Item);
 
@@ -349,7 +349,7 @@ FORM items 'Товары'
     LIST Item OBJECT i  
 ;
 
-seekSkuGroupType() = ACTION SEEK items.gt = SystemGroupType.skuGroupType;
+seekSkuGroupType() = { SEEK items.gt = SystemGroupType.skuGroupType; }
 EXTEND FORM items
     EVENTS
         ON INIT seekSkuGroupType()
@@ -437,7 +437,7 @@ META defineItemAttribute (attribute, caption, group)
             RGB(203,203,206) IF quantityChildWith###attribute (itemGroup) != descendantNumber(itemGroup)
                              AND NOT quantityParentWith###attribute (itemGroup);
 
-    setNullShow###attribute 'Снять признак для всех потомков'(ItemGroup itemGroup) = ACTION {
+    setNullShow###attribute 'Снять признак для всех потомков'(ItemGroup itemGroup) = {
         FOR isParent (ItemGroup childGroup, itemGroup) DO {
             ASSIGN userShow###attribute(childGroup) <- NULL;
         }
@@ -577,7 +577,7 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
     }
     
     overReplace(oTo, oFrom) = ACTION ABSTRACT LIST (###object, ###object);
-    replace 'Объединить'(###object object) = ACTION {
+    replace 'Объединить'(###object object) = {
         in(###object o) <- NULL WHERE in(o);           
         DIALOG confirmReplace###object OBJECTS o=object DO {
             allowReplace###object() <- TRUE;
@@ -628,7 +628,7 @@ END
 
 META defineUniteFilterAttributeItem(object, nameProp, caption1, caption2, object2)
     @defineUniteAttributeItem(object, nameProp, caption1, caption2, object2);
-    overReplace(###object oTo, ###object oFrom) += ACTION { 
+    overReplace(###object oTo, ###object oFrom) += { 
         dataIn (oTo, ###object2##Group g) <- dataIn (oFrom, g) WHERE dataIn(oFrom, g);
     }
 END
@@ -664,7 +664,7 @@ META defineUniteAttributeItemWithoutExtendForm(object, nameProp, caption1, capti
         MOVE functions.box;
     }
     
-    replace 'Объединить'(###object object) = ACTION {
+    replace 'Объединить'(###object object) = {
         DIALOG confirmReplace###object OBJECTS o=object DO {
             FOR in(###object o) DO {
                 IF o != object THEN {
@@ -872,7 +872,7 @@ DESIGN options {
 
 META defineObjectItemAttribute(attribute, attributeClass, identity, caption, group)
     attribute = DATA attributeClass (Item);
-    deleteUnusedAttributes() += ACTION FOR (attributeClass o IS attributeClass) AND NOT [= GROUP SUM 1 BY attribute(Item item)](o) DO DELETE o;
+    deleteUnusedAttributes() += { FOR (attributeClass o IS attributeClass) AND NOT [= GROUP SUM 1 BY attribute(Item item)](o) DO DELETE o; }
     identity###attribute caption (Item item) = identity(attribute(item)) IN group;
 
     CONSTRAINT DROPPED(attributeClass o IS attributeClass) AND [= GROUP SUM 1 IF NOT attribute(Item o) BY PREV(attribute(o))](o)
@@ -971,7 +971,7 @@ META defineItemFilterValue(object, captionProp, o)
     ;
     DESIGN object##s###session { main{ preferredSize = (600, 400); } }    
   
-    add###object 'Добавить'(ItemGroup gg) = ACTION {
+    add###object 'Добавить'(ItemGroup gg) = {
         DIALOG object###session OBJECTS gg = gg, v INPUT DO {
             LOCAL loc = ###object();
             LOCAL localName = VARISTRING[100]();
@@ -996,7 +996,7 @@ META defineItemFilterValue(object, captionProp, o)
         PROPERTIES NEWSESSION add###object(gg) TODRAW t, EDIT(t), deletet = DELETE(t) 
     ; 
     
-    change###object(Item i) = ACTION {
+    change###object(Item i) = {
         DIALOG object##s###session OBJECTS gg = itemGroup(i), t = object(i) CHANGE DO {
         }
     }    
@@ -1019,7 +1019,7 @@ FORM extractStringAttributeItem 'Выделение атрибута'
 ;
 
 possibleStringAttributeValue = DATA LOCAL BOOLEAN (VARSTRING[100]);
-changePossibleStringAttributeValue(VARSTRING[100] v) = ACTION {
+changePossibleStringAttributeValue(VARSTRING[100] v) = {
     SEEK extractStringAttributeItem.to = v;
 }
  
@@ -1049,7 +1049,7 @@ DESIGN extractStringAttributeItem {
     }
 }
 
-assignStringToFrom(VARSTRING[100] from) = ACTION {
+assignStringToFrom(VARSTRING[100] from) = {
     SEEK extractStringAttributeItem.to = from; 
 } 
 EXTEND FORM extractStringAttributeItem
@@ -1058,7 +1058,7 @@ EXTEND FORM extractStringAttributeItem
 ;
 
 META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
-    extract###object##FromCaption 'Выделить из названия'(Item i) = ACTION {
+    extract###object##FromCaption 'Выделить из названия'(Item i) = {
         IF i IS Item THEN {
             possibleStringAttributeValue(VARSTRING[100] s) <- TRUE IF [= GROUP SUM 1 IF in(###object object, ItemGroup g) BY name(object), g](s, itemGroup(i));
             DIALOG extractStringAttributeItem OBJECTS from INPUT, to INPUT DO {
@@ -1094,7 +1094,7 @@ META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
 END
 
 META defineItemExtractPrimitiveAttribute(property, form)
-    extract###property##FromCaption 'Выделить из названия'(Item i) = ACTION {
+    extract###property##FromCaption 'Выделить из названия'(Item i) = {
         IF i IS Item THEN {
             possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
             DIALOG form OBJECTS from INPUT, to INPUT DO {
@@ -1148,7 +1148,7 @@ DESIGN extractDoubleAttributeItem {
     }
 }
 
-assignDoubleToFrom(VARSTRING[100] from) = ACTION {
+assignDoubleToFrom(VARSTRING[100] from) = {
     SEEK extractDoubleAttributeItem.to = toInteger(replace(from AS VARSTRING[100], '%', ''));
 } 
 EXTEND FORM extractDoubleAttributeItem
@@ -1194,7 +1194,7 @@ WHEN SESSION CHANGED(itemGroup(Item i)) AND NOT caption(i) DO
 @defineItemAttributeBatch (caption, 'Название');
 @implementItemAttribute(caption, 'Название', String, itemCaption);
 
-extractStringCaption 'Заменить в названии'(Item i) = ACTION {
+extractStringCaption 'Заменить в названии'(Item i) = {
     IF i IS Item THEN {
         possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
         DIALOG extractStringAttributeItem OBJECTS from INPUT, to INPUT DO {
@@ -1492,7 +1492,7 @@ CONSTRAINT  constraintRequired(ItemAttribute a, Item i)
 @defineItemAttributeName( , , recognize);
 
 
-saveImage 'Сохранить изображение' (Item item) = ACTION {
+saveImage 'Сохранить изображение' (Item item) = {
     LOCAL fileName=VARSTRING[255]();
     fileName() <- nameAttribute(item);
     SAVEFILE image(item) NAME fileName();
@@ -1505,7 +1505,7 @@ EXTEND FORM item PROPERTIES(i) nameAttribute BACKGROUND backgroundNameAttribute(
 DESIGN item { itemHeader {MOVE PROPERTY(nameAttribute(i)); } }
 
 name(Item item) += nameAttribute(item);
-loadDefaultItemAttributes() += ACTION {
+loadDefaultItemAttributes() += {
     ASSIGN numberInName(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 
@@ -1529,14 +1529,14 @@ DESIGN items {
 @defineItemAttributeName(cashRegister, ' (кассы)', public);
 dataTitleCashRegister 'Наименование для касс' = DATA VARSTRING[100] (Barcode);
 titleCashRegister 'Наименование для касс' = OVERRIDE nameCashRegisterAttribute(sku(Barcode barcode)), dataTitleCashRegister(barcode) MINCHARWIDTH 30 PREFCHARWIDTH 30;
-loadDefaultItemAttributes() += ACTION {
+loadDefaultItemAttributes() += {
     ASSIGN numberInNameCashRegister(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 // Весы
 @defineItemAttributeName(scales, ' (весы)', public);
 dataTitleScales 'Наименование для весов' = DATA VARSTRING[100] (Barcode);
 titleScales 'Наименование для весов' = OVERRIDE nameScalesAttribute(sku(Barcode barcode)), dataTitleScales(barcode) MINCHARWIDTH 30 PREFCHARWIDTH 30;
-loadDefaultItemAttributes() += ACTION {
+loadDefaultItemAttributes() += {
     ASSIGN numberInNameScales(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 
@@ -1638,7 +1638,7 @@ overCopyEx = ACTION ABSTRACT LIST (Item, Item);
 overCopyItem = ACTION ABSTRACT LIST (Barcode, Barcode, Sku);
 toCopy = ABSTRACT CASE BOOLEAN (Barcode);
 
-copyDataItem(Item item, Item i) = ACTION  {
+copyDataItem(Item item, Item i) = {
     itemGroup(i) <- itemGroup(item);
     caption(i) <- caption(item);
     originalCaption(i) <- originalCaption(item);
@@ -1676,7 +1676,7 @@ copyDataItem(Item item, Item i) = ACTION  {
     overCopyEx(item, i);
 }
 
-copy 'Копировать' (Item item)= ACTION  {
+copy 'Копировать' (Item item)= {
     IF (item IS Item) THEN {
         NEWSESSION NESTED (addedSku[]) {
             FOR NEW i = Item DO {
@@ -1689,7 +1689,7 @@ copy 'Копировать' (Item item)= ACTION  {
     }
 } EDITKEY 'F5' TOOLBAR;
 
-copyItems 'Копировать' (Item item) = ACTION {
+copyItems 'Копировать' (Item item) = {
     copy(item);
     IF (addedSku()) THEN {
         SEEK items.i = addedSku();
@@ -1699,41 +1699,43 @@ copyItems 'Копировать' (Item item) = ACTION {
 EXTEND FORM items PROPERTIES (i) copyItems;
 DESIGN items { PROPERTY(copyItems(i)) { focusable = FALSE; } }
 
-copy(Item sku) += ACTION copy(sku);
+copy(Item sku) += { copy(sku); }
 
-createItemBarcode (VARSTRING[15] barcode, DATE date)= ACTION NEWSESSION {
-
-    LOCAL copy = BOOLEAN();
-    copy() <- NULL;
-    IF skuAdded(currentUser()) IS Item THEN {
-        ASK 'Создать товар на основе последнего созданного ?' DO
-            copy() <- TRUE;
-    }
-
-    IF copy() THEN {
-        FOR NEW i = Item DO {
-            copyDataItem(skuAdded(currentUser()), i);
-            FOR NEW bc = Barcode DO { //коприрование шк сейчас включено только для шк упаковки
-                id(bc) <- barcode;
-                dataDate(bc) <- date;
-                sku(bc) <- i;
-            }
-            SHOW item OBJECTS i = i MANAGESESSION DOCKED;
-        }
-    } ELSE {
-        FOR NEW bc = Barcode DO {
-            id(bc) <- barcode;
-            dataDate(bc) <- date;
-
-            FOR NEW s = Item DO {
-                sku(bc) <- s;
-                SHOW item OBJECTS i = s, b = bc MANAGESESSION DOCKED;
-            }
-        }
-    }
+createItemBarcode (VARSTRING[15] barcode, DATE date)= {
+	NEWSESSION {
+	
+	    LOCAL copy = BOOLEAN();
+	    copy() <- NULL;
+	    IF skuAdded(currentUser()) IS Item THEN {
+	        ASK 'Создать товар на основе последнего созданного ?' DO
+	            copy() <- TRUE;
+	    }
+	
+	    IF copy() THEN {
+	        FOR NEW i = Item DO {
+	            copyDataItem(skuAdded(currentUser()), i);
+	            FOR NEW bc = Barcode DO { //коприрование шк сейчас включено только для шк упаковки
+	                id(bc) <- barcode;
+	                dataDate(bc) <- date;
+	                sku(bc) <- i;
+	            }
+	            SHOW item OBJECTS i = i MANAGESESSION DOCKED;
+	        }
+	    } ELSE {
+	        FOR NEW bc = Barcode DO {
+	            id(bc) <- barcode;
+	            dataDate(bc) <- date;
+	
+	            FOR NEW s = Item DO {
+	                sku(bc) <- s;
+	                SHOW item OBJECTS i = s, b = bc MANAGESESSION DOCKED;
+	            }
+	        }
+	    }
+	}
 }
 
-createSkuBarcode(VARSTRING[15] barcode, DATE date) += ACTION createItemBarcode(barcode, date);
+createSkuBarcode(VARSTRING[15] barcode, DATE date) += { createItemBarcode(barcode, date); }
 
 in 'Отм.' = DATA LOCAL BOOLEAN (Item);
 
@@ -1769,7 +1771,7 @@ DESIGN confirmReplaceItem {
     MOVE functions.box;
 }
 
-replace 'Объединить' (Item item)= ACTION {
+replace 'Объединить' (Item item)= {
     IF noEventsInTransactionItem() THEN setNoEventsInTransaction();
     DIALOG confirmReplaceItem OBJECTS i=item DO {
         allowReplaceItem() <- TRUE;
@@ -1790,7 +1792,7 @@ replace 'Объединить' (Item item)= ACTION {
     IF noEventsInTransactionItem() THEN dropNoEventsInTransaction();   
 } CONFIRM;
 
-changeGroupItem 'Изменить группу' () = ACTION {
+changeGroupItem 'Изменить группу' () = {
     DIALOG dialogItemGroups OBJECTS g INPUT DO
         FOR in(Item i) DO {
             itemGroup(i) <- g;
@@ -1820,7 +1822,7 @@ DESIGN options {
     } 
 }
 
-seekItemDate() = ACTION {
+seekItemDate() = {
     IF defaultItemDate() THEN {
         SEEK item.dtr = defaultItemDate();
     }
@@ -1865,7 +1867,7 @@ WHEN SESSION CHANGED(itemGroup(Item i)) AND CustomGroupType dc IS CustomGroupTyp
 
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
-loadDefaultItemGroup 'Добавить группы товаров' (VARISTRING[250] iname, VARSTRING[100] id) = ACTION {
+loadDefaultItemGroup 'Добавить группы товаров' (VARISTRING[250] iname, VARSTRING[100] id) = {
     FOR NEW g = ItemGroup DO {
         name(g) <- iname;
         id(g) <- id;
@@ -1877,7 +1879,7 @@ loadDefaultItemGroup 'Добавить группы товаров' (VARISTRING[
     }
 }
 
-loadDefaultItemGroups 'Загрузить стандартные группы товаров' () = ACTION {
+loadDefaultItemGroups 'Загрузить стандартные группы товаров' () = {
     loadDefaultItemGroup('Все','Все');    
 
 } IN loadDefault;

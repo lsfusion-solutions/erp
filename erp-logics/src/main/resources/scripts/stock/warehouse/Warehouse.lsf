@@ -163,10 +163,10 @@ DESIGN warehouse {
 }
 
 edit 'Редактировать' = ACTION EDITFORM Warehouse;
-edit(Warehouse stock) += ACTION edit(stock);
+edit(Warehouse stock) += { edit(stock); }
 
 editSession 'Редактировать' = ACTION EDITFORM SESSION Warehouse;
-editSession(Warehouse stock) += ACTION editSession(stock);
+editSession(Warehouse stock) += { editSession(stock); }
 
 FORM warehouses 'Склады'
 
@@ -205,12 +205,14 @@ DESIGN warehouses {
 @extendFormEditable(warehouses);
 
 overAddWarehouse = ACTION ABSTRACT LIST (Warehouse);
-addWarehouse 'Добавить склад'(LegalEntity legalEntity) = ACTION NESTEDSESSION {
-    FOR NEW wr = Warehouse DO {
-        legalEntity(wr) <- legalEntity;
-        overAddWarehouse(wr);
-        SHOW warehouse OBJECTS w = wr MANAGESESSION DOCKED;
-    }
+addWarehouse 'Добавить склад'(LegalEntity legalEntity) = {
+	NESTEDSESSION {
+	    FOR NEW wr = Warehouse DO {
+	        legalEntity(wr) <- legalEntity;
+	        overAddWarehouse(wr);
+	        SHOW warehouse OBJECTS w = wr MANAGESESSION DOCKED;
+	    }
+	}
 }
 
 allWarehouseGroup = DATA WarehouseGroup ();
@@ -227,7 +229,7 @@ DESIGN options {
 defaultWarehouse= GROUP MAX Warehouse stock IF in(LegalEntity legalEntity, stock) AND stock IS Warehouse BY legalEntity; 
 addressDefaultWarehouse 'Адрес основного склада' (LegalEntity legalEntity) = address(defaultWarehouse(legalEntity)) IN law;
 
-changeWarehouse(LegalEntity legalEntity) = ACTION {
+changeWarehouse(LegalEntity legalEntity) = {
     INPUTX s = VARSTRING[100] DO {
         IF defaultWarehouse(legalEntity) THEN {
             address(Warehouse w) <- s WHERE w == defaultWarehouse(legalEntity);        
@@ -256,14 +258,14 @@ NAVIGATOR {
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 
-loadDefaultWarehouseGroup 'Добавить группы складов'(VARISTRING[100] iname, VARSTRING[100] id) = ACTION {
+loadDefaultWarehouseGroup 'Добавить группы складов'(VARISTRING[100] iname, VARSTRING[100] id) = {
     FOR NEW w = WarehouseGroup DO {
         name(w) <- iname;
         id(w) <- id;
 
     }
 }
-loadDefaultRecWarehouseGroup 'Добавить группы складов (рекурсивно)'(VARISTRING[100] iname, VARSTRING[100] id, VARSTRING[100] idParent) = ACTION {
+loadDefaultRecWarehouseGroup 'Добавить группы складов (рекурсивно)'(VARISTRING[100] iname, VARSTRING[100] id, VARSTRING[100] idParent) = {
     FOR NEW w = WarehouseGroup DO {
         name(w) <- iname;
         id(w) <- id;
@@ -271,7 +273,7 @@ loadDefaultRecWarehouseGroup 'Добавить группы складов (ре
     }
 }
 
-loadDefaultStockGroups () += ACTION  {
+loadDefaultStockGroups () += {
     loadDefaultWarehouseGroup ('Склады контрагентов', 'Склады контрагентов');
     loadDefaultWarehouseGroup ('Собственные склады', 'Собственные склады');
 }

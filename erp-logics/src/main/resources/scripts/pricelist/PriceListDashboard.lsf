@@ -25,7 +25,7 @@ DESIGN options {
     }
 }
 
-seekDefaultPriceListType = ACTION SEEK priceListDashboard.pt = defaultPriceListType();
+seekDefaultPriceListType = { SEEK priceListDashboard.pt = defaultPriceListType(); }
 EXTEND FORM priceListDashboard
     EVENTS ON INIT seekDefaultPriceListType()
 ;
@@ -60,7 +60,7 @@ in 'Отм.' = DATA LOCAL BOOLEAN (Sku);
 
 // ---------------------------- По организациям ----------------------- //
 // c
-editActiveLedgerA'Редактировать' (LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime) = ACTION edit(activeLedgerA(type, sku, company, dateTime)) IMAGE 'edit.png';                                            
+editActiveLedgerA'Редактировать' (LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime) = { edit(activeLedgerA(type, sku, company, dateTime)); } IMAGE 'edit.png';                                            
 
 // workaround, что объект не может быть null
 currentLegalEntity 'Организация' = DATA LOCAL NESTED LegalEntity ();
@@ -162,7 +162,7 @@ DESIGN priceListDashboard {
 
 // Создание прайс-листов
 
-fillCompany(UserPriceList userPriceList, DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company) = ACTION {
+fillCompany(UserPriceList userPriceList, DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company) = {
     fromDate(userPriceList) <- toDate(dateTime);
     fromTime(userPriceList) <- toTime(dateTime);
     company(userPriceList) <- company;
@@ -176,7 +176,7 @@ fillCompany(UserPriceList userPriceList, DATETIME dateTime, PriceListType dataPr
 }
 
 // Добавление в ассортимент
-includeDataCompany 'Включить'(DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) = ACTION {
+includeDataCompany 'Включить'(DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) = {
     NEWSESSION NESTED (in[Sku]) {
         FOR NEW u = UserPriceList DO {
             fillCompany(u, dateTime, dataPriceListType, company);
@@ -191,7 +191,7 @@ includeDataCompany 'Включить'(DATETIME dateTime, PriceListType dataPrice
 }
 
 // Изменение цен
-modifyDataCompany 'Изменить'(DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) = ACTION {
+modifyDataCompany 'Изменить'(DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) = {
     NEWSESSION NESTED (in[Sku]) {
         FOR NEW u = UserPriceList DO {
             fillCompany(u, dateTime, dataPriceListType, company);
@@ -209,7 +209,7 @@ modifyDataCompany 'Изменить'(DATETIME dateTime, PriceListType dataPriceL
 }
 
 // Исключение из ассортимента
-excludeDataCompany 'Исключить'(DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) = ACTION {
+excludeDataCompany 'Исключить'(DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) = {
     NEWSESSION NESTED (in[Sku]) {
         FOR NEW u = UserPriceList DO {
             fillCompany(u, dateTime, dataPriceListType, company);
@@ -249,7 +249,7 @@ ledgerA (type, sku, stock, dateTime) =
           ORDER fromDateTime(ledger), ledger
           WHERE active(ledger, type, stock) AND
                 fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
-editLedgerA 'Редактировать' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = ACTION edit(ledgerA (type, sku, stock, dateTime)) IMAGE 'edit.png';                
+editLedgerA 'Редактировать' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = { edit(ledgerA (type, sku, stock, dateTime)); } IMAGE 'edit.png';                
 
 stockFilter (Stock stock, PriceList.Operation operation) = (stock IS Stock AND showNotCompanyStocks(operation)) OR isCompany(stock);
 
@@ -343,7 +343,7 @@ DESIGN priceListDashboard {
     }
 }
 
-fillCompanyPriceList(UserPriceList u, LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) = ACTION {
+fillCompanyPriceList(UserPriceList u, LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) = {
     fromDate(u) <- toDate(dateTime);
     fromTime(u) <- toTime(dateTime);
     company(u) <- company;
@@ -358,7 +358,7 @@ fillCompanyPriceList(UserPriceList u, LegalEntity company, DATETIME dateTime, Pr
     }
 }
 
-createCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) = ACTION {
+createCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) = {
     NEWSESSION NESTED (in[Sku]) {
         FOR NEW u = UserPriceList DO {
             fillCompanyPriceList(u, company, dateTime, dataPriceListType, stock);
@@ -368,7 +368,7 @@ createCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListType dat
     }
 }
 
-createWPricesCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) = ACTION {
+createWPricesCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) = {
     NEWSESSION NESTED (in[Sku]) {
         FOR NEW u = UserPriceList DO {
             fillCompanyPriceList(u, company, dateTime, dataPriceListType, stock);
@@ -382,14 +382,14 @@ createWPricesCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListT
 }
 
 // Изменение цен
-modifyData 'Изменить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = ACTION {
+modifyData 'Изменить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = {
     FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(LedgerPriceListType t, s, Stock st, DATETIME d), t, st, d] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
         createWPricesCompanyPriceList(company, dateTime, dataPriceListType, stock);
     }
 }
 
 // Исключение из ассортимента
-excludeData 'Исключить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = ACTION {
+excludeData 'Исключить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = {
     FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(LedgerPriceListType t, s, Stock st, DATETIME d), t, st, d] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
         createCompanyPriceList(company, dateTime, dataPriceListType, stock);
     }
@@ -414,16 +414,18 @@ DESIGN priceListDashboard {
 // ----------------------------------- Список прайсов ---------------------------- //
 // p
 
-addUserPriceList 'Добавить'(LegalEntity legalEntity, PriceListType type, DATETIME dateTime) = ACTION NEWSESSION {
-    FOR NEW p = UserPriceList DO {
-        company(p) <- legalEntity;
-        fromDate(p) <- toDate(dateTime);
-        fromTime(p) <- toTime(dateTime);
-        in[UserPriceList,DataPriceListType](p, type) <- TRUE;
-        show[PriceList,PriceListType](p, type) <- TRUE;
-        overAdd(p); 
-        SHOW userPriceList OBJECTS p=p MANAGESESSION DOCKED NOCANCEL;
-    }
+addUserPriceList 'Добавить'(LegalEntity legalEntity, PriceListType type, DATETIME dateTime) = {
+	NEWSESSION {
+	    FOR NEW p = UserPriceList DO {
+	        company(p) <- legalEntity;
+	        fromDate(p) <- toDate(dateTime);
+	        fromTime(p) <- toTime(dateTime);
+	        in[UserPriceList,DataPriceListType](p, type) <- TRUE;
+	        show[PriceList,PriceListType](p, type) <- TRUE;
+	        overAdd(p); 
+	        SHOW userPriceList OBJECTS p=p MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
 
 EXTEND FORM priceListDashboard
@@ -460,20 +462,22 @@ DESIGN priceListDashboard {
 
 // ------------------- Импорт прайсов --------------------------- //
 importTime = ABSTRACT BOOLEAN (UserPriceList);
-importUserPriceList 'Импортировать'(LegalEntity c, ImportUserPriceListType t, DATETIME dt) = ACTION NEWSESSION {
-    FOR NEW p = UserPriceList DO {
-        importUserPriceListType(p) <- t;
-        company(p) <- c;
-        fromDate(p) <- toDate(dt);
-        IF NOT importTime(p) THEN {
-            fromTime(p) <- toTime(dt);
-        } ELSE {
-            fromTime(p) <- 00:00;
-        }
-        
-        importAction(p);
-        SHOW userPriceList OBJECTS p = p MANAGESESSION DOCKED;
-    }
+importUserPriceList 'Импортировать'(LegalEntity c, ImportUserPriceListType t, DATETIME dt) = {
+	NEWSESSION {
+	    FOR NEW p = UserPriceList DO {
+	        importUserPriceListType(p) <- t;
+	        company(p) <- c;
+	        fromDate(p) <- toDate(dt);
+	        IF NOT importTime(p) THEN {
+	            fromTime(p) <- toTime(dt);
+	        } ELSE {
+	            fromTime(p) <- 00:00;
+	        }
+	        
+	        importAction(p);
+	        SHOW userPriceList OBJECTS p = p MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
 EXTEND FORM priceListDashboard

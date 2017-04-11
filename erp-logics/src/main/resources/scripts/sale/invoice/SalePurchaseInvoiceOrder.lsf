@@ -14,47 +14,51 @@ notPurchaseUserOrder = Invoice i IS Invoice AND NOT purchaseUserOrder(i);
 
 skipCreateOrderDetail = ABSTRACT BOOLEAN (Sale.InvoiceDetail);
 
-createUserOrder 'Заказ (закупка)'(Invoice invoice) =  ACTION NEWSESSION{
-
-    FOR NEW o = Purchase.UserOrder DO {
-
-        agreement(o) <- agreement(invoice);
-        supplier(o) <- supplier(invoice);
-        customer(o) <- customer(invoice);
-        supplierStock(o) <- supplierStock(invoice);
-        customerStock(o) <- customerStock(invoice);
-        note(o) <- note(invoice);
-        currency(o) <- currency(invoice);
-        contractSku(o) <- contractSku(invoice);
-        isCommission(o) <- isCommission(invoice);
-        showPack(o) <- showPack(invoice);
-        operation(o) <- purchaseOperation(operation(invoice));
-        overFillOrder(o, invoice);
-        purchaseUserOrder(invoice) <- o;
-
-        FOR invoice(InvoiceDetail detail)==invoice AND NOT skipCreateOrderDetail(detail) NEW d = Purchase.UserOrderDetail DO {
-
-            userOrder(d) <- o;
-
-            sku(d) <- sku(detail);
-            quantity (d) <- quantity(detail);
-            VAT (d) <- VAT(detail);
-            price (d) <- price(detail);
-            invoicePrice (d) <- invoicePrice(detail);
-
-            barcodePack (d) <- barcodePack(detail);
-            amountPack (d) <- amountPack(detail);
-            packQuantity (d) <- packQuantity(detail);
-
-            batch(d) <- batch(detail) WHERE NOT notUseBatchPurchaseInvoice(operation(invoice));
-            overFillOrder(d,detail);
-        }
-
-    SHOW Purchase.userOrder OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
-    }
+createUserOrder 'Заказ (закупка)'(Invoice invoice) =  {
+	NEWSESSION{
+	
+	    FOR NEW o = Purchase.UserOrder DO {
+	
+	        agreement(o) <- agreement(invoice);
+	        supplier(o) <- supplier(invoice);
+	        customer(o) <- customer(invoice);
+	        supplierStock(o) <- supplierStock(invoice);
+	        customerStock(o) <- customerStock(invoice);
+	        note(o) <- note(invoice);
+	        currency(o) <- currency(invoice);
+	        contractSku(o) <- contractSku(invoice);
+	        isCommission(o) <- isCommission(invoice);
+	        showPack(o) <- showPack(invoice);
+	        operation(o) <- purchaseOperation(operation(invoice));
+	        overFillOrder(o, invoice);
+	        purchaseUserOrder(invoice) <- o;
+	
+	        FOR invoice(InvoiceDetail detail)==invoice AND NOT skipCreateOrderDetail(detail) NEW d = Purchase.UserOrderDetail DO {
+	
+	            userOrder(d) <- o;
+	
+	            sku(d) <- sku(detail);
+	            quantity (d) <- quantity(detail);
+	            VAT (d) <- VAT(detail);
+	            price (d) <- price(detail);
+	            invoicePrice (d) <- invoicePrice(detail);
+	
+	            barcodePack (d) <- barcodePack(detail);
+	            amountPack (d) <- amountPack(detail);
+	            packQuantity (d) <- packQuantity(detail);
+	
+	            batch(d) <- batch(detail) WHERE NOT notUseBatchPurchaseInvoice(operation(invoice));
+	            overFillOrder(d,detail);
+	        }
+	
+	    SHOW Purchase.userOrder OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR IMAGE 'add.png';
 
-deletePurchaseUserOrder  'Очистить заказ (закупка)' (Invoice invoice) = ACTION NEWSESSION {
-    DELETE Purchase.UserOrder o WHERE o == purchaseUserOrder(invoice);
-    apply();
+deletePurchaseUserOrder  'Очистить заказ (закупка)' (Invoice invoice) = {
+	NEWSESSION {
+	    DELETE Purchase.UserOrder o WHERE o == purchaseUserOrder(invoice);
+	    apply();
+	}
 } TOOLBAR CONFIRM IMAGE 'delete.png';

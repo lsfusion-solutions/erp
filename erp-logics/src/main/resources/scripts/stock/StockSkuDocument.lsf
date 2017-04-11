@@ -17,7 +17,7 @@ META defineDocumentSkuPriceListTypeAgreement(object, stockProp, prefix)
 
     price 'Цена' (Sku sku, ###object object) = viewPrice(sku, object);
 
-    updateViewPrice (Sku sku, ###object object) = ACTION {
+    updateViewPrice (Sku sku, ###object object) = {
         FOR PriceListType pt == priceListType(object, sku) NOINLINE (pt) DO
             viewPrice(sku, object) <- prevPriceB(pt, sku, stockProp##Stock(object), dateTime(object));
     }
@@ -40,7 +40,7 @@ META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
 
     overChangeQuantityValue###skuProp = ACTION ABSTRACT LIST (###detail);
 
-    changeQuantityValue(###skuProp skuProp, ###object object, NUMERIC[16,5] n) = ACTION {
+    changeQuantityValue(###skuProp skuProp, ###object object, NUMERIC[16,5] n) = {
         IF detail(sku, object) THEN {
             IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
                 quantity(###detail detail) <- n WHERE detail == detail(sku, object);
@@ -61,14 +61,14 @@ META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
         }
     }
 
-    changeQuantity(###skuProp skuProp, ###object object) = ACTION {
+    changeQuantity(###skuProp skuProp, ###object object) = {
         INPUTX n = NUMERIC[16,5] DO
             changeQuantityValue(sku, object, n);
     }
 
     // Выбор всего остатка
     allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, ###object);
-    changeAllQuantity(###skuProp skuProp, ###object object) = ACTION {
+    changeAllQuantity(###skuProp skuProp, ###object object) = {
         INPUTX b = BOOLEAN DO {
             allQuantity (sku,object) <- b;
             changeQuantityValue(sku, object, prevCurrentBalance(sku,object) IF b);
@@ -86,8 +86,8 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp, stockProp)
     hideQuantity###skuProp##Document = ABSTRACT BOOLEAN (###object);
     showQuantity###skuProp##Document = NOT hideQuantity###skuProp##Document(###object o); 
     
-    showMovementSku 'Показать движение по складу' (Sku ks, ###object concrete) = ACTION showMovementSku(ks, stockProp(concrete));
-    showMovementPriceSku 'Показать изменение цены по складу' (Sku ks, ###object concrete) = ACTION showMovementPriceSku(ks, stockProp(concrete));
+    showMovementSku 'Показать движение по складу' (Sku ks, ###object concrete) = { showMovementSku(ks, stockProp(concrete)); }
+    showMovementPriceSku 'Показать изменение цены по складу' (Sku ks, ###object concrete) = { showMovementPriceSku(ks, stockProp(concrete)); }
         
     EXTEND FORM form
 
@@ -113,7 +113,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp, stockProp)
         ORDER BY inputName
     ;
 
-    seek###skuProp##Barcode(###object object, VARSTRING[15] barcode) = ACTION { 
+    seek###skuProp##Barcode(###object object, VARSTRING[15] barcode) = { 
         IF skuProp##Barcode(barcode, date(object)) THEN {
             SEEK form.ks = skuProp##Barcode(barcode, date(object));     
         } ELSE {
@@ -121,13 +121,13 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp, stockProp)
         }
     }
     
-    seekOver###skuProp(###object object) = ACTION {
+    seekOver###skuProp(###object object) = {
         INPUTX s = VARSTRING[15] DO {
             seek###skuProp##Barcode(object, s);
         }        
     };
     seek###skuProp 'Поиск по штрихкоду:' (###object object) = DATA LOCAL VARSTRING[15] (###object) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
-                                                                            ON CHANGE seekOver###skuProp(object);       
+                                                                            ON CHANGE { seekOver###skuProp(object); }       
     EXTEND FORM form
         PROPERTIES(concrete) TODRAW ks seek###skuProp    
     ;
@@ -167,7 +167,7 @@ META extendFormDocumentSkuPriceListTypeAgreement(eobj, detail, form, concrete, s
     @extendFormDocumentSku(eobj, detail, form, concrete, skuProp, stockProp);
 
     current###eobj###eobj() = DATA LOCAL NESTED Object ();
-    setCurrent###eobj###eobj(Object concrete) = ACTION current###eobj###eobj() <- concrete;
+    setCurrent###eobj###eobj(Object concrete) = { current###eobj###eobj() <- concrete; }
 
     EXTEND FORM form
         EVENTS ON CHANGE concrete setCurrent###eobj###eobj(concrete)
@@ -202,7 +202,7 @@ META defineDocumentBatchPriceListTypeAgreement(object, stockProp, prefix)
 
     price 'Цена' (Batch batch, ###object object) = viewPrice(batch, object);
 
-    updateViewPrice (Batch batch, ###object object) = ACTION {
+    updateViewPrice (Batch batch, ###object object) = {
         FOR PriceListType pt == priceListType(object, batch) NOINLINE (pt) DO
             viewPrice(batch, object) <- prevPriceB(pt, batch, stockProp##Stock(object), dateTime(object));
     }
@@ -228,7 +228,7 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockPr
 
     overChangeQuantityValue###batchProp = ACTION ABSTRACT LIST (###detail);
 
-    changeQuantityValue(###batchProp batchProp, ###object object, NUMERIC[16,5] n) = ACTION {
+    changeQuantityValue(###batchProp batchProp, ###object object, NUMERIC[16,5] n) = {
         IF detail(batch, object) THEN {
             IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
                 quantity(###detail detail) <- n WHERE detail == detail(batch, object);
@@ -250,14 +250,14 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockPr
         }
     }
 
-    changeQuantity(###batchProp batchProp, ###object object) = ACTION {
+    changeQuantity(###batchProp batchProp, ###object object) = {
         INPUTX n = NUMERIC[16,5] DO
             changeQuantityValue(batch, object, n);
     }
 
     // Выбор всего остатка
     allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object);
-    changeAllQuantity(###batchProp batchProp, ###object object)= ACTION {
+    changeAllQuantity(###batchProp batchProp, ###object object)= {
         INPUTX b = BOOLEAN DO {
             allQuantity (batch,object) <- b;
             changeQuantityValue(batch, object, prevCurrentBalance(batch,object) IF b);
@@ -362,7 +362,7 @@ META defineDocumentSkuStockPriceListTypeAgreement(object, stockProp)
 
     price 'Цена' (Sku sku, Stock stock, ###object object) = viewPrice(sku, stock, object);
 
-    updateViewPrice (Sku sku, Stock stock, ###object object) = ACTION {
+    updateViewPrice (Sku sku, Stock stock, ###object object) = {
         FOR PriceListType pt == priceListType(object, sku) AND stock IS Stock NOINLINE (pt) DO
             viewPrice(sku, stock, object) <- prevPriceB(pt, sku, IF overPriceStockUser(object) THEN overPriceStockUser(object) ELSE stock, dateTime(object));
     }
@@ -386,7 +386,7 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
 
     overChangeQuantityValue###skuProp = ACTION ABSTRACT LIST (###detail);
 
-    changeQuantityValue(###skuProp skuProp, ###object object, Stock stock, NUMERIC[14,3] n) = ACTION {
+    changeQuantityValue(###skuProp skuProp, ###object object, Stock stock, NUMERIC[14,3] n) = {
         IF detail###stockProp(sku, object, stock) THEN {
             IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
                 quantity(###detail detail) <- n WHERE detail == detail###stockProp(sku, object, stock);
@@ -409,13 +409,13 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
             }
         }
     }
-    changeQuantity(###skuProp skuProp, ###object object, Stock stock) = ACTION {
+    changeQuantity(###skuProp skuProp, ###object object, Stock stock) = {
         INPUTX n = NUMERIC[16,5] DO
             changeQuantityValue(sku, object, stock, n);
     }
 
     allQuantity###object 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, Stock);
-    changeAllQuantity(###skuProp skuProp, ###object object, Stock stock) = ACTION {
+    changeAllQuantity(###skuProp skuProp, ###object object, Stock stock) = {
         INPUTX b = BOOLEAN DO {
             allQuantity###object (sku, stock) <- b;
             changeQuantityValue(sku, object, stock, prevCurrentBalance(sku,stock) IF b);
@@ -506,7 +506,7 @@ META extendFormDocumentSkuStockPriceListTypeAgreement(object, form, concrete, le
     @extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockProp);
     
     current###form###form() = DATA LOCAL NESTED Object ();
-    setCurrent###form###form(###concrete##bject concrete) = ACTION current###form###form() <- concrete;
+    setCurrent###form###form(###concrete##bject concrete) = { current###form###form() <- concrete; }
     
     EXTEND FORM form
         EVENTS ON CHANGE concrete setCurrent###form###form(concrete)
@@ -533,7 +533,7 @@ META defineDocumentBatchStockPriceListTypeAgreement(object, stockProp)
 
     price 'Цена' (Batch batch, Stock stock, ###object object) = viewPrice(batch, stock, object);
 
-    updateViewPrice (Batch batch, Stock stock, ###object object) = ACTION {
+    updateViewPrice (Batch batch, Stock stock, ###object object) = {
         FOR PriceListType pt == priceListType(object, batch) AND stock IS Stock NOINLINE (pt) DO
             viewPrice(batch, stock, object) <- prevPriceB(pt, batch, IF overPriceStockUser(object) THEN overPriceStockUser(object) ELSE stock, dateTime(object));
     }
@@ -557,7 +557,7 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
     overChangeQuantityValue###batchProp = ACTION ABSTRACT LIST (###detail);
     backgroundName###object 'Цвет'  (d)= ABSTRACT CASE COLOR (Batch);
 
-    changeQuantityValue(###batchProp batchProp, ###object object, Stock stock, NUMERIC[16,5] n) = ACTION {
+    changeQuantityValue(###batchProp batchProp, ###object object, Stock stock, NUMERIC[16,5] n) = {
         IF detail###stockProp(batch, object, stock) THEN {
             IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
                 quantity(###detail detail) <- n WHERE detail == detail###stockProp(batch, object, stock);
@@ -580,13 +580,13 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
         }
     }
 
-    changeQuantity(###batchProp batchProp, ###object object, Stock stock) = ACTION {
+    changeQuantity(###batchProp batchProp, ###object object, Stock stock) = {
         INPUTX n = NUMERIC[16,5] DO
             changeQuantityValue(batch, object, stock, n);
     }
 
     allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object, Stock);
-    changeAllQuantity(###batchProp batchProp, ###object object, Stock stock) = ACTION {
+    changeAllQuantity(###batchProp batchProp, ###object object, Stock stock) = {
         INPUTX b = BOOLEAN DO {
             allQuantity (batch, object, stock) <- b;
             changeQuantityValue(batch, object, stock, prevCurrentBalance(batch, stock) IF b);
@@ -654,7 +654,7 @@ META defineDocumentSkuStockExtra(object, detail, skuProp, stockProp, stockExtra)
 
     priceCustomer 'Цена' (###skuProp sku, Stock stockProp, ###object object, Stock stockExtra) = viewPriceCustomer(sku, stockProp, object, stockExtra);
 
-    updateViewPriceCustomer (###skuProp sku, Stock stockProp, ###object object, Stock stockExtra) = ACTION {
+    updateViewPriceCustomer (###skuProp sku, Stock stockProp, ###object object, Stock stockExtra) = {
         FOR PriceListType pt == priceListType(object, stockExtra, sku) AND stockProp IS Stock NOINLINE (pt) DO
             viewPriceCustomer(sku, stockProp, object, stockExtra) <- prevPriceB(pt, sku, stockProp, dateTime(object));
     }
@@ -672,7 +672,7 @@ META defineDocumentSkuStockExtra(object, detail, skuProp, stockProp, stockExtra)
 //        (quantitySku###object###stockProp(sku, object, stock) <= currentBalanceSkuStock(sku, stock));
     backgroundQuantity 'Цвет' (sku, object, stock) = ABSTRACT CASE COLOR (Sku, ###object, Stock);  
     
-    changeQuantityCustomer(###skuProp skuProp, ###object object, Stock stockProp, Stock stockExtra) = ACTION {
+    changeQuantityCustomer(###skuProp skuProp, ###object object, Stock stockProp, Stock stockExtra) = {
         INPUTX n = NUMERIC[16,5] DO
             IF detail##SupplierCustomer(sku, object, stockProp, stockExtra) THEN {
                 IF n THEN {
@@ -795,7 +795,7 @@ META defineDocumentBatchStockExtraPriceListTypeAgreement(object, stockProp, stoc
 
     priceCustomer 'Цена' (Batch batch, Stock stockProp, ###object object, Stock stockExtra) = viewPriceCustomer(batch, stockProp, object, stockExtra);
 
-    updateViewPriceCustomer (Batch batch, Stock stockProp, ###object object, Stock stockExtra) = ACTION {
+    updateViewPriceCustomer (Batch batch, Stock stockProp, ###object object, Stock stockExtra) = {
         FOR PriceListType pt == priceListType(object, stockExtra, batch) AND stockProp IS Stock NOINLINE (pt) DO
             viewPriceCustomer(batch, stockProp, object, stockExtra) <- prevPriceB(pt, batch, stockProp, dateTime(object));
     }
@@ -818,7 +818,7 @@ META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp
 
     backgroundQuantity 'Цвет' (batch, object, stock) = ABSTRACT CASE COLOR (Batch, ###object, Stock);          
 
-    changeQuantityValueCustomer(###batchProp batchProp, ###object object, Stock stockProp, Stock stockExtra, NUMERIC[16,5] n) = ACTION {
+    changeQuantityValueCustomer(###batchProp batchProp, ###object object, Stock stockProp, Stock stockExtra, NUMERIC[16,5] n) = {
         IF detail##SupplierCustomer(batch, object, stockProp, stockExtra) THEN {
             IF n THEN {
                 quantity(###detail detail) <- n WHERE detail == detail##SupplierCustomer(batch, object, stockProp, stockExtra);
@@ -840,7 +840,7 @@ META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp
             }
         }
     }
-    changeQuantityCustomer(###batchProp batchProp, ###object object, Stock stockProp, Stock stockExtra) = ACTION {
+    changeQuantityCustomer(###batchProp batchProp, ###object object, Stock stockProp, Stock stockExtra) = {
         INPUTX n = NUMERIC[16,5] DO
             changeQuantityValueCustomer(batch, object, stockProp, stockExtra, n);
     }
@@ -901,7 +901,7 @@ META defineDocumentSkuStockIn(object, detail, skuProp, stockProp)
 
     in 'Отм.' (###skuProp sku, ###object object) = TRUE IF detail(sku, object);
 
-    changeIn(###skuProp skuProp, ###object object) = ACTION {
+    changeIn(###skuProp skuProp, ###object object) = {
         INPUTX b = BOOLEAN DO
             IF detail(sku, object) THEN {
                 IF NOT b THEN {
@@ -1104,7 +1104,7 @@ END
 
 META defineAddDetailDialogSkuStockCustomInner (object, class, detail, caption, skuProp, stockProp, form)
     @defineAddDetailDialogSkuCustom(object, detail, caption, skuProp, form);
-    addDetail###form##Stock###detail 'Подбор товаров'###caption(class object) = ACTION {
+    addDetail###form##Stock###detail 'Подбор товаров'###caption(class object) = {
         ASSIGN form##Stock() <- stockProp(object);
         ASSIGN dialogAll(###skuProp sku) <- NULL;
 
@@ -1121,7 +1121,7 @@ META defineAddDetailDialogSkuCustom (object, detail, caption, skuProp, form)
 END
 
 META defineAddDetailDialogSkuCustomInner (object, class, detail, detailClass, caption, skuProp, form)
-    addDetail###form###detail 'Подбор товаров'###caption(class object) = ACTION {
+    addDetail###form###detail 'Подбор товаров'###caption(class object) = {
         DIALOG form DO {
             FOR dialogQuantity(###skuProp sku) INLINE NEW w = detailClass DO {
                 object(w) <- object;
@@ -1245,7 +1245,7 @@ META implementDocumentPrefix(object, prefixP, prefixQ)
     document[DocumentDetail](###object##Detail detail) += object(detail);
 
     overFillDocument = ACTION ABSTRACT (###object##Detail, DocumentDetail); 
-    fillDocument 'Подбор документа'(User###object user###object) = ACTION {
+    fillDocument 'Подбор документа'(User###object user###object) = {
         DIALOG documents OBJECTS d INPUT DO {
             FOR document(DocumentDetail documentDetail) == d NEW i = User###object##Detail DO {
                 user###object(i) <- user###object;
@@ -1284,7 +1284,7 @@ END
 META implementDocumentBatch(object, prefix)
     batch[DocumentDetail](###object##Detail detail) += prefix###batch(detail);
     
-    overFillDocument (User###object##Detail i, DocumentDetail d) += ACTION {
+    overFillDocument (User###object##Detail i, DocumentDetail d) += {
         batch(i) <- batch(d);
     }
 END
@@ -1357,7 +1357,7 @@ nameTypeChange 'Тип изменения' (DocumentLog l) = staticCaption(typeC
 note 'Примечание' = DATA VARSTRING[255] (DocumentLog) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 file 'Файл' = DATA CUSTOMFILE (DocumentLog);
-openFile 'Открыть Файл' (DocumentLog l) = ACTION OPENFILE (file(l)) TOOLBAR;
+openFile 'Открыть Файл' (DocumentLog l) = { OPENFILE (file(l)); } TOOLBAR;
 showFile = enableDocumentLog() AND file(DocumentLog dLog);
 
 WHEN SET(Document o IS Document) IF NOT disableDocumentLog() DO {

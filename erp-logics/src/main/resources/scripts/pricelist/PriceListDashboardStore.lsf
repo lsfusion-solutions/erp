@@ -113,7 +113,7 @@ DESIGN priceListDashboard {
 }
 
 // -------------------- Изменение согласованных и розничных цен одновременно --------------------------- //
-createRetailCompany(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock departmentStore) = ACTION {
+createRetailCompany(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock departmentStore) = {
     NEWSESSION NESTED (in[Sku]) {
         FOR NEW u = UserPriceList DO {
             fillCompanyPriceList(u, company, dateTime, dataPriceListType, departmentStore);
@@ -127,7 +127,7 @@ createRetailCompany(LegalEntity company, DATETIME dateTime, PriceListType dataPr
     }
 }
 
-createRetailPricesCompany(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock departmentStore) = ACTION {
+createRetailPricesCompany(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock departmentStore) = {
     NEWSESSION NESTED (in[Sku]) {
         FOR NEW u = UserPriceList DO {
             fillCompanyPriceList(u, company, dateTime, dataPriceListType, departmentStore);
@@ -148,14 +148,14 @@ createRetailPricesCompany(LegalEntity company, DATETIME dateTime, PriceListType 
 }
 
 // Изменение цен
-modifyRetailPricesData 'Изменить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = ACTION {
+modifyRetailPricesData 'Изменить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = {
     FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(LedgerPriceListType t, s, Stock st, DATETIME d), t, st, d] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
         createRetailPricesCompany(company, dateTime, dataPriceListType, stock);
     }
 }
 
 // Исключение из ассортимента
-excludeRetailData 'Исключить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = ACTION {
+excludeRetailData 'Исключить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = {
     FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(LedgerPriceListType t, s, Stock st, DATETIME d), t, st, d] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
         createRetailCompany(company, dateTime, dataPriceListType, stock);
     }
@@ -179,7 +179,7 @@ DESIGN priceListDashboard {
 
 // ------------------------------- Изменение розничных цен по складу -------------------------- //
 
-modifyRetailData 'Изменить'(DATETIME dateTime, PriceListType dataPriceListType, Stock departmentStore) = ACTION {
+modifyRetailData 'Изменить'(DATETIME dateTime, PriceListType dataPriceListType, Stock departmentStore) = {
 
     NEWSESSION NESTED (in[Sku]) {
         FOR NEW u = UserPriceList DO {

@@ -68,8 +68,8 @@ edit 'Редактировать' = ACTION ABSTRACT LIST (Output) IMAGE 'edit.pn
 // Подбор документа
 @implementDocument(output);
 customerStock(Output output) += stock(output);
-edit[StockDocumentLedger](Output l) += ACTION edit(l);
-close[StockDocumentLedger](Output l) += ACTION close(l);
+edit[StockDocumentLedger](Output l) += { edit(l); }
+close[StockDocumentLedger](Output l) += { close(l); }
 
 //--  Связь заказа и акта производства
 
@@ -179,7 +179,7 @@ DESIGN outputOrders {
     }
 }
 
-fillOrder 'Заполнить на основе производственного заказа'(UserOutput userOutput) =  ACTION {
+fillOrder 'Заполнить на основе производственного заказа'(UserOutput userOutput) =  {
     DIALOG outputOrders OBJECTS s = stock(userOutput), o INPUT DO {
         FOR order(ProductDetail productDetail) == o NEW d = UserOutputDetail DO {
             userOutput(d) <- userOutput;
@@ -239,7 +239,7 @@ outputProductsSum(ProductDetail productDetail) <-
          CHANGED(currency(productDetail));
 
 overFillOutputQuantityProductDetail = ACTION ABSTRACT (Order);
-fillOutputQuantityProductDetail 'Заполнить из остатков' (Order order) = ACTION {
+fillOutputQuantityProductDetail 'Заполнить из остатков' (Order order) = {
     createOutput(order) <- TRUE;
 
     outputQuantity(ProductDetail d) <- (- balanceA(sku(d), productsStock(d), date(d))) 
@@ -345,8 +345,8 @@ priceListType(OrderOutputDetail outputDetail) += calcPriceListType(productDetail
 price(OrderOutputDetail outputDetail) += price(productDetail(outputDetail));
 sum(OrderOutputDetail outputDetail) += outputProductsSum(productDetail(outputDetail));
 
-edit(OrderOutput output) += ACTION edit(order(output));
-close(OrderOutput output) += ACTION isClosed(Order o) <- TRUE WHERE o == order(output);
+edit(OrderOutput output) += { edit(order(output)); }
+close(OrderOutput output) += { isClosed(Order o) <- TRUE WHERE o == order(output); }
 
 valueVAT (OrderOutputDetail batch) += valueVAT(productDetail(batch)) IF VATProduct(productDetail(batch));
 
@@ -436,48 +436,54 @@ DESIGN userOutput {
 @implementSystemLedgerPriceListTypeBatch(account, OutputDetail, legalEntityStock, stock);
 
 edit 'Редактировать' = ACTION ABSTRACT LIST  (OutputDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserOutputDetail d) = ACTION NEWSESSION {
-    SHOW userOutput OBJECTS o = userOutput(d), d = d MANAGESESSION DOCKED;
+edit(UserOutputDetail d) = {
+	NEWSESSION {
+	    SHOW userOutput OBJECTS o = userOutput(d), d = d MANAGESESSION DOCKED;
+	}
 }
-edit(UserOutputDetail d) += ACTION edit(d);
-edit[PriceListLedger](OutputDetail d) += ACTION edit(d);
+edit(UserOutputDetail d) += { edit(d); }
+edit[PriceListLedger](OutputDetail d) += { edit(d); }
 
-edit[SkuLedger](OutputDetail batch) += ACTION edit(batch);
+edit[SkuLedger](OutputDetail batch) += { edit(batch); }
                        
-edit(OrderOutputDetail d) += ACTION edit(productDetail(d));
+edit(OrderOutputDetail d) += { edit(productDetail(d)); }
 
 
 show 'Просмотреть' = ACTION ABSTRACT LIST  (OutputDetail) TOOLBAR;
-show(UserOutputDetail d) = ACTION NEWSESSION {
-    SHOW userOutput OBJECTS o = userOutput(d), d = d DOCKED READONLY ;
+show(UserOutputDetail d) = {
+	NEWSESSION {
+	    SHOW userOutput OBJECTS o = userOutput(d), d = d DOCKED READONLY ;
+	}
 }
-show(UserOutputDetail d) += ACTION show(d);
+show(UserOutputDetail d) += { show(d); }
 
-show[SkuLedger](OutputDetail batch) += ACTION show(batch);
-show(OrderOutputDetail d) += ACTION show(productDetail(d));                       
+show[SkuLedger](OutputDetail batch) += { show(batch); }
+show(OrderOutputDetail d) += { show(productDetail(d)); }                       
 //-- SKU
 
 edit 'Редактировать' (userOutput) = ACTION EDITFORM UserOutput;
-edit(UserOutput output) += ACTION edit(output);
+edit(UserOutput output) += { edit(output); }
 
-copy 'Копировать'(UserOutput userOutput) = ACTION NEWSESSION {
-    FOR NEW o = UserOutput DO {
-        ASSIGN stock(o) <- stock(userOutput);
-        ASSIGN currency(o) <- currency(userOutput);
-        ASSIGN priceListType(o) <- priceListType(userOutput);
-        ASSIGN note(o) <- note(userOutput);
-
-        FOR userOutput(UserOutputDetail userOutputDetail) == userOutput DO {
-            FOR NEW d=UserOutputDetail DO {
-                ASSIGN userOutput(d) <- o;
-                ASSIGN sku(d) <- sku(userOutputDetail);
-                ASSIGN quantity(d) <- quantity(userOutputDetail);
-                ASSIGN priceListType(d) <- priceListType(userOutputDetail);
-                ASSIGN productDetail(d) <- productDetail(userOutputDetail);
-            }
-        }
-        SHOW userOutput OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
-    }
+copy 'Копировать'(UserOutput userOutput) = {
+	NEWSESSION {
+	    FOR NEW o = UserOutput DO {
+	        ASSIGN stock(o) <- stock(userOutput);
+	        ASSIGN currency(o) <- currency(userOutput);
+	        ASSIGN priceListType(o) <- priceListType(userOutput);
+	        ASSIGN note(o) <- note(userOutput);
+	
+	        FOR userOutput(UserOutputDetail userOutputDetail) == userOutput DO {
+	            FOR NEW d=UserOutputDetail DO {
+	                ASSIGN userOutput(d) <- o;
+	                ASSIGN sku(d) <- sku(userOutputDetail);
+	                ASSIGN quantity(d) <- quantity(userOutputDetail);
+	                ASSIGN priceListType(d) <- priceListType(userOutputDetail);
+	                ASSIGN productDetail(d) <- productDetail(userOutputDetail);
+	            }
+	        }
+	        SHOW userOutput OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR;
 
 isUserOpened(UserOutput o)=  isOpened[Output](o) AND is(o);

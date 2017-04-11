@@ -73,7 +73,7 @@ curRepricingPrice (RepricingDetail detail) = OVERRIDE curPrice(detail), overCurR
 @showDocumentInterfaceDetailBatch(repricing);
 @defineDocumentInterfaceDetailBatch(repricing, batch);
 
-changeBatch(UserRepricingDetail detail) = ACTION {
+changeBatch(UserRepricingDetail detail) = {
     DIALOG dialogBatchStockOut OBJECTS st = departmentStore(detail),
                              t = dateTime(detail),
                              sk = sku(detail),
@@ -81,7 +81,7 @@ changeBatch(UserRepricingDetail detail) = ACTION {
         batch(detail) <- bt;
 }
 
-replace(Sku s, Batch b) += ACTION { sku(UserRepricingDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += { sku(UserRepricingDetail detail) <- s WHERE batch(detail) == b;}
 
 @defineBalancesBatch(repricingDetail); //-- показываем по нажатию правой клавиши остатки партии
 @defineBalancesBatch(userRepricingDetail); //-- показываем по нажатию правой клавиши остатки партии
@@ -375,7 +375,7 @@ DESIGN addPercentUserRepricing {
 
 overChangePriceUser = ACTION ABSTRACT LIST (RepricingDetail);
 
-changePrice 'Изменить цену' (UserRepricing repricing) = ACTION {
+changePrice 'Изменить цену' (UserRepricing repricing) = {
     roundCondition(repricing) <- repricingRoundCondition() IF currency(repricing) == currency(repricingRoundCondition());
     DIALOG addPercentUserRepricing OBJECTS u = repricing DO 
         IF changePriceType(repricing) AND percent(repricing) THEN
@@ -398,7 +398,7 @@ changePrice 'Изменить цену' (UserRepricing repricing) = ACTION {
 overRecalculatePrice = ACTION ABSTRACT LIST (UserRepricingDetail);
 overConfirmRecalculatePrice = ACTION ABSTRACT LIST (UserRepricingDetail);
 
-recalculatePrice 'Пересчитать цены (до)' (UserRepricing repricing) = ACTION {
+recalculatePrice 'Пересчитать цены (до)' (UserRepricing repricing) = {
     
     FOR userRepricing(UserRepricingDetail d) == repricing DO {
         IF notUseRound2() THEN {
@@ -495,9 +495,9 @@ FORM repricing 'Акт переоценки (печать)'
 
 ;
 
-print 'Акт переоценки' (Repricing repricing) = ACTION PRINT repricing OBJECTS p = repricing   IMAGE 'print.png' IN print;
-printXls 'Акт переоценки (xls)' (Repricing repricing) = ACTION PRINT repricing OBJECTS p = repricing XLS IMAGE 'print.png' IN print;
-printAuto 'Акт переоценки (авто)' (Repricing repricing) = ACTION PRINT repricing OBJECTS p = repricing AUTO IMAGE 'print.png' IN print;
+print 'Акт переоценки' (Repricing repricing) = { PRINT repricing OBJECTS p = repricing; }   IMAGE 'print.png' IN print;
+printXls 'Акт переоценки (xls)' (Repricing repricing) = { PRINT repricing OBJECTS p = repricing XLS; } IMAGE 'print.png' IN print;
+printAuto 'Акт переоценки (авто)' (Repricing repricing) = { PRINT repricing OBJECTS p = repricing AUTO; } IMAGE 'print.png' IN print;
 //----------------------------------------------- Операции ------------------------+----------------------------//
 
 @defineDocumentInterfaceOperation (repricing, Repricing, );
@@ -506,7 +506,7 @@ printAuto 'Акт переоценки (авто)' (Repricing repricing) = ACTIO
 
 @defineDocumentOperationRolePrefix(userRepricing, );
 
-toFillQuantityUserRepricingDetail 'Записать в кол-во остатки'(UserRepricing repricing) = ACTION {
+toFillQuantityUserRepricingDetail 'Записать в кол-во остатки'(UserRepricing repricing) = {
     quantity(UserRepricingDetail d) <- IF batch(d) THEN balanceB(batch(d),   
                                                         departmentStore(d), 
                                                         dateTime(d)) 
@@ -518,11 +518,13 @@ toFillQuantityUserRepricingDetail 'Записать в кол-во остатк�
     quantity(UserRepricingDetail d) <- NULL WHERE quantity(d) < 0.0 AND userRepricing(d) == repricing;
 }
 
-toFillQuantityUserRepricingDetailAllUserRepricings 'Записать в кол-во остатки (для всех)'() = ACTION NEWSESSION {
-    FOR UserRepricing r IS UserRepricing AND balance(operation(r)) AND NOT isClosed(r) AND accessCompany(currentUser(),departmentStore(r)) DO {
-        toFillQuantityUserRepricingDetail(r);    
-    }
-    apply();
+toFillQuantityUserRepricingDetailAllUserRepricings 'Записать в кол-во остатки (для всех)'() = {
+	NEWSESSION {
+	    FOR UserRepricing r IS UserRepricing AND balance(operation(r)) AND NOT isClosed(r) AND accessCompany(currentUser(),departmentStore(r)) DO {
+	        toFillQuantityUserRepricingDetail(r);    
+	    }
+	    apply();
+	}
 }
 
 allowRecalculatePrice (UserRepricing p) = NOT denyRecalculatePrice(operation(p));
@@ -532,7 +534,7 @@ allowRecalculatePrice (UserRepricing p) = NOT denyRecalculatePrice(operation(p))
 
 // --------------------------- Формы --------------------------------- //
 edit 'Редактировать' = ACTION ABSTRACT LIST (Repricing) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-editSku 'Редактировать SKU' (UserRepricingDetail d) = ACTION edit(sku(d));
+editSku 'Редактировать SKU' (UserRepricingDetail d) = { edit(sku(d)); }
 
 FORM userRepricing 'Акт переоценки'
     OBJECTS p=UserRepricing PANEL
@@ -664,20 +666,24 @@ DESIGN userRepricing{
 @addEventGenerateNumberOnForm(userRepricing, p, userRepricing);
 
 edit 'Редактировать' = ACTION ABSTRACT LIST  (RepricingDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserRepricingDetail d) = ACTION NEWSESSION {
-    SHOW userRepricing OBJECTS p = userRepricing(d), d = d MANAGESESSION DOCKED;
+edit(UserRepricingDetail d) = {
+	NEWSESSION {
+	    SHOW userRepricing OBJECTS p = userRepricing(d), d = d MANAGESESSION DOCKED;
+	}
 }
 
-edit(UserRepricingDetail d) += ACTION edit(d);    
-edit[SkuLedger](RepricingDetail ledger) += ACTION edit(ledger);
+edit(UserRepricingDetail d) += { edit(d); }    
+edit[SkuLedger](RepricingDetail ledger) += { edit(ledger); }
 
 show 'Просмотреть' = ACTION ABSTRACT LIST  (RepricingDetail) TOOLBAR;
-show(UserRepricingDetail d) = ACTION NEWSESSION {
-    SHOW userRepricing OBJECTS p = userRepricing(d), d = d DOCKED READONLY ;
+show(UserRepricingDetail d) = {
+	NEWSESSION {
+	    SHOW userRepricing OBJECTS p = userRepricing(d), d = d DOCKED READONLY ;
+	}
 }
 
-show(UserRepricingDetail d) += ACTION show(d);    
-show[SkuLedger](RepricingDetail ledger) += ACTION show(ledger);
+show(UserRepricingDetail d) += { show(d); }    
+show[SkuLedger](RepricingDetail ledger) += { show(ledger); }
 
 //-- SKU
 //@defineDocumentSkuPriceListTypeSystemLedger(userRepricing, accountPriceListType, departmentStore, ){
@@ -963,8 +969,8 @@ sumItem (Repricing ledger) += sumItemRepricingDetail(ledger);
 sumContainer (Repricing ledger) += sumContainerRepricingDetail(ledger);
 
 operation[StockDocumentLedger] (Repricing ledger) += operation(ledger);
-edit[StockDocumentLedger](Repricing l) += ACTION edit(l);
-close[StockDocumentLedger](Repricing l) += ACTION close(l);
+edit[StockDocumentLedger](Repricing l) += { edit(l); }
+close[StockDocumentLedger](Repricing l) += { close(l); }
 
 // Проведение по регистру
 @implementSkuLedger(repricingDetail, sku, departmentStore);
@@ -974,7 +980,7 @@ stockDocumentLedger(RepricingDetail ledger) += repricing(ledger);
 batch[SkuLedger](RepricingDetail ledger) += batch(ledger);
 
 edit 'Редактировать' (userRepricing) = ACTION EDITFORM UserRepricing;
-edit(UserRepricing p) += ACTION edit(p);
+edit(UserRepricing p) += { edit(p); }
 
 showEditUser (Repricing i) =  NOT preventChangesDocument(currentUser(),operation(i)) AND isOpened(i); 
 
@@ -995,29 +1001,31 @@ filterStore (Repricing i) = store(departmentStore(i)) == filterRepricingStore() 
 overCopy = ACTION ABSTRACT LIST (Repricing, UserRepricing);
 overCopy = ACTION ABSTRACT LIST (UserRepricingDetail, RepricingDetail);
 
-copy 'Копировать'(Repricing repricing) = ACTION NEWSESSION {
-    FOR NEW p = UserRepricing DO {
-        departmentStore(p) <- departmentStore(repricing);
-        currency(p) <- currency(repricing);
-        operation(p) <- operation(repricing);
-        note(p) <- note(repricing);
-        numberDisposal(p) <- numberDisposal(repricing);
-        
-        EXEC overCopy(repricing, p);
-
-        FOR repricing(RepricingDetail repricingDetail) == repricing DO {
-            FOR NEW d=UserRepricingDetail DO {
-                userRepricing(d) <- p;
-                sku(d) <- sku(repricingDetail);
-                quantity(d) <- quantity(repricingDetail);                
-                
-                batch(d) <- batch(repricingDetail);
-                
-                overCopy(d, repricingDetail);
-            }
-        }
-        SHOW userRepricing OBJECTS p = p MANAGESESSION DOCKED NOCANCEL;
-    }
+copy 'Копировать'(Repricing repricing) = {
+	NEWSESSION {
+	    FOR NEW p = UserRepricing DO {
+	        departmentStore(p) <- departmentStore(repricing);
+	        currency(p) <- currency(repricing);
+	        operation(p) <- operation(repricing);
+	        note(p) <- note(repricing);
+	        numberDisposal(p) <- numberDisposal(repricing);
+	        
+	        EXEC overCopy(repricing, p);
+	
+	        FOR repricing(RepricingDetail repricingDetail) == repricing DO {
+	            FOR NEW d=UserRepricingDetail DO {
+	                userRepricing(d) <- p;
+	                sku(d) <- sku(repricingDetail);
+	                quantity(d) <- quantity(repricingDetail);                
+	                
+	                batch(d) <- batch(repricingDetail);
+	                
+	                overCopy(d, repricingDetail);
+	            }
+	        }
+	        SHOW userRepricing OBJECTS p = p MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR;
 
 FORM repricings 'Акты переоценки' 
@@ -1189,7 +1197,7 @@ price (RepricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPri
 
 in (RepricingDetail ledger, DepartmentStore stock) += departmentStore(ledger) == stock;
 
-edit[PriceListLedger](RepricingDetail d) += ACTION edit(d);
+edit[PriceListLedger](RepricingDetail d) += { edit(d); }
 
 @defineDocumentLogForm(repricings, p);
 

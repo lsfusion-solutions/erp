@@ -171,7 +171,7 @@ DESIGN paymentInstallments {
     REMOVE PROPERTY(formRefresh());
 }
 
-setPassportLegalEntity () += ACTION {
+setPassportLegalEntity () += {
     INPUTX s = STRING[10] DO {
         passportNumberLegalEntity() <- s; 
         FOR passportNumber(LegalEntity l) == s AND NOT isReadonly() DO {
@@ -183,7 +183,7 @@ setPassportLegalEntity () += ACTION {
     }
 }
 
-setNameEmployee () += ACTION {
+setNameEmployee () += {
     INPUTX s = VARSTRING[100] DO
         FOR id(Employee e) == s DO {
             idEmployee() <- s;    
@@ -195,7 +195,7 @@ printReceipt = ACTION ABSTRACT LIST (Sale.Invoice, Payment.Payment);
 printReturnReceipt = ACTION ABSTRACT LIST (Sale.Invoice, Payment.Payment);
 printReceiptResult = DATA LOCAL BOOLEAN ();
 
-createInvoice(Receipt receipt, LegalEntity customer, CustomUser employee, NUMERIC[18,4] sum, PaymentType paymentType, PaymentCondition paymentCondition, VARSTRING[100] note)  = ACTION {       
+createInvoice(Receipt receipt, LegalEntity customer, CustomUser employee, NUMERIC[18,4] sum, PaymentType paymentType, PaymentCondition paymentCondition, VARSTRING[100] note)  = {       
     FOR NEW i = UserInvoice DO {
         operation(i) <- defaultOperationPaymentInstallments();
         supplierStock(i) <- departmentStore(receipt);
@@ -273,7 +273,7 @@ createInvoice(Receipt receipt, LegalEntity customer, CustomUser employee, NUMERI
     }
 }
 
-createPaymentInstallments 'Рассрочка'(Receipt receipt) = ACTION {
+createPaymentInstallments 'Рассрочка'(Receipt receipt) = {
     IF quantityReceiptDetail(receipt) THEN {
         passportNumberLegalEntity() <- NULL;
         nameLegalEntity() <- NULL;
@@ -345,7 +345,7 @@ DESIGN prePayment {
     MOVE functions.box;
 }
 
-createInvoicePrePayment 'Предоплата'(Receipt receipt)  = ACTION {
+createInvoicePrePayment 'Предоплата'(Receipt receipt)  = {
     IF quantityReceiptDetail(receipt) THEN {
         noteInvoice() <- NULL;
         DIALOG prePayment OBJECTS r = receipt, c INPUT DO {

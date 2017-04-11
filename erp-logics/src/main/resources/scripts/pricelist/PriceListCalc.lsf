@@ -184,27 +184,29 @@ FORM calcPriceListTypes 'Расчетный вид цены'
 ;
 
 edit 'Редактировать' = ACTION EDITFORM CalcPriceListType;
-edit(CalcPriceListType priceListType) += ACTION edit(priceListType);
+edit(CalcPriceListType priceListType) += { edit(priceListType); }
 
-overCopy (CalcPriceListType priceListType) += ACTION NEWSESSION {
-    IF priceListType IS CalcPriceListType THEN {
-        FOR NEW p = CalcPriceListType DO {
-            includeVAT(p) <- includeVAT(priceListType);
-            country(p) <- country(priceListType);            
-            currency(p) <- currency(priceListType);            
-            roundCondition(p) <- roundCondition(priceListType);            
-            basePriceListType(p) <- basePriceListType(priceListType);
-            parent(p) <- parent(priceListType);
-           // pricingBaseCalcPriceListType(p) <- pricingBaseCalcPriceListType(p);
-            groupType(p) <- groupType(priceListType);
-            
-            dataMarkup(p, Group group) <- dataMarkup(priceListType, group) WHERE dataMarkup(priceListType, group);    
-            dataRoundCondition(p, Group group) <- dataRoundCondition(priceListType, group) WHERE dataRoundCondition(priceListType, group);    
-            dataMarkup(p, Sku sku) <- dataMarkup(priceListType, sku) WHERE dataMarkup(priceListType, sku);    
-            
-            SHOW calcPriceListType OBJECTS c=p MANAGESESSION DOCKED; 
-        }
-    }
+overCopy (CalcPriceListType priceListType) += {
+	NEWSESSION {
+	    IF priceListType IS CalcPriceListType THEN {
+	        FOR NEW p = CalcPriceListType DO {
+	            includeVAT(p) <- includeVAT(priceListType);
+	            country(p) <- country(priceListType);            
+	            currency(p) <- currency(priceListType);            
+	            roundCondition(p) <- roundCondition(priceListType);            
+	            basePriceListType(p) <- basePriceListType(priceListType);
+	            parent(p) <- parent(priceListType);
+	           // pricingBaseCalcPriceListType(p) <- pricingBaseCalcPriceListType(p);
+	            groupType(p) <- groupType(priceListType);
+	            
+	            dataMarkup(p, Group group) <- dataMarkup(priceListType, group) WHERE dataMarkup(priceListType, group);    
+	            dataRoundCondition(p, Group group) <- dataRoundCondition(priceListType, group) WHERE dataRoundCondition(priceListType, group);    
+	            dataMarkup(p, Sku sku) <- dataMarkup(priceListType, sku) WHERE dataMarkup(priceListType, sku);    
+	            
+	            SHOW calcPriceListType OBJECTS c=p MANAGESESSION DOCKED; 
+	        }
+	    }
+	}
 }
 
 EXTEND FORM priceListTypes

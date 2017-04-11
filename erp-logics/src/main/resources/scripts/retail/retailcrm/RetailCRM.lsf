@@ -395,53 +395,55 @@ copyProperties = ACTION ABSTRACT (PromotionCondition, PromotionCondition);
 
 copyItems = DATA LOCAL BOOLEAN ();
 
-copy 'Копировать'(Promotion promotion) = ACTION NEWSESSION {
-    FOR NEW p = Promotion DO {
-        promotionGroup(p) <- promotionGroup(promotion);
-        orderPromotionType(p) <- orderPromotionType(promotion);
-        dateFrom(p) <- dateFrom(promotion);
-        dateTo(p) <- dateTo(promotion);
-        timeOfFrom(p) <- timeOfFrom(promotion);
-        timeOfTo(p) <- timeOfTo(promotion);
-        minSumBill(p) <- minSumBill(promotion);
-        maxSumBill(p) <-  maxSumBill(promotion);
-        hasDiscountCard(p) <- hasDiscountCard(promotion);
-        noDiscountCard(p) <- noDiscountCard(promotion);
-        minCumulativeSum(p) <- minCumulativeSum(promotion);
-        maxCumulativeSum(p) <- maxCumulativeSum(promotion);
-        useCurrentReceipt(p) <- useCurrentReceipt(promotion);
-        allDiscountCard(p) <- allDiscountCard(promotion);
-        inData(p, DiscountCard dicsountCard) <- inData(promotion, dicsountCard);
-        allStores(p) <- allStores(promotion);
-        dataIn(p, Store s) <- dataIn(promotion, s);
-        dataIn(p, ChainStores cs) <- dataIn(promotion, cs);
-        dataIn(p, StoreType st) <- dataIn(promotion, st);
-
-        FOR promotion(PromotionCondition promotionCondition) == promotion NEW pc = PromotionCondition DO {
-            promotion(pc) <- p;
-            name(pc) <- name(promotionCondition);
-            minQuantity(pc) <- minQuantity(promotionCondition);
-            minSum(pc) <- minSum(promotionCondition);
-            quantityDiscount(pc) <- quantityDiscount(promotionCondition);
-            percent(pc) <- percent(promotionCondition);
-            priceListType(pc) <- priceListType(promotionCondition);
-            resultPrice(pc) <- resultPrice(promotionCondition);
-            resultPrice(pc, Sku sku) <- resultPrice(promotionCondition, sku);
-            sumDiscount(pc) <- sumDiscount(promotionCondition);
-            sumReceipt(pc) <- sumReceipt(promotionCondition);
-
-            ASK 'Копировать товары, учавствующие в акции ?' DO
-                copyItems() <- TRUE;
-            
-            IF copyItems() THEN {
-                inData(pc, SkuGroup skuGroup) <- inData(promotionCondition, skuGroup);
-                inData(pc, Sku sku) <- inData(promotionCondition, sku);
-            }
-            copyProperties(pc, promotionCondition);
-        }
-
-        SHOW promotion OBJECTS sh = p MANAGESESSION DOCKED;
-    }
+copy 'Копировать'(Promotion promotion) = {
+	NEWSESSION {
+	    FOR NEW p = Promotion DO {
+	        promotionGroup(p) <- promotionGroup(promotion);
+	        orderPromotionType(p) <- orderPromotionType(promotion);
+	        dateFrom(p) <- dateFrom(promotion);
+	        dateTo(p) <- dateTo(promotion);
+	        timeOfFrom(p) <- timeOfFrom(promotion);
+	        timeOfTo(p) <- timeOfTo(promotion);
+	        minSumBill(p) <- minSumBill(promotion);
+	        maxSumBill(p) <-  maxSumBill(promotion);
+	        hasDiscountCard(p) <- hasDiscountCard(promotion);
+	        noDiscountCard(p) <- noDiscountCard(promotion);
+	        minCumulativeSum(p) <- minCumulativeSum(promotion);
+	        maxCumulativeSum(p) <- maxCumulativeSum(promotion);
+	        useCurrentReceipt(p) <- useCurrentReceipt(promotion);
+	        allDiscountCard(p) <- allDiscountCard(promotion);
+	        inData(p, DiscountCard dicsountCard) <- inData(promotion, dicsountCard);
+	        allStores(p) <- allStores(promotion);
+	        dataIn(p, Store s) <- dataIn(promotion, s);
+	        dataIn(p, ChainStores cs) <- dataIn(promotion, cs);
+	        dataIn(p, StoreType st) <- dataIn(promotion, st);
+	
+	        FOR promotion(PromotionCondition promotionCondition) == promotion NEW pc = PromotionCondition DO {
+	            promotion(pc) <- p;
+	            name(pc) <- name(promotionCondition);
+	            minQuantity(pc) <- minQuantity(promotionCondition);
+	            minSum(pc) <- minSum(promotionCondition);
+	            quantityDiscount(pc) <- quantityDiscount(promotionCondition);
+	            percent(pc) <- percent(promotionCondition);
+	            priceListType(pc) <- priceListType(promotionCondition);
+	            resultPrice(pc) <- resultPrice(promotionCondition);
+	            resultPrice(pc, Sku sku) <- resultPrice(promotionCondition, sku);
+	            sumDiscount(pc) <- sumDiscount(promotionCondition);
+	            sumReceipt(pc) <- sumReceipt(promotionCondition);
+	
+	            ASK 'Копировать товары, учавствующие в акции ?' DO
+	                copyItems() <- TRUE;
+	            
+	            IF copyItems() THEN {
+	                inData(pc, SkuGroup skuGroup) <- inData(promotionCondition, skuGroup);
+	                inData(pc, Sku sku) <- inData(promotionCondition, sku);
+	            }
+	            copyProperties(pc, promotionCondition);
+	        }
+	
+	        SHOW promotion OBJECTS sh = p MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
 background 'Цвет' (Promotion promotion) = CASE WHEN dateFrom(promotion) > currentDate() THEN RGB(224,255,224)

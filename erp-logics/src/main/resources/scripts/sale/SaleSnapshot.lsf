@@ -196,7 +196,7 @@ isSale 'Продажа' = DATA BOOLEAN (Snapshot) IN evidence;
 
 //-- Расширяем ACTION      
             
-overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += ACTION {
+overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += {
     IF isSale(snapshot) THEN {
         IF isDate(snapshot) THEN {
             IF isQuantity(snapshot) THEN {
@@ -239,7 +239,7 @@ overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += ACTION {
     
 };                                                                                                
                
-overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += ACTION {
+overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += {
     IF isSale(snapshot) THEN {
         IF isQuantity(snapshot) THEN {
             saleQuantity(Sku sku, Stock stock, snapshot) <- NULL;
@@ -271,7 +271,7 @@ overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += ACTION {
     }
 };  
 
-overTakeBatchFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += ACTION {
+overTakeBatchFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += {
     IF isSale(snapshot) THEN {
         IF isQuantity(snapshot) THEN {
             saleQuantity(Batch batch, Stock stock, snapshot) <- NULL;
@@ -477,7 +477,7 @@ turnover 'Товарооборачиваемость, дн.' (Stock stock, Snaps
     saleSum(stock, snapshot));          
  
 overCalcSaleSkuParamsInterval= ACTION ABSTRACT LIST (Snapshot, DATE, DATE); 
-calcSaleSkuParamsInterval 'Рассчитать продажи в день и товарооборачиваемость'(Snapshot snapshot, DATE dateFrom, DATE dateTo) = ACTION {    
+calcSaleSkuParamsInterval 'Рассчитать продажи в день и товарооборачиваемость'(Snapshot snapshot, DATE dateFrom, DATE dateTo) = {    
     IF turnoverSku(snapshot) AND dateFrom IS DATE AND dateTo IS DATE THEN {
     
         LOCAL daysOn = INTEGER (Sku, Stock);
@@ -513,7 +513,7 @@ calcSaleSkuParamsInterval 'Рассчитать продажи в день и т
     }                                    
 } TOOLBAR;
 
-overTakeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) +=  ACTION calcSaleSkuParamsInterval(snapshot, dateFrom, dateTo);
+overTakeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) +=  { calcSaleSkuParamsInterval(snapshot, dateFrom, dateTo); }
 
 daysOnStock 'Дней на складе' = DATA INTEGER (Batch, Stock, Snapshot);
 cumBalance 'Накопленный остаток' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
@@ -533,7 +533,7 @@ turnover 'Товарооборачиваемость, дн.' (LegalEntity suppli
     saleSumBatch(supplier, snapshot));      
     
 
-overTakeBatchFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) +=  ACTION {
+overTakeBatchFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) +=  {
     IF turnoverSku(snapshot) AND dateFrom IS DATE AND dateTo IS DATE THEN {
     
         LOCAL daysOn = INTEGER (Batch, Stock);

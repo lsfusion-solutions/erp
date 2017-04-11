@@ -65,7 +65,7 @@ CONSTRAINT supplier(SaleReturn.UserShipmentDetail detail) != supplier(shipmentDe
 descriptionIndexShipmentDetail 'Строка поставки (закупка-возврат)' (SaleReturn.ShipmentDetail detail) = descriptionIndex(shipmentDetail(detail));
 descriptionIndexShipmentDetail 'Строка поставки (закупка-возврат)' (SaleReturn.UserShipmentDetail detail) = descriptionIndex(shipmentDetail(detail));
 
-overCopy[SaleReturn.UserShipmentDetail,SaleReturn.UserShipmentDetail](SaleReturn.UserShipmentDetail d, SaleReturn.UserShipmentDetail detail) += ACTION {      
+overCopy[SaleReturn.UserShipmentDetail,SaleReturn.UserShipmentDetail](SaleReturn.UserShipmentDetail d, SaleReturn.UserShipmentDetail detail) += {      
     shipmentDetail(d) <- shipmentDetail(detail);             
 } 
 
@@ -138,11 +138,11 @@ price(SaleReturnShipmentDetail shipmentDetail) += price(shipmentDetail(shipmentD
 
 sum(SaleReturnShipmentDetail shipmentDetail) += sum(shipmentDetail(shipmentDetail));
 
-edit(SaleReturnShipment shipment) += ACTION EXEC edit(shipment(shipment));
-close(SaleReturnShipment shipment) += ACTION EXEC close(shipment(shipment));
+edit(SaleReturnShipment shipment) += { EXEC edit(shipment(shipment)); }
+close(SaleReturnShipment shipment) += { EXEC close(shipment(shipment)); }
 createdUser(SaleReturnShipment shipment) += createdUser(shipment(shipment));
-edit(SaleReturnShipmentDetail shipmentDetail) += ACTION edit(shipmentDetail(shipmentDetail));
-show(SaleReturnShipmentDetail shipmentDetail) += ACTION show(shipmentDetail(shipmentDetail));
+edit(SaleReturnShipmentDetail shipmentDetail) += { edit(shipmentDetail(shipmentDetail)); }
+show(SaleReturnShipmentDetail shipmentDetail) += { show(shipmentDetail(shipmentDetail)); }
 
 showPack(SaleReturnShipment shipment) +=  showPack(shipment(shipment));
 barcodePack(SaleReturnShipmentDetail shipmentDetail) += barcodePack(shipmentDetail(shipmentDetail));
@@ -224,7 +224,7 @@ DESIGN shipmentShipments {
 }
 
 
-fillShipment 'Заполнить на основе поставки (закупка-возврат)'(SaleReturn.UserShipment userShipment) =  ACTION {       // подставляем все количество ???
+fillShipment 'Заполнить на основе поставки (закупка-возврат)'(SaleReturn.UserShipment userShipment) =  {       // подставляем все количество ???
     DIALOG shipmentShipments OBJECTS s = supplier(userShipment), c = customer(userShipment),
                                    ss = supplierStock(userShipment), cs = customerStock(userShipment), o INPUT DO {
         FOR shipment(ShipmentDetail shipmentDetail) == o NEW d = SaleReturn.UserShipmentDetail DO {
@@ -257,40 +257,42 @@ EXTEND FORM SaleReturn.shipments
 
 //-- Действие
 
-moveUserShipment 'Поставка (закупка-возврат)'(Shipment shipment) =  ACTION NEWSESSION{
-
-    FOR NEW s = SaleReturn.UserShipment DO {
-
-        supplier(s) <- supplier(shipment);
-        customer(s) <- customer(shipment);
-        supplierStock(s) <- supplierStock(shipment);
-        customerStock(s) <- customerStock(shipment);
-        number(s) <- number(shipment);
-        series(s) <- series(shipment);
-        note(s) <- note(shipment);
-        currency(s) <- currency(shipment);
-
-        showPack(s) <- showPack(shipment);
-        operation(s) <- saleReturnOperation(operation(shipment));
-
-        FOR shipment(ShipmentDetail detail)==shipment NEW d = SaleReturn.UserShipmentDetail DO {
-
-            userShipment(d) <- s;
-            shipmentDetail(d) <- detail;
-
-            sku(d) <- sku(detail);
-            quantity (d) <- quantity(detail);
-            price (d) <- price(detail);
-
-            barcodePack (d) <- barcodePack(detail);
-            amountPack (d) <- amountPack(detail);
-            packQuantity (d) <- packQuantity(detail);
-
-            batch(d) <- batch(detail);
-        }
-
-    SHOW SaleReturn.userShipment OBJECTS s = s MANAGESESSION DOCKED NOCANCEL;
-    }
+moveUserShipment 'Поставка (закупка-возврат)'(Shipment shipment) =  {
+	NEWSESSION{
+	
+	    FOR NEW s = SaleReturn.UserShipment DO {
+	
+	        supplier(s) <- supplier(shipment);
+	        customer(s) <- customer(shipment);
+	        supplierStock(s) <- supplierStock(shipment);
+	        customerStock(s) <- customerStock(shipment);
+	        number(s) <- number(shipment);
+	        series(s) <- series(shipment);
+	        note(s) <- note(shipment);
+	        currency(s) <- currency(shipment);
+	
+	        showPack(s) <- showPack(shipment);
+	        operation(s) <- saleReturnOperation(operation(shipment));
+	
+	        FOR shipment(ShipmentDetail detail)==shipment NEW d = SaleReturn.UserShipmentDetail DO {
+	
+	            userShipment(d) <- s;
+	            shipmentDetail(d) <- detail;
+	
+	            sku(d) <- sku(detail);
+	            quantity (d) <- quantity(detail);
+	            price (d) <- price(detail);
+	
+	            barcodePack (d) <- barcodePack(detail);
+	            amountPack (d) <- amountPack(detail);
+	            packQuantity (d) <- packQuantity(detail);
+	
+	            batch(d) <- batch(detail);
+	        }
+	
+	    SHOW SaleReturn.userShipment OBJECTS s = s MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR;
 
 EXTEND FORM shipments

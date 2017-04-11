@@ -58,7 +58,7 @@ operation[Order.Order](Order order) += operation(order);
 @defineDocumentOperationRole(userOrder);
 
 
-overCopy(Order s, UserOrder d) += ACTION {
+overCopy(Order s, UserOrder d) += {
     ASSIGN operation(d) <- operation(s);
 }
 @defineOperationFilterProperty(order, o, orders, nameFilterOrderSupplier);
@@ -85,7 +85,7 @@ FORM emailOrder 'Заказ'
     FILTERS order(d) == o
 ;
 
-emailCustomer 'Выслать подтвержденный заказ покупателю' (Order order) = ACTION EMAIL
+emailCustomer 'Выслать подтвержденный заказ покупателю' (Order order) = { EMAIL
     FROM email(supplier(order))
     SUBJECT 'Подтверждение заказа №' + seriesNumber(order) + ' от '  + date(order)
     TO email(customer(order))
@@ -93,7 +93,7 @@ emailCustomer 'Выслать подтвержденный заказ покуп
     ATTACH PDF
            NAME 'Заказ №' + seriesNumber(order) + ' от ' + date(order)
            emailOrder OBJECTS o=order
-;
+; }
 
 //WHEN isPostedOrder(order) AND emailLegalEntity(customerOrder(order)) DO EXEC emailCustomerOrder(order);
 
@@ -138,7 +138,7 @@ DESIGN userOrder {
 @defineDocumentPackSkuStock(userOrder, sku, supplier);
 @extendFormDocumentPackSkuStock(userOrder, userOrder, o, supplier);
 
-overChangeQuantityValueSku(UserOrderDetail detail) += ACTION {
+overChangeQuantityValueSku(UserOrderDetail detail) += {
     IF packBarcode(sku(detail)) AND NOT skipChangePackQuantity(detail) THEN {
         packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }
@@ -183,7 +183,7 @@ EXTEND FORM userOrder
 //--------------------- Проводим по регистру резерва ------------------//
 @implementSaleOrderLedger(Order, sku, shipmentDateTime, supplierStock, customer);
 operation[OrderLedger](OrderDetail ledger) += operation(ledger);
-edit[OrderLedger](OrderDetail ledger) += ACTION edit(ledger);
+edit[OrderLedger](OrderDetail ledger) += { edit(ledger); }
 
 //-- Запрет на изменение документа другим пользователем
 @defineOperationChangesDocument(order, UserOrder, preventChangesDocument, created);
@@ -195,12 +195,12 @@ orderBatchAvailable (sku, stock, dateTime, q) = GROUP MIN order(Batch batch) IF 
                                                    BY skuLedger(batch, stock), stock, dateTime, q;
 firstOrderBatchAvailable(Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q) = orderBatchAvailable(sku, stock, dateTime, q)[2];
 
-fillBatch 'Проставить партию'(UserOrderDetail d)  = ACTION {    
+fillBatch 'Проставить партию'(UserOrderDetail d)  = {    
     batch(d) <- firstOrderBatchAvailable(sku(d), supplierStock(d), dateTime(d), quantity(d)) 
         WHERE NOT batch(d);
 } SHORTCUT nameBatch[UserOrderDetail];
 
-fillAllBatch 'Проставить партии для всех'(UserOrderDetail detail) = ACTION {
+fillAllBatch 'Проставить партии для всех'(UserOrderDetail detail) = {
    FOR userOrder(detail) == userOrder(UserOrderDetail d) DO
        fillBatch(d);
 } SHORTCUT nameBatch[UserOrderDetail];

@@ -50,8 +50,8 @@ nameLegalEntity 'Держатель' (Compliance compliance) = name(legalEntity(
 
 // Файл сертификата
 image 'Файл сертификата'  = DATA IMAGEFILE (Compliance);
-saveImage 'Загрузить сертификат' (Compliance compliance) = ACTION LOADFILE image(compliance);
-openImage 'Просмотреть сертификат' (Compliance compliance) = ACTION OPENFILE image(compliance);
+saveImage 'Загрузить сертификат' (Compliance compliance) = { LOADFILE image(compliance); }
+openImage 'Просмотреть сертификат' (Compliance compliance) = { OPENFILE image(compliance); }
 
 CLASS ExtraPageComplianceDetail 'Дополнительная страница сертификата';
 TABLE extraPageComplianceDetail (ExtraPageComplianceDetail);
@@ -59,8 +59,8 @@ TABLE extraPageComplianceDetail (ExtraPageComplianceDetail);
 compliance = DATA Compliance (ExtraPageComplianceDetail);
 
 image 'Файл сертификата'  = DATA IMAGEFILE (ExtraPageComplianceDetail);
-saveImage 'Загрузить сертификат' (ExtraPageComplianceDetail extraPageComplianceDetail) = ACTION LOADFILE image(extraPageComplianceDetail);
-openImage 'Просмотреть сертификат' (ExtraPageComplianceDetail extraPageComplianceDetail) = ACTION OPENFILE image(extraPageComplianceDetail);
+saveImage 'Загрузить сертификат' (ExtraPageComplianceDetail extraPageComplianceDetail) = { LOADFILE image(extraPageComplianceDetail); }
+openImage 'Просмотреть сертификат' (ExtraPageComplianceDetail extraPageComplianceDetail) = { OPENFILE image(extraPageComplianceDetail); }
 
 @defineDocumentDetailIndex(compliance, ExtraPageComplianceDetail);
 
@@ -68,7 +68,7 @@ extraPageComplianceDetail (index, compliance) = GROUP AGGR ExtraPageComplianceDe
 
 @defineDocumentDetailNote(ExtraPageComplianceDetail);
 
-addExtraPageDetail 'Добавить'(Compliance compliance) = ACTION {
+addExtraPageDetail 'Добавить'(Compliance compliance) = {
     FOR NEW d = ExtraPageComplianceDetail DO {
         compliance(d) <- compliance;
         EXEC saveImage(d);
@@ -145,28 +145,30 @@ DESIGN compliance {
 over = ACTION ABSTRACT LIST (Compliance, Compliance);
 overCopy = ACTION ABSTRACT LIST (ExtraPageComplianceDetail, ExtraPageComplianceDetail);
     
-copy 'Копировать'(Compliance compliance) = ACTION NEWSESSION {
-    FOR NEW c = Compliance DO {
-        fromDate(c) <- fromDate(compliance);
-        toDate(c) <- toDate(compliance);
-        legalEntity(c) <- legalEntity(compliance);
-        text(c) <- text(compliance);
-        image(c) <- image(compliance);
-        
-        over(compliance, c);
-
-        FOR compliance(ExtraPageComplianceDetail detail) == compliance DO {
-            FOR NEW d=ExtraPageComplianceDetail DO {
-                compliance(d) <- c;
-                image(d) <- image(detail);
-
-                
-                overCopy(d, detail);
-            }
-        }
-
-        SHOW compliance OBJECTS c = c MANAGESESSION DOCKED;
-    }
+copy 'Копировать'(Compliance compliance) = {
+	NEWSESSION {
+	    FOR NEW c = Compliance DO {
+	        fromDate(c) <- fromDate(compliance);
+	        toDate(c) <- toDate(compliance);
+	        legalEntity(c) <- legalEntity(compliance);
+	        text(c) <- text(compliance);
+	        image(c) <- image(compliance);
+	        
+	        over(compliance, c);
+	
+	        FOR compliance(ExtraPageComplianceDetail detail) == compliance DO {
+	            FOR NEW d=ExtraPageComplianceDetail DO {
+	                compliance(d) <- c;
+	                image(d) <- image(detail);
+	
+	                
+	                overCopy(d, detail);
+	            }
+	        }
+	
+	        SHOW compliance OBJECTS c = c MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
 skipShowEdit = ABSTRACT BOOLEAN (Compliance);

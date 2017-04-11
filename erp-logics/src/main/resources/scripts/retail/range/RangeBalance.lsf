@@ -53,14 +53,14 @@ countNotSku 'Кол-во позиций с остатком без ассорт�
 calcCountNotSku= GROUP SUM 1 IF balanceB(Sku s, Store st, DATE d) >0 AND NOT countRange(s, st, d)        
         BY  st, d;       
              
-fillSku 'Заполнить данные по ассортименту'(RangeDocument document, Store store, DATE date) = ACTION {         
+fillSku 'Заполнить данные по ассортименту'(RangeDocument document, Store store, DATE date) = {         
     countSku(document, store, date) <-  calcCountSku(store, date);  
     countAverageSku(document, store, date) <-  calcCountAverageSku(store, date);
     countLessSku(document, store, date) <-  calcLessAverageSku(store, date);
     countNotSku(document, store, date) <-  calcCountNotSku(store, date);              
 }  
 
-fillSkuFromTo 'Заполнить данные по ассортименту'(RangeDocument document, DATE dateFrom, DATE dateTo) = ACTION {       
+fillSkuFromTo 'Заполнить данные по ассортименту'(RangeDocument document, DATE dateFrom, DATE dateTo) = {       
     LOCAL dateCur = DATE();               
       
     FOR useRange(Store store) AND isCompany(store) DO {   
@@ -71,7 +71,7 @@ fillSkuFromTo 'Заполнить данные по ассортименту'(Ra
         }
     }
 } 
-fillSku 'Заполнить данные по ассортименту' (RangeDocument document) = ACTION fillSkuFromTo(document, fromDate(document), toDate(document));
+fillSku 'Заполнить данные по ассортименту' (RangeDocument document) = { fillSkuFromTo(document, fromDate(document), toDate(document)); }
 
 // -- 
  
@@ -104,14 +104,14 @@ countNotSku 'Кол-во позиций с остатком без ассорт�
 calcCountNotRangeIn= GROUP SUM 1 IF balanceB(Sku s, Store st, DATE d) >0 AND Range r IS Range AND NOT in(s, r, st, d)        
         BY  r, st, d;       
              
-fillSku 'Заполнить данные по ассортименту'(RangeDocument document, Range range, Store store, DATE date) = ACTION {         
+fillSku 'Заполнить данные по ассортименту'(RangeDocument document, Range range, Store store, DATE date) = {         
     countSku(document, range, store, date) <-  calcCountSku(range, store, date);  
     countAverageSku(document, range, store, date) <-  calcCountAverageSku(range, store, date);
     countLessSku(document, range, store, date) <-  calcCountLessSku(range, store, date);
     countNotSku(document, range, store, date) <-  calcCountNotRangeIn(range, store, date);              
 }  
 
-fillRangeDocumentFromTo 'Заполнить данные по ассортименту'(RangeDocument document, DATE dateFrom, DATE dateTo) = ACTION {       
+fillRangeDocumentFromTo 'Заполнить данные по ассортименту'(RangeDocument document, DATE dateFrom, DATE dateTo) = {       
     LOCAL dateCur = DATE();               
       
     FOR useRange(Store store) AND isCompany(store) AND Range range IS Range DO {   
@@ -123,7 +123,7 @@ fillRangeDocumentFromTo 'Заполнить данные по ассортиме
     }
 }  
  
-fillSkuRange 'Заполнить данные по ассортименту' (RangeDocument document) = ACTION fillRangeDocumentFromTo(document, fromDate(document), toDate(document));
+fillSkuRange 'Заполнить данные по ассортименту' (RangeDocument document) = { fillRangeDocumentFromTo(document, fromDate(document), toDate(document)); }
  
 FORM rangeBalance 'Исполнение ассортимента'
 

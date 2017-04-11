@@ -52,13 +52,13 @@ operation[Shipment.Shipment](Shipment s)+=operation(s);
 @defineOperationProperty(createShipment, 'Поставка', saleContainer);
 @deriveDocumentOperationProperty(UserInvoice, createShipment);
 
-overFillInvoice(UserShipment s, Invoice i) += ACTION {
+overFillInvoice(UserShipment s, Invoice i) += {
     ASSIGN operation(s) <- operation(i);
 }
 operation(InvoiceShipment shipment) += operation(invoice(shipment));
 
 // Добавляем в копирование поставок
-overCopy(Shipment s, UserShipment d) += ACTION {
+overCopy(Shipment s, UserShipment d) += {
     ASSIGN operation(d) <- operation(s);
 }
 @defineOperationFilterProperty(shipment, s, shipments, nameFilterShipmentSupplier);
@@ -180,8 +180,8 @@ stockDocumentLedger(ShipmentDetail ledger) += shipment(ledger);
 
 cost(ShipmentDetail detail, Batch batch) += cost[SkuLedger,Batch](detail, batch) IF detail IS ShipmentDetail;
 
-edit[SkuLedger](ShipmentDetail d) += ACTION edit(d);  
-show[SkuLedger](ShipmentDetail d) += ACTION show(d);
+edit[SkuLedger](ShipmentDetail d) += { edit(d); }  
+show[SkuLedger](ShipmentDetail d) += { show(d); }
 
 // ------------------------------- Себестоимость продажи ------------------------ //
 costSale (invoiceDetail) = GROUP SUM costSum[SkuLedger](ShipmentDetail shipmentDetail) BY invoiceDetail(shipmentDetail);
@@ -203,7 +203,7 @@ sumWholesaleMarkupInvoiceDetail(invoice) = GROUP SUM sumWholesaleMarkup(InvoiceD
 overShowEdit (Shipment i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
 overShowDelete (UserShipment i) += showEditDeleteUser(i) AND isUserOpened(i) AND NOT skipShowDelete(i); 
 
-fillShipmentPriceAll 'Переписать учетную цену в накладных (продажа)'()  = ACTION {
+fillShipmentPriceAll 'Переписать учетную цену в накладных (продажа)'()  = {
     FOR UserInvoiceDetail detail IS UserInvoiceDetail AND NOT disableUpdateShipmentPrice(detail) 
         AND isOpened(userInvoice(detail))  DO {
         shipmentPrice (detail)  <- IF batch(detail)    

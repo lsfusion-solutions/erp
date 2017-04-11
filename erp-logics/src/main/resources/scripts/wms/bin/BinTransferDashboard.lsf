@@ -52,18 +52,18 @@ DESIGN userBinOrder {
     }
 }
 
-accept 'Принять' (UserBinOrder order, Employee employee) = ACTION {
+accept 'Принять' (UserBinOrder order, Employee employee) = {
     performer(order) <- employee;
     startPerformDateTime(order) <- currentDateTime();
     apply();
 }
 
-accept 'Принять' (UserBinOrder order) = ACTION {
+accept 'Принять' (UserBinOrder order) = {
     accept(order, currentUser());      
     printBinOrder(order);  
 } CONFIRM;
 
-skip 'Отменить' (UserBinOrder order) = ACTION {
+skip 'Отменить' (UserBinOrder order) = {
     performer(order) <- NULL;
     startPerformDateTime(order) <- NULL;
     apply();  
@@ -74,13 +74,13 @@ showAccept (UserBinOrder order) = order IS UserBinOrder AND NOT startPerformDate
 showSkip (UserBinOrder order) = order IS UserBinOrder AND startPerformDateTime(order) 
     AND performer(order)==currentUser() AND NOT finishPerformDateTime(order);
     
-fullComplete 'Закончен полностью' (UserBinOrder order) = ACTION {
+fullComplete 'Закончен полностью' (UserBinOrder order) = {
     createUserBinTransferPosted(order);
     finishPerformDateTime(order) <- currentDateTime();
     apply();
 } CONFIRM;
 
-partiallyComplete 'Закончен с отклон.' (UserBinOrder order) = ACTION {
+partiallyComplete 'Закончен с отклон.' (UserBinOrder order) = {
     createAndShowUserBinTransfer(order);
     finishPerformDateTime(order) <- currentDateTime();
     apply();

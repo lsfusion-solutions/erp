@@ -75,7 +75,7 @@ CONSTRAINT currencyAccountFrom(Payment payment) != currencyAccountTo(payment)
     CHECKED BY accountFrom[Payment], accountTo[Payment] MESSAGE 'Валюта счета(с) должна совпадать с валютой счета(на)';
     
 //объединение организаций
-replace(LegalEntity l, LegalEntity o) += ACTION {
+replace(LegalEntity l, LegalEntity o) += {
     payer(Payment payment) <- o WHERE payer(payment) == l;
     beneficiary(Payment payment) <- o WHERE beneficiary(payment) == l;
 }     
@@ -202,7 +202,7 @@ DESIGN payment {
 
 overCopy = ACTION ABSTRACT LIST (Payment, Payment); 
 
-copyData(Payment payment, Payment p) = ACTION {
+copyData(Payment payment, Payment p) = {
     operation(p) <- operation(payment);
     isReturn(p) <- isReturn(payment);
     order(p) <- order(payment);
@@ -215,11 +215,13 @@ copyData(Payment payment, Payment p) = ACTION {
     overCopy(payment, p);
 }
     
-copy 'Копировать'(Payment payment) = ACTION NEWSESSION {
-    FOR NEW p = Payment DO {
-        EXEC copyData(payment, p);
-        SHOW payment OBJECTS p = p MANAGESESSION DOCKED;
-    }
+copy 'Копировать'(Payment payment) = {
+	NEWSESSION {
+	    FOR NEW p = Payment DO {
+	        EXEC copyData(payment, p);
+	        SHOW payment OBJECTS p = p MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
 edit 'Редактировать' = ACTION EDITFORM Payment IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;

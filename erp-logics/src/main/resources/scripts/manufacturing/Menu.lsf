@@ -204,36 +204,38 @@ DESIGN userMenu {
 @extendFormDocumentSkuStockIn(UserMenu, userMenu, m, treeContainer);
 
 edit 'Редактировать' (userMenu) = ACTION EDITFORM UserMenu;
-edit(UserMenu menu) += ACTION edit(menu);
+edit(UserMenu menu) += { edit(menu); }
 
 isUserOpened(UserMenu m)=  isOpened[Menu](m) AND is(m);
 
-copy 'Копировать'(UserMenu userMenu) = ACTION NEWSESSION {
-    FOR NEW m = UserMenu DO {
-        stock(m) <- stock(userMenu);
-        currency(m) <- currency(userMenu);
-        priceListType(m) <- priceListType(userMenu);
-        note(m) <- note(userMenu);
-        groupType(m) <- groupType(userMenu);
-        FOR positionNumber(userMenu,Group group) DO {
-            positionNumber(m,group) <- positionNumber(userMenu,group);
-        }
-        FOR userMenu(UserMenuDetail userMenuDetail) == userMenu DO {
-            FOR NEW d=UserMenuDetail DO {
-                userMenu(d) <- m;
-                sku(d) <- sku(userMenuDetail);
-                composition(d) <- composition(userMenuDetail);
-                productYield(d) <- productYield(userMenuDetail);
-                FOR positionNumber(userMenuDetail,Group group) DO {
-                    positionNumber(d,group) <- positionNumber(userMenuDetail,group);
-                }
-            }
-
-        }
-
-
-        SHOW userMenu OBJECTS m = m MANAGESESSION DOCKED;
-    }
+copy 'Копировать'(UserMenu userMenu) = {
+	NEWSESSION {
+	    FOR NEW m = UserMenu DO {
+	        stock(m) <- stock(userMenu);
+	        currency(m) <- currency(userMenu);
+	        priceListType(m) <- priceListType(userMenu);
+	        note(m) <- note(userMenu);
+	        groupType(m) <- groupType(userMenu);
+	        FOR positionNumber(userMenu,Group group) DO {
+	            positionNumber(m,group) <- positionNumber(userMenu,group);
+	        }
+	        FOR userMenu(UserMenuDetail userMenuDetail) == userMenu DO {
+	            FOR NEW d=UserMenuDetail DO {
+	                userMenu(d) <- m;
+	                sku(d) <- sku(userMenuDetail);
+	                composition(d) <- composition(userMenuDetail);
+	                productYield(d) <- productYield(userMenuDetail);
+	                FOR positionNumber(userMenuDetail,Group group) DO {
+	                    positionNumber(d,group) <- positionNumber(userMenuDetail,group);
+	                }
+	            }
+	
+	        }
+	
+	
+	        SHOW userMenu OBJECTS m = m MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
 

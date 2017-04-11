@@ -518,7 +518,7 @@ CONSTRAINT  CHANGED(date(StockDocumentLedger d)) AND PREV(active(d))
     MESSAGE 'Запрещено изменять дату документам для склада до даты закрытия';
     
 
-closeDocumentsStocks 'Закрыть документы до Дата (по)'(DATE date, Stock stock) = ACTION {
+closeDocumentsStocks 'Закрыть документы до Дата (по)'(DATE date, Stock stock) = {
     documentsClosedDate(stock) <- sum(date,1);
     FOR stock(StockDocumentLedger ledger) == stock AND date(ledger) <= date AND isOpened(ledger) DO {
         close(ledger);
@@ -754,8 +754,10 @@ stock (OutUserStockDocumentDetail ledger) += stock(userStockDocumentDetail(ledge
 description (OutUserStockDocumentDetail ledger) += description(userStockDocumentDetail(ledger));                                                                                                                                                                                                                                   
 sumContainer(OutUserStockDocumentDetail ledger) += -sumContainer(userStockDocumentDetail(ledger));
 sumItem(OutUserStockDocumentDetail ledger) += -sumItem(userStockDocumentDetail(ledger));
-edit(OutUserStockDocumentDetail ledger) += ACTION NEWSESSION {SHOW userStockDocument OBJECTS i = userStockDocument(userStockDocumentDetail(ledger)), d = userStockDocumentDetail(ledger) MANAGESESSION DOCKED;}
-close(OutUserStockDocumentDetail ledger) += ACTION isClosed(UserStockDocument s) <- TRUE WHERE s == userStockDocument(userStockDocumentDetail(ledger));
+edit(OutUserStockDocumentDetail ledger) += {
+	NEWSESSION {SHOW userStockDocument OBJECTS i = userStockDocument(userStockDocumentDetail(ledger)), d = userStockDocumentDetail(ledger) MANAGESESSION DOCKED;}
+}
+close(OutUserStockDocumentDetail ledger) += { isClosed(UserStockDocument s) <- TRUE WHERE s == userStockDocument(userStockDocumentDetail(ledger)); }
 type(OutUserStockDocumentDetail l) += 'Учетный документ (польз.) расход' IF l IS OutUserStockDocumentDetail;
 
 needToInLedger = sumItem(UserStockDocumentDetail d) > 0 OR sumContainer(d) > 0;
@@ -770,8 +772,10 @@ stock (InUserStockDocumentDetail ledger) += stock(userStockDocumentDetail(ledger
 description (InUserStockDocumentDetail ledger) += description(userStockDocumentDetail(ledger));                                                                                                                                                                                                                                   
 sumContainer(InUserStockDocumentDetail ledger) += sumContainer(userStockDocumentDetail(ledger));
 sumItem(InUserStockDocumentDetail ledger) += sumItem(userStockDocumentDetail(ledger));
-edit(InUserStockDocumentDetail ledger) += ACTION NEWSESSION {SHOW userStockDocument OBJECTS i = userStockDocument(userStockDocumentDetail(ledger)), d = userStockDocumentDetail(ledger) MANAGESESSION DOCKED;}
-close(InUserStockDocumentDetail ledger) += ACTION isClosed(UserStockDocument s) <- TRUE WHERE s == userStockDocument(userStockDocumentDetail(ledger));
+edit(InUserStockDocumentDetail ledger) += {
+	NEWSESSION {SHOW userStockDocument OBJECTS i = userStockDocument(userStockDocumentDetail(ledger)), d = userStockDocumentDetail(ledger) MANAGESESSION DOCKED;}
+}
+close(InUserStockDocumentDetail ledger) += { isClosed(UserStockDocument s) <- TRUE WHERE s == userStockDocument(userStockDocumentDetail(ledger)); }
 type(InUserStockDocumentDetail l) += 'Учетный документ (польз.) приход' IF l IS InUserStockDocumentDetail;
 
 //EXTEND CLASS UserStockDocumentDetail : IncStockDocumentLedger;

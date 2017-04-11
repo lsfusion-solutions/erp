@@ -24,7 +24,7 @@ CLASS SaleReportDetail 'Строка акта реализации';
 @defineDocumentDetailBatchCustomPrefix(saleReportDetail, batch, );
 idBatch 'Код партии' (SaleReportDetail d) = id(batch(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-replace(Sku s, Batch b) += ACTION { sku(SaleReportDetail detail) <- s WHERE batch(detail) == b;} 
+replace(Sku s, Batch b) += { sku(SaleReportDetail detail) <- s WHERE batch(detail) == b;} 
 
 @defineDocumentPosted(saleReport);
 
@@ -129,7 +129,7 @@ detail (b,r)= GROUP MAX SaleReportDetail d BY batch(d), saleReport(d);
 
 skipSaleReport = ABSTRACT BOOLEAN (Batch);     
        
-fillData 'Заполнить данные'(SaleReport report) = ACTION {    
+fillData 'Заполнить данные'(SaleReport report) = {    
     IF supplier(report) AND contractSku(report) AND company(report) THEN {
         DELETE SaleReportDetail d WHERE d IS SaleReportDetail AND saleReport(d)== report;
         IF companyStock(report) THEN {
@@ -402,7 +402,7 @@ FORM detailSaleReport 'Акт реализации'
     FILTERS saleReport(d) == r
 ;
 printDetail 'Акт реализации' (SaleReport report) =
-    ACTION PRINT detailSaleReport OBJECTS r = report   IMAGE 'print.png' IN print;
+    { PRINT detailSaleReport OBJECTS r = report; }   IMAGE 'print.png' IN print;
 
 EXTEND FORM reportsSales
     PROPERTIES(r) printDetail     
@@ -424,20 +424,22 @@ NAVIGATOR {
 isSent 'Отправлен' (o) = DATA BOOLEAN (SaleReport);
 sentDateTime 'Дата отправления' (o) = DATA DATETIME (SaleReport);
 
-logSendDocumentSaleReport(Object o) = ACTION FOR NEW d = DocumentLog DO {
-        document(d) <- o;
-        typeDocument(d) <- objectClassName(o);
-        numberDocument(d) <- number[Document](o);  
-        seriesDocument(d) <- series[Document](o); 
-        dateDocument(d) <- date[Document](o);   
-        note(d) <- 'Отправлен';      
-        session(d) <- currentSession();  
-        hostnameComputer(d) <- hostnameCurrentComputer();
-        userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
-        dateTimeSession(d) <- currentDateTime();  
-        supplierStock(d) <- supplierStock[Document](o);
-        customerStock(d) <- customerStock[Document](o);
+logSendDocumentSaleReport(Object o) = {
+	FOR NEW d = DocumentLog DO {
+	        document(d) <- o;
+	        typeDocument(d) <- objectClassName(o);
+	        numberDocument(d) <- number[Document](o);  
+	        seriesDocument(d) <- series[Document](o); 
+	        dateDocument(d) <- date[Document](o);   
+	        note(d) <- 'Отправлен';      
+	        session(d) <- currentSession();  
+	        hostnameComputer(d) <- hostnameCurrentComputer();
+	        userLogin(d) <- login(currentUser()); 
+	        nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
+	        dateTimeSession(d) <- currentDateTime();  
+	        supplierStock(d) <- supplierStock[Document](o);
+	        customerStock(d) <- customerStock[Document](o);
+	}
 }
 
 FORM messageSaleReports 'Сообщение'
@@ -446,7 +448,7 @@ FORM messageSaleReports 'Сообщение'
     PROPERTIES () messageEmailOrders TODRAW s
 ;
 
-calcEmailSupplier 'Отправить акт поставщику' (SaleReport report) = ACTION EMAIL
+calcEmailSupplier 'Отправить акт поставщику' (SaleReport report) = { EMAIL
     FROM fromEmailOrders()
     SUBJECT 'Акт реализации по магазину ' + nameCompanyStock(report)+ ' за период с '  + fromDate(report)+ ' по ' + toDate(report)
     TO email(supplier(report))
@@ -454,9 +456,9 @@ calcEmailSupplier 'Отправить акт поставщику' (SaleReport r
     ATTACH XLSX 
            NAME number(report) + '/' + fromDate(report)+ '/' + toDate(report)// без кирилицы должно быть
            detailSaleReport OBJECTS r=report
-;
+; }
     
-emailSupplier 'Отправить акт поставщику' (SaleReport report)= ACTION {
+emailSupplier 'Отправить акт поставщику' (SaleReport report)= {
     IF email(supplier(report)) THEN {
         NEWSESSION {
             isSent(report) <- TRUE;
@@ -507,7 +509,7 @@ EXTEND FORM contractSkus
 filterSoldCompanyFromTo = GROUP SUM quantitySold(Batch batch, Stock stock, DATE dateFrom, DATE dateTo) IF inSalereport(stock)
     BY legalEntity(stock), contractSku(invoice(invoiceDetail(batch))), dateFrom, dateTo;   
 
-createAutoSaleReport 'Создать акты реализации'(LegalEntity company, DATE dateFrom, DATE dateTo) = ACTION {
+createAutoSaleReport 'Создать акты реализации'(LegalEntity company, DATE dateFrom, DATE dateTo) = {
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
         AND inSalereport(Stock stock) AND partyB(c) == company AND NOT skipSaleLedger(c) DO {
         NEWSESSION  {
@@ -539,7 +541,7 @@ fromDateFull(ContractSku c) = IF partSale(c) THEN sum(firstSaleDate(),15)
 
 saleReport = GROUP MAX SaleReport r BY companyStock(r), contractSku(r), fromDate(r), toDate(r);
 
-createAutoSaleReportdFull 'Создать акты реализации (месяц)'(LegalEntity company) = ACTION {
+createAutoSaleReportdFull 'Создать акты реализации (месяц)'(LegalEntity company) = {
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
         AND inSalereport(Stock stock) AND partyB(c) == company
         AND NOT saleReport(stock, c, fromDateFull(c), lastSaleDate())
@@ -564,7 +566,7 @@ createAutoSaleReportdFull 'Создать акты реализации (мес�
         }
     }
 }
-createAutoSaleReportdPart 'Создать акты реализации (полмесяца)'(LegalEntity company) = ACTION {
+createAutoSaleReportdPart 'Создать акты реализации (полмесяца)'(LegalEntity company) = {
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
         AND inSalereport(Stock stock) AND partyB(c) == company AND  partSale(c) 
         AND NOT saleReport(stock, c, firstDateCurrentMonth(), sum(firstDateCurrentMonth(),14)) 
@@ -588,18 +590,18 @@ createAutoSaleReportdPart 'Создать акты реализации (пол�
     }
 }
 
-createAutoSaleReportPrevMonth 'Создать акты реализации (за пред.месяц)'(LegalEntity company) = ACTION {
+createAutoSaleReportPrevMonth 'Создать акты реализации (за пред.месяц)'(LegalEntity company) = {
     createAutoSaleReport(company, firstSaleDate(), lastSaleDate());    
 }
 
 
-createSchedulerAutoSaleReportdFull 'Создать акты реализации (за месяц)'() = ACTION{
+createSchedulerAutoSaleReportdFull 'Создать акты реализации (за месяц)'() = {
     FOR isCompany(LegalEntity l) DO {
         createAutoSaleReportdFull(l);    
     }
 }
 
-createSchedulerAutoSaleReportdPart 'Создать акты реализации (за полмесяца)'() = ACTION {
+createSchedulerAutoSaleReportdPart 'Создать акты реализации (за полмесяца)'() = {
     FOR isCompany(LegalEntity l) DO {
         createAutoSaleReportdPart(l);    
     }    

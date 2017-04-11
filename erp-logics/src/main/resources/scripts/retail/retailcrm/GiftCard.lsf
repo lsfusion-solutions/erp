@@ -104,17 +104,21 @@ description(ReceiptGiftCardSaleDetail detail) += 'Продажа' IF detail IS R
 numberDocument(ReceiptGiftCardSaleDetail detail) += VARSTRING[30](number(receipt(detail)));
 departmentStore(ReceiptGiftCardSaleDetail detail) += departmentStore(receipt(detail));
 
-edit 'Редактировать' (ReceiptGiftCardSaleDetail d) = ACTION NEWSESSION {
-    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKED;
+edit 'Редактировать' (ReceiptGiftCardSaleDetail d) = {
+	NEWSESSION {
+	    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKED;
+	}
 }
-ZReport.edit(ReceiptGiftCardSaleDetail d) += ACTION edit(d);
+ZReport.edit(ReceiptGiftCardSaleDetail d) += { edit(d); }
 
-show(ReceiptGiftCardSaleDetail d) = ACTION NEWSESSION {
-    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED READONLY;
+show(ReceiptGiftCardSaleDetail d) = {
+	NEWSESSION {
+	    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED READONLY;
+	}
 }
 
-edit(ReceiptGiftCardSaleDetail d) += ACTION edit(d);  
-show(ReceiptGiftCardSaleDetail d) += ACTION show(d);  
+edit(ReceiptGiftCardSaleDetail d) += { edit(d); }  
+show(ReceiptGiftCardSaleDetail d) += { show(d); }  
 
 legalEntityGiftCard = DATA LegalEntity ();
 nameLegalEntityGiftCard 'Эмитент подарочных сертификатов' = name(legalEntityGiftCard()); 
@@ -162,7 +166,7 @@ DESIGN generationGiftCards {
 
 overGenerateGiftCards = ACTION ABSTRACT LIST (GiftCard);
 
-generateGiftCards 'Сгенерировать подарочные сертификаты'() = ACTION {
+generateGiftCards 'Сгенерировать подарочные сертификаты'() = {
     DIALOG generationGiftCards OBJECTS n = defaultNumeratorGiftCard() INPUT, l = legalEntityGiftCard() INPUT,
                                        quantityCards INPUT, priceCards INPUT, dt INPUT, d INPUT DO {
         LOCAL num = INTEGER();
@@ -258,20 +262,24 @@ description(PaymentGiftCard payment) += 'Погашение' IF payment IS Payme
 numberDocument(PaymentGiftCard payment) += VARSTRING[30](number(receipt(payment))) IF payment IS PaymentGiftCard;
 departmentStore(PaymentGiftCard payment) += departmentStore(receipt(payment)) IF payment IS PaymentGiftCard;
 
-edit(PaymentGiftCard d) = ACTION NEWSESSION {
-    IF d IS PaymentGiftCard THEN {
-        SHOW zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d MANAGESESSION DOCKED;
-    }
-    
+edit(PaymentGiftCard d) = {
+	NEWSESSION {
+	    IF d IS PaymentGiftCard THEN {
+	        SHOW zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d MANAGESESSION DOCKED;
+	    }
+	    
+	}
 }
-GiftCard.edit[GiftCardLedger](PaymentGiftCard d) += ACTION GiftCard.edit[PaymentGiftCard](d);  
+GiftCard.edit[GiftCardLedger](PaymentGiftCard d) += { GiftCard.edit[PaymentGiftCard](d); }  
 
-show(PaymentGiftCard d) = ACTION NEWSESSION {
-    IF d IS PaymentGiftCard THEN {
-        SHOW zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d DOCKED READONLY;
-    }
+show(PaymentGiftCard d) = {
+	NEWSESSION {
+	    IF d IS PaymentGiftCard THEN {
+	        SHOW zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d DOCKED READONLY;
+	    }
+	}
 }
-show(PaymentGiftCard d) += ACTION show(d);  
+show(PaymentGiftCard d) += { show(d); }  
 
 allowPartiallyPayGiftCard 'Разрешить гасить сертификат частично' = DATA BOOLEAN ();
 
@@ -319,7 +327,7 @@ EXTEND FORM giftCards
 
 EXTEND CLASS PaymentMeans { paymentMeansGiftCard 'Подарочный сертификат'}
 
-overLoadDefaultPaymentTypes() += ACTION {
+overLoadDefaultPaymentTypes() += {
     loadDefaultType('Подарочный сертификат', PaymentMeans.paymentMeansGiftCard, 'giftcard');
 }
 
@@ -334,13 +342,13 @@ EXTEND FORM zReports
     PROPERTIES (b) READONLY AFTER sumCardPayment(b) sumGiftCardPayment    
 ;
 
-addGiftCardpayment 'Добавить ПС' (Receipt r) = ACTION FOR NEW p = PaymentGiftCard DO receipt(p) <- r; 
+addGiftCardpayment 'Добавить ПС' (Receipt r) = { FOR NEW p = PaymentGiftCard DO receipt(p) <- r; } 
 
 EXTEND FORM zReport
     PROPERTIES (b)  addGiftCardpayment TOOLBAR TODRAW p
     PROPERTIES (p) seriesNumber[GiftCardLedger] BEFORE del;
 
-overCopy(ReceiptGiftCardSaleDetail detail,Receipt r) += ACTION {
+overCopy(ReceiptGiftCardSaleDetail detail,Receipt r) += {
     IF detail IS ReceiptGiftCardSaleDetail THEN {
         FOR NEW d=ReceiptGiftCardSaleDetail DO {
             receipt(d) <- r;

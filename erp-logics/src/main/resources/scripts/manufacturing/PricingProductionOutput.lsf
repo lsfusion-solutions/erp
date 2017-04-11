@@ -204,7 +204,7 @@ CLASS OutputPricingDetail 'Строка акта расценки на осно�
 
 @defineDocumentAggregation(output, outputPricing, createPricing);
 
-printPricing 'Акт расценки' (Output output) = ACTION print(outputPricing(output)) IMAGE 'print.png' IN print;
+printPricing 'Акт расценки' (Output output) = { print(outputPricing(output)); } IMAGE 'print.png' IN print;
 EXTEND FORM outputs
     PROPERTIES(o)  printPricing SHOWIF createPricing(o)
 ;
@@ -274,9 +274,9 @@ valueRetailVAT(OutputPricingDetail pricingDetail) += valueRetailVAT(pricingDetai
 @defineDocumentAggregationDetailProperty (output, outputPricing, retailVATSum, 'Сумма НДС');
 retailVATSum(OutputPricingDetail pricingDetail) += retailVATSum(pricingDetail);
 
-edit (OutputPricingDetail d)+= ACTION edit(outputDetail(d));
+edit (OutputPricingDetail d)+= { edit(outputDetail(d)); }
 
-edit (OutputPricing p)+= ACTION edit(output(p));
+edit (OutputPricing p)+= { edit(output(p)); }
 //--
 quantity (output, outputPricing) = GROUP SUM quantity(outputDetail(OutputPricingDetail detail)) BY output(outputDetail(detail)), outputPricing(detail);
 
@@ -288,7 +288,7 @@ outputs 'Документы производства' (outputPricing) = GROUP CO
 //    PROPERTIES(p)  outputsOutputPricing
 //;
 
-printPricing 'Акт расценки' (Order order) = ACTION printPricing(orderOutput(order)) IMAGE 'print.png' IN print;
+printPricing 'Акт расценки' (Order order) = { printPricing(orderOutput(order)); } IMAGE 'print.png' IN print;
 
 EXTEND FORM orders
     PROPERTIES(o)  printPricing SHOWIF createPricing(o)

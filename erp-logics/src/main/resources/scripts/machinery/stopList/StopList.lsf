@@ -114,7 +114,7 @@ count 'Вкл.' (Sku sku, StopList stopList) =  TRUE IF [ = GROUP SUM 1
 in (GroupMachinery groupMachinery, Sku sku, StopList stopList) =count(sku, stopList) AND in(groupMachinery, sku);
 in (GroupMachinery groupMachinery, StopListDetail stopListDetail) =in(groupMachinery, sku(stopListDetail), stopList(stopListDetail));                                         
     
-changeValue(Sku sku, StopList stopList) = ACTION {
+changeValue(Sku sku, StopList stopList) = {
     INPUTX b = BOOLEAN DO
         IF stopListDetail(sku, stopList) THEN {
             IF NOT b THEN {
@@ -364,7 +364,7 @@ DESIGN options {
 
 skip 'Отм.' = ABSTRACT BOOLEAN (Sku, Stock);
 
-createRequestStopList 'Включить в стоп-лист'()  = ACTION {
+createRequestStopList 'Включить в стоп-лист'()  = {
 
     IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
@@ -385,7 +385,7 @@ createRequestStopList 'Включить в стоп-лист'()  = ACTION {
     }
 
 } TOOLBAR;
-excludeRequestStopList 'Исключить из стоп-листа'()  = ACTION {
+excludeRequestStopList 'Исключить из стоп-листа'()  = {
 
     IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
@@ -444,4 +444,4 @@ DESIGN historyStopList {
 }
 
 showHistoryStopList 'Показать историю запрета продаж товара на кассе' (Sku sku, Stock stock) = 
-    ACTION SHOW historyStopList OBJECTS s = sku, st = stock  SHORTCUT statusStopList[Sku,Stock];
+    { SHOW historyStopList OBJECTS s = sku, st = stock; }  SHORTCUT statusStopList[Sku,Stock];

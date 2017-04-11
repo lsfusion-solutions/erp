@@ -8,7 +8,7 @@ idSkuGroup (MachineryPriceTransaction machineryPriceTransaction, Barcode barcode
 
 overTitleScales = ABSTRACT VARISTRING[255] (MachineryPriceTransaction, Barcode);
 
-createAttribute(MachineryPriceTransaction transaction, GroupScales groupMachinery) += ACTION {
+createAttribute(MachineryPriceTransaction transaction, GroupScales groupMachinery) += {
     IF groupMachinery IS GroupScales THEN
         name(transaction, Barcode barcode) <- (OVERRIDE titleScales(barcode) IF transaction IS MachineryPriceTransaction, overTitleScales(transaction, barcode)) WHERE in(transaction, barcode);
 }
@@ -77,7 +77,7 @@ DESIGN options {
     }
 }
 
-synchronizeDescription(MachineryPriceTransaction transaction, GroupScales groupMachinery) = ACTION {
+synchronizeDescription(MachineryPriceTransaction transaction, GroupScales groupMachinery) = {
     IF useCellScales() AND groupMachinery IS GroupScales THEN {
         FOR [= GROUP SUM 1 BY MachineryPriceTransaction transaction, description(transaction, Barcode barcode)](transaction, TEXT description)
             AND NOT cellScales(groupMachinery, description)
@@ -88,8 +88,8 @@ synchronizeDescription(MachineryPriceTransaction transaction, GroupScales groupM
     }
 }
 
-snapshotAttribute(MachineryPriceTransaction transaction, GroupScales groupMachinery) += ACTION synchronizeDescription(transaction, groupMachinery);
-createAttribute(MachineryPriceTransaction transaction, GroupScales groupMachinery) += ACTION synchronizeDescription(transaction, groupMachinery);
+snapshotAttribute(MachineryPriceTransaction transaction, GroupScales groupMachinery) += { synchronizeDescription(transaction, groupMachinery); }
+createAttribute(MachineryPriceTransaction transaction, GroupScales groupMachinery) += { synchronizeDescription(transaction, groupMachinery); }
 
 EXTEND FORM item
     PROPERTIES(i) SHOWIF passScales(i) idLabelFormatPack, hoursExpiryPack 
@@ -102,7 +102,7 @@ DESIGN item {
     }
 }
 
-overCopy(Item s, Item d) += ACTION {
+overCopy(Item s, Item d) += {
     passScales(d) <- passScales(s);
     labelFormatPack(d) <- labelFormatPack(s);
     hoursExpiryPack(d) <- hoursExpiryPack(s);
@@ -153,7 +153,7 @@ backgroundShowExpired (ItemGroup itemGroup) =
         RGB(203,203,206) IF quantityChildWithExpired (itemGroup) != descendantNumber(itemGroup)
                          AND NOT quantityParentWithExpired (itemGroup);
                              
-setNullShowExpired 'Снять признак для всех потомков'(ItemGroup itemGroup) = ACTION {
+setNullShowExpired 'Снять признак для всех потомков'(ItemGroup itemGroup) = {
     FOR isParent (ItemGroup childGroup, itemGroup) DO {
         ASSIGN dataExpired(childGroup) <- NULL;
     }

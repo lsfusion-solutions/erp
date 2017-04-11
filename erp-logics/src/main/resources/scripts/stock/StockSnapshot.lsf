@@ -632,7 +632,7 @@ include 'Вкл' (Snapshot snapshot, Stock stock) =
              dataInclude(snapshot, stock)) IF isCompany(stock) PERSISTENT;
 countIncludeStocks= GROUP SUM 1 IF include(Snapshot r,Stock st) BY r;
 
-deleteIncludeStocks 'Сбросить отмеченные'(Snapshot r) = ACTION {
+deleteIncludeStocks 'Сбросить отмеченные'(Snapshot r) = {
     allStockInclude (r) <- NULL;
     dataInclude(r,StockGroup g) <- NULL;
     dataInclude (r,Stock st) <- NULL;
@@ -693,7 +693,7 @@ nameIncludeSkuGroups 'Группы товаров (все)' (document)=
 dataInclude (Snapshot o,SkuGroup g) <- dataInclude(snapshotType(o),g) IF g IS SkuGroup
     WHEN CHANGED(snapshotType(o));  
 
-deleteIncludeSkuGroups 'Сбросить отмеченные'(Snapshot r) = ACTION {
+deleteIncludeSkuGroups 'Сбросить отмеченные'(Snapshot r) = {
     dataInclude(r,SkuGroup g) <- NULL;
 };
     
@@ -712,7 +712,7 @@ backgroundStatus 'Цвет' (Snapshot snapshot) =  CASE
                                           WHEN snapshot IS Snapshot THEN RGB(255,200,216)
                                       ;
 //overNetWeightSkuBatch (batch)= OVERRIDE overNetWeightSku(skuBatch(batch)), (sumNetWeightInvoiceDetail(invoiceDetailBatch(batch))/(quantityInvoiceDetail(invoiceDetailBatch(batch)) IF quantityInvoiceDetail(invoiceDetailBatch(batch))!=0));
-takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = ACTION {
+takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = {
     apply();  
     startTime(snapshot) <- currentDateTime();   
     IF countIncludeSku(snapshot) AND countIncludeStock(snapshot) THEN {      
@@ -740,7 +740,7 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = ACTION {
                 balanceB(Sku sku, Stock stock, snapshot) <- NULL;
                 IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN
                     balanceB(Sku sku, Stock stock, snapshot) <- (balanceA(sku, stock, snapshot) (-) inQuantity(sku, stock, snapshot) (+) outQuantity(sku, stock, snapshot))
-                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND (balanceA(sku, stock, snapshot) (-) inQuantity(sku, stock, snapshot) (+) outQuantity(sku, stock, snapshot))
+                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND (balanceA(sku, stock, snapshot) (-) inQuantity(sku, stock, snapshot) (+) outQuantity(sku, stock, snapshot));
                 ELSE 
                     balanceB(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](balanceB(sku, stock, dateFrom)) 
                         WHERE include(snapshot, stock) AND include(snapshot, sku) AND balanceB(sku, stock, dateFrom);
@@ -770,7 +770,7 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = ACTION {
                 sumB(Sku sku, Stock stock, snapshot) <- NULL;
                 IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN
                     sumB(Sku sku, Stock stock, snapshot) <- (sumA(sku, stock, snapshot) (-) inSum(sku, stock, snapshot) (+) outSum(sku, stock, snapshot))
-                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND (sumA(sku, stock, snapshot) (-) inSum(sku, stock, snapshot) (+) outSum(sku, stock, snapshot))
+                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND (sumA(sku, stock, snapshot) (-) inSum(sku, stock, snapshot) (+) outSum(sku, stock, snapshot));
                 ELSE
                     sumB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumB(sku, stock, dateFrom)) 
                         WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumB(sku, stock, dateFrom);
@@ -942,7 +942,7 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = ACTION {
                     balanceB(Batch batch, Stock stock, snapshot) <- NULL;
                     IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN
                         balanceB(Batch batch, Stock stock, snapshot) <- (balanceA(batch, stock, snapshot) (-) inQuantity(batch, stock, snapshot) (+) outQuantity(batch, stock, snapshot))
-                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND (balanceA(batch, stock, snapshot) (-) inQuantity(batch, stock, snapshot) (+) outQuantity(batch, stock, snapshot))
+                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND (balanceA(batch, stock, snapshot) (-) inQuantity(batch, stock, snapshot) (+) outQuantity(batch, stock, snapshot));
                     ELSE
                         balanceB(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](balanceB(batch, stock, dateFrom)) 
                             WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND balanceB(batch, stock, dateFrom);
@@ -966,7 +966,7 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = ACTION {
                     sumB(Batch batch, Stock stock, snapshot) <- NULL;
                     IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN
                         sumB(Batch batch, Stock stock, snapshot) <- (sumA(batch, stock, snapshot) (-) inSum(batch, stock, snapshot) (+) outSum(batch, stock, snapshot))
-                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND (sumA(batch, stock, snapshot) (-) inSum(batch, stock, snapshot) (+) outSum(batch, stock, snapshot))
+                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND (sumA(batch, stock, snapshot) (-) inSum(batch, stock, snapshot) (+) outSum(batch, stock, snapshot));
                     ELSE
                         sumB(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](balanceB(batch, stock, dateFrom)*cost(batch)) 
                             WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND balanceB(batch, stock, dateFrom);             
@@ -1014,7 +1014,7 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = ACTION {
     }           
 };
 
-takeData 'Сформировать отчет' (Snapshot snapshot) = ACTION { 
+takeData 'Сформировать отчет' (Snapshot snapshot) = { 
     IF finishTime(snapshot) THEN {
         ASK 'Вы действительно хотите выполнить действие "Сформировать отчет?"' DO            
             takeFromTo(snapshot, fromDate(snapshot), toDate(snapshot));
@@ -1176,35 +1176,37 @@ DESIGN snapshotType {
 in (SnapshotType type, DATE date) = ((countDOWsIn(type) AND in(type, extractDOW(date))) OR (type IS SnapshotType AND date IS DATE AND NOT countDOWsIn(type))) AND
                               ((countDaysIn(type) AND inDays(type, extractDay(date))) OR (type IS SnapshotType AND date IS DATE AND NOT countDaysIn(type)));            
   
-createSnapshotString 'Создать отчет'(STRING[100] string, DATE dateTo) = ACTION NEWSESSION { 
-    FOR idReport(SnapshotType type) == string  DO {
-        IF in(type, currentDate()) AND countDays(type) THEN {     
-
-            IF NOT oneReport(type)   THEN {
-
-                FOR NEW r = Snapshot DO {                    
-                    fromDate(r) <- subtract(dateTo,countDays(type)-1);
-                    toDate(r) <- dateTo;
-                    snapshotType(r) <- type;
-                    takeFromTo(r, fromDate(r), toDate(r));                
-                }
-
-
-            } ELSE {
-                FOR include(type, Stock stock) NEW r = Snapshot DO {
-                    fromDate(r) <- subtract(dateTo,countDays(type)-1);
-                    toDate(r) <- dateTo;
-                    snapshotType(r) <- type;
-                    dataInclude(r, Stock st) <- NULL;
-                    dataInclude(r, StockGroup st) <- NULL;
-                    dataInclude(r, stock) <- TRUE;
-                    takeFromTo(r, fromDate(r), toDate(r));                      
-                }
-            }
-
-            apply();
-        }
-    }
+createSnapshotString 'Создать отчет'(STRING[100] string, DATE dateTo) = {
+	NEWSESSION { 
+	    FOR idReport(SnapshotType type) == string  DO {
+	        IF in(type, currentDate()) AND countDays(type) THEN {     
+	
+	            IF NOT oneReport(type)   THEN {
+	
+	                FOR NEW r = Snapshot DO {                    
+	                    fromDate(r) <- subtract(dateTo,countDays(type)-1);
+	                    toDate(r) <- dateTo;
+	                    snapshotType(r) <- type;
+	                    takeFromTo(r, fromDate(r), toDate(r));                
+	                }
+	
+	
+	            } ELSE {
+	                FOR include(type, Stock stock) NEW r = Snapshot DO {
+	                    fromDate(r) <- subtract(dateTo,countDays(type)-1);
+	                    toDate(r) <- dateTo;
+	                    snapshotType(r) <- type;
+	                    dataInclude(r, Stock st) <- NULL;
+	                    dataInclude(r, StockGroup st) <- NULL;
+	                    dataInclude(r, stock) <- TRUE;
+	                    takeFromTo(r, fromDate(r), toDate(r));                      
+	                }
+	            }
+	
+	            apply();
+	        }
+	    }
+	}
 }
 
 countDaysDeleteSnapshots 'Дней хранить аналитические отчеты без типов' = DATA INTEGER ();
@@ -1218,7 +1220,7 @@ DESIGN options{
     }
 }
 
-deleteSnapshots 'Удальть старые аналитические отчеты'()= ACTION {
+deleteSnapshots 'Удальть старые аналитические отчеты'()= {
     FOR sum(date(Snapshot r),countDaysDelete(snapshotType(r))) < currentDate()
         OR (NOT snapshotType(r) AND sum(date(r), countDaysDeleteSnapshots()) < currentDate()) DO {
             DELETE  r;

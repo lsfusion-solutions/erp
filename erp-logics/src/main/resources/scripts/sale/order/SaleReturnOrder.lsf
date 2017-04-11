@@ -39,7 +39,7 @@ operation[Order.Order](Order order) += operation(order);
 
 @defineDocumentOperationRole(userOrder);
 
-overCopy(Order s, UserOrder d) += ACTION {
+overCopy(Order s, UserOrder d) += {
     ASSIGN operation(d) <- operation(s);
 }
 @defineOperationFilterProperty(order, o, orders, nameFilterOrderSupplier);
@@ -87,7 +87,7 @@ DESIGN userOrder {
 @defineDocumentPackSkuStock(userOrder, sku, supplier);
 @extendFormDocumentPackSkuStock(userOrder, userOrder, o, supplier);
 
-overChangeQuantityValueSku(UserOrderDetail detail) += ACTION {
+overChangeQuantityValueSku(UserOrderDetail detail) += {
     IF  packBarcode(sku(detail)) THEN {
         ASSIGN packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }
@@ -133,7 +133,7 @@ EXTEND FORM userOrder
 //--------------------- Проводим по регистру резерва ------------------//
 @implementPurchaseOrderLedger(Order, sku, shipmentDateTime, supplierStock, customer);
 operation[OrderLedger](OrderDetail ledger) += operation(ledger);
-edit[OrderLedger](OrderDetail ledger) += ACTION edit(ledger);
+edit[OrderLedger](OrderDetail ledger) += { edit(ledger); }
 
 
 //-- Запрет на изменение документа другим пользователем

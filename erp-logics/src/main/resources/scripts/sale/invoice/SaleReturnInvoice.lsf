@@ -50,7 +50,7 @@ CONSTRAINT isPosted(InvoiceDetail d) AND banNegativeQuantityInvoice(operation(d)
 
 operation[Invoice.Invoice](Invoice o) += operation(o);
 // Добавляем в копирование инвойсов
-overCopy(Invoice s, UserInvoice d) += ACTION {
+overCopy(Invoice s, UserInvoice d) += {
     ASSIGN operation(d) <- operation(s);
 }
 
@@ -99,12 +99,12 @@ DESIGN userInvoice {
 @defineDocumentPackSku(userInvoice, sku, supplierStock);
 @extendFormDocumentPackSku(userInvoice, userInvoice, i);
 
-overChangeQuantityValueSku(UserInvoiceDetail detail) += ACTION {
+overChangeQuantityValueSku(UserInvoiceDetail detail) += {
     IF  packBarcode(sku(detail)) THEN {
         packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }
 }
-overChangeQuantityValueBatch(UserInvoiceDetail detail) += ACTION {
+overChangeQuantityValueBatch(UserInvoiceDetail detail) += {
     IF packBarcode(sku(batch(detail))) THEN {
         packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }
@@ -150,7 +150,7 @@ EXTEND FORM userInvoice
 
 // --------------------------- Проведение по регистру продаж ------------------------------------ //
 @implementSaleLedger(Invoice, sku, supplierStock);
-edit[SaleLedger] (InvoiceDetail ledger) += ACTION edit(ledger);
+edit[SaleLedger] (InvoiceDetail ledger) += { edit(ledger); }
 
 overQuantity = ABSTRACT NUMERIC[16,5] (InvoiceDetail);
 overInvoiceSum = ABSTRACT NUMERIC[18,4] (InvoiceDetail);

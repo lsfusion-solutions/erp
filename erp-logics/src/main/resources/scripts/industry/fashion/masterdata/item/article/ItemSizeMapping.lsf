@@ -94,7 +94,7 @@ FORM sizeMappings 'Соответствие размеров'
 
 isEACArticle 'EAC для артикула' = DATA BOOLEAN (SizeMappingEx);
 countMappingExIsEAC(a)= GROUP SUM 1 IF  isISubstring(caption(Article a), name(SizeMappingEx mx)) == 1 AND isEACArticle(mx) BY a;
-mapIsEAC 'Заполнить "EAC" по наименованию' (Article a) =  ACTION {
+mapIsEAC 'Заполнить "EAC" по наименованию' (Article a) =  {
     isEAC(a) <- TRUE WHERE  countMappingExIsEAC (a); 
 } SHORTCUT isEAC[Article]; 
 
@@ -132,7 +132,7 @@ META createSizeMappingExAttribute(property, mappingProp, captionProp, shortcutPr
     
     mappingProp###prefix##SizeMapping (ItemGroup g, Size s, Brand b) = mappingProp(overSizeMapping(g, s, b));  //  sizeMappingItemGroupSizeBrand
     mappingProp###prefix##SizeMapping (ItemGroup g, Size s) = mappingProp(overSizeMapping(g, s));
-    map###property###prefix 'Заполнить '##captionProp##' по соответствию' (Item i) =  ACTION {
+    map###property###prefix 'Заполнить '##captionProp##' по соответствию' (Item i) =  {
         IF countMappingEx(i) THEN {
             IF overSizeMapping (itemGroup(i), size(i), brand(i)) THEN {
                 property###prefix(i) <- mappingProp##SizeMapping (itemGroup(i), size(i), brand(i)) 
@@ -181,7 +181,7 @@ META createSizeMappingAttribute(attribute, type, postfix)
                                                          ORDER count###postfix(itemGroup, size, brand, attribute), attribute
                                                          WHERE count###postfix(itemGroup, size, brand, attribute);
     
-    updateSizeMapping() += ACTION {
+    updateSizeMapping() += {
         FOR best###attribute(ItemGroup itemGroup, Size size, Brand brand) DO {
             IF NOT sizeMapping(itemGroup, size, brand) THEN {
                 FOR NEW m = SizeMapping DO {

@@ -11,7 +11,7 @@ FORM labelBarcodePrint 'Печать ценников'
 consumedChangeBarcodePrint = DATA LOCAL NESTED BOOLEAN();
 overChangeBarcodePrint = ACTION ABSTRACT LIST (VARSTRING[15], DepartmentStore);
 
-changeBarcodePrint(DepartmentStore d) = ACTION {
+changeBarcodePrint(DepartmentStore d) = {
     INPUTX sb = VARSTRING[15] DO {
         LOCAL dialogBarcodeSku = Sku();
         dialogBarcodeSku() <- skuBarcode(sb, currentDate());
@@ -53,56 +53,58 @@ EXTEND FORM labelBarcodePrint
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Purchase.InvoiceDetail);
 
-createInvoiceLabelTransaction 'Распечатать ценники'(Purchase.Invoice invoice) = ACTION NEWSESSION {        
-    
-    ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(invoice) OR NOT (dateTime(invoice) <= currentDateTime()) DO { 
-        LOCAL in = BOOLEAN (Sku);
-        IF [=GROUP SUM 1 IF select(Purchase.InvoiceDetail detail) BY invoice(detail)](invoice) THEN {
-            FOR select(Purchase.InvoiceDetail detail) AND invoice(detail) DO {
-                in(Sku sku) <- TRUE IF select(detail) AND sku(detail) == sku;        
-            }
-        } ELSE  {
-            in(Sku sku) <- TRUE IF countInvoiceDetail(sku, invoice);        
-        } 
-    
-        // бежим по всем типам ценников из управленческих параметров
-        // для каждого создаем по операции печати ценников
-        FOR ([= GROUP SUM 1 IF in(Sku sku) AND in(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, customerStock(invoice)))
-            NEW t = LabelTransaction DO {
-                departmentStore(t) <- customerStock(invoice);
-                priceTransactionDocument(t) <- invoice;
-                labelType(t) <- labelType;
-                
-                FOR invoice(Purchase.InvoiceDetail dd) == invoice AND 
-                    in(Sku sku) AND sku == sku(dd) AND 
-                    in(labelType, sku, customerStock(invoice)) AND 
-                    PriceListType pt == overPriceListType(t) NOINLINE (pt)
-                    NEW d = LabelTransactionDetail DO {
-                        labelTransaction(d) <- t;
-                        sku(d) <- sku;
-                        batch(d) <- overBatch(dd) WHERE explicitBatchLedger(departmentStore(t));
-    
-                        name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
-                        createAttribute(d);
-    
-                        quantity(d) <- IF include(labelType, sku(d))
-                                                                THEN INTEGER(shipmentQuantity(dd))
-                                                                ELSE count(labelType, sku(d));
-    
-                        price(d) <- calcPrice(pt, d);
-                        retailPrice(d) <- overRetailPrice(d);
-                        createAttribute(dd, d);
-                }
-                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
-                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
-                print(t);
-        }
-        printed(invoice) <- TRUE WHERE isPosted(invoice);
-        apply();
-    }
+createInvoiceLabelTransaction 'Распечатать ценники'(Purchase.Invoice invoice) = {
+	NEWSESSION {        
+	    
+	    ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(invoice) OR NOT (dateTime(invoice) <= currentDateTime()) DO { 
+	        LOCAL in = BOOLEAN (Sku);
+	        IF [=GROUP SUM 1 IF select(Purchase.InvoiceDetail detail) BY invoice(detail)](invoice) THEN {
+	            FOR select(Purchase.InvoiceDetail detail) AND invoice(detail) DO {
+	                in(Sku sku) <- TRUE IF select(detail) AND sku(detail) == sku;        
+	            }
+	        } ELSE  {
+	            in(Sku sku) <- TRUE IF countInvoiceDetail(sku, invoice);        
+	        } 
+	    
+	        // бежим по всем типам ценников из управленческих параметров
+	        // для каждого создаем по операции печати ценников
+	        FOR ([= GROUP SUM 1 IF in(Sku sku) AND in(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, customerStock(invoice)))
+	            NEW t = LabelTransaction DO {
+	                departmentStore(t) <- customerStock(invoice);
+	                priceTransactionDocument(t) <- invoice;
+	                labelType(t) <- labelType;
+	                
+	                FOR invoice(Purchase.InvoiceDetail dd) == invoice AND 
+	                    in(Sku sku) AND sku == sku(dd) AND 
+	                    in(labelType, sku, customerStock(invoice)) AND 
+	                    PriceListType pt == overPriceListType(t) NOINLINE (pt)
+	                    NEW d = LabelTransactionDetail DO {
+	                        labelTransaction(d) <- t;
+	                        sku(d) <- sku;
+	                        batch(d) <- overBatch(dd) WHERE explicitBatchLedger(departmentStore(t));
+	    
+	                        name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
+	                        createAttribute(d);
+	    
+	                        quantity(d) <- IF include(labelType, sku(d))
+	                                                                THEN INTEGER(shipmentQuantity(dd))
+	                                                                ELSE count(labelType, sku(d));
+	    
+	                        price(d) <- calcPrice(pt, d);
+	                        retailPrice(d) <- overRetailPrice(d);
+	                        createAttribute(dd, d);
+	                }
+	                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+	                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+	                print(t);
+	        }
+	        printed(invoice) <- TRUE WHERE isPosted(invoice);
+	        apply();
+	    }
+	}
 } TOOLBAR CONFIRM;
 
-createSaleLabelTransactionMothercare 'Распечатать ценники' (Purchase.Invoice invoice) = ACTION {
+createSaleLabelTransactionMothercare 'Распечатать ценники' (Purchase.Invoice invoice) = {
     createInvoiceLabelTransaction(invoice);
     select(Purchase.InvoiceDetail detail) <- NULL WHERE invoice(detail)==invoice;
 } TOOLBAR;

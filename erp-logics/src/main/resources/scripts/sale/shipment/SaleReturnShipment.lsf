@@ -52,13 +52,13 @@ operation[Shipment.Shipment](Shipment s)+=operation(s);
 
 @deriveDocumentOperationProperty(UserInvoice, createShipment);
 
-overFillInvoice(UserShipment s, Invoice i) += ACTION {
+overFillInvoice(UserShipment s, Invoice i) += {
     ASSIGN operation(s) <- operation(i);
 }
 operation(InvoiceShipment shipment) += operation(invoice(shipment));
 
 // Добавляем в копирование поставок
-overCopy(Shipment s, UserShipment d) += ACTION {
+overCopy(Shipment s, UserShipment d) += {
     ASSIGN operation(d) <- operation(s);
 }
 @defineOperationFilterProperty(shipment, s, shipments, nameFilterShipmentSupplier);
@@ -187,8 +187,8 @@ legalEntityStock(Shipment ledger) += customerStock(ledger);
 
 operation[StockDocumentLedger](Shipment ledger) += operation(ledger);
 isReturn(Shipment ledger) += ledger IS Shipment;
-edit[StockDocumentLedger](Shipment l) += ACTION edit(l);
-close[StockDocumentLedger](Shipment l) += ACTION close(l);
+edit[StockDocumentLedger](Shipment l) += { edit(l); }
+close[StockDocumentLedger](Shipment l) += { close(l); }
 
 // ------------------------------- Проведение по регистру остатков ------------------------ //
 @implementSkuLedgerInLIFO(ShipmentDetail, sku, supplierStock);
@@ -200,20 +200,20 @@ sum[InSkuLedger](ShipmentDetail ledger) += sum(ledger);
 stockDocumentLedger(ShipmentDetail ledger) += shipment(ledger);
 cost(ShipmentDetail detail, Batch batch) += cost[SkuLedger,Batch](detail, batch) IF detail IS ShipmentDetail;
   
-edit[SkuLedger](ShipmentDetail d) += ACTION edit(d);
-show[SkuLedger](ShipmentDetail d) += ACTION show(d);
+edit[SkuLedger](ShipmentDetail d) += { edit(d); }
+show[SkuLedger](ShipmentDetail d) += { show(d); }
 // ------------------------------- Себестоимость продажи ------------------------ //
 costSale (invoiceDetail) = GROUP SUM costSum(ShipmentDetail shipmentDetail) BY invoiceDetail(shipmentDetail);
 costSum(InvoiceDetail ledger) += WHEN ledger IS SaleReturn.InvoiceDetail THEN -costSale(ledger);
 cost(InvoiceDetail ledger, Batch batch) += -cost (ledger, batch) ;
 
-receiveShipment (UserInvoice invoice)+= ACTION  {
+receiveShipment (UserInvoice invoice)+= {
     IF invoice IS UserInvoice THEN {
         createShipment(invoice) <- TRUE;           
     }
 };
 
-deleteCreate (InvoiceShipment shipment)+= WHEN invoice(shipment) IS UserInvoice THEN  ACTION  {
+deleteCreate (InvoiceShipment shipment)+= WHEN invoice(shipment) IS UserInvoice THEN  {
     createShipment(Invoice invoice) <- NULL WHERE invoice == invoice(shipment);          
 };
 
@@ -278,4 +278,4 @@ price (ShipmentDetail ledger, SystemLedgerPriceListType account) += WHEN price(l
 
 in (ShipmentDetail ledger, Stock stock) += supplierStock(ledger) == stock;
 in(ShipmentDetail ledger, Batch batch) += batch(ledger) == batch; 
-edit[PriceListLedger](ShipmentDetail d) += ACTION edit(d);
+edit[PriceListLedger](ShipmentDetail d) += { edit(d); }

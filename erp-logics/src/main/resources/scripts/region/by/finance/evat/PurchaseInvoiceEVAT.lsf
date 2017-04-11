@@ -21,7 +21,7 @@ skipEVAT = ABSTRACT CASE BOOLEAN (Invoice);
 EXTEND CLASS EVATType { purchase 'Закупка' }
 type[EVATDocument](Invoice i) += EVATType.purchase IF i IS Invoice;
 
-createEVATPurchaseInvoice (EVAT e, Invoice i) = ACTION {
+createEVATPurchaseInvoice (EVAT e, Invoice i) = {
     EVATDocument(e) <- i;
     type(e) <- EVATType.purchase;
     status(e) <- EVATStatus.original;
@@ -63,7 +63,7 @@ createEVATPurchaseInvoice (EVAT e, Invoice i) = ACTION {
     overCreateEVATPurchaseInvoice(e,i);
 } 
 
-createEVATPurchaseInvoice (EVAT e, InvoiceDetail id, EVATDetail ed) = ACTION {
+createEVATPurchaseInvoice (EVAT e, InvoiceDetail id, EVATDetail ed) = {
     evat(ed) <- e;
     
     name(ed) <- VARSTRING[255](OVERRIDE nameSku(id), documentNameSku(id));
@@ -95,7 +95,7 @@ customer[EVATDocument](Purchase.Invoice i) += customer(i);
 
 //priceRound (InvoiceDetail d) += WHEN currency(d) THEN defaultRound(currency(d));
 
-createEVATPurchaseInvoice 'Накладные (закупка)' (DATE dFrom, DATE dTo) = ACTION {
+createEVATPurchaseInvoice 'Накладные (закупка)' (DATE dFrom, DATE dTo) = {
     FOR eVAT(operation(Invoice i)) AND isPosted(i) AND 
         NOT EVAT(i)
         AND date(i) >= dFrom AND date(i) <= dTo AND quantityInvoiceDetail(i) AND NOT skipEVAT(i) NEW e = EVAT DO {

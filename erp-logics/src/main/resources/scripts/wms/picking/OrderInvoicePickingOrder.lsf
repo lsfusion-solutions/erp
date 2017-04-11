@@ -20,7 +20,7 @@ META defineOrderInvoicePickingOrder (sign)
                                                                BY orderDetail
                                                                ORDER order(batch);
 
-    createPickingDetail(UserInvoice userInvoice, Order.Order order) = ACTION {
+    createPickingDetail(UserInvoice userInvoice, Order.Order order) = {
         IF useExplicitBatchDetailUserInvoice(order) AND (explicitBatchLedger(fromStock(order)) OR forceExplicitBatchDetailUserInvoice(order)) THEN {
             FOR order(OrderDetail orderDetail) == order AND picking(Batch batch, orderDetail) AND NOT batch(orderDetail)
                 ORDER orderCreateUserInvoice(orderDetail) 
@@ -70,7 +70,7 @@ META defineOrderInvoicePickingOrder (sign)
         }
     }
 
-    fillPicking(UserInvoice userInvoice, Order.Order order) = ACTION {
+    fillPicking(UserInvoice userInvoice, Order.Order order) = {
         fillHeader(userInvoice, order);
         createPickingDetail(userInvoice, order);
         fillPrice(userInvoice, order);
@@ -80,7 +80,7 @@ META defineOrderInvoicePickingOrder (sign)
     packQuantity 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (UserInvoice);
     packQuantity(UserInvoice invoice) += packQuantity(invoice);
 
-    createPickingUserInvoice 'Создать накладную по комплектации'(Order order) = ACTION {
+    createPickingUserInvoice 'Создать накладную по комплектации'(Order order) = {
         IF order IS Order THEN {
             userInvoice(order) <- NULL;
             FOR NEW i = UserInvoice DO {
@@ -93,7 +93,7 @@ META defineOrderInvoicePickingOrder (sign)
         }
     }
 
-    createPickingUserInvoicePosted 'Создать проведенную накладную по комплектации'(Order order) = ACTION {
+    createPickingUserInvoicePosted 'Создать проведенную накладную по комплектации'(Order order) = {
         IF order IS Order THEN {
             userInvoice(order) <- NULL;
             IF countInCreatePickingUserInvoicePostedOrder() THEN {
@@ -122,17 +122,19 @@ META defineOrderInvoicePickingOrder (sign)
             }
         }
     }
-    createPickingUserInvoicePosted(Order o) += ACTION createPickingUserInvoicePosted(o); 
+    createPickingUserInvoicePosted(Order o) += { createPickingUserInvoicePosted(o); } 
 
-    addPickingUserInvoice 'Накладная по комплектации'###sign(Order order) =  ACTION NEWSESSION{
-        IF order IS Order THEN {
-            createPickingUserInvoice(order);
-            IF excessQuantityPickingPickingDetail(order) THEN {
-                MESSAGE 'В накладной присутствуют товары, не указанные в заказе';
-            }
-            SHOW userInvoice OBJECTS i = userInvoice(order) MANAGESESSION DOCKED NOCANCEL;
-        }
-    } TOOLBAR;
+    addPickingUserInvoice 'Накладная по комплектации'###sign(Order order) =  {
+	NEWSESSION{
+	        IF order IS Order THEN {
+	            createPickingUserInvoice(order);
+	            IF excessQuantityPickingPickingDetail(order) THEN {
+	                MESSAGE 'В накладной присутствуют товары, не указанные в заказе';
+	            }
+	            SHOW userInvoice OBJECTS i = userInvoice(order) MANAGESESSION DOCKED NOCANCEL;
+	        }
+	    }
+} TOOLBAR;
 
     EXTEND FORM orders
         PROPERTIES(o) SHOWIF calcPart(o) addPickingUserInvoice

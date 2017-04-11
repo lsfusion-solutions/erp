@@ -85,11 +85,13 @@ isDayOff 'Выходной' (country, date) = DATA BOOLEAN (Country, DATE) IN ba
 
 fillDaysOff 'Заполнить выходные дни' = ACTION CUSTOM 'lsfusion.erp.utils.FillDaysOffActionProperty' (Country);
 
-addDayOff 'Добавить выходной день'(Country country) = ACTION NEWSESSION {
-    DIALOG dialogDate OBJECTS d INPUT DO {
-        isDayOff (country, d) <- TRUE;
-        apply();
-    }
+addDayOff 'Добавить выходной день'(Country country) = {
+	NEWSESSION {
+	    DIALOG dialogDate OBJECTS d INPUT DO {
+	        isDayOff (country, d) <- TRUE;
+	        apply();
+	    }
+	}
 }
 
 FORM daysOffForm 'Выходные дни' // logics.days.off
@@ -108,7 +110,7 @@ NAVIGATOR {
 
 // ------------------------------------------------ Стандартные значения --------------------------------------- //
 
-loadDefaultCountry 'Добавить страны'(VARISTRING[50] string, STRING[3] number, VARISTRING[50] stringA, STRING[2] stringB, STRING[3] stringC, STRING[3] shortCurrency) = ACTION {//, value) {
+loadDefaultCountry 'Добавить страны'(VARISTRING[50] string, STRING[3] number, VARISTRING[50] stringA, STRING[2] stringB, STRING[3] stringC, STRING[3] shortCurrency) = {//, value) {
     FOR NEW c = Country DO {
        ASSIGN name(c) <- string;
        ASSIGN sid(c) <- number;
@@ -119,7 +121,7 @@ loadDefaultCountry 'Добавить страны'(VARISTRING[50] string, STRING
     }
 }
 
-loadDefaultCountries 'Загрузить стандартные страны'() = ACTION {
+loadDefaultCountries 'Загрузить стандартные страны'() = {
     EXEC loadDefaultCountry('АВСТРАЛИЯ', '036','AUSTRALIA','AU','AUS',' ');
     EXEC loadDefaultCountry('АВСТРИЯ', '040','AUSTRIA','AT','AUT',' ');
     EXEC loadDefaultCountry('АЛБАНИЯ','008','ALBANIA','AL','ALB',' ');

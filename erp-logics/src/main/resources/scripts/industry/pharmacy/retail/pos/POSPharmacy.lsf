@@ -22,7 +22,7 @@ DESIGN options {
     }
 }
         
-changeQuantityValue (Batch batch, Receipt receipt, NUMERIC[16,5] n) =  ACTION {
+changeQuantityValue (Batch batch, Receipt receipt, NUMERIC[16,5] n) =  {
     IF receiptDetail(batch, receipt) THEN {
         IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
             IF minDelta() AND delta(prevCurrentBalance(batch, receipt), n) < minDelta() THEN {
@@ -51,7 +51,7 @@ changeQuantityValue (Batch batch, Receipt receipt, NUMERIC[16,5] n) =  ACTION {
     }
 }     
         
-changeQuantity(Batch batch, Receipt receipt) = ACTION {
+changeQuantity(Batch batch, Receipt receipt) = {
     INPUTX n = NUMERIC[16,5] DO
         changeQuantityValue(batch, receipt, n);
 }
@@ -68,7 +68,7 @@ readOnlyBlisterQuantity (Batch batch, Receipt receipt) = receipt IS Receipt AND 
 
 backgroundBlisterQuantity 'Цвет' (Batch batch, Receipt receipt)  = RGB(250, 236, 199) IF receipt IS Receipt AND blisterAmount(batch);
 
-changeBlisterQuantity(Batch batch, Receipt receipt) = ACTION {
+changeBlisterQuantity(Batch batch, Receipt receipt) = {
     INPUTX i = INTEGER DO
         IF receiptDetail(batch, receipt) THEN {
             IF (i AND NOT deleteNullDetail()) OR (deleteNullDetail() AND i != 0) THEN {
@@ -118,7 +118,7 @@ filterPrice 'Ввести цену' (Batch bt, Receipt r) = (filterPrice() AND c
 filterNameSku 'Поиск по наименованию' = DATA LOCAL VARISTRING[20]();
 filterNameSku 'Ввести наименование' (Batch bt) = (filterNameSku() AND isISubstring(prevNameSku(bt), filterNameSku())) OR NOT filterNameSku();
 
-skipFilters 'Обнулить поиск' () = ACTION {
+skipFilters 'Обнулить поиск' () = {
     filterPrice() <- NULL;
     filterNameSku() <- NULL; 
 } EDITKEY 'ESCAPE';
@@ -141,13 +141,13 @@ EXTEND FORM POS
     PROPERTIES () skipFilters TOOLBAR TODRAW bt         
 ;
 
-changeAnalogueBlisterQuantity(Batch batch, Receipt receipt) = ACTION {
+changeAnalogueBlisterQuantity(Batch batch, Receipt receipt) = {
     changeBlisterQuantity(batch, receipt);
     FOCUS POS.quantityReceiptGrid;
     SEEK POS.bt = batch;
 }
 
-changeAnalogueQuantity(Batch batch, Receipt receipt) = ACTION {
+changeAnalogueQuantity(Batch batch, Receipt receipt) = {
     INPUTX n = NUMERIC[16,5] DO {
         changeQuantityValue(batch, receipt, n);
         FOCUS POS.quantityReceiptGrid;
@@ -245,7 +245,7 @@ DESIGN POS {
     REMOVE PROPERTY(sumPanel);
 }
 
-overChangeBatch(ReceiptDetail d) += ACTION {
+overChangeBatch(ReceiptDetail d) += {
     FOCUS POS.quantityReceiptGrid;
     SEEK POS.bt = batch(d);
 };

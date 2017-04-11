@@ -148,9 +148,9 @@ name(Sku material) += Stock.name(material);
 UOM(Sku material) += Stock.UOM(material);
 country(Sku material) += Stock.country(material);
 
-edit(Sku sku) += ACTION Stock.edit(sku);
-addMaterial () += ACTION addSku();
-copy(Sku sku) += ACTION Stock.copy(sku);
+edit(Sku sku) += { Stock.edit(sku); }
+addMaterial () += { addSku(); }
+copy(Sku sku) += { Stock.copy(sku); }
 
 sku(Sku material) += material AS Sku;
 
@@ -242,7 +242,7 @@ DESIGN yearFromTo {
 }
 
 
-fillWastage 'Заполнить технологии на другой год'(Technology technology) = ACTION {
+fillWastage 'Заполнить технологии на другой год'(Technology technology) = {
 
     DIALOG yearFromTo OBJECTS y INPUT DO {
 
@@ -348,7 +348,7 @@ idSku 'Код' (Product product)= Stock.id(sku(product));
 id 'Код изделия' (Product product) = Stock.id(sku(product))IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
 id(Product p) += id(p);
 
-editSku 'Редактировать SKU' (Product p) = ACTION Stock.edit(sku(p));
+editSku 'Редактировать SKU' (Product p) = { Stock.edit(sku(p)); }
 
 UOM = DATA UOM (Product);
 shortNameUOM 'Ед.изм.' (Product product) = shortName(UOM(product)) IN recognize;
@@ -400,7 +400,7 @@ calcPriceCoeff 'Коэффициент цены' (Product product) = NUMERIC[20,
 calcPricePercentNumeric '%' (Product product, NUMERIC[8,5] num) = (num AS NUMERIC[8,5]) * quantity(product)*100 
     /(quantityProduct(BOM(product)) IF quantityProduct(BOM(product))!= 0); 
     
-changePriceCoeff(Product product) = ACTION {
+changePriceCoeff(Product product) = {
     INPUTX n = NUMERIC[8,5] DO        
         pricePercent(product) <- NUMERIC[16,10](calcPricePercentNumeric(product, n));
 }
@@ -527,11 +527,11 @@ wastage '% потерь' (Component component, DATE date) = [= (1.0-(X*(100.0-Y)
 @defineDocumentDetailQuantityCustomPrefix (component, brutto, ' (брутто)');
 @defineDocumentHeaderQuantityCustomPrefix (BOM, component, brutto, ' (брутто компонент)'); 
             
-selectTechnologies(Component component) = ACTION {
+selectTechnologies(Component component) = {
     SHOW componentTechnologies OBJECTS c = component ;
 }  
        
-changeNettoQuantity(Component component) = ACTION {
+changeNettoQuantity(Component component) = {
     INPUTX n = NUMERIC[16,5] DO {
         nettoQuantity(component) <- n;
         IF n THEN
@@ -539,14 +539,14 @@ changeNettoQuantity(Component component) = ACTION {
     }
 }   
                                                                                                                                                                                                                                                                                                                                                       
-changeWastage(Component component) = ACTION {
+changeWastage(Component component) = {
     INPUTX n = NUMERIC[8,3] DO {
         wastage(component) <- n;   
         bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE 0 IF component IS Component,n/100))); 
     }
 }                                                                                                                                                                                                                                                                                                                                                      
                                                                                                                                                                                                                                                                                                                                                             
-changeBruttoQuantity(Component component) = ACTION {
+changeBruttoQuantity(Component component) = {
     INPUTX n = NUMERIC[16,5] DO {    
         bruttoQuantity(component) <- n;
         wastage(component) <- NUMERIC[8,3]((1-(nettoQuantity(component)/(bruttoQuantity(component) IF bruttoQuantity(component)!=0)))*100); 
@@ -625,7 +625,7 @@ backgroundIn 'Цвет' (Object BOM, Object stockGroup) = CASE
     WHEN nearestInCompany(stockGroup, BOM) THEN RGB(230,248,250) 
     WHEN quantityChildWith (stockGroup, BOM) != descendantNumber[StockGroup](stockGroup) AND NOT quantityParentWith (stockGroup, BOM) THEN RGB(203,203,203);    
 
-editMaterial 'Редактировать компонент' (Component d) = ACTION edit(material(d));
+editMaterial 'Редактировать компонент' (Component d) = { edit(material(d)); }
 
 stocks 'Склады' (BOM) = GROUP CONCAT name(Stock stock) IF in(BOM BOM, stock) , ', '
                                                  BY BOM
@@ -776,38 +776,40 @@ WHEN SESSION FORMS BOM SET(BOM BOM IS BOM) DO {
 overCopy = ACTION ABSTRACT LIST (BOM, BOM);
 overCopy = ACTION ABSTRACT LIST (Component, Component);
 
-copy 'Копировать'(BOM BOM) = ACTION NEWSESSION {
-    FOR NEW b = BOM DO {
-
-        note(b) <- note(BOM);
-        FOR BOM(Product product) == BOM NEW p=Product DO {
-            BOM(p) <- b;
-            sku(p) <- sku(product);
-            quantity(p) <- quantity(product);
-            pricePercent(p) <- pricePercent(product);
-        }
-
-        FOR BOM(Component component) == BOM NEW c=Component DO {
-            BOM(c) <- b;
-            material(c) <- material(component);
-            nettoQuantity(c) <- nettoQuantity(component);
-            
-            in(Technology t,c) <- in(t,component) WHERE in(t,component);            
-            
-            bruttoQuantity(c) <- bruttoQuantity(component);
-            wastage(c) <- wastage(component);
-            overCopy(c,component);
-        }
-        dataIn(Stock s, b) <- dataIn(s, BOM); 
-        dataIn(StockGroup g, b) <- dataIn(g, BOM);
-
-        EXEC overCopy(BOM, b);
-        
-        SHOW BOM OBJECTS b = b MANAGESESSION DOCKED;
-    }
+copy 'Копировать'(BOM BOM) = {
+	NEWSESSION {
+	    FOR NEW b = BOM DO {
+	
+	        note(b) <- note(BOM);
+	        FOR BOM(Product product) == BOM NEW p=Product DO {
+	            BOM(p) <- b;
+	            sku(p) <- sku(product);
+	            quantity(p) <- quantity(product);
+	            pricePercent(p) <- pricePercent(product);
+	        }
+	
+	        FOR BOM(Component component) == BOM NEW c=Component DO {
+	            BOM(c) <- b;
+	            material(c) <- material(component);
+	            nettoQuantity(c) <- nettoQuantity(component);
+	            
+	            in(Technology t,c) <- in(t,component) WHERE in(t,component);            
+	            
+	            bruttoQuantity(c) <- bruttoQuantity(component);
+	            wastage(c) <- wastage(component);
+	            overCopy(c,component);
+	        }
+	        dataIn(Stock s, b) <- dataIn(s, BOM); 
+	        dataIn(StockGroup g, b) <- dataIn(g, BOM);
+	
+	        EXEC overCopy(BOM, b);
+	        
+	        SHOW BOM OBJECTS b = b MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
-edit(Product p) += ACTION [= ACTION EDITFORM BOM](BOM(p));
+edit(Product p) += { [= ACTION EDITFORM BOM](BOM(p)); }
 
 relationProducts (sku,BOM)= GROUP SUM 1 BY sku(Product p), BOM(p);
 relationComponents (sku,BOM)= GROUP SUM 1 BY material(Component c), BOM(c);
@@ -821,15 +823,17 @@ isActive(BOM BOM) = isActive(BOM, currentDate());
 background 'Цвет' (BOM BOM) = CASE WHEN fromDate(BOM) > currentDate() THEN RGB(224,255,224)
                                   WHEN toDate(BOM) < currentDate() THEN RGB(255,224,224);     
 
-addBOM 'Добавить'(Sku sku) = ACTION NEWSESSION {
-    FOR NEW b = BOM DO {
-    
-        FOR NEW p = Product DO {   
-            BOM(p) <- b;
-            sku(p) <- sku;
-        } 
-        SHOW BOM OBJECTS  b = b MANAGESESSION  DOCKED;
-    }
+addBOM 'Добавить'(Sku sku) = {
+	NEWSESSION {
+	    FOR NEW b = BOM DO {
+	    
+	        FOR NEW p = Product DO {   
+	            BOM(p) <- b;
+	            sku(p) <- sku;
+	        } 
+	        SHOW BOM OBJECTS  b = b MANAGESESSION  DOCKED;
+	    }
+	}
 } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
 
 FORM BOMs 'Спецификации'
@@ -965,7 +969,7 @@ DESIGN BOMs {
     }
 }
 
-copyBOMProduct 'Копировать'(Sku sku) = ACTION {
+copyBOMProduct 'Копировать'(Sku sku) = {
     Stock.copy(sku);
     IF addedSku() THEN
         SEEK BOMs.p1 = addedSku(); 
@@ -973,7 +977,7 @@ copyBOMProduct 'Копировать'(Sku sku) = ACTION {
 
 EXTEND FORM BOMs PROPERTIES(p1) copyBOMProduct;
 
-copyBOMComponent 'Копировать'(Sku sku) = ACTION {
+copyBOMComponent 'Копировать'(Sku sku) = {
     Stock.copy(sku);
     IF addedSku() THEN
         SEEK BOMs.c2 = addedSku(); 
@@ -1220,7 +1224,7 @@ recNettoNodeQuantity (BOM, sku) = GROUP SUM recNettoQuantityBOMBOM(BOM BOM, BOM 
 component (BOM,material) =  GROUP MAX Component component
     BY BOM(component), material(component);
    
-changeQuantity(BOM BOM,Material material) = ACTION {
+changeQuantity(BOM BOM,Material material) = {
     INPUTX n = NUMERIC[14,3] DO
         IF component(BOM,material) THEN {
             IF n THEN {
@@ -1312,9 +1316,9 @@ NAVIGATOR {
     }
 }
 
-showBOM 'Показать спецификацию' (Component c) = ACTION
+showBOM 'Показать спецификацию' (Component c) = {
     FOR b == BOM(material(c)) AND p == material(c) DO
-        NEWSESSION SHOW BOM OBJECTS b = b, p = p  
+        NEWSESSION SHOW BOM OBJECTS b = b, p = p; }  
 SHORTCUT nameMaterial[Component];
 
 

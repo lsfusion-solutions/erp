@@ -406,7 +406,7 @@ DESIGN options {
 
 overCopy = ACTION ABSTRACT LIST (Agreement, Agreement);
 
-copyData(Agreement s, Agreement d) = ACTION {
+copyData(Agreement s, Agreement d) = {
     date(d) <- date(s);
     time(d) <- time(s);
     fromDate(d) <- fromDate(s);
@@ -434,19 +434,23 @@ copyData(Agreement s, Agreement d) = ACTION {
     overCopy(s, d);
 }
 
-copy 'Копировать'(Agreement agreement) = ACTION NEWSESSION {
-    FOR NEW a = Agreement DO {
-        copyData(agreement, a);
-
-        SHOW agreement OBJECTS a = a MANAGESESSION DOCKED;
-    };
+copy 'Копировать'(Agreement agreement) = {
+	NEWSESSION {
+	    FOR NEW a = Agreement DO {
+	        copyData(agreement, a);
+	
+	        SHOW agreement OBJECTS a = a MANAGESESSION DOCKED;
+	    };
+	}
 } TOOLBAR;
 
-copySession 'Копировать'(Agreement agreement) = ACTION NESTEDSESSION {
-    FOR NEW a = Agreement DO {
-        copyData(agreement, a);
-        SHOW agreement OBJECTS a = a MANAGESESSION DOCKED;
-    };
+copySession 'Копировать'(Agreement agreement) = {
+	NESTEDSESSION {
+	    FOR NEW a = Agreement DO {
+	        copyData(agreement, a);
+	        SHOW agreement OBJECTS a = a MANAGESESSION DOCKED;
+	    };
+	}
 } TOOLBAR;
 
 EXTEND FORM agreements
@@ -482,7 +486,7 @@ DESIGN agreementsCustomer {
     MOVE functions.box;
 }
 
-addAgreementsSupplierCustomer 'Присоединить'(LegalEntity supplier, LegalEntity customer) = ACTION {
+addAgreementsSupplierCustomer 'Присоединить'(LegalEntity supplier, LegalEntity customer) = {
 
     DIALOG agreementsCustomer OBJECTS s=supplier, c=customer DO
         FOR in(Agreement agreement) DO {
@@ -492,7 +496,7 @@ addAgreementsSupplierCustomer 'Присоединить'(LegalEntity supplier, L
 } TOOLBAR;
 
 
-addAgreementsCustomerSupplier 'Присоединить'(LegalEntity customer, LegalEntity supplier) = ACTION {
+addAgreementsCustomerSupplier 'Присоединить'(LegalEntity customer, LegalEntity supplier) = {
 
     DIALOG agreementsCustomer OBJECTS s=supplier, c=customer DO
         FOR in(Agreement agreement) DO {
@@ -502,12 +506,14 @@ addAgreementsCustomerSupplier 'Присоединить'(LegalEntity customer, L
 } TOOLBAR;
 
 
-createAgreementSupplierCustomer 'Добавить'(LegalEntity supplier, LegalEntity customer) = ACTION NESTEDSESSION{
-    FOR NEW ag = Agreement DO {
-        dataInCustomer(ag, customer) <- TRUE;
-        dataInSupplier(ag, supplier) <- TRUE;
-        SHOW agreement OBJECTS a = ag MANAGESESSION DOCKED;
-    }
+createAgreementSupplierCustomer 'Добавить'(LegalEntity supplier, LegalEntity customer) = {
+	NESTEDSESSION{
+	    FOR NEW ag = Agreement DO {
+	        dataInCustomer(ag, customer) <- TRUE;
+	        dataInSupplier(ag, supplier) <- TRUE;
+	        SHOW agreement OBJECTS a = ag MANAGESESSION DOCKED;
+	    }
+	}
 } IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
 EXTEND FORM legalEntity

@@ -30,7 +30,7 @@ overNumber = ABSTRACT VARSTRING[28](Picking);
 @defineDocumentInterfaceDetailQuantity(picking);
 @showDocumentInterfaceDetailBatch(picking);
 @defineDocumentInterfaceDetailBatch(picking, batch);
-replace(Sku s, Batch b) += ACTION { sku(UserPickingDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += { sku(UserPickingDetail detail) <- s WHERE batch(detail) == b;}
 
 @defineDocumentInterfaceHeaderQuantity(picking);
 
@@ -58,7 +58,7 @@ replace(Sku s, Batch b) += ACTION { sku(UserPickingDetail detail) <- s WHERE bat
 @defineMovementBatch(pickingDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
 @defineMovementBatch(userPickingDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
 
-changeBatch(UserPickingDetail detail) = ACTION {
+changeBatch(UserPickingDetail detail) = {
     DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
                                   t = dateTime(detail),
                                   sk = sku(detail),
@@ -74,7 +74,7 @@ packQuantity(UserPicking picking) += packQuantity(picking);
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (Picking) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-editSku 'Редактировать SKU' (UserPickingDetail d) = ACTION edit(sku(d));
+editSku 'Редактировать SKU' (UserPickingDetail d) = { edit(sku(d)); }
 FORM userPicking 'Комплектация'
     OBJECTS o = UserPicking PANEL
     PROPERTIES (o) nameStock,// ON CHANGE changeCustomerStock###customerFilter###userPicking(o),
@@ -152,27 +152,29 @@ DESIGN userPicking {
 
 
 edit 'Редактировать' (userPicking) = ACTION EDITFORM UserPicking;
-edit(UserPicking picking) += ACTION edit(picking);
+edit(UserPicking picking) += { edit(picking); }
 
 overCopy = ACTION ABSTRACT LIST (UserPickingDetail, PickingDetail);
-copy 'Копировать'(Picking picking) = ACTION NEWSESSION {
-    FOR NEW o = UserPicking DO {
-
-        ASSIGN stock(o) <- stock(picking);
-        ASSIGN note(o) <- note(picking);
-
-        FOR picking(PickingDetail pickingDetail) == picking DO {
-            FOR NEW d=UserPickingDetail DO {
-                userPicking(d) <- o;
-                sku(d) <- sku(pickingDetail);
-                quantity(d) <- quantity(pickingDetail);
-                batch(d) <- batch(pickingDetail);
-                overCopy(d, pickingDetail);
-            }
-        }
-
-        SHOW userPicking OBJECTS o = o MANAGESESSION DOCKED;
-    }
+copy 'Копировать'(Picking picking) = {
+	NEWSESSION {
+	    FOR NEW o = UserPicking DO {
+	
+	        ASSIGN stock(o) <- stock(picking);
+	        ASSIGN note(o) <- note(picking);
+	
+	        FOR picking(PickingDetail pickingDetail) == picking DO {
+	            FOR NEW d=UserPickingDetail DO {
+	                userPicking(d) <- o;
+	                sku(d) <- sku(pickingDetail);
+	                quantity(d) <- quantity(pickingDetail);
+	                batch(d) <- batch(pickingDetail);
+	                overCopy(d, pickingDetail);
+	            }
+	        }
+	
+	        SHOW userPicking OBJECTS o = o MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
 
@@ -286,19 +288,21 @@ pickings 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255]
                                          MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
 overFillUserPicking = ACTION ABSTRACT LIST (UserPickingDetail, PickingOrderDetail);
-moveUserPicking 'Комплектация'(PickingOrder pickingOrder) = ACTION NEWSESSION {
-    FOR NEW p = UserPicking DO {
-        pickingOrder(p) <- pickingOrder;
-        stock(p) <- stock(pickingOrder);
-        FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
-            userPicking(d) <- p;
-            sku(d) <- sku(detail);
-            quantity(d) <- quantity(detail);
-            batch(d) <- batch(detail);
-            overFillUserPicking(d, detail);
-        }
-        SHOW userPicking OBJECTS o=p MANAGESESSION DOCKED;
-    }
+moveUserPicking 'Комплектация'(PickingOrder pickingOrder) = {
+	NEWSESSION {
+	    FOR NEW p = UserPicking DO {
+	        pickingOrder(p) <- pickingOrder;
+	        stock(p) <- stock(pickingOrder);
+	        FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
+	            userPicking(d) <- p;
+	            sku(d) <- sku(detail);
+	            quantity(d) <- quantity(detail);
+	            batch(d) <- batch(detail);
+	            overFillUserPicking(d, detail);
+	        }
+	        SHOW userPicking OBJECTS o=p MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
 
@@ -330,7 +334,7 @@ FORM pickingsOrderPickings 'Заказы на комплектацию'
     FILTERS pickingOrder(d) == o,
             stock(o) == s
 ;
-fillUserPickingOrder 'Заполнить на основании заказа на комплектацию'(UserPicking userPicking) = ACTION {
+fillUserPickingOrder 'Заполнить на основании заказа на комплектацию'(UserPicking userPicking) = {
     DIALOG pickingsOrderPickings OBJECTS s = stock(userPicking), o INPUT DO {
         pickingOrder(userPicking) <- o;
 
@@ -411,20 +415,24 @@ backgroundStatusPicking 'Цвет' (PickingOrder order) =  CASE
 status 'Статус' = statusPicking(pickingOrder(Picking picking));
 backgroundStatus = backgroundStatusPicking(pickingOrder(Picking picking));
 
-accept 'Принять'(PickingOrder pickingOrder) = ACTION NEWSESSION {
-    accepted(pickingOrder) <- TRUE;
-    performer(pickingOrder) <- currentUser();
-    startDate(pickingOrder) <- currentDate();
-    startTime(pickingOrder) <- currentTime();
-    apply();
-
+accept 'Принять'(PickingOrder pickingOrder) = {
+	NEWSESSION {
+	    accepted(pickingOrder) <- TRUE;
+	    performer(pickingOrder) <- currentUser();
+	    startDate(pickingOrder) <- currentDate();
+	    startTime(pickingOrder) <- currentTime();
+	    apply();
+	
+	}
 } TOOLBAR EDITKEY 'ctrl ENTER';
-unaccept 'Отменить'(PickingOrder pickingOrder) = ACTION NEWSESSION {
-    accepted(pickingOrder) <- NULL;
-    performer(pickingOrder) <- NULL;
-    startDate(pickingOrder) <- NULL;
-    startTime(pickingOrder) <- NULL;
-    apply();
+unaccept 'Отменить'(PickingOrder pickingOrder) = {
+	NEWSESSION {
+	    accepted(pickingOrder) <- NULL;
+	    performer(pickingOrder) <- NULL;
+	    startDate(pickingOrder) <- NULL;
+	    startTime(pickingOrder) <- NULL;
+	    apply();
+	}
 } TOOLBAR EDITKEY 'ctrl DELETE';
 
 FORM packQuantity 'Комплектация'
@@ -446,46 +454,50 @@ DESIGN packQuantity {
     }
 }
 
-fullyAssembled 'Собран полностью'(PickingOrder pickingOrder) = ACTION NEWSESSION {
-    DIALOG packQuantity OBJECTS n INPUT DO {
-        finishDate(pickingOrder) <- currentDate();
-        finishTime(pickingOrder) <- currentTime();
-        FOR NEW p = UserPicking DO {
-            pickingOrder(p) <- pickingOrder;
-            stock(p) <- stock(pickingOrder);
-            packQuantity(p) <- n;
-            number(p) <- overNumber(p);
-            FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
-                userPicking(d) <- p;
-                sku(d) <- sku(detail);
-                quantity(d) <- quantity(detail);
-                batch(d) <- batch(detail);
-                overFillUserPicking(d, detail);
-            }
-        }
-    }
-    apply();
+fullyAssembled 'Собран полностью'(PickingOrder pickingOrder) = {
+	NEWSESSION {
+	    DIALOG packQuantity OBJECTS n INPUT DO {
+	        finishDate(pickingOrder) <- currentDate();
+	        finishTime(pickingOrder) <- currentTime();
+	        FOR NEW p = UserPicking DO {
+	            pickingOrder(p) <- pickingOrder;
+	            stock(p) <- stock(pickingOrder);
+	            packQuantity(p) <- n;
+	            number(p) <- overNumber(p);
+	            FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
+	                userPicking(d) <- p;
+	                sku(d) <- sku(detail);
+	                quantity(d) <- quantity(detail);
+	                batch(d) <- batch(detail);
+	                overFillUserPicking(d, detail);
+	            }
+	        }
+	    }
+	    apply();
+	}
 } TOOLBAR EDITKEY 'F10';
 
-partiallyAssembled 'Собран частично'(PickingOrder pickingOrder) = ACTION NEWSESSION{
-    DIALOG packQuantity OBJECTS n INPUT DO {
-        finishDate(pickingOrder) <- currentDate();
-        finishTime(pickingOrder) <- currentTime();
-        FOR NEW p = UserPicking DO {
-            pickingOrder(p) <- pickingOrder;
-            stock(p) <- stock(pickingOrder);
-            packQuantity(p) <- n;
-            number(p) <- overNumber(p);
-            FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
-                userPicking(d) <- p;
-                sku(d) <- sku(detail);
-                quantity(d) <- quantity(detail);
-                batch(d) <- batch(detail);
-                overFillUserPicking(d, detail);
-            }
-            SHOW userPicking OBJECTS o=p MANAGESESSION DOCKED;
-        }
-    }
+partiallyAssembled 'Собран частично'(PickingOrder pickingOrder) = {
+	NEWSESSION{
+	    DIALOG packQuantity OBJECTS n INPUT DO {
+	        finishDate(pickingOrder) <- currentDate();
+	        finishTime(pickingOrder) <- currentTime();
+	        FOR NEW p = UserPicking DO {
+	            pickingOrder(p) <- pickingOrder;
+	            stock(p) <- stock(pickingOrder);
+	            packQuantity(p) <- n;
+	            number(p) <- overNumber(p);
+	            FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
+	                userPicking(d) <- p;
+	                sku(d) <- sku(detail);
+	                quantity(d) <- quantity(detail);
+	                batch(d) <- batch(detail);
+	                overFillUserPicking(d, detail);
+	            }
+	            SHOW userPicking OBJECTS o=p MANAGESESSION DOCKED;
+	        }
+	    }
+	}
 } TOOLBAR EDITKEY 'F9';
 
 EXTEND FORM pickingOrders
@@ -533,7 +545,7 @@ FORM printPickingOrder 'Заказ на комплектацию'
     FILTERS pickingOrder(d) == o
 ;
 
-print 'Заказ на комплектацию' (PickingOrder order) = ACTION PRINT printPickingOrder OBJECTS o = order  IMAGE 'print.png' IN print;
+print 'Заказ на комплектацию' (PickingOrder order) = { PRINT printPickingOrder OBJECTS o = order; }  IMAGE 'print.png' IN print;
 
 EXTEND FORM pickingOrders
     PROPERTIES(o)  print

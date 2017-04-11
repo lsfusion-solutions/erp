@@ -116,7 +116,7 @@ edit 'Редактировать' = ACTION ABSTRACT LIST (PriceListType) IMAGE '
 showCopy = ABSTRACT BOOLEAN (PriceListType);
 overCopy = ACTION ABSTRACT LIST (PriceListType);
 
-copy 'Копировать'(PriceListType priceListType) = ACTION {
+copy 'Копировать'(PriceListType priceListType) = {
     overCopy(priceListType);
 } TOOLBAR;
 
@@ -447,7 +447,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
         invoicePrice(d) <- round2(prevList(pt, d) * (100.0 (+) calcValueVAT(d)) / 100.0);
     }
 
-    recalculatePrice###detail 'Пересчитать цены'() = ACTION {
+    recalculatePrice###detail 'Пересчитать цены'() = {
         FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND [= FILTER form.d](d) AND includeVAT(pt) NOINLINE (pt) DO {
             IF notUseRound2() THEN {
                  price(d) <-prevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d));
@@ -526,7 +526,7 @@ META defineDocumentOperationPriceListType(object, caption, form, defaultPrefix)
         
     WHEN SESSION CHANGED(operation(###object object)) AND NOT CHANGED(priceListType(object)) AND NOT skipSetPriceListType(object) DO {
         IF default###defaultPrefix##PriceListType(operation(object)) THEN
-            priceListType(object) <- default###defaultPrefix##PriceListType(operation(object))
+            priceListType(object) <- default###defaultPrefix##PriceListType(operation(object));
         ELSE IF defaultPriceListType(operation(object)) AND NOT notUseReturnPriceListType(operation(object)) THEN
                 priceListType(object) <- defaultPriceListType(operation(object)); 
     }

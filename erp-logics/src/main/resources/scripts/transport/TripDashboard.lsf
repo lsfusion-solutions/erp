@@ -9,8 +9,10 @@ inCreatingTrip = GROUP SUM 1 IF inCreatingTrip(Order order) BY toStock(order);
 
 countInCreatingTripOrder = GROUP SUM 1 IF inCreatingTrip(Order order);
 
-editTrip 'Редактировать рейс'(Order order) = ACTION NEWSESSION {
-    SHOW trip OBJECTS t = trip(order) MANAGESESSION DOCKED;
+editTrip 'Редактировать рейс'(Order order) = {
+	NEWSESSION {
+	    SHOW trip OBJECTS t = trip(order) MANAGESESSION DOCKED;
+	}
 }
 
 FORM optionTrip 'Настройки рейса'
@@ -53,7 +55,7 @@ DESIGN optionTrip {
 
 overPrint = ACTION ABSTRACT LIST (Trip);
 overCreateOrder = ACTION ABSTRACT LIST (Trip);
-createTripOrder 'Взять в рейс'() = ACTION {
+createTripOrder 'Взять в рейс'() = {
     NEWSESSION NESTED (inCreatingTrip[Order]) {
         FOR NEW t = Trip DO {
             date(t) <- currentDate();
@@ -70,7 +72,7 @@ createTripOrder 'Взять в рейс'() = ACTION {
     }
 } TOOLBAR EDITKEY 'ctrl ENTER';
 
-cancelTrip 'Отменить'(Order order) = ACTION {
+cancelTrip 'Отменить'(Order order) = {
     ASSIGN trip (order) <- NULL;
     EXEC apply();
 } TOOLBAR EDITKEY 'ctrl DELETE';

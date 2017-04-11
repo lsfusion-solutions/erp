@@ -10,7 +10,7 @@ manufacturingPrice (UserRepricingDetail repricingDetail) += manufacturingPrice(r
 @defineDocumentInterfaceDetailPriceCustomPrefix(repricingDetail, curManufacturing, ' изготовителя до');
 //@deriveDocumentDetailPriceSystemLedgerPriceListType(userRepricing, manufacturingPriceStockPriceListType, curManufacturing, sku, departmentStore);
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userRepricing, manufacturingPriceStockPriceListType, curManufacturing, sku, departmentStore);
-overRecalculatePrice(UserRepricingDetail d) +=  ACTION {
+overRecalculatePrice(UserRepricingDetail d) +=  {
     curManufacturingPrice (d)  <- IF batch(d)
         THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
                     batch(d),
@@ -22,7 +22,7 @@ overRecalculatePrice(UserRepricingDetail d) +=  ACTION {
                     dateTime(d));
 }  
                                                        
-overConfirmRecalculatePrice(UserRepricingDetail d) +=  ACTION {
+overConfirmRecalculatePrice(UserRepricingDetail d) +=  {
     manufacturingPrice (d)  <- curManufacturingPrice(d);
 }                                                       
 
@@ -51,7 +51,7 @@ EXTEND FORM repricings
     PROPERTIES(d) READONLY manufacturingPrice BEFORE price(d), curManufacturingPrice BEFORE curPrice(d)
 ;
 
-overChangePriceUser(UserRepricingDetail userRepricingDetail) += ACTION {
+overChangePriceUser(UserRepricingDetail userRepricingDetail) += {
     ASSIGN manufacturingPrice(userRepricingDetail) <- curManufacturingPrice(userRepricingDetail);
 }
 

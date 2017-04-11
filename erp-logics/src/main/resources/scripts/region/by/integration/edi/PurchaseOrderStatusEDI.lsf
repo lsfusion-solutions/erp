@@ -7,24 +7,26 @@ NAMESPACE EDI;
 
 backgroundQuantityResponseEDI(Purchase.OrderDetail d) += RGB(255,0,0) IF responseDetail(d AS Purchase.OrderDetail) AND NOT quantityResponseEDI(d) == originalQuantity(d);
   
-logSendDocumentOrder(Purchase.Order o) = ACTION FOR NEW d = DocumentLog DO {
-    document(d) <- o;
-    typeDocument(d) <- objectClassName(o);
-    numberDocument(d) <- number(o);  
-    seriesDocument(d) <- series(o); 
-    dateDocument(d) <- date(o);
-    typeChange(d) <- TypeChange.email;
-    note(d) <- 'edi';      
-    session(d) <- currentSession();  
-    hostnameComputer(d) <- hostnameCurrentComputer();
-    userLogin(d) <- login(currentUser()); 
-    nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
-    dateTimeSession(d) <- currentDateTime();  
-    supplierStock(d) <- supplierStock(o);
-    customerStock(d) <- customerStock(o);
+logSendDocumentOrder(Purchase.Order o) = {
+	FOR NEW d = DocumentLog DO {
+	    document(d) <- o;
+	    typeDocument(d) <- objectClassName(o);
+	    numberDocument(d) <- number(o);  
+	    seriesDocument(d) <- series(o); 
+	    dateDocument(d) <- date(o);
+	    typeChange(d) <- TypeChange.email;
+	    note(d) <- 'edi';      
+	    session(d) <- currentSession();  
+	    hostnameComputer(d) <- hostnameCurrentComputer();
+	    userLogin(d) <- login(currentUser()); 
+	    nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
+	    dateTimeSession(d) <- currentDateTime();  
+	    supplierStock(d) <- supplierStock(o);
+	    customerStock(d) <- customerStock(o);
+	}
 }
 
-overEmailCustomer(Order.Order order) += ACTION {
+overEmailCustomer(Order.Order order) += {
     IF NOT consumedEmailCustomer(order ) AND isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
         
         consumedEmailCustomer(order) <- TRUE;
@@ -47,7 +49,7 @@ overEmailCustomer(Order.Order order) += ACTION {
 
 provider(Purchase.Order o) += WHEN isEOrder(o) THEN VARSTRING[20]('EDI:' + nameEDIProvider(supplier(o)));
 
-cancel 'Отменить заказ'(Order.Order order) = ACTION {
+cancel 'Отменить заказ'(Order.Order order) = {
     IF isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
         isRejected[UserOrder](order) <- TRUE;
         cancel[EOrder](order);        

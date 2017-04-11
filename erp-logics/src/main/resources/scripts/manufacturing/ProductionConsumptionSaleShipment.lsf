@@ -4,24 +4,26 @@ REQUIRE ProductionConsumption, SalePurchaseShipment;
 
 NAMESPACE Production;
 
-createShipment 'Создать поставку для Сырья'(Consumption consumption) = ACTION NEWSESSION {
-
-    FOR NEW sh = Sale.UserShipment DO {
-        supplier(sh) <- legalEntityStock(consumption);
-        customer(sh) <- legalEntityStock(consumption);
-        customerStock(sh) <- stock(consumption);
-        createPurchase(sh) <- TRUE;
-        note(sh) <- VARSTRING[100](description(consumption));
-
-        FOR consumption(ConsumptionDetail consumptionDetail)== consumption NEW d = Sale.UserShipmentDetail DO {
-            userShipment(d) <- sh;
-            sku(d) <- sku(consumptionDetail);
-            quantity(d) <- quantity(consumptionDetail);
-            price(d) <- price(consumptionDetail);
-        }
-
-        SHOW Sale.userShipment OBJECTS s = sh MANAGESESSION DOCKED NOCANCEL;
-    }
+createShipment 'Создать поставку для Сырья'(Consumption consumption) = {
+	NEWSESSION {
+	
+	    FOR NEW sh = Sale.UserShipment DO {
+	        supplier(sh) <- legalEntityStock(consumption);
+	        customer(sh) <- legalEntityStock(consumption);
+	        customerStock(sh) <- stock(consumption);
+	        createPurchase(sh) <- TRUE;
+	        note(sh) <- VARSTRING[100](description(consumption));
+	
+	        FOR consumption(ConsumptionDetail consumptionDetail)== consumption NEW d = Sale.UserShipmentDetail DO {
+	            userShipment(d) <- sh;
+	            sku(d) <- sku(consumptionDetail);
+	            quantity(d) <- quantity(consumptionDetail);
+	            price(d) <- price(consumptionDetail);
+	        }
+	
+	        SHOW Sale.userShipment OBJECTS s = sh MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR;
 
 EXTEND FORM consumptions

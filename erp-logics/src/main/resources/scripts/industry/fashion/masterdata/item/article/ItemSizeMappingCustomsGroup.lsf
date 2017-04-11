@@ -66,7 +66,7 @@ backgroundShowSizeHeightCustoms (ItemGroup itemGroup) =
         RGB(203,203,206) IF quantityChildWithSizeHeightCustoms (itemGroup) != descendantNumber(itemGroup)
                          AND NOT quantityParentWithSizeHeightCustoms (itemGroup);
 
-setNullShowSizeHeightCustoms 'Снять признак для всех потомков'(ItemGroup itemGroup) = ACTION {
+setNullShowSizeHeightCustoms 'Снять признак для всех потомков'(ItemGroup itemGroup) = {
     FOR isParent (ItemGroup childGroup, itemGroup) DO {
         ASSIGN userShowSizeHeightCustoms(childGroup) <- NULL;
     }
@@ -84,7 +84,7 @@ sizeHeightCustoms 'Рост (там.)' (Batch batch) = sizeHeightCustoms(sku(bat
 
 EXTEND FORM batches PROPERTIES(bt) READONLY  nameSizeHeightCustoms SHOWIF showSizeHeightCustoms(sk);
 
-overCopy(Item s, Item d) += ACTION {
+overCopy(Item s, Item d) += {
     sizeHeightCustoms(d) <- sizeHeightCustoms(s);
 }
 
@@ -136,7 +136,7 @@ GROUP itemCustoms 'Описание' : public;
 @defineStringItemAttribute(ageSticker, VARSTRING[30], 'Возраст', itemSticker);
 @defineItemAttributeBatch (ageSticker, 'Возраст');
 
-overCopy(Item s, Item d) += ACTION {
+overCopy(Item s, Item d) += {
     exSize(d) <- exSize(s);
     sizeChestCustoms(d) <- sizeChestCustoms(s);
     sizeNeckCustoms(d) <- sizeNeckCustoms(s);
@@ -172,7 +172,7 @@ DESIGN itemGroup {
 @createSizeMappingExAttribute(ageSticker, 'возраст (стикер)', ageSticker, );
 @createSizeMappingExAttribute(exSize, 'размер (бел)', exSize, );
 
-mapSizeSticker 'Заполнить размер (стикер) по соответствию'(Item i) = ACTION {
+mapSizeSticker 'Заполнить размер (стикер) по соответствию'(Item i) = {
     IF overSizeMapping (itemGroup(i), size(i), brand(i)) THEN {        
         sizeSticker(i) <- VARISTRING[50](exSizeSizeMapping (itemGroup(i), size(i), brand(i))); 
     } ELSE {

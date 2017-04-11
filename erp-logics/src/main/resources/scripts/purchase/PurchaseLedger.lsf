@@ -268,7 +268,7 @@ skuStockAveragePurchaseInterval 'Интервал расчета закупок 
 
 averagePurchase 'Закупок в день' = DATA NUMERIC[14,3] (Sku, Stock);
 
-calcQuantityPurchaseInterval(DATE dateFrom, DATE dateTo) = ACTION {
+calcQuantityPurchaseInterval(DATE dateFrom, DATE dateTo) = {
     LOCAL balance = NUMERIC[14,3] (Sku, Stock);
     LOCAL days = INTEGER (Sku, Stock);
     LOCAL dateCur = DATE();
@@ -286,9 +286,11 @@ calcQuantityPurchaseInterval(DATE dateFrom, DATE dateTo) = ACTION {
 
     ASSIGN averagePurchase(Sku sku, Stock stock) <- quantityPurchase (sku, stock, dateFrom, dateTo) / days(sku, stock);
 }
-calcCurrentQuantityPurchaseInterval 'Пересчитать однодневные закупки'() = ACTION NEWSESSION {
-    EXEC calcQuantityPurchaseInterval(subtract(currentDate(), skuStockAveragePurchaseInterval()), subtract(currentDate(), 1));
-    apply();
+calcCurrentQuantityPurchaseInterval 'Пересчитать однодневные закупки'() = {
+	NEWSESSION {
+	    EXEC calcQuantityPurchaseInterval(subtract(currentDate(), skuStockAveragePurchaseInterval()), subtract(currentDate(), 1));
+	    apply();
+	}
 }
 
 EXTEND FORM options
@@ -325,7 +327,7 @@ DESIGN options {
 
 isShipmentDate 'По дате поставки' = DATA LOCAL BOOLEAN ();
 
-onInitPurchaseLedger() = ACTION {
+onInitPurchaseLedger() = {
     isShipmentDate() <- isShipmentDatePurchaseLedger();    
 }
 
@@ -409,7 +411,7 @@ META implementPurchaseLedgerCustom(concrete, skuProp, stockProp)
     stock[PurchaseLedger] (concrete##Detail ledger) += stockProp(ledger);
     operation[PurchaseLedger] (concrete##Detail ledger) += operation(ledger);
     description[PurchaseLedger] (concrete##Detail ledger) += description(ledger);
-    edit[PurchaseLedger] (concrete##Detail ledger) += ACTION edit(ledger);
+    edit[PurchaseLedger] (concrete##Detail ledger) += { edit(ledger); }
 END
 META implementPurchaseLedger(concrete, skuProp, stockProp)
     EXTEND CLASS concrete##Detail : PurchaseLedger;

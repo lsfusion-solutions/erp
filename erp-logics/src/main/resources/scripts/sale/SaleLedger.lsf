@@ -248,7 +248,7 @@ skuStockAverageInterval 'Интервал расчета продаж в ден�
 
 averageSold 'Продаж в день' = DATA NUMERIC[14,3] (Sku, Stock);
 
-calcQuantitySoldInterval(DATE dateFrom, DATE dateTo) = ACTION {
+calcQuantitySoldInterval(DATE dateFrom, DATE dateTo) = {
     LOCAL balance = NUMERIC[14,3] (Sku, Stock);
     LOCAL days = INTEGER (Sku, Stock);
     LOCAL dateCur = DATE();
@@ -266,9 +266,11 @@ calcQuantitySoldInterval(DATE dateFrom, DATE dateTo) = ACTION {
 
     ASSIGN averageSold(Sku sku, Stock stock) <- quantitySold (sku, stock, dateFrom, dateTo) / days(sku, stock);
 }
-calcCurrentQuantitySoldInterval 'Пересчитать однодневные продажи'() = ACTION NEWSESSION {
-    EXEC calcQuantitySoldInterval(subtract(currentDate(), skuStockAverageInterval()), subtract(currentDate(), 1));
-    apply();
+calcCurrentQuantitySoldInterval 'Пересчитать однодневные продажи'() = {
+	NEWSESSION {
+	    EXEC calcQuantitySoldInterval(subtract(currentDate(), skuStockAverageInterval()), subtract(currentDate(), 1));
+	    apply();
+	}
 }
 
 EXTEND FORM options
@@ -320,7 +322,7 @@ sessionConcatSkuGroups 'Группы' () =
     
     
 countInSessionSkuGroups  = GROUP SUM 1 IF dataInSession(SkuGroup g);
-resetSelectedGroups  'Сбросить отмеченные'() = ACTION {
+resetSelectedGroups  'Сбросить отмеченные'() = {
     dataInSession(SkuGroup g) <- NULL WHERE g IS SkuGroup ;    
 }  
   
@@ -334,7 +336,7 @@ FORM filterGroupType 'Фильтр по группам'
      FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT        
      PROPERTIES resetSelectedGroups() TODRAW g
 ;   
-selectSkuGroups 'Выбор групп'() = ACTION {
+selectSkuGroups 'Выбор групп'() = {
     SHOW filterGroupType ;
 } 
 

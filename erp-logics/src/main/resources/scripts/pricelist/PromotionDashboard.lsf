@@ -124,7 +124,7 @@ DESIGN promotionDashboard {
     MOVE functions.box;
 }
 
-seekDefaultPriceListOperation = ACTION SEEK promotionDashboard.o = promotionPriceListOperation();
+seekDefaultPriceListOperation = { SEEK promotionDashboard.o = promotionPriceListOperation(); }
 
 EXTEND FORM promotionDashboard
      EVENTS ON INIT seekDefaultPriceListOperation()
@@ -143,7 +143,7 @@ filterPromotionStock  = DATA LOCAL NESTED DepartmentStore ();
 nameFilterPromotionStock 'Склад' = name[Stock](filterPromotionStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;                                                     
 notFilterPromotionStock = TRUE AND NOT filterPromotionStock();
 
-changeCompanyFilterPromotionStock() = ACTION {
+changeCompanyFilterPromotionStock() = {
     DIALOG companysStock OBJECTS s = filterPromotionStock() INPUT NULL DO 
         filterPromotionStock() <- s;
 }
@@ -231,17 +231,19 @@ DESIGN promotionDashboard {
 // ----------------------------------- Список прайсов ---------------------------- //
 // p
 
-addUserPriceList 'Добавить'(LegalEntity legalEntity, PriceListType type, DATETIME dateTime, PriceList.Operation operation) = ACTION NEWSESSION {
-    FOR NEW p = UserPriceList DO {
-        company(p) <- legalEntity;
-        fromDate(p) <- toDate(dateTime);
-        fromTime(p) <- toTime(dateTime);
-        operation(p) <- operation;
-        in[UserPriceList,DataPriceListType](p, type) <- TRUE;
-        show[PriceList,PriceListType](p, type) <- TRUE;
-        overAdd(p); 
-        SHOW userPriceList OBJECTS p = p MANAGESESSION DOCKED NOCANCEL;
-    }
+addUserPriceList 'Добавить'(LegalEntity legalEntity, PriceListType type, DATETIME dateTime, PriceList.Operation operation) = {
+	NEWSESSION {
+	    FOR NEW p = UserPriceList DO {
+	        company(p) <- legalEntity;
+	        fromDate(p) <- toDate(dateTime);
+	        fromTime(p) <- toTime(dateTime);
+	        operation(p) <- operation;
+	        in[UserPriceList,DataPriceListType](p, type) <- TRUE;
+	        show[PriceList,PriceListType](p, type) <- TRUE;
+	        overAdd(p); 
+	        SHOW userPriceList OBJECTS p = p MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
 
 EXTEND FORM promotionDashboard

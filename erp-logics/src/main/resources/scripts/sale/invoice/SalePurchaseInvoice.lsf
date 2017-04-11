@@ -115,7 +115,7 @@ invoiceDetail(Purchase.UserInvoiceDetail invoiceDetail) += invoiceDetail(invoice
 
 setPropertiesPurchaseSale = ACTION ABSTRACT LIST (Purchase.UserInvoiceDetail, InvoiceDetail);
 
-fillInvoice 'Заполнить на основе накладной'(Purchase.UserInvoice userInvoice) =  ACTION {
+fillInvoice 'Заполнить на основе накладной'(Purchase.UserInvoice userInvoice) =  {
     DIALOG invoiceInvoices OBJECTS s = supplier(userInvoice), c = customer(userInvoice),
                                    ss = supplierStock(userInvoice), cs = customerStock(userInvoice),
                                    t = date(userInvoice), o INPUT DO {
@@ -127,7 +127,7 @@ fillInvoice 'Заполнить на основе накладной'(Purchase.U
     }
 } IN Purchase.invoice;
 
-setPropertiesPurchaseSale(Purchase.UserInvoiceDetail d, InvoiceDetail invoiceDetail) += ACTION {
+setPropertiesPurchaseSale(Purchase.UserInvoiceDetail d, InvoiceDetail invoiceDetail) += {
             sku(d) <- sku(invoiceDetail);
             batch(d) <- batch(invoiceDetail)  WHERE NOT notUseBatchPurchaseInvoice(operation(invoice(invoiceDetail)));
             barcodePack(d) <- barcodePack(invoiceDetail);
@@ -298,8 +298,8 @@ invoicePrice(PurchaseInvoiceDetail invoiceDetail) += invoicePrice(invoiceDetail(
 VATSum(PurchaseInvoiceDetail invoiceDetail) += VATSum(invoiceDetail(invoiceDetail));
 invoiceSum(PurchaseInvoiceDetail invoiceDetail) += invoiceSum(invoiceDetail(invoiceDetail));
 
-edit(PurchaseInvoice invoice) += ACTION EXEC edit(invoice(invoice));
-close(PurchaseInvoice invoice) += ACTION EXEC close(invoice(invoice));
+edit(PurchaseInvoice invoice) += { EXEC edit(invoice(invoice)); }
+close(PurchaseInvoice invoice) += { EXEC close(invoice(invoice)); }
 createdUser(PurchaseInvoice invoice) += createdUser(invoice(invoice));
 
 showPack(PurchaseInvoice invoice) +=  showPack(invoice(invoice));
@@ -309,7 +309,7 @@ packQuantity(PurchaseInvoiceDetail invoiceDetail) +=  packQuantity(invoiceDetail
 
 invoiceDetail(PurchaseInvoiceDetail invoiceDetail) += invoiceDetail(invoiceDetail);
 
-edit(PurchaseInvoiceDetail d) += ACTION edit(invoiceDetail(d));
+edit(PurchaseInvoiceDetail d) += { edit(invoiceDetail(d)); }
 
 //------------------------------ Создание агрегированных объектов через операции -----------------------------//
 
@@ -350,49 +350,51 @@ DESIGN userInvoice {
 overFillInvoice = ACTION ABSTRACT LIST (Purchase.UserInvoice, Invoice);
 overFillInvoice = ACTION ABSTRACT LIST (Purchase.UserInvoiceDetail, InvoiceDetail);
 
-moveUserInvoice 'Накладная (закупка)'(Invoice invoice) =  ACTION NEWSESSION{
-
-    FOR NEW i = Purchase.UserInvoice DO {
-
-        agreement(i) <- agreement(invoice);
-        priceListType(i) <- priceListType(invoice);
-        supplier(i) <- supplier(invoice);
-        customer(i) <- customer(invoice);
-        supplierStock(i) <- supplierStock(invoice);
-        customerStock(i) <- customerStock(invoice);
-        number(i) <- number(invoice);
-        series(i) <- series(invoice);
-        note(i) <- note(invoice);
-        currency(i) <- currency(invoice);
-        contractSku(i) <- contractSku(invoice);
-        isCommission(i) <- isCommission(invoice);
-        showPack(i) <- showPack(invoice);
-        operation(i) <- purchaseOperation(operation(invoice));
-        EXEC overFillInvoice(i, invoice);
-
-        FOR invoice(InvoiceDetail detail)==invoice NEW d = Purchase.UserInvoiceDetail DO {
-
-            userInvoice(d) <- i;
-            invoiceDetail(d) <- detail;
-
-            priceListType(d) <- priceListType(detail);
-
-            sku(d) <- sku(detail);
-            quantity (d) <- quantity(detail);
-            VAT (d) <- VAT(detail);
-            price (d) <- price(detail);
-            invoicePrice (d) <- invoicePrice(detail);
-
-            barcodePack (d) <- barcodePack(detail);
-            amountPack (d) <- amountPack(detail);
-            packQuantity (d) <- packQuantity(detail);
-
-            batch(d) <- batch(detail) WHERE NOT notUseBatchPurchaseInvoice(operation(invoice));
-            EXEC overFillInvoice(d,detail);
-        }
-
-    SHOW Purchase.userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
-    }
+moveUserInvoice 'Накладная (закупка)'(Invoice invoice) =  {
+	NEWSESSION{
+	
+	    FOR NEW i = Purchase.UserInvoice DO {
+	
+	        agreement(i) <- agreement(invoice);
+	        priceListType(i) <- priceListType(invoice);
+	        supplier(i) <- supplier(invoice);
+	        customer(i) <- customer(invoice);
+	        supplierStock(i) <- supplierStock(invoice);
+	        customerStock(i) <- customerStock(invoice);
+	        number(i) <- number(invoice);
+	        series(i) <- series(invoice);
+	        note(i) <- note(invoice);
+	        currency(i) <- currency(invoice);
+	        contractSku(i) <- contractSku(invoice);
+	        isCommission(i) <- isCommission(invoice);
+	        showPack(i) <- showPack(invoice);
+	        operation(i) <- purchaseOperation(operation(invoice));
+	        EXEC overFillInvoice(i, invoice);
+	
+	        FOR invoice(InvoiceDetail detail)==invoice NEW d = Purchase.UserInvoiceDetail DO {
+	
+	            userInvoice(d) <- i;
+	            invoiceDetail(d) <- detail;
+	
+	            priceListType(d) <- priceListType(detail);
+	
+	            sku(d) <- sku(detail);
+	            quantity (d) <- quantity(detail);
+	            VAT (d) <- VAT(detail);
+	            price (d) <- price(detail);
+	            invoicePrice (d) <- invoicePrice(detail);
+	
+	            barcodePack (d) <- barcodePack(detail);
+	            amountPack (d) <- amountPack(detail);
+	            packQuantity (d) <- packQuantity(detail);
+	
+	            batch(d) <- batch(detail) WHERE NOT notUseBatchPurchaseInvoice(operation(invoice));
+	            EXEC overFillInvoice(d,detail);
+	        }
+	
+	    SHOW Purchase.userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR;
 
 EXTEND FORM invoices

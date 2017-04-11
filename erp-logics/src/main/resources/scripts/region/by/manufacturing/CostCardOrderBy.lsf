@@ -118,7 +118,7 @@ FORM costCardOrderBy 'Калькуляционная карта' // с заме�
     FILTERS order(cd)==o             
     FILTERS BOM(cd)== BOM(product(pd))        
 ;
-printCostCard 'Калькуляционная карта' (Order order) = ACTION PRINT costCardOrderBy OBJECTS o = order   IMAGE 'print.png' IN print;
+printCostCard 'Калькуляционная карта' (Order order) = { PRINT costCardOrderBy OBJECTS o = order; }   IMAGE 'print.png' IN print;
   
 coeffSubstitute (ComponentDetail cd) = substituteQuantity(cd) /  bruttoQuantity(cd) IF sku(cd) != bruttoSku(cd);
 priceCard (ComponentDetail cd)  = price(cd)*coeffSubstitute(cd);
@@ -150,7 +150,7 @@ FORM costCardOrderNotSubstituteBy 'Калькуляционная карта' //
     FILTERS order(cd)==o             
     FILTERS BOM(cd)== BOM(product(pd))        
 ;
-printCostCardNotSubstitute 'Калькуляционная карта (без замен)' (Order order) = ACTION PRINT costCardOrderNotSubstituteBy OBJECTS o = order   IMAGE 'print.png' IN print;
+printCostCardNotSubstitute 'Калькуляционная карта (без замен)' (Order order) = { PRINT costCardOrderNotSubstituteBy OBJECTS o = order; }   IMAGE 'print.png' IN print;
   
 seriesNumberBatch 'Серия/номер накладной' (ComponentDetail b) = seriesNumber(invoiceDetail(batch(b)));
 dateBatch 'Дата накладной' (ComponentDetail b) = date(invoiceDetail(batch(b)));
@@ -211,7 +211,7 @@ FORM cuttingBy 'Разруб'
 
     FILTERS BOM(cd)== BOM(product(pd))        
 ;
-printCutting 'Разруб' (Order order) = ACTION PRINT cuttingBy OBJECTS o = order   IMAGE 'print.png' IN print;
+printCutting 'Разруб' (Order order) = { PRINT cuttingBy OBJECTS o = order; }   IMAGE 'print.png' IN print;
 
 
 FORM actOfCuttingBy 'Акт о разделке сырья'
@@ -245,7 +245,7 @@ FORM actOfCuttingBy 'Акт о разделке сырья'
 
     FILTERS BOM(cd)== BOM(product(pd))        
 ;
-printActOfCuttingBy 'Акт о разделке сырья' (Order order) = ACTION PRINT actOfCuttingBy OBJECTS o = order   IMAGE 'print.png' IN print;
+printActOfCuttingBy 'Акт о разделке сырья' (Order order) = { PRINT actOfCuttingBy OBJECTS o = order; }   IMAGE 'print.png' IN print;
 
 
 FORM intakeSheetOrderBy 'Заборный лист'
@@ -262,7 +262,7 @@ FORM intakeSheetOrderBy 'Заборный лист'
     FILTERS order(pd)==o
 
 ;
-printIntakeSheet 'Заборный лист' (Order order) = ACTION PRINT intakeSheetOrderBy OBJECTS o = order   IMAGE 'print.png' IN print;
+printIntakeSheet 'Заборный лист' (Order order) = { PRINT intakeSheetOrderBy OBJECTS o = order; }   IMAGE 'print.png' IN print;
 EXTEND FORM orders
     PROPERTIES(o)  printCostCard, printCostCardNotSubstitute, printIntakeSheet, printCutting, printActOfCuttingBy 
 ;
@@ -286,7 +286,7 @@ FORM technologicalCardsProductBy 'Технологическая карта'
 
 ;
 
-printTechnologicalCard 'Технологическая карта'(BOM BOM)  = ACTION {
+printTechnologicalCard 'Технологическая карта'(BOM BOM)  = {
     DIALOG dialogDate OBJECTS d INPUT DO {
         select(d, Product product) <- BOM(product) == BOM;
         PRINT technologicalCardsProductBy OBJECTS dt = d;
@@ -302,14 +302,16 @@ DESIGN BOMs {
     }
 }
 
-printTechnologicalCard 'Технологическая карта'(Order order)  = ACTION NEWSESSION {
-
-    FOR quantity(Product product,order) DO {
-        ASSIGN select(DATE date,product) <- product IS Product WHERE date == date(order);
-    }
-    PRINT technologicalCardsProductBy  OBJECTS dt = date(order) ;
-
-    apply();
+printTechnologicalCard 'Технологическая карта'(Order order)  = {
+	NEWSESSION {
+	
+	    FOR quantity(Product product,order) DO {
+	        ASSIGN select(DATE date,product) <- product IS Product WHERE date == date(order);
+	    }
+	    PRINT technologicalCardsProductBy  OBJECTS dt = date(order) ;
+	
+	    apply();
+	}
 } IMAGE 'print.png' IN print;
 
 EXTEND FORM orders
@@ -373,7 +375,7 @@ FORM actStudyOfCulinaryBOM 'Акт контрольной проработки'
     FILTERS       inCommittee(b,e)
 
 ;
-printActStudyOfCulinary 'Акт контрольной проработки'(BOM BOM)  = ACTION {
+printActStudyOfCulinary 'Акт контрольной проработки'(BOM BOM)  = {
     DIALOG dialogDate OBJECTS d INPUT DO
         PRINT actStudyOfCulinaryBOM  OBJECTS dt = d, b = BOM ;
 } IMAGE 'print.png' IN print;

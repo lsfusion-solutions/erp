@@ -12,7 +12,7 @@ quantityComponentDetail (bt,s,o)=  GROUP SUM quantity(ComponentDetail d)  BY  ba
 nameBatches 'Партии' = GROUP CONCAT name(Batch bt) IF quantityComponentDetail(bt,Sku s,Order o) , ', '
     BY s,o
     ORDER bt MINCHARWIDTH 30 PREFCHARWIDTH 50;
-use 'Использовать партию'(Batch bt,Sku sk,Order o)  = ACTION {
+use 'Использовать партию'(Batch bt,Sku sk,Order o)  = {
     batch(ComponentDetail d) <- bt WHERE sku(d) == sk AND order(d) == o;
     cost(sk,o) <- cost(bt);
     dataBruttoPrice(sk,o) <- priceStock(bt,o);
@@ -24,7 +24,7 @@ defaultBatchPriceStock = GROUP LAST Batch batch
     ORDER currentBalancePriceStock(batch,order), batch
     WHERE currentBalancePriceStock(batch,order) >0;
 
-useBatchSkuAll 'Партия с max остатком (для всех)'(Order o)  = ACTION {
+useBatchSkuAll 'Партия с max остатком (для всех)'(Order o)  = {
     batch(ComponentDetail d) <- defaultBatchPriceStock(sku(d), o) WHERE  order(d) == o AND defaultBatchPriceStock(sku(d), o);//skuComponentDetail(d) == sk
     cost(Sku sk,o) <- cost(defaultBatchPriceStock(sk, o)) WHERE defaultBatchPriceStock(sk, o) AND quantityComponentDetail(sk,o);
     dataBruttoPrice(Sku sk,o) <- priceStock(defaultBatchPriceStock(sk, o),o) WHERE defaultBatchPriceStock(sk, o) AND quantityComponentDetail(sk,o); 
@@ -32,13 +32,13 @@ useBatchSkuAll 'Партия с max остатком (для всех)'(Order o)
 }
 maxBatch (s,o)=  GROUP MAX Batch bt IF quantityComponentDetail (bt,Sku s,Order o) BY s,o;
 
-changeBatch(Sku s,Order o) = ACTION {
+changeBatch(Sku s,Order o) = {
     DIALOG dialogBatchStockOrder OBJECTS st = componentsStock(o),
                              t = dateTime(o),
                              sk = s ,
                              bt = maxBatch(s,o) INPUT NULL DO {
         IF bt IS Batch THEN
-            use(bt, s, o)
+            use(bt, s, o);
         ELSE
             batch(ComponentDetail d) <- NULL WHERE sku(d) == s AND order(d) == o;
     }                              
@@ -69,7 +69,7 @@ DESIGN order {
 }
 
 productionNorm 'Норма партии' = DATA NUMERIC[20,9] (Component);
-overCopy (Component c, Component component) += ACTION {    
+overCopy (Component c, Component component) += {    
     productionNorm(c) <- productionNorm(component);
 }
 EXTEND FORM BOM

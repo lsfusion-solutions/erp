@@ -211,9 +211,13 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     isClosed  'Аннулирован' = DATA BOOLEAN (ScheduleOrderDetail );
     isOpened  'Не аннулирован' (ScheduleOrderDetail o) = o IS ScheduleOrderDetail  AND NOT isClosed (o) PERSISTENT INDEXED;
 
-    close  'Аннулировать' (ScheduleOrderDetail o) = ACTION NEWSESSION { isClosed (o) <- TRUE; apply(); } TOOLBAR CONFIRM;
+    close  'Аннулировать' (ScheduleOrderDetail o) = {
+	NEWSESSION { isClosed (o) <- TRUE; apply(); }
+} TOOLBAR CONFIRM;
 
-    open  'Отменить аннулирование' (ScheduleOrderDetail o) = ACTION NEWSESSION { isClosed (o) <- NULL; apply(); } TOOLBAR CONFIRM;
+    open  'Отменить аннулирование' (ScheduleOrderDetail o) = {
+	NEWSESSION { isClosed (o) <- NULL; apply(); }
+} TOOLBAR CONFIRM;
     
 //    isClosedScheduleOrderDetail(d) += isClosedScheduleOrderDetail(d);
     
@@ -261,7 +265,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     overCreate = ACTION ABSTRACT LIST (ScheduleOrderDetail); 
 
-    create 'Сгенерировать предварительные заказы'(ScheduleOrder scheduleOrder) = ACTION {
+    create 'Сгенерировать предварительные заказы'(ScheduleOrder scheduleOrder) = {
         LOCAL toDate = DATE ();    
         toDate() <- OVERRIDE sum(currentDate(), countDaysPreOrders()), endDate(scheduleOrder);
     
@@ -353,14 +357,16 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         //EXEC apply();
     } TOOLBAR;
     
-    addScheduleOrderDetail() = ACTION NEWSESSION {
-        FOR ScheduleOrder o IS ScheduleOrder AND NOT endDate(o) DO {
-            EXEC create(o); 
-        }              
-        apply();
-    }  
+    addScheduleOrderDetail() = {
+	NEWSESSION {
+	        FOR ScheduleOrder o IS ScheduleOrder AND NOT endDate(o) DO {
+	            EXEC create(o); 
+	        }              
+	        apply();
+	    }
+}  
     
-    addScheduleOrderDetail() += ACTION addScheduleOrderDetail();
+    addScheduleOrderDetail() += { addScheduleOrderDetail(); }
 
     monthInDate 'Месяц'(ScheduleOrderDetail scheduleOrderDetail) = extractMonthName(dateSupply(scheduleOrderDetail));
     DOWInDate 'День недели'(ScheduleOrderDetail scheduleOrderDetail) = extractDOWName(dateSupply(scheduleOrderDetail));
@@ -410,38 +416,40 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     overCreate = ACTION ABSTRACT LIST (UserOrder);
     overCreateDetail = ACTION ABSTRACT LIST (UserOrder);
     isRecommended = DATA LOCAL BOOLEAN (UserOrder);
-    createScheduleUser 'Создать заказ'(ScheduleOrderDetail scheduleOrderDetail) = ACTION NEWSESSION {
-        isRecommended(o) <- NULL;
-        
-        FOR NEW o = UserOrder DO {
-            scheduleOrderDetail(o) <- scheduleOrderDetail;
-            date(o) <- currentDate();
-            time(o) <- currentTime();
-            shipmentDate(o) <- dateSupply(scheduleOrderDetail);
-            shipmentTime(o) <- currentTime();
-            nextShipmentDate(o) <- dateSupplyNext(scheduleOrderDetail);
-            supplier(o) <- supplier(scheduleOrderDetail);
-            customer(o) <- customer(scheduleOrderDetail);
-            supplierStock(o) <- supplierStock(scheduleOrderDetail);
-            customerStock(o) <- customerStock(scheduleOrderDetail);
-            ASK 'Заполнить рекомендуемым количеством?' DO {
-                isRecommended(o) <- TRUE;
-            }
-            IF operation(scheduleOrderDetail) THEN
-                operation(o) <- operation(scheduleOrderDetail)
-            ELSE
-                IF countOperationSupplierCustomerSupplierCustomer(supplier(o), customer(o), supplierStock(o), customerStock(o), currentUser()) == 1 THEN 
-                    operation(o) <- defaultOperationSupplierCustomerSupplierCustomer(supplier(o), customer(o), supplierStock(o), customerStock(o), currentUser());
-                    
-            IF defaultPriceListType(operation(o)) THEN
-                priceListType(o) <- defaultPriceListType(operation(o)); 
-
-            overCreate(o);
-            overCreateDetail(o);
-
-            SHOW userOrder OBJECTS o = o MANAGESESSION DOCKED;
-        }
-    } TOOLBAR;
+    createScheduleUser 'Создать заказ'(ScheduleOrderDetail scheduleOrderDetail) = {
+	NEWSESSION {
+	        isRecommended(o) <- NULL;
+	        
+	        FOR NEW o = UserOrder DO {
+	            scheduleOrderDetail(o) <- scheduleOrderDetail;
+	            date(o) <- currentDate();
+	            time(o) <- currentTime();
+	            shipmentDate(o) <- dateSupply(scheduleOrderDetail);
+	            shipmentTime(o) <- currentTime();
+	            nextShipmentDate(o) <- dateSupplyNext(scheduleOrderDetail);
+	            supplier(o) <- supplier(scheduleOrderDetail);
+	            customer(o) <- customer(scheduleOrderDetail);
+	            supplierStock(o) <- supplierStock(scheduleOrderDetail);
+	            customerStock(o) <- customerStock(scheduleOrderDetail);
+	            ASK 'Заполнить рекомендуемым количеством?' DO {
+	                isRecommended(o) <- TRUE;
+	            }
+	            IF operation(scheduleOrderDetail) THEN
+	                operation(o) <- operation(scheduleOrderDetail);
+	            ELSE
+	                IF countOperationSupplierCustomerSupplierCustomer(supplier(o), customer(o), supplierStock(o), customerStock(o), currentUser()) == 1 THEN 
+	                    operation(o) <- defaultOperationSupplierCustomerSupplierCustomer(supplier(o), customer(o), supplierStock(o), customerStock(o), currentUser());
+	                    
+	            IF defaultPriceListType(operation(o)) THEN
+	                priceListType(o) <- defaultPriceListType(operation(o)); 
+	
+	            overCreate(o);
+	            overCreateDetail(o);
+	
+	            SHOW userOrder OBJECTS o = o MANAGESESSION DOCKED;
+	        }
+	    }
+} TOOLBAR;
     @defineDocumentDetailActions(scheduleOrder, ScheduleOrderDetail);
     @defineDocumentDialogStock(scheduleOrder, supplierFilter, supplier, );
 
@@ -450,26 +458,26 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     countShipmentScheduleOrderTime (scheduleOrder, dow) = GROUP SUM 1 BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d);   
     scheduleOrderTimeIn 'Вкл.' (ScheduleOrder scheduleOrder, DOW dow)= TRUE IF [ = GROUP SUM 1 BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d)](scheduleOrder, dow);   
 
-    setScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow) = ACTION {
+    setScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow) = {
         IF NOT scheduleOrderTimeIn(scheduleOrder, dow) THEN {
             LOCAL transfer = INTEGER();
             FOR NEW  t = ScheduleOrderTime DO {
                 scheduleOrder(t) <- scheduleOrder;
                 shipmentDOW(t) <- dow; 
 
-                IF number(dow) == 0 THEN transfer() <- 7 ELSE IF number(dow) < dayBefore(scheduleOrder) THEN transfer() <- 5 ELSE transfer() <- 0; //+7-2
+                IF number(dow) == 0 THEN transfer() <- 7; ELSE IF number(dow) < dayBefore(scheduleOrder) THEN transfer() <- 5; ELSE transfer() <- 0; //+7-2
                 
-                CASE WHEN transfer() + number(dow) - dayBefore(scheduleOrder) == 0 THEN orderDOW(t) <- DOW.friday
-                WHEN transfer() + number(dow) - dayBefore(scheduleOrder) == 6 THEN orderDOW(t) <- DOW.tuesday
+                CASE WHEN transfer() + number(dow) - dayBefore(scheduleOrder) == 0 THEN orderDOW(t) <- DOW.friday;
+                WHEN transfer() + number(dow) - dayBefore(scheduleOrder) == 6 THEN orderDOW(t) <- DOW.tuesday;
                 ELSE orderDOW(t) <- DOW(transfer() + number(dow) - dayBefore(scheduleOrder));       
             }
         }
     }
     
-    changeScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow) = ACTION {
+    changeScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow) = {
         INPUTX b = BOOLEAN DO
             IF b THEN
-                setScheduleOrderTimeIn(scheduleOrder, dow)
+                setScheduleOrderTimeIn(scheduleOrder, dow);
             ELSE
                 DELETE ScheduleOrderTime t WHERE t IS ScheduleOrderTime AND scheduleOrder(t) == scheduleOrder AND shipmentDOW(t) == dow;
     }    
@@ -531,7 +539,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         EDIT ScheduleOrder OBJECT s
     ;
     
-    change(ScheduleOrder s, DOW dow) = ACTION {
+    change(ScheduleOrder s, DOW dow) = {
         IF scheduleOrderTimeIn(s, dow) THEN
             SEEK scheduleOrder.d = [= GROUP MAX ScheduleOrderTime d BY scheduleOrder(d), shipmentDOW(d)](s, dow);
     }
@@ -637,49 +645,53 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     }
     
     overCopy = ACTION ABSTRACT LIST (ScheduleOrder, ScheduleOrder);
-    copy 'Копировать'(ScheduleOrder scheduleOrder) = ACTION NEWSESSION {
-        FOR NEW o = ScheduleOrder DO {
-            supplier(o) <- supplier(scheduleOrder);
-            supplierStock(o) <- supplierStock(scheduleOrder);
-            customer(o) <- customer(scheduleOrder);
-//            customerStockScheduleOrder(o) <- customerStockScheduleOrder(scheduleOrder);
-            type(o) <- type(scheduleOrder);
-            dayBefore(o) <- dayBefore(scheduleOrder);
-            dayLastOrder(o) <- dayLastOrder(scheduleOrder);
-            dayAfter(o) <- dayAfter(scheduleOrder);
-            startDate(o) <- startDate(scheduleOrder);
-            endDate(o) <- endDate(scheduleOrder);
-            stringNumber(o) <- stringNumber(scheduleOrder);
-            transferDay(o) <- transferDay(scheduleOrder);  
-            
-            FOR scheduleOrder(ScheduleOrderTime scheduleOrderTime) == scheduleOrder NEW sot=ScheduleOrderTime DO {
-                scheduleOrder(sot) <- o;
-                orderDOW(sot) <- orderDOW(scheduleOrderTime);
-                shipmentDOW(sot) <- shipmentDOW(scheduleOrderTime); 
-            }          
-                   
-            EXEC overCopy(scheduleOrder, o);
-
-            SHOW scheduleOrder OBJECTS s = o MANAGESESSION DOCKED;
-        }
-    } TOOLBAR;
+    copy 'Копировать'(ScheduleOrder scheduleOrder) = {
+	NEWSESSION {
+	        FOR NEW o = ScheduleOrder DO {
+	            supplier(o) <- supplier(scheduleOrder);
+	            supplierStock(o) <- supplierStock(scheduleOrder);
+	            customer(o) <- customer(scheduleOrder);
+	//            customerStockScheduleOrder(o) <- customerStockScheduleOrder(scheduleOrder);
+	            type(o) <- type(scheduleOrder);
+	            dayBefore(o) <- dayBefore(scheduleOrder);
+	            dayLastOrder(o) <- dayLastOrder(scheduleOrder);
+	            dayAfter(o) <- dayAfter(scheduleOrder);
+	            startDate(o) <- startDate(scheduleOrder);
+	            endDate(o) <- endDate(scheduleOrder);
+	            stringNumber(o) <- stringNumber(scheduleOrder);
+	            transferDay(o) <- transferDay(scheduleOrder);  
+	            
+	            FOR scheduleOrder(ScheduleOrderTime scheduleOrderTime) == scheduleOrder NEW sot=ScheduleOrderTime DO {
+	                scheduleOrder(sot) <- o;
+	                orderDOW(sot) <- orderDOW(scheduleOrderTime);
+	                shipmentDOW(sot) <- shipmentDOW(scheduleOrderTime); 
+	            }          
+	                   
+	            EXEC overCopy(scheduleOrder, o);
+	
+	            SHOW scheduleOrder OBJECTS s = o MANAGESESSION DOCKED;
+	        }
+	    }
+} TOOLBAR;
                 
     editNested 'Редактировать' = ACTION EDITFORM NESTED ScheduleOrder TOOLBAR;
-    edit(ScheduleOrder scheduleOrder) += ACTION editNested(scheduleOrder);
+    edit(ScheduleOrder scheduleOrder) += { editNested(scheduleOrder); }
 
     edit 'Редактировать' = ACTION EDITFORM ScheduleOrder TOOLBAR;
-    edit 'Редактировать' (ScheduleOrderDetail detail) = ACTION edit(scheduleOrder(detail)) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+    edit 'Редактировать' (ScheduleOrderDetail detail) = { edit(scheduleOrder(detail)); } IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-    addScheduleOrderSupplierCustomer 'Добавить'##sign(LegalEntity supplier, LegalEntity customer) = ACTION NESTEDSESSION {
-        FOR NEW s = ScheduleOrder DO {
-            supplier(s) <- supplier;
-            customer(s) <- customer;
+    addScheduleOrderSupplierCustomer 'Добавить'##sign(LegalEntity supplier, LegalEntity customer) = {
+	NESTEDSESSION {
+	        FOR NEW s = ScheduleOrder DO {
+	            supplier(s) <- supplier;
+	            customer(s) <- customer;
+	
+	            SHOW scheduleOrder OBJECTS s = s MANAGESESSION DOCKED;
+	        }
+	    }
+} IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
-            SHOW scheduleOrder OBJECTS s = s MANAGESESSION DOCKED;
-        }
-    } IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
-
-    addScheduleOrderSupplierCustomer(LegalEntity supplier, LegalEntity customer) += ACTION addScheduleOrderSupplierCustomer(supplier, customer);
+    addScheduleOrderSupplierCustomer(LegalEntity supplier, LegalEntity customer) += { addScheduleOrderSupplierCustomer(supplier, customer); }
 
     supplier = DATA LOCAL LegalEntity();
     nameSupplier 'Поставщик' = name(supplier());

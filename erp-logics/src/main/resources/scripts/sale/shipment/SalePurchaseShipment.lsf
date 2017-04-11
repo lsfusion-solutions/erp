@@ -66,7 +66,7 @@ CONSTRAINT supplier(Purchase.UserShipmentDetail detail) != supplier(shipmentDeta
 descriptionIndexShipmentDetail 'Строка поставки (продажа)' (Purchase.ShipmentDetail detail) = descriptionIndex(shipmentDetail(detail));
 descriptionIndexShipmentDetail 'Строка поставки (продажа)' (Purchase.UserShipmentDetail detail) = descriptionIndex(shipmentDetail(detail));
 
-overCopy[Purchase.UserShipmentDetail,Purchase.UserShipmentDetail](Purchase.UserShipmentDetail d, Purchase.UserShipmentDetail detail) += ACTION {      
+overCopy[Purchase.UserShipmentDetail,Purchase.UserShipmentDetail](Purchase.UserShipmentDetail d, Purchase.UserShipmentDetail detail) += {      
     shipmentDetail(d) <- shipmentDetail(detail);             
 } 
 
@@ -139,8 +139,8 @@ price(PurchaseShipmentDetail shipmentDetail) += price(shipmentDetail(shipmentDet
 
 sum(PurchaseShipmentDetail shipmentDetail) += sum(shipmentDetail(shipmentDetail));
 
-edit(PurchaseShipment shipment) += ACTION EXEC edit(shipment(shipment));
-close(PurchaseShipment shipment) += ACTION EXEC close(shipment(shipment));
+edit(PurchaseShipment shipment) += { EXEC edit(shipment(shipment)); }
+close(PurchaseShipment shipment) += { EXEC close(shipment(shipment)); }
 createdUser(PurchaseShipment shipment) += createdUser(shipment(shipment));
 
 showPack(PurchaseShipment shipment) +=  showPack(shipment(shipment));
@@ -150,8 +150,8 @@ packQuantity(PurchaseShipmentDetail shipmentDetail) +=  packQuantity(shipmentDet
 
 shipmentDetail(PurchaseShipmentDetail shipmentDetail) += shipmentDetail(shipmentDetail);
 
-edit(PurchaseShipmentDetail shipmentDetail) += ACTION edit(shipmentDetail(shipmentDetail));
-show(PurchaseShipmentDetail shipmentDetail) += ACTION show(shipmentDetail(shipmentDetail));
+edit(PurchaseShipmentDetail shipmentDetail) += { edit(shipmentDetail(shipmentDetail)); }
+show(PurchaseShipmentDetail shipmentDetail) += { show(shipmentDetail(shipmentDetail)); }
 // Создание поставки на основе поставки //
 
 FORM shipmentShipments 'Поставки'
@@ -225,7 +225,7 @@ DESIGN shipmentShipments {
 }
 
 
-fillShipment 'Заполнить на основе поставки'(Purchase.UserShipment userShipment) =  ACTION {       // подставляем все количество ???
+fillShipment 'Заполнить на основе поставки'(Purchase.UserShipment userShipment) =  {       // подставляем все количество ???
     DIALOG shipmentShipments OBJECTS s = supplier(userShipment), c = customer(userShipment),
                                    ss = supplierStock(userShipment), cs = customerStock(userShipment), o INPUT DO {
         FOR shipment(ShipmentDetail shipmentDetail) == o NEW d = Purchase.UserShipmentDetail DO {
@@ -257,39 +257,41 @@ EXTEND FORM Purchase.shipments
 
 //-- Действие
 
-moveUserShipment 'Поставка (закупка)'(Shipment shipment) =  ACTION NEWSESSION{
-
-    FOR NEW s = Purchase.UserShipment DO {
-        supplier(s) <- supplier(shipment);
-        customer(s) <- customer(shipment);
-        supplierStock(s) <- supplierStock(shipment);
-        customerStock(s) <- customerStock(shipment);
-        number(s) <- number(shipment);
-        series(s) <- series(shipment);
-        note(s) <- note(shipment);
-        currency(s) <- currency(shipment);
-
-        showPack(s) <- showPack(shipment);
-        operation(s) <- purchaseOperation(operation(shipment));
-
-        FOR shipment(ShipmentDetail detail)==shipment NEW d = Purchase.UserShipmentDetail DO {
-
-            userShipment(d) <- s;
-            shipmentDetail(d) <- detail;
-
-            sku(d) <- sku(detail);
-            quantity (d) <- quantity(detail);
-            price (d) <- price(detail);
-
-            barcodePack (d) <- barcodePack(detail);
-            amountPack (d) <- amountPack(detail);
-            packQuantity (d) <- packQuantity(detail);
-
-            batch(d) <- batch(detail);
-        }
-
-    SHOW Purchase.userShipment OBJECTS s = s MANAGESESSION DOCKED NOCANCEL;
-    }
+moveUserShipment 'Поставка (закупка)'(Shipment shipment) =  {
+	NEWSESSION{
+	
+	    FOR NEW s = Purchase.UserShipment DO {
+	        supplier(s) <- supplier(shipment);
+	        customer(s) <- customer(shipment);
+	        supplierStock(s) <- supplierStock(shipment);
+	        customerStock(s) <- customerStock(shipment);
+	        number(s) <- number(shipment);
+	        series(s) <- series(shipment);
+	        note(s) <- note(shipment);
+	        currency(s) <- currency(shipment);
+	
+	        showPack(s) <- showPack(shipment);
+	        operation(s) <- purchaseOperation(operation(shipment));
+	
+	        FOR shipment(ShipmentDetail detail)==shipment NEW d = Purchase.UserShipmentDetail DO {
+	
+	            userShipment(d) <- s;
+	            shipmentDetail(d) <- detail;
+	
+	            sku(d) <- sku(detail);
+	            quantity (d) <- quantity(detail);
+	            price (d) <- price(detail);
+	
+	            barcodePack (d) <- barcodePack(detail);
+	            amountPack (d) <- amountPack(detail);
+	            packQuantity (d) <- packQuantity(detail);
+	
+	            batch(d) <- batch(detail);
+	        }
+	
+	    SHOW Purchase.userShipment OBJECTS s = s MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR;
 
 EXTEND FORM shipments

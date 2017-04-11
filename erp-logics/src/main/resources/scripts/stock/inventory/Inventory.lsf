@@ -164,7 +164,7 @@ nameIncludeSkuGroups 'Группы товаров' (document)=
     ORDER skuGroup
     MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
-resetIncludeSkuGroups  'Сбросить отмеченные'(Inventory in) = ACTION {
+resetIncludeSkuGroups  'Сбросить отмеченные'(Inventory in) = {
     dataInclude(in, SkuGroup g) <- NULL WHERE g IS SkuGroup ;    
 }  
 
@@ -185,7 +185,7 @@ DESIGN selectSkuGroups {
     }
 }
 
-changeSkuGroups (Inventory in) = ACTION {
+changeSkuGroups (Inventory in) = {
     IF typeOfAddition(in) == TypeOfAddition.remains THEN {
         SHOW selectSkuGroups OBJECTS in = in ; 
     }
@@ -296,7 +296,7 @@ WHEN SESSION (CHANGED(sku(PageInventoryDetail detail)) OR CHANGED(batch(detail))
     price (detail)  <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail));
 }
 
-replace(Sku s, Batch b) += ACTION { sku(PageInventoryDetail detail) <- s WHERE batch(detail) == b;} 
+replace(Sku s, Batch b) += { sku(PageInventoryDetail detail) <- s WHERE batch(detail) == b;} 
 // -------------------------------------------- Сличительная ведомость ----------------------------------------------- //
 
 CLASS ABSTRACT CollationSheet 'Сличительная ведомость';
@@ -405,7 +405,7 @@ costSumBalance 'Сумма по остаткам(себестоимость)' (C
 GROUP inventoryAction 'Действия' : public;
 overRecalculateBalance = ACTION ABSTRACT LIST (Inventory);
 
-recalculateBalance 'Заполнить остатки' (Inventory inventory) = ACTION {   
+recalculateBalance 'Заполнить остатки' (Inventory inventory) = {   
     quantityBalance(CollationSheet cs, Sku sku) <- NULL WHERE inventory(cs) == inventory;
     sumBalance(CollationSheet cs, Sku sku)<- NULL WHERE inventory(cs) == inventory;
     quantityBalance(CollationSheet cs, Batch batch)<- NULL WHERE inventory(cs) == inventory;
@@ -433,7 +433,7 @@ recalculateBalance 'Заполнить остатки' (Inventory inventory) = A
                 FOR inventory(CollationSheet cs) == inventory DO {
                     IF explicitBatchLedger(stock(cs)) THEN 
                         sumBalance(cs, Batch batch)
-                            <- NUMERIC[18,4](sumB(batch, stock(cs), dateTime(inventory(cs)))) WHERE include(inventory(cs), sku(batch))
+                            <- NUMERIC[18,4](sumB(batch, stock(cs), dateTime(inventory(cs)))) WHERE include(inventory(cs), sku(batch));
                     ELSE
                         sumBalance(cs, Batch batch)
                             <- NUMERIC[18,4](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(stock(cs)))) WHERE include(inventory(cs), sku(batch));
@@ -466,7 +466,7 @@ recalculateBalance 'Заполнить остатки' (Inventory inventory) = A
                 FOR inventory(CollationSheet cs) == inventory DO {
                     IF explicitBatchLedger(stock(cs)) THEN 
                         sumBalance(cs, Batch batch)
-                            <- NUMERIC[18,4](sumB(batch, stock(cs), dateTime(inventory(cs))))
+                            <- NUMERIC[18,4](sumB(batch, stock(cs), dateTime(inventory(cs))));
                     ELSE
                         sumBalance(cs, Batch batch)
                             <- NUMERIC[18,4](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(stock(cs))));
@@ -484,7 +484,7 @@ recalculateBalance 'Заполнить остатки' (Inventory inventory) = A
 } CONFIRM IN inventoryAction;
 
 overPriceBalance = ABSTRACT NUMERIC[16,4](CollationSheet, Sku);
-recalculatePrice 'Пересчитать цены в сличительной ведомости' (CollationSheet collationSheet) = ACTION {
+recalculatePrice 'Пересчитать цены в сличительной ведомости' (CollationSheet collationSheet) = {
     IF isBatch (collationSheet) THEN {
         price(PageInventoryDetail pageInventoryDetail)
             <- OVERRIDE overPriceBalance(collationSheet, sku(pageInventoryDetail)), priceB(SystemLedgerPriceListType.accountPriceListType, batch(pageInventoryDetail), stock(pageInventoryDetail), dateTime(pageInventoryDetail))
@@ -538,7 +538,7 @@ recalculatePrice 'Пересчитать цены в сличительной в
     }
 } CONFIRM IN inventoryAction;
 
-recalculatePrice 'Пересчитать цены по всей инвентаризации' (Inventory inventory) = ACTION {
+recalculatePrice 'Пересчитать цены по всей инвентаризации' (Inventory inventory) = {
     FOR inventory(CollationSheet collationSheet) == inventory DO {
         EXEC recalculatePrice(collationSheet);
     }
@@ -865,7 +865,7 @@ sumContainerManageShortage 'Сумма недостачи / излишка, та
 
 // Объединение товаров                                                                               
 
-overReplace(Sku s, Sku d) += ACTION {
+overReplace(Sku s, Sku d) += {
     quantityBalance(CollationSheet collationSheet, d) <- balanceB(d, stock(collationSheet), dateTime(inventory(collationSheet)))
         WHERE countPageInventoryDetail(collationSheet, s);
         
@@ -901,7 +901,7 @@ overReplace(Sku s, Sku d) += ACTION {
 
 sumItemAccountB 'Сумма по ТО, товар' = DATA NUMERIC[18,4] (CollationSheet);
 sumContainerAccountB 'Сумма по ТО, тара' = DATA NUMERIC[18,4] (CollationSheet);
-recalculateSumAccountB 'Пересчитать остатки по ТО'(CollationSheet c) = ACTION {
+recalculateSumAccountB 'Пересчитать остатки по ТО'(CollationSheet c) = {
     sumItemAccountB(c) <- prevSumItemAccountBDocumentLedger(stock(c), dateTime(c));
     sumContainerAccountB (c) <- prevSumContainerAccountBDocumentLedger(stock(c), dateTime(c));
 }
@@ -909,7 +909,7 @@ recalculateSumAccountB 'Пересчитать остатки по ТО'(Collati
 WHEN SESSION CHANGED(stock(CollationSheet c)) OR CHANGED(dateTime(c)) DO
     recalculateSumAccountB(c);
 
-overRecalculateBalance (Inventory i) += ACTION {
+overRecalculateBalance (Inventory i) += {
     FOR inventory(CollationSheet c) == i DO 
         recalculateSumAccountB(c);
 }
@@ -1108,7 +1108,7 @@ DESIGN collationSheetBatches {
     }
 }
 
-showCost 'Расписывание по партиям' (CollationSheet cs, Sku s) = ACTION {
+showCost 'Расписывание по партиям' (CollationSheet cs, Sku s) = {
     SHOW collationSheetBatches OBJECTS cs = cs, s = s ;
 }
 
@@ -1238,7 +1238,7 @@ DESIGN dialogStockInventory {
 }
 
 dialogStock 'Выбрать склады для инвентаризации' (Inventory inventory) =
-    ACTION SHOW dialogStockInventory OBJECTS in = inventory DOCKED;
+    { SHOW dialogStockInventory OBJECTS in = inventory DOCKED; }
 
 //------------------------------------ Выбор SKU для сличительной ведомости ------------------------------------------//
 
@@ -1273,14 +1273,14 @@ DESIGN dialogSkuCollationSheet {
     MOVE functions.box;
 }
 
-dialogSku 'Добавить товар'(ManyCollationSheet collationSheet) = ACTION {
+dialogSku 'Добавить товар'(ManyCollationSheet collationSheet) = {
     IF collationSheet IS ManyCollationSheet THEN
         SHOW dialogSkuCollationSheet OBJECTS cs = collationSheet ;
 } TOOLBAR;
 
 //------------------------------------ Формы редактирования описей ------------------------------------------//
 
-createPage 'Создать страницу описи с остатками'  (ListInventory listInventory) = ACTION {
+createPage 'Создать страницу описи с остатками'  (ListInventory listInventory) = {
     DIALOG dialogSkuGroup DO {    
         FOR NEW p = PageInventory  DO {
             listInventory(p) <- listInventory;
@@ -1410,16 +1410,18 @@ DESIGN listInventory {
     }
 }
 
-addListInventory 'Добавить'(Stock stock, Inventory inventory) = ACTION NEWSESSION {
-    FOR NEW g = ListInventory DO {
-        stock(g) <- stock;
-        inventory(g) <- inventory;
-        inSession(SkuGroup group) <- include(inventory, group);
-        SHOW listInventory OBJECTS li = g MANAGESESSION DOCKED NOCANCEL;
-    }
+addListInventory 'Добавить'(Stock stock, Inventory inventory) = {
+	NEWSESSION {
+	    FOR NEW g = ListInventory DO {
+	        stock(g) <- stock;
+	        inventory(g) <- inventory;
+	        inSession(SkuGroup group) <- include(inventory, group);
+	        SHOW listInventory OBJECTS li = g MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR IMAGE 'add.png';
 
-changeAddDetailInputIdSku(VARSTRING[100] idSku, PageInventory page) = ACTION {
+changeAddDetailInputIdSku(VARSTRING[100] idSku, PageInventory page) = {
     IF sku(idSku) THEN {  
         FOR NEW  d = PageInventoryDetail DO {
             pageInventory(d) <- page;   
@@ -1431,14 +1433,14 @@ changeAddDetailInputIdSku(VARSTRING[100] idSku, PageInventory page) = ACTION {
         MESSAGE 'Код товара не найден.';
     }
 } 
-changeAddDetailInput(PageInventory page) = ACTION {
+changeAddDetailInput(PageInventory page) = {
     INPUTX s = STRING[20] DO
         changeAddDetailInputIdSku(s, page);
 };
 addDetailInput 'Код товара:' (page) = DATA LOCAL STRING[20] (PageInventory) TOOLBAR EDITKEY 'F5' 
-                                                                        ON CHANGE changeAddDetailInput(page) PREFCHARWIDTH 10;  
+                                                                        ON CHANGE { changeAddDetailInput(page); } PREFCHARWIDTH 10;  
                                                                      
-changeAddDetailInputBarcode(VARSTRING[15] barcode, PageInventory page) = ACTION {
+changeAddDetailInputBarcode(VARSTRING[15] barcode, PageInventory page) = {
     IF skuBarcode(barcode, date(listInventory(page))) THEN {  
         FOR NEW  d = PageInventoryDetail DO {
             pageInventory(d) <- page;   
@@ -1450,12 +1452,12 @@ changeAddDetailInputBarcode(VARSTRING[15] barcode, PageInventory page) = ACTION 
         MESSAGE 'Штриход товара не найден.';
     }
 } 
-changeAddDetailInputBarcode(PageInventory page) = ACTION {
+changeAddDetailInputBarcode(PageInventory page) = {
     INPUTX s = VARSTRING[15] DO 
         changeAddDetailInputBarcode(s, page);
 }
 addDetailInputBarcode 'Штрихкод товара:' (page) = DATA LOCAL VARSTRING[15] (PageInventory) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
-                                                                        ON CHANGE changeAddDetailInputBarcode(page) PREFCHARWIDTH 15;
+                                                                        ON CHANGE { changeAddDetailInputBarcode(page); } PREFCHARWIDTH 15;
 
 EXTEND FORM listInventory
     PROPERTIES (pl) TODRAW dp addDetailInputBarcode, addDetailInput  
@@ -1711,50 +1713,66 @@ DESIGN inventory {
     MOVE functions.box;
 }
 
-edit 'Редактировать' (InInventoryBatchDetail d) = ACTION NEWSESSION {
-    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  MANAGESESSION DOCKED;
+edit 'Редактировать' (InInventoryBatchDetail d) = {
+	NEWSESSION {
+	    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  MANAGESESSION DOCKED;
+	}
 }
-edit(InInventoryBatchDetail d) += ACTION edit(d);
+edit(InInventoryBatchDetail d) += { edit(d); }
 
-edit 'Редактировать' (InInventorySkuDetail d) = ACTION NEWSESSION {
-    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  MANAGESESSION DOCKED;
+edit 'Редактировать' (InInventorySkuDetail d) = {
+	NEWSESSION {
+	    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  MANAGESESSION DOCKED;
+	}
 }
-edit(InInventorySkuDetail d) += ACTION edit(d);
+edit(InInventorySkuDetail d) += { edit(d); }
 
-edit 'Редактировать' (OutInventoryBatchDetail d) = ACTION NEWSESSION {
-    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  MANAGESESSION DOCKED;
+edit 'Редактировать' (OutInventoryBatchDetail d) = {
+	NEWSESSION {
+	    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  MANAGESESSION DOCKED;
+	}
 }
-edit(OutInventoryBatchDetail d) += ACTION edit(d);
+edit(OutInventoryBatchDetail d) += { edit(d); }
 
-edit 'Редактировать' (OutInventorySkuDetail d) = ACTION NEWSESSION {
-    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  MANAGESESSION DOCKED;
+edit 'Редактировать' (OutInventorySkuDetail d) = {
+	NEWSESSION {
+	    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  MANAGESESSION DOCKED;
+	}
 }
-edit(OutInventorySkuDetail d) += ACTION edit(d);
+edit(OutInventorySkuDetail d) += { edit(d); }
 
-show 'Просмотреть' (InInventoryBatchDetail d) = ACTION NEWSESSION {
-    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  DOCKED READONLY ;
+show 'Просмотреть' (InInventoryBatchDetail d) = {
+	NEWSESSION {
+	    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  DOCKED READONLY ;
+	}
 }
-show(InInventoryBatchDetail d) += ACTION show(d);
+show(InInventoryBatchDetail d) += { show(d); }
 
-show 'Просмотреть' (InInventorySkuDetail d) = ACTION NEWSESSION {
-    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  DOCKED READONLY;
+show 'Просмотреть' (InInventorySkuDetail d) = {
+	NEWSESSION {
+	    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  DOCKED READONLY;
+	}
 }
-show(InInventorySkuDetail d) += ACTION show(d);
+show(InInventorySkuDetail d) += { show(d); }
 
-show 'Просмотреть' (OutInventoryBatchDetail d) = ACTION NEWSESSION {
-    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  DOCKED READONLY;
+show 'Просмотреть' (OutInventoryBatchDetail d) = {
+	NEWSESSION {
+	    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  DOCKED READONLY;
+	}
 }
-show(OutInventoryBatchDetail d) += ACTION show(d);
+show(OutInventoryBatchDetail d) += { show(d); }
 
-show 'Просмотреть' (OutInventorySkuDetail d) = ACTION NEWSESSION {
-    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  DOCKED READONLY;
+show 'Просмотреть' (OutInventorySkuDetail d) = {
+	NEWSESSION {
+	    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  DOCKED READONLY;
+	}
 }
-show(OutInventorySkuDetail d) += ACTION show(d);
+show(OutInventorySkuDetail d) += { show(d); }
 
 
 edit 'Редактировать' = ACTION EDITFORM Inventory;
 
-edit(CollationSheet l) += ACTION edit(inventory(l));
+edit(CollationSheet l) += { edit(inventory(l)); }
 
 @extendFormFilterStockAccess(ts, dialogStockInventory);
 
@@ -2046,7 +2064,7 @@ EXTEND FORM inventory
     PROPERTIES (cs,i) batchQuantity READONLY SHOWIF isSkuBatch(cs) 
 ;
 
-overRecalculateBalance(Inventory in) += ACTION {
+overRecalculateBalance(Inventory in) += {
     FOR inventory(CollationSheet cs) == in DO {
         IF isSkuBatch(cs) THEN {
             

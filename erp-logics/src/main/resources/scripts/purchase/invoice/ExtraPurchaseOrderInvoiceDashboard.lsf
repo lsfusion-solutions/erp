@@ -9,7 +9,7 @@ backgroundInvoiceDetails = RGB (212,255,212) IF OrderDetail d IS OrderDetail AND
 perform = ACTION ABSTRACT LIST (UserInvoiceDetail, OrderDetail);
 
 
-perform 'Принять'(OrderDetail od, UserInvoice invoice) = ACTION {
+perform 'Принять'(OrderDetail od, UserInvoice invoice) = {
     FOR NEW d = UserInvoiceDetail DO {    
         
         userInvoice(d) <- invoice;  
@@ -56,7 +56,7 @@ DESIGN quantityPrice {
 correct = ACTION ABSTRACT LIST (UserInvoiceDetail, OrderDetail);
 correctLocalUser = ACTION ABSTRACT LIST (OrderDetail);
 
-correct 'Корректировать'(OrderDetail od, UserInvoice invoice) = ACTION {
+correct 'Корректировать'(OrderDetail od, UserInvoice invoice) = {
     quantityLocal(od) <- quantity(od);
     priceLocal(od) <- price(od);
     correctLocalUser(od);
@@ -141,16 +141,18 @@ DESIGN userInvoice {
     MOVE functions.box;
 }
 
-extraCreateMultiUserInvoice 'Создать накладную (без строк)'(Order order)= ACTION NEWSESSION {
-    IF order IS Order THEN {
-        FOR NEW i = UserInvoice DO {
-
-            fillHeader(i, order);               
-            include(order, i)<- TRUE;
-                          
-            SHOW userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
-        }
-    }
+extraCreateMultiUserInvoice 'Создать накладную (без строк)'(Order order)= {
+	NEWSESSION {
+	    IF order IS Order THEN {
+	        FOR NEW i = UserInvoice DO {
+	
+	            fillHeader(i, order);               
+	            include(order, i)<- TRUE;
+	                          
+	            SHOW userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
+	        }
+	    }
+	}
 }
 
 numberInvoice 'Номер накладной' = DATA LOCAL NESTED INTEGER (OrderDetail);
@@ -198,7 +200,7 @@ DESIGN selectOrderOrderDetail {
     }
 }
 
-extraCreateInvoices 'Создать несколько накладных'(Order order)= ACTION  {
+extraCreateInvoices 'Создать несколько накладных'(Order order)= {
     numberInvoice(OrderDetail od) <- NULL WHERE order(od) == order;
     DIALOG selectOrderOrderDetail OBJECTS o = order DO {
         IF countNumberInvoice(order) THEN {

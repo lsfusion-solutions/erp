@@ -193,14 +193,14 @@ addressLegalEntity 'Адрес' (UserWriteOff userWriteOff) = address(legalEntit
 // Для инвентаризации по партиям
 @showDocumentInterfaceDetailBatch(writeOff);
 @defineDocumentInterfaceDetailBatch(writeOff, batch);
-changeBatch(UserWriteOffDetail detail) = ACTION {
+changeBatch(UserWriteOffDetail detail) = {
     DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
                              t = dateTime(detail),
                              sk = sku(detail),
                              bt = batch(detail) INPUT NULL DO
         batch(detail) <- bt;
 }
-replace(Sku s, Batch b) += ACTION { sku(UserWriteOffDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += { sku(UserWriteOffDetail detail) <- s WHERE batch(detail) == b;}
 
 @defineDocumentInterfaceDetailQuantity(writeOff);
 @defineDocumentInterfaceDetailPrice(writeOff);
@@ -393,7 +393,7 @@ shipmentDateTime(WriteOff writeOff) = dateTime(writeOff);
 
 edit 'Редактировать'  = ACTION EDITFORM UserWriteOff;
 
-edit(UserWriteOff w) += ACTION edit(w);
+edit(UserWriteOff w) += { edit(w); }
 skipShowEdit = ABSTRACT BOOLEAN (WriteOff);
 skipShowDelete = ABSTRACT BOOLEAN (WriteOff);
 
@@ -632,8 +632,8 @@ sumContainer (WriteOff ledger) += sumContainerWriteOffDetail(ledger);
 legalEntity(WriteOff ledger) += contact(ledger);  
 
 operation[StockDocumentLedger](WriteOff ledger) += operation(ledger);
-edit[StockDocumentLedger](WriteOff l) += ACTION edit(l);
-close[StockDocumentLedger](WriteOff l) += ACTION close(l);
+edit[StockDocumentLedger](WriteOff l) += { edit(l); }
+close[StockDocumentLedger](WriteOff l) += { close(l); }
 skip(WriteOff l) += skipStockDocumentLedger(l);
 
 
@@ -647,16 +647,20 @@ sum[OutSkuLedger] (WriteOffDetail ledger) += sum(ledger);
 stockDocumentLedger(WriteOffDetail ledger) += writeOff(ledger); 
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (WriteOffDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserWriteOffDetail d) = ACTION NEWSESSION {
-    SHOW userWriteOff OBJECTS w = userWriteOff(d), d = d MANAGESESSION DOCKED;
+edit(UserWriteOffDetail d) = {
+	NEWSESSION {
+	    SHOW userWriteOff OBJECTS w = userWriteOff(d), d = d MANAGESESSION DOCKED;
+	}
 }
-edit(UserWriteOffDetail d) += ACTION edit(d);
-edit[SkuLedger](WriteOffDetail d) += ACTION edit(d);
+edit(UserWriteOffDetail d) += { edit(d); }
+edit[SkuLedger](WriteOffDetail d) += { edit(d); }
 
 show 'Просмотреть' = ACTION ABSTRACT LIST (WriteOffDetail) TOOLBAR;
-show(UserWriteOffDetail d) = ACTION NEWSESSION {
-    SHOW userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED READONLY;
+show(UserWriteOffDetail d) = {
+	NEWSESSION {
+	    SHOW userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED READONLY;
+	}
 }
-show(UserWriteOffDetail d) += ACTION show(d);
-show[SkuLedger](WriteOffDetail d) += ACTION show(d);
+show(UserWriteOffDetail d) += { show(d); }
+show[SkuLedger](WriteOffDetail d) += { show(d); }
 

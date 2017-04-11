@@ -83,7 +83,7 @@ EXTEND FORM discountCards
 ;
 
 numberDiscountCardInput 'Штрихкод' = DATA LOCAL VARSTRING[15] () EVENTID 'SCANNER';
-changeNumberDiscountCardInput() = ACTION {
+changeNumberDiscountCardInput() = {
     INPUTX s = VARSTRING[15] DO {
         numberDiscountCardInput() <- processedBarcode(s);
         formOk();
@@ -105,7 +105,7 @@ DESIGN numberDiscountCardInput {
 }
 
 numberDiscountCardInputNew 'Штрихкод' = DATA LOCAL VARSTRING[15] () EVENTID 'SCANNER';
-changeNumberDiscountCardInputNew() = ACTION {
+changeNumberDiscountCardInputNew() = {
     INPUTX s = VARSTRING[15] DO {
         numberDiscountCardInputNew() <- processedBarcode(s);
         formOk();
@@ -129,13 +129,13 @@ DESIGN numberDiscountCardInputNew {
 showTransferSum() = numberDiscountCardInput() AND NOT numberDiscountCardInputNew();
 notShowTransferSum() = NOT showTransferSum();
 
-changeTransferSum (DiscountCard dc) = ACTION {
+changeTransferSum (DiscountCard dc) = {
     INPUTX n = NUMERIC[18,4] DO
         IF NOT n > prevTotalSum(dc) AND NOT n < 0.0 THEN
-            transferSum(dc) <- n
+            transferSum(dc) <- n;
         ELSE 
             IF n < 0.0 THEN
-                MESSAGE 'Сумма перевода не может быть меньше ноля'
+                MESSAGE 'Сумма перевода не может быть меньше ноля';
         ELSE    
             MESSAGE 'Нельзя переводить сумму больше суммы накопленний';           
 }
@@ -181,29 +181,31 @@ DESIGN transferDiscountCards {
 }
 
 overTransferDiscountCards = ACTION ABSTRACT LIST (DiscountCard, DiscountCard); 
-transferDiscountCards 'Замена карты' () = ACTION NEWSESSION {
-    DIALOG numberDiscountCardInput DO {
-        FOR DiscountCard card == discountString(numberDiscountCardInput()) DO { 
-            transferSum(card) <- prevTotalSum(card);
-            DIALOG transferDiscountCards OBJECTS dc = card DO {
-                DIALOG numberDiscountCardInputNew DO {
-                    FOR DiscountCard newCard == discountString(numberDiscountCardInputNew()) DO {
-                        discountCard(card) <- newCard;
-                        dateTo(card) <- currentDate();
-                        legalEntity(newCard) <- legalEntity(card) WHERE NOT legalEntity(newCard);
-                        overTransferDiscountCards(newCard, card);
-                        
-                        DIALOG transferDiscountCards OBJECTS dc = newCard DO {
-                            apply();
-                            IF NOT canceled() THEN {
-                                MESSAGE 'Замена карты была успешно проведена';
-                            }
-                        }
-                    }    
-                }
-            }
-        }    
-    }
+transferDiscountCards 'Замена карты' () = {
+	NEWSESSION {
+	    DIALOG numberDiscountCardInput DO {
+	        FOR DiscountCard card == discountString(numberDiscountCardInput()) DO { 
+	            transferSum(card) <- prevTotalSum(card);
+	            DIALOG transferDiscountCards OBJECTS dc = card DO {
+	                DIALOG numberDiscountCardInputNew DO {
+	                    FOR DiscountCard newCard == discountString(numberDiscountCardInputNew()) DO {
+	                        discountCard(card) <- newCard;
+	                        dateTo(card) <- currentDate();
+	                        legalEntity(newCard) <- legalEntity(card) WHERE NOT legalEntity(newCard);
+	                        overTransferDiscountCards(newCard, card);
+	                        
+	                        DIALOG transferDiscountCards OBJECTS dc = newCard DO {
+	                            apply();
+	                            IF NOT canceled() THEN {
+	                                MESSAGE 'Замена карты была успешно проведена';
+	                            }
+	                        }
+	                    }    
+	                }
+	            }
+	        }    
+	    }
+	}
 }
 
 

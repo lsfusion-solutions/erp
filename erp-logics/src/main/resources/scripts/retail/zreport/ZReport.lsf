@@ -217,7 +217,7 @@ active(ReceiptDetail d) = MULTI active[ReceiptSaleDetail](d), active[ReceiptRetu
 
 setAttributes = ACTION ABSTRACT (ReceiptDetail);
 
-changeDialogSku(ReceiptDetail detail)  = ACTION {
+changeDialogSku(ReceiptDetail detail)  = {
     setAttributes(detail); 
     DIALOG skus OBJECTS s = sku(detail) INPUT NULL DO
         sku(detail) <- s;
@@ -231,10 +231,10 @@ changeDialogSku(ReceiptDetail detail)  = ACTION {
 batch(ReceiptSaleDetail detail) += batch(detail);
 batch(ReceiptReturnDetail detail) += batch(detail);
 
-replace(Sku s, Batch b) += ACTION { sku(ReceiptSaleDetail detail) <- s WHERE batch(detail) == b;}
-replace(Sku s, Batch b) += ACTION { sku(ReceiptReturnDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += { sku(ReceiptSaleDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += { sku(ReceiptReturnDetail detail) <- s WHERE batch(detail) == b;}
 
-changeBatch(ReceiptDetail detail) = ACTION {
+changeBatch(ReceiptDetail detail) = {
     DIALOG dialogBatchStockOut OBJECTS st = departmentStore(detail),
                              t = dateTime(detail),
                              sk = sku(detail),
@@ -698,11 +698,13 @@ overCopy = ACTION ABSTRACT LIST (ReceiptDetail, Receipt);
 
 edit 'Редактировать' = ACTION EDITFORM ZReport;
 
-show 'Просмотреть' (ZReport z) = ACTION NEWSESSION {
-    SHOW zReport OBJECTS z = z DOCKED READONLY ;
+show 'Просмотреть' (ZReport z) = {
+	NEWSESSION {
+	    SHOW zReport OBJECTS z = z DOCKED READONLY ;
+	}
 }
 
-copy 'Копировать'(Receipt receipt) = ACTION {
+copy 'Копировать'(Receipt receipt) = {
     FOR NEW r = Receipt DO {
         zReport(r) <- zReport(receipt);
         skip(r) <- skip(receipt);
@@ -785,27 +787,35 @@ WHEN SESSION FORMS zReport CHANGED (sku(ReceiptDetail d))  AND NOT (CHANGED (idB
         
 edit 'Редактировать' = ACTION ABSTRACT LIST  (ReceiptDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-edit 'Редактировать' (ReceiptReturnDetail d) = ACTION NEWSESSION {
-    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKED;
+edit 'Редактировать' (ReceiptReturnDetail d) = {
+	NEWSESSION {
+	    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKED;
+	}
 }
-edit(ReceiptReturnDetail d) += ACTION edit(d);
+edit(ReceiptReturnDetail d) += { edit(d); }
 
-edit 'Редактировать' (ReceiptSaleDetail d) = ACTION NEWSESSION {
-    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKED;
+edit 'Редактировать' (ReceiptSaleDetail d) = {
+	NEWSESSION {
+	    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKED;
+	}
 }
-edit(ReceiptSaleDetail d) += ACTION edit(d);
+edit(ReceiptSaleDetail d) += { edit(d); }
 
 show 'Просмотреть' = ACTION ABSTRACT LIST  (ReceiptDetail)  TOOLBAR;
 
-show 'Просмотреть' (ReceiptReturnDetail d) = ACTION NEWSESSION {
-    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED READONLY ;
+show 'Просмотреть' (ReceiptReturnDetail d) = {
+	NEWSESSION {
+	    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED READONLY ;
+	}
 }
-show(ReceiptReturnDetail d) += ACTION show(d);
+show(ReceiptReturnDetail d) += { show(d); }
 
-show 'Просмотреть' (ReceiptSaleDetail d) = ACTION NEWSESSION {
-    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED READONLY;
+show 'Просмотреть' (ReceiptSaleDetail d) = {
+	NEWSESSION {
+	    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED READONLY;
+	}
 }
-show(ReceiptSaleDetail d) += ACTION show(d);
+show(ReceiptSaleDetail d) += { show(d); }
 
 
 isPostedOpened (ZReport z)= isPosted(z) AND isOpened(z);
@@ -1003,7 +1013,7 @@ DESIGN zReports {
 
 // ----------------------------------------------- Стандартные значения ------------------------------------- //
 
-loadDefaultType 'Добавить тип оплаты'(VARISTRING[110] string, PaymentMeans paymentMeans, STRING[10] sid) = ACTION {
+loadDefaultType 'Добавить тип оплаты'(VARISTRING[110] string, PaymentMeans paymentMeans, STRING[10] sid) = {
     FOR NEW p = PaymentType DO {
         name(p) <- string;
         paymentMeans(p) <- paymentMeans;
@@ -1012,7 +1022,7 @@ loadDefaultType 'Добавить тип оплаты'(VARISTRING[110] string, P
 }
 
 overLoadDefaultPaymentTypes 'Загрузить дополнительные типы оплаты' = ACTION ABSTRACT LIST ();
-loadDefaultPaymentTypes 'Загрузить стандартные типы оплаты'() = ACTION {
+loadDefaultPaymentTypes 'Загрузить стандартные типы оплаты'() = {
     loadDefaultType('Наличные', PaymentMeans.paymentMeansCash, 'cash');
     loadDefaultType('Карточка', PaymentMeans.paymentMeansCard, 'card');
     overLoadDefaultPaymentTypes();

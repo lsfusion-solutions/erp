@@ -12,7 +12,7 @@ showHumidity 'Отображать влажность' = DATA BOOLEAN(BOM) IN do
 percentHumidity 'Влажность, %' (Product p) = percentHumidity(sku(p)) IN itemHumidity;
 @changeNutrition(product, sku, percentHumidity) ;
 percentDryness 'Массовая доля сухих веществ, %' (Product p) = percentDryness(sku(p)) IN itemHumidity;
-changePercentDryness(Product product)  = ACTION {
+changePercentDryness(Product product)  = {
     INPUTX n = NUMERIC[8,2] DO
         percentHumidity(Item item) <- (100-n) WHERE item == sku(product);
 }
@@ -21,7 +21,7 @@ changePercentDryness(Product product)  = ACTION {
 percentHumidity 'Влажность, %' (Component component) = percentHumidity[Item](overSku(component));
 @changeNutrition(component, overSku, percentHumidity);
 percentDryness 'Массовая доля сухих веществ, %' (Component component) = percentDryness[Item](overSku(component)) IN itemHumidity;     
-changePercentDryness(Component component)  = ACTION {
+changePercentDryness(Component component)  = {
     INPUTX n = NUMERIC[8,2] DO
         percentHumidity(Item item) <- (100-n) WHERE item == overSku(component);
 }                                           
@@ -129,7 +129,7 @@ FORM productionRecipe 'Производственная рецептура'
                   material(c2) IS Product                      
                   
 ;
-printProductionRecipe 'Производственная рецептура'(BOM BOM)  = ACTION {
+printProductionRecipe 'Производственная рецептура'(BOM BOM)  = {
     DIALOG dialogDate OBJECTS d INPUT DO
         PRINT productionRecipe OBJECTS dt = d, b = BOM;
 } IMAGE 'print.png' IN print;
@@ -174,7 +174,7 @@ calcNetEnergyGramsQuantity'Энергетическая ценность в ре
     netFatsGramsQuantity(p,d)*9 (+)
     netCarbohydratesGramsQuantity(p,d)*4;
     
-fillNutrition 'Записать энерг.ценность' (BOM BOM) = ACTION {
+fillNutrition 'Записать энерг.ценность' (BOM BOM) = {
     FOR BOM(Product p) == BOM DO {
         proteins(Item item)<- NUMERIC[8,2](netProteinsGramsQuantity(p,currentDate())) WHERE item == sku(p);
         fats(Item item)<- NUMERIC[8,2](netFatsGramsQuantity(p,currentDate())) WHERE item == sku(p);     
@@ -212,9 +212,11 @@ FORM nutritionalValue 'Пищевая ценность'
                         carbohydratesGramsQuantity, energyGramsQuantity 
     FILTERS recBruttoQuantity(b,sk,dt)                                      
 ;
-printNutritionalValue 'Расчет пищевой ценности'(BOM BOM)  = ACTION NEWSESSION {
-    DIALOG dialogDate OBJECTS d INPUT DO
-        PRINT nutritionalValue OBJECTS dt = d, b = BOM;
+printNutritionalValue 'Расчет пищевой ценности'(BOM BOM)  = {
+	NEWSESSION {
+	    DIALOG dialogDate OBJECTS d INPUT DO
+	        PRINT nutritionalValue OBJECTS dt = d, b = BOM;
+	}
 } IMAGE 'print.png' IN print;
 
 

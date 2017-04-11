@@ -102,7 +102,7 @@ sidCashRegisterModel 'Код модели' (CashOperation cashOperation) = sid(c
 numberCashRegister 'Касса' (CashOperation cashOperation) = npp(cashRegister(cashOperation)) IN documentPrm;
 
 fiscalService 'Движение денег в фискальном регистраторе' (cashOperation) = ACTION ABSTRACT LIST (CashOperation) CONFIRM;
-fiscalServiceCashRegister 'Движение денег в фискальном регистраторе' (CashOperation cashOperation) = ACTION IF cashRegister(cashOperation) == currentCashRegister() THEN fiscalService(cashOperation);
+fiscalServiceCashRegister 'Движение денег в фискальном регистраторе' (CashOperation cashOperation) = { IF cashRegister(cashOperation) == currentCashRegister() THEN fiscalService(cashOperation); }
 
 sum 'Сумма' (cashOperation) = ABSTRACT NUMERIC[18,4] (CashOperation);
 
@@ -317,25 +317,27 @@ DESIGN incomeCashOperation {
     MOVE functions.box;
 }
 
-addIncomeCashOperationForm 'Внесение денег' () = ACTION NEWSESSION {
-
-    DIALOG addIncomeCashOperation OBJECTS d = departmentStore(currentCashRegister()) DO {
-        LOCAL fail = BOOLEAN();
-        FOR sumCashForIncomeOperation(CashRegister cashRegister) DO {
-            FOR NEW c = IncomeCashOperation DO {
-                cashRegister(c) <- cashRegister;
-                sumCash(c) <- sumCashForIncomeOperation(cashRegister);
-                generateSeriesNumber(c);
-                IF NOT doNotFiscalisation(cashRegister) THEN {
-                    fiscalServiceCashRegister(c);                                    
-                }
-                IF cashRegisterModel(groupCashRegister(cashRegister)) AND NOT isComplete(c) THEN
-                    fail() <- TRUE;
-            }
-        }
-        IF NOT fail() THEN
-            apply();
-    }
+addIncomeCashOperationForm 'Внесение денег' () = {
+	NEWSESSION {
+	
+	    DIALOG addIncomeCashOperation OBJECTS d = departmentStore(currentCashRegister()) DO {
+	        LOCAL fail = BOOLEAN();
+	        FOR sumCashForIncomeOperation(CashRegister cashRegister) DO {
+	            FOR NEW c = IncomeCashOperation DO {
+	                cashRegister(c) <- cashRegister;
+	                sumCash(c) <- sumCashForIncomeOperation(cashRegister);
+	                generateSeriesNumber(c);
+	                IF NOT doNotFiscalisation(cashRegister) THEN {
+	                    fiscalServiceCashRegister(c);                                    
+	                }
+	                IF cashRegisterModel(groupCashRegister(cashRegister)) AND NOT isComplete(c) THEN
+	                    fail() <- TRUE;
+	            }
+	        }
+	        IF NOT fail() THEN
+	            apply();
+	    }
+	}
 } TOOLBAR;
 
 edit 'Редактировать' (incomeCashOperation) = ACTION EDITFORM IncomeCashOperation;
@@ -414,22 +416,24 @@ DESIGN outcomeCashOperation {
     MOVE functions.box;
 }
 
-addOutcomeCashOperationForm 'Изъятие денег' () = ACTION NEWSESSION {
-    DIALOG addOutcomeCashOperation OBJECTS d = departmentStore(currentCashRegister()) DO {
-        LOCAL fail = BOOLEAN();
-        FOR sumCashForOutcomeOperation(CashRegister cashRegister) NEW c = OutcomeCashOperation DO {
-            cashRegister(c) <- cashRegister;
-            sumCash(c) <- sumCashForOutcomeOperation(cashRegister);
-            generateSeriesNumber(c);
-            IF NOT doNotFiscalisation(cashRegister) THEN {            
-                fiscalServiceCashRegister(c);
-            }    
-            IF cashRegisterModel(groupCashRegister(cashRegister)) AND NOT isComplete(c) THEN
-                fail() <- TRUE;
-        }
-         IF NOT fail() THEN
-            apply();
-    }
+addOutcomeCashOperationForm 'Изъятие денег' () = {
+	NEWSESSION {
+	    DIALOG addOutcomeCashOperation OBJECTS d = departmentStore(currentCashRegister()) DO {
+	        LOCAL fail = BOOLEAN();
+	        FOR sumCashForOutcomeOperation(CashRegister cashRegister) NEW c = OutcomeCashOperation DO {
+	            cashRegister(c) <- cashRegister;
+	            sumCash(c) <- sumCashForOutcomeOperation(cashRegister);
+	            generateSeriesNumber(c);
+	            IF NOT doNotFiscalisation(cashRegister) THEN {            
+	                fiscalServiceCashRegister(c);
+	            }    
+	            IF cashRegisterModel(groupCashRegister(cashRegister)) AND NOT isComplete(c) THEN
+	                fail() <- TRUE;
+	        }
+	         IF NOT fail() THEN
+	            apply();
+	    }
+	}
 } TOOLBAR;
 
 edit 'Редактировать' (outcomeCashOperation) = ACTION EDITFORM OutcomeCashOperation;

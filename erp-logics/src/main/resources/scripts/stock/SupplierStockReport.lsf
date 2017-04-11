@@ -129,7 +129,7 @@ FORM supplierStockReportPrint 'По поставщикам'
     FILTERS inSession(skuGroup(sk)) 
 ;
 
-supplierReportPrintXLS 'Отчет по поставщику (xls)' (Stock st,DATE dFrom,DATE dTo) = ACTION {
+supplierReportPrintXLS 'Отчет по поставщику (xls)' (Stock st,DATE dFrom,DATE dTo) = {
     quantityPurchaseSupplierFromToLocal (Sku sku) <- [= GROUP SUM quantityPurchaseSupplier (Sku sku, Stock stock, Stock supplierStock, DATE dateFrom, DATE dateTo) IF inReport(stock)
                                                  BY sku, supplierStock, dateFrom, dateTo](sku, st, dFrom, dTo);
     sumPurchaseSupplierFromToLocal (Sku sku) <- [= GROUP SUM sumPurchaseSupplier (Sku sku, Stock stock, Stock supplierStock, DATE dateFrom, DATE dateTo) IF inReport(stock)
@@ -152,7 +152,7 @@ supplierReportPrintXLS 'Отчет по поставщику (xls)' (Stock st,DA
     PRINT supplierStockReportPrint OBJECTS st=st, dFrom = dFrom, dTo=dTo XLS;
 }IMAGE 'print.png' IN print;    
 
-supplierReportPrintXLSX 'Отчет по поставщику (xlsx)' (Stock st,DATE dFrom,DATE dTo) = ACTION {
+supplierReportPrintXLSX 'Отчет по поставщику (xlsx)' (Stock st,DATE dFrom,DATE dTo) = {
     quantityPurchaseSupplierFromToLocal (Sku sku) <- [= GROUP SUM quantityPurchaseSupplier (Sku sku, Stock stock, Stock supplierStock, DATE dateFrom, DATE dateTo) IF inReport(stock)
                                                  BY sku, supplierStock, dateFrom, dateTo](sku, st, dFrom, dTo);
     sumPurchaseSupplierFromToLocal (Sku sku) <- [= GROUP SUM sumPurchaseSupplier (Sku sku, Stock stock, Stock supplierStock, DATE dateFrom, DATE dateTo) IF inReport(stock)
@@ -248,14 +248,14 @@ FORM supplierStockReportPrintAll 'По поставщикам'
     PROPERTIES(st,dTo) balanceASupplierTo,  sumASupplierTo,  supplierSumASupplierTo                              
 ;
 
-supplierReportPrintAll 'Отчет по поставщику итог (xls)' (Stock st,DATE dFrom,DATE dTo) = ACTION {
+supplierReportPrintAll 'Отчет по поставщику итог (xls)' (Stock st,DATE dFrom,DATE dTo) = {
     inSupplierStockReport(Stock stock) <- NULL;
     inSupplierStockReport(st) <- TRUE;
     PRINT supplierStockReportPrintAll OBJECTS dFrom = dFrom, dTo=dTo XLS;
     inSupplierStockReport(Stock stock) <- NULL;
 }IMAGE 'print.png' IN print;
 
-supplierReportPrintAllSelect 'Отчет по поставщикам (xls)' (DATE dFrom,DATE dTo) = ACTION {
+supplierReportPrintAllSelect 'Отчет по поставщикам (xls)' (DATE dFrom,DATE dTo) = {
     inSupplierStockReport(Stock st) <- NULL;
     SHOW dialogSupplierStocks OBJECTS dFrom = dFrom, dTo=dTo ;
     PRINT supplierStockReportPrintAll OBJECTS dFrom = dFrom, dTo=dTo XLS;

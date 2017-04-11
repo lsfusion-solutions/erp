@@ -60,7 +60,7 @@ childNumbers 'Строки' (detail) =
     BY parent 
     ORDER number(child), child  MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-changeStatisticGroup(StatisticReportTypeDetail d) = ACTION {
+changeStatisticGroup(StatisticReportTypeDetail d) = {
     DIALOG statisticGroupDialog OBJECTS c = statisticGroupType(statisticReportType(d)) NULL, s = statisticGroup(d) CHANGE DO {
     }
 }
@@ -122,30 +122,32 @@ DESIGN statisticReportType {
     }
 }
 
-copy 'Копировать' (StatisticReportType type) = ACTION NEWSESSION {
-    FOR NEW r = StatisticReportType DO {
-        name(r) <- VARISTRING[255](name(type)+ ' (копия)');  
-         
-        statisticGroupType (r) <- statisticGroupType (type);        
-        isSumReport (r) <- isSumReport (type);
-        rate (r) <- rate (type);
-        isPositiveReport (r) <- isPositiveReport (type);
-        
-        LOCAL parent =  StatisticReportTypeDetail (StatisticReportTypeDetail);   
-        parent(StatisticReportTypeDetail d) <- NULL;
-                                        
-        FOR statisticReportType(StatisticReportTypeDetail detail) == type NEW d = StatisticReportTypeDetail DO {
-            statisticReportType(d) <- r;
-            name (d) <- name(detail);
-            nameUOM (d) <- nameUOM(detail);
-            round (d) <- round(detail); 
-            number(d) <- number(detail);
-            statisticGroup  (d) <- statisticGroup(detail);
-            parent(d) <- detail;
-        }
-        in(StatisticReportTypeDetail d, StatisticReportTypeDetail parent) <- in(parent(d), parent(parent)) WHERE statisticReportType(d) == r AND statisticReportType(parent) == r;
-        SHOW statisticReportType OBJECTS r = r MANAGESESSION DOCKED NOCANCEL;
-    }
+copy 'Копировать' (StatisticReportType type) = {
+	NEWSESSION {
+	    FOR NEW r = StatisticReportType DO {
+	        name(r) <- VARISTRING[255](name(type)+ ' (копия)');  
+	         
+	        statisticGroupType (r) <- statisticGroupType (type);        
+	        isSumReport (r) <- isSumReport (type);
+	        rate (r) <- rate (type);
+	        isPositiveReport (r) <- isPositiveReport (type);
+	        
+	        LOCAL parent =  StatisticReportTypeDetail (StatisticReportTypeDetail);   
+	        parent(StatisticReportTypeDetail d) <- NULL;
+	                                        
+	        FOR statisticReportType(StatisticReportTypeDetail detail) == type NEW d = StatisticReportTypeDetail DO {
+	            statisticReportType(d) <- r;
+	            name (d) <- name(detail);
+	            nameUOM (d) <- nameUOM(detail);
+	            round (d) <- round(detail); 
+	            number(d) <- number(detail);
+	            statisticGroup  (d) <- statisticGroup(detail);
+	            parent(d) <- detail;
+	        }
+	        in(StatisticReportTypeDetail d, StatisticReportTypeDetail parent) <- in(parent(d), parent(parent)) WHERE statisticReportType(d) == r AND statisticReportType(parent) == r;
+	        SHOW statisticReportType OBJECTS r = r MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR ;
 
 FORM statisticReportTypes 'Типы статистических отчетов'
@@ -205,7 +207,7 @@ DESIGN statisticReportTypes {
 }
 
 //загрузка стандартных данных
-loadDefaultStatisticReportType 'Добавить тип статистического отчета' (VARSTRING[255] name, VARSTRING[20] group, BOOLEAN isSum, NUMERIC[15,4] rate) = ACTION {
+loadDefaultStatisticReportType 'Добавить тип статистического отчета' (VARSTRING[255] name, VARSTRING[20] group, BOOLEAN isSum, NUMERIC[15,4] rate) = {
     FOR NEW s = StatisticReportType DO {
         name(s) <- name;
         statisticGroupType(s) <- statisticGroupTypeId(group);
@@ -214,7 +216,7 @@ loadDefaultStatisticReportType 'Добавить тип статистическ
     }
 }
 
-loadDefaultStatisticReportTypeDetail 'Добавить строку типа статистического отчета' (VARSTRING[255] type, INTEGER index, VARSTRING[255] name, VARSTRING[10] number, STRING[12] group, VARSTRING[100] nameUOM, INTEGER round) = ACTION {
+loadDefaultStatisticReportTypeDetail 'Добавить строку типа статистического отчета' (VARSTRING[255] type, INTEGER index, VARSTRING[255] name, VARSTRING[10] number, STRING[12] group, VARSTRING[100] nameUOM, INTEGER round) = {
     FOR NEW d = StatisticReportTypeDetail DO {
         statisticReportType(d) <- statisticReportType(type);
         index(d) <- index;
@@ -237,9 +239,13 @@ name 'Наименование' = DATA VARISTRING[255] (StatisticReport) MINCHAR
 isClosed 'Закрыт' = DATA BOOLEAN (StatisticReport);
 isOpened 'Не закрыт' (StatisticReport o) = o IS StatisticReport AND NOT isClosed(o) PERSISTENT;
 
-close 'Закрыть' (StatisticReport o) = ACTION NEWSESSION { isClosed(o) <- TRUE; apply(); } TOOLBAR CONFIRM;
+close 'Закрыть' (StatisticReport o) = {
+	NEWSESSION { isClosed(o) <- TRUE; apply(); }
+} TOOLBAR CONFIRM;
 
-open 'Открыть' (StatisticReport o) = ACTION NEWSESSION { isClosed(o) <- NULL; apply(); } TOOLBAR CONFIRM;
+open 'Открыть' (StatisticReport o) = {
+	NEWSESSION { isClosed(o) <- NULL; apply(); }
+} TOOLBAR CONFIRM;
 
 isClosed 'Закрыт' (StatisticReportDetail d) = isClosed(statisticReport(d));
 isOpened 'Не закрыт' (StatisticReportDetail d) = d IS StatisticReportDetail AND NOT isClosed(d);
@@ -395,7 +401,7 @@ overFillData4 = ACTION ABSTRACT LIST (StatisticReport);
 overFillData3 = ACTION ABSTRACT LIST (StatisticReport);
 skip = ABSTRACT BOOLEAN (StatisticReportDetail);
 
-fillData 'Заполнить данные'(StatisticReport report) = ACTION {
+fillData 'Заполнить данные'(StatisticReport report) = {
     sold(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     soldResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     balance(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;    
@@ -434,7 +440,7 @@ fillData 'Заполнить данные'(StatisticReport report) = ACTION {
 
 overFillDataRegion = ACTION ABSTRACT LIST (StatisticReport);
 overFillDataRegion1 = ACTION ABSTRACT LIST (StatisticReport);
-fillRegionData 'Заполнить данные'(StatisticReport report) = ACTION {
+fillRegionData 'Заполнить данные'(StatisticReport report) = {
     sold(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     soldResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     balance(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;    
@@ -476,7 +482,7 @@ fillRegionData 'Заполнить данные'(StatisticReport report) = ACTIO
 
 overFillSumData = ACTION ABSTRACT LIST (StatisticReport);
 overFillSumData1 = ACTION ABSTRACT LIST (StatisticReport);
-fillSumData 'Заполнить данные'(StatisticReport report) = ACTION {
+fillSumData 'Заполнить данные'(StatisticReport report) = {
     soldSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     soldSumResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     balanceSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;    
@@ -513,7 +519,7 @@ fillSumData 'Заполнить данные'(StatisticReport report) = ACTION {
 
 overFillSumRegionData = ACTION ABSTRACT LIST (StatisticReport);
 overFillSumRegionData1 = ACTION ABSTRACT LIST (StatisticReport);
-fillSumRegionData 'Заполнить данные'(StatisticReport report) = ACTION {
+fillSumRegionData 'Заполнить данные'(StatisticReport report) = {
     soldSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     soldSumResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     balanceSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;    
@@ -551,7 +557,7 @@ fillSumRegionData 'Заполнить данные'(StatisticReport report) = AC
 statisticReportDetail = GROUP MAX StatisticReportDetail detail BY statisticReport(detail), number(detail);
 changeStatisticReportType =  ACTION ABSTRACT LIST (StatisticReportDetail, StatisticReportTypeDetail);
 
-changeStatisticReportType (StatisticReport r) = ACTION {
+changeStatisticReportType (StatisticReport r) = {
     DIALOG statisticReportTypes OBJECTS r INPUT rt DO {
         statisticReportType(r) <- rt;
         name(r) <- name(statisticReportType(r));
@@ -710,52 +716,54 @@ balanceResident  = GROUP LAST balanceResident(StatisticReportDetail d)
     WHERE in(statisticReport(d)) ;
 
 
-createSumReport 'Создать суммарный отчет'()= ACTION NEWSESSION {
-    IF [=GROUP SUM 1 IF [=GROUP SUM 1 IF in(StatisticReport r) BY statisticReportType(r) ](StatisticReportType str)]() > 1 THEN {
-        MESSAGE 'Выбраны отчеты разных типов';
-        RETURN;
-    }
-    IF [=GROUP SUM 1 IF [=GROUP SUM 1 IF in(StatisticReport r) BY reportKind(r) ](ReportKind str)]() > 1 THEN {
-        MESSAGE 'Выбраны отчеты разных видов';
-        RETURN;
-    }
-    IF NOT countIn() THEN {
-        MESSAGE 'Не выбраны отчеты для объединения';
-        RETURN;
-    }
-    FOR NEW s = StatisticReport DO {
-        statisticReportType(s) <- [=GROUP MAX statisticReportType(StatisticReport r) IF in(r) ]();
-        reportKind(s) <- ReportKind.consolidate;
-        consolidateStocks(s) <- OVERRIDE [=GROUP CONCAT [=GROUP MAX nameStockRegion(StatisticReport r) IF in(r) BY nameStockRegion(r) ](VARISTRING[255] str), ',']();
-        fromDate(s) <- [= GROUP MIN fromDate(StatisticReport r) IF in(r)]();
-        toDate(s) <- [= GROUP MAX toDate(StatisticReport r) IF in(r)]();
-        name(s) <- 'Суммарный отчет ' + name(statisticReportType(s));
-        statisticGroupType(s) <- statisticGroupType(statisticReportType(s));     
-        
-        FOR statisticReportType(s) == statisticReportType(StatisticReportTypeDetail detail) NEW d = StatisticReportDetail DO {
-            statisticReport(d) <-s;
-            index(d) <- index(detail);
-            number(d) <-number(detail);
-            name(d) <- name(detail);
-            statisticGroup(d) <- statisticGroup(detail);
-            nameUOM(d) <- nameUOM(detail);
-            round(d) <- round(detail);
-            
-            sold(d) <- [=GROUP SUM sold(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
-            soldResident(d) <- [=GROUP SUM soldResident(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
-            balance(d) <- IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.stock THEN [= GROUP SUM balance(Stock s,StatisticGroup sg) BY sg](statisticGroup(d))
-                ELSE IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.region THEN [= GROUP SUM balance(Region s,StatisticGroup sg) BY sg](statisticGroup(d));
-            balanceResident(d) <- IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.stock THEN [= GROUP SUM balanceResident(Stock s,StatisticGroup sg) BY sg](statisticGroup(d))
-                ELSE IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.region THEN [= GROUP SUM balanceResident(Region s,StatisticGroup sg) BY sg](statisticGroup(d));
-                
-            soldSum(d) <- [=GROUP SUM soldSum(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
-            soldSumResident(d) <- [=GROUP SUM soldSumResident(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
-            balanceSum(d) <- IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.stock THEN [= GROUP SUM balanceSum(Stock s,StatisticGroup sg) BY sg](statisticGroup(d))
-                ELSE IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.region THEN [= GROUP SUM balanceSum(Region s,StatisticGroup sg) BY sg](statisticGroup(d));
-        }
-        SHOW statisticReport OBJECTS r = s MANAGESESSION DOCKED NOCANCEL;
-    }
-    in(StatisticReport r) <- NULL;
+createSumReport 'Создать суммарный отчет'()= {
+	NEWSESSION {
+	    IF [=GROUP SUM 1 IF [=GROUP SUM 1 IF in(StatisticReport r) BY statisticReportType(r) ](StatisticReportType str)]() > 1 THEN {
+	        MESSAGE 'Выбраны отчеты разных типов';
+	        RETURN;
+	    }
+	    IF [=GROUP SUM 1 IF [=GROUP SUM 1 IF in(StatisticReport r) BY reportKind(r) ](ReportKind str)]() > 1 THEN {
+	        MESSAGE 'Выбраны отчеты разных видов';
+	        RETURN;
+	    }
+	    IF NOT countIn() THEN {
+	        MESSAGE 'Не выбраны отчеты для объединения';
+	        RETURN;
+	    }
+	    FOR NEW s = StatisticReport DO {
+	        statisticReportType(s) <- [=GROUP MAX statisticReportType(StatisticReport r) IF in(r) ]();
+	        reportKind(s) <- ReportKind.consolidate;
+	        consolidateStocks(s) <- OVERRIDE [=GROUP CONCAT [=GROUP MAX nameStockRegion(StatisticReport r) IF in(r) BY nameStockRegion(r) ](VARISTRING[255] str), ',']();
+	        fromDate(s) <- [= GROUP MIN fromDate(StatisticReport r) IF in(r)]();
+	        toDate(s) <- [= GROUP MAX toDate(StatisticReport r) IF in(r)]();
+	        name(s) <- 'Суммарный отчет ' + name(statisticReportType(s));
+	        statisticGroupType(s) <- statisticGroupType(statisticReportType(s));     
+	        
+	        FOR statisticReportType(s) == statisticReportType(StatisticReportTypeDetail detail) NEW d = StatisticReportDetail DO {
+	            statisticReport(d) <-s;
+	            index(d) <- index(detail);
+	            number(d) <-number(detail);
+	            name(d) <- name(detail);
+	            statisticGroup(d) <- statisticGroup(detail);
+	            nameUOM(d) <- nameUOM(detail);
+	            round(d) <- round(detail);
+	            
+	            sold(d) <- [=GROUP SUM sold(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
+	            soldResident(d) <- [=GROUP SUM soldResident(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
+	            balance(d) <- IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.stock THEN [= GROUP SUM balance(Stock s,StatisticGroup sg) BY sg](statisticGroup(d))
+	                ELSE IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.region THEN [= GROUP SUM balance(Region s,StatisticGroup sg) BY sg](statisticGroup(d));
+	            balanceResident(d) <- IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.stock THEN [= GROUP SUM balanceResident(Stock s,StatisticGroup sg) BY sg](statisticGroup(d))
+	                ELSE IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.region THEN [= GROUP SUM balanceResident(Region s,StatisticGroup sg) BY sg](statisticGroup(d));
+	                
+	            soldSum(d) <- [=GROUP SUM soldSum(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
+	            soldSumResident(d) <- [=GROUP SUM soldSumResident(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
+	            balanceSum(d) <- IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.stock THEN [= GROUP SUM balanceSum(Stock s,StatisticGroup sg) BY sg](statisticGroup(d))
+	                ELSE IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.region THEN [= GROUP SUM balanceSum(Region s,StatisticGroup sg) BY sg](statisticGroup(d));
+	        }
+	        SHOW statisticReport OBJECTS r = s MANAGESESSION DOCKED NOCANCEL;
+	    }
+	    in(StatisticReport r) <- NULL;
+	}
 } 
 
 FORM selectSatisticReport 'Выбор отчетов'
@@ -775,10 +783,10 @@ FORM selectSatisticReport 'Выбор отчетов'
     FILTERGROUP selects
         FILTER 'Отмеченные' in (r, ri) 'F10'         
 ;
-changeReports (StatisticReport r) = ACTION SHOW selectSatisticReport OBJECTS r = r ;
+changeReports (StatisticReport r) = { SHOW selectSatisticReport OBJECTS r = r ; }
 
 
-fillSumReport 'Заполнить данные'(StatisticReport s)= ACTION  {
+fillSumReport 'Заполнить данные'(StatisticReport s)= {
 
     IF NOT countIn(s) THEN {
         MESSAGE 'Не выбраны отчеты для объединения';

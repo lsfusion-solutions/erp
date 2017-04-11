@@ -40,7 +40,7 @@ FORM generationGiftCardsSku
 
 inputComplete = DATA LOCAL BOOLEAN ();
 generateSku = DATA LOCAL Sku ();
-overGenerateGiftCards(GiftCard g) += ACTION {
+overGenerateGiftCards(GiftCard g) += {
     IF NOT inputComplete() THEN {
         DIALOG generationGiftCardsSku OBJECTS s INPUT DO {
             generateSku() <- s;
@@ -129,7 +129,7 @@ DESIGN dialogGiftCard {
     MOVE functions.box;
 }
 
-fillDetailDialogSkuGiftCard 'Подбор сертификатов'(Sale.Invoice invoice) = ACTION {
+fillDetailDialogSkuGiftCard 'Подбор сертификатов'(Sale.Invoice invoice) = {
     in(GiftCard g) <- NULL;
     DIALOG dialogGiftCard OBJECTS o = invoice DO {
         FOR in(GiftCard g) NEW gd = InvoiceGiftCardSaleDetail DO {
@@ -163,15 +163,19 @@ DESIGN Sale.userInvoice {
 }
 
 
-edit(InvoiceGiftCardSaleDetail d) = ACTION NEWSESSION {
-    SHOW Sale.userInvoice OBJECTS i = invoice(d), gd = d MANAGESESSION DOCKED;
+edit(InvoiceGiftCardSaleDetail d) = {
+	NEWSESSION {
+	    SHOW Sale.userInvoice OBJECTS i = invoice(d), gd = d MANAGESESSION DOCKED;
+	}
 }
-edit(InvoiceGiftCardSaleDetail d) += ACTION edit(d);  
+edit(InvoiceGiftCardSaleDetail d) += { edit(d); }  
 
-show(InvoiceGiftCardSaleDetail d) = ACTION NEWSESSION {
-    SHOW Sale.userInvoice OBJECTS i = invoice(d), gd = d DOCKED READONLY;
+show(InvoiceGiftCardSaleDetail d) = {
+	NEWSESSION {
+	    SHOW Sale.userInvoice OBJECTS i = invoice(d), gd = d DOCKED READONLY;
+	}
 }
-show(InvoiceGiftCardSaleDetail d) += ACTION show(d);  
+show(InvoiceGiftCardSaleDetail d) += { show(d); }  
 
 //рабочий стол
 
@@ -181,22 +185,22 @@ nameGiftCardLegalEntityGroup 'Группа организаций для пок�
 EXTEND FORM options PROPERTIES() nameGiftCardLegalEntityGroup;
 DESIGN options { giftCards { MOVE PROPERTY(nameGiftCardLegalEntityGroup()); } }
 
-beforeApplyCustomer(LegalEntity l) = ACTION {
+beforeApplyCustomer(LegalEntity l) = {
     fullName(l) <- name(l);
 }
 
-changeAddress (LegalEntity l) = ACTION {
+changeAddress (LegalEntity l) = {
     INPUTX s = VARSTRING[150] DO
         dataAddress(l, DATE d) <- s WHERE d == 2001_01_01;
 }
 
-changePhone (LegalEntity l) = ACTION {
+changePhone (LegalEntity l) = {
     INPUTX s = VARSTRING[100] DO
         dataPhone(l, DATE d) <- s WHERE d == 2001_01_01;
 }
 
 
-changeAccount (LegalEntity l) = ACTION {
+changeAccount (LegalEntity l) = {
     INPUTX s = VARSTRING[50] DO
         IF NOT account(l) THEN {
             FOR NEW a = Bank.Account DO {
@@ -208,7 +212,7 @@ changeAccount (LegalEntity l) = ACTION {
             number(Bank.Account a) <- s WHERE a == account(l);
 }
 
-changeBank (LegalEntity l) = ACTION {
+changeBank (LegalEntity l) = {
     DIALOG dialogBanks OBJECTS b INPUT DO {
         IF NOT account(l) THEN {
             FOR NEW a = Bank.Account DO {
@@ -224,13 +228,13 @@ changeBank (LegalEntity l) = ACTION {
 defaultContract(LegalEntity l) = defaultContractSkuSupplierCustomer(defaultCompany(), l, currentDate());
 
 dateFromContract 'Дата'(LegalEntity l) = dateFrom(defaultContract(l));
-changeDateFromContract (LegalEntity l) = ACTION {
+changeDateFromContract (LegalEntity l) = {
     INPUTX d = DATE DO
         dateFrom(UserContractSku c) <- d WHERE c == defaultContract(l);
 }
 
 numberContract 'Номер'(LegalEntity l) = number(defaultContract(l));
-changeNumberContract(LegalEntity l) = ACTION {
+changeNumberContract(LegalEntity l) = {
     INPUTX s = VARISTRING[28] DO
         number(UserContractSku c) <- s WHERE c == defaultContract(l);
 }
@@ -261,26 +265,30 @@ DESIGN giftCardSaleCustomer{
     MOVE functions.box;
 }
 
-addCustomer 'Добавить'() = ACTION NEWSESSION {
-    FOR NEW  l = LegalEntity DO {
-        legalEntityGroup(l) <- giftCardLegalEntityGroup();
-        isCustomer(l) <- TRUE;
-        
-        FOR NEW uc = UserContractSku DO {
-            supplier(uc) <- defaultCompany();
-            customer(uc) <- l;
-            currency(uc) <- defaultCurrency();
-            dateFrom(uc) <- currentDate();
-            isDataDefault(uc) <- TRUE ;
-        }
-        
-        SHOW giftCardSaleCustomer OBJECTS l = l MANAGESESSION  NOCANCEL;
-    }
-    
+addCustomer 'Добавить'() = {
+	NEWSESSION {
+	    FOR NEW  l = LegalEntity DO {
+	        legalEntityGroup(l) <- giftCardLegalEntityGroup();
+	        isCustomer(l) <- TRUE;
+	        
+	        FOR NEW uc = UserContractSku DO {
+	            supplier(uc) <- defaultCompany();
+	            customer(uc) <- l;
+	            currency(uc) <- defaultCurrency();
+	            dateFrom(uc) <- currentDate();
+	            isDataDefault(uc) <- TRUE ;
+	        }
+	        
+	        SHOW giftCardSaleCustomer OBJECTS l = l MANAGESESSION  NOCANCEL;
+	    }
+	    
+	}
 } IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
-editCustomer 'Редактировать' (LegalEntity l) = ACTION NEWSESSION {
-        SHOW giftCardSaleCustomer OBJECTS l = l MANAGESESSION  NOCANCEL;
+editCustomer 'Редактировать' (LegalEntity l) = {
+	NEWSESSION {
+	        SHOW giftCardSaleCustomer OBJECTS l = l MANAGESESSION  NOCANCEL;
+	}
 } IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 FORM giftCardLegalEntitys 'Покупатели'
@@ -297,7 +305,7 @@ quantity 'Кол-во' = DATA LOCAL NUMERIC[16,5] (Item);
 customer = DATA LOCAL LegalEntity ();
 nameCustomer 'Покупатель'= name(customer());
 
-changeCustomer() = ACTION {
+changeCustomer() = {
     DIALOG giftCardLegalEntitys OBJECTS l = customer() INPUT NULL DO
         customer() <- l;
 }
@@ -305,7 +313,7 @@ changeCustomer() = ACTION {
 supplierStock = DATA LOCAL Stock ();
 nameSupplierStock 'Склад'= name(supplierStock());
 
-changeSupplierStock() = ACTION {
+changeSupplierStock() = {
     DIALOG stocksCompany OBJECTS s = supplierStock() INPUT NULL DO
         supplierStock() <- s;
 }
@@ -332,51 +340,55 @@ DESIGN skuGift {
 }
 
 
-addGiftCardInvoice 'Продажа сертификатов'() = ACTION NEWSESSION {
-    quantity(Item i) <- NULL;
-    supplierStock() <- stock(currentUser());
-       
-    DIALOG skuGift DO {
-        FOR NEW o = Sale.UserInvoice DO {
-            operation(o) <- [=GROUP MIN Sale.Operation o IF isGiftCard(o)]();
-//            supplier(o) <- defaultSupplier(operation(o)) WHERE countSupplier(operation(o)) == 1;
-//            supplierStock(o) <- defaultCompanyStock(currentUser(), supplier(o))
-//                IF countAccessCompanyStock (currentUser(), supplier(o)) == 1;
-            supplierStock(o) <- supplierStock();
-            supplier(o) <- legalEntity(supplierStock());
-
-            customer(o) <- customer();
-            
-            priceListType(o) <- defaultPriceListType(operation(o)) 
-                        IF defaultPriceListType(operation(o));
-                                                         
-             date(o) <- currentDate();
-             time(o) <- currentTime();
-                        
-            FOR quantity(Item i) NEW d = Sale.UserInvoiceDetail DO {
-                userInvoice(d) <- o;
-                sku(d) <- i;
-                quantity(d) <- quantity(i);
-                priceListType(d) <- priceListType(o);
-                      
-                price(d) <- round2(prevList(priceListType(d), d) );
-                invoicePrice(d) <- round2(prevList(priceListType(d), d) );
-    
-            }  
-            SHOW Sale.userInvoice OBJECTS i=o MANAGESESSION DOCKED NOCANCEL; 
-        }
-    }    
+addGiftCardInvoice 'Продажа сертификатов'() = {
+	NEWSESSION {
+	    quantity(Item i) <- NULL;
+	    supplierStock() <- stock(currentUser());
+	       
+	    DIALOG skuGift DO {
+	        FOR NEW o = Sale.UserInvoice DO {
+	            operation(o) <- [=GROUP MIN Sale.Operation o IF isGiftCard(o)]();
+	//            supplier(o) <- defaultSupplier(operation(o)) WHERE countSupplier(operation(o)) == 1;
+	//            supplierStock(o) <- defaultCompanyStock(currentUser(), supplier(o))
+	//                IF countAccessCompanyStock (currentUser(), supplier(o)) == 1;
+	            supplierStock(o) <- supplierStock();
+	            supplier(o) <- legalEntity(supplierStock());
+	
+	            customer(o) <- customer();
+	            
+	            priceListType(o) <- defaultPriceListType(operation(o)) 
+	                        IF defaultPriceListType(operation(o));
+	                                                         
+	             date(o) <- currentDate();
+	             time(o) <- currentTime();
+	                        
+	            FOR quantity(Item i) NEW d = Sale.UserInvoiceDetail DO {
+	                userInvoice(d) <- o;
+	                sku(d) <- i;
+	                quantity(d) <- quantity(i);
+	                priceListType(d) <- priceListType(o);
+	                      
+	                price(d) <- round2(prevList(priceListType(d), d) );
+	                invoicePrice(d) <- round2(prevList(priceListType(d), d) );
+	    
+	            }  
+	            SHOW Sale.userInvoice OBJECTS i=o MANAGESESSION DOCKED NOCANCEL; 
+	        }
+	    }    
+	}
 } TOOLBAR IMAGE 'add.png';
 
 
-shiped 'Отпуск сертификатов покупателю'(Sale.UserInvoice invoice) = ACTION NEWSESSION {
-    createShipment(invoice) <- TRUE;
-    shipmentDate(invoice) <- currentDate();
-    shipmentTime(invoice) <- currentTime();
-    
-    fillDetailDialogSkuGiftCard(invoice);
-    
-    APPLY {}
+shiped 'Отпуск сертификатов покупателю'(Sale.UserInvoice invoice) = {
+	NEWSESSION {
+	    createShipment(invoice) <- TRUE;
+	    shipmentDate(invoice) <- currentDate();
+	    shipmentTime(invoice) <- currentTime();
+	    
+	    fillDetailDialogSkuGiftCard(invoice);
+	    
+	    APPLY {}
+	}
 } TOOLBAR;
 
 statusShipment 'Статус выписки' = CASE 

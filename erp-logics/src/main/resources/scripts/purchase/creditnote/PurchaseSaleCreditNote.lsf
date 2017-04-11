@@ -88,7 +88,7 @@ DESIGN creditNoteCreditNotes {
 }
 
 
-fillCreditNote 'Заполнить на основе акта расхождения (закупка)'(Sale.UserCreditNote userCreditNote) =  ACTION {
+fillCreditNote 'Заполнить на основе акта расхождения (закупка)'(Sale.UserCreditNote userCreditNote) =  {
     DIALOG creditNoteCreditNotes OBJECTS s = supplier(userCreditNote), c = customer(userCreditNote),
                                    ss = supplierStock(userCreditNote), cs = customerStock(userCreditNote),
                                    t = date(userCreditNote), o INPUT DO {
@@ -280,7 +280,7 @@ valueVAT(SaleCreditNoteDetail creditNoteDetail) += valueVAT(creditNoteDetail(cre
 VATSum(SaleCreditNoteDetail creditNoteDetail) += VATSum(creditNoteDetail(creditNoteDetail));
 invoiceSum(SaleCreditNoteDetail creditNoteDetail) += invoiceSum(creditNoteDetail(creditNoteDetail));
 
-edit(SaleCreditNote creditNote) += ACTION EXEC edit(creditNote(creditNote));
+edit(SaleCreditNote creditNote) += { EXEC edit(creditNote(creditNote)); }
 
 creditNoteDetail(SaleCreditNoteDetail creditNoteDetail) += creditNoteDetail(creditNoteDetail);
 
@@ -289,38 +289,40 @@ creditNoteDetail(SaleCreditNoteDetail creditNoteDetail) += creditNoteDetail(cred
 overFillCreditNote = ACTION ABSTRACT LIST (Sale.UserCreditNote, CreditNote);
 overFillCreditNote = ACTION ABSTRACT LIST (Sale.UserCreditNoteDetail, CreditNoteDetail);
 
-moveUserCreditNote 'Акт расхождения (продажа)'(CreditNote creditNote) =  ACTION NEWSESSION{
-
-    FOR NEW i = Sale.UserCreditNote DO {
-
-        supplier(i) <- supplier(creditNote);
-        customer(i) <- customer(creditNote);
-        supplierStock(i) <- supplierStock(creditNote);
-        customerStock(i) <- customerStock(creditNote);
-        number(i) <- number(creditNote);
-        series(i) <- series(creditNote);
-        note(i) <- note(creditNote);
-        currency(i) <- currency(creditNote);
-        contractSku(i) <- contractSku(creditNote);
-        isCommission(i) <- isCommission(creditNote);
-        operation(i) <- saleOperation(operation(creditNote));
-        EXEC overFillCreditNote(i, creditNote);
-
-        FOR creditNote(CreditNoteDetail detail)==creditNote NEW d = Sale.UserCreditNoteDetail DO {
-
-            userCreditNote(d) <- i;
-
-            sku(d) <- sku(detail);
-            quantity (d) <- quantity(detail);
-            VAT (d) <- VAT(detail);
-            price (d) <- price(detail);
-
-            batch(d) <- batch(detail);
-            EXEC overFillCreditNote(d,detail);
-        }
-
-    SHOW Sale.userCreditNote OBJECTS c = i MANAGESESSION DOCKED NOCANCEL;
-    }
+moveUserCreditNote 'Акт расхождения (продажа)'(CreditNote creditNote) =  {
+	NEWSESSION{
+	
+	    FOR NEW i = Sale.UserCreditNote DO {
+	
+	        supplier(i) <- supplier(creditNote);
+	        customer(i) <- customer(creditNote);
+	        supplierStock(i) <- supplierStock(creditNote);
+	        customerStock(i) <- customerStock(creditNote);
+	        number(i) <- number(creditNote);
+	        series(i) <- series(creditNote);
+	        note(i) <- note(creditNote);
+	        currency(i) <- currency(creditNote);
+	        contractSku(i) <- contractSku(creditNote);
+	        isCommission(i) <- isCommission(creditNote);
+	        operation(i) <- saleOperation(operation(creditNote));
+	        EXEC overFillCreditNote(i, creditNote);
+	
+	        FOR creditNote(CreditNoteDetail detail)==creditNote NEW d = Sale.UserCreditNoteDetail DO {
+	
+	            userCreditNote(d) <- i;
+	
+	            sku(d) <- sku(detail);
+	            quantity (d) <- quantity(detail);
+	            VAT (d) <- VAT(detail);
+	            price (d) <- price(detail);
+	
+	            batch(d) <- batch(detail);
+	            EXEC overFillCreditNote(d,detail);
+	        }
+	
+	    SHOW Sale.userCreditNote OBJECTS c = i MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 } TOOLBAR;
 
 EXTEND FORM creditNotes

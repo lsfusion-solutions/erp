@@ -288,7 +288,7 @@ WHEN SESSION SETCHANGED(barcode(TerminalDocumentDetail d)) DO {
 }
 
 migratedSku = DATA BOOLEAN ();
-onStarted () += ACTION {
+onStarted () += {
     IF NOT migratedSku() THEN {
         migratedSku() <- TRUE;
         setNoCancelInTransaction();
@@ -365,7 +365,7 @@ FORM terminalDocumentPrint 'Документ ТСД'
 
     FILTERS terminalDocument(tdd) == td
 ;
-terminalDocumentPrint 'Печать документа ТСД' (TerminalDocument td) = ACTION PRINT terminalDocumentPrint OBJECTS td = td  IMAGE 'print.png' IN print;
+terminalDocumentPrint 'Печать документа ТСД' (TerminalDocument td) = { PRINT terminalDocumentPrint OBJECTS td = td; }  IMAGE 'print.png' IN print;
 
 in = DATA LOCAL BOOLEAN (TerminalDocumentType);
 filterStock = DATA LOCAL Stock ();
@@ -481,7 +481,7 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
     overAddDialogTerminal##class = ACTION ABSTRACT (class, TerminalDocument);
     overAddDetailDialogTerminal##class##Detail = ACTION ABSTRACT (class##Detail, TerminalDocument);
 
-    addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object) = ACTION {
+    addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object) = {
         IF isPosted(object) THEN {
             MESSAGE 'Вы пытаетесь импортировать в проведенный документ. Распроведите его.';
         } ELSE {
@@ -540,7 +540,7 @@ END
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
 // Модели терминалов сбора данных
-loadDefaultTerminalModel 'Добавить модель терминала'(VARSTRING[20] stringOne, VARISTRING[110] stringTwo, VARSTRING[200] stringThree) = ACTION  {
+loadDefaultTerminalModel 'Добавить модель терминала'(VARSTRING[20] stringOne, VARISTRING[110] stringTwo, VARSTRING[200] stringThree) = {
     FOR NEW tm = TerminalModel DO {
          ASSIGN sid(tm) <- stringOne;   
          ASSIGN name(tm) <- stringTwo;
@@ -548,7 +548,7 @@ loadDefaultTerminalModel 'Добавить модель терминала'(VARS
     }
 }
 
-loadDefaultTerminalModels 'Загрузить стандартные модели ТСД'() = ACTION {
+loadDefaultTerminalModels 'Загрузить стандартные модели ТСД'() = {
     EXEC loadDefaultTerminalModel('inventory', 'ТСД InventoryTech', 'equ.clt.handler.inventoryTech.InventoryTechHandler');
     EXEC loadDefaultTerminalModel('EasyCSVT', 'ТСД EasyCSV', 'equ.clt.handler.easy.EasyCSVHandler');
     EXEC loadDefaultTerminalModel('lsterminal', 'ТСД LSTerminal', 'equ.clt.handler.lsterminal.LSTerminalHandler');
@@ -557,21 +557,21 @@ loadDefaultTerminalModels 'Загрузить стандартные модел�
 @implementLoadDefaultData(loadDefaultTerminalModels);
 
 // Виды справочников терминалов сбора данных
-loadDefaultTerminalHandbookType 'Добавить вид справочника ТСД'(VARSTRING[100] n, VARSTRING[100] s) = ACTION {
+loadDefaultTerminalHandbookType 'Добавить вид справочника ТСД'(VARSTRING[100] n, VARSTRING[100] s) = {
     FOR NEW t = TerminalHandbookType DO {
         name(t) <- n;
         id(t) <- s;
     }
 }
 
-loadDefaultTerminalHandbookTypes 'Загрузить стандартные виды справочников ТСД'() = ACTION {
+loadDefaultTerminalHandbookTypes 'Загрузить стандартные виды справочников ТСД'() = {
     loadDefaultTerminalHandbookType('Организация', 'ПС');
 } IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultTerminalHandbookTypes);
 
 // Типы документов терминалов сбора данных
-loadDefault 'Добавить тип документа ТСД'(VARSTRING[200] nameString, GroupTerminalDocumentType gtdt, VARSTRING[100] idTypeString, INTEGER flagInteger, VARSTRING[100] handbook1String, VARSTRING[100] handbook2String) = ACTION {
+loadDefault 'Добавить тип документа ТСД'(VARSTRING[200] nameString, GroupTerminalDocumentType gtdt, VARSTRING[100] idTypeString, INTEGER flagInteger, VARSTRING[100] handbook1String, VARSTRING[100] handbook2String) = {
     FOR NEW tdt = TerminalDocumentType DO {
         ASSIGN name(tdt) <- nameString;
         ASSIGN groupTerminalDocumentType(tdt) <- gtdt;
@@ -582,7 +582,7 @@ loadDefault 'Добавить тип документа ТСД'(VARSTRING[200] n
     }
 }
 
-loadDefaultTerminalDocumentTypes 'Загрузить стандартные типы документов ТСД'() = ACTION {
+loadDefaultTerminalDocumentTypes 'Загрузить стандартные типы документов ТСД'() = {
     FOR NEW gtdt = GroupTerminalDocumentType DO {
         ASSIGN name(gtdt) <- 'Группа типов документов';
         EXEC loadDefault('Инвентаризация', gtdt, '01', 31, ' ', ' ');
@@ -594,7 +594,7 @@ loadDefaultTerminalDocumentTypes 'Загрузить стандартные ти
 @implementLoadDefaultData(loadDefaultTerminalDocumentTypes);
 
 // ------------------------------------------ Генерация групп терминалов сбора данных ------------------------------ //
-loadDefault 'Сгенерировать группу терминалов'(Stock stock, TerminalModel model, GroupTerminalDocumentType gtdt, INTEGER num) = ACTION {
+loadDefault 'Сгенерировать группу терминалов'(Stock stock, TerminalModel model, GroupTerminalDocumentType gtdt, INTEGER num) = {
     FOR NEW g = GroupTerminal DO {
         stock(g) <- stock;
         name(g) <- 'Группа ТСД по умолчанию';

@@ -21,7 +21,7 @@ completedStatisticGroup 'Обработан' = DATA BOOLEAN (Item);
 notCompletedStatisticGroup 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedStatisticGroup(i) BY article(i);
 completedStatisticGroup 'Обработан' = Article a IS Article AND NOT notCompletedStatisticGroup(a);
 
-changeCompletedStatisticGroup (Article article) = ACTION {
+changeCompletedStatisticGroup (Article article) = {
     INPUTX b = BOOLEAN DO
         completedStatisticGroup(Item item) <- b WHERE article(item) == article; 
 }
@@ -134,7 +134,7 @@ DESIGN articleStatisticGroupDashboard {
     MOVE functions.box;
 }
 
-completeArticleStatisticGroupDashboard 'Подтвердить все'() = ACTION {   
+completeArticleStatisticGroupDashboard 'Подтвердить все'() = {   
     LOCAL k = INTEGER ();
     k() <- 0;
     
@@ -155,7 +155,7 @@ EXTEND FORM  articleStatisticGroupDashboard
 ;
 
 // Автоматически проставляем нужные классификаторы
-seekDefaultStatisticGroupType = ACTION SEEK articleStatisticGroupDashboard.ct = statisticGroupTypeProcessesGroup();
+seekDefaultStatisticGroupType = { SEEK articleStatisticGroupDashboard.ct = statisticGroupTypeProcessesGroup(); }
 
 EXTEND FORM articleStatisticGroupDashboard
     EVENTS ON INIT seekDefaultStatisticGroupType()

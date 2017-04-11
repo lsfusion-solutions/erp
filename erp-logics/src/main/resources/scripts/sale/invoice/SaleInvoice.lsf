@@ -47,7 +47,7 @@ CONSTRAINT isPosted(InvoiceDetail d) AND banNegativeQuantityInvoice(operation(d)
 operation[Invoice.Invoice](Invoice o) += operation(o);
 
 // Добавляем в копирование инвойсов
-overCopy(Invoice s, UserInvoice d) += ACTION {
+overCopy(Invoice s, UserInvoice d) += {
     ASSIGN operation(d) <- operation(s);
 }
 
@@ -108,12 +108,12 @@ DESIGN userInvoice {
 @defineDocumentPackSku(userInvoice, sku, supplierStock);
 @extendFormDocumentPackSku(userInvoice, userInvoice, i);
 
-overChangeQuantityValueSku(UserInvoiceDetail detail) += ACTION {
+overChangeQuantityValueSku(UserInvoiceDetail detail) += {
     IF packBarcode(sku(detail)) AND NOT skipChangePackQuantity(detail) THEN {
         ASSIGN packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }
 }
-overChangeQuantityValueBatch(UserInvoiceDetail detail) += ACTION {
+overChangeQuantityValueBatch(UserInvoiceDetail detail) += {
     IF packBarcode(sku(batch(detail))) THEN {
         ASSIGN packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }
@@ -188,7 +188,7 @@ EXTEND FORM invoices
 
 // --------------------------- Проведение по регистру продаж ------------------------------------ //
 @implementSaleLedger(Invoice, sku, supplierStock);
-edit[SaleLedger] (InvoiceDetail ledger) += ACTION edit(ledger);
+edit[SaleLedger] (InvoiceDetail ledger) += { edit(ledger); }
 
 overQuantity = ABSTRACT NUMERIC[16,5] (InvoiceDetail);
 overInvoiceSum = ABSTRACT NUMERIC[18,4] (InvoiceDetail);
@@ -223,11 +223,11 @@ firstOrderBatchBalance (Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q
                                                    ORDER DESC dateTime(batch), batch;
 //firstOrderBatchBalance(Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q) = orderBatchBalance(sku, stock, dateTime, q)[2];
 
-fillBatch 'Проставить партию'(UserInvoiceDetail d)  = ACTION {    
+fillBatch 'Проставить партию'(UserInvoiceDetail d)  = {    
     batch(d) <- firstOrderBatchBalance(sku(d), supplierStock(d), dateTime(d), quantity(d)); 
 } SHORTCUT nameBatch[UserInvoiceDetail];
 
-fillAllBatch 'Проставить партии для всех'(UserInvoiceDetail detail) = ACTION {
+fillAllBatch 'Проставить партии для всех'(UserInvoiceDetail detail) = {
    FOR userInvoice(detail) == userInvoice(UserInvoiceDetail d) AND NOT batch(d) DO
        fillBatch(d);
 } SHORTCUT nameBatch[UserInvoiceDetail];

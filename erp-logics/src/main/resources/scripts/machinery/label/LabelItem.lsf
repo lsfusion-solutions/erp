@@ -17,45 +17,49 @@ EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY nameAddressManufacturer
 EXTEND FORM customLabelTransaction PROPERTIES(d) nameAddressManufacturerItem;
 EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressManufacturerItem;
 
-createItemLabelsTransaction 'Сформировать ценники'(Sku item, DepartmentStore stock) = ACTION NEWSESSION {
-     FOR in(LabelType labelType, item, stock)
-         NEW t = LabelTransaction DO {
-             departmentStore(t) <- stock;
-             labelType(t) <- labelType;
-             
-             FOR PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
-                 labelTransaction(d) <- t;
-                 sku(d) <- item;
-                 name(d) <- name(item);
- 
-                 createAttribute(d);
- 
-                 price(d) <- calcPrice(pt, d);
-                 retailPrice(d) <- overRetailPrice(d); 
-             } 
-             print(t);
-     }
- }
+createItemLabelsTransaction 'Сформировать ценники'(Sku item, DepartmentStore stock) = {
+	NEWSESSION {
+	     FOR in(LabelType labelType, item, stock)
+	         NEW t = LabelTransaction DO {
+	             departmentStore(t) <- stock;
+	             labelType(t) <- labelType;
+	             
+	             FOR PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
+	                 labelTransaction(d) <- t;
+	                 sku(d) <- item;
+	                 name(d) <- name(item);
+	 
+	                 createAttribute(d);
+	 
+	                 price(d) <- calcPrice(pt, d);
+	                 retailPrice(d) <- overRetailPrice(d); 
+	             } 
+	             print(t);
+	     }
+	 }
+}
 
-createItemTransaction 'Сформировать ценник'(Sku item, DepartmentStore stock, LabelType labelType) = ACTION NEWSESSION {
-    FOR NEW t = LabelTransaction DO {
-            departmentStore(t) <- stock;
-            labelType(t) <- labelType;
-            
-            FOR PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
-                labelTransaction(d) <- t;
-                sku(d) <- item;
-                name(d) <- name(item);
-                quantity(d) <- count(labelType, sku(d));
-                                                                             
-                createAttribute(d);
-
-                price(d) <- calcPrice(pt, d);
-                retailPrice(d) <- overRetailPrice(d); 
-            } 
-            // вызываем печатную форму для каждого из них
-            print(t);
-    }
+createItemTransaction 'Сформировать ценник'(Sku item, DepartmentStore stock, LabelType labelType) = {
+	NEWSESSION {
+	    FOR NEW t = LabelTransaction DO {
+	            departmentStore(t) <- stock;
+	            labelType(t) <- labelType;
+	            
+	            FOR PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
+	                labelTransaction(d) <- t;
+	                sku(d) <- item;
+	                name(d) <- name(item);
+	                quantity(d) <- count(labelType, sku(d));
+	                                                                             
+	                createAttribute(d);
+	
+	                price(d) <- calcPrice(pt, d);
+	                retailPrice(d) <- overRetailPrice(d); 
+	            } 
+	            // вызываем печатную форму для каждого из них
+	            print(t);
+	    }
+	}
 } IMAGE 'print.png';
 
 EXTEND FORM item

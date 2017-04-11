@@ -206,7 +206,7 @@ negativeSumInLIFO (OutContractLedger outContractLedger, InContractLedger inContr
               ORDER DESC overOrderDate(outContractLedger, inContractLedger), inContractLedger;
               
 skipCost = ABSTRACT BOOLEAN (OutContractLedger); 
-writeFIFO 'Расписать по FIFO'(OutContractLedger outContractLedger) = ACTION {
+writeFIFO 'Расписать по FIFO'(OutContractLedger outContractLedger) = {
     IF NOT skipCost(outContractLedger) THEN {
         cost(outContractLedger, InContractLedger inContractLedger) <- NULL;
         IF isReturn(outContractLedger) THEN {
@@ -217,18 +217,18 @@ writeFIFO 'Расписать по FIFO'(OutContractLedger outContractLedger) = 
     }
 }
 
-writeFIFOApply 'Расписать по FIFO'(OutContractLedger outContractLedger) = ACTION {
+writeFIFOApply 'Расписать по FIFO'(OutContractLedger outContractLedger) = {
     writeFIFO(outContractLedger);
     apply();
 }
 
-writeLIFO 'Расписать по LIFO'(OutContractLedger outContractLedger) = ACTION {
+writeLIFO 'Расписать по LIFO'(OutContractLedger outContractLedger) = {
 
     ASSIGN cost(outContractLedger, InContractLedger inContractLedger) <- NULL;
     ASSIGN cost(outContractLedger, InContractLedger inContractLedger) <- sumInLIFO(outContractLedger, inContractLedger);
 }
 
-writeLIFOApply 'Расписать по LIFO'(OutContractLedger outContractLedger) = ACTION {
+writeLIFOApply 'Расписать по LIFO'(OutContractLedger outContractLedger) = {
     writeLIFO(outContractLedger);
     apply();
 }
@@ -251,14 +251,14 @@ META implementInContractLedger(objectClass, contractProp)
     supplierStock[InContractLedger](objectClass inContractLedger) += supplierStock(inContractLedger);
     paymentCondition[InContractLedger](objectClass inContractLedger) += paymentCondition(inContractLedger);
     
-    edit[InContractLedger](objectClass ledger) += ACTION edit(ledger);    
+    edit[InContractLedger](objectClass ledger) += { edit(ledger); }    
 END
 
 META implementOutContractLedger(objectClass, contractProp)
     EXTEND CLASS objectClass : OutContractLedger;
     @implementInOutContractLedgerPrefix(out, objectClass, contractProp);
     
-    edit[OutContractLedger](objectClass ledger) += ACTION edit(ledger);
+    edit[OutContractLedger](objectClass ledger) += { edit(ledger); }
 END
 
 // ----------------------------------------- Связь между InContractLedger и ContractLedger
@@ -300,7 +300,7 @@ namePartyB 'Организация (покупатель)' = name(partyB());
 
 isCosted 'Расписан' (OutContractLedger outContractLedger) = abs(sum(outContractLedger)) (-) abs(costedInContractLedger(outContractLedger)) PERSISTENT;
 
-writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразнесенные по FIFO'() = ACTION {
+writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразнесенные по FIFO'() = {
 
     APPLY SINGLE {
         LOCAL changed = BOOLEAN (OutContractLedger);
@@ -323,7 +323,7 @@ writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразн
     }
 }
 
-writeNotCostedOutContractLedgerLIFOApply 'Расписать все неразнесенные по LIFO'() = ACTION {
+writeNotCostedOutContractLedgerLIFOApply 'Расписать все неразнесенные по LIFO'() = {
     FOR isCosted(OutContractLedger ledger) ORDER DESC dateTime(ledger) DO {
         writeLIFO(ledger);
     }

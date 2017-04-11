@@ -26,7 +26,7 @@ seriesPharmacy 'Серия лекарственного средства' = DATA
 seriesPharmacy(UserShipmentDetail detail) += seriesPharmacy(detail);
 seriesPharmacy(InvoiceShipmentDetail detail) += seriesPharmacy(detail);
 
-overFillInvoice(UserShipmentDetail s, InvoiceDetail i) += ACTION {
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) += {
     ASSIGN seriesPharmacy(s) <- seriesPharmacy(i);
 }
 
@@ -44,7 +44,7 @@ nameImportCountry 'Страна ввоза' = name(importCountry(UserShipmentDet
 importCountry(UserShipmentDetail detail) += importCountry(detail);
 importCountry(InvoiceShipmentDetail detail) += importCountry(detail);
 
-overFillInvoice(UserShipmentDetail s, InvoiceDetail i) += ACTION {
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) += {
     ASSIGN importCountry(s) <- importCountry(i);
 }
 
@@ -53,7 +53,7 @@ importCountry (ShipmentBatch batch) += importCountry(shipmentDetail(batch));
 
 netWeightSku 'Вес нетто, кг (ед.)' (ShipmentDetail detail) = netWeight[Item](sku(detail));
 
-changeNetWeightSku(ShipmentDetail detail) = ACTION {
+changeNetWeightSku(ShipmentDetail detail) = {
     INPUTX n = NUMERIC[9,3] DO
         netWeight(Item sku) <- n WHERE sku(detail) == sku;    
 } 
@@ -61,7 +61,7 @@ changeNetWeightSku(ShipmentDetail detail) = ACTION {
 manufacturerSku(ShipmentDetail detail) = manufacturer(sku(detail));
 nameManufacturerSku 'Производитель лекарственного средства' (ShipmentDetail detail) = name(manufacturerSku(detail));
 
-changeManufacturerSku(ShipmentDetail detail) = ACTION {
+changeManufacturerSku(ShipmentDetail detail) = {
     DIALOG manufacturerDialog OBJECTS m = manufacturer(sku(detail)) INPUT NULL DO 
         manufacturer(Item sku) <- m WHERE sku(detail) == sku;    
 } 
@@ -69,7 +69,7 @@ changeManufacturerSku(ShipmentDetail detail) = ACTION {
 pharmacyPriceGroupSku(ShipmentDetail detail) = pharmacyPriceGroup[Item](sku(detail));
 namePharmacyPriceGroupSku 'Тип лекарственного средства' (ShipmentDetail detail) = name(pharmacyPriceGroupSku(detail));
 
-changePharmacyPriceGroupSku(ShipmentDetail detail) = ACTION {
+changePharmacyPriceGroupSku(ShipmentDetail detail) = {
     DIALOG pharmacyPriceGroups OBJECTS g = pharmacyPriceGroup(sku(detail)) INPUT NULL DO
         pharmacyPriceGroup(Item sku) <- g WHERE sku(detail) == sku;    
 }

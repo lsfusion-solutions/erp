@@ -91,7 +91,7 @@ sum[OutContractLedger](Payment outContractLedger) += IF isReturn(outContractLedg
 
 //------------------------------------------- Actions --------------------------------------------------------------//
 
-setRateExchangeContract(Payment payment) = ACTION {
+setRateExchangeContract(Payment payment) = {
     INPUTX n = NUMERIC[18,4] DO
         rateExchangeContract(payment) <- NUMERIC[15,8](n/sum(payment));
 }
@@ -173,29 +173,33 @@ WHEN SESSION FORMS payment
 //------------------------------------- Платежи по договору --------------------------------------------------------//
 overSum = ABSTRACT NUMERIC[18,4] (Currency, DATE);
 
-pay 'Оплатить по договору'(Contract contract, DATE date) = ACTION NEWSESSION {
-    FOR NEW pm = Payment DO {
-        date(pm) <- date;
-        payer(pm) <- partyB(contract);
-        beneficiary(pm) <- partyA(contract);
-        contract(pm) <- contract;
-        sumContract(pm) <- OVERRIDE balanceA(contract, date), overSum(currency(contract), date);
-        sum(pm) <- round2(OVERRIDE balanceA(contract, date), overSum(currency(contract), date)) IF currencyContract(pm) == currencyAccountFrom(pm);
-        writeFIFO(pm);
-        SHOW payment OBJECTS p = pm MANAGESESSION DOCKED NOCANCEL;
-    }
+pay 'Оплатить по договору'(Contract contract, DATE date) = {
+	NEWSESSION {
+	    FOR NEW pm = Payment DO {
+	        date(pm) <- date;
+	        payer(pm) <- partyB(contract);
+	        beneficiary(pm) <- partyA(contract);
+	        contract(pm) <- contract;
+	        sumContract(pm) <- OVERRIDE balanceA(contract, date), overSum(currency(contract), date);
+	        sum(pm) <- round2(OVERRIDE balanceA(contract, date), overSum(currency(contract), date)) IF currencyContract(pm) == currencyAccountFrom(pm);
+	        writeFIFO(pm);
+	        SHOW payment OBJECTS p = pm MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 }
 
 //------------------------------------------- Платеж по договору --------------------------------------------//
 
-addPayment 'Оплатить'(Contract contract) = ACTION NEWSESSION{
-    FOR NEW p = Payment DO{
-        operation(p) <- defaultPaymentOperation();    
-        payer(p) <- partyB(contract);
-        beneficiary(p) <- partyA(contract);
-        contract(p) <- contract;
-        SHOW payment OBJECTS p=p MANAGESESSION DOCKED NOCANCEL;
-    }
+addPayment 'Оплатить'(Contract contract) = {
+	NEWSESSION{
+	    FOR NEW p = Payment DO{
+	        operation(p) <- defaultPaymentOperation();    
+	        payer(p) <- partyB(contract);
+	        beneficiary(p) <- partyA(contract);
+	        contract(p) <- contract;
+	        SHOW payment OBJECTS p=p MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
 }
 
 EXTEND FORM contractLedger

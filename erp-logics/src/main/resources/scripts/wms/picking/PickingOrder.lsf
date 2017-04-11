@@ -74,7 +74,7 @@ CLASS UserPickingOrderDetail 'Строка заказа на комплекта�
 //    @defineDocumentDialogSupplierCustomerStockDetail(userOrderDetail, supplierFilter, customerFilter);
 //    @defineDocumentDialogSupplierCustomerLegalEntity(userOrder, supplierFilter, customerFilter);
 
-changeBatch(UserPickingOrderDetail detail) = ACTION {
+changeBatch(UserPickingOrderDetail detail) = {
     DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
                                   t = dateTime(detail),
                                   sk = sku(detail),
@@ -87,7 +87,7 @@ changeBatch(UserPickingOrderDetail detail) = ACTION {
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (PickingOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-editSku 'Редактировать SKU' (UserPickingOrderDetail d) = ACTION edit(sku(d));
+editSku 'Редактировать SKU' (UserPickingOrderDetail d) = { edit(sku(d)); }
 FORM userPickingOrder 'Заказ на комплектацию'
     OBJECTS o = UserPickingOrder PANEL
     PROPERTIES (o) isPosted, nameStock,// ON CHANGE changeCustomerStock###customerFilter###userOrder(o),
@@ -154,28 +154,30 @@ DESIGN userPickingOrder {
 
 
 edit 'Редактировать' (userOrder) = ACTION EDITFORM UserPickingOrder;
-edit(UserPickingOrder order) += ACTION edit(order);
+edit(UserPickingOrder order) += { edit(order); }
 
 
 overCopy = ACTION ABSTRACT LIST (UserPickingOrderDetail, PickingOrderDetail);
-copy 'Копировать'(PickingOrder order) = ACTION NEWSESSION {
-    FOR NEW o = UserPickingOrder DO {
-
-        stock(o) <- stock(order);
-        note(o) <- note(order);
-
-        FOR pickingOrder(PickingOrderDetail orderDetail) == order DO {
-            FOR NEW d=UserPickingOrderDetail DO {
-                userPickingOrder(d) <- o;
-                sku(d) <- sku(orderDetail);
-                quantity(d) <- quantity(orderDetail);
-                batch(d) <- batch(orderDetail);
-                overCopy(d, orderDetail);
-            }
-        }
-
-        SHOW userPickingOrder OBJECTS o = o MANAGESESSION DOCKED;
-    }
+copy 'Копировать'(PickingOrder order) = {
+	NEWSESSION {
+	    FOR NEW o = UserPickingOrder DO {
+	
+	        stock(o) <- stock(order);
+	        note(o) <- note(order);
+	
+	        FOR pickingOrder(PickingOrderDetail orderDetail) == order DO {
+	            FOR NEW d=UserPickingOrderDetail DO {
+	                userPickingOrder(d) <- o;
+	                sku(d) <- sku(orderDetail);
+	                quantity(d) <- quantity(orderDetail);
+	                batch(d) <- batch(orderDetail);
+	                overCopy(d, orderDetail);
+	            }
+	        }
+	
+	        SHOW userPickingOrder OBJECTS o = o MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
 

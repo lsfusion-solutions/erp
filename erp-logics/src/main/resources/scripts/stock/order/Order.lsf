@@ -385,14 +385,14 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     backgroundSku 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrderDetail);
 
     edit 'Редактировать' = ACTION ABSTRACT LIST (Order) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-    edit[Order.Order] (Order order) += ACTION edit(order);
+    edit[Order.Order] (Order order) += { edit(order); }
 
-    editSku 'Редактировать SKU' (UserOrderDetail d) = ACTION edit(sku(d));
+    editSku 'Редактировать SKU' (UserOrderDetail d) = { edit(sku(d)); }
     
     backgroundParam = RGB(212,255,212) IF OrderDetail orderDetail IS OrderDetail; 
     backgroundQuantityParam = OVERRIDE backgroundParam(OrderDetail d), backgroundQuantity(d);
     disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (UserOrder); 
-    overPrePost 'Провести' (UserOrder o) = ACTION {
+    overPrePost 'Провести' (UserOrder o) = {
         IF NOT disablePosted(o) THEN {
             isPosted(o) <- TRUE;
         } 
@@ -572,43 +572,45 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @extendFormDocumentSkuStockPriceListTypeAgreement(userOrder, userOrder, o, legalEntityProp, stockProp);
 
     edit 'Редактировать' (userOrder) = ACTION EDITFORM UserOrder;
-    edit(UserOrder order) += ACTION edit(order);
+    edit(UserOrder order) += { edit(order); }
     
     isUserOpened(UserOrder o)=  isOpened[Order](o) AND is(o);
 
     overCopy = ACTION ABSTRACT LIST (UserOrderDetail, OrderDetail);
     overCopy = ACTION ABSTRACT LIST (Order, UserOrder);
-    copy 'Копировать'(Order order) = ACTION NEWSESSION {
-        FOR NEW o = UserOrder DO {
-            supplier(o) <- supplier(order);
-            supplierStock(o) <- supplierStock(order) IF active(supplierStock(order));
-            customer(o) <- customer(order);
-            customerStock(o) <- customerStock(order) IF active(customerStock(order));
-            currency(o) <- currency(order);
-            agreement(o) <- agreement(order);
-            priceListType(o) <- priceListType(order);
-            note(o) <- note(order);
-
-            overCopy(order, o);
-
-            FOR order(OrderDetail orderDetail) == order DO {
-                FOR NEW d=UserOrderDetail DO {
-                    userOrder(d) <- o;
-                    sku(d) <- sku(orderDetail);
-                    quantity(d) <- quantity(orderDetail);
-                    
-                    overCopy(d, orderDetail);
-                }
-            }
-
-            SHOW userOrder OBJECTS o = o MANAGESESSION DOCKED;
-        }
-    } TOOLBAR;
+    copy 'Копировать'(Order order) = {
+	NEWSESSION {
+	        FOR NEW o = UserOrder DO {
+	            supplier(o) <- supplier(order);
+	            supplierStock(o) <- supplierStock(order) IF active(supplierStock(order));
+	            customer(o) <- customer(order);
+	            customerStock(o) <- customerStock(order) IF active(customerStock(order));
+	            currency(o) <- currency(order);
+	            agreement(o) <- agreement(order);
+	            priceListType(o) <- priceListType(order);
+	            note(o) <- note(order);
+	
+	            overCopy(order, o);
+	
+	            FOR order(OrderDetail orderDetail) == order DO {
+	                FOR NEW d=UserOrderDetail DO {
+	                    userOrder(d) <- o;
+	                    sku(d) <- sku(orderDetail);
+	                    quantity(d) <- quantity(orderDetail);
+	                    
+	                    overCopy(d, orderDetail);
+	                }
+	            }
+	
+	            SHOW userOrder OBJECTS o = o MANAGESESSION DOCKED;
+	        }
+	    }
+} TOOLBAR;
     
 //-- Копирование строк     
     overCopy = ACTION ABSTRACT LIST (UserOrderDetail, UserOrderDetail);
 
-    copy 'Копировать'(UserOrderDetail detail) = ACTION {
+    copy 'Копировать'(UserOrderDetail detail) = {
         FOR NEW d = UserOrderDetail DO {          
 
             userOrder(d) <- userOrder(detail);
@@ -783,10 +785,12 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineFilterIsOpened (order, orders, o); 
     @defineDocumentLogForm(orders, o);
     edit 'Редактировать' = ACTION ABSTRACT LIST  (OrderDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-    edit(UserOrderDetail d) = ACTION NEWSESSION {
-        SHOW userOrder OBJECTS o = userOrder(d), d = d MANAGESESSION DOCKED;
-    }
-    edit(UserOrderDetail d) += ACTION edit(d);    
+    edit(UserOrderDetail d) = {
+	NEWSESSION {
+	        SHOW userOrder OBJECTS o = userOrder(d), d = d MANAGESESSION DOCKED;
+	    }
+}
+    edit(UserOrderDetail d) += { edit(d); }    
 END
 
 META deriveShipmentDate(dumb) 
@@ -807,13 +811,13 @@ META defineOrderBatch(legalEntityProp, stockProp)
     @defineDocumentInterfaceDetailBatch(order, batch);
     batch[Order.OrderDetail](OrderDetail d) += batch(d);
     
-    overCopy[UserOrderDetail,UserOrderDetail](UserOrderDetail d, UserOrderDetail detail) += ACTION {      
+    overCopy[UserOrderDetail,UserOrderDetail](UserOrderDetail d, UserOrderDetail detail) += {      
         batch(d) <- batch(detail);
     } 
-    overCopy(UserOrderDetail d, OrderDetail detail) += ACTION {      
+    overCopy(UserOrderDetail d, OrderDetail detail) += {      
         batch(d) <- batch(detail);
     } 
-    replace(Sku s, Batch b) += ACTION { sku(UserOrderDetail detail) <- s WHERE batch(detail) == b;}
+    replace(Sku s, Batch b) += { sku(UserOrderDetail detail) <- s WHERE batch(detail) == b;}
     // Пишем в цену заказа из вида цен в зависимости от партии
     @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, priceStock, userOrder);
 
@@ -832,7 +836,7 @@ META defineOrderBatch(legalEntityProp, stockProp)
 END
 
 META defineOrderBatchDialog(dumb)
-    changeBatch(UserOrderDetail userOrderDetail) = ACTION {
+    changeBatch(UserOrderDetail userOrderDetail) = {
         DIALOG dialogBatch OBJECTS sk = sku(userOrderDetail), bt = batch(userOrderDetail) INPUT NULL DO {
             batch(userOrderDetail) <- bt;
         }
@@ -845,7 +849,7 @@ META defineOrderBatchDialog(dumb)
 END
 
 META defineOrderBatchDialogStock(stockProp, dialog)
-    changeBatch(UserOrderDetail d) = ACTION {
+    changeBatch(UserOrderDetail d) = {
         DIALOG dialogBatchStock##dialog OBJECTS st = stockProp(d),
                                  t = dateTime(d),
                                  sk = sku(d),

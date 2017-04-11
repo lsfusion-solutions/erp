@@ -33,26 +33,28 @@ EXTEND CLASS TypeChange{
     orderReplace 'Объединение заказов'
 }
 
-logReplaceOrder(Purchase.Order o) = ACTION FOR NEW d = DocumentLog DO {
-    document(d) <- o;
-    typeDocument(d) <- objectClassName(o);
-    numberDocument(d) <- number(o);  
-    seriesDocument(d) <- series(o); 
-    dateDocument(d) <- date(o);
-    typeChange(d) <- TypeChange.orderReplace;
-    note(d) <- VARSTRING[255]([=GROUP CONCAT number(UserOrder o) IF selected(o), ',' ORDER o]());      
-    session(d) <- currentSession();  
-    hostnameComputer(d) <- hostnameCurrentComputer();
-    userLogin(d) <- login(currentUser()); 
-    nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
-    dateTimeSession(d) <- currentDateTime();  
-    supplierStock(d) <- supplierStock(o);
-    customerStock(d) <- customerStock(o);
+logReplaceOrder(Purchase.Order o) = {
+	FOR NEW d = DocumentLog DO {
+	    document(d) <- o;
+	    typeDocument(d) <- objectClassName(o);
+	    numberDocument(d) <- number(o);  
+	    seriesDocument(d) <- series(o); 
+	    dateDocument(d) <- date(o);
+	    typeChange(d) <- TypeChange.orderReplace;
+	    note(d) <- VARSTRING[255]([=GROUP CONCAT number(UserOrder o) IF selected(o), ',' ORDER o]());      
+	    session(d) <- currentSession();  
+	    hostnameComputer(d) <- hostnameCurrentComputer();
+	    userLogin(d) <- login(currentUser()); 
+	    nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
+	    dateTimeSession(d) <- currentDateTime();  
+	    supplierStock(d) <- supplierStock(o);
+	    customerStock(d) <- customerStock(o);
+	}
 }
 
 overReplace = ACTION ABSTRACT (UserOrder, UserOrder);
 
-replace 'Объединить'(UserOrder order) = ACTION {
+replace 'Объединить'(UserOrder order) = {
     IF countSelectedOrder() THEN {
         IF  countSelectedUserOrder() == countSelectedOrder() THEN {
     

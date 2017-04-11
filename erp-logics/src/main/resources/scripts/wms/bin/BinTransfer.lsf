@@ -56,7 +56,7 @@ GROUP binTransfer 'Информация о перемещении' : base;
 @defineNumeratedDefault(UserBinTransfer, 'Перемещения по ячейкам ', 'ПП');
 
 disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (UserBinTransfer);
-overPrePost 'Провести' (UserBinTransfer o) = ACTION {
+overPrePost 'Провести' (UserBinTransfer o) = {
     IF NOT disablePosted(o) THEN {
         isPosted(o) <- TRUE;
     } 
@@ -166,7 +166,7 @@ DESIGN userBinTransfer {
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (BinTransfer) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit 'Редактировать' = ACTION EDITFORM UserBinTransfer;
-edit(UserBinTransfer transfer) += ACTION edit(transfer);
+edit(UserBinTransfer transfer) += { edit(transfer); }
 
 overShowEdit = ABSTRACT BOOLEAN (BinTransfer);
 overShowDelete = ABSTRACT BOOLEAN (BinTransfer); 
@@ -180,32 +180,34 @@ overShowDelete (UserBinTransfer o) += isUserOpened(o) AND NOT skipToShowDelete(o
 
 overCopy = ACTION ABSTRACT LIST (UserBinTransferDetail, BinTransferDetail);
 overCopy = ACTION ABSTRACT LIST (BinTransfer, UserBinTransfer);
-copy 'Копировать'(BinTransfer transfer) = ACTION NEWSESSION {
-    FOR NEW o = UserBinTransfer DO {
-        inBin(o) <- inBin(transfer);
-        outBin(o) <- outBin(transfer);
-        note(o) <- note(transfer);
-
-        EXEC overCopy(transfer, o);
-
-        FOR binTransfer(BinTransferDetail transferDetail) == transfer DO {
-            FOR NEW d=UserBinTransferDetail DO {
-                userBinTransfer(d) <- o;
-                sku(d) <- sku(transferDetail);
-                quantity(d) <- quantity(transferDetail);
-                
-                EXEC overCopy(d, transferDetail);
-            }
-        }
-
-        SHOW userBinTransfer OBJECTS o = o MANAGESESSION DOCKED;
-    }
+copy 'Копировать'(BinTransfer transfer) = {
+	NEWSESSION {
+	    FOR NEW o = UserBinTransfer DO {
+	        inBin(o) <- inBin(transfer);
+	        outBin(o) <- outBin(transfer);
+	        note(o) <- note(transfer);
+	
+	        EXEC overCopy(transfer, o);
+	
+	        FOR binTransfer(BinTransferDetail transferDetail) == transfer DO {
+	            FOR NEW d=UserBinTransferDetail DO {
+	                userBinTransfer(d) <- o;
+	                sku(d) <- sku(transferDetail);
+	                quantity(d) <- quantity(transferDetail);
+	                
+	                EXEC overCopy(d, transferDetail);
+	            }
+	        }
+	
+	        SHOW userBinTransfer OBJECTS o = o MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
     
 //-- Копирование строк     
 overCopy = ACTION ABSTRACT LIST (UserBinTransferDetail, UserBinTransferDetail);
 
-copy 'Копировать'(UserBinTransferDetail detail) = ACTION {
+copy 'Копировать'(UserBinTransferDetail detail) = {
     FOR NEW d = UserBinTransferDetail DO {          
 
         userBinTransfer(d) <- userBinTransfer(detail);
@@ -370,7 +372,7 @@ EXTEND FORM userBinTransfer
 packQuantity 'Кол-во упаковок в документе' (sku, userBinTransfer, stock) = GROUP SUM packQuantity(UserBinTransferDetail userBinTransferDetail)
     BY sku(userBinTransferDetail), userBinTransfer(userBinTransferDetail), stock(userBinTransferDetail);
 
-changePackQuantity(Sku sku, UserBinTransfer userBinTransfer, Stock stock) = ACTION {
+changePackQuantity(Sku sku, UserBinTransfer userBinTransfer, Stock stock) = {
     INPUTX n = NUMERIC[16,5] DO
         IF userBinTransferDetail(sku, userBinTransfer, stock) THEN {
             IF n THEN {
@@ -393,7 +395,7 @@ changePackQuantity(Sku sku, UserBinTransfer userBinTransfer, Stock stock) = ACTI
         }
 }
 
-changeAmountPack(Sku sku, UserBinTransfer userBinTransfer, Stock stock) = ACTION {
+changeAmountPack(Sku sku, UserBinTransfer userBinTransfer, Stock stock) = {
     INPUTX n = NUMERIC[14,3] DO {
         IF userBinTransferDetail(sku, userBinTransfer, stock) THEN {
             IF n THEN {

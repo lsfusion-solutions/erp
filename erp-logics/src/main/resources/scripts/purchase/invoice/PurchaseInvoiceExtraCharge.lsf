@@ -20,7 +20,7 @@ nameSuppliers 'Поставщики' =GROUP CONCAT  nameSupplier(Invoice invoice
 seriesNumberSuppliers 'Накладные' =GROUP CONCAT  seriesNumber(Invoice invoice) IF inExtraCharge(Invoice charge, invoice), '; ' 
     BY charge ORDER invoice MINCHARWIDTH 20 PREFCHARWIDTH 40;  
 
-overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION {      
+overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) += {      
     inDataExtraCharge(Invoice i,d) <- inDataExtraCharge(i,detail);
 } 
 
@@ -38,7 +38,7 @@ extraChargeSum (Invoice i,UserInvoiceDetail d) += extraChargeSum(i,d);
 extraChargePrice(Invoice i, UserInvoiceDetail d) => inExtraCharge(i, d) RESOLVE RIGHT;
 extraChargeSum(Invoice i, UserInvoiceDetail d) => inExtraCharge(i, d) RESOLVE RIGHT;
 
-changeExtraChargeSum(Invoice i, UserInvoiceDetail d) = ACTION {
+changeExtraChargeSum(Invoice i, UserInvoiceDetail d) = {
     INPUTX n = NUMERIC[18,4] DO {
         extraChargeSum(i,d) <- n;
         IF n THEN
@@ -107,7 +107,7 @@ DESIGN extraChargeInvoices {
     }
 }
 
-selectExtraCharge 'Выбрать накладные'(UserInvoice i) = ACTION {   
+selectExtraCharge 'Выбрать накладные'(UserInvoice i) = {   
     filterOperationExtraCharge(i) <- operation('purchase_external'); // todo: пока пишем явно операцию
     SHOW extraChargeInvoices OBJECTS i=i ;
 } TOOLBAR;
@@ -155,7 +155,7 @@ EXTEND FORM invoices
 
 calcChargeSum(Invoice i) = NUMERIC[18,4](IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i));
 
-fillExtraChargePriceUser 'Расписать услуги'(Invoice i) = ACTION {
+fillExtraChargePriceUser 'Расписать услуги'(Invoice i) = {
     IF currency(i) THEN {    
         IF toWeightExtraCharge(i) THEN {
             extraChargeSum(i, UserInvoiceDetail d) <- 
@@ -216,11 +216,19 @@ DESIGN extraCharge {
     }
     MOVE functions.box;
 }
-showExtraChargePrice 'Показать доп. услуги' (InvoiceDetail d) = ACTION NEWSESSION { SHOW extraCharge OBJECTS d = d MANAGESESSION ; } SHORTCUT chargePrice[InvoiceDetail];
-showExtraChargeSum 'Показать доп. услуги' (InvoiceDetail d) = ACTION NEWSESSION { SHOW extraCharge OBJECTS d = d MANAGESESSION ; } SHORTCUT chargeSum[InvoiceDetail];
+showExtraChargePrice 'Показать доп. услуги' (InvoiceDetail d) = {
+	NEWSESSION { SHOW extraCharge OBJECTS d = d MANAGESESSION ; }
+} SHORTCUT chargePrice[InvoiceDetail];
+showExtraChargeSum 'Показать доп. услуги' (InvoiceDetail d) = {
+	NEWSESSION { SHOW extraCharge OBJECTS d = d MANAGESESSION ; }
+} SHORTCUT chargeSum[InvoiceDetail];
 
-showExtraChargePrice 'Показать доп. услуги' (UserInvoiceDetail d) = ACTION NEWSESSION { SHOW extraCharge OBJECTS d = d MANAGESESSION ; } SHORTCUT chargePrice[UserInvoiceDetail];
-showExtraChargeSum 'Показать доп. услуги' (UserInvoiceDetail d) = ACTION NEWSESSION { SHOW extraCharge OBJECTS d = d MANAGESESSION ; } SHORTCUT chargeSum[UserInvoiceDetail];    
+showExtraChargePrice 'Показать доп. услуги' (UserInvoiceDetail d) = {
+	NEWSESSION { SHOW extraCharge OBJECTS d = d MANAGESESSION ; }
+} SHORTCUT chargePrice[UserInvoiceDetail];
+showExtraChargeSum 'Показать доп. услуги' (UserInvoiceDetail d) = {
+	NEWSESSION { SHOW extraCharge OBJECTS d = d MANAGESESSION ; }
+} SHORTCUT chargeSum[UserInvoiceDetail];    
     
 FORM extraChargeParams 'Параметры'
     OBJECTS o = Operation PANEL 
@@ -266,10 +274,10 @@ DESIGN extraChargeParams {
     }
 }
 
-seekDefaultOperatioParams() = ACTION {
+seekDefaultOperatioParams() = {
     SEEK extraChargeParams.o = operation('purchase_charge');
 }
-changeDefaultCurrencyParams(LegalEntity s) = ACTION {
+changeDefaultCurrencyParams(LegalEntity s) = {
     SEEK extraChargeParams.c = currency(s);
 }    
 
@@ -278,28 +286,30 @@ EXTEND FORM extraChargeParams
     EVENTS ON CHANGE s changeDefaultCurrencyParams(s)
 ;
     
-createExtraChargeUser 'Накладная (закупка) доп. услуги' (Invoice invoice) = ACTION NEWSESSION {   
-    DIALOG extraChargeParams OBJECTS o INPUT, s INPUT, sk INPUT, nu INPUT, c INPUT DO {
-        FOR NEW i = UserInvoice DO {
-            operation(i) <- o;
-            supplier(i) <- s;
-            customer(i) <- customer(invoice);
-            currency(i) <- c;
-            isHomeCurrency(i) <- TRUE WHERE (OVERRIDE currency(invoice), homeCurrency(invoice) IF isHomeCurrency(invoice)) != currency(i);
-            dateRateExchange(i) <- currentDate() WHERE isHomeCurrency[Invoice](i);
-            rateExchange(i) <- rateOn(typeExchange(i),currency(i),dateRateExchange(i)) WHERE isHomeCurrency[Invoice](i);                                                                                   
-            
-            FOR NEW d = UserInvoiceDetail DO {
-                userInvoice(d) <- i;   
-                sku(d) <- sk;
-                quantity(d) <- 1.0; 
-                price(d) <- nu;                    
-            }
-            inExtraCharge[Invoice,UserInvoice](i,invoice) <- TRUE;
-            fillExtraChargePriceUser(i);
-            SHOW userInvoice OBJECTS i=i MANAGESESSION DOCKED NOCANCEL;
-        }
-    }
+createExtraChargeUser 'Накладная (закупка) доп. услуги' (Invoice invoice) = {
+	NEWSESSION {   
+	    DIALOG extraChargeParams OBJECTS o INPUT, s INPUT, sk INPUT, nu INPUT, c INPUT DO {
+	        FOR NEW i = UserInvoice DO {
+	            operation(i) <- o;
+	            supplier(i) <- s;
+	            customer(i) <- customer(invoice);
+	            currency(i) <- c;
+	            isHomeCurrency(i) <- TRUE WHERE (OVERRIDE currency(invoice), homeCurrency(invoice) IF isHomeCurrency(invoice)) != currency(i);
+	            dateRateExchange(i) <- currentDate() WHERE isHomeCurrency[Invoice](i);
+	            rateExchange(i) <- rateOn(typeExchange(i),currency(i),dateRateExchange(i)) WHERE isHomeCurrency[Invoice](i);                                                                                   
+	            
+	            FOR NEW d = UserInvoiceDetail DO {
+	                userInvoice(d) <- i;   
+	                sku(d) <- sk;
+	                quantity(d) <- 1.0; 
+	                price(d) <- nu;                    
+	            }
+	            inExtraCharge[Invoice,UserInvoice](i,invoice) <- TRUE;
+	            fillExtraChargePriceUser(i);
+	            SHOW userInvoice OBJECTS i=i MANAGESESSION DOCKED NOCANCEL;
+	        }
+	    }
+	}
 }
 EXTEND FORM invoices
     PROPERTIES (i) createExtraChargeUser TOOLBAR 

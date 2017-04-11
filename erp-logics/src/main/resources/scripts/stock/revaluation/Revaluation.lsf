@@ -52,7 +52,7 @@ CONSTRAINT stock(UserRevaluation r) AND NOT  isCompany(stock(r))
 idBatch 'Код партии' (RevaluationDetail d) = id(batch(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 idBatch 'Код партии' (UserRevaluationDetail d) = id(batch(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-changeBatch(UserRevaluationDetail userRevaluationDetail) = ACTION {
+changeBatch(UserRevaluationDetail userRevaluationDetail) = {
     DIALOG dialogBatchStockOut OBJECTS st = stock(userRevaluationDetail),
                              t = dateTime(userRevaluationDetail),
                              sk = sku(userRevaluationDetail),
@@ -60,7 +60,7 @@ changeBatch(UserRevaluationDetail userRevaluationDetail) = ACTION {
         batch(userRevaluationDetail) <- bt;
 }
 
-replace(Sku s, Batch b) += ACTION { sku(UserRevaluationDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += { sku(UserRevaluationDetail detail) <- s WHERE batch(detail) == b;}
 
 // -- До
 
@@ -148,7 +148,7 @@ FORM revaluation 'Переоценка (печать)'
 
 ;
 
-print 'Переоценка' (Revaluation revaluation) = ACTION PRINT revaluation OBJECTS p = revaluation   IMAGE 'print.png' IN print;
+print 'Переоценка' (Revaluation revaluation) = { PRINT revaluation OBJECTS p = revaluation; }   IMAGE 'print.png' IN print;
 
 // --------------------------- Формы --------------------------------- //
 FORM userRevaluation 'Переоценка'
@@ -244,20 +244,24 @@ DESIGN userRevaluation {
 }
 
 edit 'Редактировать' = ACTION ABSTRACT LIST  (RevaluationDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserRevaluationDetail d) = ACTION NEWSESSION {
-    SHOW userRevaluation OBJECTS p = userRevaluation(d), d = d MANAGESESSION DOCKED;
+edit(UserRevaluationDetail d) = {
+	NEWSESSION {
+	    SHOW userRevaluation OBJECTS p = userRevaluation(d), d = d MANAGESESSION DOCKED;
+	}
 }
 
-edit(UserRevaluationDetail d) += ACTION edit(d);    
-edit[SkuLedger](RevaluationDetail ledger) += ACTION edit(ledger);
+edit(UserRevaluationDetail d) += { edit(d); }    
+edit[SkuLedger](RevaluationDetail ledger) += { edit(ledger); }
 
 show 'Просмотреть' = ACTION ABSTRACT LIST  (RevaluationDetail) TOOLBAR;
-show(UserRevaluationDetail d) = ACTION NEWSESSION {
-    SHOW userRevaluation OBJECTS p = userRevaluation(d), d = d DOCKED READONLY;
+show(UserRevaluationDetail d) = {
+	NEWSESSION {
+	    SHOW userRevaluation OBJECTS p = userRevaluation(d), d = d DOCKED READONLY;
+	}
 }
 
-show(UserRevaluationDetail d) += ACTION show(d);    
-show[SkuLedger](RevaluationDetail ledger) += ACTION show(ledger);
+show(UserRevaluationDetail d) += { show(d); }    
+show[SkuLedger](RevaluationDetail ledger) += { show(ledger); }
 
 @defineDocumentSkuPriceListTypeSystemLedger(userRevaluation, accountPriceListType, stock, );
 @extendFormDocumentSku(userRevaluation, userRevaluationDetail, userRevaluation, p, sku, stock);
@@ -281,7 +285,7 @@ EXTEND FORM userRevaluation
 
 edit 'Редактировать' (userRevaluation) = ACTION EDITFORM UserRevaluation;
 
-edit (UserRevaluation revaluation) += ACTION edit(revaluation);
+edit (UserRevaluation revaluation) += { edit(revaluation); }
 isUserOpened(UserRevaluation r)=  isOpened[Revaluation](r) AND is(r);
 
 FORM revaluations 'Переоценки' 
@@ -390,8 +394,8 @@ sumItem (Revaluation ledger) += -diffSumRevaluationDetail(ledger);
 sumContainer (Revaluation ledger) += 0.0 IF ledger IS Revaluation;
 
 operation[StockDocumentLedger](Revaluation ledger) += operation(ledger);
-edit[StockDocumentLedger](Revaluation l) += ACTION edit(l);
-close[StockDocumentLedger](Revaluation l) += ACTION close(l);
+edit[StockDocumentLedger](Revaluation l) += { edit(l); }
+close[StockDocumentLedger](Revaluation l) += { close(l); }
 // Проведение по регистру
 @implementSkuLedger(revaluationDetail, sku, stock);
 sum[InSkuLedger] (RevaluationDetail ledger) += diffSum(ledger);
@@ -419,11 +423,11 @@ price (RevaluationDetail ledger, SystemLedgerPriceListType type) += WHEN price(l
 in (RevaluationDetail ledger, Stock stock) += stock(ledger) == stock;
 in (RevaluationDetail ledger, Batch batch) += batch(ledger) == batch; 
 
-edit[PriceListLedger](RevaluationDetail d) += ACTION edit(d);
+edit[PriceListLedger](RevaluationDetail d) += { edit(d); }
 
 // ---------------------- Создание переоценки до учетной цены ----------------------- //
 
-addAdjustmentAccountSumDetail 'Привести учетные суммы к ценам партий'(Revaluation revaluation) = ACTION {
+addAdjustmentAccountSumDetail 'Привести учетные суммы к ценам партий'(Revaluation revaluation) = {
     LOCAL sum = NUMERIC[18,4] (Batch);
     sum(Batch b) <- accountSumB(b, stock(revaluation), dateTime(revaluation));
     

@@ -261,7 +261,7 @@ FORM currentBalanceSku 'Текущие остатки'
     PROPERTIES  READONLY name(st), currentBalance(s,st), dateTimeLastMoved(s,st), dateTimeLastOrderBatch(s,st), lastAccountPrice(s,st)
     FILTERS currentBalance(s,st)
 ;
-reviewCurrentBalance (Sku sku) = ACTION SHOW currentBalanceSku OBJECTS s=sku ;
+reviewCurrentBalance (Sku sku) = { SHOW currentBalanceSku OBJECTS s=sku ; }
 
 FORM soldStoreSkuDateFromTo 'Продажи по магазинам'
     OBJECTS s = Sku PANEL 
@@ -273,7 +273,7 @@ FORM soldStoreSkuDateFromTo 'Продажи по магазинам'
     PROPERTIES  READONLY name(st), quantitySold(st,s,dFrom,dTo), sumSold(st,s,dFrom,dTo)
     FILTERS quantitySold(st,s,dFrom,dTo) OR sumSold(st,s,dFrom,dTo)
 ;
-reviewSoldStoreDate (Sku sku, DATE dFrom, DATE dTo) = ACTION SHOW soldStoreSkuDateFromTo OBJECTS s=sku, dFrom=dFrom, dTo=dTo ;
+reviewSoldStoreDate (Sku sku, DATE dFrom, DATE dTo) = { SHOW soldStoreSkuDateFromTo OBJECTS s=sku, dFrom=dFrom, dTo=dTo ; }
 
 TABLE rangeRevRangeLevelSku (RangeRev, RangeLevel, Sku);
 quantityShelf 'Количество на полке' = DATA INTEGER (RangeRev, RangeLevel, Sku);
@@ -290,7 +290,7 @@ FORM rangeRevSelectSuppliers 'Выбор поставщика'
     FILTERS hasSkus(v, l, p, d)
 ;
 
-changeNameFilterSupplier(RangeRev v, PriceListType p, DepartmentStore d) = ACTION {
+changeNameFilterSupplier(RangeRev v, PriceListType p, DepartmentStore d) = {
     DIALOG rangeRevSelectSuppliers OBJECTS v = v, p = p, d = d, l = filterSupplier() INPUT NULL DO
         filterSupplier() <- l;
 }
@@ -387,22 +387,24 @@ DESIGN options {
     }
 }
 
-seekDefaultDepartmentStore = ACTION SEEK rangeRev.d = defaultDepartmentStore();
+seekDefaultDepartmentStore = { SEEK rangeRev.d = defaultDepartmentStore(); }
 EXTEND FORM rangeRev
     EVENTS ON INIT seekDefaultDepartmentStore()
 ;
 
-seekDefaultPriceListType = ACTION SEEK rangeRev.pt = defaultPriceListType();
+seekDefaultPriceListType = { SEEK rangeRev.pt = defaultPriceListType(); }
 EXTEND FORM rangeRev
     EVENTS ON INIT seekDefaultPriceListType()
 ;
 
-copy 'Копировать'(RangeRev pr) = ACTION NESTEDSESSION {
-    FOR NEW r = RangeRev DO {
-        range(r) <- range(pr);
-        level(r, Sku s) <- level(pr, s);
-        SHOW rangeRev OBJECTS v = r MANAGESESSION DOCKED;
-    }
+copy 'Копировать'(RangeRev pr) = {
+	NESTEDSESSION {
+	    FOR NEW r = RangeRev DO {
+	        range(r) <- range(pr);
+	        level(r, Sku s) <- level(pr, s);
+	        SHOW rangeRev OBJECTS v = r MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
 saved 'Сохранена' (Range r) = PREV(r IS Range);
@@ -433,18 +435,20 @@ calcCountSkuNotSupplier 'Кол-во товаров без поставщика'
 
 countSkuNotSupplier 'Кол-во товаров без поставщика' = DATA LOCAL INTEGER (DataPriceListType, DepartmentStore, Range, DATE);
 
-fillCountSkuNotSupplier 'Обновить'(DataPriceListType pt, DepartmentStore d, DATE dt) = ACTION {
+fillCountSkuNotSupplier 'Обновить'(DataPriceListType pt, DepartmentStore d, DATE dt) = {
     countSkuNotSupplier(pt, d, Range r, dt) <- calcCountSkuNotSupplier(pt, d, r, dt) WHERE r IS Range;   
 }
-createRangeRev 'Создать версию'(Range range, DATE date) = ACTION NEWSESSION {
-    LOCAL rev = RangeRev();
-    rev () <- rangeRev(range, date);
-
-    FOR NEW v = RangeRev DO {
-        range(v) <- range;
-        level(v, Sku s) <- level(rev(), s);
-        SHOW rangeRev OBJECTS v=v MANAGESESSION DOCKED;
-    }
+createRangeRev 'Создать версию'(Range range, DATE date) = {
+	NEWSESSION {
+	    LOCAL rev = RangeRev();
+	    rev () <- rangeRev(range, date);
+	
+	    FOR NEW v = RangeRev DO {
+	        range(v) <- range;
+	        level(v, Sku s) <- level(rev(), s);
+	        SHOW rangeRev OBJECTS v=v MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
 EXTEND FORM ranges
@@ -534,7 +538,7 @@ date (r, t, d) = GROUP LAST DATE dateIn
 //levelRangeStoreTypeDate(r, t, d) = OVERRIDE lastLevelRangeStoreTypeDate(r, t, d), dataLevelRangeStoreTypeDate(r, t, d);  
 nameLevel 'Уровень' (Range r, StoreType t, DATE d)= name(level(r, t, d)); 
 
-changeLevel (Range r, StoreType t, DATE d)= ACTION {
+changeLevel (Range r, StoreType t, DATE d)= {
     DIALOG dialogRangeLevels OBJECTS l = dataLevel(r, t, d) CHANGE DO {
         excludeLevel (r, t, d) <- NOT l;
     }
@@ -570,13 +574,13 @@ date (r, st, d) = GROUP LAST DATE dateIn
                                               ORDER dateIn
                                               WHERE dataLevel(range, st, dateIn) AND dateIn <= (date AS DATE); 
 
-changeLevel (Range r, Store st, DATE d)= ACTION {
+changeLevel (Range r, Store st, DATE d)= {
     DIALOG dialogRangeLevels OBJECTS l = dataLevel(r, st, d) CHANGE DO {
         excludeLevel (r, st, d) <- NOT l;
     }
 }              
 
-changeWYSLevel (Range r, Store st, DATE d)= ACTION {
+changeWYSLevel (Range r, Store st, DATE d)= {
     INPUTX s = VARISTRING[10] DO 
         IF s THEN {
             dataLevel (r, st, d) <- [= GROUP MAX RangeLevel l BY name(l)](s);
@@ -910,7 +914,7 @@ FORM param 'Параметры заполнения ассортиментной
     
 ;
 
-fill 'Заполнить матрицу по остаткам и продажам'(RangeRev rangeRev, DATE dateFrom, LedgerPriceListType pt, Stock stock) = ACTION {
+fill 'Заполнить матрицу по остаткам и продажам'(RangeRev rangeRev, DATE dateFrom, LedgerPriceListType pt, Stock stock) = {
     DIALOG param OBJECTS v = rangeRev DO { 
         IF countRangeLevels(range(rangeRev)) THEN {
             level(rangeRev,Sku sku) <- level (sku, rangeRev, dateFrom, pt, stock) WHERE level (sku, rangeRev, dateFrom, pt, stock) ;

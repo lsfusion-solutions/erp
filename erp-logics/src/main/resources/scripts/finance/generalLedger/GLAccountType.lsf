@@ -135,25 +135,27 @@ FORM GLAccountDialog 'Счета'
 ;
 
 overCopy = ACTION ABSTRACT LIST (GLAccount, GLAccount);
-copy 'Копировать'(GLAccountType GLAccountType) = ACTION NEWSESSION {
-    LOCAL mapping = GLAccount (GLAccount);
-
-    FOR NEW t = GLAccountType DO {
-        ASSIGN currency(t) <- currency(GLAccountType);
-
-        FOR GLAccountType(GLAccount GLAccount) == GLAccountType DO {
-            FOR NEW d=GLAccount DO {
-                ASSIGN GLAccountType(d) <- t;
-                ASSIGN name(d) <- name(GLAccount);
-                ASSIGN id(d) <- id(GLAccount);
-                ASSIGN parent(d) <- mapping(parent(GLAccount));
-                ASSIGN mapping(GLAccount) <- d;
-                EXEC overCopy(GLAccount, d);
-            }
-        }
-
-        SHOW GLAccountType OBJECTS g = t MANAGESESSION DOCKED;
-    }
+copy 'Копировать'(GLAccountType GLAccountType) = {
+	NEWSESSION {
+	    LOCAL mapping = GLAccount (GLAccount);
+	
+	    FOR NEW t = GLAccountType DO {
+	        ASSIGN currency(t) <- currency(GLAccountType);
+	
+	        FOR GLAccountType(GLAccount GLAccount) == GLAccountType DO {
+	            FOR NEW d=GLAccount DO {
+	                ASSIGN GLAccountType(d) <- t;
+	                ASSIGN name(d) <- name(GLAccount);
+	                ASSIGN id(d) <- id(GLAccount);
+	                ASSIGN parent(d) <- mapping(parent(GLAccount));
+	                ASSIGN mapping(GLAccount) <- d;
+	                EXEC overCopy(GLAccount, d);
+	            }
+	        }
+	
+	        SHOW GLAccountType OBJECTS g = t MANAGESESSION DOCKED;
+	    }
+	}
 } TOOLBAR;
 
 EXTEND FORM GLAccountTypes
@@ -171,14 +173,14 @@ NAVIGATOR {
 
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
-loadDefaultGLAccountType 'Добавить значение плана счетов'(VARISTRING[150] iname, VARSTRING[20] isid, STRING[3] isidCurrency) = ACTION {
+loadDefaultGLAccountType 'Добавить значение плана счетов'(VARISTRING[150] iname, VARSTRING[20] isid, STRING[3] isidCurrency) = {
     FOR NEW t = GLAccountType DO {
         ASSIGN name(t) <- iname;
         ASSIGN id (t) <- isid;
         ASSIGN currency(t) <- currencyShortName(isidCurrency);
     }
 }
-loadDefaultGLAccount 'Добавить значение счета'(VARSTRING[255] iname, VARSTRING[20] isid, VARSTRING[20] sidType, VARSTRING[20] sidParent) = ACTION {
+loadDefaultGLAccount 'Добавить значение счета'(VARSTRING[255] iname, VARSTRING[20] isid, VARSTRING[20] sidType, VARSTRING[20] sidParent) = {
     FOR NEW g = GLAccount DO {
         ASSIGN name(g) <- iname;
         ASSIGN id(g) <- isid;

@@ -377,7 +377,7 @@ DESIGN wholesalePharmacyPriceListType {
 }
 
 edit 'Редактировать' = ACTION EDITFORM WholesalePharmacyPriceListType;
-edit(WholesalePharmacyPriceListType priceListType) += ACTION edit(priceListType);
+edit(WholesalePharmacyPriceListType priceListType) += { edit(priceListType); }
 
 EXTEND FORM priceListTypes
     PROPERTIES(pt) NEWSESSION addWholesalePharmacyPriceListType = NEW[WholesalePharmacyPriceListType]
@@ -487,14 +487,14 @@ NAVIGATOR {
 
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
-loadDefaultPharmacyPriceGroup 'Добавить Типы лекарственных средств'(VARISTRING[50] iname, VARSTRING[100] isid) = ACTION {
+loadDefaultPharmacyPriceGroup 'Добавить Типы лекарственных средств'(VARISTRING[50] iname, VARSTRING[100] isid) = {
     FOR NEW g = PharmacyPriceGroup DO {
          ASSIGN name(g) <- iname;
          ASSIGN id(g) <- isid;
     }
 }
 
-loadDefaultPharmacyPriceInterval 'Добавить интервал цен лекарственного средства (by)'(VARSTRING[100] sidGroup, NUMERIC[16,4] priceFrom, NUMERIC[8,3] wMarkup, NUMERIC[8,3] rMarkup) = ACTION {
+loadDefaultPharmacyPriceInterval 'Добавить интервал цен лекарственного средства (by)'(VARSTRING[100] sidGroup, NUMERIC[16,4] priceFrom, NUMERIC[8,3] wMarkup, NUMERIC[8,3] rMarkup) = {
     FOR NEW i = PharmacyPriceInterval DO {
          ASSIGN pharmacyGroupPharmacy(i) <- pharmacyPriceGroup(sidGroup);
          ASSIGN pricePharmacy(i) <- priceFrom;
@@ -505,7 +505,7 @@ loadDefaultPharmacyPriceInterval 'Добавить интервал цен ле�
 }
 
 
-loadDefaultPharmacyPriceGroups 'Загрузить стандартные типы лек. ср-в и надбавки для них' () = ACTION {
+loadDefaultPharmacyPriceGroups 'Загрузить стандартные типы лек. ср-в и надбавки для них' () = {
     EXEC loadDefaultPharmacyPriceGroup('Лекарственные средства', 'by_1');
         EXEC loadDefaultPharmacyPriceInterval('by_1', 0.00, 11.00, 30.00);
         EXEC loadDefaultPharmacyPriceInterval('by_1', 5.00, 10.00, 25.00);

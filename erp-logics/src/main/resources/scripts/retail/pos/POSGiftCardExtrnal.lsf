@@ -9,16 +9,16 @@ value 'Номинал' = DATA LOCAL NUMERIC[16,4]();
 
 isReadonlyOk = NOT barcodeInput() OR NOT value(); 
 
-overOk '{action.form.ok}' = ACTION formOk() TOOLBAR EDITKEY 'ctrl ENTER';
+overOk '{action.form.ok}' = { formOk(); } TOOLBAR EDITKEY 'ctrl ENTER';
 
-changeBarcodeInput() = ACTION {
+changeBarcodeInput() = {
     INPUTX s = VARSTRING[15] DO {
         barcodeInput() <- s;
         IF barcodeInput() AND value() THEN formOk();
     }
 }
 
-changeValue() = ACTION {
+changeValue() = {
     INPUTX n = NUMERIC[16,4] DO {
         value() <- n;
         IF barcodeInput() AND value() THEN formOk();
@@ -63,14 +63,14 @@ DESIGN groupCashRegister{
     }
 }
 
-overCopy(GroupCashRegister old, GroupCashRegister new ) += ACTION {
+overCopy(GroupCashRegister old, GroupCashRegister new ) += {
     allowExternalPaymentGiftCard(new) <- allowExternalPaymentGiftCard(old); 
     externalLegalEntityGiftCard(new) <- externalLegalEntityGiftCard(old); 
 }
 allowExternalPaymentGiftCardCurrentCashRegister = allowExternalPaymentGiftCard(groupCashRegister(currentCashRegister())) AND allowPaymentGiftCard();
 
 // Оплата сертификатом
-addPaymentGiftCardExternal 'Оплатить внешним сертификатом'(Receipt receipt) = ACTION {
+addPaymentGiftCardExternal 'Оплатить внешним сертификатом'(Receipt receipt) = {
     DIALOG barcodeInputExternal DO
         IF barcodeInput() IS VARSTRING[15] AND 
            NOT giftCardSeriesNumber(barcodeInput()) THEN {
