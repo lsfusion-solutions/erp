@@ -77,11 +77,12 @@ public class NewLandBoardDaemon extends BoardDaemon {
         @Override
         public Object call() {
 
+            DataInputStream inFromClient = null;
+            DataOutputStream outToClient = null;
             try {
 
-                //DataInputStream inFromClient = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-                BufferedReader inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                DataOutputStream outToClient = new DataOutputStream(socket.getOutputStream());
+                inFromClient = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+                outToClient = new DataOutputStream(socket.getOutputStream());
                 String barcode = inFromClient.readLine();
 
                 if(barcode != null) {
@@ -97,14 +98,19 @@ public class NewLandBoardDaemon extends BoardDaemon {
                     outToClient.write(message);
                     terminalLogger.info(String.format("NewLand successed request ip %s, barcode %s", ip, barcode));
                 }
-
-                //Thread.sleep(3000);
-                outToClient.close();
-                inFromClient.close();
-
+                Thread.sleep(1000);
                 return null;
             } catch (Exception e) {
                 terminalLogger.error("NewLandBoard Error: ", e);
+            } finally {
+                try {
+                    if (outToClient != null)
+                        outToClient.close();
+                    if (inFromClient != null)
+                        inFromClient.close();
+                } catch (IOException e) {
+                    terminalLogger.error("NewLandBoard Error occured: ", e);
+                }
             }
             return null;
         }
