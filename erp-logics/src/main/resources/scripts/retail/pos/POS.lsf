@@ -513,7 +513,7 @@ postCash 'Наличными'(Receipt receipt) = {
 toPayBonuses 'Оплатить бонусами' = DATA LOCAL NUMERIC[18,4] (Receipt);
 
 changeToPayBonuses (Receipt r) = {
-    INPUTX n = NUMERIC[18,4] DO
+    INPUT n = NUMERIC[18,4] DO
         IF n THEN {
             bonusPaid(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == r;
             CASE WHEN n < 0.0 THEN 
@@ -683,7 +683,7 @@ preProcessBarcode = ACTION ABSTRACT LIST (VARSTRING[30], Receipt);
 overChangeBarcodeSale = ACTION ABSTRACT LIST FIRST (VARSTRING[30], Receipt);
 
 changeBarcodeSale(Receipt receipt) = {
-    INPUTX s = VARSTRING[30] DO {
+    INPUT s = VARSTRING[30] DO {
         consumedChangeBarcodeSaleReceipt() <- NULL;
         LOCAL barcode = VARSTRING[30] ();
         barcode() <- processedBarcode(s);
@@ -1105,7 +1105,7 @@ posExplicitBatchLedger(Receipt r) = explicitBatchLedger(r) AND currentZReport();
 posNotExplicitBatchLedger(Receipt r) = notExplicitBatchLedger(r) AND currentZReport();
 
 changeQuantity 'Изменить кол-во строки чека'(ReceiptDetail detail) = {
-    INPUTX n = NUMERIC[16,5] DO
+    INPUT n = NUMERIC[16,5] DO
         IF n THEN
             quantity(detail) <- n;
         ELSE
@@ -1136,7 +1136,7 @@ currentZReportUseBonus() = currentZReport() AND useBonus();
 bonusBackground (Receipt r) = RGB(255,128,128) IF totalBonuses(r) < 0.0 OR (bonusPaid(r) AND NOT bonusPaid(r) <= totalBonuses(r));
 
 changeBonusPaid (ReceiptDetail d) = {
-    INPUTX n = NUMERIC[18,4] DO 
+    INPUT n = NUMERIC[18,4] DO 
         IF n THEN {
             CASE WHEN n < 0.0 THEN 
                     MESSAGE 'Сумма бонусов не может быть отрицательной';
@@ -1505,7 +1505,7 @@ DESIGN operationCashRegister{
 
 //-- 
 changeUserPromotion(ReceiptSaleDetail d, PromotionCondition pcu)= {
-    INPUTX b = BOOLEAN DO {
+    INPUT b = BOOLEAN DO {
         setUserPromotion(d, pcu) <- b;
         quantity(d, pcu) <- quantity(d) IF b;
     }

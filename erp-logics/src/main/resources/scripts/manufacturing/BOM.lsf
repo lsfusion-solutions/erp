@@ -401,7 +401,7 @@ calcPricePercentNumeric '%' (Product product, NUMERIC[8,5] num) = (num AS NUMERI
     /(quantityProduct(BOM(product)) IF quantityProduct(BOM(product))!= 0); 
     
 changePriceCoeff(Product product) = {
-    INPUTX n = NUMERIC[8,5] DO        
+    INPUT n = NUMERIC[8,5] DO        
         pricePercent(product) <- NUMERIC[16,10](calcPricePercentNumeric(product, n));
 }
 series 'Серия' = series(BOM(Product p)) FIXEDCHARWIDTH 3;
@@ -532,7 +532,7 @@ selectTechnologies(Component component) = {
 }  
        
 changeNettoQuantity(Component component) = {
-    INPUTX n = NUMERIC[16,5] DO {
+    INPUT n = NUMERIC[16,5] DO {
         nettoQuantity(component) <- n;
         IF n THEN
             bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE 0 IF component IS Component,wastage(component)/100))); 
@@ -540,14 +540,14 @@ changeNettoQuantity(Component component) = {
 }   
                                                                                                                                                                                                                                                                                                                                                       
 changeWastage(Component component) = {
-    INPUTX n = NUMERIC[8,3] DO {
+    INPUT n = NUMERIC[8,3] DO {
         wastage(component) <- n;   
         bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE 0 IF component IS Component,n/100))); 
     }
 }                                                                                                                                                                                                                                                                                                                                                      
                                                                                                                                                                                                                                                                                                                                                             
 changeBruttoQuantity(Component component) = {
-    INPUTX n = NUMERIC[16,5] DO {    
+    INPUT n = NUMERIC[16,5] DO {    
         bruttoQuantity(component) <- n;
         wastage(component) <- NUMERIC[8,3]((1-(nettoQuantity(component)/(bruttoQuantity(component) IF bruttoQuantity(component)!=0)))*100); 
     }                
@@ -1225,7 +1225,7 @@ component (BOM,material) =  GROUP MAX Component component
     BY BOM(component), material(component);
    
 changeQuantity(BOM BOM,Material material) = {
-    INPUTX n = NUMERIC[14,3] DO
+    INPUT n = NUMERIC[14,3] DO
         IF component(BOM,material) THEN {
             IF n THEN {
                 nettoQuantity(Component detail) <- n WHERE detail == component(BOM,material);
