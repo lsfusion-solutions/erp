@@ -195,32 +195,36 @@ public class ExportExcelPivotAction implements ClientAction {
 
                     if (fieldValue != null) {
 
-                        Dispatch field;        
-                        
-                        if (formula != null) {      
-                            String resultFormula = getResultFormula(cellFieldsEntry, formula);
-                            Dispatch calculatedFields = Dispatch.call(pivotTableWizard, "CalculatedFields").toDispatch();
-                            field = Dispatch.call(calculatedFields, "Add", caption, resultFormula, true).toDispatch();
-                            cellDispatchFieldsMap.put(fieldValue, field);
-                        } else {
-                            field = cellDispatchFieldsMap.get(fieldValue);                                                
+                        try {
+                            Dispatch field;
+
+                            if (formula != null) {
+                                String resultFormula = getResultFormula(cellFieldsEntry, formula);
+                                Dispatch calculatedFields = Dispatch.call(pivotTableWizard, "CalculatedFields").toDispatch();
+                                field = Dispatch.call(calculatedFields, "Add", caption, resultFormula, true).toDispatch();
+                                cellDispatchFieldsMap.put(fieldValue, field);
+                            } else {
+                                field = cellDispatchFieldsMap.get(fieldValue);
+                            }
+
+                            if (field == null) {
+                                throw new RuntimeException("Field not found");
+                            } else {
+                                fieldCount++;
+                                Dispatch.put(field, "Orientation", new Variant(xlDataField));
+                                if (formula == null)
+                                    Dispatch.put(field, "Function", new Variant(xlSum));
+                                caption = Dispatch.get(field, "Caption").getString().replace("Сумма по полю ", "");
+                                Dispatch.put(field, "Caption", new Variant(caption + "*"));
+                                if (numberFormat != null)
+                                    Dispatch.put(field, "NumberFormat", new Variant(numberFormat));
+                                if (columnWidth != null)
+                                    Dispatch.put(getColumn(destinationSheet, rowFieldsEntry.size() + fieldCount + 1), "ColumnWidth", new Variant(columnWidth));
+                            }
+                        } catch (IllegalStateException e) {
+                            throw new RuntimeException(String.format("Incorrect Field %s: ", fieldValue), e);
                         }
-                        
-                        if(field == null) {
-                            throw new RuntimeException("Field not found");
-                        } else {
-                            fieldCount++;
-                            Dispatch.put(field, "Orientation", new Variant(xlDataField));
-                            if (formula == null)
-                                Dispatch.put(field, "Function", new Variant(xlSum));
-                            caption = Dispatch.get(field, "Caption").getString().replace("Сумма по полю ", "");
-                            Dispatch.put(field, "Caption", new Variant(caption + "*"));
-                            if (numberFormat != null)
-                                Dispatch.put(field, "NumberFormat", new Variant(numberFormat));
-                            if(columnWidth != null)
-                                Dispatch.put(getColumn(destinationSheet, rowFieldsEntry.size() + fieldCount + 1), "ColumnWidth", new Variant(columnWidth));
-                        }
-                    }                    
+                    }
                 }
                 
                 if (i == pivotTableCount - 1) {
