@@ -824,7 +824,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         String idStock = trim((String) stockEntry.get("idStock").getValue());
                         idStockSet.add(idStock);
                         if(stockMap == null)
-                            stockMap = getStockMap(session);
+                            stockMap = StopListEquipmentServer.getStockMap(session);
                         if(stockMap.containsKey(idStock))
                         for (Map.Entry<String, Set<MachineryInfo>> entry : stockMap.get(idStock).entrySet()) {
                             if (handlerMachineryMap.containsKey(entry.getKey()))
@@ -881,58 +881,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         DeleteBarcodeEquipmentServer.succeedDeleteBarcode(getBusinessLogics(), getDbManager(), getStack(), nppGroupMachinery);
     }
 
-    private Map<String, Map<String, Set<MachineryInfo>>> getStockMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, Map<String, Set<MachineryInfo>>> stockMap = new HashMap<>();
-
-        KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
-        KeyExpr machineryExpr = new KeyExpr("machinery");
-        ImRevMap<Object, KeyExpr> machineryKeys = MapFact.toRevMap((Object) "groupMachinery", groupMachineryExpr, "machinery", machineryExpr);
-        QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(machineryKeys);
-
-        String[] groupMachineryNames = new String[] {"nppGroupMachinery", "handlerModelGroupMachinery", "idStockGroupMachinery"};
-        LCP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "idStock[GroupMachinery]");
-        for (int i = 0; i < groupMachineryProperties.length; i++) {
-            machineryQuery.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
-        }
-        machineryQuery.addProperty("overDirectoryMachinery", machineryLM.findProperty("overDirectory[Machinery]").getExpr(machineryExpr));
-        machineryQuery.addProperty("portMachinery", machineryLM.findProperty("port[Machinery]").getExpr(machineryExpr));
-        machineryQuery.addProperty("nppMachinery", machineryLM.findProperty("npp[Machinery]").getExpr(machineryExpr));
-        machineryQuery.addProperty("overDepartmentNumber", cashRegisterLM.findProperty("overDepartmentNumber[Machinery]").getExpr(machineryExpr));
-
-        machineryQuery.and(machineryLM.findProperty("handlerModel[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
-        machineryQuery.and(machineryLM.findProperty("idStock[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
-        machineryQuery.and(machineryLM.findProperty("groupMachinery[Machinery]").getExpr(machineryExpr).compare(groupMachineryExpr, Compare.EQUALS));
-        machineryQuery.and(machineryLM.findProperty("active[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
-        machineryQuery.and(equipmentLM.findProperty("equipmentServer[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
-        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> machineryResult = machineryQuery.executeClasses(session);
-        ValueClass cashRegisterClass = cashRegisterLM == null ? null : cashRegisterLM.findClass("CashRegister");
-        ValueClass scalesClass = scalesLM == null ? null : scalesLM.findClass("Scales");
-        for (int i = 0; i < machineryResult.size(); i++) {
-            ImMap<Object, ObjectValue> values = machineryResult.getValue(i);
-            Integer nppGroupMachinery = (Integer) values.get("nppGroupMachinery").getValue();
-            String handlerModel = (String) values.get("handlerModelGroupMachinery").getValue();
-            String directory = (String) values.get("overDirectoryMachinery").getValue();
-            String port = (String) values.get("portMachinery").getValue();
-            Integer nppMachinery = (Integer) values.get("nppMachinery").getValue();
-            ConcreteClass machineryClass = machineryResult.getKey(i).get("machinery").objectClass;
-            boolean isCashRegister = machineryClass != null && machineryClass.equals(cashRegisterClass);
-            boolean isScales = machineryClass != null && machineryClass.equals(scalesClass);
-            String idStockGroupMachinery = (String) values.get("idStockGroupMachinery").getValue();
-            Integer overDepartNumber = (Integer) values.get("overDepartmentNumber").getValue();
-
-            Map<String, Set<MachineryInfo>> handlerMap = stockMap.containsKey(idStockGroupMachinery) ? stockMap.get(idStockGroupMachinery) : new HashMap<String, Set<MachineryInfo>>();
-            if(!handlerMap.containsKey(handlerModel))
-                handlerMap.put(handlerModel, new HashSet<MachineryInfo>());
-            if(isCashRegister) {
-                handlerMap.get(handlerModel).add(new CashRegisterInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, idStockGroupMachinery, overDepartNumber));
-            } else if(isScales){
-                handlerMap.get(handlerModel).add(new ScalesInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, idStockGroupMachinery));
-            }
-            stockMap.put(idStockGroupMachinery, handlerMap);
-        }
-        return stockMap;
-    }
-    
     private Map<String, ItemInfo> getStopListItemMap(DataSession session, DataObject stopListObject, Set<String> idStockSet) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, ItemInfo> stopListItemList = new HashMap<>();
 
@@ -978,23 +926,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     valueVAT, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM));
         }
         return stopListItemList;
-    }
-
-    private Set<String> getInGroupMachineryItemSet(DataSession session, DataObject stopListObject, DataObject groupMachineryObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Set<String> inGroupMachineryItemSet = new HashSet<>();
-
-        KeyExpr sldExpr = new KeyExpr("stopListDetail");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
-        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-        query.addProperty("idSkuStopListDetail", stopListLM.findProperty("idSku[StopListDetail]").getExpr(sldExpr));
-        query.and(stopListLM.findProperty("in[GroupMachinery,StopListDetail]").getExpr(groupMachineryObject.getExpr(), sldExpr).getWhere());
-        query.and(stopListLM.findProperty("stopList[StopListDetail]").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
-        for (int i = 0; i < result.size(); i++) {
-            String idItem = trim((String) result.getValue(i).get("idSkuStopListDetail"));
-            inGroupMachineryItemSet.add(idItem);
-        }
-        return inGroupMachineryItemSet;
     }
 
     @Override
