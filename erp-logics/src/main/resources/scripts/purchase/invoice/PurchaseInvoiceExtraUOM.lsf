@@ -17,6 +17,8 @@ extraUOM[PurchaseLedger] (InvoiceDetail ledger) += extraUOM(ledger);
 shortNameExtraUOMSku 'Ед. изм. поставщика' (InvoiceDetail detail)= shortName(extraUOM(detail));
 shortNameExtraUOMSku 'Ед. изм. поставщика' (UserInvoiceDetail detail)= shortName(extraUOM(detail));
 
+showExtraUOM(InvoiceDetail detail) = extraUOM(supplier(detail), sku(detail));
+
 WHEN SESSION CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail)) DO {
     extraUOM(detail) <- extraUOM(supplier(detail), sku(detail));
 }
@@ -30,9 +32,9 @@ WHEN SESSION CHANGED(quantity(UserInvoiceDetail detail)) AND extraUOM(detail) DO
 }
 
 EXTEND FORM userInvoice
-    PROPERTIES(d) shortNameExtraUOMSku BEFORE shortNameUOMSku(d), extraQuantity BEFORE quantity(d) 
+    PROPERTIES(d) SHOWIF showExtraUOM(d) shortNameExtraUOMSku BEFORE shortNameUOMSku(d), extraQuantity BEFORE quantity(d) 
 ;
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY shortNameExtraUOMSku BEFORE shortNameUOMSku(d), extraQuantity BEFORE quantity(d) 
+    PROPERTIES(d) READONLY SHOWIF showExtraUOM(d) shortNameExtraUOMSku BEFORE shortNameUOMSku(d), extraQuantity BEFORE quantity(d) 
 ;

@@ -15,6 +15,8 @@ extraUOM (UserOrderDetail orderDetail) += extraUOM(orderDetail);
 shortNameExtraUOMSku 'Ед. изм. поставщика' (OrderDetail detail)= shortName(extraUOM(detail));
 shortNameExtraUOMSku 'Ед. изм. поставщика' (UserOrderDetail detail)= shortName(extraUOM(detail));
 
+showExtraUOM(OrderDetail detail) = extraUOM(supplier(detail), sku(detail));
+
 WHEN SESSION CHANGED(sku(UserOrderDetail detail)) OR CHANGED(supplier(detail)) DO {
     extraUOM(detail) <- extraUOM(supplier(detail), sku(detail));
 }
@@ -28,9 +30,9 @@ WHEN SESSION CHANGED(quantity(UserOrderDetail detail)) AND extraUOM(detail) DO {
 }
 
 EXTEND FORM userOrder
-    PROPERTIES(d) shortNameExtraUOMSku BEFORE shortNameUOMSku(d), extraQuantity BEFORE quantity(d) 
+    PROPERTIES(d) SHOWIF showExtraUOM(d) shortNameExtraUOMSku BEFORE shortNameUOMSku(d), extraQuantity BEFORE quantity(d) 
 ;
 
 EXTEND FORM orders
-    PROPERTIES(d) READONLY shortNameExtraUOMSku BEFORE shortNameUOMSku(d), extraQuantity BEFORE quantity(d) 
+    PROPERTIES(d) READONLY SHOWIF showExtraUOM(d) shortNameExtraUOMSku BEFORE shortNameUOMSku(d), extraQuantity BEFORE quantity(d) 
 ;
