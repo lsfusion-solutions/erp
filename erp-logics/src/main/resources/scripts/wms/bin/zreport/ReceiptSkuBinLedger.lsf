@@ -163,6 +163,19 @@ deleteReceiptSkuLedgers 'Очистить' (DepartmentStore departmentStore, DAT
     APPLY {};
 } CONFIRM;
 
+autoCreateReceiptSkuLedgers 'Автоматически создать продажи по ячейкам' = DATA BOOLEAN (DepartmentStore);
+
+generateReceiptSkuLedgers 'Создать продажи по ячейкам' (DATE dFrom, DATE dTo) = {
+    FOR autoCreateReceiptSkuLedgers(DepartmentStore departmentStore) DO {
+        generateReceiptSaleSkuLedgers(departmentStore, dFrom, dTo);
+        generateReceiptReturnSkuLedgers(departmentStore, dFrom, dTo); 
+    }    
+}
+
+EXTEND FORM options 
+    PROPERTIES (s) autoCreateReceiptSkuLedgers GRID
+;
+
 FORM receiptSaleSkuBinLedgers 'Чеки по ячейкам'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
     PROPERTIES dFrom = VALUE(dFrom), dTo = VALUE(dTo)
