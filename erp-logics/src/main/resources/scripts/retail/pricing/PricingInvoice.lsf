@@ -131,8 +131,10 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     // Расчет сумм обратным счетом
     //поменять price на pricingPrice
     @deriveDocumentDetailSumCustomRoundPrefix(userInvoiceDetail, retail, currency, pricingQuantity, homePriceRound);
-    pricingSum = Utils.round(pricingQuantity(User###concrete##Detail d) * price(d), homePriceRound(d));
-    pricingSum = Utils.round(pricingQuantity(###concrete##Detail d) * price(d), homePriceRound(d));
+    pricingSum = ABSTRACT VALUE OVERRIDE FIRST NUMERIC[18,4] (User###concrete##Detail);
+    pricingSum(User###concrete##Detail d) += NUMERIC[18,4](Utils.round(pricingQuantity(d) * price(d), homePriceRound(d)));
+    pricingSum = ABSTRACT VALUE OVERRIDE FIRST NUMERIC[18,4] (###concrete##Detail);
+    pricingSum(###concrete##Detail d) += NUMERIC[18,4](Utils.round(pricingQuantity(d) * price(d), homePriceRound(d)));
     
     @deriveDocumentDetailReverseVATSumRoundPrefix(userInvoice, retail, retail, homePriceRound);
     @deriveDocumentDetailMarkupSumPrefix(userInvoice, retail, retail, pricing);
