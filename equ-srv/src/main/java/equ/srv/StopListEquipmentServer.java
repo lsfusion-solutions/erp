@@ -1,6 +1,7 @@
 package equ.srv;
 
 import com.google.common.base.Throwables;
+import equ.api.ItemInfo;
 import equ.api.MachineryInfo;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.scales.ScalesInfo;
@@ -29,6 +30,7 @@ import lsfusion.server.session.DataSession;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -41,6 +43,7 @@ public class StopListEquipmentServer {
     static ScriptingLogicsModule equipmentLM;
     static ScriptingLogicsModule machineryLM;
     static ScriptingLogicsModule scalesLM;
+    static ScriptingLogicsModule scalesItemLM;
     static ScriptingLogicsModule stopListLM;
 
     public static void init(BusinessLogics BL) {
@@ -48,6 +51,7 @@ public class StopListEquipmentServer {
         equipmentLM = BL.getModule("Equipment");
         machineryLM = BL.getModule("Machinery");
         scalesLM = BL.getModule("EquipmentScales");
+        scalesItemLM = BL.getModule("ScalesItem");
         stopListLM = BL.getModule("StopList");
     }
 
@@ -102,6 +106,53 @@ public class StopListEquipmentServer {
             stockMap.put(idStockGroupMachinery, handlerMap);
         }
         return stockMap;
+    }
+
+    public static Map<String, ItemInfo> getStopListItemMap(DataSession session, DataObject stopListObject, Set<String> idStockSet) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, ItemInfo> stopListItemList = new HashMap<>();
+
+        KeyExpr sldExpr = new KeyExpr("stopListDetail");
+        ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
+        QueryBuilder<Object, Object> sldQuery = new QueryBuilder<>(sldKeys);
+        String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
+                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "splitSkuStopListDetail", "passScalesSkuStopListDetail",
+                "flagsSkuStopListDetail", "valueVATSkuStopListDetail"};
+        LCP[] sldProperties = stopListLM.findProperties("idBarcodeSku[StopListDetail]", "idSku[StopListDetail]", "nameSku[StopListDetail]", "idSkuGroup[StopListDetail]",
+                "nameSkuGroup[StopListDetail]", "idUOMSku[StopListDetail]", "shortNameUOMSku[StopListDetail]", "splitSku[StopListDetail]", "passScalesSku[StopListDetail]",
+                "flagsSku[StopListDetail]", "valueVATSku[StopListDetail]");
+        for (int i = 0; i < sldProperties.length; i++) {
+            sldQuery.addProperty(sldNames[i], sldProperties[i].getExpr(sldExpr));
+        }
+        if(scalesItemLM != null) {
+            sldQuery.addProperty("skuStopListDetail", stopListLM.findProperty("sku[StopListDetail]").getExpr(sldExpr));
+            sldQuery.and(stopListLM.findProperty("sku[StopListDetail]").getExpr(sldExpr).getWhere());
+        }
+        sldQuery.and(stopListLM.findProperty("idBarcodeSku[StopListDetail]").getExpr(sldExpr).getWhere());
+        sldQuery.and(stopListLM.findProperty("stopList[StopListDetail]").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> sldResult = sldQuery.executeClasses(session);
+        for (int i = 0; i < sldResult.size(); i++) {
+            ImMap<Object, ObjectValue> values = sldResult.getValue(i);
+            ObjectValue skuObject = values.get("skuStopListDetail");
+            String idBarcode = trim((String) values.get("idBarcodeSkuStopListDetail").getValue());
+            String idItem = trim((String) values.get("idSkuStopListDetail").getValue());
+            String nameItem = trim((String) values.get("nameSkuStopListDetail").getValue());
+            String idSkuGroup = trim((String) values.get("idSkuGroupStopListDetail").getValue());
+            String nameSkuGroup = trim((String) values.get("nameSkuGroupStopListDetail").getValue());
+            String idUOM = trim((String) values.get("idUOMSkuStopListDetail").getValue());
+            String shortNameUOM = trim((String) values.get("shortNameUOMSkuStopListDetail").getValue());
+            boolean split = values.get("splitSkuStopListDetail").getValue() != null;
+            boolean passScales = values.get("passScalesSkuStopListDetail").getValue() != null;
+            Integer flags = (Integer) values.get("flagsSkuStopListDetail").getValue();
+            BigDecimal valueVAT = (BigDecimal) values.get("valueVATSkuStopListDetail").getValue();
+            Map<String, Integer> stockPluNumberMap = new HashMap();
+            for(String idStock : idStockSet) {
+                Integer pluNumber = (Integer) scalesItemLM.findProperty("pluIdStockSku[VARSTRING[100],Item]").read(session, new DataObject(idStock), skuObject);
+                stockPluNumberMap.put(idStock, pluNumber);
+            }
+            stopListItemList.put(idBarcode, new ItemInfo(stockPluNumberMap, idItem, idBarcode, nameItem, null, split, null, null, passScales,
+                    valueVAT, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM));
+        }
+        return stopListItemList;
     }
 
     public static Set<String> getInGroupMachineryItemSet(DataSession session, DataObject stopListObject, DataObject groupMachineryObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {

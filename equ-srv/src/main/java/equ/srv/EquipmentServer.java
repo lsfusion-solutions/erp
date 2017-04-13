@@ -841,7 +841,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     }
                     
                     if(!handlerMachineryMap.isEmpty()) {
-                        Map<String, ItemInfo> stopListItemMap = getStopListItemMap(session, stopListObject, idStockSet);
+                        Map<String, ItemInfo> stopListItemMap = StopListEquipmentServer.getStopListItemMap(session, stopListObject, idStockSet);
                         StopListInfo stopList = stopListInfoMap.get(numberStopList);
                         Map<Integer, Set<String>> inGroupMachineryItemMap = stopList == null ? new HashMap<Integer, Set<String>>() : stopList.inGroupMachineryItemMap;
                         inGroupMachineryItemMap.putAll(itemsInGroupMachineryMap);
@@ -879,53 +879,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     @Override
     public void succeedDeleteBarcode(Integer nppGroupMachinery) throws RemoteException, SQLException {
         DeleteBarcodeEquipmentServer.succeedDeleteBarcode(getBusinessLogics(), getDbManager(), getStack(), nppGroupMachinery);
-    }
-
-    private Map<String, ItemInfo> getStopListItemMap(DataSession session, DataObject stopListObject, Set<String> idStockSet) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, ItemInfo> stopListItemList = new HashMap<>();
-
-        KeyExpr sldExpr = new KeyExpr("stopListDetail");
-        ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
-        QueryBuilder<Object, Object> sldQuery = new QueryBuilder<>(sldKeys);
-        String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
-                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "splitSkuStopListDetail", "passScalesSkuStopListDetail",
-                "flagsSkuStopListDetail", "valueVATSkuStopListDetail"};
-        LCP[] sldProperties = stopListLM.findProperties("idBarcodeSku[StopListDetail]", "idSku[StopListDetail]", "nameSku[StopListDetail]", "idSkuGroup[StopListDetail]",
-                "nameSkuGroup[StopListDetail]", "idUOMSku[StopListDetail]", "shortNameUOMSku[StopListDetail]", "splitSku[StopListDetail]", "passScalesSku[StopListDetail]",
-                "flagsSku[StopListDetail]", "valueVATSku[StopListDetail]");
-        for (int i = 0; i < sldProperties.length; i++) {
-            sldQuery.addProperty(sldNames[i], sldProperties[i].getExpr(sldExpr));
-        }
-        if(scalesItemLM != null) {
-            sldQuery.addProperty("skuStopListDetail", stopListLM.findProperty("sku[StopListDetail]").getExpr(sldExpr));
-            sldQuery.and(stopListLM.findProperty("sku[StopListDetail]").getExpr(sldExpr).getWhere());
-        }
-        sldQuery.and(stopListLM.findProperty("idBarcodeSku[StopListDetail]").getExpr(sldExpr).getWhere());
-        sldQuery.and(stopListLM.findProperty("stopList[StopListDetail]").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
-        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> sldResult = sldQuery.executeClasses(session);
-        for (int i = 0; i < sldResult.size(); i++) {
-            ImMap<Object, ObjectValue> values = sldResult.getValue(i);
-            ObjectValue skuObject = values.get("skuStopListDetail");
-            String idBarcode = trim((String) values.get("idBarcodeSkuStopListDetail").getValue());
-            String idItem = trim((String) values.get("idSkuStopListDetail").getValue());
-            String nameItem = trim((String) values.get("nameSkuStopListDetail").getValue());
-            String idSkuGroup = trim((String) values.get("idSkuGroupStopListDetail").getValue());
-            String nameSkuGroup = trim((String) values.get("nameSkuGroupStopListDetail").getValue());
-            String idUOM = trim((String) values.get("idUOMSkuStopListDetail").getValue());
-            String shortNameUOM = trim((String) values.get("shortNameUOMSkuStopListDetail").getValue());
-            boolean split = values.get("splitSkuStopListDetail").getValue() != null;
-            boolean passScales = values.get("passScalesSkuStopListDetail").getValue() != null;
-            Integer flags = (Integer) values.get("flagsSkuStopListDetail").getValue();
-            BigDecimal valueVAT = (BigDecimal) values.get("valueVATSkuStopListDetail").getValue();
-            Map<String, Integer> stockPluNumberMap = new HashMap();
-            for(String idStock : idStockSet) {
-                Integer pluNumber = (Integer) scalesItemLM.findProperty("pluIdStockSku[VARSTRING[100],Item]").read(session, new DataObject(idStock), skuObject);
-                stockPluNumberMap.put(idStock, pluNumber);
-            }
-            stopListItemList.put(idBarcode, new ItemInfo(stockPluNumberMap, idItem, idBarcode, nameItem, null, split, null, null, passScales,
-                    valueVAT, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM));
-        }
-        return stopListItemList;
     }
 
     @Override
