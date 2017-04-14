@@ -21,6 +21,26 @@ original 'Файл оригинала накладной'  = DATA CUSTOMFILE (Pu
 saveOriginal 'Загрузить файл оригинала накладной' (Purchase.Invoice i) = { LOADFILE original(i); }
 openOriginal 'Просмотреть оригинал накладной' (Purchase.Invoice i) = { OPENFILE original(i); }
 
+countDaysClearSaleReturnInvoiceCustomfiles 'За сколько дней хранить файлы импорта(накладная-продажа(возврат))' = DATA INTEGER (); 
+
+EXTEND FORM options 
+    PROPERTIES countDaysClearSaleReturnInvoiceCustomfiles();
+    
+DESIGN options { 
+    log { 
+        MOVE PROPERTY(countDaysClearSaleReturnInvoiceCustomfiles());
+    }
+}
+        
+clearApplicationLog () += {
+    NEWSESSION {
+        IF countDaysClearSaleReturnInvoiceCustomfiles() THEN {
+            original(Purchase.Invoice i) <- NULL IF date(i) <= subtract(currentDate(), countDaysClearSaleReturnInvoiceCustomfiles());
+        }
+        apply();
+    } 
+}
+
 autoImportEmail 'E-mail поставщика' =  DATA VARSTRING[100](ImportType);
 autoImportAccount 'E-mail аккаунт' =  DATA Account(ImportType);
 autoImportNameAccount 'E-mail аккаунт' (ImportType importType) = name(autoImportAccount(importType));

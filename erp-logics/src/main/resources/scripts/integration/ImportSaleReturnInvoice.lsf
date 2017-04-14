@@ -13,6 +13,26 @@ original 'Файл оригинала накладной'  = DATA CUSTOMFILE (In
 saveOriginal 'Загрузить файл оригинала накладной' (Invoice i) = { LOADFILE original(i); }
 openOriginal 'Просмотреть оригинал накладной' (Invoice i) = { OPENFILE original(i); }
 
+countDaysClearSaleReturnInvoiceCustomfiles 'За сколько дней хранить файлы импорта(накладная-продажа(возврат))' = DATA INTEGER (); 
+
+EXTEND FORM options 
+    PROPERTIES countDaysClearSaleReturnInvoiceCustomfiles();
+    
+DESIGN options { 
+    log { 
+        MOVE PROPERTY(countDaysClearSaleReturnInvoiceCustomfiles());
+    }
+}
+        
+clearApplicationLog () += {
+    NEWSESSION {
+        IF countDaysClearSaleReturnInvoiceCustomfiles() THEN {
+            original(SaleReturn.Invoice i) <- NULL IF date(i) <= subtract(currentDate(), countDaysClearSaleReturnInvoiceCustomfiles());
+        }
+        apply();
+    } 
+}
+
 EXTEND FORM userInvoice
     PROPERTIES(i) saveOriginal, openOriginal 
 ;
