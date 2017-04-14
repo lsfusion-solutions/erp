@@ -51,7 +51,7 @@ META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
             }
         } ELSE {
             IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
-                FOR NEW d = ###detail DO {
+                NEW d = ###detail {
                     object(d) <- object;
                     skuProp(d) <- sku;
                     quantity (d) <- n;
@@ -239,7 +239,7 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockPr
             }
         } ELSE {
             IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
-                FOR NEW d = ###detail DO {
+                NEW d = ###detail {
                     object(d) <- object;
                     skuProp(d) <- skuProp(batch);
                     batchProp(d) <- batch;
@@ -398,7 +398,7 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
 
         } ELSE {
             IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
-                FOR NEW d = ###detail DO {
+                NEW d = ###detail {
                    object(d) <- object;
 //                  Пока работаем с одним складом                   
 //                   stockProp###stock###detail (d) <- stock;
@@ -568,7 +568,7 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
             }
         } ELSE {
             IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
-                FOR NEW d = ###detail DO {
+                NEW d = ###detail {
                     object(d) <- object;
 //                    stockProp###stock###detail (d) <- stock;
                     skuProp(d) <- skuProp(batch);
@@ -683,7 +683,7 @@ META defineDocumentSkuStockExtra(object, detail, skuProp, stockProp, stockExtra)
                 }
             } ELSE {
                 IF n THEN {
-                    FOR NEW d = ###detail DO {
+                    NEW d = ###detail {
                        object(d) <- object;
                        skuProp(d) <- sku;
                        stockExtra(d) <- stockExtra;
@@ -828,7 +828,7 @@ META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp
             }
         } ELSE {
             IF n THEN {
-                FOR NEW d = ###detail DO {
+                NEW d = ###detail {
                    object(d) <- object;
                    skuProp(d) <- skuProp(batch);
                    batchProp(d) <- batch;
@@ -912,7 +912,7 @@ META defineDocumentSkuStockIn(object, detail, skuProp, stockProp)
                 }
             } ELSE {
                 IF b THEN {
-                    FOR NEW d = ###detail DO {
+                    NEW d = ###detail {
                        object(d) <- object;
                        skuProp(d) <- sku;
                     }
@@ -1361,7 +1361,7 @@ openFile 'Открыть Файл' (DocumentLog l) = { OPENFILE (file(l)); } TOO
 showFile = enableDocumentLog() AND file(DocumentLog dLog);
 
 WHEN SET(Document o IS Document) IF NOT disableDocumentLog() DO {
-    FOR NEW d = DocumentLog DO {        
+    NEW d = DocumentLog {        
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1379,7 +1379,7 @@ WHEN SET(Document o IS Document) IF NOT disableDocumentLog() DO {
     }
 }
 WHEN DROPPED(Document o IS Document) IF NOT disableDocumentLog() DO {
-    FOR NEW d = DocumentLog DO {       
+    NEW d = DocumentLog {       
 
         typeDocument(d) <- prevObjectClassName(o);
         numberDocument(d) <- PREV(number(o));  
@@ -1398,7 +1398,7 @@ WHEN DROPPED(Document o IS Document) IF NOT disableDocumentLog() DO {
 }
 
 WHEN ((SETCHANGED(number(Document o)) AND PREV(number(o))) OR (SETCHANGED(series(o)) AND PREV(series(o))) ) IF NOT disableDocumentLog()  DO {
-    FOR NEW d = DocumentLog DO {
+    NEW d = DocumentLog {
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1417,7 +1417,7 @@ WHEN ((SETCHANGED(number(Document o)) AND PREV(number(o))) OR (SETCHANGED(series
 }
 
 WHEN (INTEGER x== [ = GROUP SUM 1 IF SET(DocumentDetail d IS DocumentDetail) BY document(d)](Document o)) IF NOT disableDocumentLog() DO {
-    FOR NEW d = DocumentLog DO {
+    NEW d = DocumentLog {
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1436,7 +1436,7 @@ WHEN (INTEGER x== [ = GROUP SUM 1 IF SET(DocumentDetail d IS DocumentDetail) BY 
 }
 
 WHEN INTEGER x==[= GROUP SUM 1 IF DROPPED(DocumentDetail d IS DocumentDetail) BY PREV(document(d))](Document o) AND o IS Document AND NOT disableDocumentLog() NOINLINE DO {
-    FOR NEW d = DocumentLog DO {
+    NEW d = DocumentLog {
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1455,7 +1455,7 @@ WHEN INTEGER x==[= GROUP SUM 1 IF DROPPED(DocumentDetail d IS DocumentDetail) BY
 }
 
 WHEN (CHANGED(supplierStock(Document o)) AND PREV(supplierStock(o)) AND o IS Document) IF NOT disableDocumentLog()  DO {
-    FOR NEW d = DocumentLog DO {
+    NEW d = DocumentLog {
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1474,7 +1474,7 @@ WHEN (CHANGED(supplierStock(Document o)) AND PREV(supplierStock(o)) AND o IS Doc
 }
 
 WHEN (CHANGED(customerStock(Document o)) AND PREV(customerStock(o)) AND o IS Document) IF NOT disableDocumentLog()  DO {
-    FOR NEW d = DocumentLog DO {
+    NEW d = DocumentLog {
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1493,7 +1493,7 @@ WHEN (CHANGED(customerStock(Document o)) AND PREV(customerStock(o)) AND o IS Doc
 }
 
 WHEN (DROPSET (isPosted(Document o))) IF NOT disableDocumentLog()  DO {
-    FOR NEW d = DocumentLog DO {
+    NEW d = DocumentLog {
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1512,7 +1512,7 @@ WHEN (DROPSET (isPosted(Document o))) IF NOT disableDocumentLog()  DO {
 }
 
 WHEN (DROPSET (isClosed(Document o))) IF NOT disableDocumentLog()  DO {
-    FOR NEW d = DocumentLog DO {
+    NEW d = DocumentLog {
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1563,7 +1563,7 @@ note 'Примечание' = DATA VARSTRING[20] (DocumentDetailLog);
 overSet = ACTION ABSTRACT LIST(DocumentDetailLog, DocumentDetail);
 
 WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO  
-    FOR NEW l = DocumentDetailLog DO{
+    NEW l = DocumentDetailLog{
         document(l) <- document(d);
         index(l) <- index(d);
         numberDocument(l) <- number(document(d));
@@ -1582,7 +1582,7 @@ WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
 skipChange = ABSTRACT CASE BOOLEAN (DocumentDetail);
 
 WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d)) OR CHANGED(sku(d)) OR skipChange(d)) AND NOT DROPPED(d IS DocumentDetail) AND NOT SET(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
-    FOR NEW l = DocumentDetailLog DO{
+    NEW l = DocumentDetailLog{
         document(l) <- document(d);
         index(l) <- index(d);
         numberDocument(l) <- number(document(d));
@@ -1601,7 +1601,7 @@ WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d)) OR CHANGED(sku(d)
 overDropped = ACTION ABSTRACT LIST(DocumentDetailLog, DocumentDetail); 
    
 WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO  
-    FOR NEW l = DocumentDetailLog DO{
+    NEW l = DocumentDetailLog{
         document(l) <- PREV(document(d));
         index(l) <- PREV(index(d));
         numberDocument(l) <- PREV(number(document(d)));

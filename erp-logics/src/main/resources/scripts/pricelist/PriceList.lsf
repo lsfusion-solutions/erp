@@ -75,7 +75,7 @@ DESIGN priceListTypes {
 overCopy (DataPriceListType priceListType) += {
 	NEWSESSION {
 	    IF priceListType IS DataPriceListType THEN {
-	        FOR NEW p = DataPriceListType DO {
+	        NEW p = DataPriceListType {
 	            batchLedger(p) <- batchLedger(priceListType);
 	            includeVAT(p) <- includeVAT(priceListType);
 	            roundCondition(p) <- roundCondition(priceListType);
@@ -350,7 +350,7 @@ changeIn(Sku sku, UserPriceList priceList) = {
                 DELETE UserPriceListDetail detail WHERE sku == sku(detail) AND priceList == userPriceList(detail);
         } ELSE
             IF b THEN 
-                FOR NEW d = UserPriceListDetail DO {
+                NEW d = UserPriceListDetail {
                    userPriceList(d) <- priceList;
                    sku(d) <- sku;
                 }
@@ -369,7 +369,7 @@ changeIn(Batch batch, UserPriceList priceList) = {
                 DELETE UserPriceListDetail detail WHERE batch == batch(detail) AND priceList == userPriceList(detail);
         } ELSE
             IF b THEN 
-                FOR NEW d = UserPriceListDetail DO {
+                NEW d = UserPriceListDetail {
                    userPriceList(d) <- priceList;
                    batch(d) <- batch;
                    sku(d) <- sku(batch);
@@ -1047,7 +1047,7 @@ copyData(PriceList priceList, UserPriceList userPriceList) = {
         in(userPriceList, DataPriceListType priceListType) <- in[UserPriceList,DataPriceListType](priceList, priceListType);
         EXEC copyAbstractData(priceList, userPriceList);
         FOR userPriceList(UserPriceListDetail detail) == priceList DO {
-            FOR NEW d = UserPriceListDetail DO {
+            NEW d = UserPriceListDetail {
                 ASSIGN userPriceList(d) <- userPriceList;
                 ASSIGN sku(d) <- sku(detail);
                 ASSIGN price(d, DataPriceListType priceListType) <- price[PriceListDetail,DataPriceListType](detail, priceListType);
@@ -1057,7 +1057,7 @@ copyData(PriceList priceList, UserPriceList userPriceList) = {
 
 copySession 'Копировать'(PriceList priceList) = {
 
-    FOR NEW u = UserPriceList DO {
+    NEW u = UserPriceList {
         EXEC copyData(priceList, u);
         SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
     }
@@ -1066,7 +1066,7 @@ copySession 'Копировать'(PriceList priceList) = {
 copy 'Копировать'(PriceList priceList) = {
 	NEWSESSION {
 	
-	    FOR NEW u = UserPriceList DO {
+	    NEW u = UserPriceList {
 	        EXEC copyData(priceList, u);
 	        SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
 	    }
@@ -1076,7 +1076,7 @@ copy 'Копировать'(PriceList priceList) = {
 updateSession 'Обновить'(PriceList priceList) = {
 	NESTEDSESSION {
 	
-	    FOR NEW u = UserPriceList DO {
+	    NEW u = UserPriceList {
 	        copyData(priceList, u);
 	        DIALOG userPriceList OBJECTS p = u MANAGESESSION DOCKED NOCANCEL DO {
 	            toDate[UserPriceList](priceList) <- fromDate(u);
@@ -1089,7 +1089,7 @@ updateSession 'Обновить'(PriceList priceList) = {
 update 'Обновить'(PriceList priceList) = {
 	NEWSESSION {
 	
-	    FOR NEW u = UserPriceList DO {
+	    NEW u = UserPriceList {
 	        copyData(priceList, u);
 	        DIALOG userPriceList OBJECTS p = u MANAGESESSION DOCKED NOCANCEL DO {
 	            toDate[UserPriceList](priceList) <- fromDate(u);
@@ -1277,7 +1277,7 @@ print(PriceList priceList) += { printPrint(priceList); }
 overAdd= ACTION ABSTRACT LIST (UserPriceList);
 addUserPriceList 'Добавить'(LegalEntity legalEntity) = {
 	NESTEDSESSION {
-	    FOR NEW u = UserPriceList DO {
+	    NEW u = UserPriceList {
 	        company(u) <- legalEntity;
 	        overAdd(u); 
 	        SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;

@@ -594,7 +594,7 @@ needCreateAdjustment = (calcSumB (Sku sku,Stock st,DATETIME dateTime) OR  sumB (
 createUserAdjustment(DATETIME dateTime) = {
     FOR [ = GROUP SUM 1 IF needCreateAdjustment(Sku sku,Stock st,DATETIME dateTime) BY st,dateTime](Stock st,dateTime) AND isCompany(st) DO {
         NEWSESSION {
-            FOR NEW a = UserAdjustment DO {
+            NEW a = UserAdjustment {
                 stock(a) <- st;
                 isPosted(a) <- TRUE;
                 FOR needCreateAdjustment(Sku sku,st,dateTime) NEW  d = UserAdjustmentDetail DO {
@@ -726,7 +726,7 @@ createDialogBatchUserAdjustment 'Пересорт по партиям'() = {
 	NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
 	    DIALOG selectParamsAdjustment OBJECTS o = defaultOperationBatch() NULL, st INPUT, dt INPUT, o INPUT DO
 	        IF countInSessionSkuGroups() THEN       
-	            FOR NEW adjustment = UserAdjustment DO {  
+	            NEW adjustment = UserAdjustment {  
 	                stock(adjustment) <- st;            
 	                date(adjustment) <- DATE(dt);
 	                time(adjustment) <- TIME(dt);          
@@ -752,7 +752,7 @@ DESIGN adjustments {
 createBatchUserAdjustment 'Документ пересорта'(Stock stock) = {
 
     IF toAdjustment(stock,currentDateTime()) THEN NEWSESSION {
-        FOR NEW adjustment = UserAdjustment DO {  
+        NEW adjustment = UserAdjustment {  
             stock(adjustment) <- stock;
             date(adjustment) <- currentDate();
             time(adjustment) <- currentTime();  
@@ -821,7 +821,7 @@ createDialogSumUserAdjustment 'Корректировка суммы ТО'() = {
 	NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
 	    DIALOG selectParamsAdjustment OBJECTS o = defaultOperationSum() NULL, st INPUT, dt INPUT, o INPUT DO       
 	        IF countInSessionSkuGroups() THEN 
-	            FOR NEW adjustment = UserAdjustment DO {  
+	            NEW adjustment = UserAdjustment {  
 	                stock(adjustment) <- st;            
 	                date(adjustment) <- DATE(dt);
 	                time(adjustment) <- TIME(dt);          

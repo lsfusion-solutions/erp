@@ -178,7 +178,7 @@ fillCompany(UserPriceList userPriceList, DATETIME dateTime, PriceListType dataPr
 // Добавление в ассортимент
 includeDataCompany 'Включить'(DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) = {
     NEWSESSION NESTED (in[Sku]) {
-        FOR NEW u = UserPriceList DO {
+        NEW u = UserPriceList {
             fillCompany(u, dateTime, dataPriceListType, company);
             price[UserPriceListDetail,DataPriceListType](UserPriceListDetail d, dataPriceListType) <-
                 activePriceA(dataPriceListType, sku(d), company, dateTime)
@@ -193,7 +193,7 @@ includeDataCompany 'Включить'(DATETIME dateTime, PriceListType dataPrice
 // Изменение цен
 modifyDataCompany 'Изменить'(DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) = {
     NEWSESSION NESTED (in[Sku]) {
-        FOR NEW u = UserPriceList DO {
+        NEW u = UserPriceList {
             fillCompany(u, dateTime, dataPriceListType, company);
             price[UserPriceListDetail,DataPriceListType](UserPriceListDetail d, dataPriceListType) <-
                 activePriceA(dataPriceListType, sku(d), company, dateTime)
@@ -211,7 +211,7 @@ modifyDataCompany 'Изменить'(DATETIME dateTime, PriceListType dataPriceL
 // Исключение из ассортимента
 excludeDataCompany 'Исключить'(DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) = {
     NEWSESSION NESTED (in[Sku]) {
-        FOR NEW u = UserPriceList DO {
+        NEW u = UserPriceList {
             fillCompany(u, dateTime, dataPriceListType, company);
             FOR [= GROUP SUM 1 IF in(Sku sku) AND priceA(LedgerPriceListType t, sku, Stock st, LegalEntity c, DATETIME d) BY t, st, c, d] (dataPriceListType, Stock stock, company, dateTime) DO {
                 dataIn(u, stock) <- TRUE;
@@ -360,7 +360,7 @@ fillCompanyPriceList(UserPriceList u, LegalEntity company, DATETIME dateTime, Pr
 
 createCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) = {
     NEWSESSION NESTED (in[Sku]) {
-        FOR NEW u = UserPriceList DO {
+        NEW u = UserPriceList {
             fillCompanyPriceList(u, company, dateTime, dataPriceListType, stock);
             SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
             in(Sku s) <- NULL;
@@ -370,7 +370,7 @@ createCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListType dat
 
 createWPricesCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) = {
     NEWSESSION NESTED (in[Sku]) {
-        FOR NEW u = UserPriceList DO {
+        NEW u = UserPriceList {
             fillCompanyPriceList(u, company, dateTime, dataPriceListType, stock);
             price[UserPriceListDetail,DataPriceListType](UserPriceListDetail d, dataPriceListType) <-
                 priceA[LedgerPriceListType,Sku,Stock,DATETIME](dataPriceListType, sku(d), stock, dateTime)
@@ -416,7 +416,7 @@ DESIGN priceListDashboard {
 
 addUserPriceList 'Добавить'(LegalEntity legalEntity, PriceListType type, DATETIME dateTime) = {
 	NEWSESSION {
-	    FOR NEW p = UserPriceList DO {
+	    NEW p = UserPriceList {
 	        company(p) <- legalEntity;
 	        fromDate(p) <- toDate(dateTime);
 	        fromTime(p) <- toTime(dateTime);
@@ -464,7 +464,7 @@ DESIGN priceListDashboard {
 importTime = ABSTRACT BOOLEAN (UserPriceList);
 importUserPriceList 'Импортировать'(LegalEntity c, ImportUserPriceListType t, DATETIME dt) = {
 	NEWSESSION {
-	    FOR NEW p = UserPriceList DO {
+	    NEW p = UserPriceList {
 	        importUserPriceListType(p) <- t;
 	        company(p) <- c;
 	        fromDate(p) <- toDate(dt);

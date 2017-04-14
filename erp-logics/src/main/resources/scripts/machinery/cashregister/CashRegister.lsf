@@ -218,7 +218,7 @@ DESIGN groupCashRegister{
 overCopy = ACTION ABSTRACT LIST (GroupCashRegister, GroupCashRegister);
 copy 'Копировать'(GroupCashRegister old) = {
 	NEWSESSION {
-	    FOR NEW new = GroupCashRegister DO {
+	    NEW new = GroupCashRegister {
 	        npp(new) <- npp(old);
 	        departmentNumber(new) <- departmentNumber(old);
 	        stock(new) <- stock(old);
@@ -323,7 +323,7 @@ cashRegisterSID (cashRegisterModel) = GROUP MAX CashRegisterModel scalesModel BY
 
 loadDefaultCashRegisterModel 'Добавить модель касс'(VARISTRING[110] iname, VARSTRING[20] isid, VARSTRING[200] ihandler, BOOLEAN iShowSection, BOOLEAN iIgnoreCashRegisterServer) = {
     IF NOT cashRegisterSID(isid) THEN {
-        FOR NEW crm = CashRegisterModel DO {
+        NEW crm = CashRegisterModel {
              name(crm) <- iname;
              sid(crm) <- isid;
              handler(crm) <- ihandler;
@@ -356,7 +356,7 @@ loadDefaultCashRegisterModels 'Загрузить стандартные мод�
 
 // --------------------------------------- Генерация групп касс -------------------------------- //
 loadDefaultGroup 'Сгенерировать группу касс'(PriceListType priceListType, Stock stock, CashRegisterModel model, INTEGER num) = {
-    FOR NEW g = GroupCashRegister DO {
+    NEW g = GroupCashRegister {
         departmentStore(g) <- stock;
         priceListType(g) <- priceListType;
         name(g) <- 'Группа касс по умолчанию';
@@ -364,7 +364,7 @@ loadDefaultGroup 'Сгенерировать группу касс'(PriceListTyp
         LOCAL numCashRegister = INTEGER();
         numCashRegister() <- 0;
         WHILE numCashRegister() < num DO {
-            FOR NEW c = CashRegister DO {
+            NEW c = CashRegister {
                 groupCashRegister(c) <- g;
                 numCashRegister() <- numCashRegister() + 1;
                 npp(c) <- numCashRegister();

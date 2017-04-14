@@ -123,7 +123,7 @@ DESIGN statisticReportType {
 
 copy 'Копировать' (StatisticReportType type) = {
 	NEWSESSION {
-	    FOR NEW r = StatisticReportType DO {
+	    NEW r = StatisticReportType {
 	        name(r) <- VARISTRING[255](name(type)+ ' (копия)');  
 	         
 	        statisticGroupType (r) <- statisticGroupType (type);        
@@ -207,7 +207,7 @@ DESIGN statisticReportTypes {
 
 //загрузка стандартных данных
 loadDefaultStatisticReportType 'Добавить тип статистического отчета' (VARSTRING[255] name, VARSTRING[20] group, BOOLEAN isSum, NUMERIC[15,4] rate) = {
-    FOR NEW s = StatisticReportType DO {
+    NEW s = StatisticReportType {
         name(s) <- name;
         statisticGroupType(s) <- statisticGroupTypeId(group);
         isSumReport(s) <- isSum;
@@ -216,7 +216,7 @@ loadDefaultStatisticReportType 'Добавить тип статистическ
 }
 
 loadDefaultStatisticReportTypeDetail 'Добавить строку типа статистического отчета' (VARSTRING[255] type, INTEGER index, VARSTRING[255] name, VARSTRING[10] number, STRING[12] group, VARSTRING[100] nameUOM, INTEGER round) = {
-    FOR NEW d = StatisticReportTypeDetail DO {
+    NEW d = StatisticReportTypeDetail {
         statisticReportType(d) <- statisticReportType(type);
         index(d) <- index;
         name(d) <- name;
@@ -729,7 +729,7 @@ createSumReport 'Создать суммарный отчет'()= {
 	        MESSAGE 'Не выбраны отчеты для объединения';
 	        RETURN;
 	    }
-	    FOR NEW s = StatisticReport DO {
+	    NEW s = StatisticReport {
 	        statisticReportType(s) <- [=GROUP MAX statisticReportType(StatisticReport r) IF in(r) ]();
 	        reportKind(s) <- ReportKind.consolidate;
 	        consolidateStocks(s) <- OVERRIDE [=GROUP CONCAT [=GROUP MAX nameStockRegion(StatisticReport r) IF in(r) BY nameStockRegion(r) ](VARISTRING[255] str), ',']();

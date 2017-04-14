@@ -1282,7 +1282,7 @@ dialogSku 'Добавить товар'(ManyCollationSheet collationSheet) = {
 
 createPage 'Создать страницу описи с остатками'  (ListInventory listInventory) = {
     DIALOG dialogSkuGroup DO {    
-        FOR NEW p = PageInventory  DO {
+        NEW p = PageInventory {
             listInventory(p) <- listInventory;
             IF isBatch(inventory(listInventory)) THEN {
                 FOR (NUMERIC[16,5] cnt == balanceB(Batch b, stock(listInventory), dateTime(inventory(listInventory))) AND cnt > 0 AND inSession(skuGroup(sku(b)))) AND (isItem(sku(b)) OR isContainer(sku(b))) NEW d = PageInventoryDetail DO {
@@ -1412,7 +1412,7 @@ DESIGN listInventory {
 
 addListInventory 'Добавить'(Stock stock, Inventory inventory) = {
 	NEWSESSION {
-	    FOR NEW g = ListInventory DO {
+	    NEW g = ListInventory {
 	        stock(g) <- stock;
 	        inventory(g) <- inventory;
 	        inSession(SkuGroup group) <- include(inventory, group);
@@ -1423,7 +1423,7 @@ addListInventory 'Добавить'(Stock stock, Inventory inventory) = {
 
 changeAddDetailInputIdSku(VARSTRING[100] idSku, PageInventory page) = {
     IF sku(idSku) THEN {  
-        FOR NEW  d = PageInventoryDetail DO {
+        NEW  d = PageInventoryDetail {
             pageInventory(d) <- page;   
             sku(d) <- sku(idSku);
             FOCUS listInventory.quantityGrid;
@@ -1442,7 +1442,7 @@ addDetailInput 'Код товара:' (page) = DATA LOCAL STRING[20] (PageInvent
                                                                      
 changeAddDetailInputBarcode(VARSTRING[15] barcode, PageInventory page) = {
     IF skuBarcode(barcode, date(listInventory(page))) THEN {  
-        FOR NEW  d = PageInventoryDetail DO {
+        NEW  d = PageInventoryDetail {
             pageInventory(d) <- page;   
             sku(d) <- skuBarcode(barcode, date(listInventory(page)));
             FOCUS listInventory.quantityGrid;

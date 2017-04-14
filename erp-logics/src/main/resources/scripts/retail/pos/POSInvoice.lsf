@@ -196,7 +196,7 @@ printReturnReceipt = ACTION ABSTRACT LIST (Sale.Invoice, Payment.Payment);
 printReceiptResult = DATA LOCAL BOOLEAN ();
 
 createInvoice(Receipt receipt, LegalEntity customer, CustomUser employee, NUMERIC[18,4] sum, PaymentType paymentType, PaymentCondition paymentCondition, VARSTRING[100] note)  = {       
-    FOR NEW i = UserInvoice DO {
+    NEW i = UserInvoice {
         operation(i) <- defaultOperationPaymentInstallments();
         supplierStock(i) <- departmentStore(receipt);
         supplier(i) <- legalEntity[Stock](departmentStore(receipt));
@@ -211,7 +211,7 @@ createInvoice(Receipt receipt, LegalEntity customer, CustomUser employee, NUMERI
         isPosted(i) <- TRUE;
         createdUser(i) <- employee;
         postedUser(i) <- employee;
-        FOR NEW c = UserContractSku DO {
+        NEW c = UserContractSku {
             supplier(c) <- legalEntity[Stock](departmentStore(receipt));
             customer(c) <- customer;
             dateFrom(c) <- date(receipt);
@@ -234,7 +234,7 @@ createInvoice(Receipt receipt, LegalEntity customer, CustomUser employee, NUMERI
             price(d) <- invoicePrice (d) * 100/(100 + valueVAT(d));
         }
         
-        FOR NEW p = Payment.Payment DO {
+        NEW p = Payment.Payment {
             operation(p) <- defaultPaymentOperation();        
             date(p) <- date(receipt);
             time(p) <- time(receipt); 
@@ -298,7 +298,7 @@ createPaymentInstallments 'Рассрочка'(Receipt receipt) = {
                     FOR name(LegalEntityGroup group) == 'Покупатели' DO {
                         legalEntityGroup(l) <- group;
                     }
-                    FOR NEW s = Warehouse DO {
+                    NEW s = Warehouse {
                         name(s) <- nameLegalEntity();
                         legalEntity(s) <- l;
                         FOR name(WarehouseGroup gr) == 'Склады контрагентов' DO {
@@ -349,7 +349,7 @@ createInvoicePrePayment 'Предоплата'(Receipt receipt)  = {
     IF quantityReceiptDetail(receipt) THEN {
         noteInvoice() <- NULL;
         DIALOG prePayment OBJECTS r = receipt, c INPUT DO {
-            FOR NEW i = UserInvoice DO {
+            NEW i = UserInvoice {
                 operation(i) <- defaultOperationPaymentInstallments();
                 supplierStock(i) <- departmentStore(receipt);
                 supplier(i) <- legalEntity[Stock](departmentStore(receipt));
