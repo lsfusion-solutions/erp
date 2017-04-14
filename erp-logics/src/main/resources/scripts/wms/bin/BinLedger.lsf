@@ -400,12 +400,14 @@ END
 META deriveFormBinsProperty (form, object)
     overInBin = ABSTRACT Bin (###object###detail);
     overOutBin = ABSTRACT Bin (###object###detail);
+    skipSetInBin = ABSTRACT BOOLEAN (###object###detail);
+    skipSetOutBin = ABSTRACT BOOLEAN (###object###detail);
     
-    WHEN SESSION FORMS form (CHANGED(inBin(object(###object###detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(inBin(detail)) DO {
+    WHEN SESSION FORMS form (CHANGED(inBin(object(###object###detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(inBin(detail)) AND NOT skipSetInBin(detail) DO {
              inBin(detail) <- OVERRIDE inBin(object(detail)), overInBin(detail);
     }
 
-    WHEN SESSION FORMS form (CHANGED(outBin(object(###object###detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) DO {
+    WHEN SESSION FORMS form (CHANGED(outBin(object(###object###detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) AND NOT skipSetOutBin(detail) DO {
         outBin(detail) <- OVERRIDE outBin(object(detail)), overOutBin(detail);
     }    
 END
