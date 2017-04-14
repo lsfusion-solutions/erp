@@ -79,3 +79,33 @@ pricingWare 'Реестр цен' (Pricing pricing) = { PRINT pricingWare OBJECT
 EXTEND FORM pricings 
     PROPERTIES (p) pricingWare    
 ;
+
+FORM pricingWareAct 'Расходный акт'
+    OBJECTS p=Pricing PANEL
+    PROPERTIES (p) SELECTOR isPosted
+
+    PROPERTIES (p) nameStore, nameDepartmentStore, fullNameLegalEntityStock, seriesNumber, number, series, date, time,
+                   nameSupplier, nameCurrency, note,
+                   countPricingDetail, quantityPricingDetail, sumPricingDetail,
+                   retailMarkupSumPricingDetail, retailVATSumPricingDetail,
+                   retailSumPricingDetail, namePricingCommittee,
+                   nameFormedMan, nameCheckedMan, nameLabeledMan, nameAccountantMan, nameHeadMan,
+                   isInvoice, fullNameSupplier
+
+    OBJECTS d=PricingDetail
+
+    PROPERTIES (d) index, idBarcodeSku, nameSku, extraDescription, shortNameUOMSku,
+                   quantity, overPricingPrice, pricingPrice, manMarkup, price, sum, valueVAT, VATSum, invoiceSum,
+                   retailMarkup, retailMarkupSum, numberRetailVAT, valueRetailVAT, retailVATSum,
+                   extraRetailPrice, extraRetailSum, extraRetailVAT, extraRetailVATSum,
+                   notWareRetailPrice, retailMarkupPrice, retailVATSumNotWare, retailSumNotWare,
+                   calcMarkupPrice, calcVATPrice, retailVATPrice, retailMarkupSumNotWare, sumSosedi
+    ORDER BY nameSku(d)
+    FILTERS pricing(d) == p,
+            d IS PricingDetail AND NOT (sku(d) IS Ware),
+            TRUE IF quantity(d)
+;
+
+pricingWareAct 'Расходный акт' (Pricing pricing) = { 
+    PRINT pricingWareAct OBJECTS p = pricing; 
+}  IMAGE 'print.png' IN print;
