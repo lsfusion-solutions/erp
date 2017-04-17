@@ -329,7 +329,11 @@ public class CL5000JHandler extends ScalesHandler {
 
     @Override
     public String getGroupId(TransactionScalesInfo transactionInfo) throws IOException {
-        return "CL5000";
+        String groupId = "";
+        for (MachineryInfo scales : transactionInfo.machineryInfoList) {
+            groupId += scales.port + ";";
+        }
+        return "CL5000J" + groupId;
     }
 
     @Override
