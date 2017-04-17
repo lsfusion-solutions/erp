@@ -47,7 +47,10 @@ VATSum (PricingDetail d) = VATSum(invoiceDetail(d)) (-) VATSum(invoiceCreditNote
 invoiceSum (PricingDetail d) = invoiceSum(invoiceDetail(d)) (-) invoiceSum(invoiceCreditNoteDetail(invoiceDetail(d))) (+) extraRetailSum(d);//invoiceSum(invoiceDetail(d)) (+) extraRetailSum(d);
 
 extraRetailVAT 'НДС посуды'(PricingDetail d) = extraRetailVATSum(d) / (quantity(d) IF quantity(d)!=0);          
-          
+//extraRetailPrice(UserInvoiceDetail d) += retailPrice[InvoiceDetail](wareUserInvoiceDetail(d));
+
+extraSupplierSum 'Сумма посуды без НДС'  (PricingDetail d) = extraRetailSum(d) (-) extraRetailVATSum(d);
+extraSupplierPrice 'Цена посуды без НДС'  (PricingDetail d) = round2(extraSupplierSum(d) / (quantity(d) IF quantity(d) != 0.0));          
 FORM pricingWare 'Реестр цен'
     OBJECTS p=Pricing PANEL
     PROPERTIES (p) SELECTOR isPosted
@@ -67,7 +70,7 @@ FORM pricingWare 'Реестр цен'
                    retailMarkup, retailMarkupSum, numberRetailVAT, valueRetailVAT, retailVATSum,
                    extraRetailPrice, extraRetailSum, extraRetailVAT, extraRetailVATSum,
                    notWareRetailPrice, retailMarkupPrice, retailVATSumNotWare, retailSumNotWare,
-                   calcMarkupPrice, calcVATPrice, retailVATPrice, retailMarkupSumNotWare, sumSosedi
+                   calcMarkupPrice, calcVATPrice, retailVATPrice, retailMarkupSumNotWare, sumSosedi, extraSupplierSum, extraSupplierPrice
     ORDER BY nameSku(d)
     FILTERS pricing(d) == p,
             d IS PricingDetail AND NOT (sku(d) IS Ware),
