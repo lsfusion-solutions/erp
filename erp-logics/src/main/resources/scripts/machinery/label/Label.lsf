@@ -322,6 +322,7 @@ createdTime 'Время создания' (LabelTransactionDetail d) = createdTi
 createdHostnameComputer 'Создан на компьютере' (LabelTransactionDetail d) = createdHostnameComputer(labelTransaction(d));
 
 sku = DATA Sku (LabelTransactionDetail);
+idSku 'Код товара' = id(sku(LabelTransactionDetail detail));     
 INDEX sku(LabelTransactionDetail d), departmentStore(d);
 nameSku 'SKU' (LabelTransactionDetail d) = name(sku(d));
 dataBarcode = DATA Barcode (LabelTransactionDetail) INDEXED;
@@ -361,7 +362,7 @@ FORM printLabelTransaction 'Печать ценников'
                   fullNameLegalEntity, dateTime                  
     
     OBJECTS d = LabelTransactionDetail
-    PROPERTIES(d) READONLY idBarcode, nameSku, nameBatch,
+    PROPERTIES(d) READONLY idBarcode, idSku, nameSku, nameBatch,
                            quantity, name, price, 
                            retailPrice, discountSum, discountPercent, fullNameLegalEntity,
                            firstSort, secondSort
@@ -420,7 +421,7 @@ FORM customLabelTransaction 'Печать ценников'
                   description READONLY 
                    
     OBJECTS d = LabelTransactionDetail
-    PROPERTIES(d) selected, idBarcode ON CHANGE changeBarcode(d), nameSku READONLY, nameBatch,
+    PROPERTIES(d) selected, idSku READONLY, idBarcode ON CHANGE changeBarcode(d), nameSku READONLY, nameBatch,
                   nameOperation, quantity, name, price, retailPrice,
                   discountSum, discountPercent, DELETE GRID
     FILTERS labelTransaction(d) == l
@@ -512,7 +513,7 @@ FORM labelTransactions 'Печать ценников'
 
     OBJECTS dt = LabelTransactionDetail
     PROPERTIES(dt) select
-    PROPERTIES(dt) READONLY idBarcode, nameSku, nameBatch,
+    PROPERTIES(dt) READONLY idBarcode, idSku, nameSku, nameBatch,
                             quantity, name, price, retailPrice, discountSum, discountPercent 
     FILTERS labelTransaction(dt) == l
     PROPERTIES printLabelTransactionDetails() TOOLBAR TODRAW dt SHOWIF countSelectLabelTransactionDetails()
@@ -524,7 +525,7 @@ FORM labelTransactions 'Печать ценников'
     OBJECTS dts = LabelTransactionDetail
     PROPERTIES(dts) READONLY nameLabelType, description, date, time,
             createdNameUser, createdTime, createdHostnameComputer,
-            idBarcode, nameSku, nameBatch,
+            idBarcode, idSku, nameSku, nameBatch,
             quantity, name, price, retailPrice, discountSum, discountPercent
             
     PROPERTIES printLabelTransactionDetail(dts) TOOLBAR 
