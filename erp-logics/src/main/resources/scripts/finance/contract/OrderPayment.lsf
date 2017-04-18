@@ -1,0 +1,65 @@
+MODULE OrderPayment;
+
+REQUIRE Order, Payment, ContractPayment, OrderInvoice, SaleInvoiceContract, PurchaseInvoiceContract, SaleOrder, PurchaseOrder;
+
+NAMESPACE Order;
+
+showOrder 'Предоплата' = DATA BOOLEAN (PaymentOperation.Operation);
+
+EXTEND FORM PaymentOperation.operation
+    PROPERTIES(o) showOrder
+;
+DESIGN PaymentOperation.operation {
+    showContainer {
+        MOVE PROPERTY(showOrder(o));
+    }
+}
+
+minOrder = GROUP MIN Order o IF quantity (o, Invoice.Invoice i) BY i; 
+
+prePay 'Предоплата' = DATA NUMERIC[18,4] (Payment, Order);
+
+prePay 'Предоплата'  =
+    GROUP SUM prePay(Payment p, Order o) IF
+    active[OutContractLedger](p) 
+    BY o ;
+prePay 'Предоплата'  =
+    GROUP SUM prePay(Payment p, Order o) IF
+    isPosted(o)
+    BY p ;
+    
+prePay (OutContractLedger o) += prePay[Payment](o) IF o IS Payment;    
+showOrder (Payment p) = showOrder(operation(p));
+
+EXTEND FORM payment
+    PROPERTIES (p) READONLY SHOWIF showOrder(p) prePay
+    OBJECTS o = Order GRID 
+
+    PROPERTIES(o) READONLY SHOWIF showOrder(p) date, description, invoiceSumOrderDetail
+    PROPERTIES(p, o) SHOWIF showOrder(p) prePay
+    ORDER BY date(o)
+
+    FILTERS contractSku(o) == contract(p),
+            isPosted(o)
+    FILTERGROUP filtersO 
+        FILTER 'Актуальные' (NOT prePay(o)) OR prePay(p,o) 'F6' DEFAULT
+    
+    PROPERTIES (p,i) READONLY prePay
+;
+
+DESIGN payment {
+    main{
+        NEW tab BEFORE functions.box {
+            fill = 1;
+            type = TABBED;
+            MOVE i.box ;
+            MOVE o.box {
+                caption = 'Предоплата';
+            }
+        }
+        paramContainer {
+            MOVE PROPERTY (prePay(p));
+        }
+        PROPERTY (prePay(p)){background = RGB(255, 250, 205);}
+    }
+}

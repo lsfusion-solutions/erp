@@ -148,6 +148,10 @@ descriptionPaymentCondition 'Условия оплаты' (InContractLedger ledg
 isReturn 'Возвратный' = ABSTRACT BOOLEAN (OutContractLedger) PERSISTENT;
 
 TABLE outContractLedgerInContractLedger (OutContractLedger, InContractLedger);
+prePay 'Предоплата' = ABSTRACT NUMERIC[18,4](OutContractLedger, InContractLedger) PERSISTENT;
+prePay 'Предоплата' = GROUP SUM prePay(OutContractLedger o, InContractLedger i) IF active(i) AND active(o) BY i PERSISTENT;
+prePay = ABSTRACT NUMERIC[18,4](OutContractLedger) PERSISTENT;
+
 cost 'Оплачено из документа' (outContractLedger, inContractLedger) = DATA NUMERIC[18,4] (OutContractLedger, InContractLedger);
 costedOutContractLedger 'Оплачено по документу' (inContractLedger) =
     GROUP SUM cost(OutContractLedger outContractLedger, InContractLedger inContractLedger) IF
@@ -180,21 +184,43 @@ debt 'Долг по документу на дату' (InContractLedger inContra
 orderDate = ABSTRACT DATETIME (OutContractLedger, InContractLedger);
 overOrderDate (OutContractLedger outLedger, InContractLedger inLedger)= OVERRIDE dateTime(inLedger), orderDate(outLedger, inLedger);
 
+notPrePay (OutContractLedger o) = sum(o) (-) prePay(o);
+debtNotPrePay (InContractLedger i) = debt(i) (-) prePay(i);
+
 sumInFIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
-    PARTITION UNGROUP sum
-              LIMIT debt(inContractLedger) IF
-                    contract(outContractLedger) == contract(inContractLedger) AND
+    [ = PARTITION UNGROUP notPrePay
+              LIMIT debtNotPrePay(InContractLedger inContractLedger) IF
+                    contract(OutContractLedger outContractLedger) == contract(inContractLedger) AND
                     active(inContractLedger)
               BY outContractLedger
-              ORDER overOrderDate(outContractLedger, inContractLedger), inContractLedger;
+              ORDER overOrderDate(outContractLedger, inContractLedger), inContractLedger](inContractLedger, outContractLedger) 
+    (+) prePay(outContractLedger, inContractLedger);
+
 
 sumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
-    PARTITION UNGROUP sum
-              LIMIT debt(inContractLedger) IF
-                    contract(outContractLedger) == contract(inContractLedger) AND
+    [ = PARTITION UNGROUP notPrePay
+              LIMIT debtNotPrePay(InContractLedger inContractLedger) IF
+                    contract(OutContractLedger outContractLedger) == contract(inContractLedger) AND
                     active(inContractLedger)
               BY outContractLedger
-              ORDER DESC overOrderDate(outContractLedger, inContractLedger), inContractLedger;
+              ORDER DESC overOrderDate(outContractLedger, inContractLedger), inContractLedger](inContractLedger, outContractLedger)
+    (+) prePay(outContractLedger, inContractLedger);    
+
+//sumInFIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
+//    PARTITION UNGROUP sum
+//              LIMIT debt(inContractLedger) IF
+//                    contract(outContractLedger) == contract(inContractLedger) AND
+//                    active(inContractLedger)
+//              BY outContractLedger
+//              ORDER overOrderDate(outContractLedger, inContractLedger), inContractLedger;
+//
+//sumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
+//    PARTITION UNGROUP sum
+//              LIMIT debt(inContractLedger) IF
+//                    contract(outContractLedger) == contract(inContractLedger) AND
+//                    active(inContractLedger)
+//              BY outContractLedger
+//              ORDER DESC overOrderDate(outContractLedger, inContractLedger), inContractLedger;
 
 negativeSum 'Обратная сумма' (OutContractLedger outContractLedger) = -sum(outContractLedger);
 negativeSumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =

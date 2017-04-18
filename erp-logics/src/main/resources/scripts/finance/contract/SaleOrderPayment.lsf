@@ -1,0 +1,31 @@
+MODULE SaleOrderPayment;
+
+REQUIRE OrderPayment, SaleInvoiceContract, SaleOrder;
+
+NAMESPACE Sale;
+
+prePay (OutContractLedger o, InContractLedger i) += prePay(o, minOrder(i)) IF i IS Sale.Invoice;
+
+addPaymentOrder 'Предоплата' (Order o) = {
+    NEWSESSION NEW p = Payment{
+        operation(p) <- [ = GROUP MIN PaymentOperation.Operation o IF showOrder(o)]();    
+        contract(p) <- contractSku[Order](o);
+        date(p) <- currentDate();
+        time(p) <- currentTime();
+        payer(p) <- customer[Order](o);
+        beneficiary(p) <- supplier[Order](o);
+        sum(p) <- invoiceSumOrderDetail(o);
+        prePay(p, o) <- invoiceSumOrderDetail(o);
+        
+        SHOW payment OBJECTS p = p MANAGESESSION DOCKED NOCANCEL;
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES (o) addPaymentOrder
+;
+DESIGN orders {
+    createdContainer {
+        MOVE PROPERTY (addPaymentOrder(o));
+    }
+}
