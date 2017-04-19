@@ -39,11 +39,10 @@ public class TerminalDocumentEquipmentServer {
                         sendTerminalDocumentLogger.info("TerminalDocumentInfo is empty");
                     } else {
                         sendTerminalDocumentLogger.info("Sending TerminalDocumentInfo");
-                        //todo: убрать sidEquipmentServer
-                        String result = remote.sendTerminalInfo(documentBatch.documentDetailList, sidEquipmentServer);
+                        String result = remote.sendTerminalInfo(documentBatch.documentDetailList);
                         if (result != null) {
                             sendTerminalDocumentLogger.error("Equipment server error: " + result);
-                            remote.errorEquipmentServerReport(sidEquipmentServer, new Throwable(result).fillInStackTrace());
+                            EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, new Throwable(result).fillInStackTrace());
                         } else {
                             sendTerminalDocumentLogger.info("Finish Reading starts");
                             clsHandler.finishReadingTerminalDocumentInfo(documentBatch);
@@ -51,7 +50,7 @@ public class TerminalDocumentEquipmentServer {
                     }
                 } catch (Throwable e) {
                     sendTerminalDocumentLogger.error("Equipment server error: ", e);
-                    remote.errorEquipmentServerReport(sidEquipmentServer, e);
+                    EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
                     return;
                 }
             }

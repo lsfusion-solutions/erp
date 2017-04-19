@@ -24,8 +24,7 @@ public class SendSalesEquipmentServer {
 
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
 
-        //todo: убрать sidEquipmentServer
-        List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
+        List<RequestExchange> requestExchangeList = remote.readRequestExchange();
 
         Map<String, Set<String>> handlerModelDirectoryMap = new HashMap<>();
         Map<String, Set<Integer>> handlerModelCashRegisterMap = new HashMap<>();
@@ -69,7 +68,7 @@ public class SendSalesEquipmentServer {
             }
         } catch (Throwable e) {
             sendSalesLogger.error("Equipment server error: ", e);
-            remote.errorEquipmentServerReport(sidEquipmentServer, e);
+            EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
         }
     }
 
@@ -99,8 +98,7 @@ public class SendSalesEquipmentServer {
         CashDocumentBatch cashDocumentBatch = handler.readCashDocumentInfo(cashRegisterInfoList, cashDocumentSet);
         if (cashDocumentBatch != null && cashDocumentBatch.cashDocumentList != null && !cashDocumentBatch.cashDocumentList.isEmpty()) {
             sendSalesLogger.info("Sending CashDocuments");
-            //todo: убрать sidEquipmentServer
-            String result = remote.sendCashDocumentInfo(cashDocumentBatch.cashDocumentList, sidEquipmentServer);
+            String result = remote.sendCashDocumentInfo(cashDocumentBatch.cashDocumentList);
             if (result != null) {
                 EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result);
             } else {
@@ -128,42 +126,42 @@ public class SendSalesEquipmentServer {
                         }
                     } catch (Exception e) {
                         sendSalesLogger.error("Reading SalesInfo", e);
-                        remote.errorEquipmentServerReport(sidEquipmentServer, e);
+                        EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e, directory);
                     }
                 }
-                sendSalesInfo(remote, mergedSalesBatch, sidEquipmentServer, handler);
+                sendSalesInfo(remote, mergedSalesBatch, sidEquipmentServer, null, handler);
 
             } else {
 
                 for (String directory : directorySet) {
                     try {
                         SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
-                        sendSalesInfo(remote, salesBatch, sidEquipmentServer, handler);
+                        sendSalesInfo(remote, salesBatch, sidEquipmentServer, directory, handler);
                     } catch (Exception e) {
                         sendSalesLogger.error("Reading SalesInfo", e);
-                        remote.errorEquipmentServerReport(sidEquipmentServer, e);
+                        EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
                     }
                 }
             }
         }
     }
 
-    static void sendSalesInfo(EquipmentServerInterface remote, SalesBatch salesBatch, String sidEquipmentServer, CashRegisterHandler handler) throws RemoteException, SQLException {
+    static void sendSalesInfo(EquipmentServerInterface remote, SalesBatch salesBatch, String sidEquipmentServer, String directory, CashRegisterHandler handler) throws RemoteException, SQLException {
         if (salesBatch == null || salesBatch.salesInfoList == null || salesBatch.salesInfoList.size() == 0)
             sendSalesLogger.info("SalesInfo is empty");
         else {
             sendSalesLogger.info("Sending SalesInfo : " + salesBatch.salesInfoList.size() + " records");
             try {
-                String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer);
+                String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, directory);
                 if (result != null) {
-                    EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result);
+                    EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
                 } else {
                     sendSalesLogger.info("Finish Reading starts");
                     handler.finishReadingSalesInfo(salesBatch);
                 }
             } catch (Exception e) {
                 sendSalesLogger.error("Sending SalesInfo", e);
-                remote.errorEquipmentServerReport(sidEquipmentServer, e);
+                EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
             }
         }
     }

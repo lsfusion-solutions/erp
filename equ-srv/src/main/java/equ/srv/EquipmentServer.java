@@ -1047,7 +1047,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException {
+    public List<RequestExchange> readRequestExchange() throws RemoteException, SQLException {
 
         List<RequestExchange> requestExchangeList = new ArrayList();
         if(machineryLM != null && machineryPriceTransactionLM != null) {
@@ -1210,7 +1210,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList, String sidEquipmentServer) throws RemoteException, SQLException {
+    public String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList) throws RemoteException, SQLException {
         return TerminalDocumentEquipmentServer.sendTerminalInfo(getBusinessLogics(), getDbManager(), getStack(), terminalDocumentDetailList);
     }
 
@@ -1291,12 +1291,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer) throws IOException, SQLException {
-        return sendSalesInfoNonRemote(getStack(), salesInfoList, sidEquipmentServer);
+    public String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, String directory) throws IOException, SQLException {
+        return sendSalesInfoNonRemote(getStack(), salesInfoList, sidEquipmentServer, directory);
     }
 
 
-    public String sendSalesInfoNonRemote(ExecutionStack stack, List<SalesInfo> salesInfoList, String sidEquipmentServer) throws IOException, SQLException {
+    public String sendSalesInfoNonRemote(ExecutionStack stack, List<SalesInfo> salesInfoList, String sidEquipmentServer, String directory) throws IOException, SQLException {
         try {
 
             if (zReportLM != null && notNullNorEmpty(salesInfoList)) {
@@ -1689,7 +1689,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         session.setKeepLastAttemptCountMap(true);
                         String result = session.applyMessage(getBusinessLogics(), stack);
                         if (result == null) {
-                            logCompleteMessage(stack, session, data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), left, timeStart, sidEquipmentServer);
+                            logCompleteMessage(stack, session, data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), left, timeStart, sidEquipmentServer, directory);
                         } else
                             return result;
                     }
@@ -1706,9 +1706,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 salesInfo.dateReceipt.compareTo(salesInfo.cashRegisterInfo.documentsClosedDate) < 0;
     }
     
-    private String logCompleteMessage(ExecutionStack stack, DataSession mainSession, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart, String sidEquipmentServer) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private String logCompleteMessage(ExecutionStack stack, DataSession mainSession, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart, String sidEquipmentServer, String directory) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         
-        String message = formatCompleteMessage(mainSession, data, dataSize, left, timeStart);
+        String message = formatCompleteMessage(mainSession, data, dataSize, left, timeStart, directory);
         
         try (DataSession session = getDbManager().createSession()) {
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
@@ -1720,7 +1720,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
     
-    private String formatCompleteMessage(DataSession session, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart) {
+    private String formatCompleteMessage(DataSession session, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart, String directory) {
 
         String conflicts = session.getLastAttemptCountMap();
         Timestamp timeFinish = getCurrentTimestamp();
@@ -1750,6 +1750,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
         message = message.substring(0, message.length() - 2);
 
+        if(directory != null) {
+            message+= "\nДиректория: " + directory;
+        }
         if(!fileNames.isEmpty()) {
             message += "\nИз файлов: ";
             for (String filename : fileNames)
@@ -1772,7 +1775,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public String sendCashDocumentInfo(List<CashDocument> cashDocumentList, String sidEquipmentServer) throws IOException, SQLException {
+    public String sendCashDocumentInfo(List<CashDocument> cashDocumentList) throws IOException, SQLException {
         return SendSalesEquipmentServer.sendCashDocumentInfo(getBusinessLogics(), getDbManager(), getStack(), cashDocumentList);
     }
 
@@ -1872,13 +1875,15 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void errorEquipmentServerReport(String equipmentServer, Throwable exception) throws
+    public void errorEquipmentServerReport(String equipmentServer, Throwable exception, String extraData) throws
             RemoteException, SQLException {
         try (DataSession session = getDbManager().createSession()) {
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerError"));
             Object equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").read(session, new DataObject(equipmentServer, StringClass.get(20)));
             equLM.findProperty("equipmentServer[EquipmentServerError]").change(equipmentServerObject, session, errorObject);
             equLM.findProperty("data[EquipmentServerError]").change(exception.toString(), session, errorObject);
+            if(extraData != null)
+                equLM.findProperty("extraData[EquipmentServerError]").change(extraData, session, errorObject);
             OutputStream os = new ByteArrayOutputStream();
             exception.printStackTrace(new PrintStream(os));
             equLM.findProperty("erTrace[EquipmentServerError]").change(os.toString(), session, errorObject);

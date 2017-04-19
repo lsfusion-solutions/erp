@@ -8,7 +8,6 @@ import lsfusion.interop.remote.RmiServerInterface;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.sql.Date;
 import java.sql.SQLException;
@@ -40,11 +39,11 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     //sendTerminalDocument consumer
     boolean enabledTerminalInfo() throws RemoteException, SQLException;
     List<TerminalInfo> readTerminalInfo(String sidEquipmentServer) throws RemoteException, SQLException;
-    String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList, String sidEquipmentServer) throws RemoteException, SQLException;
+    String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList) throws RemoteException, SQLException;
 
     //machineryExchange consumer
     List<MachineryInfo> readMachineryInfo(String sidEquipmentServer) throws RemoteException, SQLException;
-    List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException;
+    List<RequestExchange> readRequestExchange() throws RemoteException, SQLException;
     void finishRequestExchange(Set<Integer> succeededRequestsSet) throws RemoteException, SQLException;
     void errorRequestExchange(Map<Integer, String> succeededRequestsMap) throws RemoteException, SQLException;
 
@@ -56,9 +55,9 @@ public interface EquipmentServerInterface extends RmiServerInterface {
 
     //sendSales consumer
     List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException;
-    String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer) throws IOException, SQLException;
+    String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, String directory) throws IOException, SQLException;
     Set<String> readCashDocumentSet() throws IOException, SQLException;
-    String sendCashDocumentInfo(List<CashDocument> cashDocumentList, String sidEquipmentServer) throws IOException, SQLException;
+    String sendCashDocumentInfo(List<CashDocument> cashDocumentList) throws IOException, SQLException;
 
     //checkZReportSum
     Map<String, List<Object>> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) throws RemoteException, SQLException;
@@ -78,7 +77,7 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     
     void errorTransactionReport(Integer transactionID, Throwable exception) throws RemoteException, SQLException;
 
-    void errorEquipmentServerReport(String equipmentServer, Throwable exception) throws RemoteException, SQLException;
+    void errorEquipmentServerReport(String equipmentServer, Throwable exception, String extraData) throws RemoteException, SQLException;
 
     EquipmentServerSettings readEquipmentServerSettings(String equipmentServer) throws RemoteException, SQLException;
 }

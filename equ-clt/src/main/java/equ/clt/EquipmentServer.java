@@ -424,9 +424,23 @@ public class EquipmentServer {
     }
 
     static void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, String result) throws RemoteException, SQLException {
-        logger.error("Equipment server error: " + result);
-        remote.errorEquipmentServerReport(sidEquipmentServer, new Throwable(result).fillInStackTrace());
+        reportEquipmentServerError(remote, sidEquipmentServer, result, null);
     }
+
+    static void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, String result, String extraData) throws RemoteException, SQLException {
+        logger.error("Equipment server error: " + result);
+        remote.errorEquipmentServerReport(sidEquipmentServer, new Throwable(result).fillInStackTrace(), extraData);
+    }
+
+
+    static void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, Throwable throwable) throws RemoteException, SQLException {
+        reportEquipmentServerError(remote, sidEquipmentServer, throwable, null);
+    }
+
+    static void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, Throwable throwable, String extraData) throws RemoteException, SQLException {
+        remote.errorEquipmentServerReport(sidEquipmentServer, throwable, extraData);
+    }
+
 
     private static Comparator<TransactionInfo> COMPARATOR = new Comparator<TransactionInfo>() {
         public int compare(TransactionInfo o1, TransactionInfo o2) {
@@ -733,7 +747,7 @@ public class EquipmentServer {
 
         private void errorEquipmentServerReport(Exception e) {
             try {
-                remote.errorEquipmentServerReport(sidEquipmentServer, e);
+                reportEquipmentServerError(remote, sidEquipmentServer, e);
             } catch (Exception ignored) {
             }
         }

@@ -19,7 +19,7 @@ public class MachineryExchangeEquipmentServer {
     static void processMachineryExchange(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
         machineryExchangeLogger.info("Process MachineryExchange");
         List<MachineryInfo> machineryInfoList = remote.readMachineryInfo(sidEquipmentServer);
-        List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
+        List<RequestExchange> requestExchangeList = remote.readRequestExchange();
 
         if (!requestExchangeList.isEmpty()) {
 
@@ -90,12 +90,12 @@ public class MachineryExchangeEquipmentServer {
                                 }
                             } catch (Exception e) {
                                 machineryExchangeLogger.error("Equipment server error: ", e);
-                                remote.errorEquipmentServerReport(sidEquipmentServer, e);
+                                EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
                             }
                         }
                     } catch (Throwable e) {
                         machineryExchangeLogger.error("Equipment server error: ", e);
-                        remote.errorEquipmentServerReport(sidEquipmentServer, e);
+                        EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
                         return;
                     }
                 }
