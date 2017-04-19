@@ -22,7 +22,6 @@ import java.rmi.UnmarshalException;
 import java.rmi.registry.Registry;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.text.ParseException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -288,7 +287,7 @@ public class EquipmentServer {
                 void runTask() throws Exception {
                     try {
                         if(isTimeToRun())
-                            sendSalesInfo(remote, sidEquipmentServer);
+                            SendSalesEquipmentServer.sendSalesInfo(remote, sidEquipmentServer, mergeBatches);
                         else
                             sendSalesLogger.info("Extra Log: not time to run");
                     } catch (ConnectException e) {
@@ -389,60 +388,6 @@ public class EquipmentServer {
             start = currentCal.getTimeInMillis() >= calendarFrom.getTimeInMillis() && currentCal.getTimeInMillis() <= calendarTo.getTimeInMillis();
         }
         return start;
-    }
-
-    private void sendSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
-        sendSalesLogger.info("Send SalesInfo");
-
-        List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
-
-        //todo: убрать sidEquipmentServer
-        List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
-        
-        Map<String, Set<String>> handlerModelDirectoryMap = new HashMap<>();
-        Map<String, Set<Integer>> handlerModelCashRegisterMap = new HashMap<>();
-        for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
-            if(!cashRegister.disableSales) {
-                Set<String> directorySet = handlerModelDirectoryMap.containsKey(cashRegister.handlerModel) ? handlerModelDirectoryMap.get(cashRegister.handlerModel) : new HashSet<String>();
-                directorySet.add(cashRegister.directory);
-                handlerModelDirectoryMap.put(cashRegister.handlerModel, directorySet);
-                Set<Integer> cashRegisterSet = handlerModelCashRegisterMap.containsKey(cashRegister.handlerModel) ? handlerModelCashRegisterMap.get(cashRegister.handlerModel) : new HashSet<Integer>();
-                cashRegisterSet.add(cashRegister.number);
-                handlerModelCashRegisterMap.put(cashRegister.handlerModel, cashRegisterSet);
-            }
-        }
-
-        try {
-            for (Map.Entry<String, Set<String>> entry : handlerModelDirectoryMap.entrySet()) {
-                String handlerModel = entry.getKey();
-                Set<String> directorySet = entry.getValue();
-    
-                if (handlerModel != null && !handlerModel.isEmpty()) {
-
-                    MachineryHandler clsHandler = (MachineryHandler) getHandler(handlerModel, remote);
-
-                    if(clsHandler instanceof CashRegisterHandler) {
-                        CashRegisterHandler handler = (CashRegisterHandler) clsHandler;
-
-                        SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
-
-                        SendSalesEquipmentServer.requestSalesInfo(remote, requestExchangeList, handler, directorySet);
-
-                        SendSalesEquipmentServer.sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
-
-                        SendSalesEquipmentServer.readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList, mergeBatches);
-
-                        SendSalesEquipmentServer.extraCheckZReportSum(remote, sidEquipmentServer, handler, cashRegisterInfoList);
-
-                        SendSalesEquipmentServer.checkZReportSum(remote, handler, requestExchangeList);
-
-                    }
-                }
-            }
-        } catch (Throwable e) {
-            sendSalesLogger.error("Equipment server error: ", e);
-            remote.errorEquipmentServerReport(sidEquipmentServer, e);
-        }
     }
 
     static Object getHandler(String handlerModel, EquipmentServerInterface remote) throws ClassNotFoundException, IllegalAccessException, InstantiationException, InvocationTargetException, NoSuchMethodException {

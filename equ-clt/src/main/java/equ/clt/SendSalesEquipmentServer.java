@@ -1,6 +1,7 @@
 package equ.clt;
 
 import equ.api.EquipmentServerInterface;
+import equ.api.MachineryHandler;
 import equ.api.RequestExchange;
 import equ.api.SalesBatch;
 import equ.api.cashregister.CashDocumentBatch;
@@ -17,6 +18,60 @@ import java.util.*;
 
 public class SendSalesEquipmentServer {
     private final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+
+    static void sendSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, boolean mergeBatches) throws SQLException, IOException {
+        sendSalesLogger.info("Send SalesInfo");
+
+        List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
+
+        //todo: убрать sidEquipmentServer
+        List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
+
+        Map<String, Set<String>> handlerModelDirectoryMap = new HashMap<>();
+        Map<String, Set<Integer>> handlerModelCashRegisterMap = new HashMap<>();
+        for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
+            if(!cashRegister.disableSales) {
+                Set<String> directorySet = handlerModelDirectoryMap.containsKey(cashRegister.handlerModel) ? handlerModelDirectoryMap.get(cashRegister.handlerModel) : new HashSet<String>();
+                directorySet.add(cashRegister.directory);
+                handlerModelDirectoryMap.put(cashRegister.handlerModel, directorySet);
+                Set<Integer> cashRegisterSet = handlerModelCashRegisterMap.containsKey(cashRegister.handlerModel) ? handlerModelCashRegisterMap.get(cashRegister.handlerModel) : new HashSet<Integer>();
+                cashRegisterSet.add(cashRegister.number);
+                handlerModelCashRegisterMap.put(cashRegister.handlerModel, cashRegisterSet);
+            }
+        }
+
+        try {
+            for (Map.Entry<String, Set<String>> entry : handlerModelDirectoryMap.entrySet()) {
+                String handlerModel = entry.getKey();
+                Set<String> directorySet = entry.getValue();
+
+                if (handlerModel != null && !handlerModel.isEmpty()) {
+
+                    MachineryHandler clsHandler = (MachineryHandler) EquipmentServer.getHandler(handlerModel, remote);
+
+                    if(clsHandler instanceof CashRegisterHandler) {
+                        CashRegisterHandler handler = (CashRegisterHandler) clsHandler;
+
+                        SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
+
+                        requestSalesInfo(remote, requestExchangeList, handler, directorySet);
+
+                        sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
+
+                        readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList, mergeBatches);
+
+                        extraCheckZReportSum(remote, sidEquipmentServer, handler, cashRegisterInfoList);
+
+                        checkZReportSum(remote, handler, requestExchangeList);
+
+                    }
+                }
+            }
+        } catch (Throwable e) {
+            sendSalesLogger.error("Equipment server error: ", e);
+            remote.errorEquipmentServerReport(sidEquipmentServer, e);
+        }
+    }
 
     static void requestSalesInfo(EquipmentServerInterface remote, List<RequestExchange> requestExchangeList, CashRegisterHandler handler, Set<String> directorySet)
             throws IOException, ParseException, SQLException {
