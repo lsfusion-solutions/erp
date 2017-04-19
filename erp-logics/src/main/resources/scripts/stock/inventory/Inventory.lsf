@@ -865,36 +865,36 @@ sumContainerManageShortage 'Сумма недостачи / излишка, та
 
 // Объединение товаров                                                                               
 
-overReplace(Sku s, Sku d) += {
+overReplace(Sku d) += {
     quantityBalance(CollationSheet collationSheet, d) <- balanceB(d, stock(collationSheet), dateTime(inventory(collationSheet)))
-        WHERE countPageInventoryDetail(collationSheet, s);
+        WHERE countPageInventoryDetail(collationSheet, d);
         
     sumBalance(CollationSheet collationSheet, d)
         <- NUMERIC[18,4](sumB(d, stock(collationSheet), dateTime(inventory(collationSheet))))
-        WHERE countPageInventoryDetail(collationSheet, s) AND NOT isPrice(inventory(collationSheet));        
+        WHERE countPageInventoryDetail(collationSheet, d) AND NOT isPrice(inventory(collationSheet));        
     sumBalance(CollationSheet collationSheet, d)
         <- NUMERIC[18,4](round(balanceB(d, stock(collationSheet), dateTime(inventory(collationSheet)))*priceBalance(collationSheet, d), currency(stock(collationSheet))))
-        WHERE countPageInventoryDetail(collationSheet, s) AND isPrice(inventory(collationSheet));    
+        WHERE countPageInventoryDetail(collationSheet, d) AND isPrice(inventory(collationSheet));    
     
     quantityBalance(CollationSheet collationSheet, Batch batch)
         <- balanceB(batch, stock(collationSheet), dateTime(inventory(collationSheet)))
-        WHERE countPageInventoryDetail(collationSheet, s) AND isBatch(inventory(collationSheet));        
+        WHERE countPageInventoryDetail(collationSheet, d) AND isBatch(inventory(collationSheet));        
         
     priceBalance(CollationSheet collationSheet, d)
         <- OVERRIDE overPriceBalance(collationSheet, d), priceB(SystemLedgerPriceListType.accountPriceListType, d, stock(collationSheet), dateTime(inventory(collationSheet)))
-        WHERE countPageInventoryDetail(collationSheet, s);
+        WHERE countPageInventoryDetail(collationSheet, d);
 
     sumBalance(CollationSheet collationSheet, d)
         <- NUMERIC[18,4](sumB(d, stock(collationSheet), dateTime(inventory(collationSheet))))
-        WHERE countPageInventoryDetail(collationSheet, s) AND NOT isPrice(inventory(collationSheet));
+        WHERE countPageInventoryDetail(collationSheet, d) AND NOT isPrice(inventory(collationSheet));
                 
     sumBalance(CollationSheet collationSheet, d)
         <- NUMERIC[18,4](round(balanceB(d, stock(collationSheet), dateTime(inventory(collationSheet)))*priceBalance(collationSheet, d), currency(stock(collationSheet))))
-        WHERE countPageInventoryDetail(collationSheet, s) AND isPrice(inventory(collationSheet));
+        WHERE countPageInventoryDetail(collationSheet, d) AND isPrice(inventory(collationSheet));
         
     priceBalance(CollationSheet collationSheet, Batch batch)
         <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch, stock(collationSheet), dateTime(inventory(collationSheet)))
-        WHERE countPageInventoryDetail(collationSheet, s) AND isBatch(collationSheet);     
+        WHERE countPageInventoryDetail(collationSheet, d) AND isBatch(collationSheet);     
 }                                                                                
 
 //-------------------------------------- Проведение по товарному отчету ----------------------------------------------------//
