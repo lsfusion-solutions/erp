@@ -123,10 +123,10 @@ company(PriceListBeforeLedger l) += company(priceList(priceListDetail(l)));
 in(PriceListBeforeLedger l,Stock st) += in(priceList(priceListDetail(l)),st);
 
 // Расчет цены до для склада и sku
-lastBeforePriceListLedger 'Цена' (type, sku, stock) =
+lastBeforePriceListLedger 'Цена' (type, sku, stock, dateTime) =
     GROUP LAST PriceListBeforeLedger ledger
-          BY LedgerPriceListType type, sku(ledger, type, Stock stock), stock
+          BY LedgerPriceListType type, sku(ledger, type, Stock stock), stock, DATETIME dateTime
           ORDER fromDateTime(ledger, type, stock), ledger
-          WHERE active(ledger, type, stock) AND ledger IS PriceListBeforeLedger;
+          WHERE active(ledger, type, stock) AND NOT toDateTime(ledger, type, stock) < dateTime AND ledger IS PriceListBeforeLedger;
 
-priceBefore 'Цена до' (LedgerPriceListType type, Sku sku, Stock stock) = priceBefore(priceListDetail(lastBeforePriceListLedger(type, sku, stock)));
+priceBefore 'Цена до' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dt) = priceBefore(priceListDetail(lastBeforePriceListLedger(type, sku, stock, dt)));
