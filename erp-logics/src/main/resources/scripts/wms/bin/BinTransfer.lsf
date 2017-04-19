@@ -73,9 +73,11 @@ sumGrossWeight(UserBinTransferDetail d) <- grossWeight(sku(d)) * quantity(d)
 @defineDocumentHeaderGrossWeightCustomPrefix (binTransfer, binTransferDetail, sum, ', кг');
 @defineDocumentHeaderGrossWeightCustomPrefix (userBinTransfer, userBinTransferDetail, sum, ', кг'); 
 
+@defineDocumentDialogStocks(userBinTransfer, stock, company, , );
+
 FORM userBinTransfer 'Перемещение по ячейкам (польз.)'
     OBJECTS o = UserBinTransfer PANEL
-    PROPERTIES (o) isPosted, nameStock, nameNumerator, number, series, date, time, note, 
+    PROPERTIES (o) isPosted, nameStock ON CHANGE changeStockCompany(o), nameNumerator, number, series, date, time, note, 
                    nameOutBin ON CHANGE setOutBin(o), nameInBin ON CHANGE setInBin(o)
     PROPERTIES (o) READONLY countUserBinTransferDetail, quantityBinTransferDetail, sumGrossWeightUserBinTransferDetail 
     
@@ -242,7 +244,7 @@ FORM binTransfers  'Перемещения по ячейкам'
     PROPERTIES() filterBinTransferDateFrom, filterBinTransferDateTo, nameFilterBinTransferStock, nameFilterBinTransferCustomUser, nameFilterBinTransferComputer
     
     OBJECTS o = BinTransfer LAST
-    PROPERTIES (o) READONLY isPosted, number, series, date, time, nameStock, nameOutBin, nameInBin, note,
+    PROPERTIES (o) READONLY isClosed, isPosted, number, series, date, time, nameStock, nameOutBin, nameInBin, note,
                             countBinTransferDetail, quantityBinTransferDetail, sumGrossWeightUserBinTransferDetail GRID    
     
     FILTERS filterDateFrom(o), filterDateTo(o), filterStock(o)
@@ -340,6 +342,12 @@ DESIGN binTransfers 'Перемещения по ячейкам' {
 @defineDocumentOperationContainer(binTransfer, o, isPostedBintransfer, nameStock, first, name);
 
 @defineOperationFilterProperty(binTransfer, o, binTransfers, nameFilterBinTransferStock);
+
+@extendFormFilterAccessStock(BinTransfer, o, binTransfers, stock, company);
+@defineDocumentStockAccess(UserBinTransfer, stock, company);
+
+@defineDocumentOperationConstraint(binTransfer, 'перемещение по ячейкам', Bin);
+
 
 CONSTRAINT operation(BinTransfer binTransfer) AND stock(binTransfer) 
            AND NOT in(stock(binTransfer), operation(binTransfer))

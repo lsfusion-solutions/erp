@@ -72,10 +72,12 @@ sumGrossWeight(UserBinOrderDetail d) <- grossWeight(sku(d)) * quantity(d)
               
 @defineDocumentHeaderGrossWeightCustomPrefix (binOrder, binOrderDetail, sum, ', кг');
 @defineDocumentHeaderGrossWeightCustomPrefix (userBinOrder, userBinOrderDetail, sum, ', кг'); 
-        
+
+@defineDocumentDialogStocks(userBinOrder, stock, company, , );
+
 FORM userBinOrder 'Заказ на перемещение по ячейкам (польз.)'
     OBJECTS o = UserBinOrder PANEL
-    PROPERTIES (o) isPosted, nameStock, nameNumerator, number, series, date, time, note, 
+    PROPERTIES (o) isPosted, nameStock ON CHANGE changeStockCompany(o), nameNumerator, number, series, date, time, note, 
                    nameOutBin ON CHANGE setOutBin(o), nameInBin ON CHANGE setInBin(o)
     PROPERTIES (o) READONLY countUserBinOrderDetail, quantityBinOrderDetail, sumGrossWeightUserBinOrderDetail
     
@@ -242,7 +244,7 @@ FORM binOrders  'Заказы на перемещение по ячейкам'
     PROPERTIES() filterBinOrderDateFrom, filterBinOrderDateTo, nameFilterBinOrderStock, nameFilterBinOrderCustomUser, nameFilterBinOrderComputer
     
     OBJECTS o = BinOrder LAST
-    PROPERTIES (o) READONLY isPosted, number, series, date, time, nameStock, nameOutBin, nameInBin, note, 
+    PROPERTIES (o) READONLY isClosed, isPosted, number, series, date, time, nameStock, nameOutBin, nameInBin, note, 
                             countBinOrderDetail, quantityBinOrderDetail, sumGrossWeightBinOrderDetail
     
     FILTERS filterDateFrom(o), filterDateTo(o), filterStock(o)
@@ -343,6 +345,9 @@ DESIGN binOrders 'Заказы на перемещение по ячейкам' 
 
 @defineDocumentOperationContainer(binOrder, o, isPostedBinOrder, nameStock, first, name);
 @extendFormFilterRoleAccess(binOrder, o, binOrders);
+@extendFormFilterAccessStock(BinOrder, o, binOrders, stock, company);
+@defineDocumentStockAccess(UserBinOrder, stock, company);
+
 @defineDocumentOperationConstraint(binOrder, 'заказ на перемещение по ячейкам', Bin);
 
 @defineOperationFilterProperty(binOrder, o, binOrders, nameFilterBinOrderStock);
