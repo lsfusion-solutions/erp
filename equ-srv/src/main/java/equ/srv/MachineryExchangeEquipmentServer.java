@@ -67,10 +67,10 @@ public class MachineryExchangeEquipmentServer {
                         "sexContact", "cityContact", "streetContact", "phoneContact", "emailContact", "agreeSubscribeContact"};
                 LCP[] discountCardProperties = discountCardLM.findProperties("id[DiscountCard]", "number[DiscountCard]", "name[DiscountCard]",
                         "percent[DiscountCard]", "date[DiscountCard]", "dateTo[DiscountCard]", "initialSum[DiscountCard]",
-                        "type[DiscountCard]", "firstNameHttpServerContact[DiscountCard]", "lastNameHttpServerContact[DiscountCard]",
-                        "middleNameHttpServerContact[DiscountCard]", "birthdayHttpServerContact[DiscountCard]", "numberSexHttpServerContact[DiscountCard]",
-                        "cityHttpServerContact[DiscountCard]", "streetHttpServerContact[DiscountCard]", "phoneHttpServerContact[DiscountCard]",
-                        "emailHttpServerContact[DiscountCard]", "agreeSubscribeHttpServerContact[DiscountCard]");
+                        "idDiscountCardType[DiscountCard]", "firstNameContact[DiscountCard]", "lastNameContact[DiscountCard]",
+                        "middleNameHttpServerContact[DiscountCard]", "birthdayContact[DiscountCard]", "numberSexHttpServerContact[DiscountCard]",
+                        "cityHttpServerContact[DiscountCard]", "streetHttpServerContact[DiscountCard]", "phoneLegalEntity[DiscountCard]",
+                        "emailLegalEntity[DiscountCard]", "agreeSubscribeHttpServerContact[DiscountCard]");
                 for (int i = 0; i < discountCardProperties.length; i++) {
                     discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
                 }
@@ -108,6 +108,7 @@ public class MachineryExchangeEquipmentServer {
                     String phoneContact = (String) row.get("phoneContact");
                     String emailContact = (String) row.get("emailContact");
                     boolean agreeSubscribeContact = row.get("agreeSubscribeContact") != null;
+                    //todo: проверить неиспользуемые свойства
                     discountCardList.add(new DiscountCard(idDiscountCard, numberDiscountCard, nameDiscountCard,
                             percentDiscountCard, initialSumDiscountCard, dateFromDiscountCard, dateToDiscountCard,
                             typeDiscountCard, firstNameContact, lastNameContact, middleNameContact, birthdayContact,
