@@ -7,7 +7,7 @@ NAMESPACE Inventory;
 CLASS Zone 'Зона';
 TABLE zone(Zone);
 
-name 'Наименование' = DATA VARISTRING[100](Zone) IN recognize;
+name 'Наименование' = DATA VARISTRING[100](Zone) IN recognize MINCHARWIDTH 15 PREFCHARWIDTH 15;
 @defineExternalizable(zone, VARSTRING[100]);
 
 FORM zone 'Зона'
@@ -93,6 +93,14 @@ background (Inventory i, Zone z, Sku s) =  CASE
     WHEN quantity (i,z,s) AND NOT overToQuantity(i,z,s) THEN RGB(255,153,153)
 ;
 hintSoldBackground 'Зеленого чая'  = RGB(204,255,204) IF TRUE;  
+
+diffQuantityInitial 'Количество расхождений (изначально)' = GROUP SUM 1 IF quantity (Inventory i, Zone z, Sku s) 
+                                                       AND NOT overToQuantity(i, z, s) BY i,z;     
+
+diffQuantity 'Количество расхождений' = GROUP SUM 1 IF quantity (Inventory i, Zone z, Sku s) 
+                                                       AND NOT overToQuantity(i, z, s) AND NOT dataQuantity(i, z, s) BY i,z;     
+ 
+diffBackground (Inventory i, Zone z) =  IF diffQuantity(i,z) THEN RGB(255,153,153) ELSE RGB (204,255,204);
     
 nameTerminalDocuments 'Документы ТСД' (dd) = 
     GROUP CONCAT title(TerminalDocument d) IF in(Inventory i, d), ', ' 
@@ -165,6 +173,39 @@ nameListInventories 'Описи'  =
     ORDER name(li)
     MINCHARWIDTH 30 PREFCHARWIDTH 50;  
 
+commissionDocumentTitles 'Документы ТСД'  =
+    GROUP CONCAT title(TerminalDocument td)  , ', ' 
+    IF in(Inventory in, zone(td)) AND in(in,td)
+    BY in, zone(td), idTerminalHandbookType2(td)  
+    ORDER date(td), time(td); 
+
+commissionDocumentTitles 'Документы ТСД'  =
+    GROUP CONCAT title(TerminalDocument td)  , ', ' 
+    IF in(Inventory in, td) AND diffQuantityInitial(in, zone(td))
+    BY in, idTerminalHandbookType2(td)  
+    ORDER date(td), time(td); 
+
+showCreateList (Inventory i, Zone z) = NOT diffQuantity(i,z) AND NOT nameListInventories(z);    
+
+createListInventoryZone 'Создать опись по зоне' (Inventory in, Zone z) = {
+    IF toQuantity(in, z) THEN NEW li = ListInventory {    
+        inventory(li) <- in;
+        zone(li) <- z;
+        stock(li) <- [ = GROUP MAX Stock st IF include(st, Inventory in) BY in](in);
+        note(li) <- VARSTRING[100]('Зона '+ name(z));
+        
+        NEW p = PageInventory {
+            listInventory(p) <- li;
+            FOR toQuantity(in, z, Sku s) ORDER name(s) NEW pid = PageInventoryDetail  DO {                
+                pageInventory(pid) <- p;
+                sku(pid) <- s;
+                quantity(pid) <- toQuantity(in,z,s);
+            }            
+        }                                                                                                                                       
+    } 
+    apply();
+}
+
 createListInventoryZones 'Создать описи по зонам' (Inventory in) = {
     FOR toQuantity(in, Zone z) NEW li = ListInventory DO {
     
@@ -187,6 +228,7 @@ createListInventoryZones 'Создать описи по зонам' (Inventory 
     
 diffFilter (Inventory i, Zone z, Sku s) =   quantity (i,z,s) AND NOT overToQuantity(i,z,s);
 select = DATA LOCAL BOOLEAN (Zone);
+overName = DATA LOCAL VARSTRING[500] (Commission);
 
 FORM diffZone 'Расхождения между комиссиями'
     OBJECTS          in=Inventory PANEL
@@ -206,7 +248,7 @@ FORM diffZone 'Расхождения между комиссиями'
  
     OBJECTS ls = Sku GRID     
     PROPERTIES (ls) READONLY id, idBarcode, name, shortNameUOM 
-    PROPERTIES READONLY quantity(in,zz,co,ls) COLUMNS (co) HEADER name(co)
+    PROPERTIES READONLY quantity(in,zz,co,ls) COLUMNS (co) HEADER overName(co)
     PROPERTIES toQuantity (in,zz,ls) BACKGROUND background(in,zz,ls)
     
     FILTERS diffFilter (in,zz,ls)    
@@ -215,14 +257,27 @@ FORM diffZone 'Расхождения между комиссиями'
 printDiffZone 'Расхождения (зона)' (Inventory in, Zone z) = {
     select(Zone zz) <- NULL;
     select (z) <- TRUE;
+    overName (Commission co) <- name(co) + ' (' + commissionDocumentTitles(in,z,id(co)) + ')';
     PRINT diffZone OBJECTS in = in;
 } IMAGE 'print.png' IN print;
 
 printDiffZone 'Расхождения (все)' (Inventory in) = {
     select(Zone zz) <- NULL;
     select (Zone zz) <- TRUE WHERE in(in,zz);
+    overName (Commission co) <- name(co) + ' (' + commissionDocumentTitles(in,id(co)) + ')';
     PRINT diffZone OBJECTS in = in;
 } IMAGE 'print.png' IN print;
+
+FORM commissionsInventory 'Комиссии'
+    OBJECTS i = Inventory PANEL
+    OBJECTS c = Commission
+    PROPERTIES(c) READONLY name, id, note
+//    FILTERS in(i,c) 
+;
+
+changeCommission 'Комиссии' (Inventory i, TerminalDocument td)= {
+    DIALOG commissionsInventory OBJECTS i = i, c = commission(idTerminalHandbookType2(td)) CHANGE DO {idTerminalHandbookType2(td) <- id(c);}
+}
     
 EXTEND FORM inventory
     PROPERTIES countCommissions(in) BACKGROUND hintSoldBackground()
@@ -230,14 +285,17 @@ EXTEND FORM inventory
     FILTERS in(in,co)
     
     OBJECTS zz = Zone
-    PROPERTIES (zz) READONLY id, name, nameListInventories
+    PROPERTIES (zz) READONLY id, name, nameListInventories 
+    PROPERTIES (in,zz) READONLY diffQuantity BACKGROUND diffBackground(in,zz) 
     FILTERS in(in,zz)    
+    PROPERTIES (in,zz) TOOLBAR TODRAW zz createListInventoryZone SHOWIF showCreateList(in,zz)
     PROPERTIES (in) TOOLBAR TODRAW zz changeTerminalDocument
     
     OBJECTS td=TerminalDocument
     PROPERTIES(td)  READONLY id, date, time, nameGroupTerminal, nameStock,
-                    nameTerminalDocumentType, idTerminalHandbookType1, idTerminalHandbookType2,
-                    title, comment, quantity, countTerminalDocumentDetail, 
+                    nameTerminalDocumentType, idTerminalHandbookType1 
+    PROPERTIES(td)  READONLYIF isReadonly() idTerminalHandbookType2 ON CHANGE changeCommission(in,td)
+    PROPERTIES(td)  READONLY title, comment, quantity, countTerminalDocumentDetail, 
                     quantityTerminalDocumentDetail, createdNameUser PANEL, createdTime PANEL
     
     OBJECTS tdd=TerminalDocumentDetail
@@ -297,3 +355,4 @@ DESIGN inventory {
     }   
 }
 
+@extendFormEditable(inventory);
