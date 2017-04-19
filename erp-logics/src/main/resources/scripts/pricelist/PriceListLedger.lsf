@@ -889,25 +889,35 @@ DESIGN movementPriceSkuStockSupplier {
 }
 
 //--
+dialogPriceListType = DATA LOCAL LedgerPriceListType (Sku);
+nameDialogPriceListType 'Вид цены' = name[PriceListType](dialogPriceListType(Sku sku));
+
 FORM movementPriceSkuStocks 'Изменение цены товара'
     OBJECTS s = Sku PANEL
-    PROPERTIES(s) READONLY name
+    PROPERTIES(s) READONLY name, nameDialogPriceListType EDITABLE 
 
-    OBJECTS pp = (t = PriceListType, pl = PriceListLedger, st = Stock)
+    OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger, st = Stock)
     PROPERTIES READONLY  name(t), name(st), description(pl),  fromDateTime(pl, t, st), toDateTime(pl, t, st),
                         price(pl, t, st) 
     PROPERTIES(pl) edit                     
     ORDER BY name(st), name(t), fromDateTime(pl, t, st)
 
     FILTERS sku(pl, t, st) == s,
-            active(pl, t, st)
+            active(pl, t, st),
+            (t IS PriceListType AND NOT dialogPriceListType(s)) OR dialogPriceListType(s) == t
 ;
 DESIGN movementPriceSkuStocks {
     main {
         preferredSize = (1024, 768);
-        MOVE s.box;
+        MOVE s.box;            
+        NEW filter {
+            type = CONTAINERH;
+            caption = 'Фильтры';
+            MOVE PROPERTY (nameDialogPriceListType(s)){caption = 'Вид цены'; focusable = FALSE;}
+        }
         MOVE pp.box;
         PROPERTY(name(s)) { focusable = FALSE;}
+        PROPERTY(nameDialogPriceListType(s)) { }
         PROPERTY(name(st)) { caption = 'Склад';}
         PROPERTY(name(t)) { caption = 'Вид цен';}
     }
