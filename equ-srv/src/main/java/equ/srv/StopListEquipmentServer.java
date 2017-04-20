@@ -3,6 +3,7 @@ package equ.srv;
 import com.google.common.base.Throwables;
 import equ.api.ItemInfo;
 import equ.api.MachineryInfo;
+import equ.api.StopListInfo;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.scales.ScalesInfo;
 import lsfusion.base.DateConverter;
@@ -33,7 +34,9 @@ import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
+import java.sql.Time;
 import java.sql.Timestamp;
+import java.sql.Date;
 import java.util.*;
 
 import static org.apache.commons.lang3.StringUtils.trim;
@@ -55,7 +58,97 @@ public class StopListEquipmentServer {
         stopListLM = BL.getModule("StopList");
     }
 
-    public static Map<String, Map<String, Set<MachineryInfo>>> getStockMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static boolean enabledStopListInfo() throws RemoteException, SQLException {
+        return (cashRegisterLM != null || scalesLM != null)  && stopListLM != null;
+    }
+
+    public static List<StopListInfo> readStopListInfo(DBManager dbManager) throws RemoteException, SQLException {
+
+        List<StopListInfo> stopListInfoList = new ArrayList<>();
+        Map<String, StopListInfo> stopListInfoMap = new HashMap<>();
+        if(machineryLM != null && stopListLM != null) {
+            try (DataSession session = dbManager.createSession()) {
+                Map<String, Map<String, Set<MachineryInfo>>> stockMap = null;
+                KeyExpr stopListExpr = new KeyExpr("stopList");
+                ImRevMap<Object, KeyExpr> slKeys = MapFact.singletonRev((Object) "stopList", stopListExpr);
+                QueryBuilder<Object, Object> slQuery = new QueryBuilder<>(slKeys);
+                String[] slNames = new String[]{"excludeStopList", "numberStopList", "fromDateStopList", "fromTimeStopList",
+                        "toDateStopList", "toTimeStopList"};
+                LCP<?>[] slProperties = stopListLM.findProperties("exclude[StopList]", "number[StopList]", "fromDate[StopList]", "fromTime[StopList]",
+                        "toDate[StopList]", "toTime[StopList]");
+                for (int i = 0; i < slProperties.length; i++) {
+                    slQuery.addProperty(slNames[i], slProperties[i].getExpr(stopListExpr));
+                }
+                slQuery.and(stopListLM.findProperty("number[StopList]").getExpr(stopListExpr).getWhere());
+                slQuery.and(stopListLM.findProperty("isPosted[StopList]").getExpr(stopListExpr).getWhere());
+                slQuery.and(stopListLM.findProperty("toExport[StopList]").getExpr(stopListExpr).getWhere());
+                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> slResult = slQuery.executeClasses(session);
+                for (int i = 0, size = slResult.size(); i < size; i++) {
+                    DataObject stopListObject = slResult.getKey(i).get("stopList");
+                    ImMap<Object, ObjectValue> slEntry = slResult.getValue(i);
+                    String numberStopList = trim((String) slEntry.get("numberStopList").getValue());
+                    boolean excludeStopList = slEntry.get("excludeStopList").getValue() != null;
+                    Date dateFrom = (Date) slEntry.get("fromDateStopList").getValue();
+                    Date dateTo = (Date) slEntry.get("toDateStopList").getValue();
+                    Time timeFrom = (Time) slEntry.get("fromTimeStopList").getValue();
+                    Time timeTo = (Time) slEntry.get("toTimeStopList").getValue();
+
+                    Set<String> idStockSet = new HashSet<>();
+                    Map<String, Set<MachineryInfo>> handlerMachineryMap = new HashMap<>();
+                    Map<Integer, Set<String>> itemsInGroupMachineryMap = new HashMap();
+                    KeyExpr stockExpr = new KeyExpr("stock");
+                    KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
+                    ImRevMap<Object, KeyExpr> stockKeys = MapFact.toRevMap((Object) "stock", stockExpr, "groupMachinery", groupMachineryExpr);
+                    QueryBuilder<Object, Object> stockQuery = new QueryBuilder<>(stockKeys);
+                    stockQuery.addProperty("idStock", stopListLM.findProperty("id[Stock]").getExpr(stockExpr));
+                    stockQuery.addProperty("nppGroupMachinery", machineryLM.findProperty("npp[GroupMachinery]").getExpr(groupMachineryExpr));
+                    stockQuery.and(stopListLM.findProperty("in[Stock,StopList]").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
+                    stockQuery.and(stopListLM.findProperty("notSucceeded[Stock,StopList]").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
+                    stockQuery.and(machineryLM.findProperty("stock[GroupMachinery]").getExpr(groupMachineryExpr).compare(stockExpr, Compare.EQUALS));
+                    stockQuery.and(equipmentLM.findProperty("equipmentServer[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
+                    stockQuery.and(machineryLM.findProperty("active[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
+                    ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> stockResult = stockQuery.executeClasses(session);
+                    for (int j = 0; j < stockResult.size(); j++) {
+                        ImMap<Object, ObjectValue> stockEntry = stockResult.getValue(j);
+                        String idStock = trim((String) stockEntry.get("idStock").getValue());
+                        idStockSet.add(idStock);
+                        if(stockMap == null)
+                            stockMap = getStockMap(session);
+                        if(stockMap.containsKey(idStock))
+                            for (Map.Entry<String, Set<MachineryInfo>> entry : stockMap.get(idStock).entrySet()) {
+                                if (handlerMachineryMap.containsKey(entry.getKey()))
+                                    handlerMachineryMap.get(entry.getKey()).addAll(entry.getValue());
+                                else
+                                    handlerMachineryMap.put(entry.getKey(), entry.getValue());
+                            }
+                        Integer groupMachinery = (Integer) stockEntry.get("nppGroupMachinery").getValue();
+                        Set<String> itemsInGroupMachinerySet = new HashSet<>();
+                        if(!itemsInGroupMachineryMap.containsKey(groupMachinery)) {
+                            itemsInGroupMachinerySet.addAll(getInGroupMachineryItemSet(session, stopListObject, stockResult.getKey(j).get("groupMachinery")));
+                            itemsInGroupMachineryMap.put(groupMachinery, itemsInGroupMachinerySet);
+                        }
+                    }
+
+                    if(!handlerMachineryMap.isEmpty()) {
+                        Map<String, ItemInfo> stopListItemMap = getStopListItemMap(session, stopListObject, idStockSet);
+                        StopListInfo stopList = stopListInfoMap.get(numberStopList);
+                        Map<Integer, Set<String>> inGroupMachineryItemMap = stopList == null ? new HashMap<Integer, Set<String>>() : stopList.inGroupMachineryItemMap;
+                        inGroupMachineryItemMap.putAll(itemsInGroupMachineryMap);
+                        stopListInfoMap.put(numberStopList, new StopListInfo(excludeStopList, numberStopList, dateFrom, timeFrom, dateTo, timeTo,
+                                idStockSet, inGroupMachineryItemMap, stopListItemMap, handlerMachineryMap));
+                    }
+                }
+
+                stopListInfoList.addAll(stopListInfoMap.values());
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+
+        return stopListInfoList;
+    }
+
+    private static Map<String, Map<String, Set<MachineryInfo>>> getStockMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, Map<String, Set<MachineryInfo>>> stockMap = new HashMap<>();
 
         KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
@@ -108,7 +201,7 @@ public class StopListEquipmentServer {
         return stockMap;
     }
 
-    public static Map<String, ItemInfo> getStopListItemMap(DataSession session, DataObject stopListObject, Set<String> idStockSet) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private static Map<String, ItemInfo> getStopListItemMap(DataSession session, DataObject stopListObject, Set<String> idStockSet) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, ItemInfo> stopListItemList = new HashMap<>();
 
         KeyExpr sldExpr = new KeyExpr("stopListDetail");
@@ -155,7 +248,7 @@ public class StopListEquipmentServer {
         return stopListItemList;
     }
 
-    public static Set<String> getInGroupMachineryItemSet(DataSession session, DataObject stopListObject, DataObject groupMachineryObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private static Set<String> getInGroupMachineryItemSet(DataSession session, DataObject stopListObject, DataObject groupMachineryObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Set<String> inGroupMachineryItemSet = new HashSet<>();
 
         KeyExpr sldExpr = new KeyExpr("stopListDetail");
