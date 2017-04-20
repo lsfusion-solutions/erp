@@ -57,6 +57,8 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                                         (DataObject) importTypeObject, file, fileExtension, settings,
                                         staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, false);
 
+                                findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
+
                                 currentSession.apply(context);
                             }
                         }

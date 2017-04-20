@@ -74,6 +74,8 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                                         DataObject invoiceObject = multipleDocuments ? null : currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
                                         try {
 
+                                            findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
+
                                             int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
                                                     importTypeObject, IOUtils.getFileBytes(f), fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, false);
 

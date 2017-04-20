@@ -140,6 +140,8 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                         findProperty("original[Purchase.Invoice]").change(
                                                 new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);
 
+                                        findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
+
                                         if (importResult >= IMPORT_RESULT_OK) {
                                             String result = currentSession.applyMessage(context);
                                             if(result != null) {
