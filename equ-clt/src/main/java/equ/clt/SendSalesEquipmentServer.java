@@ -139,7 +139,7 @@ public class SendSalesEquipmentServer {
                         sendSalesInfo(remote, salesBatch, sidEquipmentServer, directory, handler);
                     } catch (Exception e) {
                         sendSalesLogger.error("Reading SalesInfo", e);
-                        EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
+                        EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e, directory);
                     }
                 }
             }
