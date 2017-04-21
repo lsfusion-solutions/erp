@@ -155,8 +155,8 @@ public class SendEOrderActionProperty extends EDIActionProperty {
 
         QueryBuilder<Object, Object> eOrderDetailQuery = new QueryBuilder<>(eOrderDetailKeys);
 
-        String[] eOrderDetailNames = new String[]{"GTINBarcode", "nameSku", "extraCodeUOMSku", "quantity", "price", "valueVAT"};
-        LCP<?>[] eOrderDetailProperties = findProperties("GTINBarcode[EOrderDetail]", "nameSku[EOrderDetail]",
+        String[] eOrderDetailNames = new String[]{"GTINBarcode", "idSku", "nameSku", "extraCodeUOMSku", "quantity", "price", "valueVAT"};
+        LCP<?>[] eOrderDetailProperties = findProperties("GTINBarcode[EOrderDetail]", "idSku[EOrderDetail]", "nameSku[EOrderDetail]",
                 "extraCodeUOMSku[EOrderDetail]", "quantity[EOrderDetail]", "price[EOrderDetail]", "valueVAT[EOrderDetail]");
         for (int j = 0; j < eOrderDetailProperties.length; j++) {
             eOrderDetailQuery.addProperty(eOrderDetailNames[j], eOrderDetailProperties[j].getExpr(context.getModifier(), eOrderDetailExpr));
@@ -172,6 +172,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
             if(quantity != null && quantity.compareTo(BigDecimal.ZERO) > 0) {
 
                 String barcode = trim((String) entry.get("GTINBarcode"));
+                String idSku = (String) entry.get("idSku");
                 String nameSku = (String) entry.get("nameSku");
                 String extraCodeUOMSku = trim((String) entry.get("extraCodeUOMSku"));
 
@@ -182,6 +183,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
                 rootElement.addContent(lineElement);
 
                 addStringElement(lineElement, "GTIN", barcode);
+                addStringElement(lineElement, "IDBuyer", idSku);
                 addStringElement(lineElement, "fullName", nameSku);
                 addBigDecimalElement(lineElement, "quantityOrdered", quantity);
                 addStringElement(lineElement, "measurement", extraCodeUOMSku);
