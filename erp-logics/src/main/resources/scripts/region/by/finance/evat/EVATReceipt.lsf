@@ -20,10 +20,14 @@ DESIGN options {
 
 customer = DATA LOCAL LegalEntity();
 customerStr = DATA LOCAL VARSTRING[150]();
+unpStr = DATA LOCAL VARSTRING[9]();
 
 FORM inputData 'Ввод данных'
-    OBJECTS c = VARISTRING[150] PANEL
+    OBJECTS c = VARSTRING[150] PANEL
     PROPERTIES name = VALUE(c)
+    
+    OBJECTS u = VARSTRING[9] PANEL
+    PROPERTIES unp = VALUE(u)
      
     OBJECTS range = Range PANEL
     PROPERTIES(range) valueCurrentRate SELECTOR  
@@ -34,30 +38,34 @@ DESIGN inputData {
     NEW customer{
         caption = 'Покупатель';
         MOVE PROPERTY(name) {caption = 'Наименование';}   
+        MOVE PROPERTY(unp) {caption = 'УНП';}   
     }
     NEW tax{
-        caption = 'НДС';
-        MOVE range.box;  
+        MOVE range.box {caption = 'НДС';}  
     }
     MOVE functions.box;   
-
 }
 
 FORM selectCustomer 'Выбор покупателя'
     OBJECTS l = LegalEntity
-    PROPERTIES(l) READONLY name
-    FILTERS isISubstring(name(l),customerStr()) AND legalEntityGroup(l) == customerGroupEVAT()
+    PROPERTIES(l) READONLY name, UNP
+    FILTERS ((isISubstring(name(l),customerStr()) AND customerStr() !='') OR (isISubstring(UNP(l),unpStr())  AND unpStr() !=''))
+             AND (legalEntityGroup(l) == customerGroupEVAT() OR NOT customerGroupEVAT())
 ;
 
-countLegalEntities(VARSTRING[150] str) = GROUP SUM 1 IF isISubstring(name(LegalEntity l),VARSTRING[150] str) AND legalEntityGroup(l) == customerGroupEVAT() BY str;
+countLegalEntitiesByName(VARSTRING[150] str) = GROUP SUM 1 IF isISubstring(name(LegalEntity l),VARSTRING[150] str) AND str !='' 
+                                                        AND (legalEntityGroup(l) == customerGroupEVAT() OR NOT customerGroupEVAT()) BY str;
+countLegalEntitiesByUNP(VARSTRING[9] str) = GROUP SUM 1 IF isISubstring(UNP(LegalEntity l),VARSTRING[9] str)  AND str !='' 
+                                                        AND (legalEntityGroup(l) == customerGroupEVAT() OR NOT customerGroupEVAT()) BY str;
 
 createEVAT 'Создать ЭСЧФ' (Receipt r) = {
 	NEWSESSION {
-	    DIALOG inputData OBJECTS c INPUT, range INPUT DO {
+	    DIALOG inputData OBJECTS c INPUT, u INPUT, range INPUT DO {
 	        customerStr() <- c;
-	        IF c != '' THEN {
+	        unpStr() <- u;
+	        IF (c != '') OR (u != '') THEN {
 	            customer() <- NULL;                  
-	            IF countLegalEntities(c) THEN{
+	            IF countLegalEntitiesByName(c) OR countLegalEntitiesByUNP(u) THEN{
 	                DIALOG selectCustomer OBJECTS l INPUT DO 
 	                    customer() <- l;
 	                IF NOT customer() THEN
@@ -65,7 +73,8 @@ createEVAT 'Создать ЭСЧФ' (Receipt r) = {
 	            } ELSE {
 	                NEW l = LegalEntity {
 	                    name(l) <- c;
-	                    legalEntityGroup(l) <- customerGroupEVAT();
+	                    UNP(l) <- u;
+	                    legalEntityGroup(l) <- customerGroupEVAT() IF customerGroupEVAT();
 	                    isCustomer(l) <- TRUE;
 	                    
 	                    customer() <- l; 
