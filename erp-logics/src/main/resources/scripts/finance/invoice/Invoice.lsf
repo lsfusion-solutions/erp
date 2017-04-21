@@ -1054,9 +1054,14 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
     overRecalculatedPrice = ACTION ABSTRACT LIST (nsret.UserInvoiceDetail);
     recalculatedPrice(UserInvoiceDetail detail) = {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
         IF invoiceDetail(detail) THEN {
-            price(detail) <-  price(invoiceDetail(detail));
-            invoicePrice[InvoiceDetail](detail) <-  invoicePrice(invoiceDetail(detail));
-            invoicePrice(detail) <-  invoicePrice(invoiceDetail(detail));
+            IF notUseRound2() THEN {
+                price(detail) <-  price(invoiceDetail(detail));               
+                invoicePrice(detail) <-  invoicePrice(invoiceDetail(detail));            
+            } ELSE {
+                price(detail) <-  round2(price(invoiceDetail(detail)));
+                invoicePrice(detail) <-  round2(invoicePrice(invoiceDetail(detail)));            
+            }
+
             VAT(detail) <- VAT(invoiceDetail(detail));
             overRecalculatedPrice(detail);
         }
