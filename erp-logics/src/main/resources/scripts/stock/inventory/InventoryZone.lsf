@@ -169,8 +169,8 @@ nameZone 'Зона' (ListInventory li) = name(zone(li));
 
 nameListInventories 'Описи'  = 
     GROUP CONCAT name(ListInventory li)  , ', ' 
-    BY zone(li) 
-    ORDER name(li)
+    BY inventory(li), zone(li) 
+    ORDER name(li), li
     MINCHARWIDTH 30 PREFCHARWIDTH 50;  
 
 commissionDocumentTitles 'Документы ТСД'  =
@@ -185,7 +185,7 @@ commissionDocumentTitles 'Документы ТСД'  =
     BY in, idTerminalHandbookType2(td)  
     ORDER date(td), time(td); 
 
-showCreateList (Inventory i, Zone z) = NOT diffQuantity(i,z) AND NOT nameListInventories(z);    
+showCreateList (Inventory i, Zone z) = NOT diffQuantity(i,z) AND NOT nameListInventories(i, z);    
 
 createListInventoryZone 'Создать опись по зоне' (Inventory in, Zone z) = {
     IF toQuantity(in, z) THEN NEW li = ListInventory {    
@@ -239,7 +239,8 @@ FORM diffZone 'Расхождения между комиссиями'
                      nameCommittee, nameChairmanCommittee, nameEmployee
 
     OBJECTS zz = Zone
-    PROPERTIES (zz) READONLY id, name, nameListInventories
+    PROPERTIES (zz) READONLY id, name
+    PROPERTIES (in, zz) READONLY nameListInventories
     FILTERS in(in,zz),
             select(zz)
  
@@ -285,7 +286,8 @@ EXTEND FORM inventory
     FILTERS in(in,co)
     
     OBJECTS zz = Zone
-    PROPERTIES (zz) READONLY id, name, nameListInventories 
+    PROPERTIES (zz) READONLY id, name
+    PROPERTIES (in, zz) READONLY nameListInventories 
     PROPERTIES (in,zz) READONLY diffQuantity BACKGROUND diffBackground(in,zz) 
     FILTERS in(in,zz)    
     PROPERTIES (in,zz) TOOLBAR TODRAW zz createListInventoryZone SHOWIF showCreateList(in,zz)
