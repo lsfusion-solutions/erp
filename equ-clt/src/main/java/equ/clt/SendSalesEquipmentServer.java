@@ -161,7 +161,7 @@ public class SendSalesEquipmentServer {
                 }
             } catch (Exception e) {
                 sendSalesLogger.error("Sending SalesInfo", e);
-                EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
+                EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e, directory);
             }
         }
     }
