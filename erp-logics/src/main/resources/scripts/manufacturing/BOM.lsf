@@ -19,8 +19,8 @@ levelParentComponent (skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup pa
 nearestParentComponent (SkuGroup skuGroup) = skuGroup(skuGroup, levelParentComponent(skuGroup));
 nearestComponent (SkuGroup skuGroup) = dataComponent( nearestParentComponent (skuGroup));
 component 'Сырье' (SkuGroup skuGroup) =
-    OVERRIDE nearestComponent (skuGroup), 
-             dataComponent(skuGroup) PERSISTENT;    
+    OVERRIDE dataComponent(skuGroup), 
+             nearestComponent (skuGroup) PERSISTENT;    
 filterComponent = GROUP SUM 1 IF component(SkuGroup group) AND isParent(group, SkuGroup parent) BY parent;
                
 quantityChildWithComponent (group) = GROUP SUM 1 IF dataComponent(SkuGroup childGroup) AND isParent(childGroup, SkuGroup group) BY group PERSISTENT;
@@ -41,8 +41,8 @@ levelParentProduct (skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup pare
 nearestParentProduct (SkuGroup skuGroup) = skuGroup(skuGroup, levelParentProduct(skuGroup));
 nearestProduct (SkuGroup skuGroup) = dataProduct( nearestParentProduct (skuGroup));
 product 'Готовые изделия' (SkuGroup skuGroup) =
-    OVERRIDE nearestProduct (skuGroup), 
-             dataProduct(skuGroup) PERSISTENT; 
+    OVERRIDE dataProduct(skuGroup), 
+             nearestProduct (skuGroup) PERSISTENT; 
 
 filterProduct = GROUP SUM 1 IF product(SkuGroup group) AND isParent(group, SkuGroup parent) BY parent;
 
@@ -508,8 +508,8 @@ wastage '% потерь'= DATA NUMERIC[8,3] (Component);
 backgroundWastage 'Цвет' (Component component) = RGB(229,229,229) IF countTechnologies(component);
 
 coeffWastageTechnologies 'Коэффициент потерь (технология)' (Component component, DATE date) =
-    OVERRIDE NUMERIC[20,9](1.0) IF component IS Component AND date IS DATE,
-    Utils.round(exp([= GROUP SUM NUMERIC[20,9](ln((100.0 - wastage(Technology t, material(Component c), DATE d)) / 100.0) IF in(t, c)) BY c, d](component, date)), 9);
+    OVERRIDE Utils.round(exp([= GROUP SUM NUMERIC[20,9](ln((100.0 - wastage(Technology t, material(Component c), DATE d)) / 100.0) IF in(t, c)) BY c, d](component, date)), 9),
+    NUMERIC[20,9](1.0) IF component IS Component AND date IS DATE;
 
 wastageTechnologies '% потерь (технология)' = (1.0 - coeffWastageTechnologies(Component component, DATE date)) * 100.0;  
 
@@ -519,7 +519,7 @@ wastageTechnologies '% потерь (технология)' (Component component
                                                                                                      
 wastage '% потерь' (Component component, DATE date) = [= (1.0-(X*(100.0-Y)/100.0))*100.0](
     coeffWastageTechnologies(component, date),
-    (OVERRIDE 0 IF component IS Component,  wastage(component)));
+    (OVERRIDE wastage(component),  0 IF component IS Component));
 //wastageTechnologiesComponentDate(component, date) (+) wastageComponent(component);                                                 
 
 // Кол-во брутто
@@ -535,14 +535,14 @@ changeNettoQuantity(Component component) = {
     INPUT n = NUMERIC[16,5] DO {
         nettoQuantity(component) <- n;
         IF n THEN
-            bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE 0 IF component IS Component,wastage(component)/100))); 
+            bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE wastage(component)/100,0 IF component IS Component))); 
     }
 }   
                                                                                                                                                                                                                                                                                                                                                       
 changeWastage(Component component) = {
     INPUT n = NUMERIC[8,3] DO {
         wastage(component) <- n;   
-        bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE 0 IF component IS Component,n/100))); 
+        bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE n/100,0 IF component IS Component))); 
     }
 }                                                                                                                                                                                                                                                                                                                                                      
                                                                                                                                                                                                                                                                                                                                                             
@@ -575,17 +575,17 @@ CONSTRAINT sku(Product p) AND NOT isProductGroup(sku(p)) CHECKED  BY sku[Product
 overSku (Component c) = IF material(c) IS Product THEN sku[Product](material(c)) ELSE material(c);
     
 overNetWeight = OVERRIDE netWeight(overSku(Component c)); 
-overNettoNetWeight 'Вес (нетто)' (Component c) = nettoQuantity(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeight(c));
-overBruttoNetWeight 'Вес (брутто)' (Component c) = bruttoQuantity(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeight(c));
+overNettoNetWeight 'Вес (нетто)' (Component c) = nettoQuantity(c) * (OVERRIDE overNetWeight(c), 1.0 IF c IS Component);
+overBruttoNetWeight 'Вес (брутто)' (Component c) = bruttoQuantity(c) * (OVERRIDE overNetWeight(c), 1.0 IF c IS Component);
 
-overNettoNetWeight 'Вес (нетто)' (Product p) = quantity(p) * (OVERRIDE 1.0 IF p IS Product, netWeight(sku(p)));
+overNettoNetWeight 'Вес (нетто)' (Product p) = quantity(p) * (OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product);
 
 overNettoNetWeightProduct 'Вес нетто изд. (всего)' (BOM) = GROUP SUM overNettoNetWeight(Product idetail) BY BOM(idetail) IN documentSum PERSISTENT;
 overNettoNetWeightComponent 'Вес нетто ком. (всего)' (BOM) = GROUP SUM overNettoNetWeight(Component idetail) BY BOM(idetail) IN documentSum PERSISTENT;            
 overBruttoNetWeightyComponent 'Вес брутто ком. (всего)' (c)= GROUP SUM overBruttoNetWeight(Component c) BY BOM(c) IN documentSum PERSISTENT;
 
 
-overCurBruttoNetWeight 'Вес (брутто) с уч. тех-ий' (Component c) = overCurBruttoQuantity(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeight(c));
+overCurBruttoNetWeight 'Вес (брутто) с уч. тех-ий' (Component c) = overCurBruttoQuantity(c) * (OVERRIDE overNetWeight(c), 1.0 IF c IS Component);
 overCurBruttoNetWeightyComponent 'Вес брутто комп. (всего) с уч. тех-ий' (BOM)= GROUP SUM overCurBruttoNetWeight(Component c) BY BOM(c) IN documentSum;      
         
 //CONSTRAINT overNettoNetWeightProductBOM(b) AND overNettoNetWeightComponentBOM(b) AND NOT (overNettoNetWeightProductBOM(b) == overNettoNetWeightComponentBOM(b))
@@ -607,12 +607,12 @@ nearestInCompany (BOM BOM, StockGroup stockGroup) =
     dataIn(nearestParentCompany (BOM, stockGroup), BOM) PERSISTENT;
 
 in 'Вкл.' (BOM BOM, StockGroup stockGroup) = OVERRIDE
-    nearestInCompany(BOM, stockGroup),
-    dataIn(stockGroup, BOM);
+    dataIn(stockGroup, BOM),
+    nearestInCompany(BOM, stockGroup);
 
 in 'Вкл.' (BOM BOM, Stock stock) = OVERRIDE
-    nearestInCompany(BOM, stockGroup(stock)) AND isCompany(stock),
-    dataIn(stock, BOM) PERSISTENT;
+    dataIn(stock, BOM),
+    nearestInCompany(BOM, stockGroup(stock)) AND isCompany(stock) PERSISTENT;
     
     
 countStocks = GROUP SUM 1 IF in(BOM BOM, Stock stock) BY BOM PERSISTENT;

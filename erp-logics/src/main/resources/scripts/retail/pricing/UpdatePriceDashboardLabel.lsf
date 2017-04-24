@@ -26,7 +26,7 @@ createSnapshotUpdateLabelTransactionDepartmentStore 'Перепечатать ц
             FOR select(LabelType type) DO {
                 NEW t = LabelTransaction {
                     departmentStore(t) <- departmentStore;
-                    priceListType(t) <- OVERRIDE retailPriceListType(departmentStore), dpt IF dpt IS DataPriceListType;    
+                    priceListType(t) <- OVERRIDE dpt IF dpt IS DataPriceListType, retailPriceListType(departmentStore);    
                     date(t) <- fromDate(priceList);      
                     time(t) <- fromTime(priceList);
                     labelType(t) <- type;
@@ -40,7 +40,7 @@ createSnapshotUpdateLabelTransactionDepartmentStore 'Перепечатать ц
             
                         createAttribute(d);                      
                
-                        price(d) <- OVERRIDE calcPrice(pt, d), documentPrice(d);
+                        price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
                         retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
                                                                                                                                                                                            
                         quantity(d) <- IF NOT countLabel(departmentStore) 

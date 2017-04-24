@@ -41,7 +41,7 @@ nameStock 'Склад' (SaleLedger ledger) = name(stock(ledger));
 
 operation  (ledger) = ABSTRACT Sale.Operation (SaleLedger) PERSISTENT;
 overNameOperation= ABSTRACT VARISTRING[100] (SaleLedger);
-nameOperation 'Операция' (SaleLedger ledger) = OVERRIDE name(operation(ledger)), overNameOperation(ledger);
+nameOperation 'Операция' (SaleLedger ledger) = OVERRIDE overNameOperation(ledger), name(operation(ledger));
 
 description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (SaleLedger) PERSISTENT;
 numberDocument 'Номер документа' (ledger) = ABSTRACT VARSTRING[28] (SaleLedger) PERSISTENT;
@@ -314,8 +314,8 @@ levelParent (group) = GROUP MIN level(SkuGroup group, SkuGroup parent) IF dataIn
 inParent (SkuGroup group) = TRUE IF levelParent(group);
 
 inSession 'Отм.' (SkuGroup group) = OVERRIDE
-    inParent(group),
-    dataInSession(group);
+    dataInSession(group),
+    inParent(group);
 
 sessionConcatSkuGroups 'Группы' () =
     GROUP CONCAT name(SkuGroup group) IF inSession(group) AND NOT inSession(parent(group)),'; ' PREFCHARWIDTH 30;

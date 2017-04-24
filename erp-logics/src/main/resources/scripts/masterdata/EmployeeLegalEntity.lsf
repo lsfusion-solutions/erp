@@ -16,14 +16,14 @@ nearestInCompany (Employee employee, LegalEntityGroup legalEntityGroup) =
     dataAccessCompany(nearestParentCompany (employee, legalEntityGroup), employee);
 
 accessCompany 'Доступ разрешен (компания)' (Employee employee, LegalEntityGroup legalEntityGroup) = OVERRIDE
-    employee IS Employee AND legalEntityGroup IS LegalEntityGroup AND NOT limitAccess(employee),
+    dataAccessCompany(legalEntityGroup, employee),
     nearestInCompany(employee, legalEntityGroup),
-    dataAccessCompany(legalEntityGroup, employee); // PERSISTENT;
+    employee IS Employee AND legalEntityGroup IS LegalEntityGroup AND NOT limitAccess(employee); // PERSISTENT;
 
 accessCompany 'Доступ разрешен (компания)' (Employee employee, LegalEntity legalEntity) = OVERRIDE
-    employee IS Employee AND isCompany(legalEntity) AND NOT limitAccess(employee),
+    dataAccessCompany(legalEntity, employee),
     nearestInCompany(employee, legalEntityGroup(legalEntity)) AND isCompany(legalEntity),
-    dataAccessCompany(legalEntity, employee) PERSISTENT;
+    employee IS Employee AND isCompany(legalEntity) AND NOT limitAccess(employee) PERSISTENT;
 
 countAccessCompany 'Кол-во доступных подразделений (компания)' (employee, legalEntityGroup) =
     GROUP SUM 1 IF accessCompany(Employee employee, LegalEntity legalEntity)

@@ -24,20 +24,20 @@ META defineInvoiceOrderShipment(sign, NS)
     
     overExpiryDate = ABSTRACT DATE (OrderDetail);
     calcExpiryDate (OrderDetail d) = OVERRIDE 
+        overExpiryDate(d),
         (IF expiryMonth(sku[UserOrderDetail](d)) 
             THEN sumMonth(manufactureDate(d), expiryMonth(sku(d)))
-            ELSE sum(manufactureDate(d), expiryDays(sku(d)))),
-        overExpiryDate(d);
+            ELSE sum(manufactureDate(d), expiryDays(sku(d))));
         
     WHEN SESSION FORMS userOrder (CHANGED(manufactureDate(OrderDetail d)) OR CHANGED(sku[UserOrderDetail](d))) AND NOT batch[UserOrderDetail](d) AND manufactureDate(d) DO {
         expiryDate[UserOrderDetail](d) <- calcExpiryDate(d);            
     } 
     overManufactureDate = ABSTRACT DATE (OrderDetail);
     calcManufactureDate (OrderDetail d) = OVERRIDE 
+        overManufactureDate(d),
         (IF expiryMonth(sku[UserOrderDetail](d)) 
             THEN sumMonth(expiryDate(d), -expiryMonth(sku(d)))
-            ELSE sum(expiryDate(d), -expiryDays(sku(d)))),
-        overManufactureDate(d);     
+            ELSE sum(expiryDate(d), -expiryDays(sku(d))));     
            
     WHEN SESSION FORMS userOrder (CHANGED(expiryDate(OrderDetail d)) OR CHANGED(sku[UserOrderDetail](d))) AND NOT batch[UserOrderDetail](d) AND expiryDate(d) DO {
         manufactureDate[UserOrderDetail](d) <- calcManufactureDate(d);            

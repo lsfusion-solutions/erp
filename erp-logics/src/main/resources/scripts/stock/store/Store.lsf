@@ -165,18 +165,18 @@ name 'Наименование' = DATA VARISTRING[150](DepartmentStore) INDEXED 
 fullName 'Наименование полное' = DATA VARISTRING[150](DepartmentStore) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 name(DepartmentStore stock) += name(stock) IF stock IS DepartmentStore;
-fullName(DepartmentStore stock) += (OVERRIDE name(stock), fullName(stock)) IF stock IS DepartmentStore;
+fullName(DepartmentStore stock) += (OVERRIDE fullName(stock), name(stock)) IF stock IS DepartmentStore;
 
 store = DATA Store (DepartmentStore) INDEXED AUTOSET NOT NULL DELETE;
 nameStore 'Магазин' (DepartmentStore departmentStore) = name(store(departmentStore)) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
 dataStockGroup = DATA StockGroup (DepartmentStore);
 nameDataStockGroup = name(dataStockGroup(DepartmentStore d));
-stockGroup = OVERRIDE store(DepartmentStore departmentStore), dataStockGroup(departmentStore);
+stockGroup = OVERRIDE dataStockGroup(departmentStore), store(DepartmentStore departmentStore);
 nameStockGroup 'Группа складов' = name(stockGroup(DepartmentStore d)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 openDate 'Дата открытия' (DepartmentStore d) = openDate(store(d)); 
 
-stockGroup (DepartmentStore departmentStore) += OVERRIDE store(departmentStore), dataStockGroup(departmentStore);
+stockGroup (DepartmentStore departmentStore) += OVERRIDE dataStockGroup(departmentStore), store(departmentStore);
 
 in(Store store, DepartmentStore departmentStore) = store(departmentStore) == store;
 
@@ -200,7 +200,7 @@ user(LegalEntity legalEntity, DepartmentStore stock) += user(legalEntity, stock)
 nameLegalEntity 'Компания' (DepartmentStore departmentStore) = name(legalEntity(departmentStore));
 
 dataPhone 'Телефон' = DATA VARSTRING[100] (DepartmentStore); 
-phone 'Телефон магазина' (DepartmentStore d) = OVERRIDE phone(store(d)), dataPhone(d);
+phone 'Телефон магазина' (DepartmentStore d) = OVERRIDE dataPhone(d), phone(store(d));
 phone(DepartmentStore st) += phone(st);
 
 primaryDepartmentStore 'Основной отдел' (store) =

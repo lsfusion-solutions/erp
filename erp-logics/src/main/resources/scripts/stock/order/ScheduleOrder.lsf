@@ -125,13 +125,13 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     inParent (ScheduleOrder scheduleOrder, StockGroup stockGroup) = TRUE IF levelParent (scheduleOrder, stockGroup) PERSISTENT;
     
     in 'Отм' (ScheduleOrder scheduleOrder, StockGroup stockGroup) = OVERRIDE
-        allStocks(scheduleOrder) AND stockGroup IS StockGroup,
+        dataIn(scheduleOrder, stockGroup),
         inParent (scheduleOrder, stockGroup),
-        dataIn(scheduleOrder, stockGroup);
+        allStocks(scheduleOrder) AND stockGroup IS StockGroup;
     
     in 'Отм' (ScheduleOrder scheduleOrder, Stock stock) =
-        (OVERRIDE in(scheduleOrder, stockGroup(stock)),                  
-                  dataIn(scheduleOrder, stock))
+        (OVERRIDE dataIn(scheduleOrder, stock),                  
+                  in(scheduleOrder, stockGroup(stock)))
         AND is###customerFilter(stock)
         AND in(customer(scheduleOrder), stock) PERSISTENT;
          
@@ -140,7 +140,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
            
     background 'Цвет' (ScheduleOrder scheduleOrder, StockGroup stockGroup) = IF dataIn(scheduleOrder, stockGroup) THEN RGB(0,0,0)
         ELSE RGB(230,248,250) 
-        IF (OVERRIDE allStocks(scheduleOrder) AND stockGroup IS StockGroup, inParent (scheduleOrder, stockGroup));    
+        IF (OVERRIDE inParent (scheduleOrder, stockGroup), allStocks(scheduleOrder) AND stockGroup IS StockGroup);    
         
     background'Цвет' (ScheduleOrder scheduleOrder, Stock stock) = IF dataIn(scheduleOrder, stock) AND is###customerFilter(stock) AND in(customer(scheduleOrder), stock) THEN RGB(0,0,0)
         ELSE RGB(230,248,250) 
@@ -160,11 +160,11 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     endDate (ScheduleOrder scheduleOrder) += endDate(scheduleOrder);
 
     dataDayBefore 'За сколько дней формировать заказ' = DATA INTEGER (ScheduleOrder);
-    dayBefore 'За сколько дней формировать заказ' (ScheduleOrder s) = OVERRIDE 1 IF s IS ScheduleOrder, dataDayBefore(s);
+    dayBefore 'За сколько дней формировать заказ' (ScheduleOrder s) = OVERRIDE dataDayBefore(s), 1 IF s IS ScheduleOrder;
 
     //свойства "Каждые N недель"
     period 'Кол-во недель между поставками' = DATA INTEGER (ScheduleOrder);
-    overPeriod 'Кол-во недель между поставками' (ScheduleOrder scheduleOrder) = OVERRIDE 1 IF scheduleOrder IS ScheduleOrder, period(scheduleOrder);
+    overPeriod 'Кол-во недель между поставками' (ScheduleOrder scheduleOrder) = OVERRIDE period(scheduleOrder), 1 IF scheduleOrder IS ScheduleOrder;
 
     //свойства "Каждые N дней"
     dayAfter 'Через сколько дней после последней поставки делать заказ' = DATA INTEGER (ScheduleOrder);
@@ -194,8 +194,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     shipmentDOW 'День недели поставки' = DATA DOW (ScheduleOrderTime) NOT NULL;
     shipmentNameDOW 'День недели поставки' (ScheduleOrderTime d) = staticCaption(shipmentDOW(d));
 
-    shipmentTime 'Кол-во дней до поставки' (ScheduleOrderTime d) = OVERRIDE 0 IF d IS ScheduleOrderTime, 
-                                                                        distanceDOWDOW(orderDOW(d), shipmentDOW(d));
+    shipmentTime 'Кол-во дней до поставки' (ScheduleOrderTime d) = OVERRIDE distanceDOWDOW(orderDOW(d), shipmentDOW(d)), 
+                                                                        0 IF d IS ScheduleOrderTime;
 
     shipmentScheduleOrderTime = GROUP AGGR ScheduleOrderTime d BY scheduleOrder(d), shipmentDOW(d); 
 
@@ -267,7 +267,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
     create 'Сгенерировать предварительные заказы'(ScheduleOrder scheduleOrder) = {
         LOCAL toDate = DATE ();    
-        toDate() <- OVERRIDE sum(currentDate(), countDaysPreOrders()), endDate(scheduleOrder);
+        toDate() <- OVERRIDE endDate(scheduleOrder), sum(currentDate(), countDaysPreOrders());
     
         // генерация через N дней
         IF type(scheduleOrder) == GenType.genDays THEN {

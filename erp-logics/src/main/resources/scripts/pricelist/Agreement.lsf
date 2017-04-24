@@ -49,8 +49,8 @@ nearestParentLegalEntitySupplier (Agreement agreement, LegalEntityGroup legalEnt
 nearestInSupplier (Agreement agreement, LegalEntityGroup legalEntityGroup) =
     dataInSupplier(agreement, nearestParentLegalEntitySupplier(agreement, legalEntityGroup)) PERSISTENT;
 
-inSupplier 'Отм' (Agreement agreement, LegalEntityGroup legalEntityGroup) = OVERRIDE nearestInSupplier(agreement, legalEntityGroup),
-                                                                        dataInSupplier(agreement, legalEntityGroup);
+inSupplier 'Отм' (Agreement agreement, LegalEntityGroup legalEntityGroup) = OVERRIDE dataInSupplier(agreement, legalEntityGroup),
+                                                                        nearestInSupplier(agreement, legalEntityGroup);
                                                                         
 quantityChildWithSupplier (legalEntityGroup, agreement) = GROUP SUM 1 IF dataInSupplier(Agreement agreement, LegalEntityGroup childLegalEntityGroup) AND isParent(childLegalEntityGroup, LegalEntityGroup legalEntityGroup) BY legalEntityGroup, agreement PERSISTENT;
 quantityParentWithSupplier (legalEntityGroup, agreement) = GROUP SUM 1 IF dataInSupplier(Agreement agreement, LegalEntityGroup parentLegalEntityGroup) AND isParent(LegalEntityGroup legalEntityGroup, parentLegalEntityGroup) BY legalEntityGroup, agreement PERSISTENT;                                                                        
@@ -64,8 +64,8 @@ backgroundInSupplier 'Цвет' (Agreement agreement, LegalEntityGroup legalEnti
 TABLE agreementLegalEntity(Agreement, LegalEntity);
 dataInSupplier 'Отм.' (agreement, legalEntity) = DATA BOOLEAN (Agreement, LegalEntity);
 
-inSupplier 'Отм' (Agreement agreement, LegalEntity legalEntity) = OVERRIDE nearestInSupplier(agreement, legalEntityGroup(legalEntity)),
-                                                           dataInSupplier(agreement, legalEntity) PERSISTENT;
+inSupplier 'Отм' (Agreement agreement, LegalEntity legalEntity) = OVERRIDE dataInSupplier(agreement, legalEntity),
+                                                           nearestInSupplier(agreement, legalEntityGroup(legalEntity)) PERSISTENT;
                                                            
 backgroundInSupplier'Цвет' (Agreement agreement, LegalEntity legalEntity) = IF dataInSupplier(agreement, legalEntity) THEN RGB(0,0,0)
     ELSE RGB(230,248,250) IF nearestInSupplier(agreement, legalEntityGroup(legalEntity));                                                            
@@ -92,8 +92,8 @@ nearestParentLegalEntityCustomer (Agreement agreement, LegalEntityGroup legalEnt
 nearestInCustomer (Agreement agreement, LegalEntityGroup legalEntityGroup) =
     dataInCustomer(agreement, nearestParentLegalEntityCustomer(agreement, legalEntityGroup));
 
-inCustomer 'Отм' (Agreement agreement, LegalEntityGroup legalEntityGroup) = OVERRIDE nearestInCustomer(agreement, legalEntityGroup),
-                                                                        dataInCustomer(agreement, legalEntityGroup);
+inCustomer 'Отм' (Agreement agreement, LegalEntityGroup legalEntityGroup) = OVERRIDE dataInCustomer(agreement, legalEntityGroup),
+                                                                        nearestInCustomer(agreement, legalEntityGroup);
                                                                         
 quantityChildWithCustomer (legalEntityGroup, agreement) = GROUP SUM 1 IF dataInCustomer(Agreement agreement, LegalEntityGroup childLegalEntityGroup) AND isParent(childLegalEntityGroup, LegalEntityGroup legalEntityGroup) BY legalEntityGroup, agreement PERSISTENT;
 quantityParentWithCustomer (legalEntityGroup, agreement) = GROUP SUM 1 IF dataInCustomer(Agreement agreement, LegalEntityGroup parentLegalEntityGroup) AND isParent(LegalEntityGroup legalEntityGroup, parentLegalEntityGroup) BY legalEntityGroup, agreement PERSISTENT;     
@@ -109,8 +109,8 @@ backgroundInCustomer 'Цвет' (Agreement agreement, LegalEntityGroup legalEnti
 // Покупатели
 dataInCustomer 'Отм.' (agreement, legalEntity) = DATA BOOLEAN (Agreement, LegalEntity);
 
-inCustomer 'Отм' (Agreement agreement, LegalEntity legalEntity) = OVERRIDE nearestInCustomer(agreement, legalEntityGroup(legalEntity)),
-                                                           dataInCustomer(agreement, legalEntity)
+inCustomer 'Отм' (Agreement agreement, LegalEntity legalEntity) = OVERRIDE dataInCustomer(agreement, legalEntity),
+                                                           nearestInCustomer(agreement, legalEntityGroup(legalEntity))
                                                   PERSISTENT;
 backgroundInCustomer'Цвет' (Agreement agreement, LegalEntity legalEntity) = IF dataInCustomer(agreement, legalEntity) THEN RGB(0,0,0)
     ELSE RGB(230,248,250) IF nearestInCustomer(agreement, legalEntityGroup(legalEntity)); 
@@ -138,8 +138,8 @@ calcDefaultAgreement(supplier, customer, dateTime) = GROUP MAX Agreement agreeme
         BY supplier, customer, dateTime;
 
 defaultAgreement(LegalEntity supplier, LegalEntity customer, DATETIME dateTime) =  OVERRIDE 
-    calcDefaultAgreement(supplier, customer, dateTime) IF countDefaultAgreement(supplier, customer, dateTime) == 1,
-    userDefaultAgreementSupplierCustomer(supplier, customer) IF dateTime IS DATETIME;
+    userDefaultAgreementSupplierCustomer(supplier, customer) IF dateTime IS DATETIME,
+    calcDefaultAgreement(supplier, customer, dateTime) IF countDefaultAgreement(supplier, customer, dateTime) == 1;
 nameDefaultAgreement 'Соглашение по умолчанию' (LegalEntity supplier, LegalEntity customer, DATETIME dateTime) = name(defaultAgreement(supplier, customer, dateTime));
 
 isDefault 'Соглашение по умолчанию' (Agreement agreement, LegalEntity supplier, LegalEntity customer) = defaultAgreement(supplier, customer, currentDateTime()) == agreement;
@@ -189,7 +189,7 @@ nearestParent (Agreement agreement, Group group) = group(group, levelParentPrice
 nearestPriceListType (Agreement agreement, Group group) =
    dataPriceListType(agreement, nearestParent(agreement, group)) PERSISTENT;
 
-priceListType 'Вид цены' (Agreement agreement, Group group) =  OVERRIDE nearestPriceListType(agreement, group), dataPriceListType(agreement, group) PERSISTENT;
+priceListType 'Вид цены' (Agreement agreement, Group group) =  OVERRIDE dataPriceListType(agreement, group), nearestPriceListType(agreement, group) PERSISTENT;
 namePriceListType 'Вид цены' (Agreement agreement, Group group) =
     name(priceListType (agreement, group));
 
@@ -203,8 +203,8 @@ nearestDataParent (Agreement agreement, Group group) = group(group, levelParentD
 nearestDataIn (Agreement agreement, Group group) =
    dataIn(agreement, nearestDataParent(agreement, group)) PERSISTENT;
 
-in 'Вкл.' (Agreement agreement, Group group) =  OVERRIDE nearestDataIn(agreement, group), 
-                                                                                 dataIn(agreement, group) PERSISTENT;
+in 'Вкл.' (Agreement agreement, Group group) =  OVERRIDE dataIn(agreement, group), 
+                                                                                 nearestDataIn(agreement, group) PERSISTENT;
     
 in 'Вкл.' (Agreement agreement, Sku sku) = in (agreement, group(groupType(agreement),sku));
 
@@ -225,9 +225,9 @@ CONSTRAINT currency(Agreement agreement) != currency(dataPriceListType(agreement
            CHECKED BY dataPriceListType[Agreement,Sku]
            MESSAGE 'Валюта соглашения должна совпадать с валютой вида цены';
 
-priceListType (Agreement agreement, Sku sku) = OVERRIDE priceListType(agreement) IF sku IS Sku,
+priceListType (Agreement agreement, Sku sku) = OVERRIDE dataPriceListType(agreement, sku),
                                                       priceListType(agreement, group(groupType(agreement),sku)),
-                                                      dataPriceListType(agreement, sku);
+                                                      priceListType(agreement) IF sku IS Sku;
 
 returnPriceListType (Agreement agreement, Sku sku) = OVERRIDE returnPriceListType(agreement) IF sku IS Sku;
 
@@ -586,9 +586,9 @@ META deriveDocumentHeaderAgreement (object, supplierProp, customerProp, caption,
     defaultAgreement = ABSTRACT Agreement (###object);
     changedDefaultAgreement = ABSTRACT Object (###object);
     overDefaultAgreement = OVERRIDE
+        defaultAgreement(o), 
         defaultAgreement(supplierProp(###object o), customerProp(o), dateTime(o)) 
-            IF currency(o) == currency(defaultAgreement(supplierProp(o), customerProp(o), dateTime(o))), 
-        defaultAgreement(o);
+            IF currency(o) == currency(defaultAgreement(supplierProp(o), customerProp(o), dateTime(o)));
     skipSetAgreement = ABSTRACT BOOLEAN (###object);
     WHEN SESSION
         (CHANGED(currency(###object o)) OR CHANGED(customerProp(o)) OR CHANGED(supplierProp(o)) OR  CHANGED(changedDefaultAgreement(o))) 
@@ -645,8 +645,8 @@ META deriveDocumentDetailPriceListTypeAgreement (object, detail, prefix)
         (CHANGED(agreement(object(###detail d))) OR
          CHANGED(priceListType(object(d))) OR
          CHANGED(sku(d))) AND NOT CHANGED(priceListType(d)) DO {
-            priceListType(d) <- OVERRIDE priceListType(object(d)),
-                                         prefix###priceListType(agreement(object(d)), sku(d));                                         
+            priceListType(d) <- OVERRIDE prefix###priceListType(agreement(object(d)), sku(d)),
+                                         priceListType(object(d));                                         
         }
 END
 META deriveDocumentDetailPriceListTypeAgreement (object, prefix)

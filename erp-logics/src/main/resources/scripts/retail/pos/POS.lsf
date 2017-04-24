@@ -22,7 +22,7 @@ fiscalSkip 'Отключить ФР' (receipt) = DATA BOOLEAN (Receipt);
 
 EXTEND FORM zReports PROPERTIES(b) fiscalSkip;
 
-POSPriceListType (Receipt receipt) = OVERRIDE priceListType(groupCashRegister(receipt)), priceListType(discountCard(receipt)) COMPLEX;
+POSPriceListType (Receipt receipt) = OVERRIDE priceListType(discountCard(receipt)), priceListType(groupCashRegister(receipt)) COMPLEX;
 
 overPrice = ABSTRACT NUMERIC[16,4] (Sku, Receipt, DATETIME); 
 
@@ -92,9 +92,9 @@ dataDate 'Дата документа' = DATA DATE (Receipt);
 dataTime 'Время документа' = DATA TIME (Receipt);
 dataDateTime 'Дата/время документа' (Receipt o) = dateTimeToDateTime(dataDate(o), dataTime(o));
 
-overDate 'Дата документа' (Receipt r) = OVERRIDE date(r), dataDate(r);
-overTime 'Время документа' (Receipt r) = OVERRIDE time(r), dataTime(r);
-overDateTime 'Дата/время документа' (Receipt r) = OVERRIDE dateTime(r), dataDateTime(r);
+overDate 'Дата документа' (Receipt r) = OVERRIDE dataDate(r), date(r);
+overTime 'Время документа' (Receipt r) = OVERRIDE dataTime(r), time(r);
+overDateTime 'Дата/время документа' (Receipt r) = OVERRIDE dataDateTime(r), dateTime(r);
 
 overDate 'Дата документа' (ReceiptDetail d) = overDate(receipt(d));
 overTime 'Время документа' (ReceiptDetail d) = overTime(receipt(d));
@@ -410,7 +410,7 @@ post 'Смешанный платеж'(Receipt receipt) = {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
     } 
-    IF signedBonusPaid(receipt) AND NOT (OVERRIDE 0.0, totalBonuses(receipt)) >= signedBonusPaid(receipt) THEN { 
+    IF signedBonusPaid(receipt) AND NOT (OVERRIDE totalBonuses(receipt), 0.0) >= signedBonusPaid(receipt) THEN { 
         MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';      
         RETURN;
     } 
@@ -450,7 +450,7 @@ postCard 'Карточкой'(Receipt receipt) = {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
     } 
-    IF signedBonusPaid(receipt) > 0 AND NOT (OVERRIDE 0.0, totalBonuses(receipt)) >= signedBonusPaid(receipt) THEN { 
+    IF signedBonusPaid(receipt) > 0 AND NOT (OVERRIDE totalBonuses(receipt), 0.0) >= signedBonusPaid(receipt) THEN { 
         MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';    
         RETURN;
     } 
@@ -481,7 +481,7 @@ postCash 'Наличными'(Receipt receipt) = {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
     } 
-    IF signedBonusPaid(receipt) AND NOT (OVERRIDE 0.0, totalBonuses(receipt)) >= signedBonusPaid(receipt) THEN { 
+    IF signedBonusPaid(receipt) AND NOT (OVERRIDE totalBonuses(receipt), 0.0) >= signedBonusPaid(receipt) THEN { 
         MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';      
         RETURN;
     }

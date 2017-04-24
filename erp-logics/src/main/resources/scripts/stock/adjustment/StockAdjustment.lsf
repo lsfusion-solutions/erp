@@ -585,8 +585,8 @@ type(InAdjustment ledger) += 'Изменение остатков приход' 
 skip(InAdjustment ledger) += ledger IS InAdjustment AND NOT active(adjustment(ledger));
 operation[StockDocumentLedger](InAdjustment ledger) += operation(adjustment(ledger));
 
-stockDocumentLedger(OutAdjustmentSkuDetail d) += [=OVERRIDE InAdjustment(A), OutAdjustment(A)] (adjustment(adjustmentDetail[OutAdjustmentSkuDetail](d)));
-stockDocumentLedger(InAdjustmentSkuDetail d) += [=OVERRIDE InAdjustment(A), OutAdjustment(A)](adjustment(adjustmentDetail[InAdjustmentSkuDetail](d)));
+stockDocumentLedger(OutAdjustmentSkuDetail d) += [=OVERRIDE OutAdjustment(A), InAdjustment(A)] (adjustment(adjustmentDetail[OutAdjustmentSkuDetail](d)));
+stockDocumentLedger(InAdjustmentSkuDetail d) += [=OVERRIDE OutAdjustment(A), InAdjustment(A)](adjustment(adjustmentDetail[InAdjustmentSkuDetail](d)));
 
 calcSumB (Sku sku,Stock st,DATETIME dateTime) = balanceB(sku,st,dateTime)*priceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, st, dateTime);
 needCreateAdjustment = (calcSumB (Sku sku,Stock st,DATETIME dateTime) OR  sumB (sku,st,dateTime)) AND NOT (calcSumB (sku,st,dateTime) ==  sumB (sku,st,dateTime));  
@@ -617,8 +617,8 @@ levelParent (group) = GROUP MIN level(SkuGroup group, SkuGroup parent) IF dataIn
 inParent (SkuGroup group) = TRUE IF levelParent(group);
 
 inSession 'Отм.' (SkuGroup group) = OVERRIDE
-    inParent(group),
-    dataInSession(group);
+    dataInSession(group),
+    inParent(group);
 
 sessionConcatSkuGroups 'Группы' () =
     GROUP CONCAT name(SkuGroup group) IF inSession(group) AND NOT inSession(parent(group)),'; ' PREFCHARWIDTH 30;

@@ -6,7 +6,7 @@ NAMESPACE BOM;
 
 // ----------------- Акт контрольной проработки-------------------- //
 
-actNettoNetWeight 'Вес нетто изделия для акта г' (Product p) = actQuantity(BOM(p))* (OVERRIDE 1.0 IF p IS Product, netWeight(sku(p)))*1000;
+actNettoNetWeight 'Вес нетто изделия для акта г' (Product p) = actQuantity(BOM(p))* (OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product)*1000;
 nameSkus 'Компоненты (все)' = GROUP CONCAT Stock.name(Sku sku) IF recBruttoQuantity(BOM BOM, sku, DATE date), ', ' 
     BY BOM, date
     ORDER Stock.name(sku);
@@ -21,9 +21,9 @@ maxHeatTechnology (c) = GROUP MAX Technology t IF in(t,Component c) AND heat(t) 
 //equalsMaxMinHeatTechnologyComponent (c) = minHeatTechnologyComponent (c) == maxHeatTechnologyComponent (c);    
      
 wastageHeat (Component c,DATE date) = [= (1-((100-X)*(100-Y)*(100-Z)/1000000))*100](
-    (IF countHeatTechnologies(c) THEN (OVERRIDE 0 IF c IS Component, wastage(minHeatTechnology(c),material(c), date)) ELSE 0 IF c IS Component),
-    (IF countHeatTechnologies(c) > 1 THEN (OVERRIDE 0 IF c IS Component, wastage(maxHeatTechnology(c),material(c), date)) ELSE 0 IF c IS Component),
-    (IF heatWastage(c) THEN (OVERRIDE 0 IF c IS Component, wastage(c)) ELSE 0 IF c IS Component) 
+    (IF countHeatTechnologies(c) THEN (OVERRIDE wastage(minHeatTechnology(c),material(c), date), 0 IF c IS Component) ELSE 0 IF c IS Component),
+    (IF countHeatTechnologies(c) > 1 THEN (OVERRIDE wastage(maxHeatTechnology(c),material(c), date), 0 IF c IS Component) ELSE 0 IF c IS Component),
+    (IF heatWastage(c) THEN (OVERRIDE wastage(c), 0 IF c IS Component) ELSE 0 IF c IS Component) 
 );
 //-- холодная обработка
 countColdTechnologies (c)= GROUP SUM 1 IF in(Technology t, Component c) AND NOT heat(t) BY c;    
@@ -33,17 +33,17 @@ maxColdTechnology (c) = GROUP MAX Technology t IF in(t,Component c) AND NOT heat
 //equalsMaxMinColdTechnologyComponent (c) = minColdTechnologyComponent (c) == maxColdTechnologyComponent (c);    
      
 wastageCold (Component c,DATE date) = [= (1-((100-X)*(100-Y)*(100-Z)/1000000))*100](
-    (IF countColdTechnologies(c) THEN (OVERRIDE 0 IF c IS Component, wastage(minHeatTechnology(c),material(c), date)) ELSE 0 IF c IS Component),
-    (IF countColdTechnologies(c) > 1 THEN (OVERRIDE 0 IF c IS Component, wastage(maxHeatTechnology(c),material(c), date)) ELSE 0 IF c IS Component),
-    (IF NOT heatWastage(c) THEN (OVERRIDE 0 IF c IS Component, wastage(c)) ELSE 0 IF c IS Component) 
+    (IF countColdTechnologies(c) THEN (OVERRIDE wastage(minHeatTechnology(c),material(c), date), 0 IF c IS Component) ELSE 0 IF c IS Component),
+    (IF countColdTechnologies(c) > 1 THEN (OVERRIDE wastage(maxHeatTechnology(c),material(c), date), 0 IF c IS Component) ELSE 0 IF c IS Component),
+    (IF NOT heatWastage(c) THEN (OVERRIDE wastage(c), 0 IF c IS Component) ELSE 0 IF c IS Component) 
 );    
 
 actBruttoNetWeight 'Выход полуфабриката брутто, г' (Component c,DATE dt)=overBruttoQuantity(c,dt)*actQuantity(BOM(c))*1000/quantityProduct(BOM(c));
-actNettoNetWeight 'Выход полуфабриката нетто, г' (Component c)=nettoQuantity(c)*actQuantity(BOM(c))*1000*(OVERRIDE 1.0 IF c IS Component, overNetWeight(c))/quantityProduct(BOM(c));
+actNettoNetWeight 'Выход полуфабриката нетто, г' (Component c)=nettoQuantity(c)*actQuantity(BOM(c))*1000*(OVERRIDE overNetWeight(c), 1.0 IF c IS Component)/quantityProduct(BOM(c));
 actBruttoNetWeight 'Вес товара для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= recBruttoQuantity(BOM(material(component)), sku, date) *
     bruttoQuantity(component, date)/
     (quantity(material(component)) IF quantity(material(component))!=0) *
-    (OVERRIDE 1.0 IF sku IS Sku, netWeight[Item](sku))*
+    (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)*
     actQuantity(BOM(component))*1000/
     (quantityProduct(BOM(component)) IF quantityProduct(BOM(component))!=0); 
 
@@ -52,7 +52,7 @@ actBruttoNetWeightSkus 'Вес компонента, если он полуфа�
 actNBruttoNetWeight 'Вес товара для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= recNettoQuantity(BOM(material(component)), sku) *
     bruttoQuantity(component, date)/
     (quantity(material(component)) IF quantity(material(component))!=0) *
-    (OVERRIDE 1.0 IF sku IS Sku, netWeight[Item](sku))*
+    (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)*
     actQuantity(BOM(component))*1000/
     (quantityProduct(BOM(component)) IF quantityProduct(BOM(component))!=0); 
 
@@ -61,7 +61,7 @@ actNBruttoNetWeightSkus 'Вес компонента, если он полуфа
 actBruttoNetWeight 'Вес изделия по товарам, брутто г' (Product product, Sku sku, DATE date)= recBruttoQuantity(BOM(product), sku, date) *
     actQuantity(BOM(product))*1000/
     (quantity(product) IF (quantity(product)!=0)) *
-    (OVERRIDE 1.0 IF sku IS Sku, netWeight[Item](sku)); 
+    (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku); 
 
 actBruttoNetWeightSkus 'Вес брутто изделия по товарам, г' (product, date)= GROUP SUM actBruttoNetWeight(Product product, Sku sku, DATE date) BY product, date;
 actPerc '%' (Product p,DATE dt) = (1 - (actNettoNetWeight(p)/ (actBruttoNetWeightSkus(p,dt) IF actBruttoNetWeightSkus(p,dt)!=0)))*100;

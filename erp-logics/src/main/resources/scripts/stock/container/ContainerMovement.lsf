@@ -11,10 +11,10 @@ REQUIRE System,
 //------------------------------------Отчет по таре-------------------------------------------//
 
 overMovementContainer (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) =
-    OVERRIDE balanceB(batch, stock, dateFrom),
-             balanceA(batch, stock, dateTo),
+    OVERRIDE costOutBalance(batch, stock, dateFrom, dateTo),
              costInBalance(batch, stock, dateFrom, dateTo),
-             costOutBalance(batch, stock, dateFrom, dateTo);
+             balanceA(batch, stock, dateTo),
+             balanceB(batch, stock, dateFrom);
 
 accountSumInBalance 'Сумма прихода' (batch, stock, dateFrom, dateTo) = GROUP SUM cost (InSkuLedger ledger, Batch batch)* accountPriceA(batch, stock(ledger), dateTime(ledger))
     IF ledger IS InSkuLedger AND isPosted(ledger)
@@ -73,7 +73,7 @@ includeContainerMovementBatchFromTo 'Рассчитать'(Stock stock, DATE dat
     balanceMoveIn (Batch bt) <- costInBalance(bt, stock, dateFrom, dateTo) WHERE inContainerMovement (bt);
     
     sumMoveIn (Batch bt) <- NULL;
-    sumMoveIn (Batch bt) <- [= GROUP SUM cost (InSkuLedger ledger, Batch batch) * (OVERRIDE lastPrice(batch), accountPriceA(batch, stock(ledger), dateTime(ledger)))
+    sumMoveIn (Batch bt) <- [= GROUP SUM cost (InSkuLedger ledger, Batch batch) * (OVERRIDE accountPriceA(batch, stock(ledger), dateTime(ledger)), lastPrice(batch))
                                IF ledger IS InSkuLedger AND isPosted(ledger)
                                AND date(ledger) >= DATE dateFrom AND date(ledger)<= DATE dateTo
                                BY batch, stock(ledger), dateFrom, dateTo](bt, stock, dateFrom, dateTo) WHERE inContainerMovement (bt);
@@ -82,7 +82,7 @@ includeContainerMovementBatchFromTo 'Рассчитать'(Stock stock, DATE dat
     balanceMoveOut (Batch bt) <- costOutBalance(bt, stock, dateFrom, dateTo) WHERE inContainerMovement (bt);
 
     sumMoveOut (Batch bt) <- NULL;
-    sumMoveOut (Batch bt) <- [= GROUP SUM cost (OutSkuLedger ledger, Batch batch) * (OVERRIDE lastPrice(batch), accountPriceA(batch, stock(ledger), dateTime(ledger)))
+    sumMoveOut (Batch bt) <- [= GROUP SUM cost (OutSkuLedger ledger, Batch batch) * (OVERRIDE accountPriceA(batch, stock(ledger), dateTime(ledger)), lastPrice(batch))
                                 IF ledger IS OutSkuLedger AND isPosted(ledger)
                                 AND date(ledger) >= DATE dateFrom AND date(ledger)<= DATE dateTo
                                 BY batch, stock(ledger), dateFrom, dateTo](bt, stock, dateFrom, dateTo) WHERE inContainerMovement (bt);

@@ -244,7 +244,7 @@ changeBatch(ReceiptDetail detail) = {
 
 nameSku 'Товар' (ReceiptDetail d) = IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d)) IN recognize;
 
-nameCashRegisterSku (ReceiptDetail d) = OVERRIDE nameSku(d), nameCashRegisterAttribute(sku(d));
+nameCashRegisterSku (ReceiptDetail d) = OVERRIDE nameCashRegisterAttribute(sku(d)), nameSku(d);
 
 boardNameSku 'Товар' = ABSTRACT VARISTRING[255] (ReceiptDetail);
 
@@ -268,7 +268,7 @@ saleReceipt = DATA Receipt (ReceiptReturnDetail);
 receiptDetail(sku, receipt) = GROUP MAX ReceiptDetail receiptDetail BY sku(receiptDetail), receipt(receiptDetail);
 saleReceiptDetail(ReceiptReturnDetail returnReceiptDetail) = receiptDetail(sku[ReceiptDetail](returnReceiptDetail), saleReceipt(returnReceiptDetail));                                                                                                                                                             
 receiptSaleDetail = DATA ReceiptSaleDetail (ReceiptReturnDetail);
-overReceiptSaleDetail(ReceiptReturnDetail detail) = OVERRIDE receiptSaleDetail(detail), saleReceiptDetail(detail);
+overReceiptSaleDetail(ReceiptReturnDetail detail) = OVERRIDE saleReceiptDetail(detail), receiptSaleDetail(detail);
 receiptSale (ReceiptReturnDetail returnDetail) = receipt[ReceiptSaleDetail](overReceiptSaleDetail(returnDetail));
 
 descriptionSale 'Чек продажи' (ReceiptReturnDetail returnDetail) = CONCAT ' ',

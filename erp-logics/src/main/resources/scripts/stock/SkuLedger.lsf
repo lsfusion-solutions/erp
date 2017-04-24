@@ -44,7 +44,7 @@ nameSku 'Наименование' (Batch batch) = name(sku(batch)) IN recognize
 
 // Наименование для документов
 overDocumentNameSku = ABSTRACT VARISTRING[255] (Batch) PERSISTENT;
-documentNameSku 'Наименование (для документов)' (Batch batch) = OVERRIDE nameSku(batch), overDocumentNameSku(batch);
+documentNameSku 'Наименование (для документов)' (Batch batch) = OVERRIDE overDocumentNameSku(batch), nameSku(batch);
 
 useDocumentNameSku 'Использовать наименование для документов' = DATA BOOLEAN ();
 
@@ -770,7 +770,7 @@ DESIGN dialogBatchStockIn {
 // Расчет себестоимости
 
 needToCost 'Требуется расчет себестоимости' (SkuLedger ledger) = signedQuantityActive(ledger)
-                                                                        AND quantity(ledger) != (OVERRIDE 0.0, costed(ledger));
+                                                                        AND quantity(ledger) != (OVERRIDE costed(ledger), 0.0);
 
 order = ABSTRACT LONG (InLIFOSkuLedger, Batch);
 limitNew = IF InLIFOSkuLedger ledger IS InLIFOSkuLedger THEN (
@@ -791,8 +791,8 @@ limitNew = IF OutFIFOSkuLedger ledger IS OutFIFOSkuLedger THEN (
                                                      IF batch(ledger) THEN
                                                         quantity[SkuLedger](ledger) IF Batch batch == batch(ledger)
                                                      ELSE
-                                                        OVERRIDE 0.0 IF skuLedger(batch, stock[SkuLedger](ledger)) == sku[SkuLedger](ledger), 
-                                                                 (currentBalance(batch, stock[SkuLedger](ledger)) IF skuCurrentBalance(batch, stock[SkuLedger](ledger)) == sku[SkuLedger](ledger)));
+                                                        OVERRIDE (currentBalance(batch, stock[SkuLedger](ledger)) IF skuCurrentBalance(batch, stock[SkuLedger](ledger)) == sku[SkuLedger](ledger)), 
+                                                                 0.0 IF skuLedger(batch, stock[SkuLedger](ledger)) == sku[SkuLedger](ledger));
 
 quantity (OutFIFOSkuLedger ledger, Batch batch) =
         PARTITION UNGROUP quantity[SkuLedger]

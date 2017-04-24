@@ -245,7 +245,7 @@ createdNameUser 'Создан пользователем' (TerminalDocument td) 
 createdUser (TerminalDocument o) <- currentUser() WHEN SET(o IS TerminalDocument);
 
 dataStock = DATA Stock (TerminalDocument);
-stock (TerminalDocument document) = OVERRIDE stock(groupTerminal(document)), dataStock(document);
+stock (TerminalDocument document) = OVERRIDE dataStock(document), stock(groupTerminal(document));
 nameStock 'Склад' (TerminalDocument document) = name(stock (document)) IN documentHeader;
 dataStock(TerminalDocument d) <- stock(createdUser(d)) WHEN SET (createdUser(d));
 
@@ -281,10 +281,10 @@ stock 'Склад' (TerminalDocumentDetail detail) = stock(terminalDocument(deta
 sku = DATA Sku (TerminalDocumentDetail) INDEXED;
 nameSku 'Наименование' (TerminalDocumentDetail d) = name(sku(d));
 dataName 'Наименование' = DATA VARSTRING[200] (TerminalDocumentDetail);
-name 'Наименование' (TerminalDocumentDetail d) = OVERRIDE nameSku(d), dataName(d) IN base;
+name 'Наименование' (TerminalDocumentDetail d) = OVERRIDE dataName(d), nameSku(d) IN base;
 
 WHEN SESSION SETCHANGED(barcode(TerminalDocumentDetail d)) DO {
-    sku(d) <- OVERRIDE sku(barcode(d)), skuBarcode(barcode(d));
+    sku(d) <- OVERRIDE skuBarcode(barcode(d)), sku(barcode(d));
 }
 
 migratedSku = DATA BOOLEAN ();
@@ -292,7 +292,7 @@ onStarted () += {
     IF NOT migratedSku() THEN {
         migratedSku() <- TRUE;
         setNoCancelInTransaction();
-        sku(TerminalDocumentDetail d) <- OVERRIDE sku(barcode(d)), sku(barcode(barcode(d), (OVERRIDE currentDate(), date(d))));
+        sku(TerminalDocumentDetail d) <- OVERRIDE sku(barcode(barcode(d), (OVERRIDE currentDate(), date(d)))), sku(barcode(d));
         apply();
         dropNoCancelInTransaction();
     }

@@ -13,7 +13,7 @@ createRepricingLabelTransaction 'Распечатать ценники'(Departme
 	        FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,DepartmentStore d) BY l, d](LabelType labelType, departmentStore) NEW t = LabelTransaction DO { 
 	            departmentStore(t) <- departmentStore;
 	            labelType(t) <- labelType;
-	            priceListType(t) <- OVERRIDE retailPriceListType(departmentStore), priceListType(operation);   
+	            priceListType(t) <- OVERRIDE priceListType(operation), retailPriceListType(departmentStore);   
 	            date(t) <- toDate(dateTime);      
 	            time(t) <- toTime(dateTime);      
 	            
@@ -75,7 +75,7 @@ createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать
             FOR select(LabelType type) DO {
                 NEW t = LabelTransaction {
                     departmentStore(t) <- departmentStore;
-                    priceListType(t) <- OVERRIDE retailPriceListType(departmentStore), priceListType(operation);    
+                    priceListType(t) <- OVERRIDE priceListType(operation), retailPriceListType(departmentStore);    
                     date(t) <- toDate(dateTime);      
                     time(t) <- toTime(dateTime);
                     labelType(t) <- type;
@@ -89,7 +89,7 @@ createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать
             
                         createAttribute(d);                      
                
-                        price(d) <- OVERRIDE calcPrice(pt, d), documentPrice(d);
+                        price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
                         retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
                 
 //                        quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) THEN 

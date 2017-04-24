@@ -10,7 +10,7 @@ overTitleScales = ABSTRACT VARISTRING[255] (MachineryPriceTransaction, Barcode);
 
 createAttribute(MachineryPriceTransaction transaction, GroupScales groupMachinery) += {
     IF groupMachinery IS GroupScales THEN
-        name(transaction, Barcode barcode) <- (OVERRIDE titleScales(barcode) IF transaction IS MachineryPriceTransaction, overTitleScales(transaction, barcode)) WHERE in(transaction, barcode);
+        name(transaction, Barcode barcode) <- (OVERRIDE overTitleScales(transaction, barcode), titleScales(barcode) IF transaction IS MachineryPriceTransaction) WHERE in(transaction, barcode);
 }
 
 GROUP scales 'Весы' : public;
@@ -58,7 +58,7 @@ hoursExpiry 'Срок годности в часах с момента фасо�
 
 // Состав товара
 overMachineryDescription = ABSTRACT TEXT (Barcode);
-description 'Описание' = OVERRIDE description(sku(Barcode barcode)), overMachineryDescription(barcode);
+description 'Описание' = OVERRIDE overMachineryDescription(barcode), description(sku(Barcode barcode));
 
 @defineMachineryPriceTransactionAttribute(description, 'Описание', TEXT);
 
@@ -136,7 +136,7 @@ DESIGN itemGroup {
 @defineItemGroupDefaultValue(expired, 'Не грузить с истекшим ср. год-ти', BOOLEAN);
 
 dataExpired 'Не грузить с истекшим ср. год-ти' = DATA BOOLEAN (Item);
-expired 'Не грузить с истекшим ср. год-ти' (Item item) = OVERRIDE expired(itemGroup(item)), dataExpired(item) IN itemBase PERSISTENT ;
+expired 'Не грузить с истекшим ср. год-ти' (Item item) = OVERRIDE dataExpired(item), expired(itemGroup(item)) IN itemBase PERSISTENT ;
 
 
 expiredSku (Barcode barcode) = expired(sku(barcode));

@@ -65,7 +65,7 @@ price 'Цена' (ware, date) = GROUP LAST  dataPrice(Ware ware, DATE dateIn)
                                                                      ORDER dateIn
                                                                      WHERE dataPrice(ware, dateIn) AND dateIn <= (date AS DATE) IN base;
 
-overPrice 'Цена' = OVERRIDE price(Ware ware, DATE date), dataPrice(ware, date) IN base;
+overPrice 'Цена' = OVERRIDE dataPrice(ware, date), price(Ware ware, DATE date) IN base;
 
 price 'Цена' (Ware ware) = price(ware, currentDate()) IN base;
 
@@ -235,8 +235,8 @@ nearestParentCustomGroup (CustomGroupType customGroupType, WareGroup wareGroup) 
 nearestCustomGroup (CustomGroupType customGroupType, WareGroup wareGroup) = dataCustomGroup(customGroupType, nearestParentCustomGroup (customGroupType, wareGroup));
 
 customGroup (CustomGroupType customGroupType, WareGroup wareGroup) =
-    OVERRIDE nearestCustomGroup (customGroupType, wareGroup), 
-             dataCustomGroup(customGroupType, wareGroup) PERSISTENT;    
+    OVERRIDE dataCustomGroup(customGroupType, wareGroup), 
+             nearestCustomGroup (customGroupType, wareGroup) PERSISTENT;    
 
 nameCustomGroup 'Дополнительная группа (по умолчанию)' (CustomGroupType customGroupType, WareGroup wareGroup) = name(customGroup(customGroupType, wareGroup));
 

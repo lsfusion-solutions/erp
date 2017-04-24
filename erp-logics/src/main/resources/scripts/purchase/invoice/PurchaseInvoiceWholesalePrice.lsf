@@ -43,7 +43,7 @@ WHEN SESSION FORMS userInvoice
      CHANGED(supplierStock(detail)) OR
      CHANGED(customerStock(detail)) OR
      (CHANGED(dateTime(detail)) AND NOT isPosted(detail))) DO
-     wholesaleCalcPriceListType(detail) <- OVERRIDE wholesaleCalcPriceListType(userInvoice(detail)), overWholesaleCalcPriceListType(detail);
+     wholesaleCalcPriceListType(detail) <- OVERRIDE overWholesaleCalcPriceListType(detail), wholesaleCalcPriceListType(userInvoice(detail));
 
 // Объявляем цену для строки
 @defineDocumentInterfaceDetailPriceCustomPrefix (invoiceDetail, wholesale, ' (оптовая)');
@@ -55,8 +55,8 @@ overBasePrice (UserInvoiceDetail detail) += overBasePrice(detail);
 
 extraWholesalePrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
 
-basePrice (InvoiceDetail detail) = OVERRIDE price(detail), overBasePrice(detail) PERSISTENT;
-basePrice (UserInvoiceDetail detail) = OVERRIDE price(detail), overBasePrice(detail) PERSISTENT;
+basePrice (InvoiceDetail detail) = OVERRIDE overBasePrice(detail), price(detail) PERSISTENT;
+basePrice (UserInvoiceDetail detail) = OVERRIDE overBasePrice(detail), price(detail) PERSISTENT;
 
 wholesaleMarkup(UserInvoiceDetail detail) <- markup(wholesaleCalcPriceListType(detail), sku(detail))
     WHEN CHANGED(wholesaleCalcPriceListType(detail)) OR

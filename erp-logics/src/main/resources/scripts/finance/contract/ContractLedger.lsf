@@ -86,7 +86,7 @@ META implementContractPrepaymentLedgerInner(object, classPrefix, sumProp, contra
     isPosted(###object##ContractLedger l) += isPosted(object(l));
     dateTime(###object##ContractLedger l) += IF bankingDays(paymentCondition(paymentPeriod(l))) THEN
                                                       toDateTime(bankingPaymentDate(l)) ELSE
-                                                      OVERRIDE calendarPaymentDateTime(l), overCalendarPaymentDateTime(l);
+                                                      OVERRIDE overCalendarPaymentDateTime(l), calendarPaymentDateTime(l);
     contract(###object##ContractLedger object##ContractLedger) += contractProp(object(object##ContractLedger));
     description(###object##ContractLedger object##ContractLedger) += description(object(object##ContractLedger));
     sum(###object##ContractLedger object##ContractLedger) +=
@@ -182,7 +182,7 @@ debt 'Долг по документу на дату' (InContractLedger inContra
 //    MESSAGE 'Расписанная сумма должна быть равна сумме платежа';
 
 orderDate = ABSTRACT DATETIME (OutContractLedger, InContractLedger);
-overOrderDate (OutContractLedger outLedger, InContractLedger inLedger)= OVERRIDE dateTime(inLedger), orderDate(outLedger, inLedger);
+overOrderDate (OutContractLedger outLedger, InContractLedger inLedger)= OVERRIDE orderDate(outLedger, inLedger), dateTime(inLedger);
 
 notPrePay (OutContractLedger o) = sum(o) (-) prePay(o);
 debtNotPrePay (InContractLedger i) = debt(i) (-) prePay(i);
@@ -304,12 +304,12 @@ debtSum 'Долг по документам' (contract) = GROUP SUM debt(InContr
                                                                   BY contract(inContractLedger);      
 //----------------------------------------------- Цвета --------------------------------------------------------------//
 
-backgroundSum 'Цвет' (ContractLedger contractLedger, DATE date) = OVERRIDE RGB(255,238,165) IF date(contractLedger) <= date,
-                                                                         RGB(255,160,160) IF date(contractLedger) > date;
+backgroundSum 'Цвет' (ContractLedger contractLedger, DATE date) = OVERRIDE RGB(255,160,160) IF date(contractLedger) > date,
+                                                                         RGB(255,238,165) IF date(contractLedger) <= date;
 background 'Цвет' (ContractLedger contractLedger, DATE date) = RGB(255,160,160) IF date(contractLedger) > date;
 backgroundSum 'Цвет' (Contract contract) = RGB(255,238,165) IF contract IS Contract;
-backgroundSum 'Цвет' (ContractALedger contractALedger, DATE date) = OVERRIDE RGB(232,184,146) IF date(contractALedger) <= date,
-                                                                           RGB(255,160,160) IF date(contractALedger) > date;
+backgroundSum 'Цвет' (ContractALedger contractALedger, DATE date) = OVERRIDE RGB(255,160,160) IF date(contractALedger) > date,
+                                                                           RGB(232,184,146) IF date(contractALedger) <= date;
 background 'Цвет' (ContractALedger contractALedger, DATE date) = RGB(255,160,160) IF date(contractALedger) > date;
 backgroundSumA 'Цвет' (Contract contract) = RGB(232,184,146) IF contract IS Contract;
 backgroundBonusSum 'Цвет' (InContractLedger inContractLedger) = RGB(213,249,185) IF inContractLedger IS InContractLedger;

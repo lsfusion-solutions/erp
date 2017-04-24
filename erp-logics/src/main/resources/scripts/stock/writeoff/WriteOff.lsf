@@ -230,8 +230,8 @@ dataReason= ABSTRACT Reason (WriteOffDetail);
 dataReason= DATA Reason (UserWriteOffDetail);
 dataReason(UserWriteOffDetail d) += dataReason(d);
 
-reason = OVERRIDE reason(writeOff(WriteOffDetail d)), dataReason(d);
-reason = OVERRIDE reason(userWriteOff(UserWriteOffDetail d)), dataReason(d);
+reason = OVERRIDE dataReason(d), reason(writeOff(WriteOffDetail d));
+reason = OVERRIDE dataReason(d), reason(userWriteOff(UserWriteOffDetail d));
 
 nameReason 'Причина списания' (WriteOffDetail d) = name(reason(d));
 nameReason 'Причина списания' (UserWriteOffDetail d) = name(reason(d));
@@ -621,7 +621,7 @@ EXTEND FORM reasons
 ;
 
 WHEN SESSION SETCHANGED (operation(UserWriteOff o)) OR CHANGED(reason(o)) DO
-    skipStockDocumentLedger (o) <- OVERRIDE skipStockDocumentLedger(operation(o)), skip(reason(o));
+    skipStockDocumentLedger (o) <- OVERRIDE skip(reason(o)), skipStockDocumentLedger(operation(o));
 
 // Товарный отчет
 @implementStockDocumentLedgerOut(WriteOff, stock);

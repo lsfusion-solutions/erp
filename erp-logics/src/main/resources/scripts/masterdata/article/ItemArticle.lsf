@@ -78,7 +78,7 @@ loadImage 'Загрузить изображение' (Article a) = { LOADFILE i
 
 saveImage 'Сохранить изображение' (Article article) = {
     LOCAL fileName=VARSTRING[255]();
-    fileName() <- OVERRIDE id(article), caption(article);
+    fileName() <- OVERRIDE caption(article), id(article);
     SAVEFILE image(article) NAME fileName();
 } SHORTCUT image[Article];
 
@@ -254,7 +254,7 @@ TABLE colorArticle(Color, Article);
 EXTEND CLASS Color  {
     none 'None'
 }
-calcColor (Item item)= OVERRIDE (Color.none IF item IS Item), color(item);
+calcColor (Item item)= OVERRIDE color(item), (Color.none IF item IS Item);
 count 'Кол-во цветов для артикля' (color,article) = GROUP SUM 1 BY calcColor(Item item), article(item) PERSISTENT;
 
 color  = DATA Color(Article);
@@ -331,7 +331,7 @@ EXTEND FORM brand PROPERTIES(t) nameGender, shortNameGender;
 EXTEND FORM brands PROPERTIES(t) BEFORE deleteb READONLYIF isReadonly() nameGender;
 
 dataGender  = DATA Gender (Article);
-gender (Article article) = OVERRIDE gender(brand(article)), dataGender(article) PERSISTENT;
+gender (Article article) = OVERRIDE dataGender(article), gender(brand(article)) PERSISTENT;
 
 nameGender 'Пол' (Article a) = name(gender(a));
 shortNameGender 'Пол' (Article a) = shortName(gender(a));
@@ -380,7 +380,7 @@ DESIGN sizes { main{ preferredSize = (600, 400); } }
 
 nameOriginalSize 'Размер (оригинальный)' (Item item) = nameOriginal(size(item)) IN itemArticle;
 dataOriginalSize 'Размер (оригинальный)' = DATA VARISTRING[50](Item);
-originalSize 'Размер (оригинальный)' (Item i) = OVERRIDE nameOriginalSize(i), dataOriginalSize(i) MINCHARWIDTH 3 PREFCHARWIDTH 5;
+originalSize 'Размер (оригинальный)' (Item i) = OVERRIDE dataOriginalSize(i), nameOriginalSize(i) MINCHARWIDTH 3 PREFCHARWIDTH 5;
 @implementItemAttribute(originalSize, 'Размер (оригинальный)', String, itemOriginalSize);
 
 @defineObjectItemAttributeBatch (size, nameSize, 'Размер');
@@ -397,7 +397,7 @@ TABLE sizeArticle(Size, Article);
 EXTEND CLASS Size  {
     none 'None'
 }
-calcSize (Item item)= OVERRIDE (Size.none IF item IS Item), size(item);
+calcSize (Item item)= OVERRIDE size(item), (Size.none IF item IS Item);
 count 'Кол-во размеров для артикля' (size,article) = GROUP SUM 1 BY calcSize(Item item), article(item) PERSISTENT;
 
 maxSku (article, color, size) = GROUP MAX Item sku

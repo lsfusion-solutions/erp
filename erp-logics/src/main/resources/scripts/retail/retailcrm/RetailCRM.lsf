@@ -65,7 +65,7 @@ promotionGroup (promotion) = DATA PromotionGroup(Promotion) AUTOSET NOT NULL;
 namePromotionGroup 'Группа акций' (Promotion promotion) = name(promotionGroup(promotion)) IN base;
 
 userOrder 'Порядок' (promotion) = DATA INTEGER (Promotion);
-order 'Порядок' (Promotion promotion) = OVERRIDE 1 IF promotion IS Promotion, userOrder(promotion) PERSISTENT;
+order 'Порядок' (Promotion promotion) = OVERRIDE userOrder(promotion), 1 IF promotion IS Promotion PERSISTENT;
 
 userSet 'Задается кассиром' (promotion) = DATA BOOLEAN (Promotion);
 
@@ -120,16 +120,16 @@ TABLE promotionStore(Promotion, Store);
 dataIn 'В акции' = DATA BOOLEAN (Promotion, Store);
 
 in 'В акции' (Promotion promotion, ChainStores chainStores) = OVERRIDE
-    allStores(promotion) AND chainStores IS ChainStores,
-    dataIn(promotion, chainStores) PERSISTENT;
+    dataIn(promotion, chainStores),
+    allStores(promotion) AND chainStores IS ChainStores PERSISTENT;
 
 in 'В акции' (Promotion promotion, StoreType storeType) = OVERRIDE
-    in(promotion, chainStores(storeType)),
-    dataIn(promotion, storeType) PERSISTENT;
+    dataIn(promotion, storeType),
+    in(promotion, chainStores(storeType)) PERSISTENT;
 
 in 'В акции' (Promotion promotion, Store store) =
-    (OVERRIDE in(promotion, storeType(store)),
-              dataIn(promotion, store))
+    (OVERRIDE dataIn(promotion, store),
+              in(promotion, storeType(store)))
     AND isCompany(store) PERSISTENT;
 
 stores 'Магазины' (promotion) = GROUP CONCAT Store.name(Store store) IF in(Promotion promotion, store), ', '
@@ -146,8 +146,8 @@ allDiscountCard 'Любая дисконтная карта' = DATA BOOLEAN (Pro
 TABLE promotionDiscountCard (Promotion, DiscountCard);
 inData 'В акции' = DATA BOOLEAN (Promotion, DiscountCard);
 
-in 'В акции' (Promotion promotion, DiscountCard discountCard) = OVERRIDE allDiscountCard(promotion) AND discountCard IS DiscountCard,
-                                                                       inData(promotion, discountCard);
+in 'В акции' (Promotion promotion, DiscountCard discountCard) = OVERRIDE inData(promotion, discountCard),
+                                                                       allDiscountCard(promotion) AND discountCard IS DiscountCard;
 
 minCumulativeSum 'Накоп. сумма (от)' (promotion) = DATA NUMERIC[16,4] (Promotion);
 maxCumulativeSum 'Накоп. сумма (до)' (promotion) = DATA NUMERIC[16,4] (Promotion);
@@ -201,9 +201,9 @@ excluded 'Исключить из условия' = DATA BOOLEAN (PromotionCondi
 overIn 'В условии' = ABSTRACT BOOLEAN (PromotionCondition, Sku);
 
 in 'В условии' (PromotionCondition c, Sku sku) = (OVERRIDE
-    TRUE IF inParent(c, skuGroup(sku)),                                                                        
-    overIn(c, sku),
-    inData(c, sku)) AND NOT excluded(c, sku);
+    inData(c, sku),
+    overIn(c, sku),                                                                        
+    TRUE IF inParent(c, skuGroup(sku))) AND NOT excluded(c, sku);
 
 notHasDiscountCard (Promotion p) = NOT hasDiscountCard(p);
 notNoDiscountCard (Promotion p) = NOT noDiscountCard(p);
@@ -468,7 +468,7 @@ FORM promotions 'Акции'
 ;
 
 userOrder 'Порядок' (promotion) = DATA INTEGER (PromotionGroup);
-order 'Порядок' (PromotionGroup promotion) = OVERRIDE 1 IF promotion IS PromotionGroup, userOrder(promotion) PERSISTENT;
+order 'Порядок' (PromotionGroup promotion) = OVERRIDE userOrder(promotion), 1 IF promotion IS PromotionGroup PERSISTENT;
 
 FORM promotionGroup 'Группа акций'
     OBJECTS st=PromotionGroup PANEL

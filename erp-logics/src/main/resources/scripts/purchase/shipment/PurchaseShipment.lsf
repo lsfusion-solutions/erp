@@ -41,7 +41,7 @@ expiryDate(UserShipmentDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHAN
 
 overCostPrice(d) = ABSTRACT NUMERIC[16,4] (ShipmentDetail);
 extraCostPrice(d) = ABSTRACT NUMERIC[16,4] (ShipmentDetail);
-costPrice(ShipmentDetail d) = OVERRIDE price(d), overCostPrice(d), extraCostPrice(d);
+costPrice(ShipmentDetail d) = OVERRIDE extraCostPrice(d), overCostPrice(d), price(d);
 
 isShipped = shipped(Invoice invoice) OR NOT quantityNotChargeInvoiceDetail(invoice) > 0.0;
 
@@ -321,17 +321,17 @@ batch(ShipmentSkuLedger ledger) += batch(ledger);
 stockDocumentLedger (ShipmentSkuLedger ledger) += shipment(shipmentDetail(ledger)); 
 
 skuLedger (ShipmentDetail detail) = IF createBatch(detail) THEN shipmentBatch(detail) ELSE shipmentSkuLedger(detail);
-ledgerBatch (ShipmentDetail detail) = OVERRIDE shipmentBatch(detail), batch(detail);
+ledgerBatch (ShipmentDetail detail) = OVERRIDE batch(detail), shipmentBatch(detail);
 @implementDocumentBatch(shipment, ledger);
 
 cost(ShipmentDetail detail, Batch batch) += cost(skuLedger(detail), batch);
 
-batch[Invoice.InvoiceDetail](InvoiceDetail d) += OVERRIDE batch(d), ledgerBatch(invoiceShipmentDetail(d));
+batch[Invoice.InvoiceDetail](InvoiceDetail d) += OVERRIDE ledgerBatch(invoiceShipmentDetail(d)), batch(d);
 
 edit[SkuLedger](ShipmentSkuLedger shipmentSkuLedger) += { edit(shipmentDetail(shipmentSkuLedger)); }
 show[SkuLedger](ShipmentSkuLedger shipmentSkuLedger) += { show(shipmentDetail(shipmentSkuLedger)); }
 
-overBatch(InvoiceDetail detail)= OVERRIDE batch(detail), ledgerBatch(invoiceShipmentDetail(detail));  
+overBatch(InvoiceDetail detail)= OVERRIDE ledgerBatch(invoiceShipmentDetail(detail)), batch(detail);  
 // ------------------------------- Проведение регистру учетных цен ------------------------ //
 
 supplier (ShipmentSkuLedger ledger) = supplier(shipmentDetail(ledger));
@@ -372,8 +372,8 @@ idBarcodePack 'Штрихкод упаковки' (Batch batch) = id(barcodePack
 descriptionInvoiceDetailInvoiceDetail 'Строка накладной партии' = description(invoiceDetail(Batch batch));
 priceInvoiceDetail 'Цена закупки' (Batch batch) = price(invoiceDetail(batch));
 invoicePriceInvoiceDetail 'Цена закупки с НДС' (Batch batch) = OVERRIDE 
-    (invoiceSum(invoiceDetail(batch)) / (quantity(invoiceDetail(batch)) IF quantity(invoiceDetail(batch))!=0)),
-    invoicePrice(invoiceDetail(batch));
+    invoicePrice(invoiceDetail(batch)),
+    (invoiceSum(invoiceDetail(batch)) / (quantity(invoiceDetail(batch)) IF quantity(invoiceDetail(batch))!=0));
 
 currencyInvoiceDetail 'Валюта закупки' (Batch batch) = currency(invoiceDetail(batch));
 shortNameCurrencyInvoiceDetail 'Валюта закупки' (Batch batch) = shortName(currencyInvoiceDetail(batch));

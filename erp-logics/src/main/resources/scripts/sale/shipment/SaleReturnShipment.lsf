@@ -143,11 +143,11 @@ EXTEND FORM userShipment
 
 shipmentPrice (UserInvoiceDetail detail)  <- IF batch(detail)
 
-                                                THEN OVERRIDE   cost(batch(detail)),
-                                                                prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
+                                                THEN OVERRIDE   prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
                                                                                                           batch(detail),
                                                                                                           supplierStock(detail),
-                                                                                                          dateTime(detail))
+                                                                                                          dateTime(detail)),
+                                                                cost(batch(detail))
                                                 ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
                                                                                              sku(detail),
                                                                                              supplierStock(detail),
@@ -159,11 +159,11 @@ shipmentPrice (UserInvoiceDetail detail)  <- IF batch(detail)
 
 price (UserShipmentDetail detail)  <- IF batch(detail)
 
-                                                THEN OVERRIDE cost(batch(detail)),
-                                                              prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
+                                                THEN OVERRIDE prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
                                                                                                         batch(detail),
                                                                                                         supplierStock(detail),
-                                                                                                        dateTime(detail))
+                                                                                                        dateTime(detail)),
+                                                              cost(batch(detail))
                                                 ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
                                                                                              sku(detail),
                                                                                              supplierStock(detail),
@@ -177,10 +177,10 @@ price (UserShipmentDetail detail)  <- IF batch(detail)
 @implementStockDocumentLedgerInc(Shipment, supplierStock);
 type(Shipment l) += 'Продажа-возврат' IF l IS Shipment;
 overSumItemShipmentDetail = ABSTRACT NUMERIC[18,4] (Shipment);
-sumItem (Shipment ledger) += OVERRIDE sumItemShipmentDetail(ledger), overSumItemShipmentDetail(ledger);
+sumItem (Shipment ledger) += OVERRIDE overSumItemShipmentDetail(ledger), sumItemShipmentDetail(ledger);
 
 overSumContainerShipmentDetail = ABSTRACT NUMERIC[18,4] (Shipment);
-sumContainer (Shipment ledger) += OVERRIDE sumContainerShipmentDetail(ledger), overSumContainerShipmentDetail(ledger);
+sumContainer (Shipment ledger) += OVERRIDE overSumContainerShipmentDetail(ledger), sumContainerShipmentDetail(ledger);
 
 legalEntity(Shipment ledger) += customer(ledger);  
 legalEntityStock(Shipment ledger) += customerStock(ledger);  

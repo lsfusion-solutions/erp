@@ -86,7 +86,7 @@ createEVAT 'Создать ЭСЧФ' (Receipt r) = {
 	        
 	                date(e) <- date(r);
 	                codeDocType (e) <- 603;
-	                blankCodeDoc (e) <- OVERRIDE '402861', blankCodeDoc();
+	                blankCodeDoc (e) <- OVERRIDE blankCodeDoc(), '402861';
 	                numberDoc(e) <- VARSTRING[100](number(r));
 	                unpSender(e) <- UNP(legalEntityDepartmentStore(r));
 	        
@@ -94,14 +94,14 @@ createEVAT 'Создать ЭСЧФ' (Receipt r) = {
 	                customer(e) <- customer();  
 	                
 	                //Грузоотправитель
-	                consignor(e) <- VARISTRING[200](OVERRIDE name(legalEntityDepartmentStore(r)), fullName(legalEntityDepartmentStore(r)));
+	                consignor(e) <- VARISTRING[200](OVERRIDE fullName(legalEntityDepartmentStore(r)), name(legalEntityDepartmentStore(r)));
 	                countryCodeConsignor (e) <- sid(country(legalEntityDepartmentStore(r)));
-	                unpConsignor (e) <- OVERRIDE UNP(legalEntityDepartmentStore(r)), UNPForeign(legalEntityDepartmentStore(r)); 
+	                unpConsignor (e) <- OVERRIDE UNPForeign(legalEntityDepartmentStore(r)), UNP(legalEntityDepartmentStore(r)); 
 	                shippingAddressConsignor(e) <- address(departmentStore(r));
 	                //Грузополучатель
-	                consignee(e) <- VARISTRING[200](OVERRIDE name(customer()), fullName(customer()));
+	                consignee(e) <- VARISTRING[200](OVERRIDE fullName(customer()), name(customer()));
 	                countryCodeConsignee (e) <- sid(country(customer()));
-	                unpConsignee (e) <- OVERRIDE UNP(customer()), UNPForeign(customer()); 
+	                unpConsignee (e) <- OVERRIDE UNPForeign(customer()), UNP(customer()); 
 	                shippingAddressConsignee(e) <- address(stock(customer()));
 	
 	                FOR receipt(ReceiptDetail rd) == r AND quantity(rd) > 0 NEW ed = EVATDetail DO {

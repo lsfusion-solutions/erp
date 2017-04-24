@@ -41,13 +41,13 @@ nearestParentInclude (SnapshotType snapshotType, StockGroup stockGroup) = stockG
 nearestInclude (SnapshotType snapshotType, StockGroup stockGroup) = dataInclude(snapshotType, nearestParentInclude (snapshotType, stockGroup));
 
 include 'Вкл' (SnapshotType snapshotType, StockGroup stockGroup) =
-    OVERRIDE allStockInclude(snapshotType) IF stockGroup IS StockGroup,
-             nearestInclude (snapshotType, stockGroup), 
-             dataInclude(snapshotType, stockGroup) PERSISTENT;
+    OVERRIDE dataInclude(snapshotType, stockGroup), 
+             nearestInclude (snapshotType, stockGroup),
+             allStockInclude(snapshotType) IF stockGroup IS StockGroup PERSISTENT;
 
 include 'Вкл' (SnapshotType snapshotType, Stock stock) =
-    (OVERRIDE include(snapshotType, stockGroup(stock)),
-             dataInclude(snapshotType, stock)) IF isCompany(stock) PERSISTENT;
+    (OVERRIDE dataInclude(snapshotType, stock),
+             include(snapshotType, stockGroup(stock))) IF isCompany(stock) PERSISTENT;
                         
 @defineBackgroundNearestBoolean(allStockInclude, include, snapshotType, stock, nearestInclude, isCompany);            
                           
@@ -80,8 +80,8 @@ nearestParentInclude (SnapshotType snapshotType, SkuGroup skuGroup) = skuGroup(s
 nearestInclude (SnapshotType snapshotType, SkuGroup skuGroup) = dataInclude(snapshotType, nearestParentInclude (snapshotType, skuGroup));
 
 include 'Вкл' (SnapshotType snapshotType, SkuGroup skuGroup) =
-    OVERRIDE nearestInclude (snapshotType, skuGroup), 
-             dataInclude(snapshotType, skuGroup) PERSISTENT;    
+    OVERRIDE dataInclude(snapshotType, skuGroup), 
+             nearestInclude (snapshotType, skuGroup) PERSISTENT;    
                       
 include 'Вкл' (SnapshotType snapshotType, Sku sku) = include(snapshotType, skuGroup(sku));  
                     
@@ -623,13 +623,13 @@ nearestParentInclude (Snapshot snapshot, StockGroup stockGroup) = stockGroup(sto
 nearestInclude (Snapshot snapshot, StockGroup stockGroup) = dataInclude(snapshot, nearestParentInclude (snapshot, stockGroup));
 
 include 'Вкл' (Snapshot snapshot, StockGroup stockGroup) =
-    OVERRIDE allStockInclude(snapshot) IF stockGroup IS StockGroup,
-             nearestInclude (snapshot, stockGroup), 
-             dataInclude(snapshot, stockGroup) PERSISTENT;
+    OVERRIDE dataInclude(snapshot, stockGroup), 
+             nearestInclude (snapshot, stockGroup),
+             allStockInclude(snapshot) IF stockGroup IS StockGroup PERSISTENT;
 
 include 'Вкл' (Snapshot snapshot, Stock stock) =
-    (OVERRIDE include(snapshot, stockGroup(stock)),
-             dataInclude(snapshot, stock)) IF isCompany(stock) PERSISTENT;
+    (OVERRIDE dataInclude(snapshot, stock),
+             include(snapshot, stockGroup(stock))) IF isCompany(stock) PERSISTENT;
 countIncludeStocks= GROUP SUM 1 IF include(Snapshot r,Stock st) BY r;
 
 deleteIncludeStocks 'Сбросить отмеченные'(Snapshot r) = {
@@ -677,8 +677,8 @@ nearestParentInclude (Snapshot snapshot, SkuGroup skuGroup) = skuGroup(skuGroup,
 nearestInclude (Snapshot snapshot, SkuGroup skuGroup) = dataInclude(snapshot, nearestParentInclude (snapshot, skuGroup));
 
 include 'Вкл' (Snapshot snapshot, SkuGroup skuGroup) =
-    OVERRIDE nearestInclude (snapshot, skuGroup), 
-             dataInclude(snapshot, skuGroup) PERSISTENT;    
+    OVERRIDE dataInclude(snapshot, skuGroup), 
+             nearestInclude (snapshot, skuGroup) PERSISTENT;    
                       
 include 'Вкл' (Snapshot snapshot, Sku sku) = include(snapshot, skuGroup(sku));  
                     

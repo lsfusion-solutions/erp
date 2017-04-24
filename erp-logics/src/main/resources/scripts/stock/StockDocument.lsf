@@ -11,7 +11,7 @@ CLASS ABSTRACT OutStockDocumentLedger 'Учетный документ (расх
 type 'Тип процесса' (ledger) = ABSTRACT VARSTRING[50] (StockDocumentLedger) PERSISTENT;
 
 overOrder  (ledger) = ABSTRACT INTEGER (StockDocumentLedger);
-order 'Порядок' = OVERRIDE 1000000 IF StockDocumentLedger l IS StockDocumentLedger, overOrder(l);
+order 'Порядок' = OVERRIDE overOrder(l), 1000000 IF StockDocumentLedger l IS StockDocumentLedger;
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (StockDocumentLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 close 'Закрыть' = ACTION ABSTRACT LIST (StockDocumentLedger) TOOLBAR;
@@ -43,8 +43,8 @@ captionStockDocument 'Название операции в товарном от
 returnCaptionStockDocument 'Название операции в товарном отчете (возврат)' = ABSTRACT VARISTRING[100] (Operation);
 
 nameOperation 'Операция' (StockDocumentLedger ledger) = IF isReturn(ledger) 
-    THEN OVERRIDE overName(operation(ledger)), returnCaptionStockDocument(operation(ledger))
-    ELSE OVERRIDE name(operation(ledger)), captionStockDocument(operation(ledger));
+    THEN OVERRIDE returnCaptionStockDocument(operation(ledger)), overName(operation(ledger))
+    ELSE OVERRIDE captionStockDocument(operation(ledger)), name(operation(ledger));
 
 description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (StockDocumentLedger) PERSISTENT;
 
@@ -440,8 +440,8 @@ META implementStockDocumentLedgerOver (concrete, stockProp, objClass)
     number###stockProp##DocumentLedger = ABSTRACT VARSTRING[28] (objClass) PERSISTENT;
     series###stockProp##DocumentLedger = ABSTRACT STRING[2] (objClass) PERSISTENT;
 
-    series[###stockProp##DocumentLedger] (objClass ledger) += OVERRIDE series(ledger), series###stockProp##DocumentLedger(ledger);
-    number[###stockProp##DocumentLedger] (objClass ledger) += OVERRIDE number(ledger), number###stockProp##DocumentLedger(ledger);
+    series[###stockProp##DocumentLedger] (objClass ledger) += OVERRIDE series###stockProp##DocumentLedger(ledger), series(ledger);
+    number[###stockProp##DocumentLedger] (objClass ledger) += OVERRIDE number###stockProp##DocumentLedger(ledger), number(ledger);
     dateTime (objClass ledger) += dateTime(ledger);
     isPosted[###stockProp##DocumentLedger] (objClass ledger) += isPosted(ledger);
     isClosed[###stockProp##DocumentLedger] (objClass ledger) += isClosed(ledger);

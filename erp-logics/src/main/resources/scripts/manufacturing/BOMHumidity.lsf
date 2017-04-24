@@ -28,29 +28,29 @@ changePercentDryness(Component component)  = {
                                               
 //------------------------- Производственная рецептура --------------------------//
 
-overBruttoQuantity 'Выход полуфабрикатов' (Component c,DATE dt)=bruttoQuantity(c,dt)* (OVERRIDE 1.0 IF c IS Component, overNetWeight(c));
+overBruttoQuantity 'Выход полуфабрикатов' (Component c,DATE dt)=bruttoQuantity(c,dt)* (OVERRIDE overNetWeight(c), 1.0 IF c IS Component);
 
 // -- по всей спецификации
 
 recBruttoDrynessQuantity 'В сухих веществах' (BOM BOM, Item sku, DATE date)= recBruttoQuantity (BOM, sku, date) *
-    (OVERRIDE 1.0 IF sku IS Sku, netWeight(sku)) *
+    (OVERRIDE netWeight(sku), 1.0 IF sku IS Sku) *
     percentDryness(sku)/100;
 
 quantity 'Кол-во для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= recBruttoQuantity (BOM(material(component)), sku, date) *
     bruttoQuantity(component, date)/
     (quantity[Product](material(component)) IF quantity[Product](material(component))!=0) *
-    (OVERRIDE 1.0 IF sku IS Sku, netWeight[Item](sku))
+    (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)
     ;
 quantityBom 'Кол-во по спец. для полуфабрикатов' (BOM, sku, date) = GROUP SUM quantity(Component component, Sku sku, DATE date) BY BOM(component), sku, date;
 quantity 'Итого сырья на полуфабрикаты' (component, date) = GROUP SUM quantity(Component component, Sku sku, DATE date) BY component, date;
 
 drynessQuantityBom 'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBom(BOM BOM, Item sku, DATE date)*percentDryness(sku)/100;
 
-recBruttoQuantity 'Кол-во компонентов в натуре' (BOM, date) = GROUP SUM recBruttoQuantity (BOM BOM, Sku sku, DATE date)*(OVERRIDE 1.0 IF sku IS Sku, netWeight[Item](sku)) BY BOM, date;
+recBruttoQuantity 'Кол-во компонентов в натуре' (BOM, date) = GROUP SUM recBruttoQuantity (BOM BOM, Sku sku, DATE date)*(OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku) BY BOM, date;
 recBruttoDrynessQuantity 'В сухих веществах' (BOM, date) = GROUP SUM recBruttoDrynessQuantity(BOM BOM, Item sku, DATE date) BY BOM, date;
 
 drynessQuantity 'Кол-во для комонента(товар) в сухих веществах' (Component cc,DATE dt)=  bruttoQuantity(cc,dt) * 
-                                                                                       (OVERRIDE 1.0 IF cc IS Component, overNetWeight(cc)) *
+                                                                                       (OVERRIDE overNetWeight(cc), 1.0 IF cc IS Component) *
                                                                                        percentDryness(cc)/100;
 drynessQuantity 'Кол-во для комонентов сухих веществах' (Component c) = overNettoNetWeight(c) * percentDryness(c)/100;
 drynessQuantityComponents 'Кол-во по комонентам в сухих веществах' (b) = GROUP SUM drynessQuantity(Component c) BY BOM(c);
@@ -69,9 +69,9 @@ percentHumidityProduct 'Влажность' (Component c) = percentHumidity(mate
 // todo: может быть так правильнее ????
 
 drynessQuantity'Кол-во в сухих веществах для нетто' (BOM BOM,Item sku) = recNettoQuantity(BOM,sku) *
-                                                                          (OVERRIDE 1.0 IF BOM IS BOM , netWeight(sku)) *
+                                                                          (OVERRIDE netWeight(sku) , 1.0 IF BOM IS BOM) *
                                                                           percentDryness(sku)/100;
-nettoQuantity 'Кол-во нетто' (BOM BOM,Sku sku) = recNettoQuantity(BOM,sku) * (OVERRIDE 1.0 IF BOM IS BOM , netWeight[Item](sku));  
+nettoQuantity 'Кол-во нетто' (BOM BOM,Sku sku) = recNettoQuantity(BOM,sku) * (OVERRIDE netWeight[Item](sku) , 1.0 IF BOM IS BOM);  
 nettoQuantity 'Кол-во нетто' (BOM) = GROUP SUM nettoQuantity(BOM BOM,Sku sku) BY BOM;                                                                        
                                                                           
 overDrynessQuantity 'Кол-вов сухих веществах для нетто' (BOM) = GROUP SUM drynessQuantity(BOM BOM,Item sku) BY BOM;
@@ -137,7 +137,7 @@ printProductionRecipe 'Производственная рецептура'(BOM 
 //------------------------- Расчет пищевой ценности --------------------------//
 
 recBruttoNetQuantity 'В натуре' (BOM BOM, Sku sku, DATE d)= recBruttoQuantity(BOM, sku, d) *
-    (OVERRIDE 1.0 IF sku IS Sku, netWeight[Item](sku));
+    (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku);
 
 //-- все берем на 100 грамм
 

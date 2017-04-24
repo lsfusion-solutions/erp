@@ -38,7 +38,7 @@ CONSTRAINT  supplier(SaleReport o) AND NOT isSupplier(supplier(o))
 company = DATA LegalEntity (SaleReport);
 nameCompany 'Компания' (SaleReport o) = name(company(o)) IN documentPrm;
 
-currency (SaleReport saleReport) <- OVERRIDE currency(company(saleReport)), currency(companyStock(saleReport)) 
+currency (SaleReport saleReport) <- OVERRIDE currency(companyStock(saleReport)), currency(company(saleReport)) 
     WHEN CHANGED(companyStock(saleReport)) OR CHANGED (company(saleReport));
 
 
@@ -145,8 +145,8 @@ fillData 'Заполнить данные'(SaleReport report) = {
                 
                 quantity(d) <- NUMERIC[14,3](quantitySold(batch, companyStock(report), fromDate(report), toDate(report)));
                 price(d) <- price(invoiceDetail(batch));
-                VAT(d) <- OVERRIDE VAT(sku(batch)), VAT(batch);
-                valueVAT(d) <- OVERRIDE valueVAT(sku(batch)), valueVAT(batch);
+                VAT(d) <- OVERRIDE VAT(batch), VAT(sku(batch));
+                valueVAT(d) <- OVERRIDE valueVAT(batch), valueVAT(sku(batch));
                 
                 sum(d) <- NUMERIC[18,4](round(quantity(d) * price(d), currency(d)));
                 VATSum(d) <- NUMERIC[16,4](round(sum(d) * valueVAT(d) / 100.0, currency(d)));                                                                                                                                      
@@ -172,8 +172,8 @@ fillData 'Заполнить данные'(SaleReport report) = {
                 
                 quantity(d) <- NUMERIC[14,3](quantitySoldCompanyFromTo(batch, company(report), fromDate(report), toDate(report)));
                 price(d) <- price(invoiceDetail(batch));
-                VAT(d) <- OVERRIDE VAT(sku(batch)), VAT(batch);
-                valueVAT(d) <- OVERRIDE valueVAT(sku(batch)), valueVAT(batch);
+                VAT(d) <- OVERRIDE VAT(batch), VAT(sku(batch));
+                valueVAT(d) <- OVERRIDE valueVAT(batch), valueVAT(sku(batch));
                 
                 sum(d) <- NUMERIC[18,4](round(quantity(d) * price(d), currency(d)));
                 VATSum(d) <- NUMERIC[16,4](round(sum(d) * valueVAT(d) / 100.0, currency(d)));                                                                                                                                      
@@ -644,7 +644,7 @@ CONSTRAINT (SETCHANGED (fromDate(SaleReport r) ) OR SET(isPosted(r)))
     MESSAGE 'Есть акты реализации с периодом позже данного. Необходимо распровести более поздние акты';
     
 WHEN SESSION FORMS saleReport SET (SaleReport r IS SaleReport) OR SETCHANGED (companyStock(r)) OR SETCHANGED (supplier(r)) OR SETCHANGED (contractSku(r)) DO {
-    fromDate(r) <- OVERRIDE firstDayOfMonth(currentDate()), sum(maxToDatePostedSaleSupplier(r, companyStock(r), supplier(r), contractSku(r)), 1);
+    fromDate(r) <- OVERRIDE sum(maxToDatePostedSaleSupplier(r, companyStock(r), supplier(r), contractSku(r)), 1), firstDayOfMonth(currentDate());
 }
 WHEN SESSION FORMS saleReport SET (SaleReport r IS SaleReport) DO {
     toDate(r) <- lastDayOfMonth(currentDate());

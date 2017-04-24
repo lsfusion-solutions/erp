@@ -84,7 +84,7 @@ META defineDocumentPack(object, detail, f)
         INPUT n = NUMERIC[14,3] DO {
             amountPack[User###detail](detail) <- n;
             IF NOT skipChangeQuantity(detail) THEN {
-                quantity[User###detail](detail) <- packQuantity[User###detail](detail)*(OVERRIDE 1.0, amountPack[User###detail](detail));
+                quantity[User###detail](detail) <- packQuantity[User###detail](detail)*(OVERRIDE amountPack[User###detail](detail), 1.0);
             }        
             overChangeAmountPackUser(detail, n);
         }
@@ -94,7 +94,7 @@ META defineDocumentPack(object, detail, f)
         INPUT n = NUMERIC[16,5] DO {
             packQuantity(detail) <- n;
             IF NOT skipChangeQuantity(detail) THEN {
-                quantity(detail) <- NUMERIC[16,5](packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)));
+                quantity(detail) <- NUMERIC[16,5](packQuantity(detail)*(OVERRIDE amountPack(detail), 1.0));
             }
         }
     }
@@ -134,7 +134,7 @@ META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
             IF detail###stockProp(sku, object, stock) THEN {
                 IF n THEN {
                     packQuantity(###detail detail) <- n WHERE detail == detail###stockProp(sku, object, stock);
-                    quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) 
+                    quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE amountPack(detail), 1.0) 
                                             WHERE detail == detail###stockProp(sku, object, stock) AND NOT skipChangeQuantity(detail###stockProp(sku, object, stock));
                 } ELSE {
                     FOR detail###stockProp(sku, object, stock) == ###detail d DO
@@ -146,7 +146,7 @@ META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
                        object(d) <- object;
                        skuProp(d) <- sku;
                        packQuantity (d) <- n;
-                       quantity(d) <- packQuantity(d) * (OVERRIDE 1.0, amountPack(d));
+                       quantity(d) <- packQuantity(d) * (OVERRIDE amountPack(d), 1.0);
                        shipmentDataDate (d) <- shipmentDate(object);
                        shipmentDataTime (d) <- shipmentTime(object);
                     }
@@ -159,7 +159,7 @@ META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
             IF detail###stockProp(sku, object, stock) THEN {
                 IF n THEN {
                     amountPack(###detail detail) <- n WHERE detail == detail###stockProp(sku, object, stock);
-                    quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) 
+                    quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE amountPack(detail), 1.0) 
                                             WHERE detail == detail###stockProp(sku, object, stock) AND packQuantity(detail) AND NOT skipChangeQuantity(detail###stockProp(sku, object, stock));
                 } ELSE {
                     amountPack(###detail detail) <- NULL WHERE detail == detail###stockProp(sku, object, stock);
@@ -201,7 +201,7 @@ META defineDocumentPackSku(object, detail, skuProp, stockProp)
             IF detail(sku, object) THEN {
                 IF n THEN {
                     packQuantity(###detail detail) <- n WHERE detail == detail(sku, object);
-                    quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail(sku, object) AND NOT skipChangeQuantity(detail(sku, object));
+                    quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE amountPack(detail), 1.0) WHERE detail == detail(sku, object) AND NOT skipChangeQuantity(detail(sku, object));
                                     
                 } ELSE {
                     FOR detail(sku, object) == ###detail d DO 
@@ -213,7 +213,7 @@ META defineDocumentPackSku(object, detail, skuProp, stockProp)
                         object(d) <- object;
                         skuProp(d) <- sku;
                         packQuantity (d) <- n;
-                        quantity(d) <- packQuantity(d) * (OVERRIDE 1.0, amountPack(d));
+                        quantity(d) <- packQuantity(d) * (OVERRIDE amountPack(d), 1.0);
                     }
             }
     }
@@ -222,7 +222,7 @@ META defineDocumentPackSku(object, detail, skuProp, stockProp)
             IF detail(sku, object) THEN {
                 IF n THEN {
                     amountPack(###detail detail) <- n WHERE detail == detail(sku, object);
-                    quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail(sku, object) AND packQuantity(detail) AND NOT skipChangeQuantity(detail(sku, object));
+                    quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE amountPack(detail), 1.0) WHERE detail == detail(sku, object) AND packQuantity(detail) AND NOT skipChangeQuantity(detail(sku, object));
                 } ELSE {
                     amountPack(###detail detail) <- NULL WHERE detail == detail(sku, object);
                 }

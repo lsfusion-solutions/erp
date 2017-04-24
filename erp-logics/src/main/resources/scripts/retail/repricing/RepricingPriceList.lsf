@@ -36,18 +36,18 @@ includeExtraDashboardRepricing = ACTION ABSTRACT (Stock, Operation, DATETIME);
 calculateDashboardRepricing 'По надбавкам и прайсам'(Stock d, Operation o, DATETIME dt) = {
     DIALOG dialogSkuGroup DO {              
         IF onStockPriceListRepricing() THEN {
-            managementRetailPrice (Sku sku) <- priceA((OVERRIDE retailCalcPriceListType(d), calcPriceListType(o)), sku, d, dt) 
-                IF NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) AND inSession(skuGroup(sku));
+            managementRetailPrice (Sku sku) <- priceA((OVERRIDE calcPriceListType(o), retailCalcPriceListType(d)), sku, d, dt) 
+                IF NOT skipManagementPriceList((OVERRIDE priceListType(o), retailPriceListType(d)),sku, d, dt) AND inSession(skuGroup(sku));
             overSetMarkupManagementRetailPrice(d, o, dt);
-            managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt)
-                IF NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) AND inSession(skuGroup(sku));
+            managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE priceListType(o), retailPriceListType(d)),sku, d, dt)
+                IF NOT skipManagementPriceList((OVERRIDE priceListType(o), retailPriceListType(d)),sku, d, dt) AND inSession(skuGroup(sku));
             managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
         } ELSE {
-            managementRetailPrice (Sku sku) <- priceA((OVERRIDE retailCalcPriceListType(d), calcPriceListType(o)), sku, d, dt)
-                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) AND inSession(skuGroup(sku));
+            managementRetailPrice (Sku sku) <- priceA((OVERRIDE calcPriceListType(o), retailCalcPriceListType(d)), sku, d, dt)
+                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList((OVERRIDE priceListType(o), retailPriceListType(d)),sku, d, dt) AND inSession(skuGroup(sku));
             overSetMarkupManagementRetailPrice(d, o, dt);
-            managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt)
-                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) AND inSession(skuGroup(sku));
+            managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE priceListType(o), retailPriceListType(d)),sku, d, dt)
+                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList((OVERRIDE priceListType(o), retailPriceListType(d)),sku, d, dt) AND inSession(skuGroup(sku));
             managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
         }
         
@@ -65,12 +65,12 @@ calculateDashboardRepricing 'По надбавкам и прайсам'(Stock d,
 calculateDashboardManagementRepricing 'По прайсам'(Stock d, Operation o, DATETIME dt) = {
     managementRetailPrice(Sku sku) <- NULL;
     IF onStockPriceListRepricing() THEN {
-        managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt)
-            IF NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt);
+        managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE priceListType(o), retailPriceListType(d)),sku, d, dt)
+            IF NOT skipManagementPriceList((OVERRIDE priceListType(o), retailPriceListType(d)),sku, d, dt);
         managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku) AND skuType(sku) != SkuType.skuTypeContainer;
     } ELSE {
-        managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) 
-            IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt);
+        managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE priceListType(o), retailPriceListType(d)),sku, d, dt) 
+            IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList((OVERRIDE priceListType(o), retailPriceListType(d)),sku, d, dt);
         managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku) AND skuType(sku) != SkuType.skuTypeContainer;
     }
     

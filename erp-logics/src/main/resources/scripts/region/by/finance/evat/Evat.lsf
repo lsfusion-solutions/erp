@@ -203,14 +203,14 @@ codeDocType 'Код вида документа' = DATA INTEGER (EVAT);
 valueDocType 'Название вида документа' = DATA VARSTRING[100] (EVAT);
 blankCodeDoc 'Код типа бланка' = DATA VARSTRING[100] (EVAT);
 dataDateDoc 'Дата' = DATA DATE (EVAT);
-dateDoc 'Дата' (EVAT e)= OVERRIDE date(e), dataDateDoc(e);
+dateDoc 'Дата' (EVAT e)= OVERRIDE dataDateDoc(e), date(e);
 seriesDoc 'Серия' = DATA VARSTRING[100] (EVAT);
 numberDoc 'Номер' = DATA VARSTRING[100] (EVAT);
 descriptionDoc 'Дополнительные сведения' = DATA VARSTRING[100] (EVAT);
 unpSender 'Субъект хозяйствования, составляющий ЭСЧФ' = DATA VARSTRING[100](EVAT);
 exportYear 'Год для экспорта' = DATA INTEGER (EVAT);
 
-exportNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + (OVERRIDE Time.extractYear(currentDate()) IF e IS EVAT, exportYear(e) ) + '-' + VARSTRING[100](lpad(number(e), 10, '0'));
+exportNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + (OVERRIDE exportYear(e), Time.extractYear(currentDate()) IF e IS EVAT ) + '-' + VARSTRING[100](lpad(number(e), 10, '0'));
 exportDNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + exportYear(e) + '-' + VARSTRING[100](lpad(number(e), 10, '0'));
 EVATExportNumber 'ЭСЧФ по номеру для экспорта' = GROUP AGGR EVAT e BY exportDNumber(e); 
 
@@ -232,7 +232,7 @@ EXTEND FORM legalEntities
 
 //Поставщик
 supplier 'Поставщик' = DATA LegalEntity(EVAT);
-nameSupplier 'Поставщик' (EVAT evat) = OVERRIDE name(supplier(evat)), fullName(supplier(evat));
+nameSupplier 'Поставщик' (EVAT evat) = OVERRIDE fullName(supplier(evat)), name(supplier(evat));
 branchCodeSupplier 'Код филиала поставщика' = DATA INTEGER (EVAT);
 addressSupplier 'Адрес поставщика' (EVAT evat) = address(supplier(evat));
 dependentPersonSupplier 'Взаимозависимое лицо' = DATA BOOLEAN (EVAT);
@@ -242,7 +242,7 @@ bigCompanySupplier 'Крупный плательщик (поставщик)' = 
 //countryConsignor = DATA Country(EVAT);// страна ввоза
 //countryCodeSupplier 'Код страны грузоотправителя' (EVAT evat) = sid(OVERRIDE country(supplier(evat)), countryConsignor(evat));
 countryCodeSupplier 'Код страны поставщика' (EVAT evat) = sid(country(supplier(evat)));
-unpSupplier 'УНП поставщика' (EVAT evat) = OVERRIDE UNP(supplier(evat)), UNPForeign(supplier(evat));
+unpSupplier 'УНП поставщика' (EVAT evat) = OVERRIDE UNPForeign(supplier(evat)), UNP(supplier(evat));
 legalEntityStatusSupplier 'Статус поставщика' = DATA LegalEntityStatus (EVAT);
 nameLegalEntityStatusSupplier 'Статус поставщика' (EVAT evat) = staticName(legalEntityStatusSupplier(evat));
 captionLegalEntityStatusSupplier 'Статус поставщика' (EVAT evat) = staticCaption(legalEntityStatusSupplier(evat));
@@ -252,7 +252,7 @@ captionLegalEntityStatusSupplier 'Статус поставщика' (EVAT evat)
 noCustomer 'Без покупателя' = DATA BOOLEAN (EVAT);
 
 customer 'Получатель' = DATA LegalEntity(EVAT);
-nameCustomer 'Получатель' (EVAT evat) = OVERRIDE name(customer(evat)), fullName(customer(evat));
+nameCustomer 'Получатель' (EVAT evat) = OVERRIDE fullName(customer(evat)), name(customer(evat));
 branchCodeCustomer 'Код филиала получателя' = DATA INTEGER (EVAT);
 addressCustomer 'Адрес получателя' (EVAT evat) = address(customer(evat));
 dependentPersonCustomer 'Взаимозависимое лицо' = DATA BOOLEAN (EVAT);

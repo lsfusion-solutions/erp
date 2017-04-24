@@ -330,20 +330,20 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     
     overExpiryDate = ABSTRACT DATE (UserInvoiceDetail);
     calcExpiryDate (UserInvoiceDetail d) = OVERRIDE 
+        overExpiryDate(d),
         (IF expiryMonth(sku(d)) 
             THEN sumMonth(manufactureDate(d), expiryMonth(sku(d)))
-            ELSE sum(manufactureDate(d), expiryDays(sku(d)))),
-        overExpiryDate(d);
+            ELSE sum(manufactureDate(d), expiryDays(sku(d))));
         
     WHEN SESSION FORMS userInvoice (CHANGED(manufactureDate(UserInvoiceDetail d)) OR CHANGED(sku(d))) AND NOT batch(d) AND manufactureDate(d) DO {
         expiryDate(d) <- calcExpiryDate(d);            
     } 
     overManufactureDate = ABSTRACT DATE (UserInvoiceDetail);
     calcManufactureDate (UserInvoiceDetail d) = OVERRIDE 
+        overManufactureDate(d),
         (IF expiryMonth(sku(d)) 
             THEN sumMonth(expiryDate(d), -expiryMonth(sku(d)))
-            ELSE sum(expiryDate(d), -expiryDays(sku(d)))),
-        overManufactureDate(d);     
+            ELSE sum(expiryDate(d), -expiryDays(sku(d))));     
            
     WHEN SESSION FORMS userInvoice (CHANGED(expiryDate(UserInvoiceDetail d)) OR CHANGED(sku(d))) AND NOT batch(d) AND expiryDate(d) DO {
         manufactureDate(d) <- calcManufactureDate(d);            

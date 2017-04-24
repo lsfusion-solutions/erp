@@ -46,7 +46,7 @@ CONSTRAINT currency(typeExchange(Declaration declaration)) != homeCurrency(decla
 
 rateExchange 'Курс накладных' = DATA NUMERIC[14,6](Declaration);
 dataDateExchange  = DATA DATE(Declaration);
-dateExchange 'Дата (курс накладных)'= OVERRIDE date(Declaration d), dataDateExchange(d);
+dateExchange 'Дата (курс накладных)'= OVERRIDE dataDateExchange(d), date(Declaration d);
 
 dataDateExchange(Declaration declaration) <- date(declaration) WHEN CHANGED (date(declaration));
 
@@ -139,7 +139,7 @@ EXTEND FORM declarations
 
 // свойства товаров
 overNameCustoms = ABSTRACT VARISTRING[255](UserInvoiceDetail);
-nameCustoms 'Наименование (декл.)' (UserInvoiceDetail d) = OVERRIDE name(sku(d)), overNameCustoms(d);
+nameCustoms 'Наименование (декл.)' (UserInvoiceDetail d) = OVERRIDE overNameCustoms(d), name(sku(d));
 
 // страна производства
 countrySku = country(sku(InvoiceDetail invoiceDetail));
@@ -430,7 +430,7 @@ sum (DeclarationInvoiceDetail d) <- quantity(d) * price(d)
 sumDeclarationInvoiceDetail 'Сумма (по позициям декларации)' = GROUP SUM sum(DeclarationInvoiceDetail d)
                                                                                BY declaration(d) MINCHARWIDTH 15;
 
-noneVATCustomsException(UserInvoiceDetail d) = OVERRIDE VATCustomsException.none, VATCustomsException(d);
+noneVATCustomsException(UserInvoiceDetail d) = OVERRIDE VATCustomsException(d), VATCustomsException.none;
 
 notPrice 'Не учитывать цену в декларации' = DATA BOOLEAN (Brand);
 
@@ -438,7 +438,7 @@ EXTEND FORM brand
     PROPERTIES (t) notPrice
 ;
 
-overridePriceUser(InvoiceDetail d) = OVERRIDE price[UserInvoiceDetail](d), 1 IF notPrice(brand(sku(d)));
+overridePriceUser(InvoiceDetail d) = OVERRIDE 1 IF notPrice(brand(sku(d))), price[UserInvoiceDetail](d);
 
 indexDeclaration 'Кол-во' = GROUP MAX index(UserInvoiceDetail d)
                                            BY declaration(d),
@@ -728,7 +728,7 @@ numberDefault 'Номер' (DeclarationDetail d) =
         PARTITION SUM 1 IF d IS DeclarationDetail AND NOT userNumber(d) BY declaration(d)
         ORDER numberOrder(d), d;
 
-number 'Номер' (DeclarationDetail declarationDetail) = OVERRIDE numberDefault(declarationDetail), userNumber(declarationDetail) MINCHARWIDTH 4 PREFCHARWIDTH 4 IN recognize;
+number 'Номер' (DeclarationDetail declarationDetail) = OVERRIDE userNumber(declarationDetail), numberDefault(declarationDetail) MINCHARWIDTH 4 PREFCHARWIDTH 4 IN recognize;
 
 fillExported (Declaration declaration) = {
     isExported(declaration) <- TRUE;
@@ -782,7 +782,7 @@ homeSumDeclarationDetail 'Стоимость (декл.)' = GROUP SUM homeSum(De
 dutySumDeclarationDetail 'Пошлина' (declaration) = GROUP SUM dutySum(DeclarationDetail declarationDetail)
                                                                     BY declaration(declarationDetail) MINCHARWIDTH 15 PERSISTENT;
 dataDutySum 'Пошлина' (declaration) = DATA NUMERIC[18,4] (Declaration) MINCHARWIDTH 15;                                                                 
-dutySum 'Пошлина' (Declaration declaration)  =  OVERRIDE dutySumDeclarationDetail(declaration), dataDutySum(declaration);                                                                    
+dutySum 'Пошлина' (Declaration declaration)  =  OVERRIDE dataDutySum(declaration), dutySumDeclarationDetail(declaration);                                                                    
 backgroundDutySum = RGB(222,222,222) IF dataDutySum(Declaration declaration);
 changeDutySum(Declaration declaration) = {
     INPUT n = NUMERIC[18,4] DO
@@ -794,7 +794,7 @@ changeDutySum(Declaration declaration) = {
 VATSumDeclarationDetail 'НДС' (declaration) = GROUP SUM VATSum(DeclarationDetail declarationDetail)
                                                                    BY declaration(declarationDetail) MINCHARWIDTH 15 PERSISTENT;
 dataVATSum 'НДС' (declaration) = DATA NUMERIC[18,4] (Declaration) MINCHARWIDTH 15;  
-VATSum 'НДС' (Declaration declaration)  = OVERRIDE VATSumDeclarationDetail(declaration), dataVATSum(declaration);
+VATSum 'НДС' (Declaration declaration)  = OVERRIDE dataVATSum(declaration), VATSumDeclarationDetail(declaration);
 backgroundVATSum = RGB(222,222,222) IF dataVATSum(Declaration declaration);
 changeVATSum(Declaration declaration) = {
     INPUT n = NUMERIC[18,4] DO
@@ -885,22 +885,22 @@ changeVATSum (DeclarationAdjustment a, DeclarationDetail d) = {
             VATSum(a, d) <- NULL;
 }
 
-adjustHomeSum 'Стоимость (корр.)' (DeclarationDetail d) = OVERRIDE homeSum(d), homeSum(defaultHomeDeclarationAdjustment(d),d);
+adjustHomeSum 'Стоимость (корр.)' (DeclarationDetail d) = OVERRIDE homeSum(defaultHomeDeclarationAdjustment(d),d), homeSum(d);
 adjustHomePrice 'Цена (корр.)' (DeclarationDetail d) = adjustHomeSum(d) / quantity(d);
 
-adjustDutySum 'Пошлина (корр.)' (DeclarationDetail d) = OVERRIDE dutySum(d), dutySum(defaultDutyDeclarationAdjustment(d),d);
+adjustDutySum 'Пошлина (корр.)' (DeclarationDetail d) = OVERRIDE dutySum(defaultDutyDeclarationAdjustment(d),d), dutySum(d);
 adjustDutySumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP SUM adjustDutySum(DeclarationDetail declarationDetail)
                                                                     BY declaration(declarationDetail) MINCHARWIDTH 15 PERSISTENT;
 
-adjustDutySum 'Пошлина (корр.)' (Declaration d) = OVERRIDE adjustDutySumDeclarationDetail(d), dataDutySum(d); 
+adjustDutySum 'Пошлина (корр.)' (Declaration d) = OVERRIDE dataDutySum(d), adjustDutySumDeclarationDetail(d); 
 
-adjustVATSum 'Сумма НДС (корр.)'(DeclarationDetail d) = OVERRIDE VATSum(d), VATSum(defaultVATDeclarationAdjustment(d),d);
+adjustVATSum 'Сумма НДС (корр.)'(DeclarationDetail d) = OVERRIDE VATSum(defaultVATDeclarationAdjustment(d),d), VATSum(d);
 adjustVATPrice 'НДС за ед. (корр.)' (DeclarationDetail d) = adjustVATSum(d) / quantity(d);
 
 adjustVATSumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP SUM adjustVATSum(DeclarationDetail declarationDetail)
                                                                     BY declaration(declarationDetail) MINCHARWIDTH 15 PERSISTENT;
 
-adjustVATSum 'НДС (корр.)' (Declaration d) = OVERRIDE adjustVATSumDeclarationDetail(d), dataVATSum(d); 
+adjustVATSum 'НДС (корр.)' (Declaration d) = OVERRIDE dataVATSum(d), adjustVATSumDeclarationDetail(d); 
 
 // ---------------------------------------------------- Суммы расходов по документу -------------------------------- //
 
@@ -1114,7 +1114,7 @@ EXTEND FORM declaration
 
 // -------------------------------------- Создание строк по позициям деклараций -------------------------- //
 
-noneVATCustomsException(DeclarationInvoiceDetail d) = OVERRIDE VATCustomsException.none, VATCustomsException(d);
+noneVATCustomsException(DeclarationInvoiceDetail d) = OVERRIDE VATCustomsException(d), VATCustomsException.none;
 
 isSet = ABSTRACT BOOLEAN (DeclarationInvoiceDetail);
 overSet = ACTION ABSTRACT LIST (DeclarationInvoiceDetail);

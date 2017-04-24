@@ -138,11 +138,11 @@ META defineDocumentHeaderPricingCommittee(object, stockClass, prefix)
     CONSTRAINT data###prefix##HeadMan(###object object) AND NOT in(stockClass(object), data###prefix##HeadMan(object)) AND NOT allowStockEmployee()
         CHECKED BY data###prefix##HeadMan[###object] MESSAGE 'В качестве "Зав. магазином" выбран сотрудник, который не является сотрудником склада документа.'; 
     
-    prefix###formedMan 'Цены сформировал' (###object object) = OVERRIDE formedMan(prefix###pricingCommittee(object)), data###prefix##FormedMan(object);
-    prefix###checkedMan 'Реестр проверил' (###object object) = OVERRIDE checkedMan(prefix###pricingCommittee(object)), data###prefix##CheckedMan(object);
-    prefix###labeledMan 'Товар промаркировал' (###object object) = OVERRIDE labeledMan(prefix###pricingCommittee(object)), data###prefix##LabeledMan(object);
-    prefix###accountantMan 'Бухгалтер' (###object object) = OVERRIDE accountantMan(prefix###pricingCommittee(object)), data###prefix##AccountantMan(object);
-    prefix###headMan 'Зав. магазином' (###object object) = OVERRIDE headMan(prefix###pricingCommittee(object)), data###prefix##HeadMan(object);
+    prefix###formedMan 'Цены сформировал' (###object object) = OVERRIDE data###prefix##FormedMan(object), formedMan(prefix###pricingCommittee(object));
+    prefix###checkedMan 'Реестр проверил' (###object object) = OVERRIDE data###prefix##CheckedMan(object), checkedMan(prefix###pricingCommittee(object));
+    prefix###labeledMan 'Товар промаркировал' (###object object) = OVERRIDE data###prefix##LabeledMan(object), labeledMan(prefix###pricingCommittee(object));
+    prefix###accountantMan 'Бухгалтер' (###object object) = OVERRIDE data###prefix##AccountantMan(object), accountantMan(prefix###pricingCommittee(object));
+    prefix###headMan 'Зав. магазином' (###object object) = OVERRIDE data###prefix##HeadMan(object), headMan(prefix###pricingCommittee(object));
     
     name###prefix##FormedMan 'Сформировал' (###object object) = name[Contact](prefix###formedMan(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
     name###prefix##CheckedMan 'Проверил' (###object object) = name[Contact](prefix###checkedMan(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
@@ -173,11 +173,11 @@ META defineDocumentHeaderAbstractPricingCommittee(object, stockClass, prefix)
     data###prefix##AccountantMan 'Бухгалтер' (object) = ABSTRACT Employee (###object);
     data###prefix##HeadMan 'Зав. магазином' (object) = ABSTRACT Employee (###object);    
 
-    prefix###formedMan 'Цены сформировал' (###object object) = OVERRIDE formedMan(prefix###pricingCommittee(object)), data###prefix##FormedMan(object);
-    prefix###checkedMan 'Реестр проверил' (###object object) = OVERRIDE checkedMan(prefix###pricingCommittee(object)), data###prefix##CheckedMan(object);
-    prefix###labeledMan 'Товар промаркировал' (###object object) = OVERRIDE labeledMan(prefix###pricingCommittee(object)), data###prefix##LabeledMan(object);
-    prefix###accountantMan 'Бухгалтер' (###object object) = OVERRIDE accountantMan(prefix###pricingCommittee(object)), data###prefix##AccountantMan(object);
-    prefix###headMan 'Зав. магазином' (###object object) = OVERRIDE headMan(prefix###pricingCommittee(object)), data###prefix##HeadMan(object);
+    prefix###formedMan 'Цены сформировал' (###object object) = OVERRIDE data###prefix##FormedMan(object), formedMan(prefix###pricingCommittee(object));
+    prefix###checkedMan 'Реестр проверил' (###object object) = OVERRIDE data###prefix##CheckedMan(object), checkedMan(prefix###pricingCommittee(object));
+    prefix###labeledMan 'Товар промаркировал' (###object object) = OVERRIDE data###prefix##LabeledMan(object), labeledMan(prefix###pricingCommittee(object));
+    prefix###accountantMan 'Бухгалтер' (###object object) = OVERRIDE data###prefix##AccountantMan(object), accountantMan(prefix###pricingCommittee(object));
+    prefix###headMan 'Зав. магазином' (###object object) = OVERRIDE data###prefix##HeadMan(object), headMan(prefix###pricingCommittee(object));
     
     name###prefix##FormedMan 'Цены сформировал' (###object object) = name[Contact](prefix###formedMan(object)) IN pricingCommittee;
     name###prefix##CheckedMan 'Реестр проверил' (###object object) = name[Contact](prefix###checkedMan(object)) IN pricingCommittee;
@@ -491,8 +491,8 @@ overPricingPrice (UserPricingDetail detail) += overPricingPrice(detail);
 
 over1PricingPrice = ABSTRACT NUMERIC[16,4] (PricingDetail) PERSISTENT;
 
-pricingPrice (UserPricingDetail detail) = OVERRIDE price(detail), overPricingPrice(detail) PERSISTENT;
-pricingPrice (PricingDetail detail) = OVERRIDE price(detail), overPricingPrice(detail), over1PricingPrice(detail) PERSISTENT;
+pricingPrice (UserPricingDetail detail) = OVERRIDE overPricingPrice(detail), price(detail) PERSISTENT;
+pricingPrice (PricingDetail detail) = OVERRIDE over1PricingPrice(detail), overPricingPrice(detail), price(detail) PERSISTENT;
 
 // Надбавка
 @defineDocumentInterfaceDetailMarkupPrefix (pricing, retail, );

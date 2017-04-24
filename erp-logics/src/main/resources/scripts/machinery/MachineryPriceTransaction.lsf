@@ -143,7 +143,7 @@ descriptionPriceTransactionDocument 'Основание загрузки' (Machi
 
 // todo : persistent почему-то не работает
 description 'Основание' (MachineryPriceTransaction document) =
-    OVERRIDE descriptionPriceTransactionDocument(document), comment(document);
+    OVERRIDE comment(document), descriptionPriceTransactionDocument(document);
 
 countProcess 'Кол-во ожидающих транзакций' (document) = GROUP SUM 1 IF process(MachineryPriceTransaction transaction)
                                                                                  BY priceTransactionDocument(transaction) PERSISTENT;
@@ -740,7 +740,7 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
                 }                    
             }
 
-            message() <- message() + (OVERRIDE 'Без наименования', name(groupMachinery)) + ' - ' + countSku() + ' товаров ('+countBarcode()+' штрих-кодов).\n' ;
+            message() <- message() + (OVERRIDE name(groupMachinery), 'Без наименования') + ' - ' + countSku() + ' товаров ('+countBarcode()+' штрих-кодов).\n' ;
             sentSomething() <- TRUE;
         }
     }
@@ -869,7 +869,7 @@ END
 META defineMachineryPriceTransactionAttributeAction(object, caption, type, nameProp)
     @defineMachineryPriceTransactionAttributeBase(object, caption, nameProp);
     over###object = ABSTRACT type (MachineryPriceTransaction, Barcode);
-    createAttribute(MachineryPriceTransaction t) += { ASSIGN object(t, Barcode barcode) <- OVERRIDE object(barcode), over###object(t, barcode)
+    createAttribute(MachineryPriceTransaction t) += { ASSIGN object(t, Barcode barcode) <- OVERRIDE over###object(t, barcode), object(barcode)
                                                           WHERE in(t, barcode); }
 END
 

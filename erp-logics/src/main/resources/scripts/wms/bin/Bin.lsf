@@ -227,9 +227,9 @@ nearestParent (Stock stock, BinGroup binGroup) =
 nearestIn (Stock stock, BinGroup binGroup) =
     dataIn(stock, nearestParent(stock, binGroup));
 
-in 'Отм.' (Stock stock, BinGroup binGroup) = OVERRIDE nearestIn (stock, binGroup), dataIn(stock, binGroup) PERSISTENT;
+in 'Отм.' (Stock stock, BinGroup binGroup) = OVERRIDE dataIn(stock, binGroup), nearestIn (stock, binGroup) PERSISTENT;
 
-in 'Отм.' (Stock stock, Bin bin) = OVERRIDE in(stock, binGroup(bin)), dataIn(stock, bin) PERSISTENT;
+in 'Отм.' (Stock stock, Bin bin) = OVERRIDE dataIn(stock, bin), in(stock, binGroup(bin)) PERSISTENT;
 
 countIn = GROUP SUM 1 IF binGroup(Bin bin)==BinGroup group AND in(Stock stock, bin) BY stock, group;
 
@@ -259,10 +259,10 @@ nearestParentBin (Stock stock, Group group) = group(group, levelParentBin (stock
 nearestInBin  (Stock stock, Group group) =
     dataBin(stock, nearestParentBin (stock, group)) PERSISTENT;
 
-bin (Stock stock, Group group) = OVERRIDE nearestInBin(stock, group), dataBin(stock, group) PERSISTENT;
+bin (Stock stock, Group group) = OVERRIDE dataBin(stock, group), nearestInBin(stock, group) PERSISTENT;
 nameBin 'Ячейка'= name(bin(Stock stock, Group group)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
-bin (Stock stock, Sku sku) = OVERRIDE bin(stock, group(groupType(stock), sku)), dataBin(stock, sku) PERSISTENT;
+bin (Stock stock, Sku sku) = OVERRIDE dataBin(stock, sku), bin(stock, group(groupType(stock), sku)) PERSISTENT;
 nameBin 'Ячейка'= name(bin(Stock stock, Sku sku)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
 CONSTRAINT dataBin(Stock stock, Group group) AND NOT in(stock, dataBin(stock, group))

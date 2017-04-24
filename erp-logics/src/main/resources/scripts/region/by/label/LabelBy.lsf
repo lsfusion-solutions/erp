@@ -7,13 +7,13 @@ NAMESPACE Label;
 trunc = FORMULA INTEGER 'trunc($1)';
 
 priceRubB 'Рубли' (LabelTransactionDetail d) = trunc(price(d));
-priceKopB 'Копейки' (LabelTransactionDetail d) = lpad((OVERRIDE '' IF priceRubB(d), VARSTRING[2](round0(abs(priceRubB(d) (-) price(d))*100.0))), 2, '0');
+priceKopB 'Копейки' (LabelTransactionDetail d) = lpad((OVERRIDE VARSTRING[2](round0(abs(priceRubB(d) (-) price(d))*100.0)), '' IF priceRubB(d)), 2, '0');
 
 retailPriceRubB 'Рубли (цена до)' (LabelTransactionDetail d) = trunc(retailPrice(d));
-retailPriceKopB 'Копейки (цена до)' (LabelTransactionDetail d) = lpad((OVERRIDE '' IF retailPriceRubB(d), VARSTRING[2](round0(abs(retailPriceRubB(d) (-) retailPrice(d))*100.0))), 2, '0');
+retailPriceKopB 'Копейки (цена до)' (LabelTransactionDetail d) = lpad((OVERRIDE VARSTRING[2](round0(abs(retailPriceRubB(d) (-) retailPrice(d))*100.0)), '' IF retailPriceRubB(d)), 2, '0');
 
 discountPriceRubB 'Рубли (скидка)' (LabelTransactionDetail d) = trunc(discountSum(d));
-discountPriceKopB 'Копейки (скидка)' (LabelTransactionDetail d) = lpad((OVERRIDE '' IF discountPriceRubB(d), VARSTRING[2](round0(abs(discountPriceRubB(d) (-) discountSum(d))*100.0))), 2, '0');
+discountPriceKopB 'Копейки (скидка)' (LabelTransactionDetail d) = lpad((OVERRIDE VARSTRING[2](round0(abs(discountPriceRubB(d) (-) discountSum(d))*100.0)), '' IF discountPriceRubB(d)), 2, '0');
 
 
 priceA 'Цена' (LabelTransactionDetail d) = price(d) * 10000;
@@ -34,7 +34,7 @@ EXTEND FORM labelTransactions
 
 @defineOption(minVolumeLabelBy, 'Объем/Вес для цены за 100г (0,05 = 50г)', NUMERIC[10,3], label);
 
-overMinVolumeLabelBy() = OVERRIDE 0.25, minVolumeLabelBy();
+overMinVolumeLabelBy() = OVERRIDE minVolumeLabelBy(), 0.25;
 
 basePrice 'Цена за базовую единицу' (LabelTransactionDetail d) = IF printFullPrice(skuGroup(sku(d))) THEN CASE 
                                                                                                           WHEN volume(sku(d)) <= overMinVolumeLabelBy() THEN round2(price(d) / volume(sku(d)) / 10.0 )
@@ -49,7 +49,7 @@ basePriceName 'Базовая единица' (LabelTransactionDetail d) = IF pr
                                                                                                           WHEN netWeight(sku(d)) != 1.0 THEN '1кг' ;
                                                                                                           
 basePriceRub 'Рубли (за б.е.)' (LabelTransactionDetail d) = trunc(basePrice(d));
-basePriceKop 'Копейки (за б.е.)' (LabelTransactionDetail d) = OVERRIDE 0.0 IF basePrice(d), round0((basePrice(d) (-) basePriceRub(d)) * 100.0);
+basePriceKop 'Копейки (за б.е.)' (LabelTransactionDetail d) = OVERRIDE round0((basePrice(d) (-) basePriceRub(d)) * 100.0), 0.0 IF basePrice(d);
 
 baseRetailPrice 'Цена за базовую единицу до' (LabelTransactionDetail d) = IF printFullPrice(skuGroup(sku(d))) THEN CASE 
                                                                                                           WHEN volume(sku(d)) <= overMinVolumeLabelBy() THEN round2(retailPrice(d) / volume(sku(d)) / 10.0 )

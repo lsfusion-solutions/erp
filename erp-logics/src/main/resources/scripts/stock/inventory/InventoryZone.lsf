@@ -66,7 +66,7 @@ nameCommission 'Комиссия' (TerminalDocument d) = name(commission(d));
 TABLE inventoryInventory (Inventory, TerminalDocument);
 
 dataCountCommissions 'Кол-во комиссий для принятия решений' = DATA INTEGER (Inventory);
-countCommissions 'Кол-во комиссий для принятия решений' (Inventory in) = OVERRIDE 2 IF in IS Inventory, dataCountCommissions(in);
+countCommissions 'Кол-во комиссий для принятия решений' (Inventory in) = OVERRIDE dataCountCommissions(in), 2 IF in IS Inventory;
 in 'Вкл.' = DATA BOOLEAN (Inventory, TerminalDocument);
 in 'Вкл.' (Inventory i, TerminalDocumentDetail d) = in(i, terminalDocument(d));
 
@@ -85,7 +85,7 @@ quantity = GROUP SUM quantity(TerminalDocumentDetail d) IF in(Inventory i, d) BY
 countValue = GROUP SUM 1 BY quantity(Inventory i, Zone z, Commission c, Sku s), i,z,s;
 overToQuantity = GROUP MIN NUMERIC[14,3] q IF countValue( q, Inventory i, Zone z, Sku s) >= countCommissions(i) BY i,z,s; 
 
-toQuantity 'В опись' (Inventory i, Zone z, Sku s) = OVERRIDE  overToQuantity(i,z,s), dataQuantity(i,z,s);
+toQuantity 'В опись' (Inventory i, Zone z, Sku s) = OVERRIDE  dataQuantity(i,z,s), overToQuantity(i,z,s);
 toQuantity = GROUP SUM toQuantity(Inventory i, Zone z, Sku s) BY i,z;
 
 background (Inventory i, Zone z, Sku s) =  CASE

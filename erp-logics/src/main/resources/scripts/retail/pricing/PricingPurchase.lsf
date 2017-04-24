@@ -72,7 +72,7 @@ WHEN SESSION FORMS userInvoice
      AND NOT skipSetRetailPriceListType(detail) NOINLINE (pt) DO
      retailPriceListType(detail) <- IF prevPriceB(pt, sku(detail), customerStock(detail), pricingDateTime(detail))
                                         THEN pt
-                                        ELSE OVERRIDE calcRetailCalcPriceListType(detail), extraCalcRetailCalcPriceListType(detail);
+                                        ELSE OVERRIDE extraCalcRetailCalcPriceListType(detail), calcRetailCalcPriceListType(detail);
 
 WHEN SESSION FORMS userInvoice
     (CHANGED(calcRetailPriceListType(UserInvoiceDetail detail)) OR
@@ -82,9 +82,9 @@ WHEN SESSION FORMS userInvoice
      (CHANGED(pricingDateTime(detail)) AND NOT isPosted(detail))) 
      AND NOT calcRetailPriceListType(detail)
      AND NOT skipSetRetailPriceListType(detail) DO
-     retailPriceListType(detail) <- OVERRIDE calcRetailCalcPriceListType(detail), extraCalcRetailCalcPriceListType(detail);     
+     retailPriceListType(detail) <- OVERRIDE extraCalcRetailCalcPriceListType(detail), calcRetailCalcPriceListType(detail);     
 
-batch(InvoicePricingDetail detail) += OVERRIDE shipmentBatch(invoiceShipmentDetail(invoiceDetail(detail))), batch(invoiceDetail(detail));
+batch(InvoicePricingDetail detail) += OVERRIDE batch(invoiceDetail(detail)), shipmentBatch(invoiceShipmentDetail(invoiceDetail(detail)));
 edit (InvoicePricingDetail d)+= { edit(invoiceDetail(d)); }
 
 
@@ -168,14 +168,14 @@ recalculateRetailPriceAndType 'Пересчитать вид цен и розн�
         
         retailPriceListType(detail) <- IF prevPriceB(pt, sku(detail), customerStock(detail), pricingDateTime(detail))
                                        THEN pt
-                                       ELSE OVERRIDE calcRetailCalcPriceListType(detail), extraCalcRetailCalcPriceListType(detail);
+                                       ELSE OVERRIDE extraCalcRetailCalcPriceListType(detail), calcRetailCalcPriceListType(detail);
     } 
        
     FOR sku(UserInvoiceDetail detail) AND NOT calcRetailPriceListType(detail)
         AND NOT skipSetRetailPriceListType(detail) 
         AND [= FILTER userInvoice.pd](detail) DO {
         
-        retailPriceListType(detail) <- OVERRIDE calcRetailCalcPriceListType(detail), extraCalcRetailCalcPriceListType(detail);    
+        retailPriceListType(detail) <- OVERRIDE extraCalcRetailCalcPriceListType(detail), calcRetailCalcPriceListType(detail);    
     } 
     recalculateRetailPrice();
 } 

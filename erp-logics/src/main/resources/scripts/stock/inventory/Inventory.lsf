@@ -150,8 +150,8 @@ nearestParentInclude (Inventory inventory, SkuGroup skuGroup) = skuGroup(skuGrou
 nearestInclude (Inventory inventory, SkuGroup skuGroup) = dataInclude(inventory, nearestParentInclude (inventory, skuGroup));
 
 include 'Вкл' (Inventory inventory, SkuGroup skuGroup) =
-    OVERRIDE nearestInclude (inventory, skuGroup), 
-             dataInclude(inventory, skuGroup) PERSISTENT;    
+    OVERRIDE dataInclude(inventory, skuGroup), 
+             nearestInclude (inventory, skuGroup) PERSISTENT;    
                       
 include 'Вкл' (Inventory inventory, Sku sku) = include(inventory, skuGroup(sku));  
 countIncludeSkuGroup 'Вкл' (inventory) = GROUP SUM 1 IF include(Inventory inventory, SkuGroup sku) BY inventory;     
@@ -198,8 +198,8 @@ CONSTRAINT isPartly(Inventory in) AND NOT isRemains(in)
 userTypeOfAddition(stock, inventory) = DATA TypeOfAddition (Stock, Inventory);
 nameUserTypeOfAddition 'Тип инвентаризации' (Stock stock, Inventory inventory) = staticCaption(userTypeOfAddition(stock, inventory));
 
-typeOfAddition(Stock stock, Inventory inventory) = OVERRIDE typeOfAddition(inventory) IF stock IS Stock,
-                                                          userTypeOfAddition(stock, inventory);
+typeOfAddition(Stock stock, Inventory inventory) = OVERRIDE userTypeOfAddition(stock, inventory),
+                                                          typeOfAddition(inventory) IF stock IS Stock;
 
 CONSTRAINT include(Stock stock, Inventory inventory) AND NOT typeOfAddition(stock, inventory) MESSAGE 'Ошибка: Не задан тип сличительной ведомости для выбранного отдела';
 userTypeOfAddition(Stock stock, Inventory inventory) => include(stock, inventory) RESOLVE RIGHT;
@@ -231,7 +231,7 @@ isSku (ListInventory listInventory) = isSku(inventory(listInventory));
 GROUP inventoryCommittee 'Комиссия' : public;
 
 userCommittee(listInventory) = DATA InventoryCommittee (ListInventory);
-committee(ListInventory listInventory) = OVERRIDE committee(inventory(listInventory)), userCommittee(listInventory);
+committee(ListInventory listInventory) = OVERRIDE userCommittee(listInventory), committee(inventory(listInventory));
 nameCommittee 'Название комиссии' (ListInventory listInventory) = name(committee(listInventory)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
 nameChairmanCommittee 'Председатель комиссии' (ListInventory listInventory) = nameChairman(committee(listInventory)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
 namePositionChairman 'Должность председателя' (ListInventory listInventory)  = namePositionChairman(committee(listInventory)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
@@ -342,9 +342,9 @@ typeOfAddition(CollationSheet collationSheet)= typeOfAddition(stock(collationShe
 nameTypeOfAddition 'Тип сличительной ведомости' (CollationSheet collationSheet) = staticCaption(typeOfAddition(collationSheet)) IN base MINCHARWIDTH 20 PREFCHARWIDTH 20;
 
 in (Inventory inventory, Stock stock, ListInventory listInventory, PageInventory pageInventory, PageInventoryDetail pageInventoryDetail) = OVERRIDE
-    pageInventory(pageInventoryDetail) == pageInventory AND listInventory IS ListInventory AND stock IS Stock AND inventory IS Inventory,
+    stock(pageInventoryDetail) == stock AND inventory == inventory(pageInventoryDetail) AND NOT pageInventory AND NOT listInventory,
     listInventory(pageInventoryDetail) == listInventory AND stock IS Stock AND NOT pageInventory AND inventory IS Inventory,
-    stock(pageInventoryDetail) == stock AND inventory == inventory(pageInventoryDetail) AND NOT pageInventory AND NOT listInventory;
+    pageInventory(pageInventoryDetail) == pageInventory AND listInventory IS ListInventory AND stock IS Stock AND inventory IS Inventory;
 
 description 'Название документа' (CollationSheet collationSheet) = CONCAT ' ', 
     'Сличительная ведомость',
@@ -365,7 +365,7 @@ calcPrevDate 'Дата предыдущей инвентаризации' (Colla
 //                                                  WHERE isPosted(cs) AND date(cs) < dateIn COMPLEX; // возможно следует учитывать операцию    
 
 overPrevDate= ABSTRACT DATE (CollationSheet); // для даты полной инвентаризации
-prevDate 'Дата предыдущей инвентаризации' (CollationSheet collationSheet) = OVERRIDE sum(calcPrevDate(collationSheet), 1), sum(overPrevDate(collationSheet), 1), userPrevDate(collationSheet);
+prevDate 'Дата предыдущей инвентаризации' (CollationSheet collationSheet) = OVERRIDE userPrevDate(collationSheet), sum(overPrevDate(collationSheet), 1), sum(calcPrevDate(collationSheet), 1);
 //prevDate 'Дата предыдущей инвентаризации' (CollationSheet collationSheet) = OVERRIDE sum(date(calcPrevCollationSheet(stock(collationSheet), date(collationSheet))), 1), userPrevDate(collationSheet);
 
 // Комиссии
@@ -487,17 +487,17 @@ overPriceBalance = ABSTRACT NUMERIC[16,4](CollationSheet, Sku);
 recalculatePrice 'Пересчитать цены в сличительной ведомости' (CollationSheet collationSheet) = {
     IF isBatch (collationSheet) THEN {
         price(PageInventoryDetail pageInventoryDetail)
-            <- OVERRIDE overPriceBalance(collationSheet, sku(pageInventoryDetail)), priceB(SystemLedgerPriceListType.accountPriceListType, batch(pageInventoryDetail), stock(pageInventoryDetail), dateTime(pageInventoryDetail))
+            <- OVERRIDE priceB(SystemLedgerPriceListType.accountPriceListType, batch(pageInventoryDetail), stock(pageInventoryDetail), dateTime(pageInventoryDetail)), overPriceBalance(collationSheet, sku(pageInventoryDetail))
             WHERE collationSheet(pageInventoryDetail) == collationSheet;
     } ELSE {
         price(PageInventoryDetail pageInventoryDetail)
-            <- OVERRIDE overPriceBalance(collationSheet, sku(pageInventoryDetail)), priceB(SystemLedgerPriceListType.accountPriceListType, sku(pageInventoryDetail), stock(pageInventoryDetail), dateTime(pageInventoryDetail))
+            <- OVERRIDE priceB(SystemLedgerPriceListType.accountPriceListType, sku(pageInventoryDetail), stock(pageInventoryDetail), dateTime(pageInventoryDetail)), overPriceBalance(collationSheet, sku(pageInventoryDetail))
             WHERE collationSheet(pageInventoryDetail) == collationSheet;
     }
 
     IF isPartly(inventory(collationSheet)) AND isRemains(inventory(collationSheet)) THEN { 
         priceBalance(collationSheet, Sku sku)
-            <- OVERRIDE overPriceBalance(collationSheet, sku), priceB(SystemLedgerPriceListType.accountPriceListType, sku, stock(collationSheet), dateTime(inventory(collationSheet)))
+            <- OVERRIDE priceB(SystemLedgerPriceListType.accountPriceListType, sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku)
             WHERE include(inventory(collationSheet), sku);
             
         IF NOT isPrice(inventory(collationSheet)) THEN {
@@ -519,7 +519,7 @@ recalculatePrice 'Пересчитать цены в сличительной в
     }
     ELSE {
         priceBalance(collationSheet, Sku sku)
-            <- OVERRIDE overPriceBalance(collationSheet, sku), priceB(SystemLedgerPriceListType.accountPriceListType, sku, stock(collationSheet), dateTime(inventory(collationSheet)));
+            <- OVERRIDE priceB(SystemLedgerPriceListType.accountPriceListType, sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku);
             
         IF NOT isPrice(inventory(collationSheet)) THEN {
             sumBalance(collationSheet, Sku sku)
@@ -606,7 +606,7 @@ calcQuantityPageInventoryDetail 'Кол-во по описям' (collationSheet,
 
 calcPartitionQuantity (CollationSheet cs, Batch batch) = 
     PARTITION UNGROUP notBatchQuantityPageInventoryDetail
-           LIMIT STRICT OVERRIDE 0.0 IF countLedger(batch, stock(cs)) AND dateTime(batch) < dateTime(cs), (balanceB(batch, stock(cs), dateTime(cs)) (-) calcQuantityPageInventoryDetail(cs,batch))                            
+           LIMIT STRICT OVERRIDE (balanceB(batch, stock(cs), dateTime(cs)) (-) calcQuantityPageInventoryDetail(cs,batch)), 0.0 IF countLedger(batch, stock(cs)) AND dateTime(batch) < dateTime(cs)                            
            BY cs, sku(batch)
            ORDER order(batch);
                                                            
@@ -616,8 +616,8 @@ quantityPageInventoryDetail 'Кол-во по описям' (CollationSheet cs, 
          
 //quantityPageInventoryDetail 'Кол-во по описям' (collationSheet, batch) = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
 //    BY collationSheet(pageInventoryDetail), batch(pageInventoryDetail);
-pricePageInventoryDetail 'Цена по описям' (CollationSheet collationSheet, Batch batch) = OVERRIDE priceBalance(collationSheet, batch), 
-    [ =GROUP MAX price(PageInventoryDetail d) BY collationSheet(listInventory(d)), batch(d)](collationSheet, batch);
+pricePageInventoryDetail 'Цена по описям' (CollationSheet collationSheet, Batch batch) = OVERRIDE [ =GROUP MAX price(PageInventoryDetail d) BY collationSheet(listInventory(d)), batch(d)](collationSheet, batch), 
+    priceBalance(collationSheet, batch);
     
 priceMaxPageInventoryDetail 'Цена по описям' (collationSheet, batch) = GROUP MAX price(PageInventoryDetail d) 
     BY collationSheet(listInventory(d)), batch(d);   
@@ -685,12 +685,12 @@ sumPageInventoryDetail 'Сумма по описям' (CollationSheet cs) = IF i
 
 include(CollationSheet collationSheet, Sku sku) = MULTI
     collationSheet IS RegisterCollationSheet IF countPageInventoryDetail(collationSheet, sku),
-    (OVERRIDE in(collationSheet, sku), collationSheet IS ManyCollationSheet IF quantityPageInventoryDetail(collationSheet, sku)),
+    (OVERRIDE collationSheet IS ManyCollationSheet IF quantityPageInventoryDetail(collationSheet, sku), in(collationSheet, sku)),
     (collationSheet IS RemainsCollationSheet IF (quantityBalance(collationSheet, sku) != 0 OR sumBalance(collationSheet, sku) OR quantityPageInventoryDetail(collationSheet, sku)));
 overInclude = ABSTRACT BOOLEAN (CollationSheet, Sku);
 
-priceBalance(CollationSheet collationSheet, Sku sku) <- OVERRIDE overPriceBalance(collationSheet, sku), prevPriceB(SystemLedgerPriceListType.accountPriceListType,
-                sku, stock(collationSheet), dateTime(inventory(collationSheet)))
+priceBalance(CollationSheet collationSheet, Sku sku) <- OVERRIDE prevPriceB(SystemLedgerPriceListType.accountPriceListType,
+                sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku)
                 WHEN SET(include(collationSheet, sku));
 
 // ------------------------------ Определение состава сличительной ведомости (Batch) ------------------------------------ //
@@ -881,7 +881,7 @@ overReplace(Sku d) += {
         WHERE countPageInventoryDetail(collationSheet, d) AND isBatch(inventory(collationSheet));        
         
     priceBalance(CollationSheet collationSheet, d)
-        <- OVERRIDE overPriceBalance(collationSheet, d), priceB(SystemLedgerPriceListType.accountPriceListType, d, stock(collationSheet), dateTime(inventory(collationSheet)))
+        <- OVERRIDE priceB(SystemLedgerPriceListType.accountPriceListType, d, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, d)
         WHERE countPageInventoryDetail(collationSheet, d);
 
     sumBalance(CollationSheet collationSheet, d)
@@ -1067,7 +1067,7 @@ description 'Название документа' (OutInventorySkuDetail invento
 description 'Название документа' (InInventorySkuDetail inventorySkuDetail) =
     'Излишек по инвентаризации ' + name(collationSheet(inventorySkuDetail)) + ' от ' + date(collationSheet(inventorySkuDetail));
 
-description 'Название документа' (InventorySkuDetail inventorySkuDetail) = OVERRIDE description[OutInventorySkuDetail](inventorySkuDetail), description[InInventorySkuDetail](inventorySkuDetail);
+description 'Название документа' (InventorySkuDetail inventorySkuDetail) = OVERRIDE description[InInventorySkuDetail](inventorySkuDetail), description[OutInventorySkuDetail](inventorySkuDetail);
 
 @implementSkuLedger(inventorySkuDetail, sku, stock);
 
@@ -1177,7 +1177,7 @@ description 'Название документа' (OutInventoryBatchDetail inven
 description 'Название документа' (InInventoryBatchDetail inventoryBatchDetail) =
     'Излишек по инвентаризации ' + name(collationSheet(inventoryBatchDetail)) + ' от ' + date(collationSheet(inventoryBatchDetail));
 
-description 'Название документа' (InventoryBatchDetail inventoryBatchDetail) = OVERRIDE description[OutInventoryBatchDetail](inventoryBatchDetail), description[InInventoryBatchDetail](inventoryBatchDetail);
+description 'Название документа' (InventoryBatchDetail inventoryBatchDetail) = OVERRIDE description[InInventoryBatchDetail](inventoryBatchDetail), description[OutInventoryBatchDetail](inventoryBatchDetail);
 
 @implementSkuLedger(inventoryBatchDetail, sku, stock);
 changed(InventoryBatchDetail ledger) += CHANGED(batch(ledger));

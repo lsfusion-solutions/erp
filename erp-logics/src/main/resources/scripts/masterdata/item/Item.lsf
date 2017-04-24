@@ -11,7 +11,7 @@ TABLE itemGroup (ItemGroup);
 @defineNumeratedID(ItemGroup, 'Товарные группы');
 
 extId 'Код' = DATA VARSTRING[100] (ItemGroup);
-overId 'Код' (ItemGroup g) = OVERRIDE id(g), extId(g);
+overId 'Код' (ItemGroup g) = OVERRIDE extId(g), id(g);
 
 name 'Наименование' = DATA VARISTRING[250](ItemGroup) IN base;
 order 'Порядок' = DATA INTEGER (ItemGroup) MINCHARWIDTH 2 PREFCHARWIDTH 2;
@@ -186,7 +186,7 @@ dataImage 'Изображение' = DATA IMAGEFILE (Item);
 loadImage 'Загрузить изображение' (Item item) = { LOADFILE dataImage(item); }
 overImage '' = ABSTRACT IMAGEFILE (Item);
 
-image (Item item) = OVERRIDE dataImage (item), overImage (item);
+image (Item item) = OVERRIDE overImage (item), dataImage (item);
 openImage 'Открыть изображение' (Item item) = { OPENFILE image(item); }
 hasImage (Item item) = TRUE IF image(item) PERSISTENT;
 
@@ -710,9 +710,9 @@ META defineItemAttributeName (prefix, caption, group)
     
     nameConcat###prefix##Attribute = GROUP CONCAT completeName(Item item, ItemAttribute attribute)
                                                    IF numberInName###prefix(attribute, item) AND value(item, attribute), ' ' BY item ORDER numberInName###prefix(attribute, item) PERSISTENT;
-    name###prefix##Attribute 'Наименование'###caption (Item item) = OVERRIDE VARISTRING[255](
-                    nameConcat###prefix##Attribute(item)),
-                            overName(item)
+    name###prefix##Attribute 'Наименование'###caption (Item item) = OVERRIDE overName(item),
+                            VARISTRING[255](
+                    nameConcat###prefix##Attribute(item))
                     IN group PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
     
     background###prefix (ItemAttribute a, ItemGroup g) = RGB(203,203,206) IF numberInName###prefix(a, g) AND NOT numberInName###prefix(a, g) == dataNumberInName###prefix(a,g);   
@@ -773,8 +773,8 @@ META defineItemGroupDefaultValueCustom(property, caption, type, typeIdentity, pr
     nearestParent###property (ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###property(itemGroup));
     nearest###property (ItemGroup itemGroup) = data###property(nearestParent###property (itemGroup));
     property (ItemGroup itemGroup) =
-        OVERRIDE nearest###property (itemGroup), 
-                 data###property(itemGroup) PERSISTENT;    
+        OVERRIDE data###property(itemGroup), 
+                 nearest###property (itemGroup) PERSISTENT;    
     
     propertyTypeIdentity caption (ItemGroup itemGroup) = name(property(itemGroup)) IN defaultItemGroup;    
 END 
@@ -795,8 +795,8 @@ META defineItemGroupDefaultValue(property, caption, type)
     nearestParent###property (ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###property(itemGroup));
     nearest###property (ItemGroup itemGroup) = data###property(nearestParent###property (itemGroup));
     property caption (ItemGroup itemGroup) =
-        OVERRIDE nearest###property (itemGroup), 
-                 data###property(itemGroup) PERSISTENT IN defaultItemGroup;        
+        OVERRIDE data###property(itemGroup), 
+                 nearest###property (itemGroup) PERSISTENT IN defaultItemGroup;        
     
 END 
 META defineItemDefaultValue(property, caption, type)
@@ -815,8 +815,8 @@ META defineItemDefaultValue(property, caption, type, typeIdentity, object)
     nearest##type (###object object, ItemGroup itemGroup) = data##type(object, nearestParent##type (object, itemGroup));
     
     property (###object object, ItemGroup itemGroup) =
-        OVERRIDE nearest##type (object, itemGroup), 
-                 data##type(object, itemGroup) PERSISTENT;    
+        OVERRIDE data##type(object, itemGroup), 
+                 nearest##type (object, itemGroup) PERSISTENT;    
     
     typeIdentity caption (###object object, ItemGroup itemGroup) = name(property(object, itemGroup)) IN defaultItemGroup;
 END 
@@ -830,8 +830,8 @@ META defineItemDefaultValueCustom(property, caption, type, object)
     nearest###property (###object object, ItemGroup itemGroup) = data###property(object, nearestParent###property (object, itemGroup));
     
     property caption (###object object, ItemGroup itemGroup) =
-        OVERRIDE nearest###property (object, itemGroup), 
-                 data###property(object, itemGroup) PERSISTENT;
+        OVERRIDE data###property(object, itemGroup), 
+                 nearest###property (object, itemGroup) PERSISTENT;
                  
     quantityChild###property (object, itemGroup) = GROUP SUM 1 IF 
         data###property(###object object, ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) 
@@ -895,8 +895,8 @@ META defineItemFilterValue(object, captionProp, o)
     nearestIn (###object object, ItemGroup itemGroup) = dataIn(object, nearestParentIn (object, itemGroup));
     
     in 'Вкл' (###object object, ItemGroup itemGroup) =
-        OVERRIDE nearestIn (object, itemGroup), 
-                 dataIn(object, itemGroup) PERSISTENT;    
+        OVERRIDE dataIn(object, itemGroup), 
+                 nearestIn (object, itemGroup) PERSISTENT;    
                  
     quantityChild (object, itemGroup) = GROUP SUM 1 IF 
         dataIn(###object object, ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) 
@@ -1443,7 +1443,7 @@ netWeight(Item i) <- netWeight(UOM(i)) WHEN CHANGED(UOM(i)) AND netWeight(UOM(i)
 grossWeight(Item sku) += grossWeight(sku);
 
 WHEN SESSION (CHANGED(netWeight(Item sku)) OR (CHANGED(UOM(sku) AND grossWeight(UOM(sku))))) AND NOT CHANGED(grossWeight(sku)) DO
-    grossWeight(sku) <- OVERRIDE netWeight(sku), grossWeight(UOM(sku));
+    grossWeight(sku) <- OVERRIDE grossWeight(UOM(sku)), netWeight(sku);
 
 // Кол-во в грузовом месте
 // todo : здесь скорее всего надо будет рефакторить на более сложную логику
@@ -1527,14 +1527,14 @@ DESIGN items {
 // Кассы
 @defineItemAttributeName(cashRegister, ' (кассы)', public);
 dataTitleCashRegister 'Наименование для касс' = DATA VARSTRING[100] (Barcode);
-titleCashRegister 'Наименование для касс' = OVERRIDE nameCashRegisterAttribute(sku(Barcode barcode)), dataTitleCashRegister(barcode) MINCHARWIDTH 30 PREFCHARWIDTH 30;
+titleCashRegister 'Наименование для касс' = OVERRIDE dataTitleCashRegister(barcode), nameCashRegisterAttribute(sku(Barcode barcode)) MINCHARWIDTH 30 PREFCHARWIDTH 30;
 loadDefaultItemAttributes() += {
     ASSIGN numberInNameCashRegister(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 // Весы
 @defineItemAttributeName(scales, ' (весы)', public);
 dataTitleScales 'Наименование для весов' = DATA VARSTRING[100] (Barcode);
-titleScales 'Наименование для весов' = OVERRIDE nameScalesAttribute(sku(Barcode barcode)), dataTitleScales(barcode) MINCHARWIDTH 30 PREFCHARWIDTH 30;
+titleScales 'Наименование для весов' = OVERRIDE dataTitleScales(barcode), nameScalesAttribute(sku(Barcode barcode)) MINCHARWIDTH 30 PREFCHARWIDTH 30;
 loadDefaultItemAttributes() += {
     ASSIGN numberInNameScales(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
@@ -1574,7 +1574,7 @@ META defineNumeratorItemGroup (prefix, caption)
     nearest###prefix##Numerator (ItemGroup itemGroup) = data###prefix##Numerator(nearestParent###prefix##Numerator(itemGroup)) PERSISTENT;
 
     prefix##Numerator (ItemGroup itemGroup) =
-        OVERRIDE nearest###prefix##Numerator(itemGroup), data###prefix##Numerator(itemGroup) PERSISTENT;
+        OVERRIDE data###prefix##Numerator(itemGroup), nearest###prefix##Numerator(itemGroup) PERSISTENT;
     name###prefix##Numerator caption (ItemGroup itemGroup) = name(prefix##Numerator(itemGroup)) MINCHARWIDTH 5 PREFCHARWIDTH 10 MAXCHARWIDTH 10;
 
     background###prefix##Numeratot (ItemGroup itemGroup) = IF data###prefix##Numerator(itemGroup) THEN
@@ -1590,7 +1590,7 @@ END
 pieceNumerator (Item item) = pieceNumerator(itemGroup(item));
 
 overNumerator = ABSTRACT CASE Numerator (Item);
-barcodeNumerator(Item item) += OVERRIDE pieceNumerator(item), overNumerator(item);
+barcodeNumerator(Item item) += OVERRIDE overNumerator(item), pieceNumerator(item);
 
 DESIGN itemGroup {
     main {

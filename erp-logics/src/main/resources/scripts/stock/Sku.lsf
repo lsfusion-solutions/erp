@@ -211,7 +211,7 @@ name 'Наименование' = ABSTRACT VARISTRING[250](SkuGroup) PERSISTENT 
 order 'Порядок' = ABSTRACT INTEGER (SkuGroup) MINCHARWIDTH 2 PREFCHARWIDTH 2;
 id 'Код' = ABSTRACT VARSTRING[100] (SkuGroup) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-sort = OVERRIDE name(SkuGroup g), lpad(VARSTRING[250](order(g)), 20, '0');  
+sort = OVERRIDE lpad(VARSTRING[250](order(g)), 20, '0'), name(SkuGroup g);  
 
 name(SkuGroup group) += name(group) IF group IS SkuGroup;
 order(SkuGroup group) += order(group) IF group IS SkuGroup;
@@ -311,9 +311,9 @@ TABLE skuGroupSku(SkuGroup, Sku);
 isParent (SkuGroup skuGroup, Sku sku) = isParent(skuGroup(sku), skuGroup) PERSISTENT;
 
 netWeight 'Вес нетто' = ABSTRACT NUMERIC[11,5] (Sku) PERSISTENT;
-overNetWeight 'Вес нетто' (Sku sku) = OVERRIDE 1.0 IF sku IS Sku, netWeight(sku);
+overNetWeight 'Вес нетто' (Sku sku) = OVERRIDE netWeight(sku), 1.0 IF sku IS Sku;
 grossWeight 'Вес брутто' = ABSTRACT NUMERIC[11,5] (Sku) PERSISTENT;
-overGrossWeight 'Вес брутто' (Sku sku) = OVERRIDE 1.0 IF sku IS Sku, grossWeight(sku);
+overGrossWeight 'Вес брутто' (Sku sku) = OVERRIDE grossWeight(sku), 1.0 IF sku IS Sku;
 volume 'Объем' = ABSTRACT NUMERIC[9,3] (Sku) PERSISTENT;
 composition 'Состав' = ABSTRACT VARSTRING[255] (Sku) PERSISTENT;
 
@@ -439,8 +439,8 @@ META defineGroupDefaultValue(property, caption, type, groupClass)
     nearestParent###property (###groupClass g) = groupClass(g, levelParent###property(g));
     nearest###property (###groupClass g) = data###property(nearestParent###property (g));
     property caption (###groupClass g) =
-        OVERRIDE nearest###property (g), 
-                 data###property(g) PERSISTENT;        
+        OVERRIDE data###property(g), 
+                 nearest###property (g) PERSISTENT;        
     
 END 
 

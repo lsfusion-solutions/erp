@@ -49,16 +49,16 @@ createEVATPurchaseInvoice (EVAT e, Invoice i) = {
     branchCodeCustomer(e) <- branchCode(customerStock(i));
     
     //Грузоотправитель
-    consignor(e) <- VARISTRING[200](OVERRIDE name(supplier(i)), fullName(supplier(i)));
+    consignor(e) <- VARISTRING[200](OVERRIDE fullName(supplier(i)), name(supplier(i)));
     countryCodeConsignor (e) <- sid(country(supplier(i)));
-    unpConsignor (e) <- OVERRIDE UNP(supplier(i)), UNPForeign(supplier(i)); 
-    shippingAddressConsignor(e) <- OVERRIDE address(supplierStock(i)), dataAddressSupplierStock (i);
+    unpConsignor (e) <- OVERRIDE UNPForeign(supplier(i)), UNP(supplier(i)); 
+    shippingAddressConsignor(e) <- OVERRIDE dataAddressSupplierStock (i), address(supplierStock(i));
     
     //Грузополучатель
-    consignee(e) <- VARISTRING[200](OVERRIDE name(customer(i)), fullName(customer(i)));
+    consignee(e) <- VARISTRING[200](OVERRIDE fullName(customer(i)), name(customer(i)));
     countryCodeConsignee (e) <- sid(country(customer(i)));
-    unpConsignee (e) <- OVERRIDE UNP(customer(i)), UNPForeign(customer(i)); 
-    shippingAddressConsignee(e) <- OVERRIDE address(customerStock(i)), dataAddressCustomerStock (i);
+    unpConsignee (e) <- OVERRIDE UNPForeign(customer(i)), UNP(customer(i)); 
+    shippingAddressConsignee(e) <- OVERRIDE dataAddressCustomerStock (i), address(customerStock(i));
             
     overCreateEVATPurchaseInvoice(e,i);
 } 
@@ -66,9 +66,9 @@ createEVATPurchaseInvoice (EVAT e, Invoice i) = {
 createEVATPurchaseInvoice (EVAT e, InvoiceDetail id, EVATDetail ed) = {
     evat(ed) <- e;
     
-    name(ed) <- VARSTRING[255](OVERRIDE nameSku(id), documentNameSku(id));
+    name(ed) <- VARSTRING[255](OVERRIDE documentNameSku(id), nameSku(id));
     sku(ed) <- sku(id);
-    code(ed) <- OVERRIDE codeCustomsGroup(defaultCountry(), sku(id)), codeCustomsGroup(id);
+    code(ed) <- OVERRIDE codeCustomsGroup(id), codeCustomsGroup(defaultCountry(), sku(id));
     shortNameUOM(ed) <- shortNameUOM(sku(id));
     quantity(ed) <- quantity(id); 
     //            price(ed) <- price(id);

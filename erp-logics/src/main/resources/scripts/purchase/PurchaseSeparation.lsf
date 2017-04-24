@@ -49,15 +49,15 @@ nearestParentSeparation (LegalEntity supplier, SkuGroup skuGroup) = skuGroup(sku
 nearestSeparation (LegalEntity supplier, SkuGroup skuGroup) = dataSeparation(supplier, nearestParentSeparation (supplier, skuGroup));
 
 separation  (LegalEntity supplier, SkuGroup skuGroup) =
-    OVERRIDE nearestSeparation (supplier, skuGroup), 
-             dataSeparation(supplier, skuGroup) PERSISTENT;    
+    OVERRIDE dataSeparation(supplier, skuGroup), 
+             nearestSeparation (supplier, skuGroup) PERSISTENT;    
 nameSeparation 'Признак распределения' (LegalEntity l, SkuGroup g) = name(separation(l,g));
 
 dataSeparation = DATA Separation (LegalEntity, Sku);
 nameDataSeparation 'Признак распределения' (LegalEntity l, Sku s) = name(dataSeparation(l, s));
 
-nullSeparation (LegalEntity l, Sku s) = OVERRIDE separation(l, skuGroup(s)), separation(brand(s), l), dataSeparation(l, s);
-separation (LegalEntity l, Sku s) = OVERRIDE Separation.none IF l IS LegalEntity AND s IS Sku, nullSeparation(l, s);  
+nullSeparation (LegalEntity l, Sku s) = OVERRIDE dataSeparation(l, s), separation(brand(s), l), separation(l, skuGroup(s));
+separation (LegalEntity l, Sku s) = OVERRIDE nullSeparation(l, s), Separation.none IF l IS LegalEntity AND s IS Sku;  
 nameSeparation 'Признак распределения (перегруженный)' (LegalEntity l, Sku s) = name(separation(l,s));
 
 countSeparationSkuGroup  (supplier) = GROUP SUM 1 IF separation(LegalEntity supplier, SkuGroup sku) BY supplier;                       

@@ -75,9 +75,9 @@ nearestPercDeviationDownPrice (Agreement agreement, Group group) =
    dataPercDeviationDownPrice(agreement, nearestParentPercDeviationDownPrice(agreement, group)) PERSISTENT;
 
 percDeviationDownPrice '% отклонения по цене вниз (перегруженный)' (Agreement agreement, Group group) =  OVERRIDE  
-    percDeviationDownPrice(agreement) IF group IS Group,
-    nearestPercDeviationDownPrice(agreement, group), 
-    dataPercDeviationDownPrice(agreement, group) PERSISTENT;
+    dataPercDeviationDownPrice(agreement, group), 
+    nearestPercDeviationDownPrice(agreement, group),
+    percDeviationDownPrice(agreement) IF group IS Group PERSISTENT;
     
 //-- вверх        
 dataPercDeviationUpPrice '% отклонения по цене вверх' (agreement, group) = DATA NUMERIC[8,2] (Agreement, Group);
@@ -90,24 +90,24 @@ nearestPercDeviationUpPrice (Agreement agreement, Group group) =
    dataPercDeviationUpPrice(agreement, nearestParentPercDeviationUpPrice(agreement, group)) PERSISTENT;
 
 percDeviationUpPrice '% отклонения по цене вверх (перегруженный)' (Agreement agreement, Group group) =  OVERRIDE  
-    percDeviationUpPrice(agreement) IF group IS Group,
-    nearestPercDeviationUpPrice(agreement, group), 
-    dataPercDeviationUpPrice(agreement, group) PERSISTENT;    
+    dataPercDeviationUpPrice(agreement, group), 
+    nearestPercDeviationUpPrice(agreement, group),
+    percDeviationUpPrice(agreement) IF group IS Group PERSISTENT;    
 
 // Уточнение по sku
 //-- вниз
 dataPercDeviationDownPrice '% отклонения по цене вниз' (agreement, sku) = DATA NUMERIC[8,2] (Agreement, Sku);
 
 percDeviationDownPrice '% отклонения по цене вниз (перегруженный)' (Agreement agreement, Sku sku) = OVERRIDE     
-    percDeviationDownPrice(agreement, group(groupType(agreement),sku)),
-    dataPercDeviationDownPrice(agreement, sku);
+    dataPercDeviationDownPrice(agreement, sku),
+    percDeviationDownPrice(agreement, group(groupType(agreement),sku));
     
 //-- вверх
 dataPercDeviationUpPrice '% отклонения по цене вверх' (agreement, sku) = DATA NUMERIC[8,2] (Agreement, Sku);
 
 percDeviationUpPrice '% отклонения по цене вверх (перегруженный)' (Agreement agreement, Sku sku) = OVERRIDE     
-    percDeviationUpPrice(agreement, group(groupType(agreement),sku)),
-    dataPercDeviationUpPrice(agreement, sku);
+    dataPercDeviationUpPrice(agreement, sku),
+    percDeviationUpPrice(agreement, group(groupType(agreement),sku));
     
     
 showPercDeviationUpPrice (Agreement a) = [= GROUP SUM 1 IF dataPercDeviationUpPrice(Agreement agreement, Sku sku) BY agreement](a) (+) 

@@ -133,18 +133,18 @@ CONSTRAINT sku(ProductDetail productDetail) != sku(product(productDetail)) CHECK
 expiryDate 'Годен до' = DATA DATE (ProductDetail);
 overManufactureDate = ABSTRACT DATE (ProductDetail);
 calcManufactureDate (ProductDetail d) = OVERRIDE 
+    overManufactureDate(d),
     (IF expiryMonth(sku(d)) 
         THEN sumMonth(expiryDate(d), -expiryMonth(sku(d)))
-        ELSE sum(expiryDate(d), -expiryDays(sku(d)))),
-    overManufactureDate(d);  
+        ELSE sum(expiryDate(d), -expiryDays(sku(d))));  
      
 manufactureDate 'Дата изготовления' = DATA DATE (ProductDetail);    
 overExpiryDate = ABSTRACT DATE (ProductDetail);      
 calcExpiryDate (ProductDetail d) = OVERRIDE 
+    overExpiryDate(d),
     (IF expiryMonth(sku(d)) 
         THEN sumMonth(manufactureDate(d), expiryMonth(sku(d)))
-        ELSE sum(manufactureDate(d), expiryDays(sku(d)))),
-    overExpiryDate(d);
+        ELSE sum(manufactureDate(d), expiryDays(sku(d))));
     
 denyRepeatSkuOrder 'Запретить повтор изделий в производственном заказе' = DATA BOOLEAN ();
 
@@ -296,14 +296,14 @@ bruttoQuantityBOM 'Кол-во в спецификации' = bruttoQuantity(com
 
 // Параметры компонент с учетом замен
 
-sku (ComponentDetail componentDetail) = OVERRIDE bruttoSku(componentDetail), substituteSku(componentDetail) PERSISTENT;
+sku (ComponentDetail componentDetail) = OVERRIDE substituteSku(componentDetail), bruttoSku(componentDetail) PERSISTENT;
 INDEX sku(ComponentDetail cd), order(cd);
 nameSku 'SKU' (ComponentDetail componentDetail) = name(sku(componentDetail));
 idSku 'Код ' (ComponentDetail componentDetail) = id(sku(componentDetail));
 idBarcodeSku 'Штрихкод' (ComponentDetail componentDetail) = idBarcode(sku(componentDetail));
 shortNameUOMSku 'Ед.изм.' (ComponentDetail componentDetail) = shortNameUOM(sku(componentDetail));
 
-quantity 'Кол-во' (ComponentDetail componentDetail) = OVERRIDE bruttoQuantity(componentDetail), substituteQuantity(componentDetail) PERSISTENT;
+quantity 'Кол-во' (ComponentDetail componentDetail) = OVERRIDE substituteQuantity(componentDetail), bruttoQuantity(componentDetail) PERSISTENT;
 
 calcBOMPrice (ComponentDetail d) = calcBOMPrice(order(d));
 
@@ -416,7 +416,7 @@ recBruttoQuantity 'Рекур.кол-во' (BOM, order, sku) = GROUP SUM quantit
 recBOMQuantity 'Рекур.кол-во' (BOM, order, sku) = GROUP SUM recBruttoQuantity(BOM BOM, Sku sku, date(Order order)) BY BOM, order, sku;
 
 productionCoeff = ABSTRACT NUMERIC[20,9] (ComponentDetail);
-quantityCoeff(ComponentDetail d) = OVERRIDE 1.0 IF d IS ComponentDetail, productionCoeff(d) PERSISTENT; 
+quantityCoeff(ComponentDetail d) = OVERRIDE productionCoeff(d), 1.0 IF d IS ComponentDetail PERSISTENT; 
 createRecComponents 'Заполнить из спецификации (рекурсивно)'(Order order) = {
 
     FOR NUMERIC[91,46] q == recBruttoQuantity(BOM BOM, order, Sku sku) ORDER BOM NEW d = ComponentDetail DO {
@@ -545,7 +545,7 @@ substitute = DATA Sku (Sku, Order) TABLE substituteSkuOrder;
 nameSubstitute 'Замена' (Sku sku, Order order) = name(substitute(sku, order));
 
 substituteQuantity 'Кол-во замены' = DATA NUMERIC[16,5] (Sku, Order) TABLE substituteSkuOrder;
-overSubstituteQuantity 'Кол-во' = OVERRIDE bruttoQuantity(Sku sku, Order order), substituteQuantity(sku, order);
+overSubstituteQuantity 'Кол-во' = OVERRIDE substituteQuantity(sku, order), bruttoQuantity(Sku sku, Order order);
 multiplier 'Коэффициент замены' = DATA NUMERIC[10,5] (Sku, Order) TABLE substituteSkuOrder;
 
 //--
@@ -693,7 +693,7 @@ calcPricePercentNumeric '%' (ProductDetail productDetail, NUMERIC[8,5] num) = (n
     / calcQuantityComponents(productDetail);     
     
 // Sku с учетом замены
-sku (Sku sku, Order order) = OVERRIDE sku IF bruttoQuantity(sku, order), substitute(sku,order) PERSISTENT;
+sku (Sku sku, Order order) = OVERRIDE substitute(sku,order), sku IF bruttoQuantity(sku, order) PERSISTENT;
 
 nameSku 'Итоговый sku' (Sku sku,Order order)= name(sku (sku,order));
 idBarcodeSku 'Штрихкод' (Sku sku,Order order) = idBarcode(sku (sku, order));
@@ -881,12 +881,12 @@ WHEN SESSION (CHANGED(componentsCountry(Order order)) OR
 
 skip(d) = ABSTRACT BOOLEAN (ComponentDetail);
 
-valueVAT(ComponentDetail d) = OVERRIDE valueVAT(sku(d), order(d)), valueVAT(batch(d)) PERSISTENT;
+valueVAT(ComponentDetail d) = OVERRIDE valueVAT(batch(d)), valueVAT(sku(d), order(d)) PERSISTENT;
 sumVAT (ComponentDetail d) = sum(d) * valueVAT(d) / (100.0 + valueVAT(d));
 sumVATComponents (ProductDetail d) = [= GROUP SUM sumVAT(ComponentDetail d) IF NOT skip(d) BY BOM(d), order(d)](BOM(d), order(d)); 
 sumVATComponentDetail = GROUP SUM sum(ComponentDetail d) IF NOT skip(d) BY BOM(d), order(d);
-calcValueVAT 'НДС, %' = OVERRIDE 0.0, (sumVATComponents(ProductDetail d) * 100.0 /
-                                                                     (sumVATComponentDetail(BOM(d), order(d)) - sumVATComponents(d)));
+calcValueVAT 'НДС, %' = OVERRIDE (sumVATComponents(ProductDetail d) * 100.0 /
+                                                                     (sumVATComponentDetail(BOM(d), order(d)) - sumVATComponents(d))), 0.0;
 // Расчет цен для изделий
 overFillPrice = ACTION ABSTRACT LIST (ProductDetail);
 fillPrice 'Заполнить цены для изделий'(ProductDetail detail) = {
@@ -1333,8 +1333,8 @@ WHEN SESSION FORMS order DROPPED (multiplier(bruttoSku(ComponentDetail detail), 
         substituteQuantity (detail) <- NULL WHERE usePrevSubstitute(detail);    
     }   
  
-calc(PriceListType pt, ComponentDetail detail) =  OVERRIDE dataBruttoPrice(sku(detail), order(detail)), 
-                                                              prevPriceB(pt,batch(detail),componentsStock(order(detail)),dateTime(order(detail)));
+calc(PriceListType pt, ComponentDetail detail) =  OVERRIDE prevPriceB(pt,batch(detail),componentsStock(order(detail)),dateTime(order(detail))), 
+                                                              dataBruttoPrice(sku(detail), order(detail));
 
 calcPrice = ABSTRACT VALUE OVERRIDE FIRST NUMERIC[16,4] (PriceListType, ComponentDetail);
 calcPrice(PriceListType pt, ComponentDetail d) += NUMERIC[16,4](calc(pt,d)); 
@@ -1347,7 +1347,7 @@ WHEN SESSION FORMS order (CHANGED(dataBruttoPrice(sku(ComponentDetail detail), o
     price (detail) <- calcPrice(pt, detail); 
 
 additionalCost = ABSTRACT NUMERIC[16,4](ComponentDetail);         
-calcCost = (OVERRIDE cost(sku(ComponentDetail detail), order(detail)), cost(batch(detail))) (+) additionalCost(detail);    
+calcCost = (OVERRIDE cost(batch(detail)), cost(sku(ComponentDetail detail), order(detail))) (+) additionalCost(detail);    
 WHEN SESSION FORMS order CHANGED(cost(sku(ComponentDetail detail), order(detail))) OR CHANGED(batch(detail)) DO
     cost (detail) <- calcCost(detail);           
        

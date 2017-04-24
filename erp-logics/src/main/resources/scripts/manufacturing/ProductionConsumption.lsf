@@ -158,8 +158,8 @@ quantityOutput 'Кол-во спецификаций (произведенных
 recBruttoQuantityOutput 'Кол-во для произ-го' (BOM, order, sku) = GROUP SUM quantityOutput(BOM BOM, Order order) * recBruttoQuantity(BOM, Sku sku, date(order)) BY BOM, order, sku;
 recBruttoQuantityOutput 'Рекур.кол-во' (BOM, order, component) = GROUP SUM quantityOutput(BOM BOM, Order order) * recBruttoQuantity(BOM, Component component, date(order)) BY BOM, order, component;
 
-calcComponentConsumedQuantity (ComponentDetail d) = recBruttoQuantityOutput(BOM(d), order(d), component(d)) * quantityCoeff(d) * OVERRIDE 1.0, multiplierSubstituteTo(bruttoSku(d), substituteSku(d));
-calcSkuConsumedQuantity (ComponentDetail d) = recBruttoQuantityOutput(BOM(d), order(d), bruttoSku(d)) * quantityCoeff(d) * OVERRIDE 1.0, multiplierSubstituteTo(bruttoSku(d), substituteSku(d));
+calcComponentConsumedQuantity (ComponentDetail d) = recBruttoQuantityOutput(BOM(d), order(d), component(d)) * quantityCoeff(d) * OVERRIDE multiplierSubstituteTo(bruttoSku(d), substituteSku(d)), 1.0;
+calcSkuConsumedQuantity (ComponentDetail d) = recBruttoQuantityOutput(BOM(d), order(d), bruttoSku(d)) * quantityCoeff(d) * OVERRIDE multiplierSubstituteTo(bruttoSku(d), substituteSku(d)), 1.0;
 createOutputComponent 'Заполнить списание'(Order order) = {
     consumedQuantity(ComponentDetail d) <- calcComponentConsumedQuantity(d) WHERE order(d) == order AND component(d);
     consumedQuantity(ComponentDetail d) <- calcSkuConsumedQuantity(d) WHERE order(d) == order AND NOT component(d);
@@ -266,8 +266,8 @@ operation[StockDocumentLedger] (Consumption ledger) += operation(ledger);
 typeStockDocumentLedger 'Тип процесса' (ledger) = ABSTRACT VARSTRING[50] (Consumption) PERSISTENT;
 sumItemOutStockDocumentLedger 'Сумма расхода, товар' (ledger) = ABSTRACT NUMERIC[18,4] (Consumption) PERSISTENT;
 
-type(Consumption l) += OVERRIDE 'Списание сырья (пр-во)' IF l IS Consumption, typeStockDocumentLedger(l);
-sumItem (Consumption ledger) += OVERRIDE sumItemConsumptionDetail(ledger), sumItemOutStockDocumentLedger(ledger);
+type(Consumption l) += OVERRIDE typeStockDocumentLedger(l), 'Списание сырья (пр-во)' IF l IS Consumption;
+sumItem (Consumption ledger) += OVERRIDE sumItemOutStockDocumentLedger(ledger), sumItemConsumptionDetail(ledger);
 sumContainer (Consumption ledger) += sumContainerConsumptionDetail(ledger);
 edit[StockDocumentLedger](Consumption l) += { edit(l); }
 close[StockDocumentLedger](Consumption l) += { close(l); }
@@ -856,14 +856,14 @@ fromOutputQuantity(ProductDetail pd) = consumedQuantityComponentDetail(order(pd)
 toOutputQuantity(ProductDetail pd) = consumedQuantityComponentDetail(order(pd), BOM(pd))*(100.0 + percQuantity(operation(pd)))/100.0;      
 CONSTRAINT (CHANGED(isPosted(ProductDetail pd)) OR CHANGED(outputQuantityProductDetail(order(pd), BOM(pd))) OR CHANGED(consumedQuantityComponentDetail(order(pd), BOM(pd))) OR CHANGED(operation(pd)))
     AND percQuantity(operation(pd)) AND isPosted(pd)
-    AND NOT ((OVERRIDE 0.0, outputQuantityProductDetail(order(pd),BOM(pd))) >= (OVERRIDE 0.0, fromOutputQuantity(pd)) AND (OVERRIDE 0.0, outputQuantityProductDetail(order(pd),BOM(pd))) <= (OVERRIDE 0.0, toOutputQuantity(pd)))
+    AND NOT ((OVERRIDE outputQuantityProductDetail(order(pd),BOM(pd)), 0.0) >= (OVERRIDE fromOutputQuantity(pd), 0.0) AND (OVERRIDE outputQuantityProductDetail(order(pd),BOM(pd)), 0.0) <= (OVERRIDE toOutputQuantity(pd), 0.0))
         MESSAGE 'Внимание!!! Отклонение между компонентом и изделиями не попадает в допустимый процент по количеству.';
         
 fromOutputProductsSum(ProductDetail pd) = consumedSumComponentDetail(order(pd), BOM(pd))*( 100.0 - percSum(operation(pd)))/100.0;
 toOutputProductsSum(ProductDetail pd) = consumedSumComponentDetail(order(pd), BOM(pd))*( 100.0 + percSum(operation(pd)))/100.0;       
 CONSTRAINT (CHANGED(isPosted(ProductDetail pd)) OR CHANGED(consumedSumComponentDetail(order(pd), BOM(pd))) OR CHANGED(outputProductsSumProductDetail(order(pd), BOM(pd))) OR CHANGED(operation(pd))) 
     AND percSum(operation(pd)) AND isPosted(pd)
-    AND NOT ((OVERRIDE 0.0, outputProductsSumProductDetail(order(pd), BOM(pd))) >= (OVERRIDE 0.0, fromOutputProductsSum(pd)) AND (OVERRIDE 0.0, outputProductsSumProductDetail(order(pd), BOM(pd))) <= (OVERRIDE 0.0, toOutputProductsSum(pd)))
+    AND NOT ((OVERRIDE outputProductsSumProductDetail(order(pd), BOM(pd)), 0.0) >= (OVERRIDE fromOutputProductsSum(pd), 0.0) AND (OVERRIDE outputProductsSumProductDetail(order(pd), BOM(pd)), 0.0) <= (OVERRIDE toOutputProductsSum(pd), 0.0))
         MESSAGE 'Внимание!!! Отклонение между компонентом и изделиями не попадает в допустимый процент по сумме.';
         
 CONSTRAINT (CHANGED(isPosted(Order order)) OR CHANGED(consumedSumComponentDetail(order)) OR CHANGED(outputProductsSumProductDetail(order)) OR CHANGED(operation(order)) ) 

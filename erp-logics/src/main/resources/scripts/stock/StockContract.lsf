@@ -20,15 +20,15 @@ META defineInStockGroupObject(prop, object, objectClass)
         dataIn###prop(nearestParent###prop##contract(object, stockGroup), object) PERSISTENT;
 
     in###prop 'Отм' (StockGroup stockGroup, ###object object) =
-        OVERRIDE all###prop##Stocks(object) AND stockGroup IS StockGroup,
+        OVERRIDE dataIn###prop(stockGroup, object),
                  nearestIn###prop(stockGroup, object),
-                 dataIn###prop(stockGroup, object);
+                 all###prop##Stocks(object) AND stockGroup IS StockGroup;
 
     // Отметка для складов
     dataIn###prop 'Отм.' = DATA BOOLEAN (Stock, objectClass);
     in###prop 'Отм' (Stock stock, ###object object) =
-        (OVERRIDE in###prop(stockGroup(stock), object),
-                 dataIn###prop(stock, object)) IF in(prop(object), stock) PERSISTENT;
+        (OVERRIDE dataIn###prop(stock, object),
+                 in###prop(stockGroup(stock), object)) IF in(prop(object), stock) PERSISTENT;
     replace(Stock s, Stock o) += {ASSIGN dataIn###prop(o, ###object object) <- TRUE WHERE in###prop(s, object) AND NOT in###prop(o, object);}                   
                  
     countDataIn###prop##StockGroups = GROUP SUM 1 IF  dataIn###prop(StockGroup stockGroup, ###object object) BY object;            
@@ -242,7 +242,7 @@ DESIGN userContractSku {
 }
 
 WHEN SESSION FORMS userContractSku SETCHANGED(supplier(UserContractSku contract)) DO {
-    currency(contract) <- OVERRIDE defaultCurrency(), currency(supplier(contract));
+    currency(contract) <- OVERRIDE currency(supplier(contract)), defaultCurrency();
 }
 
 edit 'Редактировать' = ACTION EDITFORM UserContractSku;
@@ -253,7 +253,7 @@ addUserContractSkuSupplierCustomer 'Добавить'(LegalEntity supplier, Lega
 	    NEW uc = UserContractSku {
 	        supplier(uc) <- supplier;
 	        customer(uc) <- customer;
-	        currency(uc) <- OVERRIDE defaultCurrency(), currency(supplier);
+	        currency(uc) <- OVERRIDE currency(supplier), defaultCurrency();
 	        SHOW userContractSku OBJECTS c = uc MANAGESESSION DOCKED;
 	    }
 	}

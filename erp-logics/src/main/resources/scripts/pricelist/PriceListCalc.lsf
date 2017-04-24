@@ -52,7 +52,7 @@ nearestMarkup 'Расчетная надбавка, %' (CalcPriceListType calcPr
     dataMarkup(calcPriceListType, nearestParent(calcPriceListType, group)) PERSISTENT;
 
 markup 'Надбавка, %' (CalcPriceListType type, Group group) =
-    OVERRIDE nearestMarkup(type, group), dataMarkup(type, group) PERSISTENT;
+    OVERRIDE dataMarkup(type, group), nearestMarkup(type, group) PERSISTENT;
     
                                                                      
 quantityChildWithMarkup  = GROUP SUM 1 IF dataMarkup(CalcPriceListType type, Group child) AND isParent(child, Group parent) BY parent, type PERSISTENT;
@@ -68,13 +68,13 @@ backgroundMarkup 'Цвет' (CalcPriceListType type, Group group) = CASE
 extraMarkup = ABSTRACT NUMERIC[8,2] (CalcPriceListType, Sku);  
     
 overMarkup 'Надбавка, % (перегруженная)' = OVERRIDE 
-    markup(CalcPriceListType type, group(groupType(type), Sku sku)),
+    dataMarkup(type, sku),
     extraMarkup(type, sku),
-    dataMarkup(type, sku) PERSISTENT;
+    markup(CalcPriceListType type, group(groupType(type), Sku sku)) PERSISTENT;
 
 markup 'Надбавка, %' (CalcPriceListType type, Sku sku) = OVERRIDE
-    overMarkup(parent(type), sku),
-    overMarkup(type, sku) PERSISTENT;
+    overMarkup(type, sku),
+    overMarkup(parent(type), sku) PERSISTENT;
     
 multiplier (CalcPriceListType type, Sku sku) = NUMERIC[10,4]((100.0 + markup(type, sku)) / 100.0) PERSISTENT;
 
@@ -94,15 +94,15 @@ nearestParentRoundCondition (CalcPriceListType calcPriceListType, Group group) =
 nearestRoundCondition  (CalcPriceListType calcPriceListType, Group group) =
     dataRoundCondition(calcPriceListType, nearestParentRoundCondition(calcPriceListType, group)) PERSISTENT;
     
-nameNearestRoundConditionCalc 'Расчетное условие округления' (PriceListType type, Group group) = name(OVERRIDE roundCondition(type) IF group IS Group,
-                                                                                                                nearestRoundCondition(type, group));
+nameNearestRoundConditionCalc 'Расчетное условие округления' (PriceListType type, Group group) = name(OVERRIDE nearestRoundCondition(type, group),
+                                                                                                                roundCondition(type) IF group IS Group);
 
 roundCondition 'Условие округления' (CalcPriceListType type, Group group) =
-    OVERRIDE nearestRoundCondition(type, group), 
-             dataRoundCondition(type, group) PERSISTENT;
+    OVERRIDE dataRoundCondition(type, group), 
+             nearestRoundCondition(type, group) PERSISTENT;
             
 groupRoundConditionGroup (CalcPriceListType type, Sku sku) = roundCondition(type, group(groupType(type), sku)) PERSISTENT;
-roundCondition (CalcPriceListType type, Sku sku) = OVERRIDE roundCondition(type) IF type IS CalcPriceListType AND sku IS Sku, groupRoundConditionGroup(type, sku);            
+roundCondition (CalcPriceListType type, Sku sku) = OVERRIDE groupRoundConditionGroup(type, sku), roundCondition(type) IF type IS CalcPriceListType AND sku IS Sku;            
 nameRoundCondition 'Условие округления' (CalcPriceListType type, Sku sku)= name(roundCondition(type, sku));    
         
 // --------------- Расчет значения цены --------------- //

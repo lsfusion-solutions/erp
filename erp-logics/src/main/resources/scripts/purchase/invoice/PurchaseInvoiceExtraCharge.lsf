@@ -11,7 +11,7 @@ inExtraCharge 'Вкл.' = DATA BOOLEAN (Invoice, UserInvoice);
 inDataExtraCharge = DATA BOOLEAN  (Invoice, UserInvoiceDetail);
 
 inExtraCharge 'Вкл.' (Invoice invoice, UserInvoiceDetail detail) =
-    OVERRIDE inExtraCharge(invoice, userInvoice(detail)), inDataExtraCharge(invoice, detail);
+    OVERRIDE inDataExtraCharge(invoice, detail), inExtraCharge(invoice, userInvoice(detail));
 inExtraCharge(Invoice invoice, UserInvoiceDetail detail) += inExtraCharge(invoice, detail);
 
 inExtraCharge (charge, invoice) = GROUP SUM 1 IF inExtraCharge(Invoice charge, InvoiceDetail d) BY charge, invoice(d);
@@ -294,7 +294,7 @@ createExtraChargeUser 'Накладная (закупка) доп. услуги'
 	            supplier(i) <- s;
 	            customer(i) <- customer(invoice);
 	            currency(i) <- c;
-	            isHomeCurrency(i) <- TRUE WHERE (OVERRIDE currency(invoice), homeCurrency(invoice) IF isHomeCurrency(invoice)) != currency(i);
+	            isHomeCurrency(i) <- TRUE WHERE (OVERRIDE homeCurrency(invoice) IF isHomeCurrency(invoice), currency(invoice)) != currency(i);
 	            dateRateExchange(i) <- currentDate() WHERE isHomeCurrency[Invoice](i);
 	            rateExchange(i) <- rateOn(typeExchange(i),currency(i),dateRateExchange(i)) WHERE isHomeCurrency[Invoice](i);                                                                                   
 	            

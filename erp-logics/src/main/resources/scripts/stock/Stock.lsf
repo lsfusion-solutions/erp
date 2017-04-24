@@ -113,7 +113,7 @@ dataDefaultStock = GROUP AGGR Stock stock BY legalEntity(stock) WHERE default(st
 countStocks (legalEntity) = GROUP SUM 1 IF in(LegalEntity legalEntity, Stock stock) BY legalEntity;
 minStock 'Первый склад' (legalEntity)= GROUP MIN Stock stock IF in(LegalEntity legalEntity, stock) BY legalEntity;
 
-defaultStock 'Склад по умолчанию' (LegalEntity l) = OVERRIDE minStock(l) IF countStocks(l) == 1, dataDefaultStock(l);
+defaultStock 'Склад по умолчанию' (LegalEntity l) = OVERRIDE dataDefaultStock(l), minStock(l) IF countStocks(l) == 1;
 
 META deriveDocumentLegalEntityDefaultStock(cls, property, form)
     WHEN SESSION FORMS form CHANGED(property(cls o)) AND NOT CHANGED(property##Stock(o)) AND NOT in(property(o), property##Stock(o)) DO {
@@ -183,7 +183,7 @@ replace 'Объединить'(Stock stock) = {
 } CONFIRM;
 
 dataStock = DATA Stock (LegalEntity);
-stock(LegalEntity legalEntity) = OVERRIDE [= GROUP MIN Stock stock BY legalEntity(stock)](legalEntity), dataStock(legalEntity) IF active(legalEntity) PERSISTENT;
+stock(LegalEntity legalEntity) = OVERRIDE dataStock(legalEntity) IF active(legalEntity), [= GROUP MIN Stock stock BY legalEntity(stock)](legalEntity) PERSISTENT;
 
 primaryLegalEntity 'Основной' (Stock stock) = stock(legalEntity(stock)) == stock;
 changePrimary(LegalEntity legalEntity, Stock stock) = {
@@ -1044,7 +1044,7 @@ META defineBackgroundNearestBoolean(allProp, property, object1, object2, object2
     
     background###property 'Цвет' (###object1 o, ###object2##Group sg) = IF data###property(o, sg) THEN RGB(0,0,0)
         ELSE RGB(230,248,250) 
-        IF (OVERRIDE allProp(o) IF sg IS object2Class###group, nearestProp (o, sg));    
+        IF (OVERRIDE nearestProp (o, sg), allProp(o) IF sg IS ###object2##Group);    
         
     background###property 'Цвет' (###object1 o, ###object2 st) = IF data###property(o, st) AND filterProp(st) THEN RGB(0,0,0)
         ELSE RGB(230,248,250) 

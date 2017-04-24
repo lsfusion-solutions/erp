@@ -79,11 +79,11 @@ notDetailed 'Не детализировать по чекам' = DATA BOOLEAN (
 active 'Активный' (CashRegister cashRegister) = active(groupCashRegister(cashRegister));
 
 departmentNumber 'Номер группы касс' = DATA INTEGER (GroupCashRegister) IN recognize;
-overDepartmentNumberCashRegister 'Номер группы касс' (GroupMachinery gcr) = OVERRIDE npp(gcr), departmentNumber(gcr);
+overDepartmentNumberCashRegister 'Номер группы касс' (GroupMachinery gcr) = OVERRIDE departmentNumber(gcr), npp(gcr);
 overDepartmentNumber 'Номер группы касс' (Machinery cr) = overDepartmentNumberCashRegister(groupMachinery(cr));
 groupCashRegister (npp) = GROUP AGGR GroupCashRegister groupCashRegister BY npp(groupCashRegister) WHERE groupCashRegister IS GroupCashRegister;  
 cashRegisterNppGroupCashRegister (g, npp) = GROUP AGGR CashRegister cashRegister BY npp(groupCashRegister(cashRegister)), npp(cashRegister);  
-documentsClosedDate(GroupCashRegister gcr) = OVERRIDE documentsClosedDate(), documentsClosedDate(stock(gcr));
+documentsClosedDate(GroupCashRegister gcr) = OVERRIDE documentsClosedDate(stock(gcr)), documentsClosedDate();
 
 cashRegisterModel = DATA CashRegisterModel (GroupCashRegister);
 model(GroupCashRegister groupMachinery) += cashRegisterModel(groupMachinery);
@@ -95,7 +95,7 @@ countCashRegister 'Кол-во касс' (departmentStore) = GROUP SUM 1 IF NOT 
     
 countCashRegister 'Кол-во касс' (store) = GROUP SUM countCashRegister(DepartmentStore d) BY store(d);   
 countDataCashRegister 'Кол-во магазинов' = DATA INTEGER (Store);
-countChainStoresOver 'Кол-во касс' (Store store) = OVERRIDE countCashRegister(store), countDataCashRegister(store); 
+countChainStoresOver 'Кол-во касс' (Store store) = OVERRIDE countDataCashRegister(store), countCashRegister(store); 
 
 registrationNumber 'Регистрационный номер кассы' = DATA VARSTRING[100] (CashRegister) IN base;
 
@@ -104,7 +104,7 @@ date 'Дата фискализации кассового аппарата' = D
 ip 'IP кассы' = DATA VARSTRING[100] (CashRegister) IN base;
 comPort 'Порт кассы' = DATA INTEGER (CashRegister) IN base;
 baudRate 'Скорость кассы' = DATA INTEGER (CashRegister) IN base;
-overBaudRate 'Скорость кассы' (CashRegister c) = OVERRIDE 9600 IF sidModel(groupCashRegister(c)) == 'VMK', baudRate(c);
+overBaudRate 'Скорость кассы' (CashRegister c) = OVERRIDE baudRate(c), 9600 IF sidModel(groupCashRegister(c)) == 'VMK';
 
 disableSales 'Без реализации' = DATA BOOLEAN (CashRegister) IN base;
 countSalesCashRegister 'Кол-во касс (с реализацией)' = GROUP SUM 1 IF NOT disableSales(CashRegister cashRegister) AND NOT inactive(cashRegister) BY departmentStore(cashRegister);
@@ -113,7 +113,7 @@ country 'Страна кассы' (CashRegister cashRegister) = country(stock(gr
 
 userLegalEntity (cashRegister) = DATA LegalEntity (CashRegister);
 legalEntity (CashRegister cashRegister) =
-    OVERRIDE legalEntity(departmentStore(cashRegister)), userLegalEntity(cashRegister);
+    OVERRIDE userLegalEntity(cashRegister), legalEntity(departmentStore(cashRegister));
 
 nameLegalEntity 'Владелец кассы' (CashRegister cashRegister) = name(legalEntity(cashRegister));
 

@@ -10,7 +10,7 @@ WHEN SETCHANGED (id(Barcode b)) INLINE DO id(b) <- replace(id(b), ' ','');
 @defineExternalizable(barcode, VARSTRING[100], ext);
 
 dataDate 'Дата действия' = DATA DATE (Barcode);
-date 'Дата действия' = OVERRIDE (2001_01_01 IF Barcode barcode IS Barcode), dataDate(barcode) IN base PERSISTENT;
+date 'Дата действия' = OVERRIDE dataDate(barcode), (2001_01_01 IF Barcode barcode IS Barcode) IN base PERSISTENT;
 
 caption 'Описание' = DATA VARISTRING[30](Barcode);
 
@@ -27,7 +27,7 @@ WHEN CHANGED(id(Barcode b) IF active(b)) AND NOT CHANGED(extId(b)) DO
     extId(b) <- id(b) IF active(b);
 
 dataAmount 'Множитель' = DATA NUMERIC[14,3] (Barcode);
-amount 'Множитель' = OVERRIDE (1.0 IF Barcode barcode IS Barcode), dataAmount (barcode) PERSISTENT;
+amount 'Множитель' = OVERRIDE dataAmount (barcode), (1.0 IF Barcode barcode IS Barcode) PERSISTENT;
 
 completeBarcode = FORMULA TEXT PG 'completeBarcode($1)', MS 'dbo.completeBarcode($1)';
 
@@ -96,8 +96,8 @@ CONSTRAINT sku(dataBarcode(Sku item)) != item CHECKED BY dataBarcode[Sku] MESSAG
 
 replace(Sku s, Sku d) += {sku(Barcode barcode) <- d WHERE sku(barcode) == s;}
 
-barcode(Sku sku) = OVERRIDE [= GROUP MIN Barcode barcode IF id(barcode) AND amount(barcode) == 1.0 AND active(barcode)
-                        BY sku(barcode)](sku), dataBarcode(sku) IF active(dataBarcode(sku)) PERSISTENT;
+barcode(Sku sku) = OVERRIDE dataBarcode(sku) IF active(dataBarcode(sku)), [= GROUP MIN Barcode barcode IF id(barcode) AND amount(barcode) == 1.0 AND active(barcode)
+                        BY sku(barcode)](sku) PERSISTENT;
 
 primary 'Основной' (Barcode barcode) = barcode(sku(barcode)) == barcode;
 changePrimary(Barcode barcode, Sku sku) = {
@@ -117,7 +117,7 @@ amountBarcode 'Множитель' (Sku sku) = amount(barcode(sku));
 amountBarcodeSku 'Множитель' = amountBarcode(sku(Batch batch));
 
 dataUOM = DATA UOM (Barcode);
-UOM = OVERRIDE UOM(sku(Barcode barcode)), dataUOM(barcode) PERSISTENT;
+UOM = OVERRIDE dataUOM(barcode), UOM(sku(Barcode barcode)) PERSISTENT;
 shortNameUOM 'Единица измерения' (Barcode barcode) = shortName(UOM(barcode));
 idUOM 'Код единицы измерения' (Barcode barcode) = id(UOM(barcode));
 
@@ -174,7 +174,7 @@ FORM barcodeDialog 'Штрих код'
 
 // ---------------------------------- Предобработка штрихкода --------------------------- //
 overPreprocessedBarcode = ABSTRACT CASE VARSTRING[15] (VARSTRING[15]);
-processedBarcode (VARSTRING[15] b) = OVERRIDE b AS VARSTRING[15], overPreprocessedBarcode(b); 
+processedBarcode (VARSTRING[15] b) = OVERRIDE overPreprocessedBarcode(b), b AS VARSTRING[15]; 
 
 // ----------------------------------- Форма по вводу штрихкода ---------------------------- //
 

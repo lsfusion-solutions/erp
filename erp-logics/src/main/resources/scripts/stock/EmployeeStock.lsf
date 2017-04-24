@@ -29,16 +29,16 @@ nearestInCompany (Employee employee, StockGroup stockGroup) =
     dataAccessCompany(nearestParentCompany (employee, stockGroup), employee) PERSISTENT;
 
 accessCompany 'Доступ разрешен (компания)' (Employee employee, StockGroup stockGroup) = OVERRIDE
-    employee IS Employee  AND stockGroup IS StockGroup AND NOT limitAccess(employee),
-    dataAccessCompany(employee) AND stockGroup IS StockGroup,
+    dataAccessCompany(stockGroup, employee),
     nearestInCompany(employee, stockGroup),
-    dataAccessCompany(stockGroup, employee); // PERSISTENT;
+    dataAccessCompany(employee) AND stockGroup IS StockGroup,
+    employee IS Employee  AND stockGroup IS StockGroup AND NOT limitAccess(employee); // PERSISTENT;
 
 accessCompany 'Доступ разрешен (компания)' (Employee employee, Stock stock) = OVERRIDE
-    employee IS Employee AND isCompany(stock) AND NOT limitAccess(employee),
-    dataAccessCompany(employee) AND isCompany(stock),
+    dataAccessCompany(stock, employee),
     nearestInCompany(employee, stockGroup(stock)),
-    dataAccessCompany(stock, employee) PERSISTENT;
+    dataAccessCompany(employee) AND isCompany(stock),
+    employee IS Employee AND isCompany(stock) AND NOT limitAccess(employee) PERSISTENT;
 countAccessCompanyStock 'Кол-во доступных подразделений (компания)' (employee) =
     GROUP SUM 1 IF accessCompany(Employee employee, Stock stock) AND active(stock)
           BY employee;
@@ -58,7 +58,7 @@ countAccessCompany 'Кол-во доступных подразделений (�
           BY employee, stockGroup PERSISTENT;
           
 dataStock = DATA Stock (Employee);
-stock (Employee e) = OVERRIDE defaultCompanyStock(e) IF countAccessCompanyStock (e) == 1, dataStock(e);
+stock (Employee e) = OVERRIDE dataStock(e), defaultCompanyStock(e) IF countAccessCompanyStock (e) == 1;
 idStock 'Основной склад' (Employee e) = id(stock(e));
 nameStock 'Основной склад' (Employee e) = name(stock(e));
 

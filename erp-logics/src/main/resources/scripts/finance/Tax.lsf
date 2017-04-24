@@ -28,7 +28,7 @@ nameCountry 'Страна' (Range range) = name(country(range)) IN recognize;
 
 countRange 'Кол-во шкал' (tax, country) = GROUP SUM 1 IF Range range IS Range BY tax(range), country(range);
 
-maxDataRange(Tax tax, Country country) = OVERRIDE 0 IF tax IS Tax AND country IS Country, [= GROUP MAX number(Range range) BY tax(range), country(range)](tax, country);
+maxDataRange(Tax tax, Country country) = OVERRIDE [= GROUP MAX number(Range range) BY tax(range), country(range)](tax, country), 0 IF tax IS Tax AND country IS Country;
 addNewRange 'Добавить шкалу'(Tax tax, Country country) = {
     NEW r = Range {
         ASSIGN number(r) <- maxDataRange(tax, country) + 1;
@@ -262,7 +262,7 @@ META defineDocumentDetailVATCustom(detail, countryProp, prefix, caption)
     value###prefix##VAT 'НДС, %'###caption (detail) = DATA NUMERIC[10,5] (###detail);
 
     overValue###prefix##VAT 'НДС (для расчета), %'###caption (detail) = ABSTRACT NUMERIC[10,5] (###detail);
-    calcValue###prefix##VAT 'НДС (перегруженный), %'###caption (###detail detail) = OVERRIDE value###prefix##VAT (detail), overValue###prefix##VAT (detail);
+    calcValue###prefix##VAT 'НДС (перегруженный), %'###caption (###detail detail) = OVERRIDE overValue###prefix##VAT (detail), value###prefix##VAT (detail);
 
     CONSTRAINT tax(prefix##VAT(###detail detail)) != Tax.taxVAT OR
                country(prefix##VAT(detail)) != countryProp(detail)
@@ -359,10 +359,10 @@ END
 META deriveDocumentDetailValueVATCustom(detail, prefix)
     overDeriveValue###prefix##VAT (detail) = ABSTRACT NUMERIC[10,5] (###detail);  
     overSetValue###prefix##VAT (detail) = ABSTRACT NUMERIC[10,5] (###detail);     
-    calcSetValue###prefix##VAT (###detail detail) = OVERRIDE (IF prefix##VAT(detail) THEN
+    calcSetValue###prefix##VAT (###detail detail) = OVERRIDE overSetValue###prefix##VAT(detail),
+                                                              (IF prefix##VAT(detail) THEN
                                                                 valueRate(prefix##VAT(detail), date(detail))
-                                                              ELSE overDeriveValue###prefix##VAT (detail)),
-                                                              overSetValue###prefix##VAT(detail);
+                                                              ELSE overDeriveValue###prefix##VAT (detail));
     changedValue###prefix##VAT(detail) = ABSTRACT BOOLEAN (###detail);
     WHEN SESSION GOAFTER prefix##VAT[###detail]
         (CHANGED(prefix##VAT(###detail detail)) OR (CHANGED (dateTime(detail)) AND isPosted(detail)) OR changedValue###prefix##VAT(detail)) AND v == calcSetValue###prefix##VAT (detail) AND NOT CHANGED(value###prefix##VAT (detail)) DO {

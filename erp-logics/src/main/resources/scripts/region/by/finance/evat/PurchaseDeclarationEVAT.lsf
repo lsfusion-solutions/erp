@@ -50,21 +50,21 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         supplier(e) <- [= GROUP MIN supplier(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d);
 //        branchCodeSupplier(e) <- branchCode(supplierStock(i));
         
-        declarationSupplier(e) <- OVERRIDE 'не задан', number(d);
+        declarationSupplier(e) <- OVERRIDE number(d), 'не задан';
                 
         //Получатель
         customer(e) <- l;
         
-        declarationCustomer(e) <- OVERRIDE 'не задан', number(d);
+        declarationCustomer(e) <- OVERRIDE number(d), 'не задан';
         
         //Грузоотправитель
-        consignor(e) <- VARISTRING[200](OVERRIDE name(supplier(e)), fullName(supplier(e)));
-        unpConsignor (e) <- OVERRIDE UNP(supplier(e)), UNPForeign(supplier(e)); 
+        consignor(e) <- VARISTRING[200](OVERRIDE fullName(supplier(e)), name(supplier(e)));
+        unpConsignor (e) <- OVERRIDE UNPForeign(supplier(e)), UNP(supplier(e)); 
         countryCodeConsignor (e) <- sid(country(supplier(e)));
         shippingAddressConsignor(e) <- address([= GROUP MIN supplierStock(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
         
         //Грузополучатель
-        consignee(e) <- VARISTRING[200](OVERRIDE name(customer(e)), fullName(customer(e)));
+        consignee(e) <- VARISTRING[200](OVERRIDE fullName(customer(e)), name(customer(e)));
         countryCodeConsignee (e) <- sid(country(customer(e)));
         unpConsignee (e) <- UNP(customer(e)); 
         shippingAddressConsignee(e) <- address([= GROUP MIN customerStock(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d));

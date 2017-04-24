@@ -80,7 +80,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     // Кол-во, которое изменяет расцененное количество
     extraPricingQuantity = ABSTRACT NUMERIC[16,5] (UserInvoiceDetail);
     overPricingQuantity = ABSTRACT NUMERIC[16,5] (UserInvoiceDetail) PERSISTENT;
-    overQuantity = OVERRIDE quantity(User###concrete##Detail detail), overPricingQuantity(detail);
+    overQuantity = OVERRIDE overPricingQuantity(detail), quantity(User###concrete##Detail detail);
     pricingQuantity(User###concrete##Detail detail) <- overQuantity(detail) (+) extraPricingQuantity(detail)
         WHEN CHANGED(overQuantity(detail)) OR CHANGED(extraPricingQuantity(detail));
 
@@ -93,8 +93,8 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     extraPricingPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail);
     extraPricingPrice (User###concrete##Detail detail) += extraPricingPrice(detail);    
 
-    pricingPrice 'Цена входная' (User###concrete##Detail detail) = (OVERRIDE price(detail), overPricingPrice(detail)) (+) extraPricingPrice(detail) PERSISTENT;
-    pricingPrice 'Цена входная' (###concrete##Detail detail) = (OVERRIDE price(detail), overPricingPrice(detail)) (+) extraPricingPrice(detail) PERSISTENT;
+    pricingPrice 'Цена входная' (User###concrete##Detail detail) = (OVERRIDE overPricingPrice(detail), price(detail)) (+) extraPricingPrice(detail) PERSISTENT;
+    pricingPrice 'Цена входная' (###concrete##Detail detail) = (OVERRIDE overPricingPrice(detail), price(detail)) (+) extraPricingPrice(detail) PERSISTENT;
 
     // Надбавка
     @defineDocumentInterfaceDetailMarkupPrefix (invoice, retail, );
@@ -107,7 +107,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     // Розничная
     @defineDocumentInterfaceDetailPricePrefix(invoice, retail, ' розничная');
     extraRetailPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
-    retailExtraPrice 'Цена (полная)' = retailPrice(###concrete##Detail d) + OVERRIDE 0, extraRetailPrice(d); 
+    retailExtraPrice 'Цена (полная)' = retailPrice(###concrete##Detail d) + OVERRIDE extraRetailPrice(d), 0; 
     
     CONSTRAINT stockProp##Stock(User###concrete##Detail d) IS DepartmentStore AND date(d) >= dateBanRetailPrice(stockProp##Stock(d)) AND isPosted(d) AND isItem(sku(d)) AND NOT retailPrice(d)
         MESSAGE 'Не задана розничная цена в строке накладной'##sign;
@@ -167,7 +167,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     //Расценка поставленного количества
     @defineDocumentInterfaceProperty (invoice, useShipmentQuantity, 'Расценивать поставленное кол-во'); 
           
-    overPricingQuantity(User###concrete##Detail detail) += (OVERRIDE 0.0 IF detail IS UserInvoiceDetail, shipmentQuantity(detail)) IF useShipmentQuantity(detail);
+    overPricingQuantity(User###concrete##Detail detail) += (OVERRIDE shipmentQuantity(detail), 0.0 IF detail IS User###concrete##Detail) IF useShipmentQuantity(detail);
     
     backgroundRetail 'Цвет' (###concrete invoice) = RGB(224, 255, 255) IF invoice IS Invoice;
     EXTEND FORM userInvoice
@@ -272,12 +272,12 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     pricing(###concrete##PricingDetail detail) += concrete##Pricing(detail);
     index(###concrete##PricingDetail detail) += index(detail);
     
-    pricingDate(###concrete invoice) = OVERRIDE date (invoice), shipmentDate(invoice);
-    pricingTime(###concrete invoice) = OVERRIDE time (invoice), shipmentTime(invoice);
+    pricingDate(###concrete invoice) = OVERRIDE shipmentDate(concrete), date (concrete);
+    pricingTime(###concrete invoice) = OVERRIDE shipmentTime(concrete), time (concrete);
     pricingDateTime(###concrete invoice) = dateTimeToDateTime(pricingDate(invoice), pricingTime(invoice));
     
-    pricingDate(User###concrete invoice) = OVERRIDE date (invoice), shipmentDate(invoice);
-    pricingTime(User###concrete invoice) = OVERRIDE time (invoice), shipmentTime(invoice);
+    pricingDate(User###concrete invoice) = OVERRIDE shipmentDate(concrete), date (concrete);
+    pricingTime(User###concrete invoice) = OVERRIDE shipmentTime(concrete), time (concrete);
     pricingDateTime(User###concrete invoice) = dateTimeToDateTime(pricingDate(invoice), pricingTime(invoice));
 
     pricingDateTime(###concrete##Detail d) = pricingDateTime(concrete(d)) PERSISTENT;
@@ -335,7 +335,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     quantity(###concrete##PricingDetail pricingDetail) += pricingQuantity(pricingDetail);
 
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, prefix###price, 'Цена поставщика');
-    price(###concrete##PricingDetail pricingDetail) += NUMERIC[16,4](OVERRIDE prefix###price(pricingDetail), (overPrice(pricingDetail) IF pricingDetail IS concreteClass###PricingDetail));
+    price(###concrete##PricingDetail pricingDetail) += NUMERIC[16,4](OVERRIDE (overPrice(pricingDetail) IF pricingDetail IS ###concrete##PricingDetail), prefix###price(pricingDetail));
 
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, retailMarkup, 'Надбавка');
     retailMarkup(###concrete##PricingDetail pricingDetail) += retailMarkup(pricingDetail);
@@ -348,13 +348,13 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, retailPrice, 'Розничная цена');
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, extraRetailPrice, 'Розничная цена (доп.)');
     extraRetailPrice(###concrete##PricingDetail pricingDetail) += extraRetailPrice(pricingDetail);
-    retailPrice(###concrete##PricingDetail pricingDetail) += retailPrice(pricingDetail) + OVERRIDE 0, extraRetailPrice(pricingDetail);
+    retailPrice(###concrete##PricingDetail pricingDetail) += retailPrice(pricingDetail) + OVERRIDE extraRetailPrice(pricingDetail), 0;
 
     // -- Суммы по строкам
 
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, pricingSum, 'Сумма поставщика');
-    sum(###concrete##PricingDetail pricingDetail) += NUMERIC[18,4](OVERRIDE pricingSum(pricingDetail),
-            round(overPrice(pricingDetail)*quantity(pricingDetail), homePriceRound(invoiceDetail(pricingDetail))) IF pricingDetail IS concreteClass###PricingDetail);
+    sum(###concrete##PricingDetail pricingDetail) += NUMERIC[18,4](OVERRIDE round(overPrice(pricingDetail)*quantity(pricingDetail), homePriceRound(concrete##Detail(pricingDetail))) IF pricingDetail IS ###concrete##PricingDetail,
+            pricingSum(pricingDetail));
 
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, retailMarkupSum, 'Сумма надбавки');
     retailMarkupSum(###concrete##PricingDetail pricingDetail) += retailMarkupSum(pricingDetail);

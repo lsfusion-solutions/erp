@@ -32,7 +32,7 @@ volumeInvoiceDetailTypes 'Объем, тыс дал.' = NUMERIC[20,8]([ =GROUP S
     date(d) >= DATE dateFrom AND date(d) <= DATE dateTo
         BY group, customerStock(d), alcoholDirectionType(d), alcoholIncomeType(d), 
             alcoholSupplierType(d), extractMonth(date(d)), dateFrom, dateTo](StatisticGroup group,Stock stock,AlcoholDirectionType type1,AlcoholIncomeType type2,AlcoholSupplierType type3,Month month,DATE dateFrom,DATE dateTo)) /
-            (OVERRIDE 1.0 IF group IS StatisticGroup, conversionFactor(group));    
+            (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup);    
 
                                                     
 year 'Отчетный год' = extractYear(DATE dFrom) IF dFrom IS DATE;              
@@ -71,10 +71,10 @@ volumeInvoiceDetail 'Объем, тыс дал.' = NUMERIC[20,8]([ =GROUP SUM si
     isParent(Group group, sku(d)) AND isPosted(d) AND
     date(d) >= DATE dateFrom AND date(d) <= DATE dateTo //AND alcoholDirectionTypeInvoiceDetail(d)==AlcoholDirectionType.income
         BY group, customerStock(d), supplier(d), alcoholDirectionType(d), extractMonth(date(d)), dateFrom, dateTo](StatisticGroup group,Stock stock,LegalEntity supplier,AlcoholDirectionType type,Month month,DATE dateFrom,DATE dateTo)) /
-            (OVERRIDE 1.0 IF group IS StatisticGroup, conversionFactor(group));  
+            (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup);  
 
 volumeInvoiceDetailCustomerFromTo 'Объем, тыс дал. (итого)' = GROUP SUM 
-    (NUMERIC[20,8](signetVolume(InvoiceDetail d))/(OVERRIDE 1.0 IF group(GroupType groupType, sku(d)) IS StatisticGroup, conversionFactor(group(groupType, sku(d))))) IF    
+    (NUMERIC[20,8](signetVolume(InvoiceDetail d))/(OVERRIDE conversionFactor(group(groupType, sku(d))), 1.0 IF group(GroupType groupType, sku(d)) IS StatisticGroup)) IF    
     isPosted(d) AND date(d) >= DATE dateFrom AND date(d) <= DATE dateTo// AND alcoholDirectionTypeInvoiceDetail(d)==AlcoholDirectionType.income
         BY groupType, customer(d), alcoholDirectionType(d), dateFrom, dateTo;
 

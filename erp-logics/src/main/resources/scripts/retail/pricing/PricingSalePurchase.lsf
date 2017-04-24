@@ -43,8 +43,8 @@ CONSTRAINT currency(UserInvoiceDetail detail) != currency(purchaseRetailPriceLis
 
 overRetailStock = ABSTRACT Stock (UserInvoiceDetail);
 retailStock (UserInvoiceDetail d) = OVERRIDE 
-    (IF useSupplierStock(userInvoice(d)) THEN supplierStock(d) ELSE customerStock(d)), 
-    overRetailStock(d);
+    overRetailStock(d), 
+    (IF useSupplierStock(userInvoice(d)) THEN supplierStock(d) ELSE customerStock(d));
 
 WHEN SESSION // цены берем на начало сессии, а не этого event'а
    (CHANGED(calcPurchaseRetailPriceListType(UserInvoiceDetail detail)) OR
@@ -74,8 +74,8 @@ overPurchasePricingPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
 overPurchasePricingPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail) PERSISTENT;
 overPurchasePricingPrice (UserInvoiceDetail detail) += overPurchasePricingPrice(detail);
 
-purchasePricingPrice (UserInvoiceDetail detail) = OVERRIDE price(detail), overPurchasePricingPrice(detail) PERSISTENT;
-purchasePricingPrice (InvoiceDetail detail) = OVERRIDE price(detail), overPurchasePricingPrice(detail) PERSISTENT;
+purchasePricingPrice (UserInvoiceDetail detail) = OVERRIDE overPurchasePricingPrice(detail), price(detail) PERSISTENT;
+purchasePricingPrice (InvoiceDetail detail) = OVERRIDE overPurchasePricingPrice(detail), price(detail) PERSISTENT;
 
 @defineDocumentInterfaceDetailMarkupPrefix (invoice, purchaseRetail, ' (закупка)');
 

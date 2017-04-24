@@ -56,13 +56,13 @@ in(LabelType labelType) <- TRUE WHEN SET(labelType IS LabelType);
 
 inData 'Включен' (labelType, storeType) = DATA BOOLEAN (LabelType, StoreType);
 in 'Включен' (LabelType labelType, StoreType storeType) =
-    OVERRIDE in(labelType) AND storeType IS StoreType, inData(labelType, storeType);
+    OVERRIDE inData(labelType, storeType), in(labelType) AND storeType IS StoreType;
 inData 'Включен' (labelType, store) = DATA BOOLEAN (LabelType, Store);
 in 'Включен' (LabelType labelType, Store store) =
-    OVERRIDE in(labelType, storeType(store)), inData(labelType, store);
+    OVERRIDE inData(labelType, store), in(labelType, storeType(store));
 inData 'Включен' (labelType, departmentStore) = DATA BOOLEAN (LabelType, DepartmentStore);
 in 'Включен' (LabelType labelType, DepartmentStore departmentStore) =
-    OVERRIDE in(labelType, store(departmentStore)), inData(labelType, departmentStore) PERSISTENT;
+    OVERRIDE inData(labelType, departmentStore), in(labelType, store(departmentStore)) PERSISTENT;
 
 groupType = DATA GroupType (LabelType);
 nameGroupType 'Тип классификатора' (LabelType labelType) = name(groupType(labelType));
@@ -79,10 +79,10 @@ nearestIn 'Вкл.' (LabelType labelType, Group group) =
     dataIn(labelType, nearestParent (labelType, group)) PERSISTENT;
 
 in 'Вкл.' (LabelType labelType, Group group) =
-    OVERRIDE nearestIn(labelType, group), dataIn(labelType, group) PERSISTENT;
+    OVERRIDE dataIn(labelType, group), nearestIn(labelType, group) PERSISTENT;
 
 in 'Вкл.' (LabelType labelType, Sku sku) =
-    OVERRIDE in(labelType, group(groupType(labelType), sku)), dataIn(labelType, sku);
+    OVERRIDE dataIn(labelType, sku), in(labelType, group(groupType(labelType), sku));
 
 over = ABSTRACT BOOLEAN (LabelType, Sku, DepartmentStore);
 skip = ABSTRACT BOOLEAN (LabelType, Sku, DepartmentStore);
@@ -100,12 +100,12 @@ nearestCountLabel 'Множитель' (LabelType labelType, Group group) =
     dataCount(labelType, nearestParentCountLabel (labelType, group)) PERSISTENT;
 
 count 'Множитель' (LabelType labelType, Group group) = OVERRIDE
-    1 IF group IS Group IF labelType IS LabelType,
+    dataCount(labelType, group),
     nearestCountLabel(labelType, group),
-    dataCount(labelType, group) PERSISTENT;
+    1 IF group IS Group IF labelType IS LabelType PERSISTENT;
 
 count 'Множитель' (LabelType labelType, Sku sku) =
-    OVERRIDE count(labelType, group(groupType(labelType), sku)), dataCount(labelType, sku);
+    OVERRIDE dataCount(labelType, sku), count(labelType, group(groupType(labelType), sku));
 
 //-- Количество для печати ценника брать множитель или из документа.
 include 'Из документа'= DATA BOOLEAN (LabelType);
@@ -119,13 +119,13 @@ nearestIncludeLabel 'Из документа' (LabelType labelType, Group group)
     dataInclude(labelType, nearestParentIncludeLabel (labelType, group)) PERSISTENT;
 
 include 'Из документа' (LabelType labelType, Group group) = OVERRIDE
-    include(labelType) AND group IS Group,
+    dataInclude(labelType, group),
     nearestIncludeLabel(labelType, group),
-    dataInclude(labelType, group) PERSISTENT;
+    include(labelType) AND group IS Group PERSISTENT;
 
 include 'Из документа' (LabelType labelType, Sku sku) = OVERRIDE
-    include(labelType, group(groupType(labelType), sku)),
-    dataInclude(labelType, sku);
+    dataInclude(labelType, sku),
+    include(labelType, group(groupType(labelType), sku));
 
 //печать для нулевых цен
 printNullPrice 'Включать позиций без цен' = DATA BOOLEAN (LabelType);
@@ -280,7 +280,7 @@ nameLabelType 'Тип ценника' (LabelTransaction transaction) = name(labe
 priceListType = DATA PriceListType (LabelTransaction);     
 namePriceListType 'Вид цен' (LabelTransaction labelTransaction) = name(priceListType(labelTransaction));         
 
-overPriceListType(LabelTransaction d) = OVERRIDE priceListType(labelType(d)), priceListType(d) PERSISTENT;
+overPriceListType(LabelTransaction d) = OVERRIDE priceListType(d), priceListType(labelType(d)) PERSISTENT;
 
 fileTemplate 'Файл шаблона' (LabelTransaction transaction) = fileTemplate(labelType(transaction));
 
@@ -326,7 +326,7 @@ idSku 'Код товара' = id(sku(LabelTransactionDetail detail));
 INDEX sku(LabelTransactionDetail d), departmentStore(d);
 nameSku 'SKU' (LabelTransactionDetail d) = name(sku(d));
 dataBarcode = DATA Barcode (LabelTransactionDetail) INDEXED;
-idBarcode 'Штрихкод' (LabelTransactionDetail d) = OVERRIDE idBarcode(sku(d)), id(dataBarcode(d)) MINCHARWIDTH 15 PREFCHARWIDTH 30; 
+idBarcode 'Штрихкод' (LabelTransactionDetail d) = OVERRIDE id(dataBarcode(d)), idBarcode(sku(d)) MINCHARWIDTH 15 PREFCHARWIDTH 30; 
 
 batch = DATA Batch (LabelTransactionDetail) INDEXED;
 nameBatch 'Партия' (LabelTransactionDetail d) = name(batch(d));
@@ -344,7 +344,7 @@ discountSum 'Скидка' (LabelTransactionDetail d) = retailPrice(d) - price(d
 fullNameLegalEntity 'Компания (полное наименование)' (LabelTransactionDetail d) = fullNameLegalEntity(labelTransaction(d));
 
 priceLabelTransactionDetail 'Текущая цена на ценниках' (sku, stock) =
-    GROUP LAST (price(LabelTransactionDetail ledger) / OVERRIDE 1.0, amount(dataBarcode(ledger)))
+    GROUP LAST (price(LabelTransactionDetail ledger) / OVERRIDE amount(dataBarcode(ledger)), 1.0)
           BY sku(ledger), departmentStore(ledger)
           ORDER dateTime(ledger), ledger
           WHERE ledger IS LabelTransactionDetail PERSISTENT TABLE extraSkuStock;
@@ -611,8 +611,8 @@ calcPrice (PriceListType pt, LabelTransactionDetail d) =
 WHEN SESSION FORMS customLabelTransaction
     (CHANGED(labelType(LabelTransactionDetail d)) OR SETCHANGED (dataBarcode(d))) AND PriceListType pt == priceListType(d) NOINLINE (pt) DO {
         price(d) <- OVERRIDE 
-            round(calcPrice(pt, d) * (OVERRIDE 1.0 IF d IS LabelTransactionDetail, amount(dataBarcode(d))), roundCondition(departmentStore(d))), 
-            documentPrice(d);
+            documentPrice(d), 
+            round(calcPrice(pt, d) * (OVERRIDE 1.0 IF d IS LabelTransactionDetail, amount(dataBarcode(d))), roundCondition(departmentStore(d)));
         retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
 }
 
@@ -865,7 +865,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
 	                                name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
 	                                documentQuantity(d) <- prefix###quantity(dd); 
 	                                
-	                                price(d) <- OVERRIDE calcPrice(pt, d), documentPrice(d);
+	                                price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
 	                                retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
 	                                                                           
 	                                quantity(d) <- IF NOT countLabel(departmentStore(d)) 
@@ -990,9 +990,9 @@ createLabelTransaction 'Распечатать ценники'(DepartmentStore d
             name(d) <- name(sku(d));
             createAttribute(d);
 
-            quantity(d) <-  OVERRIDE (IF include(labelType, sku(d)) THEN INTEGER(currentBalance(sku, departmentStore))
-                                                         ELSE count(labelType, sku(d))), 
-                                     overQuantityPrint(sku(d));
+            quantity(d) <-  OVERRIDE overQuantityPrint(sku(d)), 
+                                     (IF include(labelType, sku(d)) THEN INTEGER(currentBalance(sku, departmentStore))
+                                                         ELSE count(labelType, sku(d)));
                                                  
             price(d) <- calcPrice(pt, d);
             retailPrice(d) <- overRetailPrice(d);
@@ -1026,7 +1026,7 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
             createAttribute(d);           
             
 
-            price(d) <- OVERRIDE calcPrice(pt, d), documentPrice(d);
+            price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
             retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
     
             quantity(d) <- IF NOT countLabel(departmentStore) 

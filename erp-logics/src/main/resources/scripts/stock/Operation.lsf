@@ -7,7 +7,7 @@ TABLE operation(Operation);
 
 name 'Наименование' = ABSTRACT VARISTRING[100](Operation) PREFCHARWIDTH 30;
 nameReturn 'Наименование' = ABSTRACT VARISTRING[100](Operation) PREFCHARWIDTH 30;
-overName = OVERRIDE name(Operation o), nameReturn(o) PREFCHARWIDTH 40;
+overName = OVERRIDE nameReturn(o), name(Operation o) PREFCHARWIDTH 40;
 
 id 'ID' = ABSTRACT VARISTRING[100](Operation);
 
@@ -259,12 +259,12 @@ META defineOperationLegalEntity(prop, propPostfix, object, tabcaption)
         dataIn###prop(nearestParent###propPostfix###prop##Group(operation, legalEntityGroup), operation) PERSISTENT;
 
     in###prop 'Отм' (LegalEntityGroup legalEntityGroup, Operation operation) =
-        OVERRIDE nearestIn###prop(legalEntityGroup, operation), dataIn###prop(legalEntityGroup, operation);
+        OVERRIDE dataIn###prop(legalEntityGroup, operation), nearestIn###prop(legalEntityGroup, operation);
 
     // Отметка для организаций
     dataIn###prop 'Отм.' = DATA BOOLEAN (LegalEntity, Operation);
     in###prop 'Отм' (LegalEntity legalEntity, Operation operation) =
-        OVERRIDE nearestIn###prop(legalEntityGroup(legalEntity), operation), dataIn###prop(legalEntity, operation);
+        OVERRIDE dataIn###prop(legalEntity, operation), nearestIn###prop(legalEntityGroup(legalEntity), operation);
         
     quantityChildWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(LegalEntityGroup childGroup, Operation operation) AND isParent(childGroup, LegalEntityGroup group) BY group, operation PERSISTENT;
     quantityParentWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(LegalEntityGroup parentGroup, Operation operation) AND isParent(LegalEntityGroup group, parentGroup) BY group, operation PERSISTENT;          
@@ -362,15 +362,15 @@ META defineOperationStock(prop, object, tabcaption)
         dataIn###prop(nearestParent###prop##StockGroup(operation, stockGroup), operation) PERSISTENT;
 
     in###prop 'Отм' (StockGroup stockGroup, Operation operation) =
-        OVERRIDE all###prop##Stocks(operation) AND stockGroup IS StockGroup,
+        OVERRIDE dataIn###prop(stockGroup, operation),
                  nearestIn###prop(stockGroup, operation),
-                 dataIn###prop(stockGroup, operation);
+                 all###prop##Stocks(operation) AND stockGroup IS StockGroup;
 
     // Отметка для складов
     dataIn###prop 'Отм.' = DATA BOOLEAN (Stock, Operation);
     in###prop 'Отм' (Stock stock, Operation operation) =
-        OVERRIDE in###prop(stockGroup(stock), operation),
-                 dataIn###prop(stock, operation);
+        OVERRIDE dataIn###prop(stock, operation),
+                 in###prop(stockGroup(stock), operation);
                  
     countDataIn###prop##StockGroups = GROUP SUM 1 IF  dataIn###prop(StockGroup stockGroup, Operation operation) BY operation;            
                                   
@@ -509,7 +509,7 @@ META defineOperationRole(dumb)
     dataIn 'Отм.' = DATA BOOLEAN (UserRole, Operation);
 
     in 'Отм' (UserRole role, Operation operation) =
-        OVERRIDE allRoles(operation) AND role IS UserRole, dataIn(role, operation);
+        OVERRIDE dataIn(role, operation), allRoles(operation) AND role IS UserRole;
     
     TABLE userOperation (User, Operation);
     in (User user, Operation operation) = allRoles(operation) AND user IS User OR 
@@ -589,7 +589,7 @@ META defineDocumentOperationRolePrefix(object, prefix)
 END
 
 META defineDocumentOperationRoleOver(object, objectClass, prefix)
-    operation(###object o) <- (OVERRIDE default###prefix##Operation(), defaultOperation(currentUser()) IF countOperations(currentUser()) == 1)    
+    operation(###object o) <- (OVERRIDE defaultOperation(currentUser()) IF countOperations(currentUser()) == 1, default###prefix##Operation())    
         WHEN SET(o IS objectClass);
 END
 META defineDocumentOperationRoleOver(object, prefix)

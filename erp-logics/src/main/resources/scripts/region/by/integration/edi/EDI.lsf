@@ -8,7 +8,7 @@ REQUIRE LegalEntity, Item, Store, Warehouse;
 GTIN = ABSTRACT VARSTRING[15](Sku);
 GTIN(Item s) += GTIN(s);
 
-GTINBarcode 'GTIN' (Sku s) = OVERRIDE idBarcode(s), GTIN(s);
+GTINBarcode 'GTIN' (Sku s) = OVERRIDE GTIN(s), idBarcode(s);
 skuGTIN = GROUP NAGGR Sku s BY GTINBarcode(s);
 
 CLASS ABSTRACT EOrder 'EDI Заказ';
@@ -95,7 +95,7 @@ EXTEND FORM legalEntities PROPERTIES(l) READONLYIF isReadonly() GLN, nameEDIProv
 nameEDIProvider'Провайдер EDI'(EOrder o) = nameEDIProvider(supplier(o));
 
 dataGLN 'GLN' = DATA VARSTRING[13] (Stock);
-GLN 'GLN' (Stock s) = OVERRIDE GLN(legalEntity(s)) IF countStock(legalEntity(s)) == 1, dataGLN(s);
+GLN 'GLN' (Stock s) = OVERRIDE dataGLN(s), GLN(legalEntity(s)) IF countStock(legalEntity(s)) == 1;
 stockGLN (stock) = GROUP AGGR Stock stock BY GLN(stock);
 GLNSupplierStock 'GLN поставщика' (EOrder e) = GLN(supplierStock(e));
 GLNCustomerStock 'GLN покупателя' (EOrder e) = GLN(customerStock(e));

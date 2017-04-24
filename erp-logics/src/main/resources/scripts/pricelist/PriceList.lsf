@@ -213,15 +213,15 @@ levelParent (priceList, stockGroup) = GROUP MIN level(StockGroup stockGroup, Sto
 inParent (PriceList priceList, StockGroup stockGroup) = TRUE IF levelParent (priceList, stockGroup) PERSISTENT;
 
 in 'Отм' (PriceList priceList, StockGroup stockGroup) = OVERRIDE
-    allStocks(priceList) AND stockGroup IS StockGroup,
+    dataIn(priceList, stockGroup),
     inParent (priceList, stockGroup),
-    dataIn(priceList, stockGroup);
+    allStocks(priceList) AND stockGroup IS StockGroup;
 
 allow = ABSTRACT BOOLEAN (Stock, PriceList);
 
 in 'Отм' (PriceList priceList, Stock stock) =
-    (OVERRIDE in(priceList, stockGroup(stock)),
-              dataIn(priceList, stock))
+    (OVERRIDE dataIn(priceList, stock),
+              in(priceList, stockGroup(stock)))
     AND allow(stock, priceList) PERSISTENT;     
              
 @defineBackgroundNearestBoolean(allStocks, in, priceList, stock, inParent, isCompany);                    

@@ -224,9 +224,9 @@ META defineDocumentContract (objectClass, contractType, contractTypeClass, prefi
     WHEN SESSION (CHANGED(prefixA(objectClass o)) OR CHANGED(prefixB(o)) OR CHANGED(prefixA##Stock(o))
                 OR CHANGED(prefixB##Stock(o)) OR CHANGED(date(o))) AND NOT CHANGED(contractType(o)) AND NOT skipSet###contractType(o) NOINLINE DO {
                 
-        contractType(o) <- OVERRIDE single###contractType###prefixA###prefixB(prefixA(o), prefixB(o), date(o)) IF count###contractType###prefixA###prefixB(prefixA(o), prefixB(o), date(o)) == 1,
+        contractType(o) <- OVERRIDE defaultContractProp(prefixA##Stock(o), prefixB##Stock(o), date(o)),
                                                  defaultContractProp(prefixA(o), prefixB(o), date(o)),
-                                                 defaultContractProp(prefixA##Stock(o), prefixB##Stock(o), date(o)); 
+                                                 single###contractType###prefixA###prefixB(prefixA(o), prefixB(o), date(o)) IF count###contractType###prefixA###prefixB(prefixA(o), prefixB(o), date(o)) == 1; 
     }
 
     CONSTRAINT contractType(objectClass o) AND NOT prefixA(o) == partyA(contractType(o))

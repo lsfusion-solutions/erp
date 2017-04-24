@@ -238,12 +238,12 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     closeDataDate 'Дата автоматического закрытия' = DATA DATE (UserOrderDetail) IN documentPrm;
     closeDataDate(UserOrderDetail detail) += closeDataDate(detail);
 
-    closeDate 'Дата автоматического закрытия' (OrderDetail detail) = OVERRIDE closeDate(order(detail)), closeDataDate(detail) PERSISTENT;
-    closeDate 'Дата автоматического закрытия' (UserOrderDetail detail) = OVERRIDE closeDate(userOrder(detail)), closeDataDate(detail) PERSISTENT;
+    closeDate 'Дата автоматического закрытия' (OrderDetail detail) = OVERRIDE closeDataDate(detail), closeDate(order(detail)) PERSISTENT;
+    closeDate 'Дата автоматического закрытия' (UserOrderDetail detail) = OVERRIDE closeDataDate(detail), closeDate(userOrder(detail)) PERSISTENT;
 
-    closeDataDate(UserOrderDetail detail) <- OVERRIDE sum(shipmentDate(detail), quantityDaysCloseOrders(stockProp##Stock(detail))), overCloseDate(detail)
+    closeDataDate(UserOrderDetail detail) <- OVERRIDE overCloseDate(detail), sum(shipmentDate(detail), quantityDaysCloseOrders(stockProp##Stock(detail)))
         WHEN CHANGED(shipmentDate(detail)) OR CHANGED(stockProp##Stock(detail)) OR CHANGED(overCloseDate(detail));
-    closeDate(UserOrder order) <- OVERRIDE sum(shipmentDate(order), quantityDaysCloseOrders(stockProp##Stock(order))), overCloseDate(order)
+    closeDate(UserOrder order) <- OVERRIDE overCloseDate(order), sum(shipmentDate(order), quantityDaysCloseOrders(stockProp##Stock(order)))
             WHEN CHANGED(shipmentDate(order)) OR CHANGED(stockProp##Stock(order)) OR CHANGED(overCloseDate(order));    
 
     WHEN SET (closeDate(UserOrder order) <= currentDate()) DO isClosed(order) <- TRUE;
@@ -291,7 +291,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     price[Order.OrderDetail](OrderDetail detail) += price(detail);
 
     overPriceStockUser = ABSTRACT CASE OVERRIDE FIRST Stock (Order) PERSISTENT;
-    priceStockUser(Order o) = OVERRIDE stockProp##Stock(o), overPriceStockUser(o);
+    priceStockUser(Order o) = OVERRIDE overPriceStockUser(o), stockProp##Stock(o);
     notPriceStockUser(Order o) = NOT priceStockUser(o); 
     priceStock(UserOrderDetail d) = priceStockUser(userOrder(d)); 
 
@@ -390,7 +390,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     editSku 'Редактировать SKU' (UserOrderDetail d) = { edit(sku(d)); }
     
     backgroundParam = RGB(212,255,212) IF OrderDetail orderDetail IS OrderDetail; 
-    backgroundQuantityParam = OVERRIDE backgroundParam(OrderDetail d), backgroundQuantity(d);
+    backgroundQuantityParam = OVERRIDE backgroundQuantity(d), backgroundParam(OrderDetail d);
     disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (UserOrder); 
     overPrePost 'Провести' (UserOrder o) = {
         IF NOT disablePosted(o) THEN {
@@ -665,7 +665,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     skipShowDelete = ABSTRACT BOOLEAN (Order);
     
     backgroundDraft 'Цвет' (Order o) = RGB(212,255,212) IF isDraft(o);      
-    overBackgroundDraft(Order o) = OVERRIDE backgroundDraft(o), backgroundSku(o);
+    overBackgroundDraft(Order o) = OVERRIDE backgroundSku(o), backgroundDraft(o);
     
     FORM orders 'Заказы' AUTOREFRESH 60 
     
@@ -794,7 +794,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 END
 
 META deriveShipmentDate(dumb) 
-    shipmentDate(UserOrder order) <- sum(date(order), (OVERRIDE 0, daysBeforeShipmentDate(operation(order)))) WHEN CHANGED(date(order));
+    shipmentDate(UserOrder order) <- sum(date(order), (OVERRIDE daysBeforeShipmentDate(operation(order)), 0)) WHEN CHANGED(date(order));
     shipmentTime(UserOrder order) <- time(order) WHEN CHANGED(time(order));
 END
 

@@ -113,9 +113,9 @@ FORM messageOrders 'Сообщение'
 ;
 
 calcEmailCustomer 'Отправить заказ поставщику' (Order.Order order) = { EMAIL
-    FROM OVERRIDE fromEmailOrders(), email(createdUser(order))
+    FROM OVERRIDE email(createdUser(order)), fromEmailOrders()
     SUBJECT 'Заказ №' + seriesNumber(order) + ' на '  + shipmentDate(order)+ ' от ' + nameCustomer(order)
-    TO (OVERRIDE email(supplier(order)), email(supplierStock(order)))
+    TO (OVERRIDE email(supplierStock(order)), email(supplier(order)))
     INLINE messageOrders OBJECTS o=order
     ATTACH XLSX 
            NAME number(order) + '/' + shipmentDate(order) // без кирилицы должно быть
@@ -136,7 +136,7 @@ logSendDocumentOrder(Purchase.Order o) = {
 	    seriesDocument(d) <- series(o); 
 	    dateDocument(d) <- date(o);
 	    typeChange(d) <- TypeChange.email;
-	    note(d) <- VARSTRING[255](OVERRIDE email(supplier(o)), email(supplierStock(o)), overEmailList(o));      
+	    note(d) <- VARSTRING[255](OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o)));      
 	    session(d) <- currentSession();  
 	    hostnameComputer(d) <- hostnameCurrentComputer();
 	    userLogin(d) <- login(currentUser()); 
@@ -159,7 +159,7 @@ emailCustomerSingle 'Отправить заказ поставщику' (Purcha
 	    overEmailCustomer(order);
 	
 	    IF NOT consumedEmailCustomer(order) THEN {
-	        IF (OVERRIDE email(supplier(order)), email(supplierStock(order)), overEmailList(order)) THEN {
+	        IF (OVERRIDE overEmailList(order), email(supplierStock(order)), email(supplier(order))) THEN {
 	            isSent(order) <- TRUE;
 	            IF NOT disableDocumentLog() THEN logSendDocumentOrder(order);
 	            sentDateTime(order) <- currentDateTime();
@@ -182,7 +182,7 @@ emailCustomer 'Отправить заказы поставщикам' (Purchase
 }
 
 provider 'Доставка' = ABSTRACT CASE OVERRIDE FIRST VARISTRING[20] (Order);
-provider(Order o) += WHEN (OVERRIDE email(supplier(o)), email(supplierStock(o)), overEmailList(o)) THEN 'e-mail';
+provider(Order o) += WHEN (OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o))) THEN 'e-mail';
 
 EXTEND FORM orders
     PROPERTIES(o) PANEL  provider READONLY, emailCustomer

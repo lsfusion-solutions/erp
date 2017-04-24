@@ -38,7 +38,7 @@ rateManufacturingExchange(UserInvoice i) += rateManufacturingExchange(i);
 rateManufacturingExchange 'Курс' = ABSTRACT NUMERIC[14,6](InvoiceDetail) PERSISTENT;
 
 dataRateManufacturingExchange 'Курс' = DATA NUMERIC[14,6](UserInvoiceDetail);
-rateManufacturingExchange 'Курс' (UserInvoiceDetail d) = OVERRIDE rateManufacturingExchange(userInvoice(d)),  dataRateManufacturingExchange(d);
+rateManufacturingExchange 'Курс' (UserInvoiceDetail d) = OVERRIDE dataRateManufacturingExchange(d),  rateManufacturingExchange(userInvoice(d));
 rateManufacturingExchange(UserInvoiceDetail d) += rateManufacturingExchange(d);
 
 
@@ -55,12 +55,12 @@ defaultRound = ABSTRACT INTEGER(InvoiceDetail);
 homeManufacturingPrice 'Цена (конв.)' (InvoiceDetail detail) =
     round(price(detail) *
                        rateManufacturingExchange(detail),
-                       OVERRIDE defaultRound(homeCurrency(invoice(detail))), defaultRound(detail));
+                       OVERRIDE defaultRound(detail), defaultRound(homeCurrency(invoice(detail))));
 
 homeManufacturingPrice 'Цена (конв.)' (UserInvoiceDetail detail) =
     round(price(detail) *
                        rateManufacturingExchange(detail),
-                       OVERRIDE defaultRound(homeCurrency(detail)), defaultRound(detail)) PERSISTENT INDEXED;
+                       OVERRIDE defaultRound(detail), defaultRound(homeCurrency(detail))) PERSISTENT INDEXED;
 
 incomeManufacturingPrice (InvoiceDetail detail) = IF isHomeCurrency(invoice(detail)) THEN
                                                     homeManufacturingPrice(detail)
@@ -232,7 +232,7 @@ showManufacturingPriceHomeCurrency(UserInvoice invoice) = showManufacturingPrice
 
 backgroundManufacturing 'Цвет' (Invoice invoice) = RGB(240, 240, 224) IF invoice IS Invoice;
 overBackgroundManufacturing 'Цвет'  (d)= ABSTRACT CASE COLOR (InvoiceDetail);
-backgroundManufacturing (InvoiceDetail d) = OVERRIDE backgroundManufacturing(invoice(d)), overBackgroundManufacturing(d);
+backgroundManufacturing (InvoiceDetail d) = OVERRIDE overBackgroundManufacturing(d), backgroundManufacturing(invoice(d));
 
 EXTEND FORM userInvoice
     PROPERTIES(i) showManufacturingPrice BACKGROUND backgroundManufacturing(i)
