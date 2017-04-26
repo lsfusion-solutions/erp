@@ -132,10 +132,14 @@ printNullPrice 'Включать позиций без цен' = DATA BOOLEAN (L
 
 notPrintRetailPrice 'Не печатать без цены до' = DATA BOOLEAN (LabelType);
 
+// Неактивный
+inactive 'Неактивный' = DATA BOOLEAN (LabelType);
+active 'Активный' (LabelType t) = t IS LabelType AND NOT inactive(t);
+
 FORM labelType 'Тип ценника'
     OBJECTS l = LabelType PANEL
     PROPERTIES(l) id, name, width, height, nameOrientation, fileTemplate,
-                  namePriceListType, nameGroupType, printNullPrice, notPrintRetailPrice
+                  namePriceListType, nameGroupType, printNullPrice, notPrintRetailPrice, inactive
 
     TREE treeStore a=STRING[3], st=StoreType, s=Store
     PROPERTIES READONLY VALUE(a), name[StockGroup](st), name(s)
@@ -221,7 +225,8 @@ DESIGN labelType {
 FORM labelTypes 'Типы ценников'
     OBJECTS l = LabelType
     PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate, namePriceListType, printNullPrice
-    PROPERTIES(l)          NEWSESSION NEW, EDIT, DELETE 
+    PROPERTIES(l)          NEWSESSION NEW, EDIT, DELETE     
+    FILTERGROUP inactive FILTER 'Активные' active(l) 'F10' DEFAULT
     LIST LabelType OBJECT l
 ;
 
@@ -407,6 +412,7 @@ FORM labelTypesDialog 'Доступные типы ценников'
     OBJECTS l = LabelType
     PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate, namePriceListType, printNullPrice
     FILTERS in(l,ds)
+    FILTERGROUP inactive FILTER 'Активные' active(l) 'F10' DEFAULT
 ;
 DESIGN labelTypesDialog { main{ preferredSize = (800, 600); } } 
 
@@ -510,6 +516,7 @@ FORM labelTransactions 'Печать ценников'
     PROPERTIES(l) printTo  
     FILTERS departmentStore(l) == d
     ORDER BY date(l), time(l)
+    FILTERGROUP inactive FILTER 'Активные' active(labelType(l)) 'F10' DEFAULT
 
     OBJECTS dt = LabelTransactionDetail
     PROPERTIES(dt) select
@@ -522,6 +529,7 @@ FORM labelTransactions 'Печать ценников'
     PROPERTIES(s)    READONLY idBarcode, name, id
     FILTERGROUP price
         FILTER 'Ранее загруженные' priceLabelTransactionDetail(s, d) 'F8' DEFAULT
+   
     OBJECTS dts = LabelTransactionDetail
     PROPERTIES(dts) READONLY nameLabelType, description, date, time,
             createdNameUser, createdTime, createdHostnameComputer,
@@ -532,6 +540,7 @@ FORM labelTransactions 'Печать ценников'
     ORDER BY date(dts) DESC, time(dts) DESC
     FILTERS sku(dts) == s,
             departmentStore(dts) == d
+    FILTERGROUP inactivedts FILTER 'Активные' active(labelType(l)) 'F10' DEFAULT
 ;
 
 @extendFormFilterStockAccess(d, labelTransactions);
@@ -1093,6 +1102,7 @@ FORM selectLabelTypes 'Доступные типы ценников'
     PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate,
                   namePriceListType, nameGroupType, printNullPrice, notPrintRetailPrice
     FILTERS in(l,ds)
+    FILTERGROUP inactive FILTER 'Активные' active(l) 'F10' DEFAULT
 ;
 
 DESIGN selectLabelTypes { main{ preferredSize = (600, 400); } }  
