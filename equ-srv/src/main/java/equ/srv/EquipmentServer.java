@@ -1067,18 +1067,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public void finishRequestExchange(Set<Integer> succeededRequestsSet) throws RemoteException, SQLException {
-        if (machineryPriceTransactionLM != null) {
-            try (DataSession session = getDbManager().createSession()) {
-                for (Integer request : succeededRequestsSet) {
-                    DataObject requestExchangeObject = new DataObject(request, (ConcreteClass) machineryPriceTransactionLM.findClass("RequestExchange"));
-                    machineryPriceTransactionLM.findProperty("succeeded[RequestExchange]").change(true, session, requestExchangeObject);
-                    machineryPriceTransactionLM.findProperty("dateTimeSucceeded[RequestExchange]").change(getCurrentTimestamp(), session, requestExchangeObject);
-                }
-                session.apply(getBusinessLogics(), getStack());
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
-                throw Throwables.propagate(e);
-            }
-        }
+        MachineryExchangeEquipmentServer.finishRequestExchange(getDbManager(), getBusinessLogics(), getStack(), succeededRequestsSet);
     }
 
     @Override

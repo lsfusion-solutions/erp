@@ -6,13 +6,16 @@ import equ.api.RequestExchange;
 import equ.api.cashregister.CashierInfo;
 import equ.api.cashregister.DiscountCard;
 import equ.api.terminal.TerminalOrder;
+import lsfusion.base.DateConverter;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
+import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.classes.LongClass;
+import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
@@ -29,8 +32,8 @@ import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.Date;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.Timestamp;
+import java.util.*;
 
 import static org.apache.commons.lang3.StringUtils.trim;
 
@@ -42,6 +45,7 @@ public class MachineryExchangeEquipmentServer {
     static ScriptingLogicsModule purchaseOrderLM;
     static ScriptingLogicsModule terminalHandlerLM;
     static ScriptingLogicsModule machineryLM;
+    static ScriptingLogicsModule machineryPriceTransactionLM;
 
     public static void init(BusinessLogics BL) {
         discountCardLM = BL.getModule("DiscountCard");
@@ -50,6 +54,26 @@ public class MachineryExchangeEquipmentServer {
         purchaseOrderLM = BL.getModule("PurchaseOrder");
         terminalHandlerLM = BL.getModule("TerminalHandler");
         machineryLM = BL.getModule("Machinery");
+        machineryPriceTransactionLM = BL.getModule("MachineryPriceTransaction");
+    }
+
+    public static void finishRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Set<Integer> succeededRequestsSet) throws RemoteException, SQLException {
+        if (machineryPriceTransactionLM != null) {
+            try (DataSession session = dbManager.createSession()) {
+                for (Integer request : succeededRequestsSet) {
+                    DataObject requestExchangeObject = new DataObject(request, (ConcreteClass) machineryPriceTransactionLM.findClass("RequestExchange"));
+                    machineryPriceTransactionLM.findProperty("succeeded[RequestExchange]").change(true, session, requestExchangeObject);
+                    machineryPriceTransactionLM.findProperty("dateTimeSucceeded[RequestExchange]").change(getCurrentTimestamp(), session, requestExchangeObject);
+                }
+                session.apply(BL, stack);
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+
+    protected static Timestamp getCurrentTimestamp() {
+        return DateConverter.dateToStamp(Calendar.getInstance().getTime());
     }
 
     public static List<DiscountCard> readDiscountCardList(DBManager dbManager, String numberDiscountCardFrom, String numberDiscountCardTo) throws RemoteException, SQLException {
