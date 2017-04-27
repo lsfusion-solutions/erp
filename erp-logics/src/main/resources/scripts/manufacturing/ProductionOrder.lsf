@@ -1734,6 +1734,7 @@ CONSTRAINT company(Order order) AND NOT isCompany(company(order))
     CHECKED BY company[Order] MESSAGE 'Для производственного заказа выбрана организация, не являющаяся компанией';
 
 overCopy = ACTION ABSTRACT LIST (Order, Order);
+overCopy = ACTION ABSTRACT LIST (ProductDetail, ProductDetail);
 copy 'Копировать'(Order order) = {
 	NEWSESSION {
 	    NEW o = Order {
@@ -1754,11 +1755,10 @@ copy 'Копировать'(Order order) = {
 	            sku(p) <- sku(productDetail);
 	            product(p) <- product(productDetail);
 	            quantity(p) <- quantity(productDetail);
-	            BOMQuantity(p) <- BOMQuantity(productDetail);
-	            componentsPrice(p) <- componentsPrice(productDetail);
-	            costPrice(p) <- costPrice(productDetail);
+	            BOMQuantity(p) <- BOMQuantity(productDetail);	            
 	            markup(p) <- markup(productDetail);
 	            pricePercent(p) <- pricePercent(productDetail);
+	            overCopy(p,productDetail);
 	        }
 	        FOR order(ComponentDetail componentDetail) == order NEW c=ComponentDetail DO {
 	            order(c) <- o;
