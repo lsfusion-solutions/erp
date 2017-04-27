@@ -440,7 +440,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField GLNSupplierEOrderResponseField = new ImportField(findProperty("GLN[LegalEntity]"));
             ImportKey<?> supplierKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                    findProperty("legalEntityGLN[VARSTRING[13]]").getMapping(GLNSupplierEOrderResponseField));
+                    findProperty("legalEntityStockGLN[VARSTRING[13]]").getMapping(GLNSupplierEOrderResponseField));
             supplierKey.skipKey = true;
             keys.add(supplierKey);
             props.add(new ImportProperty(GLNSupplierEOrderResponseField, findProperty("supplier[EOrderResponse]").getMapping(eOrderResponseKey),
@@ -653,7 +653,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField GLNSupplierEOrderDespatchAdviceField = new ImportField(findProperty("GLN[LegalEntity]"));
             ImportKey<?> supplierKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                    findProperty("legalEntityGLN[VARSTRING[13]]").getMapping(GLNSupplierEOrderDespatchAdviceField));
+                    findProperty("legalEntityStockGLN[VARSTRING[13]]").getMapping(GLNSupplierEOrderDespatchAdviceField));
             supplierKey.skipKey = true;
             keys.add(supplierKey);
             props.add(new ImportProperty(GLNSupplierEOrderDespatchAdviceField, findProperty("supplier[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey),
