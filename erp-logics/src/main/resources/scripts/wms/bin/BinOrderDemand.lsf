@@ -17,10 +17,10 @@ recommendedQuantity 'Рекомендуемое к перемещению кол
    MIN calcRecQuantity(sku, inBin(order)), availableQuantity(sku, outBin(order));
 
 ceilCalcRecQuantity (Sku sku, Bin bin) =  IF Purchase.amountPack(sku) > 0 THEN ceil(calcRecQuantity(sku, bin), amountPack(sku)) IF amountPack(sku)!=0
-    ELSE (IF split(sku) THEN calcRecQuantity(sku, bin) ELSE ceil(calcRecQuantity(sku, bin)));
+    ELSE (IF split(sku) THEN ceil(calcRecQuantity(sku, bin)) ELSE calcRecQuantity(sku, bin));
 
 ceilAvailableQuantity(Sku sku, Bin bin) = IF amountPack(sku) > 0 THEN floor(availableQuantity(sku, bin)/(amountPack(sku) IF amountPack(sku)!=0))*amountPack(sku)
-    ELSE (IF split(sku) THEN availableQuantity(sku, bin) ELSE floor(availableQuantity(sku, bin)));
+    ELSE (IF split(sku) THEN floor(availableQuantity(sku, bin)) ELSE availableQuantity(sku, bin));
     
 recommendedPackQuantity 'Рекомендуемое к перемещению кол-во' (Sku sku, UserBinOrder order) = 
     IF ceilAvailableQuantity(sku, outBin(order))> 0.0 AND ceilCalcRecQuantity(sku, inBin(order))> 0.0 THEN
@@ -30,7 +30,7 @@ fillRecommendedQuantity 'Заполнить рекомендуемым' (UserBin
     FOR Sku sku IS Sku AND recommendedQuantity (sku, userOrder) > 0.0 NEW d = UserBinOrderDetail DO {
             userBinOrder(d) <- userOrder;
             sku(d) <- sku;
-            IF recommendedPackQuantity(sku, userOrder) AND NOT (recommendedPackQuantity(sku, userOrder)(+)currentBalance(sku, inBin(userOrder))) > binReserve(sku, inBin(userOrder)) THEN {
+            IF recommendedPackQuantity(sku, userOrder) AND NOT (recommendedPackQuantity(sku, userOrder)(+) availableQuantity(sku, inBin(userOrder))) > binReserve(sku, inBin(userOrder)) THEN {
                 packQuantity (d) <- recommendedPackQuantity(sku, userOrder)/amountPack(sku(d)) IF amountPack(sku(d)) > 0;
                 quantity (d) <- recommendedPackQuantity(sku, userOrder);      
             } ELSE {
