@@ -49,6 +49,7 @@ sumWithVATRange[EVATDocument, Range](SaleReturn.Invoice i, Range r) += [= GROUP 
 customer[EVATDocument](Sale.Invoice i) += customer(i);
 customer[EVATDocument](SaleReturn.Invoice i) += customer(i);
 
+// в Виталюре своё действие, создающее для возвратной накладной столько ЭСЧФ, сколько есть накладных-оснований в строках.
 createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dTo) = {
     FOR eVAT(operation(Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND 
         NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND
@@ -114,7 +115,9 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
     } 
     APPLY;
 
-    FOR eVAT(operation(SaleReturn.Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo NEW e = EVAT DO {
+    FOR eVAT(operation(SaleReturn.Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND 
+        NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo 
+        NEW e = EVAT DO {
         EVATDocument(e) <- i;        
         type(e) <- EVATType.saleReturn;
         status(e) <- EVATStatus.additionalNoRef;
