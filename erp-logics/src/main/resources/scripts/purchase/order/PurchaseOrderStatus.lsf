@@ -38,9 +38,6 @@ isRejected 'Отменен' (o) = ABSTRACT BOOLEAN(Order);
 isRejected 'Отменен' (o) = DATA BOOLEAN (UserOrder);
 isRejected(UserOrder o) += isRejected(o);  
 
-isRejected 'Отменен' (OrderDetail d) = isRejected(order(d));
-isRejected 'Отменен' (UserOrderDetail d) = isRejected(userOrder(d));
-
 status 'Статус заказа' = ABSTRACT CASE OVERRIDE FIRST VARISTRING[20] (Order);
 calcStatus 'Статус заказа' = CASE
     WHEN isClosed(Order o) THEN 'Закрыт'
@@ -59,13 +56,15 @@ backgroundStatus(Purchase.Order o) += WHEN isRejected(o) THEN RGB (255,128,128);
 backgroundStatus(Purchase.Order o) += WHEN isPosted(o) THEN RGB(212,255,212);
 
 originalQuantity(UserOrderDetail d) <- quantity(d)
-    WHEN CHANGED (quantity(d)) IF NOT (isConfirmed(d) OR isSent(d));
+    WHEN CHANGED (quantity(d)) IF NOT (isConfirmed(d) OR isSent(d));    
 
 backgroundOriginalQuantity 'Цвет' (OrderDetail d) = RGB(255,0,0) IF quantity(d) != originalQuantity(d);      
+showOriginalQuantity(OrderDetail d) = isConfirmed(d) OR isSent(d);
+showOriginalQuantity(UserOrderDetail d) = isConfirmed(d) OR isSent(d);
 
 EXTEND FORM userOrder
     PROPERTIES (o) isSent, isConfirmed
-    PROPERTIES (d) BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF isConfirmed(o)
+    PROPERTIES (d) BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF showOriginalQuantity(d)
 ;
 DESIGN userOrder {
     first {
@@ -77,10 +76,8 @@ DESIGN userOrder {
 EXTEND FORM orders
     PROPERTIES (o) READONLY  BEFORE isPosted(o) isSent, isConfirmed, isRejected
     PROPERTIES (o) READONLY  AFTER isPosted(o) status BACKGROUND backgroundStatus(o)
-    PROPERTIES (d) READONLY BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF isConfirmed(o)
+    PROPERTIES (d) READONLY BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF showOriginalQuantity(d)
 ;
-
-emailNameSku = ABSTRACT VARISTRING[255] (OrderDetail) PERSISTENT;
 
 fromEmailOrders 'E-mail, с которой идет отправка заказов поставщику' = DATA VARSTRING[300] () MINCHARWIDTH 30 PREFCHARWIDTH 50; 
 messageEmailOrders 'Предупреждающая надпись в сообщении' = DATA RICHTEXT ();
@@ -103,8 +100,6 @@ DESIGN options{
 
     }
 }
-
-name = CONCAT '', 'Заказ № ' + seriesNumber(Order order) + ' от '  + date(order)+ ' '+ fullNameCustomer(order);
 
 FORM messageOrders 'Сообщение'
     OBJECTS o = Order PANEL
