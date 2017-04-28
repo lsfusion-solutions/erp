@@ -24,6 +24,9 @@ dateTime[EVATDocument](SaleReturn.Invoice document) += dateTime(document);
 skipCreateEVAT = ABSTRACT BOOLEAN (Invoice);
 skipCreateEVAT = ABSTRACT BOOLEAN (SaleReturn.Invoice);
 
+skipCreateEVAT = ABSTRACT BOOLEAN (InvoiceDetail);
+skipCreateEVAT = ABSTRACT BOOLEAN (SaleReturn.InvoiceDetail);
+
 EXTEND CLASS EVATType { sale 'Продажа',
                         saleReturn 'Продажа-возврат'}
                         
@@ -88,7 +91,7 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
         
         noCustomer(e) <- NOT VATSumInvoiceDetail(i);
         
-        FOR invoice(InvoiceDetail id) == i AND quantity(id) > 0 NEW ed = EVATDetail DO {
+        FOR invoice(InvoiceDetail id) == i AND quantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
             evat(ed) <- e;
 
             name(ed) <- nameSku(id);
@@ -150,7 +153,7 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
         
         overCreateEVATSaleReturnInvoice(e,i);
         
-        FOR invoice(SaleReturn.InvoiceDetail id) == i AND quantity(id) > 0 NEW ed = EVATDetail DO {
+        FOR invoice(SaleReturn.InvoiceDetail id) == i AND quantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
             evat(ed) <- e;
 
             name(ed) <- nameSku(id);
