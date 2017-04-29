@@ -13,6 +13,7 @@ public class UKM4MySQLSettings implements Serializable{
     private Boolean skipBarcodes;
     private Boolean useBarcodeAsId;
     private Boolean appendBarcode;
+    private Integer lastDaysCashDocument;
 
     public UKM4MySQLSettings() {
     }
@@ -87,5 +88,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setSkipClassif(Boolean skipClassif) {
         this.skipClassif = skipClassif;
+    }
+
+    public Integer getLastDaysCashDocument() {
+        return lastDaysCashDocument;
+    }
+
+    public void setLastDaysCashDocument(Integer lastDaysCashDocument) {
+        this.lastDaysCashDocument = lastDaysCashDocument;
     }
 }

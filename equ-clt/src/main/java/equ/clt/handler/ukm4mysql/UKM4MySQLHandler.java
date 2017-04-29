@@ -9,7 +9,7 @@ import lsfusion.base.Pair;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import java.io.*;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.*;
 import java.sql.Date;
@@ -23,6 +23,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     private final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     private final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
     private final static Logger deleteBarcodeLogger = Logger.getLogger("DeleteBarcodeLogger");
+
+    private static String logPrefix = "ukm4 mysql: ";
 
     private FileSystemXmlApplicationContext springContext;
 
@@ -97,43 +99,43 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 version++;
 
                                 if (!skipClassif) {
-                                    processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table classif", transaction.id));
+                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table classif", transaction.id));
                                     exportClassif(conn, transaction, version);
                                 }
 
-                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items", transaction.id));
+                                processTransactionLogger.info(logPrefix + String.format("transaction %s, table items", transaction.id));
                                 exportItems(conn, transaction, useBarcodeAsId, appendBarcode, version);
 
-                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items_stocks", transaction.id));
+                                processTransactionLogger.info(logPrefix + String.format("transaction %s, table items_stocks", transaction.id));
                                 exportItemsStocks(conn, transaction, section/*departmentNumber*/, version);
 
-                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table stocks", transaction.id));
+                                processTransactionLogger.info(logPrefix + String.format("transaction %s, table stocks", transaction.id));
                                 exportStocks(conn, transaction, section/*departmentNumber*/, version);
 
-                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist", transaction.id));
+                                processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist", transaction.id));
                                 exportPriceList(conn, transaction, nppGroupMachinery, version);
 
-                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricetype_store_pricelist", transaction.id));
+                                processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricetype_store_pricelist", transaction.id));
                                 exportPriceTypeStorePriceList(conn, transaction, nppGroupMachinery, section/*departmentNumber*/, version);
 
-                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table var", transaction.id));
+                                processTransactionLogger.info(logPrefix + String.format("transaction %s, table var", transaction.id));
                                 exportVar(conn, transaction, useBarcodeAsId, weightCode, appendBarcode, version);
 
-                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
+                                processTransactionLogger.info(logPrefix + String.format("transaction %s, table signal", transaction.id));
                                 exportSignals(conn, transaction, version, true, timeout, false);
                                 versionTransactionMap.put(version, transaction.id);
                             }
 
                             version++;
                             if (!skipBarcodes) {
-                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_var", transaction.id));
+                                processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist_var", transaction.id));
                                 exportPriceListVar(conn, transaction, nppGroupMachinery, weightCode, version);
                             }
 
-                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_items", transaction.id));
+                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist_items", transaction.id));
                             exportPriceListItems(conn, transaction, nppGroupMachinery, useBarcodeAsId, appendBarcode, version);
 
-                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
+                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table signal", transaction.id));
                             exportSignals(conn, transaction, version, false, timeout, false);
                             versionTransactionMap.put(version, transaction.id);
 
@@ -149,7 +151,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     if(params.connectionString != null) {
                         Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                         try {
-                            processTransactionLogger.info(String.format("ukm4 mysql: export to table signal %s records", versionTransactionMap.size()));
+                            processTransactionLogger.info(logPrefix + String.format("export to table signal %s records", versionTransactionMap.size()));
                             sendTransactionBatchMap.putAll(waitSignals(conn, versionTransactionMap, transaction.id, timeout));
                         } finally {
                             if (conn != null)
@@ -615,6 +617,80 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     @Override
+    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
+        List<CashDocument> result = new ArrayList<>();
+
+        UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
+        Integer lastDaysCashDocument = ukm4MySQLSettings != null ? ukm4MySQLSettings.getLastDaysCashDocument() : null;
+
+        Set<String> directorySet = new HashSet<>();
+        Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
+        for (CashRegisterInfo c : cashRegisterInfoList) {
+            if (c.handlerModel != null && c.handlerModel.endsWith("UKM4MySQLHandler")) {
+                directorySet.add(c.directory);
+                if (c.number != null)
+                    directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
+            }
+        }
+
+        for (String directory : directorySet) {
+
+            UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
+
+            Connection conn = null;
+            if (params.connectionString != null) {
+                try {
+                    conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+
+                    Statement statement = conn.createStatement();
+                    String queryString = "select cash_id, id, date, type, amount from moneyoperation";
+                    if (lastDaysCashDocument != null) {
+                        Calendar c = Calendar.getInstance();
+                        c.add(Calendar.DATE, -lastDaysCashDocument);
+                        queryString += " where date >='" + new SimpleDateFormat("yyyyMMdd").format(c.getTime()) + "'";
+                    }
+                    ResultSet rs = statement.executeQuery(queryString);
+                    while (rs.next()) {
+                        int nppMachinery = rs.getInt("cash_id");
+                        CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + nppMachinery);
+                        if (cashRegister != null) {
+                            String numberCashDocument = rs.getString("id");
+                            Timestamp dateTime = rs.getTimestamp("date");
+                            Date date = new Date(dateTime.getTime());
+                            Time time = new Time(dateTime.getTime());
+                            int type = rs.getInt("type");
+                            BigDecimal sum = type == 100 ? rs.getBigDecimal("amount") : type == 101 ?  HandlerUtils.safeNegate(rs.getBigDecimal("amount")) : null;
+                            if(sum != null) {
+                                String idCashDocument = params.connectionString + "/" + nppMachinery + "/" + numberCashDocument;
+                                if (!cashDocumentSet.contains(idCashDocument))
+                                    result.add(new CashDocument(idCashDocument, numberCashDocument, date, time, cashRegister.numberGroup, nppMachinery, sum));
+                            }
+                        }
+                    }
+
+                } catch (SQLException e) {
+                    sendSalesLogger.error("ukm4 mysql:", e);
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (conn != null)
+                            conn.close();
+                    } catch (SQLException e) {
+                        sendSalesLogger.error(logPrefix, e);
+                    }
+                }
+
+                if (result.size() == 0)
+                    sendSalesLogger.info(logPrefix + "no CashDocuments found");
+                else
+                    sendSalesLogger.info(logPrefix + String.format("found %s CashDocument(s)", result.size()));
+            }
+
+        }
+        return new CashDocumentBatch(result, null);
+    }
+
+    @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
         if (!stopListInfo.exclude) {
 
@@ -636,7 +712,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         version++;
                         conn.setAutoCommit(false);
                         if (!skipBarcodes) {
-                            processStopListLogger.info("ukm4 mysql: executing stopLists, table pricelist_var");
+                            processStopListLogger.info(logPrefix + "executing stopLists, table pricelist_var");
 
                             ps = conn.prepareStatement(
                                     "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
@@ -656,7 +732,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             conn.commit();
                         }
 
-                        processStopListLogger.info("ukm4 mysql: executing stopLists, table pricelist_items");
+                        processStopListLogger.info(logPrefix + "executing stopLists, table pricelist_items");
                         ps = conn.prepareStatement(
                                 "INSERT INTO pricelist_items (pricelist, item, price, minprice, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                                         "ON DUPLICATE KEY UPDATE price=VALUES(price), minprice=VALUES(minprice), deleted=VALUES(deleted)");
@@ -677,7 +753,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         ps.executeBatch();
                         conn.commit();
 
-                        processStopListLogger.info("ukm4 mysql: executing stopLists, table signal");
+                        processStopListLogger.info(logPrefix + "executing stopLists, table signal");
                         exportSignals(conn, null, version, true, timeout, true);
 
                     } catch (SQLException e) {
@@ -718,10 +794,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         conn.setAutoCommit(false);
                         Integer version = getVersion(conn) + 1;
 
-                        deleteBarcodeLogger.info("ukm4 mysql: deleteBarcode, table var");
+                        deleteBarcodeLogger.info(logPrefix + "deleteBarcode, table var");
                         exportVarDeleteBarcode(conn, deleteBarcodeInfo.barcodeList, version);
 
-                        processTransactionLogger.info("ukm4 mysql: deleteBarcode, table signal");
+                        processTransactionLogger.info(logPrefix + "deleteBarcode, table signal");
                         exportSignals(conn, null, version, false, timeout, true);
                     }
                 }

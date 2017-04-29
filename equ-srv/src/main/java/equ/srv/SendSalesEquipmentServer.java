@@ -36,13 +36,13 @@ import static org.apache.commons.lang3.StringUtils.trim;
 public class SendSalesEquipmentServer {
 
     static ScriptingLogicsModule cashRegisterLM;
-    static ScriptingLogicsModule collectionLM;
+    static ScriptingLogicsModule cashOperationLM;
     static ScriptingLogicsModule equipmentCashRegisterLM;
     static ScriptingLogicsModule zReportLM;
 
     public static void init(BusinessLogics BL) {
         cashRegisterLM = BL.getModule("EquipmentCashRegister");
-        collectionLM = BL.getModule("Collection");
+        cashOperationLM = BL.getModule("CashOperation");
         equipmentCashRegisterLM = BL.getModule("EquipmentCashRegister");
         zReportLM = BL.getModule("ZReport");
     }
@@ -99,14 +99,14 @@ public class SendSalesEquipmentServer {
 
     public static Set<String> readCashDocumentSet(DBManager dbManager) throws IOException, SQLException {
         Set<String> cashDocumentSet = new HashSet<>();
-        if (collectionLM != null) {
+        if (cashOperationLM != null) {
             try (DataSession session = dbManager.createSession()) {
 
                 KeyExpr cashDocumentExpr = new KeyExpr("cashDocument");
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "CashDocument", cashDocumentExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-                query.addProperty("idCashDocument", collectionLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr));
-                query.and(collectionLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr).getWhere());
+                query.addProperty("idCashDocument", cashOperationLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr));
+                query.and(cashOperationLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr).getWhere());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
@@ -120,7 +120,7 @@ public class SendSalesEquipmentServer {
     }
 
     public static String sendCashDocumentInfo(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, List<CashDocument> cashDocumentList) throws IOException, SQLException {
-        if (collectionLM != null && cashDocumentList != null) {
+        if (cashOperationLM != null && cashDocumentList != null) {
 
             try {
 
@@ -136,69 +136,67 @@ public class SendSalesEquipmentServer {
                 List<List<Object>> dataIncome = new ArrayList<>();
                 List<List<Object>> dataOutcome = new ArrayList<>();
 
-                ImportField idCashDocumentField = new ImportField(collectionLM.findProperty("id[CashDocument]"));
+                ImportField idCashDocumentField = new ImportField(cashOperationLM.findProperty("id[CashDocument]"));
 
-                ImportKey<?> incomeCashOperationKey = new ImportKey((CustomClass) collectionLM.findClass("IncomeCashOperation"),
-                        collectionLM.findProperty("cashDocument[VARSTRING[100]]").getMapping(idCashDocumentField));
+                ImportKey<?> incomeCashOperationKey = new ImportKey((CustomClass) cashOperationLM.findClass("IncomeCashOperation"),
+                        cashOperationLM.findProperty("cashDocument[VARSTRING[100]]").getMapping(idCashDocumentField));
                 keysIncome.add(incomeCashOperationKey);
-                propsIncome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("id[CashDocument]").getMapping(incomeCashOperationKey)));
-                //propsIncome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("numberIncomeCashOperation").getMapping(incomeCashOperationKey)));
+                propsIncome.add(new ImportProperty(idCashDocumentField, cashOperationLM.findProperty("id[CashDocument]").getMapping(incomeCashOperationKey)));
                 fieldsIncome.add(idCashDocumentField);
 
-                ImportKey<?> outcomeCashOperationKey = new ImportKey((CustomClass) collectionLM.findClass("OutcomeCashOperation"),
-                        collectionLM.findProperty("cashDocument[VARSTRING[100]]").getMapping(idCashDocumentField));
+                ImportKey<?> outcomeCashOperationKey = new ImportKey((CustomClass) cashOperationLM.findClass("OutcomeCashOperation"),
+                        cashOperationLM.findProperty("cashDocument[VARSTRING[100]]").getMapping(idCashDocumentField));
                 keysOutcome.add(outcomeCashOperationKey);
-                propsOutcome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("id[CashDocument]").getMapping(outcomeCashOperationKey)));
-                //propsOutcome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("numberOutcomeCashOperation").getMapping(outcomeCashOperationKey)));
+                propsOutcome.add(new ImportProperty(idCashDocumentField, cashOperationLM.findProperty("id[CashDocument]").getMapping(outcomeCashOperationKey)));
                 fieldsOutcome.add(idCashDocumentField);
 
-                ImportField numberIncomeCashOperationField = new ImportField(collectionLM.findProperty("number[IncomeCashOperation]"));
-                propsIncome.add(new ImportProperty(numberIncomeCashOperationField, collectionLM.findProperty("number[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
+                ImportField numberIncomeCashOperationField = new ImportField(cashOperationLM.findProperty("number[IncomeCashOperation]"));
+                propsIncome.add(new ImportProperty(numberIncomeCashOperationField, cashOperationLM.findProperty("number[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
                 fieldsIncome.add(numberIncomeCashOperationField);
 
-                ImportField numberOutcomeCashOperationField = new ImportField(collectionLM.findProperty("number[OutcomeCashOperation]"));
-                propsOutcome.add(new ImportProperty(numberOutcomeCashOperationField, collectionLM.findProperty("number[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
+                ImportField numberOutcomeCashOperationField = new ImportField(cashOperationLM.findProperty("number[OutcomeCashOperation]"));
+                propsOutcome.add(new ImportProperty(numberOutcomeCashOperationField, cashOperationLM.findProperty("number[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
                 fieldsOutcome.add(numberOutcomeCashOperationField);
 
-                ImportField dateIncomeCashOperationField = new ImportField(collectionLM.findProperty("date[IncomeCashOperation]"));
-                propsIncome.add(new ImportProperty(dateIncomeCashOperationField, collectionLM.findProperty("date[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
+                ImportField dateIncomeCashOperationField = new ImportField(cashOperationLM.findProperty("date[IncomeCashOperation]"));
+                propsIncome.add(new ImportProperty(dateIncomeCashOperationField, cashOperationLM.findProperty("date[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
                 fieldsIncome.add(dateIncomeCashOperationField);
 
-                ImportField dateOutcomeCashOperationField = new ImportField(collectionLM.findProperty("date[OutcomeCashOperation]"));
-                propsOutcome.add(new ImportProperty(dateOutcomeCashOperationField, collectionLM.findProperty("date[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
+                ImportField dateOutcomeCashOperationField = new ImportField(cashOperationLM.findProperty("date[OutcomeCashOperation]"));
+                propsOutcome.add(new ImportProperty(dateOutcomeCashOperationField, cashOperationLM.findProperty("date[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
                 fieldsOutcome.add(dateOutcomeCashOperationField);
 
-                ImportField timeIncomeCashOperationField = new ImportField(collectionLM.findProperty("time[IncomeCashOperation]"));
-                propsIncome.add(new ImportProperty(timeIncomeCashOperationField, collectionLM.findProperty("time[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
+                ImportField timeIncomeCashOperationField = new ImportField(cashOperationLM.findProperty("time[IncomeCashOperation]"));
+                propsIncome.add(new ImportProperty(timeIncomeCashOperationField, cashOperationLM.findProperty("time[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
                 fieldsIncome.add(timeIncomeCashOperationField);
 
-                ImportField timeOutcomeCashOperationField = new ImportField(collectionLM.findProperty("time[OutcomeCashOperation]"));
-                propsOutcome.add(new ImportProperty(timeOutcomeCashOperationField, collectionLM.findProperty("time[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
+                ImportField timeOutcomeCashOperationField = new ImportField(cashOperationLM.findProperty("time[OutcomeCashOperation]"));
+                propsOutcome.add(new ImportProperty(timeOutcomeCashOperationField, cashOperationLM.findProperty("time[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
                 fieldsOutcome.add(timeOutcomeCashOperationField);
 
-                ImportField nppGroupMachineryField = new ImportField(collectionLM.findProperty("npp[GroupMachinery]"));
-                ImportField nppMachineryField = new ImportField(collectionLM.findProperty("npp[Machinery]"));
-                ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) collectionLM.findClass("CashRegister"),
-                        zReportLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").getMapping(nppGroupMachineryField, nppMachineryField/*, sidEquipmentServerField*/));
+                ImportField nppGroupMachineryField = new ImportField(cashOperationLM.findProperty("npp[GroupMachinery]"));
+                ImportField nppMachineryField = new ImportField(cashOperationLM.findProperty("npp[Machinery]"));
+                ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) cashOperationLM.findClass("CashRegister"),
+                        cashOperationLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").getMapping(nppGroupMachineryField, nppMachineryField/*, sidEquipmentServerField*/));
 
                 keysIncome.add(cashRegisterKey);
-                propsIncome.add(new ImportProperty(nppMachineryField, collectionLM.findProperty("cashRegister[IncomeCashOperation]").getMapping(incomeCashOperationKey),
-                        collectionLM.object(collectionLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
+                propsIncome.add(new ImportProperty(nppMachineryField, cashOperationLM.findProperty("cashRegister[IncomeCashOperation]").getMapping(incomeCashOperationKey),
+                        cashOperationLM.object(cashOperationLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
                 fieldsIncome.add(nppGroupMachineryField);
                 fieldsIncome.add(nppMachineryField);
 
                 keysOutcome.add(cashRegisterKey);
-                propsOutcome.add(new ImportProperty(nppMachineryField, collectionLM.findProperty("cashRegister[OutcomeCashOperation]").getMapping(outcomeCashOperationKey),
-                        collectionLM.object(collectionLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
+                propsOutcome.add(new ImportProperty(nppMachineryField, cashOperationLM.findProperty("cashRegister[OutcomeCashOperation]").getMapping(outcomeCashOperationKey),
+                        cashOperationLM.object(cashOperationLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
                 fieldsOutcome.add(nppGroupMachineryField);
                 fieldsOutcome.add(nppMachineryField);
 
-                ImportField sumCashIncomeCashOperationField = new ImportField(collectionLM.findProperty("sumCash[IncomeCashOperation]"));
-                propsIncome.add(new ImportProperty(sumCashIncomeCashOperationField, collectionLM.findProperty("sumCash[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
+                ImportField sumCashIncomeCashOperationField = new ImportField(cashOperationLM.findProperty("sumCash[IncomeCashOperation]"));
+                propsIncome.add(new ImportProperty(sumCashIncomeCashOperationField, cashOperationLM.findProperty("sumCash[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
                 fieldsIncome.add(sumCashIncomeCashOperationField);
 
-                ImportField sumCashOutcomeCashOperationField = new ImportField(collectionLM.findProperty("sumCash[OutcomeCashOperation]"));
-                propsOutcome.add(new ImportProperty(sumCashOutcomeCashOperationField, collectionLM.findProperty("sumCash[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
+                ImportField sumCashOutcomeCashOperationField = new ImportField(cashOperationLM.findProperty("sumCash[OutcomeCashOperation]"));
+                propsOutcome.add(new ImportProperty(sumCashOutcomeCashOperationField, cashOperationLM.findProperty("sumCash[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
                 fieldsOutcome.add(sumCashOutcomeCashOperationField);
 
                 for (CashDocument cashDocument : cashDocumentList) {
