@@ -221,7 +221,7 @@ TABLE terminalDocument (TerminalDocument);
 TABLE terminalDocumentId(VARISTRING[100]);
 
 id 'Код' = DATA VARSTRING[100] (TerminalDocument) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
-terminalDocument (id) = GROUP AGGR (TerminalDocument td) BY id (td) PERSISTENT TABLE terminalDocumentId;
+terminalDocument (id) = GROUP AGGR (TerminalDocument td) BY id (td) MATERIALIZED TABLE terminalDocumentId;
 
 title 'Имя' = DATA VARSTRING[100] (TerminalDocument) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
 comment 'Комментарий' = DATA VARSTRING[100] (TerminalDocument) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
@@ -283,7 +283,7 @@ nameSku 'Наименование' (TerminalDocumentDetail d) = name(sku(d));
 dataName 'Наименование' = DATA VARSTRING[200] (TerminalDocumentDetail);
 name 'Наименование' (TerminalDocumentDetail d) = OVERRIDE dataName(d), nameSku(d) IN base;
 
-WHEN SESSION SETCHANGED(barcode(TerminalDocumentDetail d)) DO {
+WHEN LOCAL SETCHANGED(barcode(TerminalDocumentDetail d)) DO {
     sku(d) <- OVERRIDE skuBarcode(barcode(d)), sku(barcode(d));
 }
 

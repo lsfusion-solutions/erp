@@ -15,19 +15,19 @@ META defineContractLedgerPrefix (caption, prefix)
     CLASS ABSTRACT Contract###prefix##Ledger 'Изменение долга по контракту'###caption;
     TABLE contract###prefix##Ledger(Contract###prefix##Ledger);
 
-    isPosted 'Проведен' (contract###prefix##Ledger) = ABSTRACT BOOLEAN (Contract###prefix##Ledger) PERSISTENT;
-    skip 'Не проводить по учету' = ABSTRACT BOOLEAN (Contract###prefix##Ledger) PERSISTENT;
-    active 'Активен' = isPosted(Contract###prefix##Ledger ledger) AND NOT skip(ledger) PERSISTENT;
+    isPosted 'Проведен' (contract###prefix##Ledger) = ABSTRACT BOOLEAN (Contract###prefix##Ledger) MATERIALIZED;
+    skip 'Не проводить по учету' = ABSTRACT BOOLEAN (Contract###prefix##Ledger) MATERIALIZED;
+    active 'Активен' = isPosted(Contract###prefix##Ledger ledger) AND NOT skip(ledger) MATERIALIZED;
 
-    dateTime 'Дата/время' (contract###prefix##Ledger) = ABSTRACT DATETIME (Contract###prefix##Ledger) PERSISTENT INDEXED;
+    dateTime 'Дата/время' (contract###prefix##Ledger) = ABSTRACT DATETIME (Contract###prefix##Ledger) MATERIALIZED INDEXED;
     date 'Дата' (Contract###prefix##Ledger contract###prefix##Ledger) = toDate(dateTime(contract###prefix##Ledger));
     time 'Время' (Contract###prefix##Ledger contract###prefix##Ledger) = toTime(dateTime(contract###prefix##Ledger));
 
-    contract 'Договор' (contract###prefix##Ledger) = ABSTRACT Contract (Contract###prefix##Ledger) INDEXED PERSISTENT;
+    contract 'Договор' (contract###prefix##Ledger) = ABSTRACT Contract (Contract###prefix##Ledger) INDEXED MATERIALIZED;
 
-    description 'Название документа' (contract###prefix##Ledger) = ABSTRACT VARSTRING[200] (Contract###prefix##Ledger) PERSISTENT;
+    description 'Название документа' (contract###prefix##Ledger) = ABSTRACT VARSTRING[200] (Contract###prefix##Ledger) MATERIALIZED;
 
-    sum 'Сумма' (contract###prefix##Ledger) = ABSTRACT NUMERIC[18,4] (Contract###prefix##Ledger) PERSISTENT;
+    sum 'Сумма' (contract###prefix##Ledger) = ABSTRACT NUMERIC[18,4] (Contract###prefix##Ledger) MATERIALIZED;
 
     currentBalance###prefix 'Текущая задолженность'###caption (contract)=
         GROUP SUM sum(Contract###prefix##Ledger contract###prefix##Ledger) IF active(contract###prefix##Ledger)
@@ -111,18 +111,18 @@ META defineInOutContractLedgerPrefix(caption, prefix, classPrefix)
     CLASS ABSTRACT classPrefix##ContractLedger caption;
     TABLE prefix##ContractLedger(classPrefix##ContractLedger);
 
-    isPosted 'Закрыт' (prefix##ContractLedger) = ABSTRACT BOOLEAN (classPrefix##ContractLedger) PERSISTENT;
-    skip 'Не проводить по учету' = ABSTRACT BOOLEAN (classPrefix##ContractLedger) PERSISTENT;
-    active 'Активен' = isPosted(###prefix##ContractLedger ledger) AND NOT skip(ledger) PERSISTENT;
+    isPosted 'Закрыт' (prefix##ContractLedger) = ABSTRACT BOOLEAN (classPrefix##ContractLedger) MATERIALIZED;
+    skip 'Не проводить по учету' = ABSTRACT BOOLEAN (classPrefix##ContractLedger) MATERIALIZED;
+    active 'Активен' = isPosted(###prefix##ContractLedger ledger) AND NOT skip(ledger) MATERIALIZED;
 
-    dateTime 'Дата/время' (prefix##ContractLedger) = ABSTRACT DATETIME (classPrefix##ContractLedger) PERSISTENT INDEXED;
-    date 'Дата' (###prefix##ContractLedger prefix##ContractLedger) = toDate(dateTime(prefix##ContractLedger)) PERSISTENT INDEXED;
+    dateTime 'Дата/время' (prefix##ContractLedger) = ABSTRACT DATETIME (classPrefix##ContractLedger) MATERIALIZED INDEXED;
+    date 'Дата' (###prefix##ContractLedger prefix##ContractLedger) = toDate(dateTime(prefix##ContractLedger)) MATERIALIZED INDEXED;
     time 'Время' (###prefix##ContractLedger prefix##ContractLedger) = toTime(dateTime(prefix##ContractLedger));
 
-    contract 'Договор' (prefix##ContractLedger) = ABSTRACT Contract (classPrefix##ContractLedger) PERSISTENT INDEXED;
+    contract 'Договор' (prefix##ContractLedger) = ABSTRACT Contract (classPrefix##ContractLedger) MATERIALIZED INDEXED;
 
-    description 'Название документа' (prefix##ContractLedger) = ABSTRACT VARSTRING[200] (classPrefix##ContractLedger) PERSISTENT;
-    sum 'Сумма' = ABSTRACT NUMERIC[22,8] (classPrefix##ContractLedger) MINCHARWIDTH 12 PREFCHARWIDTH 12 PERSISTENT;
+    description 'Название документа' (prefix##ContractLedger) = ABSTRACT VARSTRING[200] (classPrefix##ContractLedger) MATERIALIZED;
+    sum 'Сумма' = ABSTRACT NUMERIC[22,8] (classPrefix##ContractLedger) MINCHARWIDTH 12 PREFCHARWIDTH 12 MATERIALIZED;
 
     is (###prefix##ContractLedger prefix##ContractLedger) = prefix##ContractLedger IS classPrefix##ContractLedger;
     
@@ -132,31 +132,31 @@ END
 
 @defineInOutContractLedgerPrefix('Приход', in, In);
 
-number 'Номер документа' = ABSTRACT VARSTRING[28] (InContractLedger) PERSISTENT MINCHARWIDTH 7;
-series 'Серия' = ABSTRACT STRING[2] (InContractLedger) PERSISTENT FIXEDCHARWIDTH 3;
-seriesNumber 'Серия/Номер' (InContractLedger i) = CONCAT '', series(i), number(i) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
-customerStock = ABSTRACT Stock (InContractLedger) PERSISTENT;
+number 'Номер документа' = ABSTRACT VARSTRING[28] (InContractLedger) MATERIALIZED MINCHARWIDTH 7;
+series 'Серия' = ABSTRACT STRING[2] (InContractLedger) MATERIALIZED FIXEDCHARWIDTH 3;
+seriesNumber 'Серия/Номер' (InContractLedger i) = CONCAT '', series(i), number(i) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 MATERIALIZED;
+customerStock = ABSTRACT Stock (InContractLedger) MATERIALIZED;
 nameCustomerStock 'Склад покупателя' (InContractLedger inContractLedger) = name(customerStock(inContractLedger));
-supplierStock (document) = ABSTRACT Stock (InContractLedger) PERSISTENT;
+supplierStock (document) = ABSTRACT Stock (InContractLedger) MATERIALIZED;
 nameSupplierStock 'Склад поставщика' (InContractLedger inContractLedger) = name(supplierStock(inContractLedger));
 
-paymentCondition 'Условия оплаты'  = ABSTRACT PaymentCondition (InContractLedger) PERSISTENT;
+paymentCondition 'Условия оплаты'  = ABSTRACT PaymentCondition (InContractLedger) MATERIALIZED;
 descriptionPaymentCondition 'Условия оплаты' (InContractLedger ledger) = description(paymentCondition(ledger));
 
 @defineInOutContractLedgerPrefix('Расход', out, Out);
 
-isReturn 'Возвратный' = ABSTRACT BOOLEAN (OutContractLedger) PERSISTENT;
+isReturn 'Возвратный' = ABSTRACT BOOLEAN (OutContractLedger) MATERIALIZED;
 
 TABLE outContractLedgerInContractLedger (OutContractLedger, InContractLedger);
-prePay 'Предоплата' = ABSTRACT NUMERIC[18,4](OutContractLedger, InContractLedger) PERSISTENT;
-prePay 'Предоплата' = GROUP SUM prePay(OutContractLedger o, InContractLedger i) IF active(i) AND active(o) BY i PERSISTENT;
-prePay = ABSTRACT NUMERIC[18,4](OutContractLedger) PERSISTENT;
+prePay 'Предоплата' = ABSTRACT NUMERIC[18,4](OutContractLedger, InContractLedger) MATERIALIZED;
+prePay 'Предоплата' = GROUP SUM prePay(OutContractLedger o, InContractLedger i) IF active(i) AND active(o) BY i MATERIALIZED;
+prePay = ABSTRACT NUMERIC[18,4](OutContractLedger) MATERIALIZED;
 
 cost 'Оплачено из документа' (outContractLedger, inContractLedger) = DATA NUMERIC[18,4] (OutContractLedger, InContractLedger);
 costedOutContractLedger 'Оплачено по документу' (inContractLedger) =
     GROUP SUM cost(OutContractLedger outContractLedger, InContractLedger inContractLedger) IF
     active(inContractLedger) AND active(outContractLedger)
-    BY inContractLedger PERSISTENT;
+    BY inContractLedger MATERIALIZED;
 costedOutContractLedger 'Оплачено по документу на дату' (inContractLedger, date) =
     GROUP SUM cost(OutContractLedger outContractLedger, InContractLedger inContractLedger) IF
               active(inContractLedger) AND active(outContractLedger) AND
@@ -165,7 +165,7 @@ costedOutContractLedger 'Оплачено по документу на дату'
 costedInContractLedger 'Расписано из документа' (outContractLedger) =
     GROUP SUM cost(OutContractLedger outContractLedger, InContractLedger inContractLedger) IF
     active(inContractLedger) //AND isPostedOutContractLedger(outContractLedger)
-    BY outContractLedger PERSISTENT MINCHARWIDTH 15 PREFCHARWIDTH 15;
+    BY outContractLedger MATERIALIZED MINCHARWIDTH 15 PREFCHARWIDTH 15;
 costedInContractLedger 'Расписано из документа на дату' (outContractLedger, date) =
     GROUP SUM cost(OutContractLedger outContractLedger, InContractLedger inContractLedger) IF
               active(inContractLedger) AND //isPostedOutContractLedger(outContractLedger) AND
@@ -173,7 +173,7 @@ costedInContractLedger 'Расписано из документа на дату
     BY outContractLedger, date;
 
 debt 'Долг по документу' (InContractLedger inContractLedger) =
-    sum(inContractLedger) (-) costedOutContractLedger(inContractLedger) MINCHARWIDTH 12 PREFCHARWIDTH 12 PERSISTENT INDEXED;
+    sum(inContractLedger) (-) costedOutContractLedger(inContractLedger) MINCHARWIDTH 12 PREFCHARWIDTH 12 MATERIALIZED INDEXED;
 
 debt 'Долг по документу на дату' (InContractLedger inContractLedger, DATE date) =
     (sum(inContractLedger) IF date IS DATE) (-) costedOutContractLedger(inContractLedger, date) MINCHARWIDTH 12 PREFCHARWIDTH 12;
@@ -288,9 +288,9 @@ META implementOutContractLedger(objectClass, contractProp)
 END
 
 // ----------------------------------------- Связь между InContractLedger и ContractLedger
-inContractLedger = ABSTRACT InContractLedger (ContractLedger) PERSISTENT INDEXED;
+inContractLedger = ABSTRACT InContractLedger (ContractLedger) MATERIALIZED INDEXED;
 
-minDateContractLedger = GROUP MIN date(ContractLedger l) BY inContractLedger(l) PERSISTENT;
+minDateContractLedger = GROUP MIN date(ContractLedger l) BY inContractLedger(l) MATERIALIZED;
 
 //------------------------------------------- Платеж по договору -----------------------------------------------------//
 
@@ -324,7 +324,7 @@ namePartyA 'Организация (поставщик)' = name(partyA());
 partyB = DATA LOCAL LegalEntity();
 namePartyB 'Организация (покупатель)' = name(partyB());
 
-isCosted 'Расписан' (OutContractLedger outContractLedger) = abs(sum(outContractLedger)) (-) abs(costedInContractLedger(outContractLedger)) PERSISTENT;
+isCosted 'Расписан' (OutContractLedger outContractLedger) = abs(sum(outContractLedger)) (-) abs(costedInContractLedger(outContractLedger)) MATERIALIZED;
 
 writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразнесенные по FIFO'() = {
 

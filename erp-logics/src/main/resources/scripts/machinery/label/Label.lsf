@@ -62,7 +62,7 @@ in 'Включен' (LabelType labelType, Store store) =
     OVERRIDE inData(labelType, store), in(labelType, storeType(store));
 inData 'Включен' (labelType, departmentStore) = DATA BOOLEAN (LabelType, DepartmentStore);
 in 'Включен' (LabelType labelType, DepartmentStore departmentStore) =
-    OVERRIDE inData(labelType, departmentStore), in(labelType, store(departmentStore)) PERSISTENT;
+    OVERRIDE inData(labelType, departmentStore), in(labelType, store(departmentStore)) MATERIALIZED;
 
 groupType = DATA GroupType (LabelType);
 nameGroupType 'Тип классификатора' (LabelType labelType) = name(groupType(labelType));
@@ -73,13 +73,13 @@ TABLE labelTypeSku (LabelType, Sku);
 dataIn 'Вкл.' = DATA BOOLEAN (LabelType, Sku);
 
 levelParent (labelType, group) = GROUP MIN level(Group group, Group parent) IF dataIn(LabelType labelType, parent)
-                                                              BY labelType, group PERSISTENT;
+                                                              BY labelType, group MATERIALIZED;
 nearestParent (LabelType labelType, Group group) = group(group, levelParent (labelType, group));
 nearestIn 'Вкл.' (LabelType labelType, Group group) =
-    dataIn(labelType, nearestParent (labelType, group)) PERSISTENT;
+    dataIn(labelType, nearestParent (labelType, group)) MATERIALIZED;
 
 in 'Вкл.' (LabelType labelType, Group group) =
-    OVERRIDE dataIn(labelType, group), nearestIn(labelType, group) PERSISTENT;
+    OVERRIDE dataIn(labelType, group), nearestIn(labelType, group) MATERIALIZED;
 
 in 'Вкл.' (LabelType labelType, Sku sku) =
     OVERRIDE dataIn(labelType, sku), in(labelType, group(groupType(labelType), sku));
@@ -94,15 +94,15 @@ dataCount 'Множитель' = DATA INTEGER (LabelType, Group);
 dataCount 'Множитель' = DATA INTEGER (LabelType, Sku);
 
 levelParentCountLabel (labelType, group) = GROUP MIN level(Group group, Group parent) IF dataCount(LabelType labelType, parent)
-                                                              BY labelType, group PERSISTENT;
+                                                              BY labelType, group MATERIALIZED;
 nearestParentCountLabel (LabelType labelType, Group group) = group(group, levelParentCountLabel (labelType, group));
 nearestCountLabel 'Множитель' (LabelType labelType, Group group) =
-    dataCount(labelType, nearestParentCountLabel (labelType, group)) PERSISTENT;
+    dataCount(labelType, nearestParentCountLabel (labelType, group)) MATERIALIZED;
 
 count 'Множитель' (LabelType labelType, Group group) = OVERRIDE
     dataCount(labelType, group),
     nearestCountLabel(labelType, group),
-    1 IF group IS Group IF labelType IS LabelType PERSISTENT;
+    1 IF group IS Group IF labelType IS LabelType MATERIALIZED;
 
 count 'Множитель' (LabelType labelType, Sku sku) =
     OVERRIDE dataCount(labelType, sku), count(labelType, group(groupType(labelType), sku));
@@ -113,15 +113,15 @@ dataInclude 'Из документа' = DATA BOOLEAN (LabelType, Group);
 dataInclude 'Из документа' = DATA BOOLEAN (LabelType, Sku);
 
 levelParentIncludeLabel (labelType, group) = GROUP MIN level(Group group, Group parent) IF dataInclude(LabelType labelType, parent)
-                                                              BY labelType, group PERSISTENT;
+                                                              BY labelType, group MATERIALIZED;
 nearestParentIncludeLabel (LabelType labelType, Group group) = group(group, levelParentIncludeLabel (labelType, group));
 nearestIncludeLabel 'Из документа' (LabelType labelType, Group group) =
-    dataInclude(labelType, nearestParentIncludeLabel (labelType, group)) PERSISTENT;
+    dataInclude(labelType, nearestParentIncludeLabel (labelType, group)) MATERIALIZED;
 
 include 'Из документа' (LabelType labelType, Group group) = OVERRIDE
     dataInclude(labelType, group),
     nearestIncludeLabel(labelType, group),
-    include(labelType) AND group IS Group PERSISTENT;
+    include(labelType) AND group IS Group MATERIALIZED;
 
 include 'Из документа' (LabelType labelType, Sku sku) = OVERRIDE
     dataInclude(labelType, sku),
@@ -235,9 +235,9 @@ FORM labelTypes 'Типы ценников'
 CLASS ABSTRACT PriceTransactionDocument 'Документ, требующий загрузки в оборудование';
 TABLE priceTransactionDocument (PriceTransactionDocument);
 
-isDraft 'Не проведен' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
-description 'Название документа загрузки' = ABSTRACT VARSTRING[200] (PriceTransactionDocument) PERSISTENT;
-skip 'Не загружать' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
+isDraft 'Не проведен' = ABSTRACT BOOLEAN (PriceTransactionDocument) MATERIALIZED;
+description 'Название документа загрузки' = ABSTRACT VARSTRING[200] (PriceTransactionDocument) MATERIALIZED;
+skip 'Не загружать' = ABSTRACT BOOLEAN (PriceTransactionDocument) MATERIALIZED;
 
 printed 'Распечатан' = DATA BOOLEAN (PriceTransactionDocument);
 printed(PriceTransactionDocument document) <- NULL WHEN SET(isDraft(document));
@@ -266,7 +266,7 @@ date (LabelTransaction transaction) <- currentDate() WHEN SET(transaction IS Lab
 time 'Время' = DATA TIME (LabelTransaction);
 time (LabelTransaction transaction) <- currentTime() WHEN SET(transaction IS LabelTransaction);
 
-dateTime 'Дата/время' (LabelTransaction t) = dateTimeToDateTime(date(t), time(t)) PERSISTENT IN recognize;
+dateTime 'Дата/время' (LabelTransaction t) = dateTimeToDateTime(date(t), time(t)) MATERIALIZED IN recognize;
 
 departmentStore = DATA DepartmentStore (LabelTransaction);
 nameDepartmentStore 'Отдел магазина' (LabelTransaction transaction) = name(departmentStore(transaction)) IN recognize;
@@ -285,7 +285,7 @@ nameLabelType 'Тип ценника' (LabelTransaction transaction) = name(labe
 priceListType = DATA PriceListType (LabelTransaction);     
 namePriceListType 'Вид цен' (LabelTransaction labelTransaction) = name(priceListType(labelTransaction));         
 
-overPriceListType(LabelTransaction d) = OVERRIDE priceListType(d), priceListType(labelType(d)) PERSISTENT;
+overPriceListType(LabelTransaction d) = OVERRIDE priceListType(d), priceListType(labelType(d)) MATERIALIZED;
 
 fileTemplate 'Файл шаблона' (LabelTransaction transaction) = fileTemplate(labelType(transaction));
 
@@ -311,14 +311,14 @@ labelType (LabelTransactionDetail d) = labelType(labelTransaction(d));
 nameLabelType 'Тип ценника' (LabelTransactionDetail d) = name(labelType(d));
 description 'Основание загрузки' (LabelTransactionDetail d) = description[LabelTransaction](labelType(d));
 
-priceListType(LabelTransactionDetail d) = overPriceListType(labelTransaction(d)) PERSISTENT; 
+priceListType(LabelTransactionDetail d) = overPriceListType(labelTransaction(d)) MATERIALIZED; 
 
 printNullPrice = printNullPrice(labelType(LabelTransactionDetail detail));
 notPrintRetailPrice = notPrintRetailPrice(labelType(LabelTransactionDetail detail));
 
-departmentStore (LabelTransactionDetail d) = departmentStore(labelTransaction(d)) PERSISTENT;
+departmentStore (LabelTransactionDetail d) = departmentStore(labelTransaction(d)) MATERIALIZED;
 
-dateTime 'Дата/время' (LabelTransactionDetail d) = dateTime(labelTransaction(d)) PERSISTENT;
+dateTime 'Дата/время' (LabelTransactionDetail d) = dateTime(labelTransaction(d)) MATERIALIZED;
 date 'Дата' (LabelTransactionDetail d) = date(labelTransaction(d));
 time 'Время' (LabelTransactionDetail d) = time(labelTransaction(d));
 
@@ -352,7 +352,7 @@ priceLabelTransactionDetail 'Текущая цена на ценниках' (sku
     GROUP LAST (price(LabelTransactionDetail ledger) / OVERRIDE amount(dataBarcode(ledger)), 1.0)
           BY sku(ledger), departmentStore(ledger)
           ORDER dateTime(ledger), ledger
-          WHERE ledger IS LabelTransactionDetail PERSISTENT TABLE extraSkuStock;
+          WHERE ledger IS LabelTransactionDetail MATERIALIZED TABLE extraSkuStock;
 
 firstSort = ABSTRACT VALUE OVERRIDE FIRST VARSTRING[100] (LabelTransactionDetail);
 secondSort = ABSTRACT VALUE OVERRIDE FIRST VARSTRING[100] (LabelTransactionDetail);
@@ -617,7 +617,7 @@ calcPrice (PriceListType pt, LabelTransactionDetail d) =
     ELSE
         prevPriceA(pt, sku(d), departmentStore(d), dateTime(d));
 
-WHEN SESSION FORMS customLabelTransaction
+WHEN LOCAL FORMS customLabelTransaction
     (CHANGED(labelType(LabelTransactionDetail d)) OR SETCHANGED (dataBarcode(d))) AND PriceListType pt == priceListType(d) NOINLINE (pt) DO {
         price(d) <- OVERRIDE 
             documentPrice(d), 
@@ -625,7 +625,7 @@ WHEN SESSION FORMS customLabelTransaction
         retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
 }
 
-WHEN SESSION FORMS customLabelTransaction
+WHEN LOCAL FORMS customLabelTransaction
     CHANGED(labelType(LabelTransactionDetail d)) DO {
         quantity(d) <- IF include(labelType(d), sku(d)) THEN 
                                                 INTEGER(documentQuantity(d))

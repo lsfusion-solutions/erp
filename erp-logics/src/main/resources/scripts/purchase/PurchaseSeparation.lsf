@@ -44,13 +44,13 @@ dataSeparation  = DATA Separation (LegalEntity, SkuGroup);
 nameDataSeparation 'Признак распределения' (LegalEntity l, SkuGroup g) = name(dataSeparation(l,g));
 
 levelParentSeparation (supplier, skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataSeparation(LegalEntity supplier, parent)
-                                                              BY supplier, skuGroup PERSISTENT;    
+                                                              BY supplier, skuGroup MATERIALIZED;    
 nearestParentSeparation (LegalEntity supplier, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentSeparation(supplier, skuGroup));
 nearestSeparation (LegalEntity supplier, SkuGroup skuGroup) = dataSeparation(supplier, nearestParentSeparation (supplier, skuGroup));
 
 separation  (LegalEntity supplier, SkuGroup skuGroup) =
     OVERRIDE dataSeparation(supplier, skuGroup), 
-             nearestSeparation (supplier, skuGroup) PERSISTENT;    
+             nearestSeparation (supplier, skuGroup) MATERIALIZED;    
 nameSeparation 'Признак распределения' (LegalEntity l, SkuGroup g) = name(separation(l,g));
 
 dataSeparation = DATA Separation (LegalEntity, Sku);
@@ -124,7 +124,7 @@ DESIGN legalEntity {
 // ----------------------------------------- Метакод по добавлению соглашений в документы -------------------------------------- //
 
 META defineDocumentAbstractHeaderSeparation (object)
-    separation (object) = ABSTRACT Separation (###object) PERSISTENT INDEXED;
+    separation (object) = ABSTRACT Separation (###object) MATERIALIZED INDEXED;
     nameSeparation 'Признак разделения' (###object object)= name(separation(object)) IN documentPrm MINCHARWIDTH 5 PREFCHARWIDTH 10;
 END
 META defineDocumentHeaderSeparation (object)

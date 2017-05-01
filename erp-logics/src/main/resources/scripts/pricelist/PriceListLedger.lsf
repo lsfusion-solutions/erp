@@ -12,7 +12,7 @@ name(LedgerPriceListType type) += name(type) IF type IS LedgerPriceListType;
 differentOrganizations 'Для разных организаций' = ABSTRACT CASE EXCLUSIVE BOOLEAN (LedgerPriceListType);    
 
 TABLE ledgerPriceListTypeStock (LedgerPriceListType, Stock);
-batch 'Использовать для партий свои цены' = ABSTRACT CASE EXCLUSIVE BOOLEAN (LedgerPriceListType, Stock) PERSISTENT;
+batch 'Использовать для партий свои цены' = ABSTRACT CASE EXCLUSIVE BOOLEAN (LedgerPriceListType, Stock) MATERIALIZED;
 skipBatch = ABSTRACT CASE BOOLEAN (LedgerPriceListType, Stock, Batch);
                                                    
 FORM ledgerPriceListTypes 'Регистровые виды цен'
@@ -27,15 +27,15 @@ TABLE priceListLedger(PriceListLedger);
 
 @defineCreatedAbstract(PriceListLedger);
 
-fromDateTime 'Дата/время с' = ABSTRACT DATETIME (PriceListLedger) PERSISTENT INDEXED;
-toDateTime 'Дата/время по' = ABSTRACT DATETIME (PriceListLedger) PERSISTENT INDEXED;
+fromDateTime 'Дата/время с' = ABSTRACT DATETIME (PriceListLedger) MATERIALIZED INDEXED;
+toDateTime 'Дата/время по' = ABSTRACT DATETIME (PriceListLedger) MATERIALIZED INDEXED;
 
-isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (PriceListLedger) PERSISTENT;
-skip 'Не изменять значение' (ledger) = ABSTRACT BOOLEAN (PriceListLedger) PERSISTENT;
+isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (PriceListLedger) MATERIALIZED;
+skip 'Не изменять значение' (ledger) = ABSTRACT BOOLEAN (PriceListLedger) MATERIALIZED;
 
-active 'Активен' (PriceListLedger ledger) = isPosted(ledger) AND NOT skip(ledger) PERSISTENT;
+active 'Активен' (PriceListLedger ledger) = isPosted(ledger) AND NOT skip(ledger) MATERIALIZED;
 
-sku = ABSTRACT Sku (PriceListLedger) PERSISTENT INDEXED;
+sku = ABSTRACT Sku (PriceListLedger) MATERIALIZED INDEXED;
 nameSku 'SKU' (PriceListLedger l) = name(sku(l));
 
 countPriceListLedger = GROUP SUM 1 BY sku(PriceListLedger ledger);
@@ -44,22 +44,22 @@ edit 'Редактировать' = ACTION ABSTRACT MULTI (PriceListLedger) IMAG
 
 TABLE priceListLedgerBatch(PriceListLedger, Batch);
 //inPriceListLedgerBatch = DATA BOOLEAN (PriceListLedger, Batch) INDEXED;
-in = ABSTRACT BOOLEAN (PriceListLedger, Batch) PERSISTENT;
+in = ABSTRACT BOOLEAN (PriceListLedger, Batch) MATERIALIZED;
 
 batch = GROUP MAX Batch batch IF in(PriceListLedger ledger, batch) BY ledger;
 idBatch (PriceListLedger ledger) = id(batch(ledger));
 
-description 'Описание' = ABSTRACT VARISTRING[200] (PriceListLedger) PERSISTENT;
+description 'Описание' = ABSTRACT VARISTRING[200] (PriceListLedger) MATERIALIZED;
 
-company = ABSTRACT LegalEntity (PriceListLedger) PERSISTENT;
+company = ABSTRACT LegalEntity (PriceListLedger) MATERIALIZED;
 nameCompany 'Компания' = name(company(PriceListLedger ledger));
 
-companyStock = ABSTRACT Stock (PriceListLedger) PERSISTENT INDEXED;
+companyStock = ABSTRACT Stock (PriceListLedger) MATERIALIZED INDEXED;
 nameCompanyStock 'Склад компании' = name(companyStock(PriceListLedger ledger));
 
 TABLE priceListLedgerLedgerPriceListType(PriceListLedger, LedgerPriceListType);
-in = ABSTRACT BOOLEAN (PriceListLedger, LedgerPriceListType) PERSISTENT;
-price 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListLedger, LedgerPriceListType) PERSISTENT;
+in = ABSTRACT BOOLEAN (PriceListLedger, LedgerPriceListType) MATERIALIZED;
+price 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListLedger, LedgerPriceListType) MATERIALIZED;
 
 priceListTypes 'Цены' (priceList) = GROUP CONCAT name(LedgerPriceListType type) IF in(PriceListLedger priceList, type) , ', '
                                                                 BY priceList
@@ -75,7 +75,7 @@ stocks 'Склады' (priceList) = GROUP CONCAT name(Stock stock) IF in(PriceLi
 // ------------------ Расчет цен для sku ---------------- //
 
 active(PriceListLedger ledger, LedgerPriceListType type) =
-    active(ledger) AND in(ledger, type) PERSISTENT;
+    active(ledger) AND in(ledger, type) MATERIALIZED;
 
 priceB 'Цена' (type, sku, dateTime) =
     GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type)
@@ -185,25 +185,25 @@ activeLedgerA (type, sku, companyStock, dateTime) =
 
 TABLE priceListLedgerLedgerPriceListTypeStock (PriceListLedger, LedgerPriceListType, Stock);
 active(PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
-    active(ledger, type) AND in(ledger, stock) PERSISTENT;
+    active(ledger, type) AND in(ledger, stock) MATERIALIZED;
 
 price 'Цена' (PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
-    price(ledger, type) IF active(ledger, type, stock) PERSISTENT;
+    price(ledger, type) IF active(ledger, type, stock) MATERIALIZED;
 
 sku(PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
-    sku(ledger) IF active(ledger, type, stock) PERSISTENT;
+    sku(ledger) IF active(ledger, type, stock) MATERIALIZED;
     
 INDEX LedgerPriceListType type, sku(PriceListLedger ledger, type, Stock stock), stock, fromDateTime(ledger, type, stock);
 INDEX sku(PriceListLedger ledger, LedgerPriceListType type, Stock stock), stock, fromDateTime(ledger, type, stock);
 
 fromDateTime 'Дата/время с' (PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
-    fromDateTime(ledger) IF active(ledger, type, stock) PERSISTENT INDEXED;
+    fromDateTime(ledger) IF active(ledger, type, stock) MATERIALIZED INDEXED;
 
 toDateTime 'Дата/время по' (PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
-    toDateTime(ledger) IF active(ledger, type, stock) PERSISTENT INDEXED;
+    toDateTime(ledger) IF active(ledger, type, stock) MATERIALIZED INDEXED;
 
 company(PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
-    company(ledger) IF active(ledger, type, stock) PERSISTENT;
+    company(ledger) IF active(ledger, type, stock) MATERIALIZED;
     
 INDEX company(PriceListLedger ledger, LedgerPriceListType type, Stock stock), type, stock, toDateTime(ledger, type, stock); 
 
@@ -545,7 +545,7 @@ priceB(LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) +=
 priceA(LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) += priceA(type, batch, stock, dateTime);
 
 // ------ оптимизация для ассортиментов
-ledgerPriceListType = ABSTRACT LedgerPriceListType (PriceListType) PERSISTENT;
+ledgerPriceListType = ABSTRACT LedgerPriceListType (PriceListType) MATERIALIZED;
 
 ledgerPriceListType(LedgerPriceListType type) += type AS LedgerPriceListType;
 

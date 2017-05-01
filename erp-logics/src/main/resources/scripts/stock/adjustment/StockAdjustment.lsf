@@ -51,11 +51,11 @@ CLASS UserAdjustmentDetail 'Строка изменения остатков (п
 id = DATA VARSTRING[100] (UserAdjustmentDetail);
 userAdjustmentDetail (id, userAdjustment) = GROUP AGGR UserAdjustmentDetail userAdjustmentDetail BY id(userAdjustmentDetail), userAdjustment(userAdjustmentDetail) WHERE userAdjustmentDetail IS UserAdjustmentDetail;
 
-WHEN SESSION (CHANGED(sku(UserAdjustmentDetail detail)) OR CHANGED(batch(detail)) OR CHANGED(stock(detail)) OR CHANGED (dateTime(detail))) AND batch(detail) DO {
+WHEN LOCAL (CHANGED(sku(UserAdjustmentDetail detail)) OR CHANGED(batch(detail)) OR CHANGED(stock(detail)) OR CHANGED (dateTime(detail))) AND batch(detail) DO {
     price (detail)  <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(detail), stock(detail), dateTime(detail));
 }
 
-WHEN SESSION (CHANGED(sku(UserAdjustmentDetail detail)) OR CHANGED(batch(detail)) OR CHANGED(stock(detail)) OR CHANGED (dateTime(detail))) AND NOT batch(detail) DO {
+WHEN LOCAL (CHANGED(sku(UserAdjustmentDetail detail)) OR CHANGED(batch(detail)) OR CHANGED(stock(detail)) OR CHANGED (dateTime(detail))) AND NOT batch(detail) DO {
     price (detail) <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail));
 }
 
@@ -388,37 +388,37 @@ adjustmentDetail(AdjustmentSkuDetail adjustmentSkuDetail) = MULTI adjustmentDeta
 stock(InAdjustmentSkuDetail adjustmentSkuDetail) = stock(adjustmentDetail(adjustmentSkuDetail));
 stock(OutAdjustmentSkuDetail adjustmentSkuDetail) = stock(adjustmentDetail(adjustmentSkuDetail));
 stock(AdjustmentSkuDetail adjustmentSkuDetail) = MULTI stock[InAdjustmentSkuDetail](adjustmentSkuDetail),
-                                                      stock[OutAdjustmentSkuDetail](adjustmentSkuDetail) PERSISTENT;
+                                                      stock[OutAdjustmentSkuDetail](adjustmentSkuDetail) MATERIALIZED;
 
 batch(InAdjustmentSkuDetail adjustmentSkuDetail) = batch(adjustmentDetail(adjustmentSkuDetail));
 batch(OutAdjustmentSkuDetail adjustmentSkuDetail) = batch(adjustmentDetail(adjustmentSkuDetail));
 batch(AdjustmentSkuDetail adjustmentSkuDetail) = MULTI batch[InAdjustmentSkuDetail](adjustmentSkuDetail),
-                                                      batch[OutAdjustmentSkuDetail](adjustmentSkuDetail) PERSISTENT;
+                                                      batch[OutAdjustmentSkuDetail](adjustmentSkuDetail) MATERIALIZED;
 
 quantity (OutAdjustmentSkuDetail adjustmentSkuDetail) = quantity(adjustmentDetail(adjustmentSkuDetail));
 quantity (InAdjustmentSkuDetail adjustmentSkuDetail) = quantity(adjustmentDetail(adjustmentSkuDetail));   // -
 quantity 'Кол-во изменения' (AdjustmentSkuDetail adjustmentSkuDetail) = MULTI quantity[OutAdjustmentSkuDetail](adjustmentSkuDetail),
-                                                                             quantity[InAdjustmentSkuDetail](adjustmentSkuDetail) PERSISTENT;
+                                                                             quantity[InAdjustmentSkuDetail](adjustmentSkuDetail) MATERIALIZED;
 
 sum (OutAdjustmentSkuDetail adjustmentSkuDetail) = sum(adjustmentDetail(adjustmentSkuDetail));
 sum (InAdjustmentSkuDetail adjustmentSkuDetail) = sum(adjustmentDetail(adjustmentSkuDetail));        // -
 sum 'Сумма изменения' (AdjustmentSkuDetail adjustmentSkuDetail) = MULTI sum[OutAdjustmentSkuDetail](adjustmentSkuDetail),
-                                                                       sum[InAdjustmentSkuDetail](adjustmentSkuDetail) PERSISTENT;
+                                                                       sum[InAdjustmentSkuDetail](adjustmentSkuDetail) MATERIALIZED;
 
 sku (OutAdjustmentSkuDetail adjustmentSkuDetail) = sku(adjustmentDetail(adjustmentSkuDetail));
 sku (InAdjustmentSkuDetail adjustmentSkuDetail) = sku(adjustmentDetail(adjustmentSkuDetail));
 sku(AdjustmentSkuDetail adjustmentSkuDetail) = MULTI sku[OutAdjustmentSkuDetail](adjustmentSkuDetail),
-                                                    sku[InAdjustmentSkuDetail](adjustmentSkuDetail) PERSISTENT;
+                                                    sku[InAdjustmentSkuDetail](adjustmentSkuDetail) MATERIALIZED;
 nameSku 'Товар' (AdjustmentSkuDetail adjustmentSkuDetail) = name(sku(adjustmentSkuDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
 idBarcode 'Штрихкод' (AdjustmentSkuDetail adjustmentSkuDetail) =  idBarcode(sku(adjustmentSkuDetail));
 
 description 'Название документа' (OutAdjustmentSkuDetail adjustmentSkuDetail) = description(adjustmentDetail(adjustmentSkuDetail));
 description 'Название документа' (InAdjustmentSkuDetail adjustmentSkuDetail) = description(adjustmentDetail(adjustmentSkuDetail));
 description 'Название документа' (AdjustmentSkuDetail adjustmentSkuDetail) = MULTI description[OutAdjustmentSkuDetail](adjustmentSkuDetail),
-                                                                                  description[InAdjustmentSkuDetail](adjustmentSkuDetail) PERSISTENT;
+                                                                                  description[InAdjustmentSkuDetail](adjustmentSkuDetail) MATERIALIZED;
 
 adjustment 'Название документа' (AdjustmentSkuDetail adjustmentSkuDetail) = MULTI adjustment(adjustmentDetail[OutAdjustmentSkuDetail](adjustmentSkuDetail)),
-                                                                                 adjustment(adjustmentDetail[InAdjustmentSkuDetail](adjustmentSkuDetail)) PERSISTENT;
+                                                                                 adjustment(adjustmentDetail[InAdjustmentSkuDetail](adjustmentSkuDetail)) MATERIALIZED;
 
 @implementSkuLedger(adjustmentSkuDetail, sku, stock);
 
@@ -467,14 +467,14 @@ show(InAdjustmentSkuDetail d) += { show(adjustmentDetail(d)); }
 show(OutAdjustmentSkuDetail d) += { show(adjustmentDetail(d)); }
 
 quantityPositiveAdjustmentDetail 'Кол-во приход (всего)' (adjustment) = GROUP SUM quantity(AdjustmentDetail idetail) IF quantity(idetail) >=0
-    BY adjustment(idetail) IN documentSum PERSISTENT;
+    BY adjustment(idetail) IN documentSum MATERIALIZED;
 quantityNegativeAdjustmentDetail 'Кол-во расход (всего)' (adjustment) = GROUP SUM -quantity(AdjustmentDetail idetail) IF quantity(idetail) <0
-    BY adjustment(idetail) IN documentSum PERSISTENT;
+    BY adjustment(idetail) IN documentSum MATERIALIZED;
 
 sumPositiveAdjustmentDetail 'Сумма приход (всего)' (adjustment) = GROUP SUM sum(AdjustmentDetail idetail) IF quantity(idetail) >=0
-    BY adjustment(idetail) IN documentSum PERSISTENT;
+    BY adjustment(idetail) IN documentSum MATERIALIZED;
 sumNegativeAdjustmentDetail 'Сумма расход (всего)' (adjustment) = GROUP SUM -sum(AdjustmentDetail idetail) IF quantity(idetail) <0
-    BY adjustment(idetail) IN documentSum PERSISTENT;
+    BY adjustment(idetail) IN documentSum MATERIALIZED;
     
 sumNegative = -sum(AdjustmentDetail idetail);
 quantityNegative = -quantity(AdjustmentDetail idetail);

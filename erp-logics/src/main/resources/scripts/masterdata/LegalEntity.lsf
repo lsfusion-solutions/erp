@@ -107,7 +107,7 @@ TABLE legalEntityGroup(LegalEntityGroup);
 
 @defineExternalizable(legalEntityGroup, VARSTRING[100]);
 name 'Наименование' = DATA VARISTRING[100](LegalEntityGroup);
-legalEntityGroup (legalEntity) = DATA LegalEntityGroup (LegalEntity) PERSISTENT INDEXED AUTOSET;
+legalEntityGroup (legalEntity) = DATA LegalEntityGroup (LegalEntity) MATERIALIZED INDEXED AUTOSET;
 nameLegalEntityGroup 'Группа организаций' (LegalEntity legalEntity) = name(legalEntityGroup(legalEntity));
 
 TABLE legalEntityGroupLegalEntityGroup(LegalEntityGroup, LegalEntityGroup);
@@ -585,7 +585,7 @@ META defineDocumentHeaderLegalEntity (object, contact, contactCaption)
     replace(LegalEntity l, LegalEntity o) += {ASSIGN contact(###object object) <- o WHERE contact(object) == l;} 
 END
 META defineDocumentAbstractHeaderLegalEntity (object, contact, contactCaption)
-    contact (object) = ABSTRACT LegalEntity (###object) PERSISTENT;
+    contact (object) = ABSTRACT LegalEntity (###object) MATERIALIZED;
     name###contact contactCaption (###object object)= name(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
     fullName###contact contactCaption###' (полное наименование)' (###object object)= fullName(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
     address###contact contactCaption###' (адрес)' (###object object)= address(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
@@ -599,7 +599,7 @@ META defineDocumentInterfaceHeaderLegalEntity (object, contact, contactCaption)
 END
 
 META defineDocumentDetailLegalEntity (object, detail, contact, contactCaption)
-    contact (###detail idetail) = contact(object(idetail)) PERSISTENT;
+    contact (###detail idetail) = contact(object(idetail)) MATERIALIZED;
     name###contact contactCaption (###detail idetail) = name(contact(idetail));
     fullName###contact contactCaption###' (полное наименование)' (###detail idetail) = fullName(contact(idetail));    
     address###contact contactCaption###' (адрес)' (###detail idetail)= address(contact(idetail));           
@@ -612,14 +612,14 @@ END
 
 META defineDocumentDetailDataLegalEntity (object, detail, contact, contactCaption)
     data###contact (detail) = DATA LegalEntity (###detail);
-    contact (detail idetail) = OVERRIDE data###contact(idetail), contact(object(idetail)) PERSISTENT;
+    contact (detail idetail) = OVERRIDE data###contact(idetail), contact(object(idetail)) MATERIALIZED;
     name###contact contactCaption (detail idetail) = name(contact(idetail));
     fullName###contact contactCaption###' (полное наименование)' (detail idetail) = fullName(contact(idetail));  
     address###contact contactCaption###' (адрес)' (detail idetail)= address(contact(idetail));                   
 END
 META defineDocumentAbstractDetailDataLegalEntity (object, detail, contact, contactCaption)
     data###contact (detail) = ABSTRACT LegalEntity (###detail);
-    contact (detail idetail) = OVERRIDE data###contact(idetail), contact(object(idetail)) PERSISTENT;
+    contact (detail idetail) = OVERRIDE data###contact(idetail), contact(object(idetail)) MATERIALIZED;
     name###contact contactCaption (detail idetail) = name(contact(idetail));
     fullName###contact contactCaption###' (полное наименование)' (detail idetail) = fullName(contact(idetail));   
     address###contact contactCaption###' (адрес)' (detail idetail)= address(contact(idetail));       
@@ -679,7 +679,7 @@ END
 // Агрегации
 
 META defineDocumentAggregationHeaderLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA)
-    legalEntityProp (###aggrObject object) = legalEntityProp(primObject(object)) PERSISTENT;
+    legalEntityProp (###aggrObject object) = legalEntityProp(primObject(object)) MATERIALIZED;
     name###legalEntityProp legalEntityCaption (###aggrObject object) = name(legalEntityProp(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 END
 META defineDocumentAggregationHeaderLegalEntity (primObject, aggrObject, legalEntityProp, legalEntityCaption)
@@ -687,7 +687,7 @@ META defineDocumentAggregationHeaderLegalEntity (primObject, aggrObject, legalEn
 END
 
 META defineDocumentAggregationDetailLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA)
-    legalEntityProp (###aggrObject##Detail detail) = legalEntityProp(primObject##Detail(detail)) PERSISTENT;
+    legalEntityProp (###aggrObject##Detail detail) = legalEntityProp(primObject##Detail(detail)) MATERIALIZED;
 END
 META defineDocumentAggregationDetailLegalEntity (primObject, aggrObject, legalEntityProp, legalEntityCaption)
     @defineDocumentAggregationDetailLegalEntityPrefix(primObject, aggrObject, legalEntityProp, legalEntityCaption, , );

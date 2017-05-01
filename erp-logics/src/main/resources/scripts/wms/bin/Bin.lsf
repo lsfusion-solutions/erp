@@ -86,14 +86,14 @@ DESIGN bins {
 
 // ----------------------------------- Ledger ------------------------------------------ //
 //
-//bin = ABSTRACT Bin(DataSkuLedger) PERSISTENT INDEXED;
+//bin = ABSTRACT Bin(DataSkuLedger) MATERIALIZED INDEXED;
 //nameBin 'Ячейка' (DataSkuLedger ledger) = name(bin(ledger)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 //
-//bin (batch) = ABSTRACT Bin (Batch) PERSISTENT INDEXED;
+//bin (batch) = ABSTRACT Bin (Batch) MATERIALIZED INDEXED;
 //prevBin (Batch batch) = PREV(bin(batch));
 //nameBin 'Ячейка' (Batch batch) = name(bin(batch)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 //
-//bin (SkuLedger ledger) = MULTI bin[DataSkuLedger] (ledger), bin[Batch] (ledger) PERSISTENT INDEXED;
+//bin (SkuLedger ledger) = MULTI bin[DataSkuLedger] (ledger), bin[Batch] (ledger) MATERIALIZED INDEXED;
 //nameBin 'Ячейка' (SkuLedger ledger) = name(bin(ledger)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 //
 //TABLE skuBin(Sku, Bin);
@@ -103,24 +103,24 @@ DESIGN bins {
 META defineBinSkuLedgerBalanceProperties(postfix, caption)
 
     currentBalance 'Текущий остаток'###caption (sku, stock, bin) =
-        GROUP SUM signedQuantityActive(SkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger) PERSISTENT;
+        GROUP SUM signedQuantityActive(SkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger) MATERIALIZED;
     prevCurrentBalance 'Текущий остаток'###caption (Sku sku, Stock stock, Bin bin) = PREV(currentBalance(sku, stock, bin));
     countLedger 'Кол-во движений'###caption (sku, stock, bin) =
-        GROUP SUM 1 IF signedQuantityActive(SkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger) PERSISTENT;
+        GROUP SUM 1 IF signedQuantityActive(SkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger) MATERIALIZED;
 
     quantityIn (sku, stock, bin, date) =
-        GROUP SUM quantityInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger), date(ledger) PERSISTENT;
+        GROUP SUM quantityInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger), date(ledger) MATERIALIZED;
 
     quantityOut (sku, stock, bin, date) =
-        GROUP SUM quantityOutActive(OutFIFOSkuLedger ledger) BY sku[SkuLedger](ledger), stock[SkuLedger](ledger), bin[SkuLedger](ledger), date[SkuLedger](ledger) PERSISTENT;
+        GROUP SUM quantityOutActive(OutFIFOSkuLedger ledger) BY sku[SkuLedger](ledger), stock[SkuLedger](ledger), bin[SkuLedger](ledger), date[SkuLedger](ledger) MATERIALIZED;
 
     quantity (Sku sku, Stock stock, Bin bin, DATE date) = quantityIn(sku, stock, bin, date)
                                                          (+)
-                                                         quantityOut(sku, stock, bin, date) PERSISTENT;
+                                                         quantityOut(sku, stock, bin, date) MATERIALIZED;
 
     signedQuantity (Sku sku, Stock stock, Bin bin, DATE date) = quantityIn(sku, stock, bin, date)
                                                                (-)
-                                                               quantityOut(sku, stock, bin, date) PERSISTENT;
+                                                               quantityOut(sku, stock, bin, date) MATERIALIZED;
 
     // без учета текущей даты/времени
     balanceB 'Остаток на начало дня'###caption (Sku sku, Stock stock, Bin bin, DATE date) = currentBalance(sku, stock, bin)
@@ -142,26 +142,26 @@ META defineBinSkuLedgerBalanceProperties(postfix, caption)
                                                                              (-) [= GROUP SUM signedQuantityActive(SkuLedger ledger) IF dateTime(ledger) > DATETIME dateTime
                                                                                         BY sku(ledger), stock(ledger), bin(ledger), dateTime](sku, stock, bin, dateTime);
 
-    currentBalance 'Остаток (всего)'###caption (sku, bin) = GROUP SUM currentBalance(Sku sku, Stock stock, Bin bin) BY sku, bin PERSISTENT;
+    currentBalance 'Остаток (всего)'###caption (sku, bin) = GROUP SUM currentBalance(Sku sku, Stock stock, Bin bin) BY sku, bin MATERIALIZED;
 
     // ---------------------------- Суммы по товару -------------------------------- //
 
     currentSum 'Сумма остатка'###caption (sku, stock, bin) =
-        GROUP SUM signedSumActive(SkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger) PERSISTENT;
+        GROUP SUM signedSumActive(SkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger) MATERIALIZED;
 
     sumIn (sku, stock, bin, date) =
-        GROUP SUM sumInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger), date(ledger) PERSISTENT;
+        GROUP SUM sumInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger), date(ledger) MATERIALIZED;
 
     sumOut (sku, stock, bin, date) =
-        GROUP SUM sumOutActive(OutSkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger), date(ledger) PERSISTENT;
+        GROUP SUM sumOutActive(OutSkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger), date(ledger) MATERIALIZED;
 
     sum (Sku sku, Stock stock, Bin bin, DATE date) = sumIn(sku, stock, bin, date)
                                                          (+)
-                                                         sumOut(sku, stock, bin, date) PERSISTENT;
+                                                         sumOut(sku, stock, bin, date) MATERIALIZED;
 
     signedSum (Sku sku, Stock stock, Bin bin, DATE date) = sumIn(sku, stock, bin, date)
                                                                (-)
-                                                               sumOut(sku, stock, bin, date) PERSISTENT;
+                                                               sumOut(sku, stock, bin, date) MATERIALIZED;
 
     // без учета текущей даты/времени
     sumB 'Сумма на начало дня'###caption (Sku sku, Stock stock, Bin bin, DATE date) = currentSum(sku, stock, bin)
@@ -221,24 +221,24 @@ TABLE stockBin(Stock, Bin);
 dataIn 'Отм.' = DATA BOOLEAN (Stock, Bin);
 
 levelParent (stock, binGroup) = GROUP MIN level(BinGroup binGroup, BinGroup parent) IF dataIn(Stock stock, parent)
-                                                               BY stock, binGroup PERSISTENT;
+                                                               BY stock, binGroup MATERIALIZED;
 nearestParent (Stock stock, BinGroup binGroup) =
     binGroup(binGroup, levelParent(stock, binGroup));
 nearestIn (Stock stock, BinGroup binGroup) =
     dataIn(stock, nearestParent(stock, binGroup));
 
-in 'Отм.' (Stock stock, BinGroup binGroup) = OVERRIDE dataIn(stock, binGroup), nearestIn (stock, binGroup) PERSISTENT;
+in 'Отм.' (Stock stock, BinGroup binGroup) = OVERRIDE dataIn(stock, binGroup), nearestIn (stock, binGroup) MATERIALIZED;
 
-in 'Отм.' (Stock stock, Bin bin) = OVERRIDE dataIn(stock, bin), in(stock, binGroup(bin)) PERSISTENT;
+in 'Отм.' (Stock stock, Bin bin) = OVERRIDE dataIn(stock, bin), in(stock, binGroup(bin)) MATERIALIZED;
 
 countIn = GROUP SUM 1 IF binGroup(Bin bin)==BinGroup group AND in(Stock stock, bin) BY stock, group;
 
 bins 'Ячейки' (stock) = GROUP CONCAT name(Bin bin) IF in(Stock stock, bin) , ', '
                                        BY stock
-                                       ORDER bin MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
+                                       ORDER bin MINCHARWIDTH 20 PREFCHARWIDTH 40 MATERIALIZED;
 stocks 'Склады' (bin) = GROUP CONCAT name(Stock stock) IF in(stock, Bin bin) , ', '
                                        BY bin
-                                       ORDER stock MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
+                                       ORDER stock MINCHARWIDTH 20 PREFCHARWIDTH 40 MATERIALIZED;
 
 
 // ---------------- Ячейка по классификатору ------------------- //
@@ -253,16 +253,16 @@ dataBin = DATA Bin (Stock, Sku);
 nameDataBin 'Ячейка' (Stock stock,Sku sku) = name(dataBin(stock,sku)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
 levelParentBin (stock, group) = GROUP MIN level(Group group, Group parent) IF dataBin(Stock stock, parent)
-                                                              BY stock, group PERSISTENT;
+                                                              BY stock, group MATERIALIZED;
 
 nearestParentBin (Stock stock, Group group) = group(group, levelParentBin (stock, group));
 nearestInBin  (Stock stock, Group group) =
-    dataBin(stock, nearestParentBin (stock, group)) PERSISTENT;
+    dataBin(stock, nearestParentBin (stock, group)) MATERIALIZED;
 
-bin (Stock stock, Group group) = OVERRIDE dataBin(stock, group), nearestInBin(stock, group) PERSISTENT;
+bin (Stock stock, Group group) = OVERRIDE dataBin(stock, group), nearestInBin(stock, group) MATERIALIZED;
 nameBin 'Ячейка'= name(bin(Stock stock, Group group)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
-bin (Stock stock, Sku sku) = OVERRIDE dataBin(stock, sku), bin(stock, group(groupType(stock), sku)) PERSISTENT;
+bin (Stock stock, Sku sku) = OVERRIDE dataBin(stock, sku), bin(stock, group(groupType(stock), sku)) MATERIALIZED;
 nameBin 'Ячейка'= name(bin(Stock stock, Sku sku)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
 CONSTRAINT dataBin(Stock stock, Group group) AND NOT in(stock, dataBin(stock, group))
@@ -359,7 +359,7 @@ META defineDocumentDetailBinCustom(detail, prefix, caption)
     name###prefix##Bin 'Ячейка'###caption (###detail detail) = name(prefix###bin(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 END
 META defineDocumentAbstractDetailBinCustom(detail, prefix, caption)
-    prefix###bin = ABSTRACT Bin (###detail) PERSISTENT;
+    prefix###bin = ABSTRACT Bin (###detail) MATERIALIZED;
     name###prefix##Bin 'Ячейка'###caption (###detail detail) = name(prefix###bin(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 END
 META defineDocumentInterfaceDetailBinCustom(detail, prefix, caption)

@@ -5,38 +5,38 @@ REQUIRE System, SkuLedger, StockSkuDocument, Operation;
 CLASS ABSTRACT OrderLedger 'Резерв товара';
 TABLE orderLedger(OrderLedger);
 
-dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (OrderLedger) PERSISTENT INDEXED;
-date 'Дата' (OrderLedger ledger) = toDate(dateTime(ledger)) PERSISTENT INDEXED;
+dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (OrderLedger) MATERIALIZED INDEXED;
+date 'Дата' (OrderLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED INDEXED;
 
-isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (OrderLedger) PERSISTENT;
-isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (OrderLedger) PERSISTENT;
+isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (OrderLedger) MATERIALIZED;
+isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (OrderLedger) MATERIALIZED;
 
-sku (ledger) = ABSTRACT Sku (OrderLedger) PERSISTENT INDEXED;
+sku (ledger) = ABSTRACT Sku (OrderLedger) MATERIALIZED INDEXED;
 nameSku 'SKU' (OrderLedger ledger) = name(sku(ledger));
 
 countOrderLedger = GROUP SUM 1 BY sku(OrderLedger ledger);
 
-batch (ledger) = ABSTRACT Batch (OrderLedger) PERSISTENT INDEXED;
+batch (ledger) = ABSTRACT Batch (OrderLedger) MATERIALIZED INDEXED;
 
-stock (ledger) = ABSTRACT Stock (OrderLedger) PERSISTENT INDEXED;
+stock (ledger) = ABSTRACT Stock (OrderLedger) MATERIALIZED INDEXED;
 nameStock 'Склад' (OrderLedger ledger) = name(stock(ledger));
 
-description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (OrderLedger) PERSISTENT;
+description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (OrderLedger) MATERIALIZED;
 
-quantity 'Кол-во (заказано)' (ledger) = ABSTRACT NUMERIC[16,5] (OrderLedger) PERSISTENT;
-toShipQuantity 'Кол-во (не выполнено)' (ledger) = ABSTRACT NUMERIC[16,5] (OrderLedger) PERSISTENT;
+quantity 'Кол-во (заказано)' (ledger) = ABSTRACT NUMERIC[16,5] (OrderLedger) MATERIALIZED;
+toShipQuantity 'Кол-во (не выполнено)' (ledger) = ABSTRACT NUMERIC[16,5] (OrderLedger) MATERIALIZED;
 
-isPurchase 'Закупка' (ledger) = ABSTRACT BOOLEAN (OrderLedger) PERSISTENT;
+isPurchase 'Закупка' (ledger) = ABSTRACT BOOLEAN (OrderLedger) MATERIALIZED;
 statusReserve 'Статус резерва' (OrderLedger ledger) = IF isPurchase(ledger) THEN 'Закупка' ELSE 'Продажа' MINCHARWIDTH 8 PREFCHARWIDTH 15;               
 backgroundReserve 'Статус резерва' (OrderLedger ledger) = IF isPurchase(ledger) THEN RGB(204,255,204) ELSE RGB(189,227,255);               
 
-operation  (ledger) = ABSTRACT Operation (OrderLedger) PERSISTENT;
+operation  (ledger) = ABSTRACT Operation (OrderLedger) MATERIALIZED;
 nameOperation 'Операция' (OrderLedger ledger) = name(operation(ledger)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
-contact (ledger) = ABSTRACT LegalEntity (OrderLedger) PERSISTENT INDEXED;
+contact (ledger) = ABSTRACT LegalEntity (OrderLedger) MATERIALIZED INDEXED;
 nameContact 'Контрагент' (OrderLedger ledger) = name(contact(ledger));
 
-contactStock (ledger) = ABSTRACT Stock (OrderLedger) PERSISTENT INDEXED;
+contactStock (ledger) = ABSTRACT Stock (OrderLedger) MATERIALIZED INDEXED;
 nameContactStock 'Склад контрагента' (OrderLedger ledger) = name(contactStock(ledger));
 
 background 'Цвет' (OrderLedger ledger,DATETIME dateTime) = RGB(212,255,212) IF dateTime(ledger) > dateTime;
@@ -47,7 +47,7 @@ edit 'Редактировать' = ACTION ABSTRACT LIST (OrderLedger) IMAGE 'ed
 
 //по SKU
 currentReserveSale 'Резерв продажа (всего)' (sku, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger)
-    BY sku(ledger), stock(ledger) PERSISTENT;
+    BY sku(ledger), stock(ledger) MATERIALIZED;
 prevCurrentReserveSale 'Резерв продажа (всего)' (Sku sku, Stock stock) = PREV(currentReserveSale(sku, stock));
 
 // без учета текущей даты/времени
@@ -73,7 +73,7 @@ reserveASale 'Резерв продажи (после)' (Sku sku, Stock stock, D
 
 //по партиям
 currentReserveSale 'Резерв продажа (всего)' (batch, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger)
-    BY batch(ledger), stock(ledger) PERSISTENT;
+    BY batch(ledger), stock(ledger) MATERIALIZED;
 prevCurrentReserveSale 'Резерв продажа (всего)' (Batch batch, Stock stock) = PREV(currentReserveSale(batch, stock));
 
 // без учета текущей даты/времени
@@ -102,7 +102,7 @@ reserveASale 'Резерв продажи (после)' (Batch batch, Stock stoc
 
 //по SKU
 currentReservePurchase 'Резерв закупка (всего)' (sku, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger)
-    BY sku(ledger), stock(ledger) PERSISTENT;
+    BY sku(ledger), stock(ledger) MATERIALIZED;
 prevCurrentReservePurchase 'Резерв закупка (всего)' (Sku sku, Stock stock) = PREV(currentReservePurchase(sku, stock));
 
 // без учета текущей даты/времени
@@ -128,7 +128,7 @@ reserveAPurchase 'Резерв закупки (после)' (Sku sku, Stock stoc
 
 //по партиям
 currentReservePurchase 'Резерв закупка (всего)'(batch, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger)
-    BY batch(ledger), stock(ledger) PERSISTENT;
+    BY batch(ledger), stock(ledger) MATERIALIZED;
 prevCurrentReservePurchase 'Резерв закупка (всего)'(Batch batch, Stock stock) = PREV(currentReservePurchase(batch, stock));
 
 // без учета текущей даты/времени

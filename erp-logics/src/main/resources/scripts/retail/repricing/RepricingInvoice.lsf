@@ -17,12 +17,12 @@ META defineRepricingAggregation(sign, stockProp)
     // -- До
     @defineDocumentInterfaceDetailPricePrefix(invoice, cur, ' поставщика до');
 
-    overCurRepricingPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
-    overCurRepricingPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail) PERSISTENT;
+    overCurRepricingPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
+    overCurRepricingPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail) MATERIALIZED;
     overCurRepricingPrice (UserInvoiceDetail detail) += overCurRepricingPrice(detail);
 
-    curRepricingPrice 'Цена поставщика до' (UserInvoiceDetail detail) = OVERRIDE curPrice(detail), overCurRepricingPrice(detail) PERSISTENT;
-    curRepricingPrice 'Цена поставщика до' (InvoiceDetail detail) = OVERRIDE curPrice(detail), overCurRepricingPrice(detail) PERSISTENT;
+    curRepricingPrice 'Цена поставщика до' (UserInvoiceDetail detail) = OVERRIDE curPrice(detail), overCurRepricingPrice(detail) MATERIALIZED;
+    curRepricingPrice 'Цена поставщика до' (InvoiceDetail detail) = OVERRIDE curPrice(detail), overCurRepricingPrice(detail) MATERIALIZED;
 
     @defineDocumentInterfaceDetailMarkupPrefix (invoice, cur, ' до');
 
@@ -48,12 +48,12 @@ META defineRepricingAggregation(sign, stockProp)
     @changeDocumentDetailPriceCustomPrefix(userInvoiceDetail, curRetail, curRepricing, cur, cur);
 
     // -- После
-    overRepricingPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
-    overRepricingPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail) PERSISTENT;
+    overRepricingPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
+    overRepricingPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail) MATERIALIZED;
     overRepricingPrice (UserInvoiceDetail detail) += overRepricingPrice(detail);
 
-    repricingPrice (UserInvoiceDetail detail) = OVERRIDE price(detail), overRepricingPrice(detail) PERSISTENT;
-    repricingPrice (InvoiceDetail detail) = OVERRIDE price(detail), overRepricingPrice(detail) PERSISTENT;
+    repricingPrice (UserInvoiceDetail detail) = OVERRIDE price(detail), overRepricingPrice(detail) MATERIALIZED;
+    repricingPrice (InvoiceDetail detail) = OVERRIDE price(detail), overRepricingPrice(detail) MATERIALIZED;
 
     // ---- Суммы по строкам ---- //
 
@@ -98,10 +98,10 @@ META defineRepricingAggregation(sign, stockProp)
                                                    AND balanceBSku(invoiceDetail) != 0 AND stockProp##Stock(invoiceDetail) IS DepartmentStore
                                                    AND NOT costLedger(stockProp##Stock(invoiceDetail))
                                                    AND createRepricing(invoiceDetail)
-                                                   AND isStockSku(invoiceDetail) PERSISTENT;// AND isPostedInvoiceDetail(invoiceDetail) ;
+                                                   AND isStockSku(invoiceDetail) MATERIALIZED;// AND isPostedInvoiceDetail(invoiceDetail) ;
 
     needToRepricing (invoice)= GROUP SUM 1 IF needToRepricing(InvoiceDetail invoiceDetail)
-        BY invoice(invoiceDetail) PERSISTENT;
+        BY invoice(invoiceDetail) MATERIALIZED;
 
     CLASS InvoiceRepricing 'Акт дооценки на основе накладной'###sign : Repricing;
     CLASS InvoiceRepricingDetail 'Строка акта дооценки на основе накладной'###sign : RepricingDetail;

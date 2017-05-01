@@ -191,7 +191,7 @@ DESIGN userWriteOff {
     }
 }
 
-WHEN SESSION FORMS userWriteOff CHANGED(batch(UserWriteOffDetail detail)) DO {
+WHEN LOCAL FORMS userWriteOff CHANGED(batch(UserWriteOffDetail detail)) DO {
     sku (detail)  <- sku(batch(detail)) IF batch(detail);
 }
 //-- SKU
@@ -302,12 +302,12 @@ EXTEND FORM writeOffs
    
 //// Основание    
 //    
-//writeOffDetail (writeOffDetail) = ABSTRACT WriteOff.WriteOffDetail (WriteOffDetail) PERSISTENT;
+//writeOffDetail (writeOffDetail) = ABSTRACT WriteOff.WriteOffDetail (WriteOffDetail) MATERIALIZED;
 //writeOffDetail (userWriteOffDetail) = DATA WriteOff.WriteOffDetail (UserWriteOffDetail);
 //writeOffDetail(UserWriteOffDetail detail) += writeOffDetail(detail);
 //
-//returnQuantity 'Кол-во (возвращено)' (writeOffDetail)= GROUP SUM quantity(WriteOffDetail writeOffDetail) BY writeOffDetail(writeOffDetail) PERSISTENT;
-//returnQuantityWriteOffDetail 'Кол-во (возвращено)' (writeOff) =  GROUP SUM returnQuantity(WriteOff.WriteOffDetail writeOffDetail) BY writeOff(writeOffDetail) PERSISTENT;
+//returnQuantity 'Кол-во (возвращено)' (writeOffDetail)= GROUP SUM quantity(WriteOffDetail writeOffDetail) BY writeOffDetail(writeOffDetail) MATERIALIZED;
+//returnQuantityWriteOffDetail 'Кол-во (возвращено)' (writeOff) =  GROUP SUM returnQuantity(WriteOff.WriteOffDetail writeOffDetail) BY writeOff(writeOffDetail) MATERIALIZED;
 //
 //CONSTRAINT returnQuantity(WriteOff.WriteOffDetail detail) > quantity(detail)
 //    MESSAGE 'Количество строки возврата больше чем количество строки основания';
@@ -329,7 +329,7 @@ EXTEND FORM writeOffs
 //        ASSIGN price(detail) <-  price(writeOffDetail(detail));
 //    }
 //}
-//    WHEN SESSION FORMS userWriteOff
+//    WHEN LOCAL FORMS userWriteOff
 //        CHANGED(writeOffDetail[UserWriteOffDetail](WriteOffDetail detail)) OR
 //        CHANGED(batch(detail)) OR
 //        CHANGED(sku(detail)) OR
@@ -344,7 +344,7 @@ EXTEND FORM writeOffs
 //EXTEND FORM writeOffs PROPERTIES (d) READONLY descriptionWriteOffDetail AFTER shortNameUOMSku(d);
 //EXTEND FORM WriteOff.writeOffs PROPERTIES (d) READONLY returnQuantity BEFORE price(d);
 //
-//WHEN SESSION FORMS userWriteOff  CHANGED(writeOffDetail(UserWriteOffDetail detail)) AND countBatchCost(writeOffDetail(detail)) == 1 DO {
+//WHEN LOCAL FORMS userWriteOff  CHANGED(writeOffDetail(UserWriteOffDetail detail)) AND countBatchCost(writeOffDetail(detail)) == 1 DO {
 //    batch(detail) <- maxBatchCost(writeOffDetail(detail));
 //}
 //

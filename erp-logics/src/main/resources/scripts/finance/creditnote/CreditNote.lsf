@@ -66,7 +66,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
 
     @defineDocumentInterfaceDetailQuantity(creditNote);
 
-    price 'Цена' = ABSTRACT NUMERIC[16,4] (CreditNoteDetail) PERSISTENT;
+    price 'Цена' = ABSTRACT NUMERIC[16,4] (CreditNoteDetail) MATERIALIZED;
     price 'Цена' = DATA NUMERIC[16,4] (UserCreditNoteDetail);
     price (UserCreditNoteDetail creditNoteDetail) += price(creditNoteDetail);
 
@@ -308,7 +308,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     edit(UserCreditNoteDetail d) += { edit(d); }  
     
 //--  Связь акта и накладной
-    invoiceDetail = ABSTRACT InvoiceDetail (CreditNoteDetail) PERSISTENT;
+    invoiceDetail = ABSTRACT InvoiceDetail (CreditNoteDetail) MATERIALIZED;
     invoiceDetail = DATA InvoiceDetail (UserCreditNoteDetail);
     invoiceDetail(UserCreditNoteDetail creditNoteDetail) += invoiceDetail(creditNoteDetail);
 
@@ -361,17 +361,17 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
         
     @defineDocumentInterfaceProperty (invoice, createCreditNote, 'Создать акт расхождения');
     
-    skipCreateCreditNote = ABSTRACT BOOLEAN (InvoiceDetail) PERSISTENT;
+    skipCreateCreditNote = ABSTRACT BOOLEAN (InvoiceDetail) MATERIALIZED;
     
     needToCreditNote (InvoiceDetail invoiceDetail)= createCreditNote(invoiceDetail)  AND
         caseToShip (invoiceDetail) AND isPosted(invoiceDetail) 
-        AND isNotCharge(sku(invoiceDetail)) AND NOT skipCreateCreditNote(invoiceDetail) PERSISTENT;
+        AND isNotCharge(sku(invoiceDetail)) AND NOT skipCreateCreditNote(invoiceDetail) MATERIALIZED;
 
     overCopy(UserInvoice s, UserInvoice d) += {
         ASSIGN createCreditNote(d) <- createCreditNote(s);
     }
 
-    needToCreditNote (invoice) = GROUP SUM 1 IF needToCreditNote(InvoiceDetail invoiceDetail) BY invoice(invoiceDetail) PERSISTENT;
+    needToCreditNote (invoice) = GROUP SUM 1 IF needToCreditNote(InvoiceDetail invoiceDetail) BY invoice(invoiceDetail) MATERIALIZED;
 
     EXTEND FORM userInvoice PROPERTIES(i) createCreditNote;
     DESIGN userInvoice {
@@ -516,7 +516,7 @@ END
 
 META defineCreditNotePaymentCondition (sign)
 
-    paymentCondition 'Условия оплаты' = ABSTRACT PaymentCondition (CreditNote) PERSISTENT;
+    paymentCondition 'Условия оплаты' = ABSTRACT PaymentCondition (CreditNote) MATERIALIZED;
     paymentCondition 'Условия оплаты' = DATA PaymentCondition (UserCreditNote);
     paymentCondition(UserCreditNote prop) += paymentCondition(prop);
 

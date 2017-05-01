@@ -33,11 +33,11 @@ nameSkuGroup4 'Подгруппа' (Article article) = name(skuGroup4(article));
 skuGroup5 'Субгруппа' (Article article) = skuGroup5(itemGroup(article));
 nameSkuGroup5 'Субгруппа' (Article article) = name(skuGroup5(article));
 
-WHEN SESSION CHANGED(itemGroup(Article a)) AND NOT caption(a) DO
+WHEN LOCAL CHANGED(itemGroup(Article a)) AND NOT caption(a) DO
     caption(a) <- caption(itemGroup(a));
 
 TABLE itemGroupArticle(ItemGroup, Article);
-isParent(ItemGroup group, Article article) = isParent(itemGroup(article), group) PERSISTENT INDEXED;
+isParent(ItemGroup group, Article article) = isParent(itemGroup(article), group) MATERIALIZED INDEXED;
 canonicalNameItemGroup 'Группа товара' (Article article) = canonicalName[Group](itemGroup(article)) MINCHARWIDTH 40 PREFCHARWIDTH 80;
 
 // --- Дополнительные группы
@@ -79,7 +79,7 @@ loadImage 'Загрузить изображение' (Article a) = { LOADFILE i
 saveImage 'Сохранить изображение' (Article article) = {
     LOCAL fileName=VARSTRING[255]();
     fileName() <- OVERRIDE caption(article), id(article);
-    SAVEFILE image(article) NAME fileName();
+    SAVE image(article) NAME fileName();
 } SHORTCUT image[Article];
 
 FORM article 'Артикул'
@@ -255,7 +255,7 @@ EXTEND CLASS Color  {
     none 'None'
 }
 calcColor (Item item)= OVERRIDE color(item), (Color.none IF item IS Item);
-count 'Кол-во цветов для артикля' (color,article) = GROUP SUM 1 BY calcColor(Item item), article(item) PERSISTENT;
+count 'Кол-во цветов для артикля' (color,article) = GROUP SUM 1 BY calcColor(Item item), article(item) MATERIALIZED;
 
 color  = DATA Color(Article);
 nameColor 'Цвет' (Article Article) = name(color(Article)) IN itemArticle;
@@ -276,7 +276,7 @@ idUOM 'Единица измерения' (Article article) = id(UOM(article));
 nameUOM 'Единица измерения' (Article article) = name(UOM(article)) IN itemBase MINCHARWIDTH 10 PREFCHARWIDTH 10;
 shortNameUOM 'Краткое наименование' (Article article)=  shortName(UOM(article)) IN itemBase MINCHARWIDTH 3 PREFCHARWIDTH 6;
 
-WHEN SESSION CHANGED(itemGroup(Article a)) AND NOT UOM(a) DO
+WHEN LOCAL CHANGED(itemGroup(Article a)) AND NOT UOM(a) DO
     UOM(a) <- UOM(itemGroup(a));
 overReplace (UOM new,UOM o) += {
     UOM(Article article) <- new WHERE UOM(article) == o;
@@ -331,7 +331,7 @@ EXTEND FORM brand PROPERTIES(t) nameGender, shortNameGender;
 EXTEND FORM brands PROPERTIES(t) BEFORE deleteb READONLYIF isReadonly() nameGender;
 
 dataGender  = DATA Gender (Article);
-gender (Article article) = OVERRIDE dataGender(article), gender(brand(article)) PERSISTENT;
+gender (Article article) = OVERRIDE dataGender(article), gender(brand(article)) MATERIALIZED;
 
 nameGender 'Пол' (Article a) = name(gender(a));
 shortNameGender 'Пол' (Article a) = shortName(gender(a));
@@ -359,7 +359,7 @@ shortName 'Краткое наименование' = DATA ISTRING[10](Size);
 order 'Порядок' = DATA INTEGER (Size);
 
 nameOriginal 'Наименование (оригинальное)' = DATA VARISTRING[50](Size);
-WHEN SESSION CHANGED(name(Size s)) AND NOT nameOriginal(s) DO nameOriginal(s) <- name(s);
+WHEN LOCAL CHANGED(name(Size s)) AND NOT nameOriginal(s) DO nameOriginal(s) <- name(s);
 
 FORM size 'Размер товара'
     OBJECTS t=Size PANEL
@@ -398,7 +398,7 @@ EXTEND CLASS Size  {
     none 'None'
 }
 calcSize (Item item)= OVERRIDE size(item), (Size.none IF item IS Item);
-count 'Кол-во размеров для артикля' (size,article) = GROUP SUM 1 BY calcSize(Item item), article(item) PERSISTENT;
+count 'Кол-во размеров для артикля' (size,article) = GROUP SUM 1 BY calcSize(Item item), article(item) MATERIALIZED;
 
 maxSku (article, color, size) = GROUP MAX Item sku
     BY article(sku), calcColor(sku), calcSize(sku);
@@ -626,22 +626,22 @@ EXTEND FORM articles
 
 // ------------------------- Автоматическое проставление свойств товара для артикула ---------------------- //
 META defineEventChangedArticle(property)
-    WHEN SESSION CHANGED(property(article(Item i))) AND NOT CHANGED(property(i)) DO         
+    WHEN LOCAL CHANGED(property(article(Item i))) AND NOT CHANGED(property(i)) DO         
         property(i) <- property(article(i));
 END
 
 //@defineEventChangedArticle(caption);
 
-WHEN SESSION CHANGED(caption(article(Item i))) AND NOT CHANGED(caption(i)) AND NOT caption(i) DO         
+WHEN LOCAL CHANGED(caption(article(Item i))) AND NOT CHANGED(caption(i)) AND NOT caption(i) DO         
     caption(i) <- caption(article(i));
 
 @defineEventChangedArticle(itemGroup);
 @defineEventChangedArticle(country);
       
-WHEN SESSION CHANGED(customGroup(CustomGroupType type, article(Item i))) AND NOT CHANGED(customGroup(type, i)) DO         
+WHEN LOCAL CHANGED(customGroup(CustomGroupType type, article(Item i))) AND NOT CHANGED(customGroup(type, i)) DO         
     customGroup(type, i) <- customGroup(type, article(i));
 
-//WHEN SESSION (CHANGED(customGroupCustomGroupTypeArticle(type, article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(customGroupCustomGroupTypeItem(type, i)) DO         
+//WHEN LOCAL (CHANGED(customGroupCustomGroupTypeArticle(type, article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(customGroupCustomGroupTypeItem(type, i)) DO         
 //    customGroupCustomGroupTypeItem(type, i) <- customGroupCustomGroupTypeArticle(type, article) WHERE articleItem(i)==article;
 
 @defineEventChangedArticle(brand);

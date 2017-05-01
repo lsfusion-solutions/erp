@@ -8,14 +8,14 @@ PRIORITY PurchaseReturn;
 
 GROUP shipment 'Информация о поставке' : base;
 
-createSaleReturn 'Создать поставку (продажа-возврат)' = ABSTRACT BOOLEAN (Shipment) PERSISTENT;
-createSaleReturn 'Создать поставку (продажа-возврат)' = DATA BOOLEAN (UserShipment) PERSISTENT;
+createSaleReturn 'Создать поставку (продажа-возврат)' = ABSTRACT BOOLEAN (Shipment) MATERIALIZED;
+createSaleReturn 'Создать поставку (продажа-возврат)' = DATA BOOLEAN (UserShipment) MATERIALIZED;
 createSaleReturn(UserShipment shipment) += createSaleReturn(shipment);
 
 createSaleReturn (UserShipment o) <- createShipment(operation(o))
     WHEN CHANGED(operation(o));
 
-createSaleReturn 'Создать поставку (продажа-возврат)' (ShipmentDetail shipmentDetail) = createSaleReturn(shipment(shipmentDetail))PERSISTENT;
+createSaleReturn 'Создать поставку (продажа-возврат)' (ShipmentDetail shipmentDetail) = createSaleReturn(shipment(shipmentDetail))MATERIALIZED;
 createSaleReturn 'Создать поставку (продажа-возврат)' (UserShipmentDetail userShipmentDetail) = createSaleReturn(userShipment(userShipmentDetail));
 backgroundSaleReturn 'Цвет' (Shipment shipment) = RGB(255, 224, 255) IF shipment IS Shipment;
 
@@ -49,7 +49,7 @@ DESIGN userShipment {
 
 //--  Связь поставки с поставкой
 
-shipmentDetail = ABSTRACT ShipmentDetail (SaleReturn.ShipmentDetail) PERSISTENT INDEXED;
+shipmentDetail = ABSTRACT ShipmentDetail (SaleReturn.ShipmentDetail) MATERIALIZED INDEXED;
 shipmentDetail = DATA ShipmentDetail (SaleReturn.UserShipmentDetail) INDEXED;
 shipmentDetail(SaleReturn.UserShipmentDetail shipmentDetail) += shipmentDetail(shipmentDetail);
 
@@ -73,12 +73,12 @@ quantityShipmentDetail (purchaseReturn, saleReturn) = GROUP SUM quantity(SaleRet
 
 saleShipments 'Поставки (закупка-возврат)' (saleReturn) = GROUP CONCAT VARSTRING[255](description(Shipment purchaseReturn)) IF quantityShipmentDetail(purchaseReturn, SaleReturn.Shipment saleReturn) , ', '
                                                         BY saleReturn
-                                                        ORDER purchaseReturn IN shipment MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                        ORDER purchaseReturn IN shipment MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 
-relationSaleReturn 'Связь' (saleReturn) = GROUP SUM quantityShipmentDetail (Shipment purchaseReturn, SaleReturn.Shipment saleReturn) BY saleReturn PERSISTENT;
+relationSaleReturn 'Связь' (saleReturn) = GROUP SUM quantityShipmentDetail (Shipment purchaseReturn, SaleReturn.Shipment saleReturn) BY saleReturn MATERIALIZED;
 
 shipped 'Кол-во (поставлено)' (shipmentDetail) = GROUP SUM quantity(SaleReturn.ShipmentDetail detail) IF isPosted(detail)
-                                                                   BY shipmentDetail(detail) PERSISTENT;
+                                                                   BY shipmentDetail(detail) MATERIALIZED;
 
 toShip 'Не поставлено' (ShipmentDetail shipmentDetail) = quantity (shipmentDetail) (-) shipped(shipmentDetail);
 

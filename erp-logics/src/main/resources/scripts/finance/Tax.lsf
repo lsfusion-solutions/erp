@@ -70,8 +70,8 @@ TABLE taxUnitGroupTaxUnitGroup(TaxUnitGroup, TaxUnitGroup);
 CLASS ABSTRACT TaxUnit 'Налоговый субъект';
 TABLE taxUnit(TaxUnit);
 
-taxUnitGroup = ABSTRACT TaxUnitGroup (TaxUnit) PERSISTENT;
-description 'Название налогового субъекта' = ABSTRACT VARISTRING[255] (TaxUnit) PERSISTENT;
+taxUnitGroup = ABSTRACT TaxUnitGroup (TaxUnit) MATERIALIZED;
+description 'Название налогового субъекта' = ABSTRACT VARISTRING[255] (TaxUnit) MATERIALIZED;
 
 TABLE rangeTaxUnit (Range, TaxUnit);
 in 'Вкл.' (range, taxUnit) = DATA BOOLEAN (Range, TaxUnit);
@@ -111,7 +111,7 @@ dateFromRate 'Действует (с)' (range, date) =
                                    ORDER dateFrom(rate), rate
                                    WHERE dateFrom(rate) <= date COMPLEX;
 
-valueCurrentRate 'Действующая ставка' (Range range) = valueRate(range, currentDate()) IN base PERSISTENT;
+valueCurrentRate 'Действующая ставка' (Range range) = valueRate(range, currentDate()) IN base MATERIALIZED;
 
 dateFromCurrentRate 'Действует (с)' (Range range) = dateFromRate(range, currentDate()) IN base;
 
@@ -271,10 +271,10 @@ META defineDocumentDetailVATCustom(detail, countryProp, prefix, caption)
 END
 
 META defineDocumentAbstractDetailVATCustom(detail, prefix, caption)
-    prefix##VAT(detail) = ABSTRACT Range (###detail) PERSISTENT;
+    prefix##VAT(detail) = ABSTRACT Range (###detail) MATERIALIZED;
     number###prefix##VAT 'НДС, номер'###caption (###detail detail) = number(prefix##VAT(detail));
-    value###prefix##VAT 'НДС, %'###caption (detail) = ABSTRACT NUMERIC[10,5] (###detail) PERSISTENT;
-    calcValue###prefix##VAT 'НДС (перегруженный), %'###caption (detail) = ABSTRACT NUMERIC[10,5] (###detail) PERSISTENT;
+    value###prefix##VAT 'НДС, %'###caption (detail) = ABSTRACT NUMERIC[10,5] (###detail) MATERIALIZED;
+    calcValue###prefix##VAT 'НДС (перегруженный), %'###caption (detail) = ABSTRACT NUMERIC[10,5] (###detail) MATERIALIZED;
 
 END
 
@@ -302,7 +302,7 @@ META defineDocumentDetailInclVATCustomPrefix (detail)
     includeVAT 'Вкл. НДС' = DATA BOOLEAN (###detail);
 END
 META defineDocumentAbstractDetailInclVATCustomPrefix (detail)
-    includeVAT 'Вкл. НДС' = ABSTRACT BOOLEAN (###detail) PERSISTENT;
+    includeVAT 'Вкл. НДС' = ABSTRACT BOOLEAN (###detail) MATERIALIZED;
 END
 META defineDocumentInterfaceDetailInclVATCustomPrefix (detail)
     @defineDocumentAbstractDetailInclVATCustomPrefix(detail);
@@ -364,7 +364,7 @@ META deriveDocumentDetailValueVATCustom(detail, prefix)
                                                                 valueRate(prefix##VAT(detail), date(detail))
                                                               ELSE overDeriveValue###prefix##VAT (detail));
     changedValue###prefix##VAT(detail) = ABSTRACT BOOLEAN (###detail);
-    WHEN SESSION GOAFTER prefix##VAT[###detail]
+    WHEN LOCAL GOAFTER prefix##VAT[###detail]
         (CHANGED(prefix##VAT(###detail detail)) OR (CHANGED (dateTime(detail)) AND isPosted(detail)) OR changedValue###prefix##VAT(detail)) AND v == calcSetValue###prefix##VAT (detail) AND NOT CHANGED(value###prefix##VAT (detail)) DO {
             value###prefix##VAT (detail) <- v;
         }
@@ -406,8 +406,8 @@ META defineDocumentDetailVATDataSumCustom (detail, prefix)
     prefix##Sum 'Сумма с НДС' (detail) = DATA NUMERIC[18,4] (###detail);
 END
 META defineDocumentAbstractDetailVATDataSumCustom (detail, prefix)
-    VATSum 'Сумма НДС' (detail) = ABSTRACT NUMERIC[18,4] (###detail) PERSISTENT;
-    prefix##Sum 'Сумма с НДС' (detail) = ABSTRACT NUMERIC[18,4] (###detail) PERSISTENT;
+    VATSum 'Сумма НДС' (detail) = ABSTRACT NUMERIC[18,4] (###detail) MATERIALIZED;
+    prefix##Sum 'Сумма с НДС' (detail) = ABSTRACT NUMERIC[18,4] (###detail) MATERIALIZED;
 END
 META defineDocumentInterfaceDetailVATDataSumCustom (detail, prefix)
     @defineDocumentAbstractDetailVATDataSumCustom(detail, prefix);
@@ -517,7 +517,7 @@ META defineDocumentDetailVATDataSumCustomPrefix (detail, prefix, caption)
     prefix##VATSum 'Сумма НДС'###caption = DATA NUMERIC[18,4] (###detail);
 END
 META defineDocumentAbstractDetailVATDataSumCustomPrefix (detail, prefix, caption)
-    prefix##VATSum 'Сумма НДС'###caption = ABSTRACT NUMERIC[18,4] (###detail) PERSISTENT;
+    prefix##VATSum 'Сумма НДС'###caption = ABSTRACT NUMERIC[18,4] (###detail) MATERIALIZED;
 END
 META defineDocumentInterfaceDetailVATDataSumCustomPrefix (detail, prefix, caption)
     @defineDocumentAbstractDetailVATDataSumCustomPrefix(detail, prefix, caption);

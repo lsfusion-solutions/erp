@@ -127,7 +127,7 @@ DESIGN options {
 
 @defineExternalizable(item, VARSTRING[100]);
 @defineOption(replaceSpacesInItemId, 'Замещать пробелы в коде товара', items);
-WHEN SESSION CHANGED (id(Item i)) AND replaceSpacesInItemId()  DO id(i) <- replace(id(i), ' ', '');
+WHEN LOCAL CHANGED (id(Item i)) AND replaceSpacesInItemId()  DO id(i) <- replace(id(i), ' ', '');
 
 @defineNumeratedID(Item, 'Товары');
 
@@ -147,7 +147,7 @@ idItemGroup 'Код группы товаров' (Item item) = id(itemGroup(item
 
 TABLE itemGroupItem (ItemGroup, Item);
 
-isParent (ItemGroup itemGroup, Item item) = isParent(itemGroup(item), itemGroup) PERSISTENT;
+isParent (ItemGroup itemGroup, Item item) = isParent(itemGroup(item), itemGroup) MATERIALIZED;
 
 
 checkIsLeafItemGroup 'Товар должен быть привязан к нижнему узлу основного классификатора' = DATA BOOLEAN ();
@@ -187,8 +187,8 @@ loadImage 'Загрузить изображение' (Item item) = { LOADFILE d
 overImage '' = ABSTRACT IMAGEFILE (Item);
 
 image (Item item) = OVERRIDE overImage (item), dataImage (item);
-openImage 'Открыть изображение' (Item item) = { OPENFILE image(item); }
-hasImage (Item item) = TRUE IF image(item) PERSISTENT;
+openImage 'Открыть изображение' (Item item) = { OPEN image(item); }
+hasImage (Item item) = TRUE IF image(item) MATERIALIZED;
 
 nullImage 'Сбросить'(Item item) = {
     image(item) <- NULL;
@@ -422,10 +422,10 @@ TABLE itemItemAttribute(Item, ItemAttribute);
 META defineItemAttribute (attribute, caption, group)
     userShow###attribute caption (itemGroup) = DATA BOOLEAN (ItemGroup) IN group;
 
-    quantityChildWith###attribute (itemGroup) = GROUP SUM 1 IF userShow###attribute(ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) BY itemGroup PERSISTENT;
-    quantityParentWith###attribute (itemGroup) = GROUP SUM 1 IF userShow###attribute(ItemGroup parentItemGroup) AND isParent(ItemGroup itemGroup, parentItemGroup) BY itemGroup PERSISTENT;
+    quantityChildWith###attribute (itemGroup) = GROUP SUM 1 IF userShow###attribute(ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) BY itemGroup MATERIALIZED;
+    quantityParentWith###attribute (itemGroup) = GROUP SUM 1 IF userShow###attribute(ItemGroup parentItemGroup) AND isParent(ItemGroup itemGroup, parentItemGroup) BY itemGroup MATERIALIZED;
 
-    show###attribute caption (ItemGroup itemGroup) = TRUE IF (quantityChildWith###attribute (itemGroup) (+) quantityParentWith###attribute (itemGroup)) > 0 PERSISTENT;
+    show###attribute caption (ItemGroup itemGroup) = TRUE IF (quantityChildWith###attribute (itemGroup) (+) quantityParentWith###attribute (itemGroup)) > 0 MATERIALIZED;
     showAny###attribute caption (ItemGroup itemGroup) = show###attribute(itemGroup) OR NOT itemGroup IS ItemGroup;
 
     show###attribute caption (Item item) = TRUE IF quantityParentWith###attribute(itemGroup(item));
@@ -445,7 +445,7 @@ META defineItemAttribute (attribute, caption, group)
 END
 
 // Объявление
-value = ABSTRACT VARISTRING[255] (Item, ItemAttribute) PERSISTENT;
+value = ABSTRACT VARISTRING[255] (Item, ItemAttribute) MATERIALIZED;
 
 META defineItemAttribute(attribute, formProperty, caption, group)
     @defineItemAttribute(attribute, caption, group);
@@ -709,11 +709,11 @@ META defineItemAttributeName (prefix, caption, group)
             ELSE numberInName###prefix(attribute);
     
     nameConcat###prefix##Attribute = GROUP CONCAT completeName(Item item, ItemAttribute attribute)
-                                                   IF numberInName###prefix(attribute, item) AND value(item, attribute), ' ' BY item ORDER numberInName###prefix(attribute, item) PERSISTENT;
+                                                   IF numberInName###prefix(attribute, item) AND value(item, attribute), ' ' BY item ORDER numberInName###prefix(attribute, item) MATERIALIZED;
     name###prefix##Attribute 'Наименование'###caption (Item item) = OVERRIDE overName(item),
                             VARISTRING[255](
                     nameConcat###prefix##Attribute(item))
-                    IN group PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
+                    IN group MATERIALIZED MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
     
     background###prefix (ItemAttribute a, ItemGroup g) = RGB(203,203,206) IF numberInName###prefix(a, g) AND NOT numberInName###prefix(a, g) == dataNumberInName###prefix(a,g);   
     EXTEND FORM itemOptions 
@@ -729,12 +729,12 @@ END
 // Строка
 CLASS StringItemAttribute 'Строковый атрибут' : ItemAttribute;
 
-value = ABSTRACT CASE EXCLUSIVE VARISTRING[255] (Item, StringItemAttribute) PERSISTENT;
+value = ABSTRACT CASE EXCLUSIVE VARISTRING[255] (Item, StringItemAttribute) MATERIALIZED;
 value(Item item, StringItemAttribute attribute) += value(item, attribute);
 
 META defineStringItemAttribute(attribute, type, caption, group)
     @definePrimitiveItemAttribute(attribute, type, caption, group);
-    WHEN SESSION FORMS item, items SETCHANGED (attribute(Item i)) AND trimAttributes() DO {
+    WHEN LOCAL FORMS item, items SETCHANGED (attribute(Item i)) AND trimAttributes() DO {
         attribute(i) <- trim(attribute(i));
     } 
 END
@@ -742,7 +742,7 @@ END
 // Целое число
 CLASS IntegerItemAttribute 'Целочисленный атрибут' : ItemAttribute;
 
-value = ABSTRACT CASE EXCLUSIVE INTEGER (Item, IntegerItemAttribute) PERSISTENT;
+value = ABSTRACT CASE EXCLUSIVE INTEGER (Item, IntegerItemAttribute) MATERIALIZED;
 string(Item item, IntegerItemAttribute attribute) = VARSTRING[255](value(item, attribute));
 value(Item item, IntegerItemAttribute attribute) += string(item, attribute);
 
@@ -753,7 +753,7 @@ END
 // Дробное число
 CLASS DoubleItemAttribute 'Дробный атрибут' : ItemAttribute;
 
-value = ABSTRACT CASE EXCLUSIVE DOUBLE (Item, DoubleItemAttribute) PERSISTENT;
+value = ABSTRACT CASE EXCLUSIVE DOUBLE (Item, DoubleItemAttribute) MATERIALIZED;
 string(Item item, DoubleItemAttribute attribute) = VARSTRING[255]([= FORMULA TEXT PG 'convert_numeric_to_string(CAST(($1) AS numeric))', MS 'dbo.convert_numeric_to_string(CAST(($1) AS numeric(38,19)))'](value(item, attribute)));
 value(Item item, DoubleItemAttribute attribute) += string(item, attribute);
 
@@ -769,12 +769,12 @@ META defineItemGroupDefaultValueCustom(property, caption, type, typeIdentity, pr
     data###typeIdentity###property caption (ItemGroup itemGroup) = name(data###property(itemGroup)) IN defaultItemGroup;
     
     levelParent###property (itemGroup) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF data###property(parent)
-                                                                  BY itemGroup PERSISTENT;    
+                                                                  BY itemGroup MATERIALIZED;    
     nearestParent###property (ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###property(itemGroup));
     nearest###property (ItemGroup itemGroup) = data###property(nearestParent###property (itemGroup));
     property (ItemGroup itemGroup) =
         OVERRIDE data###property(itemGroup), 
-                 nearest###property (itemGroup) PERSISTENT;    
+                 nearest###property (itemGroup) MATERIALIZED;    
     
     propertyTypeIdentity caption (ItemGroup itemGroup) = name(property(itemGroup)) IN defaultItemGroup;    
 END 
@@ -791,12 +791,12 @@ META defineItemGroupDefaultValue(property, caption, type)
     data###property caption = DATA type (ItemGroup) IN defaultItemGroup;
     
     levelParent###property (itemGroup) = GROUP MIN level(ItemGroup child, ItemGroup parent) IF data###property(parent)
-                                                                  BY child PERSISTENT;    
+                                                                  BY child MATERIALIZED;    
     nearestParent###property (ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###property(itemGroup));
     nearest###property (ItemGroup itemGroup) = data###property(nearestParent###property (itemGroup));
     property caption (ItemGroup itemGroup) =
         OVERRIDE data###property(itemGroup), 
-                 nearest###property (itemGroup) PERSISTENT IN defaultItemGroup;        
+                 nearest###property (itemGroup) MATERIALIZED IN defaultItemGroup;        
     
 END 
 META defineItemDefaultValue(property, caption, type)
@@ -810,13 +810,13 @@ META defineItemDefaultValue(property, caption, type, typeIdentity, object)
     data###typeIdentity##type caption (###object object, ItemGroup itemGroup) = name(data##type(object, itemGroup)) IN defaultItemGroup;
     
     levelParent##type (object, itemGroup) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF data##type(###object object, parent)
-                                                                  BY object, itemGroup PERSISTENT;    
+                                                                  BY object, itemGroup MATERIALIZED;    
     nearestParent##type (###object object, ItemGroup itemGroup) = itemGroup(itemGroup, levelParent##type(object, itemGroup));
     nearest##type (###object object, ItemGroup itemGroup) = data##type(object, nearestParent##type (object, itemGroup));
     
     property (###object object, ItemGroup itemGroup) =
         OVERRIDE data##type(object, itemGroup), 
-                 nearest##type (object, itemGroup) PERSISTENT;    
+                 nearest##type (object, itemGroup) MATERIALIZED;    
     
     typeIdentity caption (###object object, ItemGroup itemGroup) = name(property(object, itemGroup)) IN defaultItemGroup;
 END 
@@ -825,20 +825,20 @@ META defineItemDefaultValueCustom(property, caption, type, object)
     data###property caption = DATA type (###object, ItemGroup);
     
     levelParent###property (object, itemGroup) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF data###property(###object object, parent)
-                                                                  BY object, itemGroup PERSISTENT;    
+                                                                  BY object, itemGroup MATERIALIZED;    
     nearestParent###property (###object object, ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###property(object, itemGroup));
     nearest###property (###object object, ItemGroup itemGroup) = data###property(object, nearestParent###property (object, itemGroup));
     
     property caption (###object object, ItemGroup itemGroup) =
         OVERRIDE data###property(object, itemGroup), 
-                 nearest###property (object, itemGroup) PERSISTENT;
+                 nearest###property (object, itemGroup) MATERIALIZED;
                  
     quantityChild###property (object, itemGroup) = GROUP SUM 1 IF 
         data###property(###object object, ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) 
-            BY object, itemGroup PERSISTENT;
+            BY object, itemGroup MATERIALIZED;
     quantityParent###property (object, itemGroup) = GROUP SUM 1 IF 
         data###property(###object object, ItemGroup parentItemGroup) AND isParent(ItemGroup itemGroup, parentItemGroup) 
-            BY object, itemGroup PERSISTENT;                 
+            BY object, itemGroup MATERIALIZED;                 
 
     backgroundWith###property (###object object, ItemGroup itemGroup) =
         IF data###property(object, itemGroup) THEN
@@ -890,20 +890,20 @@ META defineItemFilterValue(object, captionProp, o)
     dataIn 'Вкл' = DATA BOOLEAN (###object, ItemGroup);
     
     levelParentIn (object, itemGroup) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF dataIn(###object object, parent)
-                                                                  BY object, itemGroup PERSISTENT;    
+                                                                  BY object, itemGroup MATERIALIZED;    
     nearestParentIn (###object object, ItemGroup itemGroup) = itemGroup(itemGroup, levelParentIn(object, itemGroup));
     nearestIn (###object object, ItemGroup itemGroup) = dataIn(object, nearestParentIn (object, itemGroup));
     
     in 'Вкл' (###object object, ItemGroup itemGroup) =
         OVERRIDE dataIn(object, itemGroup), 
-                 nearestIn (object, itemGroup) PERSISTENT;    
+                 nearestIn (object, itemGroup) MATERIALIZED;    
                  
     quantityChild (object, itemGroup) = GROUP SUM 1 IF 
         dataIn(###object object, ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) 
-            BY object, itemGroup PERSISTENT;
+            BY object, itemGroup MATERIALIZED;
     quantityParent (object, itemGroup) = GROUP SUM 1 IF 
         dataIn(###object object, ItemGroup parentItemGroup) AND isParent(ItemGroup itemGroup, parentItemGroup) 
-            BY object, itemGroup PERSISTENT;                 
+            BY object, itemGroup MATERIALIZED;                 
 
     backgroundWith (###object object, ItemGroup itemGroup) =
         IF dataIn(object, itemGroup) THEN
@@ -914,9 +914,9 @@ META defineItemFilterValue(object, captionProp, o)
  
     countRec 'Кол-во (рек.)' (object, itemGroup)= GROUP SUM 1 IF 
         in(###object object, ItemGroup child) AND isParent(child, ItemGroup parent) 
-            BY object, parent PERSISTENT;              
+            BY object, parent MATERIALIZED;              
     countDataItemGroup 'Кол-во групп' (object) = GROUP SUM 1 IF 
-        dataIn(###object object, ItemGroup itemGroup) BY object PERSISTENT;            
+        dataIn(###object object, ItemGroup itemGroup) BY object MATERIALIZED;            
 
     WHEN autoSetGroupAttribute(mainRole[CustomUser](currentUser())) AND (CHANGED(object(Item item)) OR CHANGED(itemGroup(item))) AND countDataItemGroup(object(item)) AND NOT countRec(object(item), itemGroup(item)) DO {
         dataIn(###object o, ItemGroup g) <- TRUE WHERE o == object(item) AND g == itemGroup(item);
@@ -1187,7 +1187,7 @@ EXTEND FORM dialogItemGroups
 @defineStringItemAttribute(caption, VARISTRING[255], 'Название', itemBase);
 
 @defineItemDefaultValue(caption, 'Название', VARISTRING[255]);
-WHEN SESSION CHANGED(itemGroup(Item i)) AND NOT caption(i) DO
+WHEN LOCAL CHANGED(itemGroup(Item i)) AND NOT caption(i) DO
     caption(i) <- caption(itemGroup(i));
 
 @defineItemAttributeBatch (caption, 'Название');
@@ -1228,7 +1228,7 @@ shortNameUOM 'Единица измерения' (Item item) = shortName(UOM(ite
 UOM(Item item) += UOM(item);
 
 @defineItemDefaultValue(UOM, 'Ед. изм.', UOM, nameUOM); 
-WHEN SESSION CHANGED(itemGroup(Item i)) AND NOT UOM(i) DO
+WHEN LOCAL CHANGED(itemGroup(Item i)) AND NOT UOM(i) DO
     UOM(i) <- UOM(itemGroup(i));
 @defineItemFilterValue(UOM, 'Ед. изм.', u);
 
@@ -1442,7 +1442,7 @@ netWeight(Item i) <- netWeight(UOM(i)) WHEN CHANGED(UOM(i)) AND netWeight(UOM(i)
 @defineItemAttributeBatchClass (grossWeight, 'Вес брутто, кг', sku);
 grossWeight(Item sku) += grossWeight(sku);
 
-WHEN SESSION (CHANGED(netWeight(Item sku)) OR (CHANGED(UOM(sku) AND grossWeight(UOM(sku))))) AND NOT CHANGED(grossWeight(sku)) DO
+WHEN LOCAL (CHANGED(netWeight(Item sku)) OR (CHANGED(UOM(sku) AND grossWeight(UOM(sku))))) AND NOT CHANGED(grossWeight(sku)) DO
     grossWeight(sku) <- OVERRIDE grossWeight(UOM(sku)), netWeight(sku);
 
 // Кол-во в грузовом месте
@@ -1494,7 +1494,7 @@ CONSTRAINT  constraintRequired(ItemAttribute a, Item i)
 saveImage 'Сохранить изображение' (Item item) = {
     LOCAL fileName=VARSTRING[255]();
     fileName() <- nameAttribute(item);
-    SAVEFILE image(item) NAME fileName();
+    SAVE image(item) NAME fileName();
 } SHORTCUT image[Item];
 
 backgroundNameAttribute = RGB(127,199,255) IF overName(Item i);
@@ -1569,12 +1569,12 @@ DESIGN item {
 META defineNumeratorItemGroup (prefix, caption)
     data###prefix##Numerator = DATA Numerator (ItemGroup);
     levelParent###prefix##Numerator (itemGroup) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF data###prefix##Numerator(parent)
-                                                                  BY itemGroup PERSISTENT;
+                                                                  BY itemGroup MATERIALIZED;
     nearestParent###prefix##Numerator (ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###prefix##Numerator(itemGroup));
-    nearest###prefix##Numerator (ItemGroup itemGroup) = data###prefix##Numerator(nearestParent###prefix##Numerator(itemGroup)) PERSISTENT;
+    nearest###prefix##Numerator (ItemGroup itemGroup) = data###prefix##Numerator(nearestParent###prefix##Numerator(itemGroup)) MATERIALIZED;
 
     prefix##Numerator (ItemGroup itemGroup) =
-        OVERRIDE data###prefix##Numerator(itemGroup), nearest###prefix##Numerator(itemGroup) PERSISTENT;
+        OVERRIDE data###prefix##Numerator(itemGroup), nearest###prefix##Numerator(itemGroup) MATERIALIZED;
     name###prefix##Numerator caption (ItemGroup itemGroup) = name(prefix##Numerator(itemGroup)) MINCHARWIDTH 5 PREFCHARWIDTH 10 MAXCHARWIDTH 10;
 
     background###prefix##Numeratot (ItemGroup itemGroup) = IF data###prefix##Numerator(itemGroup) THEN
@@ -1861,7 +1861,7 @@ DESIGN itemGroup {
     }
 }
 
-WHEN SESSION CHANGED(itemGroup(Item i)) AND CustomGroupType dc IS CustomGroupType AND NOT customGroup(dc, i) DO
+WHEN LOCAL CHANGED(itemGroup(Item i)) AND CustomGroupType dc IS CustomGroupType AND NOT customGroup(dc, i) DO
     customGroup(dc, i) <- customGroup(dc, itemGroup(i));
 
 // ----------------------------------- Стандартные данные ----------------------------------- //

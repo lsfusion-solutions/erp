@@ -48,7 +48,7 @@ DESIGN userContractSku {
 
 @defineDocumentInterfaceProperty (invoice, showPercReturnDiscount, '% отпускной цены поставщика при возврате');
 
-percReturnDiscountPrice '% отпускной цены поставщика при возврате' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+percReturnDiscountPrice '% отпускной цены поставщика при возврате' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
 percReturnDiscountPrice '% отпускной цены поставщика при возврате' = DATA NUMERIC[16,4] (UserInvoiceDetail);
 percReturnDiscountPrice (UserInvoiceDetail d) += percReturnDiscountPrice(d);
 
@@ -64,7 +64,7 @@ prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND p
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND percReturnDiscountPrice(d) AND batch(d) AND showPercReturnDiscount(d) THEN  
                                                      round(NUMERIC[16,4](prevPriceB(t,batch(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0), defaultRoundCondition(currency(d)));
                                                     
-WHEN SESSION FORMS userInvoice GOAFTER valueVAT[UserInvoiceDetail] // цены берем на начало сессии, а не этого event'а
+WHEN LOCAL FORMS userInvoice GOAFTER valueVAT[UserInvoiceDetail] // цены берем на начало сессии, а не этого event'а
         (((CHANGED(customerStock(UserInvoiceDetail d)) OR
          CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
          (CHANGED(priceListType(d)) OR
@@ -81,7 +81,7 @@ recalculatedFullPrice(UserInvoiceDetail detail) = {    //todo: необходи�
 
     }
 }
-WHEN SESSION FORMS userInvoice
+WHEN LOCAL FORMS userInvoice
     CHANGED(invoiceDetail[UserInvoiceDetail](InvoiceDetail detail)) OR
     CHANGED(batch(detail)) OR
     CHANGED(priceListType(detail)) OR
@@ -114,7 +114,7 @@ changeFullPrice (UserInvoiceDetail d) = {
         }  
 }
 
-WHEN SESSION FORMS userInvoice ((CHANGED(contractSku(UserInvoiceDetail d)) OR CHANGED (sku(d))) AND showPercReturnDiscount(userInvoice(d)))
+WHEN LOCAL FORMS userInvoice ((CHANGED(contractSku(UserInvoiceDetail d)) OR CHANGED (sku(d))) AND showPercReturnDiscount(userInvoice(d)))
                                                 OR (SET(showPercReturnDiscount(userInvoice(d)))) DO {
     IF overPercReturnDiscount(contractSku(d), sku(d)) AND NOT PREV(percReturnDiscountPrice (d)) THEN {
         percReturnDiscountPrice (d) <- overPercReturnDiscount(contractSku(d), sku(d));                                               
@@ -123,7 +123,7 @@ WHEN SESSION FORMS userInvoice ((CHANGED(contractSku(UserInvoiceDetail d)) OR CH
     }    
 }
 
-WHEN SESSION FORMS userInvoice DROPPED(showPercReturnDiscount(userInvoice(UserInvoiceDetail d))) NOINLINE DO {
+WHEN LOCAL FORMS userInvoice DROPPED(showPercReturnDiscount(userInvoice(UserInvoiceDetail d))) NOINLINE DO {
     price(d) <- prevListMVAT (priceListType(d), d);
     invoicePrice(d) <- prevListPVAT (priceListType(d), d);
 }

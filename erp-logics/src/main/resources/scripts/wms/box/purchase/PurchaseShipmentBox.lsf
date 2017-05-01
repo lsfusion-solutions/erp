@@ -46,20 +46,20 @@ in (box, userShipment) = GROUP SUM 1 IF include(invoice(InvoiceDetail detail), U
 CONSTRAINT  currentBox(UserShipment userShipment) AND NOT in(currentBox(userShipment), userShipment)
     CHECKED BY currentBox[UserShipment] MESSAGE 'В качестве текущего короба выбран короб, которого нету в накладных';
 
-WHEN SESSION FORMS userShipment
+WHEN LOCAL FORMS userShipment
     SET(UserShipmentDetail detail IS UserShipmentDetail) AND currentBox(detail)
         DO ASSIGN box(detail) <- currentBox(detail) WHERE currentBox(detail);
 
-WHEN SESSION FORMS userShipment
+WHEN LOCAL FORMS userShipment
     CHANGED(invoiceDetail(UserShipmentDetail detail)) AND NOT box(detail)
         DO ASSIGN box(detail) <- box(invoiceDetail(detail));
 
-WHEN SESSION FORMS userShipment
+WHEN LOCAL FORMS userShipment
     CHANGED(sku(UserShipmentDetail detail)) AND box(detail)
         DO ASSIGN invoiceDetail(detail) <- defaultInvoiceDetail(sku(detail), box(detail), userShipment(detail))
                                                                 WHERE defaultInvoiceDetail(sku(detail), box(detail), userShipment(detail));
 
-WHEN SESSION FORMS userShipment
+WHEN LOCAL FORMS userShipment
     CHANGED(sku(UserShipmentDetail detail)) AND NOT box(detail)
         DO ASSIGN invoiceDetail(detail) <- defaultInvoiceDetail(sku(detail), userShipment(detail)) 
                                                                 WHERE defaultInvoiceDetail(sku(detail), userShipment(detail));

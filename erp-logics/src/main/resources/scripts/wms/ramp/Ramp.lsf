@@ -123,13 +123,13 @@ CONSTRAINT stock(Ramp r) AND NOT isCompany(stock(r))
 TABLE rampSkuGroup(Ramp, SkuGroup);
 inData 'Вкл.' = DATA BOOLEAN (Ramp, SkuGroup);
 levelParent (ramp, group) = GROUP MIN level(SkuGroup group, SkuGroup parent) IF inData(Ramp ramp, parent)
-                                                              BY ramp, group PERSISTENT;
+                                                              BY ramp, group MATERIALIZED;
 
 nearestParent (Ramp ramp, SkuGroup group) = skuGroup(group, levelParent (ramp, group));
 nearestIn  (Ramp ramp, SkuGroup group) =
-    inData(ramp, nearestParent (ramp, group)) PERSISTENT;
+    inData(ramp, nearestParent (ramp, group)) MATERIALIZED;
 
-in 'Вкл.' (Ramp ramp, SkuGroup group) = OVERRIDE inData(ramp, group), nearestIn(ramp, group) PERSISTENT;
+in 'Вкл.' (Ramp ramp, SkuGroup group) = OVERRIDE inData(ramp, group), nearestIn(ramp, group) MATERIALIZED;
 
 in 'Вкл.' (Ramp ramp, Sku sku) = in(ramp, skuGroup(sku));
 // Пока что простенькая логика привязки групп товаров к рампам, возможно надо будет переделать

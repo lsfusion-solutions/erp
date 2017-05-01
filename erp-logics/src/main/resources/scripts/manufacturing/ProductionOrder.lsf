@@ -96,12 +96,12 @@ seriesNumber 'Серия/Номер' = seriesNumber(order(ProductDetail d)) IN r
 series 'Серия' = series(order(ProductDetail d));
 number 'Номер' = number(order(ProductDetail d));
 
-currencyProduct (Order o) = currency(productsStock(o)) PERSISTENT;
+currencyProduct (Order o) = currency(productsStock(o)) MATERIALIZED;
 currency (ProductDetail productDetail) = currencyProduct(order(productDetail));
 
 @defineDocumentDetailStock (order, productDetail, stock, componentsStock, 'Склад компонент');
 //@defineDocumentDetailStock (order, productDetail, stock, productsStock, 'Склад изделий');
-    productsStock (ProductDetail idetail) = productsStock(order(idetail)) PERSISTENT;
+    productsStock (ProductDetail idetail) = productsStock(order(idetail)) MATERIALIZED;
     nameProductsStock 'Склад изделий' (ProductDetail idetail) = name(productsStock(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
     fullNameProductsStock 'Склад изделий' (ProductDetail idetail) = fullName(productsStock(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;    
     countryProductsStock (ProductDetail idetail) = country(productsStock(idetail));
@@ -163,17 +163,17 @@ CONSTRAINT denyRepeatSkuOrder() AND [= GROUP SUM 1 BY sku(ProductDetail d), orde
 @defineDocumentDetailQuantityCustom (productDetail);
 @defineDocumentHeaderQuantityCustomPrefix (order, productDetail, , ' (изделие)');
 
-calcBOMPrice = calcBOMPrice(order(ProductDetail d)) PERSISTENT;
+calcBOMPrice = calcBOMPrice(order(ProductDetail d)) MATERIALIZED;
 
 @defineDocumentDetailQuantityCustomPrefix(productDetail, BOM, ' в спецификации'); //-- первичное свойство
 
 BOMQuantity(ProductDetail d) <- quantity(product(d))
     WHEN CHANGED (product(d));
 
-quantityBOM 'Кол-во в спецификации' = quantity(product(ProductDetail d)) PERSISTENT;
+quantityBOM 'Кол-во в спецификации' = quantity(product(ProductDetail d)) MATERIALIZED;
 quantityPrice 'Кол-во для расчета цены' = IF calcBOMPrice(ProductDetail d) THEN
                                                             quantityBOM(d) ELSE
-                                                            quantity(d) PERSISTENT;
+                                                            quantity(d) MATERIALIZED;
 
 quantityProductDetail 'Кол-во изделий в документе' (sku, order) =  GROUP SUM quantity(ProductDetail productDetail)
     BY sku(productDetail), order(productDetail); 
@@ -204,10 +204,10 @@ DESIGN operation {
 
 VATComponent (ProductDetail d) = VATComponent(order(d));
 VATProduct 'Включает НДС' (ProductDetail d) = VATProduct(order(d));
-addVAT (ProductDetail d) = VATComponent(d) AND NOT VATProduct(d) PERSISTENT;  
+addVAT (ProductDetail d) = VATComponent(d) AND NOT VATProduct(d) MATERIALIZED;  
 
-calcPriceListType (ProductDetail productDetail) = calcPriceListType(order(productDetail)) PERSISTENT;
-productsPriceListType (ProductDetail productDetail) = productsPriceListType(order(productDetail)) PERSISTENT;
+calcPriceListType (ProductDetail productDetail) = calcPriceListType(order(productDetail)) MATERIALIZED;
+productsPriceListType (ProductDetail productDetail) = productsPriceListType(order(productDetail)) MATERIALIZED;
 markup 'Надбавка, %' = DATA NUMERIC[10,4] (ProductDetail);
 valueVAT 'НДС, %' = DATA NUMERIC[10,5] (ProductDetail);
 
@@ -215,7 +215,7 @@ valueVAT 'НДС, %' = DATA NUMERIC[10,5] (ProductDetail);
 multiplierCalc (ProductDetail d) = 
     ((100.00 (+) markup(d)) *
     (100.00 (+) (valueVAT(d) IF addVAT(d))) 
-    / 10000) IF d IS ProductDetail PERSISTENT;
+    / 10000) IF d IS ProductDetail MATERIALIZED;
 
 
 // Цены изделий
@@ -251,7 +251,7 @@ TABLE sessionComponentDetail (Session, ComponentDetail);
 
 @defineDocumentDetailDescription(order, ComponentDetail);
 
-currencyComponent (Order o) = currency(componentsStock(o)) PERSISTENT;
+currencyComponent (Order o) = currency(componentsStock(o)) MATERIALIZED;
 currency (ComponentDetail componentDetail) = currencyComponent(order(componentDetail));
 
 @defineDocumentDetailStock (order, componentDetail, stock, componentsStock, 'Склад компонент') ;
@@ -259,7 +259,7 @@ currency (ComponentDetail componentDetail) = currencyComponent(order(componentDe
 
 // Sku
 @defineDocumentDetailSkuCustomPrefix (componentDetail, Sku, brutto, ' (брутто)');
-VAT(ComponentDetail componentDetail) = VATComponent(order(componentDetail)) PERSISTENT;
+VAT(ComponentDetail componentDetail) = VATComponent(order(componentDetail)) MATERIALIZED;
 
 component = DATA Component (ComponentDetail) INDEXED;
 nameComponent 'Компонент' (ComponentDetail componentDetail) = name(component(componentDetail));
@@ -296,14 +296,14 @@ bruttoQuantityBOM 'Кол-во в спецификации' = bruttoQuantity(com
 
 // Параметры компонент с учетом замен
 
-sku (ComponentDetail componentDetail) = OVERRIDE substituteSku(componentDetail), bruttoSku(componentDetail) PERSISTENT;
+sku (ComponentDetail componentDetail) = OVERRIDE substituteSku(componentDetail), bruttoSku(componentDetail) MATERIALIZED;
 INDEX sku(ComponentDetail cd), order(cd);
 nameSku 'SKU' (ComponentDetail componentDetail) = name(sku(componentDetail));
 idSku 'Код ' (ComponentDetail componentDetail) = id(sku(componentDetail));
 idBarcodeSku 'Штрихкод' (ComponentDetail componentDetail) = idBarcode(sku(componentDetail));
 shortNameUOMSku 'Ед.изм.' (ComponentDetail componentDetail) = shortNameUOM(sku(componentDetail));
 
-quantity 'Кол-во' (ComponentDetail componentDetail) = OVERRIDE substituteQuantity(componentDetail), bruttoQuantity(componentDetail) PERSISTENT;
+quantity 'Кол-во' (ComponentDetail componentDetail) = OVERRIDE substituteQuantity(componentDetail), bruttoQuantity(componentDetail) MATERIALIZED;
 
 calcBOMPrice (ComponentDetail d) = calcBOMPrice(order(d));
 
@@ -318,7 +318,7 @@ quantityPrice 'Кол-во для расчета цены' (ComponentDetail d) =
 sumComponentDetail 'Сумма заказанных компонент' (order) = GROUP SUM sum(ComponentDetail idetail) BY order(idetail) IN documentSum;
 
 @defineDocumentHeaderQuantityCustomPrefix (order, componentDetail, , ' (компонент)');
-quantityComponentDetail 'Кол-во (всего) (компонент)' (sku, order) = GROUP SUM quantity(ComponentDetail idetail) BY sku(idetail), order(idetail) IN documentSum PERSISTENT;
+quantityComponentDetail 'Кол-во (всего) (компонент)' (sku, order) = GROUP SUM quantity(ComponentDetail idetail) BY sku(idetail), order(idetail) IN documentSum MATERIALIZED;
 
 //-- Партия для строки компонента
 
@@ -366,11 +366,11 @@ CONSTRAINT sku(batch(ComponentDetail cd)) != sku(cd) CHECKED BY batch[ComponentD
 
 TABLE productOrder(Product, Order);
 quantity 'Кол-во изделий в заказе' (product, order) = GROUP SUM quantity(ProductDetail productDetail)
-    BY product(productDetail), order(productDetail) PERSISTENT;
+    BY product(productDetail), order(productDetail) MATERIALIZED;
 
 TABLE BOMOrder(BOM, Order);
 quantityProducts 'Кол-во спецификаций' (BOM BOM, Order order) = [= GROUP MAX NUMERIC[19,8](quantity(Product product, Order order)) / quantity(product)
-    BY BOM(product), order](BOM, order) PERSISTENT;
+    BY BOM(product), order](BOM, order) MATERIALIZED;
     
 BOM= DATA BOM (ComponentDetail);
 INDEX BOM(ComponentDetail cd), order(cd);
@@ -416,7 +416,7 @@ recBruttoQuantity 'Рекур.кол-во' (BOM, order, sku) = GROUP SUM quantit
 recBOMQuantity 'Рекур.кол-во' (BOM, order, sku) = GROUP SUM recBruttoQuantity(BOM BOM, Sku sku, date(Order order)) BY BOM, order, sku;
 
 productionCoeff = ABSTRACT NUMERIC[20,9] (ComponentDetail);
-quantityCoeff(ComponentDetail d) = OVERRIDE productionCoeff(d), 1.0 IF d IS ComponentDetail PERSISTENT; 
+quantityCoeff(ComponentDetail d) = OVERRIDE productionCoeff(d), 1.0 IF d IS ComponentDetail MATERIALIZED; 
 createRecComponents 'Заполнить из спецификации (рекурсивно)'(Order order) = {
 
     FOR NUMERIC[91,46] q == recBruttoQuantity(BOM BOM, order, Sku sku) ORDER BOM NEW d = ComponentDetail DO {
@@ -510,23 +510,23 @@ TABLE substituteSkuOrder(Sku, Order);
 // --- Основной компонент --- //
 bruttoQuantity 'Количество брутто' (sku, order) = GROUP SUM bruttoQuantity(ComponentDetail componentDetail)
                                                                 BY bruttoSku(componentDetail),
-                                                                   order(componentDetail) PERSISTENT;
+                                                                   order(componentDetail) MATERIALIZED;
              
 bruttoNotSubstituteQuantity 'Количество без замены' (sku, order) = GROUP SUM bruttoQuantity(ComponentDetail componentDetail) 
     IF NOT substituteQuantity(componentDetail)
     BY bruttoSku(componentDetail),
-       order(componentDetail) PERSISTENT;                                                                     
+       order(componentDetail) MATERIALIZED;                                                                     
 
 bruttoSubstituteQuantity (sku, order) = GROUP SUM bruttoQuantity(ComponentDetail componentDetail) 
     IF substituteQuantity(componentDetail)
     BY bruttoSku(componentDetail),
-       order(componentDetail) PERSISTENT TABLE substituteSkuOrder;                                                                                                                                   
+       order(componentDetail) MATERIALIZED TABLE substituteSkuOrder;                                                                                                                                   
                                                                                                                                  
 // цены по товару
 dataBruttoPrice 'Цена' = DATA NUMERIC[16,4] (Sku, Order);
 cost 'Себестоимость' = DATA NUMERIC[16,4] (Sku, Order);
 
-WHEN SESSION (CHANGED(priceListType(Order order)) OR CHANGED(componentsStock(order)) OR CHANGED(dateTime(order)) OR SET(quantityComponentDetail(Sku sku, order)))
+WHEN LOCAL (CHANGED(priceListType(Order order)) OR CHANGED(componentsStock(order)) OR CHANGED(dateTime(order)) OR SET(quantityComponentDetail(Sku sku, order)))
              AND quantityComponentDetail(sku, order) AND NOT CHANGED(dataBruttoPrice(sku, order)) AND PriceListType pt == priceListType(order) NOINLINE (pt) DO
     dataBruttoPrice (sku, order) <- prevPriceB(pt,
                                                                                     sku,
@@ -536,7 +536,7 @@ WHEN SESSION (CHANGED(priceListType(Order order)) OR CHANGED(componentsStock(ord
 calcCost 'Себестоимость' (Sku sku, Stock stock) = [= GROUP SUM cost(Batch b) * currentBalance(b,Stock stock) BY sku(b), stock](sku, stock) /
     (currentBalance(sku, stock) IF currentBalance(sku, stock) != 0);   
 
-WHEN SESSION (CHANGED(quantityComponentDetail(Sku sku, Order order)) OR CHANGED(componentsStock(order)))
+WHEN LOCAL (CHANGED(quantityComponentDetail(Sku sku, Order order)) OR CHANGED(componentsStock(order)))
              AND quantityComponentDetail(sku, order) AND NOT CHANGED(cost(sku, order)) DO
     cost (sku, order) <- calcCost(sku, componentsStock(order));
     
@@ -683,7 +683,7 @@ change(Substitute substitute, Sku sku, Order order) = {
 }
 
 // коэффициенты цен
-calcQuantityComponentsProductDetailProduct 'Кол-во компонентов' = GROUP SUM quantityPrice(ProductDetail d) BY BOM(d), order(d) PERSISTENT;
+calcQuantityComponentsProductDetailProduct 'Кол-во компонентов' = GROUP SUM quantityPrice(ProductDetail d) BY BOM(d), order(d) MATERIALIZED;
 calcQuantityComponents 'Кол-во компонентов' = calcQuantityComponentsProductDetailProduct(BOM(ProductDetail detail), order(detail));
             
 calcPriceCoeff 'Коэффициент цены' (ProductDetail productDetail) = NUMERIC[20,5](calcQuantityComponents(productDetail) * pricePercent(productDetail) 
@@ -693,7 +693,7 @@ calcPricePercentNumeric '%' (ProductDetail productDetail, NUMERIC[8,5] num) = (n
     / calcQuantityComponents(productDetail);     
     
 // Sku с учетом замены
-sku (Sku sku, Order order) = OVERRIDE substitute(sku,order), sku IF bruttoQuantity(sku, order) PERSISTENT;
+sku (Sku sku, Order order) = OVERRIDE substitute(sku,order), sku IF bruttoQuantity(sku, order) MATERIALIZED;
 
 nameSku 'Итоговый sku' (Sku sku,Order order)= name(sku (sku,order));
 idBarcodeSku 'Штрихкод' (Sku sku,Order order) = idBarcode(sku (sku, order));
@@ -850,7 +850,7 @@ recordMarkup(ProductDetail detail) = {
 // расчет НДС
 valueVAT 'НДС, %' = DATA NUMERIC[10,5] (Sku, Order);
 
-WHEN SESSION (CHANGED(componentsCountry(Order order)) OR
+WHEN LOCAL (CHANGED(componentsCountry(Order order)) OR
               CHANGED(date(order)) OR 
               CHANGED(VAT(order)) OR 
               SET(quantityComponentDetail(Sku sku, order)))
@@ -881,7 +881,7 @@ WHEN SESSION (CHANGED(componentsCountry(Order order)) OR
 
 skip(d) = ABSTRACT BOOLEAN (ComponentDetail);
 
-valueVAT(ComponentDetail d) = OVERRIDE valueVAT(batch(d)), valueVAT(sku(d), order(d)) PERSISTENT;
+valueVAT(ComponentDetail d) = OVERRIDE valueVAT(batch(d)), valueVAT(sku(d), order(d)) MATERIALIZED;
 sumVAT (ComponentDetail d) = sum(d) * valueVAT(d) / (100.0 + valueVAT(d));
 sumVATComponents (ProductDetail d) = [= GROUP SUM sumVAT(ComponentDetail d) IF NOT skip(d) BY BOM(d), order(d)](BOM(d), order(d)); 
 sumVATComponentDetail = GROUP SUM sum(ComponentDetail d) IF NOT skip(d) BY BOM(d), order(d);
@@ -1291,13 +1291,13 @@ edit 'Редактировать' (order) = ACTION EDITFORM Order;
 
 @addEventGenerateNumberOnForm(order, o, order);
 
-//WHEN SESSION FORMS order CHANGED(bruttoQuantitySkuOrder(sku,order)) OR CHANGED(multiplierSkuOrder(sku, order)) DO                                              
+//WHEN LOCAL FORMS order CHANGED(bruttoQuantitySkuOrder(sku,order)) OR CHANGED(multiplierSkuOrder(sku, order)) DO                                              
 //    substituteQuantitySkuOrder(sku, order) <- bruttoQuantitySkuOrder(sku,order) * multiplierSkuOrder(sku, order);                              
 //                   
-//WHEN SESSION FORMS order CHANGED(substituteSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) DO
+//WHEN LOCAL FORMS order CHANGED(substituteSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) DO
 //    substituteSkuComponentDetail (detail) <- substituteSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail));                    
 //                    
-//WHEN SESSION FORMS order CHANGED(substituteQuantitySkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) OR 
+//WHEN LOCAL FORMS order CHANGED(substituteQuantitySkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) OR 
 //    CHANGED(multiplierSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) DO 
 //        substituteQuantityComponentDetail (detail) <- NUMERIC[14,3](multiplierSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))* bruttoQuantityComponentDetail(detail));
 
@@ -1309,26 +1309,26 @@ usePrevSubstitute 'Можно использовать замену' (ComponentD
     uniqueSubstituteFromTo(bruttoSku(detail), PREV(substitute(bruttoSku(detail), order(detail)))), 
     BOM(detail));                  
 
-WHEN SESSION FORMS order CHANGED(componentsStock(Order order)) DO {                                              
+WHEN LOCAL FORMS order CHANGED(componentsStock(Order order)) DO {                                              
     priceStock (order) <- componentsStock(order);
 }
 
-WHEN SESSION FORMS order CHANGED(bruttoSubstituteQuantity(Sku sku,Order order)) 
+WHEN LOCAL FORMS order CHANGED(bruttoSubstituteQuantity(Sku sku,Order order)) 
     OR CHANGED(multiplier(sku, order)) DO {                                              
         substituteQuantity(sku, order) <- bruttoSubstituteQuantity(sku,order) * multiplier(sku, order);                              
     }      
                    
-WHEN SESSION FORMS order 
+WHEN LOCAL FORMS order 
     CHANGED(substitute(bruttoSku(ComponentDetail detail), order(detail))) AND useSubstitute(detail) DO {
         substituteSku (detail) <- substitute(bruttoSku(detail), order(detail)); 
     }                       
                     
-WHEN SESSION FORMS order 
+WHEN LOCAL FORMS order 
     (CHANGED(substituteQuantity(bruttoSku(ComponentDetail detail), order(detail))) OR 
      CHANGED(multiplier(bruttoSku(detail), order(detail)))) AND useSubstitute(detail) DO { 
         substituteQuantity (detail) <- NUMERIC[14,3](multiplier(bruttoSku(detail), order(detail))* bruttoQuantity(detail));
     } 
-WHEN SESSION FORMS order DROPPED (multiplier(bruttoSku(ComponentDetail detail), order(detail))) DO {
+WHEN LOCAL FORMS order DROPPED (multiplier(bruttoSku(ComponentDetail detail), order(detail))) DO {
         substituteSku (detail) <- NULL WHERE usePrevSubstitute(detail); 
         substituteQuantity (detail) <- NULL WHERE usePrevSubstitute(detail);    
     }   
@@ -1339,7 +1339,7 @@ calc(PriceListType pt, ComponentDetail detail) =  OVERRIDE prevPriceB(pt,batch(d
 calcPrice = ABSTRACT VALUE OVERRIDE FIRST NUMERIC[16,4] (PriceListType, ComponentDetail);
 calcPrice(PriceListType pt, ComponentDetail d) += NUMERIC[16,4](calc(pt,d)); 
 
-WHEN SESSION FORMS order (CHANGED(dataBruttoPrice(sku(ComponentDetail detail), order(detail))) OR 
+WHEN LOCAL FORMS order (CHANGED(dataBruttoPrice(sku(ComponentDetail detail), order(detail))) OR 
                           CHANGED(batch(detail)) OR 
                           CHANGED(componentsStock(order(detail))) OR 
                           CHANGED(dateTime(order(detail)))) AND
@@ -1348,24 +1348,24 @@ WHEN SESSION FORMS order (CHANGED(dataBruttoPrice(sku(ComponentDetail detail), o
 
 additionalCost = ABSTRACT NUMERIC[16,4](ComponentDetail);         
 calcCost = (OVERRIDE cost(batch(ComponentDetail detail)), cost(sku(detail), order(detail))) (+) additionalCost(detail);    
-WHEN SESSION FORMS order CHANGED(cost(sku(ComponentDetail detail), order(detail))) OR CHANGED(batch(detail)) DO
+WHEN LOCAL FORMS order CHANGED(cost(sku(ComponentDetail detail), order(detail))) OR CHANGED(batch(detail)) DO
     cost (detail) <- calcCost(detail);           
        
-WHEN SESSION FORMS order CHANGED(product(ProductDetail detail)) DO
+WHEN LOCAL FORMS order CHANGED(product(ProductDetail detail)) DO
     sku(detail) <- sku(product(detail));                 
               
-countProducts (sku) = GROUP SUM 1 BY sku(Product p) PERSISTENT ;
+countProducts (sku) = GROUP SUM 1 BY sku(Product p) MATERIALIZED ;
 isActiveBOM (sku) = GROUP SUM 1 IF isActive(BOM(Product p)) BY sku(p);
 //defaultProductSku (sku)= GROUP MIN product BY skuProduct(product);
 
 countProducts (sku, stock, date) = GROUP SUM 1 IF isActive(BOM(Product p), DATE date) AND in(BOM(p), Stock stock) BY sku(p), stock, date;
 defaultProduct (sku, stock, date)= GROUP MIN Product p IF isActive(BOM(p), DATE date) AND in(BOM(p), Stock stock) BY sku(p), stock, date;
 
-WHEN SESSION FORMS order CHANGED(sku(ProductDetail d)) AND NOT CHANGED(product(d)) AND countProducts(sku(d), componentsStock(d), date(d)) == 1 NOINLINE DO {
+WHEN LOCAL FORMS order CHANGED(sku(ProductDetail d)) AND NOT CHANGED(product(d)) AND countProducts(sku(d), componentsStock(d), date(d)) == 1 NOINLINE DO {
     product(d) <- defaultProduct(sku(d), componentsStock(d), date(d));
 }     
                                                                      
-countBOMsSku (material) = GROUP SUM 1 IF material(Component c) AS Sku BY material(c) PERSISTENT;
+countBOMsSku (material) = GROUP SUM 1 IF material(Component c) AS Sku BY material(c) MATERIALIZED;
 isActiveBOMSku (material) = GROUP SUM 1 IF isActive(BOM(Component c)) AND material(c) AS Sku BY material(c);
 
 EXTEND FORM BOMs
@@ -1383,30 +1383,30 @@ EXTEND FORM BOMs
 countComponents (material, stock, date) = GROUP SUM 1 IF isActive(BOM(Component c), DATE date) AND in(BOM(c),Stock stock) BY material(c) AS Sku, stock, date;
 defaultComponents (material, stock, date)= GROUP MIN Component c IF isActive(BOM(c), DATE date) AND in(BOM(c),Stock stock) BY material(c) AS Sku, stock, date;                                                                  
                                                                      
-//WHEN SESSION FORMS order CHANGED(bruttoSkuComponentDetail(d)) NOINLINE DO {
+//WHEN LOCAL FORMS order CHANGED(bruttoSkuComponentDetail(d)) NOINLINE DO {
 //    componentComponentDetail(d) <- defaultComponentsSku(bruttoSkuComponentDetail(d))
 //        WHERE countComponentsSku(bruttoSkuComponentDetail(d)) == 1;
 //}  todo: переделано, потому что не срабатывает событие по CHANGED(componentComponentDetail(d)), которое следует за ним.
 
-WHEN SESSION FORMS order CHANGED(bruttoSku(ComponentDetail d)) AND d IS ComponentDetail AND NOT CHANGED(component(d)) AND NOT CHANGED(BOM(d)) AND countComponents(bruttoSku(d), componentsStock(d), date(d)) == 1 NOINLINE DO {
+WHEN LOCAL FORMS order CHANGED(bruttoSku(ComponentDetail d)) AND d IS ComponentDetail AND NOT CHANGED(component(d)) AND NOT CHANGED(BOM(d)) AND countComponents(bruttoSku(d), componentsStock(d), date(d)) == 1 NOINLINE DO {
     component(d) <- defaultComponents(bruttoSku(d), componentsStock(d), date(d));
     BOM(d) <- BOM(component(d));              
 }
-WHEN SESSION FORMS order CHANGED(component(ComponentDetail d)) AND d IS ComponentDetail AND NOT CHANGED(BOM(d)) NOINLINE DO {
+WHEN LOCAL FORMS order CHANGED(component(ComponentDetail d)) AND d IS ComponentDetail AND NOT CHANGED(BOM(d)) NOINLINE DO {
     BOM(d) <- BOM(component(d));    
     bruttoSku(d) <- sku(material(component(d)));       
 }
  
-WHEN SESSION FORMS order CHANGED(product(ProductDetail d)) NOINLINE DO {
+WHEN LOCAL FORMS order CHANGED(product(ProductDetail d)) NOINLINE DO {
     pricePercent(d) <- pricePercent(product(d))
         WHERE pricePercent(product(d));
 } 
 
 
-WHEN SESSION FORMS order (CHANGED(expiryDate(ProductDetail d)) OR CHANGED(sku(d))) AND expiryDate(d) DO {
+WHEN LOCAL FORMS order (CHANGED(expiryDate(ProductDetail d)) OR CHANGED(sku(d))) AND expiryDate(d) DO {
     manufactureDate(d) <- calcManufactureDate(d);            
 } 
-WHEN SESSION FORMS order (CHANGED(manufactureDate(ProductDetail d)) OR CHANGED(sku(d))) AND manufactureDate(d) DO {
+WHEN LOCAL FORMS order (CHANGED(manufactureDate(ProductDetail d)) OR CHANGED(sku(d))) AND manufactureDate(d) DO {
     expiryDate(d) <- calcExpiryDate(d);            
 }  
 
@@ -1675,7 +1675,7 @@ EXTEND FORM orders
 DESIGN orders {printTab { MOVE o.print {align = LEADING;}}}
 //------------------------------------------ Опеределение операции для order ------------------------------------//
 
-operation = DATA Operation (Order) PERSISTENT;
+operation = DATA Operation (Order) MATERIALIZED;
 nameOperation 'Операция' = name(operation(Order order));
 
 operation (ProductDetail d) = operation(order(d));

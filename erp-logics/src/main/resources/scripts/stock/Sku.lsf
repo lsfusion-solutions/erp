@@ -53,8 +53,8 @@ FORM UOMs 'Единицы измерений'
 CLASS ABSTRACT Group 'Классификатор SKU';
 TABLE group(Group);
 
-name 'Наименование' = ABSTRACT VARISTRING[250](Group) PERSISTENT INDEXED;
-order 'Порядок' = ABSTRACT INTEGER (Group) PERSISTENT MINCHARWIDTH 2 PREFCHARWIDTH 2;
+name 'Наименование' = ABSTRACT VARISTRING[250](Group) MATERIALIZED INDEXED;
+order 'Порядок' = ABSTRACT INTEGER (Group) MATERIALIZED MINCHARWIDTH 2 PREFCHARWIDTH 2;
 id 'Код' = ABSTRACT VARSTRING[100] (Group) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 TABLE groupGroup(Group, Group);
@@ -80,20 +80,20 @@ TABLE systemGroupType(SystemGroupType);
 
 name(SystemGroupType type) += VARISTRING[100](staticCaption(type)) IF type IS SystemGroupType;
 
-groupType = ABSTRACT GroupType (Group) PERSISTENT INDEXED;
+groupType = ABSTRACT GroupType (Group) MATERIALIZED INDEXED;
 nameGroupType 'Тип классификатора SKU' (Group group) = name(groupType(group));
 
 TABLE groupTypeSku(GroupType, Sku);
 TABLE sessionGroupTypeSku(Session, GroupType, Sku);
-group = ABSTRACT CASE Group (GroupType, Sku) PERSISTENT INDEXED;
+group = ABSTRACT CASE Group (GroupType, Sku) MATERIALIZED INDEXED;
 nameGroup 'Имя' (GroupType type, Sku sku) = name(group(type, sku));
 canonicalNameGroup 'Каноническое имя' (GroupType type, Sku sku) = canonicalName(group(type, sku));
 
 TABLE groupStock(Group, Stock);
 TABLE groupSku(Group, Sku);
-isParent(Group group, Sku sku) = isParent(group(groupType(group), sku), group) PERSISTENT INDEXED;
+isParent(Group group, Sku sku) = isParent(group(groupType(group), sku), group) MATERIALIZED INDEXED;
 
-inactive 'Неактивная' = ABSTRACT BOOLEAN (Group) PERSISTENT;
+inactive 'Неактивная' = ABSTRACT BOOLEAN (Group) MATERIALIZED;
 active 'Активный' (Group group) = group IS Group AND NOT inactive(group);
 
 // ----------------------------------- Custom Group ------------------------------------------ //
@@ -105,7 +105,7 @@ TABLE customGroup (CustomGroup);
 @defineExternalizable(customGroup, VARSTRING[100]);
 id(CustomGroup group) += id(group) IF group IS CustomGroup;
 
-name 'Наименование' = DATA VARISTRING[250](CustomGroup) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
+name 'Наименование' = DATA VARISTRING[250](CustomGroup) MATERIALIZED INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
 name(CustomGroup group) += name(group) IF group IS CustomGroup;
 
@@ -134,7 +134,7 @@ CONSTRAINT customGroupType(parent(CustomGroup group)) != customGroupType(group)
 groupType (CustomGroup group) += customGroupType(group);
 
 TABLE customGroupTypeSku(CustomGroupType, Sku);
-customGroup = ABSTRACT CustomGroup (CustomGroupType, Sku) PERSISTENT INDEXED;
+customGroup = ABSTRACT CustomGroup (CustomGroupType, Sku) MATERIALIZED INDEXED;
 nameCustomGroup = name(customGroup(CustomGroupType type, Sku sku));
 
 group(CustomGroupType type, Sku sku) += WHEN CLASS(customGroup(type, sku)) THEN customGroup(type, sku);
@@ -207,7 +207,7 @@ DESIGN customGroups {
 CLASS ABSTRACT SkuGroup 'Группа SKU' : Group;
 TABLE skuGroup (SkuGroup);
 
-name 'Наименование' = ABSTRACT VARISTRING[250](SkuGroup) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
+name 'Наименование' = ABSTRACT VARISTRING[250](SkuGroup) MATERIALIZED INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
 order 'Порядок' = ABSTRACT INTEGER (SkuGroup) MINCHARWIDTH 2 PREFCHARWIDTH 2;
 id 'Код' = ABSTRACT VARSTRING[100] (SkuGroup) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
@@ -234,7 +234,7 @@ EXTEND CLASS SystemGroupType { skuGroupType 'Основной' }
 parent(SkuGroup skuGroup) += parent(skuGroup);
 
 TABLE skuGroupLanguage(SkuGroup, Language);
-name 'Наименование (иностр.)' = ABSTRACT VARSTRING[110] (SkuGroup, Language) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
+name 'Наименование (иностр.)' = ABSTRACT VARSTRING[110] (SkuGroup, Language) MATERIALIZED MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
 
 name 'Наименование (иностр.)' (SkuGroup skuGroup, Stock stock) = IF language(stock) THEN name(skuGroup, language(stock)) ELSE name(skuGroup);
 
@@ -257,7 +257,7 @@ DESIGN skuTypes {
 }
 
 TABLE skuType (SkuType);
-isStock 'Складируемые' = ABSTRACT CASE BOOLEAN (SkuType) PERSISTENT;
+isStock 'Складируемые' = ABSTRACT CASE BOOLEAN (SkuType) MATERIALIZED;
 isStock(SkuType t) += WHEN t == SkuType.skuTypeItem OR t == SkuType.skuTypeContainer THEN TRUE;
 
 // ----------------------------------- Sku ------------------------------------------ //
@@ -269,7 +269,7 @@ TABLE countrySku(Country, Sku);
 
 @defineExternalizableAbstract(sku, VARSTRING[100]);
 
-skuGroup (sku) = ABSTRACT SkuGroup (Sku) PERSISTENT INDEXED;
+skuGroup (sku) = ABSTRACT SkuGroup (Sku) MATERIALIZED INDEXED;
 idSkuGroup 'Группа' (Sku sku)= id(skuGroup(sku));
 nameSkuGroup 'Группа' (Sku sku)= name(skuGroup(sku));
 canonicalNameSkuGroup 'Полное имя' = canonicalName(skuGroup(Sku sku));
@@ -297,48 +297,48 @@ nameSkuGroup6 'Субгруппа' (Sku sku) = name(skuGroup6(sku));
 groupType(SkuGroup group) += SystemGroupType.skuGroupType IF group IS SkuGroup;
 group(SystemGroupType type, Sku sku) += WHEN CLASS(skuGroup(sku)) AND type == SystemGroupType.skuGroupType THEN skuGroup(sku);
 
-name 'Наименование' (sku) = ABSTRACT VARISTRING[255] (Sku) PERSISTENT MINCHARWIDTH 30 PREFCHARWIDTH 60 INDEXED AGGPROP IN base;
+name 'Наименование' (sku) = ABSTRACT VARISTRING[255] (Sku) MATERIALIZED MINCHARWIDTH 30 PREFCHARWIDTH 60 INDEXED AGGPROP IN base;
 
-UOM (sku) = ABSTRACT UOM (Sku) PERSISTENT;
+UOM (sku) = ABSTRACT UOM (Sku) MATERIALIZED;
 nameUOM 'Ед. изм.' (Sku sku) = name(UOM(sku)) IN base;
 shortNameUOM 'Ед. изм.' (Sku sku) = shortName(UOM(sku)) IN base;
 
-country = ABSTRACT Country (Sku) PERSISTENT;
+country = ABSTRACT Country (Sku) MATERIALIZED;
 nameCountry 'Страна' (Sku sku) = name(country(sku)) MINCHARWIDTH 15 PREFCHARWIDTH 15 IN base;
 sidOrigin2Country 'Код 2 знака (ориг.)' (Sku sku) = sidOrigin2(country(sku));
 
 TABLE skuGroupSku(SkuGroup, Sku);
-isParent (SkuGroup skuGroup, Sku sku) = isParent(skuGroup(sku), skuGroup) PERSISTENT;
+isParent (SkuGroup skuGroup, Sku sku) = isParent(skuGroup(sku), skuGroup) MATERIALIZED;
 
-netWeight 'Вес нетто' = ABSTRACT NUMERIC[11,5] (Sku) PERSISTENT;
+netWeight 'Вес нетто' = ABSTRACT NUMERIC[11,5] (Sku) MATERIALIZED;
 overNetWeight 'Вес нетто' (Sku sku) = OVERRIDE netWeight(sku), 1.0 IF sku IS Sku;
-grossWeight 'Вес брутто' = ABSTRACT NUMERIC[11,5] (Sku) PERSISTENT;
+grossWeight 'Вес брутто' = ABSTRACT NUMERIC[11,5] (Sku) MATERIALIZED;
 overGrossWeight 'Вес брутто' (Sku sku) = OVERRIDE grossWeight(sku), 1.0 IF sku IS Sku;
-volume 'Объем' = ABSTRACT NUMERIC[9,3] (Sku) PERSISTENT;
-composition 'Состав' = ABSTRACT VARSTRING[255] (Sku) PERSISTENT;
+volume 'Объем' = ABSTRACT NUMERIC[9,3] (Sku) MATERIALIZED;
+composition 'Состав' = ABSTRACT VARSTRING[255] (Sku) MATERIALIZED;
 
-skuType = ABSTRACT SkuType (Sku) PERSISTENT INDEXED;
+skuType = ABSTRACT SkuType (Sku) MATERIALIZED INDEXED;
 nameSkuType 'Тип товара' (Sku s) = staticCaption(skuType(s)) MINCHARWIDTH 5 PREFCHARWIDTH 5;
 
-isStock 'Складируемый' (Sku sku) = isStock(skuType(sku)) PERSISTENT;
+isStock 'Складируемый' (Sku sku) = isStock(skuType(sku)) MATERIALIZED;
 
-isItem 'Товар' (Sku sku) = skuType(sku) == SkuType.skuTypeItem PERSISTENT;
-isContainer 'Тара' (Sku sku) = skuType(sku) == SkuType.skuTypeContainer PERSISTENT;
-isCharge 'Услуги' (Sku sku) = skuType(sku) == SkuType.skuTypeCharge PERSISTENT;
-isNotCharge 'Не услуги' (Sku sku) = NOT isCharge(sku) AND sku IS Sku PERSISTENT;
-isNotItem 'Не товар' (Sku sku) = NOT isItem(sku) AND sku IS Sku PERSISTENT;
-isNotContainer 'Не тара' (Sku sku) = NOT isContainer(sku) AND sku IS Sku PERSISTENT;
+isItem 'Товар' (Sku sku) = skuType(sku) == SkuType.skuTypeItem MATERIALIZED;
+isContainer 'Тара' (Sku sku) = skuType(sku) == SkuType.skuTypeContainer MATERIALIZED;
+isCharge 'Услуги' (Sku sku) = skuType(sku) == SkuType.skuTypeCharge MATERIALIZED;
+isNotCharge 'Не услуги' (Sku sku) = NOT isCharge(sku) AND sku IS Sku MATERIALIZED;
+isNotItem 'Не товар' (Sku sku) = NOT isItem(sku) AND sku IS Sku MATERIALIZED;
+isNotContainer 'Не тара' (Sku sku) = NOT isContainer(sku) AND sku IS Sku MATERIALIZED;
 
-split 'Дробный товар' = ABSTRACT BOOLEAN (Sku) PERSISTENT;
-passScales 'Передавать на весы' =  ABSTRACT BOOLEAN (Sku) PERSISTENT;
+split 'Дробный товар' = ABSTRACT BOOLEAN (Sku) MATERIALIZED;
+passScales 'Передавать на весы' =  ABSTRACT BOOLEAN (Sku) MATERIALIZED;
 
-expiryDays 'Срок годности в днях' = ABSTRACT INTEGER (Sku) PERSISTENT;
-expiryMonth 'Срок годности в месяцах' = ABSTRACT INTEGER (Sku) PERSISTENT;
+expiryDays 'Срок годности в днях' = ABSTRACT INTEGER (Sku) MATERIALIZED;
+expiryMonth 'Срок годности в месяцах' = ABSTRACT INTEGER (Sku) MATERIALIZED;
 
-fixedPrice 'Товар с фиксированной ценой' =  ABSTRACT BOOLEAN (Sku) PERSISTENT;
-inactive 'Неактивный' = ABSTRACT BOOLEAN (Sku) PERSISTENT;
+fixedPrice 'Товар с фиксированной ценой' =  ABSTRACT BOOLEAN (Sku) MATERIALIZED;
+inactive 'Неактивный' = ABSTRACT BOOLEAN (Sku) MATERIALIZED;
 active 'Активный' (Sku sku) = sku IS Sku AND NOT inactive(sku);
-inactive 'Неактивная' = ABSTRACT BOOLEAN (SkuGroup) PERSISTENT;
+inactive 'Неактивная' = ABSTRACT BOOLEAN (SkuGroup) MATERIALIZED;
 active 'Активный' (SkuGroup group) = group IS SkuGroup AND NOT inactive(group);
 inactive(SkuGroup group) += inactive(group);
 
@@ -421,12 +421,12 @@ META defineGroupDefaultValue(property, caption, type, typeIdentity, groupClass)
     data###typeIdentity###property###groupClass caption (g) = typeIdentity(data###property###groupClass(g));
     
     levelParent###property###groupClass (g) = GROUP MIN level###groupClass###groupClass(g, parent) IF data###property###groupClass(parent)
-                                                                  BY g PERSISTENT;    
+                                                                  BY g MATERIALIZED;    
     nearestParent###property##groupClass (g) = groupClass###groupClassLevel(g, levelParent###property###groupClass(g));
     nearest###property###groupClass (g) = data###property###groupClass(nearestParent###property###groupClass (g));
     property###groupClass (g) =
         OVERRIDE nearest###property###groupClass (g), 
-                 data###property###groupClass(g) PERSISTENT;    
+                 data###property###groupClass(g) MATERIALIZED;    
     
     typeIdentity##groupClass caption (g) = typeIdentity(property##groupClass(g));    
 END 
@@ -435,12 +435,12 @@ META defineGroupDefaultValue(property, caption, type, groupClass)
     data###property caption = DATA type (###groupClass);
     
     levelParent###property (g) = GROUP MIN level(###groupClass child, ###groupClass parent) IF data###property(parent)
-                                                                  BY child PERSISTENT;    
+                                                                  BY child MATERIALIZED;    
     nearestParent###property (###groupClass g) = groupClass(g, levelParent###property(g));
     nearest###property (###groupClass g) = data###property(nearestParent###property (g));
     property caption (###groupClass g) =
         OVERRIDE data###property(g), 
-                 nearest###property (g) PERSISTENT;        
+                 nearest###property (g) MATERIALIZED;        
     
 END 
 
@@ -448,20 +448,20 @@ META defineDefaultValueCustom(property, caption, type, object, class)
     data###property caption = DATA type (###object, ###class);
     
     levelParent###property (object, group) = GROUP MIN level(###class group, ###class parent) IF data###property(###object object, parent)
-                                                                  BY object, group PERSISTENT;    
+                                                                  BY object, group MATERIALIZED;    
     nearestParent###property (###object object, ###class group) = group(group, levelParent###property(object, group));
     nearest###property (###object object, ###class group) = data###property(object, nearestParent###property (object, group));
     
     property caption (###object object, ###class group) =
         OVERRIDE nearest###property (object, group), 
-                 data###property(object, group) PERSISTENT;
+                 data###property(object, group) MATERIALIZED;
                  
     quantityChild###property (object, group) = GROUP SUM 1 IF 
         data###property(###object object, ###class child###class) AND isParent(child###class, ###class group) 
-            BY object, group PERSISTENT;
+            BY object, group MATERIALIZED;
     quantityParent###property (object, group) = GROUP SUM 1 IF 
         data###property(###object object, ###class parent###class) AND isParent(###class group, parent###class) 
-            BY object, group PERSISTENT;                 
+            BY object, group MATERIALIZED;                 
 
     backgroundWith###property (###object object, ###class group) =
         IF data###property(object, group) THEN
@@ -493,7 +493,7 @@ META defineDocumentAbstractDetailSkuCustomPrefix (detail, skuClass, prefix, capt
 END
 
 META defineDocumentAbstractDetailSkuCustomPrefixInner (detail, skuClass, skuClassUpper, prefix, caption)
-    skuClass = ABSTRACT skuClassUpper (###detail) PERSISTENT;
+    skuClass = ABSTRACT skuClassUpper (###detail) MATERIALIZED;
     INDEX skuClass(###detail d), dateTime(d);
     id###skuClass 'Код'###caption (###detail detail) = id(skuClass(detail));
     name###skuClass 'Наименование'###caption (###detail detail) = name(skuClass(detail)) IN recognize;
@@ -540,7 +540,7 @@ END
 
 // -- Net Weight
 META defineDocumentDetailNetWeightCustomPrefix (detail, skuProp, prefix, caption)
-    prefix###netWeight###detail 'Вес нетто'###caption (detail) = quantity###detail(detail) * netWeightSku(skuProp###detail(detail)) PERSISTENT;
+    prefix###netWeight###detail 'Вес нетто'###caption (detail) = quantity###detail(detail) * netWeightSku(skuProp###detail(detail)) MATERIALIZED;
 END
 META defineDocumentInterfaceDetailNetWeightCustomPrefix (detail, skuProp, prefix, caption)
     @defineDocumentDetailNetWeightCustomPrefix(detail, skuProp, prefix, caption);
@@ -570,7 +570,7 @@ META defineDocumentInterfaceDetailNetWeight (object, skuProp)
 END
 
 META defineDocumentHeaderNetWeightCustomPrefix (object, detail, prefix, caption)
-    prefix##NetWeight###detail 'Вес нетто (всего)'###caption (object) = GROUP SUM prefix##NetWeight(###detail idetail) BY object(idetail) IN documentSum PERSISTENT;
+    prefix##NetWeight###detail 'Вес нетто (всего)'###caption (object) = GROUP SUM prefix##NetWeight(###detail idetail) BY object(idetail) IN documentSum MATERIALIZED;
 END
 META defineDocumentInterfaceHeaderNetWeightCustomPrefix (object, detail, prefix, caption)
     @defineDocumentHeaderNetWeightCustomPrefix (object, detail, prefix, caption);
@@ -636,7 +636,7 @@ END
 
 // Итоги
 META defineDocumentHeaderGrossWeightCustomPrefix (object, detail, prefix, caption)
-    prefix###grossWeight###detail 'Вес брутто (всего)'###caption (object) = GROUP SUM prefix###grossWeight(###detail idetail) BY object(idetail) IN documentSum PERSISTENT;
+    prefix###grossWeight###detail 'Вес брутто (всего)'###caption (object) = GROUP SUM prefix###grossWeight(###detail idetail) BY object(idetail) IN documentSum MATERIALIZED;
 END
 META defineDocumentInterfaceHeaderGrossWeightCustomPrefix (object, detail, prefix, caption)
     @defineDocumentHeaderGrossWeightCustomPrefix (object, detail, prefix, caption);
@@ -681,7 +681,7 @@ END
 
 // Batch
 META defineDocumentAggregationDetailBatch (primObject, aggrObject)
-    batch 'Партия' (###aggrObject##Detail detail) = batch(primObject##Detail(detail)) PERSISTENT;
+    batch 'Партия' (###aggrObject##Detail detail) = batch(primObject##Detail(detail)) MATERIALIZED;
 END
 
 // ------------------------------------------ Итоги по Sku в документе ------------------------------------- //

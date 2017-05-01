@@ -17,14 +17,14 @@ isCommission 'Продажа на комиссию' = DATA BOOLEAN (UserPriceLis
 contractSku(UserPriceList o) += contractSku(o);
 isCommission(UserPriceList o) += isCommission(o);
 
-contractSku (PriceListDetail d) = contractSku(priceList(d)) PERSISTENT INDEXED;
+contractSku (PriceListDetail d) = contractSku(priceList(d)) MATERIALIZED INDEXED;
 seriesNumberContractSku 'Номер договора' (PriceListDetail d) = seriesNumber[Contract](contractSku (d));
 
 isCommission(UserPriceList o) <- type(contractSku(o)) == ContractSkuType.commission
     WHEN CHANGED(contractSku(o));
 
 
-WHEN SESSION (CHANGED(company(UserPriceList o)) OR CHANGED(companyStock(o)) OR CHANGED(fromDate(o))) AND NOT CHANGED(contractSku(o)) DO {
+WHEN LOCAL (CHANGED(company(UserPriceList o)) OR CHANGED(companyStock(o)) OR CHANGED(fromDate(o))) AND NOT CHANGED(contractSku(o)) DO {
             
     contractSku(o) <- defaultContractSkuSupplier(company(o), companyStock(o), fromDate(o))
                                     IF countContractSkuSupplier(company(o), companyStock(o), fromDate(o)) == 1;

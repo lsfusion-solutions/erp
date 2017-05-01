@@ -8,25 +8,25 @@ NAMESPACE Bin;
 CLASS ABSTRACT ReceiptSkuBinLedger 'Движение чеков по ячейкам': BinLedger;
 TABLE receiptSkuBinLedger(ReceiptSkuBinLedger);
 
-dateTime 'Дата/время' = ABSTRACT DATETIME (ReceiptSkuBinLedger) PERSISTENT INDEXED;
+dateTime 'Дата/время' = ABSTRACT DATETIME (ReceiptSkuBinLedger) MATERIALIZED INDEXED;
 date 'Дата' (ReceiptSkuBinLedger ledger) = toDate(dateTime(ledger));
 
-departmentStore = ABSTRACT DepartmentStore (ReceiptSkuBinLedger) PERSISTENT;
+departmentStore = ABSTRACT DepartmentStore (ReceiptSkuBinLedger) MATERIALIZED;
 nameDepartmentStore 'Склад' (ReceiptSkuBinLedger ledger) = name(departmentStore(ledger));
 
 @defineDocumentAbstractDetailSkuCustomPrefix(receiptSkuBinLedger, sku, , );
 
-inBin = ABSTRACT Bin (ReceiptSkuBinLedger) PERSISTENT INDEXED;
+inBin = ABSTRACT Bin (ReceiptSkuBinLedger) MATERIALIZED INDEXED;
 nameInBin 'Ячейка (в)' (ReceiptSkuBinLedger ledger) = name(inBin(ledger)) IN recognize;
 
-outBin = ABSTRACT Bin (ReceiptSkuBinLedger) PERSISTENT INDEXED;
+outBin = ABSTRACT Bin (ReceiptSkuBinLedger) MATERIALIZED INDEXED;
 nameOutBin 'Ячейка (из)' (ReceiptSkuBinLedger ledger) = name(outBin(ledger)) IN recognize;
 
-quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (ReceiptSkuBinLedger) PERSISTENT;
+quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (ReceiptSkuBinLedger) MATERIALIZED;
 
-description 'Название документа' = ABSTRACT VARISTRING[200] (ReceiptSkuBinLedger) PERSISTENT;
+description 'Название документа' = ABSTRACT VARISTRING[200] (ReceiptSkuBinLedger) MATERIALIZED;
 
-skip 'Не проводить по учету' = ABSTRACT BOOLEAN (ReceiptSkuBinLedger) PERSISTENT;
+skip 'Не проводить по учету' = ABSTRACT BOOLEAN (ReceiptSkuBinLedger) MATERIALIZED;
 active 'Активен' (ReceiptSkuBinLedger ledger) = ledger IS ReceiptSkuBinLedger AND NOT skip(ledger);
 
 dateTime[BinLedger] (ReceiptSkuBinLedger ledger) += dateTime(ledger);

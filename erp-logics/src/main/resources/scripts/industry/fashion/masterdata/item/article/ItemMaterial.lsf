@@ -37,9 +37,9 @@ percentMaterials 'Процент' (i) = GROUP SUM percent(Material m,Item i) BY 
 
 calcComposition 'Состав' (Item i) = VARSTRING[255](
                        [= GROUP CONCAT (percent(Material m,Item i)+'% '+name(m)) IF percent(m,i), ', ' BY i ORDER DESC percent(m,i)](i))
-                       MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 PERSISTENT;
+                       MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 MATERIALIZED;
 
-WHEN SESSION FORMS item CHANGED(calcComposition(Item i)) DO {
+WHEN LOCAL FORMS item CHANGED(calcComposition(Item i)) DO {
     composition(i) <- calcComposition(i);            
 } 
 backgroundMaterials (Item i) = RGB(255,0,0) IF i IS Item AND (percentMaterials(i) != 100.0);

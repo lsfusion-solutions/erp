@@ -4,26 +4,26 @@ REQUIRE PurchaseReturnInvoice, ExtraUOM, LegalEntityExtraUOM, PurchaseLedgerExtr
 
 NAMESPACE PurchaseReturn;
 
-extraQuantity 'Кол-во(ед. поставщика)' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) PERSISTENT;
+extraQuantity 'Кол-во(ед. поставщика)' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) MATERIALIZED;
 extraQuantity 'Кол-во(ед. поставщика)' = DATA NUMERIC[16,5] (UserInvoiceDetail);
 extraQuantity (UserInvoiceDetail invoiceDetail) += extraQuantity(invoiceDetail);
 
-extraUOM = ABSTRACT UOM (InvoiceDetail) PERSISTENT;
+extraUOM = ABSTRACT UOM (InvoiceDetail) MATERIALIZED;
 extraUOM = DATA UOM (UserInvoiceDetail);
 extraUOM (UserInvoiceDetail invoiceDetail) += extraUOM(invoiceDetail);
 
 shortNameExtraUOMSku 'Ед. изм. поставщика' (InvoiceDetail detail)= shortName(extraUOM(detail));
 shortNameExtraUOMSku 'Ед. изм. поставщика' (UserInvoiceDetail detail)= shortName(extraUOM(detail));
 
-WHEN SESSION CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail)) DO {
+WHEN LOCAL CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail)) DO {
     extraUOM(detail) <- extraUOM(supplier(detail), sku(detail));
 }
 
-WHEN SESSION CHANGED(extraQuantity(UserInvoiceDetail detail)) AND extraUOM(detail) DO {
+WHEN LOCAL CHANGED(extraQuantity(UserInvoiceDetail detail)) AND extraUOM(detail) DO {
     quantity(detail) <- extraQuantity(detail) * coefficient(extraUOM(detail), UOM(sku(detail)));
 }
 
-WHEN SESSION CHANGED(quantity(UserInvoiceDetail detail)) AND extraUOM(detail) DO {
+WHEN LOCAL CHANGED(quantity(UserInvoiceDetail detail)) AND extraUOM(detail) DO {
     extraQuantity(detail) <- quantity(detail) * coefficient(UOM(sku(detail)), extraUOM(detail));
 }
 

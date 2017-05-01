@@ -193,13 +193,13 @@ EXTEND FORM articleCustomsDashboard
 
 @defineOption(setCustomsGroupArticleCompleted, 'Изменять ТВЭД для обработанных товаров по артикулу', customs);
 // ТНВЭД
-WHEN SESSION FORMS articleCustomsDashboard
+WHEN LOCAL FORMS articleCustomsDashboard
     CHANGED(customsGroup(Country country, Article article)) DO {
         customsGroup (country, Item item) <- customsGroup(country, article) WHERE article(item) == article AND (setCustomsGroupArticleCompleted() OR NOT completedCustoms(item));
         VATCustomsException(country, Item item) <- NULL WHERE article(item) == article  AND (setCustomsGroupArticleCompleted() OR NOT completedCustoms(item));
     }
 
-WHEN SESSION FORMS articleCustomsDashboard
+WHEN LOCAL FORMS articleCustomsDashboard
     CHANGED(customsGroup (Country country, Item item)) OR CHANGED(VATCustomsException(country, item)) DO {
         VAT(item, country) <- IF VATCustomsException(country, item) THEN
                                             rangeVATCustomsException(country, item)
@@ -208,7 +208,7 @@ WHEN SESSION FORMS articleCustomsDashboard
     }
 
 // Группы сертификации
-WHEN SESSION FORMS articleCustomsDashboard
+WHEN LOCAL FORMS articleCustomsDashboard
     CHANGED(complianceGroup(Country country, Article article)) DO {
         complianceGroup (country, Item item) <- complianceGroup(country, article) WHERE article(item) == article AND NOT completedCustoms(item);
     }

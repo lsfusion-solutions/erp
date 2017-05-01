@@ -65,7 +65,7 @@ promotionGroup (promotion) = DATA PromotionGroup(Promotion) AUTOSET NOT NULL;
 namePromotionGroup 'Группа акций' (Promotion promotion) = name(promotionGroup(promotion)) IN base;
 
 userOrder 'Порядок' (promotion) = DATA INTEGER (Promotion);
-order 'Порядок' (Promotion promotion) = OVERRIDE userOrder(promotion), 1 IF promotion IS Promotion PERSISTENT;
+order 'Порядок' (Promotion promotion) = OVERRIDE userOrder(promotion), 1 IF promotion IS Promotion MATERIALIZED;
 
 userSet 'Задается кассиром' (promotion) = DATA BOOLEAN (Promotion);
 
@@ -121,20 +121,20 @@ dataIn 'В акции' = DATA BOOLEAN (Promotion, Store);
 
 in 'В акции' (Promotion promotion, ChainStores chainStores) = OVERRIDE
     dataIn(promotion, chainStores),
-    allStores(promotion) AND chainStores IS ChainStores PERSISTENT;
+    allStores(promotion) AND chainStores IS ChainStores MATERIALIZED;
 
 in 'В акции' (Promotion promotion, StoreType storeType) = OVERRIDE
     dataIn(promotion, storeType),
-    in(promotion, chainStores(storeType)) PERSISTENT;
+    in(promotion, chainStores(storeType)) MATERIALIZED;
 
 in 'В акции' (Promotion promotion, Store store) =
     (OVERRIDE dataIn(promotion, store),
               in(promotion, storeType(store)))
-    AND isCompany(store) PERSISTENT;
+    AND isCompany(store) MATERIALIZED;
 
 stores 'Магазины' (promotion) = GROUP CONCAT Store.name(Store store) IF in(Promotion promotion, store), ', '
                                               BY promotion
-                                              ORDER store PERSISTENT MINCHARWIDTH 20 PREFCHARWIDTH 40;
+                                              ORDER store MATERIALIZED MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
 minSumBill 'Сумма чека (от)' (promotion) = DATA NUMERIC[16,4] (Promotion);
 maxSumBill 'Сумма чека (до)' (promotion) = DATA NUMERIC[16,4] (Promotion);
@@ -166,7 +166,7 @@ dateTo 'Действует (до)' (PromotionCondition promotionCondition) = dat
 orderPromotionType = orderPromotionType(promotion(PromotionCondition condition));
 nameOrderPromotionType 'Поряок применения акции' = staticCaption(orderPromotionType(PromotionCondition condition));
 
-countPromotionCondition 'Кол-во условий' (promotion) = GROUP SUM 1 IF promotion(PromotionCondition promotionCondition) == Promotion promotion BY promotion PERSISTENT;
+countPromotionCondition 'Кол-во условий' (promotion) = GROUP SUM 1 IF promotion(PromotionCondition promotionCondition) == Promotion promotion BY promotion MATERIALIZED;
 
 minQuantity 'Количество (от)' = DATA NUMERIC[14,3] (PromotionCondition);
 CONSTRAINT minQuantity(PromotionCondition promotionCondition) <= 0.0 MESSAGE 'Количество в условии акции должно быть строго больше 0';
@@ -190,7 +190,7 @@ userSet 'Задается кассиром' (PromotionCondition promotionConditi
 TABLE promotionConditionSkuGroup (PromotionCondition, SkuGroup);
 inData 'В условии' = DATA BOOLEAN (PromotionCondition, SkuGroup);
 inParent (promotionCondition, skuGroup) = GROUP SUM 1 IF inData(PromotionCondition promotionCondition, SkuGroup parent) AND isParent(SkuGroup child, parent)
-                                                                          BY promotionCondition, child PERSISTENT;
+                                                                          BY promotionCondition, child MATERIALIZED;
 in 'В условии' = inParent(PromotionCondition promotionCondition, SkuGroup skuGroup) OR inData(promotionCondition, skuGroup);
 
 // sku
@@ -468,7 +468,7 @@ FORM promotions 'Акции'
 ;
 
 userOrder 'Порядок' (promotion) = DATA INTEGER (PromotionGroup);
-order 'Порядок' (PromotionGroup promotion) = OVERRIDE userOrder(promotion), 1 IF promotion IS PromotionGroup PERSISTENT;
+order 'Порядок' (PromotionGroup promotion) = OVERRIDE userOrder(promotion), 1 IF promotion IS PromotionGroup MATERIALIZED;
 
 FORM promotionGroup 'Группа акций'
     OBJECTS st=PromotionGroup PANEL

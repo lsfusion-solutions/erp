@@ -7,22 +7,22 @@ TABLE purchaseLedger(PurchaseLedger);
 
 TABLE skuStockStock(Stock, Stock, Sku);
 
-dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (PurchaseLedger) PERSISTENT INDEXED;
-date 'Дата' (PurchaseLedger ledger) = toDate(dateTime(ledger)) PERSISTENT INDEXED;
+dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (PurchaseLedger) MATERIALIZED INDEXED;
+date 'Дата' (PurchaseLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED INDEXED;
 
-shipmentDateTime 'Дата/время поставки' (ledger) = ABSTRACT DATETIME (PurchaseLedger) PERSISTENT INDEXED;
-shipmentDate 'Дата поставки' (PurchaseLedger ledger) = toDate(shipmentDateTime(ledger)) PERSISTENT INDEXED;
+shipmentDateTime 'Дата/время поставки' (ledger) = ABSTRACT DATETIME (PurchaseLedger) MATERIALIZED INDEXED;
+shipmentDate 'Дата поставки' (PurchaseLedger ledger) = toDate(shipmentDateTime(ledger)) MATERIALIZED INDEXED;
 
-isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) PERSISTENT;
+isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) MATERIALIZED;
 
 isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger);
 allowedEdit (PurchaseLedger d) = NOT isClosed(d) OR allowedEditClosedDocuments(currentUser());
 
-skip 'Не проводить' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) PERSISTENT;
+skip 'Не проводить' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) MATERIALIZED;
 
 active (PurchaseLedger ledger) = isPosted(ledger) AND NOT skip(ledger);
 
-sku (ledger) = ABSTRACT Sku (PurchaseLedger) PERSISTENT INDEXED;
+sku (ledger) = ABSTRACT Sku (PurchaseLedger) MATERIALIZED INDEXED;
 nameSku 'SKU' (PurchaseLedger ledger) = name(sku(ledger));
 idSku'Код товара' (PurchaseLedger ledger) = id(sku(ledger));
 shortNameUOMSku 'Ед. изм.' = shortNameUOM(sku(PurchaseLedger ledger));
@@ -34,39 +34,39 @@ nameSkuGroup3Sku 'Группа' = nameSkuGroup3(sku(PurchaseLedger ledger));
 nameSkuGroup4Sku 'Подгруппа' = nameSkuGroup4(sku(PurchaseLedger ledger));
 nameSkuGroup5Sku 'Субгруппа' = nameSkuGroup5(sku(PurchaseLedger ledger));
 
-stock (ledger) = ABSTRACT Stock (PurchaseLedger) PERSISTENT;
+stock (ledger) = ABSTRACT Stock (PurchaseLedger) MATERIALIZED;
 INDEX stock(PurchaseLedger ledger), sku(ledger);
 nameStock 'Склад' (PurchaseLedger ledger) = name(stock(ledger));
 
-description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (PurchaseLedger) PERSISTENT;
-numberDocument 'Номер документа' (ledger) = ABSTRACT VARSTRING[28] (PurchaseLedger) PERSISTENT;
-seriesDocument 'Серия документа' (ledger) = ABSTRACT STRING[2] (PurchaseLedger) PERSISTENT;
+description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (PurchaseLedger) MATERIALIZED;
+numberDocument 'Номер документа' (ledger) = ABSTRACT VARSTRING[28] (PurchaseLedger) MATERIALIZED;
+seriesDocument 'Серия документа' (ledger) = ABSTRACT STRING[2] (PurchaseLedger) MATERIALIZED;
 seriesNumberDocument 'Серия/Номер документа' (PurchaseLedger o) = 
     CONCAT '', seriesDocument(o), numberDocument(o) 
-    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
+    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 MATERIALIZED;
         
-quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (PurchaseLedger) PERSISTENT;
-shipmentQuantity 'Кол-во (поставлено)' (ledger) = ABSTRACT NUMERIC[16,5] (PurchaseLedger) PERSISTENT;
+quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (PurchaseLedger) MATERIALIZED;
+shipmentQuantity 'Кол-во (поставлено)' (ledger) = ABSTRACT NUMERIC[16,5] (PurchaseLedger) MATERIALIZED;
 
-price 'Цена без НДС' (ledger) = ABSTRACT NUMERIC[16,4] (PurchaseLedger) PERSISTENT;
+price 'Цена без НДС' (ledger) = ABSTRACT NUMERIC[16,4] (PurchaseLedger) MATERIALIZED;
 
 
-sum 'Сумма покупки с НДС' (ledger) = ABSTRACT NUMERIC[18,4] (PurchaseLedger) PERSISTENT; 
+sum 'Сумма покупки с НДС' (ledger) = ABSTRACT NUMERIC[18,4] (PurchaseLedger) MATERIALIZED; 
 
-currency = ABSTRACT Currency (PurchaseLedger) PERSISTENT;
+currency = ABSTRACT Currency (PurchaseLedger) MATERIALIZED;
 nameCurrency 'Валюта' = name(currency(PurchaseLedger ledger));
 
-supplier  (ledger) = ABSTRACT LegalEntity (PurchaseLedger) PERSISTENT;
+supplier  (ledger) = ABSTRACT LegalEntity (PurchaseLedger) MATERIALIZED;
 nameSupplier 'Поставщик' (PurchaseLedger ledger) = name(supplier (ledger));
 
-supplierStock  (ledger) = ABSTRACT Stock (PurchaseLedger) PERSISTENT;
+supplierStock  (ledger) = ABSTRACT Stock (PurchaseLedger) MATERIALIZED;
 nameSupplierStock 'Склад поставщика' (PurchaseLedger ledger) = name(supplierStock (ledger));
 
-operation  (ledger) = ABSTRACT Purchase.Operation (PurchaseLedger) PERSISTENT;
+operation  (ledger) = ABSTRACT Purchase.Operation (PurchaseLedger) MATERIALIZED;
 nameOperation 'Операция' (PurchaseLedger ledger) = name(operation (ledger));
 
 quantityPurchaseSupplier 'Кол-во закуплено' = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
-    BY supplier(ledger), sku(ledger) PERSISTENT;
+    BY supplier(ledger), sku(ledger) MATERIALIZED;
     
 quantityPurchaseSupplier 'Кол-во закуплено' = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
     BY supplierStock(ledger), sku(ledger);
@@ -104,7 +104,7 @@ lastSupplierStock (stock, sku) =
                 
 nameLastSupplierStock 'Склад поставщика (последний)' (Stock stock, Sku sku) = name(lastSupplierStock (stock, sku)) MINCHARWIDTH 12 PREFCHARWIDTH 15;              
 
-inSupplier 'Были поставки' (LegalEntity legalEntity, Sku sku) = TRUE IF quantityPurchaseSupplier(legalEntity, sku) PERSISTENT;
+inSupplier 'Были поставки' (LegalEntity legalEntity, Sku sku) = TRUE IF quantityPurchaseSupplier(legalEntity, sku) MATERIALIZED;
 prevInSupplier 'Были поставки (пред.)' (LegalEntity legalEntity, Sku sku) = PREV(inSupplier(legalEntity, sku));
 
 sumPurchase 'Сумма покупки валюта' (TypeExchange typeExchange, PurchaseLedger purchaseLedger)= round((sum (purchaseLedger)*
@@ -114,7 +114,7 @@ edit 'Редактировать' = ACTION ABSTRACT LIST (PurchaseLedger) IMAGE 
 
 TABLE purchaseLedgerBatch(PurchaseLedger, Batch);
 
-cost 'Расписано из партии' = ABSTRACT NUMERIC[16,5] (PurchaseLedger, Batch) PERSISTENT;
+cost 'Расписано из партии' = ABSTRACT NUMERIC[16,5] (PurchaseLedger, Batch) MATERIALIZED;
 
 coeff 'Удельный вес' (PurchaseLedger ledger, Batch batch) =
     NUMERIC[22,8](cost(ledger, batch)/quantity(ledger));
@@ -125,7 +125,7 @@ costSum 'Себестоимость' = GROUP SUM cost(PurchaseLedger ledger, Bat
 
 averagePrice 'Цена покупки (средняя) с НДС' (PurchaseLedger purchaseLedger) = NUMERIC[16,4](sum(purchaseLedger)/quantity(purchaseLedger) IF quantity(purchaseLedger) != 0);
 
-VAT (ledger) = ABSTRACT Range (PurchaseLedger) PERSISTENT;
+VAT (ledger) = ABSTRACT Range (PurchaseLedger) MATERIALIZED;
 valueVAT 'НДС, %' (PurchaseLedger ledger) = valueRate(VAT(ledger), date(ledger));
 
 sumVAT 'Сумма НДС' (PurchaseLedger ledger) = NUMERIC[18,4]([= X*Y/(100+Y)](
@@ -163,40 +163,40 @@ TABLE purchaseSkuStockDate(Sku, Stock, DATE);
 
 //по складу и SKU
 quantityPurchase (sku, stock, date) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE purchaseSkuStockDate;
+    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE purchaseSkuStockDate;
 
 sumVATPurchase (sku, stock, date) = GROUP SUM sumVAT(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE purchaseSkuStockDate;
+    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE purchaseSkuStockDate;
 
 sumPurchase (sku, stock, date) = GROUP SUM sum(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE purchaseSkuStockDate;
+    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE purchaseSkuStockDate;
     
 costSumPurchase (sku, stock, date) = GROUP SUM costSum(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE purchaseSkuStockDate;    
+    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE purchaseSkuStockDate;    
 
 //по складу, поставщику и SKU
 quantityPurchase (sku, stock, supplier, date) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplier(ledger), date(ledger);  // PERSISTENT
+    BY sku(ledger), stock(ledger), supplier(ledger), date(ledger);  // MATERIALIZED
 
 sumVATPurchase (sku, stock, supplier, date) = GROUP SUM sumVAT(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplier(ledger), date(ledger);  // PERSISTENT
+    BY sku(ledger), stock(ledger), supplier(ledger), date(ledger);  // MATERIALIZED
 
 sumPurchase (sku, stock, supplier, date) = GROUP SUM sum(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplier(ledger), date(ledger);   // PERSISTENT
+    BY sku(ledger), stock(ledger), supplier(ledger), date(ledger);   // MATERIALIZED
 
 
 quantityPurchase 'Кол-во закуплено' (sku, stock, supplier) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplier(ledger);  // PERSISTENT
+    BY sku(ledger), stock(ledger), supplier(ledger);  // MATERIALIZED
     
 //по складу, складу поставщика  и SKU
 quantityPurchaseSupplier (sku, stock, supplierStock, date) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplierStock(ledger), date(ledger);  // PERSISTENT
+    BY sku(ledger), stock(ledger), supplierStock(ledger), date(ledger);  // MATERIALIZED
 
 sumVATPurchaseSupplier (sku, stock, supplierStock, date) = GROUP SUM sumVAT(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplierStock(ledger), date(ledger);  // PERSISTENT
+    BY sku(ledger), stock(ledger), supplierStock(ledger), date(ledger);  // MATERIALIZED
 
 sumPurchaseSupplier (sku, stock, supplierStock, date) = GROUP SUM sum(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplierStock(ledger), date(ledger);   // PERSISTENT
+    BY sku(ledger), stock(ledger), supplierStock(ledger), date(ledger);   // MATERIALIZED
 
 quantityPurchaseSupplier 'Кол-во закуплено' (stock, supplierStock, sku) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
     BY stock(ledger), supplierStock(ledger), sku(ledger);     

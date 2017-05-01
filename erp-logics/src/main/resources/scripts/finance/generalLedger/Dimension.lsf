@@ -6,7 +6,7 @@ REQUIRE GeneralLedger;
 
 CLASS ABSTRACT Dimension 'Субконто';
 TABLE dimension(Dimension);
-name 'Название' = ABSTRACT VARISTRING[255] (Dimension) MINCHARWIDTH 40 PREFCHARWIDTH 80 PERSISTENT;
+name 'Название' = ABSTRACT VARISTRING[255] (Dimension) MINCHARWIDTH 40 PREFCHARWIDTH 80 MATERIALIZED;
 
 FORM dimensions 'Субконто'
     OBJECTS d = Dimension
@@ -20,14 +20,14 @@ TABLE dimensionType(DimensionType);
 name 'Наименование' (DimensionType type) = staticCaption(type) IF type IS DimensionType;
 
 id 'Идентификатор' = DATA VARSTRING[20] (DimensionType) MINCHARWIDTH 3 MAXCHARWIDTH 10 PREFCHARWIDTH 7;
-dimensionType = ABSTRACT CASE EXCLUSIVE DimensionType (Dimension) PERSISTENT;
+dimensionType = ABSTRACT CASE EXCLUSIVE DimensionType (Dimension) MATERIALIZED;
 nameDimensionType 'Тип субконто' (Dimension dimension) = name(dimensionType(dimension));
 
 TABLE GLAccountDimensionType(GLAccount, DimensionType);
 order 'Порядковый номер' = DATA INTEGER (GLAccount,DimensionType);
 dimensionsType 'Субконто' (GLAccount) = GROUP CONCAT VARSTRING[255](name(DimensionType dimensionType)) IF order (GLAccount GLAccount,dimensionType) , ', '
                                                 BY GLAccount
-                                                ORDER order (GLAccount,dimensionType) MINCHARWIDTH 40 PREFCHARWIDTH 80 PERSISTENT;
+                                                ORDER order (GLAccount,dimensionType) MINCHARWIDTH 40 PREFCHARWIDTH 80 MATERIALIZED;
 
 overCopy(GLAccount from, GLAccount to) += {
     ASSIGN order(to, DimensionType dimensionType) <- order(from, dimensionType);
@@ -38,7 +38,7 @@ prev (GLAccount account, DimensionType type) = PARTITION PREV type IF order(acco
 namePrev 'Предок' (GLAccount account, DimensionType type) = name(prev(account, type));
 
 TABLE generalLedgerDimensionType(GeneralLedger, DimensionType);
-debit = ABSTRACT CASE EXCLUSIVE Dimension (GeneralLedger, DimensionType) PERSISTENT;
+debit = ABSTRACT CASE EXCLUSIVE Dimension (GeneralLedger, DimensionType) MATERIALIZED;
 nameDebit 'Субконто (дебет)' (GeneralLedger generalLedger,DimensionType dimensionType)= name(debit(generalLedger,dimensionType));
 debit = DATA Dimension (UserGeneralLedger, DimensionType);
 nameDebit 'Субконто (дебет)' (UserGeneralLedger userGeneralLedger,DimensionType dimensionType)= name(debit(userGeneralLedger,dimensionType));
@@ -47,7 +47,7 @@ CONSTRAINT debit(UserGeneralLedger userGeneralLedger,DimensionType dimensionType
     CHECKED BY debit[UserGeneralLedger,DimensionType]
         MESSAGE 'Субконто (дебет) проводки должен соответствовать субконто';
 
-credit = ABSTRACT CASE EXCLUSIVE Dimension (GeneralLedger, DimensionType) PERSISTENT;
+credit = ABSTRACT CASE EXCLUSIVE Dimension (GeneralLedger, DimensionType) MATERIALIZED;
 nameCredit 'Субконто (кредит)' (GeneralLedger generalLedger,DimensionType dimensionType)= name(credit(generalLedger,dimensionType));
 credit = DATA Dimension (UserGeneralLedger,DimensionType);
 nameCredit 'Субконто (кредит)' (UserGeneralLedger userGeneralLedger,DimensionType dimensionType)= name(credit(userGeneralLedger,dimensionType));
@@ -74,10 +74,10 @@ in (GeneralLedger gl, Dimension d) = inDebit(gl, d) OR inCredit(gl, d);
 TABLE GLAccountLegalEntityDDate(GLAccount, LegalEntity, Dimension, DATE);
 sumCredit 'Сумма (кредит)' (GLAccount, company, d1, date)= GROUP SUM
     sum(GeneralLedger ledger) IF isPosted(ledger) AND DimensionType t1 IS DimensionType
-        BY credit(ledger), legalEntity(ledger), credit(ledger,t1), date(ledger); // PERSISTENT
+        BY credit(ledger), legalEntity(ledger), credit(ledger,t1), date(ledger); // MATERIALIZED
 sumDebit 'Сумма (дебет)' (GLAccount, company, d1, date)= GROUP SUM
     sum(GeneralLedger ledger) IF isPosted(ledger) AND DimensionType t1 IS DimensionType
-        BY debit(ledger), legalEntity(ledger), debit(ledger,t1), date(ledger); // PERSISTENT
+        BY debit(ledger), legalEntity(ledger), debit(ledger,t1), date(ledger); // MATERIALIZED
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, Dimension d1, DATE date)=
     sumDebit(GLAccount, company, d1, date) (-) sumCredit(GLAccount, company, d1, date);
 
@@ -94,10 +94,10 @@ balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, Dimension d1, 
 TABLE GLAccountLegalEntityDDDate(GLAccount, LegalEntity, Dimension, Dimension, DATE);
 sumCredit 'Сумма (кредит)' (GLAccount, company, d1, d2, date)= GROUP SUM
     sum(GeneralLedger ledger) IF isPosted(ledger) AND DimensionType t1 IS DimensionType AND DimensionType t2 IS DimensionType  AND t1 != t2
-        BY credit(ledger), legalEntity(ledger), credit(ledger,t1), credit(ledger,t2), date(ledger); // PERSISTENT
+        BY credit(ledger), legalEntity(ledger), credit(ledger,t1), credit(ledger,t2), date(ledger); // MATERIALIZED
 sumDebit 'Сумма (дебет)' (GLAccount, company, d1, d2, date)= GROUP SUM
     sum(GeneralLedger ledger) IF isPosted(ledger) AND DimensionType t1 IS DimensionType AND DimensionType t2 IS DimensionType  AND t1 != t2
-        BY debit(ledger), legalEntity(ledger), debit(ledger,t1), debit(ledger,t2), date(ledger); // PERSISTENT
+        BY debit(ledger), legalEntity(ledger), debit(ledger,t1), debit(ledger,t2), date(ledger); // MATERIALIZED
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, DATE date)=
     sumDebit(GLAccount, company, d1, d2, date) (-) sumCredit(GLAccount, company, d1, d2, date);
 
@@ -116,12 +116,12 @@ sumCredit 'Сумма (кредит)' (GLAccount, company, d1, d2, d3, date) = G
     sum(GeneralLedger ledger) IF isPosted(ledger) AND
     DimensionType t1 IS DimensionType AND DimensionType t2 IS DimensionType AND DimensionType t3 IS DimensionType AND
     t1 != t2 AND t2 != t3 AND t1 != t3
-        BY credit(ledger), legalEntity(ledger), credit(ledger,t1), credit(ledger,t2), credit(ledger,t3), date(ledger); // PERSISTENT
+        BY credit(ledger), legalEntity(ledger), credit(ledger,t1), credit(ledger,t2), credit(ledger,t3), date(ledger); // MATERIALIZED
 sumDebit 'Сумма (дебет)' (GLAccount, company, d1, d2, d3, date) = GROUP SUM
     sum(GeneralLedger ledger) IF isPosted(ledger) AND
     DimensionType t1 IS DimensionType AND DimensionType t2 IS DimensionType AND DimensionType t3 IS DimensionType AND
     t1 != t2 AND t2 != t3 AND t1 != t3
-        BY debit(ledger), legalEntity(ledger), credit(ledger,t1), credit(ledger,t2), credit(ledger,t3), date(ledger); // PERSISTENT
+        BY debit(ledger), legalEntity(ledger), credit(ledger,t1), credit(ledger,t2), credit(ledger,t3), date(ledger); // MATERIALIZED
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, Dimension d3, DATE date)=
     sumDebit(GLAccount, company, d1, d2, d3, date) (-) sumCredit(GLAccount, company, d1, d2, d3, date);
 
@@ -300,16 +300,16 @@ NAVIGATOR {
 }
 // ------------------- Субконто для проводок --------------- //
 
-id = ABSTRACT VARISTRING[100](Dimension) PERSISTENT;
+id = ABSTRACT VARISTRING[100](Dimension) MATERIALIZED;
 //idDimension(dimension) += idGLAccount(dimension);
 id(UserDimension dimension) += VARISTRING[20](staticCaption(dimension)) IF dimension IS UserDimension;
 
-overIdDebit = ABSTRACT CASE EXCLUSIVE VARISTRING[20](GeneralLedger, DimensionType) PERSISTENT;
+overIdDebit = ABSTRACT CASE EXCLUSIVE VARISTRING[20](GeneralLedger, DimensionType) MATERIALIZED;
 idDebit 'Субконто (дебет)' (GeneralLedger generalLedger, DimensionType dimensionType) =
     OVERRIDE overIdDebit(generalLedger, dimensionType),
              id(debit(generalLedger, dimensionType));
 
-overIdCredit = ABSTRACT CASE EXCLUSIVE VARISTRING[20](GeneralLedger, DimensionType) PERSISTENT;
+overIdCredit = ABSTRACT CASE EXCLUSIVE VARISTRING[20](GeneralLedger, DimensionType) MATERIALIZED;
 idCredit 'Субконто (кредит)' (GeneralLedger generalLedger, DimensionType dimensionType) =
     OVERRIDE overIdCredit(generalLedger, dimensionType),
              id(credit(generalLedger, dimensionType));

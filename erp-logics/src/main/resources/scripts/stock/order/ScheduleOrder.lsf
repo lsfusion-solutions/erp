@@ -29,9 +29,9 @@ TABLE scheduleOrderDetail(ScheduleOrderDetail);
 //isClosedScheduleOrderDetail 'Аннулирован' = ABSTRACT BOOLEAN (ScheduleOrderDetail);
 //isOpenedScheduleOrderDetail= d IS ScheduleOrderDetail AND NOT isClosedScheduleOrderDetail(d);
 
-scheduleOrder = ABSTRACT ScheduleOrder (ScheduleOrderDetail)PERSISTENT;
+scheduleOrder = ABSTRACT ScheduleOrder (ScheduleOrderDetail)MATERIALIZED;
 
-operation = ABSTRACT Operation.Operation (ScheduleOrder) PERSISTENT;
+operation = ABSTRACT Operation.Operation (ScheduleOrder) MATERIALIZED;
 nameOperation 'Операция' (ScheduleOrder scheduleOrder) = name(operation(scheduleOrder));
 
 startDate 'Дата начала' = ABSTRACT DATE (ScheduleOrder) IN base;
@@ -52,7 +52,7 @@ nameSupplierStock 'Склад поставщика' (ScheduleOrder scheduleOrder
 
 // ---------------------  Склады, для которых действует график заказов
 
-stocks 'Склады' (scheduleOrder) = ABSTRACT VARSTRING[500] (ScheduleOrder) MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
+stocks 'Склады' (scheduleOrder) = ABSTRACT VARSTRING[500] (ScheduleOrder) MINCHARWIDTH 20 PREFCHARWIDTH 40 MATERIALIZED;
 
 addScheduleOrderSupplierCustomer 'Добавить' = ACTION ABSTRACT LIST (LegalEntity, LegalEntity) IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 edit 'Редактировать' = ACTION ABSTRACT MULTI (ScheduleOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
@@ -120,9 +120,9 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     dataIn 'Отм' = DATA BOOLEAN (ScheduleOrder, Stock);
     
     levelParent (scheduleOrder, stockGroup) = GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataIn(ScheduleOrder scheduleOrder, parent)
-                                                                   BY scheduleOrder, stockGroup PERSISTENT;
+                                                                   BY scheduleOrder, stockGroup MATERIALIZED;
     
-    inParent (ScheduleOrder scheduleOrder, StockGroup stockGroup) = TRUE IF levelParent (scheduleOrder, stockGroup) PERSISTENT;
+    inParent (ScheduleOrder scheduleOrder, StockGroup stockGroup) = TRUE IF levelParent (scheduleOrder, stockGroup) MATERIALIZED;
     
     in 'Отм' (ScheduleOrder scheduleOrder, StockGroup stockGroup) = OVERRIDE
         dataIn(scheduleOrder, stockGroup),
@@ -133,7 +133,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         (OVERRIDE dataIn(scheduleOrder, stock),                  
                   in(scheduleOrder, stockGroup(stock)))
         AND is###customerFilter(stock)
-        AND in(customer(scheduleOrder), stock) PERSISTENT;
+        AND in(customer(scheduleOrder), stock) MATERIALIZED;
          
          
     backgroundAllStocks 'Цвет' (ScheduleOrder scheduleOrder) = RGB(0,0,0) IF allStocks(scheduleOrder);      
@@ -150,7 +150,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     stocks 'Склады' (ScheduleOrder scheduleOrder) = VARSTRING[500]([ = GROUP CONCAT name(Stock stock) IF in(ScheduleOrder scheduleOrder, stock) , ', '
                                            BY scheduleOrder
-                                           ORDER stock](scheduleOrder)) MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
+                                           ORDER stock](scheduleOrder)) MINCHARWIDTH 20 PREFCHARWIDTH 40 MATERIALIZED;
     stocks(ScheduleOrder scheduleOrder) += stocks(scheduleOrder);            
                                                                                                            
     startDate 'Дата начала' = DATA DATE (ScheduleOrder) NOT NULL IN base;
@@ -209,7 +209,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     INDEX dateSupply(ScheduleOrderDetail d), customerStock(d);
     
     isClosed  'Аннулирован' = DATA BOOLEAN (ScheduleOrderDetail );
-    isOpened  'Не аннулирован' (ScheduleOrderDetail o) = o IS ScheduleOrderDetail  AND NOT isClosed (o) PERSISTENT INDEXED;
+    isOpened  'Не аннулирован' (ScheduleOrderDetail o) = o IS ScheduleOrderDetail  AND NOT isClosed (o) MATERIALIZED INDEXED;
 
     close  'Аннулировать' (ScheduleOrderDetail o) = {
 	NEWSESSION { isClosed (o) <- TRUE; apply(); }
@@ -371,7 +371,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     monthInDate 'Месяц'(ScheduleOrderDetail scheduleOrderDetail) = extractMonthName(dateSupply(scheduleOrderDetail));
     DOWInDate 'День недели'(ScheduleOrderDetail scheduleOrderDetail) = extractDOWName(dateSupply(scheduleOrderDetail));
 
-    order = STRUCT(dateSupply(ScheduleOrderDetail scheduleOrderDetail), scheduleOrderDetail) IF isOpened(scheduleOrderDetail) PERSISTENT;
+    order = STRUCT(dateSupply(ScheduleOrderDetail scheduleOrderDetail), scheduleOrderDetail) IF isOpened(scheduleOrderDetail) MATERIALIZED;
 
     concatNextDetail(scheduleOrderDetail, scheduleOrder) = GROUP MIN order(ScheduleOrderDetail scheduleOrderDetail1) IF 
                                                                                   dateSupply(scheduleOrderDetail1) > dateSupply(ScheduleOrderDetail scheduleOrderDetail)
@@ -388,7 +388,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                        shipmentDate(userOrder)==dateSupply(scheduleOrderDetail) AND
                        date[Order](userOrder)==dateOrder(scheduleOrderDetail) AND
                        isOpened(scheduleOrderDetail)
-               BY scheduleOrderDetail PERSISTENT;
+               BY scheduleOrderDetail MATERIALIZED;
                
     lastScheduleOrderDetailSupplierCustomer (d,s,ss,c,cs) = 
         GROUP LAST ScheduleOrderDetail sd

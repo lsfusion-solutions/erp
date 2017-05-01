@@ -109,7 +109,7 @@ DESIGN operation {
     }
 }
 
-invoiceDetail = ABSTRACT InvoiceDetail (Purchase.InvoiceDetail) PERSISTENT INDEXED;
+invoiceDetail = ABSTRACT InvoiceDetail (Purchase.InvoiceDetail) MATERIALIZED INDEXED;
 invoiceDetail = DATA InvoiceDetail (Purchase.UserInvoiceDetail) INDEXED;
 invoiceDetail(Purchase.UserInvoiceDetail invoiceDetail) += invoiceDetail(invoiceDetail);
 
@@ -143,11 +143,11 @@ setPropertiesPurchaseSale(Purchase.UserInvoiceDetail d, InvoiceDetail invoiceDet
 
 GROUP invoice 'Информация о накладной' : base;
 
-createPurchaseInvoice 'Создать накладную (закупка)' = ABSTRACT BOOLEAN (Invoice) PERSISTENT;
-createPurchaseInvoice 'Создать накладную (закупка)' = DATA BOOLEAN (UserInvoice) PERSISTENT;
+createPurchaseInvoice 'Создать накладную (закупка)' = ABSTRACT BOOLEAN (Invoice) MATERIALIZED;
+createPurchaseInvoice 'Создать накладную (закупка)' = DATA BOOLEAN (UserInvoice) MATERIALIZED;
 createPurchaseInvoice(UserInvoice invoice) += createPurchaseInvoice(invoice);
 
-createPurchaseInvoice 'Создать накладную (закупка)' (InvoiceDetail invoiceDetail) = createPurchaseInvoice(invoice(invoiceDetail))PERSISTENT;
+createPurchaseInvoice 'Создать накладную (закупка)' (InvoiceDetail invoiceDetail) = createPurchaseInvoice(invoice(invoiceDetail))MATERIALIZED;
 createPurchaseInvoice 'Создать накладную (закупка)' (UserInvoiceDetail userInvoiceDetail) = createPurchaseInvoice(userInvoice(userInvoiceDetail));
 backgroundPurchase 'Цвет' (Invoice invoice) = RGB(255, 255, 190) IF invoice IS Invoice;
 
@@ -208,12 +208,12 @@ quantityInvoiceDetail (sale, purchase) = GROUP SUM quantity(Purchase.InvoiceDeta
 
 saleInvoices 'Накладные (продажа)' (purchase) = GROUP CONCAT VARSTRING[255](description(Invoice sale)) IF quantityInvoiceDetail(sale, Purchase.Invoice purchase) , ', '
                                                         BY purchase
-                                                        ORDER sale IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                        ORDER sale IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 
-relationPurchase 'Связь' (purchase) = GROUP SUM quantityInvoiceDetail (Invoice sale, Purchase.Invoice purchase) BY purchase PERSISTENT INDEXED; // для NOT NULL фильтров
+relationPurchase 'Связь' (purchase) = GROUP SUM quantityInvoiceDetail (Invoice sale, Purchase.Invoice purchase) BY purchase MATERIALIZED INDEXED; // для NOT NULL фильтров
 
 invoiced 'Кол-во (выписано)' (invoiceDetail) = GROUP SUM quantity(Purchase.InvoiceDetail detail) IF isPosted(detail)
-                                                                   BY invoiceDetail(detail) PERSISTENT;
+                                                                   BY invoiceDetail(detail) MATERIALIZED;
 
 invoiced 'Кол-во (выписано)' = GROUP SUM invoiced(InvoiceDetail detail) BY invoice(detail);
 

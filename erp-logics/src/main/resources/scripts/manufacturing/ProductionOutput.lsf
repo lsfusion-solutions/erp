@@ -75,7 +75,7 @@ close[StockDocumentLedger](Output l) += { close(l); }
 
 GROUP order 'Информация о заказе' : public;
 
-productDetail = ABSTRACT ProductDetail (OutputDetail) PERSISTENT;
+productDetail = ABSTRACT ProductDetail (OutputDetail) MATERIALIZED;
 productDetail = DATA ProductDetail (UserOutputDetail);
 productDetail(UserOutputDetail outputDetail) += productDetail(outputDetail);
 
@@ -92,10 +92,10 @@ quantityOutputDetail (order, output) = GROUP SUM quantity(OutputDetail outputDet
 
 orders 'Заказы' (output) = GROUP CONCAT VARSTRING[255](description(Order order)) IF quantityOutputDetail(order, Output output) , ', '
                                                 BY output
-                                                ORDER order IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                ORDER order IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 
 output 'Кол-во (произведено)' (productDetail) = GROUP SUM quantity(OutputDetail outputDetail) IF isPosted(outputDetail)
-                                                                   BY productDetail(outputDetail) PERSISTENT;
+                                                                   BY productDetail(outputDetail) MATERIALIZED;
 
 toOutput 'Не произведено' (ProductDetail productDetail) = quantity (productDetail) (-) output(productDetail);
 

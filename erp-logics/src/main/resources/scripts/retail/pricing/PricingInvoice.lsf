@@ -6,7 +6,7 @@ NAMESPACE Pricing;
 
 @defineDocumentAbstractHeaderProperty (invoice, createPricing, 'Создать акт расценки');
 
-invoiceDetail = ABSTRACT InvoiceDetail (PricingDetail) PERSISTENT INDEXED;
+invoiceDetail = ABSTRACT InvoiceDetail (PricingDetail) MATERIALIZED INDEXED;
 
 backgroundRetail 'Цвет' (Invoice invoice) = RGB(224, 255, 255) IF invoice IS Invoice;
 
@@ -79,22 +79,22 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
 
     // Кол-во, которое изменяет расцененное количество
     extraPricingQuantity = ABSTRACT NUMERIC[16,5] (UserInvoiceDetail);
-    overPricingQuantity = ABSTRACT NUMERIC[16,5] (UserInvoiceDetail) PERSISTENT;
+    overPricingQuantity = ABSTRACT NUMERIC[16,5] (UserInvoiceDetail) MATERIALIZED;
     overQuantity = OVERRIDE overPricingQuantity(User###concrete##Detail detail), quantity(detail);
     pricingQuantity(User###concrete##Detail detail) <- overQuantity(detail) (+) extraPricingQuantity(detail)
         WHEN CHANGED(overQuantity(detail)) OR CHANGED(extraPricingQuantity(detail));
 
     // Базовая цена
-    overPricingPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
-    overPricingPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail) PERSISTENT;
+    overPricingPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
+    overPricingPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail) MATERIALIZED;
     overPricingPrice (User###concrete##Detail detail) += overPricingPrice(detail);
     
     extraPricingPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail);
     extraPricingPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail);
     extraPricingPrice (User###concrete##Detail detail) += extraPricingPrice(detail);    
 
-    pricingPrice 'Цена входная' (User###concrete##Detail detail) = (OVERRIDE overPricingPrice(detail), price(detail)) (+) extraPricingPrice(detail) PERSISTENT;
-    pricingPrice 'Цена входная' (###concrete##Detail detail) = (OVERRIDE overPricingPrice(detail), price(detail)) (+) extraPricingPrice(detail) PERSISTENT;
+    pricingPrice 'Цена входная' (User###concrete##Detail detail) = (OVERRIDE overPricingPrice(detail), price(detail)) (+) extraPricingPrice(detail) MATERIALIZED;
+    pricingPrice 'Цена входная' (###concrete##Detail detail) = (OVERRIDE overPricingPrice(detail), price(detail)) (+) extraPricingPrice(detail) MATERIALIZED;
 
     // Надбавка
     @defineDocumentInterfaceDetailMarkupPrefix (invoice, retail, );
@@ -106,7 +106,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
 
     // Розничная
     @defineDocumentInterfaceDetailPricePrefix(invoice, retail, ' розничная');
-    extraRetailPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+    extraRetailPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
     retailExtraPrice 'Цена (полная)' = retailPrice(###concrete##Detail d) + OVERRIDE extraRetailPrice(d), 0; 
     
     CONSTRAINT stockProp##Stock(User###concrete##Detail d) IS DepartmentStore AND date(d) >= dateBanRetailPrice(stockProp##Stock(d)) AND isPosted(d) AND isItem(sku(d)) AND NOT retailPrice(d)
@@ -123,10 +123,10 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
 
     // НДС
     @defineDocumentInterfaceDetailVATDataSumPrefix (invoice, retail, ' розничная');
-    extraRetailVATSum = ABSTRACT NUMERIC[18,4] (InvoiceDetail) PERSISTENT;
+    extraRetailVATSum = ABSTRACT NUMERIC[18,4] (InvoiceDetail) MATERIALIZED;
     // Выходная
     @defineDocumentInterfaceDetailDataSumPrefix (invoice, retail, ' розничная');
-    extraRetailSum = ABSTRACT NUMERIC[18,4] (InvoiceDetail) PERSISTENT;
+    extraRetailSum = ABSTRACT NUMERIC[18,4] (InvoiceDetail) MATERIALIZED;
     
     // Расчет сумм обратным счетом
     //поменять price на pricingPrice
@@ -255,10 +255,10 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
 
     @defineDocumentTables(concrete###pricing);
 
-    needToPricing (###concrete##Detail invoiceDetail) = createPricing(invoiceDetail) AND isStockSku(invoiceDetail) PERSISTENT;
+    needToPricing (###concrete##Detail invoiceDetail) = createPricing(invoiceDetail) AND isStockSku(invoiceDetail) MATERIALIZED;
 
     needToPricing (invoice)= GROUP SUM 1 IF needToPricing(###concrete##Detail invoiceDetail)
-        BY concrete(invoiceDetail) PERSISTENT;
+        BY concrete(invoiceDetail) MATERIALIZED;
 
     @defineDocumentAggregation(invoice, concrete###pricing, needToPricing);
     Pricing.concrete##Detail(###concrete##PricingDetail detail) += concrete##Detail(detail);
@@ -280,8 +280,8 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     pricingTime(User###concrete invoice) = OVERRIDE shipmentTime(concrete), time (concrete);
     pricingDateTime(User###concrete invoice) = dateTimeToDateTime(pricingDate(invoice), pricingTime(invoice));
 
-    pricingDateTime(###concrete##Detail d) = pricingDateTime(concrete(d)) PERSISTENT;
-    pricingDateTime(User###concrete##Detail d) = pricingDateTime(user###concrete(d)) PERSISTENT;
+    pricingDateTime(###concrete##Detail d) = pricingDateTime(concrete(d)) MATERIALIZED;
+    pricingDateTime(User###concrete##Detail d) = pricingDateTime(user###concrete(d)) MATERIALIZED;
     
     date(###concrete##Pricing pricing) += pricingDate(concrete(pricing)) ;
     time(###concrete##Pricing pricing) += pricingTime(concrete(pricing));
@@ -373,7 +373,7 @@ END
 //--  Связь накладной и расценки
 META defineInvoicePricingRelation(sign, stockProp)
 
-    invoiceDetail = ABSTRACT InvoiceDetail (PricingDetail) PERSISTENT INDEXED;
+    invoiceDetail = ABSTRACT InvoiceDetail (PricingDetail) MATERIALIZED INDEXED;
     invoiceDetail = DATA InvoiceDetail (UserPricingDetail);
     invoiceDetail(UserPricingDetail pricingDetail) += invoiceDetail(pricingDetail);
 
@@ -390,10 +390,10 @@ META defineInvoicePricingRelation(sign, stockProp)
 
     invoices 'Накладные' (pricing) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityPricingDetail(invoice, Pricing pricing) , ', '
                                                     BY pricing
-                                                    ORDER invoice IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                    ORDER invoice IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 
     pricing 'Кол-во (расценено)' (invoiceDetail) = GROUP SUM quantity(PricingDetail pricingDetail) IF isPosted(pricingDetail)
-                                                                       BY invoiceDetail(pricingDetail) PERSISTENT;
+                                                                       BY invoiceDetail(pricingDetail) MATERIALIZED;
 
     toPricing 'Не расценено' (InvoiceDetail invoiceDetail) = quantity (invoiceDetail) (-) pricing(invoiceDetail);
 

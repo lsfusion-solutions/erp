@@ -23,7 +23,7 @@ VAT (UserInvoice userInvoice) <- range(Tax.taxVAT, store(supplierStock(userInvoi
 //@deriveDocumentDetailVATHeader(userInvoice, VAT, supplierStock);
 
 overVAT (UserInvoiceDetail d) += VAT(userInvoice(d));
-WHEN SESSION CHANGED(VAT(userInvoice(UserInvoiceDetail d))) DO {
+WHEN LOCAL CHANGED(VAT(userInvoice(UserInvoiceDetail d))) DO {
     VAT(d) <- overVAT (d); 
 }
 
@@ -31,7 +31,7 @@ EXTEND FORM userInvoice
     PROPERTIES(i) numberVAT SHOWIF useCountVATOperation(i), valueVAT SHOWIF useCountVATOperation(i);
 ;
 
-WHEN SESSION FORMS userInvoice (CHANGED(quantity(UserInvoiceDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(valueVAT(d)))
+WHEN LOCAL FORMS userInvoice (CHANGED(quantity(UserInvoiceDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(valueVAT(d)))
                                AND VAT(userInvoice(d)) AND includeVAT(priceListType(d)) DO {
     invoiceSum(d) <- IF individualLegalEntitySale(operation(d)) THEN
             round(quantity(d) * invoicePrice(d), roundCondition(supplierStock(d)))

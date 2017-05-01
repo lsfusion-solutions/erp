@@ -101,7 +101,7 @@ DESIGN invoiceInvoices {
     }
 }
 
-invoiceDetail = ABSTRACT InvoiceDetail (SaleReturn.InvoiceDetail) PERSISTENT INDEXED;
+invoiceDetail = ABSTRACT InvoiceDetail (SaleReturn.InvoiceDetail) MATERIALIZED INDEXED;
 invoiceDetail = DATA InvoiceDetail (SaleReturn.UserInvoiceDetail) INDEXED;
 invoiceDetail(SaleReturn.UserInvoiceDetail invoiceDetail) += invoiceDetail(invoiceDetail);
 
@@ -136,11 +136,11 @@ setPropertiesPurchaseReturnSaleReturn(SaleReturn.UserInvoiceDetail d, InvoiceDet
 
 GROUP invoice 'Информация о накладной' : base;
 
-createSaleReturnInvoice 'Создать накладную (продажа-возврат)' = ABSTRACT BOOLEAN (Invoice) PERSISTENT;
-createSaleReturnInvoice 'Создать накладную (продажа-возврат)' = DATA BOOLEAN (UserInvoice) PERSISTENT;
+createSaleReturnInvoice 'Создать накладную (продажа-возврат)' = ABSTRACT BOOLEAN (Invoice) MATERIALIZED;
+createSaleReturnInvoice 'Создать накладную (продажа-возврат)' = DATA BOOLEAN (UserInvoice) MATERIALIZED;
 createSaleReturnInvoice(UserInvoice invoice) += createSaleReturnInvoice(invoice);
 
-createSaleReturnInvoice 'Создать накладную (продажа-возврат)' (InvoiceDetail invoiceDetail) = createSaleReturnInvoice(invoice(invoiceDetail))PERSISTENT;
+createSaleReturnInvoice 'Создать накладную (продажа-возврат)' (InvoiceDetail invoiceDetail) = createSaleReturnInvoice(invoice(invoiceDetail))MATERIALIZED;
 createSaleReturnInvoice 'Создать накладную (продажа-возврат)' (UserInvoiceDetail userInvoiceDetail) = createSaleReturnInvoice(userInvoice(userInvoiceDetail));
 backgroundSaleReturn 'Цвет' (Invoice invoice) = RGB(255, 255, 190) IF invoice IS Invoice;
 
@@ -174,12 +174,12 @@ quantityInvoiceDetail (purchaseReturn, saleReturn) = GROUP SUM quantity(SaleRetu
 
 purchaseReturnInvoices 'Накладные (закупка-возврат)' (saleReturn) = GROUP CONCAT VARSTRING[255](description(Invoice purchaseReturn)) IF quantityInvoiceDetail (purchaseReturn, SaleReturn.Invoice saleReturn), ', '
                                                         BY saleReturn
-                                                        ORDER purchaseReturn IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                        ORDER purchaseReturn IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 
-relationSaleReturn 'Связь' (saleReturn) = GROUP SUM quantityInvoiceDetail (Invoice purchaseReturn, SaleReturn.Invoice saleReturn) BY saleReturn PERSISTENT;
+relationSaleReturn 'Связь' (saleReturn) = GROUP SUM quantityInvoiceDetail (Invoice purchaseReturn, SaleReturn.Invoice saleReturn) BY saleReturn MATERIALIZED;
 
 invoiced 'Кол-во (выписано)' (invoiceDetail) = GROUP SUM quantity(SaleReturn.InvoiceDetail detail) IF isPosted(detail)
-                                                                   BY invoiceDetail(detail) PERSISTENT;
+                                                                   BY invoiceDetail(detail) MATERIALIZED;
 invoiced 'Кол-во (выписано)' = GROUP SUM invoiced(InvoiceDetail detail) BY invoice(detail);                                                                   
                                                                    
 statusInvoice 'Статус' = CASE WHEN invoiced(Invoice i) THEN 'Создан возврат'

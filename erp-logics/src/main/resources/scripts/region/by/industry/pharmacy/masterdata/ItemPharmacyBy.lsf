@@ -25,7 +25,7 @@ namePharmacyTypeGroup 'Наименование классификатора' = 
 
 groupType(PharmacyPriceGroup group) += pharmacyTypeGroup(group);
 
-pharmacyPriceGroup = ABSTRACT PharmacyPriceGroup (Sku) PERSISTENT;
+pharmacyPriceGroup = ABSTRACT PharmacyPriceGroup (Sku) MATERIALIZED;
 namePharmacyPriceGroup 'Тип лекарственного средства' (Sku sku) = name(pharmacyPriceGroup(sku));
 
 group(PharmacyGroupType type, Sku sku) += WHEN type IS PharmacyGroupType AND sku IS Sku THEN pharmacyPriceGroup(sku);
@@ -70,9 +70,9 @@ TABLE pharmacyPriceGroupPharmacyPriceInterval(PharmacyPriceGroup, PharmacyPriceI
 
 wholesaleMarkup 'Оптовая надбавка' = DATA NUMERIC[8,3] (PharmacyPriceInterval);
 retailMarkup 'Розничная надбавка' = DATA NUMERIC[8,3] (PharmacyPriceInterval);
-eurCurrency = currencyShortName('EUR') PERSISTENT;
-usdCurrency = currencyShortName('USD') PERSISTENT;
-blrCurrency = currencyShortName('BLR') PERSISTENT;
+eurCurrency = currencyShortName('EUR') MATERIALIZED;
+usdCurrency = currencyShortName('USD') MATERIALIZED;
+blrCurrency = currencyShortName('BLR') MATERIALIZED;
 pharmacyExchange (price, DATE date) = price / rateOn(pharmacyTypeExchange(), usdCurrency(), date);
 
 wholesaleMarkupPharmacy 'Оптовая надбавка' (priceGroup, price, date) =
@@ -259,7 +259,7 @@ name(WholesalePharmacyPriceListType type) += name(type) IF type IS WholesalePhar
 calcPriceListType = DATA CalcPriceListType (WholesalePharmacyPriceListType);
 nameCalcPriceListType 'Вид цены с основной наценкой' (WholesalePharmacyPriceListType type) = name[PriceListType](calcPriceListType(type));
 
-ledgerPriceListType(WholesalePharmacyPriceListType type) = basePriceListType(calcPriceListType(type)) AS LedgerPriceListType PERSISTENT INDEXED; //DATA LedgerPriceListType (WholesalePharmacyPriceListType);
+ledgerPriceListType(WholesalePharmacyPriceListType type) = basePriceListType(calcPriceListType(type)) AS LedgerPriceListType MATERIALIZED INDEXED; //DATA LedgerPriceListType (WholesalePharmacyPriceListType);
 
 ledgerPriceListType(WholesalePharmacyPriceListType type) += ledgerPriceListType(type);
 

@@ -36,18 +36,18 @@ dataInclude 'Вкл' = DATA BOOLEAN (SnapshotType, StockGroup);
 dataInclude 'Вкл' = DATA BOOLEAN (SnapshotType, Stock);
 
 levelParentInclude (snapshotType, stockGroup) = GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataInclude(SnapshotType snapshotType, parent)
-                                                              BY snapshotType, stockGroup PERSISTENT;    
+                                                              BY snapshotType, stockGroup MATERIALIZED;    
 nearestParentInclude (SnapshotType snapshotType, StockGroup stockGroup) = stockGroup(stockGroup, levelParentInclude(snapshotType, stockGroup));
 nearestInclude (SnapshotType snapshotType, StockGroup stockGroup) = dataInclude(snapshotType, nearestParentInclude (snapshotType, stockGroup));
 
 include 'Вкл' (SnapshotType snapshotType, StockGroup stockGroup) =
     OVERRIDE dataInclude(snapshotType, stockGroup), 
              nearestInclude (snapshotType, stockGroup),
-             allStockInclude(snapshotType) IF stockGroup IS StockGroup PERSISTENT;
+             allStockInclude(snapshotType) IF stockGroup IS StockGroup MATERIALIZED;
 
 include 'Вкл' (SnapshotType snapshotType, Stock stock) =
     (OVERRIDE dataInclude(snapshotType, stock),
-             include(snapshotType, stockGroup(stock))) IF isCompany(stock) PERSISTENT;
+             include(snapshotType, stockGroup(stock))) IF isCompany(stock) MATERIALIZED;
                         
 @defineBackgroundNearestBoolean(allStockInclude, include, snapshotType, stock, nearestInclude, isCompany);            
                           
@@ -75,13 +75,13 @@ TABLE snapshotTypeSkuGroup (SnapshotType, SkuGroup);
 dataInclude 'Вкл' = DATA BOOLEAN (SnapshotType, SkuGroup);
 
 levelParentInclude (snapshotType, skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataInclude(SnapshotType snapshotType, parent)
-                                                              BY snapshotType, skuGroup PERSISTENT;    
+                                                              BY snapshotType, skuGroup MATERIALIZED;    
 nearestParentInclude (SnapshotType snapshotType, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(snapshotType, skuGroup));
 nearestInclude (SnapshotType snapshotType, SkuGroup skuGroup) = dataInclude(snapshotType, nearestParentInclude (snapshotType, skuGroup));
 
 include 'Вкл' (SnapshotType snapshotType, SkuGroup skuGroup) =
     OVERRIDE dataInclude(snapshotType, skuGroup), 
-             nearestInclude (snapshotType, skuGroup) PERSISTENT;    
+             nearestInclude (snapshotType, skuGroup) MATERIALIZED;    
                       
 include 'Вкл' (SnapshotType snapshotType, Sku sku) = include(snapshotType, skuGroup(sku));  
                     
@@ -222,7 +222,7 @@ countDays 'Кол-во дней' (Snapshot s) = daysBetweenDates(toDate(s), from
 startTime 'Время начала формирования' = DATA DATETIME (Snapshot) IN created;
 finishTime 'Время окончания формирования' = DATA DATETIME (Snapshot) IN created;
 
-WHEN SESSION SET(Snapshot o IS Snapshot) DO {
+WHEN LOCAL SET(Snapshot o IS Snapshot) DO {
     IF o IS Snapshot AND NOT fromDate(o) THEN fromDate(o) <- currentDate();
     IF o IS Snapshot AND NOT toDate(o) THEN toDate(o) <- currentDate();
 };
@@ -317,57 +317,57 @@ TABLE skuGroupStockSnapshot (SkuGroup, Stock, Snapshot);
 //-- группа/склад       
 balanceB 'Кол-во начало' (group, stock, snapshot) =
     GROUP SUM balanceB (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;
+        BY group, stock, snapshot MATERIALIZED;
 netWeightB 'Вес начало' (group, stock, snapshot) =
     GROUP SUM netWeightB (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;               
+        BY group, stock, snapshot MATERIALIZED;               
 sumB 'Сумма начало' (group, stock, snapshot) =
     GROUP SUM sumB (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;    
+        BY group, stock, snapshot MATERIALIZED;    
 costB 'Себестоимость начало' (group, stock, snapshot) =
     GROUP SUM costB (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;   
+        BY group, stock, snapshot MATERIALIZED;   
 VATSupplierB 'НДС поставщика начало' (group, stock, snapshot) =
     GROUP SUM VATSupplierB (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;   
+        BY group, stock, snapshot MATERIALIZED;   
 costVATSupplierB 'С/С с НДС начало' = VATSupplierB(SkuGroup group, Stock stock, Snapshot snapshot) (+) 
                                                                  costB(group, stock, snapshot);                                           
     
 inQuantity 'Кол-во приход' (group, stock, snapshot) =
     GROUP SUM inQuantity (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;
+        BY group, stock, snapshot MATERIALIZED;
 inNetWeight 'Вес приход' (group, stock, snapshot) =
     GROUP SUM inNetWeight (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;        
+        BY group, stock, snapshot MATERIALIZED;        
 inSum 'Сумма приход' (group, stock, snapshot) =
     GROUP SUM inSum (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;  
+        BY group, stock, snapshot MATERIALIZED;  
            
 outQuantity 'Кол-во расход' (group, stock, snapshot) =
     GROUP SUM outQuantity (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;
+        BY group, stock, snapshot MATERIALIZED;
 outNetWeight 'Вес расход' (group, stock, snapshot) =
     GROUP SUM outNetWeight (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;        
+        BY group, stock, snapshot MATERIALIZED;        
 outSum 'Сумма расход' (group, stock, snapshot) =
     GROUP SUM outSum (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;             
+        BY group, stock, snapshot MATERIALIZED;             
     
 balanceA 'Кол-во конец' (group, stock, snapshot) =
     GROUP SUM balanceA (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;
+        BY group, stock, snapshot MATERIALIZED;
 netWeightA 'Вес конец' (group, stock, snapshot) =
     GROUP SUM netWeightA (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;              
+        BY group, stock, snapshot MATERIALIZED;              
 sumA 'Сумма конец' (group, stock, snapshot) =
     GROUP SUM sumA (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;  
+        BY group, stock, snapshot MATERIALIZED;  
 costA 'Себестоимость конец' (group, stock, snapshot) =
     GROUP SUM costA (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;   
+        BY group, stock, snapshot MATERIALIZED;   
 VATSupplierA 'НДС поставщика конец' (group, stock, snapshot) =
     GROUP SUM VATSupplierA (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;    
+        BY group, stock, snapshot MATERIALIZED;    
 costVATSupplierA 'С/С с НДС конец' = VATSupplierA(SkuGroup group, Stock stock, Snapshot snapshot) (+) 
                                                                 costA(group, stock, snapshot);                   
                    
@@ -618,18 +618,18 @@ dataInclude 'Вкл' = DATA BOOLEAN (Snapshot, StockGroup);
 dataInclude 'Вкл' = DATA BOOLEAN (Snapshot, Stock);
 
 levelParentInclude (snapshot, stockGroup) = GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataInclude(Snapshot snapshot, parent)
-                                                              BY snapshot, stockGroup PERSISTENT;    
+                                                              BY snapshot, stockGroup MATERIALIZED;    
 nearestParentInclude (Snapshot snapshot, StockGroup stockGroup) = stockGroup(stockGroup, levelParentInclude(snapshot, stockGroup));
 nearestInclude (Snapshot snapshot, StockGroup stockGroup) = dataInclude(snapshot, nearestParentInclude (snapshot, stockGroup));
 
 include 'Вкл' (Snapshot snapshot, StockGroup stockGroup) =
     OVERRIDE dataInclude(snapshot, stockGroup), 
              nearestInclude (snapshot, stockGroup),
-             allStockInclude(snapshot) IF stockGroup IS StockGroup PERSISTENT;
+             allStockInclude(snapshot) IF stockGroup IS StockGroup MATERIALIZED;
 
 include 'Вкл' (Snapshot snapshot, Stock stock) =
     (OVERRIDE dataInclude(snapshot, stock),
-             include(snapshot, stockGroup(stock))) IF isCompany(stock) PERSISTENT;
+             include(snapshot, stockGroup(stock))) IF isCompany(stock) MATERIALIZED;
 countIncludeStocks= GROUP SUM 1 IF include(Snapshot r,Stock st) BY r;
 
 deleteIncludeStocks 'Сбросить отмеченные'(Snapshot r) = {
@@ -672,13 +672,13 @@ TABLE snapshotSkuGroup (Snapshot, SkuGroup);
 dataInclude 'Вкл' = DATA BOOLEAN (Snapshot, SkuGroup);
 
 levelParentInclude (snapshot, skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataInclude(Snapshot snapshot, parent)
-                                                              BY snapshot, skuGroup PERSISTENT;    
+                                                              BY snapshot, skuGroup MATERIALIZED;    
 nearestParentInclude (Snapshot snapshot, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(snapshot, skuGroup));
 nearestInclude (Snapshot snapshot, SkuGroup skuGroup) = dataInclude(snapshot, nearestParentInclude (snapshot, skuGroup));
 
 include 'Вкл' (Snapshot snapshot, SkuGroup skuGroup) =
     OVERRIDE dataInclude(snapshot, skuGroup), 
-             nearestInclude (snapshot, skuGroup) PERSISTENT;    
+             nearestInclude (snapshot, skuGroup) MATERIALIZED;    
                       
 include 'Вкл' (Snapshot snapshot, Sku sku) = include(snapshot, skuGroup(sku));  
                     
@@ -1026,12 +1026,12 @@ takeData 'Сформировать отчет' (Snapshot snapshot) = {
 filterMove (Sku s, Stock st, Snapshot r) = balanceB(s,st,r) OR balanceA(s,st,r) OR 
                                         inQuantity(s,st,r) OR outQuantity(s,st,r) OR
                                         sumB(s,st,r) OR sumA(s,st,r) OR 
-                                        inSum(s,st,r) OR outSum(s,st,r)PERSISTENT;
+                                        inSum(s,st,r) OR outSum(s,st,r)MATERIALIZED;
                                         
 filterMove (Sku s, Stock st, Snapshot r, DATE d) = balanceB(s,st,r,d) OR balanceA(s,st,r,d) OR 
                                         inQuantity(s,st,r,d) OR outQuantity(s,st,r,d) OR
                                         sumB(s,st,r,d) OR sumA(s,st,r,d) OR 
-                                        inSum(s,st,r,d) OR outSum(s,st,r,d) PERSISTENT;  
+                                        inSum(s,st,r,d) OR outSum(s,st,r,d) MATERIALIZED;  
                                         
 filterMove (r, d) = GROUP SUM 1 IF filterMove (Sku s, Stock st, Snapshot r, DATE d) BY r, d;                                        
 filterMove (st, r, d) = GROUP SUM 1 IF filterMove (Sku s, Stock st, Snapshot r, DATE d) BY st, r, d;                                       
@@ -1039,7 +1039,7 @@ filterMove (st, r, d) = GROUP SUM 1 IF filterMove (Sku s, Stock st, Snapshot r, 
 filterMove (Batch bt,Stock ss,Snapshot r)= balanceB(bt,ss,r) OR balanceA(bt,ss,r) OR 
                                         inQuantity(bt,ss,r) OR outQuantity(bt,ss,r) OR 
                                         sumB(bt,ss,r) OR sumA(bt,ss,r) OR 
-                                        inSum(bt,ss,r) OR outSum(bt,ss,r) PERSISTENT;
+                                        inSum(bt,ss,r) OR outSum(bt,ss,r) MATERIALIZED;
 
 //-- SHOWIF
 isQuantityBalanceB = isQuantity(Snapshot snapshot) AND isBalanceB(snapshot);

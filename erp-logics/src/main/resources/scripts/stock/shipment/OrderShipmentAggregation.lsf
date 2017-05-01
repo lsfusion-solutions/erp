@@ -29,7 +29,7 @@ META defineInvoiceOrderShipment(sign, NS)
             THEN sumMonth(manufactureDate(d), expiryMonth(sku(d)))
             ELSE sum(manufactureDate(d), expiryDays(sku(d))));
         
-    WHEN SESSION FORMS userOrder (CHANGED(manufactureDate(OrderDetail d)) OR CHANGED(sku[UserOrderDetail](d))) AND NOT batch[UserOrderDetail](d) AND manufactureDate(d) DO {
+    WHEN LOCAL FORMS userOrder (CHANGED(manufactureDate(OrderDetail d)) OR CHANGED(sku[UserOrderDetail](d))) AND NOT batch[UserOrderDetail](d) AND manufactureDate(d) DO {
         expiryDate[UserOrderDetail](d) <- calcExpiryDate(d);            
     } 
     overManufactureDate = ABSTRACT DATE (OrderDetail);
@@ -39,7 +39,7 @@ META defineInvoiceOrderShipment(sign, NS)
             THEN sumMonth(expiryDate(d), -expiryMonth(sku(d)))
             ELSE sum(expiryDate(d), -expiryDays(sku(d))));     
            
-    WHEN SESSION FORMS userOrder (CHANGED(expiryDate(OrderDetail d)) OR CHANGED(sku[UserOrderDetail](d))) AND NOT batch[UserOrderDetail](d) AND expiryDate(d) DO {
+    WHEN LOCAL FORMS userOrder (CHANGED(expiryDate(OrderDetail d)) OR CHANGED(sku[UserOrderDetail](d))) AND NOT batch[UserOrderDetail](d) AND expiryDate(d) DO {
         manufactureDate[UserOrderDetail](d) <- calcManufactureDate(d);            
     } 
     expiryDate(UserOrderDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHANGED (batch(detail));

@@ -10,7 +10,7 @@ WHEN SETCHANGED (id(Barcode b)) INLINE DO id(b) <- replace(id(b), ' ','');
 @defineExternalizable(barcode, VARSTRING[100], ext);
 
 dataDate 'Дата действия' = DATA DATE (Barcode);
-date 'Дата действия' = OVERRIDE dataDate(Barcode barcode), (2001_01_01 IF barcode IS Barcode) IN base PERSISTENT;
+date 'Дата действия' = OVERRIDE dataDate(Barcode barcode), (2001_01_01 IF barcode IS Barcode) IN base MATERIALIZED;
 
 caption 'Описание' = DATA VARISTRING[30](Barcode);
 
@@ -21,13 +21,13 @@ barcode (id, date) =
           WHERE date(barcode) <= (date AS DATE) COMPLEX;
 
 barcode (VARSTRING[15] id) = barcode(id, currentDate());
-active 'Активный' (Barcode barcode) = barcode(id(barcode)) == barcode PERSISTENT;
+active 'Активный' (Barcode barcode) = barcode(id(barcode)) == barcode MATERIALIZED;
 
 WHEN CHANGED(id(Barcode b) IF active(b)) AND NOT CHANGED(extId(b)) DO
     extId(b) <- id(b) IF active(b);
 
 dataAmount 'Множитель' = DATA NUMERIC[14,3] (Barcode);
-amount 'Множитель' = OVERRIDE dataAmount (Barcode barcode), (1.0 IF barcode IS Barcode) PERSISTENT;
+amount 'Множитель' = OVERRIDE dataAmount (Barcode barcode), (1.0 IF barcode IS Barcode) MATERIALIZED;
 
 completeBarcode = FORMULA TEXT PG 'completeBarcode($1)', MS 'dbo.completeBarcode($1)';
 
@@ -97,7 +97,7 @@ CONSTRAINT sku(dataBarcode(Sku item)) != item CHECKED BY dataBarcode[Sku] MESSAG
 replace(Sku s, Sku d) += {sku(Barcode barcode) <- d WHERE sku(barcode) == s;}
 
 barcode(Sku sku) = OVERRIDE dataBarcode(sku) IF active(dataBarcode(sku)), [= GROUP MIN Barcode barcode IF id(barcode) AND amount(barcode) == 1.0 AND active(barcode)
-                        BY sku(barcode)](sku) PERSISTENT;
+                        BY sku(barcode)](sku) MATERIALIZED;
 
 primary 'Основной' (Barcode barcode) = barcode(sku(barcode)) == barcode;
 changePrimary(Barcode barcode, Sku sku) = {
@@ -108,7 +108,7 @@ changePrimary(Barcode barcode, Sku sku) = {
 
 allBarcodes 'Все штрих-коды' = GROUP CONCAT id(Barcode b) IF id(b), ',' BY sku(b) ORDER id(b), b;
 
-idBarcode 'Штрихкод' (Sku sku) = id(barcode(sku)) IN base AGGPROP PERSISTENT INDEXED;
+idBarcode 'Штрихкод' (Sku sku) = id(barcode(sku)) IN base AGGPROP MATERIALIZED INDEXED;
 idBarcodeSku 'Штрихкод' (VARSTRING[100] id) = id(barcode(sku(id)));
 idBarcodeSku 'Штрихкод' (Batch batch) = idBarcode(sku(batch));
 idBarcodeSku 'Штрихкод' (SkuLedger skuLedger) = idBarcode(sku(skuLedger));
@@ -117,7 +117,7 @@ amountBarcode 'Множитель' (Sku sku) = amount(barcode(sku));
 amountBarcodeSku 'Множитель' = amountBarcode(sku(Batch batch));
 
 dataUOM = DATA UOM (Barcode);
-UOM = OVERRIDE dataUOM(Barcode barcode), UOM(sku(barcode)) PERSISTENT;
+UOM = OVERRIDE dataUOM(Barcode barcode), UOM(sku(barcode)) MATERIALIZED;
 shortNameUOM 'Единица измерения' (Barcode barcode) = shortName(UOM(barcode));
 idUOM 'Код единицы измерения' (Barcode barcode) = id(UOM(barcode));
 

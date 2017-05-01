@@ -46,18 +46,18 @@ name 'Название' = DATA VARISTRING[100] (Range) IN recognize;
 TABLE rangeSkuGroup(Range, SkuGroup);
 inData 'Вкл' = DATA BOOLEAN (Range, SkuGroup);
 
-countSkuGroup 'Кол-во групп' = GROUP SUM 1 IF inData(Range r, SkuGroup g) BY r PERSISTENT; 
+countSkuGroup 'Кол-во групп' = GROUP SUM 1 IF inData(Range r, SkuGroup g) BY r MATERIALIZED; 
 
 inParent (range, parent) = GROUP SUM 1 IF inData(Range range, SkuGroup child) AND isParent(child, SkuGroup parent)
-                              BY range, parent PERSISTENT;
+                              BY range, parent MATERIALIZED;
 
 inChild (range, child) = GROUP SUM 1 IF inData(Range range, SkuGroup parent) AND isParent(SkuGroup child, parent)
-                              BY range, child PERSISTENT;
+                              BY range, child MATERIALIZED;
                               
 inChild (Range range, Sku sku) = inChild(range, skuGroup(sku)); 
 
-quantityChildWith (skuGroup, range) = GROUP SUM 1 IF inData(Range range, SkuGroup childSkuGroup) AND isParent(childSkuGroup, SkuGroup skuGroup) BY skuGroup, range PERSISTENT;
-quantityParentWith (skuGroup, range) = GROUP SUM 1 IF inData(Range range, SkuGroup parentSkuGroup) AND isParent(SkuGroup skuGroup, parentSkuGroup) BY skuGroup, range PERSISTENT; 
+quantityChildWith (skuGroup, range) = GROUP SUM 1 IF inData(Range range, SkuGroup childSkuGroup) AND isParent(childSkuGroup, SkuGroup skuGroup) BY skuGroup, range MATERIALIZED;
+quantityParentWith (skuGroup, range) = GROUP SUM 1 IF inData(Range range, SkuGroup parentSkuGroup) AND isParent(SkuGroup skuGroup, parentSkuGroup) BY skuGroup, range MATERIALIZED; 
 
 backgroundIn 'Цвет' (Range range, SkuGroup skuGroup) = CASE 
     WHEN inData(range, skuGroup) THEN RGB(0,0,0)
@@ -154,7 +154,7 @@ TABLE rangeRev(RangeRev);
 dateTime 'Действует (с)' = DATA DATETIME (RangeRev) IN recognize;
 dateTime(RangeRev v) <- currentDateTime() WHEN SET(v IS RangeRev);
 
-date 'Действует (с)' (RangeRev v) = toDate(dateTime(v)) PERSISTENT;
+date 'Действует (с)' (RangeRev v) = toDate(dateTime(v)) MATERIALIZED;
 
 range 'Ассортиментная матрица' = DATA Range(RangeRev) NOT NULL AUTOSET;  
 
@@ -514,8 +514,8 @@ useRange 'Использовать ассортиментную матрицу' 
 EXTEND FORM chainStores
     PROPERTIES(s) useRange AFTER name(s)    
 ;
-useRange 'Использовать ассортиментную матрицу' (Store s) = useRange(storeType(s)) PERSISTENT; 
-useRange 'Использовать ассортиментную матрицу' (DepartmentStore s) = useRange(store(s)) PERSISTENT; 
+useRange 'Использовать ассортиментную матрицу' (Store s) = useRange(storeType(s)) MATERIALIZED; 
+useRange 'Использовать ассортиментную матрицу' (DepartmentStore s) = useRange(store(s)) MATERIALIZED; 
 
 TABLE rangeStoreTypeDate(Range, StoreType, DATE);
 dataLevel = DATA RangeLevel (Range, StoreType, DATE);

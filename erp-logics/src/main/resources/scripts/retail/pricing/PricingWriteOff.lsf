@@ -118,10 +118,10 @@ CLASS WriteOffPricingDetail 'Строка акта расценки при сп�
 
 @defineDocumentTables(WriteOffPricing);
 
-needToPricing (WriteOffDetail writeOffDetail) = createPricing(writeOffDetail) AND isStockSku(writeOffDetail) PERSISTENT;
+needToPricing (WriteOffDetail writeOffDetail) = createPricing(writeOffDetail) AND isStockSku(writeOffDetail) MATERIALIZED;
 
 needToPricing (writeOff)= GROUP SUM 1 IF needToPricing(WriteOffDetail writeOffDetail)
-    BY writeOff(writeOffDetail) PERSISTENT;
+    BY writeOff(writeOffDetail) MATERIALIZED;
 
 @defineDocumentAggregation(writeOff, writeOffPricing, needToPricing);
 
@@ -212,7 +212,7 @@ edit (WriteOffPricing p)+= { edit(writeOff(p)); }
 
 // Автоматически проставляем цены поставщика и розничные
 
-WHEN SESSION CHANGED(sku(UserWriteOffDetail detail)) OR
+WHEN LOCAL CHANGED(sku(UserWriteOffDetail detail)) OR
      CHANGED(stock(detail)) OR
      (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
      CHANGED(batch(detail)) DO 
@@ -227,7 +227,7 @@ WHEN SESSION CHANGED(sku(UserWriteOffDetail detail)) OR
                                                                                                  stock(detail),
                                                                                                  dateTime(detail));
 
-WHEN SESSION CHANGED(sku(UserWriteOffDetail detail)) OR
+WHEN LOCAL CHANGED(sku(UserWriteOffDetail detail)) OR
      CHANGED(stock(detail)) OR
      (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
      CHANGED(batch(detail)) DO
@@ -243,7 +243,7 @@ WHEN SESSION CHANGED(sku(UserWriteOffDetail detail)) OR
                                                                                                   dateTime(detail));
 
 // Автоматический расчет розничной надбавки
-WHEN SESSION CHANGED(retailPrice(UserWriteOffDetail userWriteOffDetail)) OR
+WHEN LOCAL CHANGED(retailPrice(UserWriteOffDetail userWriteOffDetail)) OR
               CHANGED (valueRetailVAT(userWriteOffDetail)) OR
               CHANGED(supplierPrice(userWriteOffDetail)) DO
     retailMarkup(userWriteOffDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](

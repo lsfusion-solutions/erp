@@ -53,13 +53,13 @@ CONSTRAINT beneficiary(PaymentRequest paymentRequest) != legalEntity(accountTo(p
 
 sum 'Сумма' (paymentRequest) = DATA NUMERIC[18,4] (PaymentRequest) PREFCHARWIDTH 16;
 
-description 'Название документа' = 'Платежное требование ' + seriesNumber(PaymentRequest paymentRequest) + ' от ' + date(paymentRequest) + ' ' + nameBeneficiary(paymentRequest) PERSISTENT;
+description 'Название документа' = 'Платежное требование ' + seriesNumber(PaymentRequest paymentRequest) + ' от ' + date(paymentRequest) + ' ' + nameBeneficiary(paymentRequest) MATERIALIZED;
 
 TABLE paymentRequestInContractLedger (PaymentRequest, InContractLedger);
 cost 'Сумма требования' (paymentRequest, inContractLedger) = DATA NUMERIC[18,4] (PaymentRequest, InContractLedger);
 requested 'Выставлено требований' (inContractLedger) =
     GROUP SUM cost(PaymentRequest paymentRequest, InContractLedger inContractLedger) IF isPosted(paymentRequest)
-    BY inContractLedger PERSISTENT;
+    BY inContractLedger MATERIALIZED;
 
 requestedDebt 'Неоплаченных требований' (InContractLedger inContractLedger) =
     (MIN requested(inContractLedger), debt(inContractLedger)) IF requested(inContractLedger) AND debt(inContractLedger);

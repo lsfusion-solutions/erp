@@ -136,15 +136,15 @@ DESIGN itemGroup {
 @defineItemGroupDefaultValue(expired, 'Не грузить с истекшим ср. год-ти', BOOLEAN);
 
 dataExpired 'Не грузить с истекшим ср. год-ти' = DATA BOOLEAN (Item);
-expired 'Не грузить с истекшим ср. год-ти' (Item item) = OVERRIDE dataExpired(item), expired(itemGroup(item)) IN itemBase PERSISTENT ;
+expired 'Не грузить с истекшим ср. год-ти' (Item item) = OVERRIDE dataExpired(item), expired(itemGroup(item)) IN itemBase MATERIALIZED ;
 
 
 expiredSku (Barcode barcode) = expired(sku(barcode));
 
-quantityChildWithExpired (itemGroup) = GROUP SUM 1 IF dataExpired(ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) BY itemGroup PERSISTENT;
-quantityParentWithExpired (itemGroup) = GROUP SUM 1 IF dataExpired(ItemGroup parentItemGroup) AND isParent(ItemGroup itemGroup, parentItemGroup) BY itemGroup PERSISTENT;
+quantityChildWithExpired (itemGroup) = GROUP SUM 1 IF dataExpired(ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) BY itemGroup MATERIALIZED;
+quantityParentWithExpired (itemGroup) = GROUP SUM 1 IF dataExpired(ItemGroup parentItemGroup) AND isParent(ItemGroup itemGroup, parentItemGroup) BY itemGroup MATERIALIZED;
 
-showExpired 'Не грузить с истекшим ср. год-ти' (ItemGroup itemGroup) = TRUE IF (quantityChildWithExpired (itemGroup) (+) quantityParentWithExpired (itemGroup)) > 0 PERSISTENT;
+showExpired 'Не грузить с истекшим ср. год-ти' (ItemGroup itemGroup) = TRUE IF (quantityChildWithExpired (itemGroup) (+) quantityParentWithExpired (itemGroup)) > 0 MATERIALIZED;
 
 backgroundShowExpired (ItemGroup itemGroup) =
     IF dataExpired(itemGroup) THEN

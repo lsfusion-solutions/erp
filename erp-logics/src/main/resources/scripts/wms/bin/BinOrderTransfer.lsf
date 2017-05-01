@@ -6,7 +6,7 @@ NAMESPACE Bin;
 
 createdUser = DATA LOCAL BOOLEAN (BinTransfer, BinOrder);
 
-binOrderDetail = ABSTRACT BinOrderDetail (BinTransferDetail) PERSISTENT;
+binOrderDetail = ABSTRACT BinOrderDetail (BinTransferDetail) MATERIALIZED;
 
 binOrderDetail = DATA UserBinOrderDetail (UserBinTransferDetail) INDEXED;
 binOrderDetail(UserBinTransferDetail binTransferDetail) += binOrderDetail(binTransferDetail);
@@ -19,7 +19,7 @@ CONSTRAINT stock(UserBinTransferDetail detail) != stock(binOrderDetail(detail))
     CHECKED BY binOrderDetail[UserBinTransferDetail]
         MESSAGE 'Склад в заказе и перемещении должны соответствовать друг другу';
         
-WHEN SESSION CHANGED(sku(UserBinTransferDetail detail)) AND NOT CHANGED(binOrderDetail(detail)) DO
+WHEN LOCAL CHANGED(sku(UserBinTransferDetail detail)) AND NOT CHANGED(binOrderDetail(detail)) DO
     binOrderDetail(detail) <- NULL;
 
 GROUP binOrder 'Информация о заказе' : public;
@@ -32,7 +32,7 @@ countBinTransferDetail(binOrder, binTransfer) = GROUP SUM 1 BY binOrder(binOrder
 binOrders 'Заказы' (binTransfer) = GROUP CONCAT VARSTRING[255](description(BinOrder binOrder)) IF quantityBinTransferDetail(binOrder, BinTransfer binTransfer) , ', '
                                          BY binTransfer
                                          ORDER binOrder
-                                         IN binOrder MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                         IN binOrder MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
                                          
 binTransfers 'Перемещения' (binOrder) = GROUP CONCAT VARSTRING[255](description(BinTransfer binTransfer)) IF countBinTransferDetail(BinOrder binOrder, binTransfer) , ', '
                                          BY binOrder
@@ -40,7 +40,7 @@ binTransfers 'Перемещения' (binOrder) = GROUP CONCAT VARSTRING[255](d
                                          IN binTransfer MINCHARWIDTH 30 PREFCHARWIDTH 50;                                             
 
 binTransfered 'Кол-во (перемещено)' (BinOrderDetail binOrderDetail) = GROUP SUM quantity(BinTransferDetail binTransferDetail) IF isPosted(binTransferDetail)
-                                                           BY binOrderDetail(binTransferDetail) PERSISTENT;
+                                                           BY binOrderDetail(binTransferDetail) MATERIALIZED;
                                                            
 binTransferdBinOrderDetail 'Кол-во (перемещено)' (binOrder) = GROUP SUM binTransfered(BinOrderDetail binOrderDetail) BY binOrder(binOrderDetail) IN documentSum;
 
@@ -53,8 +53,8 @@ backgroundBinTransfer 'Цвет' (BinOrder binOrder) = RGB(175, 255, 175) IF bin
 quantityBinOrder 'К-во заказа' (BinTransferDetail d) = quantity(binOrderDetail(d)); 
 priceBinOrder 'Цена заказа' (BinTransferDetail d) = price(binOrderDetail(d));
 
-fromBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), outBin(binOrderDetail) PERSISTENT;
-toBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), inBin(binOrderDetail) PERSISTENT;
+fromBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), outBin(binOrderDetail) MATERIALIZED;
+toBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), inBin(binOrderDetail) MATERIALIZED;
 
 extraFromBinTransfer 'Заказано (доп.)' = ABSTRACT NUMERIC[16,5](Sku, UserBinOrder);
 prevFromBinTransfer 'Заказано' (Sku sku, Bin bin) = PREV(fromBinTransfer(sku, bin));
@@ -385,7 +385,7 @@ connectBinOrder 'Привязать все строки перемещения �
     }
 } SHORTCUT descriptionBinOrder[UserBinTransferDetail];
 
-WHEN SESSION FORMS userBinTransfer
+WHEN LOCAL FORMS userBinTransfer
     (CHANGED(sku(UserBinTransferDetail detail)) OR CHANGED(batch(detail))) AND NOT binOrderDetail(detail)       
         DO EXEC connectBinOrder(detail);
 

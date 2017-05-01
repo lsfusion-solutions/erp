@@ -18,7 +18,7 @@ edit (InvoicePricingDetail d)+= { edit(invoiceDetail(d)); }
 
 
 // Автоматически проставляем цены поставщика и розничные
-WHEN SESSION (CHANGED(sku(UserInvoiceDetail detail)) OR
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
               CHANGED(supplierStock(detail)) OR
               (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
               CHANGED(batch(detail))) AND NOT CHANGED(supplierPrice (detail)) DO {
@@ -33,7 +33,7 @@ WHEN SESSION (CHANGED(sku(UserInvoiceDetail detail)) OR
                                                                                                  dateTime(detail)));
 }
  
-WHEN SESSION (CHANGED(sku(UserInvoiceDetail detail)) OR
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
               CHANGED(supplierStock(detail)) OR
               (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
               CHANGED(batch(detail))) AND NOT CHANGED(retailPrice (detail)) DO {
@@ -58,7 +58,7 @@ retailMarkup(UserInvoiceDetail userInvoiceDetail)  <- [= round2((((X - X*Y/(100+
          CHANGED(supplierPrice(userInvoiceDetail));
 
 overRetailVAT = ABSTRACT VALUE OVERRIDE FIRST Range (UserInvoiceDetail);
-WHEN SESSION FORMS userInvoice
+WHEN LOCAL FORMS userInvoice
     (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED (supplierStock(detail)) OR 
      CHANGED(overRetailVAT(detail))) AND NOT CHANGED(retailVAT(detail)) DO {
         retailVAT(detail) <- OVERRIDE overRetailVAT(detail),

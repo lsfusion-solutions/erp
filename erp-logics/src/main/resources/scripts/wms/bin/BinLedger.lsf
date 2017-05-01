@@ -7,42 +7,42 @@ NAMESPACE Bin;
 CLASS ABSTRACT BinLedger 'Изменение остатка по ячейкам';
 TABLE binLedger(BinLedger);
 
-dateTime 'Дата/время' = ABSTRACT DATETIME (BinLedger) PERSISTENT INDEXED;
+dateTime 'Дата/время' = ABSTRACT DATETIME (BinLedger) MATERIALIZED INDEXED;
 date 'Дата' (BinLedger ledger) = toDate(dateTime(ledger)); 
 
-isPosted 'Проведен' = ABSTRACT BOOLEAN (BinLedger) PERSISTENT;
+isPosted 'Проведен' = ABSTRACT BOOLEAN (BinLedger) MATERIALIZED;
 
 isClosed 'Закрыт' = ABSTRACT BOOLEAN (BinLedger);
 
-sku = ABSTRACT Sku (BinLedger) PERSISTENT INDEXED;
+sku = ABSTRACT Sku (BinLedger) MATERIALIZED INDEXED;
 nameSku 'SKU' (BinLedger ledger) = name(sku(ledger)) IN recognize;
 idBarcodeSku 'Штрих код' (BinLedger ledger)= idBarcode(sku(ledger)) IN recognize;
 
-stock = ABSTRACT Stock (BinLedger) PERSISTENT INDEXED;
+stock = ABSTRACT Stock (BinLedger) MATERIALIZED INDEXED;
 nameStock 'Склад' (BinLedger ledger)= name(stock(ledger));
 
-inBin = ABSTRACT Bin (BinLedger) PERSISTENT INDEXED;
+inBin = ABSTRACT Bin (BinLedger) MATERIALIZED INDEXED;
 nameInBin 'Ячейка (в)' (BinLedger ledger) = name(inBin(ledger)) IN recognize;
 
-outBin = ABSTRACT Bin (BinLedger) PERSISTENT INDEXED;
+outBin = ABSTRACT Bin (BinLedger) MATERIALIZED INDEXED;
 nameOutBin 'Ячейка (из)' (BinLedger ledger) = name(outBin(ledger)) IN recognize;
 
-quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (BinLedger) PERSISTENT;
+quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (BinLedger) MATERIALIZED;
 
 description 'Название документа' = ABSTRACT VARISTRING[200] (BinLedger);
 
 changed = ABSTRACT BOOLEAN (BinLedger);
 
-skip 'Не проводить по учету' = ABSTRACT BOOLEAN (BinLedger) PERSISTENT;
-active 'Активен' (BinLedger ledger) = isPosted(ledger) AND NOT skip(ledger) PERSISTENT;
+skip 'Не проводить по учету' = ABSTRACT BOOLEAN (BinLedger) MATERIALIZED;
+active 'Активен' (BinLedger ledger) = isPosted(ledger) AND NOT skip(ledger) MATERIALIZED;
 
 TABLE skuBin (Sku, Bin);
 
 inBinTotal 'Приход в ячейку' =
-    GROUP SUM quantity(BinLedger ledger) IF isPosted(ledger) BY sku(ledger), inBin(ledger) PERSISTENT;
+    GROUP SUM quantity(BinLedger ledger) IF isPosted(ledger) BY sku(ledger), inBin(ledger) MATERIALIZED;
     
 outBinTotal 'Расход из ячейки' =
-    GROUP SUM quantity(BinLedger ledger) IF isPosted(ledger) BY sku(ledger), outBin(ledger) PERSISTENT;
+    GROUP SUM quantity(BinLedger ledger) IF isPosted(ledger) BY sku(ledger), outBin(ledger) MATERIALIZED;
     
 inBinTotalA 'Приход в ячейку' =
     GROUP SUM quantity(BinLedger ledger) IF date(ledger) > DATE date AND isPosted(ledger) BY sku(ledger), inBin(ledger), date;
@@ -69,7 +69,7 @@ outBinTotalB 'Расход из ячейки' =
     GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime AND isPosted(ledger) BY sku(ledger), outBin(ledger), dateTime;                   
         
 currentBalance 'Текущий остаток в ячейке' (Sku sku, Bin bin)=
-    inBinTotal(sku, bin) (-) outBinTotal(sku, bin) PERSISTENT;
+    inBinTotal(sku, bin) (-) outBinTotal(sku, bin) MATERIALIZED;
 prevCurrentBalance 'Текущий остаток в ячейке' (Sku sku, Bin bin) = PREV(currentBalance(sku, bin));
 
 balanceA 'Остаток в ячейке на конец дня' (Sku sku, Bin bin, DATE date) = currentBalance(sku, bin) (-)
@@ -292,7 +292,7 @@ DESIGN dialogBinStock {
 
 META defineInterfaceBin (object, prefix, caption)
     prefix###bin 'Ячейка'##caption = DATA Bin(###user###object) IN documentPrm;
-    prefix###bin 'Ячейка'##caption = ABSTRACT Bin(###object) PERSISTENT IN documentPrm;
+    prefix###bin 'Ячейка'##caption = ABSTRACT Bin(###object) MATERIALIZED IN documentPrm;
     prefix###bin (User###object object) += prefix###bin(object);
        
     name###prefix###bin 'Ячейка'##caption (###object object) = name(prefix###bin(object)) IN documentPrm MINCHARWIDTH 12 PREFCHARWIDTH 15;
@@ -407,11 +407,11 @@ META deriveFormBinsProperty (form, object)
     skipSetInBin = ABSTRACT BOOLEAN (###object###detail);
     skipSetOutBin = ABSTRACT BOOLEAN (###object###detail);
     
-    WHEN SESSION FORMS form (CHANGED(inBin(object(###object###detail detail))) OR CHANGED(sku(detail)) OR SETCHANGED(useBins(detail))) AND useBins(detail) AND NOT CHANGED(inBin(detail)) AND NOT skipSetInBin(detail) DO {
+    WHEN LOCAL FORMS form (CHANGED(inBin(object(###object###detail detail))) OR CHANGED(sku(detail)) OR SETCHANGED(useBins(detail))) AND useBins(detail) AND NOT CHANGED(inBin(detail)) AND NOT skipSetInBin(detail) DO {
              inBin(detail) <- OVERRIDE overInBin(detail), inBin(form(detail));
     }
 
-    WHEN SESSION FORMS form (CHANGED(outBin(object(###object###detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) AND NOT skipSetOutBin(detail) DO {
+    WHEN LOCAL FORMS form (CHANGED(outBin(object(###object###detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) AND NOT skipSetOutBin(detail) DO {
         outBin(detail) <- OVERRIDE overOutBin(detail), outBin(form(detail));
     }    
 END

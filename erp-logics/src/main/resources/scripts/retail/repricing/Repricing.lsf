@@ -51,12 +51,12 @@ roundCondition(UserRepricingDetail userRepricingDetail) = roundCondition(departm
 @defineDocumentInterfaceDetailPricePrefix(repricing, cur, ' поставщика до');
 
 // Цена от которой будет считаться надбавка
-overCurRepricingPrice = ABSTRACT NUMERIC[16,4] (RepricingDetail) PERSISTENT;
-overCurRepricingPrice = ABSTRACT NUMERIC[16,4] (UserRepricingDetail) PERSISTENT;
+overCurRepricingPrice = ABSTRACT NUMERIC[16,4] (RepricingDetail) MATERIALIZED;
+overCurRepricingPrice = ABSTRACT NUMERIC[16,4] (UserRepricingDetail) MATERIALIZED;
 overCurRepricingPrice (UserRepricingDetail detail) += overCurRepricingPrice(detail);
 
-curRepricingPrice (UserRepricingDetail detail) = OVERRIDE overCurRepricingPrice(detail), curPrice(detail) PERSISTENT;
-curRepricingPrice (RepricingDetail detail) = OVERRIDE overCurRepricingPrice(detail), curPrice(detail) PERSISTENT;
+curRepricingPrice (UserRepricingDetail detail) = OVERRIDE overCurRepricingPrice(detail), curPrice(detail) MATERIALIZED;
+curRepricingPrice (RepricingDetail detail) = OVERRIDE overCurRepricingPrice(detail), curPrice(detail) MATERIALIZED;
 
 // Надбавка
 @defineDocumentInterfaceDetailMarkupPrefix (repricing, cur, ' до');
@@ -142,12 +142,12 @@ price(UserRepricingDetail d) <- curPrice(d) WHEN
     CHANGED(batch(d));
 
 // Цена от которой будет считаться надбавка
-overRepricingPrice = ABSTRACT NUMERIC[16,4] (RepricingDetail) PERSISTENT;
-overRepricingPrice = ABSTRACT NUMERIC[16,4] (UserRepricingDetail) PERSISTENT;
+overRepricingPrice = ABSTRACT NUMERIC[16,4] (RepricingDetail) MATERIALIZED;
+overRepricingPrice = ABSTRACT NUMERIC[16,4] (UserRepricingDetail) MATERIALIZED;
 overRepricingPrice (UserRepricingDetail detail) += overRepricingPrice(detail);
 
-repricingPrice (UserRepricingDetail detail) = OVERRIDE overRepricingPrice(detail), price(detail) PERSISTENT;
-repricingPrice (RepricingDetail detail) = OVERRIDE overRepricingPrice(detail), price(detail) PERSISTENT;
+repricingPrice (UserRepricingDetail detail) = OVERRIDE overRepricingPrice(detail), price(detail) MATERIALIZED;
+repricingPrice (RepricingDetail detail) = OVERRIDE overRepricingPrice(detail), price(detail) MATERIALIZED;
 
 // Надбавка
 @defineDocumentInterfaceDetailMarkupPrefix (repricing, , ' после');
@@ -1154,12 +1154,12 @@ DESIGN operation {
     }
 } 
 
-changeSupplierPrice 'Проводить по регистру изменение цены поставщика' = ABSTRACT BOOLEAN (Repricing) PERSISTENT;
+changeSupplierPrice 'Проводить по регистру изменение цены поставщика' = ABSTRACT BOOLEAN (Repricing) MATERIALIZED;
 changeSupplierPrice 'Проводить по регистру изменение цены поставщика' = DATA BOOLEAN (UserRepricing) IN documentPrm;
 changeSupplierPrice(UserRepricing r) += changeSupplierPrice(r);
 
-changeSupplierPrice 'Проводить по регистру изменение цены поставщика' = changeSupplierPrice(repricing(RepricingDetail d)) PERSISTENT;
-changeSupplierPrice 'Проводить по регистру изменение цены поставщика' = changeSupplierPrice(userRepricing(UserRepricingDetail d)) PERSISTENT;
+changeSupplierPrice 'Проводить по регистру изменение цены поставщика' = changeSupplierPrice(repricing(RepricingDetail d)) MATERIALIZED;
+changeSupplierPrice 'Проводить по регистру изменение цены поставщика' = changeSupplierPrice(userRepricing(UserRepricingDetail d)) MATERIALIZED;
 
 @deriveDocumentOperationProperty(UserRepricing, changeSupplierPrice);
 

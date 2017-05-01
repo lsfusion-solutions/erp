@@ -105,9 +105,9 @@ CLASS UserPriceListDetail 'Строка прайса (польз.)' : PriceListD
 @defineDocumentInterfaceDataTimePrefix(priceList, from, ' c');
 @deriveDocumentHeaderTimePrefix(UserPriceList, from);
 
-toDate 'Дата по' = ABSTRACT DATE (PriceList) IN documentHeader PERSISTENT;
-toTime 'Время по' = ABSTRACT TIME (PriceList) IN documentHeader PERSISTENT;
-toDateTime 'Дата/время по'(PriceList priceList) = dateTimeToDateTime(toDate(priceList), toTime(priceList)) PERSISTENT;
+toDate 'Дата по' = ABSTRACT DATE (PriceList) IN documentHeader MATERIALIZED;
+toTime 'Время по' = ABSTRACT TIME (PriceList) IN documentHeader MATERIALIZED;
+toDateTime 'Дата/время по'(PriceList priceList) = dateTimeToDateTime(toDate(priceList), toTime(priceList)) MATERIALIZED;
 
 CONSTRAINT toDate(PriceList p) AND NOT toTime(p) MESSAGE 'Время по должно быть заполнено если заполнена дата по';
 
@@ -155,18 +155,18 @@ nameGroupType 'Тип классификатора' = name(groupType(UserPriceLi
 // Шапка
 
 TABLE priceListPriceListType (PriceList, PriceListType);
-show 'Показывать цены' = ABSTRACT BOOLEAN (PriceList, PriceListType) PERSISTENT;
+show 'Показывать цены' = ABSTRACT BOOLEAN (PriceList, PriceListType) MATERIALIZED;
 show 'Показывать цены' = DATA BOOLEAN (UserPriceList, PriceListType);
 show (UserPriceList priceList, PriceListType priceListType) += show(priceList, priceListType);
 
 TABLE priceListDataPriceListType (PriceList, DataPriceListType);
-in 'Изменять цены' = ABSTRACT BOOLEAN (PriceList, DataPriceListType) PERSISTENT;
+in 'Изменять цены' = ABSTRACT BOOLEAN (PriceList, DataPriceListType) MATERIALIZED;
 in 'Изменять цены' = DATA BOOLEAN (UserPriceList, DataPriceListType);
 in (UserPriceList priceList, DataPriceListType dataPriceListType) += in(priceList, dataPriceListType);
 
 priceListTypes 'Цены' (priceList) = GROUP CONCAT name[PriceListType](DataPriceListType priceListType) IF in(PriceList priceList, priceListType) , ', '
                                                BY priceList
-                                               ORDER priceListType MINCHARWIDTH 10 PREFCHARWIDTH 20 PERSISTENT;
+                                               ORDER priceListType MINCHARWIDTH 10 PREFCHARWIDTH 20 MATERIALIZED;
 priceListTypes 'Цены' (PriceListDetail d) = priceListTypes(priceList(d));
 
 // Строки
@@ -174,7 +174,7 @@ priceListTypes 'Цены' (PriceListDetail d) = priceListTypes(priceList(d));
 TABLE priceListDetailPriceListType (PriceListDetail, PriceListType);
 
 TABLE priceListDetailDataPriceListType (PriceListDetail, DataPriceListType);
-price 'Цена (новая)' = ABSTRACT NUMERIC[16,4] (PriceListDetail, DataPriceListType) PERSISTENT;
+price 'Цена (новая)' = ABSTRACT NUMERIC[16,4] (PriceListDetail, DataPriceListType) MATERIALIZED;
 price 'Цена (новая)' = DATA NUMERIC[16,4] (UserPriceListDetail, DataPriceListType); //annotation не нужен, делим скриптом с учетом валюты вида цен
 price (UserPriceListDetail priceListDetail, DataPriceListType dataPriceListType) += price(priceListDetail, dataPriceListType);
 
@@ -193,24 +193,24 @@ valueVAT 'НДС' (UserPriceListDetail d) =
 // ---------------------  Склады, для которых действует прайс
 
 // Шапка
-allStocks 'Отм' = ABSTRACT BOOLEAN (PriceList) PERSISTENT;
+allStocks 'Отм' = ABSTRACT BOOLEAN (PriceList) MATERIALIZED;
 allStocks 'Отм' = DATA BOOLEAN (UserPriceList);
 allStocks (UserPriceList priceList) += allStocks(priceList);
 
 TABLE priceListStockGroup(PriceList, StockGroup);
-dataIn 'Отм' = ABSTRACT BOOLEAN (PriceList, StockGroup) PERSISTENT;
+dataIn 'Отм' = ABSTRACT BOOLEAN (PriceList, StockGroup) MATERIALIZED;
 dataIn 'Отм' = DATA BOOLEAN (UserPriceList, StockGroup);
 dataIn (UserPriceList priceList, StockGroup stockGroup) += dataIn(priceList, stockGroup);
 
 TABLE priceListStock(PriceList, Stock);
-dataIn 'Отм' = ABSTRACT BOOLEAN (PriceList, Stock) PERSISTENT;
+dataIn 'Отм' = ABSTRACT BOOLEAN (PriceList, Stock) MATERIALIZED;
 dataIn 'Отм' = DATA BOOLEAN (UserPriceList, Stock);
 dataIn (UserPriceList priceList, Stock stock) += dataIn(priceList, stock);
 
 levelParent (priceList, stockGroup) = GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataIn(PriceList priceList, parent)
-                                                               BY priceList, stockGroup PERSISTENT;
+                                                               BY priceList, stockGroup MATERIALIZED;
 
-inParent (PriceList priceList, StockGroup stockGroup) = TRUE IF levelParent (priceList, stockGroup) PERSISTENT;
+inParent (PriceList priceList, StockGroup stockGroup) = TRUE IF levelParent (priceList, stockGroup) MATERIALIZED;
 
 in 'Отм' (PriceList priceList, StockGroup stockGroup) = OVERRIDE
     dataIn(priceList, stockGroup),
@@ -222,13 +222,13 @@ allow = ABSTRACT BOOLEAN (Stock, PriceList);
 in 'Отм' (PriceList priceList, Stock stock) =
     (OVERRIDE dataIn(priceList, stock),
               in(priceList, stockGroup(stock)))
-    AND allow(stock, priceList) PERSISTENT;     
+    AND allow(stock, priceList) MATERIALIZED;     
              
 @defineBackgroundNearestBoolean(allStocks, in, priceList, stock, inParent, isCompany);                    
 
 stocks 'Склады' (priceList) = GROUP CONCAT VARISTRING[250] (name(Stock stock)) IF in(PriceList priceList, stock) , ', '
                                        BY priceList
-                                       ORDER stock MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
+                                       ORDER stock MINCHARWIDTH 20 PREFCHARWIDTH 40 MATERIALIZED;
 stocks 'Склады' (PriceListDetail d) = stocks(priceList(d));                                       
 // История
 @defineCreatedAbstract(PriceListDetail);
@@ -634,14 +634,14 @@ EXTEND FORM userPriceList
     PROPERTIES(d) BACKGROUND background(d) AFTER nameSku(d) originalIdBarcodeSku SHOWIF showOriginalIdBarcodeSku(p), originalNameSku  SHOWIF showOriginalNameSku(p)        
 ;
 
-WHEN SESSION FORMS userPriceList CHANGED(company(UserPriceList o)) DO {
+WHEN LOCAL FORMS userPriceList CHANGED(company(UserPriceList o)) DO {
     IF countStocks (company(o)) == 1 THEN
         companyStock(o) <- defaultStock(company(o));
     IF NOT in(company(o), companyStock(o)) THEN 
         companyStock(o) <- NULL;
 }
 
-WHEN SESSION FORMS userPriceList (SET([= VIEW userPriceList.d](UserPriceListDetail d)) OR // изменились строки
+WHEN LOCAL FORMS userPriceList (SET([= VIEW userPriceList.d](UserPriceListDetail d)) OR // изменились строки
                                   CHANGED(sku(d)) OR // или изменился sku
                                   CHANGED(fromDateTime(d)) OR // или изменился дата с
                                   CHANGED([= VIEW userPriceList.tt](Stock s))) // или изменился склад
@@ -649,7 +649,7 @@ WHEN SESSION FORMS userPriceList (SET([= VIEW userPriceList.d](UserPriceListDeta
                                  AND [= VIEW userPriceList.tt](s) DO
     updateViewPriceDetail(d, s);
 
-WHEN SESSION FORMS userPriceList CHANGED(show(userPriceList(UserPriceListDetail d), PriceListType t))
+WHEN LOCAL FORMS userPriceList CHANGED(show(userPriceList(UserPriceListDetail d), PriceListType t))
                                  AND [= VIEW userPriceList.d](d)
                                  AND [= VIEW userPriceList.tt](Stock s) NOINLINE (t) DO
     updateViewPriceDetail(d, t, s);
@@ -668,15 +668,15 @@ WHEN SESSION FORMS userPriceList CHANGED(show(userPriceList(UserPriceListDetail 
 //        ON CHANGE p setCurrentUserPriceList(p)
 //;
 //
-//WHEN SESSION FORMS userPriceList SET([= VIEW userPriceList.d](d)) AND p == currentUserPriceList() DO
+//WHEN LOCAL FORMS userPriceList SET([= VIEW userPriceList.d](d)) AND p == currentUserPriceList() DO
 //    FOR showUserPriceListPriceListType(p, pt) AND isCompanyStock(s) NOINLINE (pt) DO
 //        viewCurrentPricePriceListDetailDataPriceListTypeStock(d, pt, s) <- currentPricePriceListDetailDataPriceListTypeStock(d, pt, s);  
 //
-//WHEN SESSION FORMS userPriceList CHANGED(showUserPriceListPriceListType(p, pt)) NOINLINE (pt) DO
+//WHEN LOCAL FORMS userPriceList CHANGED(showUserPriceListPriceListType(p, pt)) NOINLINE (pt) DO
 //    viewCurrentPricePriceListDetailDataPriceListTypeStock(d, pt, s) <- currentPricePriceListDetailDataPriceListTypeStock(d, pt, s) 
 //        WHERE [= VIEW userPriceList.d](d) AND isCompanyStock(s);  
 //
-//WHEN SESSION FORMS userPriceList CHANGED(skuUserPriceListDetail(d)) OR CHANGED(fromDateTimeUserPriceListDetail(d)) DO
+//WHEN LOCAL FORMS userPriceList CHANGED(skuUserPriceListDetail(d)) OR CHANGED(fromDateTimeUserPriceListDetail(d)) DO
 //    viewCurrentPricePriceListDetailDataPriceListTypeStock(d, pt, s) <- currentPricePriceListDetailDataPriceListTypeStock(d, pt, s) 
 //        WHERE showUserPriceListPriceListType(userPriceListUserPriceListDetail(d), pt) AND isCompanyStock(s);  
 //

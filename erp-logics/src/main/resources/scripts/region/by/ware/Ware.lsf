@@ -54,7 +54,7 @@ skuType (Ware sku) += SkuType.skuTypeItem IF sku IS Ware;
 
 TABLE wareGroupWare (WareGroup, Ware);
 
-isParent (WareGroup wareGroup, Ware ware) = isParent(wareGroup(ware), wareGroup);   //PERSISTENT
+isParent (WareGroup wareGroup, Ware ware) = isParent(wareGroup(ware), wareGroup);   //MATERIALIZED
 
 TABLE wareDate(Ware, DATE);
 
@@ -103,7 +103,7 @@ CONSTRAINT tax(VAT(Ware ware, Country country)) != Tax.taxVAT OR
 valueVAT 'НДС, %' (Ware ware, Country country, DATE date) = valueRate(VAT(ware, country), date);
 valueVAT 'НДС, %' (Ware ware, Country country) = valueVAT(ware, country, currentDate());
 
-VAT 'НДС' (Ware ware) = VAT(ware, defaultCountry()) PERSISTENT;
+VAT 'НДС' (Ware ware) = VAT(ware, defaultCountry()) MATERIALIZED;
 numberVAT 'НДС' (Ware ware) = number(VAT(ware));
 
 valueVAT 'НДС, %' (Ware ware, DATE date) = valueRate(VAT(ware), date);
@@ -230,13 +230,13 @@ dataCustomGroup 'Дополнительная группа (по умолчан�
 dataNameCustomGroupCustomGroup 'Дополнительная группа (по умолчанию)' (CustomGroupType customGroupType, WareGroup wareGroup) = name(dataCustomGroup(customGroupType, wareGroup));
 
 levelParentCustomGroup (customGroupType, wareGroup) = GROUP MIN level(WareGroup wareGroup, WareGroup parent) IF dataCustomGroup(CustomGroupType customGroupType, parent)
-                                                              BY customGroupType, wareGroup PERSISTENT;    
+                                                              BY customGroupType, wareGroup MATERIALIZED;    
 nearestParentCustomGroup (CustomGroupType customGroupType, WareGroup wareGroup) = wareGroup(wareGroup, levelParentCustomGroup(customGroupType, wareGroup));
 nearestCustomGroup (CustomGroupType customGroupType, WareGroup wareGroup) = dataCustomGroup(customGroupType, nearestParentCustomGroup (customGroupType, wareGroup));
 
 customGroup (CustomGroupType customGroupType, WareGroup wareGroup) =
     OVERRIDE dataCustomGroup(customGroupType, wareGroup), 
-             nearestCustomGroup (customGroupType, wareGroup) PERSISTENT;    
+             nearestCustomGroup (customGroupType, wareGroup) MATERIALIZED;    
 
 nameCustomGroup 'Дополнительная группа (по умолчанию)' (CustomGroupType customGroupType, WareGroup wareGroup) = name(customGroup(customGroupType, wareGroup));
 
@@ -262,5 +262,5 @@ DESIGN wareGroup {
     MOVE dc.box BEFORE functions.box;
 }
 
-WHEN SESSION CHANGED(wareGroup(Ware w)) AND CustomGroupType dc IS CustomGroupType AND NOT customGroup(dc, w) DO
+WHEN LOCAL CHANGED(wareGroup(Ware w)) AND CustomGroupType dc IS CustomGroupType AND NOT customGroup(dc, w) DO
     customGroup(dc, w) <- customGroup(dc, wareGroup(w));

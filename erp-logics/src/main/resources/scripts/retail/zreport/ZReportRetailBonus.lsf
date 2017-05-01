@@ -13,7 +13,7 @@ bonusSum(ReceiptReturnDetail d) += bonusSum(d);
 
 bonusSum 'Начислено бонусов' (Receipt r) = GROUP SUM bonusSum(ReceiptDetail d) BY receipt(d);
 
-signedBonusSum 'Начислено бонусов' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) PERSISTENT;
+signedBonusSum 'Начислено бонусов' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) MATERIALIZED;
 signedBonusSum(ReceiptSaleDetail d) += bonusSum(d);
 signedBonusSum(ReceiptReturnDetail d) += -bonusSum(d);
 
@@ -41,7 +41,7 @@ bonusPaidReturn 'Оплачено бонусами' = GROUP SUM bonusPaid(Receip
 bonusPaid 'Оплачено бонусами' = GROUP SUM bonusPaid(ReceiptDetail d)
     BY zReport(receipt(d));
 
-signedBonusPaid 'Оплачено бонусами' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) PERSISTENT;
+signedBonusPaid 'Оплачено бонусами' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) MATERIALIZED;
 signedBonusPaid(ReceiptSaleDetail d) += bonusPaid(d);
 signedBonusPaid(ReceiptReturnDetail d) += -bonusPaid(d);
 
@@ -74,28 +74,28 @@ bonusPaidSaleReceiptDetailSale 'Сумма бонусов (продажи)' (rec
     BY receipt (receiptDetail) IN documentSum;
 bonusPaidReturnReceiptDetailReturn 'Сумма бонусов (возврат)' (receipt) = GROUP SUM bonusPaid(ReceiptReturnDetail receiptDetail)
     BY receipt (receiptDetail) IN documentSum;
-bonusPaidReceiptDetail 'Сумма бонусов' (Receipt receipt) = bonusPaidSaleReceiptDetailSale(receipt) (-) bonusPaidReturnReceiptDetailReturn(receipt) PERSISTENT;
-bonusPaidReceiptDetail 'Сумма бонусов Z-отчета' (zReport) = GROUP SUM bonusPaidReceiptDetail(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum;
+bonusPaidReceiptDetail 'Сумма бонусов' (Receipt receipt) = bonusPaidSaleReceiptDetailSale(receipt) (-) bonusPaidReturnReceiptDetailReturn(receipt) MATERIALIZED;
+bonusPaidReceiptDetail 'Сумма бонусов Z-отчета' (zReport) = GROUP SUM bonusPaidReceiptDetail(Receipt receipt) BY zReport(receipt) MATERIALIZED IN documentSum;
 extraDiscountSumReceiptDetail(ZReport zReport) += bonusPaidReceiptDetail(zReport);
 
 EXTEND FORM zReports
     PROPERTIES(z)READONLY bonusPaidReceiptDetail
 ;    
 
-cumulativeBonuses 'Накоплено бонусов' (DiscountCard dc) = GROUP SUM signedBonusSum(ReceiptDetail rd) BY discountCard(rd) PERSISTENT;
+cumulativeBonuses 'Накоплено бонусов' (DiscountCard dc) = GROUP SUM signedBonusSum(ReceiptDetail rd) BY discountCard(rd) MATERIALIZED;
 
-returnBonusSum = GROUP SUM bonusSum(ReceiptReturnDetail rrd) BY receiptSaleDetail(rrd) PERSISTENT;
+returnBonusSum = GROUP SUM bonusSum(ReceiptReturnDetail rrd) BY receiptSaleDetail(rrd) MATERIALIZED;
 blockedBonuses 'Заблокировано бонусов' (DiscountCard dc) = 
     GROUP SUM (bonusSum(ReceiptSaleDetail rsd) (-) returnBonusSum(rsd)) IF date(rsd) > subtract(currentDate(), blockDaysBonus()) BY discountCard(rsd);
 externalBlockedBonuses 'Дополнительные заблокированные бонусы' = ABSTRACT NUMERIC[18,4] (DiscountCard);  
 totalBlockedBonuses 'Всего заблокировано бонусов' (DiscountCard dc)= blockedBonuses(dc) (+) externalBlockedBonuses(dc);
 
-paidBonuses 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail rd) BY discountCard(rd) PERSISTENT;
+paidBonuses 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail rd) BY discountCard(rd) MATERIALIZED;
 
-availableBonuses 'Доступно бонусов (основная)' (DiscountCard dc) = cumulativeBonuses(dc) (+) sumBonusLedger(dc) (-) blockedBonuses(dc) (-) paidBonuses(dc) PERSISTENT;
+availableBonuses 'Доступно бонусов (основная)' (DiscountCard dc) = cumulativeBonuses(dc) (+) sumBonusLedger(dc) (-) blockedBonuses(dc) (-) paidBonuses(dc) MATERIALIZED;
 prevAvailableBonuses (DiscountCard dc) = PREV(availableBonuses(dc)); 
 
-externalBonuses 'Дополнительные бонусы' = ABSTRACT NUMERIC[18,4] (DiscountCard) PERSISTENT;
+externalBonuses 'Дополнительные бонусы' = ABSTRACT NUMERIC[18,4] (DiscountCard) MATERIALIZED;
 totalBonuses 'Доступно бонусов' (DiscountCard d) = availableBonuses(d) (+) externalBonuses(d);
 prevTotalBonuses 'Доступно бонусов' (DiscountCard d) = PREV(totalBonuses(d));
 
@@ -138,7 +138,7 @@ EXTEND FORM discountCards
 
 // Перевод бонусов
 
-WHEN SESSION FORMS discountCard SETCHANGED(transferCard(BonusLedger l)) DO {
+WHEN LOCAL FORMS discountCard SETCHANGED(transferCard(BonusLedger l)) DO {
     sum(l) <- availableBonuses(transferCard(l));
 }
 

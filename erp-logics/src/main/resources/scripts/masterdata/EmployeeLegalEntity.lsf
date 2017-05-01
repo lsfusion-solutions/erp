@@ -10,7 +10,7 @@ dataAccessCompany 'Доступ разрешен (компания)' = DATA BOOL
 dataAccessCompany 'Доступ разрешен (компания)' = DATA BOOLEAN (LegalEntityGroup, Employee);
 
 levelParentCompany (employee, legalEntityGroup) = GROUP MIN level(LegalEntityGroup legalEntityGroup, LegalEntityGroup parent) IF dataAccessCompany(parent, Employee employee)
-                                                               BY employee, legalEntityGroup PERSISTENT;
+                                                               BY employee, legalEntityGroup MATERIALIZED;
 nearestParentCompany (Employee employee, LegalEntityGroup legalEntityGroup) = legalEntityGroup(legalEntityGroup, levelParentCompany(employee, legalEntityGroup));
 nearestInCompany (Employee employee, LegalEntityGroup legalEntityGroup) =
     dataAccessCompany(nearestParentCompany (employee, legalEntityGroup), employee);
@@ -18,17 +18,17 @@ nearestInCompany (Employee employee, LegalEntityGroup legalEntityGroup) =
 accessCompany 'Доступ разрешен (компания)' (Employee employee, LegalEntityGroup legalEntityGroup) = OVERRIDE
     dataAccessCompany(legalEntityGroup, employee),
     nearestInCompany(employee, legalEntityGroup),
-    employee IS Employee AND legalEntityGroup IS LegalEntityGroup AND NOT limitAccess(employee); // PERSISTENT;
+    employee IS Employee AND legalEntityGroup IS LegalEntityGroup AND NOT limitAccess(employee); // MATERIALIZED;
 
 accessCompany 'Доступ разрешен (компания)' (Employee employee, LegalEntity legalEntity) = OVERRIDE
     dataAccessCompany(legalEntity, employee),
     nearestInCompany(employee, legalEntityGroup(legalEntity)) AND isCompany(legalEntity),
-    employee IS Employee AND isCompany(legalEntity) AND NOT limitAccess(employee) PERSISTENT;
+    employee IS Employee AND isCompany(legalEntity) AND NOT limitAccess(employee) MATERIALIZED;
 
 countAccessCompany 'Кол-во доступных подразделений (компания)' (employee, legalEntityGroup) =
     GROUP SUM 1 IF accessCompany(Employee employee, LegalEntity legalEntity)
                 AND isParent(legalEntityGroup(legalEntity), LegalEntityGroup legalEntityGroup)
-          BY employee, legalEntityGroup PERSISTENT;
+          BY employee, legalEntityGroup MATERIALIZED;
           
 // todo : Удалить потом
 //-- Поставщик

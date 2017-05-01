@@ -236,7 +236,7 @@ name 'Наименование' = DATA VARISTRING[255] (StatisticReport) MINCHAR
 @deriveDocumentHeaderTimePrefix(StatisticReport, );
 
 isClosed 'Закрыт' = DATA BOOLEAN (StatisticReport);
-isOpened 'Не закрыт' (StatisticReport o) = o IS StatisticReport AND NOT isClosed(o) PERSISTENT;
+isOpened 'Не закрыт' (StatisticReport o) = o IS StatisticReport AND NOT isClosed(o) MATERIALIZED;
 
 close 'Закрыть' (StatisticReport o) = {
 	NEWSESSION { isClosed(o) <- TRUE; apply(); }
@@ -252,11 +252,11 @@ isOpened 'Не закрыт' (StatisticReportDetail d) = d IS StatisticReportDet
 //
 //
 //@deriveDocumentHeaderTimePrefix(StatisticReport, ){
-//    WHEN SESSION SET(StatisticReport o IS StatisticReport) DO {
+//    WHEN LOCAL SET(StatisticReport o IS StatisticReport) DO {
 //        IF o IS StatisticReport AND NOT date(o) THEN date(o) <- currentDate();
 //        IF o IS StatisticReport AND NOT time(o) THEN time(o) <- currentTime();
 //    };
-//    WHEN SESSION CHANGED(date(StatisticReport o)) AND NOT CHANGED(time(o)) DO {
+//    WHEN LOCAL CHANGED(date(StatisticReport o)) AND NOT CHANGED(time(o)) DO {
 //        time(o) <- IF date(o) > currentDate() THEN 00:00 ELSE currentTime();
 //    } 
 //};
@@ -273,7 +273,7 @@ toDate 'Дата по' = toDate(statisticReport(StatisticReportDetail d));
 startTime 'Время начала формирования' = DATA DATETIME (StatisticReport) IN created;
 finishTime 'Время окончания формирования' = DATA DATETIME (StatisticReport) IN created;
 
-WHEN SESSION SET(StatisticReport o IS StatisticReport) DO {
+WHEN LOCAL SET(StatisticReport o IS StatisticReport) DO {
     IF o IS StatisticReport AND NOT fromDate(o) THEN fromDate(o) <- currentDate();
     IF o IS StatisticReport AND NOT toDate(o) THEN toDate(o) <- currentDate();
 };
@@ -339,11 +339,11 @@ isRegionSum(StatisticReport r) = isRegion(r) AND isSumReport(statisticReportType
 isConsolidate(StatisticReport r) = reportKind(r) == ReportKind.consolidate;
 notConsolidate(StatisticReport r) = reportKind(r) != ReportKind.consolidate;
 
-WHEN SESSION SET ( StatisticReport r IS StatisticReport) AND NOT reportKind(r) DO {
+WHEN LOCAL SET ( StatisticReport r IS StatisticReport) AND NOT reportKind(r) DO {
     reportKind(r) <- ReportKind.stock;
 }
 
-WHEN SESSION SETCHANGED ( reportKind(StatisticReport r)) AND NOT company(r) AND isRegion(r) DO {
+WHEN LOCAL SETCHANGED ( reportKind(StatisticReport r)) AND NOT company(r) AND isRegion(r) DO {
     company(r) <- defaultCompany();
 }
 

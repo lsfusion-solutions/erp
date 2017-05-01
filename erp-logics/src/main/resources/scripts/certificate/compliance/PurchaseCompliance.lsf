@@ -6,7 +6,7 @@ NAMESPACE Purchase;
 
 @defineDocumentCertificate(compliance, invoice, i, 'Сертификат соответствия');
 
-WHEN SESSION (CHANGED(batch(UserInvoiceDetail detail)) OR
+WHEN LOCAL (CHANGED(batch(UserInvoiceDetail detail)) OR
               CHANGED (sku(detail)) OR
               CHANGED (customerStock(detail))) AND NOT autoDeriveLastCertificate() DO {
     dataCompliance(detail)  <- IF batch(detail) 
@@ -23,7 +23,7 @@ sumUserInvoiceDetail 'Сумма (по накладным)' = GROUP SUM sum(User
                                                              BY compliance(d) MINCHARWIDTH 15;
 
 image 'Файл сертификата' (UserInvoiceDetail userInvoiceDetail) = image(compliance(userInvoiceDetail));
-openImage 'Просмотреть сертификат' (UserInvoiceDetail userInvoiceDetail) = { OPENFILE image(userInvoiceDetail); }
+openImage 'Просмотреть сертификат' (UserInvoiceDetail userInvoiceDetail) = { OPEN image(userInvoiceDetail); }
 
 EXTEND FORM userInvoice
     PROPERTIES(dc) TOOLBAR openImage

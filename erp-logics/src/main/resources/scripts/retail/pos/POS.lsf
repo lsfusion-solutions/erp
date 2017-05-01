@@ -62,11 +62,11 @@ closedCurrentZReport() = NOT currentZReport();
 
 // Накопленные суммы // Перенесены в модуль ZReportDiscountCard
 //
-//posSumDiscountCard 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetailReceipt (receipt) BY discountCardReceipt(receipt) PERSISTENT;
-//posReturnSumDiscountCard 'Сумма возвратов' (discountCard) = GROUP SUM sumReceiptReturnDetail(d) IF NOT discountCardReceiptDetail(d) BY discountCardReceipt(receiptSaleReceiptReturnDetail(d)) PERSISTENT; 
-//cumulativeSumDiscountCard 'Накопленная сумма (основная)' (discountCard) = initialSumDiscountCard(discountCard) (+) posSumDiscountCard(discountCard) (-) posReturnSumDiscountCard(discountCard) PERSISTENT;
+//posSumDiscountCard 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetailReceipt (receipt) BY discountCardReceipt(receipt) MATERIALIZED;
+//posReturnSumDiscountCard 'Сумма возвратов' (discountCard) = GROUP SUM sumReceiptReturnDetail(d) IF NOT discountCardReceiptDetail(d) BY discountCardReceipt(receiptSaleReceiptReturnDetail(d)) MATERIALIZED; 
+//cumulativeSumDiscountCard 'Накопленная сумма (основная)' (discountCard) = initialSumDiscountCard(discountCard) (+) posSumDiscountCard(discountCard) (-) posReturnSumDiscountCard(discountCard) MATERIALIZED;
 //
-//externalSumDiscountCard 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[18,4] (DiscountCard) PERSISTENT;
+//externalSumDiscountCard 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[18,4] (DiscountCard) MATERIALIZED;
 //totalSumDiscountCard 'Накопленная сумма' (d) = cumulativeSumDiscountCard(d) (+) externalSumDiscountCard(d); 
 //
 //EXTEND FORM discountCards
@@ -307,7 +307,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = {
     overCalculatePromotions(receipt);
 }
 
-WHEN SESSION FORMS zReport
+WHEN LOCAL FORMS zReport
     CHANGED(discountCard(Receipt r)) DO {
         calculatePromotions(r);
 //        bonusSum(ReceiptSaleDetail detail) <- round(promotionBonusSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == r AND useBonus();    
@@ -1421,19 +1421,19 @@ recalculatedPrice 'Пересчитать цены чека'(Receipt receipt) = 
     }
 }
 
-WHEN SESSION FORMS POS CHANGED(quantityReceiptDetail(Receipt receipt)) OR 
+WHEN LOCAL FORMS POS CHANGED(quantityReceiptDetail(Receipt receipt)) OR 
                        CHANGED(discountCard(receipt)) OR 
                        CHANGED(setUserPromotion(receipt)) OR 
                        CHANGED(discountPercent(receipt)) OR
                        CHANGED(signedBonusPaid(receipt))
     DO calculatePromotions(receipt);
     
-WHEN SESSION FORMS POS CHANGED(quantity(ReceiptDetail receiptDetail)) OR CHANGED(sum(receiptDetail)) DO 
+WHEN LOCAL FORMS POS CHANGED(quantity(ReceiptDetail receiptDetail)) OR CHANGED(sum(receiptDetail)) DO 
     fiscalDisplayText(receiptDetail);
     
-WHEN SESSION FORMS POS CHANGED(discountCard(Receipt receipt)) DO recalculatedPrice(receipt);
+WHEN LOCAL FORMS POS CHANGED(discountCard(Receipt receipt)) DO recalculatedPrice(receipt);
 
-WHEN SESSION FORMS POS CHANGED(VAT(ReceiptDetail d)) OR CHANGED(date(d)) OR CHANGED (batch(d)) DO {
+WHEN LOCAL FORMS POS CHANGED(VAT(ReceiptDetail d)) OR CHANGED(date(d)) OR CHANGED (batch(d)) DO {
     valueVAT(d) <- overValueVAT(d);
 }
 

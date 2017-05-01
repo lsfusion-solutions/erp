@@ -81,9 +81,9 @@ sumReturn 'Возврат с НДС' = DATA NUMERIC[18,4] (SaleReportDetail);
 quantityBalanceB 'Остаток количество (начало)' = DATA NUMERIC[16,5] (SaleReportDetail);
 quantityBalanceA 'Остаток количество (конец)' = DATA NUMERIC[16,5] (SaleReportDetail);
 
-sumBalanceBReportDetail 'Остаток с НДС (начало)' (saleReport) = GROUP SUM sumBalanceB(SaleReportDetail idetail) BY saleReport(idetail) IN documentSum PERSISTENT;
-sumBalanceAReportDetail 'Остаток с НДС (конец)' (saleReport) = GROUP SUM sumBalanceA(SaleReportDetail idetail) BY saleReport(idetail) IN documentSum PERSISTENT;
-sumReturnReportDetail 'Возврат с НДС' (saleReport) = GROUP SUM sumReturn(SaleReportDetail idetail) BY saleReport(idetail) IN documentSum PERSISTENT;
+sumBalanceBReportDetail 'Остаток с НДС (начало)' (saleReport) = GROUP SUM sumBalanceB(SaleReportDetail idetail) BY saleReport(idetail) IN documentSum MATERIALIZED;
+sumBalanceAReportDetail 'Остаток с НДС (конец)' (saleReport) = GROUP SUM sumBalanceA(SaleReportDetail idetail) BY saleReport(idetail) IN documentSum MATERIALIZED;
+sumReturnReportDetail 'Возврат с НДС' (saleReport) = GROUP SUM sumReturn(SaleReportDetail idetail) BY saleReport(idetail) IN documentSum MATERIALIZED;
 
 CONSTRAINT tax(VAT(SaleReportDetail d)) != Tax.taxVAT OR
            country(VAT(d)) != country(legalEntity(companyStock(d)))
@@ -643,9 +643,9 @@ CONSTRAINT (SETCHANGED (fromDate(SaleReport r) ) OR SET(isPosted(r)))
     AND fromDate(r) <= maxToDatePostedSaleSupplier(r, companyStock(r), supplier(r), contractSku(r)) 
     MESSAGE 'Есть акты реализации с периодом позже данного. Необходимо распровести более поздние акты';
     
-WHEN SESSION FORMS saleReport SET (SaleReport r IS SaleReport) OR SETCHANGED (companyStock(r)) OR SETCHANGED (supplier(r)) OR SETCHANGED (contractSku(r)) DO {
+WHEN LOCAL FORMS saleReport SET (SaleReport r IS SaleReport) OR SETCHANGED (companyStock(r)) OR SETCHANGED (supplier(r)) OR SETCHANGED (contractSku(r)) DO {
     fromDate(r) <- OVERRIDE sum(maxToDatePostedSaleSupplier(r, companyStock(r), supplier(r), contractSku(r)), 1), firstDayOfMonth(currentDate());
 }
-WHEN SESSION FORMS saleReport SET (SaleReport r IS SaleReport) DO {
+WHEN LOCAL FORMS saleReport SET (SaleReport r IS SaleReport) DO {
     toDate(r) <- lastDayOfMonth(currentDate());
 }

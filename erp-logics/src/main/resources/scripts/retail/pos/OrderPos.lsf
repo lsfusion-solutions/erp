@@ -5,7 +5,7 @@ NAMESPACE POS;
 
 META defineOrderReceipt(sign, stockProp, supplierProp, customerProp, prop)
 
-    orderDetail = ABSTRACT OrderDetail (ReceiptDetail) PERSISTENT INDEXED;
+    orderDetail = ABSTRACT OrderDetail (ReceiptDetail) MATERIALIZED INDEXED;
     orderDetail = DATA OrderDetail (ReceiptSaleDetail);
     orderDetail = DATA OrderDetail (ReceiptReturnDetail);
     orderDetail(Receipt###prop##Detail receiptDetail) += orderDetail(receiptDetail);
@@ -23,13 +23,13 @@ META defineOrderReceipt(sign, stockProp, supplierProp, customerProp, prop)
 
     orders 'Заказы' (receipt) = GROUP CONCAT VARSTRING[255](description(Order order)) IF quantityReceiptDetail(order, Receipt receipt) , ', '
                                                     BY receipt
-                                                    ORDER order IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                    ORDER order IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 
     receipted 'Кол-во (по чеку)' (orderDetail) = GROUP SUM quantity(ReceiptDetail receiptDetail) //IF isPostedReceiptDetail(receiptDetail)
-                                                                       BY orderDetail(receiptDetail) PERSISTENT;
+                                                                       BY orderDetail(receiptDetail) MATERIALIZED;
                                                                        
     receipted 'Кол-во (по чеку)' (order) = GROUP SUM receipted(OrderDetail detail) IF isPosted(detail)
-                                                                       BY order(detail) PERSISTENT;    
+                                                                       BY order(detail) MATERIALIZED;    
                                                                                                                                           
     receiptQuantityOrderDetail 'Кол-во товара в документе' (sku, order) = 
         GROUP SUM receipted(OrderDetail idetail)
@@ -41,12 +41,12 @@ META defineOrderReceipt(sign, stockProp, supplierProp, customerProp, prop)
     toReceipt 'Не отпущено (по чеку)' (OrderDetail orderDetail) = quantity (orderDetail) (-) receipted(orderDetail);
 
     toReceiptOrderDetail 'Не отпущено (по чеку))' (order) = GROUP SUM toReceipt(OrderDetail detail) IF isPosted(detail)
-                                                                       BY order(detail) PERSISTENT; 
+                                                                       BY order(detail) MATERIALIZED; 
     backgroundReceipted 'Цвет' (Order order) = RGB(255, 224, 255) IF order IS Order;
     backgroundReceipted (OrderDetail detail) = backgroundReceipted(order(detail));
     
     sumReceipt 'Сумма оплаты' = GROUP SUM sum(ReceiptDetail receiptDetail) 
-                                                                     BY order(orderDetail(receiptDetail)) PERSISTENT;
+                                                                     BY order(orderDetail(receiptDetail)) MATERIALIZED;
 
     FORM receiptOrders 'Заказы'###sign
         OBJECTS s = LegalEntity PANEL

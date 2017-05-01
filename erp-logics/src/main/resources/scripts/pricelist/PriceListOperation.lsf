@@ -41,9 +41,9 @@ userDefaultCurrency = DATA Currency (Operation);
 //userDefaultCurrencyOperation(operation) => inCurrencyOperation(userDefaultCurrencyOperation(operation), operation) RESOLVE RIGHT;
 calcDefaultCurrency(operation) =
     GROUP MAX Currency currency IF in(currency, Operation operation)
-    BY operation PERSISTENT;
+    BY operation MATERIALIZED;
 defaultCurrency(Operation operation) = OVERRIDE userDefaultCurrency(operation),
-                                               calcDefaultCurrency(operation) PERSISTENT;
+                                               calcDefaultCurrency(operation) MATERIALIZED;
 nameDefaultCurrency 'Валюта по умолчанию' (Operation operation) = name(defaultCurrency(operation));
 isDefault 'Валюта по умолчанию' (Currency currency, Operation operation) =
     defaultCurrency(operation) == currency;
@@ -55,7 +55,7 @@ CONSTRAINT userDefaultCurrency(Operation operation) AND NOT in(userDefaultCurren
 //@defineDocumentOperationContainer(priceList, p){
 //    @defineDocumentOperationContainer(priceList, p, isPostedPriceList, nameCurrency, first){
 //    
-//        operationPriceList = ABSTRACT Operation (PriceList) PERSISTENT;
+//        operationPriceList = ABSTRACT Operation (PriceList) MATERIALIZED;
 //        nameOperationPriceList 'Операция' = nameOperation(operationPriceList(priceList));
 //        idOperationPriceList 'ID операции' = idOperation(operationPriceList(priceList));
 //        operationUserPriceList = DATA Operation (UserPriceList);
@@ -82,7 +82,7 @@ CONSTRAINT userDefaultCurrency(Operation operation) AND NOT in(userDefaultCurren
 //    };
 //};
     
-operation = ABSTRACT Operation (PriceList) PERSISTENT;
+operation = ABSTRACT Operation (PriceList) MATERIALIZED;
 nameOperation 'Операция' = name(operation(PriceList priceList));
 idOperation 'ID операции' = id(operation(PriceList priceList));
 operation = DATA Operation (UserPriceList);
@@ -90,7 +90,7 @@ nameOperation 'Операция' = name(operation(UserPriceList userPriceList));
 idOperation 'ID операции' = id(operation(UserPriceList userPriceList));
 operation(UserPriceList priceList) += operation(priceList);
 
-operation 'Операция' (PriceListDetail priceListDetail) = operation(priceList(priceListDetail)) PERSISTENT;
+operation 'Операция' (PriceListDetail priceListDetail) = operation(priceList(priceListDetail)) MATERIALIZED;
 operation 'Операция' (UserPriceListDetail userPriceListDetail) = operation(userPriceList(userPriceListDetail));
 
 DESIGN options {
@@ -128,10 +128,10 @@ in(UserPriceList priceList, DataPriceListType dataPriceListType) <- change(dataP
 show(UserPriceList priceList, PriceListType priceListType) <- show(priceListType, operation(priceList))
     WHEN CHANGED(operation(priceList));
 
-WHEN SESSION CHANGED(operation(UserPriceList priceList)) AND dataLegalEntity(operation(priceList)) DO
+WHEN LOCAL CHANGED(operation(UserPriceList priceList)) AND dataLegalEntity(operation(priceList)) DO
     company(priceList) <- dataLegalEntity(operation(priceList));
 
-WHEN SESSION CHANGED(operation(UserPriceList priceList)) AND defaultCurrency(operation(priceList)) DO
+WHEN LOCAL CHANGED(operation(UserPriceList priceList)) AND defaultCurrency(operation(priceList)) DO
     currency(priceList) <- defaultCurrency(operation(priceList));
 
 copyOperation(UserPriceList priceList, UserPriceList userPriceList) = {
@@ -159,7 +159,7 @@ DESIGN operation {
 
 skipSetStocks = DATA LOCAL BOOLEAN (UserPriceList);
 
-WHEN SESSION CHANGED(operation(UserPriceList priceList)) AND NOT doNotSetStocksUserPriceList(operation(priceList))
+WHEN LOCAL CHANGED(operation(UserPriceList priceList)) AND NOT doNotSetStocksUserPriceList(operation(priceList))
     AND NOT skipSetStocks(priceList) DO {
     allStocks(priceList) <- allStocks(operation(priceList));
     dataIn(priceList, StockGroup stockGroup) <- dataIn(stockGroup, operation(priceList));

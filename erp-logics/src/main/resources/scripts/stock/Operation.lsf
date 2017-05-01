@@ -20,7 +20,7 @@ FORM operationDialogOperations 'Операции'
 ;
 
 TABLE userOperation (User, Operation);
-in (user, operation) = ABSTRACT BOOLEAN (User, Operation) PERSISTENT;
+in (user, operation) = ABSTRACT BOOLEAN (User, Operation) MATERIALIZED;
 countUsers = GROUP SUM 1 IF in (User user, Operation operation) BY operation;
 
 DESIGN options {
@@ -109,7 +109,7 @@ END
 
 // -------------------------------------- Макросы по объявлению операций в документах ---------------------------------- //
 META defineDocumentOperationAbstractHeaderPrefix(object, prefix, NSR, caption)
-    prefix###operation = ABSTRACT NSR.Operation (###object) PERSISTENT;
+    prefix###operation = ABSTRACT NSR.Operation (###object) MATERIALIZED;
     name###prefix##Operation 'Операция'###caption = name(prefix###operation(###object object));
     id###prefix##Operation 'ID операции'###caption = id(prefix###operation(###object object));
 END
@@ -156,7 +156,7 @@ END
 
 META defineDocumentOperation(object, char, befProp, befProperty)
 
-    operation###object = ABSTRACT Operation (###object) PERSISTENT INDEXED;
+    operation###object = ABSTRACT Operation (###object) MATERIALIZED INDEXED;
     name###operation###object 'Операция' = nameOperation(operation###object(object));
     id###operation###object 'ID операции' = idOperation(operation###object(object));
     operationUser###object = DATA Operation (User###object);
@@ -188,7 +188,7 @@ END
 
 META defineDocumentOperationContainer(object, char, afProp, befProperty, contProp, typeIdentity)
 
-    operation = ABSTRACT Operation (###object) PERSISTENT INDEXED;
+    operation = ABSTRACT Operation (###object) MATERIALIZED INDEXED;
     nameOperation 'Операция' = typeIdentity(operation(###object object));
     idOperation 'ID операции' = id(operation(###object object));
     operation = DATA Operation (User###object);
@@ -253,10 +253,10 @@ META defineOperationLegalEntity(prop, propPostfix, object, tabcaption)
 
     levelParent###propPostfix###prop (operation, legalEntityGroup) =
         GROUP MIN level(LegalEntityGroup legalEntityGroup, LegalEntityGroup parent) IF dataIn###prop(parent, Operation operation)
-              BY operation, legalEntityGroup PERSISTENT;
+              BY operation, legalEntityGroup MATERIALIZED;
     nearestParent###propPostfix###prop##Group (Operation operation, LegalEntityGroup legalEntityGroup) = legalEntityGroup(legalEntityGroup, levelParent###propPostfix###prop(operation, legalEntityGroup));
     nearestIn###prop (LegalEntityGroup legalEntityGroup, Operation operation) =
-        dataIn###prop(nearestParent###propPostfix###prop##Group(operation, legalEntityGroup), operation) PERSISTENT;
+        dataIn###prop(nearestParent###propPostfix###prop##Group(operation, legalEntityGroup), operation) MATERIALIZED;
 
     in###prop 'Отм' (LegalEntityGroup legalEntityGroup, Operation operation) =
         OVERRIDE dataIn###prop(legalEntityGroup, operation), nearestIn###prop(legalEntityGroup, operation);
@@ -266,8 +266,8 @@ META defineOperationLegalEntity(prop, propPostfix, object, tabcaption)
     in###prop 'Отм' (LegalEntity legalEntity, Operation operation) =
         OVERRIDE dataIn###prop(legalEntity, operation), nearestIn###prop(legalEntityGroup(legalEntity), operation);
         
-    quantityChildWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(LegalEntityGroup childGroup, Operation operation) AND isParent(childGroup, LegalEntityGroup group) BY group, operation PERSISTENT;
-    quantityParentWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(LegalEntityGroup parentGroup, Operation operation) AND isParent(LegalEntityGroup group, parentGroup) BY group, operation PERSISTENT;          
+    quantityChildWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(LegalEntityGroup childGroup, Operation operation) AND isParent(childGroup, LegalEntityGroup group) BY group, operation MATERIALIZED;
+    quantityParentWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(LegalEntityGroup parentGroup, Operation operation) AND isParent(LegalEntityGroup group, parentGroup) BY group, operation MATERIALIZED;          
         
     backgroundIn###prop 'Цвет' (LegalEntityGroup group, Operation operation) = CASE
         WHEN dataIn###prop(group, operation) THEN RGB(0,0,0)
@@ -338,7 +338,7 @@ META defineCountLegalEntityOperation(prop)
 END
 
 META deriveDocumentOperationLegalEntity(objectClass, prop, form)
-    WHEN SESSION FORMS form CHANGED(operation(###objectClass o)) NOINLINE DO {
+    WHEN LOCAL FORMS form CHANGED(operation(###objectClass o)) NOINLINE DO {
         prop(o) <- default###prop(operation(o))
             WHERE count###prop(operation(o)) == 1;
     }        
@@ -356,10 +356,10 @@ META defineOperationStock(prop, object, tabcaption)
 
     levelParent###prop##Stock (operation, stockGroup) =
         GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataIn###prop(parent, Operation operation)
-              BY operation, stockGroup PERSISTENT;
+              BY operation, stockGroup MATERIALIZED;
     nearestParent###prop##StockGroup (Operation operation, StockGroup stockGroup) = stockGroup(stockGroup, levelParent###prop##Stock(operation, stockGroup));
     nearestIn###prop (StockGroup stockGroup, Operation operation) =
-        dataIn###prop(nearestParent###prop##StockGroup(operation, stockGroup), operation) PERSISTENT;
+        dataIn###prop(nearestParent###prop##StockGroup(operation, stockGroup), operation) MATERIALIZED;
 
     in###prop 'Отм' (StockGroup stockGroup, Operation operation) =
         OVERRIDE dataIn###prop(stockGroup, operation),
@@ -377,8 +377,8 @@ META defineOperationStock(prop, object, tabcaption)
     backgroundAll###prop##Stocks 'Цвет' (Operation operation) = IF all###prop##Stocks(operation) THEN RGB(0,0,0)
         ELSE RGB(203,203,203) IF countDataIn###prop##StockGroups(operation);      
      
-    quantityChildWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(StockGroup childGroup, Operation operation) AND isParent(childGroup, StockGroup group) BY group, operation PERSISTENT;
-    quantityParentWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(StockGroup parentGroup, Operation operation) AND isParent(StockGroup group, parentGroup) BY group, operation PERSISTENT;          
+    quantityChildWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(StockGroup childGroup, Operation operation) AND isParent(childGroup, StockGroup group) BY group, operation MATERIALIZED;
+    quantityParentWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(StockGroup parentGroup, Operation operation) AND isParent(StockGroup group, parentGroup) BY group, operation MATERIALIZED;          
           
     backgroundIn###prop 'Цвет' (StockGroup group, Operation operation) = CASE
         WHEN dataIn###prop(group, operation) THEN RGB(0,0,0)
@@ -454,7 +454,7 @@ META defineCountStockOperation(prop, filter, filterEntity)
 END
 
 META deriveDocumentOperationStock(objectClass, prop, form)
-    WHEN SESSION FORMS form CHANGED(operation(###objectClass o)) NOINLINE DO {
+    WHEN LOCAL FORMS form CHANGED(operation(###objectClass o)) NOINLINE DO {
         IF count###prop##Stock(operation(o)) == 1 THEN 
             prop##Stock(o) <- default###prop##Stock(operation(o));
     }
@@ -513,7 +513,7 @@ META defineOperationRole(dumb)
     
     TABLE userOperation (User, Operation);
     in (User user, Operation operation) = allRoles(operation) AND user IS User OR 
-                                        dataIn(mainRole(user), operation) PERSISTENT;
+                                        dataIn(mainRole(user), operation) MATERIALIZED;
     in(User user, Operation operation) += in(user, operation);
     countOperations (user) = GROUP SUM 1 IF in(User user, Operation operation) BY user;
     countUsers = GROUP SUM 1 IF in (User user, Operation operation) BY operation;
@@ -580,7 +580,7 @@ META defineDocumentOperationRole(object)
     @defineDocumentOperationRole(object, ###object);
 END
 META defineDocumentOperationRolePrefix(object, objectClass, prefix)
-    WHEN SESSION SET(###object o IS objectClass) AND countOperations(currentUser()) == 1 AND NOT CHANGED(operation(o)) DO {
+    WHEN LOCAL SET(###object o IS objectClass) AND countOperations(currentUser()) == 1 AND NOT CHANGED(operation(o)) DO {
         operation(o) <- defaultOperation(currentUser());
     }
 END

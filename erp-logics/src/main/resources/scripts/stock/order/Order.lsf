@@ -37,12 +37,12 @@ selected 'Отм.' = DATA LOCAL BOOLEAN (Order);
 @defineDocumentAbstractLegalEntity(order, from, 'Отправитель');
 @defineDocumentAbstractLegalEntity(order, to, 'Получатель');
 
-closeDate 'Дата автоматического закрытия' = ABSTRACT DATE (Order) IN documentPrm PERSISTENT;
+closeDate 'Дата автоматического закрытия' = ABSTRACT DATE (Order) IN documentPrm MATERIALIZED;
 
 @defineDocumentAbstractHeaderTimePrefix(Order, shipment, ' поставки');
-shipmentDate 'Дата поставки' = ABSTRACT DATE (OrderDetail) IN documentHeader PERSISTENT;
-shipmentTime 'Время поставки' = ABSTRACT TIME (OrderDetail) IN documentHeader PERSISTENT;
-shipmentDateTime 'Дата/время поставки' (OrderDetail d) = dateTimeToDateTime(shipmentDate(d), shipmentTime(d)) PERSISTENT;
+shipmentDate 'Дата поставки' = ABSTRACT DATE (OrderDetail) IN documentHeader MATERIALIZED;
+shipmentTime 'Время поставки' = ABSTRACT TIME (OrderDetail) IN documentHeader MATERIALIZED;
+shipmentDateTime 'Дата/время поставки' (OrderDetail d) = dateTimeToDateTime(shipmentDate(d), shipmentTime(d)) MATERIALIZED;
 
 @defineDocumentAbstractDataStock(order, stock, 'Склад поставщика', supplier);
 @defineDocumentAbstractDataStock(order, stock, 'Склад покупателя', customer);
@@ -68,7 +68,7 @@ idBatch 'Код партии' (OrderDetail d)= id(batch(d));
 @defineDocumentAbstractDetailQuantity(order);
 @defineDocumentDetailGrossWeight(order, sku);
 @defineDocumentAbstractDetailQuantityPrefix(order, pack, ' (упаковок)');
-packQuantityOrderDetail 'Кол-во (упаковок)(всего)' (order) = GROUP SUM packQuantity(OrderDetail idetail) BY order(idetail) IN documentSum PERSISTENT;
+packQuantityOrderDetail 'Кол-во (упаковок)(всего)' (order) = GROUP SUM packQuantity(OrderDetail idetail) BY order(idetail) IN documentSum MATERIALIZED;
 
 @defineDocumentHeaderSkuQuantity(order, sku);
 
@@ -84,7 +84,7 @@ taxNumberSupplier 'Налоговый номер постащика' = ABSTRACT 
 createdUser = ABSTRACT CustomUser (Order);
 createdNameUser 'Создан пользователем' (Order order) = name[Contact](createdUser(order)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
 
-operation = ABSTRACT Operation.Operation (Order) PERSISTENT;
+operation = ABSTRACT Operation.Operation (Order) MATERIALIZED;
 nameOperation 'Операция' (Order order) = name(operation(order));  ////
 
 quantityFrom 'Кол-во со склада' (order, stock) = GROUP SUM quantity(OrderDetail orderDetail) BY order(orderDetail),
@@ -95,8 +95,8 @@ quantityTo 'Кол-во на склад' (order, stock) = GROUP SUM quantity(Ord
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (Order) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-in 'Приходный' = ABSTRACT BOOLEAN (Order) PERSISTENT;
-out 'Расходный' (Order order) = order IS Order AND NOT in(order) PERSISTENT;
+in 'Приходный' = ABSTRACT BOOLEAN (Order) MATERIALIZED;
+out 'Расходный' (Order order) = order IS Order AND NOT in(order) MATERIALIZED;
 
 isReturn 'Возвратный' = ABSTRACT BOOLEAN (Order);
 
@@ -238,8 +238,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     closeDataDate 'Дата автоматического закрытия' = DATA DATE (UserOrderDetail) IN documentPrm;
     closeDataDate(UserOrderDetail detail) += closeDataDate(detail);
 
-    closeDate 'Дата автоматического закрытия' (OrderDetail detail) = OVERRIDE closeDataDate(detail), closeDate(order(detail)) PERSISTENT;
-    closeDate 'Дата автоматического закрытия' (UserOrderDetail detail) = OVERRIDE closeDataDate(detail), closeDate(userOrder(detail)) PERSISTENT;
+    closeDate 'Дата автоматического закрытия' (OrderDetail detail) = OVERRIDE closeDataDate(detail), closeDate(order(detail)) MATERIALIZED;
+    closeDate 'Дата автоматического закрытия' (UserOrderDetail detail) = OVERRIDE closeDataDate(detail), closeDate(userOrder(detail)) MATERIALIZED;
 
     closeDataDate(UserOrderDetail detail) <- OVERRIDE overCloseDate(detail), sum(shipmentDate(detail), quantityDaysCloseOrders(stockProp##Stock(detail)))
         WHEN CHANGED(shipmentDate(detail)) OR CHANGED(stockProp##Stock(detail)) OR CHANGED(overCloseDate(detail));
@@ -290,7 +290,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentInterfaceDetailPrice(order); // объявляем цену без НДС
     price[Order.OrderDetail](OrderDetail detail) += price(detail);
 
-    overPriceStockUser = ABSTRACT CASE OVERRIDE FIRST Stock (Order) PERSISTENT;
+    overPriceStockUser = ABSTRACT CASE OVERRIDE FIRST Stock (Order) MATERIALIZED;
     priceStockUser(Order o) = OVERRIDE overPriceStockUser(o), stockProp##Stock(o);
     notPriceStockUser(Order o) = NOT priceStockUser(o); 
     priceStock(UserOrderDetail d) = priceStockUser(userOrder(d)); 
@@ -301,7 +301,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     overVAT(UserOrderDetail d) += VAT (sku(d), country(supplierStock(d)));
     changedVAT = ABSTRACT BOOLEAN (UserOrderDetail);
     
-    WHEN SESSION
+    WHEN LOCAL
         (CHANGED(sku(UserOrderDetail detail)) OR CHANGED (supplierStock(detail)) OR changedVAT(detail)) AND NOT CHANGED(VAT(detail)) DO {
             VAT(detail) <- overVAT(detail);
         } // записываем шкалу

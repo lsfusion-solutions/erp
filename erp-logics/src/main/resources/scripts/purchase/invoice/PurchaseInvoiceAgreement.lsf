@@ -69,30 +69,30 @@ percDeviationUpPrice '% отклонения по цене вверх' = DATA NU
 dataPercDeviationDownPrice '% отклонения по цене вниз' (agreement, group) = DATA NUMERIC[8,2] (Agreement, Group);
 levelParentPercDeviationDownPrice (agreement, group) =
     GROUP MIN level(Group group, Group parent) IF dataPercDeviationDownPrice(Agreement agreement, parent)
-    BY agreement, group PERSISTENT;
+    BY agreement, group MATERIALIZED;
 nearestParentPercDeviationDownPrice (Agreement agreement, Group group) = group(group, levelParentPercDeviationDownPrice (agreement, group));
 nearestPercDeviationDownPrice (Agreement agreement, Group group) =
-   dataPercDeviationDownPrice(agreement, nearestParentPercDeviationDownPrice(agreement, group)) PERSISTENT;
+   dataPercDeviationDownPrice(agreement, nearestParentPercDeviationDownPrice(agreement, group)) MATERIALIZED;
 
 percDeviationDownPrice '% отклонения по цене вниз (перегруженный)' (Agreement agreement, Group group) =  OVERRIDE  
     dataPercDeviationDownPrice(agreement, group), 
     nearestPercDeviationDownPrice(agreement, group),
-    percDeviationDownPrice(agreement) IF group IS Group PERSISTENT;
+    percDeviationDownPrice(agreement) IF group IS Group MATERIALIZED;
     
 //-- вверх        
 dataPercDeviationUpPrice '% отклонения по цене вверх' (agreement, group) = DATA NUMERIC[8,2] (Agreement, Group);
 
 levelParentPercDeviationUpPrice (agreement, group) =
     GROUP MIN level(Group group, Group parent) IF dataPercDeviationUpPrice(Agreement agreement, parent)
-    BY agreement, group PERSISTENT;
+    BY agreement, group MATERIALIZED;
 nearestParentPercDeviationUpPrice (Agreement agreement, Group group) = group(group, levelParentPercDeviationUpPrice (agreement, group));
 nearestPercDeviationUpPrice (Agreement agreement, Group group) =
-   dataPercDeviationUpPrice(agreement, nearestParentPercDeviationUpPrice(agreement, group)) PERSISTENT;
+   dataPercDeviationUpPrice(agreement, nearestParentPercDeviationUpPrice(agreement, group)) MATERIALIZED;
 
 percDeviationUpPrice '% отклонения по цене вверх (перегруженный)' (Agreement agreement, Group group) =  OVERRIDE  
     dataPercDeviationUpPrice(agreement, group), 
     nearestPercDeviationUpPrice(agreement, group),
-    percDeviationUpPrice(agreement) IF group IS Group PERSISTENT;    
+    percDeviationUpPrice(agreement) IF group IS Group MATERIALIZED;    
 
 // Уточнение по sku
 //-- вниз
@@ -112,10 +112,10 @@ percDeviationUpPrice '% отклонения по цене вверх (пере�
     
 showPercDeviationUpPrice (Agreement a) = [= GROUP SUM 1 IF dataPercDeviationUpPrice(Agreement agreement, Sku sku) BY agreement](a) (+) 
                                                     [= GROUP SUM 1 IF dataPercDeviationUpPrice(Agreement agreement, Group g) BY agreement](a) (+)
-                                                    (1 IF percDeviationUpPrice(a)) PERSISTENT;
+                                                    (1 IF percDeviationUpPrice(a)) MATERIALIZED;
 showPercDeviationDownPrice (Agreement a) = [= GROUP SUM 1 IF dataPercDeviationDownPrice(Agreement agreement, Sku sku) BY agreement](a) (+) 
                                                       [= GROUP SUM 1 IF dataPercDeviationDownPrice(Agreement agreement, Group g) BY agreement](a) (+)
-                                                      (1 IF percDeviationDownPrice(a)) PERSISTENT;
+                                                      (1 IF percDeviationDownPrice(a)) MATERIALIZED;
 EXTEND FORM agreement 
     PROPERTIES(a) percDeviationDownPrice, percDeviationUpPrice 
     PROPERTIES(a, g) dataPercDeviationDownPrice, percDeviationDownPrice,

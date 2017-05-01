@@ -13,7 +13,7 @@ TABLE priceListType(PriceListType);
 
 name 'Наименование' = ABSTRACT VARISTRING[100](PriceListType);
 
-includeVAT 'Цена с НДС' = ABSTRACT BOOLEAN (PriceListType) PERSISTENT COMPLEX;
+includeVAT 'Цена с НДС' = ABSTRACT BOOLEAN (PriceListType) MATERIALIZED COMPLEX;
 
 priceB 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListType, Sku, Stock, DATETIME);
 priceA 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListType, Sku, Stock, DATETIME);
@@ -194,7 +194,7 @@ META defineDocumentAbstractHeaderPriceListType (object, type, prefix, caption)
 END
 
 META defineDocumentAbstractHeaderPriceListType (object, type, typeClass, prefix, caption)
-    prefix###type (object) = ABSTRACT typeClass (###object) PERSISTENT;
+    prefix###type (object) = ABSTRACT typeClass (###object) MATERIALIZED;
     name###prefix###type 'Вид цен'###caption (###object object)= name(prefix###type(object)) IN documentPrm MINCHARWIDTH 5 PREFCHARWIDTH 10;
 END
 META defineDocumentInterfaceHeaderPriceListType (object, type, prefix, caption)
@@ -234,7 +234,7 @@ META defineDocumentAbstractDetailPriceListType (object, detail, type, prefix, ca
 END
 
 META defineDocumentAbstractDetailPriceListTypeInner (object, detail, type, typeClass, prefix, caption)
-    prefix###type =  ABSTRACT typeClass (###detail) PERSISTENT;
+    prefix###type =  ABSTRACT typeClass (###detail) MATERIALIZED;
     name###prefix###type 'Вид цен'###caption (###detail idetail) = name(prefix###type(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
 END
 
@@ -423,7 +423,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
             ELSE
                 prevList(priceListType, detail) * (100.0 (+) calcValueVAT(detail)) / 100.0);
 
-    WHEN SESSION FORMS form GOAFTER valueVAT[###detail] // цены берем на начало сессии, а не этого event'а
+    WHEN LOCAL FORMS form GOAFTER valueVAT[###detail] // цены берем на начало сессии, а не этого event'а
             (((CHANGED(stockProp(###detail d)) OR
              CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
              (CHANGED(priceListType(d)) OR
@@ -435,7 +435,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
         invoicePrice(d) <- round2(prevList(pt, d));
     }
 
-    WHEN SESSION FORMS form GOAFTER valueVAT[###detail] // цены берем на начало сессии, а не этого event'а
+    WHEN LOCAL FORMS form GOAFTER valueVAT[###detail] // цены берем на начало сессии, а не этого event'а
             (((CHANGED(stockProp(###detail d)) OR
              CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
              (CHANGED(priceListType(d)) OR
@@ -524,14 +524,14 @@ META defineDocumentOperationPriceListType(object, caption, form, defaultPrefix)
         
     skipSetPriceListType = ABSTRACT BOOLEAN (###object);    
         
-    WHEN SESSION CHANGED(operation(###object object)) AND NOT CHANGED(priceListType(object)) AND NOT skipSetPriceListType(object) DO {
+    WHEN LOCAL CHANGED(operation(###object object)) AND NOT CHANGED(priceListType(object)) AND NOT skipSetPriceListType(object) DO {
         IF default###defaultPrefix##PriceListType(operation(object)) THEN
             priceListType(object) <- default###defaultPrefix##PriceListType(operation(object));
         ELSE IF defaultPriceListType(operation(object)) AND NOT notUseReturnPriceListType(operation(object)) THEN
                 priceListType(object) <- defaultPriceListType(operation(object)); 
     }
     
-    WHEN SESSION GOAFTER priceListType[###object] CHANGED(operation(###object object)) AND priceListType(object) DO {
+    WHEN LOCAL GOAFTER priceListType[###object] CHANGED(operation(###object object)) AND priceListType(object) DO {
         IF TRUE AND NOT in(priceListType(object), operation(object)) THEN
             priceListType(object) <- NULL; 
     }

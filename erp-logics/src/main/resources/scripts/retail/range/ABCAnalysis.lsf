@@ -35,7 +35,7 @@ levelParent (group) = GROUP MIN level(Group group, Group parent) IF dataInSessio
     BY group;
 nearestParentGroupInSession (Group g) =  group(g, levelParent(g));
 nearestInSession (Group g) =
-    dataInSession(nearestParentGroupInSession(g)) PERSISTENT;
+    dataInSession(nearestParentGroupInSession(g)) MATERIALIZED;
 
 inParent (Group group) = TRUE IF levelParent(group) AND isLeaf(group);
 
@@ -48,8 +48,8 @@ sessionConcatGroups 'Группы' (groupType) =
     BY groupType(group);
     
 
-quantityChildWithSession (g) = GROUP SUM 1 IF dataInSession(Group child) AND isParent(child, Group parent) BY parent PERSISTENT;
-quantityParentWithSession (g) = GROUP SUM 1 IF dataInSession(Group parent) AND isParent(Group child, parent) BY child PERSISTENT;                                                                        
+quantityChildWithSession (g) = GROUP SUM 1 IF dataInSession(Group child) AND isParent(child, Group parent) BY parent MATERIALIZED;
+quantityParentWithSession (g) = GROUP SUM 1 IF dataInSession(Group parent) AND isParent(Group child, parent) BY child MATERIALIZED;                                                                        
                                                                            
 backgroundInSession 'Цвет' (Group g) = CASE 
     WHEN dataInSession(g) THEN RGB(0,0,0)

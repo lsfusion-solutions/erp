@@ -12,22 +12,22 @@ dataExtraUOM = DATA UOM (LegalEntity, Sku);
 shortNameDataExtraUOM 'Ед. изм. поставщика' (LegalEntity legalEntity, Sku sku) = shortName(dataExtraUOM(legalEntity, sku));
 
 levelParentExtraUOM (legalEntity, group) = GROUP MIN level(Group group, Group parent) IF dataExtraUOM(LegalEntity legalEntity, parent)
-                                                              BY legalEntity, group PERSISTENT;
+                                                              BY legalEntity, group MATERIALIZED;
 nearestParent (LegalEntity legalEntity, Group group) = group(group, levelParentExtraUOM(legalEntity, group));
 nearestExtraUOM (LegalEntity legalEntity, Group group) =
-    dataExtraUOM(legalEntity, nearestParent(legalEntity, group)) PERSISTENT;
+    dataExtraUOM(legalEntity, nearestParent(legalEntity, group)) MATERIALIZED;
 nameNearestExtraUOM 'Ед. изм. поставщика(перегруженная)' (LegalEntity legalEntity, Group group) = shortName(nearestExtraUOM(legalEntity, group));    
 
 extraUOM (LegalEntity legalEntity, Group group) =
-    OVERRIDE dataExtraUOM(legalEntity, group), nearestExtraUOM(legalEntity, group) PERSISTENT;
+    OVERRIDE dataExtraUOM(legalEntity, group), nearestExtraUOM(legalEntity, group) MATERIALIZED;
     
 extraUOM = OVERRIDE 
     dataExtraUOM(LegalEntity legalEntity, Sku sku),
-    extraUOM(legalEntity, group(groupType(legalEntity), sku)) PERSISTENT;
+    extraUOM(legalEntity, group(groupType(legalEntity), sku)) MATERIALIZED;
 nameExtraUOM 'Ед. изм. поставщика(перегруженная)' (LegalEntity legalEntity, Sku sku) =  shortName(extraUOM(legalEntity, sku));    
    
-quantityChildWithExtraUOM  = GROUP SUM 1 IF dataExtraUOM(LegalEntity legalEntity, Group child) AND isParent(child, Group parent) BY parent, legalEntity PERSISTENT;
-quantityParentWithExtraUOM  = GROUP SUM 1 IF dataExtraUOM(LegalEntity legalEntity, Group parent) AND isParent(Group child, parent) BY child, legalEntity PERSISTENT;                                                                        
+quantityChildWithExtraUOM  = GROUP SUM 1 IF dataExtraUOM(LegalEntity legalEntity, Group child) AND isParent(child, Group parent) BY parent, legalEntity MATERIALIZED;
+quantityParentWithExtraUOM  = GROUP SUM 1 IF dataExtraUOM(LegalEntity legalEntity, Group parent) AND isParent(Group child, parent) BY child, legalEntity MATERIALIZED;                                                                        
 
 backgroundExtraUOM 'Цвет' (LegalEntity legalEntity, Group group) = CASE 
     WHEN dataExtraUOM(legalEntity, group) THEN RGB(230,248,250) 

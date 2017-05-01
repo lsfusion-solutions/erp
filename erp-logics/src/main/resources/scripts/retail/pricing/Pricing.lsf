@@ -163,7 +163,7 @@ META defineDocumentHeaderPricingCommittee(object, stockClass, prefix)
     positionShortName###prefix##HeadMan 'Зав. магазином' (###object object) = positionShortName(prefix###headMan(object)) IN pricingCommittee;   
 END
 META defineDocumentHeaderAbstractPricingCommittee(object, stockClass, prefix)
-    prefix###pricingCommittee (object) = ABSTRACT PricingCommittee(###object) PERSISTENT;
+    prefix###pricingCommittee (object) = ABSTRACT PricingCommittee(###object) MATERIALIZED;
 
     name###prefix##PricingCommittee 'Комиссия для акта расценки' (###object object) = name(prefix###pricingCommittee(object)) IN documentPrm MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
@@ -217,7 +217,7 @@ END
 //------------------------  derive or change ------------------------------------//
 
 pricingBase 'Считать розничную цену от базовой в расценке' = DATA BOOLEAN (CalcPriceListType);
-pricingDocument = CalcPriceListType p IS CalcPriceListType AND NOT pricingBase(p) PERSISTENT;
+pricingDocument = CalcPriceListType p IS CalcPriceListType AND NOT pricingBase(p) MATERIALIZED;
 
 EXTEND FORM calcPriceListType
     PROPERTIES(c) pricingBase
@@ -229,7 +229,7 @@ END
 
 META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form, prefixTime, prefixSku)
 
-    WHEN SESSION 
+    WHEN LOCAL 
         (CHANGED(prefix###priceListType(###idetail detail)) OR
          CHANGED(prefixP###price(detail)) OR
          CHANGED(prefixSku###sku(detail)) OR
@@ -248,7 +248,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
                                                          WHERE prefix###priceListType(detail) == priceListType;
         }
         
-    WHEN SESSION
+    WHEN LOCAL
         (CHANGED(prefix###priceListType(###idetail detail)) OR
          CHANGED(prefixP###price(detail)) OR
          CHANGED(prefixSku###sku(detail)) OR
@@ -270,7 +270,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
                                                          WHERE prefix###priceListType(detail) == priceListType;
         }
 
-    WHEN SESSION
+    WHEN LOCAL
         (CHANGED(prefixP###price(###idetail detail)) OR
          CHANGED(value###prefix##VAT(detail)))
         AND NOT prefix###priceListType(detail) INLINE DO {
@@ -482,17 +482,17 @@ CONSTRAINT supplier(UserPricing userPricing) AND NOT isSeller(supplier(userPrici
 // Цена поставщика
 @defineDocumentInterfaceDetailPricePrefix(pricing, , ' поставщика');
 
-overPrice(pricingDetail) = ABSTRACT NUMERIC[16,4] (PricingDetail) PERSISTENT;
+overPrice(pricingDetail) = ABSTRACT NUMERIC[16,4] (PricingDetail) MATERIALIZED;
 
 // Цена базовая (от которой будет считаться надбавка)
-overPricingPrice = ABSTRACT NUMERIC[16,4] (PricingDetail) PERSISTENT;
-overPricingPrice = ABSTRACT NUMERIC[16,4] (UserPricingDetail) PERSISTENT;
+overPricingPrice = ABSTRACT NUMERIC[16,4] (PricingDetail) MATERIALIZED;
+overPricingPrice = ABSTRACT NUMERIC[16,4] (UserPricingDetail) MATERIALIZED;
 overPricingPrice (UserPricingDetail detail) += overPricingPrice(detail);
 
-over1PricingPrice = ABSTRACT NUMERIC[16,4] (PricingDetail) PERSISTENT;
+over1PricingPrice = ABSTRACT NUMERIC[16,4] (PricingDetail) MATERIALIZED;
 
-pricingPrice (UserPricingDetail detail) = OVERRIDE overPricingPrice(detail), price(detail) PERSISTENT;
-pricingPrice (PricingDetail detail) = OVERRIDE over1PricingPrice(detail), overPricingPrice(detail), price(detail) PERSISTENT;
+pricingPrice (UserPricingDetail detail) = OVERRIDE overPricingPrice(detail), price(detail) MATERIALIZED;
+pricingPrice (PricingDetail detail) = OVERRIDE over1PricingPrice(detail), overPricingPrice(detail), price(detail) MATERIALIZED;
 
 // Надбавка
 @defineDocumentInterfaceDetailMarkupPrefix (pricing, retail, );
@@ -595,7 +595,7 @@ skipChangeLedger (UserPricingDetail o) += skipChangeLedger(o);
 //};
 
 // Основание
-descriptionDocument 'Документы-основания' = ABSTRACT VARSTRING[255] (Pricing) PERSISTENT;
+descriptionDocument 'Документы-основания' = ABSTRACT VARSTRING[255] (Pricing) MATERIALIZED;
 extraDescription 'Доп. наименование'  = ABSTRACT VARSTRING[255] (PricingDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
 
 // Возвраты
@@ -870,7 +870,7 @@ NAVIGATOR {
     }
 }
 
-WHEN SESSION FORMS userPricing // цены берем на начало сессии, а не этого event'а
+WHEN LOCAL FORMS userPricing // цены берем на начало сессии, а не этого event'а
    (CHANGED(calcRetailPriceListType(UserPricingDetail detail)) OR
     CHANGED(calcRetailCalcPriceListType(detail)) OR
     CHANGED(sku(detail)) OR
@@ -884,7 +884,7 @@ WHEN SESSION FORMS userPricing // цены берем на начало сесс
                                                             ELSE calcRetailCalcPriceListType(detail);
 
 // если не задана управленческая цена
-WHEN SESSION FORMS userPricing // цены берем на начало сессии, а не этого event'а
+WHEN LOCAL FORMS userPricing // цены берем на начало сессии, а не этого event'а
    (CHANGED(calcRetailPriceListType(UserPricingDetail detail)) OR
     CHANGED(calcRetailCalcPriceListType(detail)) OR
     CHANGED(sku(detail)) OR
@@ -982,10 +982,10 @@ prevSupplierPricingPriceB 'Цена поставщика' (Sku sku, Stock stock,
     prevSupplierPricingPriceB(sku, stock, toDateTime(date));    
 
 currentSupplierPricingPriceListLedger (Sku sku, Stock stock) =
-    currentPriceListLedger(SystemLedgerPriceListType.supplierPricingPriceListType, sku, stock) PERSISTENT INDEXED TABLE extraSkuStock;
+    currentPriceListLedger(SystemLedgerPriceListType.supplierPricingPriceListType, sku, stock) MATERIALIZED INDEXED TABLE extraSkuStock;
 
 currentSupplierPricingPrice 'Цена поставщика' (Sku sku, Stock stock) =
-    price[PriceListLedger,LedgerPriceListType](currentSupplierPricingPriceListLedger(sku, stock), SystemLedgerPriceListType.supplierPricingPriceListType) PERSISTENT TABLE extraSkuStock; 
+    price[PriceListLedger,LedgerPriceListType](currentSupplierPricingPriceListLedger(sku, stock), SystemLedgerPriceListType.supplierPricingPriceListType) MATERIALIZED TABLE extraSkuStock; 
 
 retailPricingPriceB 'Розничная цена' (Sku sku, Stock stock, DATETIME dateTime) =
     priceB(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dateTime);
@@ -1009,10 +1009,10 @@ retailPricingPriceA 'Розничная цена' (Sku sku, Stock stock, DATE da
     retailPricingPriceA(sku, stock, toDateTime(date));    
 
 currentRetailPricingPriceListLedger (Sku sku, Stock stock) =
-    currentPriceListLedger(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock) PERSISTENT TABLE extraSkuStock;
+    currentPriceListLedger(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock) MATERIALIZED TABLE extraSkuStock;
 
 currentRetailPricingPrice 'Розничная цена' (Sku sku, Stock stock) =
-    price[PriceListLedger,LedgerPriceListType](currentRetailPricingPriceListLedger(sku, stock), SystemLedgerPriceListType.retailPricingPriceListType) PERSISTENT TABLE extraSkuStock; 
+    price[PriceListLedger,LedgerPriceListType](currentRetailPricingPriceListLedger(sku, stock), SystemLedgerPriceListType.retailPricingPriceListType) MATERIALIZED TABLE extraSkuStock; 
 
 currentRetailPricingDescription 'Описание' (Sku sku, Stock stock) =
     description(currentRetailPricingPriceListLedger(sku, stock)); 

@@ -76,9 +76,9 @@ EXTEND FORM BOM
     PROPERTIES(c) productionNorm
 ;
 
-countProductionNormComponent(s) = GROUP SUM 1 IF productionNorm(Component c) BY sku(c) PERSISTENT;
+countProductionNormComponent(s) = GROUP SUM 1 IF productionNorm(Component c) BY sku(c) MATERIALIZED;
 
-productionCoeff 'Параметры партии' = ABSTRACT NUMERIC[20,9] (Batch) PERSISTENT;
+productionCoeff 'Параметры партии' = ABSTRACT NUMERIC[20,9] (Batch) MATERIALIZED;
 productionCoeff (ComponentDetail d) += NUMERIC[20,9]((100.0 - (productionNorm(component(d)) - productionCoeff(batch(d)))) / 100.0);
 
 notNullProductionCoeff 'Проверять на наличие параметров партии' = DATA BOOLEAN ();
@@ -97,11 +97,11 @@ CONSTRAINT notNullProductionCoeff() AND countProductionNormComponent(sku(Batch b
 productionNorm 'Норма' = productionNorm(component(ComponentDetail d));
 productionCoeffBatch 'Параметры партии' = productionCoeff(batch(ComponentDetail d));
 
-WHEN SESSION FORMS order CHANGED(batch(ComponentDetail d)) AND component(d) AND productionNorm(component(d)) DO {
+WHEN LOCAL FORMS order CHANGED(batch(ComponentDetail d)) AND component(d) AND productionNorm(component(d)) DO {
     bruttoQuantity(d) <- calcComponentBruttoQuantity (d);
     BOMQuantity(d)  <- calcComponentBOMQuantity(d);
 }
-WHEN SESSION FORMS order CHANGED(batch(ComponentDetail d)) AND NOT component(d) AND productionNorm(component(d)) DO {
+WHEN LOCAL FORMS order CHANGED(batch(ComponentDetail d)) AND NOT component(d) AND productionNorm(component(d)) DO {
     bruttoQuantity(d) <- calcSkuBruttoQuantity (d);
     BOMQuantity(d)  <- calcSkuBOMQuantity(d);
 }

@@ -62,25 +62,25 @@ TABLE stockDate(Stock, DATE);
 
 @defineExternalizableAbstract(stock, VARSTRING[100]);
 
-name 'Наименование' = ABSTRACT VARISTRING[150](Stock) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
-phone 'Телефон' = ABSTRACT VARISTRING[100](Stock) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
-fullName 'Наименование полное' = ABSTRACT VARISTRING[150](Stock) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+name 'Наименование' = ABSTRACT VARISTRING[150](Stock) MATERIALIZED INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+phone 'Телефон' = ABSTRACT VARISTRING[100](Stock) MATERIALIZED INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+fullName 'Наименование полное' = ABSTRACT VARISTRING[150](Stock) MATERIALIZED INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
-stockGroup (stock) = ABSTRACT StockGroup (Stock) PERSISTENT INDEXED;
+stockGroup (stock) = ABSTRACT StockGroup (Stock) MATERIALIZED INDEXED;
 nameStockGroup 'Группа' (Stock stock) = name(stockGroup (stock));
 
-legalEntity (stock) = ABSTRACT LegalEntity (Stock) PERSISTENT INDEXED;
+legalEntity (stock) = ABSTRACT LegalEntity (Stock) MATERIALIZED INDEXED;
 nameLegalEntity 'Компания' (Stock stock) = name(legalEntity(stock));
 fullNameLegalEntity 'Компания' (Stock st)= fullName(legalEntity(st));
 
 idLegalEntity 'Компания' (Stock stock) = id(legalEntity(stock));
 
-countStock 'Кол-во складов компании' = GROUP SUM 1 BY legalEntity(Stock stock) PERSISTENT;
+countStock 'Кол-во складов компании' = GROUP SUM 1 BY legalEntity(Stock stock) MATERIALIZED;
 
-quantityDaysCloseOrders 'Срок автоматического закрытия заказов' = ABSTRACT INTEGER(Stock) PERSISTENT;
-autoCloseOrders 'Автоматически закрывать заказы' = ABSTRACT BOOLEAN (Stock) PERSISTENT;
+quantityDaysCloseOrders 'Срок автоматического закрытия заказов' = ABSTRACT INTEGER(Stock) MATERIALIZED;
+autoCloseOrders 'Автоматически закрывать заказы' = ABSTRACT BOOLEAN (Stock) MATERIALIZED;
 
-isCompany(Stock stock) = isCompany(legalEntity(stock)) PERSISTENT; // PERSISTENT так как у компании складов может быть значительно больше чем у других юрлиц, и так статистика будет правильнее  
+isCompany(Stock stock) = isCompany(legalEntity(stock)) MATERIALIZED; // MATERIALIZED так как у компании складов может быть значительно больше чем у других юрлиц, и так статистика будет правильнее  
 isSupplier(Stock stock) = isSupplier(legalEntity(stock));
 isCustomer(Stock stock) = isCustomer(legalEntity(stock));
 isBuyer(Stock stock) = isBuyer(legalEntity(stock));
@@ -92,18 +92,18 @@ legalEntityId (VARSTRING[100] stock)= legalEntity(stock(stock));
 
 countCompanyStock 'Кол-во складов' (stockGroup) = GROUP SUM 1 IF isCompany(Stock stock)
     AND isParent(stockGroup(stock), StockGroup stockGroup)
-    BY stockGroup PERSISTENT;
+    BY stockGroup MATERIALIZED;
 
 countSupplierStock 'Кол-во складов' (stockGroup) = GROUP SUM 1 IF isSupplier(Stock stock)
     AND isParent(stockGroup(stock), StockGroup stockGroup)
-    BY stockGroup PERSISTENT;
+    BY stockGroup MATERIALIZED;
 
 countCustomerStock 'Кол-во складов' (stockGroup) = GROUP SUM 1 IF isCustomer(Stock stock)
     AND isParent(stockGroup(stock), StockGroup stockGroup)
-    BY stockGroup PERSISTENT;
+    BY stockGroup MATERIALIZED;
 
 TABLE userLegalEntityStock (LegalEntity, Stock);
-user 'Отм.' = ABSTRACT BOOLEAN (LegalEntity, Stock) PERSISTENT;
+user 'Отм.' = ABSTRACT BOOLEAN (LegalEntity, Stock) MATERIALIZED;
 in 'Отм.' (LegalEntity legalEntity, Stock stock) = (legalEntity(stock) == legalEntity) OR user(legalEntity, stock);
 isDefault 'Свой склад' (LegalEntity legalEntity, Stock stock) = legalEntity(stock) == legalEntity;
 
@@ -116,14 +116,14 @@ minStock 'Первый склад' (legalEntity)= GROUP MIN Stock stock IF in(Le
 defaultStock 'Склад по умолчанию' (LegalEntity l) = OVERRIDE dataDefaultStock(l), minStock(l) IF countStocks(l) == 1;
 
 META deriveDocumentLegalEntityDefaultStock(cls, property, form)
-    WHEN SESSION FORMS form CHANGED(property(cls o)) AND NOT CHANGED(property##Stock(o)) AND NOT in(property(o), property##Stock(o)) DO {
+    WHEN LOCAL FORMS form CHANGED(property(cls o)) AND NOT CHANGED(property##Stock(o)) AND NOT in(property(o), property##Stock(o)) DO {
         property##Stock(o) <- defaultStock(property(o));
     }
 END
 
 
-currency (Stock stock) = currency(legalEntity(stock)) PERSISTENT;
-language (Stock stock) = language(legalEntity(stock)) PERSISTENT;
+currency (Stock stock) = currency(legalEntity(stock)) MATERIALIZED;
+language (Stock stock) = language(legalEntity(stock)) MATERIALIZED;
 
 // ------------------------------------ объединение организаций -------------------------- //
 
@@ -183,7 +183,7 @@ replace 'Объединить'(Stock stock) = {
 } CONFIRM;
 
 dataStock = DATA Stock (LegalEntity);
-stock(LegalEntity legalEntity) = OVERRIDE dataStock(legalEntity) IF active(legalEntity), [= GROUP MIN Stock stock BY legalEntity(stock)](legalEntity) PERSISTENT;
+stock(LegalEntity legalEntity) = OVERRIDE dataStock(legalEntity) IF active(legalEntity), [= GROUP MIN Stock stock BY legalEntity(stock)](legalEntity) MATERIALIZED;
 
 primaryLegalEntity 'Основной' (Stock stock) = stock(legalEntity(stock)) == stock;
 changePrimary(LegalEntity legalEntity, Stock stock) = {
@@ -244,14 +244,14 @@ EXTEND CLASS Stock : POI;
 
 name[POI](Stock poi) += name(poi) IF poi IS Stock;
 
-country (Stock stock) = country(legalEntity(stock)) PERSISTENT;
+country (Stock stock) = country(legalEntity(stock)) MATERIALIZED;
 nameCountry 'Страна' (Stock stock) = name(country(stock));
 nameCountry (Stock poi) += nameCountry(poi);
 
-address 'Адрес' (stock) = ABSTRACT VARISTRING[100] (Stock) PERSISTENT;
+address 'Адрес' (stock) = ABSTRACT VARISTRING[100] (Stock) MATERIALIZED;
 mainAddress (Stock poi) += address(poi);
 
-email 'E-mail для заказов' (stock) = ABSTRACT VARSTRING[300] (Stock) PERSISTENT MINCHARWIDTH 30 PREFCHARWIDTH 50;
+email 'E-mail для заказов' (stock) = ABSTRACT VARSTRING[300] (Stock) MATERIALIZED MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 //latitudeStock 'Координата X' = DATA NUMERIC[10,5](Stock);
 //longitudeStock 'Координата Y' = DATA NUMERIC[10,5](Stock);
@@ -260,7 +260,7 @@ email 'E-mail для заказов' (stock) = ABSTRACT VARSTRING[300] (Stock) P
 //longitudePOI(stock) += longitudeStock(stock);
 
 TABLE stockGroupStock (StockGroup, Stock);
-isParent (StockGroup stockGroup, Stock stock) = isParent(stockGroup(stock), stockGroup) PERSISTENT;
+isParent (StockGroup stockGroup, Stock stock) = isParent(stockGroup(stock), stockGroup) MATERIALIZED;
 
 GROUP committee 'Комиссии' : public;
 GROUP responsibility 'Ответственные лица' : public;
@@ -277,10 +277,10 @@ TABLE region (Region);
 
 name 'Наименование' = DATA VARISTRING[100](Region);
 
-region 'Регион' (stock) = ABSTRACT Region (Stock) PERSISTENT;
+region 'Регион' (stock) = ABSTRACT Region (Stock) MATERIALIZED;
 nameRegion 'Регион' (Stock stock)= name(region(stock)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
-region 'Регион' (stockGroup) = ABSTRACT Region (StockGroup) PERSISTENT;
+region 'Регион' (stockGroup) = ABSTRACT Region (StockGroup) MATERIALIZED;
 nameRegion 'Регион' (StockGroup stockGroup)= name(region(stockGroup)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 FORM region 'Регион'
@@ -378,7 +378,7 @@ META defineDocumentAbstractHeaderStock (object, stockClass, stockCaption, prefix
 END
 
 META defineDocumentAbstractHeaderStockInner (object, stockClass, stockClassUpper, stockCaption, prefix)
-    prefix###stockClass = ABSTRACT stockClassUpper(###object) PERSISTENT INDEXED;
+    prefix###stockClass = ABSTRACT stockClassUpper(###object) MATERIALIZED INDEXED;
     name###prefix###stockClass stockCaption (###object object) = name(prefix###stockClass(object)) IN documentHeader
             MINCHARWIDTH 20 PREFCHARWIDTH 20;
     fullName###prefix###stockClass stockCaption (###object object) = fullName(prefix###stockClass(object)) IN documentHeader
@@ -426,7 +426,7 @@ META defineDocumentDetailDataStock (object, detail, stockClass, stockProp, stock
 END
 
 META defineDocumentDetailDataStockInner (object, detail, stockClass, stockClassUpper, stockProp, stockCaption)
-    stockProp (###detail idetail) = stockProp(object(idetail)) PERSISTENT;
+    stockProp (###detail idetail) = stockProp(object(idetail)) MATERIALIZED;
     name###stockProp stockCaption (###detail idetail) = name(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
     fullName###stockProp stockCaption (###detail idetail) = fullName(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;         
     country###stockProp (###detail idetail) = country(stockProp(idetail));
@@ -441,7 +441,7 @@ META defineDocumentAbstractDetailDataStock (object, detail, stockClass, stockPro
 END
 
 META defineDocumentAbstractDetailDataStockInner (object, detail, stockClass, stockClassUpper, stockProp, stockCaption)
-    stockProp (###detail idetail) = stockProp(object(idetail)) PERSISTENT INDEXED;
+    stockProp (###detail idetail) = stockProp(object(idetail)) MATERIALIZED INDEXED;
     name###stockProp stockCaption (###detail idetail) = name(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
     fullName###stockProp stockCaption (###detail idetail) = fullName(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;      
     country###stockProp (###detail idetail) = country(stockProp(idetail));
@@ -516,7 +516,7 @@ END
 
 // Склады
 META defineDocumentAggregationHeaderStockPrefix (primObject, aggrObject, stockClass, stockProp, stockCaption, prefixP, prefixA)
-    stockProp###stockClass (###aggrObject object) = stockProp###stockClass(primObject(object)) PERSISTENT;
+    stockProp###stockClass (###aggrObject object) = stockProp###stockClass(primObject(object)) MATERIALIZED;
     name###stockProp###stockClass stockCaption (###aggrObject object) = name(stockProp###stockClass(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
     fullName###stockProp###stockClass stockCaption (###aggrObject object) = fullName(stockProp###stockClass(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;    
 END
@@ -525,7 +525,7 @@ META defineDocumentAggregationHeaderStock (primObject, aggrObject, stockClass, s
 END
 
 META defineDocumentAggregationDetailStockPrefix (primObject, aggrObject, stockProp, stockCaption, prefixP, prefixA)
-    stockProp (###aggrObject##Detail detail) = stockProp(primObject##Detail(detail)) PERSISTENT;
+    stockProp (###aggrObject##Detail detail) = stockProp(primObject##Detail(detail)) MATERIALIZED;
 END
 META defineDocumentAggregationDetailStock (primObject, aggrObject, stockProp, stockCaption)
     @defineDocumentAggregationDetailStockPrefix(primObject, aggrObject, stockProp, stockCaption, , );

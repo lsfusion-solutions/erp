@@ -38,7 +38,7 @@ createdHostnameComputer 'Создан на компьютере' = hostname(crea
 @defineDocumentHeaderLegalEntity(stopList, company, 'Компания');
 
 exclude 'Исключить из запрета'  = DATA BOOLEAN (StopList) IN documentPrm;
-exclude 'Исключить из запрета' (StopListDetail d) = exclude(stopList(d)) PERSISTENT; 
+exclude 'Исключить из запрета' (StopListDetail d) = exclude(stopList(d)) MATERIALIZED; 
 
 
 TABLE stockStopList (Stock ,StopList);
@@ -72,8 +72,8 @@ valueVATSku (StopListDetail stopListDetail) = valueVAT(sku(stopListDetail), coun
 succeeded 'Загружен в оборудование' = DATA BOOLEAN (Stock, StopList);
 notSucceeded 'Не загружен в оборудование' (Stock stock, StopList stopList) = stock IS Stock AND stopList IS StopList AND NOT succeeded(stock, stopList);   
 
-countSucceededStocks  = GROUP SUM 1 IF in(Stock stock, StopList list) AND succeeded(stock, list) BY list PERSISTENT;
-countStocks  = GROUP SUM 1 IF in(Stock stock, StopList list) BY list PERSISTENT;
+countSucceededStocks  = GROUP SUM 1 IF in(Stock stock, StopList list) AND succeeded(stock, list) BY list MATERIALIZED;
+countStocks  = GROUP SUM 1 IF in(Stock stock, StopList list) BY list MATERIALIZED;
 
 succeeded = countSucceededStocks(StopList l) == countStocks(l);
 
@@ -131,11 +131,11 @@ changeValue(Sku sku, StopList stopList) = {
 }
 
 
-active(Stock stock, StopListDetail detail) = in(stock, stopList(detail)) AND isPosted(detail) PERSISTENT;
-sku(Stock stock, StopListDetail detail) = sku(detail) IF active(stock, detail) PERSISTENT INDEXED; 
-include(Stock stock, StopListDetail detail) = active(stock, detail) AND NOT exclude(detail) PERSISTENT;
-fromDateTime(Stock stock, StopListDetail detail) = fromDateTime(detail) IF active(stock, detail) PERSISTENT; 
-toDateTime(Stock stock, StopListDetail detail) = toDateTime(detail) IF active(stock, detail) PERSISTENT; 
+active(Stock stock, StopListDetail detail) = in(stock, stopList(detail)) AND isPosted(detail) MATERIALIZED;
+sku(Stock stock, StopListDetail detail) = sku(detail) IF active(stock, detail) MATERIALIZED INDEXED; 
+include(Stock stock, StopListDetail detail) = active(stock, detail) AND NOT exclude(detail) MATERIALIZED;
+fromDateTime(Stock stock, StopListDetail detail) = fromDateTime(detail) IF active(stock, detail) MATERIALIZED; 
+toDateTime(Stock stock, StopListDetail detail) = toDateTime(detail) IF active(stock, detail) MATERIALIZED; 
    
 inStopList (sku, stock, dateTime) =
     GROUP LAST include(Stock stock, StopListDetail detail)

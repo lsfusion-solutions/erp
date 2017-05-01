@@ -28,22 +28,22 @@ TABLE batch(Batch);
 TABLE skuLedgerBatch (SkuLedger, Batch);
 TABLE batchStock(Batch, Stock);
 
-dateTime 'Дата/время' (batch) = ABSTRACT DATETIME (Batch) PERSISTENT INDEXED;
+dateTime 'Дата/время' (batch) = ABSTRACT DATETIME (Batch) MATERIALIZED INDEXED;
 date 'Дата' (Batch batch) = toDate(dateTime(batch));
 time 'Время' (Batch batch) = toTime(dateTime(batch));
 prevDateTime (Batch b) = PREV(dateTime(b));
 
-isPosted 'Проведен' (batch) = ABSTRACT BOOLEAN (Batch) PERSISTENT;
+isPosted 'Проведен' (batch) = ABSTRACT BOOLEAN (Batch) MATERIALIZED;
 
 isClosed 'Закрыт' (batch) = ABSTRACT BOOLEAN (Batch);
 
-sku (batch) = ABSTRACT Sku (Batch) PERSISTENT INDEXED;
+sku (batch) = ABSTRACT Sku (Batch) MATERIALIZED INDEXED;
 prevSku (Batch b) = PREV(sku(b));
 idSku 'Код товара' = id(sku(Batch b)) IN recognize;
 nameSku 'Наименование' (Batch batch) = name(sku(batch)) IN recognize;
 
 // Наименование для документов
-overDocumentNameSku = ABSTRACT VARISTRING[255] (Batch) PERSISTENT;
+overDocumentNameSku = ABSTRACT VARISTRING[255] (Batch) MATERIALIZED;
 documentNameSku 'Наименование (для документов)' (Batch batch) = OVERRIDE overDocumentNameSku(batch), nameSku(batch);
 
 useDocumentNameSku 'Использовать наименование для документов' = DATA BOOLEAN ();
@@ -76,26 +76,26 @@ shortNameUOM 'Единица измерений' (Batch batch)= shortNameUOM(sku
 country (Batch batch) = country(sku(batch));
 sidOrigin2Country (Batch batch) = sidOrigin2(country(batch));
 
-stock (batch) = ABSTRACT Stock (Batch) PERSISTENT INDEXED ;
+stock (batch) = ABSTRACT Stock (Batch) MATERIALIZED INDEXED ;
 nameStock 'Склад' (Batch batch) = name(stock(batch));
 
-cost 'Себестоимость' (batch) = ABSTRACT NUMERIC[16,4] (Batch) PERSISTENT;
+cost 'Себестоимость' (batch) = ABSTRACT NUMERIC[16,4] (Batch) MATERIALIZED;
 prevCost 'Себестоимость' (Batch batch) = PREV(cost(batch));
 
-description 'Описание' (batch) = ABSTRACT VARISTRING[200] (Batch) PERSISTENT IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 60;
-name 'Название' (batch) = ABSTRACT VARISTRING[200] (Batch) PERSISTENT IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 60;
+description 'Описание' (batch) = ABSTRACT VARISTRING[200] (Batch) MATERIALIZED IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 60;
+name 'Название' (batch) = ABSTRACT VARISTRING[200] (Batch) MATERIALIZED IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 60;
 
-expiryDate 'Годен до' (batch) = ABSTRACT DATE (Batch) PERSISTENT INDEXED;
+expiryDate 'Годен до' (batch) = ABSTRACT DATE (Batch) MATERIALIZED INDEXED;
 prevExpiryDate 'Годен до' (Batch batch) = PREV(expiryDate(batch));
 
-manufactureDate 'Дата изготовления' (batch) = ABSTRACT DATE (Batch) PERSISTENT INDEXED;
+manufactureDate 'Дата изготовления' (batch) = ABSTRACT DATE (Batch) MATERIALIZED INDEXED;
 prevManufactureDate 'Дата изготовления' (Batch batch) = PREV(manufactureDate(batch));
 
-number 'Номер документа' = ABSTRACT VARSTRING[28] (Batch) MINCHARWIDTH 8 PERSISTENT;
-series 'Серия документа' = ABSTRACT STRING[2] (Batch) FIXEDCHARWIDTH 3 PERSISTENT;
-seriesNumber 'Серия/Номер' (Batch o) = CONCAT '', series(o), number(o) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
+number 'Номер документа' = ABSTRACT VARSTRING[28] (Batch) MINCHARWIDTH 8 MATERIALIZED;
+series 'Серия документа' = ABSTRACT STRING[2] (Batch) FIXEDCHARWIDTH 3 MATERIALIZED;
+seriesNumber 'Серия/Номер' (Batch o) = CONCAT '', series(o), number(o) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 MATERIALIZED;
     
-supplier = ABSTRACT LegalEntity (Batch) PERSISTENT;
+supplier = ABSTRACT LegalEntity (Batch) MATERIALIZED;
 prevSupplier (Batch batch) = PREV(supplier(batch));
 
 nameSupplier 'Поставщик' (Batch batch) = name(supplier(batch));
@@ -106,11 +106,11 @@ addressSupplier 'Адрес поставщика' (Batch batch) = address(suppli
 
 supplierGroup (Batch batch) = legalEntityGroup(supplier(batch));
 
-supplierStock = ABSTRACT Stock (Batch) PERSISTENT;
+supplierStock = ABSTRACT Stock (Batch) MATERIALIZED;
 nameSupplierStock 'Склад поставщика' (Batch batch) = name(supplierStock(batch));
 prevSupplierStock (Batch batch) = PREV(supplierStock(batch));
 
-id 'Код' = ABSTRACT VARSTRING[100] (Batch) PERSISTENT INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+id 'Код' = ABSTRACT VARSTRING[100] (Batch) MATERIALIZED INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
 batch = GROUP MAX Batch b BY id(b);
 
 @defineOption(disableUniqueIdBatch, 'Не контролировать уникальность кодов партий', stock);
@@ -119,7 +119,7 @@ CONSTRAINT SETCHANGED(id(Batch b)) AND [= GROUP SUM 1 BY id(Batch b)](id(b)) > 1
 expires(Batch batch, DATETIME dateTime, LONG period) = expiryDate(batch) < sum(toDate(dateTime), period);
 expires(Batch batch, DATE date, LONG period) = expiryDate(batch) < sum(date, period);
 
-order (Batch batch) = STRUCT(dateTime(batch), batch) PERSISTENT;
+order (Batch batch) = STRUCT(dateTime(batch), batch) MATERIALIZED;
 
 isBatch (Batch batch, Sku sku) = sku(batch) == sku;
 
@@ -132,7 +132,7 @@ isContainer 'Тара' = isContainer(sku(Batch bt));
 isNotItem 'Не товар' = isNotItem(sku(Batch bt));
 isNotContainer 'Не тара' = isNotContainer(sku(Batch bt));
 
-batch = ABSTRACT Batch (SkuLedger) PERSISTENT INDEXED;
+batch = ABSTRACT Batch (SkuLedger) MATERIALIZED INDEXED;
 nameBatch 'Партия' (SkuLedger l) = name(batch(l));
 
 //---------------------------- Количественные регистры (конкретная реализация) ----------------------------------------//
@@ -153,14 +153,14 @@ changed = ABSTRACT BOOLEAN (DataSkuLedger);
 
 // -------------------------------- Для всего ledger'а -------------------- //
 
-dateTime 'Дата/время' (SkuLedger ledger) = MULTI dateTime[DataSkuLedger] (ledger), dateTime[Batch] (ledger) PERSISTENT INDEXED IN recognize;
-date 'Дата' (SkuLedger ledger) = toDate(dateTime(ledger)) PERSISTENT INDEXED;
+dateTime 'Дата/время' (SkuLedger ledger) = MULTI dateTime[DataSkuLedger] (ledger), dateTime[Batch] (ledger) MATERIALIZED INDEXED IN recognize;
+date 'Дата' (SkuLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED INDEXED;
 
-isPosted 'Проведен' (SkuLedger ledger) = MULTI isPosted[DataSkuLedger] (ledger), isPosted[Batch] (ledger) PERSISTENT;
+isPosted 'Проведен' (SkuLedger ledger) = MULTI isPosted[DataSkuLedger] (ledger), isPosted[Batch] (ledger) MATERIALIZED;
 
 isClosed 'Закрыт' (SkuLedger ledger) = MULTI isClosed[DataSkuLedger] (ledger), isClosed[Batch] (ledger);
 
-sku (SkuLedger ledger) = MULTI sku[DataSkuLedger] (ledger), sku[Batch] (ledger) PERSISTENT;
+sku (SkuLedger ledger) = MULTI sku[DataSkuLedger] (ledger), sku[Batch] (ledger) MATERIALIZED;
 idSku 'ИД Sku' (SkuLedger ledger) = id(sku(ledger)) IN recognize;
 nameSku 'SKU' (SkuLedger ledger) = name(sku(ledger)) IN recognize;
 
@@ -170,7 +170,7 @@ canonicalNameSkuGroup 'Группа' (SkuLedger ledger) = canonicalName[Group](s
 
 countSkuLedger = GROUP SUM 1 BY sku(SkuLedger ledger);
 
-stock (SkuLedger ledger) = MULTI stock[DataSkuLedger] (ledger), stock[Batch] (ledger) PERSISTENT;
+stock (SkuLedger ledger) = MULTI stock[DataSkuLedger] (ledger), stock[Batch] (ledger) MATERIALIZED;
 nameStock 'Склад' (SkuLedger ledger) = name(stock(ledger)) IN recognize;
 isCompanyStock (SkuLedger ledger) = isCompany(stock(ledger));
 idStock (SkuLedger ledger) = id(stock(ledger));
@@ -178,7 +178,7 @@ idStock (SkuLedger ledger) = id(stock(ledger));
 INDEX stock(SkuLedger l), sku(l), dateTime(l);
 
 TABLE descriptionSkuLedger(SkuLedger);
-description 'Описание' (SkuLedger ledger) = MULTI description[DataSkuLedger] (ledger), description[Batch] (ledger) PERSISTENT TABLE descriptionSkuLedger IN recognize;
+description 'Описание' (SkuLedger ledger) = MULTI description[DataSkuLedger] (ledger), description[Batch] (ledger) MATERIALIZED TABLE descriptionSkuLedger IN recognize;
 
 isItem 'Товар' = isItem(sku(SkuLedger l));
 isContainer 'Тара' = isContainer(sku(SkuLedger l));
@@ -188,10 +188,10 @@ isNotContainer 'Не тара' = isNotContainer(sku(SkuLedger l));
 
 // -------------------------------- Количества ---------------------------- //
 
-quantity 'Кол-во в партии' = ABSTRACT NUMERIC[16,5] (Batch) PERSISTENT;
+quantity 'Кол-во в партии' = ABSTRACT NUMERIC[16,5] (Batch) MATERIALIZED;
 
 extraShippedQuantity = ABSTRACT NUMERIC[16,5] (Batch);
-shippedQuantity 'Кол-во в партии (всего)' (Batch batch) = quantity(batch) (+) extraShippedQuantity(batch) PERSISTENT;
+shippedQuantity 'Кол-во в партии (всего)' (Batch batch) = quantity(batch) (+) extraShippedQuantity(batch) MATERIALIZED;
 
 quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (InLIFOSkuLedger);
 
@@ -201,21 +201,21 @@ quantity 'Кол-во' (InSkuLedger ledger) = MULTI quantity[Batch](ledger),
 quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (OutFIFOSkuLedger);
 
 quantity 'Кол-во' (SkuLedger ledger) = MULTI quantity[InSkuLedger](ledger),
-                                            quantity[OutFIFOSkuLedger](ledger) PERSISTENT;
+                                            quantity[OutFIFOSkuLedger](ledger) MATERIALIZED;
 
 signedQuantity 'Кол-во' (SkuLedger ledger) = MULTI quantity[InSkuLedger](ledger),
-                                                  -quantity[OutFIFOSkuLedger](ledger) PERSISTENT;
+                                                  -quantity[OutFIFOSkuLedger](ledger) MATERIALIZED;
 
 // -------------------------------------------- Расчет себестоимости -------------------------------------- //
 
-explicitBatchLedger 'Обязательный партионный учет' = ABSTRACT BOOLEAN (Stock) PERSISTENT IN bookkeeping;
+explicitBatchLedger 'Обязательный партионный учет' = ABSTRACT BOOLEAN (Stock) MATERIALIZED IN bookkeeping;
 skipExplicitBatch 'Разрешить регистр без партии' = ABSTRACT BOOLEAN (SkuLedger);
 CONSTRAINT explicitBatchLedger(stock(SkuLedger l)) AND isPosted(l) AND NOT batch(l) AND NOT skipExplicitBatch(l)
     MESSAGE 'Не выбрана партия для строки движения товара';
     
 showPriceBatchLedger(Stock s) = isCompany(s) AND NOT explicitBatchLedger(s);   
 dataPriceBatchLedger 'Использовать свои цены для каждой партии' = ABSTRACT BOOLEAN (Stock);
-priceBatchLedger 'Использовать свои цены для каждой партии' (Stock s) = dataPriceBatchLedger(s) OR explicitBatchLedger(s) PERSISTENT;  
+priceBatchLedger 'Использовать свои цены для каждой партии' (Stock s) = dataPriceBatchLedger(s) OR explicitBatchLedger(s) MATERIALIZED;  
 
 //order (DataSkuLedger ledger) = STRUCT(dateTime(ledger), ledger);
 
@@ -225,7 +225,7 @@ quantity 'Кол-во' (Batch ledger, Batch batch) = quantity(ledger) IF batch =
 cost 'Расписано из партии (перв.)' (ledger, batch) = DATA NUMERIC[16,5] (DataSkuLedger, Batch);
 
 cost 'Расписано из партии' (SkuLedger ledger, Batch batch) = MULTI quantity[Batch,Batch](ledger, batch),
-                                                                 cost[DataSkuLedger,Batch](ledger, batch) PERSISTENT;
+                                                                 cost[DataSkuLedger,Batch](ledger, batch) MATERIALIZED;
 
 maxBatchCost 'Последняя партия, из которой расписано' (ledger) = GROUP MAX Batch batch IF  cost(SkuLedger ledger, batch) BY ledger;
 countBatchCost 'Кол-во партий' (ledger) = GROUP SUM 1 IF cost(SkuLedger ledger, Batch batch) BY ledger;
@@ -236,8 +236,8 @@ signedCost (SkuLedger ledger, Batch batch) = IF ledger IS OutSkuLedger
                                               ELSE cost(ledger, batch);
 
 // Расчет себестоимости по Action
-//costed 'Расписано' (ledger) = GROUP SUM cost (DataSkuLedger ledger, Batch batch) BY ledger PERSISTENT;
-costed 'Расписано' (ledger) = GROUP SUM cost (SkuLedger ledger, Batch batch) BY ledger PERSISTENT;
+//costed 'Расписано' (ledger) = GROUP SUM cost (DataSkuLedger ledger, Batch batch) BY ledger MATERIALIZED;
+costed 'Расписано' (ledger) = GROUP SUM cost (SkuLedger ledger, Batch batch) BY ledger MATERIALIZED;
 notCosted 'Не расписано' (SkuLedger ledger) = quantity(ledger) (-) costed(ledger);
 signedNotCosted 'Не расписано' (SkuLedger ledger) = IF ledger IS OutSkuLedger THEN
                                                                         quantity(ledger) (-) costed(ledger)
@@ -256,10 +256,10 @@ sum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (InSkuLedger);
 sum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (OutSkuLedger);
 
 sum 'Сумма' = MULTI sum[InSkuLedger](SkuLedger ledger),
-                             sum[OutSkuLedger](ledger) PERSISTENT;
+                             sum[OutSkuLedger](ledger) MATERIALIZED;
                               
 signedSum 'Сумма' (SkuLedger ledger) = MULTI sum[InSkuLedger](ledger),
-                                            -sum[OutSkuLedger](ledger) PERSISTENT;
+                                            -sum[OutSkuLedger](ledger) MATERIALIZED;
                                             
 signedPrice 'Цена' (SkuLedger ledger)= NUMERIC[18,4](signedSum(ledger) / signedQuantity(ledger));                                            
 
@@ -278,33 +278,33 @@ TABLE sessionSkuGroupStock (Session, SkuGroup, Stock);
 TABLE skuStockGroup(Sku, StockGroup);
 
 META defineSkuLedgerBalanceProperties(postfix, caption)
-    skip 'Не проводить по учету'###caption = ABSTRACT BOOLEAN (SkuLedger) PERSISTENT;
-    active 'Активен'###caption (SkuLedger ledger) = isPosted(ledger) AND NOT skip(ledger) PERSISTENT;
+    skip 'Не проводить по учету'###caption = ABSTRACT BOOLEAN (SkuLedger) MATERIALIZED;
+    active 'Активен'###caption (SkuLedger ledger) = isPosted(ledger) AND NOT skip(ledger) MATERIALIZED;
 
-    signedQuantityActive(SkuLedger ledger) = signedQuantity(ledger) IF active(ledger) PERSISTENT;
+    signedQuantityActive(SkuLedger ledger) = signedQuantity(ledger) IF active(ledger) MATERIALIZED;
 
     currentBalance 'Текущий остаток'###caption (sku, stock) =
-        GROUP SUM signedQuantityActive(SkuLedger ledger) BY sku(ledger), stock(ledger) PERSISTENT;
+        GROUP SUM signedQuantityActive(SkuLedger ledger) BY sku(ledger), stock(ledger) MATERIALIZED;
     prevCurrentBalance 'Текущий остаток'###caption (Sku sku, Stock stock) = PREV(currentBalance(sku, stock));
     prevCurrentBalance 'Текущий остаток'###caption (sku) = GROUP SUM prevCurrentBalance(Sku sku, Stock stock) BY sku;
     countLedger 'Кол-во движений'###caption (sku, stock) =
-        GROUP SUM 1 IF signedQuantityActive(SkuLedger ledger) BY sku(ledger), stock(ledger) PERSISTENT TABLE extraSkuStock;
+        GROUP SUM 1 IF signedQuantityActive(SkuLedger ledger) BY sku(ledger), stock(ledger) MATERIALIZED TABLE extraSkuStock;
 
     quantityInActive(InSkuLedger ledger) = quantity(ledger) IF active(ledger);
     quantityIn (sku, stock, date) =
-        GROUP SUM quantityInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT;
+        GROUP SUM quantityInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED;
 
     quantityOutActive(OutFIFOSkuLedger ledger) = quantity(ledger) IF active(ledger);
     quantityOut (sku, stock, date) =
-        GROUP SUM quantityOutActive(OutFIFOSkuLedger ledger) BY sku[SkuLedger](ledger), stock[SkuLedger](ledger), date[SkuLedger](ledger) PERSISTENT;
+        GROUP SUM quantityOutActive(OutFIFOSkuLedger ledger) BY sku[SkuLedger](ledger), stock[SkuLedger](ledger), date[SkuLedger](ledger) MATERIALIZED;
 
     quantity (Sku sku, Stock stock, DATE date) = quantityIn(sku, stock, date)
                                                          (+)
-                                                         quantityOut(sku, stock, date) PERSISTENT;
+                                                         quantityOut(sku, stock, date) MATERIALIZED;
 
     signedQuantity (Sku sku, Stock stock, DATE date) = quantityIn(sku, stock, date)
                                                                (-)
-                                                               quantityOut(sku, stock, date) PERSISTENT;
+                                                               quantityOut(sku, stock, date) MATERIALIZED;
 
     quantitySumIn 'Кол-во товара пришедшего за период' (sku, stock, date1, date2) =
         GROUP SUM quantityIn(Sku sku, Stock stock, DATE dateIn) IF dateIn>=DATE date1 IF dateIn<=DATE date2
@@ -350,16 +350,16 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     currentBalance 'Остаток (всего)'###caption (sku) = GROUP SUM currentBalance(Sku sku, Stock stock) BY sku;
 
-    signedQuantityActive(SkuLedger ledger, Batch batch) = signedCost(ledger, batch) IF active(ledger) PERSISTENT;
+    signedQuantityActive(SkuLedger ledger, Batch batch) = signedCost(ledger, batch) IF active(ledger) MATERIALIZED;
     
     signedActiveCostSum 'Себестоимость' (SkuLedger ledger, Batch batch) = NUMERIC[16,4](signedQuantityActive(ledger, batch) * cost(batch));
     signedActiveCostSum 'Себестоимость' = GROUP SUM signedActiveCostSum(SkuLedger ledger, Batch batch) BY ledger;
     
     currentBalance 'Текущий остаток'###caption (batch, stock) = GROUP SUM signedQuantityActive(SkuLedger ledger, Batch batch)
-                                                                                           BY batch, stock(ledger) PERSISTENT;
+                                                                                           BY batch, stock(ledger) MATERIALIZED;
     negativeBalance (Batch batch, Stock stock) = currentBalance(batch, stock) < 0;
     
-    skuCurrentBalance (Batch batch, Stock stock) = sku(batch) IF currentBalance(batch, stock) PERSISTENT;
+    skuCurrentBalance (Batch batch, Stock stock) = sku(batch) IF currentBalance(batch, stock) MATERIALIZED;
     INDEX skuCurrentBalance(Batch batch, Stock stock), stock;
     prevCurrentBalance 'Текущий остаток'###caption (Batch batch, Stock stock) = PREV(currentBalance(batch, stock));
     prevCurrentBalance 'Текущий остаток'###caption (batch) = GROUP SUM prevCurrentBalance(Batch batch, Stock stock) BY batch;    
@@ -376,8 +376,8 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     TABLE extraBatchStock(Batch, Stock);
     countLedger 'Кол-во движений'###caption (batch, stock) =
-        GROUP SUM 1 IF signedQuantityActive(SkuLedger ledger, Batch batch) BY batch, stock(ledger) PERSISTENT TABLE extraBatchStock;
-    skuLedger (Batch batch, Stock stock) = sku(batch) IF countLedger(batch, stock) PERSISTENT TABLE extraBatchStock;
+        GROUP SUM 1 IF signedQuantityActive(SkuLedger ledger, Batch batch) BY batch, stock(ledger) MATERIALIZED TABLE extraBatchStock;
+    skuLedger (Batch batch, Stock stock) = sku(batch) IF countLedger(batch, stock) MATERIALIZED TABLE extraBatchStock;
     INDEX skuLedger (Batch batch, Stock stock), stock;
 
     countLedger 'Кол-во движений за период'###caption (batch, stock, dateFrom, dateTo) =
@@ -387,7 +387,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     lastOrderBatch(sku, stock)  =
         GROUP LAST Batch batch
               BY skuLedger(batch, Stock stock), stock
-              ORDER order(batch) PERSISTENT TABLE extraSkuStock;
+              ORDER order(batch) MATERIALIZED TABLE extraSkuStock;
               
               
     lastOrderBatchA(sku, stock, date)  =
@@ -416,8 +416,8 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
                
               
 //    orderBatch##postfix##SkuStock (sku, stock) = GROUP MAX orderBatch(batch) IF countLedger##postfix##BatchStock(batch, stock)
-//                                                       BY skuBatch(batch), stock PERSISTENT;
-//    lastOrderBatch##postfix##SkuStock(sku, stock) = orderBatch##postfix##SkuStock(sku, stock)[2] PERSISTENT;
+//                                                       BY skuBatch(batch), stock MATERIALIZED;
+//    lastOrderBatch##postfix##SkuStock(sku, stock) = orderBatch##postfix##SkuStock(sku, stock)[2] MATERIALIZED;
     prevLastOrderBatch(Sku sku, Stock stock) = PREV(lastOrderBatch(sku, stock));
     dateTimeLastOrderBatch 'Время последней партии' (Sku sku, Stock stock) = dateTime(lastOrderBatch(sku, stock));
     supplierLastOrderBatch (Sku sku, Stock stock) = supplier(lastOrderBatch(sku, stock));
@@ -462,28 +462,28 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     nameSupplierLastOrderBatch 'Поставщик (поставка)' (Sku sku) = name(supplierLastOrderBatch(sku)); 
 
-    currentBalance 'Остаток (всего)'###caption (batch) = GROUP SUM currentBalance(Batch batch, Stock stock) BY batch PERSISTENT;
+    currentBalance 'Остаток (всего)'###caption (batch) = GROUP SUM currentBalance(Batch batch, Stock stock) BY batch MATERIALIZED;
     outcome 'Расходовано'###caption (Batch batch) = MAX shippedQuantity(batch) (-) currentBalance(batch), 0;
 
     balanceA 'Остаток (после)' (SkuLedger ledger) = balanceA(sku(ledger), stock(ledger), dateTime(ledger));
     balanceB 'Остаток (до)' (SkuLedger ledger) = balanceB(sku(ledger), stock(ledger), dateTime(ledger));
     // ---------------------------- Суммы по товару -------------------------------- //
 
-    signedSumActive(SkuLedger ledger) = signedSum(ledger) IF isPosted(ledger) AND NOT skip(ledger) PERSISTENT;
+    signedSumActive(SkuLedger ledger) = signedSum(ledger) IF isPosted(ledger) AND NOT skip(ledger) MATERIALIZED;
     currentSum 'Сумма остатка'###caption (sku, stock) =
-        GROUP SUM signedSumActive(SkuLedger ledger) BY sku(ledger), stock(ledger) PERSISTENT;
+        GROUP SUM signedSumActive(SkuLedger ledger) BY sku(ledger), stock(ledger) MATERIALIZED;
     //-- по дате
     sumInActive(InSkuLedger ledger) = sum(ledger) IF active(ledger);
     sumIn (sku, stock, date) =
-        GROUP SUM sumInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT;
+        GROUP SUM sumInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED;
 
     sumOutActive(OutSkuLedger ledger)  = sum(ledger) IF active(ledger);
     sumOut (sku, stock, date) =
-        GROUP SUM sumOutActive(OutSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT;
+        GROUP SUM sumOutActive(OutSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED;
 
     signedSum (Sku sku, Stock stock, DATE date) = sumIn(sku, stock, date)
                                                                (-)
-                                                               sumOut(sku, stock, date) PERSISTENT;
+                                                               sumOut(sku, stock, date) MATERIALIZED;
 
     // без учета текущей даты/времени
     sumB 'Сумма на начало дня'###caption (Sku sku, Stock stock, DATE date) = currentSum(sku, stock)
@@ -572,7 +572,7 @@ allowedEdit (SkuLedger d) = NOT isClosed(d) OR allowedEditClosedDocuments(curren
 
 dateTimeLastMoved 'Время последнего движения' (sku, stock) =
     GROUP MAX dateTime(SkuLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger) PERSISTENT TABLE extraSkuStock;
+    BY sku(ledger), stock(ledger) MATERIALIZED TABLE extraSkuStock;
 
 dateTimeLastMoved 'Время последнего движения' (sku) =
     GROUP MAX dateTimeLastMoved(Sku sku, Stock stock)
@@ -593,7 +593,7 @@ balance (Sku item, Stock departmentStore, DATE date, LONG period) =
 //----------------------------------------- По партиям ---------------------------------------------//
 
 signedQuantity = GROUP SUM signedCost (SkuLedger ledger, Batch batch) IF isPosted(ledger)
-                                     BY batch, stock(ledger), date(ledger) PERSISTENT; 
+                                     BY batch, stock(ledger), date(ledger) MATERIALIZED; 
                                      
 // без учета текущей даты/времени
 balanceB 'Остаток на начало дня' (Batch batch, Stock stock, DATE date) = currentBalance(batch, stock)
@@ -1606,7 +1606,7 @@ META defineDocumentAbstractDetailBatchCustom(detail, batchProp)
 END
 
 META defineDocumentAbstractDetailBatchCustomInner(detail, batchProp, batchClass)
-    batchProp = ABSTRACT batchClass (###detail) PERSISTENT INDEXED;
+    batchProp = ABSTRACT batchClass (###detail) MATERIALIZED INDEXED;
     description##batchClass 'Партия' (###detail detail) = description(batchProp(detail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
     name##batchClass 'Партия' (###detail detail) = name(batchProp(detail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
     documentName##batchClass 'Наименование (для документов)' (###detail detail) = documentNameSku(batchProp(detail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
@@ -1640,7 +1640,7 @@ META defineDocumentDetailExpiryDateCustomPrefix(detail, prefix)
     prefix###expiryDate 'Годен до' = DATA DATE (###detail);
 END
 META defineDocumentAbstractDetailExpiryDateCustomPrefix(detail, prefix)
-    prefix###expiryDate 'Годен до' = ABSTRACT DATE (###detail) PERSISTENT;
+    prefix###expiryDate 'Годен до' = ABSTRACT DATE (###detail) MATERIALIZED;
 END
 META defineDocumentInterfaceDetailExpiryDateCustomPrefix(detail, prefix)
     @defineDocumentAbstractDetailExpiryDateCustomPrefix(detail, prefix);
@@ -1660,7 +1660,7 @@ META defineDocumentDetailManufactureDateCustomPrefix(detail, prefix)
     prefix###manufactureDate 'Дата изготовления' = DATA DATE (###detail);
 END
 META defineDocumentAbstractDetailManufactureDateCustomPrefix(detail, prefix)
-    prefix###manufactureDate 'Дата изготовления' = ABSTRACT DATE (###detail) PERSISTENT;
+    prefix###manufactureDate 'Дата изготовления' = ABSTRACT DATE (###detail) MATERIALIZED;
 END
 META defineDocumentInterfaceDetailManufactureDateCustomPrefix(detail, prefix)
     @defineDocumentAbstractDetailManufactureDateCustomPrefix(detail, prefix);
@@ -1683,7 +1683,7 @@ META defineDocumentDetailSkuBalanceCustom (detail)
 
 END
 META defineDocumentAbstractDetailSkuBalanceCustom (detail)
-    balanceBSku 'Количество до' (detail) = ABSTRACT NUMERIC[16,5] (###detail) PERSISTENT;
+    balanceBSku 'Количество до' (detail) = ABSTRACT NUMERIC[16,5] (###detail) MATERIALIZED;
 END
 
 META defineDocumentInterfaceDetailSkuBalanceCustom(detail)

@@ -98,7 +98,7 @@ nameUOM 'Ед. изм.' (StatisticGroup statisticGroup) = staticCaption(unitMeas
 sid 'Код группы' (statisticGroup) = DATA STRING[12] (StatisticGroup)  MINCHARWIDTH 12 MAXCHARWIDTH 12 PREFCHARWIDTH 12;
 canonicalNumber 'Канонический код' (StatisticGroup statisticGroup) = VARSTRING[255](
                            [= GROUP CONCAT sid(StatisticGroup parent), ' / ' BY StatisticGroup child ORDER DESC level(child, parent)](statisticGroup))
-                           MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 PERSISTENT;
+                           MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 MATERIALIZED;
 
 canonicalNumberName 'Канонический код-название' (StatisticGroup statisticGroup) = CONCAT ' / ', canonicalNumber(statisticGroup), name(statisticGroup) MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
@@ -146,16 +146,16 @@ add 'Добавить'(StatisticGroup group, StatisticGroupType type) = {
 add 'Добавить' (StatisticGroup group)= { add(group, groupType(group)); } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
 
 TABLE statisticGroupTypeSku (StatisticGroupType, Sku);
-statistic = ABSTRACT StatisticGroup (StatisticGroupType, Sku) PERSISTENT;
+statistic = ABSTRACT StatisticGroup (StatisticGroupType, Sku) MATERIALIZED;
 name 'Статистическая группа' = name(statistic(StatisticGroupType type, Sku sku));
 
 TABLE statisticGroupSku(StatisticGroup, Sku);
-isParent (StatisticGroup group, Sku sku) = isParent(statistic(groupType(group),sku), group) PERSISTENT;
-isParentLeaf (StatisticGroup group, Sku sku) = isParentLeaf(statistic(groupType(group),sku), group) PERSISTENT;
-parent (StatisticGroupType type, Sku sku) = parent(statistic(type,sku)) PERSISTENT;
+isParent (StatisticGroup group, Sku sku) = isParent(statistic(groupType(group),sku), group) MATERIALIZED;
+isParentLeaf (StatisticGroup group, Sku sku) = isParentLeaf(statistic(groupType(group),sku), group) MATERIALIZED;
+parent (StatisticGroupType type, Sku sku) = parent(statistic(type,sku)) MATERIALIZED;
 
 resident 'Отечественный производитель' =  DATA BOOLEAN (Country, Country);
-resident (StatisticGroup group, Sku sku) = resident(country(groupType(group)), country(sku)) AND isParent(group, sku) PERSISTENT;
+resident (StatisticGroup group, Sku sku) = resident(country(groupType(group)), country(sku)) AND isParent(group, sku) MATERIALIZED;
 showAdd = StatisticGroupType t IS StatisticGroupType AND NOT (countStatisticGroups(t));
 
 FORM statisticGroups 'Статистические группы'
@@ -274,7 +274,7 @@ overFactor = ABSTRACT NUMERIC[14,3] (GroupStatic, Sku);
 
 factor = (NUMERIC[20,8](OVERRIDE overFactor(unitMeasure(StatisticGroup group), Sku sku), 1.0) /
     (OVERRIDE factor(unitMeasure(group), UOM(sku)), 1 IF group IS StatisticGroup AND sku IS Sku)) IF
-    isParent(group, sku) PERSISTENT;
+    isParent(group, sku) MATERIALIZED;
 
 quantitySoldBy 'Продано, шт' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
     [= GROUP SUM quantitySold (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) * factor(StatisticGroup group, sku) 
@@ -903,11 +903,11 @@ allStocks 'Отм' = DATA LOCAL BOOLEAN();
 dataIn 'Отм.' = DATA LOCAL BOOLEAN (StockGroup);
 
 levelParentStock (stockGroup) =
-    GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataIn(parent) BY stockGroup PERSISTENT;
+    GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataIn(parent) BY stockGroup MATERIALIZED;
     
 nearestParentStockGroup (StockGroup stockGroup) = stockGroup(stockGroup, levelParentStock(stockGroup));
 nearestIn (StockGroup stockGroup) =
-    dataIn(nearestParentStockGroup(stockGroup)) PERSISTENT;
+    dataIn(nearestParentStockGroup(stockGroup)) MATERIALIZED;
 
 inStat 'Отм' (StockGroup stockGroup) =
     OVERRIDE dataIn(stockGroup), nearestIn(stockGroup), allStocks() AND stockGroup IS StockGroup;

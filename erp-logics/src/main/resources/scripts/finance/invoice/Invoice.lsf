@@ -66,13 +66,13 @@ sumGrossWeightTon 'Вес брутто, т' (InvoiceDetail d) = round6(sumGrossW
 @defineDocumentAbstractHeaderCurrency (invoice);
 @defineDocumentDetailCurrency (invoice, invoiceDetail);
 
-price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
 
 @defineDocumentAbstractDetailDataSumCustomPrefix (invoiceDetail, , );
 @defineDocumentHeaderSum(invoice);
 @defineDocumentHeaderItemQuantityPrefix(invoice, , );
 
-invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
 
 @defineDocumentAbstractDetailVAT(invoice, , );
 @defineDocumentAbstractDetailVATDataSumCustom (invoiceDetail, invoice);
@@ -101,9 +101,9 @@ editSku 'Редактировать SKU' (InvoiceDetail d) = { edit(sku(d)); } T
 
 @defineDocumentAbstractHeaderAgreement(invoice);
 
-in 'Приходная' = ABSTRACT BOOLEAN (Invoice) PERSISTENT;
+in 'Приходная' = ABSTRACT BOOLEAN (Invoice) MATERIALIZED;
 in 'Приходная' (InvoiceDetail d) = in(invoice(d)); 
-out 'Расходная' (Invoice invoice) = invoice IS Invoice AND NOT in(invoice) PERSISTENT;
+out 'Расходная' (Invoice invoice) = invoice IS Invoice AND NOT in(invoice) MATERIALIZED;
 out 'Расходная' (InvoiceDetail d) = out(invoice(d));
  
 signedQuantity 'Кол-во' (InvoiceDetail d) = IF in(d) THEN quantity(d) ELSE -quantity(d); 
@@ -113,7 +113,7 @@ signedQuantity 'Кол-во' (InvoiceDetail d) = IF in(d) THEN quantity(d) ELSE 
 stock = ABSTRACT Stock(Invoice);   
 nameStock 'Склад' (Invoice i) = name(stock(i));
 
-stock = ABSTRACT Stock(InvoiceDetail) PERSISTENT;   
+stock = ABSTRACT Stock(InvoiceDetail) MATERIALIZED;   
 nameStock 'Склад' (InvoiceDetail d) = name(stock(d));
 
 operation = ABSTRACT Operation.Operation(Invoice);
@@ -125,7 +125,7 @@ createdNameUser 'Создан пользователем' (Invoice o) = name[Con
 
 negativeValueInvoices 'Запретить ввод отрицательных значений в накладных' = DATA BOOLEAN ();
 
-skipConsignment = ABSTRACT BOOLEAN (InvoiceDetail) PERSISTENT;  
+skipConsignment = ABSTRACT BOOLEAN (InvoiceDetail) MATERIALIZED;  
 
 taxNumberSupplier 'Налоговый номер постащика' = ABSTRACT VARSTRING[9] (Invoice);
 
@@ -293,7 +293,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
 //    @defineDocumentDetailGrossWeight(invoice, sku);
 
-    price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+    price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
     price 'Цена' = DATA NUMERIC[16,4] (UserInvoiceDetail);
     price (UserInvoiceDetail invoiceDetail) += price(invoiceDetail);
     
@@ -338,7 +338,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     VAT[Invoice.InvoiceDetail](InvoiceDetail detail) += VAT(detail);
     valueVAT[Invoice.InvoiceDetail](InvoiceDetail detail) += valueVAT(detail);
 
-    invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+    invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
     invoicePrice 'Цена с НДС' = DATA NUMERIC[16,4] (UserInvoiceDetail);
     invoicePrice (UserInvoiceDetail invoiceDetail) += invoicePrice(invoiceDetail);
 
@@ -361,7 +361,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 //    @deriveDocumentDetailPricePriceListTypeVAT (userInvoice, stockProp); // записываем цены с НДС и без НДС на основе priceListType
 
     // объявляем сумму без НДС
-    sum 'Сумма' = ABSTRACT NUMERIC[18,4] (InvoiceDetail) PERSISTENT;
+    sum 'Сумма' = ABSTRACT NUMERIC[18,4] (InvoiceDetail) MATERIALIZED;
     sum 'Сумма' = DATA NUMERIC[18,4] (UserInvoiceDetail);
     sum (UserInvoiceDetail detail) += sum(detail);
         
@@ -370,8 +370,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
 
     // объявляем свойства суммы НДС и суммы с НДС
-    VATSum 'Сумма НДС' (invoiceDetail) = ABSTRACT NUMERIC[18,4] (InvoiceDetail) PERSISTENT;
-    invoiceSum 'Сумма с НДС' (invoiceDetail) = ABSTRACT NUMERIC[18,4] (InvoiceDetail) PERSISTENT;
+    VATSum 'Сумма НДС' (invoiceDetail) = ABSTRACT NUMERIC[18,4] (InvoiceDetail) MATERIALIZED;
+    invoiceSum 'Сумма с НДС' (invoiceDetail) = ABSTRACT NUMERIC[18,4] (InvoiceDetail) MATERIALIZED;
     
     VATSum 'Сумма НДС' (userInvoiceDetail) = DATA NUMERIC[18,4] (UserInvoiceDetail);
     invoiceSum 'Сумма с НДС' (userInvoiceDetail) = DATA NUMERIC[18,4] (UserInvoiceDetail);
@@ -617,7 +617,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     overVAT(UserInvoiceDetail d) += VAT (sku(d), country(supplierStock(d)));
     changedVAT = ABSTRACT VALUE OVERRIDE BOOLEAN (UserInvoiceDetail); 
     
-    WHEN SESSION FORMS userInvoice
+    WHEN LOCAL FORMS userInvoice
         (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED (supplierStock(detail)) OR changedVAT(detail)) AND NOT CHANGED(VAT(detail)) DO {
             VAT(detail) <- overVAT(detail);
             
@@ -960,13 +960,13 @@ META defineInvoiceBatchDialog(dumb)
 END
 
 META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
-    invoiceDetail (invoiceDetail) = ABSTRACT nsdir.InvoiceDetail (nsret.InvoiceDetail) PERSISTENT INDEXED;
+    invoiceDetail (invoiceDetail) = ABSTRACT nsdir.InvoiceDetail (nsret.InvoiceDetail) MATERIALIZED INDEXED;
     invoiceDetail (userInvoiceDetail) = DATA nsdir.InvoiceDetail (nsret.UserInvoiceDetail) INDEXED;
     invoiceDetail(UserInvoiceDetail detail) += invoiceDetail(detail);
 
     returnQuantity 'Кол-во (возвращено)' (invoiceDetail)= GROUP SUM quantity(InvoiceDetail invoiceDetail) IF isPosted(invoiceDetail) 
-        BY invoiceDetail(invoiceDetail) PERSISTENT;
-    returnQuantityInvoiceDetail 'Кол-во (возвращено)' (invoice) =  GROUP SUM returnQuantity(nsdir.InvoiceDetail invoiceDetail) BY invoice(invoiceDetail) PERSISTENT;
+        BY invoiceDetail(invoiceDetail) MATERIALIZED;
+    returnQuantityInvoiceDetail 'Кол-во (возвращено)' (invoice) =  GROUP SUM returnQuantity(nsdir.InvoiceDetail invoiceDetail) BY invoice(invoiceDetail) MATERIALIZED;
     toReturnQuantity 'Кол-во доступно к возврату' (nsdir.InvoiceDetail invoiceDetail)= quantity(invoiceDetail) (-) returnQuantity(invoiceDetail);    
 
     CONSTRAINT returnQuantity(nsdir.InvoiceDetail d) > quantity(d)
@@ -1066,7 +1066,7 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
             overRecalculatedPrice(detail);
         }
     }
-        WHEN SESSION FORMS userInvoice
+        WHEN LOCAL FORMS userInvoice
             CHANGED(invoiceDetail[UserInvoiceDetail](InvoiceDetail detail)) OR
             CHANGED(batch(detail)) OR
             CHANGED(priceListType(detail)) OR
@@ -1083,7 +1083,7 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
     EXTEND FORM invoices PROPERTIES (d) READONLY descriptionInvoiceDetail AFTER shortNameUOMSku(d);
     EXTEND FORM nsdir.invoices PROPERTIES (d) READONLY returnQuantity BEFORE namePriceListType(d);
 
-    WHEN SESSION FORMS userInvoice
+    WHEN LOCAL FORMS userInvoice
         CHANGED(invoiceDetail(UserInvoiceDetail detail)) AND countBatch(invoiceDetail(detail)) == 1 DO
             batch(detail) <- maxBatch(invoiceDetail(detail));
 
@@ -1185,11 +1185,11 @@ META defineInvoiceHomeCurrency(dumb)
 
     dateRateExchange(UserInvoice i) <- date[Invoice](i) WHEN CHANGED (date[Invoice](i));
 
-    rateExchange 'Курс' = ABSTRACT NUMERIC[14,6](Invoice) PERSISTENT;
+    rateExchange 'Курс' = ABSTRACT NUMERIC[14,6](Invoice) MATERIALIZED;
     rateExchange 'Курс' = DATA NUMERIC[14,6](UserInvoice);
     rateExchange(UserInvoice i) += rateExchange(i);
 
-    WHEN SESSION FORMS userInvoice CHANGED (dateRateExchange(UserInvoice i)) OR
+    WHEN LOCAL FORMS userInvoice CHANGED (dateRateExchange(UserInvoice i)) OR
                                    CHANGED (typeExchange(i)) OR
                                    CHANGED (currency(i)) DO {
         rateExchange(i) <- rateOn(typeExchange(i),
@@ -1197,13 +1197,13 @@ META defineInvoiceHomeCurrency(dumb)
                                                                    dateRateExchange(i));
     }
 
-    rateExchange 'Курс' = ABSTRACT NUMERIC[14,6](InvoiceDetail) PERSISTENT;
+    rateExchange 'Курс' = ABSTRACT NUMERIC[14,6](InvoiceDetail) MATERIALIZED;
 
     dataRateExchange 'Курс' = DATA NUMERIC[14,6](UserInvoiceDetail);
     rateExchange 'Курс' (UserInvoiceDetail d) = OVERRIDE dataRateExchange(d),  rateExchange(userInvoice(d));
     rateExchange(UserInvoiceDetail d) += rateExchange(d);
 
-    homePrice 'Цена (конв.)' = ABSTRACT NUMERIC[16,4](InvoiceDetail) PERSISTENT;
+    homePrice 'Цена (конв.)' = ABSTRACT NUMERIC[16,4](InvoiceDetail) MATERIALIZED;
     homePrice 'Цена (конв.)' = DATA NUMERIC[16,4](UserInvoiceDetail);
     homePrice(UserInvoiceDetail d) += homePrice(d);
     

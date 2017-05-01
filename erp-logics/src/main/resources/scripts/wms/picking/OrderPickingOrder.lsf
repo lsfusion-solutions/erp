@@ -6,7 +6,7 @@ NAMESPACE Order;
 
 //--  Связь с заказом
 
-order = ABSTRACT Order (PickingOrder) PERSISTENT;
+order = ABSTRACT Order (PickingOrder) MATERIALIZED;
 order = DATA Order (UserPickingOrder);
 order(UserPickingOrder pickingOrder) += order(pickingOrder);
 
@@ -20,9 +20,9 @@ EXTEND FORM pickingOrders
     PROPERTIES (o) READONLY orderSeriesNumber
 ;
 
-countPickingOrder = GROUP SUM 1 BY order(PickingOrder o) PERSISTENT;
+countPickingOrder = GROUP SUM 1 BY order(PickingOrder o) MATERIALIZED;
 
-pickingNumber = ABSTRACT INTEGER (OrderDetail) PERSISTENT;
+pickingNumber = ABSTRACT INTEGER (OrderDetail) MATERIALIZED;
 
 // ------------------- Свойства для заказа на комплектацию ------------------------------- //
  
@@ -57,7 +57,7 @@ pickingPickingDetail 'Скомплектовано' (order, sku) = GROUP SUM qua
 pickingQuantity 'Кол-во (скомплектовано)' (OrderDetail orderDetail) = PARTITION UNGROUP pickingPickingDetail
                                                           LIMIT STRICT quantity (orderDetail)
                                                           BY order(orderDetail), sku(orderDetail)
-                                                          ORDER orderDetail PERSISTENT;
+                                                          ORDER orderDetail MATERIALIZED;
 
 //-- Количество излишне подобранных товаров, которых нет в заказе
 quantityPickingPickingDetail (order, sku)= GROUP SUM pickingQuantity(OrderDetail detail) BY order(detail), sku(detail);
@@ -125,14 +125,14 @@ order(OrderPickingOrder pickingOrder) += order(pickingOrder);
 edit(OrderPickingOrder pickingOrder) += { EXEC edit(order(pickingOrder)); }
 
 accepted 'Принят в работу' (order) = GROUP SUM 1 IF accepted(PickingOrder o) BY order(o);
-countPerformer 'Комплектовщики' (order) = GROUP SUM 1 IF performer(PickingOrder order) BY order(order) PERSISTENT;
+countPerformer 'Комплектовщики' (order) = GROUP SUM 1 IF performer(PickingOrder order) BY order(order) MATERIALIZED;
 namePerformer 'Комплектовщики' (order) = GROUP CONCAT namePerformer(PickingOrder o), ',' BY order(o);
 
 diffQuantityPickingDetail 'Расхождение' = quantityPickingOrderDetail(Sku sku, PickingOrder order) (-) quantityPickingDetail(sku, order);
-diffQuantityPickingDetail 'Расхождение' = GROUP SUM diffQuantityPickingDetail(Sku sku, PickingOrder order) BY order PERSISTENT;
-diffQuantityPickingDetail 'Расхождение' = GROUP SUM diffQuantityPickingDetail(PickingOrder o) BY order(o) PERSISTENT;
+diffQuantityPickingDetail 'Расхождение' = GROUP SUM diffQuantityPickingDetail(Sku sku, PickingOrder order) BY order MATERIALIZED;
+diffQuantityPickingDetail 'Расхождение' = GROUP SUM diffQuantityPickingDetail(PickingOrder o) BY order(o) MATERIALIZED;
 
-countPickingPicking 'Кол-во комплектаций' = GROUP SUM 1 BY order(pickingOrder(Picking picking)) PERSISTENT;
+countPickingPicking 'Кол-во комплектаций' = GROUP SUM 1 BY order(pickingOrder(Picking picking)) MATERIALIZED;
 //calcPartOrder 'Частично собран' (order) = GROUP SUM 1 IF quantityPickingsPickingOrder(o) BY orderPickingOrder(o);
 //calcFullOrder 'Полностью собран' (order) = [= GROUP SUM 1 IF calcFullPickingOrder(o) BY orderPickingOrder(o)](order) == countPickingOrderOrder(order);
 calcPart 'Частично собран' (Order order) = countPickingOrder(order) == countPickingPicking(order) AND diffQuantityPickingDetail(order);

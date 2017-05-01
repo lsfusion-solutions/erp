@@ -9,7 +9,7 @@ dateSale 'Дата продажи' = ABSTRACT DATE (Invoice) IN documentPrm;
 dateSale 'Дата продажи' = DATA DATE (UserInvoice) IN documentPrm;
 dateSale (UserInvoice invoice) += dateSale(invoice);
 
-WHEN SESSION SET(UserInvoice o IS UserInvoice) DO {
+WHEN LOCAL SET(UserInvoice o IS UserInvoice) DO {
     IF o IS UserInvoice AND NOT dateSale(o) THEN dateSale(o) <- currentDate();
 }
 
@@ -58,7 +58,7 @@ VAT (UserInvoice userInvoice) <- range(Tax.taxVAT, store(supplierStock(userInvoi
 //@deriveDocumentDetailVATHeader(userInvoice, VAT, supplierStock);
 
 overVAT (UserInvoiceDetail d) += VAT(userInvoice(d));
-WHEN SESSION CHANGED(VAT(userInvoice(UserInvoiceDetail d))) DO {
+WHEN LOCAL CHANGED(VAT(userInvoice(UserInvoiceDetail d))) DO {
     VAT(d) <- overVAT (d); 
 }
 
@@ -66,7 +66,7 @@ EXTEND FORM userInvoice
     PROPERTIES(i) numberVAT SHOWIF useCountVATOperationuser(i), valueVAT SHOWIF useCountVATOperationuser(i);
 ;
 
-WHEN SESSION FORMS userInvoice (CHANGED(quantity(UserInvoiceDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(valueVAT(d)))
+WHEN LOCAL FORMS userInvoice (CHANGED(quantity(UserInvoiceDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(valueVAT(d)))
                                AND VAT(userInvoice(d)) AND includeVAT(priceListType(d)) DO {
     invoiceSum(d) <- round(quantity(d) * invoicePrice(d), currency(d));
     VATSum(d) <- round(invoiceSum(d) * calcValueVAT(d) / (100.0 + calcValueVAT(d)), currency(d));

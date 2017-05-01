@@ -6,20 +6,20 @@ NAMESPACE Invoice;
 
 alcoholDirectionType = ABSTRACT CASE AlcoholDirectionType(Invoice);
 nameAlcoholDirectionType 'Тип движения алкоголя' (Invoice i) = staticCaption(alcoholDirectionType(i));
-alcoholDirectionType (InvoiceDetail d) = alcoholDirectionType(invoice(d)) PERSISTENT;
+alcoholDirectionType (InvoiceDetail d) = alcoholDirectionType(invoice(d)) MATERIALIZED;
     
 alcoholIncomeType = ABSTRACT CASE AlcoholIncomeType(Invoice);
 nameAlcoholIncomeType 'Тип приобретения алкоголя' (Invoice i) = staticCaption(alcoholIncomeType(i));
-alcoholIncomeType (InvoiceDetail d) = alcoholIncomeType(invoice(d)) PERSISTENT;
+alcoholIncomeType (InvoiceDetail d) = alcoholIncomeType(invoice(d)) MATERIALIZED;
  
-alcoholSupplierType = ABSTRACT AlcoholSupplierType(InvoiceDetail) PERSISTENT INDEXED;
+alcoholSupplierType = ABSTRACT AlcoholSupplierType(InvoiceDetail) MATERIALIZED INDEXED;
 nameAlcoholSupplierType 'Тип поставщика алкоголя' (InvoiceDetail i) = staticCaption(alcoholSupplierType(i));
 
-alcoholSupplierType = ABSTRACT AlcoholSupplierType(Invoice) PERSISTENT;
+alcoholSupplierType = ABSTRACT AlcoholSupplierType(Invoice) MATERIALIZED;
 nameAlcoholSupplierType 'Тип поставщика алкоголя' (Invoice i) = staticCaption(alcoholSupplierType(i));
 
-volume 'Объем' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) PERSISTENT;
-signetVolume 'Объем' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) PERSISTENT; 
+volume 'Объем' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) MATERIALIZED;
+signetVolume 'Объем' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) MATERIALIZED; 
 
 volumeInvoiceDetailLiterTypesFromTo 'Объем, л' = GROUP SUM signetVolume(InvoiceDetail d) IF 
     isParent(Group group, sku(d)) AND isPosted(d) AND
@@ -166,7 +166,7 @@ META defineInvoiceAlcohol(dumb)
         PROPERTIES(d) READONLY nameAlcoholSupplierType
     ;    
     
-    WHEN SESSION FORMS userInvoice CHANGED (alcoholSupplierType(userInvoice(UserInvoiceDetail d))) DO {
+    WHEN LOCAL FORMS userInvoice CHANGED (alcoholSupplierType(userInvoice(UserInvoiceDetail d))) DO {
         alcoholSupplierType (d) <- alcoholSupplierType(userInvoice(d));  
     }
   

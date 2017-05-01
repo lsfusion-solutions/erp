@@ -12,7 +12,7 @@ backgroundShipped 'Цвет' (Order order) = RGB(255, 224, 255) IF order IS Orde
 
 META defineOrderShipment(sign, stockProp)
 
-    orderDetail = ABSTRACT OrderDetail (ShipmentDetail) PERSISTENT INDEXED;
+    orderDetail = ABSTRACT OrderDetail (ShipmentDetail) MATERIALIZED INDEXED;
     orderDetail = DATA OrderDetail (UserShipmentDetail);
     orderDetail(UserShipmentDetail shipmentDetail) += orderDetail(shipmentDetail);
     
@@ -35,7 +35,7 @@ META defineOrderShipment(sign, stockProp)
 
     orders 'Заказы' (shipment) = GROUP CONCAT VARSTRING[255](description(Order order)) IF quantityShipmentDetail(order, Shipment shipment) , ', '
                                                BY shipment
-                                               ORDER order IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                               ORDER order IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 
     shipments 'Поставки' (order) = GROUP CONCAT VARSTRING[255](description(Shipment shipment)) IF quantityShipmentDetail(Order order, shipment) , ', '
                                              BY order
@@ -45,7 +45,7 @@ META defineOrderShipment(sign, stockProp)
 //-- Подсчет поставленного к-ва по заказу
 
     shipped 'Кол-во (поставлено)' (OrderDetail orderDetail) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
-                                                                                                                    BY orderDetail(shipmentDetail) PERSISTENT;
+                                                                                                                    BY orderDetail(shipmentDetail) MATERIALIZED;
                                                               
     shipped(OrderDetail d) += shipped(d);
     toShip 'Не поставлено' (OrderDetail orderDetail) = IF (quantity (orderDetail) (-) shipped(orderDetail)) > 0.0 
@@ -55,7 +55,7 @@ META defineOrderShipment(sign, stockProp)
     toShipOrderDetail 'Не поставлено по складу' (stock, order) = GROUP SUM toShip(OrderDetail orderDetail) IF toShip(orderDetail) > 0
                                                                                      BY stockProp(orderDetail), order(orderDetail);
 
-    shippedOrderDetail 'Кол-во (поставлено)' (order) = GROUP SUM shipped(OrderDetail orderDetail) BY order(orderDetail) IN documentSum PERSISTENT;
+    shippedOrderDetail 'Кол-во (поставлено)' (order) = GROUP SUM shipped(OrderDetail orderDetail) BY order(orderDetail) IN documentSum MATERIALIZED;
 
     // Создание поставки на основе заказа //
     FORM shipmentOrders 'Заказы'###sign

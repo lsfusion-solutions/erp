@@ -8,7 +8,7 @@ TABLE stockDocumentLedger (StockDocumentLedger) FULL;
 CLASS ABSTRACT IncStockDocumentLedger 'Учетный документ (приход)' : StockDocumentLedger;
 CLASS ABSTRACT OutStockDocumentLedger 'Учетный документ (расход)' : StockDocumentLedger;
 
-type 'Тип процесса' (ledger) = ABSTRACT VARSTRING[50] (StockDocumentLedger) PERSISTENT;
+type 'Тип процесса' (ledger) = ABSTRACT VARSTRING[50] (StockDocumentLedger) MATERIALIZED;
 
 overOrder  (ledger) = ABSTRACT INTEGER (StockDocumentLedger);
 order 'Порядок' = OVERRIDE overOrder(StockDocumentLedger l), 1000000 IF l IS StockDocumentLedger;
@@ -16,28 +16,28 @@ order 'Порядок' = OVERRIDE overOrder(StockDocumentLedger l), 1000000 IF l
 edit 'Редактировать' = ACTION ABSTRACT LIST (StockDocumentLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 close 'Закрыть' = ACTION ABSTRACT LIST (StockDocumentLedger) TOOLBAR;
 
-dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (StockDocumentLedger) PERSISTENT INDEXED;
-date 'Дата' (StockDocumentLedger ledger) = toDate(dateTime(ledger)) PERSISTENT INDEXED;
+dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (StockDocumentLedger) MATERIALIZED INDEXED;
+date 'Дата' (StockDocumentLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED INDEXED;
 
-isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) PERSISTENT;
-isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) PERSISTENT;
+isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) MATERIALIZED;
+isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) MATERIALIZED;
 isOpened 'Не закрыт' (StockDocumentLedger ledger) = ledger IS StockDocumentLedger AND NOT isClosed(ledger);
 
-stock (ledger) = ABSTRACT Stock (StockDocumentLedger) PERSISTENT INDEXED;
+stock (ledger) = ABSTRACT Stock (StockDocumentLedger) MATERIALIZED INDEXED;
 nameStock 'Склад' (StockDocumentLedger ledger) = name(stock(ledger));
 
-number 'Номер документа' (ledger) = ABSTRACT VARSTRING[28] (StockDocumentLedger) PERSISTENT;
-series 'Серия документа' (ledger) = ABSTRACT STRING[2] (StockDocumentLedger) PERSISTENT;
+number 'Номер документа' (ledger) = ABSTRACT VARSTRING[28] (StockDocumentLedger) MATERIALIZED;
+series 'Серия документа' (ledger) = ABSTRACT STRING[2] (StockDocumentLedger) MATERIALIZED;
 seriesNumber 'Серия/номер документа' (StockDocumentLedger ledger) = CONCAT '', series(ledger), number(ledger) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20; 
 
-legalEntity 'Контрагент' (ledger) = ABSTRACT LegalEntity (StockDocumentLedger) PERSISTENT;
+legalEntity 'Контрагент' (ledger) = ABSTRACT LegalEntity (StockDocumentLedger) MATERIALIZED;
 nameLegalEntity 'Контрагент' (StockDocumentLedger ledger) = name(legalEntity(ledger));
 
-legalEntityStock 'Склад контрагента' (ledger) = ABSTRACT Stock (StockDocumentLedger) PERSISTENT;
+legalEntityStock 'Склад контрагента' (ledger) = ABSTRACT Stock (StockDocumentLedger) MATERIALIZED;
 nameLegalEntityStock 'Склад контрагента' = name(legalEntityStock(StockDocumentLedger ledger));
 
-operation 'Операция' (ledger) = ABSTRACT Operation(StockDocumentLedger) PERSISTENT;
-isReturn 'Возврат' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) PERSISTENT;
+operation 'Операция' (ledger) = ABSTRACT Operation(StockDocumentLedger) MATERIALIZED;
+isReturn 'Возврат' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) MATERIALIZED;
 
 captionStockDocument 'Название операции в товарном отчете (закупка)' = ABSTRACT VARISTRING[100] (Operation);
 returnCaptionStockDocument 'Название операции в товарном отчете (возврат)' = ABSTRACT VARISTRING[100] (Operation);
@@ -46,25 +46,25 @@ nameOperation 'Операция' (StockDocumentLedger ledger) = IF isReturn(ledg
     THEN OVERRIDE returnCaptionStockDocument(operation(ledger)), overName(operation(ledger))
     ELSE OVERRIDE captionStockDocument(operation(ledger)), name(operation(ledger));
 
-description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (StockDocumentLedger) PERSISTENT;
+description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (StockDocumentLedger) MATERIALIZED;
 
-skip 'Не проводить' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) PERSISTENT;
+skip 'Не проводить' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) MATERIALIZED;
 active (StockDocumentLedger ledger) = isPosted(ledger) AND NOT skip(ledger);
 
 GROUP ledgerItem 'Суммы по товару' : public;
-sumItem 'Сумма прихода, товар' (ledger) = ABSTRACT NUMERIC[18,4] (IncStockDocumentLedger) PERSISTENT IN ledgerItem MINCHARWIDTH 15 PREFCHARWIDTH 15;
-sumItem 'Сумма расхода, товар' (ledger) = ABSTRACT NUMERIC[18,4] (OutStockDocumentLedger) PERSISTENT IN ledgerItem MINCHARWIDTH 15 PREFCHARWIDTH 15;
-sumItem 'Сумма, товар' (StockDocumentLedger ledger) = MULTI sumItem[IncStockDocumentLedger](ledger), -sumItem[OutStockDocumentLedger](ledger) PERSISTENT;
+sumItem 'Сумма прихода, товар' (ledger) = ABSTRACT NUMERIC[18,4] (IncStockDocumentLedger) MATERIALIZED IN ledgerItem MINCHARWIDTH 15 PREFCHARWIDTH 15;
+sumItem 'Сумма расхода, товар' (ledger) = ABSTRACT NUMERIC[18,4] (OutStockDocumentLedger) MATERIALIZED IN ledgerItem MINCHARWIDTH 15 PREFCHARWIDTH 15;
+sumItem 'Сумма, товар' (StockDocumentLedger ledger) = MULTI sumItem[IncStockDocumentLedger](ledger), -sumItem[OutStockDocumentLedger](ledger) MATERIALIZED;
 
 GROUP ledgerContainer 'Суммы по таре' : public;
-sumContainer 'Сумма прихода, тара' (ledger) = ABSTRACT NUMERIC[18,4] (IncStockDocumentLedger) PERSISTENT IN ledgerContainer;
-sumContainer 'Сумма расхода, тара' (ledger) = ABSTRACT NUMERIC[18,4] (OutStockDocumentLedger) PERSISTENT IN ledgerContainer;
-sumContainer 'Сумма, тара' (StockDocumentLedger ledger) = MULTI sumContainer[IncStockDocumentLedger](ledger), -sumContainer[OutStockDocumentLedger](ledger) PERSISTENT;
+sumContainer 'Сумма прихода, тара' (ledger) = ABSTRACT NUMERIC[18,4] (IncStockDocumentLedger) MATERIALIZED IN ledgerContainer;
+sumContainer 'Сумма расхода, тара' (ledger) = ABSTRACT NUMERIC[18,4] (OutStockDocumentLedger) MATERIALIZED IN ledgerContainer;
+sumContainer 'Сумма, тара' (StockDocumentLedger ledger) = MULTI sumContainer[IncStockDocumentLedger](ledger), -sumContainer[OutStockDocumentLedger](ledger) MATERIALIZED;
 
 GROUP ledger 'Суммы (всего)' : public;
-sum 'Сумма прихода' (IncStockDocumentLedger ledger) = sumItem(ledger)(+) sumContainer(ledger) PERSISTENT IN ledger MINCHARWIDTH 15 PREFCHARWIDTH 15;
-sum 'Сумма расхода' (OutStockDocumentLedger ledger) = sumItem(ledger)(+) sumContainer(ledger) PERSISTENT IN ledger MINCHARWIDTH 15 PREFCHARWIDTH 15;
-sum 'Сумма' (StockDocumentLedger ledger) = MULTI sum[IncStockDocumentLedger](ledger), -sum[OutStockDocumentLedger](ledger) PERSISTENT;
+sum 'Сумма прихода' (IncStockDocumentLedger ledger) = sumItem(ledger)(+) sumContainer(ledger) MATERIALIZED IN ledger MINCHARWIDTH 15 PREFCHARWIDTH 15;
+sum 'Сумма расхода' (OutStockDocumentLedger ledger) = sumItem(ledger)(+) sumContainer(ledger) MATERIALIZED IN ledger MINCHARWIDTH 15 PREFCHARWIDTH 15;
+sum 'Сумма' (StockDocumentLedger ledger) = MULTI sum[IncStockDocumentLedger](ledger), -sum[OutStockDocumentLedger](ledger) MATERIALIZED;
 
 allowedEdit (StockDocumentLedger ledger) = NOT isClosed(ledger) OR allowedEditClosedDocuments(currentUser());
 
@@ -437,8 +437,8 @@ END
 
 META implementStockDocumentLedgerOver (concrete, stockProp, objClass)
 
-    number###stockProp##DocumentLedger = ABSTRACT VARSTRING[28] (objClass) PERSISTENT;
-    series###stockProp##DocumentLedger = ABSTRACT STRING[2] (objClass) PERSISTENT;
+    number###stockProp##DocumentLedger = ABSTRACT VARSTRING[28] (objClass) MATERIALIZED;
+    series###stockProp##DocumentLedger = ABSTRACT STRING[2] (objClass) MATERIALIZED;
 
     series[###stockProp##DocumentLedger] (objClass ledger) += OVERRIDE series###stockProp##DocumentLedger(ledger), series(ledger);
     number[###stockProp##DocumentLedger] (objClass ledger) += OVERRIDE number###stockProp##DocumentLedger(ledger), number(ledger);
@@ -730,7 +730,7 @@ NAVIGATOR {
     }
 }
 
-WHEN SESSION FORMS userStockDocument
+WHEN LOCAL FORMS userStockDocument
     CHANGED(sumContainer(UserStockDocumentDetail detail)) OR CHANGED(sumItem(detail)) DO {
         sum(detail) <- sumItem(detail) (+) sumContainer(detail);    
 }   

@@ -14,7 +14,7 @@ TABLE receiptSection (Receipt, Section);
 
 sumReceipDetail 'Сумма для секции' (r, s) = GROUP SUM signedSum(ReceiptDetail d) 
     IF isPosted(d)
-    BY receipt(d), section(d)  PERSISTENT;
+    BY receipt(d), section(d)  MATERIALIZED;
 sum = GROUP SUM sumReceipDetail(Receipt r, Section sek) 
     BY departmentStore(r), sek, date(zReport(r));
 sum 'Продано, руб.' (ds, sek, dateFrom, dateTo) = GROUP SUM sum(DepartmentStore ds, Section sek, DATE date)
@@ -23,6 +23,6 @@ sum 'Продано, руб.' (ds, sek, dateFrom, dateTo) = GROUP SUM sum(Depart
 
 discountSumReceipDetail 'Сумма скидки для секции' (r, s) = GROUP SUM signedDiscountSum(ReceiptDetail d) 
     IF isPosted(d)
-    BY receipt(d), section(d) PERSISTENT;
+    BY receipt(d), section(d) MATERIALIZED;
 discountSum = GROUP SUM discountSumReceipDetail(Receipt r, Section sek) 
     BY departmentStore(r), sek, date(zReport(r));

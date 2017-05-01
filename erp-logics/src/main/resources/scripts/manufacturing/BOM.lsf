@@ -15,16 +15,16 @@ dataComponent 'Сырье' = DATA BOOLEAN (SkuGroup);
 countDataComponentSkuGroup () = GROUP SUM 1 IF dataComponent(SkuGroup g);
 
 levelParentComponent (skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataComponent(parent)
-                                                              BY skuGroup PERSISTENT;    
+                                                              BY skuGroup MATERIALIZED;    
 nearestParentComponent (SkuGroup skuGroup) = skuGroup(skuGroup, levelParentComponent(skuGroup));
 nearestComponent (SkuGroup skuGroup) = dataComponent( nearestParentComponent (skuGroup));
 component 'Сырье' (SkuGroup skuGroup) =
     OVERRIDE dataComponent(skuGroup), 
-             nearestComponent (skuGroup) PERSISTENT;    
+             nearestComponent (skuGroup) MATERIALIZED;    
 filterComponent = GROUP SUM 1 IF component(SkuGroup group) AND isParent(group, SkuGroup parent) BY parent;
                
-quantityChildWithComponent (group) = GROUP SUM 1 IF dataComponent(SkuGroup childGroup) AND isParent(childGroup, SkuGroup group) BY group PERSISTENT;
-quantityParentWithComponent (group) = GROUP SUM 1 IF dataComponent(SkuGroup parentGroup) AND isParent(SkuGroup group, parentGroup) BY group PERSISTENT;          
+quantityChildWithComponent (group) = GROUP SUM 1 IF dataComponent(SkuGroup childGroup) AND isParent(childGroup, SkuGroup group) BY group MATERIALIZED;
+quantityParentWithComponent (group) = GROUP SUM 1 IF dataComponent(SkuGroup parentGroup) AND isParent(SkuGroup group, parentGroup) BY group MATERIALIZED;          
       
 backgroundComponent 'Цвет' (SkuGroup group) = CASE
     WHEN dataComponent(group) THEN RGB(0,0,0)
@@ -37,17 +37,17 @@ dataProduct 'Готовые изделия' = DATA BOOLEAN (SkuGroup);
 countDataProductSkuGroup () = GROUP SUM 1 IF dataProduct(SkuGroup g);
 
 levelParentProduct (skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataProduct(parent)
-                                                              BY skuGroup PERSISTENT;    
+                                                              BY skuGroup MATERIALIZED;    
 nearestParentProduct (SkuGroup skuGroup) = skuGroup(skuGroup, levelParentProduct(skuGroup));
 nearestProduct (SkuGroup skuGroup) = dataProduct( nearestParentProduct (skuGroup));
 product 'Готовые изделия' (SkuGroup skuGroup) =
     OVERRIDE dataProduct(skuGroup), 
-             nearestProduct (skuGroup) PERSISTENT; 
+             nearestProduct (skuGroup) MATERIALIZED; 
 
 filterProduct = GROUP SUM 1 IF product(SkuGroup group) AND isParent(group, SkuGroup parent) BY parent;
 
-quantityChildWithProduct (group) = GROUP SUM 1 IF dataProduct(SkuGroup childGroup) AND isParent(childGroup, SkuGroup group) BY group PERSISTENT;
-quantityParentWithProduct (group) = GROUP SUM 1 IF dataProduct(SkuGroup parentGroup) AND isParent(SkuGroup group, parentGroup) BY group PERSISTENT;          
+quantityChildWithProduct (group) = GROUP SUM 1 IF dataProduct(SkuGroup childGroup) AND isParent(childGroup, SkuGroup group) BY group MATERIALIZED;
+quantityParentWithProduct (group) = GROUP SUM 1 IF dataProduct(SkuGroup parentGroup) AND isParent(SkuGroup group, parentGroup) BY group MATERIALIZED;          
       
 backgroundProduct 'Цвет' (SkuGroup group) = CASE
     WHEN dataProduct(group) THEN RGB(0,0,0)
@@ -77,14 +77,14 @@ isProductGroup 'Фильтр готовые изделия (группа)' (Sku 
 CLASS ABSTRACT Material 'Материал';
 TABLE material(Material);
 
-id 'Код' = ABSTRACT VARSTRING[100] (Material) PERSISTENT INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+id 'Код' = ABSTRACT VARSTRING[100] (Material) MATERIALIZED INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-name 'Наименование' (material) = ABSTRACT VARISTRING[255] (Material) PERSISTENT INDEXED MINCHARWIDTH 40 PREFCHARWIDTH 80;
+name 'Наименование' (material) = ABSTRACT VARISTRING[255] (Material) MATERIALIZED INDEXED MINCHARWIDTH 40 PREFCHARWIDTH 80;
 
-UOM (material) = ABSTRACT UOM (Material) PERSISTENT;
+UOM (material) = ABSTRACT UOM (Material) MATERIALIZED;
 shortNameUOM 'Ед. изм.' (Material material) = shortName(UOM(material)) IN base;
 
-country (material) = ABSTRACT Country (Material) PERSISTENT;
+country (material) = ABSTRACT Country (Material) MATERIALIZED;
 nameCountry 'Страна' (Material material) = name(country(material)) IN base;
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (Material) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
@@ -92,9 +92,9 @@ addMaterial 'Добавить' = ACTION ABSTRACT LIST () IMAGE 'add.png' EDITKEY
 
 copy 'Копировать' = ACTION ABSTRACT LIST (Material) EDITKEY 'F5' TOOLBAR;
 
-sku (material) = ABSTRACT Sku (Material) PERSISTENT;
+sku (material) = ABSTRACT Sku (Material) MATERIALIZED;
 
-skuGroup (Material material) = Stock.skuGroup(sku(material)) PERSISTENT;
+skuGroup (Material material) = Stock.skuGroup(sku(material)) MATERIALIZED;
 isParent (SkuGroup skuGroup, Material material) = isParent(skuGroup(material), skuGroup);
 
 FORM materials 'Материалы'
@@ -366,11 +366,11 @@ description 'Название документа' (Product product) = descriptio
 
 products 'Изделия' (BOM) = GROUP CONCAT VARISTRING[2000](CONCAT '', nameSku(Product p), ' ('+idSku(p)+')'), ', '
                                        BY BOM(p)
-                                       ORDER index(p) MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                       ORDER index(p) MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 
 idProducts 'Коды' (BOM) = GROUP CONCAT VARSTRING[255](idSku(Product p)), ', '
                                       BY BOM(p)
-                                      ORDER index(p) MINCHARWIDTH 13 PREFCHARWIDTH 13 PERSISTENT; 
+                                      ORDER index(p) MINCHARWIDTH 13 PREFCHARWIDTH 13 MATERIALIZED; 
                                                                               
 fullName 'Полное название' (BOM BOM) = VARISTRING[2000] (CONCAT '/',
                                                               products(BOM),                                                                  
@@ -382,9 +382,9 @@ fullName 'Полное название' (BOM BOM) = VARISTRING[2000] (CONCAT '/
 
 pricePercent 'Удельный вес цены,%' = DATA NUMERIC[16,10] (Product);
 pricePercent(Product product) <- 100.000 WHEN SET (product IS Product);
-priceCoeff (Product product) = pricePercent(product) / 100 PERSISTENT;
+priceCoeff (Product product) = pricePercent(product) / 100 MATERIALIZED;
 
-pricePercent 'Удельный вес цен, %' = GROUP SUM pricePercent(Product product) BY BOM(product) PERSISTENT IN documentSum;
+pricePercent 'Удельный вес цен, %' = GROUP SUM pricePercent(Product product) BY BOM(product) MATERIALIZED IN documentSum;
 
 name(Product material) += VARISTRING[255] (CONCAT '/',
                                               description(BOM(material)),
@@ -445,18 +445,18 @@ material = DATA Material (Component) INDEXED;
 nameMaterial 'Материал' (Component component) = name(material(component));
 idBarcodeSku 'Штрихкод' (Component component)= idBarcode(material(component));
 id 'Код компонента' (Component component)= id(material(component));
-sku 'Sku' (Component c) = sku(material(c)) PERSISTENT INDEXED;
+sku 'Sku' (Component c) = sku(material(c)) MATERIALIZED INDEXED;
 
 
 components 'Компоненты' (BOM) = GROUP CONCAT VARISTRING[2000](CONCAT '', nameMaterial(Component component), ' ('+id(component)+')'), ', '
                                        BY BOM(component)
-                                       ORDER index(component), component MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                       ORDER index(component), component MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 idComponents 'Коды' (BOM) = GROUP CONCAT VARSTRING[255](id(Component component)), ', '
                                        BY BOM(component)
-                                       ORDER index(component), component MINCHARWIDTH 20 PREFCHARWIDTH 50 PERSISTENT;                                       
+                                       ORDER index(component), component MINCHARWIDTH 20 PREFCHARWIDTH 50 MATERIALIZED;                                       
                                      
 name 'Компонент' (Component component) = VARSTRING[255](CONCAT '/', description(BOM(component)), 
-                                                     nameMaterial(component)) PERSISTENT;
+                                                     nameMaterial(component)) MATERIALIZED;
                                       
 
 UOM = DATA UOM (Component);
@@ -471,7 +471,7 @@ UOM(Component component) <- UOM(material(component)) WHEN CHANGED (material(comp
 TABLE  technologyComponent (Technology, Component);
 
 in 'Вкл.' = DATA BOOLEAN (Technology, Component);
-countTechnologies = GROUP SUM 1 IF in(Technology technology, Component component) BY component PERSISTENT;
+countTechnologies = GROUP SUM 1 IF in(Technology technology, Component component) BY component MATERIALIZED;
 
 technologiesInvoice 'Технологии' (component) = GROUP CONCAT VARSTRING[255](name(Technology technology)) IF in(technology, Component component) , ', '
                                          BY component
@@ -580,9 +580,9 @@ overBruttoNetWeight 'Вес (брутто)' (Component c) = bruttoQuantity(c) * 
 
 overNettoNetWeight 'Вес (нетто)' (Product p) = quantity(p) * (OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product);
 
-overNettoNetWeightProduct 'Вес нетто изд. (всего)' (BOM) = GROUP SUM overNettoNetWeight(Product idetail) BY BOM(idetail) IN documentSum PERSISTENT;
-overNettoNetWeightComponent 'Вес нетто ком. (всего)' (BOM) = GROUP SUM overNettoNetWeight(Component idetail) BY BOM(idetail) IN documentSum PERSISTENT;            
-overBruttoNetWeightyComponent 'Вес брутто ком. (всего)' (c)= GROUP SUM overBruttoNetWeight(Component c) BY BOM(c) IN documentSum PERSISTENT;
+overNettoNetWeightProduct 'Вес нетто изд. (всего)' (BOM) = GROUP SUM overNettoNetWeight(Product idetail) BY BOM(idetail) IN documentSum MATERIALIZED;
+overNettoNetWeightComponent 'Вес нетто ком. (всего)' (BOM) = GROUP SUM overNettoNetWeight(Component idetail) BY BOM(idetail) IN documentSum MATERIALIZED;            
+overBruttoNetWeightyComponent 'Вес брутто ком. (всего)' (c)= GROUP SUM overBruttoNetWeight(Component c) BY BOM(c) IN documentSum MATERIALIZED;
 
 
 overCurBruttoNetWeight 'Вес (брутто) с уч. тех-ий' (Component c) = overCurBruttoQuantity(c) * (OVERRIDE overNetWeight(c), 1.0 IF c IS Component);
@@ -601,10 +601,10 @@ dataIn 'Доступ разрешен (компания)' = DATA BOOLEAN (Stock,
 dataIn 'Доступ разрешен (компания)' = DATA BOOLEAN (StockGroup, BOM);
 
 levelParentCompany (BOM, stockGroup) = GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataIn(parent, BOM BOM)
-                                                               BY BOM, stockGroup PERSISTENT;
+                                                               BY BOM, stockGroup MATERIALIZED;
 nearestParentCompany (BOM BOM, StockGroup stockGroup) = stockGroup(stockGroup, levelParentCompany(BOM, stockGroup));
 nearestInCompany (BOM BOM, StockGroup stockGroup) =
-    dataIn(nearestParentCompany (BOM, stockGroup), BOM) PERSISTENT;
+    dataIn(nearestParentCompany (BOM, stockGroup), BOM) MATERIALIZED;
 
 in 'Вкл.' (BOM BOM, StockGroup stockGroup) = OVERRIDE
     dataIn(stockGroup, BOM),
@@ -612,13 +612,13 @@ in 'Вкл.' (BOM BOM, StockGroup stockGroup) = OVERRIDE
 
 in 'Вкл.' (BOM BOM, Stock stock) = OVERRIDE
     dataIn(stock, BOM),
-    nearestInCompany(BOM, stockGroup(stock)) AND isCompany(stock) PERSISTENT;
+    nearestInCompany(BOM, stockGroup(stock)) AND isCompany(stock) MATERIALIZED;
     
     
-countStocks = GROUP SUM 1 IF in(BOM BOM, Stock stock) BY BOM PERSISTENT;
+countStocks = GROUP SUM 1 IF in(BOM BOM, Stock stock) BY BOM MATERIALIZED;
     
-quantityChildWith (stockGroup, BOM) = GROUP SUM 1 IF dataIn(StockGroup childstockGroup, BOM BOM) AND isParent(childstockGroup, StockGroup stockGroup) BY stockGroup, BOM PERSISTENT;
-quantityParentWith (stockGroup, BOM) = GROUP SUM 1 IF dataIn(StockGroup parentstockGroup, BOM BOM) AND isParent(StockGroup stockGroup, parentstockGroup) BY stockGroup, BOM PERSISTENT;     
+quantityChildWith (stockGroup, BOM) = GROUP SUM 1 IF dataIn(StockGroup childstockGroup, BOM BOM) AND isParent(childstockGroup, StockGroup stockGroup) BY stockGroup, BOM MATERIALIZED;
+quantityParentWith (stockGroup, BOM) = GROUP SUM 1 IF dataIn(StockGroup parentstockGroup, BOM BOM) AND isParent(StockGroup stockGroup, parentstockGroup) BY stockGroup, BOM MATERIALIZED;     
     
 backgroundIn 'Цвет' (Object BOM, Object stockGroup) = CASE 
     WHEN dataIn[StockGroup,BOM](stockGroup, BOM) THEN RGB(0,0,0)
@@ -629,10 +629,10 @@ editMaterial 'Редактировать компонент' (Component d) = { e
 
 stocks 'Склады' (BOM) = GROUP CONCAT name(Stock stock) IF in(BOM BOM, stock) , ', '
                                                  BY BOM
-                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 stocksIDBOM 'Склады' (BOM) = GROUP CONCAT id(Stock stock) IF in(BOM BOM, stock) , ', '
                                                  BY BOM
-                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;          
+                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;          
                                                                                         
                                                                                         
 EXTEND FORM products
@@ -768,7 +768,7 @@ DESIGN BOM {
 
 @addEventGenerateNumberOnForm(BOM, b, BOM);
 
-WHEN SESSION FORMS BOM SET(BOM BOM IS BOM) DO {
+WHEN LOCAL FORMS BOM SET(BOM BOM IS BOM) DO {
     dataIn(Stock stock, BOM) <- TRUE WHERE dataAccessCompany(stock, currentUser());
     dataIn(StockGroup group, BOM) <- TRUE WHERE dataAccessCompany(group, currentUser());
 };
@@ -1178,13 +1178,13 @@ bruttoQuantity (BOM, material, date) = GROUP SUM bruttoQuantity(Component compon
 
 bruttoQuantity(BOM BOM, Sku sku, DATE date) = bruttoQuantity[BOM,Material,DATE](BOM, sku, date) IF sku IS Sku;
 
-bruttoQuantityBOMBOM (parent, child) = GROUP MAX NUMERIC[20,11](bruttoQuantity(BOM BOM, Product material) / quantity(material)) BY BOM, BOM(material) PERSISTENT;
+bruttoQuantityBOMBOM (parent, child) = GROUP MAX NUMERIC[20,11](bruttoQuantity(BOM BOM, Product material) / quantity(material)) BY BOM, BOM(material) MATERIALIZED;
 
 TABLE BOMBOM(BOM, BOM);
 TABLE BOMBOMResult(BOM, BOM, NUMERIC[20,11]);
 
-recBruttoQuantityBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * bruttoQuantityBOMBOM($child, child) CYCLES NO) PERSISTENT;
-recBruttoQuantityBOMBOM (parent, child) = GROUP SUM recBruttoQuantityBOMBOM(BOM parent, BOM child, NUMERIC[20,11] q) * q BY parent, child PERSISTENT;
+recBruttoQuantityBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * bruttoQuantityBOMBOM($child, child) CYCLES NO) MATERIALIZED;
+recBruttoQuantityBOMBOM (parent, child) = GROUP SUM recBruttoQuantityBOMBOM(BOM parent, BOM child, NUMERIC[20,11] q) * q BY parent, child MATERIALIZED;
 //recBruttoQuantityBOMBOMDate (parent, child, date) = 1.0 IF (parent AS BOM) == (child AS BOM) AND date IS DATE;
 
 recBruttoQuantity (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM BOM, BOM childBOM) * bruttoQuantity(childBOM, Sku sku, DATE date) BY BOM, sku, date; //](BOM, sku);
@@ -1194,10 +1194,10 @@ recBruttoQuantity (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM BOM, 
 recBruttoNodeQuantity (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM BOM, BOM childBOM) * bruttoQuantity(childBOM, Material material, DATE date) BY BOM, sku(material), date; //](BOM, sku);
 
 // Расчет цены
-priceCoeffBOMBOM(parent, child) = GROUP SUM NUMERIC[20,11](bruttoQuantity(BOM BOM, Product material) * priceCoeff(material) / quantity(material)) BY BOM, BOM(material) PERSISTENT;
+priceCoeffBOMBOM(parent, child) = GROUP SUM NUMERIC[20,11](bruttoQuantity(BOM BOM, Product material) * priceCoeff(material) / quantity(material)) BY BOM, BOM(material) MATERIALIZED;
 
-recPriceCoeffBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * priceCoeffBOMBOM($child, child) CYCLES NO) PERSISTENT;
-recPriceCoeffBOMBOM (parent, child) = GROUP SUM recPriceCoeffBOMBOM(BOM parent, BOM child, NUMERIC[20,11] q) * q BY parent, child PERSISTENT;
+recPriceCoeffBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * priceCoeffBOMBOM($child, child) CYCLES NO) MATERIALIZED;
+recPriceCoeffBOMBOM (parent, child) = GROUP SUM recPriceCoeffBOMBOM(BOM parent, BOM child, NUMERIC[20,11] q) * q BY parent, child MATERIALIZED;
 //recPriceCoeffBOMBOMDate (parent, child, date) = 1.0 IF (parent AS BOM) == (child AS BOM) AND date IS DATE;
 
 //
@@ -1209,10 +1209,10 @@ recPriceCoeff (BOM, sku, date) = GROUP SUM recPriceCoeffBOMBOM(BOM BOM, BOM chil
 nettoQuantity 'Кол-во нетто компонентов в документе' (BOM, material) = GROUP SUM nettoQuantity(Component component) BY BOM(component), material(component);
 nettoQuantity(BOM BOM, Sku sku) = nettoQuantity[BOM,Material](BOM, sku) IF sku IS Sku;
 
-nettoQuantityBOMBOM (parent, child) = GROUP MAX NUMERIC[20,11](nettoQuantity(BOM BOM, Product material) / quantity(material)) BY BOM, BOM(material) PERSISTENT;
+nettoQuantityBOMBOM (parent, child) = GROUP MAX NUMERIC[20,11](nettoQuantity(BOM BOM, Product material) / quantity(material)) BY BOM, BOM(material) MATERIALIZED;
 
-recNettoQuantityBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * nettoQuantityBOMBOM($child, child) CYCLES NO) PERSISTENT;
-recNettoQuantityBOMBOM (parent, child) = GROUP SUM recNettoQuantityBOMBOM(BOM parent, BOM child, NUMERIC[20,11] q) * q BY parent, child PERSISTENT;
+recNettoQuantityBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * nettoQuantityBOMBOM($child, child) CYCLES NO) MATERIALIZED;
+recNettoQuantityBOMBOM (parent, child) = GROUP SUM recNettoQuantityBOMBOM(BOM parent, BOM child, NUMERIC[20,11] q) * q BY parent, child MATERIALIZED;
 
 recNettoQuantity (BOM, sku) = GROUP SUM recNettoQuantityBOMBOM(BOM BOM, BOM childBOM) * nettoQuantity(childBOM, Sku sku) BY BOM, sku; //](BOM, sku);
 

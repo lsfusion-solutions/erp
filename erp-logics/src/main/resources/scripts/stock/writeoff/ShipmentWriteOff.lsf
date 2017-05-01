@@ -75,19 +75,19 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
     nameWriteOffRate 'Норма отходов' (UserInvoiceDetail userInvoiceDetail) = name(writeOffRate(userInvoiceDetail));
     percentWriteOffRate 'Норма отходов,%' (invoiceDetail)= DATA NUMERIC[10,3] (UserInvoiceDetail);
     
-    WHEN SESSION (SETCHANGED(country###stockProp###stock(UserInvoiceDetail detail)) OR 
+    WHEN LOCAL (SETCHANGED(country###stockProp###stock(UserInvoiceDetail detail)) OR 
                   SETCHANGED(sku(detail)) OR
                   SET(createPurchaseWriteOff(detail))) AND createPurchaseWriteOff(detail) DO
         writeOffRate(detail) <- writeOffRate(country###stockProp###stock(detail), sku(detail));
                   
-    WHEN SESSION CHANGED(writeOffRate(UserInvoiceDetail detail)) DO
+    WHEN LOCAL CHANGED(writeOffRate(UserInvoiceDetail detail)) DO
         percentWriteOffRate(detail) <- percent(writeOffRate(detail));
     
-    WHEN SESSION (CHANGED(shipmentQuantity(UserInvoiceDetail detail)) OR
+    WHEN LOCAL (CHANGED(shipmentQuantity(UserInvoiceDetail detail)) OR
                   CHANGED(percentWriteOffRate (detail))) DO
         writeOffQuantity (detail) <- round3(shipmentQuantity(detail) * percentWriteOffRate (detail)/100);
     
-    WHEN SESSION (CHANGED(shipmentPrice(UserInvoiceDetail detail)) OR
+    WHEN LOCAL (CHANGED(shipmentPrice(UserInvoiceDetail detail)) OR
                   CHANGED(writeOffQuantity(detail))) AND writeOffQuantity(detail) DO 
         writeOffPrice (detail) <- shipmentPrice(detail);
     
@@ -204,14 +204,14 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
     percentWriteOffRate(InvoiceShipmentDetail detail) += percentWriteOffRate(invoiceDetail(detail));
     
     //--  Связь поставки и акта списания
-    shipmentDetail = ABSTRACT ShipmentDetail (WriteOffDetail) PERSISTENT;
+    shipmentDetail = ABSTRACT ShipmentDetail (WriteOffDetail) MATERIALIZED;
     descriptionIndexShipmentDetail 'Строка поставки' (WriteOffDetail detail) = descriptionIndex(shipmentDetail(detail));
     
     quantityWriteOffDetail (shipment, writeOff) = GROUP SUM quantity(WriteOffDetail writeOffDetail) BY shipment(shipmentDetail(writeOffDetail)), writeOff(writeOffDetail);
     
     shipments 'Поставки' (writeOff) = GROUP CONCAT VARSTRING[255](description(Shipment shipment)) IF quantityWriteOffDetail(shipment, WriteOff writeOff) , ', '
                                                     BY writeOff
-                                                    ORDER writeOff IN shipment MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                    ORDER writeOff IN shipment MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
     
     writtenOff 'Кол-во (списания)' (shipmentDetail) = GROUP SUM quantity(WriteOffDetail writeOffDetail) IF isPosted(writeOffDetail)
                                                                        BY shipmentDetail(writeOffDetail);
@@ -266,7 +266,7 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
     needToWritten (ShipmentDetail shipmentDetail) = writeOffQuantity(shipmentDetail) AND createPurchaseWriteOff(shipmentDetail);
     
     needToWritten (shipment)= GROUP SUM 1 IF needToWritten(ShipmentDetail shipmentDetail)
-        BY shipment(shipmentDetail) PERSISTENT;
+        BY shipment(shipmentDetail) MATERIALIZED;
     
     CLASS ShipmentWriteOff 'Акт списания на основе поставки '###sign: WriteOff;
     CLASS ShipmentWriteOffDetail 'Строка акта списания на основе поставки '###sign: WriteOffDetail;

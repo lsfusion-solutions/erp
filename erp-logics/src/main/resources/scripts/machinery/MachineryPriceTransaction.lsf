@@ -8,10 +8,10 @@ NAMESPACE Machinery;
 CLASS ABSTRACT PriceTransactionDocument 'Документ, требующий загрузки в оборудование';
 TABLE priceTransactionDocument (PriceTransactionDocument);
 
-isDraft 'Не проведен' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
+isDraft 'Не проведен' = ABSTRACT BOOLEAN (PriceTransactionDocument) MATERIALIZED;
 isPosted 'Проведен' (PriceTransactionDocument document) = NOT isDraft(document);
-description 'Название документа загрузки' = ABSTRACT VARSTRING[200] (PriceTransactionDocument) PERSISTENT;
-skip 'Не загружать' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
+description 'Название документа загрузки' = ABSTRACT VARSTRING[200] (PriceTransactionDocument) MATERIALIZED;
+skip 'Не загружать' = ABSTRACT BOOLEAN (PriceTransactionDocument) MATERIALIZED;
 
 sent 'Принят к загрузке в оборудование' = DATA BOOLEAN (PriceTransactionDocument);
 sent(PriceTransactionDocument document) <- NULL WHEN SET(isDraft(document));
@@ -110,7 +110,7 @@ time (MachineryPriceTransaction transaction) <- currentTime() WHEN SET(transacti
 
 dateTime 'Дата/время' (MachineryPriceTransaction transaction) = dateTimeToDateTime(date(transaction), time(transaction));
 
-order (MachineryPriceTransaction transaction) = STRUCT(dateTime(transaction), transaction) PERSISTENT;
+order (MachineryPriceTransaction transaction) = STRUCT(dateTime(transaction), transaction) MATERIALIZED;
 
 // Статус
 snapshot 'Целиком' = DATA BOOLEAN (MachineryPriceTransaction);
@@ -146,7 +146,7 @@ description 'Основание' (MachineryPriceTransaction document) =
     OVERRIDE comment(document), descriptionPriceTransactionDocument(document);
 
 countProcess 'Кол-во ожидающих транзакций' (document) = GROUP SUM 1 IF process(MachineryPriceTransaction transaction)
-                                                                                 BY priceTransactionDocument(transaction) PERSISTENT;
+                                                                                 BY priceTransactionDocument(transaction) MATERIALIZED;
 
 succeeded 'Загружен в оборудование' (PriceTransactionDocument document) = sent (document) IF NOT countProcess(document);
 
@@ -158,10 +158,10 @@ dateTimeSucceeded 'Время загрузки' = DATA DATETIME(Machinery, Machi
 countSucceededMachineries'Кол-во загруженного оборудования' (t) = 
     GROUP SUM 1 IF succeeded(Machinery m, MachineryPriceTransaction t) OR 
                    (succeeded(t) AND groupMachinery(m) == groupMachinery(t)) 
-          BY priceTransactionDocument(t) PERSISTENT;
+          BY priceTransactionDocument(t) MATERIALIZED;
     
 countSucceededMachineries'Кол-во загруженного оборудования' (machineryPriceTransaction) = GROUP SUM 1 
-    IF succeeded(Machinery m,MachineryPriceTransaction t) BY t PERSISTENT;
+    IF succeeded(Machinery m,MachineryPriceTransaction t) BY t MATERIALIZED;
 
 countMachineries 'Кол-во оборудования в группе' (gm) =GROUP SUM 1 BY groupMachinery(Machinery m);
 countMachineries 'Кол-во оборудования в группе' (priceTransactionDocument) = GROUP SUM countMachineries(groupMachinery(MachineryPriceTransaction t)) BY priceTransactionDocument(t);
@@ -174,7 +174,7 @@ statusMachinery 'Статус загрузки в оборудование' (Pri
         WHEN succeeded(document) THEN 'Успешно загружен' IF document IS PriceTransactionDocument        
         WHEN sent(document) THEN 'Принят к загрузке' IF document IS PriceTransactionDocument
         ELSE 'Не загружен' IF document IS PriceTransactionDocument
-    PERSISTENT;
+    MATERIALIZED;
 
 // Загруженные штрихкоды
 TABLE machineryPriceTransactionBarcode (MachineryPriceTransaction, Barcode);
@@ -194,13 +194,13 @@ skipLastTransaction 'Не учитывать для определения те�
 
 // INDEX groupInMachineryPriceTransactionBarcode + barcode 
 groupIn = groupMachinery(MachineryPriceTransaction transaction) IF in(transaction, Barcode barcode) 
-    AND NOT skipLastTransaction(groupMachinery(transaction)) PERSISTENT;
+    AND NOT skipLastTransaction(groupMachinery(transaction)) MATERIALIZED;
     
 lastTransaction (barcode, groupMachinery) = 
     GROUP LAST MachineryPriceTransaction transaction 
           BY Barcode barcode, groupIn(transaction, barcode)
           ORDER order(transaction)
-          WHERE NOT canceled(transaction) PERSISTENT;
+          WHERE NOT canceled(transaction) MATERIALIZED;
 
 lastTransaction (sku, stock) =
     GROUP LAST lastTransaction(Barcode b, GroupMachinery g) 
@@ -221,7 +221,7 @@ transactionName 'Текущее наименование в оборудован
 prevTransactionName(Barcode barcode, GroupMachinery groupMachinery) = name(prevLastTransaction(barcode, groupMachinery), barcode);
 
 transactionPrice 'Текущая цена в оборудовании' (Barcode barcode, GroupMachinery groupMachinery)  =
-    price(lastTransaction(barcode, groupMachinery), barcode) PERSISTENT;
+    price(lastTransaction(barcode, groupMachinery), barcode) MATERIALIZED;
 prevTransactionPrice (Barcode barcode, GroupMachinery groupMachinery) = price(prevLastTransaction(barcode, groupMachinery),barcode);
 
 transactionPrice 'Текущая цена в оборудовании' (barcode, stock) =
@@ -231,7 +231,7 @@ transactionPrice 'Текущая цена в оборудовании' (barcode,
           WHERE lastTransaction(b, g);
 
 transactionPrice 'Текущая цена в оборудовании' (Sku sku, Stock stock) =
-    transactionPrice(barcode(sku), stock) PERSISTENT TABLE extraSkuStock;
+    transactionPrice(barcode(sku), stock) MATERIALIZED TABLE extraSkuStock;
 transactionPriceIdBarcodeId 'Текущая цена в оборудовании' (VARSTRING[15] sku, VARSTRING[100] stock) = transactionPrice(skuBarcode(sku), stock(stock));
 
 countDaysClearMachineryPriceTransaction 'За сколько дней хранить загрузки прайсов в оборудование' = DATA INTEGER (); 
@@ -280,7 +280,7 @@ in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Machinery);
 npps 'Номера устройств' (transaction) =
     GROUP CONCAT STRING[3](npp(Machinery machinery)) IF in(MachineryPriceTransaction transaction, machinery), ','
           BY transaction
-          ORDER machinery MINCHARWIDTH 10 PREFCHARWIDTH 20 PERSISTENT;
+          ORDER machinery MINCHARWIDTH 10 PREFCHARWIDTH 20 MATERIALIZED;
 
 // перезагрузка прайса целиком
 selected 'Вкл' = DATA LOCAL BOOLEAN (GroupMachinery);
@@ -438,7 +438,7 @@ TABLE stockRequestExchange(Stock, RequestExchange);
 in 'Вкл' = DATA BOOLEAN (Stock, RequestExchange);  
 extraStocks = GROUP CONCAT name(Stock stock) IF in(stock, RequestExchange requestExchange), ', ' 
                                                 BY requestExchange
-                                                ORDER name(stock) MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;                                                                         
+                                                ORDER name(stock) MINCHARWIDTH 30 PREFCHARWIDTH 30 MATERIALIZED;                                                                         
 dateFrom 'Дата с' = DATA DATE (RequestExchange) NOT NULL;
 dateTo 'Дата по' = DATA DATE (RequestExchange) NOT NULL;
 startDate 'Загружать дисконтные карты начиная с даты' = DATA DATE (RequestExchange);
@@ -562,7 +562,7 @@ copy 'Копировать'(RequestExchange request) = {
 
 allStocks 'Склады' (RequestExchange requestExchange)= 
     CONCAT ',', nameStock(requestExchange), extraStocks(requestExchange) 
-    MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT; 
+    MINCHARWIDTH 30 PREFCHARWIDTH 30 MATERIALIZED; 
 
 FORM requestExchanges 'Запросы обмена данными'
     

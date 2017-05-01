@@ -268,7 +268,7 @@ DESIGN pickings {
 
 //-------------------------- Связь комплектаций с заказами-комплектациями ------------------------------------//
 
-pickingOrder = ABSTRACT PickingOrder (Picking) PERSISTENT;
+pickingOrder = ABSTRACT PickingOrder (Picking) MATERIALIZED;
 pickingOrder = DATA PickingOrder (UserPicking);
 pickingOrder(UserPicking picking) += pickingOrder(picking);
 
@@ -279,13 +279,13 @@ CONSTRAINT stock(UserPicking picking) != stock(pickingOrder(picking))
 descriptionPickingOrder 'Заказ' (Picking picking) = description(pickingOrder(picking)) MINCHARWIDTH 30 PREFCHARWIDTH 50 IN pickingOrders;
 notePickingOrder 'Примечание (заказ)' (Picking p) = note(pickingOrder(p)); 
 
-quantityPickings 'Количество комплектаций' (pickingOrder) = GROUP SUM 1 BY pickingOrder(Picking picking) PERSISTENT;
+quantityPickings 'Количество комплектаций' (pickingOrder) = GROUP SUM 1 BY pickingOrder(Picking picking) MATERIALIZED;
 
 pickings 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255](description(Picking picking)), ', '
                                          BY pickingOrder(picking)
                                          ORDER picking
 //                                         IN order
-                                         MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                         MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 
 overFillUserPicking = ACTION ABSTRACT LIST (UserPickingDetail, PickingOrderDetail);
 moveUserPicking 'Комплектация'(PickingOrder pickingOrder) = {
@@ -373,7 +373,7 @@ countPickingOrderSku 'Кол-во наименований' (pickingOrder) = GRO
 quantityPickingDetail 'Кол-во в комплектациях' (sku, pickingOrder) = GROUP SUM quantityPickingDetail(Sku sku, Picking picking) BY sku, pickingOrder(picking);
 countEqualPickingOrderSku 'Кол-во наименований с равным кол-ом товара' (pickingOrder) = GROUP SUM 1 IF quantityPickingDetail(Sku sku, PickingOrder pickingOrder) == quantityPickingOrderDetail(sku, pickingOrder) BY pickingOrder;
 
-calcFull 'Полностью собран' (PickingOrder pickingOrder) = countPickingOrderSku(pickingOrder) == countEqualPickingOrderSku(pickingOrder) PERSISTENT;
+calcFull 'Полностью собран' (PickingOrder pickingOrder) = countPickingOrderSku(pickingOrder) == countEqualPickingOrderSku(pickingOrder) MATERIALIZED;
 calcPart 'Частично собран' (PickingOrder pickingOrder) = quantityPickings(pickingOrder) AND NOT calcFull(pickingOrder);
 
 packQuantity 'Кол-во собранных мест' (pickingOrder) = GROUP SUM packQuantity(Picking picking) BY pickingOrder(picking);
@@ -383,11 +383,11 @@ notAccepted(PickingOrder o) = NOT accepted(o);
 
 startDate 'Дата начала' = DATA DATE (PickingOrder);
 startTime 'Время начала' = DATA TIME (PickingOrder);
-startDateTime 'Начало комплектации' (PickingOrder o) = dateTimeToDateTime(startDate(o), startTime(o)) PERSISTENT;
+startDateTime 'Начало комплектации' (PickingOrder o) = dateTimeToDateTime(startDate(o), startTime(o)) MATERIALIZED;
 
 finishDate 'Дата окончания' = DATA DATE (PickingOrder);
 finishTime 'Время окончания' = DATA TIME (PickingOrder);
-finishDateTime 'Дата/время окончания' (PickingOrder o) = dateTimeToDateTime(finishDate(o), finishTime(o)) PERSISTENT;
+finishDateTime 'Дата/время окончания' (PickingOrder o) = dateTimeToDateTime(finishDate(o), finishTime(o)) MATERIALIZED;
 
 startDateTime 'Дата/время начала' (Picking picking) = startDateTime(pickingOrder(picking));
 finishDateTime 'Дата/время окончания' (Picking picking) =  finishDateTime(pickingOrder(picking));

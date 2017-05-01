@@ -9,14 +9,14 @@ createdUser = DATA LOCAL BOOLEAN (Invoice, Order);
 createUserInvoice 'Создать накладную' = ACTION ABSTRACT LIST (Order);
 createUserInvoicePosted 'Создать проведенную накладную' = ACTION ABSTRACT LIST (Order);
 
-orderDetail = ABSTRACT OrderDetail (InvoiceDetail) PERSISTENT INDEXED;
+orderDetail = ABSTRACT OrderDetail (InvoiceDetail) MATERIALIZED INDEXED;
 
-invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = GROUP SUM quantity(InvoiceDetail d) IF isPosted(d) BY orderDetail(d) PERSISTENT;
+invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = GROUP SUM quantity(InvoiceDetail d) IF isPosted(d) BY orderDetail(d) MATERIALIZED;
                                                           
-invoicedOrderDetail 'Кол-во (выписано)' = GROUP SUM invoiced(OrderDetail detail) BY order(detail) PERSISTENT;                                                         
+invoicedOrderDetail 'Кол-во (выписано)' = GROUP SUM invoiced(OrderDetail detail) BY order(detail) MATERIALIZED;                                                         
 
 toInvoice 'Не выписано' (OrderDetail orderDetail) = quantity (orderDetail) (-) invoiced(orderDetail);
-toInvoice 'Не выписано' (order) = GROUP SUM 1 IF toInvoice(OrderDetail orderDetail) > 0 BY order(orderDetail) PERSISTENT;
+toInvoice 'Не выписано' (order) = GROUP SUM 1 IF toInvoice(OrderDetail orderDetail) > 0 BY order(orderDetail) MATERIALIZED;
 
 quantity (order, invoice) = GROUP SUM quantity(InvoiceDetail invoiceDetail)
                                                BY order(orderDetail(invoiceDetail)),
@@ -77,7 +77,7 @@ DESIGN options {
 
 META defineOrderInvoice(sign, stockProp)
 
-    orderDetail = ABSTRACT OrderDetail (InvoiceDetail) PERSISTENT;
+    orderDetail = ABSTRACT OrderDetail (InvoiceDetail) MATERIALIZED;
     INDEX orderDetail(InvoiceDetail id), sku(id);
     orderDetail[Invoice.InvoiceDetail] (InvoiceDetail invoiceDetail) += orderDetail(invoiceDetail);
 
@@ -98,7 +98,7 @@ META defineOrderInvoice(sign, stockProp)
         CHECKED BY orderDetail[UserInvoiceDetail]
             MESSAGE 'Товар в заказе и накладной должны соответствовать друг другу';
             
-    WHEN SESSION CHANGED(sku(UserInvoiceDetail detail)) AND NOT CHANGED(orderDetail(detail)) DO
+    WHEN LOCAL CHANGED(sku(UserInvoiceDetail detail)) AND NOT CHANGED(orderDetail(detail)) DO
         orderDetail(detail) <- NULL;
 
 
@@ -112,7 +112,7 @@ META defineOrderInvoice(sign, stockProp)
     orders 'Заказы' (invoice) = GROUP CONCAT VARSTRING[255](description(Order order)) IF quantityInvoiceDetail(order, Invoice invoice) , ', '
                                              BY invoice
                                              ORDER order
-                                             IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                             IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
                                              
     invoices 'Накладные' (order) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF countInvoiceDetail(Order order, invoice) , ', '
                                              BY order
@@ -120,7 +120,7 @@ META defineOrderInvoice(sign, stockProp)
                                              IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50;                                             
 
     invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = GROUP SUM quantity(InvoiceDetail invoiceDetail) IF isPosted(invoiceDetail)
-                                                               BY orderDetail(invoiceDetail) PERSISTENT;
+                                                               BY orderDetail(invoiceDetail) MATERIALIZED;
                                                                
     invoicedOrderDetail 'Кол-во (выписано)' (order) = GROUP SUM invoiced(OrderDetail orderDetail) BY order(orderDetail) IN documentSum;
 
@@ -144,7 +144,7 @@ META defineOrderInvoice(sign, stockProp)
     useExplicitBatchDetailUserInvoice = ABSTRACT BOOLEAN (Order);
     forceExplicitBatchDetailUserInvoice = ABSTRACT BOOLEAN (Order);
 
-    differentStocksInDetails (Stock stock) = differentStocksInDetails(legalEntity(stock)) PERSISTENT;
+    differentStocksInDetails (Stock stock) = differentStocksInDetails(legalEntity(stock)) MATERIALIZED;
 
     in (OrderDetail orderDetail, UserInvoice userInvoice) = (orderDetail IS OrderDetail AND userInvoice IS UserInvoice AND NOT supplierStock(userInvoice)) OR
                                                            supplierStock(orderDetail)==supplierStock(userInvoice);
@@ -556,7 +556,7 @@ META defineOrderInvoice(sign, stockProp)
         }
     } SHORTCUT descriptionOrder[UserInvoiceDetail];
 
-    WHEN SESSION FORMS userInvoice
+    WHEN LOCAL FORMS userInvoice
         (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(batch(detail))) AND NOT orderDetail(detail)       
             DO EXEC connectOrder(detail);
 

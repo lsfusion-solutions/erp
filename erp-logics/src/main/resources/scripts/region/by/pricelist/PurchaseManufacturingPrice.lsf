@@ -31,18 +31,18 @@ dateManufacturingRateExchange(UserInvoice i) += dateManufacturingRateExchange(i)
 
 dateManufacturingRateExchange(UserInvoice i) <- date[Invoice](i) WHEN CHANGED (date[Invoice](i));
 
-rateManufacturingExchange 'Курс' = ABSTRACT NUMERIC[14,6](Invoice) PERSISTENT;
+rateManufacturingExchange 'Курс' = ABSTRACT NUMERIC[14,6](Invoice) MATERIALIZED;
 rateManufacturingExchange 'Курс' = DATA NUMERIC[14,6](UserInvoice);
 rateManufacturingExchange(UserInvoice i) += rateManufacturingExchange(i);
 
-rateManufacturingExchange 'Курс' = ABSTRACT NUMERIC[14,6](InvoiceDetail) PERSISTENT;
+rateManufacturingExchange 'Курс' = ABSTRACT NUMERIC[14,6](InvoiceDetail) MATERIALIZED;
 
 dataRateManufacturingExchange 'Курс' = DATA NUMERIC[14,6](UserInvoiceDetail);
 rateManufacturingExchange 'Курс' (UserInvoiceDetail d) = OVERRIDE dataRateManufacturingExchange(d),  rateManufacturingExchange(userInvoice(d));
 rateManufacturingExchange(UserInvoiceDetail d) += rateManufacturingExchange(d);
 
 
-WHEN SESSION FORMS userInvoice CHANGED (dateManufacturingRateExchange(UserInvoice i)) OR
+WHEN LOCAL FORMS userInvoice CHANGED (dateManufacturingRateExchange(UserInvoice i)) OR
                                CHANGED (typeExchange(i)) OR
                                CHANGED (currency(i)) DO {
     rateManufacturingExchange(i) <- rateOn(typeExchange(i),
@@ -60,7 +60,7 @@ homeManufacturingPrice 'Цена (конв.)' (InvoiceDetail detail) =
 homeManufacturingPrice 'Цена (конв.)' (UserInvoiceDetail detail) =
     round(price(detail) *
                        rateManufacturingExchange(detail),
-                       OVERRIDE defaultRound(detail), defaultRound(homeCurrency(detail))) PERSISTENT INDEXED;
+                       OVERRIDE defaultRound(detail), defaultRound(homeCurrency(detail))) MATERIALIZED INDEXED;
 
 incomeManufacturingPrice (InvoiceDetail detail) = IF isHomeCurrency(invoice(detail)) THEN
                                                     homeManufacturingPrice(detail)
@@ -86,7 +86,7 @@ costManufacturingPrice(UserInvoiceDetail detail) = NUMERIC[16,4] (incomeManufact
 @deriveDocumentOperationProperty(UserInvoice, showManufacturingPrice);
 @deriveDocumentOperationProperty(UserInvoice, reverseManufacturingPrice);
 
-manufacturingPrice 'Цена изготовителя' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+manufacturingPrice 'Цена изготовителя' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
 manufacturingPrice 'Цена изготовителя' = DATA NUMERIC[16,4] (UserInvoiceDetail);
 
 manufacturingPrice (UserInvoiceDetail invoiceDetail) += manufacturingPrice(invoiceDetail);
@@ -171,7 +171,7 @@ overChangePrice (UserInvoiceDetail d) += {
     }
 }
 
-ON SESSION FORMS userInvoice {
+ON LOCAL FORMS userInvoice {
     FOR ((CHANGED(calcBaseManufacturingPrice(UserInvoiceDetail d)) AND NOT reverseManufacturingPrice(d)) OR CHANGED(manufacturingMarkup(d))) 
         AND NOT CHANGED(manufacturingPrice(d)) AND NOT skipChangeManufacturingPrice(d) DO {
         

@@ -24,7 +24,7 @@ includeVAT(CalcPriceListType type) += includeVAT(type);
 country 'Страна' = DATA Country(CalcPriceListType);
 nameCountry 'Страна' (CalcPriceListType t) = name(country(t));
 
-addVAT 'Добавлять НДС' (CalcPriceListType t) = includeVAT(t) AND NOT includeVAT[PriceListType](basePriceListType(t)) PERSISTENT;  
+addVAT 'Добавлять НДС' (CalcPriceListType t) = includeVAT(t) AND NOT includeVAT[PriceListType](basePriceListType(t)) MATERIALIZED;  
 
 @defineDocumentHeaderCurrency(calcPriceListType);
 currency(CalcPriceListType calcPriceListType) += currency(calcPriceListType);
@@ -46,17 +46,17 @@ TABLE sessionCalcPriceListTypeSku (Session, CalcPriceListType, Sku);
 dataMarkup 'Надбавка, %' = DATA NUMERIC[8,2] (CalcPriceListType, Sku);
 
 levelParentMarkup (calcPriceListType, group) = GROUP MIN level(Group group, Group parent) IF dataMarkup(CalcPriceListType calcPriceListType, parent)
-                                                              BY calcPriceListType, group PERSISTENT;
+                                                              BY calcPriceListType, group MATERIALIZED;
 nearestParent (CalcPriceListType calcPriceListType, Group group) = group(group, levelParentMarkup(calcPriceListType, group));
 nearestMarkup 'Расчетная надбавка, %' (CalcPriceListType calcPriceListType, Group group) =
-    dataMarkup(calcPriceListType, nearestParent(calcPriceListType, group)) PERSISTENT;
+    dataMarkup(calcPriceListType, nearestParent(calcPriceListType, group)) MATERIALIZED;
 
 markup 'Надбавка, %' (CalcPriceListType type, Group group) =
-    OVERRIDE dataMarkup(type, group), nearestMarkup(type, group) PERSISTENT;
+    OVERRIDE dataMarkup(type, group), nearestMarkup(type, group) MATERIALIZED;
     
                                                                      
-quantityChildWithMarkup  = GROUP SUM 1 IF dataMarkup(CalcPriceListType type, Group child) AND isParent(child, Group parent) BY parent, type PERSISTENT;
-quantityParentWithMarkup  = GROUP SUM 1 IF dataMarkup(CalcPriceListType type, Group parent) AND isParent(Group child, parent) BY child, type PERSISTENT;                                                                        
+quantityChildWithMarkup  = GROUP SUM 1 IF dataMarkup(CalcPriceListType type, Group child) AND isParent(child, Group parent) BY parent, type MATERIALIZED;
+quantityParentWithMarkup  = GROUP SUM 1 IF dataMarkup(CalcPriceListType type, Group parent) AND isParent(Group child, parent) BY child, type MATERIALIZED;                                                                        
 
 backgroundMarkup 'Цвет' (CalcPriceListType type, Group group) = CASE 
     WHEN dataMarkup(type, group) THEN RGB(230,248,250) 
@@ -70,13 +70,13 @@ extraMarkup = ABSTRACT NUMERIC[8,2] (CalcPriceListType, Sku);
 overMarkup 'Надбавка, % (перегруженная)' = OVERRIDE 
     dataMarkup(CalcPriceListType type, Sku sku),
     extraMarkup(type, sku),
-    markup(type, group(groupType(type), sku)) PERSISTENT;
+    markup(type, group(groupType(type), sku)) MATERIALIZED;
 
 markup 'Надбавка, %' (CalcPriceListType type, Sku sku) = OVERRIDE
     overMarkup(type, sku),
-    overMarkup(parent(type), sku) PERSISTENT;
+    overMarkup(parent(type), sku) MATERIALIZED;
     
-multiplier (CalcPriceListType type, Sku sku) = NUMERIC[10,4]((100.0 + markup(type, sku)) / 100.0) PERSISTENT;
+multiplier (CalcPriceListType type, Sku sku) = NUMERIC[10,4]((100.0 + markup(type, sku)) / 100.0) MATERIALIZED;
 
 VAT(CalcPriceListType type, Sku sku, DATE date) = IF addVAT(type) THEN (100.0 + valueVAT(sku, country(type), date)) / 100.0 ELSE 1.0 IF sku IS Sku AND type IS CalcPriceListType AND date IS DATE;
 
@@ -89,19 +89,19 @@ CONSTRAINT currency(dataRoundCondition(CalcPriceListType type, Group group)) != 
            MESSAGE 'Валюта документа должна совпадать с валютой условия округления цены';
            
 levelParentRoundCondition (calcPriceListType, group) = GROUP MIN level(Group group, Group parent) IF dataRoundCondition(CalcPriceListType calcPriceListType, parent)
-                                                              BY calcPriceListType, group PERSISTENT;
+                                                              BY calcPriceListType, group MATERIALIZED;
 nearestParentRoundCondition (CalcPriceListType calcPriceListType, Group group) = group(group, levelParentRoundCondition(calcPriceListType, group));
 nearestRoundCondition  (CalcPriceListType calcPriceListType, Group group) =
-    dataRoundCondition(calcPriceListType, nearestParentRoundCondition(calcPriceListType, group)) PERSISTENT;
+    dataRoundCondition(calcPriceListType, nearestParentRoundCondition(calcPriceListType, group)) MATERIALIZED;
     
 nameNearestRoundConditionCalc 'Расчетное условие округления' (PriceListType type, Group group) = name(OVERRIDE nearestRoundCondition(type, group),
                                                                                                                 roundCondition(type) IF group IS Group);
 
 roundCondition 'Условие округления' (CalcPriceListType type, Group group) =
     OVERRIDE dataRoundCondition(type, group), 
-             nearestRoundCondition(type, group) PERSISTENT;
+             nearestRoundCondition(type, group) MATERIALIZED;
             
-groupRoundConditionGroup (CalcPriceListType type, Sku sku) = roundCondition(type, group(groupType(type), sku)) PERSISTENT;
+groupRoundConditionGroup (CalcPriceListType type, Sku sku) = roundCondition(type, group(groupType(type), sku)) MATERIALIZED;
 roundCondition (CalcPriceListType type, Sku sku) = OVERRIDE groupRoundConditionGroup(type, sku), roundCondition(type) IF type IS CalcPriceListType AND sku IS Sku;            
 nameRoundCondition 'Условие округления' (CalcPriceListType type, Sku sku)= name(roundCondition(type, sku));    
         

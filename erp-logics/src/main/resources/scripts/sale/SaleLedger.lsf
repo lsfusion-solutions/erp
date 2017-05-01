@@ -5,23 +5,23 @@ REQUIRE System, Stock, SkuLedgerTax, EmployeeStock, Sale, PriceRound, StockSkuDo
 CLASS ABSTRACT SaleLedger 'Продажа товара';
 TABLE saleLedger(SaleLedger) FULL;
 
-dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (SaleLedger) PERSISTENT INDEXED;
+dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (SaleLedger) MATERIALIZED INDEXED;
 hour 'Час' (SaleLedger ledger) = extractHour(dateTime(ledger));  
-date 'Дата' (SaleLedger ledger) = toDate(dateTime(ledger)) PERSISTENT;
+date 'Дата' (SaleLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED;
 nameDOW 'День недели' (SaleLedger ledger) = extractDOWName(date(ledger));
 nameMonth 'Месяц' (SaleLedger ledger) = extractMonthName(date(ledger));
 nameYear 'Год' (SaleLedger ledger) = extractYear(date(ledger));
 
-isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (SaleLedger) PERSISTENT;
+isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (SaleLedger) MATERIALIZED;
 
 isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (SaleLedger);
 allowedEdit (SaleLedger d) = NOT isClosed(d) OR allowedEditClosedDocuments(currentUser());
 
-skip 'Не проводить' (ledger) = ABSTRACT CASE OVERRIDE FIRST BOOLEAN (SaleLedger) PERSISTENT; 
+skip 'Не проводить' (ledger) = ABSTRACT CASE OVERRIDE FIRST BOOLEAN (SaleLedger) MATERIALIZED; 
 
 active (SaleLedger ledger) = isPosted(ledger) AND NOT skip(ledger);
 
-sku (ledger) = ABSTRACT Sku (SaleLedger) PERSISTENT;
+sku (ledger) = ABSTRACT Sku (SaleLedger) MATERIALIZED;
 INDEX sku(SaleLedger ledger), date(ledger);
 idSku 'Код SKU' (SaleLedger s) = id(sku(s));
 nameSku 'SKU' (SaleLedger ledger) = name(sku(ledger));
@@ -34,37 +34,37 @@ nameSkuGroup3Sku 'Группа' = nameSkuGroup3(sku(SaleLedger ledger));
 nameSkuGroup4Sku 'Подгруппа' = nameSkuGroup4(sku(SaleLedger ledger));
 nameSkuGroup5Sku 'Субгруппа' = nameSkuGroup5(sku(SaleLedger ledger));
 
-stock (ledger) = ABSTRACT Stock (SaleLedger) PERSISTENT;
+stock (ledger) = ABSTRACT Stock (SaleLedger) MATERIALIZED;
 INDEX stock(SaleLedger ledger), sku(ledger), date(ledger);
 idStock 'Склад' (SaleLedger ledger) = id(stock(ledger));
 nameStock 'Склад' (SaleLedger ledger) = name(stock(ledger));
 
-operation  (ledger) = ABSTRACT Sale.Operation (SaleLedger) PERSISTENT;
+operation  (ledger) = ABSTRACT Sale.Operation (SaleLedger) MATERIALIZED;
 overNameOperation= ABSTRACT VARISTRING[100] (SaleLedger);
 nameOperation 'Операция' (SaleLedger ledger) = OVERRIDE overNameOperation(ledger), name(operation(ledger));
 
-description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (SaleLedger) PERSISTENT;
-numberDocument 'Номер документа' (ledger) = ABSTRACT VARSTRING[28] (SaleLedger) PERSISTENT;
+description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (SaleLedger) MATERIALIZED;
+numberDocument 'Номер документа' (ledger) = ABSTRACT VARSTRING[28] (SaleLedger) MATERIALIZED;
 
-quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (SaleLedger) PERSISTENT;
+quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (SaleLedger) MATERIALIZED;
 
-price 'Цена продажи' (ledger) = ABSTRACT NUMERIC[16,4] (SaleLedger);// todo: PERSISTENT;
-sum 'Сумма продажи' (ledger) = ABSTRACT NUMERIC[18,4] (SaleLedger) PERSISTENT;
+price 'Цена продажи' (ledger) = ABSTRACT NUMERIC[16,4] (SaleLedger);// todo: MATERIALIZED;
+sum 'Сумма продажи' (ledger) = ABSTRACT NUMERIC[18,4] (SaleLedger) MATERIALIZED;
 
-discountSum 'Сумма скидки' (d) = ABSTRACT NUMERIC[18,4] (SaleLedger) PERSISTENT;
+discountSum 'Сумма скидки' (d) = ABSTRACT NUMERIC[18,4] (SaleLedger) MATERIALIZED;
 
-costSum 'Себестоимость продажи' (ledger) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[16,3] (SaleLedger) PERSISTENT;
+costSum 'Себестоимость продажи' (ledger) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[16,3] (SaleLedger) MATERIALIZED;
 
-customer (ledger) = ABSTRACT LegalEntity (SaleLedger) PERSISTENT INDEXED;
+customer (ledger) = ABSTRACT LegalEntity (SaleLedger) MATERIALIZED INDEXED;
 nameCustomer 'Покупатель' (SaleLedger ledger) = name(customer(ledger));
 
 INDEX date(SaleLedger s), stock(s), customer(s);
 
-customerStock (ledger) = ABSTRACT Stock (SaleLedger) PERSISTENT INDEXED;
+customerStock (ledger) = ABSTRACT Stock (SaleLedger) MATERIALIZED INDEXED;
 nameCustomerStock 'Склад покупателя' (SaleLedger ledger) = name(customerStock(ledger));
 
 inCustomer 'Кол-во продано' (legalEntity, sku)= GROUP SUM quantity(SaleLedger ledger) IF active(ledger)
-    BY customer(ledger), sku(ledger) PERSISTENT;
+    BY customer(ledger), sku(ledger) MATERIALIZED;
 prevInCustomer 'Были продажи (пред.)' (LegalEntity legalEntity, Sku sku) = PREV(inCustomer(legalEntity, sku));
 
 sumSold 'Сумма продажи валюта' (TypeExchange typeExchange, SaleLedger saleLedger) = sum(saleLedger)*
@@ -78,8 +78,8 @@ averageDiscountPrice 'Цена продажи (средняя) полная' (Sa
 averagePriceSold 'Цена продажи (валюта)' (TypeExchange typeExchange, SaleLedger saleLedger)= averagePrice (saleLedger)*
     rateOn(typeExchange, currency(stock(saleLedger)), date(saleLedger));
 
-VAT (ledger) = ABSTRACT Range (SaleLedger) PERSISTENT;
-valueVAT 'НДС, %' (SaleLedger ledger) = valueRate(VAT(ledger), date(ledger)) PERSISTENT;
+VAT (ledger) = ABSTRACT Range (SaleLedger) MATERIALIZED;
+valueVAT 'НДС, %' (SaleLedger ledger) = valueRate(VAT(ledger), date(ledger)) MATERIALIZED;
 
 sumVAT 'Сумма НДС' (SaleLedger ledger) = NUMERIC[18,4]([= X*Y/(100+Y)](
         sum(ledger), valueVAT(ledger)));
@@ -92,38 +92,38 @@ TABLE soldSkuStockDate(Sku, Stock, DATE);
 
 //по складу и SKU
 quantitySold (sku, stock, date) = GROUP SUM quantity(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
+    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE soldSkuStockDate;
 
 costSumSold (sku, stock, date) = GROUP SUM costSum(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
+    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE soldSkuStockDate;
 
 markupSumSold (sku, stock, date) = GROUP SUM markupSum(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
+    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE soldSkuStockDate;
 
 sumVATSold (sku, stock, date) = GROUP SUM sumVAT(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
+    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE soldSkuStockDate;
 
 sumSold (sku, stock, date) = GROUP SUM sum(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
+    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE soldSkuStockDate;
 
 //по складу, покупателю и SKU
 quantitySold (sku, stock, customer, date) = GROUP SUM quantity(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// PERSISTENT;
+    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// MATERIALIZED;
 
 costSumSold (sku, stock, customer, date) = GROUP SUM costSum(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// PERSISTENT;
+    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// MATERIALIZED;
 
 markupSumSold (sku, stock, customer, date) = GROUP SUM markupSum(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// PERSISTENT;
+    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// MATERIALIZED;
     
 discountSumSold (sku, stock, customer, date) = GROUP SUM discountSum(SaleLedger ledger) IF active(ledger)
     BY sku(ledger), stock(ledger), customer(ledger), date(ledger);    
 
 sumVATSold (sku, stock, customer, date) = GROUP SUM sumVAT(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// PERSISTENT;
+    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// MATERIALIZED;
 
 sumSold (sku, stock, customer, date) = GROUP SUM sum(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// PERSISTENT;
+    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// MATERIALIZED;
 
 //по складу и SKU
 quantitySold 'Продано за интервал (кол-во)' (sku, stock, dateFrom, dateTo) = GROUP SUM
@@ -183,7 +183,7 @@ averageSold 'Продаж в день' (Sku sku, Stock stock, DATE dateFrom, DAT
 
 TABLE saleLedgerBatch (SaleLedger, Batch);
 
-cost 'Расписано из партии' = ABSTRACT NUMERIC[16,5] (SaleLedger, Batch) PERSISTENT;
+cost 'Расписано из партии' = ABSTRACT NUMERIC[16,5] (SaleLedger, Batch) MATERIALIZED;
 
 coeff 'Удельный вес' (SaleLedger ledger, Batch batch) =
     NUMERIC[22,8](cost(ledger, batch) / quantity(ledger));
@@ -195,19 +195,19 @@ markupSum 'Надбавка' (SaleLedger ledger, Batch batch) = NUMERIC[18,4](su
 
 //по складу и Batch на дату
 quantitySold (batch, stock, date) = GROUP SUM cost(SaleLedger ledger, Batch batch) IF active(ledger)
-    BY batch, stock(ledger), date(ledger) PERSISTENT;
+    BY batch, stock(ledger), date(ledger) MATERIALIZED;
 
 costSumSold (batch, stock, date) = GROUP SUM costSum(SaleLedger ledger, Batch batch) 
-    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT;
+    IF active(ledger) BY batch, stock(ledger), date(ledger) MATERIALIZED;
 
 markupSumSold (batch, stock, date) = GROUP SUM markupSum(SaleLedger ledger, Batch batch) 
-    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT;
+    IF active(ledger) BY batch, stock(ledger), date(ledger) MATERIALIZED;
 
 sumVATSold (batch, stock, date) = GROUP SUM sumVAT(SaleLedger ledger, Batch batch)  
-    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT;
+    IF active(ledger) BY batch, stock(ledger), date(ledger) MATERIALIZED;
 
 sumSold (batch, stock, date) = GROUP SUM sum(SaleLedger ledger, Batch batch)  
-    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT;       
+    IF active(ledger) BY batch, stock(ledger), date(ledger) MATERIALIZED;       
     
 //по складу и Batch за интервал
     

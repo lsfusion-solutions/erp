@@ -9,7 +9,7 @@ NAMESPACE Repricing;
 @defineDocumentInterfaceProperty (repricing, showLimitPrice, 'Предельная надбавка');
 @defineDocumentInterfaceDetailMarkupPrefix (repricing, limit, ' предельная');
 
-WHEN SESSION FORMS userRepricing 
+WHEN LOCAL FORMS userRepricing 
              (CHANGED(departmentStore(UserRepricingDetail detail)) OR
               CHANGED(sku(detail)) OR 
               SET(showLimitPrice(detail)))
@@ -70,7 +70,7 @@ limitPrice (UserRepricingDetail detail) =
                                                     limitMarkup(detail),
                                                     valueVAT(detail)), roundCondition(priceLimitPriceListType(departmentStore(detail)), sku(detail)));
 
-WHEN SESSION FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail] 
+WHEN LOCAL FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail] 
             (SETCHANGED(retailPrice(UserRepricingDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
              showLimitPrice(d) AND limitPrice(d) < retailPrice(d) DO {
     retailPrice(d) <- limitPrice(d);

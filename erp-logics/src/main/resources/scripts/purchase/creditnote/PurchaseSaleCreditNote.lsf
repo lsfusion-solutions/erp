@@ -108,24 +108,24 @@ fillCreditNote 'Заполнить на основе акта расхожден
 
 //GROUP creditNote 'Информация об акте расхождения' : base;
 
-createSaleCreditNote 'Создать акт расхождения (продажа)' = ABSTRACT BOOLEAN (CreditNote) PERSISTENT;
+createSaleCreditNote 'Создать акт расхождения (продажа)' = ABSTRACT BOOLEAN (CreditNote) MATERIALIZED;
 createSaleCreditNote 'Создать акт расхождения (продажа)' = DATA BOOLEAN (UserCreditNote);
 createSaleCreditNote(UserCreditNote creditNote) += createSaleCreditNote(creditNote);
 
-createSaleCreditNote 'Создать акт расхождения (продажа)' (CreditNoteDetail creditNoteDetail) = createSaleCreditNote(creditNote(creditNoteDetail))PERSISTENT;
+createSaleCreditNote 'Создать акт расхождения (продажа)' (CreditNoteDetail creditNoteDetail) = createSaleCreditNote(creditNote(creditNoteDetail))MATERIALIZED;
 createSaleCreditNote 'Создать акт расхождения (продажа)' (UserCreditNoteDetail userCreditNoteDetail) = createSaleCreditNote(userCreditNote(userCreditNoteDetail));
 backgroundSale 'Цвет' (CreditNote creditNote) = RGB(238, 220, 130) IF creditNote IS CreditNote;
 
 isCompanyCustomer (UserCreditNote userCreditNote) =  isCompany(customer(userCreditNote));
 
 //-- Задание договора 
-returnContractSku = ABSTRACT ContractSku (CreditNote) PERSISTENT;
+returnContractSku = ABSTRACT ContractSku (CreditNote) MATERIALIZED;
 seriesNumberReturnContractSku 'Номер договора' (CreditNote o) = seriesNumber[Contract](returnContractSku(o)) IN documentPrm;
 dateFromReturnContractSku 'Дата договора' (CreditNote o) = dateFrom(returnContractSku(o)) IN documentPrm;
 
 descriptionReturnContractSku 'Описание договора' (CreditNote o)= CONCAT ' ', seriesNumberReturnContractSku(o), ' от ' + dateFromReturnContractSku(o);
 
-isCommissionReturn 'Продажа на комиссию' = ABSTRACT BOOLEAN (CreditNote) PERSISTENT IN documentPrm;
+isCommissionReturn 'Продажа на комиссию' = ABSTRACT BOOLEAN (CreditNote) MATERIALIZED IN documentPrm;
 
 returnContractSku = DATA ContractSku (UserCreditNote);
 numberReturnContractSku 'Договор (номер)' (UserCreditNote o) = number[Contract](returnContractSku(o)) IN documentPrm;
@@ -138,7 +138,7 @@ isCommissionReturn 'Продажа на комиссию' = DATA BOOLEAN (UserCr
 isCommissionReturn(UserCreditNote o) <- type(returnContractSku(o)) == ContractSkuType.commission
     WHEN CHANGED(returnContractSku(o));
 
-WHEN SESSION (CHANGED(supplier(UserCreditNote o)) OR CHANGED(customer(o)) OR CHANGED(supplierStock(o))
+WHEN LOCAL (CHANGED(supplier(UserCreditNote o)) OR CHANGED(customer(o)) OR CHANGED(supplierStock(o))
             OR CHANGED(customerStock(o)) OR CHANGED(date(o))) AND NOT CHANGED(contractSku(o)) DO {
             
     returnContractSku(o) <- OVERRIDE defaultContractSkuSupplierCustomer(supplierStock(o), customerStock(o), date(o)),
@@ -174,7 +174,7 @@ DESIGN userCreditNote {
 
 //--  Связь акта с актом
 
-creditNoteDetail = ABSTRACT CreditNoteDetail (Sale.CreditNoteDetail) PERSISTENT;
+creditNoteDetail = ABSTRACT CreditNoteDetail (Sale.CreditNoteDetail) MATERIALIZED;
 creditNoteDetail = DATA CreditNoteDetail (Sale.UserCreditNoteDetail);
 creditNoteDetail(Sale.UserCreditNoteDetail creditNoteDetail) += creditNoteDetail(creditNoteDetail);
 
@@ -194,9 +194,9 @@ quantityCreditNoteDetail (purchase, sale) = GROUP SUM quantity(Sale.CreditNoteDe
 
 purchaseCreditNotes 'Накладные (закупка)' (sale) = GROUP CONCAT VARSTRING[255](description(CreditNote purchase)) IF quantityCreditNoteDetail(purchase, Sale.CreditNote sale) , ', '
                                                         BY sale
-                                                        ORDER sale IN creditNote MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                        ORDER sale IN creditNote MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 
-relationSale 'Связь' (sale) = GROUP SUM quantityCreditNoteDetail (CreditNote purchase, Sale.CreditNote sale) BY sale PERSISTENT;
+relationSale 'Связь' (sale) = GROUP SUM quantityCreditNoteDetail (CreditNote purchase, Sale.CreditNote sale) BY sale MATERIALIZED;
 
 EXTEND FORM Sale.userCreditNote
     PROPERTIES(c) fillCreditNote, purchaseCreditNotes READONLY

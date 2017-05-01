@@ -14,10 +14,10 @@ META defineInStockGroupObject(prop, object, objectClass)
 
     levelParent###prop##Stock (object, stockGroup) =
         GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataIn###prop(parent, ###object object)
-              BY object, stockGroup PERSISTENT;
+              BY object, stockGroup MATERIALIZED;
     nearestParent###prop##contract (###object object, StockGroup stockGroup) = stockGroup(stockGroup, levelParent###prop##Stock(object, stockGroup));
     nearestIn###prop (StockGroup stockGroup, ###object object) =
-        dataIn###prop(nearestParent###prop##contract(object, stockGroup), object) PERSISTENT;
+        dataIn###prop(nearestParent###prop##contract(object, stockGroup), object) MATERIALIZED;
 
     in###prop 'Отм' (StockGroup stockGroup, ###object object) =
         OVERRIDE dataIn###prop(stockGroup, object),
@@ -28,7 +28,7 @@ META defineInStockGroupObject(prop, object, objectClass)
     dataIn###prop 'Отм.' = DATA BOOLEAN (Stock, objectClass);
     in###prop 'Отм' (Stock stock, ###object object) =
         (OVERRIDE dataIn###prop(stock, object),
-                 in###prop(stockGroup(stock), object)) IF in(prop(object), stock) PERSISTENT;
+                 in###prop(stockGroup(stock), object)) IF in(prop(object), stock) MATERIALIZED;
     replace(Stock s, Stock o) += {ASSIGN dataIn###prop(o, ###object object) <- TRUE WHERE in###prop(s, object) AND NOT in###prop(o, object);}                   
                  
     countDataIn###prop##StockGroups = GROUP SUM 1 IF  dataIn###prop(StockGroup stockGroup, ###object object) BY object;            
@@ -36,8 +36,8 @@ META defineInStockGroupObject(prop, object, objectClass)
     backgroundAll###prop##Stocks 'Цвет' (###object object) = IF all###prop##Stocks(object) THEN RGB(0,0,0)
         ELSE RGB(203,203,203) IF countDataIn###prop##StockGroups(object);      
      
-    quantityChildWithIn###prop (group, object) = GROUP SUM 1 IF dataIn###prop(StockGroup childGroup, ###object object) AND isParent(childGroup, StockGroup group) BY group, object PERSISTENT;
-    quantityParentWithIn###prop (group, object) = GROUP SUM 1 IF dataIn###prop(StockGroup parentGroup, ###object object) AND isParent(StockGroup group, parentGroup) BY group, object PERSISTENT;          
+    quantityChildWithIn###prop (group, object) = GROUP SUM 1 IF dataIn###prop(StockGroup childGroup, ###object object) AND isParent(childGroup, StockGroup group) BY group, object MATERIALIZED;
+    quantityParentWithIn###prop (group, object) = GROUP SUM 1 IF dataIn###prop(StockGroup parentGroup, ###object object) AND isParent(StockGroup group, parentGroup) BY group, object MATERIALIZED;          
           
     backgroundIn###prop 'Цвет' (StockGroup group, ###object object) = CASE
         WHEN dataIn###prop(group, object) THEN RGB(0,0,0)
@@ -58,7 +58,7 @@ TABLE contractSku(ContractSku);
 
 word 'Файл договора'  = ABSTRACT WORDFILE (ContractSku);
 saveWord 'Загрузить файл договора' (ContractSku contractSku) = { LOADFILE word(contractSku); }
-openWord 'Просмотреть файл договора' (ContractSku contractSku) = { OPENFILE word(contractSku); }
+openWord 'Просмотреть файл договора' (ContractSku contractSku) = { OPEN word(contractSku); }
 word(ContractSku contract) += word(contract);
 
 id 'Код' = ABSTRACT VARSTRING[100] (ContractSku) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
@@ -78,7 +78,7 @@ series (ContractSku contract) += series(contract);
 
 word 'Файл договора' (UserContractSku) = DATA WORDFILE (UserContractSku);
 saveWord 'Загрузить файл договора' (UserContractSku userContractSku) = { LOADFILE word(userContractSku); }
-openWord 'Просмотреть файл договора' (UserContractSku userContractSku) = { OPENFILE word(userContractSku); }
+openWord 'Просмотреть файл договора' (UserContractSku userContractSku) = { OPEN word(userContractSku); }
 word(UserContractSku contract) += word(contract);
 
 supplier = DATA LegalEntity (ContractSku);
@@ -241,7 +241,7 @@ DESIGN userContractSku {
     MOVE functions.box;
 }
 
-WHEN SESSION FORMS userContractSku SETCHANGED(supplier(UserContractSku contract)) DO {
+WHEN LOCAL FORMS userContractSku SETCHANGED(supplier(UserContractSku contract)) DO {
     currency(contract) <- OVERRIDE currency(supplier(contract)), defaultCurrency();
 }
 

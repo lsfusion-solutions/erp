@@ -2,13 +2,13 @@ MODULE ScheduleOrderContract;
 
 REQUIRE ScheduleOrder, StockContract;
 
-contractSku = ABSTRACT ContractSku (ScheduleOrder) PERSISTENT ;
+contractSku = ABSTRACT ContractSku (ScheduleOrder) MATERIALIZED ;
 seriesNumberContractSku 'Номер договора' (ScheduleOrder o) = seriesNumber[Contract](contractSku(o)) IN documentPrm;
 dateFromContractSku 'Дата договора' (ScheduleOrder o) = dateFrom(contractSku(o)) IN documentPrm;
 
 descriptionContractSku 'Описание договора' (ScheduleOrder o)= CONCAT ' ', seriesNumberContractSku(o), ' от ' + dateFromContractSku(o);
 
-isCommission 'Продажа на комиссию' = ABSTRACT BOOLEAN (ScheduleOrder) IN documentPrm PERSISTENT;
+isCommission 'Продажа на комиссию' = ABSTRACT BOOLEAN (ScheduleOrder) IN documentPrm MATERIALIZED;
 
 contractSku (ScheduleOrderDetail d) = contractSku(scheduleOrder(d));
 seriesNumberContractSku 'Номер договора' (ScheduleOrderDetail d) = seriesNumber[Contract](contractSku (d));
@@ -33,7 +33,7 @@ META defineScheduleOrderContract (contractType, contractClass, caption, NS)
         WHEN CHANGED(contractType(o));
     
     
-    WHEN SESSION (CHANGED(supplier(ScheduleOrder o)) OR CHANGED(supplierStock(o)) OR CHANGED(customer(o)) OR CHANGED(startDate(o))) 
+    WHEN LOCAL (CHANGED(supplier(ScheduleOrder o)) OR CHANGED(supplierStock(o)) OR CHANGED(customer(o)) OR CHANGED(startDate(o))) 
         AND NOT CHANGED(contractType(o)) DO {
                 
         contractType(o) <- default###contractType##SupplierCustomer(supplier(o), supplierStock(o), customer(o), startDate(o))

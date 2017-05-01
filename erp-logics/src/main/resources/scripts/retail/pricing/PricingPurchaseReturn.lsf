@@ -24,14 +24,14 @@ retailMarkup(UserInvoiceDetail userInvoiceDetail)  <- [= round2((((X - X*Y/(100+
 //@deriveDocumentDetailVAT(userInvoice, retail, date, sku, customerStock);
 
 // Проставляем НДС розничный, равный НДС входному
-WHEN SESSION CHANGED(VAT(UserInvoiceDetail detail)) OR CHANGED(valueVAT(detail)) DO {
+WHEN LOCAL CHANGED(VAT(UserInvoiceDetail detail)) OR CHANGED(valueVAT(detail)) DO {
     retailVAT(detail) <- IF valueVAT(detail) == 0 THEN
                                                VAT (sku(detail), country(supplierStock(detail)))
                                           ELSE VAT(detail);
 }
 
 extraRetailPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail); 
-WHEN SESSION (CHANGED(customerStock(UserInvoiceDetail detail)) OR
+WHEN LOCAL (CHANGED(customerStock(UserInvoiceDetail detail)) OR
               (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
               CHANGED(batch(detail))) AND batch(detail) DO {
     retailPrice (detail)  <- prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
@@ -40,7 +40,7 @@ WHEN SESSION (CHANGED(customerStock(UserInvoiceDetail detail)) OR
                                                                                                        dateTime(detail)) (-) extraRetailPrice(detail);
 }
 
-WHEN SESSION (CHANGED(customerStock(UserInvoiceDetail detail)) OR
+WHEN LOCAL (CHANGED(customerStock(UserInvoiceDetail detail)) OR
               (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
               DROPPED(batch(detail)) OR
               CHANGED(sku(detail))) AND NOT batch(detail) DO {

@@ -42,7 +42,7 @@ nameCustomsZone 'Таможенная зона' (Country country) = name(customs
 isCompliancedData 'Необходимость сертификации' = DATA BOOLEAN (CustomsGroup) IN base;
 
 levelParent (customsGroup) = GROUP MIN level(CustomsGroup customsGroup, CustomsGroup parent) IF isCompliancedData(parent)
-                                                BY customsGroup PERSISTENT;
+                                                BY customsGroup MATERIALIZED;
 
 isCompliancedParent (CustomsGroup customsGroup) = TRUE IF levelParent(customsGroup);
 
@@ -60,7 +60,7 @@ META defineCustomsRate(class, object, caption)
     codeCustomsGroup 'ТН ВЭД (код)' (class customsRate) = code(customsGroup(customsRate)) IN base MAXCHARWIDTH 10;
     nameCustomsGroup 'ТН ВЭД' (class customsRate) = name(customsGroup(customsRate)) IN base MAXCHARWIDTH 50;
 
-    order = STRUCT(dateFrom(class object), object) PERSISTENT;
+    order = STRUCT(dateFrom(class object), object) MATERIALIZED;
 
     concat##class (customsGroup, date) = GROUP MAX order(class object) IF
                                                                        (dateFrom(object) < DATE date AND
@@ -125,7 +125,7 @@ valueCurrent 'Льгота НДС, %' (VATCustomsException VATCustomsException) 
 rangeVATCustomsException 'Льгота НДС' (CustomsGroup customsGroup, DATE date) = range(VATCustomsException(customsGroup, date));
 dataValueVATCustomsException 'Льгота НДС, %' (CustomsGroup customsGroup, DATE date) = valueRate(rangeVATCustomsException(customsGroup, date), date);
 
-countVATCustomsException 'Кол-во льгот' (customsGroup) = GROUP SUM 1 IF VATCustomsException VATCustomsException IS VATCustomsException BY customsGroup(VATCustomsException) PERSISTENT;
+countVATCustomsException 'Кол-во льгот' (customsGroup) = GROUP SUM 1 IF VATCustomsException VATCustomsException IS VATCustomsException BY customsGroup(VATCustomsException) MATERIALIZED;
 
 nameVATCustomsException 'Наименование' (customsGroup) = GROUP CONCAT VARSTRING[255](name(VATCustomsException VATCustomsException))  , ', ' BY customsGroup(VATCustomsException);
 

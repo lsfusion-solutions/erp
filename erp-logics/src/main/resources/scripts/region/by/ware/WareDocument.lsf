@@ -17,7 +17,7 @@ META defineDocumentWare(document, NS)
 
     wareUser###document##Detail = DATA NS.User###document##Detail(NS.User###document##Detail) INDEXED;
     itemWareUser###document##Detail (user###document##Detail) =
-        GROUP AGGR User###document##Detail user###document##Detail BY wareUser###document##Detail(user###document##Detail) PERSISTENT;
+        GROUP AGGR User###document##Detail user###document##Detail BY wareUser###document##Detail(user###document##Detail) MATERIALIZED;
 
     createWare(User###document##Detail user###document##Detail) = {
         IF wareUser###document##Detail(user###document##Detail) THEN {
@@ -35,12 +35,12 @@ META defineDocumentWare(document, NS)
             }
     }
 
-    WHEN SESSION FORMS user###document
+    WHEN LOCAL FORMS user###document
          (SETCHANGED(NS.sku[User###document##Detail](User###document##Detail detail)) OR CHANGED(NS.quantity[User###document##Detail](detail))) AND
          ware(NS.sku[User###document##Detail](detail)) AND NOT skipCreateWare[User###document##Detail](detail)
             DO EXEC createWare(detail);
 
-    WHEN SESSION FORMS user###document
+    WHEN LOCAL FORMS user###document
          DROPPED(itemWareUser###document##Detail(User###document##Detail detail)) DO
          DELETE detail;
     

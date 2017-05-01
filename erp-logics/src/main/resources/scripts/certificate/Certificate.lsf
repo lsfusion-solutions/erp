@@ -9,12 +9,12 @@ TABLE certificate(Certificate);
 @defineDocumentAbstractHeaderTimePrefix(Certificate, from, ' с');
 @defineDocumentAbstractHeaderTimePrefix(Certificate, to, ' по');
 
-number 'Номер' = ABSTRACT STRING[100] (Certificate) IN numbered PERSISTENT MINCHARWIDTH 10;
-series 'Серия' = ABSTRACT STRING[2] (Certificate) IN numbered PERSISTENT FIXEDCHARWIDTH 3; 
+number 'Номер' = ABSTRACT STRING[100] (Certificate) IN numbered MATERIALIZED MINCHARWIDTH 10;
+series 'Серия' = ABSTRACT STRING[2] (Certificate) IN numbered MATERIALIZED FIXEDCHARWIDTH 3; 
 
 seriesNumber 'Серия/Номер' (Certificate o) = 
     CONCAT '', series(o), number(o) 
-    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
+    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 MATERIALIZED;
 
 description 'Документ качества' (Certificate certificate) = CONCAT ' ', seriesNumber(certificate), 'от ' + fromDate(certificate), 'по ' + toDate(certificate);
 
@@ -62,7 +62,7 @@ END
 
 META defineDocumentTextBatchPrefix(prefix, caption)
 
-    prefix##Text  caption = ABSTRACT TEXT (Batch) PERSISTENT;
+    prefix##Text  caption = ABSTRACT TEXT (Batch) MATERIALIZED;
     prev###prefix##Text (Batch batch) = PREV(prefix##Text(batch));
 END
 
@@ -110,7 +110,7 @@ META defineDocumentCertificate(prop, propClass, document, object, caption)
 
     data###prop = DATA propClass (User###document##Detail);
     prop (User###document##Detail detail) =
-        OVERRIDE data###prop(detail), prop(user###document(detail)) PERSISTENT INDEXED;
+        OVERRIDE data###prop(detail), prop(user###document(detail)) MATERIALIZED INDEXED;
     prop(User###document##Detail detail) += prop(detail);
 
     description###prop caption (User###document##Detail detail) = description(prop(detail));
@@ -142,7 +142,7 @@ END
 // ------------------------------------ Сертификаты для партий ----------------------------------- //
 
 META defineBatchCertificate(prop, propClass, caption)
-    prop = ABSTRACT propClass (Batch) PERSISTENT INDEXED;
+    prop = ABSTRACT propClass (Batch) MATERIALIZED INDEXED;
     prev###prop (Batch batch) = PREV(prop(batch));
     number###prop caption (Batch batch) = number(prop(batch));
     series###prop caption (Batch batch) = series(prop(batch));

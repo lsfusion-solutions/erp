@@ -23,7 +23,7 @@ VAT (UserOrder userOrder) <- range(Tax.taxVAT, store(supplierStock(userOrder)))
 //@deriveDocumentDetailVATHeader(userOrder, VAT, supplierStock);
 
 overVAT (UserOrderDetail d) += VAT(userOrder(d));
-WHEN SESSION FORMS userOrder CHANGED(VAT(userOrder(UserOrderDetail d))) DO {
+WHEN LOCAL FORMS userOrder CHANGED(VAT(userOrder(UserOrderDetail d))) DO {
     VAT(d) <- overVAT(d);
 }
 
@@ -32,7 +32,7 @@ EXTEND FORM userOrder
     PROPERTIES(o) numberVAT SHOWIF useCountVATOperation(o), valueVAT SHOWIF useCountVATOperation(o);
 ;
 
-WHEN SESSION FORMS userOrder (CHANGED(quantity(UserOrderDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(valueVAT(d))) 
+WHEN LOCAL FORMS userOrder (CHANGED(quantity(UserOrderDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(valueVAT(d))) 
                                AND VAT(userOrder(d)) AND includeVAT(priceListType(d)) DO {
     invoiceSum(d) <- IF individualLegalEntitySale(operation(d)) THEN
             round(quantity(d) * invoicePrice(d), roundCondition(supplierStock(d)))

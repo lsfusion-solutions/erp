@@ -12,7 +12,7 @@ NAMESPACE Sale;
 @defineDocumentInterfaceDetailQuantityPrefix (invoice, purchasePricing, ' расценено (закупка)');
 
 // Изменененно кол-во для расценки (пока нигде не используется)
-extraPurchasePricingQuantity = ABSTRACT NUMERIC[14,3] (UserInvoiceDetail) PERSISTENT;
+extraPurchasePricingQuantity = ABSTRACT NUMERIC[14,3] (UserInvoiceDetail) MATERIALIZED;
 purchasePricingQuantity(UserInvoiceDetail detail) <- quantity(detail) (+) extraPurchasePricingQuantity(detail)
     WHEN CHANGED(quantity(detail)) OR CHANGED(extraPurchasePricingQuantity(detail));
 
@@ -46,7 +46,7 @@ retailStock (UserInvoiceDetail d) = OVERRIDE
     overRetailStock(d), 
     (IF useSupplierStock(userInvoice(d)) THEN supplierStock(d) ELSE customerStock(d));
 
-WHEN SESSION // цены берем на начало сессии, а не этого event'а
+WHEN LOCAL // цены берем на начало сессии, а не этого event'а
    (CHANGED(calcPurchaseRetailPriceListType(UserInvoiceDetail detail)) OR
     CHANGED(calcPurchaseRetailCalcPriceListType(detail)) OR
     CHANGED(sku(detail)) OR
@@ -59,7 +59,7 @@ WHEN SESSION // цены берем на начало сессии, а не эт
                                                 ELSE calcPurchaseRetailCalcPriceListType(detail);
 
 // если не задана управленческая цена
-WHEN SESSION // цены берем на начало сессии, а не этого event'а
+WHEN LOCAL // цены берем на начало сессии, а не этого event'а
    (CHANGED(calcPurchaseRetailPriceListType(UserInvoiceDetail detail)) OR
     CHANGED(calcPurchaseRetailCalcPriceListType(detail)) OR
     CHANGED(sku(detail)) OR
@@ -70,12 +70,12 @@ WHEN SESSION // цены берем на начало сессии, а не эт
 
 
 // Базовая цена
-overPurchasePricingPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
-overPurchasePricingPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail) PERSISTENT;
+overPurchasePricingPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
+overPurchasePricingPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail) MATERIALIZED;
 overPurchasePricingPrice (UserInvoiceDetail detail) += overPurchasePricingPrice(detail);
 
-purchasePricingPrice (UserInvoiceDetail detail) = OVERRIDE overPurchasePricingPrice(detail), price(detail) PERSISTENT;
-purchasePricingPrice (InvoiceDetail detail) = OVERRIDE overPurchasePricingPrice(detail), price(detail) PERSISTENT;
+purchasePricingPrice (UserInvoiceDetail detail) = OVERRIDE overPurchasePricingPrice(detail), price(detail) MATERIALIZED;
+purchasePricingPrice (InvoiceDetail detail) = OVERRIDE overPurchasePricingPrice(detail), price(detail) MATERIALIZED;
 
 @defineDocumentInterfaceDetailMarkupPrefix (invoice, purchaseRetail, ' (закупка)');
 

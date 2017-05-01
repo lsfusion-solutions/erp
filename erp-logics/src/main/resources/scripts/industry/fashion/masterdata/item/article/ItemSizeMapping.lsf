@@ -106,25 +106,25 @@ sizeMapping (g, s, b)= GROUP MAX SizeMapping m BY itemGroup(m), size(m), brand(m
 
 TABLE itemGroupSizeBrand (ItemGroup, Size, Brand); 
 levelParentSizeMapping (itemGroup, size, brand) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF sizeMapping(parent, Size size, Brand brand)
-                                                                  BY itemGroup, size, brand PERSISTENT;    
+                                                                  BY itemGroup, size, brand MATERIALIZED;    
 nearestParentSizeMapping (ItemGroup itemGroup, Size size, Brand brand) = itemGroup(itemGroup, levelParentSizeMapping(itemGroup, size, brand));
 nearestSizeMapping (ItemGroup itemGroup, Size size, Brand brand) = sizeMapping(nearestParentSizeMapping (itemGroup, size, brand), size, brand);
 
 overSizeMapping 'Соответствие по-умолчанию' (ItemGroup itemGroup, Size size, Brand brand) =
     OVERRIDE sizeMapping(itemGroup, size, brand), 
-             nearestSizeMapping(itemGroup, size, brand) PERSISTENT;    
+             nearestSizeMapping(itemGroup, size, brand) MATERIALIZED;    
 
              
 TABLE itemGroupSize (ItemGroup, Size);
 sizeMapping (g, s)= GROUP MAX SizeMapping m BY itemGroup(m), size(m);
 levelParentSizeMapping (itemGroup, size) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF sizeMapping(parent, Size size)
-                                                                  BY itemGroup, size PERSISTENT;    
+                                                                  BY itemGroup, size MATERIALIZED;    
 nearestParentSizeMapping (ItemGroup itemGroup, Size size) = itemGroup(itemGroup, levelParentSizeMapping(itemGroup, size));
 nearestSizeMapping (ItemGroup itemGroup, Size size) = sizeMapping(nearestParentSizeMapping (itemGroup, size), size);
 
 overSizeMapping 'Соответствие по-умолчанию' (ItemGroup itemGroup, Size size) =
     OVERRIDE sizeMapping(itemGroup, size), 
-             nearestSizeMapping(itemGroup, size) PERSISTENT;  
+             nearestSizeMapping(itemGroup, size) MATERIALIZED;  
              
 META createSizeMappingExAttribute(property, mappingProp, captionProp, shortcutProp, prefix)
 

@@ -9,7 +9,7 @@ NAMESPACE Purchase;
 @defineDocumentInterfaceProperty (invoice, showLimitPrice, 'Предельная надбавка');
 @defineDocumentInterfaceDetailMarkupPrefix (invoice, limit, ' предельная');
 
-WHEN SESSION FORMS userInvoice 
+WHEN LOCAL FORMS userInvoice 
              (CHANGED(customerStock(UserInvoiceDetail detail)) OR
               CHANGED(sku(detail)) OR 
               SET(showLimitPrice(detail)))
@@ -59,14 +59,14 @@ limitPrice (UserInvoiceDetail detail) =
                                                     limitMarkup(detail),
                                                     valueRetailVAT(detail)), roundCondition(priceLimitPriceListType(customerStock(detail)), sku(detail)));
 
-WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
+WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
              showLimitPrice(d) AND limitMarkup(d) > 0.3 AND limitMarkup(d) <= 1 AND limitMarkup(d) < retailPrice(d) NOINLINE DO {
     retailPrice(d) <- limitMarkup(d);
     retailMarkup(d) <- calcRetailMarkup(d);
 }
 
-WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
+WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) 
             AND showLimitPrice(d) AND limitMarkup(d) <= 0.3 NOINLINE DO {
     IF limitMarkupPrice(d) < retailPrice(d) THEN {
@@ -75,7 +75,7 @@ WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail]
     }
 }
 
-WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
+WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
              showLimitPrice(d) AND limitMarkup(d) > 1 NOINLINE DO {
     IF limitPrice(d) < retailPrice(d) THEN {

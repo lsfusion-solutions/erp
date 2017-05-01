@@ -10,18 +10,18 @@ TABLE contractDate (Contract, DATE);
 
 GROUP contract 'Реквизиты' : recognize;
 
-id 'Код' = ABSTRACT VARSTRING[100] (Contract) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15 PERSISTENT ;
+id 'Код' = ABSTRACT VARSTRING[100] (Contract) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15 MATERIALIZED ;
 
-number 'Номер' = ABSTRACT VARSTRING[28] (Contract) IN numbered PERSISTENT MINCHARWIDTH 7;
-series 'Серия' = ABSTRACT STRING[2] (Contract) IN numbered PERSISTENT FIXEDCHARWIDTH 3; 
+number 'Номер' = ABSTRACT VARSTRING[28] (Contract) IN numbered MATERIALIZED MINCHARWIDTH 7;
+series 'Серия' = ABSTRACT STRING[2] (Contract) IN numbered MATERIALIZED FIXEDCHARWIDTH 3; 
 
 seriesNumber 'Серия/Номер' (Contract o) = 
     CONCAT '', series(o), number(o) 
-    MINCHARWIDTH 7 PREFCHARWIDTH 15 MAXCHARWIDTH 20 INDEXED PERSISTENT;
+    MINCHARWIDTH 7 PREFCHARWIDTH 15 MAXCHARWIDTH 20 INDEXED MATERIALIZED;
 
 word 'Файл договора'  = ABSTRACT WORDFILE (Contract);
 saveWord 'Загрузить файл договора' (Contract contract) = { LOADFILE word(contract); }
-openWord 'Просмотреть файл договора' (Contract contract) = { OPENFILE word(contract); }
+openWord 'Просмотреть файл договора' (Contract contract) = { OPEN word(contract); }
 
 
 //numberContract 'Номер договора' = DATA STRING[30] (Contract) IN contract;
@@ -35,11 +35,11 @@ description 'Описание' (Contract contract) = CONCAT '', seriesNumber(con
 
 GROUP party 'Контрагенты' : recognize;
 
-partyA = ABSTRACT LegalEntity (Contract) PERSISTENT INDEXED;
+partyA = ABSTRACT LegalEntity (Contract) MATERIALIZED INDEXED;
 namePartyA 'Организация (поставщик)' (Contract contract) = name(partyA(contract)) IN party;
 addressPartyA 'Адрес организация (поставщик)' (Contract contract) = address(partyA(contract)) IN party;
 
-partyB = ABSTRACT LegalEntity (Contract) PERSISTENT INDEXED;
+partyB = ABSTRACT LegalEntity (Contract) MATERIALIZED INDEXED;
 namePartyB 'Организация (покупатель)' (Contract contract) = name(partyB(contract)) IN party;
 addressPartyB 'Адрес организация (покупатель)' (Contract contract) = address(partyB(contract)) IN party;
 
@@ -48,15 +48,15 @@ countContract 'Кол-во договоров' (partyA, partyB) =
 
 TABLE stockContract (Stock, Contract);
 
-inPartyA 'Вкл.'  = ABSTRACT BOOLEAN (Stock, Contract) PERSISTENT INDEXED;
-inPartyB 'Вкл.' = ABSTRACT BOOLEAN (Stock, Contract) PERSISTENT INDEXED;
+inPartyA 'Вкл.'  = ABSTRACT BOOLEAN (Stock, Contract) MATERIALIZED INDEXED;
+inPartyB 'Вкл.' = ABSTRACT BOOLEAN (Stock, Contract) MATERIALIZED INDEXED;
 
 namePartyAStocks 'Склады поставщика' (contract) = GROUP CONCAT name(Stock stock) IF inPartyA(stock, Contract contract) , ', '
                                                  BY contract
-                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 namePartyBStocks 'Склады покупателя' (contract) = GROUP CONCAT name(Stock stock) IF inPartyB(stock, Contract contract) , ', '
                                                  BY contract
-                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 
 countContract 'Кол-во договоров' (partyA, stockA, partyB, stockB) =
     GROUP SUM 1 IF inPartyA(Stock stockA, Contract contract) AND inPartyB(Stock stockB, contract) BY partyA(contract), stockA, partyB(contract), stockB;
@@ -221,7 +221,7 @@ META defineDocumentContract (objectClass, contractType, contractTypeClass, prefi
         WHEN CHANGED(contractType(o));
 
     skipSet###contractType = ABSTRACT BOOLEAN (###objectClass);
-    WHEN SESSION (CHANGED(prefixA(objectClass o)) OR CHANGED(prefixB(o)) OR CHANGED(prefixA##Stock(o))
+    WHEN LOCAL (CHANGED(prefixA(objectClass o)) OR CHANGED(prefixB(o)) OR CHANGED(prefixA##Stock(o))
                 OR CHANGED(prefixB##Stock(o)) OR CHANGED(date(o))) AND NOT CHANGED(contractType(o)) AND NOT skipSet###contractType(o) NOINLINE DO {
                 
         contractType(o) <- OVERRIDE defaultContractProp(prefixA##Stock(o), prefixB##Stock(o), date(o)),
@@ -265,13 +265,13 @@ META defineDocumentAbstractContract (objectClass, contractType)
 END
 
 META defineDocumentAbstractContract (objectClass, contractType, contractTypeClass)
-    contractType = ABSTRACT contractTypeClass (objectClass) PERSISTENT INDEXED;
+    contractType = ABSTRACT contractTypeClass (objectClass) MATERIALIZED INDEXED;
     seriesNumber###contractType 'Номер договора' (objectClass o) = seriesNumber[Contract](contractType(o)) IN documentPrm;
     dateFrom###contractType 'Дата договора' (objectClass o) = dateFrom(contractType(o)) IN documentPrm;
     
     description###contractType 'Описание договора' (objectClass o)= CONCAT ' ', seriesNumber###contractType(o), ' от ' + dateFrom###contractType(o);
 
-    isCommission 'Продажа на комиссию' = ABSTRACT BOOLEAN (objectClass) PERSISTENT IN documentPrm;
+    isCommission 'Продажа на комиссию' = ABSTRACT BOOLEAN (objectClass) MATERIALIZED IN documentPrm;
 END
 META defineDocumentInterfaceContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage, caption, NS)
     @defineDocumentAbstractContract(objectClass, contractType);

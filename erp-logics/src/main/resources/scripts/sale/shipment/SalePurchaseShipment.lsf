@@ -8,11 +8,11 @@ PRIORITY Sale;
 
 GROUP shipment 'Информация о поставке' : base;
 
-createPurchase 'Создать поставку (закупка)' = ABSTRACT BOOLEAN (Shipment) PERSISTENT;
-createPurchase 'Создать поставку (закупка)' = DATA BOOLEAN (UserShipment) PERSISTENT;
+createPurchase 'Создать поставку (закупка)' = ABSTRACT BOOLEAN (Shipment) MATERIALIZED;
+createPurchase 'Создать поставку (закупка)' = DATA BOOLEAN (UserShipment) MATERIALIZED;
 createPurchase(UserShipment shipment) += createPurchase(shipment);
 
-createPurchase 'Создать поставку (закупка)' (ShipmentDetail shipmentDetail) = createPurchase(shipment(shipmentDetail))PERSISTENT;
+createPurchase 'Создать поставку (закупка)' (ShipmentDetail shipmentDetail) = createPurchase(shipment(shipmentDetail))MATERIALIZED;
 createPurchase 'Создать поставку (закупка)' (UserShipmentDetail userShipmentDetail) = createPurchase(userShipment(userShipmentDetail));
 backgroundPurchase 'Цвет' (Shipment shipment) = RGB(255, 224, 255) IF shipment IS Shipment;
 
@@ -50,7 +50,7 @@ EXTEND FORM shipments
 ;
 //--  Связь поставки с поставкой
 
-shipmentDetail = ABSTRACT ShipmentDetail (Purchase.ShipmentDetail) PERSISTENT INDEXED;
+shipmentDetail = ABSTRACT ShipmentDetail (Purchase.ShipmentDetail) MATERIALIZED INDEXED;
 shipmentDetail = DATA ShipmentDetail (Purchase.UserShipmentDetail) INDEXED;
 shipmentDetail(Purchase.UserShipmentDetail shipmentDetail) += shipmentDetail(shipmentDetail);
 
@@ -74,12 +74,12 @@ quantityShipmentDetail (sale, purchase) = GROUP SUM quantity(Purchase.ShipmentDe
 
 saleShipments 'Поставки (продажа)' (purchase) = GROUP CONCAT VARSTRING[255](description(Shipment sale)) IF quantityShipmentDetail(sale, Purchase.Shipment purchase) , ', '
                                                         BY purchase
-                                                        ORDER sale IN shipment MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                        ORDER sale IN shipment MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
 
-relationPurchase 'Связь' (purchase) = GROUP SUM quantityShipmentDetail (Shipment sale, Purchase.Shipment purchase) BY purchase PERSISTENT INDEXED; // для NOT NULL фильтров
+relationPurchase 'Связь' (purchase) = GROUP SUM quantityShipmentDetail (Shipment sale, Purchase.Shipment purchase) BY purchase MATERIALIZED INDEXED; // для NOT NULL фильтров
 
 shipped 'Кол-во (поставлено)' (shipmentDetail) = GROUP SUM quantity(Purchase.ShipmentDetail detail) IF isPosted(detail)
-                                                                   BY shipmentDetail(detail) PERSISTENT;
+                                                                   BY shipmentDetail(detail) MATERIALIZED;
 
 toShip 'Не поставлено' (ShipmentDetail shipmentDetail) = quantity (shipmentDetail) (-) shipped(shipmentDetail);
 

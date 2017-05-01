@@ -12,7 +12,7 @@ in 'Вкл.' (Compliance compliance, UserInvoiceDetail invoiceDetail) = dataComp
 
 invoices 'Накладные' (compliance) =
     GROUP CONCAT shortDescription(UserInvoice invoice) IF in (Compliance compliance, invoice), ','
-              BY compliance ORDER invoice PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 MAXCHARWIDTH 120;
+              BY compliance ORDER invoice MATERIALIZED MINCHARWIDTH 40 PREFCHARWIDTH 80 MAXCHARWIDTH 120;
 
 // Тип сертификата
 nameComplianceTypeCompliance 'Тип сертификата' (UserInvoiceDetail invoiceDetail) = nameComplianceType(compliance(invoiceDetail));
@@ -51,15 +51,15 @@ CONSTRAINT countComplianceGroup(compliance(UserInvoice invoice, ComplianceGroup 
            AND NOT in(group, compliance(invoice, group))
     CHECKED BY compliance[UserInvoice,ComplianceGroup] MESSAGE 'Сертификат должен соответствовать группе сертификации';
 
-WHEN SESSION FORMS userInvoice CHANGED(compliance(UserInvoice i, ComplianceGroup g)) DO
+WHEN LOCAL FORMS userInvoice CHANGED(compliance(UserInvoice i, ComplianceGroup g)) DO
     dataCompliance(UserInvoiceDetail d) <- compliance(i, g)
         WHERE userInvoice(d) == i AND complianceGroup(d) == g;
 
-WHEN SESSION FORMS userInvoice CHANGED(complianceGroup(UserInvoiceDetail d)) AND compliance(userInvoice(d), complianceGroup(d)) DO
+WHEN LOCAL FORMS userInvoice CHANGED(complianceGroup(UserInvoiceDetail d)) AND compliance(userInvoice(d), complianceGroup(d)) DO
     dataCompliance(d) <- compliance(userInvoice(d), complianceGroup(d));
 
 count 'Кол-во' (invoice, complianceGroup) =
-    GROUP SUM 1 BY userInvoice(UserInvoiceDetail detail), complianceGroup(detail) PERSISTENT;
+    GROUP SUM 1 BY userInvoice(UserInvoiceDetail detail), complianceGroup(detail) MATERIALIZED;
 
 // ------------------- Заполнение сертификата, если он один для группы --------------------- //
 
@@ -92,7 +92,7 @@ certificateCostPrice[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += comp
 certificateCostSum[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += complianceSum(invoiceDetail);
 
 complianceSumUserInvoiceDetail 'Сертификация' = GROUP SUM complianceSum(UserInvoiceDetail d)
-                                                                BY compliance(d) MINCHARWIDTH 15 PERSISTENT;
+                                                                BY compliance(d) MINCHARWIDTH 15 MATERIALIZED;
                                                                 
 overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += {      
     compliancePrice(d) <- compliancePrice(detail);

@@ -62,7 +62,7 @@ roundCondition(UserInvoiceDetail d) =  IF overRoundCondition(d)
 extraCalcRetailCalcPriceListType = ABSTRACT CASE OVERRIDE FIRST CalcPriceListType (UserInvoiceDetail);
 
 skipSetRetailPriceListType = ABSTRACT BOOLEAN (UserInvoiceDetail);
-WHEN SESSION FORMS userInvoice
+WHEN LOCAL FORMS userInvoice
     (CHANGED(calcRetailPriceListType(UserInvoiceDetail detail)) OR
      CHANGED(calcRetailCalcPriceListType(detail)) OR
      CHANGED(sku(detail)) OR
@@ -74,7 +74,7 @@ WHEN SESSION FORMS userInvoice
                                         THEN pt
                                         ELSE OVERRIDE extraCalcRetailCalcPriceListType(detail), calcRetailCalcPriceListType(detail);
 
-WHEN SESSION FORMS userInvoice
+WHEN LOCAL FORMS userInvoice
     (CHANGED(calcRetailPriceListType(UserInvoiceDetail detail)) OR
      CHANGED(calcRetailCalcPriceListType(detail)) OR
      CHANGED(sku(detail)) OR
@@ -190,7 +190,7 @@ calcShipmentPrice(UserInvoiceDetail detail) += WHEN customerStock(detail) IS Dep
 overCostPrice(InvoiceShipmentDetail detail) += costPrice(invoiceDetail(detail)) IF customerStock[ShipmentDetail](detail) IS DepartmentStore AND NOT costLedger(customerStock[ShipmentDetail](detail)); 
 
 // Проставляем НДС розничный, равный НДС входному
-WHEN SESSION CHANGED(VAT(UserInvoiceDetail detail)) OR CHANGED(valueVAT(detail)) DO {
+WHEN LOCAL CHANGED(VAT(UserInvoiceDetail detail)) OR CHANGED(valueVAT(detail)) DO {
     retailVAT(detail) <- IF valueVAT(detail) == 0 THEN
                                                VAT (sku(detail), country(supplierStock(detail)))
                                           ELSE VAT(detail);

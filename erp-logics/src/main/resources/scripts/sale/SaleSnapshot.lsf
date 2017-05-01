@@ -37,19 +37,19 @@ saleCostVATSupplier 'С/С с НДС продажа' = saleVATSupplier(Batch bat
 //-- группа/склад       
 saleQuantity 'Кол-во продажа' (group, stock, snapshot) =
     GROUP SUM saleQuantity (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;
+        BY group, stock, snapshot MATERIALIZED;
 saleNetWeight 'Вес продажа' (group, stock, snapshot) =
     GROUP SUM saleNetWeight (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;        
+        BY group, stock, snapshot MATERIALIZED;        
 saleSum 'Сумма продажа' (group, stock, snapshot) =
     GROUP SUM saleSum (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;                 
+        BY group, stock, snapshot MATERIALIZED;                 
 saleCostSum 'Себестоимость продажа' (group, stock, snapshot) =
     GROUP SUM saleCostSum (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;         
+        BY group, stock, snapshot MATERIALIZED;         
 saleVATSum 'НДС продажа' (group, stock, snapshot) =
     GROUP SUM saleVATSum (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;         
+        BY group, stock, snapshot MATERIALIZED;         
 saleMarkupSum 'Надбавка продажа' (SkuGroup group, Stock stock, Snapshot snapshot) =
     saleSum(group, stock, snapshot) (-) saleVATSum(group, stock, snapshot) (-) saleCostSum(group, stock, snapshot);
 saleMarkupPerc 'Надбавка, % средн.' = saleMarkupSum(SkuGroup group, Stock stock, Snapshot snapshot)*100.00 / saleCostSum(group, stock, snapshot);
@@ -57,7 +57,7 @@ saleMarkupPercRet 'Надбавка, % от цены' = saleMarkupSum(SkuGroup g
 
 saleVATSupplier 'НДС поставщика продажа' (group, stock, snapshot) =
     GROUP SUM saleVATSupplier (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;         
+        BY group, stock, snapshot MATERIALIZED;         
 saleCostVATSupplier 'С/С с НДС продажа' = saleVATSupplier(SkuGroup group, Stock stock, Snapshot snapshot) (+) 
                                                                   saleCostSum(group, stock, snapshot);        
                         
@@ -459,12 +459,12 @@ coutDaysToEnd 'Дней хватит' (Sku sku, Stock stock, Snapshot snapshot) 
 //-- группа/склад       
 cumBalance 'Накопленный остаток' (group, stock, snapshot) =
     GROUP SUM cumBalance(Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot PERSISTENT;                       
+        BY group, stock, snapshot MATERIALIZED;                       
 turnover 'Товарооборачиваемость, дн.' (SkuGroup group, Stock stock, Snapshot snapshot) = NUMERIC[12,3](cumBalance(group, stock, snapshot) /
     saleSum(group, stock, snapshot));        
 //-- группа   
 cumBalance 'Накопленный остаток' (group, snapshot) =
-    GROUP SUM cumBalance(SkuGroup group, Stock stock, Snapshot snapshot) BY group, snapshot PERSISTENT;   
+    GROUP SUM cumBalance(SkuGroup group, Stock stock, Snapshot snapshot) BY group, snapshot MATERIALIZED;   
     
 turnover 'Товарооборачиваемость, дн.' (SkuGroup group, Snapshot snapshot) = NUMERIC[12,3](cumBalance(group, snapshot) /
     saleSum(group, snapshot));    

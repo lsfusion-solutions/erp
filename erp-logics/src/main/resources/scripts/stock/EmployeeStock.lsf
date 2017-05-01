@@ -23,22 +23,22 @@ dataAccessCompany 'Доступ разрешен (компания)' = DATA BOOL
 dataAccessCompany 'Доступ разрешен (компания)' = DATA BOOLEAN (StockGroup, Employee);
 
 levelParentCompany (employee, stockGroup) = GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataAccessCompany(parent, Employee employee)
-                                                               BY employee, stockGroup PERSISTENT;
+                                                               BY employee, stockGroup MATERIALIZED;
 nearestParentCompany (Employee employee, StockGroup stockGroup) = stockGroup(stockGroup, levelParentCompany(employee, stockGroup));
 nearestInCompany (Employee employee, StockGroup stockGroup) =
-    dataAccessCompany(nearestParentCompany (employee, stockGroup), employee) PERSISTENT;
+    dataAccessCompany(nearestParentCompany (employee, stockGroup), employee) MATERIALIZED;
 
 accessCompany 'Доступ разрешен (компания)' (Employee employee, StockGroup stockGroup) = OVERRIDE
     dataAccessCompany(stockGroup, employee),
     nearestInCompany(employee, stockGroup),
     dataAccessCompany(employee) AND stockGroup IS StockGroup,
-    employee IS Employee  AND stockGroup IS StockGroup AND NOT limitAccess(employee); // PERSISTENT;
+    employee IS Employee  AND stockGroup IS StockGroup AND NOT limitAccess(employee); // MATERIALIZED;
 
 accessCompany 'Доступ разрешен (компания)' (Employee employee, Stock stock) = OVERRIDE
     dataAccessCompany(stock, employee),
     nearestInCompany(employee, stockGroup(stock)),
     dataAccessCompany(employee) AND isCompany(stock),
-    employee IS Employee AND isCompany(stock) AND NOT limitAccess(employee) PERSISTENT;
+    employee IS Employee AND isCompany(stock) AND NOT limitAccess(employee) MATERIALIZED;
 countAccessCompanyStock 'Кол-во доступных подразделений (компания)' (employee) =
     GROUP SUM 1 IF accessCompany(Employee employee, Stock stock) AND active(stock)
           BY employee;
@@ -55,7 +55,7 @@ accessCompany 'Доступ разрешен (компания)' (Stock s) = acc
 countAccessCompany 'Кол-во доступных подразделений (компания)' (employee, stockGroup) =
     GROUP SUM 1 IF accessCompany(Employee employee, Stock stock)
                 AND isParent(stockGroup(stock), StockGroup stockGroup)
-          BY employee, stockGroup PERSISTENT;
+          BY employee, stockGroup MATERIALIZED;
           
 dataStock = DATA Stock (Employee);
 stock (Employee e) = OVERRIDE dataStock(e), defaultCompanyStock(e) IF countAccessCompanyStock (e) == 1;
@@ -251,7 +251,7 @@ END
 META defineDocumentLegalEntityStockAccess(objectClass, prefix, filter, form)
     @defineDocumentLegalEntityAccess(objectClass, prefix, filter);
 
-    WHEN SESSION FORMS form CHANGED(prefix(###form o)) DO {
+    WHEN LOCAL FORMS form CHANGED(prefix(###form o)) DO {
         IF countAccess###filter##Stock (currentUser(), prefix(o)) == 1 THEN
             prefix##Stock(o) <- default###filter##Stock(currentUser(), prefix(o));
         IF NOT in(prefix(o), prefix##Stock(o)) THEN 

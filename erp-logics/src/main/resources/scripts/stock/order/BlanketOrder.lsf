@@ -50,7 +50,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
     
     closeDataDate 'Дата автоматического закрытия' = DATA DATE (BlanketOrderDetail) IN documentPrm;
 
-    closeDate 'Дата автоматического закрытия' (BlanketOrderDetail detail) = OVERRIDE closeDataDate(detail), closeDate(blanketOrder(detail)) PERSISTENT;
+    closeDate 'Дата автоматического закрытия' (BlanketOrderDetail detail) = OVERRIDE closeDataDate(detail), closeDate(blanketOrder(detail)) MATERIALIZED;
 
     closeDataDate(BlanketOrderDetail detail) <- sum(shipmentDate(detail), quantityDaysCloseOrders(customerFilter##Stock(detail)))
         WHEN CHANGED(shipmentDate(detail)) OR CHANGED(customerFilter##Stock(detail));    
@@ -99,7 +99,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
     overVAT = ABSTRACT VALUE OVERRIDE FIRST Range (BlanketOrderDetail);
     overVAT(BlanketOrderDetail d) += VAT (sku(d), country(supplierStock(d)));
     
-    WHEN SESSION
+    WHEN LOCAL
         (CHANGED(sku(BlanketOrderDetail detail)) OR CHANGED (supplierStock(detail)) OR 
          CHANGED(overVAT(detail))) AND NOT CHANGED(VAT(detail)) DO {
             VAT(detail) <- overVAT(detail);
@@ -148,7 +148,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
     @defineDocumentHeaderSum (blanketOrder);
 
     countBlanketOrderDetail###customerFilter 'Количество строк в документе' (order, stock) =
-        GROUP SUM 1 BY blanketOrder(BlanketOrderDetail d), customerFilter##Stock(d) PERSISTENT IN documentSum;
+        GROUP SUM 1 BY blanketOrder(BlanketOrderDetail d), customerFilter##Stock(d) MATERIALIZED IN documentSum;
 
     CONSTRAINT customerFilter##Stock(BlanketOrderDetail blanketOrderDetail) AND NOT in(blanketOrder(blanketOrderDetail), customerFilter##Stock(blanketOrderDetail))
         CHECKED BY customerFilter##Stock[BlanketOrderDetail]
@@ -157,7 +157,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
     customerFilter##Stocks 'Контрагенты' (blanketOrder) =
         GROUP CONCAT name(Stock stock) IF in(BlanketOrder blanketOrder, stock), ', '
         BY blanketOrder
-        ORDER stock MINCHARWIDTH 20 MAXCHARWIDTH 60 PREFCHARWIDTH 40 PERSISTENT;
+        ORDER stock MINCHARWIDTH 20 MAXCHARWIDTH 60 PREFCHARWIDTH 40 MATERIALIZED;
 
     @defineNumerated (blanketOrder, stock);
 
@@ -302,7 +302,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
         EVENTS ON CHANGE o setCurrentBlanketOrderBlanketOrder(o)
     ;
 
-    WHEN SESSION FORMS blanketOrder ((CHANGED(in(BlanketOrder o, Stock cs)) OR 
+    WHEN LOCAL FORMS blanketOrder ((CHANGED(in(BlanketOrder o, Stock cs)) OR 
                                 CHANGED(priceListType(o, cs)) OR 
                                 CHANGED(agreement(o, cs))) AND [= VIEW blanketOrder.sts](Stock stock, Sku sku))
                             OR (
