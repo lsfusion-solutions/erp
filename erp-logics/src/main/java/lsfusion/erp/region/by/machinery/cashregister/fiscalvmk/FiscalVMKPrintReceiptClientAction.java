@@ -130,6 +130,8 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
             sum = sum.subtract(receipt.sumGiftCard).max(BigDecimal.ZERO/*discountSum.abs()*/);
 
             FiscalVMK.printFiscalText(getFiscalString("Сертификат", formatter.format(receipt.sumGiftCard.negate())));
+            if(receipt.numberDiscountCard != null)
+                FiscalVMK.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
             FiscalVMK.printFiscalText(getFiscalString("", " \n( _______ ____________ )"));
             FiscalVMK.printFiscalText(getFiscalString("", " (подпись)     ФИО      \n "));
 
