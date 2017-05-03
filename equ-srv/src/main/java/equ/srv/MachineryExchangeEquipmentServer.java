@@ -13,6 +13,7 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.server.classes.ConcreteClass;
+import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.classes.LongClass;
 import lsfusion.server.context.ExecutionStack;
@@ -55,6 +56,22 @@ public class MachineryExchangeEquipmentServer {
         terminalHandlerLM = BL.getModule("TerminalHandler");
         machineryLM = BL.getModule("Machinery");
         machineryPriceTransactionLM = BL.getModule("MachineryPriceTransaction");
+    }
+
+    public static void errorRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Map<Integer, String> succeededRequestsMap) throws RemoteException, SQLException {
+        if (machineryPriceTransactionLM != null) {
+            try (DataSession session = dbManager.createSession()) {
+                for (Map.Entry<Integer, String> request : succeededRequestsMap.entrySet()) {
+                    DataObject errorObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeError"));
+                    machineryPriceTransactionLM.findProperty("message[RequestExchangeError]").change(request.getValue(), session, errorObject);
+                    machineryPriceTransactionLM.findProperty("date[RequestExchangeError]").change(getCurrentTimestamp(), session, errorObject);
+                    machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeError]").change(request.getKey(), session, errorObject);
+                }
+                session.apply(BL, stack);
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
     }
 
     public static void finishRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Set<Integer> succeededRequestsSet) throws RemoteException, SQLException {
