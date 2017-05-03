@@ -22,6 +22,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
 
+    private static String logPrefix = "EQS: ";
+
     private FileSystemXmlApplicationContext springContext;
 
     public EQSHandler(FileSystemXmlApplicationContext springContext) {
@@ -48,16 +50,23 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 String user = EQSSettings == null ? null : EQSSettings.getUser(); //"root";
                 String password = EQSSettings == null ? null : EQSSettings.getPassword(); //""
 
-                if (connectionString == null) {
-                    processTransactionLogger.error("No importConnectionString in EQSSettings found");
-                } else {
-                    for (TransactionCashRegisterInfo transaction : transactionList) {
+                for (TransactionCashRegisterInfo transaction : transactionList) {
 
-                        Connection conn = DriverManager.getConnection(connectionString, user, password);
+                    String directory = null;
+                    for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
+                        if (cashRegister.directory != null) {
+                            directory = cashRegister.directory;
+                        }
+                    }
+                    EQSConnectionString params = new EQSConnectionString(directory, connectionString, user, password);
 
+                    if (params.connectionString == null) {
+                        processTransactionLogger.error(logPrefix + "No connectionString in EQSSettings found");
+                    } else {
+                        Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                         Exception exception = null;
                         try {
-                            processTransactionLogger.info(String.format("EQS: transaction %s, table plu", transaction.id));
+                            processTransactionLogger.info(String.format(logPrefix + "transaction %s, table plu", transaction.id));
                             exportItems(conn, transaction);
                         } catch (Exception e) {
                             exception = e;
@@ -119,50 +128,56 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
         if (!stopListInfo.exclude) {
-            EQSSettings EQSSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
-            String connectionString = EQSSettings == null ? null : EQSSettings.getConnectionString();
-            String user = EQSSettings == null ? null : EQSSettings.getUser();
-            String password = EQSSettings == null ? null : EQSSettings.getPassword();
 
-            if (connectionString != null) {
-                Connection conn = null;
-                PreparedStatement ps = null;
-                try {
-                    conn = DriverManager.getConnection(connectionString, user, password);
+            for (String directory : directorySet) {
 
-                    conn.setAutoCommit(false);
-                    processStopListLogger.info("EQS: executing stopLists, table pricelist_var");
+                EQSSettings EQSSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
+                String connectionString = EQSSettings == null ? null : EQSSettings.getConnectionString();
+                String user = EQSSettings == null ? null : EQSSettings.getUser();
+                String password = EQSSettings == null ? null : EQSSettings.getPassword();
 
-                    ps = conn.prepareStatement(
-                            "INSERT INTO plu (store, barcode, art, cancelled, updecr)" +
-                                    " VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
-                                    " cancelled=VALUES(cancelled), updecr=VALUES(updecr)");
-                    for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                        if (item.idBarcode != null) {
-                            for (String idStock : stopListInfo.idStockSet) {
-                                ps.setString(1, HandlerUtils.trim(idStock, 10)); //store, код торговой точки
-                                ps.setString(2, HandlerUtils.trim(item.idBarcode, 20)); //barcode, Штрих-код товара
-                                ps.setString(3, HandlerUtils.trim(item.idItem, 20)); //art, Артикул
-                                ps.setInt(4, stopListInfo.exclude ? 0 : 1); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
-                                ps.setLong(5, 4294967295L); //UpdEcr, Флаг обновления* КСА
-                                ps.addBatch();
+                EQSConnectionString params = new EQSConnectionString(directory, connectionString, user, password);
+
+                if (params.connectionString != null) {
+                    Connection conn = null;
+                    PreparedStatement ps = null;
+                    try {
+                        conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+
+                        conn.setAutoCommit(false);
+                        processStopListLogger.info(logPrefix + "executing stopLists, table pricelist_var");
+
+                        ps = conn.prepareStatement(
+                                "INSERT INTO plu (store, barcode, art, cancelled, updecr)" +
+                                        " VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
+                                        " cancelled=VALUES(cancelled), updecr=VALUES(updecr)");
+                        for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
+                            if (item.idBarcode != null) {
+                                for (String idStock : stopListInfo.idStockSet) {
+                                    ps.setString(1, HandlerUtils.trim(idStock, 10)); //store, код торговой точки
+                                    ps.setString(2, HandlerUtils.trim(item.idBarcode, 20)); //barcode, Штрих-код товара
+                                    ps.setString(3, HandlerUtils.trim(item.idItem, 20)); //art, Артикул
+                                    ps.setInt(4, stopListInfo.exclude ? 0 : 1); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
+                                    ps.setLong(5, 4294967295L); //UpdEcr, Флаг обновления* КСА
+                                    ps.addBatch();
+                                }
                             }
                         }
-                    }
-                    ps.executeBatch();
-                    conn.commit();
+                        ps.executeBatch();
+                        conn.commit();
 
-                } catch (SQLException e) {
-                    processStopListLogger.error("EQS:", e);
-                    e.printStackTrace();
-                } finally {
-                    try {
-                        if (ps != null)
-                            ps.close();
-                        if (conn != null)
-                            conn.close();
                     } catch (SQLException e) {
-                        processStopListLogger.error("EQS:", e);
+                        processStopListLogger.error(logPrefix, e);
+                        e.printStackTrace();
+                    } finally {
+                        try {
+                            if (ps != null)
+                                ps.close();
+                            if (conn != null)
+                                conn.close();
+                        } catch (SQLException e) {
+                            processStopListLogger.error(logPrefix, e);
+                        }
                     }
                 }
             }
@@ -191,16 +206,18 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             String user = EQSSettings == null ? null : EQSSettings.getUser();
             String password = EQSSettings == null ? null : EQSSettings.getPassword();
 
-            if (connectionString == null) {
-                processTransactionLogger.error("No exportConnectionString in EQSSettings found");
+            EQSConnectionString params = new EQSConnectionString(directory, connectionString, user, password);
+
+            if (params.connectionString == null) {
+                processTransactionLogger.error(logPrefix + "No connectionString in EQSSettings found");
             } else {
 
                 Connection conn = null;
 
                 try {
-                    conn = DriverManager.getConnection(connectionString, user, password);
+                    conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
-                    salesBatch = readSalesInfoFromSQL(conn, machineryMap);
+                    salesBatch = readSalesInfoFromSQL(conn, machineryMap, directory);
 
                 } finally {
                     if (conn != null)
@@ -213,7 +230,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         return salesBatch;
     }
 
-    private EQSSalesBatch readSalesInfoFromSQL(Connection conn, Map<Integer, CashRegisterInfo> machineryMap) throws SQLException {
+    private EQSSalesBatch readSalesInfoFromSQL(Connection conn, Map<Integer, CashRegisterInfo> machineryMap, String directory) throws SQLException {
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
@@ -272,7 +289,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                         //временные логи
                         if (discountSum != null && discountSum.doubleValue() != 0.0) {
-                            sendSalesLogger.info(String.format("Данные в базе: flag %s, isReturn %s, barcode %s, amount %s, discount %s", flags, isReturn, rs.getString(4), rs.getBigDecimal(8), rs.getBigDecimal(9)));
+                            sendSalesLogger.info(logPrefix + String.format("Данные в базе: flag %s, isReturn %s, barcode %s, amount %s, discount %s", flags, isReturn, rs.getString(4), rs.getBigDecimal(8), rs.getBigDecimal(9)));
                         }
 
                         totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
@@ -316,14 +333,14 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 }
             }
             if (salesInfoList.size() > 0)
-                sendSalesLogger.info(String.format("EQS: found %s records", salesInfoList.size()));
+                sendSalesLogger.info(logPrefix + String.format("found %s records", salesInfoList.size()));
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         } finally {
             if (statement != null)
                 statement.close();
         }
-        return new EQSSalesBatch(salesInfoList, readRecordSet);
+        return new EQSSalesBatch(salesInfoList, readRecordSet, directory);
     }
 
     boolean getBit(int n, int k) {
@@ -338,33 +355,36 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         String user = EQSSettings == null ? null : EQSSettings.getUser();
         String password = EQSSettings == null ? null : EQSSettings.getPassword();
 
-        if (connectionString != null) {
+        for (RequestExchange entry : requestExchangeList) {
             Connection conn = null;
             Statement statement = null;
             try {
-                conn = DriverManager.getConnection(connectionString, user, password);
+                if (entry.isSalesInfoExchange()) {
 
-                for (RequestExchange entry : requestExchangeList) {
-                    try {
-                        if (entry.isSalesInfoExchange()) {
-                            String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
-                            Calendar cal = Calendar.getInstance();
-                            cal.setTime(entry.dateTo);
-                            cal.add(Calendar.DATE, 1);
-                            String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
-                            sendSalesLogger.info(String.format("EQS RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
+                    for (String directory : entry.directoryStockMap.keySet()) {
+                        if (directorySet.contains(directory)) {
 
-                            statement = conn.createStatement();
-                            statement.execute(String.format("UPDATE history SET new = 1 WHERE date >= '%s' AND date <='%s'", dateFrom, dateTo));
-                            succeededRequests.add(entry.requestExchange);
+                            EQSConnectionString params = new EQSConnectionString(directory, connectionString, user, password);
+                            if (params.connectionString != null) {
+
+                                conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+
+                                String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
+                                Calendar cal = Calendar.getInstance();
+                                cal.setTime(entry.dateTo);
+                                cal.add(Calendar.DATE, 1);
+                                String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+                                sendSalesLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
+
+                                statement = conn.createStatement();
+                                statement.execute(String.format("UPDATE history SET new = 1 WHERE date >= '%s' AND date <='%s'", dateFrom, dateTo));
+                                succeededRequests.add(entry.requestExchange);
+                            }
                         }
-                    } catch (SQLException e) {
-                        failedRequests.put(entry.requestExchange, e.getMessage());
-                        e.printStackTrace();
                     }
                 }
-
             } catch (SQLException e) {
+                failedRequests.put(entry.requestExchange, e.getMessage());
                 e.printStackTrace();
             } finally {
                 try {
@@ -386,32 +406,37 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         String user = EQSSettings == null ? null : EQSSettings.getUser();
         String password = EQSSettings == null ? null : EQSSettings.getPassword();
 
-        if (connectionString != null && salesBatch.readRecordSet != null) {
+        for(String directory : salesBatch.directorySet) {
 
-            Connection conn = null;
-            PreparedStatement ps = null;
+            EQSConnectionString params = new EQSConnectionString(directory, connectionString, user, password);
 
-            try {
-                conn = DriverManager.getConnection(connectionString, user, password);
+            if (params.connectionString != null && salesBatch.readRecordSet != null) {
 
-                conn.setAutoCommit(false);
-                ps = conn.prepareStatement("UPDATE history SET new = 0 WHERE id = ?");
-                for (Integer record : salesBatch.readRecordSet) {
-                    ps.setInt(1, record); //id
-                    ps.addBatch();
-                }
-                ps.executeBatch();
-                conn.commit();
+                Connection conn = null;
+                PreparedStatement ps = null;
 
-            } catch (SQLException e) {
-                e.printStackTrace();
-            } finally {
                 try {
-                    if (ps != null)
-                        ps.close();
-                    if (conn != null)
-                        conn.close();
-                } catch (SQLException ignored) {
+                    conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+
+                    conn.setAutoCommit(false);
+                    ps = conn.prepareStatement("UPDATE history SET new = 0 WHERE id = ?");
+                    for (Integer record : salesBatch.readRecordSet) {
+                        ps.setInt(1, record); //id
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                    conn.commit();
+
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (ps != null)
+                            ps.close();
+                        if (conn != null)
+                            conn.close();
+                    } catch (SQLException ignored) {
+                    }
                 }
             }
         }
