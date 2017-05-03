@@ -6,33 +6,47 @@ NAMESPACE Bin;
 
 binReserve 'Страховой запас (кол-во)' = ABSTRACT NUMERIC[16,5](Sku, Bin);
 binReserve 'Страховой запас (кол-во)' (Sku sku, UserBinOrder order) = binReserve(sku, inBin(order));
+
+maxBinReserve = ABSTRACT NUMERIC[16,5](Sku, Bin);
+maxBinReserve (Sku sku, UserBinOrder order) = maxBinReserve(sku, inBin(order));
+
+preCalcRecQuantity  (Sku sku, Bin bin) = maxBinReserve(sku, bin) (-) availableQuantity(sku, bin);
  
-calcRecQuantity  (Sku sku, Bin bin) = 
-    IF availableQuantity(sku, bin) > 0.0
-        THEN binReserve(sku, bin) (-) availableQuantity(sku, bin)
-        ELSE binReserve(sku, bin);
+calcRecQuantity  (Sku sku, Operation operation, Stock stock)  = 
+    IF availableQuantity(sku, inBin(operation, stock)) <= binReserve(sku, inBin(operation, stock)) THEN (
+        IF availableQuantity(sku, inBin(operation, stock)) > 0.0
+            THEN (IF availableQuantity(sku, outBin(operation, stock)) > preCalcRecQuantity(sku, inBin(operation, stock)) 
+                THEN preCalcRecQuantity(sku, inBin(operation, stock))
+                ELSE availableQuantity(sku, outBin(operation, stock)))
+            ELSE maxBinReserve(sku, inBin(operation, stock)));
 
-recommendedQuantity 'Рекомендуемое к перемещению кол-во' (Sku sku, UserBinOrder order) = 
-   IF availableQuantity(sku, outBin(order))> 0.0 AND calcRecQuantity(sku, inBin(order)) > 0.0 THEN
-   MIN calcRecQuantity(sku, inBin(order)), availableQuantity(sku, outBin(order));
+recommendedQuantity 'Рекомендуемое к перемещению кол-во' (Sku sku, Operation operation, Stock stock)  = 
+   IF availableQuantity(sku, outBin(operation, stock))> 0.0 AND calcRecQuantity(sku, operation, stock) > 0.0 THEN
+   MIN calcRecQuantity(sku, operation, stock), availableQuantity(sku, outBin(operation, stock));
 
-ceilCalcRecQuantity (Sku sku, Bin bin) =  IF Purchase.amountPack(sku) > 0 THEN ceil(calcRecQuantity(sku, bin), amountPack(sku)) IF amountPack(sku)!=0
-    ELSE (IF split(sku) THEN ceil(calcRecQuantity(sku, bin)) ELSE calcRecQuantity(sku, bin));
+ceilCalcRecQuantity (Sku sku, Operation operation, Stock stock) =  IF Purchase.amountPack(sku) > 0 
+    THEN ceil(calcRecQuantity(sku, operation, stock), amountPack(sku)) IF amountPack(sku)!=0
+    ELSE (IF split(sku) THEN ceil(calcRecQuantity(sku, operation, stock)) ELSE calcRecQuantity(sku, operation, stock));
 
-ceilAvailableQuantity(Sku sku, Bin bin) = IF amountPack(sku) > 0 THEN floor(availableQuantity(sku, bin)/(amountPack(sku) IF amountPack(sku)!=0))*amountPack(sku)
-    ELSE (IF split(sku) THEN floor(availableQuantity(sku, bin)) ELSE availableQuantity(sku, bin));
+ceilAvailableQuantity (Sku sku, Operation operation, Stock stock) = IF amountPack(sku) > 0 AND availableQuantity(sku, outBin(operation, stock)) > amountPack(sku) 
+    THEN floor(availableQuantity(sku, outBin(operation, stock))/(amountPack(sku) IF amountPack(sku)!=0))*amountPack(sku)
+    ELSE (IF split(sku) THEN floor(availableQuantity(sku, outBin(operation, stock))) ELSE availableQuantity(sku, outBin(operation, stock)));
     
-recommendedPackQuantity 'Рекомендуемое к перемещению кол-во' (Sku sku, UserBinOrder order) = 
-    IF ceilAvailableQuantity(sku, outBin(order))> 0.0 AND ceilCalcRecQuantity(sku, inBin(order))> 0.0 THEN
-    MIN ceilCalcRecQuantity(sku, inBin(order)), ceilAvailableQuantity(sku, outBin(order));
+recommendedPackQuantity 'Рекомендуемое к перемещению кол-во' (Sku sku, Operation operation, Stock stock) = 
+    IF availableQuantity(sku, outBin(operation, stock))> 0.0 AND ceilCalcRecQuantity(sku, operation, stock)> 0.0 THEN
+    MIN ceilCalcRecQuantity(sku, operation, stock), ceilAvailableQuantity(sku, operation, stock);
+
+recommendedQuantity 'Рекомендуемое к перемещению кол-во' (Sku sku, UserBinOrder order) = recommendedQuantity(sku, operation(order), stock(order));
+recommendedPackQuantity (Sku sku, UserBinOrder order) = recommendedPackQuantity(sku, operation(order), stock(order));
 
 fillRecommendedQuantity 'Заполнить рекомендуемым' (UserBinOrder userOrder) = {
-    FOR Sku sku IS Sku AND recommendedQuantity (sku, userOrder) > 0.0 NEW d = UserBinOrderDetail DO {
+    FOR Sku sku IS Sku AND recommendedQuantity (sku, operation(userOrder), stock(userOrder)) > 0.0 NEW d = UserBinOrderDetail DO {
             userBinOrder(d) <- userOrder;
             sku(d) <- sku;
-            IF recommendedPackQuantity(sku, userOrder) AND NOT (recommendedPackQuantity(sku, userOrder)(+) availableQuantity(sku, inBin(userOrder))) > binReserve(sku, inBin(userOrder)) THEN {
-                packQuantity (d) <- recommendedPackQuantity(sku, userOrder)/amountPack(sku(d)) IF amountPack(sku(d)) > 0;
-                quantity (d) <- recommendedPackQuantity(sku, userOrder);      
+            IF recommendedPackQuantity(sku, userOrder) 
+                    AND NOT recommendedPackQuantity(sku, userOrder) > maxBinReserve(sku, inBin(userOrder)) THEN {
+                packQuantity (d) <- recommendedPackQuantity(sku, operation(userOrder), stock(userOrder))/amountPack(sku(d)) IF amountPack(sku(d)) > 0;
+                quantity (d) <- recommendedPackQuantity(sku, operation(userOrder), stock(userOrder));      
             } ELSE {
                 quantity (d) <- recommendedQuantity(sku, userOrder);     
             }
