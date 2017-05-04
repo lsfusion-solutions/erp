@@ -634,7 +634,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
 
         for (String directory : directorySet) {
-
+            List<CashDocument> cashDocumentList = new ArrayList<>();
             UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
 
             Connection conn = null;
@@ -663,7 +663,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             if(sum != null) {
                                 String idCashDocument = params.connectionString + "/" + nppMachinery + "/" + numberCashDocument;
                                 if (!cashDocumentSet.contains(idCashDocument))
-                                    result.add(new CashDocument(idCashDocument, numberCashDocument, date, time, cashRegister.numberGroup, nppMachinery, sum));
+                                    cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, date, time, cashRegister.numberGroup, nppMachinery, sum));
                             }
                         }
                     }
@@ -680,11 +680,12 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     }
                 }
 
-                if (result.size() == 0)
-                    sendSalesLogger.info(logPrefix + "no CashDocuments found");
+                if (cashDocumentList.size() == 0)
+                    sendSalesLogger.info(logPrefix +  params.connectionString + " no CashDocuments found");
                 else
-                    sendSalesLogger.info(logPrefix + String.format("found %s CashDocument(s)", result.size()));
+                    sendSalesLogger.info(logPrefix + params.connectionString + String.format(" found %s CashDocument(s)", cashDocumentList.size()));
             }
+            result.addAll(cashDocumentList);
 
         }
         return new CashDocumentBatch(result, null);
