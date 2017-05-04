@@ -7,6 +7,7 @@ import com.github.junrar.rarfile.FileHeader;
 import com.google.common.base.Throwables;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.IOUtils;
+import lsfusion.base.Pair;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -113,7 +114,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         if (fromAddressEmail != null && fromAddressEmail.toLowerCase().matches(emailPattern)) {
                             byte[] fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
                             String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
-                            List<byte[]> files = new ArrayList<>();
+                            List<Pair<String, byte[]>> files = new ArrayList<>();
                             if (nameAttachmentEmail != null) {
                                 if (nameAttachmentEmail.toLowerCase().endsWith(".rar")) {
                                     files = unpackRARFile(fileAttachment, fileExtension);
@@ -124,21 +125,21 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                     if(files.isEmpty())
                                         logImportError(context, attachmentEmailObject, "Архив пуст или повреждён", isOld);
                                 } else
-                                    files.add(fileAttachment);
+                                    files.add(Pair.create(nameAttachmentEmail, fileAttachment));
                             } 
                             
-                            for(byte[] file : files) {
+                            for(Pair<String, byte[]> file : files) {
                                 try (DataSession currentSession = context.createSession()) {
                                     DataObject invoiceObject = multipleDocuments ? null : currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
 
                                     try {
 
                                         int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context,
-                                                currentSession, invoiceObject, importTypeObject, file, fileExtension,
+                                                currentSession, invoiceObject, importTypeObject, file.second, fileExtension,
                                                 settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, checkInvoiceExistence);
 
                                         findProperty("original[Purchase.Invoice]").change(
-                                                new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);
+                                                new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);
 
                                         findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
 
@@ -146,7 +147,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                             String result = currentSession.applyMessage(context);
                                             if(result != null) {
                                                 importResult = IMPORT_RESULT_ERROR;
-                                                logImportError(context, attachmentEmailObject, result, isOld);
+                                                logImportError(context, attachmentEmailObject, file.first + ": " + result, isOld);
                                             }
                                         }
                                         if (importResult >= IMPORT_RESULT_EMPTY) {
@@ -162,7 +163,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                         }
 
                                     } catch (Exception e) {
-                                        logImportError(context, attachmentEmailObject, e.toString(), isOld);
+                                        logImportError(context, attachmentEmailObject, file.first + ": " + e.toString(), isOld);
                                         ServerLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
                                     }
                                 }
@@ -185,9 +186,9 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
         }
     }
     
-    private List<byte[]> unpackRARFile(byte[] fileBytes, String extensionFilter) {
+    private List<Pair<String, byte[]>> unpackRARFile(byte[] fileBytes, String extensionFilter) {
 
-        List<byte[]> result = new ArrayList<>();
+        List<Pair<String, byte[]>> result = new ArrayList<>();
         File inputFile = null;
         File outputFile = null;
         try {
@@ -205,7 +206,8 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                 FileHeader fh = a.nextFileHeader();
 
                 while (fh != null) {
-                    outputFile = new File(outputDirectory.getPath() + "/" + (fh.isUnicode() ? fh.getFileNameW() : fh.getFileNameString()));
+                    String fileName = (fh.isUnicode() ? fh.getFileNameW() : fh.getFileNameString());
+                    outputFile = new File(outputDirectory.getPath() + "/" + fileName);
                     File dir = outputFile.getParentFile();
                     dir.mkdirs();
                     if(!dirList.contains(dir))
@@ -216,8 +218,9 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         }
                         String outExtension = BaseUtils.getFileExtension(outputFile);
                         if (outExtension != null && extensionFilter.toLowerCase().equals(outExtension.toLowerCase()))
-                            result.add(IOUtils.getFileBytes(outputFile));
-                        outputFile.delete();
+                            result.add(Pair.create(fileName, IOUtils.getFileBytes(outputFile)));
+                        if(!outputFile.delete())
+                            outputFile.deleteOnExit();
                     }
                     fh = a.nextFileHeader();
                 }
@@ -225,23 +228,23 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
             }
 
             for(File dir : dirList)
-                if(dir != null && dir.exists())
-                    dir.delete();
+                if(dir != null && dir.exists() && !dir.delete())
+                    dir.deleteOnExit();
             
         } catch (RarException | IOException e) {
             throw Throwables.propagate(e);
         } finally {
-            if(inputFile != null)
-                inputFile.delete();
-            if(outputFile != null)
-                outputFile.delete();
+            if(inputFile != null && !inputFile.delete())
+                inputFile.deleteOnExit();
+            if(outputFile != null && !outputFile.delete())
+                outputFile.deleteOnExit();
         }
         return result;
     }
     
-    private List<byte[]> unpackZIPFile(byte[] fileBytes, String extensionFilter) {
+    private List<Pair<String, byte[]>> unpackZIPFile(byte[] fileBytes, String extensionFilter) {
 
-        List<byte[]> result = new ArrayList<>();
+        List<Pair<String, byte[]>> result = new ArrayList<>();
         File inputFile = null;
         File outputFile = null;
         try {
@@ -265,7 +268,8 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         dirList.add(dir);
                     }
                     else {
-                        outputFile = new File(outputDirectory.getPath() + "/" + ze.getName());
+                        String fileName = ze.getName();
+                        outputFile = new File(outputDirectory.getPath() + "/" + fileName);
                         FileOutputStream outputStream = new FileOutputStream(outputFile);
                         int len;
                         while ((len = inputStream.read(buffer)) > 0) {
@@ -274,8 +278,9 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         outputStream.close();
                         String outExtension = BaseUtils.getFileExtension(outputFile);
                         if (outExtension != null && extensionFilter.toLowerCase().equals(outExtension.toLowerCase()))
-                            result.add(IOUtils.getFileBytes(outputFile));      
-                        outputFile.delete();
+                            result.add(Pair.create(fileName, IOUtils.getFileBytes(outputFile)));
+                        if(!outputFile.delete())
+                            outputFile.deleteOnExit();
                     }
                     ze = inputStream.getNextEntry();
                 }
@@ -284,16 +289,16 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
             }
             
             for(File dir : dirList)
-                if(dir != null && dir.exists())
-                    dir.delete();
+                if(dir != null && dir.exists() && !dir.delete())
+                    dir.deleteOnExit();
                     
         } catch (IOException e) {
             throw Throwables.propagate(e);
         } finally {
-            if(inputFile != null) 
-                inputFile.delete();
-            if(outputFile != null)
-                outputFile.delete();
+            if(inputFile != null && !inputFile.delete())
+                inputFile.deleteOnExit();
+            if(outputFile != null && !outputFile.delete())
+                outputFile.deleteOnExit();
         }
         return result;
     }
