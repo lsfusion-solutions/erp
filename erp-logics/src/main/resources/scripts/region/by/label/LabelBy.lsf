@@ -36,13 +36,18 @@ EXTEND FORM labelTransactions
 
 overMinVolumeLabelBy() = OVERRIDE minVolumeLabelBy(), 0.25;
 
+labelBaseCoeff = ABSTRACT NUMERIC[9,3](Sku);
+labelBaseName = ABSTRACT VARSTRING[20](Sku);
+
 basePrice 'Цена за базовую единицу' (LabelTransactionDetail d) = IF printFullPrice(skuGroup(sku(d))) THEN CASE 
+                                                                                                          WHEN labelBaseCoeff(sku(d)) THEN round2(price(d) / labelBaseCoeff(sku(d)))
                                                                                                           WHEN volume(sku(d)) <= overMinVolumeLabelBy() THEN round2(price(d) / volume(sku(d)) / 10.0 )
                                                                                                           WHEN volume(sku(d)) != 1.0 THEN round2(price(d) / volume(sku(d)))
                                                                                                           WHEN netWeight(sku(d)) <= overMinVolumeLabelBy() THEN round2(price(d) / netWeight(sku(d)) / 10.0 )
                                                                                                           WHEN netWeight(sku(d)) != 1.0 THEN round2(price(d) / netWeight(sku(d))) ;
                                                                                                                                                                                                                   
 basePriceName 'Базовая единица' (LabelTransactionDetail d) = IF printFullPrice(skuGroup(sku(d))) THEN CASE 
+                                                                                                          WHEN labelBaseName(sku(d)) THEN labelBaseName(sku(d))
                                                                                                           WHEN volume(sku(d)) <= overMinVolumeLabelBy() THEN '100мл'
                                                                                                           WHEN volume(sku(d)) != 1.0 THEN '1л'
                                                                                                           WHEN netWeight(sku(d)) <= overMinVolumeLabelBy() THEN '100г'
