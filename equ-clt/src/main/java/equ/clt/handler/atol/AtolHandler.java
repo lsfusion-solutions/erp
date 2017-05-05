@@ -382,7 +382,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                                     Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
                                     BigDecimal sumCashDocument = isOutputCashDocument ? HandlerUtils.safeNegate(getBigDecimalValue(entry, 11)) : getBigDecimalValue(entry, 11);
                                     currentResult.add(new CashDocument(numberCashDocument, numberCashDocument, dateReceipt, timeReceipt,
-                                            nppGroupMachinery, numberCashRegister, sumCashDocument));
+                                            nppGroupMachinery, numberCashRegister, null, sumCashDocument));
 
                                 }
                             }

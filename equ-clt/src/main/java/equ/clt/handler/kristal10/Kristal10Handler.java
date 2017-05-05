@@ -486,7 +486,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 Time timeCashDocument = new Time(dateTimeCashDocument);
 
                                 cashDocumentList.add(new CashDocument(numberCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
-                                        numberGroup, numberCashRegister, sumCashDocument));
+                                        numberGroup, numberCashRegister, null, sumCashDocument));
                             }
                             readFiles.add(file.getAbsolutePath());
                         }

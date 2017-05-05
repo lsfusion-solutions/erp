@@ -199,14 +199,29 @@ public class SendSalesEquipmentServer {
                 propsOutcome.add(new ImportProperty(sumCashOutcomeCashOperationField, cashOperationLM.findProperty("sumCash[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
                 fieldsOutcome.add(sumCashOutcomeCashOperationField);
 
+                ImportField idZReportField = new ImportField(cashOperationLM.findProperty("id[ZReport]"));
+                ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) cashOperationLM.findClass("ZReport"), cashOperationLM.findProperty("zReport[VARSTRING[100]]").getMapping(idZReportField));
+                zReportKey.skipKey = true;
+
+                keysIncome.add(zReportKey);
+                propsIncome.add(new ImportProperty(idZReportField, cashOperationLM.findProperty("zReport[IncomeCashOperation]").getMapping(incomeCashOperationKey),
+                        cashOperationLM.object(cashOperationLM.findClass("ZReport")).getMapping(zReportKey)));
+                fieldsIncome.add(idZReportField);
+
+                keysOutcome.add(zReportKey);
+                propsOutcome.add(new ImportProperty(idZReportField, cashOperationLM.findProperty("zReport[OutcomeCashOperation]").getMapping(outcomeCashOperationKey),
+                        cashOperationLM.object(cashOperationLM.findClass("ZReport")).getMapping(zReportKey)));
+                fieldsOutcome.add(idZReportField);
+
                 for (CashDocument cashDocument : cashDocumentList) {
                     if (cashDocument.sumCashDocument != null) {
+                        String idZReport = cashDocument.nppGroupMachinery + "_" + cashDocument.nppMachinery + "_" + cashDocument.numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(cashDocument.dateCashDocument);
                         if (cashDocument.sumCashDocument.compareTo(BigDecimal.ZERO) >= 0)
                             dataIncome.add(Arrays.asList((Object) cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
-                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument));
+                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument, idZReport));
                         else
                             dataOutcome.add(Arrays.asList((Object) cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
-                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument.negate()));
+                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument.negate(), idZReport));
                     }
                 }
 

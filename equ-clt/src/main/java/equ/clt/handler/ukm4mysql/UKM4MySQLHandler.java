@@ -643,7 +643,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
                     Statement statement = conn.createStatement();
-                    String queryString = "select cash_id, id, date, type, amount from moneyoperation";
+                    String queryString = "select cash_id, id, date, type, amount, shift_number from moneyoperation";
                     if (lastDaysCashDocument != null) {
                         Calendar c = Calendar.getInstance();
                         c.add(Calendar.DATE, -lastDaysCashDocument);
@@ -659,11 +659,12 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             Date date = new Date(dateTime.getTime());
                             Time time = new Time(dateTime.getTime());
                             int type = rs.getInt("type");
+                            String numberZReport = rs.getString("shift_number");
                             BigDecimal sum = type == 100 ? rs.getBigDecimal("amount") : type == 101 ?  HandlerUtils.safeNegate(rs.getBigDecimal("amount")) : null;
                             if(sum != null) {
                                 String idCashDocument = params.connectionString + "/" + nppMachinery + "/" + numberCashDocument;
                                 if (!cashDocumentSet.contains(idCashDocument))
-                                    cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, date, time, cashRegister.numberGroup, nppMachinery, sum));
+                                    cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, date, time, cashRegister.numberGroup, nppMachinery, numberZReport, sum));
                             }
                         }
                     }
