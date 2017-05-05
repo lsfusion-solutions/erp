@@ -53,8 +53,8 @@ backgroundBinTransfer 'Цвет' (BinOrder binOrder) = RGB(175, 255, 175) IF bin
 quantityBinOrder 'К-во заказа' (BinTransferDetail d) = quantity(binOrderDetail(d)); 
 priceBinOrder 'Цена заказа' (BinTransferDetail d) = price(binOrderDetail(d));
 
-fromBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), outBin(binOrderDetail) MATERIALIZED;
-toBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), inBin(binOrderDetail) MATERIALIZED;
+fromBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) AND isPosted(binOrderDetail) BY sku(binOrderDetail), outBin(binOrderDetail) MATERIALIZED;
+toBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) AND isPosted(binOrderDetail) BY sku(binOrderDetail), inBin(binOrderDetail) MATERIALIZED;
 
 extraFromBinTransfer 'Заказано (доп.)' = ABSTRACT NUMERIC[16,5](Sku, UserBinOrder);
 prevFromBinTransfer 'Заказано' (Sku sku, Bin bin) = PREV(fromBinTransfer(sku, bin));
