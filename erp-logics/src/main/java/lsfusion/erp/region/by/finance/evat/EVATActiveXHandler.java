@@ -95,7 +95,7 @@ public class EVATActiveXHandler {
             Dispatch document = Dispatch.get(invVatXml, "Document").toDispatch();
             if(Dispatch.call(document, "LoadFromFile", originalFile.getAbsolutePath()).getInt() == 0) {
                 // Проверка счет-фактуры НДС на соответствие XSD схеме
-                if (validateXML(document, xsdPath)) {
+                //if (validateXML(document, xsdPath)) {
 
                     if (Dispatch.call(invVatXml, "Sign", 0).getInt() == 0) {
                         if(archiveDir != null)
@@ -117,9 +117,9 @@ public class EVATActiveXHandler {
                         }
                         logger.info(String.format("EVAT %s: send file finished", number));
                     }
-                } else {
-                    result = Arrays.asList((Object) evat, String.format("EVAT %s: Структура документа не отвечает XSD схеме", number), true);
-                }
+                //} else {
+                //    result = Arrays.asList((Object) evat, String.format("EVAT %s: Структура документа не отвечает XSD схеме", number), true);
+                //}
             }
             if (result == null) {
                 Variant err = Dispatch.call(service, "LastError");
