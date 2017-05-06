@@ -474,9 +474,11 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             addStringElement(namespace, vatElement, "summaVat", bigDecimalToString(vatSum));
             rosterItemElement.addContent(vatElement);
             addStringElement(namespace, rosterItemElement, "costVat", bigDecimalToString(sumWithVat));
-            Element descriptionsElement = new Element("descriptions", namespace);
-            addStringElement(namespace, descriptionsElement, "description", description);
-            rosterItemElement.addContent(descriptionsElement);
+            if(description != null) {
+                Element descriptionsElement = new Element("descriptions", namespace);
+                addStringElement(namespace, descriptionsElement, "description", description);
+                rosterItemElement.addContent(descriptionsElement);
+            }
             rosterElement.addContent(rosterItemElement);
         }
         rosterElement.setNamespace(namespace);
