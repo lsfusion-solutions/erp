@@ -37,7 +37,8 @@ createEVATZReport 'Z-отчеты' (LegalEntity l, DATE dFrom, DATE dTo) = {
             vatRate(ed) <- vat;
             vatSum(ed) <- [= GROUP SUM sumVAT(ReceiptSaleDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo);
             sumWithVAT(ed) <- [= GROUP SUM sum(ReceiptSaleDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo);
-            descriptionType(ed) <- IF valueVAT(sku, defaultCountry(), dTo) == 0 THEN DescriptionType.vatExcemption ELSE DescriptionType.deductionInFull;  
+            descriptionType(ed) <- IF valueVAT(sku, defaultCountry(), dTo) == 0 THEN DescriptionType.vatExcemption ELSE 
+                                    IF NOT notDeductionInFull() THEN DescriptionType.deductionInFull;  
         } 
 
         FOR [= GROUP SUM signedSum(ReceiptReturnDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](Sku sku, dFrom, dTo) AND valueVAT(sku, defaultCountry(), dTo) == vat NEW ed = EVATDetail DO {
@@ -51,7 +52,8 @@ createEVATZReport 'Z-отчеты' (LegalEntity l, DATE dFrom, DATE dTo) = {
             vatRate(ed) <- vat;
             vatSum(ed) <- [= GROUP SUM -sumVAT(ReceiptReturnDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo);
             sumWithVAT(ed) <- [= GROUP SUM -sum(ReceiptReturnDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo);
-            descriptionType(ed) <- IF valueVAT(sku, defaultCountry(), dTo) == 0 THEN DescriptionType.vatExcemption ELSE DescriptionType.deductionInFull;  
+            descriptionType(ed) <- IF valueVAT(sku, defaultCountry(), dTo) == 0 THEN DescriptionType.vatExcemption ELSE 
+                                     IF NOT notDeductionInFull() THEN DescriptionType.deductionInFull;  
         } 
         exciseSum(EVATDetail d) <- 0 WHERE evat(d) == e;
         sum(EVATDetail d) <- sumWithVAT(d) (-) vatSum(d) WHERE evat(d) == e;
