@@ -855,7 +855,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
 	                LOCAL in = BOOLEAN (Sku);    
 	                in(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
 	                
-	                DIALOG selectLabelTypes OBJECTS ds = stockProp(document), l INPUT DO {
+	                DIALOG selectLabelTypes OBJECTS ds = stockProp(document), l INPUT NOMANAGESESSIONX DO {
 	                    IF NOT countSelectType() THEN {  
 	                        select(l) <- TRUE;
 	                    }                                        
@@ -1112,7 +1112,7 @@ createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать цен�
         NEWSESSION NESTED (select[Sku,Stock]) {
 
             FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](DepartmentStore stock) AND stock IS DepartmentStore DO {  
-                DIALOG selectLabelTypes OBJECTS ds = stock, l INPUT DO{ 
+                DIALOG selectLabelTypes OBJECTS ds = stock, l INPUT NOMANAGESESSIONX DO { 
                     select(Sku sku) <- select(sku, stock);     
                     IF NOT countSelectType() THEN {
                         select(l) <- TRUE;
@@ -1152,7 +1152,7 @@ printSelectedSkuLabelTransaction 'Распечатать ценники'(Departm
 printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore) = {
     IF [=GROUP SUM 1 IF select(Sku sku)]() THEN  { 
         NEWSESSION NESTED (select[Sku]) {
-            DIALOG selectLabelTypes OBJECTS ds = departmentStore, l INPUT DO {       
+            DIALOG selectLabelTypes OBJECTS ds = departmentStore, l INPUT NOMANAGESESSIONX DO {       
                 IF NOT countSelectType() THEN {
                     select(l) <- TRUE;
                 }                                                            
