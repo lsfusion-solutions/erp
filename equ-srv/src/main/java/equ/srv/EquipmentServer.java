@@ -156,6 +156,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         SendSalesEquipmentServer.init(getBusinessLogics());
         StopListEquipmentServer.init(getBusinessLogics());
         TerminalDocumentEquipmentServer.init(getBusinessLogics());
+        TerminalEquipmentServer.init(getBusinessLogics());
     }
 
     @Override
