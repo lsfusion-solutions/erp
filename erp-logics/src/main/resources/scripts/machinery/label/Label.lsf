@@ -606,33 +606,6 @@ clearApplicationLog () += {
 	}
 }
 
-// -------------------------------------------- Действия по печати ценников ------------------------------ //
-
-documentQuantity = DATA LOCAL NUMERIC[14,3] (LabelTransactionDetail);
-documentPrice = DATA LOCAL NUMERIC[16,4] (LabelTransactionDetail);
-
-calcPrice (PriceListType pt, LabelTransactionDetail d) =
-    IF  batch(d) THEN
-        prevPriceA(pt, batch(d), departmentStore(d), dateTime(d))
-    ELSE
-        prevPriceA(pt, sku(d), departmentStore(d), dateTime(d));
-
-WHEN LOCAL FORMS customLabelTransaction
-    (CHANGED(labelType(LabelTransactionDetail d)) OR SETCHANGED (dataBarcode(d))) AND PriceListType pt == priceListType(d) NOINLINE (pt) DO {
-        price(d) <- OVERRIDE 
-            documentPrice(d), 
-            round(calcPrice(pt, d) * (OVERRIDE 1.0 IF d IS LabelTransactionDetail, amount(dataBarcode(d))), roundCondition(departmentStore(d)));
-        retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
-}
-
-WHEN LOCAL FORMS customLabelTransaction
-    CHANGED(labelType(LabelTransactionDetail d)) DO {
-        quantity(d) <- IF include(labelType(d), sku(d)) THEN 
-                                                INTEGER(documentQuantity(d))
-                                             ELSE 
-                                                count(labelType(d), sku(d));
-}
-
 createAttribute = ACTION ABSTRACT LIST (LabelTransactionDetail);
 
 // -------------------------------- Добавление новых атрибутов -------------------------- //
@@ -651,9 +624,38 @@ META defineLabelTransactionAttribute(object, caption, type, skuClass, skuProp)
 END
 
 // ---------- Атрибуты по умолчанию ------ //
+@defineLabelTransactionAttribute(shortNameUOMSku, 'Ед. изм.', VARISTRING[100], Sku, shortNameUOM);
+// -------------------------------------------- Действия по печати ценников ------------------------------ //
+
+documentQuantity = DATA LOCAL NUMERIC[14,3] (LabelTransactionDetail);
+documentPrice = DATA LOCAL NUMERIC[16,4] (LabelTransactionDetail);
+
+calcPrice (PriceListType pt, LabelTransactionDetail d) =
+    IF  batch(d) THEN
+        prevPriceA(pt, batch(d), departmentStore(d), dateTime(d))
+    ELSE
+        prevPriceA(pt, sku(d), departmentStore(d), dateTime(d));
+
+WHEN LOCAL FORMS customLabelTransaction
+    (CHANGED(labelType(LabelTransactionDetail d)) OR SETCHANGED (dataBarcode(d))) AND PriceListType pt == priceListType(d) NOINLINE (pt) DO {
+        price(d) <- OVERRIDE 
+            documentPrice(d), 
+            round(calcPrice(pt, d) * (OVERRIDE amount(dataBarcode(d)), 1.0 IF d IS LabelTransactionDetail), roundCondition(departmentStore(d)));
+        retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
+        
+        shortNameUOMSku(d) <- shortNameUOM(dataBarcode(d)) WHERE SETCHANGED (dataBarcode(d)) AND shortNameUOM(dataBarcode(d));
+}
+
+WHEN LOCAL FORMS customLabelTransaction
+    CHANGED(labelType(LabelTransactionDetail d)) DO {
+        quantity(d) <- IF include(labelType(d), sku(d)) THEN 
+                                                INTEGER(documentQuantity(d))
+                                             ELSE 
+                                                count(labelType(d), sku(d));
+}
 
 @defineLabelTransactionAttribute(nameSkuGroupSku, 'Тов. группа', VARSTRING[100], Sku, nameSkuGroup);
-@defineLabelTransactionAttribute(shortNameUOMSku, 'Ед. изм.', VARISTRING[100], Sku, shortNameUOM);
+
 @defineLabelTransactionAttribute(nameCountrySku, 'Страна изготовления', VARSTRING[50], Sku, nameCountry);
 manufactureDateBatch 'Дата изготовления'  = DATA DATE (LabelTransactionDetail);
 createAttribute(LabelTransactionDetail d) +=
