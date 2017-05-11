@@ -94,11 +94,20 @@ sumWithVATRange[EVATDocument, Range](Purchase.Invoice i, Range r) += [= GROUP SU
 customer[EVATDocument](Purchase.Invoice i) += customer(i);
 
 //priceRound (InvoiceDetail d) += WHEN currency(d) THEN defaultRound(currency(d));
+inEVAT = DATA LOCAL BOOLEAN (Invoice);
+inEVAT = DATA LOCAL BOOLEAN ();
+createEVATPurchaseInvoiceOver  = ACTION ABSTRACT LIST (DATE, DATE);
 
 createEVATPurchaseInvoice 'Накладные (закупка)' (DATE dFrom, DATE dTo) = {
-    FOR eVAT(operation(Invoice i)) AND isPosted(i) AND 
-        NOT EVAT(i)
-        AND date(i) >= dFrom AND date(i) <= dTo AND quantityInvoiceDetail(i) AND NOT skipEVAT(i) NEW e = EVAT DO {
+    inEVAT() <- NULL;
+    createEVATPurchaseInvoiceOver(dFrom,dTo); // разная фильтрация накладных
+    
+    IF NOT inEVAT() THEN {
+        inEVAT(Invoice i) <- NULL;
+        inEVAT(Invoice i) <- TRUE WHERE eVAT(operation(i)) AND isPosted(i) AND NOT EVAT(i) AND date(i) >= dFrom AND date(i) <= dTo AND quantityInvoiceDetail(i) AND NOT skipEVAT(i);      
+    }
+
+    FOR inEVAT(Invoice i) NEW e = EVAT DO {
         createEVATPurchaseInvoice(e,i);
         
         FOR invoice(InvoiceDetail id) == i AND quantity(id) > 0 NEW ed = EVATDetail DO {
