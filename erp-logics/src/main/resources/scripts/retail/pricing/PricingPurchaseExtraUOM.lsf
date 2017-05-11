@@ -1,0 +1,37 @@
+MODULE PricingPurchaseExtraUOM;
+
+REQUIRE PricingPurchase, PurchaseInvoiceExtraUOM;
+
+NAMESPACE Purchase;
+
+extraUOM = ABSTRACT UOM (PricingDetail) MATERIALIZED;
+extraUOM (InvoicePricingDetail detail) = extraUOM(invoiceDetail(detail));
+extraUOM(InvoicePricingDetail detail) +=  extraUOM(detail);
+shortNameExtraUOMSku 'Ед. изм. поставщика' (PricingDetail detail)= shortName(extraUOM(detail));
+
+extraQuantity 'Кол-во(ед. поставщика)'  = ABSTRACT NUMERIC[16,5] (PricingDetail) MATERIALIZED;
+extraQuantity (InvoicePricingDetail detail) = extraQuantity(invoiceDetail(detail));
+extraQuantity(InvoicePricingDetail detail) +=  extraQuantity(detail);
+
+extraQuantityPricingDetail 'Кол-во всего(ед. поставщика)' (pricing) = 
+    GROUP SUM extraQuantity(PricingDetail detail) BY pricing(detail) IN documentSum MATERIALIZED;
+
+extraPrice 'Цена поставщика(ед. покупателя)' (PricingDetail detail)= NUMERIC[16,4](price(invoiceDetail(detail))/coefficient(extraUOM(invoiceDetail(detail)), UOM(sku(invoiceDetail(detail)))));
+
+EXTEND FORM pricing
+    PROPERTIES(p) extraQuantityPricingDetail
+    PROPERTIES(d) shortNameExtraUOMSku, extraQuantity, extraPrice
+;
+
+EXTEND FORM userInvoice
+    PROPERTIES(pd) SHOWIF showExtraUOM(pd) shortNameExtraUOMSku BEFORE shortNameUOMSku(pd), extraQuantity BEFORE quantity(pd) 
+;
+
+pricingSum[UserInvoiceDetail](UserInvoiceDetail d) += NUMERIC[18,4](Utils.round(pricingQuantity(d) * pricingPrice(d), homePriceRound(d)));
+pricingSum[InvoiceDetail](InvoiceDetail d) += NUMERIC[18,4](Utils.round(pricingQuantity(d) * pricingPrice(d), homePriceRound(d)));
+
+calcSum(UserInvoiceDetail userInvoiceDetail) += NUMERIC[18,4](Utils.round(extraQuantity(userInvoiceDetail) * price(userInvoiceDetail), priceRound(userInvoiceDetail))) IF extraUOM(userInvoiceDetail);
+
+overPricingPrice[UserInvoiceDetail](UserInvoiceDetail userInvoiceDetail) += NUMERIC[16,4](price(userInvoiceDetail)/coefficient(extraUOM(userInvoiceDetail), UOM(sku(userInvoiceDetail)))) IF extraUOM(userInvoiceDetail);
+
+extraCostPrice (InvoiceShipmentDetail detail) += NUMERIC[16,4](price(invoiceDetail(detail))/coefficient(extraUOM(invoiceDetail(detail)), UOM(sku(invoiceDetail(detail))))) IF extraUOM(invoiceDetail(detail));
