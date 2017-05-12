@@ -76,13 +76,15 @@ showSkip (UserBinOrder order) = order IS UserBinOrder AND startPerformDateTime(o
     
 fullComplete 'Закончен полностью' (UserBinOrder order) = {
     createUserBinTransferPosted(order);
-    finishPerformDateTime(order) <- currentDateTime();
+    finishPerformDateTime(order) <- currentDateTime();    
     apply();
 } CONFIRM;
 
 partiallyComplete 'Закончен с отклон.' (UserBinOrder order) = {
     createAndShowUserBinTransfer(order);
-    finishPerformDateTime(order) <- currentDateTime();
+    IF binTransferdBinOrderDetail(order) THEN {
+        finishPerformDateTime(order) <- currentDateTime();      
+    } 
     apply();
 } CONFIRM;
 
