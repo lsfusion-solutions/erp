@@ -1,0 +1,19 @@
+MODULE DisparityMachinery;
+
+REQUIRE RepricingDisparity, MachineryPriceTransaction;
+
+NAMESPACE Disparity;
+
+@Machinery.implementPriceTransactionDocumentStock(Disparity, stock );
+
+EXTEND CLASS DisparityDetail : Machinery.PriceTransactionDocumentDetail;
+priceTransactionDocument (DisparityDetail detail) += disparity(detail);
+sku[PriceTransactionDocumentDetail] (DisparityDetail detail) += inputSku(detail);
+quantity[PriceTransactionDocumentDetail](DisparityDetail detail) += inputQuantity(detail);
+
+price[PriceTransactionDocumentDetail](DisparityDetail detail) += afterInputRetailPrice(detail);
+
+@defineDocumentMachineryPriceTransaction(disparity, sku, stock);
+@extendFormDocumentMachineryPriceTransaction(disparities, dis, disparity, createRepricing, actionContainer);
+
+@extendFormDocumentMachineryPriceTransactionError(disparities, dis, disparity, documentDetail);

@@ -177,7 +177,7 @@ supplierStock(InputDisparityDetail batch) += supplierStock(batch);
 
 //------------------------------------------- Пересорт товара----------------------------------------------------//
 
-quantityDisparityDetail 'Кол-во для закачки в оборудование (приход)' (sku, disparity) = GROUP SUM inputQuantity(DisparityDetail disparityDetail) BY inputSku(disparityDetail), disparity(disparityDetail);
+//quantityDisparityDetail 'Кол-во для закачки в оборудование (приход)' (sku, disparity) = GROUP SUM inputQuantity(DisparityDetail disparityDetail) BY inputSku(disparityDetail), disparity(disparityDetail);
 
 FORM disparity 'Изменение сортности'
 
@@ -300,6 +300,8 @@ show(DisparityDetail d) += { show(d); }
 
 @defineDocumentBatchStockPriceListTypeSystemLedger(disparity, accountPriceListType, );
   
+@defineDocumentHeaderSkuQuantity(disparity, inputSku);  
+
 @extendFormDocumentBatchStock(disparity, disparity, dis, legalEntityStock, );
 
 shipmentDateTime(Disparity disparity) = dateTime(disparity);
@@ -389,6 +391,10 @@ DESIGN disparities {
                     NEW printContainer {
                         caption = 'Печать';
                     }
+                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERH;
                 }
             }
         }
@@ -487,3 +493,7 @@ DESIGN items {
         }
     }
 }
+
+EXTEND FORM disparity
+    PROPERTIES  copyDisparity(ks)
+;

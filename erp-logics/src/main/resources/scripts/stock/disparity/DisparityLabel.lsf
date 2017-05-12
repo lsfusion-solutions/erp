@@ -1,0 +1,119 @@
+MODULE DisparityLabel;
+
+REQUIRE RepricingDisparity, Label;
+
+NAMESPACE Disparity;
+
+@Label.implementPriceTransactionDocument(Disparity);
+
+createLabelTransaction 'Распечатать ценники'(Disparity disparity) = {
+	NEWSESSION {        
+	        ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(disparity) OR NOT (dateTime(disparity) <= currentDateTime()) DO { 
+	            LOCAL in = BOOLEAN (Sku);
+	            in(Sku sku) <- TRUE IF countDisparityDetail(sku, disparity);
+	        
+	            // бежим по всем типам ценников из управленческих параметров
+	            // для каждого создаем по операции печати ценников
+	            FOR ([= GROUP SUM 1 IF in(Sku sku) AND in(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stock(disparity)))
+	                NEW t = LabelTransaction DO {
+	                    departmentStore(t) <- stock(disparity);
+	                    priceTransactionDocument(t) <- disparity;
+	                    labelType(t) <- labelType;
+	                    
+	                    FOR disparity(DisparityDetail dd) == disparity AND 
+	                        in(Sku sku) AND sku == inputSku(dd) AND 
+	                        in(labelType, sku, stock(disparity)) AND 
+	                        PriceListType pt == overPriceListType(t) NOINLINE (pt)
+	                        NEW d = LabelTransactionDetail DO {
+	                        labelTransaction(d) <- t;
+	                        sku(d) <- sku;
+	                        batch(d) <- batch(dd) WHERE explicitBatchLedger(departmentStore(t));
+	    
+	                        name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
+	                        createAttribute(d);
+	    
+	                        quantity(d) <- IF include(labelType, sku(d))
+                                                THEN INTEGER(inputQuantity(dd))
+                                             ELSE count(labelType, sku(d));
+	
+	                        price(d) <- calcPrice(pt, d);
+	                        retailPrice(d) <- overRetailPrice(d);
+	                    }
+	                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+	                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+	                    print(t);
+	            }
+	            printed(disparity) <- TRUE WHERE isPosted(disparity);
+	        }
+	        apply();
+	    }
+} TOOLBAR CONFIRM;
+    
+createLabelTransaction(Disparity disparity) += { createLabelTransaction(disparity); }
+
+createSnapshotLabelTransaction 'Перепечатать ценники'(Disparity disparity) = {
+	NEWSESSION {
+	        IF is(disparity) THEN 
+	            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(disparity) OR NOT (dateTime(disparity) <= currentDateTime()) DO{ 
+	                LOCAL in = BOOLEAN (Sku);    
+	                in(Sku sku) <- TRUE IF countDisparityDetail(sku, disparity);
+	                
+	                DIALOG selectLabelTypes OBJECTS ds = stock(disparity), l INPUT NOMANAGESESSIONX DO {
+	                    IF NOT countSelectType() THEN {  
+	                        select(l) <- TRUE;
+	                    }                                        
+	                    FOR select(LabelType type) NEW t = LabelTransaction DO {              
+	                        departmentStore(t) <- stock(disparity);
+	                        priceTransactionDocument(t) <- disparity;
+	                        labelType(t) <- type;
+	            
+	                        FOR disparity(DisparityDetail dd) == disparity 
+	                            AND in(Sku sku) AND sku == inputSku(dd)
+	                            AND PriceListType pt == overPriceListType(t) NOINLINE (pt)
+	                            NEW d = LabelTransactionDetail DO {
+	                                labelTransaction(d) <- t;
+	                                sku(d) <- sku;
+	                                batch(d) <- batch(dd) WHERE explicitBatchLedger(departmentStore(t));
+	            
+	                                name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
+	                                documentQuantity(d) <- inputQuantity(dd); 
+	                                
+	                                price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
+	                                retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
+	                                                                           
+	                                quantity(d) <- IF NOT countLabel(departmentStore(d)) 
+	                                                 THEN (IF include(labelType(d), sku(d)) 
+	                                                         THEN INTEGER(documentQuantity(d))
+	                                                         ELSE count(labelType(d), sku(d)))
+	                                                 ELSE countLabel(departmentStore(d));                                              
+	                                
+	                                createAttribute(d);
+                            }
+	                        IF change(stock(disparity)) THEN {
+	                            LOCAL printed = BOOLEAN();
+	                            printed() <- NULL;
+	                            DIALOG customLabelTransaction OBJECTS l = t DO {
+	                                print(t);
+	                                printed() <- TRUE;
+	                            }
+	                            IF NOT printed() THEN {
+	                                cancel();
+	                            }             
+	                        } ELSE {
+	                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+	                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+	                            print(t);
+	                        }                        
+	                    }
+	                    apply(); 
+	                }                                                                                                        
+	            }            
+	    }
+} TOOLBAR;
+    
+createSnapshotLabelTransaction(Disparity disparity) += { createSnapshotLabelTransaction(disparity); }
+showPrintLabelTransaction 'Показывать' (Disparity disparity) = isPosted(disparity) AND isOpened(disparity) AND NOT Label.skip(disparity);
+showPrintLabelTransaction (Disparity disparity) += showPrintLabelTransaction(disparity);
+backgroundPrintLabelTransaction 'Цвет' (Disparity disparity) = RGB(212,255,212) IF showPrintLabelTransaction(disparity) AND NOT printed(disparity);
+
+@extendFormDocumentLabelTransaction(disparities, dis, disparity, createRepricing, actionContainer);
