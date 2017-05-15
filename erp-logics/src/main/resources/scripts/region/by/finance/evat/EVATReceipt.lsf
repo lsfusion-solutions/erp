@@ -71,14 +71,19 @@ createEVAT 'Создать ЭСЧФ' (Receipt r) = {
 	                IF NOT customer() THEN
 	                    RETURN;
 	            } ELSE {
-	                NEW l = LegalEntity {
-	                    name(l) <- c;
-	                    UNP(l) <- u;
-	                    legalEntityGroup(l) <- customerGroupEVAT() IF customerGroupEVAT();
-	                    isCustomer(l) <- TRUE;
-	                    
-	                    customer() <- l; 
-	                }    
+	                IF (c != '') AND (u != '') THEN {
+                        NEW l = LegalEntity {
+                            name(l) <- c;
+                            UNP(l) <- u;
+                            legalEntityGroup(l) <- customerGroupEVAT() IF customerGroupEVAT();
+                            isCustomer(l) <- TRUE;
+                            
+                            customer() <- l; 
+                        } 
+                    } ELSE {
+                        MESSAGE 'Покупатель не найден, для создания нового введите Наименование и УНП'; 
+                        RETURN;
+                    }
 	            }
 	            NEW e = EVAT {
 	                type(e) <- EVATType.sale;
