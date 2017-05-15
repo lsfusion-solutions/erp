@@ -6,7 +6,10 @@ NAMESPACE ZReport;
 
 discountCard (receipt) = DATA DiscountCard (Receipt) INDEXED;
 countReceipt 'Кол-во чеков' = GROUP SUM 1 BY discountCard(Receipt r); 
+externalCountReceipt 'Кол-во чеков(дополнительно)' = ABSTRACT INTEGER (DiscountCard) MATERIALIZED; 
+totalCountReceipt 'Кол-во чеков(всего)'(DiscountCard dc) = countReceipt(dc) (+) externalCountReceipt(dc); 
 prevCountReceipt 'Кол-во чеков' (DiscountCard dc) = PREV(countReceipt(dc));
+prevTotalCountReceipt 'Кол-во чеков(всего)'(DiscountCard dc) = prevCountReceipt(dc) (+) externalCountReceipt(dc); 
 seriesNumberDiscountCard (Receipt receipt) = seriesNumber(discountCard(receipt));
 discountCard (ReceiptSaleDetail d) = discountCard(receipt(d));
 discountCard (ReceiptReturnDetail d) = discountCard(receipt(d));
