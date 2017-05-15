@@ -667,6 +667,9 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     backgroundDraft 'Цвет' (Order o) = RGB(212,255,212) IF isDraft(o);      
     overBackgroundDraft(Order o) = OVERRIDE backgroundSku(o), backgroundDraft(o);
     
+    backgroundShipmentDate 'Цвет' = ABSTRACT VALUE OVERRIDE FIRST COLOR (Order);
+    backgroundShipmentDate(Order o) += backgroundSku(o);
+    
     FORM orders 'Заказы' AUTOREFRESH 60 
     
         PROPERTIES() filterOrderDateFrom, filterOrderDateTo, nameFilterOrderSupplier, nameFilterOrderSupplierStock, 
@@ -681,7 +684,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                                 nameAgreement, seriesNumberContractSku
         PROPERTIES (o) READONLY BACKGROUND backgroundSku(o) countOrderDetail, quantityOrderDetail, sumOrderDetail,
                                 VATSumOrderDetail, invoiceSumOrderDetail
-        PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundSku(o) shipmentDate, shipmentTime, closeDate, note
+        PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundShipmentDate(o) shipmentDate, shipmentTime
+        PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundSku(o) closeDate, note
 
         PROPERTIES (o) READONLY PANEL createdNameUser[UserOrder], createdTime, createdHostnameComputer, 
                                             postedNameUser, postedTime, postedHostnameComputer

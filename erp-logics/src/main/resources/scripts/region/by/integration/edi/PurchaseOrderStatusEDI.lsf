@@ -2,11 +2,13 @@ MODULE PurchaseOrderStatusEDI;
 
 REQUIRE PurchaseOrderStatus, PurchaseOrderEDI;
 
+PRIORITY Purchase;
+
 NAMESPACE EDI;
 
 
-backgroundQuantityResponseEDI(Purchase.OrderDetail d) += RGB(255,0,0) IF responseDetail(d AS Purchase.OrderDetail) AND NOT quantityResponseEDI(d) == originalQuantity(d);
-  
+backgroundQuantityResponseEDI(Purchase.OrderDetail d) += RGB(255,0,0) IF quantityResponseEDI(d) != originalQuantity(d);
+ 
 logSendDocumentOrder(Purchase.Order o) = {
 	NEW d = DocumentLog {
 	    document(d) <- o;
@@ -49,6 +51,19 @@ overEmailCustomer(Order.Order order) += {
 
 provider(Purchase.Order o) += WHEN isEOrder(o) THEN VARSTRING[20]('EDI:' + nameEDIProvider(supplier(o)));
 
+cancel (EOrder o) += {
+    IF email(supplier(o)) THEN {
+        FOR o == eOrder(EOrderResponse r) DO
+            EMAIL
+                FROM fromEmailOrders()
+                SUBJECT 'Заказ №'+ number(r) + 'покупателя ' + nameCustomer(o) + 'отменен'
+                TO email(supplier(o));
+    } ELSE {
+        MESSAGE 'Не задан e-mail поставщика. Поставщик не будет уведолем об отмене';
+        isRejected[UserOrder](o) <- NULL ;
+    }
+}
+
 cancel 'Отменить заказ'(Order.Order order) = {
     IF isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
         isRejected[UserOrder](order) <- TRUE;
@@ -71,7 +86,7 @@ WHEN SET (code(EOrderMessage m)) AND good(m) DO {
 }
 
 WHEN SET (UserOrder o == eOrder(EOrderResponse od)) DO {
-    IF responseType(od) == EOrderResponseType.cancelled OR NOT quantityResponseEDI(o) > 0.0 THEN { //ответ с 0 во всех строках считается отказом
+    IF responseType(od) == EOrderResponseType.cancelled THEN {
         isRejected(o) <- TRUE;
     } ELSE {
         isConfirmed(o) <- TRUE;
@@ -80,7 +95,43 @@ WHEN SET (UserOrder o == eOrder(EOrderResponse od)) DO {
 
 orderConfirmation(UserOrder o) += isEOrder(o);
 
-skipPostConfirmed(Purchase.UserOrder o) += isEOrder(o AS UserOrder) AND NOT quantityResponseEDI(o) == quantityOrderDetail(o);
+WHEN SET(EOrderResponse r == orderResponse(EOrderResponseDetail d))  AND NOT [= GROUP SUM 1 BY sku(UserOrderDetail d), userOrder(d)](sku(d), eOrder(r)) DO 
+    NEW od = UserOrderDetail {
+        sku(od) <- sku(d);
+        userOrder(od) <- eOrder(r);
+    } 
+
+notEqualResponseEDI(Purchase.UserOrder o) = NOT quantityResponseEDI(o) == quantityOrderDetail(o) OR [=GROUP SUM 1 IF NOT priceResponseEDI(UserOrderDetail d) == price(d) BY userOrder(d) ](o);
+skipPostConfirmed(Purchase.UserOrder o) += isEOrder(o AS UserOrder) AND notEqualResponseEDI(o);
+
+showAgree(Purchase.Order o) = isConfirmed(o) AND isEOrder(o) AND notEqualResponseEDI(o);
+overAgree = ACTION ABSTRACT LIST (UserOrder);
+
+agree 'Подтвердить и провести'(UserOrder o) = {
+	NEWSESSION {
+	
+	    quantity(UserOrderDetail d) <- quantityResponseEDI(d) WHERE userOrder(d) == o;
+	    price(UserOrderDetail d) <- priceResponseEDI(d) WHERE userOrder(d) == o;
+	    
+	    isPosted(o) <- TRUE;
+	    overAgree(o);
+	    
+	    APPLY;
+	    
+	}
+} TOOLBAR CONFIRM;
+
+EXTEND FORM orders
+    PROPERTIES (o) agree SHOWIF showAgree(o);
+    
+originalDate 'Дата (предзаказ)' = ABSTRACT DATE (Order) IN documentHeader;
+originalDate 'Дата (предзаказ)' = DATA DATE (UserOrder) IN documentHeader;
+originalDate(UserOrder o) += originalDate(o);    
+
+originalDate(UserOrder o) <- shipmentDate(o)
+    WHEN CHANGED (shipmentDate(o)) IF NOT (isConfirmed(o) OR isSent(o)); 
+    
+backgroundShipmentDate(Order o) += RGB(255,128,128) IF originalDate(o) != shipmentDate(o);
 
 status(Purchase.Order o) += WHEN isEOrder(o AS UserOrder) AND isConfirmed(o) AND NOT quantityResponseEDI(o) == quantityOrderDetail(o) AND NOT isRejected(o) AND NOT isPosted(o) AND NOT isClosed(o)
                                 THEN 'С изменениями';
