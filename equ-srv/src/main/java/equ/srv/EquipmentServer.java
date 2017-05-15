@@ -670,11 +670,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, null));
                     }
 
+                    List<TerminalAssortment> terminalAssortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, getBusinessLogics(), priceListTypeGroupMachinery, stockGroupTerminal);
                     List<TerminalHandbookType> terminalHandbookTypeList = readTerminalHandbookTypeList(session, getBusinessLogics());
                     List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeList(session, getBusinessLogics());
                     List<TerminalLegalEntity> terminalLegalEntityList = readTerminalLegalEntityList(session, getBusinessLogics());
-                    List<TerminalAssortment> terminalAssortmentList = readTerminalAssortmentList(session, getBusinessLogics(), priceListTypeGroupMachinery, stockGroupTerminal);
-                    
+
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(), dateTimeCode, 
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
                             descriptionTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction, lastErrorDateTransaction,
@@ -929,36 +929,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
         }
         return customANAList;
-    }
-
-    public static List<TerminalAssortment> readTerminalAssortmentList(DataSession session, BusinessLogics BL, ObjectValue priceListTypeObject, ObjectValue stockGroupMachineryObject)
-            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        List<TerminalAssortment> terminalAssortmentList = new ArrayList<>();
-        ScriptingLogicsModule machineryPriceTransactionLM = BL.getModule("MachineryPriceTransaction");
-        if (machineryPriceTransactionLM != null) {
-            
-            DataObject currentDateTimeObject = new DataObject(new Timestamp(Calendar.getInstance().getTime().getTime()), DateTimeClass.instance);
-            
-            KeyExpr skuExpr = new KeyExpr("Sku");
-            KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
-            ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "Sku", skuExpr, "LegalEntity", legalEntityExpr);
-            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-            query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", machineryPriceTransactionLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
-                    skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()));
-            query.addProperty("idBarcodeSku", machineryPriceTransactionLM.findProperty("idBarcode[Sku]").getExpr(skuExpr));
-            query.addProperty("idLegalEntity", machineryPriceTransactionLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr));
-            query.and(machineryPriceTransactionLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr).getWhere());
-            query.and(machineryPriceTransactionLM.findProperty("idBarcode[Sku]").getExpr(skuExpr).getWhere());
-            query.and(machineryPriceTransactionLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
-                    skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()).getWhere());
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
-            for (ImMap<Object, Object> entry : result.values()) {
-                String idBarcodeSku = trim((String) entry.get("idBarcodeSku"));
-                String idLegalEntity = trim((String) entry.get("idLegalEntity"));
-                terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idLegalEntity));
-            }
-        } 
-        return terminalAssortmentList;
     }
 
     @Override
