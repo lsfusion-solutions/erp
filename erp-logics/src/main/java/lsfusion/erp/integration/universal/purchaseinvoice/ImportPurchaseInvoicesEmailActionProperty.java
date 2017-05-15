@@ -127,7 +127,8 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                 } else
                                     files.add(Pair.create(nameAttachmentEmail, fileAttachment));
                             } 
-                            
+
+                            boolean imported = true;
                             for(Pair<String, byte[]> file : files) {
                                 try (DataSession currentSession = context.createSession()) {
                                     DataObject invoiceObject = multipleDocuments ? null : currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
@@ -150,24 +151,30 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                                 logImportError(context, attachmentEmailObject, file.first + ": " + result, isOld);
                                             }
                                         }
-                                        if (importResult >= IMPORT_RESULT_EMPTY) {
-                                            try (DataSession postImportSession = context.createSession()) {
-                                                findProperty("imported[AttachmentEmail]").change(true, postImportSession, (DataObject) attachmentEmailObject);
-                                                postImportSession.apply(context);
-                                            }
-                                        } else if (isOld) {
-                                            try (DataSession postImportSession = context.createSession()) {
-                                                findProperty("importError[AttachmentEmail]").change(true, postImportSession, (DataObject) attachmentEmailObject);
-                                                postImportSession.apply(context);
-                                            }
+                                        if (importResult < IMPORT_RESULT_EMPTY) {
+                                            imported = false;
                                         }
 
                                     } catch (Exception e) {
+                                        imported = false;
                                         logImportError(context, attachmentEmailObject, file.first + ": " + e.toString(), isOld);
                                         ServerLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
                                     }
                                 }
                             }
+
+                            if (imported) {
+                                try (DataSession postImportSession = context.createSession()) {
+                                    findProperty("imported[AttachmentEmail]").change(true, postImportSession, (DataObject) attachmentEmailObject);
+                                    postImportSession.apply(context);
+                                }
+                            } else if (isOld) {
+                                try (DataSession postImportSession = context.createSession()) {
+                                    findProperty("importError[AttachmentEmail]").change(true, postImportSession, (DataObject) attachmentEmailObject);
+                                    postImportSession.apply(context);
+                                }
+                            }
+
                         }
                     }
                 }
