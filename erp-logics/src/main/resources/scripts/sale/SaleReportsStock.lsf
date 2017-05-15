@@ -1,0 +1,131 @@
+MODULE SaleReportsStock;
+
+REQUIRE SaleReports, Warehouse;
+
+NAMESPACE SaleReports;
+
+showBalanceSku 'Отображать остатки' = DATA BOOLEAN ();
+showMaxRetailPrice 'Отображать максимальную розничную цену' = DATA BOOLEAN ();
+
+inSaleReportWarehouse 'Вкл.' = DATA LOCAL BOOLEAN (Warehouse);
+
+inSaleReportWarehouses 'Оптовые склады для остатков' () =
+    GROUP CONCAT name(Warehouse st) IF inSaleReportWarehouse(st) ,', ' PREFCHARWIDTH 50;
+
+FORM dialogWarehousesSaleReport 'Выбор оптовых складов'
+    OBJECTS s = Warehouse
+    PROPERTIES(s) READONLY id, name
+    PROPERTIES (s) inSaleReportWarehouse
+    ORDER BY name(s)
+    FILTERS isCompany(s)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
+    FILTERGROUP select FILTER 'Отм.' inSaleReportWarehouse(s) 'F9' 
+;
+
+balanceAStore 'Остаток в ТО' = DATA LOCAL NUMERIC[16,5] (Sku); 
+balanceAWarehouse 'Остаток на ЛЦ' = DATA LOCAL NUMERIC[16,5] (Sku); 
+balanceATotal 'Остаток итого' = DATA LOCAL NUMERIC[16,5] (Sku); 
+balanceADays 'Остаток, дней продаж' = DATA LOCAL NUMERIC[13,2] (Sku); 
+averageCost 'Средневзв. себестоимость без НДС' = DATA LOCAL NUMERIC[18,4] (Sku); 
+averagePriceStore 'Средневзв. цена реализации в рознице' = DATA LOCAL NUMERIC[18,4] (Sku); 
+maxPrice 'Максимальная розничная цена' = DATA LOCAL NUMERIC[16,4] (Sku); 
+averageMarkup 'Средневзв. наценка реализованного товара, %' = DATA LOCAL NUMERIC[18,2] (Sku); 
+
+fillFromToBalance 'Заполнить с остатками' (GroupType gt, DATE df, DATE dt) = {
+    
+    balanceAStore(Sku sk) <- NULL;           
+    balanceAWarehouse(Sku sk) <- NULL;  
+    balanceATotal(Sku sk) <- NULL;  
+    balanceADays(Sku sk) <- NULL;  
+    averageCost(Sku sk) <- NULL;   
+    averagePriceStore(Sku sk) <- NULL;  
+    averageMarkup(Sku sk) <- NULL;  
+
+    balanceAStore(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM balanceA(Sku sk, Stock st, DATE date) IF inSaleReport(st) AND st IS DepartmentStore BY sk, date](sk, dt));           
+    balanceAWarehouse(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM balanceA(Sku sk, Stock st, DATE date) IF inSaleReportWarehouse(st) BY sk, date](sk, dt));   
+    balanceATotal(Sku sk) <- balanceAStore(sk) (+) balanceAWarehouse(sk);           
+    balanceADays(Sku sk) <- NUMERIC[13,2](balanceATotal(sk) / quantityStock(sk)) IF quantityStock(sk);           
+    averageCost(Sku sk) <- NUMERIC[18,4](costSumStock(sk) / quantityStock(sk)) IF quantityStock(sk);   
+    averagePriceStore(Sku sk) <- NUMERIC[18,4](sumStock(sk) / quantityStock(sk)) IF quantityStock(sk);  
+    averageMarkup(Sku sk) <- NUMERIC[18,2](((sumStock(sk) (-) sumVATStock(sk)) / quantityStock(sk) / averageCost(sk) - 1)*100) IF quantityStock(sk) AND averageCost(sk);   
+    
+    fillSaleReportFromTo(gt, df, dt);                 
+}
+
+fillFromToPrice 'Сформировать цену' (GroupType gt, DATE df, DATE dt) = {
+    maxPrice(Sku sk) <- NULL;  
+    maxPrice(Sku sk) <- NUMERIC[16,4]([ = GROUP MAX averagePrice(SaleLedger l) IF active(l) AND inSaleReport(stock(l)) AND date(l) >= DATE df AND date(l) <= DATE dt BY sku(l), df, dt](sk, df, dt));   
+}
+
+changeWarehousesSalesReport(GroupType gt, DATE df, DATE dt) = {
+    DIALOG dialogWarehousesSaleReport DO 
+        fillFromToBalance(gt, df, dt);
+}
+
+checkFromToBalance (GroupType gt, DATE df, DATE dt) = {
+    INPUT b = BOOLEAN DO {
+        showBalanceSku() <- b;
+        IF showBalanceSku() THEN fillFromToBalance(gt, df, dt);
+    }
+}
+
+checkFromToPrice(GroupType gt, DATE df, DATE dt) = {
+    INPUT b = BOOLEAN DO {
+        showMaxRetailPrice() <- b;
+        IF showMaxRetailPrice() THEN fillFromToPrice(gt, df, dt);
+    }    
+}
+
+fillFromToBalanceAndPrice 'Пересчитать остатки и цену'(GroupType gt, DATE df, DATE dt) = {
+    IF showBalanceSku() THEN
+        fillFromToBalance(gt, df, dt);
+    ELSE fillSaleReportFromTo(gt, df, dt);
+    
+    IF showMaxRetailPrice() THEN
+        fillFromToPrice(gt, df, dt);
+}
+
+EXTEND FORM salesReport 
+    PROPERTIES() showBalanceSku ON CHANGE checkFromToBalance(gt, df, dt), 
+                 showMaxRetailPrice ON CHANGE checkFromToPrice(gt, df, dt)
+                 
+    PROPERTIES fillFromToBalanceAndPrice(gt, df, dt) SHOWIF (showBalanceSku() AND showMaxRetailPrice())
+    PROPERTIES fillFromToBalance (gt, df, dt) SHOWIF (showBalanceSku() AND NOT showMaxRetailPrice())
+    PROPERTIES fillFromToPrice (gt, df, dt) SHOWIF (NOT showBalanceSku() AND showMaxRetailPrice())
+
+    PROPERTIES inSaleReportWarehouses() ON CHANGE changeWarehousesSalesReport(gt, df, dt) SHOWIF showBalanceSku()
+    
+    PROPERTIES(sku) READONLY SHOWIF showBalanceSku() balanceAStore, balanceAWarehouse, balanceATotal, balanceADays, averageCost, averagePriceStore
+    PROPERTIES(sku) READONLY SHOWIF showMaxRetailPrice() maxPrice
+    PROPERTIES(sku) READONLY SHOWIF showBalanceSku() averageMarkup
+    
+    EVENTS 
+        ON CHANGE gt fillFromToBalanceAndPrice(gt, df, dt), 
+        ON CHANGE df fillFromToBalanceAndPrice(gt, df, dt), 
+        ON CHANGE dt fillFromToBalanceAndPrice(gt, df, dt)
+;
+
+DESIGN salesReport { 
+    stocks {
+         MOVE PROPERTY(fillFromToBalanceAndPrice(gt, df, dt)){caption = 'Пересчитать';}    
+         MOVE PROPERTY(fillFromToBalance(gt, df, dt)){caption = 'Пересчитать';}    
+         MOVE PROPERTY(fillFromToPrice(gt, df, dt)){caption = 'Пересчитать';}    
+    }
+    top {
+        NEW optionsContainer{
+            caption = 'Дополнительные параметры';
+            type = CONTAINERV;
+            MOVE PROPERTY(showBalanceSku());        
+            MOVE PROPERTY(showMaxRetailPrice());        
+        }
+    }    
+    NEW top2 AFTER top{
+        type = CONTAINERH;
+        NEW warehouses {
+            caption = 'Оптовые склады';
+            type = CONTAINERH;
+            MOVE PROPERTY(inSaleReportWarehouses()){caption = 'Для расчета остатков';}      
+        }
+    } 
+}
