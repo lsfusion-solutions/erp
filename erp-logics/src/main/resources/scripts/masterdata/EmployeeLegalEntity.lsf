@@ -30,29 +30,12 @@ countAccessCompany 'Кол-во доступных подразделений (�
                 AND isParent(legalEntityGroup(legalEntity), LegalEntityGroup legalEntityGroup)
           BY employee, legalEntityGroup MATERIALIZED;
           
-// todo : Удалить потом
-//-- Поставщик
-dataAccessSupplier 'Доступ разрешен (поставщик)' = DATA BOOLEAN (LegalEntity, Employee);
-dataAccessSupplier 'Доступ разрешен (поставщик)' = DATA BOOLEAN (LegalEntityGroup, Employee);
-//--  Покупатель
-dataAccessCustomer 'Доступ разрешен (покупатель)' = DATA BOOLEAN (LegalEntity, Employee);
-dataAccessCustomer 'Доступ разрешен (покупатель)' = DATA BOOLEAN (LegalEntityGroup, Employee);
-
 legalEntity = DATA LegalEntity (Employee);
 nameLegalEntity 'Организация' (Employee e) = name(legalEntity(e));
 
 overCopy(Employee e,Employee employee) += {
     legalEntity(e) <- legalEntity(employee);    
-    dataAccessCompany(LegalEntity l,e) <- dataAccessCompany(l,employee) WHERE dataAccessCompany(l,employee);
-    dataAccessCompany(LegalEntityGroup lg,e) <- dataAccessCompany(lg,employee) WHERE dataAccessCompany(lg,employee);
-    
-    dataAccessSupplier(LegalEntity l,e) <- dataAccessSupplier(l,employee) WHERE dataAccessSupplier(l,employee);
-    dataAccessSupplier(LegalEntityGroup lg,e) <- dataAccessSupplier(lg,employee) WHERE dataAccessSupplier(lg,employee);
-    
-    dataAccessCustomer(LegalEntity l,e) <- dataAccessCustomer(l,employee) WHERE dataAccessCustomer(l,employee);
-    dataAccessCustomer(LegalEntityGroup lg,e) <- dataAccessCustomer(lg,employee) WHERE dataAccessCustomer(lg,employee);
-    
-};
+}
 EXTEND FORM employee
     PROPERTIES(e) nameLegalEntity
     TREE legalEntityTree lg = LegalEntityGroup PARENT parent

@@ -243,10 +243,9 @@ skipShowEdit = ABSTRACT BOOLEAN (Payment);
 skipShowDelete = ABSTRACT BOOLEAN (Payment);
 
 
-overPreventClose = ABSTRACT BOOLEAN (Payment);
-overPreventOpen = ABSTRACT BOOLEAN (Payment);
-showClose (Payment p) = isOpened(p) AND NOT overPreventClose(p);   
-showOpen (Payment p) = isClosed(p) AND NOT overPreventOpen(p);   
+skipOpen = ABSTRACT BOOLEAN (Payment);
+showClose (Payment p) = isOpened(p) AND NOT skipClose(p);   
+showOpen (Payment p) = isClosed(p) AND NOT skipOpen(p);   
     
     
 FORM payments 'Платежи'
@@ -311,7 +310,7 @@ NAVIGATOR {
 
 overShowEdit (Payment p) += showEditDeleteUser(p) AND isOpened(p) AND NOT skipShowEdit(p);
 overShowDelete (Payment p) += showEditDeleteUser(p) AND isOpened(p)AND NOT skipShowDelete(p); 
-overPreventClose (Payment p) += preventCloseDocument(currentUser(), operation(p));
+skipClose (Payment p) += preventCloseDocument(currentUser(), operation(p));
 
 CONSTRAINT (SET(isPosted(Payment p)) OR CHANGED(operation(p))) AND isPosted(p) AND accountPayer(operation(p))  AND NOT (accountFrom(p)) 
     MESSAGE 'Должен быть задан расчетный счет плательщика';
