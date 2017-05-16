@@ -2,6 +2,7 @@ package equ.srv;
 
 import com.google.common.base.Throwables;
 import equ.api.terminal.TerminalAssortment;
+import equ.api.terminal.TerminalHandbookType;
 import equ.api.terminal.TerminalOrder;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -140,5 +141,28 @@ public class TerminalEquipmentServer {
             }
         }
         return terminalAssortmentList;
+    }
+
+    public static List<TerminalHandbookType> readTerminalHandbookTypeList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<TerminalHandbookType> terminalHandbookTypeList = new ArrayList<>();
+        ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
+        if(terminalLM != null) {
+            KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
+            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
+            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+            String[] names = new String[]{"idTerminalHandbookType", "nameTerminalHandbookType"};
+            LCP<?>[] properties = terminalLM.findProperties("id[TerminalHandbookType]", "name[TerminalHandbookType]");
+            for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
+                query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
+            }
+            query.and(terminalLM.findProperty("id[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+            for (ImMap<Object, Object> entry : result.values()) {
+                String id = trim((String) entry.get("idTerminalHandbookType"));
+                String name = trim((String) entry.get("nameTerminalHandbookType"));
+                terminalHandbookTypeList.add(new TerminalHandbookType(id, name));
+            }
+        }
+        return terminalHandbookTypeList;
     }
 }

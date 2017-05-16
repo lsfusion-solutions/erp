@@ -152,7 +152,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 List<List<Object>> barcodeList = readBarcodeList(session, stockObject);
                 List<TerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject);
                 List<TerminalAssortment> assortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
-                List<TerminalHandbookType> handbookTypeList = EquipmentServer.readTerminalHandbookTypeList(session, BL);
+                List<TerminalHandbookType> handbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
                 List<TerminalLegalEntity> customANAList = EquipmentServer.readCustomANAList(session, BL);
                 List<TerminalDocumentType> terminalDocumentTypeList = EquipmentServer.readTerminalDocumentTypeList(session, BL);
                 file = File.createTempFile("terminalHandler", ".db");
