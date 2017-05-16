@@ -102,7 +102,7 @@ WHEN SET(EOrderResponse r == orderResponse(EOrderResponseDetail d))  AND NOT [= 
     } 
 
 notEqualResponseEDI(Purchase.UserOrder o) = NOT quantityResponseEDI(o) == quantityOrderDetail(o) OR [=GROUP SUM 1 IF NOT priceResponseEDI(UserOrderDetail d) == price(d) BY userOrder(d) ](o);
-skipPostConfirmed(Purchase.UserOrder o) += isEOrder(o AS UserOrder) AND notEqualResponseEDI(o);
+skipPostConfirmed(Purchase.UserOrder o) += WHEN isEOrder(o AS UserOrder) AND notEqualResponseEDI(o) THEN TRUE;
 
 showAgree(Purchase.Order o) = isConfirmed(o) AND isEOrder(o) AND notEqualResponseEDI(o);
 overAgree = ACTION ABSTRACT LIST (UserOrder);
