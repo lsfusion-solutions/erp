@@ -1,0 +1,419 @@
+MODULE SaleInternetPicking;
+
+REQUIRE SaleInternetOrder;
+
+NAMESPACE Sale;
+
+CLASS Picking 'Комплектация': Document ;
+
+TABLE picking (Picking);
+
+picking = DATA Picking (InternetOrderDetail) INDEXED;
+in 'Вкл.' (Picking o, InternetOrderDetail d) = picking(d) == o;
+@defineDocumentHeaderCount(picking, InternetOrderDetail);
+
+relation = GROUP SUM 1 IF in(Picking o, InternetOrderDetail d) BY o, internetOrder(d);
+
+seriesNumberInternetOrders 'Интернет-заказы' (picking) = GROUP CONCAT seriesNumber(InternetOrder order) IF relation(Picking picking, order) , ', '
+                                                 BY picking
+                                                 ORDER order  MINCHARWIDTH 30 PREFCHARWIDTH 30;   
+
+dataPickingIndex 'Номер строки' = DATA INTEGER (InternetOrderDetail) INDEXED; 
+defaultPickingIndex 'Номер строки (авт.)' (InternetOrderDetail d) =
+    PARTITION SUM 1 BY picking(d)
+    ORDER internetOrder(d),d MINCHARWIDTH 4 PREFCHARWIDTH 4;
+indexPicking 'Номер строки' (InternetOrderDetail d) = OVERRIDE dataPickingIndex(d), defaultPickingIndex(d) IN recognize;  
+
+sortOrder 'Порядок сортировки' (d) = ABSTRACT VARSTRING[100] (InternetOrderDetail);
+sortOrderInternetOrderDetail = GROUP SUM 1 IF sortOrder(InternetOrderDetail d) BY picking(d);
+
+updateSortOrder 'Сортировать'(InternetOrderDetail detail) = {
+    IF sortOrderInternetOrderDetail(picking(detail)) THEN {    
+        LOCAL int = INTEGER();
+        int() <- NULL;
+        int() <-1;
+        
+        FOR picking(detail) == picking(InternetOrderDetail d) ORDER sortOrder(d) DO {
+            dataIndex(d) <- int();
+             int() <-  int()+1;
+        }  
+    } ELSE {
+        MESSAGE 'Не задано условие сортировки';
+    }
+} SHORTCUT indexPicking[InternetOrderDetail];  
+
+@defineDocumentHeaderTimePrefix(Picking, , ' документа');
+@defineDocumentHeaderNote(Picking);
+@defineCreated(Picking);
+@deriveDocumentHeaderTimePrefix(Picking, );
+
+@defineDocumentHeaderNumber(Picking);
+
+@defineNumeratedDefault(Picking, 'Комплектации', 'КК');
+@defineDocumentHeaderStock (picking, stock, 'Склад', );
+
+@defineDocumentHeaderDescription(Picking, 'Комплектация');
+
+@defineDocumentHeaderQuantityCustomPrefix(picking, internetOrderDetail, , );
+@defineDocumentHeaderSumCustom(picking, internetOrderDetail, );
+
+@defineDocumentHeaderSkuQuantity(picking, internetOrderDetail, sku, );
+
+CONSTRAINT supplierStock(InternetOrderDetail d) AND stock(picking(d)) AND NOT supplierStock(d) == stock(picking(d))
+    MESSAGE 'Склад поставщика для строки интернет заказа не соответсвует складу в комплектации.';
+
+
+CLASS StatusPicking 'Статус' {
+    new 'Новый',
+    picked 'Собрано'
+}
+
+FORM statusPicking 'Статус'
+    OBJECTS o = StatusPicking
+    PROPERTIES(o) READONLY staticCaption
+    
+    LIST StatusPicking OBJECT o 
+;  
+
+status = DATA StatusPicking(Picking);
+nameStatus 'Статус' (Picking p) = staticCaption(status(p)) IN documentPrm MINCHARWIDTH 8 PREFCHARWIDTH 10;
+
+status (Picking o) <- StatusPicking.new WHEN SET(o IS Picking);
+
+pickingQuantity 'Собрано' = DATA NUMERIC[16,5](InternetOrderDetail);
+showPickingQuantity (Picking p) = status(p) == StatusPicking.picked;// OR (PREV(status(p)) == StatusPicking.picked);
+
+@defineDocumentHeaderQuantityCustomPrefix(internetOrder, internetOrderDetail, picking, ' собрано');
+
+pickingSum 'Сумма собрано' = DATA NUMERIC[18,4] (InternetOrderDetail);
+calcPickingSum = ABSTRACT VALUE OVERRIDE FIRST NUMERIC[18,4] (InternetOrderDetail);
+calcPickingSum(InternetOrderDetail internetOrderDetail) += NUMERIC[18,4](round(pickingQuantity(internetOrderDetail) * price(internetOrderDetail), currency(internetOrderDetail))); 
+pickingSum (InternetOrderDetail internetOrderDetail) <- calcPickingSum(internetOrderDetail)
+                WHEN DO CHANGED(pickingQuantity(internetOrderDetail)) OR CHANGED (price(internetOrderDetail)) OR CHANGED(currency(internetOrderDetail));
+
+pickingSumInternetOrderDetail 'Сумма (всего) собрано'  = GROUP SUM pickingSum(InternetOrderDetail idetail) BY internetOrder(idetail) IN documentSum MATERIALIZED;
+pickingSumInternetOrderDetail 'Сумма (всего) собрано'  = GROUP SUM pickingSum(InternetOrderDetail idetail) BY picking(idetail) IN documentSum MATERIALIZED;
+pickingQuantityInternetOrderDetail 'Кол-во (всего) собрано'  = GROUP SUM pickingQuantity(InternetOrderDetail idetail) BY picking(idetail) IN documentSum MATERIALIZED;
+
+
+EXTEND FORM internetOrder
+    PROPERTIES (d) pickingQuantity AFTER quantity(d)
+;
+
+EXTEND FORM internetOrders
+    PROPERTIES (d) READONLY pickingQuantity
+;
+overChangeStatus = ACTION ABSTRACT LIST (Picking);
+isOverChangeStatus = ABSTRACT BOOLEAN (Picking);
+
+changeStatus (Picking picking) = {
+    IF NOT isOverChangeStatus(picking) THEN  {      
+        DIALOG statusPicking OBJECTS o = status(picking) INPUT DO {
+            status(picking) <- o;
+   
+        }    
+    } ELSE {
+        overChangeStatus(picking);
+    }
+}
+
+FORM picking 'Комплектация'
+    OBJECTS p = Picking PANEL
+    PROPERTIES (p) nameStock, nameStatus ON CHANGE changeStatus(p),
+                   nameNumerator, number, series, date, time,
+                   note, countInternetOrderDetail, pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail                   
+
+    OBJECTS d = InternetOrderDetail
+    PROPERTIES     in(p, d)
+    PROPERTIES (d) indexPicking 
+    PROPERTIES (d) READONLY nameStatus, idBarcodeSku, idSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) nameBatch ON CHANGE changeBatch(d) , cost READONLY, quantity READONLY    
+    PROPERTIES (d) pickingQuantity SHOWIF showPickingQuantity(p)
+    PROPERTIES (d) READONLY price, discountPrice, pickingSum, nameSupplierStock, 
+                   seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer
+
+    ORDER BY indexPicking(d)                   
+
+    FILTERS picking(d) == p
+
+    EDIT Picking OBJECT p
+;
+
+DESIGN picking {
+
+    main {
+        preferredSize = (1024, 768);
+        NEW specification.box BEFORE functions.box{
+            fill = 1;
+            MOVE d.box {
+                caption = 'Спецификация';
+                d.panel {
+                    type = CONTAINERV;
+                }
+            }
+        }
+
+        NEW header.box BEFORE specification.box {
+            type = CONTAINERH;
+
+            NEW headerRow1 {
+                fill = 1;
+
+                MOVE p.documentHeader {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(nameStock(p));
+                    MOVE PROPERTY(nameNumerator(p));
+                    MOVE PROPERTY(number(p));
+                    MOVE PROPERTY(series(p));
+                    MOVE PROPERTY(date(p));
+                    MOVE PROPERTY(time(p));
+                }
+                MOVE p.documentPrm;
+            }
+                NEW sumContainer {
+                    MOVE p.documentSum {
+                        columns = 1;
+                    }
+                }
+        }
+    }
+}
+
+//pickingQuantity(InternetOrderDetail detail) <- quantity(detail) IF picking(detail)
+//    WHEN (CHANGED(quantity(detail)) OR CHANGED(picking(detail)));
+
+FORM pickings 'Комплектации'
+
+    OBJECTS p = Picking
+    PROPERTIES (p) READONLY nameStatus, number, series, date, time, nameStock, countInternetOrderDetail, pickingQuantityInternetOrderDetail, 
+    pickingSumInternetOrderDetail, seriesNumberInternetOrders
+    PROPERTIES (p) PANEL READONLY createdTime, createdNameUser, createdHostnameComputer  
+    PROPERTIES(p) NEWSESSION NEW, EDIT , deletep = DELETE  
+        
+    OBJECTS d = InternetOrderDetail
+    PROPERTIES (d) READONLY  indexPicking 
+    PROPERTIES (d) READONLY  nameStatus, idBarcodeSku, idSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY  nameBatch, quantity 
+    PROPERTIES (d) READONLY pickingQuantity   
+    PROPERTIES (d) READONLY  price, discountPrice, pickingSum, 
+                   seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer
+    ORDER BY indexPicking(d) 
+    FILTERS picking(d)==p          
+
+    LIST Picking OBJECT p
+;
+DESIGN pickings {
+    NEW documentContainer BEFORE functions.box {
+        type = SPLITV;
+        fill = 1;
+        type = CONTAINERV;
+
+        MOVE p.box { fill = 2; }
+
+        NEW documentDetail {
+            type = TABBED;
+            fill = 2;
+
+            MOVE d.box {
+                caption = 'Спецификация';
+            }
+            NEW documentHistory {
+                fill = 1;
+                caption = 'История';
+                MOVE p.created;
+
+            }
+            NEW printTab {
+                fill = 1;
+                caption = 'Печатные формы';
+                NEW printContainer {
+                    fill = 1;
+                    caption = 'Печать';
+                    type = CONTAINERV;
+                }
+            }
+            NEW actionContainer {
+                fill = 1;
+                caption = 'Действия';
+                type = CONTAINERH;
+                NEW createdContainer {
+                    fill = 1;
+                    caption = 'Создание на основе';
+                    type = CONTAINERV;
+                    //MOVE PROPERTY(copy(p)) { caption = 'Комплектация';}
+                }
+            }
+        }
+    }
+}
+
+
+select 'Отм.' = DATA LOCAL NESTED BOOLEAN (InternetOrder);
+countInternetOrders  = GROUP SUM 1 IF select(InternetOrder o);
+
+createPicking 'Создать комплектацию' (InternetOrder order) = {
+    IF NOT countInternetOrders() THEN {
+        select(order) <- TRUE;
+    } 
+    IF countInternetOrders() THEN  {       
+    
+        NEWSESSION {
+            FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT picking(d) BY supplierStock(d)](Stock stock) NEW p = Picking DO {
+                stock(p) <- stock;
+                FOR supplierStock(InternetOrderDetail detail) == stock AND status(detail) == StatusInternetOrderDetail.assigned 
+                    AND status(internetOrder(detail)) == StatusInternetOrder.agreed
+                    AND NOT picking(detail) AND select(internetOrder(detail)) DO {
+                    
+                        picking(detail) <- p;
+                        IF  isItem(sku(detail)) AND NOT batch(detail) THEN {
+                            batch(detail) <- firstOrderBatchBalance(sku(detail), stock, dateTime(detail), quantity(detail));
+                            overFillBatchPicking(detail);
+                        }                        
+                }
+                SHOW picking OBJECTS p = p MANAGESESSION DOCKED NOCANCEL;
+            }
+            FOR select(InternetOrder o) DO {
+                status(o) <- StatusInternetOrder.isPicking;
+                
+            }
+            apply();
+        }        
+        select(InternetOrder o) <- NULL;
+    } ELSE {
+        MESSAGE 'Вначале необходимо отметить интернет заказы.';
+    }
+}
+costBatch (InternetOrderDetail d) = OVERRIDE cost(batch(d)), cost(lastOrderBatchB(sku(d),supplierStock(d),date(d)));
+articleOriginalSize 'Артикул + размер' (InternetOrderDetail d) = CONCAT '/', idArticle(sku(d)), originalSize(sku(d));
+
+exportedWMS 'Выгружен в WMS' = DATA BOOLEAN (Picking);
+
+
+
+image 'Изображение' (InternetOrderDetail detail) = image(sku(detail));
+idGroup 'Код группы' (InternetOrderDetail detail) = id(skuGroup(sku(detail)));
+
+FORM pickingPrint 'Комплектация'
+                      
+    OBJECTS p = Picking PANEL  
+            
+    OBJECTS pd = InternetOrderDetail
+    PROPERTIES (pd) READONLY indexPicking, costBatch, seriesNumber, number, articleOriginalSize, quantity, discountPrice, 
+                             nameInternetCustomer, addressInternetCustomer, nameSku, image, cityInternetCustomer, 
+                             numberDiscountCard, idGroup 
+    ORDER BY indexPicking(pd) 
+    FILTERS picking(pd)==p                                
+;
+pickingPrint 'Комплектация (xlsx)' (Picking p) = {
+	NEWSESSION {
+	    PRINT pickingPrint OBJECTS p=p XLSX;
+	    exportedWMS(p) <- TRUE;
+	    apply();
+	}
+}
+filterDashboard = GROUP SUM 1 IF status(InternetOrderDetail detail) == StatusInternetOrderDetail.assigned AND 
+    status(internetOrder(detail)) == StatusInternetOrder.agreed AND NOT picking(detail)  
+    BY internetOrder(detail);
+
+FORM pickingDashboard 'Комплектации'
+
+//    OBJECTS dt = DATE PANEL 
+//    PROPERTIES (dt) val = VALUE 
+    
+    OBJECTS o = InternetOrder LAST 
+    PROPERTIES (o) select
+    PROPERTIES (o) READONLY isPosted, nameStatus, 
+                   nameNumerator, number, series, date, time, nameCurrency, note,
+                   deliveryDate, supplierStocks, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer
+    PROPERTIES (o) READONLY countInternetOrderDetail, quantityInternetOrderDetail, sumInternetOrderDetail
+                  
+    PROPERTIES (o) READONLY namePaymentTypeInternetOrder, paymentCashSumInternetOrder, paymentCardSumInternetOrder, paymentERIPSumInternetOrder, paymentDateInternetOrder,
+                   numberPaymentDocumentInternetOrder, deliverySumInternetOrder, deliveryTimeFromInternetOrder, deliveryTimeToInternetOrder
+    FILTERS filterDashboard(o)       
+    PROPERTIES createPicking(o) TOOLBAR           
+                   
+    OBJECTS d = InternetOrderDetail
+    PROPERTIES (d) READONLY index
+    PROPERTIES (d) READONLY nameStatus, idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameBatch, quantity, 
+                   price, discountPrice, sum, nameSupplierStock,
+                   seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer
+    ORDER BY index(d)
+    FILTERS internetOrder(d) == o 
+                      
+    OBJECTS p = Picking LAST
+    PROPERTIES (p) READONLY exportedWMS, nameStatus, number, series, date, time, nameStock, countInternetOrderDetail, 
+                   pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail, seriesNumberInternetOrders
+    PROPERTIES (p) PANEL READONLY createdTime, createdNameUser, createdHostnameComputer  
+    PROPERTIES (p) NEWSESSION NEW, EDIT, DELETE  
+           
+    OBJECTS pd = InternetOrderDetail
+    PROPERTIES (pd) READONLY indexPicking 
+    PROPERTIES (pd) READONLY nameStatus, idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameBatch, quantity
+    PROPERTIES (pd) READONLY pickingQuantity 
+    PROPERTIES (pd) READONLY price, discountPrice, pickingSum,  
+                    seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer, nameSupplierStock
+    ORDER BY indexPicking(pd) 
+    FILTERS picking(pd)==p       
+          
+    PROPERTIES (p) pickingPrint TOOLBAR TODRAW pd
+                  
+//    FILTERGROUP filters1 FILTER 'На дату' date(o)<=dt 'F5' DEFAULT 
+//    FILTERGROUP filters2 FILTER 'На дату' date(p)==dt 'F5' DEFAULT
+                   
+;
+DESIGN pickingDashboard {
+    main {
+        NEW top {
+            fill = 1;
+            NEW top1{
+                type = CONTAINERH;
+//                MOVE dt.box;
+            }
+            NEW body {
+                fill = 1;
+                type = SPLITV;
+                MOVE o.box;
+                NEW specification {
+                    type = TABBED ;
+                    fill = 2;
+                    NEW specPick{
+                        caption = 'Комплектации';
+                        fill = 1;
+                        type = SPLITH;
+                        MOVE p.box;
+                        MOVE pd.box;//{ fill = 2;}
+                    }
+                    MOVE d.box{ caption ='Спецификация интернет заказа';}
+                }
+            }
+        }
+        MOVE functions.box;
+    }    
+}
+
+NAVIGATOR {
+    eShop  {
+        ADD pickingDashboard;
+    }
+}
+
+setPickedStatus (InternetOrderDetail d) = {
+    status(d) <- StatusInternetOrderDetail.picked WHERE quantity(d) > 0.0 AND quantity(d) == pickingQuantity(d);
+//    status(d) <- StatusInternetOrderDetail.partlyPicked WHERE  (quantity(d) > pickingQuantity(d)) AND (pickingQuantity(d) != 0.0);
+    status(d) <- StatusInternetOrderDetail.notAvailable WHERE  quantity(d) AND ( pickingQuantity(d)==0.0 OR NOT pickingQuantity(d));
+    
+    status(InternetOrder o) <- StatusInternetOrder.picked                                    
+            WHERE internetOrder(d) == o AND quantityInternetOrderDetail(o) == pickingQuantityInternetOrderDetail(o);
+}
+WHEN CHANGED (pickingQuantity(InternetOrderDetail d)) DO {
+    setPickedStatus(d);
+}
+
+WHEN DROPPED(picking(InternetOrderDetail d)) DO {
+    status(InternetOrder o) <- StatusInternetOrder.agreed WHERE o == internetOrder(d);
+    status(d) <- StatusInternetOrderDetail.assigned;
+}
+
+CONSTRAINT DROPPED(InternetOrderDetail detail IS InternetOrderDetail) AND PREV(picking(detail))
+    MESSAGE 'Нельзя удалять строки ИЗ включенные в комплектацию';
+    
