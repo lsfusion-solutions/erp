@@ -45,11 +45,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                 Class.forName("com.mysql.jdbc.Driver");
 
-                EQSSettings EQSSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
-                String connectionString = EQSSettings == null ? null : EQSSettings.getConnectionString(); //"jdbc:mysql://192.168.42.42/eqs"
-                String user = EQSSettings == null ? null : EQSSettings.getUser(); //"root";
-                String password = EQSSettings == null ? null : EQSSettings.getPassword(); //""
-
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
                     String directory = null;
@@ -58,7 +53,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             directory = cashRegister.directory;
                         }
                     }
-                    EQSConnectionString params = new EQSConnectionString(directory, connectionString, user, password);
+                    EQSConnectionString params = new EQSConnectionString(directory);
 
                     if (params.connectionString == null) {
                         processTransactionLogger.error(logPrefix + "No connectionString in EQSSettings found");
@@ -131,12 +126,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
             for (String directory : directorySet) {
 
-                EQSSettings EQSSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
-                String connectionString = EQSSettings == null ? null : EQSSettings.getConnectionString();
-                String user = EQSSettings == null ? null : EQSSettings.getUser();
-                String password = EQSSettings == null ? null : EQSSettings.getPassword();
-
-                EQSConnectionString params = new EQSConnectionString(directory, connectionString, user, password);
+                EQSConnectionString params = new EQSConnectionString(directory);
 
                 if (params.connectionString != null) {
                     Connection conn = null;
@@ -200,13 +190,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         try {
 
             Class.forName("com.mysql.jdbc.Driver");
-
-            EQSSettings EQSSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
-            String connectionString = EQSSettings == null ? null : EQSSettings.getConnectionString();
-            String user = EQSSettings == null ? null : EQSSettings.getUser();
-            String password = EQSSettings == null ? null : EQSSettings.getPassword();
-
-            EQSConnectionString params = new EQSConnectionString(directory, connectionString, user, password);
+            EQSConnectionString params = new EQSConnectionString(directory);
 
             if (params.connectionString == null) {
                 processTransactionLogger.error(logPrefix + "No connectionString in EQSSettings found");
@@ -350,11 +334,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
                                  Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
-        EQSSettings EQSSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
-        String connectionString = EQSSettings == null ? null : EQSSettings.getConnectionString();
-        String user = EQSSettings == null ? null : EQSSettings.getUser();
-        String password = EQSSettings == null ? null : EQSSettings.getPassword();
-
         for (RequestExchange entry : requestExchangeList) {
             Connection conn = null;
             Statement statement = null;
@@ -364,7 +343,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     for (String directory : entry.directoryStockMap.keySet()) {
                         if (directorySet.contains(directory)) {
 
-                            EQSConnectionString params = new EQSConnectionString(directory, connectionString, user, password);
+                            EQSConnectionString params = new EQSConnectionString(directory);
                             if (params.connectionString != null) {
 
                                 conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
@@ -401,14 +380,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     @Override
     public void finishReadingSalesInfo(EQSSalesBatch salesBatch) {
 
-        EQSSettings EQSSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
-        String connectionString = EQSSettings == null ? null : EQSSettings.getConnectionString();
-        String user = EQSSettings == null ? null : EQSSettings.getUser();
-        String password = EQSSettings == null ? null : EQSSettings.getPassword();
-
         for(String directory : salesBatch.directorySet) {
 
-            EQSConnectionString params = new EQSConnectionString(directory, connectionString, user, password);
+            EQSConnectionString params = new EQSConnectionString(directory);
 
             if (params.connectionString != null && salesBatch.readRecordSet != null) {
 
