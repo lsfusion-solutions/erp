@@ -1,0 +1,86 @@
+MODULE SaleInternetOrderDetail;
+
+REQUIRE SaleInternetOrder;
+
+NAMESPACE Sale;
+
+CLASS StatusInternetOrderDetail 'Статус' {
+    new 'Новый',
+    picked 'Собрано',
+//    partlyPicked 'Частично собран', убрал по просьбе MC
+    notAvailable 'Нет в наличии',
+    assigned 'Назначено',
+    canceled 'Отмена покупателем после доставки',
+    delivery 'Доставка',
+    delivered 'Доставлен',
+    return 'Возврат через магазин',
+    completed 'Завершен',
+    closed 'Отмена покупателем до доставки'
+}
+
+order 'Порядок' = DATA INTEGER (StatusInternetOrderDetail);
+
+FORM statusInternetOrderDetail 'Статус'
+    OBJECTS o = StatusInternetOrderDetail
+    PROPERTIES(o) READONLY staticCaption, order
+    ORDER BY order(o)
+    
+    LIST StatusInternetOrderDetail OBJECT o 
+;    
+
+DESIGN statusInternetOrderDetail {
+    PROPERTY(order(o)){
+        hide = TRUE;
+    }
+}
+
+status = DATA StatusInternetOrderDetail (InternetOrderDetail);
+status (InternetOrderDetail d) <- StatusInternetOrderDetail.new WHEN SET(d IS InternetOrderDetail);
+nameStatus 'Статус' (InternetOrderDetail d) = staticCaption(status(d));
+
+isNew(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.new;
+isPicked(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.picked;
+//isPartlyPicked(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.partlyPicked;
+isNotAvailable(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.notAvailable;
+isAssigned(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.assigned;
+isCanceled(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.canceled;
+
+// События по изменению статусов
+
+WHEN LOCAL SET(supplierStock(InternetOrderDetail d)) DO
+    status(d) <- StatusInternetOrderDetail.assigned;
+WHEN LOCAL DROPPED(supplierStock(InternetOrderDetail d)) DO
+    status(d) <- StatusInternetOrderDetail.new;
+
+WHEN SET([= GROUP SUM 1 IF status(InternetOrderDetail d) == StatusInternetOrderDetail.new BY internetOrder(d)](InternetOrder o)) DO
+    status(o) <- StatusInternetOrder.new;
+  
+countCompletedDetail = GROUP SUM 1 IF status(InternetOrderDetail d) == StatusInternetOrderDetail.notAvailable OR 
+                                              status(d) == StatusInternetOrderDetail.canceled OR 
+                                              status(d) == StatusInternetOrderDetail.completed 
+                              BY internetOrder(d);  
+                              
+CONSTRAINT isPicked(InternetOrderDetail d) AND NOT supplierStock(d) OR 
+           isAssigned(d) AND NOT supplierStock(d) MESSAGE 'Должен быть выбран склад поставщика';
+                             
+EXTEND FORM internetOrder
+    PROPERTIES (d) BACKGROUND background(d) nameStatus
+;
+EXTEND FORM internetOrders
+    PROPERTIES (d) READONLY BACKGROUND background(d) nameStatus
+;
+
+EXTEND FORM internetCatalogs
+    OBJECTS siod = StatusInternetOrderDetail
+    PROPERTIES(siod) staticCaption READONLY, order    
+;
+DESIGN internetCatalogs {
+    tabContainer {
+        type = TABBED;
+        MOVE siod.box{
+            caption = 'Статусы строки интернет заказа';
+        }
+    }
+    MOVE functions.box;
+}
+

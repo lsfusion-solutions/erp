@@ -1,0 +1,34 @@
+MODULE SaleInternetPickingDetail;
+
+REQUIRE SaleInternetPicking, SaleInternetOrderDetail;
+
+NAMESPACE Sale;
+
+EXTEND FORM picking 
+    PROPERTIES (d) READONLY nameStatus BEFORE idBarcodeSku(d)
+;
+EXTEND FORM pickings 
+    PROPERTIES (d) READONLY nameStatus BEFORE idBarcodeSku(d)
+;
+EXTEND FORM pickingDashboard
+    PROPERTIES (d) READONLY nameStatus BEFORE idBarcodeSku(d) 
+    PROPERTIES (pd) READONLY nameStatus BEFORE idBarcodeSku(pd) 
+;
+
+setPickedStatus (InternetOrderDetail d) = {
+    status(d) <- StatusInternetOrderDetail.picked WHERE quantity(d) > 0.0 AND quantity(d) == pickingQuantity(d);
+//    status(d) <- StatusInternetOrderDetail.partlyPicked WHERE  (quantity(d) > pickingQuantity(d)) AND (pickingQuantity(d) != 0.0);
+    status(d) <- StatusInternetOrderDetail.notAvailable WHERE  quantity(d) AND ( pickingQuantity(d)==0.0 OR NOT pickingQuantity(d));
+    
+    status(InternetOrder o) <- StatusInternetOrder.picked                                    
+            WHERE internetOrder(d) == o AND quantityInternetOrderDetail(o) == pickingQuantityInternetOrderDetail(o);
+}
+WHEN CHANGED (pickingQuantity(InternetOrderDetail d)) DO {
+    setPickedStatus(d);
+}
+
+WHEN DROPPED(picking(InternetOrderDetail d)) DO {
+    status(InternetOrder o) <- StatusInternetOrder.agreed WHERE o == internetOrder(d);
+    status(d) <- StatusInternetOrderDetail.assigned;
+    pickingQuantity(d) <- NULL;
+}

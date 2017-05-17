@@ -40,49 +40,12 @@ status(InternetOrder o) <- StatusInternetOrder.new WHEN SET(o IS InternetOrder);
 isAgreed(InternetOrder o) = status(o) == StatusInternetOrder.agreed;
 
 
-CLASS StatusInternetOrderDetail 'Статус' {
-    new 'Новый',
-    picked 'Собрано',
-//    partlyPicked 'Частично собран', убрал по просьбе MC
-    notAvailable 'Нет в наличии',
-    assigned 'Назначено',
-    canceled 'Отмена покупателем после доставки',
-    delivery 'Доставка',
-    delivered 'Доставлен',
-    return 'Возврат через магазин',
-    completed 'Завершен',
-    closed 'Отмена покупателем до доставки'
-}
 
-order 'Порядок' = DATA INTEGER (StatusInternetOrderDetail);
-
-FORM statusInternetOrderDetail 'Статус'
-    OBJECTS o = StatusInternetOrderDetail
-    PROPERTIES(o) READONLY staticCaption, order
-    ORDER BY order(o)
-    
-    LIST StatusInternetOrderDetail OBJECT o 
-;    
-
-DESIGN statusInternetOrderDetail {
-    PROPERTY(order(o)){
-        hide = TRUE;
-    }
-}
 
 CLASS InternetOrder 'Интернет-заказ';
 CLASS InternetOrderDetail 'Строка интернет-заказа';
 
-status = DATA StatusInternetOrderDetail (InternetOrderDetail);
-status (InternetOrderDetail d) <- StatusInternetOrderDetail.new WHEN SET(d IS InternetOrderDetail);
-nameStatus 'Статус' (InternetOrderDetail d) = staticCaption(status(d));
 
-isNew(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.new;
-isPicked(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.picked;
-//isPartlyPicked(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.partlyPicked;
-isNotAvailable(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.notAvailable;
-isAssigned(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.assigned;
-isCanceled(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.canceled;
 
 @defineExternalizable(internetOrder, VARSTRING[100]);
 
@@ -114,7 +77,8 @@ isCanceled(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.cance
 
 supplierStock (InternetOrderDetail idetail) = DATA Stock(InternetOrderDetail);
 nameSupplierStock 'Склад поставщика' (InternetOrderDetail idetail) = name(supplierStock(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-fullNameSupplierStock 'Склад поставщика' (InternetOrderDetail idetail) = fullName(supplierStock(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;         
+fullNameSupplierStock 'Склад поставщика' (InternetOrderDetail idetail) = fullName(supplierStock(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;      
+addressSupplierStock 'Адрес' (InternetOrderDetail idetail) = address(supplierStock(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;       
 countrySupplierStock (InternetOrderDetail idetail) = country(supplierStock(idetail));
 legalEntitySupplierStock (InternetOrderDetail idetail) = legalEntity(supplierStock(idetail));
 
@@ -130,22 +94,7 @@ changeSupplierStock(InternetOrderDetail o) = {
 selectSupplierStock 'Выбрать' (InternetOrderDetail d, Stock s) = {
     supplierStock(d) <- s;
 } TOOLBAR;
-
-
-// События по изменению статусов
-
-WHEN LOCAL SET(supplierStock(InternetOrderDetail d)) DO
-    status(d) <- StatusInternetOrderDetail.assigned;
-WHEN LOCAL DROPPED(supplierStock(InternetOrderDetail d)) DO
-    status(d) <- StatusInternetOrderDetail.new;
-
-WHEN SET([= GROUP SUM 1 IF status(InternetOrderDetail d) == StatusInternetOrderDetail.new BY internetOrder(d)](InternetOrder o)) DO
-    status(o) <- StatusInternetOrder.new;
-  
-countCompletedDetail = GROUP SUM 1 IF status(InternetOrderDetail d) == StatusInternetOrderDetail.notAvailable OR 
-                                              status(d) == StatusInternetOrderDetail.canceled OR 
-                                              status(d) == StatusInternetOrderDetail.completed 
-                              BY internetOrder(d);                                    
+                                 
      
 @defineDocumentHeaderNote(InternetOrder);
 
@@ -252,6 +201,7 @@ addressInternetCustomer 'Адрес доставки' = DATA VARSTRING[400] (Int
 
 phoneInternetCustomer 'Телефон покупателя' = DATA VARSTRING[100] (InternetOrder) PREFCHARWIDTH 50 MAXCHARWIDTH 70;
 //phoneInternetCustomer(InternetOrder o) <- phoneLegalEntity(discountCard(o)) WHEN SET(discountCard(o)) AND phoneLegalEntity(discountCard(o));
+emailCustomer 'e-mail' = DATA VARSTRING[255] (InternetOrder) PREFCHARWIDTH 50 MAXCHARWIDTH 70;
 
 nameInternetCustomer 'Покупатель интернет магазина' (InternetOrderDetail d) = nameInternetCustomer(internetOrder(d)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
 cityInternetCustomer 'Город доставки' (InternetOrderDetail d) = cityInternetCustomer(internetOrder(d)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
@@ -303,10 +253,6 @@ WHEN SET(imported(InternetOrder o)) AND NOT deliveryTimeFromInternetOrder(o) DO 
 WHEN SET(imported(InternetOrder o)) AND NOT deliveryTimeToInternetOrder(o) DO {
     deliveryTimeToInternetOrder(o) <- 21:00;
 }
-
-
-CONSTRAINT isPicked(InternetOrderDetail d) AND NOT supplierStock(d) OR 
-           isAssigned(d) AND NOT supplierStock(d) MESSAGE 'Должен быть выбран склад поставщика';
            
 isPrepayment (InternetOrder o) = paymentTypeInternetOrder(o) == PaymentTypeInternetOrder.prepayment;          
 isInFact (InternetOrder o) = paymentTypeInternetOrder(o) == PaymentTypeInternetOrder.inFact;          
@@ -316,7 +262,7 @@ FORM internetOrder 'Интернет-заказ'
     OBJECTS o = InternetOrder PANEL
     PROPERTIES (o) isPosted, nameStatus, 
                    nameNumerator, number, series, date, time, nameCurrency, note,
-                   deliveryDate, numberDiscountCard, issueCard, nameInternetCustomer, addressInternetCustomer, cityInternetCustomer, phoneInternetCustomer
+                   deliveryDate, numberDiscountCard, issueCard, nameInternetCustomer, addressInternetCustomer, cityInternetCustomer, phoneInternetCustomer, emailCustomer
     PROPERTIES (o) READONLY countInternetOrderDetail, quantityInternetOrderDetail, sumInternetOrderDetail, discountSumInternetOrderDetail BACKGROUND backgroundDiscount(o)
     
     PROPERTIES (o) namePaymentTypeInternetOrder, paymentCashSumInternetOrder, paymentCardSumInternetOrder, paymentERIPSumInternetOrder, paymentDateInternetOrder,
@@ -328,7 +274,7 @@ FORM internetOrder 'Интернет-заказ'
                    price, discountPrice BACKGROUND backgroundDiscount(o) ON CHANGE changeDiscountPrice(d), 
                    discountPercent BACKGROUND backgroundDiscount(o) ON CHANGE changeDiscountPercent(d),
                    sum, discountSum READONLY BACKGROUND backgroundDiscount(o),
-                   nameSupplierStock ON CHANGE changeSupplierStock(d), nameStatus
+                   nameSupplierStock ON CHANGE changeSupplierStock(d)
                    
     PROPERTIES (d)  NEW, deleteod = DELETE
                    
@@ -386,7 +332,8 @@ DESIGN internetOrder {
                     MOVE PROPERTY(numberDiscountCard(o));
                     MOVE PROPERTY(issueCard(o));
                     MOVE PROPERTY(nameInternetCustomer(o));
-                    MOVE PROPERTY(phoneInternetCustomer(o));   
+                    MOVE PROPERTY(phoneInternetCustomer(o));
+                    MOVE PROPERTY(emailCustomer(o));   
                     MOVE PROPERTY(cityInternetCustomer(o));                 
                     MOVE PROPERTY(addressInternetCustomer(o));
                     MOVE PROPERTY(deliveryDate(o));
@@ -520,7 +467,8 @@ FORM internetOrders 'Интернет-заказы'
     PROPERTIES (o) READONLYIF isReadonly() isClosed
     PROPERTIES (o) READONLYIF isReadonly() isPosted, nameStatus, number, series, date, time
     PROPERTIES (o) READONLYIF isReadonly() nameCurrency,
-                                           deliveryDate, numberDiscountCard, issueCard, nameInternetCustomer, cityInternetCustomer, addressInternetCustomer, phoneInternetCustomer
+                                           deliveryDate, numberDiscountCard, issueCard, nameInternetCustomer, cityInternetCustomer, 
+                                           addressInternetCustomer, phoneInternetCustomer, emailCustomer
     PROPERTIES (o) READONLY countInternetOrderDetail, quantityInternetOrderDetail, sumInternetOrderDetail, 
                             discountSumInternetOrderDetail BACKGROUND backgroundDiscount(o), note
     PROPERTIES (o) READONLY namePaymentTypeInternetOrder, paymentCashSumInternetOrder, paymentCardSumInternetOrder, paymentERIPSumInternetOrder, paymentDateInternetOrder,
@@ -539,7 +487,7 @@ FORM internetOrders 'Интернет-заказы'
     PROPERTIES (d) READONLY BACKGROUND background(d) index, idBarcodeSku, idSku, nameSku, shortNameUOMSku
     PROPERTIES (d) READONLY BACKGROUND background(d) quantity, price, discountPrice BACKGROUND backgroundDiscount(o), 
                                                      discountPercent  BACKGROUND backgroundDiscount(o), sum, 
-                                                     discountSum BACKGROUND backgroundDiscount(o), nameSupplierStock, nameStatus
+                                                     discountSum BACKGROUND backgroundDiscount(o), nameSupplierStock
     ORDER BY index(d)
 
     FILTERS internetOrder(d) == o                          
@@ -617,21 +565,14 @@ DESIGN options {
 
 FORM internetCatalogs 'Справочники интернет магазина'
     OBJECTS sio = StatusInternetOrder
-    PROPERTIES(sio) name, order, staticCaption READONLY 
-    
-    OBJECTS siod = StatusInternetOrderDetail
-    PROPERTIES(siod) staticCaption READONLY, order    
+    PROPERTIES(sio) name, order, staticCaption READONLY     
 ;
 
 DESIGN internetCatalogs {
-    NEW tabContainer {
-        type = TABBED;
+    NEW tabContainer {        
         fill = 1;
         MOVE sio.box{
             caption = 'Статусы интернет заказа';
-        }
-        MOVE siod.box{
-            caption = 'Статусы строки интернет заказа';
         }
     }
     MOVE functions.box;
@@ -681,3 +622,51 @@ EXTEND FORM internetOrder
     PROPERTIES (d) AFTER shortNameUOMSku(d) BACKGROUND background(d) nameBatch ON CHANGE changeBatch(d)
 ;
 EXTEND FORM internetOrders PROPERTIES (d) READONLY AFTER shortNameUOMSku(d) nameBatch BACKGROUND background(d);
+
+in = DATA LOCAL BOOLEAN (InternetOrder);
+skip = DATA LOCAL BOOLEAN (InternetOrderDetail);
+full 'Количество из заказа' = DATA LOCAL BOOLEAN();
+
+diffDiscountSum 'Сумма скидки' (InternetOrderDetail d) = sum(d) (-) discountSum(d);
+
+FORM  internetOrderPrint 'Интернет-заказ'
+    OBJECTS o = InternetOrder
+    PROPERTIES (o) isPosted, nameStatus, shortNameCurrency,
+                   nameNumerator, seriesNumber, number, series, date, time, nameCurrency, note,
+                   deliveryDate, numberDiscountCard, issueCard, nameInternetCustomer, addressInternetCustomer, cityInternetCustomer, phoneInternetCustomer, emailCustomer
+    PROPERTIES () full              
+    PROPERTIES (o) READONLY countInternetOrderDetail, quantityInternetOrderDetail, sumInternetOrderDetail, discountSumInternetOrderDetail BACKGROUND backgroundDiscount(o)
+    
+    PROPERTIES (o) namePaymentTypeInternetOrder, paymentCashSumInternetOrder, paymentCardSumInternetOrder, paymentERIPSumInternetOrder, paymentDateInternetOrder,
+                   numberPaymentDocumentInternetOrder, deliverySumInternetOrder, deliveryTimeFromInternetOrder, deliveryTimeToInternetOrder, customerComment
+    
+    FILTERS in(o)
+    
+    OBJECTS d=InternetOrderDetail
+    PROPERTIES (d) READONLY  index, idBarcodeSku, idSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY quantity, price, discountPrice, discountPercent, sum, discountSum, diffDiscountSum, fullNameSupplierStock, nameSupplierStock, addressSupplierStock
+                
+    ORDER BY index(d)
+
+    FILTERS internetOrder(d) == o,
+            NOT skip(d)   
+
+;
+internetOrderPrint 'Печать' (InternetOrder o) = {
+    in(InternetOrder order) <- NULL;
+    skip(InternetOrderDetail d) <- NULL;   
+     
+    full() <- TRUE ;   
+    in(o) <- TRUE;    
+     
+    PRINT internetOrderPrint;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM internetOrders
+    PROPERTIES (o) internetOrderPrint
+;
+DESIGN internetOrders {
+    printContainer {
+        MOVE PROPERTY (internetOrderPrint(o));
+    }
+}

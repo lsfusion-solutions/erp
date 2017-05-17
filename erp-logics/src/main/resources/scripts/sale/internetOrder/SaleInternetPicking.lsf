@@ -126,7 +126,7 @@ FORM picking 'Комплектация'
     OBJECTS d = InternetOrderDetail
     PROPERTIES     in(p, d)
     PROPERTIES (d) indexPicking 
-    PROPERTIES (d) READONLY nameStatus, idBarcodeSku, idSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY idBarcodeSku, idSku, nameSku, shortNameUOMSku
     PROPERTIES (d) nameBatch ON CHANGE changeBatch(d) , cost READONLY, quantity READONLY    
     PROPERTIES (d) pickingQuantity SHOWIF showPickingQuantity(p)
     PROPERTIES (d) READONLY price, discountPrice, pickingSum, nameSupplierStock, 
@@ -192,9 +192,9 @@ FORM pickings 'Комплектации'
         
     OBJECTS d = InternetOrderDetail
     PROPERTIES (d) READONLY  indexPicking 
-    PROPERTIES (d) READONLY  nameStatus, idBarcodeSku, idSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY  idBarcodeSku, idSku, nameSku, shortNameUOMSku
     PROPERTIES (d) READONLY  nameBatch, quantity 
-    PROPERTIES (d) READONLY pickingQuantity   
+    PROPERTIES (d) READONLY  pickingQuantity   
     PROPERTIES (d) READONLY  price, discountPrice, pickingSum, 
                    seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer
     ORDER BY indexPicking(d) 
@@ -251,6 +251,14 @@ DESIGN pickings {
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (InternetOrder);
 countInternetOrders  = GROUP SUM 1 IF select(InternetOrder o);
 
+skipFilter = ABSTRACT BOOLEAN (InternetOrderDetail);
+
+filterDashboard (InternetOrderDetail detail)= select(internetOrder(detail)) AND status(internetOrder(detail)) == StatusInternetOrder.agreed  
+    AND NOT picking(detail) AND NOT skipFilter(detail);
+    
+filterDashboard = GROUP SUM 1 IF status(internetOrder(InternetOrderDetail detail)) == StatusInternetOrder.agreed AND NOT picking(detail) AND NOT skipFilter(detail)  
+    BY internetOrder(detail);
+    
 createPicking 'Создать комплектацию' (InternetOrder order) = {
     IF NOT countInternetOrders() THEN {
         select(order) <- TRUE;
@@ -260,9 +268,7 @@ createPicking 'Создать комплектацию' (InternetOrder order) = 
         NEWSESSION {
             FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT picking(d) BY supplierStock(d)](Stock stock) NEW p = Picking DO {
                 stock(p) <- stock;
-                FOR supplierStock(InternetOrderDetail detail) == stock AND status(detail) == StatusInternetOrderDetail.assigned 
-                    AND status(internetOrder(detail)) == StatusInternetOrder.agreed
-                    AND NOT picking(detail) AND select(internetOrder(detail)) DO {
+                FOR supplierStock(InternetOrderDetail detail) == stock AND filterDashboard(detail) DO {
                     
                         picking(detail) <- p;
                         IF  isItem(sku(detail)) AND NOT batch(detail) THEN {
@@ -283,37 +289,7 @@ createPicking 'Создать комплектацию' (InternetOrder order) = 
         MESSAGE 'Вначале необходимо отметить интернет заказы.';
     }
 }
-costBatch (InternetOrderDetail d) = OVERRIDE cost(batch(d)), cost(lastOrderBatchB(sku(d),supplierStock(d),date(d)));
-articleOriginalSize 'Артикул + размер' (InternetOrderDetail d) = CONCAT '/', idArticle(sku(d)), originalSize(sku(d));
 
-exportedWMS 'Выгружен в WMS' = DATA BOOLEAN (Picking);
-
-
-
-image 'Изображение' (InternetOrderDetail detail) = image(sku(detail));
-idGroup 'Код группы' (InternetOrderDetail detail) = id(skuGroup(sku(detail)));
-
-FORM pickingPrint 'Комплектация'
-                      
-    OBJECTS p = Picking PANEL  
-            
-    OBJECTS pd = InternetOrderDetail
-    PROPERTIES (pd) READONLY indexPicking, costBatch, seriesNumber, number, articleOriginalSize, quantity, discountPrice, 
-                             nameInternetCustomer, addressInternetCustomer, nameSku, image, cityInternetCustomer, 
-                             numberDiscountCard, idGroup 
-    ORDER BY indexPicking(pd) 
-    FILTERS picking(pd)==p                                
-;
-pickingPrint 'Комплектация (xlsx)' (Picking p) = {
-	NEWSESSION {
-	    PRINT pickingPrint OBJECTS p=p XLSX;
-	    exportedWMS(p) <- TRUE;
-	    apply();
-	}
-}
-filterDashboard = GROUP SUM 1 IF status(InternetOrderDetail detail) == StatusInternetOrderDetail.assigned AND 
-    status(internetOrder(detail)) == StatusInternetOrder.agreed AND NOT picking(detail)  
-    BY internetOrder(detail);
 
 FORM pickingDashboard 'Комплектации'
 
@@ -334,28 +310,28 @@ FORM pickingDashboard 'Комплектации'
                    
     OBJECTS d = InternetOrderDetail
     PROPERTIES (d) READONLY index
-    PROPERTIES (d) READONLY nameStatus, idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameBatch, quantity, 
+    PROPERTIES (d) READONLY idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameBatch, quantity, 
                    price, discountPrice, sum, nameSupplierStock,
                    seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer
     ORDER BY index(d)
     FILTERS internetOrder(d) == o 
                       
     OBJECTS p = Picking LAST
-    PROPERTIES (p) READONLY exportedWMS, nameStatus, number, series, date, time, nameStock, countInternetOrderDetail, 
+    PROPERTIES (p) READONLY nameStatus, number, series, date, time, nameStock, countInternetOrderDetail, 
                    pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail, seriesNumberInternetOrders
     PROPERTIES (p) PANEL READONLY createdTime, createdNameUser, createdHostnameComputer  
     PROPERTIES (p) NEWSESSION NEW, EDIT, DELETE  
            
     OBJECTS pd = InternetOrderDetail
     PROPERTIES (pd) READONLY indexPicking 
-    PROPERTIES (pd) READONLY nameStatus, idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameBatch, quantity
+    PROPERTIES (pd) READONLY idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameBatch, quantity
     PROPERTIES (pd) READONLY pickingQuantity 
     PROPERTIES (pd) READONLY price, discountPrice, pickingSum,  
                     seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer, nameSupplierStock
     ORDER BY indexPicking(pd) 
     FILTERS picking(pd)==p       
           
-    PROPERTIES (p) pickingPrint TOOLBAR TODRAW pd
+    
                   
 //    FILTERGROUP filters1 FILTER 'На дату' date(o)<=dt 'F5' DEFAULT 
 //    FILTERGROUP filters2 FILTER 'На дату' date(p)==dt 'F5' DEFAULT
@@ -397,23 +373,32 @@ NAVIGATOR {
     }
 }
 
-setPickedStatus (InternetOrderDetail d) = {
-    status(d) <- StatusInternetOrderDetail.picked WHERE quantity(d) > 0.0 AND quantity(d) == pickingQuantity(d);
-//    status(d) <- StatusInternetOrderDetail.partlyPicked WHERE  (quantity(d) > pickingQuantity(d)) AND (pickingQuantity(d) != 0.0);
-    status(d) <- StatusInternetOrderDetail.notAvailable WHERE  quantity(d) AND ( pickingQuantity(d)==0.0 OR NOT pickingQuantity(d));
-    
-    status(InternetOrder o) <- StatusInternetOrder.picked                                    
-            WHERE internetOrder(d) == o AND quantityInternetOrderDetail(o) == pickingQuantityInternetOrderDetail(o);
-}
-WHEN CHANGED (pickingQuantity(InternetOrderDetail d)) DO {
-    setPickedStatus(d);
-}
-
-WHEN DROPPED(picking(InternetOrderDetail d)) DO {
-    status(InternetOrder o) <- StatusInternetOrder.agreed WHERE o == internetOrder(d);
-    status(d) <- StatusInternetOrderDetail.assigned;
-}
-
 CONSTRAINT DROPPED(InternetOrderDetail detail IS InternetOrderDetail) AND PREV(picking(detail))
     MESSAGE 'Нельзя удалять строки ИЗ включенные в комплектацию';
     
+discountSumPicking(InternetOrderDetail d) = NUMERIC[18,4](round(pickingQuantity(d) * discountPrice(d), currency(d))); 
+diffDiscountSumPicking(InternetOrderDetail d) = pickingSum(d) (-) discountSumPicking(d);
+
+EXTEND FORM internetOrderPrint
+    PROPERTIES (d) discountSumPicking, diffDiscountSumPicking, pickingSum, pickingQuantity
+    
+;
+internetOrderPickingPrint 'Печать (собрано)' (InternetOrder o) = {
+    in(InternetOrder order) <- NULL;
+    skip(InternetOrderDetail d) <- NULL;   
+     
+    full() <- NULL ;   
+    in(o) <- TRUE;    
+    skip(InternetOrderDetail d) <- TRUE WHERE NOT pickingQuantity(d) AND in(internetOrder(d));
+     
+    PRINT internetOrderPrint;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM internetOrders
+    PROPERTIES (o) internetOrderPickingPrint
+;
+DESIGN internetOrders {
+    printContainer {
+        MOVE PROPERTY (internetOrderPickingPrint(o));
+    }
+}
