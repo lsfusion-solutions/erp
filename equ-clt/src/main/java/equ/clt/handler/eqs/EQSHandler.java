@@ -16,8 +16,11 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static equ.clt.handler.HandlerUtils.trim;
+
 public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
+    protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
@@ -92,12 +95,12 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                 " cancelled=VALUES(cancelled), updecr=VALUES(updecr)");
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
-                    ps.setString(1, HandlerUtils.trim(item.idDepartmentStore, 10)); //store, код торговой точки
-                    ps.setString(2, HandlerUtils.trim(item.idBarcode, 20)); //barcode, Штрих-код товара
-                    ps.setString(3, HandlerUtils.trim(item.idItem, 20)); //art, Артикул
-                    ps.setString(4, HandlerUtils.trim(item.name, 50)); //description, Наименование товара
+                    ps.setString(1, trim(item.idDepartmentStore, 10)); //store, код торговой точки
+                    ps.setString(2, trim(item.idBarcode, 20)); //barcode, Штрих-код товара
+                    ps.setString(3, trim(item.idItem, 20)); //art, Артикул
+                    ps.setString(4, trim(item.name, 50)); //description, Наименование товара
                     ps.setInt(5, 1); //department, Номер отдела
-                    ps.setString(6, HandlerUtils.trim(item.idItemGroup, 10)); //grp, Код группы товара
+                    ps.setString(6, trim(item.idItemGroup, 10)); //grp, Код группы товара
                     ps.setInt(7, item.splitItem ? 1 : 0); //flags, Флаги - бит 0 - разрешение дробного количества
                     ps.setBigDecimal(8, item.price == null ? BigDecimal.ZERO : item.price); //price, Цена товара
                     ps.setDate(9, item.expiryDate); //exp, Срок годности
@@ -144,9 +147,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                             if (item.idBarcode != null) {
                                 for (String idStock : stopListInfo.idStockSet) {
-                                    ps.setString(1, HandlerUtils.trim(idStock, 10)); //store, код торговой точки
-                                    ps.setString(2, HandlerUtils.trim(item.idBarcode, 20)); //barcode, Штрих-код товара
-                                    ps.setString(3, HandlerUtils.trim(item.idItem, 20)); //art, Артикул
+                                    ps.setString(1, trim(idStock, 10)); //store, код торговой точки
+                                    ps.setString(2, trim(item.idBarcode, 20)); //barcode, Штрих-код товара
+                                    ps.setString(3, trim(item.idItem, 20)); //art, Артикул
                                     ps.setInt(4, stopListInfo.exclude ? 0 : 1); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
                                     ps.setLong(5, 4294967295L); //UpdEcr, Флаг обновления* КСА
                                     ps.addBatch();
@@ -168,6 +171,59 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         } catch (SQLException e) {
                             processStopListLogger.error(logPrefix, e);
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
+        for(String directory : requestExchange.directoryStockMap.keySet()) {
+
+            EQSConnectionString params = new EQSConnectionString(directory);
+
+            if (params.connectionString != null) {
+                Connection conn = null;
+                PreparedStatement ps = null;
+                try {
+                    conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+
+                    conn.setAutoCommit(false);
+                    machineryExchangeLogger.info(logPrefix + "sending discountCards, table customers");
+
+                    ps = conn.prepareStatement(
+                            "INSERT INTO customers (code, description, discount, updecr)" +
+                                    " VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
+                                    " description=VALUES(description), discount=VALUES(discount), updecr=VALUES(updecr)");
+
+                    for (DiscountCard card : discountCardList) {
+                        if(card.idDiscountCard != null) {
+                            ps.setString(1, trim(card.idDiscountCard, 20)); //code
+                            String name = (card.lastNameContact == null ? "" : (card.lastNameContact + " "))
+                                    + (card.firstNameContact == null ? "" : (card.firstNameContact + " "))
+                                    + (card.middleNameContact == null ? "" : card.middleNameContact);
+                            ps.setString(2, trim(name, 50)); //description
+                            ps.setInt(3, card.percentDiscountCard == null ? 0 : -card.percentDiscountCard.intValue()); //discount
+                            ps.setLong(4, 4294967295L); //UpdEcr, Флаг обновления* КСА
+                            ps.addBatch();
+                        }
+                    }
+
+                    ps.executeBatch();
+                    conn.commit();
+
+                } catch (SQLException e) {
+                    machineryExchangeLogger.error(logPrefix, e);
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (ps != null)
+                            ps.close();
+                        if (conn != null)
+                            conn.close();
+                    } catch (SQLException e) {
+                        machineryExchangeLogger.error(logPrefix, e);
                     }
                 }
             }
