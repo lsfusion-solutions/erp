@@ -1,0 +1,464 @@
+MODULE SaleInternetOrderDelivery;
+
+REQUIRE SaleInternetPicking, Label;
+
+NAMESPACE Sale;
+// Отчет курьера
+
+CLASS DeliveryReport 'Отчет курьера';
+
+@defineDocumentHeaderTimePrefix(DeliveryReport, , '');
+
+@deriveDocumentHeaderTimePrefix(DeliveryReport, );
+@defineCreated(DeliveryReport);
+@deriveDocumentHeaderTimePrefix(DeliveryReport, );
+
+@defineDocumentHeaderNumber(DeliveryReport);
+
+@defineNumeratedDefault(DeliveryReport, 'Отчет курьера', 'ОК');
+
+deliveryReport = DATA DeliveryReport (InternetOrderDetail) INDEXED;
+in 'Вкл' (DeliveryReport o, InternetOrderDetail d) = deliveryReport(d) == o;
+
+@defineDocumentHeaderCount(deliveryReport, InternetOrderDetail);
+
+relation = GROUP SUM 1 IF in(DeliveryReport o, InternetOrderDetail d) BY o, internetOrder(d);
+
+seriesNumberInternetOrders 'Интернет-заказы' (deliveryReport) = GROUP CONCAT seriesNumber(InternetOrder order) IF relation(DeliveryReport deliveryReport, order) , ', '
+                                                 BY deliveryReport
+                                                 ORDER order  MINCHARWIDTH 30 PREFCHARWIDTH 30;   
+
+dataDeliveryReportIndex 'Номер строки' = DATA INTEGER (InternetOrderDetail) INDEXED; 
+defaultDeliveryReportIndex 'Номер строки (авт.)' (InternetOrderDetail d) =
+    PARTITION SUM 1 BY deliveryReport(d)
+    ORDER internetOrder(d),d MINCHARWIDTH 4 PREFCHARWIDTH 4;
+indexDeliveryReport 'Номер строки' (InternetOrderDetail d) = OVERRIDE dataDeliveryReportIndex(d), defaultDeliveryReportIndex(d) IN recognize;
+
+pickingQuantityInternetOrderDetail 'Кол-во (всего) собрано' = GROUP SUM pickingQuantity(InternetOrderDetail d) 
+    BY deliveryReport(d) IN documentSum;
+
+pickingSumInternetOrderDetail'Сумма (всего) собрано' = GROUP SUM pickingSum(InternetOrderDetail d) 
+    BY deliveryReport(d) IN documentSum;
+
+// Возврат
+returnQuantity 'Возвращено' = DATA NUMERIC[16,5](InternetOrderDetail);
+returnQuantityInternetOrderDetail'Кол-во (всего) возвращено' = GROUP SUM returnQuantity(InternetOrderDetail d) 
+    BY deliveryReport(d) IN documentSum;
+
+
+CLASS StatusDeliveryReport 'Статус' {
+    collected 'Собран',
+    delivery 'Доставка',
+    delivered 'Доставлен',
+    completed 'Завершен'
+}    
+    
+FORM statusDeliveryReport 'Статус'
+    OBJECTS o = StatusDeliveryReport
+    PROPERTIES(o) READONLY staticCaption
+    
+    LIST StatusDeliveryReport OBJECT o 
+;       
+    
+status = DATA StatusDeliveryReport (DeliveryReport);
+nameStatus 'Статус' (DeliveryReport c) = staticCaption(status(c)) IN documentPrm;
+
+status(DeliveryReport r) <- StatusDeliveryReport.collected WHEN SET(r IS DeliveryReport);    
+
+seriesNumberPicking 'Номер комплектации' (InternetOrderDetail d) = seriesNumber(picking(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+
+
+countInternetOrderDetail 'Кол-во строк товара в документе'  = 
+    GROUP SUM 1 IF sku(InternetOrderDetail idetail)
+          BY  sku(idetail),
+              deliveryReport(idetail);   
+
+FORM deliveryReport 'Отчет курьера'
+    OBJECTS r = DeliveryReport PANEL
+    PROPERTIES(r) nameStatus, nameNumerator, number, series, date, time, countInternetOrderDetail, pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail
+    
+    OBJECTS o = InternetOrder
+    FILTERS relation(r,o)
+    PROPERTIES (o) READONLY isClosed, isPosted, nameStatus, number, series, date, time
+
+    PROPERTIES (o) READONLY nameCurrency,  nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer
+    PROPERTIES (o) READONLY countInternetOrderDetail, quantityInternetOrderDetail, sumInternetOrderDetail,
+                            note
+    PROPERTIES (o) deliveryDate, namePaymentTypeInternetOrder, paymentCashSumInternetOrder, paymentCardSumInternetOrder, paymentERIPSumInternetOrder, paymentDateInternetOrder,
+                            numberPaymentDocumentInternetOrder, deliverySumInternetOrder, deliveryTimeFromInternetOrder, deliveryTimeToInternetOrder   
+         
+    OBJECTS d = InternetOrderDetail
+    PROPERTIES in(r, d)
+    PROPERTIES(d) indexDeliveryReport
+    PROPERTIES (d) READONLY seriesNumberPicking, idBarcodeSku, idSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY nameBatch, pickingQuantity, returnQuantity, price, discountPrice, pickingSum, nameSupplierStock, 
+                   seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer
+    FILTERS deliveryReport(d) == r                                                    
+    ORDER BY indexDeliveryReport(d)  
+    FILTERGROUP filters1 FILTER 'По заказу' internetOrder(d)<=o 'F10'  
+            
+    EDIT DeliveryReport OBJECT r     
+;
+
+DESIGN deliveryReport {
+
+    main {
+        preferredSize = (1024, 768);
+        NEW specification.box BEFORE functions.box{
+            fill = 1;
+            type = SPLITV;
+            
+            MOVE o.box;
+            MOVE d.box {
+                caption = 'Спецификация';
+                fill = 2;
+                d.panel {
+                    type = CONTAINERV;
+                }
+            }
+        }
+
+        NEW header.box BEFORE specification.box {
+            type = CONTAINERH;
+
+            NEW headerRow1 {
+                fill = 1;
+
+                MOVE r.documentHeader {
+                    type = CONTAINERH;
+
+                    MOVE PROPERTY(nameNumerator(r));
+                    MOVE PROPERTY(number(r));
+                    MOVE PROPERTY(series(r));
+                    MOVE PROPERTY(date(r));
+                    MOVE PROPERTY(time(r));
+                }
+                MOVE r.documentPrm;
+            }
+            NEW sumContainer {
+                MOVE r.documentSum {
+                    columns = 1;
+                }
+            }
+        }
+    }
+}
+
+FORM deliveryReports 'Отчеты курьера'
+    OBJECTS r = DeliveryReport LAST
+    PROPERTIES(r) READONLY nameStatus, date, time, countInternetOrderDetail, pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail,
+                  seriesNumberInternetOrders
+    PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE GRID            
+    
+    OBJECTS d = InternetOrderDetail
+    PROPERTIES(d) READONLY indexDeliveryReport, seriesNumberPicking
+    PROPERTIES (d) READONLY BACKGROUND background(d) idBarcodeSku, idSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY BACKGROUND background(d) pickingQuantity, price, discountPrice, pickingSum, 
+                                                     nameSupplierStock
+    FILTERS deliveryReport(d) == r      
+    ORDER BY indexDeliveryReport(d)
+;
+
+//FORM deliveryList 'Лист доставки'
+//    OBJECTS o = InternetOrder
+//    PROPERTIES(o) READONLY number, date
+//    PROPERTIES(o) READONLY pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail   
+//    
+//    OBJECTS d = InternetOrderDetail
+//    PROPERTIES (d) READONLY BACKGROUND background(d) idBarcodeSku, idSku, nameSku, shortNameUOMSku
+//    PROPERTIES (d) READONLY BACKGROUND background(d) quantity, price, sum, 
+//                                                     nameSupplierStock, nameStatus
+//    FILTERS isPicked(d), 
+//            internetOrder(d)       
+//;
+//
+//printDeliveryLists 'Печать листов доставки' (DeliveryReport r) = ACTION {
+//    FOR relation(r, InternetOrder o) DO {
+//        FORM deliveryList OBJECTS o=o PRINT XLSX;
+//    }
+//}
+
+//FORM deliveryReportPrint 'Отчет курьера'
+//    OBJECTS r = DeliveryReport
+//    PROPERTIES(r) READONLY nameStatus, date, time//, numberZReport, cashSumZReport, cardSumZReport, sumZReport
+//    PROPERTIES(r) ADDFORM, EDITFORM, DELETE 
+//       
+//    OBJECTS o = InternetOrder
+//    PROPERTIES(o) READONLY number, date
+//    PROPERTIES(o) READONLY quantityInternetOrderDetail, sumInternetOrderDetail    
+//    FILTERS in(r, o)
+//;
+//
+//printDeliveryReport 'Отчет курьера' (DeliveryReport r) = ACTION {
+//    FORM deliveryReportPrint OBJECTS r=r PRINT XLSX;
+//}
+//
+//FORM assemblyList 'Лист сборки'
+//    OBJECTS r = DeliveryReport PANEL
+//    OBJECTS (s=Stock, d=InternetOrderDetail)
+//    PROPERTIES READONLY name(s)
+//    PROPERTIES (d) READONLY BACKGROUND background(d) idBarcodeSku, idSku, nameSku, shortNameUOMSku
+//    PROPERTIES (d) READONLY BACKGROUND background(d) quantity, price, sum, 
+//                                                     nameSupplierStock, nameStatus 
+//    FILTERS isPicked(d),
+//            in(r, internetOrder(d)),
+//            supplierStock(d) == s
+//;
+//
+//printAssemblyList 'Лист сборки' (DeliveryReport r) = ACTION {
+//    FORM assemblyList OBJECTS r=r PRINT XLSX;
+//}
+//
+//EXTEND FORM deliveryReports
+//    PROPERTIES(r) TOOLBAR printDeliveryLists, printDeliveryReport, printAssemblyList
+//;
+
+
+createDeliveryReport 'Создать отчет курьера' (InternetOrder order) = {
+    IF NOT countInternetOrders() THEN {
+        select(order) <- TRUE;
+    } 
+    IF countInternetOrders() THEN  {       
+    
+        NEWSESSION {
+            FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT deliveryReport(d) BY supplierStock(d)](Stock stock) NEW r = DeliveryReport DO {
+//                FOR (status(InternetOrderDetail detail) == StatusInternetOrderDetail.picked OR status(detail) == StatusInternetOrderDetail.partlyPicked )
+//                    AND (status(internetOrder(detail)) == StatusInternetOrder.picked OR status(internetOrder(detail)) == StatusInternetOrder.partlyPicked)
+//                    AND NOT deliveryReport(detail) AND select(internetOrder(detail)) DO {
+                FOR supplierStock(InternetOrderDetail detail) == stock AND select(internetOrder(detail)) AND NOT deliveryReport(detail) DO {
+                    deliveryReport(detail) <- r;                        
+                }
+                SHOW deliveryReport OBJECTS r = r MANAGESESSION DOCKED NOCANCEL;
+            }
+        }        
+        select(InternetOrder o) <- NULL;
+    } ELSE {
+        MESSAGE 'Вначале необходимо отметить интернет заказы.';
+    }
+}
+
+
+//filterDashboardDelivery = GROUP SUM 1 IF 
+//    (status(InternetOrderDetail detail) == StatusInternetOrderDetail.picked OR status(detail) == StatusInternetOrderDetail.partlyPicked) AND 
+//    (status(internetOrder(detail)) == StatusInternetOrder.picked  OR status(internetOrder(detail)) == StatusInternetOrder.partlyPicked) AND NOT deliveryReport(detail) 
+//        BY internetOrder(detail);
+filterDashboardDelivery = GROUP SUM 1 IF InternetOrderDetail detail IS InternetOrderDetail AND NOT deliveryReport(detail) 
+        BY internetOrder(detail);
+
+CLASS Contractor 'Контрагент';
+TABLE contractor(Contractor);
+
+legalEntity = DATA LegalEntity (Contractor);
+nameLegalEntity 'Наименование' (Contractor c) = name(legalEntity(c));
+id 'Код' (Contractor c) = id(legalEntity(c));
+
+site 'Сайт' = DATA VARSTRING[100] (Contractor);
+
+FORM contractor 'Контрагент'
+    OBJECTS c = Contractor PANEL
+    PROPERTIES(c) id, nameLegalEntity, site
+    
+    EDIT Contractor OBJECT c
+;
+
+FORM contractors 'Контрагенты'
+    OBJECTS c = Contractor
+    PROPERTIES(c) READONLY id, nameLegalEntity, site
+    PROPERTIES(c) NEWSESSION NEW, EDIT, DELETE 
+    
+    LIST Contractor OBJECT c
+;
+
+contractor 'Контрагент'  = DATA Contractor (InternetOrder);
+nameContractor 'Контрагент' (InternetOrder o) = nameLegalEntity(contractor(o)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+siteContractor 'Сайт контрагента' (InternetOrder o) = site(contractor(o));
+
+nameContractor 'Контрагент' (InternetOrderDetail d) = nameContractor(internetOrder(d));
+siteContractor 'Сайт контрагента' (InternetOrderDetail d) = siteContractor(internetOrder(d));
+
+contractor (InternetOrderDetail d) = contractor(internetOrder(d));
+legalEntity (InternetOrderDetail d) = legalEntity(contractor(d));
+
+defaultContractorInternetOrder = DATA Contractor ();
+nameDefaultContractorInternetOrder 'Контрагент для интернет-заказов' = nameLegalEntity(defaultContractorInternetOrder());
+
+EXTEND FORM options
+    PROPERTIES() nameDefaultContractorInternetOrder
+;
+
+DESIGN options {
+    topInternetOrder {
+        MOVE PROPERTY(nameDefaultContractorInternetOrder());
+    }
+}
+
+WHEN SET(imported(InternetOrder o)) AND NOT contractor(o) DO {
+    contractor(o) <- defaultContractorInternetOrder();
+}
+
+EXTEND FORM internetOrder
+    PROPERTIES(o) nameContractor
+;
+
+DESIGN internetOrder{
+    payment {
+        MOVE PROPERTY (nameContractor(o));
+    }
+}
+EXTEND FORM internetOrders
+    PROPERTIES(o)  READONLY nameContractor
+;
+
+
+inStockDeliveryReport = GROUP SUM 1 BY supplierStock(InternetOrderDetail detail), deliveryReport(detail); 
+supplierStocks 'Склады поставщика' = GROUP CONCAT name(Stock stock) IF inStockDeliveryReport(stock, DeliveryReport deliveryReport), ', '  
+                                                                        BY deliveryReport 
+                                                                        ORDER name(stock) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+filterDeliveryDashboard = ABSTRACT CASE BOOLEAN (InternetOrder);
+useFilterDeliveryDashboard = ABSTRACT BOOLEAN ();
+
+filterDelivery (InternetOrder o) = IF useFilterDeliveryDashboard() THEN filterDeliveryDashboard(o) ELSE status(o) == StatusInternetOrder.picked;
+
+FORM deliveryDashboard 'Отчеты курьера'
+
+//    OBJECTS dt = DATE PANEL 
+//    PROPERTIES (dt) val = VALUE 
+    
+    OBJECTS o = InternetOrder 
+    PROPERTIES (o) select
+    PROPERTIES (o) READONLY isPosted, nameStatus, 
+                   nameNumerator, number, series, date, time, nameCurrency, note,
+                   deliveryDate, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer
+    PROPERTIES (o) READONLY countInternetOrderDetail, quantityInternetOrderDetail, sumInternetOrderDetail
+                  
+    PROPERTIES (o) READONLY namePaymentTypeInternetOrder, paymentCashSumInternetOrder, paymentCardSumInternetOrder, paymentERIPSumInternetOrder, paymentDateInternetOrder,
+                   numberPaymentDocumentInternetOrder, deliverySumInternetOrder, deliveryTimeFromInternetOrder, deliveryTimeToInternetOrder 
+                                                                                                     
+    FILTERS filterDashboardDelivery(o),
+            filterDelivery(o)
+    PROPERTIES createDeliveryReport(o) TOOLBAR           
+                   
+    OBJECTS d = InternetOrderDetail
+    PROPERTIES (d) READONLY index
+    PROPERTIES (d) READONLY seriesNumberPicking, idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameBatch, quantity, pickingQuantity, returnQuantity,
+                   price, discountPrice, sum, nameSupplierStock,
+                   seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer         
+    ORDER BY index(d)
+    FILTERS internetOrder(d) == o 
+
+    OBJECTS r = DeliveryReport LAST
+    PROPERTIES(r) READONLY nameStatus, number, series,date, time, supplierStocks, seriesNumberInternetOrders, countInternetOrderDetail, 
+                  pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail
+    PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE  
+    PROPERTIES (r) PANEL READONLY createdTime, createdNameUser, createdHostnameComputer  
+    
+    OBJECTS pd = InternetOrderDetail
+    PROPERTIES (pd) READONLY indexDeliveryReport 
+    PROPERTIES (pd) READONLY seriesNumberPicking, idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameBatch
+    PROPERTIES (pd) READONLY pickingQuantity, returnQuantity, price, discountPrice, pickingSum
+    PROPERTIES (pd) READONLY seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer, nameSupplierStock
+    PROPERTIES (pd) edit TOOLBAR          
+    ORDER BY indexDeliveryReport(pd) 
+    FILTERS deliveryReport(pd)==r       
+    
+;
+
+DESIGN deliveryDashboard {
+    main {
+        NEW top {
+            fill = 1;
+            //MOVE dt.box;
+            NEW tabContainer{
+                fill =1;
+                type = TABBED;
+                NEW body {
+                    caption = 'Отчеты курьера';
+                    fill = 1;
+                    type = SPLITV;
+                    MOVE o.box;
+                    NEW specification {
+                        type = TABBED ;
+                        fill = 2;
+                        NEW specPick{
+                            caption = 'Отчеты курьера';
+                            fill = 1;
+                            type = SPLITH;
+                            MOVE r.box;
+                            NEW tab {
+                                fill = 1;
+                                type = TABBED ;
+                                MOVE pd.box;
+                            }
+                        }
+                        MOVE d.box{ caption ='Спецификация интернет заказа';}
+                    }
+                }                          
+            }
+        }
+        MOVE functions.box;
+    }    
+}
+
+NAVIGATOR {
+    eShop {
+        ADD deliveryDashboard;
+    }
+}
+
+filterInternetOrderDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterInternetOrderDateFrom (InternetOrderDetail detail) = date(detail) >= filterInternetOrderDateFrom() OR (detail IS InternetOrderDetail AND NOT filterInternetOrderDateFrom());      
+
+filterInternetOrderDateTo 'Дата по' = DATA LOCAL DATE ();
+filterInternetOrderDateTo (InternetOrderDetail detail) = date(detail) <= filterInternetOrderDateTo() OR (detail IS InternetOrderDetail AND NOT filterInternetOrderDateTo());    
+
+FORM internetOrderLedger 'Регистр интернет заказов'
+    PROPERTIES filterInternetOrderDateFrom(), filterInternetOrderDateTo()
+    OBJECTS d = InternetOrderDetail
+    PROPERTIES(d) READONLY   indexDeliveryReport, seriesNumber, nameContractor, nameInternetCustomer, 
+                             phoneInternetCustomer, addressInternetCustomer, cityInternetCustomer, 
+                             seriesNumberPicking, idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameBatch, quantity, pickingQuantity,
+                             returnQuantity, price, discountPrice, sum, discountSum, date, deliveryDate, returnDate, paymentDate, deliveryTimeFromInternetOrder, 
+                             deliveryTimeToInternetOrder, //bulky, guarantee, 
+                             siteContractor
+    ORDER BY seriesNumber(d) 
+    FILTERS deliveryReport(d),
+            filterInternetOrderDateFrom(d),
+            filterInternetOrderDateTo(d)
+;
+
+DESIGN internetOrderLedger {
+    NEW topFilters {
+        caption = 'Фильтры';
+        type = CONTAINERH; 
+        MOVE PROPERTY(filterInternetOrderDateFrom());                                               
+        MOVE PROPERTY(filterInternetOrderDateTo());                                               
+    }   
+    MOVE d.box{
+        PROPERTY(seriesNumber(d)){
+            caption = 'Номер интернет заказа';
+        }    
+        PROPERTY(date(d)){
+            caption = 'Дата заказа';
+        }     
+    }  
+    MOVE functions.box;
+}
+
+NAVIGATOR {
+    eShop  {
+        ADD internetOrderLedger;
+    }
+}
+
+WHEN CHANGED (status(DeliveryReport r)) DO {
+    IF status(r) == StatusDeliveryReport.delivery THEN {
+        status(InternetOrder o) <- StatusInternetOrder.delivery WHERE relation(r, o);
+    }
+
+    IF status(r) == StatusDeliveryReport.delivered THEN {
+        status(InternetOrder o) <- StatusInternetOrder.delivered WHERE relation(r, o);
+    }
+}
+
+ 

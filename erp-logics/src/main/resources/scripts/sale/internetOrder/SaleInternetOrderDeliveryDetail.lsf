@@ -1,0 +1,32 @@
+MODULE SaleInternetOrderDeliveryDetail;
+
+REQUIRE SaleInternetOrderDelivery, SaleInternetPickingDetail;
+
+NAMESPACE Sale;
+
+WHEN SET (returnQuantity(InternetOrderDetail d)) DO {
+    status(d) <- StatusInternetOrderDetail.canceled WHERE pickingQuantity(d) AND returnQuantity(d);
+}    
+
+
+
+WHEN CHANGED (status(DeliveryReport r)) DO {
+    IF status(r) == StatusDeliveryReport.collected OR NOT status(r) THEN {
+        FOR deliveryReport(InternetOrderDetail d) == r AND pickingQuantity(d) > 0 DO {
+            setPickedStatus(d);
+        }
+    }
+    IF status(r) == StatusDeliveryReport.delivery THEN {
+        status(InternetOrderDetail d) <- StatusInternetOrderDetail.delivery WHERE deliveryReport(d) == r AND pickingQuantity(d) > 0;
+    }
+    IF status(r) == StatusDeliveryReport.delivered THEN {
+        status(InternetOrderDetail d) <- StatusInternetOrderDetail.delivered WHERE deliveryReport(d) == r AND pickingQuantity(d) > 0;
+    }
+    IF status(r) == StatusDeliveryReport.completed THEN {
+        status(InternetOrderDetail d) <- StatusInternetOrderDetail.completed WHERE deliveryReport(d) == r AND pickingQuantity(d) > 0;
+    }
+}
+
+WHEN DROPPED(deliveryReport(InternetOrderDetail d)) DO {
+    setPickedStatus(d);
+}
