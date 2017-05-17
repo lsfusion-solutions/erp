@@ -54,6 +54,8 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
 
     public abstract String getUpdateStatement(String set, String wheres, String columns, String params);
 
+    public abstract void setObject(PreparedStatement ps, int index, Object value) throws SQLException;
+
     @Override
     public void executeCustom(ExecutionContext context) throws SQLException, SQLHandledException {
 
@@ -161,18 +163,5 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
             if (conn != null)
                 conn.close();
         }
-    }
-
-    private void setObject(PreparedStatement ps, int index, Object value) throws SQLException {
-        if (value == null)
-            value = "";
-        if (value instanceof Date)
-            ps.setDate(index, (Date) value);
-        else if (value instanceof Timestamp)
-            ps.setTimestamp(index, ((Timestamp) value));
-        else if (value instanceof String)
-            ps.setString(index, ((String) value).trim());
-        else
-            ps.setObject(index, value);
     }
 }

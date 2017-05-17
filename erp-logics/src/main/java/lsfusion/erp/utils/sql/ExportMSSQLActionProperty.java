@@ -2,6 +2,10 @@ package lsfusion.erp.utils.sql;
 
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.List;
 
 public abstract class ExportMSSQLActionProperty extends ExportSQLActionProperty {
@@ -37,6 +41,19 @@ public abstract class ExportMSSQLActionProperty extends ExportSQLActionProperty 
                 String.format("UPDATE [%s] SET %s WHERE %s", table, set, wheres) :
                 String.format("UPDATE [%s] SET %s WHERE %s IF @@ROWCOUNT=0 INSERT INTO %s(%s) VALUES (%s)",
                         table, set, wheres, table, columns, params);
+    }
+
+    public void setObject(PreparedStatement ps, int index, Object value) throws SQLException {
+        if (value == null)
+            value = "";
+        if (value instanceof Date)
+            ps.setDate(index, (Date) value);
+        else if (value instanceof Timestamp)
+            ps.setTimestamp(index, ((Timestamp) value));
+        else if (value instanceof String)
+            ps.setString(index, ((String) value).trim());
+        else
+            ps.setObject(index, value);
     }
 }
 

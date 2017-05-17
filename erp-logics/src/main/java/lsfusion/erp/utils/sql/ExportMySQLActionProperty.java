@@ -2,6 +2,10 @@ package lsfusion.erp.utils.sql;
 
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.List;
 
 public abstract class ExportMySQLActionProperty extends ExportSQLActionProperty {
@@ -34,6 +38,19 @@ public abstract class ExportMySQLActionProperty extends ExportSQLActionProperty 
     @Override
     public String getUpdateStatement(String set, String wheres, String columns, String params) {
         throw new UnsupportedOperationException("Update for mySQL is not supported yet");
+    }
+
+    public void setObject(PreparedStatement ps, int index, Object value) throws SQLException {
+        if (value == null)
+            ps.setObject(index, null);
+        else if (value instanceof Date)
+            ps.setDate(index, (Date) value);
+        else if (value instanceof Timestamp)
+            ps.setTimestamp(index, ((Timestamp) value));
+        else if (value instanceof String)
+            ps.setString(index, ((String) value).trim());
+        else
+            ps.setObject(index, value);
     }
 }
 
