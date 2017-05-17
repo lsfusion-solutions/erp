@@ -672,7 +672,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                     List<TerminalAssortment> terminalAssortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, getBusinessLogics(), priceListTypeGroupMachinery, stockGroupTerminal);
                     List<TerminalHandbookType> terminalHandbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, getBusinessLogics());
-                    List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeList(session, getBusinessLogics());
+                    List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, getBusinessLogics());
                     List<TerminalLegalEntity> terminalLegalEntityList = readTerminalLegalEntityList(session, getBusinessLogics());
 
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(), dateTimeCode, 
@@ -804,35 +804,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     @Override
     public void succeedStopList(String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException {
         StopListEquipmentServer.succeedStopList(getBusinessLogics(), getStack(), getDbManager(), numberStopList, idStockSet);
-    }
-    
-    public static List<TerminalDocumentType> readTerminalDocumentTypeList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        List<TerminalDocumentType> terminalDocumentTypeList = new ArrayList<>();
-        ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
-        if(terminalLM != null) {
-            KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
-            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalDocumentType", terminalDocumentTypeExpr);
-            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-            String[] names = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
-                    "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType"};
-            LCP<?>[] properties = terminalLM.findProperties("id[TerminalDocumentType]", "name[TerminalDocumentType]", "flag[TerminalDocumentType]",
-                    "idTerminalHandbookType1[TerminalDocumentType]", "idTerminalHandbookType2[TerminalDocumentType]");
-            for (int i = 0; i < properties.length; i++) {
-                query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
-            }
-            query.and(terminalLM.findProperty("id[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
-            query.and(terminalLM.findProperty("notSkip[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
-            for (ImMap<Object, Object> entry : result.values()) {
-                String id = trim((String) entry.get("idTerminalDocumentType"));
-                String name = trim((String) entry.get("nameTerminalDocumentType"));
-                Integer flag = (Integer) entry.get("flagTerminalDocumentType");
-                String analytics1 = trim((String) entry.get("idTerminalHandbookType1TerminalDocumentType"));
-                String analytics2 = trim((String) entry.get("idTerminalHandbookType2TerminalDocumentType"));
-                terminalDocumentTypeList.add(new TerminalDocumentType(id, name, analytics1, analytics2, flag));
-            }
-        }
-        return terminalDocumentTypeList;
     }
 
     @Override
