@@ -1,21 +1,26 @@
-package lsfusion.erp.utils;
+package lsfusion.erp.utils.sql;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.col.interfaces.immutable.ImList;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.form.entity.FormEntity;
 import lsfusion.server.form.entity.PropertyDrawEntity;
-import lsfusion.server.form.instance.*;
+import lsfusion.server.form.instance.FormData;
+import lsfusion.server.form.instance.FormInstance;
+import lsfusion.server.form.instance.FormRow;
+import lsfusion.server.form.instance.PropertyDrawInstance;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.sql.*;
-import java.sql.Date;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
+abstract class ExportSQLActionProperty extends ScriptingActionProperty {
     String idForm; //idForm = table
     String table;
     String idGroupObject;
@@ -40,6 +45,10 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
         this.truncate = truncate;
         this.noInsert = noInsert;
     }
+
+    public abstract void init() throws ClassNotFoundException;
+
+    public abstract String getUpdateStatement(String set, String wheres, String columns, String params);
 
     @Override
     public void executeCustom(ExecutionContext context) throws SQLException, SQLHandledException {
@@ -81,7 +90,7 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                 }
 
                 if (!rows.isEmpty()) {
-                    Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                    init();
                     conn = DriverManager.getConnection(url);
                     conn.setAutoCommit(false);
 
@@ -118,11 +127,7 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                             ps.addBatch();
                         }
                     } else {
-                        ps = conn.prepareStatement(
-                                noInsert ?
-                                        String.format("UPDATE [%s] SET %s WHERE %s", table, set, wheres) :
-                                        String.format("UPDATE [%s] SET %s WHERE %s IF @@ROWCOUNT=0 INSERT INTO %s(%s) VALUES (%s)",
-                                                table, set, wheres, table, columns, params));
+                        ps = conn.prepareStatement(getUpdateStatement(set, wheres, columns, params));
 
                         for (int k = 0; k < rows.size(); k++) {
                             List<Object> row = rows.get(k);
@@ -131,7 +136,7 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                             for (i = 0; i < paramLength; i++) {
                                 Object value = row.get(i);
                                 setObject(ps, i + 1, value);
-                                if(!noInsert)
+                                if (!noInsert)
                                     setObject(ps, i + paramLength + keyColumns.size() + 1, value);
                             }
                             for (int j = 0; j < keyColumns.size(); j++) {
@@ -167,15 +172,3 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
             ps.setObject(index, value);
     }
 }
-
-//example of implementation
-
-//import lsfusion.server.logics.scripted.ScriptingErrorLog;
-//import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-//import java.util.Arrays;
-//public class TestExportSQLActionProperty extends ExportSQLActionProperty {
-//
-//    public TestExportSQLActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-//        super(LM, "testtable4", "i", Arrays.asList("dt"), "connectionString", true);
-//    }
-//}
