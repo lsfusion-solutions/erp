@@ -67,9 +67,13 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
                     String directory = null;
+                    String pieceCode = null;
                     for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
                         if (cashRegister.directory != null) {
                             directory = cashRegister.directory;
+                        }
+                        if(cashRegister.pieceCodeGroupCashRegister != null) {
+                            pieceCode = cashRegister.pieceCodeGroupCashRegister;
                         }
                     }
                     UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 0);
@@ -119,7 +123,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 exportPriceTypeStorePriceList(conn, transaction, nppGroupMachinery, section/*departmentNumber*/, version);
 
                                 processTransactionLogger.info(logPrefix + String.format("transaction %s, table var", transaction.id));
-                                exportVar(conn, transaction, useBarcodeAsId, weightCode, appendBarcode, version);
+                                exportVar(conn, transaction, useBarcodeAsId, weightCode, pieceCode, appendBarcode, version);
 
                                 processTransactionLogger.info(logPrefix + String.format("transaction %s, table signal", transaction.id));
                                 exportSignals(conn, transaction, version, true, timeout, false);
@@ -129,7 +133,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             version++;
                             if (!skipBarcodes) {
                                 processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist_var", transaction.id));
-                                exportPriceListVar(conn, transaction, nppGroupMachinery, weightCode, version);
+                                exportPriceListVar(conn, transaction, nppGroupMachinery, weightCode, pieceCode, version);
                             }
 
                             processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist_items", transaction.id));
@@ -400,7 +404,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportPriceListVar(Connection conn, TransactionCashRegisterInfo transaction, Integer npp, String weightCode, int version) throws SQLException {
+    private void exportPriceListVar(Connection conn, TransactionCashRegisterInfo transaction, Integer npp, String weightCode, String pieceCode, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -409,7 +413,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
-                    String barcode = makeBarcode(item.idBarcode, item.passScalesItem, weightCode);
+                    String barcode = makeBarcode(item.idBarcode, item.passScalesItem, item.shortNameUOM, weightCode, pieceCode);
                     if (barcode != null) {
                         ps.setInt(1, npp); //pricelist
                         ps.setString(2, HandlerUtils.trim(barcode, 40)); //var
@@ -455,7 +459,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, String weightCode, boolean appendBarcode, int version) throws SQLException {
+    private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId,
+                           String weightCode, String pieceCode, boolean appendBarcode, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -464,7 +469,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         "INSERT INTO var (id, item, quantity, stock, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                                 "ON DUPLICATE KEY UPDATE item=VALUES(item), quantity=VALUES(quantity), stock=VALUES(stock), deleted=VALUES(deleted)");
                 for (CashRegisterItemInfo item : transaction.itemsList) {
-                    String barcode = makeBarcode(removeCheckDigitFromBarcode(item.idBarcode, appendBarcode), item.passScalesItem, weightCode);
+                    String barcode = makeBarcode(removeCheckDigitFromBarcode(item.idBarcode, appendBarcode), item.passScalesItem, item.shortNameUOM, weightCode, pieceCode);
                     if (barcode != null && item.idItem != null) {
                         ps.setString(1, HandlerUtils.trim(barcode, 40)); //id
                         ps.setString(2, getId(item, useBarcodeAsId, appendBarcode)); //item
@@ -613,8 +618,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
        return section != null ? section : String.valueOf(transaction.departmentNumberGroupCashRegister);
     }*/
 
-    private String makeBarcode(String idBarcode, boolean passScalesItem, String weightCode) {
-        return idBarcode != null && idBarcode.length() == 5 && passScalesItem && weightCode != null ? (weightCode + idBarcode) : idBarcode;
+    private String makeBarcode(String idBarcode, boolean passScalesItem, String shortNameUOM, String weightCode, String pieceCode) {
+        boolean nonWeight = shortNameUOM != null && shortNameUOM.toUpperCase().startsWith("ШТ");
+        String prefix = nonWeight ? pieceCode : weightCode;
+        return idBarcode != null && idBarcode.length() == 5 && passScalesItem && prefix != null ? (prefix + idBarcode) : idBarcode;
     }
 
     @Override
