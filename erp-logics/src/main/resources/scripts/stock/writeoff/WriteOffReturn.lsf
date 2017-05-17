@@ -89,7 +89,6 @@ isStockSku (WriteOffDetail writeOffDetail) = isStock(sku(writeOffDetail));
 isStockSku (UserWriteOffDetail userWriteOffDetail) = isStock(sku(userWriteOffDetail));
 
 // --------------------------- Формы списания ---------------------------------
-edit 'Редактировать' = ACTION ABSTRACT LIST (WriteOff) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 FORM userWriteOff 'Списание-возврат'
     OBJECTS w=UserWriteOff PANEL
@@ -215,9 +214,6 @@ WHEN LOCAL FORMS userWriteOff CHANGED(batch(UserWriteOffDetail detail)) DO {
 @defineMovementBatch(writeOffDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
 @defineMovementBatch(userWriteOffDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
 
-edit 'Редактировать'  = ACTION EDITFORM UserWriteOff;
-
-edit(UserWriteOff w) += { edit(w); }
 isUserOpened(UserWriteOff w)=  isOpened[WriteOff](w) AND is(w);
 
 FORM writeOffs 'Списания-возврат'
@@ -230,12 +226,9 @@ FORM writeOffs 'Списания-возврат'
 
     PROPERTIES (w) READONLY PANEL createdTime, createdNameUser, createdHostnameComputer, 
                    postedNameUser, postedTime, postedHostnameComputer
-    PROPERTIES (w)  NEWSESSION NEW[UserWriteOff]
-    PROPERTIES (w) edit SHOWIF isOpened(w)
+    PROPERTIES (w) NEWSESSION NEW[UserWriteOff], EDIT SHOWIF isOpened(w), deletew=DELETE SHOWIF isUserOpened(w)  
     PROPERTIES (w) close[UserWriteOff] SHOWIF isOpened[UserWriteOff](w), open SHOWIF isClosed[UserWriteOff](w)
     
-    PROPERTIES (w) NEWSESSION deletew=DELETE SHOWIF isUserOpened(w)
-
     OBJECTS d=WriteOffDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, 
                    nameBatch, quantity, price,
@@ -377,7 +370,6 @@ sumContainer (WriteOff ledger) += sumContainerWriteOffDetail(ledger);
 
 legalEntity(WriteOff ledger) += contact(ledger);  
 operation[StockDocumentLedger](WriteOff ledger) += operation(ledger);
-edit[StockDocumentLedger](WriteOff l) += { edit(l); }
 close[StockDocumentLedger](WriteOff l) += { close(l); }
 
 // ------------------------------- Проведение по регистру остатков ------------------------ //
@@ -389,14 +381,7 @@ sum[InSkuLedger](WriteOffDetail ledger) += sum(ledger);
 
 stockDocumentLedger(WriteOffDetail ledger) += writeOff(ledger); 
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (WriteOffDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserWriteOffDetail d) = {
-	NEWSESSION {
-	    SHOW userWriteOff OBJECTS w = userWriteOff(d), d = d MANAGESESSION DOCKED;
-	}
-}
-edit(UserWriteOffDetail d) += { edit(d); }
-edit[SkuLedger](WriteOffDetail d) += { edit(d); }
+edit(UserWriteOffDetail d) += { DIALOG userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED; }
 
 show 'Просмотреть' = ACTION ABSTRACT LIST (WriteOffDetail) TOOLBAR;
 show(UserWriteOffDetail d) = {

@@ -58,9 +58,6 @@ FORM dataPriceListTypes 'Пользовательские виды цен'
     LIST DataPriceListType OBJECT p
 ;
 
-edit 'Редактировать' = ACTION EDITFORM DataPriceListType;
-edit(DataPriceListType priceListType) += { edit(priceListType); }
-
 EXTEND FORM priceListTypes
     PROPERTIES(pt) NEWSESSION addDataPriceListType = NEW[DataPriceListType]
 //    PROPERTIES(pt) SHOWIF showIDs() READONLY idDataPriceListType
@@ -449,7 +446,7 @@ filterPriceListType (UserPriceList userPriceList, Batch batch, Stock stock) =
     currentPrice (batch, userPriceList, stock) OR
     (batch IS Batch AND stock IS Stock AND NOT filterPriceListType(userPriceList));
     
-editSku 'Редактировать SKU' (UserPriceListDetail d) = { edit(sku(d)); }   
+editSku 'Редактировать SKU' (UserPriceListDetail d) = { NEWSESSION { edit(sku(d)); } }   
    
 nameCompanyB 'Организация' (LedgerPriceListType type, Stock stock, UserPriceListDetail d) = name(companyB(type, sku(d), stock ,fromDateTime[PriceListDetail](d)));    
 toShow (PriceList p, LedgerPriceListType to) = show(p, to) AND to IS LedgerPriceListType AND differentOrganizations(to);          
@@ -598,7 +595,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES READONLY inputName2 = name(s2), idBarcode(s2), shortNameUOM(s2), currentBalance(s2, ts2)
     PROPERTIES READONLY currentPrice(s2, p, ts2) SHOWIF filterPriceListType(p)
     PROPERTIES(s2, p, to, ts2) currentPriceUser COLUMNS (to) HEADER headerNameCurrentData(to) BACKGROUND backgroundCurrent(to)
-    PROPERTIES                 addSku() TODRAW s2, edit(s2), copy(s2)
+    PROPERTIES                 addSku() TODRAW s2, EDIT(s2) NEWSESSION, copy(s2)
     FILTERS currentPrice (s2, p, ts2) OR
             NOT filterPriceListType(p),
             groupType(p) == groupType(sk2)
@@ -822,14 +819,7 @@ DESIGN userPriceList {
     }
 }
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (PriceListDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserPriceListDetail d) = {
-	NEWSESSION {
-	    SHOW userPriceList OBJECTS p = userPriceList(d), d = d MANAGESESSION DOCKED;
-	}
-}
-edit(UserPriceListDetail d) += { edit(d); }   
-edit(PriceListDetail d) += { edit(d); }
+edit(UserPriceListDetail d) += { edit(userPriceList(d)); }
     
 // -------------------------------- Изменение цен для строк ------------------------------ //
 
@@ -1032,9 +1022,6 @@ DESIGN userPriceList{
     }
 }
 
-edit 'Редактировать' = ACTION EDITFORM UserPriceList;
-edit 'Редактировать' = ACTION ABSTRACT LIST (PriceList) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit (UserPriceList p) += { edit(p); }
 // ------------------ Копирование прайс-листов ------------------- //
 
 copyAbstractData = ACTION ABSTRACT LIST (PriceList, UserPriceList);
@@ -1124,9 +1111,8 @@ FORM priceLists 'Прайсы'
            nameCurrency, nameCompany, nameCompanyStock, priceListTypes, stocks,
            note
 
-    PROPERTIES (p)  NEWSESSION NEW[UserPriceList]
-    PROPERTIES (p) TOOLBAR edit, copy , print 
-    PROPERTIES (p) NEWSESSION DELETE SHOWIF is[UserPriceList](p)
+    PROPERTIES (p) NEWSESSION NEW[UserPriceList], editP = EDIT, DELETE SHOWIF is[UserPriceList](p)
+    PROPERTIES (p) TOOLBAR copy , print 
     PROPERTIES (p) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer 
                                         

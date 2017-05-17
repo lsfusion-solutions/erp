@@ -55,7 +55,6 @@ nameSupplierStock 'Склад поставщика' (ScheduleOrder scheduleOrder
 stocks 'Склады' (scheduleOrder) = ABSTRACT VARSTRING[500] (ScheduleOrder) MINCHARWIDTH 20 PREFCHARWIDTH 40 MATERIALIZED;
 
 addScheduleOrderSupplierCustomer 'Добавить' = ACTION ABSTRACT LIST (LegalEntity, LegalEntity) IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
-edit 'Редактировать' = ACTION ABSTRACT MULTI (ScheduleOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 GROUP schedule 'График' : public;
 countDaysPreOrders 'Кол-во дней для предварительных заказов' = DATA INTEGER () IN schedule;
@@ -674,11 +673,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 	    }
 } TOOLBAR;
                 
-    editNested 'Редактировать' = ACTION EDITFORM NESTED ScheduleOrder TOOLBAR;
-    edit(ScheduleOrder scheduleOrder) += { editNested(scheduleOrder); }
-
-    edit 'Редактировать' = ACTION EDITFORM ScheduleOrder TOOLBAR;
-    edit 'Редактировать' (ScheduleOrderDetail detail) = { edit(scheduleOrder(detail)); } IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+    edit (ScheduleOrderDetail detail) += { edit(scheduleOrder(detail)); }
 
     addScheduleOrderSupplierCustomer 'Добавить'##sign(LegalEntity supplier, LegalEntity customer) = {
 	NESTEDSESSION {
@@ -720,7 +715,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                         monthInDate, DOWInDate,
                         nameSupplier, nameSupplierStock,
                         nameCustomer, nameCustomerStock, nameOperation, quantityOrders
-        PROPERTIES (sd) createScheduleUser, edit
+        PROPERTIES (sd) createScheduleUser, EDIT NEWSESSION
         PROPERTIES (sd) close  SHOWIF isOpened (sd), open  SHOWIF isClosed (sd)
 //        FILTERGROUP openFilter
 //            FILTER 'Не аннулированные' 'F6' isOpenedScheduleOrderDetail(sd)  
@@ -744,9 +739,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                                 countOrderDetail, quantityOrderDetail, sumOrderDetail,
                                 VATSumOrderDetail, invoiceSumOrderDetail, shipmentDate, shipmentTime, 
                                 closeDate, note            
-        PROPERTIES (o)  NEWSESSION NEW[UserOrder]
-        PROPERTIES (o) edit SHOWIF overShowEdit(o)
-        PROPERTIES     NEWSESSION deleteo=DELETE(o) SHOWIF overShowDelete(o)
+        PROPERTIES (o) NEWSESSION NEW[UserOrder], EDIT SHOWIF overShowEdit(o), deleteo = DELETE SHOWIF overShowDelete(o)
         PROPERTIES (o) close[UserOrder] SHOWIF isOpened(o)
         PROPERTIES (o) open SHOWIF isClosed(o)
             
@@ -860,14 +853,14 @@ EXTEND FORM legalEntity
 
     OBJECTS ss=ScheduleOrder GRID
     PROPERTIES(ss) SHOWIF isCustomer(l) READONLY startDate, endDate, nameSupplierStock, stocks, nameType
-    PROPERTIES(ss) SHOWIF isCustomer(l) NEWSESSION DELETE , edit
+    PROPERTIES(ss) SHOWIF isCustomer(l) DELETE , EDIT
 
     FILTERS filterCompanySupplier(l, s)
     FILTERS supplier(ss) == s, customer(ss) == l
 
     OBJECTS sc=ScheduleOrder GRID 
     PROPERTIES(sc) SHOWIF isSupplier(l) READONLY startDate, endDate, nameSupplierStock, stocks, nameType
-    PROPERTIES(sc) SHOWIF isSupplier(l) NEWSESSION DELETE , edit
+    PROPERTIES(sc) SHOWIF isSupplier(l) DELETE , EDIT
 
     FILTERS filterCompanyCustomer(l, c)
     FILTERS customer(sc) == c, supplier(sc) == l

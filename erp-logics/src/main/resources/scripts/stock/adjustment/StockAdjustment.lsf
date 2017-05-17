@@ -100,9 +100,6 @@ batchDialog(UserAdjustmentDetail userAdjustmentDetail) = {
     }
 }
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (Adjustment) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-
-
 FORM userAdjustment 'Изменение остатков'
     OBJECTS i = UserAdjustment PANEL
     PROPERTIES (i) isPosted, nameStock ON CHANGE changeStockCompany(i),
@@ -224,9 +221,6 @@ DESIGN userAdjustment {
     }
 }
 
-edit 'Редактировать' (userAdjustment) = ACTION EDITFORM UserAdjustment;
-edit (UserAdjustment adjustment) += { edit(adjustment); }
-
 skipShowEdit = ABSTRACT BOOLEAN (Adjustment);
 skipShowDelete = ABSTRACT BOOLEAN (Adjustment);
 
@@ -265,11 +259,8 @@ FORM adjustments 'Изменения остатков'
     PROPERTIES (i) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (i)  NEWSESSION NEW[UserAdjustment]
-    PROPERTIES (i) edit SHOWIF showEdit(i)
+    PROPERTIES (i) NEWSESSION NEW[UserAdjustment], EDIT SHOWIF showEdit(i), deletei = DELETE SHOWIF showDelete[UserAdjustment](i)
     PROPERTIES(i)  close[UserAdjustment] SHOWIF isOpened[UserAdjustment](i), open SHOWIF isClosed[UserAdjustment](i)     
-
-    PROPERTIES (i) NEWSESSION deletei=DELETE SHOWIF showDelete[UserAdjustment](i)
 
     OBJECTS d = AdjustmentDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
@@ -444,14 +435,8 @@ quantity (InAdjustmentSkuDetail ledger) += quantity(ledger) IF NOT skipSkuLedger
 @implementSkuLedgerInLIFOBatchBalance(inAdjustmentSkuDetail, stock);
 sum (InAdjustmentSkuDetail ledger) += sum(ledger) IF NOT skipSkuLedger(ledger);
 
-edit 'Редактировать' = ACTION ABSTRACT LIST  (AdjustmentDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserAdjustmentDetail d) = {
-	NEWSESSION {
-	    SHOW userAdjustment OBJECTS i = userAdjustment(d), d = d MANAGESESSION DOCKED;
-	}
-}
+edit(UserAdjustmentDetail d) += { DIALOG userAdjustment OBJECTS i = userAdjustment(d), d = d DOCKED; }
 
-edit(UserAdjustmentDetail d) += { edit(d); }    
 edit(InAdjustmentSkuDetail d) += { edit(adjustmentDetail(d)); }
 edit(OutAdjustmentSkuDetail d) += { edit(adjustmentDetail(d)); }
 
@@ -558,9 +543,7 @@ stock (OutAdjustment ledger) += stock(adjustment(ledger));
 description (OutAdjustment ledger) += description(adjustment(ledger));                                                                                                                                                                                                                                   
 sumContainer(OutAdjustment ledger) += -sumContainerAdjustmentDetail(adjustment(ledger));
 sumItem(OutAdjustment ledger) += -sumItemAdjustmentDetail(adjustment(ledger));
-edit(OutAdjustment ledger) += {
-	NEWSESSION {SHOW userAdjustment OBJECTS i = adjustment(ledger) MANAGESESSION DOCKED;}
-}
+edit(OutAdjustment ledger) += { edit(adjustment(ledger)); }
 close(OutAdjustment ledger) += { close(adjustment(ledger)); }
 type(OutAdjustment ledger) += 'Изменение остатков расход' IF ledger IS OutAdjustment;
 skip(OutAdjustment ledger) += ledger IS OutAdjustment AND NOT active(adjustment(ledger));
@@ -579,9 +562,7 @@ stock (InAdjustment ledger) += stock(adjustment(ledger));
 description (InAdjustment ledger) += description(adjustment(ledger));                                                                                                                                                                                                                                   
 sumContainer(InAdjustment ledger) += sumContainerAdjustmentDetail(adjustment(ledger));
 sumItem(InAdjustment ledger) += sumItemAdjustmentDetail(adjustment(ledger));
-edit(InAdjustment ledger) += {
-	NEWSESSION {SHOW userAdjustment OBJECTS i = adjustment(ledger) MANAGESESSION DOCKED;}
-}
+edit(InAdjustment ledger) += { edit(adjustment(ledger)); }
 close(InAdjustment ledger) += { close(adjustment(ledger)); }
 type(InAdjustment ledger) += 'Изменение остатков приход' IF ledger IS InAdjustment;
 skip(InAdjustment ledger) += ledger IS InAdjustment AND NOT active(adjustment(ledger));

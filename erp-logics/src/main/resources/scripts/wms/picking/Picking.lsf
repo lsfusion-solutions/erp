@@ -72,9 +72,7 @@ packQuantity(UserPicking picking) += packQuantity(picking);
 
 // --------------------------- Формы Заказа ---------------------------------
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (Picking) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-
-editSku 'Редактировать SKU' (UserPickingDetail d) = { edit(sku(d)); }
+editSku 'Редактировать SKU' (UserPickingDetail d) = { NEWSESSION { edit(sku(d)); } }
 FORM userPicking 'Комплектация'
     OBJECTS o = UserPicking PANEL
     PROPERTIES (o) nameStock,// ON CHANGE changeCustomerStock###customerFilter###userPicking(o),
@@ -151,9 +149,6 @@ DESIGN userPicking {
 
 
 
-edit 'Редактировать' (userPicking) = ACTION EDITFORM UserPicking;
-edit(UserPicking picking) += { edit(picking); }
-
 overCopy = ACTION ABSTRACT LIST (UserPickingDetail, PickingDetail);
 copy 'Копировать'(Picking picking) = {
 	NEWSESSION {
@@ -189,8 +184,8 @@ FORM pickings 'Комплектации'
 
     PROPERTIES (o) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer
 
-    PROPERTIES (o)  NEWSESSION NEW[UserPicking]
-    PROPERTIES (o) edit, copy
+    PROPERTIES (o) NEWSESSION NEW[UserPicking], EDIT
+    PROPERTIES (o) copy
     PROPERTIES     NEWSESSION deleteo=DELETE(o) SHOWIF is[UserPicking](o)
 
     OBJECTS d=PickingDetail

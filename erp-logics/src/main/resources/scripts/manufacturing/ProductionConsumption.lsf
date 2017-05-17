@@ -95,8 +95,6 @@ sumNotContainerConsumptionDetail 'Сумма кроме тары' (consumption) 
 @defineAddDetailDialogSkuStock(userConsumption, sku, stock, dialogSku);
 @defineAddDetailDialogBarcode(userConsumption, sku);
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (Consumption) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-
 @implementDocument(consumption);
 @implementDocumentBatch(consumption);
 supplierStock(Consumption consumption) += stock(consumption);
@@ -269,7 +267,6 @@ sumItemOutStockDocumentLedger 'Сумма расхода, товар' (ledger) =
 type(Consumption l) += OVERRIDE typeStockDocumentLedger(l), 'Списание сырья (пр-во)' IF l IS Consumption;
 sumItem (Consumption ledger) += OVERRIDE sumItemOutStockDocumentLedger(ledger), sumItemConsumptionDetail(ledger);
 sumContainer (Consumption ledger) += sumContainerConsumptionDetail(ledger);
-edit[StockDocumentLedger](Consumption l) += { edit(l); }
 close[StockDocumentLedger](Consumption l) += { close(l); }
 
 // Проводим по регистру
@@ -460,21 +457,9 @@ WHEN LOCAL FORMS userConsumption CHANGED(batch(UserConsumptionDetail detail)) DO
 //                    THEN priceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batchUserConsumptionDetail(detail), stockUserConsumptionDetail(detail), dateTimeUserConsumptionDetail(detail))
 //                    ELSE priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, skuUserConsumptionDetail(detail), stockUserConsumptionDetail(detail), dateTimeUserConsumptionDetail(detail));
                     
-edit 'Редактировать' = ACTION ABSTRACT LIST  (ConsumptionDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserConsumptionDetail d) = {
-	NEWSESSION {
-	    SHOW userConsumption OBJECTS o = userConsumption(d), d = d MANAGESESSION DOCKED;
-	}
-}
+edit(UserConsumptionDetail d) += { edit(userConsumption(d)); }
 
-edit(UserConsumptionDetail d) += { edit(d); }
-edit[SkuLedger](ConsumptionDetail batch) += { edit(batch); }
-                       
-edit(ComponentDetail d) = {
-	NEWSESSION {
-	    SHOW order OBJECTS o = order(d), cd = d MANAGESESSION DOCKED;
-	}
-}
+edit(ComponentDetail d) += { DIALOG order OBJECTS o = order(d), cd = d DOCKED; }
 
 edit(OrderConsumptionDetail d) += { edit(componentDetail(d)); }
 
@@ -519,9 +504,6 @@ show(OrderConsumptionDetail d) += { show(componentDetail(d)); }
 @defineBalancesBatch(userConsumptionDetail); //-- показываем по нажатию правой клавиши остатки партии
 @defineMovementBatch(consumptionDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
 @defineMovementBatch(userConsumptionDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
-
-edit 'Редактировать' (userConsumption) = ACTION EDITFORM UserConsumption;
-edit(UserConsumption consumption) += { edit(consumption); }
 
 copy 'Копировать'(UserConsumption userConsumption) = {
 	NEWSESSION {
@@ -572,10 +554,9 @@ FORM consumptions 'Списания сырья'
     PROPERTIES (o) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (o) NEWSESSION NEW[UserConsumption]
-    PROPERTIES (o) edit SHOWIF isOpened(o), copy
+    PROPERTIES (o) NEWSESSION NEW[UserConsumption], EDIT SHOWIF isOpened(o), deleteo = DELETE SHOWIF isUserOpened(o)
+    PROPERTIES (o) copy
     PROPERTIES (o) close[UserConsumption] SHOWIF isOpened[UserConsumption](o), open SHOWIF isClosed[UserConsumption](o)       
-    PROPERTIES     NEWSESSION deleteo=DELETE(o) SHOWIF isUserOpened(o)
 
     OBJECTS d=ConsumptionDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameBatch

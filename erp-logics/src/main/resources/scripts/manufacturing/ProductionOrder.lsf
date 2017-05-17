@@ -606,7 +606,7 @@ FORM substitutesSku 'Замены'
 
     PROPERTIES(s,sk) multiplierSubstituteTo ON CHANGE changeMultiplierSubstituteFromTo(s,sk) BACKGROUND  backgroundSubstitutes(o)
     PROPERTIES() addSku TODRAW sk
-    PROPERTIES(sk) edit, copy
+    PROPERTIES(sk) EDIT NEWSESSION, copy
     FILTERS isParent(sg, sk)
     ORDER BY name(sk)
 
@@ -1070,8 +1070,8 @@ bruttoBalanceToSku 'Текущий остаток с учетом замен' (S
 @defineDocumentDialogStock(order, company,  products, company, );
 
 backgroundBalancePriceStock(Sku s,Order o) = RGB (255,156,156) IF quantityComponentDetail(s,o) > currentBalancePriceStock(s,o);  
-editSku 'Редактировать SKU' (ProductDetail d) = { edit(sku(d)); }
-editBruttoSku 'Редактировать SKU' (ComponentDetail d) = { edit(bruttoSku(d)); }
+editSku 'Редактировать SKU' (ProductDetail d) = { NEWSESSION { edit(sku(d)); } }
+editBruttoSku 'Редактировать SKU' (ComponentDetail d) = { NEWSESSION { edit(bruttoSku(d)); } }
 
 showBOMQuantity 'Показывать количество в спецификации' = DATA BOOLEAN (Order);
 showBOMQuantity= showBOMQuantity(order(ProductDetail pd));
@@ -1287,7 +1287,6 @@ DESIGN order {
         PROPERTY(sumProductDetail(o)) { preferredCharWidth = 13;}
     }
 }
-edit 'Редактировать' (order) = ACTION EDITFORM Order;
 
 @addEventGenerateNumberOnForm(order, o, order);
 
@@ -1917,11 +1916,8 @@ DESIGN order{
     }
 }
 
-edit 'Редактировать' (ProductDetail d) = {
-	NEWSESSION {
-	    SHOW order OBJECTS o = order(d), pd = d MANAGESESSION DOCKED;
-	}
-}
+edit (ProductDetail d) += { DIALOG order OBJECTS o = order(d), pd = d DOCKED; }
+
 show 'Просмотреть' (ProductDetail d) = {
 	NEWSESSION {
 	    SHOW order OBJECTS o = order(d), pd = d DOCKED READONLY ;

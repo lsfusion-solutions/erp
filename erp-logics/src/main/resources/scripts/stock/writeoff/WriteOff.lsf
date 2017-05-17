@@ -247,7 +247,6 @@ isStockSku (WriteOffDetail writeOffDetail) = isStock(sku(writeOffDetail));
 isStockSku (UserWriteOffDetail userWriteOffDetail) = isStock(sku(userWriteOffDetail));
 
 // --------------------------- Формы списания ---------------------------------
-edit 'Редактировать' = ACTION ABSTRACT LIST (WriteOff) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 FORM userWriteOff 'Списание'
     OBJECTS w=UserWriteOff PANEL
@@ -391,9 +390,6 @@ shipmentDateTime(WriteOff writeOff) = dateTime(writeOff);
 
 @extendFormDocumentBatchStockOrderLedger(userWriteOff, userWriteOff, w);
 
-edit 'Редактировать'  = ACTION EDITFORM UserWriteOff;
-
-edit(UserWriteOff w) += { edit(w); }
 skipShowEdit = ABSTRACT BOOLEAN (WriteOff);
 skipShowDelete = ABSTRACT BOOLEAN (WriteOff);
 
@@ -436,12 +432,9 @@ FORM writeOffs 'Списания'
 
     PROPERTIES (w) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
-    PROPERTIES (w)  NEWSESSION NEW[UserWriteOff]
-    PROPERTIES (w) edit SHOWIF showEdit(w)
+    PROPERTIES (w) NEWSESSION NEW[UserWriteOff], EDIT SHOWIF showEdit(w), deletew = DELETE SHOWIF showDelete[UserWriteOff](w)
     PROPERTIES (w) close[UserWriteOff] SHOWIF isOpened[UserWriteOff](w), open[UserWriteOff] SHOWIF isClosed[UserWriteOff](w)
     
-    PROPERTIES (w) NEWSESSION deletew=DELETE SHOWIF showDelete[UserWriteOff](w)
-
     OBJECTS d=WriteOffDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameBatch,
                    quantity, price, sum, nameStock
@@ -632,7 +625,6 @@ sumContainer (WriteOff ledger) += sumContainerWriteOffDetail(ledger);
 legalEntity(WriteOff ledger) += contact(ledger);  
 
 operation[StockDocumentLedger](WriteOff ledger) += operation(ledger);
-edit[StockDocumentLedger](WriteOff l) += { edit(l); }
 close[StockDocumentLedger](WriteOff l) += { close(l); }
 skip(WriteOff l) += skipStockDocumentLedger(l);
 
@@ -646,14 +638,7 @@ sum[OutSkuLedger] (WriteOffDetail ledger) += sum(ledger);
 
 stockDocumentLedger(WriteOffDetail ledger) += writeOff(ledger); 
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (WriteOffDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserWriteOffDetail d) = {
-	NEWSESSION {
-	    SHOW userWriteOff OBJECTS w = userWriteOff(d), d = d MANAGESESSION DOCKED;
-	}
-}
-edit(UserWriteOffDetail d) += { edit(d); }
-edit[SkuLedger](WriteOffDetail d) += { edit(d); }
+edit(UserWriteOffDetail d) += { DIALOG userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED; }
 
 show 'Просмотреть' = ACTION ABSTRACT LIST (WriteOffDetail) TOOLBAR;
 show(UserWriteOffDetail d) = {

@@ -110,8 +110,6 @@ prevInSupplier 'Были поставки (пред.)' (LegalEntity legalEntity,
 sumPurchase 'Сумма покупки валюта' (TypeExchange typeExchange, PurchaseLedger purchaseLedger)= round((sum (purchaseLedger)*
     rateOn(typeExchange, currency(purchaseLedger), date(purchaseLedger))), currency(typeExchange));
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (PurchaseLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-
 TABLE purchaseLedgerBatch(PurchaseLedger, Batch);
 
 cost 'Расписано из партии' = ABSTRACT NUMERIC[16,5] (PurchaseLedger, Batch) MATERIALIZED;
@@ -348,7 +346,7 @@ FORM purchaseLedger 'Регистр поступлений'
                            quantity, price, valueVAT, sumVAT, sum, averagePrice, nameCurrency,
                            shipmentQuantity
     PROPERTIES    READONLY sumPurchase (te, s)
-    PROPERTIES(s) edit SHOWIF allowedEdit(s)
+    PROPERTIES(s) NEWSESSION EDIT SHOWIF allowedEdit(s)
     
     FILTERS active(s), filterPurchaseOperationSale(s), filterPurchaseCustomerSale(s)  
     FILTERS (date(s) >= dFrom AND date(s) <= dTo IF NOT isShipmentDate()) OR (s IS PurchaseLedger AND isShipmentDate()),  
@@ -411,7 +409,6 @@ META implementPurchaseLedgerCustom(concrete, skuProp, stockProp)
     stock[PurchaseLedger] (concrete##Detail ledger) += stockProp(ledger);
     operation[PurchaseLedger] (concrete##Detail ledger) += operation(ledger);
     description[PurchaseLedger] (concrete##Detail ledger) += description(ledger);
-    edit[PurchaseLedger] (concrete##Detail ledger) += { edit(ledger); }
 END
 META implementPurchaseLedger(concrete, skuProp, stockProp)
     EXTEND CLASS concrete##Detail : PurchaseLedger;

@@ -85,9 +85,7 @@ changeBatch(UserPickingOrderDetail detail) = {
 
 // --------------------------- Формы Заказа ---------------------------------
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (PickingOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-
-editSku 'Редактировать SKU' (UserPickingOrderDetail d) = { edit(sku(d)); }
+editSku 'Редактировать SKU' (UserPickingOrderDetail d) = { NEWSESSION { edit(sku(d)); } }
 FORM userPickingOrder 'Заказ на комплектацию'
     OBJECTS o = UserPickingOrder PANEL
     PROPERTIES (o) isPosted, nameStock,// ON CHANGE changeCustomerStock###customerFilter###userOrder(o),
@@ -151,12 +149,6 @@ DESIGN userPickingOrder {
 
 //    @extendFormDocumentSkuStock(userOrder, userOrder, o, legalEntityProp, stockProp);
 
-
-
-edit 'Редактировать' (userOrder) = ACTION EDITFORM UserPickingOrder;
-edit(UserPickingOrder order) += { edit(order); }
-
-
 overCopy = ACTION ABSTRACT LIST (UserPickingOrderDetail, PickingOrderDetail);
 copy 'Копировать'(PickingOrder order) = {
 	NEWSESSION {
@@ -190,8 +182,8 @@ FORM pickingOrders 'Заказы на комплектацию'
 
     PROPERTIES (o) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer
 
-    PROPERTIES (o)  NEWSESSION NEW[UserPickingOrder]
-    PROPERTIES (o) edit, copy
+    PROPERTIES (o) NEWSESSION NEW[UserPickingOrder], EDIT
+    PROPERTIES (o) copy
     PROPERTIES     NEWSESSION deleteo=DELETE(o) SHOWIF is[UserPickingOrder](o)
 
     OBJECTS d=PickingOrderDetail

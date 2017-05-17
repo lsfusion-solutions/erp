@@ -20,8 +20,6 @@ time 'Время' (GLDocument document) = toTime(dateTime(document));
 
 operation 'Операция' = ABSTRACT Operation (GLDocument) MATERIALIZED;
 
-edit 'Редактировать регистр' = ACTION ABSTRACT LIST (GLDocument) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-
 onlineGeneralLedger 'Создавать проводки онлайн' = DATA BOOLEAN () IN generalLedger COMPLEX;
 reportinGeneralLedger 'Запретить редактировать проводки после отчетного периода' = DATA BOOLEAN () IN generalLedger;
 dateReportingGeneralLedger 'Дата отчетного периода' = DATA DATE () IN generalLedger;
@@ -88,8 +86,6 @@ idOperation(UserGeneralLedger generalLedger) += idOperation(generalLedger);
 
 GLDocument (UserGeneralLedger generalLedger) += GLDocument (generalLedger);
 
-editGLDocument 'Редактировать регистр' (GeneralLedger generalLedger) = { edit(GLDocument(generalLedger)); }
-
 legalEntity = ABSTRACT LegalEntity (GeneralLedger) MATERIALIZED NOT NULL DELETE;
 nameLegalEntity 'Компания' (GeneralLedger generalLedger) = name(legalEntity(generalLedger));
 legalEntity = DATA LegalEntity (UserGeneralLedger);
@@ -131,8 +127,6 @@ description (UserGeneralLedger generalLedger) += description (generalLedger);
 skip 'Не изменять значение' (generalLedger) = ABSTRACT BOOLEAN (GeneralLedger) MATERIALIZED;
 skip 'Не изменять значение' (userGeneralLedger) = DATA BOOLEAN (UserGeneralLedger);
 skip (UserGeneralLedger generalLedger) += skip (generalLedger);
-
-edit 'Редактировать' = ACTION ABSTRACT LIST (GeneralLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 CONSTRAINT isPosted(GeneralLedger ledger) AND reportinGeneralLedger() AND date(ledger) < dateReportingGeneralLedger() AND CHANGED(sum(ledger))
     MESSAGE 'Запрещено редактировать проводки после отчетного периода';
@@ -265,8 +259,6 @@ DESIGN userGeneralLedger {
         }
     }
 }
-edit 'Редактировать' (userGeneralLedger) = ACTION EDITFORM UserGeneralLedger;
-edit(UserGeneralLedger generalLedger) += { edit(generalLedger); }
 is(UserGeneralLedger generalLedger) = generalLedger IS UserGeneralLedger;
 
 overCopy = ACTION ABSTRACT LIST (GeneralLedger, GeneralLedger);
@@ -312,8 +304,8 @@ FORM generalLedgers 'Проводки'
     PROPERTIES (g) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer,
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (g)  NEWSESSION NEW[UserGeneralLedger]
-    PROPERTIES (g) edit, copy
+    PROPERTIES (g) NEWSESSION NEW[UserGeneralLedger], EDIT
+    PROPERTIES (g) copy
     PROPERTIES     NEWSESSION deleteg=DELETE(g) SHOWIF is(g)
 
     FILTERS toDate(dateTime(g))<= dTo AND toDate(dateTime(g))>= dFrom

@@ -63,12 +63,9 @@ expiryDate(UserOutputDetail outputDetail) += expiryDate (outputDetail);
 @defineAddDetailDialogSkuStock(userOutput, sku, stock, dialogSku);
 @defineAddDetailDialogBarcode(userOutput, sku);
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (Output) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-
 // Подбор документа
 @implementDocument(output);
 customerStock(Output output) += stock(output);
-edit[StockDocumentLedger](Output l) += { edit(l); }
 close[StockDocumentLedger](Output l) += { close(l); }
 
 //--  Связь заказа и акта производства
@@ -435,17 +432,7 @@ DESIGN userOutput {
 // Проводим по регистру учетных цен
 @implementSystemLedgerPriceListTypeBatch(account, OutputDetail, legalEntityStock, stock);
 
-edit 'Редактировать' = ACTION ABSTRACT LIST  (OutputDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserOutputDetail d) = {
-	NEWSESSION {
-	    SHOW userOutput OBJECTS o = userOutput(d), d = d MANAGESESSION DOCKED;
-	}
-}
-edit(UserOutputDetail d) += { edit(d); }
-edit[PriceListLedger](OutputDetail d) += { edit(d); }
-
-edit[SkuLedger](OutputDetail batch) += { edit(batch); }
-                       
+edit(UserOutputDetail d) += { DIALOG userOutput OBJECTS o = userOutput(d), d = d DOCKED; }
 edit(OrderOutputDetail d) += { edit(productDetail(d)); }
 
 
@@ -460,9 +447,6 @@ show(UserOutputDetail d) += { show(d); }
 show[SkuLedger](OutputDetail batch) += { show(batch); }
 show(OrderOutputDetail d) += { show(productDetail(d)); }                       
 //-- SKU
-
-edit 'Редактировать' (userOutput) = ACTION EDITFORM UserOutput;
-edit(UserOutput output) += { edit(output); }
 
 copy 'Копировать'(UserOutput userOutput) = {
 	NEWSESSION {
@@ -497,10 +481,9 @@ FORM outputs 'Производство'
     PROPERTIES (o) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (o) NEWSESSION NEW[UserOutput]
-    PROPERTIES (o) edit SHOWIF isOpened(o), copy
+    PROPERTIES (o) NEWSESSION NEW[UserOutput], EDIT SHOWIF isOpened(o), deleteo = DELETE SHOWIF isUserOpened(o)  
+    PROPERTIES (o) copy
     PROPERTIES(o)  close[UserOutput] SHOWIF isOpened[UserOutput](o), open SHOWIF isClosed[UserOutput](o)     
-    PROPERTIES     NEWSESSION deleteo=DELETE(o) SHOWIF isUserOpened(o)
 
     OBJECTS d=OutputDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku

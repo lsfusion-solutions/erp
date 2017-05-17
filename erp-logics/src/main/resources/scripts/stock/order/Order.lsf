@@ -93,8 +93,6 @@ quantityFrom 'Кол-во со склада' (order, stock) = GROUP SUM quantity
 quantityTo 'Кол-во на склад' (order, stock) = GROUP SUM quantity(OrderDetail orderDetail) BY order(orderDetail),
                                                                                                       toStock(orderDetail);
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (Order) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-
 in 'Приходный' = ABSTRACT BOOLEAN (Order) MATERIALIZED;
 out 'Расходный' (Order order) = order IS Order AND NOT in(order) MATERIALIZED;
 
@@ -384,10 +382,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 // --------------------------- Формы Заказа ---------------------------------
     backgroundSku 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrderDetail);
 
-    edit 'Редактировать' = ACTION ABSTRACT LIST (Order) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-    edit[Order.Order] (Order order) += { edit(order); }
-
-    editSku 'Редактировать SKU' (UserOrderDetail d) = { edit(sku(d)); }
+    editSku 'Редактировать SKU' (UserOrderDetail d) = { NEWSESSION { edit(sku(d)); } }
     
     backgroundParam = RGB(212,255,212) IF OrderDetail orderDetail IS OrderDetail; 
     backgroundQuantityParam = OVERRIDE backgroundQuantity(OrderDetail d), backgroundParam(d);
@@ -571,9 +566,6 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentSkuStockPriceListTypeAgreement(userOrder, stockProp);
     @extendFormDocumentSkuStockPriceListTypeAgreement(userOrder, userOrder, o, legalEntityProp, stockProp);
 
-    edit 'Редактировать' (userOrder) = ACTION EDITFORM UserOrder;
-    edit(UserOrder order) += { edit(order); }
-    
     isUserOpened(UserOrder o)=  isOpened[Order](o) AND is(o);
 
     overCopy = ACTION ABSTRACT LIST (UserOrderDetail, OrderDetail);
@@ -690,9 +682,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         PROPERTIES (o) READONLY PANEL createdNameUser[UserOrder], createdTime, createdHostnameComputer, 
                                             postedNameUser, postedTime, postedHostnameComputer
 
-        PROPERTIES (o) NEWSESSION addUserOrder = NEW[UserOrder]
-        PROPERTIES (o) edit SHOWIF overShowEdit(o),//isOpenedOrder(o), 
-                       copy
+        PROPERTIES (o) NEWSESSION addUserOrder = NEW[UserOrder], EDIT SHOWIF overShowEdit(o)
+        PROPERTIES (o) copy
         PROPERTIES (o) close[UserOrder] SHOWIF isOpened[UserOrder](o), open SHOWIF isClosed[UserOrder](o)
         PROPERTIES     NEWSESSION deleteo=DELETE(o) SHOWIF overShowDelete(o) //isUserOpenedOrder(o)
 
@@ -788,13 +779,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @extendFormEditable(orders);
     @defineFilterIsOpened (order, orders, o); 
     @defineDocumentLogForm(orders, o);
-    edit 'Редактировать' = ACTION ABSTRACT LIST  (OrderDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-    edit(UserOrderDetail d) = {
-	NEWSESSION {
-	        SHOW userOrder OBJECTS o = userOrder(d), d = d MANAGESESSION DOCKED;
-	    }
-}
-    edit(UserOrderDetail d) += { edit(d); }    
+ 
+    edit(UserOrderDetail d) += { DIALOG userOrder OBJECTS o = userOrder(d), d = d DOCKED; }
 END
 
 META deriveShipmentDate(dumb) 

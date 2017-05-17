@@ -105,7 +105,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp, stockProp)
                                  prevCurrentBalance READONLY,
                                  allQuantity ON CHANGE changeAllQuantity(ks, concrete),
                                  price READONLY
-        PROPERTIES               add###skuProp() TODRAW ks, edit(ks), copy(ks)
+        PROPERTIES               add###skuProp() TODRAW ks, EDIT(ks) NEWSESSION, copy(ks)
 
         FILTERS                isParent(sk, ks)
         FILTERGROUP activeSku FILTER 'Активные' active(ks) DEFAULT
@@ -448,7 +448,7 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
         OBJECTS           sts=(st=Stock, ks=Sku) GRID
         PROPERTIES        READONLY BACKGROUND background(ks, concrete, st) name(ks) ON SHORTCUT showMovementSku(ks, st) ON SHORTCUT showMovementPriceSku(ks, st), idBarcode(ks), id(ks) SHOWIF showIDs(), shortNameUOM(ks)
         PROPERTIES        READONLY stockName = name(st) SHOWIF not###stockProp##Stock(concrete)
-        PROPERTIES        addSku() TODRAW sts, edit(ks), copy(ks), sortOrder###object(ks, concrete, st)
+        PROPERTIES        addSku() TODRAW sts, EDIT(ks) NEWSESSION, copy(ks), sortOrder###object(ks, concrete, st)
 
         FILTERS           isParent(sk, ks),
                           // пока отключаем работу по многим складам, а то люди путаются
@@ -725,7 +725,7 @@ META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityPr
         
         OBJECTS           sts=(st=Stock, ks=Sku)
         PROPERTIES        READONLY name(ks) ON SHORTCUT sh##concrete##wM##concrete##vementSku(ks, st) ON SHORTCUT sh##concrete##wM##concrete##vementPriceSku(ks, st), idBarc##concrete##de(ks), id(ks) SHOWIF sh##concrete##wIDs(), sh##concrete##rtNameU###concrete##M(ks), name(st) SHOWIF n##concrete##t###stockProp(concrete) 
-        PROPERTIES        addSku() TODRAW sts, edit(ks), c##concrete##py(ks)
+        PROPERTIES        addSku() TODRAW sts, EDIT(ks) NEWSESSION, c##concrete##py(ks)
         FILTERS           isParent(sk, ks),
                           (st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp(concrete) OR
                           st == stockProp(concrete) AND NOT sg AND NOT ts,
@@ -938,7 +938,7 @@ META extendFormDocumentSkuStockIn(object, form, concrete, contBox)
         PROPERTIES             in(ks,concrete) ON CHANGE changeIn(ks, concrete), inputName = name(ks) READONLY
         PROPERTIES(ks)          READONLY idBarcode, id SHOWIF showIDs(), shortNameUOM
         PROPERTIES(ks, concrete)currentBalance READONLY
-        PROPERTIES             addSku() TODRAW ks, edit(ks), copy(ks)
+        PROPERTIES             addSku() TODRAW ks, EDIT(ks) NEWSESSION, copy(ks)
 
         FILTERS                isParent(gg, ks) OR ks IS Sku AND NOT gg
 
@@ -1016,7 +1016,7 @@ META defineDialogSku (form)
         OBJECTS s=Sku                                 //form###nameSku 'Наименование' (sku) = IF form###stock() THEN nameSkuStock(sku, form###stock()) ELSE nameSku(sku);
         PROPERTIES READONLY    idBarcode(s), id(s) SHOWIF showIDs(), inputName = name(s) //form###nameSku(s)
         PROPERTIES(s)          dialogQuantity
-        PROPERTIES             edit(s)
+        PROPERTIES             EDIT(s) NEWSESSION
 
         FILTERS                isParent(sk, s)
         FILTERGROUP activeSku FILTER 'Активные' active(s) DEFAULT

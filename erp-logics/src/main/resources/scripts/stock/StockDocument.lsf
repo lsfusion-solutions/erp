@@ -13,7 +13,6 @@ type 'Тип процесса' (ledger) = ABSTRACT VARSTRING[50] (StockDocumentL
 overOrder  (ledger) = ABSTRACT INTEGER (StockDocumentLedger);
 order 'Порядок' = OVERRIDE overOrder(StockDocumentLedger l), 1000000 IF l IS StockDocumentLedger;
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (StockDocumentLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 close 'Закрыть' = ACTION ABSTRACT LIST (StockDocumentLedger) TOOLBAR;
 
 dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (StockDocumentLedger) MATERIALIZED INDEXED;
@@ -333,7 +332,7 @@ FORM sumStockDocumentLedger 'Товарный отчет'
                    iObjName = objectClassName, iDescription = description,
                    nameOperation, nameLegalEntity, nameLegalEntityStock, 
                    sumItem, sumContainer, sum
-    PROPERTIES(il) edit SHOWIF allowedEdit(il), close SHOWIF isOpened(il)             
+    PROPERTIES(il) EDIT SHOWIF allowedEdit(il) NEWSESSION, close SHOWIF isOpened(il)             
     FILTERS active(il),
             stock(il) == ds,
             date(il) >= dtFrom,
@@ -346,7 +345,7 @@ FORM sumStockDocumentLedger 'Товарный отчет'
                    oObjName = objectClassName, oDescription = description,
                    nameOperation, nameLegalEntity, nameLegalEntityStock, 
                    sumItem, sumContainer, sum
-    PROPERTIES(ol) edit SHOWIF allowedEdit(ol), close SHOWIF isOpened(ol)               
+    PROPERTIES(ol) EDIT SHOWIF allowedEdit(ol) NEWSESSION, close SHOWIF isOpened(ol)               
     FILTERS active(ol),
             stock(ol) == ds,
             date(ol) >= dtFrom,
@@ -753,9 +752,7 @@ stock (OutUserStockDocumentDetail ledger) += stock(userStockDocumentDetail(ledge
 description (OutUserStockDocumentDetail ledger) += description(userStockDocumentDetail(ledger));                                                                                                                                                                                                                                   
 sumContainer(OutUserStockDocumentDetail ledger) += -sumContainer(userStockDocumentDetail(ledger));
 sumItem(OutUserStockDocumentDetail ledger) += -sumItem(userStockDocumentDetail(ledger));
-edit(OutUserStockDocumentDetail ledger) += {
-	NEWSESSION {SHOW userStockDocument OBJECTS i = userStockDocument(userStockDocumentDetail(ledger)), d = userStockDocumentDetail(ledger) MANAGESESSION DOCKED;}
-}
+edit(OutUserStockDocumentDetail ledger) += { edit(userStockDocumentDetail(ledger)); }
 close(OutUserStockDocumentDetail ledger) += { isClosed(UserStockDocument s) <- TRUE WHERE s == userStockDocument(userStockDocumentDetail(ledger)); }
 type(OutUserStockDocumentDetail l) += 'Учетный документ (польз.) расход' IF l IS OutUserStockDocumentDetail;
 
@@ -771,9 +768,7 @@ stock (InUserStockDocumentDetail ledger) += stock(userStockDocumentDetail(ledger
 description (InUserStockDocumentDetail ledger) += description(userStockDocumentDetail(ledger));                                                                                                                                                                                                                                   
 sumContainer(InUserStockDocumentDetail ledger) += sumContainer(userStockDocumentDetail(ledger));
 sumItem(InUserStockDocumentDetail ledger) += sumItem(userStockDocumentDetail(ledger));
-edit(InUserStockDocumentDetail ledger) += {
-	NEWSESSION {SHOW userStockDocument OBJECTS i = userStockDocument(userStockDocumentDetail(ledger)), d = userStockDocumentDetail(ledger) MANAGESESSION DOCKED;}
-}
+edit(InUserStockDocumentDetail ledger) += { edit(userStockDocumentDetail(ledger)); }
 close(InUserStockDocumentDetail ledger) += { isClosed(UserStockDocument s) <- TRUE WHERE s == userStockDocument(userStockDocumentDetail(ledger)); }
 type(InUserStockDocumentDetail l) += 'Учетный документ (польз.) приход' IF l IS InUserStockDocumentDetail;
 

@@ -41,7 +41,6 @@ INDEX sku(ShipmentDetail d), customerStock(d);
 
 @defineDocumentHeaderItemSum (shipment, , );
         
-edit 'Редактировать' = ACTION ABSTRACT LIST (Shipment) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 isUser = ABSTRACT BOOLEAN (Shipment);
 
 operation = ABSTRACT Operation.Operation(Shipment);
@@ -271,12 +270,9 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 
 // --------------------------- Формы --------------------------------- //
 
-    edit 'Редактировать' = ACTION ABSTRACT LIST (Shipment) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-    edit[Shipment.Shipment] (Shipment shipment) += { edit(shipment); }
-
     backgroundSku 'Цвет'  (d)= ABSTRACT CASE COLOR (UserShipmentDetail);
  
-    editSku 'Редактировать SKU' (UserShipmentDetail d) = { edit(sku(d)); }
+    editSku 'Редактировать SKU' (UserShipmentDetail d) = { NEWSESSION { edit(sku(d)); } }
     FORM userShipment 'Поставка'###sign
         OBJECTS s = UserShipment PANEL
         PROPERTIES (s) isPosted, nameSupplier ON CHANGE changeSupplier###supplierFilter(s),
@@ -406,8 +402,6 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @defineDocumentSkuPriceListTypeSystemLedger(userShipment, accountPriceListType, stock, stockProp);
     @extendFormDocumentSku(userShipment, userShipmentDetail, userShipment, s, sku, stockProp##Stock);
     
-    edit 'Редактировать' (userShipment) = ACTION EDITFORM UserShipment;
-    edit (UserShipment shipment) += { edit(shipment); }
     overCopy = ACTION ABSTRACT LIST (UserShipmentDetail, ShipmentDetail);
     overCopy = ACTION ABSTRACT LIST (Shipment, UserShipment);
 
@@ -517,12 +511,9 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         PROPERTIES (s) READONLY PANEL createdNameUser[UserShipment], createdTime, createdHostnameComputer, 
                                             postedNameUser, postedTime, postedHostnameComputer
 
-        PROPERTIES (s)  NEWSESSION NEW[UserShipment]
-        PROPERTIES (s) edit SHOWIF overShowEdit(s), //isOpenedShipment(s), 
-                       copy
+        PROPERTIES (s) NEWSESSION NEW[UserShipment], EDIT SHOWIF overShowEdit(s), deletes = DELETE SHOWIF overShowDelete(s) 
+        PROPERTIES (s) copy
         PROPERTIES (s) close[UserShipment] SHOWIF isOpened[UserShipment](s), open SHOWIF isClosed[UserShipment](s)
-
-        PROPERTIES (s) NEWSESSION deletes=DELETE SHOWIF overShowDelete(s) //isUserOpenedShipment(s)
 
         OBJECTS d = ShipmentDetail
         PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
@@ -605,14 +596,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @extendFormEditable(shipments);
     @defineFilterIsOpened (shipment, shipments, s);
     @defineDocumentLogForm(shipments, s);
-    edit 'Редактировать' = ACTION ABSTRACT LIST  (ShipmentDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-    edit(UserShipmentDetail d) = {
-	NEWSESSION {
-	        SHOW userShipment OBJECTS s = userShipment(d), d = d MANAGESESSION DOCKED;
-	    }
-}
-    
-    edit(UserShipmentDetail d) += { edit(d); }      
+    edit(UserShipmentDetail d) += { DIALOG userShipment OBJECTS s = userShipment(d), d = d DOCKED; }
     
     show 'Просмотреть' = ACTION ABSTRACT LIST  (ShipmentDetail) TOOLBAR;
     show(UserShipmentDetail d) = {

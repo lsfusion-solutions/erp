@@ -87,7 +87,6 @@ shortNameUOM 'Ед. изм.' (Material material) = shortName(UOM(material)) IN b
 country (material) = ABSTRACT Country (Material) MATERIALIZED;
 nameCountry 'Страна' (Material material) = name(country(material)) IN base;
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (Material) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 addMaterial 'Добавить' = ACTION ABSTRACT LIST () IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
 copy 'Копировать' = ACTION ABSTRACT LIST (Material) EDITKEY 'F5' TOOLBAR;
@@ -108,7 +107,7 @@ FORM materials 'Материалы'
     OBJECTS m = Material
     PROPERTIES(m) READONLY id SHOWIF showIDs(), name, shortNameUOM, objectClassName    
     PROPERTIES() addMaterial TODRAW m
-    PROPERTIES(m) edit, copy
+    PROPERTIES(m) EDIT NEWSESSION, copy
     FILTERS isParent(sg, m)
     ORDER BY name(m)
 
@@ -148,7 +147,6 @@ name(Sku material) += Stock.name(material);
 UOM(Sku material) += Stock.UOM(material);
 country(Sku material) += Stock.country(material);
 
-edit(Sku sku) += { Stock.edit(sku); }
 addMaterial () += { addSku(); }
 copy(Sku sku) += { Stock.copy(sku); }
 
@@ -348,7 +346,7 @@ idSku 'Код' (Product product)= Stock.id(sku(product));
 id 'Код изделия' (Product product) = Stock.id(sku(product))IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
 id(Product p) += id(p);
 
-editSku 'Редактировать SKU' (Product p) = { Stock.edit(sku(p)); }
+editSku 'Редактировать SKU' (Product p) = { NEWSESSION { edit(sku(p)); } }
 
 UOM = DATA UOM (Product);
 shortNameUOM 'Ед.изм.' (Product product) = shortName(UOM(product)) IN recognize;
@@ -625,7 +623,7 @@ backgroundIn 'Цвет' (Object BOM, Object stockGroup) = CASE
     WHEN nearestInCompany(stockGroup, BOM) THEN RGB(230,248,250) 
     WHEN quantityChildWith (stockGroup, BOM) != descendantNumber[StockGroup](stockGroup) AND NOT quantityParentWith (stockGroup, BOM) THEN RGB(203,203,203);    
 
-editMaterial 'Редактировать компонент' (Component d) = { edit(material(d)); }
+editMaterial 'Редактировать компонент' (Component d) = { NEWSESSION { edit(material(d)); } }
 
 stocks 'Склады' (BOM) = GROUP CONCAT name(Stock stock) IF in(BOM BOM, stock) , ', '
                                                  BY BOM
@@ -809,7 +807,7 @@ copy 'Копировать'(BOM BOM) = {
 	}
 } TOOLBAR;
 
-edit(Product p) += { [= ACTION EDITFORM BOM](BOM(p)); }
+edit(Product p) += { DIALOG BOM OBJECTS b = BOM(p), p = p AUTOX DOCKED; }
 
 relationProducts (sku,BOM)= GROUP SUM 1 BY sku(Product p), BOM(p);
 relationComponents (sku,BOM)= GROUP SUM 1 BY material(Component c), BOM(c);
@@ -862,7 +860,7 @@ FORM BOMs 'Спецификации'
     
     OBJECTS p1 = Sku
     PROPERTIES(p1) READONLY idBarcode, Stock.id SHOWIF showIDs(), Stock.name, Stock.shortNameUOM
-    PROPERTIES     TODRAW p1 NEWSESSION addSkuP1 = addSku(), Stock.edit(p1), DELETE(p1)  
+    PROPERTIES     TODRAW p1 NEWSESSION addSkuP1 = addSku(), EDIT(p1), DELETE(p1)  
     FILTERS        isProductGroup(p1)
     ORDER BY name(p1)
     
@@ -883,7 +881,7 @@ FORM BOMs 'Спецификации'
 
     OBJECTS c2 = Sku
     PROPERTIES(c2) READONLY idBarcode, Stock.id SHOWIF showIDs(), Stock.name, Stock.shortNameUOM
-    PROPERTIES     TODRAW c2 NEWSESSION addSkuC2 = addSku(), Stock.edit(c2), DELETE(c2)   
+    PROPERTIES     TODRAW c2 NEWSESSION addSkuC2 = addSku(), EDIT(c2), DELETE(c2)   
     FILTERS        isComponentGroup(c2)                   
     OBJECTS b2=BOM    
     PROPERTIES(b2) READONLY inactive, products, name, date, number, series, components, overNettoNetWeightProduct, overNettoNetWeightComponent, 

@@ -60,7 +60,7 @@ in 'Отм.' = DATA LOCAL BOOLEAN (Sku);
 
 // ---------------------------- По организациям ----------------------- //
 // c
-editActiveLedgerA'Редактировать' (LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime) = { edit(activeLedgerA(type, sku, company, dateTime)); } IMAGE 'edit.png';                                            
+editActiveLedgerA'Редактировать' (LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime) = { NEWSESSION { edit(activeLedgerA(type, sku, company, dateTime)); } } IMAGE 'edit.png';                                            
 
 // workaround, что объект не может быть null
 currentLegalEntity 'Организация' = DATA LOCAL NESTED LegalEntity ();
@@ -105,7 +105,7 @@ EXTEND FORM priceListDashboard
     PROPERTIES(cpl) READONLY isPosted, fromDateTime, toDateTime, description, 
                              nameCompany, priceListTypes, stocks, 
                              createdTime, createdNameUser, createdHostnameComputer
-    PROPERTIES(cpl) edit                         
+    PROPERTIES(cpl) NEWSESSION EDIT                         
     PROPERTIES      READONLY price(cpl, pt)
     FILTERS in(cpl, pt),
             sku(cpl) == csk,
@@ -249,7 +249,7 @@ ledgerA (type, sku, stock, dateTime) =
           ORDER fromDateTime(ledger), ledger
           WHERE active(ledger, type, stock) AND
                 fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
-editLedgerA 'Редактировать' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = { edit(ledgerA (type, sku, stock, dateTime)); } IMAGE 'edit.png';                
+editLedgerA 'Редактировать' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = { NEWSESSION { edit(ledgerA (type, sku, stock, dateTime)); } } IMAGE 'edit.png';                
 
 stockFilter (Stock stock, PriceList.Operation operation) = (stock IS Stock AND showNotCompanyStocks(operation)) OR isCompany(stock);
 
@@ -290,7 +290,7 @@ EXTEND FORM priceListDashboard
     PROPERTIES(spl) READONLY isPosted, fromDateTime, toDateTime, description, 
                              nameCompany, priceListTypes, stocks, 
                              createdTime, createdNameUser, createdHostnameComputer
-    PROPERTIES(spl) edit                     
+    PROPERTIES(spl) NEWSESSION EDIT                     
                              
     PROPERTIES      READONLY price(spl, pt)
     FILTERS in(spl, pt),

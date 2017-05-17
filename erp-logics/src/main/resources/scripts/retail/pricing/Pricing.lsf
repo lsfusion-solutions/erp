@@ -662,8 +662,6 @@ FORM pricing 'Акт расценки (печать)'
 print 'Акт расценки' (Pricing pricing) = { PRINT pricing OBJECTS p = pricing; }   IMAGE 'print.png' IN print;
 
 // --------------------------- Формы --------------------------------- //
-edit 'Редактировать' = ACTION ABSTRACT LIST (Pricing) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-
 backgroundRetail 'Цвет' (Pricing pricing) = RGB(224, 255, 255) IF pricing IS Pricing;
 FORM userPricing 'Акт расценки'
     OBJECTS p = UserPricing PANEL
@@ -775,18 +773,9 @@ DESIGN userPricing {
 @defineDocumentBatchPriceListTypeSystemLedger(userPricing, accountPriceListType, departmentStore, );
 @extendFormDocumentBatch(userPricing, userPricing, p);
 
-edit 'Редактировать' (userPricing) = ACTION EDITFORM UserPricing;
-edit(UserPricing p) += { edit(p); }
-
 isUserOpened(UserPricing p)=  isOpened[Pricing](p) AND is(p);
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (PricingDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserPricingDetail d) = {
-	NEWSESSION {
-	    SHOW userPricing OBJECTS p = userPricing(d), d = d MANAGESESSION DOCKED;
-	}
-}
-edit(UserPricingDetail d) += { edit(d); }  
+edit(UserPricingDetail d) += { edit(userPricing(d)); }
 
 FORM pricings 'Акты расценки' 
     OBJECTS p = Pricing LAST
@@ -799,11 +788,8 @@ FORM pricings 'Акты расценки'
     PROPERTIES (p) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (p) NEWSESSION NEW[UserPricing]
-    PROPERTIES (p) edit SHOWIF isOpened(p)
+    PROPERTIES (p) NEWSESSION NEW[UserPricing], EDIT SHOWIF isOpened(p), deletep = DELETE SHOWIF isUserOpened(p) 
     PROPERTIES(p)  close[UserPricing] SHOWIF isOpened[UserPricing](p), open SHOWIF isClosed[UserPricing](p)     
-
-    PROPERTIES (p) NEWSESSION deletep=DELETE SHOWIF isUserOpened(p)
     PROPERTIES (p) print 
 
     OBJECTS d = PricingDetail
@@ -1080,8 +1066,6 @@ price (PricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice
 //pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += retailPricePricingDetail(ledger) WHEN CLASS(retailPricePricingDetail(ledger)) AND type == SystemLedgerPriceListType.accountPriceListType;
 
 in (PricingDetail ledger, DepartmentStore stock) += departmentStore(ledger) == stock;
-
-edit[PriceListLedger](PricingDetail d) += { edit(d); }
 
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userPricing, supplierPricingPriceListType, , sku, departmentStore);
 

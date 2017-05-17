@@ -533,8 +533,7 @@ allowRecalculatePrice (UserRepricing p) = NOT denyRecalculatePrice(operation(p))
 @implementDocumentBatch(repricing);
 
 // --------------------------- Формы --------------------------------- //
-edit 'Редактировать' = ACTION ABSTRACT LIST (Repricing) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-editSku 'Редактировать SKU' (UserRepricingDetail d) = { edit(sku(d)); }
+editSku 'Редактировать SKU' (UserRepricingDetail d) = { NEWSESSION { edit(sku(d)); } }
 
 FORM userRepricing 'Акт переоценки'
     OBJECTS p=UserRepricing PANEL
@@ -665,15 +664,7 @@ DESIGN userRepricing{
 
 @addEventGenerateNumberOnForm(userRepricing, p, userRepricing);
 
-edit 'Редактировать' = ACTION ABSTRACT LIST  (RepricingDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserRepricingDetail d) = {
-	NEWSESSION {
-	    SHOW userRepricing OBJECTS p = userRepricing(d), d = d MANAGESESSION DOCKED;
-	}
-}
-
-edit(UserRepricingDetail d) += { edit(d); }    
-edit[SkuLedger](RepricingDetail ledger) += { edit(ledger); }
+edit(UserRepricingDetail d) += { DIALOG userRepricing OBJECTS p = userRepricing(d), d = d DOCKED; }
 
 show 'Просмотреть' = ACTION ABSTRACT LIST  (RepricingDetail) TOOLBAR;
 show(UserRepricingDetail d) = {
@@ -969,7 +960,6 @@ sumItem (Repricing ledger) += sumItemRepricingDetail(ledger);
 sumContainer (Repricing ledger) += sumContainerRepricingDetail(ledger);
 
 operation[StockDocumentLedger] (Repricing ledger) += operation(ledger);
-edit[StockDocumentLedger](Repricing l) += { edit(l); }
 close[StockDocumentLedger](Repricing l) += { close(l); }
 
 // Проведение по регистру
@@ -978,9 +968,6 @@ sum[InSkuLedger] (RepricingDetail ledger) += diffRetailSum(ledger);
 stockDocumentLedger(RepricingDetail ledger) += repricing(ledger); 
 
 batch[SkuLedger](RepricingDetail ledger) += batch(ledger);
-
-edit 'Редактировать' (userRepricing) = ACTION EDITFORM UserRepricing;
-edit(UserRepricing p) += { edit(p); }
 
 showEditUser (Repricing i) =  NOT preventChangesDocument(currentUser(),operation(i)) AND isOpened(i); 
 
@@ -1046,11 +1033,9 @@ FORM repricings 'Акты переоценки'
     PROPERTIES (p) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (p)  NEWSESSION NEW[UserRepricing]
-    PROPERTIES (p) edit SHOWIF showEditUser(p)
+    PROPERTIES (p) NEWSESSION NEW[UserRepricing], EDIT SHOWIF showEditUser(p), deletep = DELETE SHOWIF showDeleteUser(p) 
     PROPERTIES(p)  close[UserRepricing] SHOWIF isOpened[UserRepricing](p), open SHOWIF isClosed[UserRepricing](p)     
     PROPERTIES copy(p)
-    PROPERTIES (p) NEWSESSION deletep=DELETE SHOWIF showDeleteUser(p)
     PROPERTIES (p)  print, printXls 
     PROPERTIES () toFillQuantityUserRepricingDetailAllUserRepricings TODRAW p
     OBJECTS d = RepricingDetail
@@ -1199,8 +1184,6 @@ in (RepricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice(
 price (RepricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN retailPrice(ledger);
 
 in (RepricingDetail ledger, DepartmentStore stock) += departmentStore(ledger) == stock;
-
-edit[PriceListLedger](RepricingDetail d) += { edit(d); }
 
 @defineDocumentLogForm(repricings, p);
 

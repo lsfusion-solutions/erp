@@ -95,9 +95,7 @@ shortDescription (Invoice invoice) = seriesNumber(invoice) + ' от ' + date(inv
 
 extraDescription 'Доп. наименование' (invoiceDetail) = ABSTRACT VARSTRING[1500] (InvoiceDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (Invoice) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit 'Редактировать' = ACTION ABSTRACT LIST (InvoiceDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-editSku 'Редактировать SKU' (InvoiceDetail d) = { edit(sku(d)); } TOOLBAR;
+editSku 'Редактировать SKU' (InvoiceDetail d) = { NEWSESSION { edit(sku(d)); } } TOOLBAR;
 
 @defineDocumentAbstractHeaderAgreement(invoice);
 
@@ -450,11 +448,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     backgroundSku 'Цвет'  (d)= ABSTRACT CASE COLOR (UserInvoiceDetail);
     backgroundVAT 'Цвет'  (d)= ABSTRACT CASE COLOR (UserInvoiceDetail);
         
-    edit 'Редактировать' = ACTION ABSTRACT LIST (Invoice) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-    edit[Invoice.Invoice] (Invoice invoice) += { edit(invoice); }
     skipShowQuantity = ABSTRACT BOOLEAN (Invoice);
     showQuantity (Invoice i) = i IS Invoice AND NOT skipShowQuantity(i);
-    editSku 'Редактировать SKU' (UserInvoiceDetail d) = { edit(sku(d)); }
+    editSku 'Редактировать SKU' (UserInvoiceDetail d) = { NEWSESSION { edit(sku(d)); } }
     
     FORM userInvoice 'Накладная'###sign
         OBJECTS i = UserInvoice PANEL
@@ -629,9 +625,6 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     @defineDocumentSkuPriceListTypeAgreement(userInvoice, stockProp, priceListTypePrefix);
     @extendFormDocumentSkuPriceListTypeAgreement(userInvoice, userInvoice, i, stockProp###stock);
 
-    edit 'Редактировать' (userInvoice) = ACTION EDITFORM UserInvoice;
-    edit (UserInvoice invoice) += { edit(invoice); }
-
     overCopy = ACTION ABSTRACT LIST (Invoice, UserInvoice);
     overCopy = ACTION ABSTRACT LIST (UserInvoiceDetail, InvoiceDetail);
     
@@ -753,8 +746,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
         PROPERTIES (i) READONLY PANEL createdNameUser[UserInvoice], createdTime[UserInvoice], createdHostnameComputer, 
                                             postedNameUser, postedTime, postedHostnameComputer 
 
-        PROPERTIES (i) NEWSESSION NEW[UserInvoice]
-        PROPERTIES (i) edit SHOWIF overShowEdit(i),//isOpenedInvoice(i), 
+        PROPERTIES (i) NEWSESSION NEW[UserInvoice], editI = EDIT SHOWIF overShowEdit(i),//isOpenedInvoice(i), 
                        copy
         PROPERTIES (i) close[UserInvoice] SHOWIF showClose(i), open SHOWIF showOpen(i)
         PROPERTIES (i) NEWSESSION deletei=DELETE SHOWIF overShowDelete(i)//isUserOpenedInvoice(i)
@@ -873,21 +865,14 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
          OR (valueVAT(d) == overSetValueVAT(d))) 
             THEN RGB(255,0,0); 
             
-    edit 'Редактировать' = ACTION ABSTRACT LIST (InvoiceDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-    edit(UserInvoiceDetail d) = {
-	NEWSESSION {
-	        SHOW userInvoice OBJECTS i = userInvoice(d), d = d MANAGESESSION DOCKED;
-	    }
-}
-    edit(UserInvoiceDetail d) += { edit(d); }  
-    edit[Invoice.InvoiceDetail] (InvoiceDetail d) += { edit(d); }
+    edit(UserInvoiceDetail d) += { edit(userInvoice(d)); }
     
     show 'Просмотреть' = ACTION ABSTRACT LIST (InvoiceDetail) TOOLBAR;
     show(UserInvoiceDetail d) = {
-	NEWSESSION {
+    	NEWSESSION {
 	        SHOW userInvoice OBJECTS i = userInvoice(d), d = d DOCKED READONLY;
 	    }
-}
+    }
     show(UserInvoiceDetail d) += { show(d); }             
 END
 

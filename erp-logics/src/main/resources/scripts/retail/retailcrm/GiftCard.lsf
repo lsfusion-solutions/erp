@@ -35,7 +35,6 @@ numberDocument 'Документ' = ABSTRACT VARSTRING[30](GiftCardLedger);
 departmentStore = ABSTRACT DepartmentStore (GiftCardLedger);
 nameDepartmentStore 'Отдел магазина' (GiftCardLedger g) = name(departmentStore(g));
 
-edit 'Редактировать' = ACTION ABSTRACT LIST (GiftCardLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 show 'Просмотреть' = ACTION ABSTRACT LIST (GiftCardLedger) TOOLBAR;
 
 //продажа подарочных сертификатов
@@ -104,12 +103,7 @@ description(ReceiptGiftCardSaleDetail detail) += 'Продажа' IF detail IS R
 numberDocument(ReceiptGiftCardSaleDetail detail) += VARSTRING[30](number(receipt(detail)));
 departmentStore(ReceiptGiftCardSaleDetail detail) += departmentStore(receipt(detail));
 
-edit 'Редактировать' (ReceiptGiftCardSaleDetail d) = {
-	NEWSESSION {
-	    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKED;
-	}
-}
-ZReport.edit(ReceiptGiftCardSaleDetail d) += { edit(d); }
+edit (ReceiptGiftCardSaleDetail d) += { DIALOG zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED; }
 
 show(ReceiptGiftCardSaleDetail d) = {
 	NEWSESSION {
@@ -117,7 +111,6 @@ show(ReceiptGiftCardSaleDetail d) = {
 	}
 }
 
-edit(ReceiptGiftCardSaleDetail d) += { edit(d); }  
 show(ReceiptGiftCardSaleDetail d) += { show(d); }  
 
 legalEntityGiftCard = DATA LegalEntity ();
@@ -262,15 +255,11 @@ description(PaymentGiftCard payment) += 'Погашение' IF payment IS Payme
 numberDocument(PaymentGiftCard payment) += VARSTRING[30](number(receipt(payment))) IF payment IS PaymentGiftCard;
 departmentStore(PaymentGiftCard payment) += departmentStore(receipt(payment)) IF payment IS PaymentGiftCard;
 
-edit(PaymentGiftCard d) = {
-	NEWSESSION {
-	    IF d IS PaymentGiftCard THEN {
-	        SHOW zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d MANAGESESSION DOCKED;
-	    }
-	    
-	}
+edit(PaymentGiftCard d) += {
+    IF d IS PaymentGiftCard THEN {
+        DIALOG zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d MANAGESESSION DOCKED;
+    }
 }
-GiftCard.edit[GiftCardLedger](PaymentGiftCard d) += { GiftCard.edit[PaymentGiftCard](d); }  
 
 show(PaymentGiftCard d) = {
 	NEWSESSION {

@@ -319,9 +319,9 @@ disallowEditing 'Запретить редактирование' = ABSTRACT BOO
 enableEditing = Item s IS Item AND NOT disallowEditing(s);
 disallowEditing[Sku](Item sku) += disallowEditing(sku);
 
-edit(Item sku) += {
-    IF NOT disallowEditing(sku) THEN {
-        [= ACTION EDITFORM Item](sku);
+edit(Item item) += {
+    IF NOT disallowEditing(item) THEN {
+        DIALOG EDIT Item = item AUTOX DOCKED;
     } ELSE {
         MESSAGE 'Запрещено редактировать товар после обработки.';
     } 
@@ -330,7 +330,7 @@ addItem() = {
     NEWSESSION {
         NEW i=Item AUTOSET
             REQUEST 
-                edit[Object](i);
+                edit(i);
             DO 
                 seek(i);
     }
@@ -616,7 +616,7 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
         
         OBJECTS object##Item = Item
         PROPERTIES(object##Item) READONLY idBarcode, nameProp, id[Sku], idSkuGroup
-        PROPERTIES(object##Item) nameProp###object, edit 
+        PROPERTIES(object##Item) nameProp###object, EDIT NEWSESSION 
         FILTERS object(object##Item) == object
     ;
     
