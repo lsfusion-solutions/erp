@@ -22,6 +22,16 @@ public abstract class ExportMySQLActionProperty extends ExportSQLActionProperty 
     }
 
     @Override
+    public String getTruncateStatement() {
+        return "TRUNCATE TABLE `" + table + "`";
+    }
+
+    @Override
+    public String getInsertStatement(String columns, String params) {
+        return String.format("INSERT INTO `%s`(%s) VALUES (%s)", table, columns, params);
+    }
+
+    @Override
     public String getUpdateStatement(String set, String wheres, String columns, String params) {
         throw new UnsupportedOperationException("Update for mySQL is not supported yet");
     }

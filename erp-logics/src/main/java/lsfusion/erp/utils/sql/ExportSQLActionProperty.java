@@ -48,6 +48,10 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
 
     public abstract void init() throws ClassNotFoundException;
 
+    public abstract String getTruncateStatement();
+
+    public abstract String getInsertStatement(String columns, String params);
+
     public abstract String getUpdateStatement(String set, String wheres, String columns, String params);
 
     @Override
@@ -111,7 +115,7 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                         Statement statement = null;
                         try {
                             statement = conn.createStatement();
-                            statement.execute("TRUNCATE TABLE [" + table + "]");
+                            statement.execute(getTruncateStatement());
                             conn.commit();
                         } finally {
                             if (statement != null)
@@ -119,7 +123,7 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                         }
                     }
                     if (wheres.isEmpty()) {
-                        ps = conn.prepareStatement(String.format("INSERT INTO [%s](%s) VALUES (%s)", table, columns, params));
+                        ps = conn.prepareStatement(getInsertStatement(columns, params));
                         for (List<Object> row : rows) {
                             for (int i = 0; i < paramLength; i++) {
                                 setObject(ps, i + 1, row.get(i));
