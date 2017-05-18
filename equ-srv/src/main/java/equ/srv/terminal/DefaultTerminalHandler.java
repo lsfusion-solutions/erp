@@ -2,7 +2,6 @@ package equ.srv.terminal;
 
 import com.google.common.base.Throwables;
 import equ.api.terminal.*;
-import equ.srv.EquipmentServer;
 import equ.srv.TerminalEquipmentServer;
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.MapFact;
@@ -154,7 +153,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 List<TerminalAssortment> assortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
                 List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, BL);
-                List<TerminalLegalEntity> customANAList = EquipmentServer.readCustomANAList(session, BL);
+                List<TerminalLegalEntity> customANAList = TerminalEquipmentServer.readCustomANAList(session, BL);
                 file = File.createTempFile("terminalHandler", ".db");
 
                 Class.forName("org.sqlite.JDBC");
