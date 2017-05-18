@@ -44,91 +44,95 @@ public class SendEOrderActionProperty extends EDIActionProperty {
     }
 
     protected void sendEOrder(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
-        DataObject eOrderObject = context.getDataKeyValue(eOrderInterface);
+        if(context.getDbManager().isServer()) {
+            DataObject eOrderObject = context.getDataKeyValue(eOrderInterface);
 
-        Timestamp documentDateValue = (Timestamp) findProperty("dateTime[EOrder]").read(context, eOrderObject);
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.HOUR, 1);
-        String documentDate = formatDate(documentDateValue);
-        Timestamp deliveryDateValue = (Timestamp) findProperty("shipmentDateTime[EOrder]").read(context, eOrderObject);
-        Timestamp currentDateValue = new Timestamp(cal.getTime().getTime());
-        String deliveryDate = formatDate(deliveryDateValue != null ? (deliveryDateValue.getTime() > currentDateValue.getTime() ? deliveryDateValue : currentDateValue) : currentDateValue);
-        String documentNumber = (String) findProperty("number[EOrder]").read(context, eOrderObject);
+            Timestamp documentDateValue = (Timestamp) findProperty("dateTime[EOrder]").read(context, eOrderObject);
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.HOUR, 1);
+            String documentDate = formatDate(documentDateValue);
+            Timestamp deliveryDateValue = (Timestamp) findProperty("shipmentDateTime[EOrder]").read(context, eOrderObject);
+            Timestamp currentDateValue = new Timestamp(cal.getTime().getTime());
+            String deliveryDate = formatDate(deliveryDateValue != null ? (deliveryDateValue.getTime() > currentDateValue.getTime() ? deliveryDateValue : currentDateValue) : currentDateValue);
+            String documentNumber = (String) findProperty("number[EOrder]").read(context, eOrderObject);
 
-        String error = "";
+            String error = "";
 
-        String GLNSupplierStock = (String) findProperty("GLNSupplierStock[EOrder]").read(context, eOrderObject);
-        if (GLNSupplierStock == null)
-            error += String.format("EOrder %s: Не задан GLN склада поставщика\n", documentNumber);
-        String nameSupplier = (String) findProperty("nameSupplier[EOrder]").read(context, eOrderObject);
-        String GLNCustomer = (String) findProperty("GLNCustomer[EOrder]").read(context, eOrderObject);
-        if (GLNCustomer == null)
-            error += String.format("EOrder %s: Не задан GLN покупателя\n", documentNumber);
-        String nameCustomer = (String) findProperty("nameCustomer[EOrder]").read(context, eOrderObject);
-        String GLNCustomerStock = (String) findProperty("GLNCustomerStock[EOrder]").read(context, eOrderObject);
-        if (GLNCustomerStock == null)
-            error += String.format("EOrder %s: Не задан GLN склада покупателя", documentNumber);
-        String nameCustomerStock = (String) findProperty("nameCustomerStock[EOrder]").read(context, eOrderObject);
-        String note = (String) findProperty("note[EOrder]").read(context, eOrderObject);
+            String GLNSupplierStock = (String) findProperty("GLNSupplierStock[EOrder]").read(context, eOrderObject);
+            if (GLNSupplierStock == null)
+                error += String.format("EOrder %s: Не задан GLN склада поставщика\n", documentNumber);
+            String nameSupplier = (String) findProperty("nameSupplier[EOrder]").read(context, eOrderObject);
+            String GLNCustomer = (String) findProperty("GLNCustomer[EOrder]").read(context, eOrderObject);
+            if (GLNCustomer == null)
+                error += String.format("EOrder %s: Не задан GLN покупателя\n", documentNumber);
+            String nameCustomer = (String) findProperty("nameCustomer[EOrder]").read(context, eOrderObject);
+            String GLNCustomerStock = (String) findProperty("GLNCustomerStock[EOrder]").read(context, eOrderObject);
+            if (GLNCustomerStock == null)
+                error += String.format("EOrder %s: Не задан GLN склада покупателя", documentNumber);
+            String nameCustomerStock = (String) findProperty("nameCustomerStock[EOrder]").read(context, eOrderObject);
+            String note = (String) findProperty("note[EOrder]").read(context, eOrderObject);
 
-        if (error.isEmpty()) {
-            String contentSubXML = readContentSubXML(context, eOrderObject, documentNumber, documentDate, deliveryDate,
-                    GLNSupplierStock, nameSupplier, nameCustomer, GLNCustomer, GLNCustomerStock, nameCustomerStock, note);
+            if (error.isEmpty()) {
+                String contentSubXML = readContentSubXML(context, eOrderObject, documentNumber, documentDate, deliveryDate,
+                        GLNSupplierStock, nameSupplier, nameCustomer, GLNCustomer, GLNCustomerStock, nameCustomerStock, note);
 
-            Element rootElement = new Element("Envelope", soapenvNamespace);
-            rootElement.setNamespace(soapenvNamespace);
-            rootElement.addNamespaceDeclaration(soapenvNamespace);
-            rootElement.addNamespaceDeclaration(topNamespace);
+                Element rootElement = new Element("Envelope", soapenvNamespace);
+                rootElement.setNamespace(soapenvNamespace);
+                rootElement.addNamespaceDeclaration(soapenvNamespace);
+                rootElement.addNamespaceDeclaration(topNamespace);
 
-            Document doc = new Document(rootElement);
-            doc.setRootElement(rootElement);
+                Document doc = new Document(rootElement);
+                doc.setRootElement(rootElement);
 
-            //parent: rootElement
-            Element headerElement = new Element("Header", soapenvNamespace);
-            rootElement.addContent(headerElement);
+                //parent: rootElement
+                Element headerElement = new Element("Header", soapenvNamespace);
+                rootElement.addContent(headerElement);
 
-            //parent: rootElement
-            Element bodyElement = new Element("Body", soapenvNamespace);
-            rootElement.addContent(bodyElement);
+                //parent: rootElement
+                Element bodyElement = new Element("Body", soapenvNamespace);
+                rootElement.addContent(bodyElement);
 
-            //parent: bodyElement
-            Element sendDocumentElement = new Element("SendDocument", topNamespace);
-            bodyElement.addContent(sendDocumentElement);
+                //parent: bodyElement
+                Element sendDocumentElement = new Element("SendDocument", topNamespace);
+                bodyElement.addContent(sendDocumentElement);
 
-            addStringElement(topNamespace, sendDocumentElement, "username", login);
-            addStringElement(topNamespace, sendDocumentElement, "password", password);
-            addStringElement(topNamespace, sendDocumentElement, "filename", "order" + documentNumber);
-            addStringElement(topNamespace, sendDocumentElement, "documentDate", documentDate);
-            addStringElement(topNamespace, sendDocumentElement, "documentNumber", documentNumber);
-            addStringElement(topNamespace, sendDocumentElement, "senderCode", GLNCustomer);
-            addStringElement(topNamespace, sendDocumentElement, "receiverCode", GLNCustomer);
-            addStringElement(topNamespace, sendDocumentElement, "deliveryPointCode", GLNCustomerStock);
+                addStringElement(topNamespace, sendDocumentElement, "username", login);
+                addStringElement(topNamespace, sendDocumentElement, "password", password);
+                addStringElement(topNamespace, sendDocumentElement, "filename", "order" + documentNumber);
+                addStringElement(topNamespace, sendDocumentElement, "documentDate", documentDate);
+                addStringElement(topNamespace, sendDocumentElement, "documentNumber", documentNumber);
+                addStringElement(topNamespace, sendDocumentElement, "senderCode", GLNCustomer);
+                addStringElement(topNamespace, sendDocumentElement, "receiverCode", GLNCustomer);
+                addStringElement(topNamespace, sendDocumentElement, "deliveryPointCode", GLNCustomerStock);
 
-            addStringElement(topNamespace, sendDocumentElement, "documentType", "ORDERS");
-            addStringElement(topNamespace, sendDocumentElement, "content", contentSubXML);
+                addStringElement(topNamespace, sendDocumentElement, "documentType", "ORDERS");
+                addStringElement(topNamespace, sendDocumentElement, "content", contentSubXML);
 
-            String xml = new XMLOutputter().outputString(doc);
-            HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
-            ServerLoggers.importLogger.info(String.format("%s SendEOrder %s request sent", provider, documentNumber));
-            RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
-            switch (requestResult) {
-                case OK:
-                    findProperty("exported[EOrder]").change(true, context, eOrderObject);
+                String xml = new XMLOutputter().outputString(doc);
+                HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
+                ServerLoggers.importLogger.info(String.format("%s SendEOrder %s request sent", provider, documentNumber));
+                RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
+                switch (requestResult) {
+                    case OK:
+                        findProperty("exported[EOrder]").change(true, context, eOrderObject);
 
-                    ServerLoggers.importLogger.info(String.format("%s SendEOrder %s request succeeded", provider, documentNumber));
-                    context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s выгружен", provider, documentNumber), "Экспорт"));
-                    break;
-                case AUTHORISATION_ERROR:
-                    ServerLoggers.importLogger.error(String.format("%s SendEOrder %s: invalid login-password", provider, documentNumber));
-                    context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s не выгружен: ошибка авторизации", provider, documentNumber), "Экспорт"));
-                    break;
-                case UNKNOWN_ERROR:
-                    ServerLoggers.importLogger.error(String.format("%s SendEOrder %s: unknown error", provider, documentNumber));
-                    context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s не выгружен: неизвестная ошибка", provider, documentNumber), "Экспорт"));
+                        ServerLoggers.importLogger.info(String.format("%s SendEOrder %s request succeeded", provider, documentNumber));
+                        context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s выгружен", provider, documentNumber), "Экспорт"));
+                        break;
+                    case AUTHORISATION_ERROR:
+                        ServerLoggers.importLogger.error(String.format("%s SendEOrder %s: invalid login-password", provider, documentNumber));
+                        context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s не выгружен: ошибка авторизации", provider, documentNumber), "Экспорт"));
+                        break;
+                    case UNKNOWN_ERROR:
+                        ServerLoggers.importLogger.error(String.format("%s SendEOrder %s: unknown error", provider, documentNumber));
+                        context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s не выгружен: неизвестная ошибка", provider, documentNumber), "Экспорт"));
+                }
+            } else {
+                ServerLoggers.importLogger.info(provider + " SendEOrder: Не все поля заполнены");
+                context.delayUserInterfaction(new MessageClientAction(error, provider + " Заказ не выгружен: Не все поля заполнены"));
             }
         } else {
-            ServerLoggers.importLogger.info(provider + " SendEOrder: Не все поля заполнены");
-            context.delayUserInterfaction(new MessageClientAction(error, provider + " Заказ не выгружен: Не все поля заполнены"));
+            context.delayUserInteraction(new MessageClientAction(provider + " SendEOrder disabled, change serverComputer() to enable", "Экспорт"));
         }
     }
 

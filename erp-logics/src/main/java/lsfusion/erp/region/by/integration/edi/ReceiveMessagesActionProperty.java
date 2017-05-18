@@ -46,50 +46,54 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
     protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port, String provider, String archiveDir, boolean sendReplies)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-        Element rootElement = new Element("Envelope", soapenvNamespace);
-        rootElement.setNamespace(soapenvNamespace);
-        rootElement.addNamespaceDeclaration(soapenvNamespace);
-        rootElement.addNamespaceDeclaration(topNamespace);
+        if(context.getDbManager().isServer()) {
+            Element rootElement = new Element("Envelope", soapenvNamespace);
+            rootElement.setNamespace(soapenvNamespace);
+            rootElement.addNamespaceDeclaration(soapenvNamespace);
+            rootElement.addNamespaceDeclaration(topNamespace);
 
-        Document doc = new Document(rootElement);
-        doc.setRootElement(rootElement);
+            Document doc = new Document(rootElement);
+            doc.setRootElement(rootElement);
 
-        //parent: rootElement
-        Element headerElement = new Element("Header", soapenvNamespace);
-        rootElement.addContent(headerElement);
+            //parent: rootElement
+            Element headerElement = new Element("Header", soapenvNamespace);
+            rootElement.addContent(headerElement);
 
-        //parent: rootElement
-        Element bodyElement = new Element("Body", soapenvNamespace);
-        rootElement.addContent(bodyElement);
+            //parent: rootElement
+            Element bodyElement = new Element("Body", soapenvNamespace);
+            rootElement.addContent(bodyElement);
 
-        //parent: bodyElement
-        Element sendDocumentElement = new Element("GetDocuments", topNamespace);
-        bodyElement.addContent(sendDocumentElement);
+            //parent: bodyElement
+            Element sendDocumentElement = new Element("GetDocuments", topNamespace);
+            bodyElement.addContent(sendDocumentElement);
 
-        addStringElement(topNamespace, sendDocumentElement, "username", login);
-        addStringElement(topNamespace, sendDocumentElement, "password", password);
+            addStringElement(topNamespace, sendDocumentElement, "username", login);
+            addStringElement(topNamespace, sendDocumentElement, "password", password);
 
-        String xml = new XMLOutputter().outputString(doc);
-        HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
-        ServerLoggers.importLogger.info(provider + " ReceiveMessages request sent");
-        String responseMessage = getResponseMessage(httpResponse);
-        try {
-            RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "ReceiveMessages");
-            switch (requestResult) {
-                case OK:
-                    importMessages(context, url, login, password, host, port, provider, responseMessage, archiveDir, sendReplies);
-                    break;
-                case AUTHORISATION_ERROR:
-                    ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid login-password");
-                    context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: ошибка авторизации", "Экспорт"));
-                    break;
-                case UNKNOWN_ERROR:
-                    ServerLoggers.importLogger.error(provider + " ReceiveMessages: unknown error");
-                    context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: неизвестная ошибка", "Экспорт"));
+            String xml = new XMLOutputter().outputString(doc);
+            HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
+            ServerLoggers.importLogger.info(provider + " ReceiveMessages request sent");
+            String responseMessage = getResponseMessage(httpResponse);
+            try {
+                RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "ReceiveMessages");
+                switch (requestResult) {
+                    case OK:
+                        importMessages(context, url, login, password, host, port, provider, responseMessage, archiveDir, sendReplies);
+                        break;
+                    case AUTHORISATION_ERROR:
+                        ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid login-password");
+                        context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: ошибка авторизации", "Импорт"));
+                        break;
+                    case UNKNOWN_ERROR:
+                        ServerLoggers.importLogger.error(provider + " ReceiveMessages: unknown error");
+                        context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: неизвестная ошибка", "Импорт"));
+                }
+            } catch (JDOMException e) {
+                ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid response", e);
+                context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: некорректный ответ сервера", "Импорт"));
             }
-        } catch (JDOMException e) {
-            ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid response", e);
-            context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: некорректный ответ сервера", "Экспорт"));
+        } else {
+            context.delayUserInteraction(new MessageClientAction(provider + " Receive Messages disabled, change serverComputer() to enable", "Импорт"));
         }
     }
 
@@ -129,16 +133,13 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                             messages.put(documentId, parseOrderMessage(subXMLRootNode, provider, documentId));
                                             break;
                                         case "ordrsp": {
-                                            DocumentData orderResponse = parseOrderResponse(subXMLRootNode, context, url, login, password, host, port, provider, documentId, sendReplies);
-                                            if (orderResponse != null) {
-                                                orderResponses.put(documentId, orderResponse);
-                                            }
+                                            orderResponses.put(documentId, parseOrderResponse(subXMLRootNode, context, url, login, password,
+                                                    host, port, provider, documentId, sendReplies));
                                             break;
                                         }
                                         case "desadv": {
-                                            DocumentData despatchAdvice = parseDespatchAdvice(subXMLRootNode, context, url, login, password, host, port, provider, documentId, sendReplies);
-                                            if (despatchAdvice != null)
-                                                despatchAdvices.put(documentId, despatchAdvice);
+                                            despatchAdvices.put(documentId, parseDespatchAdvice(subXMLRootNode, context, url, login, password,
+                                                    host, port, provider, documentId, sendReplies));
                                             break;
                                         }
                                     }
@@ -805,11 +806,11 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 break;
             case AUTHORISATION_ERROR:
                 ServerLoggers.importLogger.error(String.format("%s ConfirmDocumentReceived document %s: invalid login-password", provider, documentId));
-                context.delayUserInteraction(new MessageClientAction(String.format("%s Документ %s не помечен как обработанный: ошибка авторизации", provider, documentId), "Экспорт"));
+                context.delayUserInteraction(new MessageClientAction(String.format("%s Документ %s не помечен как обработанный: ошибка авторизации", provider, documentId), "Импорт"));
                 break;
             case UNKNOWN_ERROR:
                 ServerLoggers.importLogger.error(String.format("%s ConfirmDocumentReceived document %s: unknown error", provider, documentId));
-                context.delayUserInteraction(new MessageClientAction(String.format("%s Документ %s не помечен как обработанный", provider, documentId), "Экспорт"));
+                context.delayUserInteraction(new MessageClientAction(String.format("%s Документ %s не помечен как обработанный", provider, documentId), "Импорт"));
         }
     }
 
@@ -856,11 +857,11 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 break;
             case AUTHORISATION_ERROR:
                 ServerLoggers.importLogger.error(String.format("%s RecipientError %s: invalid login-password", provider, documentId));
-                context.delayUserInteraction(new MessageClientAction(String.format("%s Сообщение об ошибке %s не выгружено: ошибка авторизации", provider, documentId), "Экспорт"));
+                context.delayUserInteraction(new MessageClientAction(String.format("%s Сообщение об ошибке %s не выгружено: ошибка авторизации", provider, documentId), "Импорт"));
                 break;
             case UNKNOWN_ERROR:
                 ServerLoggers.importLogger.error(String.format("%s RecipientError %s: unknown error", provider, documentId));
-                context.delayUserInteraction(new MessageClientAction(String.format("%s Сообщение об ошибке %s не выгружено: неизвестная ошибка", provider, documentId), "Экспорт"));
+                context.delayUserInteraction(new MessageClientAction(String.format("%s Сообщение об ошибке %s не выгружено: неизвестная ошибка", provider, documentId), "Импорт"));
         }
         return succeeded;
     }
