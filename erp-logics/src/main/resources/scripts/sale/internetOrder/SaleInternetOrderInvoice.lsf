@@ -1,0 +1,261 @@
+MODULE SaleInternetOrderInvoice;
+
+REQUIRE SaleInternetOrder, SaleInternetOrderDelivery;
+
+NAMESPACE Sale;
+
+//Накладные
+
+TABLE internetUserInvoiceDetail(UserInvoiceDetail);
+
+internetOrderDetail = DATA InternetOrderDetail (UserInvoiceDetail) TABLE internetUserInvoiceDetail;
+userInvoiceDetail = GROUP MAX UserInvoiceDetail d BY internetOrderDetail(d);
+
+descriptionInternetOrderDetail 'Интернет-заказ' (UserInvoiceDetail userInvoiceDetail) = description(internetOrderDetail(userInvoiceDetail)) IN order;
+CONSTRAINT internetOrderDetail(UserInvoiceDetail d) AND NOT sku(d) == sku(internetOrderDetail(d)) 
+    CHECKED BY internetOrderDetail[UserInvoiceDetail]
+    MESSAGE 'Sku строки накладной не совпадает с sku интернет заказа';
+
+CONSTRAINT internetOrderDetail(UserInvoiceDetail d) AND NOT supplierStock(d) == supplierStock(internetOrderDetail(d)) 
+    CHECKED BY internetOrderDetail[UserInvoiceDetail]
+    MESSAGE 'Склад поставщика строки накладной не совпадает с складом интернет заказа';
+    
+EXTEND FORM userInvoice
+    PROPERTIES(d) descriptionInternetOrderDetail
+;
+
+quantityUserInvoiceDetail (internetOrderDetail, UserInvoice invoice) = 
+    GROUP SUM quantity(UserInvoiceDetail invoiceDetail) BY internetOrderDetail(invoiceDetail), invoice(invoiceDetail);
+
+countUserInvoiceDetail(internetOrderDetail, invoice) = 
+    GROUP SUM 1 BY internetOrderDetail(UserInvoiceDetail invoiceDetail), invoice(invoiceDetail);
+
+internetOrders 'Интернет-заказы' (invoice) = GROUP CONCAT VARSTRING[255](description(InternetOrderDetail internetOrderDetail)) IF countUserInvoiceDetail(internetOrderDetail, Invoice invoice) , ', '
+                                             BY invoice
+                                             ORDER internetOrderDetail MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
+                                             
+invoices 'Накладные' (internetOrder) = GROUP CONCAT VARSTRING[255](description(UserInvoice invoice)) IF countUserInvoiceDetail(InternetOrderDetail internetOrderDetail, invoice) , ', '
+                                             BY internetOrder(internetOrderDetail)
+                                             ORDER invoice MINCHARWIDTH 30 PREFCHARWIDTH 50;     
+                                                                                     
+invoices 'Накладные' (internetOrderDetail) = GROUP CONCAT VARSTRING[255](description(UserInvoiceDetail detail)) IF internetOrderDetail(detail), ', '
+                                             BY internetOrderDetail(detail) MINCHARWIDTH 30 PREFCHARWIDTH 50;                                                                                       
+
+invoiced 'Кол-во (выписано)' (InternetOrderDetail internetOrderDetail) =
+    GROUP SUM quantity(UserInvoiceDetail invoiceDetail) BY internetOrderDetail(invoiceDetail);
+invoicedInternetOrderDetail 'Кол-во (выписано)' (internetOrder) = 
+    GROUP SUM invoiced(InternetOrderDetail internetOrderDetail) BY internetOrder(internetOrderDetail) IN documentSum;
+
+toInvoice 'Не выписано' (InternetOrderDetail internetOrderDetail) = quantity(internetOrderDetail) (-) invoiced(internetOrderDetail);
+prevToInvoice (InternetOrderDetail internetOrderDetail) = PREV(toInvoice(internetOrderDetail));
+toInvoice (InternetOrder internetOrder) = 
+    GROUP SUM toInvoice(InternetOrderDetail internetOrderDetail) IF toInvoice(internetOrderDetail) >0 BY internetOrder(internetOrderDetail);
+    
+EXTEND FORM internetOrders
+    PROPERTIES(o) READONLY invoicedInternetOrderDetail 
+    PROPERTIES(d) READONLY invoiced, toInvoice
+;
+
+DESIGN internetOrders {
+    PROPERTY (invoicedInternetOrderDetail(o)){background = #CCFFCC;}
+}
+
+isWarehouseDeliveryReport = GROUP SUM 1 IF inStockDeliveryReport(Warehouse w, DeliveryReport report) AND w IS Warehouse BY report;
+isDepartmentStoreDeliveryReport = GROUP SUM 1 IF inStockDeliveryReport(DepartmentStore d, DeliveryReport report) AND d IS DepartmentStore BY report;
+
+relation = GROUP SUM 1 BY deliveryReport(internetOrderDetail(UserInvoiceDetail d)), userInvoice(d);
+countDeliveryReport = GROUP SUM 1 BY deliveryReport(internetOrderDetail(UserInvoiceDetail d));
+notDeliveryReport (DeliveryReport r)= r IS DeliveryReport AND NOT countDeliveryReport(r) AND isWarehouseDeliveryReport(r);
+
+internetStock 'Склад ИМ' = DATA Stock();
+nameInternetStock 'Склад ИМ' () = name(internetStock());
+
+internetOperation 'Операция продажа на ИМ' = DATA Operation();
+nameInternetOperation 'Операция продажа на ИМ' () = name(internetOperation());
+
+EXTEND FORM options 
+    PROPERTIES () nameInternetStock, nameInternetOperation
+;
+DESIGN options{
+    topInternetOrder {
+        MOVE PROPERTY (nameInternetStock());
+        MOVE PROPERTY (nameInternetOperation());
+    }
+}
+
+//-- С оптового склада 
+createInvoice 'Создать накладную' (DeliveryReport r) = { 
+    IF pickingSumInternetOrderDetail(r) AND NOT countDeliveryReport(r) THEN {
+        NEWSESSION {
+            FOR [ = GROUP SUM pickingSum(InternetOrderDetail d) IF isItem(sku(d)) BY deliveryReport(d), supplierStock(d)](r, Warehouse st) AND st IS Warehouse NEW i = UserInvoice DO {
+                date(i) <- currentDate();
+                time(i) <- currentTime();
+                supplier(i) <- legalEntity(st);
+                supplierStock(i) <- st;
+                customer(i) <- legalEntity(internetStock());
+                customerStock(i) <- internetStock();
+                operation(i) <- internetOperation();
+                priceListType(i) <- defaultPriceListType(operation(i));
+                createShipment(i) <- TRUE;
+                
+                FOR pickingSum(InternetOrderDetail detail) > 0.0 AND isItem(sku(detail)) AND deliveryReport(detail) == r AND supplierStock(detail) == st NEW d = UserInvoiceDetail DO {
+                    userInvoice(d) <- i;
+                    sku(d) <- sku(detail);
+                    batch(d) <- batch(detail);
+                    quantity(d) <- pickingQuantity(detail);
+                    priceListType(d) <- OVERRIDE priceListType(agreement(userInvoice(d)), sku(d)),
+                                                 priceListType(userInvoice(d));                                                                
+                    price(d) <- round2(prevList(priceListType(d), d));
+                    VAT(d) <- overVAT(d);
+                    valueVAT(d) <- calcSetValueVAT(d);
+                    invoicePrice(d) <- round2(prevList(priceListType(d), d) * (100.0 + calcValueVAT(d)) / 100.0);        
+                                                   
+                    internetOrderDetail(d) <- detail;                                              
+                }
+                SHOW userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;                            
+            }
+        }
+    }       
+}
+
+//-- С магазина 
+
+notRetailInternetOrderStore (DeliveryReport r)= r IS DeliveryReport AND NOT countDeliveryReport(r) AND isDepartmentStoreDeliveryReport(r);
+prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND internetOrderDetail(d) AND NOT notFillPriceInvoiceOrder(operation(d)) AND id(operation(d)) == 'saleInternetOrder'
+                AND NOT skipDeriveOrderPrice(d) THEN discountPrice(internetOrderDetail(d));
+
+createRetailInvoiceStore 'Создать накладную (розница с магазина)' (DeliveryReport r) = {
+    IF pickingSumInternetOrderDetail(r) AND NOT countDeliveryReport(r) THEN {
+        NEWSESSION {
+            FOR [ = GROUP SUM pickingSum(InternetOrderDetail d) IF isItem(sku(d)) BY deliveryReport(d), supplierStock(d)](r, Stock st) AND st IS DepartmentStore NEW i = UserInvoice DO {
+                date(i) <- currentDate();
+                time(i) <- currentTime();
+                supplier(i) <- legalEntity(st);
+                supplierStock(i) <- st;
+                customer(i) <- legalEntity(internetStock());
+                customerStock(i) <- internetStock();
+                operation(i) <- internetOperation();
+                priceListType(i) <- defaultPriceListType(operation(i));
+                createShipment(i) <- TRUE;
+                payer(i) <- legalEntity(internetStock());
+                arrivalTime(i) <- dateTimeToDateTime(currentDate(), 16:00);
+                downtime(i) <- 60;
+
+                FOR pickingSum(InternetOrderDetail detail) > 0.0 AND isItem(sku(detail)) AND deliveryReport(detail) == r AND supplierStock(detail) == st NEW d = UserInvoiceDetail DO {
+                    userInvoice(d) <- i;
+                    internetOrderDetail(d) <- detail; 
+                    sku(d) <- sku(detail);
+                    batch(d) <- batch(detail);
+                    quantity(d) <- pickingQuantity(detail);
+                    
+                    priceListType(d) <- OVERRIDE priceListType(agreement(userInvoice(d)), sku(d)),
+                                                 priceListType(userInvoice(d)); 
+                                                 
+                    executeLocalEvents();
+                    VAT(d) <- overVAT(d);
+                    valueVAT(d) <- calcSetValueVAT(d);      
+                    invoicePrice(d) <- discountPrice(detail);
+                    price (d) <- round2(invoicePrice (d) * 100/(100 + calcValueVAT(d)));                                                                                       
+                                                                 
+                }
+                SHOW userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;                                    
+            }
+        }
+    }       
+}
+
+EXTEND FORM deliveryDashboard
+    PROPERTIES (pd) READONLY invoiced AFTER pickingQuantity(pd)
+    PROPERTIES (d) READONLY invoiced AFTER pickingQuantity(d)
+    OBJECTS i = Invoice
+                            
+    PROPERTIES (i) READONLY isPosted, number, series, date, time                                
+    PROPERTIES (i) READONLY nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock,
+                            nameCurrency,  seriesNumberContractSku
+    PROPERTIES (i) READONLY countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
+                            VATSumInvoiceDetail, invoiceSumInvoiceDetail
+    PROPERTIES (i) READONLY note
+    FILTERGROUP invoice
+        FILTER 'По отчету' relation(r,i) DEFAULT
+    
+    PROPERTIES (r) createInvoice TOOLBAR TODRAW i SHOWIF notDeliveryReport(r)
+    PROPERTIES (r) TOOLBAR TODRAW i createRetailInvoiceStore SHOWIF notRetailInternetOrderStore(r)                                   
+                                        
+    PROPERTIES (i) NEWSESSION EDIT SHOWIF overShowEdit(i), deletei = DELETE SHOWIF overShowDelete(i)
+;
+DESIGN deliveryDashboard {
+    tab {
+        MOVE i.box;
+    }
+}
+
+EXTEND FORM  deliveryDashboard
+    PROPERTIES(i)  editAttributes
+    PROPERTIES(i) SHOWIF showTTN1(i) READONLYIF banPrint(i)
+                     printVerticalA, printVerticalAB, printHorizontalA,
+                     printVerticalB, printHorizontalB, printAttach, printVerticalABAttach,
+                     printVertical, printHorizontal, printHorizontalAB, printAttachXLS, printSimpleAttachXLS, 
+                     printVerticalAttach, printHorizontalAttach 
+    PROPERTIES(i) SHOWIF showTN2(i) READONLYIF banPrint(i)
+                     printSimpleHorizontal, printSimpleVertical, printSimpleAttach, printSimpleVerticalAttach, printSimpleHorizontalAttach
+;
+
+DESIGN deliveryDashboard {
+    i.panel {
+        NEW consignmentRow1 {
+            align = LEADING;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(i)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn2 {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'ТН-2';
+                MOVE PROPERTY(printSimpleVertical(i));
+                MOVE PROPERTY(printSimpleHorizontal(i));
+                MOVE PROPERTY(printSimpleAttach(i));
+                MOVE PROPERTY(printSimpleVerticalAttach(i));
+                MOVE PROPERTY(printSimpleHorizontalAttach(i));
+            }
+        }
+        NEW consignmentRow2 {
+            align = LEADING;
+            type = COLUMNS;
+            columns = 3;
+            caption = 'ТТН-1';
+            MOVE PROPERTY(printVerticalA(i));
+            MOVE PROPERTY(printVerticalAB(i));
+            MOVE PROPERTY(printHorizontalA(i));
+            MOVE PROPERTY(printVerticalB(i));
+            MOVE PROPERTY(printHorizontalB(i));                
+            MOVE PROPERTY(printAttach(i));      
+            MOVE PROPERTY(printVertical(i));  
+            MOVE PROPERTY(printHorizontal(i));
+            MOVE PROPERTY(printHorizontalAB(i));
+            MOVE PROPERTY(printVerticalAttach(i));                
+            MOVE PROPERTY(printVerticalABAttach(i)); 
+            MOVE PROPERTY(printHorizontalAttach(i));                
+        }
+        NEW consignmentRow3 {
+            type = CONTAINERH;            
+            NEW export {
+                type = CONTAINERH;
+                caption = 'Экспорт';  
+                MOVE PROPERTY(printAttachXLS(i));  
+                MOVE PROPERTY(printSimpleAttachXLS(i));                                                 
+            }
+        }    
+    }
+}
+
+invoiceDetail = DATA UserInvoiceDetail (InternetOrderDetail);
+descriptionInvoice 'Строка накладной' (InternetOrderDetail d) = descriptionIndex(invoiceDetail(d));
+seriesNumberInvoice 'Номер накладной' (InternetOrderDetail d) = seriesNumber(invoiceDetail(d));

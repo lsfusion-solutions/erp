@@ -246,70 +246,6 @@ createDeliveryReport 'Создать отчет курьера' (InternetOrder o
 filterDashboardDelivery = GROUP SUM 1 IF InternetOrderDetail detail IS InternetOrderDetail AND NOT deliveryReport(detail) 
         BY internetOrder(detail);
 
-CLASS Contractor 'Контрагент';
-TABLE contractor(Contractor);
-
-legalEntity = DATA LegalEntity (Contractor);
-nameLegalEntity 'Наименование' (Contractor c) = name(legalEntity(c));
-id 'Код' (Contractor c) = id(legalEntity(c));
-
-site 'Сайт' = DATA VARSTRING[100] (Contractor);
-
-FORM contractor 'Контрагент'
-    OBJECTS c = Contractor PANEL
-    PROPERTIES(c) id, nameLegalEntity, site
-    
-    EDIT Contractor OBJECT c
-;
-
-FORM contractors 'Контрагенты'
-    OBJECTS c = Contractor
-    PROPERTIES(c) READONLY id, nameLegalEntity, site
-    PROPERTIES(c) NEWSESSION NEW, EDIT, DELETE 
-    
-    LIST Contractor OBJECT c
-;
-
-contractor 'Контрагент'  = DATA Contractor (InternetOrder);
-nameContractor 'Контрагент' (InternetOrder o) = nameLegalEntity(contractor(o)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
-siteContractor 'Сайт контрагента' (InternetOrder o) = site(contractor(o));
-
-nameContractor 'Контрагент' (InternetOrderDetail d) = nameContractor(internetOrder(d));
-siteContractor 'Сайт контрагента' (InternetOrderDetail d) = siteContractor(internetOrder(d));
-
-contractor (InternetOrderDetail d) = contractor(internetOrder(d));
-legalEntity (InternetOrderDetail d) = legalEntity(contractor(d));
-
-defaultContractorInternetOrder = DATA Contractor ();
-nameDefaultContractorInternetOrder 'Контрагент для интернет-заказов' = nameLegalEntity(defaultContractorInternetOrder());
-
-EXTEND FORM options
-    PROPERTIES() nameDefaultContractorInternetOrder
-;
-
-DESIGN options {
-    topInternetOrder {
-        MOVE PROPERTY(nameDefaultContractorInternetOrder());
-    }
-}
-
-WHEN SET(imported(InternetOrder o)) AND NOT contractor(o) DO {
-    contractor(o) <- defaultContractorInternetOrder();
-}
-
-EXTEND FORM internetOrder
-    PROPERTIES(o) nameContractor
-;
-
-DESIGN internetOrder{
-    payment {
-        MOVE PROPERTY (nameContractor(o));
-    }
-}
-EXTEND FORM internetOrders
-    PROPERTIES(o)  READONLY nameContractor
-;
-
 
 inStockDeliveryReport = GROUP SUM 1 BY supplierStock(InternetOrderDetail detail), deliveryReport(detail); 
 supplierStocks 'Склады поставщика' = GROUP CONCAT name(Stock stock) IF inStockDeliveryReport(stock, DeliveryReport deliveryReport), ', '  
@@ -415,12 +351,12 @@ filterInternetOrderDateTo (InternetOrderDetail detail) = date(detail) <= filterI
 FORM internetOrderLedger 'Регистр интернет заказов'
     PROPERTIES filterInternetOrderDateFrom(), filterInternetOrderDateTo()
     OBJECTS d = InternetOrderDetail
-    PROPERTIES(d) READONLY   indexDeliveryReport, seriesNumber, nameContractor, nameInternetCustomer, 
+    PROPERTIES(d) READONLY   indexDeliveryReport, seriesNumber, nameInternetCustomer, 
                              phoneInternetCustomer, addressInternetCustomer, cityInternetCustomer, 
                              seriesNumberPicking, idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameBatch, quantity, pickingQuantity,
                              returnQuantity, price, discountPrice, sum, discountSum, date, deliveryDate, returnDate, paymentDate, deliveryTimeFromInternetOrder, 
-                             deliveryTimeToInternetOrder, //bulky, guarantee, 
-                             siteContractor
+                             deliveryTimeToInternetOrder //bulky, guarantee, 
+                             
     ORDER BY seriesNumber(d) 
     FILTERS deliveryReport(d),
             filterInternetOrderDateFrom(d),
