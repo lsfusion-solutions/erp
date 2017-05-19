@@ -331,7 +331,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         Date dateReceipt = rs.getDate(12); // r.date
                         Time timeReceipt = rs.getTime(12); //r.date
 
-                        String seriesNumberDiscountCard = rs.getString(16); //r.customer
+                        String discountCard = trim(rs.getString(16), null, 18); //r.customer
+                        if(discountCard!= null && discountCard.isEmpty())
+                            discountCard = null;
 
                         //временные логи
                         if (discountSum != null && discountSum.doubleValue() != 0.0) {
@@ -351,7 +353,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             currentSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, cash_id, numberZReport,
                                     dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null,
                                     null, null, null, null, (BigDecimal) null, idBarcode, idItem, null, null, totalQuantity,
-                                    price, isSale ? sum : sum.negate(), discountSum, null, seriesNumberDiscountCard,
+                                    price, isSale ? sum : sum.negate(), discountSum, null, discountCard,
                                     position, null, idSection));
                         }
                         break;
