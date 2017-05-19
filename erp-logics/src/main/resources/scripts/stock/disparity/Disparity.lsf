@@ -54,7 +54,9 @@ changeBatch(DisparityDetail d) = {
 idBatch 'Код партии' (DisparityDetail detail) = id(batch(detail));
 
 costBatch 'Себестоимость партии' = DATA NUMERIC[16,4] (DisparityDetail);
-costBatch(DisparityDetail detail) <- prevCost(batch(detail)) WHEN CHANGED(batch(detail));
+
+WHEN LOCAL CHANGED(batch(DisparityDetail detail)) OR CHANGED(sku(detail)) OR CHANGED(stock(detail)) DO
+    costBatch(detail) <- prevCost(OVERRIDE batch(detail), lastOrderBatch(sku(detail), stock(detail)));
 
 expiryDateBatch 'Годен до' = DATA DATE (DisparityDetail);
 expiryDateBatch(DisparityDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHANGED(batch(detail));
@@ -190,9 +192,9 @@ FORM disparity 'Изменение сортности'
     OBJECTS d = DisparityDetail
     PROPERTIES(d)   index,
                     idBarcodeSku, nameSku, shortNameUOMSku, idBatch, nameBatch ON CHANGE changeBatch(d),
-                    costBatch, expiryDateBatch,
+                    expiryDateBatch,
                     quantity, price, sum,
-                    inputIdBarcodeSku, inputNameSku, inputShortNameUOMSku,
+                    inputIdBarcodeSku, inputNameSku, inputShortNameUOMSku, costBatch,
                     inputQuantity, inputPrice, inputSum
     PROPERTIES(d)   NEW, deletedd=DELETE GRID
 
@@ -346,8 +348,8 @@ FORM disparities 'Изменения сортности'
     OBJECTS d=DisparityDetail
     PROPERTIES(d)   READONLY index,
                     idBarcodeSku, nameSku, shortNameUOMSku, nameBatch,
-                    costBatch, expiryDateBatch, quantity, price, sum,
-                    inputIdBarcodeSku, inputNameSku, inputShortNameUOMSku,
+                    expiryDateBatch, quantity, price, sum,
+                    inputIdBarcodeSku, inputNameSku, inputShortNameUOMSku, costBatch,
                     inputQuantity, inputPrice, inputSum
 
     FILTERS         disparity(d) == dis
