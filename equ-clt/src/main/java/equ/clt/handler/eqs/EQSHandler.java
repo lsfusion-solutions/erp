@@ -62,6 +62,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     if (params.connectionString == null) {
                         processTransactionLogger.error(logPrefix + "No connectionString in EQSSettings found");
                     } else {
+                        processTransactionLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                         Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                         Exception exception = null;
                         try {
@@ -136,6 +137,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     Connection conn = null;
                     PreparedStatement ps = null;
                     try {
+                        processStopListLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                         conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
                         conn.setAutoCommit(false);
@@ -188,10 +190,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 Connection conn = null;
                 PreparedStatement ps = null;
                 try {
+                    machineryExchangeLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
-
                     conn.setAutoCommit(false);
-                    machineryExchangeLogger.info(logPrefix + "sending discountCards, table customers");
 
                     ps = conn.prepareStatement(
                             "INSERT INTO customers (code, description, discount, updecr)" +
@@ -239,7 +240,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         Map<Integer, CashRegisterInfo> machineryMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.handlerModel != null && c.handlerModel.endsWith("EQSHandler")) {
-                if (c.number != null && c.numberGroup != null)
+                if (c.number != null && c.numberGroup != null && c.directory != null && c.directory.equals(directory))
                     machineryMap.put(c.number, c);
             }
         }
@@ -250,12 +251,13 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             EQSConnectionString params = new EQSConnectionString(directory);
 
             if (params.connectionString == null) {
-                processTransactionLogger.error(logPrefix + "No connectionString in EQSSettings found");
+                sendSalesLogger.error(logPrefix + "No connectionString in EQSSettings found");
             } else {
 
                 Connection conn = null;
 
                 try {
+                    sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
                     salesBatch = readSalesInfoFromSQL(conn, machineryMap, directory);
@@ -405,7 +407,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                             EQSConnectionString params = new EQSConnectionString(directory);
                             if (params.connectionString != null) {
-
+                                sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                                 conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
                                 String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
@@ -450,6 +452,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 PreparedStatement ps = null;
 
                 try {
+                    sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
                     conn.setAutoCommit(false);
