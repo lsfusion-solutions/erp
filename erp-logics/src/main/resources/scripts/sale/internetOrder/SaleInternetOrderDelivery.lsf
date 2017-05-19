@@ -73,6 +73,7 @@ countInternetOrderDetail 'Кол-во строк товара в докумен�
     GROUP SUM 1 IF sku(InternetOrderDetail idetail)
           BY  sku(idetail),
               deliveryReport(idetail);   
+editReturnQuantity  = ABSTRACT BOOLEAN (InternetOrderDetail);
 
 FORM deliveryReport 'Отчет курьера'
     OBJECTS r = DeliveryReport PANEL
@@ -92,8 +93,9 @@ FORM deliveryReport 'Отчет курьера'
     PROPERTIES in(r, d)
     PROPERTIES(d) indexDeliveryReport
     PROPERTIES (d) READONLY seriesNumberPicking, idBarcodeSku, idSku, nameSku, shortNameUOMSku
-    PROPERTIES (d) READONLY nameBatch, pickingQuantity, returnQuantity, price, discountPrice, pickingSum, nameSupplierStock, 
-                   seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer
+    PROPERTIES (d) READONLY nameBatch, pickingQuantity
+    PROPERTIES (d) returnQuantity READONLYIF editReturnQuantity(d)
+    PROPERTIES (d) READONLY price, discountPrice, pickingSum, nameSupplierStock, seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer
     FILTERS deliveryReport(d) == r                                                    
     ORDER BY indexDeliveryReport(d)  
     FILTERGROUP filters1 FILTER 'По заказу' internetOrder(d)<=o 'F10'  
@@ -397,4 +399,8 @@ WHEN CHANGED (status(DeliveryReport r)) DO {
     }
 }
 
- 
+WHEN CHANGED (status(DeliveryReport r)) DO {
+    IF status(r) == StatusDeliveryReport.completed THEN {
+        status(InternetOrder o) <- StatusInternetOrder.completed WHERE relation(r, o);
+    }
+}

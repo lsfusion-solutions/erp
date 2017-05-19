@@ -1,0 +1,137 @@
+MODULE SaleReturnInternetOrderInvoice;
+
+REQUIRE SaleInternetOrderInvoice, SaleReturnShipment;
+
+NAMESPACE SaleReturn;
+
+internetOrderDetail = DATA InternetOrderDetail (UserInvoiceDetail);
+userInvoiceDetailReturn = GROUP MAX UserInvoiceDetail d BY internetOrderDetail(d);
+
+relation = GROUP SUM 1 BY deliveryReport(internetOrderDetail(UserInvoiceDetail d)), userInvoice(d);
+countDeliveryReport = GROUP SUM 1 BY deliveryReport(internetOrderDetail(UserInvoiceDetail d));
+notDeliveryReport (DeliveryReport r)= returnQuantityInternetOrderDetail(r) AND NOT countDeliveryReport(r) ;
+
+createReturnInvoice 'Создать возврат' (DeliveryReport r) = {
+    IF returnQuantityInternetOrderDetail(r) AND NOT countDeliveryReport(r) THEN {
+        NEWSESSION {
+            FOR [ = GROUP SUM returnQuantity(InternetOrderDetail d) BY deliveryReport(d), supplierStock(d)](r, Stock st) NEW i = UserInvoice DO {
+                SaleReturn.date(i) <- currentDate();
+                SaleReturn.time(i) <- currentTime();
+                SaleReturn.supplier(i) <- legalEntity(st);
+                SaleReturn.supplierStock(i) <- st;
+                SaleReturn.customer(i) <- legalEntity(internetStock());
+                SaleReturn.customerStock(i) <- internetStock();
+                SaleReturn.operation(i) <- internetOperation();
+                SaleReturn.priceListType(i) <- defaultPriceListType(operation(i));
+                SaleReturn.isPosted(i) <- TRUE ;
+                SaleReturn.createShipment(i) <- TRUE;
+                
+                FOR returnQuantity(InternetOrderDetail detail) AND deliveryReport(detail) == r AND supplierStock(detail) == st NEW d = UserInvoiceDetail DO {
+                    userInvoice(d) <- i;
+                    sku(d) <- sku(detail);
+                    batch(d) <- batch(detail);
+                    quantity(d) <- returnQuantity(detail);
+                    priceListType(d) <- OVERRIDE priceListType(agreement(userInvoice(d)), sku(d)),
+                                                 priceListType(userInvoice(d));   
+                    invoiceDetail(d) <- userInvoiceDetail(detail);   
+                    internetOrderDetail(d) <- detail;                                                                                                                    
+
+                    executeLocalEvents();
+                    price(d) <- price(userInvoiceDetail(detail));
+                    VAT(d) <- VAT(userInvoiceDetail(detail));
+                    valueVAT(d) <- valueVAT(userInvoiceDetail(detail));
+                    invoicePrice(d) <- invoicePrice(userInvoiceDetail(detail));                        
+                                                                                                                                                                                                       
+                }                
+                SHOW userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL; 
+            }
+        }
+    }       
+}
+
+EXTEND FORM deliveryDashboard
+    OBJECTS ri = Invoice
+                            
+    PROPERTIES (ri) READONLY isPosted, number, series, date, time                                
+    PROPERTIES (ri) READONLY nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock,
+                            nameCurrency,  seriesNumberContractSku
+    PROPERTIES (ri) READONLY countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
+                            VATSumInvoiceDetail, invoiceSumInvoiceDetail
+    PROPERTIES (ri) READONLY note
+    FILTERS relation(r,ri)
+    
+    PROPERTIES (r) createReturnInvoice TOOLBAR TODRAW ri SHOWIF notDeliveryReport(r)
+    PROPERTIES (ri) NEWSESSION EDIT SHOWIF overShowEdit(ri), deleteri = DELETE SHOWIF overShowDelete(ri)
+;
+DESIGN deliveryDashboard {
+    tab {
+        MOVE ri.box;
+    }        
+}
+
+EXTEND FORM  deliveryDashboard
+    PROPERTIES(ri)  editAttributes
+    PROPERTIES(ri) SHOWIF showTTN1(ri) READONLYIF banPrint(ri)
+                     printVerticalA, printVerticalAB, printHorizontalA,
+                     printVerticalB, printHorizontalB, printAttach, printVerticalABAttach,
+                     printVertical, printHorizontal, printHorizontalAB, printAttachXLS, printSimpleAttachXLS, 
+                     printVerticalAttach, printHorizontalAttach 
+    PROPERTIES(ri) SHOWIF showTN2(ri) READONLYIF banPrint(ri)
+                     printSimpleHorizontal, printSimpleVertical, printSimpleAttach, printSimpleVerticalAttach, printSimpleHorizontalAttach
+;
+
+DESIGN deliveryDashboard {
+    ri.panel {
+        NEW consignmentRow1R {
+            align = LEADING;
+            type = CONTAINERH;
+
+            NEW contOneR {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(ri)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn2R {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'ТН-2';
+                MOVE PROPERTY(printSimpleVertical(ri));
+                MOVE PROPERTY(printSimpleHorizontal(ri));
+                MOVE PROPERTY(printSimpleAttach(ri));
+                MOVE PROPERTY(printSimpleVerticalAttach(ri));
+                MOVE PROPERTY(printSimpleHorizontalAttach(ri));
+            }
+        }
+        NEW consignmentRow2R {
+            align = LEADING;
+            type = COLUMNS;
+            columns = 3;
+            caption = 'ТТН-1';
+            MOVE PROPERTY(printVerticalA(ri));
+            MOVE PROPERTY(printVerticalAB(ri));
+            MOVE PROPERTY(printHorizontalA(ri));
+            MOVE PROPERTY(printVerticalB(ri));
+            MOVE PROPERTY(printHorizontalB(ri));                
+            MOVE PROPERTY(printAttach(ri));      
+            MOVE PROPERTY(printVertical(ri));  
+            MOVE PROPERTY(printHorizontal(ri));
+            MOVE PROPERTY(printHorizontalAB(ri));
+            MOVE PROPERTY(printVerticalAttach(ri));                
+            MOVE PROPERTY(printVerticalABAttach(ri)); 
+            MOVE PROPERTY(printHorizontalAttach(ri));                
+        }
+        NEW consignmentRow3R {
+            type = CONTAINERH;            
+            NEW exportR {
+                type = CONTAINERH;
+                caption = 'Экспорт';  
+                MOVE PROPERTY(printAttachXLS(ri));  
+                MOVE PROPERTY(printSimpleAttachXLS(ri));                                                 
+            }
+        }    
+    }
+}
