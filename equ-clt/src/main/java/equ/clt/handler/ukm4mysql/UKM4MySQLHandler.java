@@ -634,6 +634,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             }
         }
 
+        Class.forName("com.mysql.jdbc.Driver");
+
         for (String directory : directorySet) {
             List<CashDocument> cashDocumentList = new ArrayList<>();
             UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
