@@ -3,6 +3,7 @@ package equ.clt.handler.eqs;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.log4j.Logger;
@@ -279,7 +280,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         Statement statement = null;
         try {
             statement = conn.createStatement();
-            String query = "SELECT type, ecr, doc, barcode, code, qty, price, amount, discount, department, flags, date, id, zreport, payment FROM history WHERE new = 1";
+            String query = "SELECT type, ecr, doc, barcode, code, qty, price, amount, discount, department, flags, date, id," +
+                    " zreport, payment, customer FROM history WHERE new = 1";
             ResultSet rs = statement.executeQuery(query);
 
             int position = 0;
@@ -327,6 +329,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         Date dateReceipt = rs.getDate(12); // r.date
                         Time timeReceipt = rs.getTime(12); //r.date
 
+                        String seriesNumberDiscountCard = rs.getString(16); //r.customer
+
                         //временные логи
                         if (discountSum != null && discountSum.doubleValue() != 0.0) {
                             sendSalesLogger.info(logPrefix + String.format("Данные в базе: flag %s, isReturn %s, barcode %s, amount %s, discount %s", flags, isReturn, rs.getString(4), rs.getBigDecimal(8), rs.getBigDecimal(9)));
@@ -345,7 +349,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             currentSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, cash_id, numberZReport,
                                     dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null,
                                     null, null, null, null, (BigDecimal) null, idBarcode, idItem, null, null, totalQuantity,
-                                    price, isSale ? sum : sum.negate(), discountSum, null, null,
+                                    price, isSale ? sum : sum.negate(), discountSum, null, seriesNumberDiscountCard,
                                     position, null, idSection));
                         }
                         break;
