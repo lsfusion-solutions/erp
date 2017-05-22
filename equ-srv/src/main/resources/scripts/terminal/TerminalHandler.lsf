@@ -1,6 +1,7 @@
 MODULE TerminalHandler;
 
-REQUIRE Terminal, MachineryPriceTransaction, Item, PurchaseManufacturingPrice;
+REQUIRE Terminal, MachineryPriceTransaction, Item, PurchaseManufacturingPrice, Warehouse, SaleOrder;
+
 
 process 'Обработка документа ТСД' (terminalDocument) = ACTION ABSTRACT LIST (TerminalDocument);
 process (TerminalDocument document) += {
@@ -28,20 +29,28 @@ EXTEND FORM groupsTerminal
     PROPERTIES () checkIdTerminal
     PROPERTIES(t) AFTER npp(t) READONLY id, blocked, lastConnectionTime, shortNameLastUser;
 
-currentRetailPricingPrice 'Розничная цена' (Barcode barcode, Stock stock) =
-    price[PriceListLedger,LedgerPriceListType](currentRetailPricingPriceListLedger(sku(barcode), stock), SystemLedgerPriceListType.retailPricingPriceListType);     
-currentBalance (Barcode barcode, Stock stock) = currentBalance(sku(barcode), stock);
-    
+
 hostTerminalServer 'Хост' = DATA VARSTRING[30] ();
 portTerminalServer 'Порт' = DATA INTEGER ();    
+
 useCurrentPriceInTerminal 'Загружать в терминал текущие цены' = DATA BOOLEAN ();
+useAccountPrice 'Использовать учетные цены' (Stock s) = s IS Warehouse;
+currentPriceInTerminal 'Розничная цена' (Barcode barcode, Stock stock) = IF useAccountPrice(stock) 
+    THEN currentAccountPriceA(sku(barcode), stock) 
+    ELSE currentRetailPricingPrice(sku(barcode), stock);     
+
 useCurrentQuantityInTerminal 'Загружать в терминал текущие остатки' = DATA BOOLEAN ();
-dataPriceListTypeTerminal 'Вид цен' = DATA LedgerPriceListType();
-nameDataPriceListTypeTerminal 'Вид цен' = name(dataPriceListTypeTerminal());
-priceListTypeTerminal 'Вид цен' = OVERRIDE dataPriceListTypeTerminal(), SystemLedgerPriceListType.manufacturingPriceStockPriceListType;
+currentBalance (Barcode barcode, Stock stock) = currentBalance(sku(barcode), stock);
+    
+dataPriceListTypeTerminal = DATA LedgerPriceListType();
+priceListTypeTerminal = OVERRIDE dataPriceListTypeTerminal(), SystemLedgerPriceListType.manufacturingPriceStockPriceListType;
+namePriceListTypeTerminal 'Вид цен (фильтр ассортимента поставщика)' = name(priceListTypeTerminal());
+
+filter(Order.Order o) = (o IS Purchase.Order) OR (o IS Sale.Order AND supplierStock(o) IS Warehouse); 
+filter(Order.OrderDetail o) = (o IS Purchase.OrderDetail) OR (o IS Sale.OrderDetail AND supplierStock(o) IS Warehouse); 
 
 EXTEND FORM options
-    PROPERTIES() hostTerminalServer, portTerminalServer, useCurrentPriceInTerminal, useCurrentQuantityInTerminal, nameDataPriceListTypeTerminal
+    PROPERTIES() hostTerminalServer, portTerminalServer, useCurrentPriceInTerminal, useCurrentQuantityInTerminal, namePriceListTypeTerminal
 ;
 DESIGN options {
     machinery {
@@ -51,7 +60,7 @@ DESIGN options {
             MOVE PROPERTY(portTerminalServer());
             MOVE PROPERTY(useCurrentPriceInTerminal());
             MOVE PROPERTY(useCurrentQuantityInTerminal());
-            MOVE PROPERTY(nameDataPriceListTypeTerminal());
+            MOVE PROPERTY(namePriceListTypeTerminal());
         }
     }
 }    
