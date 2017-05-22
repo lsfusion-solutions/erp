@@ -325,9 +325,11 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         String idSection = rs.getString(10); //department, Номер отдела
 
                         Integer flags = rs.getInt(11); //flags, Флаги: bit 0 - Возврат bit 1 - Скидка/Наценка (при любой скидке этот бит всегда = 1) bit 2 - Сторнирование/Коррекция
+                        //0 - продажа, 1 - возврат, 4 - возврат со сторнированием/коррекцией
 
-                        boolean isSale = !getBit(flags, 0);
-                        boolean isReturn = getBit(flags, 0);
+                        //тут порядок обратный
+                        boolean isSale = !getBit(flags, 2);
+                        boolean isReturn = getBit(flags, 2);
                         Date dateReceipt = rs.getDate(12); // r.date
                         Time timeReceipt = rs.getTime(12); //r.date
 
