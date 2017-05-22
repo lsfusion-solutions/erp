@@ -673,7 +673,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     List<TerminalAssortment> terminalAssortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, getBusinessLogics(), priceListTypeGroupMachinery, stockGroupTerminal);
                     List<TerminalHandbookType> terminalHandbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, getBusinessLogics());
                     List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, getBusinessLogics());
-                    List<TerminalLegalEntity> terminalLegalEntityList = readTerminalLegalEntityList(session, getBusinessLogics());
+                    List<TerminalLegalEntity> terminalLegalEntityList = TerminalEquipmentServer.readTerminalLegalEntityList(session, getBusinessLogics());
 
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(), dateTimeCode, 
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
@@ -809,29 +809,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     @Override
     public List<TerminalOrder> readTerminalOrderList(RequestExchange requestExchange) throws RemoteException, SQLException {
         return MachineryExchangeEquipmentServer.readTerminalOrderList(getDbManager(), requestExchange);
-    }
-
-    public static List<TerminalLegalEntity> readTerminalLegalEntityList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        List<TerminalLegalEntity> terminalLegalEntityList = new ArrayList<>();
-        ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
-        if (terminalLM != null) {
-            KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
-            ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev((Object) "LegalEntity", legalEntityExpr);
-            QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<>(legalEntityKeys);
-            String[] legalEntityNames = new String[]{"idLegalEntity", "nameLegalEntity"};
-            LCP<?>[] legalEntityProperties = terminalLM.findProperties("id[LegalEntity]", "name[LegalEntity]");
-            for (int i = 0; i < legalEntityProperties.length; i++) {
-                legalEntityQuery.addProperty(legalEntityNames[i], legalEntityProperties[i].getExpr(legalEntityExpr));
-            }
-            legalEntityQuery.and(terminalLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr).getWhere());
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(session);
-            for (ImMap<Object, Object> entry : legalEntityResult.values()) {
-                String idLegalEntity = trim((String) entry.get("idLegalEntity"));
-                String nameLegalEntity = trim((String) entry.get("nameLegalEntity"));
-                terminalLegalEntityList.add(new TerminalLegalEntity(idLegalEntity, nameLegalEntity));
-            }
-        }
-        return terminalLegalEntityList;
     }
 
     @Override

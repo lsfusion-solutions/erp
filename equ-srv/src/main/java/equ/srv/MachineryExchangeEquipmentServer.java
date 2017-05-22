@@ -43,8 +43,6 @@ public class MachineryExchangeEquipmentServer {
     static ScriptingLogicsModule discountCardLM;
     static ScriptingLogicsModule equLM;
     static ScriptingLogicsModule purchaseInvoiceAgreementLM;
-    static ScriptingLogicsModule purchaseOrderLM;
-    static ScriptingLogicsModule terminalHandlerLM;
     static ScriptingLogicsModule machineryLM;
     static ScriptingLogicsModule machineryPriceTransactionLM;
 
@@ -52,8 +50,6 @@ public class MachineryExchangeEquipmentServer {
         discountCardLM = BL.getModule("DiscountCard");
         equLM = BL.getModule("Equipment");
         purchaseInvoiceAgreementLM = BL.getModule("PurchaseInvoiceAgreement");
-        purchaseOrderLM = BL.getModule("PurchaseOrder");
-        terminalHandlerLM = BL.getModule("TerminalHandler");
         machineryLM = BL.getModule("Machinery");
         machineryPriceTransactionLM = BL.getModule("MachineryPriceTransaction");
     }
