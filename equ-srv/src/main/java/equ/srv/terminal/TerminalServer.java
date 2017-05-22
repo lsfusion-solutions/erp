@@ -17,6 +17,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.rmi.RemoteException;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -295,9 +296,12 @@ public class TerminalServer extends MonitorServer {
                                                 String idDocumentDetail = idDocument + fillZeroes(i);
                                                 String commentDocumentDetail = formatValue(line[4]);
                                                 String dateDocumentDetail = line.length <= 5 ? null : formatValue(line[5]);
+                                                String extraDate1DocumentDetail = line.length <= 6 ? null : formatValue(line[6]);
+                                                String extraDate2DocumentDetail = line.length <= 7 ? null : formatValue(line[7]);
                                                 terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType,
                                                         ana1, ana2, comment, idDocumentDetail, numberDocumentDetail, barcodeDocumentDetail, quantityDocumentDetail,
-                                                        priceDocumentDetail, commentDocumentDetail, parseDate(dateDocumentDetail)));
+                                                        priceDocumentDetail, commentDocumentDetail, parseTimestamp(dateDocumentDetail),
+                                                        parseDate(extraDate1DocumentDetail), parseDate(extraDate2DocumentDetail)));
                                             }
                                         }
                                         logger.info("receiving document number " + document[2] + " : " + params.size() + " records");
@@ -454,16 +458,28 @@ public class TerminalServer extends MonitorServer {
         return value;
     }
 
-    private Timestamp parseDate(String value) {
+    private Timestamp parseTimestamp(String value) {
         Timestamp timestamp;
         try {
             timestamp = value == null ? null : new Timestamp(DateUtils.parseDate(value, new String[] {"yyyy-MM-dd HH:mm:ss"}).getTime());
         } catch (Exception e) {
-            logger.error("Parsing date failed: " + value, e);
+            logger.error("Parsing timestamp failed: " + value, e);
             timestamp = null;
         }
         return timestamp;
     }
+
+    private Date parseDate(String value) {
+        Date date;
+        try {
+            date = value == null ? null : new Date(DateUtils.parseDate(value, new String[] {"yyyy-MM-dd"}).getTime());
+        } catch (Exception e) {
+            logger.error("Parsing date failed: " + value, e);
+            date = null;
+        }
+        return date;
+    }
+
 
     private BigDecimal parseBigDecimal(String value) {
         try {
