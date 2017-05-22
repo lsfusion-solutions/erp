@@ -55,7 +55,7 @@ public class TerminalEquipmentServer {
                 ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
                 QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
                 String[] orderNames = new String[]{"dateOrder", "numberOrder", "idSupplierOrder"};
-                LCP<?>[] orderProperties = orderLM.findProperties("date[Order.Order]", "number[Order.Order]", "idSupplier[Order.Order]");
+                LCP<?>[] orderProperties = orderLM.findProperties("date[Order.Order]", "number[Order.Order]", "idTerminalLegalEntity[Order.Order]");
                 for (int i = 0; i < orderProperties.length; i++) {
                     orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
                 }
@@ -72,8 +72,7 @@ public class TerminalEquipmentServer {
                     for (int i = 0; i < extraProperties.length; i++) {
                         orderQuery.addProperty(extraNames[i], extraProperties[i].getExpr(orderDetailExpr));
                     }
-                    orderQuery.and(terminalHandlerLM.findProperty("filter[Order.Order]").getExpr(orderExpr).getWhere());
-                    orderQuery.and(terminalHandlerLM.findProperty("filter[Order.OrderDetail]").getExpr(orderDetailExpr).getWhere());
+                    orderQuery.and(terminalHandlerLM.findProperty("filter[Order.Order,Stock]").getExpr(orderExpr,customerStockObject.getExpr()).getWhere());
                 }
                 if(purchaseInvoiceAgreementLM != null) {
                     String[] deviationNames = new String[]{"minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
@@ -86,8 +85,10 @@ public class TerminalEquipmentServer {
                 }
 
                 orderQuery.and(orderLM.findProperty("isOpened[Order.Order]").getExpr(orderExpr).getWhere());
-                orderQuery.and(orderLM.findProperty("customerStock[Order.Order]").getExpr(orderExpr).compare(
-                        customerStockObject.getExpr(), Compare.EQUALS));
+                if(terminalHandlerLM == null) {
+                    orderQuery.and(orderLM.findProperty("customerStock[Order.Order]").getExpr(orderExpr).compare(
+                            customerStockObject.getExpr(), Compare.EQUALS));
+                }
                 orderQuery.and(orderLM.findProperty("order[Order.OrderDetail]").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
                 orderQuery.and(orderLM.findProperty("number[Order.Order]").getExpr(orderExpr).getWhere());
                 orderQuery.and(orderLM.findProperty("overTerminalBarcode[Order.OrderDetail]").getExpr(orderDetailExpr).getWhere());
