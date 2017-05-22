@@ -411,6 +411,12 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             ORDER date(order), order;
  
     prevLastCreatedOrder (ScheduleOrder o) = PREV(lastCreatedOrder(o));
+    
+    reCreate  'Перегенерировать предварительные заказы'(ScheduleOrder scheduleOrder) = {
+        DELETE ScheduleOrderDetail d WHERE d IS ScheduleOrderDetail AND scheduleOrder(d) == scheduleOrder AND isOpened(d) AND NOT [ = GROUP SUM 1 BY scheduleOrderDetail( UserOrder o)](d);
+        create(scheduleOrder);    
+    } TOOLBAR;
+    
  
     overCreate = ACTION ABSTRACT LIST (UserOrder);
     overCreateDetail = ACTION ABSTRACT LIST (UserOrder);
@@ -529,7 +535,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                         nameOperation
         PROPERTIES (sd) createScheduleUser, deletesd=DELETE GRID
         ORDER BY dateSupply(sd)
-        PROPERTIES create(s) TODRAW sd
+        PROPERTIES  TODRAW sd create(s), reCreate(s)
 
         PROPERTIES(sd) NEW 
         PROPERTIES(s) TODRAW sd deleteScheduleOrderDetail
