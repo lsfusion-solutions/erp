@@ -103,7 +103,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     ps.setString(4, trim(item.name, 50)); //description, Наименование товара
                     ps.setInt(5, 1); //department, Номер отдела
                     ps.setString(6, trim(item.idItemGroup, 10)); //grp, Код группы товара
-                    ps.setInt(7, item.splitItem ? 1 : 0); //flags, Флаги - бит 0 - разрешение дробного количества
+                    //если lsf flag 16 установлен, то пишем флаг 32
+                    ps.setInt(7, (item.flags == null || ((item.flags & 16) == 0) ? 0 : 32) + (item.splitItem ? 1 : 0)); //flags, Флаги - бит 0 - разрешение дробного количества
                     ps.setBigDecimal(8, item.price == null ? BigDecimal.ZERO : item.price); //price, Цена товара
                     ps.setDate(9, item.expiryDate); //exp, Срок годности
                     ps.setInt(10, item.splitItem ? 1 : 0); //weight, Флаг весового товара (1 – весовой, 0 – нет)
