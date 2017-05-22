@@ -75,11 +75,42 @@ sumGrossWeight(UserBinOrderDetail d) <- grossWeight(sku(d)) * quantity(d)
 
 @defineDocumentDialogStocks(userBinOrder, stock, company, , );
 
+//автоматическое закрытие заказов
+closeDateTime 'Дата/время автоматического закрытия' = ABSTRACT DATETIME (BinOrder) IN documentPrm;
+closeDateTime 'Дата/время автоматического закрытия' = DATA DATETIME (UserBinOrder) IN documentPrm;
+closeDateTime(UserBinOrder order) += closeDateTime(order);
+
+quantityMinutesCloseBinOrders 'Количество минут для автоматического закрытия заказа' = DATA INTEGER ();
+
+closeDateTime(UserBinOrder order) <- sumMinutes(dateTime(order), quantityMinutesCloseBinOrders())
+            WHEN CHANGED(dateTime(order));
+            
+EXTEND FORM options
+    PROPERTIES () quantityMinutesCloseBinOrders
+;
+         
+DESIGN options {
+    pane {
+        NEW WMS {
+            caption = 'WMS';
+            MOVE PROPERTY(quantityMinutesCloseBinOrders());    
+        }
+    }
+}
+
+autoCloseBinOrder 'Автоматическое закрытие заказов' () = {
+    FOR closeDateTime(UserBinOrder order)<=currentDateTime() AND isOpened(order) DO {
+        isClosed(order) <- TRUE;
+    }
+    APPLY {};
+}
+            
 FORM userBinOrder 'Заказ на перемещение по ячейкам (польз.)'
     OBJECTS o = UserBinOrder PANEL
     PROPERTIES (o) isPosted, nameStock ON CHANGE changeStockCompany(o), nameNumerator, number, series, date, time, note, 
                    nameOutBin ON CHANGE setOutBin(o), nameInBin ON CHANGE setInBin(o)
     PROPERTIES (o) READONLY countUserBinOrderDetail, quantityBinOrderDetail, sumGrossWeightUserBinOrderDetail
+    PROPERTIES (o) closeDateTime
     
     OBJECTS d = UserBinOrderDetail
     PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d), quantity, sumGrossWeight
@@ -141,7 +172,12 @@ DESIGN userBinOrder {
                                     columns = 3;
                                 }
                             }
-                        }
+                            NEW headerExtraParams {
+                                caption = 'Дополнительные параметры';
+                                type = CONTAINERH;
+                                MOVE PROPERTY(closeDateTime(o));
+                            }  
+                        }  
                     }
     
                     MOVE o.documentSum {
