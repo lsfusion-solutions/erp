@@ -15,6 +15,7 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
@@ -100,6 +101,7 @@ public class NewLandBoardDaemon extends BoardDaemon {
                 }
                 Thread.sleep(1000);
                 return null;
+            } catch (SocketTimeoutException ignored) {
             } catch (Exception e) {
                 terminalLogger.error("NewLandBoard Error: ", e);
             } finally {
