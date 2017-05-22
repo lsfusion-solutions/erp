@@ -36,42 +36,44 @@ import static org.apache.commons.lang3.StringUtils.trim;
 
 public class TerminalEquipmentServer {
 
+    static ScriptingLogicsModule orderLM;
     static ScriptingLogicsModule purchaseInvoiceAgreementLM;
-    static ScriptingLogicsModule purchaseOrderLM;
     static ScriptingLogicsModule terminalHandlerLM;
 
     public static void init(BusinessLogics BL) {
+        orderLM = BL.getModule("Order");
         purchaseInvoiceAgreementLM = BL.getModule("PurchaseInvoiceAgreement");
-        purchaseOrderLM = BL.getModule("PurchaseOrder");
         terminalHandlerLM = BL.getModule("TerminalHandler");
     }
 
     public static List<TerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject) throws RemoteException, SQLException {
         List<TerminalOrder> terminalOrderList = new ArrayList<>();
-        if (purchaseOrderLM != null) {
+        if (orderLM != null) {
             try {
                 KeyExpr orderExpr = new KeyExpr("order");
                 KeyExpr orderDetailExpr = new KeyExpr("orderDetail");
                 ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
                 QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
                 String[] orderNames = new String[]{"dateOrder", "numberOrder", "idSupplierOrder"};
-                LCP<?>[] orderProperties = purchaseOrderLM.findProperties("date[Purchase.Order]", "number[Purchase.Order]", "idSupplier[Purchase.Order]");
+                LCP<?>[] orderProperties = orderLM.findProperties("date[Order.Order]", "number[Order.Order]", "idSupplier[Order.Order]");
                 for (int i = 0; i < orderProperties.length; i++) {
                     orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
                 }
                 String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
                         "quantityOrderDetail"};
-                LCP<?>[] orderDetailProperties = purchaseOrderLM.findProperties("overTerminalBarcode[Purchase.OrderDetail]", "idSku[Purchase.OrderDetail]",
-                        "nameSku[Purchase.OrderDetail]", "price[Purchase.OrderDetail]", "quantity[Purchase.OrderDetail]");
+                LCP<?>[] orderDetailProperties = orderLM.findProperties("overTerminalBarcode[Order.OrderDetail]", "idSku[Order.OrderDetail]",
+                        "nameSku[Order.OrderDetail]", "price[Order.OrderDetail]", "quantity[Order.OrderDetail]");
                 for (int i = 0; i < orderDetailProperties.length; i++) {
                     orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
                 }
                 if(terminalHandlerLM != null) {
                     String[] extraNames = new String[]{"nameManufacturerSkuOrderDetail", "passScalesSkuOrderDetail"};
-                    LCP<?>[] extraProperties = terminalHandlerLM.findProperties("nameManufacturerSku[Purchase.OrderDetail]", "passScalesSku[Purchase.OrderDetail]");
+                    LCP<?>[] extraProperties = terminalHandlerLM.findProperties("nameManufacturerSku[Order.OrderDetail]", "passScalesSku[Order.OrderDetail]");
                     for (int i = 0; i < extraProperties.length; i++) {
                         orderQuery.addProperty(extraNames[i], extraProperties[i].getExpr(orderDetailExpr));
                     }
+                    orderQuery.and(terminalHandlerLM.findProperty("filter[Order.Order]").getExpr(orderExpr).getWhere());
+                    orderQuery.and(terminalHandlerLM.findProperty("filter[Order.OrderDetail]").getExpr(orderDetailExpr).getWhere());
                 }
                 if(purchaseInvoiceAgreementLM != null) {
                     String[] deviationNames = new String[]{"minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
@@ -83,12 +85,12 @@ public class TerminalEquipmentServer {
                     }
                 }
 
-                orderQuery.and(purchaseOrderLM.findProperty("isOpened[Purchase.Order]").getExpr(orderExpr).getWhere());
-                orderQuery.and(purchaseOrderLM.findProperty("customerStock[Purchase.Order]").getExpr(orderExpr).compare(
+                orderQuery.and(orderLM.findProperty("isOpened[Order.Order]").getExpr(orderExpr).getWhere());
+                orderQuery.and(orderLM.findProperty("customerStock[Order.Order]").getExpr(orderExpr).compare(
                         customerStockObject.getExpr(), Compare.EQUALS));
-                orderQuery.and(purchaseOrderLM.findProperty("order[Purchase.OrderDetail]").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
-                orderQuery.and(purchaseOrderLM.findProperty("number[Purchase.Order]").getExpr(orderExpr).getWhere());
-                orderQuery.and(purchaseOrderLM.findProperty("overTerminalBarcode[Purchase.OrderDetail]").getExpr(orderDetailExpr).getWhere());
+                orderQuery.and(orderLM.findProperty("order[Order.OrderDetail]").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
+                orderQuery.and(orderLM.findProperty("number[Order.Order]").getExpr(orderExpr).getWhere());
+                orderQuery.and(orderLM.findProperty("overTerminalBarcode[Order.OrderDetail]").getExpr(orderDetailExpr).getWhere());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
                 for (ImMap<Object, Object> entry : orderResult.values()) {
                     Date dateOrder = (Date) entry.get("dateOrder");
