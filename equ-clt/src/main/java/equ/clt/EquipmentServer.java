@@ -382,8 +382,12 @@ public class EquipmentServer {
             calendarTo.set(Calendar.DAY_OF_MONTH, currentCal.get(Calendar.DAY_OF_MONTH));
             calendarTo.set(Calendar.MONTH, currentCal.get(Calendar.MONTH));
             calendarTo.set(Calendar.YEAR, currentCal.get(Calendar.YEAR));
-            if (equipmentServerSettings.timeFrom.compareTo(equipmentServerSettings.timeTo) > 0)
-                calendarTo.add(Calendar.DAY_OF_MONTH, 1);
+            if (equipmentServerSettings.timeFrom.compareTo(equipmentServerSettings.timeTo) > 0) {
+                if(currentCal.compareTo(calendarFrom) < 0)
+                    calendarFrom.add(Calendar.DAY_OF_MONTH, -1);
+                else
+                    calendarTo.add(Calendar.DAY_OF_MONTH, 1);
+            }
 
             start = currentCal.getTimeInMillis() >= calendarFrom.getTimeInMillis() && currentCal.getTimeInMillis() <= calendarTo.getTimeInMillis();
         }
