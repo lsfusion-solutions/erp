@@ -83,7 +83,9 @@ GROUP account 'Банковская информация' : base;
 inactive 'Неактивная' = DATA BOOLEAN (Account);
 active 'Активная' (Account a) = a IS Account AND NOT inactive(a);
 
-number 'Номер расчетного счета'  = DATA VARSTRING[50] (Account) IN account FIXEDCHARWIDTH 13;
+number 'Номер расчетного счета'  = DATA VARSTRING[50] (Account) IN account FIXEDCHARWIDTH 28;
+numberNew 'Номер расчетного счета IBAN'  = DATA VARSTRING[50] (Account) IN account FIXEDCHARWIDTH 28;
+
 account (number) = GROUP MAX Account account BY number(account); // WHERE account IS Account;
 
 // Банк
@@ -126,7 +128,7 @@ note 'Примечание'  = DATA VARSTRING[50] (Account) IN account;
 
 FORM account 'Расчетный счет'
     OBJECTS a = Account PANEL
-    PROPERTIES(a) number, nameCurrency, nameLegalEntity, nameBank, addressBank,
+    PROPERTIES(a) number, numberNew, nameCurrency, nameLegalEntity, nameBank, addressBank,
                   MFOBank, departmentBank, CBUBank, note, inactive
 
     EDIT Account OBJECT a
@@ -135,6 +137,7 @@ FORM account 'Расчетный счет'
 DESIGN account {
     main{
         MOVE PROPERTY(number(a));
+        MOVE PROPERTY(numberNew(a));
         MOVE PROPERTY(nameCurrency(a));
         MOVE PROPERTY(nameLegalEntity(a));
         MOVE PROPERTY(nameBank(a));
@@ -151,7 +154,7 @@ DESIGN account {
 
 FORM accounts 'Счета'
     OBJECTS a = Account
-    PROPERTIES(a) READONLY number, nameCurrency, nameLegalEntity, nameBank, addressBank,
+    PROPERTIES(a) READONLY number, numberNew, nameCurrency, nameLegalEntity, nameBank, addressBank,
                            MFOBank, departmentBank, CBUBank, note
     PROPERTIES(a) NEWSESSION NEW, EDIT, DELETE 
     FILTERGROUP inactive FILTER 'Активный' active(a) 'ctrl F10' DEFAULT  
@@ -164,7 +167,7 @@ EXTEND FORM legalEntity
     PROPERTIES(l)  SHOWIF toShow(l) numberAccount
 
     OBJECTS a=Account
-    PROPERTIES(a)  inactive, number, nameCurrency, nameBank, addressBank, departmentBank,
+    PROPERTIES(a)  inactive, number, numberNew, nameCurrency, nameBank, addressBank, departmentBank,
                    CBUBank, MFOBank, note, NEW, DELETE GRID
     FILTERS legalEntity(a) == l
     PROPERTIES equals(l, a)
@@ -189,3 +192,10 @@ META defineDocumentAccount(object, contact, caption)
     CBUBank###contact 'ЦБУ банка'###caption (###object object) = CBUBank(account(contact(object))) IN documentPrm;
     MFOBank###contact 'Код МФО банка'###caption (###object object) = MFOBank(account(contact(object))) IN documentPrm;
 END
+
+copyAccountNumbers 'Скопировать номера счетов IBAN' ()  = {
+    FOR number(Account a) AND numberNew(a) DO {
+        number(a) <- numberNew(a);
+    }
+    APPLY;
+}
