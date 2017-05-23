@@ -49,6 +49,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                 Class.forName("com.mysql.jdbc.Driver");
 
+                EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
+                boolean appendBarcode = eqsSettings != null && eqsSettings.getAppendBarcode() != null && eqsSettings.getAppendBarcode();
+
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
                     String directory = null;
@@ -67,7 +70,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         Exception exception = null;
                         try {
                             processTransactionLogger.info(String.format(logPrefix + "transaction %s, table plu", transaction.id));
-                            exportItems(conn, transaction);
+                            exportItems(conn, transaction, appendBarcode);
                         } catch (Exception e) {
                             exception = e;
                         } finally {
@@ -84,7 +87,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         return sendTransactionBatchMap;
     }
 
-    private void exportItems(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
+    private void exportItems(Connection conn, TransactionCashRegisterInfo transaction, boolean appendBarcode) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -98,7 +101,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     ps.setString(1, trim(item.idDepartmentStore, 10)); //store, код торговой точки
-                    ps.setString(2, trim(item.idBarcode, 20)); //barcode, Штрих-код товара
+                    ps.setString(2, removeCheckDigitFromBarcode(trim(item.idBarcode, 20), appendBarcode)); //barcode, Штрих-код товара
                     ps.setString(3, trim(item.idItem, 20)); //art, Артикул
                     ps.setString(4, trim(item.name, 50)); //description, Наименование товара
                     ps.setInt(5, 1); //department, Номер отдела
@@ -130,6 +133,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
         if (!stopListInfo.exclude) {
 
+            EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
+            boolean appendBarcode = eqsSettings != null && eqsSettings.getAppendBarcode() != null && eqsSettings.getAppendBarcode();
+
             for (String directory : directorySet) {
 
                 EQSConnectionString params = new EQSConnectionString(directory);
@@ -152,7 +158,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             if (item.idBarcode != null) {
                                 for (String idStock : stopListInfo.idStockSet) {
                                     ps.setString(1, trim(idStock, 10)); //store, код торговой точки
-                                    ps.setString(2, trim(item.idBarcode, 20)); //barcode, Штрих-код товара
+                                    ps.setString(2, removeCheckDigitFromBarcode(trim(item.idBarcode, 20), appendBarcode)); //barcode, Штрих-код товара
                                     ps.setString(3, trim(item.idItem, 20)); //art, Артикул
                                     ps.setInt(4, stopListInfo.exclude ? 0 : 1); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
                                     ps.setLong(5, 4294967295L); //UpdEcr, Флаг обновления* КСА
@@ -278,6 +284,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
+        EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
+        boolean appendBarcode = eqsSettings != null && eqsSettings.getAppendBarcode() != null && eqsSettings.getAppendBarcode();
+
         Set<Integer> readRecordSet = new HashSet<>();
 
         Statement statement = null;
@@ -316,7 +325,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                         String numberZReport = rs.getString(14); //zReport
 
-                        String idBarcode = rs.getString(4); //barcode, Штрих-код товара
+                        String idBarcode = appendCheckDigitToBarcode(rs.getString(4), 12, appendBarcode); //barcode, Штрих-код товара
                         String idItem = String.valueOf(rs.getLong(5)); //code, Код товара
                         BigDecimal totalQuantity = rs.getBigDecimal(6); //qty, Количество
                         BigDecimal price = rs.getBigDecimal(7); //price, Цена
@@ -482,5 +491,53 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 }
             }
         }
+    }
+
+    private String appendCheckDigitToBarcode(String barcode, Integer minLength, boolean appendBarcode) {
+        if(appendBarcode) {
+            if (barcode == null || (minLength != null && barcode.length() < minLength))
+                return null;
+
+            try {
+                if (barcode.length() == 11) {
+                    return appendEAN13("0" + barcode).substring(1, 13);
+                } else if (barcode.length() == 12) {
+                    return appendEAN13(barcode);
+                } else if (barcode.length() == 7) {  //EAN-8
+                    int checkSum = 0;
+                    for (int i = 0; i <= 6; i = i + 2) {
+                        checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i))) * 3;
+                        checkSum += i == 6 ? 0 : Integer.valueOf(String.valueOf(barcode.charAt(i + 1)));
+                    }
+                    checkSum %= 10;
+                    if (checkSum != 0)
+                        checkSum = 10 - checkSum;
+                    return barcode.concat(String.valueOf(checkSum));
+                } else
+                    return barcode;
+            } catch (Exception e) {
+                return barcode;
+            }
+        } else
+            return barcode;
+    }
+
+    private String removeCheckDigitFromBarcode(String barcode, boolean appendBarcode) {
+        if (appendBarcode && barcode != null && (barcode.length() == 13 || barcode.length() == 12 || barcode.length() == 8)) {
+            return barcode.substring(0, barcode.length() - 1);
+        } else
+            return barcode;
+    }
+
+    private String appendEAN13(String barcode) {
+        int checkSum = 0;
+        for (int i = 0; i <= 10; i = i + 2) {
+            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
+            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+        }
+        checkSum %= 10;
+        if (checkSum != 0)
+            checkSum = 10 - checkSum;
+        return barcode.concat(String.valueOf(checkSum));
     }
 }
