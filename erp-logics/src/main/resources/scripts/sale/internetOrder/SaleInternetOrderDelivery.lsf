@@ -404,3 +404,18 @@ WHEN CHANGED (status(DeliveryReport r)) DO {
         status(InternetOrder o) <- StatusInternetOrder.completed WHERE relation(r, o);
     }
 }
+
+internetOrderPickingPrint 'Счет-заказ' (DeliveryReport r) = {
+    in(InternetOrder order) <- NULL;
+    skip(InternetOrderDetail d) <- NULL;   
+     
+    full() <- NULL ;   
+    in(InternetOrder o) <- TRUE WHERE relation(r, o);    
+    skip(InternetOrderDetail d) <- TRUE WHERE NOT pickingQuantity(d) AND in(internetOrder(d));
+     
+    PRINT internetOrderPrint;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM deliveryDashboard
+    PROPERTIES (r) internetOrderPickingPrint TOOLBAR 
+;

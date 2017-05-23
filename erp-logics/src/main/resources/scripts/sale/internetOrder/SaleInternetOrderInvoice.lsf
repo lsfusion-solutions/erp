@@ -259,3 +259,33 @@ DESIGN deliveryDashboard {
 invoiceDetail = DATA UserInvoiceDetail (InternetOrderDetail);
 descriptionInvoice 'Строка накладной' (InternetOrderDetail d) = descriptionIndex(invoiceDetail(d));
 seriesNumberInvoice 'Номер накладной' (InternetOrderDetail d) = seriesNumber(invoiceDetail(d));
+
+relation = GROUP SUM 1 BY internetOrder(InternetOrderDetail d), userInvoice(userInvoiceDetail(d));
+
+internetOrderPickingPrint 'Счет-заказ' (Invoice i) = {
+    in(InternetOrder order) <- NULL;
+    skip(InternetOrderDetail d) <- NULL;   
+     
+    full() <- NULL ;   
+    in(InternetOrder o) <- TRUE WHERE relation(o, i);    
+    skip(InternetOrderDetail d) <- TRUE WHERE NOT pickingQuantity(d) AND in(internetOrder(d));
+     
+    PRINT internetOrderPrint;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM deliveryDashboard
+    PROPERTIES (i) internetOrderPickingPrint PANEL 
+;
+
+DESIGN deliveryDashboard {
+
+    consignmentRow3 {
+        type = CONTAINERH;            
+        NEW order {
+            type = CONTAINERH;
+            caption = 'Заказ';  
+            MOVE PROPERTY(internetOrderPickingPrint(i));                                                
+        }
+    }    
+    
+}
