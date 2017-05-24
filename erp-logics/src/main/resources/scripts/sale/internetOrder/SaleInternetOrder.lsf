@@ -57,7 +57,7 @@ CLASS InternetOrderDetail 'Строка интернет-заказа';
 
 @defineDocumentDetailTimePrefix(internetOrder, InternetOrderDetail, , ' документа');
 
-@deriveDocumentHeaderTimePrefix(InternetOrder, );
+@deriveDocumentHeaderTimePrefix(InternetOrder, );                    
 
 @defineDocumentHeaderPosted(InternetOrder);
 @defineDocumentHeaderClosed(InternetOrder);
@@ -71,24 +71,29 @@ CLASS InternetOrderDetail 'Строка интернет-заказа';
 
 @defineNumeratedDefault(InternetOrder, 'Интернет-заказы', 'ИЗ');
 
-supplierStock (InternetOrderDetail idetail) = DATA Stock(InternetOrderDetail);
-nameSupplierStock 'Склад поставщика' (InternetOrderDetail idetail) = name(supplierStock(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-fullNameSupplierStock 'Склад поставщика' (InternetOrderDetail idetail) = fullName(supplierStock(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;      
-addressSupplierStock 'Адрес' (InternetOrderDetail idetail) = address(supplierStock(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;       
-countrySupplierStock (InternetOrderDetail idetail) = country(supplierStock(idetail));
-legalEntitySupplierStock (InternetOrderDetail idetail) = legalEntity(supplierStock(idetail));
+@defineDocumentHeaderStockInner (InternetOrder, stock, Stock, 'Склад поставщика' , supplier);
+@defineDocumentDialogStocks(internetOrder, supplierStock, company, , );
 
-inStockInternetOrder = GROUP SUM 1 BY supplierStock(InternetOrderDetail detail), internetOrder(detail); 
+dataSupplierStock  = DATA Stock(InternetOrderDetail);
+supplierStock(InternetOrderDetail d) = OVERRIDE dataSupplierStock(d), supplierStock(internetOrder(d));
+
+nameSupplierStock 'Склад поставщика' (InternetOrderDetail idetail) = name(Sale.supplierStock[InternetOrderDetail](idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+fullNameSupplierStock 'Склад поставщика' (InternetOrderDetail idetail) = fullName(Sale.supplierStock[InternetOrderDetail](idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;      
+addressSupplierStock 'Адрес' (InternetOrderDetail idetail) = address(Sale.supplierStock[InternetOrderDetail](idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;       
+countrySupplierStock (InternetOrderDetail idetail) = country(Sale.supplierStock[InternetOrderDetail](idetail));
+legalEntitySupplierStock (InternetOrderDetail idetail) = legalEntity(Sale.supplierStock[InternetOrderDetail](idetail));
+
+inStockInternetOrder = GROUP SUM 1 BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail), internetOrder(detail); 
 supplierStocks 'Склады поставщика' = GROUP CONCAT name(Stock stock) IF inStockInternetOrder(stock, InternetOrder order), ', '  
                                                                         BY order 
                                                                         ORDER name(stock) MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
 changeSupplierStock(InternetOrderDetail o) = {
-    DIALOG stocksCompany OBJECTS s = supplierStock(o) CHANGE;
+    DIALOG stocksCompany OBJECTS s = Sale.supplierStock[InternetOrderDetail](o) CHANGE;
 }
 
 selectSupplierStock 'Выбрать' (InternetOrderDetail d, Stock s) = {
-    supplierStock(d) <- s;
+    Sale.supplierStock[InternetOrderDetail](d) <- s;
 } TOOLBAR;
                                  
      
@@ -112,10 +117,7 @@ currency (InternetOrder internetOrder) <- defaultCurrency() WHEN SET(internetOrd
 
 @defineDocumentDetailSkuCustomPrefix(internetOrderDetail, sku, , );
 
-
-
 @defineDocumentDetailQuantityCustomPrefix (internetOrderDetail, , );
-
 
 @defineDocumentDetailPriceCustomPrefix(internetOrderDetail, , );
 
@@ -132,17 +134,29 @@ discountSumInternetOrderDetail 'Сумма со скидкой' (internetOrder) 
 discountPercent 'Процент скидки' (InternetOrderDetail d)= DATA NUMERIC[8,3] (InternetOrderDetail);
 backgroundDiscount (InternetOrder o) = RGB(204, 255, 204) IF o IS InternetOrder;
 
+useOwn = ABSTRACT BOOLEAN ();
+overChangeDiscountPrice = ACTION ABSTRACT LIST (InternetOrderDetail, NUMERIC[16,4]);
 changeDiscountPrice(InternetOrderDetail detail) = {
     INPUT n = NUMERIC[16,4] DO {
-        discountPrice(detail) <- n;
-        discountPercent(detail) <- round2((price(detail) - discountPrice(detail)) * 100.0 / price(detail));    
+        IF NOT useOwn() THEN {
+            discountPrice(detail) <- n;
+            discountPercent(detail) <- round2((price(detail) - discountPrice(detail)) * 100.0 / price(detail));           
+        } ELSE {
+            overChangeDiscountPrice(detail,n);
+        }
+
     }    
 } 
-
+overChangeDiscountPercent = ACTION ABSTRACT LIST (InternetOrderDetail, NUMERIC[8,3]);
 changeDiscountPercent(InternetOrderDetail detail) = {
     INPUT n = NUMERIC[8,3] DO {
-        discountPercent(detail) <- n;  
-        discountPrice(detail) <- round2(price(detail)*(1.0 - discountPercent(detail)/100.0));  
+        IF NOT useOwn() THEN {
+            discountPercent(detail) <- n;
+            discountPrice(detail) <- round2(price(detail)*(1.0 - discountPercent(detail)/100.0));  
+        } ELSE {
+            overChangeDiscountPercent(detail,n);
+        }  
+        
     }    
 } 
 
@@ -421,7 +435,7 @@ copy 'Копировать'(InternetOrderDetail detail) = {
         quantity(d) <- quantity(detail);
         price(d) <- price(detail);
         discountPrice(d) <- discountPrice(detail);
-        supplierStock(d) <- supplierStock(detail);
+        Sale.supplierStock[InternetOrderDetail](d) <- Sale.supplierStock[InternetOrderDetail](detail);
     }
 } EDITKEY 'F5' TOOLBAR;
 
@@ -443,7 +457,7 @@ copy 'Копировать'(InternetOrder internetOrder) = {
 	                internetOrder(d) <- o;
 	                sku(d) <- sku(detail);
 	                quantity(d) <- quantity(detail);
-	                supplierStock(d) <- supplierStock(detail);
+	                Sale.supplierStock[InternetOrderDetail](d) <- Sale.supplierStock[InternetOrderDetail](detail);
 	            }
 	        }
 	
@@ -583,7 +597,7 @@ overFillBatch = ACTION ABSTRACT LIST (InternetOrderDetail);
 overFillBatchPicking = ACTION ABSTRACT LIST (InternetOrderDetail); 
 
 fillBatch 'Проставить партию'(InternetOrderDetail d)  = {    
-    batch(d) <- firstOrderBatchBalance(sku(d), supplierStock(d), dateTime(d), quantity(d)) WHERE isItem(sku(d)); 
+    batch(d) <- firstOrderBatchBalance(sku(d), Sale.supplierStock[InternetOrderDetail](d), dateTime(d), quantity(d)) WHERE isItem(sku(d)); 
     overFillBatch(d);
 } SHORTCUT nameBatch[InternetOrderDetail];
 
@@ -592,17 +606,17 @@ fillAllBatch 'Проставить партии для всех'(InternetOrderDe
        fillBatch(d);
 } SHORTCUT nameBatch[InternetOrderDetail];
 
-WHEN LOCAL DROPPED (supplierStock(InternetOrderDetail detail)) AND isItem(sku(detail)) DO {
+WHEN LOCAL DROPPED (Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail)) AND isItem(sku(detail)) DO {
     batch(detail) <- NULL;
 }
 
-WHEN LOCAL SETCHANGED(supplierStock(InternetOrderDetail detail)) AND isItem(sku(detail)) DO {
-    batch(detail) <- firstOrderBatchBalance(sku(detail), supplierStock(detail), dateTime(detail), quantity(detail)); 
+WHEN LOCAL SETCHANGED(Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail)) AND isItem(sku(detail)) DO {
+    batch(detail) <- firstOrderBatchBalance(sku(detail), Sale.supplierStock[InternetOrderDetail](detail), dateTime(detail), quantity(detail)); 
     overFillBatch(detail);
 }
 
 changeBatch(InternetOrderDetail d) = {
-    DIALOG dialogBatchStockOut OBJECTS st = supplierStock(d),
+    DIALOG dialogBatchStockOut OBJECTS st = Sale.supplierStock[InternetOrderDetail](d),
                                  t = dateTime(d),
                                  sk = sku(d),
                                  bt = batch(d) CHANGE NOCONSTRAINTFILTER DO {
@@ -660,4 +674,151 @@ DESIGN internetOrders {
     printContainer {
         MOVE PROPERTY (internetOrderPrint(o));
     }
+}
+
+priceListType (internetOrder) = DATA PriceListType (InternetOrder);
+namePriceListType 'Вид цен' (InternetOrder o)= name(priceListType(o)) IN documentPrm MINCHARWIDTH 10 PREFCHARWIDTH 20;
+priceListType =  DATA PriceListType (InternetOrderDetail);
+namePriceListType 'Вид цен' (InternetOrderDetail d) = name(priceListType(d)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+
+defaultPriceListTypeInternetOrder = DATA PriceListType ();
+nameDefaultPriceListTypeInternetOrder 'Вид цены ИМ' = name(defaultPriceListTypeInternetOrder());
+
+EXTEND FORM options
+    PROPERTIES () nameDefaultPriceListTypeInternetOrder
+;
+DESIGN options {
+    topInternetOrder {
+        MOVE PROPERTY (nameDefaultPriceListTypeInternetOrder());
+    }
+}
+WHEN LOCAL SET(InternetOrder o IS InternetOrder) DO {
+    IF o IS InternetOrder AND NOT priceListType(o) THEN priceListType(o) <- defaultPriceListTypeInternetOrder();
+};
+    
+CONSTRAINT currency(InternetOrder o) != currency(priceListType(o))
+           CHECKED BY priceListType[InternetOrder]
+           MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
+
+CONSTRAINT currency(InternetOrderDetail d) != currency(priceListType(d))
+           CHECKED BY priceListType[InternetOrderDetail]
+           MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
+WHEN LOCAL
+    (CHANGED(priceListType(internetOrder(InternetOrderDetail d)))) AND NOT CHANGED(priceListType(d)) DO {
+        priceListType(d) <-  priceListType(internetOrder(d));                                         
+    }
+    
+@defineDocumentSkuStock(internetOrder, sku, supplier);
+
+ledgerPrice 'Цена (базовая)' (Sku sku, Stock stock, InternetOrder internetOrder) = prevPriceB[PriceListType,Sku,Stock,DATETIME](ledgerPriceListType(priceListType(internetOrder)), sku, stock, dateTime(internetOrder));
+                                  
+viewPrice 'Цена' (sku, stock, internetOrder) = DATA LOCAL NESTED NUMERIC[16,4] (Sku, Stock, InternetOrder);
+
+price 'Цена' (Sku sku, Stock stock, InternetOrder internetOrder) = viewPrice(sku, stock, internetOrder);
+
+updateViewPrice (Sku sku, Stock stock, InternetOrder internetOrder) = {
+    FOR PriceListType pt == priceListType(internetOrder) AND sku IS Sku AND stock IS Stock NOINLINE (pt) DO
+        viewPrice(sku, stock, internetOrder) <- prevPriceB(pt, sku, stock, dateTime(internetOrder));
+}
+
+EXTEND FORM internetOrder
+
+    PROPERTIES (o) nameSupplierStock ON CHANGE changeSupplierStockCompany(o), namePriceListType
+    PROPERTIES (d) namePriceListType AFTER nameBatch(d)
+
+    TREE skuTree sk = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDER BY order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+
+    OBJECTS           sts=(ts=Stock, ks=Sku) GRID
+    PROPERTIES        READONLY BACKGROUND background(ks, o, ts) name(ks) ON SHORTCUT showMovementSku(ks, ts) ON SHORTCUT showMovementPriceSku(ks, ts), idBarcode(ks), id(ks) SHOWIF showIDs(), shortNameUOM(ks)
+    PROPERTIES        READONLY stockName = name(ts) 
+    PROPERTIES        addSku() TODRAW sts, EDIT(ks) NEWSESSION, copy(ks)
+
+    FILTERS           isParent(sk, ks),
+                      ts == supplierStock(o)
+
+    FILTERS           name(ks)
+    ORDER BY          name(ks)
+
+    PROPERTIES        quantitySupplier(ks, o, ts) ON CHANGE changeQuantity(ks, o, ts) 
+                            BACKGROUND backgroundQuantity(ks, o, ts)
+                            QUICKFILTER name(ks),
+                      prevCurrentBalance(ks, ts) READONLY,
+                      allQuantityUserOrder(ks, ts) ON CHANGE changeAllQuantity(ks, o, ts),
+                      price(ks, ts, o) READONLY
+    FILTERGROUP activeSku FILTER 'Активные' active(ks) 'F5' DEFAULT
+    FILTERGROUP balance 
+        FILTER 'С остатком' prevCurrentBalance(ks, ts) 'F10' DEFAULT   
+        FILTER 'В документе ' quantitySupplier(ks, o, ts) 'F9'
+    
+;
+
+DESIGN internetOrder {
+    first {
+        MOVE PROPERTY (nameSupplierStock(o));
+    }
+    NEW tab BEFORE functions.box {
+        fill = 1;
+        type = TABBED ;
+        NEW tab1 {
+            fill = 1;
+            caption = 'Заказ';
+            type = CONTAINERV;
+            MOVE header.box;
+            MOVE specification.box;
+        }
+        NEW itemBox {
+            caption = 'Подбор';
+            type = SPLITH;
+            fill = 1;
+            NEW skuFilters {
+                fill = 1;
+                type = TABBED;
+                MOVE skuTree.tree.box { caption = 'Группы SKU'; }
+            }
+            NEW skuMainPane {
+                fill = 2.5;
+                type = CONTAINERV;
+                NEW skuSelectPane {
+                    fill = 1;
+                    type = CONTAINERV;
+                    MOVE sts.box {
+                        caption = 'Товары';
+                    }
+                    
+                }
+            }
+        }
+    }
+    PROPERTY(prevCurrentBalance(ks, ts)) { background = #FFEEEE; }
+    PROPERTY(quantitySupplier(ks, o, ts)) { background = #D4FFD4; }
+}
+
+    
+currentInternetOrderInternetOrder() = DATA LOCAL NESTED Object ();
+setCurrentInternetOrderInternetOrder(Object o) = { currentInternetOrderInternetOrder() <- o; }
+
+EXTEND FORM internetOrder
+    EVENTS ON CHANGE o setCurrentInternetOrderInternetOrder(o)
+;
+
+WHEN LOCAL FORMS internetOrder (SET([= VIEW internetOrder.sts](Stock stock, Sku sku)) AND currentInternetOrderInternetOrder() == Object o) OR 
+                        ((CHANGED(dateTime[UserOrder](o)) OR
+                          CHANGED(priceListType[UserOrder](o))) AND [= VIEW internetOrder.sts](stock, sku)) DO 
+    updateViewPrice[Sku,Stock,InternetOrder](sku, stock, o);
+
+
+WHEN LOCAL FORMS internetOrder 
+    (CHANGED(sku(InternetOrderDetail detail)) OR
+    CHANGED(batch(detail)) OR     
+    CHANGED(priceListType(detail)) OR
+    CHANGED(Sale.supplierStock[InternetOrderDetail](detail)) OR
+    (CHANGED (dateTime(detail)) AND NOT isPosted(detail))) AND NOT CHANGED (price(detail)) AND sku(detail) AND PriceListType pt == priceListType(detail) NOINLINE  (pt) DO {
+    
+    price (detail)  <- IF batch(detail)
+                    THEN prevPriceB(pt, batch(detail), Sale.supplierStock[InternetOrderDetail](detail), dateTime(detail))
+                    ELSE prevPriceB(pt, sku(detail), Sale.supplierStock[InternetOrderDetail](detail), dateTime(detail)); 
+    discountPrice (detail)  <- price(detail);                        
 }

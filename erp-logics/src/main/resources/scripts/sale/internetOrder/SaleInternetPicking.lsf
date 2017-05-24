@@ -59,7 +59,7 @@ updateSortOrder 'Сортировать'(InternetOrderDetail detail) = {
 
 @defineDocumentHeaderSkuQuantity(picking, internetOrderDetail, sku, );
 
-CONSTRAINT supplierStock(InternetOrderDetail d) AND stock(picking(d)) AND NOT supplierStock(d) == stock(picking(d))
+CONSTRAINT Sale.supplierStock[InternetOrderDetail](InternetOrderDetail d) AND stock(picking(d)) AND NOT Sale.supplierStock[InternetOrderDetail](d) == stock(picking(d))
     MESSAGE 'Склад поставщика для строки интернет заказа не соответсвует складу в комплектации.';
 
 
@@ -266,9 +266,9 @@ createPicking 'Создать комплектацию' (InternetOrder order) = 
     IF countInternetOrders() THEN  {       
     
         NEWSESSION {
-            FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT picking(d) BY supplierStock(d)](Stock stock) NEW p = Picking DO {
+            FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT picking(d) BY Sale.supplierStock[InternetOrderDetail](d)](Stock stock) NEW p = Picking DO {
                 stock(p) <- stock;
-                FOR supplierStock(InternetOrderDetail detail) == stock AND filterDashboard(detail) DO {
+                FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND filterDashboard(detail) DO {
                     
                         picking(detail) <- p;
                         IF  isItem(sku(detail)) AND NOT batch(detail) THEN {

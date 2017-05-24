@@ -47,9 +47,9 @@ isCanceled(InternetOrderDetail d) = status(d) == StatusInternetOrderDetail.cance
 
 // События по изменению статусов
 
-WHEN LOCAL SET(supplierStock(InternetOrderDetail d)) DO
+WHEN LOCAL SET(Sale.supplierStock[InternetOrderDetail](InternetOrderDetail d)) DO
     status(d) <- StatusInternetOrderDetail.assigned;
-WHEN LOCAL DROPPED(supplierStock(InternetOrderDetail d)) DO
+WHEN LOCAL DROPPED(Sale.supplierStock[InternetOrderDetail](InternetOrderDetail d)) DO
     status(d) <- StatusInternetOrderDetail.new;
 
 WHEN SET([= GROUP SUM 1 IF status(InternetOrderDetail d) == StatusInternetOrderDetail.new BY internetOrder(d)](InternetOrder o)) DO
@@ -60,8 +60,8 @@ countCompletedDetail = GROUP SUM 1 IF status(InternetOrderDetail d) == StatusInt
                                               status(d) == StatusInternetOrderDetail.completed 
                               BY internetOrder(d);  
                               
-CONSTRAINT isPicked(InternetOrderDetail d) AND NOT supplierStock(d) OR 
-           isAssigned(d) AND NOT supplierStock(d) MESSAGE 'Должен быть выбран склад поставщика';
+CONSTRAINT isPicked(InternetOrderDetail d) AND NOT Sale.supplierStock[InternetOrderDetail](d) OR 
+           isAssigned(d) AND NOT Sale.supplierStock[InternetOrderDetail](d) MESSAGE 'Должен быть выбран склад поставщика';
                              
 EXTEND FORM internetOrder
     PROPERTIES (d) BACKGROUND background(d) nameStatus

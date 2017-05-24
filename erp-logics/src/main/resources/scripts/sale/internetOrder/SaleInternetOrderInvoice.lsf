@@ -16,7 +16,7 @@ CONSTRAINT internetOrderDetail(UserInvoiceDetail d) AND NOT sku(d) == sku(intern
     CHECKED BY internetOrderDetail[UserInvoiceDetail]
     MESSAGE 'Sku строки накладной не совпадает с sku интернет заказа';
 
-CONSTRAINT internetOrderDetail(UserInvoiceDetail d) AND NOT supplierStock(d) == supplierStock(internetOrderDetail(d)) 
+CONSTRAINT internetOrderDetail(UserInvoiceDetail d) AND NOT supplierStock(d) == Sale.supplierStock[InternetOrderDetail](internetOrderDetail(d)) 
     CHECKED BY internetOrderDetail[UserInvoiceDetail]
     MESSAGE 'Склад поставщика строки накладной не совпадает с складом интернет заказа';
     
@@ -87,7 +87,7 @@ DESIGN options{
 createInvoice 'Создать накладную' (DeliveryReport r) = { 
     IF pickingSumInternetOrderDetail(r) AND NOT countDeliveryReport(r) THEN {
         NEWSESSION {
-            FOR [ = GROUP SUM pickingSum(InternetOrderDetail d) IF isItem(sku(d)) BY deliveryReport(d), supplierStock(d)](r, Warehouse st) AND st IS Warehouse NEW i = UserInvoice DO {
+            FOR [ = GROUP SUM pickingSum(InternetOrderDetail d) IF isItem(sku(d)) BY deliveryReport(d), Sale.supplierStock[InternetOrderDetail](d)](r, Warehouse st) AND st IS Warehouse NEW i = UserInvoice DO {
                 date(i) <- currentDate();
                 time(i) <- currentTime();
                 supplier(i) <- legalEntity(st);
@@ -98,7 +98,7 @@ createInvoice 'Создать накладную' (DeliveryReport r) = {
                 priceListType(i) <- defaultPriceListType(operation(i));
                 createShipment(i) <- TRUE;
                 
-                FOR pickingSum(InternetOrderDetail detail) > 0.0 AND isItem(sku(detail)) AND deliveryReport(detail) == r AND supplierStock(detail) == st NEW d = UserInvoiceDetail DO {
+                FOR pickingSum(InternetOrderDetail detail) > 0.0 AND isItem(sku(detail)) AND deliveryReport(detail) == r AND Sale.supplierStock[InternetOrderDetail](detail) == st NEW d = UserInvoiceDetail DO {
                     userInvoice(d) <- i;
                     sku(d) <- sku(detail);
                     batch(d) <- batch(detail);
@@ -127,7 +127,7 @@ prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AN
 createRetailInvoiceStore 'Создать накладную (розница с магазина)' (DeliveryReport r) = {
     IF pickingSumInternetOrderDetail(r) AND NOT countDeliveryReport(r) THEN {
         NEWSESSION {
-            FOR [ = GROUP SUM pickingSum(InternetOrderDetail d) IF isItem(sku(d)) BY deliveryReport(d), supplierStock(d)](r, Stock st) AND st IS DepartmentStore NEW i = UserInvoice DO {
+            FOR [ = GROUP SUM pickingSum(InternetOrderDetail d) IF isItem(sku(d)) BY deliveryReport(d), Sale.supplierStock[InternetOrderDetail](d)](r, Stock st) AND st IS DepartmentStore NEW i = UserInvoice DO {
                 date(i) <- currentDate();
                 time(i) <- currentTime();
                 supplier(i) <- legalEntity(st);
@@ -141,7 +141,7 @@ createRetailInvoiceStore 'Создать накладную (розница с �
                 arrivalTime(i) <- dateTimeToDateTime(currentDate(), 16:00);
                 downtime(i) <- 60;
 
-                FOR pickingSum(InternetOrderDetail detail) > 0.0 AND isItem(sku(detail)) AND deliveryReport(detail) == r AND supplierStock(detail) == st NEW d = UserInvoiceDetail DO {
+                FOR pickingSum(InternetOrderDetail detail) > 0.0 AND isItem(sku(detail)) AND deliveryReport(detail) == r AND Sale.supplierStock[InternetOrderDetail](detail) == st NEW d = UserInvoiceDetail DO {
                     userInvoice(d) <- i;
                     internetOrderDetail(d) <- detail; 
                     sku(d) <- sku(detail);

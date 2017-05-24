@@ -224,11 +224,11 @@ createDeliveryReport 'Создать отчет курьера' (InternetOrder o
     IF countInternetOrders() THEN  {       
     
         NEWSESSION {
-            FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT deliveryReport(d) BY supplierStock(d)](Stock stock) NEW r = DeliveryReport DO {
+            FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT deliveryReport(d) BY Sale.supplierStock[InternetOrderDetail](d)](Stock stock) NEW r = DeliveryReport DO {
 //                FOR (status(InternetOrderDetail detail) == StatusInternetOrderDetail.picked OR status(detail) == StatusInternetOrderDetail.partlyPicked )
 //                    AND (status(internetOrder(detail)) == StatusInternetOrder.picked OR status(internetOrder(detail)) == StatusInternetOrder.partlyPicked)
 //                    AND NOT deliveryReport(detail) AND select(internetOrder(detail)) DO {
-                FOR supplierStock(InternetOrderDetail detail) == stock AND select(internetOrder(detail)) AND NOT deliveryReport(detail) DO {
+                FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND select(internetOrder(detail)) AND NOT deliveryReport(detail) DO {
                     deliveryReport(detail) <- r;                        
                 }
                 SHOW deliveryReport OBJECTS r = r MANAGESESSION DOCKED NOCANCEL;
@@ -249,7 +249,7 @@ filterDashboardDelivery = GROUP SUM 1 IF InternetOrderDetail detail IS InternetO
         BY internetOrder(detail);
 
 
-inStockDeliveryReport = GROUP SUM 1 BY supplierStock(InternetOrderDetail detail), deliveryReport(detail); 
+inStockDeliveryReport = GROUP SUM 1 BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail), deliveryReport(detail); 
 supplierStocks 'Склады поставщика' = GROUP CONCAT name(Stock stock) IF inStockDeliveryReport(stock, DeliveryReport deliveryReport), ', '  
                                                                         BY deliveryReport 
                                                                         ORDER name(stock) MINCHARWIDTH 30 PREFCHARWIDTH 40;
