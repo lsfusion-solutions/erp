@@ -19,6 +19,7 @@ import lsfusion.server.integration.*;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
@@ -39,12 +40,14 @@ public class SendSalesEquipmentServer {
     static ScriptingLogicsModule cashRegisterLM;
     static ScriptingLogicsModule cashOperationLM;
     static ScriptingLogicsModule equipmentCashRegisterLM;
+    static ScriptingLogicsModule machineryPriceTransactionLM;
     static ScriptingLogicsModule zReportLM;
 
     public static void init(BusinessLogics BL) {
         cashRegisterLM = BL.getModule("EquipmentCashRegister");
         cashOperationLM = BL.getModule("CashOperation");
         equipmentCashRegisterLM = BL.getModule("EquipmentCashRegister");
+        machineryPriceTransactionLM = BL.getModule("MachineryPriceTransaction");
         zReportLM = BL.getModule("ZReport");
     }
 
@@ -336,6 +339,26 @@ public class SendSalesEquipmentServer {
                 }
 
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+
+    public static void logRequestZReportSumCheck(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Integer idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException {
+        if (machineryPriceTransactionLM != null && cashRegisterLM != null && EquipmentServer.notNullNorEmpty(checkSumResult)) {
+            try (DataSession session = dbManager.createSession()) {
+                for (List<Object> entry : checkSumResult) {
+                    Object nppMachinery = entry.get(0);
+                    Object message = entry.get(1);
+                    DataObject logObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeLog"));
+                    ObjectValue cashRegisterObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").readClasses(session, new DataObject(nppGroupMachinery), new DataObject((Integer) nppMachinery));
+                    machineryPriceTransactionLM.findProperty("date[RequestExchangeLog]").change(EquipmentServer.getCurrentTimestamp(), session, logObject);
+                    machineryPriceTransactionLM.findProperty("message[RequestExchangeLog]").change(message, session, logObject);
+                    machineryPriceTransactionLM.findProperty("machinery[RequestExchangeLog]").change(cashRegisterObject.getValue(), session, logObject);
+                    machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeLog]").change(idRequestExchange, session, logObject);
+                }
+                session.apply(BL, stack);
+            } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
         }

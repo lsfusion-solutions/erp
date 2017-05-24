@@ -12,10 +12,10 @@ import lsfusion.base.DateConverter;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
-import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.server.classes.*;
+import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.context.ThreadLocalContext;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -23,13 +23,11 @@ import lsfusion.server.data.expr.ValueExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
 import lsfusion.server.lifecycle.LifecycleEvent;
-import lsfusion.server.remote.RmiServer;
 import lsfusion.server.logics.*;
 import lsfusion.server.logics.linear.LCP;
-import lsfusion.server.context.ExecutionStack;
-import lsfusion.server.logics.property.PropertyInterface;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.remote.RmiServer;
 import lsfusion.server.session.DataSession;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.InitializingBean;
@@ -968,23 +966,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public void logRequestZReportSumCheck(Integer idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException {
-        if (machineryPriceTransactionLM != null && cashRegisterLM != null && notNullNorEmpty(checkSumResult)) {
-            try (DataSession session = getDbManager().createSession()) {
-                for (List<Object> entry : checkSumResult) {
-                    Object nppMachinery = entry.get(0);
-                    Object message = entry.get(1);
-                    DataObject logObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeLog"));
-                    ObjectValue cashRegisterObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").readClasses(session, new DataObject(nppGroupMachinery), new DataObject((Integer) nppMachinery));
-                    machineryPriceTransactionLM.findProperty("date[RequestExchangeLog]").change(getCurrentTimestamp(), session, logObject);
-                    machineryPriceTransactionLM.findProperty("message[RequestExchangeLog]").change(message, session, logObject);
-                    machineryPriceTransactionLM.findProperty("machinery[RequestExchangeLog]").change(cashRegisterObject.getValue(), session, logObject);
-                    machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeLog]").change(idRequestExchange, session, logObject);
-                }
-                session.apply(getBusinessLogics(), getStack());
-            } catch (Exception e) {
-                throw Throwables.propagate(e);
-            }
-        }
+        SendSalesEquipmentServer.logRequestZReportSumCheck(getDbManager(), getBusinessLogics(), getStack(), idRequestExchange, nppGroupMachinery, checkSumResult);
     }
 
     @Override
@@ -1692,7 +1674,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return new SimpleDateFormat("dd.MM.yyyy hh:mm:ss").format(date);
     }
     
-    protected Timestamp getCurrentTimestamp() {
+    public static Timestamp getCurrentTimestamp() {
         return DateConverter.dateToStamp(Calendar.getInstance().getTime());
     }
 
