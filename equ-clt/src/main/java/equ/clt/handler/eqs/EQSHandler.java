@@ -368,7 +368,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, cash_id, numberZReport,
                                     dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null,
                                     null, null, null, null, (BigDecimal) null, idBarcode, idItem, null, null, totalQuantity,
-                                    price, isSale ? sum : sum.negate(), discountSum, null, discountCard,
+                                    price, sum, discountSum, null, discountCard,
                                     position, null, idSection));
                         }
                         break;
