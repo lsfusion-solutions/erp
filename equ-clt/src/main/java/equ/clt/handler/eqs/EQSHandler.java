@@ -286,6 +286,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
         EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
         boolean appendBarcode = eqsSettings != null && eqsSettings.getAppendBarcode() != null && eqsSettings.getAppendBarcode();
+        String giftCardPrefix = eqsSettings != null ? eqsSettings.getGiftCardPrefix() : null;
 
         Set<Integer> readRecordSet = new HashSet<>();
 
@@ -354,6 +355,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                         totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
 
+                        boolean isGiftCard = giftCardPrefix != null && idBarcode.startsWith(giftCardPrefix);
+
                         boolean isDiscount = getBit(flags, 1);
                         boolean discountRecord = idBarcode.isEmpty() && isDiscount;
                         if(discountRecord) {
@@ -362,7 +365,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                 s.sumReceiptDetail = HandlerUtils.safeAdd(s.sumReceiptDetail, rs.getBigDecimal(9)); //discountSum is negative
                             }
                         } else {
-                            currentSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, cash_id, numberZReport,
+                            currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, cash_id, numberZReport,
                                     dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null,
                                     null, null, null, null, (BigDecimal) null, idBarcode, idItem, null, null, totalQuantity,
                                     price, isSale ? sum : sum.negate(), discountSum, null, discountCard,
