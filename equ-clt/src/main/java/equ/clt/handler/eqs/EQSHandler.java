@@ -353,7 +353,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             sendSalesLogger.info(logPrefix + String.format("Данные в базе: flag %s, isReturn %s, barcode %s, amount %s, discount %s", flags, isReturn, rs.getString(4), rs.getBigDecimal(8), rs.getBigDecimal(9)));
                         }
 
-                        totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
+                        //totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
 
                         boolean isGiftCard = giftCardPrefix != null && idBarcode.startsWith(giftCardPrefix);
 
