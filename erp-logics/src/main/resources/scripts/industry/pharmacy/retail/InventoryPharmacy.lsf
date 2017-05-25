@@ -102,6 +102,9 @@ number 'Номер инвентаризации' (PageInventory page) = number(i
 date 'Дата инвентаризации' (PageInventory page)= date(listInventory(page));
 nameStock 'Склад' (PageInventory page) = nameStock(listInventory(page));
 
+balanceB 'Остаток' (Batch batch, PageInventory li) = balanceB(batch, stock(listInventory(li)), dateTime(listInventory(li)))  ;
+currentPharmacyListInventoryBalanceB() = currentPharmacyListInventory() AND showBalanceB();
+
 setCurrentPharmacyListInventory 'Открыть' (Inventory inventory) = {
     currentPharmacyListInventory() <- pageInventory(inventory);
 } TOOLBAR CONFIRM IMAGE 'edit.png';
@@ -163,6 +166,7 @@ FORM inventoryPharmacyDashboard 'Инвентаризационные описи
     
     OBJECTS bt = Batch GRID
     PROPERTIES (bt) READONLY SHOWIF currentPharmacyListInventory() prevNameSku
+    PROPERTIES (bt, li) READONLY SHOWIF currentPharmacyListInventoryBalanceB() balanceB
     PROPERTIES (li, bt) SHOWIF currentPharmacyListInventory() quantity ON CHANGE changeQuantity(bt, li) QUICKFILTER prevNameSku(bt)
     PROPERTIES (bt, li) READONLY SHOWIF currentPharmacyListInventory() currentPrice
     PROPERTIES (bt, li) SHOWIF currentPharmacyListInventory() blisterQuantity ON CHANGE changeBlisterQuantity(bt, li) READONLYIF readOnlyBlisterQuantity(bt, li) BACKGROUND backgroundBlisterQuantity(bt, li)
@@ -206,6 +210,7 @@ DESIGN inventoryPharmacyDashboard {
         fill = 1;
         MOVE bt.box {
             PROPERTY(prevNameSku(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 45; preferredCharWidth = 60;}
+            PROPERTY(balanceB(bt, li)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
             PROPERTY(quantity(li, bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4;}
             PROPERTY(blisterQuantity(bt, li)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
             PROPERTY(currentPrice(bt, li)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
