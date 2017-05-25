@@ -220,6 +220,9 @@ copy 'Копировать'(BinOrder order) = {
 	        inBin(o) <- inBin(order);
 	        outBin(o) <- outBin(order);
 	        note(o) <- note(order);
+	        stock(o) <- stock(order);
+            inBin(o) <- inBin(order);
+            outBin(o) <- outBin(order);
 	
 	        EXEC overCopy(order, o);
 	
@@ -228,6 +231,8 @@ copy 'Копировать'(BinOrder order) = {
 	                userBinOrder(d) <- o;
 	                sku(d) <- sku(orderDetail);
 	                quantity(d) <- quantity(orderDetail);
+	                inBin(d) <- inBin(orderDetail);
+	                outBin(d) <- outBin(orderDetail);
 	                
 	                EXEC overCopy(d, orderDetail);
 	            }
@@ -377,6 +382,11 @@ DESIGN binOrders 'Заказы на перемещение по ячейкам' 
 @defineOperationRole();
 
 @defineDocumentOperationContainer(binOrder, o, isPostedBinOrder, nameStock, first, name);
+
+overCopy(BinOrder order, UserBinOrder userOrder) += {
+    operation(userOrder) <- operation(order);    
+}
+
 @extendFormFilterRoleAccess(binOrder, o, binOrders);
 @extendFormFilterAccessStock(BinOrder, o, binOrders, stock, company);
 @defineDocumentStockAccess(UserBinOrder, stock, company);

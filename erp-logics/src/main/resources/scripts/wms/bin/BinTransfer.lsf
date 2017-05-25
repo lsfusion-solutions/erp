@@ -183,6 +183,7 @@ overCopy = ACTION ABSTRACT LIST (BinTransfer, UserBinTransfer);
 copy 'Копировать'(BinTransfer transfer) = {
 	NEWSESSION {
 	    NEW o = UserBinTransfer {
+	    	stock(o) <- stock(transfer);
 	        inBin(o) <- inBin(transfer);
 	        outBin(o) <- outBin(transfer);
 	        note(o) <- note(transfer);
@@ -194,6 +195,8 @@ copy 'Копировать'(BinTransfer transfer) = {
 	                userBinTransfer(d) <- o;
 	                sku(d) <- sku(transferDetail);
 	                quantity(d) <- quantity(transferDetail);
+                    inBin(d) <- inBin(transferDetail);
+                    outBin(d) <- outBin(transferDetail);
 	                
 	                EXEC overCopy(d, transferDetail);
 	            }
@@ -322,7 +325,7 @@ DESIGN binTransfers 'Перемещения по ячейкам' {
                     caption = 'Создание на основе';
                     type = CONTAINERV;
 
-                    MOVE PROPERTY(copy(o)) { caption = 'Заказ (закупка)';}
+                    MOVE PROPERTY(copy(o)) { caption = 'Перемещение';}
                 }
             }
         }
@@ -337,6 +340,10 @@ DESIGN binTransfers 'Перемещения по ячейкам' {
 
 //Операция
 @defineDocumentOperationContainer(binTransfer, o, isPostedBintransfer, nameStock, first, name);
+
+overCopy(BinTransfer transfer, UserBinTransfer userTransfer) += {
+    operation(userTransfer) <- operation(transfer);    
+}
 
 @defineOperationFilterProperty(binTransfer, o, binTransfers, nameFilterBinTransferStock);
 
