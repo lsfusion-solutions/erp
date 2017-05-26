@@ -45,6 +45,12 @@ countAccessCompanyStock 'Кол-во доступных подразделени
 defaultCompanyStock  (employee) =
     GROUP MIN  Stock stock IF accessCompany(Employee employee, stock) AND active(stock)
           BY employee;
+          
+companyStocks  'Склады (компания)' (r) = GROUP CONCAT name(Stock st) IF accessCompany(Employee employee, st) , ', '
+                                       BY employee
+                                       ORDER name(st) MINCHARWIDTH 20 PREFCHARWIDTH 40;            
+          
+          
 META defineDocumentStockAccess(objectClass, prefix, filter)
     prefix(objectClass o) <- default###filter###prefix(currentUser()) IF countAccess###filter###prefix (currentUser()) == 1
                                            WHEN SET(o IS objectClass);
@@ -64,7 +70,7 @@ nameStock 'Основной склад' (Employee e) = name(stock(e));
 
 CONSTRAINT Stock s == dataStock(Employee e) AND NOT accessCompany(e, s) CHECKED BY dataStock[Employee] MESSAGE 'Не разрешен доступ к складу выбранному в качестве основного';
 
-EXTEND FORM employees PROPERTIES(e) READONLY nameStock;
+EXTEND FORM employees PROPERTIES(e) READONLY nameStock, companyStocks;
 
 // todo : Удалить потом
 //-- Поставщик
