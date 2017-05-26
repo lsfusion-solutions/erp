@@ -1,0 +1,13 @@
+MODULE OrderInvoiceDashboardEDI;
+
+REQUIRE OrderInvoiceDashboard, EDI;
+
+NAMESPACE EDI;
+
+
+despatchAdvices = GROUP CONCAT deliveryNoteNumber(EOrderDespatchAdvice a) , ',' BY eOrder(a);
+ 
+EXTEND FORM orderInvoiceDashboard
+    PROPERTIES (o) READONLY despatchAdvices BEFORE note(o)
+    FILTERGROUP despatch 
+        FILTER 'Уведомления об отгрузке' despatchAdvices(o); 

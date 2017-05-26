@@ -55,7 +55,7 @@ public class TerminalEquipmentServer {
                 ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
                 QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
                 String[] orderNames = new String[]{"dateOrder", "numberOrder", "idSupplierOrder"};
-                LCP<?>[] orderProperties = orderLM.findProperties("date[Order.Order]", "number[Order.Order]", "idTerminalLegalEntity[Order.Order]");
+                LCP<?>[] orderProperties = orderLM.findProperties("date[Order.Order]", "overTerminalNumber[Order.Order]", "idTerminalLegalEntity[Order.Order]");
                 for (int i = 0; i < orderProperties.length; i++) {
                     orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
                 }
@@ -90,7 +90,7 @@ public class TerminalEquipmentServer {
                             customerStockObject.getExpr(), Compare.EQUALS));
                 }
                 orderQuery.and(orderLM.findProperty("order[Order.OrderDetail]").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
-                orderQuery.and(orderLM.findProperty("number[Order.Order]").getExpr(orderExpr).getWhere());
+                orderQuery.and(orderLM.findProperty("overTerminalNumber[Order.Order]").getExpr(orderExpr).getWhere());
                 orderQuery.and(orderLM.findProperty("overTerminalBarcode[Order.OrderDetail]").getExpr(orderDetailExpr).getWhere());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
                 for (ImMap<Object, Object> entry : orderResult.values()) {
