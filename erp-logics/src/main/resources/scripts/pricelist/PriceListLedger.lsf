@@ -38,6 +38,8 @@ active 'Активен' (PriceListLedger ledger) = isPosted(ledger) AND NOT skip
 sku = ABSTRACT Sku (PriceListLedger) MATERIALIZED INDEXED;
 nameSku 'SKU' (PriceListLedger l) = name(sku(l));
 
+operation = ABSTRACT Operation (PriceListLedger);
+
 countPriceListLedger = GROUP SUM 1 BY sku(PriceListLedger ledger);
 
 TABLE priceListLedgerBatch(PriceListLedger, Batch);
@@ -796,7 +798,6 @@ FORM movementPriceSkuStock 'Изменение цены товара по скл
     OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger)
     PROPERTIES READONLY  name[PriceListType](t),  description(pl), fromDateTime(pl, t, st), toDateTime(pl, t, st),
                         price(pl, t, st) 
-    PROPERTIES(pl) NEWSESSION EDIT                     
     ORDER BY name(t), fromDateTime(pl, t, st) DESC
 
     FILTERS sku(pl, t, st) == s,
@@ -897,7 +898,6 @@ FORM movementPriceSkuStocks 'Изменение цены товара'
     OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger, st = Stock)
     PROPERTIES READONLY  name(t), name(st), description(pl),  fromDateTime(pl, t, st), toDateTime(pl, t, st),
                         price(pl, t, st) 
-    PROPERTIES(pl) NEWSESSION EDIT                     
     ORDER BY name(st), name(t), fromDateTime(pl, t, st) DESC
 
     FILTERS sku(pl, t, st) == s,

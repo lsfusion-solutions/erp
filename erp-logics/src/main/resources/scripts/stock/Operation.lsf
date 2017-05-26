@@ -1,6 +1,6 @@
 MODULE Operation;
 
-REQUIRE Utils, Historizable;
+REQUIRE Utils, Historizable, Security;
 
 CLASS ABSTRACT Operation 'Операция';
 TABLE operation(Operation);
@@ -10,6 +10,8 @@ nameReturn 'Наименование' = ABSTRACT VARISTRING[100](Operation) PREF
 overName = OVERRIDE nameReturn(Operation o), name(o) PREFCHARWIDTH 40;
 
 id 'ID' = ABSTRACT VARISTRING[100](Operation);
+
+preventChangesDocument 'Запретить редактирование' = ABSTRACT BOOLEAN (UserRole, Operation);
 
 FORM operationDialogOperations 'Операции'
     OBJECTS o = Operation.Operation
@@ -521,7 +523,8 @@ META defineOperationRole(dumb)
     
     preventChangesDocument 'Запретить редактирование' = DATA BOOLEAN (UserRole, Operation);
     preventChangesDocument (User user, Operation operation) = preventChangesDocument(mainRole(user), operation);
-
+    Operation.preventChangesDocument (UserRole role, Operation operation) += preventChangesDocument(role, operation);
+    
     preventCloseDocument 'Запретить закрытие' = DATA BOOLEAN (UserRole, Operation);
     preventCloseDocument (User user, Operation operation) = preventCloseDocument(mainRole(user), operation);
 

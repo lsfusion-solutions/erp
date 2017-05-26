@@ -9,6 +9,14 @@ NAMESPACE PriceList;
 @extendFormFilterRole(o, dialogOperations);
 //@extendFormFilterRole(o, operations);     //-- пока не нужен
 
+EXTEND FORM movementPriceSkuStocks
+        PROPERTIES(pl) NEWSESSION EDIT SHOWIF NOT preventChangesDocument(mainRole(currentUser()),operation(pl))                   
+;
+
+EXTEND FORM movementPriceSkuStock
+        PROPERTIES(pl) NEWSESSION EDIT SHOWIF NOT preventChangesDocument(mainRole(currentUser()),operation(pl))                   
+;
+
 TABLE priceListTypeOperation(PriceListType, Operation);
 
 change 'Изменять цены' = DATA BOOLEAN (DataPriceListType, Operation);
@@ -92,6 +100,12 @@ operation(UserPriceList priceList) += operation(priceList);
 
 operation 'Операция' (PriceListDetail priceListDetail) = operation(priceList(priceListDetail)) MATERIALIZED;
 operation 'Операция' (UserPriceListDetail userPriceListDetail) = operation(userPriceList(userPriceListDetail));
+operation (PriceListDetail ledger) += operation(ledger);
+
+EXTEND FORM priceLists
+    PROPERTIES (p) NEWSESSION SHOWIF NOT preventChangesDocument(mainRole(currentUser()),operation(p)) NEW[UserPriceList], editP = EDIT , 
+                    DELETE SHOWIF (is[UserPriceList](p) AND NOT preventChangesDocument(mainRole(currentUser()),operation(p)))
+;
 
 DESIGN options {
     pane {        
