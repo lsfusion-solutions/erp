@@ -787,6 +787,8 @@ relation(s,st,t) = GROUP SUM 1 IF sku(PriceListLedger pl) == Sku s AND isPosted(
 CONSTRAINT dialogPriceListType(Sku s,Stock st) AND NOT relation(s,st,dialogPriceListType(s,st))
     CHECKED BY dialogPriceListType[Sku,Stock] MESSAGE 'Выбран вид цены, по которому нет истории изменения по данному товару';
 
+showChange = ABSTRACT BOOLEAN (PriceListLedger);
+
 FORM movementPriceSkuStock 'Изменение цены товара по складу'
     OBJECTS s = Sku PANEL
     PROPERTIES(s) READONLY name
@@ -798,6 +800,7 @@ FORM movementPriceSkuStock 'Изменение цены товара по скл
     OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger)
     PROPERTIES READONLY  name[PriceListType](t),  description(pl), fromDateTime(pl, t, st), toDateTime(pl, t, st),
                         price(pl, t, st) 
+    PROPERTIES(pl) NEWSESSION EDIT SHOWIF showChange(pl)
     ORDER BY name(t), fromDateTime(pl, t, st) DESC
 
     FILTERS sku(pl, t, st) == s,
@@ -898,6 +901,7 @@ FORM movementPriceSkuStocks 'Изменение цены товара'
     OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger, st = Stock)
     PROPERTIES READONLY  name(t), name(st), description(pl),  fromDateTime(pl, t, st), toDateTime(pl, t, st),
                         price(pl, t, st) 
+    PROPERTIES(pl) NEWSESSION EDIT SHOWIF showChange(pl)
     ORDER BY name(st), name(t), fromDateTime(pl, t, st) DESC
 
     FILTERS sku(pl, t, st) == s,
