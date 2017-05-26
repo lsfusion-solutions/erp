@@ -263,28 +263,33 @@ createPicking 'Создать комплектацию' (InternetOrder order) = 
     IF NOT countInternetOrders() THEN {
         select(order) <- TRUE;
     } 
-    IF countInternetOrders() THEN  {       
-    
-        NEWSESSION {
-            FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT picking(d) BY Sale.supplierStock[InternetOrderDetail](d)](Stock stock) NEW p = Picking DO {
-                stock(p) <- stock;
-                FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND filterDashboard(detail) DO {
-                    
-                        picking(detail) <- p;
-                        IF  isItem(sku(detail)) AND NOT batch(detail) THEN {
-                            batch(detail) <- firstOrderBatchBalance(sku(detail), stock, dateTime(detail), quantity(detail));
-                            overFillBatchPicking(detail);
-                        }                        
+    IF countInternetOrders() THEN  {      
+        LOCAL NESTED  ok = BOOLEAN ();
+        ok() <- NULL;
+        FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT picking(d) BY Sale.supplierStock[InternetOrderDetail](d)](Stock stock)   DO {
+            NEWSESSION {
+                NEW p = Picking{
+                    stock(p) <- stock;
+                    FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND filterDashboard(detail) DO {
+                        
+                            picking(detail) <- p;
+                            IF  isItem(sku(detail)) AND NOT batch(detail) THEN {
+                                batch(detail) <- firstOrderBatchBalance(sku(detail), stock, dateTime(detail), quantity(detail));
+                                overFillBatchPicking(detail);
+                            }                        
+                    }                   
+                    DIALOG picking OBJECTS p = p MANAGESESSION DOCKED NOCANCEL DO {
+                        ok() <- TRUE;
+                    };
                 }
-                SHOW picking OBJECTS p = p MANAGESESSION DOCKED NOCANCEL;
-            }
-            FOR select(InternetOrder o) DO {
-                status(o) <- StatusInternetOrder.isPicking;
-                
-            }
+            }                           
+        }            
+        IF ok() THEN {
+            status(InternetOrder o) <- StatusInternetOrder.isPicking WHERE select(o);
             apply();
-        }        
+        }       
         select(InternetOrder o) <- NULL;
+        ok() <- NULL;
     } ELSE {
         MESSAGE 'Вначале необходимо отметить интернет заказы.';
     }
