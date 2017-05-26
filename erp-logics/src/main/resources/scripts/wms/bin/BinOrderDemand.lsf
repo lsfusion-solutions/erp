@@ -4,17 +4,17 @@ REQUIRE BinOrderTransfer, PurchaseOrder;
 
 NAMESPACE Bin;
 
-binReserve 'Страховой запас (кол-во)' = ABSTRACT NUMERIC[16,5](Sku, Bin) MATERIALIZED; //минимум для точки заказа
+binReserve 'Страховой запас (кол-во)' = ABSTRACT VALUE OVERRIDE FIRST NUMERIC[16,5](Sku, Bin) MATERIALIZED; //минимум для точки заказа
 binReserve 'Страховой запас (кол-во)' (Sku sku, UserBinOrder order) = binReserve(sku, inBin(order));
 
-maxBinReserve = ABSTRACT NUMERIC[16,5](Sku, Bin) MATERIALIZED; //суммарный размер полки
+maxBinReserve = ABSTRACT VALUE OVERRIDE FIRST NUMERIC[16,5](Sku, Bin) MATERIALIZED; //суммарный размер полки
 maxBinReserve (Sku sku, UserBinOrder order) = maxBinReserve(sku, inBin(order));
 
-minAvailableQuantity (Sku sku, Bin bin) = MAX availableQuantity(sku, bin), 0.0 IF sku IS Sku AND bin IS Bin;
+minAvailableQuantity (Sku sku, Bin bin) = MAX OVERRIDE availableQuantity(sku, bin), 0.0, 0.0 IF sku IS Sku AND bin IS Bin;
 preCalcRecQuantity  (Sku sku, Bin bin) = maxBinReserve(sku, bin) (-) minAvailableQuantity(sku, bin); //расчетная потребность
  
 recommendedQuantity 'Рекомендуемое к перемещению кол-во'  (Sku sku, Operation operation, Stock stock)  = 
-    IF availableQuantity(sku, inBin(operation, stock)) <= binReserve(sku, inBin(operation, stock)) THEN
+    IF minAvailableQuantity(sku, inBin(operation, stock)) <= binReserve(sku, inBin(operation, stock)) THEN
         IF availableQuantity(sku, outBin(operation, stock)) > preCalcRecQuantity(sku, inBin(operation, stock)) 
             THEN preCalcRecQuantity(sku, inBin(operation, stock))
             ELSE availableQuantity(sku, outBin(operation, stock));
