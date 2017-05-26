@@ -1,6 +1,6 @@
-MODULE TerminalHandler;
+MODULE TerminalHandler; //для работы терминалов нужна зависимость equ-srv в pom.xml 
 
-REQUIRE Terminal, MachineryPriceTransaction, Item, PurchaseManufacturingPrice, Warehouse, SaleOrder;
+REQUIRE Terminal, MachineryPriceTransaction, Order;
 
 
 process 'Обработка документа ТСД' (terminalDocument) = ACTION ABSTRACT LIST (TerminalDocument);
@@ -34,7 +34,7 @@ hostTerminalServer 'Хост' = DATA VARSTRING[30] ();
 portTerminalServer 'Порт' = DATA INTEGER ();    
 
 useCurrentPriceInTerminal 'Загружать в терминал текущие цены' = DATA BOOLEAN ();
-useAccountPrice 'Использовать учетные цены' (Stock s) = s IS Warehouse;
+useAccountPrice 'Использовать учетные цены' = ABSTRACT CASE BOOLEAN (Stock);
 currentPriceInTerminal 'Розничная цена' (Barcode barcode, Stock stock) = IF useAccountPrice(stock) 
     THEN currentAccountPriceA(sku(barcode), stock) 
     ELSE currentRetailPricingPrice(sku(barcode), stock);     
@@ -43,10 +43,11 @@ useCurrentQuantityInTerminal 'Загружать в терминал текущ�
 currentBalance (Barcode barcode, Stock stock) = currentBalance(sku(barcode), stock);
     
 dataPriceListTypeTerminal = DATA LedgerPriceListType();
-priceListTypeTerminal = OVERRIDE dataPriceListTypeTerminal(), SystemLedgerPriceListType.manufacturingPriceStockPriceListType;
+defaultPriceListTypeTerminal = ABSTRACT LedgerPriceListType();
+priceListTypeTerminal = OVERRIDE dataPriceListTypeTerminal(), defaultPriceListTypeTerminal();
 namePriceListTypeTerminal 'Вид цен (фильтр ассортимента поставщика)' = name(priceListTypeTerminal());
 
-filter(Order.Order o, Stock s) = (o IS Purchase.Order AND customerStock(o) == s) OR (o IS Sale.Order AND supplierStock(o) IS Warehouse AND supplierStock(o) == s); 
+filter = ABSTRACT VALUE OVERRIDE BOOLEAN (Order.Order, Stock); 
 
 EXTEND FORM options
     PROPERTIES() hostTerminalServer, portTerminalServer, useCurrentPriceInTerminal, useCurrentQuantityInTerminal, namePriceListTypeTerminal

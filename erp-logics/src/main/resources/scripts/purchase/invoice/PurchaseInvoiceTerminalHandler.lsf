@@ -1,0 +1,71 @@
+MODULE PurchaseInvoiceTerminalHandler;
+
+REQUIRE PurchaseInvoice, TerminalHandler;
+
+NAMESPACE Purchase;
+
+
+defaultPriceListTypeTerminal() += SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+
+useAutoPurchaseInvoiceTerminal 'Создавать накладные при импорте документов ТСД' = DATA BOOLEAN (Stock);
+purchaseInvoiceTerminalDocumentType 'Тип документа ТСД для импорта накладных (закупка)' =  DATA TerminalDocumentType();
+
+EXTEND FORM options
+    PROPERTIES useAutoPurchaseInvoiceTerminal(s)
+    PROPERTIES purchaseInvoiceTerminalDocumentType();
+    
+DESIGN options {
+    terminalServer{
+        MOVE PROPERTY (purchaseInvoiceTerminalDocumentType());
+    }
+}
+
+nearestOrderDetail = GROUP MAX Purchase.OrderDetail d 
+    IF shipmentDate(d) <= DATE dt AND isPosted(d) AND NOT isClosed(d) AND toInvoice(d)
+    BY sku(d), supplier(d), customerStock(d), dt;
+    
+legalEntity(TerminalDocument d) = IF skipPrefix(terminalHandbookType1(purchaseInvoiceTerminalDocumentType())) THEN legalEntity(idTerminalHandbookType1(d))
+    ELSE legalEntity(replace(idTerminalHandbookType1(d),idTerminalHandbookType1(purchaseInvoiceTerminalDocumentType()),''));
+    
+process(TerminalDocument document) += {       
+
+    
+    IF terminalDocumentType(document)== purchaseInvoiceTerminalDocumentType() AND useAutoPurchaseInvoiceTerminal(stock(document)) THEN {
+    
+        FOR NOT Purchase.userInvoice(id(document)) NEW d = Purchase.UserInvoice DO {
+            id(d) <- id(document);
+        }
+        
+        //приходы
+        FOR Purchase.UserInvoice i == Purchase.userInvoice(id(document)) DO {
+            customer(i) <- legalEntity(stock(document));
+            customerStock(i) <- stock(document);
+            supplier(i) <- legalEntity(document);
+            supplierStock(i) <- defaultStock(legalEntity(document));
+            operation(i) <- defaultPurchaseOperation();
+            number(i) <- title(document);
+            
+            date(i) <- currentDate();
+            time(i) <- currentTime();
+            createdUser(i) <- createdUser(document);
+            
+            priceListType(i) <- defaultPriceListType(operation(i));
+        }
+        
+        FOR terminalDocument(TerminalDocumentDetail tdd) == document AND NOT Purchase.userInvoiceDetail(id(tdd)) ORDER number(tdd) NEW d = Purchase.UserInvoiceDetail DO {
+            id(d) <- id(tdd);
+        }
+        
+        FOR terminalDocument(TerminalDocumentDetail tdd) == document AND Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(id(tdd)) DO {
+            userInvoice(d) <- Purchase.userInvoice(id(document));
+            sku(d) <- sku(tdd);
+            quantity(d) <- quantity(tdd);
+            orderDetail(d) <- nearestOrderDetail(sku(tdd), legalEntity(document), stock(document), currentDate() );
+            
+        }
+      
+        executeLocalEvents('Purchase.userInvoice');
+        
+        used(document) <- TRUE;
+    }
+}
