@@ -8,33 +8,34 @@ invoice = DATA Invoice(EOrderDespatchAdvice);
 
 digits = FORMULA VARSTRING[250] 'regexp_replace(($1), \'\\D\', \'\', \'g\')';
 createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a) = {
-
-    NEW i = UserInvoice {
     
-        invoice(a) <- i;
-        fillHeader(i, eOrder(a));
-        number(i) <- digits(deliveryNoteNumber(a));
-        series(i) <- left(replace(deliveryNoteNumber(a), digits(deliveryNoteNumber(a)), ''), 2);
+    NEWSESSION NESTED LOCAL {
+        NEW i = UserInvoice {
         
-        FOR orderDespatchAdvice(EOrderDespatchAdviceDetail ad) == a AND OrderDetail od == [=GROUP MAX OrderDetail d BY sku(d), order(d)](sku(ad), eOrder(a))
-            ORDER ad 
-            NEW d = UserInvoiceDetail DO {
-                userInvoice(d) <- i;
-                orderDetail(d) <- od;
-                sku(d) <- sku(ad);
-                quantity(d) <- quantityDespatch(ad);
-                VAT(d) <- VAT(od);
-                valueVAT(d) <- valueVAT(od);
-                priceListType(d) <- priceListType(od);
-                price(d) <- lineItemPrice(ad);
-                overFill(d, od);
+            invoice(a) <- i;
+            fillHeader(i, eOrder(a));
+            number(i) <- digits(deliveryNoteNumber(a));
+            series(i) <- left(replace(deliveryNoteNumber(a), digits(deliveryNoteNumber(a)), ''), 2);
+            
+            FOR orderDespatchAdvice(EOrderDespatchAdviceDetail ad) == a AND OrderDetail od == [=GROUP MAX OrderDetail d BY sku(d), order(d)](sku(ad), eOrder(a))
+                ORDER ad 
+                NEW d = UserInvoiceDetail DO {
+                    userInvoice(d) <- i;
+                    orderDetail(d) <- od;
+                    sku(d) <- sku(ad);
+                    quantity(d) <- quantityDespatch(ad);
+                    VAT(d) <- VAT(od);
+                    valueVAT(d) <- valueVAT(od);
+                    priceListType(d) <- priceListType(od);
+                    price(d) <- lineItemPrice(ad);
+                    overFill(d, od);
+            }
+            
+            include(Order order, i) <- TRUE WHERE order == eOrder(a);
+            
+            SHOW userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
         }
-        
-        include(Order order, i) <- TRUE WHERE order == eOrder(a);
-        
-        SHOW userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
     }
-
 }
 
 EXTEND FORM eOrderDespatchAdvices 

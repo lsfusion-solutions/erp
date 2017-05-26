@@ -67,7 +67,7 @@ createRepricingLabelTransaction 'Распечатать ценники'(Departme
 
 createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore, Operation operation, DATETIME dateTime) = {
     IF countSelectSkus() THEN  NEWSESSION NESTED (select[Sku], inDashboardRepricing[Sku], managementRetailPrice[Sku], managementPriceListPrice[Sku]) {
-        DIALOG selectLabelTypes OBJECTS ds = departmentStore, l INPUT DO { 
+        DIALOG selectLabelTypes OBJECTS ds = departmentStore, l INPUT NOMANAGESESSIONX DO { 
 
             IF NOT countSelectType() THEN {
                 select(l) <- TRUE;
@@ -108,7 +108,7 @@ createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать
                     IF change(departmentStore) THEN {
                         LOCAL printed = BOOLEAN();
                         printed() <- NULL;
-                        DIALOG customLabelTransaction OBJECTS l = t DO {    
+                        DIALOG customLabelTransaction OBJECTS l = t NOMANAGESESSIONX DO {    
                             print(t);
                             printed() <- TRUE;
                         }             
@@ -119,9 +119,9 @@ createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать
                         print(t);
                     }
                 }
-            }                     
+            }
+            APPLY;
         }                 
-        apply();
     }
 } TOOLBAR;
 
