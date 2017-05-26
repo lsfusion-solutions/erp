@@ -516,7 +516,9 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
                             quantity(o) <- IF quantity(sku(b)) > (prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object))
                                 THEN prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object)
                                 ELSE quantity(sku(b));
-                            batch(o) <- b;
+                            IF NOT skipFillBatch(o) THEN {
+                                batch(o) <- b;
+                            }                             
                             quantity(sku) <- quantity(sku) (-) quantity(o);
                             overAddDetailDialogTerminal##class##Detail(o, td);                        
                             IF sku IS Sku AND NOT quantity(sku)

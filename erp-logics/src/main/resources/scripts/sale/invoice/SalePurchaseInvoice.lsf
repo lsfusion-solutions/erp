@@ -129,7 +129,7 @@ fillInvoice 'Заполнить на основе накладной'(Purchase.U
 
 setPropertiesPurchaseSale(Purchase.UserInvoiceDetail d, InvoiceDetail invoiceDetail) += {
             sku(d) <- sku(invoiceDetail);
-            batch(d) <- batch(invoiceDetail)  WHERE NOT notUseBatchPurchaseInvoice(operation(invoice(invoiceDetail)));
+            batch(d) <- batch(invoiceDetail)  WHERE NOT (notUseBatchPurchaseInvoice(operation(invoice(invoiceDetail))) OR skipFillBatch(d));
             barcodePack(d) <- barcodePack(invoiceDetail);
             amountPack(d) <- amountPack(invoiceDetail);
             packQuantity(d) <- packQuantity(invoiceDetail);
@@ -388,7 +388,7 @@ moveUserInvoice 'Накладная (закупка)'(Invoice invoice) =  {
 	            amountPack (d) <- amountPack(detail);
 	            packQuantity (d) <- packQuantity(detail);
 	
-	            batch(d) <- batch(detail) WHERE NOT notUseBatchPurchaseInvoice(operation(invoice));
+	            batch(d) <- batch(detail) WHERE NOT (notUseBatchPurchaseInvoice(operation(invoice)) OR skipFillBatch(d));	            
 	            EXEC overFillInvoice(d,detail);
 	        }
 	

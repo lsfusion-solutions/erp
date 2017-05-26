@@ -28,7 +28,9 @@ META defineOrderInvoicePickingOrder (sign)
                 userInvoice(d) <- userInvoice;
                 orderDetail(d) <- orderDetail;
                 sku(d) <- sku(orderDetail);
-                batch(d) <- batch;
+                IF NOT skipFillBatch(d) THEN {
+                    batch(d) <- batch;
+                }                
                 quantity (d) <- picking(batch, orderDetail);
                 
                 fill(d, orderDetail);
@@ -39,8 +41,10 @@ META defineOrderInvoicePickingOrder (sign)
                 NEW d = UserInvoiceDetail DO {
                 userInvoice(d) <- userInvoice;
                 orderDetail(d) <- orderDetail;
-                sku(d) <- sku(orderDetail);
-                batch(d) <- batch(orderDetail);
+                sku(d) <- sku(orderDetail);                
+                IF NOT skipFillBatch(d) THEN {
+                    batch(d) <- batch(orderDetail);
+                } 
                 quantity (d) <- PREV(pickingQuantity(orderDetail));
     
                 fill(d, orderDetail);
@@ -55,7 +59,9 @@ META defineOrderInvoicePickingOrder (sign)
                     userInvoice(d) <- userInvoice;
                     orderDetail(d) <- orderDetail;
                     sku(d) <- sku(orderDetail);
-                    batch(d) <- batch(orderDetail);
+                    IF NOT skipFillBatch(d) THEN {
+                        batch(d) <- batch(orderDetail);
+                    }                     
                     quantity (d) <- pickingQuantity(orderDetail);
 
                     fill(d, orderDetail);
