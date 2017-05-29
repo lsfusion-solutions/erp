@@ -1,6 +1,6 @@
 MODULE InventoryPharmacy;
 
-REQUIRE Inventory, POSPharmacy;
+REQUIRE Inventory, POSPharmacy, PurchaseLedger;
 
 NAMESPACE Inventory;
 
@@ -93,6 +93,24 @@ filterBarcode 'Ввести штрих код' (Batch bt) = (filterBarcode() AND
 prevBalanceB 'Тек. остаток' (Batch batch, PageInventory li) = prevBalanceB(batch, stock(listInventory(li)), dateTime(listInventory(li)));
 
 countLedger (Batch bt, PageInventory li) = countLedger(bt, stock(listInventory(li)));
+quantityPurchase 'Кол-во в приходе' (Batch bt, PageInventory li) = quantityPurchase(bt, stock(listInventory(li)));
+
+checkPurchaseQuantity 'Контролировать в инвентаризации превышение количества по приходу' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() checkPurchaseQuantity
+;
+
+DESIGN options {
+    pane {
+        pharmacy {   
+            MOVE PROPERTY(checkPurchaseQuantity());
+        }
+    }
+}  
+
+CONSTRAINT quantity(PageInventory li, Batch bt) > quantityPurchase(bt, li) AND checkPurchaseQuantity() AND isRetailPharmacy(inventory(listInventory(li)))
+    MESSAGE 'Количество в описи по партии больше количества поступления';
 
 //логика работы с текущей инвентаризацией
 currentPharmacyListInventory 'Текущая инвентаризация' = DATA LOCAL NESTED PageInventory ();
@@ -101,6 +119,20 @@ showCurrenct (Batch batch) = batch IS Batch AND currentPharmacyListInventory();
 number 'Номер инвентаризации' (PageInventory page) = number(inventory(listInventory(page)));
 date 'Дата инвентаризации' (PageInventory page)= date(listInventory(page));
 nameStock 'Склад' (PageInventory page) = nameStock(listInventory(page));
+
+showBalanceB 'Показывать остаток по партии в инвентаризационной описи' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() showBalanceB
+;
+
+DESIGN options {
+    pane {
+        pharmacy {   
+            MOVE PROPERTY(showBalanceB());
+        }
+    }
+}  
 
 balanceB 'Остаток' (Batch batch, PageInventory li) = balanceB(batch, stock(listInventory(li)), dateTime(listInventory(li)))  ;
 currentPharmacyListInventoryBalanceB() = currentPharmacyListInventory() AND showBalanceB();
@@ -170,6 +202,7 @@ FORM inventoryPharmacyDashboard 'Инвентаризационные описи
     PROPERTIES (li, bt) SHOWIF currentPharmacyListInventory() quantity ON CHANGE changeQuantity(bt, li) QUICKFILTER prevNameSku(bt)
     PROPERTIES (bt, li) READONLY SHOWIF currentPharmacyListInventory() currentPrice
     PROPERTIES (bt, li) SHOWIF currentPharmacyListInventory() blisterQuantity ON CHANGE changeBlisterQuantity(bt, li) READONLYIF readOnlyBlisterQuantity(bt, li) BACKGROUND backgroundBlisterQuantity(bt, li)
+    PROPERTIES (bt, li) READONLY SHOWIF currentPharmacyListInventory() quantityPurchase
     PROPERTIES (bt) READONLY SHOWIF currentPharmacyListInventory() expiryDate, numberDocument, nameManufacturer, nameCountry, nameSupplier, seriesPharmacy 
     ORDER BY prevNameSku(bt)
     FILTERS filterPrice(bt, li), filterNameSku(bt), filterBarcode(bt)
@@ -209,11 +242,12 @@ DESIGN inventoryPharmacyDashboard {
         type = TABBED;
         fill = 1;
         MOVE bt.box {
-            PROPERTY(prevNameSku(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 45; preferredCharWidth = 60;}
+            PROPERTY(prevNameSku(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 45; preferredCharWidth = 60;}
             PROPERTY(balanceB(bt, li)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
             PROPERTY(quantity(li, bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4;}
             PROPERTY(blisterQuantity(bt, li)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
             PROPERTY(currentPrice(bt, li)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
+            PROPERTY(quantityPurchase(bt, li)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
             PROPERTY(expiryDate(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 7; preferredCharWidth = 7;}
             PROPERTY(numberDocument(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 7; preferredCharWidth = 7;}
             PROPERTY(nameSupplier(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 8; preferredCharWidth = 12;}
