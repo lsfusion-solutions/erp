@@ -1040,7 +1040,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
                                         Integer nppGroupMachinery = directoryDepartNumberGroupCashRegisterMap.get(key);
-                                        nppGroupMachinery = nppGroupMachinery != null ? nppGroupMachinery : (cashRegister == null ? null : cashRegister.numberGroup);
+                                        nppGroupMachinery = (nppGroupMachinery != null || useShopIndices) ? nppGroupMachinery : (cashRegister == null ? null : cashRegister.numberGroup);
 
                                         String idSaleReceiptReceiptReturnDetail = null;
                                         Element originalPurchase = ((Element) purchaseNode).getChild("original-purchase");
