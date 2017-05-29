@@ -21,12 +21,14 @@ public class FiscalAbsolutXReportActionProperty extends ScriptingActionProperty 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             String fiscalAbsolutZReportTitle = (String) findProperty("fiscalAbsolutReceiptTitle[]").read(context);
             boolean saveCommentOnFiscalTape = findProperty("saveCommentOnFiscalTapeAbsolut[]").read(context) != null;
 
-            String result = (String) context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(comPort, baudRate, 1, fiscalAbsolutZReportTitle, saveCommentOnFiscalTape));
+            String result = (String) context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(logPath, comPort, baudRate, 1,
+                    fiscalAbsolutZReportTitle, saveCommentOnFiscalTape));
             if (result == null) {
                 context.apply();
             }

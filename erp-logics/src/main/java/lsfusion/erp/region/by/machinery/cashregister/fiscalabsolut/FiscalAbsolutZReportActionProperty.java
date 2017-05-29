@@ -25,13 +25,15 @@ public class FiscalAbsolutZReportActionProperty extends ScriptingActionProperty 
 
             boolean close = true;
 
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             String fiscalAbsolutReportTop = (String) findProperty("fiscalAbsolutReportTop[]").read(context);
             boolean saveCommentOnFiscalTape = findProperty("saveCommentOnFiscalTapeAbsolut[]").read(context) != null;
 
             if (context.checkApply()) {
-                Object result = context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(comPort, baudRate, 2, fiscalAbsolutReportTop, saveCommentOnFiscalTape));
+                Object result = context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(logPath, comPort, baudRate, 2,
+                        fiscalAbsolutReportTop, saveCommentOnFiscalTape));
                 if (result != null) {
                     context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                 } else {
@@ -39,7 +41,8 @@ public class FiscalAbsolutZReportActionProperty extends ScriptingActionProperty 
                             "Печать Z-отчёта", "Нажмите 'Да', если печать Z-отчёта завершилась успешно " +
                             "или 'Нет', если печать завершилась с ошибкой"));
                     if (dialogResult == JOptionPane.YES_OPTION) {
-                        result = context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(comPort, baudRate, 3, fiscalAbsolutReportTop, saveCommentOnFiscalTape));
+                        result = context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(logPath, comPort, baudRate, 3,
+                                fiscalAbsolutReportTop, saveCommentOnFiscalTape));
                         if (result != null) {
                             context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                         }

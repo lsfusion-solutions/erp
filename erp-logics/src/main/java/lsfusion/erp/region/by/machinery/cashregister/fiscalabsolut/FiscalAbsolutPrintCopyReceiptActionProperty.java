@@ -23,10 +23,11 @@ public class FiscalAbsolutPrintCopyReceiptActionProperty extends ScriptingAction
 
         try {
 
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
-            String result = (String) context.requestUserInteraction(new FiscalAbsolutPrintCopyReceiptClientAction(comPort, baudRate));
+            String result = (String) context.requestUserInteraction(new FiscalAbsolutPrintCopyReceiptClientAction(logPath, comPort, baudRate));
             if (result != null) {
                 ServerLoggers.systemLogger.error("FiscalAbsolutPrintCopyReceipt Error: " + result);
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

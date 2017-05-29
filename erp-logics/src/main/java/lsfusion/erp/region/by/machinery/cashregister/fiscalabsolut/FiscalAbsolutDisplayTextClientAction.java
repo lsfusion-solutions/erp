@@ -8,11 +8,13 @@ import java.io.IOException;
 
 public class FiscalAbsolutDisplayTextClientAction implements ClientAction {
 
+    String logPath;
     int comPort;
     int baudRate;
     private ReceiptItem receiptItem;
 
-    FiscalAbsolutDisplayTextClientAction(Integer comPort, Integer baudRate, ReceiptItem receiptItem) {
+    FiscalAbsolutDisplayTextClientAction(String logPath, Integer comPort, Integer baudRate, ReceiptItem receiptItem) {
+        this.logPath = logPath;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.receiptItem = receiptItem;
@@ -23,7 +25,7 @@ public class FiscalAbsolutDisplayTextClientAction implements ClientAction {
 
         try {
 
-            FiscalAbsolut.openPort(comPort, baudRate);
+            FiscalAbsolut.openPort(logPath, comPort, baudRate);
 
             FiscalAbsolut.displayText(receiptItem);
 

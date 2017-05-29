@@ -34,6 +34,7 @@ public class FiscalAbsolutPrintReturnInvoicePaymentActionProperty extends Script
             DataObject invoiceObject = context.getDataKeyValue(invoiceInterface);
             DataObject paymentObject = context.getDataKeyValue(paymentInterface);
 
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister[]").read(context);
@@ -51,7 +52,8 @@ public class FiscalAbsolutPrintReturnInvoicePaymentActionProperty extends Script
                 }
             }
             
-            Object result = context.requestUserInteraction(new FiscalAbsolutPrintInvoicePaymentClientAction(comPort, baudRate, placeNumber, null, sumPayment, typePayment, false, saveCommentOnFiscalTape));
+            Object result = context.requestUserInteraction(new FiscalAbsolutPrintInvoicePaymentClientAction(logPath, comPort, baudRate,
+                    placeNumber, null, sumPayment, typePayment, false, saveCommentOnFiscalTape));
             if(result == null)
                 findProperty("printReceiptResult[]").change(new DataObject(true), context);
             else {

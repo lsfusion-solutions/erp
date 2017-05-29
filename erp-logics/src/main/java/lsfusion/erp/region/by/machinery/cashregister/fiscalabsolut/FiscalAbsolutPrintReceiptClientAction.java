@@ -13,6 +13,7 @@ import java.util.List;
 
 public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
 
+    String logPath;
     int comPort;
     int baudRate;
     int placeNumber;
@@ -28,10 +29,11 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
     Integer maxLines;
     boolean printSumWithDiscount;
 
-    public FiscalAbsolutPrintReceiptClientAction(Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
+    public FiscalAbsolutPrintReceiptClientAction(String logPath, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
                                                  ReceiptInstance receipt, String receiptTop, String receiptBottom,
                                                  String receiptCode128, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT,
                                                  boolean giftCardAsNotPayment, boolean sumPayment, Integer maxLines, boolean printSumWithDiscount) {
+        this.logPath = logPath;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.placeNumber = placeNumber == null ? 1 : placeNumber;
@@ -64,7 +66,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
             boolean opened = false;
             try {
 
-                FiscalAbsolut.openPort(comPort, baudRate);
+                FiscalAbsolut.openPort(logPath, comPort, baudRate);
                 FiscalAbsolut.smenBegin();
 
 

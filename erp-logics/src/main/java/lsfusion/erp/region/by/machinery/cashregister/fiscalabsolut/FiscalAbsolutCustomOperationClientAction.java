@@ -8,17 +8,19 @@ import java.io.IOException;
 
 public class FiscalAbsolutCustomOperationClientAction implements ClientAction {
 
+    String logPath;
     int comPort;
     int baudRate;
     private int type;
     private String textTop;
     private boolean saveCommentOnFiscalTape;
 
-    public FiscalAbsolutCustomOperationClientAction(Integer comPort, Integer baudRate, int type, boolean saveCommentOnFiscalTape) {
-        this(comPort, baudRate, type, null, saveCommentOnFiscalTape);
+    public FiscalAbsolutCustomOperationClientAction(String logPath, Integer comPort, Integer baudRate, int type, boolean saveCommentOnFiscalTape) {
+        this(logPath, comPort, baudRate, type, null, saveCommentOnFiscalTape);
     }
 
-    public FiscalAbsolutCustomOperationClientAction(Integer comPort, Integer baudRate, int type, String textTop, boolean saveCommentOnFiscalTape) {
+    public FiscalAbsolutCustomOperationClientAction(String logPath, Integer comPort, Integer baudRate, int type, String textTop, boolean saveCommentOnFiscalTape) {
+        this.logPath = logPath;
         this.type = type;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.comPort = comPort == null ? 0 : comPort;
@@ -29,7 +31,7 @@ public class FiscalAbsolutCustomOperationClientAction implements ClientAction {
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
         try {
-            FiscalAbsolut.openPort(comPort, baudRate);
+            FiscalAbsolut.openPort(logPath, comPort, baudRate);
             switch (type) {
                 case 1:
                     FiscalAbsolut.printFiscalText(textTop);

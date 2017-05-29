@@ -102,6 +102,7 @@ registrationNumber 'Регистрационный номер кассы' = DATA
 
 date 'Дата фискализации кассового аппарата' = DATA DATE (CashRegister) IN base;
 
+logPath 'Путь логов кассы' = DATA VARSTRING[255] (CashRegister) IN base;
 ip 'IP кассы' = DATA VARSTRING[100] (CashRegister) IN base;
 comPort 'Порт кассы' = DATA INTEGER (CashRegister) IN base;
 baudRate 'Скорость кассы' = DATA INTEGER (CashRegister) IN base;
@@ -128,6 +129,7 @@ currentCashRegister 'Текущая касса' = cashRegister(currentComputer()
 departmentStoreCurrentCashRegister 'Подразделение' = departmentStore(currentCashRegister());
 numberCurrentCashRegister 'Номер кассы' = npp(currentCashRegister());
 sidModelCurrentCashRegister 'Код модели' = sidModel(groupMachinery(currentCashRegister()));
+logPathCurrentCashRegister 'Путь логов' = logPath(currentCashRegister());
 ipCurrentCashRegister 'IP кассы' = ip(currentCashRegister());
 comPortCurrentCashRegister 'Порт кассы' = comPort(currentCashRegister());
 baudRateCurrentCashRegister 'Скорость кассы' = overBaudRate(currentCashRegister());
@@ -155,7 +157,7 @@ changeDirectory(GroupCashRegister group) = {
 FORM cashRegister 'Касса'
     OBJECTS c=CashRegister PANEL
     PROPERTIES(c) nameGroupMachinery, npp, shortDescription, description, port, 
-                  ip, comPort, overBaudRate, disableSales, dataDirectory, 
+                  logPath, ip, comPort, overBaudRate, disableSales, dataDirectory, 
                   date, hostnameComputer
     EDIT CashRegister OBJECT c
 ;
@@ -171,7 +173,7 @@ FORM groupCashRegister 'Группа касс'
 
     OBJECTS c=CashRegister
     PROPERTIES(c)   nameGroupMachinery, npp, shortDescription, description, port SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
-                    ip, comPort SHOWIF ignoreCashRegisterServerCashRegisterModel(grc), 
+                    logPath, ip, comPort SHOWIF ignoreCashRegisterServerCashRegisterModel(grc), 
                     overBaudRate SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
                     disableSales,
                     dataDirectory SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
@@ -245,6 +247,7 @@ copy 'Копировать'(GroupCashRegister old) = {
 	                shortDescription(newCash) <- shortDescription(oldCash);
 	                description(newCash) <- description(oldCash);
 	                port(newCash) <- port(oldCash);
+	                logPath(newCash) <- logPath(oldCash);
 	                ip(newCash) <- ip(oldCash);
 	                comPort(newCash) <- comPort(oldCash);
 	                baudRate(newCash) <- baudRate(oldCash);
@@ -267,7 +270,7 @@ FORM groupsCashRegister 'Группы касс'
                      startDate, notDetailed,  pieceCode, weightCode, section
     PROPERTIES(grc)  NEWSESSION NEW, EDIT, DELETE , copy
 
-    PROPERTIES(c) READONLY npp, shortDescription, description, port, ip, comPort, overBaudRate,
+    PROPERTIES(c) READONLY npp, shortDescription, description, port, logPath, ip, comPort, overBaudRate,
                            disableSales, dataDirectory, date, nameLegalEntity
     FILTERS groupCashRegister(c) == grc
     

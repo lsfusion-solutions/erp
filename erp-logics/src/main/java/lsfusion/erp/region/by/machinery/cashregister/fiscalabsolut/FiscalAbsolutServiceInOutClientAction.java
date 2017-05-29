@@ -9,11 +9,13 @@ import java.math.BigDecimal;
 
 public class FiscalAbsolutServiceInOutClientAction implements ClientAction {
 
+    String logPath;
     int comPort;
     int baudRate;
     BigDecimal sum;
 
-    FiscalAbsolutServiceInOutClientAction(Integer comPort, Integer baudRate, BigDecimal sum) {
+    FiscalAbsolutServiceInOutClientAction(String logPath, Integer comPort, Integer baudRate, BigDecimal sum) {
+        this.logPath = logPath;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.sum = sum;
@@ -26,7 +28,7 @@ public class FiscalAbsolutServiceInOutClientAction implements ClientAction {
         try {
 
             if(sum != null) {
-                FiscalAbsolut.openPort(comPort, baudRate);
+                FiscalAbsolut.openPort(logPath, comPort, baudRate);
 
                 FiscalAbsolut.smenBegin();
 

@@ -56,6 +56,7 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                 else
                     ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Apply Error (Not Fiscal)");
             } else {
+                String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
                 Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister[]").read(context);
@@ -162,7 +163,7 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                 String prefix = (String) findProperty("fiscalAbsolutPrefixCode128[]").read(context);
                 String receiptCode128 = prefix == null ? null : (prefix + receiptObject.getValue());
                 if (context.checkApply()) {
-                    Object result = context.requestUserInteraction(new FiscalAbsolutPrintReceiptClientAction(comPort, baudRate, placeNumber,
+                    Object result = context.requestUserInteraction(new FiscalAbsolutPrintReceiptClientAction(logPath, comPort, baudRate, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalAbsolutReceiptTop, fiscalAbsolutReceiptBottom, receiptCode128, saveCommentOnFiscalTape, groupPaymentsByVAT,

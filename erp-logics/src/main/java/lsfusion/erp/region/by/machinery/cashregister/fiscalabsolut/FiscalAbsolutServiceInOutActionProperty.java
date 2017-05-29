@@ -30,13 +30,14 @@ public class FiscalAbsolutServiceInOutActionProperty extends ScriptingActionProp
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
             Boolean isDone = findProperty("isComplete[CashOperation]").read(context.getSession(), cashOperationObject) != null;
             BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
-                String result = (String) context.requestUserInteraction(new FiscalAbsolutServiceInOutClientAction(comPort, baudRate, sum));
+                String result = (String) context.requestUserInteraction(new FiscalAbsolutServiceInOutClientAction(logPath, comPort, baudRate, sum));
                 if (result == null){
                     findProperty("isComplete[CashOperation]").change(true, context.getSession(), cashOperationObject);
                 } else {

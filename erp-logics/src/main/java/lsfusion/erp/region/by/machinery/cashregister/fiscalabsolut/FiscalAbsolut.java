@@ -95,6 +95,8 @@ public class FiscalAbsolut {
         void GetFactoryNumber(byte[] buffer, int buflen);
 
         Boolean PrintBarCode(int typ, byte[] cod, int width, int height, int feed);
+
+        Boolean SetLogPath(byte[] path);
     }
 
     public static String getError(boolean closePort) {
@@ -109,10 +111,19 @@ public class FiscalAbsolut {
         return Native.toString(lastErrorText, "cp1251");
     }
 
-    public static void openPort(int comPort, int baudRate) {
-        logAction("Open", "COM" + comPort, baudRate, 1, 1111);
-        if (!absolutDLL.absolut.Open("COM" + comPort, baudRate, 1, 1111))
-            checkErrors(true);
+    public static void openPort(String logPath, int comPort, int baudRate) {
+        try {
+            if (logPath != null) {
+                logAction("SetLogPath", logPath);
+                if (!absolutDLL.absolut.SetLogPath(getBytes(logPath)))
+                    checkErrors(true);
+            }
+            logAction("Open", "COM" + comPort, baudRate, 1, 1111);
+            if (!absolutDLL.absolut.Open("COM" + comPort, baudRate, 1, 1111))
+                checkErrors(true);
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
     }
 
     public static void closePort() {

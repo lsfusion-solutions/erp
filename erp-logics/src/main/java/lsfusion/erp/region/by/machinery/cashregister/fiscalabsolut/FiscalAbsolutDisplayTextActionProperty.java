@@ -40,6 +40,7 @@ public class FiscalAbsolutDisplayTextActionProperty extends ScriptingActionPrope
             boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
 
+                String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
 
@@ -59,7 +60,7 @@ public class FiscalAbsolutDisplayTextActionProperty extends ScriptingActionPrope
                 double bonusPaid = getDouble((BigDecimal) findProperty("bonusPaid[ReceiptDetail]").read(session, receiptDetailObject));
                 double valueVAT = getDouble((BigDecimal) findProperty("valueVAT[ReceiptDetail]").read(session, receiptDetailObject));
 
-                String result = (String) context.requestUserInteraction(new FiscalAbsolutDisplayTextClientAction(comPort, baudRate,
+                String result = (String) context.requestUserInteraction(new FiscalAbsolutDisplayTextClientAction(logPath, comPort, baudRate,
                         new ReceiptItem(false, price == null ? BigDecimal.ZERO : price, quantity, barcode, name, sum,
                                 articleDiscSum, bonusSum, bonusPaid, valueVAT)));
                 if (result != null) {

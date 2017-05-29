@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 
 public class FiscalAbsolutPrintInvoicePaymentClientAction implements ClientAction {
 
+    String logPath;
     int comPort;
     int baudRate;
     private int placeNumber;
@@ -18,8 +19,9 @@ public class FiscalAbsolutPrintInvoicePaymentClientAction implements ClientActio
     private boolean sale;
     private boolean saveCommentOnFiscalTape;
 
-    FiscalAbsolutPrintInvoicePaymentClientAction(Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
+    FiscalAbsolutPrintInvoicePaymentClientAction(String logPath, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
                                                  BigDecimal sumPayment, Integer typePayment, boolean sale, boolean saveCommentOnFiscalTape) {
+        this.logPath = logPath;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.placeNumber = placeNumber == null ? 1 : placeNumber;
@@ -32,7 +34,7 @@ public class FiscalAbsolutPrintInvoicePaymentClientAction implements ClientActio
     
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
         try {
-            FiscalAbsolut.openPort(comPort, baudRate);
+            FiscalAbsolut.openPort(logPath, comPort, baudRate);
             FiscalAbsolut.smenBegin();
 
             if (!printPayment(sumPayment, typePayment)) {
