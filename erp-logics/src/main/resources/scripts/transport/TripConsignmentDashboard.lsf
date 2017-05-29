@@ -1,6 +1,6 @@
 MODULE TripConsignmentDashboard;
 
-REQUIRE ConsignmentDashboard, TripOrderInvoice, TripInvoiceConsignmentBy;
+REQUIRE ConsignmentDashboard, TripOrderInvoice;
 
 NAMESPACE Order; // пока что - потом надо на Trip переделать
 
@@ -26,13 +26,16 @@ beforePrintConsignment (Order o) += {
     }
 }
 
+overTime = ABSTRACT TIME (Trip);
+overPrintConsignmentTrip = ACTION ABSTRACT (Invoice);
+
 afterPrintConsignment(Order order) += {
     FOR order IS Order AND createdUser(Invoice.Invoice i, Order o) DO {
         trip(i) <- trip(o);
 
         date[Invoice](i) <- date(trip(i));
-        time[Invoice](i) <- OVERRIDE timeOfArrival(trip(i)), time(trip(i));
-        arrivalTime[Invoice](i) <- dateTime(trip(i));
+        time[Invoice](i) <- OVERRIDE overTime(trip(i)), time(trip(i));
+        overPrintConsignmentTrip(i);
 
 //        IF i IS Sale.Invoice AND trip(i) THEN {
 //            date[Sale.UserInvoice](i) <- date(trip(i));
