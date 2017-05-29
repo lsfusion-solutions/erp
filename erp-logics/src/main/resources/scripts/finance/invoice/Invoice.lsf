@@ -1038,15 +1038,15 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
 //                                             CHANGED(nsret.dateTimeInvoiceDetail(detail));
 
     overRecalculatedPrice = ACTION ABSTRACT LIST (nsret.UserInvoiceDetail);
+    priceReturn  = ABSTRACT CASE OVERRIDE NUMERIC[16,4] (UserInvoiceDetail); 
+    invoicePriceReturn  = ABSTRACT CASE OVERRIDE NUMERIC[16,4] (UserInvoiceDetail); 
+    priceReturn (UserInvoiceDetail d) += WHEN d IS UserInvoiceDetail AND invoiceDetail(d)  THEN (IF notUseRound2() THEN price(invoiceDetail(d)) ELSE round2(price(invoiceDetail(d))));
+    invoicePriceReturn (UserInvoiceDetail d) += WHEN d IS UserInvoiceDetail AND invoiceDetail(d)  THEN (IF notUseRound2() THEN invoicePrice(invoiceDetail(d)) ELSE round2(invoicePrice(invoiceDetail(d))));    
+    
     recalculatedPrice(UserInvoiceDetail detail) = {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
         IF invoiceDetail(detail) THEN {
-            IF notUseRound2() THEN {
-                price(detail) <-  price(invoiceDetail(detail));               
-                invoicePrice(detail) <-  invoicePrice(invoiceDetail(detail));            
-            } ELSE {
-                price(detail) <-  round2(price(invoiceDetail(detail)));
-                invoicePrice(detail) <-  round2(invoicePrice(invoiceDetail(detail)));            
-            }
+            price(detail) <-  priceReturn(detail);               
+            invoicePrice(detail) <-  invoicePriceReturn(detail);       
 
             VAT(detail) <- VAT(invoiceDetail(detail));
             overRecalculatedPrice(detail);
