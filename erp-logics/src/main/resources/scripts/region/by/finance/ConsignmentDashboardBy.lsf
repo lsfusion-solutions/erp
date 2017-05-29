@@ -1,6 +1,6 @@
 MODULE ConsignmentDashboardBy;
 
-REQUIRE ConsignmentDashboard;
+REQUIRE ConsignmentDashboard, ConsignmentBy;
 
 NAMESPACE Order;
 
@@ -25,6 +25,9 @@ NAMESPACE Order;
 //
 //sessionCodeLoading 'Код ПРР' = DATA LOCAL STRING[3] ();
 
+printed 'Распечатана' = DATA BOOLEAN (Consignment);
+notPrinted = TRUE AND NOT printed(Consignment consignment);
+
 numberCopiesConsignment 'Кол-во экз. накладной (ТТН-1)' = DATA INTEGER ();
 numberCopiesAttach 'Кол-во экз. приложения (ТТН-1)' = DATA INTEGER ();
 
@@ -32,7 +35,7 @@ numberCopiesSimpleConsignment 'Кол-во экз. накладной (ТН-2)' 
 numberCopiesSimpleAttach 'Кол-во экз. приложения (ТН-2)' = DATA INTEGER ();
 
 countRowsVerticalAB = ABSTRACT INTEGER (Consignment);
-overCountRowsVerticalAB = OVERRIDE countRowsVerticalAB(Consignment consignment), countRowsVerticalAB();
+overCountRowsVerticalAB (Consignment consignment) = OVERRIDE countRowsVerticalAB(consignment), countRowsVerticalAB();
 
 FORM issuanceEmpoyee 'Сотрудники' 
     OBJECTS c = Consignment PANEL
@@ -241,13 +244,62 @@ printStepsConsignmentsVertical 'Печать ТТН-1 (пошаговая)' (Con
 } IMAGE 'print.png';
 
 EXTEND FORM consignmentDashboard
+    PROPERTIES(o) READONLY BACKGROUND backgroundConsignmentDashboard(o) AFTER addressToStock(o) packQuantity
     PROPERTIES (i) printDoubleSidedConsignmentsVertical , printStepsConsignmentsVertical 
+
+    PROPERTIES (i)  READONLYIF banPrint(i) printVerticalA, printVerticalAB, printHorizontalA, printHorizontalAB,
+                                printVerticalB, printHorizontalB,
+                                printAttach, printAttachXLS, printSimpleAttachXLS, printSimpleHorizontal, editAttributes SHOWIF isOpened(i),
+                                printSimpleVertical, printSimpleAttach                        
+
+    FILTERGROUP filters2 
+        FILTER 'Нераспечатанные' notPrinted(i) 'F10' DEFAULT 
 ;
 
 DESIGN consignmentDashboard {
-    consignmentRow2 {
-        MOVE PROPERTY(printDoubleSidedConsignmentsVertical(i));
-        MOVE PROPERTY(printStepsConsignmentsVertical(i));
+    printContainer {
+        NEW consignmentRow1 {
+            align = LEADING;
+            type = CONTAINERH;
+
+            NEW contOne {
+                caption = 'Накладная';
+                type = CONTAINERH;
+                MOVE PROPERTY(editAttributes(i));
+            }
+            NEW tn{
+                type = CONTAINERH;
+                caption = 'ТН-2';
+                MOVE PROPERTY(printSimpleVertical(i));
+                MOVE PROPERTY(printSimpleHorizontal(i));
+                MOVE PROPERTY(printSimpleAttach(i));
+            }
+        }
+        NEW consignmentRow2 {
+            type = COLUMNS;
+            columns = 5;
+            caption = 'ТТН-1';
+            MOVE PROPERTY(printVerticalA(i));
+            MOVE PROPERTY(printVerticalAB(i));
+            MOVE PROPERTY(printHorizontalA(i));
+            MOVE PROPERTY(printHorizontalAB(i));
+            MOVE PROPERTY(printVerticalB(i));
+            MOVE PROPERTY(printHorizontalB(i));
+            MOVE PROPERTY(printAttach(i));
+            MOVE PROPERTY(printAttachXLS(i));
+            MOVE PROPERTY(printDoubleSidedConsignmentsVertical(i));
+            MOVE PROPERTY(printStepsConsignmentsVertical(i));
+        }
+        NEW consignmentRow3 {
+            type = CONTAINERH;
+            NEW export {
+                type = CONTAINERH;
+                caption = 'Экспорт';  
+                MOVE PROPERTY(printAttachXLS(i));
+                MOVE PROPERTY(printSimpleAttachXLS(i));                                
+            }                        
+        }
+    
     }
 }
 

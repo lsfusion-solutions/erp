@@ -1,0 +1,34 @@
+MODULE PickingConsignmentDashboard;
+
+REQUIRE ConsignmentDashboard, OrderInvoicePickingOrder;
+
+NAMESPACE Order; // пока что - потом надо на Picking переделать
+
+toInvoiced(Order o) += WHEN o IS Order THEN TRUE IF toInvoicePicked(o);
+toInvoiced(OrderDetail d) += WHEN d IS OrderDetail THEN TRUE IF toInvoicePicked(d);
+
+backgroundConsignmentDashboard(Order o) += WHEN calcFull(o) THEN RGB(255,238,165);
+backgroundConsignmentDashboard(Order o) += WHEN calcPart(o) THEN RGB(255,200,216);
+
+overPrintConsignment (Order order) += {
+    IF countInConsignmentPrintOrder() THEN {
+        inCreatePickingUserInvoicePosted(Order o) <- inConsignmentPrint(o);
+        createPickingUserInvoicePosted(order);
+    } ELSE {
+        createPickingUserInvoicePosted(order);
+    }
+}
+
+EXTEND FORM consignmentDashboard
+    PROPERTIES(o) BEFORE number(o) inConsignmentPrint
+    PROPERTIES(o) READONLY BACKGROUND backgroundConsignmentDashboard(o) AFTER addressToStock(o) grossWeightOrderPicking
+    FILTERS picked(o)
+
+    PROPERTIES(d) READONLY pickingQuantity AFTER quantity(d), toInvoicePicked AFTER invoiced(d)    
+;
+
+DESIGN consignmentDashboard {
+    PROPERTY(inConsignmentPrint(o)){
+        editKey = 'SPACE';
+    }
+}

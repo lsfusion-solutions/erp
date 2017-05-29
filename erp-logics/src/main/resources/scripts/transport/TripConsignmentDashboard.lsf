@@ -1,0 +1,52 @@
+MODULE TripConsignmentDashboard;
+
+REQUIRE ConsignmentDashboard, TripOrderInvoice, TripInvoiceConsignmentBy;
+
+NAMESPACE Order; // пока что - потом надо на Trip переделать
+
+countOrderConsignmentPrint = GROUP SUM 1 IF inConsignmentPrint(Order order) BY trip(order);
+
+countInConsignmentPrintTrip = GROUP SUM 1 IF countOrderConsignmentPrint(Trip trip);
+
+inConsignmentPrintTrip = GROUP MAX Trip trip IF countOrderConsignmentPrint(trip);
+
+changeTrip(Order order) = {
+    DIALOG dialogDateTrips OBJECTS d = date(order), t = trip(order) INPUT NULL DO {
+        trip (order) <- t;
+        apply();
+    }            
+}
+
+backgroundConsignmentDashboard(Order o) += WHEN trip(o) THEN RGB(212,255,212);
+
+beforePrintConsignment (Order o) += {
+    IF o IS Order AND countInConsignmentPrintTrip() > 1 THEN {
+        MESSAGE 'Выберите заказы одного рейса';
+        consumedPrintConsignment() <- TRUE;
+    }
+}
+
+afterPrintConsignment(Order order) += {
+    FOR order IS Order AND createdUser(Invoice.Invoice i, Order o) DO {
+        trip(i) <- trip(o);
+
+        date[Invoice](i) <- date(trip(i));
+        time[Invoice](i) <- OVERRIDE timeOfArrival(trip(i)), time(trip(i));
+        arrivalTime[Invoice](i) <- dateTime(trip(i));
+
+//        IF i IS Sale.Invoice AND trip(i) THEN {
+//            date[Sale.UserInvoice](i) <- date(trip(i));
+//            time[Sale.UserInvoice](i) <- OVERRIDE timeOfArrival(trip(i)), time(trip(i));
+//            arrivalTime[Sale.Invoice](i) <- dateTime(trip(i));
+//        } ELSE IF i IS PurchaseReturn.Invoice AND trip(i) THEN {
+//            date[PurchaseReturn.UserInvoice](i) <- date(trip(i));
+//            time[PurchaseReturn.UserInvoice](i) <- OVERRIDE timeOfArrival(trip(i)), time(trip(i));
+//            arrivalTime[PurchaseReturn.Invoice](i) <- dateTime(trip(i));                                
+//        }                 
+    }
+}
+
+EXTEND FORM consignmentDashboard
+    PROPERTIES(o) READONLY BACKGROUND backgroundConsignmentDashboard(o) BEFORE number(o) nameDriverTrip, dateTrip
+    PROPERTIES(o) BACKGROUND backgroundConsignmentDashboard(o) BEFORE number(o) numberTrip ON CHANGE changeTrip(o)   
+;
