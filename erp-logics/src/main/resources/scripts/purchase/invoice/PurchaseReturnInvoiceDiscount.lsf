@@ -60,20 +60,10 @@ percReturnDiscountPrice (UserInvoiceDetail d) += percReturnDiscountPrice(d);
 @defineDocumentInterfaceDetailPricePrefix (invoice, full, ' (полная)');
 
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND percReturnDiscountPrice(d) AND sku(d) AND showPercReturnDiscount(d) THEN  
-                                                     round(NUMERIC[16,4](prevPriceB(t,sku(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0), defaultRoundCondition(currency(d)));
+                                                     round2(NUMERIC[16,4](prevPriceB(t,sku(d),customerStock(d),dateTime(d)) * percReturnDiscountPrice(d) / 100.0));
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND percReturnDiscountPrice(d) AND batch(d) AND showPercReturnDiscount(d) THEN  
-                                                     round(NUMERIC[16,4](prevPriceB(t,batch(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0), defaultRoundCondition(currency(d)));
+                                                     round2(NUMERIC[16,4](prevPriceB(t,batch(d),customerStock(d),dateTime(d)) * percReturnDiscountPrice(d) / 100.0));
 
-priceReturn ( UserInvoiceDetail d) += WHEN  percReturnDiscountPrice(d) AND sku(d) AND showPercReturnDiscount(d) THEN  
-                                     round(NUMERIC[16,4](prevPriceB(priceListType(d),sku(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0), defaultRoundCondition(currency(d)));
-priceReturn (UserInvoiceDetail d) += WHEN percReturnDiscountPrice(d) AND batch(d) AND showPercReturnDiscount(d) THEN  
-                                     round(NUMERIC[16,4](prevPriceB(priceListType(d),batch(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0), defaultRoundCondition(currency(d)));
-
-invoicePriceReturn ( UserInvoiceDetail d) += WHEN  percReturnDiscountPrice(d) AND sku(d) AND showPercReturnDiscount(d) THEN     
-                                     NUMERIC[16,4](round2((round(NUMERIC[16,4](prevPriceB(priceListType(d),sku(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0), defaultRoundCondition(currency(d))))*(100 + calcValueVAT(d)) / 100));
-invoicePriceReturn (UserInvoiceDetail d) += WHEN percReturnDiscountPrice(d) AND batch(d) AND showPercReturnDiscount(d) THEN  
-                                     NUMERIC[16,4](round2((round(NUMERIC[16,4](prevPriceB(priceListType(d),batch(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0), defaultRoundCondition(currency(d))))*(100 + calcValueVAT(d)) / 100));
-                                                    
 WHEN LOCAL FORMS userInvoice GOAFTER valueVAT[UserInvoiceDetail] // цены берем на начало сессии, а не этого event'а
         (((CHANGED(customerStock(UserInvoiceDetail d)) OR
          CHANGED(dateTime(d))) AND NOT isPosted(d)) OR

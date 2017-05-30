@@ -84,13 +84,10 @@ prevListSkuManufacturingPrice(UserInvoiceDetail detail) += prevPriceB[PriceListT
                                                                                              dateTime(detail));
 
 WHEN LOCAL CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(customerStock(detail)) OR CHANGED(dateTime(detail)) OR CHANGED(batch(detail)) DO {
-    manufacturingPrice (detail)  <- round2(IF batch(detail)    
+    manufacturingPrice (detail)  <- round2(IF invoiceDetail(detail) THEN manufacturingPrice(invoiceDetail(detail)) ELSE
+                                                (IF batch(detail)    
                                                     THEN prevListBatchManufacturingPrice(detail)
-                                                    ELSE prevListSkuManufacturingPrice(detail));
-}
-
-overRecalculatedPrice(UserInvoiceDetail detail) += {
-    manufacturingPrice(detail) <- manufacturingPrice(invoiceDetail(detail));
+                                                    ELSE prevListSkuManufacturingPrice(detail)));
 }
 
 @defineDocumentInterfaceDetailDataSumPrefix (invoice, manufacturing, ' изготовителя'); // объявляем сумму изготовителя

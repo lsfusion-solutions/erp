@@ -15,23 +15,22 @@ includeVAT(UserInvoiceDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (s
 
 @defineDocumentInterfaceDetailMPVATCustomPrefix (invoiceDetail, manufacturing, );
 
-manufacturingPrice (UserInvoiceDetail detail)  <- round2(IF batch(detail)
-
-                                                THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
-                                                                                               batch(detail),
-                                                                                               supplierStock(detail),
-                                                                                               dateTime(detail))
-                                                ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
-                                                                                             sku(detail),
-                                                                                             supplierStock(detail),
-                                                                                             dateTime(detail)))
-                                                WHEN DO CHANGED(sku(detail)) OR
-                                                     CHANGED(supplierStock(detail)) OR
-                                                     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-                                                     CHANGED(batch(detail));
-
-overRecalculatedPrice(UserInvoiceDetail detail) += {
-    ASSIGN manufacturingPrice(detail) <- round2(manufacturingPrice(invoiceDetail(detail)));
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
+            CHANGED(supplierStock(detail)) OR
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+            CHANGED(batch(detail))) DO {
+            
+    manufacturingPrice (detail)  <- round2(IF invoiceDetail(detail) THEN manufacturingPrice(invoiceDetail(detail)) ELSE 
+                                                (IF batch(detail)
+    
+                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                                   batch(detail),
+                                                                                                   supplierStock(detail),
+                                                                                                   dateTime(detail))
+                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                                 sku(detail),
+                                                                                                 supplierStock(detail),
+                                                                                                 dateTime(detail))));
 }
 
 @defineDocumentInterfaceDetailDataSumPrefix (invoice, manufacturing, ' изготовителя'); // объявляем сумму изготовителя
