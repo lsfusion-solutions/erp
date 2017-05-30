@@ -653,7 +653,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         queryString += " where m.date >='" + new SimpleDateFormat("yyyyMMdd").format(c.getTime()) + "'";
                     }
                     ResultSet rs = statement.executeQuery(queryString);
-                    Time twoAM = new Time(2,0,0);
                     Time midnight = new Time(23,59,59);
                     while (rs.next()) {
                         int nppMachinery = rs.getInt("m.cash_id");
@@ -664,6 +663,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             Timestamp dateTimeShift = rs.getTimestamp("s.date");
                             Date date = new Date(dateTimeShift.getTime());
                             Time time = new Time(dateTimeMoneyOperation.getTime());
+                            Time twoAM = new Time(time.getTime());
+                            twoAM.setHours(2);
+                            twoAM.setMinutes(0);
+                            twoAM.setSeconds(0);
                             if(time.getTime() < twoAM.getTime())
                                 time = midnight;
                             int type = rs.getInt("m.type");
