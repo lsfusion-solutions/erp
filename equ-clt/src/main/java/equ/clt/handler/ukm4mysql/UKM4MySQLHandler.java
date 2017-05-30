@@ -646,24 +646,29 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
                     Statement statement = conn.createStatement();
-                    String queryString = "select m.cash_id, m.id, s.date, type, amount, s.id from moneyoperation m join shift s on m.shift_number = s.number AND m.cash_id = s.cash_id";
+                    String queryString = "select m.cash_id, m.id, m.date, m.type, m.amount, m.shift_number, s.id, s.date from moneyoperation m join shift s on m.shift_number = s.number AND m.cash_id = s.cash_id";
                     if (lastDaysCashDocument != null) {
                         Calendar c = Calendar.getInstance();
                         c.add(Calendar.DATE, -lastDaysCashDocument);
                         queryString += " where date >='" + new SimpleDateFormat("yyyyMMdd").format(c.getTime()) + "'";
                     }
                     ResultSet rs = statement.executeQuery(queryString);
+                    Time twoAM = new Time(2,0,0);
+                    Time midnight = new Time(23,59,59);
                     while (rs.next()) {
-                        int nppMachinery = rs.getInt("cash_id");
+                        int nppMachinery = rs.getInt("m.cash_id");
                         CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + nppMachinery);
                         if (cashRegister != null) {
-                            String numberCashDocument = rs.getString("id");
-                            Timestamp dateTime = rs.getTimestamp("date");
-                            Date date = new Date(dateTime.getTime());
-                            Time time = new Time(dateTime.getTime());
-                            int type = rs.getInt("type");
-                            String numberZReport = rs.getString("shift_number");
-                            BigDecimal sum = type == 100 ? rs.getBigDecimal("amount") : type == 101 ?  HandlerUtils.safeNegate(rs.getBigDecimal("amount")) : null;
+                            String numberCashDocument = rs.getString("m.id");
+                            Timestamp dateTimeMoneyOperation = rs.getTimestamp("m.date");
+                            Timestamp dateTimeShift = rs.getTimestamp("s.date");
+                            Date date = new Date(dateTimeShift.getTime());
+                            Time time = new Time(dateTimeMoneyOperation.getTime());
+                            if(time.getTime() < twoAM.getTime())
+                                time = midnight;
+                            int type = rs.getInt("m.type");
+                            String numberZReport = rs.getString("m.shift_number");
+                            BigDecimal sum = type == 100 ? rs.getBigDecimal("m.amount") : type == 101 ?  HandlerUtils.safeNegate(rs.getBigDecimal("m.amount")) : null;
                             if(sum != null) {
                                 String idCashDocument = params.connectionString + "/" + nppMachinery + "/" + numberCashDocument;
                                 if (!cashDocumentSet.contains(idCashDocument))
