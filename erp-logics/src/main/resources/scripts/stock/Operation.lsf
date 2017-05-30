@@ -188,7 +188,7 @@ META defineDocumentOperation(object, char)
     @defineDocumentOperation(object, char, nameCurrencyUser, nameCurrency);
 END
 
-META defineDocumentOperationContainer(object, char, afProp, befProperty, contProp, typeIdentity)
+META defineDocumentOperationContainer(object, char, afProp, befProperty, contProp, typeIdentity, check)
 
     operation = ABSTRACT Operation (###object) MATERIALIZED INDEXED;
     nameOperation 'Операция' = typeIdentity(operation(###object object));
@@ -205,9 +205,13 @@ META defineDocumentOperationContainer(object, char, afProp, befProperty, contPro
     nameOperation 'Операция' (User###object##Detail d) = name(operation(d));
     
     backgroundOperation 'Цвет' = ABSTRACT CASE COLOR (###object);
-
+    
+    dialogOperations(User###object object) = {
+        DIALOG dialogOperations###check OBJECTS o = operation(object) CHANGE;
+    }
+    
     EXTEND FORM user###object
-        PROPERTIES(char) nameOperation
+        PROPERTIES(char) nameOperation ON CHANGE dialogOperations(char)
     ;
 
     DESIGN user###object{
@@ -222,10 +226,10 @@ META defineDocumentOperationContainer(object, char, afProp, befProperty, contPro
 END
 
 META defineDocumentOperationContainer(object, char)
-    @defineDocumentOperationContainer(object, char, isPosted###object, nameCurrency, first, name);
+    @defineDocumentOperationContainer(object, char, isPosted###object, nameCurrency, first, name, );
 END
 META defineDocumentOperationContainer(object, char, typeIdentity)
-    @defineDocumentOperationContainer(object, char, isPosted###object, nameCurrency, first, typeIdentity);
+    @defineDocumentOperationContainer(object, char, isPosted###object, nameCurrency, first, typeIdentity, return);
 END
 
 META defineDocumentOperationConstraint(object, caption, NS)
