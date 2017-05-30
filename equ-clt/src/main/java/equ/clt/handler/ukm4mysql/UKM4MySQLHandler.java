@@ -650,7 +650,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     if (lastDaysCashDocument != null) {
                         Calendar c = Calendar.getInstance();
                         c.add(Calendar.DATE, -lastDaysCashDocument);
-                        queryString += " where date >='" + new SimpleDateFormat("yyyyMMdd").format(c.getTime()) + "'";
+                        queryString += " where m.date >='" + new SimpleDateFormat("yyyyMMdd").format(c.getTime()) + "'";
                     }
                     ResultSet rs = statement.executeQuery(queryString);
                     Time twoAM = new Time(2,0,0);
