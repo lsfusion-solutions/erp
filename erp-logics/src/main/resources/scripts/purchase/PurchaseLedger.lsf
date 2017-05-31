@@ -65,8 +65,12 @@ nameSupplierStock 'Склад поставщика' (PurchaseLedger ledger) = na
 operation  (ledger) = ABSTRACT Purchase.Operation (PurchaseLedger) MATERIALIZED;
 nameOperation 'Операция' (PurchaseLedger ledger) = name(operation (ledger));
 
+TABLE skuStockLegalEntity (Sku, Stock, LegalEntity);
 quantityPurchaseSupplier 'Кол-во закуплено' = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
-    BY supplier(ledger), sku(ledger) MATERIALIZED;
+    BY supplier(ledger), stock(ledger), sku(ledger) MATERIALIZED;
+
+quantityPurchaseSupplier 'Кол-во закуплено' = GROUP SUM quantityPurchaseSupplier(LegalEntity l, Stock st, Sku sk)
+    BY l, sk;
     
 quantityPurchaseSupplier 'Кол-во закуплено' = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
     BY supplierStock(ledger), sku(ledger);
