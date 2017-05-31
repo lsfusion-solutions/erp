@@ -36,7 +36,7 @@ sumStock 'Сумма' = DATA LOCAL NUMERIC[18,4] (Group);
 inSaleReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 
 inSaleReportStocks 'Склады' () =
-    GROUP CONCAT name(Stock st) IF inSaleReport(st) ,', ' PREFCHARWIDTH 30;
+    GROUP CONCAT name(Stock st) IF inSaleReport(st) ,', ' PREFCHARWIDTH 50;
 defaultStockSaleReport = GROUP MIN Stock st IF inSaleReport(st);
 
 overfillSaleReportFromTo = ACTION ABSTRACT (GroupType, DATE, DATE);
@@ -699,8 +699,8 @@ changeStocksSalesReport(GroupType gt, DATE df, DATE dt) = {
         fillSaleReportFromTo(gt, df, dt);
 }
  
-showMovementSkuStocksSale 'Показать движение товара по складу' (Sku sku) = { NEWSESSION SHOW movementSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inSaleReport(st)]() ; }
-showMovementPriceSkuStocksSale 'Показать изменение цены товара по складу' (Sku sku) = { NEWSESSION SHOW movementPriceSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inSaleReport(st)]() ; }
+showMovementSkuStocksSale 'Показать движение товара по складу' (Sku sku) = { NEWSESSION NESTED(inSaleReport) SHOW movementSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inSaleReport(st)]() ; }
+showMovementPriceSkuStocksSale 'Показать изменение цены товара по складу' (Sku sku) = { NEWSESSION NESTED(inSaleReport) SHOW movementPriceSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inSaleReport(st)]() ; }
     
 FORM salesReport 'Отчет по продажам'
     OBJECTS df=DATE PANEL
