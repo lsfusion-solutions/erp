@@ -415,7 +415,15 @@ public class FiscalVMK {
         if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
             checkErrors(true);
         String result = Native.toString(buffer, "cp1251");
-        return Integer.parseInt(result.split(",")[0]);
+        String[] splitted = result.split(",");
+        int receiptNumber = 0;
+        try {
+            if (splitted.length >= 5) {
+                receiptNumber = (int) (Long.parseLong(splitted[4]) % Integer.MAX_VALUE);
+            }
+        } catch (Exception ignored) {
+        }
+        return receiptNumber != 0 ? receiptNumber : Integer.parseInt(splitted[0]);
     }
 
     public static int getZReportNumber() {
