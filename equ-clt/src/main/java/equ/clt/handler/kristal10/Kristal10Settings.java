@@ -72,8 +72,8 @@ public class Kristal10Settings implements Serializable{
         return useShopIndices;
     }
 
-    public void weightShopIndices(String weightShopIndices) {
-        this.weightShopIndices = weightShopIndices;
+    public void setUseShopIndices(Boolean useShopIndices) {
+        this.useShopIndices = useShopIndices;
     }
 
     public String getWeightShopIndices() {
