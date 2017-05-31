@@ -680,7 +680,12 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 } TOOLBAR;
                 
     edit (ScheduleOrderDetail detail) += { edit(scheduleOrder(detail)); }
-
+    show 'Просмотреть' (ScheduleOrder s) = {
+    	NEWSESSION {
+    	    SHOW scheduleOrder OBJECTS s = s DOCKED READONLY;
+    	}
+    } TOOLBAR;
+    show 'Просмотреть' (ScheduleOrderDetail detail) = { show(scheduleOrder(detail)); } TOOLBAR;
     addScheduleOrderSupplierCustomer 'Добавить'##sign(LegalEntity supplier, LegalEntity customer) = {
 	NESTEDSESSION {
 	        NEW s = ScheduleOrder {
@@ -721,7 +726,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                         monthInDate, DOWInDate,
                         nameSupplier, nameSupplierStock,
                         nameCustomer, nameCustomerStock, nameOperation, quantityOrders
-        PROPERTIES (sd) createScheduleUser, EDIT NEWSESSION
+        PROPERTIES (sd) createScheduleUser, EDIT NEWSESSION, show
         PROPERTIES (sd) close  SHOWIF isOpened (sd), open  SHOWIF isClosed (sd)
 //        FILTERGROUP openFilter
 //            FILTER 'Не аннулированные' 'F6' isOpenedScheduleOrderDetail(sd)  
@@ -914,6 +919,7 @@ META defineScheduleOrderDashboard(sign, stockFilter)
                       nameCustomer, stocks, nameType
         PROPERTIES(s,d) READONLY countRemaining
         PROPERTIES(s) NEWSESSION copy, EDIT 
+        PROPERTIES(s) show
         ORDER BY endDate(s)
 
         FILTERS supplier(s) == supplier() OR (s IS ScheduleOrder AND NOT supplier()),
@@ -928,6 +934,7 @@ META defineScheduleOrderDashboard(sign, stockFilter)
         PROPERTIES(ss) BACKGROUND background(ss,d) READONLY startDate, endDate, nameSupplier, nameSupplierStock,
                       nameCustomer, stocks, nameType     
         PROPERTIES(ss) NEWSESSION NEW, EDIT, DELETE               
+        PROPERTIES(ss) show
         ORDER BY startDate(ss)
               
         PROPERTIES (ss) READONLY PANEL createdTime, createdNameUser, createdHostnameComputer
