@@ -87,9 +87,6 @@ changeBlisterQuantity(Batch batch, PageInventory li) = {
 filterPrice 'Поиск по цене' = DATA LOCAL NUMERIC[16,4]();
 filterPrice 'Ввести цену' (Batch bt, PageInventory li) = (filterPrice() AND currentPrice(bt, li)==filterPrice()) OR NOT filterPrice();
 
-filterBarcode 'Поиск по штрих коду' = DATA LOCAL VARISTRING[15]();
-filterBarcode 'Ввести штрих код' (Batch bt) = (filterBarcode() AND sku(barcode(filterBarcode()))==sku(bt)) OR NOT filterBarcode();
-
 prevBalanceB 'Тек. остаток' (Batch batch, PageInventory li) = prevBalanceB(batch, stock(listInventory(li)), dateTime(listInventory(li)));
 
 countLedger (Batch bt, PageInventory li) = countLedger(bt, stock(listInventory(li)));
@@ -177,12 +174,6 @@ createRetailPharmacyInventory 'Создать инвентаризацию' () =
     }
 } TOOLBAR IMAGE 'add.png'; 
 
-skipInventoryFilters 'Обнулить поиск' () = {
-    filterPrice() <- NULL;
-    filterNameSku() <- NULL;
-    filterBarcode() <- NULL;
-} EDITKEY 'ESCAPE';
-
 FORM inventoryPharmacyDashboard 'Инвентаризационные описи'
     OBJECTS in=Inventory LAST
     PROPERTIES(in) READONLY SHOWIF NOT currentPharmacyListInventory() isPosted , number, series, date, time, nameStock, name, note, quantityShortage, sumShortage
@@ -191,7 +182,7 @@ FORM inventoryPharmacyDashboard 'Инвентаризационные описи
     FILTERS isOpened(in), isDraft(in), isRetailPharmacy(in)
     FILTERS accessCompanyStockCurrentUser(in) OR NOT countStocks(in)
     
-    PROPERTIES () SHOWIF currentPharmacyListInventory() filterPrice, filterNameSku, filterBarcode, skipInventoryFilters
+    PROPERTIES () SHOWIF currentPharmacyListInventory() filterPrice, filterNameSku, filterBarcode, skipFilters
     OBJECTS li = PageInventory PANEL
     PROPERTIES (li) SELECTOR SHOWIF currentPharmacyListInventory() number, date, nameStock, note
     FILTERS currentPharmacyListInventory()==li
@@ -236,7 +227,7 @@ DESIGN inventoryPharmacyDashboard {
         MOVE PROPERTY(filterPrice()){ caption = 'Ввести цену'; panelCaptionAbove = TRUE; font = 'bold 22'; editKey = 'F5'; }
         MOVE PROPERTY(filterNameSku()){ caption = 'Ввести наименование'; panelCaptionAbove = TRUE; font = 'bold 22'; editKey = 'F3'; }
         MOVE PROPERTY(filterBarcode()){ caption = 'Ввести штрих код'; panelCaptionAbove = TRUE; font = 'bold 22'; editKey = 'F4'; }
-        MOVE PROPERTY(skipInventoryFilters()){ panelCaptionAbove = TRUE; fontSize = 14; }
+        MOVE PROPERTY(skipFilters()){ panelCaptionAbove = TRUE; fontSize = 14; }
     }
     NEW tabbed {
         type = TABBED;
