@@ -397,8 +397,9 @@ META defineInvoiceShipmentBins(stockProp)
 END
 
 META deriveDocumentBinsProperty(object, readProp, writeProp, stockProp)
-    writeProp (###object o) <- readProp(operation(o), stockProp(o)) IF useBins(o)
-        WHEN CHANGED(operation(o)) OR CHANGED(stockProp(o)) OR CHANGED(stockProp(o)) OR SETCHANGED(useBins(o));    
+    over###readProp = ABSTRACT Bin (###object);
+    writeProp (###object o) <- OVERRIDE over###readProp(o), readProp(operation(o), stockProp(o)) IF useBins(o)
+        WHEN CHANGED(operation(o)) OR CHANGED(stockProp(o)) OR SETCHANGED(useBins(o));    
 END
 
 META deriveFormBinsProperty (form, object)

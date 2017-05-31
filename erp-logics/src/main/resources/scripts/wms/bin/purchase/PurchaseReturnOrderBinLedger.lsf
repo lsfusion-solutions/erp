@@ -1,0 +1,33 @@
+MODULE PurchaseReturnOrderBinLedger;
+
+REQUIRE PurchaseReturnOrder, BinLedger, PurchaseBinLedger;
+
+NAMESPACE PurchaseReturn;
+
+@defineDocumentBins(order);
+
+//@implementAggregationBinLedger(orderDetail, order, Order, sku, quantity, customerStock, inBin, outBin)
+
+CLASS OrderBinLedger : BinLedger;
+needToCreate (OrderDetail orderDetail) = (inBin(orderDetail) OR outBin(orderDetail)) AND NOT (isClosed(orderDetail) AND NOT shipped(orderDetail)); 
+@defineAggregation(orderDetail, orderBinLedger, needToCreate);
+@implementBinLedger(orderBinLedger, orderDetail, sku, quantity, customerStock, inBin, outBin);
+    
+@setBinDocument(UserOrder, customerStock);
+@defineBinDocumentConstraints(userOrder, customerStock);
+
+backgroundBins 'Цвет' (UserOrder order) = RGB(255, 224, 255) IF order IS UserOrder;
+backgroundBins (UserOrderDetail detail) = backgroundBins(order(detail));
+
+@extendObjectFormsBins(userOrder, orders, o, customerStock, backgroundBins);
+
+DESIGN userOrder {
+    headerExtraParams {
+        type = COLUMNS;
+        columns = 4;
+    }
+}
+
+@deriveDocumentOperationProperty(UserOrder, useBins);
+
+@deriveDocumentBins (userOrder, userOrder, inBin, outBin, outBin, inBin, customerStock);
