@@ -12,6 +12,7 @@ public class Kristal10Settings implements Serializable{
     private Boolean skipWeightPrefix;
     private Boolean skipScalesInfo;
     private Boolean useShopIndices;
+    private String weightShopIndices;
     private Boolean ignoreSalesDepartmentNumber;
     private Boolean useIdItemInRestriction;
     private Boolean ignoreFileLock;
@@ -71,8 +72,16 @@ public class Kristal10Settings implements Serializable{
         return useShopIndices;
     }
 
-    public void setUseShopIndices(Boolean useShopIndices) {
-        this.useShopIndices = useShopIndices;
+    public void weightShopIndices(String weightShopIndices) {
+        this.weightShopIndices = weightShopIndices;
+    }
+
+    public String getWeightShopIndices() {
+        return weightShopIndices;
+    }
+
+    public void setWeightShopIndices(String weightShopIndices) {
+        this.weightShopIndices = weightShopIndices;
     }
 
     public Boolean getIgnoreSalesDepartmentNumber() {

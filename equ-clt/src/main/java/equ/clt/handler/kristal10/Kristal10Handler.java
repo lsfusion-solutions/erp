@@ -66,6 +66,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
                 boolean skipScalesInfo = kristalSettings != null && kristalSettings.getSkipScalesInfo() != null && kristalSettings.getSkipScalesInfo();
                 boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+                String weightShopIndices = kristalSettings.getWeightShopIndices();
                 boolean useIdItemInRestriction = kristalSettings != null && kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
                 List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
 
@@ -102,6 +103,10 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     for (CashRegisterItemInfo item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
 
+                            String shopIndices = item.idDepartmentStore;
+                            if (useShopIndices && item.passScalesItem && weightShopIndices != null) {
+                                shopIndices += " " + weightShopIndices;
+                            }
                             //parent: rootElement
                             Element good = new Element("good");
 
@@ -141,11 +146,11 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             addStringElement(maxDiscountRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
                             addStringElement(maxDiscountRestriction, "deleted", item.flags != null && ((item.flags & 16) == 0) ? "false" : "true");
                             if (useShopIndices)
-                                addStringElement(maxDiscountRestriction, "shop-indices", item.idDepartmentStore);
+                                addStringElement(maxDiscountRestriction, "shop-indices", shopIndices);
                             rootElement.addContent(maxDiscountRestriction);
 
                             if (useShopIndices)
-                                addStringElement(good, "shop-indices", item.idDepartmentStore);
+                                addStringElement(good, "shop-indices", shopIndices);
 
                             addStringElement(good, "name", item.name);
 
