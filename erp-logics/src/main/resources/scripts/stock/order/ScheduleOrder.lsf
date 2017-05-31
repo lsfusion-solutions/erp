@@ -26,6 +26,8 @@ TABLE scheduleOrder(ScheduleOrder);
 CLASS ABSTRACT ScheduleOrderDetail 'Заказ по графику';
 TABLE scheduleOrderDetail(ScheduleOrderDetail);
 
+show 'Просмотреть' = ACTION ABSTRACT MULTI (ScheduleOrder) TOOLBAR;
+
 //isClosedScheduleOrderDetail 'Аннулирован' = ABSTRACT BOOLEAN (ScheduleOrderDetail);
 //isOpenedScheduleOrderDetail= d IS ScheduleOrderDetail AND NOT isClosedScheduleOrderDetail(d);
 
@@ -685,6 +687,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     	    SHOW scheduleOrder OBJECTS s = s DOCKED READONLY;
     	}
     } TOOLBAR;
+    show(ScheduleOrder.ScheduleOrder o) += { show[ScheduleOrder](o); }
+    
     show 'Просмотреть' (ScheduleOrderDetail detail) = { show(scheduleOrder(detail)); } TOOLBAR;
     addScheduleOrderSupplierCustomer 'Добавить'##sign(LegalEntity supplier, LegalEntity customer) = {
 	NESTEDSESSION {
@@ -865,14 +869,16 @@ EXTEND FORM legalEntity
     OBJECTS ss=ScheduleOrder GRID
     PROPERTIES(ss) SHOWIF isCustomer(l) READONLY startDate, endDate, nameSupplierStock, stocks, nameType
     PROPERTIES(ss) SHOWIF isCustomer(l) DELETE , EDIT
-
+    PROPERTIES(ss) SHOWIF isCustomer(l) show
+    
     FILTERS filterCompanySupplier(l, s)
     FILTERS supplier(ss) == s, customer(ss) == l
 
     OBJECTS sc=ScheduleOrder GRID 
     PROPERTIES(sc) SHOWIF isSupplier(l) READONLY startDate, endDate, nameSupplierStock, stocks, nameType
     PROPERTIES(sc) SHOWIF isSupplier(l) DELETE , EDIT
-
+    PROPERTIES(sc) SHOWIF isSupplier(l) show
+    
     FILTERS filterCompanyCustomer(l, c)
     FILTERS customer(sc) == c, supplier(sc) == l
 
