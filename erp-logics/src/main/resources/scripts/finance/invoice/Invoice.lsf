@@ -1043,7 +1043,7 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
 //    priceReturn (UserInvoiceDetail d) += WHEN d IS UserInvoiceDetail AND invoiceDetail(d)  THEN (IF notUseRound2() THEN price(invoiceDetail(d)) ELSE round2(price(invoiceDetail(d))));
 //    invoicePriceReturn (UserInvoiceDetail d) += WHEN d IS UserInvoiceDetail AND invoiceDetail(d)  THEN (IF notUseRound2() THEN invoicePrice(invoiceDetail(d)) ELSE round2(invoicePrice(invoiceDetail(d))));    
     
-    prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND invoiceDetail(d) THEN price(invoiceDetail(d));
+    prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND invoiceDetail(d) THEN NUMERIC[16,4](price(invoiceDetail(d)) * IF includeVAT(t) THEN (100.0 (+) calcValueVAT(d)) / 100.0 ELSE 1.0);
 //    recalculatedPrice(UserInvoiceDetail detail) = {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
 //        IF invoiceDetail(detail) THEN {
 //            price(detail) <-  priceReturn(detail);               
