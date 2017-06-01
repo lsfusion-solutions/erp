@@ -356,10 +356,10 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                         //totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
 
-                        boolean isGiftCard = giftCardPrefix != null && idBarcode.startsWith(giftCardPrefix);
+                        boolean isGiftCard = giftCardPrefix != null && idBarcode != null && idBarcode.startsWith(giftCardPrefix);
 
                         boolean isDiscount = getBit(flags, 1);
-                        boolean discountRecord = idBarcode.isEmpty() && isDiscount;
+                        boolean discountRecord = (idBarcode == null || idBarcode.isEmpty()) && isDiscount;
                         if(discountRecord) {
                             for(SalesInfo s : currentSalesInfoList) {
                                 s.discountSumReceipt = discountSum;
