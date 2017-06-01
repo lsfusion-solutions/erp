@@ -66,7 +66,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     private ScriptingLogicsModule cashRegisterItemLM;
     private ScriptingLogicsModule discountCardLM;
     private ScriptingLogicsModule equipmentLM;
-    private ScriptingLogicsModule equipmentCashRegisterLM;
     private ScriptingLogicsModule giftCardLM;
     private ScriptingLogicsModule itemLM;
     private ScriptingLogicsModule itemFashionLM;
@@ -132,7 +131,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         cashRegisterItemLM = getBusinessLogics().getModule("CashRegisterItem");
         discountCardLM = getBusinessLogics().getModule("DiscountCard");
         equipmentLM = getBusinessLogics().getModule("Equipment");
-        equipmentCashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
         giftCardLM = getBusinessLogics().getModule("GiftCard");
         itemLM = getBusinessLogics().getModule("Item");
         itemFashionLM = getBusinessLogics().getModule("ItemFashion");
@@ -971,42 +969,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public Map<Integer, List<List<Object>>> readCashRegistersStock(String idStock) throws RemoteException, SQLException {
-        Map<Integer, List<List<Object>>> cashRegisterList = new HashMap<>();
-        if(equipmentCashRegisterLM != null)
-        try (DataSession session = getDbManager().createSession()) {
-
-            DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
-
-            KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
-            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
-            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-
-            String[] machineryNames = new String[] {"nppMachinery", "nppGroupMachineryMachinery", "overDirectoryMachinery"};
-            LCP[] machineryProperties = equipmentCashRegisterLM.findProperties("npp[Machinery]", "nppGroupMachinery[Machinery]",
-                    "overDirectory[Machinery]");
-            for (int i = 0; i < machineryProperties.length; i++) {
-                query.addProperty(machineryNames[i], machineryProperties[i].getExpr(cashRegisterExpr));
-            }
-            
-            query.and(equipmentCashRegisterLM.findProperty("departmentStore[CashRegister]").getExpr(cashRegisterExpr).compare(stockObject.getExpr(), Compare.EQUALS));
-            query.and(equipmentCashRegisterLM.findProperty("npp[Machinery]").getExpr(cashRegisterExpr).getWhere());
-            query.and(equipmentCashRegisterLM.findProperty("active[CashRegister]").getExpr(cashRegisterExpr).getWhere());
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> zReportResult = query.execute(session);
-            for (ImMap<Object, Object> entry : zReportResult.values()) {
-                Integer nppMachinery = (Integer) entry.get("nppMachinery");
-                Integer nppGroupMachinery = (Integer) entry.get("nppGroupMachineryMachinery");
-                String overDirectoryMachinery = trim((String) entry.get("overDirectoryMachinery"));
-                if(nppMachinery != null && nppGroupMachinery != null && overDirectoryMachinery != null) {
-                    List<List<Object>> nppMachineryList = cashRegisterList.containsKey(nppGroupMachinery) ? cashRegisterList.get(nppGroupMachinery) : new ArrayList<List<Object>>();
-                    nppMachineryList.add(Arrays.asList((Object) nppMachinery, overDirectoryMachinery));
-                    cashRegisterList.put(nppGroupMachinery, nppMachineryList);
-                }
-            }
-        } catch (ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
-            throw Throwables.propagate(e);
-        }
-
-        return cashRegisterList;
+        return SendSalesEquipmentServer.readCashRegistersStock(getDbManager(), idStock);
     }
 
     @Override

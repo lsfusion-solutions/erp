@@ -364,4 +364,43 @@ public class SendSalesEquipmentServer {
         }
     }
 
+    public static Map<Integer, List<List<Object>>> readCashRegistersStock(DBManager dbManager, String idStock) throws RemoteException, SQLException {
+        Map<Integer, List<List<Object>>> cashRegisterList = new HashMap<>();
+        if(equipmentCashRegisterLM != null)
+            try (DataSession session = dbManager.createSession()) {
+
+                DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
+
+                KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
+                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
+                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+
+                String[] machineryNames = new String[] {"nppMachinery", "nppGroupMachineryMachinery", "overDirectoryMachinery"};
+                LCP[] machineryProperties = equipmentCashRegisterLM.findProperties("npp[Machinery]", "nppGroupMachinery[Machinery]",
+                        "overDirectory[Machinery]");
+                for (int i = 0; i < machineryProperties.length; i++) {
+                    query.addProperty(machineryNames[i], machineryProperties[i].getExpr(cashRegisterExpr));
+                }
+
+                query.and(equipmentCashRegisterLM.findProperty("departmentStore[CashRegister]").getExpr(cashRegisterExpr).compare(stockObject.getExpr(), Compare.EQUALS));
+                query.and(equipmentCashRegisterLM.findProperty("npp[Machinery]").getExpr(cashRegisterExpr).getWhere());
+                query.and(equipmentCashRegisterLM.findProperty("active[CashRegister]").getExpr(cashRegisterExpr).getWhere());
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> zReportResult = query.execute(session);
+                for (ImMap<Object, Object> entry : zReportResult.values()) {
+                    Integer nppMachinery = (Integer) entry.get("nppMachinery");
+                    Integer nppGroupMachinery = (Integer) entry.get("nppGroupMachineryMachinery");
+                    String overDirectoryMachinery = trim((String) entry.get("overDirectoryMachinery"));
+                    if(nppMachinery != null && nppGroupMachinery != null && overDirectoryMachinery != null) {
+                        List<List<Object>> nppMachineryList = cashRegisterList.containsKey(nppGroupMachinery) ? cashRegisterList.get(nppGroupMachinery) : new ArrayList<List<Object>>();
+                        nppMachineryList.add(Arrays.asList((Object) nppMachinery, overDirectoryMachinery));
+                        cashRegisterList.put(nppGroupMachinery, nppMachineryList);
+                    }
+                }
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+
+        return cashRegisterList;
+    }
+
 }
