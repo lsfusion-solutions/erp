@@ -6,6 +6,7 @@ public class EQSSettings implements Serializable{
 
     private Boolean appendBarcode;
     private String giftCardPrefix;
+    private Boolean skipIdDepartmentStore;
 
     public EQSSettings() {
     }
@@ -24,5 +25,13 @@ public class EQSSettings implements Serializable{
 
     public void setGiftCardPrefix(String giftCardPrefix) {
         this.giftCardPrefix = giftCardPrefix;
+    }
+
+    public Boolean getSkipIdDepartmentStore() {
+        return skipIdDepartmentStore;
+    }
+
+    public void setSkipIdDepartmentStore(Boolean skipIdDepartmentStore) {
+        this.skipIdDepartmentStore = skipIdDepartmentStore;
     }
 }

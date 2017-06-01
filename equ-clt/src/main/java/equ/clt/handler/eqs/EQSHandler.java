@@ -51,6 +51,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                 EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
                 boolean appendBarcode = eqsSettings != null && eqsSettings.getAppendBarcode() != null && eqsSettings.getAppendBarcode();
+                boolean skipIdDepartmentStore = eqsSettings != null && eqsSettings.getSkipIdDepartmentStore() != null && eqsSettings.getSkipIdDepartmentStore();
 
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
@@ -70,7 +71,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         Exception exception = null;
                         try {
                             processTransactionLogger.info(String.format(logPrefix + "transaction %s, table plu", transaction.id));
-                            exportItems(conn, transaction, appendBarcode);
+                            exportItems(conn, transaction, appendBarcode, skipIdDepartmentStore);
                         } catch (Exception e) {
                             exception = e;
                         } finally {
@@ -87,7 +88,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         return sendTransactionBatchMap;
     }
 
-    private void exportItems(Connection conn, TransactionCashRegisterInfo transaction, boolean appendBarcode) throws SQLException {
+    private void exportItems(Connection conn, TransactionCashRegisterInfo transaction, boolean appendBarcode, boolean skipIdDepartmentStore) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -100,7 +101,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                 " cancelled=VALUES(cancelled), updecr=VALUES(updecr)");
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
-                    ps.setString(1, trim(item.idDepartmentStore, 10)); //store, код торговой точки
+                    ps.setString(1, skipIdDepartmentStore ? "" : trim(item.idDepartmentStore, 10)); //store, код торговой точки
                     ps.setString(2, removeCheckDigitFromBarcode(trim(item.idBarcode, 20), appendBarcode)); //barcode, Штрих-код товара
                     ps.setString(3, trim(item.idItem, 20)); //art, Артикул
                     ps.setString(4, trim(item.name, 50)); //description, Наименование товара
