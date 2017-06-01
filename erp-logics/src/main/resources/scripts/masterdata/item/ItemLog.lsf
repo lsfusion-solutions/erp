@@ -43,6 +43,7 @@ dateSession 'Дата' (ItemLog d) = DATE(dateTimeSession(d));
 CLASS TypeChange 'Тип изменения' {
     add 'Добавление',
     delete 'Удаление',
+    replace 'Объединение',
     addBarcode 'Добавление штрихкода',
     deleteBarcode 'Удаление штрихкода',
     changeBarcode 'Изменение штрихкода',
@@ -255,4 +256,38 @@ NAVIGATOR {
     systemEvents {
         ADD itemLogs;
     }
+}
+
+// объединение товара
+replaceBefore (Item i, Item item) += {
+    IF NOT disableItemLog() THEN NEW d = ItemLog {        
+        item(d) <- i;
+        id(d) <- id(i);
+        idBarcode(d) <- idBarcode(i);
+        name(d) <- nameAttribute(i);
+
+        typeChange(d) <- TypeChange.replace;
+        hostnameComputer(d) <- hostname(currentComputer());
+        userLogin(d) <- login(currentUser()); 
+        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();             
+        note(d) <- VARSTRING[500]('В товар ' + nameAttribute(item));             
+    }
+}
+
+replaceAfter (Item i) += {
+    IF NOT disableItemLog() THEN NEW d = ItemLog {        
+        item(d) <- i;
+        id(d) <- id(i);
+        idBarcode(d) <- idBarcode(i);
+        name(d) <- nameAttribute(i);
+
+        typeChange(d) <- TypeChange.replace;
+        hostnameComputer(d) <- hostname(currentComputer());
+        userLogin(d) <- login(currentUser()); 
+        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();             
+        note(d) <- 'Из товаров (удалены): ' + replaceDelNames();             
+    }
+
 }

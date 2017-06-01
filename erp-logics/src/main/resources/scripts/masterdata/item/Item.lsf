@@ -1781,21 +1781,29 @@ DESIGN confirmReplaceItem {
     MOVE functions.box;
 }
 
+replaceBefore = ACTION ABSTRACT (Sku, Sku);
+replaceAfter = ACTION ABSTRACT (Sku);
+replaceDelNames 'Удаленные товары' = DATA LOCAL NESTED VARSTRING[500]();
+
 replace 'Объединить' (Item item)= {
     IF noEventsInTransactionItem() THEN setNoEventsInTransaction();
     DIALOG confirmReplaceItem OBJECTS i=item DO {
         allowReplaceItem() <- TRUE;
         checkReplace(item);
+        replaceDelNames() <- '';
         FOR in(Item i) AND allowReplaceItem() AND item IS Item DO {
             IF i != item THEN {
+                replaceBefore(i,item);    
                 replace(i, item);
                 overReplace(item);
-                in(i) <- NULL;
+                in(i) <- NULL;                
+                replaceDelNames() <- CONCAT ' ', replaceDelNames(), nameAttribute(i) + ',';             
                 DELETE i;            
             } ELSE {
                 MESSAGE 'Выделенный товар не может совпадать с объединяемым';
             }
         }
+        replaceAfter(item);       
         apply();
     }
     in(Item i) <- NULL;           
