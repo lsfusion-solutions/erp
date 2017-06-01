@@ -349,13 +349,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         if(discountCard!= null && discountCard.isEmpty())
                             discountCard = null;
 
-                        //временные логи
-                        if (discountSum != null && discountSum.doubleValue() != 0.0) {
-                            sendSalesLogger.info(logPrefix + String.format("Данные в базе: flag %s, isReturn %s, barcode %s, amount %s, discount %s", flags, isReturn, rs.getString(4), rs.getBigDecimal(8), rs.getBigDecimal(9)));
-                        }
-
-                        //totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
-
                         boolean isGiftCard = giftCardPrefix != null && idBarcode != null && idBarcode.startsWith(giftCardPrefix);
 
                         boolean isDiscount = getBit(flags, 1);
