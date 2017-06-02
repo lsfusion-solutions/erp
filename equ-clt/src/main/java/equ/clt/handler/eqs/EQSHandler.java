@@ -327,7 +327,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                         String numberZReport = rs.getString(14); //zReport
 
-                        String idBarcode = appendCheckDigitToBarcode(rs.getString(4), 12, appendBarcode); //barcode, Штрих-код товара
+                        String idBarcode = appendCheckDigitToBarcode(rs.getString(4), 7, appendBarcode); //barcode, Штрих-код товара
                         String idItem = String.valueOf(rs.getLong(5)); //code, Код товара
                         BigDecimal totalQuantity = rs.getBigDecimal(6); //qty, Количество
                         BigDecimal price = rs.getBigDecimal(7); //price, Цена
