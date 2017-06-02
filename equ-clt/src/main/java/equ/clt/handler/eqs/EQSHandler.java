@@ -16,6 +16,8 @@ import java.sql.Date;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static equ.clt.handler.HandlerUtils.trim;
 
@@ -287,7 +289,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
         EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
         boolean appendBarcode = eqsSettings != null && eqsSettings.getAppendBarcode() != null && eqsSettings.getAppendBarcode();
-        String giftCardPrefix = eqsSettings != null ? eqsSettings.getGiftCardPrefix() : null;
+        String giftCardRegexp = eqsSettings != null ? eqsSettings.getGiftCardRegexp() : null;
 
         Set<Integer> readRecordSet = new HashSet<>();
 
@@ -349,7 +351,12 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         if(discountCard!= null && discountCard.isEmpty())
                             discountCard = null;
 
-                        boolean isGiftCard = giftCardPrefix != null && idBarcode != null && idBarcode.startsWith(giftCardPrefix);
+                        boolean isGiftCard = false;
+                        if (giftCardRegexp != null) {
+                            Pattern pattern = Pattern.compile(giftCardRegexp);
+                            Matcher matcher = pattern.matcher(idBarcode);
+                            isGiftCard = matcher.matches();
+                        }
 
                         boolean isDiscount = getBit(flags, 1);
                         boolean discountRecord = (idBarcode == null || idBarcode.isEmpty()) && isDiscount;

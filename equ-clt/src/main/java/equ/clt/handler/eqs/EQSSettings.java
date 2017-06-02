@@ -5,7 +5,7 @@ import java.io.Serializable;
 public class EQSSettings implements Serializable{
 
     private Boolean appendBarcode;
-    private String giftCardPrefix;
+    private String giftCardRegexp;
     private Boolean skipIdDepartmentStore;
 
     public EQSSettings() {
@@ -19,12 +19,12 @@ public class EQSSettings implements Serializable{
         this.appendBarcode = appendBarcode;
     }
 
-    public String getGiftCardPrefix() {
-        return giftCardPrefix;
+    public String getGiftCardRegexp() {
+        return giftCardRegexp;
     }
 
-    public void setGiftCardPrefix(String giftCardPrefix) {
-        this.giftCardPrefix = giftCardPrefix;
+    public void setGiftCardRegexp(String giftCardRegexp) {
+        this.giftCardRegexp = giftCardRegexp;
     }
 
     public Boolean getSkipIdDepartmentStore() {
