@@ -92,14 +92,26 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
     private void exportItems(Connection conn, TransactionCashRegisterInfo transaction, boolean appendBarcode, boolean skipIdDepartmentStore) throws SQLException {
         if (transaction.itemsList != null) {
-            conn.setAutoCommit(false);
             PreparedStatement ps = null;
             try {
                 if(transaction.snapshot) {
+                    conn.setAutoCommit(true);
                     Statement truncateStatement = conn.createStatement();
-                    truncateStatement.execute("TRUNCATE plu");
-                }
+                    if(skipIdDepartmentStore) {
+                        truncateStatement.execute("TRUNCATE plu");
+                    } else {
+                        //todo: добавить idDepartmentStoreGroupCashRegister в TransactionCashRegisterInfo
+                        String idDepartmentStore = null;
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                            if(idDepartmentStore == null)
+                                idDepartmentStore = item.idDepartmentStore;
+                        }
 
+                        if(idDepartmentStore != null)
+                            truncateStatement.execute("DELETE FROM plu WHERE store='"+idDepartmentStore+"'");
+                    }
+                }
+                conn.setAutoCommit(false);
                 ps = conn.prepareStatement(
                         "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, cancelled, updecr)" +
                                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
