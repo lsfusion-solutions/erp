@@ -1,0 +1,82 @@
+MODULE PurchaseAutoOrder;
+
+REQUIRE PurchaseDemand, PurchaseScheduleOrder, Range, PurchaseSeparation;
+
+NAMESPACE Purchase;
+
+@defineGroupDefaultValue(countSoldDays, 'Количество дней для расчета однодневных продаж', INTEGER, skuGroup);
+
+fromSoldDate (Sku s)= subtract(currentDate() ,countSoldDays(skuGroup(s)));      
+toSoldDate (Sku s)= subtract(currentDate(), 1) IF s IS Sku ;   
+   
+fromSoldDateMin = GROUP MIN fromSoldDate (Sku s) ;
+
+overQuantitySoldInterval() = ACTION ABSTRACT LIST ();
+calcQuantitySoldInterval 'Рассчитать однодневные продажи'() = {
+
+    averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](quantitySold (sku, stock, fromSoldDate(sku), toSoldDate(sku)) / countSoldDays(skuGroup(sku)));
+    overQuantitySoldInterval();   
+    apply();
+}
+
+FORM soldParams 'Параметры автозаказа'
+
+    TREE skuTree sk = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDER BY order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT    
+    PROPERTIES(sk) countSoldDays
+;
+
+NAVIGATOR {
+    retailRangeNavigator {
+        ADD soldParams;        
+    }
+}
+
+EXTEND FORM userOrder
+    PROPERTIES READONLY PANEL TODRAW sts averageSold(ks,st)
+;
+
+createUserOrderAuto 'Автозаказ'  = DATA BOOLEAN (ScheduleOrder) IN documentPrm;
+createUserOrderAuto 'Автозаказ' (ScheduleOrderDetail d) = createUserOrderAuto(scheduleOrder(d)); 
+
+EXTEND FORM scheduleOrder
+    PROPERTIES(s) createUserOrderAuto   
+;
+DESIGN scheduleOrder {
+    main {
+        MOVE s.documentPrm AFTER header { 
+            type = CONTAINERH;
+        }    
+    }   
+
+}
+
+EXTEND FORM scheduleOrderDashboard
+    PROPERTIES(ss) READONLY createUserOrderAuto
+;
+
+EXTEND FORM scheduleOrderDetails
+    PROPERTIES(sd) READONLY createUserOrderAuto
+;
+
+isAuto 'Автозаказ' = ABSTRACT BOOLEAN (Order);
+isAuto 'Автозаказ' = DATA BOOLEAN (UserOrder);
+isAuto[Order](UserOrder o) += isAuto(o);
+
+EXTEND FORM orders
+    PROPERTIES READONLY isAuto(o)
+    FILTERGROUP auto
+        FILTER 'Автозаказ' isAuto(o) 'F7'     
+;
+
+backgroundSku(Order o) += WHEN isAuto(o) THEN RGB(140,225,255); 
+
+autoOrderNumerator 'Нумератор для автозаказа' = DATA Numerator ();
+nameAutoOrderNumerator 'Нумератор для автозаказа' () = name(autoOrderNumerator());
+
+EXTEND FORM options PROPERTIES() nameAutoOrderNumerator;
+DESIGN options { orders { MOVE PROPERTY(nameAutoOrderNumerator()); } }
+
+
