@@ -3,6 +3,7 @@ package equ.srv;
 import com.google.common.base.Throwables;
 import equ.api.MachineryInfo;
 import equ.api.RequestExchange;
+import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.CashierInfo;
 import equ.api.cashregister.DiscountCard;
 import equ.api.terminal.TerminalOrder;
@@ -12,10 +13,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
-import lsfusion.server.classes.ConcreteClass;
-import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.classes.DateClass;
-import lsfusion.server.classes.LongClass;
+import lsfusion.server.classes.*;
 import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -40,6 +38,7 @@ import static org.apache.commons.lang3.StringUtils.trim;
 
 public class MachineryExchangeEquipmentServer {
 
+    static ScriptingLogicsModule cashRegisterLM;
     static ScriptingLogicsModule discountCardLM;
     static ScriptingLogicsModule equLM;
     static ScriptingLogicsModule purchaseInvoiceAgreementLM;
@@ -47,11 +46,116 @@ public class MachineryExchangeEquipmentServer {
     static ScriptingLogicsModule machineryPriceTransactionLM;
 
     public static void init(BusinessLogics BL) {
+        cashRegisterLM = BL.getModule("EquipmentCashRegister");
         discountCardLM = BL.getModule("DiscountCard");
         equLM = BL.getModule("Equipment");
         purchaseInvoiceAgreementLM = BL.getModule("PurchaseInvoiceAgreement");
         machineryLM = BL.getModule("Machinery");
         machineryPriceTransactionLM = BL.getModule("MachineryPriceTransaction");
+    }
+
+    public static List<RequestExchange> readRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack) throws RemoteException, SQLException {
+
+        List<RequestExchange> requestExchangeList = new ArrayList();
+        if(machineryLM != null && machineryPriceTransactionLM != null) {
+
+            try (DataSession session = dbManager.createSession()) {
+
+                KeyExpr requestExchangeExpr = new KeyExpr("requestExchange");
+                ImRevMap<Object, KeyExpr> requestExchangeKeys = MapFact.singletonRev((Object) "requestExchange", requestExchangeExpr);
+                QueryBuilder<Object, Object> requestExchangeQuery = new QueryBuilder<>(requestExchangeKeys);
+
+                String[] requestExchangeNames = new String[]{"dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
+                        "nameRequestExchangeTypeRequestExchange", "idDiscountCardFromRequestExchange", "idDiscountCardToRequestExchange"};
+                LCP[] requestExchangeProperties = machineryPriceTransactionLM.findProperties("dateFrom[RequestExchange]", "dateTo[RequestExchange]", "startDate[RequestExchange]",
+                        "nameRequestExchangeType[RequestExchange]", "idDiscountCardFrom[RequestExchange]", "idDiscountCardTo[RequestExchange]");
+                for (int i = 0; i < requestExchangeProperties.length; i++) {
+                    requestExchangeQuery.addProperty(requestExchangeNames[i], requestExchangeProperties[i].getExpr(requestExchangeExpr));
+                }
+                requestExchangeQuery.and(machineryPriceTransactionLM.findProperty("notSucceeded[RequestExchange]").getExpr(requestExchangeExpr).getWhere());
+                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> requestExchangeResult = requestExchangeQuery.executeClasses(session);
+                for (int i = 0; i < requestExchangeResult.size(); i++) {
+
+                    DataObject requestExchangeObject = requestExchangeResult.getKey(i).get("requestExchange");
+                    Date dateFromRequestExchange = (Date) requestExchangeResult.getValue(i).get("dateFromRequestExchange").getValue();
+                    Date dateToRequestExchange = (Date) requestExchangeResult.getValue(i).get("dateToRequestExchange").getValue();
+                    Date startDateRequestExchange = (Date) requestExchangeResult.getValue(i).get("startDateRequestExchange").getValue();
+                    String idDiscountCardFrom = trim((String) requestExchangeResult.getValue(i).get("idDiscountCardFromRequestExchange").getValue());
+                    String idDiscountCardTo = trim((String) requestExchangeResult.getValue(i).get("idDiscountCardToRequestExchange").getValue());
+                    String typeRequestExchange = trim((String) requestExchangeResult.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
+
+                    Set<CashRegisterInfo> cashRegisterSet = new HashSet<> ();
+                    Map<String, Set<String>> directoryStockMap = readExtraStockRequestExchange(session, requestExchangeObject);
+                    String idStock = null;
+
+                    KeyExpr machineryExpr = new KeyExpr("machinery");
+                    ImRevMap<Object, KeyExpr> machineryKeys = MapFact.singletonRev((Object) "machinery", machineryExpr);
+                    QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(machineryKeys);
+
+                    String[] machineryNames = new String[]{"overDirectoryMachinery", "idStockMachinery", "nppMachinery", "handlerModelMachinery"};
+                    LCP[] machineryProperties = machineryPriceTransactionLM.findProperties("overDirectory[Machinery]", "idStock[Machinery]",
+                            "npp[Machinery]", "handlerModel[Machinery]");
+                    for (int j = 0; j < machineryProperties.length; j++) {
+                        machineryQuery.addProperty(machineryNames[j], machineryProperties[j].getExpr(machineryExpr));
+                    }
+                    machineryQuery.and(machineryPriceTransactionLM.findProperty("in[Machinery,RequestExchange]").getExpr(machineryExpr, requestExchangeObject.getExpr()).getWhere());
+                    machineryQuery.and(machineryLM.findProperty("stock[Machinery]").getExpr(machineryExpr).compare(
+                            machineryPriceTransactionLM.findProperty("stock[RequestExchange]").getExpr(requestExchangeObject.getExpr()), Compare.EQUALS));
+                    machineryQuery.and(machineryLM.findProperty("inactive[Machinery]").getExpr(machineryExpr).getWhere().not());
+                    ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = machineryQuery.executeClasses(session);
+                    for (int j = 0; j < result.size(); j++) {
+
+                        String directoryMachinery = trim((String) result.getValue(j).get("overDirectoryMachinery").getValue());
+                        idStock = trim((String) result.getValue(j).get("idStockMachinery").getValue());
+                        Integer nppMachinery = (Integer) result.getValue(j).get("nppMachinery").getValue();
+                        String handlerModelMachinery = trim((String) result.getValue(j).get("handlerModelMachinery").getValue());
+
+                        ConcreteClass machineryClass = result.getKey(j).get("machinery").objectClass;
+                        ValueClass cashRegisterClass = cashRegisterLM == null ? null : cashRegisterLM.findClass("CashRegister");
+                        if(machineryClass != null && machineryClass.equals(cashRegisterClass))
+                            cashRegisterSet.add(new CashRegisterInfo(null, nppMachinery, handlerModelMachinery, null, directoryMachinery, null, null));
+                        putDirectoryStockMap(directoryStockMap, directoryMachinery, idStock);
+                    }
+
+                    requestExchangeList.add(new RequestExchange((Integer) requestExchangeObject.getValue(), cashRegisterSet,
+                            idStock, directoryStockMap, dateFromRequestExchange, dateToRequestExchange,
+                            startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
+                }
+                session.apply(BL, stack);
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return requestExchangeList;
+    }
+
+    private static Map<String, Set<String>> readExtraStockRequestExchange(DataSession session, DataObject requestExchangeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, Set<String>> directoryStockMap = new HashMap<>();
+        KeyExpr stockExpr = new KeyExpr("stock");
+        KeyExpr machineryExpr = new KeyExpr("machinery");
+        ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "stock", stockExpr, "machinery", machineryExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+
+        query.addProperty("idStock", machineryPriceTransactionLM.findProperty("id[Stock]").getExpr(stockExpr));
+        query.addProperty("overDirectoryMachinery", machineryPriceTransactionLM.findProperty("overDirectory[Machinery]").getExpr(machineryExpr));
+        query.and(machineryPriceTransactionLM.findProperty("in[Stock,RequestExchange]").getExpr(stockExpr, requestExchangeObject.getExpr()).getWhere());
+        query.and(machineryPriceTransactionLM.findProperty("overDirectory[Machinery]").getExpr(machineryExpr).getWhere());
+        query.and(machineryLM.findProperty("stock[Machinery]").getExpr(machineryExpr).compare(stockExpr, Compare.EQUALS));
+        query.and(machineryLM.findProperty("inactive[Machinery]").getExpr(machineryExpr).getWhere().not());
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+        for (ImMap<Object, Object> entry : result.values())
+            putDirectoryStockMap(directoryStockMap, trim((String) entry.get("overDirectoryMachinery")), trim((String) entry.get("idStock")));
+        return directoryStockMap;
+    }
+
+    private static void putDirectoryStockMap(Map<String, Set<String>> directoryStockMap, String directory, String idStock) {
+        if(directory != null) {
+            Set<String> stockSet = directoryStockMap.get(directory);
+            if (stockSet == null)
+                stockSet = new HashSet();
+            stockSet.add(idStock);
+            directoryStockMap.put(directory, stockSet);
+        }
     }
 
     public static void errorRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Map<Integer, String> succeededRequestsMap) throws RemoteException, SQLException {
