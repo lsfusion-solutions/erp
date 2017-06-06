@@ -314,7 +314,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         try {
             statement = conn.createStatement();
             String query = "SELECT type, ecr, doc, barcode, code, qty, price, amount, discount, department, flags, date, id," +
-                    " zreport, payment, customer FROM history WHERE new = 1";
+                    " zreport, payment, customer, `change` FROM history WHERE new = 1";
             ResultSet rs = statement.executeQuery(query);
 
             int position = 0;
@@ -365,7 +365,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         Time timeReceipt = rs.getTime(12); //r.date
 
                         String discountCard = trim(rs.getString(16), null, 18); //r.customer
-                        if(discountCard!= null && discountCard.isEmpty())
+                        if (discountCard != null && discountCard.isEmpty())
                             discountCard = null;
 
                         boolean isGiftCard = false;
@@ -377,8 +377,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                         boolean isDiscount = getBit(flags, 1);
                         boolean discountRecord = (idBarcode == null || idBarcode.isEmpty()) && isDiscount;
-                        if(discountRecord) {
-                            for(SalesInfo s : currentSalesInfoList) {
+                        if (discountRecord) {
+                            for (SalesInfo s : currentSalesInfoList) {
                                 s.discountSumReceipt = discountSum;
                                 s.sumReceiptDetail = HandlerUtils.safeAdd(s.sumReceiptDetail, rs.getBigDecimal(9)); //discountSum is negative
                             }
@@ -401,12 +401,17 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             else if (typePayment == 2) {
                                 GiftCard sumGiftCard = salesInfo.sumGiftCardMap.get(null);
                                 salesInfo.sumGiftCardMap.put(null, new GiftCard(HandlerUtils.safeAdd(sumGiftCard.sum, sumPayment)));
-                            }
-                            else
+                            } else
                                 salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
                         }
                         break;
                     case 8: //Закрытие чека
+                        BigDecimal change = rs.getBigDecimal(17);
+                        if (change != null && !change.equals(BigDecimal.ZERO)) {
+                            for (SalesInfo salesInfo : currentSalesInfoList) {
+                                salesInfo.sumCash = HandlerUtils.safeSubtract(salesInfo.sumCash, change);
+                            }
+                        }
                         salesInfoList.addAll(currentSalesInfoList);
                         readRecordSet.addAll(currentReadRecordSet);
                         currentReadRecordSet = new HashSet<>();
