@@ -1,0 +1,101 @@
+MODULE PurchaseInvoiceMultiRate;
+
+REQUIRE PurchaseInvoice;
+
+NAMESPACE Purchase;
+
+
+isMultiRate 'Несколько платежей' = ABSTRACT BOOLEAN(Invoice);
+isMultiRate 'Несколько платежей' = DATA BOOLEAN(UserInvoice);
+isMultiRate(UserInvoice i) += isMultiRate(i);
+
+CLASS MultiRatePayment 'Платеж';
+TABLE multiRatePayment (MultiRatePayment);
+
+invoice = DATA Invoice (MultiRatePayment) NOT NULL DELETE;
+date 'Дата' = DATA DATE(MultiRatePayment);
+sum 'Сумма' = DATA NUMERIC[18,4](MultiRatePayment);
+
+rateExchange 'Курс'(MultiRatePayment p) = rateOn(typeExchange(invoice(p)), currency(invoice(p)), date(p));
+
+sumPayments  = GROUP SUM sum(MultiRatePayment p) BY invoice(p);
+CONSTRAINT sumInvoiceDetail(Invoice i) < sumPayments(i) MESSAGE 'Сумма платежей больше, чем сумма накладной';
+
+CONSTRAINT date(MultiRatePayment p) > dateRateExchange(invoice(p)) MESSAGE 'Дата предоплаты больше, чем дата выпуска в обращение';
+
+EXTEND FORM invoices
+    OBJECTS p = MultiRatePayment
+    PROPERTIES(p) SHOWIF isMultiRate(i) READONLY date, sum BACKGROUND backgroundHomeCurrency(i), rateExchange 
+    FILTERS invoice(p) = i    
+;
+
+DESIGN invoices {
+    documentDetail {
+        NEW documentPayments {
+            caption = 'Платежи';
+            MOVE p.box;
+        }
+    }
+}
+
+rateExchangeMulti = DATA LOCAL NUMERIC[14,6](UserInvoice);
+
+calcRateExchangeMulti(UserInvoice i) = {
+    LOCAL coeff = NUMERIC[36,18](MultiRatePayment); 
+    LOCAL coeffInvoice = NUMERIC[36,18](UserInvoice); 
+    
+    FOR (invoice(MultiRatePayment pt) == i) AND sumInvoiceDetail(i) DO {
+        coeff(pt) <- sum(pt)/sumInvoiceDetail(invoice(pt));
+        coeffInvoice(i) <- (sumInvoiceDetail(invoice(pt)) - sumPayments(invoice(pt))) / sumInvoiceDetail(invoice(pt));
+    }
+    
+    rateExchangeMulti(i) <- NUMERIC[14,6]([= GROUP SUM coeff(MultiRatePayment pt) * rateExchange(pt) BY invoice(pt)](i) (+) coeffInvoice(i)*rateExchange(i));
+    FOR (userInvoice(UserInvoiceDetail d) == i) DO {
+        dataRateExchange(d) <- rateExchangeMulti(i);
+    }
+    
+}
+
+calcRateExchangeMultiByDate(UserInvoice i, MultiRatePayment p) = {
+    INPUT d = DATE DO
+        date(p) <- d;    
+    calcRateExchangeMulti(i); 
+}
+
+calcRateExchangeMultiBySum(UserInvoice i, MultiRatePayment p) = {
+    INPUT s = NUMERIC[18,4] DO
+        sum(p) <- s;    
+    calcRateExchangeMulti(i); 
+}
+
+WHEN LOCAL FORMS userInvoice CHANGED (rateExchange(UserInvoice i)) AND isMultiRate(i) DO {
+    calcRateExchangeMulti(i);
+}
+
+WHEN LOCAL FORMS userInvoice DROPPED (MultiRatePayment p IS MultiRatePayment) DO {
+    calcRateExchangeMulti(PREV(invoice(p)));
+}
+
+calcHomePrice(UserInvoiceDetail d) += WHEN rateExchangeMulti(invoice(d)) THEN
+        NUMERIC[16,4](round2(price(d) * rateExchangeMulti(invoice(d)))); 
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) BACKGROUND backgroundHomeCurrency(i) SHOWIF isHomeCurrency(i) isMultiRate
+    
+    OBJECTS p = MultiRatePayment
+    PROPERTIES(p) SHOWIF isMultiRate(i) date ON CHANGE calcRateExchangeMultiByDate(i,p), sum BACKGROUND backgroundHomeCurrency(i) ON CHANGE calcRateExchangeMultiBySum(i,p)   
+    PROPERTIES(p) SHOWIF isMultiRate(i) rateExchange, NEW, DELETE GRID
+    FILTERS invoice(p) = i    
+;
+    
+DESIGN userInvoice {
+    headerHomeCurrency {
+        MOVE PROPERTY(isMultiRate(i));
+    }
+    specification.box {
+        NEW documentPayments {
+            caption = 'Платежи';
+            MOVE p.box;
+        }
+    }    
+}

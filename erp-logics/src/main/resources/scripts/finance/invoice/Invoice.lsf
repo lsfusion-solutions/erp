@@ -1185,9 +1185,7 @@ META defineInvoiceHomeCurrency(dumb)
     WHEN LOCAL FORMS userInvoice CHANGED (dateRateExchange(UserInvoice i)) OR
                                    CHANGED (typeExchange(i)) OR
                                    CHANGED (currency(i)) DO {
-        rateExchange(i) <- rateOn(typeExchange(i),
-                                                                   currency(i),
-                                                                   dateRateExchange(i));
+         rateExchange(i) <- NUMERIC[14,6](rateOn(typeExchange(i), currency(i), dateRateExchange(i)));
     }
 
     rateExchange 'Курс' = ABSTRACT NUMERIC[14,6](InvoiceDetail) MATERIALIZED;
@@ -1204,9 +1202,12 @@ META defineInvoiceHomeCurrency(dumb)
         dataRateExchange(d) <- dataRateExchange(detail);
     }  
 
-    homePrice(UserInvoiceDetail d) <- round2(price(d) * rateExchange(d)) // пока округляем до копеек всегда
-                                                   WHEN CHANGED (rateExchange(d)) OR
-                                                        CHANGED (price(d));
+    calcHomePrice = ABSTRACT CASE NUMERIC[16,4](InvoiceDetail);
+    calcHomePrice(UserInvoiceDetail d) += WHEN rateExchange(d) THEN
+            NUMERIC[16,4](round2(price(d) * rateExchange(d))); // пока округляем до копеек всегда
+            
+    WHEN LOCAL CHANGED(calcHomePrice(UserInvoiceDetail d)) AND NOT CHANGED(homePrice(d)) DO
+        homePrice(d) <- calcHomePrice(d);
 
     homeSum 'Сумма (конв.)' (InvoiceDetail d) = round2(sum(d) * rateExchange(d));
     homeSum 'Сумма (конв.)' (UserInvoiceDetail d) = round2(sum(d) * rateExchange(d));
