@@ -170,7 +170,6 @@ public class EquipmentServer {
                         processDeleteBarcodeThread.interrupt();
                         processDeleteBarcodeThread = null;
                         if(sendSalesThread != null) {
-                            sendSalesLogger.error("Extra Log: ", e);
                             sendSalesThread.interrupt();
                             sendSalesThread = null;
                         }
@@ -281,22 +280,17 @@ public class EquipmentServer {
         processDeleteBarcodeThread.start();
 
         if(!disableSales) {
-            sendSalesLogger.info("Extra Log: Starting SendSalesThread");
             sendSalesConsumer = new Consumer() {
                 @Override
                 void runTask() throws Exception {
                     try {
                         if(isTimeToRun())
                             SendSalesEquipmentServer.sendSalesInfo(remote, sidEquipmentServer, mergeBatches);
-                        else
-                            sendSalesLogger.info("Extra Log: not time to run");
                     } catch (ConnectException e) {
-                        sendSalesLogger.error("Extra Log: ", e);
                         needReconnect = true;
                     } catch (UnmarshalException e) {
                         if (e.getCause() instanceof InvalidClassException)
                             sendSalesLogger.error("API changed! InvalidClassException");
-                        sendSalesLogger.error("Extra Log: ", e);
                         throw e;
                     }
                 }
@@ -304,7 +298,6 @@ public class EquipmentServer {
             sendSalesThread = new Thread(sendSalesConsumer);
             sendSalesThread.setDaemon(true);
             sendSalesThread.start();
-            sendSalesLogger.info("Extra Log: Started SendSalesThread");
         }
 
         sendSoftCheckConsumer = new Consumer() {
@@ -368,7 +361,9 @@ public class EquipmentServer {
 
     private boolean isTimeToRun() {
         boolean start = true;
-        if (equipmentServerSettings.timeFrom != null && equipmentServerSettings.timeTo != null) {
+        if(equipmentServerSettings == null) {
+            start = false;
+        } else if (equipmentServerSettings.timeFrom != null && equipmentServerSettings.timeTo != null) {
             Calendar currentCal = Calendar.getInstance();
 
             Calendar calendarFrom = Calendar.getInstance();
@@ -460,7 +455,6 @@ public class EquipmentServer {
         if(processDeleteBarcodeThread != null)
             processDeleteBarcodeThread.interrupt();
         if(sendSalesThread != null) {
-            sendSalesLogger.info("Extra Log: Stop called");
             sendSalesThread.interrupt();
         }
         if(sendSoftCheckThread != null)
@@ -511,7 +505,6 @@ public class EquipmentServer {
                     queue.take();
                     runTask();
                 } catch (InterruptedException e) {
-                    logger.error("Extra Log: ", e);
                     return;
                 } catch (Exception e) {
                     logger.error("Unhandled exception : ", e);
