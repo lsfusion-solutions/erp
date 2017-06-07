@@ -290,6 +290,9 @@ show[SkuLedger](ShipmentBatch batch) += { show(shipmentDetail(batch)); }
 // Проводим по регистру учетных цен
 supplier (ShipmentBatch ledger) = supplier(shipmentDetail(ledger));
 @implementSystemLedgerPriceListTypeBatch(account, ShipmentBatch, supplier, stock);
+skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE OVERRIDE BOOLEAN(ShipmentBatch);
+skipChangeLedger(ShipmentBatch b) += dataSkipChangeLedger(invoiceDetail(shipmentDetail(b)));
+skip[PriceListLedger](ShipmentBatch ledger) += skipChangeLedger(ledger);
 
 // Создаем просто inLIFOSkuLedger
 createSkuLedger (ShipmentDetail detail) = detail IS ShipmentDetail AND NOT createBatch(detail);
@@ -335,6 +338,10 @@ overBatch(InvoiceDetail detail)= OVERRIDE ledgerBatch(invoiceShipmentDetail(deta
 supplier (ShipmentSkuLedger ledger) = supplier(shipmentDetail(ledger));
 @implementSystemLedgerPriceListType(account, ShipmentSkuLedger, supplier, stock);
 in (ShipmentSkuLedger ledger, Batch batch) += batch(shipmentDetail(ledger)) == batch; 
+
+skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE OVERRIDE BOOLEAN(ShipmentSkuLedger);
+skipChangeLedger(ShipmentSkuLedger b) += dataSkipChangeLedger(invoiceDetail(shipmentDetail(b)));
+skip[PriceListLedger](ShipmentSkuLedger ledger) += skipChangeLedger(ledger);
 
 //
 defaultUserShipmentDetail (sku, shipment, price) = GROUP MIN UserShipmentDetail detail IF NOT batch(detail)

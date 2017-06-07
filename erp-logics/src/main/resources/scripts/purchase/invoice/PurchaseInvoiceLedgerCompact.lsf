@@ -1,0 +1,68 @@
+MODULE PurchaseInvoiceLedgerCompact;
+
+REQUIRE PurchaseInvoice, PricingPurchase, PriceListLedger;
+
+NAMESPACE Purchase;
+
+
+countDaysNotCompactLedger 'Количество дней старше которых очищать регистр цен' = DATA INTEGER ();
+intervalCompactLedger 'Количество дней для очистки регистра цен' = DATA INTEGER ();
+dateLastCompactLedger 'Дата до которой очищен регистр цен' = DATA DATE ();
+
+
+compactLedger 'Очистить регистр цен'(DATE dFrom, DATE dTo) = {
+    NEWSESSION {
+        
+        LOCAL countMove = INTEGER (Sku, Stock);
+        countMove(Sku s, Stock st) <- [= GROUP SUM 1 IF date(UserInvoiceDetail d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), customerStock(d), dFrom, dTo](s, st, dFrom, dTo);
+        MESSAGE NOWAIT 'Общее число строк: ' + [=GROUP SUM 1 IF countMove(Sku s, Stock st)]();
+        
+        LOCAL NESTED price = NUMERIC[16,5] (Sku, Stock);
+        price(Sku s, Stock st) <- priceB[LedgerPriceListType, Sku, Stock, DATETIME ](SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, s, st, DATETIME(dFrom)) WHERE countMove(s,st);
+        
+        LOCAL NESTED shipmentPrice = NUMERIC[16,5] (Sku, Stock);
+        shipmentPrice(Sku s, Stock st) <- priceB[LedgerPriceListType, Sku, Stock, DATETIME ](SystemLedgerPriceListType.accountPriceListType, s, st, DATETIME(dFrom)) WHERE countMove(s, st);
+        
+        FOR iterate(DATE dt, dFrom, dTo) DO {
+
+            FOR date(InvoiceDetail d) == dt AND Sku s == sku(d) AND Stock st == customerStock(d) AND NOT explicitBatchLedger(customerStock(d)) AND NOT skipChangeLedger(d) ORDER dateTime(d) DO {
+                
+                IF price(s, st) == price(d) AND shipmentPrice(s, st) == shipmentPrice(d) AND prevRetailPricingPriceB(s, st, shipmentDateTime(d)) == retailPrice(d) THEN {
+                    
+                    dataSkipChangeLedger(d) <- TRUE WHERE NOT currentBalance(overBatch(d), st) > 0.0;
+                    
+                } ELSE {
+                    price(s, st) <- price(d);
+                    shipmentPrice(s, st) <- shipmentPrice(d);
+                }
+            }
+
+            countMove(Sku s, Stock st) <- [= GROUP SUM 1 BY sku(UserInvoiceDetail d), customerStock(d), date( d)](s, st, dt);
+            IF [=GROUP SUM 1 IF countMove(Sku s, Stock st)]() THEN 
+                MESSAGE NOWAIT CONCAT '', VARSTRING[10](dt), ' - Всего:' + [=GROUP SUM 1 IF countMove(Sku s, Stock st)](), ' Очищено:' + [= GROUP SUM 1 IF CHANGED (dataSkipChangeLedger(InvoiceDetail d))]();
+            
+            dateLastCompactLedger() <- dt;
+            APPLY ;
+        }
+        
+    }
+}
+
+nextDateCompactLedger 'Новая дата очистки' = (MIN sum(dateLastCompactLedger(), intervalCompactLedger()), subtract(currentDate(), countDaysNotCompactLedger()));
+
+compactLedgerPeriod 'Очистить регистр цен'() = {
+    compactLedger(sum(dateLastCompactLedger(), 1), nextDateCompactLedger());
+}
+
+EXTEND FORM options
+    PROPERTIES () countDaysNotCompactLedger, intervalCompactLedger, dateLastCompactLedger, nextDateCompactLedger READONLY, compactLedgerPeriod;
+    
+DESIGN options {
+    purchase {
+        MOVE PROPERTY (countDaysNotCompactLedger());
+        MOVE PROPERTY (intervalCompactLedger());
+        MOVE PROPERTY (dateLastCompactLedger());
+        MOVE PROPERTY (nextDateCompactLedger());
+        MOVE PROPERTY (compactLedgerPeriod());
+    }
+}
