@@ -1356,7 +1356,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
         query.addProperty("Purchase.idUserInvoice", findProperty("id[UserInvoice]").getExpr(session.getModifier(), key));
-        query.and(findProperty("id[UserInvoice]").getExpr(key).getWhere());
+        query.and(findProperty("id[UserInvoice]").getExpr(session.getModifier(), key).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
