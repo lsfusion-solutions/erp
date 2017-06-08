@@ -14,12 +14,19 @@ in (Sku s, Range r, Store st, DATE d) += include(rangeRev(r, d), st, s);
 
 inFilter 'В ассортименте' = GROUP SUM 1 IF include(RangeRev v, Store st, Sku s) BY v,s;
 EXTEND FORM rangeRev
-    OBJECTS store1 = Store BEFORE s  
+    OBJECTS store1 = Store BEFORE s
+    PROPERTIES (store1) nameStoreType
     PROPERTIES include(v,store1,s) COLUMNS (store1) HEADER name(store1)
+    FILTERS active(store1)
+    ORDER BY nameStoreType(store1)
     FILTERGROUP filters
         FILTER 'Включен' inFilter(v, s)  DEFAULT
         FILTER 'Без поставщиков' inFilter(v, s) AND NOT companyA(pt, s, d, dateTime(v))      
 ;
+
+DESIGN rangeRev{
+    PROPERTY(nameStoreType(store1)) { hide = TRUE;}
+}
 
 counInclude 'Кол-во товаров' = GROUP SUM 1 IF include(RangeRev v, Store st, Sku s) BY v,st;
 counInclude 'Кол-во товаров' = GROUP SUM 1 IF include(RangeRev v, Store st, Sku s) BY v,s;
