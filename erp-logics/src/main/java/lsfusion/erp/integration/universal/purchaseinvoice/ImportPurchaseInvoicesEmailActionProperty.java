@@ -113,73 +113,74 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
                         if (fromAddressEmail != null && fromAddressEmail.toLowerCase().matches(emailPattern)) {
-                            byte[] fileAttachment;
+                            byte[] fileAttachment = null;
                             try {
                                 fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
                             } catch (Exception e) {
                                 logImportError(context, attachmentEmailObject, e.getLocalizedMessage(), isOld);
                                 ServerLoggers.importLogger.error("ImportPurchaseInvoices Error for attachment: " + nameAttachmentEmail, e);
-                                throw Throwables.propagate(e);
                             }
+                            if(fileAttachment != null) {
 
-                            List<Pair<String, byte[]>> files = new ArrayList<>();
-                            if (nameAttachmentEmail != null) {
-                                if (nameAttachmentEmail.toLowerCase().endsWith(".rar")) {
-                                    files = unpackRARFile(fileAttachment, fileExtension);
-                                    if(files.isEmpty())
-                                        logImportError(context, attachmentEmailObject, "Архив пуст или повреждён", isOld);                                    
-                                } else if (nameAttachmentEmail.toLowerCase().endsWith(".zip")) {
-                                    files = unpackZIPFile(fileAttachment, fileExtension);
-                                    if(files.isEmpty())
-                                        logImportError(context, attachmentEmailObject, "Архив пуст или повреждён", isOld);
-                                } else
-                                    files.add(Pair.create(nameAttachmentEmail, fileAttachment));
-                            } 
+                                List<Pair<String, byte[]>> files = new ArrayList<>();
+                                if (nameAttachmentEmail != null) {
+                                    if (nameAttachmentEmail.toLowerCase().endsWith(".rar")) {
+                                        files = unpackRARFile(fileAttachment, fileExtension);
+                                        if (files.isEmpty())
+                                            logImportError(context, attachmentEmailObject, "Архив пуст или повреждён", isOld);
+                                    } else if (nameAttachmentEmail.toLowerCase().endsWith(".zip")) {
+                                        files = unpackZIPFile(fileAttachment, fileExtension);
+                                        if (files.isEmpty())
+                                            logImportError(context, attachmentEmailObject, "Архив пуст или повреждён", isOld);
+                                    } else
+                                        files.add(Pair.create(nameAttachmentEmail, fileAttachment));
+                                }
 
-                            boolean imported = true;
-                            for(Pair<String, byte[]> file : files) {
-                                try (DataSession currentSession = context.createSession()) {
-                                    DataObject invoiceObject = multipleDocuments ? null : currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
+                                boolean imported = true;
+                                for (Pair<String, byte[]> file : files) {
+                                    try (DataSession currentSession = context.createSession()) {
+                                        DataObject invoiceObject = multipleDocuments ? null : currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
 
-                                    try {
+                                        try {
 
-                                        int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context,
-                                                currentSession, invoiceObject, importTypeObject, file.second, fileExtension,
-                                                settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, checkInvoiceExistence);
+                                            int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context,
+                                                    currentSession, invoiceObject, importTypeObject, file.second, fileExtension,
+                                                    settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, checkInvoiceExistence);
 
-                                        findProperty("original[Purchase.Invoice]").change(
-                                                new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);
+                                            findProperty("original[Purchase.Invoice]").change(
+                                                    new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);
 
-                                        findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
+                                            findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
 
-                                        if (importResult >= IMPORT_RESULT_OK) {
-                                            String result = currentSession.applyMessage(context);
-                                            if(result != null) {
-                                                importResult = IMPORT_RESULT_ERROR;
-                                                logImportError(context, attachmentEmailObject, file.first + ": " + result, isOld);
+                                            if (importResult >= IMPORT_RESULT_OK) {
+                                                String result = currentSession.applyMessage(context);
+                                                if (result != null) {
+                                                    importResult = IMPORT_RESULT_ERROR;
+                                                    logImportError(context, attachmentEmailObject, file.first + ": " + result, isOld);
+                                                }
                                             }
-                                        }
-                                        if (importResult < IMPORT_RESULT_EMPTY) {
-                                            imported = false;
-                                        }
+                                            if (importResult < IMPORT_RESULT_EMPTY) {
+                                                imported = false;
+                                            }
 
-                                    } catch (Exception e) {
-                                        imported = false;
-                                        logImportError(context, attachmentEmailObject, file.first + ": " + e.toString(), isOld);
-                                        ServerLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
+                                        } catch (Exception e) {
+                                            imported = false;
+                                            logImportError(context, attachmentEmailObject, file.first + ": " + e.toString(), isOld);
+                                            ServerLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
+                                        }
                                     }
                                 }
-                            }
 
-                            if (imported) {
-                                try (DataSession postImportSession = context.createSession()) {
-                                    findProperty("imported[AttachmentEmail]").change(true, postImportSession, (DataObject) attachmentEmailObject);
-                                    postImportSession.apply(context);
-                                }
-                            } else if (isOld) {
-                                try (DataSession postImportSession = context.createSession()) {
-                                    findProperty("importError[AttachmentEmail]").change(true, postImportSession, (DataObject) attachmentEmailObject);
-                                    postImportSession.apply(context);
+                                if (imported) {
+                                    try (DataSession postImportSession = context.createSession()) {
+                                        findProperty("imported[AttachmentEmail]").change(true, postImportSession, (DataObject) attachmentEmailObject);
+                                        postImportSession.apply(context);
+                                    }
+                                } else if (isOld) {
+                                    try (DataSession postImportSession = context.createSession()) {
+                                        findProperty("importError[AttachmentEmail]").change(true, postImportSession, (DataObject) attachmentEmailObject);
+                                        postImportSession.apply(context);
+                                    }
                                 }
                             }
 
