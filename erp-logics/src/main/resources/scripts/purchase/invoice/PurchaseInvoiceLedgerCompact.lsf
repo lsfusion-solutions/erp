@@ -13,19 +13,19 @@ dateLastCompactLedger 'Дата до которой очищен регистр 
 compactLedger 'Очистить регистр цен'(DATE dFrom, DATE dTo) = {
     NEWSESSION {
         
-        LOCAL countMove = INTEGER (Sku, Stock);
-        countMove(Sku s, Stock st) <- [= GROUP SUM 1 IF date(UserInvoiceDetail d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), customerStock(d), dFrom, dTo](s, st, dFrom, dTo);
-        MESSAGE NOWAIT 'Общее число строк: ' + [=GROUP SUM 1 IF countMove(Sku s, Stock st)]();
+        LOCAL countMove = INTEGER (Sku, DepartmentStore);
+        countMove(Sku s, DepartmentStore st) <- [= GROUP SUM 1 IF date(UserInvoiceDetail d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), customerStock(d), dFrom, dTo](s, st, dFrom, dTo);
+        MESSAGE NOWAIT 'Общее число строк: ' + [=GROUP SUM 1 IF countMove(Sku s, DepartmentStore st)]();
         
-        LOCAL NESTED price = NUMERIC[16,5] (Sku, Stock);
-        price(Sku s, Stock st) <- priceB[LedgerPriceListType, Sku, Stock, DATETIME ](SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, s, st, DATETIME(dFrom)) WHERE countMove(s,st);
+        LOCAL NESTED price = NUMERIC[16,5] (Sku, DepartmentStore);
+        price(Sku s, DepartmentStore st) <- priceB[LedgerPriceListType, Sku, DepartmentStore, DATETIME ](SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, s, st, DATETIME(dFrom)) WHERE countMove(s,st);
         
-        LOCAL NESTED shipmentPrice = NUMERIC[16,5] (Sku, Stock);
-        shipmentPrice(Sku s, Stock st) <- priceB[LedgerPriceListType, Sku, Stock, DATETIME ](SystemLedgerPriceListType.accountPriceListType, s, st, DATETIME(dFrom)) WHERE countMove(s, st);
+        LOCAL NESTED shipmentPrice = NUMERIC[16,5] (Sku, DepartmentStore);
+        shipmentPrice(Sku s, DepartmentStore st) <- priceB[LedgerPriceListType, Sku, DepartmentStore, DATETIME ](SystemLedgerPriceListType.accountPriceListType, s, st, DATETIME(dFrom)) WHERE countMove(s, st);
         
         FOR iterate(DATE dt, dFrom, dTo) DO {
 
-            FOR date(InvoiceDetail d) == dt AND Sku s == sku(d) AND Stock st == customerStock(d) AND NOT explicitBatchLedger(customerStock(d)) AND NOT skipChangeLedger(d) ORDER dateTime(d) DO {
+            FOR date(InvoiceDetail d) == dt AND Sku s == sku(d) AND DepartmentStore st == customerStock(d) AND st IS DepartmentStore AND NOT explicitBatchLedger(customerStock(d)) AND NOT skipChangeLedger(d) ORDER dateTime(d) DO {
                 
                 IF price(s, st) == price(d) AND shipmentPrice(s, st) == shipmentPrice(d) AND prevRetailPricingPriceB(s, st, shipmentDateTime(d)) == retailPrice(d) THEN {
                     
@@ -37,9 +37,9 @@ compactLedger 'Очистить регистр цен'(DATE dFrom, DATE dTo) = {
                 }
             }
 
-            countMove(Sku s, Stock st) <- [= GROUP SUM 1 BY sku(UserInvoiceDetail d), customerStock(d), date( d)](s, st, dt);
-            IF [=GROUP SUM 1 IF countMove(Sku s, Stock st)]() THEN 
-                MESSAGE NOWAIT CONCAT '', VARSTRING[10](dt), ' - Всего:' + [=GROUP SUM 1 IF countMove(Sku s, Stock st)](), ' Очищено:' + [= GROUP SUM 1 IF CHANGED (dataSkipChangeLedger(InvoiceDetail d))]();
+            countMove(Sku s, DepartmentStore st) <- [= GROUP SUM 1 BY sku(UserInvoiceDetail d), customerStock(d), date( d)](s, st, dt);
+            IF [=GROUP SUM 1 IF countMove(Sku s, DepartmentStore st)]() THEN 
+                MESSAGE NOWAIT CONCAT '', VARSTRING[10](dt), ' - Всего:' + [=GROUP SUM 1 IF countMove(Sku s, DepartmentStore st)](), ' Очищено:' + [= GROUP SUM 1 IF CHANGED (dataSkipChangeLedger(InvoiceDetail d))]();
             
             dateLastCompactLedger() <- dt;
             APPLY ;
