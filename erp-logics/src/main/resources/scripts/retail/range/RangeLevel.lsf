@@ -1,0 +1,499 @@
+MODULE RangeLevel;
+
+REQUIRE Range;
+NAMESPACE Range;
+
+CLASS RangeLevel 'Уровень ассортимента';
+TABLE rangeLevel(RangeLevel);
+name 'Название' = DATA VARISTRING[10] (RangeLevel) IN recognize;
+rangeLevel (name) = GROUP AGGR (RangeLevel level) BY name (level);
+
+
+FORM rangeLevel 'Уровень ассортимента'
+    OBJECTS l = RangeLevel PANEL
+    PROPERTIES(l) name
+
+    EDIT RangeLevel OBJECT l
+;
+
+FORM rangeLevels 'Уровни ассортимента'
+    OBJECTS l = RangeLevel
+    PROPERTIES(l) READONLY name
+    PROPERTIES(l) NEWSESSION NEW, EDIT, DELETE 
+;
+
+FORM dialogRangeLevels 'Уровни ассортимента'
+    OBJECTS l = RangeLevel
+    PROPERTIES(l) READONLY name
+    
+    LIST RangeLevel OBJECT l
+;
+
+NAVIGATOR {
+
+    retailRangeNavigator {
+        ADD rangeLevels;
+    }
+
+}
+
+TABLE rangeRangeLevel(Range, RangeLevel);
+in 'Вкл' = DATA BOOLEAN (Range, RangeLevel);
+
+EXTEND FORM range 
+    OBJECTS l = RangeLevel
+    PROPERTIES(l) READONLY name
+    PROPERTIES(r, l) in
+;
+
+DESIGN range {
+    options {
+        type = SPLITH;
+        MOVE l.box;
+        MOVE skuTree.tree.box {
+            fill = 4;
+        }
+    }
+}
+
+TABLE rangeRevSku(RangeRev, Sku);
+level = DATA RangeLevel(RangeRev, Sku);
+nameLevel 'Уровень' (RangeRev r, Sku s)= name(level(r, s));
+
+level(Range r, Sku s, DATE d) = level(rangeRev(r, d), s);
+nameLevel 'Уровень' (Range r, Sku s, DATE d) = name(level(r, s, d));
+
+in 'Вкл' = in(range(RangeRev v), RangeLevel l);
+
+CONSTRAINT level(RangeRev r, Sku s) AND NOT in(r, level(r, s))
+    CHECKED BY level[RangeRev,Sku] 
+    MESSAGE 'Уровень ассортимента для товара не соответствует типу ассортимента';
+    
+countSku 'Кол-во товаров' = GROUP SUM 1 IF level(RangeRev r, Sku s) BY r; 
+
+countSku 'Кол-во товаров' = GROUP SUM 1 BY RangeRev r, level(r, Sku s);
+
+countRecSku 'Кол-во товаров' = GROUP SUM countSku(RangeRev r, RangeLevel l) IF l <= (RangeLevel level AS RangeLevel) BY r, level;
+
+countSku 'Кол-во товаров' (Range r, DATE d) = countSku(rangeRev(r, d));
+countSku 'Кол-во товаров' (Range r, RangeLevel l, DATE d)= countSku(rangeRev(r, d), l);
+
+countSkus 'Кол-во наименований' = GROUP SUM 1 BY RangeRev v, level(v,Sku sku);
+
+countSkus 'Кол-во наименований (всего)' (v, supplier, pt, d) = GROUP SUM 1 IF level(RangeRev v, Sku sku)
+    BY v, companyA(LedgerPriceListType pt, sku, Stock d, dateTime(v)), pt, d;
+    
+countSkus 'Кол-во наименований' (v,l,supplier,pt,d) = GROUP SUM 1
+    BY RangeRev v, level(v, Sku sku), companyA(LedgerPriceListType pt, sku, Stock d, dateTime(v)), pt, d;
+    
+TABLE rangeRevRangeLevelSku (RangeRev, RangeLevel, Sku);
+quantityShelf 'Количество на полке' = DATA INTEGER (RangeRev, RangeLevel, Sku);
+
+nameQuantity (RangeLevel rl) = CONCAT ' / ', '('+name(rl)+')', 'к-во на полке'; 
+
+EXTEND  FORM rangeRev
+    OBJECTS rl = RangeLevel AFTER dates  
+    FILTERS in(v, rl)     
+                               
+    PROPERTIES(v, s) nameLevel AFTER markupA(pt, s, d, v)
+    
+    PROPERTIES quantityShelf(v,rl,s) COLUMNS (rl) HEADER nameQuantity(rl) AFTER sumSoldDepartments(s,dFrom,dTo)
+    FILTERGROUP filters
+        FILTER 'Включен' level(v, s)  DEFAULT
+        FILTER 'Без поставщиков' level(v, s) AND NOT companyA(pt, s, d, dateTime(v))   
+        
+    OBJECTS l = RangeLevel AFTER store
+    PROPERTIES READONLY name(l), countSkus(v,l)  
+    FILTERS in(v, l)  
+   
+    OBJECTS l2 = RangeLevel GRID AFTER store
+    FILTERS in(v, l2)  
+    
+    OBJECTS su = LegalEntity
+    PROPERTIES READONLY name(su), countSkus(v, su, pt, d), countSkus(v, l2, su, pt, d) COLUMNS (l2) HEADER name(l2) 
+    ORDER BY name(su)
+    FILTERS countSkus(v, su, pt, d)      
+;
+overCopy(RangeRev r, RangeRev pr) += {
+    level(r, Sku s) <- level(pr, s);
+}
+
+EXTEND FORM range
+    OBJECTS vl = RangeLevel GRID BEFORE v
+    FILTERS in(r, vl)
+    
+    PROPERTIES READONLY countSku(v) AFTER dateTime(v), countSku(v, vl) COLUMNS (vl) HEADER name(vl)
+;
+
+countSkuNotSupplier 'Кол-во товаров без поставщика' = GROUP SUM 1 IF level(RangeRev v, Sku sku) AND DataPriceListType pt IS DataPriceListType AND DepartmentStore d IS DepartmentStore 
+    AND NOT companyA(pt, sku, d, dateTime(v)) 
+        BY pt, d, v; 
+calcCountSkuNotSupplier 'Кол-во товаров без поставщика' (DataPriceListType pt, DepartmentStore d, Range r, DATE dt) = countSkuNotSupplier(pt, d , rangeRev(r, dt));
+
+countSkuNotSupplier 'Кол-во товаров без поставщика' = DATA LOCAL INTEGER (DataPriceListType, DepartmentStore, Range, DATE);
+
+fillCountSkuNotSupplier 'Обновить'(DataPriceListType pt, DepartmentStore d, DATE dt) = {
+    countSkuNotSupplier(pt, d, Range r, dt) <- calcCountSkuNotSupplier(pt, d, r, dt) WHERE r IS Range;   
+}
+EXTEND FORM ranges
+    OBJECTS vl = RangeLevel GRID BEFORE r
+
+    PROPERTIES READONLY countSku(r, d)
+    PROPERTIES READONLY countSku(r, vl, d) TODRAW r COLUMNS (vl) HEADER name(vl) 
+    
+    PROPERTIES READONLY countSkuNotSupplier(pt,ds,r1,d)
+    PROPERTIES fillCountSkuNotSupplier(pt, ds, d) TODRAW r1 TOOLBAR BEFORE createRangeRev(r1,d) 
+    
+    FILTERGROUP notSupplier
+        FILTER 'Без поставщиков' countSkuNotSupplier(pt, ds, r1, d) DEFAULT 
+;
+TABLE rangeStoreTypeDate(Range, StoreType, DATE);
+excludeLevel = DATA BOOLEAN (Range, StoreType, DATE);
+dataLevel = DATA RangeLevel (Range, StoreType, DATE);
+
+CONSTRAINT dataLevel(Range r, StoreType t, DATE d) AND NOT in(r, dataLevel(r, t, d))
+    CHECKED BY dataLevel[Range,StoreType,DATE]
+    MESSAGE 'Уровень ассортимента для формата магазина не соответствует типу ассортимента';
+
+level (r, t, d) = GROUP LAST dataLevel(Range range, StoreType storeType, DATE dateIn)
+                                              BY range, storeType, DATE date
+                                              ORDER dateIn
+                                              WHERE (dataLevel(range, storeType, dateIn) OR excludeLevel(range, storeType, dateIn)) AND dateIn <= (date AS DATE); 
+
+date (r, t, d) = GROUP LAST DATE dateIn
+                                              BY Range range, StoreType storeType, DATE date
+                                              ORDER dateIn
+                                              WHERE dataLevel(range, storeType, dateIn) AND dateIn <= (date AS DATE); 
+                                              
+nameLevel 'Уровень' (Range r, StoreType t, DATE d)= name(level(r, t, d)); 
+
+changeLevel (Range r, StoreType t, DATE d)= {
+    DIALOG dialogRangeLevels OBJECTS l = dataLevel(r, t, d) CHANGE DO {
+        excludeLevel (r, t, d) <- NOT l;
+    }
+}
+
+backgroundLevel(Range range, StoreType storeType, DATE dateIn) = (dataLevel(range, storeType, dateIn) OR excludeLevel(range, storeType, dateIn));
+
+countSku 'Кол-во товаров' (Range r, StoreType t, DATE d) = countRecSku(rangeRev(r, d), level(r, t, d));
+     
+quantityShelf 'Количество на полке'  = GROUP SUM quantityShelf(rangeRev(Range range, DATE date), level(range, StoreType type, date), Sku sku) 
+        BY range, type, sku, date;
+        
+quantityShelf 'Количество на полке'  (Range range, Store store, Sku sku, DATE date) =  quantityShelf(range, storeType(store), sku, date);   
+quantityShelf 'Количество на полке'  (store, sku, date) = GROUP SUM quantityShelf(Range r, Store st, Sku sk, DATE d) BY st, sk, d;   
+quantityShelf 'Количество на полке'  (DepartmentStore d, Sku sku, DATE date) = quantityShelf(store(d), sku, date);  
+
+TABLE rangeStoreDate(Range, Store, DATE);
+dataLevel = DATA RangeLevel (Range, Store, DATE);
+excludeLevel = DATA BOOLEAN (Range, Store, DATE);
+   
+CONSTRAINT dataLevel(Range r, Store st, DATE d) AND NOT in(r, dataLevel(r, st, d))
+    CHECKED BY dataLevel[Range,Store,DATE]
+    MESSAGE 'Уровень ассортимента для магазина не соответствует типу ассортимента';
+
+level (r, st, d) = GROUP LAST dataLevel(Range range, Store st, DATE dateIn)
+                                              BY range, st, DATE date
+                                              ORDER dateIn
+                                              WHERE (dataLevel(range, st, dateIn) OR excludeLevel(range, st, dateIn)) AND dateIn <= (date AS DATE); 
+
+date (r, st, d) = GROUP LAST DATE dateIn
+                                              BY Range range, Store st, DATE date
+                                              ORDER dateIn
+                                              WHERE dataLevel(range, st, dateIn) AND dateIn <= (date AS DATE); 
+
+changeLevel (Range r, Store st, DATE d)= {
+    DIALOG dialogRangeLevels OBJECTS l = dataLevel(r, st, d) CHANGE DO {
+        excludeLevel (r, st, d) <- NOT l;
+    }
+}              
+
+changeWYSLevel (Range r, Store st, DATE d)= {
+    INPUT s = VARISTRING[10] DO 
+        IF s THEN {
+            dataLevel (r, st, d) <- [= GROUP MAX RangeLevel l BY name(l)](s);
+            excludeLevel (r, st, d) <- NULL;
+        } ELSE {
+            dataLevel (r, st, d) <- NULL;
+            excludeLevel (r, st, d) <- TRUE;
+        }
+}              
+backgroundLevel(Range range, Store store, DATE dateIn) = (dataLevel(range, store, dateIn) OR excludeLevel(range, store, dateIn));
+
+countRange 'В ассортименте' (s, t, d) = GROUP SUM 1 IF level(Range range, StoreType t, DATE d) >= level(range, Sku s, d) BY s, t, d;
+
+overLevel(Range r, Store st, DATE d) = OVERRIDE level(r, st, d), level(r, storeType(st), d);  
+overDate 'Дата включения' (Range r, Store st, DATE d) = OVERRIDE date(r, st, d), date(r, storeType(st), d);  
+nameOverLevel 'Уровень (перегруженный)' (Range r, Store st, DATE d)= name(overLevel(r, st, d));               
+nameLevel 'Уровень' (Range r, Store st, DATE d)= name(level(r, st, d));
+
+countSku 'Кол-во товаров' (Range r, Store st, DATE d) = countRecSku(rangeRev(r, d), overLevel(r, st, d));
+
+countRange 'В ассортименте' (Sku s, Range r, Store st, DATE d) =  overLevel(r, st, d) >= level(r, s, d);
+in (Sku s, Range r, Store st, DATE d) += overLevel(r, st, d) >= level(r, s, d);
+
+countRange = GROUP SUM 1 IF level(Range r, Store st, DATE d) >= level(r, Sku sk, d) BY st, sk, d;
+countTypeRange = GROUP SUM 1 IF level(Range r, storeType(Store st), DATE d) >= level(r, Sku sk, d) BY st, sk, d;
+
+statusRange 'Вид ассортимента' (Store st, Sku s, DATE d) = CASE WHEN countRange(st, s, d) THEN 'Магазин'
+    WHEN countTypeRange(st, s, d) THEN 'Формат';
+    
+EXTEND FORM storeRange 
+    OBJECTS c = ChainStores PANEL AFTER d
+    PROPERTIES(c) SELECTOR name
+
+
+    // По форматам
+    OBJECTS t = StoreType GRID
+    FILTERS chainStores(t) == c, active(t)
+
+    OBJECTS r = Range
+    PROPERTIES(r) READONLY name
+    PROPERTIES(r, t, d) nameLevel COLUMNS (t) HEADER name(t) BACKGROUND backgroundLevel(r, t, d) ON CHANGE changeLevel(r, t, d),
+                        countSku COLUMNS(t) HEADER name(t)
+    FILTERS inParent(r, sg) OR NOT countSkuGroup(r)
+    ORDER BY name(r)
+
+    OBJECTS s = Sku GRID 
+    PROPERTIES(s) READONLY BACKGROUND backgroundRange(s) idBarcode, name, nameUOM
+    PROPERTIES(s, t, d) READONLY countRange COLUMNS (t) HEADER name(t)
+    FILTERS level(r, s, d)
+
+    // По магазинам
+
+    PROPERTIES nameOverLevel(sr, st, d) BACKGROUND backgroundLevel(sr, st, d) ON CHANGE changeLevel(sr, st, d) ON CHANGEWYS changeWYSLevel(sr, st, d) COLUMNS (st) HEADER name(st)
+    PROPERTIES countSku(sr, st, d) COLUMNS (st) HEADER name(st) 
+    ORDER BY name(sr)
+    FILTERS inParent(sr, sg) OR NOT countSkuGroup(sr)
+
+    PROPERTIES READONLY nameLevel(sr, ss, d)
+    ORDER BY nameLevel(sr, ss, d), name(ss)
+    FILTERS level(sr, ss, d)
+
+    // -------------- Ассортимент магазина ------------------ //
+
+    PROPERTIES statusRange(ds, sk, d)
+
+    PROPERTIES READONLY AFTER name(rn) nameLevel(rn, sk, d), overDate(rn, st, d)
+    FILTERS countRange (sk, rn, ds, d)
+;
+
+DESIGN storeRange {
+    filters{        
+        MOVE c.box;
+    }
+    setPane {
+        fill = 2;
+        type = TABBED;
+        NEW formatPane {
+            fill = 1;
+            type = SPLITV;
+            caption = 'По форматам';
+            MOVE r.box {
+                fill = 2;
+                PROPERTY(countSku(r, t, d)) {
+                    background = #FFEEFF;
+                }
+            }
+            MOVE s.box;
+        }
+        MOVE storePane; 
+        
+    }                 
+    MOVE functions.box;
+}
+
+
+countFilterRange  = GROUP SUM 1 IF (currentBalance(Sku sku,DepartmentStore stock) OR dateTimeLastMoved(sku, stock) > DATETIME(DATE dateFrom AS DATE)) AND active(store(stock))
+    BY sku, store(stock), dateFrom;
+
+    
+countFilter 'Кол-во магазинов' (range, sku, dateFrom) = GROUP SUM 1 IF countFilterRange(Sku sku, Store store, DATE dateFrom) 
+    AND inChild(Range range, sku)
+    BY range, sku, dateFrom;
+
+count 'Количество товара' = DATA LOCAL INTEGER (RangeLevel);
+countRangeLevels = GROUP SUM  count(RangeLevel l) IF in(Range r,l) BY r;
+
+indexGroup 'Порядок' (RangeRev v, Sku sku, DATE dateFrom, LedgerPriceListType pt, Stock stock) =
+    PARTITION SUM 1 IF countFilter(range(v), sku, dateFrom) AND companyA(pt, sku, stock, dateTime(v))
+    BY v, dateFrom, pt, stock
+    ORDER DESC countFilter(range(v), sku, dateFrom), sku;
+
+countFilter 'Кол-во магазинов' (RangeRev v, Sku sku, DATE dateFrom) = countFilter(range(v), sku, dateFrom);
+
+total 'Накоплено' (Range range, RangeLevel level) =
+    PARTITION SUM count(level) IF in(range,level)
+    BY range
+    ORDER  level;
+total 'Накоплено' = total(range(RangeRev v), RangeLevel level);      
+    
+level (sku, v, dateFrom, pt, stock) = 
+    GROUP MIN RangeLevel level IF indexGroup(RangeRev v, Sku sku, DATE dateFrom, LedgerPriceListType pt, Stock stock) <= total(range(v), level)
+          BY sku, v, dateFrom, pt, stock;
+
+
+countFilter 'Кол-во с продажей или остатком' (range, store, dateFrom) = GROUP SUM 1 IF countFilterRange(Sku sku, Store store, DATE dateFrom) 
+    AND inChild(Range range, sku)
+        BY range, store, dateFrom;
+
+countFilter 'Кол-во с продажей или остатком' (RangeRev v, Store store, DATE dateFrom) = countFilter(range(v), store, dateFrom);
+
+currentBalance 'Остаток (ассортимент)' (range, store) = GROUP SUM currentBalance(Sku sku,DepartmentStore stock) IF inChild(Range range, sku)
+        BY range, store(stock);
+
+currentBalance 'Остаток (ассортимент)' (RangeRev v, Store store) = currentBalance(range(v),store);
+
+nameLevel 'Уровень' (RangeRev v,StoreType t)= nameLevel(range(v), t, date(v));
+countSku 'Кол-во наименований' (RangeRev v,StoreType t) = countSku(range(v), t, date(v));
+
+EXTEND FORM rangeRev
+    PROPERTIES READONLY countFilter(v, s, dFrom)
+    
+    OBJECTS t = StoreType GRID
+    PROPERTIES READONLY name(t)
+    PROPERTIES(v, t) nameLevel, countSku
+    FILTERGROUP activeStoreType
+        FILTER 'Активные' active(t) DEFAULT 
+    
+    OBJECTS st = Store GRID
+    PROPERTIES READONLY name(st), countFilter(v, st, dFrom), currentBalance(v, st)
+    FILTERS active(st)
+    
+    FILTERGROUP type
+        FILTER 'По форматам' storeType(st) == t DEFAULT 
+;
+DESIGN rangeRev {
+    NEW rev {
+        type = SPLITV;
+        fill = 1;
+        NEW top {            
+            type = CONTAINERH;
+            fill = 1;
+            NEW top1 {                 
+                type = CONTAINERV;
+                MOVE v.box;
+                NEW top11 {
+                    type = CONTAINERV;
+                    MOVE s.panel;
+                    NEW supplier {
+                        caption = 'Поставщик';
+                        MOVE PROPERTY(nameFilterSupplier());
+                    }
+                    MOVE d.box;            
+                } 
+                NEW top12 {
+                    type = CONTAINERV;
+                    MOVE pt.box;
+                    MOVE dates.box {        
+                        caption = 'Период реализации';
+                        type = CONTAINERH;
+                    }                
+                }        
+            }   
+            NEW top2 {
+                type = SPLITH;
+                fill = 1;
+                MOVE l.box { 
+                    caption = 'Итого по уровням';
+                    fill = 1;
+                    REMOVE l.controls;
+                }   
+                MOVE store.box {
+                    caption = 'Магазин остатки/продажи';
+                    fill = 5;
+                    PROPERTY (name(store)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+                    PROPERTY (nameStoreType(store)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+                    REMOVE store.controls;
+                }
+            }
+            REMOVE rl.box;
+        }
+        NEW header {
+            type = TABBED;
+            fill = 2.5;
+            NEW details {
+                fill = 3;
+                type = SPLITV;
+                caption = 'Товары';
+                MOVE s.box {
+                    fill = 2;
+                    PROPERTY(priceA(pt, s, d, v)) {
+                        caption = 'Цена закупки';
+                    }  
+                    PROPERTY(nameLevel(v,s)) { background = #CCCCFF; }
+                    PROPERTY(currentBalance(s,d)) { background = #F4FFBD; }  
+                    PROPERTY(quantitySold(s,d,dFrom,dTo)) { background = #CCFFCC; }  
+                    PROPERTY(sumSold(s,d,dFrom,dTo)) { background = #CCFFCC; }  
+                    
+                    PROPERTY(currentBalanceDepartments(s)) { background = #F4FFBD; }  
+                    PROPERTY(quantitySoldDepartments(s,dFrom,dTo)) { background = #CCFFCC; }  
+                    PROPERTY(sumSoldDepartments(s,dFrom,dTo)) { background = #CCFFCC; }          
+                }
+                
+                NEW supplier1 {
+                    fill = 1;
+                    caption = 'Итого по поставщикам';
+                    MOVE su.box;
+                    REMOVE l2.box;
+                }
+                
+            }
+            NEW store {
+                caption = 'Итоги';
+                fill = 1;
+                type = SPLITH;
+                NEW store1 {
+                    type = SPLITV;  
+                    fill = 1;
+                    MOVE t.box;
+                    MOVE st.box;            
+                }
+                MOVE supplier1 { fill = 1;}
+            }            
+        }
+    }
+    MOVE functions.box;
+}
+
+
+FORM param 'Параметры заполнения ассортиментной матрицы'
+    OBJECTS v = RangeRev PANEL 
+
+    OBJECTS l = RangeLevel
+    PROPERTIES(l) name READONLY, count 
+    FILTERS in(v, l)
+    
+;
+
+fill 'Заполнить матрицу по остаткам и продажам'(RangeRev rangeRev, DATE dateFrom, LedgerPriceListType pt, Stock stock) = {
+    DIALOG param OBJECTS v = rangeRev DO { 
+        IF countRangeLevels(range(rangeRev)) THEN {
+            level(rangeRev,Sku sku) <- level (sku, rangeRev, dateFrom, pt, stock) WHERE level (sku, rangeRev, dateFrom, pt, stock) ;
+        } ELSE {
+            MESSAGE 'Не задано количество товара ни для одного уровня ассортиментной матрицы.';
+        }
+    
+    }
+} TOOLBAR ;
+
+
+EXTEND FORM rangeRev
+    PROPERTIES (v, dFrom, pt, d) fill TODRAW s
+;
+
+in (r, s) = GROUP SUM 1 IF level(RangeRev v, Sku s) BY range(v), s;
+
+EXTEND FORM ranges 
+    PROPERTIES READONLY nameLevel(r, s, d)
+    ORDER BY nameLevel(r, s, d), name(s)
+    FILTERS in (r, s)
+;
+
+
+WHEN autoSetGroupAttribute(mainRole(currentUser())) AND CHANGED(itemGroup(Item item)) AND level(RangeRev v, Sku s) AND NOT inChild(range(v), s) DO {
+    inData(Range r, SkuGroup g) <- TRUE WHERE r == range(v) AND g == skuGroup(s);
+}
+
+CONSTRAINT level(RangeRev v, Sku s) AND NOT inChild(range(v), s) MESSAGE 'Товар не соответствует выбранным группам для ассортимента';
+

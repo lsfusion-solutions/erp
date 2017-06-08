@@ -1,0 +1,148 @@
+MODULE RangeCheck;
+
+REQUIRE Range;
+NAMESPACE Range;
+
+// Упрощенная версия
+
+TABLE rangeRevStoreSku (RangeRev, Store, Sku);
+include 'Вкл.' = DATA BOOLEAN (RangeRev, Store, Sku);
+include 'Вкл.' (RangeRev v, DepartmentStore ds, Sku s) = include (v, store(ds), s);
+
+include 'В ассортименте' = GROUP SUM 1 IF include(rangeRev(Range r, DATE dt), Store store, Sku s) BY s,store,dt;
+in (Sku s, Range r, Store st, DATE d) += include(rangeRev(r, d), st, s);
+
+EXTEND FORM rangeRev
+    OBJECTS store1 = Store BEFORE s  
+    PROPERTIES include(v,store1,s) COLUMNS (store1) HEADER name(store1)
+;
+DESIGN rangeRev {
+    NEW rev {
+        type = SPLITV;
+        fill = 1;
+        NEW top {            
+            type = CONTAINERH;
+            fill = 1;
+            NEW top1 {                 
+                type = CONTAINERV;
+                MOVE v.box;
+                NEW top11 {
+                    type = CONTAINERV;
+                    MOVE s.panel;
+                    NEW supplier {
+                        caption = 'Поставщик';
+                        MOVE PROPERTY(nameFilterSupplier());
+                    }
+                    MOVE d.box;            
+                } 
+                NEW top12 {
+                    type = CONTAINERV;
+                    MOVE pt.box;
+                    MOVE dates.box {        
+                        caption = 'Период реализации';
+                        type = CONTAINERH;
+                    }                
+                }        
+            }   
+            NEW top2 {
+                type = SPLITH;
+                fill = 1;
+  
+                MOVE store.box {
+                    caption = 'Магазин остатки/продажи';
+                    fill = 5;
+                    PROPERTY (name(store)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+                    PROPERTY (nameStoreType(store)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+                    REMOVE store.controls;
+                }
+            }
+
+        }
+        NEW header {
+            //type = TABBED;
+            fill = 2.5;
+            NEW details {
+                fill = 3;
+                type = SPLITV;
+                caption = 'Товары';
+                MOVE s.box {
+                    fill = 2;
+                    PROPERTY(priceA(pt, s, d, v)) {
+                        caption = 'Цена закупки';
+                    }  
+
+                    PROPERTY(currentBalance(s,d)) { background = #F4FFBD; }  
+                    PROPERTY(quantitySold(s,d,dFrom,dTo)) { background = #CCFFCC; }  
+                    PROPERTY(sumSold(s,d,dFrom,dTo)) { background = #CCFFCC; }  
+                    
+                    PROPERTY(currentBalanceDepartments(s)) { background = #F4FFBD; }  
+                    PROPERTY(quantitySoldDepartments(s,dFrom,dTo)) { background = #CCFFCC; }  
+                    PROPERTY(sumSoldDepartments(s,dFrom,dTo)) { background = #CCFFCC; }          
+                }                               
+            }            
+        }
+    }
+    MOVE functions.box;
+}
+
+counInclude 'Кол-во товаров' = GROUP SUM 1 IF include(RangeRev v, Store st, Sku s) BY v,st;
+counInclude 'Кол-во товаров' = GROUP SUM 1 IF include(RangeRev v, Store st, Sku s) BY v,s;
+counInclude 'Кол-во товаров' = GROUP SUM 1 IF counInclude(RangeRev v, Sku s) BY v;
+counInclude'Кол-во товаров' (Range r, DATE dt) = counInclude(rangeRev(r,dt));
+counInclude'Кол-во товаров' (Range r, Sku s, DATE dt) = counInclude(rangeRev(r,dt),s);
+EXTEND FORM range
+    PROPERTIES (v)       READONLY counInclude
+    OBJECTS store = Store
+    PROPERTIES  READONLY name(store),counInclude(v,store)
+    FILTERS counInclude(v,store)
+;
+DESIGN range {
+    tabs {
+        NEW first FIRST {
+            fill = 1;
+            caption = 'Версии';
+            type = SPLITV;
+            MOVE v.box;
+            MOVE store.box;
+        }     
+    }
+}
+EXTEND FORM ranges
+    PROPERTIES (r,d) READONLY counInclude BEFORE nameGroup(r)        
+;
+counInclude (Range r, Store st, DATE dt) = counInclude(rangeRev(r,dt), st);
+include (Range r, Store store, Sku s, DATE dt)= include(rangeRev(r, dt), store, s);
+
+EXTEND FORM ranges 
+    OBJECTS store = Store
+    PROPERTIES(store) READONLY name
+    FILTERS counInclude(r,store,d)
+     
+    ORDER BY name(s)
+    FILTERS include(r,store,s,d)
+;
+
+DESIGN ranges {
+    range{
+        type = SPLITV;
+        
+        NEW tabR {
+            fill = 2;
+            type = SPLITH;
+            MOVE s.box {fill = 2;}
+            MOVE store.box;
+        }
+    }
+}
+
+EXTEND FORM storeRange 
+    FILTERS counInclude(sr, ss, d)
+    FILTERS include(rn, ds, sk, d)
+;
+
+WHEN autoSetGroupAttribute(mainRole(currentUser())) AND CHANGED(itemGroup(Item item)) AND include(RangeRev v, Store store, Sku s) AND NOT inChild(range(v), s) DO {
+    inData(Range r, SkuGroup g) <- TRUE WHERE r == range(v) AND g == skuGroup(s);
+}
+
+CONSTRAINT include(RangeRev v, Store store, Sku s) AND NOT inChild(range(v), s) MESSAGE 'Товар не соответствует выбранным группам для ассортимента';
+
