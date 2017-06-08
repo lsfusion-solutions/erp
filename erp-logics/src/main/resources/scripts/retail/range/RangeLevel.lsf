@@ -8,7 +8,6 @@ TABLE rangeLevel(RangeLevel);
 name 'Название' = DATA VARISTRING[10] (RangeLevel) IN recognize;
 rangeLevel (name) = GROUP AGGR (RangeLevel level) BY name (level);
 
-
 FORM rangeLevel 'Уровень ассортимента'
     OBJECTS l = RangeLevel PANEL
     PROPERTIES(l) name
@@ -87,7 +86,6 @@ countSkus 'Кол-во наименований' (v,l,supplier,pt,d) = GROUP SUM
     BY RangeRev v, level(v, Sku sku), companyA(LedgerPriceListType pt, sku, Stock d, dateTime(v)), pt, d;
     
 TABLE rangeRevRangeLevelSku (RangeRev, RangeLevel, Sku);
-quantityShelf 'Количество на полке' = DATA INTEGER (RangeRev, RangeLevel, Sku);
 
 nameQuantity (RangeLevel rl) = CONCAT ' / ', '('+name(rl)+')', 'к-во на полке'; 
 
@@ -96,8 +94,7 @@ EXTEND  FORM rangeRev
     FILTERS in(v, rl)     
                                
     PROPERTIES(v, s) nameLevel AFTER markupA(pt, s, d, v)
-    
-    PROPERTIES quantityShelf(v,rl,s) COLUMNS (rl) HEADER nameQuantity(rl) AFTER sumSoldDepartments(s,dFrom,dTo)
+
     FILTERGROUP filters
         FILTER 'Включен' level(v, s)  DEFAULT
         FILTER 'Без поставщиков' level(v, s) AND NOT companyA(pt, s, d, dateTime(v))   
@@ -175,14 +172,7 @@ changeLevel (Range r, StoreType t, DATE d)= {
 
 backgroundLevel(Range range, StoreType storeType, DATE dateIn) = (dataLevel(range, storeType, dateIn) OR excludeLevel(range, storeType, dateIn));
 
-countSku 'Кол-во товаров' (Range r, StoreType t, DATE d) = countRecSku(rangeRev(r, d), level(r, t, d));
-     
-quantityShelf 'Количество на полке'  = GROUP SUM quantityShelf(rangeRev(Range range, DATE date), level(range, StoreType type, date), Sku sku) 
-        BY range, type, sku, date;
-        
-quantityShelf 'Количество на полке'  (Range range, Store store, Sku sku, DATE date) =  quantityShelf(range, storeType(store), sku, date);   
-quantityShelf 'Количество на полке'  (store, sku, date) = GROUP SUM quantityShelf(Range r, Store st, Sku sk, DATE d) BY st, sk, d;   
-quantityShelf 'Количество на полке'  (DepartmentStore d, Sku sku, DATE date) = quantityShelf(store(d), sku, date);  
+countSku 'Кол-во товаров' (Range r, StoreType t, DATE d) = countRecSku(rangeRev(r, d), level(r, t, d));       
 
 TABLE rangeStoreDate(Range, Store, DATE);
 dataLevel = DATA RangeLevel (Range, Store, DATE);
@@ -364,74 +354,20 @@ EXTEND FORM rangeRev
         FILTER 'По форматам' storeType(st) == t DEFAULT 
 ;
 DESIGN rangeRev {
-    NEW rev {
-        type = SPLITV;
-        fill = 1;
-        NEW top {            
-            type = CONTAINERH;
-            fill = 1;
-            NEW top1 {                 
-                type = CONTAINERV;
-                MOVE v.box;
-                NEW top11 {
-                    type = CONTAINERV;
-                    MOVE s.panel;
-                    NEW supplier {
-                        caption = 'Поставщик';
-                        MOVE PROPERTY(nameFilterSupplier());
-                    }
-                    MOVE d.box;            
-                } 
-                NEW top12 {
-                    type = CONTAINERV;
-                    MOVE pt.box;
-                    MOVE dates.box {        
-                        caption = 'Период реализации';
-                        type = CONTAINERH;
-                    }                
-                }        
-            }   
-            NEW top2 {
-                type = SPLITH;
+    rev {
+        REMOVE rl.box;
+    
+        top2 {
+            MOVE l.box BEFORE store.box{ 
+                caption = 'Итого по уровням';
                 fill = 1;
-                MOVE l.box { 
-                    caption = 'Итого по уровням';
-                    fill = 1;
-                    REMOVE l.controls;
-                }   
-                MOVE store.box {
-                    caption = 'Магазин остатки/продажи';
-                    fill = 5;
-                    PROPERTY (name(store)) {minimumCharWidth = 10; preferredCharWidth = 15;}
-                    PROPERTY (nameStoreType(store)) {minimumCharWidth = 10; preferredCharWidth = 15;}
-                    REMOVE store.controls;
-                }
-            }
-            REMOVE rl.box;
-        }
-        NEW header {
+                REMOVE l.controls;
+            }   
+        }                   
+        header {
             type = TABBED;
-            fill = 2.5;
-            NEW details {
-                fill = 3;
-                type = SPLITV;
-                caption = 'Товары';
-                MOVE s.box {
-                    fill = 2;
-                    PROPERTY(priceA(pt, s, d, v)) {
-                        caption = 'Цена закупки';
-                    }  
-                    PROPERTY(nameLevel(v,s)) { background = #CCCCFF; }
-                    PROPERTY(currentBalance(s,d)) { background = #F4FFBD; }  
-                    PROPERTY(quantitySold(s,d,dFrom,dTo)) { background = #CCFFCC; }  
-                    PROPERTY(sumSold(s,d,dFrom,dTo)) { background = #CCFFCC; }  
-                    
-                    PROPERTY(currentBalanceDepartments(s)) { background = #F4FFBD; }  
-                    PROPERTY(quantitySoldDepartments(s,dFrom,dTo)) { background = #CCFFCC; }  
-                    PROPERTY(sumSoldDepartments(s,dFrom,dTo)) { background = #CCFFCC; }          
-                }
-                
-                NEW supplier1 {
+            details {                
+                NEW supplier1 AFTER s.box{
                     fill = 1;
                     caption = 'Итого по поставщикам';
                     MOVE su.box;
@@ -496,4 +432,3 @@ WHEN autoSetGroupAttribute(mainRole(currentUser())) AND CHANGED(itemGroup(Item i
 }
 
 CONSTRAINT level(RangeRev v, Sku s) AND NOT inChild(range(v), s) MESSAGE 'Товар не соответствует выбранным группам для ассортимента';
-
