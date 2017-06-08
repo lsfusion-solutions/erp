@@ -110,10 +110,18 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         ObjectValue attachmentEmailObject = emailResult.getKey(j).get("attachmentEmail");
                         Timestamp dateTimeReceivedEmail = (Timestamp) emailEntryValue.get("dateTimeReceivedEmail").getValue();
                         boolean isOld = (Calendar.getInstance().getTime().getTime() - dateTimeReceivedEmail.getTime()) > (24*60*60*1000); //старше 24 часов
+                        String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
                         if (fromAddressEmail != null && fromAddressEmail.toLowerCase().matches(emailPattern)) {
-                            byte[] fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
-                            String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
+                            byte[] fileAttachment;
+                            try {
+                                fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
+                            } catch (Exception e) {
+                                logImportError(context, attachmentEmailObject, e.getLocalizedMessage(), isOld);
+                                ServerLoggers.importLogger.error("ImportPurchaseInvoices Error for attachment: " + nameAttachmentEmail, e);
+                                throw Throwables.propagate(e);
+                            }
+
                             List<Pair<String, byte[]>> files = new ArrayList<>();
                             if (nameAttachmentEmail != null) {
                                 if (nameAttachmentEmail.toLowerCase().endsWith(".rar")) {
