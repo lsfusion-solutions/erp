@@ -1,0 +1,40 @@
+MODULE DiscountCardReports;
+
+REQUIRE SaleReports, ZReportDiscountCard;
+
+FORM printDiscountCardReport 'Отчет по продажам'
+    OBJECTS df=DATE PANEL
+    PROPERTIES dateFrom = VALUE(df)
+    OBJECTS dt=DATE PANEL
+    PROPERTIES dateTo = VALUE(dt)
+
+    OBJECTS dc = DiscountCard
+    PROPERTIES(dc) READONLY nameLegalEntity   
+
+    OBJECTS rd = ReceiptDetail
+    PROPERTIES(rd) READONLY date, nameSku, nameDepartmentStore
+    PROPERTIES(rd) READONLY signedQuantity, price, signedSum, signedDiscountSum
+    FILTERS discountCard(rd) == dc, 
+            date(rd) >= df,
+            date(rd) <= dt
+;
+
+printDiscountCardReport 'По скидочным картам' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+    { PRINT printDiscountCardReport OBJECTS df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
+printDiscountCardReportXLS 'По скидочным картам (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+    { PRINT printDiscountCardReport OBJECTS df = dateFrom, dt = dateTo XLS; } IMAGE 'print.png' IN print;
+    
+    
+EXTEND FORM salesReport 
+    PROPERTIES(gt,df, dt) printDiscountCardReport
+    PROPERTIES(gt,df, dt) printDiscountCardReportXLS
+;
+
+DESIGN salesReport {
+    firstColumnSalesContainer{
+        MOVE PROPERTY(printDiscountCardReport(gt,df, dt)); 
+    }
+    firstColumnSalesContainerXLS{
+        MOVE PROPERTY(printDiscountCardReportXLS(gt,df, dt));
+    }
+} 
