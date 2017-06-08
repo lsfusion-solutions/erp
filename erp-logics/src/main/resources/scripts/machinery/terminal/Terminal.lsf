@@ -667,3 +667,19 @@ NAVIGATOR {
         }
     }
 }
+
+countDaysClearTerminalDocument 'За сколько дней хранить документы ТСД' = DATA INTEGER (); 
+
+skipDelete = ABSTRACT BOOLEAN (TerminalDocument);
+
+EXTEND FORM options PROPERTIES countDaysClearTerminalDocument();
+DESIGN options { log { MOVE PROPERTY(countDaysClearTerminalDocument());} }    
+        
+clearApplicationLog () += {
+	NEWSESSION {
+	    IF countDaysClearTerminalDocument() THEN {
+	        DELETE TerminalDocument d WHERE d IS TerminalDocument AND date(d) <= subtract(currentDate(), countDaysClearTerminalDocument()) AND NOT skipDelete(d);
+	        apply();
+	    }
+	}
+}
