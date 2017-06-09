@@ -155,11 +155,18 @@ costedOutContractLedger 'Оплачено по документу' (inContractLe
     GROUP SUM cost(OutContractLedger outContractLedger, InContractLedger inContractLedger) IF
     active(inContractLedger) AND active(outContractLedger)
     BY inContractLedger MATERIALIZED;
-costedOutContractLedger 'Оплачено по документу на дату' (inContractLedger, date) =
+costedOutContractLedger 'Оплачено по документу на дату' =
     GROUP SUM cost(OutContractLedger outContractLedger, InContractLedger inContractLedger) IF
               active(inContractLedger) AND active(outContractLedger) AND
               date(outContractLedger) <= DATE date
     BY inContractLedger, date;
+    
+costedOutContractLedger 'Оплачено по документу за период' =
+    GROUP SUM cost(OutContractLedger outContractLedger, InContractLedger inContractLedger) IF
+              active(inContractLedger) AND active(outContractLedger) AND
+              date(outContractLedger) >= DATE dFrom AND date(outContractLedger) <= DATE dTo
+    BY inContractLedger, dFrom, dTo;
+        
 costedInContractLedger 'Расписано из документа' (outContractLedger) =
     GROUP SUM cost(OutContractLedger outContractLedger, InContractLedger inContractLedger) IF
     active(inContractLedger) //AND isPostedOutContractLedger(outContractLedger)
