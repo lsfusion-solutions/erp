@@ -251,3 +251,11 @@ CONSTRAINT isPosted(UserInvoiceDetail d) AND isSaleBatch(operation(d)) AND sku(d
     
 CONSTRAINT isPosted(Invoice i) AND isCharLength(operation(i)) AND NOT (charLength(number(i)) == 7 AND onlyDigits(number(i)) == 1)
     MESSAGE 'У накладной (продажа) номер должен состоять из семи цифр';
+    
+CONSTRAINT  isPosted(UserInvoiceDetail d) AND abs(invoiceSum(d) (-) sum(d) (-) VATSum(d)) > invoiceSumDeviation(operation(d)) 
+        AND (CHANGED(sum(d)) OR CHANGED (valueVAT(d)) OR CHANGED (invoiceSum(d)) OR CHANGED (isPosted(d))) 
+        MESSAGE 'Отклонение Суммы с НДС превышает допустимое'; 
+
+CONSTRAINT  isPosted(UserInvoiceDetail d) AND abs(sum(d) (-) (OVERRIDE quantity(d), 0.0) * (OVERRIDE price(d), 0.0)) > invoiceSumDeviation(operation(d)) 
+        AND (CHANGED(sum(d)) OR CHANGED (quantity(d)) OR CHANGED (price(d)) OR CHANGED (isPosted(d))) 
+        MESSAGE 'Отклонение Суммы превышает допустимое';      
