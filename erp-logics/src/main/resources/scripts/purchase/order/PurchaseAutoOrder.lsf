@@ -158,4 +158,33 @@ nameAutoOrderNumerator 'Нумератор для автозаказа' () = nam
 EXTEND FORM options PROPERTIES() nameAutoOrderNumerator;
 DESIGN options { orders { MOVE PROPERTY(nameAutoOrderNumerator()); } }
 
+autoQuantity 'Кол-во (автозаказ)' = ABSTRACT NUMERIC[16,5] (OrderDetail) MATERIALIZED;
+autoQuantity 'Кол-во (автозаказ)' = DATA NUMERIC[16,5] (UserOrderDetail);
+
+autoQuantity (UserOrderDetail orderDetail) += autoQuantity(orderDetail);
+EXTEND FORM userOrder
+    PROPERTIES (d) READONLY SHOWIF isAuto(o) autoQuantity BEFORE quantity(d) 
+;
+EXTEND FORM orders
+    PROPERTIES (d) READONLY SHOWIF isAuto(o) autoQuantity BEFORE quantity(d) 
+;
+
+banDroppedAutoDetail 'Запрещено удалять строки автозаказа' = DATA BOOLEAN ();
+banQuantityAutoDetail 'Запрещено заказывать меньше чем "Кол-во (автозаказ)"' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () banDroppedAutoDetail, banQuantityAutoDetail
+;
+DESIGN options { 
+    orders  { 
+        MOVE PROPERTY(banDroppedAutoDetail()); 
+        MOVE PROPERTY(banQuantityAutoDetail()); 
+    } 
+}
+
+CONSTRAINT DROPPED (UserOrderDetail d IS UserOrderDetail) AND banDroppedAutoDetail() AND isAuto(PREV(userOrder(d))) AND PREV(autoQuantity(d)) MESSAGE 'Запрещено удалять строки автозаказа';
+
+CONSTRAINT CHANGED(quantity(UserOrderDetail d)) AND banQuantityAutoDetail() AND isAuto(userOrder(d)) AND quantity(d) < autoQuantity(d)
+    MESSAGE 'Запрещено заказывать меньше чем "Кол-во (автозаказ)"';
+
 
