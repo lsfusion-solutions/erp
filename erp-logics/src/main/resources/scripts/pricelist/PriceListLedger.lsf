@@ -35,7 +35,7 @@ skip 'Не изменять значение' (ledger) = ABSTRACT BOOLEAN (Price
 
 active 'Активен' (PriceListLedger ledger) = isPosted(ledger) AND NOT skip(ledger) MATERIALIZED;
 
-sku = ABSTRACT Sku (PriceListLedger) MATERIALIZED INDEXED;
+sku = ABSTRACT Sku (PriceListLedger) MATERIALIZED;
 nameSku 'SKU' (PriceListLedger l) = name(sku(l));
 
 operation = ABSTRACT Operation (PriceListLedger);
@@ -43,7 +43,6 @@ operation = ABSTRACT Operation (PriceListLedger);
 countPriceListLedger = GROUP SUM 1 BY sku(PriceListLedger ledger);
 
 TABLE priceListLedgerBatch(PriceListLedger, Batch);
-//inPriceListLedgerBatch = DATA BOOLEAN (PriceListLedger, Batch) INDEXED;
 in = ABSTRACT BOOLEAN (PriceListLedger, Batch) MATERIALIZED;
 
 batch = GROUP MAX Batch batch IF in(PriceListLedger ledger, batch) BY ledger;
@@ -53,9 +52,9 @@ description 'Описание' = ABSTRACT VARISTRING[200] (PriceListLedger) MATE
 
 company = ABSTRACT LegalEntity (PriceListLedger) MATERIALIZED;
 nameCompany 'Компания' = name(company(PriceListLedger ledger));
+INDEX sku(PriceListLedger ledger), company(ledger), fromDateTime(ledger), ledger;
 
 companyStock = ABSTRACT Stock (PriceListLedger) MATERIALIZED INDEXED;
-nameCompanyStock 'Склад компании' = name(companyStock(PriceListLedger ledger));
 
 TABLE priceListLedgerLedgerPriceListType(PriceListLedger, LedgerPriceListType);
 in = ABSTRACT BOOLEAN (PriceListLedger, LedgerPriceListType) MATERIALIZED;
@@ -193,8 +192,8 @@ price 'Цена' (PriceListLedger ledger, LedgerPriceListType type, Stock stock)
 sku(PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
     sku(ledger) IF active(ledger, type, stock) MATERIALIZED;
     
-INDEX LedgerPriceListType type, sku(PriceListLedger ledger, type, Stock stock), stock, fromDateTime(ledger, type, stock);
-INDEX sku(PriceListLedger ledger, LedgerPriceListType type, Stock stock), stock, fromDateTime(ledger, type, stock);
+INDEX LedgerPriceListType type, sku(PriceListLedger ledger, type, Stock stock), stock, fromDateTime(ledger, type, stock), ledger;
+INDEX sku(PriceListLedger ledger, LedgerPriceListType type, Stock stock), stock, fromDateTime(ledger, type, stock), ledger;
 
 fromDateTime 'Дата/время с' (PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
     fromDateTime(ledger) IF active(ledger, type, stock) MATERIALIZED INDEXED;
@@ -205,7 +204,7 @@ toDateTime 'Дата/время по' (PriceListLedger ledger, LedgerPriceListTy
 company(PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
     company(ledger) IF active(ledger, type, stock) MATERIALIZED;
     
-INDEX company(PriceListLedger ledger, LedgerPriceListType type, Stock stock), type, stock, toDateTime(ledger, type, stock); 
+INDEX company(PriceListLedger ledger, LedgerPriceListType type, Stock stock), type, stock, fromDateTime(ledger, type, stock), ledger; 
 
 // По товарам
 activePriceB 'Цена' (type, sku, stock, dateTime) =
