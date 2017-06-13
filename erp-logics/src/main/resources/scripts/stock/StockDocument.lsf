@@ -16,21 +16,21 @@ order 'Порядок' = OVERRIDE overOrder(StockDocumentLedger l), 1000000 IF l
 close 'Закрыть' = ACTION ABSTRACT LIST (StockDocumentLedger) TOOLBAR;
 
 dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (StockDocumentLedger) MATERIALIZED INDEXED;
-date 'Дата' (StockDocumentLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED INDEXED;
+date 'Дата' (StockDocumentLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED INDEXED IN recognize;
 
 isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) MATERIALIZED;
 isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) MATERIALIZED;
 isOpened 'Не закрыт' (StockDocumentLedger ledger) = ledger IS StockDocumentLedger AND NOT isClosed(ledger);
 
 stock (ledger) = ABSTRACT Stock (StockDocumentLedger) MATERIALIZED INDEXED;
-nameStock 'Склад' (StockDocumentLedger ledger) = name(stock(ledger));
+nameStock 'Склад' (StockDocumentLedger ledger) = name(stock(ledger)) IN recognize;
 
 number 'Номер документа' (ledger) = ABSTRACT VARSTRING[28] (StockDocumentLedger) MATERIALIZED;
 series 'Серия документа' (ledger) = ABSTRACT STRING[2] (StockDocumentLedger) MATERIALIZED;
 seriesNumber 'Серия/номер документа' (StockDocumentLedger ledger) = CONCAT '', series(ledger), number(ledger) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20; 
 
 legalEntity 'Контрагент' (ledger) = ABSTRACT LegalEntity (StockDocumentLedger) MATERIALIZED;
-nameLegalEntity 'Контрагент' (StockDocumentLedger ledger) = name(legalEntity(ledger));
+nameLegalEntity 'Контрагент' (StockDocumentLedger ledger) = name(legalEntity(ledger)) IN recognize;
 
 legalEntityStock 'Склад контрагента' (ledger) = ABSTRACT Stock (StockDocumentLedger) MATERIALIZED;
 nameLegalEntityStock 'Склад контрагента' = name(legalEntityStock(StockDocumentLedger ledger));
@@ -45,7 +45,7 @@ nameOperation 'Операция' (StockDocumentLedger ledger) = IF isReturn(ledg
     THEN OVERRIDE returnCaptionStockDocument(operation(ledger)), overName(operation(ledger))
     ELSE OVERRIDE captionStockDocument(operation(ledger)), name(operation(ledger));
 
-description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (StockDocumentLedger) MATERIALIZED;
+description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (StockDocumentLedger) MATERIALIZED IN recognize;
 
 skip 'Не проводить' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) MATERIALIZED;
 active (StockDocumentLedger ledger) = isPosted(ledger) AND NOT skip(ledger);
@@ -491,7 +491,7 @@ EXTEND FORM customUser
 CONSTRAINT ((CHANGED(date(StockDocumentLedger d)) OR CHANGED(sum(d)) AND active(d)) OR CHANGED(active(d))) 
             AND documentsClosedDate(stock(d)) AND NOT date(d) >= documentsClosedDate(stock(d)) 
             AND NOT allowChangeStockDocumentClosed(currentUser())
-    MESSAGE 'Запрещено создавать документы для склада до даты закрытия';
+    MESSAGE 'Запрещено редактировать документы для склада до даты закрытия';
 
 CONSTRAINT (DROPPED(StockDocumentLedger d IS StockDocumentLedger)) 
             AND documentsClosedDate(PREV(stock(d))) AND NOT PREV(date(d)) >= documentsClosedDate(PREV(stock(d))) AND PREV(active(d)) 
