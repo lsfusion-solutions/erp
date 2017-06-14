@@ -336,6 +336,20 @@ nameCompanyB 'Организация' (LedgerPriceListType type, Sku sku, Stock 
 nameCompanyA 'Организация' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
     name(companyA(type, sku, stock, dateTime));
 
+companyB 'Организация' (type, sku, dateTime) =
+    GROUP LAST company(PriceListLedger ledger)
+          BY LedgerPriceListType type, sku(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE active(ledger, type) AND price(ledger, type) AND
+                fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
+
+companyA 'Организация' (type, sku, dateTime) =
+    GROUP LAST company(PriceListLedger ledger)
+          BY LedgerPriceListType type, sku(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE active(ledger, type) AND price(ledger, type) AND
+                fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
+
 @defineLastLedgerPriceListTypeSkuStock(description, 'Описание');
 
 @defineLastLedgerPriceListTypeSkuStock(fromDateTime, 'Дата/время с');
