@@ -93,7 +93,7 @@ TABLE machineryPriceTransaction (MachineryPriceTransaction);
 
 @defineCreated(MachineryPriceTransaction);
 
-groupMachinery (transaction) = ABSTRACT GroupMachinery (MachineryPriceTransaction);
+groupMachinery (transaction) = ABSTRACT GroupMachinery (MachineryPriceTransaction) MATERIALIZED;
 nameGroupMachinery 'Группа оборудования' (MachineryPriceTransaction transaction) = name(groupMachinery(transaction));
 nppGroupMachinery 'Номер группы оборудования' (MachineryPriceTransaction transaction) = npp(groupMachinery(transaction));
 
@@ -108,7 +108,7 @@ date (MachineryPriceTransaction transaction) <- currentDate() WHEN SET(transacti
 time 'Время' = DATA TIME (MachineryPriceTransaction);
 time (MachineryPriceTransaction transaction) <- currentTime() WHEN SET(transaction IS MachineryPriceTransaction);
 
-dateTime 'Дата/время' (MachineryPriceTransaction transaction) = dateTimeToDateTime(date(transaction), time(transaction));
+dateTime 'Дата/время' (MachineryPriceTransaction transaction) = dateTimeToDateTime(date(transaction), time(transaction)) MATERIALIZED;
 
 order (MachineryPriceTransaction transaction) = STRUCT(dateTime(transaction), transaction) MATERIALIZED;
 
@@ -130,9 +130,8 @@ canceled 'Отменена' = DATA BOOLEAN (MachineryPriceTransaction);
 process 'Требуется загрузка' (MachineryPriceTransaction machineryPriceTransaction) =
     machineryPriceTransaction IS MachineryPriceTransaction AND NOT
     succeeded(machineryPriceTransaction) AND NOT
-    canceled(machineryPriceTransaction);
+    canceled(machineryPriceTransaction) MATERIALIZED INDEXED;
 
-lastTime (GroupMachinery g) = GROUP LAST dateTime(MachineryPriceTransaction t) BY g WHERE groupMachinery(t) == g AND process(t);
 
 // Основание
 comment 'Примечание' = DATA VARSTRING[100] (MachineryPriceTransaction);
@@ -260,7 +259,7 @@ date 'Время возникновения' = DATA DATETIME (MachineryPriceTran
 toDate 'Дата возникновения' (MachineryPriceTransactionError d) = DATE(date(d));
 errorTrace 'След исключения' = DATA TEXT (MachineryPriceTransactionError) IN base;
 machineryPriceTransaction 'Транзакция (ID)' = DATA MachineryPriceTransaction(MachineryPriceTransactionError) NOT NULL DELETE IN base INDEXED;
-quantityMachineryPriceTransactionError 'Количество ошибок' (MachineryPriceTransaction) = GROUP SUM 1 BY machineryPriceTransaction (MachineryPriceTransactionError machineryPriceTransactionError) IN base;
+quantityMachineryPriceTransactionError 'Количество ошибок' (MachineryPriceTransaction) = GROUP SUM 1 BY machineryPriceTransaction (MachineryPriceTransactionError machineryPriceTransactionError) MATERIALIZED IN base;
 lastDateMachineryPriceTransactionError 'Время последней ошибки' (MachineryPriceTransaction) = GROUP MAX date(MachineryPriceTransactionError machineryPriceTransactionError) BY machineryPriceTransaction (machineryPriceTransactionError);
 
 lastTransaction (barcode, stock) =
@@ -271,6 +270,9 @@ lastTransaction (barcode, stock) =
 
 backgroundLastTransaction (Sku sku, Stock stock) = RGB (255,0,0) IF quantityMachineryPriceTransactionError(lastTransaction(barcode(sku), stock)) AND NOT
     succeeded(lastTransaction (barcode(sku), stock));  
+
+INDEX groupMachinery(MachineryPriceTransaction t), dateTime(t), t; 
+lastErrorTime (GroupMachinery g) = GROUP LAST dateTime(MachineryPriceTransaction t) IF quantityMachineryPriceTransactionError(t) BY groupMachinery(t) ORDER dateTime(t), t WHERE process(t);
 
 @defineLog (MachineryPriceTransactionError, 'ошибок загрузки прайсов', log, toDate);
 

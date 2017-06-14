@@ -691,12 +691,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             ImRevMap<Object, KeyExpr> groupMachineryKeys = MapFact.singletonRev((Object) "groupMachinery", groupMachineryExpr);
             QueryBuilder<Object, Object> groupMachineryQuery = new QueryBuilder<>(groupMachineryKeys);
 
-            String[] groupMachineryNames = new String[]{"npp", "lastTime"};
-            LCP[] groupMachineryProperties = machineryPriceTransactionLM.findProperties("npp[GroupMachinery]", "lastTime[GroupMachinery]");
+            String[] groupMachineryNames = new String[]{"npp", "lastErrorTime"};
+            LCP[] groupMachineryProperties = machineryPriceTransactionLM.findProperties("npp[GroupMachinery]", "lastErrorTime[GroupMachinery]");
             for (int i = 0; i < groupMachineryProperties.length; i++) {
                 groupMachineryQuery.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
             }
-            groupMachineryQuery.and(machineryPriceTransactionLM.findProperty("lastTime[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
+            groupMachineryQuery.and(machineryPriceTransactionLM.findProperty("lastErrorTime[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> groupMachineryResult = groupMachineryQuery.execute(session);
 
@@ -705,8 +705,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             Timestamp minTime = new Timestamp(cal.getTimeInMillis());
             for (ImMap<Object, Object> row : groupMachineryResult.valueIt()) {
                 Integer npp = (Integer) row.get("npp");
-                Timestamp lastTime = (Timestamp) row.get("lastTime");
-                if (lastTime.compareTo(minTime) <= 0)
+                Timestamp lastErrorTime = (Timestamp) row.get("lastErrorTime");
+                if (lastErrorTime != null && lastErrorTime.compareTo(minTime) <= 0)
                     result.add(npp);
             }
         }
