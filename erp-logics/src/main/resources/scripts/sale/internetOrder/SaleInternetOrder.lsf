@@ -328,6 +328,7 @@ DESIGN internetOrder {
                         type = CONTAINERH;
                         MOVE PROPERTY(isPosted(o)) { preferredCharWidth = 40; }
                         MOVE PROPERTY(nameStatus(o)) { preferredCharWidth = 40; }
+                        MOVE PROPERTY(openOriginal(o));
                     }
                     NEW second { 
                         type = CONTAINERH;
@@ -336,25 +337,34 @@ DESIGN internetOrder {
                         MOVE PROPERTY(series(o));
                         MOVE PROPERTY(date(o));
                         MOVE PROPERTY(time(o));
-                    }    
-                    MOVE PROPERTY(openOriginal(o));
+                    }
+                    NEW third {
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameCurrency(o));
+                        MOVE PROPERTY(note(o));
+                    }
                 }                    
                 
                 NEW internetCustomer {
-                    type = COLUMNS;
-                    columns = 2;
+                    type = CONTAINERH;
                     caption = 'Интернет покупатель';
-                    MOVE PROPERTY(numberDiscountCard(o));
-                    MOVE PROPERTY(issueCard(o));
-                    MOVE PROPERTY(nameInternetCustomer(o));
-                    MOVE PROPERTY(phoneInternetCustomer(o));
-                    MOVE PROPERTY(emailCustomer(o));   
-                    MOVE PROPERTY(cityInternetCustomer(o));                 
-                    MOVE PROPERTY(addressInternetCustomer(o));
-                    MOVE PROPERTY(deliveryDate(o));
-                    MOVE PROPERTY(deliveryTimeFromInternetOrder(o));
-                    MOVE PROPERTY(deliveryTimeToInternetOrder(o));  
-                    MOVE PROPERTY(customerComment(o));
+                    NEW firstCol {
+                        type = CONTAINERV;
+                        MOVE PROPERTY(numberDiscountCard(o));
+                        MOVE PROPERTY(nameInternetCustomer(o));
+                        MOVE PROPERTY(cityInternetCustomer(o));
+                        MOVE PROPERTY(addressInternetCustomer(o));
+                        MOVE PROPERTY(customerComment(o));
+                    }
+                    NEW secondCol {
+                        type = CONTAINERV;
+                        MOVE PROPERTY(issueCard(o));
+                        MOVE PROPERTY(phoneInternetCustomer(o));
+                        MOVE PROPERTY(emailCustomer(o));
+                        MOVE PROPERTY(deliveryDate(o));
+                        MOVE PROPERTY(deliveryTimeFromInternetOrder(o));
+                        MOVE PROPERTY(deliveryTimeToInternetOrder(o));
+                    }
                 }
                 NEW payment {
                     type = COLUMNS;
@@ -367,33 +377,6 @@ DESIGN internetOrder {
                     MOVE PROPERTY(paymentDateInternetOrder(o));
                     MOVE PROPERTY(numberPaymentDocumentInternetOrder(o));
                     MOVE PROPERTY(deliverySumInternetOrder(o));
-                }                                
-                NEW headerTabbedPane {
-                    alignment = STRETCH;
-                    type = TABBED;
-                    NEW headerMainParams {
-                        caption = 'Основные параметры';
-                        type = CONTAINERV;
-                        MOVE o.documentPrm {
-                            columns = 3;
-                        }
-                    }
-                    NEW headerExtraParams {
-                        caption = 'Дополнительные параметры';
-                        type = CONTAINERH;                                
-                    }
-                    NEW headerCreateDetail {
-                        caption = 'Основание';
-                        type = CONTAINERV;
-                    }
-                    NEW headerCreateDocuments {
-                        caption = 'Производные документы';
-                        type = CONTAINERH;
-                    }
-                    NEW import {
-                        caption = 'Импорт';
-                        type = CONTAINERH;
-                    }
                 }
             }
 
@@ -762,7 +745,10 @@ EXTEND FORM internetOrder
 
 DESIGN internetOrder {
     first {
-        MOVE PROPERTY (nameSupplierStock(o));
+        MOVE PROPERTY(nameSupplierStock(o)) BEFORE PROPERTY(openOriginal(o));
+    }
+    third {
+        MOVE PROPERTY(namePriceListType(o));
     }
     NEW tab BEFORE functions.box {
         fill = 1;
