@@ -168,11 +168,10 @@ dateTimeLastMoved 'Время последнего движения' = GROUP MAX
 dateLastMoved 'Дата последнего движения'= toDate(dateTimeLastMoved(Sku s,Store st));
                                                                                        
 priceB 'Цена' (type, sku, store, dateTime) =
-    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type)
-          BY type, sku(ledger), store(stock(ledger)), DATETIME dateTimeIn
-          ORDER fromDateTime(ledger), ledger
-          WHERE active(ledger, type) AND
-                fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;                                                                                        
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), store(stock), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
                                                                                         
 lastAccountPrice 'Учетная цена' (Sku sku, Store store) = priceB(SystemLedgerPriceListType.accountPriceListType,sku,store,currentDateTime());                                                                                      
 
