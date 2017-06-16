@@ -150,7 +150,7 @@ DESIGN options {
 }
 //----------------------------------------------- Накладная ---------------------------------------------------//
 
-META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTypePrefix, NS)
+META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTypePrefix, NS, char)
 
     CLASS ABSTRACT Invoice 'Накладная'###sign : Invoice.Invoice;
     CLASS ABSTRACT InvoiceDetail 'Строка накладной'###sign : Invoice.InvoiceDetail;
@@ -429,6 +429,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     countInvoiceDetail (stock, invoice) = GROUP SUM 1 BY stockProp##Stock(InvoiceDetail invoiceDetail), invoice(invoiceDetail);
 
     @implementDocumentSupplierCustomer(invoice);
+    
+    @implementDocumentForm(NS.###invoice, char##i, 'Накладная'###sign);
     
     @defineMovementSku(invoiceDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение товара
     @defineMovementSku(userInvoiceDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение товара
@@ -878,7 +880,7 @@ END
 
 // -------------------------- Метакод по добавлению партий ------------------------- //
 
-META defineInvoiceBatch(stockProp, priceListTypePrefix, NS, sign)
+META defineInvoiceBatch(stockProp, priceListTypePrefix, NS, sign, char)
     @showDocumentInterfaceDetailBatch(invoice);
     
     @defineDocumentInterfaceDetailBatch(invoice, batch); 
@@ -905,6 +907,8 @@ META defineInvoiceBatch(stockProp, priceListTypePrefix, NS, sign)
     
     // Подбор документа
     @implementDocumentBatch(invoice);
+    
+    @implementDocumentBatchForm(char##i);
    
     replace(Sku s, Batch b) += { sku(UserInvoiceDetail detail) <- s WHERE batch[Invoice.InvoiceDetail](detail) == b;} 
     

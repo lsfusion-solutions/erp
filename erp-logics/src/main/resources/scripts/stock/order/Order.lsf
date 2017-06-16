@@ -153,7 +153,7 @@ nameAcquisitionTarget 'Цель приобретения' = name(acquisitionTarg
 
 //----------------------------------------------- Заказ ---------------------------------------------------//
 
-META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilter, filter, priceListTypePrefix, NS)
+META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilter, filter, priceListTypePrefix, NS, char)
 
     CLASS ABSTRACT Order 'Заказ'###sign : Order.Order;
     CLASS ABSTRACT OrderDetail 'Строка заказа'###sign : Order.OrderDetail;
@@ -371,6 +371,9 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     quantityDaysNextShipment 'Кол-во дней до след. поставки' (UserOrder userOrder) =  daysBetweenDates(nextShipmentDate(userOrder), date(userOrder)) + 1;
 
     @implementDocumentSupplierCustomer(order);
+    
+    @implementDocumentForm(NS.###order, char##o, 'Заказ'###sign);
+    
     @defineMovementSku(orderDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение товара
     @defineMovementSku(userOrderDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение товара
     @defineBalancesSku(orderDetail); //-- показываем по нажатию правой клавиши остатки товара
@@ -802,7 +805,7 @@ META implementOrderDestination(fromProp, toProp)
 END
 
 // Партии приход
-META defineOrderBatch(legalEntityProp, stockProp)
+META defineOrderBatch(legalEntityProp, stockProp, char)
     @showDocumentInterfaceDetailBatch(order);
     @defineDocumentInterfaceDetailBatch(order, batch);
     batch[Order.OrderDetail](OrderDetail d) += batch(d);
@@ -827,6 +830,8 @@ META defineOrderBatch(legalEntityProp, stockProp)
     @defineDocumentBatchStockPriceListTypeAgreement(userOrder, stockProp);
     @extendFormDocumentBatchStockPriceListTypeAgreement(userOrder, userOrder, o, legalEntityProp, stockProp);
     @implementDocumentBatch(order);
+    
+    @implementDocumentBatchForm(char##o);
     
 //    overFillDocumentOrderDetailDocumentDetail(o, d) += ACTION (o, d) { batchUserOrderDetail(o) <- batchDocumentDetail(d);}                    
 END

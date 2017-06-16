@@ -1213,20 +1213,24 @@ countDocumentDetail 'Кол-во строк товара' (sku, o) = GROUP SUM 1
 
 fillPriceDocuments 'Использовать цены' = DATA LOCAL BOOLEAN ();
 
-FORM documents 'Документы с товарами'
-    OBJECTS d=Document LAST
-    PROPERTIES(d) READONLY number, series, date, nameSupplier, nameSupplierStock,
-                  nameCustomer, nameCustomerStock, objectClassName
-    PROPERTIES()  TOOLBAR fillPriceDocuments TODRAW d
-    OBJECTS dd=DocumentDetail
-    PROPERTIES(dd) READONLY index, idBarcodeSku, nameSku, quantity, price SHOWIF fillPriceDocuments()
+selectedDocument 'Текущий документ'= DATA LOCAL Document ();
+numberSelectedDocument 'Номер текущего документа' = number(selectedDocument());
 
-    FILTERS document(dd)==d
+FORM documents 'Документы с товарами'
+    PROPERTIES()  TOOLBAR fillPriceDocuments, numberSelectedDocument
 ;
 
 DESIGN documents {
     main {
         preferredSize = (1024, 768);
+        NEW  tabs {
+            type = TABBED;
+            fill = 1;
+        }
+        MOVE functions.box {
+            MOVE PROPERTY(fillPriceDocuments()) AFTER leftControls;
+            MOVE PROPERTY(numberSelectedDocument()) AFTER PROPERTY(fillPriceDocuments());
+        };
     }
 }
 
@@ -1246,8 +1250,8 @@ META implementDocumentPrefix(object, prefixP, prefixQ)
 
     overFillDocument = ACTION ABSTRACT LIST (###object##Detail, DocumentDetail); 
     fillDocument 'Подбор документа'(User###object user###object) = {
-        DIALOG documents OBJECTS d INPUT DO {
-            FOR document(DocumentDetail documentDetail) == d NEW i = User###object##Detail DO {
+        DIALOG documents DO {
+            FOR document(DocumentDetail documentDetail) == selectedDocument() NEW i = User###object##Detail DO {
                 user###object(i) <- user###object;
                 sku(i) <- sku(documentDetail);
                 quantity(i) <- quantity(documentDetail);
@@ -1258,6 +1262,35 @@ META implementDocumentPrefix(object, prefixP, prefixQ)
     } TOOLBAR;
 
 END
+
+META implementDocumentForm(object, char, tabCaption)
+    EXTEND FORM documents
+        OBJECTS char = ###object
+        PROPERTIES(char) READONLY number, series, date, nameSupplier, nameSupplierStock,
+                         nameCustomer, nameCustomerStock, objectClassName
+                         
+        OBJECTS char##d = ###object##Detail
+        PROPERTIES(char##d) READONLY READONLY index, idBarcodeSku, nameSku, quantity, price SHOWIF fillPriceDocuments()
+        
+        FILTERS document(char##d)==char
+        
+        EVENTS
+            ON CHANGE char {
+                selectedDocument() <- char;
+            }
+    ;
+    
+    DESIGN documents {
+        tabs {
+            NEW object {
+                caption = tabCaption;
+                MOVE char.box;
+                MOVE char##d.box;
+            }
+        }
+    }
+END
+
 META implementDocument(object)
 
     @implementDocumentPrefix(object, , );
@@ -1291,9 +1324,11 @@ META implementDocumentBatch(object, prefix)
     }
 END
 
-EXTEND FORM documents
-    PROPERTIES(dd) nameBatch AFTER nameSku(dd) 
-;
+META implementDocumentBatchForm(char)
+    EXTEND FORM documents 
+        PROPERTIES(char##d) nameBatch AFTER nameSku(char##d)
+    ;
+END
 
 //----------------- Логирование изменений в документах ------------------- //
 
