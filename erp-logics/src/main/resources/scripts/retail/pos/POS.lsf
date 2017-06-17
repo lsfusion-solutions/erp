@@ -273,7 +273,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = {
 
                 // считаем остатки суммы по скидки на чек
                 LOCAL leftSum = NUMERIC[16,3] (PromotionCondition);
-                leftSum(PromotionCondition c) <- [= GROUP SUM leftSum(ReceiptSaleDetail detail) * taken(detail, PromotionCondition condition) / leftQuantity(detail) BY condition](c) - sumReceipt(c) * count(c);
+                leftSum(PromotionCondition c) <- OVERRIDE sumReceiptDiscount(c), [= GROUP SUM leftSum(ReceiptSaleDetail detail) * taken(detail, PromotionCondition condition) / leftQuantity(detail) BY condition](c) - sumReceipt(c) * count(c);
                 leftSum(PromotionCondition c) <- NULL WHERE leftSum(c) <= 0.0;
 
                 promotionSum (ReceiptSaleDetail detail, PromotionCondition condition) <-
@@ -281,7 +281,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = {
                             PROPORTION STRICT ROUND(2) leftSum(detail) IF taken(detail, condition)
                             BY condition
                             ORDER detail
-                    WHERE taken(detail, condition) AND sumReceipt(condition);
+                    WHERE taken(detail, condition) AND (sumReceipt(condition) OR sumReceiptDiscount(condition));
 
                 promotionSum (ReceiptSaleDetail detail, PromotionCondition condition) <-
                     CASE WHEN sumDiscount(condition) THEN taken(detail, condition) * sumDiscount(condition)
@@ -289,7 +289,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = {
                          WHEN resultPrice(condition) THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) - resultPrice(condition))
                          WHEN priceListType(condition) THEN taken(detail, condition) * (price(detail) - priceA(priceListType(condition), sku(detail), departmentStore(detail), overDateTime(detail)))
                          WHEN condition IS PromotionCondition THEN taken(detail, condition) * ((leftSum(detail) (-) (bonusPaid(detail) IF useBonus(condition))) / quantity(detail) * percent(condition) / 100)
-                    WHERE taken(detail, condition) AND NOT sumReceipt(condition);
+                    WHERE taken(detail, condition) AND NOT sumReceipt(condition) AND NOT sumReceiptDiscount(condition);
 
                 // Отнимаем использованные
                 leftQuantity(ReceiptSaleDetail detail) <- leftQuantity(detail) (-) taken(detail);

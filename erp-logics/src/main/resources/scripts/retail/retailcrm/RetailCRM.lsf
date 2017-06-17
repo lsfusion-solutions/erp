@@ -180,6 +180,7 @@ resultPrice 'Цена со скидкой' = DATA NUMERIC[16,4] (PromotionCondit
 resultPrice 'Цена со скидкой' = DATA NUMERIC[16,4] (PromotionCondition, Sku);
 sumDiscount 'Сумма скидки' (promotionCondition) = DATA NUMERIC[16,4] (PromotionCondition);
 sumReceipt 'Сумма чека' (promotionCondition) = DATA NUMERIC[16,4] (PromotionCondition);
+sumReceiptDiscount 'Сумма скидки с чека' = DATA NUMERIC[16,4] (PromotionCondition);
 
 priceListType 'Вид цены' (promotionCondition) = DATA PriceListType (PromotionCondition);
 namePriceListType 'Вид цены' (PromotionCondition promotionCondition) = name(priceListType(promotionCondition));
@@ -213,7 +214,7 @@ FORM promotionConditions 'Условия Акций'
     PROPERTIES(sg)     READONLY id SHOWIF showIDs(), namePromotion, name, 
                        dateFrom, dateTo,
                        minQuantity, minSum, quantityDiscount, percent,
-                       namePriceListType, resultPrice, sumDiscount, sumReceipt
+                       namePriceListType, resultPrice, sumDiscount, sumReceipt, sumReceiptDiscount
     FILTERGROUP filter1
         FILTER 'Текущие и будущие' dateTo(sg) >= currentDate() 'F5' DEFAULT                      
         FILTER 'Прошедшие' dateTo(sg) < currentDate() 'F6'                       
@@ -237,7 +238,7 @@ FORM promotion 'Акция'
 
     OBJECTS sg=PromotionCondition
     PROPERTIES(sg)     id SHOWIF showIDs(), name, minQuantity, minSum, quantityDiscount, percent,
-                       namePriceListType, resultPrice, sumDiscount, sumReceipt, NEW, DELETE GRID
+                       namePriceListType, resultPrice, sumDiscount, sumReceipt, sumReceiptDiscount, NEW, DELETE GRID
 
     FILTERS            promotion(sg)==sh
 
@@ -430,6 +431,7 @@ copy 'Копировать'(Promotion promotion) = {
 	            resultPrice(pc, Sku sku) <- resultPrice(promotionCondition, sku);
 	            sumDiscount(pc) <- sumDiscount(promotionCondition);
 	            sumReceipt(pc) <- sumReceipt(promotionCondition);
+	            sumReceiptDiscount(pc) <- sumReceiptDiscount(promotionCondition);
 	
 	            ASK 'Копировать товары, учавствующие в акции ?' DO
 	                copyItems() <- TRUE;
