@@ -72,8 +72,8 @@ in 'Вкл.' (Inventory i, TerminalDocumentDetail d) = in(i, terminalDocument(d)
 
 skipDelete (TerminalDocument d) += [= GROUP SUM 1 IF in(Inventory i, TerminalDocument d) BY d](d) > 0;
 
-zone (TerminalDocumentDetail d) = zone(terminalDocument(d));
-commission (TerminalDocumentDetail d) = commission(terminalDocument(d));
+zone (TerminalDocumentDetail d) = zone(terminalDocument(d)) MATERIALIZED;
+commission (TerminalDocumentDetail d) = commission(terminalDocument(d)) MATERIALIZED;
 
 in = GROUP SUM 1 IF in(Inventory i, TerminalDocument d) BY i, commission(d);
 in = GROUP SUM 1 IF in(Inventory i, TerminalDocument d) BY i, zone(d);
@@ -209,7 +209,7 @@ createListInventoryZone 'Создать опись по зоне' (Inventory in,
 }
 
 createListInventoryZones 'Создать описи по зонам' (Inventory in) = {
-    FOR toQuantity(in, Zone z) NEW li = ListInventory DO {
+    FOR in(in, Zone z) NEW li = ListInventory DO {
     
         inventory(li) <- in;
         zone(li) <- z;
