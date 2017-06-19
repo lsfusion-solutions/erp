@@ -579,7 +579,7 @@ operation[StockDocumentLedger](InAdjustment ledger) += operation(adjustment(ledg
 stockDocumentLedger(OutAdjustmentSkuDetail d) += [=OVERRIDE OutAdjustment(A), InAdjustment(A)] (adjustment(adjustmentDetail[OutAdjustmentSkuDetail](d)));
 stockDocumentLedger(InAdjustmentSkuDetail d) += [=OVERRIDE OutAdjustment(A), InAdjustment(A)](adjustment(adjustmentDetail[InAdjustmentSkuDetail](d)));
 
-calcSumB (Sku sku,Stock st,DATETIME dateTime) = balanceB(sku,st,dateTime)*priceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, st, dateTime);
+calcSumB (Sku sku,Stock st,DATETIME dateTime) = balanceB(sku,st,dateTime) * prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku, st, dateTime);
 needCreateAdjustment = (calcSumB (Sku sku,Stock st,DATETIME dateTime) OR  sumB (sku,st,dateTime)) AND NOT (calcSumB (sku,st,dateTime) ==  sumB (sku,st,dateTime));  
 
 createUserAdjustment(DATETIME dateTime) = {
@@ -781,7 +781,7 @@ createBatchUserAdjustment 'Документ пересорта'() = {
 
 //------------------------------- Корректировка суммы ТО -----------------------//
 
-accountSumB 'Учетная сумма'  (Sku s, Stock st, DATETIME dt)= balanceB(s,st,dt)*priceB(SystemLedgerPriceListType.accountPriceListType, s, st, dt);
+accountSumB 'Учетная сумма'  (Sku s, Stock st, DATETIME dt)= balanceB(s,st,dt) * prevPriceB(SystemLedgerPriceListType.accountPriceListType, s, st, dt);
 diff 'Разница' (Sku s, Stock st, DATETIME dt) = sumB(s,st,dt)(-) accountSumB(s,st,dt);
 
 createSumUserAdjustment (UserAdjustment adjustment) = {

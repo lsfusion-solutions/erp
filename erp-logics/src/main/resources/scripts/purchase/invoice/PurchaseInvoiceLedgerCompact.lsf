@@ -18,10 +18,10 @@ compactLedger 'Очистить регистр цен'(DATE dFrom, DATE dTo) = {
         MESSAGE NOWAIT 'Общее число строк: ' + [=GROUP SUM countMove(Sku s, DepartmentStore st)]();
         
         LOCAL NESTED price = NUMERIC[16,5] (Sku, DepartmentStore);
-        price(Sku s, DepartmentStore st) <- priceB[LedgerPriceListType, Sku, DepartmentStore, DATETIME ](SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, s, st, DATETIME(dFrom)) WHERE countMove(s,st);
+        price(Sku s, DepartmentStore st) <- prevPriceB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, s, st, DATETIME(dFrom)) WHERE countMove(s,st);
         
         LOCAL NESTED shipmentPrice = NUMERIC[16,5] (Sku, DepartmentStore);
-        shipmentPrice(Sku s, DepartmentStore st) <- priceB[LedgerPriceListType, Sku, DepartmentStore, DATETIME ](SystemLedgerPriceListType.accountPriceListType, s, st, DATETIME(dFrom)) WHERE countMove(s, st);
+        shipmentPrice(Sku s, DepartmentStore st) <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, s, st, DATETIME(dFrom)) WHERE countMove(s, st);
         
         FOR iterate(DATE dt, dFrom, dTo) DO {
 

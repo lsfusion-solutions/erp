@@ -172,8 +172,9 @@ priceB 'Цена' (type, sku, store, dateTime) =
           BY type, sku(ledger, type, stock), store(stock), DATETIME dateTimeIn
           ORDER fromDateTime(ledger, type, stock), ledger
           WHERE fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
+prevPriceB 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Store store, DATETIME dateTime) = PREV(priceB(type, sku, store, dateTime)) COMPLEX;
                                                                                         
-lastAccountPrice 'Учетная цена' (Sku sku, Store store) = priceB(SystemLedgerPriceListType.accountPriceListType,sku,store,currentDateTime());                                                                                      
+lastAccountPrice 'Учетная цена' (Sku sku, Store store) = prevPriceB(SystemLedgerPriceListType.accountPriceListType,sku,store,currentDateTime());                                                                                      
 
 hasSkus 'Кол-во наименований по всему поставщику' (v, supplier, pt, d) = GROUP SUM 1 IF inChild(range(RangeRev v), Sku sku) 
     BY v, companyA(LedgerPriceListType pt, sku, Stock d, dateTime(v)), pt, d;
