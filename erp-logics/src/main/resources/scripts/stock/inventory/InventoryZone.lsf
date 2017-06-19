@@ -81,14 +81,12 @@ in = GROUP SUM 1 IF in(Inventory i, TerminalDocument d) BY i, zone(d);
 TABLE inventoryZoneSku(Inventory, Zone, Sku);
 dataQuantity = DATA NUMERIC[14,3](Inventory, Zone, Sku);
 quantity = GROUP SUM quantity(TerminalDocumentDetail d) IF in(Inventory i, d) BY i, zone(d), sku(d);
-quantity = GROUP SUM quantity(TerminalDocumentDetail d) IF in(Inventory i, d) BY i, sku(d);
 
 quantity = GROUP SUM quantity(TerminalDocumentDetail d) IF in(Inventory i, d) BY i, zone(d), commission(d), sku(d);
 countValue = GROUP SUM 1 BY quantity(Inventory i, Zone z, Commission c, Sku s), i,z,s;
 overToQuantity = GROUP MIN NUMERIC[14,3] q IF countValue( q, Inventory i, Zone z, Sku s) >= countCommissions(i) BY i,z,s; 
 
 toQuantity 'В опись' (Inventory i, Zone z, Sku s) = OVERRIDE  dataQuantity(i,z,s), overToQuantity(i,z,s);
-toQuantity = GROUP SUM toQuantity(Inventory i, Zone z, Sku s) BY i,z;
 
 background (Inventory i, Zone z, Sku s) =  CASE
     WHEN dataQuantity(i,z,s) THEN RGB (204,255,204)
@@ -103,12 +101,6 @@ diffQuantity 'Количество расхождений' = GROUP SUM 1 IF quan
                                                        AND NOT overToQuantity(i, z, s) AND NOT dataQuantity(i, z, s) BY i,z;     
  
 diffBackground (Inventory i, Zone z) =  IF diffQuantity(i,z) THEN RGB(255,153,153) ELSE RGB (204,255,204);
-    
-nameTerminalDocuments 'Документы ТСД' (dd) = 
-    GROUP CONCAT title(TerminalDocument d) IF in(Inventory i, d), ', ' 
-    BY i 
-    ORDER title(d)
-    MINCHARWIDTH 30 PREFCHARWIDTH 50;        
 
 filterTerminalDocumentDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterDateFrom (TerminalDocument i) = date(i) >= filterTerminalDocumentDateFrom() OR (i IS TerminalDocument AND NOT filterTerminalDocumentDateFrom());      
@@ -165,6 +157,7 @@ changeTerminalDocument 'Выбрать документы ТСД' (Inventory in)
     filterTerminalDocumentDateFrom() <- sum(date(in),-7);
     filterTerminalDocumentDateTo() <- date(in);
     SHOW searchTerminalDocument OBJECTS in = in  ;
+    APPLY;
 }
 zone = DATA Zone (ListInventory);
 nameZone 'Зона' (ListInventory li) = name(zone(li));
@@ -190,7 +183,11 @@ commissionDocumentTitles 'Документы ТСД'  =
 showCreateList (Inventory i, Zone z) = NOT diffQuantity(i,z) AND NOT nameListInventories(i, z);    
 
 createListInventoryZone 'Создать опись по зоне' (Inventory in, Zone z) = {
-    IF toQuantity(in, z) THEN NEW li = ListInventory {    
+    
+    LOCAL qty = NUMERIC[14,3](Inventory, Zone, Sku);
+    qty(in, z, Sku s) <- toQuantity(in, z, s);
+    
+    IF [= GROUP SUM qty(Inventory in, Zone z, Sku s) BY in, z ](in, z) THEN NEW li = ListInventory {    
         inventory(li) <- in;
         zone(li) <- z;
         stock(li) <- [ = GROUP MAX Stock st IF include(st, Inventory in) BY in](in);
@@ -198,18 +195,22 @@ createListInventoryZone 'Создать опись по зоне' (Inventory in,
         
         NEW p = PageInventory {
             listInventory(p) <- li;
-            FOR toQuantity(in, z, Sku s) ORDER name(s) NEW pid = PageInventoryDetail  DO {                
+            FOR qty(in, z, Sku s) ORDER name(s) NEW pid = PageInventoryDetail  DO {                
                 pageInventory(pid) <- p;
                 sku(pid) <- s;
-                quantity(pid) <- toQuantity(in,z,s);
+                quantity(pid) <- qty(in,z,s);
             }            
         }                                                                                                                                       
     } 
-    apply();
+    APPLY;
 }
 
 createListInventoryZones 'Создать описи по зонам' (Inventory in) = {
-    FOR in(in, Zone z) NEW li = ListInventory DO {
+
+    LOCAL qty = NUMERIC[14,3](Inventory, Zone, Sku);
+    qty(in, Zone z, Sku s) <- toQuantity(in, z, s);
+    
+    FOR [= GROUP SUM qty(Inventory in, Zone z, Sku s) BY in, z ](in, Zone z) NEW li = ListInventory DO {
     
         inventory(li) <- in;
         zone(li) <- z;
@@ -218,14 +219,14 @@ createListInventoryZones 'Создать описи по зонам' (Inventory 
         
         NEW p = PageInventory {
             listInventory(p) <- li;
-            FOR toQuantity(in, z, Sku s) ORDER name(s) NEW pid = PageInventoryDetail  DO {                
+            FOR qty(in, z, Sku s) ORDER name(s) NEW pid = PageInventoryDetail  DO {                
                 pageInventory(pid) <- p;
                 sku(pid) <- s;
-                quantity(pid) <- toQuantity(in,z,s);
+                quantity(pid) <- qty(in,z,s);
             }            
         }                                                                                                                                       
     } 
-    apply();
+    APPLY;
 }
     
 diffFilter (Inventory i, Zone z, Sku s) =   quantity (i,z,s) AND NOT overToQuantity(i,z,s);
