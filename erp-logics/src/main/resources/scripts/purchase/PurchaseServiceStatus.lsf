@@ -25,7 +25,7 @@ CLASS ServiceStatusDetail 'Статус качества';
 TABLE serviceStatusDetail (ServiceStatusDetail);
 
 legalEntity = DATA LegalEntity(ServiceStatusDetail) NOT NULL;
-namelegalEntity 'Организация' (ServiceStatusDetail d) = name(legalEntity(d));
+namelegalEntity 'Организация' (ServiceStatusDetail d) = name(legalEntity(d)) IN recognize;
 
 fromDate 'Дата с' = DATA DATE (ServiceStatusDetail);
 toDate 'Дата по' = DATA DATE (ServiceStatusDetail);
@@ -34,7 +34,7 @@ percService 'Качество сервиса, %' = DATA NUMERIC[16,2] (ServiceSt
 isChange 'Изменение вручную' = DATA BOOLEAN (ServiceStatusDetail);
 
 serviceStatus  = DATA ServiceStatus (ServiceStatusDetail);
-nameServiceStatus 'Статус качества сервиса' (ServiceStatusDetail d) = staticCaption(serviceStatus(d));
+nameServiceStatus 'Статус качества сервиса' (ServiceStatusDetail d) = staticCaption(serviceStatus(d)) IN recognize;
 
 @defineCreated(ServiceStatusDetail);
 
@@ -87,34 +87,39 @@ percentSumExecutionService '% исп. заявки (сумма)' (LegalEntity su
     (sumService(supplier, dateFrom, dateTo) IF sumService(supplier, dateFrom, dateTo)!=0);   
 
 overCreateServiceStatusDetail =  ACTION ABSTRACT LIST ();
-
+skipCreateServiceStatus = ABSTRACT VALUE BOOLEAN (); 
+extraCreateServiceStatusDetail =  ACTION ABSTRACT LIST (DATE ,DATE);
 createServiceStatusDetail 'Заполнить статусы качества' (DATE dFrom, DATE dTo) = {
-	NEWSESSION {
-	    isChange(LegalEntity l) <- NULL;
-	    
-	    LOCAL prev = ServiceStatus(LegalEntity);
-	    prev(LegalEntity l) <- serviceStatus(lastServiceStatusDetail(l)) WHERE isSupplier(l);
-	    FOR isSupplier(LegalEntity l) AND NOT notCalcServiceStatus(l) AND NOT isCompany(l) NEW d = ServiceStatusDetail DO {
-	    
-	        legalEntity(d) <- l;
-	        fromDate(d) <- dFrom;
-	        toDate(d) <- dTo;
-	        percService(d) <- OVERRIDE percentSumExecutionService(l,fromDate(d),toDate(d)), 0.0 IF sumService(l,fromDate(d),toDate(d));
-	        IF percService(d) AND dataPercService(l) THEN {
-	            
-	            IF percService(d) >= dataPercService(l) THEN {
-	                serviceStatus(d) <- ServiceStatus.good;
-	            } ELSE {
-	                serviceStatus(d) <- IF prevStatus(legalEntity(d),sumMonth (dFrom, -1)) == ServiceStatus.warning
-	                                        THEN ServiceStatus.stopping 
-	                                        ELSE ServiceStatus.warning;    
-	            }                 
-	        }
-	        isChange(l) <- TRUE WHERE (prev(l) OR serviceStatus(d)) AND NOT (prev(l) == serviceStatus(d));                
-	    }
-	    apply();
-	    overCreateServiceStatusDetail();
-	}
+    IF NOT skipCreateServiceStatus() THEN {
+        NEWSESSION {
+            isChange(LegalEntity l) <- NULL;
+            
+            LOCAL prev = ServiceStatus(LegalEntity);
+            prev(LegalEntity l) <- serviceStatus(lastServiceStatusDetail(l)) WHERE isSupplier(l);
+            FOR isSupplier(LegalEntity l) AND NOT notCalcServiceStatus(l) AND NOT isCompany(l) NEW d = ServiceStatusDetail DO {
+            
+                legalEntity(d) <- l;
+                fromDate(d) <- dFrom;
+                toDate(d) <- dTo;
+                percService(d) <- OVERRIDE percentSumExecutionService(l,fromDate(d),toDate(d)), 0.0 IF sumService(l,fromDate(d),toDate(d));
+                IF percService(d) AND dataPercService(l) THEN {
+                    
+                    IF percService(d) >= dataPercService(l) THEN {
+                        serviceStatus(d) <- ServiceStatus.good;
+                    } ELSE {
+                        serviceStatus(d) <- IF prevStatus(legalEntity(d),sumMonth (dFrom, -1)) == ServiceStatus.warning
+                                                THEN ServiceStatus.stopping 
+                                                ELSE ServiceStatus.warning;    
+                    }                 
+                }
+                isChange(l) <- TRUE WHERE (prev(l) OR serviceStatus(d)) AND NOT (prev(l) == serviceStatus(d));                
+            }
+            apply();
+            overCreateServiceStatusDetail();
+        }
+    } ELSE {
+        extraCreateServiceStatusDetail(dFrom,dTo);
+    }
 }
 
 createServiceStatusDetail() = {
@@ -122,63 +127,32 @@ createServiceStatusDetail() = {
 };
 
 changeServiceStatusDetail (LegalEntity l) = {
-    NEWSESSION {
-        IF NOT notCalcServiceStatus(l) THEN {
-            DIALOG serviceStatus OBJECTS t INPUT DO {
-                isChange(l) <- NULL;
-                LOCAL prev = ServiceStatus(LegalEntity);
-                prev(l) <- serviceStatus(lastServiceStatusDetail(l));
-                NEW  d = ServiceStatusDetail {
-                    legalEntity(d) <- l;
-                    fromDate(d) <- currentDate();
-                    toDate(d) <- currentDate();   
-//                    percService(d) <-  0.0;
-                    serviceStatus(d) <- t;
-                    isChange(d) <- TRUE;
-                    isChange(l) <- TRUE WHERE (prev(l) OR serviceStatus(d)) AND NOT (prev(l) == serviceStatus(d));
-                }            
-                apply();
-                overCreateServiceStatusDetail();
-            }   
-        }
-        ELSE MESSAGE 'Для данного поставщика не заполняется статус качества';
-    }    
+    IF NOT skipCreateServiceStatus() THEN {   
+        NEWSESSION {
+            IF NOT notCalcServiceStatus(l) THEN {
+                DIALOG serviceStatus OBJECTS t INPUT DO {
+                    isChange(l) <- NULL;
+                    LOCAL prev = ServiceStatus(LegalEntity);
+                    prev(l) <- serviceStatus(lastServiceStatusDetail(l));
+                    NEW  d = ServiceStatusDetail {
+                        legalEntity(d) <- l;
+                        fromDate(d) <- currentDate();
+                        toDate(d) <- currentDate();   
+    //                    percService(d) <-  0.0;
+                        serviceStatus(d) <- t;
+                        isChange(d) <- TRUE;
+                        isChange(l) <- TRUE WHERE (prev(l) OR serviceStatus(d)) AND NOT (prev(l) == serviceStatus(d));
+                    }            
+                    apply();
+                    overCreateServiceStatusDetail();
+                }   
+            }
+            ELSE MESSAGE 'Для данного поставщика не заполняется статус качества';
+        }  
+    }
 }
 
-//test 'Заполнить статусы качества' (DATE dFrom, DATE dTo, LegalEntity l) = ACTION NEWSESSION {
-//
-//    isChange(l) <- NULL;
-//
-//    LOCAL prev = ServiceStatus(LegalEntity);
-//    prev(l) <- serviceStatus(lastServiceStatusDetail(l)) WHERE isSupplier(l);
-//    NEW d = ServiceStatusDetail {
-//
-//        legalEntity(d) <- l;
-//        fromDate(d) <- dFrom;
-//        toDate(d) <- dTo;
-//        percService(d) <- OVERRIDE 0.0  IF sumService(l,fromDate(d),toDate(d)), percentSumExecutionService(l,fromDate(d),toDate(d));
-//        IF percService(d) AND dataPercService(l) THEN {
-//
-//            IF percService(d) >= dataPercService(l) THEN {
-//                serviceStatus(d) <- ServiceStatus.good;
-//            } ELSE {
-//                serviceStatus(d) <- IF prevStatus(legalEntity(d),sumMonth (dFrom, -1)) == ServiceStatus.warning
-//                                        THEN ServiceStatus.stopping 
-//                                        ELSE ServiceStatus.warning;    
-//            }                 
-//        }
-//        isChange(l) <- TRUE WHERE (prev(l) OR serviceStatus(d)) AND NOT (prev(l) == serviceStatus(d));                
-//    }
-//    apply();
-//    overCreateServiceStatusDetail();
-//}
-
-EXTEND FORM legalEntity
-
-//    OBJECTS dates = (from = DATE, to = DATE) PANEL 
-//    PROPERTIES vf = VALUE (from), vt = VALUE (to)
-//    PROPERTIES test(from,to,l)
-    
+EXTEND FORM legalEntity    
     PROPERTIES (l) notCalcServiceStatus, dataPercService , nameServiceStatus ON CHANGE changeServiceStatusDetail(l) BACKGROUND backgroundServiceStatus(l), percService READONLY
 
     OBJECTS sd = ServiceStatusDetail
@@ -194,7 +168,6 @@ DESIGN legalEntity {
             fill = 1;
             type = CONTAINERV;
             caption = 'Статус качества сервиса';
-//            MOVE dates.box;
             NEW status1 {
                 type = CONTAINERH; 
                 MOVE PROPERTY (notCalcServiceStatus(l));

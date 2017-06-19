@@ -1,0 +1,196 @@
+MODULE PurchaseServiceStatusContract;
+
+REQUIRE PurchaseServiceStatus;
+
+NAMESPACE Purchase;
+
+contractSku = DATA ContractSku(ServiceStatusDetail);// NOT NULL;
+descriptionContractSku 'Договор' (ServiceStatusDetail d) = description(contractSku(d)) IN recognize;
+
+CONSTRAINT legalEntity(ServiceStatusDetail d) AND contractSku(d) AND NOT supplier(contractSku(d)) == legalEntity(d)
+    MESSAGE 'Поставщик "Статус качества" не соответствует поставщику договора';
+    
+overPercService 'Качество сервиса (контроль), %' = DATA NUMERIC[16,2] (ContractSku);
+dataPercService 'Качество сервиса (контроль), %' (ContractSku c) = OVERRIDE overPercService(c), dataPercService(supplier(c));
+
+lastServiceStatusDetail   =
+    GROUP LAST ServiceStatusDetail d
+        BY contractSku(d)
+        ORDER toDate(d), d
+        WHERE d IS ServiceStatusDetail;
+        
+nameServiceStatus 'Статус качества сервиса' (ContractSku c) = staticCaption(serviceStatus(lastServiceStatusDetail(c))); 
+percService 'Качество сервиса, %' (ContractSku c) = percService(lastServiceStatusDetail(c)); 
+isStopping 'В стоп-листе' (ContractSku c) = serviceStatus(lastServiceStatusDetail(c)) == ServiceStatus.stopping;
+
+backgroundServiceStatus (ContractSku c) = CASE 
+    WHEN serviceStatus(lastServiceStatusDetail(c)) == ServiceStatus.stopping THEN RGB(255,0,0)
+    WHEN serviceStatus(lastServiceStatusDetail(c)) == ServiceStatus.warning THEN RGB(255,255,0) 
+    ELSE RGB(255,255,255) 
+;
+
+prevStatus 'Статус качества сервиса'  =
+    GROUP LAST serviceStatus(ServiceStatusDetail d)
+        BY contractSku(d), DATE date
+        ORDER toDate(d), d
+        WHERE date >= fromDate(d) AND date <= toDate(d) AND NOT isChange(d);
+
+
+isChange = DATA LOCAL NESTED BOOLEAN (ContractSku);
+
+sumShippedService (contract, dateFrom, dateTo)= GROUP SUM sumShippedOrderDetail(Order order) 
+    IF shipmentDate(order) >= DATE dateFrom AND shipmentDate(order) <= DATE dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order)
+        BY contractSku(order), dateFrom, dateTo;                                                   
+sumService (contract, dateFrom, dateTo)= GROUP SUM sumOrderDetail(Order order) 
+    IF shipmentDate(order) >= DATE dateFrom AND shipmentDate(order) <= DATE dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order)
+        BY contractSku(order), dateFrom, dateTo;      
+percentSumExecutionService '% исп. заявки (сумма)' (ContractSku c, DATE dateFrom, DATE dateTo) = sumShippedService(c, dateFrom, dateTo)*100.00 /
+    (sumService(c, dateFrom, dateTo) IF sumService(c, dateFrom, dateTo)!=0);   
+
+overCreateServiceStatusDetailContract =  ACTION ABSTRACT LIST ();
+extraCreateServiceStatusDetail  (DATE dFrom, DATE dTo) += {
+
+    isChange(ContractSku c) <- NULL;
+    
+    LOCAL NESTED prev = ServiceStatus(ContractSku);
+    LOCAL  NESTED in = BOOLEAN (ContractSku);
+    prev(ContractSku c) <- NULL;
+    in(ContractSku c) <- NULL;
+    
+    in(ContractSku c) <- TRUE WHERE isSupplier(supplier(c)) AND isCompany(customer(c)) AND NOT isCompany(supplier(c)) AND dateFrom(c) <= dTo AND NOT dateTo(c) <dFrom AND NOT notCalcServiceStatus(supplier(c));
+    prev(ContractSku c) <- (IF serviceStatus(lastServiceStatusDetail(c)) THEN serviceStatus(lastServiceStatusDetail(c)) ELSE serviceStatus(lastServiceStatusDetail(supplier(c)))) 
+                            WHERE in(c);
+                           
+     
+    FOR in(ContractSku c) DO NEWSESSION NESTED (prev[ContractSku], in[ContractSku]) {
+        NEW d = ServiceStatusDetail {
+            
+            contractSku(d) <- c;
+            legalEntity(d) <- supplier(c);
+            fromDate(d) <- dFrom;
+            toDate(d) <- dTo;
+            percService(d) <- NUMERIC[16,2](OVERRIDE percentSumExecutionService(c,fromDate(d),toDate(d)), 0.0 IF sumService(c,fromDate(d),toDate(d)));
+            
+            IF percService(d) AND dataPercService(c) THEN {
+                
+                IF percService(d) >= dataPercService(c) THEN {
+                    serviceStatus(d) <- ServiceStatus.good;
+                } ELSE {
+                    IF prevStatus(contractSku(d),sumMonth (dFrom, -1)) THEN {
+                        serviceStatus(d) <- IF prevStatus(contractSku(d),sumMonth (dFrom, -1)) == ServiceStatus.warning
+                                                THEN ServiceStatus.stopping 
+                                                ELSE ServiceStatus.warning;    	                
+                    } ELSE {
+                        serviceStatus(d) <- IF prevStatus(legalEntity(d),sumMonth (dFrom, -1)) == ServiceStatus.warning
+                                                THEN ServiceStatus.stopping 
+                                                ELSE ServiceStatus.warning; 	                
+                    }
+    
+                }                 
+            }
+            isChange(c) <- TRUE WHERE (prev(c) OR serviceStatus(d)) AND NOT (prev(c) == serviceStatus(d));             
+        }
+        APPLY;
+    }         
+    
+    overCreateServiceStatusDetailContract();	
+}
+
+//createServiceStatusDetailContract() = {
+//    createServiceStatusDetailContract(firstDayOfMonth(sumMonth (currentDate(), -1)), lastDayOfMonth(sumMonth (currentDate(), -1)));
+//};
+
+changeServiceStatusContract (ContractSku c) = {
+    NEWSESSION {
+        IF NOT notCalcServiceStatus(supplier(c)) THEN {
+            DIALOG serviceStatus OBJECTS t INPUT DO {
+                isChange(c) <- NULL;
+                
+                LOCAL prev = ServiceStatus(ContractSku);
+                prev(c) <- IF serviceStatus(lastServiceStatusDetail(c)) THEN serviceStatus(lastServiceStatusDetail(c)) ELSE serviceStatus(lastServiceStatusDetail(supplier(c)));                
+                
+                NEW  d = ServiceStatusDetail {
+                    contractSku(d) <- c;
+                    legalEntity(d) <- supplier(c);
+                    fromDate(d) <- currentDate();
+                    toDate(d) <- currentDate();   
+                    serviceStatus(d) <- t;
+                    isChange(d) <- TRUE;
+                    isChange(c) <- TRUE WHERE (prev(c) OR serviceStatus(d)) AND NOT (prev(c) == serviceStatus(d));
+                }            
+                apply();
+                overCreateServiceStatusDetailContract();
+            }   
+        } ELSE {
+            MESSAGE 'Для данного поставщика не заполняется статус качества';
+        }
+    }    
+}
+
+EXTEND FORM legalEntity
+    
+    OBJECTS cs = ContractSku
+    PROPERTIES (cs) SHOWIF isSupplier(l) READONLY number, series, dateFrom, dateTo,
+                dataPercService EDITABLE , nameServiceStatus ON CHANGE changeServiceStatusContract(cs) BACKGROUND backgroundServiceStatus(cs) EDITABLE, percService 
+    FILTERS supplier(cs) == l
+    OBJECTS sdc = ServiceStatusDetail
+    
+    PROPERTIES (sdc) SHOWIF isSupplier(l) READONLY fromDate, toDate, percService, nameServiceStatus
+    PROPERTIES (sdc) SHOWIF isSupplier(l) READONLY createdTime, createdNameUser, createdHostnameComputer
+    ORDER BY fromDate(sdc) DESC
+    FILTERS legalEntity(sdc) == l,
+            contractSku(sdc) == cs
+        
+;
+DESIGN legalEntity {
+    status {
+        fill = 1;
+        caption = 'Статус качества сервиса';
+        type = TABBED;
+        NEW statusC {
+            fill = 1;
+            type = SPLITV;
+            caption = 'По договору';
+        
+            MOVE cs.box;
+            MOVE sdc.box { fill = 2;}                
+        } 
+        NEW statusL {
+            fill = 1;
+            type = CONTAINERV;
+            caption = 'По организации';
+        
+            MOVE status1;
+            MOVE sd.box;                
+        }
+    }    
+}
+
+EXTEND FORM userContractSku
+    PROPERTIES (c) READONLY 
+                dataPercService EDITABLE , nameServiceStatus ON CHANGE changeServiceStatusContract(c) BACKGROUND backgroundServiceStatus(c) EDITABLE, percService 
+
+    OBJECTS sdc = ServiceStatusDetail
+    
+    PROPERTIES (sdc) READONLY fromDate, toDate, percService, nameServiceStatus
+    PROPERTIES (sdc) READONLY createdTime, createdNameUser, createdHostnameComputer
+    ORDER BY fromDate(sdc) DESC
+    FILTERS legalEntity(sdc) == supplier(c),
+            contractSku(sdc) == c
+;
+DESIGN userContractSku{
+    tabContainer {
+        NEW status {
+            fill = 1;
+            type = CONTAINERV ;
+            caption = 'Статус качества сервиса';
+            NEW status1 {
+                type = CONTAINERH;                 
+                MOVE PROPERTY (nameServiceStatus(c));
+                MOVE PROPERTY (percService(c));
+                MOVE PROPERTY (dataPercService(c));
+            }            
+            MOVE sdc.box;
+        }
+    }  
+}
