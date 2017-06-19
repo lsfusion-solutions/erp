@@ -15,7 +15,7 @@ compactLedger 'Очистить регистр цен'(DATE dFrom, DATE dTo) = {
         
         LOCAL countMove = INTEGER (Sku, DepartmentStore);
         countMove(Sku s, DepartmentStore st) <- [= GROUP SUM 1 IF date(UserInvoiceDetail d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), customerStock(d), dFrom, dTo](s, st, dFrom, dTo);
-        MESSAGE NOWAIT 'Общее число строк: ' + [=GROUP SUM 1 IF countMove(Sku s, DepartmentStore st)]();
+        MESSAGE NOWAIT 'Общее число строк: ' + [=GROUP SUM countMove(Sku s, DepartmentStore st)]();
         
         LOCAL NESTED price = NUMERIC[16,5] (Sku, DepartmentStore);
         price(Sku s, DepartmentStore st) <- priceB[LedgerPriceListType, Sku, DepartmentStore, DATETIME ](SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, s, st, DATETIME(dFrom)) WHERE countMove(s,st);
