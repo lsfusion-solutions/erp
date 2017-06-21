@@ -64,3 +64,58 @@ DESIGN options {
         }
     }
 }    
+
+CLASS TerminaFlags {
+    FLG_VOP_GROUP 'Включает накопление товаров в документе при вводе',//    0  // 1
+    FLG_VOP_NPP 'Включает ввод порядкового номера в документе при вводе',//    1  // 2
+    FLG_VOP_ZAYAVKA 'Определяет, что при создании документа будет доступен выбор заявок',//   2  // 4
+    FLG_VOP_IN_ZAYAVKA 'Включает контроль наличия товара в документе (работает в паре с флагом 4)',//  3  // 8
+    FLG_VOP_IN_ASSORT 'Включает контроль наличия товара в ассортименте поставщика',//  4  // 16
+    FLG_VOP_ZEROQUANT_DEFAULT 'При вводе документа нулевое количество по умолчанию',// 5  // 32
+    FLG_VOP_NEWGOODS 'Разрешить ввод нового товара',//   6  // 64
+    FLG_VOP_NPPDEFAULT 'Фокус по умолчанию на ввод порядкового номера.',//   7  // 128
+    FLG_VOP_ONLINE 'ON-LINE запрос товара',//    8  // 256
+    FLG_VOP_OL_INTERNAL_GOODS 'FLG_VOP_OL_INTERNAL_GOODS',// 9  // 512
+    FLG_VOP_OL_INTGOODS 'FLG_VOP_OL_INTGOODS',//   10  // 1024
+    FLG_VOP_INPPRICE 'FLG_VOP_INPPRICE',//   11  // 2048
+    FLG_VOP_DATE1 'Включает заполнение даты 1',//    12  // 4096
+    FLG_VOP_DATE2 'Включает заполнение даты 2'//    13  // 8192
+}
+TABLE terminaFlags (TerminaFlags);
+
+order(TerminaFlags f) = CASE 
+    WHEN f = TerminaFlags.FLG_VOP_GROUP THEN 0 // 1
+    WHEN f = TerminaFlags.FLG_VOP_NPP THEN 1  // 2
+    WHEN f = TerminaFlags.FLG_VOP_ZAYAVKA THEN 2  // 4
+    WHEN f = TerminaFlags.FLG_VOP_IN_ZAYAVKA THEN 3  // 8
+    WHEN f = TerminaFlags.FLG_VOP_IN_ASSORT THEN 4  // 16
+    WHEN f = TerminaFlags.FLG_VOP_ZEROQUANT_DEFAULT THEN 5  // 32
+    WHEN f = TerminaFlags.FLG_VOP_NEWGOODS THEN 6  // 64
+    WHEN f = TerminaFlags.FLG_VOP_NPPDEFAULT THEN 7  // 128
+    WHEN f = TerminaFlags.FLG_VOP_ONLINE THEN 8  // 256
+    WHEN f = TerminaFlags.FLG_VOP_OL_INTERNAL_GOODS THEN 9  // 512
+    WHEN f = TerminaFlags.FLG_VOP_OL_INTGOODS THEN 10  // 1024
+    WHEN f = TerminaFlags.FLG_VOP_INPPRICE THEN 11  // 2048
+    WHEN f = TerminaFlags.FLG_VOP_DATE1 THEN 12  // 4096
+    WHEN f = TerminaFlags.FLG_VOP_DATE2 THEN 13;  // 8192
+    
+flag 'Число'(TerminaFlags f) = INTEGER(power(2, order(f))) MATERIALIZED;
+
+in 'Вкл.'  = DATA LOCAL NESTED BOOLEAN (TerminalDocumentType, TerminaFlags);
+
+FORM showFlags 'Флаги'
+    OBJECTS t = TerminalDocumentType
+    
+    OBJECTS f = TerminaFlags
+    PROPERTIES in(t, f), flag(f) READONLY, staticCaption(f) READONLY
+    ORDER BY flag(f)
+;
+
+showFlags 'Показать расшифровку' (TerminalDocumentType t) = {
+    in(t, TerminaFlags f) <- bitwiseAnd(flag(t), flag(f)) == flag(f);
+    NEWSESSION { 
+        SHOW showFlags OBJECTS t = t;
+        flag(t) <- [=GROUP SUM flag(TerminaFlags f) IF in(TerminalDocumentType t, f) BY t](t);
+        APPLY;
+    }
+} SHORTCUT flag[TerminalDocumentType];
