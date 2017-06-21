@@ -1,0 +1,33 @@
+MODULE PricingOperationBy;
+
+REQUIRE PricingOperation, PricingBy, OperationBy;
+
+NAMESPACE Pricing;
+
+
+loadDefaultPricingOperation 'Добавить операция (расценка)'(VARISTRING[100] iname, VARISTRING[100] isid) = {
+    NEW o = Operation {
+        name(o) <- iname;
+        id (o) <- isid;
+        allRoles(o) <- TRUE;
+    }
+}
+
+
+loadDefaultPricingOperations 'Загрузить стандартные операции (расценка)' () = {  //ACTION ABSTRACT LIST ()  IN loadDefault; 
+    loadDefaultPricingOperation('Расценка начальных остатков','firstinput');   
+    
+    loadDefaultPricingOperation('Расценка при поставке','by_default_pricing_purchase');
+    FOR operation('by_default_pricing_purchase') ==  Operation o DO {
+        useShipmentQuantity(o) <- TRUE;  
+        isRetailPrice(o) <- TRUE; 
+    }
+
+    loadDefaultPricingOperation('Расценка при списании товара по нормам на магазине','by_default_pricing_writeOffNorm');
+    loadDefaultPricingOperation('Расценка при списании веревок на магазине','by_default_pricing_writeOffRopes');
+
+} IN loadDefault;
+    
+
+loadDefaultOperations () += { loadDefaultPricingOperations(); }
+

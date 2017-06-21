@@ -1,0 +1,32 @@
+MODULE PriceListTypeBy;
+
+REQUIRE PriceList, PriceListCalc, PurchaseInvoice;
+
+NAMESPACE PriceList;
+
+loadDefaultPriceListTypes 'Загрузить стандартные виды цен' () = {
+    NEW t = DataPriceListType  {
+        name(t) <- 'Поставщика (согласованная)';
+        id(t) <- 'supplier';
+        currency(t) <- currencyShortName('BLR');
+        roundCondition(t) <- defaultRoundCondition(currency(t));
+    }
+    NEW t = DataPriceListType  {
+        name(t) <- 'Розничная (управленческая)';
+        id(t) <- 'retail';
+        currency(t) <- currencyShortName('BLR');
+        roundCondition(t) <- defaultRoundCondition(currency(t));
+    }
+    NEW t = CalcPriceListType  {
+        name(t) <- 'Надбавка (управленческая)';
+        id(t) <- 'markup';
+        basePriceListType(t) <- SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+        currency(t) <- currencyShortName('BLR');
+        roundCondition(t) <- defaultRoundCondition(currency(t));
+        country(t) <- country('112');
+        groupType(t) <- SystemGroupType.skuGroupType;                       
+    }    
+    
+} IN loadDefault;
+
+@implementLoadDefaultData(loadDefaultPriceListTypes);

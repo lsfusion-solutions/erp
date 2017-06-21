@@ -1,0 +1,89 @@
+MODULE SaleOperationStoreBy;
+
+REQUIRE PricingOperation, SaleOperation, SaleShipment, PricingSale, SaleManufacturingPrice, SaleCreditNote, 
+        SaleOperationConsignmentBy, PricingOperationBy, OperationBy;
+
+NAMESPACE Sale;
+
+loadDefaultSaleOperation 'Добавить операция (продажа)'(VARISTRING[100] iname, VARISTRING[100] isid) = {
+    NEW o = Operation {
+        name(o) <- iname;
+        id (o) <- isid;
+        allRoles(o) <- TRUE;
+    }
+}
+
+loadDefaultSaleOperations 'Загрузить стандартные операции (продажа)' () = {  
+                
+    // 
+    loadDefaultSaleOperation('Перемещение между магазинами','by_default_sale_shipment_retail');
+    FOR operation('by_default_sale_shipment_retail') ==  Operation o DO {
+        
+        needSupplier(o) <- TRUE;
+        needCustomer(o) <- TRUE;
+        needSupplierStock(o) <- TRUE;
+        needCustomerStock(o) <- TRUE;        
+        
+        dataInSupplier(LegalEntityGroup g, o) <- TRUE WHERE  legalEntityGroup('Компании') == g;  
+        dataInCustomer(LegalEntityGroup g, o) <- TRUE WHERE  legalEntityGroup('Компании') == g;  
+               
+        allSupplierStocks(o) <- TRUE;
+        allCustomerStocks(o) <- TRUE; 
+           
+        createShipment(o) <- TRUE;    
+        createPricing(o) <- TRUE;            
+        pricingOperation(o) <- Pricing.operation('by_default_pricing_purchase');         
+        
+        showPack(o) <- TRUE;
+        isPrice(o) <- TRUE;
+        isShipmentPrice(o) <- TRUE;
+        banNegativeQuantityInvoice(o) <- TRUE;
+        isCharLength(o) <- TRUE;     
+        skipSaleLedger(o) <- TRUE;  
+        switchSumConsignment(o)  <- TRUE;  
+          
+                   
+        in(PriceListType t, o)<- TRUE WHERE t == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+        in(PriceListType t, o)<- TRUE WHERE t == SystemLedgerPriceListType.supplierPricingPriceListType;        
+        in(PriceListType t, o)<- TRUE WHERE t == SystemLedgerPriceListType.accountPriceListType;        
+        defaultPriceListType(o) <- SystemLedgerPriceListType.supplierPricingPriceListType;   
+        
+    }  
+    //  
+    loadDefaultSaleOperation('Отгрузка товара/тары по безнал.расч.','by_default_sale_invoice_retail');  
+    FOR operation('by_default_sale_invoice_retail') ==  Operation o DO {
+        nameReturn(o) <- 'Возврат с магазина на склад';
+        needSupplier(o) <- TRUE;
+        needCustomer(o) <- TRUE;
+        needSupplierStock(o) <- TRUE;
+        needCustomerStock(o) <- TRUE;        
+        
+        dataInSupplier(LegalEntityGroup g, o) <- TRUE WHERE  legalEntityGroup('Компании') == g;  
+        dataInCustomer(LegalEntityGroup g, o) <- TRUE WHERE  legalEntityGroup('Покупатели') == g;  
+               
+        allSupplierStocks(o) <- TRUE;
+        allCustomerStocks(o) <- TRUE; 
+           
+        createShipment(o) <- TRUE;    
+        createPricing(o) <- TRUE;            
+        pricingOperation(o) <- Pricing.operation('by_default_pricing_purchase');         
+        
+        showPack(o) <- TRUE;        
+        useCountVAT(o) <- TRUE;
+        isPrice(o) <- TRUE;
+        isShipmentPrice(o) <- TRUE;
+        
+        isInvoicePriceConsignment(o)  <- TRUE;  
+        switchSumConsignment(o)  <- TRUE;  
+               
+        notFillPriceInvoiceOrder(o) <- TRUE;
+        //eVAT(o)  <- TRUE;
+        
+        in(PriceListType t, o)<- TRUE WHERE t == SystemLedgerPriceListType.retailPricingPriceListType;
+        defaultPriceListType(o) <- SystemLedgerPriceListType.retailPricingPriceListType;
+
+    }
+    
+} IN loadDefault;
+    
+loadDefaultOperations () += { loadDefaultSaleOperations(); }
