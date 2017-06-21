@@ -670,7 +670,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             if(time.getTime() < twoAM.getTime())
                                 time = midnight;
                             int type = rs.getInt("m.type");
-                            String numberZReport = rs.getString("m.shift_number");
+                            String numberZReport = rs.getString("s.id");
                             BigDecimal sum = type == 100 ? rs.getBigDecimal("m.amount") : type == 101 ?  HandlerUtils.safeNegate(rs.getBigDecimal("m.amount")) : null;
                             if(sum != null) {
                                 String idCashDocument = params.connectionString + "/" + nppMachinery + "/" + numberCashDocument;
