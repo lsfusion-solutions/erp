@@ -49,6 +49,8 @@ sumWithVATRange[EVATDocument, Range](SaleReturn.Invoice i, Range r) += [= GROUP 
 customer[EVATDocument](Sale.Invoice i) += customer(i);
 customer[EVATDocument](SaleReturn.Invoice i) += customer(i);
 
+extraCode 'Код ТНВЭД' = ABSTRACT VARSTRING[10] (InvoiceDetail);
+extraCode 'Код ТНВЭД' = ABSTRACT VARSTRING[10] (SaleReturn.InvoiceDetail);
 // в Виталюре своё действие, создающее для возвратной накладной столько ЭСЧФ, сколько есть накладных-оснований в строках.
 createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dTo) = {
     FOR eVAT(operation(Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND 
@@ -97,7 +99,7 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
 
             name(ed) <- nameSku(id);
             sku(ed) <- sku(id);
-            code(ed) <- codeCustomsGroup(defaultCountry(), sku(id));
+            code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
             shortNameUOM(ed) <- shortNameUOM(sku(id));
             quantity(ed) <- quantity(id); 
             price(ed) <- price(id);
@@ -161,7 +163,7 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
 
             name(ed) <- nameSku(id);
             sku(ed) <- sku(id);
-            code(ed) <- codeCustomsGroup(defaultCountry(), sku(id));
+            code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
             shortNameUOM(ed) <- shortNameUOM(sku(id));
             quantity(ed) <- -quantity(id); 
             price(ed) <- price(id);
