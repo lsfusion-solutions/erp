@@ -279,6 +279,18 @@ shippingAddressConsignee 'Адрес доставки' = DATA VARSTRING[150] (EV
 
 name 'Название документа' (EVAT e) = 'ЭСЧФ' + ' № ' + seriesNumber(e) + ' от ' + date(e) + 
         (IF exported(e) THEN ' Выставлен, ' ELSE '') + (IF NOT exported(e) THEN ' Не выставлен, ' ELSE '') + captionStatus(e);
+        
+evatCode 'Ед. изм. (ЭСЧФ)' = DATA INTEGER (UOM);
+EXTEND FORM UOM
+    PROPERTIES(u) evatCode
+;
+EXTEND FORM UOMs
+    PROPERTIES(u) READONLY evatCode
+;
+EXTEND FORM dialogUOMs
+    PROPERTIES(u) READONLY evatCode
+;
+        
 //Товар
 CLASS EVATDetail 'Строка электронного счёта-фактуры';
 TABLE evatDetail(EVATDetail);
@@ -288,7 +300,8 @@ objValue (EVATDetail d) = INTEGER(d AS EVATDetail);
 name 'Наименование' = DATA VARSTRING[255] (EVATDetail);
 sku = DATA Sku(EVATDetail);
 code 'Код ТНВЭД' = DATA VARSTRING[10] (EVATDetail);
-shortNameUOM 'Ед. изм.' (EVATDetail evatDetail) = DATA VARISTRING[100] (EVATDetail);
+UOM = DATA UOM (EVATDetail);
+evatCodeUOM 'Ед. изм. (ЭСЧФ)' (EVATDetail evatDetail) = evatCode(UOM(evatDetail));
 codeOced 'Код видов деятельности (ОКЭД)' = DATA VARSTRING[100] (EVATDetail);
 quantity 'Количество' = DATA NUMERIC[16,5] (EVATDetail); 
 price 'Цена' = DATA NUMERIC[16,5] (EVATDetail);
@@ -338,7 +351,7 @@ FORM evat 'Электронная счёт-фактура'
                   totalSum, totalExciseSum, totalVATSum, totalSumWithVAT
 
     OBJECTS d = EVATDetail
-    PROPERTIES(d) name, shortNameUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType, NEW, DELETE
+    PROPERTIES(d) name, evatCodeUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType, NEW, DELETE
     FILTERS evat(d) == e
     EDIT EVAT OBJECT e
 ;
@@ -463,7 +476,7 @@ FORM evats 'Электронные счета-фактуры'
     
      
     OBJECTS d = EVATDetail
-    PROPERTIES(d) READONLYIF isReadonly() name, shortNameUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
+    PROPERTIES(d) READONLYIF isReadonly() name, evatCodeUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
     FILTERS evat(d) == e
     LIST EVAT OBJECT e
 

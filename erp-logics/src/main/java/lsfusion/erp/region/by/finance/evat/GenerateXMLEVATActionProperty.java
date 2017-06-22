@@ -430,9 +430,9 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         ImRevMap<Object, KeyExpr> evatDetailKeys = MapFact.singletonRev((Object) "evatDetail", evatDetailExpr);
 
         QueryBuilder<Object, Object> evatDetailQuery = new QueryBuilder<>(evatDetailKeys);
-        String[] evatDetailNames = new String[]{"objValue", "name", "code", "shortNameUOM", "codeOced",
+        String[] evatDetailNames = new String[]{"objValue", "name", "code", "evatCodeUOM", "codeOced",
                 "quantity", "price", "sum", "exciseSum", "vatRate", "vatSum", "sumWithVAT", "nameDescriptionType"};
-        LCP[] evatDetailProperties = findProperties("objValue[EVATDetail]", "name[EVATDetail]", "code[EVATDetail]", "shortNameUOM[EVATDetail]",
+        LCP[] evatDetailProperties = findProperties("objValue[EVATDetail]", "name[EVATDetail]", "code[EVATDetail]", "evatCodeUOM[EVATDetail]",
                 "codeOced[EVATDetail]", "quantity[EVATDetail]", "price[EVATDetail]", "sum[EVATDetail]", "exciseSum[EVATDetail]",
                 "vatRate[EVATDetail]", "vatSum[EVATDetail]", "sumWithVAT[EVATDetail]", "nameDescriptionType[EVATDetail]");
         for (int i = 0; i < evatDetailProperties.length; i++) {
@@ -444,7 +444,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             ImMap<Object, Object> entry = evatDetailResults.getValue(i);
             String name = trim((String) entry.get("name"));
             String code = trim((String) entry.get("code"));
-            //String shortNameUOM = trim((String) entry.get("shortNameUOM")); //должен быть Integer
+            Integer evatCodeUOM = (Integer) entry.get("evatCodeUOM");
             Integer codeOced = (Integer) entry.get("codeOced");
             BigDecimal quantity = (BigDecimal) entry.get("quantity");
             BigDecimal price = (BigDecimal) entry.get("price");
@@ -463,7 +463,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             addStringElement(namespace, rosterItemElement, "name", name);
             addStringElement(namespace, rosterItemElement, "code", code);
             addStringElement(namespace, rosterItemElement, "code_oced", getString(codeOced));
-            //addStringElement(namespace, rosterItemElement, "units", shortNameUOM);
+            addIntegerElement(namespace, rosterItemElement, "units", evatCodeUOM);
             addBigDecimalElement(namespace, rosterItemElement, "count", quantity);
             addStringElement(namespace, rosterItemElement, "price", bigDecimalToString(price));
             addStringElement(namespace, rosterItemElement, "cost", bigDecimalToString(sum));
