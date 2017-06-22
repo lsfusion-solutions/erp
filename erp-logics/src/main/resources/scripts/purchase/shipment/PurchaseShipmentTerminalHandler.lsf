@@ -23,10 +23,10 @@ DESIGN options {
 
 nearestOrderDetail = GROUP MAX OrderDetail d 
     IF shipmentDate(d) <= DATE dt AND isPosted(d) AND NOT isClosed(d) AND toInvoice(d)
-    BY sku(d), supplier(d), customerStock(d), dt;
+    BY sku(d), supplierStock(d), customerStock(d), dt;
     
-legalEntity(TerminalDocument d) = IF skipPrefix(terminalHandbookType1(purchaseInvoiceTerminalDocumentType())) THEN legalEntity(idTerminalHandbookType1(d))
-    ELSE legalEntity(replace(idTerminalHandbookType1(d),idTerminalHandbookType1(purchaseInvoiceTerminalDocumentType()),''));
+supplierStock(TerminalDocument d) = IF skipPrefix(terminalHandbookType1(purchaseInvoiceTerminalDocumentType())) THEN stock(idTerminalHandbookType1(d))
+    ELSE stock(replace(idTerminalHandbookType1(d),idTerminalHandbookType1(purchaseInvoiceTerminalDocumentType()),''));
 
 overAutoPurchaseInvoiceTerminal = ACTION ABSTRACT LIST (UserInvoice);
 
@@ -43,8 +43,8 @@ process(TerminalDocument document) += {
         FOR UserInvoice i == userInvoice(id(document)) DO {
             customer(i) <- legalEntity(stock(document));
             customerStock(i) <- stock(document);
-            supplier(i) <- legalEntity(document);
-            supplierStock(i) <- defaultStock(legalEntity(document));
+            supplier(i) <- legalEntity(supplierStock(document));
+            supplierStock(i) <- supplierStock(document);
             operation(i) <- defaultPurchaseOperation();
             number(i) <- VARSTRING[28](title(document));
             
@@ -63,7 +63,7 @@ process(TerminalDocument document) += {
             userInvoice(d) <- userInvoice(id(document));
             sku(d) <- sku(tdd);
             quantity(d) <- quantity(tdd);
-            orderDetail(d) <- nearestOrderDetail(sku(tdd), legalEntity(document), stock(document), currentDate() );
+            orderDetail(d) <- nearestOrderDetail(sku(tdd), supplierStock(document), stock(document), currentDate() );
             manufactureDate(d) <- extraDate1(tdd);
         }
       
