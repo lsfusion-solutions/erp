@@ -15,6 +15,8 @@ surelyFootLength 'Длина стопы обязательна' = DATA BOOLEAN (
 surelyInsoleLength 'Длина стельки обязательна' = DATA BOOLEAN (CustomsGroup) IN customsAttributes;
 surelySizeHead 'Обхват головы обязателен' = DATA BOOLEAN (CustomsGroup) IN customsAttributes;
 surelySizeBrush 'Обхват кисти обязателен' = DATA BOOLEAN (CustomsGroup) IN customsAttributes;
+surelySizeHips 'Обхват бедер обязателен' = DATA BOOLEAN (CustomsGroup) IN customsAttributes;
+surelySizeWaist 'Обхват талии обязателен' = DATA BOOLEAN (CustomsGroup) IN customsAttributes;
 
 surelySizeHeight (VATCustomsException o) = surelySizeHeight(customsGroup(o));
 surelySizeChest (VATCustomsException o) = surelySizeChest(customsGroup(o));
@@ -23,6 +25,8 @@ surelyFootLength (VATCustomsException o) = surelyFootLength(customsGroup(o));
 surelyInsoleLength (VATCustomsException o) = surelyInsoleLength(customsGroup(o));
 surelySizeHead (VATCustomsException o) = surelySizeHead(customsGroup(o));
 surelyISizeBrush (VATCustomsException o) = surelySizeBrush(customsGroup(o));
+surelySizeHips (VATCustomsException o) = surelySizeHips(customsGroup(o));
+surelySizeWaist (VATCustomsException o) = surelySizeWaist(customsGroup(o));
 
 limitSizeHeight 'Рост предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
 limitSizeChest 'Обхват груди предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
@@ -31,11 +35,13 @@ limitFootLength 'Длина стопы предельное значение' = 
 limitInsoleLength 'Длина стельки предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
 limitSizeHead 'Обхват головы предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
 limitSizeBrush 'Обхват кисти предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
+limitSizeHips 'Обхват бедер предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
+limitSizeWaist 'Обхват талии предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
 
 autoFill (VATCustomsException g) = limitSizeHeight(g) OR limitSizeChest(g) OR
                                   limitSizeNeck(g) OR limitFootLength(g) OR
                                   limitInsoleLength(g) OR limitSizeHead(g) OR
-                                  limitSizeBrush(g) MATERIALIZED;
+                                  limitSizeBrush(g) OR limitSizeHips(g) OR limitSizeWaist(g) MATERIALIZED;
                                   
 EXTEND FORM customsGroup
     PROPERTIES(vce) READONLY AFTER valueCurrent(vce)                   
@@ -45,7 +51,9 @@ EXTEND FORM customsGroup
                     limitFootLength SHOWIF surelyFootLength(vce),
                     limitInsoleLength SHOWIF surelyInsoleLength(vce),
                     limitSizeHead SHOWIF surelySizeHead(vce),
-                    limitSizeBrush SHOWIF surelyISizeBrush(vce)                                                                                                        
+                    limitSizeBrush SHOWIF surelyISizeBrush(vce),                                                                                                        
+                    limitSizeHips SHOWIF surelySizeHips(vce),                                                                                                        
+                    limitSizeWaist SHOWIF surelySizeWaist(vce)                                                                                                        
 ;
 
 EXTEND FORM VATCustomsException 
@@ -56,7 +64,9 @@ EXTEND FORM VATCustomsException
                     limitFootLength SHOWIF surelyFootLength(v),
                     limitSizeNeck SHOWIF surelySizeNeck(v),
                     limitSizeChest SHOWIF surelySizeChest(v),                      
-                    limitSizeHeight SHOWIF surelySizeHeight(v)                     
+                    limitSizeHeight SHOWIF surelySizeHeight(v),                     
+                    limitSizeHips SHOWIF surelySizeHips(v),                     
+                    limitSizeWaist SHOWIF surelySizeWaist(v)                     
     EDIT VATCustomsException OBJECT v      
 ;
                                   
@@ -87,6 +97,12 @@ setSurelyCustomsGroups 'Задать таможенные атрибуты'() = 
         IF isSubstring(nameVATCustomsException(customsGroup), 'обхват кисти') == 1 OR isSubstring(nameVATCustomsException(customsGroup), 'Обхват кисти') == 1 THEN {
             surelySizeBrush(customsGroup) <- TRUE;
         }
+        IF isSubstring(nameVATCustomsException(customsGroup), 'обхват бедер') == 1 OR isSubstring(nameVATCustomsException(customsGroup), 'Обхват бедер') == 1 THEN {
+            surelySizeHips(customsGroup) <- TRUE;
+        }
+        IF isSubstring(nameVATCustomsException(customsGroup), 'обхват талии') == 1 OR isSubstring(nameVATCustomsException(customsGroup), 'Обхват талии') == 1 THEN {
+            surelySizeWaist(customsGroup) <- TRUE;
+        }
     }
 }
 
@@ -102,7 +118,7 @@ DESIGN defaultData {
 
 EXTEND FORM customsGroup
     PROPERTIES(cg) surelyExSize, surelySizeHeight, surelySizeChest, surelySizeNeck,
-    surelyFootLength, surelyInsoleLength, surelySizeHead, surelySizeBrush
+    surelyFootLength, surelyInsoleLength, surelySizeHead, surelySizeBrush, surelySizeHips, surelySizeWaist
 ;
 
 DESIGN customsGroup {
@@ -115,7 +131,7 @@ DESIGN customsGroup {
 
 EXTEND FORM customsGroups
     PROPERTIES(cg) READONLYIF isReadonly() BEFORE number(cg) surelyExSize, surelySizeHeight, surelySizeChest, surelySizeNeck,
-    surelyFootLength, surelyInsoleLength, surelySizeHead, surelySizeBrush
+    surelyFootLength, surelyInsoleLength, surelySizeHead, surelySizeBrush, surelySizeHips, surelySizeWaist
 ;
 
 DESIGN itemGroup {

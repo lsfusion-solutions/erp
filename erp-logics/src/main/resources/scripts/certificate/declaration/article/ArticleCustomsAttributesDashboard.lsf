@@ -21,6 +21,8 @@ backgroundFootLength 'Цвет' (Country country,Item item) = RGB(224, 224, 255)
 backgroundInsoleLength 'Цвет' (Country country,Item item) = RGB(224, 224, 255) IF surelyInsoleLength(customsGroup(country,item));
 backgroundSizeHead 'Цвет' (Country country,Item item) = RGB(224, 224, 255) IF surelySizeHead(customsGroup(country,item));
 backgroundSizeBrush 'Цвет' (Country country,Item item) = RGB(224, 224, 255) IF surelySizeBrush(customsGroup(country,item));
+backgroundSizeHips 'Цвет' (Country country,Item item) = RGB(224, 224, 255) IF surelySizeHips(customsGroup(country,item));
+backgroundSizeWaist 'Цвет' (Country country,Item item) = RGB(224, 224, 255) IF surelySizeWaist(customsGroup(country,item));
 
 nullCustomsAttributes 'Без атрибутов' (Country country, Item item)= 
     ((surelySizeHeight(customsGroup(country,item)) AND NOT sizeHeightCustoms(item)) OR
@@ -29,7 +31,9 @@ nullCustomsAttributes 'Без атрибутов' (Country country, Item item)=
      (surelyFootLength(customsGroup(country,item)) AND NOT footLengthCustoms(item)) OR
      (surelyInsoleLength(customsGroup(country,item)) AND NOT insoleLengthCustoms(item)) OR
      (surelySizeHead(customsGroup(country,item)) AND NOT sizeHeadCustoms(item)) OR
-     (surelySizeBrush(customsGroup(country,item)) AND NOT sizeBrushCustoms(item))) AND NOT completedCustomsAttributes(item);
+     (surelySizeBrush(customsGroup(country,item)) AND NOT sizeBrushCustoms(item)) OR
+     (surelySizeHips(customsGroup(country,item)) AND NOT sizeHipsCustoms(item)) OR
+     (surelySizeWaist(customsGroup(country,item)) AND NOT sizeWaistCustoms(item))) AND NOT completedCustomsAttributes(item);
 
 backgroundCountVATCustomsException 'Цвет' (Country country,Sku item) = RGB(224, 224, 255) IF countVATCustomsException(customsGroup(country, item)) > 0;
     
@@ -75,6 +79,7 @@ FORM articleCustomsAttributesDashboard 'Заполнение НДС'
                      sizeNeckCustoms BACKGROUND backgroundSizeNeck(c,i), footLengthCustoms BACKGROUND backgroundFootLength(c,i),
                      insoleLengthCustoms BACKGROUND backgroundInsoleLength(c,i),
                      sizeHeadCustoms BACKGROUND backgroundSizeHead(c,i), sizeBrushCustoms BACKGROUND backgroundSizeBrush(c,i),
+                     sizeHipsCustoms BACKGROUND backgroundSizeHips(c,i), sizeWaistCustoms BACKGROUND backgroundSizeWaist(c,i),
                      image PANEL
     PROPERTIES(c, i) nameVATCustomsException BACKGROUND backgroundCountVATCustomsException(c, i)     
     PROPERTIES (i, c) numberVAT
@@ -150,6 +155,8 @@ DESIGN articleCustomsAttributesDashboard {
     PROPERTY(insoleLengthCustoms(i)) { minimumSize = ( 40, 17); preferredSize = ( 50, 17); maximumSize = ( 100, 17);}
     PROPERTY(sizeHeadCustoms(i)) { minimumSize = ( 40, 17); preferredSize = ( 50, 17); maximumSize = ( 100, 17);}
     PROPERTY(sizeBrushCustoms(i)) { minimumSize = ( 40, 17); preferredSize = ( 50, 17); maximumSize = ( 100, 17);}
+    PROPERTY(sizeHipsCustoms(i)) { minimumSize = ( 40, 17); preferredSize = ( 50, 17); maximumSize = ( 100, 17);}
+    PROPERTY(sizeWaistCustoms(i)) { minimumSize = ( 40, 17); preferredSize = ( 50, 17); maximumSize = ( 100, 17);}
     PROPERTY(composition(i)) {minimumSize = ( 150, 17); preferredSize = ( 250, 17); maximumSize = ( 400, 17);}
 
     PROPERTY(id(i)) { minimumCharWidth = 6; preferredCharWidth = 10;}
@@ -226,7 +233,9 @@ defaultVATCustomsException (country, item, date) =
               (surelyFootLength(customsGroup(exception)) AND toInteger(lastWord(footLengthCustoms(item))) > limitFootLength(exception)) AND NOT
               (surelyInsoleLength(customsGroup(exception)) AND toInteger(lastWord(insoleLengthCustoms(item))) > limitInsoleLength(exception)) AND NOT
               (surelySizeHead(customsGroup(exception)) AND toInteger(sizeHeadCustoms(item)) > limitSizeHead(exception)) AND NOT
-              (surelySizeBrush(customsGroup(exception)) AND toInteger(sizeBrushCustoms(item)) > limitSizeBrush(exception))
+              (surelySizeBrush(customsGroup(exception)) AND toInteger(sizeBrushCustoms(item)) > limitSizeBrush(exception)) AND NOT
+              (surelySizeHips(customsGroup(exception)) AND toInteger(sizeHipsCustoms(item)) > limitSizeHips(exception)) AND NOT
+              (surelySizeWaist(customsGroup(exception)) AND toInteger(sizeWaistCustoms(item)) > limitSizeWaist(exception))
           BY country, item, date;
 
 fillDefaultVATCustomsException 'Рассчитать льготу'(Country country, Item item) = {
@@ -308,3 +317,11 @@ mapAllSizeBrushItem 'Заполнить обхват кисти для всех 
    FOR [= FILTER articleCustomsAttributesDashboard.i](Item i) AND NOT sizeBrushCustoms(i) DO
        mapSizeBrushCustoms(i);
 } SHORTCUT sizeBrushCustoms[Item];
+mapAllSizeHipsItem 'Заполнить обхват бедер для всех по соответствию'() = {
+   FOR [= FILTER articleCustomsAttributesDashboard.i](Item i) AND NOT sizeHipsCustoms(i) DO
+       mapSizeHipsCustoms(i);
+} SHORTCUT sizeHipsCustoms[Item];
+mapAllSizeWaistItem 'Заполнить обхват талии для всех по соответствию'() = {
+   FOR [= FILTER articleCustomsAttributesDashboard.i](Item i) AND NOT sizeWaistCustoms(i) DO
+       mapSizeWaistCustoms(i);
+} SHORTCUT sizeWaistCustoms[Item];
