@@ -19,7 +19,10 @@ isSent(UserOrder o) += isSent(o);
 isSent 'Отправлен' (OrderDetail d) = isSent(order(d));
 isSent 'Отправлен' (UserOrderDetail d) = isSent(userOrder(d));
 
-CONSTRAINT (CHANGED(sku(OrderDetail detail)) OR CHANGED(quantity(detail)) OR CHANGED(price(detail))) AND isSent(detail) MESSAGE 'Нельзя корректировать отправленный заказ';
+WHEN FORMS userOrder (CHANGED(sku(OrderDetail detail)) OR CHANGED(quantity(detail)) OR CHANGED(price(detail))) AND isSent(detail) DO {
+cancel();
+MESSAGE 'Нельзя корректировать отправленный заказ';
+}
 
 sentDateTime 'Дата отправления' (o) = ABSTRACT DATETIME (Order) MATERIALIZED;
 sentDateTime 'Дата отправления' (o) = DATA DATETIME (UserOrder);
