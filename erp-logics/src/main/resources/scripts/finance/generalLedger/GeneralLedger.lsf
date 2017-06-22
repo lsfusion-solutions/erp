@@ -481,9 +481,21 @@ END
 createGeneralLedgerFromTo  = ACTION ABSTRACT LIST (LegalEntity, DATE, DATE); 
 
 createGeneralLedger 'Создать проводки' (LegalEntity legalEntity, DATE dFrom, DATE dTo) = {
-    DELETE UserGeneralLedger ud WHERE ud IS UserGeneralLedger AND date(ud) >= dFrom AND date(ud) <= dTo AND legalEntity(ud) == legalEntity;
-    createGeneralLedgerFromTo(legalEntity, dFrom, dTo);
-    apply();
+    NEWSESSION {
+        lock(legalEntity);
+        IF lockResult() THEN {
+            TRY {
+                DELETE UserGeneralLedger ud WHERE ud IS UserGeneralLedger AND date(ud) >= dFrom AND date(ud) <= dTo AND legalEntity(ud) == legalEntity;
+                APPLY;
+                createGeneralLedgerFromTo(legalEntity, dFrom, dTo);
+                APPLY;
+            } FINALLY {
+                unlock(legalEntity);
+            }
+        } ELSE {
+            MESSAGE 'Уже выполняется создание проводок для компании '+name(legalEntity)+'. Подождите...';    
+        }        
+    }
 } CONFIRM;
 
 createGeneralLedger(DATE dFrom, DATE dTo) = {
