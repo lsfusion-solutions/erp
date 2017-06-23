@@ -897,7 +897,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
                         if (numberAtATime == null)
                             numberAtATime = salesInfoList.size();
+
                         boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
+                        List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(getDbManager());
 
                         Timestamp timeStart = getCurrentTimestamp();
 
@@ -1137,7 +1139,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                         Map<Object, String> barcodeMap = new HashMap<>();
                         for (SalesInfo sale : data) {
-                            if (!overDocumentsClosedDate(sale, ignoreReceiptsAfterDocumentsClosedDate)) {
+                            if (!overDocumentsClosedDate(sale, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList)) {
                                 String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem :
                                         (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : sale.idItem != null ? barcodeMap.get(sale.idItem) : null);
                                 if (barcode == null && sale.itemObject != null) {
@@ -1288,8 +1290,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
 
-    private boolean overDocumentsClosedDate(SalesInfo salesInfo, boolean ignoreReceiptsAfterDocumentsClosedDate) {
-        return ignoreReceiptsAfterDocumentsClosedDate && salesInfo.dateReceipt != null && salesInfo.cashRegisterInfo != null && salesInfo.cashRegisterInfo.documentsClosedDate != null &&
+    private boolean overDocumentsClosedDate(SalesInfo salesInfo, boolean ignoreReceiptsAfterDocumentsClosedDate, List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList) {
+        return ignoreReceiptsAfterDocumentsClosedDate && !allowReceiptsAfterDocumentsClosedDateCashRegisterList.contains(salesInfo.nppGroupMachinery) &&
+                salesInfo.dateReceipt != null && salesInfo.cashRegisterInfo != null && salesInfo.cashRegisterInfo.documentsClosedDate != null &&
                 salesInfo.dateReceipt.compareTo(salesInfo.cashRegisterInfo.documentsClosedDate) < 0;
     }
     

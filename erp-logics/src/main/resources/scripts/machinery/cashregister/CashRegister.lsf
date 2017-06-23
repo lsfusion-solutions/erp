@@ -20,6 +20,7 @@ inactive(GroupCashRegister g) += inactive(g);
 
 pieceCode 'Код для штучных товаров' = DATA STRING[2] (GroupCashRegister) IN base;
 weightCode 'Код для весовых товаров' = DATA STRING[2] (GroupCashRegister) IN base;
+allowReceiptsAfterDocumentsClosedDate 'Разрешить приём реализации по закрытым документам' = DATA BOOLEAN (GroupCashRegister);
 
 // Модели
 CLASS CashRegisterModel 'Модель касс' : Model;
@@ -165,7 +166,7 @@ FORM cashRegister 'Касса'
 FORM groupCashRegister 'Группа касс'
     OBJECTS grc=GroupCashRegister PANEL
     PROPERTIES(grc) npp, departmentNumber, nameStock, name,
-                    pieceCode, weightCode,
+                    pieceCode, weightCode, allowReceiptsAfterDocumentsClosedDate,
                     filterSku, showFilterSku SHOWIF filterSku(grc),
                     namePriceListType, nameModel, 
                     directory SHOWIF notIgnoreCashRegisterServerCashRegisterModel(grc) ON CHANGE changeDirectory(grc),
@@ -199,6 +200,7 @@ DESIGN groupCashRegister{
             MOVE PROPERTY(name(grc));
             MOVE PROPERTY(pieceCode(grc));
             MOVE PROPERTY(weightCode(grc));
+            MOVE PROPERTY(allowReceiptsAfterDocumentsClosedDate(grc));
             MOVE PROPERTY(filterSku(grc));
             MOVE PROPERTY(showFilterSku(grc));
             MOVE PROPERTY(namePriceListType(grc));
@@ -228,6 +230,7 @@ copy 'Копировать'(GroupCashRegister old) = {
 	        name(new) <- name(old);
 	        pieceCode(new) <- pieceCode(old);
 	        weightCode(new) <- weightCode(old);
+	        allowReceiptsAfterDocumentsClosedDate(new) <- allowReceiptsAfterDocumentsClosedDate(old);
 	        filterSku(new) <- filterSku(old);
 	        in(new, SkuGroup s) <- in(old, s);
 	        priceListType(new) <- priceListType(old);
@@ -267,7 +270,7 @@ FORM groupsCashRegister 'Группы касс'
     OBJECTS grc=GroupCashRegister, c=CashRegister
     PROPERTIES(grc)  READONLY active, npp, departmentNumber, nameStock, name,
                      filterSku, nameModel, directory,
-                     startDate, notDetailed,  pieceCode, weightCode, section
+                     startDate, notDetailed,  pieceCode, weightCode, allowReceiptsAfterDocumentsClosedDate, section
     PROPERTIES(grc)  NEWSESSION NEW, EDIT, DELETE , copy
 
     PROPERTIES(c) READONLY npp, shortDescription, description, port, logPath, ip, comPort, overBaudRate,

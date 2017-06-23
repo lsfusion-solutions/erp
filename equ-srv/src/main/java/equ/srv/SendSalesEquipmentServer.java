@@ -403,4 +403,25 @@ public class SendSalesEquipmentServer {
         return cashRegisterList;
     }
 
+    public static List<Integer> readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(DBManager dbManager) {
+        List<Integer> cashRegisterList = new ArrayList<>();
+        if (equipmentCashRegisterLM != null) {
+            try (DataSession session = dbManager.createSession()) {
+
+                KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
+                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "groupCashRegister", groupCashRegisterExpr);
+                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+                query.addProperty("npp", equipmentCashRegisterLM.findProperty("npp[GroupCashRegister]").getExpr(groupCashRegisterExpr));
+                query.and(equipmentCashRegisterLM.findProperty("allowReceiptsAfterDocumentsClosedDate[GroupCashRegister]").getExpr(groupCashRegisterExpr).getWhere());
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> zReportResult = query.execute(session);
+                for (ImMap<Object, Object> entry : zReportResult.values()) {
+                    cashRegisterList.add((Integer) entry.get("npp"));
+                }
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return cashRegisterList;
+    }
+
 }
