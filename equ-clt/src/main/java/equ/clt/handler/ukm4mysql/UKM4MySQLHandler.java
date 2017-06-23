@@ -841,6 +841,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         Set<Integer> cashPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getCashPayments());
         Set<Integer> cardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getCardPayments());
         Set<Integer> giftCardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getGiftCardPayments());
+        List<String> giftCardList = ukm4MySQLSettings == null ? new ArrayList<String>() : ukm4MySQLSettings.getGiftCardList();
         boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
         boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
 
@@ -861,7 +862,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                     checkIndices(conn);
                     salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments,
-                            useBarcodeAsId, appendBarcode, directory);
+                            giftCardList, useBarcodeAsId, appendBarcode, directory);
 
                 } finally {
                     if (conn != null)
@@ -967,7 +968,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
     private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, Map<Integer, CashRegisterInfo> machineryMap,
                                                      Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments,
-                                                     boolean useBarcodeAsId, boolean appendBarcode, String directory) throws SQLException {
+                                                     List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode, String directory) throws SQLException {
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
         //Map<Integer, String> loginMap = readLoginMap(conn);
@@ -1004,10 +1005,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         idBarcode = idBarcode.substring(2, 7);
                     String idItem = useBarcodeAsId && appendBarcode ? appendCheckDigitToBarcode(rs.getString(7), 5) : rs.getString(7); //i.item
                     BigDecimal totalQuantity = rs.getBigDecimal(8); //i.total_quantity
-                    BigDecimal price = rs.getBigDecimal(9) == null ? null : rs.getBigDecimal(9); //i.price
-                    BigDecimal sum = rs.getBigDecimal(10) == null ? null : rs.getBigDecimal(10); //i.total
+                    BigDecimal price = rs.getBigDecimal(9); //i.price
+                    BigDecimal sum = rs.getBigDecimal(10); //i.total
                     Integer position = rs.getInt(11) + 1;
-                    BigDecimal realAmount = rs.getBigDecimal(12) == null ? null : rs.getBigDecimal(12); //i.real_amount
+                    BigDecimal realAmount = rs.getBigDecimal(12); //i.real_amount
                     String idSection = rs.getString(13);
 
                     Payment paymentEntry = paymentMap.get(cash_id + "/" + idReceipt);
@@ -1028,6 +1029,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         boolean isGiftCard = giftCardValue != null && !giftCardValue.isEmpty();
                         if (isGiftCard)
                             idBarcode = giftCardValue;
+                        else
+                            isGiftCard = giftCardList.contains(idBarcode);
 
                         Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
                         for (Map.Entry<String, BigDecimal> entry : paymentEntry.sumGiftCardMap.entrySet()) {

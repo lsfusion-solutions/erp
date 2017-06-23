@@ -1,12 +1,16 @@
 package equ.clt.handler.ukm4mysql;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class UKM4MySQLSettings implements Serializable{
 
     private String cashPayments;
     private String cardPayments;
     private String giftCardPayments;
+    private List<String> giftCardList = new ArrayList<>();
     private Integer timeout;
     private Boolean skipItems;
     private Boolean skipClassif;
@@ -40,6 +44,16 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setGiftCardPayments(String giftCardPayments) {
         this.giftCardPayments = giftCardPayments;
+    }
+
+    public List<String> getGiftCardList() {
+        return giftCardList;
+    }
+
+    public void setGiftCardsList(String giftCards) {
+        giftCardList = new ArrayList<>();
+        if(!giftCards.isEmpty())
+            giftCardList.addAll(Arrays.asList(giftCards.split(",\\s?")));
     }
 
     public Integer getTimeout() {
