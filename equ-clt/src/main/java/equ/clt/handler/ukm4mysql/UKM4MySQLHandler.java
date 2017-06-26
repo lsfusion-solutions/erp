@@ -1033,7 +1033,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         else {
                             isGiftCard = giftCardList.contains(idBarcode);
                             if(isGiftCard) {
-                                Timestamp dateTimeReceipt = rs.getTimestamp(17);
+                                long dateTimeReceipt = rs.getTimestamp(17) == null ? 0 : rs.getTimestamp(17).getTime();
                                 int count = 1;
                                 while(usedBarcodes.contains(idBarcode + "/" + dateTimeReceipt + "/" + count)) {
                                     count++;
