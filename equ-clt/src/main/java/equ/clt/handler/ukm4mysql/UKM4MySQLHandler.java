@@ -973,6 +973,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
         //Map<Integer, String> loginMap = readLoginMap(conn);
         Set<Pair<Integer, Integer>> receiptSet = new HashSet<>();
+        Set<String> usedBarcodes = new HashSet<>();
 
         Statement statement = null;
         try {
@@ -1029,8 +1030,18 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         boolean isGiftCard = giftCardValue != null && !giftCardValue.isEmpty();
                         if (isGiftCard)
                             idBarcode = giftCardValue;
-                        else
+                        else {
                             isGiftCard = giftCardList.contains(idBarcode);
+                            if(isGiftCard) {
+                                Timestamp dateTimeReceipt = rs.getTimestamp(17);
+                                int count = 1;
+                                while(usedBarcodes.contains(idBarcode + "/" + dateTimeReceipt + "/" + count)) {
+                                    count++;
+                                }
+                                idBarcode = idBarcode + "/" + dateTimeReceipt + "/" + count;
+                                usedBarcodes.add(idBarcode);
+                            }
+                        }
 
                         Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
                         for (Map.Entry<String, BigDecimal> entry : paymentEntry.sumGiftCardMap.entrySet()) {
