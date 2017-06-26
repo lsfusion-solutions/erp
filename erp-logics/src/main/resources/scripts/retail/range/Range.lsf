@@ -320,11 +320,23 @@ copy 'Копировать'(RangeRev pr) = {
 
 saved 'Сохранена' (Range r) = PREV(r IS Range);
 
+skipShowEdit = ABSTRACT VALUE BOOLEAN (RangeRev);
+skipShowDelete = ABSTRACT VALUE BOOLEAN (RangeRev);
+
+showEdit (RangeRev v)  = v IS RangeRev AND NOT skipShowEdit(v);
+showDelete (RangeRev v) = v IS RangeRev AND NOT skipShowDelete(v); 
+
+show 'Просмотреть' (RangeRev v) = {
+    NEWSESSION {
+        SHOW rangeRev OBJECTS v = v DOCKED READONLY;
+    }
+} TOOLBAR;
+
 EXTEND FORM range
     
     OBJECTS v = RangeRev
     PROPERTIES(v) READONLY dateTime
-    PROPERTIES(v) NEWSESSION SHOWIF saved(r) NEW, EDIT, copy, DELETE 
+    PROPERTIES(v) NEWSESSION SHOWIF saved(r) NEW, show, editv = EDIT SHOWIF showEdit(v), copy, deletev = DELETE SHOWIF showDelete(v)
     FILTERS range(v) == r
 ;
 
