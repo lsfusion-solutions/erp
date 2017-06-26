@@ -298,10 +298,14 @@ public class TerminalServer extends MonitorServer {
                                                 String dateDocumentDetail = line.length <= 5 ? null : formatValue(line[5]);
                                                 String extraDate1DocumentDetail = line.length <= 6 ? null : formatValue(line[6]);
                                                 String extraDate2DocumentDetail = line.length <= 7 ? null : formatValue(line[7]);
+                                                String extraField1DocumentDetail = line.length <= 8 ? null : formatValue(line[8]);
+                                                String extraField2DocumentDetail = line.length <= 9 ? null : formatValue(line[9]);
+                                                String extraField3DocumentDetail = line.length <= 10 ? null : formatValue(line[10]);
                                                 terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType,
                                                         ana1, ana2, comment, idDocumentDetail, numberDocumentDetail, barcodeDocumentDetail, quantityDocumentDetail,
                                                         priceDocumentDetail, commentDocumentDetail, parseTimestamp(dateDocumentDetail),
-                                                        parseDate(extraDate1DocumentDetail), parseDate(extraDate2DocumentDetail)));
+                                                        parseDate(extraDate1DocumentDetail), parseDate(extraDate2DocumentDetail), extraField1DocumentDetail,
+                                                        extraField2DocumentDetail, extraField3DocumentDetail));
                                             }
                                         }
                                         logger.info("receiving document number " + document[2] + " : " + params.size() + " records");

@@ -612,6 +612,18 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     ImportField extraDate2TerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("extraDate2[TerminalDocumentDetail]"));
                     props.add(new ImportProperty(extraDate2TerminalDocumentDetailField, terminalHandlerLM.findProperty("extraDate2[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                     fields.add(extraDate2TerminalDocumentDetailField);
+
+                    ImportField extraField1TerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("extraField1[TerminalDocumentDetail]"));
+                    props.add(new ImportProperty(extraField1TerminalDocumentDetailField, terminalHandlerLM.findProperty("extraField1[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                    fields.add(extraField1TerminalDocumentDetailField);
+
+                    ImportField extraField2TerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("extraField2[TerminalDocumentDetail]"));
+                    props.add(new ImportProperty(extraField2TerminalDocumentDetailField, terminalHandlerLM.findProperty("extraField2[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                    fields.add(extraField2TerminalDocumentDetailField);
+
+                    ImportField extraField3TerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("extraField3[TerminalDocumentDetail]"));
+                    props.add(new ImportProperty(extraField3TerminalDocumentDetailField, terminalHandlerLM.findProperty("extraField3[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                    fields.add(extraField3TerminalDocumentDetailField);
                 }
 
                 ImportTable table = new ImportTable(fields, terminalDocumentDetailList);
