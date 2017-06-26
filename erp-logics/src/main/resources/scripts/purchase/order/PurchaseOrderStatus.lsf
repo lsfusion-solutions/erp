@@ -19,7 +19,19 @@ isSent(UserOrder o) += isSent(o);
 isSent 'Отправлен' (OrderDetail d) = isSent(order(d));
 isSent 'Отправлен' (UserOrderDetail d) = isSent(userOrder(d));
 
-WHEN FORMS userOrder (CHANGED(sku(OrderDetail detail)) OR CHANGED(quantity(detail)) OR CHANGED(price(detail))) AND isSent(detail) DO {
+allowChangeOrder 'Разрешить изменение отправленного заказа ' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() allowChangeOrder
+;
+
+DESIGN options {
+    purchase {
+        MOVE PROPERTY(allowChangeOrder());   
+    }
+}
+
+WHEN FORMS userOrder (CHANGED(sku(OrderDetail detail)) OR CHANGED(quantity(detail)) OR CHANGED(price(detail))) AND isSent(detail) AND NOT allowChangeOrder() DO {
 cancel();
 MESSAGE 'Нельзя корректировать отправленный заказ';
 }
