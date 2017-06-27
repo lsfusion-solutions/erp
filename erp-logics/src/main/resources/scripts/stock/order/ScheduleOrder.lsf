@@ -858,6 +858,72 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
         MOVE functions.box;
     }
+    
+    //----------------- Логирование предварительных заказов ------------------- //
+    
+    CLASS ScheduleOrderDetailLog 'Запись лога предварительных заказов';
+    TABLE scheduleOrderDetailLog(ScheduleOrderDetailLog);
+    
+    scheduleOrder = DATA ScheduleOrder (ScheduleOrderDetailLog) INDEXED;
+    
+    dateOrder 'Дата заказа' = DATA DATE (ScheduleOrderDetailLog);
+    dateSupply 'Дата поставки' = DATA DATE (ScheduleOrderDetailLog);
+    nameSupplier 'Поставщик' = DATA VARSTRING[150] (ScheduleOrderDetailLog);
+    nameCustomerStock 'Склад покупателя' = DATA VARSTRING[150] (ScheduleOrderDetailLog);
+    
+    
+    nameUser 'Имя пользователя' = DATA STRING[30] (ScheduleOrderDetailLog);
+    dateTime 'Время изменения' = DATA DATETIME (ScheduleOrderDetailLog);
+    
+    typeChange= DATA TypeChange (ScheduleOrderDetailLog);
+    nameTypeChange 'Тип изменения' (ScheduleOrderDetailLog l) = staticCaption(typeChange(l));
+    
+    WHEN SET(ScheduleOrderDetail d IS ScheduleOrderDetail) DO {
+        NEW l = ScheduleOrderDetailLog {
+            scheduleOrder(l) <- scheduleOrder(d);
+            dateOrder(l) <- dateOrder(d);
+            dateSupply(l) <- dateSupply(d);
+            nameSupplier(l) <- nameSupplier(d);
+            nameCustomerStock(l) <- nameCustomerStock(d);
+            nameUser(l) <- name(currentUser());
+            dateTime(l) <- currentDateTime();
+            typeChange(l) <- TypeChange.add;
+        }
+    }
+    WHEN DROPPED(ScheduleOrderDetail d IS ScheduleOrderDetail) DO {
+        NEW l = ScheduleOrderDetailLog {       
+            scheduleOrder(l) <- PREV(scheduleOrder(d));
+            dateOrder(l) <- PREV(dateOrder(d));
+            dateSupply(l) <- PREV(dateSupply(d));
+            nameSupplier(l) <- PREV(nameSupplier(d));
+            nameCustomerStock(l) <- PREV(nameCustomerStock(d));
+            nameUser(l) <- name(currentUser());
+            dateTime(l) <- currentDateTime();
+            typeChange(l) <- TypeChange.delete;
+        }
+    }
+    
+    EXTEND FORM scheduleOrder
+        OBJECTS log = ScheduleOrderDetailLog
+        PROPERTIES(log) READONLY dateOrder, dateSupply, nameSupplier, nameCustomerStock, nameUser, dateTime, nameTypeChange
+        FILTERS s == scheduleOrder(log)
+    ;
+        
+    DESIGN scheduleOrder {
+        bottomContainer {
+            NEW detail {
+                type = TABBED;
+                fill = 1;
+                caption = 'Предварительные заказы';
+                MOVE sd.box {
+                    caption = 'Основные';
+                }
+                MOVE log.box {
+                    caption = 'История';
+                }
+            }
+        }
+    }
 
 END
 
