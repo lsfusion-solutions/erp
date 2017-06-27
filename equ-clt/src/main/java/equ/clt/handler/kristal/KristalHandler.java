@@ -370,7 +370,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 //                    throw new RuntimeException("The file " + flagSoftFile.getAbsolutePath() + " can not be deleted");
                 }
             } catch (IOException e) {
-                sendSoftCheckLogger.error("Kristal SoftCheck Error: ", e);
+                sendSoftCheckLogger.error("Kristal SoftCheck: ", e);
             }
         }
     }
@@ -507,7 +507,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     sendSoftCheckLogger.info("Kristal: found " + count + " SoftCheckInfo");
 
                 } catch (SQLException e) {
-                    sendSoftCheckLogger.error("Kristal CashierTime: ", e);
+                    sendSoftCheckLogger.error("Kristal SoftCheck: ", e);
                 } finally {
                     if (conn != null)
                         conn.close();
@@ -1323,13 +1323,13 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
         return input.trim();
     }
 
-    private String fillLeadingZeroes(String input) {
+    /*private String fillLeadingZeroes(String input) {
         if (input == null)
             return null;
         while (input.length() < 7)
             input = "0" + input;
         return input;
-    }
+    }*/
 
     private String makeIdItemGroup(List<ItemGroup> hierarchyItemGroup, boolean type3) {
         return makeIdItemGroup(hierarchyItemGroup, type3, false);
