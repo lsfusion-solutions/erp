@@ -529,6 +529,9 @@ META defineOperationRole(dumb)
     preventChangesDocument (User user, Operation operation) = preventChangesDocument(mainRole(user), operation);
     Operation.preventChangesDocument (UserRole role, Operation operation) += preventChangesDocument(role, operation);
     
+    countDaysDocument 'Количество дней для запрета' = DATA INTEGER (UserRole, Operation);
+    countDaysDocument (User user, Operation operation) = countDaysDocument(mainRole(user), operation);
+    
     preventCloseDocument 'Запретить закрытие' = DATA BOOLEAN (UserRole, Operation);
     preventCloseDocument (User user, Operation operation) = preventCloseDocument(mainRole(user), operation);
 
@@ -540,7 +543,7 @@ META defineOperationRole(dumb)
 
         OBJECTS r = UserRole
         PROPERTIES(r) READONLY name
-        PROPERTIES(r, o) in, preventChangesDocument, preventCloseDocument, preventOpenDocument
+        PROPERTIES(r, o) in, preventChangesDocument, countDaysDocument, preventCloseDocument, preventOpenDocument
 
         FILTERGROUP filtersRole
                 FILTER 'Показывать отмеченные' in(r, o) 'F8'
@@ -653,10 +656,7 @@ END
 
 META defineOperationChangesDocumentPrefix(object, objectClass, concreteClass, property, createdUserProp, prefix)
     
-    property (###object o) = property(operation(o));
-    
-    showEditDeleteUser (###object o) = (property (o)  AND (currentUser() == createdUser(o))) OR 
-                                (o IS objectClass AND NOT property (o) AND NOT property(currentUser(),operation(o)));    
+    showEditDeleteUser (###object o) = o IS objectClass AND NOT (property(currentUser(),operation(o)) AND NOT sum(date(o),countDaysDocument(currentUser(),operation(o))) >= currentDate());    
        
 END
 
