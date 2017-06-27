@@ -55,7 +55,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
 
                                 new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
                                         (DataObject) importTypeObject, file, fileExtension, settings,
-                                        staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, false);
+                                        staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, false, false);
 
                                 findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
 

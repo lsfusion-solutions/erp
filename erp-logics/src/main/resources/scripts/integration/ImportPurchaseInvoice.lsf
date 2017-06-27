@@ -16,8 +16,9 @@ nameImportTypeUserInvoices 'Тип импорта' () = name(importTypeUserInvoi
 importPurchaseInvoicesDirectoryDataAction 'Импортировать накладные из папки' = ACTION CUSTOM 'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesDirectoryActionProperty' ();
 importPurchaseInvoicesEmailDataAction 'Импортировать накладные из почты' = ACTION CUSTOM 'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesEmailActionProperty' ();
 
-original 'Файл оригинала накладной'  = DATA CUSTOMFILE (Purchase.Invoice);
+ignoreInvoicesAfterDocumentsClosedDate 'Не принимать инвоисы по закрытым документам' = DATA BOOLEAN ();
 
+original 'Файл оригинала накладной'  = DATA CUSTOMFILE (Purchase.Invoice);
 saveOriginal 'Загрузить файл оригинала накладной' (Purchase.Invoice i) = { INPUT =original(i) CHANGE; }
 openOriginal 'Просмотреть оригинал накладной' (Purchase.Invoice i) = { OPEN original(i); }
 
@@ -104,7 +105,8 @@ DESIGN userInvoice{
 
 EXTEND FORM invoices
     PROPERTIES() TODRAW d TOOLBAR importPurchaseInvoicesDataAction, nameImportTypeUserInvoices, 
-                 importPurchaseInvoicesDirectoryDataAction, importPurchaseInvoicesEmailDataAction
+                 importPurchaseInvoicesDirectoryDataAction, importPurchaseInvoicesEmailDataAction,
+                 ignoreInvoicesAfterDocumentsClosedDate
 ;
 
 DESIGN invoices{
@@ -114,20 +116,31 @@ DESIGN invoices{
             MOVE PROPERTY(nameImportTypeUserInvoices());
             MOVE PROPERTY(importPurchaseInvoicesDataAction());            
             MOVE PROPERTY(importPurchaseInvoicesDirectoryDataAction());
-            MOVE PROPERTY(importPurchaseInvoicesEmailDataAction());
+            NEW importEmail {
+                caption = 'Из почты';
+                alignment = CENTER;
+                MOVE PROPERTY(importPurchaseInvoicesEmailDataAction());
+                MOVE PROPERTY(ignoreInvoicesAfterDocumentsClosedDate());
+            }
         }
     }
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() TOOLBAR importPurchaseInvoicesDirectoryDataAction, importPurchaseInvoicesEmailDataAction
+    PROPERTIES() TOOLBAR importPurchaseInvoicesDirectoryDataAction, importPurchaseInvoicesEmailDataAction,
+                 ignoreInvoicesAfterDocumentsClosedDate
 ;
 
 DESIGN integrationData {
     pane { 
         actionsContainer {
             MOVE PROPERTY(importPurchaseInvoicesDirectoryDataAction());
-            MOVE PROPERTY(importPurchaseInvoicesEmailDataAction());
+            NEW importEmail {
+                caption = 'Из почты';
+                alignment = CENTER;
+                MOVE PROPERTY(importPurchaseInvoicesEmailDataAction());
+                MOVE PROPERTY(ignoreInvoicesAfterDocumentsClosedDate());
+            }
         }
     }
 }

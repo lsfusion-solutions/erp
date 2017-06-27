@@ -143,9 +143,11 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                                         try {
 
+                                            boolean ignoreInvoicesAfterDocumentsClosedDate = findProperty("ignoreInvoicesAfterDocumentsClosedDate[]").read(session) != null;
                                             int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context,
                                                     currentSession, invoiceObject, importTypeObject, file.second, fileExtension,
-                                                    settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, checkInvoiceExistence);
+                                                    settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN,
+                                                    checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
 
                                             findProperty("original[Purchase.Invoice]").change(
                                                     new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);
@@ -161,6 +163,8 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                             }
                                             if (importResult < IMPORT_RESULT_EMPTY) {
                                                 imported = false;
+                                                if(importResult == IMPORT_RESULT_DOCUMENTS_CLOSED_DATE)
+                                                    logImportError(context, attachmentEmailObject, file.first + ": " + "Запрещено принимать инвоисы по закрытым документам", isOld);
                                             }
 
                                         } catch (Exception e) {
