@@ -369,7 +369,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             discountCard = null;
 
                         boolean isGiftCard = false;
-                        if (giftCardRegexp != null) {
+                        if (giftCardRegexp != null && idBarcode != null) {
                             Pattern pattern = Pattern.compile(giftCardRegexp);
                             Matcher matcher = pattern.matcher(idBarcode);
                             isGiftCard = matcher.matches();
