@@ -319,6 +319,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
             int position = 0;
             List<SalesInfo> currentSalesInfoList = new ArrayList<>();
+            Map<String, SalesInfo> giftCardMap = new HashMap<>();
             Set<Integer> currentReadRecordSet = new HashSet<>();
             while (rs.next()) {
 
@@ -383,11 +384,25 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                 s.sumReceiptDetail = HandlerUtils.safeAdd(s.sumReceiptDetail, rs.getBigDecimal(9)); //discountSum is negative
                             }
                         } else {
-                            currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, cash_id, numberZReport,
+                            SalesInfo salesInfo = new SalesInfo(isGiftCard, nppGroupMachinery, cash_id, numberZReport,
                                     dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null,
                                     null, null, null, null, (BigDecimal) null, idBarcode, idItem, null, null, totalQuantity,
                                     price, sum, discountSum, null, discountCard,
-                                    position, null, idSection));
+                                    position, null, idSection);
+                            //не слишком красивый хак, IntegrationService не понимает ситуации, когда в одном чеке идёт продажа и возврат новосоздаваемого giftCard.
+                            // Поэтому "аннигилируем" две эти строки.
+                            if(isGiftCard) {
+                                SalesInfo giftCardSalesInfo = giftCardMap.get(idBarcode);
+                                if (giftCardSalesInfo != null && giftCardSalesInfo.quantityReceiptDetail.add(totalQuantity).intValue() == 0) {
+                                    giftCardMap.remove(idBarcode);
+                                    currentSalesInfoList.remove(giftCardSalesInfo);
+                                } else {
+                                    giftCardMap.put(idBarcode, salesInfo);
+                                    currentSalesInfoList.add(salesInfo);
+                                }
+                            } else {
+                                currentSalesInfoList.add(salesInfo);
+                            }
                         }
                         break;
                     case 7: //Оплата
