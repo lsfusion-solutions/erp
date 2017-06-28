@@ -67,6 +67,23 @@ importArticleXLS 'Импорт (xlsx)' (PromotionCondition c) = {
         MESSAGE 'Импортированы ' + (OVERRIDE [= GROUP SUM 1 IF article(article(INTEGER r))](), 0) + ' записей';
     }
 }
+          
+removeArticleXLS 'Исключить из акции (xlsx)' (PromotionCondition c) = {
+
+    LOCAL article = VARSTRING[100] (INTEGER);
+    LOCAL count = INTEGER(); 
+    
+    INPUT f = EXCELFILE DO {
+        IMPORT XLSX TO article = A FROM f AS EXCELFILE;
+        count() <- [= GROUP SUM 1 IF in(PromotionCondition c, article(article(INTEGER r))) AND imported(r) BY c](c);
+
+        FOR imported(INTEGER r) DO {
+            in(c, Article a) <- NULL WHERE id(a) == article(r);
+        }
+        
+        MESSAGE 'Исключены ' + (OVERRIDE count(), 0) + ' записей';
+    }
+}                
                 
 EXTEND FORM promotion
     OBJECTS params = (dFrom = DATE, dTo = DATE) PANEL
@@ -85,7 +102,7 @@ EXTEND FORM promotion
                        prevCurrentBalance(ar,sh)
     FILTERS                     isParent(skg, ar)
     
-    PROPERTIES(sg) importArticleXLS TODRAW ar TOOLBAR
+    PROPERTIES(sg) TODRAW ar TOOLBAR importArticleXLS, removeArticleXLS 
 
     FILTERGROUP filterArticle
         FILTER 'В акции' in(sg, ar) 'F10'                        
