@@ -169,11 +169,13 @@ META defineOrderInvoice(sign, stockProp)
 
     orderCreateUserInvoice = ABSTRACT STRING[100] (OrderDetail);
     skipCreateUserInvoice = ABSTRACT BOOLEAN (OrderDetail);
+    overToInvoice = ABSTRACT CASE NUMERIC[16,5] (Batch, OrderDetail);
+    overToInvoice(Batch batch, OrderDetail detail) += WHEN batch IS Batch AND detail IS OrderDetail THEN toInvoice(batch, detail);
 
     createDetail(UserInvoice userInvoice, Order order) = {
         IF useExplicitBatchDetailUserInvoice(order) AND (explicitBatchLedger(stockProp##Stock(order)) OR forceExplicitBatchDetailUserInvoice(order)) THEN {
             // проходим по строкам, для которых не задана партия
-            FOR order(OrderDetail orderDetail) == order AND NUMERIC[16,5] q == toInvoice(Batch batch, orderDetail) AND NOT batch(orderDetail) AND NOT skipCreateUserInvoice(orderDetail)
+            FOR order(OrderDetail orderDetail) == order AND NUMERIC[16,5] q == overToInvoice(Batch batch, orderDetail) AND NOT batch(orderDetail) AND NOT skipCreateUserInvoice(orderDetail)
                 ORDER orderCreateUserInvoice(orderDetail), orderDetail 
                 NEW d = UserInvoiceDetail DO {
                     userInvoice(d) <- userInvoice;
