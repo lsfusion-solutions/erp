@@ -53,6 +53,8 @@ calcQuantityPromotionSoldInterval 'Рассчитать однодневные �
     dateToPromotion(Sku s, Stock st) <- NULL;
     dateToPromotion(Sku s, Stock st) <- [= GROUP MIN toDate(PriceListDetail d) IF isPromotion(d) AND in(priceList(d), Stock s) BY sku(d), s ](s, st) WHERE dateFromPromotion(s, st);
 
+    APPLY;
+
     averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](averageSold (sku, stock, sum(dateToPromotion(sku, stock), 1), subtract(currentDate(), 1))) 
                                                                 WHERE dateToPromotion(sku, stock) <= subtract(currentDate(), 6);
     averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](averageSold (sku, stock, subtract(dateFromPromotion(sku, stock), countSoldDays(skuGroup(sku))), subtract(dateFromPromotion(sku, stock), 1))) 
@@ -63,8 +65,11 @@ calcQuantityPromotionSoldInterval 'Рассчитать однодневные �
     averageSoldPromotion(Sku sku, Stock stock) <- NUMERIC[14,3](averageSold (sku, stock, dateFromPromotion(sku, stock), MIN dateToPromotion(sku, stock), subtract(currentDate(), 1)))  WHERE dateFromPromotion(sku, stock) < currentDate();
     averageSoldPromotion(Sku sku, Stock stock) <- NUMERIC[14,3](averageSold (sku, stock) * coeffPromotion(sku))
                                                         WHERE dateFromPromotion(sku, stock) >= currentDate();
+    APPLY;
+    
     overQuantityPromotionSoldInterval();
-    apply();
+
+    APPLY;
 }
 
 
