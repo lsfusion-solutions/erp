@@ -788,8 +788,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void succeedDeleteBarcode(Integer nppGroupMachinery) throws RemoteException, SQLException {
-        DeleteBarcodeEquipmentServer.succeedDeleteBarcode(getBusinessLogics(), getDbManager(), getStack(), nppGroupMachinery);
+    public void finishDeleteBarcode(Integer nppGroupMachinery, boolean markSucceeded) throws RemoteException, SQLException {
+        DeleteBarcodeEquipmentServer.finishDeleteBarcode(getBusinessLogics(), getDbManager(), getStack(), nppGroupMachinery, markSucceeded);
+    }
+
+    @Override
+    public void succeedDeleteBarcode(Integer nppGroupMachinery, Set<String> deleteBarcodeSet) throws RemoteException, SQLException {
+        DeleteBarcodeEquipmentServer.succeedDeleteBarcode(getBusinessLogics(), getDbManager(), getStack(), nppGroupMachinery, deleteBarcodeSet);
     }
 
     @Override

@@ -34,7 +34,8 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     boolean enabledDeleteBarcodeInfo() throws RemoteException, SQLException;
     List<DeleteBarcodeInfo> readDeleteBarcodeInfoList() throws RemoteException, SQLException;
     void errorDeleteBarcodeReport(Integer nppGroupMachinery, Exception exception) throws RemoteException, SQLException;
-    void succeedDeleteBarcode(Integer nppGroupMachinery) throws RemoteException, SQLException;
+    void finishDeleteBarcode(Integer nppGroupMachinery, boolean markSucceeded) throws RemoteException, SQLException;
+    void succeedDeleteBarcode(Integer nppGroupMachinery, Set<String> deleteBarcodeSet) throws RemoteException, SQLException;
 
     //sendTerminalDocument consumer
     boolean enabledTerminalInfo() throws RemoteException, SQLException;

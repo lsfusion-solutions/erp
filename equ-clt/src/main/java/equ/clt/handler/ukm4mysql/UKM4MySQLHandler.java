@@ -789,7 +789,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     @Override
-    public void sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
+    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
 
         try {
             if (!deleteBarcodeInfo.barcodeList.isEmpty()) {
@@ -818,6 +818,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         } catch (ClassNotFoundException | SQLException e) {
             throw Throwables.propagate(e);
         }
+        return true;
     }
 
     @Override

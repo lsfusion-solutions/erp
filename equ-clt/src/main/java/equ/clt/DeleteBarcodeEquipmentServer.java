@@ -17,18 +17,20 @@ class DeleteBarcodeEquipmentServer {
         List<DeleteBarcodeInfo> deleteBarcodeInfoList = remote.readDeleteBarcodeInfoList();
         for(DeleteBarcodeInfo deleteBarcodeInfo : deleteBarcodeInfoList) {
             boolean succeeded = true;
+            boolean markSucceeded = true;
             try {
                 Object clsHandler = EquipmentServer.getHandler(deleteBarcodeInfo.handlerModelGroupMachinery, remote);
-                if (clsHandler instanceof CashRegisterHandler)
-                    ((CashRegisterHandler) clsHandler).sendDeleteBarcodeInfo(deleteBarcodeInfo);
+                if (clsHandler instanceof CashRegisterHandler) {
+                    markSucceeded = ((CashRegisterHandler) clsHandler).sendDeleteBarcodeInfo(deleteBarcodeInfo);
+                }
             } catch (Exception e) {
                 remote.errorDeleteBarcodeReport(deleteBarcodeInfo.nppGroupMachinery, e);
                 succeeded = false;
             }
 
             if (succeeded)
-                remote.succeedDeleteBarcode(deleteBarcodeInfo.nppGroupMachinery);
-            if (!deleteBarcodeInfo.barcodeList.isEmpty())
+                remote.finishDeleteBarcode(deleteBarcodeInfo.nppGroupMachinery, markSucceeded);
+            if (!deleteBarcodeInfo.barcodeList.isEmpty() && markSucceeded)
                 processDeleteBarcodeLogger.info(String.format("Deleted %s barcodes for GroupMachinery %s", deleteBarcodeInfo.barcodeList.size(), deleteBarcodeInfo.nppGroupMachinery));
         }
     }

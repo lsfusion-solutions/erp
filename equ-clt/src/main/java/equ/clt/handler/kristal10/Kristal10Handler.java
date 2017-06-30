@@ -34,6 +34,8 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
     protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
 
+    private static Map<String, Map<String, String>> deleteBarcodeDirectoryMap = new HashMap<>();
+
     String encoding = "utf-8";
 
     private FileSystemXmlApplicationContext springContext;
@@ -52,6 +54,8 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         Map<File, Integer> fileMap = new HashMap<>();
         Map<Integer, Exception> failedTransactionMap = new HashMap<>();
         Set<Integer> emptyTransactionSet = new HashSet<>();
+
+        Map<Integer, DeleteBarcode> usedDeleteBarcodeTransactionMap = new HashMap<>();
 
         for(TransactionCashRegisterInfo transaction : transactionList) {
 
@@ -100,6 +104,9 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                     String weightCode = transaction.weightCodeGroupCashRegister == null ? "21" : transaction.weightCodeGroupCashRegister;
 
+                    Map<String, String> deleteBarcodeMap = deleteBarcodeDirectoryMap.get(directory);
+                    DeleteBarcode usedDeleteBarcodes = new DeleteBarcode(transaction.nppGroupMachinery, directory);
+
                     for (CashRegisterItemInfo item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
 
@@ -114,6 +121,10 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
                             setAttribute(good, "marking-of-the-good", idItem);
+
+                            boolean deleteBarcode = deleteBarcodeMap != null && deleteBarcodeMap.containsValue(idItem);
+                            if(deleteBarcode)
+                                usedDeleteBarcodes.barcodes.add(item.idBarcode);
 
                             if(!skipScalesInfo) {
                                 //<plugin-property key="plu-number" value="4">
@@ -158,6 +169,8 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             Element barcode = new Element("bar-code");
                             setAttribute(barcode, "code", barcodeItem);
                             addStringElement(barcode, "default-code", "true");
+                            if(deleteBarcode)
+                                setAttribute(barcode, "deleted", true);
                             good.addContent(barcode);
 
                             addProductType(good, item, tobaccoGroups);
@@ -227,6 +240,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                         }
                     }
+                    usedDeleteBarcodeTransactionMap.put(transaction.id, usedDeleteBarcodes);
                     processTransactionLogger.info(String.format("Kristal10: created catalog-goods file (Transaction %s)", transaction.id));
                     File file = makeExportFile(exchangeDirectory, "catalog-goods");
                     XMLOutputter xmlOutput = new XMLOutputter();
@@ -244,7 +258,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
             }
         }
         processTransactionLogger.info(String.format("Kristal10: starting to wait for deletion %s files", fileMap.size()));
-        return waitForDeletion(fileMap, failedTransactionMap, emptyTransactionSet);
+        return waitForDeletion(fileMap, failedTransactionMap, emptyTransactionSet, usedDeleteBarcodeTransactionMap);
     }
 
     private String removeZeroes(String value) {
@@ -274,7 +288,8 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         return tobaccoGroups;
     }
 
-    private Map<Integer, SendTransactionBatch> waitForDeletion(Map<File, Integer> filesMap, Map<Integer, Exception> failedTransactionMap, Set<Integer> emptyTransactionSet) {
+    private Map<Integer, SendTransactionBatch> waitForDeletion(Map<File, Integer> filesMap, Map<Integer, Exception> failedTransactionMap,
+                                                               Set<Integer> emptyTransactionSet, Map<Integer, DeleteBarcode> usedDeleteBarcodeTransactionMap) {
         int count = 0;
         Map<Integer, SendTransactionBatch> result = new HashMap<>();
         while (!Thread.currentThread().isInterrupted() && !filesMap.isEmpty()) {
@@ -292,7 +307,19 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                         nextFilesMap.put(file, idTransaction);
                     else {
                         processTransactionLogger.info(String.format("Kristal10 (wait for deletion): file %s has been deleted", file.getAbsolutePath()));
-                        result.put(idTransaction, new SendTransactionBatch(failedTransactionMap.get(idTransaction)));
+                        DeleteBarcode deleteBarcodes = usedDeleteBarcodeTransactionMap.get(idTransaction);
+                        if(deleteBarcodes != null) {
+                            for(String b : deleteBarcodes.barcodes) {
+                                Map<String, String> deleteBarcodesEntry = deleteBarcodeDirectoryMap.get(deleteBarcodes.directory);
+                                deleteBarcodesEntry.remove(b);
+                                deleteBarcodeDirectoryMap.put(deleteBarcodes.directory, deleteBarcodesEntry);
+                                System.out.print("x");
+                            }
+                        }
+                        result.put(idTransaction, new SendTransactionBatch(null, null,
+                                deleteBarcodes == null ? null : deleteBarcodes.nppGroupMachinery,
+                                deleteBarcodes == null ? null : deleteBarcodes.barcodes,
+                                failedTransactionMap.get(idTransaction)));
                         failedTransactionMap.remove(idTransaction);
                     }
                 }
@@ -640,95 +667,30 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     @Override
-    public void sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
+    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        //boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
         boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
         boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
 
-        if(deleteBarcodeInfo.directoryGroupMachinery != null && !deleteBarcodeInfo.barcodeList.isEmpty()) {
+        if (deleteBarcodeInfo.directoryGroupMachinery != null && !deleteBarcodeInfo.barcodeList.isEmpty()) {
             String exchangeDirectory = deleteBarcodeInfo.directoryGroupMachinery.trim() + "/products/source/";
             File exchangeDirectoryFile = new File(exchangeDirectory);
             if (exchangeDirectoryFile.exists() || exchangeDirectoryFile.mkdirs()) {
-
-                Element rootElement = new Element("goods-catalog");
-                Document doc = new Document(rootElement);
-                doc.setRootElement(rootElement);
-
+                Map<String, String> deleteBarcodeSet = deleteBarcodeDirectoryMap.get(exchangeDirectory);
+                if (deleteBarcodeSet == null)
+                    deleteBarcodeSet = new HashMap<>();
                 for (CashRegisterItemInfo item : deleteBarcodeInfo.barcodeList) {
-
-                    //parent: rootElement
-                    Element good = new Element("good");
-                    String idBarcode = transformBarcode(item.idBarcode, null, false, skipWeightPrefix);
-                    setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
-
-//                    Element pluginProperty = new Element("plugin-property");
-//                    setAttribute(pluginProperty, "key", "plu-number");
-//                    setAttribute(pluginProperty, "value", removeZeroes(idBarcode));
-//                    good.addContent(pluginProperty);
-
-                    //if (useShopIndices)
-                    //    addStringElement(good, "shop-indices", item.idDepartmentStore);
-
-                    addStringElement(good, "name", item.name);
-
-                    rootElement.addContent(good);
-
-                    //parent: good
-                    Element barcode = new Element("bar-code");
-                    setAttribute(barcode, "code", idBarcode);
-                    setAttribute(barcode, "deleted", true);
-                    good.addContent(barcode);
-
-                    addStringElement(good, "product-type", "");
-
-                    //parent: good
-                    Element priceEntry = new Element("price-entry");
-                    setAttribute(priceEntry, "price", 1);
-                    setAttribute(priceEntry, "deleted", "false");
-                    addStringElement(priceEntry, "begin-date", currentDate());
-                    addStringElement(priceEntry, "number", "1");
-                    good.addContent(priceEntry);
-
-                    //parent: priceEntry
-                    Integer number = deleteBarcodeInfo.overDepartNumberGroupMachinery != null ? deleteBarcodeInfo.overDepartNumberGroupMachinery :
-                            deleteBarcodeInfo.nppGroupMachinery;
-                    Element department = new Element("department");
-                    setAttribute(department, "number", number);
-                    priceEntry.addContent(department);
-
-                    addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
-
-                    //parent: good
-                    Element group = new Element("group");
-                    setAttribute(group, "id", item.idItemGroup == null ? "deleted" : item.idItemGroup);
-                    addStringElement(group, "name", item.nameItemGroup == null ? "deleted" : item.nameItemGroup);
-                    good.addContent(group);
-
-                    Element measureType = new Element("measure-type");
-                    setAttribute(measureType, "id", item.idUOM);
-                    addStringElement(measureType, "name", item.shortNameUOM);
-                    good.addContent(measureType);
-
-                    Element manufacturer = new Element("manufacturer");
-                    good.addContent(manufacturer);
-
-                    Element country = new Element("country");
-                    good.addContent(country);
-
-                    addStringElement(good, "delete-from-cash", "false");
-
+                    if (!deleteBarcodeSet.containsKey(item.idBarcode)) {
+                        String idBarcode = transformBarcode(item.idBarcode, null, false, skipWeightPrefix);
+                        deleteBarcodeSet.put(item.idBarcode, idItemInMarkingOfTheGood ? item.idItem : idBarcode);
+                    }
                 }
-
-                XMLOutputter xmlOutput = new XMLOutputter();
-                xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
-
-                PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(makeExportFile(exchangeDirectory, "catalog-goods")), encoding));
-                xmlOutput.output(doc, fw);
-                fw.close();
+                if (!deleteBarcodeSet.isEmpty())
+                    deleteBarcodeDirectoryMap.put(deleteBarcodeInfo.directoryGroupMachinery, deleteBarcodeSet);
             }
         }
+        return false;
     }
 
     @Override
@@ -1354,5 +1316,17 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
     protected boolean notNullNorEmpty(String value) {
         return value != null && !value.isEmpty();
+    }
+
+    private class DeleteBarcode {
+        Integer nppGroupMachinery;
+        String directory;
+        Set<String> barcodes;
+
+        public DeleteBarcode(Integer nppGroupMachinery, String directory) {
+            this.nppGroupMachinery = nppGroupMachinery;
+            this.directory = directory;
+            this.barcodes = new HashSet<>();
+        }
     }
 }

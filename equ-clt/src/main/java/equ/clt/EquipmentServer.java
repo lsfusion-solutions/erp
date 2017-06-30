@@ -696,6 +696,9 @@ public class EquipmentServer {
                                     remote.succeedMachineryTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
                                 if(batch.clearedMachineryList != null && !batch.clearedMachineryList.isEmpty())
                                     remote.clearedMachineryTransaction(transactionInfo.id, batch.clearedMachineryList);
+                                if(batch.deleteBarcodeSet != null && !batch.deleteBarcodeSet.isEmpty()) {
+                                    remote.succeedDeleteBarcode(batch.nppGroupMachinery, batch.deleteBarcodeSet);
+                                }
                             }
                         } catch (Exception e) {
                             noErrors = false;

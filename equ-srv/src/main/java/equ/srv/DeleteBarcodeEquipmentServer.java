@@ -13,10 +13,7 @@ import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.logics.BusinessLogics;
-import lsfusion.server.logics.DBManager;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.ObjectValue;
+import lsfusion.server.logics.*;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
@@ -63,6 +60,7 @@ class DeleteBarcodeEquipmentServer {
                     query.addProperty(names[i], properties[i].getExpr(deleteBarcodeExpr));
                 }
 
+                query.and(deleteBarcodeLM.findProperty("activeGroupMachinery[DeleteBarcode]").getExpr(deleteBarcodeExpr).getWhere());
                 query.and(deleteBarcodeLM.findProperty("barcode[DeleteBarcode]").getExpr(deleteBarcodeExpr).getWhere());
                 query.and(deleteBarcodeLM.findProperty("succeeded[DeleteBarcode]").getExpr(deleteBarcodeExpr).getWhere().not());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
@@ -115,9 +113,20 @@ class DeleteBarcodeEquipmentServer {
         }
     }
 
-    static void succeedDeleteBarcode(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, Integer nppGroupMachinery) {
+    static void finishDeleteBarcode(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, Integer nppGroupMachinery, boolean markSucceeded) {
         try (DataSession session = dbManager.createSession()) {
-            deleteBarcodeLM.findAction("succeedDeleteBarcode[INTEGER]").execute(session, stack, new DataObject(nppGroupMachinery));
+            deleteBarcodeLM.findAction("finishDeleteBarcode[INTEGER, BOOLEAN]").execute(session, stack, new DataObject(nppGroupMachinery), markSucceeded ? new DataObject(true) : NullValue.instance);
+            session.apply(BL, stack);
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    static void succeedDeleteBarcode(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, Integer nppGroupMachinery, Set<String> deleteBarcodeSet) {
+        try (DataSession session = dbManager.createSession()) {
+            for (String barcode : deleteBarcodeSet) {
+                deleteBarcodeLM.findAction("succeedDeleteBarcode[INTEGER, VARSTRING[28]]").execute(session, stack, new DataObject(nppGroupMachinery), new DataObject(barcode));
+            }
             session.apply(BL, stack);
         } catch (Exception e) {
             throw Throwables.propagate(e);

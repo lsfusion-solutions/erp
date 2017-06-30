@@ -13,8 +13,10 @@ nameModelGroupMachinery 'Модель оборудования' (DeleteBarcode d
 handlerModelGroupMachinery (DeleteBarcode d) = handlerModel(groupMachinery(d)); 
 directoryGroupMachinery (DeleteBarcode d) = directory(groupMachinery(d)); 
 idDepartmentStoreGroupMachinery(DeleteBarcode d) = idDepartmentStore(groupMachinery(d));
+activeGroupMachinery (DeleteBarcode d) = NOT inactive(groupMachinery(d)); 
 
 succeeded 'Выполнен' = DATA BOOLEAN (DeleteBarcode); 
+dateTimeProcessing 'Принят в обработку' = DATA DATETIME (DeleteBarcode);
 dateTimeSucceeded 'Дата выполнения' = DATA DATETIME (DeleteBarcode);
 barcode 'Штрихкод' = DATA VARSTRING[100] (DeleteBarcode) NOT NULL;
 idSku 'Код товара' = DATA VARSTRING[100] (DeleteBarcode) NOT NULL;
@@ -25,9 +27,18 @@ valueVATSku 'НДС, %' = DATA NUMERIC[10,5] (DeleteBarcode);
 idItemGroup 'Код группы товара' = DATA VARSTRING[100] (DeleteBarcode);
 nameItemGroup 'Наименование группы товара' = DATA VARSTRING[250] (DeleteBarcode);
 
-succeedDeleteBarcode(INTEGER nppGroupMachinery) = {
-    succeeded(DeleteBarcode d) <- TRUE WHERE NOT succeeded(d) AND groupMachinery(d) == groupMachineryNpp(nppGroupMachinery);
-    dateTimeSucceeded(DeleteBarcode d) <- currentDateTime() WHERE NOT dateTimeSucceeded(d) AND groupMachinery(d) == groupMachineryNpp(nppGroupMachinery);
+finishDeleteBarcode(INTEGER nppGroupMachinery, BOOLEAN markSucceeded) = {
+    IF markSucceeded THEN {
+        succeeded(DeleteBarcode d) <- TRUE WHERE NOT succeeded(d) AND groupMachinery(d) == groupMachineryNpp(nppGroupMachinery);
+        dateTimeSucceeded(DeleteBarcode d) <- currentDateTime() WHERE NOT dateTimeSucceeded(d) AND groupMachinery(d) == groupMachineryNpp(nppGroupMachinery);
+    } ELSE {
+        dateTimeProcessing(DeleteBarcode d) <- currentDateTime() WHERE NOT dateTimeProcessing(d) AND NOT succeeded(d) AND groupMachinery(d) == groupMachineryNpp(nppGroupMachinery);
+    }
+}
+
+succeedDeleteBarcode(INTEGER nppGroupMachinery, VARSTRING[28] barcode) = {
+    succeeded(DeleteBarcode d) <- TRUE WHERE NOT succeeded(d) AND groupMachinery(d) == groupMachineryNpp(nppGroupMachinery) AND barcode(d) == barcode;
+    dateTimeSucceeded(DeleteBarcode d) <- currentDateTime() WHERE NOT dateTimeSucceeded(d) AND groupMachinery(d) == groupMachineryNpp(nppGroupMachinery) AND barcode(d) == barcode;
 }
 
 CLASS DeleteBarcodeError 'Ошибка';
@@ -44,7 +55,7 @@ FORM deleteBarcodes 'Запросы удаления штрихкодов'
 
     OBJECTS d = DeleteBarcode
     PROPERTIES (d) nameGroupMachinery, nameModelGroupMachinery
-    PROPERTIES (d) READONLY succeeded, dateTimeSucceeded
+    PROPERTIES (d) READONLY succeeded, dateTimeProcessing, dateTimeSucceeded
     PROPERTIES (d) barcode, idSku, nameSku, idUOMSku, shortNameUOMSku, valueVATSku, idItemGroup, nameItemGroup, NEW
     
     OBJECTS e = DeleteBarcodeError
