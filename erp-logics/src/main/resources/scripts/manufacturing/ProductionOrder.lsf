@@ -320,7 +320,7 @@ quantityComponentDetail 'Кол-во (всего) (компонент)' (sku, or
 
 //-- Партия для строки компонента
 
-hideBatch = ABSTRACT VALUE OVERRIDE BOOLEAN (ComponentDetail);
+hideBatch = ABSTRACT VALUE BOOLEAN (ComponentDetail);
 showBatch(ComponentDetail d) = d IS ComponentDetail AND NOT hideBatch(d);
  
 batch = DATA Batch (ComponentDetail) INDEXED;
@@ -479,7 +479,7 @@ expand 'Развернуть изделие'(ComponentDetail componentDetail) = 
     DELETE componentDetail;
 } TOOLBAR;
 
-background 'Цвет'  = ABSTRACT CASE OVERRIDE FIRST COLOR (ComponentDetail);
+background 'Цвет'  = ABSTRACT CASE COLOR (ComponentDetail);
 background (ComponentDetail cd) += WHEN product(cd) THEN  RGB(255,255,229);
 
 recBruttoQuantity 'Рекур.кол-во' (BOM, order, component) = GROUP SUM quantityProducts(BOM BOM, Order order) * recBruttoQuantity(BOM, Component component, date(order)) BY BOM, order, component;
@@ -1333,7 +1333,7 @@ WHEN LOCAL FORMS order DROPPED (multiplier(bruttoSku(ComponentDetail detail), or
 calc(PriceListType pt, ComponentDetail detail) =  OVERRIDE prevPriceB(pt,batch(detail),componentsStock(order(detail)),dateTime(order(detail))), 
                                                               dataBruttoPrice(sku(detail), order(detail));
 
-calcPrice = ABSTRACT VALUE OVERRIDE FIRST NUMERIC[16,4] (PriceListType, ComponentDetail);
+calcPrice = ABSTRACT VALUE NUMERIC[16,4] (PriceListType, ComponentDetail);
 calcPrice(PriceListType pt, ComponentDetail d) += NUMERIC[16,4](calc(pt,d)); 
 
 WHEN LOCAL FORMS order (CHANGED(dataBruttoPrice(sku(ComponentDetail detail), order(detail))) OR 

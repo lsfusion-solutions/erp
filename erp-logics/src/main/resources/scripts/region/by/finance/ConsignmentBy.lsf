@@ -149,7 +149,7 @@ fullNamePayer 'Наим-ие заказчика' (Consignment consignment) =
 
 GROUP carConsignment 'Автомобиль' : base;
 
-defaultTruck = ABSTRACT CASE OVERRIDE FIRST Truck (Consignment);
+defaultTruck = ABSTRACT CASE Truck (Consignment);
 dataTruck = ABSTRACT Truck(Consignment);
 truck(Consignment consignment) = OVERRIDE dataTruck(consignment), defaultTruck(consignment);  
 
@@ -221,7 +221,7 @@ dataTrailer = ABSTRACT VARSTRING[100] (Consignment);
 trailer 'Прицеп' (Consignment consignment) = OVERRIDE dataTrailer(consignment),
                                                      trailer(truck(consignment)) MINCHARWIDTH 15 PREFCHARWIDTH 30 IN carConsignment;
 
-driver = ABSTRACT CASE OVERRIDE FIRST Employee(Consignment);
+driver = ABSTRACT CASE Employee(Consignment);
 dataEmployee = ABSTRACT Employee(Consignment);
 
 dataNameDriver = DATA VARSTRING[30] (Consignment);
@@ -469,28 +469,28 @@ overQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDet
 quantity 'Количество' (ConsignmentDetail d) = OVERRIDE overQuantity(d), dataQuantity(d);
 
 // Базовые абстрактные свойства
-dataPrice 'Цена' (d) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[16,4] (ConsignmentDetail);
-dataInvoicePrice 'Цена с НДС' (d) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[16,4] (ConsignmentDetail);
+dataPrice 'Цена' (d) = ABSTRACT CASE NUMERIC[16,4] (ConsignmentDetail);
+dataInvoicePrice 'Цена с НДС' (d) = ABSTRACT CASE NUMERIC[16,4] (ConsignmentDetail);
 
-dataSum 'Стоимость' (d) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[18,4] (ConsignmentDetail);
-dataVAT 'НДС, %' (d) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[10,5] (ConsignmentDetail);
-dataSumVAT 'Сумма НДС' (d) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[18,4] (ConsignmentDetail);
-dataSumInvoice 'Сумма с НДС' (d) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[18,4] (ConsignmentDetail);
+dataSum 'Стоимость' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
+dataVAT 'НДС, %' (d) = ABSTRACT CASE NUMERIC[10,5] (ConsignmentDetail);
+dataSumVAT 'Сумма НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
+dataSumInvoice 'Сумма с НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
 
 // С учетом "переключений"
 
-isInvoicePrice 'Печатать в качестве цены цену с НДС' (d) = ABSTRACT CASE OVERRIDE FIRST BOOLEAN (ConsignmentDetail);
+isInvoicePrice 'Печатать в качестве цены цену с НДС' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);
 price 'Цена' (ConsignmentDetail d) = IF NOT isInvoicePrice(d) THEN dataPrice(d) ELSE dataInvoicePrice(d);
 
-switchSum (ConsignmentDetail d) = ABSTRACT CASE OVERRIDE FIRST BOOLEAN (ConsignmentDetail);
+switchSum (ConsignmentDetail d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);
 sum 'Стоимость' (ConsignmentDetail d) = IF NOT switchSum(d) THEN dataSum(d) ELSE dataSumInvoice(d);
 
-useEmptyVAT 'Нет НДС' (d) = ABSTRACT CASE OVERRIDE FIRST BOOLEAN (ConsignmentDetail);     
+useEmptyVAT 'Нет НДС' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);     
 useEmptyVATConsignmentDetail = GROUP SUM 1 IF useEmptyVAT(ConsignmentDetail d) BY consignment(d); // todo : рефакторить
 vat 'НДС, %' (ConsignmentDetail d) = dataVAT(d) IF NOT useEmptyVAT(d);
 sumVAT 'Сумма НДС' (ConsignmentDetail d) = dataSumVAT(d) IF NOT useEmptyVAT(d);
 
-switchSumInvoice (ConsignmentDetail d) = ABSTRACT CASE OVERRIDE FIRST BOOLEAN (ConsignmentDetail);
+switchSumInvoice (ConsignmentDetail d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);
 sumInvoice 'Сумма с НДС' (ConsignmentDetail d) = IF NOT switchSumInvoice(d) THEN dataSumInvoice(d) ELSE dataSum(d);
 
 // ---------------- Устаревшие свойства, которые надо вырезать
@@ -512,7 +512,7 @@ grossWeight 'Масса груза, кг.' (ConsignmentDetail d) = OVERRIDE over
 
 grossWeightTon 'Масса груза, т.' (ConsignmentDetail d) = round6(NUMERIC[17,6](grossWeight(d)) / 1000);
 
-dataNote 'Примечание' = ABSTRACT VALUE OVERRIDE VARSTRING[150] (ConsignmentDetail);
+dataNote 'Примечание' = ABSTRACT VALUE VARSTRING[150] (ConsignmentDetail);
 TABLE consignmentDetail(ConsignmentDetail);
 overNote 'Примечание' = DATA VARSTRING[150] (ConsignmentDetail) ;
 note 'Примечание' (ConsignmentDetail d) = OVERRIDE overNote(d), dataNote(d) MINCHARWIDTH 30 PREFCHARWIDTH 80;

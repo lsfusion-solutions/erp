@@ -172,7 +172,7 @@ EXTEND FORM userShipment
 @extendFormDocumentBatchOrderLedgerAll(userShipment, userShipment, s);
 
 // ------------------------------- Расчет учетной цены для поставки ------------------------ //
-calcShipmentPrice = ABSTRACT CASE OVERRIDE FIRST NUMERIC[16,4] (UserInvoiceDetail) MATERIALIZED;
+calcShipmentPrice = ABSTRACT CASE NUMERIC[16,4] (UserInvoiceDetail) MATERIALIZED;
 calcShipmentPrice (UserInvoiceDetail detail) += WHEN costPrice(detail) THEN costPrice(detail);
 
 extraShipmentPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail) MATERIALIZED;
@@ -290,7 +290,7 @@ show[SkuLedger](ShipmentBatch batch) += { show(shipmentDetail(batch)); }
 // Проводим по регистру учетных цен
 supplier (ShipmentBatch ledger) = supplier(shipmentDetail(ledger));
 @implementSystemLedgerPriceListTypeBatch(account, ShipmentBatch, supplier, stock);
-skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE OVERRIDE BOOLEAN(ShipmentBatch);
+skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN(ShipmentBatch);
 skipChangeLedger(ShipmentBatch b) += dataSkipChangeLedger(invoiceDetail(shipmentDetail(b)));
 skip[PriceListLedger](ShipmentBatch ledger) += skipChangeLedger(ledger);
 
@@ -341,7 +341,7 @@ supplier (ShipmentSkuLedger ledger) = supplier(shipmentDetail(ledger));
 @implementSystemLedgerPriceListType(account, ShipmentSkuLedger, supplier, stock);
 in (ShipmentSkuLedger ledger, Batch batch) += batch(shipmentDetail(ledger)) == batch; 
 
-skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE OVERRIDE BOOLEAN(ShipmentSkuLedger);
+skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN(ShipmentSkuLedger);
 skipChangeLedger(ShipmentSkuLedger b) += dataSkipChangeLedger(invoiceDetail(shipmentDetail(b)));
 skip[PriceListLedger](ShipmentSkuLedger ledger) += skipChangeLedger(ledger);
 

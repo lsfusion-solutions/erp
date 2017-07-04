@@ -294,14 +294,14 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentInterfaceDetailPrice(order); // объявляем цену без НДС
     price[Order.OrderDetail](OrderDetail detail) += price(detail);
 
-    overPriceStockUser = ABSTRACT CASE OVERRIDE FIRST Stock (Order) MATERIALIZED;
+    overPriceStockUser = ABSTRACT CASE Stock (Order) MATERIALIZED;
     priceStockUser(Order o) = OVERRIDE overPriceStockUser(o), stockProp##Stock(o);
     notPriceStockUser(Order o) = NOT priceStockUser(o); 
     priceStock(UserOrderDetail d) = priceStockUser(userOrder(d)); 
 
     @defineDocumentInterfaceDetailVAT(order, country###stockProp###stock, , ); // объявляем шкалу
     
-    overVAT = ABSTRACT VALUE OVERRIDE FIRST Range (UserOrderDetail);
+    overVAT = ABSTRACT VALUE Range (UserOrderDetail);
     overVAT(UserOrderDetail d) += VAT (sku(d), country(supplierStock(d)));
     changedVAT = ABSTRACT BOOLEAN (UserOrderDetail);
     
@@ -668,7 +668,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     backgroundDraft 'Цвет' (Order o) = RGB(212,255,212) IF isDraft(o);      
     overBackgroundDraft(Order o) = OVERRIDE backgroundSku(o), backgroundDraft(o);
     
-    backgroundShipmentDate 'Цвет' = ABSTRACT VALUE OVERRIDE FIRST COLOR (Order);
+    backgroundShipmentDate 'Цвет' = ABSTRACT VALUE COLOR (Order);
     backgroundShipmentDate(Order o) += backgroundSku(o);
     
     FORM orders 'Заказы' AUTOREFRESH 60 
