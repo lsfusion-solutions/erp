@@ -319,7 +319,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
             int position = 0;
             List<SalesInfo> currentSalesInfoList = new ArrayList<>();
-            Map<String, SalesInfo> giftCardMap = new HashMap<>();
+            Map<String, SalesInfo> saleReturnMap = new HashMap<>();
             Set<Integer> currentReadRecordSet = new HashSet<>();
             while (rs.next()) {
 
@@ -336,6 +336,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     case 5: //Открытие чека
                         position = 0;
                         currentSalesInfoList = new ArrayList<>();
+                        saleReturnMap = new HashMap<>();
                         break;
                     case 6: //Регистрация
                         position++;
@@ -389,18 +390,14 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                     null, null, null, null, (BigDecimal) null, idBarcode, idItem, null, null, totalQuantity,
                                     price, sum, discountSum, null, discountCard,
                                     position, null, idSection);
-                            //не слишком красивый хак, IntegrationService не понимает ситуации, когда в одном чеке идёт продажа и возврат новосоздаваемого giftCard.
-                            // Поэтому "аннигилируем" две эти строки.
-                            if(isGiftCard) {
-                                SalesInfo giftCardSalesInfo = giftCardMap.get(idBarcode);
-                                if (giftCardSalesInfo != null && giftCardSalesInfo.quantityReceiptDetail.add(totalQuantity).intValue() == 0) {
-                                    giftCardMap.remove(idBarcode);
-                                    currentSalesInfoList.remove(giftCardSalesInfo);
-                                } else {
-                                    giftCardMap.put(idBarcode, salesInfo);
-                                    currentSalesInfoList.add(salesInfo);
-                                }
+                            //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки
+                            //(на самом деле так кассиры узнают цену). "Аннигилируем" эти две строки.
+                            SalesInfo saleReturnEntry = saleReturnMap.get(idBarcode);
+                            if (saleReturnEntry != null && saleReturnEntry.quantityReceiptDetail.add(totalQuantity).intValue() == 0) {
+                                saleReturnMap.remove(idBarcode);
+                                currentSalesInfoList.remove(saleReturnEntry);
                             } else {
+                                saleReturnMap.put(idBarcode, salesInfo);
                                 currentSalesInfoList.add(salesInfo);
                             }
                         }
