@@ -6,8 +6,8 @@ NAMESPACE Invoice;
 
 createdUser = DATA LOCAL BOOLEAN (Invoice, Order);
 
-createUserInvoice 'Создать накладную' = ACTION ABSTRACT LIST (Order);
-createUserInvoicePosted 'Создать проведенную накладную' = ACTION ABSTRACT LIST (Order);
+createUserInvoice 'Создать накладную' = ABSTRACT LIST (Order);
+createUserInvoicePosted 'Создать проведенную накладную' = ABSTRACT LIST (Order);
 
 orderDetail = ABSTRACT OrderDetail (InvoiceDetail) MATERIALIZED INDEXED;
 
@@ -36,7 +36,7 @@ GROUP orders 'Приемка по заказам' : base;
 
 minSelectedOrder = GROUP MIN Order o IF selected(o); 
 
-overCreateMultiUserInvoice = ACTION ABSTRACT LIST (Order);
+overCreateMultiUserInvoice = ABSTRACT LIST (Order);
 
 countSelectedOrder 'Кол-во отм.' = GROUP SUM 1 IF selected(Order order);
 countSelectedClass 'Кол-во классов' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY objectClassName(order)](ISTRING[100] name);
@@ -45,7 +45,7 @@ countSelectedToClass 'Кол-во получателей' = GROUP SUM 1 IF [= GR
 countSelectedFromStockClass 'Кол-во складов отправителей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY fromStock(order)](Stock fromStock);
 countSelectedToStockClass 'Кол-во складов получателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY toStock(order)](Stock toStock);
 
-addUserInvoice = ACTION ABSTRACT LIST (Order);
+addUserInvoice = ABSTRACT LIST (Order);
 
 createMultiUserInvoice 'Создать накладную'(Order order) = {
     IF countSelectedOrder() THEN {
@@ -149,8 +149,8 @@ META defineOrderInvoice(sign, stockProp)
     in (OrderDetail orderDetail, UserInvoice userInvoice) = (orderDetail IS OrderDetail AND userInvoice IS UserInvoice AND NOT supplierStock(userInvoice)) OR
                                                            supplierStock(orderDetail)==supplierStock(userInvoice);
 
-    overFill = ACTION ABSTRACT LIST (UserInvoiceDetail, OrderDetail);
-    overFill = ACTION ABSTRACT LIST (UserInvoice, Order);
+    overFill = ABSTRACT LIST (UserInvoiceDetail, OrderDetail);
+    overFill = ABSTRACT LIST (UserInvoice, Order);
     
     fill(UserInvoiceDetail id, OrderDetail od) = {    
         VAT(id) <- VAT(od);
@@ -291,9 +291,9 @@ META defineOrderInvoice(sign, stockProp)
     include 'Вкл. в накладную' = DATA BOOLEAN (Order, UserInvoice) MINCHARWIDTH 10 PREFCHARWIDTH 15;  
     countIncludeOrders (i) = GROUP SUM 1 IF include(Order o,UserInvoice i) BY i;
     
-    beforeCreateInvoice = ACTION ABSTRACT LIST (Order);
+    beforeCreateInvoice = ABSTRACT LIST (Order);
     invoiceCreated = DATA LOCAL NESTED BOOLEAN (Order);
-    overCreate = ACTION ABSTRACT LIST (Order, UserInvoice);
+    overCreate = ABSTRACT LIST (Order, UserInvoice);
     
     createUserInvoice 'Создать накладную'(Order order) = {
         invoiceCreated(order) <- NULL;

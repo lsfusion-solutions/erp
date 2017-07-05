@@ -125,8 +125,8 @@ isAppliedPromotion 'Акция применяется' (ReceiptSaleDetail receip
 // оптимизация
 possible = GROUP SUM 1 IF in(PromotionCondition promotionCondition, sku(ReceiptSaleDetail detail)) IF quantity(detail) BY receipt(detail), promotion(promotionCondition);
 
-beforeCalculatePromotions = ACTION ABSTRACT LIST (Receipt);
-overCalculatePromotions = ACTION ABSTRACT LIST (Receipt);
+beforeCalculatePromotions = ABSTRACT LIST (Receipt);
+overCalculatePromotions = ABSTRACT LIST (Receipt);
 calculatePromotions 'Рассчитать акции'(Receipt receipt) = {
 
     quantity(ReceiptSaleDetail detail, PromotionCondition condition) <- NULL WHERE receipt(detail) == receipt;
@@ -325,17 +325,17 @@ createCurrentReceipt 'Создать новый чек'() = {
 
 // Вывод на дисплей
 
-fiscalDisplayText 'Вывести текст на дисплей'(receiptDetail) = ACTION ABSTRACT LIST (ReceiptDetail);
+fiscalDisplayText 'Вывести текст на дисплей'(receiptDetail) = ABSTRACT LIST (ReceiptDetail);
 
 //Отмена чека
 
-fiscalCancel 'Отменить чек' = ACTION ABSTRACT LIST(Receipt);
+fiscalCancel 'Отменить чек' = ABSTRACT LIST(Receipt);
 
 // Проведение чека
 
 GROUP receiptAction 'Оплата' : public;
 
-postPrint 'Напечатать фискальный чек' = ACTION ABSTRACT LIST (Receipt);
+postPrint 'Напечатать фискальный чек' = ABSTRACT LIST (Receipt);
 noFiscalPostPrint 'Создать чек (без фискального регистратора)'(Receipt receipt) = {
     IF receipt IS Receipt THEN {
         apply();
@@ -349,7 +349,7 @@ postPrint(Receipt receipt) += { IF NOT sidCashRegisterModel(receipt) THEN noFisc
 paymentTerminalModel (Receipt receipt) = paymentTerminalModel(cashRegister(receipt));
 sidPaymentTerminalModel 'Код модели' (Receipt receipt) = sid(paymentTerminalModel(receipt));
 
-postPaymentTerminal 'Оплата через платёжный терминал' = ACTION ABSTRACT LIST (Receipt);
+postPaymentTerminal 'Оплата через платёжный терминал' = ABSTRACT LIST (Receipt);
 postPaymentTerminalReceiptResult = DATA LOCAL VARSTRING[100] (); 
 
 FORM postReceiptPayment 'Оплата по чеку'
@@ -566,7 +566,7 @@ DESIGN bonusPayment {
     MOVE functions.box;
 }
 
-overPostBonus = ACTION ABSTRACT (Receipt); 
+overPostBonus = ABSTRACT (Receipt); 
 
 postBonus 'Бонусами'(Receipt receipt) = {
     IF sumReceiptDetail(receipt) AND countReceiptDetail(receipt) AND NOT countReceiptReturnDetail(receipt) THEN {
@@ -578,7 +578,7 @@ postBonus 'Бонусами'(Receipt receipt) = {
     }
 } EDITKEY 'F8' IN receiptAction;
 
-resetBoard 'Сбросить текст на дисплее' = ACTION ABSTRACT LIST(Receipt);
+resetBoard 'Сбросить текст на дисплее' = ABSTRACT LIST(Receipt);
 
 cancel 'Обнулить чек'(Receipt receipt) = {
     resetBoard(receipt);
@@ -608,7 +608,7 @@ FORM chooseBatchReceipt 'Выбор партии'
         
 ;
 
-overChangeBatch = ACTION ABSTRACT LIST (ReceiptDetail);
+overChangeBatch = ABSTRACT LIST (ReceiptDetail);
 
 changeBatch 'Изменить партию строки чека'(ReceiptDetail detail) = {
     IF explicitBatchLedger(receipt(detail)) THEN {
@@ -620,7 +620,7 @@ changeBatch 'Изменить партию строки чека'(ReceiptDetail 
     }
 }
 
-focusQuantity = ACTION ABSTRACT LIST (ReceiptDetail); 
+focusQuantity = ABSTRACT LIST (ReceiptDetail); 
 
 createSaleDetail 'Добавить строку продажи'(Receipt receipt, Batch batch, VARSTRING[30] barcode) = {
     NEW d = ReceiptSaleDetail {
@@ -679,8 +679,8 @@ GROUP receiptSaleAction 'Продажа' : public;
 
 // По штрихкоду
 consumedChangeBarcodeSaleReceipt = DATA LOCAL BOOLEAN();
-preProcessBarcode = ACTION ABSTRACT LIST (VARSTRING[30], Receipt);
-overChangeBarcodeSale = ACTION ABSTRACT LIST FIRST (VARSTRING[30], Receipt);
+preProcessBarcode = ABSTRACT LIST (VARSTRING[30], Receipt);
+overChangeBarcodeSale = ABSTRACT LIST FIRST (VARSTRING[30], Receipt);
 
 changeBarcodeSale(Receipt receipt) = {
     INPUT s = VARSTRING[30] DO {
@@ -855,7 +855,7 @@ createReturn 'Добавить строку возврата'(Receipt receipt, R
         focusQuantity(d);
     }
 }
-overCreateReturn = ACTION ABSTRACT LIST (ReceiptReturnDetail, ReceiptSaleDetail);
+overCreateReturn = ABSTRACT LIST (ReceiptReturnDetail, ReceiptSaleDetail);
 createReturn 'Добавить строки возврата'(Receipt receipt, Receipt receiptReturn) = {
     FOR receipt(ReceiptSaleDetail receiptSaleDetail) == receiptReturn NEW d = ReceiptReturnDetail DO {
         receipt(d) <- receipt;        
@@ -1058,7 +1058,7 @@ openZReport 'Открыть Z-отчет' (CashRegister cashRegister) = {
     }
 } IN receiptZReport;
 
-fiscalOpenZReport 'Открыть Z-отчет' () = ACTION ABSTRACT LIST ();
+fiscalOpenZReport 'Открыть Z-отчет' () = ABSTRACT LIST ();
 
 openCurrentZReport 'Открыть Z-отчет'() = {
     NEW z = ZReport {
@@ -1072,7 +1072,7 @@ openCurrentZReport 'Открыть Z-отчет'() = {
     fiscalOpenZReport();
 } CONFIRM IN receiptZReport;
 
-overClose = ACTION ABSTRACT LIST (ZReport);
+overClose = ABSTRACT LIST (ZReport);
 
 closeZReport 'Закрыть Z-отчет' (CashRegister cashRegister) = {
     cancel();
@@ -1458,7 +1458,7 @@ CONSTRAINT onlyPossitivePriceReceipDetail() AND ReceiptDetail detail IS ReceiptD
     MESSAGE 'Цена для строки чека должна быть задана и быть больше 0';
 
 // ----------------------------------------- Кассовые операции ---------------------------------------------- //
-fiscalZReport 'Закрыть Z-отчёт' = ACTION ABSTRACT LIST () CONFIRM;
+fiscalZReport 'Закрыть Z-отчёт' = ABSTRACT LIST () CONFIRM;
 fiscalZReport() += { IF NOT sidModelCurrentCashRegister() THEN closeCurrentZReport(); }
 
 currentZReportDepartmentStore() = currentZReport() IF departmentStoreCurrentCashRegister();
@@ -1494,7 +1494,7 @@ DESIGN operationCashRegister {
 }
 
 // Update data
-fiscalUpdateData 'Загрузить информацию' = ACTION ABSTRACT LIST ();
+fiscalUpdateData 'Загрузить информацию' = ABSTRACT LIST ();
 fiscalUpdateDataShowIf = departmentStoreCurrentCashRegister() IF closedCurrentZReportDepartmentStore();
 
 EXTEND FORM operationCashRegister
