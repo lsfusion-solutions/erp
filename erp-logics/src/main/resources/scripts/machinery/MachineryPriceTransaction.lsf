@@ -258,7 +258,7 @@ data 'Сообщение об ошибке' = DATA VARSTRING[200] (MachineryPric
 date 'Время возникновения' = DATA DATETIME (MachineryPriceTransactionError) IN base;
 toDate 'Дата возникновения' (MachineryPriceTransactionError d) = DATE(date(d));
 errorTrace 'След исключения' = DATA TEXT (MachineryPriceTransactionError) IN base;
-machineryPriceTransaction 'Транзакция (ID)' = DATA MachineryPriceTransaction(MachineryPriceTransactionError) NOT NULL DELETE IN base INDEXED;
+machineryPriceTransaction 'Транзакция (ID)' = DATA MachineryPriceTransaction(MachineryPriceTransactionError) NONULL DELETE IN base INDEXED;
 quantityMachineryPriceTransactionError 'Количество ошибок' (MachineryPriceTransaction) = GROUP SUM 1 BY machineryPriceTransaction (MachineryPriceTransactionError machineryPriceTransactionError) MATERIALIZED IN base;
 lastDateMachineryPriceTransactionError 'Время последней ошибки' (MachineryPriceTransaction) = GROUP MAX date(MachineryPriceTransactionError machineryPriceTransactionError) BY machineryPriceTransaction (machineryPriceTransactionError) MATERIALIZED;
 
@@ -429,7 +429,7 @@ FORM requestExchangeTypes 'Типы запросов'
 CLASS RequestExchange 'Запрос обмена данными';
 TABLE requestExchange (RequestExchange);
 
-stock 'Склад' = DATA Stock (RequestExchange);// NOT NULL;
+stock 'Склад' = DATA Stock (RequestExchange);// NONULL;
 nameStock 'Склад' (RequestExchange requestExchange) = name(stock(requestExchange));
 
 CONSTRAINT stock(RequestExchange r) AND NOT isCompany(stock(r))
@@ -441,13 +441,13 @@ in 'Вкл' = DATA BOOLEAN (Stock, RequestExchange);
 extraStocks = GROUP CONCAT name(Stock stock) IF in(stock, RequestExchange requestExchange), ', ' 
                                                 BY requestExchange
                                                 ORDER name(stock) MINCHARWIDTH 30 PREFCHARWIDTH 30 MATERIALIZED;                                                                         
-dateFrom 'Дата с' = DATA DATE (RequestExchange) NOT NULL;
-dateTo 'Дата по' = DATA DATE (RequestExchange) NOT NULL;
+dateFrom 'Дата с' = DATA DATE (RequestExchange) NONULL;
+dateTo 'Дата по' = DATA DATE (RequestExchange) NONULL;
 startDate 'Загружать дисконтные карты начиная с даты' = DATA DATE (RequestExchange);
 //todo: rename idDiscountCardFrom, idDiscountCardTo -> numberDiscountCardFrom, numberDiscountCardTo
 idDiscountCardFrom 'Номер дисконтной карты (с)' = DATA VARSTRING[100] (RequestExchange);
 idDiscountCardTo 'Номер дисконтной карты (по)' = DATA VARSTRING[100] (RequestExchange);
-requestExchangeType 'Тип запроса' = DATA RequestExchangeType (RequestExchange) NOT NULL;
+requestExchangeType 'Тип запроса' = DATA RequestExchangeType (RequestExchange) NONULL;
 nameRequestExchangeType 'Тип запроса' (RequestExchange requestExchange) = staticName(requestExchangeType(requestExchange));
 captionRequestExchangeType 'Тип запроса' (RequestExchange requestExchange) = staticCaption(requestExchangeType(requestExchange));
 succeeded 'Выгружен' = DATA BOOLEAN (RequestExchange);
