@@ -7,7 +7,8 @@ NAMESPACE Sale;
 overRetailVAT(UserInvoiceDetail detail) += VAT(batch(detail)) IF valueVAT(batch(detail)) != 0;
 
 // не меняем ставку НДС, если льготный НДС
-overSetValueRetailVAT(UserInvoiceDetail detail) += valueVAT(batch(detail)) IF valueVAT(batch(detail)) != 0;
+skipOverSetValueRetailVAT = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
+overSetValueRetailVAT(UserInvoiceDetail detail) += valueVAT(batch(detail)) IF valueVAT(batch(detail)) != 0 AND NOT skipOverSetValueRetailVAT(detail);
 
 // todo : временное решение, пока нету последовательности выполнения событий
 WHEN LOCAL FORMS userInvoice CHANGED(batch(UserInvoiceDetail d)) DO {
