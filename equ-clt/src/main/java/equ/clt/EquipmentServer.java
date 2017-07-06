@@ -677,14 +677,14 @@ public class EquipmentServer {
                 try {
                     Map<Integer, SendTransactionBatch> succeededMachineryInfoMap = clsHandler.sendTransaction(transactionEntry);
                     
-                    processTransactionLogger.info(String.format("   Sending transaction group %s: confirm to server, count : %s ", groupId, succeededMachineryInfoMap.size()));
+                    processTransactionLogger.info(String.format("   Sending transaction group %s (%s): confirm to server, count : %s ", groupId, succeededMachineryInfoMap.size()));
 
                     for (TransactionInfo transactionInfo : transactionEntry) {
                         boolean noErrors = true;
                         SendTransactionBatch batch = succeededMachineryInfoMap.get(transactionInfo.id);
                         if(batch != null && batch.exception != null) {
                             noErrors = false;
-                            processTransactionLogger.info(String.format("   Sending transaction group %s: found batch exception", groupId));
+                            processTransactionLogger.info(String.format("   Sending transaction group %s (%s): found batch exception", groupId, transactionInfo.id));
                             errorTransactionReport(transactionInfo.id, batch.exception);
                         }
 
@@ -692,11 +692,11 @@ public class EquipmentServer {
                             if (batch != null) {
                                 List<MachineryInfo> succeededMachineryInfoList = batch.succeededMachineryList;
                                 if (succeededMachineryInfoList != null && getEnabledMachineryInfoList(succeededMachineryInfoList).size() != getEnabledMachineryInfoList(transactionInfo.machineryInfoList).size()) {
-                                    processTransactionLogger.info(String.format("   Sending transaction group %s: not all machinery " + getEnabledMachineryInfoList(succeededMachineryInfoList).size() + " - " + getEnabledMachineryInfoList(transactionInfo.machineryInfoList).size(), groupId));
+                                    processTransactionLogger.info(String.format("   Sending transaction group %s (%s): not all machinery " + getEnabledMachineryInfoList(succeededMachineryInfoList).size() + " - " + getEnabledMachineryInfoList(transactionInfo.machineryInfoList).size(), groupId, transactionInfo.id));
                                     noErrors = false;
                                 }
                                 if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null) {
-                                    processTransactionLogger.info(String.format("   Sending transaction group %s: confirm machinery to server", groupId));
+                                    processTransactionLogger.info(String.format("   Sending transaction group %s (%s): confirm machinery to server", groupId, transactionInfo.id));
                                     remote.succeedMachineryTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
                                 }
                                 if(batch.clearedMachineryList != null && !batch.clearedMachineryList.isEmpty())
@@ -712,7 +712,7 @@ public class EquipmentServer {
                         }
 
                         if (noErrors) {
-                            processTransactionLogger.info(String.format("   Sending transaction group %s: confirm transaction to server", groupId));
+                            processTransactionLogger.info(String.format("   Sending transaction group %s(%s): confirm transaction to server", groupId, transactionInfo.id));
                             succeededTransaction(transactionInfo.id);
                             transactionInfoMap.put(transactionInfo, true);
                         }
