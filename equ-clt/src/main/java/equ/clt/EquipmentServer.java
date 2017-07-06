@@ -692,8 +692,10 @@ public class EquipmentServer {
                                 List<MachineryInfo> succeededMachineryInfoList = batch.succeededMachineryList;
                                 if (succeededMachineryInfoList != null && getEnabledMachineryInfoList(succeededMachineryInfoList).size() != getEnabledMachineryInfoList(transactionInfo.machineryInfoList).size())
                                     noErrors = false;
-                                if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null)
+                                if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null) {
+                                    processTransactionLogger.info(String.format("   Sending transaction group %s: confirm machinery to server", groupId));
                                     remote.succeedMachineryTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
+                                }
                                 if(batch.clearedMachineryList != null && !batch.clearedMachineryList.isEmpty())
                                     remote.clearedMachineryTransaction(transactionInfo.id, batch.clearedMachineryList);
                                 if(batch.deleteBarcodeSet != null && !batch.deleteBarcodeSet.isEmpty()) {
@@ -702,10 +704,12 @@ public class EquipmentServer {
                             }
                         } catch (Exception e) {
                             noErrors = false;
+                            processTransactionLogger.error("EquipmentServerError confirm: ", e);
                             errorTransactionReport(transactionInfo.id, e);
                         }
 
                         if (noErrors) {
+                            processTransactionLogger.info(String.format("   Sending transaction group %s: confirm transaction to server", groupId));
                             succeededTransaction(transactionInfo.id);
                             transactionInfoMap.put(transactionInfo, true);
                         }
@@ -717,8 +721,6 @@ public class EquipmentServer {
 
             }
             taskPool.markProceeded(groupId, transactionInfoMap);
-            processTransactionLogger.info(String.format("   Sending transaction group %s: finish", groupId));
-
         }
 
         public List<MachineryInfo> getEnabledMachineryInfoList (List<MachineryInfo> machineryInfoList) {
