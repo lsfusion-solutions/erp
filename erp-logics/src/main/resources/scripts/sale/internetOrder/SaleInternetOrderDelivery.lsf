@@ -83,7 +83,7 @@ FORM deliveryReport 'Отчет курьера'
     FILTERS relation(r,o)
     PROPERTIES (o) READONLY isClosed, isPosted, nameStatus, number, series, date, time
 
-    PROPERTIES (o) READONLY nameCurrency,  nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer
+    PROPERTIES (o) READONLY nameCurrency, nameCarrier, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer
     PROPERTIES (o) READONLY countInternetOrderDetail, quantityInternetOrderDetail, sumInternetOrderDetail,
                             note
     PROPERTIES (o) deliveryDate, namePaymentTypeInternetOrder, paymentCashSumInternetOrder, paymentCardSumInternetOrder, paymentERIPSumInternetOrder, paymentDateInternetOrder,
@@ -216,6 +216,8 @@ FORM deliveryReports 'Отчеты курьера'
 //    PROPERTIES(r) TOOLBAR printDeliveryLists, printDeliveryReport, printAssemblyList
 //;
 
+carrier = DATA Carrier (DeliveryReport); 
+nameCarrier 'Перевозщик' (DeliveryReport r) = name(carrier(r));
 
 createDeliveryReport 'Создать отчет курьера' (InternetOrder order) = {
     IF NOT countInternetOrders() THEN {
@@ -224,11 +226,12 @@ createDeliveryReport 'Создать отчет курьера' (InternetOrder o
     IF countInternetOrders() THEN  {       
     
         NEWSESSION {
-            FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT deliveryReport(d) BY Sale.supplierStock[InternetOrderDetail](d)](Stock stock) NEW r = DeliveryReport DO {
+            FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT deliveryReport(d) BY Sale.supplierStock[InternetOrderDetail](d), carrier(internetOrder(d))](Stock stock, Carrier carrier) NEW r = DeliveryReport DO {
 //                FOR (status(InternetOrderDetail detail) == StatusInternetOrderDetail.picked OR status(detail) == StatusInternetOrderDetail.partlyPicked )
 //                    AND (status(internetOrder(detail)) == StatusInternetOrder.picked OR status(internetOrder(detail)) == StatusInternetOrder.partlyPicked)
 //                    AND NOT deliveryReport(detail) AND select(internetOrder(detail)) DO {
-                FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND select(internetOrder(detail)) AND NOT deliveryReport(detail) DO {
+                carrier(r) <- carrier;
+                FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND carrier(internetOrder(detail)) == carrier AND select(internetOrder(detail)) AND NOT deliveryReport(detail) DO {
                     deliveryReport(detail) <- r;                        
                 }
                 SHOW deliveryReport OBJECTS r = r MANAGESESSION DOCKED NOCANCEL;
@@ -286,7 +289,7 @@ FORM deliveryDashboard 'Отчеты курьера'
     FILTERS internetOrder(d) == o 
 
     OBJECTS r = DeliveryReport LAST
-    PROPERTIES(r) READONLY nameStatus, number, series,date, time, supplierStocks, seriesNumberInternetOrders, countInternetOrderDetail, 
+    PROPERTIES(r) READONLY nameStatus, number, series,date, time, nameCarrier, supplierStocks, seriesNumberInternetOrders, countInternetOrderDetail, 
                   pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail
     PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE  
     PROPERTIES (r) PANEL READONLY createdTime, createdNameUser, createdHostnameComputer  

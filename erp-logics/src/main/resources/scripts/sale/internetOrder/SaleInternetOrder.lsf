@@ -564,6 +564,7 @@ FORM internetCatalogs 'Справочники интернет магазина'
 DESIGN internetCatalogs {
     NEW tabContainer {        
         fill = 1;
+        type = TABBED;
         MOVE sio.box{
             caption = 'Статусы интернет заказа';
         }
@@ -813,3 +814,68 @@ WHEN LOCAL FORMS internetOrder
                     ELSE prevPriceB(pt, sku(detail), Sale.supplierStock[InternetOrderDetail](detail), dateTime(detail)); 
     discountPrice (detail)  <- price(detail);                        
 }
+
+CLASS Carrier 'Перевозщик'; 
+
+@defineExternalizableAbstract(carrier, VARSTRING[100]);
+
+name 'Наименование' = DATA VARSTRING[255] (Carrier);
+
+departmentStore = DATA DepartmentStore (Carrier);
+nameDepartmentStore 'Интернет магазин' (Carrier c) = name(departmentStore(c));
+
+FORM carrier 'Перевозщик'
+    OBJECTS c = Carrier FIXED PANEL 
+    PROPERTIES(c) id, name, nameDepartmentStore
+    EDIT Carrier OBJECT c
+;
+
+FORM carriers 'Перевозщики'
+    OBJECTS c = Carrier
+    PROPERTIES(c) READONLY id, name, nameDepartmentStore
+    LIST Carrier OBJECT c
+;
+
+EXTEND FORM internetCatalogs
+    OBJECTS carrier = Carrier
+    PROPERTIES(carrier) READONLY id, name, nameDepartmentStore  
+    PROPERTIES(carrier) NEWSESSION NEW, EDIT, DELETE
+;
+
+DESIGN internetCatalogs {
+    tabContainer {        
+        MOVE carrier.box{
+            caption = 'Перевозщики';
+        }
+    }
+}
+
+defaultCarrier = DATA Carrier ();
+nameDefaultCarrier 'Перевозщик по умолчанию' = name(defaultCarrier());
+
+EXTEND FORM options
+    PROPERTIES nameDefaultCarrier()
+;
+
+DESIGN options {
+    internetOrder{
+        MOVE PROPERTY(nameDefaultCarrier());
+    }
+}
+
+carrier = DATA Carrier (InternetOrder);
+nameCarrier 'Перевозщик' (InternetOrder o) = name(carrier(o)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+
+EXTEND FORM internetOrder
+    PROPERTIES(o) nameCarrier 
+;
+
+DESIGN internetOrder {
+    payment{
+        MOVE PROPERTY(nameCarrier(o));
+    }    
+}
+
+EXTEND FORM internetOrders
+    PROPERTIES(o) READONLY nameCarrier
+;

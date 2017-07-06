@@ -95,6 +95,8 @@ pickingSumInternetOrderDetail 'Сумма (всего) собрано'  = GROUP 
 pickingSumInternetOrderDetail 'Сумма (всего) собрано'  = GROUP SUM pickingSum(InternetOrderDetail idetail) BY picking(idetail) IN documentSum MATERIALIZED;
 pickingQuantityInternetOrderDetail 'Кол-во (всего) собрано'  = GROUP SUM pickingQuantity(InternetOrderDetail idetail) BY picking(idetail) IN documentSum MATERIALIZED;
 
+carrier = DATA Carrier (Picking); 
+nameCarrier 'Перевозщик' (Picking p) = name(carrier(p));
 
 EXTEND FORM internetOrder
     PROPERTIES (d) pickingQuantity AFTER quantity(d)
@@ -119,7 +121,7 @@ changeStatus (Picking picking) = {
 
 FORM picking 'Комплектация'
     OBJECTS p = Picking PANEL
-    PROPERTIES (p) nameStock, nameStatus ON CHANGE changeStatus(p),
+    PROPERTIES (p) nameStock, nameCarrier, nameStatus ON CHANGE changeStatus(p),
                    nameNumerator, number, series, date, time,
                    note, countInternetOrderDetail, pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail                   
 
@@ -266,12 +268,12 @@ createPicking 'Создать комплектацию' (InternetOrder order) = 
     IF countInternetOrders() THEN  {      
         LOCAL NESTED  ok = BOOLEAN ();
         ok() <- NULL;
-        FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT picking(d) BY Sale.supplierStock[InternetOrderDetail](d)](Stock stock)   DO {
+        FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT picking(d) AND filterDashboard(d) BY Sale.supplierStock[InternetOrderDetail](d), carrier(internetOrder(d))](Stock stock, Carrier carrier) DO {
             NEWSESSION {
                 NEW p = Picking{
                     stock(p) <- stock;
-                    FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND filterDashboard(detail) DO {
-                        
+                    carrier(p) <- carrier;
+                    FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND carrier(internetOrder(detail)) == carrier AND filterDashboard(detail) DO {                       
                             picking(detail) <- p;
                             IF  isItem(sku(detail)) AND NOT batch(detail) THEN {
                                 batch(detail) <- firstOrderBatchBalance(sku(detail), stock, dateTime(detail), quantity(detail));
@@ -280,7 +282,7 @@ createPicking 'Создать комплектацию' (InternetOrder order) = 
                     }                   
                     DIALOG picking OBJECTS p = p MANAGESESSION DOCKED NOCANCEL DO {
                         ok() <- TRUE;
-                    };
+                    }
                 }
             }                           
         }            
@@ -322,7 +324,7 @@ FORM pickingDashboard 'Комплектации'
     FILTERS internetOrder(d) == o 
                       
     OBJECTS p = Picking LAST
-    PROPERTIES (p) READONLY nameStatus, number, series, date, time, nameStock, countInternetOrderDetail, 
+    PROPERTIES (p) READONLY nameStatus, number, series, date, time, nameStock, nameCarrier, countInternetOrderDetail, 
                    pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail, seriesNumberInternetOrders
     PROPERTIES (p) PANEL READONLY createdTime, createdNameUser, createdHostnameComputer  
     PROPERTIES (p) NEWSESSION NEW, EDIT, DELETE  
