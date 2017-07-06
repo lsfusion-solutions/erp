@@ -39,6 +39,11 @@ DESIGN extraValuation {
        
 repricing = DATA Repricing (Invoice);
 repricing (InvoiceDetail d) = repricing(invoice(d));
+descriptionRepricing 'Дооценка' (Invoice i) = description(repricing(i)) MINCHARWIDTH 25;
+
+defaultInvoice = GROUP MAX Invoice i BY repricing(i);
+descriptionInvoice 'Основание (ТТН)' (Repricing r) = description(defaultInvoice(r)) MINCHARWIDTH 25;
+
 
 prevRetailPricingPriceB 'Цена розничная до' (InvoiceDetail detail) = prevRetailPricingPriceB(sku(detail), customerStock(detail), pricingDateTime(detail));
 
@@ -70,11 +75,11 @@ filterToRepricing 'Фильтр' (Invoice invoice, Stock department, DATETIME ti
 //        BY sku(d), departmentStore(d), price(d), fromDateTime, toDateTime; 
 
 calcSkuLedgerAhead 'Кол-во движения по старой цене' (sku, stock, price, fromDateTime, toDateTime) = 
-    GROUP SUM quantity(SkuLedger l) IF dateTime(l) >= fromDateTime AND dateTime(l) <= toDateTime AND abs(price - (sum(l) / quantity(l))) < 0.01 AND active(l)
+    GROUP SUM quantity(SkuLedger l) IF dateTime(l) >= DATETIME fromDateTime AND dateTime(l) <= DATETIME toDateTime AND abs(NUMERIC[16,4] price - (sum(l) / quantity(l))) < 0.01 AND active(l)
           BY sku(l), stock(l), price, fromDateTime, toDateTime;
            
 calcRepricingAhead 'Кол-во движения по старой цене' (sku, stock, price, fromDateTime, toDateTime) = 
-    GROUP SUM quantity(RepricingDetail d) IF dateTime(d) >= fromDateTime AND dateTime(d) <= toDateTime AND isPosted(d) 
+    GROUP SUM quantity(RepricingDetail d) IF dateTime(d) >= DATETIME fromDateTime AND dateTime(d) <= DATETIME toDateTime AND isPosted(d) 
           BY sku(d), departmentStore(d), curRetailPrice(d), fromDateTime, toDateTime; 
 
         
