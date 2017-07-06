@@ -124,7 +124,7 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                                 statement.close();
                         }
                     }
-                    if (wheres.isEmpty()) {
+                    if (wheres.isEmpty() || truncate) {
                         ps = conn.prepareStatement(getInsertStatement(columns, params));
                         for (List<Object> row : rows) {
                             for (int i = 0; i < paramLength; i++) {
