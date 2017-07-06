@@ -22,9 +22,9 @@ public class SendTransactionBatch {
         this(clearedMachineryList, succeededMachineryList, null, null, exception);
     }
 
-    public SendTransactionBatch(List<MachineryInfo> succeededMachineryList, List<MachineryInfo> clearedMachineryList, Integer nppGroupMachinery, Set<String> deleteBarcodeSet, Throwable exception) {
-        this.succeededMachineryList = succeededMachineryList;
+    public SendTransactionBatch(List<MachineryInfo> clearedMachineryList, List<MachineryInfo> succeededMachineryList, Integer nppGroupMachinery, Set<String> deleteBarcodeSet, Throwable exception) {
         this.clearedMachineryList = clearedMachineryList;
+        this.succeededMachineryList = succeededMachineryList;
         this.nppGroupMachinery = nppGroupMachinery;
         this.deleteBarcodeSet = deleteBarcodeSet;
         this.exception = exception;
