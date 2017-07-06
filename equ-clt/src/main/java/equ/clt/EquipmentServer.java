@@ -677,7 +677,7 @@ public class EquipmentServer {
                 try {
                     Map<Integer, SendTransactionBatch> succeededMachineryInfoMap = clsHandler.sendTransaction(transactionEntry);
                     
-                    processTransactionLogger.info(String.format("   Sending transaction group %s (%s): confirm to server, count : %s ", groupId, succeededMachineryInfoMap.size()));
+                    processTransactionLogger.info(String.format("   Sending transaction group %s: confirm to server, count : %s ", groupId, succeededMachineryInfoMap.size()));
 
                     for (TransactionInfo transactionInfo : transactionEntry) {
                         boolean noErrors = true;
