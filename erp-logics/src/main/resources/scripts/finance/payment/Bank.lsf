@@ -24,12 +24,6 @@ nameCountry 'Страна' (Bank bank) = name(country(bank)) IN bank MINCHARWIDT
 @defineHistorizable(address, , 'Адрес банка', VARSTRING[150], bank, nameBank, bank);
 
 code 'Код банка' (Bank b) = right(MFO(b),3);
-//changeCodeBank = (b) {
-//    REQUEST STRING[9] INPUT ;
-//    IF requestedString() THEN {
-//        MFOBank(b)<- requestedString();    
-//    }   
-//}
 
 FORM bank 'Банк'
     OBJECTS b=Bank PANEL
@@ -93,7 +87,7 @@ account (number) = GROUP MAX Account account BY number(account); // WHERE accoun
 bank = DATA Bank (Account);
 nameBank 'Наименование банка' (Account account) = name(bank(account)) IN account;
 addressBank 'Адрес банка' (Account account) = address(bank(account)) IN account;
-MFOBank 'Код МФО банка' (Account account) = MFO(bank(account)) IN account;
+MFOBank 'Код BIC банка' (Account account) = MFO(bank(account)) IN account;
 departmentBank 'Отдел банка' (Account account) = department(bank(account)) IN account;
 CBUBank 'ЦБУ банка' (Account account) = CBU(bank(account)) IN account;
 
@@ -112,7 +106,7 @@ nameBank 'Банк покупателя' (LegalEntity legalEntity) = nameBank(ac
 addressBank 'Адрес банка покупателя' (LegalEntity legalEntity) = addressBank(account(legalEntity));
 departmentBank 'Отдел банка покупателя' (LegalEntity legalEntity) = departmentBank(account(legalEntity));
 CBUBank 'ЦБУ банка покупателя' (LegalEntity legalEntity) = CBUBank(account(legalEntity));
-MFOBank 'Код МФО банка покупателя' (LegalEntity legalEntity) = MFOBank(account(legalEntity));
+MFOBank 'Код BIC банка покупателя' (LegalEntity legalEntity) = MFOBank(account(legalEntity));
     
 equals 'Основной' (LegalEntity legalEntity, Account account) = userAccount(legalEntity) == account;
 
@@ -191,7 +185,7 @@ META defineDocumentAccount(object, contact, caption)
     addressBank###contact 'Адрес банка'###caption (###object object) = addressBank(account(contact(object))) IN documentPrm;
     departmentBank###contact 'Отдел банка'###caption (###object object) = departmentBank(account(contact(object))) IN documentPrm;
     CBUBank###contact 'ЦБУ банка'###caption (###object object) = CBUBank(account(contact(object))) IN documentPrm;
-    MFOBank###contact 'Код МФО банка'###caption (###object object) = MFOBank(account(contact(object))) IN documentPrm;
+    MFOBank###contact 'Код BIC банка'###caption (###object object) = MFOBank(account(contact(object))) IN documentPrm;
 END
 
 copyAccountNumbers 'Скопировать номера счетов IBAN' ()  = {
@@ -199,4 +193,31 @@ copyAccountNumbers 'Скопировать номера счетов IBAN' ()  =
         number(a) <- numberNew(a);
     }
     APPLY;
+}
+
+importBIC 'Импортировать коды BIC' ()= {  //запускать только 1 раз!
+
+// сохраняем коды МФО   
+    FOR MFO(Bank b) DO {
+        oldMFO(b) <- MFO(b);
+    }
+    
+    LOCAL codeBIC = VARSTRING[10] (INTEGER);    
+    LOCAL codeMFO = VARSTRING[10] (INTEGER);
+    
+    INPUT f = EXCELFILE DO {
+        TRY {
+            IMPORT XLSX TO codeBIC = A, codeMFO = C FROM f AS EXCELFILE;
+        } 
+        TRY {
+            IMPORT XLS TO codeBIC = A, codeMFO = C FROM f AS EXCELFILE;
+        }
+
+        FOR oldMFO(Bank b) DO {
+            FOR imported(INTEGER i) AND codeMFO(i) == oldMFO(b) AND MFO(b) == oldMFO(b) DO {      
+                MFO(b) <- codeBIC(i);
+            }        
+        }    
+        APPLY;
+    }
 }
