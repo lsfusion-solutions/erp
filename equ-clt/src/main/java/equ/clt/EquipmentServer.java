@@ -684,14 +684,17 @@ public class EquipmentServer {
                         SendTransactionBatch batch = succeededMachineryInfoMap.get(transactionInfo.id);
                         if(batch != null && batch.exception != null) {
                             noErrors = false;
+                            processTransactionLogger.info(String.format("   Sending transaction group %s: found batch exception", groupId));
                             errorTransactionReport(transactionInfo.id, batch.exception);
                         }
 
                         try {
                             if (batch != null) {
                                 List<MachineryInfo> succeededMachineryInfoList = batch.succeededMachineryList;
-                                if (succeededMachineryInfoList != null && getEnabledMachineryInfoList(succeededMachineryInfoList).size() != getEnabledMachineryInfoList(transactionInfo.machineryInfoList).size())
+                                if (succeededMachineryInfoList != null && getEnabledMachineryInfoList(succeededMachineryInfoList).size() != getEnabledMachineryInfoList(transactionInfo.machineryInfoList).size()) {
+                                    processTransactionLogger.info(String.format("   Sending transaction group %s: not all machinery " + getEnabledMachineryInfoList(succeededMachineryInfoList).size() + " - " + getEnabledMachineryInfoList(transactionInfo.machineryInfoList).size(), groupId));
                                     noErrors = false;
+                                }
                                 if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null) {
                                     processTransactionLogger.info(String.format("   Sending transaction group %s: confirm machinery to server", groupId));
                                     remote.succeedMachineryTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
