@@ -313,7 +313,6 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 Map<String, String> deleteBarcodesEntry = deleteBarcodeDirectoryMap.get(deleteBarcodes.directory);
                                 deleteBarcodesEntry.remove(b);
                                 deleteBarcodeDirectoryMap.put(deleteBarcodes.directory, deleteBarcodesEntry);
-                                System.out.print("x");
                             }
                         }
                         result.put(idTransaction, new SendTransactionBatch(null, null,
