@@ -452,6 +452,13 @@ recalculatePrice 'Пересчитать цены (до)' (UserRepricing reprici
 //------------------------------------ Печатные формы акт расценки ------------------------------------------------ //
 nameStore 'Магазин' (Repricing repricing) = nameStore(departmentStore(repricing));
 
+printed 'Распечатан' = ABSTRACT BOOLEAN (Repricing);
+printed 'Распечатан' = DATA BOOLEAN (UserRepricing);
+printed (UserRepricing p) += printed(p);
+statusPrinted 'Статус печати акта' (Repricing r) = CASE WHEN printed(r) THEN 'Распечатан' 
+                                                    ELSE 'Не распечатан';
+printBackground 'Цвет' (Repricing r) = RGB(212,255,212) IF r IS Repricing AND NOT printed(r);
+                                                        
 FORM repricing 'Акт переоценки (печать)'
 
     OBJECTS p = Repricing PANEL
@@ -495,9 +502,23 @@ FORM repricing 'Акт переоценки (печать)'
 
 ;
 
-print 'Акт переоценки' (Repricing repricing) = { PRINT repricing OBJECTS p = repricing; }   IMAGE 'print.png' IN print;
-printXls 'Акт переоценки (xls)' (Repricing repricing) = { PRINT repricing OBJECTS p = repricing XLS; } IMAGE 'print.png' IN print;
-printAuto 'Акт переоценки (авто)' (Repricing repricing) = { PRINT repricing OBJECTS p = repricing AUTO; } IMAGE 'print.png' IN print;
+print 'Акт переоценки' (Repricing r) = { 
+    PRINT repricing OBJECTS p = r;
+    IF NOT printed(r) AND isPosted(r) THEN NEWSESSION {
+        printed(r) <- TRUE;
+        APPLY; 
+    }    
+} IMAGE 'print.png' IN print;
+printXls 'Акт переоценки (xls)' (Repricing r) = { 
+    PRINT repricing OBJECTS p = r XLS; 
+} IMAGE 'print.png' IN print;
+printAuto 'Акт переоценки (авто)' (Repricing r) = { 
+    PRINT repricing OBJECTS p = r AUTO; 
+    IF NOT printed(r) AND isPosted(r) THEN NEWSESSION {
+        printed(r) <- TRUE;
+        APPLY;  
+    }     
+} IMAGE 'print.png' IN print;
 //----------------------------------------------- Операции ------------------------+----------------------------//
 
 @defineDocumentInterfaceOperation (repricing, Repricing, );
