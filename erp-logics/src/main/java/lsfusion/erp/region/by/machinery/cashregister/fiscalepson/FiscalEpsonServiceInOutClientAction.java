@@ -26,7 +26,7 @@ public class FiscalEpsonServiceInOutClientAction implements ClientAction {
             FiscalEpson.init();
 
             FiscalEpson.openPort(comPort, baudRate);
-            FiscalEpson.inOut(sum.longValue());
+            FiscalEpson.inOut(sum.doubleValue());
             FiscalEpson.openDrawer();
 
         } catch (RuntimeException e) {

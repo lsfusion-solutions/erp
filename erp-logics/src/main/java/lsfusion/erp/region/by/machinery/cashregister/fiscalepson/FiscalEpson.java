@@ -60,7 +60,7 @@ public class FiscalEpson {
         checkErrors(true);
     }
 
-    public static boolean inOut(Long sum) throws RuntimeException {
+    public static boolean inOut(Double sum) throws RuntimeException {
         epsonActiveXComponent.setProperty("Amount", new Variant(Math.abs(sum)));
         Dispatch.call(epsonDispatch, sum > 0 ? "CashIncome" : "CashOutcome");
         checkErrors(true);
@@ -84,7 +84,7 @@ public class FiscalEpson {
     }
 
     public static void discountItem(ReceiptItem item, Boolean isReturn) throws RuntimeException {
-        if (item.discount != null && item.discount.intValue() != 0) {
+        if (item.discount != null && item.discount.doubleValue() != 0.0) {
             epsonActiveXComponent.setProperty("CorrectionAmount", new Variant(Math.abs(isReturn ? item.quantity.multiply(item.discount).doubleValue() : item.discount.doubleValue())));
             Dispatch.call(epsonDispatch, item.discount.doubleValue() > 0 ? "Surcharge" : "Discount");
             checkErrors(true);
@@ -95,18 +95,18 @@ public class FiscalEpson {
         Dispatch.call(epsonDispatch, "CompleteReceipt");
         checkErrors(true);
         if(receipt.sumCash != null) {
-            epsonActiveXComponent.setProperty("Amount", new Variant(new Integer(receipt.sumCash.intValue())));
+            epsonActiveXComponent.setProperty("Amount", new Variant(receipt.sumCash.doubleValue()));
             Dispatch.call(epsonDispatch, sale ? "PayCash" : "RepayCash");
             checkErrors(true);
         }
         if(receipt.sumCard != null) {
-            epsonActiveXComponent.setProperty("Amount", new Variant(new Integer(receipt.sumCard.intValue()))); //doubleValue
+            epsonActiveXComponent.setProperty("Amount", new Variant(receipt.sumCard.doubleValue()));
             epsonActiveXComponent.setProperty("NoncashType", new Variant(0));
             Dispatch.call(epsonDispatch, sale ? "PayNoncash" : "Repaynoncash");
             checkErrors(true);
         }
         if(receipt.sumGiftCard != null) {
-            epsonActiveXComponent.setProperty("Amount", new Variant(new Integer(receipt.sumGiftCard.intValue()))); //doubleValue
+            epsonActiveXComponent.setProperty("Amount", new Variant(receipt.sumGiftCard.doubleValue()));
             epsonActiveXComponent.setProperty("NonCashType", new Variant(1));
             Dispatch.call(epsonDispatch, sale ? "PayNoncash" : "Repaynoncash");
             checkErrors(true);
