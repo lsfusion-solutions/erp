@@ -52,7 +52,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         DefaultHttpClient httpclient = new DefaultHttpClient();
         httpclient.getCredentialsProvider().setCredentials(new AuthScope(host, port),
                 new UsernamePasswordCredentials(login, password));
-        httpclient.getParams().setParameter(CoreConnectionPNames.SO_TIMEOUT, 30000);
+        httpclient.getParams().setParameter(CoreConnectionPNames.SO_TIMEOUT, 300000);
 
         HttpPost httpPost = new HttpPost(url);
         HttpEntity entity;
