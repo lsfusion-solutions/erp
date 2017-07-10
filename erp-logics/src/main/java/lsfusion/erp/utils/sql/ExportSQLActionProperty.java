@@ -2,6 +2,7 @@ package lsfusion.erp.utils.sql;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.col.interfaces.immutable.ImList;
+import lsfusion.server.ServerLoggers;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.form.entity.FormEntity;
 import lsfusion.server.form.entity.PropertyDrawEntity;
@@ -15,10 +16,7 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 abstract class ExportSQLActionProperty extends ScriptingActionProperty {
     String idForm; //idForm = table
@@ -83,11 +81,13 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                         PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
                         if (instance.toDraw != null && instance.toDraw.getSID() != null && instance.toDraw.getSID().equals(idGroupObject)) {
                             Object value = formRow.values.get(instance);
-                            row.add(value);
-                            if (first)
-                                columnNames.add(instance.getsID());
                             if (keyColumns.contains(instance.getsID()))
                                 keysRow.put(instance.getsID(), value);
+                            else {
+                                row.add(value);
+                                if (first)
+                                    columnNames.add(instance.getsID());
+                            }
                         }
                     }
                     rows.add(row);
@@ -99,6 +99,8 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                     init();
                     conn = DriverManager.getConnection(url);
                     conn.setAutoCommit(false);
+
+                    ServerLoggers.importLogger.info("ExportSQL: started");
 
                     int paramLength = columnNames.size();
                     String set = "";
@@ -117,13 +119,16 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                         Statement statement = null;
                         try {
                             statement = conn.createStatement();
-                            statement.execute(getTruncateStatement());
+                            String truncateStatement = getTruncateStatement();
+                            ServerLoggers.importLogger.info("ExportSQL: " + truncateStatement);
+                            statement.execute(truncateStatement);
                             conn.commit();
                         } finally {
                             if (statement != null)
                                 statement.close();
                         }
                     }
+                    ServerLoggers.importLogger.info(String.format("ExportSQL: prepare statement (%s rows, %s columns, %s keys)", rows.size(), columnNames.size(), keyColumns.size()));
                     if (wheres.isEmpty() || truncate) {
                         ps = conn.prepareStatement(getInsertStatement(columns, params));
                         for (List<Object> row : rows) {
@@ -151,8 +156,11 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                             ps.addBatch();
                         }
                     }
+                    ServerLoggers.importLogger.info("ExportSQL: execute batch");
                     ps.executeBatch();
+                    ServerLoggers.importLogger.info("ExportSQL: commit");
                     conn.commit();
+                    ServerLoggers.importLogger.info("ExportSQL: finished");
                 }
             }
         } catch (ClassNotFoundException | ScriptingErrorLog.SemanticErrorException e) {
