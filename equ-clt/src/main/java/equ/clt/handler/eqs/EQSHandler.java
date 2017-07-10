@@ -393,7 +393,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки
                             //(на самом деле так кассиры узнают цену). "Аннигилируем" эти две строки.
                             SalesInfo saleReturnEntry = saleReturnMap.get(idBarcode);
-                            if (saleReturnEntry != null && saleReturnEntry.quantityReceiptDetail.add(totalQuantity).intValue() == 0) {
+                            if (saleReturnEntry != null && saleReturnEntry.quantityReceiptDetail.add(totalQuantity).compareTo(BigDecimal.ZERO) == 0) {
                                 saleReturnMap.remove(idBarcode);
                                 currentSalesInfoList.remove(saleReturnEntry);
                             } else {
