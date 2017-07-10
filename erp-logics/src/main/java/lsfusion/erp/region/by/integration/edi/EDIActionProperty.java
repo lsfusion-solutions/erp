@@ -18,16 +18,14 @@ import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.params.CoreConnectionPNames;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
 import org.jdom.Namespace;
 import org.jdom.input.SAXBuilder;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
@@ -54,6 +52,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         DefaultHttpClient httpclient = new DefaultHttpClient();
         httpclient.getCredentialsProvider().setCredentials(new AuthScope(host, port),
                 new UsernamePasswordCredentials(login, password));
+        httpclient.getParams().setParameter(CoreConnectionPNames.SO_TIMEOUT, 30000);
 
         HttpPost httpPost = new HttpPost(url);
         HttpEntity entity;
