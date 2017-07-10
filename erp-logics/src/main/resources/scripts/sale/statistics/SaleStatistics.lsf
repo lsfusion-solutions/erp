@@ -1204,9 +1204,22 @@ balanceANot 'Остаток на конец без групп, шт' (type, date
     GROUP SUM  balanceA (Sku sku, Stock stock, DATE date) IF StatisticGroupType type IS StatisticGroupType AND NOT       
     statistic(type,sku) AND inStat(stock) BY type, date;         
 
+noThousandsInStatistics 'Статистический отчёт в рублях' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() noThousandsInStatistics
+;
+DESIGN options {
+    sale {
+        MOVE PROPERTY(noThousandsInStatistics());
+    }
+}
+
 FORM statisticalReportStockSelectPrint 'Статистический отчет'
     OBJECTS params = (dFrom = DATE, dTo = DATE) PANEL
     PROPERTIES objFrom = VALUE(dFrom), objTo = VALUE(dTo)
+     
+    PROPERTIES noThousandsInStatistics() 
      
     OBJECTS c = StatisticGroupType PANEL
     PROPERTIES SELECTOR name(c)
