@@ -142,6 +142,7 @@ public class GenerateZReport extends DefaultIntegrationActionProperty {
 
                             Integer numberReceiptDetail = 0;
                             BigDecimal sumCash = BigDecimal.ZERO;
+                            BigDecimal sumCard = BigDecimal.ZERO;
                             List<SalesInfo> receiptSalesInfoList = new ArrayList<>();
 
                             Time time = new Time(r.nextLong() % dateTime.getTime());
@@ -160,7 +161,10 @@ public class GenerateZReport extends DefaultIntegrationActionProperty {
                                     if ((quantityReceiptDetail.doubleValue() > 0) && (currentReceiptDetailCount >= numberReceiptDetail)) {
                                         BigDecimal sumReceiptDetail = item.price == null ? null : safeMultiply(quantityReceiptDetail, item.price);
                                         numberReceiptDetail++;
-                                        sumCash = safeAdd(sumCash, sumReceiptDetail);
+                                        if(r.nextBoolean())
+                                            sumCash = safeAdd(sumCash, sumReceiptDetail);
+                                        else
+                                            sumCard = safeAdd(sumCard, sumReceiptDetail);
                                         BigDecimal discountSumReceiptDetail = r.nextDouble() > 0.8 ? safeDivide(safeMultiply(sumReceiptDetail, r.nextInt(10)), 100) : BigDecimal.ZERO;
                                         discountSum = safeAdd(discountSum, discountSumReceiptDetail);
                                         receiptSalesInfoList.add(new SalesInfo(false, cashRegister.nppGroupMachinery, cashRegister.nppMachinery,
@@ -177,6 +181,7 @@ public class GenerateZReport extends DefaultIntegrationActionProperty {
                             String seriesNumberDiscountCard = discountSum != null && !discountCardList.isEmpty() ? discountCardList.get(r.nextInt(discountCardList.size())) : null;
                             for (SalesInfo s : receiptSalesInfoList) {
                                 s.sumCash = sumCash;
+                                s.sumCard = sumCard;
                                 s.seriesNumberDiscountCard = seriesNumberDiscountCard;
                             }
                             salesInfoList.addAll(receiptSalesInfoList);
