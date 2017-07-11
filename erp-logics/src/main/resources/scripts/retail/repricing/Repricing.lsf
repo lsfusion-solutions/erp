@@ -452,12 +452,12 @@ recalculatePrice 'Пересчитать цены (до)' (UserRepricing reprici
 //------------------------------------ Печатные формы акт расценки ------------------------------------------------ //
 nameStore 'Магазин' (Repricing repricing) = nameStore(departmentStore(repricing));
 
-printed 'Распечатан' = ABSTRACT BOOLEAN (Repricing);
-printed 'Распечатан' = DATA BOOLEAN (UserRepricing);
-printed (UserRepricing p) += printed(p);
-statusPrinted 'Статус печати акта' (Repricing r) = CASE WHEN printed(r) THEN 'Распечатан' 
+printedAct 'Распечатан' = ABSTRACT BOOLEAN (Repricing);
+printedAct 'Распечатан' = DATA BOOLEAN (UserRepricing);
+printedAct (UserRepricing p) += printedAct(p);
+statusPrintedAct 'Статус печати акта' (Repricing r) = CASE WHEN printedAct(r) THEN 'Распечатан' 
                                                     ELSE 'Не распечатан';
-printBackground 'Цвет' (Repricing r) = RGB(212,255,212) IF r IS Repricing AND NOT printed(r);
+printActBackground 'Цвет' (Repricing r) = RGB(212,255,212) IF r IS Repricing AND NOT printedAct(r);
                                                         
 FORM repricing 'Акт переоценки (печать)'
 
@@ -504,8 +504,8 @@ FORM repricing 'Акт переоценки (печать)'
 
 print 'Акт переоценки' (Repricing r) = { 
     PRINT repricing OBJECTS p = r;
-    IF NOT printed(r) AND isPosted(r) THEN NEWSESSION {
-        printed(r) <- TRUE;
+    IF NOT printedAct(r) AND isPosted(r) THEN NEWSESSION {
+        printedAct(r) <- TRUE;
         APPLY; 
     }    
 } IMAGE 'print.png' IN print;
@@ -514,8 +514,8 @@ printXls 'Акт переоценки (xls)' (Repricing r) = {
 } IMAGE 'print.png' IN print;
 printAuto 'Акт переоценки (авто)' (Repricing r) = { 
     PRINT repricing OBJECTS p = r AUTO; 
-    IF NOT printed(r) AND isPosted(r) THEN NEWSESSION {
-        printed(r) <- TRUE;
+    IF NOT printedAct(r) AND isPosted(r) THEN NEWSESSION {
+        printedAct(r) <- TRUE;
         APPLY;  
     }     
 } IMAGE 'print.png' IN print;
