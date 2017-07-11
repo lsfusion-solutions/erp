@@ -323,7 +323,7 @@ date 'Дата' (LabelTransactionDetail d) = date(labelTransaction(d));
 time 'Время' (LabelTransactionDetail d) = time(labelTransaction(d));
 
 createdNameUser 'Создан пользователем' (LabelTransactionDetail d) = createdNameUser(labelTransaction(d));
-createdTime 'Время создания' (LabelTransactionDetail d) = createdTime(labelTransaction(d));
+createdTime 'Время создания' (LabelTransactionDetail d) = createdTime(labelTransaction(d)) MATERIALIZED;
 createdHostnameComputer 'Создан на компьютере' (LabelTransactionDetail d) = createdHostnameComputer(labelTransaction(d));
 
 sku = DATA Sku (LabelTransactionDetail);
@@ -351,7 +351,7 @@ fullNameLegalEntity 'Компания (полное наименование)' (
 priceLabelTransactionDetail 'Текущая цена на ценниках' (sku, stock) =
     GROUP LAST (price(LabelTransactionDetail ledger) / OVERRIDE amount(dataBarcode(ledger)), 1.0)
           BY sku(ledger), departmentStore(ledger)
-          ORDER dateTime(ledger), ledger
+          ORDER createdTime(ledger), ledger
           WHERE ledger IS LabelTransactionDetail MATERIALIZED TABLE extraSkuStock;
 
 firstSort = ABSTRACT VALUE VARSTRING[100] (LabelTransactionDetail);
