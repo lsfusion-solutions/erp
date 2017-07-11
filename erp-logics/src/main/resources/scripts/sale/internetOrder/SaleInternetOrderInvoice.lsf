@@ -83,7 +83,7 @@ DESIGN options{
     }
 }
 
-select 'Отм.' = DATA LOCAL BOOLEAN (DeliveryReport);
+select 'Отм.' = DATA LOCAL NESTED BOOLEAN (DeliveryReport);
 
 EXTEND FORM deliveryDashboard
     PROPERTIES select(r) BEFORE nameStatus(r)
@@ -95,7 +95,7 @@ createInvoice 'Создать накладную' (DeliveryReport r) = {
     IF [= GROUP SUM 1 IF pickingSumInternetOrderDetail(DeliveryReport r) AND NOT countDeliveryReport(r) AND select(r)]() THEN {
         NEWSESSION NESTED (select[DeliveryReport]){
             FOR [= GROUP SUM pickingSum(InternetOrderDetail d) IF isItem(sku(d)) AND NOT userInvoiceDetail(d) AND select(deliveryReport(d))
-                    BY Sale.supplierStock[InternetOrderDetail](d)](Warehouse st) AND st IS Warehouse NEW i = UserInvoice DO {
+                    BY Sale.supplierStock[InternetOrderDetail](d), carrier(internetOrder(d))](Warehouse st, Carrier carrier) AND st IS Warehouse AND carrier IS Carrier NEW i = UserInvoice DO {
                 date(i) <- currentDate();
                 time(i) <- currentTime();
                 supplier(i) <- legalEntity(st);
@@ -107,7 +107,7 @@ createInvoice 'Создать накладную' (DeliveryReport r) = {
                 createShipment(i) <- TRUE;
                 
                 FOR pickingSum(InternetOrderDetail detail) > 0.0 AND isItem(sku(detail)) AND NOT userInvoiceDetail(detail) AND select(deliveryReport(detail)) 
-                    AND Sale.supplierStock[InternetOrderDetail](detail) == st NEW d = UserInvoiceDetail DO {
+                    AND Sale.supplierStock[InternetOrderDetail](detail) == st AND carrier(internetOrder(detail)) == carrier NEW d = UserInvoiceDetail DO {
                     userInvoice(d) <- i;
                     sku(d) <- sku(detail);
                     batch(d) <- batch(detail);

@@ -815,7 +815,7 @@ WHEN LOCAL FORMS internetOrder
     discountPrice (detail)  <- price(detail);                        
 }
 
-CLASS Carrier 'Перевозщик'; 
+CLASS Carrier 'Перевозчик'; 
 
 @defineExternalizableAbstract(carrier, VARSTRING[100]);
 
@@ -824,13 +824,15 @@ name 'Наименование' = DATA VARSTRING[255] (Carrier);
 departmentStore = DATA DepartmentStore (Carrier);
 nameDepartmentStore 'Интернет магазин' (Carrier c) = name(departmentStore(c));
 
-FORM carrier 'Перевозщик'
+carrier = GROUP AGGR (Carrier carrier) BY departmentStore(carrier);
+
+FORM carrier 'Перевозчик'
     OBJECTS c = Carrier FIXED PANEL 
     PROPERTIES(c) id, name, nameDepartmentStore
     EDIT Carrier OBJECT c
 ;
 
-FORM carriers 'Перевозщики'
+FORM carriers 'Перевозчики'
     OBJECTS c = Carrier
     PROPERTIES(c) READONLY id, name, nameDepartmentStore
     LIST Carrier OBJECT c
@@ -845,13 +847,13 @@ EXTEND FORM internetCatalogs
 DESIGN internetCatalogs {
     tabContainer {        
         MOVE carrier.box{
-            caption = 'Перевозщики';
+            caption = 'Перевозчики';
         }
     }
 }
 
 defaultCarrier = DATA Carrier ();
-nameDefaultCarrier 'Перевозщик по умолчанию' = name(defaultCarrier());
+nameDefaultCarrier 'Перевозчик по умолчанию' = name(defaultCarrier());
 
 EXTEND FORM options
     PROPERTIES nameDefaultCarrier()
@@ -864,7 +866,7 @@ DESIGN options {
 }
 
 carrier = DATA Carrier (InternetOrder);
-nameCarrier 'Перевозщик' (InternetOrder o) = name(carrier(o)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+nameCarrier 'Перевозчик' (InternetOrder o) = name(carrier(o)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
 
 EXTEND FORM internetOrder
     PROPERTIES(o) nameCarrier 
