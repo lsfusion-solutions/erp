@@ -118,6 +118,7 @@ public class GenerateZReport extends DefaultIntegrationActionProperty {
                 QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<>(keys);
                 discountCardQuery.addProperty("seriesNumber", findProperty("seriesNumber[DiscountCard]").getExpr(discountCardExpr));
                 discountCardQuery.and(findProperty("seriesNumber[DiscountCard]").getExpr(discountCardExpr).getWhere());
+                discountCardQuery.and(findProperty("firstNameContact[DiscountCard]").getExpr(discountCardExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session);
                 for(ImMap<Object, Object> entry : discountCardResult.values()) {

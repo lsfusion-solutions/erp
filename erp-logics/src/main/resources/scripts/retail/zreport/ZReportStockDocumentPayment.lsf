@@ -1,0 +1,52 @@
+MODULE ZReportStockDocumentPayment;
+
+REQUIRE ZReport, StockDocumentSkuLedger;
+
+//--------------------- Добавление собственных классов для товарного отчета -------------//
+
+CLASS ZReportCash 'Продажа наличные';
+TABLE zReportCash (ZReportCash);
+    
+@defineAggregationClass(zReport, ZReport, zReportCash, ZReportCash, sumCash);
+
+
+description (ZReportCash l) =
+    VARSTRING[200](CONCAT ' ', 'Продажа наличные отдела', name(departmentStore(zReport(l))), 'от' , date(zReport(l)));
+
+EXTEND CLASS ZReportCash : OutStockDocumentLedger;
+dateTime (ZReportCash ledger) += dateTime(zReport(ledger));
+isPosted (ZReportCash ledger) += isPosted(zReport(ledger));
+isClosed (ZReportCash ledger) += isClosed(zReport(ledger));
+stock (ZReportCash ledger) += departmentStore(zReport(ledger));
+description (ZReportCash ledger) += description(ledger);
+number(ZReportCash ledger) += number(zReport(ledger));
+
+type(ZReportCash l) += 'Продажа наличные' IF l IS ZReportCash;
+sumItem (ZReportCash ledger) += sumCash(zReport(ledger));
+sumContainer (ZReportCash ledger) += 0.0 IF ledger IS ZReportCash;
+skip (ZReportCash ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(zReport(ledger)));
+close(ZReportCash ledger) += { isClosed(ZReport z) <- TRUE WHERE zReport(ledger) == z; }
+
+// документ скидок для товарного отчета
+CLASS ZReportCard 'Продажа безнал';
+TABLE zReportCard (ZReportCard);
+    
+@defineAggregationClass(zReport, ZReport, zReportCard, ZReportCard, sumCard);
+
+description (ZReportCard zReportCard) =
+    VARSTRING[200](CONCAT ' ', 'Продажа безнал отдела', name(departmentStore(zReport(zReportCard))), 'от' , date(zReport(zReportCard)));
+
+EXTEND CLASS ZReportCard : OutStockDocumentLedger;
+
+dateTime (ZReportCard ledger) += dateTime(zReport(ledger));
+isPosted (ZReportCard ledger) += isPosted(zReport(ledger));
+isClosed (ZReportCard ledger) += isClosed(zReport(ledger));
+stock (ZReportCard ledger) += departmentStore(zReport(ledger));
+description (ZReportCard ledger) += description(ledger);
+number(ZReportCard ledger) += number(zReport(ledger));
+
+type(ZReportCard l) += 'Продажа безнал' IF l IS ZReportCard;
+sumItem (ZReportCard ledger) += sumCard(zReport(ledger));
+sumContainer (ZReportCard ledger) += 0.0 IF ledger IS ZReportCard;
+skip (ZReportCard ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(zReport(ledger)));
+close(ZReportCard ledger) += { isClosed(ZReport z) <- TRUE WHERE zReport(ledger) == z; }

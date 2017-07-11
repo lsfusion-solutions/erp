@@ -1,0 +1,28 @@
+MODULE ZReportStockDocumentPaymentGiftCard;
+
+REQUIRE ZReportStockDocumentPayment, GiftCard;
+
+// Подарочный сертификат
+CLASS ZReportGiftCard 'Продажа по подарочному сертификату';
+TABLE zReportGiftCard (ZReportGiftCard);
+
+    
+@defineAggregationClass(zReport, ZReport, zReportGiftCard, ZReportGiftCard, sumGiftCardPayment);
+
+description (ZReportGiftCard zReportGiftCard) =
+    VARSTRING[200](CONCAT ' ', 'Продажа по подарочному сретификату отдела', name(departmentStore(zReport(zReportGiftCard))), 'от' , date(zReport(zReportGiftCard)));
+
+EXTEND CLASS ZReportGiftCard : OutStockDocumentLedger;
+
+dateTime (ZReportGiftCard ledger) += dateTime(zReport(ledger));
+isPosted (ZReportGiftCard ledger) += isPosted(zReport(ledger));
+isClosed (ZReportGiftCard ledger) += isClosed(zReport(ledger));
+stock (ZReportGiftCard ledger) += departmentStore(zReport(ledger));
+description (ZReportGiftCard ledger) += description(ledger);
+number(ZReportGiftCard ledger) += number(zReport(ledger));
+
+type(ZReportGiftCard l) += 'Продажа по подарочному сретификату' IF l IS ZReportGiftCard;
+sumItem (ZReportGiftCard ledger) += sumGiftCardPayment(zReport(ledger));
+sumContainer (ZReportGiftCard ledger) += 0.0 IF ledger IS ZReportGiftCard;
+skip (ZReportGiftCard ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(zReport(ledger)));
+close(ZReportGiftCard ledger) += { isClosed(ZReport z) <- TRUE WHERE zReport(ledger) == z; }
