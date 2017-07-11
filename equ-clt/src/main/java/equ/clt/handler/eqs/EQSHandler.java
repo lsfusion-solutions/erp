@@ -413,7 +413,10 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             else if (typePayment == 2) {
                                 GiftCard sumGiftCard = salesInfo.sumGiftCardMap.get(null);
                                 salesInfo.sumGiftCardMap.put(null, new GiftCard(HandlerUtils.safeAdd(sumGiftCard.sum, sumPayment)));
-                            } else
+                            } 
+                            else if (typePayment == 3)
+                                salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sumPayment);
+                            else
                                 salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
                         }
                         break;
