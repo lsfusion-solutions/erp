@@ -331,7 +331,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 Time timeReceipt = rs.getTime(12); //r.date
                 String numberZReport = rs.getString(14); //zReport
                 Integer numberReceipt = rs.getInt(3); //doc, Номер чека
-                if(numberZReport != null && numberZReport.equals("0")) {
+                if(numberZReport != null && numberZReport.trim().equals("0")) {
                     numberReceipt = numberReceipt * 10000 + timeReceipt.getHours() * 100 + timeReceipt.getMinutes();
                 }
                 switch (type) {
