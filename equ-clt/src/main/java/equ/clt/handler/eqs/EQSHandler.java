@@ -326,7 +326,14 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 Integer id = rs.getInt(13);
                 currentReadRecordSet.add(id);
                 Integer type = rs.getInt(1); //type, Тип операции: 1. 2. Закрытие смены 3. Внесение 4. Выдача 5. Открытие чека 6. Регистрация 7. Оплата 8. Закрытие чека
+
+                Date dateReceipt = rs.getDate(12); // r.date
+                Time timeReceipt = rs.getTime(12); //r.date
+                String numberZReport = rs.getString(14); //zReport
                 Integer numberReceipt = rs.getInt(3); //doc, Номер чека
+                if(numberZReport != null && numberZReport.equals("0")) {
+                    numberReceipt = numberReceipt * 10000 + timeReceipt.getHours() * 100 + timeReceipt.getMinutes();
+                }
                 switch (type) {
                     case 1: //Открытие смены
                     case 2: //Закрытие смены
@@ -346,8 +353,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         CashRegisterInfo cashRegister = machineryMap.get(cash_id);
                         Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
-                        String numberZReport = rs.getString(14); //zReport
-
                         String idBarcode = appendCheckDigitToBarcode(rs.getString(4), 7, appendBarcode); //barcode, Штрих-код товара
                         String idItem = String.valueOf(rs.getLong(5)); //code, Код товара
                         BigDecimal totalQuantity = rs.getBigDecimal(6); //qty, Количество
@@ -363,8 +368,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         //тут порядок обратный
                         boolean isSale = !getBit(flags, 2);
                         boolean isReturn = getBit(flags, 2);
-                        Date dateReceipt = rs.getDate(12); // r.date
-                        Time timeReceipt = rs.getTime(12); //r.date
 
                         String discountCard = trim(rs.getString(16), null, 18); //r.customer
                         if (discountCard != null && discountCard.isEmpty())
