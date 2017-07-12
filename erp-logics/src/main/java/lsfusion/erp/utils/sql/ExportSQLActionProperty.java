@@ -81,13 +81,11 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                         PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
                         if (instance.toDraw != null && instance.toDraw.getSID() != null && instance.toDraw.getSID().equals(idGroupObject)) {
                             Object value = formRow.values.get(instance);
+                            row.add(value);
+                            if (first)
+                                columnNames.add(instance.getsID());
                             if (keyColumns.contains(instance.getsID()))
                                 keysRow.put(instance.getsID(), value);
-                            else {
-                                row.add(value);
-                                if (first)
-                                    columnNames.add(instance.getsID());
-                            }
                         }
                     }
                     rows.add(row);
