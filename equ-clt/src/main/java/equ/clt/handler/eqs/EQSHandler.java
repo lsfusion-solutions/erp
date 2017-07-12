@@ -314,7 +314,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         try {
             statement = conn.createStatement();
             String query = "SELECT type, ecr, doc, barcode, code, qty, price, amount, discount, department, flags, date, id," +
-                    " zreport, payment, customer, `change` FROM history WHERE new = 1";
+                    " zreport, payment, customer, `change` FROM history WHERE new = 1 ORDER BY ecr, id";
             ResultSet rs = statement.executeQuery(query);
 
             int position = 0;
