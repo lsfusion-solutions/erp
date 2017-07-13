@@ -195,7 +195,7 @@ copyAccountNumbers 'Скопировать номера счетов IBAN' ()  =
     APPLY;
 }
 
-importBIC 'Импортировать коды BIC' ()= {  //запускать только 1 раз!
+importBIC 'Импортировать коды BIC' ()= {  //запускать только 1 раз, или без копирования старых
 
 // сохраняем коды МФО   
     FOR MFO(Bank b) DO {
@@ -218,6 +218,42 @@ importBIC 'Импортировать коды BIC' ()= {  //запускать 
                 MFO(b) <- codeBIC(i);
             }        
         }    
+        APPLY;
+    }
+}
+
+importIBAN 'Импортировать номера счетов IBAN' ()= {  
+    NEWSESSION {
+        // сохраняем старые номера счетов   
+        FOR number(Account a) DO {
+            numberNew(a) <- number(a) WHERE charLength(number(a)) < 15;
+        }
+        
+        LOCAL unp = VARSTRING[50] (INTEGER);    
+        LOCAL name = VARSTRING[100] (INTEGER);    
+        LOCAL numberOld = VARSTRING[50] (INTEGER);    
+        LOCAL numberNew = VARSTRING[50] (INTEGER);
+        
+        INPUT f = EXCELFILE DO {
+            TRY {
+                IMPORT XLSX TO unp, name, numberOld, numberNew FROM f AS EXCELFILE;
+            } 
+            TRY {
+                IMPORT XLS TO unp, name, numberOld, numberNew FROM f AS EXCELFILE;
+            }
+    
+            FOR numberNew(Account a) DO {
+                FOR imported(INTEGER i) AND numberOld(i) == numberNew(a) DO {      
+                    number(a) <- numberNew(i);
+                }        
+            }    
+            APPLY;
+        }
+        
+        // если счёта в файле не было
+        FOR number(Account a) DO {
+            numberNew(a) <- '' WHERE numberNew(a) == number(a);
+        }  
         APPLY;
     }
 }
