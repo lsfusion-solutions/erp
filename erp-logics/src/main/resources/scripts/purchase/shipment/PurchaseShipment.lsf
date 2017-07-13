@@ -292,6 +292,8 @@ supplier (ShipmentBatch ledger) = supplier(shipmentDetail(ledger));
 @implementSystemLedgerPriceListTypeBatch(account, ShipmentBatch, supplier, stock);
 skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN(ShipmentBatch);
 skipChangeLedger(ShipmentBatch b) += dataSkipChangeLedger(invoiceDetail(shipmentDetail(b)));
+skipChangeLedger(ShipmentBatch b) += onlyPositivePriceLedger(operation(shipmentDetail(b))) AND NOT quantity(shipmentDetail(b)) >0;
+
 skip[PriceListLedger](ShipmentBatch ledger) += skipChangeLedger(ledger);
 
 // Создаем просто inLIFOSkuLedger
@@ -343,6 +345,7 @@ in (ShipmentSkuLedger ledger, Batch batch) += batch(shipmentDetail(ledger)) == b
 
 skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN(ShipmentSkuLedger);
 skipChangeLedger(ShipmentSkuLedger b) += dataSkipChangeLedger(invoiceDetail(shipmentDetail(b)));
+skipChangeLedger(ShipmentSkuLedger l) += onlyPositivePriceLedger(operation(shipmentDetail(l))) AND NOT quantity(shipmentDetail(l)) > 0;
 skip[PriceListLedger](ShipmentSkuLedger ledger) += skipChangeLedger(ledger);
 
 //
