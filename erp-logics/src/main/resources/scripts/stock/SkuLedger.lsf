@@ -803,8 +803,8 @@ quantity (DataSkuLedger ledger, Batch batch) = MULTI quantity[InLIFOSkuLedger,Ba
                                                    quantity[OutFIFOSkuLedger,Batch](ledger, batch);
 
 resetCost 'Перерассчитать себестоимость'(DataSkuLedger ledger) = { //NEWSESSION AUTOAPPLY {
-    ASSIGN cost(ledger, Batch batch) <- NULL;
-    ASSIGN cost(ledger, Batch batch) <- quantity(ledger, batch);
+    cost(ledger, Batch batch) <- NULL;
+    cost(ledger, Batch batch) <- quantity(ledger, batch);
 }
 
 // мгновенный расчет себестоимости
@@ -842,6 +842,10 @@ ON { // eventChangeLedger - так как внутрь рекурсивного 
             updateDataSkuLedgerBatchCost();
         }
 }
+
+// Сбрасываем расписывание, если изменился sku у партии
+WHEN SETCHANGED(sku(Batch b)) AND PREV(sku(b)) DO
+    cost(SkuLedger l, b) <- NULL;
 
 setDataSkuLedgerBatchCost 'Дорассчитать себестоимость'() = {
 	NEWSESSION {
