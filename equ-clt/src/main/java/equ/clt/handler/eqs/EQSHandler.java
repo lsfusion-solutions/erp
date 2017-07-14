@@ -324,7 +324,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             while (rs.next()) {
 
                 Integer id = rs.getInt(13);
-                currentReadRecordSet.add(id);
                 Integer type = rs.getInt(1); //type, Тип операции: 1. 2. Закрытие смены 3. Внесение 4. Выдача 5. Открытие чека 6. Регистрация 7. Оплата 8. Закрытие чека
 
                 Date dateReceipt = rs.getDate(12); // r.date
@@ -339,13 +338,18 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     case 2: //Закрытие смены
                     case 3: //Внесение
                     case 4: //Выдача
+                        readRecordSet.add(id);
                         break;
                     case 5: //Открытие чека
                         position = 0;
                         currentSalesInfoList = new ArrayList<>();
+                        currentReadRecordSet = new HashSet<>();
                         saleReturnMap = new HashMap<>();
+                        currentReadRecordSet.add(id);
                         break;
                     case 6: //Регистрация
+                        currentReadRecordSet.add(id);
+                    
                         position++;
 
                         Integer cash_id = rs.getInt(2); //ecr, Номер КСА
@@ -406,6 +410,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         }
                         break;
                     case 7: //Оплата
+                        currentReadRecordSet.add(id);
+
                         BigDecimal sumPayment = rs.getBigDecimal(8); //amount, Сумма
                         Integer typePayment = rs.getInt(15); //Payment, Номер оплаты
                         for (SalesInfo salesInfo : currentSalesInfoList) {
@@ -424,6 +430,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         }
                         break;
                     case 8: //Закрытие чека
+                        currentReadRecordSet.add(id);
+
                         BigDecimal change = rs.getBigDecimal(17);
                         if (change != null && !change.equals(BigDecimal.ZERO)) {
                             for (SalesInfo salesInfo : currentSalesInfoList) {
@@ -432,6 +440,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         }
                         salesInfoList.addAll(currentSalesInfoList);
                         readRecordSet.addAll(currentReadRecordSet);
+
+                        currentSalesInfoList = new ArrayList<>();
                         currentReadRecordSet = new HashSet<>();
                         break;
                 }
