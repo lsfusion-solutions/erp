@@ -460,19 +460,69 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     edit(InvoiceCreditNote c) += { edit(invoice(c)); }
     edit(InvoiceCreditNoteDetail d) += { edit(invoiceDetail(d)); }
     
-   documentQuantity (InvoiceCreditNoteDetail d) += quantity(invoiceDetail(d)); 
-   documentSum (InvoiceCreditNoteDetail d) += sum(invoiceDetail(d)); 
-   documentVATSum (InvoiceCreditNoteDetail d) += VATSum(invoiceDetail(d));        
-   documentInvoiceSum (InvoiceCreditNoteDetail d) += invoiceSum(invoiceDetail(d)); 
-
-   shipmentQuantity (InvoiceCreditNoteDetail d) += shipped(invoiceDetail(d)); 
-   shipmentSum (InvoiceCreditNoteDetail d) = NUMERIC[18,4](round((shipped(invoiceDetail(d)) *
+    documentQuantity (InvoiceCreditNoteDetail d) += quantity(invoiceDetail(d)); 
+    documentSum (InvoiceCreditNoteDetail d) += sum(invoiceDetail(d)); 
+    documentVATSum (InvoiceCreditNoteDetail d) += VATSum(invoiceDetail(d));        
+    documentInvoiceSum (InvoiceCreditNoteDetail d) += invoiceSum(invoiceDetail(d)); 
+    
+    shipmentQuantity (InvoiceCreditNoteDetail d) += shipped(invoiceDetail(d)); 
+    shipmentSum (InvoiceCreditNoteDetail d) = NUMERIC[18,4](round((shipped(invoiceDetail(d)) *
                                      price(d)), currency(d)));
-   shipmentSum (InvoiceCreditNoteDetail d) += shipmentSum(d);
-   shipmentVATSum (InvoiceCreditNoteDetail d) = NUMERIC[18,4](round((shipmentSum(d) *
+    shipmentSum (InvoiceCreditNoteDetail d) += shipmentSum(d);
+    shipmentVATSum (InvoiceCreditNoteDetail d) = NUMERIC[18,4](round((shipmentSum(d) *
                                   valueVAT (d) / 100), currency(d)));   
-   shipmentVATSum (InvoiceCreditNoteDetail d) += shipmentVATSum(d);        
-   shipmentInvoiceSum (InvoiceCreditNoteDetail d) += shipmentVATSum(d) (+) shipmentSum(d);   
+    shipmentVATSum (InvoiceCreditNoteDetail d) += shipmentVATSum(d);        
+    shipmentInvoiceSum (InvoiceCreditNoteDetail d) += shipmentVATSum(d) (+) shipmentSum(d);   
+   
+    creditQuantity 'Кол-во (с учетом акта)' (InvoiceDetail d) = quantity(d) (-) quantity(invoiceCreditNoteDetail(d));
+    creditSum 'Сумма (с учетом акта)' (InvoiceDetail d) = sum(d) (-) sum(invoiceCreditNoteDetail(d));
+    creditVATSum 'Сумма НДС (с учетом акта)' (InvoiceDetail d) = VATSum(d) (-) VATSum(invoiceCreditNoteDetail(d));
+    creditInvoiceSum 'Сумма с НДС (с учетом акта)' (InvoiceDetail d) = invoiceSum(d) (-) invoiceSum(invoiceCreditNoteDetail(d));
+    
+    
+    creditQuantityInvoiceDetail 'Кол-во (с учетом акта)' (Invoice i) = quantityInvoiceDetail(i) (-) quantityCreditNoteDetail(invoiceCreditNote(i));
+    creditSumInvoiceDetail 'Сумма (с учетом акта)' (Invoice i) = sumInvoiceDetail(i) (-) sumCreditNoteDetail(invoiceCreditNote(i));
+    creditVATSumInvoiceDetail 'Сумма НДС (с учетом акта)' (Invoice i) = VATSumInvoiceDetail(i) (-) VATSumCreditNoteDetail(invoiceCreditNote(i));
+    creditInvoiceSumInvoiceDetail 'Сумма с НДС (с учетом акта)' (Invoice i) = invoiceSumInvoiceDetail(i) (-) invoiceSumCreditNoteDetail(invoiceCreditNote(i));
+   
+    showCreditSum 'Показывать в накладной '##sign##' суммы с учетом акта расхождения' = DATA BOOLEAN ();    
+    backgroundCreditNote 'Цвет' (Invoice invoice) = RGB(255, 250, 205) IF invoice IS Invoice;
+    EXTEND FORM options
+        PROPERTIES() NS###showCreditSum = showCreditSum
+    ;
+    
+    
+    DESIGN options {
+        invoice##NS {    
+            MOVE PROPERTY(NS###showCreditSum);
+        }         
+    }
+    
+    EXTEND FORM invoices
+        PROPERTIES (i) READONLY SHOWIF showCreditSum() BACKGROUND backgroundCreditNote(i) creditQuantityInvoiceDetail, creditSumInvoiceDetail, creditVATSumInvoiceDetail, creditInvoiceSumInvoiceDetail
+        PROPERTIES (d) READONLY SHOWIF showCreditSum() BACKGROUND backgroundCreditNote(i) creditQuantity, creditSum, creditVATSum, creditInvoiceSum
+    ;
+    EXTEND FORM userInvoice 
+        PROPERTIES (i) READONLY SHOWIF showCreditSum() BACKGROUND backgroundCreditNote(i) creditQuantityInvoiceDetail, creditSumInvoiceDetail, creditVATSumInvoiceDetail, creditInvoiceSumInvoiceDetail
+        PROPERTIES (d) READONLY SHOWIF showCreditSum() BACKGROUND backgroundCreditNote(i) creditQuantity, creditSum, creditVATSum, creditInvoiceSum
+    ;
+    DESIGN userInvoice {
+        header.box {
+            NEW sumBox AFTER headerParams{
+                type = CONTAINERH;
+                MOVE i.documentSum;
+                NEW creditNote {
+                    type = CONTAINERV;
+                    caption = 'Суммы с учетом акта';
+                    MOVE PROPERTY(creditQuantityInvoiceDetail(i)) {caption = 'Кол-во (всего)';}
+                    MOVE PROPERTY(creditSumInvoiceDetail(i)) {caption = 'Сумма';}
+                    MOVE PROPERTY(creditVATSumInvoiceDetail(i)) {caption = 'Сумма НДС';}
+                    MOVE PROPERTY(creditInvoiceSumInvoiceDetail(i)) {caption = 'Сумма с НДС';}                               
+                }            
+             
+            }
+        }
+    }
    
 END
 
