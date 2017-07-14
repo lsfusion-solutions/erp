@@ -1,0 +1,269 @@
+MODULE StockGroupReports;
+
+REQUIRE StockReports, Item, PurchaseLedger, SaleLedger;
+    
+META createGroup(object, name, number)
+    g###object name = DATA LOCAL BOOLEAN();
+    WHEN LOCAL SET(g###object()) AND countGroup() < 3 DO addGroup(number, name);
+    WHEN LOCAL SET(g###object()) AND countGroup() == 3 DO { g###object() <- NULL; };
+    WHEN LOCAL DROPPED(g###object()) DO deleteGroup(number);   
+END 
+
+order 'Номер' = DATA LOCAL INTEGER(INTEGER);
+nameGroup 'Группировка' = DATA VARSTRING[100](INTEGER);
+
+countGroup = OVERRIDE [=GROUP MAX order(INTEGER i)](), 0;
+
+notPrintDetail = order(2) == countGroup();
+
+addGroup(INTEGER i, VARSTRING[100] name) = {
+    nameGroup(i) <- name;
+    order(i) <- (OVERRIDE [=GROUP MAX order(INTEGER in)](), 0) + 1;
+}
+reorderGroup() = {
+    order(INTEGER i) <- PARTITION SUM 1 IF nameGroup(i) ORDER order(i);
+}
+deleteGroup(INTEGER i) = {
+    nameGroup(i) <- NULL;
+    order(i) <- NULL;
+    reorderGroup();
+}
+
+@createGroup(stock, 'По магазину', 1);
+@createGroup(sku, 'По товару', 2);
+@createGroup(group, 'По группам товара', 3);
+@createGroup(supplier, 'По поставщику', 4);
+@createGroup(brand, 'По брэнду', 5);
+
+balanceB 'Остаток на начало' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+
+sumB 'Сумма на начало' = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
+
+balanceA 'Остаток на конец' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+
+sumA 'Сумма на конец' = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
+
+quantityPurchase 'Закуплено за интервал (кол-во)' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+
+sumPurchase 'Закуплено за интервал (сумма)' = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
+
+quantitySold 'Продано за интервал (кол-во)' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+
+sumSold 'Продано за интервал (сумма)' = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
+
+inBackSheet 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+
+inBackSheetStocks 'Склады' () =
+    GROUP CONCAT name(Stock st) IF inBackSheet(st) ,', ' PREFCHARWIDTH 50;
+
+nameGroup1 = DATA LOCAL VARSTRING[255] (Sku, Stock);
+nameGroup2 = DATA LOCAL VARSTRING[255] (Sku, Stock);
+nameGroup3 = DATA LOCAL VARSTRING[255] (Sku, Stock);
+
+META setNameGroup(number)
+    setNameGroup##number () ={
+        nameGroup##number(Sku sk, Stock st) <- NULL;
+        IF order(1) == number THEN {
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(st), 'Не задано') IF sk IS Sku AND inBackSheet(st);
+        }
+        IF order(2) == number THEN {
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(sk), 'Не задано') IF sk IS Sku AND inBackSheet(st);
+        }
+        IF order(3) == number THEN {
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSkuGroup(sk), 'Не задано') IF sk IS Sku AND inBackSheet(st);
+        }
+        IF order(4) == number THEN {
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSupplierLastOrderBatch(sk), 'Не задано') IF sk IS Sku AND inBackSheet(st);
+        } 
+        IF order(5) == number THEN {
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameBrand(sk), 'Не задано') IF sk IS Sku AND inBackSheet(st);
+        }
+    }   
+END 
+@setNameGroup(1);
+    @setNameGroup(2);
+    @setNameGroup(3);
+
+fillReportGroupBackSheetFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt) = {
+
+    balanceB(Sku sk, Stock st) <- NULL; 
+    sumB(Sku sk, Stock st) <- NULL;
+    balanceA(Sku sk, Stock st) <- NULL;
+    sumA(Sku sk, Stock st) <- NULL;
+    quantityPurchase(Sku sk, Stock st) <- NULL;
+    sumPurchase(Sku sk, Stock st) <- NULL;
+    quantitySold(Sku sk, Stock st) <- NULL;
+    sumSold(Sku sk, Stock st) <- NULL;
+
+    balanceA(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM balanceA(Sku sk, Stock st, DATE dt) IF inBackSheet(st) BY sk, st, dt](sk, st, dt)); 
+     
+    sumA(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumA(Sku sk, Stock st, DATE dt) IF inBackSheet(st) BY sk, st, dt](sk, st, dt));
+
+    balanceB(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM balanceB(Sku sk, Stock st, DATE df) IF inBackSheet(st) BY sk, st, df](sk, st, df));
+    
+    sumB(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumB(Sku sk, Stock st, DATE df) IF inBackSheet(st) BY sk, st, df](sk, st, df));
+    
+    quantityPurchase(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM quantityPurchase(Sku sk, Stock st, DATE df, DATE dt) IF inBackSheet(st) BY sk, st, df, dt](sk, st, df, dt));
+    
+    sumPurchase(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumPurchase(Sku sk, Stock st, DATE df, DATE dt) IF inBackSheet(st) BY sk, st, df, dt](sk, st, df, dt));
+    
+    quantitySold(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM quantitySold(Sku sk, Stock st, DATE df, DATE dt) IF inBackSheet(st) BY sk, st, df, dt](sk, st, df, dt));
+     
+    sumSold(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumSold(Sku sk, Stock st, DATE df, DATE dt) IF inBackSheet(st) BY sk, st, df, dt](sk, st, df, dt));
+    
+    setNameGroup1();
+    setNameGroup2();
+    setNameGroup3();
+}
+    
+FORM printGroupBackSheet 'Товарооборот'   
+    PROPERTIES inBackSheetStocks()
+    
+    OBJECTS gt = GroupType PANEL
+    PROPERTIES(gt) SELECTOR name
+
+    PROPERTIES() countGroup, notPrintDetail
+    
+    OBJECTS s = (s = Sku, st = Stock)
+    PROPERTIES(st) name
+    PROPERTIES(s)  name, shortNameUOM
+    PROPERTIES (s, st) balanceB, sumB, balanceA, sumA, quantityPurchase, sumPurchase, quantitySold, sumSold, nameGroup1, nameGroup2, nameGroup3
+    FILTERS balanceA(s, st), inBackSheet(st)
+    ORDER BY nameGroup1(s, st), nameGroup2(s, st), nameGroup3(s, st)
+    
+    PROPERTIES nameGroup(gt, s)
+;
+
+printGroupBackSheet 'Отчет по товарообороту' (DATE dateFrom, DATE dateTo, GroupType gt) = {
+    fillReportGroupBackSheetFromTo(gt, dateFrom, dateTo);
+    PRINT printGroupBackSheet OBJECTS gt = gt;
+}  IMAGE 'print.png' IN print;
+    
+xlsGroupBackSheet 'Отчет по товарообороту (XLS)' (DATE dateFrom, DATE dateTo, GroupType gt) = { 
+    fillReportGroupBackSheetFromTo(gt, dateFrom, dateTo);
+    PRINT printGroupBackSheet OBJECTS gt = gt XLS;
+} IMAGE 'print.png' IN print;
+    
+FORM dialogStocksBackSheet 'Выбор складов'
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY VALUE(a), name(sg)
+    ORDER BY name(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, name
+    PROPERTIES (s) inBackSheet
+    ORDER BY name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            isCompany(s),
+            countCompanyStock(sg)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
+    FILTERGROUP select FILTER 'Отм.' inBackSheet(s) 'F9' 
+;
+
+DESIGN dialogStocksBackSheet {
+    main{
+        preferredSize = (1024, 768);
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+            MOVE stockTree.tree.box {
+                caption = 'Склады';
+            }
+            MOVE s.box {
+                fill = 3;
+                s.grid {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(name(s)){
+                    minimumCharWidth = 35;
+                    preferredCharWidth = 35;
+                }
+            }
+        }
+        MOVE functions.box;
+    }
+}
+
+changeStocksBackSheet(GroupType gt, DATE df, DATE dt) = {
+    DIALOG dialogStocksBackSheet;
+}
+
+FORM reportGroupBackSheet 'Отчет по товарообороту'
+    OBJECTS df=DATE PANEL
+    PROPERTIES dateFrom = VALUE(df)
+   
+    OBJECTS dt=DATE PANEL
+    PROPERTIES dateTo = VALUE(dt)
+    
+    OBJECTS gt = GroupType PANEL
+    PROPERTIES(gt) SELECTOR name
+    
+    PROPERTIES inBackSheetStocks() ON CHANGE changeStocksBackSheet(gt, df, dt)
+    
+    PROPERTIES() gStock, gSku, gGroup, gSupplier, gBrand
+    
+    OBJECTS gr = INTEGER 
+    PROPERTIES(gr) READONLY order, nameGroup
+    ORDER BY order(gr)
+    FILTERS nameGroup(gr)
+    
+    PROPERTIES(df,dt,gt) printGroupBackSheet, xlsGroupBackSheet
+;
+
+onInitReportGroupBackSheet() = {
+    IF countAccessCompanyStock(currentUser()) ==1 THEN {
+        inBackSheet(Stock st)  <- TRUE WHERE  defaultCompanyStock(currentUser())== st; 
+    }    
+}
+
+EXTEND FORM reportGroupBackSheet 
+    EVENTS 
+        ON INIT onInitReportGroupBackSheet()
+;
+
+DESIGN reportGroupBackSheet {
+    NEW topContainer {
+        type = CONTAINERH;
+        NEW dates {
+            type = CONTAINERH;
+            caption = 'Период';
+            MOVE PROPERTY(dateFrom){caption = 'Дата (с)';}
+            MOVE PROPERTY(dateTo){caption = 'Дата (по)';}
+        }
+        MOVE gt.box;
+        NEW stocks {
+            caption = 'Склады';
+            type = CONTAINERH;
+            MOVE PROPERTY(inBackSheetStocks());        
+        }
+    }
+    NEW groupContainer {
+        type = CONTAINERH;
+        caption = 'Группировка';
+        NEW checkBoxContainer{
+            type = CONTAINERV;
+            MOVE PROPERTY(gStock());
+            MOVE PROPERTY(gSku());
+            MOVE PROPERTY(gGroup());
+            MOVE PROPERTY(gSupplier());
+            MOVE PROPERTY(gBrand());    
+        }
+        MOVE gr.box { caption = 'Порядок группировки'; };
+    }
+    NEW printSkuContainer {
+        type = CONTAINERH;
+        caption = 'Печать';
+        MOVE PROPERTY(printGroupBackSheet(df,dt,gt));
+        MOVE PROPERTY(xlsGroupBackSheet(df,dt,gt));
+    }
+    MOVE functions.box;
+}
+
+NAVIGATOR {
+    stockReports{
+        ADD reportGroupBackSheet;
+    }
+}
