@@ -6,7 +6,7 @@ REQUIRE ZReport, StockDocumentSkuLedger;
 
 CLASS ZReportCash 'Продажа наличные';
 TABLE zReportCash (ZReportCash);
-    
+
 @defineAggregationClass(zReport, ZReport, zReportCash, ZReportCash, sumCash);
 
 
@@ -22,8 +22,9 @@ description (ZReportCash ledger) += description(ledger);
 number(ZReportCash ledger) += number(zReport(ledger));
 
 type(ZReportCash l) += 'Продажа наличные' IF l IS ZReportCash;
-sumItem (ZReportCash ledger) += sumCash(zReport(ledger));
+sumItem (ZReportCash ledger) += sumCashSku(zReport(ledger));
 sumContainer (ZReportCash ledger) += 0.0 IF ledger IS ZReportCash;
+
 skip (ZReportCash ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(zReport(ledger)));
 close(ZReportCash ledger) += { isClosed(ZReport z) <- TRUE WHERE zReport(ledger) == z; }
 
@@ -46,7 +47,8 @@ description (ZReportCard ledger) += description(ledger);
 number(ZReportCard ledger) += number(zReport(ledger));
 
 type(ZReportCard l) += 'Продажа безнал' IF l IS ZReportCard;
-sumItem (ZReportCard ledger) += sumCard(zReport(ledger));
+sumItem (ZReportCard ledger) += sumCardSku(zReport(ledger));
 sumContainer (ZReportCard ledger) += 0.0 IF ledger IS ZReportCard;
+
 skip (ZReportCard ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(zReport(ledger)));
 close(ZReportCard ledger) += { isClosed(ZReport z) <- TRUE WHERE zReport(ledger) == z; }
