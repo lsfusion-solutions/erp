@@ -1,0 +1,25 @@
+MODULE PurchaseShipmentBatch;
+
+REQUIRE PurchaseShipment;
+
+NAMESPACE Purchase;
+
+@defineOperationProperty(showOriginalSupplier, 'Показывать внешнего поставщика', showContainer);
+
+originalSupplier = ABSTRACT LegalEntity (InvoiceDetail);
+nameOriginalSupplier 'Поставщик (внешний)' = name(originalSupplier(InvoiceDetail d));
+originalSupplier = DATA LegalEntity (UserInvoiceDetail);
+nameOriginalSupplier 'Поставщик (внешний)' = name(originalSupplier(UserInvoiceDetail d));
+originalSupplier(UserInvoiceDetail d) += originalSupplier(d);
+
+
+showOriginalSupplier (Invoice i) = showOriginalSupplier(operation(i));
+
+EXTEND FORM userInvoice
+   PROPERTIES (d) nameOriginalSupplier SHOWIF showOriginalSupplier(i)
+;
+EXTEND FORM invoices
+    PROPERTIES (d) READONLY nameOriginalSupplier SHOWIF showOriginalSupplier(i)
+;
+
+overSupplier(ShipmentBatch ledger) += originalSupplier(invoiceDetail(shipmentDetail(ledger)));// IF showOriginalSupplier(invoice(invoiceDetail(shipmentDetail(ledger))));
