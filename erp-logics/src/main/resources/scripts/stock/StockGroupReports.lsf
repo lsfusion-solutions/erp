@@ -37,24 +37,38 @@ deleteGroup(INTEGER i) = {
 
 balanceB 'Остаток на начало' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 
+costSumB 'Себестоимость на начало' = DATA LOCAL NUMERIC[32,9] (Sku, Stock);
+
 sumB 'Сумма на начало' = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
 
 balanceA 'Остаток на конец' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+
+costSumA 'Себестоимость на конец' = DATA LOCAL NUMERIC[32,9] (Sku, Stock);
 
 sumA 'Сумма на конец' = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
 
 quantityPurchase 'Закуплено за интервал (кол-во)' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 
+costSumPurchase 'Себестоимость закупленного за интервал' = DATA LOCAL NUMERIC[32,9] (Sku, Stock);
+
 sumPurchase 'Закуплено за интервал (сумма)' = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
+
+sumVATPurchase 'Сумма НДС закупленного за интервал' = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
 
 quantitySold 'Продано за интервал (кол-во)' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 
+costSumSold 'Себестоимость проданного за интервал' = DATA LOCAL NUMERIC[16,3] (Sku, Stock);
+
 sumSold 'Продано за интервал (сумма)' = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
+
+sumVATSold 'Сумма НДС проданного за интервал' = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
 
 inBackSheet 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 
 inBackSheetStocks 'Склады' () =
     GROUP CONCAT name(Stock st) IF inBackSheet(st) ,', ' PREFCHARWIDTH 50;
+
+inSkuStock = DATA LOCAL BOOLEAN (Sku, Stock);
 
 nameGroup1 = DATA LOCAL VARSTRING[255] (Sku, Stock);
 nameGroup2 = DATA LOCAL VARSTRING[255] (Sku, Stock);
@@ -64,19 +78,19 @@ META setNameGroup(number)
     setNameGroup##number () ={
         nameGroup##number(Sku sk, Stock st) <- NULL;
         IF order(1) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(st), 'Не задано') IF sk IS Sku AND inBackSheet(st);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(st), 'Не задано') IF sk IS Sku WHERE inSkuStock(sk, st);
         }
         IF order(2) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(sk), 'Не задано') IF sk IS Sku AND inBackSheet(st);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(sk), 'Не задано') IF sk IS Sku WHERE inSkuStock(sk, st);
         }
         IF order(3) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSkuGroup(sk), 'Не задано') IF sk IS Sku AND inBackSheet(st);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSkuGroup(sk), 'Не задано') IF sk IS Sku WHERE inSkuStock(sk, st);
         }
         IF order(4) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSupplierLastOrderBatch(sk), 'Не задано') IF sk IS Sku AND inBackSheet(st);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSupplierLastOrderBatch(sk), 'Не задано') IF sk IS Sku WHERE inSkuStock(sk, st);
         } 
         IF order(5) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameBrand(sk), 'Не задано') IF sk IS Sku AND inBackSheet(st);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameBrand(sk), 'Не задано') IF sk IS Sku WHERE inSkuStock(sk, st);
         }
     }   
 END 
@@ -96,20 +110,34 @@ fillReportGroupBackSheetFromTo 'Сформировать'(GroupType gt, DATE df,
     sumSold(Sku sk, Stock st) <- NULL;
 
     balanceA(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM balanceA(Sku sk, Stock st, DATE dt) IF inBackSheet(st) BY sk, st, dt](sk, st, dt)); 
+    
+    costSumA(Sku sk, Stock st) <- NUMERIC[32,9]([ = GROUP SUM costSumA(Sku sk, Stock st, DATE dt) IF inBackSheet(st) BY sk, st, dt](sk, st, dt)); 
      
     sumA(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumA(Sku sk, Stock st, DATE dt) IF inBackSheet(st) BY sk, st, dt](sk, st, dt));
 
     balanceB(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM balanceB(Sku sk, Stock st, DATE df) IF inBackSheet(st) BY sk, st, df](sk, st, df));
     
+    costSumB(Sku sk, Stock st) <- NUMERIC[32,9]([ = GROUP SUM costSumB(Sku sk, Stock st, DATE df) IF inBackSheet(st) BY sk, st, df](sk, st, df));
+    
     sumB(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumB(Sku sk, Stock st, DATE df) IF inBackSheet(st) BY sk, st, df](sk, st, df));
     
     quantityPurchase(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM quantityPurchase(Sku sk, Stock st, DATE df, DATE dt) IF inBackSheet(st) BY sk, st, df, dt](sk, st, df, dt));
     
+    costSumPurchase(Sku sk, Stock st) <- NUMERIC[32,9]([ = GROUP SUM costSumPurchase(Sku sk, Stock st, DATE df, DATE dt) IF inBackSheet(st) BY sk, st, df, dt](sk, st, df, dt));
+    
     sumPurchase(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumPurchase(Sku sk, Stock st, DATE df, DATE dt) IF inBackSheet(st) BY sk, st, df, dt](sk, st, df, dt));
     
+    sumVATPurchase(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumVATPurchase(Sku sk, Stock st, DATE df, DATE dt) IF inBackSheet(st) BY sk, st, df, dt](sk, st, df, dt));
+    
     quantitySold(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM quantitySold(Sku sk, Stock st, DATE df, DATE dt) IF inBackSheet(st) BY sk, st, df, dt](sk, st, df, dt));
+    
+    costSumSold(Sku sk, Stock st) <- NUMERIC[16,3]([ = GROUP SUM costSumSold(Sku sk, Stock st, DATE df, DATE dt) IF inBackSheet(st) BY sk, st, df, dt](sk, st, df, dt));
      
     sumSold(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumSold(Sku sk, Stock st, DATE df, DATE dt) IF inBackSheet(st) BY sk, st, df, dt](sk, st, df, dt));
+    
+    sumVATSold(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumVATSold(Sku sk, Stock st, DATE df, DATE dt) IF inBackSheet(st) BY sk, st, df, dt](sk, st, df, dt));
+    
+    inSkuStock(Sku sk, Stock st) <- inBackSheet(st) AND balanceA(sk, st) AND balanceB(sk, st) AND quantityPurchase(sk, st) AND quantitySold(sk, st);
     
     setNameGroup1();
     setNameGroup2();
@@ -127,8 +155,8 @@ FORM printGroupBackSheet 'Товарооборот'
     OBJECTS s = (s = Sku, st = Stock)
     PROPERTIES(st) name
     PROPERTIES(s)  name, shortNameUOM
-    PROPERTIES (s, st) balanceB, sumB, balanceA, sumA, quantityPurchase, sumPurchase, quantitySold, sumSold, nameGroup1, nameGroup2, nameGroup3
-    FILTERS balanceA(s, st), inBackSheet(st)
+    PROPERTIES (s, st) balanceB, costSumB, sumB, balanceA, costSumA, sumA, quantityPurchase, costSumPurchase, sumPurchase, sumVATPurchase, quantitySold, costSumSold, sumSold, sumVATSold, nameGroup1, nameGroup2, nameGroup3
+    FILTERS inSkuStock(s, st)
     ORDER BY nameGroup1(s, st), nameGroup2(s, st), nameGroup3(s, st)
     
     PROPERTIES nameGroup(gt, s)
