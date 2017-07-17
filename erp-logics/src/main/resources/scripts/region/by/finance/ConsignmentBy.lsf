@@ -142,7 +142,8 @@ extraDescriptionCustomer = ABSTRACT VARISTRING[255] (Consignment);
 
 extraUNPPayer 'УНП получателя' = ABSTRACT VARSTRING[50] (Consignment);
 payer = ABSTRACT LegalEntity (Consignment);
-UNPPayer 'УНП заказчика' (Consignment consignment) = OVERRIDE extraUNPPayer(consignment), UNP(payer(consignment));
+overPayer = ABSTRACT LegalEntity (Consignment);
+UNPPayer 'УНП заказчика' (Consignment consignment) = OVERRIDE extraUNPPayer(consignment), UNP(payer(consignment)), UNP(overPayer(consignment));
 addressPayer 'Юр. адрес заказчика' (Consignment consignment) =
     address(payer(consignment), date(consignment));
 fullNamePayer 'Наим-ие заказчика' (Consignment consignment) =
@@ -244,6 +245,12 @@ changeDriver(Consignment consignment) = {
         }
     }        
 }
+
+ownerTruckLegalEntity 'Владелец автомобиля' (Consignment consignment) = CASE 
+    WHEN supplier(consignment) == legalEntity(truck(consignment)) OR ownerTrackType(consignment) == OwnerTrackType.supplier THEN supplier(consignment)
+    WHEN customer(consignment) == legalEntity(truck(consignment)) OR ownerTrackType(consignment) == OwnerTrackType.customer THEN customer(consignment);
+
+overPayer(Consignment consignment) += ownerTruckLegalEntity(consignment);
 
 dataWaybill 'Путевой лист' (consignment) = ABSTRACT VARSTRING[20] (Consignment) IN carConsignment;
 
