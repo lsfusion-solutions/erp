@@ -156,6 +156,7 @@ FORM printGroupBackSheet 'Товарооборот'
     PROPERTIES(st) name
     PROPERTIES(s)  name, shortNameUOM
     PROPERTIES (s, st) balanceB, costSumB, sumB, balanceA, costSumA, sumA, quantityPurchase, costSumPurchase, sumPurchase, sumVATPurchase, quantitySold, costSumSold, sumSold, sumVATSold, nameGroup1, nameGroup2, nameGroup3
+    FILTERS include(gt, s)
     FILTERS inSkuStock(s, st)
     ORDER BY nameGroup1(s, st), nameGroup2(s, st), nameGroup3(s, st)
     
@@ -231,6 +232,13 @@ FORM reportGroupBackSheet 'Отчет по товарообороту'
     
     PROPERTIES inBackSheetStocks() ON CHANGE changeStocksBackSheet(gt, df, dt)
     
+    TREE skuTree sk = Group PARENT parent
+    PROPERTIES inSession(sk) BACKGROUND backgroundInSession(sk)
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDER BY order(sk), skuTreeName
+    FILTERS groupType(sk) == gt
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+    
     PROPERTIES() gStock, gSku, gGroup, gSupplier, gBrand
     
     OBJECTS gr = INTEGER 
@@ -268,25 +276,39 @@ DESIGN reportGroupBackSheet {
             MOVE PROPERTY(inBackSheetStocks());        
         }
     }
-    NEW groupContainer {
-        type = CONTAINERH;
-        caption = 'Группировка';
-        NEW checkBoxContainer{
-            type = CONTAINERV;
-            MOVE PROPERTY(gStock());
-            MOVE PROPERTY(gSku());
-            MOVE PROPERTY(gGroup());
-            MOVE PROPERTY(gSupplier());
-            MOVE PROPERTY(gBrand());    
-        }
-        MOVE gr.box { caption = 'Порядок группировки'; };
-    }
-    NEW printSkuContainer {
-        type = CONTAINERH;
-        caption = 'Печать';
-        MOVE PROPERTY(printGroupBackSheet(df,dt,gt));
-        MOVE PROPERTY(xlsGroupBackSheet(df,dt,gt));
-    }
+    NEW bottomContainer {
+            fill = 1;
+            type = SPLITH;
+    
+            MOVE BOX(TREE skuTree){
+                fill = 1;
+            };
+            NEW rContainer {
+                type = CONTAINERV;
+                fill = 1;
+                NEW groupContainer {
+                    fill = 1;
+                    type = CONTAINERH;
+                    caption = 'Группировка';
+                    NEW checkBoxContainer{
+                        type = CONTAINERV;
+                        MOVE PROPERTY(gStock());
+                        MOVE PROPERTY(gSku());
+                        MOVE PROPERTY(gGroup());
+                        MOVE PROPERTY(gSupplier());
+                        MOVE PROPERTY(gBrand());    
+                    }
+                    MOVE gr.box { caption = 'Порядок группировки'; };
+                }
+                NEW printSkuContainer {
+                    type = CONTAINERH;
+                    caption = 'Печать';
+                    MOVE PROPERTY(printGroupBackSheet(df,dt,gt));
+                    MOVE PROPERTY(xlsGroupBackSheet(df,dt,gt));
+                }
+            }
+            
+        }      
     MOVE functions.box;
 }
 
