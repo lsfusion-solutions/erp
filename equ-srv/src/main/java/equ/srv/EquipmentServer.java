@@ -422,8 +422,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                     for (ImMap<Object, Object> row : cashRegisterResult.valueIt()) {
                         Integer nppMachinery = (Integer) row.get("nppMachinery");
-                        String portMachinery = (String) row.get("portMachinery");
-                        String directoryCashRegister = (String) row.get("overDirectoryMachinery");
+                        String portMachinery = trim((String) row.get("portMachinery"));
+                        String directoryCashRegister = trim((String) row.get("overDirectoryMachinery"));
                         boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
                         boolean cleared = row.get("clearedMachineryPriceTransaction") != null;
                         Boolean disableSalesCashRegister = row.get("disableSalesCashRegister") != null;
@@ -480,7 +480,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 } else if (isScalesPriceTransaction) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<>();
-                    String directory = (String) scalesLM.findProperty("directory[GroupScales]").read(session, groupMachineryObject);
+                    String directory = trim((String) scalesLM.findProperty("directory[GroupScales]").read(session, groupMachineryObject));
                     String pieceCodeGroupScales = (String) scalesLM.findProperty("pieceCode[GroupScales]").read(session, groupMachineryObject);
                     String weightCodeGroupScales = (String) scalesLM.findProperty("weightCode[GroupScales]").read(session, groupMachineryObject);
 
@@ -506,7 +506,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     int enabledCount = 0;
                     int enabledInactiveCount = 0;
                     for (ImMap<Object, Object> values : scalesResult.valueIt()) {
-                        String portMachinery = (String) values.get("portMachinery");
+                        String portMachinery = trim((String) values.get("portMachinery"));
                         Integer nppMachinery = (Integer) values.get("nppMachinery");
                         boolean enabled = values.get("inMachineryPriceTransactionMachinery") != null;
                         boolean succeeded = values.get("succeededMachineryMachineryPriceTransaction") != null;
@@ -585,7 +585,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
                         Boolean cleared = row.get("clearedMachineryMachineryPriceTransaction") != null;
                         priceCheckerInfoList.add(new PriceCheckerInfo(enabled, cleared, succeeded, nppGroupMachinery, (Integer) row.get("nppMachinery"),
-                                nameModelGroupMachinery, handlerModelGroupMachinery, (String) row.get("portMachinery")));
+                                nameModelGroupMachinery, handlerModelGroupMachinery, trim((String) row.get("portMachinery"))));
                     }
 
                     List<PriceCheckerItemInfo> priceCheckerItemInfoList = new ArrayList<>();
@@ -616,7 +616,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     List<TerminalInfo> terminalInfoList = new ArrayList<>();
                     
                     Integer nppGroupTerminal = (Integer) terminalLM.findProperty("npp[GroupMachinery]").read(session, groupMachineryObject);
-                    String directoryGroupTerminal = (String) terminalLM.findProperty("directory[GroupTerminal]").read(session, groupMachineryObject);
+                    String directoryGroupTerminal = trim((String) terminalLM.findProperty("directory[GroupTerminal]").read(session, groupMachineryObject));
                     ObjectValue priceListTypeGroupMachinery = terminalLM.findProperty("priceListType[GroupMachinery]").readClasses(session, groupMachineryObject);
                     ObjectValue stockGroupTerminal = terminalLM.findProperty("stock[GroupTerminal]").readClasses(session, groupMachineryObject);
                     String idPriceListType = (String) terminalLM.findProperty("id[PriceListType]").read(session, priceListTypeGroupMachinery);

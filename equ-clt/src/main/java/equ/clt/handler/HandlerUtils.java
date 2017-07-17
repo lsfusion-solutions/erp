@@ -2,6 +2,7 @@ package equ.clt.handler;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Date;
 
 public class HandlerUtils {
 
@@ -56,5 +57,10 @@ public class HandlerUtils {
 
     public static String trim(String input, String defaultValue, Integer length) {
         return input == null ? defaultValue : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
+    }
+
+    public static Date getDate(int year, int month, int day) {
+        //month is zero-based
+        return new Date(year - 1900, month - 1, day);
     }
 }

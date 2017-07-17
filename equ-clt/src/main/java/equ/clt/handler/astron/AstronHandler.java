@@ -17,6 +17,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static equ.clt.handler.HandlerUtils.trim;
+
 public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
@@ -129,7 +131,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         if (idGroup != null) {
                             setObject(ps, idGroup, 1, offset); //GRPID
                             setObject(ps, parseGroup(itemGroup.idParentItemGroup), 2, offset); //PARENTGRPID
-                            setObject(ps, HandlerUtils.trim(itemGroup.nameItemGroup, "", 50), 3, offset); //GRPNAME
+                            setObject(ps, trim(itemGroup.nameItemGroup, "", 50), 3, offset); //GRPNAME
                             setObject(ps, "0", 4, offset); //DELFLAG
                             setObject(ps, "1", 5, offset); //UPDATENUM
 
@@ -161,8 +163,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, parseGroup(item.extIdItemGroup), 2, offset); //GRPID
                 setObject(ps, item.vat == null ? "0" : item.vat, 3, offset); //TAXGRPID
                 setObject(ps, item.idItem, 4, offset); //ARTCODE
-                setObject(ps, HandlerUtils.trim(item.name, "", 50), 5, offset); //ARTNAME
-                setObject(ps, HandlerUtils.trim(item.name, "", 50), 6, offset); //ARTSNAME
+                setObject(ps, trim(item.name, "", 50), 5, offset); //ARTNAME
+                setObject(ps, trim(item.name, "", 50), 6, offset); //ARTSNAME
                 setObject(ps, "0", 7, offset); //DELFLAG
                 setObject(ps, "1", 8, offset); //UPDATENUM
 
@@ -237,7 +239,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     setObject(ps, idUOM, 6, offset); //UNITID
                     setObject(ps, "", 7, offset); //QUANTMASK
                     setObject(ps, item.passScalesItem ? 0 : 1, 8, offset); //PACKDTYPE
-                    setObject(ps, HandlerUtils.trim(item.name, "", 50), 9, offset); //PACKNAME
+                    setObject(ps, trim(item.name, "", 50), 9, offset); //PACKNAME
                     setObject(ps, "0", 10, offset); //DELFLAG
                     setObject(ps, "1", 11, offset); //UPDATENUM
 

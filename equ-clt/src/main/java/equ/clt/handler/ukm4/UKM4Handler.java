@@ -2,8 +2,13 @@ package equ.clt.handler.ukm4;
 
 import com.google.common.base.Throwables;
 import com.hexiong.jdbf.DBFWriter;
-import equ.api.*;
-import equ.api.cashregister.*;
+import equ.api.ItemGroup;
+import equ.api.SalesBatch;
+import equ.api.SalesInfo;
+import equ.api.SendTransactionBatch;
+import equ.api.cashregister.CashRegisterInfo;
+import equ.api.cashregister.CashRegisterItemInfo;
+import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.time.DateUtils;
@@ -15,11 +20,11 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.sql.SQLException;
 import java.sql.Time;
-import java.sql.Timestamp;
 import java.text.ParseException;
 import java.util.*;
+
+import static equ.clt.handler.HandlerUtils.trim;
 
 public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
 
@@ -71,7 +76,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                         barDBFWriter = new DBFWriter(directory + "/BAR.DBF", barFields, "CP866");
                         for (CashRegisterItemInfo item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                barDBFWriter.addRecord(new Object[]{HandlerUtils.trim(item.idBarcode, 15), HandlerUtils.trim(item.idBarcode, 30)/*или что туда надо писать?*/,
+                                barDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 15), trim(item.idBarcode, 30)/*или что туда надо писать?*/,
                                         "NOSIZE", 1/*без разницы, что писать в количество?*/});
                             }
                         }
@@ -94,12 +99,12 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                                 List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
                                 if(hierarchyItemGroup != null) {
                                     int size = hierarchyItemGroup.size();
-                                    Long group1 = parseGroup(size >= 1 ? HandlerUtils.trim(hierarchyItemGroup.get(0).idItemGroup, 6) : "0");
-                                    Long group2 = parseGroup(size >= 2 ? HandlerUtils.trim(hierarchyItemGroup.get(1).idItemGroup, 6) : "0");
-                                    Long group3 = parseGroup(size >= 3 ? HandlerUtils.trim(hierarchyItemGroup.get(2).idItemGroup, 6) : "0");
-                                    Long group4 = parseGroup(size >= 4 ? HandlerUtils.trim(hierarchyItemGroup.get(3).idItemGroup, 6) : "0");
-                                    Long group5 = parseGroup(size >= 5 ? HandlerUtils.trim(hierarchyItemGroup.get(4).idItemGroup, 6) : "0");
-                                    String name = HandlerUtils.trim(item.nameItemGroup, 80);
+                                    Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(0).idItemGroup, 6) : "0");
+                                    Long group2 = parseGroup(size >= 2 ? trim(hierarchyItemGroup.get(1).idItemGroup, 6) : "0");
+                                    Long group3 = parseGroup(size >= 3 ? trim(hierarchyItemGroup.get(2).idItemGroup, 6) : "0");
+                                    Long group4 = parseGroup(size >= 4 ? trim(hierarchyItemGroup.get(3).idItemGroup, 6) : "0");
+                                    Long group5 = parseGroup(size >= 5 ? trim(hierarchyItemGroup.get(4).idItemGroup, 6) : "0");
+                                    String name = trim(item.nameItemGroup, 80);
                                     if (!idItemGroups.contains(group1)) {
                                         idItemGroups.add(group1);
                                         if (size == 5) {
@@ -165,13 +170,13 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                                 List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
                                 if(hierarchyItemGroup != null) {
                                     int size = hierarchyItemGroup.size();
-                                    Long group1 = parseGroup(size >= 1 ? HandlerUtils.trim(hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");
-                                    Long group2 = parseGroup(size >= 2 ? HandlerUtils.trim(hierarchyItemGroup.get(size - 2).idItemGroup, 6) : "0");
-                                    Long group3 = parseGroup(size >= 3 ? HandlerUtils.trim(hierarchyItemGroup.get(size - 3).idItemGroup, 6) : "0");
-                                    Long group4 = parseGroup(size >= 4 ? HandlerUtils.trim(hierarchyItemGroup.get(size - 4).idItemGroup, 6) : "0");
-                                    Long group5 = parseGroup(size >= 5 ? HandlerUtils.trim(hierarchyItemGroup.get(size - 5).idItemGroup, 6) : "0");
+                                    Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");
+                                    Long group2 = parseGroup(size >= 2 ? trim(hierarchyItemGroup.get(size - 2).idItemGroup, 6) : "0");
+                                    Long group3 = parseGroup(size >= 3 ? trim(hierarchyItemGroup.get(size - 3).idItemGroup, 6) : "0");
+                                    Long group4 = parseGroup(size >= 4 ? trim(hierarchyItemGroup.get(size - 4).idItemGroup, 6) : "0");
+                                    Long group5 = parseGroup(size >= 5 ? trim(hierarchyItemGroup.get(size - 5).idItemGroup, 6) : "0");
 
-                                    pluCashDBFWriter.addRecord(new Object[]{HandlerUtils.trim(item.idBarcode, 30), HandlerUtils.trim(item.name, 80), mesuriment, mespresisi, null, null,
+                                    pluCashDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), trim(item.name, 80), mesuriment, mespresisi, null, null,
                                             null, null, null, null, "NOSIZE", group1, group2, group3, group4, group5,
                                             item.price, null, 0, null, 1, transaction.date, null, null});
                                 }
@@ -188,7 +193,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                         pluLimDBFWriter = new DBFWriter(directory + "/PLULIM.DBF", pluLimFields, "CP866");
                         for (CashRegisterItemInfo item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                pluLimDBFWriter.addRecord(new Object[]{HandlerUtils.trim(item.idBarcode, 30), 0/*откуда брать макс. процент скидки?*/});
+                                pluLimDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), 0/*откуда брать макс. процент скидки?*/});
                             }
                         }
                         pluLimDBFWriter.close();

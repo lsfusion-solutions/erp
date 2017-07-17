@@ -179,8 +179,8 @@ public class StopListEquipmentServer {
             ImMap<Object, ObjectValue> values = machineryResult.getValue(i);
             Integer nppGroupMachinery = (Integer) values.get("nppGroupMachinery").getValue();
             String handlerModel = (String) values.get("handlerModelGroupMachinery").getValue();
-            String directory = (String) values.get("overDirectoryMachinery").getValue();
-            String port = (String) values.get("portMachinery").getValue();
+            String directory = trim((String) values.get("overDirectoryMachinery").getValue());
+            String port = trim((String) values.get("portMachinery").getValue());
             Integer nppMachinery = (Integer) values.get("nppMachinery").getValue();
             ConcreteClass machineryClass = machineryResult.getKey(i).get("machinery").objectClass;
             boolean isCashRegister = machineryClass != null && machineryClass.equals(cashRegisterClass);

@@ -28,6 +28,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static lsfusion.base.BaseUtils.trim;
+
 public class TerminalDocumentEquipmentServer {
     private static final Logger logger = Logger.getLogger(TerminalDocumentEquipmentServer.class);
 
@@ -73,7 +75,7 @@ public class TerminalDocumentEquipmentServer {
                 for (ImMap<Object, Object> row : result.values()) {
                     terminalInfoList.add(new TerminalInfo(true, false, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
-                            (String) row.get("directoryGroupTerminal"), (String) row.get("idPriceListTypeGroupMachinery")));
+                            trim((String) row.get("directoryGroupTerminal")), (String) row.get("idPriceListTypeGroupMachinery")));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException e) {
                 throw new RuntimeException(e.toString());

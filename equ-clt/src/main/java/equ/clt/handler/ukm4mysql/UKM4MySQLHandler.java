@@ -17,6 +17,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static equ.clt.handler.HandlerUtils.trim;
+
 public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesBatch> {
 
     private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
@@ -206,7 +208,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 if (!idItemGroup.equals("0")) {
                                     ps.setString(1, idItemGroup); //id
                                     ps.setString(2, parseGroup(itemGroup.idParentItemGroup)); //owner
-                                    ps.setString(3, HandlerUtils.trim(itemGroup.nameItemGroup, "", 80)); //name
+                                    ps.setString(3, trim(itemGroup.nameItemGroup, "", 80)); //name
                                     ps.setInt(4, version); //version
                                     ps.setInt(5, 0); //deleted
                                     ps.addBatch();
@@ -239,14 +241,14 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     ps.setString(1, getId(item, useBarcodeAsId, appendBarcode)); //id
-                    ps.setString(2, HandlerUtils.trim(item.name, "", 40)); //name
+                    ps.setString(2, trim(item.name, "", 40)); //name
                     ps.setString(3, item.description == null ? "" : item.description); //descr
-                    ps.setString(4, HandlerUtils.trim(item.shortNameUOM, "", 40)); //measure
+                    ps.setString(4, trim(item.shortNameUOM, "", 40)); //measure
                     boolean nonWeight = item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
                     ps.setInt(5, item.passScalesItem ? (nonWeight ? 0 : 3) : (item.splitItem ? 3 : 0)); //measprec
                     ps.setString(6, parseGroup(item.extIdItemGroup)); //classif
                     ps.setInt(7, 1); //prop - признак товара ?
-                    ps.setString(8, HandlerUtils.trim(item.description, "", 100)); //summary
+                    ps.setString(8, trim(item.description, "", 100)); //summary
                     ps.setDate(9, item.expiryDate); //exp_date
                     ps.setInt(10, version); //version
                     ps.setInt(11, 0); //deleted
@@ -278,7 +280,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         for (String stock : item.section.split(",")) {
                             String[] splitted = stock.split("\\|");
                             ps.setString(1, departmentNumber); //store
-                            ps.setString(2, HandlerUtils.trim(item.idItem, "", 40)); //item
+                            ps.setString(2, trim(item.idItem, "", 40)); //item
                             ps.setInt(3, Integer.parseInt(splitted[0])); //stock
                             ps.setInt(4, version); //version
                             ps.setInt(5, 0); //deleted
@@ -288,7 +290,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     if (item.deleteSection != null) {
                         for (String stock : item.deleteSection.split(",")) {
                             ps.setString(1, departmentNumber); //store
-                            ps.setString(2, HandlerUtils.trim(item.idItem, "", 40)); //item
+                            ps.setString(2, trim(item.idItem, "", 40)); //item
                             ps.setInt(3, Integer.parseInt(stock)); //stock
                             ps.setInt(4, version); //version
                             ps.setInt(5, 1); //deleted
@@ -328,7 +330,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 String name = splitted.length > 1 ? splitted[1] : null;
                                 ps.setString(1, departmentNumber); //store
                                 ps.setInt(2, id); //id
-                                ps.setString(3, HandlerUtils.trim(name, 80)); //name
+                                ps.setString(3, trim(name, 80)); //name
                                 ps.setInt(4, version); //version
                                 ps.addBatch();
                             }
@@ -355,7 +357,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     "INSERT INTO pricelist (id, name, version, deleted) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), deleted=VALUES(deleted)");
 
             ps.setInt(1, npp); //id
-            ps.setString(2, "Прайс-лист " + HandlerUtils.trim(String.valueOf(transaction.nameStockGroupCashRegister), "", 89)); //name
+            ps.setString(2, "Прайс-лист " + trim(String.valueOf(transaction.nameStockGroupCashRegister), "", 89)); //name
             ps.setInt(3, version); //version
             ps.setInt(4, 0); //deleted
             ps.addBatch();
@@ -412,7 +414,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     String barcode = makeBarcode(item.idBarcode, item.passScalesItem, weightCode);
                     if (barcode != null) {
                         ps.setInt(1, npp); //pricelist
-                        ps.setString(2, HandlerUtils.trim(barcode, 40)); //var
+                        ps.setString(2, trim(barcode, 40)); //var
                         ps.setBigDecimal(3, item.price); //price
                         ps.setInt(4, version); //version
                         ps.setInt(5, 0); //deleted
@@ -466,7 +468,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     String barcode = makeBarcode(removeCheckDigitFromBarcode(item.idBarcode, appendBarcode), item.passScalesItem, weightCode);
                     if (barcode != null && item.idItem != null) {
-                        ps.setString(1, HandlerUtils.trim(barcode, 40)); //id
+                        ps.setString(1, trim(barcode, 40)); //id
                         ps.setString(2, getId(item, useBarcodeAsId, appendBarcode)); //item
                         ps.setDouble(3, item.amountBarcode != null ? item.amountBarcode.doubleValue() : 1); //quantity
                         ps.setInt(4, 1); //stock
@@ -493,7 +495,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     "INSERT INTO var (id, version, deleted) VALUES (?, ?, ?) " +
                             "ON DUPLICATE KEY UPDATE deleted=VALUES(deleted)");
             for (CashRegisterItemInfo item : barcodeList) {
-                ps.setString(1, HandlerUtils.trim(item.idBarcode, 40)); //id
+                ps.setString(1, trim(item.idBarcode, 40)); //id
                 ps.setInt(2, version); //version
                 ps.setInt(3, 1); //deleted
                 ps.addBatch();
@@ -754,7 +756,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             if (item.idItem != null) {
                                 for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
                                     ps.setInt(1, nppGroupMachinery); //pricelist
-                                    ps.setString(2, HandlerUtils.trim(item.idItem, "", 40)); //item
+                                    ps.setString(2, trim(item.idItem, "", 40)); //item
                                     ps.setBigDecimal(3, BigDecimal.ZERO); //price
                                     ps.setBigDecimal(4, BigDecimal.ZERO); //minprice
                                     ps.setInt(5, version); //version
@@ -1210,7 +1212,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private String getId(ItemInfo item, boolean useBarcodeAsId, boolean appendBarcode) {
-        return HandlerUtils.trim(useBarcodeAsId ? removeCheckDigitFromBarcode(item.idBarcode, appendBarcode) : item.idItem, 40);
+        return trim(useBarcodeAsId ? removeCheckDigitFromBarcode(item.idBarcode, appendBarcode) : item.idItem, 40);
     }
 
     private String appendEAN13(String barcode) {

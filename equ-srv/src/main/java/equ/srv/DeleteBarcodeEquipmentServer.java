@@ -27,6 +27,8 @@ import java.rmi.RemoteException;
 import java.sql.SQLException;
 import java.util.*;
 
+import static lsfusion.base.BaseUtils.trim;
+
 class DeleteBarcodeEquipmentServer {
 
     static ScriptingLogicsModule deleteBarcodeLM;
@@ -78,7 +80,7 @@ class DeleteBarcodeEquipmentServer {
                     String idItemGroup = (String) value.get("idItemGroup");
                     String nameItemGroup = (String) value.get("nameItemGroup");
                     String key = handlerModelGroupMachinery + "/" + nppGroupMachinery;
-                    String directory = (String) value.get("directoryGroupMachinery");
+                    String directory = trim((String) value.get("directoryGroupMachinery"));
                     DeleteBarcodeInfo deleteBarcodeInfo = barcodeMap.get(key);
                     if(deleteBarcodeInfo == null)
                         deleteBarcodeInfo = new DeleteBarcodeInfo(new ArrayList<CashRegisterItemInfo>(), nppGroupMachinery,
