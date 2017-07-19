@@ -695,7 +695,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                     BigDecimal price = BigDecimal.valueOf(inventPosition.getDouble("price"));
                                     BigDecimal discountSumReceiptDetail = BigDecimal.valueOf(inventPosition.getDouble("disc_abs"));
-                                    discountSumReceiptDetail = isSale ? discountSumReceiptDetail : safeNegate(discountSumReceiptDetail);
 
                                     BigDecimal sumReceiptDetail = BigDecimal.valueOf((inventPosition.getDouble("sume")));
                                     sumReceiptDetail = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
@@ -706,7 +705,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
                                         if (sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                             sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
-                                        //TODO: isGiftCard, idSaleReceiptReceiptReturnDetail, discountSumReceipt, seriesNumberDiscountCard
+                                        //TODO: isGiftCard, idSaleReceiptReceiptReturnDetail, seriesNumberDiscountCard
                                         salesInfoList.add(new SalesInfo(false, nppGroupMachinery, numberCashRegister, numberZReport,
                                                 dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
                                                 sumCard, sumCash, sumGiftCardMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
