@@ -283,6 +283,24 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return rootObject.toString();
     }
 
+    private String getAddClientJSON(DiscountCard card) throws JSONException, ParseException {
+        JSONObject rootObject = new JSONObject();
+
+        JSONObject clientObject = new JSONObject();
+        rootObject.put("card", clientObject);
+        clientObject.put("idclient", card.idDiscountCard); //идентификационный номер клиента
+        String name = (card.lastNameContact == null ? "" : (card.lastNameContact + " "))
+                + (card.firstNameContact == null ? "" : (card.firstNameContact + " "))
+                + (card.middleNameContact == null ? "" : card.middleNameContact);
+        clientObject.put("name", name); //ФИО клиента
+        clientObject.put("text", name); //текст
+        clientObject.put("sex", card.sexContact); //пол клиента
+        if(card.birthdayContact != null)
+            clientObject.put("birthday", new SimpleDateFormat("yyyy-MM-dd").format(card.birthdayContact)); //день рождения, год рождения должен быть больше 1900
+        rootObject.put("command", "addClient");
+        return rootObject.toString();
+    }
+
     private Map<Integer, SendTransactionBatch> waitForDeletion(Map<File, Integer> filesMap, Map<Integer, Exception> failedTransactionMap, Set<Integer> emptyTransactionSet) {
         int count = 0;
         Map<Integer, SendTransactionBatch> result = new HashMap<>();
@@ -514,6 +532,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             if (d.typeDiscountCard != null && !usedGroups.contains(d.typeDiscountCard)) {
                                 usedGroups.add(d.typeDiscountCard);
                                 command.append(getAddCardGroupJSON(d.typeDiscountCard, "Группа карт")).append("\n---\n");
+                            }
+                        }
+
+                        for (DiscountCard d : discountCardList) {
+                            if(d.typeDiscountCard != null) {
+                                command.append(getAddClientJSON(d)).append("\n---\n");
                             }
                         }
 
