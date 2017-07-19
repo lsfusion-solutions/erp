@@ -240,7 +240,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         JSONArray roleUsersArray = new JSONArray();
         JSONObject roleUsersObject = new JSONObject();
-        roleUsersObject.put("rolecode", cashier.idPosition);
+        if(cashier.idPosition != null)
+            roleUsersObject.put("rolecode", cashier.idPosition.substring(0, 1));
         roleUsersObject.put("rule", 1);
         roleUsersArray.put(roleUsersObject);
         inventGroupObject.put("roleusers", roleUsersArray);
@@ -270,11 +271,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     private String getAddCardGroupJSON(String id, String name) throws JSONException, ParseException {
         JSONObject rootObject = new JSONObject();
 
-        JSONObject cardObject = new JSONObject();
-        rootObject.put("cardGroup", cardObject);
-        cardObject.put("idcardgroup", id); //идентификационный код группы карт
-        cardObject.put("name", name); //имя группы карт
-        cardObject.put("text", name); //текст
+        JSONObject cardGroupObject = new JSONObject();
+        rootObject.put("cardGroup", cardGroupObject);
+        cardGroupObject.put("idcardgroup", id); //идентификационный код группы карт
+        cardGroupObject.put("name", name); //имя группы карт
+        cardGroupObject.put("text", name); //текст
+        cardGroupObject.put("notaddemptycard", true);
+        cardGroupObject.put("pattern", "[0-9]");
+        cardGroupObject.put("inputmask", 7); //маска способа ввода карты
         rootObject.put("command", "addCardGroup");
         return rootObject.toString();
     }
@@ -499,15 +503,17 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
 
                         for (DiscountCard d : discountCardList) {
-                            boolean active = requestExchange.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
-                            command.append(getAddCardJSON(d, active)).append("\n---\n");
+                            if(d.typeDiscountCard != null) {
+                                boolean active = requestExchange.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
+                                command.append(getAddCardJSON(d, active)).append("\n---\n");
+                            }
                         }
 
                         Set<String> usedGroups = new HashSet<>();
                         for (DiscountCard d : discountCardList) {
                             if (d.typeDiscountCard != null && !usedGroups.contains(d.typeDiscountCard)) {
                                 usedGroups.add(d.typeDiscountCard);
-                                command.append(getAddCardGroupJSON(d.typeDiscountCard, d.nameDiscountCard)).append("\n---\n");
+                                command.append(getAddCardGroupJSON(d.typeDiscountCard, "Группа карт")).append("\n---\n");
                             }
                         }
 
