@@ -18,6 +18,8 @@ filterPercent (NUMERIC[8,2] nu,Batch bt,Stock st,Operation o,Currency c,DATETIME
 
 inRevaluation 'Вкл.' (batch, stock) = DATA LOCAL BOOLEAN (Batch, Stock);
 
+@defineOperationProperty(dontChangePrice, 'Не изменять учетную цену', showContainer);
+
 createManagementRevaluation 'Создать переоценку'(NUMERIC[8,2] numeric, Operation operation, Currency currency, Stock stock, DATETIME time) = {
     NEW r = UserRevaluation {
         stock(r) <-  stock;
@@ -35,14 +37,17 @@ createManagementRevaluation 'Создать переоценку'(NUMERIC[8,2] n
                 quantity(rd) <- balanceB(batch,stock,time);
                 manufacturingMarkup(rd) <- manufacturingMarkupInvoiceDetail(batch);
                 manufacturingPrice(rd) <- NUMERIC[16,4](calcManufacturingPrice(rd));
-                price(rd) <-NUMERIC[16,4](Utils.round(calcBaseManufacturingPrice (rd) * (100.0 (+) manufacturingMarkup[RevaluationDetail](rd))/100,2));
+                price(rd) <-NUMERIC[16,4](Utils.round(calcBaseManufacturingPrice (rd) * (100.0 (+) manufacturingMarkup[RevaluationDetail](rd))/100,2)) WHERE NOT dontChangePrice(operation(revaluation(rd)));
         }
         SHOW userRevaluation  OBJECTS p = r MANAGESESSION DOCKED NOCANCEL;
     }
 };
 
 WHEN LOCAL FORMS userRevaluation CHANGED(calcBaseManufacturingPrice(RevaluationDetail rd)) DO {
-    price[UserRevaluationDetail](rd) <-NUMERIC[16,4](Utils.round(calcBaseManufacturingPrice (rd) * (100.0 (+) manufacturingMarkup(rd))/100,2));
+    IF dontChangePrice(operation(revaluation(rd))) THEN
+        price[UserRevaluationDetail](rd) <- curPrice[UserRevaluationDetail](rd);
+    ELSE 
+        price[UserRevaluationDetail](rd) <-NUMERIC[16,4](Utils.round(calcBaseManufacturingPrice (rd) * (100.0 (+) manufacturingMarkup(rd))/100,2));
 }
 
 FORM revaluationDashboard 'Переоценка за счет изменения курса'  
