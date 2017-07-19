@@ -118,10 +118,10 @@ curPrice (UserRepricingDetail detail)  <- round2(IF batch(detail)
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userRepricing, retailPricingPriceListType, curRetail, sku, departmentStore);
 
 // Автоматическое проставление надбавок
-curMarkup(UserRepricingDetail userRepricingDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+curMarkup(UserRepricingDetail userRepricingDetail)  <- NUMERIC[8,3]([= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
     curRetailPrice(userRepricingDetail),
     valueCurVAT(userRepricingDetail),
-    curRepricingPrice(userRepricingDetail) IF curRepricingPrice(userRepricingDetail)!=0.0)
+    curRepricingPrice(userRepricingDetail) IF curRepricingPrice(userRepricingDetail)!=0.0))
     WHEN CHANGED(curRetailPrice(userRepricingDetail)) OR
          CHANGED(curVAT(userRepricingDetail)) OR
          CHANGED(curRepricingPrice(userRepricingDetail));
@@ -161,10 +161,10 @@ repricingPrice (RepricingDetail detail) = OVERRIDE overRepricingPrice(detail), p
 @defineDocumentInterfaceDetailPricePrefix(repricing, retail, ' розничная после');
 
 // Автоматическое проставление надбавок
-markup(UserRepricingDetail userRepricingDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+markup(UserRepricingDetail userRepricingDetail)  <- NUMERIC[8,3]([= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
     retailPrice(userRepricingDetail),
     valueVAT(userRepricingDetail),
-    repricingPrice(userRepricingDetail) IF repricingPrice(userRepricingDetail)!=0.0)
+    repricingPrice(userRepricingDetail) IF repricingPrice(userRepricingDetail)!=0.0))
     WHEN CHANGED(retailPrice(userRepricingDetail)) OR
          CHANGED (VAT(userRepricingDetail)) OR
          CHANGED(repricingPrice(userRepricingDetail));
