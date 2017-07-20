@@ -292,8 +292,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         String name = (card.lastNameContact == null ? "" : (card.lastNameContact + " "))
                 + (card.firstNameContact == null ? "" : (card.firstNameContact + " "))
                 + (card.middleNameContact == null ? "" : card.middleNameContact);
-        clientObject.put("name", name); //ФИО клиента
-        clientObject.put("text", name); //текст
+        clientObject.put("name", name.trim()); //ФИО клиента
+        clientObject.put("text", name.trim()); //текст
         clientObject.put("sex", card.sexContact); //пол клиента
         if(card.birthdayContact != null)
             clientObject.put("birthday", new SimpleDateFormat("yyyy-MM-dd").format(card.birthdayContact)); //день рождения, год рождения должен быть больше 1900
@@ -681,6 +681,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     }
                                 }
 
+                                String seriesNumberDiscountCard = null;
+                                JSONArray cardPositionsArray = documentObject.getJSONArray("cardPositions");
+
+                                for (int i = 0; i < cardPositionsArray.length(); i++) {
+                                    JSONObject cardPosition = cardPositionsArray.getJSONObject(i);
+                                    seriesNumberDiscountCard = cardPosition.getString("number");
+                                }
+
                                 JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
 
                                 for (int i = 0; i < inventPositionsArray.length(); i++) {
@@ -705,11 +713,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
                                         if (sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                             sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
-                                        //TODO: isGiftCard, idSaleReceiptReceiptReturnDetail, seriesNumberDiscountCard
+                                        //TODO: isGiftCard, idSaleReceiptReceiptReturnDetail
                                         salesInfoList.add(new SalesInfo(false, nppGroupMachinery, numberCashRegister, numberZReport,
                                                 dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
                                                 sumCard, sumCash, sumGiftCardMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
-                                                discountSumReceiptDetail, null, null, numberReceiptDetail, fileName, null));
+                                                discountSumReceiptDetail, null, seriesNumberDiscountCard, numberReceiptDetail, fileName, null));
                                     }
 
                                 }
