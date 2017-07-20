@@ -634,6 +634,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         else {
             sendSalesLogger.info(String.format(logPrefix + "found %s file(s) in %s", filesList.length, directory));
 
+            Set<String> usedBarcodes = new HashSet<>();
+
             for (File file : filesList) {
                 try {
 
@@ -688,7 +690,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 sumCard = HandlerUtils.safeAdd(sumCard, sum);
                                                 break;
                                             case 3:
-                                                sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sum);
+                                                String numberGiftCard = moneyPosition.getString("cardnum");
+                                                sumGiftCardMap.put(numberGiftCard, new GiftCard(sum, sum));
                                                 break;
                                             default:
                                                 sumCash = HandlerUtils.safeAdd(sumCash, sum);
@@ -708,6 +711,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                 JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
 
                                 for (int i = 0; i < inventPositionsArray.length(); i++) {
+                                    int count = 1;
                                     JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
 
                                     String idItem = inventPosition.getString("inventCode");
@@ -723,6 +727,17 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     BigDecimal sumReceiptDetail = BigDecimal.valueOf((inventPosition.getDouble("sume")));
                                     sumReceiptDetail = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
 
+                                    //обнаруживаем продажу сертификатов
+                                    boolean isGiftCard = false;
+                                    if (barcode != null && barcode.equals("99999")) {
+                                        isGiftCard = true;
+                                        while(usedBarcodes.contains(dateTimeReceipt + "/" + count)) {
+                                            count++;
+                                        }
+                                        barcode = dateTimeReceipt + "/" + count;
+                                        usedBarcodes.add(barcode);
+                                    }
+
                                     CashRegisterInfo cashRegister = directoryDepartNumberCashRegisterMap.get(directory + "_" + numberCashRegister);
                                     Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
                                     Date startDate = cashRegister == null ? null : cashRegister.startDate;
@@ -730,7 +745,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         if (sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                             sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
                                         //TODO: isGiftCard, idSaleReceiptReceiptReturnDetail
-                                        salesInfoList.add(new SalesInfo(false, nppGroupMachinery, numberCashRegister, numberZReport,
+                                        salesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
                                                 dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
                                                 sumCard, sumCash, sumGiftCardMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                 discountSumReceiptDetail, null, seriesNumberDiscountCard, numberReceiptDetail, fileName, null));
