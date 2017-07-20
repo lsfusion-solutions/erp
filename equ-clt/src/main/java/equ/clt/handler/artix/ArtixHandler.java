@@ -370,7 +370,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
                     String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
-                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/request.json"), "utf-8"));
+                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/sale.req"), "utf-8"));
                     String data = String.format("###\n%s-%s", dateFrom, dateTo);
                     writer.write(data);
                     writer.close();
