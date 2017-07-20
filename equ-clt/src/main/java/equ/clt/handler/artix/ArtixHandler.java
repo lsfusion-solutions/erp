@@ -12,9 +12,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.util.FileCopyUtils;
 
-import java.io.File;
-import java.io.FileFilter;
-import java.io.IOException;
+import java.io.*;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -361,7 +359,25 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests,
                                  Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
-        //TODO
+        for (RequestExchange entry : requestExchangeList) {
+            if (entry.isSalesInfoExchange()) {
+                for (String directory : entry.directoryStockMap.keySet()) {
+
+                    if (!directorySet.contains(directory)) continue;
+
+                    sendSalesLogger.info(logPrefix + "creating request file for directory : " + directory);
+
+                    String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
+                    String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
+
+                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/request.json"), "utf-8"));
+                    String data = String.format("###\n%s-%s", dateFrom, dateTo);
+                    writer.write(data);
+                    writer.close();
+                }
+                succeededRequests.add(entry.requestExchange);
+            }
+        }
     }
 
     @Override
