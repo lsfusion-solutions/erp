@@ -34,7 +34,7 @@ public class ReceiveMessagesEDNActionProperty extends ReceiveMessagesActionPrope
                 receiveMessages(context, url, login, password, host, port, provider, archiveDir, true);
             } else {
                 ServerLoggers.importLogger.info(provider + " ReceiveMessages: не заданы имя пользователя / пароль / хост / порт");
-                context.delayUserInteraction(new MessageClientAction(provider + " заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
+                context.delayUserInteraction(new MessageClientAction(provider + " сообщения не получены: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
             }
 
         } catch (ScriptingErrorLog.SemanticErrorException | IOException e) {
