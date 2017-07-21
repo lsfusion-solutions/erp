@@ -285,7 +285,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         JSONObject rootObject = new JSONObject();
 
         JSONObject clientObject = new JSONObject();
-        rootObject.put("card", clientObject);
+        rootObject.put("client", clientObject);
         clientObject.put("idclient", card.idDiscountCard); //идентификационный номер клиента
         String name = (card.lastNameContact == null ? "" : (card.lastNameContact + " "))
                 + (card.firstNameContact == null ? "" : (card.firstNameContact + " "))
@@ -360,23 +360,20 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests,
                                  Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
-            if (entry.isSalesInfoExchange()) {
-                for (String directory : entry.directoryStockMap.keySet()) {
+            for (String directory : entry.directoryStockMap.keySet()) {
+                if (!directorySet.contains(directory)) continue;
 
-                    if (!directorySet.contains(directory)) continue;
+                sendSalesLogger.info(logPrefix + "creating request file for directory : " + directory);
 
-                    sendSalesLogger.info(logPrefix + "creating request file for directory : " + directory);
+                String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
+                String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
-                    String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
-                    String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
-
-                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/sale.req"), "utf-8"));
-                    String data = String.format("###\n%s-%s", dateFrom, dateTo);
-                    writer.write(data);
-                    writer.close();
-                }
-                succeededRequests.add(entry.requestExchange);
+                Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/sale.req"), "utf-8"));
+                String data = String.format("###\n%s-%s", dateFrom, dateTo);
+                writer.write(data);
+                writer.close();
             }
+            succeededRequests.add(entry.requestExchange);
         }
     }
 
@@ -385,12 +382,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         sendSalesLogger.info(logPrefix + "Finish Reading started");
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
-
             try {
-                String directory = f.getParent() + "/cashdoc/";
+                String directory = f.getParent() + "/success-" + formatDate(new Date(System.currentTimeMillis())) + "/";
                 if (new File(directory).exists() || new File(directory).mkdirs())
                     FileCopyUtils.copy(f, new File(directory + f.getName()));
-            } catch (IOException e) {
+            } catch (IOException | ParseException e) {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
             }
 
@@ -402,7 +398,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         }
     }
 
-    @Override
+    /*@Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
 
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
@@ -472,21 +468,20 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         cashDocumentList.add(new CashDocument(numberCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
                                                 numberGroup, numberCashRegister, null, sumCashDocument));
                                     }
-                                    readFiles.add(file.getAbsolutePath());
-
                                 }
                             }
                         }
                     } catch (Throwable e) {
                         sendSalesLogger.error(logPrefix + "File " + file.getAbsolutePath(), e);
                     }
+                    readFiles.add(file.getAbsolutePath());
                 }
             }
         }
         return new CashDocumentBatch(cashDocumentList, readFiles);
-    }
+    }*/
 
-    @Override
+/*    @Override
     public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
         sendSalesLogger.info(logPrefix + "Finish ReadingCashDocumentInfo started");
         for (String readFile : cashDocumentBatch.readFiles) {
@@ -506,7 +501,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
             }
         }
-    }
+    }*/
 
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
