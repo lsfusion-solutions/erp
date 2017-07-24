@@ -53,7 +53,7 @@ public class SendSalesEquipmentServer {
 
                         SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
 
-                        requestSalesInfo(remote, requestExchangeList, handler, directorySet);
+                        requestSalesInfo(remote, getSalesInfoExchangeList(requestExchangeList), handler, directorySet);
 
                         sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
@@ -70,6 +70,16 @@ public class SendSalesEquipmentServer {
             sendSalesLogger.error("Equipment server error: ", e);
             EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
         }
+    }
+
+    private static List<RequestExchange> getSalesInfoExchangeList(List<RequestExchange> requestExchangeList) {
+        List<RequestExchange> salesInfoExchangeList = new ArrayList<>();
+        for(RequestExchange requestExchange : requestExchangeList) {
+            if(requestExchange.isSalesInfoExchange()) {
+                salesInfoExchangeList.add(requestExchange);
+            }
+        }
+        return salesInfoExchangeList;
     }
 
     static void requestSalesInfo(EquipmentServerInterface remote, List<RequestExchange> requestExchangeList, CashRegisterHandler handler, Set<String> directorySet)

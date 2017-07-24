@@ -72,17 +72,17 @@ public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBat
 
                     List<String> directoriesList = new ArrayList<>();
                     for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
-                        if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
-                            directoriesList.add(cashRegisterInfo.port.trim());
-                        if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
-                            directoriesList.add(cashRegisterInfo.directory.trim());
+                        if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port)))
+                            directoriesList.add(cashRegisterInfo.port);
+                        if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory)))
+                            directoriesList.add(cashRegisterInfo.directory);
                     }
 
                     for (String directory : directoriesList) {
-                        File folder = new File(directory.trim());
+                        File folder = new File(directory);
                         if (!folder.exists() && !folder.mkdir())
                             throw new RuntimeException("The folder " + folder.getAbsolutePath() + " can not be created");
-                        folder = new File(directory.trim() + "/SEND");
+                        folder = new File(directory + "/SEND");
                         if (!folder.exists() && !folder.mkdir())
                             throw new RuntimeException("The folder " + folder.getAbsolutePath() + " can not be created");
 
@@ -136,46 +136,50 @@ public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBat
         List<String> readFiles = new ArrayList<>();
         for (Map.Entry<Integer, String> entry : cashRegisterDirectories.entrySet()) {
             Integer numberCashRegister = entry.getKey();
-            String dir = entry.getValue() == null ? null : entry.getValue().trim();
+            String dir = entry.getValue();
             DBF importFile = null;
             try {
                 if (dir != null && dir.equals(directory)) {
                     File directoryFile = new File(dir + "/READ/");
-                    if (directoryFile.isDirectory())
-                        for (String fileName : directoryFile.list(new DBFFilter())) {
-                            String filePath = dir + "/READ/" + fileName;
-                            importFile = new DBF(filePath);
-                            readFiles.add(filePath);
-                            int recordCount = importFile.getRecordCount();
-                            int numberReceiptDetail = 1;
-                            Integer oldReceiptNumber = -1;
-                            for (int i = 0; i < recordCount; i++) {
-                                importFile.read();
-                                String postType = new String(importFile.getField("JFPOSTYPE").getBytes(), "Cp1251").trim();
-                                if ("P".equals(postType)) {
-                                    String zReportNumber = new String(importFile.getField("JFZNO").getBytes(), "Cp1251").trim();
-                                    Integer receiptNumber = new Integer(new String(importFile.getField("JFCHECKNO").getBytes(), "Cp1251").trim());
-                                    java.sql.Date date = new java.sql.Date(new SimpleDateFormat("yyyymmdd").parse(new String(importFile.getField("JFDATE").getBytes(), "Cp1251").trim()).getTime());
-                                    String timeString = new String(importFile.getField("JFTIME").getBytes(), "Cp1251").trim();
-                                    Time time = Time.valueOf(timeString.substring(0, 2) + ":" + timeString.substring(2, 4) + ":" + timeString.substring(4, 6));
-                                    BigDecimal sumCash = new BigDecimal(new String(importFile.getField("JFTOTSUM").getBytes(), "Cp1251").trim());
-                                    String barcodeReceiptDetail = new String(importFile.getField("JFPLUCODE").getBytes(), "Cp1251").trim().replace("E", "");
-                                    BigDecimal quantityReceiptDetail = new BigDecimal(new String(importFile.getField("JFQUANT").getBytes(), "Cp1251").trim());
-                                    BigDecimal priceReceiptDetail = new BigDecimal(new String(importFile.getField("JFPRICE").getBytes(), "Cp1251").trim());
-                                    BigDecimal discountSumReceiptDetail = new BigDecimal(new String(importFile.getField("JFDISCSUM").getBytes(), "Cp1251").trim());
-                                    BigDecimal sumReceiptDetail = roundSales(HandlerUtils.safeSubtract(HandlerUtils.safeMultiply(priceReceiptDetail, quantityReceiptDetail), discountSumReceiptDetail), 10);
+                    if (directoryFile.isDirectory()) {
+                        String[] fileNames = directoryFile.list(new DBFFilter());
+                        if (fileNames != null) {
+                            for (String fileName : fileNames) {
+                                String filePath = dir + "/READ/" + fileName;
+                                importFile = new DBF(filePath);
+                                readFiles.add(filePath);
+                                int recordCount = importFile.getRecordCount();
+                                int numberReceiptDetail = 1;
+                                Integer oldReceiptNumber = -1;
+                                for (int i = 0; i < recordCount; i++) {
+                                    importFile.read();
+                                    String postType = new String(importFile.getField("JFPOSTYPE").getBytes(), "Cp1251").trim();
+                                    if ("P".equals(postType)) {
+                                        String zReportNumber = new String(importFile.getField("JFZNO").getBytes(), "Cp1251").trim();
+                                        Integer receiptNumber = new Integer(new String(importFile.getField("JFCHECKNO").getBytes(), "Cp1251").trim());
+                                        java.sql.Date date = new java.sql.Date(new SimpleDateFormat("yyyymmdd").parse(new String(importFile.getField("JFDATE").getBytes(), "Cp1251").trim()).getTime());
+                                        String timeString = new String(importFile.getField("JFTIME").getBytes(), "Cp1251").trim();
+                                        Time time = Time.valueOf(timeString.substring(0, 2) + ":" + timeString.substring(2, 4) + ":" + timeString.substring(4, 6));
+                                        BigDecimal sumCash = new BigDecimal(new String(importFile.getField("JFTOTSUM").getBytes(), "Cp1251").trim());
+                                        String barcodeReceiptDetail = new String(importFile.getField("JFPLUCODE").getBytes(), "Cp1251").trim().replace("E", "");
+                                        BigDecimal quantityReceiptDetail = new BigDecimal(new String(importFile.getField("JFQUANT").getBytes(), "Cp1251").trim());
+                                        BigDecimal priceReceiptDetail = new BigDecimal(new String(importFile.getField("JFPRICE").getBytes(), "Cp1251").trim());
+                                        BigDecimal discountSumReceiptDetail = new BigDecimal(new String(importFile.getField("JFDISCSUM").getBytes(), "Cp1251").trim());
+                                        BigDecimal sumReceiptDetail = roundSales(HandlerUtils.safeSubtract(HandlerUtils.safeMultiply(priceReceiptDetail, quantityReceiptDetail), discountSumReceiptDetail), 10);
 
-                                    if (!oldReceiptNumber.equals(receiptNumber)) {
-                                        numberReceiptDetail = 1;
-                                        oldReceiptNumber = receiptNumber;
+                                        if (!oldReceiptNumber.equals(receiptNumber)) {
+                                            numberReceiptDetail = 1;
+                                            oldReceiptNumber = receiptNumber;
+                                        }
+                                        salesInfoList.add(new SalesInfo(false, numberCashRegister, null, zReportNumber, date, time, receiptNumber, date, time, null, null, null,
+                                                BigDecimal.ZERO, sumCash, BigDecimal.ZERO, barcodeReceiptDetail, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail,
+                                                discountSumReceiptDetail, null, null, numberReceiptDetail, fileName, null));
+                                        numberReceiptDetail++;
                                     }
-                                    salesInfoList.add(new SalesInfo(false, numberCashRegister, null, zReportNumber, date, time, receiptNumber, date, time, null, null, null,
-                                            BigDecimal.ZERO, sumCash, BigDecimal.ZERO, barcodeReceiptDetail, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail,
-                                            discountSumReceiptDetail, null, null, numberReceiptDetail, fileName, null));
-                                    numberReceiptDetail++;
                                 }
                             }
                         }
+                    }
                 }
             } catch (xBaseJException e) {
                 throw new RuntimeException(e.toString(), e.getCause());

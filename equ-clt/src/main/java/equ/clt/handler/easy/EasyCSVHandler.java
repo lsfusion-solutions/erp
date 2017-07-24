@@ -38,16 +38,14 @@ public class EasyCSVHandler {
 
                     List<String> directoriesList = new ArrayList<>();
                     for (CashRegisterInfo cashRegisterInfo : transactionInfo.machineryInfoList) {
-                        if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
-                            directoriesList.add(cashRegisterInfo.port.trim());
-                        if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
-                            directoriesList.add(cashRegisterInfo.directory.trim());
+                        if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory)))
+                            directoriesList.add(cashRegisterInfo.directory);
                     }
 
                     for (String directory : directoriesList) {
-                        File folder = new File(directory.trim());
+                        File folder = new File(directory);
                         folder.mkdir();
-                        File f = new File(directory.trim() + "/" + transactionInfo.dateTimeCode + ".csv");
+                        File f = new File(directory + "/" + transactionInfo.dateTimeCode + ".csv");
                         PrintWriter writer = new PrintWriter(
                                 new OutputStreamWriter(
                                         new FileOutputStream(f), "windows-1251"));
@@ -91,14 +89,14 @@ public class EasyCSVHandler {
 
                     List<String> directoriesList = new ArrayList<>();
                     for (PriceCheckerInfo priceCheckerInfo : transactionInfo.machineryInfoList) {
-                        if ((priceCheckerInfo.port != null) && (!directoriesList.contains(priceCheckerInfo.port.trim())))
-                            directoriesList.add(priceCheckerInfo.port.trim());
+                        if ((priceCheckerInfo.port != null) && (!directoriesList.contains(priceCheckerInfo.port)))
+                            directoriesList.add(priceCheckerInfo.port);
                     }
 
                     for (String directory : directoriesList) {
-                        File folder = new File(directory.trim());
+                        File folder = new File(directory);
                         folder.mkdir();
-                        File f = new File(directory.trim() + "/" + transactionInfo.dateTimeCode + ".csv");
+                        File f = new File(directory + "/" + transactionInfo.dateTimeCode + ".csv");
                         PrintWriter writer = new PrintWriter(
                                 new OutputStreamWriter(
                                         new FileOutputStream(f), "windows-1251"));
@@ -143,16 +141,16 @@ public class EasyCSVHandler {
 
                     List<String> directoriesList = new ArrayList<>();
                     for (ScalesInfo scalesInfo : transaction.machineryInfoList) {
-                        if ((scalesInfo.port != null) && (!directoriesList.contains(scalesInfo.port.trim())))
-                            directoriesList.add(scalesInfo.port.trim());
-                        if ((scalesInfo.directory != null) && (!directoriesList.contains(scalesInfo.directory.trim())))
-                            directoriesList.add(scalesInfo.directory.trim());
+                        if ((scalesInfo.port != null) && (!directoriesList.contains(scalesInfo.port)))
+                            directoriesList.add(scalesInfo.port);
+                        if ((scalesInfo.directory != null) && (!directoriesList.contains(scalesInfo.directory)))
+                            directoriesList.add(scalesInfo.directory);
                     }
 
                     for (String directory : directoriesList) {
-                        File folder = new File(directory.trim());
+                        File folder = new File(directory);
                         folder.mkdir();
-                        File f = new File(directory.trim() + "/" + transaction.dateTimeCode + ".csv");
+                        File f = new File(directory + "/" + transaction.dateTimeCode + ".csv");
                         PrintWriter writer = new PrintWriter(
                                 new OutputStreamWriter(
                                         new FileOutputStream(f), "windows-1251"));

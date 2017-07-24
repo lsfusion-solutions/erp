@@ -46,10 +46,8 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
                 List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
-                    if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
-                        directoriesList.add(cashRegisterInfo.port.trim());
-                    if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
-                        directoriesList.add(cashRegisterInfo.directory.trim());
+                    if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory)))
+                        directoriesList.add(cashRegisterInfo.directory);
                 }
 
                 for (String directory : directoriesList) {
@@ -184,35 +182,33 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                                  Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
 
         for (RequestExchange entry : requestExchangeList) {
-            if (entry.isSalesInfoExchange()) {
-                int count = 0;
-                String requestResult = null;
-                String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
-                String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
+            int count = 0;
+            String requestResult = null;
+            String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
+            String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
-                sendSalesLogger.info("Atol: creating request files");
-                for (String directory : entry.directoryStockMap.keySet()) {
+            sendSalesLogger.info("Atol: creating request files");
+            for (String directory : entry.directoryStockMap.keySet()) {
 
-                    if (!directorySet.contains(directory)) continue;
+                if (!directorySet.contains(directory)) continue;
 
-                    String exchangeDirectory = directory + "/IN";
-                    if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
-                        File salesFlagFile = new File(exchangeDirectory + "/sales-flag.txt");
-                        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(salesFlagFile), "utf-8"));
-                        writer.write("$$$TRANSACTIONSBYDATERANGE");
-                        writer.newLine();
-                        writer.write(dateFrom + ";" + dateTo);
-                        writer.close();
-                    } else
-                        requestResult = "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
-                    count++;
-                }
-                if(count > 0) {
-                    if(requestResult == null)
-                        succeededRequests.add(entry.requestExchange);
-                    else
-                        failedRequests.put(entry.requestExchange, requestResult);
-                }
+                String exchangeDirectory = directory + "/IN";
+                if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
+                    File salesFlagFile = new File(exchangeDirectory + "/sales-flag.txt");
+                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(salesFlagFile), "utf-8"));
+                    writer.write("$$$TRANSACTIONSBYDATERANGE");
+                    writer.newLine();
+                    writer.write(dateFrom + ";" + dateTo);
+                    writer.close();
+                } else
+                    requestResult = "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                count++;
+            }
+            if (count > 0) {
+                if (requestResult == null)
+                    succeededRequests.add(entry.requestExchange);
+                else
+                    failedRequests.put(entry.requestExchange, requestResult);
             }
         }
     }
@@ -500,7 +496,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                             BigDecimal sumReceiptDetail = getBigDecimalValue(entry, 11);
                             String numberZReport = getStringValue(entry, 13);
                             BigDecimal discountedSumReceiptDetail = getBigDecimalValue(entry, 14);
-                            BigDecimal discountSumReceiptDetail = HandlerUtils.safeSubtract(sumReceiptDetail, sumReceiptDetail.compareTo(BigDecimal.ZERO) < 0 ?
+                            BigDecimal discountSumReceiptDetail = HandlerUtils.safeSubtract(sumReceiptDetail, sumReceiptDetail != null && sumReceiptDetail.compareTo(BigDecimal.ZERO) < 0 ?
                                     HandlerUtils.safeNegate(discountedSumReceiptDetail) : discountedSumReceiptDetail);
                             String barcodeItem = getStringValue(entry, 18);
 

@@ -590,26 +590,23 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     for (RequestExchange entry : requestExchangeList) {
                         Statement statement = null;
                         try {
-                            if (entry.isSalesInfoExchange()) {
-
-                                String where = "";
-                                Long dateFrom = entry.dateFrom.getTime();
-                                Long dateTo = entry.dateTo.getTime();
-                                while (dateFrom <= dateTo) {
-                                    String dateString = new SimpleDateFormat("yyyyMMdd").format(new Date(dateFrom));
-                                    where += (where.isEmpty() ? "" : " OR ") + "SALESTIME LIKE '" + dateString + "%'";
-                                    dateFrom += 86400000;
-                                }
-                                if (!where.isEmpty()) {
-                                    statement = conn.createStatement();
-                                    String query = "UPDATE [SALES] SET FUSION_PROCESSED = 0 WHERE " + where;
-                                    sendSalesLogger.info("Astron RequestSalesInfo: " + query);
-                                    statement.executeUpdate(query);
-                                    conn.commit();
-                                }
-                                succeededRequests.add(entry.requestExchange);
-
+                            StringBuilder where = new StringBuilder();
+                            Long dateFrom = entry.dateFrom.getTime();
+                            Long dateTo = entry.dateTo.getTime();
+                            while (dateFrom <= dateTo) {
+                                String dateString = new SimpleDateFormat("yyyyMMdd").format(new Date(dateFrom));
+                                where.append((where.length() == 0) ? "" : " OR ").append("SALESTIME LIKE '").append(dateString).append("%'");
+                                dateFrom += 86400000;
                             }
+                            if (where.length() > 0) {
+                                statement = conn.createStatement();
+                                String query = "UPDATE [SALES] SET FUSION_PROCESSED = 0 WHERE " + where;
+                                sendSalesLogger.info("Astron RequestSalesInfo: " + query);
+                                statement.executeUpdate(query);
+                                conn.commit();
+                            }
+                            succeededRequests.add(entry.requestExchange);
+
                         } catch (SQLException e) {
                             failedRequests.put(entry.requestExchange, e.getMessage());
                             e.printStackTrace();
