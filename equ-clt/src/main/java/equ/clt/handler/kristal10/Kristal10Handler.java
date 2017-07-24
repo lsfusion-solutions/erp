@@ -70,9 +70,10 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
                 boolean skipScalesInfo = kristalSettings != null && kristalSettings.getSkipScalesInfo() != null && kristalSettings.getSkipScalesInfo();
                 boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
-                String weightShopIndices = kristalSettings.getWeightShopIndices();
+                String weightShopIndices = kristalSettings != null ? kristalSettings.getWeightShopIndices() : null;
                 boolean useIdItemInRestriction = kristalSettings != null && kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
                 List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
+                String notGTINPrefix = kristalSettings != null ? kristalSettings.getNotGTINPrefix() : null;
 
                 List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
@@ -121,6 +122,14 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
                             setAttribute(good, "marking-of-the-good", idItem);
+
+                            if(notGTINPrefix != null) {
+                                if(barcodeItem != null && barcodeItem.length() > 7 && !barcodeItem.startsWith(notGTINPrefix)) {
+                                    Element barcode = new Element("barcode");
+                                    barcode.setAttribute("barcode-type", "GTIN");
+                                    good.addContent(barcode);
+                                }
+                            }
 
                             boolean deleteBarcode = deleteBarcodeMap != null && deleteBarcodeMap.containsValue(idItem);
                             if(deleteBarcode)

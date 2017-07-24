@@ -24,6 +24,7 @@ public class Kristal10Settings implements Serializable{
     private String discountCardPercentType;
     private Map<Double, String> discountCardPercentTypeMap = new HashMap();
     private String discountCardDirectory;
+    private String notGTINPrefix;
 
     public Kristal10Settings() {
     }
@@ -182,5 +183,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setDiscountCardDirectory(String discountCardDirectory) {
         this.discountCardDirectory = discountCardDirectory;
+    }
+
+    public String getNotGTINPrefix() {
+        return notGTINPrefix;
+    }
+
+    public void setNotGTINPrefix(String notGTINPrefix) {
+        this.notGTINPrefix = notGTINPrefix;
     }
 }
