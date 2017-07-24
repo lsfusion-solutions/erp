@@ -1,0 +1,277 @@
+MODULE StockSkuLedgerReports;
+
+REQUIRE StockReports, StockTax, SkuLedgerTax, ZReport;
+
+operation(SkuLedger ledger) = OVERRIDE operationDocument(ledger), CASE 
+                                                                                    WHEN ledger IS SaleZReportSkuLedger THEN ZReportOperation.zReportSale
+                                                                                    WHEN ledger IS ReturnZReportSkuLedger THEN ZReportOperation.zReportReturn;
+nameOperation(SkuLedger ledger) = name(operation(ledger));
+
+META createGroup(object, name, number)
+    g###object name = DATA LOCAL BOOLEAN();
+    WHEN LOCAL SET(g###object()) AND countGroup() < 3 DO addGroup(number, name);
+    WHEN LOCAL SET(g###object()) AND countGroup() == 3 DO { g###object() <- NULL; };
+    WHEN LOCAL DROPPED(g###object()) DO deleteGroup(number);   
+END 
+
+order 'Номер' = DATA LOCAL INTEGER(INTEGER);
+nameGroup 'Группировка' = DATA VARSTRING[100](INTEGER);
+
+countGroup = OVERRIDE [=GROUP MAX order(INTEGER i)](), 0;
+
+addGroup(INTEGER i, VARSTRING[100] name) = {
+    nameGroup(i) <- name;
+    order(i) <- (OVERRIDE [=GROUP MAX order(INTEGER in)](), 0) + 1;
+}
+reorderGroup() = {
+    order(INTEGER i) <- PARTITION SUM 1 IF nameGroup(i) ORDER order(i);
+}
+deleteGroup(INTEGER i) = {
+    nameGroup(i) <- NULL;
+    order(i) <- NULL;
+    reorderGroup();
+}
+
+@createGroup(document, 'По документу', 1);
+
+@createGroup(stock, 'По магазину', 2);
+
+@createGroup(operation, 'По операции', 3);
+
+@createGroup(sku, 'По товару', 4);
+
+@createGroup(group, 'По группам товара', 5);
+
+inBackSheet 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+inBackSheetStocks 'Склады' () =
+    GROUP CONCAT name(Stock st) IF inBackSheet(st) ,', ' PREFCHARWIDTH 50;
+    
+inSession 'Отм.' = DATA LOCAL BOOLEAN (Operation.Operation);
+
+inSkuLedger = DATA LOCAL BOOLEAN (SkuLedger);
+
+nameGroup1 = DATA LOCAL VARSTRING[255] (SkuLedger);
+nameGroup2 = DATA LOCAL VARSTRING[255] (SkuLedger);
+nameGroup3 = DATA LOCAL VARSTRING[255] (SkuLedger);
+
+META setNameGroup(number)
+    setNameGroup##number () ={
+        nameGroup##number(SkuLedger sl) <- NULL;
+        IF order(1) == number THEN {
+            nameGroup##number(SkuLedger sl) <- (OVERRIDE numberDocument(sl), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
+        }
+        IF order(2) == number THEN {
+            nameGroup##number(SkuLedger sl) <- (OVERRIDE nameStock(sl), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
+        }
+        IF order(3) == number THEN {
+            nameGroup##number(SkuLedger sl) <- (OVERRIDE nameOperation(sl), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
+        }
+        IF order(4) == number THEN {
+            nameGroup##number(SkuLedger sl) <- (OVERRIDE nameSku(sl), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
+        }
+        IF order(5) == number THEN {
+            nameGroup##number(SkuLedger sl) <- (OVERRIDE nameSkuGroup((sku(sl))), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
+        }
+    }   
+END 
+
+@setNameGroup(1);
+@setNameGroup(2);
+@setNameGroup(3);
+
+fillReportGroupOperationFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt) = {  
+    inSkuLedger(SkuLedger sl) <- inBackSheet(stock(sl)) AND date(sl) >= df AND date(sl) <= dt AND include(gt, sku(sl)) AND inSession(operation(sl));
+ 
+    setNameGroup1();
+    setNameGroup2();
+    setNameGroup3();
+}
+
+sumVAT 'Сумма НДС' (SkuLedger sl) = NUMERIC[18,4]([= X*Y/(100+Y)](sum(sl), valueVAT(sku(sl), stock(sl), date(sl))));
+
+costSumVAT 'Сумма НДС поставщика' = GROUP SUM costSum(SkuLedger ledger, Batch batch)*Stock.valueVAT(batch)/100 BY ledger;
+
+costVATSum 'Сумма поставщика с НДС' (SkuLedger sl) = costSumVAT(sl) + costSum(sl);
+
+markup 'Торговая надбавка' (SkuLedger sl) = sum(sl) - costSum(sl);
+
+
+
+FORM printGroupOperation 'Отчет по операциям'   
+    PROPERTIES inBackSheetStocks()
+
+    PROPERTIES() countGroup
+    
+    OBJECTS sl = SkuLedger
+    PROPERTIES(sl) nameGroup1, nameGroup2, nameGroup3
+    PROPERTIES(sl) sum, sumVAT, costSumVAT, costSum, costVATSum, markup
+    FILTERS inSkuLedger(sl) 
+            
+    ORDER BY nameGroup1(sl), nameGroup2(sl), nameGroup3(sl)
+;
+
+printGroupOperation 'Отчет по операциям' (DATE dateFrom, DATE dateTo, GroupType gt) = {
+    fillReportGroupOperationFromTo(gt, dateFrom, dateTo);
+    PRINT printGroupOperation;
+}  IMAGE 'print.png' IN print;
+    
+xlsxGroupOperation 'Отчет по операциям (XLSX)' (DATE dateFrom, DATE dateTo, GroupType gt) = { 
+    fillReportGroupOperationFromTo(gt, dateFrom, dateTo);
+    PRINT printGroupOperation XLSX;
+} IMAGE 'print.png' IN print;
+
+FORM dialogStocksBackSheet 'Выбор складов'
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY VALUE(a), name(sg)
+    ORDER BY name(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, name
+    PROPERTIES (s) inBackSheet
+    ORDER BY name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            isCompany(s),
+            countCompanyStock(sg)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
+    FILTERGROUP select FILTER 'Отм.' inBackSheet(s) 'F9' 
+;
+
+DESIGN dialogStocksBackSheet {
+    BOX {
+        preferredSize = (1024, 768);
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX(TREE stockTree) {
+                caption = 'Склады';
+            }
+            MOVE BOX(s) {
+                fill = 3;
+                GRID(s) {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(name(s)){
+                    minimumCharWidth = 35;
+                    preferredCharWidth = 35;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+@extendFormFilterStockAccess(s, dialogStocksBackSheet, company);
+changeStocksBackSheet(GroupType gt, DATE df, DATE dt) = {
+    DIALOG dialogStocksBackSheet;
+}
+
+FORM reportGroupOperation 'Отчет по операциям'
+    OBJECTS df=DATE PANEL
+    PROPERTIES dateFrom = VALUE(df)
+   
+    OBJECTS dt=DATE PANEL
+    PROPERTIES dateTo = VALUE(dt)
+    
+    OBJECTS gt = GroupType PANEL
+    PROPERTIES(gt) SELECTOR name
+    
+    PROPERTIES inBackSheetStocks() ON CHANGE changeStocksBackSheet(gt, df, dt)
+    
+    TREE skuTree sk = Group PARENT parent
+    PROPERTIES inSession(sk) BACKGROUND backgroundInSession(sk)
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDER BY order(sk), skuTreeName
+    FILTERS groupType(sk) == gt
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+    
+    OBJECTS o = Operation.Operation
+    PROPERTIES(o) inSession, name
+    
+    PROPERTIES() gDocument, gStock, gOperation, gSku, gGroup
+    
+    OBJECTS gr = INTEGER 
+    PROPERTIES(gr) READONLY order, nameGroup
+    ORDER BY order(gr)
+    FILTERS nameGroup(gr)
+    
+    PROPERTIES(df,dt,gt) printGroupOperation, xlsxGroupOperation
+;
+
+onInitReportGroupOperation() = {
+    IF countAccessCompanyStock(currentUser()) ==1 THEN {
+        inBackSheet(Stock st)  <- TRUE WHERE  defaultCompanyStock(currentUser())== st; 
+    }    
+}
+
+EXTEND FORM reportGroupOperation 
+    EVENTS 
+        ON INIT onInitReportGroupOperation()
+;
+
+DESIGN reportGroupOperation {
+    NEW topContainer {
+        type = CONTAINERH;
+        NEW dates {
+            type = CONTAINERH;
+            caption = 'Период';
+            MOVE PROPERTY(dateFrom){caption = 'Дата (с)';}
+            MOVE PROPERTY(dateTo){caption = 'Дата (по)';}
+        }
+        MOVE BOX(gt);
+        NEW stocks {
+            caption = 'Склады';
+            type = CONTAINERH;
+            MOVE PROPERTY(inBackSheetStocks());        
+        }
+    }
+    NEW bottomContainer {
+            fill = 1;
+            type = SPLITH;
+    
+            NEW lContainer {
+                type = CONTAINERV;
+                fill = 1;
+                MOVE BOX(TREE skuTree){
+                    fill = 1;
+                };
+                MOVE BOX(o){
+                    fill = 1;
+                };
+            }
+            NEW rContainer {
+                type = CONTAINERV;
+                fill = 1;
+                NEW groupContainer {
+                    fill = 1;
+                    type = CONTAINERH;
+                    caption = 'Группировка';
+                    NEW checkBoxContainer{
+                        type = CONTAINERV;
+                        MOVE PROPERTY(gDocument());
+                        MOVE PROPERTY(gStock());
+                        MOVE PROPERTY(gOperation());
+                        MOVE PROPERTY(gSku());
+                        MOVE PROPERTY(gGroup());  
+                    }
+                    MOVE BOX(gr) { caption = 'Порядок группировки'; };
+                }
+                NEW printSkuContainer {
+                    type = CONTAINERH;
+                    caption = 'Печать';
+                    MOVE PROPERTY(printGroupOperation(df,dt,gt));
+                    MOVE PROPERTY(xlsxGroupOperation(df,dt,gt));
+                }
+            }
+            
+        }      
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    stockReports{
+        ADD reportGroupOperation;
+    }
+}

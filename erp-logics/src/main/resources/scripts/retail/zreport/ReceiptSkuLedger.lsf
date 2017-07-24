@@ -65,6 +65,10 @@ discountSum (ReceiptSaleSkuLedger ledger) += NUMERIC[18,4](discountSumReceiptSal
 
 costSum (ReceiptSaleSkuLedger ledger) += WHEN ledger IS ReceiptSaleSkuLedger THEN costSum[SkuLedger](ledger);
 
+//-----------------------
+
+@extendClassSaleZReportSkuLedger(ReceiptSaleSkuLedger);
+
 //---------------------- Возврат ----------------//
 
 CLASS ReceiptReturnSkuLedger 'Возврат за день (общ.)' : InLIFOSkuLedger, SaleLedger; //-- агрегированный объект
@@ -124,5 +128,11 @@ price (ReceiptReturnSkuLedger ledger) += price(ledger);
 sum[SaleLedger] (ReceiptReturnSkuLedger ledger) += -NUMERIC[18,4](sumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
 discountSum (ReceiptReturnSkuLedger ledger) += -NUMERIC[18,4](discountSumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
 costSum (ReceiptReturnSkuLedger ledger) += WHEN ledger IS ReceiptReturnSkuLedger THEN -costSum[SkuLedger](ledger);
+
+//-------------
+
+@extendClassReturnZReportSkuLedger(ReceiptReturnSkuLedger);
+
+//-------------
 
 isReceiptDetail (SaleLedger d) = d IS ReceiptSaleSkuLedger OR d IS ReceiptReturnSkuLedger;
