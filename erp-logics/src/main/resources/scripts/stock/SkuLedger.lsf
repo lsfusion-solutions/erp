@@ -112,7 +112,7 @@ prevSupplierStock (Batch batch) = PREV(supplierStock(batch));
 id 'Код' = ABSTRACT VARSTRING[100] (Batch) MATERIALIZED INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15 IN recognize;
 batch = GROUP MAX Batch b BY id(b);
 
-@defineOption(disableUniqueIdBatch, 'Не контролировать уникальность кодов партий', stock);
+@defineOption(disableUniqueIdBatch, 'Не контролировать уникальность кодов партий', stock1);
 CONSTRAINT SETCHANGED(id(Batch b)) AND [= GROUP SUM 1 BY id(Batch b)](id(b)) > 1 AND NOT disableUniqueIdBatch() MESSAGE 'Нарушена уникальность свойства Код партии';
 
 expires(Batch batch, DATETIME dateTime, LONG period) = expiryDate(batch) < sum(toDate(dateTime), period);
@@ -443,7 +443,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
         PROPERTIES() useFillBatchProperty
     ;
     DESIGN options {
-        commons {
+        stock1 {
             MOVE PROPERTY(useFillBatchProperty());
         }
     }

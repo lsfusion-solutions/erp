@@ -16,6 +16,13 @@ REQUIRE System,
         StockContract,
         StockTax;
 
+DESIGN options {
+    pane {
+        NEW invoices  {
+            caption = 'Накладная';
+        }
+    }
+}
 CLASS ABSTRACT Invoice 'Накладная' : Document;
 CLASS ABSTRACT InvoiceDetail 'Строка накладной' : DocumentDetail;
 
@@ -81,7 +88,7 @@ invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATER
 
 notNullInvoiceVAT 'В накладной должен быть задан НДС' = DATA BOOLEAN ();
 EXTEND FORM options PROPERTIES notNullInvoiceVAT();
-DESIGN options { commons { MOVE PROPERTY(notNullInvoiceVAT()); } }
+DESIGN options { invoices { MOVE PROPERTY(notNullInvoiceVAT()); } }
 
 CONSTRAINT notNullInvoiceVAT() AND isItem(sku(InvoiceDetail detail)) AND isPosted(invoice(detail)) AND NOT valueVAT(detail)
     MESSAGE 'Не задан НДС для строки товара';
@@ -132,19 +139,15 @@ EXTEND FORM options
 ;
 
 DESIGN options {
-    pane {
-        NEW invoices  {
-            type = CONTAINERV;
-            caption = 'Накладная';
-            NEW topInvoicesContainer{
-                type = CONTAINERH;
-                MOVE PROPERTY(negativeValueInvoices());                
-            }
-            NEW document {
+    invoices  {
+        NEW topInvoicesContainer {
+            type = CONTAINERH;
+            MOVE PROPERTY(negativeValueInvoices());                
+        }
+        NEW document {
 //                fill = 1;
-                type = COLUMNS;
-                columns = 2;
-            }
+            type = COLUMNS;
+            columns = 2;
         }
     }
 }
