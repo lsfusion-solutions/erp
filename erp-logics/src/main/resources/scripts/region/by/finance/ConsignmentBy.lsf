@@ -443,6 +443,8 @@ raceQuantity 'Количество ездок' (consignment) = ABSTRACT INTEGER 
 
 countPages 'Кол-во листов в приложении' (consignment) = ABSTRACT INTEGER (Consignment);
 
+additionalDocuments 'С товаром переданы документы' (consignment) = ABSTRACT VARSTRING[250] (Consignment);
+
 dataNote 'Примечание' (consignment) = ABSTRACT VARSTRING[500] (Consignment);
 overNote 'Примечание' (consignment) = DATA VARSTRING[500] (Consignment) ;
 extraNote 'Примечание' (consignment) = ABSTRACT VARSTRING[500] (Consignment) ;
@@ -609,7 +611,7 @@ META defineConsignmentFormSimple(form, caption)
                        UNPCustomer, UNPSupplier, addressSupplier, addressCustomer,
                        fullNameSupplier, fullNameCustomer, extraDescriptionSupplier, extraDescriptionCustomer, number, series, seriesNumber, countConsignmentDetail,
                        isCustomsFlow, printDetailCustomsFlow, isCurrency, shortNameCurrency,
-                       note, extraNote, documentNameCurrency, countPages, useEmptyVATConsignmentDetail
+                       note, extraNote, documentNameCurrency, countPages, additionalDocuments, useEmptyVATConsignmentDetail
         PROPERTIES()   TODRAW c countRowsSimpleVertical, countRowsSimpleHorizontal
         OBJECTS d=ConsignmentDetail
 
@@ -638,7 +640,7 @@ META defineConsignmentFormSimpleExtra(form, caption)
                        UNPCustomer, UNPSupplier, addressSupplier, addressCustomer,
                        fullNameSupplier, fullNameCustomer, extraDescriptionSupplier, extraDescriptionCustomer, number, series, seriesNumber, countConsignmentDetail,
                        isCustomsFlow, isCurrency, shortNameCurrency,
-                       note, extraNote, documentNameCurrency, countPages, useEmptyVATConsignmentDetail
+                       note, extraNote, documentNameCurrency, countPages, additionalDocuments, useEmptyVATConsignmentDetail
         PROPERTIES()   TODRAW c countRowsSimpleVertical, countRowsSimpleHorizontal
         OBJECTS d=ConsignmentDetail
 
@@ -736,7 +738,7 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
                        prefix##isCurrencyConsignment=isCurrency, prefix##shortNameCurrencyConsignment=shortNameCurrency,
                        prefix##noteConsignment=note, prefix##documentNameCurrencyConsignment=documentNameCurrency,    
                        prefix##countPagesConsignment=countPages, prefix##useEmptyVATConsignmentDetailConsignment = useEmptyVATConsignmentDetail,
-                       prefix##notPrintGr=notPrintGr, 
+                       prefix##notPrintGr=notPrintGr, prefix##additionalDocumentsConsignment=additionalDocuments, 
                        prefix##extraNoteConsignment=extraNote
                         
         PROPERTIES()   TODRAW prefix prefix##countRowsVerticalA=countRowsVerticalA, prefix##countRowsVerticalAB=countRowsVerticalAB, 
@@ -949,7 +951,7 @@ FORM consignment 'Атрибуты накладной'
                    arrivalTime, downtime, departureTime READONLY, raceQuantity
     PROPERTIES(c)  quantityConsignmentDetail, overPackQuantityConsignmentDetail, grossWeightConsignmentDetail,
                    sumConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
-                   countConsignmentDetail, note, shortNameCurrency, countPages
+                   countConsignmentDetail, note, shortNameCurrency, countPages, additionalDocuments
     PROPERTIES(c) SHOWIF showPayer(c) fullNamePayer, UNPPayer, addressPayer                 
 
 
@@ -1016,11 +1018,13 @@ DESIGN consignment {
             NEW misc {
                 caption = 'Дополнительно';
                 
-                type = CONTAINERH;
+                type = COLUMNS;
+                columns = 3;
                 MOVE PROPERTY (note(c));
                 MOVE PROPERTY (shortNameCurrency(c));
         
                 MOVE PROPERTY(countPages(c));
+                MOVE PROPERTY(additionalDocuments(c));
             }
         }
 
@@ -1184,6 +1188,8 @@ META defineConsignmentHeaderInner (object, class)
     raceQuantity(class o) <- 1 WHEN SET(o IS class);
 
     countPages 'Кол-во страниц в приложении' (object) = DATA INTEGER (class);
+    
+    additionalDocuments 'С товаром переданы документы' (object) = DATA VARSTRING[250] (class);
 END
 
 META defineConsignmentAbstractHeader(object)
@@ -1240,6 +1246,8 @@ META defineConsignmentAbstractHeaderInner(object, class)
     raceQuantity 'Количество ездок' (object) = ABSTRACT INTEGER (class) IN carConsignment;
 
     countPages 'Кол-во листов в приложении' (object) = ABSTRACT INTEGER (class); 
+
+    additionalDocuments 'С товаром переданы документы' (object) = ABSTRACT VARSTRING[250] (class); 
 END
 
 META defineConsignmentInterfaceHeader(object, stockProp)
@@ -1273,6 +1281,8 @@ META implementConsignmentHeader (concrete)
     readdressing[Consignment] (concrete consignment) += readdressing (consignment);
     
     countPages[Consignment] (concrete consignment) += countPages (consignment);
+
+    additionalDocuments[Consignment] (concrete consignment) += additionalDocuments (consignment);
     
     contract[Consignment](concrete consignment) += contractSku (consignment);
     overShipmentBase[Consignment] (concrete consignment) += overShipmentBase (consignment);
@@ -1325,6 +1335,8 @@ META implementConsignmentHeaderData (concrete) // без OVERRIDE для dataArr
     
     countPages[Consignment] (concrete consignment) += countPages (consignment);
 
+    additionalDocuments[Consignment] (concrete consignment) += additionalDocuments (consignment);
+
     over##concrete##Base[Consignment] (concrete consignment) += over##concrete##Base (consignment);
 
     issuanceAllowed[Consignment] (concrete consignment) += issuanceAllowed (consignment);
@@ -1369,6 +1381,8 @@ META implementConsignmentDocumentHeader (concrete, object, prefix)
     readdressing (###object concrete) += readdressing (concrete);
 
     countPages (###object concrete) += countPages (concrete);
+
+    additionalDocuments (###object concrete) += additionalDocuments (concrete);
 
     overShipmentBase (###object concrete) += overShipmentBase (concrete);
 
@@ -1452,6 +1466,8 @@ META implementConsignmentDocumentHeaderPrefix (concrete, object, NS)
     raceQuantity[NS.NS] (NS concrete) += raceQuantity (concrete);
 
     countPages[NS.NS] (NS concrete) += countPages (concrete);
+
+    additionalDocuments[NS.NS] (NS concrete) += additionalDocuments (concrete);
 END
 
 // -------------------------- Implement строк накладной -------------------- //
