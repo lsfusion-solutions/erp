@@ -20,9 +20,7 @@ import org.xBaseJ.xBaseJException;
 import java.io.*;
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.sql.SQLException;
 import java.sql.Time;
-import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -77,7 +75,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                         if (cashRegister.succeeded || cashRegister.directory == null)
                             succeededCashRegisterList.add(cashRegister);
                         else {
-                            String directory = cashRegister.directory.trim();
+                            String directory = cashRegister.directory;
                             List<CashRegisterInfo> cashRegisterEntry = directoryMap.containsKey(directory) ? directoryMap.get(directory) : new ArrayList<CashRegisterInfo>();
                             cashRegisterEntry.add(cashRegister);
                             directoryMap.put(directory, cashRegisterEntry);
@@ -812,13 +810,11 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         boolean useDataDirectory = htcSettings == null || htcSettings.isUseDataDirectory();
 
         for (RequestExchange entry : requestExchangeList) {
-            if (entry.isSalesInfoExchange()) {
-                for (String directory : entry.directoryStockMap.keySet()) {
-                    if (!directorySet.contains(directory)) continue;
-                    List<RequestExchange> requestExchangeEntry = requestExchangeMap.containsKey(directory) ? requestExchangeMap.get(directory) : new ArrayList<RequestExchange>();
-                    requestExchangeEntry.add(entry);
-                    requestExchangeMap.put(directory, requestExchangeEntry);
-                }
+            for (String directory : entry.directoryStockMap.keySet()) {
+                if (!directorySet.contains(directory)) continue;
+                List<RequestExchange> requestExchangeEntry = requestExchangeMap.containsKey(directory) ? requestExchangeMap.get(directory) : new ArrayList<RequestExchange>();
+                requestExchangeEntry.add(entry);
+                requestExchangeMap.put(directory, requestExchangeEntry);
             }
         }
 
@@ -880,7 +876,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         String result = getDBFFieldValue(importFile, fieldName, charset);
         return result == null ? null : new Double(result).intValue();
     }
-    
+
     protected String trim(String input, Integer length) {
         return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
     }

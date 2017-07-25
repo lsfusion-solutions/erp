@@ -590,9 +590,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     private Map<Integer, Integer> waitForSignalsExecution(Connection conn, Map<Integer, Integer> versionMap) throws SQLException {
         Statement statement = null;
         try {
-            String inVersions = "";
+            StringBuilder inVersions = new StringBuilder();
             for (Integer version : versionMap.keySet())
-                inVersions += (inVersions.isEmpty() ? "" : ",") + version;
+                inVersions.append((inVersions.length() == 0) ? "" : ",").append(version);
 
             statement = conn.createStatement();
             String sql = "SELECT version FROM `signal` WHERE version IN (" + inVersions + ")";
@@ -1079,50 +1079,48 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
                                  Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange requestExchange : requestExchangeList) {
-            if (requestExchange.isSalesInfoExchange()) {
 
-                for(String directory : requestExchange.directoryStockMap.keySet()) {
-                    if(directorySet.contains(directory)) {
-                        Connection conn = null;
-                        Statement statement = null;
-                        try {
-                            UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
-                            if (params.connectionString != null) {
-                                conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
-                                String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(requestExchange.dateFrom);
-                                Calendar cal = Calendar.getInstance();
-                                cal.setTime(requestExchange.dateTo);
-                                cal.add(Calendar.DATE, 1);
-                                sendSalesLogger.info("UKM4 RequestSalesInfo: dateTo is " + cal.getTime());
-                                String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+            for (String directory : requestExchange.directoryStockMap.keySet()) {
+                if (directorySet.contains(directory)) {
+                    Connection conn = null;
+                    Statement statement = null;
+                    try {
+                        UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
+                        if (params.connectionString != null) {
+                            conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+                            String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(requestExchange.dateFrom);
+                            Calendar cal = Calendar.getInstance();
+                            cal.setTime(requestExchange.dateTo);
+                            cal.add(Calendar.DATE, 1);
+                            sendSalesLogger.info("UKM4 RequestSalesInfo: dateTo is " + cal.getTime());
+                            String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
 
-                                String cashIdWhere = null;
+                                StringBuilder cashIdWhere = null;
                                 if (!requestExchange.cashRegisterSet.isEmpty()) {
-                                    cashIdWhere = "AND cash_id IN (";
+                                    cashIdWhere = new StringBuilder("AND cash_id IN (");
                                     for (CashRegisterInfo cashRegister : requestExchange.cashRegisterSet) {
-                                        cashIdWhere += cashRegister.number == null ? "" : (cashRegister.number + ",");
+                                        cashIdWhere .append( cashRegister.number == null ? "" : (cashRegister.number + ","));
                                     }
-                                    cashIdWhere = cashIdWhere.substring(0, cashIdWhere.length() - 1) + ")";
+                                    cashIdWhere = new StringBuilder(cashIdWhere.substring(0, cashIdWhere.length() - 1) + ")");
                                 }
 
-                                statement = conn.createStatement();
-                                String query = String.format("UPDATE receipt SET ext_processed = 0 WHERE date >= '%s' AND date <= '%s'", dateFrom, dateTo) +
-                                        (cashIdWhere == null ? "" : cashIdWhere);
-                                sendSalesLogger.info("UKM4 RequestSalesInfo: " + query);
-                                statement.execute(query);
-                                succeededRequests.add(requestExchange.requestExchange);
-                            }
-                        } catch (SQLException e) {
-                            failedRequests.put(requestExchange.requestExchange, e.getMessage());
-                            e.printStackTrace();
-                        } finally {
-                            try {
-                                if (statement != null)
-                                    statement.close();
-                                if (conn != null)
-                                    conn.close();
-                            } catch (SQLException ignored) {
-                            }
+                            statement = conn.createStatement();
+                            String query = String.format("UPDATE receipt SET ext_processed = 0 WHERE date >= '%s' AND date <= '%s'", dateFrom, dateTo) +
+                                    (cashIdWhere == null ? "" : cashIdWhere.toString());
+                            sendSalesLogger.info("UKM4 RequestSalesInfo: " + query);
+                            statement.execute(query);
+                            succeededRequests.add(requestExchange.requestExchange);
+                        }
+                    } catch (SQLException e) {
+                        failedRequests.put(requestExchange.requestExchange, e.getMessage());
+                        e.printStackTrace();
+                    } finally {
+                        try {
+                            if (statement != null)
+                                statement.close();
+                            if (conn != null)
+                                conn.close();
+                        } catch (SQLException ignored) {
                         }
                     }
                 }

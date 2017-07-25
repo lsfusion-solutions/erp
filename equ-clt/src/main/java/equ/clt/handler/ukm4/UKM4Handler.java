@@ -56,14 +56,14 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
 
                     List<String> directoriesList = new ArrayList<>();
                     for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
-                        if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
-                            directoriesList.add(cashRegisterInfo.port.trim());
-                        if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
-                            directoriesList.add(cashRegisterInfo.directory.trim());
+                        if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port)))
+                            directoriesList.add(cashRegisterInfo.port);
+                        if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory)))
+                            directoriesList.add(cashRegisterInfo.directory);
                     }
 
                     for (String directory : directoriesList) {
-                        if (!new File(directory.trim()).exists())
+                        if (!new File(directory).exists())
                             throw new RuntimeException("The folder " + directory + " doesn't exist");
 
                         //BAR.DBF

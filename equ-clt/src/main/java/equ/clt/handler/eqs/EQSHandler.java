@@ -468,27 +468,24 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             Connection conn = null;
             Statement statement = null;
             try {
-                if (entry.isSalesInfoExchange()) {
+                for (String directory : entry.directoryStockMap.keySet()) {
+                    if (directorySet.contains(directory)) {
 
-                    for (String directory : entry.directoryStockMap.keySet()) {
-                        if (directorySet.contains(directory)) {
+                        EQSConnectionString params = new EQSConnectionString(directory);
+                        if (params.connectionString != null) {
+                            sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
+                            conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
-                            EQSConnectionString params = new EQSConnectionString(directory);
-                            if (params.connectionString != null) {
-                                sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
-                                conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+                            String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
+                            Calendar cal = Calendar.getInstance();
+                            cal.setTime(entry.dateTo);
+                            cal.add(Calendar.DATE, 1);
+                            String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+                            sendSalesLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
 
-                                String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
-                                Calendar cal = Calendar.getInstance();
-                                cal.setTime(entry.dateTo);
-                                cal.add(Calendar.DATE, 1);
-                                String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
-                                sendSalesLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
-
-                                statement = conn.createStatement();
-                                statement.execute(String.format("UPDATE history SET new = 1 WHERE date >= '%s' AND date <='%s'", dateFrom, dateTo));
-                                succeededRequests.add(entry.requestExchange);
-                            }
+                            statement = conn.createStatement();
+                            statement.execute(String.format("UPDATE history SET new = 1 WHERE date >= '%s' AND date <='%s'", dateFrom, dateTo));
+                            succeededRequests.add(entry.requestExchange);
                         }
                     }
                 }

@@ -67,8 +67,8 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     protected List<String> getDirectoriesList(List<CashRegisterInfo> machineryInfoList) {
         List<String> directoriesList = new ArrayList<>();
         for (CashRegisterInfo machinery : machineryInfoList) {
-            if (machinery.directory != null && !directoriesList.contains(machinery.directory.trim()))
-                directoriesList.add(machinery.directory.trim());
+            if (machinery.directory != null && !directoriesList.contains(machinery.directory))
+                directoriesList.add(machinery.directory);
         }
         return directoriesList;
     }
@@ -94,17 +94,17 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                 Map<String, String> directoriesMap = new HashMap<>();
                 for (CashRegisterInfo cashRegisterInfo : transactionInfo.machineryInfoList) {
-                    if ((cashRegisterInfo.port != null) && (!directoriesMap.containsKey(cashRegisterInfo.port.trim())))
-                        directoriesMap.put(cashRegisterInfo.port.trim(), cashRegisterInfo.weightCodeGroupCashRegister);
-                    if ((cashRegisterInfo.directory != null) && (!directoriesMap.containsKey(cashRegisterInfo.directory.trim())))
-                        directoriesMap.put(cashRegisterInfo.directory.trim(), cashRegisterInfo.weightCodeGroupCashRegister);
+                    if ((cashRegisterInfo.port != null) && (!directoriesMap.containsKey(cashRegisterInfo.port)))
+                        directoriesMap.put(cashRegisterInfo.port, cashRegisterInfo.weightCodeGroupCashRegister);
+                    if ((cashRegisterInfo.directory != null) && (!directoriesMap.containsKey(cashRegisterInfo.directory)))
+                        directoriesMap.put(cashRegisterInfo.directory, cashRegisterInfo.weightCodeGroupCashRegister);
                 }
 
                 for (Map.Entry<String, String> entry : directoriesMap.entrySet()) {
                     String directory = entry.getKey();
                     String weightPrefix = entry.getValue() != null ? entry.getValue() : "22";
 
-                    String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
+                    String exchangeDirectory = directory + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
 
                     makeDirsIfNeeded(exchangeDirectory);
 
@@ -340,13 +340,13 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             new OutputStreamWriter(
                                     new FileOutputStream(softFile), "windows-1251"));
 
-                    String logRecord = "softcheque data: ";
+                    StringBuilder logRecord = new StringBuilder("softcheque data: ");
                     for (Map.Entry<String, SoftCheckInvoice> userInvoice : softCheckInfo.invoiceMap.entrySet()) {
-                        logRecord += userInvoice.getKey() + ";";
+                        logRecord.append(userInvoice.getKey()).append(";");
                         String record = String.format("%s|1|1|1|1|1|1|1|99996666|1|1|0", trimLeadingZeroes(userInvoice.getKey()));
                         writer.println(record);
                     }
-                    sendSoftCheckLogger.info(logRecord);
+                    sendSoftCheckLogger.info(logRecord.toString());
                     writer.close();
 
                     sendSoftCheckLogger.info("Kristal: deletion of WAITSOFT file");
@@ -383,44 +383,42 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
         String exportPrefixPath = kristalSettings != null ? kristalSettings.getExportPrefixPath() : null;
 
         for (RequestExchange entry : requestExchangeList) {
-            if(entry.isSalesInfoExchange()) {
-                int count = 0;
-                String requestResult = null;
-                for (String directory : entry.directoryStockMap.keySet()) {
+            int count = 0;
+            String requestResult = null;
+            for (String directory : entry.directoryStockMap.keySet()) {
 
-                    if (!directorySet.contains(directory)) continue;
+                if (!directorySet.contains(directory)) continue;
 
-                    sendSalesLogger.info("Kristal: creating request files for directory : " + directory);
+                sendSalesLogger.info("Kristal: creating request files for directory : " + directory);
 
-                    String dateFrom = new SimpleDateFormat("yyyyMMdd").format(entry.dateFrom);
+                String dateFrom = new SimpleDateFormat("yyyyMMdd").format(entry.dateFrom);
 
-                    Calendar cal = Calendar.getInstance();
-                    cal.setTime(entry.dateTo);
-                    cal.add(Calendar.DATE, 1);
-                    String dateTo = new SimpleDateFormat("yyyyMMdd").format(cal.getTime());
+                Calendar cal = Calendar.getInstance();
+                cal.setTime(entry.dateTo);
+                cal.add(Calendar.DATE, 1);
+                String dateTo = new SimpleDateFormat("yyyyMMdd").format(cal.getTime());
 
-                    String exchangeDirectory = directory + (exportPrefixPath == null ?  "/export" : exportPrefixPath) + "/request/";
+                String exchangeDirectory = directory + (exportPrefixPath == null ? "/export" : exportPrefixPath) + "/request/";
 
-                    if (makeDirsIfNeeded(exchangeDirectory)) {
-                        Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "request.xml"), "utf-8"));
+                if (makeDirsIfNeeded(exchangeDirectory)) {
+                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "request.xml"), "utf-8"));
 
-                        String data = String.format("<?xml version=\"1.0\" encoding=\"windows-1251\" ?>\n" +
-                                "<REPORLOAD REPORTTYPE=\"2\" >\n" +
-                                "<REPORT DATEBEGIN=\"%s\" DATEEND=\"%s\"/>\n" +
-                                "</REPORLOAD>", dateFrom, dateTo);
+                    String data = String.format("<?xml version=\"1.0\" encoding=\"windows-1251\" ?>\n" +
+                            "<REPORLOAD REPORTTYPE=\"2\" >\n" +
+                            "<REPORT DATEBEGIN=\"%s\" DATEEND=\"%s\"/>\n" +
+                            "</REPORLOAD>", dateFrom, dateTo);
 
-                        writer.write(data);
-                        writer.close();
-                    } else
-                        requestResult = "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
-                    count++;
-                }
-                if(count > 0) {
-                    if(requestResult == null)
-                        succeededRequests.add(entry.requestExchange);
-                    else
-                        failedRequests.put(entry.requestExchange, requestResult);
-                }
+                    writer.write(data);
+                    writer.close();
+                } else
+                    requestResult = "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                count++;
+            }
+            if (count > 0) {
+                if (requestResult == null)
+                    succeededRequests.add(entry.requestExchange);
+                else
+                    failedRequests.put(entry.requestExchange, requestResult);
             }
         }
     }
@@ -682,15 +680,15 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 Connection conn = null;
                 try {
 
-                    String nppCashRegisters = "";
+                    StringBuilder nppCashRegisters = new StringBuilder();
                     for (List<Object> cashRegisterEntry : cashRegisterList) {
                         Integer nppCashRegister = cashRegisterEntry.size() >= 1 ? (Integer) cashRegisterEntry.get(0) : null;
                         String directory = cashRegisterEntry.size() >= 2 ? (String) cashRegisterEntry.get(1) : null;
                         if (directory != null && directory.contains(dir) || dir.equals(host)) //dir.equals(host) - old host format, without dir
-                            nppCashRegisters += nppCashRegister + ",";
+                            nppCashRegisters.append(nppCashRegister).append(",");
                     }
-                    nppCashRegisters = nppCashRegisters.isEmpty() ? nppCashRegisters : nppCashRegisters.substring(0, nppCashRegisters.length() - 1);
-                    if (!nppCashRegisters.isEmpty()) {
+                    nppCashRegisters = new StringBuilder((nppCashRegisters.length() == 0) ? nppCashRegisters.toString() : nppCashRegisters.substring(0, nppCashRegisters.length() - 1));
+                    if (nppCashRegisters.length() > 0) {
                         requestExchangeLogger.info("Kristal: checking zReports sum, CashRegisters: " + nppCashRegisters);
 
                         String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
@@ -824,7 +822,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
             for (String directory : directorySet) {
 
-                String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
+                String exchangeDirectory = directory + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
                 makeDirsIfNeeded(exchangeDirectory);
 
                 //stopList.txt
@@ -873,7 +871,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
         for (String directory : requestExchange.directoryStockMap.keySet()) {
             if (directorySet.contains(directory)) {
-                String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
+                String exchangeDirectory = directory + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
                 makeDirsIfNeeded(exchangeDirectory);
 
                 //discountCard.txt
@@ -923,7 +921,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
             String directory = entry.getKey();
             Set<String> stockSet = entry.getValue();
 
-            String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
+            String exchangeDirectory = directory + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
             makeDirsIfNeeded(exchangeDirectory);
 
             //cashier.txt
@@ -1336,14 +1334,14 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     }
 
     private String makeIdItemGroup(List<ItemGroup> hierarchyItemGroup, boolean type3, boolean reverse) {
-        String idItemGroup = "";
+        StringBuilder idItemGroup = new StringBuilder();
         int delta = 0;
         if (type3) {
             for (int i = hierarchyItemGroup.size() - 1; i >=0 ; i--) {
                 String id = hierarchyItemGroup.get(i).idItemGroup;
                 if (id == null) id = "0";
                 String[] splitted = id.split("_");
-                idItemGroup += splitted[(Math.min(splitted.length, 2) - 1)] + "|";
+                idItemGroup.append(splitted[(Math.min(splitted.length, 2) - 1)]).append("|");
             }
         } else { //от самой общей группы до самой конкретной
             if(reverse) {
@@ -1351,7 +1349,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     String id = hierarchyItemGroup.get(i).idItemGroup;
                     if (id == null) id = "0";
                     if(!id.equals("000000000"))
-                        idItemGroup += id + "|";
+                        idItemGroup.append(id).append("|");
                     else
                         delta++;
                 }
@@ -1360,20 +1358,20 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     String id = hierarchyItemGroup.get(i).idItemGroup;
                     if (id == null) id = "0";
                     if (!id.equals("000000000"))
-                        idItemGroup += id + "|";
+                        idItemGroup.append(id).append("|");
                     else
                         delta++;
                 }
             }
         }
         for (int i = (hierarchyItemGroup.size() - delta); i < 5; i++) {
-            idItemGroup += "0|";
+            idItemGroup.append("0|");
         }
-        if(type3 && idItemGroup.isEmpty()) {
-            idItemGroup = "0|0|0|0|0";
+        if(type3 && (idItemGroup.length() == 0)) {
+            idItemGroup = new StringBuilder("0|0|0|0|0");
         } else
-            idItemGroup = idItemGroup.substring(0, idItemGroup.length() - 1);
-        return idItemGroup;
+            idItemGroup = new StringBuilder(idItemGroup.substring(0, idItemGroup.length() - 1));
+        return idItemGroup.toString();
     }
 
     private BigDecimal readBigDecimalXMLAttribute(Element element, String field) {

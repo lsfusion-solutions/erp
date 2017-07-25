@@ -77,10 +77,10 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                 List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
-                    if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
-                        directoriesList.add(cashRegisterInfo.port.trim());
-                    if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
-                        directoriesList.add(cashRegisterInfo.directory.trim());
+                    if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port)))
+                        directoriesList.add(cashRegisterInfo.port);
+                    if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory)))
+                        directoriesList.add(cashRegisterInfo.directory);
                 }
 
                 if(directoriesList.isEmpty())
@@ -88,7 +88,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                 for (String directory : directoriesList) {
 
-                    String exchangeDirectory = directory.trim() + "/products/source/";
+                    String exchangeDirectory = directory + "/products/source/";
 
                     if (!new File(exchangeDirectory).exists()) {
                         processTransactionLogger.info("Kristal10: exchange directory not found, trying to create: " + exchangeDirectory);
@@ -391,34 +391,32 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         for (RequestExchange entry : requestExchangeList) {
             int count = 0;
             String requestResult = null;
-            if(entry.isSalesInfoExchange()) {
 
-                for (String directory : entry.directoryStockMap.keySet()) {
+            for (String directory : entry.directoryStockMap.keySet()) {
 
-                    if (!directorySet.contains(directory)) continue;
+                if (!directorySet.contains(directory)) continue;
 
-                    sendSalesLogger.info("Kristal10: creating request files for directory : " + directory);
-                    String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
-                    String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
+                sendSalesLogger.info("Kristal10: creating request files for directory : " + directory);
+                String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
+                String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
-                    String exchangeDirectory = directory + "/reports/source/";
+                String exchangeDirectory = directory + "/reports/source/";
 
-                    if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
-                        Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "reports.request"), encoding));
-                        writer.write(String.format("dateRange: %s-%s\nreport: purchases", dateFrom, dateTo));
-                        writer.close();
-                    } else
-                        requestResult = "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
-                    count++;
-                }
-                if(count > 0) {
-                    if(requestResult == null)
-                        succeededRequests.add(entry.requestExchange);
-                    else
-                        failedRequests.put(entry.requestExchange, requestResult);
+                if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
+                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "reports.request"), encoding));
+                    writer.write(String.format("dateRange: %s-%s\nreport: purchases", dateFrom, dateTo));
+                    writer.close();
                 } else
-                    succeededRequests.add(entry.requestExchange);
+                    requestResult = "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                count++;
             }
+            if (count > 0) {
+                if (requestResult == null)
+                    succeededRequests.add(entry.requestExchange);
+                else
+                    failedRequests.put(entry.requestExchange, requestResult);
+            } else
+                succeededRequests.add(entry.requestExchange);
         }
     }
 
@@ -577,7 +575,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 stopListInfo.timeTo = new Time(23, 59, 59);
             }
 
-            String exchangeDirectory = directory.trim() + "/products/source/";
+            String exchangeDirectory = directory + "/products/source/";
 
             if (!new File(exchangeDirectory).exists())
                 new File(exchangeDirectory).mkdirs();
@@ -602,7 +600,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     rootElement.addContent(good);
 
                     if (useShopIndices) {
-                        String shopIndices = "";
+                        StringBuilder shopIndices = new StringBuilder();
                         Set<MachineryInfo> machineryInfoSet = stopListInfo.handlerMachineryMap.get(getClass().getName());
                         if (machineryInfoSet != null) {
                             Set<String> stockSet = new HashSet<>();
@@ -611,11 +609,11 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                     stockSet.add(((CashRegisterInfo) machineryInfo).section);
                             }
                             for (String idStock : stockSet) {
-                                shopIndices += idStock + " ";
+                                shopIndices.append(idStock).append(" ");
                             }
                         }
-                        shopIndices = shopIndices.isEmpty() ? shopIndices : shopIndices.substring(0, shopIndices.length() - 1);
-                        addStringElement(good, "shop-indices", shopIndices);
+                        shopIndices = new StringBuilder((shopIndices.length() == 0) ? shopIndices.toString() : shopIndices.substring(0, shopIndices.length() - 1));
+                        addStringElement(good, "shop-indices", shopIndices.toString());
                     }
 
                     //parent: good
@@ -682,7 +680,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
 
         if (deleteBarcodeInfo.directoryGroupMachinery != null && !deleteBarcodeInfo.barcodeList.isEmpty()) {
-            String exchangeDirectory = deleteBarcodeInfo.directoryGroupMachinery.trim() + "/products/source/";
+            String exchangeDirectory = deleteBarcodeInfo.directoryGroupMachinery + "/products/source/";
             File exchangeDirectoryFile = new File(exchangeDirectory);
             if (exchangeDirectoryFile.exists() || exchangeDirectoryFile.mkdirs()) {
                 Map<String, String> deleteBarcodeSet = deleteBarcodeDirectoryMap.get(exchangeDirectory);
@@ -711,7 +709,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         if (!discountCardList.isEmpty()) {
             for (String directory : requestExchange.directoryStockMap.keySet()) {
 
-                String exchangeDirectory = directory.trim() + (discountCardDirectory != null ? discountCardDirectory : "/products/source/");
+                String exchangeDirectory = directory + (discountCardDirectory != null ? discountCardDirectory : "/products/source/");
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
                     machineryExchangeLogger.info(String.format("Kristal10: Send DiscountCards to %s", exchangeDirectory));
 
@@ -1147,7 +1145,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     @Override
     public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) {
 
-        String message = "";
+        StringBuilder message = new StringBuilder();
         List<String> idZReportList = new ArrayList<>();
 
         for (Map.Entry<String, List<Object>> kristalEntry : handlerZReportSumMap.entrySet()) {
@@ -1162,12 +1160,12 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
             BigDecimal sumBase = baseZReportSumMap.get(idZReportHandler);
 
             if (sumHandler == null || sumBase == null || sumHandler.doubleValue() != sumBase.doubleValue())
-                message += String.format("CashRegister %s. \nZReport %s checksum failed: %s(fusion) != %s(kristal);\n",
-                        numberCashRegister, numberZReport, sumBase, sumHandler);
+                message.append(String.format("CashRegister %s. \nZReport %s checksum failed: %s(fusion) != %s(kristal);\n",
+                        numberCashRegister, numberZReport, sumBase, sumHandler));
             else
                 idZReportList.add(idZReport);
         }
-        return idZReportList.isEmpty() && message.isEmpty() ? null : new ExtraCheckZReportBatch(idZReportList, message);
+        return idZReportList.isEmpty() && (message.length() == 0) ? null : new ExtraCheckZReportBatch(idZReportList, message.toString());
     }
 
     private File exportXML(Document doc, String exchangeDirectory, String prefix) throws IOException {
