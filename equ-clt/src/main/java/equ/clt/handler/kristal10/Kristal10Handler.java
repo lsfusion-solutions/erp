@@ -392,7 +392,9 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
             int count = 0;
             String requestResult = null;
 
-            for (String directory : entry.directoryStockMap.keySet()) {
+            for (Map.Entry<String, Set<String>> directoryStockEntry : entry.directoryStockMap.entrySet()) {
+                String directory = directoryStockEntry.getKey();
+                Set<String> stockSet = directoryStockEntry.getValue();
 
                 if (!directorySet.contains(directory)) continue;
 
@@ -404,6 +406,26 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
                     Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "reports.request"), encoding));
+                    if (!stockSet.isEmpty()) {
+                        StringBuilder shopsRange = new StringBuilder();
+                        for (String stock : stockSet) {
+                            shopsRange.append((shopsRange.length() == 0) ? "" : ",").append(stock);
+                        }
+                        if (stockSet.size() == 1)
+                            writer.write(String.format("shop: %s\n", shopsRange.toString()));
+                        else
+                            writer.write(String.format("shopsRange: %s\n", shopsRange.toString()));
+                    }
+                    if(!entry.cashRegisterSet.isEmpty()) {
+                        StringBuilder cashesRange = new StringBuilder();
+                        for (CashRegisterInfo cashRegister : entry.cashRegisterSet) {
+                            cashesRange.append((cashesRange.length() == 0) ? "" : ",").append(cashRegister.number);
+                        }
+                        if(entry.cashRegisterSet.size() == 1)
+                            writer.write(String.format("cash: %s\n", cashesRange.toString()));
+                        else
+                            writer.write(String.format("cashesRange: %s\n", cashesRange.toString()));
+                    }
                     writer.write(String.format("dateRange: %s-%s\nreport: purchases", dateFrom, dateTo));
                     writer.close();
                 } else
