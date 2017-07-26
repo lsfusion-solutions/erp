@@ -1,6 +1,6 @@
 MODULE PriceListLabel;
 
-REQUIRE PriceList, Label;
+REQUIRE PriceList, Label, PriceListBefore;
 
 NAMESPACE PriceList;
 
@@ -51,8 +51,11 @@ FORM selectDepartmentStoreLabelType 'Выбор магазина и ценник
 ;
 
 createSelectedSkuStockSnapshotLabel 'Перепечатать ценники'(PriceTransactionDocument priceList) = {    
-    DIALOG selectDepartmentStoreLabelType OBJECTS p = priceList, d INPUT DO {
-        select(Sku sku) <- TRUE IF countPriceListDetail(sku,priceList);   
+    DIALOG selectDepartmentStoreLabelType OBJECTS p = priceList, d INPUT, l INPUT DO {
+        select(Sku sku) <- TRUE IF countPriceListDetail(sku,priceList);  
+        IF NOT [ = GROUP SUM 1 IF select(LabelType type, DepartmentStore d) BY d](d) THEN {
+            select(l, d) <- TRUE;
+        }         
         FOR select(LabelType type, d) DO {
             createSnapshotLabelTransactionDepartmentStore(d, type);   
             priceTransactionDocument(LabelTransaction t) <- priceList WHERE t == addedTransaction();
@@ -61,8 +64,36 @@ createSelectedSkuStockSnapshotLabel 'Перепечатать ценники'(Pr
     }
 } TOOLBAR;
 
+
+priceDoc = DATA LOCAL UserPriceList ();
+
+createSelectedSkuStockSnapshotPriceList 'Перепечатать ценники (цены из прайса)'(PriceTransactionDocument priceList) = {    
+    DIALOG selectDepartmentStoreLabelType OBJECTS p = priceList, d INPUT, l INPUT DO { 
+        select(Sku sku) <- TRUE IF countPriceListDetail(sku,priceList);
+        priceDoc() <- priceList; 
+        IF NOT [ = GROUP SUM 1 IF select(LabelType type, DepartmentStore d) BY d](d) THEN {
+            select(l, d) <- TRUE;
+        }  
+        FOR select(LabelType type, d) DO {
+            createSnapshotLabelTransactionDepartmentStore(d, type);   
+            priceTransactionDocument(LabelTransaction t) <- priceList WHERE t == addedTransaction();
+        } 
+        apply();
+    }
+} TOOLBAR;
+
+defaultDataPriceListType = GROUP MAX DataPriceListType type IF in( UserPriceList p, type) BY p;
+overCreate(LabelTransaction t) += {
+    IF  priceDoc() THEN {
+        FOR labelTransaction(LabelTransactionDetail d) == t DO {            
+            price(d) <- price(userPriceListDetail(priceDoc(),sku(d)), overPriceListType(t) AS DataPriceListType);
+            retailPrice(d) <- priceBefore(userPriceListDetail(priceDoc(),sku(d)));
+        }        
+    }   
+}
+
 EXTEND FORM priceLists
-    PROPERTIES(p)   createPriceListLabel, createSelectedSkuStockSnapshotLabel 
+    PROPERTIES(p)   createPriceListLabel, createSelectedSkuStockSnapshotLabel, createSelectedSkuStockSnapshotPriceList 
 ;
 DESIGN priceLists {
     actionContainer {
@@ -71,6 +102,7 @@ DESIGN priceLists {
             type = CONTAINERV;
             MOVE PROPERTY (createPriceListLabel(p));
             MOVE PROPERTY (createSelectedSkuStockSnapshotLabel(p));
+            MOVE PROPERTY (createSelectedSkuStockSnapshotPriceList(p));
         }
     }
 }
