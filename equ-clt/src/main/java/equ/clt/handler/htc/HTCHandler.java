@@ -29,6 +29,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import static equ.clt.handler.HandlerUtils.trim;
+
 public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
     private FileSystemXmlApplicationContext springContext;
@@ -214,7 +216,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                                         lastCode = code;
                                                     }
 
-                                                    String group = item.idItemGroup == null ? null : HandlerUtils.trim(item.idItemGroup.replace("_", ""), 6);
+                                                    String group = item.idItemGroup == null ? null : trim(item.idItemGroup.replace("_", ""), 6);
                                                     if (lastGroup == null || !lastGroup.equals(group)) {
                                                         putField(dbfFile, GROUP, group, append);
                                                         lastGroup = group;
@@ -226,8 +228,8 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                                     }
 
                                                     if (lastName == null || !lastName.equals(item.name)) {
-                                                        putField(dbfFile, PRODUCT_ID, HandlerUtils.trim(item.name, 64), append);
-                                                        putField(dbfFile, TABLO_ID, HandlerUtils.trim(item.name, 20), append);
+                                                        putField(dbfFile, PRODUCT_ID, trim(item.name, 64), append);
+                                                        putField(dbfFile, TABLO_ID, trim(item.name, 20), append);
                                                         lastName = item.name;
                                                     }
 
@@ -875,10 +877,6 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
     protected Integer getDBFIntegerFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
         String result = getDBFFieldValue(importFile, fieldName, charset);
         return result == null ? null : new Double(result).intValue();
-    }
-
-    protected String trim(String input, Integer length) {
-        return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
     }
 
     public String appendBarcode(String barcode) {

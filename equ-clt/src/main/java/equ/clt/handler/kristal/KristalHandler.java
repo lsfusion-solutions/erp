@@ -29,6 +29,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static equ.clt.handler.HandlerUtils.getDate;
 import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
@@ -1099,7 +1100,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 //hack: чеки с датой до 1 июля идут в старых ценах, даже если касса уже деноминирована
                                 //такие чеки пойдут на 999 группу касс - 254 кассу
                                 //оставлено, пока они не перестанут присылать старые чеки
-                                long denominationDate = new Date(2016 - 1900, 6, 1).getTime(); //01.07.2016
+                                long denominationDate = getDate(2016, 7, 1).getTime(); //01.07.2016
                                 boolean denominate = dateTimeReceipt <= denominationDate;
 
                                 BigDecimal discountSumReceipt = denominate(readBigDecimalXMLAttribute((Element) gangNode, "DISCSUMM"), denominate);
@@ -1187,7 +1188,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                     //hack: чеки с датой до 1 июля идут в старых ценах, даже если касса уже деноминирована
                                     //такие чеки пойдут на 999 группу касс - 254 кассу
                                     //оставлено, пока они не перестанут присылать старые чеки
-                                    long denominationDate = new Date(2016 - 1900, 6, 1).getTime(); //01.07.2016
+                                    long denominationDate = getDate(2016, 7, 1).getTime(); //01.07.2016
                                     boolean denominate = dateTimeReceipt <= denominationDate;
 
                                     List receiptDetailsList = (receiptElement).getChildren("POS");

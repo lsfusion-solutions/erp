@@ -938,7 +938,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             }
 
                             String discountCard = null;
-                            List discountCardsList = ((Element) purchaseNode).getChildren("discountCards");
+                            List discountCardsList = purchaseNode.getChildren("discountCards");
                             for (Object discountCardNode : discountCardsList) {
                                 List discountCardList = ((Element) discountCardNode).getChildren("discountCard");
                                 for (Object discountCardEntry : discountCardList) {
@@ -952,7 +952,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 }
                             }
 
-                            List positionsList = ((Element) purchaseNode).getChildren("positions");
+                            List positionsList = purchaseNode.getChildren("positions");
                             List<SalesInfo> currentSalesInfoList = new ArrayList<>();
                             BigDecimal currentPaymentSum = BigDecimal.ZERO;
 
@@ -1016,7 +1016,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                         nppGroupMachinery = (nppGroupMachinery != null || useShopIndices) ? nppGroupMachinery : (cashRegister == null ? null : cashRegister.numberGroup);
 
                                         String idSaleReceiptReceiptReturnDetail = null;
-                                        Element originalPurchase = ((Element) purchaseNode).getChild("original-purchase");
+                                        Element originalPurchase = purchaseNode.getChild("original-purchase");
                                         if(originalPurchase != null) {
                                             Integer numberCashRegisterOriginal = readIntegerXMLAttribute(originalPurchase, "cash");
                                             String numberZReportOriginal = readStringXMLAttribute(originalPurchase, "shift");
