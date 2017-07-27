@@ -1,0 +1,428 @@
+MODULE PricingSum;
+
+REQUIRE Pricing;
+
+NAMESPACE Pricing;
+
+// ----------------------------------- Создавать акт расценки по умолчанию для отдела ------------------------------------------ //
+
+costLedger 'Учет по себестоимости' = DATA BOOLEAN (DepartmentStore) IN bookkeeping;
+EXTEND FORM departmentStore PROPERTIES(d) costLedger SHOWIF isCompany(d);
+DESIGN departmentStore {
+    headerExtraParams {
+        MOVE PROPERTY(costLedger(d));
+    }
+}
+
+// ----------------------------------- Комиссия ------------------------------------------ //
+
+CLASS PricingCommittee 'Комиссия для акта расценки' : Committee;
+
+name 'Наименование' = DATA VARISTRING[150](PricingCommittee);
+
+name(PricingCommittee committee) += name(committee) IF committee IS PricingCommittee;
+
+
+//@defineCommitteeEmployee(committee, chairman, 'Председатель');
+@defineCommitteeEmployeePrefix(pricingCommittee, formedMan, 'Цены сформировал');
+@defineCommitteeEmployeePrefix(pricingCommittee, checkedMan, 'Реестр проверил');
+@defineCommitteeEmployeePrefix(pricingCommittee, labeledMan, 'Товар промаркировал');
+@defineCommitteeEmployeePrefix(pricingCommittee, accountantMan, 'Бухгалтер');
+@defineCommitteeEmployeePrefix(pricingCommittee, headMan, 'Зав. магазином');
+
+// ----------------------------------- Комиссия по умолчанию для отдела ------------------------------------------ //
+
+pricingCommittee 'Комиссия для акта расценки (ИД)' = DATA PricingCommittee (DepartmentStore);
+namePricingCommittee 'Комиссия для акта расценки' (DepartmentStore departmentStore) = name(pricingCommittee(departmentStore)) IN committee MINCHARWIDTH 20 PREFCHARWIDTH 30;
+isDefault 'По умолчанию' (PricingCommittee pricingCommittee, DepartmentStore departmentStore) = pricingCommittee(departmentStore) == pricingCommittee;
+CONSTRAINT pricingCommittee(DepartmentStore departmentStore) AND NOT in(pricingCommittee(departmentStore), departmentStore)
+    CHECKED BY pricingCommittee[DepartmentStore] MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';
+
+EXTEND FORM departmentStore PROPERTIES namePricingCommittee(d);
+
+DESIGN departmentStore {
+    headerExtraParams{
+        MOVE PROPERTY(namePricingCommittee(d));
+    }
+}
+
+// ----------------------------------- Формы для комиссий для реестра цен ------------------------------------------ //
+
+FORM pricingCommittee 'Комиссия для акта расценки'
+    OBJECTS c=PricingCommittee PANEL
+    PROPERTIES(c)      name, nameFormedMan, nameCheckedMan,
+                       nameLabeledMan, nameAccountantMan, nameHeadMan
+
+    TREE treeStore a=STRING[3], t=ChainStores, st=StoreType, s=Store
+    PROPERTIES         READONLY VALUE(a), name(t), name(st), name(s)
+    FILTERS            stringEqualsAll(a), in (t, st), in(st, s)
+
+    OBJECTS dep=DepartmentStore
+    PROPERTIES(dep)    READONLY depName = name, id SHOWIF showIDs()
+    PROPERTIES(c, dep) in, isDefault
+    FILTERS            in(t, st, s, dep)
+    ORDER BY depName
+
+    FILTERGROUP filters5
+        FILTER 'Показывать отделы только для данной комиссии' in(c, dep) 'F9'
+
+    EDIT PricingCommittee OBJECT c
+;
+@extendFormFilterStockAccess(dep, pricingCommittee);
+@extendFormFilterStockGroupAccess(t, pricingCommittee);
+@extendFormFilterStockGroupAccess(st, pricingCommittee);
+@extendFormFilterStockGroupAccess(s, pricingCommittee);
+
+DESIGN pricingCommittee {
+    BOX {
+        preferredSize = (1024, 768);
+
+        NEW stocks AFTER BOX(c) {
+            fill = 1;
+            type = SPLITH;
+
+            MOVE BOX(TREE treeStore);
+            MOVE BOX(dep) {
+                fill = 3;
+            }
+        }
+
+        NEW managers AFTER stocks {
+            caption = 'Состав комиссии';
+            type = COLUMNS;
+            columns = 3;
+            MOVE PROPERTY (nameFormedMan(c));
+            MOVE PROPERTY (nameCheckedMan(c));
+            MOVE PROPERTY (nameLabeledMan(c));
+            MOVE PROPERTY (nameAccountantMan(c));
+            MOVE PROPERTY (nameHeadMan(c));
+        }
+    }
+}
+
+FORM pricingCommitteeDialog 'Комиссии для акта расценки'
+    OBJECTS r=PricingCommittee
+    PROPERTIES(r)      READONLY name, nameStocks, nameFormedMan, nameCheckedMan, nameLabeledMan,
+                       nameAccountantMan, nameHeadMan
+    PROPERTIES(r)      NEWSESSION NEW, EDIT
+
+    LIST PricingCommittee OBJECT r
+;
+
+// ----------------------------------- Макрос для задания комиссии для документов ------------------------------------------ //
+
+GROUP pricingCommittee 'Комиссия' : public;
+
+META defineDocumentHeaderPricingCommittee(object, stockClass, prefix)
+    prefix###pricingCommittee (object) = DATA PricingCommittee(###object);
+
+    name###prefix##PricingCommittee 'Комиссия' (###object object) = name(prefix###pricingCommittee(object)) IN documentPrm MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    prefix###pricingCommittee (###object object) <- pricingCommittee(stockClass(object))
+        WHEN CHANGED(stockClass(object));
+
+    CONSTRAINT prefix###pricingCommittee (###object object) AND NOT in(prefix###pricingCommittee(object), stockClass(object))
+        CHECKED BY prefix###pricingCommittee[###object] MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
+        
+    data###prefix##FormedMan 'Цены сформировал' (object) = DATA Employee (###object);
+    data###prefix##CheckedMan 'Реестр проверил' (object) = DATA Employee (###object);
+    data###prefix##LabeledMan 'Товар промаркировал' (object) = DATA Employee (###object);
+    data###prefix##AccountantMan 'Бухгалтер' (object) = DATA Employee (###object);
+    data###prefix##HeadMan 'Зав. магазином' (object) = DATA Employee (###object);    
+          
+    CONSTRAINT data###prefix##FormedMan(###object object) AND NOT in(stockClass(object), data###prefix##FormedMan(object)) AND NOT allowStockEmployee()
+        CHECKED BY data###prefix##FormedMan[###object] MESSAGE 'В качестве "Цены сформировал" выбран сотрудник, который не является сотрудником склада документа.';                  
+    CONSTRAINT data###prefix##CheckedMan(###object object) AND NOT in(stockClass(object), data###prefix##CheckedMan(object)) AND NOT allowStockEmployee()
+        CHECKED BY data###prefix##CheckedMan[###object] MESSAGE 'В качестве "Реестр проверил" выбран сотрудник, который не является сотрудником склада документа.';                        
+    CONSTRAINT data###prefix##LabeledMan(###object object) AND NOT in(stockClass(object), data###prefix##LabeledMan(object)) AND NOT allowStockEmployee()
+        CHECKED BY data###prefix##LabeledMan[###object] MESSAGE 'В качестве "Товар промаркировал" выбран сотрудник, который не является сотрудником склада документа.';                         
+    CONSTRAINT data###prefix##AccountantMan(###object object) AND NOT in(stockClass(object), data###prefix##AccountantMan(object)) AND NOT allowStockEmployee()
+        CHECKED BY data###prefix##AccountantMan[###object] MESSAGE 'В качестве "Бухгалтер" выбран сотрудник, который не является сотрудником склада документа.';                         
+    CONSTRAINT data###prefix##HeadMan(###object object) AND NOT in(stockClass(object), data###prefix##HeadMan(object)) AND NOT allowStockEmployee()
+        CHECKED BY data###prefix##HeadMan[###object] MESSAGE 'В качестве "Зав. магазином" выбран сотрудник, который не является сотрудником склада документа.'; 
+    
+    prefix###formedMan 'Цены сформировал' (###object object) = OVERRIDE data###prefix##FormedMan(object), formedMan(prefix###pricingCommittee(object));
+    prefix###checkedMan 'Реестр проверил' (###object object) = OVERRIDE data###prefix##CheckedMan(object), checkedMan(prefix###pricingCommittee(object));
+    prefix###labeledMan 'Товар промаркировал' (###object object) = OVERRIDE data###prefix##LabeledMan(object), labeledMan(prefix###pricingCommittee(object));
+    prefix###accountantMan 'Бухгалтер' (###object object) = OVERRIDE data###prefix##AccountantMan(object), accountantMan(prefix###pricingCommittee(object));
+    prefix###headMan 'Зав. магазином' (###object object) = OVERRIDE data###prefix##HeadMan(object), headMan(prefix###pricingCommittee(object));
+    
+    name###prefix##FormedMan 'Сформировал' (###object object) = name[Contact](prefix###formedMan(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    name###prefix##CheckedMan 'Проверил' (###object object) = name[Contact](prefix###checkedMan(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    name###prefix##LabeledMan 'Промаркировал' (###object object) = name[Contact](prefix###labeledMan(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    name###prefix##AccountantMan 'Бухгалтер' (###object object) = name[Contact](prefix###accountantMan(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    name###prefix##HeadMan 'Зав.маг.' (###object object) = name[Contact](prefix###headMan(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;    
+       
+    positionName###prefix##FormedMan 'Цены сформировал' (###object object) = positionName(prefix###formedMan(object)) IN pricingCommittee;
+    positionName###prefix##CheckedMan 'Реестр проверил' (###object object) = positionName(prefix###checkedMan(object)) IN pricingCommittee;
+    positionName###prefix##LabeledMan 'Товар промаркировал' (###object object) = positionName(prefix###labeledMan(object)) IN pricingCommittee;
+    positionName###prefix##AccountantMan 'Бухгалтер' (###object object) = positionName(prefix###accountantMan(object)) IN pricingCommittee;
+    positionName###prefix##HeadMan 'Зав. магазином' (###object object) = positionName(prefix###headMan(object)) IN pricingCommittee;        
+
+    positionShortName###prefix##FormedMan 'Цены сформировал' (###object object) = positionShortName(prefix###formedMan(object)) IN pricingCommittee;
+    positionShortName###prefix##CheckedMan 'Реестр проверил' (###object object) = positionShortName(prefix###checkedMan(object)) IN pricingCommittee;
+    positionShortName###prefix##LabeledMan 'Товар промаркировал' (###object object) = positionShortName(prefix###labeledMan(object)) IN pricingCommittee;
+    positionShortName###prefix##AccountantMan 'Бухгалтер' (###object object) = positionShortName(prefix###accountantMan(object)) IN pricingCommittee;
+    positionShortName###prefix##HeadMan 'Зав. магазином' (###object object) = positionShortName(prefix###headMan(object)) IN pricingCommittee;   
+END
+META defineDocumentHeaderAbstractPricingCommittee(object, stockClass, prefix)
+    prefix###pricingCommittee (object) = ABSTRACT PricingCommittee(###object) MATERIALIZED;
+
+    name###prefix##PricingCommittee 'Комиссия для акта расценки' (###object object) = name(prefix###pricingCommittee(object)) IN documentPrm MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+    data###prefix##FormedMan 'Цены сформировал' (object) = ABSTRACT Employee (###object);
+    data###prefix##CheckedMan 'Реестр проверил' (object) = ABSTRACT Employee (###object);
+    data###prefix##LabeledMan 'Товар промаркировал' (object) = ABSTRACT Employee (###object);
+    data###prefix##AccountantMan 'Бухгалтер' (object) = ABSTRACT Employee (###object);
+    data###prefix##HeadMan 'Зав. магазином' (object) = ABSTRACT Employee (###object);    
+
+    prefix###formedMan 'Цены сформировал' (###object object) = OVERRIDE data###prefix##FormedMan(object), formedMan(prefix###pricingCommittee(object));
+    prefix###checkedMan 'Реестр проверил' (###object object) = OVERRIDE data###prefix##CheckedMan(object), checkedMan(prefix###pricingCommittee(object));
+    prefix###labeledMan 'Товар промаркировал' (###object object) = OVERRIDE data###prefix##LabeledMan(object), labeledMan(prefix###pricingCommittee(object));
+    prefix###accountantMan 'Бухгалтер' (###object object) = OVERRIDE data###prefix##AccountantMan(object), accountantMan(prefix###pricingCommittee(object));
+    prefix###headMan 'Зав. магазином' (###object object) = OVERRIDE data###prefix##HeadMan(object), headMan(prefix###pricingCommittee(object));
+    
+    name###prefix##FormedMan 'Цены сформировал' (###object object) = name[Contact](prefix###formedMan(object)) IN pricingCommittee;
+    name###prefix##CheckedMan 'Реестр проверил' (###object object) = name[Contact](prefix###checkedMan(object)) IN pricingCommittee;
+    name###prefix##LabeledMan 'Товар промаркировал' (###object object) = name[Contact](prefix###labeledMan(object)) IN pricingCommittee;
+    name###prefix##AccountantMan 'Бухгалтер' (###object object) = name[Contact](prefix###accountantMan(object)) IN pricingCommittee;
+    name###prefix##HeadMan 'Зав. магазином' (###object object) = name[Contact](prefix###headMan(object)) IN pricingCommittee;    
+       
+    positionName###prefix##FormedMan 'Цены сформировал' (###object object) = positionName(prefix###formedMan(object)) IN pricingCommittee;
+    positionName###prefix##CheckedMan 'Реестр проверил' (###object object) = positionName(prefix###checkedMan(object)) IN pricingCommittee;
+    positionName###prefix##LabeledMan 'Товар промаркировал' (###object object) = positionName(prefix###labeledMan(object)) IN pricingCommittee;
+    positionName###prefix##AccountantMan 'Бухгалтер' (###object object) = positionName(prefix###accountantMan(object)) IN pricingCommittee;
+    positionName###prefix##HeadMan 'Зав. магазином' (###object object) = positionName(prefix###headMan(object)) IN pricingCommittee;        
+
+    positionShortName###prefix##FormedMan 'Цены сформировал' (###object object) = positionShortName(prefix###formedMan(object)) IN pricingCommittee;
+    positionShortName###prefix##CheckedMan 'Реестр проверил' (###object object) = positionShortName(prefix###checkedMan(object)) IN pricingCommittee;
+    positionShortName###prefix##LabeledMan 'Товар промаркировал' (###object object) = positionShortName(prefix###labeledMan(object)) IN pricingCommittee;
+    positionShortName###prefix##AccountantMan 'Бухгалтер' (###object object) = positionShortName(prefix###accountantMan(object)) IN pricingCommittee;
+    positionShortName###prefix##HeadMan 'Зав. магазином' (###object object) = positionShortName(prefix###headMan(object)) IN pricingCommittee; 
+END
+
+META defineDocumentInterfaceHeaderPricingCommittee (object, stockClass, prefix)
+    @defineDocumentHeaderAbstractPricingCommittee (object, stockClass, prefix);
+    @defineDocumentHeaderPricingCommittee (user###object, stockClass, prefix);
+    prefix###pricingCommittee (User###object object) += prefix###pricingCommittee(object);
+    
+    data###prefix##FormedMan (User###object object) += data###prefix##FormedMan(object);
+    data###prefix##CheckedMan (User###object object) += data###prefix##CheckedMan(object);
+    data###prefix##LabeledMan(User###object object) += data###prefix##LabeledMan(object);
+    data###prefix##AccountantMan (User###object object) += data###prefix##AccountantMan(object);
+    data###prefix##HeadMan (User###object object) += data###prefix##HeadMan(object);
+    
+END
+META defineDocumentInterfaceHeaderPricingCommittee (object, stockClass)
+    @defineDocumentInterfaceHeaderPricingCommittee (object, stockClass, );
+END
+
+// Комиссия
+@defineDocumentInterfaceHeaderPricingCommittee (pricing, departmentStore);
+
+// Кол-во
+@defineDocumentInterfaceDetailQuantity(pricing);
+
+extraRetailVATSum(pricingDetail) = ABSTRACT NUMERIC[18,4] (PricingDetail);
+
+// Цена розничная
+extraRetailPrice(pricingDetail) = ABSTRACT NUMERIC[16,4] (PricingDetail);
+extraRetailSum(pricingDetail) = ABSTRACT NUMERIC[18,4] (PricingDetail);
+
+// -- Суммы по строкам
+
+@defineDocumentInterfaceDetailDataSumPrefix (pricing, , ' поставщика');
+@defineDocumentInterfaceDetailMarkupSumPrefix (pricing, retail);
+@defineDocumentInterfaceDetailVATDataSumPrefix (pricing, retail, ' розничная');
+@defineDocumentInterfaceDetailDataSumPrefix (pricing, retail, ' розничная');
+
+// Расчет сумм обратным счетом
+@deriveDocumentDetailSumPrefix(userPricing, retail, currency, quantity);
+@deriveDocumentDetailReverseVATSumPrefix(userPricing, retail, retail);
+@deriveDocumentDetailMarkupSumPrefix(userPricing, retail, retail, );
+@deriveDocumentDetailSum(userPricing, quantity);
+
+// -- Суммы по акту
+
+@defineDocumentInterfaceHeaderQuantity(pricing);
+
+quantityPricingDetail 'Кол-во товара в документе'  = 
+    GROUP SUM quantity(PricingDetail idetail)
+          BY  sku(idetail), pricing(idetail);
+
+quantityUserPricingDetail 'Кол-во товара в документе'  = 
+    GROUP SUM quantity(UserPricingDetail idetail)
+          BY  sku(idetail), userPricing(idetail);
+
+@defineDocumentInterfaceHeaderSumCustom (pricing, pricingDetail, ' поставщика');
+@defineDocumentInterfaceHeaderSumPrefix (pricing, retailMarkup, ' надбавки');
+@defineDocumentInterfaceHeaderSumPrefix (pricing, retailVAT, ' НДС');
+@defineDocumentInterfaceHeaderSumPrefix (pricing, retail, ' розничная');
+
+@defineDocumentInterfaceHeaderItemSum (pricing, retailMarkup, retailMarkup);  //-- сумма торговой надбавки (с разбивкой по таре, товару...)
+@defineDocumentInterfaceHeaderItemSum (pricing, retailVAT, retailVAT);        //-- сумма розничного НДС (с разбивкой по таре, товару...)
+@defineDocumentInterfaceHeaderItemSumDouble (pricing, range, retailVAT, retailVAT, , retailVAT); //-- сумма НДС розничного (с разбивкой по таре, товару...) по документу и по шкале
+@defineDocumentInterfaceHeaderItemSum (pricing, , );                          //-- сумма поставщика (с разбивкой по таре, товару...)
+
+// Не изменить текущие цены
+@defineDocumentInterfaceHeaderSkip(Pricing, changeLedger, 'Не изменять текущие цены');
+skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN(PricingDetail);
+
+skipChangeLedger 'Не изменять текущие цены' (UserPricingDetail d) = skipChangeLedger(userPricing(d)) IN documentPrm;
+skipChangeLedger (UserPricingDetail o) += skipChangeLedger(o);
+
+extraDescription 'Доп. наименование'  = ABSTRACT VARSTRING[255] (PricingDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
+
+// Возвраты
+isReturn 'Обратный' = ABSTRACT BOOLEAN (Pricing);
+
+//-- Партии
+@showDocumentInterfaceDetailBatch(pricing);
+@defineDocumentInterfaceDetailBatch(pricing, batch);
+
+changeBatch(UserPricingDetail detail) = {
+    DIALOG dialogBatchStockOut OBJECTS st = departmentStore(detail),
+                             t = dateTime(detail),
+                             sk = sku(detail),
+                             bt = batch(detail) INPUT NULL DO
+        batch(detail) <- bt;
+}
+
+@defineBalancesBatch(pricingDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineBalancesBatch(userPricingDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineMovementBatch(pricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение по партии
+@defineMovementBatch(userPricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение по партии
+
+//------------------------------------ Печатные формы акт расценки ------------------------------------------------ //
+
+isInvoice 'По накладной' = ABSTRACT BOOLEAN (Pricing);
+
+FORM pricing 'Акт расценки (печать)'
+    OBJECTS p=Pricing PANEL
+    PROPERTIES (p) SELECTOR isPosted
+
+    PROPERTIES (p) nameDepartmentStore, fullNameLegalEntityStock,nameLegalEntityStock, number, seriesNumber, series, date, time,
+                   nameSupplier, fullNameSupplier, nameCurrency, note,
+                   countPricingDetail, quantityPricingDetail, sumPricingDetail,
+                   retailMarkupSumPricingDetail, retailVATSumPricingDetail,
+                   retailSumPricingDetail, namePricingCommittee,
+                   nameFormedMan, nameCheckedMan, nameLabeledMan, nameAccountantMan,
+                   nameHeadMan, isInvoice    //notPassToBookkeepingListRegister
+
+    OBJECTS d=PricingDetail
+
+    PROPERTIES (d) index, idBarcodeSku, nameSku, extraDescription, shortNameUOMSku,
+                   quantity, overPricingPrice, pricingPrice, price, sum,
+                   retailMarkup, retailMarkupSum, numberRetailVAT, valueRetailVAT, retailVATSum,
+                   retailPrice, retailSum
+    ORDER BY index(d)                   
+
+    PROPERTIES(p) TODRAW d addDetailDialogSkuStockUserPricingDetail,
+                           addDetailInputBarcodeUserPricingDetail
+
+    FILTERS pricing(d) == p
+;
+
+print 'Акт расценки' (Pricing pricing) = { PRINT pricing OBJECTS p = pricing; }   IMAGE 'print.png' IN print;
+
+EXTEND FORM userPricing
+    PROPERTIES(p) nameSupplier, 
+                  quantityUserPricingDetail, sumUserPricingDetail,
+                  retailSumUserPricingDetail BACKGROUND backgroundRetail(p), namePricingCommittee BACKGROUND backgroundRetail(p), skipChangeLedger
+
+    PROPERTIES (p) SHOWIF pricingCommittee(p)  nameFormedMan, nameCheckedMan, nameLabeledMan,
+                   nameAccountantMan, nameHeadMan
+
+    PROPERTIES (d) nameBatch,
+                   quantity, sum
+
+    PROPERTIES (d) BACKGROUND backgroundRetail(p) retailMarkupSum, retailVATSum, retailSum
+;
+
+DESIGN userPricing {
+    headerRow1 {
+        MOVE GROUP(p,pricingCommittee) {
+            columns = 2;
+        }
+    }
+
+    PROPERTY(sumUserPricingDetail(p)) { preferredCharWidth = 13;}
+    PROPERTY(retailSumUserPricingDetail(p)) { preferredCharWidth = 13;}
+}
+
+// Действия по добавлению строк
+@defineAddDetailDialogSkuStock(userPricing, sku, departmentStore, dialogSku);
+@defineAddDetailDialogBarcode(userPricing, sku);
+
+@defineDocumentSkuPriceListTypeSystemLedger(userPricing, accountPriceListType, departmentStore, );
+@extendFormDocumentSku(userPricing, userPricingDetail, userPricing, p, sku, departmentStore);
+
+@defineDocumentBatchPriceListTypeSystemLedger(userPricing, accountPriceListType, departmentStore, );
+@extendFormDocumentBatch(userPricing, userPricing, p);
+
+// Список расценок
+
+EXTEND FORM pricings
+    PROPERTIES(p) READONLY isReturn, nameSupplier
+    
+    PROPERTIES(p) READONLY quantityPricingDetail, sumPricingDetail, retailSumPricingDetail BACKGROUND backgroundRetail(p)
+
+    PROPERTIES (p) READONLYIF isReadonly() skipChangeLedger
+
+    PROPERTIES (p) print 
+
+    PROPERTIES (d) READONLY nameBatch, quantity, sum
+    PROPERTIES (d) READONLY BACKGROUND backgroundRetail(p) retailMarkupSum, retailVATSum, retailSum
+;
+
+DESIGN pricings {
+    printTab {
+        MOVE GROUP(p,print);
+    }
+}
+
+NAVIGATOR {
+    pricingNavigator {
+        ADD pricingCommitteeDialog;
+    }
+}
+
+// Проводим цену поставщика по регистру
+EXTEND CLASS SystemLedgerPriceListType {
+    supplierPricingPriceListType 'Поставщика (расценка)'
+}
+
+supplierPricingPriceB 'Цена поставщика' (Sku sku, Stock stock, DATETIME dateTime) =
+    priceB(SystemLedgerPriceListType.supplierPricingPriceListType, sku, stock, dateTime);
+supplierPricingPriceB 'Цена поставщика' (Sku sku, Stock stock, DATE date) = 
+    supplierPricingPriceB(sku, stock, toDateTime(date));    
+supplierPricingPriceB 'Цена поставщика' = supplierPricingPriceB(Sku sku, Stock stock, currentDateTime());  
+
+supplierPricingPriceB 'Цена поставщика' (Batch batch, Stock stock, DATETIME dateTime) =
+    priceB(SystemLedgerPriceListType.supplierPricingPriceListType, batch, stock, dateTime);
+supplierPricingPriceB 'Цена поставщика' (Batch batch, Stock stock, DATE date) = 
+    supplierPricingPriceB(batch, stock, toDateTime(date));    
+
+prevSupplierPricingPriceB 'Цена поставщика' (Sku sku, Stock stock, DATETIME dateTime) =
+    prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType, sku, stock, dateTime);
+prevSupplierPricingPriceB 'Цена поставщика' (Sku sku, Stock stock, DATE date) = 
+    prevSupplierPricingPriceB(sku, stock, toDateTime(date));    
+
+currentSupplierPricingPriceListLedger (Sku sku, Stock stock) =
+    currentPriceListLedger(SystemLedgerPriceListType.supplierPricingPriceListType, sku, stock) MATERIALIZED INDEXED TABLE extraSkuStock;
+
+currentSupplierPricingPrice 'Цена поставщика' (Sku sku, Stock stock) =
+    price[PriceListLedger,LedgerPriceListType](currentSupplierPricingPriceListLedger(sku, stock), SystemLedgerPriceListType.supplierPricingPriceListType) MATERIALIZED TABLE extraSkuStock; 
+
+batch(SystemLedgerPriceListType type, Stock stock) += WHEN type == SystemLedgerPriceListType.supplierPricingPriceListType AND isCompany(stock)
+                                              THEN priceBatchLedger(stock);
+
+skip(PricingDetail ledger) += skipChangeLedger(ledger);
+
+company (PricingDetail ledger) += supplier(ledger);
+
+in (PricingDetail ledger, SystemLedgerPriceListType type) += WHEN price(ledger) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN TRUE;
+price (PricingDetail ledger, SystemLedgerPriceListType type) += WHEN price(ledger) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN price(ledger);
+in (PricingDetail ledger, Batch batch) += batch(ledger) == batch; 
+differentOrganizations(SystemLedgerPriceListType type) += WHEN type == SystemLedgerPriceListType.supplierPricingPriceListType THEN TRUE;   
+
+@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userPricing, supplierPricingPriceListType, , sku, departmentStore);
