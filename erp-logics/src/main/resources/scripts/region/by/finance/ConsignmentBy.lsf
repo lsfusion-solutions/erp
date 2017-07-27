@@ -762,63 +762,61 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
           
 END 
 META definePrintConsignmentForm(form, caption, prefix)  //печать накладной по сторонам
-        print###form caption (Consignment consignment) = {
-            stopPrintConsignment() <- NULL;
-            checkMandatoryAttribute(consignment);
-            IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment ;
-        } IMAGE 'print.png' IN print;
-        print###form##Auto caption (Consignment consignment) = {
-            stopPrintConsignment() <- NULL;
-            checkMandatoryAttribute(consignment);
-            IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment AUTO;
-        } IMAGE 'print.png' IN print; 
+    print###form caption (Consignment consignment) = {
+        stopPrintConsignment() <- NULL;
+        checkMandatoryAttribute(consignment);
+        IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment ;
+    } IMAGE 'print.png' IN print;
+    print###form##Auto caption (Consignment consignment) = {
+        stopPrintConsignment() <- NULL;
+        checkMandatoryAttribute(consignment);
+        IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment AUTO;
+    } IMAGE 'print.png' IN print; 
 END 
 META definePrintConsignmentFormExtra(form, caption, prefix)  //печать накладной по сторонам
-        print###form caption (Consignment consignment) = {
-	NEWSESSION {
-	            //stopPrintConsignment() <- NULL;
-	            checkMandatoryAttribute(consignment);
-	            IF NOT stopPrintConsignment() THEN {
-	                PRINT consignment###form OBJECTS prefix = consignment ;
-	                countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
-	                apply();                
-	                
-	            }
-	        }
-} IMAGE 'print.png' IN print;
-        print###form##Auto caption (Consignment consignment) = {
-            stopPrintConsignment() <- NULL;
+    print###form caption (Consignment consignment) = {
+	    NEWSESSION {
+            //stopPrintConsignment() <- NULL;
             checkMandatoryAttribute(consignment);
-            IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment AUTO;
-        } IMAGE 'print.png' IN print; 
+            IF NOT stopPrintConsignment() THEN {
+                PRINT consignment###form OBJECTS prefix = consignment ;
+                countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
+                apply();                
+                
+            }
+        }
+} IMAGE 'print.png' IN print;
+    print###form##Auto caption (Consignment consignment) = {
+        stopPrintConsignment() <- NULL;
+        checkMandatoryAttribute(consignment);
+        IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment AUTO;
+    } IMAGE 'print.png' IN print; 
 END 
   
 META defineExtendPrintConsignmentFormAll(form, caption, prefixA, prefixB)       //печать накладной сквозная
-        print###form caption (Consignment consignment) = {
-            stopPrintConsignment() <- NULL;
+    print###form caption (Consignment consignment) = {
+        stopPrintConsignment() <- NULL;
+        checkMandatoryAttribute(consignment);
+        IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefixA = consignment, prefixB = consignment ;            
+    } IMAGE 'print.png' IN print;
+    print###form###attach caption###' с приложением' (Consignment consignment) = {
+        NEWSESSION {
+///            stopPrintConsignment() <- NULL;
             checkMandatoryAttribute(consignment);
-            IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefixA = consignment, prefixB = consignment ;            
-        } IMAGE 'print.png' IN print;
-        print###form###attach caption###' с приложением' (Consignment consignment) = {
-	NEWSESSION {
-	///            stopPrintConsignment() <- NULL;
-	            checkM##prefixA##nd##prefixA##tory###prefixA##ttri##prefixB##ute(consignment);
-	            IF NOT stopPrintConsignment() THEN {
-	                PRINT consignment###attach OBJECTS c = consignment ;
-	                countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
-	                PRINT consignment###form OBJECTS prefixA = consignment, prefixB = consignment ;
-	                apply();
-	            }            
-	        }
-} IMAGE 'print.png' IN print;        
-        
-        
-        
-        print###form###prefixA##uto caption (Consignment consignment) = {
-            stopPrintConsignment() <- NULL;
-            checkMandatoryAttribute(consignment);
-            PRINT consignment###form OBJECTS prefixA = consignment, prefixB = consignment AUTO;
-        } IMAGE 'print.png' IN print; 
+            IF NOT stopPrintConsignment() THEN {
+                PRINT consignment###attach OBJECTS c = consignment ;
+                countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
+                PRINT consignment###form OBJECTS prefixA = consignment, prefixB = consignment ;
+                apply();
+            }            
+        }
+    } IMAGE 'print.png' IN print;        
+                       
+    print###form###prefixA##uto caption (Consignment consignment) = {
+        stopPrintConsignment() <- NULL;
+        checkMandatoryAttribute(consignment);
+        PRINT consignment###form OBJECTS prefixA = consignment, prefixB = consignment AUTO;
+    } IMAGE 'print.png' IN print; 
 END   
 
 //-------------------  Создание накладной по сторонам ----------------------//
