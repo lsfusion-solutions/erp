@@ -1,6 +1,6 @@
 MODULE PricingPurchase;
 
-REQUIRE PricingInvoice, PurchaseInvoice, PurchaseShipment, PurchaseOperation, GLAccountType, PriceListStore, PricingSum;
+REQUIRE PricingInvoice, PurchaseInvoice, PurchaseShipment, PurchaseOperation, GLAccountType, PricingSum;
 
 NAMESPACE Purchase;
 
@@ -111,18 +111,6 @@ useShipmentQuantity (UserInvoice invoice) <- useShipmentQuantity(pricingOperatio
                                                         WHEN CHANGED(operation(invoice));
                                                             
 // Записываем тип цены по умолчанию из операции
-skipSetPriceListTypesDepartmentStore 'Не подставлять виды цен магазина' = DATA BOOLEAN (Pricing.Operation);
-
-EXTEND FORM Pricing.operation
-    PROPERTIES (o) skipSetPriceListTypesDepartmentStore
-;
-
-DESIGN Pricing.operation {
-    createContainer{
-        MOVE PROPERTY(skipSetPriceListTypesDepartmentStore(o));
-    }    
-}
-
 calcRetailPriceListType (UserInvoice invoice) <- IF pricingPriceListType(pricingOperation(invoice)) 
                 THEN pricingPriceListType(pricingOperation(invoice))
                 ELSE (retailPriceListType(customerStock(invoice)) IF NOT skipSetPriceListTypesDepartmentStore(pricingOperation(invoice)))

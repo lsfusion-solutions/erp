@@ -1,6 +1,6 @@
 MODULE Pricing;
 
-REQUIRE EmployeeStock, PriceRoundStore, PricingOperation, PriceListCalc, PriceListLedger, StockTax, StockSkuDocument;
+REQUIRE EmployeeStock, PriceRoundStore, PricingOperation, PriceListCalc, PriceListLedger, StockTax, StockSkuDocument, PriceListStore;
 
 //------------------------  derive or change ------------------------------------//
 
@@ -312,11 +312,11 @@ FORM userPricing 'Акт расценки'
                    countUserPricingDetail
 
     OBJECTS d = UserPricingDetail
-    PROPERTIES (d) index, idBarcodeSku, nameSku, shortNameUOMSku,
+    PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, shortNameUOMSku,
                    nameRetailPriceListType, price
     PROPERTIES (d) BACKGROUND backgroundRetail(p)
                    retailMarkup ON CHANGE changeRetailMarkup(d), numberRetailVAT, valueRetailVAT, retailPrice ON CHANGE changeRetailPrice(d)
-    PROPERTIES (d) nameDepartmentStore, NEW, deletepd=DELETE GRID
+    PROPERTIES (d) NEW, deletepd=DELETE GRID
     ORDER BY index(d)
 
     PROPERTIES(p) TODRAW d deleteUserPricingDetail
@@ -551,10 +551,29 @@ DESIGN operation {
 @defineDocumentOperationRolePrefix(userPricing, );
 
 // Записываем тип цены по умолчанию из операции
-calcRetailPriceListType (UserPricing pricing) <- pricingPriceListType(operation(pricing))
-    WHEN CHANGED(operation(pricing));
-calcRetailCalcPriceListType (UserPricing pricing) <- pricingCalcPriceListType(operation(pricing))
-    WHEN CHANGED(operation(pricing));
+skipSetPriceListTypesDepartmentStore 'Не подставлять виды цен магазина' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES (o) skipSetPriceListTypesDepartmentStore
+;
+
+DESIGN operation {
+    createContainer{
+        MOVE PROPERTY(skipSetPriceListTypesDepartmentStore(o));
+    }    
+}
+
+
+calcRetailPriceListType (UserPricing p) <- IF pricingPriceListType(operation(p)) 
+                THEN pricingPriceListType(operation(p))
+                ELSE (retailPriceListType(departmentStore(p)) IF NOT skipSetPriceListTypesDepartmentStore(operation(p)))
+                    WHEN (CHANGED(operation(p)) OR CHANGED(departmentStore(p))) AND operation(p);
+
+calcRetailCalcPriceListType (UserPricing p) <- IF pricingCalcPriceListType(operation(p)) 
+                THEN pricingCalcPriceListType(operation(p))
+                ELSE (retailCalcPriceListType(departmentStore(p)) IF NOT skipSetPriceListTypesDepartmentStore(operation(p)))
+                    WHEN (CHANGED(operation(p)) OR CHANGED(departmentStore(p))) AND operation(p);
+
 
 EXTEND FORM userPricing
     PROPERTIES(p) nameOperation
