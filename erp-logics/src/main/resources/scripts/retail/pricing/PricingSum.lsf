@@ -316,13 +316,14 @@ FORM pricing 'Акт расценки (печать)'
                    retailPrice, retailSum
     ORDER BY index(d)                   
 
-    PROPERTIES(p) TODRAW d addDetailDialogSkuStockUserPricingDetail,
-                           addDetailInputBarcodeUserPricingDetail
-
     FILTERS pricing(d) == p
 ;
 
 print 'Акт расценки' (Pricing pricing) = { PRINT pricing OBJECTS p = pricing; }   IMAGE 'print.png' IN print;
+
+// Действия по добавлению строк
+@defineAddDetailDialogSkuStock(userPricing, sku, departmentStore, dialogSku);
+@defineAddDetailDialogBarcode(userPricing, sku);
 
 EXTEND FORM userPricing
     PROPERTIES(p) nameSupplier, 
@@ -336,6 +337,9 @@ EXTEND FORM userPricing
                    quantity, sum
 
     PROPERTIES (d) BACKGROUND backgroundRetail(p) retailMarkupSum, retailVATSum, retailSum
+
+    PROPERTIES(p) TODRAW d addDetailDialogSkuStockUserPricingDetail,
+                           addDetailInputBarcodeUserPricingDetail
 ;
 
 DESIGN userPricing {
@@ -348,10 +352,6 @@ DESIGN userPricing {
     PROPERTY(sumUserPricingDetail(p)) { preferredCharWidth = 13;}
     PROPERTY(retailSumUserPricingDetail(p)) { preferredCharWidth = 13;}
 }
-
-// Действия по добавлению строк
-@defineAddDetailDialogSkuStock(userPricing, sku, departmentStore, dialogSku);
-@defineAddDetailDialogBarcode(userPricing, sku);
 
 @defineDocumentSkuPriceListTypeSystemLedger(userPricing, accountPriceListType, departmentStore, );
 @extendFormDocumentSku(userPricing, userPricingDetail, userPricing, p, sku, departmentStore);
