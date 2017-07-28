@@ -1,6 +1,6 @@
 MODULE PricingPurchase;
 
-REQUIRE PricingInvoice, PurchaseInvoice, PurchaseShipment, PurchaseOperation, GLAccountType, PricingSum;
+REQUIRE PricingInvoice, PurchaseInvoice, PurchaseShipment, PurchaseOperation, GLAccountType;
 
 NAMESPACE Purchase;
 
@@ -52,9 +52,7 @@ overRoundCondition (UserInvoiceDetail d) = IF retailPriceListType(d) IS CalcPric
     THEN roundCondition(retailPriceListType(d), sku(d)) 
     ELSE roundCondition(retailPriceListType(d));
 
-roundCondition(UserInvoiceDetail d) =  IF overRoundCondition(d)
-        THEN overRoundCondition(d)              
-        ELSE roundCondition(customerStock(d));
+roundCondition(UserInvoiceDetail d) = OVERRIDE overRoundCondition(d), roundCondition(customerStock(d));
 
 @defineInvoicePricingAggregation(invoice, Invoice, ' (закупка)', 'Акт расценки на основе накладной', 'Проведенный акт расценки на основе накладной', customer, );
 
@@ -84,13 +82,8 @@ WHEN LOCAL FORMS userInvoice
      AND NOT skipSetRetailPriceListType(detail) DO
      retailPriceListType(detail) <- OVERRIDE extraCalcRetailCalcPriceListType(detail), calcRetailCalcPriceListType(detail);     
 
-batch(InvoicePricingDetail detail) += OVERRIDE batch(invoiceDetail(detail)), shipmentBatch(invoiceShipmentDetail(invoiceDetail(detail)));
 edit (InvoicePricingDetail d)+= { edit(invoiceDetail(d)); }
 
-skipChangeLedger(InvoicePricingDetail ledger) += dataSkipChangeLedger(invoiceDetail(ledger));
-skipChangeLedger(InvoicePricingDetail ledger) += onlyPositivePriceLedger(operation(invoiceDetail(ledger))) AND NOT pricingQuantity(invoiceDetail(ledger)) >0;
-
-@defineInvoicePricingRelation(' (закупка)', customerStock);
 retailPriceListType(InvoicePricingDetail pricingDetail) += retailPriceListType(invoiceDetail(pricingDetail));
 
 // -- Операция
@@ -107,9 +100,6 @@ pricingOperation (UserInvoice invoice) <- pricingOperation(operation(invoice))
 
 operation(InvoicePricing pricing) += pricingOperation(invoice(pricing));
 
-useShipmentQuantity (UserInvoice invoice) <- useShipmentQuantity(pricingOperation(operation(invoice)))
-                                                        WHEN CHANGED(operation(invoice));
-                                                            
 // Записываем тип цены по умолчанию из операции
 calcRetailPriceListType (UserInvoice invoice) <- IF pricingPriceListType(pricingOperation(invoice)) 
                 THEN pricingPriceListType(pricingOperation(invoice))
@@ -133,7 +123,7 @@ DESIGN operation {
 // Добавляем вид цены на форму
 EXTEND FORM userInvoice
     PROPERTIES(i) SHOWIF createPricing(i) BACKGROUND backgroundRetail(i)
-                  namePricingOperation, nameCalcRetailPriceListType, nameCalcRetailCalcPriceListType, useShipmentQuantity
+                  namePricingOperation, nameCalcRetailPriceListType, nameCalcRetailCalcPriceListType
     PROPERTIES(pd) SHOWIF createPricing(i) BACKGROUND backgroundRetail(i) nameRetailPriceListType BEFORE retailMarkup(pd)
 ;
 DESIGN userInvoice {
@@ -141,7 +131,6 @@ DESIGN userInvoice {
         MOVE PROPERTY(namePricingOperation(i));
         MOVE PROPERTY(nameCalcRetailPriceListType(i)) AFTER PROPERTY(namePricingOperation(i));
         MOVE PROPERTY(nameCalcRetailCalcPriceListType(i)) AFTER PROPERTY(nameCalcRetailPriceListType(i));
-        MOVE PROPERTY(useShipmentQuantity(i)) AFTER PROPERTY(nameCalcRetailCalcPriceListType(i));
     }
 }
 
@@ -174,11 +163,6 @@ EXTEND FORM userInvoice
     PROPERTIES() SHOWIF createPricing[Invoice](i) recalculateRetailPriceAndType TODRAW pd TOOLBAR  
 ;
 
-// Изменяем учетную цену
-calcShipmentPrice(UserInvoiceDetail detail) += WHEN customerStock(detail) IS DepartmentStore AND NOT costLedger(customerStock(detail))
-                                                THEN retailPrice(detail);
-overCostPrice(InvoiceShipmentDetail detail) += costPrice(invoiceDetail(detail)) IF customerStock[ShipmentDetail](detail) IS DepartmentStore AND NOT costLedger(customerStock[ShipmentDetail](detail)); 
-
 // Проставляем НДС розничный, равный НДС входному
 WHEN LOCAL CHANGED(VAT(UserInvoiceDetail detail)) OR CHANGED(valueVAT(detail)) DO {
     retailVAT(detail) <- IF valueVAT(detail) == 0 THEN
@@ -203,11 +187,10 @@ EXTEND FORM userInvoice
 
 // Копирование документа
 overCopy(UserInvoice s, UserInvoice d) += {
-    ASSIGN createPricing(d) <- createPricing(s);
-    ASSIGN pricingCommittee(d) <- pricingCommittee(s);
-    ASSIGN pricingOperation(d) <- pricingOperation(s);
-    ASSIGN calcRetailPriceListType(d) <- calcRetailPriceListType(s);
-    ASSIGN calcRetailCalcPriceListType(d) <- calcRetailCalcPriceListType(s);
+    createPricing(d) <- createPricing(s);
+    pricingOperation(d) <- pricingOperation(s);
+    calcRetailPriceListType(d) <- calcRetailPriceListType(s);
+    calcRetailCalcPriceListType(d) <- calcRetailCalcPriceListType(s);
 }
 
 //Добавляем на форму Текущие остатки НДС и наценку
@@ -218,6 +201,3 @@ retailMarkup 'Надбавка,%' (Batch batch) = retailMarkup(invoiceDetail(bat
 EXTEND FORM currentBalanceSkuStock
     PROPERTIES(bt) READONLY BACKGROUND RGB(224, 255, 255) valueRetailVAT, retailMarkup    
 ;
-
-
-

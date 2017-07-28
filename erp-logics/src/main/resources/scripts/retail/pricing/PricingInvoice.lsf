@@ -4,22 +4,6 @@ REQUIRE Pricing, Invoice;
 
 NAMESPACE Pricing;
 
-@defineDocumentAbstractHeaderProperty (invoice, createPricing, 'Создать акт расценки');
-
-invoiceDetail = ABSTRACT InvoiceDetail (PricingDetail) MATERIALIZED INDEXED;
-
-backgroundRetail 'Цвет' (Invoice invoice) = RGB(224, 255, 255) IF invoice IS Invoice;
-
-@defineDocumentAbstractDetailMarkupCustomPrefix(invoiceDetail, retail, );
-@defineDocumentAbstractDetailMarkupSumCustomPrefix (invoiceDetail, retail, );
-@defineDocumentAbstractDetailVATCustom(invoiceDetail, retail, ' розничный');
-@defineDocumentAbstractDetailVATDataSumCustomPrefix(invoiceDetail, retail, ' розничная');
-@defineDocumentAbstractDetailPriceCustomPrefix(invoiceDetail, retail, ' розничная');
-@defineDocumentAbstractDetailDataSumCustomPrefix(invoiceDetail, retail, ' розничная');
-@defineDocumentAbstractDetailQuantityCustomPrefix(invoiceDetail, pricing, ' (расценено)');
-
-retailSumInvoiceDetail 'Сумма розничная' (invoice) = GROUP SUM retailSum(InvoiceDetail idetail) BY invoice(idetail) IN documentSum;
-
 dateBanRetailPrice 'Дата запрета приемки накладных без розничных цен'  = DATA DATE (DepartmentStore); 
 
 EXTEND FORM departmentStore
@@ -71,9 +55,6 @@ DESIGN options {
 
 META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, captionPost, stockProp, prefix)
 
-    // Комиссия
-    @defineDocumentInterfaceHeaderPricingCommittee(invoice, stockProp###stock);
-
     // Кол-во расценено
     @defineDocumentInterfaceDetailQuantityPrefix (invoice, pricing, ' (расценено)');
 
@@ -116,79 +97,26 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     @changeDocumentDetailMarkupCustomPrefix(userInvoiceDetail, retail, pricing, retail, retail);
     @changeDocumentDetailPriceCustomPrefix(userInvoiceDetail, retail, pricing, retail, retail);
 
-    // -- Суммы по строкам
-
-    // Надбавка
-    @defineDocumentInterfaceDetailMarkupSumPrefix (invoice, retail);
-
-    // НДС
-    @defineDocumentInterfaceDetailVATDataSumPrefix (invoice, retail, ' розничная');
-    extraRetailVATSum = ABSTRACT NUMERIC[18,4] (InvoiceDetail) MATERIALIZED;
-    // Выходная
-    @defineDocumentInterfaceDetailDataSumPrefix (invoice, retail, ' розничная');
-    extraRetailSum = ABSTRACT NUMERIC[18,4] (InvoiceDetail) MATERIALIZED;
-    
-    // Расчет сумм обратным счетом
-    //поменять price на pricingPrice
-    @deriveDocumentDetailSumCustomRoundPrefix(userInvoiceDetail, retail, currency, pricingQuantity, homePriceRound);
-    pricingSum = ABSTRACT VALUE NUMERIC[18,4] (User###concrete##Detail);
-    pricingSum[User###concrete##Detail](User###concrete##Detail d) += NUMERIC[18,4](Utils.round(pricingQuantity(d) * price(d), homePriceRound(d)));
-    pricingSum = ABSTRACT VALUE NUMERIC[18,4] (###concrete##Detail);
-    pricingSum[###concrete##Detail](###concrete##Detail d) += NUMERIC[18,4](Utils.round(pricingQuantity(d) * price(d), homePriceRound(d)));
-    
-    @deriveDocumentDetailReverseVATSumRoundPrefix(userInvoice, retail, retail, homePriceRound);
-    @deriveDocumentDetailMarkupSumPrefix(userInvoice, retail, retail, pricing);
-
-    // -- Суммы по документу
-    @defineDocumentInterfaceHeaderSumPrefix (invoice, retail, ' розничная');
-    @defineDocumentInterfaceHeaderSumPrefix (invoice, retailVAT, ' НДС розничная');
-    @defineDocumentInterfaceHeaderSumPrefix (invoice, retailMarkup, ' надбавки розничная');
-    @defineDocumentInterfaceHeaderItemSumDouble (invoice, range, retailMarkup, retailMarkup, , retailVAT);
-    @defineDocumentInterfaceHeaderItemSumDouble (invoice, range, retailVAT, retailVAT, , retailVAT);
-    @defineDocumentInterfaceHeaderItemSumDouble (invoice, range, retail, retail, , retailVAT);
-    @defineDocumentHeaderItemSumCustom(invoice, invoiceDetail, retail, retail);
-    
     // Создание акта расценки
     @defineDocumentInterfaceProperty (invoice, createPricing, 'Создать акт расценки');
-    createPricing[###concrete.###concrete](###concrete i) += createPricing(i);
-    retailMarkup[###concrete.###concrete##Detail](###concrete##Detail d) += retailMarkup(d);
-    retailMarkupSum[###concrete.###concrete##Detail](###concrete##Detail d) += retailMarkupSum(d);
-    retailVAT[###concrete.###concrete##Detail](###concrete##Detail d) += retailVAT(d);
-    valueRetailVAT[###concrete.###concrete##Detail](###concrete##Detail d) += valueRetailVAT(d); 
-    retailVATSum[###concrete.###concrete##Detail](###concrete##Detail d) += retailVATSum(d);
-    retailPrice[###concrete.###concrete##Detail](###concrete##Detail d) += retailPrice(d);
-    retailSum[###concrete.###concrete##Detail](###concrete##Detail d) += retailSum(d);
-    pricingQuantity[###concrete.###concrete##Detail](###concrete##Detail d) += pricingQuantity(d);
+
+    showCreatePricing (###concrete invoice) = stockProp##Stock(invoice) IS DepartmentStore; //AND NOT costLedger(stockProp##Stock(invoice)); пока уберем из-за модульности
        
-    showCreatePricing (###concrete invoice) = stockProp##Stock(invoice) IS DepartmentStore AND NOT costLedger(stockProp##Stock(invoice));
-    showPricing (###concrete invoice) = showCreatePricing (invoice) AND NOT createPricing(invoice);
-    toShowPricing (###concrete invoice) = showCreatePricing (invoice) AND createPricing(invoice);
-    
-    //Расценка поставленного количества
-    @defineDocumentInterfaceProperty (invoice, useShipmentQuantity, 'Расценивать поставленное кол-во'); 
-          
-    overPricingQuantity(User###concrete##Detail detail) += (OVERRIDE shipmentQuantity(detail), 0.0 IF detail IS User###concrete##Detail) IF useShipmentQuantity(detail);
-    
     backgroundRetail 'Цвет' (###concrete invoice) = RGB(224, 255, 255) IF invoice IS Invoice;
     EXTEND FORM userInvoice
         PROPERTIES(i) SHOWIF showCreatePricing(i) BACKGROUND backgroundRetail(i) createPricing
-        PROPERTIES(i) SHOWIF createPricing(i) BACKGROUND backgroundRetail(i) namePricingCommittee,
-                      retailSumUser###concrete##Detail
-        PROPERTIES(i) SHOWIF createPricing(i) BACKGROUND backgroundRetail(i)
-            nameFormedMan, nameCheckedMan, nameLabeledMan, nameAccountantMan, nameHeadMan   
                       
         OBJECTS pd = UserInvoiceDetail GRID
         PROPERTIES (pd) READONLY SHOWIF createPricing[###concrete](i) index
         PROPERTIES (pd) READONLY SHOWIF createPricing[###concrete](i)  BACKGROUND backgroundSku(pd) idBarcodeSku, 
                         idSku, nameSku, shortNameUOMSku //ON EDIT editSku(pd)
-        PROPERTIES (pd) quantity SHOWIF createPricing[###concrete](i), pricingQuantity SHOWIF toShowPricing(i) BACKGROUND backgroundRetail(i), 
+        PROPERTIES (pd) quantity SHOWIF createPricing[###concrete](i), 
                         pricingPrice SHOWIF createPricing[###concrete](i)              
                        
         PROPERTIES(pd) SHOWIF createPricing[###concrete](i) BACKGROUND backgroundRetail(i)
-                      retailMarkup ON CHANGE changeRetailMarkup(pd), retailMarkupSum, numberRetailVAT,
-                      valueRetailVAT, retailVATSum,
-                      retailPrice ON CHANGE changeRetailPrice(pd),
-                      retailSum
+                      retailMarkup ON CHANGE changeRetailMarkup(pd), numberRetailVAT,
+                      valueRetailVAT,
+                      retailPrice ON CHANGE changeRetailPrice(pd)
 //        PROPERTIES(pd) SHOWIF createPricing[###concrete](i) deleteipd=DELETESESSION TOOLBAR
         ORDER BY index(pd)                      
         FILTERS user###concrete(pd) == i             
@@ -210,7 +138,6 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
                 MOVE PROPERTY(createPricing(i));                
             }
         }
-        PROPERTY(retailSumUser###concrete##Detail(i)) { preferredCharWidth = 13;}   
         specificationBox {
             NEW pricing {
                 fill = 1;
@@ -222,27 +149,14 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
                     
                 }
                 MOVE BOX(pd);
-                NEW bottomCreatePricing{  
-                    caption = 'Комиссия для расценки';              
-                    type = COLUMNS;
-                    columns = 6;   
-                    MOVE PROPERTY(namePricingCommittee(i));                 
-                    MOVE PROPERTY(nameFormedMan(i));
-                    MOVE PROPERTY(nameCheckedMan(i));
-                    MOVE PROPERTY(nameLabeledMan(i));
-                    MOVE PROPERTY(nameAccountantMan(i));
-                    MOVE PROPERTY(nameHeadMan(i));
-                }
             }
         }
     }
     EXTEND FORM invoices
-        PROPERTIES(i) BACKGROUND backgroundRetail(i) retailSum###concrete##Detail READONLY BEFORE orders(i)
         PROPERTIES(d) READONLY BEFORE expiryDate(d) SHOWIF createPricing(i) BACKGROUND backgroundRetail(i)
-                      retailMarkup, retailMarkupSum, numberRetailVAT,
-                      valueRetailVAT, retailVATSum,
-                      retailPrice, retailSum
-        PROPERTIES(d) READONLY BACKGROUND backgroundRetail(i) pricingQuantity AFTER quantity(d)  SHOWIF toShowPricing(i)
+                      retailMarkup, 
+                      numberRetailVAT, valueRetailVAT, 
+                      retailPrice
     ;
     
     overCopy[User###concrete##Detail,User###concrete##Detail](User###concrete##Detail d, User###concrete##Detail detail) += {      
@@ -261,13 +175,6 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
         BY concrete(invoiceDetail) MATERIALIZED;
 
     @defineDocumentAggregation(invoice, concrete###pricing, needToPricing);
-    Pricing.concrete##Detail(###concrete##PricingDetail detail) += concrete##Detail(detail);
-
-    printPricing 'Акт расценки' (###concrete invoice) = { print(concrete##Pricing(invoice)); } IMAGE 'print.png' IN print;
-    EXTEND FORM invoices
-        PROPERTIES(i)  printPricing SHOWIF createPricing(i)
-    ;
-    DESIGN invoices { printTab { MOVE GROUP(i,print) { align=LEADING; } } }
 
     pricing(###concrete##PricingDetail detail) += concrete##Pricing(detail);
     index(###concrete##PricingDetail detail) += index(detail);
@@ -297,7 +204,6 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     
     @defineDocumentAggregationClosed(invoice, concrete###pricing);
     isClosed(###concrete##Pricing pricing) += isClosed(pricing); 
-    is###concrete(###concrete##Pricing pricing) += TRUE IF concrete(pricing);    
 
     number 'Номер документа' (###concrete##Pricing concrete###pricing) = number(concrete(concrete###pricing));
     number(###concrete##Pricing pricing) += number(pricing);
@@ -315,12 +221,6 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     
     edit(###concrete##Pricing pricing) += { edit(concrete(pricing)); }
 
-    pricingCommittee(###concrete##Pricing pricing) += pricingCommittee(concrete(pricing));
-    dataFormedMan (###concrete##Pricing pricing) += dataFormedMan(concrete(pricing));
-    dataCheckedMan (###concrete##Pricing pricing) += dataCheckedMan(concrete(pricing));
-    dataLabeledMan (###concrete##Pricing pricing) += dataLabeledMan(concrete(pricing));
-    dataAccountantMan (###concrete##Pricing pricing) += dataAccountantMan(concrete(pricing));
-    dataHeadMan (###concrete##Pricing pricing) += dataHeadMan(concrete(pricing));             
 //    operationPricing(pricing) += operationInvoice(invoice###concrete###pricing(pricing));
 
 //    @defineDocumentDescription(concrete###pricing, ###concrete###pricingDetail, captionPre###sign);
@@ -330,9 +230,6 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
 
     @defineDocumentAggregationDetailSku(invoice, concrete###pricing, sku);
     sku(###concrete##PricingDetail pricingDetail) +=  sku(pricingDetail);
-
-    @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, pricingQuantity, 'Кол-во (расценено)');
-    quantity(###concrete##PricingDetail pricingDetail) += pricingQuantity(pricingDetail);
 
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, prefix###price, 'Цена поставщика');
     price(###concrete##PricingDetail pricingDetail) += NUMERIC[16,4](OVERRIDE (overPrice(pricingDetail) IF pricingDetail IS concreteClass###PricingDetail), prefix###price(pricingDetail));
@@ -347,172 +244,6 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
 
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, retailPrice, 'Розничная цена');
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, extraRetailPrice, 'Розничная цена (доп.)');
-    extraRetailPrice(###concrete##PricingDetail pricingDetail) += extraRetailPrice(pricingDetail);
     retailPrice(###concrete##PricingDetail pricingDetail) += retailPrice(pricingDetail) + OVERRIDE extraRetailPrice(pricingDetail), 0;
 
-    // -- Суммы по строкам
-
-    @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, pricingSum, 'Сумма поставщика');
-    sum(###concrete##PricingDetail pricingDetail) += NUMERIC[18,4](OVERRIDE round(overPrice(pricingDetail)*quantity(pricingDetail), homePriceRound(concrete##Detail(pricingDetail))) IF pricingDetail IS concreteClass###PricingDetail,
-            pricingSum(pricingDetail));
-
-    @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, retailMarkupSum, 'Сумма надбавки');
-    retailMarkupSum(###concrete##PricingDetail pricingDetail) += retailMarkupSum(pricingDetail);
-
-    @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, retailVATSum, 'Сумма НДС');
-    @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, extraRetailVATSum, 'Сумма НДС (доп.)');
-    extraRetailVATSum(###concrete##PricingDetail pricingDetail) += extraRetailVATSum(pricingDetail);
-    retailVATSum(###concrete##PricingDetail pricingDetail) += retailVATSum(pricingDetail) (+) extraRetailVATSum(pricingDetail);
-
-    @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, retailSum, 'Сумма розничная');
-    @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, extraRetailSum, 'Сумма розничная (доп.)');
-    extraRetailSum(###concrete##PricingDetail pricingDetail) += extraRetailSum(pricingDetail);
-    retailSum(###concrete##PricingDetail pricingDetail) += retailSum(pricingDetail) (+) extraRetailSum(pricingDetail);
-
-END
-//--  Связь накладной и расценки
-META defineInvoicePricingRelation(sign, stockProp)
-
-    invoiceDetail = ABSTRACT InvoiceDetail (PricingDetail) MATERIALIZED INDEXED;
-    invoiceDetail = DATA InvoiceDetail (UserPricingDetail);
-    invoiceDetail(UserPricingDetail pricingDetail) += invoiceDetail(pricingDetail);
-
-    CONSTRAINT supplier[PricingDetail](UserPricingDetail detail) != supplier(invoiceDetail(detail)) OR
-               departmentStore[PricingDetail](detail) != stockProp(invoiceDetail(detail)) OR
-               sku(detail) != sku(invoiceDetail(detail))
-        CHECKED BY invoiceDetail[UserPricingDetail]
-            MESSAGE 'Поставщик, покупатель и товар в накладной и акте расценки должны соответствовать друг другу';
-
-    descriptionIndexInvoiceDetail 'Строка накладной' (PricingDetail detail) = descriptionIndex(invoiceDetail(detail));
-    descriptionIndexInvoiceDetail 'Строка накладной' (UserPricingDetail detail) = descriptionIndex(invoiceDetail(detail));
-
-    quantityPricingDetail (invoice, pricing) = GROUP SUM quantity(PricingDetail pricingDetail) BY invoice(invoiceDetail(pricingDetail)), pricing(pricingDetail);
-
-    invoices 'Накладные' (pricing) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityPricingDetail(invoice, Pricing pricing) , ', '
-                                                    BY pricing
-                                                    ORDER invoice IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
-
-    pricing 'Кол-во (расценено)' (invoiceDetail) = GROUP SUM quantity(PricingDetail pricingDetail) IF isPosted(pricingDetail)
-                                                                       BY invoiceDetail(pricingDetail) MATERIALIZED;
-
-    toPricing 'Не расценено' (InvoiceDetail invoiceDetail) = quantity (invoiceDetail) (-) pricing(invoiceDetail);
-
-    toPricingInvoiceDetail 'Не расценено по отделу' (stock, invoice) =
-        GROUP SUM toPricing(InvoiceDetail invoiceDetail) IF toPricing(invoiceDetail) > 0
-              BY stockProp(invoiceDetail), invoice(invoiceDetail);
-
-    // Создание расценки на основе инвойса //
-
-    FORM pricingInvoices 'Накладные'###sign
-        OBJECTS s = LegalEntity PANEL
-        PROPERTIES (s) READONLY name
-        OBJECTS c = Stock PANEL
-        PROPERTIES (c) READONLY name
-
-        OBJECTS i = Invoice
-        PROPERTIES (i) READONLY isPosted, number, series, date, time,
-                                nameSupplier, nameSupplierStock, nameCustomer, name###stockProp, nameCurrency,
-                                seriesNumberContractSku, isCommission,
-                                countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
-                                VATSumInvoiceDetail, invoiceSumInvoiceDetail, orders,
-                                note
-        FILTERS supplier(i) == s,
-                stockProp(i) == c,
-                isPosted(i)
-        FILTERGROUP invoice
-            FILTER 'Накладные с нерасцененными товарами' toPricingInvoiceDetail(c,i) 'F10' DEFAULT
-            FILTER 'Накладные со склада' countInvoiceDetail(c,i) 'F9'
-
-        OBJECTS d = InvoiceDetail
-        PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
-                       quantity, pricing, price, sum,
-                       name###stockProp, descriptionOrder, toPricing
-        FILTERS invoice(d) == i
-        FILTERGROUP invoiceDetail
-            FILTER 'Строки с нерасцененными товарами' stockProp(d) == c AND toPricing(d) > 0 'F10' DEFAULT
-            FILTER 'Строки со склада' stockProp(d) == c 'F9'
-
-    ;
-
-    DESIGN pricingInvoices {
-        BOX {
-            preferredSize = (1024, 768);
-            NEW documentContainer BEFORE TOOLBARBOX {
-                fill = 1;
-                type = CONTAINERV;
-
-                NEW headerBox {
-                    type = CONTAINERH;
-                    MOVE BOX(s) { caption = 'Поставщик';}
-                    MOVE BOX(c) { caption = 'Склад';}
-                }
-                MOVE BOX(i);
-                NEW documentDetail {
-                    fill = 1;
-                    type = TABBED;
-
-                    MOVE BOX(d) {
-                        caption = 'Спецификация';
-                    }
-                    NEW printTab {
-                        fill = 1;
-                        caption = 'Печатные формы';
-                        NEW printContainer {
-                            caption = 'Печать';
-                            type = CONTAINERV;
-                        }
-                    }
-                }
-            }
-            PROPERTY(toPricing(d)) { background = #FFFFCC; }
-        }
-    }
-
-    fillInvoice 'Заполнить на основе накладной'(UserPricing userPricing) =  {
-        DIALOG pricingInvoices OBJECTS s = supplier(userPricing), c = departmentStore(userPricing), i INPUT DO {
-            FOR invoice(InvoiceDetail invoiceDetail) == i AND
-                stockProp(invoiceDetail) == departmentStore(userPricing) AND
-                toPricing(invoiceDetail) > 0
-                NEW d = UserPricingDetail DO {
-                userPricing(d) <- userPricing;
-                invoiceDetail(d) <- invoiceDetail;
-
-                sku(d) <- sku(invoiceDetail);
-                quantity (d) <- toPricing(invoiceDetail);
-                price (d) <- price(invoiceDetail);
-
-                retailVAT(d) <- VAT(invoiceDetail);
-                valueRetailVAT(d) <- valueVAT(invoiceDetail);
-                batch(d) <- batch(invoiceDetail);
-            }
-        }
-    } IN invoice;
-
-    EXTEND FORM userPricing
-        PROPERTIES(p) fillInvoice, invoices READONLY
-        PROPERTIES(d) descriptionIndexInvoiceDetail BEFORE deletepd
-    ;
-    DESIGN userPricing { params { MOVE GROUP(p,invoice); } }
-
-    EXTEND FORM pricings
-        PROPERTIES(p) READONLY invoices, descriptionDocument
-        PROPERTIES(d) READONLY descriptionIndexInvoiceDetail
-    ;
-
-    EXTEND FORM userInvoice
-            PROPERTIES(d) READONLY pricing AFTER quantity(d) SHOWIF showPricing(i) BACKGROUND backgroundRetail(i)
-    ;
-    EXTEND FORM invoices
-            PROPERTIES(d) READONLY BACKGROUND backgroundRetail(i) pricing AFTER quantity(d)  SHOWIF showPricing(i)
-    ;
-    EXTEND FORM pricingInvoices
-        PROPERTIES(i) READONLY createPricing, retailSumInvoiceDetail BEFORE orders(i)
-        PROPERTIES(d) READONLY BEFORE name###stockProp(d) SHOWIF createPricing(i)
-                      retailMarkup, retailMarkupSum, numberRetailVAT,
-                      valueRetailVAT, retailVATSum,
-                      retailPrice, retailSum
-    ;
-
-    invoiceDetail(InvoicePricingDetail pricingDetail) += invoiceDetail(pricingDetail);
-    descriptionDocument(Pricing pricing) += VARSTRING[255](invoices(pricing));
 END

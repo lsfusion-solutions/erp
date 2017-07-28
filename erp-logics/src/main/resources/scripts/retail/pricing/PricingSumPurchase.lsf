@@ -1,0 +1,36 @@
+MODULE PricingSumPurchase;
+
+REQUIRE PricingPurchase, PricingSumInvoice;
+
+NAMESPACE Purchase;
+
+batch(InvoicePricingDetail detail) += OVERRIDE batch(invoiceDetail(detail)), shipmentBatch(invoiceShipmentDetail(invoiceDetail(detail)));
+
+skipChangeLedger(InvoicePricingDetail ledger) += dataSkipChangeLedger(invoiceDetail(ledger));
+skipChangeLedger(InvoicePricingDetail ledger) += onlyPositivePriceLedger(operation(invoiceDetail(ledger))) AND NOT pricingQuantity(invoiceDetail(ledger)) >0;
+
+// Изменяем учетную цену
+calcShipmentPrice(UserInvoiceDetail detail) += WHEN customerStock(detail) IS DepartmentStore AND NOT costLedger(customerStock(detail))
+                                                THEN retailPrice(detail);
+overCostPrice(InvoiceShipmentDetail detail) += costPrice(invoiceDetail(detail)) IF customerStock[ShipmentDetail](detail) IS DepartmentStore AND NOT costLedger(customerStock[ShipmentDetail](detail)); 
+
+@defineInvoicePricingAggregationSum(invoice, Invoice, ' (закупка)', 'Акт расценки на основе накладной', 'Проведенный акт расценки на основе накладной', customer, );
+
+@defineInvoicePricingRelation(' (закупка)', customerStock);
+
+useShipmentQuantity (UserInvoice invoice) <- useShipmentQuantity(pricingOperation(operation(invoice)))
+                                                        WHEN CHANGED(operation(invoice));
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) SHOWIF createPricing(i) BACKGROUND backgroundRetail(i)
+                  useShipmentQuantity
+;
+DESIGN userInvoice {
+    headerCreatePricing {
+        MOVE PROPERTY(useShipmentQuantity(i)) AFTER PROPERTY(nameCalcRetailCalcPriceListType(i));
+    }
+}
+
+overCopy(UserInvoice s, UserInvoice d) += {
+    pricingCommittee(d) <- pricingCommittee(s);
+}
