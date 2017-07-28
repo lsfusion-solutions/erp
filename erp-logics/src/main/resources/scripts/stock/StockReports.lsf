@@ -117,17 +117,31 @@ sumA 'Итоговая сумма отчета' = GROUP SUM sumA(Sku sku) IF inc
 
 // ---- Отчет по остаткам
 
-overFillReportBalanceData = ABSTRACT (Stock, GroupType, DATETIME);
+balanceB 'Остаток (до)' = DATA LOCAL NUMERIC[16,5] (Batch);
 
-fillReportBalanceData 'Рассчитать'(Stock st, GroupType gt, DATETIME dt) = {
+overFillReportBalanceData = ABSTRACT (GroupType, DATETIME);
 
-    balanceB(Sku sk) <- balanceB(sk, st, dt);
-    sumB(Sku sk) <- sumB(sk, st, dt);
+fillReportBalanceData 'Рассчитать'(GroupType gt, DATETIME dt) = {
+
+    IF [ = GROUP SUM 1 IF inBackSheet(Stock st)]() == 1 THEN
+    {
+        balanceB(Sku sk) <- balanceB(sk, [= GROUP MIN Stock st IF inBackSheet(st)](), dt);
+        sumB(Sku sk) <- sumB(sk, [= GROUP MIN Stock st IF inBackSheet(st)](), dt);
+        
+        balanceB(Batch batch) <- balanceB(batch, [= GROUP MIN Stock st IF inBackSheet(st)](), dt);
+    }  
+    ELSE
+    {
+        balanceB(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM balanceB(Sku sk, Stock st, DATETIME dt) IF inBackSheet(st) BY sk, dt](sk, dt));
+        sumB(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumB(Sku sk, Stock st, DATETIME dt) IF inBackSheet(st) BY sk, dt](sk, dt)); 
+        
+        balanceB(Batch batch) <- NUMERIC[16,5]([ = GROUP SUM balanceB(Batch bt, Stock st, DATETIME dt) IF inBackSheet(st) BY bt, dt](batch, dt));
+    }   
     
-    balanceB(Group g) <- [ = GROUP SUM balanceB(Sku sk) BY group(GroupType gt, sk)](g) IF  groupType(g) == gt;           
-    sumB(Group g) <- [ = GROUP SUM sumB(Sku sk) BY group(GroupType gt, sk)](g) IF  groupType(g) == gt;   
-
-    overFillReportBalanceData(st,gt,dt);
+    balanceB(Group g) <- [ = GROUP SUM balanceB(Sku sk) BY group(GroupType gt, sk)](g) IF  groupType(g) == gt;
+    sumB(Group g) <- [ = GROUP SUM sumB(Sku sk) BY group(GroupType gt, sk)](g) IF  groupType(g) == gt;
+       
+    overFillReportBalanceData(gt,dt);
 }
 // --------------------------------- Конец оптимизации с хранимыми свойствами ------------------------------------- //
 
@@ -142,8 +156,7 @@ FORM printListBalanceSkusStock 'Остатки по товарам'
     PROPERTIES(d) dateTime = VALUE
     PROPERTIES currentDateTime()
 
-    OBJECTS st = Stock PANEL
-    PROPERTIES(st) SELECTOR fullName
+    PROPERTIES inBackSheetStocks()
 
     OBJECTS gt = GroupType PANEL
     PROPERTIES(gt) SELECTOR name
@@ -157,21 +170,21 @@ FORM printListBalanceSkusStock 'Остатки по товарам'
 
     PROPERTIES(s) READONLY balanceB, sumB
     FILTERS balanceB(s)
-    FILTERS s IS Sku AND st IS Stock AND d IS DATETIME // фильтр, чтобы сохранилась старая иерархия
+    FILTERS s IS Sku AND d IS DATETIME // фильтр, чтобы сохранилась старая иерархия
 ;
 
-printListBalanceSkus 'Списком' (Stock stock, DATETIME dateTime, GroupType gtype) =
-    { PRINT printListBalanceSkusStock OBJECTS st = stock, d = dateTime, gt = gtype; } IMAGE 'print.png' IN print;
+printListBalanceSkus 'Списком' (DATETIME dateTime, GroupType gtype) =
+    { PRINT printListBalanceSkusStock OBJECTS d = dateTime, gt = gtype; } IMAGE 'print.png' IN print;  
 
-accountPriceB 'Цена учетная' (Sku sku, Stock st, DATETIME dateTime) = prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku, st, dateTime);   
+accountPriceB 'Цена учетная' (Sku sku, DATETIME dateTime) = 
+    NUMERIC[16,4]([ = GROUP MAX prevPriceB(SystemLedgerPriceListType.accountPriceListType, Sku sku, Stock st, DATETIME dt) IF inBackSheet(st) BY sku, dt](sku, dateTime));
 
 FORM printBalanceSkusStock 'Остатки по товарам'
     OBJECTS d = DATETIME PANEL
     PROPERTIES(d) dateTime = VALUE
     PROPERTIES currentDateTime()
 
-    OBJECTS st = Stock PANEL
-    PROPERTIES(st) SELECTOR fullName
+    PROPERTIES inBackSheetStocks()
 
     OBJECTS gt = GroupType PANEL
     PROPERTIES(gt) SELECTOR name
@@ -193,20 +206,22 @@ FORM printBalanceSkusStock 'Остатки по товарам'
     FILTERS group(gt, s) == sk
 
     PROPERTIES(s) READONLY balanceB, sumB
-    PROPERTIES(s, st, d) READONLY accountPriceB
+    PROPERTIES(s, d) READONLY accountPriceB
     FILTERS balanceB(s)
 ;
 
-printBalanceSkus 'По группам' (Stock stock, DATETIME dateTime, GroupType gtype) =
-    { PRINT printBalanceSkusStock OBJECTS st = stock, d = dateTime, gt = gtype; } IMAGE 'print.png' IN print;
+printBalanceSkus 'По группам' (DATETIME dateTime, GroupType gtype) =
+    { PRINT printBalanceSkusStock OBJECTS d = dateTime, gt = gtype; } IMAGE 'print.png' IN print;
+
+accountSumB 'Сумма учетная' (Batch batch, DATETIME dateTime) =
+    NUMERIC[32,9]([ = GROUP SUM accountSumB(Batch bt, Stock st, DATETIME dt)IF inBackSheet(st) BY bt, dt](batch, dateTime));
 
 //остатки по партиям
 FORM printListBalanceBatchesStock 'Остатки по партиям'
     OBJECTS d = DATETIME PANEL
     PROPERTIES(d) dateTime = VALUE
 
-    OBJECTS st = Stock PANEL
-    PROPERTIES(st) SELECTOR fullName
+    PROPERTIES inBackSheetStocks()
 
     OBJECTS gt = GroupType PANEL
     PROPERTIES(gt) SELECTOR name
@@ -218,19 +233,22 @@ FORM printListBalanceBatchesStock 'Остатки по партиям'
     FILTERS inSession(group(gt, sku(bt)))
     ORDER BY          date(bt), name(bt), nameSku(bt)
 
-    PROPERTIES(bt, st, d) READONLY balanceB, accountSumB
-    FILTERS balanceB(bt, st, d)
+    PROPERTIES(bt) READONLY balanceB
+    PROPERTIES(bt, d) READONLY accountSumB
+    FILTERS balanceB(bt)
 ;
 
-printListBalanceBatches 'Списком' (Stock stock, DATETIME dateTime, GroupType gtype) =
-    { PRINT printListBalanceBatchesStock OBJECTS st = stock, d = dateTime, gt = gtype; }  IMAGE 'print.png' IN print;
+printListBalanceBatches 'Списком' (DATETIME dateTime, GroupType gtype) =
+    { PRINT printListBalanceBatchesStock OBJECTS d = dateTime, gt = gtype; }  IMAGE 'print.png' IN print;
+
+accountSumBSkuBatch 'Учетная сумма на начало дня(по партиям)' (Group group, DATETIME dateTime) =
+    NUMERIC[32,9]([ = GROUP SUM accountSumBSkuBatch(Group group, Stock st, DATETIME dt) IF inBackSheet(st) BY group, dt](group, dateTime));
 
 FORM printBalanceBatchesStock 'Остатки по партиям'
     OBJECTS d = DATETIME PANEL
     PROPERTIES(d) dateTime = VALUE
 
-    OBJECTS st = Stock PANEL
-    PROPERTIES(st) SELECTOR fullName
+    PROPERTIES inBackSheetStocks()
 
     OBJECTS gt = GroupType PANEL
     PROPERTIES(gt) SELECTOR name
@@ -242,7 +260,7 @@ FORM printBalanceBatchesStock 'Остатки по партиям'
     ORDER BY canonicalName(sk)
     FILTERS inSession(sk) AND countSku(sk, gt)
     FILTERS groupType(sk) == gt
-    PROPERTIES(sk, st, d) READONLY accountSumBSkuBatch
+    PROPERTIES(sk, d) READONLY accountSumBSkuBatch
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS           bt=Batch
@@ -250,12 +268,13 @@ FORM printBalanceBatchesStock 'Остатки по партиям'
     FILTERS           group(gt, sku(bt)) == sk
     ORDER BY          date(bt), name(bt), nameSku(bt)
 
-    PROPERTIES(bt, st, d) READONLY balanceB, accountSumB
-    FILTERS balanceB(bt, st, d)
+    PROPERTIES(bt) READONLY balanceB
+    PROPERTIES(bt, d) READONLY accountSumB
+    FILTERS balanceB(bt)
 ;
 
-printBalanceBatches 'По группам' (Stock stock, DATETIME dateTime, GroupType gtype) =
-    { PRINT printBalanceBatchesStock OBJECTS st = stock, d = dateTime, gt = gtype; }  IMAGE 'print.png' IN print;
+printBalanceBatches 'По группам' (DATETIME dateTime, GroupType gtype) =
+    { PRINT printBalanceBatchesStock OBJECTS d = dateTime, gt = gtype; }  IMAGE 'print.png' IN print;
 
 showAccountSumBatch 'Показывать учетные суммы по партиям в отчете по остаткам' = DATA BOOLEAN ();
 EXTEND FORM options
@@ -267,64 +286,146 @@ DESIGN options {
     }
 }
 
+FORM dialogStocksBackSheet 'Выбор складов'
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY VALUE(a), name(sg)
+    ORDER BY name(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, name
+    PROPERTIES (s) inBackSheet
+    ORDER BY name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            isCompany(s),
+            countCompanyStock(sg)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
+    FILTERGROUP select FILTER 'Отм.' inBackSheet(s) 'F9' 
+;
+
+DESIGN dialogStocksBackSheet {
+    BOX {
+        preferredSize = (1024, 768);
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX(TREE stockTree) {
+                caption = 'Склады';
+            }
+            MOVE BOX(s) {
+                fill = 3;
+                GRID(s) {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(name(s)){
+                    minimumCharWidth = 35;
+                    preferredCharWidth = 35;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+@extendFormFilterStockAccess(s, dialogStocksBackSheet, company); 
+
+changeStocksBalance(GroupType gt, DATETIME dt) = {
+    DIALOG dialogStocksBackSheet DO 
+        fillReportBalanceData(gt, dt);
+}
+
+accountSumRecBSkuBatch 'Учетная сумма (по партиям)' (Group group, DATETIME dateTime) =
+    NUMERIC[32,9]([ = GROUP SUM accountSumRecBSkuBatch(Group group, Stock st, DATETIME dt) IF inBackSheet(st) BY group, dt](group, dateTime));
+accountSumBatchB 'Сумма учетная по партиям' (Sku sku, DATETIME dateTime) =
+    NUMERIC[32,9]([ = GROUP SUM accountSumBatchB(Sku sk, Stock st, DATETIME dt) IF inBackSheet(st) BY sk, dt](sku, dateTime));
+
+showMovementSkuBackSheet 'Показать движение товара по складу' (Sku sku) = { 
+    NEWSESSION NESTED(inBackSheet) 
+        SHOW movementSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inBackSheet(st)]() ; 
+}
+
+showMovementPriceSkuBackSheet 'Показать изменение цены товара по складу' (Sku sku) = { 
+    NEWSESSION NESTED(inBackSheet) 
+        SHOW movementPriceSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inBackSheet(st)]() ; 
+}
+
+showReserveSkuBackSheet 'Показать резерв товара по складу' (Sku sku) = { 
+    NEWSESSION NESTED(inBackSheet) 
+        SHOW orderSkuLedgerNotDate OBJECTS sk = sku, st = [ = GROUP MIN Stock st IF inBackSheet(st)]() ;
+}
+
+showMovementBatchBackSheet 'Показать движение по партии и складу' (Batch batch) = { 
+    NEWSESSION NESTED(inBackSheet)
+        SHOW movementBatchStock OBJECTS bt = batch, st = [ = GROUP MIN Stock st IF inBackSheet(st)]() ; 
+}
+
+showMovementSkuBackSheet 'Показать движение товара по складу' (Batch batch) = {
+    FOR s == sku(batch) DO
+        NEWSESSION NESTED(inBackSheet)
+            SHOW movementSkuStock OBJECTS s = s, st = [ = GROUP MIN Stock st IF inBackSheet(st)]() ;
+}
+
 FORM reportBalanceStock 'Отчет по остаткам'
     OBJECTS d=DATETIME PANEL
     PROPERTIES(d) VALUE
-
-    OBJECTS st = Stock PANEL
-    PROPERTIES(st) SELECTOR name
-    FILTERS isCompany(st)
 
     OBJECTS gt = GroupType PANEL
     PROPERTIES(gt) SELECTOR name
 //    PROPERTIES sumBGroupTypeStockDate(gt, st ,d)
 //    PROPERTIES(gt) READONLY sessionConcatGroups
 
+    PROPERTIES inBackSheetStocks() ON CHANGE changeStocksBalance(gt, d)
+
     TREE skuTree sk = Group PARENT parent
     PROPERTIES inSession(sk) BACKGROUND backgroundInSession(sk)
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
     PROPERTIES(sk) READONLY recBalanceB, recSumB
-    PROPERTIES(sk, st, d) READONLY accountSumRecBSkuBatch SHOWIF showAccountSumBatch()
+    PROPERTIES(sk, d) READONLY accountSumRecBSkuBatch SHOWIF showAccountSumBatch()
     ORDER BY order(sk), skuTreeName
     FILTERS groupType(sk) == gt
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS s = Sku
-    PROPERTIES(s) READONLY id SHOWIF showIDs(), idBarcode, name ON SHORTCUT showMovementSku(s,st) ON SHORTCUT showMovementPriceSku(s,st), shortNameUOM
+    PROPERTIES(s) READONLY id SHOWIF showIDs(), idBarcode, name ON SHORTCUT showMovementSkuBackSheet(s) ON SHORTCUT showMovementPriceSkuBackSheet(s), shortNameUOM
     ORDER BY name(s)
     FILTERS isParent(sk, s)
 
     PROPERTIES(s) READONLY balanceB, sumB
-    PROPERTIES(s, st, d) READONLY accountSumBatchB SHOWIF showAccountSumBatch()
-    PROPERTIES(st, d, gt) printListBalanceSkus, printBalanceSkus
+    PROPERTIES(s, d) READONLY accountSumBatchB SHOWIF showAccountSumBatch()
+    PROPERTIES(d, gt) printListBalanceSkus, printBalanceSkus
     FILTERGROUP balance 
         FILTER 'С остатком (кол-во)' balanceB(s) 'F7' DEFAULT
         FILTER 'С остатком (кол-во/сумма)' balanceB(s) OR sumB(s) 'F8'   
-    FILTERGROUP incorrectSum FILTER 'Неправильная сумма по партиям' abs(sumB(s) (-) accountSumBatchB(s, st, d)) > 1 'F9'   
+    FILTERGROUP incorrectSum FILTER 'Неправильная сумма по партиям' abs(sumB(s) (-) accountSumBatchB(s, d)) > 1 'F9'   
 
     OBJECTS           bt=Batch
-    PROPERTIES(bt)    READONLY date, name ON SHORTCUT showMovementBatch(bt,st), idBarcodeSku, 
-                      nameSku ON SHORTCUT showMovementSku(bt,st), shortNameUOM//, shippedQuantityBatch
+    PROPERTIES(bt)    READONLY date, name ON SHORTCUT showMovementBatchBackSheet(bt), idBarcodeSku, 
+                      nameSku ON SHORTCUT showMovementSkuBackSheet(bt), shortNameUOM//, shippedQuantityBatch
     FILTERS           isParent(sk, bt)
     ORDER BY          date(bt), name(bt), nameSku(bt)
 
-    PROPERTIES(bt, st, d) READONLY balanceB, accountSumB
-    PROPERTIES(st, d, gt) printListBalanceBatches, printBalanceBatches
-    FILTERS balanceB(bt, st, d)
+    PROPERTIES(bt) READONLY balanceB
+    PROPERTIES(bt, d) READONLY accountSumB
+    PROPERTIES(d, gt) printListBalanceBatches, printBalanceBatches
+    FILTERS balanceB(bt)
 
     EVENTS 
-        ON CHANGE gt fillReportBalanceData(st, gt, d),
-        ON CHANGE d fillReportBalanceData(st, gt, d),
-        ON CHANGE st fillReportBalanceData(st, gt, d)
+        ON CHANGE gt fillReportBalanceData(gt, d),
+        ON CHANGE d fillReportBalanceData(gt, d)
 ;
-@extendFormFilterStockAccess(st, reportBalanceStock);
 
 DESIGN reportBalanceStock {
     NEW topContainer{
         type = CONTAINERH;
         MOVE BOX(gt);        
         MOVE BOX(d);
-        MOVE BOX(st);
+        NEW stocks {
+            caption = 'Склады';
+            type = CONTAINERH;
+            MOVE PROPERTY(inBackSheetStocks());        
+        }
     }
     NEW bottomContainer {
         fill = 1;
@@ -338,8 +439,8 @@ DESIGN reportBalanceStock {
                 NEW printSkuContainer{
                     type = CONTAINERH;
                     caption = 'Печать';
-                    MOVE PROPERTY(printListBalanceSkus(st,d,gt));
-                    MOVE PROPERTY(printBalanceSkus(st,d,gt));
+                    MOVE PROPERTY(printListBalanceSkus(d,gt));
+                    MOVE PROPERTY(printBalanceSkus(d,gt));
                 }
                 MOVE BOX(s);
             }
@@ -350,8 +451,8 @@ DESIGN reportBalanceStock {
                     caption = 'Печать';
                     NEW print1{
                         type = CONTAINERH;
-                        MOVE PROPERTY(printListBalanceBatches(st,d,gt));
-                        MOVE PROPERTY(printBalanceBatches(st,d,gt));
+                        MOVE PROPERTY(printListBalanceBatches(d,gt));
+                        MOVE PROPERTY(printBalanceBatches(d,gt));
                     }
 
                 }
@@ -450,70 +551,12 @@ deleteInDataSessionReport 'Очистить выборку'(GroupType gt, DATE d
     formRefresh();
     fillReportBackSheetFromTo(gt, df, dt);
 } TOOLBAR;
-
-FORM dialogStocksBackSheet 'Выбор складов'
-
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
-    PROPERTIES READONLY VALUE(a), name(sg)
-    ORDER BY name(sg)
-    FILTERS stringEqualsAll(a)
-
-    OBJECTS s = Stock
-    PROPERTIES(s) READONLY id, name
-    PROPERTIES (s) inBackSheet
-    ORDER BY name(s)
-    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
-            isCompany(s),
-            countCompanyStock(sg)
-
-    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
-    FILTERGROUP select FILTER 'Отм.' inBackSheet(s) 'F9' 
-;
-
-DESIGN dialogStocksBackSheet {
-    BOX {
-        preferredSize = (1024, 768);
-        NEW topContainer {
-            type = SPLITH;
-            fill = 1;
-            MOVE BOX(TREE stockTree) {
-                caption = 'Склады';
-            }
-            MOVE BOX(s) {
-                fill = 3;
-                GRID(s) {
-                    defaultComponent = TRUE;
-                }
-                PROPERTY(name(s)){
-                    minimumCharWidth = 35;
-                    preferredCharWidth = 35;
-                }
-            }
-        }
-        MOVE TOOLBARBOX;
-    }
-}
-
-@extendFormFilterStockAccess(s, dialogStocksBackSheet, company);    
+   
 changeStocksBackSheet(GroupType gt, DATE df, DATE dt) = {
     DIALOG dialogStocksBackSheet DO 
         fillReportBackSheetFromTo(gt, df, dt);
 }
 
-showMovementSkuBackSheet 'Показать движение товара по складу' (Sku sku) = { 
-    NEWSESSION NESTED(inBackSheet) 
-        SHOW movementSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inBackSheet(st)]() ; 
-}
-
-showMovementPriceSkuBackSheet 'Показать изменение цены товара по складу' (Sku sku) = { 
-    NEWSESSION NESTED(inBackSheet) 
-        SHOW movementPriceSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inBackSheet(st)]() ; 
-}
-
-showReserveSkuBackSheet 'Показать резерв товара по складу' (Sku sku) = { 
-    NEWSESSION NESTED(inBackSheet) 
-        SHOW orderSkuLedgerNotDate OBJECTS sk = sku, st = [ = GROUP MIN Stock st IF inBackSheet(st)]() ;
-}
 
 FORM reportBackSheet 'Оборотная ведомость' 
     OBJECTS df=DATE PANEL
