@@ -285,8 +285,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 try {
                     sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+                    sendSalesLogger.info(String.format(logPrefix + "connected to %s", params.connectionString));
 
-                    salesBatch = readSalesInfoFromSQL(conn, machineryMap, directory);
+                    salesBatch = readSalesInfoFromSQL(conn, machineryMap, params.connectionString, directory);
 
                 } finally {
                     if (conn != null)
@@ -299,7 +300,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         return salesBatch;
     }
 
-    private EQSSalesBatch readSalesInfoFromSQL(Connection conn, Map<Integer, CashRegisterInfo> machineryMap, String directory) throws SQLException {
+    private EQSSalesBatch readSalesInfoFromSQL(Connection conn, Map<Integer, CashRegisterInfo> machineryMap, String connectionString, String directory) throws SQLException {
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
@@ -315,6 +316,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             String query = "SELECT type, ecr, doc, barcode, code, qty, price, amount, discount, department, flags, date, id," +
                     " zreport, payment, customer, `change` FROM history WHERE new = 1 ORDER BY ecr, id";
             ResultSet rs = statement.executeQuery(query);
+
+            sendSalesLogger.info(logPrefix + "readSales query executed");
 
             int position = 0;
             List<SalesInfo> currentSalesInfoList = new ArrayList<>();
@@ -464,6 +467,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             if (salesInfoList.size() > 0)
                 sendSalesLogger.info(logPrefix + String.format("found %s records", salesInfoList.size()));
         } catch (SQLException e) {
+            sendSalesLogger.error(logPrefix + "failed to read sales. ConnectionString: " + connectionString, e);
             throw Throwables.propagate(e);
         } finally {
             if (statement != null)
