@@ -389,7 +389,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         if (discountRecord) {
                             for (SalesInfo s : currentSalesInfoList) {
                                 s.discountSumReceipt = discountSum;
-                                s.sumReceiptDetail = HandlerUtils.safeAdd(s.sumReceiptDetail, rs.getBigDecimal(9)); //discountSum is negative
+                                //s.sumReceiptDetail = HandlerUtils.safeAdd(s.sumReceiptDetail, rs.getBigDecimal(9)); //discountSum is negative
                             }
                         } else {
                             SalesInfo salesInfo = new SalesInfo(isGiftCard, nppGroupMachinery, cash_id, numberZReport,
