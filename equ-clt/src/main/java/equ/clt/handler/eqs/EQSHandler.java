@@ -3,7 +3,6 @@ package equ.clt.handler.eqs;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
-import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.log4j.Logger;
@@ -19,7 +18,7 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static equ.clt.handler.HandlerUtils.trim;
+import static equ.clt.handler.HandlerUtils.*;
 
 public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
@@ -387,9 +386,25 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         boolean isDiscount = getBit(flags, 1);
                         boolean discountRecord = (idBarcode == null || idBarcode.isEmpty()) && isDiscount;
                         if (discountRecord) {
+
+                            BigDecimal totalSum = BigDecimal.ZERO;
                             for (SalesInfo s : currentSalesInfoList) {
-                                s.discountSumReceipt = discountSum;
-                                //s.sumReceiptDetail = HandlerUtils.safeAdd(s.sumReceiptDetail, rs.getBigDecimal(9)); //discountSum is negative
+                                totalSum = safeAdd(totalSum, s.sumReceiptDetail);
+                            }
+
+                            BigDecimal remainSum = discountSum;
+                            int i = 1;
+                            for (SalesInfo s : currentSalesInfoList) {
+                                if(i < currentSalesInfoList.size()) {
+                                    BigDecimal extraDiscount = getExtraDiscount(totalSum, discountSum, s.sumReceiptDetail);
+                                    s.sumReceiptDetail = safeSubtract(s.sumReceiptDetail, extraDiscount);
+                                    s.discountSumReceiptDetail = safeAdd(s.discountSumReceiptDetail, extraDiscount);
+                                    remainSum = safeSubtract(remainSum, extraDiscount);
+                                    i++;
+                                } else {
+                                    s.sumReceiptDetail = safeSubtract(s.sumReceiptDetail, remainSum);
+                                    s.discountSumReceiptDetail = safeAdd(s.discountSumReceiptDetail, remainSum);
+                                }
                             }
                         } else {
                             SalesInfo salesInfo = new SalesInfo(isGiftCard, nppGroupMachinery, cash_id, numberZReport,
@@ -455,6 +470,12 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 statement.close();
         }
         return new EQSSalesBatch(salesInfoList, readRecordSet, directory);
+    }
+
+    private BigDecimal getExtraDiscount(BigDecimal totalSum, BigDecimal discountSum, BigDecimal sumReceiptDetail) {
+        if(totalSum != null && discountSum != null && sumReceiptDetail != null)
+            return safeDivide(BigDecimal.valueOf(safeMultiply(safeMultiply(discountSum, safeDivide(sumReceiptDetail, totalSum)), 100).intValue()), 100);
+        return null;
     }
 
     boolean getBit(int n, int k) {
