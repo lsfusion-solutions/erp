@@ -275,23 +275,6 @@ extraDescription 'Доп. наименование'  = ABSTRACT VARSTRING[255] (
 // Возвраты
 isReturn 'Обратный' = ABSTRACT BOOLEAN (Pricing);
 
-//-- Партии
-@showDocumentInterfaceDetailBatch(pricing);
-@defineDocumentInterfaceDetailBatch(pricing, batch);
-
-changeBatch(UserPricingDetail detail) = {
-    DIALOG dialogBatchStockOut OBJECTS st = departmentStore(detail),
-                             t = dateTime(detail),
-                             sk = sku(detail),
-                             bt = batch(detail) INPUT NULL DO
-        batch(detail) <- bt;
-}
-
-@defineBalancesBatch(pricingDetail); //-- показываем по нажатию правой клавиши остатки партии
-@defineBalancesBatch(userPricingDetail); //-- показываем по нажатию правой клавиши остатки партии
-@defineMovementBatch(pricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение по партии
-@defineMovementBatch(userPricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение по партии
-
 //------------------------------------ Печатные формы акт расценки ------------------------------------------------ //
 
 isInvoice 'По накладной' = ABSTRACT BOOLEAN (Pricing);
@@ -333,8 +316,7 @@ EXTEND FORM userPricing
     PROPERTIES (p) SHOWIF pricingCommittee(p)  nameFormedMan, nameCheckedMan, nameLabeledMan,
                    nameAccountantMan, nameHeadMan
 
-    PROPERTIES (d) nameBatch,
-                   quantity, sum
+    PROPERTIES (d) quantity, sum
 
     PROPERTIES (d) BACKGROUND backgroundRetail(p) retailMarkupSum, retailVATSum, retailSum
 
@@ -353,12 +335,6 @@ DESIGN userPricing {
     PROPERTY(retailSumUserPricingDetail(p)) { preferredCharWidth = 13;}
 }
 
-@defineDocumentSkuPriceListTypeSystemLedger(userPricing, accountPriceListType, departmentStore, );
-@extendFormDocumentSku(userPricing, userPricingDetail, userPricing, p, sku, departmentStore);
-
-@defineDocumentBatchPriceListTypeSystemLedger(userPricing, accountPriceListType, departmentStore, );
-@extendFormDocumentBatch(userPricing, userPricing, p);
-
 // Список расценок
 
 EXTEND FORM pricings
@@ -370,7 +346,7 @@ EXTEND FORM pricings
 
     PROPERTIES (p) print 
 
-    PROPERTIES (d) READONLY nameBatch, quantity, sum
+    PROPERTIES (d) READONLY quantity, sum
     PROPERTIES (d) READONLY BACKGROUND backgroundRetail(p) retailMarkupSum, retailVATSum, retailSum
 ;
 
@@ -422,7 +398,4 @@ company (PricingDetail ledger) += supplier(ledger);
 
 in (PricingDetail ledger, SystemLedgerPriceListType type) += WHEN price(ledger) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN TRUE;
 price (PricingDetail ledger, SystemLedgerPriceListType type) += WHEN price(ledger) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN price(ledger);
-in (PricingDetail ledger, Batch batch) += batch(ledger) == batch; 
 differentOrganizations(SystemLedgerPriceListType type) += WHEN type == SystemLedgerPriceListType.supplierPricingPriceListType THEN TRUE;   
-
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userPricing, supplierPricingPriceListType, , sku, departmentStore);

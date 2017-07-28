@@ -303,6 +303,23 @@ descriptionDocument 'Документы-основания' = ABSTRACT VARSTRING
 @defineBarcodeSku(pricingDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара
 @defineBarcodeSku(userPricingDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара
 
+//-- Партии
+@showDocumentInterfaceDetailBatch(pricing);
+@defineDocumentInterfaceDetailBatch(pricing, batch);
+
+changeBatch(UserPricingDetail detail) = {
+    DIALOG dialogBatchStockOut OBJECTS st = departmentStore(detail),
+                             t = dateTime(detail),
+                             sk = sku(detail),
+                             bt = batch(detail) INPUT NULL DO
+        batch(detail) <- bt;
+}
+
+@defineBalancesBatch(pricingDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineBalancesBatch(userPricingDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineMovementBatch(pricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение по партии
+@defineMovementBatch(userPricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение по партии
+
 // --------------------------- Формы --------------------------------- //
 backgroundRetail 'Цвет' (Pricing pricing) = RGB(224, 255, 255) IF pricing IS Pricing;
 FORM userPricing 'Акт расценки'
@@ -312,7 +329,7 @@ FORM userPricing 'Акт расценки'
                    countUserPricingDetail
 
     OBJECTS d = UserPricingDetail
-    PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, shortNameUOMSku,
+    PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, nameBatch, shortNameUOMSku,
                    nameRetailPriceListType, price
     PROPERTIES (d) BACKGROUND backgroundRetail(p)
                    retailMarkup ON CHANGE changeRetailMarkup(d), numberRetailVAT, valueRetailVAT, retailPrice ON CHANGE changeRetailPrice(d)
@@ -399,6 +416,11 @@ DESIGN userPricing {
     }
 }
 
+groupType (UserPricing p) = SystemGroupType.skuGroupType IF p IS UserPricing;
+
+@defineDocumentSkuStockIn(userPricing, sku, departmentStore);
+@extendFormDocumentSkuStockIn(UserPricing, userPricing, p);
+
 isUserOpened(UserPricing p)=  isOpened[Pricing](p) AND is(p);
 
 edit(UserPricingDetail d) += { edit(userPricing(d)); }
@@ -418,7 +440,7 @@ FORM pricings 'Акты расценки'
     PROPERTIES(p)  close[UserPricing] SHOWIF isOpened[UserPricing](p), open SHOWIF isClosed[UserPricing](p)     
 
     OBJECTS d = PricingDetail
-    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, nameBatch, shortNameUOMSku,
                    nameRetailPriceListType, price
     PROPERTIES (d) READONLY BACKGROUND backgroundRetail(p) retailMarkup, numberRetailVAT, valueRetailVAT,
                    retailPrice
@@ -518,6 +540,24 @@ WHEN LOCAL FORMS userPricing // цены берем на начало сесси
 //;
 @deriveDocumentDetailBatchOnSessionPriceListType (userPricingDetail, retail, pricing, departmentStore, userPricing, );
 @recalculateDocumentDetailBatchOnSessionPriceListType(userPricingDetail, retail, pricing, departmentStore, userPricing, , '', d);
+
+WHEN LOCAL FORMS userPricing
+    (CHANGED(calcRetailCalcPriceListType(UserPricingDetail detail)) OR
+        CHANGED(sku(detail)) OR
+        CHANGED(batch(detail)) OR
+        CHANGED(departmentStore(detail)) OR
+        CHANGED(dateTime(detail))) AND PriceListType priceListType == basePriceListType(calcRetailCalcPriceListType(detail)) NOINLINE (priceListType) INLINE DO {
+            price (detail)  <- IF batch(detail)
+        
+                                                            THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](priceListType,
+                                                                                                           batch(detail),
+                                                                                                           departmentStore(detail),
+                                                                                                           dateTime(detail))
+                                                            ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](priceListType,
+                                                                                                         sku(detail),
+                                                                                                         departmentStore(detail),
+                                                                                                         dateTime(detail));
+        }
 
 //----------------------------------------------- Операции -----------------------------------------------------//
 
@@ -675,6 +715,8 @@ price (PricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice
 
 //inPriceListLedgerSystemLedgerPriceListType (ledger, type) += TRUE WHEN CLASS(retailPricePricingDetail(ledger)) AND type == SystemLedgerPriceListType.accountPriceListType;
 //pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += retailPricePricingDetail(ledger) WHEN CLASS(retailPricePricingDetail(ledger)) AND type == SystemLedgerPriceListType.accountPriceListType;
+
+in (PricingDetail ledger, Batch batch) += batch(ledger) == batch; 
 
 in (PricingDetail ledger, DepartmentStore stock) += departmentStore(ledger) == stock;
 

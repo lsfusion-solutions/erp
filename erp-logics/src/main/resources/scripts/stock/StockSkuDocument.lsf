@@ -925,22 +925,22 @@ META defineDocumentSkuStockIn(object, skuProp, stockProp)
     @defineDocumentSkuStockIn(object, object##Detail, skuProp, stockProp);
 END
 
-META extendFormDocumentSkuStockIn(object, form, concrete, contBox)
+META extendFormDocumentSkuStockIn(object, form, concrete)
 
     EXTEND FORM form
 
-        TREE treeGroup gg=Group PARENT parent
-        PROPERTIES READONLY order(gg), name(gg)
-        FILTERS groupType(gg) == groupType(concrete)
-        FILTERGROUP object##inactive FILTER 'Активные' active(gg) 'F5' DEFAULT
-        ORDER BY order(gg), name(gg) 
+        TREE treeGroup sk=Group PARENT parent
+        PROPERTIES READONLY order(sk), name(sk)
+        FILTERS groupType(sk) == groupType(concrete)
+        FILTERGROUP object##inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+        ORDER BY order(sk), name(sk) 
         OBJECTS ks=Sku
         PROPERTIES             in(ks,concrete) ON CHANGE changeIn(ks, concrete), inputName = name(ks) READONLY
         PROPERTIES(ks)          READONLY idBarcode, id SHOWIF showIDs(), shortNameUOM
         PROPERTIES(ks, concrete)currentBalance READONLY
         PROPERTIES             addSku() TODRAW ks, EDIT(ks) NEWSESSION, copy(ks)
 
-        FILTERS                isParent(gg, ks) OR ks IS Sku AND NOT gg
+        FILTERS                isParent(sk, ks) OR ks IS Sku AND NOT sk
 
         ORDER BY inputName
         FILTERGROUP activeSku FILTER 'Активные' active(ks) DEFAULT
@@ -953,7 +953,7 @@ META extendFormDocumentSkuStockIn(object, form, concrete, contBox)
     DESIGN form {
         specificationBox {
             type = TABBED;
-            NEW itemBox BEFORE contBox {
+            NEW itemBox {
                 type = CONTAINERH;
                 caption = 'Подбор';
                 type = SPLITH;
