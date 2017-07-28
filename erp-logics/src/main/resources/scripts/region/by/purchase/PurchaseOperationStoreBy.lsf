@@ -5,18 +5,12 @@ REQUIRE PricingOperation, PurchaseOperation, PurchaseShipment, PricingPurchase, 
 
 NAMESPACE Purchase;
 
-loadDefaultPurchaseOperation 'Добавить операция (закупка)'(VARISTRING[100] iname, VARISTRING[100] isid) = {
-    NEW o = Operation {
-        name(o) <- iname;
-        id (o) <- isid;
-        allRoles(o) <- TRUE;
-    }
-}
+@defineCreateDefaultOperation();
 
 loadDefaultOPurchaseOperations 'Загрузить стандартные операции (закупка)' () = {  
                 
     // 
-    loadDefaultPurchaseOperation('Ввод начальных остатков','firstinput'); 
+    createDefaultOperation('Ввод начальных остатков','firstinput'); 
     FOR operation('firstinput') ==  Operation o DO {
         dataInSupplier(LegalEntityGroup g, o) <- TRUE WHERE  childNumber(g) AND NOT parent(g);  
         dataInCustomer(LegalEntityGroup g, o) <- TRUE WHERE  childNumber(g) AND NOT parent(g);  
@@ -32,7 +26,7 @@ loadDefaultOPurchaseOperations 'Загрузить стандартные опе
     
     }
     //
-    loadDefaultPurchaseOperation('Поступление в магазин от поставщика','by_default_purchase_invoice');
+    createDefaultOperation('Поступление в магазин от поставщика','by_default_purchase_invoice');
     FOR operation('by_default_purchase_invoice') ==  Operation o DO {
         nameReturn(o) <- 'Возврат с магазина поставщику';
         needSupplier(o) <- TRUE;
@@ -65,7 +59,7 @@ loadDefaultOPurchaseOperations 'Загрузить стандартные опе
         defaultReturnPriceListType(o) <- SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
     }  
     //  
-    loadDefaultPurchaseOperation('Поступление на магазин от склада','warehouse');  
+    createDefaultOperation('Поступление на магазин от склада','warehouse');  
     FOR operation('warehouse') ==  Operation o DO {
         nameReturn(o) <- 'Возврат с магазина на склад';
         needSupplier(o) <- TRUE;
