@@ -1226,4 +1226,21 @@ DESIGN currentBalanceSkuStock {
     }
 }
 
+// ----------------- Делим на рубли и копейки -------------- //
+trunc = FORMULA INTEGER 'trunc($1)';
 
+priceRubB 'Рубли' (LabelTransactionDetail d) = trunc(price(d));
+priceKopB 'Копейки' (LabelTransactionDetail d) = lpad((OVERRIDE VARSTRING[2](round0(abs(priceRubB(d) (-) price(d))*100.0)), '' IF priceRubB(d)), 2, '0');
+
+retailPriceRubB 'Рубли (цена до)' (LabelTransactionDetail d) = trunc(retailPrice(d));
+retailPriceKopB 'Копейки (цена до)' (LabelTransactionDetail d) = lpad((OVERRIDE VARSTRING[2](round0(abs(retailPriceRubB(d) (-) retailPrice(d))*100.0)), '' IF retailPriceRubB(d)), 2, '0');
+
+discountPriceRubB 'Рубли (скидка)' (LabelTransactionDetail d) = trunc(discountSum(d));
+discountPriceKopB 'Копейки (скидка)' (LabelTransactionDetail d) = lpad((OVERRIDE VARSTRING[2](round0(abs(discountPriceRubB(d) (-) discountSum(d))*100.0)), '' IF discountPriceRubB(d)), 2, '0');
+
+EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY priceRubB, priceKopB, retailPriceRubB, retailPriceKopB, discountPriceRubB, discountPriceKopB;
+EXTEND FORM customLabelTransaction PROPERTIES(d) priceRubB, priceKopB, retailPriceRubB, retailPriceKopB, discountPriceRubB, discountPriceKopB;
+EXTEND FORM labelTransactions 
+    PROPERTIES(dt) READONLY priceRubB, priceKopB, retailPriceRubB, retailPriceKopB, discountPriceRubB, discountPriceKopB 
+    PROPERTIES(dts) READONLY priceRubB, priceKopB, retailPriceRubB, retailPriceKopB, discountPriceRubB, discountPriceKopB
+;
