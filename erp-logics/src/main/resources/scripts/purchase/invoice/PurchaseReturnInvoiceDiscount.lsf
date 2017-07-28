@@ -48,6 +48,12 @@ DESIGN userContractSku {
 
 @defineDocumentInterfaceProperty (invoice, showPercReturnDiscount, '% отпускной цены поставщика при возврате');
 
+countPercReturnDiscount = GROUP SUM 1 IF overPercReturnDiscount(ContractSku c, Sku s) BY c;
+isPercReturnDiscount (ContractSku c) = TRUE IF countPercReturnDiscount(c);
+
+showPercReturnDiscount(UserInvoice o) <- isPercReturnDiscount(contractSku(o))
+    WHEN CHANGED(contractSku(o));
+    
 percReturnDiscountPrice '% отпускной цены поставщика при возврате' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
 percReturnDiscountPrice '% отпускной цены поставщика при возврате' = DATA NUMERIC[16,4] (UserInvoiceDetail);
 percReturnDiscountPrice (UserInvoiceDetail d) += percReturnDiscountPrice(d);
