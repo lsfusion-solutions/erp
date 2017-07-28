@@ -477,8 +477,11 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     }
 
     private BigDecimal getExtraDiscount(BigDecimal totalSum, BigDecimal discountSum, BigDecimal sumReceiptDetail) {
-        if(totalSum != null && discountSum != null && sumReceiptDetail != null)
-            return safeDivide(BigDecimal.valueOf(safeMultiply(safeMultiply(discountSum, safeDivide(sumReceiptDetail, totalSum)), 100).intValue()), 100);
+        if(totalSum != null && discountSum != null && sumReceiptDetail != null) {
+            BigDecimal extraDiscount = safeMultiply(discountSum, safeDivide(sumReceiptDetail, totalSum));
+            if(extraDiscount != null)
+                return safeDivide(BigDecimal.valueOf(safeMultiply(extraDiscount, 100).intValue()), 100);
+        }
         return null;
     }
 
