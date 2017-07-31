@@ -1,0 +1,32 @@
+MODULE ExtraPack;
+
+REQUIRE Pack, LegalEntity, Sku;
+
+//-- Оприходование товара в других единицах
+
+extraPack= DATA Barcode (LegalEntity, Sku);
+idExtraPack 'Штрихкод упаковки поставщика' (LegalEntity l, Sku sku) = id(extraPack(l, sku));
+shortNameUOMPack 'Ед. изм. упаковки у поставщика' (LegalEntity l, Sku sku) = shortNameUOM(extraPack(l, sku));
+
+CONSTRAINT extraPack(LegalEntity l, Sku s) AND NOT sku(extraPack(l, s)) == s
+    MESSAGE 'Штрихкод упаковки у поставщика не соответствует товару';
+    
+CONSTRAINT sku(extraPack(LegalEntity l, Sku s)) != s CHECKED BY extraPack[LegalEntity, Sku] MESSAGE 'Выбран неверный штрихкод упаковки у поставщика';
+
+EXTEND FORM legalEntity
+    OBJECTS ss = Sku
+    PROPERTIES (ss) READONLY idBarcode, id, name
+    PROPERTIES idExtraPack(l,ss), shortNameUOMPack(l,ss)
+    FILTERS active(ss)
+    FILTERGROUP active FILTER 'Активные' active(ss) 'F5' DEFAULT 
+    FILTERGROUP isPack FILTER 'Задан ш/к упаковки у поставщика' extraPack(l, ss) 'F6' 
+;
+DESIGN legalEntity {
+    extendContainer {
+        NEW extraPack {
+            fill = 1;
+            caption = 'Штрихкод упаковки у поставщика';
+            MOVE BOX(ss);
+        }
+    }   
+}

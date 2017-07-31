@@ -1,0 +1,29 @@
+MODULE PurchaseReturnInvoiceExtraPack;
+
+REQUIRE PurchaseReturnInvoice, ExtraPack;
+
+NAMESPACE PurchaseReturn;
+
+isExtraPack 'Поставка в других единицах' = ABSTRACT BOOLEAN (PurchaseReturn.InvoiceDetail);
+isExtraPack 'Поставка в других единицах' = DATA BOOLEAN (PurchaseReturn.UserInvoiceDetail);
+isExtraPack(PurchaseReturn.UserInvoiceDetail detail) += isExtraPack(detail);
+
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail)) OR CHANGED(showPack(detail))) DO {
+    isExtraPack(detail) <- TRUE IF extraPack(supplier(detail), sku(detail)) AND showPack(detail);
+}
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail))) AND isExtraPack(detail) DO {
+    barcodePack(detail) <- extraPack(supplier(detail), sku(detail));
+}
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail))) AND isExtraPack(detail) DO {
+    amountPack(detail) <- amount(extraPack(supplier(detail), sku(detail)));
+}
+WHEN LOCAL CHANGED(packQuantity(UserInvoiceDetail detail)) AND isExtraPack(detail) DO {
+    quantity(detail) <- NUMERIC[16,5](packQuantity(detail) * (OVERRIDE amountPack(detail), 1.0));
+}
+WHEN LOCAL CHANGED(quantity(UserInvoiceDetail detail)) AND isExtraPack(detail) DO {
+    packQuantity(detail) <- NUMERIC[16,5](quantity(detail)/amountPack(detail));
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES (d) READONLY isExtraPack BEFORE idBarcodePack(d) SHOWIF showPack(i)
+;

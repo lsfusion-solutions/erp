@@ -1,0 +1,31 @@
+MODULE PurchaseOrderExtraPack;
+
+REQUIRE PurchaseOrder, ExtraPack;
+
+NAMESPACE Purchase;
+
+
+isExtraPack 'Поставка в других единицах' = ABSTRACT BOOLEAN (Purchase.OrderDetail);
+isExtraPack 'Поставка в других единицах' = DATA BOOLEAN (Purchase.UserOrderDetail);
+isExtraPack(Purchase.UserOrderDetail detail) += isExtraPack(detail);
+
+WHEN LOCAL (CHANGED(sku(UserOrderDetail detail)) OR CHANGED(supplier(detail)) OR CHANGED(showPack(detail))) DO {
+    isExtraPack(detail) <- TRUE IF extraPack(supplier(detail), sku(detail)) AND showPack(detail);
+}
+WHEN LOCAL (CHANGED(sku(UserOrderDetail detail)) OR CHANGED(supplier(detail))) AND isExtraPack(detail) DO {
+    barcodePack(detail) <- extraPack(supplier(detail), sku(detail));
+}
+WHEN LOCAL (CHANGED(sku(UserOrderDetail detail)) OR CHANGED(supplier(detail))) AND isExtraPack(detail) DO {
+    amountPack(detail) <- amount(extraPack(supplier(detail), sku(detail)));
+}
+WHEN LOCAL CHANGED(packQuantity(UserOrderDetail detail)) AND isExtraPack(detail) DO {
+    quantity(detail) <- NUMERIC[16,5](packQuantity(detail) * (OVERRIDE amountPack(detail), 1.0));
+}
+
+WHEN LOCAL CHANGED(quantity(UserOrderDetail detail)) AND isExtraPack(detail) DO {
+    packQuantity(detail) <- NUMERIC[16,5](quantity(detail)/amountPack(detail));
+}
+
+EXTEND FORM userOrder
+    PROPERTIES (d) READONLY isExtraPack BEFORE idBarcodePack(d) SHOWIF showPack(o)
+;
