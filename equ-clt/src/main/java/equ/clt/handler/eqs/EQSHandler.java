@@ -218,6 +218,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 try {
                     machineryExchangeLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+                    machineryExchangeLogger.info(String.format(logPrefix + "connected to %s", params.connectionString));
                     conn.setAutoCommit(false);
 
                     ps = conn.prepareStatement(
@@ -225,6 +226,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                     " VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
                                     " description=VALUES(description), discount=VALUES(discount), updecr=VALUES(updecr)");
 
+                    int count = 0;
                     for (DiscountCard card : discountCardList) {
                         if(card.idDiscountCard != null) {
                             ps.setString(1, trim(card.idDiscountCard, 20)); //code
@@ -235,11 +237,15 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             ps.setInt(3, card.percentDiscountCard == null ? 0 : -card.percentDiscountCard.intValue()); //discount
                             ps.setLong(4, 4294967295L); //UpdEcr, Флаг обновления* КСА
                             ps.addBatch();
+                            count++;
                         }
                     }
-
+                    //todo: временные логи, позже уменьшить их кол-во
+                    machineryExchangeLogger.info(String.format(logPrefix + "executeBatch %s cards to %s", count, params.connectionString));
                     ps.executeBatch();
+                    machineryExchangeLogger.info(String.format(logPrefix + "commit %s cards to %s", count, params.connectionString));
                     conn.commit();
+                    machineryExchangeLogger.info(String.format(logPrefix + "finished %s cards to %s", count, params.connectionString));
 
                 } catch (SQLException e) {
                     machineryExchangeLogger.error(logPrefix, e);
@@ -372,8 +378,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         //0 - продажа, 1 - возврат, 4 - возврат со сторнированием/коррекцией
 
                         //тут порядок обратный
-                        boolean isSale = !getBit(flags, 2);
-                        boolean isReturn = getBit(flags, 2);
+                        //boolean isSale = !getBit(flags, 2);
+                        //boolean isReturn = getBit(flags, 2);
 
                         String discountCard = trim(rs.getString(16), null, 18); //r.customer
                         if (discountCard != null && discountCard.isEmpty())
