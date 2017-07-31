@@ -1,0 +1,148 @@
+MODULE PricingDashboard;
+
+REQUIRE PricingPriceList, PricingLabel, PricingMachinery;
+
+NAMESPACE Pricing;
+
+// ----------- Операция по умолчанию ------------------ //
+
+calculateDashboardRepricing 'По надбавкам и прайсам'(DepartmentStore d, Operation o, DATETIME dt) = {
+    calculateDashboardRepricing(d, (OVERRIDE pricingCalcPriceListType(o), retailCalcPriceListType(d)), (OVERRIDE pricingPriceListType(o), retailPriceListType(d)), dt);
+} TOOLBAR;
+
+calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, Operation o, DATETIME dt) = {
+    calculateDashboardManagementRepricing(d, (OVERRIDE pricingPriceListType(o), retailPriceListType(d)), dt);
+}
+
+calculateDashboardManagementRepricingForm 'По прайсам'(DepartmentStore d, Operation o, DATETIME dt) = {
+    calculateDashboardManagementRepricing(d, o, dt);
+    formRefresh();
+} TOOLBAR;
+
+// ------------ Форма расценки -------------------- //
+
+FORM pricingDashboard 'Расценка'
+    OBJECTS d = DepartmentStore PANEL
+    PROPERTIES (d) SELECTOR name
+    FILTERS isCompany(d)
+        
+    OBJECTS o = Operation PANEL
+    PROPERTIES (o) SELECTOR name
+    FILTERS in(currentUser(), o)
+
+    OBJECTS t=DATETIME PANEL
+    PROPERTIES(t) VALUE
+    
+    TREE skuTree sg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg), skuTreeName = name(sg)
+    ORDER BY order(sg), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sg) DEFAULT
+    
+    OBJECTS sk = Sku
+    PROPERTIES(sk)          inDashboardRepricing, select
+    PROPERTIES(sk) READONLY idBarcode, id, name ON SHORTCUT showMovementSku(sk, d) ON SHORTCUT showMovementPriceSku(sk, d), shortNameUOM
+    PROPERTIES     READONLY dateTimeLastMoved(sk, d), dateTimeLastOrderBatch(sk, d), nameSupplierLastOrderBatch(sk, d), nameCountry(sk), currentBalance(sk,d), 
+                   managementRetailPrice(sk), retailPricingPriceB(sk,d,t) 
+    PROPERTIES (d,o,t)  TODRAW sk  TOOLBAR calculateDashboardRepricing, calculateDashboardManagementRepricingForm //, createDashboardRepricing
+    
+    PROPERTIES() READONLY countSelectSkus SHOWIF countSelectSkus() TODRAW sk                                          
+    FILTERS inDashboardRepricing(sk), isParent(sg, sk) 
+
+    OBJECTS p = Pricing
+    PROPERTIES (p) READONLY isPosted, number, series, date, time,
+                   nameDepartmentStore, countPricingDetail,
+                   statusLabel BACKGROUND backgroundPrintLabelTransaction(p),
+                   statusMachinery ON SHORTCUT createSnapshotMachineryPriceTransaction(p) BACKGROUND backgroundCreateMachineryPriceTransaction(p), 
+                   note                      
+               
+    PROPERTIES (p) createLabelTransaction SHOWIF showPrintLabelTransaction(p), 
+                   createSnapshotLabelTransaction 
+                   
+    PROPERTIES (p) createMachineryPriceTransaction SHOWIF showCreateMachineryPriceTransaction(p)
+    PROPERTIES (p) NEWSESSION NEW[UserPricing], EDIT, deletep=DELETE  
+                       
+    FILTERGROUP filters FILTER 'Текущие' date(p) == toDate(t) 'F5' DEFAULT                         
+    
+    EVENTS
+        ON CHANGE d clearDashboardRepricing()
+        
+;
+DESIGN pricingDashboard {
+    BOX {
+        type = CONTAINERV;
+
+        NEW topContainer {
+            type = CONTAINERH;
+            MOVE BOX(d);
+            MOVE BOX(o);
+            MOVE BOX(t);
+        }
+        NEW bodyContainer{
+            type = SPLITV;
+            fill = 1;
+            NEW skuBox {
+                type = SPLITH;
+                fill = 1;
+                MOVE BOX(TREE skuTree) { caption = 'Группы SKU'; fill=0.5; }
+                MOVE BOX(sk) {
+                    caption = 'Товары, для которых необходима переоценка';
+                    PROPERTY(retailPricingPriceB(sk,d,t)) {
+                        caption = 'Цена (текущая)';
+                    }
+                }
+            }   
+            NEW tanContainer {
+                fill = 1;
+                type = TABBED;
+                MOVE BOX(p);   
+                NEW actionContainer {
+                    fill = 1;
+                    caption = 'Действия';
+                    NEW mainActionContainer {
+                        fill = 1;
+                        type = COLUMNS;
+                        columns = 5;
+                    }
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+// Проставляем операцию по умолчанию
+defaultPricingOperation = DATA Operation ();
+nameDefaultPricingOperation 'Операция для расценки (по умолчанию)' = name(defaultPricingOperation());
+
+EXTEND FORM options
+    PROPERTIES() nameDefaultPricingOperation
+;
+
+DESIGN options {
+    pricings {
+        MOVE PROPERTY(nameDefaultPricingOperation());
+    }
+}
+
+
+seekDefaultOperation () = {
+    IF defaultPricingOperation() THEN
+        SEEK pricingDashboard.o = defaultPricingOperation();
+}
+
+EXTEND FORM pricingDashboard
+    EVENTS
+        ON INIT seekDefaultOperation()
+        
+        // не работает
+//        ON INIT {
+//            IF defaultPricingOperation() THEN
+//                SEEK pricingDashboard.o = defaultPricingOperation();
+//        }
+;
+
+NAVIGATOR {
+    retailDashboardNavigator {
+        ADD pricingDashboard;
+    }
+}
