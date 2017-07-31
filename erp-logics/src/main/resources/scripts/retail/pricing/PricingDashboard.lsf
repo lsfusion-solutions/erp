@@ -6,6 +6,19 @@ NAMESPACE Pricing;
 
 // ----------- Операция по умолчанию ------------------ //
 
+defaultPricingOperation = DATA Operation ();
+nameDefaultPricingOperation 'Операция для расценки (по умолчанию)' = name(defaultPricingOperation());
+
+EXTEND FORM options
+    PROPERTIES() nameDefaultPricingOperation
+;
+
+DESIGN options {
+    pricings {
+        MOVE PROPERTY(nameDefaultPricingOperation());
+    }
+}
+
 calculateDashboardRepricing 'По надбавкам и прайсам'(DepartmentStore d, Operation o, DATETIME dt) = {
     calculateDashboardRepricing(d, (OVERRIDE pricingCalcPriceListType(o), retailCalcPriceListType(d)), (OVERRIDE pricingPriceListType(o), retailPriceListType(d)), dt);
 } TOOLBAR;
@@ -18,6 +31,40 @@ calculateDashboardManagementRepricingForm 'По прайсам'(DepartmentStore 
     calculateDashboardManagementRepricing(d, o, dt);
     formRefresh();
 } TOOLBAR;
+
+// ----------------------- Создание расценки ---------------------- //
+
+repForm =  DATA LOCAL UserPricing();  
+
+createDashboardRepricingNotForm 'Создать расценку'(Stock d, Operation o, DATETIME dt) = {
+    IF [ = GROUP SUM 1 IF inDashboardRepricing(Sku sku)]() THEN {
+        NEW r = UserPricing {
+            departmentStore(r) <- d;
+            operation(r) <- o;
+            date(r) <- toDate(dt);
+            time(r) <- toTime(dt);  
+            isPosted(r) <- TRUE;
+    
+            FOR inDashboardRepricing(Sku sku) AND NOT skipRepricing(sku, d) ORDER orderRepricingDetail(sku) NEW rd = UserPricingDetail DO {
+                userPricing(rd) <- r;
+                sku(rd) <- sku;
+                retailPrice(rd) <- managementRetailPrice(sku);
+                recalculateRetailMarkup(rd);
+            }
+            repForm() <- r;
+        }
+    }
+} TOOLBAR;
+
+createDashboardRepricing 'Создать расценку'(Stock d, Operation o, DATETIME dt) = {
+	NEWSESSION NESTED LOCAL  {
+	    createDashboardRepricingNotForm(d, o, dt);
+	    DIALOG userPricing OBJECTS p = repForm() MANAGESESSION DOCKED NOCANCEL DO {
+	        inDashboardRepricing(Sku sku) <- NULL;
+	    }
+	    repForm() <- NULL;      
+	}
+}  
 
 // ------------ Форма расценки -------------------- //
 
@@ -43,7 +90,7 @@ FORM pricingDashboard 'Расценка'
     PROPERTIES(sk) READONLY idBarcode, id, name ON SHORTCUT showMovementSku(sk, d) ON SHORTCUT showMovementPriceSku(sk, d), shortNameUOM
     PROPERTIES     READONLY dateTimeLastMoved(sk, d), dateTimeLastOrderBatch(sk, d), nameSupplierLastOrderBatch(sk, d), nameCountry(sk), currentBalance(sk,d), 
                    managementRetailPrice(sk), retailPricingPriceB(sk,d,t) 
-    PROPERTIES (d,o,t)  TODRAW sk  TOOLBAR calculateDashboardRepricing, calculateDashboardManagementRepricingForm //, createDashboardRepricing
+    PROPERTIES (d,o,t)  TODRAW sk  TOOLBAR calculateDashboardRepricing, calculateDashboardManagementRepricingForm, createDashboardRepricing
     
     PROPERTIES() READONLY countSelectSkus SHOWIF countSelectSkus() TODRAW sk                                          
     FILTERS inDashboardRepricing(sk), isParent(sg, sk) 
@@ -111,19 +158,6 @@ DESIGN pricingDashboard {
 }
 
 // Проставляем операцию по умолчанию
-defaultPricingOperation = DATA Operation ();
-nameDefaultPricingOperation 'Операция для расценки (по умолчанию)' = name(defaultPricingOperation());
-
-EXTEND FORM options
-    PROPERTIES() nameDefaultPricingOperation
-;
-
-DESIGN options {
-    pricings {
-        MOVE PROPERTY(nameDefaultPricingOperation());
-    }
-}
-
 
 seekDefaultOperation () = {
     IF defaultPricingOperation() THEN

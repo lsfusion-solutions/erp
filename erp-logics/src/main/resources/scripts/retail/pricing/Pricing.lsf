@@ -58,15 +58,17 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
                                                          WHERE prefix###priceListType(detail) == priceListType;
         }
     skipMarkup = ABSTRACT CASE BOOLEAN (###idetail);
+    recalculate###prefix##Markup (###idetail detail) = {
+        prefix##Markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                           prefix###price(detail),
+                                                           prefixP###price(detail),
+                                                           value###prefix##VAT(detail));
+    }
     WHEN LOCAL
         (CHANGED(prefixP###price(###idetail detail)) OR
          CHANGED(value###prefix##VAT(detail)))
         AND NOT prefix###priceListType(detail) AND NOT skipMarkup(detail) INLINE DO {
-
-            prefix###markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
-                                                               prefix###price(detail),
-                                                               prefixP###price(detail),
-                                                               value###prefix##VAT(detail));
+            recalculate###prefix##Markup(detail);
         }
 END
 
@@ -557,6 +559,10 @@ WHEN LOCAL FORMS userPricing
                                                                                                          departmentStore(detail),
                                                                                                          dateTime(detail));
         }
+
+WHEN LOCAL FORMS userPricing // по факту это дублирующее событие с тем, что в метакоде, но если его не делать, то при создании расценки из формы Расценка не будет заполняться надбавка из-за NOT CHANGED (retailPrice 
+    CHANGED(price(UserPricingDetail detail)) AND NOT skipMarkup(detail) INLINE DO
+        recalculateRetailMarkup(detail);
 
 //----------------------------------------------- Операции -----------------------------------------------------//
 
