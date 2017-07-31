@@ -321,7 +321,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
             int position = 0;
             List<SalesInfo> currentSalesInfoList = new ArrayList<>();
-            Map<String, SalesInfo> saleReturnMap = new HashMap<>();
+            Map<String, List<SalesInfo>> saleReturnMap = new HashMap<>();
             Set<Integer> currentReadRecordSet = new HashSet<>();
             while (rs.next()) {
 
@@ -417,14 +417,28 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                     position, null, idSection);
                             //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки
                             //(на самом деле так кассиры узнают цену). "Аннигилируем" эти две строки.
-                            SalesInfo saleReturnEntry = saleReturnMap.get(idBarcode);
-                            if (saleReturnEntry != null && saleReturnEntry.quantityReceiptDetail.add(totalQuantity).compareTo(BigDecimal.ZERO) == 0) {
-                                saleReturnMap.remove(idBarcode);
-                                currentSalesInfoList.remove(saleReturnEntry);
+                            List<SalesInfo> saleReturnEntryList = saleReturnMap.get(idBarcode);
+                            if (saleReturnEntryList != null) {
+                                boolean found = false;
+                                for (Iterator<SalesInfo> iterator = saleReturnEntryList.iterator(); iterator.hasNext();) {
+                                    SalesInfo saleReturnEntry = iterator.next();
+                                    if (needAnnihilate(saleReturnEntry, totalQuantity, discountSum)) {
+                                        iterator.remove();
+                                        currentSalesInfoList.remove(saleReturnEntry);
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if (!found) {
+                                    saleReturnEntryList.add(salesInfo);
+                                    currentSalesInfoList.add(salesInfo);
+                                }
                             } else {
-                                saleReturnMap.put(idBarcode, salesInfo);
+                                saleReturnEntryList = new ArrayList<>();
+                                saleReturnEntryList.add(salesInfo);
                                 currentSalesInfoList.add(salesInfo);
                             }
+                            saleReturnMap.put(idBarcode, saleReturnEntryList);
                         }
                         break;
                     case 7: //Оплата
@@ -474,6 +488,11 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 statement.close();
         }
         return new EQSSalesBatch(salesInfoList, readRecordSet, directory);
+    }
+
+    private boolean needAnnihilate(SalesInfo saleReturnEntry, BigDecimal totalQuantity, BigDecimal discountSum) {
+        return saleReturnEntry.quantityReceiptDetail.add(totalQuantity).compareTo(BigDecimal.ZERO) == 0 &&
+                (saleReturnEntry.discountSumReceipt == null || saleReturnEntry.discountSumReceipt.compareTo(discountSum) == 0);
     }
 
     private BigDecimal getExtraDiscount(BigDecimal totalSum, BigDecimal discountSum, BigDecimal sumReceiptDetail) {
