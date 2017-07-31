@@ -15,7 +15,8 @@ class EQSConnectionString {
                 Pattern p = Pattern.compile("([^\\?]*)\\?user=([^\\&]*)(?:\\&password=(.*))?");
                 Matcher m = p.matcher(value);
                 if(m.matches()) {
-                    this.connectionString = m.group(1);
+                    //https://stackoverflow.com/questions/26307760/mysql-and-jdbc-with-rewritebatchedstatements-true
+                    this.connectionString = m.group(1) + "?rewriteBatchedStatements=true";
                     this.user = m.group(2);
                     this.password = m.groupCount() >= 3 ? m.group(3) : null;
                 } else {
