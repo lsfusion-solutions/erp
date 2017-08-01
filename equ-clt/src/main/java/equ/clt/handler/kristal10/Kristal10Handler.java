@@ -73,7 +73,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 String weightShopIndices = kristalSettings != null ? kristalSettings.getWeightShopIndices() : null;
                 boolean useIdItemInRestriction = kristalSettings != null && kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
                 List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
-                String notGTINPrefix = kristalSettings != null ? kristalSettings.getNotGTINPrefix() : null;
+                List<String> notGTINPrefixes = kristalSettings != null ? kristalSettings.getNotGTINPrefixesList() : null;
 
                 List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
@@ -123,11 +123,16 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                             setAttribute(good, "marking-of-the-good", idItem);
 
-                            if(notGTINPrefix != null) {
-                                if(barcodeItem != null && barcodeItem.length() > 7 && !barcodeItem.startsWith(notGTINPrefix)) {
-                                    Element barcode = new Element("barcode");
-                                    barcode.setAttribute("barcode-type", "GTIN");
-                                    good.addContent(barcode);
+                            if (notGTINPrefixes != null) {
+                                if (barcodeItem != null && barcodeItem.length() > 7) {
+                                    for (String notGTINPrefix : notGTINPrefixes) {
+                                        if (!barcodeItem.startsWith(notGTINPrefix)) {
+                                            Element barcode = new Element("barcode");
+                                            barcode.setAttribute("barcode-type", "GTIN");
+                                            good.addContent(barcode);
+                                            break;
+                                        }
+                                    }
                                 }
                             }
 

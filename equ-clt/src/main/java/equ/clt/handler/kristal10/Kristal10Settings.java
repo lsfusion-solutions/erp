@@ -1,8 +1,7 @@
 package equ.clt.handler.kristal10;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class Kristal10Settings implements Serializable{
 
@@ -24,7 +23,8 @@ public class Kristal10Settings implements Serializable{
     private String discountCardPercentType;
     private Map<Double, String> discountCardPercentTypeMap = new HashMap();
     private String discountCardDirectory;
-    private String notGTINPrefix;
+    private String notGTINPrefixes;
+    private List<String> notGTINPrefixesList = new ArrayList<>();
 
     public Kristal10Settings() {
     }
@@ -185,11 +185,12 @@ public class Kristal10Settings implements Serializable{
         this.discountCardDirectory = discountCardDirectory;
     }
 
-    public String getNotGTINPrefix() {
-        return notGTINPrefix;
+    public List<String> getNotGTINPrefixesList() {
+        return notGTINPrefixesList;
     }
 
-    public void setNotGTINPrefix(String notGTINPrefix) {
-        this.notGTINPrefix = notGTINPrefix;
+    public void setNotGTINPrefixes(String notGTINPrefixes) {
+        this.notGTINPrefixes = notGTINPrefixes;
+        this.notGTINPrefixesList.addAll(Arrays.asList(notGTINPrefixes.split(",\\s?")));
     }
 }
