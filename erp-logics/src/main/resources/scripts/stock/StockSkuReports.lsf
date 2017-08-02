@@ -1,0 +1,148 @@
+MODULE StockSkuReports;
+
+REQUIRE StockReports, SkuLedgerTax;
+
+META createGroup(object, name, number)
+    g###object name = DATA LOCAL BOOLEAN();
+    WHEN LOCAL SET(g###object()) AND countGroup() < 3 DO addGroup(number, name);
+    WHEN LOCAL SET(g###object()) AND countGroup() == 3 DO { g###object() <- NULL; };
+    WHEN LOCAL DROPPED(g###object()) DO deleteGroup(number);   
+END 
+
+order 'Номер' = DATA LOCAL INTEGER(INTEGER);
+nameGroup 'Группировка' = DATA VARSTRING[100](INTEGER);
+
+countGroup = OVERRIDE [=GROUP MAX order(INTEGER i)](), 0;
+
+isSkuLastGroup = order(2) == countGroup();
+
+addGroup(INTEGER i, VARSTRING[100] name) = {
+    nameGroup(i) <- name;
+    order(i) <- (OVERRIDE [=GROUP MAX order(INTEGER in)](), 0) + 1;
+}
+reorderGroup() = {
+    order(INTEGER i) <- PARTITION SUM 1 IF nameGroup(i) ORDER order(i);
+}
+deleteGroup(INTEGER i) = {
+    nameGroup(i) <- NULL;
+    order(i) <- NULL;
+    reorderGroup();
+}
+
+@createGroup(stock, 'По магазину', 1);
+@createGroup(sku, 'По товару', 2);
+@createGroup(group, 'По группам товара', 3);
+@createGroup(supplier, 'По поставщику', 4);
+
+nameGroup1 = DATA LOCAL VARSTRING[255] (Sku, Stock);
+nameGroup2 = DATA LOCAL VARSTRING[255] (Sku, Stock);
+nameGroup3 = DATA LOCAL VARSTRING[255] (Sku, Stock);
+
+META setNameGroup(number)
+    setNameGroup##number () ={
+        nameGroup##number(Sku sk, Stock st) <- NULL;
+        IF order(1) == number THEN {
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(st), 'Не задано') IF sk IS Sku WHERE inBackSheet(st) AND balanceB(sk);
+        }
+        IF order(2) == number THEN {
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(sk), 'Не задано') IF sk IS Sku WHERE inBackSheet(st) AND balanceB(sk);
+        }
+        IF order(3) == number THEN {
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSkuGroup(sk), 'Не задано') IF sk IS Sku WHERE inBackSheet(st) AND balanceB(sk);
+        }
+        IF order(4) == number THEN {
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSupplierLastOrderBatch(sk), 'Не задано') IF sk IS Sku WHERE inBackSheet(st) AND balanceB(sk);
+        }
+    }   
+END
+
+@setNameGroup(1);
+
+@setNameGroup(2);
+
+@setNameGroup(3);
+
+fillGroupBalanceSkusStock 'Сформировать'() = {  
+    setNameGroup1();
+    setNameGroup2();
+    setNameGroup3();
+}
+
+//costSumB 'Себестоимость на начало' = DATA LOCAL NUMERIC[32,9] (Sku);
+costSumB 'Себестоимость на начало' (Sku sk, DATETIME dt) = 
+    [ = GROUP SUM costSumB(Sku sk, Stock st, DATE dt) IF inBackSheet(st) BY sk, dt](sk, toDate(dt));
+
+//costVATSum 'Сумма поставщика с НДС' = DATA LOCAL NUMERIC[26,8] (Sku);
+costVATSum 'Сумма поставщика с НДС' (Sku sk, DATETIME dt) = 
+    NUMERIC[26,8]([ = GROUP SUM costB(Batch b, Stock st, DATE dt)*(1 + Stock.valueVAT(b)/100) IF inBackSheet(st) BY sku(b), dt](sk, toDate(dt)));
+
+FORM printGroupBalanceSkusStock 'Остатки по товарам'
+    OBJECTS d = DATETIME PANEL
+    PROPERTIES(d) dateTime = VALUE
+
+    PROPERTIES inBackSheetStocks()
+
+    OBJECTS gt = GroupType PANEL
+    PROPERTIES(gt) SELECTOR name
+
+    PROPERTIES() countGroup, isSkuLastGroup
+
+    OBJECTS s = (s = Sku, st = Stock)
+    PROPERTIES(s) READONLY name, balanceB, sumB
+    PROPERTIES(s, d) READONLY costSumB, costVATSum
+    PROPERTIES(s, st) nameGroup1, nameGroup2, nameGroup3
+    FILTERS inSession(group(gt, s))
+    FILTERS inBackSheet(st)
+    FILTERS balanceB(s)
+    FILTERS s IS Sku AND st IS Stock AND d IS DATETIME // фильтр, чтобы сохранилась старая иерархия
+    ORDER BY nameGroup1(s, st), nameGroup2(s, st), nameGroup3(s, st)
+;
+
+printGroupBalanceSkus 'Отчет по остаткам' (DATETIME dateTime, GroupType gtype) = { 
+    fillGroupBalanceSkusStock();
+    PRINT printGroupBalanceSkusStock OBJECTS d = dateTime, gt = gtype; 
+} IMAGE 'print.png' IN print;
+printXlsxGroupBalanceSkus 'Отчет по остаткам (XLSX)' (DATETIME dateTime, GroupType gtype) = { 
+    fillGroupBalanceSkusStock();
+    PRINT printGroupBalanceSkusStock OBJECTS d = dateTime, gt = gtype XLSX; 
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM reportBalanceStock
+    PROPERTIES() gStock, gSku, gGroup, gSupplier
+        
+    OBJECTS gr = INTEGER 
+    PROPERTIES(gr) READONLY order, nameGroup
+    ORDER BY order(gr)
+    FILTERS nameGroup(gr)
+    
+    PROPERTIES(d, gt) printGroupBalanceSkus, printXlsxGroupBalanceSkus
+;
+
+DESIGN reportBalanceStock {
+    tabContainer {
+        NEW groupContainer{
+            caption = 'Группировка';
+            type = CONTAINERV;
+            fill = 1;
+            NEW grContainer {
+                fill = 1;
+                type = CONTAINERH;
+                caption = 'Группировка';
+                NEW checkBoxContainer{
+                    type = CONTAINERV;
+                    MOVE PROPERTY(gStock());
+                    MOVE PROPERTY(gSku());
+                    MOVE PROPERTY(gGroup());
+                    MOVE PROPERTY(gSupplier());    
+                }
+                MOVE BOX(gr) { caption = 'Порядок группировки'; };
+            }
+            NEW printContainer {
+                type = CONTAINERH;
+                caption = 'Печать';
+                MOVE PROPERTY(printGroupBalanceSkus(d,gt));
+                MOVE PROPERTY(printXlsxGroupBalanceSkus(d,gt));
+             }
+        }
+    }
+}
