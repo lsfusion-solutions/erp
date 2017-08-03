@@ -63,11 +63,6 @@ sumSold 'Продано за интервал (сумма)' = DATA LOCAL NUMERIC
 
 sumVATSold 'Сумма НДС проданного за интервал' = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
 
-inBackSheet 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
-
-inBackSheetStocks 'Склады' () =
-    GROUP CONCAT name(Stock st) IF inBackSheet(st) ,', ' PREFCHARWIDTH 50;
-
 inSkuStock = DATA LOCAL BOOLEAN (Sku, Stock);
 
 nameGroup1 = DATA LOCAL VARSTRING[255] (Sku, Stock);
@@ -164,82 +159,24 @@ FORM printGroupBackSheet 'Товарооборот'
 ;
 
 printGroupBackSheet 'Отчет по товарообороту' (DATE dateFrom, DATE dateTo, GroupType gt) = {
+    IF countGroup() == 0 THEN {
+        MESSAGE 'Не задана группировка';
+        RETURN;
+    }
     fillReportGroupBackSheetFromTo(gt, dateFrom, dateTo);
     PRINT printGroupBackSheet OBJECTS gt = gt;
 }  IMAGE 'print.png' IN print;
     
-xlsxGroupBackSheet 'Отчет по товарообороту (XLSX)' (DATE dateFrom, DATE dateTo, GroupType gt) = { 
+xlsxGroupBackSheet 'Отчет по товарообороту (XLSX)' (DATE dateFrom, DATE dateTo, GroupType gt) = {
+    IF countGroup() == 0 THEN {
+        MESSAGE 'Не задана группировка';
+        RETURN;
+    }
     fillReportGroupBackSheetFromTo(gt, dateFrom, dateTo);
     PRINT printGroupBackSheet OBJECTS gt = gt XLSX;
 } IMAGE 'print.png' IN print;
-    
-FORM dialogStocksBackSheet 'Выбор складов'
 
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
-    PROPERTIES READONLY VALUE(a), name(sg)
-    ORDER BY name(sg)
-    FILTERS stringEqualsAll(a)
-
-    OBJECTS s = Stock
-    PROPERTIES(s) READONLY id, name
-    PROPERTIES (s) inBackSheet
-    ORDER BY name(s)
-    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
-            isCompany(s),
-            countCompanyStock(sg)
-
-    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
-    FILTERGROUP select FILTER 'Отм.' inBackSheet(s) 'F9' 
-;
-
-DESIGN dialogStocksBackSheet {
-    BOX {
-        preferredSize = (1024, 768);
-        NEW topContainer {
-            type = SPLITH;
-            fill = 1;
-            MOVE BOX(TREE stockTree) {
-                caption = 'Склады';
-            }
-            MOVE BOX(s) {
-                fill = 3;
-                GRID(s) {
-                    defaultComponent = TRUE;
-                }
-                PROPERTY(name(s)){
-                    minimumCharWidth = 35;
-                    preferredCharWidth = 35;
-                }
-            }
-        }
-        MOVE TOOLBARBOX;
-    }
-}
-
-@extendFormFilterStockAccess(s, dialogStocksBackSheet, company);
-changeStocksBackSheet(GroupType gt, DATE df, DATE dt) = {
-    DIALOG dialogStocksBackSheet;
-}
-
-FORM reportGroupBackSheet 'Отчет по товарообороту'
-    OBJECTS df=DATE PANEL
-    PROPERTIES dateFrom = VALUE(df)
-   
-    OBJECTS dt=DATE PANEL
-    PROPERTIES dateTo = VALUE(dt)
-    
-    OBJECTS gt = GroupType PANEL
-    PROPERTIES(gt) SELECTOR name
-    
-    PROPERTIES inBackSheetStocks() ON CHANGE changeStocksBackSheet(gt, df, dt)
-    
-    TREE skuTree sk = Group PARENT parent
-    PROPERTIES inSession(sk) BACKGROUND backgroundInSession(sk)
-    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-    ORDER BY order(sk), skuTreeName
-    FILTERS groupType(sk) == gt
-    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
-    
+EXTEND FORM reportBackSheet 
     PROPERTIES() gStock, gSku, gGroup, gSupplier, gBrand
     
     OBJECTS gr = INTEGER 
@@ -250,71 +187,32 @@ FORM reportGroupBackSheet 'Отчет по товарообороту'
     PROPERTIES(df,dt,gt) printGroupBackSheet, xlsxGroupBackSheet
 ;
 
-onInitReportGroupBackSheet() = {
-    IF countAccessCompanyStock(currentUser()) ==1 THEN {
-        inBackSheet(Stock st)  <- TRUE WHERE  defaultCompanyStock(currentUser())== st; 
-    }    
-}
-
-EXTEND FORM reportGroupBackSheet 
-    EVENTS 
-        ON INIT onInitReportGroupBackSheet()
-;
-
-DESIGN reportGroupBackSheet {
-    NEW topContainer {
-        type = CONTAINERH;
-        NEW dates {
-            type = CONTAINERH;
-            caption = 'Период';
-            MOVE PROPERTY(dateFrom){caption = 'Дата (с)';}
-            MOVE PROPERTY(dateTo){caption = 'Дата (по)';}
-        }
-        MOVE BOX(gt);
-        NEW stocks {
-            caption = 'Склады';
-            type = CONTAINERH;
-            MOVE PROPERTY(inBackSheetStocks());        
-        }
-    }
-    NEW bottomContainer {
+DESIGN reportBackSheet {
+    tabContainer {
+        NEW groupContainer {
+            caption = 'Группировка';
+            type = CONTAINERV;
             fill = 1;
-            type = SPLITH;
-    
-            MOVE BOX(TREE skuTree){
+            NEW grContainer {
                 fill = 1;
-            };
-            NEW rContainer {
-                type = CONTAINERV;
-                fill = 1;
-                NEW groupContainer {
-                    fill = 1;
-                    type = CONTAINERH;
-                    caption = 'Группировка';
-                    NEW checkBoxContainer{
-                        type = CONTAINERV;
-                        MOVE PROPERTY(gStock());
-                        MOVE PROPERTY(gSku());
-                        MOVE PROPERTY(gGroup());
-                        MOVE PROPERTY(gSupplier());
-                        MOVE PROPERTY(gBrand());    
-                    }
-                    MOVE BOX(gr) { caption = 'Порядок группировки'; };
-                }
-                NEW printSkuContainer {
-                    type = CONTAINERH;
-                    caption = 'Печать';
-                    MOVE PROPERTY(printGroupBackSheet(df,dt,gt));
-                    MOVE PROPERTY(xlsxGroupBackSheet(df,dt,gt));
-                }
+                type = CONTAINERH;
+                caption = 'Группировка';
+                NEW checkBoxContainer{
+                    type = CONTAINERV;
+                    MOVE PROPERTY(gStock());
+                    MOVE PROPERTY(gSku());
+                    MOVE PROPERTY(gGroup());
+                    MOVE PROPERTY(gSupplier());
+                    MOVE PROPERTY(gBrand());    
+                 }
+                 MOVE BOX(gr) { caption = 'Порядок группировки'; };
             }
-            
-        }      
-    MOVE TOOLBARBOX;
-}
-
-NAVIGATOR {
-    stockReports{
-        ADD reportGroupBackSheet;
+            NEW printGrContainer {
+                type = CONTAINERH;
+                caption = 'Печать';
+                MOVE PROPERTY(printGroupBackSheet(df,dt,gt));
+                MOVE PROPERTY(xlsxGroupBackSheet(df,dt,gt));
+            }
+        }
     }
 }

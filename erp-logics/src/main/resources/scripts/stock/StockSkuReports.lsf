@@ -98,11 +98,19 @@ FORM printGroupBalanceSkusStock 'Остатки по товарам'
     ORDER BY nameGroup1(s, st), nameGroup2(s, st), nameGroup3(s, st)
 ;
 
-printGroupBalanceSkus 'Отчет по остаткам' (DATETIME dateTime, GroupType gtype) = { 
+printGroupBalanceSkus 'Отчет по остаткам' (DATETIME dateTime, GroupType gtype) = {
+    IF countGroup() == 0 THEN {
+        MESSAGE 'Не задана группировка';
+        RETURN;
+    }
     fillGroupBalanceSkusStock();
     PRINT printGroupBalanceSkusStock OBJECTS d = dateTime, gt = gtype; 
 } IMAGE 'print.png' IN print;
-printXlsxGroupBalanceSkus 'Отчет по остаткам (XLSX)' (DATETIME dateTime, GroupType gtype) = { 
+printXlsxGroupBalanceSkus 'Отчет по остаткам (XLSX)' (DATETIME dateTime, GroupType gtype) = {
+    IF countGroup() == 0 THEN {
+        MESSAGE 'Не задана группировка';
+        RETURN;
+    }
     fillGroupBalanceSkusStock();
     PRINT printGroupBalanceSkusStock OBJECTS d = dateTime, gt = gtype XLSX; 
 } IMAGE 'print.png' IN print;
