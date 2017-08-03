@@ -1,6 +1,6 @@
 MODULE StockSkuLedgerReports;
 
-REQUIRE StockReports, StockTax, SkuLedgerTax, ZReport;
+REQUIRE StockReports, StockTax, SkuLedgerTax, ZReport, SkuLedgerSum;
 
 operation(SkuLedger ledger) = OVERRIDE operationDocument(ledger), CASE 
                                                                                     WHEN ledger IS SaleZReportSkuLedger THEN ZReportOperation.zReportSale
@@ -87,13 +87,16 @@ fillReportGroupOperationFromTo 'Сформировать'(GroupType gt, DATE df,
     setNameGroup3();
 }
 
-sumVAT 'Сумма НДС' (SkuLedger sl) = NUMERIC[18,4]([= X*Y/(100+Y)](sum(sl), valueVAT(sku(sl), stock(sl), date(sl))));
+sum 'Сумма' (SkuLedger sl) = OVERRIDE SkuLedgerSum.sum(sl), Stock.sum(sl);
+costSum 'Сумма поставщика без НДС' (SkuLedger sl) = OVERRIDE SkuLedgerSum.costSum(sl), Stock.costSum(sl);
 
-costSumVAT 'Сумма НДС поставщика' = GROUP SUM costSum(SkuLedger ledger, Batch batch)*Stock.valueVAT(batch)/100 BY ledger;
+sumVAT 'Сумма НДС' (SkuLedger sl) = OVERRIDE SkuLedgerSum.sumVAT(sl), NUMERIC[18,4]([= X*Y/(100+Y)](sum(sl), valueVAT(sku(sl), stock(sl), date(sl))));
 
-costVATSum 'Сумма поставщика с НДС' (SkuLedger sl) = costSumVAT(sl) + costSum(sl);
+costSumVAT 'Сумма НДС поставщика' (SkuLedger sl) = OVERRIDE SkuLedgerSum.costSumVAT(sl), NUMERIC[18,4]([ = GROUP SUM costSum(SkuLedger ledger, Batch batch)*Stock.valueVAT(batch)/100 BY ledger](sl));
 
-markup 'Торговая надбавка' (SkuLedger sl) = sum(sl) - costSum(sl) - sumVAT(sl);
+costVATSum 'Сумма поставщика с НДС' (SkuLedger sl) = costSumVAT(sl) (+) costSum(sl);
+
+markup 'Торговая надбавка' (SkuLedger sl) = sum(sl) (-) costSum(sl) (-) sumVAT(sl);
 
 
 
