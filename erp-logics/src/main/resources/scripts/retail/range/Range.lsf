@@ -439,6 +439,11 @@ DESIGN ranges {
         MOVE BOX(s);
     }
 }
+
+filterStoreType  = DATA LOCAL StoreType();
+nameFilterStoreType 'Формат' = name(filterStoreType());          
+filterStoreType (Store st) = storeType(st) == filterStoreType() OR NOT filterStoreType();       
+
 FORM storeRange 'Ассортимент магазинов'
     OBJECTS d = DATE PANEL
     PROPERTIES(d) VALUE
@@ -450,9 +455,13 @@ FORM storeRange 'Ассортимент магазинов'
 
     // По магазинам
     OBJECTS st = Store GRID 
-    PROPERTIES READONLY name(st), nameStoreType(st)
-    ORDER BY nameStoreType(st), name(st)
-    FILTERS active(st)
+    PROPERTIES READONLY name(st), nameStoreType(st), orderNumber(st)
+//    ORDER BY nameStoreType(st), name(st)
+    ORDER BY orderNumber(st)
+    FILTERS active(st),
+            filterStoreType(st)   
+            
+    PROPERTIES() nameFilterStoreType          
 
     OBJECTS sr = Range
     PROPERTIES(sr) READONLY name
@@ -508,13 +517,18 @@ DESIGN storeRange {
                 fill = 2;               
                 NEW storePane {
                     fill = 1;
-                    type = SPLITV ;
                     caption = 'По магазинам';
+                    MOVE PROPERTY (nameFilterStoreType());          
                     REMOVE BOX(st);
-                    MOVE BOX(sr) {
-                        fill = 2;
-                    }
-                    MOVE BOX(ss);
+
+                    NEW storePane2 {    
+                        fill = 1;
+                        type = SPLITV ;
+                        MOVE BOX(sr) {
+                            fill = 2;
+                        }
+                        MOVE BOX(ss);
+                    }    
                 }
             }
         }
