@@ -118,6 +118,8 @@ longitude (Store store) += longitude(store);
 storeType = DATA StoreType (Store) INDEXED AUTOSET;
 nameStoreType 'Формат' (Store store) = name(storeType(store)) IN base;
 
+orderNumber 'Порядковый номер магазина' = DATA INTEGER  (Store);
+
 countStore 'Кол-во магазинов' (storeType) =
     GROUP SUM 1 IF storeType(Store store) == StoreType storeType
     BY storeType;
@@ -357,7 +359,7 @@ change(Store store) = {
 
 FORM store 'Магазин'
     OBJECTS s=Store PANEL
-    PROPERTIES(s) name ON CHANGE change(s), address, email, phone, nameStoreType, tradingSquare READONLY, 
+    PROPERTIES(s) name ON CHANGE change(s), address, email, phone, nameStoreType, orderNumber, tradingSquare READONLY, 
                   nameChairman, openDate, closeDate, nameLegalEntity, numberBankAccount SHOWIF isCompany(s),
                   nameRegion, latitude, longitude, showOnMap, calculateCoordinates, id SHOWIF showIDs(), inactive
 
@@ -378,6 +380,7 @@ DESIGN store {
             MOVE PROPERTY(nameStoreType(s));
             MOVE PROPERTY(nameLegalEntity(s));
             MOVE PROPERTY(inactive(s));
+            MOVE PROPERTY(orderNumber(s));
         }
         NEW headerLocationParams {
             caption = 'Координаты';
@@ -431,7 +434,7 @@ FORM stores 'Магазины'
     PROPERTIES(t) NEWSESSION addT=NEW , editT=EDIT , deletet=DELETE 
 
     OBJECTS s=Store
-    PROPERTIES(s) READONLYIF isReadonly() name, id SHOWIF showIDs(), address, email, nameStoreType, nameLegalEntity, nameRegion
+    PROPERTIES(s) READONLYIF isReadonly() name, id SHOWIF showIDs(), address, email, nameStoreType, nameLegalEntity, nameRegion, orderNumber 
     PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE 
     FILTERS in(t, st, s)
     FILTERGROUP group1
