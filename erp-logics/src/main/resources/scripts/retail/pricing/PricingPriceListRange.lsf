@@ -1,0 +1,31 @@
+MODULE PricingPriceListRange;
+
+REQUIRE PricingPriceList, Range;
+
+NAMESPACE Pricing;
+
+
+filterByRange 'Фильтровать товары по ассортиментной матрице' = DATA BOOLEAN (); 
+
+EXTEND FORM options
+    PROPERTIES() filterByRange SHOWIF withoutCurrentRetailPrice() 
+;
+
+DESIGN options {
+    pricings {
+        MOVE PROPERTY(filterByRange()) AFTER PROPERTY(withoutCurrentRetailPrice());
+    }
+}
+
+includeExtraDashboardRepricing(DepartmentStore d, PriceListType p, DATETIME dt) += {
+    IF filterByRange() AND d IS DepartmentStore AND p IS PriceListType AND dt IS DATETIME THEN {
+        IF withoutCurrentRetailPrice() THEN {
+            inDashboardRepricing(Sku sku) <- NULL;
+            inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) AND NOT managementRetailPrice(sku) == prevRetailPricingPriceA(sku, d, dt)  
+                                                    AND countRange(sku, d, DATE(dt)) AND NOT skipRepricing(sku, d);
+        }
+        ELSE 
+            MESSAGE 'Для фильтра по ассортиментной матрице необходим также флаг "Формировать цену, если нет текущих розничных цен"';            
+    }
+}
+

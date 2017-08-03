@@ -56,7 +56,11 @@ createDashboardRepricingNotForm 'Создать расценку'(Stock d, Opera
     }
 } TOOLBAR;
 
+checkFormFilter = ABSTRACT ();
+
 createDashboardRepricing 'Создать расценку'(Stock d, Operation o, DATETIME dt) = {
+    checkFormFilter();
+	
 	NEWSESSION NESTED LOCAL  {
 	    createDashboardRepricingNotForm(d, o, dt);
 	    DIALOG userPricing OBJECTS p = repForm() MANAGESESSION DOCKED NOCANCEL DO {
@@ -65,6 +69,17 @@ createDashboardRepricing 'Создать расценку'(Stock d, Operation o,
 	    repForm() <- NULL;      
 	}
 }  
+
+createRepricingAll 'Создать расценки по всем магазинам'() = {
+	NEWSESSION {
+	    FOR (DepartmentStore d IS DepartmentStore) DO {
+	        calculateDashboardManagementRepricing(d, defaultPricingOperation(), currentDateTime());
+	        createDashboardRepricingNotForm(d, defaultPricingOperation(), currentDateTime());
+        }
+
+	    APPLY;
+	}
+}
 
 // ------------ Форма расценки -------------------- //
 
@@ -162,6 +177,11 @@ DESIGN pricingDashboard {
 seekDefaultOperation () = {
     IF defaultPricingOperation() THEN
         SEEK pricingDashboard.o = defaultPricingOperation();
+}
+
+checkFormFilter() += {
+  inDashboardRepricing(Sku sku) <- (inDashboardRepricing(sku) AND [= FILTER pricingDashboard.sk](sku)); 
+       
 }
 
 EXTEND FORM pricingDashboard

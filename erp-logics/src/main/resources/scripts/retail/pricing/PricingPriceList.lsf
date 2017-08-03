@@ -7,14 +7,16 @@ NAMESPACE Repricing; // пока Repricing для обратной совмес�
 skipRepricing = ABSTRACT BOOLEAN (Sku, Stock);
 
 onStockPriceListRepricing 'Переоценивать товары без остатка' = DATA BOOLEAN ();
+withoutCurrentRetailPrice 'Формировать цену, если нет текущих розничных цен' = DATA BOOLEAN ();
 
 EXTEND FORM options
-    PROPERTIES() onStockPriceListRepricing 
+    PROPERTIES() onStockPriceListRepricing, withoutCurrentRetailPrice 
 ;
 
 DESIGN options {
     pricings {
         MOVE PROPERTY(onStockPriceListRepricing());
+        MOVE PROPERTY(withoutCurrentRetailPrice());
     }
 }
 
@@ -48,7 +50,11 @@ calculateDashboardRepricing 'По надбавкам и прайсам'(Departme
         
         overSetManagementRetailPrice(d, dt);
         
-        inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) != prevRetailPricingPriceA(sku, d, dt) AND NOT skipRepricing(sku, d);
+        IF withoutCurrentRetailPrice() THEN
+            inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) AND NOT managementRetailPrice(sku) == prevRetailPricingPriceA(sku, d, dt)  
+                                                           AND NOT skipRepricing(sku, d);
+        ELSE
+            inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) != prevRetailPricingPriceA(sku, d, dt) AND NOT skipRepricing(sku, d);
         
         includeExtraDashboardRepricing(d, pt, dt);
         
@@ -70,7 +76,11 @@ calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, P
     
     overSetManagementRetailPrice(d, dt);
     
-    inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) != prevRetailPricingPriceA(sku, d, dt) AND NOT skipRepricing(sku, d);
+    IF withoutCurrentRetailPrice() THEN
+        inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) AND NOT managementRetailPrice(sku) == prevRetailPricingPriceA(sku, d, dt)  
+                                                       AND NOT skipRepricing(sku, d);
+    ELSE
+        inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) != prevRetailPricingPriceA(sku, d, dt) AND NOT skipRepricing(sku, d);
     
     includeExtraDashboardRepricing(d, pt, dt);
 }
