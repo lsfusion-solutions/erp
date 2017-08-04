@@ -13,3 +13,17 @@ extraRetailVATSum(UserInvoiceDetail d) += IF itemWareUserInvoiceDetail(d) THEN
                                             -retailVATSum[InvoiceDetail](d)
                                         ELSE
                                             retailVATSum[InvoiceDetail](wareUserInvoiceDetail(d));
+                                            
+
+WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
+            SETCHANGED(extraRetailPrice(UserInvoiceDetail detail)) DO {
+    retailPrice (detail)  <- (IF batch(detail)
+                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                                   batch(detail),
+                                                                                                   supplierStock(detail),
+                                                                                                   dateTime(detail))
+                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                                 sku(detail),
+                                                                                                 supplierStock(detail),
+                                                                                                 dateTime(detail))) (-) extraRetailPrice(detail);
+}
