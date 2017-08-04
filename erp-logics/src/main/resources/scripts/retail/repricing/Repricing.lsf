@@ -467,7 +467,7 @@ FORM repricing 'Акт переоценки (печать)'
     PROPERTIES (p) number, series, date, time, nameStore, seriesNumber,
                nameDepartmentStore, countRepricingDetail, quantityRepricingDetail, nameLegalEntityStock,
                curSumRepricingDetail, curMarkupSumRepricingDetail, curVATSumRepricingDetail,
-               curRetailSumRepricingDetail,
+               curRetailSumRepricingDetail, 
                sumRepricingDetail, markupSumRepricingDetail, VATSumRepricingDetail,
                retailSumRepricingDetail,
                diffSumRepricingDetail, diffMarkupSumRepricingDetail, diffVATSumRepricingDetail,
@@ -519,6 +519,59 @@ printAuto 'Акт переоценки (авто)' (Repricing r) = {
         APPLY;  
     }     
 } IMAGE 'print.png' IN print;
+
+reportFileRepricingP () = 'Repricing_repricing_p.jrxml';
+reportFileRepricingD () = 'Repricing_repricing_d.jrxml';
+reportFileRepricingE () = 'Repricing_repricing_e.jrxml';
+
+FORM repricingPeriod 'Акт переоценки (печать)'
+    OBJECTS dd = (df=DATE, dt=DATE, st = Store) PANEL 
+
+    OBJECTS p = Repricing 
+    PROPERTIES (p)  SELECTOR isPosted
+
+    PROPERTIES (p) number, series, date, time, nameStore, seriesNumber,
+               nameDepartmentStore, countRepricingDetail, quantityRepricingDetail, nameLegalEntityStock,
+               curSumRepricingDetail, curMarkupSumRepricingDetail, curVATSumRepricingDetail,
+               curRetailSumRepricingDetail,
+               sumRepricingDetail, markupSumRepricingDetail, VATSumRepricingDetail,
+               retailSumRepricingDetail,
+               diffSumRepricingDetail, diffMarkupSumRepricingDetail, diffVATSumRepricingDetail,
+               diffRetailSumRepricingDetail,
+               note, numberDisposal, repricingCommittee, nameRepricingCommittee,
+               nameChairman, shortNameChairman, namePositionChairman, nameEmployeeCommittee,
+               shortNameEmployeeCommittee
+    FILTERS date(p) >= df, date(p) <= dt, store(departmentStore(p)) ==st, isPosted(p)
+
+    OBJECTS d = RepricingDetail
+    PROPERTIES (d)  index, idBarcodeSku, nameSku, shortNameUOMSku, quantity,
+               curPrice, curSum,
+               curMarkup, curMarkupSum,
+               numberCurVAT, valueCurVAT, curVATSum,
+               curRetailPrice, curRetailSum,
+               price, sum,
+               markup, markupSum,
+               numberVAT, valueVAT, VATSum,
+               retailPrice, retailSum,
+               diffSum, diffMarkupSum, diffVATSum,
+               diffRetailSum
+
+    OBJECTS e=Employee
+    PROPERTIES(e) READONLY   name[Contact], namePosition, shortName
+
+    FILTERS    repricing(d) == p,
+               inCommittee(p, e),
+               (diffSum(d) AND diffSum(d)!=0.0) OR
+               (diffMarkupSum(d) AND diffMarkupSum(d)!=0.0) OR
+               (diffVATSum(d) AND diffVATSum(d)!=0.0) OR
+               (diffRetailSum(d) AND diffRetailSum(d)!=0.0)
+    REPORTFILES dd reportFileRepricingP()
+    REPORTFILES d reportFileRepricingD()
+    REPORTFILES e reportFileRepricingE()
+;
+
+
+
 //----------------------------------------------- Операции ------------------------+----------------------------//
 
 @defineDocumentInterfaceOperation (repricing, Repricing, );
@@ -1042,6 +1095,32 @@ copy 'Копировать'(Repricing repricing) = {
 } TOOLBAR;
 
 backgroundDraft 'Цвет'  (Repricing r)= RGB(212,255,212) IF isDraft(r); 
+
+printPeriod 'Акт переоценки' () = { 
+    IF filterRepricingDateFrom() AND filterRepricingDateTo() AND filterRepricingStore() THEN {
+        PRINT repricingPeriod OBJECTS df= filterRepricingDateFrom(),  dt= filterRepricingDateTo(), st = filterRepricingStore();
+        NEWSESSION NESTED (filterRepricingDateFrom,filterRepricingDateTo, filterRepricingStore){
+            printedAct(UserRepricing r) <- TRUE WHERE isPosted(r) AND NOT printedAct(r) AND date(r) >= filterRepricingDateFrom() AND date(r) <= filterRepricingDateTo() AND store(departmentStore(r)) == filterRepricingStore();
+            APPLY NESTED (filterRepricingDateFrom,filterRepricingDateTo, filterRepricingStore); 
+        }      
+    } ELSE {
+        MESSAGE 'Не заданы параметры фильтра';
+    }
+  
+} IMAGE 'print.png' IN print;
+
+printPeriodAuto 'Акт переоценки (авто) за период' () = { 
+    IF filterRepricingDateFrom() AND filterRepricingDateTo() AND filterRepricingStore() THEN {
+        PRINT repricingPeriod OBJECTS df= filterRepricingDateFrom(),  dt= filterRepricingDateTo(), st = filterRepricingStore() AUTO ;
+        NEWSESSION NESTED (filterRepricingDateFrom,filterRepricingDateTo, filterRepricingStore){
+            printedAct(UserRepricing r) <- TRUE WHERE isPosted(r) AND NOT printedAct(r) AND date(r) >= filterRepricingDateFrom() AND date(r) <= filterRepricingDateTo() AND store(departmentStore(r)) == filterRepricingStore();
+            APPLY NESTED (filterRepricingDateFrom,filterRepricingDateTo, filterRepricingStore); 
+        }      
+    } ELSE {
+        MESSAGE 'Не заданы параметры фильтра';
+    }
+  
+} IMAGE 'print.png' IN print;
 
 FORM repricings 'Акты переоценки' 
     PROPERTIES() filterRepricingDateFrom, filterRepricingDateTo, nameFilterRepricingStore
