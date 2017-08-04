@@ -46,8 +46,10 @@ public class FiscalEpson {
     }
 
     public static boolean cancelReceipt(boolean throwException) throws RuntimeException {
-        Dispatch.call(epsonDispatch, "CancelPrint");
-        return checkErrors(throwException);
+        if(epsonDispatch != null) {
+            Dispatch.call(epsonDispatch, "CancelPrint");
+            return checkErrors(throwException);
+        } return true;
     }
 
     public static void zReport() throws RuntimeException {
