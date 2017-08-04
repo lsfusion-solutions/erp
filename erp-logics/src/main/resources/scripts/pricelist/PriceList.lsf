@@ -1106,15 +1106,21 @@ filterPriceListCompany  = DATA LOCAL LegalEntity ();
 nameFilterPriceListCompany 'Организация' = name(filterPriceListCompany()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
 filterCompany (PriceList p) = company(p) == filterPriceListCompany() OR (p IS PriceList AND NOT filterPriceListCompany());       
 
-FORM priceLists 'Прайсы'
+FORM priceLists 'Прайсы';
+
+@extendFormEditable (priceLists);
+
+EXTEND FORM priceLists
     PROPERTIES() filterPriceListDateFrom, filterPriceListDateTo, nameFilterPriceListCompany
 
     OBJECTS p = PriceList
-    PROPERTIES(p) READONLY BACKGROUND background(p)
+    PROPERTIES(p) READONLYIF isReadonly() BACKGROUND background(p)
            isPosted , number, series, date, time,
-           fromDate, fromTime, toDate, toTime, countPriceListDetail,
-           nameCurrency, nameCompany, nameCompanyStock, priceListTypes, stocks,
+           fromDate, fromTime, toDate, toTime, 
+           nameCurrency, nameCompany, nameCompanyStock,
            note
+    PROPERTIES(p) READONLY BACKGROUND background(p)
+           countPriceListDetail AFTER toTime(p), stocks AFTER nameCompanyStock(p), priceListTypes AFTER nameCompanyStock(p)
 
     PROPERTIES (p) NEWSESSION NEW[UserPriceList], editP = EDIT SHOWIF showChange(p), DELETE SHOWIF (is[UserPriceList](p) AND showChange(p))
     PROPERTIES (p) TOOLBAR copy , print 
@@ -1124,10 +1130,10 @@ FORM priceLists 'Прайсы'
     OBJECTS t = DataPriceListType GRID
 
     OBJECTS d = PriceListDetail
-    PROPERTIES (d) READONLY exclude
-    PROPERTIES(d) READONLY BACKGROUND background(d) index, idBarcodeSku, idSku SHOWIF showIDs(),nameSku,
+    PROPERTIES (d) READONLYIF isReadonly() exclude
+    PROPERTIES(d) READONLYIF isReadonly() BACKGROUND background(d) index, idBarcodeSku, idSku SHOWIF showIDs(),nameSku,
                            shortNameUOMSku, nameBatch, nameCompany
-    PROPERTIES(d) READONLY  BACKGROUND background(d)  AFTER nameSku(d) originalIdBarcodeSku SHOWIF showOriginalIdBarcodeSku(p), originalNameSku SHOWIF showOriginalNameSku(p)
+    PROPERTIES(d) READONLYIF isReadonly()  BACKGROUND background(d)  AFTER nameSku(d) originalIdBarcodeSku SHOWIF showOriginalIdBarcodeSku(p), originalNameSku SHOWIF showOriginalNameSku(p)
     
     ORDER BY index(d)
     
@@ -1135,7 +1141,7 @@ FORM priceLists 'Прайсы'
     PROPERTIES(ts) READONLY name
     PROPERTIES(p, ts) READONLY in
 
-    PROPERTIES(d, t) READONLY BACKGROUND background(d) price COLUMNS (t) HEADER name(t)
+    PROPERTIES(d, t) READONLYIF isReadonly() BACKGROUND background(d) price COLUMNS (t) HEADER name(t)
 
     FILTERGROUP inactivePriceList
         FILTER 'Текущие' isActive(p) 'F11'            
