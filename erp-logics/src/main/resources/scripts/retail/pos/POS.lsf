@@ -1164,14 +1164,42 @@ dropUserPromotionReceipt 'Сбросить скидку для всего чек
     setUserPromotion(ReceiptSaleDetail detail, pc) <- NULL WHERE receipt(detail) == receipt;
 }
 
+//скидка на весь чек
+
+useDiscountSumReceipt 'Предоставлять скидку на весь чек' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() useDiscountSumReceipt
+;
+
+DESIGN options {
+    pos{
+        MOVE PROPERTY(useDiscountSumReceipt());
+    }
+}
+
+readonlyDiscountSumReceipt() = NOT useDiscountSumReceipt();
+
+changeDiscountSumReceipt (Receipt receipt) = {
+    IF useDiscountSumReceipt() THEN {
+        INPUT n = NUMERIC[18,4] DO{
+            LOCAL input = NUMERIC[18,4](Receipt);
+            input(receipt) <- n;
+            FOR receipt(ReceiptSaleDetail detail) == receipt DO {
+                discountSum(detail) <- PARTITION UNGROUP input PROPORTION STRICT ROUND(2) quantity(detail)*price(detail) BY receipt(detail) ORDER index(detail), detail;
+            }    
+        }
+    }
+} 
+
 FORM POS
     PROPERTIES() READONLY hostnameCurrentComputer, currentDateTime, currentUserName
 
     PROPERTIES() READONLY SHOWIF closedCurrentZReport() closedCurrentZReportMessage
 
     OBJECTS r = Receipt PANEL
-    PROPERTIES(r) SHOWIF currentZReport() discountSumReceiptDetail, sumReceiptDetail,
-                                          searchSkuSale SHOWIF posNotExplicitBatchLedger(r),
+    PROPERTIES(r) SHOWIF currentZReport() discountSumReceiptDetail ON CHANGE changeDiscountSumReceipt(r) READONLYIF readonlyDiscountSumReceipt(), 
+                                          sumReceiptDetail, searchSkuSale SHOWIF posNotExplicitBatchLedger(r),
                                           searchBatchSale SHOWIF posExplicitBatchLedger(r),
                                           searchSkuReturn, scanBarcodeReturn,
                                           post, postCard, postCash, postBonus SHOWIF useBonus(), cancel,
