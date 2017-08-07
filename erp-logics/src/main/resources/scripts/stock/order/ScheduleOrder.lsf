@@ -362,13 +362,14 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         BY scheduleOrder[ScheduleOrderDetail](d); 
     
     addScheduleOrderDetail() = {
-	NEWSESSION {
-	        FOR ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) AND NOT countDetailsCurrent(o))) DO {
-	            EXEC create(o); 
-	        }              
-	        apply();
-	    }
-}  
+
+        FOR [ = GROUP SUM 1 IF ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) AND NOT countDetailsCurrent(o))) BY supplier(o)](LegalEntity l) DO NEWSESSION {
+            FOR ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) AND NOT countDetailsCurrent(o))) AND supplier(o) == l DO {
+                EXEC create(o);
+            }             
+            APPLY;
+        }                	    
+    }  
     
     addScheduleOrderDetail() += { addScheduleOrderDetail(); }
 
