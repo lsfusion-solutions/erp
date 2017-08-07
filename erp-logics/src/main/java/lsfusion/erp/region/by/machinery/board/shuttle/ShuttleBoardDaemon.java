@@ -18,7 +18,6 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.sql.SQLException;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -47,9 +46,7 @@ public class ShuttleBoardDaemon extends BoardDaemon {
         try (DataSession session = dbManager.createSession()) {
             String host = (String) LM.findProperty("hostShuttleBoard[]").read(session);
             Integer port = (Integer) LM.findProperty("portShuttleBoard[]").read(session);
-            if(port == null)
-                port = 9101;
-            setupDaemon(dbManager, host, port);
+            setupDaemon(dbManager, host, port != null ? port : 9101);
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
         }
@@ -95,7 +92,7 @@ public class ShuttleBoardDaemon extends BoardDaemon {
                         ipMap.put(inetAddress, ip);
                     }
                     barcode = barcode.length() > 1 ? barcode.substring(1) : barcode;
-                    byte[] message = readMessage(BL, barcode, ip);
+                    byte[] message = readMessage(barcode, ip);
                     outToClient.write(message);
                     terminalLogger.info(String.format("Shuttle successed request ip %s, barcode %s", ip, barcode));
                 }
@@ -117,7 +114,7 @@ public class ShuttleBoardDaemon extends BoardDaemon {
             return null;
         }
 
-        private byte[] readMessage(BusinessLogics BL, String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
+        private byte[] readMessage(String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
             terminalLogger.info(String.format("Shuttle request ip %s, barcode %s", ip, idBarcode));
             try (DataSession session = dbManager.createSession()) {
 
@@ -135,10 +132,10 @@ public class ShuttleBoardDaemon extends BoardDaemon {
                     error = "Неверные параметры сервера";
 
                 if (error == null) {
-                    String captionItem = (String) BL.getModule("Item").findProperty("name[Item]").read(session, skuObject);
+                    String captionItem = (String) LM.findProperty("name[Item]").read(session, skuObject);
                     byte[] captionBytes = getTextBytes(captionItem, 20);
 
-                    BigDecimal price = (BigDecimal) BL.getModule("MachineryPriceTransaction").findProperty("transactionPrice[Sku,Stock]").read(session, skuObject, stockObject);
+                    BigDecimal price = (BigDecimal) LM.findProperty("transactionPrice[Sku,Stock]").read(session, skuObject, stockObject);
                     if (price == null || price.equals(BigDecimal.ZERO)) {
                         error = "Штрихкод не найден";
                     } else {
@@ -150,7 +147,7 @@ public class ShuttleBoardDaemon extends BoardDaemon {
         }
 
         private byte[] getPriceBytes(byte[] captionBytes, BigDecimal price) throws UnsupportedEncodingException {
-            byte[] priceBytes = (new DecimalFormat("###,###.##").format(price.doubleValue()) + " руб.").getBytes(charset);
+            byte[] priceBytes = formatPrice(price).getBytes(charset);
             ByteBuffer bytes = ByteBuffer.allocate(12 + captionBytes.length + priceBytes.length);
 
             bytes.put(new byte[] {(byte) 0x1b, (byte) 0x42, (byte) 0x30}); //normal font size

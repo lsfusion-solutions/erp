@@ -3,7 +3,6 @@ package lsfusion.erp.region.by.machinery.board;
 import lsfusion.interop.DaemonThreadFactory;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.context.ExecutorFactory;
-import lsfusion.server.lifecycle.LifecycleEvent;
 import lsfusion.server.lifecycle.MonitorServer;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DBManager;
@@ -14,10 +13,12 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.SQLException;
+import java.text.DecimalFormat;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -53,10 +54,6 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
         return logicsInstance;
     }
 
-    protected void setupDaemon(DBManager dbManager) throws ScriptingErrorLog.SemanticErrorException, SQLException {
-        setupDaemon(dbManager, null, null);
-    }
-
     protected void setupDaemon(DBManager dbManager, String host, Integer port) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         if (daemonTasksExecutor != null)
@@ -83,8 +80,7 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
             ServerSocket serverSocket = null;
             ExecutorService executorService = ExecutorFactory.createMonitorThreadService(100, BoardDaemon.this);
             try {
-                serverSocket = new ServerSocket(port == null ? 2004 : port, 1000,
-                        host == null ? Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()) : Inet4Address.getByName(host));
+                serverSocket = new ServerSocket(port, 1000, host == null ? Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()) : Inet4Address.getByName(host));
             } catch (IOException e) {
                 startLogger.error("BoardDaemon Error: ", e);
                 executorService.shutdownNow();
@@ -100,5 +96,9 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
                     }
                 }
         }
+    }
+
+    protected String formatPrice(BigDecimal price) {
+        return new DecimalFormat("###,###.##").format(price.doubleValue()) + " руб.";
     }
 }
