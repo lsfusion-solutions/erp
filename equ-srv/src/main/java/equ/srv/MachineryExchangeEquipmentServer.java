@@ -193,7 +193,7 @@ public class MachineryExchangeEquipmentServer {
         return DateConverter.dateToStamp(Calendar.getInstance().getTime());
     }
 
-    public static List<DiscountCard> readDiscountCardList(DBManager dbManager, String numberDiscountCardFrom, String numberDiscountCardTo) throws RemoteException, SQLException {
+    public static List<DiscountCard> readDiscountCardList(DBManager dbManager, RequestExchange requestExchange) throws RemoteException, SQLException {
         List<DiscountCard> discountCardList = new ArrayList<>();
         if(discountCardLM != null) {
             try (DataSession session = dbManager.createSession()) {
@@ -215,12 +215,14 @@ public class MachineryExchangeEquipmentServer {
                 }
                 discountCardQuery.and(discountCardLM.findProperty("number[DiscountCard]").getExpr(discountCardExpr).getWhere());
                 discountCardQuery.and(discountCardLM.findProperty("skipLoad[DiscountCard]").getExpr(discountCardExpr).getWhere().not());
-                Long numberFrom = parseLong(numberDiscountCardFrom);
+                Long numberFrom = parseLong(requestExchange.idDiscountCardFrom);
                 if (numberFrom != null)
                     discountCardQuery.and(discountCardLM.findProperty("longNumber[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(numberFrom, LongClass.instance).getExpr(), Compare.GREATER_EQUALS));
-                Long numberTo = parseLong(numberDiscountCardTo);
+                Long numberTo = parseLong(requestExchange.idDiscountCardTo);
                 if (numberTo != null)
                     discountCardQuery.and(discountCardLM.findProperty("longNumber[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(numberTo, LongClass.instance).getExpr(), Compare.LESS_EQUALS));
+                if(requestExchange.startDate != null)
+                    discountCardQuery.and(discountCardLM.findProperty("date[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(requestExchange.startDate, DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session, MapFact.singletonOrder((Object) "idDiscountCard", false));
 

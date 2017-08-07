@@ -885,6 +885,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(discCardFile), "windows-1251"));
 
                     for (DiscountCard card : discountCardList) {
+                        //todo: убрать после обновления сервера - эта проверка будет проводится на сервере
                         boolean active = requestExchange.startDate == null || (card.dateFromDiscountCard != null && card.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
                         if (active) {
                             String record = String.format("+|%s|%s|1|%s|%s|3", trimToEmpty(card.numberDiscountCard), trimToEmpty(card.nameDiscountCard),

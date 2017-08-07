@@ -62,7 +62,7 @@ public class MachineryExchangeEquipmentServer {
                                             handlerSet.add(cashRegisterInfo.handlerModel);
                                         }
                                         if(handlerSet.contains(handlerModel)) {
-                                            List<DiscountCard> discountCardList = remote.readDiscountCardList(requestExchange.idDiscountCardFrom, requestExchange.idDiscountCardTo);
+                                            List<DiscountCard> discountCardList = remote.readDiscountCardList(requestExchange);
                                             if (discountCardList != null && !discountCardList.isEmpty())
                                                 ((CashRegisterHandler) clsHandler).sendDiscountCardList(discountCardList, requestExchange);
                                             remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));

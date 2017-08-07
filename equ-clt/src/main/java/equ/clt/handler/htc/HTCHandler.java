@@ -359,6 +359,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                     BigDecimal lastPercent = null;
                     for (DiscountCard discountCard : discountCardList) {
 
+                        //todo: убрать после обновления сервера - эта проверка будет проводится на сервере
                         boolean active = discountCard.dateFromDiscountCard != null && startDate != null && discountCard.dateFromDiscountCard.compareTo(startDate) >= 0;
                         boolean isStop = (discountCard.dateFromDiscountCard != null && discountCard.dateFromDiscountCard.compareTo(currentDate) > 0) ||
                                 (discountCard.dateToDiscountCard != null && discountCard.dateToDiscountCard.compareTo(currentDate) < 0);

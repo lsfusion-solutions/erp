@@ -753,8 +753,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public List<DiscountCard> readDiscountCardList(String numberDiscountCardFrom, String numberDiscountCardTo) throws RemoteException, SQLException {
-        return MachineryExchangeEquipmentServer.readDiscountCardList(getDbManager(), numberDiscountCardFrom, numberDiscountCardTo);
+    public List<DiscountCard> readDiscountCardList(RequestExchange requestExchange) throws RemoteException, SQLException {
+        return MachineryExchangeEquipmentServer.readDiscountCardList(getDbManager(), requestExchange);
     }
 
     @Override

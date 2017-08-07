@@ -533,6 +533,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         for (DiscountCard d : discountCardList) {
                             if(d.typeDiscountCard != null) {
+                                //todo: убрать после обновления сервера - эта проверка будет проводится на сервере
                                 boolean active = requestExchange.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
                                 command.append(getAddCardJSON(d, active)).append("\n---\n");
                             }
