@@ -1781,7 +1781,7 @@ FORM inventories 'Инвентаризации'
     PROPERTIES(in) PANEL READONLY createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
     
-    PROPERTIES(in)                      NEWSESSION NEW, EDIT SHOWIF overShowEdit(in),// SHOWIF isDraftInventory(in), 
+    PROPERTIES(in)                      NEWSESSION NEW, editIn = EDIT SHOWIF overShowEdit(in),// SHOWIF isDraftInventory(in), 
                                         deletein=DELETE SHOWIF overShowDelete(in),
                                         post SHOWIF showPost(in), unpost SHOWIF showUnpost(in)
     FILTERGROUP open FILTER 'Открыт' isOpened(in) 'F6' DEFAULT
@@ -2061,3 +2061,15 @@ overRecalculateBalance(Inventory in) += {
 }
 
 @extendFormEditable(inventories);
+
+show 'Просмотреть' (Inventory i) = {
+	NEWSESSION {
+	    SHOW inventory OBJECTS i = i DOCKED READONLY;
+	}
+}TOOLBAR;
+
+showToShow (Inventory i) = i IS Inventory AND NOT overShowEdit(i);
+
+EXTEND FORM inventories
+    PROPERTIES show(in) SHOWIF showToShow(in) BEFORE editIn
+;

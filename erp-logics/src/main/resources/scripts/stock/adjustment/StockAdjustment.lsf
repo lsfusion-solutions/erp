@@ -267,7 +267,7 @@ FORM adjustments 'Изменения остатков'
     PROPERTIES (i) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (i) NEWSESSION NEW[UserAdjustment], EDIT SHOWIF showEdit(i), deletei = DELETE SHOWIF showDelete[UserAdjustment](i)
+    PROPERTIES (i) NEWSESSION NEW[UserAdjustment], editI = EDIT SHOWIF showEdit(i), deletei = DELETE SHOWIF showDelete[UserAdjustment](i)
     PROPERTIES(i)  close[UserAdjustment] SHOWIF isOpened[UserAdjustment](i), open SHOWIF isClosed[UserAdjustment](i)     
 
     OBJECTS d = AdjustmentDetail
@@ -852,3 +852,14 @@ createSumUserAdjustment 'Корректировка суммы ТО'() = {
         createSumUserAdjustment(a);      
     }
 }//-- для планировщика
+
+show 'Просмотреть' (UserAdjustment i) = {
+	NEWSESSION {
+	    SHOW userAdjustment OBJECTS i = i DOCKED READONLY;
+	}
+}TOOLBAR;
+
+showToShow (UserAdjustment i) = is(i) AND NOT showEdit(i);
+EXTEND FORM adjustments
+    PROPERTIES show(i) SHOWIF showToShow(i) BEFORE editI
+;

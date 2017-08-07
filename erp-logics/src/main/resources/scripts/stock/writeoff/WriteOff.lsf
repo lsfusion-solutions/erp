@@ -446,7 +446,7 @@ FORM writeOffs 'Списания'
 
     PROPERTIES (w) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
-    PROPERTIES (w) NEWSESSION NEW[UserWriteOff], EDIT SHOWIF showEdit(w), deletew = DELETE SHOWIF showDelete[UserWriteOff](w)
+    PROPERTIES (w) NEWSESSION NEW[UserWriteOff], editW = EDIT SHOWIF showEdit(w), deletew = DELETE SHOWIF showDelete[UserWriteOff](w)
     PROPERTIES (w) close[UserWriteOff] SHOWIF isOpened[UserWriteOff](w), open[UserWriteOff] SHOWIF isClosed[UserWriteOff](w)
     
     OBJECTS d=WriteOffDetail
@@ -662,4 +662,15 @@ show(UserWriteOffDetail d) = {
 }
 show(UserWriteOffDetail d) += { show(d); }
 show[SkuLedger](WriteOffDetail d) += { show(d); }
+
+show 'Просмотреть' (UserWriteOff w) = {
+	NEWSESSION {
+	    SHOW userWriteOff OBJECTS w = w DOCKED READONLY;
+	}
+}TOOLBAR;
+
+showToShow (UserWriteOff w) = is(w) AND NOT showEdit(w);
+EXTEND FORM writeOffs
+    PROPERTIES show(w) SHOWIF showToShow(w) BEFORE editW
+;
 

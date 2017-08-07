@@ -1449,7 +1449,7 @@ FORM orders 'Производственные заказы'
     PROPERTIES(o) READONLY quantityProductDetail, sumProductDetail, quantityComponentDetail, sumComponentDetail
     PROPERTIES(o) READONLYIF isReadonly() nameCalcPriceListType, namePriceListType, note
 
-    PROPERTIES(o) NEWSESSION addo=NEW, EDIT SHOWIF overShowEdit(o)
+    PROPERTIES(o) NEWSESSION addo=NEW, editO = EDIT SHOWIF overShowEdit(o)
     PROPERTIES(o) close SHOWIF isOpened(o), open SHOWIF isClosed(o)      
     PROPERTIES(o) NEWSESSION deleteo=DELETE SHOWIF overShowDelete(o)
     PROPERTIES (o) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
@@ -2091,3 +2091,16 @@ toComponentsPrice(ProductDetail pd) = componentsPrice(pd)*( 100.0 + percPrice(op
 CONSTRAINT percPrice(operation(ProductDetail pd)) AND isPosted(pd) AND price(pd) AND componentsPrice(pd)
     AND NOT (price(pd) >= fromComponentsPrice(pd) AND price(pd) <= toComponentsPrice(pd))
         MESSAGE 'Внимание!!! Отклонение между ценой компонентов и ценой изделия не попадает в допустимый процент по цене.';
+
+
+show 'Просмотреть' (Order o) = {
+	NEWSESSION {
+	    SHOW order OBJECTS o = o DOCKED READONLY;
+	}
+}TOOLBAR;
+
+showToShow (Order o) = o IS Order AND NOT overShowEdit(o);
+
+EXTEND FORM orders
+    PROPERTIES show(o) SHOWIF showToShow(o) BEFORE editO
+;

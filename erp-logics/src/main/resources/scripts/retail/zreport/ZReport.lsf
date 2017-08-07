@@ -723,7 +723,7 @@ show 'Просмотреть' (ZReport z) = {
 	NEWSESSION {
 	    SHOW zReport OBJECTS z = z DOCKED READONLY ;
 	}
-}
+} TOOLBAR;
 
 copy 'Копировать'(Receipt receipt) = {
     NEW r = Receipt {
@@ -859,7 +859,7 @@ FORM zReports 'Z-отчеты'
                             sumNegativeCashPayment, sumNegativeCardPayment, sumVATReceiptDetail,
                             discountSum, firstDateTimeReceipt, lastDateTimeReceipt                                                                                 
                                                         
-    PROPERTIES (z) NEWSESSION NEW, EDIT SHOWIF isOpened(z) 
+    PROPERTIES (z) NEWSESSION NEW, editZ = EDIT SHOWIF isOpened(z) 
     PROPERTIES (z) close SHOWIF isOpened(z), open SHOWIF isClosed(z)
 
     PROPERTIES (z) NEWSESSION deletez=DELETE SHOWIF isDraftOpened(z),
@@ -1079,3 +1079,10 @@ CLASS ZReportOperation {
 } : Operation.Operation;
 
 name(ZReportOperation o) += VARISTRING[100](staticCaption(o)) IF o IS ZReportOperation;
+
+
+showToShow (ZReport z) = z IS ZReport AND NOT isOpened(z);
+
+EXTEND FORM zReports
+    PROPERTIES show(z) SHOWIF showToShow(z) BEFORE editZ
+;

@@ -267,7 +267,7 @@ FORM payments 'Платежи'
 
     PROPERTIES(p) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                                 postedNameUser, postedTime, postedHostnameComputer 
-    PROPERTIES(p) NEWSESSION NEW, EDIT SHOWIF overShowEdit(p)
+    PROPERTIES(p) NEWSESSION NEW, editP = EDIT SHOWIF overShowEdit(p)
     PROPERTIES (p) close SHOWIF showClose(p), open SHOWIF showOpen(p)
     PROPERTIES (p) NEWSESSION deletep=DELETE SHOWIF overShowDelete(p), copy
 
@@ -324,3 +324,15 @@ CONSTRAINT (SET(isPosted(Payment p)) OR CHANGED(operation(p))) AND isPosted(p) A
     MESSAGE 'Должен быть задан расчетный счет плательщика';
 CONSTRAINT (SET(isPosted(Payment p)) OR CHANGED(operation(p))) AND isPosted(p) AND accountBeneficiary(operation(p))  AND NOT (accountTo(p)) 
     MESSAGE 'Должен быть задан расчетный счет бенифициара';
+    
+show 'Просмотреть' (Payment p) = {
+	NEWSESSION {
+	    SHOW payment OBJECTS p = p DOCKED READONLY;
+	}
+}TOOLBAR;
+
+showToShow (Payment p) = p IS Payment AND NOT overShowEdit(p);
+
+EXTEND FORM payments
+    PROPERTIES show(p) SHOWIF showToShow(p) BEFORE editP
+;

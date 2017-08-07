@@ -1138,7 +1138,7 @@ FORM repricings 'Акты переоценки'
     PROPERTIES (p) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (p) NEWSESSION NEW[UserRepricing], EDIT SHOWIF showEditUser(p), deletep = DELETE SHOWIF showDeleteUser(p) 
+    PROPERTIES (p) NEWSESSION NEW[UserRepricing], editP = EDIT SHOWIF showEditUser(p), deletep = DELETE SHOWIF showDeleteUser(p) 
     PROPERTIES(p)  close[UserRepricing] SHOWIF isOpened[UserRepricing](p), open SHOWIF isClosed[UserRepricing](p)     
     PROPERTIES copy(p)
     PROPERTIES (p)  print, printXls 
@@ -1303,3 +1303,14 @@ CONSTRAINT  (SET (isPosted(RepricingDetail d)) OR CHANGED (retailPrice(d))) AND 
 CONSTRAINT SET(quantity(RepricingDetail d) < 0) AND denyRepricingNegativeBalance(operation(d))
            CHECKED BY quantity[RepricingDetail]
            MESSAGE 'Для строки акта переоценки количество не должно быть отрицательным';
+           
+show 'Просмотреть' (UserRepricing r) = {
+	NEWSESSION {
+	    SHOW userRepricing OBJECTS p = r DOCKED READONLY;
+	}
+}TOOLBAR;
+
+showToShow (UserRepricing w) = is(w) AND NOT showEditUser(w);
+EXTEND FORM repricings
+    PROPERTIES show(p) SHOWIF showToShow(p) BEFORE editP
+;
