@@ -123,19 +123,6 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                             setAttribute(good, "marking-of-the-good", idItem);
 
-                            if (notGTINPrefixes != null) {
-                                if (barcodeItem != null && barcodeItem.length() > 7) {
-                                    for (String notGTINPrefix : notGTINPrefixes) {
-                                        if (!barcodeItem.startsWith(notGTINPrefix)) {
-                                            Element barcode = new Element("barcode");
-                                            barcode.setAttribute("barcode-type", "GTIN");
-                                            good.addContent(barcode);
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-
                             boolean deleteBarcode = deleteBarcodeMap != null && deleteBarcodeMap.containsValue(idItem);
                             if(deleteBarcode)
                                 usedDeleteBarcodes.barcodes.add(item.idBarcode);
@@ -186,6 +173,17 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             if(deleteBarcode)
                                 setAttribute(barcode, "deleted", true);
                             good.addContent(barcode);
+
+                            if (notGTINPrefixes != null) {
+                                if (barcodeItem != null && barcodeItem.length() > 7) {
+                                    for (String notGTINPrefix : notGTINPrefixes) {
+                                        if (!barcodeItem.startsWith(notGTINPrefix)) {
+                                            barcode.setAttribute("barcode-type", "GTIN");
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
 
                             addProductType(good, item, tobaccoGroups);
 
