@@ -207,7 +207,9 @@ public class FiscalVMK {
     public static boolean printFiscalText(String msg) {
         try {
         if(msg != null && !msg.isEmpty()) {
-            for(String line : msg.split("\n")) {
+            for(String line : msg.split("\n", -1)) {
+                if(line.isEmpty())
+                    line = " ";
                 logAction("vmk_prnch", line);
                 boolean result = vmkDLL.vmk.vmk_prnch(getBytes(line));
                 if(!result) return false;
