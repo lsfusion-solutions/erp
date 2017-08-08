@@ -613,32 +613,6 @@ DESIGN requestExchanges {
     }
 }
 
-discountCardPeriod 'Дней для загрузки дисконтных карт' = DATA INTEGER () ;
-
-loadDiscountCardPeriod 'Загрузить новые дисконтные карты'() = { 
-    NEWSESSION {
-        FOR Stock s == [= GROUP MIN stock(GroupMachinery m) BY directory(m)](VARSTRING[200] d) NEW r = RequestExchange  DO {
-            stock(r) <- s;
-            dateFrom(r) <- subtract(currentDate(), discountCardPeriod());
-            dateTo(r) <- subtract(currentDate(), discountCardPeriod());
-            startDate(r) <- subtract(currentDate(), discountCardPeriod());
-            requestExchangeType(r) <- RequestExchangeType.discountCard;
-        }
-        APPLY;
-    }
-} ;
-
-EXTEND FORM requestExchanges
-   PROPERTIES () loadDiscountCardPeriod, discountCardPeriod;
-
-DESIGN requestExchanges{
-    actionContainer{
-        MOVE PROPERTY (discountCardPeriod());
-        MOVE PROPERTY (loadDiscountCardPeriod());
-    }
-}
-
-
 createMachineryPriceTransaction = ABSTRACT LIST (GroupMachinery);
 
 skipIn = ABSTRACT CASE BOOLEAN (GroupMachinery, Sku);
