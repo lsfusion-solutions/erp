@@ -31,7 +31,9 @@ public class FiscalEpson {
     }
 
     public static void closePort() throws RuntimeException {
-        Dispatch.call(epsonDispatch, "Disconnect");
+        if(epsonDispatch != null) {
+            Dispatch.call(epsonDispatch, "Disconnect");
+        }
     }
 
     public static void openReceipt(int type) throws RuntimeException {
@@ -54,6 +56,11 @@ public class FiscalEpson {
 
     public static void zReport() throws RuntimeException {
         Dispatch.call(epsonDispatch, "PrintZReport");
+        checkErrors(true);
+    }
+
+    public static void electronicJournal() throws RuntimeException {
+        Dispatch.call(epsonDispatch, "PrintElectronicJournal");
         checkErrors(true);
     }
 

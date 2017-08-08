@@ -31,6 +31,9 @@ public class FiscalEpsonCustomOperationClientAction implements ClientAction {
                 case 2:
                     FiscalEpson.zReport();
                     break;
+                case 3:
+                    FiscalEpson.electronicJournal();
+                    break;
                 case 4:
                     FiscalEpson.cancelReceipt(true);
                     break;
