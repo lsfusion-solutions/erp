@@ -30,6 +30,7 @@ public class FiscalVMKServiceInOutActionProperty extends ScriptingActionProperty
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
@@ -37,7 +38,7 @@ public class FiscalVMKServiceInOutActionProperty extends ScriptingActionProperty
             BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
-                String result = (String) context.requestUserInteraction(new FiscalVMKServiceInOutClientAction(ip, comPort, baudRate, sum));
+                String result = (String) context.requestUserInteraction(new FiscalVMKServiceInOutClientAction(logPath, ip, comPort, baudRate, sum));
                 if (result == null){
                     findProperty("isComplete[CashOperation]").change(true, context.getSession(), cashOperationObject);
                 }

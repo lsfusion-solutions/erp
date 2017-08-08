@@ -31,6 +31,7 @@ public class FiscalVMKUpdateDataActionProperty extends ScriptingActionProperty {
         DataSession session = context.getSession();
 
         try {
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
@@ -51,7 +52,7 @@ public class FiscalVMKUpdateDataActionProperty extends ScriptingActionProperty {
 
 
             if (context.checkApply()) {
-                String result = (String) context.requestUserInteraction(new FiscalVMKUpdateDataClientAction(ip, comPort, baudRate));
+                String result = (String) context.requestUserInteraction(new FiscalVMKUpdateDataClientAction(logPath, ip, comPort, baudRate));
                 if (result == null)
                     context.apply();
                 else {

@@ -23,11 +23,12 @@ public class FiscalVMKPrintCopyReceiptActionProperty extends ScriptingActionProp
 
         try {
 
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
-            String result = (String) context.requestUserInteraction(new FiscalVMKPrintCopyReceiptClientAction(ip, comPort, baudRate));
+            String result = (String) context.requestUserInteraction(new FiscalVMKPrintCopyReceiptClientAction(logPath, ip, comPort, baudRate));
             if (result != null) {
                 ServerLoggers.systemLogger.error("FiscalVMKPrintCopyReceipt Error: " + result);
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

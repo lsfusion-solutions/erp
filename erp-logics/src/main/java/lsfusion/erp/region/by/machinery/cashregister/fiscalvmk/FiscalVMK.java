@@ -85,6 +85,8 @@ public class FiscalVMK {
         Boolean vmk_ksastat(ByReference rej, ByReference stat);
 
         Boolean vmk_ksainfo(byte[] buffer, int buflen);
+
+        Boolean vmk_setlogpath(byte[] path);
     }
 
     static void init() {
@@ -114,17 +116,31 @@ public class FiscalVMK {
         return error;
     }
 
-    public static void openPort(String ip, int comPort, int baudRate) {
-        logAction("vmk_open", ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate);
-        if (!vmkDLL.vmk.vmk_open(ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate))
-            checkErrors(true);
+    public static void openPort(String logPath, String ip, int comPort, int baudRate) {
+        try {
+            if (logPath != null) {
+                logAction("vmk_setlogpath", logPath);
+                if (!vmkDLL.vmk.vmk_setlogpath((getBytes(logPath))))
+                    checkErrors(true);
+            }
+            logAction("vmk_open", ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate);
+            if (!vmkDLL.vmk.vmk_open(ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate))
+                checkErrors(true);
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
     }
 
-    public static boolean safeOpenPort(final String ip, final int comPort, final int baudRate, final int timeout) {
+    public static boolean safeOpenPort(final String logPath, final String ip, final int comPort, final int baudRate, final int timeout) {
         try {
             final Future<Boolean> future = Executors.newSingleThreadExecutor().submit(new Callable() {
                 @Override
                 public Boolean call() throws Exception {
+                    if (logPath != null) {
+                        logAction("vmk_setlogpath", logPath);
+                        if (!vmkDLL.vmk.vmk_setlogpath((getBytes(logPath))))
+                            checkErrors(true);
+                    }
                     logAction("vmk_open", ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate);
                     if (!vmkDLL.vmk.vmk_open(ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate))
                         checkErrors(true);

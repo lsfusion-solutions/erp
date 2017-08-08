@@ -35,6 +35,7 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
             DataObject invoiceObject = context.getDataKeyValue(invoiceInterface);
             DataObject paymentObject = context.getDataKeyValue(paymentInterface);
 
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
@@ -51,7 +52,7 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
                 }
             }
             
-            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(ip, comPort, baudRate, placeNumber, null, sumPayment, typePayment, true));
+            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(logPath, ip, comPort, baudRate, placeNumber, null, sumPayment, typePayment, true));
             if(result != null)
                 ServerLoggers.systemLogger.error("FiscalVMKPrintInvoicePayment Error: " + result);
             findProperty("printReceiptResult[]").change(result == null ? new DataObject(true) : NullValue.instance, context);

@@ -8,17 +8,19 @@ import java.io.IOException;
 
 public class FiscalVMKCustomOperationClientAction implements ClientAction {
 
+    String logPath;
     String ip;
     int comPort;
     int baudRate;
     int type;
     String textTop;
 
-    public FiscalVMKCustomOperationClientAction(String ip, Integer comPort, Integer baudRate, int type) {
-        this(ip, comPort, baudRate, type, null);
+    public FiscalVMKCustomOperationClientAction(String logPath, String ip, Integer comPort, Integer baudRate, int type) {
+        this(logPath, ip, comPort, baudRate, type, null);
     }
 
-    public FiscalVMKCustomOperationClientAction(String ip, Integer comPort, Integer baudRate, int type, String textTop) {
+    public FiscalVMKCustomOperationClientAction(String logPath, String ip, Integer comPort, Integer baudRate, int type, String textTop) {
+        this.logPath = logPath;
         this.type = type;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.comPort = comPort == null ? 0 : comPort;
@@ -30,7 +32,7 @@ public class FiscalVMKCustomOperationClientAction implements ClientAction {
 
         try {
             FiscalVMK.init();
-            FiscalVMK.openPort(ip, comPort, baudRate);
+            FiscalVMK.openPort(logPath, ip, comPort, baudRate);
             switch (type) {
                 case 1:
                     FiscalVMK.printFiscalText(textTop);

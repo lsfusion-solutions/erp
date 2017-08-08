@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 
 public class FiscalVMKPrintInvoicePaymentClientAction implements ClientAction {
 
+    String logPath;
     String ip;
     int comPort;
     int baudRate;
@@ -18,8 +19,9 @@ public class FiscalVMKPrintInvoicePaymentClientAction implements ClientAction {
     Integer typePayment;
     boolean sale;
 
-    public FiscalVMKPrintInvoicePaymentClientAction(String ip, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
-                                                    BigDecimal sumPayment, Integer typePayment, boolean sale) {
+    public FiscalVMKPrintInvoicePaymentClientAction(String logPath, String ip, Integer comPort, Integer baudRate, Integer placeNumber,
+                                                    Integer operatorNumber, BigDecimal sumPayment, Integer typePayment, boolean sale) {
+        this.logPath = logPath;
         this.ip = ip;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
@@ -35,7 +37,7 @@ public class FiscalVMKPrintInvoicePaymentClientAction implements ClientAction {
         try {
             FiscalVMK.init();
 
-            FiscalVMK.openPort(ip, comPort, baudRate);
+            FiscalVMK.openPort(logPath, ip, comPort, baudRate);
             FiscalVMK.opensmIfClose();
 
             Integer numberReceipt = printPayment(sumPayment, typePayment);

@@ -13,6 +13,7 @@ import java.util.List;
 
 public class FiscalVMKPrintReceiptClientAction implements ClientAction {
 
+    String logPath;
     String ip;
     int comPort;
     int baudRate;
@@ -27,9 +28,10 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
     String regNumber;
     String machineryNumber;
 
-    public FiscalVMKPrintReceiptClientAction(String ip, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
+    public FiscalVMKPrintReceiptClientAction(String logPath, String ip, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
                                              ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsNotPayment,
                                              String giftCardAsNotPaymentText, String UNP, String regNumber, String machineryNumber) {
+        this.logPath = logPath;
         this.ip = ip;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
@@ -61,7 +63,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
             try {
                 FiscalVMK.init();
 
-                FiscalVMK.openPort(ip, comPort, baudRate);
+                FiscalVMK.openPort(logPath, ip, comPort, baudRate);
                 FiscalVMK.opensmIfClose();
                 
                 Integer numberReceipt = null;

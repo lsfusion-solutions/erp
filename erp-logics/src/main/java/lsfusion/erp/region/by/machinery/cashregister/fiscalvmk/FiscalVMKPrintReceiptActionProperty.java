@@ -57,6 +57,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 else
                     ServerLoggers.systemLogger.error("FiscalVMKPrintReceipt Apply Error (Not Fiscal)");
             } else {
+                String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
                 String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
@@ -163,7 +164,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 }
 
                 if (context.checkApply()) {
-                    Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(ip, comPort, baudRate, placeNumber,
+                    Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(logPath, ip, comPort, baudRate, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, giftCardAsNotPaymentText, UNP, regNumber, machineryNumber));

@@ -8,11 +8,13 @@ import java.io.IOException;
 
 public class FiscalVMKUpdateDataClientAction implements ClientAction {
 
+    String logPath;
     String ip;
     int comPort;
     int baudRate;
 
-    public FiscalVMKUpdateDataClientAction(String ip, Integer comPort, Integer baudRate) {
+    public FiscalVMKUpdateDataClientAction(String logPath, String ip, Integer comPort, Integer baudRate) {
+        this.logPath = logPath;
         this.ip = ip;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
@@ -25,7 +27,7 @@ public class FiscalVMKUpdateDataClientAction implements ClientAction {
         FiscalVMK.init();
         try {
 
-            FiscalVMK.openPort(ip, comPort, baudRate);
+            FiscalVMK.openPort(logPath, ip, comPort, baudRate);
             FiscalVMK.closePort();
 
         } catch (RuntimeException e) {

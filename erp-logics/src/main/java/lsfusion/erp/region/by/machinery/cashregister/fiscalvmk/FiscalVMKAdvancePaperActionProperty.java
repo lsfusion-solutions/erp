@@ -21,11 +21,12 @@ public class FiscalVMKAdvancePaperActionProperty extends ScriptingActionProperty
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
 
-            String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 3));
+            String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(logPath, ip, comPort, baudRate, 3));
             if (result != null) {
                 ServerLoggers.systemLogger.error("FiscalVMKAdvancePaper Error: " + result);
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

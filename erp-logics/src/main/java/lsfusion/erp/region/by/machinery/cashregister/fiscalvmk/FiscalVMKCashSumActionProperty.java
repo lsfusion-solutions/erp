@@ -25,11 +25,12 @@ public class FiscalVMKCashSumActionProperty extends ScriptingActionProperty {
 
             //DataObject zReportObject = (DataObject) findProperty("currentZReport[]").readClasses(context);
 
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
-            Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 5));
+            Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(logPath, ip, comPort, baudRate, 5));
             if (result instanceof BigDecimal) {
                 context.requestUserInteraction(new MessageClientAction(FiscalVMK.toStr((BigDecimal) result), "Сумма наличных в кассе"));
             } else if (result instanceof String) {

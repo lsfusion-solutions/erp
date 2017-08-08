@@ -41,6 +41,7 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
             boolean ignoreDisplayText = findProperty("ignoreDisplayTextCurrentCashRegister[]").read(context) != null;
             if (!skipReceipt && !ignoreDisplayText) {
 
+                String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
                 String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
@@ -60,7 +61,7 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
                 double bonusSum = getDouble((BigDecimal) findProperty("bonusSum[ReceiptDetail]").read(session, receiptDetailObject));
                 double bonusPaid = getDouble((BigDecimal) findProperty("bonusPaid[ReceiptDetail]").read(session, receiptDetailObject));
 
-                String result = (String) context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(ip, comPort, baudRate,
+                String result = (String) context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(logPath, ip, comPort, baudRate,
                         new ReceiptItem(false, price == null ? BigDecimal.ZERO : price, quantity, barcode, name, sum, articleDiscSum, bonusSum, bonusPaid)));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalVMKDisplayText Error: " + result);
