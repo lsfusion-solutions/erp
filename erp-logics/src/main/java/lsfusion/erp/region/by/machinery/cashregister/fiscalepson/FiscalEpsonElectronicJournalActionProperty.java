@@ -19,7 +19,6 @@ public class FiscalEpsonElectronicJournalActionProperty extends ScriptingActionP
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            DataSession session = context.getSession();
 
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
@@ -29,7 +28,6 @@ public class FiscalEpsonElectronicJournalActionProperty extends ScriptingActionP
                 if (result != null)
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
-            findAction("closeCurrentZReport[]").execute(session, context.stack);
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
