@@ -10,7 +10,7 @@ META createGroup(object, name, number)
 END 
 
 order 'Номер' = DATA LOCAL INTEGER(INTEGER);
-nameGroup 'Группировка' = DATA VARSTRING[100](INTEGER);
+nameGroup 'Группировка' = DATA LOCAL VARSTRING[100](INTEGER);
 
 countGroup = OVERRIDE [=GROUP MAX order(INTEGER i)](), 0;
 
@@ -132,7 +132,7 @@ fillReportGroupBackSheetFromTo 'Сформировать'(GroupType gt, DATE df,
     
     sumVATSold(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumVATSold(Sku sk, Stock st, DATE df, DATE dt) IF inBackSheet(st) BY sk, st, df, dt](sk, st, df, dt));
     
-    inSkuStock(Sku sk, Stock st) <- inBackSheet(st) AND balanceA(sk, st) AND balanceB(sk, st) AND quantityPurchase(sk, st) AND quantitySold(sk, st);
+    inSkuStock(Sku sk, Stock st) <- inBackSheet(st) AND (balanceA(sk, st) OR balanceB(sk, st) OR quantityPurchase(sk, st) OR quantitySold(sk, st));
     
     setNameGroup1();
     setNameGroup2();
@@ -163,6 +163,14 @@ printGroupBackSheet 'Отчет по товарообороту' (DATE dateFrom,
         MESSAGE 'Не задана группировка';
         RETURN;
     }
+    IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN {
+        MESSAGE 'Не задан склад';
+        RETURN;
+    }
+    IF NOT [= GROUP SUM 1 IF inSession(Group gr)]() THEN {
+        MESSAGE 'Не задана группа';
+        RETURN;
+    }
     fillReportGroupBackSheetFromTo(gt, dateFrom, dateTo);
     PRINT printGroupBackSheet OBJECTS gt = gt;
 }  IMAGE 'print.png' IN print;
@@ -170,6 +178,14 @@ printGroupBackSheet 'Отчет по товарообороту' (DATE dateFrom,
 xlsxGroupBackSheet 'Отчет по товарообороту (XLSX)' (DATE dateFrom, DATE dateTo, GroupType gt) = {
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
+        RETURN;
+    }
+    IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN {
+        MESSAGE 'Не задан склад';
+        RETURN;
+    }
+    IF NOT [= GROUP SUM 1 IF inSession(Group gr)]() THEN {
+        MESSAGE 'Не задана группа';
         RETURN;
     }
     fillReportGroupBackSheetFromTo(gt, dateFrom, dateTo);

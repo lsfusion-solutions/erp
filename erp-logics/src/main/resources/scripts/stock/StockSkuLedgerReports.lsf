@@ -15,7 +15,7 @@ META createGroup(object, name, number)
 END 
 
 order 'Номер' = DATA LOCAL INTEGER(INTEGER);
-nameGroup 'Группировка' = DATA VARSTRING[100](INTEGER);
+nameGroup 'Группировка' = DATA LOCAL VARSTRING[100](INTEGER);
 
 countGroup = OVERRIDE [=GROUP MAX order(INTEGER i)](), 0;
 
@@ -118,6 +118,14 @@ printGroupOperation 'Отчет по операциям' (DATE dateFrom, DATE da
         MESSAGE 'Не задана группировка';
         RETURN;
     }
+    IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN {
+        MESSAGE 'Не задан склад';
+        RETURN;
+    }
+    IF NOT [= GROUP SUM 1 IF inSession(Group gr)]() THEN {
+        MESSAGE 'Не задана группа';
+        RETURN;
+    }
     fillReportGroupOperationFromTo(gt, dateFrom, dateTo);
     PRINT printGroupOperation;
 }  IMAGE 'print.png' IN print;
@@ -125,6 +133,14 @@ printGroupOperation 'Отчет по операциям' (DATE dateFrom, DATE da
 xlsxGroupOperation 'Отчет по операциям (XLSX)' (DATE dateFrom, DATE dateTo, GroupType gt) = {
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
+        RETURN;
+    }
+    IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN {
+        MESSAGE 'Не задан склад';
+        RETURN;
+    }
+    IF NOT [= GROUP SUM 1 IF inSession(Group gr)]() THEN {
+        MESSAGE 'Не задана группа';
         RETURN;
     }
     fillReportGroupOperationFromTo(gt, dateFrom, dateTo);
@@ -176,7 +192,10 @@ DESIGN dialogStocksBackSheet {
 
 @extendFormFilterStockAccess(s, dialogStocksBackSheet, company);
 changeStocksBackSheet(GroupType gt, DATE df, DATE dt) = {
-    DIALOG dialogStocksBackSheet;
+    DIALOG dialogStocksBackSheet OBJECTS s INPUT DO {
+        IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN
+            inBackSheet(s) <- TRUE;
+    }
 }
 
 FORM reportGroupOperation 'Отчет по операциям'

@@ -10,7 +10,7 @@ META createGroup(object, name, number)
 END 
 
 order 'Номер' = DATA LOCAL INTEGER(INTEGER);
-nameGroup 'Группировка' = DATA VARSTRING[100](INTEGER);
+nameGroup 'Группировка' = DATA LOCAL VARSTRING[100](INTEGER);
 
 countGroup = OVERRIDE [=GROUP MAX order(INTEGER i)](), 0;
 
@@ -68,11 +68,9 @@ fillGroupBalanceSkusStock 'Сформировать'() = {
     setNameGroup3();
 }
 
-//costSumB 'Себестоимость на начало' = DATA LOCAL NUMERIC[32,9] (Sku);
 costSumB 'Себестоимость на начало' (Sku sk, DATETIME dt) = 
     [ = GROUP SUM costSumB(Sku sk, Stock st, DATE dt) IF inBackSheet(st) BY sk, dt](sk, toDate(dt));
 
-//costVATSum 'Сумма поставщика с НДС' = DATA LOCAL NUMERIC[26,8] (Sku);
 costVATSum 'Сумма поставщика с НДС' (Sku sk, DATETIME dt) = 
     NUMERIC[26,8]([ = GROUP SUM costB(Batch b, Stock st, DATE dt)*(1 + Stock.valueVAT(b)/100) IF inBackSheet(st) BY sku(b), dt](sk, toDate(dt)));
 
@@ -103,12 +101,28 @@ printGroupBalanceSkus 'Отчет по остаткам' (DATETIME dateTime, Gro
         MESSAGE 'Не задана группировка';
         RETURN;
     }
+    IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN {
+        MESSAGE 'Не задан склад';
+        RETURN;
+    }
+    IF NOT [= GROUP SUM 1 IF inSession(Group gr)]() THEN {
+        MESSAGE 'Не задана группа';
+        RETURN;
+    }
     fillGroupBalanceSkusStock();
     PRINT printGroupBalanceSkusStock OBJECTS d = dateTime, gt = gtype; 
 } IMAGE 'print.png' IN print;
 printXlsxGroupBalanceSkus 'Отчет по остаткам (XLSX)' (DATETIME dateTime, GroupType gtype) = {
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
+        RETURN;
+    }
+    IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN {
+        MESSAGE 'Не задан склад';
+        RETURN;
+    }
+    IF NOT [= GROUP SUM 1 IF inSession(Group gr)]() THEN {
+        MESSAGE 'Не задана группа';
         RETURN;
     }
     fillGroupBalanceSkusStock();
