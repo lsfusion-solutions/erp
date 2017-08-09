@@ -90,6 +90,74 @@ recMarkupSumStock 'Надбавка' (group) =
 recQuantityStock 'Кол-во' (group) =
     GROUP SUM quantityStock (Group child) IF isParent(child, Group parent)
     BY parent;
+    
+// --------------------------------- Сравнение с интервалом ------------------------------------- //
+
+quantityStockCompare 'Количество (сравнение)' = DATA LOCAL NUMERIC[16,5] (Sku); 
+costSumStockCompare 'Себестоимость (сравнение)' = DATA LOCAL NUMERIC[18,4] (Sku); 
+markupSumStockCompare 'Надбавка (сравнение)' = DATA LOCAL NUMERIC[18,4] (Sku);
+sumVATStockCompare 'Сумма НДС (сравнение)' = DATA LOCAL NUMERIC[18,4] (Sku);
+sumStockCompare 'Сумма (сравнение)' = DATA LOCAL NUMERIC[18,4] (Sku);
+
+quantityStockCompare 'Количество (сравнение)' = DATA LOCAL NUMERIC[16,5] (Group); 
+sumVATStockCompare 'Сумма НДС (сравнение)' = DATA LOCAL NUMERIC[18,4] (Group);
+costSumStockCompare 'Себестоимость (сравнение)' = DATA LOCAL NUMERIC[18,4] (Group);
+markupSumStockCompare 'Надбавка (сравнение)' = DATA LOCAL NUMERIC[18,4] (Group);
+sumStockCompare 'Сумма (сравнение)' = DATA LOCAL NUMERIC[18,4] (Group);
+
+compare 'Сравнить с' = DATA LOCAL BOOLEAN ();
+
+fillSaleReportFromToCompare 'Сформировать'(GroupType gt, DATE df, DATE dt) =  {
+    IF compare() THEN {
+        quantityStockCompare(Sku sk) <- NULL;           
+        sumStockCompare(Sku sk) <- NULL;  
+        sumVATStockCompare(Sku sk) <- NULL;  
+        costSumStockCompare(Sku sk) <- NULL;  
+        markupSumStockCompare(Sku sk) <- NULL;  
+    
+        quantityStockCompare(Group g) <- NULL;  
+        sumStockCompare(Group g) <-NULL;  
+        sumVATStockCompare(Group g) <- NULL;  
+        costSumStockCompare(Group g) <- NULL;  
+        markupSumStockCompare(Group g) <- NULL; 
+    
+        quantityStockCompare(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM quantitySold(Sku sk, Stock st, DATE df, DATE dt) IF inSaleReport(st) BY sk, df, dt](sk, df, dt));           
+        sumStockCompare(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumSold(Sku sk, Stock st, DATE df, DATE dt) IF inSaleReport(st) BY sk, df, dt](sk, df, dt));   
+        sumVATStockCompare(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumVATSold(Sku sk, Stock st, DATE df, DATE dt) IF inSaleReport(st) BY sk, df, dt](sk, df, dt));   
+        costSumStockCompare(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM costSumSold(Sku sk, Stock st, DATE df, DATE dt) IF inSaleReport(st) BY sk, df, dt](sk, df, dt));   
+        markupSumStockCompare(Sku sk) <- sumStockCompare(sk) (-) sumVATStockCompare(sk) (-) costSumStockCompare(sk);
+    
+        quantityStockCompare(Group g) <- [= GROUP SUM quantityStockCompare(Sku sk) BY group(GroupType gt, sk)](g) IF  groupType(g) == gt;
+        sumStockCompare(Group g) <- [= GROUP SUM sumStockCompare(Sku sk) BY group(GroupType gt, sk)](g) IF groupType(g) == gt;
+        sumVATStockCompare(Group g) <- [= GROUP SUM sumVATStockCompare(Sku sk) BY group(GroupType gt, sk)](g) IF groupType(g) == gt;
+        costSumStockCompare(Group g) <- [= GROUP SUM costSumStockCompare(Sku sk) BY group(GroupType gt, sk)](g) IF groupType(g) == gt;
+        markupSumStockCompare(Group g) <- [= GROUP SUM markupSumStockCompare(Sku sk) BY group(GroupType gt, sk)](g) IF groupType(g) == gt;
+    }                 
+}
+
+recSumStockCompare 'Сумма (сравнение)' (group) =
+    GROUP SUM sumStockCompare (Group child) IF isParent(child, Group parent)
+    BY parent;
+recSumVATStockCompare 'Сумма НДС (сравнение)' (group) =
+    GROUP SUM sumVATStockCompare (Group child) IF isParent(child, Group parent)
+    BY parent;
+recCostSumStockCompare 'Себестоимость (сравнение)' (group) =
+    GROUP SUM costSumStockCompare (Group child) IF isParent(child, Group parent)
+    BY parent;
+recMarkupSumStockCompare 'Надбавка (сравнение)' (group) =
+    GROUP SUM markupSumStockCompare (Group child) IF isParent(child, Group parent)
+    BY parent;
+recQuantityStockCompare 'Кол-во (сравнение)' (group) =
+    GROUP SUM quantityStockCompare (Group child) IF isParent(child, Group parent)
+    BY parent;
+    
+//цвета ячеек
+lessColor = #FFEEEE;
+moreColor = #EEFFEE;
+markupSumStockColor(Sku sk) = IF markupSumStockCompare(sk) > markupSumStock(sk) THEN moreColor() ELSE lessColor();
+sumStockColor(Sku sk) = IF sumStockCompare(sk) > sumStock(sk) THEN moreColor() ELSE lessColor();
+recMarkupSumStockColor(Group gr) = IF recMarkupSumStockCompare(gr) > recMarkupSumStock(gr) THEN moreColor() ELSE lessColor();
+recSumStockColor(Group gr) = IF recSumStockCompare(gr) > recSumStock(gr) THEN moreColor() ELSE lessColor();
             
 //суммы продаж по группе рекурсивно 
 sumRecSalesSku 'Сумма продаж (всего)' (group, stock, dateFrom, dateTo) =
@@ -694,9 +762,11 @@ DESIGN dialogStocksSaleReport {
     }
 }
 @extendFormFilterStockAccess(s, dialogStocksSaleReport, company);    
-changeStocksSalesReport(GroupType gt, DATE df, DATE dt) = {
-    DIALOG dialogStocksSaleReport DO 
+changeStocksSalesReport(GroupType gt, DATE df, DATE dt, DATE dfc, DATE dtc) = {
+    DIALOG dialogStocksSaleReport DO {
         fillSaleReportFromTo(gt, df, dt);
+        fillSaleReportFromToCompare(gt, dfc, dtc);
+    }
 }
  
 showMovementSkuStocksSale 'Показать движение товара по складу' (Sku sku) = { NEWSESSION NESTED(inSaleReport) SHOW movementSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inSaleReport(st)]() ; }
@@ -709,17 +779,29 @@ FORM salesReport 'Отчет по продажам'
     OBJECTS dt=DATE PANEL
     PROPERTIES dateTo = VALUE(dt)          
     
+    OBJECTS dfc=DATE PANEL
+    PROPERTIES dateFromCompare = VALUE(dfc) SHOWIF compare()
+    
+    OBJECTS dtc=DATE PANEL
+    PROPERTIES dateToCompare = VALUE(dtc) SHOWIF compare()
+    
+    PROPERTIES compare() 
+    
     OBJECTS gt = GroupType PANEL
     PROPERTIES(gt) SELECTOR name
     PROPERTIES(gt) READONLY sumStock
     
-    PROPERTIES inSaleReportStocks() ON CHANGE changeStocksSalesReport(gt, df, dt)
+    PROPERTIES inSaleReportStocks() ON CHANGE changeStocksSalesReport(gt, df, dt, dfc, dtc)
     
     TREE skuTree sk = Group PARENT parent
     PROPERTIES inSession(sk)
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
     PROPERTIES(sk) READONLY recQuantityStock, recCostSumStock, recMarkupSumStock, 
                                         recSumVATStock, recSumStock
+    PROPERTIES(sk) READONLY SHOWIF compare() recQuantityStockCompare AFTER recQuantityStock(sk), recCostSumStockCompare AFTER recCostSumStock(sk), 
+                   recMarkupSumStockCompare AFTER recMarkupSumStock(sk) BACKGROUND recMarkupSumStockColor(sk), recSumVATStockCompare AFTER recSumVATStock(sk),
+                   recSumStockCompare AFTER recSumStock(sk) BACKGROUND recSumStockColor(sk)
+                                            
     ORDER BY order(sk), skuTreeName
     FILTERS groupType(sk) == gt
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
@@ -737,6 +819,9 @@ FORM salesReport 'Отчет по продажам'
     OBJECTS sku = Sku
     PROPERTIES(sku) READONLY name ON SHORTCUT showMovementSkuStocksSale[Sku](sku) ON SHORTCUT showMovementPriceSkuStocksSale[Sku](sku), id SHOWIF showIDs()
     PROPERTIES(sku) READONLY quantityStock, costSumStock, markupSumStock, sumVATStock, sumStock
+    PROPERTIES(sku) READONLY SHOWIF compare() quantityStockCompare AFTER quantityStock(sku), costSumStockCompare AFTER costSumStock(sku),
+                    markupSumStockCompare AFTER markupSumStock(sku) BACKGROUND markupSumStockColor(sku), sumVATStockCompare AFTER sumVATStock(sku),
+                    sumStockCompare AFTER sumStock(sku) BACKGROUND sumStockColor(sku)
     FILTERS isParent(sk, sku),
             active(sku),
             filterStock(sku)
@@ -748,17 +833,38 @@ FORM salesReport 'Отчет по продажам'
     EVENTS 
         ON CHANGE gt fillSaleReportFromTo(gt, df, dt), 
         ON CHANGE df fillSaleReportFromTo(gt, df, dt), 
-        ON CHANGE dt fillSaleReportFromTo(gt, df, dt)                                                 
+        ON CHANGE dt fillSaleReportFromTo(gt, df, dt),
+        ON CHANGE dfc fillSaleReportFromToCompare(gt, dfc, dtc),
+        ON CHANGE dtc fillSaleReportFromToCompare(gt, dfc, dtc),
+        ON CHANGE gt fillSaleReportFromToCompare(gt, dfc, dtc)
+;
+
+setDateToCompare(DATE dateFromCompare, DATE dateFrom, DATE dateTo) = {
+    SEEK salesReport.dtc = sum(dateFromCompare, daysInclBetweenDates(dateTo, dateFrom));
+}
+
+EXTEND FORM salesReport
+    EVENTS 
+        ON CHANGE dfc setDateToCompare(dfc, dt, df)
 ;
 
 DESIGN salesReport {
     NEW top {
         type = CONTAINERH;
-        NEW dateContainer{
+        NEW intervalsContainer{
             caption = 'Период';
-            type = CONTAINERH;
-            MOVE PROPERTY(dateFrom){caption = 'Дата (с)';}
-            MOVE PROPERTY(dateTo){caption = 'Дата (по)';}
+            type = CONTAINERV;
+            NEW dateContainer{           
+                type = CONTAINERH;
+                MOVE PROPERTY(dateFrom){caption = 'Дата (с)';}
+                MOVE PROPERTY(dateTo){caption = 'Дата (по)';}
+            }
+            MOVE PROPERTY(compare());
+            NEW dateCompareContainer{           
+                type = CONTAINERH;
+                MOVE PROPERTY(dateFromCompare){caption = 'Дата (с)';}
+                MOVE PROPERTY(dateToCompare){caption = 'Дата (по)';}
+            }
         }
         
         MOVE BOX(gt);
