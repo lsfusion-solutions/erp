@@ -1494,12 +1494,39 @@ closedCurrentZReportDepartmentStore() = closedCurrentZReport() IF departmentStor
 
 fiscalElectronicJournal 'Печать контрольной ленты' = ABSTRACT LIST () CONFIRM;
 
+FORM zReportDialog 'Z-отчет'
+    OBJECTS z = ZReport FIXED PANEL 
+    OBJECTS b = Receipt
+    PROPERTIES(b) READONLY number, date, time, nameEmployee, sumReceiptDetail, discountSumReceiptDetail, 
+                           countReceiptDetail, quantityReceiptDetail, sumCashPayment, sumCardPayment
+    FILTERS zReport(b) == z
+    OBJECTS d = ReceiptDetail
+    PROPERTIES(d) READONLY idBarcode, nameSku, nameBatch, quantity, price, sum, discountSum
+    FILTERS receipt(d) == b
+;
+
+DESIGN zReportDialog{
+    BOX { 
+        preferredSize = (800, 600); 
+    }
+}
+
+fiscalResetReceiptCashRegister = ABSTRACT LIST (Receipt) CONFIRM;
+fiscalResetReceipt 'Обнулить чек' () = {
+    IF currentZReport() THEN {
+        DIALOG zReportDialog OBJECTS z = currentZReport(), b INPUT DO{
+            fiscalResetReceiptCashRegister(b);
+        }           
+    }
+} CONFIRM;
+
 EXTEND FORM operationCashRegister
     PROPERTIES READONLY curSumCurrentCashRegister() TODRAW interval 
     PROPERTIES() READONLY numberCurrentZReport SHOWIF departmentStoreCurrentCashRegister()
     PROPERTIES() fiscalZReport SHOWIF currentZReportDepartmentStore()
     PROPERTIES() openCurrentZReport SHOWIF closedCurrentZReportDepartmentStore()
     PROPERTIES() fiscalElectronicJournal SHOWIF currentZReportDepartmentStore()
+    PROPERTIES() fiscalResetReceipt SHOWIF currentZReportDepartmentStore()
     
     PROPERTIES addIncomeCashOperationForm() TODRAW c TOOLBAR  SHOWIF currentZReportDepartmentStore()
     PROPERTIES addOutcomeCashOperationForm() TODRAW c TOOLBAR SHOWIF currentZReportDepartmentStore()
@@ -1519,6 +1546,7 @@ DESIGN operationCashRegister {
             MOVE PROPERTY(fiscalZReport()) { font = '24'; }
             MOVE PROPERTY(openCurrentZReport()) { font = '24'; };
             MOVE PROPERTY(fiscalElectronicJournal()) { font = '24'; }
+            MOVE PROPERTY(fiscalResetReceipt()) { font = '24'; }
             MOVE PROPERTY(numberCurrentZReport()) { font = '24'; };
         }
         MOVE BOX(z) BEFORE TOOLBARBOX;
