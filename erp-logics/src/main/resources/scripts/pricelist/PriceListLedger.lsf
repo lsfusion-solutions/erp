@@ -27,6 +27,8 @@ TABLE priceListLedger(PriceListLedger);
 
 @defineCreatedAbstract(PriceListLedger);
 
+show 'Просмотреть' = ABSTRACT MULTI (PriceListLedger) TOOLBAR;
+
 fromDateTime 'Дата/время с' = ABSTRACT DATETIME (PriceListLedger) MATERIALIZED INDEXED;
 toDateTime 'Дата/время по' = ABSTRACT DATETIME (PriceListLedger) MATERIALIZED INDEXED;
 
@@ -720,6 +722,8 @@ META implementSystemLedgerPriceListType (type, objectClass, companyProp, stockPr
     price (objectClass ledger, SystemLedgerPriceListType type) += WHEN price(ledger) AND type == SystemLedgerPriceListType.##type##PriceListType THEN price(ledger);
 
     in (objectClass ledger, ###stockProp stock) += stockProp(ledger) == stock;
+    
+    show[PriceListLedger] (objectClass ledger) += {show(ledger);};
 END
 
 META implementSystemLedgerPriceListType (type, objectClass, companyProp, stockProp)
@@ -803,8 +807,10 @@ relation(s,st,t) = GROUP SUM 1 IF sku(PriceListLedger pl) == Sku s AND isPosted(
 CONSTRAINT dialogPriceListType(Sku s,Stock st) AND NOT relation(s,st,dialogPriceListType(s,st))
     CHECKED BY dialogPriceListType[Sku,Stock] MESSAGE 'Выбран вид цены, по которому нет истории изменения по данному товару';
 
-skipChange = ABSTRACT BOOLEAN (PriceListLedger);
-showChange(PriceListLedger p) = p IS PriceListLedger AND NOT skipChange(p) ;
+skipShowEdit = ABSTRACT VALUE BOOLEAN (PriceListLedger);
+showEdit(PriceListLedger p) = p IS PriceListLedger AND NOT skipShowEdit(p) ;
+
+showToShow(PriceListLedger p) = p IS PriceListLedger AND NOT showEdit(p); 
 
 
 FORM movementPriceSkuStock 'Изменение цены товара по складу'
@@ -818,7 +824,7 @@ FORM movementPriceSkuStock 'Изменение цены товара по скл
     OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger)
     PROPERTIES READONLY  name[PriceListType](t),  description(pl), fromDateTime(pl, t, st), toDateTime(pl, t, st),
                         price(pl, t, st) 
-    PROPERTIES(pl) NEWSESSION EDIT SHOWIF showChange(pl)
+    PROPERTIES(pl) NEWSESSION EDIT SHOWIF showEdit(pl), show SHOWIF showToShow(pl)
     ORDER BY name(t), fromDateTime(pl, t, st) DESC
 
     FILTERS sku(pl, t, st) == s,
@@ -919,7 +925,7 @@ FORM movementPriceSkuStocks 'Изменение цены товара'
     OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger, st = Stock)
     PROPERTIES READONLY  name(t), name(st), description(pl),  fromDateTime(pl, t, st), toDateTime(pl, t, st),
                         price(pl, t, st) 
-    PROPERTIES(pl) NEWSESSION EDIT SHOWIF showChange(pl)
+    PROPERTIES(pl) NEWSESSION EDIT SHOWIF showEdit(pl), show SHOWIF showToShow(pl)
     ORDER BY name(st), name(t), fromDateTime(pl, t, st) DESC
 
     FILTERS sku(pl, t, st) == s,

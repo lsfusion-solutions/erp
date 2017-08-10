@@ -15,8 +15,13 @@ shipmentDate 'Дата поставки' (PurchaseLedger ledger) = toDate(shipme
 
 isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) MATERIALIZED;
 
+show 'Просмотреть' = ABSTRACT MULTI (PurchaseLedger) TOOLBAR;
+
 isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger);
-allowedEdit (PurchaseLedger d) = NOT isClosed(d) OR allowedEditClosedDocuments(currentUser());
+skipShowEdit = ABSTRACT BOOLEAN (PurchaseLedger);
+allowedEdit (PurchaseLedger d) = (NOT isClosed(d) OR allowedEditClosedDocuments(currentUser())) AND NOT skipShowEdit(d);
+
+allowedShow (PurchaseLedger d) = d IS PurchaseLedger AND NOT allowedEdit(d);
 
 skip 'Не проводить' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) MATERIALIZED;
 
@@ -352,7 +357,7 @@ FORM purchaseLedger 'Регистр поступлений'
                            quantity, price, valueVAT, sumVAT, sum, averagePrice, nameCurrency,
                            shipmentQuantity
     PROPERTIES    READONLY sumPurchase (te, s)
-    PROPERTIES(s) NEWSESSION EDIT SHOWIF allowedEdit(s)
+    PROPERTIES(s) NEWSESSION EDIT SHOWIF allowedEdit(s), show SHOWIF allowedShow(s)
     
     FILTERS active(s), filterPurchaseOperationSale(s), filterPurchaseCustomerSale(s)  
     FILTERS (date(s) >= dFrom AND date(s) <= dTo IF NOT isShipmentDate()) OR (s IS PurchaseLedger AND isShipmentDate()),  
@@ -415,6 +420,7 @@ META implementPurchaseLedgerCustom(concrete, skuProp, stockProp)
     stock[PurchaseLedger] (concrete##Detail ledger) += stockProp(ledger);
     operation[PurchaseLedger] (concrete##Detail ledger) += operation(ledger);
     description[PurchaseLedger] (concrete##Detail ledger) += description(ledger);
+    show[PurchaseLedger] (concrete##Detail ledger) += {show(ledger);};
 END
 META implementPurchaseLedger(concrete, skuProp, stockProp)
     EXTEND CLASS concrete##Detail : PurchaseLedger;

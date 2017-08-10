@@ -566,7 +566,9 @@ END
 
 @defineSkuLedgerBalanceProperties(,);
 
-allowedEdit (SkuLedger d) = NOT isClosed(d) OR allowedEditClosedDocuments(currentUser());
+skipShowEdit = ABSTRACT BOOLEAN (SkuLedger);
+allowedEdit (SkuLedger d) = (NOT isClosed(d) OR allowedEditClosedDocuments(currentUser())) AND NOT skipShowEdit(d);
+allowedShow  (SkuLedger d) = d IS SkuLedger AND NOT  allowedEdit(d);
 // -------------------------------------- Последнее движение ---------------------------------- //
 
 dateTimeLastMoved 'Время последнего движения' (sku, stock) =
@@ -664,7 +666,7 @@ FORM batches 'Партии'
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY number, series, dateTime, nameSupplier, nameSku, id SHOWIF showIDs(), 
                                name, nameStock, shippedQuantity, cost, expiryDate, currentBalance
-    PROPERTIES(bt)    EDIT SHOWIF allowedEdit(bt) NEWSESSION, show
+    PROPERTIES(bt)    EDIT SHOWIF allowedEdit(bt) NEWSESSION, show SHOWIF allowedShow(bt)
     FILTERS           isParent(sk, bt)
     ORDER BY          dateTime(bt)
 
@@ -881,7 +883,7 @@ FORM costSkuLedger 'Себестоимость (операции)'
     PROPERTIES(bil) READONLY dateTime, date, description, idSku, nameSku, nameStock,
                              quantity, costed, sum
     PROPERTIES(bil)          resetCost GRID
-    PROPERTIES(bil)          EDIT SHOWIF allowedEdit(bil) NEWSESSION, show
+    PROPERTIES(bil)          EDIT SHOWIF allowedEdit(bil) NEWSESSION, show SHOWIF allowedShow(bil)
     FILTERS active(bil)
     ORDER BY dateTime(bil)
 
@@ -1448,7 +1450,7 @@ FORM skuLedger 'Регистр движений'
     OBJECTS s = SkuLedger
     PROPERTIES(s) READONLY date, dateTime, canonicalNameSkuGroup, nameSku, description, nameStock,
                            signedQuantity, signedPrice, signedSum, costSum
-    PROPERTIES(s) EDIT SHOWIF allowedEdit(s) NEWSESSION, show
+    PROPERTIES(s) EDIT SHOWIF allowedEdit(s) NEWSESSION, show SHOWIF allowedShow(s)
     FILTERS isPosted(s)
 
     FILTERS date(s) >= dFrom, date(s) <= dTo

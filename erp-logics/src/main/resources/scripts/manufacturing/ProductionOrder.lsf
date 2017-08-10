@@ -1410,6 +1410,9 @@ WHEN LOCAL FORMS order (CHANGED(manufactureDate(ProductDetail d)) OR CHANGED(sku
 overShowEdit = ABSTRACT BOOLEAN (Order);
 overShowDelete = ABSTRACT BOOLEAN (Order);
 
+skipShowEdit = ABSTRACT BOOLEAN (Order);
+skipShowDelete = ABSTRACT BOOLEAN (Order);
+
 filterOrderDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterDateFrom (Order i) = date(i) >= filterOrderDateFrom() OR (i IS Order AND NOT filterOrderDateFrom());      
 
@@ -2081,8 +2084,8 @@ SHORTCUT fullNameBOM[ComponentDetail];
 
 @defineOperationChangesDocument(order, Order, preventChangesDocument, createdUser);
 
-overShowEdit (Order i) += showEditDeleteUser(i) AND isOpened(i);
-overShowDelete (Order i) += showEditDeleteUser(i) AND isOpened(i); 
+overShowEdit (Order i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
+overShowDelete (Order i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowDelete(i); 
 
 //-- Допустимый процент отклонения учетной цены от цены изделия
 fromComponentsPrice(ProductDetail pd) = componentsPrice(pd)*( 100.0 - percPrice(operation(pd)))/100.0;

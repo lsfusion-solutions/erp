@@ -691,7 +691,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         PROPERTIES (o) READONLY PANEL createdNameUser[UserOrder], createdTime, createdHostnameComputer, 
                                             postedNameUser, postedTime, postedHostnameComputer
 
-        PROPERTIES (o) NEWSESSION addUserOrder = NEW[UserOrder], EDIT SHOWIF overShowEdit(o)
+        PROPERTIES (o) NEWSESSION addUserOrder = NEW[UserOrder], editO = EDIT  SHOWIF overShowEdit(o)
         PROPERTIES (o) copy
         PROPERTIES (o) close[UserOrder] SHOWIF isOpened[UserOrder](o), open SHOWIF isClosed[UserOrder](o)
         PROPERTIES     NEWSESSION deleteo=DELETE(o) SHOWIF overShowDelete(o) //isUserOpenedOrder(o)
@@ -790,6 +790,19 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentLogForm(orders, o);
  
     edit(UserOrderDetail d) += { DIALOG userOrder OBJECTS o = userOrder(d), d = d AUTOX DOCKED; }
+    
+    show 'Просмотреть' (UserOrder i) =  {
+        NEWSESSION{
+            SHOW userOrder OBJECTS o = i DOCKED READONLY;
+        }
+        
+    }TOOLBAR;
+        
+    showToShow (UserOrder i) = is(i) AND NOT overShowEdit(i);
+    EXTEND FORM orders 
+        PROPERTIES show(o) SHOWIF showToShow(o) BEFORE editO
+    
+    ;  
 END
 
 META deriveShipmentDate(dumb) 

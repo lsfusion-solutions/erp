@@ -1050,11 +1050,14 @@ stockDocumentLedger(RepricingDetail ledger) += repricing(ledger);
 
 batch[SkuLedger](RepricingDetail ledger) += batch(ledger);
 
-showEditUser (Repricing i) =  NOT preventChangesDocument(currentUser(),operation(i)) AND isOpened(i); 
+skipShowEdit = ABSTRACT BOOLEAN (Repricing);
+skipShowDelete = ABSTRACT BOOLEAN (Repricing);
+
+showEditUser (Repricing i) =  isOpened(i) AND NOT preventChangesDocument(currentUser(),operation(i))  AND NOT skipShowEdit(i); 
 
 isUserOpened(UserRepricing p)=  isOpened[Repricing](p) AND is(p);
 
-showDeleteUser (Repricing i) =  NOT preventChangesDocument(currentUser(),operation(i)) AND isUserOpened(i);
+showDeleteUser (Repricing i) =  isUserOpened(i) AND NOT preventChangesDocument(currentUser(),operation(i)) AND NOT skipShowDelete(i);
 
 filterRepricingDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterDateFrom (Repricing i) = date(i) >= filterRepricingDateFrom() OR (i IS Repricing AND NOT filterRepricingDateFrom());      
@@ -1293,6 +1296,7 @@ in (RepricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice(
 price (RepricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN retailPrice(ledger);
 
 in (RepricingDetail ledger, DepartmentStore stock) += departmentStore(ledger) == stock;
+show[PriceListLedger] (RepricingDetail ledger) += {show(ledger);};
 
 @defineDocumentLogForm(repricings, p);
 

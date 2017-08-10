@@ -848,7 +848,13 @@ lastDateTimeReceipt 'Время последнего чека'  = GROUP LAST dat
 firstDateTimeReceipt 'Время первого чека' = GROUP LAST dateTime(Receipt b)
         BY zReport(b)
         ORDER DESC dateTime(b), b;      
-        
+
+skipShowEdit = ABSTRACT BOOLEAN (ZReport);
+skipShowDelete = ABSTRACT BOOLEAN (ZReport);
+
+showEdit (ZReport i) =  isOpened(i) AND NOT skipShowEdit(i); 
+showDelete (ZReport i) =  isDraftOpened(i) AND NOT skipShowDelete(i);   
+     
 FORM zReports 'Z-отчеты'
     PROPERTIES ()  filterZReportDateFrom, filterZReportDateTo, nameFilterZReportDepartmentStore, filterZReportCashRegister
 
@@ -859,10 +865,10 @@ FORM zReports 'Z-отчеты'
                             sumNegativeCashPayment, sumNegativeCardPayment, sumVATReceiptDetail,
                             discountSum, firstDateTimeReceipt, lastDateTimeReceipt                                                                                 
                                                         
-    PROPERTIES (z) NEWSESSION NEW, editZ = EDIT SHOWIF isOpened(z) 
+    PROPERTIES (z) NEWSESSION NEW, editZ = EDIT SHOWIF showEdit(z) 
     PROPERTIES (z) close SHOWIF isOpened(z), open SHOWIF isClosed(z)
 
-    PROPERTIES (z) NEWSESSION deletez=DELETE SHOWIF isDraftOpened(z),
+    PROPERTIES (z) NEWSESSION deletez=DELETE SHOWIF showDelete(z),
                             post SHOWIF isDraftOpened(z), unpost SHOWIF isPostedOpened(z)
     
     FILTERS filterDateFromZreport(z),
@@ -1081,7 +1087,7 @@ CLASS ZReportOperation {
 name(ZReportOperation o) += VARISTRING[100](staticCaption(o)) IF o IS ZReportOperation;
 
 
-showToShow (ZReport z) = z IS ZReport AND NOT isOpened(z);
+showToShow (ZReport z) = z IS ZReport AND NOT showEdit(z);
 
 EXTEND FORM zReports
     PROPERTIES show(z) SHOWIF showToShow(z) BEFORE editZ

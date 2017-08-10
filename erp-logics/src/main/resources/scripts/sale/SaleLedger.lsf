@@ -13,9 +13,12 @@ nameMonth 'Месяц' (SaleLedger ledger) = extractMonthName(date(ledger));
 nameYear 'Год' (SaleLedger ledger) = extractYear(date(ledger));
 
 isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (SaleLedger) MATERIALIZED;
+show 'Просмотреть' = ABSTRACT MULTI (SaleLedger) TOOLBAR;
 
 isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (SaleLedger);
-allowedEdit (SaleLedger d) = NOT isClosed(d) OR allowedEditClosedDocuments(currentUser());
+skipShowEdit = ABSTRACT BOOLEAN (SaleLedger);
+allowedEdit (SaleLedger d) = (NOT isClosed(d) OR allowedEditClosedDocuments(currentUser())) AND NOT skipShowEdit(d);
+allowedShow (SaleLedger d) = d IS SaleLedger AND NOT allowedEdit(d);
 
 skip 'Не проводить' (ledger) = ABSTRACT CASE BOOLEAN (SaleLedger) MATERIALIZED; 
 
@@ -430,6 +433,7 @@ META implementSaleLedgerCustom(concrete, skuProp, stockProp)
     skuProp[SaleLedger] (concrete##Detail ledger) += skuProp(ledger);
     stock[SaleLedger] (concrete##Detail ledger) += stockProp(ledger);
     description[SaleLedger] (concrete##Detail ledger) += description(ledger);
+    show[SaleLedger] (concrete##Detail ledger) += {show(ledger);};
 END
 META implementSaleLedger(concrete, skuProp, stockProp)
     EXTEND CLASS concrete##Detail : SaleLedger;
