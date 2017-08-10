@@ -42,6 +42,8 @@ deleteGroup(INTEGER i) = {
 
 @createGroup(group, 'По группам товара', 5);
 
+@createGroup(date, 'По дате', 6);
+
 inBackSheet 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 inBackSheetStocks 'Склады' () =
     GROUP CONCAT name(Stock st) IF inBackSheet(st) ,', ' PREFCHARWIDTH 50;
@@ -58,7 +60,7 @@ META setNameGroup(number)
     setNameGroup##number () ={
         nameGroup##number(SkuLedger sl) <- NULL;
         IF order(1) == number THEN {
-            nameGroup##number(SkuLedger sl) <- (OVERRIDE numberDocument(sl), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
+            nameGroup##number(SkuLedger sl) <- (OVERRIDE numberDocument(sl) + ' от ' + date(stockDocumentLedger(sl)), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
         }
         IF order(2) == number THEN {
             nameGroup##number(SkuLedger sl) <- (OVERRIDE nameStock(sl), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
@@ -71,6 +73,9 @@ META setNameGroup(number)
         }
         IF order(5) == number THEN {
             nameGroup##number(SkuLedger sl) <- (OVERRIDE nameSkuGroup((sku(sl))), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
+        }
+        IF order(6) == number THEN {
+            nameGroup##number(SkuLedger sl) <- (OVERRIDE VARSTRING[255](date(sl)), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
         }
     }   
 END 
@@ -220,7 +225,7 @@ FORM reportGroupOperation 'Отчет по операциям'
     OBJECTS o = Operation.Operation
     PROPERTIES(o) inSession, name
     
-    PROPERTIES() gDocument, gStock, gOperation, gSku, gGroup
+    PROPERTIES() gDocument, gStock, gOperation, gSku, gGroup, gDate
     
     OBJECTS gr = INTEGER 
     PROPERTIES(gr) READONLY order, nameGroup
@@ -284,7 +289,8 @@ DESIGN reportGroupOperation {
                         MOVE PROPERTY(gStock());
                         MOVE PROPERTY(gOperation());
                         MOVE PROPERTY(gSku());
-                        MOVE PROPERTY(gGroup());  
+                        MOVE PROPERTY(gGroup());
+                        MOVE PROPERTY(gDate());
                     }
                     MOVE BOX(gr) { caption = 'Порядок группировки'; };
                 }
