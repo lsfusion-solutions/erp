@@ -103,11 +103,6 @@ public class FiscalEpson {
     public static void closeReceipt(ReceiptInstance receipt, boolean sale) throws RuntimeException {
         Dispatch.call(epsonDispatch, "CompleteReceipt");
         checkErrors(true);
-        if(receipt.sumCash != null) {
-            epsonActiveXComponent.setProperty("Amount", new Variant(receipt.sumCash.doubleValue()));
-            Dispatch.call(epsonDispatch, sale ? "PayCash" : "RepayCash");
-            checkErrors(true);
-        }
         if(receipt.sumCard != null) {
             epsonActiveXComponent.setProperty("Amount", new Variant(receipt.sumCard.doubleValue()));
             epsonActiveXComponent.setProperty("NoncashType", new Variant(0));
@@ -118,6 +113,11 @@ public class FiscalEpson {
             epsonActiveXComponent.setProperty("Amount", new Variant(receipt.sumGiftCard.doubleValue()));
             epsonActiveXComponent.setProperty("NonCashType", new Variant(1));
             Dispatch.call(epsonDispatch, sale ? "PayNoncash" : "Repaynoncash");
+            checkErrors(true);
+        }
+        if(receipt.sumCash != null) {
+            epsonActiveXComponent.setProperty("Amount", new Variant(receipt.sumCash.doubleValue()));
+            Dispatch.call(epsonDispatch, sale ? "PayCash" : "RepayCash");
             checkErrors(true);
         }
         closeReceipt();
