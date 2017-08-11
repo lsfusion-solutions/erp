@@ -100,7 +100,7 @@ public class FiscalEpson {
         }
     }
 
-    public static void closeReceipt(ReceiptInstance receipt, boolean sale) throws RuntimeException {
+    public static Integer closeReceipt(ReceiptInstance receipt, boolean sale) throws RuntimeException {
         Dispatch.call(epsonDispatch, "CompleteReceipt");
         checkErrors(true);
         if(receipt.sumCard != null) {
@@ -120,7 +120,16 @@ public class FiscalEpson {
             Dispatch.call(epsonDispatch, sale ? "PayCash" : "RepayCash");
             checkErrors(true);
         }
+        Integer receiptNumber = getReceiptNumber();
         closeReceipt();
+        return receiptNumber;
+    }
+    
+    public static Integer getReceiptNumber() {
+        Dispatch.call(epsonDispatch, "ReadDocumentNumber");
+        checkErrors(true);
+        Variant receiptNumber = Dispatch.get(epsonDispatch, "ReceiptNumber");
+        return receiptNumber == null ? null : receiptNumber.toInt(); //getInt выдаёт ошибку
     }
 
     public static boolean checkErrors(Boolean throwException) throws RuntimeException {
@@ -133,13 +142,13 @@ public class FiscalEpson {
         } else return true;
     }
 
-    public static void printReceipt(ReceiptInstance receipt, boolean sale) {
+    public static Integer printReceipt(ReceiptInstance receipt, boolean sale) {
         openReceipt(sale ? 1 : 2);
         for (ReceiptItem item : receipt.receiptList) {
             registerItem(item);
             discountItem(item, !sale);
         }
-        closeReceipt(receipt, sale);
+        return closeReceipt(receipt, sale);
     }
 }
 

@@ -26,7 +26,7 @@ public class FiscalEpsonPrintReceiptClientAction implements ClientAction {
             FiscalEpson.init();
 
             FiscalEpson.openPort(comPort, baudRate);
-            FiscalEpson.printReceipt(receipt, !isReturn);
+            return FiscalEpson.printReceipt(receipt, !isReturn);
 
         } catch (RuntimeException e) {
             FiscalEpson.cancelReceipt(false);
@@ -34,7 +34,5 @@ public class FiscalEpsonPrintReceiptClientAction implements ClientAction {
         } finally {
             FiscalEpson.closePort();
         }
-
-        return null;
     }
 }

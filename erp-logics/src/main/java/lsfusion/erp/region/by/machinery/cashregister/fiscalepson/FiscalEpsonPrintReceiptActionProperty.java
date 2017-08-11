@@ -6,6 +6,7 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -130,17 +131,22 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                 else {
                     if (context.checkApply()) {
                         Boolean isReturn = receiptReturnItemList.size() > 0;
-                        String result = (String) context.requestUserInteraction(
+                        Object result = context.requestUserInteraction(
                                 new FiscalEpsonPrintReceiptClientAction(comPort, baudRate, isReturn,
                                         new ReceiptInstance(sumCash == null ? null : sumCash.abs(),
                                                 sumCard == null ? null : sumCard.abs(),
                                                 sumGiftCard == null ? null : sumGiftCard.abs(),
                                                 isReturn ? receiptReturnItemList : receiptSaleItemList)));
-                        if (result == null) {
-                            context.apply();
-                            findAction("createCurrentReceipt[]").execute(context);
-                        } else
-                            context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                        if (result instanceof Integer) {
+                            findProperty("number[Receipt]").change(result, context, receiptObject);
+                            if (context.apply())
+                                findAction("createCurrentReceipt[]").execute(context);
+                            else
+                                ServerLoggers.systemLogger.error("FiscalEpsonPrintReceipt Apply Error");
+                        } else {
+                            ServerLoggers.systemLogger.error("FiscalEpsonPrintReceipt Error: " + result);
+                            context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                        }
                     }
                 }
             }
