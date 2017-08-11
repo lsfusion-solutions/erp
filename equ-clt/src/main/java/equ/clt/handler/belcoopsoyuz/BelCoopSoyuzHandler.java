@@ -1,8 +1,12 @@
 package equ.clt.handler.belcoopsoyuz;
 
 import com.google.common.base.Throwables;
-import equ.api.*;
-import equ.api.cashregister.*;
+import equ.api.SalesBatch;
+import equ.api.SalesInfo;
+import equ.api.SendTransactionBatch;
+import equ.api.cashregister.CashRegisterInfo;
+import equ.api.cashregister.CashRegisterItemInfo;
+import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import net.iryndin.jdbf.core.DbfRecord;
@@ -24,9 +28,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.sql.Date;
-import java.sql.SQLException;
 import java.sql.Time;
-import java.sql.Timestamp;
 import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -203,13 +205,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             } catch (IOException e) {
                 throw Throwables.propagate(e);
             } finally {
-                try {
-                    if (ftpClient.isConnected()) {
-                        ftpClient.logout();
-                        ftpClient.disconnect();
-                    }
-                } catch (Exception ignored) {
-                }
+                disconnect(ftpClient);
             }
         } else {
             throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file"));
@@ -240,13 +236,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             } catch (IOException e) {
                 throw Throwables.propagate(e);
             } finally {
-                try {
-                    if (ftpClient.isConnected()) {
-                        ftpClient.logout();
-                        ftpClient.disconnect();
-                    }
-                } catch (Exception ignored) {
-                }
+                disconnect(ftpClient);
             }
         } else {
             throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file"));
@@ -275,13 +265,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             } catch (IOException e) {
                 throw Throwables.propagate(e);
             } finally {
-                try {
-                    if (ftpClient.isConnected()) {
-                        ftpClient.logout();
-                        ftpClient.disconnect();
-                    }
-                } catch (Exception ignored) {
-                }
+                disconnect(ftpClient);
             }
         } else {
             throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file"));
@@ -334,14 +318,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                     throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect login or password. Writing file from ftp failed"));
                 }
             } finally {
-                try {
-                    if (ftpClient.isConnected()) {
-                        ftpClient.logout();
-                        ftpClient.disconnect();
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                disconnect(ftpClient);
             }
         } else {
             throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file"));
@@ -724,13 +701,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             } catch (IOException e) {
                 throw Throwables.propagate(e);
             } finally {
-                try {
-                    if (ftpClient.isConnected()) {
-                        ftpClient.logout();
-                        ftpClient.disconnect();
-                    }
-                } catch (Exception ignored) {
-                }
+                disconnect(ftpClient);
             }
         }
         return true;
@@ -922,6 +893,17 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
         return new Date(calendar.getTime().getTime());
     }
 
+    private static void disconnect(FTPClient ftpClient) {
+        try {
+            if (ftpClient.isConnected()) {
+                ftpClient.setSoTimeout(10000);
+                ftpClient.logout();
+                ftpClient.disconnect();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     private void safeFileDelete(File file, Logger logger) {
         if (file != null && file.exists() && !file.delete()) {
