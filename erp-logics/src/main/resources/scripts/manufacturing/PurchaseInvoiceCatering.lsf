@@ -1,0 +1,44 @@
+MODULE PurchaseInvoiceCatering;
+
+REQUIRE PricingPurchase;
+
+NAMESPACE Purchase;
+
+showCatering 'Цена общепита' = ABSTRACT BOOLEAN (Invoice);
+showCatering 'Цена общепита' = DATA BOOLEAN (UserInvoice);
+showCatering(UserInvoice i) += showCatering(i);
+showCatering (UserInvoiceDetail d) = showCatering(userInvoice(d)); 
+
+cateringMarkup 'Надбавка общепита, %' = ABSTRACT NUMERIC[8,3] (InvoiceDetail);
+cateringMarkup 'Надбавка общепита, %' = DATA NUMERIC[8,3] (UserInvoiceDetail);
+cateringMarkup(UserInvoiceDetail d)+=cateringMarkup(d);
+
+cateringPrice 'Цена общепита' = ABSTRACT NUMERIC[16,4] (InvoiceDetail);
+cateringPrice 'Цена общепита' = DATA NUMERIC[16,4] (UserInvoiceDetail);
+cateringPrice(UserInvoiceDetail d)+=cateringPrice(d);
+
+EXTEND FORM invoices 
+    PROPERTIES (d) READONLY SHOWIF showCatering(i) cateringMarkup, cateringPrice
+;
+
+WHEN LOCAL (CHANGED(cateringMarkup(UserInvoiceDetail d)) OR
+              CHANGED(retailPrice(d)))
+             AND NOT CHANGED(cateringPrice(d)) DO {
+        cateringPrice(d) <- [= X*(100.00+Y)/100.00] (retailPrice(d), cateringMarkup(d));
+}
+
+cateringBackground = RGB(255, 212, 192);
+EXTEND FORM userInvoice
+    PROPERTIES(i) showCatering
+    PROPERTIES(pd) SHOWIF showCatering(i) BACKGROUND cateringBackground() cateringMarkup, cateringPrice
+;
+DESIGN userInvoice {
+    headerExtraParams {
+        NEW catering {
+            caption = 'Общепит';
+            MOVE PROPERTY(showCatering(i));
+        }
+    }
+}
+
+calcShipmentPrice(UserInvoiceDetail d) += WHEN showCatering(d) THEN cateringPrice(d);

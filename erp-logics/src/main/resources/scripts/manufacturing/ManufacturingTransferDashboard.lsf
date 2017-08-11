@@ -1,0 +1,396 @@
+MODULE ManufacturingTransferDashboard;
+
+REQUIRE SalePurchaseInvoice, PricingSale, PricingPurchase, BOM, Substitute, PurchaseInvoiceCatering, ProductionOrderPurchaseShipment, PriceLimit, SaleOrder, ConsignmentBy;
+
+NAMESPACE Purchase;
+
+// Наценка общепита
+cateringCalcPriceListType = DATA CalcPriceListType();
+nameCateringCalcPriceListType 'Вид цены(надбавка общепита)' = name(cateringCalcPriceListType());
+
+cateringCalcPriceListType = DATA CalcPriceListType (DepartmentStore);
+nameCateringCalcPriceListType 'Вид цены(надбавка общепита)' = name(cateringCalcPriceListType(DepartmentStore department));
+
+overCateringCalcPriceListType  = OVERRIDE cateringCalcPriceListType(DepartmentStore department), cateringCalcPriceListType() IF department IS DepartmentStore; 
+
+cateringSaleOperation = DATA Sale.Operation();
+nameCateringSaleOperation 'Операция (расход на цех)' = name(cateringSaleOperation());
+
+cateringPurchaseOperation = DATA Purchase.Operation();
+nameCateringPurchaseOperation 'Операция (приход на цех)' = name(cateringPurchaseOperation());
+
+EXTEND FORM options
+    PROPERTIES() nameCateringCalcPriceListType, nameCateringSaleOperation, nameCateringPurchaseOperation
+;
+DESIGN options {
+    manufacturing {
+        MOVE PROPERTY(nameCateringCalcPriceListType());
+        MOVE PROPERTY(nameCateringSaleOperation());
+        MOVE PROPERTY(nameCateringPurchaseOperation());
+    }
+}
+
+EXTEND FORM departmentStore
+    PROPERTIES (d) nameCateringCalcPriceListType
+;
+
+DESIGN departmentStore {
+    headerExtraParams {
+        MOVE PROPERTY(nameCateringCalcPriceListType(d));
+    }
+}
+
+purchaseSku 'Компонент' = DATA Sku(Sale.UserOrderDetail);
+
+purchaseSku = DATA LOCAL Sku (Sale.InvoiceDetail);
+namePurchaseSku 'Компонент' (Sale.InvoiceDetail d) = name(purchaseSku(d));
+CONSTRAINT purchaseSku(Sale.InvoiceDetail d) AND NOT isComponentGroup(purchaseSku(d))
+    CHECKED BY purchaseSku[Sale.InvoiceDetail] MESSAGE 'Выбран SKU, который не является компонентом';
+    
+//CONSTRAINT purchaseSkuInvoiceDetail(d) AND NOT isComponentGroupSku(purchaseSkuInvoiceDetail(d))
+//    CHECKED BY purchaseSkuInvoiceDetail MESSAGE 'Выбран SKU, который не является компонентом';    
+
+coeffPurchase 'Коэфф.' = DATA LOCAL NUMERIC[10,5] (Sale.InvoiceDetail);
+productionCoeffPurchase 'Параметры партии' = DATA LOCAL NUMERIC[8,3] (Sale.InvoiceDetail);
+sessionCateringMarkup 'Наценка общепита' = DATA LOCAL NUMERIC[8,3] (Sale.InvoiceDetail);
+
+backgroundSelectParams = RGB(212, 255, 255);
+
+WHEN LOCAL CHANGED(purchaseSku(Sale.InvoiceDetail d)) AND NOT CHANGED(sessionCateringMarkup(d)) DO {
+    sessionCateringMarkup(d) <- markup(overCateringCalcPriceListType(customerStock(d)), purchaseSku(d));
+}
+
+FORM skusTransfer 'Sku'
+    TREE skuTree sg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
+    FILTERGROUP component FILTER 'Сырье' filterComponent(sg) 'shift F5' DEFAULT
+    ORDER BY order(sg), skuGroupName
+     
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY id SHOWIF showIDs()
+    PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
+    PROPERTIES() addSku TODRAW s
+    PROPERTIES(s) EDIT NEWSESSION, copy
+    FILTERS isParent(sg, s),
+            name(s)
+    ORDER BY name(s)
+
+;
+
+DESIGN skusTransfer {
+    BOX {
+        preferredSize = (1024, 768);
+
+        NEW topContainer {
+            fill = 1;
+            type = SPLITH;
+
+            MOVE BOX(TREE skuTree);
+
+            MOVE BOX(s) {
+                fill = 4;
+                GRID(s) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+changePurchaseSku(Sale.InvoiceDetail d) = {
+    DIALOG skusTransfer OBJECTS s = purchaseSku(d) CHANGE;
+}
+
+calcRetailMarkup 'Надбавка,%' = IF markup(priceLimitPriceListType(customerStock(Sale.InvoiceDetail detail)), sku(detail)) == 0.0
+    THEN 0.0
+    ELSE retailMarkup(detail);
+
+FORM selectParams 'Перемещение на цех'
+    OBJECTS si = Sale.Invoice PANEL
+    
+    OBJECTS sd = Sale.InvoiceDetail
+    PROPERTIES(sd) READONLY index, nameSku, price, calcRetailMarkup, retailPrice
+    FILTERS invoice(sd) == si
+    
+    PROPERTIES(sd) BACKGROUND backgroundSelectParams() namePurchaseSku ON CHANGE changePurchaseSku(sd), coeffPurchase, productionCoeffPurchase, sessionCateringMarkup 
+;
+
+useCateringRoundCondition 'Использовать условие округления для цены общепита' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () useCateringRoundCondition
+;
+
+DESIGN options {
+    manufacturing {
+        MOVE PROPERTY(useCateringRoundCondition());
+    }
+}
+createManufacturingPurchaseSale 'Создать поступление на цех'(Sale.Invoice si) = {
+	NEWSESSION {
+	    FOR invoice(Sale.InvoiceDetail sd)==si DO {
+	        IF uniqueSubstituteFromTo(purchaseSku(orderDetail(sd)), sku(sd)) THEN {
+	            purchaseSku(sd) <- purchaseSku(orderDetail(sd));
+	            coeffPurchase(sd) <- multiplier(uniqueSubstituteFromTo(purchaseSku(orderDetail(sd)), sku(sd)));
+	        } ELSE {
+	            purchaseSku(sd) <- fromSku(lastSubstituteTo(sku(sd)));
+	            coeffPurchase(sd) <- IF lastSubstituteTo(sku(sd)) THEN 
+	                                                    multiplier(lastSubstituteTo(sku(sd)))
+	                                              ELSE
+	                                                    netWeight(sku(sd)) WHERE invoice(sd) == si;
+	        }
+	    }
+	    DIALOG selectParams OBJECTS si = si DO {
+	        FOR purchaseSku(Sale.InvoiceDetail sd) AND sku(sd) AND NOT uniqueSubstituteFromTo(purchaseSku(sd), sku(sd)) NEW s = Substitute DO {
+	            fromSku(s) <- purchaseSku(sd);
+	            toSku(s) <- sku(sd);
+	            multiplier(s) <- coeffPurchase(sd);
+	            IF uniqueSubstituteFromTo(purchaseSku(sd), sku(sd)) THEN {
+	                BREAK;
+	            }
+	        } 
+	        NEW pi = UserInvoice {
+	            supplier(pi) <- supplier(si);
+	            customer(pi) <- customer(si);
+	            supplierStock(pi) <- supplierStock(si);
+	            customerStock(pi) <- customerStock(si);
+	            number(pi) <- number(si);
+	            series(pi) <- series(si);
+	            note(pi) <- note(si);
+	            currency(pi) <- currency(si);
+	            operation(pi) <- cateringPurchaseOperation();
+	            showCatering(pi) <- TRUE;
+	    
+	            FOR invoice(Sale.InvoiceDetail sd) == si NEW pd = UserInvoiceDetail DO {
+	    
+	                userInvoice(pd) <- pi;
+	                invoiceDetail(pd) <- sd;
+	    
+	                sku(pd) <- purchaseSku(sd);
+	                quantity (pd) <- quantity(sd) * coeffPurchase(sd);
+	                VAT (pd) <- IF valueVAT(sd) == 0 THEN VAT(sku[Sale.UserInvoiceDetail](sd), country(supplierStock[Sale.UserInvoiceDetail](sd))) ELSE VAT(sd);
+	                valueVAT (pd) <- IF valueVAT(sd) == 0 THEN valueRate(VAT (pd), date(pd)) ELSE valueVAT(sd);
+	                retailVAT (pd) <- retailVAT(sd);
+	                valueRetailVAT (pd) <- valueRetailVAT(sd);
+	                price (pd) <- price(sd) / coeffPurchase(sd);
+	                invoicePrice (pd) <- invoicePrice(sd) / coeffPurchase(sd);
+	                cateringMarkup (pd) <- sessionCateringMarkup(sd);
+	                
+	                retailPrice (pd) <- retailPrice(sd) / coeffPurchase(sd);
+	                cateringPrice(pd) <- IF useCateringRoundCondition()
+	                        THEN round(retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0), roundCondition(cateringCalcPriceListType()))
+	                        ELSE retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0); // делаем так, чтобы выше точность была
+	                    
+	                retailSum(pd) <- retailSum(sd);
+	                    
+	                shipmentSum(pd) <- shipmentSum(sd) * (100.0 + cateringMarkup (pd))  / 100.0;
+	                    
+	                productionCoeff (pd) <- productionCoeffPurchase(sd);
+	            }
+	            SHOW Purchase.userInvoice OBJECTS i = pi MANAGESESSION DOCKED NOCANCEL; 
+	        }
+	    }
+	}
+} TOOLBAR;
+
+FORM manufacturingTransfer 'Перемещение на цех производства'
+    OBJECTS d = DATE PANEL
+    PROPERTIES(d) VALUE
+    
+    OBJECTS si = Sale.Invoice
+    PROPERTIES (si) READONLY isClosed  
+    PROPERTIES (si) READONLY BACKGROUND backgroundDraft(si) isPosted,
+                                        number, series, date, time                                
+    PROPERTIES (si) READONLY nameSupplierStock, nameCustomerStock, statusInvoice
+    PROPERTIES (si) createManufacturingPurchaseSale
+    FILTERS operation(si) == cateringSaleOperation()
+    
+    FILTERGROUP saleDate
+        FILTER 'На дату' date(si) == d DEFAULT 
+
+    FILTERGROUP invoiced
+        FILTER 'Не создано поступление' NOT invoiced(si) DEFAULT 
+    OBJECTS pi = UserInvoice 
+    PROPERTIES (pi) READONLY isClosed[Invoice]  
+    PROPERTIES (pi) READONLY BACKGROUND backgroundDraft(pi) isPosted[Invoice],
+                                        number[Invoice], series[Invoice], date[Invoice], time[Invoice]                                
+    PROPERTIES (pi) READONLY nameSupplierStock[Invoice], nameCustomerStock[Invoice]
+    PROPERTIES (pi) NEWSESSION EDIT SHOWIF isOpened[Invoice](pi), DELETE SHOWIF isOpened[Invoice](pi) 
+    FILTERS operation[Invoice](pi) == cateringPurchaseOperation()
+    FILTERGROUP purchaseDate
+        FILTER 'На дату' date[Invoice](pi) == d DEFAULT 
+;
+
+@extendFormFilterAccessStock(Invoice, si, manufacturingTransfer, supplierStock, company);
+
+@extendFormFilterAccessStock(UserInvoice, pi, manufacturingTransfer, supplierStock, company);
+
+DESIGN manufacturingTransfer {
+    MOVE BOX(d);
+    NEW pane {
+        fill = 1;
+        type = SPLITV;
+        MOVE BOX(si) {
+            caption = 'Отгрузка на цех';
+        }
+        NEW tab {
+            fill = 1;
+            type = TABBED ;        
+            MOVE BOX(pi) {
+                caption = 'Поступление на цех';
+            }
+            NEW printTab {
+                fill = 1;
+                caption = 'Печатные формы';
+            }
+        }
+    }
+    
+    MOVE TOOLBARBOX;
+}
+
+EXTEND FORM  manufacturingTransfer
+    PROPERTIES(si)  editAttributes
+    PROPERTIES(si) SHOWIF showTTN1(si)
+                     printVerticalA, printVerticalAB, printHorizontalA,
+                     printVerticalB, printHorizontalB, printAttach,
+                     printVertical, printHorizontal, printAttachXLS, printSimpleAttachXLS 
+    PROPERTIES(si) SHOWIF showTN2(si)
+                     printSimpleHorizontal, printSimpleVertical, printSimpleAttach
+;
+
+DESIGN manufacturingTransfer {
+    printTab {   
+        NEW consignmentRow1 {
+            align = LEADING;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(si)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn2 {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'ТН-2';
+                MOVE PROPERTY(printSimpleVertical(si));
+                MOVE PROPERTY(printSimpleHorizontal(si));
+                MOVE PROPERTY(printSimpleAttach(si));
+            }
+        }
+        NEW consignmentRow2 {
+            align = LEADING;
+            type = COLUMNS;
+            columns = 3;
+            caption = 'ТТН-1';
+            MOVE PROPERTY(printVerticalA(si));
+            MOVE PROPERTY(printVerticalAB(si));
+            MOVE PROPERTY(printHorizontalA(si));
+            MOVE PROPERTY(printVerticalB(si));
+            MOVE PROPERTY(printHorizontalB(si));
+            MOVE PROPERTY(printAttach(si));      
+            MOVE PROPERTY(printVertical(si));  
+            MOVE PROPERTY(printHorizontal(si));
+        }
+        NEW consignmentRow3 {
+            type = CONTAINERH;            
+            NEW export {
+                type = CONTAINERH;
+                caption = 'Экспорт';  
+                MOVE PROPERTY(printAttachXLS(si));  
+                MOVE PROPERTY(printSimpleAttachXLS(si));                
+            }
+        }    
+    }
+}
+
+saleIdSku 'Код товара (исходный)' (InvoiceDetail d) = idSku(invoiceDetail(d));
+saleNameSku 'Товар (исходный)' (InvoiceDetail d) = nameSku(invoiceDetail(d));
+saleQuantity 'Кол-во (исходное)' (InvoiceDetail d) = quantity(invoiceDetail(d));
+
+coeff 'Коэффициент' = quantity(InvoiceDetail d) / quantity(invoiceDetail(d)); 
+productionOrders 'Используется в заказах' = [= GROUP CONCAT number(Production.Order o), ',' IF [= GROUP SUM 1 BY order(ComponentDetail d), batch(d)](o, Batch b) BY b ORDER o](batch(Invoice.InvoiceDetail d));
+
+
+filterInvoiceDetailDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (InvoiceDetail i) = date(i) >= filterInvoiceDetailDateFrom() OR (i IS InvoiceDetail AND NOT filterInvoiceDetailDateFrom());      
+
+filterInvoiceDetailDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (InvoiceDetail i) = date(i) <= filterInvoiceDetailDateTo() OR (i IS InvoiceDetail AND NOT filterInvoiceDetailDateTo());      
+
+filterInvoiceDetailSupplierStock  = DATA LOCAL Stock ();
+nameFilterInvoiceDetailSupplierStock 'Склад поставщика' = name(filterInvoiceDetailSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterSupplierStock (InvoiceDetail i) = supplierStock(i) == filterInvoiceDetailSupplierStock() OR (i IS InvoiceDetail AND NOT filterInvoiceDetailSupplierStock());  
+
+CONSTRAINT filterInvoiceDetailSupplierStock() AND NOT isCompany(filterInvoiceDetailSupplierStock())
+    CHECKED BY filterInvoiceDetailSupplierStock[]
+        MESSAGE 'В фильтре выбран склад, который не принадлежит компании.';
+
+filterInvoiceDetailSku  = DATA LOCAL Sku ();
+nameFilterInvoiceDetailSku 'Компонент' = name(filterInvoiceDetailSku()) MINCHARWIDTH 15 PREFCHARWIDTH 20;   
+filterSku (InvoiceDetail i) = sku(i) == filterInvoiceDetailSku() OR (i IS InvoiceDetail AND NOT filterInvoiceDetailSku());  
+
+CONSTRAINT filterInvoiceDetailSku() AND NOT isComponentGroup(filterInvoiceDetailSku())   
+    CHECKED BY filterInvoiceDetailSku[]
+    MESSAGE 'В фильтре выбран Компонент, который не входит в группу "Сырье".';
+
+FORM manufacturingTransferLedger 'Реестр перемещений на цех производства'
+    PROPERTIES () filterInvoiceDetailDateFrom, filterInvoiceDetailDateTo, nameFilterInvoiceDetailSupplierStock, nameFilterInvoiceDetailSku
+
+    OBJECTS d = InvoiceDetail
+    PROPERTIES(d) READONLY isPosted, nameSupplierStock, date, time, number, series 
+    PROPERTIES(d) idSku, nameSku, coeff READONLY, quantity READONLY, productionCoeff 
+    PROPERTIES(d) READONLY saleIdSku, saleNameSku, saleQuantity
+    PROPERTIES(d) READONLY productionOrders
+    FILTERS operation(d) == cateringPurchaseOperation(),
+            filterDateFrom(d),
+            filterDateTo(d),
+            filterSupplierStock(d),
+            filterSku(d)
+    
+    FILTERGROUP opened
+        FILTER 'Открыт' isOpened(invoice(d)) DEFAULT
+;
+
+DESIGN manufacturingTransferLedger {
+    BOX {
+        NEW filter {
+            caption = 'Фильтры';
+            type = CONTAINERH;
+            MOVE PROPERTY (filterInvoiceDetailDateFrom());
+            MOVE PROPERTY (filterInvoiceDetailDateTo());        
+            MOVE PROPERTY (nameFilterInvoiceDetailSupplierStock());  
+            MOVE PROPERTY (nameFilterInvoiceDetailSku());   
+        }
+        MOVE BOX(d);
+        MOVE TOOLBARBOX;
+        PROPERTY(nameSku(d)) {
+            background = #FFDDFF;
+        }
+        PROPERTY(saleIdSku(d)) {
+            background = #DDFFFF;
+        }
+        PROPERTY(saleNameSku(d)) {
+            background = #DDFFFF;
+        }
+        PROPERTY(saleQuantity(d)) {
+            background = #DDFFFF;
+        }
+    }
+}
+
+EXTEND FORM manufacturingTransferLedger FILTERS accessCompany(currentUser(),supplierStock[UserInvoiceDetail](d)) OR NOT supplierStock[UserInvoiceDetail](d);
+
+NAVIGATOR {
+    manufacturingDashboardNavigator {
+        ADD manufacturingTransfer;
+        ADD manufacturingTransferLedger;
+    }
+}

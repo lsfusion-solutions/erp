@@ -17,6 +17,7 @@ nameToSku 'Товар на' (Substitute substitute)= name(toSku(substitute)) IN 
 
 uniqueSubstituteFromTo = GROUP AGGR Substitute substitute BY fromSku(substitute), toSku(substitute) WHERE substitute IS Substitute;
 countSubstituteFromTo = GROUP SUM 1 BY fromSku(Substitute substitute), toSku(substitute);
+countSubstitutes = GROUP SUM 1 BY fromSku(Substitute substitute);
 
 lastSubstituteFrom = GROUP LAST Substitute substitute
                                      BY   fromSku(substitute)
@@ -58,12 +59,30 @@ countComponent (material) = GROUP SUM 1 BY material(Component component);
 
 relation (material, BOM)  = GROUP SUM 1 BY material(Component c), BOM(c); 
 
+useDefaultComponentFilter 'Не использовать фильтр по спецификациям по умолчанию в заменах' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () useDefaultComponentFilter
+;
+
+DESIGN options {
+    manufacturing {
+        MOVE PROPERTY(useDefaultComponentFilter());
+    }
+}   
+
+defaultFilterSubstitute (Sku sku) = IF useDefaultComponentFilter() THEN sku IS Sku ELSE TRUE IF countComponent(sku);
+
 FORM substitute 'Замена'
 
     OBJECTS sk = Sku
     PROPERTIES(sk) READONLY name, idBarcode, id SHOWIF showIDs(), shortNameUOM
+    ORDER BY name(sk)
     FILTERGROUP filters
-        FILTER 'Есть в спецификациях' countComponent(sk) 'F11' DEFAULT
+        FILTER 'Есть в спецификациях' defaultFilterSubstitute(sk) 'F11' DEFAULT
+        
+    FILTERGROUP count
+        FILTER 'Есть замена' countSubstitutes(sk) 'F9'        
 
     OBJECTS s=Substitute
     PROPERTIES(s) idFromSku SHOWIF showIDs(), nameFromSku, idToSku SHOWIF showIDs(), nameToSku, multiplier, allBOMs
