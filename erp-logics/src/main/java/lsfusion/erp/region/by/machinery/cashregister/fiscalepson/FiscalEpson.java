@@ -4,6 +4,8 @@ import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
 
+import java.math.BigDecimal;
+
 public class FiscalEpson {
 
     static ActiveXComponent epsonActiveXComponent;
@@ -52,6 +54,33 @@ public class FiscalEpson {
             Dispatch.call(epsonDispatch, "CancelPrint");
             return checkErrors(throwException);
         } return true;
+    }
+
+    public static void resetReceipt(Integer numberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard, boolean sale) throws RuntimeException {
+        epsonActiveXComponent.setProperty("CancellationDocumentNumber", new Variant(numberReceipt));
+        epsonActiveXComponent.setProperty("CancellationAmount", new Variant(totalSum));
+        openReceipt(5);
+
+        Dispatch.call(epsonDispatch, "CompleteReceipt");
+        checkErrors(true);
+        if(sumCard != null) {
+            epsonActiveXComponent.setProperty("Amount", new Variant(sumCard.doubleValue()));
+            epsonActiveXComponent.setProperty("NoncashType", new Variant(0));
+            Dispatch.call(epsonDispatch, sale ? "PayNoncash" : "Repaynoncash");
+            checkErrors(true);
+        }
+        if(sumGiftCard != null) {
+            epsonActiveXComponent.setProperty("Amount", new Variant(sumGiftCard.doubleValue()));
+            epsonActiveXComponent.setProperty("NonCashType", new Variant(1));
+            Dispatch.call(epsonDispatch, sale ? "PayNoncash" : "Repaynoncash");
+            checkErrors(true);
+        }
+        if(sumCash != null) {
+            epsonActiveXComponent.setProperty("Amount", new Variant(sumCash.doubleValue()));
+            Dispatch.call(epsonDispatch, sale ? "PayCash" : "RepayCash");
+            checkErrors(true);
+        }
+        closeReceipt();
     }
 
     public static void zReport() throws RuntimeException {
@@ -124,7 +153,7 @@ public class FiscalEpson {
         closeReceipt();
         return receiptNumber;
     }
-    
+
     public static Integer getReceiptNumber() {
         Dispatch.call(epsonDispatch, "ReadDocumentNumber");
         checkErrors(true);
