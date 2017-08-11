@@ -9,6 +9,7 @@ import equ.api.cashregister.CashRegisterItemInfo;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
+import equ.clt.handler.NumField2;
 import net.iryndin.jdbf.core.DbfRecord;
 import net.iryndin.jdbf.reader.DbfReader;
 import org.apache.commons.net.ftp.FTP;

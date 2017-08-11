@@ -1,4 +1,4 @@
-package equ.clt.handler.belcoopsoyuz; /**
+package equ.clt.handler; /**
  * Copyright (C) 2011 DEHOF ingenieur+technik
  * Dipl.-Ing. (BA) Thomas Nenninger
  * http://www.dehof.de
@@ -26,7 +26,7 @@ public class NumField2 extends NumField
  	//------------------------------------------------------------------------------------------------
 	private   static final long                  serialVersionUID  = 2011072901L;
 	protected static       DecimalFormatSymbols  dfs               = new DecimalFormatSymbols();
-	protected static       char                  decimalSeparator  = dfs.getDecimalSeparator();
+	public static       char                  decimalSeparator  = dfs.getDecimalSeparator();
 	
  	//------------------------------------------------------------------------------------------------
  	//--- constructors -------------------------------------------------------------------------------

@@ -7,12 +7,12 @@ import equ.api.SoftCheckInfo;
 import equ.api.TransactionInfo;
 import equ.api.terminal.*;
 import equ.clt.handler.HandlerUtils;
+import equ.clt.handler.NumField2;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.xBaseJ.DBF;
 import org.xBaseJ.fields.CharField;
 import org.xBaseJ.fields.Field;
-import org.xBaseJ.fields.NumField;
 import org.xBaseJ.xBaseJException;
 
 import java.io.File;
@@ -266,13 +266,13 @@ public class InventoryTechHandler extends TerminalHandler {
 
             CharField ARTICUL = new CharField("ARTICUL", 15);
             CharField NAME = new CharField("NAME", 200);
-            NumField QUAN = new NumField("QUAN", 9, 3);
-            NumField PRICE = new NumField("PRICE", 11, 2);
-            NumField PRICE2 = new NumField("PRICE2", 11, 2);
+            NumField2 QUAN = new NumField2("QUAN", 9, 3);
+            NumField2 PRICE = new NumField2("PRICE", 11, 2);
+            NumField2 PRICE2 = new NumField2("PRICE2", 11, 2);
             CharField GR_NAME = new CharField("GR_NAME", 200);
-            NumField FLAGS = new NumField("FLAGS", 8, 0);
-            NumField INBOX = new NumField("INBOX", 9, 3);
-            NumField IDSET = new NumField("IDSET", 8, 0);
+            NumField2 FLAGS = new NumField2("FLAGS", 8, 0);
+            NumField2 INBOX = new NumField2("INBOX", 9, 3);
+            NumField2 IDSET = new NumField2("IDSET", 8, 0);
             
             File directory = new File(path);
             if (directory.exists()) {
@@ -347,7 +347,7 @@ public class InventoryTechHandler extends TerminalHandler {
 
             CharField ARTICUL = new CharField("ARTICUL", 15);
             CharField BARCODE = new CharField("BARCODE", 26);
-            NumField IDSET = new NumField("IDSET", 8, 0);
+            NumField2 IDSET = new NumField2("IDSET", 8, 0);
 
             File directory = new File(path);
             if (directory.exists()) {
@@ -420,14 +420,14 @@ public class InventoryTechHandler extends TerminalHandler {
             
             CharField CODE = new CharField("CODE", 15);
             CharField NAME = new CharField("NAME", 200);
-            NumField VIDSPR = new NumField("VIDSPR", 8, 0);
+            NumField2 VIDSPR = new NumField2("VIDSPR", 8, 0);
             CharField COMMENT = new CharField("COMMENT", 200);
-            NumField IDTERM = new NumField("IDTERM", 8, 0);
-            NumField MTERM = new NumField("MTERM", 8, 0);
-            NumField DISCOUNT = new NumField("DISCOUNT", 5, 2);
-            NumField ROUND = new NumField("ROUND", 11, 2);
-            NumField FLAGS = new NumField("FLAGS", 8, 0);
-            NumField IDSET = new NumField("IDSET", 8, 0);
+            NumField2 IDTERM = new NumField2("IDTERM", 8, 0);
+            NumField2 MTERM = new NumField2("MTERM", 8, 0);
+            NumField2 DISCOUNT = new NumField2("DISCOUNT", 5, 2);
+            NumField2 ROUND = new NumField2("ROUND", 11, 2);
+            NumField2 FLAGS = new NumField2("FLAGS", 8, 0);
+            NumField2 IDSET = new NumField2("IDSET", 8, 0);
 
             File directory = new File(path);
             if (directory.exists()) {
@@ -504,16 +504,16 @@ public class InventoryTechHandler extends TerminalHandler {
             CharField CODE = new CharField("CODE", 15);
             CharField NAME = new CharField("NAME", 50);
             CharField SPRT1 = new CharField("SPRT1", 15);
-            NumField VIDSPR1 = new NumField("VIDSPR1", 8, 0);
+            NumField2 VIDSPR1 = new NumField2("VIDSPR1", 8, 0);
             CharField SPRT2 = new CharField("SPRT2", 15);
-            NumField VIDSPR2 = new NumField("VIDSPR2", 8, 0);
-            NumField IDTERM = new NumField("IDTERM", 8, 0);
-            NumField MTERM = new NumField("MTERM", 8, 0);
-            NumField DISCOUNT = new NumField("DISCOUNT", 5, 2);
-            NumField COEF = new NumField("COEF", 8, 0);
-            NumField ROUND = new NumField("ROUND", 11, 2);
-            NumField FLAGS = new NumField("FLAGS", 8, 0);
-            NumField IDSET = new NumField("IDSET",  8, 0);
+            NumField2 VIDSPR2 = new NumField2("VIDSPR2", 8, 0);
+            NumField2 IDTERM = new NumField2("IDTERM", 8, 0);
+            NumField2 MTERM = new NumField2("MTERM", 8, 0);
+            NumField2 DISCOUNT = new NumField2("DISCOUNT", 5, 2);
+            NumField2 COEF = new NumField2("COEF", 8, 0);
+            NumField2 ROUND = new NumField2("ROUND", 11, 2);
+            NumField2 FLAGS = new NumField2("FLAGS", 8, 0);
+            NumField2 IDSET = new NumField2("IDSET",  8, 0);
 
             File directory = new File(path);
             if (directory.exists()) {
