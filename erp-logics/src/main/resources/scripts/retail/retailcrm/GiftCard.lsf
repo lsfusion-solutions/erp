@@ -41,9 +41,10 @@ show 'Просмотреть' = ABSTRACT LIST (GiftCardLedger) TOOLBAR;
 CLASS ABSTRACT SaleGiftCard 'Продажа подарочных сертификатов' : GiftCardLedger;
 
 isSold 'Продан' = ABSTRACT BOOLEAN (SaleGiftCard);
+isReturn 'Возвращен' = ABSTRACT BOOLEAN (SaleGiftCard);
 
-sold = GROUP AGGR SaleGiftCard detail
-        BY giftCard(detail) WHERE isSold(detail) MATERIALIZED;
+sold = GROUP LAST SaleGiftCard detail
+        BY giftCard(detail) ORDER dateTime(detail), detail WHERE isSold(detail) AND NOT isReturn(detail) MATERIALIZED;
 
 isSold 'Продан' (GiftCard g) = isSold(sold(g));
 CONSTRAINT DROPPED (GiftCard g IS GiftCard) AND PREV (isSold(g))
@@ -92,6 +93,8 @@ sum 'Сумма' = DATA NUMERIC[18,4] (ReceiptGiftCardSaleDetail);
 sum[ReceiptDetail](ReceiptGiftCardSaleDetail detail) += sum(detail);
 signedSum(ReceiptGiftCardSaleDetail detail) += sum(detail);
 
+isReturn 'Возвратный' = DATA BOOLEAN (ReceiptGiftCardSaleDetail);
+
 sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (zReport)= GROUP SUM sum[ReceiptDetail](ReceiptGiftCardSaleDetail d) IF d IS ReceiptGiftCardSaleDetail BY zReport[ReceiptDetail](d);
 
 //имплемент в GiftCardLedger
@@ -99,9 +102,10 @@ isSold(ReceiptGiftCardSaleDetail detail) += detail IS ReceiptGiftCardSaleDetail;
 giftCard(ReceiptGiftCardSaleDetail detail) += giftCard(detail);
 dateTime(ReceiptGiftCardSaleDetail detail) += dateTime(receipt(detail));
 sum(ReceiptGiftCardSaleDetail detail) += sum(detail);
-description(ReceiptGiftCardSaleDetail detail) += 'Продажа' IF detail IS ReceiptGiftCardSaleDetail;
+description(ReceiptGiftCardSaleDetail detail) += OVERRIDE 'Возврат' IF isReturn(detail), 'Продажа' IF detail IS ReceiptGiftCardSaleDetail;
 numberDocument(ReceiptGiftCardSaleDetail detail) += VARSTRING[30](number(receipt(detail)));
 departmentStore(ReceiptGiftCardSaleDetail detail) += departmentStore(receipt(detail));
+isReturn(ReceiptGiftCardSaleDetail detail) += isReturn(detail);
 
 edit (ReceiptGiftCardSaleDetail d) += { DIALOG zReport OBJECTS z = zReport(d), b = receipt(d), d = d AUTOX DOCKED; }
 
