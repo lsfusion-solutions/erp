@@ -530,7 +530,7 @@ changeToPayBonuses (Receipt r) = {
 
 sumBonusFIFOReceiptSaleDetail (ReceiptSaleDetail detail) =
     PARTITION UNGROUP toPayBonuses
-        PROPORTION STRICT ROUND(2) min((sum(detail) (-) minBonusSum()), ((sum(detail) (-) minBonusSum())/(sumReceiptDetail(detail) (-) minBonusSum()*countReceiptDetail(receipt(detail))))) 
+        PROPORTION STRICT ROUND(2) min((sum(detail) (-) minBonusSum()), ((sum(detail) (-) minBonusSum())/(sumReceiptDetail(detail) (-) minBonusSum()*countReceiptDetail(receipt(detail))))) IF sum(detail) > minBonusSum() 
         BY receipt(detail)
         ORDER detail; 
 //    PARTITION UNGROUP toPayBonuses
@@ -1512,7 +1512,7 @@ DESIGN zReportDialog{
 }
 
 fiscalResetReceiptCashRegister = ABSTRACT LIST (Receipt) CONFIRM;
-fiscalResetReceipt 'Обнулить чек' () = {
+fiscalResetReceipt 'Аннулировать чек' () = {
     IF currentZReport() THEN {
         DIALOG zReportDialog OBJECTS z = currentZReport(), b INPUT DO{
             fiscalResetReceiptCashRegister(b);
