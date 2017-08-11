@@ -36,7 +36,13 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     }
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
-        return "eqs";
+        String groupId = null;
+        for (CashRegisterInfo cashRegister : transactionInfo.machineryInfoList) {
+            if (cashRegister.directory != null) {
+                groupId = cashRegister.directory;
+            }
+        }
+        return "eqs" + groupId;
     }
 
     @Override
