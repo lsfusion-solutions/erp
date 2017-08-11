@@ -13,10 +13,11 @@ passwordEDN 'Пароль EDN' = DATA VARSTRING[100] () ECHO;
 hostEDN 'Хост' = DATA VARSTRING[100] ();
 portEDN 'Порт' = DATA INTEGER ();
 archiveDirEDN 'Папка принятых сообщений' = DATA VARSTRING[100] ();
+disableConfirmationEDN 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 receiveEDN 'Получить сообщения' = CUSTOM 'lsfusion.erp.region.by.integration.edi.edn.ReceiveMessagesEDNActionProperty' ();
 
 EXTEND FORM integrationData
-    PROPERTIES() loginEDN, passwordEDN, hostEDN, portEDN, receiveEDN, archiveDirEDN
+    PROPERTIES() loginEDN, passwordEDN, hostEDN, portEDN, receiveEDN, archiveDirEDN, disableConfirmationEDN
 ;
     
 DESIGN integrationData {
@@ -28,6 +29,7 @@ DESIGN integrationData {
             MOVE PROPERTY(hostEDN());
             MOVE PROPERTY(portEDN());
             MOVE PROPERTY(archiveDirEDN());
+            MOVE PROPERTY(disableConfirmationEDN());
             MOVE PROPERTY(receiveEDN());
         }
     }
@@ -38,3 +40,6 @@ sendEDN 'Отправить' = CUSTOM 'lsfusion.erp.region.by.integration.edi.ed
 send(EOrder o) += { IF EDIProvider(supplier(o)) == EDIProvider.edn THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendEDN(o); }
 
 good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1252') THEN TRUE;
+
+signAndSendEDN 'Подписать и отправить' = CUSTOM 'lsfusion.erp.region.by.integration.edi.edn.SendEInvoiceEDNActionProperty' (EInvoice);
+signAndSend(EInvoice e) += { IF EDIProvider(supplier(e)) == EDIProvider.edn THEN IF exported(e) THEN MESSAGE 'Накладная уже отправлена'; ELSE signAndSendEDN(e); }

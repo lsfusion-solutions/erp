@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -44,7 +45,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         super(LM);
     }
 
-    protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port, String provider, String archiveDir, boolean sendReplies)
+    protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port, String provider, String archiveDir, boolean disableConfirmation, boolean sendReplies)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if(context.getDbManager().isServer()) {
             Element rootElement = new Element("Envelope", soapenvNamespace);
@@ -78,7 +79,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "ReceiveMessages");
                 switch (requestResult) {
                     case OK:
-                        importMessages(context, url, login, password, host, port, provider, responseMessage, archiveDir, sendReplies);
+                        importMessages(context, url, login, password, host, port, provider, responseMessage, archiveDir, disableConfirmation, sendReplies);
                         break;
                     case AUTHORISATION_ERROR:
                         ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid login-password");
@@ -98,12 +99,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port,
-                                String provider, String responseMessage, String archiveDir, boolean sendReplies)
+                                String provider, String responseMessage, String archiveDir, boolean disableConfirmation, boolean sendReplies)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JDOMException {
         Map<String, Pair<String, String>> succeededMap = new HashMap<>();
-        Map<String, DocumentData> messages = new HashMap<>();
+        Map<String, DocumentData> orderMessages = new HashMap<>();
         Map<String, DocumentData> orderResponses = new HashMap<>();
         Map<String, DocumentData> despatchAdvices = new HashMap<>();
+        Map<String, DocumentData> eInvoices = new HashMap<>();
+        Map<String, DocumentData> invoiceMessages = new HashMap<>();
 
         Document document = new SAXBuilder().build(new ByteArrayInputStream(responseMessage.getBytes("utf-8")));
         Element rootNode = document.getRootElement();
@@ -130,20 +133,24 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                     Element subXMLRootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes("utf-8"))).getRootElement();
                                     switch (documentType) {
                                         case "systemmessage":
-                                            messages.put(documentId, parseOrderMessage(subXMLRootNode, provider, documentId));
+                                            orderMessages.put(documentId, parseOrderMessage(subXMLRootNode, provider, documentId));
                                             break;
-                                        case "ordrsp": {
+                                        case "ordrsp":
                                             orderResponses.put(documentId, parseOrderResponse(subXMLRootNode, context, url, login, password,
                                                     host, port, provider, documentId, sendReplies));
                                             break;
-                                        }
-                                        case "desadv": {
+                                        case "desadv":
                                             despatchAdvices.put(documentId, parseDespatchAdvice(subXMLRootNode, context, url, login, password,
                                                     host, port, provider, documentId, sendReplies));
                                             break;
-                                        }
+                                        case "blrwbl" :
+                                            eInvoices.put(documentId, parseEInvoice(subXMLRootNode));
+                                            break;
+                                        case "blrapn":
+                                            invoiceMessages.put(documentId, parseInvoiceMessage(context, subXMLRootNode, provider, documentId));
+                                            break;
                                     }
-                                } catch (JDOMException e) {
+                                } catch (JDOMException | ParseException e) {
                                     ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
                                 }
 
@@ -161,9 +168,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             }
         }
 
-        int messagesSucceeded = 0;
-        int messagesFailed = 0;
-        for(Map.Entry<String, DocumentData> message : messages.entrySet()) {
+        int orderMessagesSucceeded = 0;
+        int orderMessagesFailed = 0;
+        for(Map.Entry<String, DocumentData> message : orderMessages.entrySet()) {
             String documentId = message.getKey();
             DocumentData data = message.getValue();
             if(data.firstData != null) {
@@ -171,14 +178,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 succeededMap.put(documentId, Pair.create(data.documentNumber, error));
                 if (error == null) {
                     ServerLoggers.importLogger.info(String.format("%s Import EOrderMessage %s succeeded", provider, documentId));
-                    messagesSucceeded++;
+                    orderMessagesSucceeded++;
                 } else {
                     ServerLoggers.importLogger.error(String.format("%s Import EOrderMessage %s failed: %s", provider, documentId, error));
-                    messagesFailed++;
+                    orderMessagesFailed++;
                 }
             } else {
                 succeededMap.put(documentId, Pair.create(data.documentNumber, String.format("%s Parsing EOrderMessage %s failed", provider, documentId)));
-                messagesFailed++;
+                orderMessagesFailed++;
             }
         }
 
@@ -214,11 +221,49 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             }
         }
 
+        int eInvoicesSucceeded = 0;
+        int eInvoicesFailed = 0;
+        for (Map.Entry<String, DocumentData> eInvoice : eInvoices.entrySet()) {
+            String documentId = eInvoice.getKey();
+            DocumentData data = eInvoice.getValue();
+            String error = importEInvoices(context, data);
+            succeededMap.put(documentId, Pair.create(data.documentNumber, error));
+            if (error == null) {
+                ServerLoggers.importLogger.info(String.format("%s Import EInvoice %s succeeded", provider, documentId));
+                eInvoicesSucceeded++;
+            } else {
+                ServerLoggers.importLogger.error(String.format("%s Import EInvoice %s failed: %s", provider, documentId, error));
+                eInvoicesFailed++;
+            }
+        }
+
+        int invoiceMessagesSucceeded = 0;
+        int invoiceMessagesFailed = 0;
+        for(Map.Entry<String, DocumentData> message : invoiceMessages.entrySet()) {
+            String documentId = message.getKey();
+            DocumentData data = message.getValue();
+            if(data.firstData != null) {
+                String error = importInvoiceMessages(context, data);
+                succeededMap.put(documentId, Pair.create(data.documentNumber, error));
+                if (error == null) {
+                    ServerLoggers.importLogger.info(String.format("%s Import EInvoiceMessage %s succeeded", provider, documentId));
+                    invoiceMessagesSucceeded++;
+                } else {
+                    ServerLoggers.importLogger.error(String.format("%s Import EInvoiceMessage %s failed: %s", provider, documentId, error));
+                    invoiceMessagesFailed++;
+                }
+            } else {
+                succeededMap.put(documentId, Pair.create(data.documentNumber, String.format("%s Parsing EInvoiceMessage %s failed", provider, documentId)));
+                invoiceMessagesFailed++;
+            }
+        }
+
         String message = "";
-        if(messagesSucceeded > 0)
-            message += (message.isEmpty() ? "" : "\n") + String.format("Загружено сообщений: %s", messagesSucceeded);
-        if(messagesFailed > 0)
-            message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено сообщений: %s", messagesFailed);
+
+        if(orderMessagesSucceeded > 0)
+            message += (message.isEmpty() ? "" : "\n") + String.format("Загружено сообщений по заказам: %s", orderMessagesSucceeded);
+        if(orderMessagesFailed > 0)
+            message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено сообщений по заказам: %s", orderMessagesFailed);
 
         if(responsesSucceeded > 0)
             message += (message.isEmpty() ? "" : "\n") + String.format("Загружено ответов по заказам: %s", responsesSucceeded);
@@ -230,18 +275,28 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         if(despatchAdvicesFailed > 0)
             message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено уведомлений об отгрузке: %s", despatchAdvicesFailed);
 
+        if(eInvoicesSucceeded > 0)
+            message += (message.isEmpty() ? "" : "\n") + String.format("Загружено электронных накладных: %s", eInvoicesSucceeded);
+        if(eInvoicesFailed > 0)
+            message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено электронных накладных: %s", eInvoicesFailed);
+
+        if(invoiceMessagesSucceeded > 0)
+            message += (message.isEmpty() ? "" : "\n") + String.format("Загружено сообщений по накладным: %s", invoiceMessagesSucceeded);
+        if(invoiceMessagesFailed > 0)
+            message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено сообщений по накладным: %s", invoiceMessagesFailed);
+
         boolean succeeded = true;
         if(succeededMap.isEmpty())
             message += (message.isEmpty() ? "" : "\n") + "Не найдено новых сообщений";
-        else {
+        else if (!disableConfirmation) {
 
-            for(Map.Entry<String, Pair<String, String>> succeededEntry : succeededMap.entrySet()) {
+            for (Map.Entry<String, Pair<String, String>> succeededEntry : succeededMap.entrySet()) {
                 String documentId = succeededEntry.getKey();
                 Pair<String, String> documentNumberError = succeededEntry.getValue();
                 String documentNumber = documentNumberError.first;
                 String error = documentNumberError.second;
                 confirmDocumentReceived(context, documentId, url, login, password, host, port, provider);
-                if(error != null && sendReplies)
+                if (error != null && sendReplies)
                     succeeded = succeeded && sendRecipientError(context, url, login, password, host, port, provider, documentId, documentNumber, error);
             }
 
@@ -769,6 +824,246 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
+    private DocumentData parseEInvoice(Element rootNode) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, ParseException {
+        List<List<Object>> data = new ArrayList<>();
+
+        Element messageHeaderElement = rootNode.getChild("MessageHeader");
+        String documentNumber = messageHeaderElement.getChildText("MessageID");
+
+        Element deliveryNoteElement = rootNode.getChild("DeliveryNote");
+        String deliveryNoteNumber = deliveryNoteElement.getChildText("DeliveryNoteID");
+        Timestamp dateTime = parseTimestamp(deliveryNoteElement.getChildText("CreationDateTime"), "yyyyMMddHHmmss");
+
+        Element shipperElement = deliveryNoteElement.getChild("Shipper");
+        String supplierGLN = shipperElement.getChildText("GLN");
+
+        Element receiverElement = deliveryNoteElement.getChild("Receiver");
+        String buyerGLN = receiverElement.getChildText("GLN");
+
+        Element shipToElement = deliveryNoteElement.getChild("ShipTo");
+        String destinationGLN = shipToElement.getChildText("GLN");
+
+        Element despatchAdviceLogisticUnitLineItemElement = deliveryNoteElement.getChild("DespatchAdviceLogisticUnitLineItem");
+
+        for (Object line : despatchAdviceLogisticUnitLineItemElement.getChildren("LineItem")) {
+            Element lineElement = (Element) line;
+            Integer lineItemNumber = Integer.parseInt(lineElement.getChildText("LineItemNumber"));
+            String barcode = lineElement.getChildText("LineItemID");
+
+            String id = supplierGLN + "/" + documentNumber;
+            String idDetail = id + "/" + lineItemNumber;
+            BigDecimal quantityDespatched = parseBigDecimal(lineElement.getChildText("QuantityDespatched"));
+            BigDecimal valueVAT = parseBigDecimal(lineElement.getChildText("TaxRate"));
+            BigDecimal lineItemPrice = parseBigDecimal(lineElement.getChildText("LineItemPrice"));
+            BigDecimal lineItemAmountWithoutCharges = parseBigDecimal(lineElement.getChildText("LineItemAmountWithoutCharges"));
+            BigDecimal lineItemAmount = parseBigDecimal(lineElement.getChildText("LineItemAmount"));
+            BigDecimal lineItemAmountCharges = parseBigDecimal(lineElement.getChildText("LineItemAmountCharges"));
+            if (barcode != null)
+                data.add(Arrays.<Object>asList(id, documentNumber, dateTime, deliveryNoteNumber, dateTime, supplierGLN,
+                        buyerGLN, destinationGLN, idDetail, barcode, quantityDespatched, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
+                        lineItemAmount, lineItemAmountCharges));
+        }
+        return new DocumentData(documentNumber, data, null);
+    }
+
+    private String importEInvoices(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        String message = null;
+        List<List<Object>> importData = data == null ? null : data.firstData;
+        if (importData != null && !importData.isEmpty()) {
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
+
+            ImportField idEInvoiceField = new ImportField(findProperty("id[EInvoice]"));
+            ImportKey<?> eInvoiceKey = new ImportKey((CustomClass) findClass("EInvoice"),
+                    findProperty("eInvoice[VARSTRING[100]]").getMapping(idEInvoiceField));
+            keys.add(eInvoiceKey);
+            props.add(new ImportProperty(idEInvoiceField, findProperty("id[EInvoice]").getMapping(eInvoiceKey)));
+            fields.add(idEInvoiceField);
+
+            ImportField numberEInvoiceField = new ImportField(findProperty("number[EInvoice]"));
+            props.add(new ImportProperty(numberEInvoiceField, findProperty("number[EInvoice]").getMapping(eInvoiceKey)));
+            fields.add(numberEInvoiceField);
+
+            ImportField dateTimeEInvoiceField = new ImportField(findProperty("dateTime[EInvoice]"));
+            props.add(new ImportProperty(dateTimeEInvoiceField, findProperty("dateTime[EInvoice]").getMapping(eInvoiceKey)));
+            fields.add(dateTimeEInvoiceField);
+
+            ImportField deliveryNoteNumberEInvoiceField = new ImportField(findProperty("deliveryNoteNumber[EInvoice]"));
+            props.add(new ImportProperty(deliveryNoteNumberEInvoiceField, findProperty("deliveryNoteNumber[EInvoice]").getMapping(eInvoiceKey)));
+            fields.add(deliveryNoteNumberEInvoiceField);
+
+            ImportField deliveryNoteDateTimeEInvoiceField = new ImportField(findProperty("deliveryNoteDateTime[EInvoice]"));
+            props.add(new ImportProperty(deliveryNoteDateTimeEInvoiceField, findProperty("deliveryNoteDateTime[EInvoice]").getMapping(eInvoiceKey)));
+            fields.add(deliveryNoteDateTimeEInvoiceField);
+
+            ImportField GLNSupplierEInvoiceField = new ImportField(findProperty("GLN[LegalEntity]"));
+            ImportKey<?> supplierKey = new ImportKey((CustomClass) findClass("LegalEntity"),
+                    findProperty("legalEntityStockGLN[VARSTRING[13]]").getMapping(GLNSupplierEInvoiceField));
+            supplierKey.skipKey = true;
+            keys.add(supplierKey);
+            props.add(new ImportProperty(GLNSupplierEInvoiceField, findProperty("supplier[EInvoice]").getMapping(eInvoiceKey),
+                    object(findClass("LegalEntity")).getMapping(supplierKey)));
+            fields.add(GLNSupplierEInvoiceField);
+
+            ImportField GLNCustomerEInvoiceField = new ImportField(findProperty("GLN[LegalEntity]"));
+            ImportKey<?> customerKey = new ImportKey((CustomClass) findClass("LegalEntity"),
+                    findProperty("legalEntityGLN[VARSTRING[13]]").getMapping(GLNCustomerEInvoiceField));
+            customerKey.skipKey = true;
+            keys.add(customerKey);
+            props.add(new ImportProperty(GLNCustomerEInvoiceField, findProperty("customer[EInvoice]").getMapping(eInvoiceKey),
+                    object(findClass("LegalEntity")).getMapping(customerKey)));
+            fields.add(GLNCustomerEInvoiceField);
+
+            ImportField GLNCustomerStockEInvoiceField = new ImportField(findProperty("GLN[Stock]"));
+            ImportKey<?> customerStockKey = new ImportKey((CustomClass) findClass("Stock"),
+                    findProperty("stockGLN[VARSTRING[13]]").getMapping(GLNCustomerStockEInvoiceField));
+            customerStockKey.skipKey = true;
+            keys.add(customerStockKey);
+            props.add(new ImportProperty(GLNCustomerStockEInvoiceField, findProperty("customerStock[EInvoice]").getMapping(eInvoiceKey),
+                    object(findClass("Stock")).getMapping(customerStockKey)));
+            fields.add(GLNCustomerStockEInvoiceField);
+
+            ImportField idEInvoiceDetailField = new ImportField(findProperty("id[EInvoiceDetail]"));
+            ImportKey<?> eInvoiceDetailKey = new ImportKey((CustomClass) findClass("EInvoiceDetail"),
+                    findProperty("eInvoiceDetail[VARSTRING[100]]").getMapping(idEInvoiceDetailField));
+            keys.add(eInvoiceDetailKey);
+            props.add(new ImportProperty(idEInvoiceDetailField, findProperty("eInvoice[EInvoiceDetail]").getMapping(eInvoiceDetailKey),
+                    object(findClass("EInvoice")).getMapping(eInvoiceKey)));
+            props.add(new ImportProperty(idEInvoiceDetailField, findProperty("id[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+            fields.add(idEInvoiceDetailField);
+
+            ImportField barcodeEInvoiceDetailField = new ImportField(findProperty("id[Barcode]"));
+            ImportKey<?> skuBarcodeKey = new ImportKey((CustomClass) findClass("Sku"),
+                    findProperty("skuBarcode[VARSTRING[15]]").getMapping(barcodeEInvoiceDetailField));
+            skuBarcodeKey.skipKey = true;
+            keys.add(skuBarcodeKey);
+            props.add(new ImportProperty(barcodeEInvoiceDetailField, findProperty("sku[EInvoiceDetail]").getMapping(eInvoiceDetailKey),
+                    object(findClass("Sku")).getMapping(skuBarcodeKey), true));
+            fields.add(barcodeEInvoiceDetailField);
+
+            ImportField quantityDespatchedEInvoiceDetailField = new ImportField(findProperty("quantityDespatched[EInvoiceDetail]"));
+            props.add(new ImportProperty(quantityDespatchedEInvoiceDetailField, findProperty("quantityDespatched[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+            fields.add(quantityDespatchedEInvoiceDetailField);
+
+            ImportField valueVATEInvoiceDetailField = new ImportField(findProperty("valueVAT[EInvoiceDetail]"));
+            props.add(new ImportProperty(valueVATEInvoiceDetailField, findProperty("valueVAT[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+            fields.add(valueVATEInvoiceDetailField);
+
+            ImportField lineItemPriceEInvoiceDetailField = new ImportField(findProperty("lineItemPrice[EInvoiceDetail]"));
+            props.add(new ImportProperty(lineItemPriceEInvoiceDetailField, findProperty("lineItemPrice[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+            fields.add(lineItemPriceEInvoiceDetailField);
+
+            ImportField lineItemAmountWithoutChargesEInvoiceDetailField = new ImportField(findProperty("lineItemAmountWithoutCharges[EInvoiceDetail]"));
+            props.add(new ImportProperty(lineItemAmountWithoutChargesEInvoiceDetailField, findProperty("lineItemAmountWithoutCharges[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+            fields.add(lineItemAmountWithoutChargesEInvoiceDetailField);
+
+            ImportField lineItemAmountEInvoiceDetailField = new ImportField(findProperty("lineItemAmount[EInvoiceDetail]"));
+            props.add(new ImportProperty(lineItemAmountEInvoiceDetailField, findProperty("lineItemAmount[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+            fields.add(lineItemAmountEInvoiceDetailField);
+
+            ImportField lineItemAmountChargesEInvoiceDetailField = new ImportField(findProperty("lineItemAmountCharges[EInvoiceDetail]"));
+            props.add(new ImportProperty(lineItemAmountChargesEInvoiceDetailField, findProperty("lineItemAmountCharges[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+            fields.add(lineItemAmountChargesEInvoiceDetailField);
+
+            ImportTable table = new ImportTable(fields, importData);
+
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("EDI_DA");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                message = session.applyMessage(context);
+                session.popVolatileStats();
+            } catch (Exception e) {
+                ServerLoggers.importLogger.error("ImportEInvoice Error: ", e);
+                message = e.getMessage();
+            }
+        }
+        return message;
+    }
+
+    private DocumentData parseInvoiceMessage(ExecutionContext context, Element rootNode, String provider, String documentId) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+
+        Element acknowledgementElement = rootNode.getChild("Acknowledgement");
+
+        String documentNumber = acknowledgementElement.getChildText("DocumentID");
+        Timestamp dateTime = parseTimestamp(acknowledgementElement.getChildText("CreationDateTime"), "yyyyMMddHHmmss");
+
+        Element referenceDocumentElement = acknowledgementElement.getChild("ReferenceDocument");
+        if (referenceDocumentElement != null) {
+            String type = referenceDocumentElement.getChildText("Type");
+            if (type != null && (type.equals("BLRAPN") || type.equals("BLRWBR"))) {
+
+                String invoiceNumber = referenceDocumentElement.getChildText("ID");
+                if(type.equals("BLRAPN"))
+                    invoiceNumber = (String) findProperty("numberEInvoiceBlrapn[VARSTRING[14]]").read(context, new DataObject(invoiceNumber));
+                else if(type.equals("BLRWBR"))
+                    invoiceNumber = (String) findProperty("numberEInvoiceBlrwbr[VARSTRING[14]]").read(context, new DataObject(invoiceNumber));
+
+                Element errorOrAcknowledgementElement = acknowledgementElement.getChild("ErrorOrAcknowledgement");
+                if(errorOrAcknowledgementElement != null) {
+                    String code = errorOrAcknowledgementElement.getChildText("Code");
+                    String description = errorOrAcknowledgementElement.getChildText("Description");
+                    return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList((Object) documentNumber, dateTime, code, description, invoiceNumber)), null);
+                }
+            }
+        } else
+            ServerLoggers.importLogger.error(String.format("%s Parse Invoice Message %s error: no reference tag", provider, documentId));
+        return new DocumentData(documentNumber, null, null);
+    }
+
+    private String importInvoiceMessages(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        String message = null;
+        List<List<Object>> importData = data == null ? null : data.firstData;
+        if (importData != null && !importData.isEmpty()) {
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
+
+            ImportField numberEInvoiceMessageField = new ImportField(findProperty("number[EInvoiceMessage]"));
+            ImportKey<?> eInvoiceMessageKey = new ImportKey((CustomClass) findClass("EInvoiceMessage"),
+                    findProperty("eInvoiceMessage[VARSTRING[24]]").getMapping(numberEInvoiceMessageField));
+            keys.add(eInvoiceMessageKey);
+            props.add(new ImportProperty(numberEInvoiceMessageField, findProperty("number[EInvoiceMessage]").getMapping(eInvoiceMessageKey)));
+            fields.add(numberEInvoiceMessageField);
+
+            ImportField dateTimeEInvoiceMessageField = new ImportField(findProperty("dateTime[EInvoiceMessage]"));
+            props.add(new ImportProperty(dateTimeEInvoiceMessageField, findProperty("dateTime[EInvoiceMessage]").getMapping(eInvoiceMessageKey)));
+            fields.add(dateTimeEInvoiceMessageField);
+
+            ImportField codeEInvoiceMessageField = new ImportField(findProperty("code[EInvoiceMessage]"));
+            props.add(new ImportProperty(codeEInvoiceMessageField, findProperty("code[EInvoiceMessage]").getMapping(eInvoiceMessageKey)));
+            fields.add(codeEInvoiceMessageField);
+
+            ImportField descriptionEInvoiceMessageField = new ImportField(findProperty("description[EInvoiceMessage]"));
+            props.add(new ImportProperty(descriptionEInvoiceMessageField, findProperty("description[EInvoiceMessage]").getMapping(eInvoiceMessageKey)));
+            fields.add(descriptionEInvoiceMessageField);
+
+            ImportField numberEInvoiceField = new ImportField(findProperty("number[EInvoice]"));
+            ImportKey<?> eInvoiceKey = new ImportKey((CustomClass) findClass("EInvoice"),
+                    findProperty("eInvoiceNumber[VARSTRING[28]]").getMapping(numberEInvoiceField));
+            eInvoiceKey.skipKey = true;
+            keys.add(eInvoiceKey);
+            props.add(new ImportProperty(numberEInvoiceField, findProperty("eInvoice[EInvoiceMessage]").getMapping(eInvoiceMessageKey),
+                    object(findClass("EInvoice")).getMapping(eInvoiceKey)));
+            fields.add(numberEInvoiceField);
+
+            ImportTable table = new ImportTable(fields, importData);
+
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("EDI_IM");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                message = session.applyMessage(context);
+                session.popVolatileStats();
+            } catch (Exception e) {
+                ServerLoggers.importLogger.error("ImportInvoiceMessages Error: ", e);
+                message = e.getMessage();
+            }
+        }
+        return message;
+    }
+
     private void confirmDocumentReceived(ExecutionContext context, String documentId, String url, String login, String password,
                                           String host, Integer port, String provider) throws IOException, JDOMException {
 
@@ -913,8 +1208,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private Timestamp parseTimestamp(String value) {
+        return parseTimestamp(value, "yyyy-MM-dd'T'HH:mm:ss");
+    }
+
+    private Timestamp parseTimestamp(String value, String pattern) {
         try {
-            return new Timestamp(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(value).getTime());
+            return new Timestamp(new SimpleDateFormat(pattern).parse(value).getTime());
         } catch (Exception e) {
             return null;
         }

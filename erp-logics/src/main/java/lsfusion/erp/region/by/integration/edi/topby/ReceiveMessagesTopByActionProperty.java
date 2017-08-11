@@ -29,9 +29,10 @@ public class ReceiveMessagesTopByActionProperty extends ReceiveMessagesActionPro
             String host = (String) findProperty("hostTopBy[]").read(context);
             Integer port = (Integer) findProperty("portTopBy[]").read(context);
             String archiveDir = (String) findProperty("archiveDirTopBy[]").read(context);
+            boolean disableConfirmation = findProperty("disableConfirmationTopBy[]").read(context) != null;
             if (login != null && password != null && host != null && port != null) {
                 String url = String.format("http://%s:%s/DmcService", host, port);
-                receiveMessages(context, url, login, password, host, port, provider, archiveDir, false);
+                receiveMessages(context, url, login, password, host, port, provider, archiveDir, disableConfirmation, false);
             } else {
                 ServerLoggers.importLogger.info(provider + " ReceiveMessages: не заданы имя пользователя / пароль / хост / порт");
                 context.delayUserInteraction(new MessageClientAction(provider + " cообщения не получены: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));

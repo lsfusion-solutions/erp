@@ -1,6 +1,6 @@
 MODULE EDI;
 
-REQUIRE LegalEntity, Item, Store, Warehouse;
+REQUIRE LegalEntityBy, Item, Store, Warehouse;
 
 
 @defineDoubleItemAttribute(GTIN, VARSTRING[14], 'GTIN', itemBase);
@@ -301,12 +301,144 @@ PROPERTIES(d) READONLY idBarcode, dataGTIN, GTINBarcode, nameSku, quantityOrdere
 FILTERS orderDespatchAdvice(d) == o
 ;
 
+//-----------------------------------------Электронная накладная----------------------------------------------//
+CLASS EInvoice 'Электронная накладная EDI';
+TABLE eInvoice(EInvoice);
+
+exported 'Экспортирован' = DATA BOOLEAN (EInvoice);
+
+@defineExternalizable(eInvoice, VARSTRING[100]);
+dateTime 'Дата/время документа' = DATA DATETIME (EInvoice);
+number 'Номер' = DATA VARSTRING[28] (EInvoice);
+eInvoiceNumber (number) = GROUP AGGR EInvoice e BY number(e);
+
+blrapn = DATA VARSTRING[14] (EInvoice);
+eInvoiceBlrapn (number) = GROUP MAX EInvoice e BY blrapn(e);
+numberEInvoiceBlrapn(number) = number(eInvoiceBlrapn(number));
+blrwbr = DATA VARSTRING[14] (EInvoice);
+eInvoiceBlrwbr (number) = GROUP MAX EInvoice e BY blrwbr(e);
+numberEInvoiceBlrwbr(number) = number(eInvoiceBlrwbr(number));
+
+reportId 'Номер акта' = DATA VARSTRING[70] (EInvoice);
+reportDate 'Дата составления акта' = DATA DATE (EInvoice);
+reportName 'Вид  акта' = DATA VARSTRING[512] (EInvoice);
+
+deliveryNoteNumber 'Серия и номер бумажной накладной' = DATA VARSTRING[28] (EInvoice);
+deliveryNoteDateTime 'Дата бумажной накладной' = DATA DATETIME (EInvoice);
+sealIDReceiver 'Номер пломбы (грузоотправитель)' = DATA VARSTRING[35] (EInvoice);
+
+supplier 'Поставщик' = DATA LegalEntity (EInvoice);
+glnSupplier 'GLN поставщика' (EInvoice i) = GLN(supplier(i));
+nameSupplier 'Поставщик' (EInvoice i) = name(supplier(i));
+addressSupplier 'Адрес поставщика' (EInvoice i) = address(supplier(i));
+unpSupplier 'УНП поставщика' (EInvoice i) = UNP(supplier(i));
+
+customer 'Покупатель' = DATA LegalEntity (EInvoice);
+nameCustomer 'Покупатель' (EInvoice i) = name(customer(i));
+glnCustomer 'GLN покупателя' (EInvoice i) = GLN(customer(i));
+addressCustomer 'Адрес покупателя' (EInvoice i) = address(customer(i));
+unpCustomer 'УНП покупателя' (EInvoice i) = UNP(customer(i));
+
+customerStock 'Склад покупателя' = DATA Stock (EInvoice);
+glnCustomerStock 'GLN склада покупателя' (EInvoice i) = GLN(customerStock(i));
+nameCustomerStock 'Склад покупателя' (EInvoice i) = name(customerStock(i));
+addressCustomerStock 'Адрес склада покупателя' (EInvoice i) = address(customerStock(i));
+contactCustomerStock 'ФИО и должность лица, которое отвечает за получение груза со стороны грузополучателя' = DATA VARSTRING[150] (EInvoice);
+
+CLASS EInvoiceDetail 'Строка электронной накладной EDI';
+TABLE eInvoiceDetail(EInvoiceDetail); 
+@defineExternalizable(eInvoiceDetail, VARSTRING[100]);
+
+certificateEDI 'Сертификат (EDI)' = DATA VARSTRING[100] (Computer);
+certificateEDI 'Сертификат (EDI)' () = certificateEDI(currentComputer());
+passwordEDI 'Пароль (EDI)' = DATA VARSTRING[100] (Computer) ECHO;
+passwordEDI 'Пароль (EDI)' () = passwordEDI(currentComputer());
+signerPathEDI 'Путь EDISigner (EDI)' = DATA VARSTRING[100] (Computer);
+signerPathEDI 'Путь EDISigner (EDI)' () = signerPathEDI(currentComputer());
+outputEDI 'Директория подписанных файлов (EDI)' = DATA VARSTRING[100] (Computer);
+outputEDI 'Директория подписанных файлов (EDI)' () = outputEDI(currentComputer());
+
+EXTEND FORM computer PROPERTIES(c) certificateEDI, passwordEDI, signerPathEDI, outputEDI;
+EXTEND FORM computers PROPERTIES(c) READONLY certificateEDI, passwordEDI, signerPathEDI, outputEDI;
+
+in 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
+signAndSend 'Подписать и отправить' = ABSTRACT LIST (EInvoice);
+signAndSendEDI 'Подписать и отправить'() = {
+    FOR in(EInvoice i) DO 
+        signAndSend(i);
+    ELSE
+        MESSAGE 'Не выбрано ни одной накладной';
+    
+}
+
+eInvoice = DATA EInvoice(EInvoiceDetail) NONULL DELETE;
+sku = DATA Sku(EInvoiceDetail);
+nameSku 'Наименование' (EInvoiceDetail e) = name(sku(e));
+idBarcode 'Штрихкод' (EInvoiceDetail e) = idBarcode(sku(e));
+
+quantityDespatched 'Кол-во отгружаемого товара' = DATA NUMERIC[16,5] (EInvoiceDetail);
+valueVAT 'НДС, %' = DATA NUMERIC[16,5] (EInvoiceDetail);
+
+lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,4] (EInvoiceDetail);
+lineItemAmountWithoutCharges 'Стоимость товарной позиции без НДС' = DATA NUMERIC[16,4] (EInvoiceDetail);
+lineItemAmount 'Стоимость товарной позиции с НДС' = DATA NUMERIC[16,4] (EInvoiceDetail);
+lineItemAmountCharges 'Сумма НДС' = DATA NUMERIC[16,4] (EInvoiceDetail);
+
+
+//-----------------------------------------Сообщение по накладной EDI-----------------------------------------//
+CLASS EInvoiceMessage 'Сообщение по накладной EDI';
+TABLE eInvoiceMessage(EInvoiceMessage);
+
+number 'Номер' = DATA VARSTRING[24] (EInvoiceMessage);
+eInvoiceMessage (number) = GROUP AGGR EInvoiceMessage e BY number(e);
+eInvoice 'Заказ' = DATA EInvoice (EInvoiceMessage) NONULL DELETE;
+numberEInvoice 'Заказ' (EInvoiceMessage m) = number(eInvoice(m));
+dateTime 'Дата/время сообщения' = DATA DATETIME (EInvoiceMessage);
+code 'Код сообщения' = DATA VARSTRING[10] (EInvoiceMessage);
+description 'Текст сообщения' = DATA VARSTRING[200] (EInvoiceMessage);
+good = ABSTRACT CASE BOOLEAN (EInvoiceMessage);
+
+
+FORM eInvoices 'Электронные накладные EDI'
+OBJECTS e = EInvoice
+PROPERTIES(e) in, exported
+PROPERTIES(e) READONLY dateTime, number, deliveryNoteNumber, deliveryNoteDateTime, glnSupplier, nameSupplier, addressSupplier, unpSupplier, 
+                       nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock
+PROPERTIES(e) contactCustomerStock, reportId, reportDate, reportName
+
+OBJECTS d = EInvoiceDetail
+PROPERTIES(d) READONLY idBarcode, nameSku, quantityDespatched, valueVAT, lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges
+
+PROPERTIES() signAndSendEDI TODRAW e TOOLBAR
+
+FILTERS eInvoice(d) == e
+
+OBJECTS m = EInvoiceMessage
+PROPERTIES(m) READONLY numberEInvoice, dateTime, code, description
+FILTERS eInvoice(m) == e
+ORDER BY dateTime(m);
+;
+
+DESIGN eInvoices {
+    BOX {
+        MOVE BOX(e);
+        NEW tab {
+            fill = 1;
+            type = TABBED;
+            MOVE BOX(d);
+            MOVE BOX(m);
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
 NAVIGATOR {
     financeNavigator {
         NEW edi 'EDI' {
             ADD eOrders;
             ADD eOrderResponses;
             ADD eOrderDespatchAdvices;
+            ADD eInvoices;
         }
     }
 }
