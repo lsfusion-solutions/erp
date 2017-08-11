@@ -533,11 +533,14 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             Calendar cal = Calendar.getInstance();
                             cal.setTime(entry.dateTo);
                             cal.add(Calendar.DATE, 1);
+                            sendSalesLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
                             String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
                             sendSalesLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
 
                             statement = conn.createStatement();
-                            statement.execute(String.format("UPDATE history SET new = 1 WHERE date >= '%s' AND date <='%s'", dateFrom, dateTo));
+                            String query = String.format("UPDATE history SET new = 1 WHERE date >= '%s' AND date <='%s'", dateFrom, dateTo);
+                            sendSalesLogger.info(logPrefix + "RequestSalesInfo: " + query);
+                            statement.execute(query);
                             succeededRequests.add(entry.requestExchange);
                         }
                     }
