@@ -214,7 +214,11 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
     @Override
     public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
-        for(String directory : requestExchange.directoryStockMap.keySet()) {
+        Set<String> directorySet = new HashSet<>();
+        for (CashRegisterInfo cashRegister : requestExchange.cashRegisterSet) {
+            directorySet.add(cashRegister.directory);
+        }
+        for (String directory : directorySet) {
 
             EQSConnectionString params = new EQSConnectionString(directory);
 
@@ -224,7 +228,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 try {
                     machineryExchangeLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
-                    machineryExchangeLogger.info(String.format(logPrefix + "connected to %s", params.connectionString));
                     conn.setAutoCommit(false);
 
                     ps = conn.prepareStatement(
@@ -234,7 +237,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                     int count = 0;
                     for (DiscountCard card : discountCardList) {
-                        if(card.idDiscountCard != null) {
+                        if (card.idDiscountCard != null) {
                             ps.setString(1, trim(card.idDiscountCard, 20)); //code
                             String name = (card.lastNameContact == null ? "" : (card.lastNameContact + " "))
                                     + (card.firstNameContact == null ? "" : (card.firstNameContact + " "))
@@ -246,16 +249,13 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             count++;
                         }
                     }
-                    //todo: временные логи, позже уменьшить их кол-во
-                    machineryExchangeLogger.info(String.format(logPrefix + "executeBatch %s cards to %s", count, params.connectionString));
                     ps.executeBatch();
-                    machineryExchangeLogger.info(String.format(logPrefix + "commit %s cards to %s", count, params.connectionString));
                     conn.commit();
                     machineryExchangeLogger.info(String.format(logPrefix + "finished %s cards to %s", count, params.connectionString));
 
                 } catch (SQLException e) {
                     machineryExchangeLogger.error(logPrefix, e);
-                    e.printStackTrace();
+                    throw Throwables.propagate(e);
                 } finally {
                     try {
                         if (ps != null)
