@@ -1,0 +1,27 @@
+MODULE ReceiptSkuLedgerAccountSum;
+
+REQUIRE ReceiptSkuLedger;
+
+NAMESPACE ReceiptSkuLedger;
+
+accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (ReceiptSaleSkuLedger);
+WHEN SET (ReceiptSaleSkuLedger l IS ReceiptSaleSkuLedger) DO
+    accountPrice(l) <- NUMERIC[16,4](prevCurrentSum(sku(l), departmentStore(l)) / prevCurrentBalance(sku(l), departmentStore(l)));
+
+accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (ReceiptSaleSkuLedger);
+accountSum(ReceiptSaleSkuLedger l) <- round2(quantity[OutFIFOSkuLedger](l) * accountPrice(l)) WHEN CHANGED(quantity[OutFIFOSkuLedger](l)) OR CHANGED(accountPrice(l));
+
+sum[OutSkuLedger] (ReceiptSaleSkuLedger ledger) += accountSum(ledger);
+
+costSum (ReceiptSaleSkuLedger ledger) += WHEN ledger IS ReceiptSaleSkuLedger THEN NUMERIC[16,3](accountSum(ledger));
+
+accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (ReceiptReturnSkuLedger);
+WHEN SET (ReceiptReturnSkuLedger l IS ReceiptReturnSkuLedger) DO
+    accountPrice(l) <- NUMERIC[16,4](prevCurrentSum(sku(l), departmentStore(l)) / prevCurrentBalance(sku(l), departmentStore(l)));
+
+accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (ReceiptReturnSkuLedger);
+accountSum(ReceiptReturnSkuLedger l) <- round2(quantity[InLIFOSkuLedger](l) * accountPrice(l)) WHEN CHANGED(quantity[InLIFOSkuLedger](l)) OR CHANGED(accountPrice(l));
+
+sum[InSkuLedger] (ReceiptReturnSkuLedger ledger) += accountSum(ledger);
+
+costSum (ReceiptReturnSkuLedger ledger) += WHEN ledger IS ReceiptReturnSkuLedger THEN NUMERIC[16,3](-accountSum(ledger));
