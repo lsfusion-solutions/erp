@@ -573,7 +573,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                 Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
+                                 Set<Integer> succeededRequests, Map<Integer, Throwable> failedRequests, Map<Integer, Throwable> ignoredRequests) throws IOException, ParseException {
         AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
         String connectionString = astronSettings == null ? null : astronSettings.getConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
         String user = astronSettings == null ? null : astronSettings.getUser(); //luxsoft
@@ -608,7 +608,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             succeededRequests.add(entry.requestExchange);
 
                         } catch (SQLException e) {
-                            failedRequests.put(entry.requestExchange, e.getMessage());
+                            failedRequests.put(entry.requestExchange, e);
                             e.printStackTrace();
                         } finally {
                             if (statement != null)

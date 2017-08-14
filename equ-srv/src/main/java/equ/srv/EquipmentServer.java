@@ -823,8 +823,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void errorRequestExchange(Map<Integer, String> succeededRequestsMap) throws RemoteException, SQLException {
-        MachineryExchangeEquipmentServer.errorRequestExchange(getDbManager(), getBusinessLogics(), getStack(), succeededRequestsMap);
+    public void errorRequestExchange(Map<Integer, Throwable> failedRequestsMap) throws RemoteException, SQLException {
+        MachineryExchangeEquipmentServer.errorRequestExchange(getDbManager(), getBusinessLogics(), getStack(), failedRequestsMap);
+    }
+
+    @Override
+    public void errorRequestExchange(Integer requestExchange, Throwable t) throws RemoteException, SQLException {
+        MachineryExchangeEquipmentServer.errorRequestExchange(getDbManager(), getBusinessLogics(), getStack(), requestExchange, t);
     }
 
     @Override

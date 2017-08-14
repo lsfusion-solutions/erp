@@ -27,6 +27,9 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.Date;
@@ -158,20 +161,37 @@ public class MachineryExchangeEquipmentServer {
         }
     }
 
-    public static void errorRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Map<Integer, String> succeededRequestsMap) throws RemoteException, SQLException {
+    public static void errorRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Map<Integer, Throwable> failedRequestsMap) throws RemoteException, SQLException {
         if (machineryPriceTransactionLM != null) {
             try (DataSession session = dbManager.createSession()) {
-                for (Map.Entry<Integer, String> request : succeededRequestsMap.entrySet()) {
-                    DataObject errorObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeError"));
-                    machineryPriceTransactionLM.findProperty("message[RequestExchangeError]").change(request.getValue(), session, errorObject);
-                    machineryPriceTransactionLM.findProperty("date[RequestExchangeError]").change(getCurrentTimestamp(), session, errorObject);
-                    machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeError]").change(request.getKey(), session, errorObject);
+                for (Map.Entry<Integer, Throwable> request : failedRequestsMap.entrySet()) {
+                    errorRequestExchange(session, request.getKey(), request.getValue());
                 }
                 session.apply(BL, stack);
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
+    }
+
+    public static void errorRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Integer requestExchange, Throwable t) throws RemoteException, SQLException {
+        if (machineryPriceTransactionLM != null) {
+            try (DataSession session = dbManager.createSession()) {
+                errorRequestExchange(session, requestExchange, t);
+                session.apply(BL, stack);
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+
+    private static void errorRequestExchange(DataSession session, Integer requestExchange, Throwable t) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        DataObject errorObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeError"));
+        machineryPriceTransactionLM.findProperty("date[RequestExchangeError]").change(getCurrentTimestamp(), session, errorObject);
+        OutputStream os = new ByteArrayOutputStream();
+        t.printStackTrace(new PrintStream(os));
+        machineryPriceTransactionLM.findProperty("erTrace[RequestExchangeError]").change(os.toString(), session, errorObject);
+        machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeError]").change(requestExchange, session, errorObject);
     }
 
     public static void finishRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Set<Integer> succeededRequestsSet) throws RemoteException, SQLException {

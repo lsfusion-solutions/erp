@@ -1077,7 +1077,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                 Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
+                                 Set<Integer> succeededRequests, Map<Integer, Throwable> failedRequests, Map<Integer, Throwable> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange requestExchange : requestExchangeList) {
 
             for (String directory : requestExchange.directoryStockMap.keySet()) {
@@ -1112,7 +1112,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             succeededRequests.add(requestExchange.requestExchange);
                         }
                     } catch (SQLException e) {
-                        failedRequests.put(requestExchange.requestExchange, e.getMessage());
+                        failedRequests.put(requestExchange.requestExchange, e);
                         e.printStackTrace();
                     } finally {
                         try {

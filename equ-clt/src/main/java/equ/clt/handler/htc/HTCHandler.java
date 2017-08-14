@@ -806,7 +806,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                   Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
+                                   Set<Integer> succeededRequests, Map<Integer, Throwable> failedRequests, Map<Integer, Throwable> ignoredRequests) throws IOException, ParseException {
         Map<String, List<RequestExchange>> requestExchangeMap = new HashMap<>();
 
         HTCSettings htcSettings = springContext.containsBean("htcSettings") ? (HTCSettings) springContext.getBean("htcSettings") : null;
@@ -840,7 +840,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                         if (entry.getValue() == null)
                             succeededRequests.add(entry.getKey());
                         else
-                            ignoredRequests.put(entry.getKey(), entry.getValue());
+                            ignoredRequests.put(entry.getKey(), new RuntimeException(entry.getValue()));
                     }
                 }
                 singleTransactionExecutor.shutdown();

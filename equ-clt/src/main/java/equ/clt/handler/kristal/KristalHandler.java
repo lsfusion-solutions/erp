@@ -378,7 +378,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                 Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
+                                 Set<Integer> succeededRequests, Map<Integer, Throwable> failedRequests, Map<Integer, Throwable> ignoredRequests) throws IOException, ParseException {
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         String exportPrefixPath = kristalSettings != null ? kristalSettings.getExportPrefixPath() : null;
@@ -419,7 +419,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 if (requestResult == null)
                     succeededRequests.add(entry.requestExchange);
                 else
-                    failedRequests.put(entry.requestExchange, requestResult);
+                    failedRequests.put(entry.requestExchange, new RuntimeException(requestResult));
             }
         }
     }

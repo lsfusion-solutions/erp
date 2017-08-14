@@ -524,7 +524,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                 Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
+                                 Set<Integer> succeededRequests, Map<Integer, Throwable> failedRequests, Map<Integer, Throwable> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
             Connection conn = null;
             Statement statement = null;
@@ -554,7 +554,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     }
                 }
             } catch (SQLException e) {
-                failedRequests.put(entry.requestExchange, e.getMessage());
+                failedRequests.put(entry.requestExchange, e);
                 e.printStackTrace();
             } finally {
                 try {

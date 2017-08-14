@@ -87,14 +87,14 @@ public class SendSalesEquipmentServer {
         if (!requestExchangeList.isEmpty()) {
             sendSalesLogger.info("Requesting SalesInfo");
             Set<Integer> succeededRequests = new HashSet<>();
-            Map<Integer, String> failedRequests = new HashMap<>();
-            Map<Integer, String> ignoredRequests = new HashMap<>();
+            Map<Integer, Throwable> failedRequests = new HashMap<>();
+            Map<Integer, Throwable> ignoredRequests = new HashMap<>();
 
             handler.requestSalesInfo(requestExchangeList, directorySet, succeededRequests, failedRequests, ignoredRequests);
             if (!succeededRequests.isEmpty())
                 remote.finishRequestExchange(succeededRequests);
             if (!failedRequests.isEmpty())
-                remote.errorRequestExchange(failedRequests);
+                    remote.errorRequestExchange(failedRequests);
             if (!ignoredRequests.isEmpty()) {
                 remote.finishRequestExchange(new HashSet<>(ignoredRequests.keySet()));
                 remote.errorRequestExchange(ignoredRequests);
