@@ -398,6 +398,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             isGiftCard = matcher.matches();
                         }
 
+                        boolean isReturnGiftCard = isGiftCard && totalQuantity != null && totalQuantity.compareTo(BigDecimal.ZERO) < 0;
+
                         boolean isDiscount = getBit(flags, 1);
                         boolean discountRecord = (idBarcode == null || idBarcode.isEmpty()) && isDiscount;
                         if (discountRecord) {
@@ -422,7 +424,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                 }
                             }
                         } else {
-                            SalesInfo salesInfo = new SalesInfo(isGiftCard, nppGroupMachinery, cash_id, numberZReport,
+                            SalesInfo salesInfo = new SalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, cash_id, numberZReport,
                                     dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null,
                                     null, null, null, null, (BigDecimal) null, idBarcode, idItem, null, null, totalQuantity,
                                     price, sum, discountSum, null, discountCard,

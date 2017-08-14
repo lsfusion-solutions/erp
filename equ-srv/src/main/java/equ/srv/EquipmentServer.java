@@ -968,10 +968,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         ImportField priceReceiptGiftCardSaleDetailField = null;
                         ImportField sumReceiptGiftCardSaleDetailField = null;
                         ImportField idGiftCardField = null;
+                        ImportField isReturnReceiptGiftCardSaleDetailField = null;
                         if (giftCardLM != null) {
                             priceReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("price[ReceiptGiftCardSaleDetail]"));
                             sumReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("sum[ReceiptGiftCardSaleDetail]"));
                             idGiftCardField = new ImportField(giftCardLM.findProperty("id[GiftCard]"));
+                            isReturnReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("isReturn[ReceiptGiftCardSaleDetail]"));
                         }
 
                         ImportField seriesNumberDiscountCardField = discountCardLM == null ? null : new ImportField(discountCardLM.findProperty("seriesNumber[DiscountCard]"));
@@ -1130,6 +1132,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("number[GiftCard]").getMapping(giftCardKey)));
                             giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("giftCard[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey),
                                     zReportLM.object(giftCardLM.findClass("GiftCard")).getMapping(giftCardKey)));
+                            giftCardProperties.add(new ImportProperty(isReturnReceiptGiftCardSaleDetailField, giftCardLM.findProperty("isReturn[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey)));
                         }
 
                         if(zReportSectionLM != null) {
@@ -1162,7 +1165,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                     List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
                                             sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
                                             idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode,
-                                            sale.priceReceiptDetail, sale.sumReceiptDetail);
+                                            sale.priceReceiptDetail, sale.sumReceiptDetail, sale.isReturnGiftCard ? true : null);
                                     if (zReportSectionLM != null) {
                                         row = new ArrayList<>(row);
                                         row.add(sale.idSection);
@@ -1239,7 +1242,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 idZReportField, numberZReportField, dateZReportField, timeZReportField, dateReceiptField, timeReceiptField, isPostedZReportField,
                                 idEmployeeField, firstNameContactField, lastNameContactField, idReceiptField, numberReceiptField,
                                 idReceiptDetailField, numberReceiptDetailField, idGiftCardField,
-                                priceReceiptGiftCardSaleDetailField, sumReceiptGiftCardSaleDetailField);
+                                priceReceiptGiftCardSaleDetailField, sumReceiptGiftCardSaleDetailField, isReturnReceiptGiftCardSaleDetailField);
                         if (zReportSectionLM != null) {
                             giftCardImportFields = new ArrayList<>(giftCardImportFields);
                             giftCardImportFields.add(idSectionField);
