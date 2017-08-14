@@ -1,0 +1,39 @@
+MODULE ReceiptStockDocumentAccountSum;
+
+REQUIRE ReceiptSkuLedgerAccountSum;
+
+NAMESPACE ReceiptSkuLedger;
+
+//--
+CLASS RetailSales 'Розничные продажи';
+TABLE retailSales (RetailSales);
+
+sumSaleSkuLedger (DepartmentStore d, DATE date) = GROUP SUM 
+    accountSum(ReceiptSaleSkuLedger z) IF isPosted[DataSkuLedger](z) 
+    BY departmentStore(z), date(z);
+
+sumReturnSkuLedger (DepartmentStore d, DATE date) = GROUP SUM 
+    accountSum(ReceiptReturnSkuLedger z) IF isPosted[DataSkuLedger](z) 
+    BY departmentStore(z), date(z);
+    
+sumSkuLedger (DepartmentStore d, date) = sumSaleSkuLedger(d, date) (-) sumReturnSkuLedger(d, date);
+
+@defineAggregationClass (departmentStore, DepartmentStore, date, DATE, retailSales, RetailSales, sumSkuLedger);
+dateTime 'Дата/время' (RetailSales o) =  toDateTime(date(o));
+time 'Время' (RetailSales o) = toTime(dateTime(o));
+
+description (RetailSales zReportRepricing) =
+    VARSTRING[200]('Розничные продажи за ' + date(zReportRepricing));
+
+EXTEND CLASS RetailSales : OutStockDocumentLedger;
+
+dateTime (RetailSales ledger) += dateTime(ledger);
+isPosted (RetailSales ledger) += ledger IS RetailSales;
+isClosed (RetailSales ledger) += ledger IS RetailSales;
+stock (RetailSales ledger) += departmentStore(ledger);
+description (RetailSales ledger) += description(ledger);
+
+type(RetailSales l) += 'Розничные продажи' IF l IS RetailSales;
+sumItem (RetailSales ledger) += sumSkuLedger(departmentStore(ledger),date(ledger));
+sumContainer (RetailSales ledger) += 0.0 IF ledger IS RetailSales;
+skip (RetailSales ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(ledger));
