@@ -1,0 +1,56 @@
+MODULE SaleReturnShipmentAccountLedger;
+
+REQUIRE SaleReturnShipment, PriceListLedgerAccount;
+
+PRIORITY Sale, Operation;
+
+NAMESPACE SaleReturn;
+
+changeShipmentPrice 'Проводить по регистру изменение учетной цены' = DATA BOOLEAN (Operation);
+EXTEND FORM operation
+    PROPERTIES(o) changeShipmentPrice
+;
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(changeShipmentPrice(o));
+    }
+} 
+
+@defineDocumentInterfaceProperty (invoice, changeShipmentPrice, 'Проводить по регистру изменение учетной цены');
+
+@deriveDocumentOperationProperty(UserInvoice, changeShipmentPrice);
+
+EXTEND FORM userInvoice
+    PROPERTIES (i) changeShipmentPrice 
+; 
+
+@defineDocumentInterfaceProperty (shipment, changeShipmentPrice, 'Проводить по регистру изменение учетной цены');
+@deriveDocumentOperationProperty(UserShipment, changeShipmentPrice);
+EXTEND FORM userShipment
+    PROPERTIES (s) changeShipmentPrice 
+; 
+changeShipmentPrice(InvoiceShipment s) += changeShipmentPrice(invoice(s));
+
+// ------------------------------- Проведение регистру учетных цен ------------------------ //
+
+EXTEND CLASS ShipmentDetail : PriceListLedger;
+
+// todo : убрать IF changed
+fromDateTime (ShipmentDetail ledger) += dateTime(ledger);
+
+isPosted[PriceListLedger](ShipmentDetail ledger) += isPosted(ledger);
+
+sku[PriceListLedger] (ShipmentDetail ledger) += sku(ledger);
+
+operation (ShipmentDetail ledger) += operation(ledger);
+
+description[PriceListLedger] (ShipmentDetail ledger) += description(ledger);
+
+company (ShipmentDetail ledger) += supplier(ledger);
+
+in (ShipmentDetail ledger, SystemLedgerPriceListType account) += WHEN price(ledger) AND account == SystemLedgerPriceListType.accountPriceListType THEN changeShipmentPrice(ledger);
+price (ShipmentDetail ledger, SystemLedgerPriceListType account) += WHEN price(ledger) AND account == SystemLedgerPriceListType.accountPriceListType AND changeShipmentPrice(ledger) THEN price(ledger);
+
+in (ShipmentDetail ledger, Stock stock) += supplierStock(ledger) == stock;
+in(ShipmentDetail ledger, Batch batch) += batch(ledger) == batch; 
+show[PriceListLedger] (ShipmentDetail ledger) += {show(ledger);};

@@ -1,6 +1,6 @@
 MODULE PurchaseShipment;
 
-REQUIRE Shipment, PurchaseInvoice, PurchaseOperation, OrderShipment, InvoiceShipment, PriceListLedger, StockDocumentSkuLedger, PriceListLedgerAccount;
+REQUIRE Shipment, PurchaseInvoice, PurchaseOperation, OrderShipment, InvoiceShipment, PriceListLedger, StockDocumentSkuLedger;
 
 NAMESPACE Purchase;
 
@@ -289,16 +289,6 @@ name(ShipmentBatch batch) += VARISTRING[200](CONCAT '', STRING[10](date(shipment
 edit(ShipmentBatch batch) += { edit(shipmentDetail(batch)); }
 show[SkuLedger](ShipmentBatch batch) += { show(shipmentDetail(batch)); }
 
-// Проводим по регистру учетных цен
-supplier (ShipmentBatch ledger) = supplier(shipmentDetail(ledger));
-show (ShipmentBatch ledger) = {show(shipmentDetail(ledger));};
-@implementSystemLedgerPriceListTypeBatch(account, ShipmentBatch, supplier, stock);
-skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN(ShipmentBatch);
-skipChangeLedger(ShipmentBatch b) += dataSkipChangeLedger(invoiceDetail(shipmentDetail(b)));
-skipChangeLedger(ShipmentBatch b) += onlyPositivePriceLedger(operation(shipmentDetail(b))) AND NOT quantity(shipmentDetail(b)) >0;
-
-skip[PriceListLedger](ShipmentBatch ledger) += skipChangeLedger(ledger);
-
 // Создаем просто inLIFOSkuLedger
 createSkuLedger (ShipmentDetail detail) = detail IS ShipmentDetail AND NOT createBatch(detail);
 
@@ -340,17 +330,6 @@ edit(ShipmentSkuLedger shipmentSkuLedger) += { edit(shipmentDetail(shipmentSkuLe
 show[SkuLedger](ShipmentSkuLedger shipmentSkuLedger) += { show(shipmentDetail(shipmentSkuLedger)); }
 
 overBatch(InvoiceDetail detail)= OVERRIDE ledgerBatch(invoiceShipmentDetail(detail)), batch(detail);  
-// ------------------------------- Проведение регистру учетных цен ------------------------ //
-
-supplier (ShipmentSkuLedger ledger) = supplier(shipmentDetail(ledger));
-show (ShipmentSkuLedger batch) = {show(shipmentDetail(batch));};
-@implementSystemLedgerPriceListType(account, ShipmentSkuLedger, supplier, stock);
-in (ShipmentSkuLedger ledger, Batch batch) += batch(shipmentDetail(ledger)) == batch; 
-
-skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN(ShipmentSkuLedger);
-skipChangeLedger(ShipmentSkuLedger b) += dataSkipChangeLedger(invoiceDetail(shipmentDetail(b)));
-skipChangeLedger(ShipmentSkuLedger l) += onlyPositivePriceLedger(operation(shipmentDetail(l))) AND NOT quantity(shipmentDetail(l)) > 0;
-skip[PriceListLedger](ShipmentSkuLedger ledger) += skipChangeLedger(ledger);
 
 //
 defaultUserShipmentDetail (sku, shipment, price) = GROUP MIN UserShipmentDetail detail IF NOT batch(detail)

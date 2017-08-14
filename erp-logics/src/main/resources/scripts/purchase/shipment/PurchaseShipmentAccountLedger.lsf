@@ -1,0 +1,28 @@
+MODULE PurchaseShipmentAccountLedger;
+
+REQUIRE PurchaseShipment, PriceListLedgerAccount;
+
+NAMESPACE Purchase;
+
+// ------------------------------- Проведение регистру учетных цен ------------------------ //
+
+// Новая партия
+supplier (ShipmentBatch ledger) = supplier(shipmentDetail(ledger));
+show (ShipmentBatch ledger) = {show(shipmentDetail(ledger));};
+@implementSystemLedgerPriceListTypeBatch(account, ShipmentBatch, supplier, stock);
+skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN(ShipmentBatch);
+skipChangeLedger(ShipmentBatch b) += dataSkipChangeLedger(invoiceDetail(shipmentDetail(b)));
+skipChangeLedger(ShipmentBatch b) += onlyPositivePriceLedger(operation(shipmentDetail(b))) AND NOT quantity(shipmentDetail(b)) >0;
+
+skip[PriceListLedger](ShipmentBatch ledger) += skipChangeLedger(ledger);
+
+// Просто движение
+supplier (ShipmentSkuLedger ledger) = supplier(shipmentDetail(ledger));
+show (ShipmentSkuLedger batch) = {show(shipmentDetail(batch));};
+@implementSystemLedgerPriceListType(account, ShipmentSkuLedger, supplier, stock);
+in (ShipmentSkuLedger ledger, Batch batch) += batch(shipmentDetail(ledger)) == batch; 
+
+skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN(ShipmentSkuLedger);
+skipChangeLedger(ShipmentSkuLedger b) += dataSkipChangeLedger(invoiceDetail(shipmentDetail(b)));
+skipChangeLedger(ShipmentSkuLedger l) += onlyPositivePriceLedger(operation(shipmentDetail(l))) AND NOT quantity(shipmentDetail(l)) > 0;
+skip[PriceListLedger](ShipmentSkuLedger ledger) += skipChangeLedger(ledger);

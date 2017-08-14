@@ -1,0 +1,21 @@
+MODULE PurchaseSaleReturnInvoiceShipmentAccountLedger;
+
+REQUIRE PurchaseSaleReturnInvoiceShipment, SaleReturnShipmentAccountLedger;
+
+PRIORITY PurchaseReturn;
+
+NAMESPACE PurchaseSaleReturnInvoiceShipment;
+
+@defineDocumentInterfaceProperty (invoice, changeShipmentPrice, 'Проводить по регистру изменение учетной цены');
+
+changeShipmentPrice(SaleReturnInvoice s) += changeShipmentPrice(invoice(s));
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) BACKGROUND backgroundSaleReturnShipment(i) SHOWIF createSaleReturnShipment(i) changeShipmentPrice
+;
+
+DESIGN userInvoice {
+    NEW CreateSaleReturnShipment1 {
+        MOVE PROPERTY(changeShipmentPrice(i));
+    }
+}
