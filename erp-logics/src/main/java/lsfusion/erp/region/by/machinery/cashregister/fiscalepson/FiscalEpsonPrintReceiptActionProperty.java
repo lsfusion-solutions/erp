@@ -22,9 +22,12 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
+import static lsfusion.base.BaseUtils.trim;
 
 public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptInterface;
@@ -50,6 +53,8 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
             } else {
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+
+                String cashier = trim((String) findProperty("currentUserName[]").read(context));
 
                 BigDecimal sumCard = null;
                 BigDecimal sumCash = null;
@@ -84,10 +89,10 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                 QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<>(receiptDetailKeys);
                 String[] rdNames = new String[]{"nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
                         "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
-                        "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail"};
+                        "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail", "valueVATReceiptDetail", "calcSumVATReceiptDetail"};
                 LCP[] rdProperties = findProperties("nameSku[ReceiptDetail]", "type[ReceiptDetail]", "quantity[ReceiptDetail]",
                         "quantity[ReceiptSaleDetail]", "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]",
-                        "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]", "discountSum[ReceiptDetail]");
+                        "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]", "discountSum[ReceiptDetail]", "valueVAT[ReceiptDetail]", "calcSumVAT[ReceiptDetail]");
                 for (int i = 0; i < rdProperties.length; i++) {
                     receiptDetailQuery.addProperty(rdNames[i], rdProperties[i].getExpr(context.getModifier(), receiptDetailExpr));
                 }
@@ -110,19 +115,23 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                     discountSumReceiptDetail = discountSumReceiptDetail == null ? null : discountSumReceiptDetail.negate();
                     String typeReceiptDetail = (String) receiptDetailValues.get("typeReceiptDetail");
                     Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
+                    BigDecimal valueVAT = (BigDecimal) receiptDetailValues.get("valueVATReceiptDetail");
+                    BigDecimal calcSumVAT = (BigDecimal) receiptDetailValues.get("calcSumVATReceiptDetail");
+
+                    String vatString = valueVAT == null || calcSumVAT ==  null ? null : String.format("НДС: %s (%s%%)", formatSumVAT(calcSumVAT), formatValueVAT(valueVAT));
 
                     if (quantitySale != null && !isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, barcode, name,
-                                sumReceiptDetail, discountSumReceiptDetail));
+                                sumReceiptDetail, discountSumReceiptDetail, vatString));
                     if (quantity != null && isGiftCard) {
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantity, barcode, "Подарочный сертификат",
-                                sumReceiptDetail, discountSumReceiptDetail));
+                                sumReceiptDetail, discountSumReceiptDetail, vatString));
                     }
                     if (quantityReturn != null) {
                         BigDecimal discount = discountSumReceiptDetail == null ? BigDecimal.ZERO : discountSumReceiptDetail.divide(quantityReturn);
                         receiptReturnItemList.add(new ReceiptItem(isGiftCard,
                                 price, quantityReturn, barcode,
-                                name, sumReceiptDetail, discount));
+                                name, sumReceiptDetail, discount, vatString));
                     }
                 }
 
@@ -135,7 +144,7 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                                 new FiscalEpsonPrintReceiptClientAction(comPort, baudRate, isReturn,
                                         new ReceiptInstance(sumCash == null ? null : sumCash.abs(),
                                                 sumCard == null ? null : sumCard.abs(),
-                                                sumGiftCard == null ? null : sumGiftCard.abs(),
+                                                sumGiftCard == null ? null : sumGiftCard.abs(), cashier,
                                                 isReturn ? receiptReturnItemList : receiptSaleItemList)));
                         if (result instanceof Integer) {
                             findProperty("number[Receipt]").change(result, context, receiptObject);
@@ -153,5 +162,13 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private String formatSumVAT(BigDecimal value) {
+        return new DecimalFormat("#,###.00").format(value.doubleValue()).replace(".", ",");
+    }
+
+    private String formatValueVAT(BigDecimal value) {
+        return new DecimalFormat("#,###.##").format(value.doubleValue()).replace(".", ",");
     }
 }

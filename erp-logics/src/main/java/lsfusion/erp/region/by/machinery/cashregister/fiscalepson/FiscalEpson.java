@@ -38,7 +38,8 @@ public class FiscalEpson {
         }
     }
 
-    public static void openReceipt(int type) throws RuntimeException {
+    public static void openReceipt(String cashier, int type) throws RuntimeException {
+        setCashier(cashier);
         epsonActiveXComponent.setProperty("ReceiptType", new Variant(type));
         Dispatch.call(epsonDispatch, "OpenReceipt");
         checkErrors(true);
@@ -56,10 +57,11 @@ public class FiscalEpson {
         } return true;
     }
 
-    public static void resetReceipt(Integer numberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard, boolean sale) throws RuntimeException {
+    public static void resetReceipt(String cashier, Integer numberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard) throws RuntimeException {
+        boolean sale = totalSum.doubleValue() > 0;
         epsonActiveXComponent.setProperty("CancellationDocumentNumber", new Variant(numberReceipt));
         epsonActiveXComponent.setProperty("CancellationAmount", new Variant(totalSum));
-        openReceipt(5);
+        openReceipt(cashier, 5);
 
         Dispatch.call(epsonDispatch, "CompleteReceipt");
         checkErrors(true);
@@ -98,7 +100,8 @@ public class FiscalEpson {
         checkErrors(true);
     }
 
-    public static boolean inOut(Double sum) throws RuntimeException {
+    public static boolean inOut(String cashier, Double sum) throws RuntimeException {
+        setCashier(cashier);
         epsonActiveXComponent.setProperty("Amount", new Variant(Math.abs(sum)));
         Dispatch.call(epsonDispatch, sum > 0 ? "CashIncome" : "CashOutcome");
         checkErrors(true);
@@ -125,6 +128,14 @@ public class FiscalEpson {
         if (item.discount != null && item.discount.doubleValue() != 0.0) {
             epsonActiveXComponent.setProperty("CorrectionAmount", new Variant(Math.abs(isReturn ? item.quantity.multiply(item.discount).doubleValue() : item.discount.doubleValue())));
             Dispatch.call(epsonDispatch, item.discount.doubleValue() > 0 ? "Surcharge" : "Discount");
+            checkErrors(true);
+        }
+    }
+
+    public static void printLine(String line) throws RuntimeException {
+        if (line != null) {
+            epsonActiveXComponent.setProperty("StringToPrint", new Variant(line));
+            Dispatch.call(epsonDispatch, "PrintLine");
             checkErrors(true);
         }
     }
@@ -172,12 +183,26 @@ public class FiscalEpson {
     }
 
     public static Integer printReceipt(ReceiptInstance receipt, boolean sale) {
-        openReceipt(sale ? 1 : 2);
+        openReceipt(receipt.cashier, sale ? 1 : 2);
         for (ReceiptItem item : receipt.receiptList) {
             registerItem(item);
             discountItem(item, !sale);
+            printLine(item.vatString);
+
         }
         return closeReceipt(receipt, sale);
+    }
+
+    private static void setCashier(String cashier) {
+        if (cashier != null) {
+            Variant stateDayOpen = epsonActiveXComponent.getProperty("StateDayOpen");
+            if (stateDayOpen != null && stateDayOpen.toInt() == 0) { //getInt выдаёт ошибку
+                Dispatch.call(epsonDispatch, "OpenDay");
+                checkErrors(true);
+
+            }
+            epsonActiveXComponent.setProperty("CashierLogin", new Variant(cashier));
+        }
     }
 }
 

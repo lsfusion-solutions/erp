@@ -10,22 +10,22 @@ import java.math.BigDecimal;
 public class FiscalEpsonResetReceiptClientAction implements ClientAction {
     Integer comPort;
     Integer baudRate;
+    String cashier;
     Integer numberReceipt;
     BigDecimal totalSum;
     BigDecimal sumCash;
     BigDecimal sumCard;
     BigDecimal sumGiftCard;
-    boolean isReturn;
 
-    public FiscalEpsonResetReceiptClientAction(Integer comPort, Integer baudRate, Integer numberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard, Boolean isReturn) {
+    public FiscalEpsonResetReceiptClientAction(Integer comPort, Integer baudRate, String cashier, Integer numberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard) {
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
+        this.cashier = cashier;
         this.numberReceipt = numberReceipt;
         this.totalSum = totalSum;
         this.sumCash = sumCash;
         this.sumCard = sumCard;
         this.sumGiftCard = sumGiftCard;
-        this.isReturn = isReturn;
     }
 
 
@@ -35,7 +35,7 @@ public class FiscalEpsonResetReceiptClientAction implements ClientAction {
             FiscalEpson.init();
 
             FiscalEpson.openPort(comPort, baudRate);
-            FiscalEpson.resetReceipt(numberReceipt, totalSum, sumCash, sumCard, sumGiftCard, !isReturn);
+            FiscalEpson.resetReceipt(cashier, numberReceipt, totalSum, sumCash, sumCard, sumGiftCard);
 
         } catch (RuntimeException e) {
             FiscalEpson.cancelReceipt(false);

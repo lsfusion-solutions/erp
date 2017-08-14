@@ -11,11 +11,13 @@ public class FiscalEpsonServiceInOutClientAction implements ClientAction {
 
     int comPort;
     int baudRate;
+    String cashier;
     BigDecimal sum;
 
-    public FiscalEpsonServiceInOutClientAction(Integer comPort, Integer baudRate, BigDecimal sum) {
+    public FiscalEpsonServiceInOutClientAction(Integer comPort, Integer baudRate, String cashier, BigDecimal sum) {
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
+        this.cashier = cashier;
         this.sum = sum;
     }
 
@@ -26,7 +28,7 @@ public class FiscalEpsonServiceInOutClientAction implements ClientAction {
             FiscalEpson.init();
 
             FiscalEpson.openPort(comPort, baudRate);
-            FiscalEpson.inOut(sum.doubleValue());
+            FiscalEpson.inOut(cashier, sum.doubleValue());
             FiscalEpson.openDrawer();
 
         } catch (RuntimeException e) {

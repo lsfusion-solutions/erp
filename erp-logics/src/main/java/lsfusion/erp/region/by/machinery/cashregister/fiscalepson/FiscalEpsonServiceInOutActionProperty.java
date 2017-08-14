@@ -14,6 +14,8 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
+import static lsfusion.base.BaseUtils.trim;
+
 public class FiscalEpsonServiceInOutActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface cashOperationInterface;
 
@@ -33,9 +35,10 @@ public class FiscalEpsonServiceInOutActionProperty extends ScriptingActionProper
             
             Boolean isDone = findProperty("isComplete[CashOperation]").read(context.getSession(), cashOperationObject) != null;
             BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context.getSession(), cashOperationObject);
+            String cashier = trim((String) findProperty("currentUserName[]").read(context));
 
             if (!isDone) {
-                String result = (String) context.requestUserInteraction(new FiscalEpsonServiceInOutClientAction(comPort, baudRate, sum));
+                String result = (String) context.requestUserInteraction(new FiscalEpsonServiceInOutClientAction(comPort, baudRate, cashier, sum));
                 if (result == null) {
                     findProperty("isComplete[CashOperation]").change(true, context.getSession(), cashOperationObject);
                 } else
