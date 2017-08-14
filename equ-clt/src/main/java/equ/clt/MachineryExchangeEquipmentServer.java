@@ -90,6 +90,9 @@ public class MachineryExchangeEquipmentServer {
                                 }
                             } catch (Exception e) {
                                 machineryExchangeLogger.error("Equipment server error: ", e);
+                                Map errorRequestExchange = new HashMap<>();
+                                errorRequestExchange.put(requestExchange.requestExchange, e.getMessage());
+                                remote.errorRequestExchange(errorRequestExchange);
                                 EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
                             }
                         }
