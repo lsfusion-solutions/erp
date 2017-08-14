@@ -567,18 +567,13 @@ ledgerPriceListType = ABSTRACT LedgerPriceListType (PriceListType) MATERIALIZED;
 
 ledgerPriceListType(LedgerPriceListType type) += type AS LedgerPriceListType;
 
-// --------------------------- Системные виды цен, на основе Ledger'ов ------------------ //
+// ---------------------- Системный вид цены 
 
-CLASS SystemLedgerPriceListType 'Системный вид цены (регистр)' {
-    accountPriceListType 'Учетная'
-}: LedgerPriceListType;
+CLASS SystemLedgerPriceListType 'Системный вид цены (регистр)' : LedgerPriceListType;
 
 showCopy(PriceListType p) += p IS PriceListType AND NOT (p IS SystemLedgerPriceListType);
 
 name (SystemLedgerPriceListType type) += VARISTRING[100](staticCaption(type)) IF type IS SystemLedgerPriceListType;
-
-batch(SystemLedgerPriceListType type, Stock stock) += WHEN type == SystemLedgerPriceListType.accountPriceListType AND isCompany(stock)
-                                              THEN priceBatchLedger(stock);
 
 includeVAT 'Цена с НДС' = ABSTRACT CASE EXCLUSIVE BOOLEAN (SystemLedgerPriceListType);
 includeVAT (SystemLedgerPriceListType type) += includeVAT(type);
@@ -587,120 +582,6 @@ in = ABSTRACT CASE EXCLUSIVE BOOLEAN (PriceListLedger, SystemLedgerPriceListType
 price = ABSTRACT CASE EXCLUSIVE NUMERIC[16,4] (PriceListLedger, SystemLedgerPriceListType);
 in(PriceListLedger ledger, SystemLedgerPriceListType type) += in(ledger, type);
 price(PriceListLedger ledger, SystemLedgerPriceListType type) += price(ledger, type);
-
-// Учетные цены и суммы для товаров
-
-accountPriceA 'Учетная цена' (Sku sku, Stock stock, DATETIME dateTime) =
-    priceA(SystemLedgerPriceListType.accountPriceListType, sku, stock, dateTime);
-
-accountPriceA 'Учетная цена' (Sku sk, Stock st) = accountPriceA(sk, st, currentDateTime());
-
-currentAccountSum 'Сумма учетная' (Sku sku, Stock stock) =
-    currentBalance(sku, stock) * accountPriceA(sku, stock);
-
-diffAccountSum 'Разница' (Sku sku, Stock stock) = currentAccountSum(sku, stock) (-) currentSum(sku, stock);
-
-EXTEND FORM currentBalanceSkuStock
-    PROPERTIES(s, st) accountPriceA, currentAccountSum, diffAccountSum
-;
-
-//Учетные цены и суммы для партий
-accountPriceB 'Учетная цена товара в партии на начало дня' (Batch batch, Stock stock, DATE date) =
-    prevPriceB[LedgerPriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock, toDateTime(date));
-accountPriceA 'Учетная цена товара в партии на конец дня' (Batch batch, Stock stock, DATE date) =
-    prevPriceA[LedgerPriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock, toDateTime(sum(date,1)));
-accountSumB 'Учетная сумма на начало дня' (Batch batch, Stock stock, DATE date) =
-    balanceB(batch, stock, date) * accountPriceB(batch, stock, date);
-accountSumA 'Учетная сумма на конец дня' (Batch batch, Stock stock, DATE date) =
-    balanceA(batch, stock, date) * accountPriceA(batch, stock, date);
-accountSumBBatches 'Учетная сумма склада(по партиям) на начало дня' (stock, date) =
-    GROUP SUM accountSumB(Batch batch, Stock stock, DATE date)
-    BY stock, date;
-accountSumABatches 'Учетная сумма склада(по партиям) на конец дня' (stock, date) =
-    GROUP SUM accountSumA(Batch batch, Stock stock, DATE date)
-    BY stock, date;
-
-accountSumBSkuBatch 'Учетная сумма на начало дня(по партиям)' (group, stock, date) =
-    GROUP SUM accountSumB(Batch batch, Stock stock, DATE date)
-    BY group(GroupType groupType, sku(batch)), stock, date;
-accountSumRecBSkuBatch 'Учетная сумма на начало дня(по партиям)' (group, stock, date) =
-    GROUP SUM accountSumB(Batch batch, Stock stock, DATE date) IF isParent(Group group, batch)
-    BY group, stock, date;
-
-accountSumASkuBatch 'Учетная сумма на конец дня(по партиям)' (group, stock, date) =
-    GROUP SUM accountSumA(Batch batch, Stock stock, DATE date)
-    BY group(GroupType groupType, sku(batch)), stock, date;
-accountSumRecASkuBatch 'Учетная сумма на конец дня(по партиям)' (group, stock, date) =
-    GROUP SUM accountSumA(Batch batch, Stock stock, DATE date) IF isParent(Group group, batch)
-    BY group, stock, date;   
-
-//--
-accountPriceA 'Цена учетная' (Batch batch, Stock stock) =
-    prevPriceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock, currentDateTime());
-
-// Суммы остатков
-currentAccountSum 'Сумма учетная' (Batch batch, Stock stock) =
-    currentBalance(batch, stock) * accountPriceA(batch, stock);
-currentCostSum 'Сумма себестоимости' (Batch batch, Stock stock) =
-    currentBalance(batch, stock) * cost(batch);    
-
-currentAccountSumBatch 'Сумма учетная по партиям' (sku, stock) =
-    GROUP SUM currentAccountSum(Batch batch, Stock stock) BY sku(batch), stock;
-     
-currentCostSumBatch 'Сумма себестоимости по партиям' (sku, stock) =
-    GROUP SUM currentCostSum(Batch batch, Stock stock) BY sku(batch), stock;
-     
-averageCostPriceBatch 'Себестоимость (средневзв.)' = 
-    currentCostSumBatch(Sku sku, Stock stock) / currentBalance(sku, stock);   
-
-//--Дата/время    
-accountPriceB 'Учетная цена товара в партии' (Batch batch, Stock stock, DATETIME dateTime) =
-    prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);    
-accountSumB 'Сумма учетная' (Batch batch, Stock stock, DATETIME dateTime) =
-    balanceB(batch, stock, dateTime) * accountPriceB(batch, stock, dateTime);
-
-accountPriceA 'Учетная цена товара в партии' (Batch batch, Stock stock, DATETIME dateTime) =
-    prevPriceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);    
-accountSumA 'Сумма учетная' (Batch batch, Stock stock, DATETIME dateTime) =
-    balanceA(batch, stock, dateTime) * accountPriceA(batch, stock, dateTime);
-
-accountSumBatchB 'Сумма учетная по партиям' (sku, stock, dateTime) =
-    GROUP SUM accountSumB(Batch batch, Stock stock, DATETIME dateTime) BY sku(batch), stock, dateTime; 
-    
-accountSumBSkuBatch 'Учетная сумма на начало дня(по партиям)' (group, stock, dateTime) =
-    GROUP SUM accountSumB(Batch batch, Stock stock, DATETIME dateTime)
-    BY group(GroupType groupType, sku(batch)), stock, dateTime;
-accountSumRecBSkuBatch 'Учетная сумма (по партиям)' (group, stock, dateTime) =
-    GROUP SUM accountSumB(Batch batch, Stock stock, DATETIME dateTime) IF isParent(Group group, batch)
-    BY group, stock, dateTime;
-
-EXTEND FORM currentBalanceBatchStock
-    PROPERTIES(bt, st) READONLY BEFORE dateTime(bt) accountPriceA, currentAccountSum
-;
-EXTEND FORM balanceBatchStock
-    PROPERTIES(bt, st, t) READONLY BEFORE dateTime(bt) accountPriceB, accountSumB
-;
-
-EXTEND FORM dialogBatchStockOut
-    PROPERTIES(bt, st, t) READONLY accountPriceA
-    
-    FILTERGROUP account
-        FILTER 'С учетной ценой' accountPriceA(bt, st, t) DEFAULT
-;
-
-EXTEND FORM dialogBatchStockIn
-    PROPERTIES(bt, st, t) READONLY accountPriceA
-;
-
-// ------------------ Суммы по регистрам ------------------------ //
-
-accountPriceA 'Цена учетная' (SkuLedger ledger, Batch batch) = accountPriceA(batch, stock(ledger), dateTime(ledger));
-accountSumBatch 'Сумма по партиям' = GROUP SUM cost(SkuLedger l, Batch b) * accountPriceA(l, b) BY l;
-EXTEND FORM costSkuLedger 
-    PROPERTIES(bil) accountSumBatch AFTER sum(bil)
-    FILTERGROUP wrongSum
-        FILTER 'Неправильная сумма по партиям' NOT accountSumBatch(bil) == sum(bil) 'F4' 
-;
 
 // ----------------------------- Метакоды ------------------------ //
 
@@ -744,6 +625,23 @@ META deriveDocumentDetailPriceSystemLedgerPriceListType (concrete, priceListType
                                                     WHEN DO CHANGED(skuProp(detail)) OR
                                                          CHANGED(stockProp(detail)) OR
                                                          CHANGED(dateTime(detail));
+END
+
+META deriveDocumentDetailPriceAccountBatch (concrete, prefixP, skuProp, stockProp)
+    WHEN LOCAL (CHANGED(stockProp(###concrete##Detail detail)) OR
+                (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+                SETCHANGED(batch(detail))) AND batch(detail) AND NOT CHANGED(prefixP###price(detail)) DO
+        prefixP###price (detail) <- prevAccountPriceB(batch(detail), stockProp(detail), dateTime(detail));
+
+    WHEN LOCAL (CHANGED(skuProp(###concrete##Detail detail)) OR
+                CHANGED(stockProp(detail)) OR
+                (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+                DROPPED(batch(detail))) AND NOT batch(detail) AND NOT CHANGED(prefixP###price(detail)) DO
+        prefixP###price (detail) <- prevAccountPriceB(sku(detail), stockProp(detail), dateTime(detail));
+END
+
+META deriveDocumentDetailPriceAccountBatch (concrete, skuProp, stockProp)
+    @deriveDocumentDetailPriceAccountBatch (concrete, , skuProp, stockProp);
 END
 
 META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (concrete, priceListTypeProp, prefixP, prefixB, skuProp, stockProp)

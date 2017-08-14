@@ -5,6 +5,7 @@ REQUIRE System,
         Sku,
         InventoryOperation,
         PriceListLedger,
+        PriceListAccount,
         StockSkuDocument,
         Numerator,
         Barcode,
@@ -294,11 +295,11 @@ costSumBatch 'Сумма(себестоимость)' (PageInventoryDetail pageI
 @defineDocumentHeaderSum(pageInventory);
 
 WHEN LOCAL (CHANGED(sku(PageInventoryDetail detail)) OR CHANGED(batch(detail)) OR CHANGED (dateTime(detail))) AND batch(detail) DO {
-    price (detail)  <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(detail), stock(detail), dateTime(detail));
+    price (detail)  <- prevAccountPriceB(batch(detail), stock(detail), dateTime(detail));
 }
 
 WHEN LOCAL (CHANGED(sku(PageInventoryDetail detail)) OR CHANGED(batch(detail)) OR CHANGED (dateTime(detail))) AND NOT batch(detail) DO {
-    price (detail)  <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail));
+    price (detail)  <- prevAccountPriceB(sku(detail), stock(detail), dateTime(detail));
 }
 
 replace(Sku s, Batch b) += { sku(PageInventoryDetail detail) <- s WHERE batch(detail) == b;} 
@@ -492,17 +493,17 @@ overPriceBalance = ABSTRACT NUMERIC[16,4](CollationSheet, Sku);
 recalculatePrice 'Пересчитать цены в сличительной ведомости' (CollationSheet collationSheet) = {
     IF isBatch (collationSheet) THEN {
         price(PageInventoryDetail pageInventoryDetail)
-            <- OVERRIDE prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(pageInventoryDetail), stock(pageInventoryDetail), dateTime(pageInventoryDetail)), overPriceBalance(collationSheet, sku(pageInventoryDetail))
+            <- OVERRIDE prevAccountPriceB(batch(pageInventoryDetail), stock(pageInventoryDetail), dateTime(pageInventoryDetail)), overPriceBalance(collationSheet, sku(pageInventoryDetail))
             WHERE collationSheet(pageInventoryDetail) == collationSheet;
     } ELSE {
         price(PageInventoryDetail pageInventoryDetail)
-            <- OVERRIDE prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(pageInventoryDetail), stock(pageInventoryDetail), dateTime(pageInventoryDetail)), overPriceBalance(collationSheet, sku(pageInventoryDetail))
+            <- OVERRIDE prevAccountPriceB(sku(pageInventoryDetail), stock(pageInventoryDetail), dateTime(pageInventoryDetail)), overPriceBalance(collationSheet, sku(pageInventoryDetail))
             WHERE collationSheet(pageInventoryDetail) == collationSheet;
     }
 
     IF isPartly(inventory(collationSheet)) AND isRemains(inventory(collationSheet)) THEN { 
         priceBalance(collationSheet, Sku sku)
-            <- OVERRIDE prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku)
+            <- OVERRIDE prevAccountPriceB(sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku)
             WHERE include(inventory(collationSheet), sku);
             
         IF NOT isPrice(inventory(collationSheet)) THEN {
@@ -518,13 +519,13 @@ recalculatePrice 'Пересчитать цены в сличительной в
         
         IF isBatch (collationSheet) THEN {
             priceBalance(collationSheet, Batch batch)
-                <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch, stock(collationSheet), dateTime(inventory(collationSheet)))
+                <- prevAccountPriceB(batch, stock(collationSheet), dateTime(inventory(collationSheet)))
             WHERE include(inventory(collationSheet), sku(batch));
         }        
     }
     ELSE {
         priceBalance(collationSheet, Sku sku)
-            <- OVERRIDE prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku);
+            <- OVERRIDE prevAccountPriceB(sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku);
             
         IF NOT isPrice(inventory(collationSheet)) THEN {
             sumBalance(collationSheet, Sku sku)
@@ -538,7 +539,7 @@ recalculatePrice 'Пересчитать цены в сличительной в
         
         IF isBatch (collationSheet) THEN {
             priceBalance(collationSheet, Batch batch)
-                <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch, stock(collationSheet), dateTime(inventory(collationSheet)));
+                <- prevAccountPriceB(batch, stock(collationSheet), dateTime(inventory(collationSheet)));
         }
     }
 } CONFIRM IN inventoryAction;
@@ -694,7 +695,7 @@ include(CollationSheet collationSheet, Sku sku) = MULTI
     (collationSheet IS RemainsCollationSheet IF (quantityBalance(collationSheet, sku) != 0 OR sumBalance(collationSheet, sku) OR quantityPageInventoryDetail(collationSheet, sku)));
 overInclude = ABSTRACT BOOLEAN (CollationSheet, Sku);
 
-priceBalance(CollationSheet collationSheet, Sku sku) <- OVERRIDE prevPriceB(SystemLedgerPriceListType.accountPriceListType,
+priceBalance(CollationSheet collationSheet, Sku sku) <- OVERRIDE prevAccountPriceB(
                 sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku)
                 WHEN SET(include(collationSheet, sku));
 
@@ -704,7 +705,7 @@ include(collationSheet, batch) = DATA BOOLEAN (CollationSheet, Batch);
 include(CollationSheet collationSheet, Batch batch) <- include(collationSheet, PREV(sku(batch))) AND isBatch(collationSheet)
                         WHEN [= CHANGED(include(CollationSheet collationSheet, Sku sku))](collationSheet, PREV(sku(batch)));
 
-priceBalance(CollationSheet collationSheet, Batch batch) <- prevPriceB(SystemLedgerPriceListType.accountPriceListType,
+priceBalance(CollationSheet collationSheet, Batch batch) <- prevAccountPriceB(
                 batch, stock(collationSheet), dateTime(inventory(collationSheet)))
                 WHEN SET(include(collationSheet, batch));
 
@@ -886,7 +887,7 @@ overReplace(Sku d) += {
         WHERE sku(batch)==d AND countPageInventoryDetail(collationSheet, d) AND isBatch(inventory(collationSheet));        
         
     priceBalance(CollationSheet collationSheet, d)
-        <- OVERRIDE prevPriceB(SystemLedgerPriceListType.accountPriceListType, d, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, d)
+        <- OVERRIDE prevAccountPriceB(d, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, d)
         WHERE countPageInventoryDetail(collationSheet, d);
 
     sumBalance(CollationSheet collationSheet, d)
@@ -898,7 +899,7 @@ overReplace(Sku d) += {
         WHERE countPageInventoryDetail(collationSheet, d) AND isPrice(inventory(collationSheet));
         
     priceBalance(CollationSheet collationSheet, Batch batch)
-        <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch, stock(collationSheet), dateTime(inventory(collationSheet)))
+        <- prevAccountPriceB(batch, stock(collationSheet), dateTime(inventory(collationSheet)))
         WHERE sku(batch)==d  AND countPageInventoryDetail(collationSheet, d) AND isBatch(collationSheet);     
 }                                                                                
 
@@ -1302,7 +1303,7 @@ createPage 'Создать страницу описи с остатками'  (
                     pageInventory(d) <- p;
                     sku(d) <- sk;
                     quantity(d) <- cnt;
-                    price(d) <- prevPriceA[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sk, stock(listInventory), dateTime(inventory(listInventory)));
+                    price(d) <- prevAccountPriceA(sk, stock(listInventory), dateTime(inventory(listInventory)));
                 }        
             }          
         }

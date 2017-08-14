@@ -366,20 +366,13 @@ WHEN LOCAL FORMS userWriteOff CHANGED(batch(UserWriteOffDetail detail)) DO {
     sku (detail)  <- sku(batch(detail)) WHERE batch(detail);
 }
 
-WHEN LOCAL FORMS userWriteOff 
-    CHANGED(sku(UserWriteOffDetail detail)) OR
-    CHANGED(batch(detail)) OR
-    CHANGED(stock(detail)) OR
-    (CHANGED (dateTime(detail)) AND NOT isPosted(detail)) DO
-    price (detail)  <- IF batch(detail)
-                    THEN prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(detail), stock(detail), dateTime(detail))
-                    ELSE prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail));
+@deriveDocumentDetailPriceAccountBatch(userWriteOff, sku, stock);
 
 //-- SKU
-@defineDocumentSkuStockPriceListTypeSystemLedger(userWriteOff, accountPriceListType, );
+@defineDocumentSkuStockPriceListTypeSystemLedger(userWriteOff, );
 @extendFormDocumentSkuStock(userWriteOff, userWriteOff, w, legalEntityStock, );
 
-@defineDocumentBatchStockPriceListTypeSystemLedger(userWriteOff, accountPriceListType, );
+@defineDocumentBatchStockPriceListTypeSystemLedger(userWriteOff, );
 @extendFormDocumentBatchStock(userWriteOff, userWriteOff, w, legalEntityStock, );
 
 @defineMovementSku(writeOffDetail, stock); //-- показываем по нажатию правой клавиши движение товара

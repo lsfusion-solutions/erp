@@ -131,29 +131,20 @@ EXTEND FORM userShipment
 // --------------------------- Расчет учетной цены для поставки --------------------- //
 
 // Для поставки
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userShipment, accountPriceListType, sku, customerStock);
+@deriveDocumentDetailPriceAccountBatch (userShipment, sku, customerStock);
 
-extraShipmentPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail);
+disableUpdateShipmentPrice = ABSTRACT BOOLEAN (UserInvoiceDetail);
 
-// Для накладной
-calcShipmentPrice(UserInvoiceDetail detail) = IF batch(detail)
+WHEN LOCAL (CHANGED(customerStock(UserInvoiceDetail detail)) OR
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+            SETCHANGED(batch(detail))) AND batch(detail) AND NOT CHANGED(shipmentPrice(detail)) AND NOT disableUpdateShipmentPrice(detail) DO
+    shipmentPrice (detail) <- prevAccountPriceB(batch(detail), customerStock(detail), dateTime(detail));
 
-                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
-                                                                                                   batch(detail),
-                                                                                                   customerStock(detail),
-                                                                                                   dateTime(detail))
-                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
-                                                                                                 sku(detail),
-                                                                                                 customerStock(detail),
-                                                                                                 dateTime(detail));
-
-WHEN LOCAL CHANGED(sku(UserInvoiceDetail detail)) OR 
-             CHANGED(customerStock(detail)) OR 
-             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-             CHANGED(batch(detail)) OR 
-             CHANGED(extraShipmentPrice(detail)) DO {   
-    shipmentPrice (detail)  <- calcShipmentPrice(detail) (+) extraShipmentPrice(detail);
-}                                                                                                 
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
+            CHANGED(customerStock(detail)) OR
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+            DROPPED(batch(detail))) AND NOT batch(detail) AND NOT CHANGED(shipmentPrice(detail)) AND NOT disableUpdateShipmentPrice(detail) DO
+    shipmentPrice (detail) <- prevAccountPriceB(sku(detail), customerStock(detail), dateTime(detail));
 
 //@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userInvoice, accountPriceListType, shipment, , sku, customerStock){
 //    shipmentPrice (UserInvoiceDetail detail)  <- IF batch(detail)

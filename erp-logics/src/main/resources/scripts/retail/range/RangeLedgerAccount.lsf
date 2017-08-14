@@ -1,0 +1,22 @@
+MODULE RangeLedgerAccount;
+
+REQUIRE Range, PriceListLedgerAccount;
+
+NAMESPACE Range;
+
+priceB 'Цена' (type, sku, store, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), store(stock), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
+prevPriceB 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Store store, DATETIME dateTime) = PREV(priceB(type, sku, store, dateTime)) COMPLEX;
+                                                                                        
+lastAccountPrice 'Учетная цена' (Sku sku, Store store) = prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku, store, currentDateTime());                                                                                      
+
+EXTEND FORM currentBalanceSku
+    PROPERTIES READONLY lastAccountPrice(s,st)
+;
+
+EXTEND FORM rangeRev
+    PROPERTIES READONLY lastAccountPrice(s,store)
+;

@@ -1,0 +1,58 @@
+MODULE PriceListAccount;
+
+REQUIRE PriceListType;
+
+NAMESPACE PriceList;
+
+// ------------- Учетные цены
+
+// По Sku
+accountPriceB 'Учетная цена' = ABSTRACT NUMERIC[16,4] (Sku, Stock, DATETIME);
+prevAccountPriceB 'Учетная цена' (Sku sk, Stock st, DATETIME dt)= PREV(accountPriceB(sk, st, dt));
+
+accountPriceA 'Учетная цена' = ABSTRACT NUMERIC[16,4] (Sku, Stock, DATETIME);
+prevAccountPriceA 'Учетная цена' (Sku sk, Stock st, DATETIME dt)= PREV(accountPriceA(sk, st, dt));
+
+accountPriceA 'Учетная цена' (Sku sk, Stock st) = accountPriceA(sk, st, currentDateTime());
+
+currentAccountSum 'Сумма учетная' (Sku sku, Stock stock) =
+    currentBalance(sku, stock) * accountPriceA(sku, stock);
+
+diffAccountSum 'Разница' (Sku sku, Stock stock) = currentAccountSum(sku, stock) (-) currentSum(sku, stock);
+
+EXTEND FORM currentBalanceSkuStock
+    PROPERTIES(s, st) accountPriceA, currentAccountSum, diffAccountSum
+;
+
+// По партиям
+
+accountPriceB 'Учетная цена' = ABSTRACT NUMERIC[16,4] (Batch, Stock, DATETIME) COMPLEX;
+prevAccountPriceB 'Учетная цена' (Batch bt, Stock st, DATETIME dt)= PREV(accountPriceB(bt, st, dt)) COMPLEX;
+
+accountPriceA 'Учетная цена' = ABSTRACT NUMERIC[16,4] (Batch, Stock, DATETIME) COMPLEX;
+prevAccountPriceA 'Учетная цена' (Batch bt, Stock st, DATETIME dt)= PREV(accountPriceA(bt, st, dt)) COMPLEX;
+
+accountPriceB 'Учетная цена товара в партии на начало дня' (Batch bt, Stock st, DATE dt) = accountPriceB(bt, st, toDateTime(dt));
+accountPriceA 'Учетная цена товара в партии на начало дня' (Batch bt, Stock st, DATE dt) = accountPriceA(bt, st, toDateTime(sum(dt, 1)));
+
+accountPriceA 'Цена учетная' (Batch batch, Stock stock) = accountPriceA(batch, stock, currentDateTime());
+
+//Учетные цены и суммы для партий
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES(bt, st) READONLY BEFORE dateTime(bt) accountPriceA
+;
+EXTEND FORM balanceBatchStock
+    PROPERTIES(bt, st, t) READONLY BEFORE dateTime(bt) accountPriceB
+;
+
+EXTEND FORM dialogBatchStockOut
+    PROPERTIES(bt, st, t) READONLY accountPriceA
+    
+    FILTERGROUP account
+        FILTER 'С учетной ценой' accountPriceA(bt, st, t) DEFAULT
+;
+
+EXTEND FORM dialogBatchStockIn
+    PROPERTIES(bt, st, t) READONLY accountPriceA
+;

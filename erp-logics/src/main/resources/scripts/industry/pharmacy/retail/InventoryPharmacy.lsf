@@ -19,7 +19,7 @@ CONSTRAINT isRetailPharmacy(inventory(ListInventory li)) AND countPageInventory(
 CONSTRAINT isRetailPharmacy(Inventory li) AND countListInventory(li)>1.0
     MESSAGE 'В инвентаризации по аптеке должна быть только 1 опись';
     
-currentPrice 'Розничная цена' (Batch batch, PageInventory li) = prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch, stock(listInventory(li)), dateTime(listInventory(li))) MATERIALIZED;
+currentPrice 'Розничная цена' (Batch batch, PageInventory li) = prevAccountPriceB(batch, stock(listInventory(li)), dateTime(listInventory(li))) MATERIALIZED;
 
 changeQuantityValue (Batch batch, PageInventory li, NUMERIC[16,5] n) =  {
     IF pageInventoryDetail(batch, li) THEN {
@@ -31,7 +31,7 @@ changeQuantityValue (Batch batch, PageInventory li, NUMERIC[16,5] n) =  {
             sku(d) <- sku(batch);
             batch(d) <- batch;
             quantity(d) <- n;
-            price (d)  <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(d), stock(d), dateTime(d));
+            price (d)  <- prevAccountPriceB(batch(d), stock(d), dateTime(d));
         }
         APPLY {};
     }
@@ -108,7 +108,7 @@ changeBlisterQuantity(Batch batch, PageInventory li) = {
                     sku(d) <- sku(batch);
                     batch(d) <- batch;
                     quantity(d) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), 3));
-                    price (d)  <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(d), stock(d), dateTime(d));
+                    price (d)  <- prevAccountPriceB(batch(d), stock(d), dateTime(d));
                 }
                 APPLY {};
             }
@@ -126,7 +126,7 @@ changeBlisterQuantityValue (Batch batch, PageInventory li, NUMERIC[16,4] i) = {
                 sku(d) <- sku(batch);
                 batch(d) <- batch;
                 quantity(d) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), 3));
-                price (d)  <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(d), stock(d), dateTime(d));
+                price (d)  <- prevAccountPriceB(batch(d), stock(d), dateTime(d));
             }
             APPLY {};
         }

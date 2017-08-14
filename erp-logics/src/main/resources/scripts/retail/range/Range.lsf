@@ -167,15 +167,6 @@ sumSold 'Продано за интервал (сумма)' (store, sku, dateFro
 dateTimeLastMoved 'Время последнего движения' = GROUP MAX dateTimeLastMoved (Sku sku, DepartmentStore stock) BY sku, store(stock);
 dateLastMoved 'Дата последнего движения'= toDate(dateTimeLastMoved(Sku s,Store st));
                                                                                        
-priceB 'Цена' (type, sku, store, dateTime) =
-    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
-          BY type, sku(ledger, type, stock), store(stock), DATETIME dateTimeIn
-          ORDER fromDateTime(ledger, type, stock), ledger
-          WHERE fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
-prevPriceB 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Store store, DATETIME dateTime) = PREV(priceB(type, sku, store, dateTime)) COMPLEX;
-                                                                                        
-lastAccountPrice 'Учетная цена' (Sku sku, Store store) = prevPriceB(SystemLedgerPriceListType.accountPriceListType,sku,store,currentDateTime());                                                                                      
-
 hasSkus 'Кол-во наименований по всему поставщику' (v, supplier, pt, d) = GROUP SUM 1 IF inChild(range(RangeRev v), Sku sku) 
     BY v, companyA(LedgerPriceListType pt, sku, Stock d, dateTime(v)), pt, d;
     
@@ -194,7 +185,7 @@ FORM currentBalanceSku 'Текущие остатки'
     PROPERTIES name(s) READONLY 
         
     OBJECTS st = Store
-    PROPERTIES  READONLY name(st), currentBalance(s,st), dateTimeLastMoved(s,st), dateTimeLastOrderBatch(s,st), lastAccountPrice(s,st)
+    PROPERTIES  READONLY name(st), currentBalance(s,st), dateTimeLastMoved(s,st), dateTimeLastOrderBatch(s,st)
     FILTERS currentBalance(s,st)
 ;
 reviewCurrentBalance (Sku sku) = { SHOW currentBalanceSku OBJECTS s=sku ; }
@@ -273,7 +264,7 @@ FORM rangeRev 'Версия ассортиментной матрицы'
             
     OBJECTS store = Store
     PROPERTIES  READONLY name(store), nameStoreType(store), currentBalance(s,store), dateLastMoved(s,store), 
-                dateLastOrderBatch(s,store), nameSupplierLastBatch(s,store), lastAccountPrice(s,store),
+                dateLastOrderBatch(s,store), nameSupplierLastBatch(s,store),
                 quantitySold(store,s,dFrom,dTo), sumSold(store,s,dFrom,dTo)
     ORDER BY nameStoreType(store)
     FILTERS quantitySold(store,s,dFrom,dTo) OR sumSold(store,s,dFrom,dTo) OR currentBalance(s,store)         

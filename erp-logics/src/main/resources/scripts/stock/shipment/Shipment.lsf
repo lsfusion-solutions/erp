@@ -1,6 +1,6 @@
 MODULE Shipment;
 
-REQUIRE Document, StockSkuDocument, Barcode, Operation;
+REQUIRE Document, StockSkuDocument, Barcode, Operation, PriceListAccount;
 
 CLASS ABSTRACT Shipment 'Поставка' : Document;
 CLASS ABSTRACT ShipmentDetail 'Строка поставки' : DocumentDetail;
@@ -401,7 +401,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         PROPERTY(deleteUserShipmentDetail(s)){focusable = FALSE;}
     }
 
-    @defineDocumentSkuPriceListTypeSystemLedger(userShipment, accountPriceListType, stock, stockProp);
+    @defineDocumentSkuPriceListTypeSystemLedger(userShipment, stock, stockProp);
     @extendFormDocumentSku(userShipment, userShipmentDetail, userShipment, s, sku, stockProp##Stock);
     
     overCopy = ABSTRACT LIST (UserShipmentDetail, ShipmentDetail);
@@ -628,7 +628,7 @@ META defineShipmentBatch(stockProp)
     @defineMovementBatch(userShipmentDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
 
     // Подбор по партиям
-    @defineDocumentBatchPriceListTypeSystemLedger(userShipment, accountPriceListType, stock, supplier);
+    @defineDocumentBatchPriceListTypeSystemLedger(userShipment, stock, supplier);
     @extendFormDocumentBatch(userShipment, userShipment, s);
 
     replace(Sku s, Batch b) += { sku(UserShipmentDetail detail) <- s WHERE batch[ShipmentDetail](detail) == b;}

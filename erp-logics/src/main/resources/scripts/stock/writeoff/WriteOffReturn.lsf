@@ -51,11 +51,7 @@ changeBatch(UserWriteOffDetail userWriteOffDetail) = {
 @defineDocumentInterfaceDetailDataSum(writeOff);
 @deriveDocumentDetailSum(userWriteOff, quantity);
 
-price (UserWriteOffDetail detail)  <- IF batch(detail)
-                THEN prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(detail), stock(detail), dateTime(detail))
-                ELSE prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail))
-                WHEN CHANGED(sku(detail)) OR CHANGED(batch(detail)) OR CHANGED(stock(detail)) OR CHANGED (dateTime(detail));
-
+@deriveDocumentDetailPriceAccountBatch(userWriteOff, sku, stock);
 
 @defineDocumentInterfaceHeaderQuantity(writeOff);
 @defineDocumentHeaderSkuQuantity(writeOff, sku);
@@ -199,10 +195,10 @@ WHEN LOCAL FORMS userWriteOff CHANGED(batch(UserWriteOffDetail detail)) DO {
     sku (detail)  <- sku(batch(detail)) IF batch(detail);
 }
 //-- SKU
-@defineDocumentSkuStockPriceListTypeSystemLedger(userWriteOff, accountPriceListType, );
+@defineDocumentSkuStockPriceListTypeSystemLedger(userWriteOff, );
 @extendFormDocumentSkuStock(userWriteOff, userWriteOff, w, legalEntityStock, );
 
-@defineDocumentBatchStockPriceListTypeSystemLedger(userWriteOff, accountPriceListType, );
+@defineDocumentBatchStockPriceListTypeSystemLedger(userWriteOff, );
 @extendFormDocumentBatchStock(userWriteOff, userWriteOff, w, legalEntityStock, );
 
 @defineMovementSku(writeOffDetail, stock); //-- показываем по нажатию правой клавиши движение товара

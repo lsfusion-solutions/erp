@@ -22,9 +22,9 @@ META defineDocumentSkuPriceListTypeAgreement(object, stockProp, prefix)
             viewPrice(sku, object) <- prevPriceB(pt, sku, stockProp##Stock(object), dateTime(object));
     }
 END
-META defineDocumentSkuPriceListTypeSystemLedger(object, priceListTypeProp, stockClass, stockProp)
+META defineDocumentSkuPriceListTypeSystemLedger(object, stockClass, stockProp)
     @defineDocumentSku(object, sku, stockClass, stockProp);
-    price 'Цена' (Sku sku, ###object object) = prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.##priceListTypeProp, sku, stockProp###stockClass(object), dateTime(object));
+    price 'Цена' (Sku sku, ###object object) = prevAccountPriceB(sku, stockProp###stockClass(object), dateTime(object));
 END
 
 META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
@@ -208,9 +208,9 @@ META defineDocumentBatchPriceListTypeAgreement(object, stockProp, prefix)
     }
 END
 
-META defineDocumentBatchPriceListTypeSystemLedger(object, priceListTypeProp, stockClass, stockProp)
+META defineDocumentBatchPriceListTypeSystemLedger(object, stockClass, stockProp)
     @defineDocumentBatch(object, batch, sku, stockClass, stockProp);
-    price 'Цена' (Batch batch, ###object object) = prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.##priceListTypeProp, batch, stockProp###stockClass(object), dateTime(object));
+    price 'Цена' (Batch batch, ###object object) = prevAccountPriceB(batch, stockProp###stockClass(object), dateTime(object));
 END
 
 META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockProp)
@@ -323,6 +323,22 @@ END
 
 //задание цены для подбора
 
+META extendFormDocumentAccountPriceSku (object, stockProp, caption, form, char, showif)
+    priceAccountPriceListType 'Цена'##caption (Sku sku, ###form object) = prevAccountPriceB(sku, stockProp(object), dateTime(object));
+
+    EXTEND FORM form
+        PROPERTIES(ks, char) READONLY priceAccountPriceListType SHOWIF showif(char)
+    ;
+END
+
+META extendFormDocumentAccountPriceBatch (object, stockProp, caption, form, char, showif)
+    priceAccountPriceListType 'Цена'##caption (Batch batch, ###form object) = prevAccountPriceB(batch, stockProp(object), dateTime(object));
+
+    EXTEND FORM form
+        PROPERTIES(b, char) READONLY priceAccountPriceListType SHOWIF showif(char)
+    ;
+END
+
 META extendFormDocumentPriceSku (object, priceListTypeProp, stockProp, caption, form, char, showif)
     price###priceListTypeProp 'Цена'##caption (Sku sku, ###form object) = prevPriceB(SystemLedgerPriceListType.##priceListTypeProp, sku, stockProp(object), dateTime(object));
 
@@ -367,9 +383,9 @@ META defineDocumentSkuStockPriceListTypeAgreement(object, stockProp)
             viewPrice(sku, stock, object) <- prevPriceB(pt, sku, IF overPriceStockUser(object) THEN overPriceStockUser(object) ELSE stock, dateTime(object));
     }
 END
-META defineDocumentSkuStockPriceListTypeSystemLedger(object, priceListTypeProp, stockProp)
+META defineDocumentSkuStockPriceListTypeSystemLedger(object, stockProp)
     @defineDocumentSkuStock(object, sku, stockProp);
-    price 'Цена' (Sku sku, Stock stock, ###object object) = prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.##priceListTypeProp, sku, stock, dateTime(object));
+    price 'Цена' (Sku sku, Stock stock, ###object object) = prevAccountPriceB(sku, stock, dateTime(object));
 END
 
 META defineDocumentSkuStock(object, detail, skuProp, stockProp)
@@ -538,9 +554,9 @@ META defineDocumentBatchStockPriceListTypeAgreement(object, stockProp)
             viewPrice(batch, stock, object) <- prevPriceB(pt, batch, IF overPriceStockUser(object) THEN overPriceStockUser(object) ELSE stock, dateTime(object));
     }
 END
-META defineDocumentBatchStockPriceListTypeSystemLedger(object, priceListTypeProp, stockProp)
+META defineDocumentBatchStockPriceListTypeSystemLedger(object, stockProp)
     @defineDocumentBatchStock(object, batch, sku, stockProp);
-    price 'Цена' (Batch batch, Stock stock, ###object object) = prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.##priceListTypeProp, batch, stock, dateTime(object));
+    price 'Цена' (Batch batch, Stock stock, ###object object) = prevAccountPriceB(batch, stock, dateTime(object));
 END
 
 META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)

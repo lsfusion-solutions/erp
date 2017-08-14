@@ -1,14 +1,14 @@
 MODULE StockMovement;
 
-REQUIRE SkuLedger, EmployeeStock, PriceListLedger, StockDocumentSkuLedger;
+REQUIRE SkuLedger, EmployeeStock, PriceListLedger, PriceListAccount, StockDocumentSkuLedger;
 
 NAMESPACE Stock;
 
 // -------------------------------- Движение товара -------------------------- //
 
-currentAccountPriceA 'Цена учетная' (Sku sku, Stock stock) = prevPriceA[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, stock, currentDateTime());
-accountPriceA 'Цена учетная' (Sku sku, Stock stock, SkuLedger ledger) = prevPriceA[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, stock, dateTime(ledger));
-accountPriceA 'Цена учетная' (Sku sku, SkuLedger ledger)= prevPriceA[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, stock(ledger), dateTime(ledger));
+currentAccountPriceA 'Цена учетная' (Sku sku, Stock stock) = prevAccountPriceA(sku, stock, currentDateTime());
+accountPriceA 'Цена учетная' (Sku sku, Stock stock, SkuLedger ledger) = prevAccountPriceA(sku, stock, dateTime(ledger));
+accountPriceA 'Цена учетная' (Sku sku, SkuLedger ledger)= prevAccountPriceA(sku, stock(ledger), dateTime(ledger));
 
 filterSkuLedgerDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterDateFrom (SkuLedger i) = date(i) >= filterSkuLedgerDateFrom() OR (i IS SkuLedger AND NOT filterSkuLedgerDateFrom());      
@@ -152,8 +152,8 @@ showMovementSkuStocks 'Показать движение товара по ск�
 
 // -------------------------------- Движение по партии -------------------------- //
 balanceA 'Остаток (после)' (Batch batch, SkuLedger ledger) = balanceA(batch, stock(ledger), dateTime(ledger));
-accountPriceA 'Цена учетная' (Batch batch, Stock stock, SkuLedger ledger)= prevPriceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime(ledger));
-accountPriceA 'Цена учетная' (Batch batch, SkuLedger ledger)= prevPriceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock(ledger), dateTime(ledger));
+accountPriceA 'Цена учетная' (Batch batch, Stock stock, SkuLedger ledger)= prevAccountPriceA(batch, stock, dateTime(ledger));
+accountPriceA 'Цена учетная' (Batch batch, SkuLedger ledger)= prevAccountPriceA(batch, stock(ledger), dateTime(ledger));
 
 FORM movementBatch 'Движение по партии'
     OBJECTS bt = Batch PANEL

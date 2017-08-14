@@ -1,6 +1,6 @@
 MODULE StockReports;
 
-REQUIRE EmployeeStock, Barcode, PriceListLedger, StockSkuDocument, OrderLedger;
+REQUIRE EmployeeStock, Barcode, PriceListLedger, StockSkuDocument, OrderLedger, PriceListLedgerAccount;
 
 quantityChildWithSession (group) = GROUP SUM 1 IF dataInSession(Group childGroup) AND isParent(childGroup, Group group) BY group;
 quantityParentWithSession (group) = GROUP SUM 1 IF dataInSession(Group parentGroup) AND isParent(Group group, parentGroup) BY group;                                                                        
@@ -177,7 +177,7 @@ printListBalanceSkus 'Списком' (DATETIME dateTime, GroupType gtype) =
     { PRINT printListBalanceSkusStock OBJECTS d = dateTime, gt = gtype; } IMAGE 'print.png' IN print;  
 
 accountPriceB 'Цена учетная' (Sku sku, DATETIME dateTime) = 
-    NUMERIC[16,4]([ = GROUP MAX prevPriceB(SystemLedgerPriceListType.accountPriceListType, Sku sku, Stock st, DATETIME dt) IF inBackSheet(st) BY sku, dt](sku, dateTime));
+    NUMERIC[16,4]([ = GROUP MAX prevAccountPriceB(Sku sku, Stock st, DATETIME dt) IF inBackSheet(st) BY sku, dt](sku, dateTime));
 
 FORM printBalanceSkusStock 'Остатки по товарам'
     OBJECTS d = DATETIME PANEL

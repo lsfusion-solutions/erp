@@ -14,6 +14,7 @@ REQUIRE System,
         StockMovement,
         StockAdjustmentOperation,
         OrderLedger,
+        PriceListAccount,
         Barcode;
 
 NAMESPACE Stock;
@@ -54,13 +55,7 @@ replace(Sku s, Batch b) += { sku(UserAdjustmentDetail detail) <- s WHERE batch(d
 id = DATA VARSTRING[100] (UserAdjustmentDetail);
 userAdjustmentDetail (id, userAdjustment) = GROUP AGGR UserAdjustmentDetail userAdjustmentDetail BY id(userAdjustmentDetail), userAdjustment(userAdjustmentDetail) WHERE userAdjustmentDetail IS UserAdjustmentDetail;
 
-WHEN LOCAL (CHANGED(sku(UserAdjustmentDetail detail)) OR CHANGED(batch(detail)) OR CHANGED(stock(detail)) OR CHANGED (dateTime(detail))) AND batch(detail) DO {
-    price (detail)  <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(detail), stock(detail), dateTime(detail));
-}
-
-WHEN LOCAL (CHANGED(sku(UserAdjustmentDetail detail)) OR CHANGED(batch(detail)) OR CHANGED(stock(detail)) OR CHANGED (dateTime(detail))) AND NOT batch(detail) DO {
-    price (detail) <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail));
-}
+@deriveDocumentDetailPriceAccountBatch(userAdjustment, sku, stock);
 
 @defineDocumentInterfaceDetailDataSum(adjustment);
 @deriveDocumentDetailSum(userAdjustment, quantity);
@@ -195,10 +190,10 @@ DESIGN userAdjustment {
 }
 
 //-- SKU
-@defineDocumentSkuStockPriceListTypeSystemLedger(userAdjustment, accountPriceListType, );
+@defineDocumentSkuStockPriceListTypeSystemLedger(userAdjustment, );
 @extendFormDocumentSkuStock(userAdjustment, userAdjustment, i, legalEntityStock, );
 
-@defineDocumentBatchStockPriceListTypeSystemLedger(userAdjustment, accountPriceListType, );
+@defineDocumentBatchStockPriceListTypeSystemLedger(userAdjustment, );
 @extendFormDocumentBatchStock(userAdjustment, userAdjustment, i, legalEntityStock, );
 
 EXTEND FORM userAdjustment
@@ -579,7 +574,7 @@ operation[StockDocumentLedger](InAdjustment ledger) += operation(adjustment(ledg
 stockDocumentLedger(OutAdjustmentSkuDetail d) += [=OVERRIDE OutAdjustment(A), InAdjustment(A)] (adjustment(adjustmentDetail[OutAdjustmentSkuDetail](d)));
 stockDocumentLedger(InAdjustmentSkuDetail d) += [=OVERRIDE OutAdjustment(A), InAdjustment(A)](adjustment(adjustmentDetail[InAdjustmentSkuDetail](d)));
 
-calcSumB (Sku sku,Stock st,DATETIME dateTime) = balanceB(sku,st,dateTime) * prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku, st, dateTime);
+calcSumB (Sku sku,Stock st,DATETIME dateTime) = balanceB(sku,st,dateTime) * prevAccountPriceB(sku, st, dateTime);
 needCreateAdjustment = (calcSumB (Sku sku,Stock st,DATETIME dateTime) OR  sumB (sku,st,dateTime)) AND NOT (calcSumB (sku,st,dateTime) ==  sumB (sku,st,dateTime));  
 
 createUserAdjustment(DATETIME dateTime) = {
@@ -781,7 +776,7 @@ createBatchUserAdjustment 'Документ пересорта'() = {
 
 //------------------------------- Корректировка суммы ТО -----------------------//
 
-accountSumB 'Учетная сумма'  (Sku s, Stock st, DATETIME dt)= balanceB(s,st,dt) * prevPriceB(SystemLedgerPriceListType.accountPriceListType, s, st, dt);
+accountSumB 'Учетная сумма'  (Sku s, Stock st, DATETIME dt)= balanceB(s,st,dt) * prevAccountPriceB(s, st, dt);
 diff 'Разница' (Sku s, Stock st, DATETIME dt) = sumB(s,st,dt)(-) accountSumB(s,st,dt);
 
 createSumUserAdjustment (UserAdjustment adjustment) = {

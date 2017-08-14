@@ -47,17 +47,13 @@ NAMESPACE Sale;
       
 @defineInvoiceOrderShipment(' (продажа)', Sale);    
 disableUpdateShipmentPrice = ABSTRACT BOOLEAN (UserOrderDetail);
-WHEN LOCAL (CHANGED(sku(UserOrderDetail detail)) OR
-              CHANGED(supplierStock(detail)) OR
-              CHANGED(shipmentDateTime(detail)) OR
-              CHANGED(batch(detail))) AND NOT CHANGED(shipmentPrice(detail)) AND NOT disableUpdateShipmentPrice(detail) DO 
-    shipmentPrice (detail)  <- IF batch(detail)
+WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR
+            CHANGED(shipmentDateTime(detail)) OR
+            SETCHANGED(batch(detail))) AND batch(detail) AND NOT CHANGED(shipmentPrice(detail)) AND NOT disableUpdateShipmentPrice(detail) DO 
+    shipmentPrice (detail) <- prevAccountPriceB(batch(detail), supplierStock(detail), shipmentDateTime(detail));
 
-                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
-                                                                                                   batch(detail),
-                                                                                                   supplierStock(detail),
-                                                                                                   shipmentDateTime(detail))
-                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
-                                                                                                 sku(detail),
-                                                                                                 supplierStock(detail),
-                                                                                                 shipmentDateTime(detail));                                                                                             
+WHEN LOCAL (CHANGED(sku(UserOrderDetail detail)) OR
+            CHANGED(supplierStock(detail)) OR
+            CHANGED(shipmentDateTime(detail)) OR
+            DROPPED(batch(detail))) AND NOT batch(detail) AND NOT CHANGED(shipmentPrice(detail)) AND NOT disableUpdateShipmentPrice(detail) DO
+    shipmentPrice (detail) <- prevAccountPriceB(sku(detail), supplierStock(detail), shipmentDateTime(detail));
