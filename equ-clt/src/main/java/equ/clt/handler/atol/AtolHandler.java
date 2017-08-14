@@ -230,7 +230,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                 } else {
                     BufferedReader br = new BufferedReader(new FileReader(inputFile));
 
-                    File outputFile = File.createTempFile("output", "txt");
+                    File outputFile = File.createTempFile("output", ".txt");
                     BufferedWriter bw = new BufferedWriter(new FileWriter(outputFile));
 
                     String line;

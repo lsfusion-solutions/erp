@@ -120,7 +120,7 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
             InputStream input = connection.getInputStream();
             byte[] buffer = new byte[4096];
             int n;
-            file = File.createTempFile("image", "tmp");
+            file = File.createTempFile("image", ".tmp");
             OutputStream output = new FileOutputStream(file);
             while ((n = input.read(buffer)) != -1) {
                 output.write(buffer, 0, n);

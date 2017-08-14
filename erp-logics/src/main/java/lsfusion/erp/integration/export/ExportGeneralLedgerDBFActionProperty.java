@@ -193,7 +193,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
                     description, idDebit, idCredit, sumGeneralLedger, idOperationGeneralLedger, seriesGeneralLedger, quantityGeneralLedger));
         }
 
-        File dbfFile = File.createTempFile("export", "dbf");
+        File dbfFile = File.createTempFile("export", ".dbf");
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), fields, charset);
 
         List<GeneralLedger> generalLedgerList = new ArrayList<>();
