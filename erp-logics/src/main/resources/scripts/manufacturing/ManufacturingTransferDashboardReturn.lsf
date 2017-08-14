@@ -1,0 +1,174 @@
+MODULE ManufacturingTransferDashboardReturn;
+
+REQUIRE PurchaseSaleReturnInvoice, ConsignmentBy, ManufacturingTransferDashboard, PricingPurchaseReturn;
+
+NAMESPACE SaleReturn;
+
+FORM manufacturingTransferReturn 'Возврат с цеха производства'
+    OBJECTS d = DATE PANEL
+    PROPERTIES(d) VALUE
+    
+    OBJECTS pri = PurchaseReturn.Invoice
+    PROPERTIES (pri) READONLY isClosed  
+    PROPERTIES (pri) READONLY BACKGROUND backgroundDraft(pri) isPosted,
+                                        number, series, date, time                                
+    PROPERTIES (pri) READONLY nameSupplierStock, nameCustomerStock, statusInvoice
+    PROPERTIES (pri) NEWSESSION NEW[PurchaseReturn.UserInvoice], EDIT SHOWIF isOpened(pri), DELETE SHOWIF isOpened(pri) 
+
+    FILTERS operation(pri) == cateringPurchaseOperation()
+    
+    FILTERGROUP saleDate
+        FILTER 'На дату' date(pri) == d DEFAULT 
+
+    FILTERGROUP invoiced
+        FILTER 'Не создан возврат' NOT invoiced(pri) DEFAULT 
+    
+    OBJECTS sri = SaleReturn.UserInvoice 
+    PROPERTIES (sri) READONLY isClosed
+    PROPERTIES (sri) READONLY BACKGROUND backgroundDraft(sri) isPosted,
+                                        number, series, date, time                                
+    PROPERTIES (sri) READONLY nameSupplierStock, nameCustomerStock
+    PROPERTIES (sri) EDIT SHOWIF isOpened(sri)
+    PROPERTIES (sri) NEWSESSION DELETE SHOWIF isOpened(sri) 
+    FILTERS operation(sri) == cateringSaleOperation()
+    FILTERGROUP purchaseDate
+        FILTER 'На дату' date(sri) == d DEFAULT 
+;
+
+@extendFormFilterAccessStock(Invoice, sri, manufacturingTransferReturn, supplierStock, company);
+
+@extendFormFilterAccessStock(UserInvoice, pri, manufacturingTransferReturn, supplierStock, company);
+
+DESIGN manufacturingTransferReturn {
+    MOVE BOX(d);
+    NEW pane {
+        fill = 1;
+        type = SPLITV;
+        MOVE BOX(pri) {
+            caption = 'Отгрузка-возврат с цеха';
+        }
+        NEW tab {
+            fill = 1;
+            type = TABBED ;        
+            MOVE BOX(sri) {
+                caption = 'Поступление-возврат с цеха';
+            }
+            NEW printTab {
+                fill = 1;
+                caption = 'Печатные формы';
+            }
+        }
+    }
+    
+    MOVE TOOLBARBOX;
+}
+
+EXTEND FORM  manufacturingTransferReturn
+    PROPERTIES(sri)  editAttributes
+    PROPERTIES(sri) SHOWIF showTTN1(sri)
+                     printVerticalA, printVerticalAB, printHorizontalA,
+                     printVerticalB, printHorizontalB, printAttach,
+                     printVertical, printHorizontal, printAttachXLS, printSimpleAttachXLS 
+    PROPERTIES(sri) SHOWIF showTN2(sri)
+                     printSimpleHorizontal, printSimpleVertical, printSimpleAttach
+;
+
+DESIGN manufacturingTransferReturn {
+    PANEL(sri) {
+        MOVE printTab {   
+            NEW print {
+                type = CONTAINERH;
+                caption = 'Печать';
+            } 
+            NEW consignmentRow1 {
+                align = LEADING;
+                type = CONTAINERH;
+    
+                NEW contOne {
+                    alignment = STRETCH;
+                    type = CONTAINERH;
+                    caption = 'Накладная';
+                    MOVE PROPERTY(editAttributes(sri)) {
+                        alignment = STRETCH;
+                    }
+                }
+                NEW tn2 {
+                    alignment = STRETCH;
+                    type = COLUMNS;
+                    columns = 3;
+                    caption = 'ТН-2';
+                    MOVE PROPERTY(printSimpleVertical(sri));
+                    MOVE PROPERTY(printSimpleHorizontal(sri));
+                    MOVE PROPERTY(printSimpleAttach(sri));
+                }
+            }
+            NEW consignmentRow2 {
+                align = LEADING;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'ТТН-1';
+                MOVE PROPERTY(printVerticalA(sri));
+                MOVE PROPERTY(printVerticalAB(sri));
+                MOVE PROPERTY(printHorizontalA(sri));
+                MOVE PROPERTY(printVerticalB(sri));
+                MOVE PROPERTY(printHorizontalB(sri));
+                MOVE PROPERTY(printAttach(sri));      
+                MOVE PROPERTY(printVertical(sri));  
+                MOVE PROPERTY(printHorizontal(sri));
+            }
+            NEW consignmentRow3 {
+                type = CONTAINERH;            
+                NEW export {
+                    type = CONTAINERH;
+                    caption = 'Экспорт';  
+                    MOVE PROPERTY(printAttachXLS(sri));      
+                    MOVE PROPERTY(printSimpleAttachXLS(sri));          
+                }
+            }    
+        }    
+    }
+    
+}
+NAVIGATOR {
+    manufacturingDashboardNavigator {
+        ADD manufacturingTransferReturn AFTER manufacturingTransfer;
+    }
+}
+   
+createManufacturingPurchaseSaleReturn 'Создать возврат с цеха'(PurchaseReturn.Invoice pri) = {
+	NEWSESSION {
+	
+	        NEW sri = SaleReturn.UserInvoice {
+	            supplier(sri) <- supplier(pri);
+	            customer(sri) <- customer(pri);
+	            supplierStock(sri) <- supplierStock(pri);
+	            customerStock(sri) <- customerStock(pri);
+	            number(sri) <- number(pri);
+	            series(sri) <- series(pri);
+	            note(sri) <- note(pri);
+	            currency(sri) <- currency(pri);
+	            operation(sri) <- cateringSaleOperation();
+	    
+	            FOR invoice(PurchaseReturn.InvoiceDetail prid) == pri NEW srid = SaleReturn.UserInvoiceDetail DO {
+	    
+	                userInvoice(srid) <- sri;
+	                PurchaseSaleReturnInvoice.invoiceDetail(srid) <- prid;
+	                SaleReturn.invoiceDetail(srid) <- SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid)));
+	                
+	                sku(srid) <- OVERRIDE sku(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid)))), toSku(lastSubstituteFrom(sku(prid)));
+	                quantity (srid) <- quantity(prid) * coeffSku(batch(prid));
+	                VAT (srid) <- VAT(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
+	                valueVAT (srid) <- valueVAT(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
+	                price (srid) <- price(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
+	                invoicePrice (srid) <- invoicePrice(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
+	                retailPrice (srid) <- retailPrice(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
+	                shipmentPrice (srid) <- shipmentPrice(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
+	            }
+	            SHOW SaleReturn.userInvoice OBJECTS i = sri MANAGESESSION DOCKED NOCANCEL; 
+	        }
+	}
+} TOOLBAR;
+
+EXTEND FORM manufacturingTransferReturn
+    PROPERTIES (pri) createManufacturingPurchaseSaleReturn
+;
