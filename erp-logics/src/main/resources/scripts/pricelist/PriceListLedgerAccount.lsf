@@ -22,6 +22,17 @@ accountPriceA (Sku sku, Stock stock, DATETIME dateTime) += priceA(SystemLedgerPr
 accountPriceB (Batch batch, Stock stock, DATETIME dateTime) += priceB(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);
 accountPriceA (Batch batch, Stock stock, DATETIME dateTime) += priceA(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);
 
+// Учетные суммы по товарам
+
+currentAccountSum 'Сумма учетная' (Sku sku, Stock stock) =
+    currentBalance(sku, stock) * accountPriceA(sku, stock);
+
+diffAccountSum 'Разница' (Sku sku, Stock stock) = currentAccountSum(sku, stock) (-) currentSum(sku, stock);
+
+EXTEND FORM currentBalanceSkuStock
+    PROPERTIES(s, st) accountPriceA, currentAccountSum, diffAccountSum
+;
+
 //--
 currentAccountSum 'Сумма учетная' (Batch batch, Stock stock) =
     currentBalance(batch, stock) * accountPriceA(batch, stock);

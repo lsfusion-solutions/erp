@@ -1,6 +1,6 @@
 MODULE StockReports;
 
-REQUIRE EmployeeStock, Barcode, PriceListLedger, StockSkuDocument, OrderLedger, PriceListLedgerAccount;
+REQUIRE EmployeeStock, Barcode, PriceListLedger, StockSkuDocument, OrderLedger;
 
 quantityChildWithSession (group) = GROUP SUM 1 IF dataInSession(Group childGroup) AND isParent(childGroup, Group group) BY group;
 quantityParentWithSession (group) = GROUP SUM 1 IF dataInSession(Group parentGroup) AND isParent(Group group, parentGroup) BY group;                                                                        
@@ -213,79 +213,6 @@ FORM printBalanceSkusStock 'Остатки по товарам'
 printBalanceSkus 'По группам' (DATETIME dateTime, GroupType gtype) =
     { PRINT printBalanceSkusStock OBJECTS d = dateTime, gt = gtype; } IMAGE 'print.png' IN print;
 
-accountSumB 'Сумма учетная' (Batch batch, DATETIME dateTime) =
-    NUMERIC[32,9]([ = GROUP SUM accountSumB(Batch bt, Stock st, DATETIME dt)IF inBackSheet(st) BY bt, dt](batch, dateTime));
-
-//остатки по партиям
-FORM printListBalanceBatchesStock 'Остатки по партиям'
-    OBJECTS d = DATETIME PANEL
-    PROPERTIES(d) dateTime = VALUE
-
-    PROPERTIES inBackSheetStocks()
-
-    OBJECTS gt = GroupType PANEL
-    PROPERTIES(gt) SELECTOR name
-    PROPERTIES(gt) READONLY sessionConcatGroups
-    PROPERTIES sumB(gt)
-
-    OBJECTS           bt=Batch
-    PROPERTIES(bt)    READONLY date, name, idBarcodeSku, nameSku, shortNameUOM//, shippedQuantityBatch
-    FILTERS inSession(group(gt, sku(bt)))
-    ORDER BY          date(bt), name(bt), nameSku(bt)
-
-    PROPERTIES(bt) READONLY balanceB
-    PROPERTIES(bt, d) READONLY accountSumB
-    FILTERS balanceB(bt)
-;
-
-printListBalanceBatches 'Списком' (DATETIME dateTime, GroupType gtype) =
-    { PRINT printListBalanceBatchesStock OBJECTS d = dateTime, gt = gtype; }  IMAGE 'print.png' IN print;
-
-accountSumBSkuBatch 'Учетная сумма на начало дня(по партиям)' (Group group, DATETIME dateTime) =
-    NUMERIC[32,9]([ = GROUP SUM accountSumBSkuBatch(Group group, Stock st, DATETIME dt) IF inBackSheet(st) BY group, dt](group, dateTime));
-
-FORM printBalanceBatchesStock 'Остатки по партиям'
-    OBJECTS d = DATETIME PANEL
-    PROPERTIES(d) dateTime = VALUE
-
-    PROPERTIES inBackSheetStocks()
-
-    OBJECTS gt = GroupType PANEL
-    PROPERTIES(gt) SELECTOR name
-    PROPERTIES(gt) READONLY sessionConcatGroups
-    PROPERTIES sumB(gt)
-
-    OBJECTS sk = Group
-    PROPERTIES READONLY canonicalName(sk)
-    ORDER BY canonicalName(sk)
-    FILTERS inSession(sk) AND countSku(sk, gt)
-    FILTERS groupType(sk) == gt
-    PROPERTIES(sk, d) READONLY accountSumBSkuBatch
-    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
-
-    OBJECTS           bt=Batch
-    PROPERTIES(bt)    READONLY date, name, idBarcodeSku, nameSku, shortNameUOM//, shippedQuantityBatch
-    FILTERS           group(gt, sku(bt)) == sk
-    ORDER BY          date(bt), name(bt), nameSku(bt)
-
-    PROPERTIES(bt) READONLY balanceB
-    PROPERTIES(bt, d) READONLY accountSumB
-    FILTERS balanceB(bt)
-;
-
-printBalanceBatches 'По группам' (DATETIME dateTime, GroupType gtype) =
-    { PRINT printBalanceBatchesStock OBJECTS d = dateTime, gt = gtype; }  IMAGE 'print.png' IN print;
-
-showAccountSumBatch 'Показывать учетные суммы по партиям в отчете по остаткам' = DATA BOOLEAN ();
-EXTEND FORM options
-    PROPERTIES() showAccountSumBatch
-;
-DESIGN options {
-    stock1 {
-        MOVE PROPERTY(showAccountSumBatch());
-    }
-}
-
 FORM dialogStocksBackSheet 'Выбор складов'
 
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
@@ -339,11 +266,6 @@ changeStocksBalance(GroupType gt, DATETIME dt) = {
     }
 }
 
-accountSumRecBSkuBatch 'Учетная сумма (по партиям)' (Group group, DATETIME dateTime) =
-    NUMERIC[32,9]([ = GROUP SUM accountSumRecBSkuBatch(Group group, Stock st, DATETIME dt) IF inBackSheet(st) BY group, dt](group, dateTime));
-accountSumBatchB 'Сумма учетная по партиям' (Sku sku, DATETIME dateTime) =
-    NUMERIC[32,9]([ = GROUP SUM accountSumBatchB(Sku sk, Stock st, DATETIME dt) IF inBackSheet(st) BY sk, dt](sku, dateTime));
-
 showMovementSkuBackSheet 'Показать движение товара по складу' (Sku sku) = { 
     NEWSESSION NESTED(inBackSheet) 
         SHOW movementSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inBackSheet(st)]() ; 
@@ -385,7 +307,6 @@ FORM reportBalanceStock 'Отчет по остаткам'
     PROPERTIES inSession(sk) BACKGROUND backgroundInSession(sk)
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
     PROPERTIES(sk) READONLY recBalanceB, recSumB
-    PROPERTIES(sk, d) READONLY accountSumRecBSkuBatch SHOWIF showAccountSumBatch()
     ORDER BY order(sk), skuTreeName
     FILTERS groupType(sk) == gt
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
@@ -396,12 +317,10 @@ FORM reportBalanceStock 'Отчет по остаткам'
     FILTERS isParent(sk, s)
 
     PROPERTIES(s) READONLY balanceB, sumB
-    PROPERTIES(s, d) READONLY accountSumBatchB SHOWIF showAccountSumBatch()
     PROPERTIES(d, gt) printListBalanceSkus, printBalanceSkus
     FILTERGROUP balance 
         FILTER 'С остатком (кол-во)' balanceB(s) 'F7' DEFAULT
         FILTER 'С остатком (кол-во/сумма)' balanceB(s) OR sumB(s) 'F8'   
-    FILTERGROUP incorrectSum FILTER 'Неправильная сумма по партиям' abs(sumB(s) (-) accountSumBatchB(s, d)) > 1 'F9'   
 
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY date, name ON SHORTCUT showMovementBatchBackSheet(bt), idBarcodeSku, 
@@ -410,8 +329,6 @@ FORM reportBalanceStock 'Отчет по остаткам'
     ORDER BY          date(bt), name(bt), nameSku(bt)
 
     PROPERTIES(bt) READONLY balanceB
-    PROPERTIES(bt, d) READONLY accountSumB
-    PROPERTIES(d, gt) printListBalanceBatches, printBalanceBatches
     FILTERS balanceB(bt)
 
     EVENTS 
@@ -454,8 +371,6 @@ DESIGN reportBalanceStock {
                     caption = 'Печать';
                     NEW print1{
                         type = CONTAINERH;
-                        MOVE PROPERTY(printListBalanceBatches(d,gt));
-                        MOVE PROPERTY(printBalanceBatches(d,gt));
                     }
 
                 }
