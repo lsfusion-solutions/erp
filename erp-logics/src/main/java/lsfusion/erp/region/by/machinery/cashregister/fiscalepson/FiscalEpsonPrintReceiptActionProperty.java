@@ -167,7 +167,7 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
     }
 
     private String formatSumVAT(BigDecimal value) {
-        return new DecimalFormat("#,###.00").format(value.doubleValue()).replace(".", ",");
+        return new DecimalFormat("#,##0.00").format(value.doubleValue()).replace(".", ",");
     }
 
     private String formatValueVAT(BigDecimal value) {
