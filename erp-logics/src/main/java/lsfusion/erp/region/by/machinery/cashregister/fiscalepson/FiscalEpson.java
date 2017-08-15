@@ -118,7 +118,7 @@ public class FiscalEpson {
         epsonActiveXComponent.setProperty("Article", new Variant(item.name));
         epsonActiveXComponent.setProperty("Price", new Variant(item.price.doubleValue()));
         epsonActiveXComponent.setProperty("Quantity", new Variant(item.quantity.doubleValue()));
-        epsonActiveXComponent.setProperty("Department", new Variant(item.isGiftCard ? 3 : 0));
+        epsonActiveXComponent.setProperty("Department", new Variant(item.section != null ? item.section : (item.isGiftCard ? 3 : 0)));
         Dispatch.call(epsonDispatch, "Sale");
         checkErrors(true);
 

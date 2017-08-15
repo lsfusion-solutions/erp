@@ -89,10 +89,12 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                 QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<>(receiptDetailKeys);
                 String[] rdNames = new String[]{"nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
                         "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
-                        "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail", "valueVATReceiptDetail", "calcSumVATReceiptDetail"};
+                        "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail", "valueVATReceiptDetail",
+                        "calcSumVATReceiptDetail", "idSectionReceiptDetail"};
                 LCP[] rdProperties = findProperties("nameSku[ReceiptDetail]", "type[ReceiptDetail]", "quantity[ReceiptDetail]",
                         "quantity[ReceiptSaleDetail]", "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]",
-                        "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]", "discountSum[ReceiptDetail]", "valueVAT[ReceiptDetail]", "calcSumVAT[ReceiptDetail]");
+                        "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]", "discountSum[ReceiptDetail]", "valueVAT[ReceiptDetail]",
+                        "calcSumVAT[ReceiptDetail]", "idSection[ReceiptDetail]");
                 for (int i = 0; i < rdProperties.length; i++) {
                     receiptDetailQuery.addProperty(rdNames[i], rdProperties[i].getExpr(context.getModifier(), receiptDetailExpr));
                 }
@@ -115,23 +117,23 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                     discountSumReceiptDetail = discountSumReceiptDetail == null ? null : discountSumReceiptDetail.negate();
                     String typeReceiptDetail = (String) receiptDetailValues.get("typeReceiptDetail");
                     Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
+                    Integer section = parseInt((String) receiptDetailValues.get("idSectionReceiptDetail"));
+
                     BigDecimal valueVAT = (BigDecimal) receiptDetailValues.get("valueVATReceiptDetail");
                     BigDecimal calcSumVAT = (BigDecimal) receiptDetailValues.get("calcSumVATReceiptDetail");
-
                     String vatString = valueVAT == null || calcSumVAT ==  null ? null : String.format("НДС: %s (%s%%)", formatSumVAT(calcSumVAT), formatValueVAT(valueVAT));
 
                     if (quantitySale != null && !isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, barcode, name,
-                                sumReceiptDetail, discountSumReceiptDetail, vatString));
+                                sumReceiptDetail, discountSumReceiptDetail, vatString, section));
                     if (quantity != null && isGiftCard) {
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantity, barcode, "Подарочный сертификат",
-                                sumReceiptDetail, discountSumReceiptDetail, vatString));
+                                sumReceiptDetail, discountSumReceiptDetail, vatString, section));
                     }
                     if (quantityReturn != null) {
                         BigDecimal discount = discountSumReceiptDetail == null ? BigDecimal.ZERO : discountSumReceiptDetail.divide(quantityReturn);
-                        receiptReturnItemList.add(new ReceiptItem(isGiftCard,
-                                price, quantityReturn, barcode,
-                                name, sumReceiptDetail, discount, vatString));
+                        receiptReturnItemList.add(new ReceiptItem(isGiftCard, price, quantityReturn, barcode,
+                                name, sumReceiptDetail, discount, vatString, section));
                     }
                 }
 
@@ -170,5 +172,13 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
 
     private String formatValueVAT(BigDecimal value) {
         return new DecimalFormat("#,###.##").format(value.doubleValue()).replace(".", ",");
+    }
+
+    private Integer parseInt(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
