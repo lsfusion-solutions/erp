@@ -8,11 +8,37 @@ TABLE SectionItem (Section, Item);
 TABLE sessionSectionItem (Session, Section, Item); 
 dataIn 'Отм' = DATA BOOLEAN (Section, Item);
 
+section (Item i) = GROUP MIN Section s IF dataIn(s, Item i) BY i;
+
+allowMultiSection 'Ререшить несколько секций' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES allowMultiSection()
+;
+
+DESIGN options{
+    items{
+        MOVE PROPERTY(allowMultiSection());
+    }
+}
+
+CONSTRAINT [=GROUP SUM 1 IF dataIn(Section s, Item i) BY i](Item i) > 1 AND NOT allowMultiSection()
+    MESSAGE 'Для товара может быть задана только одна секция';
+
+changeSection(Section s, Item i) = {
+    INPUT b = BOOLEAN DO{
+        FOR dataIn(Section sec, i) DO {
+            dataIn(sec, i) <- NULL;
+        }    
+        dataIn(s, i) <- b;    
+    }
+}
+
 dataIn (Section s, Item sku) += dataIn(s, sku);
 
 EXTEND FORM item
     OBJECTS sec = Section GRID 
-    PROPERTIES dataIn(sec, i), id(sec) READONLY, name(sec) READONLY
+    PROPERTIES dataIn(sec, i) ON CHANGE changeSection(sec, i), id(sec) READONLY, name(sec) READONLY
 ;
 
 DESIGN item {
