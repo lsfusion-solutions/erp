@@ -38,7 +38,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     String encoding = "utf-8";
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
-        return "artix";
+        String groupId = null;
+        for (CashRegisterInfo cashRegister : transactionInfo.machineryInfoList) {
+            if (cashRegister.directory != null) {
+                groupId = cashRegister.directory;
+            }
+        }
+        return "artix" + groupId;
     }
 
     @Override
