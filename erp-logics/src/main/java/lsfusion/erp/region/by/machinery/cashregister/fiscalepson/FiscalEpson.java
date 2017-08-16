@@ -126,6 +126,7 @@ public class FiscalEpson {
 
     public static void discountItem(ReceiptItem item, Boolean isReturn) throws RuntimeException {
         if (item.discount != null && item.discount.doubleValue() != 0.0) {
+            epsonActiveXComponent.setProperty("Article", new Variant(""));
             epsonActiveXComponent.setProperty("CorrectionAmount", new Variant(Math.abs(isReturn ? item.quantity.multiply(item.discount).doubleValue() : item.discount.doubleValue())));
             Dispatch.call(epsonDispatch, item.discount.doubleValue() > 0 ? "Surcharge" : "Discount");
             checkErrors(true);
