@@ -35,6 +35,8 @@ import java.sql.Date;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionProperty {
 
@@ -129,6 +131,9 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 //            if (addressCustomer == null)
 //                error += String.format("EVAT %s: Не задан пункт отгрузки\n", number);
 
+            String invoice = trim((String) findProperty("invoice[EVAT]").read(context, evatObject));
+            String dateCancelled = formatDate((Date) findProperty("dateCancelled[EVAT]").read(context, evatObject));
+
             Namespace xmlns = Namespace.getNamespace("http://www.w3schools.com");
             Namespace xs = Namespace.getNamespace("xs", "http://www.w3.org/2001/XMLSchema");
             Namespace xsi = Namespace.getNamespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
@@ -143,11 +148,22 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
             Namespace namespace = rootElement.getNamespace();
 
-            rootElement.addContent(createGeneralElement(context, evatObject, status, documentNumber, namespace));
+            rootElement.addContent(createGeneralElement(context, evatObject, status, documentNumber, invoice, dateCancelled, namespace));
 
             switch (status) {
-                case "original":
                 case "fixed":
+                    if(invoice == null)
+                        error += String.format("EVAT %s: Не задано поле 'К ЭСЧФ'\n", documentNumber);
+                    else {
+                        Pattern pattern = Pattern.compile("\\d{9}-\\d{4}-\\d{10}");
+                        Matcher matcher = pattern.matcher(invoice);
+                        if(!matcher.matches()) {
+                            error += String.format("EVAT %s: поле 'К ЭСЧФ' должно быть формата d{9}-d{4}-d{10}\n", documentNumber);
+                        }
+                    }
+                    if(dateCancelled == null)
+                        error += String.format("EVAT %s: Не задано поле 'Дата аннулирования'\n", documentNumber);
+                case "original":
                 case "additionalNoRef":
                     String declarationSupplier = trim((String) findProperty("declarationSupplier[EVAT]").read(context, evatObject));
 //                    if(declarationSupplier == null)
@@ -225,13 +241,11 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     }
 
     //parent: rootElement
-    private Element createGeneralElement(ExecutionContext context, DataObject evatObject, String status, String documentNumber, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createGeneralElement(ExecutionContext context, DataObject evatObject, String status, String documentNumber, String invoice, String dateCancelled, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Element generalElement = new Element("general");
 
-        String invoice = trim((String) findProperty("invoice[EVAT]").read(context, evatObject));
         String dateIssuance = formatDate(new Date(System.currentTimeMillis()));
         String dateTransaction = formatDate((Date) findProperty("date[EVAT]").read(context, evatObject));
-        String dateCancelled = formatDate((Date) findProperty("dateCancelled[EVAT]").read(context, evatObject));
 
         switch (status) {
             case "original":
@@ -241,6 +255,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                 addStringElement(namespace, generalElement, "documentType", "ORIGINAL");
                 break;
             case "fixed":
+                addStringElement(namespace, generalElement, "number", documentNumber);
                 addStringElement(namespace, generalElement, "dateIssuance", dateIssuance);
                 addStringElement(namespace, generalElement, "dateTransaction", dateTransaction);
                 addStringElement(namespace, generalElement, "documentType", "FIXED");
