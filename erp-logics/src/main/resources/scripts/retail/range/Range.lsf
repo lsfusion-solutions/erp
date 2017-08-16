@@ -206,14 +206,14 @@ reviewSoldStoreDate (Sku sku, DATE dFrom, DATE dTo) = { SHOW soldStoreSkuDateFro
 FORM rangeRevSelectSuppliers 'Выбор поставщика'
     OBJECTS v = RangeRev PANEL
     OBJECTS p = PriceListType PANEL
-    OBJECTS d = DepartmentStore PANEL
+    OBJECTS d = Stock PANEL
     
     OBJECTS l = LegalEntity
     PROPERTIES(l) READONLY name
     FILTERS hasSkus(v, l, p, d)
 ;
 
-changeNameFilterSupplier(RangeRev v, PriceListType p, DepartmentStore d) = {
+changeNameFilterSupplier(RangeRev v, PriceListType p, Stock d) = {
     DIALOG rangeRevSelectSuppliers OBJECTS v = v, p = p, d = d, l = filterSupplier() INPUT NULL DO
         filterSupplier() <- l;
 }
@@ -230,8 +230,9 @@ FORM rangeRev 'Версия ассортиментной матрицы'
     OBJECTS pt = DataPriceListType PANEL
     PROPERTIES(pt) SELECTOR name[PriceListType]
 
-    OBJECTS d = DepartmentStore PANEL
+    OBJECTS d = Stock PANEL
     PROPERTIES(d) SELECTOR name SHOWIF swowDepartment(v)
+    FILTERS isCompany(d)
 
     PROPERTIES() nameFilterSupplier ON CHANGE changeNameFilterSupplier(v, pt, d) 
 
@@ -244,10 +245,10 @@ FORM rangeRev 'Версия ассортиментной матрицы'
     PROPERTIES READONLY    SHOWIF swowDepartment(v)  
                            nameCompanyA(pt, s, d, v),
                            priceA(pt, s, d, v),
-                           retailPriceA(s, d, v),
-                           markup(s, d),
+                           retailPriceA(s, d, v) GRID,
+                           markup(s, d) GRID,
                            valueVAT(s, d, v),
-                           markupA(pt, s, d, v)
+                           markupA(pt, s, d, v) GRID
 
     PROPERTIES READONLY SHOWIF swowDepartment(v) currentBalance(s,d), quantitySold(s,d,dFrom,dTo), sumSold(s,d,dFrom,dTo)
     PROPERTIES currentBalanceDepartments(s) ON CHANGE reviewCurrentBalance(s), quantitySoldDepartments(s,dFrom,dTo) ON CHANGE reviewSoldStoreDate(s, dFrom, dTo), 
