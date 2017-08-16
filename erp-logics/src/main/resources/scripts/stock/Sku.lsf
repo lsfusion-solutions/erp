@@ -422,21 +422,6 @@ NAVIGATOR {
 
 // ---------------------------------------------- Макросы для документов ------------------------------------------------- //
 
-META defineGroupDefaultValue(property, caption, type, typeIdentity, groupClass)
-    data###property###groupClass caption = DATA type (###groupClass);
-    data###typeIdentity###property###groupClass caption (g) = typeIdentity(data###property###groupClass(g));
-    
-    levelParent###property###groupClass (g) = GROUP MIN level###groupClass###groupClass(g, parent) IF data###property###groupClass(parent)
-                                                                  BY g MATERIALIZED;    
-    nearestParent###property##groupClass (g) = groupClass###groupClassLevel(g, levelParent###property###groupClass(g));
-    nearest###property###groupClass (g) = data###property###groupClass(nearestParent###property###groupClass (g));
-    property###groupClass (g) =
-        OVERRIDE nearest###property###groupClass (g), 
-                 data###property###groupClass(g) MATERIALIZED;    
-    
-    typeIdentity##groupClass caption (g) = typeIdentity(property##groupClass(g));    
-END 
-
 META defineGroupDefaultValue(property, caption, type, groupClass)
     data###property caption = DATA type (###groupClass);
     
@@ -448,35 +433,6 @@ META defineGroupDefaultValue(property, caption, type, groupClass)
         OVERRIDE data###property(g), 
                  nearest###property (g) MATERIALIZED;        
     
-END 
-
-META defineDefaultValueCustom(property, caption, type, object, class)
-    data###property caption = DATA type (###object, ###class);
-    
-    levelParent###property (object, group) = GROUP MIN level(###class group, ###class parent) IF data###property(###object object, parent)
-                                                                  BY object, group MATERIALIZED;    
-    nearestParent###property (###object object, ###class group) = group(group, levelParent###property(object, group));
-    nearest###property (###object object, ###class group) = data###property(object, nearestParent###property (object, group));
-    
-    property caption (###object object, ###class group) =
-        OVERRIDE nearest###property (object, group), 
-                 data###property(object, group) MATERIALIZED;
-                 
-    quantityChild###property (object, group) = GROUP SUM 1 IF 
-        data###property(###object object, ###class child###class) AND isParent(child###class, ###class group) 
-            BY object, group MATERIALIZED;
-    quantityParent###property (object, group) = GROUP SUM 1 IF 
-        data###property(###object object, ###class parent###class) AND isParent(###class group, parent###class) 
-            BY object, group MATERIALIZED;                 
-
-    backgroundWith###property (###object object, ###class group) =
-        IF data###property(object, group) THEN
-            RGB(127,199,255) //IF group IS ItemGroup
-        ELSE
-            RGB(203,203,206) IF quantityChild###property (object, group) != descendantNumber(group)
-                             AND NOT quantityParent###property (object, group);
-                 
-                 
 END 
 
 // Sku

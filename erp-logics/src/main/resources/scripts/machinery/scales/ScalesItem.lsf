@@ -121,19 +121,19 @@ EXTEND FORM UOMs
 passScales(Item i) <- passScales(UOM(i)) WHEN CHANGED(UOM(i));
 
 // Генерация штрихкодов
-@defineNumeratorItemGroup (weight, 'Нумератор штрихкодов (для весового товара)');
+@defineNumeratorItemGroup (weight, 'Нумератор штрихкодов (для весового товара)', paramsItemGroup);
 weightNumerator (Item item) = weightNumerator(itemGroup(item));
 
 overNumerator(Item item) += WHEN passScales(item) THEN weightNumerator(item);
 
-DESIGN itemGroup {
-    itemGroupHeader2 {
-        MOVE PROPERTY(nameWeightNumerator(g));
-    }
-}
+//DESIGN itemGroup {
+//    itemGroupHeader2 {
+//        MOVE PROPERTY(nameWeightNumerator(g));
+//    }
+//}
 
 //--
-@defineItemGroupDefaultValue(expired, 'Не грузить с истекшим ср. год-ти', BOOLEAN);
+@defineItemGroupValue(expired, 'Не грузить с истекшим ср. год-ти', BOOLEAN);
 
 dataExpired 'Не грузить с истекшим ср. год-ти' = DATA BOOLEAN (Item);
 expired 'Не грузить с истекшим ср. год-ти' (Item item) = OVERRIDE dataExpired(item), expired(itemGroup(item)) IN itemBase MATERIALIZED ;
@@ -160,7 +160,6 @@ setNullShowExpired 'Снять признак для всех потомков'(
 } SHORTCUT dataExpired[ItemGroup] CONFIRM;     
 
 
-EXTEND FORM itemGroup PROPERTIES(g) dataExpired;
 EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showExpired BACKGROUND backgroundShowExpired(g) BEFORE deleteg;
 EXTEND FORM item PROPERTIES(i) expired;
 EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei expired;
