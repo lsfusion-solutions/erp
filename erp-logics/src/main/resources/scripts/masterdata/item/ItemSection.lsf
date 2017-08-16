@@ -9,6 +9,7 @@ TABLE sessionSectionItem (Session, Section, Item);
 dataIn 'Отм' = DATA BOOLEAN (Section, Item);
 
 section (Item i) = GROUP MIN Section s IF dataIn(s, Item i) BY i;
+idSection 'Секция' (Item item) = id(section(item)) MINCHARWIDTH 5 PREFCHARWIDTH 7;
 
 allowMultiSection 'Ререшить несколько секций' = DATA BOOLEAN ();
 
@@ -27,9 +28,7 @@ CONSTRAINT [=GROUP SUM 1 IF dataIn(Section s, Item i) BY i](Item i) > 1 AND NOT 
 
 changeSection(Section s, Item i) = {
     INPUT b = BOOLEAN DO{
-        FOR dataIn(Section sec, i) DO {
-            dataIn(sec, i) <- NULL;
-        }    
+        dataIn(Section sec, i) <- NULL WHERE dataIn(sec, i) AND NOT allowMultiSection() ;
         dataIn(s, i) <- b;    
     }
 }
@@ -51,6 +50,23 @@ DESIGN item {
     }
 }
 
+FORM changeSection 'Секции'
+    OBJECTS sec = Section GRID 
+    PROPERTIES (sec) id READONLY, name READONLY
+    FILTERGROUP active
+        FILTER 'Активные' active(sec) DEFAULT
+;
+
+changeSection (Item item) = {
+    DIALOG changeSection OBJECTS sec = section(item) INPUT DO {
+        dataIn(Section section, item) <- NULL;
+        dataIn(sec, item) <- TRUE;
+    }
+}
+
+EXTEND FORM items
+    PROPERTIES (i) READONLYIF isReadonly() idSection ON CHANGE changeSection(i) 
+;
 overCopy(Item old, Item new) += {
     dataIn(Section s, new) <- dataIn(s, old);
 }
