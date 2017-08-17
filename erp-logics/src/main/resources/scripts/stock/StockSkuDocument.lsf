@@ -1604,6 +1604,7 @@ sku = DATA Sku (DocumentDetailLog) INDEXED ;
 idSku 'Код' (DocumentDetailLog l) = id(sku(l));
 nameSku 'Наименование' (DocumentDetailLog l) = name(sku(l));
 
+prevQuantity 'Кол-во (пред.)' = DATA NUMERIC[16,5] (DocumentDetailLog);
 quantity 'Кол-во' = DATA NUMERIC[16,5] (DocumentDetailLog);
 
 price 'Цена' = DATA NUMERIC[16,4] (DocumentDetailLog);
@@ -1615,6 +1616,11 @@ time 'Время изменения' (DocumentDetailLog d) = TIME(dateTime(d));
 date 'Дата изменения' (DocumentDetailLog d) = DATE(dateTime(d));
 
 note 'Примечание' = DATA VARSTRING[20] (DocumentDetailLog);
+
+idSupplierStock 'Код склад поставщика' (DocumentDetailLog d) = id(supplierStock(document(d)));
+idCustomerStock 'Код склад покупателя' (DocumentDetailLog d) = id(customerStock(document(d)));
+nameSupplierrStock 'Cклад поставщика'(DocumentDetailLog d) = name(supplierStock(document(d)));
+nameCustomerStock 'Cклад покупателя'(DocumentDetailLog d) = name(customerStock(document(d)));
 
 @defineLog (DocumentDetailLog, 'строк документов', log, date);
 
@@ -1648,6 +1654,7 @@ WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d)) OR CHANGED(sku(d)
         dateDocument(l) <- date(document(d));
         typeDocument(l) <- objectClassName(document(d));
         sku(l) <- sku(d);
+        prevQuantity(l) <- PREV(quantity(d)); 
         quantity(l) <- quantity(d);
         price(l) <- price(d);
         nameUser(l) <- name(currentUser());
