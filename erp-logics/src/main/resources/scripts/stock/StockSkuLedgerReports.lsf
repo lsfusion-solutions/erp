@@ -92,12 +92,12 @@ fillReportGroupOperationFromTo 'Сформировать'(GroupType gt, DATE df,
     setNameGroup3();
 }
 
-sum 'Сумма' (SkuLedger sl) = OVERRIDE SkuLedgerSum.sum(sl), Stock.sum(sl);
-costSum 'Сумма поставщика без НДС' (SkuLedger sl) = OVERRIDE SkuLedgerSum.costSum(sl), Stock.costSum(sl);
+sum 'Сумма' (SkuLedger sl) = OVERRIDE SkuLedger.sum(sl), Stock.sum(sl);
+costSum 'Сумма поставщика без НДС' (SkuLedger sl) = OVERRIDE SkuLedger.costSum(sl), Stock.costSum(sl);
 
-sumVAT 'Сумма НДС' (SkuLedger sl) = OVERRIDE SkuLedgerSum.sumVAT(sl), NUMERIC[18,4]([= X*Y/(100+Y)](sum(sl), valueVAT(sku(sl), stock(sl), date(sl))));
+sumVAT 'Сумма НДС' (SkuLedger sl) = OVERRIDE SkuLedger.sumVAT(sl), NUMERIC[18,4]([= X*Y/(100+Y)](sum(sl), valueVAT(sku(sl), stock(sl), date(sl))));
 
-costSumVAT 'Сумма НДС поставщика' (SkuLedger sl) = OVERRIDE SkuLedgerSum.costSumVAT(sl), NUMERIC[18,4]([ = GROUP SUM costSum(SkuLedger ledger, Batch batch)*Stock.valueVAT(batch)/100 BY ledger](sl));
+costSumVAT 'Сумма НДС поставщика' (SkuLedger sl) = OVERRIDE SkuLedger.costSumVAT(sl), NUMERIC[18,4]([ = GROUP SUM costSum(SkuLedger ledger, Batch batch)*Stock.valueVAT(batch)/100 BY ledger](sl));
 
 costVATSum 'Сумма поставщика с НДС' (SkuLedger sl) = costSumVAT(sl) (+) costSum(sl);
 
