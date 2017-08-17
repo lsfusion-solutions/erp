@@ -33,8 +33,16 @@ isEOrder(Purchase.UserOrderDetail d) = isEOrder(userOrder(d));
 response = GROUP MAX EOrderResponse e BY eOrder(e);
 responseNote 'Примечание поставщика' (Purchase.Order o) = note(response(o)) IN documentPrm;
  
-responseDetail = GROUP MAX EOrderResponseDetail ed IF eOrder(orderResponse(ed)) == order(Purchase.UserOrderDetail d) AND sku(ed) == sku(d) BY d;
+indexSku(EOrderResponseDetail d) = PARTITION SUM 1 BY sku(d), eOrder(orderResponse(d)) ORDER d;
+indexSku(Purchase.OrderDetail d) = PARTITION SUM 1 BY sku(d), order(d) ORDER d;
 
+responseDetail = GROUP MAX EOrderResponseDetail ed 
+    IF eOrder(orderResponse(ed)) == order(Purchase.OrderDetail d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed) 
+    BY d;
+
+//тереоретически поставщик может поменять порядок строк, но пока для упрощения попробуем исходить из того что не поменяет
+//quantityAccepted = GROUP SUM quantityAccepted(EOrderResponseDetail d) BY sku(d), eOrder(orderResponse(d));
+//quantityResponseEDI 'Подтвержденное количество (EDI)'(Purchase.OrderDetail d) = PARTITION UNGROUP quantityAccepted LIMIT STRICT PREV(quantity(d)) BY sku(d), order(d);
 quantityResponseEDI 'Подтвержденное количество (EDI)'(Purchase.OrderDetail d) = quantityAccepted(responseDetail(d));
 backgroundQuantityResponseEDI = ABSTRACT COLOR (Purchase.OrderDetail);
 quantityResponseEDI = GROUP SUM quantityResponseEDI(UserOrderDetail d) BY userOrder(d);
