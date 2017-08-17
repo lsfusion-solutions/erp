@@ -1,0 +1,22 @@
+MODULE WriteOffOperationDefaultStoreBy;
+
+REQUIRE WriteOffOperationDefault, PricingWriteOff;
+
+NAMESPACE WriteOff;
+
+loadDefaultWriteOffStoreByOperations 'Загрузить стандартные операции (списание)' () = { 
+    FOR operation('writeoffAccount') == Operation o DO {
+        createPricing(o) <- TRUE;  
+        pricingOperation(o) <- Pricing.operation('by_default_pricing_purchase'); 
+    }
+        
+    createDefaultOperation('Списание техпотерь','tech_writeoff');
+    FOR operation('tech_writeoff') ==  Operation o DO {
+        createPricing(o) <- TRUE;  
+        pricingOperation(o) <- Pricing.operation('by_default_pricing_purchase'); 
+    }
+
+} IN loadDefault;
+    
+
+loadDefaultOperations () += { loadDefaultWriteOffStoreByOperations(); }

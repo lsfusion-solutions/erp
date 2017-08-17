@@ -1,0 +1,24 @@
+MODULE PricingOperationDefault;
+
+REQUIRE Pricing, OperationDefault;
+
+NAMESPACE Pricing;
+
+@defineCreateDefaultOperation ();
+
+loadDefaultPricingOperations 'Загрузить стандартные операции (расценка)' () = {  //ACTION ABSTRACT LIST ()  IN loadDefault; 
+    createDefaultOperation('Начальные остатки', 'initial');   
+    
+    createDefaultOperation('На приходе','purchase');
+    FOR operation('purchase') ==  Operation o DO {
+        useShipmentQuantity(o) <- TRUE;  
+        isRetailPrice(o) <- TRUE; 
+    }
+
+    createDefaultOperation('Ручная', 'manual');
+
+} IN loadDefault;
+    
+
+loadDefaultOperations () += { loadDefaultPricingOperations(); }
+

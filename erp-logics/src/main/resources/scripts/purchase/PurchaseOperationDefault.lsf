@@ -1,0 +1,53 @@
+MODULE PurchaseOperationDefault;
+
+REQUIRE PurchaseOperation, PurchaseShipment, OperationDefault, WarehouseDefault;
+
+NAMESPACE Purchase;
+
+@defineCreateDefaultOperation();
+
+loadDefaultPurchaseOperations 'Загрузить стандартные операции (закупка)' () = {  
+                
+    // 
+    createDefaultOperation('Ввод начальных остатков в магазине', 'initial'); 
+    FOR operation('initial') ==  Operation o DO {
+        dataInSupplier(LegalEntityGroup g, o) <- TRUE WHERE  childNumber(g) AND NOT parent(g);  
+        dataInCustomer(LegalEntityGroup g, o) <- TRUE WHERE  childNumber(g) AND NOT parent(g);  
+        
+        allSupplierStocks(o) <- TRUE;
+        allCustomerStocks(o) <- TRUE;    
+        
+        createShipment(o) <- TRUE;    
+    }
+    
+    createDefaultOperation('Поступление на склад от поставщика', 'purchaseWarehouseSupplier');
+    FOR operation('purchaseWarehouseSupplier') ==  Operation o DO {
+        nameReturn(o) <- 'Возврат со склада поставщику';
+        needSupplier(o) <- TRUE;
+        needCustomer(o) <- TRUE;
+        needSupplierStock(o) <- TRUE;
+        needCustomerStock(o) <- TRUE;        
+        
+        dataInSupplier(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'suppliers';  
+        dataInCustomer(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';  
+
+        dataInSupplier(StockGroup g, o) <- TRUE WHERE id(g) == 'external';
+        dataInCustomer(StockGroup g, o) <- TRUE WHERE id(g) == 'company';
+           
+        createShipment(o) <- TRUE;    
+
+        isPurchaseValueVAT(o) <- TRUE;
+        showPack(o) <- TRUE;
+        isPrice(o) <- TRUE;
+        isShipmentPrice(o) <- TRUE;
+        banNegativeQuantityInvoice(o) <- TRUE;
+        
+        in(PriceListType t, o)<- TRUE WHERE t == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+        in(PriceListType t, o)<- TRUE WHERE t == priceListType('supplier');
+        defaultPriceListType(o) <- priceListType('supplier');
+        defaultReturnPriceListType(o) <- SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+    }  
+    
+} IN loadDefault;
+    
+loadDefaultOperations () += { loadDefaultPurchaseOperations(); }

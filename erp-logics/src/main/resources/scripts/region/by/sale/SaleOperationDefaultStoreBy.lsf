@@ -1,0 +1,38 @@
+MODULE SaleOperationDefaultStoreBy;
+
+REQUIRE SaleOperationDefault, PricingSale, SaleManufacturingPrice, PriceListLedgerAccount, SaleOperationConsignmentBy;
+
+NAMESPACE Sale;
+
+loadDefaultSaleStoreByOperations 'Загрузить стандартные операции (продажа)' () = {  
+                
+    FOR operation('saleStoreStore') ==  Operation o DO {
+
+        createPricing(o) <- TRUE;            
+        pricingOperation(o) <- Pricing.operation('purchase');         
+        
+        switchSumConsignment(o)  <- TRUE;  
+          
+        in(PriceListType t, o)<- TRUE WHERE t == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+        in(PriceListType t, o)<- TRUE WHERE t == SystemLedgerPriceListType.supplierPricingPriceListType;        
+        in(PriceListType t, o)<- TRUE WHERE t == SystemLedgerPriceListType.accountPriceListType;        
+        defaultPriceListType(o) <- SystemLedgerPriceListType.supplierPricingPriceListType;   
+    }  
+
+    FOR operation('saleStoreCustomer') ==  Operation o DO {
+        createPricing(o) <- TRUE;            
+        pricingOperation(o) <- Pricing.operation('purchase');         
+        
+        isInvoicePriceConsignment(o)  <- TRUE;  
+        switchSumConsignment(o)  <- TRUE;  
+               
+        notFillPriceInvoiceOrder(o) <- TRUE;
+        //eVAT(o)  <- TRUE;
+        
+        in(PriceListType t, o)<- TRUE WHERE t == SystemLedgerPriceListType.retailPricingPriceListType;
+        defaultPriceListType(o) <- SystemLedgerPriceListType.retailPricingPriceListType;
+    }
+    
+} IN loadDefault;
+    
+loadDefaultOperations () += { loadDefaultSaleStoreByOperations(); }

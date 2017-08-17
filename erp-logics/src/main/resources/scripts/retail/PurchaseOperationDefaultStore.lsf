@@ -1,0 +1,76 @@
+MODULE PurchaseOperationDefaultStore;
+
+REQUIRE PurchaseOperationDefault, PurchaseShipment, PricingPurchase, StoreDefault;
+
+NAMESPACE Purchase;
+
+loadDefaultPurchaseStoreOperations 'Загрузить стандартные операции (закупка)' () = {  
+                
+    // 
+    FOR operation('initial') ==  Operation o DO {
+        createPricing(o) <- TRUE;    
+        pricingOperation(o) <- Pricing.operation('initial'); 
+    }
+    //
+    
+    createDefaultOperation('Поступление в магазин от поставщика', 'purchaseStoreSupplier');
+    FOR operation('purchaseStoreSupplier') ==  Operation o DO {
+        nameReturn(o) <- 'Возврат с магазина поставщику';
+        needSupplier(o) <- TRUE;
+        needCustomer(o) <- TRUE;
+        needSupplierStock(o) <- TRUE;
+        needCustomerStock(o) <- TRUE;        
+        
+        dataInSupplier(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'suppliers';  
+        dataInCustomer(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';  
+
+        dataInSupplier(StockGroup g, o) <- TRUE WHERE id(g) == 'external';
+        dataInCustomer(StockGroup g, o) <- TRUE WHERE id(g) == 'chainStores';
+           
+        createShipment(o) <- TRUE;    
+
+        createPricing(o) <- TRUE;            
+        pricingOperation(o) <- Pricing.operation('purchase');         
+        
+        isPurchaseValueVAT(o) <- TRUE;
+        showPack(o) <- TRUE;
+        isPrice(o) <- TRUE;
+        isShipmentPrice(o) <- TRUE;
+        banNegativeQuantityInvoice(o) <- TRUE;
+        
+        in(PriceListType t, o)<- TRUE WHERE t == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+        in(PriceListType t, o)<- TRUE WHERE t == priceListType('supplier');
+        defaultPriceListType(o) <- priceListType('supplier');
+        defaultReturnPriceListType(o) <- SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+    }  
+    //  
+    createDefaultOperation('Поступление на магазин от склада','purchaseStoreWarehouse');  
+    FOR operation('purchaseStoreWarehouse') ==  Operation o DO {
+        nameReturn(o) <- 'Возврат с магазина на склад';
+        needSupplier(o) <- TRUE;
+        needCustomer(o) <- TRUE;
+        needSupplierStock(o) <- TRUE;
+        needCustomerStock(o) <- TRUE;        
+        
+        dataInSupplier(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';  
+        dataInCustomer(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';  
+               
+        dataInSupplier(StockGroup g, o) <- TRUE WHERE id(g) == 'company';
+        dataInCustomer(StockGroup g, o) <- TRUE WHERE id(g) == 'chainStores';
+
+        createShipment(o) <- TRUE;
+            
+        createPricing(o) <- TRUE;            
+        pricingOperation(o) <- Pricing.operation('purchase');
+         
+        isPurchaseValueVAT(o) <- TRUE;
+        
+        in(PriceListType t, o)<- TRUE WHERE t == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+        in(PriceListType t, o)<- TRUE WHERE t == priceListType('supplier');
+        defaultPriceListType(o) <- priceListType('supplier');
+        defaultReturnPriceListType(o) <- SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+    }
+    
+} IN loadDefault;
+    
+loadDefaultOperations () += { loadDefaultPurchaseStoreOperations(); }

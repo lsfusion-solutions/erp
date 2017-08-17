@@ -1,0 +1,59 @@
+MODULE SaleOperationDefaultStore;
+
+REQUIRE SaleOperationDefault;
+
+NAMESPACE Sale;
+
+loadDefaultSaleStoreOperations 'Загрузить стандартные операции (продажа)' () = {  
+                
+    // 
+    createDefaultOperation('Перемещение между магазинами','saleStoreStore');
+    FOR operation('saleStoreStore') ==  Operation o DO {
+        nameReturn(o) <- 'Возврат с магазина на магазин';
+        needSupplier(o) <- TRUE;
+        needCustomer(o) <- TRUE;
+        needSupplierStock(o) <- TRUE;
+        needCustomerStock(o) <- TRUE;        
+        
+        dataInSupplier(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';   
+        dataInCustomer(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';  
+               
+        dataInSupplier(StockGroup g, o) <- TRUE WHERE id(g) == 'chainStores';
+        dataInCustomer(StockGroup g, o) <- TRUE WHERE id(g) == 'chainStores';
+           
+        createShipment(o) <- TRUE;    
+        
+        showPack(o) <- TRUE;
+        isPrice(o) <- TRUE;
+        isShipmentPrice(o) <- TRUE;
+        banNegativeQuantityInvoice(o) <- TRUE;
+        isCharLength(o) <- TRUE;     
+        skipSaleLedger(o) <- TRUE;  
+    }  
+
+    //  
+    createDefaultOperation('Продажа товара с магазина по безналичному расчету','saleStoreCustomer');  
+    FOR operation('saleStoreCustomer') ==  Operation o DO {
+        nameReturn(o) <- 'Возврат от покупателя';
+        needSupplier(o) <- TRUE;
+        needCustomer(o) <- TRUE;
+        needSupplierStock(o) <- TRUE;
+        needCustomerStock(o) <- TRUE;        
+        
+        dataInSupplier(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';  
+        dataInCustomer(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'customers';  
+               
+        dataInSupplier(StockGroup g, o) <- TRUE WHERE id(g) == 'chainStores';
+        dataInCustomer(StockGroup g, o) <- TRUE WHERE id(g) == 'external';
+           
+        createShipment(o) <- TRUE;    
+        
+        showPack(o) <- TRUE;        
+        useCountVAT(o) <- TRUE;
+        isPrice(o) <- TRUE;
+        isShipmentPrice(o) <- TRUE;
+    }
+    
+} IN loadDefault;
+    
+loadDefaultOperations () += { loadDefaultSaleStoreOperations(); }
