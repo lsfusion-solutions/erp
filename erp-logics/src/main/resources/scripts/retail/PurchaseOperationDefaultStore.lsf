@@ -64,9 +64,43 @@ loadDefaultPurchaseStoreOperations 'Загрузить стандартные о
         pricingOperation(o) <- Pricing.operation('purchase');
          
         isPurchaseValueVAT(o) <- TRUE;
+        isPrice(o) <- TRUE;
+        isShipmentPrice(o) <- TRUE;
+        banNegativeQuantityInvoice(o) <- TRUE;
         
         in(PriceListType t, o)<- TRUE WHERE t == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
         in(PriceListType t, o)<- TRUE WHERE t == priceListType('supplier');
+        defaultPriceListType(o) <- priceListType('supplier');
+        defaultReturnPriceListType(o) <- SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+    }
+
+    //  
+    createDefaultOperation('Поступление на магазин от магазина', 'purchaseStoreStore');  
+    FOR operation('purchaseStoreStore') ==  Operation o DO {
+        nameReturn(o) <- 'Возврат с магазина на магазин';
+        needSupplier(o) <- TRUE;
+        needCustomer(o) <- TRUE;
+        needSupplierStock(o) <- TRUE;
+        needCustomerStock(o) <- TRUE;        
+        
+        dataInSupplier(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';  
+        dataInCustomer(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';  
+               
+        dataInSupplier(StockGroup g, o) <- TRUE WHERE id(g) == 'chainStores';
+        dataInCustomer(StockGroup g, o) <- TRUE WHERE id(g) == 'chainStores';
+
+        createShipment(o) <- TRUE;
+            
+        createPricing(o) <- TRUE;            
+        pricingOperation(o) <- Pricing.operation('purchase');
+         
+        isPurchaseValueVAT(o) <- TRUE;
+        isPrice(o) <- TRUE;
+        isShipmentPrice(o) <- TRUE;
+        banNegativeQuantityInvoice(o) <- TRUE;
+        
+        in(PriceListType t, o) <- TRUE WHERE t == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+        in(PriceListType t, o) <- TRUE WHERE t == priceListType('supplier');
         defaultPriceListType(o) <- priceListType('supplier');
         defaultReturnPriceListType(o) <- SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
     }

@@ -1,0 +1,44 @@
+MODULE PriceListOperationDefaultStore;
+
+REQUIRE PriceListOperationDefault, PriceListBefore;
+
+NAMESPACE PriceList;
+
+loadDefaultPriceListStoreOperations 'Загрузить стандартные операции (прайсы)' () = { 
+    createDefaultOperation('Розничный прайс', 'retail');
+    FOR id(Operation o) == 'retail' DO {
+        groupType(o) <- SystemGroupType.skuGroupType;
+        
+        allRoles(o) <- TRUE;
+
+        needStock(o) <- TRUE;
+        allStocks(o) <- TRUE;
+        
+        change(DataPriceListType pt, o) <- TRUE WHERE id(pt) == 'retail';
+        show(DataPriceListType pt, o) <- TRUE WHERE id(pt) == 'retail';
+        
+        in(Currency c, o) <- TRUE WHERE c == defaultCurrency();
+    }   
+
+    createDefaultOperation('Акция', 'promotion');
+    FOR id(Operation o) == 'promotion' DO {
+        groupType(o) <- SystemGroupType.skuGroupType;
+        
+        allRoles(o) <- TRUE;
+
+        needStock(o) <- TRUE;
+        allStocks(o) <- TRUE;
+        
+        change(DataPriceListType pt, o) <- TRUE WHERE id(pt) == 'retail';
+        show(DataPriceListType pt, o) <- TRUE WHERE id(pt) == 'retail';
+        
+        in(Currency c, o) <- TRUE WHERE c == defaultCurrency();
+        
+        showPriceBefore(o) <- TRUE;
+        showLabelType(o) <- TRUE;
+    }   
+
+} IN loadDefault;
+    
+
+loadDefaultOperations () += { loadDefaultPriceListStoreOperations(); }

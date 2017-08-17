@@ -1,6 +1,6 @@
 MODULE StoreDefault;
 
-REQUIRE Store, StockDefault;
+REQUIRE Store, StockDefault, PriceListDefault, PriceListStore;
 
 NAMESPACE Store;
 
@@ -8,10 +8,28 @@ loadDefaultStockGroups () += {
     NEW c = ChainStores {
         name(c) <- 'Моя торговая сеть';
         id(c) <- 'chainStores';
-        NEW s = StoreType {
-            name(s) <- 'Мой формат';
-            id(s) <- 'storeType';
-            chainStores(s) <- c;
+        NEW t = StoreType {
+            name(t) <- 'Мой формат';
+            id(t) <- 'storeType';
+            chainStores(t) <- c;
+
+            retailPriceListType(t) <- priceListType('retail');
+            retailCalcPriceListType(t) <- priceListType('markup');
+            
+            NEW s = Store {
+                name(s) <- 'Мой магазин';
+                id(s) <- 'store';
+                
+                storeType(s) <- t;
+                legalEntity(s) <- legalEntity('company');
+                
+                NEW d = DepartmentStore {
+                    name(d) <- 'Мой отдел магазина';
+                    id(d) <- 'departmentStore';
+                    
+                    store(d) <- s;
+                }
+            }
         }
     }
 }

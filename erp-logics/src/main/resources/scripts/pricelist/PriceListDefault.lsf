@@ -1,6 +1,6 @@
-MODULE PriceListTypeBy;
+MODULE PriceListDefault;
 
-REQUIRE PriceList, PriceListCalc, PurchaseInvoice;
+REQUIRE PriceList, PriceListCalc, CountryDefault, PriceRoundDefault;
 
 NAMESPACE PriceList;
 
@@ -8,22 +8,24 @@ loadDefaultPriceListTypes 'Загрузить стандартные виды ц
     NEW t = DataPriceListType  {
         name(t) <- 'Поставщика (согласованная)';
         id(t) <- 'supplier';
-        currency(t) <- currencyShortName('BLR');
+        currency(t) <- defaultCurrency();
         roundCondition(t) <- defaultRoundCondition(currency(t));
     }
     NEW t = DataPriceListType  {
         name(t) <- 'Розничная (управленческая)';
         id(t) <- 'retail';
-        currency(t) <- currencyShortName('BLR');
+        includeVAT(t) <- TRUE;
+        currency(t) <- defaultCurrency();
         roundCondition(t) <- defaultRoundCondition(currency(t));
     }
     NEW t = CalcPriceListType  {
         name(t) <- 'Надбавка (управленческая)';
         id(t) <- 'markup';
-        basePriceListType(t) <- SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
-        currency(t) <- currencyShortName('BLR');
+        includeVAT(t) <- TRUE;
+        basePriceListType(t) <- dataPriceListType('supplier');
+        currency(t) <- defaultCurrency();
         roundCondition(t) <- defaultRoundCondition(currency(t));
-        country(t) <- country('112');
+        country(t) <- defaultCountry();
         groupType(t) <- SystemGroupType.skuGroupType;                       
     }    
     

@@ -1,0 +1,34 @@
+MODULE PriceListOperationDefault;
+
+REQUIRE PriceListOperation, OperationDefault;
+
+NAMESPACE PriceList;
+
+@defineCreateDefaultOperation();
+
+
+loadDefaultPriceListOperations 'Загрузить стандартные операции (прайсы)' () = { 
+    createDefaultOperation('Спецификация поставщика', 'supplier');
+    FOR id(Operation o) == 'supplier' DO {
+        groupType(o) <- SystemGroupType.skuGroupType;
+        
+        allRoles(o) <- TRUE;
+
+        needStock(o) <- TRUE;
+        allStocks(o) <- TRUE;
+        
+        change(DataPriceListType pt, o) <- TRUE WHERE id(pt) == 'supplier';
+        show(DataPriceListType pt, o) <- TRUE WHERE id(pt) == 'supplier';
+        
+        needLegalEntity(o) <- TRUE;
+        in(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'suppliers';
+        
+        in(Currency c, o) <- TRUE WHERE c == defaultCurrency();
+        
+        showNameCompany(o) <- TRUE;
+    }   
+
+} IN loadDefault;
+    
+
+loadDefaultOperations () += { loadDefaultPriceListOperations(); }
