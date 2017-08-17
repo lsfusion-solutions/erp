@@ -25,14 +25,6 @@ TABLE userOperation (User, Operation);
 in (user, operation) = ABSTRACT BOOLEAN (User, Operation) MATERIALIZED;
 countUsers = GROUP SUM 1 IF in (User user, Operation operation) BY operation;
 
-DESIGN options {
-    pane {        
-        NEW operations {
-            caption = 'Операции';
-        }
-    }
-}
-
 // -------------------------------------- Макросы по созданию операций ---------------------------------- //
 
 META defineOperation(postfix)
@@ -233,20 +225,8 @@ META defineDocumentOperationContainer(object, char, typeIdentity)
 END
 
 META defineDocumentOperationConstraint(object, caption, NS)
-    dateOperation###object 'Дата, начиная с которой у документа '###caption###' должна быть задана операция' = DATA DATE ();
-    CONSTRAINT dateOperation###object() AND (date(###object o)>=dateOperation###object() AND NOT operation(o))
+    CONSTRAINT is(###object o) AND NOT operation(o)
         MESSAGE 'У документа '###caption###' должна быть задана операция';        
-        
-        
-    EXTEND FORM options
-        PROPERTIES() NS###dateOperation###object = dateOperation###object
-    ;
-    
-    DESIGN options {
-        operations {
-            MOVE PROPERTY(NS###dateOperation###object);    
-        }
-    }
 END
 
 // -------------------------------------- Организации ---------------------------------- //
