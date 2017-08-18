@@ -192,7 +192,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     private String getAddInventGroupJSON(ItemGroup itemGroup) throws JSONException {
-        if (itemGroup.extIdItemGroup != null && !itemGroup.extIdItemGroup.equals("0")) {
+        if (itemGroup.extIdItemGroup != null) {
             JSONObject rootObject = new JSONObject();
 
             JSONObject inventGroupObject = new JSONObject();
