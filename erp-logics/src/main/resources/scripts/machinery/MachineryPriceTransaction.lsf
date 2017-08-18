@@ -1246,7 +1246,11 @@ expiryDays 'Срок годности в днях' = expiryDays(sku(Barcode barc
 
 dataMinPrice 'Минимальная цена' = ABSTRACT NUMERIC[16,4] (Barcode, Stock);
 
-dataMinPrice 'Минимальная цена' = DATA NUMERIC[16,4] (MachineryPriceTransaction, Barcode);
+dataMinPrice 'Минимальная цена (предв.)' = DATA NUMERIC[16,4] (MachineryPriceTransaction, Barcode);
 dataMinPrice(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
 @defineMachineryPriceTransactionAttributeStockAction(dataMinPrice, 'Минимальная цена', );
-minPrice(MachineryPriceTransaction m, Barcode b) =  MIN dataMinPrice(m, b), price(m, b);
+minPrice 'Минимальная цена (рез.)' (MachineryPriceTransaction m, Barcode b) =  MIN dataMinPrice(m, b), price(m, b);
+
+EXTEND FORM machineryPriceTransaction PROPERTIES(t, b) minPrice;
+EXTEND FORM machineryPriceTransactions PROPERTIES(t, b) READONLY minPrice;
+EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb) READONLY  minPrice;
