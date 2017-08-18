@@ -543,12 +543,16 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                 ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
                 String globalExchangeDirectory = artixSettings != null ? artixSettings.getGlobalExchangeDirectory() : null;
+                boolean clearDiscountCardsBeforeAdd = artixSettings != null && artixSettings.isClearDiscountCardsBeforeAdd();
 
                 if(globalExchangeDirectory != null) {
                     if (new File(globalExchangeDirectory).exists() || new File(globalExchangeDirectory).mkdirs()) {
                         machineryExchangeLogger.info(String.format(logPrefix + "Send DiscountCards to %s", globalExchangeDirectory));
 
                         StringBuilder command = new StringBuilder();
+
+                        if(clearDiscountCardsBeforeAdd)
+                            command.append("{\"command\": \"clearUnit\"}").append("\n---\n");
 
                         String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
                         File file = new File(globalExchangeDirectory + "/pos" + currentTime + ".aif");
