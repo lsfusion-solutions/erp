@@ -741,10 +741,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             case 1:
                                                 sumCash = HandlerUtils.safeAdd(sumCash, sum);
                                                 break;
-                                            case 2:
+                                            case 4:
                                                 sumCard = HandlerUtils.safeAdd(sumCard, sum);
                                                 break;
-                                            case 3:
+                                            case 3: //todo: уточнить код оплаты сертификатом
                                                 String numberGiftCard = moneyPosition.getString("cardnum");
                                                 sumGiftCardMap.put(numberGiftCard, new GiftCard(sum, sum));
                                                 break;
