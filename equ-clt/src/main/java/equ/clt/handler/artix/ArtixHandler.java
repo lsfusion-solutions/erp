@@ -86,27 +86,26 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                     processTransactionLogger.info(logPrefix + "creating pos file (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
 
-                    String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
-                    File file = new File(directory + "/pos" + currentTime + ".aif");
+                    File tmpFile = File.createTempFile("pos",".aif");
 
                     if(transaction.snapshot) {
                         //items
-                        writeStringToFile(file, "{\"command\": \"clearInventory\"}\n---\n");
+                        writeStringToFile(tmpFile, "{\"command\": \"clearInventory\"}\n---\n");
 
                         //item groups
-                        writeStringToFile(file, "{\"command\": \"clearInventGroup\"}\n---\n");
+                        writeStringToFile(tmpFile, "{\"command\": \"clearInventGroup\"}\n---\n");
 
                         //UOMs
-                        writeStringToFile(file, "{\"command\": \"clearUnit\"}\n---\n");
+                        writeStringToFile(tmpFile, "{\"command\": \"clearUnit\"}\n---\n");
 
                         //prices
-                        writeStringToFile(file, "{\"command\": \"clearPrice\"}\n---\n");
+                        writeStringToFile(tmpFile, "{\"command\": \"clearPrice\"}\n---\n");
                     }
 
                     //items
                     for (CashRegisterItemInfo item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
-                            writeStringToFile(file, getAddInventItemJSON(transaction, item) + "\n---\n");
+                            writeStringToFile(tmpFile, getAddInventItemJSON(transaction, item) + "\n---\n");
                         }
                     }
 
@@ -120,7 +119,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     if (!usedItemGroups.contains(itemGroup.extIdItemGroup)) {
                                         String inventGroup = getAddInventGroupJSON(itemGroup);
                                         if(inventGroup != null)
-                                            writeStringToFile(file, inventGroup + "\n---\n");
+                                            writeStringToFile(tmpFile, inventGroup + "\n---\n");
                                         usedItemGroups.add(itemGroup.extIdItemGroup);
                                     }
                                 }
@@ -135,7 +134,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             if (!usedUOMs.contains(item.idUOM)) {
                                 String unit = getAddUnitJSON(item);
                                 if(unit != null)
-                                    writeStringToFile(file, unit + "\n---\n");
+                                    writeStringToFile(tmpFile, unit + "\n---\n");
                                 usedUOMs.add(item.idUOM);
                             }
                         }
@@ -149,6 +148,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     }*/
 
                     //TODO: склады
+
+                    String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
+                    File file = new File(directory + "/pos" + currentTime + ".aif");
+                    FileCopyUtils.copy(tmpFile, file);
+                    if(!tmpFile.delete())
+                        tmpFile.deleteOnExit();
 
                     fileMap.put(file, transaction.id);
                     File flagFile = new File(directory + "/pos" + currentTime + ".flz");
@@ -554,14 +559,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
                         File file = new File(globalExchangeDirectory + "/pos" + currentTime + ".aif");
+                        File tmpFile = File.createTempFile("pos",".aif");
                         machineryExchangeLogger.info(logPrefix + "creating discountCards file " + file.getAbsolutePath());
 
                         for (DiscountCard d : discountCardList) {
                             if(d.typeDiscountCard != null) {
                                 boolean active = requestExchange.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
                                 if(deleteDiscountCardsBeforeAdd)
-                                    writeStringToFile(file, String.format("{\"command\": \"deleteCard\", \"idCard\": } %s \n---\n", d.numberDiscountCard));
-                                writeStringToFile(file, getAddCardJSON(d, active) + "\n---\n");
+                                    writeStringToFile(tmpFile, String.format("{\"command\": \"deleteCard\", \"idCard\": } %s \n---\n", d.numberDiscountCard));
+                                writeStringToFile(tmpFile, getAddCardJSON(d, active) + "\n---\n");
                             }
                         }
 
@@ -569,15 +575,19 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         for (DiscountCard d : discountCardList) {
                             if (d.typeDiscountCard != null && !usedGroups.contains(d.typeDiscountCard)) {
                                 usedGroups.add(d.typeDiscountCard);
-                                writeStringToFile(file, getAddCardGroupJSON(d.typeDiscountCard, "Группа карт") + "\n---\n");
+                                writeStringToFile(tmpFile, getAddCardGroupJSON(d.typeDiscountCard, "Группа карт") + "\n---\n");
                             }
                         }
 
                         for (DiscountCard d : discountCardList) {
                             if(d.typeDiscountCard != null) {
-                                writeStringToFile(file, getAddClientJSON(d) + "\n---\n");
+                                writeStringToFile(tmpFile, getAddClientJSON(d) + "\n---\n");
                             }
                         }
+
+                        FileCopyUtils.copy(tmpFile, file);
+                        if(!tmpFile.delete())
+                            tmpFile.deleteOnExit();
 
                         File flagFile = new File(globalExchangeDirectory + "/pos" + currentTime + ".flz");
                         if (!flagFile.createNewFile())
@@ -596,10 +606,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         }
     }
 
-    private void writeStringToFile(File file, String data) throws IOException {
-        FileUtils.writeStringToFile(file, data, true);
-    }
-
     @Override
     public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
 
@@ -611,14 +617,21 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                 String directory = entry.getKey();
 
+                File tmpFile = File.createTempFile("pos",".aif");
+
                 String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
                 File file = new File(directory + "/pos" + currentTime + ".aif");
 
                 machineryExchangeLogger.info(logPrefix + "creating cashiers file " + file.getAbsolutePath());
 
                 for (CashierInfo cashier : cashierInfoList) {
-                    writeStringToFile(file, getAddMCashUserJSON(cashier) + "\n---\n");;
+                    writeStringToFile(tmpFile, getAddMCashUserJSON(cashier) + "\n---\n");;
                 }
+
+                FileCopyUtils.copy(tmpFile, file);
+                if(!tmpFile.delete())
+                    tmpFile.deleteOnExit();
+
                 File flagFile = new File(directory + "/pos" + currentTime + ".flz");
                 if(!flagFile.createNewFile())
                     processTransactionLogger.info(String.format(logPrefix + "can't create flag file %s", flagFile.getAbsolutePath()));
@@ -631,6 +644,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
         }
 
+    }
+
+    private void writeStringToFile(File file, String data) throws IOException {
+        FileUtils.writeStringToFile(file, data, true);
     }
 
     @Override
