@@ -29,7 +29,29 @@ loadDefaultSaleStoreOperations 'Загрузить стандартные опе
         banNegativeQuantityInvoice(o) <- TRUE;
         isCharLength(o) <- TRUE;     
         skipSaleLedger(o) <- TRUE;  
-    }  
+    }
+    
+    createDefaultOperation('Перемещение со склада на магазин','saleWarehouseStore');
+    FOR operation('saleWarehouseStore') ==  Operation o DO {
+        nameReturn(o) <- 'Возврат с магазина на склад';
+        needSupplier(o) <- TRUE;
+        needCustomer(o) <- TRUE;
+        needSupplierStock(o) <- TRUE;
+        needCustomerStock(o) <- TRUE;        
+        
+        dataInSupplier(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';   
+        dataInCustomer(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';  
+               
+        dataInSupplier(StockGroup g, o) <- TRUE WHERE id(g) == 'company';
+        dataInCustomer(StockGroup g, o) <- TRUE WHERE id(g) == 'chainStores';
+           
+        createShipment(o) <- TRUE;    
+        
+        showPack(o) <- TRUE;
+        isPrice(o) <- TRUE;
+        isShipmentPrice(o) <- TRUE;
+        banNegativeQuantityInvoice(o) <- TRUE;
+    }
 
     //  
     createDefaultOperation('Продажа товара с магазина по безналичному расчету','saleStoreCustomer');  

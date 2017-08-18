@@ -5,3 +5,31 @@ REQUIRE SaleOperation, SaleShipment, OperationDefault;
 NAMESPACE Sale;
 
 @defineCreateDefaultOperation();
+
+loadDefaultSaleOperations 'Загрузить стандартные операции (продажа)' () = {  
+                
+    createDefaultOperation('Перемещение со склада на склад','saleWarehouseWarehouse');
+    FOR operation('saleWarehouseWarehouse') ==  Operation o DO {
+        nameReturn(o) <- 'Возврат со склада на склад';
+        needSupplier(o) <- TRUE;
+        needCustomer(o) <- TRUE;
+        needSupplierStock(o) <- TRUE;
+        needCustomerStock(o) <- TRUE;        
+        
+        dataInSupplier(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';   
+        dataInCustomer(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';  
+               
+        dataInSupplier(StockGroup g, o) <- TRUE WHERE id(g) == 'company';
+        dataInCustomer(StockGroup g, o) <- TRUE WHERE id(g) == 'company';
+           
+        createShipment(o) <- TRUE;    
+        
+        showPack(o) <- TRUE;
+        isPrice(o) <- TRUE;
+        isShipmentPrice(o) <- TRUE;
+        banNegativeQuantityInvoice(o) <- TRUE;
+    }
+
+} IN loadDefault;
+    
+loadDefaultOperations () += { loadDefaultSaleOperations(); }
