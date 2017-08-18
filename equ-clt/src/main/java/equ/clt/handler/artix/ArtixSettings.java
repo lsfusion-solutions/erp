@@ -6,6 +6,7 @@ public class ArtixSettings implements Serializable{
 
     private String globalExchangeDirectory;
     private boolean deleteDiscountCardsBeforeAdd;
+    private boolean appendBarcode;
 
     public ArtixSettings() {
     }
@@ -24,5 +25,13 @@ public class ArtixSettings implements Serializable{
 
     public void setDeleteDiscountCardsBeforeAdd(boolean deleteDiscountCardsBeforeAdd) {
         this.deleteDiscountCardsBeforeAdd = deleteDiscountCardsBeforeAdd;
+    }
+
+    public boolean isAppendBarcode() {
+        return appendBarcode;
+    }
+
+    public void setAppendBarcode(boolean appendBarcode) {
+        this.appendBarcode = appendBarcode;
     }
 }

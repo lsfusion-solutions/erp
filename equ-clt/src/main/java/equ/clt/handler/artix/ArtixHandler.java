@@ -57,6 +57,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
+        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
+        boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
+
         Map<File, Integer> fileMap = new HashMap<>();
         Map<Integer, Exception> failedTransactionMap = new HashMap<>();
         Set<Integer> emptyTransactionSet = new HashSet<>();
@@ -105,7 +108,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     //items
                     for (CashRegisterItemInfo item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
-                            writeStringToFile(tmpFile, getAddInventItemJSON(transaction, item) + "\n---\n");
+                            writeStringToFile(tmpFile, getAddInventItemJSON(transaction, item, appendBarcode) + "\n---\n");
                         }
                     }
 
@@ -172,13 +175,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return waitForDeletion(fileMap, failedTransactionMap, emptyTransactionSet);
     }
 
-    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item) throws JSONException {
+    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item, boolean appendBarcode) throws JSONException {
         JSONObject rootObject = new JSONObject();
 
         JSONObject inventObject = new JSONObject();
         rootObject.put("invent", inventObject);
         inventObject.put("inventcode", trim(item.idItem, 20)); //код товара
-        inventObject.put("barcode", item.idBarcode); //основной штрих-код
+        inventObject.put("barcode", removeCheckDigitFromBarcode(item.idBarcode, appendBarcode)); //основной штрих-код
         inventObject.put("deptcode", 1); //код отдела
         inventObject.put("price", item.price); //цена
         inventObject.put("minprice", item.minPrice); //минимальная цена
@@ -294,14 +297,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return rootObject.toString();
     }
 
-    private String getAddCardGroupJSON(String id, String name) throws JSONException, ParseException {
+    private String getAddCardGroupJSON(String id) throws JSONException, ParseException {
         JSONObject rootObject = new JSONObject();
 
         JSONObject cardGroupObject = new JSONObject();
         rootObject.put("cardGroup", cardGroupObject);
         cardGroupObject.put("idcardgroup", id); //идентификационный код группы карт
-        cardGroupObject.put("name", name); //имя группы карт
-        cardGroupObject.put("text", name); //текст
+        cardGroupObject.put("name", id); //имя группы карт
+        cardGroupObject.put("text", id); //текст
         cardGroupObject.put("notaddemptycard", true);
         cardGroupObject.put("pattern", "[0-9]");
         cardGroupObject.put("inputmask", 7); //маска способа ввода карты
@@ -575,7 +578,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         for (DiscountCard d : discountCardList) {
                             if (d.typeDiscountCard != null && !usedGroups.contains(d.typeDiscountCard)) {
                                 usedGroups.add(d.typeDiscountCard);
-                                writeStringToFile(tmpFile, getAddCardGroupJSON(d.typeDiscountCard, "Группа карт") + "\n---\n");
+                                writeStringToFile(tmpFile, getAddCardGroupJSON(d.typeDiscountCard) + "\n---\n");
                             }
                         }
 
@@ -625,7 +628,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 machineryExchangeLogger.info(logPrefix + "creating cashiers file " + file.getAbsolutePath());
 
                 for (CashierInfo cashier : cashierInfoList) {
-                    writeStringToFile(tmpFile, getAddMCashUserJSON(cashier) + "\n---\n");;
+                    writeStringToFile(tmpFile, getAddMCashUserJSON(cashier) + "\n---\n");
                 }
 
                 FileCopyUtils.copy(tmpFile, file);
@@ -652,6 +655,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
+
+        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
+        boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
 
         Map<String, CashRegisterInfo> directoryDepartNumberCashRegisterMap = new HashMap<>();
         Set<String> directorySet = new HashSet<>();
@@ -764,7 +770,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
 
                                     String idItem = inventPosition.getString("inventCode");
-                                    String barcode = inventPosition.getString("barCode");
+                                    String barcode = appendCheckDigitToBarcode(inventPosition.getString("barCode"), 7, appendBarcode);
                                     Integer numberReceiptDetail = inventPosition.getInt("posNum");
 
                                     BigDecimal quantity = BigDecimal.valueOf(inventPosition.getDouble("quant"));
@@ -823,11 +829,59 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(value).getTime();
     }
 
-    private String formatDateTime(long value) throws ParseException {
+/*    private String formatDateTime(long value) throws ParseException {
         return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(value);
-    }
+    }*/
 
     private String formatDate(Date value) throws ParseException {
         return value == null ? null : new SimpleDateFormat("yyyy-MM-dd").format(value);
+    }
+
+    private String appendCheckDigitToBarcode(String barcode, Integer minLength, boolean appendBarcode) {
+        if(appendBarcode) {
+            if (barcode == null || (minLength != null && barcode.length() < minLength))
+                return null;
+
+            try {
+                if (barcode.length() == 11) {
+                    return appendEAN13("0" + barcode).substring(1, 13);
+                } else if (barcode.length() == 12) {
+                    return appendEAN13(barcode);
+                } else if (barcode.length() == 7) {  //EAN-8
+                    int checkSum = 0;
+                    for (int i = 0; i <= 6; i = i + 2) {
+                        checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i))) * 3;
+                        checkSum += i == 6 ? 0 : Integer.valueOf(String.valueOf(barcode.charAt(i + 1)));
+                    }
+                    checkSum %= 10;
+                    if (checkSum != 0)
+                        checkSum = 10 - checkSum;
+                    return barcode.concat(String.valueOf(checkSum));
+                } else
+                    return barcode;
+            } catch (Exception e) {
+                return barcode;
+            }
+        } else
+            return barcode;
+    }
+
+    private String removeCheckDigitFromBarcode(String barcode, boolean appendBarcode) {
+        if (appendBarcode && barcode != null && (barcode.length() == 13 || barcode.length() == 12 || barcode.length() == 8)) {
+            return barcode.substring(0, barcode.length() - 1);
+        } else
+            return barcode;
+    }
+
+    private String appendEAN13(String barcode) {
+        int checkSum = 0;
+        for (int i = 0; i <= 10; i = i + 2) {
+            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
+            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+        }
+        checkSum %= 10;
+        if (checkSum != 0)
+            checkSum = 10 - checkSum;
+        return barcode.concat(String.valueOf(checkSum));
     }
 }
