@@ -198,7 +198,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             JSONObject inventGroupObject = new JSONObject();
             rootObject.put("inventGroup", inventGroupObject);
             inventGroupObject.put("groupCode", itemGroup.extIdItemGroup); //идентификационный код группы товаров
-            inventGroupObject.put("parentGroupCode", Long.parseLong(itemGroup.idParentItemGroup)); //идентификационный код родительской группы товаров
+            inventGroupObject.put("parentGroupCode", itemGroup.idParentItemGroup); //идентификационный код родительской группы товаров
             inventGroupObject.put("groupname", trim(itemGroup.nameItemGroup, 200)); //название группы товаров
             rootObject.put("command", "addInventGroup");
             return rootObject.toString();
@@ -543,16 +543,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                 ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
                 String globalExchangeDirectory = artixSettings != null ? artixSettings.getGlobalExchangeDirectory() : null;
-                boolean clearDiscountCardsBeforeAdd = artixSettings != null && artixSettings.isClearDiscountCardsBeforeAdd();
+                boolean deleteDiscountCardsBeforeAdd = artixSettings != null && artixSettings.isDeleteDiscountCardsBeforeAdd();
 
                 if(globalExchangeDirectory != null) {
                     if (new File(globalExchangeDirectory).exists() || new File(globalExchangeDirectory).mkdirs()) {
                         machineryExchangeLogger.info(String.format(logPrefix + "Send DiscountCards to %s", globalExchangeDirectory));
 
                         StringBuilder command = new StringBuilder();
-
-                        if(clearDiscountCardsBeforeAdd)
-                            command.append("{\"command\": \"clearUnit\"}").append("\n---\n");
 
                         String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
                         File file = new File(globalExchangeDirectory + "/pos" + currentTime + ".aif");
@@ -561,6 +558,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         for (DiscountCard d : discountCardList) {
                             if(d.typeDiscountCard != null) {
                                 boolean active = requestExchange.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
+                                if(deleteDiscountCardsBeforeAdd)
+                                    command.append(String.format("{\"command\": \"deleteCard\", \"idCard\": } %s \n---\n", d.numberDiscountCard));
                                 command.append(getAddCardJSON(d, active)).append("\n---\n");
                             }
                         }
@@ -637,31 +636,38 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
         Map<String, CashRegisterInfo> directoryDepartNumberCashRegisterMap = new HashMap<>();
+        Set<String> directorySet = new HashSet<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null) {
                 String key = c.directory + "_" + c.number;
                 directoryDepartNumberCashRegisterMap.put(key, c);
+                directorySet.add(c.directory + "/sale" + c.number);
             }
         }
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<String> filePathList = new ArrayList<>();
 
-        File[] filesList = new File(directory).listFiles(new FileFilter() {
-            @Override
-            public boolean accept(File pathname) {
-                return pathname.getName().startsWith("sales") && pathname.getPath().endsWith(".json");
-            }
-        });
+        List<File> files = new ArrayList<>();
+        for(String dir : directorySet) {
+            File[] filesList = new File(dir).listFiles(new FileFilter() {
+                @Override
+                public boolean accept(File pathname) {
+                    return pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json");
+                }
+            });
+            if(filesList != null)
+                files.addAll(Arrays.asList(filesList));
+        }
 
-        if (filesList == null || filesList.length == 0)
+        if (files.isEmpty())
             sendSalesLogger.info(logPrefix + "No checks found in " + directory);
         else {
-            sendSalesLogger.info(String.format(logPrefix + "found %s file(s) in %s", filesList.length, directory));
+            sendSalesLogger.info(String.format(logPrefix + "found %s file(s) in %s", files.size(), directory));
 
             Set<String> usedBarcodes = new HashSet<>();
 
-            for (File file : filesList) {
+            for (File file : files) {
                 try {
 
                     String fileName = file.getName();

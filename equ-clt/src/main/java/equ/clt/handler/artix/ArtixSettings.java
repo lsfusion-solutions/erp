@@ -5,7 +5,7 @@ import java.io.Serializable;
 public class ArtixSettings implements Serializable{
 
     private String globalExchangeDirectory;
-    private boolean clearDiscountCardsBeforeAdd;
+    private boolean deleteDiscountCardsBeforeAdd;
 
     public ArtixSettings() {
     }
@@ -18,11 +18,11 @@ public class ArtixSettings implements Serializable{
         this.globalExchangeDirectory = globalExchangeDirectory;
     }
 
-    public boolean isClearDiscountCardsBeforeAdd() {
-        return clearDiscountCardsBeforeAdd;
+    public boolean isDeleteDiscountCardsBeforeAdd() {
+        return deleteDiscountCardsBeforeAdd;
     }
 
-    public void setClearDiscountCardsBeforeAdd(boolean clearDiscountCardsBeforeAdd) {
-        this.clearDiscountCardsBeforeAdd = clearDiscountCardsBeforeAdd;
+    public void setDeleteDiscountCardsBeforeAdd(boolean deleteDiscountCardsBeforeAdd) {
+        this.deleteDiscountCardsBeforeAdd = deleteDiscountCardsBeforeAdd;
     }
 }
