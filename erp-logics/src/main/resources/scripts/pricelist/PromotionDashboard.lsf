@@ -143,11 +143,6 @@ filterPromotionStock  = DATA LOCAL NESTED DepartmentStore ();
 nameFilterPromotionStock 'Склад' = name[Stock](filterPromotionStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;                                                     
 notFilterPromotionStock = TRUE AND NOT filterPromotionStock();
 
-changeCompanyFilterPromotionStock() = {
-    DIALOG companysStock OBJECTS s = filterPromotionStock() INPUT NULL DO 
-        filterPromotionStock() <- s;
-}
-
 //overPriceListDetailAPriceListTypeSkuDateTimeOperation  (type, sku, dateTime, operation) = IF filterPromotionStock() 
 //    THEN activePriceListDetailAPriceListTypeSkuStockDateTimeOperation(type, sku, filterPromotionStock(), dateTime, operation)
 //    ELSE activePriceListDetailAPriceListTypeSkuDateTimeOperation (type, sku, dateTime, operation);
@@ -165,11 +160,7 @@ balanceB 'Остаток (до акции)' (PriceListDetail detail) = balanceB(
 note 'Примечание' = note(priceList(PriceListDetail d));
 
 EXTEND FORM promotionDashboard   
-    OBJECTS c = LegalEntity PANEL
-    PROPERTIES(c) name SELECTOR
-    FILTERS isCompany(c)
-    
-    PROPERTIES nameFilterPromotionStock() ON CHANGE changeCompanyFilterPromotionStock()
+    PROPERTIES nameFilterPromotionStock()
 
     TREE cskg cskg = SkuGroup PARENT parent
     PROPERTIES READONLY order(cskg), cskgName = name(cskg)
@@ -182,7 +173,6 @@ EXTEND FORM promotionDashboard
     FILTERS isParent(cskg, sku(csk)),
             fromDate(csk) <= toDate(dt) AND NOT (toDate(csk) < toDate(dt)),
             in(csk,pt) AND price(csk,pt),
-            company(csk) == c,
             operation(csk) == o,
             in(priceList(csk),filterPromotionStock()) OR (csk IS PriceListDetail AND NOT filterPromotionStock())
             
@@ -207,7 +197,6 @@ DESIGN promotionDashboard {
                 type = SPLITH;
                 NEW cSkuFilters {
                     fill = 1;
-                    MOVE PROPERTY(name(c));
                     MOVE BOX(TREE cskg) {
                         caption = 'Товарные группы';
                     }
@@ -231,10 +220,9 @@ DESIGN promotionDashboard {
 // ----------------------------------- Список прайсов ---------------------------- //
 // p
 
-addUserPriceList 'Добавить'(LegalEntity legalEntity, PriceListType type, DATETIME dateTime, PriceList.Operation operation) = {
+addUserPriceList 'Добавить'(PriceListType type, DATETIME dateTime, PriceList.Operation operation) = {
 	NEWSESSION {
 	    NEW p = UserPriceList {
-	        company(p) <- legalEntity;
 	        fromDate(p) <- toDate(dateTime);
 	        fromTime(p) <- toTime(dateTime);
 	        operation(p) <- operation;
@@ -252,12 +240,11 @@ EXTEND FORM promotionDashboard
                            fromDate, fromTime, toDate, toTime,
                            nameCurrency, nameCompany, priceListTypes, stocks,
                            note
-    PROPERTIES(p) NEWSESSION EDIT, DELETE , update TOOLBAR
+    PROPERTIES(p) NEWSESSION EDIT, DELETE
     ORDER BY fromDate(p), fromTime(p)
     FILTERS in(p, pt),
-            company(p) == c,
             operation(p) ==o
-    PROPERTIES(c, pt, dt, o) addUserPriceList TODRAW p       
+    PROPERTIES(pt, dt, o) addUserPriceList TODRAW p       
     FILTERGROUP inactivePriceList
         FILTER 'Текущие' isActive(p,dt) 'F11'            
         FILTER 'Активные' isActive(p,dt) OR (fromDateTime[PriceList](p) > dt) 'F10' DEFAULT   
