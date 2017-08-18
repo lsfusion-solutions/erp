@@ -10,6 +10,7 @@ import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
 import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
@@ -36,6 +37,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     private static String logPrefix = "Artix: ";
 
     String encoding = "utf-8";
+
+    private FileSystemXmlApplicationContext springContext;
+
+    public ArtixHandler(FileSystemXmlApplicationContext springContext) {
+        this.springContext = springContext;
+    }
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
         String groupId = null;
@@ -83,7 +90,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                     if(transaction.snapshot) {
                         //items
-                        command.append("{\"command\": \"clearTmc\"}").append("\n---\n");
+                        command.append("{\"command\": \"clearInventory\"}").append("\n---\n");
 
                         //item groups
                         command.append("{\"command\": \"clearInventGroup\"}").append("\n---\n");
@@ -109,11 +116,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
                             if (hierarchyItemGroup != null) {
                                 for (ItemGroup itemGroup : hierarchyItemGroup) {
-                                    if (!usedItemGroups.contains(itemGroup.idItemGroup)) {
+                                    if (!usedItemGroups.contains(itemGroup.extIdItemGroup)) {
                                         String inventGroup = getAddInventGroupJSON(itemGroup);
                                         if(!inventGroup.isEmpty())
                                             command.append(inventGroup).append("\n---\n");
-                                        usedItemGroups.add(itemGroup.idItemGroup);
+                                        usedItemGroups.add(itemGroup.extIdItemGroup);
                                     }
                                 }
                             }
@@ -126,17 +133,17 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         if (!Thread.currentThread().isInterrupted()) {
                             if (!usedUOMs.contains(item.idUOM)) {
                                 command.append(getAddUnitJSON(item)).append("\n---\n");
-                                usedUOMs.add(item.idItemGroup);
+                                usedUOMs.add(item.idUOM);
                             }
                         }
                     }
 
                     //prices
-                    for (CashRegisterItemInfo item : transaction.itemsList) {
+                    /*for (CashRegisterItemInfo item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
                                 command.append(getAddPriceJSON(item)).append("\n---\n");
                         }
-                    }
+                    }*/
 
                     //TODO: склады
 
@@ -178,20 +185,19 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         inventObject.put("measurecode", 1); //код единицы измерения
         List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.extIdItemGroup);
         if (itemGroupList != null) {
-            inventObject.put("inventgroup", itemGroupList.get(0).idParentItemGroup); //код родительской группы товаров
+            inventObject.put("inventgroup", itemGroupList.get(0).extIdItemGroup); //код родительской группы товаров
         }
         rootObject.put("command", "addInventItem");
         return rootObject.toString();
     }
 
     private String getAddInventGroupJSON(ItemGroup itemGroup) throws JSONException {
-        Long idItemGroup = Long.parseLong(itemGroup.idItemGroup);
-        if (idItemGroup != 0) {
+        if (itemGroup.extIdItemGroup != null && !itemGroup.extIdItemGroup.equals("0")) {
             JSONObject rootObject = new JSONObject();
 
             JSONObject inventGroupObject = new JSONObject();
             rootObject.put("inventGroup", inventGroupObject);
-            inventGroupObject.put("groupCode", idItemGroup); //идентификационный код группы товаров
+            inventGroupObject.put("groupCode", itemGroup.extIdItemGroup); //идентификационный код группы товаров
             inventGroupObject.put("parentGroupCode", Long.parseLong(itemGroup.idParentItemGroup)); //идентификационный код родительской группы товаров
             inventGroupObject.put("groupname", trim(itemGroup.nameItemGroup, 200)); //название группы товаров
             rootObject.put("command", "addInventGroup");
@@ -204,15 +210,23 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         JSONObject inventGroupObject = new JSONObject();
         rootObject.put("unit", inventGroupObject);
-        //TODO: код едининцы измерения должен быть Integer
-        inventGroupObject.put("unitCode", 1/*Integer.parseInt(item.idUOM)*/); //код единицы измерения
+        inventGroupObject.put("unitCode", parseUOM(item.idUOM)); //код единицы измерения
         inventGroupObject.put("name", item.shortNameUOM); //наименование единицы измерения
         inventGroupObject.put("fractional", !item.splitItem); //дробная единица измерения: true весовой, false штучный
         rootObject.put("command", "addUnit");
         return rootObject.toString();
     }
 
-    private String getAddPriceJSON(CashRegisterItemInfo item) throws JSONException, ParseException {
+    protected Integer parseUOM(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (Exception e) {
+            processTransactionLogger.info(logPrefix + "Incorrect integer UOM " + value);
+            return null;
+        }
+    }
+
+    /*private String getAddPriceJSON(CashRegisterItemInfo item) throws JSONException, ParseException {
         JSONObject rootObject = new JSONObject();
 
         JSONObject inventGroupObject = new JSONObject();
@@ -228,7 +242,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         inventGroupObject.put("effectivedateend", formatDateTime(getDate(2020, 1, 1).getTime())); //дата и время окончания переоценки
         rootObject.put("command", "addPrice");
         return rootObject.toString();
-    }
+    }*/
 
     private String getAddMCashUserJSON(CashierInfo cashier) throws JSONException, ParseException {
         JSONObject rootObject = new JSONObject();
@@ -526,20 +540,22 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             machineryExchangeLogger.info(logPrefix + "Send DiscountCardList");
 
             if (!discountCardList.isEmpty()) {
-                for (String directory : requestExchange.directoryStockMap.keySet()) {
-                    if (new File(directory).exists() || new File(directory).mkdirs()) {
-                        machineryExchangeLogger.info(String.format(logPrefix + "Send DiscountCards to %s", directory));
+
+                ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
+                String globalExchangeDirectory = artixSettings != null ? artixSettings.getGlobalExchangeDirectory() : null;
+
+                if(globalExchangeDirectory != null) {
+                    if (new File(globalExchangeDirectory).exists() || new File(globalExchangeDirectory).mkdirs()) {
+                        machineryExchangeLogger.info(String.format(logPrefix + "Send DiscountCards to %s", globalExchangeDirectory));
 
                         StringBuilder command = new StringBuilder();
 
                         String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
-                        File file = new File(directory + "/pos" + currentTime + ".aif");
+                        File file = new File(globalExchangeDirectory + "/pos" + currentTime + ".aif");
                         machineryExchangeLogger.info(logPrefix + "creating discountCards file " + file.getAbsolutePath());
-
 
                         for (DiscountCard d : discountCardList) {
                             if(d.typeDiscountCard != null) {
-                                //todo: убрать после обновления сервера - эта проверка будет проводится на сервере
                                 boolean active = requestExchange.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
                                 command.append(getAddCardJSON(d, active)).append("\n---\n");
                             }
@@ -560,13 +576,16 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         }
 
                         FileUtils.writeStringToFile(file, command.toString());
-                        File flagFile = new File(directory + "/pos" + currentTime + ".flz");
+                        File flagFile = new File(globalExchangeDirectory + "/pos" + currentTime + ".flz");
                         if (!flagFile.createNewFile())
                             processTransactionLogger.info(String.format(logPrefix + "can't create flag file %s", flagFile.getAbsolutePath()));
 
                         machineryExchangeLogger.info(logPrefix + "waiting for deletion of discountCards file " + file.getAbsolutePath());
                         waitForDeletion(file, flagFile);
                     }
+                } else {
+                    machineryExchangeLogger.error(logPrefix + "globalExchangeDirectory not found, sendDiscountCard skipped");
+                    throw new RuntimeException(logPrefix + "globalExchangeDirectory not found, sendDiscountCard skipped");
                 }
             }
         } catch (ParseException | JSONException e) {
