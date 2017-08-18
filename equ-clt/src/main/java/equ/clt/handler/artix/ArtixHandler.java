@@ -118,7 +118,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                 for (ItemGroup itemGroup : hierarchyItemGroup) {
                                     if (!usedItemGroups.contains(itemGroup.extIdItemGroup)) {
                                         String inventGroup = getAddInventGroupJSON(itemGroup);
-                                        if(!inventGroup.isEmpty())
+                                        if(inventGroup != null)
                                             command.append(inventGroup).append("\n---\n");
                                         usedItemGroups.add(itemGroup.extIdItemGroup);
                                     }
@@ -132,7 +132,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     for (CashRegisterItemInfo item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
                             if (!usedUOMs.contains(item.idUOM)) {
-                                command.append(getAddUnitJSON(item)).append("\n---\n");
+                                String unit = getAddUnitJSON(item);
+                                if(unit != null)
+                                    command.append(unit).append("\n---\n");
                                 usedUOMs.add(item.idUOM);
                             }
                         }
@@ -202,26 +204,29 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             inventGroupObject.put("groupname", trim(itemGroup.nameItemGroup, 200)); //название группы товаров
             rootObject.put("command", "addInventGroup");
             return rootObject.toString();
-        } else return "";
+        } else return null;
     }
 
     private String getAddUnitJSON(CashRegisterItemInfo item) throws JSONException {
-        JSONObject rootObject = new JSONObject();
+        Integer idUOM = parseUOM(item.idUOM);
+        if (idUOM != null) {
+            JSONObject rootObject = new JSONObject();
 
-        JSONObject inventGroupObject = new JSONObject();
-        rootObject.put("unit", inventGroupObject);
-        inventGroupObject.put("unitCode", parseUOM(item.idUOM)); //код единицы измерения
-        inventGroupObject.put("name", item.shortNameUOM); //наименование единицы измерения
-        inventGroupObject.put("fractional", !item.splitItem); //дробная единица измерения: true весовой, false штучный
-        rootObject.put("command", "addUnit");
-        return rootObject.toString();
+            JSONObject inventGroupObject = new JSONObject();
+            rootObject.put("unit", inventGroupObject);
+            inventGroupObject.put("unitCode", idUOM); //код единицы измерения
+            inventGroupObject.put("name", item.shortNameUOM); //наименование единицы измерения
+            inventGroupObject.put("fractional", !item.splitItem); //дробная единица измерения: true весовой, false штучный
+            rootObject.put("command", "addUnit");
+            return rootObject.toString();
+        } else return null;
     }
 
     protected Integer parseUOM(String value) {
         try {
             return Integer.parseInt(value);
         } catch (Exception e) {
-            processTransactionLogger.info(logPrefix + "Incorrect integer UOM " + value);
+            processTransactionLogger.info(logPrefix + "Incorrect integer UOM '" + value + "'");
             return null;
         }
     }
