@@ -582,11 +582,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             }
                         }
 
-                        for (DiscountCard d : discountCardList) {
-                            if(d.typeDiscountCard != null) {
-                                writeStringToFile(tmpFile, getAddClientJSON(d) + "\n---\n");
-                            }
-                        }
+//                        for (DiscountCard d : discountCardList) {
+//                            if(d.typeDiscountCard != null) {
+//                                writeStringToFile(tmpFile, getAddClientJSON(d) + "\n---\n");
+//                            }
+//                        }
 
                         FileCopyUtils.copy(tmpFile, file);
                         if(!tmpFile.delete())
