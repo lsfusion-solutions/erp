@@ -1,6 +1,6 @@
 MODULE StoreSaleOrder;
 
-REQUIRE Store, SaleOrder, PriceRoundStore;
+REQUIRE StoreSale, Store, SaleOrder, PriceRoundStore;
 
 NAMESPACE Sale;
 
@@ -33,10 +33,8 @@ EXTEND FORM userOrder
 ;
 
 WHEN LOCAL FORMS userOrder (CHANGED(quantity(UserOrderDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(valueVAT(d))) 
-                               AND VAT(userOrder(d)) AND includeVAT(priceListType(d)) DO {
-    invoiceSum(d) <- IF individualLegalEntitySale(operation(d)) THEN
-            round(quantity(d) * invoicePrice(d), roundCondition(supplierStock(d)))
-        ELSE round(quantity(d) * invoicePrice(d), currency(d));
+                               AND (VAT(userOrder(d)) OR useReverseVAT(operation(d))) AND includeVAT(priceListType(d)) DO {
+    invoiceSum(d) <- round(quantity(d) * invoicePrice(d), currency(d));
     VATSum(d) <- round(invoiceSum(d) * calcValueVAT(d) / (100.0 + calcValueVAT(d)), currency(d));
     sum(d) <- invoiceSum(d) (-) VATSum(d); 
 }
