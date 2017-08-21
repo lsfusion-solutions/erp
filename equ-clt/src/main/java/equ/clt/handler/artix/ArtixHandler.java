@@ -362,18 +362,21 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests,
                                  Map<Integer, Throwable> failedRequests, Map<Integer, Throwable> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
-            for (String directory : entry.directoryStockMap.keySet()) {
-                if (!directorySet.contains(directory)) continue;
+            for (CashRegisterInfo cashRegister : entry.cashRegisterSet) {
 
+                String directory = cashRegister.directory + "/sale" + cashRegister.number;
                 sendSalesLogger.info(logPrefix + "creating request file for directory : " + directory);
+                if (new File(directory).exists() || new File(directory).mkdirs()) {
+                    String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
+                    String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
-                String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
-                String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
-
-                Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/sale.req"), "utf-8"));
-                String data = String.format("###\n%s-%s", dateFrom, dateTo);
-                writer.write(data);
-                writer.close();
+                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/sale.req"), "utf-8"));
+                    String data = String.format("###\n%s-%s", dateFrom, dateTo);
+                    writer.write(data);
+                    writer.close();
+                } else {
+                    failedRequests.put(entry.requestExchange, new RuntimeException("Failed to create directory " + directory));
+                }
             }
             succeededRequests.add(entry.requestExchange);
         }
