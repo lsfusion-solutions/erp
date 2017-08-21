@@ -60,119 +60,132 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
 
-        Map<File, Integer> fileMap = new HashMap<>();
+        Map<Integer, SendTransactionBatch> result = new HashMap<>();
         Map<Integer, Exception> failedTransactionMap = new HashMap<>();
         Set<Integer> emptyTransactionSet = new HashSet<>();
 
+        boolean failed = false;
         for (TransactionCashRegisterInfo transaction : transactionList) {
+            if(failed) {
+                String error = "One of previous transactions failed";
+                processTransactionLogger.error(logPrefix + error);
+                failedTransactionMap.put(transaction.id, new RuntimeException(error));
+            } else {
+                try {
 
-            try {
+                    processTransactionLogger.info(logPrefix + "Send Transaction # " + transaction.id);
 
-                processTransactionLogger.info(logPrefix + "Send Transaction # " + transaction.id);
-
-                List<String> directoriesList = new ArrayList<>();
-                for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
-                    if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory)))
-                        directoriesList.add(cashRegisterInfo.directory);
-                }
-
-                if (directoriesList.isEmpty())
-                    emptyTransactionSet.add(transaction.id);
-
-                for (String directory : directoriesList) {
-
-                    if (!new File(directory).exists()) {
-                        processTransactionLogger.info(logPrefix + "exchange directory not found, trying to create: " + directory);
-                        if (!new File(directory).mkdir() && !new File(directory).mkdirs())
-                            processTransactionLogger.info(logPrefix + "exchange directory not found, failed to create: " + directory);
+                    List<String> directoriesList = new ArrayList<>();
+                    for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
+                        if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory)))
+                            directoriesList.add(cashRegisterInfo.directory);
                     }
 
-                    processTransactionLogger.info(logPrefix + "creating pos file (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
+                    if (directoriesList.isEmpty())
+                        emptyTransactionSet.add(transaction.id);
 
-                    File tmpFile = File.createTempFile("pos",".aif");
+                    for (String directory : directoriesList) {
 
-                    if(transaction.snapshot) {
+                        if (!new File(directory).exists()) {
+                            processTransactionLogger.info(logPrefix + "exchange directory not found, trying to create: " + directory);
+                            if (!new File(directory).mkdir() && !new File(directory).mkdirs())
+                                processTransactionLogger.info(logPrefix + "exchange directory not found, failed to create: " + directory);
+                        }
+
+                        processTransactionLogger.info(logPrefix + "creating pos file (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
+
+                        File tmpFile = File.createTempFile("pos", ".aif");
+
+                        if (transaction.snapshot) {
+                            //items
+                            writeStringToFile(tmpFile, "{\"command\": \"clearInventory\"}\n---\n");
+
+                            //item groups
+                            writeStringToFile(tmpFile, "{\"command\": \"clearInventGroup\"}\n---\n");
+
+                            //UOMs
+                            writeStringToFile(tmpFile, "{\"command\": \"clearUnit\"}\n---\n");
+
+                            //prices
+                            writeStringToFile(tmpFile, "{\"command\": \"clearPrice\"}\n---\n");
+                        }
+
                         //items
-                        writeStringToFile(tmpFile, "{\"command\": \"clearInventory\"}\n---\n");
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                writeStringToFile(tmpFile, getAddInventItemJSON(transaction, item, appendBarcode) + "\n---\n");
+                            }
+                        }
 
                         //item groups
-                        writeStringToFile(tmpFile, "{\"command\": \"clearInventGroup\"}\n---\n");
-
-                        //UOMs
-                        writeStringToFile(tmpFile, "{\"command\": \"clearUnit\"}\n---\n");
-
-                        //prices
-                        writeStringToFile(tmpFile, "{\"command\": \"clearPrice\"}\n---\n");
-                    }
-
-                    //items
-                    for (CashRegisterItemInfo item : transaction.itemsList) {
-                        if (!Thread.currentThread().isInterrupted()) {
-                            writeStringToFile(tmpFile, getAddInventItemJSON(transaction, item, appendBarcode) + "\n---\n");
-                        }
-                    }
-
-                    //item groups
-                    Set<String> usedItemGroups = new HashSet<>();
-                    for (CashRegisterItemInfo item : transaction.itemsList) {
-                        if (!Thread.currentThread().isInterrupted()) {
-                            List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
-                            if (hierarchyItemGroup != null) {
-                                for (ItemGroup itemGroup : hierarchyItemGroup) {
-                                    if (!usedItemGroups.contains(itemGroup.extIdItemGroup)) {
-                                        String inventGroup = getAddInventGroupJSON(itemGroup);
-                                        if(inventGroup != null)
-                                            writeStringToFile(tmpFile, inventGroup + "\n---\n");
-                                        usedItemGroups.add(itemGroup.extIdItemGroup);
+                        Set<String> usedItemGroups = new HashSet<>();
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
+                                if (hierarchyItemGroup != null) {
+                                    for (ItemGroup itemGroup : hierarchyItemGroup) {
+                                        if (!usedItemGroups.contains(itemGroup.extIdItemGroup)) {
+                                            String inventGroup = getAddInventGroupJSON(itemGroup);
+                                            if (inventGroup != null)
+                                                writeStringToFile(tmpFile, inventGroup + "\n---\n");
+                                            usedItemGroups.add(itemGroup.extIdItemGroup);
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    //UOMs
-                    Set<String> usedUOMs = new HashSet<>();
-                    for (CashRegisterItemInfo item : transaction.itemsList) {
-                        if (!Thread.currentThread().isInterrupted()) {
-                            if (!usedUOMs.contains(item.idUOM)) {
-                                String unit = getAddUnitJSON(item);
-                                if(unit != null)
-                                    writeStringToFile(tmpFile, unit + "\n---\n");
-                                usedUOMs.add(item.idUOM);
+                        //UOMs
+                        Set<String> usedUOMs = new HashSet<>();
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                if (!usedUOMs.contains(item.idUOM)) {
+                                    String unit = getAddUnitJSON(item);
+                                    if (unit != null)
+                                        writeStringToFile(tmpFile, unit + "\n---\n");
+                                    usedUOMs.add(item.idUOM);
+                                }
                             }
                         }
+
+                        //prices
+                        /*for (CashRegisterItemInfo item : transaction.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                    command.append(getAddPriceJSON(item)).append("\n---\n");
+                            }
+                        }*/
+
+                        //TODO: склады
+
+                        String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
+                        File file = new File(directory + "/pos" + currentTime + ".aif");
+                        FileCopyUtils.copy(tmpFile, file);
+                        if (!tmpFile.delete())
+                            tmpFile.deleteOnExit();
+
+                        File flagFile = new File(directory + "/pos" + currentTime + ".flz");
+                        if (!flagFile.createNewFile())
+                            processTransactionLogger.info(String.format(logPrefix + "can't create flag file %s (Transaction %s)", flagFile.getAbsolutePath(), transaction.id));
+                        processTransactionLogger.info(String.format(logPrefix + "created pos file (Transaction %s)", transaction.id));
+
+                        waitForDeletion(file, flagFile);
+                        result.put(transaction.id, new SendTransactionBatch(null));
                     }
-
-                    //prices
-                    /*for (CashRegisterItemInfo item : transaction.itemsList) {
-                        if (!Thread.currentThread().isInterrupted()) {
-                                command.append(getAddPriceJSON(item)).append("\n---\n");
-                        }
-                    }*/
-
-                    //TODO: склады
-
-                    String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
-                    File file = new File(directory + "/pos" + currentTime + ".aif");
-                    FileCopyUtils.copy(tmpFile, file);
-                    if(!tmpFile.delete())
-                        tmpFile.deleteOnExit();
-
-                    fileMap.put(file, transaction.id);
-                    File flagFile = new File(directory + "/pos" + currentTime + ".flz");
-                    if(!flagFile.createNewFile())
-                        processTransactionLogger.info(String.format(logPrefix + "can't create flag file %s (Transaction %s)", flagFile.getAbsolutePath(), transaction.id));
-                    fileMap.put(flagFile, transaction.id);
-                    processTransactionLogger.info(String.format(logPrefix + "created pos file (Transaction %s)", transaction.id));
-                    fileMap.put(file, transaction.id);
+                } catch (Exception e) {
+                    processTransactionLogger.error(logPrefix, e);
+                    failedTransactionMap.put(transaction.id, e);
+                    failed = true;
                 }
-            } catch (Exception e) {
-                processTransactionLogger.error(logPrefix, e);
-                failedTransactionMap.put(transaction.id, e);
             }
         }
-        processTransactionLogger.info(String.format(logPrefix + "starting to wait for deletion %s files", fileMap.size()));
-        return waitForDeletion(fileMap, failedTransactionMap, emptyTransactionSet);
+
+        for (Map.Entry<Integer, Exception> entry : failedTransactionMap.entrySet()) {
+            result.put(entry.getKey(), new SendTransactionBatch(entry.getValue()));
+        }
+        for (Integer emptyTransaction : emptyTransactionSet) {
+            result.put(emptyTransaction, new SendTransactionBatch(null));
+        }
+        return result;
     }
 
     private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item, boolean appendBarcode) throws JSONException {
@@ -328,48 +341,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             clientObject.put("birthday", new SimpleDateFormat("yyyy-MM-dd").format(card.birthdayContact)); //день рождения, год рождения должен быть больше 1900
         rootObject.put("command", "addClient");
         return rootObject.toString();
-    }
-
-    private Map<Integer, SendTransactionBatch> waitForDeletion(Map<File, Integer> filesMap, Map<Integer, Exception> failedTransactionMap, Set<Integer> emptyTransactionSet) {
-        int count = 0;
-        Map<Integer, SendTransactionBatch> result = new HashMap<>();
-        while (!Thread.currentThread().isInterrupted() && !filesMap.isEmpty()) {
-            try {
-                Map<File, Integer> nextFilesMap = new HashMap<>();
-                count++;
-                if (count >= 180) {
-                    processTransactionLogger.info(logPrefix + "(wait for deletion) timeout");
-                    break;
-                }
-                for (Map.Entry<File, Integer> entry : filesMap.entrySet()) {
-                    File file = entry.getKey();
-                    Integer idTransaction = entry.getValue();
-                    if (file.exists())
-                        nextFilesMap.put(file, idTransaction);
-                    else {
-                        processTransactionLogger.info(String.format(logPrefix + "(wait for deletion) file %s has been deleted", file.getAbsolutePath()));
-                        result.put(idTransaction, new SendTransactionBatch(null, null, failedTransactionMap.get(idTransaction)));
-                        failedTransactionMap.remove(idTransaction);
-                    }
-                }
-                filesMap = nextFilesMap;
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                throw Throwables.propagate(e);
-            }
-        }
-
-        for (Map.Entry<File, Integer> file : filesMap.entrySet()) {
-            processTransactionLogger.info(String.format(logPrefix + "(wait for deletion) file %s has NOT been deleted", file.getKey().getAbsolutePath()));
-            result.put(file.getValue(), new SendTransactionBatch(new RuntimeException(String.format(logPrefix + "file %s has been created but not processed by server", file.getKey().getAbsolutePath()))));
-        }
-        for (Map.Entry<Integer, Exception> entry : failedTransactionMap.entrySet()) {
-            result.put(entry.getKey(), new SendTransactionBatch(entry.getValue()));
-        }
-        for (Integer emptyTransaction : emptyTransactionSet) {
-            result.put(emptyTransaction, new SendTransactionBatch(null));
-        }
-        return result;
     }
 
     private void waitForDeletion(File file, File flagFile) {
