@@ -95,6 +95,9 @@ pickingSumInternetOrderDetail 'Сумма (всего) собрано'  = GROUP 
 pickingSumInternetOrderDetail 'Сумма (всего) собрано'  = GROUP SUM pickingSum(InternetOrderDetail idetail) BY picking(idetail) IN documentSum MATERIALIZED;
 pickingQuantityInternetOrderDetail 'Кол-во (всего) собрано'  = GROUP SUM pickingQuantity(InternetOrderDetail idetail) BY picking(idetail) IN documentSum MATERIALIZED;
 
+discountSumPicking 'Сумма со скидкой' (InternetOrderDetail d) = NUMERIC[18,4](round(pickingQuantity(d) * discountPrice(d), currency(d))); 
+diffDiscountSumPicking(InternetOrderDetail d) = pickingSum(d) (-) discountSumPicking(d);
+
 carrier = DATA Carrier (Picking); 
 nameCarrier 'Перевозчик' (Picking p) = name(carrier(p));
 
@@ -333,7 +336,7 @@ FORM pickingDashboard 'Комплектации'
     PROPERTIES (pd) READONLY indexPicking 
     PROPERTIES (pd) READONLY idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameBatch, quantity
     PROPERTIES (pd) READONLY pickingQuantity 
-    PROPERTIES (pd) READONLY price, discountPrice, pickingSum,  
+    PROPERTIES (pd) READONLY price, pickingSum,  discountPrice, discountSumPicking,
                     seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer, nameSupplierStock
     ORDER BY indexPicking(pd) 
     FILTERS picking(pd)==p       
@@ -382,9 +385,6 @@ NAVIGATOR {
 
 CONSTRAINT DROPPED(InternetOrderDetail detail IS InternetOrderDetail) AND PREV(picking(detail))
     MESSAGE 'Нельзя удалять строки ИЗ включенные в комплектацию';
-    
-discountSumPicking(InternetOrderDetail d) = NUMERIC[18,4](round(pickingQuantity(d) * discountPrice(d), currency(d))); 
-diffDiscountSumPicking(InternetOrderDetail d) = pickingSum(d) (-) discountSumPicking(d);
 
 EXTEND FORM internetOrderPrint
     PROPERTIES (d) discountSumPicking, diffDiscountSumPicking, pickingSum, pickingQuantity
