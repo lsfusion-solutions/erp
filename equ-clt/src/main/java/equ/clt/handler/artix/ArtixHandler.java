@@ -633,12 +633,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
 
-        Map<String, CashRegisterInfo> directoryDepartNumberCashRegisterMap = new HashMap<>();
+        //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе
+        Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
         Set<String> directorySet = new HashSet<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null) {
-                String key = c.directory + "_" + c.number;
-                directoryDepartNumberCashRegisterMap.put(key, c);
+            if (c.directory != null && c.directory.equals(directory)) {
+                departNumberCashRegisterMap.put(c.number, c);
                 directorySet.add(c.directory + "/sale" + c.number);
             }
         }
@@ -767,7 +767,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         usedBarcodes.add(barcode);
                                     }
 
-                                    CashRegisterInfo cashRegister = directoryDepartNumberCashRegisterMap.get(directory + "_" + numberCashRegister);
+                                    CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
                                     Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
                                     Date startDate = cashRegister == null ? null : cashRegister.startDate;
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
