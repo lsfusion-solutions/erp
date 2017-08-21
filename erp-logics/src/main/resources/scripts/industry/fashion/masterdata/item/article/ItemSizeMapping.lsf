@@ -125,23 +125,24 @@ nearestSizeMapping (ItemGroup itemGroup, Size size) = sizeMapping(nearestParentS
 overSizeMapping 'Соответствие по-умолчанию' (ItemGroup itemGroup, Size size) =
     OVERRIDE sizeMapping(itemGroup, size), 
              nearestSizeMapping(itemGroup, size) MATERIALIZED;  
-             
+
+inMap = DATA LOCAL BOOLEAN (Item);            
+            
 META createSizeMappingExAttribute(property, mappingProp, captionProp, shortcutProp, prefix)
 
     countMappingEx###property###prefix (i)= GROUP SUM 1 IF  isISubstring(caption(Item i), name(SizeMappingEx mx)) == 1 AND mappingProp(mx) BY i;
     
     mappingProp###prefix##SizeMapping (ItemGroup g, Size s, Brand b) = mappingProp(overSizeMapping(g, s, b));  //  sizeMappingItemGroupSizeBrand
     mappingProp###prefix##SizeMapping (ItemGroup g, Size s) = mappingProp(overSizeMapping(g, s));
-    map###property###prefix 'Заполнить '##captionProp##' по соответствию' (Item i) =  {
-        IF countMappingEx(i) THEN {
-            IF overSizeMapping (itemGroup(i), size(i), brand(i)) THEN {
-                property###prefix(i) <- mappingProp##SizeMapping (itemGroup(i), size(i), brand(i)) 
-                    WHERE  countMappingEx###property###prefix (i); 
-            } ELSE {               
-                property###prefix(i) <- mappingProp##SizeMapping (itemGroup(i), size(i)) 
-                    WHERE  countMappingEx###property###prefix (i);             
-            }
-        }             
+    mappingProp###prefix##SizeMapping (Item i) = OVERRIDE mappingProp##SizeMapping(itemGroup(i), size(i), brand(i)), mappingProp##SizeMapping(itemGroup(i), size(i));
+    map###property###prefix 'Заполнить '##captionProp##' по соответствию' () =  {
+        property###prefix(Item i) <- mappingProp###prefix##SizeMapping(i) 
+            WHERE countMappingEx###property###prefix(i) AND inMap(i) AND mappingProp###prefix##SizeMapping(i); 
+    } 
+    map###property###prefix 'Заполнить '##captionProp##' по соответствию' (Item i) = {
+        inMap(Item item) <- NULL;
+        inMap(i) <- TRUE;
+        map###property###prefix();
     } SHORTCUT shortcutProp[Item]; 
 END
 META createSizeMappingExAttribute(property, captionProp, shortcutProp, prefix)
