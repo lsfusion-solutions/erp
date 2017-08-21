@@ -1,14 +1,14 @@
 MODULE PriceListPromotion;
 
-REQUIRE PriceListOperation;
+REQUIRE PriceListOperation, PriceListBefore;
 
 NAMESPACE PriceList;
 
 promotionPriceListOperation = DATA Operation();
 namePromotionPriceListOperation 'Операция акции' = name(promotionPriceListOperation());
 
-promotionPriceListTypeOperation = DATA DataPriceListType();
-namePromotionPriceListTypeOperation 'Вид цены акции' = name(promotionPriceListTypeOperation());
+promotionPriceListType = DATA DataPriceListType();
+namePromotionPriceListTypeOperation 'Вид цены акции' = name(promotionPriceListType());
 
 
 EXTEND FORM options
@@ -22,10 +22,13 @@ DESIGN options {
 }   
 
 promotionPriceListDetailA (Sku sku, Stock stock, DATETIME dateTime) =
-    lastPriceListDetailA(promotionPriceListTypeOperation(), sku, stock, dateTime, promotionPriceListOperation());
+    lastPriceListDetailA(promotionPriceListType(), sku, stock, dateTime, promotionPriceListOperation());
     
 promotionPriceListDetailA (Sku sku, Stock stock) = 
     promotionPriceListDetailA(sku, stock, currentDateTime());
     
 inPromotionPriceListDetailA 'В акции' (Sku sku, Stock stock) =
     TRUE IF promotionPriceListDetailA(sku, stock);
+
+promotionPriceBeforeA 'Цена до акции' (Sku sku, Stock stock, DATETIME dateTime) =
+    priceBefore(promotionPriceListDetailA(sku, stock, dateTime));

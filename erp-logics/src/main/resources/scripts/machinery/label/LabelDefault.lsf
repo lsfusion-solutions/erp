@@ -1,6 +1,6 @@
 MODULE LabelDefault;
 
-REQUIRE Label, Pricing, ItemDefault;
+REQUIRE Label, Pricing, LabelPriceList, ItemDefault, PriceListDefault;
 
 NAMESPACE Label;
 
@@ -9,10 +9,10 @@ NAMESPACE Label;
 loadDefaultLabelType 'Добавить тип ценника'(VARISTRING[50] name, INTEGER width, INTEGER height, PrintOrientation orientation, VARSTRING[200] file) = {
     NEW lt = LabelType {
         name(lt) <- name;
-        width(lt) <-width;
-        height(lt) <-height;
+        width(lt) <- width;
+        height(lt) <- height;
         orientation(lt) <- orientation;
-        fileTemplate(lt) <-file;
+        fileTemplate(lt) <- file;
         
         groupType(lt) <- SystemGroupType.skuGroupType;
         
@@ -25,6 +25,9 @@ loadDefaultLabelType 'Добавить тип ценника'(VARISTRING[50] nam
 loadDefaultLabelTypes 'Загрузить стандартные ценники'() = {
     loadDefaultLabelType('Ценник 200x130', 200, 130, PrintOrientation.portrait, 'Label_printLabelTransaction_l.jrxml');
     loadDefaultLabelType('Ценник 595x480', 595, 480, PrintOrientation.portrait, 'Label_printLabelTransaction_l_a4.jrxml');
+    
+    FOR name(LabelType t) == 'Ценник 595x480' DO 
+        ledgerPriceListType(t) <- priceListType('retail');
 } IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultLabelTypes);
