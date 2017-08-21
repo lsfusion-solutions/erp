@@ -457,7 +457,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                     String numberCashDocument = documentObject.getString("docNum");
 
-                                    BigDecimal sumCashDocument = BigDecimal.valueOf(documentObject.getDouble("sume"));
+                                    BigDecimal sumCashDocument = BigDecimal.valueOf(documentObject.getDouble("posSum"));
                                     sumCashDocument = in ? sumCashDocument : safeNegate(sumCashDocument);
 
                                     Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
@@ -753,7 +753,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     BigDecimal price = BigDecimal.valueOf(inventPosition.getDouble("price"));
                                     BigDecimal discountSumReceiptDetail = BigDecimal.valueOf(inventPosition.getDouble("disc_abs"));
 
-                                    BigDecimal sumReceiptDetail = BigDecimal.valueOf((inventPosition.getDouble("sume")));
+                                    BigDecimal sumReceiptDetail = BigDecimal.valueOf((inventPosition.getDouble("posSum")));
                                     sumReceiptDetail = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
 
                                     //обнаруживаем продажу сертификатов
