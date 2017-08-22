@@ -33,8 +33,13 @@ isEOrder(Purchase.UserOrderDetail d) = isEOrder(userOrder(d));
 response = GROUP MAX EOrderResponse e BY eOrder(e);
 responseNote 'Примечание поставщика' (Purchase.Order o) = note(response(o)) IN documentPrm;
  
-indexSku(EOrderResponseDetail d) = PARTITION SUM 1 BY sku(d), eOrder(orderResponse(d)) ORDER d;
-indexSku(Purchase.OrderDetail d) = PARTITION SUM 1 BY sku(d), order(d) ORDER d;
+indexSku(EOrderResponseDetail d) = PARTITION SUM 1 BY sku(d), eOrder(orderResponse(d)) ORDER d MATERIALIZED ;
+dataIndexSku = DATA INTEGER (Purchase.OrderDetail);
+indexSku(Purchase.OrderDetail d) = OVERRIDE dataIndexSku(d), 1;
+
+WHEN SET([=GROUP SUM 1 BY eOrder(EOrderResponse r)](order(Purchase.UserOrderDetail d))) DO {
+    dataIndexSku(d) <- PARTITION SUM 1 BY sku(d), order(d) ORDER d;
+}
 
 responseDetail = GROUP MAX EOrderResponseDetail ed 
     IF eOrder(orderResponse(ed)) == order(Purchase.OrderDetail d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed) 
