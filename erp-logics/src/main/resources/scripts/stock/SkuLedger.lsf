@@ -805,16 +805,11 @@ quantity (OutFIFOSkuLedger ledger, Batch batch) =
 quantity (DataSkuLedger ledger, Batch batch) = MULTI quantity[InLIFOSkuLedger,Batch](ledger, batch) (+) 0, // (+) 0 делается, чтобы все 0 стали NULL 
                                                    quantity[OutFIFOSkuLedger,Batch](ledger, batch);
 
-resetCost 'Перерассчитать себестоимость'(DataSkuLedger ledger) = { //NEWSESSION AUTOAPPLY {
-    cost(ledger, Batch batch) <- NULL;
-    cost(ledger, Batch batch) <- quantity(ledger, batch);
-}
-
-// мгновенный расчет себестоимости
-//WHEN SET(isPostedDataSkuLedger(ledger)) DO EXEC resetCostDataSkuLedger (ledger) ORDER orderDataSkuLedger(ledger);
-changedCost 'Перерасчитывалась себестоимость' = DATA LOCAL BOOLEAN (DataSkuLedger);
-
 changedSession = DATA LOCAL BOOLEAN (DataSkuLedger);
+
+it = DATA LOCAL BOOLEAN (DataSkuLedger);
+overCostSkuLedgerBatch = ABSTRACT (); 
+
 updateDataSkuLedgerBatchCost() = {
     cost(DataSkuLedger ledger, Batch batch) <- NULL WHERE changedSession(ledger);
 
@@ -822,9 +817,10 @@ updateDataSkuLedgerBatchCost() = {
     ordered(DataSkuLedger ledger) <- PARTITION SUM 1 IF changedSession(ledger) BY sku[SkuLedger](ledger) ORDER dateTime[SkuLedger](ledger), ledger;
 
     FOR iterate(INTEGER i, 1, [= GROUP MAX ordered(DataSkuLedger ledger)]()) DO {
-        LOCAL it = BOOLEAN (DataSkuLedger);
         it(DataSkuLedger ledger) <- ordered(ledger) == i; // чтобы определились классы
-        changedCost(DataSkuLedger ledger) <- TRUE WHERE it(ledger);
+        
+        overCostSkuLedgerBatch();
+        
         cost(DataSkuLedger ledger, Batch batch) <- quantity(ledger, batch) WHERE it(ledger);
     }
 }
@@ -849,6 +845,12 @@ ON { // eventChangeLedger - так как внутрь рекурсивного 
 // Сбрасываем расписывание, если изменился sku у партии
 WHEN SETCHANGED(sku(Batch b)) AND PREV(sku(b)) DO
     cost(SkuLedger l, b) <- NULL;
+
+resetCost 'Перерассчитать себестоимость'(DataSkuLedger ledger) = { //NEWSESSION AUTOAPPLY {
+    changedSession(DataSkuLedger l) <- NULL;
+    changedSession(ledger) <- TRUE;
+    updateDataSkuLedgerBatchCost();
+}
 
 setDataSkuLedgerBatchCost 'Дорассчитать себестоимость'() = {
 	NEWSESSION {
