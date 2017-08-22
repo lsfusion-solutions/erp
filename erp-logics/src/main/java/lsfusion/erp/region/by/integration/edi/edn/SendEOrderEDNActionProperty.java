@@ -29,9 +29,10 @@ public class SendEOrderEDNActionProperty extends SendEOrderActionProperty {
             String password = (String) findProperty("passwordEDN[]").read(context);
             String host = (String) findProperty("hostEDN[]").read(context);
             Integer port = (Integer) findProperty("portEDN[]").read(context);
+            String outputDir = (String) findProperty("outputDirEDN[]").read(context);
             if (login != null && password != null && host != null && port != null) {
                 String url = String.format("https://%s:%s/topby/DmcService?wsdl", host, port);
-                sendEOrder(context, url, login, password, host, port, provider);
+                sendEOrder(context, url, login, password, host, port, outputDir, provider);
             } else {
                 ServerLoggers.importLogger.info(provider + " SendEOrder: не заданы имя пользователя / пароль / хост / порт");
                 context.delayUserInteraction(new MessageClientAction(provider + " Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));

@@ -28,9 +28,10 @@ public class SendEOrderTopByActionProperty extends SendEOrderActionProperty {
             String password = (String) findProperty("passwordTopBy[]").read(context);
             String host = (String) findProperty("hostTopBy[]").read(context);
             Integer port = (Integer) findProperty("portTopBy[]").read(context);
+            String outputDir = (String) findProperty("outputDirTopBy[]").read(context);
             if (login != null && password != null && host != null && port != null) {
                 String url = String.format("http://%s:%s/DmcService", host, port);
-                sendEOrder(context, url, login, password, host, port, provider);
+                sendEOrder(context, url, login, password, host, port, outputDir, provider);
             } else {
                 ServerLoggers.importLogger.info(provider + " SendEOrder: не заданы имя пользователя / пароль / хост / порт");
                 context.delayUserInteraction(new MessageClientAction(provider + " Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));

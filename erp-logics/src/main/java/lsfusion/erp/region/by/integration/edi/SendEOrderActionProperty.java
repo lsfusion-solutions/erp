@@ -19,12 +19,14 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpResponse;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
 import org.jdom.output.XMLOutputter;
 
+import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -43,7 +45,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
         eOrderInterface = i.next();
     }
 
-    protected void sendEOrder(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+    protected void sendEOrder(ExecutionContext context, String url, String login, String password, String host, Integer port, String outputDir, String provider) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         if(context.getDbManager().isServer()) {
             DataObject eOrderObject = context.getDataKeyValue(eOrderInterface);
 
@@ -74,7 +76,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
 
             if (error.isEmpty()) {
                 String contentSubXML = readContentSubXML(context, eOrderObject, documentNumber, documentDate, deliveryDate,
-                        GLNSupplierStock, nameSupplier, nameCustomer, GLNCustomer, GLNCustomerStock, nameCustomerStock, note);
+                        GLNSupplierStock, nameSupplier, nameCustomer, GLNCustomer, GLNCustomerStock, nameCustomerStock, note, outputDir);
 
                 Element rootElement = new Element("Envelope", soapenvNamespace);
                 rootElement.setNamespace(soapenvNamespace);
@@ -138,7 +140,8 @@ public class SendEOrderActionProperty extends EDIActionProperty {
 
     private String readContentSubXML(ExecutionContext context, DataObject eOrderObject, String documentNumber, String documentDate,
                                      String deliveryDate, String GLNSupplierStock, String nameSupplier, String nameCustomer,
-                                     String GLNCustomer, String GLNCustomerStock, String nameCustomerStock, String note) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+                                     String GLNCustomer, String GLNCustomerStock, String nameCustomerStock, String note, String outputDir)
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         Element rootElement = new Element("ORDERS");
         Document doc = new Document(rootElement);
         doc.setRootElement(rootElement);
@@ -201,6 +204,13 @@ public class SendEOrderActionProperty extends EDIActionProperty {
         addStringElement(rootElement, "comment", note);
 
         String xml = new XMLOutputter().outputString(doc);
+        if (outputDir != null) {
+            try {
+                FileUtils.writeStringToFile(new File(outputDir + "/" + documentNumber), xml);
+            } catch (Exception e) {
+                ServerLoggers.importLogger.error("Archive file error: ", e);
+            }
+        }
         return new String(Base64.encodeBase64(xml.getBytes()));
     }
 
