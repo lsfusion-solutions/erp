@@ -481,6 +481,10 @@ date 'Время' = DATA DATETIME (RequestExchangeError);
 requestExchange = DATA RequestExchange (RequestExchangeError);
 note 'Примечание' = DATA VARSTRING[100] (RequestExchange) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
+inGroupMachinery (Stock stock) = [= GROUP SUM 1 BY stock(GroupMachinery gr)](stock);
+CONSTRAINT stock(RequestExchange r) AND NOT inGroupMachinery(stock(r)) CHECKED BY stock[RequestExchange]
+    MESSAGE 'Склад без групп касс';
+
 FORM requestExchange 'Запрос обмена данными'
     OBJECTS r = RequestExchange PANEL
     PROPERTIES(r) nameStock, dateFrom, dateTo, captionRequestExchangeType, succeeded, note, 
@@ -491,12 +495,12 @@ FORM requestExchange 'Запрос обмена данными'
     PROPERTIES(s, r) SHOWIF showExtraStocks(r) in
     PROPERTIES(s) READONLY SHOWIF showExtraStocks(r) id, name, nameLegalEntity
     ORDER BY nameLegalEntity(s)
-    FILTERS isCompany(s)
+    FILTERS isCompany(s), active(s), inGroupMachinery(s)
     
     OBJECTS m = Machinery 
     PROPERTIES(m, r) dataIn
-    PROPERTIES(m) READONLY npp, shortDescription, description, objectClassName  
-    FILTERS stock(m) == stock(r)  
+    PROPERTIES(m) READONLY npp, shortDescription, description, objectClassName
+    FILTERS stock(m) == stock(r), NOT inactive(m)  
     
     EDIT RequestExchange OBJECT r
 ;
