@@ -635,13 +635,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
         String giftCardRegexp = artixSettings != null ? artixSettings.getGiftCardRegexp() : null;
 
-        //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе
+        //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
         Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
         Set<String> directorySet = new HashSet<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null && c.directory.equals(directory)) {
                 departNumberCashRegisterMap.put(c.number, c);
                 directorySet.add(c.directory + "/sale" + c.number);
+                directorySet.add(c.directory + "/sale" + c.number + "/online");
             }
         }
 
@@ -665,7 +666,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         else {
             sendSalesLogger.info(String.format(logPrefix + "found %s file(s) in %s", files.size(), directory));
 
-            Set<String> usedBarcodes = new HashSet<>();
+            //Set<String> usedBarcodes = new HashSet<>();
 
             for (File file : files) {
                 try {
