@@ -1,6 +1,7 @@
 package equ.clt.handler.massak;
 
 import com.google.common.base.Throwables;
+import com.google.common.io.LittleEndianDataInputStream;
 import equ.api.*;
 import equ.api.scales.ScalesHandler;
 import equ.api.scales.ScalesInfo;
@@ -8,16 +9,12 @@ import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
 import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -37,8 +34,9 @@ public class MassaKRL10Handler extends ScalesHandler {
 
     private static String logPrefix = "MassaKRL10: ";
 
-    byte notSnapshotByte = (byte) 51;
-    byte snapshotByte = (byte) 1;
+    byte itemNotSnapshotByte = (byte) 51;
+    byte itemSnapshotByte = (byte) 1;
+    byte pluByte = (byte) 5;
 
     protected FileSystemXmlApplicationContext springContext;
 
@@ -134,9 +132,10 @@ public class MassaKRL10Handler extends ScalesHandler {
         return null;
     }
 
-    private void reopenPort(TCPPort port) throws CommunicationException {
+    private void reopenPort(TCPPort port) throws CommunicationException, IOException {
         port.close();
         port.open();
+        sendSetWorkMode(port);
     }
 
     private void sendSetWorkMode(TCPPort port) throws IOException {
@@ -162,6 +161,29 @@ public class MassaKRL10Handler extends ScalesHandler {
 
             port.getOutputStream().write(bytes.array());
             port.getOutputStream().flush();
+    }
+
+    private boolean getSetWorkModeReply(List<String> errors, TCPPort port, String ip) throws CommunicationException {
+        boolean result = false;
+        byte[] reply = receiveReply(errors, port, ip);
+        if (reply != null) {
+            try (DataInputStream stream = new DataInputStream(new ByteArrayInputStream(reply))) {
+                byte byte0 = stream.readByte();
+                byte byte1 = stream.readByte();
+                byte byte2 = stream.readByte();
+                if (byte0 == (byte) 0xF8 && byte1 == (byte) 0x55 && byte2 == (byte) 0xCE) {
+                    byte lengthByte1 = stream.readByte();
+                    byte lengthByte2 = stream.readByte();
+                    byte code = stream.readByte();
+                    if (code == (byte) 0x51) { //51 ok, 54 error
+                        result = true;
+                    }
+                }
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return result;
     }
 
     protected List<ScalesInfo> getEnabledScalesList(TransactionScalesInfo transaction, List<MachineryInfo> succeededScalesList) {
@@ -214,12 +236,12 @@ public class MassaKRL10Handler extends ScalesHandler {
         return reply;
     }
 
-    private boolean getResetPluFileReply(List<String> errors, TCPPort port, String ip) throws CommunicationException {
+    private boolean getResetFilesReply(List<String> errors, TCPPort port, String ip) throws CommunicationException {
         boolean cleared = false;
         try {
             byte[] reply = receiveReply(errors, port, ip);
             if (reply != null) {
-                DataInputStream stream = new DataInputStream(new ByteArrayInputStream(reply));
+                LittleEndianDataInputStream stream = new LittleEndianDataInputStream(new ByteArrayInputStream(reply));
                 byte byte0 = stream.readByte();
                 byte byte1 = stream.readByte();
                 byte byte2 = stream.readByte();
@@ -228,7 +250,7 @@ public class MassaKRL10Handler extends ScalesHandler {
                     byte code = stream.readByte();
                     if (code == (byte) 0x41) {
                         int maskFile = stream.readInt();
-                        if (maskFile == 16777216) { //из-за little endian, на самом деле это 1
+                        if (maskFile == 17) {
                             cleared = true;
                         }
                     }
@@ -261,11 +283,7 @@ public class MassaKRL10Handler extends ScalesHandler {
         }
     }
 
-    private void sendPlu(List<String> errors, TCPPort port, byte[] command, boolean snapshot) throws CommunicationException, IOException, DecoderException {
-        sendPlu(errors, port, command, (short) 1, (short) 1, snapshot);
-    }
-
-    private void sendPlu(List<String> errors, TCPPort port, byte[] command, short current, short total, boolean snapshot) throws CommunicationException, IOException, DecoderException {
+    private void sendCommand(List<String> errors, TCPPort port, byte[] command, short current, short total, byte commandFileType) throws CommunicationException, IOException, DecoderException {
         try {
 
             ByteBuffer bytes = ByteBuffer.allocate(15 + command.length);
@@ -280,8 +298,8 @@ public class MassaKRL10Handler extends ScalesHandler {
             //CMD_TCP_DFILE
             bytes.put((byte) 0x82);
 
-            //fileType PLU
-            bytes.put(snapshot ? snapshotByte : notSnapshotByte); // 1 = загрузка plu, 51 = дозагрузка plu
+            //fileType Item
+            bytes.put(commandFileType);
 
             //Nums - кол-во записей, 2 bytes
             bytes.putShort(total);
@@ -304,7 +322,7 @@ public class MassaKRL10Handler extends ScalesHandler {
         }
     }
 
-    private void resetPluFile(List<String> errors, TCPPort port) throws CommunicationException, IOException {
+    private void resetFiles(List<String> errors, TCPPort port) throws CommunicationException, IOException {
         try {
 
             ByteBuffer bytes = ByteBuffer.allocate(12);
@@ -320,7 +338,7 @@ public class MassaKRL10Handler extends ScalesHandler {
             bytes.put((byte) 0x81);
 
             //MaskFile
-            bytes.putInt(1);
+            bytes.putInt(17); //16 plu, 1 item
 
             bytes.putShort((short) getCRC16(bytes.array()));
 
@@ -350,32 +368,22 @@ public class MassaKRL10Handler extends ScalesHandler {
 
 
     protected boolean clearAll(List<String> errors, TCPPort port, ScalesInfo scales) throws InterruptedException, IOException, CommunicationException {
-        processTransactionLogger.info(String.format(logPrefix + "IP %s ClearAllPLU", scales.port));
-        resetPluFile(errors, port);
-        boolean cleared = getResetPluFileReply(errors, port, scales.port);
+        processTransactionLogger.info(String.format(logPrefix + "IP %s Clear Files", scales.port));
+        resetFiles(errors, port);
+        boolean cleared = getResetFilesReply(errors, port, scales.port);
         if (!cleared)
-            logError(errors, String.format(logPrefix + "IP %s ClearAllPLU failed", scales.port));
+            logError(errors, String.format(logPrefix + "IP %s Clear Files failed", scales.port));
         return cleared;
     }
 
-    private boolean loadAllPLU(List<String> errors, TCPPort port, List<byte[]> bytes, boolean snapshot) throws CommunicationException, IOException, DecoderException {
+    private boolean loadItem(List<String> errors, TCPPort port, ScalesItemInfo item, short current, short total, boolean first, byte commandFileType) throws CommunicationException, IOException, DecoderException {
+        byte[] bytes = getItemBytes(item, first);
         clearReceiveBuffer(port);
-        for(short i = 1; i <= bytes.size(); i++) {
-            sendPlu(errors, port, bytes.get(i - 1), i, (short) bytes.size(), snapshot);
-        }
-        return getLoadPluReply(errors, port, port.getAddress(), snapshot);
+        sendCommand(errors, port, bytes, current, total, commandFileType);
+        return getCommandReply(errors, port, port.getAddress(), commandFileType);
     }
 
-    private boolean loadPLU(List<String> errors, TCPPort port, ScalesItemInfo item, boolean first) throws CommunicationException, IOException, DecoderException {
-        byte[] bytes = getPLUBytes(item, first);
-        clearReceiveBuffer(port);
-        sendPlu(errors, port, bytes, false);
-        return getLoadPluReply(errors, port, port.getAddress(), false);
-    }
-
-    private byte[] getPLUBytes(ScalesItemInfo item, boolean first) throws DecoderException {
-        int pluNumber = getPluNumber(item);
-
+    private byte[] getItemBytes(ScalesItemInfo item, boolean first) throws DecoderException {
         byte[] firstBytes = first ? getBytes("01PC0000000001") : new byte[0]; //01PC0000000000 ?
         byte[] nameBytes = toAscii(trim(item.name, "", 248));
         byte[] descriptionBytes = toAscii(trim(item.description, "", 998));
@@ -389,15 +397,13 @@ public class MassaKRL10Handler extends ScalesHandler {
         bytes.put(firstBytes);
 
         //ID - Идентификатор товара, уникальное значение, 4 bytes
-        bytes.putInt(pluNumber);
+        bytes.putInt(getPluNumber(item));
 
         //Length - Длина записи, 2 bytes
         bytes.putShort((short) (length - 6));
 
         // DigLength - Длина числовых данных, 1 byte
         bytes.put((byte) (length - 7 - firstBytes.length - nameBytes.length - descriptionBytes.length));
-
-        String uom = fillSpaces(item.idUOM, 5);
 
         //BitMask - Битовая маска, 4 bytes
         //Если параметры №5 – 17 равны нулю, они не записываются в файл, соответствующий бит в поле BitMask устанавливается в ноль.
@@ -411,7 +417,7 @@ public class MassaKRL10Handler extends ScalesHandler {
         bytes.put(getBytes(idItem));
 
         //BasicUnit - Базовая ед. измерения, 5 bytes
-        bytes.put(getBytes(uom));
+        bytes.put(getBytes(fillSpaces(item.idUOM, 5)));
 
         //Price - Цена в копейках, 4 bytes
         int price = item.price.multiply(BigDecimal.valueOf(100)).intValue();
@@ -436,10 +442,7 @@ public class MassaKRL10Handler extends ScalesHandler {
         bytes.put(((byte) 0x00)); //6-ой байт – СС (секунды 0≤ СС <60)
 
         //CertificationCode - Код сертификации, 4 bytes
-        bytes.put((byte)0xc0);
-        bytes.put((byte)0xdf);
-        bytes.put((byte)0x34);
-        bytes.put((byte)0x35);
+        bytes.put(new byte[]{(byte) 0xc0, (byte) 0xdf, (byte) 0x34, (byte) 0x35});
 
         //BarcodePrefix - Префикс штрихкода, 1 byte
         byte prefix = 0x17;//Integer.parseInt(item.idItem.substring(0, 2));
@@ -454,30 +457,7 @@ public class MassaKRL10Handler extends ScalesHandler {
         return bytes.array();
     }
 
-    private boolean getSetWorkModeReply(List<String> errors, TCPPort port, String ip) throws CommunicationException {
-        boolean result = false;
-        byte[] reply = receiveReply(errors, port, ip);
-        if (reply != null) {
-            try (DataInputStream stream = new DataInputStream(new ByteArrayInputStream(reply))) {
-                byte byte0 = stream.readByte();
-                byte byte1 = stream.readByte();
-                byte byte2 = stream.readByte();
-                if (byte0 == (byte) 0xF8 && byte1 == (byte) 0x55 && byte2 == (byte) 0xCE) {
-                    byte lengthByte1 = stream.readByte();
-                    byte lengthByte2 = stream.readByte();
-                    byte code = stream.readByte();
-                    if (code == (byte) 0x51) { //51 ok, 54 error
-                        result = true;
-                    }
-                }
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
-            }
-        }
-        return result;
-    }
-
-    private boolean getLoadPluReply(List<String> errors, TCPPort port, String ip, boolean snapshot) throws CommunicationException {
+    private boolean getCommandReply(List<String> errors, TCPPort port, String ip, byte commandFileType) throws CommunicationException {
         boolean result = false;
         byte[] reply = receiveReply(errors, port, ip);
         if (reply != null) {
@@ -490,8 +470,8 @@ public class MassaKRL10Handler extends ScalesHandler {
                     byte lengthByte2 = stream.readByte();
                     byte code = stream.readByte();
                     if (code == (byte) 0x42) { //42 ok, 43 error
-                        int fileType = stream.read();
-                        if (fileType == (snapshot ? snapshotByte : notSnapshotByte)) {
+                        byte fileType = stream.readByte();
+                        if (fileType == commandFileType) {
                             result = true;
                         }
                     }
@@ -501,6 +481,45 @@ public class MassaKRL10Handler extends ScalesHandler {
             }
         }
         return result;
+    }
+
+    private boolean loadPLU(List<String> errors, TCPPort port, ScalesItemInfo item, short current, short total, boolean first) throws CommunicationException, IOException, DecoderException {
+        byte[] bytes = getPLUBytes(item, first);
+        clearReceiveBuffer(port);
+        sendCommand(errors, port, bytes, current, total, pluByte);
+        return getCommandReply(errors, port, port.getAddress(), pluByte);
+    }
+
+    private byte[] getPLUBytes(ScalesItemInfo item, boolean first) throws DecoderException {
+        byte[] firstBytes = first ? getBytes("05PC0000000001") : new byte[0];
+
+        int length = 25 + firstBytes.length;
+        ByteBuffer bytes = ByteBuffer.allocate(length);
+        bytes.order(ByteOrder.LITTLE_ENDIAN);
+
+        bytes.put(firstBytes);
+
+        //ID - Идентификатор, уникальное значение, 4 bytes
+        bytes.putInt(getPluNumber(item));
+
+        //Length - Длина записи, 2 bytes
+        bytes.putShort((short) (length - 6));
+
+        //Code - номер PLU, 6 bytes
+        bytes.putInt(getPluNumber(item));
+        bytes.put((byte) 0x00);
+        bytes.put((byte) 0x00);
+
+        //GoodsID - Идентификатор товара, 4 bytes
+        bytes.putInt(getPluNumber(item));
+
+        //BasicUnit - Базовая ед. измерения, 5 bytes
+        bytes.put(getBytes(fillSpaces(item.idUOM, 5)));
+
+        // ConversionFactor - Коэффициент пересчета, В тысячных долях (1000 - коэффициент пересчета равен 1), 4 bytes
+        bytes.putInt(1000);
+
+        return bytes.array();
     }
 
     protected void logError(List<String> errors, String errorText) {
@@ -571,48 +590,59 @@ public class MassaKRL10Handler extends ScalesHandler {
                     if (cleared || !needToClear) {
                         processTransactionLogger.info(logPrefix + "Sending items..." + scales.port);
                         if (localErrors.isEmpty()) {
-                            //if (transaction.snapshot) {
-                                int count = 0;
-                                List<byte[]> bytes = new ArrayList<>();
-                                for (ScalesItemInfo item : transaction.itemsList) {
-                                    count++;
+                            int count = 0;
+                            for (ScalesItemInfo item : transaction.itemsList) {
+                                count++;
+                                if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                         processTransactionLogger.info(String.format(logPrefix + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                        byte[] pluBytes = getPLUBytes(item, count == 1);
-                                        bytes.add(pluBytes);
+                                        int attempts = 0;
+                                        boolean result = false;
+                                        while (!result && attempts < 3) {
+                                            if(attempts > 0)
+                                                reopenPort(port);
+                                            result = loadItem(localErrors, port, item, (short) count, (short) transaction.itemsList.size(), count == 1,
+                                                    transaction.snapshot ? itemSnapshotByte : itemNotSnapshotByte);
+                                            attempts++;
+                                        }
+                                        if (!result) {
+                                            logError(localErrors, String.format(logPrefix + "IP %s, Result %s, item %s", scales.port, result, item.idItem));
+                                            globalError++;
+                                        }
                                     } else {
                                         processTransactionLogger.info(String.format(logPrefix + "IP %s, Transaction #%s, item #%s: incorrect barcode %s", scales.port, transaction.id, count, item.idBarcode));
                                     }
-                                }
-                                boolean result = loadAllPLU(localErrors, port, bytes, transaction.snapshot);
-                                if (!result) {
-                                    logError(localErrors, String.format(logPrefix + "IP %s, Result %s", scales.port, false));
-                                }
-                            /*} else {
-                                int count = 0;
-                                for (ScalesItemInfo item : transaction.itemsList) {
-                                    count++;
-                                    if (!Thread.currentThread().isInterrupted() && globalError < 5) {
-                                        if (item.idBarcode != null && item.idBarcode.length() <= 5) {
-                                            processTransactionLogger.info(String.format(logPrefix + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                            int attempts = 0;
-                                            boolean result = false;
-                                            while (!result && attempts < 3) {
-                                                reopenPort(port);
-                                                result = loadPLU(localErrors, port, item, count == 1);
-                                                attempts++;
-                                            }
-                                            if (!result) {
-                                                logError(localErrors, String.format(logPrefix + "IP %s, Result %s, item %s", scales.port, result, item.idItem));
-                                                globalError++;
-                                            }
-                                        } else {
-                                            processTransactionLogger.info(String.format(logPrefix + "IP %s, Transaction #%s, item #%s: incorrect barcode %s", scales.port, transaction.id, count, item.idBarcode));
-                                        }
-                                    } else break;
-                                }
-                            }*/
+                                } else break;
+                            }
                         }
+
+                        processTransactionLogger.info(logPrefix + "Sending plu..." + scales.port);
+                        if (localErrors.isEmpty()) {
+                            int count = 0;
+                            for (ScalesItemInfo item : transaction.itemsList) {
+                                count++;
+                                if (!Thread.currentThread().isInterrupted() && globalError < 5) {
+                                    if (item.idBarcode != null && item.idBarcode.length() <= 5) {
+                                        processTransactionLogger.info(String.format(logPrefix + "IP %s, Transaction #%s, sending plu #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                        int attempts = 0;
+                                        boolean result = false;
+                                        while (!result && attempts < 3) {
+                                            if(attempts > 0)
+                                                reopenPort(port);
+                                            result = loadPLU(localErrors, port, item, (short) count, (short) transaction.itemsList.size(), count == 1);
+                                            attempts++;
+                                        }
+                                        if (!result) {
+                                            logError(localErrors, String.format(logPrefix + "IP %s, Result %s, plu %s", scales.port, result, item.idItem));
+                                            globalError++;
+                                        }
+                                    } else {
+                                        processTransactionLogger.info(String.format(logPrefix + "IP %s, Transaction #%s, plu #%s: incorrect barcode %s", scales.port, transaction.id, count, item.idBarcode));
+                                    }
+                                } else break;
+                            }
+                        }
+
                         port.close();
                     }
 
@@ -675,7 +705,7 @@ public class MassaKRL10Handler extends ScalesHandler {
                                 if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                     if (!skip(item.idItem)) {
                                         processStopListLogger.info(String.format(logPrefix + "IP %s, sending StopList for item #%s (barcode %s) of %s", scales.port, count, item.idBarcode, stopListInfo.stopListItemMap.values().size()));
-                                        String result = "0";//clearPLU(localErrors, port, scales, item);
+                                        String result = "0";//clearItem(localErrors, port, scales, item);
                                         if (!result.equals("0")) {
                                             logError(localErrors, String.format(logPrefix + "IP %s, Result %s, item %s", scales.port, result, item.idItem));
                                             globalError++;
