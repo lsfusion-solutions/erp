@@ -5,6 +5,7 @@ import equ.api.*;
 import equ.api.cashregister.*;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
+import lsfusion.base.BaseUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
@@ -719,7 +720,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 sumCard = HandlerUtils.safeAdd(sumCard, sum);
                                                 break;
                                             case 6:
-                                                String numberGiftCard = moneyPosition.getString("cardnum");
+                                                String numberGiftCard = BaseUtils.trimToNull(moneyPosition.getString("cardnum"));
                                                 sumGiftCardMap.put(numberGiftCard, new GiftCard(sum, sum));
                                                 break;
                                             default:
