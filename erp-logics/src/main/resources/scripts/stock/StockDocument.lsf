@@ -519,12 +519,16 @@ CONSTRAINT  CHANGED(date(StockDocumentLedger d)) AND PREV(active(d))
     
 
 closeDocumentsStocks 'Закрыть документы до Дата (по)'(DATE date, Stock stock) = {
+    IF sum(date, 1) > currentDate() THEN {
+        MESSAGE 'Запрещено закрывать период позже текущей даты';
+        RETURN;
+    }
     documentsClosedDate(stock) <- sum(date,1);
     FOR stock(StockDocumentLedger ledger) == stock AND date(ledger) <= date AND isOpened(ledger) DO {
         close(ledger);
     }
     apply();   
-}
+} CONFIRM;
 
 
 EXTEND FORM sumStockDocumentLedger
