@@ -91,9 +91,10 @@ public class ShtrihBoardDaemon extends BoardDaemon {
                         ip = inetAddress.getHostName();
                         ipMap.put(inetAddress, ip);
                     }
+                    barcode = barcode.length() > 2 ? barcode.substring(2) : barcode;
                     byte[] message = readMessage(barcode, ip);
                     outToClient.write(message);
-                    terminalLogger.info(String.format(getEventName() + " successed request ip %s, barcode %s", ip, barcode));
+                    terminalLogger.info(String.format(getEventName() + " succeeded request ip %s, barcode %s, reply %s", ip, barcode, new String(message, 3, message.length - 3, charset)));
 
                 }
                 Thread.sleep(1000);
@@ -115,7 +116,6 @@ public class ShtrihBoardDaemon extends BoardDaemon {
         }
 
         private byte[] readMessage(String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
-            idBarcode = idBarcode.length() > 2 ? idBarcode.substring(2) : idBarcode;
             byte[] messageBytes = null;
             int length = 60;
             try (DataSession session = dbManager.createSession()) {
