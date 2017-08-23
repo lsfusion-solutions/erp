@@ -13,10 +13,10 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import java.io.IOException;
 import java.sql.SQLException;
 
-public class ReceiveMessagesTopByActionProperty extends ReceiveMessagesActionProperty {
+public class ReceiveInvoiceMessagesTopByActionProperty extends ReceiveMessagesActionProperty {
     String provider = "TopBy";
 
-    public ReceiveMessagesTopByActionProperty(ScriptingLogicsModule LM) {
+    public ReceiveInvoiceMessagesTopByActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -24,15 +24,15 @@ public class ReceiveMessagesTopByActionProperty extends ReceiveMessagesActionPro
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
-            String login = (String) findProperty("loginTopBy[]").read(context);
-            String password = (String) findProperty("passwordTopBy[]").read(context);
-            String host = (String) findProperty("hostTopBy[]").read(context);
-            Integer port = (Integer) findProperty("portTopBy[]").read(context);
+            String login = (String) findProperty("loginInvoiceTopBy[]").read(context);
+            String password = (String) findProperty("passwordInvoiceTopBy[]").read(context);
+            String host = (String) findProperty("hostInvoiceTopBy[]").read(context);
+            Integer port = (Integer) findProperty("portInvoiceTopBy[]").read(context);
             String archiveDir = (String) findProperty("archiveDirTopBy[]").read(context);
             boolean disableConfirmation = findProperty("disableConfirmationTopBy[]").read(context) != null;
             if (login != null && password != null && host != null && port != null) {
                 String url = String.format("http://%s:%s/DmcService", host, port);
-                receiveMessages(context, url, login, password, host, port, provider, archiveDir, disableConfirmation, false, false);
+                receiveMessages(context, url, login, password, host, port, provider, archiveDir, disableConfirmation, false, true);
             } else {
                 ServerLoggers.importLogger.info(provider + " ReceiveMessages: не заданы имя пользователя / пароль / хост / порт");
                 context.delayUserInteraction(new MessageClientAction(provider + " cообщения не получены: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));

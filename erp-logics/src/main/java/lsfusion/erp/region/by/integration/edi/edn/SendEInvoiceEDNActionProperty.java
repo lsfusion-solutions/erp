@@ -25,10 +25,10 @@ public class SendEInvoiceEDNActionProperty extends SendEInvoiceActionProperty {
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
-            String login = (String) findProperty("loginEDN[]").read(context);
-            String password = (String) findProperty("passwordEDN[]").read(context);
-            String host = (String) findProperty("hostEDN[]").read(context);
-            Integer port = (Integer) findProperty("portEDN[]").read(context);
+            String login = (String) findProperty("loginInvoiceEDN[]").read(context);
+            String password = (String) findProperty("passwordInvoiceEDN[]").read(context);
+            String host = (String) findProperty("hostInvoiceEDN[]").read(context);
+            Integer port = (Integer) findProperty("portInvoiceEDN[]").read(context);
             if (login != null && password != null && host != null && port != null) {
                 String url = String.format("https://%s:%s/topby/DmcService?wsdl", host, port);
                 sendEInvoice(context, url, login, password, host, port, provider);

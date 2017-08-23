@@ -45,7 +45,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         super(LM);
     }
 
-    protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port, String provider, String archiveDir, boolean disableConfirmation, boolean sendReplies)
+    protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port, String provider, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if(context.getDbManager().isServer()) {
             Element rootElement = new Element("Envelope", soapenvNamespace);
@@ -79,7 +79,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "ReceiveMessages");
                 switch (requestResult) {
                     case OK:
-                        importMessages(context, url, login, password, host, port, provider, responseMessage, archiveDir, disableConfirmation, sendReplies);
+                        importMessages(context, url, login, password, host, port, provider, responseMessage, archiveDir, disableConfirmation, sendReplies, invoices);
                         break;
                     case AUTHORISATION_ERROR:
                         ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid login-password");
@@ -99,7 +99,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port,
-                                String provider, String responseMessage, String archiveDir, boolean disableConfirmation, boolean sendReplies)
+                                String provider, String responseMessage, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JDOMException {
         Map<String, Pair<String, String>> succeededMap = new HashMap<>();
         Map<String, DocumentData> orderMessages = new HashMap<>();
@@ -133,21 +133,29 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                     Element subXMLRootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes("utf-8"))).getRootElement();
                                     switch (documentType) {
                                         case "systemmessage":
-                                            orderMessages.put(documentId, parseOrderMessage(subXMLRootNode, provider, documentId));
-                                            break;
+                                            if(!invoices) {
+                                                orderMessages.put(documentId, parseOrderMessage(subXMLRootNode, provider, documentId));
+                                                break;
+                                            }
                                         case "ordrsp":
-                                            orderResponses.put(documentId, parseOrderResponse(subXMLRootNode, context, url, login, password,
-                                                    host, port, provider, documentId, sendReplies));
-                                            break;
+                                            if(!invoices) {
+                                                orderResponses.put(documentId, parseOrderResponse(subXMLRootNode, context, url, login, password,
+                                                        host, port, provider, documentId, sendReplies));
+                                                break;
+                                            }
                                         case "desadv":
-                                            despatchAdvices.put(documentId, parseDespatchAdvice(subXMLRootNode, context, url, login, password,
-                                                    host, port, provider, documentId, sendReplies));
-                                            break;
+                                            if(!invoices) {
+                                                despatchAdvices.put(documentId, parseDespatchAdvice(subXMLRootNode, context, url, login, password,
+                                                        host, port, provider, documentId, sendReplies));
+                                                break;
+                                            }
                                         case "blrwbl" :
-                                            eInvoices.put(documentId, parseEInvoice(subXMLRootNode));
+                                            if(invoices)
+                                                eInvoices.put(documentId, parseEInvoice(subXMLRootNode));
                                             break;
                                         case "blrapn":
-                                            invoiceMessages.put(documentId, parseInvoiceMessage(context, subXMLRootNode, provider, documentId));
+                                            if(invoices)
+                                                invoiceMessages.put(documentId, parseInvoiceMessage(context, subXMLRootNode, provider, documentId));
                                             break;
                                     }
                                 } catch (JDOMException | ParseException e) {

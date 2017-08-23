@@ -24,10 +24,10 @@ public class SendEInvoiceTopByActionProperty extends SendEInvoiceActionProperty 
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            String login = (String) findProperty("loginTopBy[]").read(context);
-            String password = (String) findProperty("passwordTopBy[]").read(context);
-            String host = (String) findProperty("hostTopBy[]").read(context);
-            Integer port = (Integer) findProperty("portTopBy[]").read(context);
+            String login = (String) findProperty("loginInvoiceTopBy[]").read(context);
+            String password = (String) findProperty("passwordInvoiceTopBy[]").read(context);
+            String host = (String) findProperty("hostInvoiceTopBy[]").read(context);
+            Integer port = (Integer) findProperty("portInvoiceTopBy[]").read(context);
             if (login != null && password != null && host != null && port != null) {
                 String url = String.format("http://%s:%s/DmcService", host, port);
                 sendEInvoice(context, url, login, password, host, port, provider);
