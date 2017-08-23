@@ -7,6 +7,7 @@ public class ArtixSettings implements Serializable{
     private String globalExchangeDirectory;
     private boolean deleteDiscountCardsBeforeAdd;
     private boolean appendBarcode;
+    private String giftCardRegexp;
 
     public ArtixSettings() {
     }
@@ -33,5 +34,13 @@ public class ArtixSettings implements Serializable{
 
     public void setAppendBarcode(boolean appendBarcode) {
         this.appendBarcode = appendBarcode;
+    }
+
+    public String getGiftCardRegexp() {
+        return giftCardRegexp;
+    }
+
+    public void setGiftCardRegexp(String giftCardRegexp) {
+        this.giftCardRegexp = giftCardRegexp;
     }
 }

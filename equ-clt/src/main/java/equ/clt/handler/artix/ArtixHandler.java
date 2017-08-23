@@ -633,6 +633,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
+        String giftCardRegexp = artixSettings != null ? artixSettings.getGiftCardRegexp() : null;
 
         //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе
         Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
@@ -759,13 +760,18 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                     //обнаруживаем продажу сертификатов
                                     boolean isGiftCard = false;
-                                    if (barcode != null && barcode.equals("99999")) {
+                                    /*if (barcode != null && barcode.equals("99999")) {
                                         isGiftCard = true;
                                         while(usedBarcodes.contains(dateTimeReceipt + "/" + count)) {
                                             count++;
                                         }
                                         barcode = dateTimeReceipt + "/" + count;
                                         usedBarcodes.add(barcode);
+                                    }*/
+                                    if (giftCardRegexp != null && barcode != null) {
+                                        Pattern pattern = Pattern.compile(giftCardRegexp);
+                                        Matcher matcher = pattern.matcher(barcode);
+                                        isGiftCard = matcher.matches();
                                     }
 
                                     CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
@@ -774,7 +780,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
                                         if (sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                             sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
-                                        //TODO: isGiftCard, idSaleReceiptReceiptReturnDetail
                                         salesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
                                                 dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
                                                 sumCard, sumCash, sumGiftCardMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
