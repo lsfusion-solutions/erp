@@ -20,6 +20,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
 import java.rmi.registry.Registry;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.*;
@@ -74,6 +75,7 @@ public class EquipmentServer {
     private Integer transactionThreadCount;
     private boolean mergeBatches = false;
     private boolean disableSales = false;
+    private Integer loginTimeout;
 
     public EquipmentServer(final String sidEquipmentServer, final String serverHost, final int serverPort, final String serverDB) {
         
@@ -478,6 +480,12 @@ public class EquipmentServer {
 
     public void setDisableSales(boolean disableSales) {
         this.disableSales = disableSales;
+    }
+
+    public void setLoginTimeout(Integer loginTimeout) {
+        this.loginTimeout = loginTimeout;
+        if(loginTimeout != null)
+            DriverManager.setLoginTimeout(loginTimeout);
     }
 
     public Integer getTransactionThreadCount() {
