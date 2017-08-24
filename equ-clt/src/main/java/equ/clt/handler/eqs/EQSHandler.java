@@ -559,7 +559,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         }
                     }
                 }
-            } catch (SQLException e) {
+            } catch (Exception e) {
                 failedRequests.put(entry.requestExchange, e);
                 e.printStackTrace();
             } finally {
