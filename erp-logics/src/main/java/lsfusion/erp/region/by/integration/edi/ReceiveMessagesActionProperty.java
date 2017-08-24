@@ -133,22 +133,19 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                     Element subXMLRootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes("utf-8"))).getRootElement();
                                     switch (documentType) {
                                         case "systemmessage":
-                                            if(!invoices) {
+                                            if(!invoices)
                                                 orderMessages.put(documentId, parseOrderMessage(subXMLRootNode, provider, documentId));
-                                                break;
-                                            }
+                                            break;
                                         case "ordrsp":
-                                            if(!invoices) {
+                                            if(!invoices)
                                                 orderResponses.put(documentId, parseOrderResponse(subXMLRootNode, context, url, login, password,
                                                         host, port, provider, documentId, sendReplies));
-                                                break;
-                                            }
+                                            break;
                                         case "desadv":
-                                            if(!invoices) {
+                                            if(!invoices)
                                                 despatchAdvices.put(documentId, parseDespatchAdvice(subXMLRootNode, context, url, login, password,
                                                         host, port, provider, documentId, sendReplies));
-                                                break;
-                                            }
+                                            break;
                                         case "blrwbl" :
                                             if(invoices)
                                                 eInvoices.put(documentId, parseEInvoice(subXMLRootNode));
