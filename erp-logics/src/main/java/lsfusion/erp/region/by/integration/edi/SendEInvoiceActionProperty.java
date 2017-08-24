@@ -269,14 +269,14 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
             Timestamp deliveryNoteDateTime = (Timestamp) findProperty("deliveryNoteDateTime[EInvoice]").read(context, eInvoiceObject);
 
             String reportId = (String) findProperty("reportId[EInvoice]").read(context, eInvoiceObject);
-            if (reportId == null)
-                error += String.format("EOrder %s: Не задан 'Номер акта'\n", documentNumber);
+            //if (reportId == null)
+            //    error += String.format("EOrder %s: Не задан 'Номер акта'\n", documentNumber);
             Date reportDate = (Date) findProperty("reportDate[EInvoice]").read(context, eInvoiceObject);
-            if (reportDate == null)
-                error += String.format("EOrder %s: Не задана 'Дата составления акта'\n", documentNumber);
+            //if (reportDate == null)
+            //    error += String.format("EOrder %s: Не задана 'Дата составления акта'\n", documentNumber);
             String reportName = trim((String) findProperty("reportName[EInvoice]").read(context, eInvoiceObject));
-            if (reportName == null)
-                error += String.format("EOrder %s: Не задан 'Вид акта'\n", documentNumber);
+            //if (reportName == null)
+            //    error += String.format("EOrder %s: Не задан 'Вид акта'\n", documentNumber);
 
             String glnSupplier = (String) findProperty("glnSupplier[EInvoice]").read(context, eInvoiceObject);
             String nameSupplier = (String) findProperty("nameSupplier[EInvoice]").read(context, eInvoiceObject);
