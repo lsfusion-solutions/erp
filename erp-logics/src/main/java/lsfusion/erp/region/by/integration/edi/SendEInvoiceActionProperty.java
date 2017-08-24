@@ -73,19 +73,28 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
 
                 //создаём BLRAPN и BLRWBR
                 try(DataSession session = context.createSession()) {
-                    xmls.add(createBLRAPN(context, eInvoiceObject, documentNumberBLRAPN, documentDate, referenceNumber, referenceDate, glnCustomer));
-                    xmls.add(createBLRWBR(context, eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, referenceDate, glnCustomer, glnCustomerStock));
+                    byte[] blrapn = createBLRAPN(context, eInvoiceObject, documentNumberBLRAPN, documentDate, referenceNumber, referenceDate, glnCustomer);
+                    byte[] blrwbr = createBLRWBR(context, eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, referenceDate, glnCustomer, glnCustomerStock);
+                    if(blrapn != null && blrwbr != null) {
+                        xmls.add(blrapn);
+                        xmls.add(blrwbr);
+                    } else return;
 
                     //Подписываем
-                    List<Object> signedDocuments = (List<Object>) context.requestUserInteraction(new SignEDIClientAction(xmls, signerPathEDI, outputEDI, certificateEDI, passwordEDI));
+                    Object signResult = context.requestUserInteraction(new SignEDIClientAction(xmls, signerPathEDI, outputEDI, certificateEDI, passwordEDI));
 
-                    //Отправляем
-                    if (sendBLRAPN(context, url, login, password, host, port, provider, signedDocuments.get(0), eInvoiceObject, documentNumberBLRAPN, documentDate, referenceNumber, glnCustomer, glnCustomerStock)) {
-                        findProperty("blrapn[EInvoice]").change(documentNumberBLRAPN, session, eInvoiceObject);
-                        if(sendBLRWBR(context, url, login, password, host, port, provider, signedDocuments.get(1), eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, glnCustomer, glnCustomerStock))
-                            findProperty("blrwbr[EInvoice]").change(documentNumberBLRWBR, session, eInvoiceObject);
+                    if (signResult instanceof List) {
+
+                        //Отправляем
+                        if (sendBLRAPN(context, url, login, password, host, port, provider, ((ArrayList) signResult).get(0), eInvoiceObject, documentNumberBLRAPN, documentDate, referenceNumber, glnCustomer, glnCustomerStock)) {
+                            findProperty("blrapn[EInvoice]").change(documentNumberBLRAPN, session, eInvoiceObject);
+                            if (sendBLRWBR(context, url, login, password, host, port, provider, ((ArrayList) signResult).get(1), eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, glnCustomer, glnCustomerStock))
+                                findProperty("blrwbr[EInvoice]").change(documentNumberBLRWBR, session, eInvoiceObject);
+                        }
+                        session.apply(context);
+                    } else {
+                        context.delayUserInteraction(new MessageClientAction((String) signResult, "Ошибка"));
                     }
-                    session.apply(context);
                 }
 
             } else {
@@ -260,8 +269,14 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
             Timestamp deliveryNoteDateTime = (Timestamp) findProperty("deliveryNoteDateTime[EInvoice]").read(context, eInvoiceObject);
 
             String reportId = (String) findProperty("reportId[EInvoice]").read(context, eInvoiceObject);
+            if (reportId == null)
+                error += String.format("EOrder %s: Не задан 'Номер акта'\n", documentNumber);
             Date reportDate = (Date) findProperty("reportDate[EInvoice]").read(context, eInvoiceObject);
+            if (reportDate == null)
+                error += String.format("EOrder %s: Не задана 'Дата составления акта'\n", documentNumber);
             String reportName = trim((String) findProperty("reportName[EInvoice]").read(context, eInvoiceObject));
+            if (reportName == null)
+                error += String.format("EOrder %s: Не задан 'Вид акта'\n", documentNumber);
 
             String glnSupplier = (String) findProperty("glnSupplier[EInvoice]").read(context, eInvoiceObject);
             String nameSupplier = (String) findProperty("nameSupplier[EInvoice]").read(context, eInvoiceObject);
@@ -274,6 +289,8 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
 
             String addressCustomerStock = (String) findProperty("addressCustomerStock[EInvoice]").read(context, eInvoiceObject);
             String contactCustomerStock = (String) findProperty("contactCustomerStock[EInvoice]").read(context, eInvoiceObject);
+            if (contactCustomerStock == null)
+                error += String.format("EOrder %s: Не задано 'ФИО и должность лица, которое отвечает за получение груза со стороны грузополучателя'\n", documentNumber);
 
             String sealIDReceiver = (String) findProperty("sealIDReceiver[EInvoice]").read(context, eInvoiceObject);
 
