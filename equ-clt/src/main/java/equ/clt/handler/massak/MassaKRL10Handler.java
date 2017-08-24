@@ -34,7 +34,7 @@ public class MassaKRL10Handler extends ScalesHandler {
 
     private static String logPrefix = "MassaKRL10: ";
 
-    byte itemNotSnapshotByte = (byte) 51;
+    byte itemNotSnapshotByte = (byte) 101;
     byte itemSnapshotByte = (byte) 1;
     byte pluByte = (byte) 5;
 
@@ -384,7 +384,7 @@ public class MassaKRL10Handler extends ScalesHandler {
     }
 
     private byte[] getItemBytes(ScalesItemInfo item, boolean first) throws DecoderException {
-        byte[] firstBytes = first ? getBytes("01PC0000000001") : new byte[0]; //01PC0000000000 ?
+        byte[] firstBytes = first ? getBytes("01PC0000000001") : new byte[0];
         byte[] nameBytes = toAscii(trim(item.name, "", 248));
         byte[] descriptionBytes = toAscii(trim(item.description, "", 998));
 
@@ -400,7 +400,7 @@ public class MassaKRL10Handler extends ScalesHandler {
         bytes.putInt(getPluNumber(item));
 
         //Length - Длина записи, 2 bytes
-        bytes.putShort((short) (length - 6));
+        bytes.putShort((short) (length - firstBytes.length - 6));
 
         // DigLength - Длина числовых данных, 1 byte
         bytes.put((byte) (length - 7 - firstBytes.length - nameBytes.length - descriptionBytes.length));
@@ -503,7 +503,7 @@ public class MassaKRL10Handler extends ScalesHandler {
         bytes.putInt(getPluNumber(item));
 
         //Length - Длина записи, 2 bytes
-        bytes.putShort((short) (length - 6));
+        bytes.putShort((short) (length - firstBytes.length - 6));
 
         //Code - номер PLU, 6 bytes
         bytes.putInt(getPluNumber(item));
@@ -601,7 +601,7 @@ public class MassaKRL10Handler extends ScalesHandler {
                                         while (!result && attempts < 3) {
                                             if(attempts > 0)
                                                 reopenPort(port);
-                                            result = loadItem(localErrors, port, item, (short) count, (short) transaction.itemsList.size(), count == 1,
+                                            result = loadItem(localErrors, port, item, (short) count, (short) transaction.itemsList.size(), count == 1 && transaction.snapshot,
                                                     transaction.snapshot ? itemSnapshotByte : itemNotSnapshotByte);
                                             attempts++;
                                         }
