@@ -34,9 +34,10 @@ public class MassaKRL10Handler extends ScalesHandler {
 
     private static String logPrefix = "MassaKRL10: ";
 
-    byte itemNotSnapshotByte = (byte) 101;
-    byte itemSnapshotByte = (byte) 1;
-    byte pluByte = (byte) 5;
+    byte notSnapshotItemByte = (byte) 101;
+    byte snapshotItemByte = (byte) 1;
+    byte notSnapshotPluByte = (byte) 105;
+    byte snapshotPluByte = (byte) 5;
 
     protected FileSystemXmlApplicationContext springContext;
 
@@ -123,7 +124,7 @@ public class MassaKRL10Handler extends ScalesHandler {
             port.open();
 
             sendSetWorkMode(port);
-            if(!getSetWorkModeReply(errors, port, ip))
+            if (!getSetWorkModeReply(errors, port, ip))
                 return "SetWorkMode failed";
         } catch (Exception e) {
             (transaction ? processTransactionLogger : processStopListLogger).error("Error: ", e);
@@ -139,28 +140,26 @@ public class MassaKRL10Handler extends ScalesHandler {
     }
 
     private void sendSetWorkMode(TCPPort port) throws IOException {
-            clearReceiveBuffer(port);
+        clearReceiveBuffer(port);
 
-            ByteBuffer bytes = ByteBuffer.allocate(9);
+        ByteBuffer bytes = ByteBuffer.allocate(9);
 
-            //header, 3 bytes
-            bytes.put(new byte[]{(byte) 0xF8, (byte) 0x55, (byte) 0xCE});
+        //header, 3 bytes
+        bytes.put(new byte[]{(byte) 0xF8, (byte) 0x55, (byte) 0xCE});
 
-            //Len, 2 bytes
-            bytes.putShort((short) 1);
+        //Len, 2 bytes
+        bytes.putShort((short) 1);
 
-            //CMD_TCP_SET_WORK_MODE
-            bytes.put((byte) 0x91);
+        //CMD_TCP_SET_WORK_MODE
+        bytes.put((byte) 0x91);
 
-            //Mode (constant)
-            bytes.put((byte) 0x04);
+        //Mode (constant)
+        bytes.put((byte) 0x04);
 
-            bytes.putShort((short) getCRC16(bytes.array()));
+        bytes.putShort((short) getCRC16(bytes.array()));
 
-            //Hex.encodeHexString(bytes.array());
-
-            port.getOutputStream().write(bytes.array());
-            port.getOutputStream().flush();
+        port.getOutputStream().write(bytes.array());
+        port.getOutputStream().flush();
     }
 
     private boolean getSetWorkModeReply(List<String> errors, TCPPort port, String ip) throws CommunicationException {
@@ -483,11 +482,11 @@ public class MassaKRL10Handler extends ScalesHandler {
         return result;
     }
 
-    private boolean loadPLU(List<String> errors, TCPPort port, ScalesItemInfo item, short current, short total, boolean first) throws CommunicationException, IOException, DecoderException {
+    private boolean loadPLU(List<String> errors, TCPPort port, ScalesItemInfo item, short current, short total, boolean first, byte commandFileType) throws CommunicationException, IOException, DecoderException {
         byte[] bytes = getPLUBytes(item, first);
         clearReceiveBuffer(port);
-        sendCommand(errors, port, bytes, current, total, pluByte);
-        return getCommandReply(errors, port, port.getAddress(), pluByte);
+        sendCommand(errors, port, bytes, current, total, commandFileType);
+        return getCommandReply(errors, port, port.getAddress(), commandFileType);
     }
 
     private byte[] getPLUBytes(ScalesItemInfo item, boolean first) throws DecoderException {
@@ -599,10 +598,10 @@ public class MassaKRL10Handler extends ScalesHandler {
                                         int attempts = 0;
                                         boolean result = false;
                                         while (!result && attempts < 3) {
-                                            if(attempts > 0)
+                                            if (attempts > 0)
                                                 reopenPort(port);
                                             result = loadItem(localErrors, port, item, (short) count, (short) transaction.itemsList.size(), count == 1 && transaction.snapshot,
-                                                    transaction.snapshot ? itemSnapshotByte : itemNotSnapshotByte);
+                                                    transaction.snapshot ? snapshotItemByte : notSnapshotItemByte);
                                             attempts++;
                                         }
                                         if (!result) {
@@ -627,9 +626,10 @@ public class MassaKRL10Handler extends ScalesHandler {
                                         int attempts = 0;
                                         boolean result = false;
                                         while (!result && attempts < 3) {
-                                            if(attempts > 0)
+                                            if (attempts > 0)
                                                 reopenPort(port);
-                                            result = loadPLU(localErrors, port, item, (short) count, (short) transaction.itemsList.size(), count == 1);
+                                            result = loadPLU(localErrors, port, item, (short) count, (short) transaction.itemsList.size(), count == 1 && transaction.snapshot,
+                                                    transaction.snapshot ? snapshotPluByte : notSnapshotPluByte);
                                             attempts++;
                                         }
                                         if (!result) {
@@ -746,7 +746,7 @@ public class MassaKRL10Handler extends ScalesHandler {
     }
 
     private byte[] toAscii(String text) {
-        if(text == null)
+        if (text == null)
             text = "";
         text = text.replace("\n", "|");
         ByteBuffer bytes = ByteBuffer.allocate(text.length() + 2);
@@ -757,7 +757,7 @@ public class MassaKRL10Handler extends ScalesHandler {
     }
 
     private String fillSpaces(String value, int length) {
-        if(value == null)
+        if (value == null)
             value = "";
         if (value.length() > length)
             value = value.substring(0, length);
