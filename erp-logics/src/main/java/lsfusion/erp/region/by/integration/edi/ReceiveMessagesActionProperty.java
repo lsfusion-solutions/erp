@@ -853,7 +853,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         for (Object line : despatchAdviceLogisticUnitLineItemElement.getChildren("LineItem")) {
             Element lineElement = (Element) line;
             Integer lineItemNumber = Integer.parseInt(lineElement.getChildText("LineItemNumber"));
-            String barcode = lineElement.getChildText("LineItemID");
+            String lineItemID = lineElement.getChildText("LineItemID");
+            String lineItemBuyerID = lineElement.getChildText("LineItemBuyerID");
+            String lineItemName = lineElement.getChildText("LineItemName");
 
             String id = supplierGLN + "/" + documentNumber;
             String idDetail = id + "/" + lineItemNumber;
@@ -863,9 +865,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             BigDecimal lineItemAmountWithoutCharges = parseBigDecimal(lineElement.getChildText("LineItemAmountWithoutCharges"));
             BigDecimal lineItemAmount = parseBigDecimal(lineElement.getChildText("LineItemAmount"));
             BigDecimal lineItemAmountCharges = parseBigDecimal(lineElement.getChildText("LineItemAmountCharges"));
-            if (barcode != null)
+            if (lineItemID != null || lineItemBuyerID != null)
                 data.add(Arrays.<Object>asList(id, documentNumber, dateTime, deliveryNoteNumber, dateTime, supplierGLN,
-                        buyerGLN, destinationGLN, idDetail, barcode, quantityDespatched, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
+                        buyerGLN, destinationGLN, idDetail, lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
                         lineItemAmount, lineItemAmountCharges));
         }
         return new DocumentData(documentNumber, data, null);
@@ -938,14 +940,17 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(idEInvoiceDetailField, findProperty("id[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
             fields.add(idEInvoiceDetailField);
 
-            ImportField barcodeEInvoiceDetailField = new ImportField(findProperty("id[Barcode]"));
-            ImportKey<?> skuBarcodeKey = new ImportKey((CustomClass) findClass("Sku"),
-                    findProperty("skuBarcode[VARSTRING[15]]").getMapping(barcodeEInvoiceDetailField));
-            skuBarcodeKey.skipKey = true;
-            keys.add(skuBarcodeKey);
-            props.add(new ImportProperty(barcodeEInvoiceDetailField, findProperty("sku[EInvoiceDetail]").getMapping(eInvoiceDetailKey),
-                    object(findClass("Sku")).getMapping(skuBarcodeKey), true));
-            fields.add(barcodeEInvoiceDetailField);
+            ImportField lineItemIDEInvoiceDetailField = new ImportField(findProperty("lineItemID[EInvoiceDetail]"));
+            props.add(new ImportProperty(lineItemIDEInvoiceDetailField, findProperty("lineItemID[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+            fields.add(lineItemIDEInvoiceDetailField);
+
+            ImportField lineItemBuyerIDEInvoiceDetailField = new ImportField(findProperty("lineItemBuyerID[EInvoiceDetail]"));
+            props.add(new ImportProperty(lineItemBuyerIDEInvoiceDetailField, findProperty("lineItemBuyerID[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+            fields.add(lineItemBuyerIDEInvoiceDetailField);
+
+            ImportField lineItemNameEInvoiceDetailField = new ImportField(findProperty("lineItemName[EInvoiceDetail]"));
+            props.add(new ImportProperty(lineItemNameEInvoiceDetailField, findProperty("lineItemName[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+            fields.add(lineItemNameEInvoiceDetailField);
 
             ImportField quantityDespatchedEInvoiceDetailField = new ImportField(findProperty("quantityDespatched[EInvoiceDetail]"));
             props.add(new ImportProperty(quantityDespatchedEInvoiceDetailField, findProperty("quantityDespatched[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
