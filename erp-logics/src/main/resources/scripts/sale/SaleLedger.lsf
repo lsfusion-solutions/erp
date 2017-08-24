@@ -254,18 +254,18 @@ calcQuantitySoldInterval(DATE dateFrom, DATE dateTo) = {
     LOCAL days = INTEGER (Sku, Stock);
     LOCAL dateCur = DATE();
 
-    ASSIGN dateCur() <- dateFrom;
-    ASSIGN balance(Sku sku, Stock stock) <- balanceB(sku, stock, dateFrom);
+    dateCur() <- dateFrom;
+    balance(Sku sku, Stock stock) <- balanceB(sku, stock, dateFrom);
 
     WHILE dateCur() <= dateTo DO {
-        ASSIGN days(Sku sku, Stock stock) <- days(sku, stock) (+)
+        days(Sku sku, Stock stock) <- days(sku, stock) (+)
                    (1 IF ((balance(sku, stock) > 0) OR (quantity(sku, stock, dateCur()) > 0) OR (quantitySold(sku, stock, dateCur()) > 0)));
-        ASSIGN balance(Sku sku, Stock stock) <- balance(sku, stock) (+)
+        balance(Sku sku, Stock stock) <- balance(sku, stock) (+)
                    signedQuantity(sku, stock, dateCur());
-        ASSIGN dateCur() <- sum(dateCur(), 1);
+        dateCur() <- sum(dateCur(), 1);
     }
 
-    ASSIGN averageSold(Sku sku, Stock stock) <- quantitySold (sku, stock, dateFrom, dateTo) / days(sku, stock);
+    averageSold(Sku sku, Stock stock) <- quantitySold (sku, stock, dateFrom, dateTo) / days(sku, stock);
 }
 calcCurrentQuantitySoldInterval 'Пересчитать однодневные продажи'() = {
 	NEWSESSION {

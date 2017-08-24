@@ -71,10 +71,11 @@ operation  (ledger) = ABSTRACT Purchase.Operation (PurchaseLedger) MATERIALIZED;
 nameOperation 'Операция' (PurchaseLedger ledger) = name(operation (ledger));
 
 TABLE skuStockLegalEntity (Sku, Stock, LegalEntity);
-quantityPurchaseSupplier 'Кол-во закуплено' = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
+countPurchaseSupplier 'Кол-во закуплено' = GROUP SUM 1 IF active(PurchaseLedger ledger)
     BY supplier(ledger), stock(ledger), sku(ledger) MATERIALIZED;
+prevCountSupplier (LegalEntity legalEntity, Stock stock, Sku sku)  = PREV(countPurchaseSupplier(legalEntity, stock, sku));
 
-quantityPurchaseSupplier 'Кол-во закуплено' = GROUP SUM quantityPurchaseSupplier(LegalEntity l, Stock st, Sku sk)
+countPurchaseSupplier 'Кол-во закуплено' = GROUP SUM countPurchaseSupplier(LegalEntity l, Stock st, Sku sk)
     BY l, sk;
     
 quantityPurchaseSupplier 'Кол-во закуплено' = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
@@ -113,7 +114,7 @@ lastSupplierStock (stock, sku) =
                 
 nameLastSupplierStock 'Склад поставщика (последний)' (Stock stock, Sku sku) = name(lastSupplierStock (stock, sku)) MINCHARWIDTH 12 PREFCHARWIDTH 15;              
 
-inSupplier 'Были поставки' (LegalEntity legalEntity, Sku sku) = TRUE IF quantityPurchaseSupplier(legalEntity, sku) MATERIALIZED;
+inSupplier 'Были поставки' (LegalEntity legalEntity, Sku sku) = TRUE IF countPurchaseSupplier(legalEntity, sku) MATERIALIZED;
 prevInSupplier 'Были поставки (пред.)' (LegalEntity legalEntity, Sku sku) = PREV(inSupplier(legalEntity, sku));
 
 sumPurchase 'Сумма покупки валюта' (TypeExchange typeExchange, PurchaseLedger purchaseLedger)= round((sum (purchaseLedger)*
