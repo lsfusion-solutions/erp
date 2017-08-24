@@ -532,7 +532,9 @@ public class MassaKRL10Handler extends ScalesHandler {
 
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
-        try {
+        //todo: Единственный пока способ реализации стоп-листов - считывать из весов все товары,
+        //удалять ненужные и загружать назад.
+        /*try {
             if (!stopListInfo.stopListItemMap.isEmpty() && !stopListInfo.exclude) {
                 processStopListLogger.info(logPrefix + "Starting sending StopLists to " + machineryInfoList.size() + " scales...");
                 Collection<Callable<List<String>>> taskList = new LinkedList<>();
@@ -556,7 +558,7 @@ public class MassaKRL10Handler extends ScalesHandler {
             }
         } catch (Exception e) {
             throw Throwables.propagate(e);
-        }
+        }*/
     }
 
     class SendTransactionTask implements Callable<SendTransactionResult> {
@@ -675,7 +677,7 @@ public class MassaKRL10Handler extends ScalesHandler {
         }
     }
 
-    class SendStopListTask implements Callable<List<String>> {
+    /*class SendStopListTask implements Callable<List<String>> {
         StopListInfo stopListInfo;
         ScalesInfo scales;
         TCPPort port;
@@ -739,7 +741,7 @@ public class MassaKRL10Handler extends ScalesHandler {
             return skuSet == null || !skuSet.contains(idItem);
         }
 
-    }
+    }*/
 
     private byte[] getBytes(String value) {
         return value.getBytes(Charset.forName("cp1251"));
