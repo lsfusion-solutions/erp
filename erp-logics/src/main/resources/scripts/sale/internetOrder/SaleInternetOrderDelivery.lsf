@@ -162,60 +162,6 @@ FORM deliveryReports 'Отчеты курьера'
     ORDER BY indexDeliveryReport(d)
 ;
 
-//FORM deliveryList 'Лист доставки'
-//    OBJECTS o = InternetOrder
-//    PROPERTIES(o) READONLY number, date
-//    PROPERTIES(o) READONLY pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail   
-//    
-//    OBJECTS d = InternetOrderDetail
-//    PROPERTIES (d) READONLY BACKGROUND background(d) idBarcodeSku, idSku, nameSku, shortNameUOMSku
-//    PROPERTIES (d) READONLY BACKGROUND background(d) quantity, price, sum, 
-//                                                     nameSupplierStock, nameStatus
-//    FILTERS isPicked(d), 
-//            internetOrder(d)       
-//;
-//
-//printDeliveryLists 'Печать листов доставки' (DeliveryReport r) = {
-//    FOR relation(r, InternetOrder o) DO {
-//        FORM deliveryList OBJECTS o=o PRINT XLSX;
-//    }
-//}
-
-//FORM deliveryReportPrint 'Отчет курьера'
-//    OBJECTS r = DeliveryReport
-//    PROPERTIES(r) READONLY nameStatus, date, time//, numberZReport, cashSumZReport, cardSumZReport, sumZReport
-//    PROPERTIES(r) ADDFORM, EDITFORM, DELETE 
-//       
-//    OBJECTS o = InternetOrder
-//    PROPERTIES(o) READONLY number, date
-//    PROPERTIES(o) READONLY quantityInternetOrderDetail, sumInternetOrderDetail    
-//    FILTERS in(r, o)
-//;
-//
-//printDeliveryReport 'Отчет курьера' (DeliveryReport r) = {
-//    FORM deliveryReportPrint OBJECTS r=r PRINT XLSX;
-//}
-//
-//FORM assemblyList 'Лист сборки'
-//    OBJECTS r = DeliveryReport PANEL
-//    OBJECTS (s=Stock, d=InternetOrderDetail)
-//    PROPERTIES READONLY name(s)
-//    PROPERTIES (d) READONLY BACKGROUND background(d) idBarcodeSku, idSku, nameSku, shortNameUOMSku
-//    PROPERTIES (d) READONLY BACKGROUND background(d) quantity, price, sum, 
-//                                                     nameSupplierStock, nameStatus 
-//    FILTERS isPicked(d),
-//            in(r, internetOrder(d)),
-//            supplierStock(d) == s
-//;
-//
-//printAssemblyList 'Лист сборки' (DeliveryReport r) = {
-//    FORM assemblyList OBJECTS r=r PRINT XLSX;
-//}
-//
-//EXTEND FORM deliveryReports
-//    PROPERTIES(r) TOOLBAR printDeliveryLists, printDeliveryReport, printAssemblyList
-//;
-
 carrier = DATA Carrier (DeliveryReport); 
 nameCarrier 'Перевозчик' (DeliveryReport r) = name(carrier(r));
 
@@ -227,9 +173,6 @@ createDeliveryReport 'Создать отчет курьера' (InternetOrder o
     
         NEWSESSION {
             FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT deliveryReport(d) BY Sale.supplierStock[InternetOrderDetail](d), carrier(internetOrder(d))](Stock stock, Carrier carrier) NEW r = DeliveryReport DO {
-//                FOR (status(InternetOrderDetail detail) == StatusInternetOrderDetail.picked OR status(detail) == StatusInternetOrderDetail.partlyPicked )
-//                    AND (status(internetOrder(detail)) == StatusInternetOrder.picked OR status(internetOrder(detail)) == StatusInternetOrder.partlyPicked)
-//                    AND NOT deliveryReport(detail) AND select(internetOrder(detail)) DO {
                 carrier(r) <- carrier;
                 FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND carrier(internetOrder(detail)) == carrier AND select(internetOrder(detail)) AND NOT deliveryReport(detail) DO {
                     deliveryReport(detail) <- r;                        
@@ -244,10 +187,6 @@ createDeliveryReport 'Создать отчет курьера' (InternetOrder o
 }
 
 
-//filterDashboardDelivery = GROUP SUM 1 IF 
-//    (status(InternetOrderDetail detail) == StatusInternetOrderDetail.picked OR status(detail) == StatusInternetOrderDetail.partlyPicked) AND 
-//    (status(internetOrder(detail)) == StatusInternetOrder.picked  OR status(internetOrder(detail)) == StatusInternetOrder.partlyPicked) AND NOT deliveryReport(detail) 
-//        BY internetOrder(detail);
 filterDashboardDelivery = GROUP SUM 1 IF InternetOrderDetail detail IS InternetOrderDetail AND NOT deliveryReport(detail) 
         BY internetOrder(detail);
 
@@ -262,9 +201,6 @@ useFilterDeliveryDashboard = ABSTRACT BOOLEAN ();
 filterDelivery (InternetOrder o) = IF useFilterDeliveryDashboard() THEN filterDeliveryDashboard(o) ELSE status(o) == StatusInternetOrder.picked;
 
 FORM deliveryDashboard 'Отчеты курьера'
-
-//    OBJECTS dt = DATE PANEL 
-//    PROPERTIES (dt) val = VALUE 
     
     OBJECTS o = InternetOrder 
     PROPERTIES (o) select
@@ -422,3 +358,6 @@ internetOrderPickingPrint 'Счет-заказ' (DeliveryReport r) = {
 EXTEND FORM deliveryDashboard
     PROPERTIES (r) internetOrderPickingPrint TOOLBAR 
 ;
+    
+CONSTRAINT deliveryReport(InternetOrderDetail detail) AND NOT picking(detail)
+    MESSAGE 'Нельзя удалять комплектацию до удаления отчета курьера или создавать отчет курьера без комплектации';
