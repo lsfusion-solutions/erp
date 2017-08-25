@@ -311,13 +311,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return rootObject.toString();
     }
 
-    private String getAddCardGroupJSON(String id) throws JSONException, ParseException {
+    private String getAddCardGroupJSON(String id, String name) throws JSONException, ParseException {
         JSONObject rootObject = new JSONObject();
 
         JSONObject cardGroupObject = new JSONObject();
         rootObject.put("cardGroup", cardGroupObject);
         cardGroupObject.put("idcardgroup", id); //идентификационный код группы карт
-        cardGroupObject.put("name", id); //имя группы карт
+        cardGroupObject.put("name", name != null ? name : id); //имя группы карт
         cardGroupObject.put("text", id); //текст
         cardGroupObject.put("notaddemptycard", true);
         cardGroupObject.put("pattern", "[0-9]");
@@ -530,7 +530,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
                 String globalExchangeDirectory = artixSettings != null ? artixSettings.getGlobalExchangeDirectory() : null;
                 boolean deleteDiscountCardsBeforeAdd = artixSettings != null && artixSettings.isDeleteDiscountCardsBeforeAdd();
-
+                Map<String, String> discountCardNamesMap = artixSettings != null ? artixSettings.getDiscountCardNamesMap() : new HashMap<String, String>();
                 if(globalExchangeDirectory != null) {
                     if (new File(globalExchangeDirectory).exists() || new File(globalExchangeDirectory).mkdirs()) {
                         machineryExchangeLogger.info(String.format(logPrefix + "Send DiscountCards to %s", globalExchangeDirectory));
@@ -553,7 +553,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         for (DiscountCard d : discountCardList) {
                             if (d.typeDiscountCard != null && !usedGroups.contains(d.typeDiscountCard)) {
                                 usedGroups.add(d.typeDiscountCard);
-                                writeStringToFile(tmpFile, getAddCardGroupJSON(d.typeDiscountCard) + "\n---\n");
+                                writeStringToFile(tmpFile, getAddCardGroupJSON(d.typeDiscountCard, discountCardNamesMap.get(d.typeDiscountCard)) + "\n---\n");
                             }
                         }
 
