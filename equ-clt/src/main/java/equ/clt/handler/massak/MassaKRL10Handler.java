@@ -389,7 +389,7 @@ public class MassaKRL10Handler extends ScalesHandler {
 
         String idItem = trim(item.idBarcode, 15);
 
-        int length = 37 + idItem.length() + firstBytes.length + nameBytes.length + descriptionBytes.length;
+        int length = 39 + idItem.length() + firstBytes.length + nameBytes.length + descriptionBytes.length;
         ByteBuffer bytes = ByteBuffer.allocate(length);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -406,10 +406,8 @@ public class MassaKRL10Handler extends ScalesHandler {
 
         //BitMask - Битовая маска, 4 bytes
         //Если параметры №5 – 17 равны нулю, они не записываются в файл, соответствующий бит в поле BitMask устанавливается в ноль.
-        //1101001001110100
-        //todo: 256 штучный
-        int bitMask = 53872 + idItem.length(); //16 BasicUnit, 32 Price, 64 TareWeight, 512 GoodsGroupCode, 4096 BestBefore, 16384 CertificationCode, 32768 BarcodePrefix
-
+        //16 BasicUnit, 32 Price, 256 GoodsTypeID, 512 GoodsGroupCode, 1024 AdditionPercent, 4096 BestBefore, 8192 ShelfLife, 16384 CertificationCode, 32768 BarcodePrefix
+        int bitMask = 63280 + idItem.length();
         bytes.putInt(bitMask);
 
         //Code - Код товара, до 15 bytes
@@ -422,15 +420,19 @@ public class MassaKRL10Handler extends ScalesHandler {
         int price = item.price.multiply(BigDecimal.valueOf(100)).intValue();
         bytes.putInt(price);
 
-        //TarеWeight - Вес тары в граммах, 4 bytes
-        bytes.putInt(0);
+        //TarеWeight - Вес тары в граммах, 4 bytes, 64 in bitMask
+        //bytes.putInt(0);
 
-        // GoodsTypeID - Тип товара 0 весовой, 1 штучный, 1 byte
-        //bytes.put((byte) (item.splitItem ? 1 : 0));
+        //GoodsTypeID - Тип товара 0 весовой, 1 штучный, 1 byte
+        bytes.put((byte) (item.splitItem ? 0 : 1));
 
-        //GoodsGroupCode Код группы товаров, 2 bytes
+        //GoodsGroupCode - Код группы товаров, 2 bytes
         short idItemGroup = item.idItemGroup == null ? 0 : Short.parseShort(item.idItemGroup);
         bytes.putShort(idItemGroup);
+
+        // AdditionPercent - Процент содержания примеси в товаре (используется при заморозке) От 0 до 99, 1 byte
+        byte additionPercent = (byte) (item.extraPercent == null ? 0 : item.extraPercent.intValue());
+        bytes.put(additionPercent);
 
         //BestBefore - Дата реализации, 6 bytes
         bytes.put(((byte) 0x00)); //1-ый – ГГ (год 00 ≤ ГГ ≤ 99) 75 = 117
@@ -440,8 +442,13 @@ public class MassaKRL10Handler extends ScalesHandler {
         bytes.put(((byte) 0x00)); //5-ый – ММ (минуты 0 ≤ ММ < 60)
         bytes.put(((byte) 0x00)); //6-ой байт – СС (секунды 0≤ СС <60)
 
-        //CertificationCode - Код сертификации, 4 bytes
-        bytes.put(new byte[]{(byte) 0xc0, (byte) 0xdf, (byte) 0x34, (byte) 0x35});
+        //ShelfLife - Срок годности в минутах, 4 bytes
+        int shelfLife = item.hoursExpiry != null ? item.hoursExpiry * 60 : 0;
+        bytes.putInt(shelfLife);
+
+        //CertificationCode - Код сертификации, 4 bytes, на самом деле - это дробная часть AdditionPercent
+        String fractionalAdditionPercent = String.valueOf(item.extraPercent == null ? 0 : item.extraPercent.remainder(BigDecimal.ONE).multiply(BigDecimal.valueOf(100)).intValue());
+        bytes.put(getBytes(fillSpaces(fractionalAdditionPercent, 4)));
 
         //BarcodePrefix - Префикс штрихкода, 1 byte
         byte prefix = 0x17;//Integer.parseInt(item.idItem.substring(0, 2));
