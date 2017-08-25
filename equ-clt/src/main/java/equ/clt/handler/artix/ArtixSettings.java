@@ -7,7 +7,6 @@ import java.util.Map;
 public class ArtixSettings implements Serializable{
 
     private String globalExchangeDirectory;
-    private boolean deleteDiscountCardsBeforeAdd;
     private boolean appendBarcode;
     private String giftCardRegexp;
     private String discountCardNames;
@@ -22,14 +21,6 @@ public class ArtixSettings implements Serializable{
 
     public void setGlobalExchangeDirectory(String globalExchangeDirectory) {
         this.globalExchangeDirectory = globalExchangeDirectory;
-    }
-
-    public boolean isDeleteDiscountCardsBeforeAdd() {
-        return deleteDiscountCardsBeforeAdd;
-    }
-
-    public void setDeleteDiscountCardsBeforeAdd(boolean deleteDiscountCardsBeforeAdd) {
-        this.deleteDiscountCardsBeforeAdd = deleteDiscountCardsBeforeAdd;
     }
 
     public boolean isAppendBarcode() {

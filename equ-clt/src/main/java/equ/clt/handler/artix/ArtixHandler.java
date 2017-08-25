@@ -529,7 +529,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                 ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
                 String globalExchangeDirectory = artixSettings != null ? artixSettings.getGlobalExchangeDirectory() : null;
-                boolean deleteDiscountCardsBeforeAdd = artixSettings != null && artixSettings.isDeleteDiscountCardsBeforeAdd();
                 Map<String, String> discountCardNamesMap = artixSettings != null ? artixSettings.getDiscountCardNamesMap() : new HashMap<String, String>();
                 if(globalExchangeDirectory != null) {
                     if (new File(globalExchangeDirectory).exists() || new File(globalExchangeDirectory).mkdirs()) {
@@ -543,8 +542,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         for (DiscountCard d : discountCardList) {
                             if(d.typeDiscountCard != null) {
                                 boolean active = requestExchange.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
-                                if(deleteDiscountCardsBeforeAdd)
-                                    writeStringToFile(tmpFile, String.format("{\"command\": \"deleteCard\", \"idCard\": } %s \n---\n", d.numberDiscountCard));
                                 writeStringToFile(tmpFile, getAddCardJSON(d, active) + "\n---\n");
                             }
                         }
