@@ -4,10 +4,19 @@ REQUIRE SaleInvoice, SkuLedgerTax;
 
 NAMESPACE Sale;
 
-overVAT(UserInvoiceDetail detail) += VAT(batch(detail));
+skipSetVATBatch 'Не использовать НДС от партии' = DATA BOOLEAN (Operation);
+EXTEND FORM operation
+    PROPERTIES(o) skipSetVATBatch
+;
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(skipSetVATBatch(o));
+    }
+}
+
+overVAT(UserInvoiceDetail detail) += VAT(batch(detail)) IF NOT skipSetVATBatch(operation(detail));
 changedVAT(UserInvoiceDetail d) += CHANGED(batch(d));
 
 overDeriveValueVAT (UserInvoiceDetail d) += prevLastValueVAT(sku(d), supplierStock(d), dateTime(d));
-skipOverSetValueVAT = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
-overSetValueVAT(UserInvoiceDetail detail) += prevValueVAT(batch(detail)) IF NOT skipOverSetValueVAT(detail);
+overSetValueVAT(UserInvoiceDetail detail) += prevValueVAT(batch(detail)) IF NOT skipSetVATBatch(operation(detail));
 changedValueVAT(UserInvoiceDetail d) += CHANGED(batch(d));
