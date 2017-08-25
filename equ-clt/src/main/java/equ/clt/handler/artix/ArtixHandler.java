@@ -797,8 +797,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 filePathList.add(file.getAbsolutePath());
             }
         }
-        return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
-                new ArtixSalesBatch(salesInfoList, filePathList);
+        //общий механизм не понимает, что надо вызвать finish, если нет ни одной записи, так что, чтобы не менять api, вызываем вручную
+        ArtixSalesBatch salesBatch = new ArtixSalesBatch(salesInfoList, filePathList);
+        if(salesInfoList.isEmpty() && !filePathList.isEmpty())
+            finishReadingSalesInfo(salesBatch);
+        return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null : salesBatch;
     }
 
     static String readFile(String path, String encoding) throws IOException {
