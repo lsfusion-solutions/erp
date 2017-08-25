@@ -27,7 +27,6 @@ import java.util.concurrent.Callable;
 public class ShuttleBoardDaemon extends BoardDaemon {
 
     private ScriptingLogicsModule LM;
-    private static String charset = "utf8";
     private Map<InetAddress, String> ipMap = new HashMap<>();
 
     public ShuttleBoardDaemon(ScriptingBusinessLogics businessLogics, DBManager dbManager, LogicsInstance logicsInstance) {
@@ -124,6 +123,9 @@ public class ShuttleBoardDaemon extends BoardDaemon {
                     idBarcode = idBarcode.substring(2, 7);
                 ObjectValue stockObject = LM.findProperty("stockIP[VARSTRING[100]]").readClasses(session, new DataObject(ip));
                 ObjectValue skuObject = LM.findProperty("skuBarcode[VARSTRING[15]]").readClasses(session, new DataObject(idBarcode));
+                String charset = (String) LM.findProperty("charsetIP[VARSTRING[100]]").read(session, new DataObject(ip));
+                if(charset == null)
+                    charset = "utf8";
 
                 String error = null;
                 if(skuObject instanceof NullValue)
@@ -133,20 +135,20 @@ public class ShuttleBoardDaemon extends BoardDaemon {
 
                 if (error == null) {
                     String captionItem = (String) LM.findProperty("name[Item]").read(session, skuObject);
-                    byte[] captionBytes = getTextBytes(captionItem, 20);
+                    byte[] captionBytes = getTextBytes(captionItem, 20, charset);
 
                     BigDecimal price = (BigDecimal) LM.findProperty("transactionPrice[Sku,Stock]").read(session, skuObject, stockObject);
                     if (price == null || price.equals(BigDecimal.ZERO)) {
                         error = "Штрихкод не найден";
                     } else {
-                        return getPriceBytes(captionBytes, price);
+                        return getPriceBytes(captionBytes, price, charset);
                     }
                 }
-                return getErrorBytes(error);
+                return getErrorBytes(error, charset);
             }
         }
 
-        private byte[] getPriceBytes(byte[] captionBytes, BigDecimal price) throws UnsupportedEncodingException {
+        private byte[] getPriceBytes(byte[] captionBytes, BigDecimal price, String charset) throws UnsupportedEncodingException {
             byte[] priceBytes = formatPrice(price).getBytes(charset);
             ByteBuffer bytes = ByteBuffer.allocate(12 + captionBytes.length + priceBytes.length);
 
@@ -162,8 +164,8 @@ public class ShuttleBoardDaemon extends BoardDaemon {
             return bytes.array();
         }
 
-        private byte[] getErrorBytes(String error) throws UnsupportedEncodingException {
-            byte[] errorBytes = getTextBytes(error, 10);
+        private byte[] getErrorBytes(String error, String charset) throws UnsupportedEncodingException {
+            byte[] errorBytes = getTextBytes(error, 10, charset);
 
             ByteBuffer bytes = ByteBuffer.allocate(6 + errorBytes.length);
 
@@ -175,7 +177,7 @@ public class ShuttleBoardDaemon extends BoardDaemon {
             return bytes.array();
         }
 
-        private byte[] getTextBytes(String text, int lineLength) throws UnsupportedEncodingException {
+        private byte[] getTextBytes(String text, int lineLength, String charset) throws UnsupportedEncodingException {
             List<Byte> bytes = new ArrayList<>();
             String[] words = text.split(" ");
             String line = "";
