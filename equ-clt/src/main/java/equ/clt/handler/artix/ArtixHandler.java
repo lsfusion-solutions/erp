@@ -364,22 +364,23 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                  Map<Integer, Throwable> failedRequests, Map<Integer, Throwable> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
             for (CashRegisterInfo cashRegister : entry.cashRegisterSet) {
+                if (directorySet.contains(cashRegister.directory)) {
+                    String directory = cashRegister.directory + "/sale" + cashRegister.number;
+                    sendSalesLogger.info(logPrefix + "creating request file for directory : " + directory);
+                    if (new File(directory).exists() || new File(directory).mkdirs()) {
+                        String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
+                        String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
-                String directory = cashRegister.directory + "/sale" + cashRegister.number;
-                sendSalesLogger.info(logPrefix + "creating request file for directory : " + directory);
-                if (new File(directory).exists() || new File(directory).mkdirs()) {
-                    String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
-                    String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
-
-                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/sale.req"), "utf-8"));
-                    String data = String.format("###\n%s-%s", dateFrom, dateTo);
-                    writer.write(data);
-                    writer.close();
-                } else {
-                    failedRequests.put(entry.requestExchange, new RuntimeException("Failed to create directory " + directory));
+                        Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/sale.req"), "utf-8"));
+                        String data = String.format("###\n%s-%s", dateFrom, dateTo);
+                        writer.write(data);
+                        writer.close();
+                    } else {
+                        failedRequests.put(entry.requestExchange, new RuntimeException("Failed to create directory " + directory));
+                    }
+                    succeededRequests.add(entry.requestExchange);
                 }
             }
-            succeededRequests.add(entry.requestExchange);
         }
     }
 
