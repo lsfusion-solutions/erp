@@ -963,13 +963,21 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 }
                             }
 
+                            List<String> couponsList = new ArrayList<>();
+                            List<Element> cardsList = purchaseNode.getChildren("card");
+                            for (Element card : cardsList) {
+                                String type = card.getAttributeValue("type");
+                                if(type != null && type.equals("COUPON_CARD"))
+                                    couponsList.add(card.getAttributeValue("number"));
+                            }
+
                             String discountCard = null;
                             List discountCardsList = purchaseNode.getChildren("discountCards");
                             for (Object discountCardNode : discountCardsList) {
                                 List discountCardList = ((Element) discountCardNode).getChildren("discountCard");
                                 for (Object discountCardEntry : discountCardList) {
                                     discountCard = ((Element) discountCardEntry).getValue();
-                                    if (discountCard != null) {
+                                    if (discountCard != null && !couponsList.contains(discountCard)) {
                                         discountCard = discountCard.trim();
                                         if(discountCard.length() > 18)
                                             discountCard = discountCard.substring(0, 18);
