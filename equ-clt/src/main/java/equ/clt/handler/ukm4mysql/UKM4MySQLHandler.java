@@ -150,7 +150,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                     }
 
-                    if(params.connectionString != null) {
+                    if (params.connectionString != null) {
                         Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                         try {
                             processTransactionLogger.info(logPrefix + String.format("export to table signal %s records", versionTransactionMap.size()));
@@ -162,7 +162,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     }
 
                 }
-            } catch (ClassNotFoundException | SQLException e) {
+            } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -655,7 +655,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         queryString += " where m.date >='" + new SimpleDateFormat("yyyyMMdd").format(c.getTime()) + "'";
                     }
                     ResultSet rs = statement.executeQuery(queryString);
-                    Time midnight = new Time(23,59,59);
+                    Time midnight = new Time(23, 59, 59);
                     while (rs.next()) {
                         int nppMachinery = rs.getInt("m.cash_id");
                         CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + nppMachinery);
@@ -669,12 +669,12 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             twoAM.setHours(2);
                             twoAM.setMinutes(0);
                             twoAM.setSeconds(0);
-                            if(time.getTime() < twoAM.getTime())
+                            if (time.getTime() < twoAM.getTime())
                                 time = midnight;
                             int type = rs.getInt("m.type");
                             String numberZReport = rs.getString("s.id");
-                            BigDecimal sum = type == 100 ? rs.getBigDecimal("m.amount") : type == 101 ?  HandlerUtils.safeNegate(rs.getBigDecimal("m.amount")) : null;
-                            if(sum != null) {
+                            BigDecimal sum = type == 100 ? rs.getBigDecimal("m.amount") : type == 101 ? HandlerUtils.safeNegate(rs.getBigDecimal("m.amount")) : null;
+                            if (sum != null) {
                                 String idCashDocument = params.connectionString + "/" + nppMachinery + "/" + numberCashDocument;
                                 if (!cashDocumentSet.contains(idCashDocument))
                                     cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, date, time, cashRegister.numberGroup, nppMachinery, numberZReport, sum));
@@ -695,7 +695,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 }
 
                 if (cashDocumentList.size() == 0)
-                    sendSalesLogger.info(logPrefix +  params.connectionString + " no CashDocuments found");
+                    sendSalesLogger.info(logPrefix + params.connectionString + " no CashDocuments found");
                 else
                     sendSalesLogger.info(logPrefix + params.connectionString + String.format(" found %s CashDocument(s)", cashDocumentList.size()));
             }
@@ -1036,10 +1036,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             idBarcode = giftCardValue;
                         else {
                             isGiftCard = giftCardList.contains(idBarcode);
-                            if(isGiftCard) {
+                            if (isGiftCard) {
                                 long dateTimeReceipt = rs.getTimestamp(17) == null ? 0 : rs.getTimestamp(17).getTime();
                                 int count = 1;
-                                while(usedBarcodes.contains(idBarcode + "/" + dateTimeReceipt + "/" + count)) {
+                                while (usedBarcodes.contains(idBarcode + "/" + dateTimeReceipt + "/" + count)) {
                                     count++;
                                 }
                                 idBarcode = idBarcode + "/" + dateTimeReceipt + "/" + count;
@@ -1096,14 +1096,14 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             sendSalesLogger.info("UKM4 RequestSalesInfo: dateTo is " + cal.getTime());
                             String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
 
-                                StringBuilder cashIdWhere = null;
-                                if (!requestExchange.cashRegisterSet.isEmpty()) {
-                                    cashIdWhere = new StringBuilder("AND cash_id IN (");
-                                    for (CashRegisterInfo cashRegister : requestExchange.cashRegisterSet) {
-                                        cashIdWhere .append( cashRegister.number == null ? "" : (cashRegister.number + ","));
-                                    }
-                                    cashIdWhere = new StringBuilder(cashIdWhere.substring(0, cashIdWhere.length() - 1) + ")");
+                            StringBuilder cashIdWhere = null;
+                            if (!requestExchange.cashRegisterSet.isEmpty()) {
+                                cashIdWhere = new StringBuilder("AND cash_id IN (");
+                                for (CashRegisterInfo cashRegister : requestExchange.cashRegisterSet) {
+                                    cashIdWhere.append(cashRegister.number == null ? "" : (cashRegister.number + ","));
                                 }
+                                cashIdWhere = new StringBuilder(cashIdWhere.substring(0, cashIdWhere.length() - 1) + ")");
+                            }
 
                             statement = conn.createStatement();
                             String query = String.format("UPDATE receipt SET ext_processed = 0 WHERE date >= '%s' AND date <= '%s'", dateFrom, dateTo) +
@@ -1132,7 +1132,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     @Override
     public void finishReadingSalesInfo(UKM4MySQLSalesBatch salesBatch) {
 
-        for(String directory : salesBatch.directorySet) {
+        for (String directory : salesBatch.directorySet) {
 
             UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
             if (params.connectionString != null && salesBatch.receiptSet != null) {
@@ -1182,7 +1182,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             return null;
 
         try {
-            if(barcode.length() == 11) {
+            if (barcode.length() == 11) {
                 return appendEAN13("0" + barcode).substring(1, 13);
             } else if (barcode.length() == 12) {
                 return appendEAN13(barcode);
