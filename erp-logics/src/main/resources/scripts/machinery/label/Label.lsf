@@ -795,6 +795,8 @@ EXTEND FORM customLabelTransaction
 ;
 
 // ------------------------- Подключение печати ценников в документ --------------------- //
+notChangePrintPrice 'Не печатать ценники, если цена не изменилась' = ABSTRACT VALUE BOOLEAN (LabelTransaction);
+
 META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, stockProp, prefix)
 
     createAttribute = ABSTRACT LIST (###detailProp##Detail, LabelTransactionDetail);
@@ -813,16 +815,20 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
 	                    departmentStore(t) <- stockProp(document);
 	                    priceTransactionDocument(t) <- document;
 	                    labelType(t) <- labelType;
+	                    LOCAL lastPriceLabel = NUMERIC[16,4] (LabelTransactionDetail);
 	                    
 	                    FOR document(###detailProp##Detail dd) == document AND 
 	                        in(###skuProp sku) AND sku == skuProp(dd) AND 
 	                        in(labelType, sku, stockProp(document)) AND 
 	                        PriceListType pt == overPriceListType(t) NOINLINE (pt)
 	                        NEW d = LabelTransactionDetail DO {
+	                        
+	                        IF notChangePrintPrice(t) THEN {
+                                lastPriceLabel(d) <- NUMERIC[16,4](priceLabelTransactionDetail(sku, departmentStore(t)));
+                            }
 	                        labelTransaction(d) <- t;
 	                        skuProp(d) <- sku;
 	                        batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
-	    
 	                        name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
 	                        createAttribute(d);
 	    
@@ -831,6 +837,9 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
 	                                                             ELSE count(labelType, skuProp(d));
 	
 	                        price(d) <- calcPrice(pt, d);
+                            IF notChangePrintPrice(t) THEN {
+                                DELETE d WHERE price(d) == lastPriceLabel(d);
+                            }
 	                        retailPrice(d) <- overRetailPrice(d);
 	                        createAttribute(dd, d);
 	                    }
@@ -1046,9 +1055,10 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
 
 // --------------------------------- Печать ценников по отмеченным по складу ------------------------- //
 
+notChangePrintPrice 'Не печатать ценники, если цена не изменилась' = DATA BOOLEAN ();
 notResetLabelSelectSku 'Не сбрасывать отмеченные товары при печати ценников' = DATA BOOLEAN ();
 EXTEND FORM options
-    PROPERTIES() notResetLabelSelectSku
+    PROPERTIES() notResetLabelSelectSku, notChangePrintPrice
 ;
 DESIGN options {
     pane {
@@ -1056,6 +1066,7 @@ DESIGN options {
             type = CONTAINERV;
             caption = 'Ценник/стикер';
             MOVE PROPERTY(notResetLabelSelectSku());
+            MOVE PROPERTY (notChangePrintPrice());
         }
     }
 }
