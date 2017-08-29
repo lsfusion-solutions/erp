@@ -227,9 +227,11 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
 
                 ftpClient.connect(server, port);
                 ftpClient.login(username, password);
+                ftpClient.setBufferSize(1024 * 1024);
                 ftpClient.enterLocalPassiveMode();
                 ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
 
+                ftpClient.setSoTimeout(60000);
                 InputStream stream = ftpClient.retrieveFileStream(remoteFile);
                 int returnCode = ftpClient.getReplyCode();
                 return !(stream == null || returnCode == 550);
