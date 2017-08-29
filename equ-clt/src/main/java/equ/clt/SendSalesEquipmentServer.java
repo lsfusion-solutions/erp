@@ -27,15 +27,11 @@ public class SendSalesEquipmentServer {
         List<RequestExchange> requestExchangeList = remote.readRequestExchange();
 
         Map<String, Set<String>> handlerModelDirectoryMap = new HashMap<>();
-        Map<String, Set<Integer>> handlerModelCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if(!cashRegister.disableSales) {
                 Set<String> directorySet = handlerModelDirectoryMap.containsKey(cashRegister.handlerModel) ? handlerModelDirectoryMap.get(cashRegister.handlerModel) : new HashSet<String>();
                 directorySet.add(cashRegister.directory);
                 handlerModelDirectoryMap.put(cashRegister.handlerModel, directorySet);
-                Set<Integer> cashRegisterSet = handlerModelCashRegisterMap.containsKey(cashRegister.handlerModel) ? handlerModelCashRegisterMap.get(cashRegister.handlerModel) : new HashSet<Integer>();
-                cashRegisterSet.add(cashRegister.number);
-                handlerModelCashRegisterMap.put(cashRegister.handlerModel, cashRegisterSet);
             }
         }
 
