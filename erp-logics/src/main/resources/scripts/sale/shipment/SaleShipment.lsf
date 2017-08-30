@@ -160,9 +160,13 @@ WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
 
 // ------------------------------- Проведение по товарному отчету ------------------------ //
 @implementStockDocumentLedgerOut(Shipment, supplierStock);
+
+overSumItem = ABSTRACT  NUMERIC[18,4](Shipment);
+overSumContainer = ABSTRACT NUMERIC[18,4](Shipment);
+
 type(Shipment l) += 'Продажа' IF l IS Shipment;
-sumItem (Shipment ledger) += sumItemShipmentDetail(ledger);
-sumContainer (Shipment ledger) += sumContainerShipmentDetail(ledger);
+sumItem (Shipment ledger) += OVERRIDE overSumItem(ledger), sumItemShipmentDetail(ledger);
+sumContainer (Shipment ledger) += OVERRIDE overSumContainer(ledger), sumContainerShipmentDetail(ledger);
 
 legalEntity(Shipment ledger) += customer(ledger);  
 legalEntityStock(Shipment ledger) += customerStock(ledger);  

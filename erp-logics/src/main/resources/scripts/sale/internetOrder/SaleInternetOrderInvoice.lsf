@@ -137,6 +137,8 @@ notRetailInternetOrderStore (DeliveryReport r)= r IS DeliveryReport AND NOT coun
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND internetOrderDetail(d) AND NOT notFillPriceInvoiceOrder(operation(d)) AND id(operation(d)) == 'saleInternetOrder'
                 AND NOT skipDeriveOrderPrice(d) THEN discountPrice(internetOrderDetail(d));
 
+
+overCreateRetailInvoiceStore = ABSTRACT LIST (UserInvoiceDetail);
 createRetailInvoiceStore 'Создать накладную (розница с магазина)' (DeliveryReport r) = {
     select(r) <- TRUE;  
     IF [= GROUP SUM 1 IF pickingSumInternetOrderDetail(DeliveryReport r) AND NOT countDeliveryReport(r) AND select(r)]() THEN {
@@ -176,7 +178,8 @@ createRetailInvoiceStore 'Создать накладную (розница с �
                     sum(d) <- invoiceSum(d) (-) VATSum(d); 
                     
                     invoicePrice(d) <- discountPrice(detail);
-                    price (d) <- round2(invoicePrice (d) * 100/(100 + calcValueVAT(d)));                                                                                       
+                    price (d) <- round2(invoicePrice (d) * 100/(100 + calcValueVAT(d)));     
+                    overCreateRetailInvoiceStore(d);                                                                                  
                                                                  
                 }
                 SHOW userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;                                    
