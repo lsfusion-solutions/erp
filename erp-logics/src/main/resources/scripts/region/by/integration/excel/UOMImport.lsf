@@ -1,0 +1,53 @@
+MODULE UOMImport;
+
+REQUIRE Sku;
+
+id 'Код' (INTEGER i) = 'шт.' IF i IS INTEGER;
+name 'Наименование' (INTEGER i) = 'шт.' IF i IS INTEGER;
+split 'Дробный' (INTEGER i) = 'да' IF i IS INTEGER;
+
+FORM UOMImportTemplate 'Импорт единиц измерения (шаблон)'
+    OBJECTS i=INTEGER 
+    PROPERTIES (i) id, name, split
+    FILTERS i == 1
+;
+
+UOMImportTemplateXLS 'Создать шаблон' () = {
+    PRINT UOMImportTemplate XLS;       
+} IMAGE 'print.png';
+
+UOMImport 'Импортировать' () = {
+    NEWSESSION {
+        LOCAL NESTED idField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED nameField = VARISTRING[50] (INTEGER);
+        LOCAL NESTED splitField = VARSTRING[10] (INTEGER);
+        
+        INPUT f = EXCELFILE DO {
+            IMPORT XLS TO idField=B, nameField=C, splitField=D FROM f AS EXCELFILE;
+            
+            FOR imported(INTEGER i) AND i > 1 AND idField(i) AND nameField(i) NEW uom = UOM DO {
+                id(uom) <- idField(i);
+                shortName(uom) <- idField(i);
+                name(uom) <- nameField(i);
+                split(uom) <- lower(splitField(i)) == 'да';
+            }
+            apply();
+        }
+    }
+}
+
+EXTEND FORM migrationData
+    PROPERTIES () UOMImportTemplateXLS, UOMImport
+;
+
+DESIGN migrationData{
+    commons {
+        NEW UOMImport {
+            type = CONTAINERH;
+            caption = 'Единицы измерения';
+            MOVE PROPERTY(UOMImportTemplateXLS()); 
+            MOVE PROPERTY(UOMImport());
+        } 
+    }
+}
+

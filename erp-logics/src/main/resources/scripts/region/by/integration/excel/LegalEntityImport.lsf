@@ -1,0 +1,61 @@
+MODULE LegalEntityImport;
+
+REQUIRE LegalEntity;
+
+id 'Код' (INTEGER i) = 'ПК99990' IF i IS INTEGER;
+name 'Наименование' (INTEGER i) = '1-МИНСКАЯ ПТИЦЕФАБРИКА ОАО' IF i IS INTEGER;
+address 'Юридический адрес' (INTEGER i) = '223043 Минская область.Минский район. а.г Большевик' IF i IS INTEGER;
+phone 'Телефон/факс' (INTEGER i) = '017 504 87 90' IF i IS INTEGER;
+isSupplier 'Явл. поставщиком' (INTEGER i) = '' IF i IS INTEGER;
+isCustomer 'Явл. покупателем' (INTEGER i) = 'да' IF i IS INTEGER;
+
+FORM legalEntityImportTemplate 'Импорт организаций (шаблон)'
+    OBJECTS i=INTEGER 
+    PROPERTIES (i) id, name, address, phone, isSupplier, isCustomer
+    FILTERS i == 1
+;
+
+legalEntityImportTemplateXLS 'Создать шаблон' () = {
+    PRINT legalEntityImportTemplate XLS;       
+} IMAGE 'print.png';
+
+legalEntityImport 'Импортировать' () = {
+    NEWSESSION {
+        LOCAL NESTED idField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED nameField = VARISTRING[150] (INTEGER);
+        LOCAL NESTED addressField = VARSTRING[150] (INTEGER);
+        LOCAL NESTED phoneField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED isSupplierField = VARSTRING[10] (INTEGER);
+        LOCAL NESTED isCustomerField = VARSTRING[10] (INTEGER); 
+        
+        INPUT f = EXCELFILE DO {
+            IMPORT XLS TO idField=B, nameField=C, addressField=D, phoneField=E, isSupplierField=F, isCustomerField=G FROM f AS EXCELFILE;
+            
+            FOR imported(INTEGER i) AND i > 1 AND idField(i) AND nameField(i) NEW legalEntity = LegalEntity DO {
+                id(legalEntity) <- idField(i);
+                name(legalEntity) <- nameField(i);
+                fullName(legalEntity) <- nameField(i);
+                dataAddress(legalEntity, DATE date) <- addressField(i) IF date == currentDate();
+                dataPhone(legalEntity, DATE date) <- phoneField(i) IF date == currentDate();
+                isSupplier(legalEntity) <- lower(isSupplierField(i)) == 'да';
+                isCustomer(legalEntity) <- lower(isCustomerField(i)) == 'да';
+            }
+            apply();
+        }
+    }
+}
+
+EXTEND FORM migrationData
+    PROPERTIES () legalEntityImportTemplateXLS, legalEntityImport
+;
+
+DESIGN migrationData{
+    commons {
+        NEW legalEntityImport {
+            type = CONTAINERH;
+            caption = 'Организации';
+            MOVE PROPERTY(legalEntityImportTemplateXLS()); 
+            MOVE PROPERTY(legalEntityImport());
+        } 
+    }
+}

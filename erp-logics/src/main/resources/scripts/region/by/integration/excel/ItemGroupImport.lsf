@@ -1,0 +1,51 @@
+MODULE ItemGroupImport;
+
+REQUIRE Item;
+
+id 'Код' (INTEGER i) = 'Булочные изделия' IF i IS INTEGER;
+name 'Наименование' (INTEGER i) = 'Булочные изделия' IF i IS INTEGER;
+idParent 'Код родительского объекта' (INTEGER i) = 'Все' IF i IS INTEGER;
+
+FORM itemGroupImportTemplate 'Импорт групп товаров (шаблон)'
+    OBJECTS i=INTEGER 
+    PROPERTIES (i) id, name, idParent
+    FILTERS i == 1
+;
+
+itemGroupImportTemplateXLS 'Создать шаблон' () = {
+    PRINT itemGroupImportTemplate XLS;       
+} IMAGE 'print.png';
+
+itemGroupImport 'Импортировать' () = {
+    NEWSESSION {
+        LOCAL NESTED idField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED nameField = VARISTRING[250] (INTEGER);
+        LOCAL NESTED idParentField = VARSTRING[100] (INTEGER);
+        
+        INPUT f = EXCELFILE DO {
+            IMPORT XLS TO idField=B, nameField=C, idParentField=D FROM f AS EXCELFILE;
+            
+            FOR imported(INTEGER i) AND i > 1 AND idField(i) AND nameField(i) NEW itemGroup = ItemGroup DO {
+                id(itemGroup) <- idField(i);
+                name(itemGroup) <- nameField(i);
+                parent(itemGroup) <- itemGroup(idParentField(i));  
+            }
+            apply();
+        }
+    }
+}
+
+EXTEND FORM migrationData
+    PROPERTIES () itemGroupImportTemplateXLS, itemGroupImport
+;
+
+DESIGN migrationData{
+    commons {
+        NEW itemGroup {
+            type = CONTAINERH;
+            caption = 'Группы товаров';
+            MOVE PROPERTY(itemGroupImportTemplateXLS()); 
+            MOVE PROPERTY(itemGroupImport());
+        } 
+    }
+}

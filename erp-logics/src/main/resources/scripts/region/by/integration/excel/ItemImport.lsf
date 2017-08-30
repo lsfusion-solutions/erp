@@ -1,0 +1,81 @@
+MODULE ItemImport;
+
+REQUIRE Item, PurchasePack, SalePack;
+
+id 'Код' (INTEGER i) = '000810' IF i IS INTEGER;
+idBarcode 'Штрихкод' (INTEGER i) = '5201360750030' IF i IS INTEGER;
+name 'Наименование' (INTEGER i) = 'РУЛЕТ 7ДНЕЙ МАЛИНА 200Г РФ' IF i IS INTEGER;
+idItemGroup 'Код группы' (INTEGER i) = 'Все' IF i IS INTEGER;
+nameUOM 'Код eд. изм.' (INTEGER i) = 'шт.' IF i IS INTEGER;
+idBrand 'Код брэнда' (INTEGER i) = 'Бабушка Аня' IF i IS INTEGER;
+amountPackPurchase 'Кол-во в упаковке (закупка)' (INTEGER i) = '1' IF i IS INTEGER;
+amountPackSale 'Кол-во в упаковке (продажа)' (INTEGER i) = '' IF i IS INTEGER;
+valueVAT 'НДС, %' (INTEGER i) = '20' IF i IS INTEGER;
+
+FORM itemImportTemplate 'Импорт товаров (шаблон)'
+    OBJECTS i=INTEGER 
+    PROPERTIES (i) id, idBarcode, name, idItemGroup, nameUOM, idBrand, amountPackPurchase, amountPackSale, valueVAT
+    FILTERS i == 1
+;
+
+itemImportTemplateXLS 'Создать шаблон' () = {
+    PRINT itemImportTemplate XLS;       
+} IMAGE 'print.png';
+
+itemImport 'Импортировать' () = {
+    NEWSESSION {
+        LOCAL NESTED idField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED idBarcodeField = VARSTRING[15] (INTEGER);
+        LOCAL NESTED nameField = VARISTRING[255] (INTEGER);
+        LOCAL NESTED idItemGroupField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED nameUOMField = VARISTRING[50] (INTEGER);
+        LOCAL NESTED idBrandField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED amountPackPurchaseField = NUMERIC[14,3] (INTEGER);
+        LOCAL NESTED amountPackSaleField = NUMERIC[14,3] (INTEGER);
+        LOCAL NESTED valueVATField = NUMERIC[10,5] (INTEGER);
+        
+        INPUT f = EXCELFILE DO {
+            IMPORT XLS TO idField=B, idBarcodeField=C, nameField=D, idItemGroupField=E, nameUOMField=F, idBrandField=G,
+                          amountPackPurchaseField=H, amountPackSaleField=I, valueVATField=J FROM f AS EXCELFILE;
+            
+            FOR imported(INTEGER i) AND i > 1 AND idField(i) AND idBarcodeField(i) AND nameField(i) NEW item = Item DO {
+                caption(item) <- nameField(i);
+                id(item) <- idField(i);
+                itemGroup(item) <- itemGroup(idItemGroupField(i));
+                UOM(item) <- OVERRIDE UOM(nameUOMField(i)), UOM('шт.');
+                NEW b = Barcode {
+                    id(b) <- idBarcodeField(i);
+                    sku(b) <- item;
+                }
+                brand(item) <- brand(idBrandField(i));
+                IF amountPackPurchaseField(i) > 0 THEN NEW bp = Barcode {
+                    amount(bp) <- amountPackPurchaseField(i);
+                    sku(bp) <- item;
+                    Purchase.packBarcode(item) <- bp;
+                }
+                IF amountPackSaleField(i) > 0 THEN NEW bs = Barcode {
+                    amount(bs) <- amountPackSaleField(i);
+                    sku(bs) <- item;
+                    Sale.packBarcode(item) <- bs;
+                }
+                VAT(item, Country country) <- valueCurrentVAT(country, valueVATField(i)) WHERE country == defaultCountry();
+            }
+            apply();
+        }
+    }
+}
+
+EXTEND FORM migrationData
+    PROPERTIES () itemImportTemplateXLS, itemImport
+;
+
+DESIGN migrationData{
+    commons {
+        NEW itemImport {
+            type = CONTAINERH;
+            caption = 'Товары';
+            MOVE PROPERTY(itemImportTemplateXLS()); 
+            MOVE PROPERTY(itemImport());
+        } 
+    }
+}

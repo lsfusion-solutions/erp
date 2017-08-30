@@ -1,0 +1,51 @@
+MODULE BrandImport;
+
+REQUIRE Item;
+
+id 'Код' (INTEGER i) = 'Бабушка Аня' IF i IS INTEGER;
+name 'Наименование' (INTEGER i) = 'Бабушка Аня' IF i IS INTEGER;
+site 'Адрес сайта' (INTEGER i) = '' IF i IS INTEGER;
+
+FORM brandImportTemplate 'Импорт брэндов (шаблон)'
+    OBJECTS i=INTEGER 
+    PROPERTIES (i) id, name, site
+    FILTERS i == 1
+;
+
+brandImportTemplateXLS 'Создать шаблон' () = {
+    PRINT brandImportTemplate XLS;       
+} IMAGE 'print.png';
+
+brandImport 'Импортировать' () = {
+    NEWSESSION {
+        LOCAL NESTED idField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED nameField = VARISTRING[50] (INTEGER);
+        LOCAL NESTED siteField = VARISTRING[100] (INTEGER);
+        
+        INPUT f = EXCELFILE DO {
+            IMPORT XLS TO idField=B, nameField=C, siteField=D FROM f AS EXCELFILE;
+            
+            FOR imported(INTEGER i) AND i > 1 AND idField(i) AND nameField(i) NEW brand = Brand DO {
+                id(brand) <- idField(i);
+                name(brand) <- nameField(i);
+                site(brand) <- siteField(i);
+            }
+            apply();
+        }
+    }
+}
+
+EXTEND FORM migrationData
+    PROPERTIES () brandImportTemplateXLS, brandImport
+;
+
+DESIGN migrationData{
+    commons {
+        NEW brandImport {
+            type = CONTAINERH;
+            caption = 'Брэнды';
+            MOVE PROPERTY(brandImportTemplateXLS()); 
+            MOVE PROPERTY(brandImport());
+        } 
+    }
+}
