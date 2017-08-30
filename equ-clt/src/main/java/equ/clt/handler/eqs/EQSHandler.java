@@ -484,10 +484,13 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                 GiftCard sumGiftCard = salesInfo.sumGiftCardMap.get(null);
                                 //отнимаем "сдачу" от подарочного сертификата либо от наличных
                                 if (sumGiftCard != null && sumGiftCard.sum != null && (salesInfo.sumCash == null || salesInfo.sumCash.compareTo(BigDecimal.ZERO) == 0)) {
+                                    change = sumGiftCard.sum != null && sumGiftCard.sum.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(change) : change;
                                     sumGiftCard.sum = safeSubtract(sumGiftCard.sum, change);
                                     salesInfo.sumGiftCardMap.put(null, sumGiftCard);
-                                } else
+                                } else {
+                                    change = salesInfo.sumCash != null && salesInfo.sumCash.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(change) : change;
                                     salesInfo.sumCash = HandlerUtils.safeSubtract(salesInfo.sumCash, change);
+                                }
                             }
                         }
                         salesInfoList.addAll(currentSalesInfoList);
