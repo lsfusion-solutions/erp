@@ -34,6 +34,15 @@ deleteGroup(INTEGER i) = {
 @createGroup(group, 'По группам товара', 3);
 @createGroup(supplier, 'По поставщику', 4);
 
+balanceB 'Остаток на начало' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+
+costSumB 'Себестоимость на начало' = DATA LOCAL NUMERIC[32,9] (Sku, Stock);
+
+sumB 'Сумма на начало' = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
+
+costVATSum 'Сумма поставщика с НДС' = DATA LOCAL NUMERIC[26,8] (Sku, Stock);
+
+
 nameGroup1 = DATA LOCAL VARSTRING[255] (Sku, Stock);
 nameGroup2 = DATA LOCAL VARSTRING[255] (Sku, Stock);
 nameGroup3 = DATA LOCAL VARSTRING[255] (Sku, Stock);
@@ -62,17 +71,21 @@ END
 
 @setNameGroup(3);
 
-fillGroupBalanceSkusStock 'Сформировать'() = {  
+fillGroupBalanceSkusStock 'Сформировать'(GroupType gt, DATETIME d) = {
+    balanceB(Sku sk, Stock st) <- NULL;
+    costSumB(Sku sk, Stock st) <- NULL; 
+    sumB(Sku sk, Stock st) <- NULL; 
+    costVATSum(Sku sk, Stock st) <- NULL;
+    
+    balanceB(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM balanceB(Sku sk, Stock st, DATETIME d) IF inBackSheet(st) BY sk, st, d](sk, st, d));
+    costSumB(Sku sk, Stock st) <- NUMERIC[32,9]([ = GROUP SUM costSumB(Sku sk, Stock st, DATE d) IF inBackSheet(st) BY sk, st, d](sk, st, toDate(d)));
+    sumB(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumB(Sku sk, Stock st, DATETIME d) IF inBackSheet(st) BY sk, st, d](sk, st, d));
+    costVATSum(Sku sk, Stock st) <- NUMERIC[26,8]([ = GROUP SUM costB(Batch b, Stock st, DATE dt)*(1 + Stock.valueVAT(b)/100) IF inBackSheet(st) BY sku(b), st, dt](sk, st, toDate(d)));
+  
     setNameGroup1();
     setNameGroup2();
     setNameGroup3();
 }
-
-costSumB 'Себестоимость на начало' (Sku sk, DATETIME dt) = 
-    [ = GROUP SUM costSumB(Sku sk, Stock st, DATE dt) IF inBackSheet(st) BY sk, dt](sk, toDate(dt));
-
-costVATSum 'Сумма поставщика с НДС' (Sku sk, DATETIME dt) = 
-    NUMERIC[26,8]([ = GROUP SUM costB(Batch b, Stock st, DATE dt)*(1 + Stock.valueVAT(b)/100) IF inBackSheet(st) BY sku(b), dt](sk, toDate(dt)));
 
 FORM printGroupBalanceSkusStock 'Остатки по товарам'
     OBJECTS d = DATETIME PANEL
@@ -86,12 +99,12 @@ FORM printGroupBalanceSkusStock 'Остатки по товарам'
     PROPERTIES() countGroup, isSkuLastGroup
 
     OBJECTS s = (s = Sku, st = Stock)
-    PROPERTIES(s) READONLY name, balanceB, sumB
-    PROPERTIES(s, d) READONLY costSumB, costVATSum
+    PROPERTIES(s) READONLY name
+    PROPERTIES(s, st) READONLY balanceB, sumB, costSumB, costVATSum
     PROPERTIES(s, st) nameGroup1, nameGroup2, nameGroup3
     FILTERS inSession(group(gt, s))
     FILTERS inBackSheet(st)
-    FILTERS balanceB(s)
+    FILTERS balanceB(s, st)
     FILTERS s IS Sku AND st IS Stock AND d IS DATETIME // фильтр, чтобы сохранилась старая иерархия
     ORDER BY nameGroup1(s, st), nameGroup2(s, st), nameGroup3(s, st)
 ;
@@ -109,7 +122,7 @@ printGroupBalanceSkus 'Отчет по остаткам' (DATETIME dateTime, Gro
         MESSAGE 'Не задана группа';
         RETURN;
     }
-    fillGroupBalanceSkusStock();
+    fillGroupBalanceSkusStock(gtype, dateTime);
     PRINT printGroupBalanceSkusStock OBJECTS d = dateTime, gt = gtype; 
 } IMAGE 'print.png' IN print;
 printXlsxGroupBalanceSkus 'Отчет по остаткам (XLSX)' (DATETIME dateTime, GroupType gtype) = {
@@ -125,7 +138,7 @@ printXlsxGroupBalanceSkus 'Отчет по остаткам (XLSX)' (DATETIME da
         MESSAGE 'Не задана группа';
         RETURN;
     }
-    fillGroupBalanceSkusStock();
+    fillGroupBalanceSkusStock(gtype, dateTime);
     PRINT printGroupBalanceSkusStock OBJECTS d = dateTime, gt = gtype XLSX; 
 } IMAGE 'print.png' IN print;
 
