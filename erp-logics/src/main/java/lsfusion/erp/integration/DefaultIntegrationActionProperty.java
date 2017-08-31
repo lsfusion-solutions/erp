@@ -230,4 +230,10 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
         }
     }
 
+    protected void safeFileDelete(File file) {
+        if (file != null && !file.delete()) {
+            file.deleteOnExit();
+        }
+    }
+
 }
