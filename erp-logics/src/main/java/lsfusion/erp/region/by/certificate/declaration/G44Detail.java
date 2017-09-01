@@ -6,7 +6,7 @@ import java.util.Date;
 public class G44Detail {
 
     public Integer numberDeclarationDetail;
-    public Long order;
+    public Integer order;
     public String KD;
     public String ND;
     public Date DD;
@@ -17,7 +17,7 @@ public class G44Detail {
     public String refdoc;
     public String description;
 
-    public G44Detail(Integer numberDeclarationDetail, Long order, String KD, String ND, Date DD, Date beginDate, Date endDate, String country, String vidplat, String refdoc, String description) {
+    public G44Detail(Integer numberDeclarationDetail, Integer order, String KD, String ND, Date DD, Date beginDate, Date endDate, String country, String vidplat, String refdoc, String description) {
         this.numberDeclarationDetail = numberDeclarationDetail;
         this.order = order;
         this.KD = KD;

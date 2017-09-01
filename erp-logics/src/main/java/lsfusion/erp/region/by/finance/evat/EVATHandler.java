@@ -45,14 +45,14 @@ public class EVATHandler {
     private static final String XSD_FOR_FIXED_TYPE = "MNSATI_fixed.xsd ";
     private static final String XSD_FOR_ADDITIONAL_TYPE = "MNSATI_additional.xsd ";
 
-    public List<List<Object>> signAndSend(Map<String, Map<Long, List<Object>>> files, String serviceUrl, String path, String exportPath, String password, int certIndex) {
+    public List<List<Object>> signAndSend(Map<String, Map<Integer, List<Object>>> files, String serviceUrl, String path, String exportPath, String password, int certIndex) {
         logger.info("EVAT: client action signAndSend");
         List<List<Object>> result = new ArrayList<>();
 
         String xsdPath = path + "/xsd";
         File archiveDir = new File(exportPath == null ? (path + "/archive") : exportPath);
 
-        for (Map.Entry<String, Map<Long, List<Object>>> filesEntry : files.entrySet()) {
+        for (Map.Entry<String, Map<Integer, List<Object>>> filesEntry : files.entrySet()) {
             String unp = filesEntry.getKey();
             logger.info(String.format("EVAT: sending %s xmls, unp %s", filesEntry.getValue().size(), unp));
 
@@ -61,7 +61,7 @@ public class EVATHandler {
             try {
                 service = initService(serviceUrl, unp, password, certIndex);
                 if (archiveDir.exists() || archiveDir.mkdirs()) {
-                    for (Map.Entry<Long, List<Object>> entry : filesEntry.getValue().entrySet()) {
+                    for (Map.Entry<Integer, List<Object>> entry : filesEntry.getValue().entrySet()) {
                         result.add(sendFile(entry.getValue(), entry.getKey(), service, archiveDir, xsdPath, serviceUrl, unp, password, certIndex, 0));
                     }
                 } else {
@@ -78,7 +78,7 @@ public class EVATHandler {
         return result;
     }
 
-    private List<Object> sendFile(List<Object> fileNumberEntry, Long evat, EVatService service, File archiveDir, String xsdPath,
+    private List<Object> sendFile(List<Object> fileNumberEntry, Integer evat, EVatService service, File archiveDir, String xsdPath,
                                   String serviceUrl, String unp, String password, Integer certIndex, Integer errorsCount)
             throws Exception {
         List<Object> result;
@@ -158,7 +158,7 @@ public class EVATHandler {
         return result;
     }
 
-    public List<List<Object>> getStatus(Map<String, Map<Long, String>> invoices, String serviceUrl, String password, int certIndex) {
+    public List<List<Object>> getStatus(Map<String, Map<Integer, String>> invoices, String serviceUrl, String password, int certIndex) {
         logger.info("EVAT: client action getStatus");
         List<List<Object>> result = new ArrayList<>();
 
@@ -169,14 +169,14 @@ public class EVATHandler {
 
         try {
 
-            for (Map.Entry<String, Map<Long, String>> entry : invoices.entrySet()) {
+            for (Map.Entry<String, Map<Integer, String>> entry : invoices.entrySet()) {
                 String unp = entry.getKey();
-                Map<Long, String> invoicesMap = entry.getValue();
+                Map<Integer, String> invoicesMap = entry.getValue();
 
                 service = initService(serviceUrl, unp, password, certIndex);
 
-                for (Map.Entry<Long, String> invoiceEntry : invoicesMap.entrySet()) {
-                    Long evat = invoiceEntry.getKey();
+                for (Map.Entry<Integer, String> invoiceEntry : invoicesMap.entrySet()) {
+                    Integer evat = invoiceEntry.getKey();
                     String invoiceNumber = invoiceEntry.getValue();
                     AvEStatus status = service.getStatus(invoiceNumber);
 

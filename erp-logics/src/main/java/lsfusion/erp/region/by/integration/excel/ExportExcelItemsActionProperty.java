@@ -93,7 +93,7 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
 
                 ImMap<Object, ObjectValue> itemValue = itemResult.getValue(i);
 
-                Long itemID = (Long) itemResult.getKey(i).get("Item").getValue();
+                Integer itemID = (Integer) itemResult.getKey(i).get("Item").getValue();
                 String name = trim((String) itemValue.get("nameAttributeItem").getValue(), "");
                 String idBarcodeSku = trim((String) itemValue.get("idBarcodeSku").getValue(), "");
                 String isWeightItem = itemValue.get("idBarcodeSku").getValue() != null ? "True" : "False";
@@ -102,7 +102,7 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
                 String compositionItem = trim((String) itemValue.get("compositionItem").getValue(), "");
                 BigDecimal purchaseAmount = (BigDecimal) itemValue.get("Purchase.amountPackSku").getValue();
                 BigDecimal saleAmount = (BigDecimal) itemValue.get("Sale.amountPackSku").getValue();
-                Long itemGroupID = (Long) itemValue.get("itemGroupItem").getValue();
+                Integer itemGroupID = (Integer) itemValue.get("itemGroupItem").getValue();
 
                 ObjectValue uomItemObject = itemValue.get("UOMItem");
                 String nameUOM = trim((String) findProperty("name[UOM]").read(session, uomItemObject), "");
@@ -121,7 +121,7 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
                 BigDecimal vatItem = (BigDecimal) findProperty("valueVAT[Item,Country,DATE]").read(session, itemObject, countryItemObject, dateObject);
                 String nameCountry = trim((String) findProperty("name[Country]").read(session, countryItemObject), "");
 
-                Long writeOffRateID = writeOffRateItemLM == null ? null : (Long) writeOffRateItemLM.findProperty("writeOffRate[Country,Item]").read(session, countryItemObject, itemObject);
+                Integer writeOffRateID = writeOffRateItemLM == null ? null : (Integer) writeOffRateItemLM.findProperty("writeOffRate[Country,Item]").read(session, countryItemObject, itemObject);
 
                 BigDecimal retailMarkup = (BigDecimal) findProperty("markup[CalcPriceListType,Sku]").read(session, retailCPLT, itemObject);
                 BigDecimal wholesaleMarkup = (BigDecimal) findProperty("markup[CalcPriceListType,Sku]").read(session, wholesaleCPLT, itemObject);

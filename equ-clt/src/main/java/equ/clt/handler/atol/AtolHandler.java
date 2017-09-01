@@ -33,9 +33,9 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) throws IOException {
+    public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) throws IOException {
 
-        Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         for(TransactionCashRegisterInfo transaction : transactionInfoList) {
 
@@ -179,7 +179,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+                                 Set<Integer> succeededRequests, Map<Integer, Throwable> failedRequests, Map<Integer, Throwable> ignoredRequests) throws IOException, ParseException {
 
         for (RequestExchange entry : requestExchangeList) {
             int count = 0;
@@ -490,7 +490,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                             Date startDate = cashRegister == null ? null : cashRegister.startDate;
                             Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
-                            Long itemObject = getLongValue(entry, 7);
+                            Integer itemObject = getIntValue(entry, 7);
                             BigDecimal priceReceiptDetail = getBigDecimalValue(entry, 9);
                             BigDecimal quantityReceiptDetail = getBigDecimalValue(entry, 10);
                             BigDecimal sumReceiptDetail = getBigDecimalValue(entry, 11);
@@ -564,10 +564,6 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
     private Integer getIntValue(String[] entry, int index) {
         return entry.length >= (index + 1) ? Integer.parseInt(entry[index]) : null;
-    }
-
-    private Long getLongValue(String[] entry, int index) {
-        return entry.length >= (index + 1) ? Long.parseLong(entry[index]) : null;
     }
 
     private BigDecimal getBigDecimalValue(String[] entry, int index) {

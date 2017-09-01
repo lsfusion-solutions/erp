@@ -24,7 +24,7 @@ public class DeclarationDetail {
     public BigDecimal dutySum;
     public BigDecimal VATSum;
     public Boolean isVATCustomsException;
-    public Long VATCustomsException;
+    public Integer VATCustomsException;
     public BigDecimal componentsQuantity;
     public String extraName;
     public String markin;
@@ -36,7 +36,7 @@ public class DeclarationDetail {
                              BigDecimal sumNetWeight, BigDecimal sumGrossWeight, String shortNameUOM, String codeUOM, 
                              String sidOrigin2Country, BigDecimal sum, BigDecimal homeSum, BigDecimal baseVATSum,
                              Boolean isWeightDuty, BigDecimal weightDuty, BigDecimal percentDuty, BigDecimal percentVAT,
-                             BigDecimal dutySum, BigDecimal VATSum, Boolean isVATCustomsException, Long VATCustomsException, 
+                             BigDecimal dutySum, BigDecimal VATSum, Boolean isVATCustomsException, Integer VATCustomsException, 
                              BigDecimal componentsQuantity, String extraName, String markin, 
                              String nameSupplier, String nameBrand, String nameManufacturer) {
         this.number = number;

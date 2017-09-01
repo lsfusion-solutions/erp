@@ -8,7 +8,6 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.server.classes.ConcreteClass;
-import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.expr.KeyExpr;
@@ -87,7 +86,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> userInvoiceResult = userInvoiceQuery.execute(session);
 
             for (int i = 0, size = userInvoiceResult.size(); i < size; i++) {
-                DataObject userInvoiceObject = new DataObject((Long)userInvoiceResult.getKey(i).get("UserInvoice"), (ConcreteCustomClass) findClass("UserInvoice"));
+                DataObject userInvoiceObject = new DataObject(userInvoiceResult.getKey(i).get("UserInvoice"), (ConcreteClass) findClass("UserInvoice"));
 
                 Date date = (Date) userInvoiceResult.getValue(i).get("Purchase.dateUserInvoice");
 
@@ -98,9 +97,9 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                     String numberUserInvoice = trim((String) userInvoiceValue.get("numberUserInvoice"), "");
                     String dateInvoice = date == null ? null : new SimpleDateFormat("dd.MM.yyyy").format(date);
 
-                    Long supplierID = (Long) userInvoiceValue.get("supplierUserInvoice");
-                    Long customerStockID = (Long) userInvoiceValue.get("Purchase.customerStockInvoice");
-                    Long supplierStockID = (Long) userInvoiceValue.get("Purchase.supplierStockInvoice");
+                    Integer supplierID = (Integer) userInvoiceValue.get("supplierUserInvoice");
+                    Integer customerStockID = (Integer) userInvoiceValue.get("Purchase.customerStockInvoice");
+                    Integer supplierStockID = (Integer) userInvoiceValue.get("Purchase.supplierStockInvoice");
 
                     KeyExpr userInvoiceDetailExpr = new KeyExpr("UserInvoiceDetail");
                     ImRevMap<Object, KeyExpr> userInvoiceDetailKeys = MapFact.singletonRev((Object) "UserInvoiceDetail", userInvoiceDetailExpr);

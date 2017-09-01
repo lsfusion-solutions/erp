@@ -6,7 +6,7 @@ import java.util.List;
 
 public class TransactionPriceCheckerInfo extends TransactionInfo<PriceCheckerInfo, PriceCheckerItemInfo> {
 
-    public TransactionPriceCheckerInfo(Long id, String dateTimeCode, Date date, String handlerModel, Long idGroupMachinery, Integer nppGroupMachinery,
+    public TransactionPriceCheckerInfo(Integer id, String dateTimeCode, Date date, String handlerModel, Integer idGroupMachinery, Integer nppGroupMachinery,
                                        String nameGroupMachinery, String description, List<PriceCheckerItemInfo> itemsList,
                                        List<PriceCheckerInfo> machineryInfoList, Boolean snapshot, Timestamp lastErrorDate) {
         super(id, dateTimeCode, date, handlerModel, idGroupMachinery, nppGroupMachinery, nameGroupMachinery, description,

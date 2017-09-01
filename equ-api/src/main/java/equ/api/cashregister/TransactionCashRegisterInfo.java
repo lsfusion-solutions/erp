@@ -13,7 +13,7 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
     public String weightCodeGroupCashRegister;
     public String nameStockGroupCashRegister;
     
-    public TransactionCashRegisterInfo(Long id, String dateTimeCode, Date date, String handlerModel, Long idGroupMachinery,
+    public TransactionCashRegisterInfo(Integer id, String dateTimeCode, Date date, String handlerModel, Integer idGroupMachinery,
                                        Integer nppGroupMachinery, String nameGroupMachinery, String description,
                                        Map<String, List<ItemGroup>> itemGroupMap, List<CashRegisterItemInfo> itemsList, 
                                        List<CashRegisterInfo> machineryInfoList, Boolean snapshot, Timestamp lastErrorDate,

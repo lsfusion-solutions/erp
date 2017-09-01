@@ -344,7 +344,7 @@ public class SendSalesEquipmentServer {
         }
     }
 
-    public static void logRequestZReportSumCheck(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException {
+    public static void logRequestZReportSumCheck(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Integer idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException {
         if (machineryPriceTransactionLM != null && cashRegisterLM != null && EquipmentServer.notNullNorEmpty(checkSumResult)) {
             try (DataSession session = dbManager.createSession()) {
                 for (List<Object> entry : checkSumResult) {
@@ -353,8 +353,8 @@ public class SendSalesEquipmentServer {
                     DataObject logObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeLog"));
                     ObjectValue cashRegisterObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").readClasses(session, new DataObject(nppGroupMachinery), new DataObject((Integer) nppMachinery));
                     machineryPriceTransactionLM.findProperty("date[RequestExchangeLog]").change(EquipmentServer.getCurrentTimestamp(), session, logObject);
-                    machineryPriceTransactionLM.findProperty("message[RequestExchangeLog]").change((String)message, session, logObject);
-                    machineryPriceTransactionLM.findProperty("machinery[RequestExchangeLog]").change(cashRegisterObject, session, logObject);
+                    machineryPriceTransactionLM.findProperty("message[RequestExchangeLog]").change(message, session, logObject);
+                    machineryPriceTransactionLM.findProperty("machinery[RequestExchangeLog]").change(cashRegisterObject.getValue(), session, logObject);
                     machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeLog]").change(idRequestExchange, session, logObject);
                 }
                 session.apply(BL, stack);

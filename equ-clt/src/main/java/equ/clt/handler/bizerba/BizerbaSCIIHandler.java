@@ -25,7 +25,7 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
+    public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
         return sendTransaction(transactionList, charset, encode);
     }
 

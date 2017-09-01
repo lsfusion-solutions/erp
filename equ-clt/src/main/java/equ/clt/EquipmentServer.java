@@ -532,11 +532,11 @@ public class EquipmentServer {
         //groupId заданий, находящихся в обработке
         Set<String> currentlyProceededGroups;
         //задания в очереди
-        Map<Long, TransactionInfo> waitingTaskQueueMap;
+        Map<Integer, TransactionInfo> waitingTaskQueueMap;
         //выполняющиеся задания
-        List<Long> proceededTaskList;
+        List<Integer> proceededTaskList;
         //выполненные задания
-        List<Long> succeededTaskList;
+        List<Integer> succeededTaskList;
 
         public TaskPool(EquipmentServerInterface remote, String sidEquipmentServer) {
             this.remote = remote;
@@ -578,8 +578,8 @@ public class EquipmentServer {
             if(minGroupId != null) {
                 currentlyProceededGroups.add(minGroupId);
                 resultTask = new SingleTransactionTask(remote, minGroupId, minClsHandler, new ArrayList<TransactionInfo>(), sidEquipmentServer);
-                Set<Long> removingTaskSet = new HashSet<>();
-                for (Map.Entry<Long, TransactionInfo> transactionInfo : waitingTaskQueueMap.entrySet()) {
+                Set<Integer> removingTaskSet = new HashSet<>();
+                for (Map.Entry<Integer, TransactionInfo> transactionInfo : waitingTaskQueueMap.entrySet()) {
                     if(resultTask.groupId.equals(getTransactionInfoGroupId(transactionInfo.getValue()))) {
                         processTransactionLogger.info(String.format("Task Pool : starting transaction %s", transactionInfo.getValue().id));
                         resultTask.transactionEntry.add(transactionInfo.getValue());
@@ -588,7 +588,7 @@ public class EquipmentServer {
                     }
                 }
                 Collections.sort(resultTask.transactionEntry, COMPARATOR);
-                for(Long task : removingTaskSet)
+                for(Integer task : removingTaskSet)
                     waitingTaskQueueMap.remove(task);
             }
             return resultTask;
@@ -596,7 +596,7 @@ public class EquipmentServer {
 
         //метод, считывающий задания из базы
         synchronized void addTasks(List<TransactionInfo> transactionInfoList) throws Exception {
-            Map<Long, TransactionInfo> newWaitingTaskQueueMap = new OrderedMap<>();
+            Map<Integer, TransactionInfo> newWaitingTaskQueueMap = new OrderedMap<>();
             for(TransactionInfo transaction : transactionInfoList) {
                 if(!succeededTaskList.contains(transaction.id) && !proceededTaskList.contains(transaction.id)) {
                     if(!waitingTaskQueueMap.containsKey(transaction.id))
@@ -615,8 +615,8 @@ public class EquipmentServer {
                 if(transactionEntry.getValue())
                     succeededTaskList.add(transactionEntry.getKey().id);
                 else {
-                    for(Iterator<Map.Entry<Long, TransactionInfo>> it = waitingTaskQueueMap.entrySet().iterator(); it.hasNext(); ) {
-                        Map.Entry<Long, TransactionInfo> entry = it.next();
+                    for(Iterator<Map.Entry<Integer, TransactionInfo>> it = waitingTaskQueueMap.entrySet().iterator(); it.hasNext(); ) {
+                        Map.Entry<Integer, TransactionInfo> entry = it.next();
                         if(groupId != null && groupId.equals(getTransactionInfoGroupId(entry.getValue()))) {
                             it.remove();
                         }
@@ -683,7 +683,7 @@ public class EquipmentServer {
                 }
 
                 try {
-                    Map<Long, SendTransactionBatch> succeededMachineryInfoMap = clsHandler.sendTransaction(transactionEntry);
+                    Map<Integer, SendTransactionBatch> succeededMachineryInfoMap = clsHandler.sendTransaction(transactionEntry);
                     
                     processTransactionLogger.info(String.format("   Sending transaction group %s: confirm to server, count : %s ", groupId, succeededMachineryInfoMap.size()));
 
@@ -743,7 +743,7 @@ public class EquipmentServer {
             return enabledMachineryInfoList.isEmpty() ? machineryInfoList : enabledMachineryInfoList;
         }
 
-        private void errorTransactionReport(Long idTransactionInfo, Throwable e) {
+        private void errorTransactionReport(Integer idTransactionInfo, Throwable e) {
             try {
                 remote.errorTransactionReport(idTransactionInfo, e);
             } catch (Exception ignored) {
@@ -751,7 +751,7 @@ public class EquipmentServer {
             }
         }
 
-        private void succeededTransaction(Long idTransactionInfo) {
+        private void succeededTransaction(Integer idTransactionInfo) {
             try {
                 remote.succeedTransaction(idTransactionInfo, new Timestamp(Calendar.getInstance().getTime().getTime()));
             } catch (Exception ignored) {

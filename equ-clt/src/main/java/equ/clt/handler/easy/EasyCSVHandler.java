@@ -27,9 +27,9 @@ public class EasyCSVHandler {
         }
         
         @Override
-        public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) throws IOException {
+        public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) throws IOException {
 
-            Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
+            Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
             for(TransactionCashRegisterInfo transactionInfo : transactionInfoList) {
 
@@ -78,9 +78,9 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionPriceCheckerInfo> transactionInfoList) throws IOException {
+        public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionPriceCheckerInfo> transactionInfoList) throws IOException {
 
-            Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
+            Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
             for(TransactionPriceCheckerInfo transactionInfo : transactionInfoList) {
 
@@ -130,9 +130,9 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
+        public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
 
-            Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
+            Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
             for(TransactionScalesInfo transaction : transactionList) {
 

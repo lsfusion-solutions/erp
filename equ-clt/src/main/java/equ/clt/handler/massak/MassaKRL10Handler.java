@@ -51,8 +51,8 @@ public class MassaKRL10Handler extends ScalesHandler {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionInfoList) throws IOException {
-        Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
+    public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionInfoList) throws IOException {
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         Map<String, String> brokenPortsMap = new HashMap<>();
         if (transactionInfoList.isEmpty()) {

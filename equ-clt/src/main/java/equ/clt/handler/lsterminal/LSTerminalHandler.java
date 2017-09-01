@@ -37,9 +37,9 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List transactionInfoList) throws IOException {
+    public Map<Integer, SendTransactionBatch> sendTransaction(List transactionInfoList) throws IOException {
 
-        Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         for(Object transactionInfo : transactionInfoList) {
             Exception exception = null;

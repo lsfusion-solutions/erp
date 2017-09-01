@@ -120,7 +120,7 @@ public class MachineryExchangeEquipmentServer {
                         putDirectoryStockMap(directoryStockMap, directoryMachinery, idStock);
                     }
 
-                    requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), cashRegisterSet,
+                    requestExchangeList.add(new RequestExchange((Integer) requestExchangeObject.getValue(), cashRegisterSet,
                             idStock, directoryStockMap, dateFromRequestExchange, dateToRequestExchange,
                             startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
                 }
@@ -161,10 +161,10 @@ public class MachineryExchangeEquipmentServer {
         }
     }
 
-    public static void errorRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Map<Long, Throwable> failedRequestsMap) throws RemoteException, SQLException {
+    public static void errorRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Map<Integer, Throwable> failedRequestsMap) throws RemoteException, SQLException {
         if (machineryPriceTransactionLM != null) {
             try (DataSession session = dbManager.createSession()) {
-                for (Map.Entry<Long, Throwable> request : failedRequestsMap.entrySet()) {
+                for (Map.Entry<Integer, Throwable> request : failedRequestsMap.entrySet()) {
                     errorRequestExchange(session, request.getKey(), request.getValue());
                 }
                 session.apply(BL, stack);
@@ -174,7 +174,7 @@ public class MachineryExchangeEquipmentServer {
         }
     }
 
-    public static void errorRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Long requestExchange, Throwable t) throws RemoteException, SQLException {
+    public static void errorRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Integer requestExchange, Throwable t) throws RemoteException, SQLException {
         if (machineryPriceTransactionLM != null) {
             try (DataSession session = dbManager.createSession()) {
                 errorRequestExchange(session, requestExchange, t);
@@ -185,7 +185,7 @@ public class MachineryExchangeEquipmentServer {
         }
     }
 
-    private static void errorRequestExchange(DataSession session, Long requestExchange, Throwable t) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private static void errorRequestExchange(DataSession session, Integer requestExchange, Throwable t) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         DataObject errorObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeError"));
         machineryPriceTransactionLM.findProperty("date[RequestExchangeError]").change(getCurrentTimestamp(), session, errorObject);
         OutputStream os = new ByteArrayOutputStream();
@@ -194,11 +194,11 @@ public class MachineryExchangeEquipmentServer {
         machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeError]").change(requestExchange, session, errorObject);
     }
 
-    public static void finishRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Set<Long> succeededRequestsSet) throws RemoteException, SQLException {
+    public static void finishRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Set<Integer> succeededRequestsSet) throws RemoteException, SQLException {
         if (machineryPriceTransactionLM != null) {
             try (DataSession session = dbManager.createSession()) {
-                for (Long request : succeededRequestsSet) {
-                    DataObject requestExchangeObject = new DataObject(request, (ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchange"));
+                for (Integer request : succeededRequestsSet) {
+                    DataObject requestExchangeObject = new DataObject(request, (ConcreteClass) machineryPriceTransactionLM.findClass("RequestExchange"));
                     machineryPriceTransactionLM.findProperty("succeeded[RequestExchange]").change(true, session, requestExchangeObject);
                     machineryPriceTransactionLM.findProperty("dateTimeSucceeded[RequestExchange]").change(getCurrentTimestamp(), session, requestExchangeObject);
                 }

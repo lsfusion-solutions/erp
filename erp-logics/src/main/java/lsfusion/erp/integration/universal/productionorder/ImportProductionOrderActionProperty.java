@@ -490,7 +490,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
     }
     
     private String makeIdOrderDetail(DataObject orderObject, String numberOrder, int i) {
-        Long order = orderObject == null ? null : (Long) orderObject.object;
+        Integer order = orderObject == null ? null : (Integer) orderObject.object;
         return (order == null ? numberOrder : String.valueOf(order)) + i;
     }
 

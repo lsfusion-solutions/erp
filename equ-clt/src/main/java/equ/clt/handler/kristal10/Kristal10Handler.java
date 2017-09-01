@@ -49,13 +49,13 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
+    public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
-        Map<File, Long> fileMap = new HashMap<>();
-        Map<Long, Exception> failedTransactionMap = new HashMap<>();
-        Set<Long> emptyTransactionSet = new HashSet<>();
+        Map<File, Integer> fileMap = new HashMap<>();
+        Map<Integer, Exception> failedTransactionMap = new HashMap<>();
+        Set<Integer> emptyTransactionSet = new HashSet<>();
 
-        Map<Long, DeleteBarcode> usedDeleteBarcodeTransactionMap = new HashMap<>();
+        Map<Integer, DeleteBarcode> usedDeleteBarcodeTransactionMap = new HashMap<>();
 
         for(TransactionCashRegisterInfo transaction : transactionList) {
 
@@ -300,21 +300,21 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         return tobaccoGroups;
     }
 
-    private Map<Long, SendTransactionBatch> waitForDeletion(Map<File, Long> filesMap, Map<Long, Exception> failedTransactionMap,
-                                                               Set<Long> emptyTransactionSet, Map<Long, DeleteBarcode> usedDeleteBarcodeTransactionMap) {
+    private Map<Integer, SendTransactionBatch> waitForDeletion(Map<File, Integer> filesMap, Map<Integer, Exception> failedTransactionMap,
+                                                               Set<Integer> emptyTransactionSet, Map<Integer, DeleteBarcode> usedDeleteBarcodeTransactionMap) {
         int count = 0;
-        Map<Long, SendTransactionBatch> result = new HashMap<>();
+        Map<Integer, SendTransactionBatch> result = new HashMap<>();
         while (!Thread.currentThread().isInterrupted() && !filesMap.isEmpty()) {
             try {
-                Map<File, Long> nextFilesMap = new HashMap<>();
+                Map<File, Integer> nextFilesMap = new HashMap<>();
                 count++;
                 if (count >= 180) {
                     processTransactionLogger.info("Kristal10 (wait for deletion): timeout");
                     break;
                 }
-                for (Map.Entry<File, Long> entry : filesMap.entrySet()) {
+                for (Map.Entry<File, Integer> entry : filesMap.entrySet()) {
                     File file = entry.getKey();
-                    Long idTransaction = entry.getValue();
+                    Integer idTransaction = entry.getValue();
                     if (file.exists())
                         nextFilesMap.put(file, idTransaction);
                     else {
@@ -341,14 +341,14 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
             }
         }
 
-        for(Map.Entry<File, Long> file : filesMap.entrySet()) {
+        for(Map.Entry<File, Integer> file : filesMap.entrySet()) {
             processTransactionLogger.info(String.format("Kristal10 (wait for deletion): file %s has NOT been deleted", file.getKey().getAbsolutePath()));
             result.put(file.getValue(), new SendTransactionBatch(new RuntimeException(String.format("Kristal10: file %s has been created but not processed by server", file.getKey().getAbsolutePath()))));
         }
-        for(Map.Entry<Long, Exception> entry : failedTransactionMap.entrySet()) {
+        for(Map.Entry<Integer, Exception> entry : failedTransactionMap.entrySet()) {
             result.put(entry.getKey(), new SendTransactionBatch(entry.getValue()));
         }
-        for(Long emptyTransaction : emptyTransactionSet) {
+        for(Integer emptyTransaction : emptyTransactionSet) {
             result.put(emptyTransaction, new SendTransactionBatch(null));
         }
         return result;
@@ -390,7 +390,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+                                 Set<Integer> succeededRequests, Map<Integer, Throwable> failedRequests, Map<Integer, Throwable> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
             int count = 0;
             String requestResult = null;
