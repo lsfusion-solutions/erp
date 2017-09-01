@@ -69,33 +69,38 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
-                    String directory = null;
-                    for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
-                        if (cashRegister.directory != null) {
-                            directory = cashRegister.directory;
-                        }
-                    }
-                    EQSConnectionString params = new EQSConnectionString(directory);
+                    try {
 
-                    if (params.connectionString == null) {
-                        processTransactionLogger.error(logPrefix + "No connectionString in EQSSettings found");
-                    } else {
-                        processTransactionLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
-                        Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
-                        Exception exception = null;
-                        try {
-                            processTransactionLogger.info(String.format(logPrefix + "transaction %s, table plu", transaction.id));
-                            exportItems(conn, transaction, appendBarcode, skipIdDepartmentStore);
-                        } catch (Exception e) {
-                            exception = e;
-                        } finally {
-                            if (conn != null)
-                                conn.close();
+                        String directory = null;
+                        for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
+                            if (cashRegister.directory != null) {
+                                directory = cashRegister.directory;
+                            }
                         }
-                        sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
+                        EQSConnectionString params = new EQSConnectionString(directory);
+
+                        if (params.connectionString == null) {
+                            processTransactionLogger.error(logPrefix + "No connectionString in EQSSettings found");
+                        } else {
+                            processTransactionLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
+                            Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+                            Exception exception = null;
+                            try {
+                                processTransactionLogger.info(String.format(logPrefix + "transaction %s, table plu", transaction.id));
+                                exportItems(conn, transaction, appendBarcode, skipIdDepartmentStore);
+                            } catch (Exception e) {
+                                exception = e;
+                            } finally {
+                                if (conn != null)
+                                    conn.close();
+                            }
+                            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
+                        }
+                    } catch (SQLException e) {
+                        sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(e));
                     }
                 }
-            } catch (ClassNotFoundException | SQLException e) {
+            } catch (ClassNotFoundException e) {
                 throw Throwables.propagate(e);
             }
         }
