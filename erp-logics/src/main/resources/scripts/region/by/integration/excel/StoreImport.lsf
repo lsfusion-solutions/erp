@@ -1,0 +1,75 @@
+MODULE StoreImport;
+
+REQUIRE Store;
+
+idStore 'Код магазина' (INTEGER i) = 'ГМ1' IF i IS INTEGER;
+nameStore 'Наименование магазина' (INTEGER i) = 'Держинского' IF i IS INTEGER;
+idStoreType 'Код формата магазина' (INTEGER i) = 'format1' IF i IS INTEGER;
+idLegalEntity 'Код компании' (INTEGER i) = 'РПКП000000' IF i IS INTEGER;
+address 'Адрес' (INTEGER i) = 'Держинского 1' IF i IS INTEGER;
+idDepartmentStore 'Код отдела' (INTEGER i) = 'ГМ1' IF i IS INTEGER;
+nameDepartmentStore 'Наименование отдела' (INTEGER i) = 'Держинского' IF i IS INTEGER;
+fullNameDepartmentStore 'Полное наименование отдела' (INTEGER i) = 'Торговый центр по ул. Держинского' IF i IS INTEGER;
+
+FORM storeImportTemplate 'Импорт магазинов (шаблон)'
+    OBJECTS i=INTEGER 
+    PROPERTIES (i) idStore, nameStore, idStoreType, idLegalEntity, address, idDepartmentStore, nameDepartmentStore, fullNameDepartmentStore
+    FILTERS i == 1
+;
+
+storeImportTemplateXLS 'Создать шаблон' () = {
+    PRINT storeImportTemplate XLS;       
+} IMAGE 'print.png';
+
+storeImport 'Импортировать' () = {
+    NEWSESSION {
+        LOCAL NESTED idStoreField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED nameStoreField = VARISTRING[100] (INTEGER);
+        LOCAL NESTED idStoreTypeField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED idLegalEntityField = VARISTRING[150] (INTEGER);
+        LOCAL NESTED addressField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED idDepartmentStoreField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED nameDepartmentStoreField = VARISTRING[150] (INTEGER);
+        LOCAL NESTED fullNameDepartmentStoreField = VARISTRING[150] (INTEGER);
+            
+        INPUT f = EXCELFILE DO {
+            IMPORT XLS TO idStoreField=B, nameStoreField=C, idStoreTypeField=D, idLegalEntityField=E, addressField=F, 
+                          idDepartmentStoreField=G, nameDepartmentStoreField=H, fullNameDepartmentStoreField=I FROM f AS EXCELFILE;
+                          
+            FOR INTEGER i == [=GROUP MIN INTEGER i IF i > 1 BY idStoreField(i)](VARSTRING[100] id) AND 
+                NOT [=GROUP SUM 1 BY id(Store store)](id) AND 
+                nameStoreField(i) AND idLegalEntityField(i) NEW store = Store DO {
+                    id(store) <- idStoreField(i);
+                    name(store) <- nameStoreField(i);
+                    storeType(store) <- storeType(idStoreTypeField(i));
+                    legalEntity(store) <- legalEntity(idLegalEntityField(i));
+                    address(store) <- addressField(i);
+                }
+            
+            FOR imported(INTEGER i) AND i > 1 AND idDepartmentStoreField(i) AND nameDepartmentStoreField(i) AND 
+                idStoreField(i) AND nameStoreField(i) AND idLegalEntityField(i)
+                NEW departmentStore = DepartmentStore DO {
+                    id(departmentStore) <- idDepartmentStoreField(i);
+                    name(departmentStore) <- nameDepartmentStoreField(i);
+                    fullName(departmentStore) <- fullNameDepartmentStoreField(i);
+                    store(departmentStore) <- store(idStoreField(i));
+                }
+            apply();
+        }
+    }
+}
+
+EXTEND FORM migrationData
+    PROPERTIES () storeImportTemplateXLS, storeImport
+;
+
+DESIGN migrationData{
+    commons {
+        NEW storeImport {
+            type = CONTAINERH;
+            caption = 'Магазины';
+            MOVE PROPERTY(storeImportTemplateXLS()); 
+            MOVE PROPERTY(storeImport());
+        } 
+    }
+}

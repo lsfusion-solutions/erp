@@ -1,0 +1,61 @@
+MODULE StoreTypeImport;
+
+REQUIRE Store;
+
+idStoreType 'Код формата магазина' (INTEGER i) = 'format1' IF i IS INTEGER;
+nameStoreType 'Наименование формата магазина' (INTEGER i) = 'Формат 1' IF i IS INTEGER;
+idChainStores 'Код торговой сети' (INTEGER i) = 'gippo' IF i IS INTEGER;
+nameChainStores 'Наименование торговой сети' (INTEGER i) = 'Гиппо' IF i IS INTEGER;
+
+FORM storeTypeImportTemplate 'Импорт форматов магазина (шаблон)'
+    OBJECTS i=INTEGER 
+    PROPERTIES (i) idStoreType, nameStoreType, idChainStores, nameChainStores
+    FILTERS i == 1
+;
+
+storeTypeImportTemplateXLS 'Создать шаблон' () = {
+    PRINT storeTypeImportTemplate XLS;       
+} IMAGE 'print.png';
+
+storeTypeImport 'Импортировать' () = {
+    NEWSESSION {
+         LOCAL NESTED idStoreTypeField = VARSTRING[100] (INTEGER);
+         LOCAL NESTED nameStoreTypeField = VARISTRING[100] (INTEGER);
+         LOCAL NESTED idChainStoresField = VARSTRING[100] (INTEGER);
+         LOCAL NESTED nameChainStoresField = VARISTRING[100] (INTEGER);
+         
+         INPUT f = EXCELFILE DO {
+            IMPORT XLS TO idStoreTypeField=B, nameStoreTypeField=C, idChainStoresField=D, nameChainStoresField=E FROM f AS EXCELFILE;
+            
+            FOR INTEGER i == [=GROUP MIN INTEGER i IF i > 1 BY idChainStoresField(i)](VARSTRING[100] id) AND 
+                NOT [=GROUP SUM 1 BY id(ChainStores chainStores)](id) AND 
+                nameChainStoresField(i) NEW chainStores = ChainStores DO {
+                    id(chainStores) <- idChainStoresField(i);
+                    name(chainStores) <- nameChainStoresField(i);
+                }
+            
+            FOR imported(INTEGER i) AND i > 1 AND idStoreTypeField(i) AND nameStoreTypeField(i) AND idChainStoresField(i) AND nameChainStoresField(i)
+                NEW storeType = StoreType DO {
+                    id(storeType) <- idStoreTypeField(i);
+                    name(storeType) <- nameStoreTypeField(i);
+                    chainStores(storeType) <- chainStores(idChainStoresField(i));
+                }
+            apply();
+         }
+    }
+}
+
+EXTEND FORM migrationData
+    PROPERTIES () storeTypeImportTemplateXLS, storeTypeImport
+;
+
+DESIGN migrationData{
+    commons {
+        NEW storeTypeImport {
+            type = CONTAINERH;
+            caption = 'Форматы магазина';
+            MOVE PROPERTY(storeTypeImportTemplateXLS()); 
+            MOVE PROPERTY(storeTypeImport());
+        } 
+    }
+}

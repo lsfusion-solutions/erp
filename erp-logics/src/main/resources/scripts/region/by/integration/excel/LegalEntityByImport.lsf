@@ -1,0 +1,53 @@
+MODULE LegalEntityByImport;
+
+REQUIRE LegalEntityBy;
+
+idLegalEntity 'Код организации' (INTEGER i) = 'ПК99990' IF i IS INTEGER;
+UNP 'УНП' (INTEGER i) = '100000000' IF i IS INTEGER;
+OKPO 'ОКПО' (INTEGER i) = '' IF i IS INTEGER;
+OKYLP 'ОКЮЛП' (INTEGER i) = '' IF i IS INTEGER;
+
+FORM legalEntityByImportTemplate 'Импорт УНП организаций (шаблон)'
+    OBJECTS i=INTEGER 
+    PROPERTIES (i) idLegalEntity, UNP, OKPO, OKYLP
+    FILTERS i == 1
+;
+
+legalEntityByImportTemplateXLS 'Создать шаблон' () = {
+    PRINT legalEntityByImportTemplate XLS;       
+} IMAGE 'print.png';
+
+legalEntityByImport 'Импортировать' () = {
+    NEWSESSION {
+        LOCAL NESTED idField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED UNPField = VARSTRING[9] (INTEGER);
+        LOCAL NESTED OKPOField = VARSTRING[20] (INTEGER);
+        LOCAL NESTED OKYLPField = VARSTRING[20] (INTEGER);
+        
+        INPUT f = EXCELFILE DO {
+            IMPORT XLS TO idField=B, UNPField=C, OKPOField=D, OKYLPField=E FROM f AS EXCELFILE;
+            
+            FOR imported(INTEGER i) AND i > 1 AND idField(i) AND UNPField(i) AND LegalEntity legalEntity == [=GROUP MIN LegalEntity legalEntity BY id(legalEntity)](idField(i)) DO {
+                UNP(legalEntity) <- UNPField(i);
+                OKPO(legalEntity) <- OKPOField(i);
+                OKYLP(legalEntity) <- OKYLPField(i);
+            }
+            apply();
+        }
+    }
+}
+
+EXTEND FORM migrationData
+    PROPERTIES () legalEntityByImportTemplateXLS, legalEntityByImport
+;
+
+DESIGN migrationData{
+    commons {
+        NEW legalEntityByImport {
+            type = CONTAINERH;
+            caption = 'УНП организаций';
+            MOVE PROPERTY(legalEntityByImportTemplateXLS()); 
+            MOVE PROPERTY(legalEntityByImport());
+        } 
+    }
+}

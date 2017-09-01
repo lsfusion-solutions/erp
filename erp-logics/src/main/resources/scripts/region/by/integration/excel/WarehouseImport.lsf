@@ -6,10 +6,11 @@ id 'Код' (INTEGER i) = 'ПК99990' IF i IS INTEGER;
 name 'Наименование' (INTEGER i) = 'Склад 1-МИНСКАЯ ПТИЦЕФАБРИКА ОАО' IF i IS INTEGER;
 address 'Адрес' (INTEGER i) = '' IF i IS INTEGER;
 idLegalEntity 'Код организации' (INTEGER i) = 'ПК99990' IF i IS INTEGER;
+isCompany 'Собственный склад' (INTEGER i) = 'да' IF i IS INTEGER;
 
 FORM warehouseImportTemplate 'Импорт складов (шаблон)'
     OBJECTS i=INTEGER 
-    PROPERTIES (i) id, name, address, idLegalEntity
+    PROPERTIES (i) id, name, address, idLegalEntity, isCompany
     FILTERS i == 1
 ;
 
@@ -23,15 +24,17 @@ warehouseImport 'Импортировать' () = {
         LOCAL NESTED nameField = VARISTRING[150] (INTEGER);
         LOCAL NESTED addressField = VARSTRING[100] (INTEGER);
         LOCAL NESTED idLegalEntityField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED isCompanyField = VARSTRING[10] (INTEGER);
         
         INPUT f = EXCELFILE DO {
-            IMPORT XLS TO idField=B, nameField=C, addressField=D, idLegalEntityField=E FROM f AS EXCELFILE;
+            IMPORT XLS TO idField=B, nameField=C, addressField=D, idLegalEntityField=E, isCompanyField=F FROM f AS EXCELFILE;
                     
             FOR imported(INTEGER i) AND i > 1 AND idField(i) AND nameField(i) AND idLegalEntityField(i) NEW warehouse = Warehouse DO {
                 id(warehouse) <- idField(i);
                 name(warehouse) <- nameField(i);
                 address(warehouse) <- addressField(i);
                 legalEntity(warehouse) <- legalEntity(idLegalEntityField(i));
+                warehouseGroup(warehouse) <- IF lower(isCompanyField(i)) == 'да' THEN warehouseGroup('company') ELSE warehouseGroup('external');
             }
             apply();
         }

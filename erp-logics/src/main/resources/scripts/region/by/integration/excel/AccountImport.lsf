@@ -1,0 +1,54 @@
+MODULE AccountImport;
+
+REQUIRE Bank;
+
+idLegalEntity 'Код организации' (INTEGER i) = 'ПК99990' IF i IS INTEGER;
+number 'Номер расчетного счета' (INTEGER i) = '000000000' IF i IS INTEGER;
+numberNew 'Номер расчетного счета IBAN' (INTEGER i) = '' IF i IS INTEGER;
+
+FORM accountImportTemplate 'Импорт расчетных счетов (шаблон)'
+    OBJECTS i=INTEGER 
+    PROPERTIES (i) idLegalEntity, number, numberNew
+    FILTERS i == 1
+;
+
+accountImportTemplateXLS 'Создать шаблон' () = {
+    PRINT accountImportTemplate XLS;       
+} IMAGE 'print.png';
+
+accountImport 'Импортировать' () = {
+    NEWSESSION {
+        LOCAL NESTED idField = VARSTRING[100] (INTEGER);
+        LOCAL NESTED numberField = VARSTRING[50] (INTEGER);
+        LOCAL NESTED numberNewField = VARSTRING[50] (INTEGER);
+        
+        INPUT f = EXCELFILE DO {
+            IMPORT XLS TO idField=B, numberField=C, numberNewField=D FROM f AS EXCELFILE;
+            
+            FOR imported(INTEGER i) AND i > 1 AND idField(i) AND (numberField(i) OR numberNewField(i)) AND 
+                LegalEntity legalEntity == [=GROUP MIN LegalEntity legalEntity BY id(legalEntity)](idField(i)) 
+                NEW account = Bank.Account DO {
+                    number(account) <- numberField(i);
+                    numberNew(account) <- numberNewField(i);
+                    currency(account) <- defaultCurrency();
+                    legalEntity(account) <- legalEntity;
+                }
+            apply();
+        }
+    }
+}
+
+EXTEND FORM migrationData
+    PROPERTIES () accountImportTemplateXLS, accountImport
+;
+
+DESIGN migrationData{
+    commons {
+        NEW accountImport {
+            type = CONTAINERH;
+            caption = 'Расчетные счета';
+            MOVE PROPERTY(accountImportTemplateXLS()); 
+            MOVE PROPERTY(accountImport());
+        } 
+    }
+}
