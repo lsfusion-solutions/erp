@@ -269,7 +269,22 @@ WHEN SET(imported(InternetOrder o)) AND NOT deliveryTimeToInternetOrder(o) DO {
            
 isPrepayment (InternetOrder o) = paymentTypeInternetOrder(o) == PaymentTypeInternetOrder.prepayment;          
 isInFact (InternetOrder o) = paymentTypeInternetOrder(o) == PaymentTypeInternetOrder.inFact;          
-isErip (InternetOrder o) = paymentTypeInternetOrder(o) == PaymentTypeInternetOrder.erip;          
+isErip (InternetOrder o) = paymentTypeInternetOrder(o) == PaymentTypeInternetOrder.erip;
+
+
+DESIGN options {
+    pane {
+        NEW internetOrder {
+            caption = 'Интернет-заказы';
+            NEW topInternetOrder {
+                type = COLUMNS;
+                columns = 2;
+            }            
+        }
+    }
+}          
+@defineOption(allowChangeDiscountSumInternetOrder, 'Разрешить редактирование суммы со скидкой', topInternetOrder);
+denyChangeDiscountSum(InternetOrderDetail d) = d IS InternetOrderDetail AND NOT allowChangeDiscountSumInternetOrder();
 
 FORM internetOrder 'Интернет-заказ'
     OBJECTS o = InternetOrder PANEL
@@ -287,7 +302,7 @@ FORM internetOrder 'Интернет-заказ'
     PROPERTIES (d) BACKGROUND background(d) idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity,
                    price, discountPrice BACKGROUND backgroundDiscount(o) ON CHANGE changeDiscountPrice(d), 
                    discountPercent BACKGROUND backgroundDiscount(o) ON CHANGE changeDiscountPercent(d),
-                   sum, discountSum READONLY BACKGROUND backgroundDiscount(o),
+                   sum, discountSum READONLYIF denyChangeDiscountSum(d) BACKGROUND backgroundDiscount(o),
                    nameSupplierStock ON CHANGE changeSupplierStock(d)
                    
     PROPERTIES (d)  NEW, deleteod = DELETE
@@ -554,18 +569,6 @@ NAVIGATOR {
     dashboardNavigator {
         NEW eShop 'Интернет-магазин' {
             ADD internetOrders;
-        }
-    }
-}
-
-DESIGN options {
-    pane {
-        NEW internetOrder {
-            caption = 'Интернет-заказы';
-            NEW topInternetOrder {
-                type = COLUMNS;
-                columns = 2;
-            }            
         }
     }
 }
