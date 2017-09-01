@@ -7,6 +7,7 @@ public class EQSSettings implements Serializable{
     private Boolean appendBarcode;
     private String giftCardRegexp;
     private Boolean skipIdDepartmentStore;
+    private int discountCardThreadCount;
 
     public EQSSettings() {
     }
@@ -33,5 +34,13 @@ public class EQSSettings implements Serializable{
 
     public void setSkipIdDepartmentStore(Boolean skipIdDepartmentStore) {
         this.skipIdDepartmentStore = skipIdDepartmentStore;
+    }
+
+    public int getDiscountCardThreadCount() {
+        return discountCardThreadCount;
+    }
+
+    public void setDiscountCardThreadCount(int discountCardThreadCount) {
+        this.discountCardThreadCount = discountCardThreadCount;
     }
 }

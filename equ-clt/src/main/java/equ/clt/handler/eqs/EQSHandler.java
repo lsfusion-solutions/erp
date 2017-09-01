@@ -2,7 +2,11 @@ package equ.clt.handler.eqs;
 
 import com.google.common.base.Throwables;
 import equ.api.*;
-import equ.api.cashregister.*;
+import equ.api.cashregister.CashRegisterInfo;
+import equ.api.cashregister.CashRegisterItemInfo;
+import equ.api.cashregister.DiscountCard;
+import equ.api.cashregister.TransactionCashRegisterInfo;
+import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.log4j.Logger;
@@ -15,6 +19,9 @@ import java.sql.Date;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -214,12 +221,49 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
     @Override
     public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
+        EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
+        int discountCardThreadCount = eqsSettings != null ? eqsSettings.getDiscountCardThreadCount() : 0;
+
         Set<String> directorySet = new HashSet<>();
         for (CashRegisterInfo cashRegister : requestExchange.cashRegisterSet) {
             directorySet.add(cashRegister.directory);
         }
-        for (String directory : directorySet) {
+        directorySet.addAll(requestExchange.directoryStockMap.keySet());
 
+        Collection<Callable<Exception>> taskList = new ArrayList<>();
+        for (String directory : directorySet) {
+            taskList.add(new SendDiscountCardsTask(discountCardList, directory));
+        }
+
+        if (!taskList.isEmpty()) {
+            ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(discountCardThreadCount > 0 ? discountCardThreadCount : taskList.size(), "EQSSendDiscountCards");
+            try {
+                List<Future<Exception>> threadResults = singleTransactionExecutor.invokeAll(taskList);
+                for (Future<Exception> threadResult : threadResults) {
+                    if (threadResult.get() != null) {
+                        throw threadResult.get();
+                    }
+                }
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            } finally {
+                singleTransactionExecutor.shutdown();
+            }
+
+        }
+    }
+
+    class SendDiscountCardsTask implements Callable<Exception> {
+        List<DiscountCard> discountCardList;
+        String directory;
+
+        public SendDiscountCardsTask(List<DiscountCard> discountCardList, String directory) {
+            this.discountCardList = discountCardList;
+            this.directory = directory;
+        }
+
+        @Override
+        public Exception call() throws Exception {
             EQSConnectionString params = new EQSConnectionString(directory);
 
             if (params.connectionString != null) {
@@ -255,7 +299,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                 } catch (SQLException e) {
                     machineryExchangeLogger.error(logPrefix, e);
-                    throw Throwables.propagate(e);
+                    return e;
                 } finally {
                     try {
                         if (ps != null)
@@ -267,6 +311,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     }
                 }
             }
+            return null;
         }
     }
 
