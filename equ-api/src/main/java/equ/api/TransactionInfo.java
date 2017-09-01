@@ -7,11 +7,11 @@ import java.util.List;
 import java.util.Map;
 
 public abstract class TransactionInfo <M extends MachineryInfo, I extends ItemInfo> implements Serializable {
-    public Integer id;
+    public Long id;
     public String dateTimeCode;
     public Date date;
     public String handlerModel;
-    public Integer idGroupMachinery;
+    public Long idGroupMachinery;
     public Integer nppGroupMachinery;
     public String nameGroupMachinery;
     public String description;
@@ -24,7 +24,7 @@ public abstract class TransactionInfo <M extends MachineryInfo, I extends ItemIn
     public TransactionInfo() {
     }
 
-    public TransactionInfo(Integer id, String dateTimeCode, Date date, String handlerModel, Integer idGroupMachinery,
+    public TransactionInfo(Long id, String dateTimeCode, Date date, String handlerModel, Long idGroupMachinery,
                            Integer nppGroupMachinery, String nameGroupMachinery, String description,
                            Map<String, List<ItemGroup>> itemGroupMap, List<I> itemsList, List<M> machineryInfoList,
                            Boolean snapshot, Timestamp lastErrorDate) {

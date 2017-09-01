@@ -16,8 +16,8 @@ import java.util.concurrent.ExecutionException;
 public class EVATClientAction implements ClientAction {
     public static boolean initialized;
 
-    public Map<String, Map<Integer, List<Object>>> files; //signAndSend
-    public Map<String, Map<Integer, String>> invoices; //getStatus
+    public Map<String, Map<Long, List<Object>>> files; //signAndSend
+    public Map<String, Map<Long, String>> invoices; //getStatus
     public String serviceUrl; //"https://ws.vat.gov.by:443/InvoicesWS/services/InvoicesPort?wsdl"
     public String path; //"c:/Program Files/Avest/AvJCEProv";
     public String exportPath; //"c:/Program Files/Avest/AvJCEProv/archive";
@@ -26,7 +26,7 @@ public class EVATClientAction implements ClientAction {
     public boolean useActiveX;
     public int type;
 
-    public EVATClientAction(Map<String, Map<Integer, List<Object>>> files, Map<String, Map<Integer, String>> invoices, String serviceUrl,
+    public EVATClientAction(Map<String, Map<Long, List<Object>>> files, Map<String, Map<Long, String>> invoices, String serviceUrl,
                             String path, String exportPath, String password, int certIndex, boolean useActiveX, int type) {
         this.files = files;
         this.invoices = invoices;

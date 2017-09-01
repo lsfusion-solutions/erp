@@ -71,7 +71,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
 
     private void sendAndSign(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         ServerLoggers.importLogger.info("EVAT: generateXMLs started");
-        Map<String, Map<Integer, List<Object>>> files = generateXMLs(context);
+        Map<String, Map<Long, List<Object>>> files = generateXMLs(context);
         if (!(files.isEmpty())) {
             Object evatResult = context.requestUserInteraction(new EVATClientAction(files, null, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type));
             String error = "";
@@ -80,14 +80,15 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                 if (!result.isEmpty()) {
                     for (List<Object> entry : result) {
                         ServerLoggers.importLogger.info("EVAT: reading result started");
-                        Integer evat = (Integer) entry.get(0);
+                        Long evat = (Long) entry.get(0);
                         String message = (String) entry.get(1);
                         Boolean isError = (Boolean) entry.get(2);
                         if (isError)
                             error += message + "\n";
                         try (DataSession session = context.createSession()) {
-                            findProperty("result[EVAT]").change(message, session, new DataObject(evat, (ConcreteClass) findClass("EVAT")));
-                            findProperty("exported[EVAT]").change(isError ? null : true, session, new DataObject(evat, (ConcreteClass) findClass("EVAT")));
+                            DataObject evatObject = new DataObject(evat, (ConcreteCustomClass) findClass("EVAT"));
+                            findProperty("result[EVAT]").change(message, session, evatObject);
+                            findProperty("exported[EVAT]").change(isError ? null : true, session, evatObject);
                             String applyResult = session.applyMessage(context);
                             if (applyResult != null)
                                 ServerLoggers.importLogger.info("EVAT: apply result: " + applyResult);
@@ -106,7 +107,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
     }
 
     private void getStatus(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-        Map<String, Map<Integer, String>> invoices = getInvoices(context);
+        Map<String, Map<Long, String>> invoices = getInvoices(context);
         if (!(invoices.isEmpty())) {
             Object evatResult = context.requestUserInteraction(new EVATClientAction(null, invoices, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type));
             if(evatResult instanceof List) {
@@ -114,15 +115,15 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                 String resultMessage = "";
                 if (!result.isEmpty()) {
                     for (List<Object> entry : result) {
-                        Integer evat = (Integer) entry.get(0);
+                        Long evat = (Long) entry.get(0);
                         String message = (String) entry.get(1);
                         String status = (String) entry.get(2);
                         String number = (String) entry.get(3);
                         ServerLoggers.importLogger.info(String.format("EVAT %s: reading result started", number));
                         resultMessage += String.format("EVAT %s: %s\n", number, message);
                         try (DataSession session = context.createSession()) {
-                            DataObject evatObject = new DataObject(evat, (ConcreteClass) findClass("EVAT"));
-                            findProperty("statusServerStatus[EVAT]").change(getServerStatusObject(status, number).getValue(), session, evatObject);
+                            DataObject evatObject = new DataObject(evat, (ConcreteCustomClass) findClass("EVAT"));
+                            findProperty("statusServerStatus[EVAT]").change(getServerStatusObject(status, number), session, evatObject);
                             findProperty("result[EVAT]").change(message, session, evatObject);
                             String applyResult = session.applyMessage(context);
                             if (applyResult != null)

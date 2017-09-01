@@ -50,9 +50,9 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
     }
 
     @Override
-    public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
+        Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         Map<String, Exception> brokenDirectoriesMap = new HashMap<>();
         for(TransactionCashRegisterInfo transaction : transactionList) {
@@ -806,7 +806,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                   Set<Integer> succeededRequests, Map<Integer, Throwable> failedRequests, Map<Integer, Throwable> ignoredRequests) throws IOException, ParseException {
+                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
         Map<String, List<RequestExchange>> requestExchangeMap = new HashMap<>();
 
         HTCSettings htcSettings = springContext.containsBean("htcSettings") ? (HTCSettings) springContext.getBean("htcSettings") : null;
@@ -823,7 +823,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
         try {
 
-            Collection<Callable<Map<Integer, String>>> taskList = new LinkedList<>();
+            Collection<Callable<Map<Long, String>>> taskList = new LinkedList<>();
             for (Map.Entry<String, List<RequestExchange>> entry : requestExchangeMap.entrySet()) {
                 String directory = entry.getKey();
                 List<RequestExchange> requestExchanges = entry.getValue();
@@ -833,10 +833,10 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
             if(!taskList.isEmpty()) {
                 ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "HTCRequestSales");
 
-                List<Future<Map<Integer, String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
+                List<Future<Map<Long, String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
 
-                for (Future<Map<Integer, String>> threadResult : threadResults) {
-                    for (Map.Entry<Integer, String> entry : threadResult.get().entrySet()) {
+                for (Future<Map<Long, String>> threadResult : threadResults) {
+                    for (Map.Entry<Long, String> entry : threadResult.get().entrySet()) {
                         if (entry.getValue() == null)
                             succeededRequests.add(entry.getKey());
                         else
@@ -850,7 +850,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
             sendSalesLogger.error("HTC: error while creating request files", e);
         }
 
-        for(Integer failedRequest : failedRequests.keySet()) {
+        for(Long failedRequest : failedRequests.keySet()) {
             if(succeededRequests.contains(failedRequest))
                 succeededRequests.remove(failedRequest);
         }
@@ -902,7 +902,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         return new SimpleDateFormat("dd-MM-yyyy-hh-mm-ss").format(Calendar.getInstance().getTime());
     }
 
-    class RequestSalesInfoTask implements Callable<Map<Integer, String>> {
+    class RequestSalesInfoTask implements Callable<Map<Long, String>> {
         String directory;
         List<RequestExchange> requestExchanges;
         boolean useDataDirectory;
@@ -914,8 +914,8 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         }
 
         @Override
-        public Map<Integer, String> call() throws Exception {
-            Map<Integer, String> result = new HashMap<>();
+        public Map<Long, String> call() throws Exception {
+            Map<Long, String> result = new HashMap<>();
             boolean failed = false;
             for (RequestExchange requestExchange : requestExchanges) {
 

@@ -56,14 +56,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     @Override
-    public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
 
-        Map<Integer, SendTransactionBatch> result = new HashMap<>();
-        Map<Integer, Exception> failedTransactionMap = new HashMap<>();
-        Set<Integer> emptyTransactionSet = new HashSet<>();
+        Map<Long, SendTransactionBatch> result = new HashMap<>();
+        Map<Long, Exception> failedTransactionMap = new HashMap<>();
+        Set<Long> emptyTransactionSet = new HashSet<>();
 
         boolean failed = false;
         for (TransactionCashRegisterInfo transaction : transactionList) {
@@ -180,10 +180,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
         }
 
-        for (Map.Entry<Integer, Exception> entry : failedTransactionMap.entrySet()) {
+        for (Map.Entry<Long, Exception> entry : failedTransactionMap.entrySet()) {
             result.put(entry.getKey(), new SendTransactionBatch(entry.getValue()));
         }
-        for (Integer emptyTransaction : emptyTransactionSet) {
+        for (Long emptyTransaction : emptyTransactionSet) {
             result.put(emptyTransaction, new SendTransactionBatch(null));
         }
         return result;
@@ -360,8 +360,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     @Override
-    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests,
-                                 Map<Integer, Throwable> failedRequests, Map<Integer, Throwable> ignoredRequests) throws IOException, ParseException {
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Long> succeededRequests,
+                                 Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
             for (CashRegisterInfo cashRegister : entry.cashRegisterSet) {
                 if (directorySet.contains(cashRegister.directory)) {

@@ -45,9 +45,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     @Override
-    public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
+        Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         if (transactionList != null) {
 
@@ -64,7 +64,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
                 boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
 
-                Map<Integer, Integer> versionTransactionMap = new HashMap<>();
+                Map<Integer, Long> versionTransactionMap = new HashMap<>();
                 Integer version = null;
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
@@ -558,8 +558,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private Map<Integer, SendTransactionBatch> waitSignals(Connection conn, Map<Integer, Integer> versionMap, long transactionId, int timeout) {
-        Map<Integer, SendTransactionBatch> batchResult = new HashMap<>();
+    private Map<Long, SendTransactionBatch> waitSignals(Connection conn, Map<Integer, Long> versionMap, long transactionId, int timeout) {
+        Map<Long, SendTransactionBatch> batchResult = new HashMap<>();
         try {
             int count = 0;
             while (!versionMap.isEmpty()) {
@@ -568,7 +568,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     if (count > (timeout / 5)) {
                         String message = String.format("UKM transaction %s: data was sent to db but signal record(s) %s was not deleted", transactionId, versionMap.keySet());
                         processTransactionLogger.error(message);
-                        for (Integer transaction : versionMap.values()) {
+                        for (Long transaction : versionMap.values()) {
                             batchResult.put(transaction, new SendTransactionBatch(new RuntimeException(message)));
                         }
                         break;
@@ -580,14 +580,14 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 }
             }
         } catch (Exception e) {
-            for (Integer transaction : versionMap.values()) {
+            for (Long transaction : versionMap.values()) {
                 batchResult.put(transaction, new SendTransactionBatch(new RuntimeException(e.getMessage())));
             }
         }
         return batchResult;
     }
 
-    private Map<Integer, Integer> waitForSignalsExecution(Connection conn, Map<Integer, Integer> versionMap) throws SQLException {
+    private Map<Integer, Long> waitForSignalsExecution(Connection conn, Map<Integer, Long> versionMap) throws SQLException {
         Statement statement = null;
         try {
             StringBuilder inVersions = new StringBuilder();
@@ -597,7 +597,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             statement = conn.createStatement();
             String sql = "SELECT version FROM `signal` WHERE version IN (" + inVersions + ")";
             ResultSet resultSet = statement.executeQuery(sql);
-            Map<Integer, Integer> result = new HashMap<>();
+            Map<Integer, Long> result = new HashMap<>();
             while (resultSet.next()) {
                 Integer version = resultSet.getInt(1);
                 result.put(version, versionMap.get(version));
@@ -1078,7 +1078,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                 Set<Integer> succeededRequests, Map<Integer, Throwable> failedRequests, Map<Integer, Throwable> ignoredRequests) throws IOException, ParseException {
+                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange requestExchange : requestExchangeList) {
 
             for (String directory : requestExchange.directoryStockMap.keySet()) {

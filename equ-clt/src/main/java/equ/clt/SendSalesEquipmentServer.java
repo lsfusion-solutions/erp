@@ -82,9 +82,9 @@ public class SendSalesEquipmentServer {
             throws IOException, ParseException, SQLException {
         if (!requestExchangeList.isEmpty()) {
             sendSalesLogger.info("Requesting SalesInfo");
-            Set<Integer> succeededRequests = new HashSet<>();
-            Map<Integer, Throwable> failedRequests = new HashMap<>();
-            Map<Integer, Throwable> ignoredRequests = new HashMap<>();
+            Set<Long> succeededRequests = new HashSet<>();
+            Map<Long, Throwable> failedRequests = new HashMap<>();
+            Map<Long, Throwable> ignoredRequests = new HashMap<>();
 
             handler.requestSalesInfo(requestExchangeList, directorySet, succeededRequests, failedRequests, ignoredRequests);
             if (!succeededRequests.isEmpty())
@@ -188,7 +188,7 @@ public class SendSalesEquipmentServer {
     static void checkZReportSum(EquipmentServerInterface remote, CashRegisterHandler handler, List<RequestExchange> requestExchangeList)
             throws RemoteException, SQLException, ClassNotFoundException {
         if (!requestExchangeList.isEmpty()) {
-            Set<Integer> succeededRequestsSet = new HashSet<>();
+            Set<Long> succeededRequestsSet = new HashSet<>();
             for (RequestExchange request : requestExchangeList) {
                 if (request.isCheckZReportExchange()) {
                     sendSalesLogger.info("Executing checkZReportSum");

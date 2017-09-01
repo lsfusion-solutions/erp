@@ -11,6 +11,7 @@ import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.ConcreteClass;
+import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -160,7 +161,7 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
                 invoiceQuery.addProperty("seriesNumberInvoice", findProperty("seriesNumber[Purchase.Invoice]").getExpr(invoiceExpr));
                 invoiceQuery.addProperty("dateInvoice", findProperty("date[Purchase.Invoice]").getExpr(invoiceExpr));
 
-                invoiceQuery.and(findProperty("in[DeclarationDetail,UserInvoice]").getExpr(new DataObject(entry.getValue().get("declarationDetailID"), (ConcreteClass) findClass("DeclarationDetail")).getExpr(), invoiceExpr).getWhere());
+                invoiceQuery.and(findProperty("in[DeclarationDetail,UserInvoice]").getExpr(new DataObject((Long)entry.getValue().get("declarationDetailID"), (ConcreteCustomClass) findClass("DeclarationDetail")).getExpr(), invoiceExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> invoiceResult = invoiceQuery.execute(context);
 

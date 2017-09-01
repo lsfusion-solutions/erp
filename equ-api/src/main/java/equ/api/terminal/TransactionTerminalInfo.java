@@ -14,7 +14,7 @@ public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, Termi
     public Integer nppGroupTerminal;
     public String directoryGroupTerminal;
     
-    public TransactionTerminalInfo(Integer id, String dateTimeCode, Date date, String handlerModel, Integer idGroupMachinery, Integer nppGroupMachinery, 
+    public TransactionTerminalInfo(Long id, String dateTimeCode, Date date, String handlerModel, Long idGroupMachinery, Integer nppGroupMachinery, 
                                    String nameGroupMachinery, String description, List<TerminalItemInfo> itemsList, 
                                    List<TerminalInfo> machineryInfoList, Boolean snapshot, Timestamp lastErrorDate,
                                    List<TerminalHandbookType> terminalHandbookTypeList, List<TerminalDocumentType> terminalDocumentTypeList,

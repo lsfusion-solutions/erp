@@ -7,7 +7,7 @@ import java.sql.Timestamp;
 import java.util.List;
 
 public class TransactionScalesInfo extends TransactionInfo<ScalesInfo, ScalesItemInfo> {
-    public TransactionScalesInfo(Integer id, String dateTimeCode, Date date, String handlerModel, Integer idGroupMachinery,
+    public TransactionScalesInfo(Long id, String dateTimeCode, Date date, String handlerModel, Long idGroupMachinery,
                                  Integer nppGroupMachinery, String nameGroupMachinery, String description,
                                  List<ScalesItemInfo> itemsList, List<ScalesInfo> machineryInfoList, Boolean snapshot,
                                  Timestamp lastErrorDate) {

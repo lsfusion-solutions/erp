@@ -102,7 +102,7 @@ class DeleteBarcodeEquipmentServer {
         try (DataSession session = dbManager.createSession()) {
             DataObject errorObject = session.addObject((ConcreteCustomClass) deleteBarcodeLM.findClass("DeleteBarcodeError"));
             ObjectValue groupMachineryObject = deleteBarcodeLM.findProperty("groupMachineryNpp[INTEGER]").readClasses(session, new DataObject(nppGroupMachinery));
-            deleteBarcodeLM.findProperty("groupMachinery[DeleteBarcode]").change(groupMachineryObject.getValue(), session, errorObject);
+            deleteBarcodeLM.findProperty("groupMachinery[DeleteBarcode]").change(groupMachineryObject, session, errorObject);
             deleteBarcodeLM.findProperty("data[DeleteBarcodeError]").change(exception.toString(), session, errorObject);
             deleteBarcodeLM.findProperty("date[DeleteBarcodeError]").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, errorObject);
             OutputStream os = new ByteArrayOutputStream();

@@ -45,9 +45,9 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     //machineryExchange consumer
     List<MachineryInfo> readMachineryInfo(String sidEquipmentServer) throws RemoteException, SQLException;
     List<RequestExchange> readRequestExchange() throws RemoteException, SQLException;
-    void finishRequestExchange(Set<Integer> succeededRequestsSet) throws RemoteException, SQLException;
-    void errorRequestExchange(Map<Integer, Throwable> failedRequestsMap) throws RemoteException, SQLException;
-    void errorRequestExchange(Integer requestExchange, Throwable t) throws RemoteException, SQLException;
+    void finishRequestExchange(Set<Long> succeededRequestsSet) throws RemoteException, SQLException;
+    void errorRequestExchange(Map<Long, Throwable> failedRequestsMap) throws RemoteException, SQLException;
+    void errorRequestExchange(Long requestExchange, Throwable t) throws RemoteException, SQLException;
 
     String sendCashierTimeList(List<CashierTime> cashierTimeList) throws RemoteException, SQLException;
     List<CashierInfo> readCashierInfoList() throws RemoteException, SQLException;
@@ -64,7 +64,7 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     //checkZReportSum
     Map<String, List<Object>> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) throws RemoteException, SQLException;
     Map<Integer, List<List<Object>>> readCashRegistersStock(String idStock) throws RemoteException, SQLException;
-    void logRequestZReportSumCheck(Integer idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException;
+    void logRequestZReportSumCheck(Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException;
 
     //extraCheckZReportSum
     Map<String, BigDecimal> readZReportSumMap() throws RemoteException, SQLException;
@@ -72,12 +72,12 @@ public interface EquipmentServerInterface extends RmiServerInterface {
 
     //processTransaction consumer
     List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws RemoteException, SQLException;
-    void processingTransaction(Integer transactionId, Timestamp dateTime) throws RemoteException, SQLException;
-    void succeedTransaction(Integer transactionId, Timestamp dateTime) throws RemoteException, SQLException;
-    void clearedMachineryTransaction(Integer transactionId, List<MachineryInfo> machineryInfoList) throws RemoteException, SQLException;
-    void succeedMachineryTransaction(Integer transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) throws RemoteException, SQLException;
+    void processingTransaction(Long transactionId, Timestamp dateTime) throws RemoteException, SQLException;
+    void succeedTransaction(Long transactionId, Timestamp dateTime) throws RemoteException, SQLException;
+    void clearedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList) throws RemoteException, SQLException;
+    void succeedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) throws RemoteException, SQLException;
     
-    void errorTransactionReport(Integer transactionID, Throwable exception) throws RemoteException, SQLException;
+    void errorTransactionReport(Long transactionID, Throwable exception) throws RemoteException, SQLException;
 
     void errorEquipmentServerReport(String equipmentServer, Throwable exception, String extraData) throws RemoteException, SQLException;
 
