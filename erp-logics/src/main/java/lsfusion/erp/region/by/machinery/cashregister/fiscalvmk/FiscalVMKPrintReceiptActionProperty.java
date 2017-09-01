@@ -169,7 +169,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, giftCardAsNotPaymentText, UNP, regNumber, machineryNumber));
                     if (result instanceof Integer) {
-                        findProperty("number[Receipt]").change(result, context, receiptObject);
+                        findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
                         if (context.apply())
                             findAction("createCurrentReceipt[]").execute(context);
                         else

@@ -124,7 +124,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                             if(userInvoiceObject != null) {
                                 findProperty("original[Purchase.Invoice]").change(new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)), context, userInvoiceObject);
-                                findProperty("currentInvoice[]").change(userInvoiceObject.object, session);
+                                findProperty("currentInvoice[]").change(userInvoiceObject, session);
                             }
 
                             String script = (String) findProperty("script[ImportType]").read(context, importTypeObject);

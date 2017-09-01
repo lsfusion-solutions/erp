@@ -138,7 +138,7 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
                 Element exchangeRootNode = exchangeDocument.getRootElement();
                 List exchangeList = exchangeRootNode.getChildren("Record");
 
-                String shortNameCurrency = (String) findProperty("shortName[Currency]").read(context, new DataObject(findProperty("currencyExtraSID[STRING[6]]").read(context, new DataObject(extraSIDCurrency)), (ConcreteClass) findClass("Currency")));
+                String shortNameCurrency = (String) findProperty("shortName[Currency]").read(context, findProperty("currencyExtraSID[STRING[6]]").readClasses(context, new DataObject(extraSIDCurrency)));
 
                 for (Object anExchangeList : exchangeList) {
 

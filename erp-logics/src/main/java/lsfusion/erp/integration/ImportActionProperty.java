@@ -73,7 +73,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             this.context = context;
 
-            Object countryBelarus = findProperty("country[STRING[3]]").read(context.getSession(), new DataObject("112", StringClass.get(3)));
+            ObjectValue countryBelarus = findProperty("country[STRING[3]]").readClasses(context.getSession(), new DataObject("112", StringClass.get(3)));
             findProperty("defaultCountry[]").change(countryBelarus, context.getSession());
             context.getSession().apply(context);
 
@@ -1159,7 +1159,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[VARSTRING[100]]").readClasses(session, new DataObject("Coordinated", StringClass.get(100)));
                     if (dataPriceListTypeObject instanceof NullValue) {
                         dataPriceListTypeObject = session.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
-                        Object defaultCurrency = findProperty("currencyShortName[STRING[3]]").read(session, new DataObject("BLR", StringClass.get(3)));
+                        ObjectValue defaultCurrency = findProperty("currencyShortName[STRING[3]]").readClasses(session, new DataObject("BLR", StringClass.get(3)));
                         findProperty("name[PriceListType]").change("Поставщика (согласованная)", session, (DataObject) dataPriceListTypeObject);
                         findProperty("currency[DataPriceListType]").change(defaultCurrency, session, (DataObject) dataPriceListTypeObject);
                         findProperty("id[DataPriceListType]").change("Coordinated", session, (DataObject) dataPriceListTypeObject);
@@ -1276,7 +1276,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[VARSTRING[100]]").readClasses(session, new DataObject("Offered", StringClass.get(100)));
                     if (dataPriceListTypeObject instanceof NullValue) {
                         dataPriceListTypeObject = session.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
-                        Object defaultCurrency = findProperty("currencyShortName[STRING[3]]").read(session, new DataObject("BLR", StringClass.get(3)));
+                        ObjectValue defaultCurrency = findProperty("currencyShortName[STRING[3]]").readClasses(session, new DataObject("BLR", StringClass.get(3)));
                         findProperty("name[PriceListType]").change("Поставщика (предлагаемая)", session, (DataObject) dataPriceListTypeObject);
                         findProperty("currency[DataPriceListType]").change(defaultCurrency, session, (DataObject) dataPriceListTypeObject);
                         findProperty("id[DataPriceListType]").change("Offered", session, (DataObject) dataPriceListTypeObject);

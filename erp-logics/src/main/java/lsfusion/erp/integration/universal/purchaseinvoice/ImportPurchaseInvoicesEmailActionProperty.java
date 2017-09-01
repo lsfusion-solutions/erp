@@ -150,7 +150,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                                     checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
 
                                             findProperty("original[Purchase.Invoice]").change(
-                                                    new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);
+                                                    new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)), currentSession, invoiceObject);
 
                                             findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
 

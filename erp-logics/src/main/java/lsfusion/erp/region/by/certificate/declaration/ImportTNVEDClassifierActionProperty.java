@@ -35,7 +35,7 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
 
         try {
 
-            Object countryBelarus = findProperty("country[STRING[3]]").read(context, new DataObject("112", StringClass.get(3)));
+            ObjectValue countryBelarus = findProperty("country[STRING[3]]").readClasses(context, new DataObject("112", StringClass.get(3)));
             findProperty("defaultCountry[]").change(countryBelarus, context);
             context.getSession().apply(context);
 

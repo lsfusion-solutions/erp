@@ -149,7 +149,7 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                                                 sumGiftCard == null ? null : sumGiftCard.abs(), cashier,
                                                 isReturn ? receiptReturnItemList : receiptSaleItemList)));
                         if (result instanceof Integer) {
-                            findProperty("number[Receipt]").change(result, context, receiptObject);
+                            findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
                             if (context.apply())
                                 findAction("createCurrentReceipt[]").execute(context);
                             else

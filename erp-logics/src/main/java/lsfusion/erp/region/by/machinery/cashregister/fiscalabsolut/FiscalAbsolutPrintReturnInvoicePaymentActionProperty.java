@@ -58,7 +58,7 @@ public class FiscalAbsolutPrintReturnInvoicePaymentActionProperty extends Script
                 findProperty("printReceiptResult[]").change(new DataObject(true), context);
             else {
                 ServerLoggers.systemLogger.error("FiscalAbsolutPrintReturnInvoicePayment Error: " + result);
-                findProperty("printReceiptResult[]").change((Object) null, context);
+                findProperty("printReceiptResult[]").change((Boolean) null, context);
             }
             
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
