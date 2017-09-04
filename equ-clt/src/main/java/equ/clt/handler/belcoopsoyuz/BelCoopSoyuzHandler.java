@@ -189,6 +189,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             Integer port = (Integer) properties.get(3);
             String remoteFile = (String) properties.get(4);
             FTPClient ftpClient = new FTPClient();
+            ftpClient.setDefaultTimeout(3600000);
             ftpClient.setConnectTimeout(3600000); //1 hour = 3600 sec
             try {
 
@@ -198,6 +199,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                 ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
 
                 OutputStream outputStream = new FileOutputStream(file);
+                ftpClient.setDataTimeout(3600000);
                 boolean done = ftpClient.retrieveFile(remoteFile, outputStream);
                 outputStream.close();
                 if (!done)
@@ -256,6 +258,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             Integer port = (Integer) properties.get(3);
             String remoteDir = (String) properties.get(4);
             FTPClient ftpClient = new FTPClient();
+            ftpClient.setDefaultTimeout(3600000);
             ftpClient.setConnectTimeout(3600000); //1 hour = 3600 sec
             try {
 
@@ -264,6 +267,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                 ftpClient.enterLocalPassiveMode();
                 ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
                 ftpClient.makeDirectory("/" + remoteDir + "/backup");
+                ftpClient.setDataTimeout(3600000);
                 return ftpClient.rename("/" + remoteDir + "/" + from, "/" + remoteDir + "/" + to) &&
                         ftpClient.rename("/" + remoteDir + "/" + to, "/" + remoteDir + "/backup/" + to);
             } catch (IOException e) {
@@ -303,6 +307,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             Integer port = noPort ? 21 : Integer.parseInt(connectionStringMatcher.group(4)); //21
             String remoteFile = connectionStringMatcher.group(5);
             FTPClient ftpClient = new FTPClient();
+            ftpClient.setDefaultTimeout(3600000);
             ftpClient.setConnectTimeout(3600000); //1 hour = 3600 sec
             try {
 
@@ -312,6 +317,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                     ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
 
                     InputStream inputStream = new FileInputStream(file);
+                    ftpClient.setDataTimeout(3600000);
                     boolean done = ftpClient.storeFile(remoteFile, inputStream);
                     inputStream.close();
                     if(!done) {
@@ -693,6 +699,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             Integer port = (Integer) properties.get(3);
             String remoteFile = (String) properties.get(4);
             FTPClient ftpClient = new FTPClient();
+            ftpClient.setDefaultTimeout(60000);
             ftpClient.setConnectTimeout(60000); //1 minute = 60 sec
             try {
 
@@ -701,6 +708,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                 ftpClient.enterLocalPassiveMode();
                 ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
 
+                ftpClient.setDataTimeout(60000);
                 return ftpClient.deleteFile(remoteFile);
             } catch (IOException e) {
                 throw Throwables.propagate(e);
