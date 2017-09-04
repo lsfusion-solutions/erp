@@ -2,6 +2,11 @@ MODULE EDI;
 
 REQUIRE LegalEntityBy, Item, Store, Warehouse;
 
+DESIGN options {
+    NEW EDI {
+        caption = 'EDI';
+    }
+}
 
 @defineDoubleItemAttribute(GTIN, VARSTRING[14], 'GTIN', itemBase);
 
@@ -19,7 +24,11 @@ exported 'Экспортирован' = DATA BOOLEAN (EOrder);
 
 isClosed 'Закрыт' = ABSTRACT BOOLEAN (EOrder);
 isOpened = ABSTRACT BOOLEAN (EOrder);
+
+@defineOption(sendCurrentDateTime, 'Использовать текущую дату при отправке заказа поставщику', EDI);
 dateTime 'Дата/время документа' = ABSTRACT DATETIME (EOrder);
+sendDateTime (EOrder o) = OVERRIDE currentDateTime() IF sendCurrentDateTime() AND o IS EOrder, dateTime(o); 
+
 shipmentDateTime 'Дата/время поставки' = ABSTRACT DATETIME (EOrder);
 
 number 'Номер' = ABSTRACT VARSTRING[28] (EOrder);

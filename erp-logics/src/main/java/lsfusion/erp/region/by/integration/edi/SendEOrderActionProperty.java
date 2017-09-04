@@ -49,7 +49,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
         if(context.getDbManager().isServer()) {
             DataObject eOrderObject = context.getDataKeyValue(eOrderInterface);
 
-            Timestamp documentDateValue = (Timestamp) findProperty("dateTime[EOrder]").read(context, eOrderObject);
+            Timestamp documentDateValue = (Timestamp) findProperty("sendDateTime[EOrder]").read(context, eOrderObject);
             Calendar cal = Calendar.getInstance();
             cal.add(Calendar.HOUR, 1);
             String documentDate = formatDate(documentDateValue);
