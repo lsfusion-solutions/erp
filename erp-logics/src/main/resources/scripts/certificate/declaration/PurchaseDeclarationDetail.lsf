@@ -344,6 +344,13 @@ selectInvoices 'Выбрать накладные'(Declaration declaration) = {
     SHOW declarationInvoices OBJECTS d=declaration ;
 } TOOLBAR;
 
+// --------- Подобранные накладные
+in (invoice, declaration)= GROUP SUM 1 BY invoice(InvoiceDetail d), declaration(d);
+
+invoices 'Накладные' (declaration) =
+    GROUP CONCAT shortDescription(Invoice invoice) IF in (invoice, Declaration declaration) AND currency(invoice) == currency(declaration), ','
+              BY declaration ORDER invoice MINCHARWIDTH 40 PREFCHARWIDTH 80 MAXCHARWIDTH 120;
+
 backgroundVATCustomsException 'Цвет' (UserInvoiceDetail invoiceDetail) = backgroundVATCustomsException() IF countVATCustomsException(customsGroup(invoiceDetail)) > 0;
 
 EXTEND FORM declaration
