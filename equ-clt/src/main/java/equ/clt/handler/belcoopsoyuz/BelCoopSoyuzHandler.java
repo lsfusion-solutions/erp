@@ -222,6 +222,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             Integer port = (Integer) properties.get(3);
             String remoteFile = (String) properties.get(4);
             FTPClient ftpClient = new FTPClient();
+            ftpClient.setDefaultTimeout(60000);
             ftpClient.setConnectTimeout(60000); //1 minute = 60 sec
             try {
 
@@ -231,7 +232,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                 ftpClient.enterLocalPassiveMode();
                 ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
 
-                ftpClient.setSoTimeout(60000);
+                ftpClient.setDataTimeout(60000);
                 InputStream stream = ftpClient.retrieveFileStream(remoteFile);
                 int returnCode = ftpClient.getReplyCode();
                 return !(stream == null || returnCode == 550);
