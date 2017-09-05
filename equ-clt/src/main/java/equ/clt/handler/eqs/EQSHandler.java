@@ -641,27 +641,36 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             if (params.connectionString != null && salesBatch.readRecordSet != null) {
 
                 Connection conn = null;
-                PreparedStatement ps = null;
+                Statement statement = null;
 
                 try {
                     sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
-
                     conn.setAutoCommit(false);
-                    ps = conn.prepareStatement("UPDATE history SET new = 0 WHERE id = ?");
+
+                    int i = 0;
+                    int blockSize = 100000;
+                    StringBuilder in = new StringBuilder();
                     for (Integer record : salesBatch.readRecordSet) {
-                        ps.setInt(1, record); //id
-                        ps.addBatch();
+                        if(i >= blockSize) {
+                            statement = conn.createStatement();
+                            statement.execute(String.format("UPDATE history SET new = 0 WHERE id IN (%s)", in.toString()));
+                            in = new StringBuilder();
+                            i = 0;
+                        }
+                        in.append(in.length() == 0 ? "" : ",").append(record);
+                        i++;
                     }
-                    ps.executeBatch();
+                    statement = conn.createStatement();
+                    statement.execute(String.format("UPDATE history SET new = 0 WHERE id IN (%s)", in.toString()));
                     conn.commit();
 
                 } catch (SQLException e) {
                     e.printStackTrace();
                 } finally {
                     try {
-                        if (ps != null)
-                            ps.close();
+                        if (statement != null)
+                            statement.close();
                         if (conn != null)
                             conn.close();
                     } catch (SQLException ignored) {
