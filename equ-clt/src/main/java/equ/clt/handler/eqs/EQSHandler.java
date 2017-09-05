@@ -375,7 +375,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         Statement statement = null;
         try {
             statement = conn.createStatement();
-            String query = "SELECT type, ecr, doc, barcode, code, qty, price, amount, discount, department, flags, date, id," +
+            //sql_no_cache is workaround of the bug: https://bugs.mysql.com/bug.php?id=31353
+            String query = "SELECT sql_no_cache type, ecr, doc, barcode, code, qty, price, amount, discount, department, flags, date, id," +
                     " zreport, payment, customer, `change` FROM history WHERE new = 1 ORDER BY ecr, id";
             ResultSet rs = statement.executeQuery(query);
 
