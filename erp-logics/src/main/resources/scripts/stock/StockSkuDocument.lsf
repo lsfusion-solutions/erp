@@ -1229,11 +1229,11 @@ countDocumentDetail 'Кол-во строк товара' (sku, o) = GROUP SUM 1
 
 fillPriceDocuments 'Использовать цены' = DATA LOCAL BOOLEAN ();
 
-selectedDocument 'Текущий документ'= DATA LOCAL Document ();
-numberSelectedDocument 'Номер текущего документа' = number(selectedDocument());
+inSession 'Отм.' = DATA LOCAL BOOLEAN (Document);
+numberSelectedDocuments 'Выбранные документы' = GROUP CONCAT number(Document d) IF inSession(d) ,', ' PREFCHARWIDTH 50;
 
 FORM documents 'Документы с товарами'
-    PROPERTIES()  TOOLBAR fillPriceDocuments, numberSelectedDocument
+    PROPERTIES()  TOOLBAR fillPriceDocuments, numberSelectedDocuments
 ;
 
 DESIGN documents {
@@ -1245,7 +1245,7 @@ DESIGN documents {
         }
         MOVE TOOLBARBOX {
             MOVE PROPERTY(fillPriceDocuments()) AFTER TOOLBARLEFT;
-            MOVE PROPERTY(numberSelectedDocument()) AFTER PROPERTY(fillPriceDocuments());
+            MOVE PROPERTY(numberSelectedDocuments()) AFTER PROPERTY(fillPriceDocuments());
         };
     }
 }
@@ -1267,7 +1267,7 @@ META implementDocumentPrefix(object, prefixP, prefixQ)
     overFillDocument = ABSTRACT LIST (###object##Detail, DocumentDetail); 
     fillDocument 'Подбор документа'(User###object user###object) = {
         DIALOG documents DO {
-            FOR document(DocumentDetail documentDetail) == selectedDocument() NEW i = User###object##Detail DO {
+            FOR inSession(document(DocumentDetail documentDetail)) NEW i = User###object##Detail DO {
                 user###object(i) <- user###object;
                 sku(i) <- sku(documentDetail);
                 quantity(i) <- quantity(documentDetail);
@@ -1282,6 +1282,7 @@ END
 META implementDocumentForm(object, char, tabCaption, container)
     EXTEND FORM documents
         OBJECTS char = ###object
+        PROPERTIES(char) inSession
         PROPERTIES(char) READONLY number, series, date, nameSupplier, nameSupplierStock,
                          nameCustomer, nameCustomerStock, objectClassName
                          
@@ -1289,11 +1290,6 @@ META implementDocumentForm(object, char, tabCaption, container)
         PROPERTIES(char##d) READONLY READONLY index, idBarcodeSku, nameSku, quantity, price SHOWIF fillPriceDocuments()
         
         FILTERS document(char##d)==char
-        
-        EVENTS
-            ON CHANGE char {
-                selectedDocument() <- char;
-            }
     ;
     
     DESIGN documents {
@@ -1306,6 +1302,16 @@ META implementDocumentForm(object, char, tabCaption, container)
             }
         }
     }
+    container##Active() = ACTIVE TAB documents.container;
+    
+    EXTEND FORM documents
+        EVENTS
+            ON OK {
+                IF container##Active() AND NOT [= GROUP SUM 1 IF inSession(Document d)]() THEN {
+                    inSession(char) <- TRUE;
+                } 
+            }  
+    ;
 END
 
 META implementDocumentForm(object, char, tabCaption)
