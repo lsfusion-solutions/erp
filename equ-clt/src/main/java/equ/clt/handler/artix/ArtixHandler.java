@@ -111,10 +111,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             //writeStringToFile(tmpFile, "{\"command\": \"clearPrice\"}\n---\n");
 
                             //scale items
-                            writeStringToFile(tmpFile, "{\"command\": \"clearTmcScale\"}\n---\n");
+                            //writeStringToFile(tmpFile, "{\"command\": \"clearTmcScale\"}\n---\n");
 
                             //scale item groups
-                            writeStringToFile(tmpFile, "{\"command\": \"clearTmcScaleGroup\"}\n---\n");
+                            //writeStringToFile(tmpFile, "{\"command\": \"clearTmcScaleGroup\"}\n---\n");
                         }
 
                         //items
@@ -163,14 +163,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         }*/
 
                         //scale items
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                        /*for (CashRegisterItemInfo item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
                                 writeStringToFile(tmpFile, getAddTmcScaleJSON(transaction, item, appendBarcode) + "\n---\n");
                             }
-                        }
+                        }*/
 
                         //scale item groups
-                        usedItemGroups = new HashSet<>();
+                        /*usedItemGroups = new HashSet<>();
                         for (CashRegisterItemInfo item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
                                 List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
@@ -185,7 +185,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     }
                                 }
                             }
-                        }
+                        }*/
 
                         String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
                         File file = new File(directory + "/pos" + currentTime + ".aif");
