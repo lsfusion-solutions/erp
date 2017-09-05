@@ -181,6 +181,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     Connection conn = null;
                     PreparedStatement ps = null;
                     try {
+                        Class.forName("com.mysql.jdbc.Driver");
                         processStopListLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                         conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
@@ -206,7 +207,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         ps.executeBatch();
                         conn.commit();
 
-                    } catch (SQLException e) {
+                    } catch (Exception e) {
                         processStopListLogger.error(logPrefix, e);
                         e.printStackTrace();
                     } finally {
@@ -275,6 +276,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 Connection conn = null;
                 PreparedStatement ps = null;
                 try {
+                    Class.forName("com.mysql.jdbc.Driver");
                     machineryExchangeLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                     conn.setAutoCommit(false);
@@ -302,7 +304,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     conn.commit();
                     machineryExchangeLogger.info(String.format(logPrefix + "finished %s cards to %s", count, params.connectionString));
 
-                } catch (SQLException e) {
+                } catch (Exception e) {
                     machineryExchangeLogger.error(logPrefix, e);
                     return e;
                 } finally {
@@ -589,6 +591,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             Connection conn = null;
             Statement statement = null;
             try {
+                Class.forName("com.mysql.jdbc.Driver");
                 for (String directory : entry.directoryStockMap.keySet()) {
                     if (directorySet.contains(directory)) {
 

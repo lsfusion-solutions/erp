@@ -721,6 +721,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     Connection conn = null;
                     PreparedStatement ps = null;
                     try {
+                        Class.forName("com.mysql.jdbc.Driver");
                         conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
                         int version = getVersion(conn);
@@ -771,7 +772,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         processStopListLogger.info(logPrefix + "executing stopLists, table signal");
                         exportSignals(conn, null, version, true, timeout, true);
 
-                    } catch (SQLException e) {
+                    } catch (Exception e) {
                         processStopListLogger.error("ukm4 mysql:", e);
                         e.printStackTrace();
                     } finally {
@@ -1088,6 +1089,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     try {
                         UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
                         if (params.connectionString != null) {
+                            Class.forName("com.mysql.jdbc.Driver");
                             conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                             String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(requestExchange.dateFrom);
                             Calendar cal = Calendar.getInstance();
@@ -1112,7 +1114,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             statement.execute(query);
                             succeededRequests.add(requestExchange.requestExchange);
                         }
-                    } catch (SQLException e) {
+                    } catch (Exception e) {
                         failedRequests.put(requestExchange.requestExchange, e);
                         e.printStackTrace();
                     } finally {
