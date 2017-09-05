@@ -553,7 +553,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 }
             }
             if (salesInfoList.size() > 0)
-                sendSalesLogger.info(logPrefix + String.format("found %s records", salesInfoList.size()));
+                sendSalesLogger.info(logPrefix + String.format("found %s receiptDetails", salesInfoList.size()));
         } catch (SQLException e) {
             sendSalesLogger.error(logPrefix + "failed to read sales. ConnectionString: " + connectionString, e);
             throw Throwables.propagate(e);
