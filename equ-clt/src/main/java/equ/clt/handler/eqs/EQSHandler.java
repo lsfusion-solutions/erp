@@ -638,7 +638,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
             EQSConnectionString params = new EQSConnectionString(directory);
 
-            if (params.connectionString != null && salesBatch.readRecordSet != null) {
+            if (params.connectionString != null && salesBatch.readRecordSet != null && !salesBatch.readRecordSet.isEmpty()) {
 
                 Connection conn = null;
                 Statement statement = null;
