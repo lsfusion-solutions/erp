@@ -111,7 +111,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             //writeStringToFile(tmpFile, "{\"command\": \"clearPrice\"}\n---\n");
 
                             //scale items
-                            //writeStringToFile(tmpFile, "{\"command\": \"clearTmcScale\"}\n---\n");
+                            writeStringToFile(tmpFile, "{\"command\": \"clearTmcScale\"}\n---\n");
 
                             //scale item groups
                             //writeStringToFile(tmpFile, "{\"command\": \"clearTmcScaleGroup\"}\n---\n");
@@ -163,13 +163,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         }*/
 
                         //scale items
-                        /*for (CashRegisterItemInfo item : transaction.itemsList) {
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
-                                writeStringToFile(tmpFile, getAddTmcScaleJSON(transaction, item, appendBarcode) + "\n---\n");
+                                writeStringToFile(tmpFile, getAddTmcScaleJSON(transaction, item) + "\n---\n");
                             }
-                        }*/
+                        }
 
                         //scale item groups
+                        //мы за это не отвечаем
                         /*usedItemGroups = new HashSet<>();
                         for (CashRegisterItemInfo item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
@@ -298,16 +299,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return rootObject.toString();
     }*/
 
-    private String getAddTmcScaleJSON(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item, boolean appendBarcode) throws JSONException {
+    private String getAddTmcScaleJSON(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item) throws JSONException {
         JSONObject rootObject = new JSONObject();
 
         JSONObject tmcScaleObject = new JSONObject();
         rootObject.put("tmcscale", tmcScaleObject);
-        tmcScaleObject.put("tmcscalecode", removeCheckDigitFromBarcode(item.idBarcode, appendBarcode)); //Штрих-код товара на весах
+        tmcScaleObject.put("tmcscalecode", trim(item.idBarcode, 5)); //Штрих-код товара на весах
         tmcScaleObject.put("tmccode", trim(item.idItem, 100)); //код товара
-        List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.extIdItemGroup);
-        if (itemGroupList != null)
-            tmcScaleObject.put("tmcscalegroupcode", itemGroupList.get(0).extIdItemGroup); //Код ассортиментной группы товаров на весах
+        tmcScaleObject.put("tmcscalegroupcode", 1); //Код ассортиментной группы товаров на весах
         tmcScaleObject.put("plu", item.pluNumber); //Номер ячейки памяти на весах
 
         tmcScaleObject.put("ingredients", trim(item.description, 1000)); //Состав весового товара
@@ -319,7 +318,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return rootObject.toString();
     }
 
-    private String getAddTmcScaleGroupJSON(ItemGroup itemGroup) throws JSONException {
+/*    private String getAddTmcScaleGroupJSON(ItemGroup itemGroup) throws JSONException {
         if (itemGroup.extIdItemGroup != null) {
             JSONObject rootObject = new JSONObject();
 
@@ -331,7 +330,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             rootObject.put("command", "addTmcScaleGroup");
             return rootObject.toString();
         } else return null;
-    }
+    }*/
 
     private String getAddMCashUserJSON(CashierInfo cashier) throws JSONException, ParseException {
         JSONObject rootObject = new JSONObject();
