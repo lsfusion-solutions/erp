@@ -51,6 +51,14 @@ equipmentServer 'Сервер оборудования (ID)' = DATA EquipmentSer
 
 @defineLog (EquipmentServerLog, 'сервера оборудования', log, toDate);
 
+//---------------------------- Монитор процессов сервера оборудования ----------------------------//
+
+needLogProcesses = DATA BOOLEAN (EquipmentServer);
+needLogProcesses(VARSTRING[100] sid) = needLogProcesses(sidTo(sid));
+logProcesses 'Записать в лог текущие процессы' (EquipmentServer e) = {
+    NEWSESSION { needLogProcesses(e) <- TRUE; apply();}
+} TOOLBAR;
+
 //---------------------------- Формы для серверов оборудования ----------------------------//
 
 FORM equipmentServer 'Сервер оборудования'
@@ -84,6 +92,8 @@ FORM equipmentServers 'Серверы оборудования'
 
     OBJECTS l = EquipmentServerLog LAST 
     PROPERTIES(l) READONLY data, date
+    
+    PROPERTIES(es) logProcesses TODRAW l
 
     FILTERS equipmentServer (e) == es
     FILTERS equipmentServer (l) == es
@@ -111,7 +121,7 @@ DESIGN equipmentServers {
                 }
                 MOVE BOX(l) {
                    PROPERTY(data(l)) {preferredValueSize = (-1, 75);
-                   } 
+                   }
                 };
             }
         }

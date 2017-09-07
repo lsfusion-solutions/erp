@@ -82,4 +82,8 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     void errorEquipmentServerReport(String equipmentServer, Throwable exception, String extraData) throws RemoteException, SQLException;
 
     EquipmentServerSettings readEquipmentServerSettings(String equipmentServer) throws RemoteException, SQLException;
+
+    //processMonitor consumer
+    boolean needUpdateProcessMonitor(String sidEquipmentServer) throws RemoteException, SQLException;
+    void logProcesses(String sidEquipmentServer, String data) throws RemoteException, SQLException;
 }

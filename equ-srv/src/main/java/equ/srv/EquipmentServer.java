@@ -153,6 +153,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         StopListEquipmentServer.init(getBusinessLogics());
         TerminalDocumentEquipmentServer.init(getBusinessLogics());
         TerminalEquipmentServer.init(getBusinessLogics());
+        ProcessMonitorEquipmentServer.init(getBusinessLogics());
     }
 
     @Override
@@ -1592,4 +1593,16 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     public String getEventName() {
         return "equipment-server";
     }
+
+    @Override
+    public boolean needUpdateProcessMonitor(String sidEquipmentServer) throws RemoteException, SQLException {
+        return ProcessMonitorEquipmentServer.needUpdateProcessMonitor(getDbManager(), sidEquipmentServer);
+    }
+
+    @Override
+    public void logProcesses(String sidEquipmentServer, String data) throws RemoteException, SQLException {
+        ProcessMonitorEquipmentServer.logProcesses(getBusinessLogics(), getDbManager(), getStack(), sidEquipmentServer, data);
+    }
+
+
 }

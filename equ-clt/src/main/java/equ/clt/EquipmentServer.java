@@ -33,14 +33,15 @@ public class EquipmentServer {
 
     private Thread thread;
 
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     private final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     private final static Logger processDeleteBarcodeLogger = Logger.getLogger("DeleteBarcodeLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-    protected final static Logger sendSoftCheckLogger = Logger.getLogger("SoftCheckLogger");
-    protected final static Logger sendTerminalDocumentLogger = Logger.getLogger("TerminalDocumentLogger");
-    protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
-    protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
+    private final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+    private final static Logger sendSoftCheckLogger = Logger.getLogger("SoftCheckLogger");
+    private final static Logger sendTerminalDocumentLogger = Logger.getLogger("TerminalDocumentLogger");
+    private final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
+    private final static Logger processMonitorLogger = Logger.getLogger("ProcessMonitorLogger");
+    private final static Logger logger = Logger.getLogger(EquipmentServer.class);
     
     static Map<String, Object> handlerMap = new HashMap<>();
     EquipmentServerSettings equipmentServerSettings;
@@ -66,6 +67,9 @@ public class EquipmentServer {
 
     private Consumer machineryExchangeConsumer;
     private Thread machineryExchangeThread;
+
+    private Consumer processMonitorConsumer;
+    private Thread processMonitorThread;
 
     ExecutorService singleTransactionExecutor;
     List<Future> futures;
@@ -158,6 +162,8 @@ public class EquipmentServer {
 
                             machineryExchangeConsumer.scheduleIfNotScheduledYet();
 
+                            processMonitorConsumer.scheduleIfNotScheduledYet();
+
                             if(singleTransactionExecutor.isShutdown())
                                 singleTransactionExecutor = Executors.newFixedThreadPool(transactionThreadCount);
                         }
@@ -181,6 +187,8 @@ public class EquipmentServer {
                         sendTerminalDocumentThread = null;
                         machineryExchangeThread.interrupt();
                         machineryExchangeThread = null;
+                        processMonitorThread.interrupt();
+                        processMonitorThread = null;
 
                         singleTransactionExecutor.shutdown();
                         singleTransactionExecutor = null;
@@ -359,6 +367,25 @@ public class EquipmentServer {
         machineryExchangeThread.setDaemon(true);
         machineryExchangeThread.start();
 
+        processMonitorConsumer = new Consumer() {
+            @Override
+            void runTask() throws Exception{
+                try {
+                    if(isTimeToRun())
+                        ProcessMonitorEquipmentServer.process(remote, sidEquipmentServer);
+                } catch (ConnectException e) {
+                    needReconnect = true;
+                } catch (UnmarshalException e) {
+                    if(e.getCause() instanceof InvalidClassException)
+                        processMonitorLogger.error("API changed! InvalidClassException");
+                    throw e;
+                }
+            }
+        };
+        processMonitorThread = new Thread(processMonitorConsumer);
+        processMonitorThread.setDaemon(true);
+        processMonitorThread.start();
+
     }
 
     private boolean isTimeToRun() {
@@ -465,6 +492,8 @@ public class EquipmentServer {
             sendTerminalDocumentThread.interrupt();
         if(machineryExchangeThread != null)
             machineryExchangeThread.interrupt();
+        if(processMonitorThread != null)
+            processMonitorThread.interrupt();
         if (singleTransactionExecutor != null)
             singleTransactionExecutor.shutdown();
         if(futures != null)
