@@ -304,12 +304,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
                         "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "pluNumberMachineryPriceTransactionBarcode",
                         "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode", "minPriceMachineryPriceTransactionBarcode",
-                        "canonicalNameSkuGroupMachineryPriceTransactionBarcode"};
+                        "canonicalNameSkuGroupMachineryPriceTransactionBarcode", "retailPrice"};
                 LCP[] skuProperties = equLM.findProperties("name[MachineryPriceTransaction,Barcode]", "price[MachineryPriceTransaction,Barcode]",
                         "expiryDate[MachineryPriceTransaction,Barcode]", "split[MachineryPriceTransaction,Barcode]", "passScales[MachineryPriceTransaction,Barcode]",
                         "idUOM[MachineryPriceTransaction,Barcode]", "shortNameUOM[MachineryPriceTransaction,Barcode]", "pluNumber[MachineryPriceTransaction,Barcode]",
                         "flags[MachineryPriceTransaction,Barcode]", "expiryDays[MachineryPriceTransaction,Barcode]", "minPrice[MachineryPriceTransaction,Barcode]",
-                        "canonicalNameSkuGroup[MachineryPriceTransaction,Barcode]");
+                        "canonicalNameSkuGroup[MachineryPriceTransaction,Barcode]", "retailPrice[MachineryPriceTransaction, Barcode]");
                 for (int i = 0; i < skuProperties.length; i++) {
                     skuQuery.addProperty(skuNames[i], skuProperties[i].getExpr(transactionExpr, barcodeExpr));
                 }
@@ -473,7 +473,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         cashRegisterItemInfoList.add(c);
                     }
                     
-                    transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(), dateTimeCode, 
+                    transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,
                             cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, overDepartmentNumberGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister));
@@ -551,12 +551,15 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
                         BigDecimal extraPercent = scalesItemLM == null ? null : (BigDecimal) row.get("extraPercent");
 
+                        BigDecimal retailPrice = (BigDecimal) row.get("retailPrice");
+
                         scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, 
                                 passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup, hoursExpiry,
-                                labelFormat, description, descriptionNumberCellScales, idUOM, shortNameUOM, extraPercent));
+                                labelFormat, description, descriptionNumberCellScales, idUOM, shortNameUOM, extraPercent,
+                                retailPrice));
                     }
 
-                    transactionList.add(new TransactionScalesInfo((Integer) transactionObject.getValue(), dateTimeCode, 
+                    transactionList.add(new TransactionScalesInfo((Integer) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, scalesItemInfoList, scalesInfoList, snapshotTransaction,
                             lastErrorDateTransaction));
@@ -671,7 +674,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, getBusinessLogics());
                     List<TerminalLegalEntity> terminalLegalEntityList = TerminalEquipmentServer.readTerminalLegalEntityList(session, getBusinessLogics());
 
-                    transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(), dateTimeCode, 
+                    transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
                             descriptionTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction, lastErrorDateTransaction,
                             terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList,
