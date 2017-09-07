@@ -651,7 +651,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 GTIN = dataGTIN;
             }
 
-            String id = supplierGLN + "/" + documentNumber;
+            String id = supplierGLN + "/" + documentNumber + "/" + orderNumber;
             String idDetail = id + "/" + i++;
             BigDecimal quantityOrdered = parseBigDecimal(lineElement.getChildText("quantityOrdered"));
             BigDecimal quantityDespatch = parseBigDecimal(lineElement.getChildText("quantityDespatch"));
