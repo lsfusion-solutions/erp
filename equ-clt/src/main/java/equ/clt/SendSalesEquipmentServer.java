@@ -153,9 +153,13 @@ public class SendSalesEquipmentServer {
     }
 
     static void sendSalesInfo(EquipmentServerInterface remote, SalesBatch salesBatch, String sidEquipmentServer, String directory, CashRegisterHandler handler) throws RemoteException, SQLException {
-        if (salesBatch == null || salesBatch.salesInfoList == null || salesBatch.salesInfoList.size() == 0)
+        if (salesBatch == null || salesBatch.salesInfoList == null || salesBatch.salesInfoList.isEmpty()) {
             sendSalesLogger.info("SalesInfo is empty");
-        else {
+            if(salesBatch != null && salesBatch.callFinishIfEmpty) {
+                sendSalesLogger.info("Finish Reading starts");
+                handler.finishReadingSalesInfo(salesBatch);
+            }
+        } else {
             sendSalesLogger.info("Sending SalesInfo : " + salesBatch.salesInfoList.size() + " receiptDetails");
             try {
                 String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, directory);
