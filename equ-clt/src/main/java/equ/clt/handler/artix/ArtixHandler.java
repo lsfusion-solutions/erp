@@ -320,7 +320,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
     private Integer getPluNumber(ItemInfo item) {
         try {
-            return item.pluNumber != null ? item.pluNumber : Integer.parseInt(item.idBarcode);
+            return item.pluNumber != null ? item.pluNumber : Integer.parseInt(trim(item.idBarcode, 5));
         } catch (Exception e) {
             return 0;
         }
