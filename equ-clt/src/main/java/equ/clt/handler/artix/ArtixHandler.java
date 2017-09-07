@@ -828,6 +828,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     BigDecimal sumReceiptDetail = BigDecimal.valueOf((inventPosition.getDouble("posSum")));
                                     sumReceiptDetail = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
 
+                                    BigDecimal discountPercentReceiptDetail = null;
+                                    JSONArray discountPositionsArray = inventPosition.getJSONArray("discountPositions");
+                                    for (int j= 0; j < discountPositionsArray.length(); j++) {
+                                        JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
+                                        discountPercentReceiptDetail = safeAdd(discountPercentReceiptDetail, BigDecimal.valueOf(discountPosition.getDouble("discSize")));
+                                    }
+
                                     //обнаруживаем продажу сертификатов
                                     boolean isGiftCard = false;
                                     /*if (barcode != null && barcode.equals("99999")) {
@@ -853,7 +860,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         salesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
                                                 dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
                                                 sumCard, sumCash, sumGiftCardMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
-                                                discountSumReceiptDetail, null, seriesNumberDiscountCard, numberReceiptDetail, fileName, null));
+                                                discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
+                                                numberReceiptDetail, fileName, null));
                                     }
 
                                 }

@@ -379,7 +379,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             statement = conn.createStatement();
             //sql_no_cache is workaround of the bug: https://bugs.mysql.com/bug.php?id=31353
             String query = "SELECT sql_no_cache type, ecr, doc, barcode, code, qty, price, amount, discount, department, flags, date, id," +
-                    " zreport, payment, customer, `change` FROM history WHERE new = 1 ORDER BY ecr, id";
+                    " zreport, payment, customer, `change`, pdiscount FROM history WHERE new = 1 ORDER BY ecr, id";
             ResultSet rs = statement.executeQuery(query);
 
             sendSalesLogger.info(logPrefix + "readSales query executed");
@@ -429,6 +429,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         BigDecimal totalQuantity = rs.getBigDecimal(6); //qty, Количество
                         BigDecimal price = rs.getBigDecimal(7); //price, Цена
                         BigDecimal sum = rs.getBigDecimal(8); //amount, Сумма
+                        BigDecimal discountPercent = HandlerUtils.safeAbs(rs.getBigDecimal(18)); //pdiscount, % скидки/наценки
+                        if(discountPercent != null && discountPercent.compareTo(BigDecimal.ZERO) == 0)
+                            discountPercent = null;
                         BigDecimal discountSum = HandlerUtils.safeAbs(rs.getBigDecimal(9)); //discount, Сумма скидки/наценки
                         sum = HandlerUtils.safeAdd(sum, rs.getBigDecimal(9)); //discountSum is negative
                         String idSection = rs.getString(10); //department, Номер отдела
@@ -479,8 +482,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         } else {
                             SalesInfo salesInfo = new SalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, cash_id, numberZReport,
                                     dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null,
-                                    null, null, null, null, (BigDecimal) null, idBarcode, idItem, null, null, totalQuantity,
-                                    price, sum, discountSum, null, discountCard,
+                                    null, null, null, null, null, idBarcode, idItem, null, null, totalQuantity,
+                                    price, sum, discountPercent, discountSum, null, discountCard,
                                     position, null, idSection);
                             //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки
                             //(на самом деле так кассиры узнают цену). "Аннигилируем" эти две строки.
