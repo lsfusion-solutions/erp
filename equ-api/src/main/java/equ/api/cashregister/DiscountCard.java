@@ -12,7 +12,8 @@ public class DiscountCard implements Serializable {
     public BigDecimal initialSumDiscountCard;
     public Date dateFromDiscountCard;
     public Date dateToDiscountCard;
-    public String typeDiscountCard;
+    public String idDiscountCardType;
+    public String nameDiscountCardType;
     public String firstNameContact;
     public String lastNameContact;
     public String middleNameContact;
@@ -22,8 +23,8 @@ public class DiscountCard implements Serializable {
     
     public DiscountCard(String idDiscountCard, String numberDiscountCard, String nameDiscountCard, BigDecimal percentDiscountCard,
                         BigDecimal initialSumDiscountCard, Date dateFromDiscountCard, Date dateToDiscountCard,
-                        String typeDiscountCard, String firstNameContact, String lastNameContact, String middleNameContact,
-                        Date birthdayContact, Integer sexContact, boolean isCompleted) {
+                        String idDiscountCardType, String nameDiscountCardType, String firstNameContact, String lastNameContact,
+                        String middleNameContact, Date birthdayContact, Integer sexContact, boolean isCompleted) {
         this.idDiscountCard = idDiscountCard;
         this.numberDiscountCard = numberDiscountCard;
         this.nameDiscountCard = nameDiscountCard;
@@ -31,7 +32,8 @@ public class DiscountCard implements Serializable {
         this.initialSumDiscountCard = initialSumDiscountCard;
         this.dateFromDiscountCard = dateFromDiscountCard;
         this.dateToDiscountCard = dateToDiscountCard;
-        this.typeDiscountCard = typeDiscountCard;
+        this.idDiscountCardType = idDiscountCardType;
+        this.nameDiscountCardType = nameDiscountCardType;
         this.firstNameContact = firstNameContact;
         this.lastNameContact = lastNameContact;
         this.middleNameContact = middleNameContact;
