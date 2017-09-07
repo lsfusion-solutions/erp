@@ -307,7 +307,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         tmcScaleObject.put("tmcscalecode", trim(item.idBarcode, 5)); //Штрих-код товара на весах
         tmcScaleObject.put("tmccode", trim(item.idItem, 100)); //код товара
         tmcScaleObject.put("tmcscalegroupcode", 1); //Код ассортиментной группы товаров на весах
-        tmcScaleObject.put("plu", item.pluNumber); //Номер ячейки памяти на весах
+        tmcScaleObject.put("plu", getPluNumber(item)); //Номер ячейки памяти на весах
 
         tmcScaleObject.put("ingredients", trim(item.description, 1000)); //Состав весового товара
         tmcScaleObject.put("manufacturer", item.idBrand); //Производитель весового товара
@@ -316,6 +316,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         rootObject.put("command", "addTmcScale");
         return rootObject.toString();
+    }
+
+    private Integer getPluNumber(ItemInfo item) {
+        try {
+            return item.pluNumber != null ? item.pluNumber : Integer.parseInt(item.idBarcode);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
 /*    private String getAddTmcScaleGroupJSON(ItemGroup itemGroup) throws JSONException {
@@ -389,7 +397,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return rootObject.toString();
     }
 
-    private String getAddClientJSON(DiscountCard card) throws JSONException, ParseException {
+/*    private String getAddClientJSON(DiscountCard card) throws JSONException, ParseException {
         JSONObject rootObject = new JSONObject();
 
         JSONObject clientObject = new JSONObject();
@@ -405,7 +413,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             clientObject.put("birthday", new SimpleDateFormat("yyyy-MM-dd").format(card.birthdayContact)); //день рождения, год рождения должен быть больше 1900
         rootObject.put("command", "addClient");
         return rootObject.toString();
-    }
+    }*/
 
     private void waitForDeletion(File file, File flagFile) {
         int count = 0;
