@@ -322,12 +322,14 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
             addStringElement(deliveryNoteElement, "DeliveryNoteID", deliveryNoteId);
             addStringElement(deliveryNoteElement, "DeliveryNoteDate", new SimpleDateFormat("yyyyMMdd").format(deliveryNoteDateTime));
 
-            Element reportElement = new Element("Report");
-            addStringElement(reportElement, "ReportID", reportId);
-            if (reportDate != null)
-                addStringElement(reportElement, "ReportDate", new SimpleDateFormat("yyyyMMdd").format(reportDate));
-            addStringElement(reportElement, "ReportName", reportName);
-            deliveryNoteElement.addContent(reportElement);
+            if(reportId != null) {
+                Element reportElement = new Element("Report");
+                addStringElement(reportElement, "ReportID", reportId);
+                if (reportDate != null)
+                    addStringElement(reportElement, "ReportDate", new SimpleDateFormat("yyyyMMdd").format(reportDate));
+                addStringElement(reportElement, "ReportName", reportName);
+                deliveryNoteElement.addContent(reportElement);
+            }
 
             Element shipperElement = new Element("Shipper"); //грузоотправитель
             addStringElement(shipperElement, "GLN", glnSupplier);
