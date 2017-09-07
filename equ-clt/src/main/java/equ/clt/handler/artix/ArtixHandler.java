@@ -266,7 +266,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             rootObject.put("unit", inventGroupObject);
             inventGroupObject.put("unitCode", idUOM); //код единицы измерения
             inventGroupObject.put("name", item.shortNameUOM); //наименование единицы измерения
-            inventGroupObject.put("fractional", !item.splitItem); //дробная единица измерения: true весовой, false штучный
+            inventGroupObject.put("fractional", item.splitItem); //дробная единица измерения: true весовой, false штучный
             rootObject.put("command", "addUnit");
             return rootObject.toString();
         } else return null;
