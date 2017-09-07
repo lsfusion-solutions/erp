@@ -154,141 +154,6 @@ sku(Sku material) += material AS Sku;
 
 id(Sku sku) += Stock.id(sku);
 
-// -----------  Технологии -------------- //
-CLASS Technology 'Технология';
-TABLE technology (Technology);
-
-name 'Наименование' = DATA VARISTRING[50](Technology);
-
-TABLE technologyMaterialDate (Technology, Material, DATE);
-@defineHistorizable(wastage, '% потерь', NUMERIC[8,3], technology, nameTechnology, material, nameMaterial, base);
-
-FORM technology 'Технология'
-
-    OBJECTS dt = DATE PANEL
-    PROPERTIES valDt = VALUE(dt) BACKGROUND dateDiffersCurrent(dt)
-
-    OBJECTS t=Technology PANEL
-    PROPERTIES(t) name
-
-    TREE skuTree sg = SkuGroup PARENT parent
-    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
-    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
-    FILTERGROUP component FILTER 'Сырье' filterComponent(sg) 'F6' DEFAULT
-    ORDER BY order(sg), skuGroupName
-    
-    OBJECTS m = Material
-    PROPERTIES(m) READONLY name, shortNameUOM
-    PROPERTIES overWastage(t,m,dt)
-    
-    FILTERS isComponentGroup(m)
-
-    FILTERS isParent(sg, m)
-    ORDER BY name(m)
-
-    FILTERGROUP filters
-        FILTER 'С % потерь' wastage(t,m,dt) 'F9'
-
-    OBJECTS d=DATE
-    PROPERTIES  READONLY VALUE(d), dataWastage(t,m,d)
-    FILTERS dataWastage(t,m,d)
-
-    EDIT Technology OBJECT t
-;
-
-DESIGN technology {
-    BOX {
-        preferredSize = (1024, 768);
-        NEW specificationBox BEFORE TOOLBARBOX {
-            fill = 1;
-            type = SPLITH;
-            MOVE BOX(TREE skuTree) {caption = 'Группа материалов'; fill = 1; }
-            NEW row {
-                fill = 1;
-                type = SPLITV;
-                MOVE BOX(m) {
-                    fill = 3;
-                    caption = 'Материал';
-                }
-                MOVE BOX(d) {
-                    fill = 1;
-                    caption = 'История изменений';
-                }
-            }
-        }
-        NEW headerBox BEFORE specificationBox {
-            type = CONTAINERH;
-            MOVE BOX(t) { type = CONTAINERH;}
-            MOVE BOX(dt) {type = CONTAINERH;}
-        }
-    }
-}
-
-FORM yearFromTo 'Год'
-
-    OBJECTS y = INTEGER PANEL
-    PROPERTIES valY = VALUE(y)
-;
-
-DESIGN yearFromTo {
-    BOX {
-        NEW year{
-            MOVE PROPERTY (valY) { caption = 'Укажите на какой год скопировать значения (4 цифры)'; panelCaptionAbove = TRUE; font = 'bold 72'; minimumCharWidth = 4; preferredCharWidth = 4; maximumCharWidth = 4; }
-        }
-        MOVE TOOLBARBOX;
-    }
-}
-
-
-fillWastage 'Заполнить технологии на другой год'(Technology technology) = {
-
-    DIALOG yearFromTo OBJECTS y INPUT DO {
-
-        LOCAL newYear = INTEGER();
-        newYear() <- y;
-
-        FOR dataWastage(technology, Material material, DATE dateFrom) DO {
-
-            IF 1 == 2 THEN
-                BREAK;
-
-            IF extractYear(dateFrom) == (newYear() - 1) THEN {
-                dataWastage(technology, material, DATE dateTo) <- dataWastage(technology, material, dateFrom) WHERE dateTo == sumYear(dateFrom, 1);
-            }
-
-        }
-        apply();
-    }
-} TOOLBAR;
-
-FORM technologies 'Технологии'
-
-    OBJECTS t=Technology
-    PROPERTIES(t)  READONLY name
-
-    PROPERTIES (t) NEWSESSION NEW, EDIT, DELETE 
-    PROPERTIES (t) fillWastage
-
-    OBJECTS m=Material
-    PROPERTIES     READONLY name(m), shortNameUOM(m), wastage(t,m)
-    ORDER BY name(m)
-
-    FILTERS        wastage(t,m)
-
-    LIST Technology OBJECT t
-;
-
-DESIGN technologies {
-    BOX {
-        MOVE BOX(t);
-        MOVE BOX(m) { 
-            caption = 'Материалы с % потерь на текущую дату';
-            GRID(m) { defaultComponent = TRUE; }
-        }
-        MOVE TOOLBARBOX;
-    }
-}
-
 // ---------------------- BOM'ы ----------------------
 
 CLASS BOM 'Спецификация' : Document;
@@ -327,13 +192,6 @@ TABLE product (Product);
 EXTEND FORM materials
 
     FILTERGROUP filters
-        FILTER 'Изделие' m IS Product 'F11'
-        FILTER 'Sku' m IS Sku 'F10'
-;
-
-EXTEND FORM technology
-
-    FILTERGROUP filters2
         FILTER 'Изделие' m IS Product 'F11'
         FILTER 'Sku' m IS Sku 'F10'
 ;
@@ -465,56 +323,12 @@ UOM(Component component) <- UOM(material(component)) WHEN CHANGED (material(comp
 @defineDocumentDetailQuantityCustomPrefix (component, netto, ' (нетто)');
 @defineDocumentHeaderQuantityCustomPrefix (BOM, component, netto, ' (нетто компонент)');
 
-// Технология
-TABLE  technologyComponent (Technology, Component);
-
-in 'Вкл.' = DATA BOOLEAN (Technology, Component);
-countTechnologies = GROUP SUM 1 IF in(Technology technology, Component component) BY component MATERIALIZED;
-
-technologiesInvoice 'Технологии' (component) = GROUP CONCAT VARSTRING[255](name(Technology technology)) IF in(technology, Component component) , ', '
-                                         BY component
-                                         ORDER technology
-                                         MINCHARWIDTH 30 PREFCHARWIDTH 50;
-                                         
-in 'Связь' (technology, material) = GROUP SUM 1 IF dataWastage(Technology technology, Material material, DATE date) BY technology, material;
-
-CONSTRAINT in(Technology technology, Component component) AND NOT in(technology, material(component))
-    MESSAGE 'Для компонента выбрана технология, у которой нет значения % потерь для SKU';
-
-wastage '% потерь' (Technology t,Component c) = wastage(t,material(c));     
-                                         
-FORM componentTechnologies 'Технологии'
-
-    OBJECTS c=Component PANEL 
-//    PROPERTIES(c)  READONLY nameComponent
-
-    OBJECTS t=Technology
-    PROPERTIES(t)  READONLY name
-    PROPERTIES(t,c) in, wastage
-
-    FILTERS        in(t, material(c))
-                   //,materialComponent(c) == m    
-;  
-DESIGN componentTechnologies {
-    BOX {
-        preferredSize = (1024, 768);
-    }
-}                                                                                                                                                                                                                                    
-
 // % Потерь
 wastage '% потерь'= DATA NUMERIC[8,3] (Component);
-backgroundWastage 'Цвет' (Component component) = RGB(229,229,229) IF countTechnologies(component);
 
-coeffWastageTechnologies 'Коэффициент потерь (технология)' (Component component, DATE date) =
-    OVERRIDE Utils.round(exp([= GROUP SUM NUMERIC[20,9](ln((100.0 - wastage(Technology t, material(Component c), DATE d)) / 100.0) IF in(t, c)) BY c, d](component, date)), 9),
-    NUMERIC[20,9](1.0) IF component IS Component AND date IS DATE;
+coeffWastageTechnologies = ABSTRACT VALUE OVERRIDE FIRST NUMERIC[20,9] (Component, DATE);
+coeffWastageTechnologies (Component c, DATE d) += NUMERIC[20,9](1.0) IF c IS Component AND d IS DATE; 
 
-wastageTechnologies '% потерь (технология)' = (1.0 - coeffWastageTechnologies(Component component, DATE date)) * 100.0;  
-
-//IF countTechnologiesComponent(component) THEN minMaxWastageTechnologyMaterialDate(component, date)
-//                                                    ELSE (0 IF component IS Component AND date IS DATE);   
-wastageTechnologies '% потерь (технология)' (Component component) = wastageTechnologies(component, currentDate());                                                                                                     
-                                                                                                     
 wastage '% потерь' (Component component, DATE date) = [= (1.0-(X*(100.0-Y)/100.0))*100.0](
     coeffWastageTechnologies(component, date),
     (OVERRIDE wastage(component),  0 IF component IS Component));
@@ -525,10 +339,6 @@ wastage '% потерь' (Component component, DATE date) = [= (1.0-(X*(100.0-Y)
 @defineDocumentDetailQuantityCustomPrefix (component, brutto, ' (брутто)');
 @defineDocumentHeaderQuantityCustomPrefix (BOM, component, brutto, ' (брутто компонент)'); 
             
-selectTechnologies(Component component) = {
-    SHOW componentTechnologies OBJECTS c = component ;
-}  
-       
 changeNettoQuantity(Component component) = {
     INPUT n = NUMERIC[16,5] DO {
         nettoQuantity(component) <- n;
@@ -550,7 +360,7 @@ changeBruttoQuantity(Component component) = {
         wastage(component) <- NUMERIC[8,3]((1-(nettoQuantity(component)/(bruttoQuantity(component) IF bruttoQuantity(component)!=0)))*100); 
     }                
 }
-backgroundBruttoQuantity 'Цвет' (Component component) = RGB(229,229,229) IF countTechnologies(component);
+backgroundBruttoQuantity 'Цвет' = ABSTRACT COLOR (Component);
 backgroundBruttoQuantity 'Цвет' (BOM b) = RGB(229,229,229) IF b IS BOM;
 
 bruttoQuantity 'Кол-во (брутто) с учетом технологий' (Component component, DATE date) = NUMERIC[16,5](bruttoQuantity(component)/coeffWastageTechnologies(component, date)) COMPLEX;
@@ -640,11 +450,7 @@ EXTEND FORM products
     PROPERTIES(c) READONLY BACKGROUND background(c) 
                   nettoQuantity, overNettoNetWeight,
                   wastage,
-                  bruttoQuantity, overBruttoNetWeight,
-                  technologiesInvoice BACKGROUND backgroundBruttoQuantity(c),
-                  wastageTechnologies BACKGROUND backgroundBruttoQuantity(c),                   
-                  overCurBruttoQuantity BACKGROUND backgroundBruttoQuantity(c),
-                  overCurBruttoNetWeight BACKGROUND backgroundBruttoQuantity(c)
+                  bruttoQuantity, overBruttoNetWeight
     ORDER BY index(c)
     FILTERS       BOM(c) == BOM(p)                                                                                      
 ; 
@@ -683,11 +489,7 @@ FORM BOM 'Спецификация'
     PROPERTIES(c) BACKGROUND background(c) 
                   nettoQuantity ON CHANGE changeNettoQuantity(c), overNettoNetWeight READONLY,
                   wastage ON CHANGE changeWastage(c),
-                  bruttoQuantity ON CHANGE changeBruttoQuantity(c), overBruttoNetWeight READONLY,
-                  technologiesInvoice ON CHANGE selectTechnologies(c)   BACKGROUND backgroundBruttoQuantity(c),
-                  wastageTechnologies READONLY BACKGROUND backgroundBruttoQuantity(c),                   
-                  overCurBruttoQuantity READONLY BACKGROUND backgroundBruttoQuantity(c),
-                  overCurBruttoNetWeight READONLY BACKGROUND backgroundBruttoQuantity(c)
+                  bruttoQuantity ON CHANGE changeBruttoQuantity(c), overBruttoNetWeight READONLY
     ORDER BY index(c)
     PROPERTIES(c) NEW, deletec=DELETE GRID
     PROPERTIES(b) TODRAW c deleteComponent
@@ -791,8 +593,6 @@ copy 'Копировать'(BOM BOM) = {
 	            material(c) <- material(component);
 	            nettoQuantity(c) <- nettoQuantity(component);
 	            
-	            in(Technology t,c) <- in(t,component) WHERE in(t,component);            
-	            
 	            bruttoQuantity(c) <- bruttoQuantity(component);
 	            wastage(c) <- wastage(component);
 	            overCopy(c,component);
@@ -853,8 +653,7 @@ FORM BOMs 'Спецификации'
 
     OBJECTS c = Component
     PROPERTIES(c) BACKGROUND  background(c) READONLY index, idBarcodeSku, id SHOWIF showIDs(), nameMaterial, 
-                  shortNameUOM, nettoQuantity, overNettoNetWeight, wastage, bruttoQuantity, overBruttoNetWeight,
-                  technologiesInvoice, wastageTechnologies, overCurBruttoQuantity, overCurBruttoNetWeight                                                                                                                                                                    
+                  shortNameUOM, nettoQuantity, overNettoNetWeight, wastage, bruttoQuantity, overBruttoNetWeight
                                                                                    
     FILTERS       BOM(c) == b
     
@@ -873,8 +672,7 @@ FORM BOMs 'Спецификации'
           
     OBJECTS c1 = Component
     PROPERTIES(c1) BACKGROUND  background(c) READONLY index, idBarcodeSku, id SHOWIF showIDs(), 
-                   nameMaterial, shortNameUOM, nettoQuantity, overNettoNetWeight, wastage, bruttoQuantity, overBruttoNetWeight,
-                   technologiesInvoice, wastageTechnologies, overCurBruttoQuantity, overCurBruttoNetWeight 
+                   nameMaterial, shortNameUOM, nettoQuantity, overNettoNetWeight, wastage, bruttoQuantity, overBruttoNetWeight
     FILTERS        BOM(c1) == b1   
     ORDER BY index(c1)
     
@@ -1000,8 +798,7 @@ FORM BOMsDialog 'Спецификации'
 
     OBJECTS c = Component                 
     PROPERTIES(c) BACKGROUND  background(c) READONLY index, idBarcodeSku, id SHOWIF showIDs(), 
-                   nameMaterial, shortNameUOM, nettoQuantity, overNettoNetWeight, wastage, bruttoQuantity, overBruttoNetWeight,
-                   technologiesInvoice, wastageTechnologies, overCurBruttoQuantity, overCurBruttoNetWeight                                                      
+                   nameMaterial, shortNameUOM, nettoQuantity, overNettoNetWeight, wastage, bruttoQuantity, overBruttoNetWeight
                   
     FILTERS       BOM(c) == b
       
@@ -1309,7 +1106,6 @@ DESIGN BOM{
 NAVIGATOR {
     manufacturingMasterData {
         ADD BOMs;
-        ADD technologies;
         ADD manufacturingCommitteeDialog;
     }
 }
