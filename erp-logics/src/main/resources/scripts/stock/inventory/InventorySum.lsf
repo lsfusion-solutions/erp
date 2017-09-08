@@ -1,0 +1,11 @@
+MODULE InventorySum;
+
+REQUIRE Inventory, SkuLedgerSum, SkuLedgerTax;
+
+costSum[SkuLedger](InInventorySkuDetail ledger) += - Stock.costSum(ledger) IF ledger IS InInventorySkuDetail;
+costSumVAT[SkuLedger](InInventorySkuDetail ledger) += - NUMERIC[18,4]([ = GROUP SUM costSum(SkuLedger ledger, Batch batch)*Stock.valueVAT(batch)/100 BY ledger](ledger)) IF ledger IS InInventorySkuDetail;
+sum[SkuLedger](InInventorySkuDetail ledger) += - sum(ledger);
+
+costSum[SkuLedger](InInventoryBatchDetail ledger) += - Stock.costSum(ledger) IF ledger IS InInventoryBatchDetail;
+costSumVAT[SkuLedger](InInventoryBatchDetail ledger) += - NUMERIC[18,4]([ = GROUP SUM costSum(SkuLedger ledger, Batch batch)*Stock.valueVAT(batch)/100 BY ledger](ledger)) IF ledger IS InInventoryBatchDetail;
+sum[SkuLedger](InInventoryBatchDetail ledger) += - sum(ledger);
