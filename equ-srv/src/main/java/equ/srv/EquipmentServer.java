@@ -14,6 +14,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
+import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.*;
 import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.context.ThreadLocalContext;
@@ -49,7 +50,7 @@ import java.util.*;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class EquipmentServer extends RmiServer implements EquipmentServerInterface, InitializingBean {
-    private static final Logger logger = Logger.getLogger(EquipmentServer.class);
+    private static final Logger logger = ServerLoggers.equipmentLogger;
 
     public static final String EXPORT_NAME = "EquipmentServer";
 
@@ -267,7 +268,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 skipTroubleCounter++;
             else
                 skipTroubleCounter = 1;
-            
+
             logger.info("" + transactionObjects.size() + " transactions read");
             int count = 0;
             for (Object[] transaction : transactionObjects) {
