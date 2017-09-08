@@ -108,6 +108,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
     private void getStatus(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         Map<String, Map<Integer, String>> invoices = getInvoices(context);
         if (!(invoices.isEmpty())) {
+            ServerLoggers.importLogger.info("EVAT : start checking status " + invoices.keySet());
             Object evatResult = context.requestUserInteraction(new EVATClientAction(null, invoices, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type));
             if(evatResult instanceof List) {
                 List<List<Object>> result = (List<List<Object>>) evatResult;
@@ -118,7 +119,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                         String message = (String) entry.get(1);
                         String status = (String) entry.get(2);
                         String number = (String) entry.get(3);
-                        ServerLoggers.importLogger.info(String.format("EVAT %s: reading result started", number));
+                        ServerLoggers.importLogger.info(String.format("EVAT %s: settings status started", number));
                         resultMessage += String.format("EVAT %s: %s\n", number, message);
                         try (DataSession session = context.createSession()) {
                             DataObject evatObject = new DataObject(evat, (ConcreteClass) findClass("EVAT"));
@@ -128,6 +129,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                             if (applyResult != null)
                                 resultMessage += String.format("EVAT %s: %s\n", number, applyResult);
                         }
+                        ServerLoggers.importLogger.info(String.format("EVAT %s: settings status finished", number));
                     }
                 }
                 context.delayUserInteraction(new MessageClientAction(resultMessage, "EVAT"));
