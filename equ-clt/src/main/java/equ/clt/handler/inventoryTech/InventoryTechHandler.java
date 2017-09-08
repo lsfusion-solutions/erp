@@ -32,7 +32,7 @@ public class InventoryTechHandler extends TerminalHandler {
     protected final static Logger sendTerminalDocumentLogger = Logger.getLogger("TerminalDocumentLogger");
 
     String charset = "cp866";
-    
+
     public InventoryTechHandler() {
     }
 
@@ -76,6 +76,9 @@ public class InventoryTechHandler extends TerminalHandler {
                         createSpravFile((TransactionTerminalInfo)transaction, path);
                         createSprDocFile((TransactionTerminalInfo)transaction, path);
 
+                        createEmptyDocFile(path);
+                        createEmptyPosFile(path);
+
                         createBasesUpdFile(path);
 
                     } catch (Exception e) {
@@ -105,7 +108,7 @@ public class InventoryTechHandler extends TerminalHandler {
 
     @Override
     public void finishReadingTerminalDocumentInfo(TerminalDocumentBatch terminalDocumentBatch) {
-        
+
         for(Map.Entry<String, Set<Integer>> entry : ((InventoryTerminalDocumentBatch) terminalDocumentBatch).docRecordsMap.entrySet()) {
 
             DBF dbfFile = null;
@@ -151,9 +154,9 @@ public class InventoryTechHandler extends TerminalHandler {
 
             List<TerminalDocumentDetail> terminalDocumentDetailList = new ArrayList<>();
             Map<String, Set<Integer>> docRecordsMap = new HashMap<>();
-            
+
             for (String directory : directorySet) {
-                
+
                 File docFile = new File(directory + "/DOC.DBF");
                 File posFile = new File(directory + "/POS.DBF");
 
@@ -172,7 +175,7 @@ public class InventoryTechHandler extends TerminalHandler {
 
                         for (int i = 0; i < recordCount; i++) {
                             dbfFile.read();
-                            if (dbfFile.deleted()) continue; 
+                            if (dbfFile.deleted()) continue;
                             String idDoc = getDBFFieldValue(dbfFile, "IDDOC", charset);
                             List<Object> docEntry = docDataMap.get(idDoc);
                             if(docEntry != null) {
@@ -249,7 +252,7 @@ public class InventoryTechHandler extends TerminalHandler {
                 String idDocumentType = getDBFFieldValue(dbfFile, "CVIDDOC", charset);
                 String accepted = getDBFFieldValue(dbfFile, "ACCEPTED", charset);
                 if(accepted != null && accepted.equals("0"))
-                    data.put(idDoc, Arrays.asList((Object) title, idTerminalHandbookType1, idTerminalHandbookType2, 
+                    data.put(idDoc, Arrays.asList((Object) title, idTerminalHandbookType1, idTerminalHandbookType2,
                             quantityDocument, idDocumentType, dateTime, i + 1));
 
             }
@@ -260,7 +263,7 @@ public class InventoryTechHandler extends TerminalHandler {
         return data;
     }
 
-    private File createGoodsFile(TransactionTerminalInfo transaction, String path) throws IOException, xBaseJException {
+    private void createGoodsFile(TransactionTerminalInfo transaction, String path) throws IOException, xBaseJException {
 
         if (listNotEmpty(transaction.itemsList)) {
 
@@ -273,7 +276,7 @@ public class InventoryTechHandler extends TerminalHandler {
             NumField2 FLAGS = new NumField2("FLAGS", 8, 0);
             NumField2 INBOX = new NumField2("INBOX", 9, 3);
             NumField2 IDSET = new NumField2("IDSET", 8, 0);
-            
+
             File directory = new File(path);
             if (directory.exists()) {
                 File fileDBF = new File(path + "/GOODS.dbf");
@@ -335,13 +338,11 @@ public class InventoryTechHandler extends TerminalHandler {
                     if(dbfWriter != null)
                         dbfWriter.close();
                 }
-                return fileDBF;
             }
         }
-        return null;
     }
 
-    private File createBarcodeFile(TransactionTerminalInfo transaction, String path) throws IOException, xBaseJException {
+    private void createBarcodeFile(TransactionTerminalInfo transaction, String path) throws IOException, xBaseJException {
 
         if (listNotEmpty(transaction.itemsList)) {
 
@@ -391,7 +392,7 @@ public class InventoryTechHandler extends TerminalHandler {
 
                                 putField(dbfWriter, ARTICUL, trim(item.idBarcode, 15), append);
                                 putField(dbfWriter, BARCODE, trim(item.idBarcode, 26), append);
-                                
+
                                 if (recordNumber != null)
                                     dbfWriter.update();
                                 else {
@@ -408,16 +409,14 @@ public class InventoryTechHandler extends TerminalHandler {
                     if(dbfWriter != null)
                         dbfWriter.close();
                 }
-                return fileDBF;
             }
         }
-        return null;
     }
 
-    private File createSpravFile(TransactionTerminalInfo transaction, String path) throws IOException, xBaseJException {
+    private void createSpravFile(TransactionTerminalInfo transaction, String path) throws IOException, xBaseJException {
 
         if (listNotEmpty(transaction.terminalLegalEntityList)) {
-            
+
             CharField CODE = new CharField("CODE", 15);
             CharField NAME = new CharField("NAME", 200);
             NumField2 VIDSPR = new NumField2("VIDSPR", 8, 0);
@@ -469,7 +468,7 @@ public class InventoryTechHandler extends TerminalHandler {
                                     if (recordNumber != null)
                                         dbfWriter.gotoRecord(recordNumber);
                                 }
-                                
+
                                 putField(dbfWriter, CODE, trim(le.idLegalEntity, 15), append);
                                 putField(dbfWriter, NAME, trim(le.nameLegalEntity, 200), append);
 
@@ -490,14 +489,11 @@ public class InventoryTechHandler extends TerminalHandler {
                     if(dbfWriter != null)
                         dbfWriter.close();
                 }
-                return fileDBF;
             }
         }
-        return null;
     }
-    
-    
-    private File createSprDocFile(TransactionTerminalInfo transaction, String path) throws IOException, xBaseJException {
+
+    private void createSprDocFile(TransactionTerminalInfo transaction, String path) throws IOException, xBaseJException {
 
         if (listNotEmpty(transaction.terminalDocumentTypeList)) {
 
@@ -582,30 +578,68 @@ public class InventoryTechHandler extends TerminalHandler {
                     if(dbfWriter != null)
                         dbfWriter.close();
                 }
-                return fileDBF;
             }
         }
-        return null;
     }
 
-    private boolean createBasesUpdFile(String path) throws IOException {
-        File file = new File(path + "/BASES.UPD");
-        if(file.createNewFile()) {
-//            int count = 0;
-//            while (!Thread.currentThread().isInterrupted() && file.exists()) {
-//                try {
-//                    count++;
-//                    if(count >= 60) {
-//                        throw Throwables.propagate(new RuntimeException(String.format("Inventory: file %s has been created but not processed by server", file.getAbsolutePath())));
-//                    }
-//                    Thread.sleep(1000);
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                    return false;
-//                }
-//            }
+    private void createEmptyDocFile(String path) throws IOException, xBaseJException {
+        File directory = new File(path);
+        File fileDBF = new File(path + "/DOC.dbf");
+        if (directory.exists() && !fileDBF.exists()) {
+            NumField2 IDDOC = new NumField2("IDDOC", 8, 0);
+            CharField CVIDDOC = new CharField("CVIDDOC", 15);
+            CharField CSPR1 = new CharField("CSPR1", 15);
+            CharField CSPR2 = new CharField("CSPR2", 15);
+            NumField2 QUANDOC = new NumField2("QUANDOC", 13, 3);
+            NumField2 SUMDOC = new NumField2("SUMDOC", 13, 2);
+            CharField TITLE = new CharField("TITLE", 200);
+            NumField2 IDTERM = new NumField2("IDTERM", 8, 0);
+            NumField2 DISCOUNT = new NumField2("DISCOUNT", 13, 2);
+            NumField2 FLAGS = new NumField2("FLAGS", 8, 0);
+            CharField CRE_DTST = new CharField("CRE_DTST", 14);
+            CharField MOD_DTST = new CharField("MOD_DTST", 14);
+            NumField2 ACCEPTED = new NumField2("ACCEPTED", 1, 0);
+            NumField2 IDSET = new NumField2("IDSET", 8, 0);
+
+            DBF dbfWriter = null;
+            try {
+                dbfWriter = new DBF(fileDBF.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                dbfWriter.addField(new Field[]{IDDOC, CVIDDOC, CSPR1, CSPR2, QUANDOC, SUMDOC, TITLE, IDTERM, DISCOUNT, FLAGS, CRE_DTST, MOD_DTST, ACCEPTED, IDSET});
+            } finally {
+                if (dbfWriter != null)
+                    dbfWriter.close();
+            }
         }
-        return true;
+    }
+
+    private void createEmptyPosFile(String path) throws IOException, xBaseJException {
+        File directory = new File(path);
+        File fileDBF = new File(path + "/POS.dbf");
+        if (directory.exists() && !fileDBF.exists()) {
+            NumField2 IDDOC = new NumField2("IDDOC", 8, 0);
+            CharField ARTICUL = new CharField("ARTICUL", 15);
+            NumField2 QUAN = new NumField2("QUAN", 13, 3);
+            NumField2 CHR_QUAN = new NumField2("CHR_QUAN", 13, 3);
+            NumField2 PRICE = new NumField2("PRICE", 13, 2);
+            NumField2 PRICEREST = new NumField2("PRICEREST", 13, 2);
+            NumField2 QUANREST = new NumField2("QUANREST", 13, 3);
+            NumField2 NAME = new NumField2("NAME", 200, 0);
+            CharField MOD_DTST = new CharField("MOD_DTST", 14);
+            NumField2 NOMPOS = new NumField2("NOMPOS", 4, 0);
+
+            DBF dbfWriter = null;
+            try {
+                dbfWriter = new DBF(fileDBF.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                dbfWriter.addField(new Field[]{IDDOC, ARTICUL, QUAN, CHR_QUAN, PRICE, PRICEREST, QUANREST, NAME, MOD_DTST, NOMPOS});
+            } finally {
+                if (dbfWriter != null)
+                    dbfWriter.close();
+            }
+        }
+    }
+
+    private void createBasesUpdFile(String path) throws IOException {
+        new File(path + "/BASES.UPD").createNewFile();
     }
 
     protected String getDBFFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
@@ -621,7 +655,7 @@ public class InventoryTechHandler extends TerminalHandler {
         String result = getDBFFieldValue(importFile, fieldName, charset);
         return (result == null || result.isEmpty() ? null : new BigDecimal(result.replace(",", ".")));
     }
-    
+
     private void putField(DBF dbfFile, Field field, String value, boolean append) throws xBaseJException {
         if(append)
             dbfFile.getField(field.getName()).put(value == null ? "null" : value);
