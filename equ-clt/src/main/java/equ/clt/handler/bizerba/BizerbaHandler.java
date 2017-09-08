@@ -487,18 +487,26 @@ public abstract class BizerbaHandler extends ScalesHandler {
             }
 
             byte priceOverflow = 0;
-            int price = item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(100)).intValue();
+            int price = getPrice(item.price);
             if (price > 999999) {
                 price = Math.round((float) (price / 10));
                 priceOverflow = 1;
             }
+            if (price > 999999 || price < 0) {
+                logError(errors, String.format("Bizerba: IP %s PLU price is invalid. Price is %s (item: %s)", scales.port, price, item.idItem));
+            }
+
+            int retailPrice = getPrice(item.retailPrice);
+            if (retailPrice > 999999) {
+                retailPrice = Math.round((float) (retailPrice / 10));
+            }
+            if (retailPrice > 999999 || retailPrice < 0) {
+                logError(errors, String.format("Bizerba: IP %s PLU retail price is invalid. Retail price is %s (item: %s)", scales.port, retailPrice, item.idItem));
+            } else if(retailPrice == 0)
+                retailPrice = price;
 
             if (pluNumber <= 0 || pluNumber > 999999) {
                 return "0";
-            }
-
-            if (price > 999999 || price < 0) {
-                logError(errors, String.format("Bizerba: IP %s PLU price is invalid. Price is %s (item: %s)", scales.port, price, item.idItem));
             }
 
             if (item.daysExpiry == null)
@@ -523,10 +531,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
             }
 
             command1 = command1 + "GPR1" + price + separator;
-            Integer exPrice = price;
-            if (exPrice > 0) {
-                command1 = command1 + "EXPR" + exPrice + separator;
-            }
+            command1 = command1 + "EXPR" + retailPrice + separator;
 
             String prefix = scales.pieceCodeGroupScales != null && nonWeight ? scales.pieceCodeGroupScales : scales.weightCodeGroupScales;
             String idBarcode = item.idBarcode != null && prefix != null && item.idBarcode.length() == 5 ? ("0" + prefix + item.idBarcode + "00000") : item.idBarcode;
@@ -544,6 +549,10 @@ public abstract class BizerbaHandler extends ScalesHandler {
             sendCommand(errors, port, command1, charset, scales.port, encode);
             return receiveReply(errors, port, charset, scales.port);
         }
+    }
+
+    private int getPrice(BigDecimal price) {
+        return price == null ? 0 : price.multiply(BigDecimal.valueOf(100)).intValue();
     }
 
     public Integer getTarePercent(ScalesItemInfo item) {
