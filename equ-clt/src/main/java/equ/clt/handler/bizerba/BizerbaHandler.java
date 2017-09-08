@@ -487,25 +487,18 @@ public abstract class BizerbaHandler extends ScalesHandler {
             }
 
             byte priceOverflow = 0;
-            int price = getPrice(item.price);
+            int price = item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(100)).intValue();
             if (price > 999999) {
                 price = Math.round((float) (price / 10));
                 priceOverflow = 1;
             }
-            if (price > 999999 || price < 0) {
-                logError(errors, String.format("Bizerba: IP %s PLU price is invalid. Price is %s (item: %s)", scales.port, price, item.idItem));
-            }
-
-            int retailPrice = getPrice(item.retailPrice);
-            if (retailPrice > 999999) {
-                retailPrice = Math.round((float) (retailPrice / 10));
-            }
-            if (retailPrice > 999999 || retailPrice < 0) {
-                logError(errors, String.format("Bizerba: IP %s PLU retail price is invalid. Retail price is %s (item: %s)", scales.port, retailPrice, item.idItem));
-            }
 
             if (pluNumber <= 0 || pluNumber > 999999) {
                 return "0";
+            }
+
+            if (price > 999999 || price < 0) {
+                logError(errors, String.format("Bizerba: IP %s PLU price is invalid. Price is %s (item: %s)", scales.port, price, item.idItem));
             }
 
             if (item.daysExpiry == null)
@@ -514,7 +507,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
             if (item.daysExpiry > 999 || item.daysExpiry < 0) {
                 item.daysExpiry = 0;
 //            logError(errors, String.format("PLU expired is invalid. Expired is %s (item: %s)", item.daysExpiry, item.idItem));
-//          пока временно не грузим            
+//          пока временно не грузим
             }
 
             String command1 = "PLST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "PNUM" + pluNumber + separator + "ABNU" + department + separator + "ANKE0" + separator;
@@ -530,8 +523,9 @@ public abstract class BizerbaHandler extends ScalesHandler {
             }
 
             command1 = command1 + "GPR1" + price + separator;
-            if (retailPrice > 0) {
-                command1 = command1 + "EXPR" + retailPrice + separator;
+            Integer exPrice = price;
+            if (exPrice > 0) {
+                command1 = command1 + "EXPR" + exPrice + separator;
             }
 
             String prefix = scales.pieceCodeGroupScales != null && nonWeight ? scales.pieceCodeGroupScales : scales.weightCodeGroupScales;
@@ -550,10 +544,6 @@ public abstract class BizerbaHandler extends ScalesHandler {
             sendCommand(errors, port, command1, charset, scales.port, encode);
             return receiveReply(errors, port, charset, scales.port);
         }
-    }
-
-    private int getPrice(BigDecimal price) {
-        return price == null ? 0 : price.multiply(BigDecimal.valueOf(100)).intValue();
     }
 
     public Integer getTarePercent(ScalesItemInfo item) {
