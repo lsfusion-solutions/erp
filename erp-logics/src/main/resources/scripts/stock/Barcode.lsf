@@ -51,11 +51,14 @@ CONSTRAINT charLength(id(Barcode barcode)) == 13 AND completeBarcode(left(id(bar
     
 onlyEANBarcode 'Только EAN или UPC штрихкоды' = DATA BOOLEAN ();
 
+skipCheckShortBarcode = ABSTRACT BOOLEAN (Barcode);
+
 CONSTRAINT ((charLength(id(Barcode barcode)) > 5 AND charLength(id(barcode)) < 8)
     OR (charLength(id(barcode)) > 8 AND charLength(id(barcode)) < 12) 
     OR (charLength(id(barcode)) > 13)
     OR (onlyDigits(id(barcode)) != 1))
     AND onlyEANBarcode()
+    AND NOT skipCheckShortBarcode(barcode)
     MESSAGE 'Штрихкод не является EAN или UPC, так как соответствует требованиям длины (больше 5, не равен 8, 12 или 13)';
     
 setIdBarcodeSku 'Штрихкод обязателен для товара' = DATA BOOLEAN ();
