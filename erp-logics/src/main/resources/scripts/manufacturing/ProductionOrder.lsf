@@ -983,8 +983,16 @@ fillSubstitutePriceFromTo 'Использовать цену'(Order order, Sku s
     }        
 } TOOLBAR;  
 
-currentBalancePriceStock 'Текущий остаток' = currentBalance(Sku sku, priceStock(Order order)); 
-currentBalanceSkuPriceStockSku 'Остаток с уч. коэфф.'  (Order order, Sku fromSku, Sku toSku) = currentBalancePriceStock(toSku, order) / multiplierSubstituteTo(fromSku ,toSku);
+currentBalancePriceStock 'Текущий остаток' (Sku s, Order o) = currentBalance(s, priceStock(o));
+prevCurrentBalancePriceStock 'Текущий остаток'(Sku s, Order o) = prevCurrentBalance(s, priceStock(o));
+
+addBalancePriceStock = ABSTRACT NUMERIC[16,5] (Sku, Order);
+
+prevBalancePriceStock 'Текущий остаток' (Sku s, Order o) = prevCurrentBalancePriceStock(s, o) (+) addBalancePriceStock(s, o); 
+ 
+currentBalanceSkuPriceStockSku 'Остаток с уч. коэфф.'  (Order order, Sku fromSku, Sku toSku) = currentBalancePriceStock(toSku, order) / multiplierSubstituteTo(fromSku, toSku);
+
+prevBalanceSkuPriceStockSku 'Остаток с уч. коэфф.' (Order order, Sku fromSku, Sku toSku) = prevBalancePriceStock(toSku, order) / multiplierSubstituteTo(fromSku, toSku);
 
 //maxSubstitutePriceSkuOrder = GROUP MAX multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order) IF 
 //    currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND (multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)) 
@@ -1067,7 +1075,7 @@ bruttoBalanceToSku 'Текущий остаток с учетом замен' (S
 
 @defineDocumentDialogStock(order, company,  products, company, );
 
-backgroundBalancePriceStock(Sku s,Order o) = RGB (255,156,156) IF quantityComponentDetail(s,o) > currentBalancePriceStock(s,o);  
+backgroundBalancePriceStock(Sku s,Order o) = RGB (255,156,156) IF quantityComponentDetail(s,o) > prevBalancePriceStock(s,o);  
 editSku 'Редактировать SKU' (ProductDetail d) = { NEWSESSION { edit(sku(d)); } }
 editBruttoSku 'Редактировать SKU' (ComponentDetail d) = { NEWSESSION { edit(bruttoSku(d)); } }
 
@@ -1138,7 +1146,7 @@ FORM order 'Производственный заказ'
     OBJECTS sk = Sku
     PROPERTIES(sk) READONLY name, idBarcode, shortNameUOM
         
-    PROPERTIES(sk,o) quantityComponentDetail, currentBalancePriceStock BACKGROUND backgroundBalancePriceStock(sk,o), cost, dataBruttoPrice,  
+    PROPERTIES(sk,o) quantityComponentDetail, prevBalancePriceStock BACKGROUND backgroundBalancePriceStock(sk,o), cost, dataBruttoPrice,  
                     valueVAT BACKGROUND backgroundVAT(o) SHOWIF VAT(o)
     FILTERS quantityComponentDetail(sk,o)    
         
@@ -1146,9 +1154,9 @@ FORM order 'Производственный заказ'
            
     OBJECTS sku = Sku
     PROPERTIES(sku) READONLY name, idBarcode, shortNameUOM
-    PROPERTIES(sku,o) READONLY currentBalancePriceStock, calcCost, priceStock
+    PROPERTIES(sku,o) READONLY prevBalancePriceStock, calcCost, priceStock
     PROPERTIES(sk,sku) READONLY multiplierSubstituteTo  
-    PROPERTIES READONLY currentBalanceSkuPriceStockSku(o,sk,sku)
+    PROPERTIES READONLY currentBalanceSkuPriceStockSku(o, sk, sku), prevBalanceSkuPriceStockSku(o, sk, sku)
     
     PROPERTIES fillSubstitutePriceFromTo(o,sk,sku), fillSubstitutePriceMax(o) TODRAW sk, fillSubstitutePriceMin(o) TODRAW sk,
                fillSubstitutePriceMaxBalance(o) TODRAW sk
@@ -1156,7 +1164,7 @@ FORM order 'Производственный заказ'
     FILTERGROUP filter1
         FILTER 'Доступные замены' uniqueSubstituteFromTo(sk,sku) 'F9'     
     FILTERGROUP filter2
-        FILTER 'С остатком' currentBalancePriceStock(sku,o) 'F8' DEFAULT                                                          
+        FILTER 'С остатком' prevBalancePriceStock(sku,o) 'F8' DEFAULT                                                          
 
     EVENTS
         ON OK prePost(o)
