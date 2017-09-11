@@ -80,9 +80,15 @@ public class ShuttleBoardDaemon extends BoardDaemon {
 
                 inFromClient = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
                 outToClient = new DataOutputStream(socket.getOutputStream());
-                String barcode = inFromClient.readLine();
+                byte firstByte = inFromClient.readByte();
 
-                if(barcode != null) {
+                if(firstByte != 0) {
+
+                    StringBuilder barcode = new StringBuilder();
+                    byte b;
+                    while((b = inFromClient.readByte()) != 13) // /r
+                        barcode.append((char) b);
+
                     //getHostName is slow operation, so we use map
                     InetAddress inetAddress = socket.getInetAddress();
                     String ip = ipMap.get(inetAddress);
@@ -90,10 +96,9 @@ public class ShuttleBoardDaemon extends BoardDaemon {
                         ip = inetAddress.getHostName();
                         ipMap.put(inetAddress, ip);
                     }
-                    barcode = barcode.length() > 1 ? barcode.substring(1) : barcode;
-                    byte[] message = readMessage(barcode, ip);
+                    byte[] message = readMessage(barcode.toString(), ip);
                     outToClient.write(message);
-                    terminalLogger.info(String.format("Shuttle successed request ip %s, barcode %s", ip, barcode));
+                    terminalLogger.info(String.format("Shuttle successed request ip %s, barcode %s", ip, barcode.toString()));
                 }
                 Thread.sleep(1000);
                 return null;
