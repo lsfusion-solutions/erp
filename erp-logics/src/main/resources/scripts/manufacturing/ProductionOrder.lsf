@@ -1324,19 +1324,18 @@ WHEN LOCAL FORMS order CHANGED(bruttoSubstituteQuantity(Sku sku,Order order))
     }      
                    
 WHEN LOCAL FORMS order 
-    CHANGED(substitute(bruttoSku(ComponentDetail detail), order(detail))) AND useSubstitute(detail) DO {
-        substituteSku (detail) <- substitute(bruttoSku(detail), order(detail)); 
+    CHANGED(substitute(Sku s, Order o)) DO {
+        substituteSku (ComponentDetail detail) <- substitute(s, o) WHERE bruttoSku(detail) == s AND order(detail) == o AND useSubstitute(detail); 
     }                       
                     
-WHEN LOCAL FORMS order 
-    (CHANGED(substituteQuantity(bruttoSku(ComponentDetail detail), order(detail))) OR 
-     CHANGED(multiplier(bruttoSku(detail), order(detail)))) AND useSubstitute(detail) DO { 
-        substituteQuantity (detail) <- NUMERIC[14,3](multiplier(bruttoSku(detail), order(detail))* bruttoQuantity(detail));
-    } 
-WHEN LOCAL FORMS order DROPPED (multiplier(bruttoSku(ComponentDetail detail), order(detail))) DO {
-        substituteSku (detail) <- NULL WHERE usePrevSubstitute(detail); 
-        substituteQuantity (detail) <- NULL WHERE usePrevSubstitute(detail);    
-    }   
+WHEN LOCAL FORMS order
+    CHANGED(multiplier(Sku s, Order o)) DO {
+        substituteQuantity (ComponentDetail detail) <- NUMERIC[14,3](multiplier(s, o) * bruttoQuantity(detail)) WHERE bruttoSku(detail) == s AND order(detail) == o AND useSubstitute(detail);
+    }
+//WHEN LOCAL FORMS order DROPPED (multiplier(bruttoSku(ComponentDetail detail), order(detail))) DO {
+//        substituteSku (detail) <- NULL WHERE usePrevSubstitute(detail); 
+//        substituteQuantity (detail) <- NULL WHERE usePrevSubstitute(detail);    
+//    }   
  
 calc(PriceListType pt, ComponentDetail detail) =  OVERRIDE prevPriceB(pt,batch(detail),componentsStock(order(detail)),dateTime(order(detail))), 
                                                               dataBruttoPrice(sku(detail), order(detail));
