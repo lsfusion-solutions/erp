@@ -475,8 +475,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         cashRegisterItemInfoList.add(c);
                     }
                     
-                    transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(), dateTimeCode,
-                            date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
+                    transactionList.add(new TransactionCashRegisterInfo((Long) transactionObject.getValue(), dateTimeCode,
+                            date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,
                             cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, overDepartmentNumberGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister));
 
@@ -561,8 +561,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 retailPrice));
                     }
 
-                    transactionList.add(new TransactionScalesInfo((Integer) transactionObject.getValue(), dateTimeCode,
-                            date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
+                    transactionList.add(new TransactionScalesInfo((Long) transactionObject.getValue(), dateTimeCode,
+                            date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, scalesItemInfoList, scalesInfoList, snapshotTransaction,
                             lastErrorDateTransaction));
 
@@ -611,8 +611,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 daysExpiry, expiryDate, passScales, valueVAT, pluNumber, flags, null, null));
                     }
                     
-                    transactionList.add(new TransactionPriceCheckerInfo((Integer) transactionObject.getValue(), dateTimeCode,
-                            date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
+                    transactionList.add(new TransactionPriceCheckerInfo((Long) transactionObject.getValue(), dateTimeCode,
+                            date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, priceCheckerItemInfoList, priceCheckerInfoList,
                             snapshotTransaction, lastErrorDateTransaction));
 
@@ -676,8 +676,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, getBusinessLogics());
                     List<TerminalLegalEntity> terminalLegalEntityList = TerminalEquipmentServer.readTerminalLegalEntityList(session, getBusinessLogics());
 
-                    transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(), dateTimeCode,
-                            date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
+                    transactionList.add(new TransactionTerminalInfo((Long) transactionObject.getValue(), dateTimeCode,
+                            date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
                             descriptionTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction, lastErrorDateTransaction,
                             terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList,
                             nppGroupTerminal, directoryGroupTerminal));
@@ -823,17 +823,17 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void finishRequestExchange(Set<Integer> succeededRequestsSet) throws RemoteException, SQLException {
+    public void finishRequestExchange(Set<Long> succeededRequestsSet) throws RemoteException, SQLException {
         MachineryExchangeEquipmentServer.finishRequestExchange(getDbManager(), getBusinessLogics(), getStack(), succeededRequestsSet);
     }
 
     @Override
-    public void errorRequestExchange(Map<Integer, Throwable> failedRequestsMap) throws RemoteException, SQLException {
+    public void errorRequestExchange(Map<Long, Throwable> failedRequestsMap) throws RemoteException, SQLException {
         MachineryExchangeEquipmentServer.errorRequestExchange(getDbManager(), getBusinessLogics(), getStack(), failedRequestsMap);
     }
 
     @Override
-    public void errorRequestExchange(Integer requestExchange, Throwable t) throws RemoteException, SQLException {
+    public void errorRequestExchange(Long requestExchange, Throwable t) throws RemoteException, SQLException {
         MachineryExchangeEquipmentServer.errorRequestExchange(getDbManager(), getBusinessLogics(), getStack(), requestExchange, t);
     }
 
@@ -878,7 +878,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void logRequestZReportSumCheck(Integer idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException {
+    public void logRequestZReportSumCheck(Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException {
         SendSalesEquipmentServer.logRequestZReportSumCheck(getDbManager(), getBusinessLogics(), getStack(), idRequestExchange, nppGroupMachinery, checkSumResult);
     }
 
@@ -1184,7 +1184,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem :
                                         (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : sale.idItem != null ? barcodeMap.get(sale.idItem) : null);
                                 if (barcode == null && sale.itemObject != null) {
-                                    barcode = trim((String) itemLM.findProperty("idBarcode[Sku]").read(session, new DataObject(sale.itemObject, (ConcreteClass) itemLM.findClass("Item"))));
+                                    barcode = trim((String) itemLM.findProperty("idBarcode[Sku]").read(session, new DataObject(sale.itemObject, (ConcreteCustomClass) itemLM.findClass("Item"))));
                                     barcodeMap.put(sale.itemObject, barcode);
                                 }
                                 if (barcode == null && sale.idItem != null) {
@@ -1335,7 +1335,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         try (DataSession session = getDbManager().createSession()) {
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
             DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
-            equLM.findProperty("equipmentServer[EquipmentServerLog]").change(equipmentServerObject.getValue(), session, logObject);
+            equLM.findProperty("equipmentServer[EquipmentServerLog]").change(equipmentServerObject, session, logObject);
             equLM.findProperty("data[EquipmentServerLog]").change(message, session, logObject);
             equLM.findProperty("date[EquipmentServerLog]").change(getCurrentTimestamp(), session, logObject);
             return session.applyMessage(getBusinessLogics(), stack);
@@ -1402,10 +1402,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void succeedTransaction(Integer transactionId, Timestamp dateTime) throws RemoteException, SQLException {
+    public void succeedTransaction(Long transactionId, Timestamp dateTime) throws RemoteException, SQLException {
         synchronized (this) {
             try (DataSession session = getDbManager().createSession()) {
-                DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
+                DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
                 equLM.findProperty("succeeded[MachineryPriceTransaction]").change(true, session, transactionObject);
                 equLM.findProperty("dateTimeSucceeded[MachineryPriceTransaction]").change(dateTime, session, transactionObject);
                 session.apply(getBusinessLogics(), getStack());
@@ -1416,10 +1416,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void processingTransaction(Integer transactionId, Timestamp dateTime) throws RemoteException, SQLException {
+    public void processingTransaction(Long transactionId, Timestamp dateTime) throws RemoteException, SQLException {
         if (machineryPriceTransactionLM != null) {
             try (DataSession session = getDbManager().createSession()) {
-                DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
+                DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
                 machineryPriceTransactionLM.findProperty("dateTimeProcessing[MachineryPriceTransaction]").change(dateTime, session, transactionObject);
                 session.apply(getBusinessLogics(), getStack());
             } catch (Exception e) {
@@ -1429,10 +1429,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void clearedMachineryTransaction(Integer transactionId, List<MachineryInfo> machineryInfoList) throws RemoteException, SQLException {
+    public void clearedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList) throws RemoteException, SQLException {
         if(machineryPriceTransactionLM != null) {
             try (DataSession session = getDbManager().createSession()) {
-                DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
+                DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
                 for (MachineryInfo machineryInfo : machineryInfoList) {
                     ObjectValue machineryObject = null;
                     if (machineryInfo instanceof CashRegisterInfo && cashRegisterLM != null)
@@ -1450,11 +1450,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void succeedMachineryTransaction(Integer transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) throws RemoteException, SQLException {
+    public void succeedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) throws RemoteException, SQLException {
         synchronized (this) {
             if (machineryPriceTransactionLM != null) {
                 try (DataSession session = getDbManager().createSession()) {
-                    DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
+                    DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
                     for (MachineryInfo machineryInfo : machineryInfoList) {
                         ObjectValue machineryObject = null;
                         if (machineryInfo instanceof CashRegisterInfo && cashRegisterLM != null)
@@ -1480,7 +1480,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void errorTransactionReport(Integer transactionID, Throwable e) throws RemoteException, SQLException {
+    public void errorTransactionReport(Long transactionID, Throwable e) throws RemoteException, SQLException {
         try (DataSession session = getDbManager().createSession()) {
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClass("MachineryPriceTransactionError"));
             equLM.findProperty("machineryPriceTransaction[MachineryPriceTransactionError]").change(transactionID, session, errorObject);
@@ -1501,7 +1501,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             RemoteException, SQLException {
         try (DataSession session = getDbManager().createSession()) {
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerError"));
-            Object equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").read(session, new DataObject(equipmentServer, StringClass.get(20)));
+            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(equipmentServer, StringClass.get(20)));
             equLM.findProperty("equipmentServer[EquipmentServerError]").change(equipmentServerObject, session, errorObject);
             equLM.findProperty("data[EquipmentServerError]").change(exception.toString(), session, errorObject);
             if(extraData != null)

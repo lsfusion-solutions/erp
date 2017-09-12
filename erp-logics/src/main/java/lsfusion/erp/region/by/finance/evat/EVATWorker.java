@@ -7,8 +7,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 class EVATWorker {
-   private Map<String, Map<Integer, List<Object>>> files;
-   public Map<String, Map<Integer, String>> invoices;
+   private Map<String, Map<Long, List<Object>>> files;
+   public Map<String, Map<Long, String>> invoices;
    private String serviceUrl;
    private String path;
    private String exportPath;
@@ -17,7 +17,7 @@ class EVATWorker {
    private boolean useActiveX;
    private int type;
 
-   EVATWorker(final Map<String, Map<Integer, List<Object>>> files, Map<String, Map<Integer, String>> invoices,
+   EVATWorker(final Map<String, Map<Long, List<Object>>> files, Map<String, Map<Long, String>> invoices,
               final String serviceUrl, final String path, final String exportPath, final String password,
               final int certIndex, final boolean useActiveX, final int type) {
       this.files = files;

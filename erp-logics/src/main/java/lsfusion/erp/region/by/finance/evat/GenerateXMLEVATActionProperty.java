@@ -58,8 +58,8 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         generateXML(context, evatObject, true, false);
     }
 
-    Map<String, Map<Integer, String>> getInvoices(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, Map<Integer, String>> evatMap = new HashMap<>();
+    Map<String, Map<Long, String>> getInvoices(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, Map<Long, String>> evatMap = new HashMap<>();
         KeyExpr evatExpr = new KeyExpr("evat");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "evat", evatExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
@@ -72,18 +72,18 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             String unp = (String) result.getValue(i).get("unp").getValue();
             String number = (String) result.getValue(i).get("exportNumber").getValue();
             if (unp != null && number != null) {
-                Map<Integer, String> invoiceNumbers = evatMap.get(unp);
+                Map<Long, String> invoiceNumbers = evatMap.get(unp);
                 if (invoiceNumbers == null)
                     invoiceNumbers = new HashMap<>();
-                invoiceNumbers.put((Integer) evatObject.getValue(), number);
+                invoiceNumbers.put((Long) evatObject.getValue(), number);
                 evatMap.put(unp, invoiceNumbers);
             }
         }
         return evatMap;
     }
 
-    Map<String, Map<Integer, List<Object>>> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, Map<Integer, List<Object>>> files = new HashMap<>();
+    Map<String, Map<Long, List<Object>>> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, Map<Long, List<Object>>> files = new HashMap<>();
         KeyExpr evatExpr = new KeyExpr("evat");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "evat", evatExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
@@ -95,12 +95,12 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                 DataObject evatObject = result.getKey(i).get("evat");
                 String unp = (String) result.getValue(i).get("unp").getValue();
                 if (unp != null) {
-                    Map<Integer, List<Object>> filesEntry = files.get(unp);
+                    Map<Long, List<Object>> filesEntry = files.get(unp);
                     if (filesEntry == null)
                         filesEntry = new HashMap<>();
                     List<Object> xml = generateXML(context, evatObject, false, false);
                     if (xml != null) {
-                        filesEntry.put((Integer) evatObject.getValue(), xml);
+                        filesEntry.put((Long) evatObject.getValue(), xml);
                         files.put(unp, filesEntry);
                     }
                 }

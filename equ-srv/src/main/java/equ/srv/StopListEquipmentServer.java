@@ -272,7 +272,7 @@ public class StopListEquipmentServer {
             try (DataSession session = dbManager.createSession()) {
                 DataObject errorObject = session.addObject((ConcreteCustomClass) stopListLM.findClass("StopListError"));
                 ObjectValue stopListObject = stopListLM.findProperty("stopList[STRING[18]]").readClasses(session, new DataObject(numberStopList));
-                stopListLM.findProperty("stopList[StopListError]").change(stopListObject.getValue(), session, errorObject);
+                stopListLM.findProperty("stopList[StopListError]").change(stopListObject, session, errorObject);
                 stopListLM.findProperty("data[StopListError]").change(e.toString(), session, errorObject);
                 stopListLM.findProperty("date[StopListError]").change(getCurrentTimestamp(), session, errorObject);
                 OutputStream os = new ByteArrayOutputStream();

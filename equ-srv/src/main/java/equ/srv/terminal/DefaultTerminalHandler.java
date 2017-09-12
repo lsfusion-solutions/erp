@@ -633,7 +633,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 service.synchronize(true, false);
 
                 ObjectValue terminalDocumentObject = terminalHandlerLM.findProperty("terminalDocument[VARSTRING[100]]").readClasses(session, session.getModifier(), session.getQueryEnv(), new DataObject(idTerminalDocument));
-                terminalHandlerLM.findProperty("createdUser[TerminalDocument]").change(userObject.object, session, (DataObject) terminalDocumentObject);
+                terminalHandlerLM.findProperty("createdUser[TerminalDocument]").change(userObject, session, (DataObject) terminalDocumentObject);
                 terminalHandlerLM.findAction("process[TerminalDocument]").execute(session, stack, terminalDocumentObject);
                 ServerLoggers.importLogger.info("start applying terminal document " + idTerminalDocument);
                 return session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
@@ -675,7 +675,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[VARSTRING[100]]").readClasses(session, new DataObject(idTerminal));
                     if(terminalObject instanceof DataObject) {
                         terminalHandlerLM.findProperty("lastConnectionTime[Terminal]").change(new Timestamp(Calendar.getInstance().getTime().getTime()), session, (DataObject) terminalObject);
-                        terminalHandlerLM.findProperty("lastUser[Terminal]").change(result.getValue(), session, (DataObject) terminalObject);
+                        terminalHandlerLM.findProperty("lastUser[Terminal]").change(result, session, (DataObject) terminalObject);
                         String applyMessage = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
                         if(applyMessage != null)
                             ServerLoggers.systemLogger.error(String.format("Terminal Login error: %s, login %s, terminal %s", applyMessage, login, idTerminal));

@@ -121,7 +121,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
         this.saleManufacturingPriceLM = BL.getModule("SaleManufacturingPrice");
 
-        List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(session, (Integer) orderObject.object,
+        List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(session, (Long) orderObject.object,
                 importColumns, file, fileExtension, settings.getStartRow(), settings.isPosted(), settings.getSeparator(),
                 settings.getPrimaryKeyType(), settings.isCheckExistence(), settings.getSecondaryKeyType(), settings.isKeyIsDigit());
 
@@ -345,7 +345,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         return false;
     }
 
-    public List<List<SaleOrderDetail>> importOrdersFromFile(DataSession session, Integer orderObject, Map<String, ImportColumnDetail> importColumns,
+    public List<List<SaleOrderDetail>> importOrdersFromFile(DataSession session, Long orderObject, Map<String, ImportColumnDetail> importColumns,
                                                             byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String separator,
                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit)
             throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
@@ -387,7 +387,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     private List<List<SaleOrderDetail>> importOrdersFromXLS(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
                                                             String primaryKeyType, boolean checkExistence,  String secondaryKeyType, boolean keyIsDigit,
-                                                            Integer startRow, Boolean isPosted, Integer orderObject)
+                                                            Integer startRow, Boolean isPosted, Long orderObject)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<>();
@@ -452,7 +452,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
     private List<List<SaleOrderDetail>> importOrdersFromCSV(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, String primaryKeyType, boolean checkExistence, 
-                                                            String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted, String separator, Integer orderObject)
+                                                            String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted, String separator, Long orderObject)
             throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<>();
@@ -521,7 +521,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     private List<List<SaleOrderDetail>> importOrdersFromXLSX(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                              List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
                                                              String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, 
-                                                             Integer startRow, Boolean isPosted, Integer orderObject)
+                                                             Integer startRow, Boolean isPosted, Long orderObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<>();
@@ -584,7 +584,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     private List<List<SaleOrderDetail>> importOrdersFromDBF(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, 
-                                                            Integer startRow, Boolean isPosted, Integer orderObject)
+                                                            Integer startRow, Boolean isPosted, Long orderObject)
             throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<>();

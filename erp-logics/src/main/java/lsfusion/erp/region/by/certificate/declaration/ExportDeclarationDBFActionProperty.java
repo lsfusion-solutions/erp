@@ -168,7 +168,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
             String shortNameUOMDeclarationDetail = (String) values.get("shortNameUOMDeclarationDetail"); //G317A, G31_EI
             String customsCodeUOMDeclarationDetail = (String) values.get("customsCodeUOMDeclarationDetail"); //G317A, G31_EI
             Boolean isVATCustomsExceptionDeclarationDetail = (Boolean) values.get("isVATCustomsExceptionDeclarationDetail");
-            Integer VATCustomsExceptionDeclarationDetail = (Integer) values.get("VATCustomsExceptionDeclarationDetail"); //G364
+            Long VATCustomsExceptionDeclarationDetail = (Long) values.get("VATCustomsExceptionDeclarationDetail"); //G364
             BigDecimal homeSumDeclarationDetail = (BigDecimal) values.get("homeSumDeclarationDetail"); //G451, G472
             BigDecimal baseVATSumDeclarationDetail = (BigDecimal) values.get("baseVATSumDeclarationDetail"); //G472
             Boolean isWeightDutyDeclarationDetail = (Boolean) values.get("isWeightDutyDeclarationDetail"); //G473
@@ -234,7 +234,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
             String refDocCustomsDocument = (String) resultValues.get("refDocCustomsDocument");
             String descriptionCustomsDocument = (String) resultValues.get("descriptionCustomsDocument");
             if (isVATCustomsExceptionCustomsDocument == null || isVATCustomsExceptionDeclarationDetail != null)
-                customsDocumentDetailList.add(new G44Detail(numberDeclarationDetail, orderCustomsDocument == null ? (Integer) customsDocumentResult.getKey(i).getValue(1) : orderCustomsDocument, idCustomsDocument, nameCustomsDocument,
+                customsDocumentDetailList.add(new G44Detail(numberDeclarationDetail, orderCustomsDocument == null ? (Long) customsDocumentResult.getKey(i).getValue(1) : orderCustomsDocument, idCustomsDocument, nameCustomsDocument,
                         dateCustomsDocument, null, null, null, typePaymentCustomsDocument, refDocCustomsDocument, descriptionCustomsDocument));
         }
 
@@ -268,7 +268,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
             Date fromDateCompliance = (Date) resultValues.get("fromDateCompliance");
             Date toDateCompliance = (Date) resultValues.get("toDateCompliance");
 
-            complianceDetailList.add(new G44Detail(numberDeclarationDetail, 100000000, "01191", seriesNumberCompliance,
+            complianceDetailList.add(new G44Detail(numberDeclarationDetail, 100000000L, "01191", seriesNumberCompliance,
                     dateCompliance, fromDateCompliance, toDateCompliance, "BY", "", "", ""));
         }
 

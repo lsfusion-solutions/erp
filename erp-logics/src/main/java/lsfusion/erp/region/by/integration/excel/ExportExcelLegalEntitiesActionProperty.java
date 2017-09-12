@@ -78,7 +78,7 @@ public class ExportExcelLegalEntitiesActionProperty extends ExportExcelActionPro
                 String nameLegalEntityGroup = trim((String) legalEntityValue.get("nameLegalEntityGroupLegalEntity"), "");
                 String address = trim((String) legalEntityValue.get("addressLegalEntity"), "");
                 String phone = trim((String) legalEntityValue.get("phoneLegalEntity"), "");
-                Integer legalEntityID = (Integer) legalEntityResult.getKey(i).get("LegalEntity");
+                Long legalEntityID = (Long) legalEntityResult.getKey(i).get("LegalEntity");
 
 
                 data.add(Arrays.asList(name, fullName, unp, shortNameOwnership, nameLegalEntityGroup, address, 

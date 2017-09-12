@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class RequestExchange implements Serializable {
-    public Integer requestExchange;
+    public Long requestExchange;
     public Set<CashRegisterInfo> cashRegisterSet;
     public String idStock;
     public Map<String, Set<String>> directoryStockMap;
@@ -19,7 +19,7 @@ public class RequestExchange implements Serializable {
     public String idDiscountCardTo;
     private String typeRequestExchange;
 
-    public RequestExchange(Integer requestExchange, Set<CashRegisterInfo> cashRegisterSet, String idStock, Map<String, Set<String>> directoryStockMap,
+    public RequestExchange(Long requestExchange, Set<CashRegisterInfo> cashRegisterSet, String idStock, Map<String, Set<String>> directoryStockMap,
                            Date dateFrom, Date dateTo, Date startDate, String idDiscountCardFrom, String idDiscountCardTo, String typeRequestExchange) {
         this.requestExchange = requestExchange;
         this.cashRegisterSet = cashRegisterSet;
