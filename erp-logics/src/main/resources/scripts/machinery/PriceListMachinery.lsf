@@ -7,8 +7,11 @@ NAMESPACE PriceList;
 @Machinery.implementPriceTransactionDocument(PriceList, company);
 createPriceListMachinery 'Загрузить в оборудование'(PriceTransactionDocument priceList) = {
 	NEWSESSION {
-	    ASSIGN createMachineryPriceTransaction(Sku sku) <- TRUE IF countPriceListDetail(sku, priceList);
-	    ASSIGN createMachineryPriceTransactionDocument() <- priceList;
+	    createMachineryPriceTransaction(Sku sku) <- TRUE IF countPriceListDetail(sku, priceList);
+	    createMachineryPriceTransactionDocument() <- priceList;
+        IF snapshotDocumentMachineryPriceTransaction() THEN {
+            createMachineryPriceTransactionSnapshot() <- TRUE;
+        }            
 	    FOR in(priceList, Stock stock) DO {
 	        EXEC createMachineryPriceTransaction(stock);   
 	    }            
