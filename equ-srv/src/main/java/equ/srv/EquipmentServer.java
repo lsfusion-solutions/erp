@@ -456,7 +456,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         String nameSeason = itemFashionLM == null ? null : (String) row.get("nameSeasonBarcode");
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
                         String idItem = (String) row.get("idSkuBarcode");
-                        Integer itemGroupObject = (Integer) row.get("skuGroupBarcode");
+                        Long itemGroupObject = (Long) row.get("skuGroupBarcode");
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
                         String description = scalesItemLM == null ? null : (String) row.get("descriptionMachineryPriceTransactionBarcode");
 

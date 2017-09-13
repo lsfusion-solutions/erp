@@ -6,7 +6,7 @@ import java.sql.Date;
 import java.sql.Timestamp;
 
 public class CashRegisterItemInfo extends ItemInfo {
-    public Integer itemGroupObject;
+    public Long itemGroupObject;
     public String description;
     public String idBrand;
     public String nameBrand;
@@ -24,7 +24,7 @@ public class CashRegisterItemInfo extends ItemInfo {
     public CashRegisterItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry, 
                                 Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
                                 String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM,
-                                Integer itemGroupObject, String description, String idBrand, String nameBrand, String idSeason, String nameSeason,
+                                Long itemGroupObject, String description, String idBrand, String nameBrand, String idSeason, String nameSeason,
                                 String idDepartmentStore, String section, String deleteSection, BigDecimal minPrice, String extIdItemGroup, BigDecimal amountBarcode,
                                 BigDecimal balance, Timestamp restrictionToDateTime) {
         super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, nameItemGroup,
