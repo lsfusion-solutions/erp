@@ -143,6 +143,12 @@ DESIGN technologies {
     }
 }
 
+// Технология
+TABLE  technologyComponent (Technology, Component);
+
+in 'Вкл.' = DATA BOOLEAN (Technology, Component);
+countTechnologies = GROUP SUM 1 IF in(Technology technology, Component component) BY component MATERIALIZED;
+
 coeffWastageTechnologies (Component component, DATE date) +=
     OVERRIDE Utils.round(exp([= GROUP SUM NUMERIC[20,9](ln((100.0 - wastage(Technology t, material(Component c), DATE d)) / 100.0) IF in(t, c)) BY c, d](component, date)), 9);
 
@@ -151,12 +157,6 @@ wastageTechnologies '% потерь (технология)' = (1.0 - coeffWastag
 //IF countTechnologiesComponent(component) THEN minMaxWastageTechnologyMaterialDate(component, date)
 //                                                    ELSE (0 IF component IS Component AND date IS DATE);   
 wastageTechnologies '% потерь (технология)' (Component component) = wastageTechnologies(component, currentDate());                                                                                                     
-
-// Технология
-TABLE  technologyComponent (Technology, Component);
-
-in 'Вкл.' = DATA BOOLEAN (Technology, Component);
-countTechnologies = GROUP SUM 1 IF in(Technology technology, Component component) BY component MATERIALIZED;
 
 technologiesInvoice 'Технологии' (component) = GROUP CONCAT VARSTRING[255](name(Technology technology)) IF in(technology, Component component) , ', '
                                          BY component
