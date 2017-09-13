@@ -1,0 +1,104 @@
+MODULE PurchaseEInvoice;
+
+REQUIRE EDI, PurchaseInvoice;
+
+PRIORITY Purchase;
+
+NAMESPACE EDI;
+
+
+eInvoice = ABSTRACT EInvoice (Invoice);
+eInvoice = DATA EInvoice (UserInvoice);
+eInvoice(UserInvoice i) += eInvoice(i);
+
+numberEInvoice 'Серия и номер'(Invoice i) = deliveryNoteNumber(eInvoice(i));
+
+receiver = ABSTRACT Employee (Invoice);
+receiver = DATA Employee (UserInvoice);
+receiver(UserInvoice i) += receiver(i);
+
+nameReceiver 'Приёмщик'(Invoice i) = name(receiver(i));
+
+filterDate 'Дата' = DATA LOCAL DATE ();
+filterDate (EInvoice i) = DATE(dateTime(i)) == filterDate() OR NOT filterDate();      
+
+isReceived 'Принят' (EInvoice e) = TRUE IF [=GROUP MAX Invoice i BY eInvoice(i)](e);
+
+FORM selectEInvoice 'Накладные EDI'
+    PROPERTIES filterDate()
+    
+    OBJECTS ei = EInvoice
+    PROPERTIES(ei) READONLY dateTime, number, deliveryNoteNumber, nameSupplier, nameCustomer
+    FILTERS filterDate(ei),
+            NOT isReceived(ei)            
+;
+
+DESIGN selectEInvoice {
+    NEW filter {
+        caption = 'Фильтр';
+        MOVE PROPERTY (filterDate());
+    }
+    
+    MOVE BOX(ei);
+    MOVE TOOLBARBOX;
+}
+
+importFromEInvoice 'Импорт из накладной EDI' (UserInvoice i) = {
+    IF isPosted(i) THEN {
+        MESSAGE 'Вы пытаетесь импортировать в проведенный документ. Распроведите его.';
+        RETURN;
+    }
+    
+    filterDate() <- date(i);
+    
+    DIALOG selectEInvoice OBJECTS ei = eInvoice(i) CHANGE DO {
+    
+        number(i) <- deliveryNoteNumber(eInvoice(i));
+        supplier(i) <- supplier(eInvoice(i));
+        customer(i) <- customer(eInvoice(i));
+        customerStock(i) <- customerStock(eInvoice(i));
+        
+        FOR eInvoice(EInvoiceDetail eid) == eInvoice(i) NEW id = UserInvoiceDetail DO{
+            userInvoice(id) <- i;
+            sku(id) <- sku(lineItemBuyerID(eid));
+            quantity(id) <- quantityDespatched(eid);
+            price(id) <- lineItemPrice(eid);
+            valueVAT(id) <- NUMERIC[10,5](valueVAT(eid));  
+            invoicePrice(id) <- round2(price(id) * (100 + valueVAT(id))/100);  
+        }
+    }
+}
+
+EXTEND FORM userInvoice 
+    PROPERTIES READONLY numberEInvoice(i)
+    PROPERTIES(i) importFromEInvoice, nameReceiver
+;
+
+DESIGN userInvoice {
+    import {
+        NEW importTSD {
+            caption = 'Накладная EDI';
+            type = CONTAINERH;
+            MOVE PROPERTY(numberEInvoice(i));
+            MOVE PROPERTY(nameReceiver(i));
+            MOVE PROPERTY(importFromEInvoice(i));
+        }
+    }
+}
+
+skipNumberCheck(Invoice i) += IF eInvoice(i) THEN TRUE;
+
+CONSTRAINT isPosted(Invoice i) AND NOT receiver(i) AND eInvoice(i)
+        MESSAGE 'В накладной должен быть указан приёмщик';
+
+EXTEND FORM eInvoices
+    PROPERTIES (e) READONLY isReceived BEFORE dateTime(e)
+    FILTERGROUP isReceived FILTER 'Принятые' isReceived(e) 
+;
+
+changeContactString (EInvoice e, Employee em) = {
+    contactCustomerStock(e) <- VARSTRING[150](CONCAT ', ', shortName(em), namePosition(em));
+}
+
+WHEN SETCHANGED (receiver(Invoice i)) DO 
+    changeContactString(eInvoice(i), receiver(i));
