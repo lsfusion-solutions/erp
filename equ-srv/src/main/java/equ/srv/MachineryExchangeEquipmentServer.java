@@ -92,7 +92,7 @@ public class MachineryExchangeEquipmentServer {
                     Set<CashRegisterInfo> cashRegisterSet = new HashSet<>();
 
                     //terminalOrder - единственный тип запроса для ТСД. Все остальные - только для касс
-                    if(typeRequestExchange != null && typeRequestExchange.equals("terminalOrder")) {
+                    if(typeRequestExchange != null && typeRequestExchange.contains("terminalOrder")) {
 
                         if(terminalLM != null) {
 
