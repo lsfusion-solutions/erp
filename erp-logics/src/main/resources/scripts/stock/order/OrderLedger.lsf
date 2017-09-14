@@ -10,6 +10,7 @@ date 'Дата' (OrderLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED IND
 
 isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (OrderLedger) MATERIALIZED;
 isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (OrderLedger) MATERIALIZED;
+isOpened 'Открыт' (ledger) = ledger IS OrderLedger AND NOT isClosed(ledger) MATERIALIZED INDEXED;
 
 sku (ledger) = ABSTRACT Sku (OrderLedger) MATERIALIZED;
 nameSku 'SKU' (OrderLedger ledger) = name(sku(ledger));
@@ -46,110 +47,110 @@ background 'Цвет' (OrderLedger ledger,DATETIME dateTime) = RGB(212,255,212) 
 //-------------------------------Продажа----------------------------------//
 
 //по SKU
-currentReserveSale 'Резерв продажа (всего)' (sku, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger)
+currentReserveSale 'Резерв продажа (всего)' (sku, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND isOpened(ledger)
     BY sku(ledger), stock(ledger) MATERIALIZED;
 prevCurrentReserveSale 'Резерв продажа (всего)' (Sku sku, Stock stock) = PREV(currentReserveSale(sku, stock));
 
 // без учета текущей даты/времени
 reserveBSale 'Резерв продажи на начало дня' (Sku sku, Stock stock, DATE date) = (currentReserveSale(sku, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) >= DATE date
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND isOpened(ledger) AND date(ledger) >= DATE date
         BY sku(ledger), stock(ledger), date](sku, stock, date);
 
 // с учетом текущей даты/времени
 reserveASale 'Резерв продажи на конец дня' (Sku sku, Stock stock, DATE date) = (currentReserveSale(sku, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) > DATE date
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND isOpened(ledger) AND date(ledger) > DATE date
         BY sku(ledger), stock(ledger), date](sku, stock, date);
 
 // без учета текущей даты/времени
 reserveBSale 'Резерв продажи (до)' (Sku sku, Stock stock, DATETIME dateTime) = (currentReserveSale(sku, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) >= DATETIME dateTime
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND isOpened(ledger) AND dateTime(ledger) >= DATETIME dateTime
         BY sku(ledger), stock(ledger), dateTime](sku, stock, dateTime);
 prevReserveBSale 'Резерв продажи (до)' (Sku sku, Stock stock, DATETIME dateTime) = PREV(reserveBSale(sku, stock, dateTime));
 
 // с учетом текущей даты/времени
 reserveASale 'Резерв продажи (после)' (Sku sku, Stock stock, DATETIME dateTime) = (currentReserveSale(sku, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) > DATETIME dateTime
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND isOpened(ledger) AND dateTime(ledger) > DATETIME dateTime
         BY sku(ledger), stock(ledger), dateTime](sku, stock, dateTime);
 
 //по партиям
-currentReserveSale 'Резерв продажа (всего)' (batch, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger)
+currentReserveSale 'Резерв продажа (всего)' (batch, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND isOpened(ledger)
     BY batch(ledger), stock(ledger) MATERIALIZED;
 prevCurrentReserveSale 'Резерв продажа (всего)' (Batch batch, Stock stock) = PREV(currentReserveSale(batch, stock));
 
 // без учета текущей даты/времени
 reserveBSale 'Резерв продажи на начало дня' (Batch batch, Stock stock, DATE date) = (currentReserveSale(batch, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) >= DATE date
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND isOpened(ledger) AND date(ledger) >= DATE date
         BY batch(ledger), stock(ledger), date](batch, stock, date);
 
 // с учетом текущей даты/времени
 reserveASale 'Резерв продажи на конец дня' (Batch batch, Stock stock, DATE date) = (currentReserveSale(batch, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) > DATE date
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND isOpened(ledger) AND date(ledger) > DATE date
         BY batch(ledger), stock(ledger), date](batch, stock, date);
 
 // без учета текущей даты/времени
 reserveBSale 'Резерв продажи (до)' (Batch batch, Stock stock, DATETIME dateTime) = (currentReserveSale(batch, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) >= DATETIME dateTime
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND isOpened(ledger) AND dateTime(ledger) >= DATETIME dateTime
         BY batch(ledger), stock(ledger), dateTime](batch, stock, dateTime);
 prevReserveBSale 'Резерв продажи (до)' (Batch batch, Stock stock, DATETIME dateTime) = PREV(reserveBSale(batch, stock, dateTime));
 
 // с учетом текущей даты/времени
 reserveASale 'Резерв продажи (после)' (Batch batch, Stock stock, DATETIME dateTime) = (currentReserveSale(batch, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) > DATETIME dateTime
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND isOpened(ledger) AND dateTime(ledger) > DATETIME dateTime
         BY batch(ledger), stock(ledger), dateTime](batch, stock, dateTime);
 
 
 //-------------------------------Закупка----------------------------------//
 
 //по SKU
-currentReservePurchase 'Резерв закупка (всего)' (sku, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger)
+currentReservePurchase 'Резерв закупка (всего)' (sku, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND isOpened(ledger)
     BY sku(ledger), stock(ledger) MATERIALIZED;
 prevCurrentReservePurchase 'Резерв закупка (всего)' (Sku sku, Stock stock) = PREV(currentReservePurchase(sku, stock));
 
 // без учета текущей даты/времени
 reserveBPurchase 'Резерв закупки на начало дня' (Sku sku, Stock stock, DATE date) = (currentReservePurchase(sku, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) >= DATE date
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND isOpened(ledger) AND date(ledger) >= DATE date
         BY sku(ledger), stock(ledger), date](sku, stock, date);
 
 // с учетом текущей даты/времени
 reserveAPurchase 'Резерв закупки на конец дня' (Sku sku, Stock stock, DATE date) = (currentReservePurchase(sku, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) > DATE date
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND isOpened(ledger) AND date(ledger) > DATE date
         BY sku(ledger), stock(ledger), date](sku, stock, date);
 
 // без учета текущей даты/времени
 reserveBPurchase 'Резерв закупки (до)' (Sku sku, Stock stock, DATETIME dateTime) = (currentReservePurchase(sku, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) >= DATETIME dateTime
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND isOpened(ledger) AND dateTime(ledger) >= DATETIME dateTime
         BY sku(ledger), stock(ledger), dateTime](sku, stock, dateTime);
 prevReserveBPurchase 'Резерв закупки (до)' (Sku sku, Stock stock, DATETIME dateTime) = PREV(reserveBPurchase(sku, stock, dateTime));
 
 // с учетом текущей даты/времени
 reserveAPurchase 'Резерв закупки (после)' (Sku sku, Stock stock, DATETIME dateTime) = (currentReservePurchase(sku, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) > DATETIME dateTime
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND isOpened(ledger) AND dateTime(ledger) > DATETIME dateTime
         BY sku(ledger), stock(ledger), dateTime](sku, stock, dateTime);
 
 //по партиям
-currentReservePurchase 'Резерв закупка (всего)'(batch, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger)
+currentReservePurchase 'Резерв закупка (всего)'(batch, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND isOpened(ledger)
     BY batch(ledger), stock(ledger) MATERIALIZED;
 prevCurrentReservePurchase 'Резерв закупка (всего)'(Batch batch, Stock stock) = PREV(currentReservePurchase(batch, stock));
 
 // без учета текущей даты/времени
 reserveBPurchase 'Резерв закупки на начало дня' (Batch batch, Stock stock, DATE date) = (currentReservePurchase(batch, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) >= DATE date
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND isOpened(ledger) AND date(ledger) >= DATE date
         BY batch(ledger), stock(ledger), date](batch, stock, date);
 
 // с учетом текущей даты/времени
 reserveAPurchase 'Резерв закупки на конец дня' (Batch batch, Stock stock, DATE date) = (currentReservePurchase(batch, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) > DATE date
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND isOpened(ledger) AND date(ledger) > DATE date
         BY batch(ledger), stock(ledger), date](batch, stock, date);
 
 // без учета текущей даты/времени
 reserveBPurchase 'Резерв закупки (до)' (Batch batch, Stock stock, DATETIME dateTime) = (currentReservePurchase(batch, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) >= DATETIME dateTime
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND isOpened(ledger) AND dateTime(ledger) >= DATETIME dateTime
         BY batch(ledger), stock(ledger), dateTime](batch, stock, dateTime);
 prevReserveBPurchase 'Резерв закупки (до)' (Batch batch, Stock stock, DATETIME dateTime) = PREV(reserveBPurchase(batch, stock, dateTime));
 
 // с учетом текущей даты/времени
 reserveAPurchase 'Резерв закупки (после)' (Batch batch, Stock stock, DATETIME dateTime) = (currentReservePurchase(batch, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) > DATETIME dateTime
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND isOpened(ledger) AND dateTime(ledger) > DATETIME dateTime
         BY batch(ledger), stock(ledger), dateTime](batch, stock, dateTime);
 
 //-------------------------------Общий----------------------------------//
@@ -202,7 +203,7 @@ FORM orderSkuLedgerStocksNotDate 'Резерв товара'
     ORDER BY statusReserve(s), dateTime(s)
     FILTERS sku(s)==sk
 
-    FILTERS isPosted(s) AND NOT isClosed(s)
+    FILTERS isPosted(s) AND isOpened(s)
     FILTERGROUP toShipQuantityFilters
         FILTER 'Не выполнено' toShipQuantity(s) > 0 'F7' DEFAULT
 
@@ -238,7 +239,7 @@ FORM orderSkuLedgerNotDate 'Резерв товара по складу'
     FILTERS stock(s)==st,
             sku(s)==sk
 
-    FILTERS isPosted(s) AND NOT isClosed(s)
+    FILTERS isPosted(s) AND isOpened(s)
     FILTERGROUP toShipQuantityFilters
         FILTER 'Не выполнено' toShipQuantity(s) > 0 'F7' DEFAULT
 
@@ -310,7 +311,7 @@ FORM orderSkuLedger 'Резерв по позициям на дату'
     FILTERS stock(s)==st,
             sku(s)==sk
 
-    FILTERS isPosted(s) AND NOT isClosed(s)
+    FILTERS isPosted(s) AND isOpened(s)
     FILTERGROUP toShipQuantityFilters
         FILTER 'Не выполнено' toShipQuantity(s) > 0 'F7' DEFAULT
 
@@ -355,7 +356,7 @@ FORM orderBatchLedgerNotDate 'Резерв по партиям'
     FILTERS stock(s)==st,
             batch(s)==bt
 
-    FILTERS isPosted(s) AND NOT isClosed(s)
+    FILTERS isPosted(s) AND isOpened(s)
     FILTERGROUP toShipQuantityFilters
         FILTER 'Не выполнено' toShipQuantity(s) > 0 'F7' DEFAULT
         
@@ -398,7 +399,7 @@ FORM orderBatchLedger 'Резерв по партиям'
     FILTERS stock(s)==st,
             batch(s)==bt
 
-    FILTERS isPosted(s) AND NOT isClosed(s)
+    FILTERS isPosted(s) AND isOpened(s)
     FILTERGROUP toShipQuantityFilters
         FILTER 'Не выполнено' toShipQuantity(s) > 0 'F7' DEFAULT
         
@@ -542,7 +543,7 @@ EXTEND FORM currentBalanceSkuStock
     FILTERS stock(l)==st,
             sku(l)==s
 
-    FILTERS isPosted(l) AND NOT isClosed(l) AND isPurchase(l)
+    FILTERS isPosted(l) AND isOpened(l) AND isPurchase(l)
 
     OBJECTS ll = OrderLedger
     PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
@@ -552,7 +553,7 @@ EXTEND FORM currentBalanceSkuStock
     FILTERS stock(ll)==st,
             sku(ll)==s
 
-    FILTERS isPosted(ll) AND NOT isClosed(ll) AND NOT isPurchase(ll)
+    FILTERS isPosted(ll) AND isOpened(ll) AND NOT isPurchase(ll)
 
 ;
 DESIGN currentBalanceSkuStock {
@@ -574,7 +575,7 @@ EXTEND FORM currentBalanceBatchStock
     FILTERS stock(l)==st,
             batch(l)==bt
 
-    FILTERS isPosted(l) AND NOT isClosed(l) AND isPurchase(l)
+    FILTERS isPosted(l) AND isOpened(l) AND isPurchase(l)
 
     OBJECTS ll = OrderLedger
     PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
@@ -584,7 +585,7 @@ EXTEND FORM currentBalanceBatchStock
     FILTERS stock(ll)==st,
             batch(ll)==bt
 
-    FILTERS isPosted(ll) AND NOT isClosed(ll) AND NOT isPurchase(ll)
+    FILTERS isPosted(ll) AND isOpened(ll) AND NOT isPurchase(ll)
 
 ;
 DESIGN currentBalanceBatchStock {
@@ -612,7 +613,7 @@ EXTEND FORM balanceSkuStock
             sku(l)==s,
             dateTime(l) <= t
 
-    FILTERS isPosted(l) AND NOT isClosed(l) AND isPurchase(l)
+    FILTERS isPosted(l) AND isOpened(l) AND isPurchase(l)
 
     OBJECTS ll = OrderLedger
     PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
@@ -623,7 +624,7 @@ EXTEND FORM balanceSkuStock
             sku(ll)==s,
             dateTime(ll) <= t
 
-    FILTERS isPosted(ll) AND NOT isClosed(ll) AND NOT isPurchase(ll)
+    FILTERS isPosted(ll) AND isOpened(ll) AND NOT isPurchase(ll)
 
 ;
 DESIGN balanceSkuStock {
@@ -646,7 +647,7 @@ EXTEND FORM balanceBatchStock
             batch(l)==bt,
             dateTime(l) <= t
 
-    FILTERS isPosted(l) AND NOT isClosed(l) AND isPurchase(l)
+    FILTERS isPosted(l) AND isOpened(l) AND isPurchase(l)
 
     OBJECTS ll = OrderLedger
     PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
@@ -657,7 +658,7 @@ EXTEND FORM balanceBatchStock
             batch(ll)==bt,
             dateTime(ll) <= t
 
-    FILTERS isPosted(ll) AND NOT isClosed(ll) AND NOT isPurchase(ll)
+    FILTERS isPosted(ll) AND isOpened(ll) AND NOT isPurchase(ll)
 
 ;
 DESIGN balanceBatchStock {
