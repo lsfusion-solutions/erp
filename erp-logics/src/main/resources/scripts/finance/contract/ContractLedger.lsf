@@ -193,7 +193,8 @@ orderDate = ABSTRACT DATETIME (OutContractLedger, InContractLedger);
 overOrderDate (OutContractLedger outLedger, InContractLedger inLedger)= OVERRIDE orderDate(outLedger, inLedger), dateTime(inLedger);
 
 notPrePay (OutContractLedger o) = sum(o) (-) prePay(o);
-debtNotPrePay (InContractLedger i) = debt(i) (-) prePay(i);
+debtNotPrePay (InContractLedger i) = debt(i) (-) prePay(i) MATERIALIZED;
+INDEX contract(InContractLedger i), debtNotPrePay(i);
 
 sumInFIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
     [ = PARTITION UNGROUP notPrePay
@@ -292,7 +293,8 @@ META implementOutContractLedger(objectClass, contractProp)
 END
 
 // ----------------------------------------- Связь между InContractLedger и ContractLedger
-inContractLedger = ABSTRACT InContractLedger (ContractLedger) MATERIALIZED INDEXED;
+inContractLedger = ABSTRACT InContractLedger (ContractLedger) MATERIALIZED;
+INDEX inContractLedger (ContractLedger l), l;
 
 minDateContractLedger = GROUP MIN date(ContractLedger l) BY inContractLedger(l) MATERIALIZED;
 
