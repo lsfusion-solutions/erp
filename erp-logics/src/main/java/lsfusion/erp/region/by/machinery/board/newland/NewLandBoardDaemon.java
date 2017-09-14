@@ -90,6 +90,9 @@ public class NewLandBoardDaemon extends BoardDaemon {
                     if(ip == null) {
                         ip = inetAddress.getHostName();
                         ipMap.put(inetAddress, ip);
+                        //TODO: временный лог. Убрать, когда разберёмся, какой из методов использовать
+                        terminalLogger.info(String.format("NewLand request: canonicalHostName: %s, hostName: %s, hostAddress: %s, address: %s",
+                                inetAddress.getCanonicalHostName(), ip, inetAddress.getHostAddress(), new String(inetAddress.getAddress())));
                     }
                     barcode = barcode.length() > 1 ? barcode.substring(1) : barcode;
                     byte[] message = readMessage(barcode, ip);
