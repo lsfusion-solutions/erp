@@ -432,3 +432,31 @@ WHEN autoSetGroupAttribute(mainRole(currentUser())) AND CHANGED(itemGroup(Item i
 }
 
 CONSTRAINT level(RangeRev v, Sku s) AND NOT inChild(range(v), s) MESSAGE 'Товар не соответствует выбранным группам для ассортимента';
+
+
+nameOverLevel 'Уровень (перегруженный)' (Store st, Range r, DATE d) = nameOverLevel(r, st, d);  
+
+filterStoreType2  = DATA LOCAL StoreType();
+nameFilterStoreType2 'Формат' = name(filterStoreType2());          
+filterStoreType2 (Store st) = storeType(st) == filterStoreType2() OR NOT filterStoreType2();       
+
+EXTEND FORM storeRange 
+    PROPERTIES() nameFilterStoreType2          
+
+    OBJECTS store = Store GRID 
+    PROPERTIES READONLY name(store)
+    PROPERTIES nameOverLevel(store, sr, d) BACKGROUND backgroundLevel(sr, store, d) ON CHANGE changeLevel(sr, store, d) ON CHANGEWYS changeWYSLevel(sr, store, d) COLUMNS (sr) HEADER name(sr)
+    FILTERS active(store),
+            filterStoreType2(store)   
+;
+
+DESIGN storeRange{
+    setPane {
+        NEW rangePane {
+            fill = 1;
+            caption = 'По матрицам';
+            MOVE PROPERTY (nameFilterStoreType2());          
+            MOVE BOX(store);
+        }   
+    }
+}
