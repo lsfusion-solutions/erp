@@ -7,6 +7,7 @@ public class ArtixSettings implements Serializable{
     private String globalExchangeDirectory;
     private boolean appendBarcode;
     private String giftCardRegexp;
+    private boolean disableCopyToSuccess;
 
     public ArtixSettings() {
     }
@@ -33,5 +34,13 @@ public class ArtixSettings implements Serializable{
 
     public void setGiftCardRegexp(String giftCardRegexp) {
         this.giftCardRegexp = giftCardRegexp;
+    }
+
+    public boolean isDisableCopyToSuccess() {
+        return disableCopyToSuccess;
+    }
+
+    public void setDisableCopyToSuccess(boolean disableCopyToSuccess) {
+        this.disableCopyToSuccess = disableCopyToSuccess;
     }
 }

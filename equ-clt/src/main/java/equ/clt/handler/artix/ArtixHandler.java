@@ -457,15 +457,21 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
     @Override
     public void finishReadingSalesInfo(ArtixSalesBatch salesBatch) {
+        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
+        boolean disable = artixSettings != null && artixSettings.isDisableCopyToSuccess();
+
         sendSalesLogger.info(logPrefix + "Finish Reading started");
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
-            try {
-                String directory = f.getParent() + "/success-" + formatDate(new Date(System.currentTimeMillis())) + "/";
-                if (new File(directory).exists() || new File(directory).mkdirs())
-                    FileCopyUtils.copy(f, new File(directory + f.getName()));
-            } catch (IOException | ParseException e) {
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
+
+            if(!disable) {
+                try {
+                    String directory = f.getParent() + "/success-" + formatDate(new Date(System.currentTimeMillis())) + "/";
+                    if (new File(directory).exists() || new File(directory).mkdirs())
+                        FileCopyUtils.copy(f, new File(directory + f.getName()));
+                } catch (IOException | ParseException e) {
+                    throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
+                }
             }
 
             if (f.delete()) {
