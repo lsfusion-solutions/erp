@@ -47,7 +47,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
     protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port, String provider, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-        if(context.getDbManager().isServer()) {
+        if (context.getDbManager().isServer()) {
             Element rootElement = new Element("Envelope", soapenvNamespace);
             rootElement.setNamespace(soapenvNamespace);
             rootElement.addNamespaceDeclaration(soapenvNamespace);
@@ -111,6 +111,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Document document = new SAXBuilder().build(new ByteArrayInputStream(responseMessage.getBytes("utf-8")));
         Element rootNode = document.getRootElement();
         Namespace ns = rootNode.getNamespace();
+        boolean failed = false;
         if (ns != null) {
             Element body = rootNode.getChild("Body", ns);
             if (body != null) {
@@ -133,25 +134,25 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                     Element subXMLRootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes("utf-8"))).getRootElement();
                                     switch (documentType) {
                                         case "systemmessage":
-                                            if(!invoices)
+                                            if (!invoices)
                                                 orderMessages.put(documentId, parseOrderMessage(subXMLRootNode, provider, documentId));
                                             break;
                                         case "ordrsp":
-                                            if(!invoices)
+                                            if (!invoices)
                                                 orderResponses.put(documentId, parseOrderResponse(subXMLRootNode, context, url, login, password,
                                                         host, port, provider, documentId, sendReplies));
                                             break;
                                         case "desadv":
-                                            if(!invoices)
+                                            if (!invoices)
                                                 despatchAdvices.put(documentId, parseDespatchAdvice(subXMLRootNode, context, url, login, password,
                                                         host, port, provider, documentId, sendReplies));
                                             break;
-                                        case "blrwbl" :
-                                            if(invoices)
+                                        case "blrwbl":
+                                            if (invoices)
                                                 eInvoices.put(documentId, parseEInvoice(subXMLRootNode));
                                             break;
                                         case "blrapn":
-                                            if(invoices)
+                                            if (invoices)
                                                 invoiceMessages.put(documentId, parseInvoiceMessage(context, subXMLRootNode, provider, documentId));
                                             break;
                                     }
@@ -167,148 +168,156 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                     }
                                 }
                             }
+                        } else {
+                            String message = result.getChildText("Message", topNamespace);
+                            String errorCode = result.getChildText("ErrorCode", topNamespace);
+                            context.delayUserInteraction(new MessageClientAction(String.format("Error %s: %s", errorCode, message), "Ошибка"));
+                            failed = true;
                         }
                     }
                 }
             }
         }
 
-        int orderMessagesSucceeded = 0;
-        int orderMessagesFailed = 0;
-        for(Map.Entry<String, DocumentData> message : orderMessages.entrySet()) {
-            String documentId = message.getKey();
-            DocumentData data = message.getValue();
-            if(data.firstData != null) {
-                String error = importOrderMessages(context, data);
-                succeededMap.put(documentId, Pair.create(data.documentNumber, error));
-                if (error == null) {
-                    ServerLoggers.importLogger.info(String.format("%s Import EOrderMessage %s succeeded", provider, documentId));
-                    orderMessagesSucceeded++;
+        if (!failed) {
+
+            int orderMessagesSucceeded = 0;
+            int orderMessagesFailed = 0;
+            for (Map.Entry<String, DocumentData> message : orderMessages.entrySet()) {
+                String documentId = message.getKey();
+                DocumentData data = message.getValue();
+                if (data.firstData != null) {
+                    String error = importOrderMessages(context, data);
+                    succeededMap.put(documentId, Pair.create(data.documentNumber, error));
+                    if (error == null) {
+                        ServerLoggers.importLogger.info(String.format("%s Import EOrderMessage %s succeeded", provider, documentId));
+                        orderMessagesSucceeded++;
+                    } else {
+                        ServerLoggers.importLogger.error(String.format("%s Import EOrderMessage %s failed: %s", provider, documentId, error));
+                        orderMessagesFailed++;
+                    }
                 } else {
-                    ServerLoggers.importLogger.error(String.format("%s Import EOrderMessage %s failed: %s", provider, documentId, error));
+                    succeededMap.put(documentId, Pair.create(data.documentNumber, String.format("%s Parsing EOrderMessage %s failed", provider, documentId)));
                     orderMessagesFailed++;
                 }
-            } else {
-                succeededMap.put(documentId, Pair.create(data.documentNumber, String.format("%s Parsing EOrderMessage %s failed", provider, documentId)));
-                orderMessagesFailed++;
             }
-        }
 
-        int responsesSucceeded = 0;
-        int responsesFailed = 0;
-        for (Map.Entry<String, DocumentData> orderResponse : orderResponses.entrySet()) {
-            String documentId = orderResponse.getKey();
-            DocumentData data = orderResponse.getValue();
-            String error = importOrderResponses(context, data);
-            succeededMap.put(documentId, Pair.create(data.documentNumber, error));
-            if (error == null) {
-                ServerLoggers.importLogger.info(String.format("%s Import EOrderResponse %s succeeded", provider, documentId));
-                responsesSucceeded++;
-            } else {
-                ServerLoggers.importLogger.error(String.format("%s Import EOrderResponse %s failed: %s", provider, documentId, error));
-                responsesFailed++;
-            }
-        }
-
-        int despatchAdvicesSucceeded = 0;
-        int despatchAdvicesFailed = 0;
-        for (Map.Entry<String, DocumentData> despatchAdvice : despatchAdvices.entrySet()) {
-            String documentId = despatchAdvice.getKey();
-            DocumentData data = despatchAdvice.getValue();
-            String error = importDespatchAdvices(context, data);
-            succeededMap.put(documentId, Pair.create(data.documentNumber, error));
-            if (error == null) {
-                ServerLoggers.importLogger.info(String.format("%s Import EOrderDespatchAdvice %s succeeded", provider, documentId));
-                despatchAdvicesSucceeded++;
-            } else {
-                ServerLoggers.importLogger.error(String.format("%s Import EOrderDespatchAdvice %s failed: %s", provider, documentId, error));
-                despatchAdvicesFailed++;
-            }
-        }
-
-        int eInvoicesSucceeded = 0;
-        int eInvoicesFailed = 0;
-        for (Map.Entry<String, DocumentData> eInvoice : eInvoices.entrySet()) {
-            String documentId = eInvoice.getKey();
-            DocumentData data = eInvoice.getValue();
-            String error = importEInvoices(context, data);
-            succeededMap.put(documentId, Pair.create(data.documentNumber, error));
-            if (error == null) {
-                ServerLoggers.importLogger.info(String.format("%s Import EInvoice %s succeeded", provider, documentId));
-                eInvoicesSucceeded++;
-            } else {
-                ServerLoggers.importLogger.error(String.format("%s Import EInvoice %s failed: %s", provider, documentId, error));
-                eInvoicesFailed++;
-            }
-        }
-
-        int invoiceMessagesSucceeded = 0;
-        int invoiceMessagesFailed = 0;
-        for(Map.Entry<String, DocumentData> message : invoiceMessages.entrySet()) {
-            String documentId = message.getKey();
-            DocumentData data = message.getValue();
-            if(data.firstData != null) {
-                String error = importInvoiceMessages(context, data);
+            int responsesSucceeded = 0;
+            int responsesFailed = 0;
+            for (Map.Entry<String, DocumentData> orderResponse : orderResponses.entrySet()) {
+                String documentId = orderResponse.getKey();
+                DocumentData data = orderResponse.getValue();
+                String error = importOrderResponses(context, data);
                 succeededMap.put(documentId, Pair.create(data.documentNumber, error));
                 if (error == null) {
-                    ServerLoggers.importLogger.info(String.format("%s Import EInvoiceMessage %s succeeded", provider, documentId));
-                    invoiceMessagesSucceeded++;
+                    ServerLoggers.importLogger.info(String.format("%s Import EOrderResponse %s succeeded", provider, documentId));
+                    responsesSucceeded++;
                 } else {
-                    ServerLoggers.importLogger.error(String.format("%s Import EInvoiceMessage %s failed: %s", provider, documentId, error));
+                    ServerLoggers.importLogger.error(String.format("%s Import EOrderResponse %s failed: %s", provider, documentId, error));
+                    responsesFailed++;
+                }
+            }
+
+            int despatchAdvicesSucceeded = 0;
+            int despatchAdvicesFailed = 0;
+            for (Map.Entry<String, DocumentData> despatchAdvice : despatchAdvices.entrySet()) {
+                String documentId = despatchAdvice.getKey();
+                DocumentData data = despatchAdvice.getValue();
+                String error = importDespatchAdvices(context, data);
+                succeededMap.put(documentId, Pair.create(data.documentNumber, error));
+                if (error == null) {
+                    ServerLoggers.importLogger.info(String.format("%s Import EOrderDespatchAdvice %s succeeded", provider, documentId));
+                    despatchAdvicesSucceeded++;
+                } else {
+                    ServerLoggers.importLogger.error(String.format("%s Import EOrderDespatchAdvice %s failed: %s", provider, documentId, error));
+                    despatchAdvicesFailed++;
+                }
+            }
+
+            int eInvoicesSucceeded = 0;
+            int eInvoicesFailed = 0;
+            for (Map.Entry<String, DocumentData> eInvoice : eInvoices.entrySet()) {
+                String documentId = eInvoice.getKey();
+                DocumentData data = eInvoice.getValue();
+                String error = importEInvoices(context, data);
+                succeededMap.put(documentId, Pair.create(data.documentNumber, error));
+                if (error == null) {
+                    ServerLoggers.importLogger.info(String.format("%s Import EInvoice %s succeeded", provider, documentId));
+                    eInvoicesSucceeded++;
+                } else {
+                    ServerLoggers.importLogger.error(String.format("%s Import EInvoice %s failed: %s", provider, documentId, error));
+                    eInvoicesFailed++;
+                }
+            }
+
+            int invoiceMessagesSucceeded = 0;
+            int invoiceMessagesFailed = 0;
+            for (Map.Entry<String, DocumentData> message : invoiceMessages.entrySet()) {
+                String documentId = message.getKey();
+                DocumentData data = message.getValue();
+                if (data.firstData != null) {
+                    String error = importInvoiceMessages(context, data);
+                    succeededMap.put(documentId, Pair.create(data.documentNumber, error));
+                    if (error == null) {
+                        ServerLoggers.importLogger.info(String.format("%s Import EInvoiceMessage %s succeeded", provider, documentId));
+                        invoiceMessagesSucceeded++;
+                    } else {
+                        ServerLoggers.importLogger.error(String.format("%s Import EInvoiceMessage %s failed: %s", provider, documentId, error));
+                        invoiceMessagesFailed++;
+                    }
+                } else {
+                    succeededMap.put(documentId, Pair.create(data.documentNumber, String.format("%s Parsing EInvoiceMessage %s failed", provider, documentId)));
                     invoiceMessagesFailed++;
                 }
-            } else {
-                succeededMap.put(documentId, Pair.create(data.documentNumber, String.format("%s Parsing EInvoiceMessage %s failed", provider, documentId)));
-                invoiceMessagesFailed++;
-            }
-        }
-
-        String message = "";
-
-        if(orderMessagesSucceeded > 0)
-            message += (message.isEmpty() ? "" : "\n") + String.format("Загружено сообщений по заказам: %s", orderMessagesSucceeded);
-        if(orderMessagesFailed > 0)
-            message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено сообщений по заказам: %s", orderMessagesFailed);
-
-        if(responsesSucceeded > 0)
-            message += (message.isEmpty() ? "" : "\n") + String.format("Загружено ответов по заказам: %s", responsesSucceeded);
-        if(responsesFailed > 0)
-            message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено ответов по заказам: %s", responsesFailed);
-
-        if(despatchAdvicesSucceeded > 0)
-            message += (message.isEmpty() ? "" : "\n") + String.format("Загружено уведомлений об отгрузке: %s", despatchAdvicesSucceeded);
-        if(despatchAdvicesFailed > 0)
-            message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено уведомлений об отгрузке: %s", despatchAdvicesFailed);
-
-        if(eInvoicesSucceeded > 0)
-            message += (message.isEmpty() ? "" : "\n") + String.format("Загружено электронных накладных: %s", eInvoicesSucceeded);
-        if(eInvoicesFailed > 0)
-            message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено электронных накладных: %s", eInvoicesFailed);
-
-        if(invoiceMessagesSucceeded > 0)
-            message += (message.isEmpty() ? "" : "\n") + String.format("Загружено сообщений по накладным: %s", invoiceMessagesSucceeded);
-        if(invoiceMessagesFailed > 0)
-            message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено сообщений по накладным: %s", invoiceMessagesFailed);
-
-        boolean succeeded = true;
-        if(succeededMap.isEmpty())
-            message += (message.isEmpty() ? "" : "\n") + "Не найдено новых сообщений";
-        else if (!disableConfirmation) {
-
-            for (Map.Entry<String, Pair<String, String>> succeededEntry : succeededMap.entrySet()) {
-                String documentId = succeededEntry.getKey();
-                Pair<String, String> documentNumberError = succeededEntry.getValue();
-                String documentNumber = documentNumberError.first;
-                String error = documentNumberError.second;
-                confirmDocumentReceived(context, documentId, url, login, password, host, port, provider);
-                if (error != null && sendReplies)
-                    succeeded = succeeded && sendRecipientError(context, url, login, password, host, port, provider, documentId, documentNumber, error);
             }
 
-        }
+            String message = "";
 
-        if(succeeded)
-            context.delayUserInteraction(new MessageClientAction(message, "Импорт"));
+            if (orderMessagesSucceeded > 0)
+                message += (message.isEmpty() ? "" : "\n") + String.format("Загружено сообщений по заказам: %s", orderMessagesSucceeded);
+            if (orderMessagesFailed > 0)
+                message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено сообщений по заказам: %s", orderMessagesFailed);
+
+            if (responsesSucceeded > 0)
+                message += (message.isEmpty() ? "" : "\n") + String.format("Загружено ответов по заказам: %s", responsesSucceeded);
+            if (responsesFailed > 0)
+                message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено ответов по заказам: %s", responsesFailed);
+
+            if (despatchAdvicesSucceeded > 0)
+                message += (message.isEmpty() ? "" : "\n") + String.format("Загружено уведомлений об отгрузке: %s", despatchAdvicesSucceeded);
+            if (despatchAdvicesFailed > 0)
+                message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено уведомлений об отгрузке: %s", despatchAdvicesFailed);
+
+            if (eInvoicesSucceeded > 0)
+                message += (message.isEmpty() ? "" : "\n") + String.format("Загружено электронных накладных: %s", eInvoicesSucceeded);
+            if (eInvoicesFailed > 0)
+                message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено электронных накладных: %s", eInvoicesFailed);
+
+            if (invoiceMessagesSucceeded > 0)
+                message += (message.isEmpty() ? "" : "\n") + String.format("Загружено сообщений по накладным: %s", invoiceMessagesSucceeded);
+            if (invoiceMessagesFailed > 0)
+                message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено сообщений по накладным: %s", invoiceMessagesFailed);
+
+            boolean succeeded = true;
+            if (succeededMap.isEmpty())
+                message += (message.isEmpty() ? "" : "\n") + "Не найдено новых сообщений";
+            else if (!disableConfirmation) {
+
+                for (Map.Entry<String, Pair<String, String>> succeededEntry : succeededMap.entrySet()) {
+                    String documentId = succeededEntry.getKey();
+                    Pair<String, String> documentNumberError = succeededEntry.getValue();
+                    String documentNumber = documentNumberError.first;
+                    String error = documentNumberError.second;
+                    confirmDocumentReceived(context, documentId, url, login, password, host, port, provider);
+                    if (error != null && sendReplies)
+                        succeeded = succeeded && sendRecipientError(context, url, login, password, host, port, provider, documentId, documentNumber, error);
+                }
+
+            }
+
+            if (succeeded)
+                context.delayUserInteraction(new MessageClientAction(message, "Импорт"));
+        }
     }
 
     private DocumentData parseOrderMessage(Element rootNode, String provider, String documentId) throws IOException, JDOMException {
@@ -552,7 +561,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(idEOrderResponseDetailField, findProperty("id[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey)));
             fields.add(idEOrderResponseDetailField);
 
-            if(first) {
+            if (first) {
                 ImportField barcodeEOrderResponseDetailField = new ImportField(findProperty("id[Barcode]"));
                 ImportKey<?> skuBarcodeKey = new ImportKey((CustomClass) findClass("Sku"),
                         findProperty("skuBarcode[VARSTRING[15]]").getMapping(barcodeEOrderResponseDetailField));
@@ -643,7 +652,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String dataGTIN = lineElement.getChildText("GTIN");
             String GTIN;
             String barcode;
-            if(orderBarcodesMap.containsKey(dataGTIN)) {
+            if (orderBarcodesMap.containsKey(dataGTIN)) {
                 barcode = orderBarcodesMap.get(dataGTIN);
                 GTIN = null;
             } else {
@@ -761,7 +770,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(idEOrderDespatchAdviceDetailField, findProperty("id[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
             fields.add(idEOrderDespatchAdviceDetailField);
 
-            if(first) {
+            if (first) {
                 ImportField barcodeEOrderDespatchAdviceDetailField = new ImportField(findProperty("id[Barcode]"));
                 ImportKey<?> skuBarcodeKey = new ImportKey((CustomClass) findClass("Sku"),
                         findProperty("skuBarcode[VARSTRING[15]]").getMapping(barcodeEOrderDespatchAdviceDetailField));
@@ -1005,13 +1014,13 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             if (type != null && (type.equals("BLRAPN") || type.equals("BLRWBR"))) {
 
                 String invoiceNumber = referenceDocumentElement.getChildText("ID");
-                if(type.equals("BLRAPN"))
+                if (type.equals("BLRAPN"))
                     invoiceNumber = (String) findProperty("numberEInvoiceBlrapn[VARSTRING[14]]").read(context, new DataObject(invoiceNumber));
-                else if(type.equals("BLRWBR"))
+                else if (type.equals("BLRWBR"))
                     invoiceNumber = (String) findProperty("numberEInvoiceBlrwbr[VARSTRING[14]]").read(context, new DataObject(invoiceNumber));
 
                 Element errorOrAcknowledgementElement = acknowledgementElement.getChild("ErrorOrAcknowledgement");
-                if(errorOrAcknowledgementElement != null) {
+                if (errorOrAcknowledgementElement != null) {
                     String code = errorOrAcknowledgementElement.getChildText("Code");
                     String description = errorOrAcknowledgementElement.getChildText("Description");
                     return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList((Object) documentNumber, dateTime, code, description, invoiceNumber)), null);
@@ -1075,7 +1084,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private void confirmDocumentReceived(ExecutionContext context, String documentId, String url, String login, String password,
-                                          String host, Integer port, String provider) throws IOException, JDOMException {
+                                         String host, Integer port, String provider) throws IOException, JDOMException {
 
         Element rootElement = new Element("Envelope", soapenvNamespace);
         rootElement.setNamespace(soapenvNamespace);
