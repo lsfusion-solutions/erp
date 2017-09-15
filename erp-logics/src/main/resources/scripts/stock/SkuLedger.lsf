@@ -163,7 +163,7 @@ sku (SkuLedger ledger) = MULTI sku[DataSkuLedger] (ledger), sku[Batch] (ledger) 
 idSku 'ИД Sku' (SkuLedger ledger) = id(sku(ledger)) IN recognize;
 nameSku 'SKU' (SkuLedger ledger) = name(sku(ledger)) IN recognize;
 
-INDEX sku(SkuLedger l), dateTime(l);
+INDEX sku(SkuLedger l), dateTime(l), l;
 
 canonicalNameSkuGroup 'Группа' (SkuLedger ledger) = canonicalName[Group](skuGroup(sku(ledger)));
 
@@ -174,7 +174,7 @@ nameStock 'Склад' (SkuLedger ledger) = name(stock(ledger)) IN recognize;
 isCompanyStock (SkuLedger ledger) = isCompany(stock(ledger));
 idStock (SkuLedger ledger) = id(stock(ledger));
 
-INDEX stock(SkuLedger l), sku(l), dateTime(l);
+INDEX stock(SkuLedger l), sku(l), dateTime(l), l;
 
 TABLE descriptionSkuLedger(SkuLedger);
 description 'Описание' (SkuLedger ledger) = MULTI description[DataSkuLedger] (ledger), description[Batch] (ledger) MATERIALIZED TABLE descriptionSkuLedger IN recognize;
@@ -573,12 +573,16 @@ allowedShow  (SkuLedger d) = d IS SkuLedger AND NOT  allowedEdit(d);
 // -------------------------------------- Последнее движение ---------------------------------- //
 
 dateTimeLastMoved 'Время последнего движения' (sku, stock) =
-    GROUP MAX dateTime(SkuLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger) MATERIALIZED TABLE extraSkuStock;
+    GROUP LAST dateTime(SkuLedger ledger)
+    BY sku(ledger), stock(ledger)
+    ORDER dateTime(ledger), ledger
+    WHERE active(ledger) MATERIALIZED TABLE extraSkuStock;
 
 dateTimeLastMoved 'Время последнего движения' (sku) =
-    GROUP MAX dateTimeLastMoved(Sku sku, Stock stock)
-    BY sku;
+    GROUP LAST dateTime(SkuLedger ledger)
+    BY sku(ledger)
+    ORDER dateTime(ledger), ledger
+    WHERE active(ledger);
 
 moved (Sku item, Stock departmentStore, DATETIME dateTime, LONG period) =
     dateTimeLastMoved(item, departmentStore) >= toDateTime(subtract(toDate(dateTime), period));

@@ -328,7 +328,7 @@ createdHostnameComputer 'Создан на компьютере' (LabelTransacti
 
 sku = DATA Sku (LabelTransactionDetail);
 idSku 'Код товара' = id(sku(LabelTransactionDetail detail));     
-INDEX sku(LabelTransactionDetail d), departmentStore(d);
+INDEX sku(LabelTransactionDetail d), departmentStore(d), createdTime(d), d;
 nameSku 'SKU' (LabelTransactionDetail d) = name(sku(d));
 dataBarcode = DATA Barcode (LabelTransactionDetail) INDEXED;
 idBarcode 'Штрихкод' (LabelTransactionDetail d) = OVERRIDE id(dataBarcode(d)), idBarcode(sku(d)) MINCHARWIDTH 15 PREFCHARWIDTH 30; 
@@ -351,8 +351,7 @@ fullNameLegalEntity 'Компания (полное наименование)' (
 priceLabelTransactionDetail 'Текущая цена на ценниках' (sku, stock) =
     GROUP LAST (price(LabelTransactionDetail ledger) / OVERRIDE amount(dataBarcode(ledger)), 1.0)
           BY sku(ledger), departmentStore(ledger)
-          ORDER createdTime(ledger), ledger
-          WHERE ledger IS LabelTransactionDetail MATERIALIZED TABLE extraSkuStock;
+          ORDER createdTime(ledger), ledger MATERIALIZED TABLE extraSkuStock;
 
 firstSort = ABSTRACT VALUE VARSTRING[100] (LabelTransactionDetail);
 secondSort = ABSTRACT VALUE VARSTRING[100] (LabelTransactionDetail);
