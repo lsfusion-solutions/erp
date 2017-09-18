@@ -9,6 +9,7 @@ import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
+import lsfusion.base.BaseUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -571,7 +572,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
     private boolean needAnnihilate(SalesInfo saleReturnEntry, BigDecimal totalQuantity, BigDecimal discountSum) {
         return saleReturnEntry.quantityReceiptDetail.add(totalQuantity).compareTo(BigDecimal.ZERO) == 0 &&
-                (saleReturnEntry.discountSumReceipt == null || saleReturnEntry.discountSumReceipt.compareTo(discountSum) == 0);
+                (BaseUtils.nullCompareTo(saleReturnEntry.discountSumReceipt, discountSum) == 0);
     }
 
     private BigDecimal getExtraDiscount(BigDecimal totalSum, BigDecimal discountSum, BigDecimal sumReceiptDetail) {
