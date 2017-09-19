@@ -88,11 +88,10 @@ public class NewLandBoardDaemon extends BoardDaemon {
                     InetAddress inetAddress = socket.getInetAddress();
                     String ip = ipMap.get(inetAddress);
                     if(ip == null) {
-                        ip = inetAddress.getHostName();
+                        //TODO: поменяли getHostName на getHostAddress, по идее, так правильней. Если проблем не будет, то сделать
+                        //то же самое для остальных BoardDaemon
+                        ip = inetAddress.getHostAddress();
                         ipMap.put(inetAddress, ip);
-                        //TODO: временный лог. Убрать, когда разберёмся, какой из методов использовать
-                        terminalLogger.info(String.format("NewLand request: canonicalHostName: %s, hostName: %s, hostAddress: %s, address: %s",
-                                inetAddress.getCanonicalHostName(), ip, inetAddress.getHostAddress(), new String(inetAddress.getAddress())));
                     }
                     barcode = barcode.length() > 1 ? barcode.substring(1) : barcode;
                     byte[] message = readMessage(barcode, ip);
