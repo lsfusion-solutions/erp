@@ -209,10 +209,6 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
     
     quantityWriteOffDetail (shipment, writeOff) = GROUP SUM quantity(WriteOffDetail writeOffDetail) BY shipment(shipmentDetail(writeOffDetail)), writeOff(writeOffDetail);
     
-    shipments 'Поставки' (writeOff) = GROUP CONCAT VARSTRING[255](description(Shipment shipment)) IF quantityWriteOffDetail(shipment, WriteOff writeOff) , ', '
-                                                    BY writeOff
-                                                    ORDER writeOff IN shipment MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
-    
     writtenOff 'Кол-во (списания)' (shipmentDetail) = GROUP SUM quantity(WriteOffDetail writeOffDetail) IF isPosted(writeOffDetail)
                                                                        BY shipmentDetail(writeOffDetail);
     writtenOff (shipment)= GROUP SUM writtenOff(ShipmentDetail shipmentDetail) BY shipment(shipmentDetail);
