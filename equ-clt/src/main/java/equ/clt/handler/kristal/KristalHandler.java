@@ -788,13 +788,8 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         if(cashRegister != null) {
                             BigDecimal sum = rs.getBigDecimal("Ck_Summa");
                             String idCashDocument = host + "/" + nppMachinery + "/" + number + "/" + ckNSmena;
-                            //TODO: временный лог, не забыть убрать
-                            sendSalesLogger.info(String.format("Kristal CashDocument id %s: number %s, date %s, time %s, group %s, npp %s, sum %s", idCashDocument, number, date, time, cashRegister.numberGroup, nppMachinery, sum));
                             if (!cashDocumentSet.contains(idCashDocument))
                                 result.add(new CashDocument(idCashDocument, number, date, time, cashRegister.numberGroup, nppMachinery, null, sum));
-                        } else {
-                            //TODO: временный лог, не забыть убрать
-                            sendSalesLogger.info(String.format("Kristal CashDocument: cashRegister %s not found", dir + "_" + nppMachinery));
                         }
                     }
                 } catch (SQLException e) {
