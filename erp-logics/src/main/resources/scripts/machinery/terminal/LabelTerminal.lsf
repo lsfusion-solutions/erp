@@ -61,7 +61,12 @@ createLabelTransaction 'Распечатать ценники'(TerminalDocument 
 	                createAttribute(dd, d);
 	            }
 	            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
-	            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+	                
+                IF notCheckEqualRetailPrice() THEN
+                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+                ELSE
+                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d);
+	                    
 	            print(t);
 	    }
 	    printed(terminalDocument) <- TRUE WHERE is(terminalDocument);    

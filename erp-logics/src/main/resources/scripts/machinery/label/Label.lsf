@@ -128,7 +128,7 @@ include 'Из документа' (LabelType labelType, Sku sku) = OVERRIDE
     include(labelType, group(groupType(labelType), sku));
 
 //печать для нулевых цен
-printNullPrice 'Включать позиций без цен' = DATA BOOLEAN (LabelType);
+printNullPrice 'Включать позиции без цен' = DATA BOOLEAN (LabelType);
 
 notPrintRetailPrice 'Не печатать без цены до' = DATA BOOLEAN (LabelType);
 
@@ -224,7 +224,7 @@ DESIGN labelType {
 
 FORM labelTypes 'Типы ценников'
     OBJECTS l = LabelType
-    PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate, namePriceListType, printNullPrice
+    PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate, namePriceListType, printNullPrice, notPrintRetailPrice
     PROPERTIES(l)          NEWSESSION NEW, EDIT, DELETE     
     FILTERGROUP inactive FILTER 'Активные' active(l) 'F10' DEFAULT
     LIST LabelType OBJECT l
@@ -843,7 +843,12 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
 	                        createAttribute(dd, d);
 	                    }
 	                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
-	                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+	                
+                        IF notCheckEqualRetailPrice() THEN
+                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+                        ELSE
+                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d);
+	                    
 	                    print(t);
 	            }
 	            printed(document) <- TRUE WHERE isPosted(document);
@@ -910,7 +915,12 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
 	                            }             
 	                        } ELSE {
 	                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
-	                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+	                
+                                IF notCheckEqualRetailPrice() THEN
+                                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+                                ELSE
+                                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d);
+	                    
 	                            print(t);
 	                        }                        
 	                    }
@@ -973,6 +983,8 @@ overQuantityPrint = DATA LOCAL NESTED INTEGER (Sku);
 
 addedTransaction = DATA LOCAL LabelTransaction();
 
+notCheckEqualRetailPrice 'Не печатать ценники только БЕЗ цены до' = DATA BOOLEAN ();
+
 createLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore) = {
     // бежим по всем типам ценников из управленческих параметров
     // для каждого создаем по операции печати ценников
@@ -997,7 +1009,15 @@ createLabelTransaction 'Распечатать ценники'(DepartmentStore d
             retailPrice(d) <- overRetailPrice(d);
         } 
         overCreate(t);
-        // вызываем печатную форму для каждого из них        
+        // вызываем печатную форму для каждого из них       
+
+        DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+
+        IF notCheckEqualRetailPrice() THEN
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+        ELSE
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d);
+         
         print(t);                 
     }
 } TOOLBAR;
@@ -1046,6 +1066,13 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
                 cancel();
             }             
         } ELSE {
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+
+            IF notCheckEqualRetailPrice() THEN
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+            ELSE
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d);
+        
             print(t);
         }     
     }  
@@ -1056,8 +1083,9 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
 
 notChangePrintPrice 'Не печатать ценники, если цена не изменилась' = DATA BOOLEAN ();
 notResetLabelSelectSku 'Не сбрасывать отмеченные товары при печати ценников' = DATA BOOLEAN ();
+
 EXTEND FORM options
-    PROPERTIES() notResetLabelSelectSku, notChangePrintPrice
+    PROPERTIES() notResetLabelSelectSku, notChangePrintPrice, notCheckEqualRetailPrice
 ;
 DESIGN options {
     pane {
@@ -1066,9 +1094,11 @@ DESIGN options {
             caption = 'Ценник/стикер';
             MOVE PROPERTY(notResetLabelSelectSku());
             MOVE PROPERTY (notChangePrintPrice());
+            MOVE PROPERTY (notCheckEqualRetailPrice());
         }
     }
 }
+
 createSelectedSkuStockLabelTransaction 'Распечатать ценники'() = {
     IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
