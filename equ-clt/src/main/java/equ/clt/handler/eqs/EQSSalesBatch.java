@@ -4,23 +4,29 @@ import com.google.common.collect.Sets;
 import equ.api.SalesBatch;
 import equ.api.SalesInfo;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class EQSSalesBatch extends SalesBatch<EQSSalesBatch> {
-    Set<Integer> readRecordSet;
-    Set<String> directorySet;
+    Map<String, Set<Integer>> readRecordsMap = new HashMap<>();
 
     public EQSSalesBatch(List<SalesInfo> salesInfoList, Set<Integer> readRecordSet, String directory) {
         this.salesInfoList = salesInfoList;
-        this.readRecordSet = readRecordSet;
-        this.directorySet = Sets.newHashSet(directory);
+        this.readRecordsMap.put(directory, readRecordSet);
     }
 
     @Override
     public void merge(EQSSalesBatch mergeSalesBatch) {
         this.salesInfoList.addAll(mergeSalesBatch.salesInfoList);
-        this.readRecordSet.addAll(mergeSalesBatch.readRecordSet);
-        this.directorySet.addAll(mergeSalesBatch.directorySet);
+        for (Map.Entry<String, Set<Integer>> entry : mergeSalesBatch.readRecordsMap.entrySet()) {
+            Set<Integer> recordSet = readRecordsMap.get(entry.getKey());
+            if (recordSet != null)
+                recordSet.addAll(entry.getValue());
+            else
+                recordSet = entry.getValue();
+            readRecordsMap.put(entry.getKey(), recordSet);
+        }
     }
 }

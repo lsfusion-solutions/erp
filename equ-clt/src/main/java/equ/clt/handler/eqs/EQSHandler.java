@@ -638,11 +638,13 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     @Override
     public void finishReadingSalesInfo(EQSSalesBatch salesBatch) {
 
-        for(String directory : salesBatch.directorySet) {
+        for(Map.Entry<String, Set<Integer>> entry : salesBatch.readRecordsMap.entrySet()) {
+            String directory = entry.getKey();
+            Set<Integer> readRecordSet = entry.getValue();
 
             EQSConnectionString params = new EQSConnectionString(directory);
 
-            if (params.connectionString != null && salesBatch.readRecordSet != null && !salesBatch.readRecordSet.isEmpty()) {
+            if (params.connectionString != null && readRecordSet != null && !readRecordSet.isEmpty()) {
 
                 Connection conn = null;
                 Statement statement = null;
@@ -655,7 +657,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     int i = 0;
                     int blockSize = 100000;
                     StringBuilder in = new StringBuilder();
-                    for (Integer record : salesBatch.readRecordSet) {
+                    for (Integer record : readRecordSet) {
                         if(i >= blockSize) {
                             statement = conn.createStatement();
                             statement.execute(String.format("UPDATE history SET new = 0 WHERE id IN (%s)", in.toString()));
