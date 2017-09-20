@@ -49,11 +49,12 @@ VATSum 'Сумма НДС'(PricingDetail d) = IF invoice(invoiceDetail(d)) IS Sa
                                                         ELSE VATSum(invoiceDetail(d)) (-) VATSum(invoiceCreditNoteDetail(invoiceDetail(d)));
 sumSupplierWithVAT 'Сумма поставщика с НДС' (PricingDetail d) =  IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN sumSupplier(d) (+) extraRetailSum(d) (+) VATSum(d) ELSE invoiceSum(d);
 
-extraRetailVAT 'НДС посуды'(PricingDetail d) = extraRetailVATSum(d) / (quantity(d) IF quantity(d)!=0);          
+extraRetailVAT 'НДС посуды'(PricingDetail d) = round0(extraRetailVATSum(d) / (extraRetailSum(d) (-) extraRetailVATSum(d)) * 100);          
 //extraRetailPrice(UserInvoiceDetail d) += retailPrice[InvoiceDetail](wareUserInvoiceDetail(d));
 
 extraSupplierSum 'Сумма посуды без НДС'  (PricingDetail d) = extraRetailSum(d) (-) extraRetailVATSum(d);
 extraSupplierPrice 'Цена посуды без НДС'  (PricingDetail d) = round2(extraSupplierSum(d) / (quantity(d) IF quantity(d) != 0.0));          
+
 FORM pricingWare 'Реестр цен'
     OBJECTS p=Pricing PANEL
     PROPERTIES (p) SELECTOR isPosted
