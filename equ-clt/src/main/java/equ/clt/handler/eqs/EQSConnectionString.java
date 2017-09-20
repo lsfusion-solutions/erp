@@ -16,7 +16,8 @@ class EQSConnectionString {
                 Matcher m = p.matcher(value);
                 if(m.matches()) {
                     //https://stackoverflow.com/questions/26307760/mysql-and-jdbc-with-rewritebatchedstatements-true
-                    this.connectionString = m.group(1) + "?rewriteBatchedStatements=true";
+                    //https://stackoverflow.com/questions/4850957/how-to-force-timeout-for-drivermanager-getconnection-method-call/16524520#16524520
+                    this.connectionString = m.group(1) + "?rewriteBatchedStatements=true&socketTimeout=60000";
                     this.user = m.group(2);
                     this.password = m.groupCount() >= 3 ? m.group(3) : null;
                 } else {
