@@ -530,8 +530,9 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 command1 = command1 + "KLAR4" + separator;
             }
 
-            command1 = command1 + "GPR1" + price + separator;
-            command1 = command1 + "EXPR" + price/*retailPrice*/ + separator;
+            //цены сознательно поменяли местами, чтобы работали старые ценники
+            command1 = command1 + "GPR1" + retailPrice + separator;
+            command1 = command1 + "EXPR" + price + separator;
 
             String prefix = scales.pieceCodeGroupScales != null && nonWeight ? scales.pieceCodeGroupScales : scales.weightCodeGroupScales;
             String idBarcode = item.idBarcode != null && prefix != null && item.idBarcode.length() == 5 ? ("0" + prefix + item.idBarcode + "00000") : item.idBarcode;
