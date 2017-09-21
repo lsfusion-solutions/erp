@@ -6,6 +6,7 @@ NAMESPACE EVAT;
 
 countEVAT 'К-во док-ов' = GROUP SUM 1 IF NOT statusServerStatus(EVAT e) == EVATServerStatus.cancelled BY EVATDocument(e) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 countCompletedEVAT 'К-во док-ов (COMPLETED)' = GROUP SUM 1 IF statusServerStatus(EVAT e) == EVATServerStatus.completed BY EVATDocument(e) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+countErrorEVAT 'К-во док-ов (ERROR)' = GROUP SUM 1 IF statusServerStatus(EVAT e) == EVATServerStatus.error BY EVATDocument(e);
 VATSumEVAT 'Сумма НДС док-ов' = GROUP SUM totalVATSum(EVAT e) IF NOT statusServerStatus(e) == EVATServerStatus.cancelled  BY EVATDocument(e) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 filterTypeReport = DATA LOCAL EVATType ();
@@ -37,6 +38,7 @@ FORM EVATReport 'Сверка ЭСЧФ'
     FILTERGROUP filterMoved
         FILTER 'Нет ЭСЧФ' NOT countEVAT(doc) 'F10'
         FILTER 'Не содержит COMPLETED' countEVAT(doc) AND NOT (countEVAT(doc) == countCompletedEVAT(doc)) 'F9'
+        FILTER 'В статусе ERROR' countErrorEVAT(doc)
         FILTER 'Отклонения в суммах' NOT (VATSum(doc) == VATSumEVAT(doc)) 'F8'
         FILTER 'Расхождения' (NOT (countEVAT(doc) == countCompletedEVAT(doc))) OR 
                              (NOT (VATSum(doc) == VATSumEVAT(doc))) 'F7' DEFAULT      
