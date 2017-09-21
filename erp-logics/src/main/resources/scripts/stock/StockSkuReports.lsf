@@ -42,10 +42,14 @@ sumB 'Сумма на начало' = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
 
 costVATSum 'Сумма поставщика с НДС' = DATA LOCAL NUMERIC[26,8] (Sku, Stock);
 
-
 nameGroup1 = DATA LOCAL VARSTRING[255] (Sku, Stock);
 nameGroup2 = DATA LOCAL VARSTRING[255] (Sku, Stock);
 nameGroup3 = DATA LOCAL VARSTRING[255] (Sku, Stock);
+
+inBackSheet 'Вкл.' = DATA LOCAL BOOLEAN (LegalEntity);
+
+inBackSheetSupplier 'Поставщики' () =
+    GROUP CONCAT fullName(LegalEntity le) IF inBackSheet(le) ,', ' PREFCHARWIDTH 50;
 
 META setNameGroup(number)
     setNameGroup##number () ={
@@ -60,7 +64,7 @@ META setNameGroup(number)
             nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSkuGroup(sk), 'Не задано') IF sk IS Sku WHERE inBackSheet(st) AND balanceB(sk);
         }
         IF order(4) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSupplierLastOrderBatch(sk), 'Не задано') IF sk IS Sku WHERE inBackSheet(st) AND balanceB(sk);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE fullName(supplierLastOrderBatch(sk)), 'Не задано') IF sk IS Sku WHERE inBackSheet(st) AND balanceB(sk);
         }
     }   
 END
@@ -105,6 +109,7 @@ FORM printGroupBalanceSkusStock 'Остатки по товарам'
     FILTERS inSession(group(gt, s))
     FILTERS inBackSheet(st)
     FILTERS balanceB(s, st)
+    FILTERS inBackSheet(supplierLastOrderBatch(s))
     FILTERS s IS Sku AND st IS Stock AND d IS DATETIME // фильтр, чтобы сохранилась старая иерархия
     ORDER BY nameGroup1(s, st), nameGroup2(s, st), nameGroup3(s, st)
 ;
@@ -120,6 +125,10 @@ printGroupBalanceSkus 'Отчет по остаткам' (DATETIME dateTime, Gro
     }
     IF NOT [= GROUP SUM 1 IF inSession(Group gr)]() THEN {
         MESSAGE 'Не задана группа';
+        RETURN;
+    }
+    IF NOT [= GROUP SUM 1 IF inBackSheet(LegalEntity le)]() THEN {
+        MESSAGE 'Не задан поставщик';
         RETURN;
     }
     fillGroupBalanceSkusStock(gtype, dateTime);
@@ -138,11 +147,47 @@ printXlsxGroupBalanceSkus 'Отчет по остаткам (XLSX)' (DATETIME da
         MESSAGE 'Не задана группа';
         RETURN;
     }
+    IF NOT [= GROUP SUM 1 IF inBackSheet(LegalEntity le)]() THEN {
+        MESSAGE 'Не задан поставщик';
+        RETURN;
+    }
     fillGroupBalanceSkusStock(gtype, dateTime);
     PRINT printGroupBalanceSkusStock OBJECTS d = dateTime, gt = gtype XLSX; 
 } IMAGE 'print.png' IN print;
 
+FORM dialogSuppliersBackSheet 'Выбор поставщиков'
+    OBJECTS s = LegalEntity
+    PROPERTIES(s) READONLY id, name, fullName
+    PROPERTIES (s) inBackSheet
+    ORDER BY name(s)
+    FILTERS isSupplier(s)
+
+    FILTERGROUP inactiveSupplier FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
+    FILTERGROUP select FILTER 'Отм.' inBackSheet(s) 'F9' 
+;
+
+DESIGN dialogSuppliersBackSheet {
+    BOX {
+        preferredSize = (1024, 768);
+        MOVE BOX(s) {
+            fill = 1;
+            GRID(s) {
+                defaultComponent = TRUE;
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+changeSuppliersBackSheet() = {
+    DIALOG dialogSuppliersBackSheet OBJECTS s INPUT DO {
+        IF NOT [= GROUP SUM 1 IF inBackSheet(LegalEntity le)]() THEN
+            inBackSheet(s) <- TRUE;
+    }
+}
+
 EXTEND FORM reportBalanceStock
+    PROPERTIES inBackSheetSupplier() ON CHANGE changeSuppliersBackSheet() 
     PROPERTIES() gStock, gSku, gGroup, gSupplier
         
     OBJECTS gr = INTEGER 
@@ -154,6 +199,13 @@ EXTEND FORM reportBalanceStock
 ;
 
 DESIGN reportBalanceStock {
+    topContainer {
+        NEW suppliers {
+            caption = 'Поставщики';
+            type = CONTAINERH;
+            MOVE PROPERTY(inBackSheetSupplier());        
+        }
+    }
     tabContainer {
         NEW groupContainer{
             caption = 'Группировка';
