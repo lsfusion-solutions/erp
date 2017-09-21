@@ -3,6 +3,7 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalepson;
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
+import lsfusion.base.Pair;
 
 import java.math.BigDecimal;
 
@@ -45,6 +46,10 @@ public class FiscalEpson {
         checkErrors(true);
     }
 
+    public static Integer getElectronicJournalReadOffset() throws RuntimeException {
+        return toInt(epsonActiveXComponent.getProperty("ElectronicJournalReadOffset"));
+    }
+
     public static boolean closeReceipt() {
         Dispatch.call(epsonDispatch, "CloseReceipt");
         return checkErrors(true);
@@ -68,18 +73,18 @@ public class FiscalEpson {
         if(sumCard != null) {
             epsonActiveXComponent.setProperty("Amount", new Variant(sumCard.doubleValue()));
             epsonActiveXComponent.setProperty("NoncashType", new Variant(0));
-            Dispatch.call(epsonDispatch, sale ? "PayNoncash" : "Repaynoncash");
+            Dispatch.call(epsonDispatch, sale ? "Repaynoncash" : "PayNoncash");
             checkErrors(true);
         }
         if(sumGiftCard != null) {
             epsonActiveXComponent.setProperty("Amount", new Variant(sumGiftCard.doubleValue()));
             epsonActiveXComponent.setProperty("NonCashType", new Variant(1));
-            Dispatch.call(epsonDispatch, sale ? "PayNoncash" : "Repaynoncash");
+            Dispatch.call(epsonDispatch, sale ? "Repaynoncash" : "PayNoncash");
             checkErrors(true);
         }
         if(sumCash != null) {
             epsonActiveXComponent.setProperty("Amount", new Variant(sumCash.doubleValue()));
-            Dispatch.call(epsonDispatch, sale ? "PayCash" : "RepayCash");
+            Dispatch.call(epsonDispatch, sale ? "RepayCash" : "PayCash");
             checkErrors(true);
         }
         closeReceipt();
@@ -135,13 +140,13 @@ public class FiscalEpson {
 
     public static void printLine(String line) throws RuntimeException {
         if (line != null) {
-            epsonActiveXComponent.setProperty("StringToPrint", new Variant(line));
+            epsonActiveXComponent.setProperty("StringToPrint", new Variant(line.isEmpty() ? " " : line));
             Dispatch.call(epsonDispatch, "PrintLine");
             checkErrors(true);
         }
     }
 
-    public static Integer closeReceipt(ReceiptInstance receipt, boolean sale) throws RuntimeException {
+    public static Pair<Integer, Integer> closeReceipt(ReceiptInstance receipt, boolean sale) throws RuntimeException {
         Dispatch.call(epsonDispatch, "CompleteReceipt");
         checkErrors(true);
         if(receipt.sumCard != null) {
@@ -161,16 +166,17 @@ public class FiscalEpson {
             Dispatch.call(epsonDispatch, sale ? "PayCash" : "RepayCash");
             checkErrors(true);
         }
-        Integer receiptNumber = getReceiptNumber();
+        Pair<Integer, Integer> receiptAndSessionNumber = getReceiptAndSessionNumber();
         closeReceipt();
-        return receiptNumber;
+        return receiptAndSessionNumber;
     }
 
-    public static Integer getReceiptNumber() {
+    public static Pair<Integer, Integer> getReceiptAndSessionNumber() {
         Dispatch.call(epsonDispatch, "ReadDocumentNumber");
         checkErrors(true);
         Variant receiptNumber = Dispatch.get(epsonDispatch, "ReceiptNumber");
-        return receiptNumber == null ? null : receiptNumber.toInt(); //getInt выдаёт ошибку
+        Variant sessionNumber = Dispatch.get(epsonDispatch, "SessionNumber");
+        return Pair.create(toInt(receiptNumber), toInt(sessionNumber));
     }
 
     public static boolean checkErrors(Boolean throwException) throws RuntimeException {
@@ -183,7 +189,8 @@ public class FiscalEpson {
         } else return true;
     }
 
-    public static Integer printReceipt(ReceiptInstance receipt, boolean sale) {
+    public static PrintReceiptResult printReceipt(ReceiptInstance receipt, boolean sale) {
+        Integer offsetBefore = getElectronicJournalReadOffset();
         openReceipt(receipt.cashier, sale ? 1 : 2);
         for (ReceiptItem item : receipt.receiptList) {
             registerItem(item);
@@ -191,19 +198,47 @@ public class FiscalEpson {
             printLine(item.vatString);
 
         }
-        return closeReceipt(receipt, sale);
+        Pair<Integer, Integer> receiptAndSessionNumber = closeReceipt(receipt, sale);
+        Integer offsetAfter = getElectronicJournalReadOffset();
+        return new PrintReceiptResult(receiptAndSessionNumber.first, offsetBefore, offsetAfter - offsetBefore, receiptAndSessionNumber.second);
+    }
+
+    public static void printReceiptCopy(Integer electronicJournalReadOffset, Integer electronicJournalReadSize, Integer sessionNumber) {
+        epsonActiveXComponent.setProperty("ElectronicJournalReadOffset", electronicJournalReadOffset);
+        epsonActiveXComponent.setProperty("ElectronicJournalReadSize", electronicJournalReadSize);
+        epsonActiveXComponent.setProperty("SessionNumber", sessionNumber);
+
+        Dispatch.call(epsonDispatch, "ReadElectronicJournal");
+        checkErrors(true);
+
+        String electronicJournalData = epsonActiveXComponent.getPropertyAsString("ElectronicJournalData");
+
+        try {
+            //открытие нефискального документа
+            openReceipt(null, 0);
+            for (String line : electronicJournalData.split("\r\n"))
+                printLine(line.isEmpty() ? " " : line);
+        } catch (Exception e) {
+            System.out.println(e);
+        } finally {
+            closeReceipt();
+        }
     }
 
     private static void setCashier(String cashier) {
         if (cashier != null) {
             Variant stateDayOpen = epsonActiveXComponent.getProperty("StateDayOpen");
-            if (stateDayOpen != null && stateDayOpen.toInt() == 0) { //getInt выдаёт ошибку
+            if (toInt(stateDayOpen) == 0) {
                 Dispatch.call(epsonDispatch, "OpenDay");
                 checkErrors(true);
 
             }
             epsonActiveXComponent.setProperty("CashierLogin", new Variant(cashier));
         }
+    }
+
+    private static Integer toInt(Variant variant) {
+        return variant == null ? null : variant.toInt(); //getInt выдаёт ошибку для variant type = 18, 19
     }
 }
 

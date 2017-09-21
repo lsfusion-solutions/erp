@@ -121,7 +121,7 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
 
                     BigDecimal valueVAT = (BigDecimal) receiptDetailValues.get("valueVATReceiptDetail");
                     BigDecimal calcSumVAT = (BigDecimal) receiptDetailValues.get("calcSumVATReceiptDetail");
-                    String vatString = valueVAT == null || calcSumVAT ==  null ? null : String.format("НДС: %s (%s%%)", formatSumVAT(calcSumVAT), formatValueVAT(valueVAT));
+                    String vatString = valueVAT == null || calcSumVAT == null ? null : String.format("НДС: %s (%s%%)", formatSumVAT(calcSumVAT), formatValueVAT(valueVAT));
 
                     if (quantitySale != null && !isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, barcode, name,
@@ -142,21 +142,24 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                 else {
                     if (context.checkApply()) {
                         Boolean isReturn = receiptReturnItemList.size() > 0;
-                        Object result = context.requestUserInteraction(
+                        PrintReceiptResult result = (PrintReceiptResult) context.requestUserInteraction(
                                 new FiscalEpsonPrintReceiptClientAction(comPort, baudRate, isReturn,
                                         new ReceiptInstance(sumCash == null ? null : sumCash.abs(),
                                                 sumCard == null ? null : sumCard.abs(),
                                                 sumGiftCard == null ? null : sumGiftCard.abs(), cashier,
                                                 isReturn ? receiptReturnItemList : receiptSaleItemList)));
-                        if (result instanceof Integer) {
-                            findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
+                        if (result.receiptNumber != null) {
+                            findProperty("number[Receipt]").change(result.receiptNumber, context, receiptObject);
+                            findProperty("fiscalEpsonElectronicJournalReadOffset[]").change(result.electronicJournalReadOffset, context);
+                            findProperty("fiscalEpsonElectronicJournalReadSize[]").change(result.electronicJournalReadSize, context);
+                            findProperty("fiscalEpsonSessionNumber[]").change(result.sessionNumber, context);
                             if (context.apply())
                                 findAction("createCurrentReceipt[]").execute(context);
                             else
                                 ServerLoggers.systemLogger.error("FiscalEpsonPrintReceipt Apply Error");
                         } else {
-                            ServerLoggers.systemLogger.error("FiscalEpsonPrintReceipt Error: " + result);
-                            context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                            ServerLoggers.systemLogger.error("FiscalEpsonPrintReceipt Error: " + result.error);
+                            context.requestUserInteraction(new MessageClientAction(result.error, "Ошибка"));
                         }
                     }
                 }

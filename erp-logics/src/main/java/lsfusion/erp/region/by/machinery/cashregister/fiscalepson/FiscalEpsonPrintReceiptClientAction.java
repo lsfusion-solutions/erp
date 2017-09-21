@@ -30,7 +30,7 @@ public class FiscalEpsonPrintReceiptClientAction implements ClientAction {
 
         } catch (RuntimeException e) {
             FiscalEpson.cancelReceipt(false);
-            return e.getMessage();
+            return new PrintReceiptResult(e.getMessage());
         } finally {
             FiscalEpson.closePort();
         }
