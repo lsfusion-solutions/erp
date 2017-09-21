@@ -409,6 +409,10 @@ filterDateFrom (WriteOff w) = date(w) >= filterWriteOffDateFrom() OR (w IS Write
 filterWriteOffDateTo 'Дата по' = DATA LOCAL DATE ();
 filterDateTo (WriteOff w) = date(w) <= filterWriteOffDateTo() OR (w IS WriteOff AND NOT filterWriteOffDateTo());
 
+filterWriteOffStock = DATA LOCAL Stock();
+nameFilterWriteOffStock 'Склад' = name(filterWriteOffStock());
+filterWriteOffStock (WriteOff w) = stock(w) == filterWriteOffStock() OR NOT filterWriteOffStock();      
+
 EXTEND FORM userWriteOff
 
     FILTERGROUP filter
@@ -426,7 +430,7 @@ EXTEND FORM userWriteOff
 backgroundDraft 'Цвет'  (WriteOff i)= RGB(212,255,212) IF isDraft(i); 
     
 FORM writeOffs 'Списания'
-    PROPERTIES () filterWriteOffDateFrom, filterWriteOffDateTo
+    PROPERTIES () filterWriteOffDateFrom, filterWriteOffDateTo, nameFilterWriteOffStock
    
     OBJECTS w=WriteOff LAST
     PROPERTIES (w) READONLYIF isReadonly()  isClosed
@@ -448,7 +452,8 @@ FORM writeOffs 'Списания'
 
     FILTERS writeOff(d) == w
     FILTERS filterDateFrom(w), 
-            filterDateTo(w)
+            filterDateTo(w),
+            filterWriteOffStock(w)
 ;
 @extendFormFilterAccessStock(WriteOff, w, writeOffs, stock, company);
 
@@ -464,6 +469,7 @@ DESIGN writeOffs {
                 type = CONTAINERH;          
                 MOVE PROPERTY(filterWriteOffDateFrom());
                 MOVE PROPERTY(filterWriteOffDateTo());
+                MOVE PROPERTY(nameFilterWriteOffStock());
         } 
             MOVE BOX(w) {
                 fill = 2;
