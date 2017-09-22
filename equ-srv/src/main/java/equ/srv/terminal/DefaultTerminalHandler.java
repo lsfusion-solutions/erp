@@ -206,6 +206,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         }
     }
 
+    @Override
+    public String savePallet(DataSession session, ExecutionStack stack, DataObject userObject, String numberPallet, String nameBin) throws RemoteException, SQLException {
+        return null;
+    }
+
     private List<List<Object>> readBarcodeList(DataSession session, ObjectValue stockObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<List<Object>> result = new ArrayList<>();
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");

@@ -43,6 +43,7 @@ public class TerminalServer extends MonitorServer {
     public static String NOT_ACTIVE_TERMINAL_TEXT = "Терминал %s не зарегистрирован или заблокирован";
     public static byte GET_ALL_BASE_ERROR = 108;
     public static String GET_ALL_BASE_ERROR_TEXT = "Ошибка при формировании базы";
+    public static byte SAVE_PALLET_ERROR = 109;
     public static byte UNKNOWN_COMMAND = 111;
     public static String UNKNOWN_COMMAND_TEXT = "Неизвестный запрос";
 
@@ -51,6 +52,7 @@ public class TerminalServer extends MonitorServer {
     public static final byte SAVE_DOCUMENT = 6;
     public static final byte GET_ITEM_HTML = 7;
     public static final byte GET_ALL_BASE = 8;
+    public static final byte SAVE_PALLET = 9;
 
     private static final Logger logger = Logger.getLogger("TerminalLogger");
 
@@ -133,14 +135,14 @@ public class TerminalServer extends MonitorServer {
         try {
             listenServerSocket = new ServerSocket(port, 1000, Inet4Address.getByName(host)); //2004, "192.168.42.142"
             listenExecutorService = ExecutorFactory.createMonitorThreadService(100, this);
-            
+
             // аналогичный механизм в ShtrihBoardDaemon, но через Executor пока не принципиально
             startListenThread();
         } catch (IOException e) {
             logger.error("Error occured while listening to port: ", e);
         }
     }
-    
+
     public void restartListenThread() {
         if(listenThread != null) {
             listenThread.interrupt();
@@ -148,7 +150,7 @@ public class TerminalServer extends MonitorServer {
         }
         startListenThread();
     }
-    
+
     public void startListenThread() {
         listenThread = new Thread(new Runnable() {
             public void run() {
@@ -167,7 +169,7 @@ public class TerminalServer extends MonitorServer {
         listenThread.setDaemon(true);
         listenThread.start();
     }
-    
+
     protected DataSession createSession() throws SQLException {
         return getDbManager().createSession();
     }
@@ -204,9 +206,9 @@ public class TerminalServer extends MonitorServer {
                         try {
                             logger.info("requested getUserInfo");
                             String[] params = readParams(inFromClient);
-                            if(params.length == 3) {
+                            if (params.length == 3) {
                                 logger.info("logging user " + params[0]);
-                                if(terminalHandlerInterface.isActiveTerminal(createSession(), params[2])) {
+                                if (terminalHandlerInterface.isActiveTerminal(createSession(), params[2])) {
                                     result = login(params[0], params[1], params[2]);
                                     if (result == null) {
                                         errorCode = LOGIN_ERROR;
@@ -230,7 +232,7 @@ public class TerminalServer extends MonitorServer {
                         try {
                             logger.info("requested getItemInfo");
                             String[] params = readParams(inFromClient);
-                            if(params.length == 2) {
+                            if (params.length == 2) {
                                 logger.info("requested barcode " + params[1]);
                                 sessionId = params[0];
                                 String barcode = params[1];
@@ -238,8 +240,7 @@ public class TerminalServer extends MonitorServer {
                                 if (user == null) {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
-                                }
-                                else {
+                                } else {
                                     itemInfo = readItem(user, barcode);
                                     if (itemInfo == null) {
                                         errorCode = ITEM_NOT_FOUND;
@@ -260,9 +261,9 @@ public class TerminalServer extends MonitorServer {
                         try {
                             logger.info("received document");
                             List<String[]> params = readDocumentParams(inFromClient);
-                            if(params != null && params.size() >= 1) {
+                            if (params != null && params.size() >= 1) {
                                 String[] document = params.get(0);
-                                if(document.length < 8) {
+                                if (document.length < 8) {
                                     errorCode = WRONG_PARAMETER_COUNT;
                                     errorText = WRONG_PARAMETER_COUNT_TEXT;
                                 } else {
@@ -272,8 +273,7 @@ public class TerminalServer extends MonitorServer {
                                     if (user == null) {
                                         errorCode = AUTHORISATION_REQUIRED;
                                         errorText = AUTHORISATION_REQUIRED_TEXT;
-                                    }
-                                    else {
+                                    } else {
                                         logger.info("receiving document number " + document[2]);
                                         String dateDocument = document[1];
                                         String numberDocument = document[2];
@@ -310,7 +310,7 @@ public class TerminalServer extends MonitorServer {
                                         }
                                         logger.info("receiving document number " + document[2] + " : " + params.size() + " records");
                                         boolean emptyDocument = terminalDocumentDetailList.isEmpty();
-                                        if(emptyDocument)
+                                        if (emptyDocument)
                                             terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType, ana1, ana2, comment));
                                         result = importTerminalDocumentDetail(idDocument, user, terminalDocumentDetailList, emptyDocument);
                                         if (result != null) {
@@ -324,7 +324,7 @@ public class TerminalServer extends MonitorServer {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("SaveDocument Unkown error", e);
+                            logger.error("SaveDocument Unknown error", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = UNKNOWN_ERROR_TEXT;
                         }
@@ -333,7 +333,7 @@ public class TerminalServer extends MonitorServer {
                         try {
                             logger.info("requested getItemHtml");
                             String[] params = readParams(inFromClient);
-                            if(params.length == 2) {
+                            if (params.length == 2) {
                                 logger.info(String.format("requested barcode %s, stock %s", params[0], params[1]));
                                 String barcode = params[0];
                                 String idStock = params[1];
@@ -356,7 +356,7 @@ public class TerminalServer extends MonitorServer {
                         try {
                             logger.info("requested getAllBase");
                             String[] params = readParams(inFromClient);
-                            if(params.length == 1) {
+                            if (params.length == 1) {
                                 sessionId = params[0];
                                 DataObject user = userMap.get(sessionId);
                                 if (user == null) {
@@ -379,6 +379,35 @@ public class TerminalServer extends MonitorServer {
                             errorText = UNKNOWN_ERROR_TEXT;
                         }
                         break;
+                    case SAVE_PALLET:
+                        try {
+                            logger.info("received pallet");
+                            String[] params = readParams(inFromClient);
+                            if (params != null && params.length >= 3) {
+                                sessionId = params[0];
+                                String numberPallet = params[1];
+                                String nameBin = params[2];
+                                DataObject user = userMap.get(sessionId);
+                                if (user == null) {
+                                    errorCode = AUTHORISATION_REQUIRED;
+                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+                                } else {
+                                    result = savePallet(user, numberPallet, nameBin);
+                                    if (result != null) {
+                                        errorCode = SAVE_PALLET_ERROR;
+                                        errorText = result;
+                                    }
+                                }
+                            } else {
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
+                            }
+                        } catch (Exception e) {
+                            logger.error("SavePallet Unknown error", e);
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = UNKNOWN_ERROR_TEXT;
+                        }
+                        break;
                     default:
                         result = "unknown command";
                         errorCode = UNKNOWN_COMMAND;
@@ -387,14 +416,14 @@ public class TerminalServer extends MonitorServer {
                 }
 
                 logger.info(String.format("Command %s, error code: %s. Sending answer", command, (int) errorCode));
-                if(errorText != null)
+                if (errorText != null)
                     logger.info("error: " + errorText);
                 writeByte(outToClient, stx);
                 writeByte(outToClient, id);
                 writeByte(outToClient, command);
                 writeByte(outToClient, errorCode);
-                if(errorText != null) {
-                    writeChars(outToClient, errorText);
+                if (errorText != null) {
+                    write(outToClient, errorText);
                 } else {
                     switch (command) {
                         case GET_USER_INFO:
@@ -416,12 +445,13 @@ public class TerminalServer extends MonitorServer {
                             break;
                         case SAVE_DOCUMENT:
                         case GET_ITEM_HTML:
+                        case SAVE_PALLET:
                             if (result != null) {
                                 write(outToClient, result);
                             }
                             break;
                         case GET_ALL_BASE:
-                            if(fileBytes != null) {
+                            if (fileBytes != null) {
                                 write(outToClient, String.valueOf(fileBytes.length));
                                 writeByte(outToClient, etx);
                                 write(outToClient, fileBytes);
@@ -429,7 +459,7 @@ public class TerminalServer extends MonitorServer {
                     }
                 }
 
-                if(fileBytes == null)
+                if (fileBytes == null)
                     writeByte(outToClient, etx);
                 logger.info(String.format("Command %s: answer sent", command));
                 Thread.sleep(1000);
@@ -438,9 +468,9 @@ public class TerminalServer extends MonitorServer {
                 logger.error("Error occured: ", e);
             } finally {
                 try {
-                    if(outToClient != null)
+                    if (outToClient != null)
                         outToClient.close();
-                    if(inFromClient !=null)
+                    if (inFromClient != null)
                         inFromClient.close();
                 } catch (IOException e) {
                     logger.error("Error occured: ", e);
@@ -465,7 +495,7 @@ public class TerminalServer extends MonitorServer {
     private Timestamp parseTimestamp(String value) {
         Timestamp timestamp;
         try {
-            timestamp = value == null ? null : new Timestamp(DateUtils.parseDate(value, new String[] {"yyyy-MM-dd HH:mm:ss"}).getTime());
+            timestamp = value == null ? null : new Timestamp(DateUtils.parseDate(value, new String[]{"yyyy-MM-dd HH:mm:ss"}).getTime());
         } catch (Exception e) {
             logger.error("Parsing timestamp failed: " + value, e);
             timestamp = null;
@@ -476,7 +506,7 @@ public class TerminalServer extends MonitorServer {
     private Date parseDate(String value) {
         Date date;
         try {
-            date = value == null ? null : new Date(DateUtils.parseDate(value, new String[] {"yyyy-MM-dd"}).getTime());
+            date = value == null ? null : new Date(DateUtils.parseDate(value, new String[]{"yyyy-MM-dd"}).getTime());
         } catch (Exception e) {
             logger.error("Parsing date failed: " + value, e);
             date = null;
@@ -512,8 +542,7 @@ public class TerminalServer extends MonitorServer {
             if (b == (char) 13) {
                 result.add(bytesToString(line).split(escStr, -1));
                 line = new ArrayList();
-            }
-            else
+            } else
                 line.add(b);
         }
         result.add(bytesToString(line).split(escStr, -1));
@@ -544,7 +573,7 @@ public class TerminalServer extends MonitorServer {
 
     public String login(String login, String password, String idTerminal) throws RemoteException, SQLException {
         DataObject userObject = terminalHandlerInterface.login(createSession(), getStack(), login, password, idTerminal);
-        if(userObject != null) {
+        if (userObject != null) {
             String sessionId = String.valueOf((login + password + idTerminal).hashCode());
             userMap.put(sessionId, userObject);
             return sessionId;
@@ -564,8 +593,14 @@ public class TerminalServer extends MonitorServer {
         return terminalHandlerInterface.readBase(createSession(), userObject);
     }
 
+    protected String savePallet(DataObject user, String numberPallet, String nameBin) throws RemoteException, SQLException {
+        try (DataSession session = createSession()) {
+            return terminalHandlerInterface.savePallet(session, getStack(), user, numberPallet, nameBin);
+        }
+    }
+
     protected String importTerminalDocumentDetail(String idTerminalDocument, DataObject userObject, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException {
-        try(DataSession session = createSession()) {
+        try (DataSession session = createSession()) {
             return terminalHandlerInterface.importTerminalDocument(session, getStack(), userObject, idTerminalDocument, terminalDocumentDetailList, emptyDocument);
         }
     }
