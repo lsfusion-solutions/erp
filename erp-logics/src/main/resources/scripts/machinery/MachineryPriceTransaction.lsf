@@ -110,8 +110,6 @@ time (MachineryPriceTransaction transaction) <- currentTime() WHEN SET(transacti
 
 dateTime 'Дата/время' (MachineryPriceTransaction transaction) = dateTimeToDateTime(date(transaction), time(transaction)) MATERIALIZED;
 
-order (MachineryPriceTransaction transaction) = STRUCT(dateTime(transaction), transaction) MATERIALIZED;
-
 // Статус
 snapshot 'Целиком' = DATA BOOLEAN (MachineryPriceTransaction);
 skipSnapshot = ABSTRACT BOOLEAN (MachineryPriceTransaction);
@@ -194,23 +192,28 @@ skipLastTransaction 'Не учитывать для определения те�
 // INDEX groupInMachineryPriceTransactionBarcode + barcode 
 groupIn = groupMachinery(MachineryPriceTransaction transaction) IF in(transaction, Barcode barcode) 
     AND NOT skipLastTransaction(groupMachinery(transaction)) MATERIALIZED;
+
+dateTimeIn = dateTime(MachineryPriceTransaction transaction) IF in(transaction, Barcode barcode) 
+    AND NOT skipLastTransaction(groupMachinery(transaction)) MATERIALIZED;
+    
+INDEX groupIn(MachineryPriceTransaction t, Barcode b), b, dateTimeIn(t,b), t;
     
 lastTransaction (barcode, groupMachinery) = 
     GROUP LAST MachineryPriceTransaction transaction 
           BY Barcode barcode, groupIn(transaction, barcode)
-          ORDER order(transaction)
+          ORDER dateTimeIn(transaction, barcode), transaction
           WHERE NOT canceled(transaction) MATERIALIZED;
 
 lastTransaction (sku, stock) =
     GROUP LAST lastTransaction(Barcode b, GroupMachinery g) 
           BY sku(b), stock(g)
-          ORDER order(lastTransaction(b, g))
+          ORDER dateTimeIn(lastTransaction(b, g), b), lastTransaction(b, g)
           WHERE lastTransaction(b, g);
           
 lastFullTransaction (barcode, groupMachinery) = 
     GROUP LAST MachineryPriceTransaction transaction 
           BY Barcode barcode, groupMachinery(transaction)
-          ORDER order(transaction)
+          ORDER dateTime(transaction), transaction
           WHERE in(transaction, barcode) AND NOT canceled(transaction);
           
 prevLastTransaction (Barcode barcode, GroupMachinery groupMachinery) = PREV(lastFullTransaction (barcode, groupMachinery));
@@ -226,7 +229,7 @@ prevTransactionPrice (Barcode barcode, GroupMachinery groupMachinery) = price(pr
 transactionPrice 'Текущая цена в оборудовании' (barcode, stock) =
     GROUP LAST transactionPrice(Barcode b, GroupMachinery g) 
           BY b, stock(g)
-          ORDER order(lastTransaction(b, g))
+          ORDER dateTimeIn(lastTransaction(b, g), b), lastTransaction(b, g)
           WHERE lastTransaction(b, g);
 
 transactionPrice 'Текущая цена в оборудовании' (Sku sku, Stock stock) =
@@ -265,7 +268,7 @@ lastDateMachineryPriceTransactionError 'Время последней ошибк
 lastTransaction (barcode, stock) =
     GROUP LAST lastTransaction(Barcode b, GroupMachinery g)
           BY b, stock(g)
-          ORDER order(lastTransaction(b, g))
+          ORDER dateTimeIn(lastTransaction(b, g), b), lastTransaction(b, g)
           WHERE lastTransaction(b, g);
 
 backgroundLastTransaction (Sku sku, Stock stock) = RGB (255,0,0) IF quantityMachineryPriceTransactionError(lastTransaction(barcode(sku), stock)) AND NOT
