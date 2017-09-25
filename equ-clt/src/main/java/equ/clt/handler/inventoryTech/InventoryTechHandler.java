@@ -157,7 +157,7 @@ public class InventoryTechHandler extends TerminalHandler {
 
             for (String directory : directorySet) {
 
-                File flagFile = new File(directory + "/DOC.UPD");
+                File flagFile = new File(directory + "/doc.upd");
                 if (flagFile.exists()) {
 
                     File docFile = new File(directory + "/DOC.DBF");
