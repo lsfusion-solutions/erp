@@ -251,7 +251,15 @@ EXTEND FORM userAdjustment
     PROPERTIES actualBalance(b,i,sto) ON CHANGE changeActualQuantity(b,i,sto) BEFORE prevCurrentBalance(b,sto)
 ;
 
+filterAdjustmentDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (Adjustment i) = date(i) >= filterAdjustmentDateFrom() OR NOT filterAdjustmentDateFrom();      
+
+filterAdjustmentDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (Adjustment i) = date(i) <= filterAdjustmentDateTo() OR NOT filterAdjustmentDateTo();   
+
 FORM adjustments 'Изменения остатков'
+    PROPERTIES () filterAdjustmentDateFrom, filterAdjustmentDateTo   
+    
     OBJECTS i = Adjustment
     PROPERTIES (i) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time,
                             nameStock, nameCurrency
@@ -265,6 +273,9 @@ FORM adjustments 'Изменения остатков'
     PROPERTIES (i) NEWSESSION NEW[UserAdjustment], editI = EDIT SHOWIF showEdit(i), deletei = DELETE SHOWIF showDelete[UserAdjustment](i)
     PROPERTIES(i)  close[UserAdjustment] SHOWIF isOpened[UserAdjustment](i), open SHOWIF isClosed[UserAdjustment](i)     
 
+    FILTERS filterDateFrom(i),
+            filterDateTo(i)
+    
     OBJECTS d = AdjustmentDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
                    nameBatch, quantity, price, sum, nameStock
@@ -279,7 +290,14 @@ DESIGN adjustments {
     BOX {
         preferredSize = (1024, 768);
 
-        NEW documentContainer BEFORE TOOLBARBOX {
+        NEW filter {
+            caption = 'Фильтры';
+            type = CONTAINERH;
+            MOVE PROPERTY (filterAdjustmentDateFrom());
+            MOVE PROPERTY (filterAdjustmentDateTo());
+        }
+
+        NEW documentContainer {
             fill = 1;
             type = SPLITV;
 
@@ -318,6 +336,8 @@ DESIGN adjustments {
                 }
             }
         }
+        
+        MOVE TOOLBARBOX; 
     }
 }
 @extendFormEditable(adjustments);
