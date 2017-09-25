@@ -157,69 +157,75 @@ public class InventoryTechHandler extends TerminalHandler {
 
             for (String directory : directorySet) {
 
-                File docFile = new File(directory + "/DOC.DBF");
-                File posFile = new File(directory + "/POS.DBF");
+                File flagFile = new File(directory + "/DOC.UPD");
+                if (flagFile.exists()) {
 
-                if (!docFile.exists() || !posFile.exists())
-                    sendTerminalDocumentLogger.info("InventoryTech: doc.dbf or pos.dbf not found in " + directory);
-                else {
-                    sendTerminalDocumentLogger.info("InventoryTech: found doc.dbf and pos.dbf in " + directory);
-                    int count = 0;
-                    Map<String, List<Object>> docDataMap = readDocFile(docFile);
+                    File docFile = new File(directory + "/DOC.DBF");
+                    File posFile = new File(directory + "/POS.DBF");
 
-                    DBF dbfFile = null;
-                    try {
+                    if (!docFile.exists() || !posFile.exists())
+                        sendTerminalDocumentLogger.info("InventoryTech: doc.dbf or pos.dbf not found in " + directory);
+                    else {
+                        sendTerminalDocumentLogger.info("InventoryTech: found doc.dbf and pos.dbf in " + directory);
+                        int count = 0;
+                        Map<String, List<Object>> docDataMap = readDocFile(docFile);
 
-                        dbfFile = new DBF(posFile.getAbsolutePath());
-                        int recordCount = dbfFile.getRecordCount();
+                        DBF dbfFile = null;
+                        try {
 
-                        for (int i = 0; i < recordCount; i++) {
-                            dbfFile.read();
-                            if (dbfFile.deleted()) continue;
-                            String idDoc = getDBFFieldValue(dbfFile, "IDDOC", charset);
-                            List<Object> docEntry = docDataMap.get(idDoc);
-                            if(docEntry != null) {
-                                String title = (String) docEntry.get(0);
-                                String idTerminalHandbookType1 = (String) docEntry.get(1);
-                                String idTerminalHandbookType2 = (String) docEntry.get(2);
-                                BigDecimal quantityDocument = (BigDecimal) docEntry.get(3);
-                                String idDocumentType = (String) docEntry.get(4);
-                                Timestamp dateTime = (Timestamp) docEntry.get(5);
-                                Date date = dateTime == null ? null : new Date(dateTime.getTime());
-                                Time time = dateTime == null ? null : new Time(dateTime.getTime());
+                            dbfFile = new DBF(posFile.getAbsolutePath());
+                            int recordCount = dbfFile.getRecordCount();
 
-                                TerminalInfo terminal = directoryMachineryMap.get(directory);
-                                Integer numberGroup = terminal == null ? null : terminal.numberGroup;
+                            for (int i = 0; i < recordCount; i++) {
+                                dbfFile.read();
+                                if (dbfFile.deleted()) continue;
+                                String idDoc = getDBFFieldValue(dbfFile, "IDDOC", charset);
+                                List<Object> docEntry = docDataMap.get(idDoc);
+                                if (docEntry != null) {
+                                    String title = (String) docEntry.get(0);
+                                    String idTerminalHandbookType1 = (String) docEntry.get(1);
+                                    String idTerminalHandbookType2 = (String) docEntry.get(2);
+                                    BigDecimal quantityDocument = (BigDecimal) docEntry.get(3);
+                                    String idDocumentType = (String) docEntry.get(4);
+                                    Timestamp dateTime = (Timestamp) docEntry.get(5);
+                                    Date date = dateTime == null ? null : new Date(dateTime.getTime());
+                                    Time time = dateTime == null ? null : new Time(dateTime.getTime());
 
-                                String idBarcode = getDBFFieldValue(dbfFile, "ARTICUL", charset);
-                                String name = getDBFFieldValue(dbfFile, "NAME", charset);
-                                String number = getDBFFieldValue(dbfFile, "NOMPOS", charset);
-                                BigDecimal price = getDBFBigDecimalFieldValue(dbfFile, "PRICE", charset);
-                                BigDecimal quantity = getDBFBigDecimalFieldValue(dbfFile, "QUAN", charset);
-                                BigDecimal sum = HandlerUtils.safeMultiply(price, quantity);
-                                String idDocument = numberGroup + "/" + idDoc + "/" + dateTime;
-                                String idDocumentDetail = idDocument + "/" + i;
-                                count++;
-                                terminalDocumentDetailList.add(new TerminalDocumentDetail(idDocument, title, date, time,
-                                        null, directory, idTerminalHandbookType1, idTerminalHandbookType2, idDocumentType,
-                                        quantityDocument, idDocumentDetail, number, idBarcode, name, price, quantity, sum));
+                                    TerminalInfo terminal = directoryMachineryMap.get(directory);
+                                    Integer numberGroup = terminal == null ? null : terminal.numberGroup;
+
+                                    String idBarcode = getDBFFieldValue(dbfFile, "ARTICUL", charset);
+                                    String name = getDBFFieldValue(dbfFile, "NAME", charset);
+                                    String number = getDBFFieldValue(dbfFile, "NOMPOS", charset);
+                                    BigDecimal price = getDBFBigDecimalFieldValue(dbfFile, "PRICE", charset);
+                                    BigDecimal quantity = getDBFBigDecimalFieldValue(dbfFile, "QUAN", charset);
+                                    BigDecimal sum = HandlerUtils.safeMultiply(price, quantity);
+                                    String idDocument = numberGroup + "/" + idDoc + "/" + dateTime;
+                                    String idDocumentDetail = idDocument + "/" + i;
+                                    count++;
+                                    terminalDocumentDetailList.add(new TerminalDocumentDetail(idDocument, title, date, time,
+                                            null, directory, idTerminalHandbookType1, idTerminalHandbookType2, idDocumentType,
+                                            quantityDocument, idDocumentDetail, number, idBarcode, name, price, quantity, sum));
+                                }
                             }
+                        } finally {
+                            if (dbfFile != null)
+                                dbfFile.close();
                         }
-                    } finally {
-                        if (dbfFile != null)
-                            dbfFile.close();
-                    }
 
-                    Set<Integer> docRecordsSet = new HashSet<>();
-                    for (Map.Entry<String, List<Object>> entry : docDataMap.entrySet()) {
-                        Integer recordNumber = (Integer) entry.getValue().get(6);
-                        if (recordNumber != null)
-                            docRecordsSet.add(recordNumber);
+                        Set<Integer> docRecordsSet = new HashSet<>();
+                        for (Map.Entry<String, List<Object>> entry : docDataMap.entrySet()) {
+                            Integer recordNumber = (Integer) entry.getValue().get(6);
+                            if (recordNumber != null)
+                                docRecordsSet.add(recordNumber);
+                        }
+                        docRecordsMap.put(docFile.getAbsolutePath(), docRecordsSet);
+                        if (count > 0) {
+                            sendTerminalDocumentLogger.info(String.format("InventoryTech: processed %s records in %s", count, directory));
+                        }
                     }
-                    docRecordsMap.put(docFile.getAbsolutePath(), docRecordsSet);
-                    if (count > 0) {
-                        sendTerminalDocumentLogger.info(String.format("InventoryTech: processed %s records in %s", count, directory));
-                    }
+                    if (!flagFile.delete())
+                        flagFile.deleteOnExit();
                 }
             }
 
