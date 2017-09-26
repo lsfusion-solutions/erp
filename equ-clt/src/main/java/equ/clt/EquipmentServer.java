@@ -41,7 +41,7 @@ public class EquipmentServer {
     private final static Logger sendTerminalDocumentLogger = Logger.getLogger("TerminalDocumentLogger");
     private final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
     private final static Logger processMonitorLogger = Logger.getLogger("ProcessMonitorLogger");
-    private final static Logger logger = Logger.getLogger(EquipmentServer.class);
+    private final static Logger equipmentLogger = Logger.getLogger("EquipmentLogger");
     
     static Map<String, Object> handlerMap = new HashMap<>();
     EquipmentServerSettings equipmentServerSettings;
@@ -110,28 +110,28 @@ public class EquipmentServer {
                             try {
                                 remote = RMIUtils.rmiLookup(serverHost, connectPort, serverDB, "EquipmentServer");
                             } catch (NotBoundException | MalformedURLException | RemoteException e) {
-                                logger.error("Naming lookup error : ", e);
+                                equipmentLogger.error("Naming lookup error : ", e);
                             }
 
                             if (remote != null) {
                                 try {
                                     equipmentServerSettings = remote.readEquipmentServerSettings(sidEquipmentServer);
                                     if (equipmentServerSettings == null) {
-                                        logger.error("Equipment Server " + sidEquipmentServer + " not found");
+                                        equipmentLogger.error("Equipment Server " + sidEquipmentServer + " not found");
                                     } else {
                                         if (equipmentServerSettings.delay != null)
                                             millis = equipmentServerSettings.delay;
                                         if(equipmentServerSettings.sendSalesDelay != null)
                                             sendSalesDelay = equipmentServerSettings.sendSalesDelay;
                                         if(equipmentServerSettings.timeFrom != null && equipmentServerSettings.timeTo != null)
-                                            logger.info(String.format("EquipmentServer %s time to run: from %s to %s",
+                                            equipmentLogger.info(String.format("EquipmentServer %s time to run: from %s to %s",
                                                     sidEquipmentServer, equipmentServerSettings.timeFrom, equipmentServerSettings.timeTo));
                                     }
 
                                     initDaemonThreads(remote, sidEquipmentServer, millis);
                                     
                                 } catch (RemoteException e) {
-                                    logger.error("Get remote logics error : ", e);
+                                    equipmentLogger.error("Get remote logics error : ", e);
                                 }
                             }
                         }
@@ -169,7 +169,7 @@ public class EquipmentServer {
                         }
 
                     } catch (Exception e) {
-                        logger.error("Unhandled exception : ", e);
+                        equipmentLogger.error("Unhandled exception : ", e);
                         remote = null;
                         processTransactionThread.interrupt();
                         processTransactionThread = null;
@@ -194,7 +194,7 @@ public class EquipmentServer {
                         singleTransactionExecutor = null;
                         if(futures != null)
                             for(Future future : futures) {
-                                logger.error("future cancel");
+                                equipmentLogger.error("future cancel");
                                 future.cancel(true);
                             }
                     }
@@ -202,7 +202,7 @@ public class EquipmentServer {
                     try {
                         Thread.sleep(millis);
                     } catch (InterruptedException e) {
-                        logger.error("Thread has been interrupted : ", e);
+                        equipmentLogger.error("Thread has been interrupted : ", e);
                         break;
                     }
                 }
@@ -239,12 +239,12 @@ public class EquipmentServer {
                             if (task == null)
                                 Thread.sleep(millis);
                             else {
-                                logger.info("task group started: " + task.groupId);
+                                equipmentLogger.info("task group started: " + task.groupId);
                                 task.run();
-                                logger.info("task group done: " + task.groupId);
+                                equipmentLogger.info("task group done: " + task.groupId);
                             }
                         } catch (Exception e) {
-                            logger.error("Unhandled exception : ", e);
+                            equipmentLogger.error("Unhandled exception : ", e);
                         }
                     }
                 }
@@ -456,7 +456,7 @@ public class EquipmentServer {
     }
 
     static void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, String result, String extraData) throws RemoteException, SQLException {
-        logger.error("Equipment server error: " + result);
+        equipmentLogger.error("Equipment server error: " + result);
         remote.errorEquipmentServerReport(sidEquipmentServer, new Throwable(result).fillInStackTrace(), extraData);
     }
 
@@ -544,7 +544,7 @@ public class EquipmentServer {
                 } catch (InterruptedException e) {
                     return;
                 } catch (Exception e) {
-                    logger.error("Unhandled exception : ", e);
+                    equipmentLogger.error("Unhandled exception : ", e);
                 }
             }
         }
@@ -600,7 +600,7 @@ public class EquipmentServer {
                         }
                     }
                 } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException | ClassNotFoundException | IOException e) {
-                    logger.error("EquipmentServer Error: ", e);
+                    equipmentLogger.error("EquipmentServer Error: ", e);
                 }
             }
             //находим все transactionInfo с таким же groupId
@@ -662,7 +662,7 @@ public class EquipmentServer {
                 return clsHandler == null ? "No handler" : clsHandler.getGroupId(transactionInfo);
 
             } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException | ClassNotFoundException | IOException e) {
-                logger.error("EquipmentServer Error: ", e);
+                equipmentLogger.error("EquipmentServer Error: ", e);
                 return "No handler";
             }
         }
