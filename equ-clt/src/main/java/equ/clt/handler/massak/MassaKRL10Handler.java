@@ -54,6 +54,9 @@ public class MassaKRL10Handler extends ScalesHandler {
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionInfoList) throws IOException {
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
+        MassaKRL10Settings massaKRL10Settings = springContext.containsBean("massaKRL10Settings") ? (MassaKRL10Settings) springContext.getBean("massaKRL10Settings") : null;
+        Integer nameLineLength = massaKRL10Settings != null ? massaKRL10Settings.getNameLineLength() : null;;
+
         Map<String, String> brokenPortsMap = new HashMap<>();
         if (transactionInfoList.isEmpty()) {
             processTransactionLogger.error(logPrefix + "Empty transaction list!");
@@ -82,7 +85,7 @@ public class MassaKRL10Handler extends ScalesHandler {
                                 errors.put(scales.port, Collections.singletonList(String.format("Broken ip: %s, error: %s", scales.port, brokenPortError)));
                             } else {
                                 ips.add(scales.port);
-                                taskList.add(new SendTransactionTask(transaction, scales, port));
+                                taskList.add(new SendTransactionTask(transaction, scales, port, nameLineLength));
                             }
                         }
                     }
@@ -375,17 +378,18 @@ public class MassaKRL10Handler extends ScalesHandler {
         return cleared;
     }
 
-    private boolean loadItem(List<String> errors, TCPPort port, ScalesItemInfo item, short current, short total, boolean first, byte commandFileType) throws CommunicationException, IOException, DecoderException {
-        byte[] bytes = getItemBytes(item, first);
+    private boolean loadItem(List<String> errors, TCPPort port, ScalesItemInfo item, Integer nameLineLength, String barcodePrefix, short current, short total, boolean first, byte commandFileType) throws CommunicationException, IOException, DecoderException {
+        byte[] bytes = getItemBytes(item, nameLineLength, barcodePrefix, first);
         clearReceiveBuffer(port);
         sendCommand(errors, port, bytes, current, total, commandFileType);
         return getCommandReply(errors, port, port.getAddress(), commandFileType);
     }
 
-    private byte[] getItemBytes(ScalesItemInfo item, boolean first) throws DecoderException {
+    private byte[] getItemBytes(ScalesItemInfo item, Integer nameLineLength, String barcodePrefix, boolean first) throws DecoderException {
         byte[] firstBytes = first ? getBytes("01PC0000000001") : new byte[0];
-        byte[] nameBytes = toAscii(trim(item.name, "", 248));
-        byte[] descriptionBytes = toAscii(trim(item.description, "", 998));
+        //потенциально длина со знаками переноса строк ("|") может превысить максимум
+        byte[] nameBytes = toAscii(trim(item.name, "", 248), nameLineLength);
+        byte[] descriptionBytes = toAscii(trim(item.description, "", 998), nameLineLength);
 
         String idItem = trim(item.idBarcode, 15);
 
@@ -451,7 +455,7 @@ public class MassaKRL10Handler extends ScalesHandler {
         bytes.put(getBytes(fillSpaces(fractionalAdditionPercent, 4)));
 
         //BarcodePrefix - Префикс штрихкода, 1 byte
-        byte prefix = 0x17;//Integer.parseInt(item.idItem.substring(0, 2));
+        byte prefix = barcodePrefix == null ? 0x17 : Byte.parseByte(barcodePrefix);
         bytes.put(prefix);
 
         //Name - Наименование товара, 2-250 bytes
@@ -572,11 +576,13 @@ public class MassaKRL10Handler extends ScalesHandler {
         TransactionScalesInfo transaction;
         ScalesInfo scales;
         TCPPort port;
+        Integer nameLineLength;
 
-        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, TCPPort port) {
+        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, TCPPort port, Integer nameLineLength) {
             this.transaction = transaction;
             this.scales = scales;
             this.port = port;
+            this.nameLineLength = nameLineLength;
         }
 
         @Override
@@ -609,7 +615,7 @@ public class MassaKRL10Handler extends ScalesHandler {
                                         while (!result && attempts < 3) {
                                             if (attempts > 0)
                                                 reopenPort(port);
-                                            result = loadItem(localErrors, port, item, (short) count, (short) transaction.itemsList.size(), count == 1 && transaction.snapshot,
+                                            result = loadItem(localErrors, port, item, nameLineLength, scales.weightCodeGroupScales, (short) count, (short) transaction.itemsList.size(), count == 1 && transaction.snapshot,
                                                     transaction.snapshot ? snapshotItemByte : notSnapshotItemByte);
                                             attempts++;
                                         }
@@ -754,10 +760,21 @@ public class MassaKRL10Handler extends ScalesHandler {
         return value.getBytes(Charset.forName("cp1251"));
     }
 
-    private byte[] toAscii(String text) {
+    private byte[] toAscii(String text, Integer nameLineLength) {
         if (text == null)
             text = "";
         text = text.replace("\n", "|");
+        if(!text.contains("|") && (nameLineLength != null && text.length() > nameLineLength)) {
+                int start = 0;
+                String newText = "";
+                while(start < text.length()) {
+                    int finish = Math.min(start + nameLineLength, text.length());
+                    newText += (newText.isEmpty() ? "" : "|") + text.substring(start, finish);
+                    start = finish;
+                }
+                text = newText;
+        }
+
         ByteBuffer bytes = ByteBuffer.allocate(text.length() + 2);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
         bytes.putShort((short) (text.length()/* - lines*/));
