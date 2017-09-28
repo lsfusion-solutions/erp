@@ -6,6 +6,8 @@ import com.jacob.com.Variant;
 import lsfusion.base.Pair;
 
 import java.math.BigDecimal;
+import java.util.Calendar;
+import java.util.Date;
 
 public class FiscalEpson {
 
@@ -50,16 +52,16 @@ public class FiscalEpson {
         return toInt(epsonActiveXComponent.getProperty("ElectronicJournalReadOffset"));
     }
 
-    public static boolean closeReceipt() {
+    public static void closeReceipt() {
         Dispatch.call(epsonDispatch, "CloseReceipt");
-        return checkErrors(true);
+        checkErrors(true);
     }
 
-    public static boolean cancelReceipt(boolean throwException) throws RuntimeException {
+    public static void cancelReceipt(boolean throwException) throws RuntimeException {
         if(epsonDispatch != null) {
             Dispatch.call(epsonDispatch, "CancelPrint");
-            return checkErrors(throwException);
-        } return true;
+            checkErrors(throwException);
+        }
     }
 
     public static void resetReceipt(String cashier, Integer numberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard) throws RuntimeException {
@@ -91,26 +93,29 @@ public class FiscalEpson {
     }
 
     public static void zReport() throws RuntimeException {
+        openDayIfClosed();
         Dispatch.call(epsonDispatch, "PrintZReport");
         checkErrors(true);
     }
 
     public static void electronicJournal() throws RuntimeException {
+        openDayIfClosed();
         Dispatch.call(epsonDispatch, "PrintElectronicJournal");
         checkErrors(true);
     }
 
     public static void xReport() throws RuntimeException {
+        openDayIfClosed();
         Dispatch.call(epsonDispatch, "PrintXReport");
         checkErrors(true);
     }
 
-    public static boolean inOut(String cashier, Double sum) throws RuntimeException {
+    public static void inOut(String cashier, Double sum) throws RuntimeException {
         setCashier(cashier);
         epsonActiveXComponent.setProperty("Amount", new Variant(Math.abs(sum)));
         Dispatch.call(epsonDispatch, sum > 0 ? "CashIncome" : "CashOutcome");
         checkErrors(true);
-        return closeReceipt();
+        closeReceipt();
     }
 
 
@@ -179,14 +184,15 @@ public class FiscalEpson {
         return Pair.create(toInt(receiptNumber), toInt(sessionNumber));
     }
 
-    public static boolean checkErrors(Boolean throwException) throws RuntimeException {
+    public static String checkErrors(Boolean throwException) throws RuntimeException {
         int result = epsonActiveXComponent.getPropertyAsInt("ResultCode");
         if (result != 0) {
             String resultCodeDescription = epsonActiveXComponent.getPropertyAsString("ResultCodeDescription");
             if (throwException)
                 throw new RuntimeException(resultCodeDescription);
-            else return false;
-        } else return true;
+            else
+                return resultCodeDescription;
+        } else return null;
     }
 
     public static PrintReceiptResult printReceipt(ReceiptInstance receipt, boolean sale) {
@@ -227,13 +233,28 @@ public class FiscalEpson {
 
     private static void setCashier(String cashier) {
         if (cashier != null) {
-            Variant stateDayOpen = epsonActiveXComponent.getProperty("StateDayOpen");
-            if (toInt(stateDayOpen) == 0) {
-                Dispatch.call(epsonDispatch, "OpenDay");
-                checkErrors(true);
-
-            }
+            openDayIfClosed();
             epsonActiveXComponent.setProperty("CashierLogin", new Variant(cashier));
+        }
+    }
+
+    public static void openDayIfClosed() {
+        Variant stateDayOpen = epsonActiveXComponent.getProperty("StateDayOpen");
+        if (toInt(stateDayOpen) == 0) {
+            Dispatch.call(epsonDispatch, "OpenDay");
+            checkErrors(true);
+        }
+    }
+
+    public static void synchronizeDateTime(long maxDesync) {
+        epsonActiveXComponent.setProperty("DateTime", new Variant(Calendar.getInstance().getTime()));
+        String error = checkErrors(false);
+        if(error != null) {
+            Date dateTime = epsonActiveXComponent.getProperty("DateTime").getJavaDate();
+            long delta = Math.abs(dateTime.getTime() - Calendar.getInstance().getTime().getTime());
+            if (delta > maxDesync) {
+                throw new RuntimeException("Рассинхронизация " + delta + "мс\n" + error);
+            }
         }
     }
 

@@ -29,3 +29,19 @@ fiscalCancel(Receipt receipt) += { IF sidModelCurrentCashRegister() == 'Epson' T
 
 fiscalEpsonReset 'Аннулировать чек' = CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonResetReceiptActionProperty' (Receipt);
 fiscalResetReceiptCashRegister(Receipt receipt) += { IF sidModelCurrentCashRegister() == 'Epson' THEN fiscalEpsonReset(receipt); }
+
+blockDesync 'Не открывать Z-отчёт при рассинхронизации времени (Epson)' = DATA BOOLEAN ();
+maxDesync 'Максимальное время рассинхронизации (мс) (Epson)' = DATA LONG ();
+fiscalEpsonCheckOpenZReport 'Открыть Z-отчет' = CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonCheckOpenZReportActionProperty' ();
+fiscalCheckOpenZReport() += { IF sidModelCurrentCashRegister() == 'Epson' THEN fiscalEpsonCheckOpenZReport(); }
+
+EXTEND FORM options PROPERTIES() blockDesync, maxDesync;
+DESIGN options {
+    machinery {
+        NEW epson {
+            caption = 'Epson';
+            MOVE PROPERTY(blockDesync());
+            MOVE PROPERTY(maxDesync());
+        }
+    }
+}
