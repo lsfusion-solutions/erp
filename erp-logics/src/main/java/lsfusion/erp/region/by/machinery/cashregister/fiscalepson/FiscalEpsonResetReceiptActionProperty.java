@@ -36,7 +36,7 @@ public class FiscalEpsonResetReceiptActionProperty extends ScriptingActionProper
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
 
                 String cashier = trim((String) findProperty("currentUserName[]").read(context));
-                Integer numberReceipt = (Integer) findProperty("number[Receipt]").read(context.getSession(), receiptObject);
+                Integer numberReceipt = (Integer) findProperty("documentNumber[Receipt]").read(context.getSession(), receiptObject);
                 BigDecimal totalSum = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context.getSession(), receiptObject);
                 BigDecimal sumCash = (BigDecimal) findProperty("sumCashPayment[Receipt]").read(context.getSession(), receiptObject);
                 BigDecimal sumCard = (BigDecimal) findProperty("sumCardPayment[Receipt]").read(context.getSession(), receiptObject);

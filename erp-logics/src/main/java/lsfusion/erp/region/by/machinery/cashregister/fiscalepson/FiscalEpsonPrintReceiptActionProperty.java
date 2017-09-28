@@ -150,6 +150,7 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                                                 isReturn ? receiptReturnItemList : receiptSaleItemList)));
                         if (result.receiptNumber != null) {
                             findProperty("number[Receipt]").change(result.receiptNumber, context, receiptObject);
+                            findProperty("documentNumber[Receipt]").change(result.documentNumber, context, receiptObject);
                             findProperty("fiscalEpsonElectronicJournalReadOffset[]").change(result.electronicJournalReadOffset, context);
                             findProperty("fiscalEpsonElectronicJournalReadSize[]").change(result.electronicJournalReadSize, context);
                             findProperty("fiscalEpsonSessionNumber[]").change(result.sessionNumber, context);

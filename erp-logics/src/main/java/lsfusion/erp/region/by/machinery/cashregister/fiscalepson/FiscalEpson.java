@@ -64,9 +64,9 @@ public class FiscalEpson {
         }
     }
 
-    public static void resetReceipt(String cashier, Integer numberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard) throws RuntimeException {
+    public static void resetReceipt(String cashier, Integer documentNumberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard) throws RuntimeException {
         boolean sale = totalSum.doubleValue() > 0;
-        epsonActiveXComponent.setProperty("CancellationDocumentNumber", new Variant(numberReceipt));
+        epsonActiveXComponent.setProperty("CancellationDocumentNumber", new Variant(documentNumberReceipt));
         epsonActiveXComponent.setProperty("CancellationAmount", new Variant(totalSum));
         openReceipt(cashier, 5);
 
@@ -151,7 +151,7 @@ public class FiscalEpson {
         }
     }
 
-    public static Pair<Integer, Integer> closeReceipt(ReceiptInstance receipt, boolean sale) throws RuntimeException {
+    public static ReceiptInfo closeReceipt(ReceiptInstance receipt, boolean sale) throws RuntimeException {
         Dispatch.call(epsonDispatch, "CompleteReceipt");
         checkErrors(true);
         if(receipt.sumCard != null) {
@@ -171,17 +171,18 @@ public class FiscalEpson {
             Dispatch.call(epsonDispatch, sale ? "PayCash" : "RepayCash");
             checkErrors(true);
         }
-        Pair<Integer, Integer> receiptAndSessionNumber = getReceiptAndSessionNumber();
+        ReceiptInfo receiptInfo = getReceiptInfo();
         closeReceipt();
-        return receiptAndSessionNumber;
+        return receiptInfo;
     }
 
-    public static Pair<Integer, Integer> getReceiptAndSessionNumber() {
+    public static ReceiptInfo getReceiptInfo() {
         Dispatch.call(epsonDispatch, "ReadDocumentNumber");
         checkErrors(true);
+        Variant documentNumber = Dispatch.get(epsonDispatch, "DocumentNumber");
         Variant receiptNumber = Dispatch.get(epsonDispatch, "ReceiptNumber");
         Variant sessionNumber = Dispatch.get(epsonDispatch, "SessionNumber");
-        return Pair.create(toInt(receiptNumber), toInt(sessionNumber));
+        return new ReceiptInfo(toInt(documentNumber), toInt(receiptNumber), toInt(sessionNumber));
     }
 
     public static String checkErrors(Boolean throwException) throws RuntimeException {
@@ -204,9 +205,9 @@ public class FiscalEpson {
             printLine(item.vatString);
 
         }
-        Pair<Integer, Integer> receiptAndSessionNumber = closeReceipt(receipt, sale);
+        ReceiptInfo receiptInfo = closeReceipt(receipt, sale);
         Integer offsetAfter = getElectronicJournalReadOffset();
-        return new PrintReceiptResult(receiptAndSessionNumber.first, offsetBefore, offsetAfter - offsetBefore, receiptAndSessionNumber.second);
+        return new PrintReceiptResult(receiptInfo.documentNumber, receiptInfo.receiptNumber, offsetBefore, offsetAfter - offsetBefore, receiptInfo.sessionNumber);
     }
 
     public static void printReceiptCopy(Integer electronicJournalReadOffset, Integer electronicJournalReadSize, Integer sessionNumber) {
@@ -260,6 +261,18 @@ public class FiscalEpson {
 
     private static Integer toInt(Variant variant) {
         return variant == null ? null : variant.toInt(); //getInt выдаёт ошибку для variant type = 18, 19
+    }
+
+    private static class ReceiptInfo {
+        int documentNumber; //сквозной номер
+        int receiptNumber; //номер в сессии
+        int sessionNumber; //номер сессии
+
+        public ReceiptInfo(int documentNumber, int receiptNumber, int sessionNumber) {
+            this.documentNumber = documentNumber;
+            this.receiptNumber = receiptNumber;
+            this.sessionNumber = sessionNumber;
+        }
     }
 }
 
