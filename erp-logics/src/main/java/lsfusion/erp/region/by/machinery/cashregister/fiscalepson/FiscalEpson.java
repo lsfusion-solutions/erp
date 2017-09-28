@@ -223,6 +223,9 @@ public class FiscalEpson {
         try {
             //открытие нефискального документа
             openReceipt(null, 0);
+            printLine(" ");
+            printLine("=============== КОПИЯ ЧЕКА ==============="); //центрируем: по 16 символов слева и справа (42 всего)
+            printLine(" ");
             for (String line : electronicJournalData.split("\r\n"))
                 printLine(line.isEmpty() ? " " : line);
         } catch (Exception e) {
