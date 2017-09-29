@@ -263,7 +263,11 @@ public class FiscalEpson {
     }
 
     public static String checkSKNO() {
-        Dispatch.call(epsonDispatch, "ReadTaxAuthoritiesControlUnitStatus");
+        try {
+            Dispatch.call(epsonDispatch, "ReadTaxAuthoritiesControlUnitStatus");
+        } catch (Exception e) {
+            return "Связь отсутствует";
+        }
         checkErrors(true);
         return epsonActiveXComponent.getPropertyAsString("TaxAuthoritiesControlUnitStatus");
     }
