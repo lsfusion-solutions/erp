@@ -15,6 +15,7 @@ NAMESPACE Label;
 overMinVolumeLabelBy() = OVERRIDE minVolumeLabelBy(), 0.25;
 
 labelBaseCoeff = ABSTRACT NUMERIC[9,3](Sku);
+labelBaseRetailCoeff = ABSTRACT NUMERIC[9,3](Sku);
 labelBaseName = ABSTRACT VARSTRING[20](Sku);
 volumeMinPrice (LabelTransactionDetail d) = OVERRIDE volume(sku(d)) < volumeMinPrice(skuGroup(sku(d))), netWeight(sku(d)) < volumeMinPrice(skuGroup(sku(d)));
 
@@ -48,6 +49,7 @@ basePriceRub 'Рубли (за б.е.)' (LabelTransactionDetail d) = trunc(baseP
 basePriceKop 'Копейки (за б.е.)' (LabelTransactionDetail d) = OVERRIDE round0((basePrice(d) (-) basePriceRub(d)) * 100.0), 0.0 IF basePrice(d);
 
 baseRetailPrice 'Цена за базовую единицу до' (LabelTransactionDetail d) = IF printFullPrice(skuGroup(sku(d))) AND NOT (volumeMinPrice(d) OR skipFullPrice(sku(d))) THEN CASE 
+                                                                                                          WHEN labelBaseRetailCoeff(sku(d)) THEN round2(retailPrice(d) / labelBaseRetailCoeff(sku(d)))
                                                                                                           WHEN volume(sku(d)) <= overMinVolumeLabelBy() THEN round2(retailPrice(d) / volume(sku(d)) / 10.0 )
                                                                                                           WHEN volume(sku(d)) != 1.0 THEN round2(retailPrice(d) / volume(sku(d)))
                                                                                                           WHEN netWeight(sku(d)) <= overMinVolumeLabelBy() THEN round2(retailPrice(d) / netWeight(sku(d)) / 10.0 )
