@@ -262,6 +262,12 @@ public class FiscalEpson {
         }
     }
 
+    public static String checkSKNO() {
+        Dispatch.call(epsonDispatch, "ReadTaxAuthoritiesControlUnitStatus");
+        checkErrors(true);
+        return epsonActiveXComponent.getPropertyAsString("TaxAuthoritiesControlUnitStatus");
+    }
+
     private static Integer toInt(Variant variant) {
         return variant == null ? null : variant.toInt(); //getInt выдаёт ошибку для variant type = 18, 19
     }

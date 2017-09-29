@@ -44,6 +44,9 @@ public class FiscalEpsonCustomOperationClientAction implements ClientAction {
                     break;
                 case 5:
                     FiscalEpson.synchronizeDateTime(maxDesync);
+                    break;
+                case 6:
+                    return FiscalEpson.checkSKNO();
                 default:
                     break;
             }
