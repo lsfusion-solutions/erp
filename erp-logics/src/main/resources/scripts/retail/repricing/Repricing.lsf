@@ -458,7 +458,10 @@ printedAct (UserRepricing p) += printedAct(p);
 statusPrintedAct 'Статус печати акта' (Repricing r) = CASE WHEN printedAct(r) THEN 'Распечатан' 
                                                     ELSE 'Не распечатан';
 printActBackground 'Цвет' (Repricing r) = RGB(212,255,212) IF r IS Repricing AND NOT printedAct(r);
-                                                        
+
+overReportFileDetail = ABSTRACT VARSTRING[100](Repricing);
+reportFileDetail (Repricing r) =  OVERRIDE overReportFileDetail(r), 'Repricing_repricing_d.jrxml' IF r IS Repricing; 
+                                                      
 FORM repricing 'Акт переоценки (печать)'
 
     OBJECTS p = Repricing PANEL
@@ -489,7 +492,8 @@ FORM repricing 'Акт переоценки (печать)'
                retailPrice, retailSum,
                diffSum, diffMarkupSum, diffVATSum,
                diffRetailSum
-
+    REPORTFILES d reportFileDetail(p)
+    
     OBJECTS e=Employee
     PROPERTIES(e) READONLY   name[Contact], namePosition, shortName
 
