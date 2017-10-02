@@ -36,8 +36,9 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         sendStopListInfo(stopListInfo, machineryInfoList, charset, encode);
     }
 
-    @Override
+    //TODO: временно extraPercent не передаём - тестируем сначала на MassaK (не забыть убрать после отмашки)
+    /*@Override
     public Integer getTarePercent(ScalesItemInfo item) {
         return item.extraPercent == null ? 0 : item.extraPercent.multiply(BigDecimal.valueOf(100)).intValue();
-    }
+    }*/
 }
