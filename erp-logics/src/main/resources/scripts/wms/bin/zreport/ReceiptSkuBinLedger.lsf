@@ -58,7 +58,7 @@ quantity 'Кол-во' = DATA NUMERIC[16,5] (ReceiptSaleSkuBinLedger);
 skip 'Не проводить по учету' = DATA BOOLEAN (ReceiptSaleSkuBinLedger);
 active 'Активен' (ReceiptSaleSkuBinLedger ledger) = NOT skip(ledger);
 
-receiptSaleSkuLedger = DATA ReceiptSaleSkuLedger (ReceiptSaleSkuBinLedger);
+receiptSaleSkuLedger = DATA ReceiptSaleSkuLedger (ReceiptSaleSkuBinLedger) INDEXED;
 description 'Описание' (ReceiptSaleSkuBinLedger ledger) =  description[DataSkuLedger](receiptSaleSkuLedger(ledger));
 
 receiptSaleSkuLedger = GROUP MAX ReceiptSaleSkuBinLedger ledger BY receiptSaleSkuLedger(ledger);
@@ -89,7 +89,7 @@ quantity 'Кол-во' = DATA NUMERIC[16,5] (ReceiptReturnSkuBinLedger);
 skip 'Не проводить по учету' = DATA BOOLEAN (ReceiptReturnSkuBinLedger);
 active 'Активен' (ReceiptReturnSkuBinLedger ledger) = NOT skip(ledger);
 
-receiptReturnSkuLedger = DATA ReceiptReturnSkuLedger (ReceiptReturnSkuBinLedger);
+receiptReturnSkuLedger = DATA ReceiptReturnSkuLedger (ReceiptReturnSkuBinLedger) INDEXED;
 description 'Описание' (ReceiptReturnSkuBinLedger ledger) =  description[DataSkuLedger](receiptReturnSkuLedger(ledger));
 
 receiptReturnSkuLedger = GROUP MAX ReceiptReturnSkuBinLedger ledger BY receiptReturnSkuLedger(ledger);
@@ -140,41 +140,39 @@ skipGenerateBinLedgers = ABSTRACT BOOLEAN (ReceiptSaleSkuLedger);
 
 generateReceiptSaleSkuLedgers 'Создать продажи по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = {
     FOR date(ReceiptSaleSkuLedger ledger)>= dFrom AND date(ledger)<= dTo AND departmentStore(ledger) == departmentStore AND 
-        outBin(departmentStore) AND NOT skipGenerateBinLedgers(ledger) DO {
-        IF receiptSaleSkuLedger(ledger) THEN {
-            quantity(ReceiptSaleSkuBinLedger saleBinLedger) <- quantity[DataSkuLedger](ledger) WHERE saleBinLedger==receiptSaleSkuLedger(ledger);    
-        } ELSE { 
-            NEW bl = ReceiptSaleSkuBinLedger {
-                receiptSaleSkuLedger(bl) <- ledger;
-                dateTime(bl) <- dateTime[DataSkuLedger](ledger);
-                departmentStore(bl) <- stock[DataSkuLedger](ledger);    
-                sku(bl) <- sku[DataSkuLedger](ledger);
-                quantity(bl) <- quantity[DataSkuLedger](ledger);
-                outBin(bl) <- outBin(departmentStore(ledger));
-            }
+        outBin(departmentStore) AND NOT skipGenerateBinLedgers(ledger) AND receiptSaleSkuLedger(ledger) DO
+            quantity(ReceiptSaleSkuBinLedger saleBinLedger) <- quantity[DataSkuLedger](ledger) WHERE saleBinLedger == receiptSaleSkuLedger(ledger);
+
+    FOR date(ReceiptSaleSkuLedger ledger)>= dFrom AND date(ledger)<= dTo AND departmentStore(ledger) == departmentStore AND 
+        outBin(departmentStore) AND NOT skipGenerateBinLedgers(ledger) AND NOT receiptSaleSkuLedger(ledger) NEW bl = ReceiptSaleSkuBinLedger DO {
+            receiptSaleSkuLedger(bl) <- ledger;
+            dateTime(bl) <- dateTime[DataSkuLedger](ledger);
+            departmentStore(bl) <- stock[DataSkuLedger](ledger);    
+            sku(bl) <- sku[DataSkuLedger](ledger);
+            quantity(bl) <- quantity[DataSkuLedger](ledger);
+            outBin(bl) <- outBin(departmentStore(ledger));
         }
-    }
+    
     APPLY;
 }
 
 skipGenerateBinLedgers = ABSTRACT BOOLEAN (ReceiptReturnSkuLedger);
 
 generateReceiptReturnSkuLedgers 'Создать возвраты по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = {
-    FOR date(ReceiptReturnSkuLedger ledger)>= dFrom AND date(ledger)<= dTo AND departmentStore(ledger)==departmentStore AND 
-        outBin(departmentStore) AND NOT skipGenerateBinLedgers(ledger) DO {  
-        IF receiptReturnSkuLedger(ledger) THEN {
-            quantity(ReceiptReturnSkuBinLedger returnBinLedger) <- quantity[DataSkuLedger](ledger) WHERE returnBinLedger==receiptReturnSkuLedger(ledger);
-        } ELSE {
-            NEW bl = ReceiptReturnSkuBinLedger {
-                receiptReturnSkuLedger(bl) <- ledger;
-                dateTime(bl) <- dateTime[DataSkuLedger](ledger);
-                departmentStore(bl) <- stock[DataSkuLedger](ledger);    
-                sku(bl) <- sku[DataSkuLedger](ledger);
-                quantity(bl) <- quantity[DataSkuLedger](ledger);
-                inBin(bl) <- inBin(departmentStore(ledger));
-            }
+    FOR date(ReceiptReturnSkuLedger ledger) >= dFrom AND date(ledger)<= dTo AND departmentStore(ledger) == departmentStore AND 
+        outBin(departmentStore) AND NOT skipGenerateBinLedgers(ledger) AND receiptReturnSkuLedger(ledger) DO
+            quantity(ReceiptReturnSkuBinLedger returnBinLedger) <- quantity[DataSkuLedger](ledger) WHERE returnBinLedger == receiptReturnSkuLedger(ledger);
+
+    FOR date(ReceiptReturnSkuLedger ledger) >= dFrom AND date(ledger)<= dTo AND departmentStore(ledger) == departmentStore AND 
+        outBin(departmentStore) AND NOT skipGenerateBinLedgers(ledger) AND NOT receiptReturnSkuLedger(ledger) NEW bl = ReceiptReturnSkuBinLedger DO {
+            receiptReturnSkuLedger(bl) <- ledger;
+            dateTime(bl) <- dateTime[DataSkuLedger](ledger);
+            departmentStore(bl) <- stock[DataSkuLedger](ledger);    
+            sku(bl) <- sku[DataSkuLedger](ledger);
+            quantity(bl) <- quantity[DataSkuLedger](ledger);
+            inBin(bl) <- inBin(departmentStore(ledger));
         }
-    }    
+
     APPLY;
 }
 
