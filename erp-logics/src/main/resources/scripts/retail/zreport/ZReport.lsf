@@ -599,10 +599,11 @@ sumCard 'Сумма по карточкам Z-отчета' (zReport) = GROUP SU
 sumSkuReceiptDetail 'Сумма Z-отчета по sku' (zReport) = GROUP SUM sumSkuReceiptDetail(Receipt receipt) BY zReport(receipt);
 
 // Пока вот такой хак, чтобы не подключить ZReportReceiptDetailPayment
-sumCashNotSku (ZReport z) = GROUP SUM min(sumCashPayment(ReceiptDetail d), sum(d)) IF NOT sku(d) BY zReport(d);
+negMin = FORMULA 'CASE WHEN $1 < 0 THEN ($1+$2+ABS($1-$2))/2 ELSE ($1+$2-ABS($1-$2))/2 END'; //для отрицательных max, для положительных min
+sumCashNotSku (ZReport z) = GROUP SUM negMin(sumCashPayment(ReceiptDetail d), sum(d)) IF NOT sku(d) BY zReport(d);
 sumCashSku 'Сумма наличных по товарам Z-отчета' (ZReport z) = sumCash(z) - OVERRIDE sumCashNotSku(z), 0.0; 
 
-sumCardNotSku (ZReport z) = GROUP SUM min(sumCardPayment(ReceiptDetail d), sum(d)) IF NOT sku(d) BY zReport(d);
+sumCardNotSku (ZReport z) = GROUP SUM negMin(sumCardPayment(ReceiptDetail d), sum(d)) IF NOT sku(d) BY zReport(d);
 sumCardSku 'Сумма по карточкам по товарам Z-отчета' (ZReport z) = sumCard(z) - OVERRIDE sumCardNotSku(z), 0.0; 
 
 discountSumReceiptDetail 'Сумма скидок Z-отчета' (zReport) = GROUP SUM discountSumReceiptDetail(Receipt receipt) BY zReport(receipt) MATERIALIZED IN documentSum;
