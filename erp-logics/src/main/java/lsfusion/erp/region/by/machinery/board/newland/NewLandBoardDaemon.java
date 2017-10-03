@@ -96,13 +96,13 @@ public class NewLandBoardDaemon extends BoardDaemon {
                     barcode = barcode.length() > 1 ? barcode.substring(1) : barcode;
                     byte[] message = readMessage(barcode, ip);
                     outToClient.write(message);
-                    terminalLogger.info(String.format("NewLand successed request ip %s, barcode %s", ip, barcode));
+                    terminalLogger.info(String.format("%s succeeded request ip %s, barcode %s, reply %s", getEventName(), ip, barcode, new String(message, 3, message.length - 3, charset)));
                 }
                 Thread.sleep(1000);
                 return null;
             } catch (SocketTimeoutException ignored) {
             } catch (Exception e) {
-                terminalLogger.error("NewLandBoard Error: ", e);
+                terminalLogger.error(getEventName() + " error: ", e);
             } finally {
                 try {
                     if (outToClient != null)
@@ -110,14 +110,14 @@ public class NewLandBoardDaemon extends BoardDaemon {
                     if (inFromClient != null)
                         inFromClient.close();
                 } catch (IOException e) {
-                    terminalLogger.error("NewLandBoard Error occured: ", e);
+                    terminalLogger.error(getEventName() + " error: ", e);
                 }
             }
             return null;
         }
 
         private byte[] readMessage(String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
-            terminalLogger.info(String.format("NewLand request ip %s, barcode %s", ip, idBarcode));
+            terminalLogger.info(String.format("%s request ip %s, barcode %s", getEventName(), ip, idBarcode));
             try (DataSession session = dbManager.createSession()) {
 
                 String weightPrefix = (String) LM.findProperty("weightPrefixIP").read(session, new DataObject(ip));
