@@ -334,7 +334,9 @@ currentBalance 'Остаток (ассортимент)' (range, store) = GROUP 
 
 currentBalance 'Остаток (ассортимент)' (RangeRev v, Store store) = currentBalance(range(v),store);
 
-nameLevel 'Уровень' (RangeRev v,StoreType t)= nameLevel(range(v), t, date(v));
+nameLevel 'Уровень' (RangeRev v, StoreType t)= nameLevel(range(v), t, date(v));
+nameLevel 'Уровень' (RangeRev v, Store s) = nameLevel(range(v), s, date(v));
+
 countSku 'Кол-во наименований' (RangeRev v,StoreType t) = countSku(range(v), t, date(v));
 
 EXTEND FORM rangeRev
@@ -347,8 +349,10 @@ EXTEND FORM rangeRev
         FILTER 'Активные' active(t) DEFAULT 
     
     OBJECTS st = Store GRID
-    PROPERTIES READONLY name(st), countFilter(v, st, dFrom), currentBalance(v, st)
+    PROPERTIES READONLY name(st), nameLevel(v, st), countFilter(v, st, dFrom), currentBalance(v, st)
     FILTERS active(st)
+    
+    PROPERTIES READONLY nameLevel(v, store) AFTER name(store)
     
     FILTERGROUP type
         FILTER 'По форматам' storeType(st) == t DEFAULT 
