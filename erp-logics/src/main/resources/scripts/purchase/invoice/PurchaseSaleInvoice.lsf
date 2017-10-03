@@ -1,0 +1,204 @@
+MODULE PurchaseSaleInvoice;
+
+REQUIRE SaleInvoice, PurchaseInvoice, PurchaseSaleOperation;
+
+PRIORITY Purchase;
+
+//----------------------------------------------------------------------------//
+
+// Создание накладной на основе накладной //
+
+FORM invoiceInvoices 'Накладные (закупка)'
+    OBJECTS c = LegalEntity PANEL
+    PROPERTIES (c) READONLY name
+
+    OBJECTS cs = Stock PANEL
+    PROPERTIES (cs) READONLY name
+
+    OBJECTS t=DATE PANEL
+    PROPERTIES(t) VALUE
+
+    OBJECTS o = Invoice
+    PROPERTIES (o) READONLY isPosted, number, series, date, time, nameCurrency,
+                            countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
+                            note
+    FILTERS customer(o) == c,
+            customerStock(o) == cs,
+            isPosted(o)
+
+    FILTERGROUP filters1
+        FILTER 'Только этой даты' date(o) == t 'F11' DEFAULT
+
+    OBJECTS d = InvoiceDetail
+
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY SHOWIF showPack(o) idBarcodePack, shortNameUOMPack, amountPack, packQuantity
+    PROPERTIES (d) READONLY quantity, price, sum, numberVAT, valueVAT,
+                            VATSum, invoiceSum, nameSupplierStock
+
+    FILTERS invoice(d) == o
+;
+
+DESIGN invoiceInvoices {
+    BOX {
+        preferredSize = (1124, 768);
+        fill = 1;
+        NEW documentContainer BEFORE TOOLBARBOX {
+
+            type = CONTAINERV;
+            fill = 1;
+            NEW headerBox1 {
+                type = CONTAINERH;
+                NEW headerBox12 {
+                    type = CONTAINERH;
+                    caption = 'Покупатель';
+                    MOVE BOX(c);
+                    MOVE BOX(cs);
+                }
+            }
+            NEW headerBox2 {
+                type = CONTAINERH;
+                MOVE BOX(t);
+            }
+            NEW specBox {
+                type = SPLITV;
+                fill =1;
+                
+                MOVE BOX(o) {
+                    fill =1;
+                };
+                NEW documentDetail {
+                    type = TABBED;
+                    fill =1;
+                    MOVE BOX(d) {
+                        caption = 'Спецификация';
+                        fill =1;
+                    }
+                    NEW printTab {
+                        caption = 'Печатные формы';
+                        NEW printContainer {
+                            caption = 'Печать';
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+notUseBatchSaleInvoice 'Не проставлять партии при выполнении действия "Накладная (продажа)"' = DATA BOOLEAN (Operation); 
+
+EXTEND FORM operation
+    PROPERTIES notUseBatchSaleInvoice(o)
+;
+DESIGN operation {
+    createContainer {
+        MOVE PROPERTY (notUseBatchSaleInvoice(o)) AFTER PROPERTY(nameSaleOperation(o));
+    }
+}
+
+invoiceDetail = ABSTRACT InvoiceDetail (Sale.InvoiceDetail) MATERIALIZED INDEXED;
+invoiceDetail = DATA InvoiceDetail (Sale.UserInvoiceDetail) INDEXED;
+invoiceDetail(Sale.UserInvoiceDetail invoiceDetail) += invoiceDetail(invoiceDetail);
+
+setPropertiesSaleSale = ABSTRACT LIST (Sale.UserInvoiceDetail, InvoiceDetail);
+
+fillInvoice 'Заполнить на основе накладной (закупка)'(Sale.UserInvoice userInvoice) =  {
+    DIALOG invoiceInvoices OBJECTS c = supplier(userInvoice),
+                                   cs = supplierStock(userInvoice),
+                                   t = date(userInvoice), o INPUT DO {
+        FOR invoice(InvoiceDetail invoiceDetail) == o NEW d = Sale.UserInvoiceDetail DO {
+            userInvoice(d) <- userInvoice;
+            invoiceDetail(d) <- invoiceDetail;
+            setPropertiesSaleSale(d, invoiceDetail); 
+        }
+    }
+} IN Sale.invoice;
+
+setPropertiesSaleSale(Sale.UserInvoiceDetail d, InvoiceDetail invoiceDetail) += {
+    sku(d) <- sku(invoiceDetail);
+    batch(d) <- batch(invoiceDetail)  WHERE NOT (notUseBatchSaleInvoice(operation(invoice(invoiceDetail))) OR skipFillBatch(d));
+    barcodePack(d) <- barcodePack(invoiceDetail);
+    amountPack(d) <- amountPack(invoiceDetail);
+    packQuantity(d) <- packQuantity(invoiceDetail);
+    quantity (d) <- quantity(invoiceDetail);
+    VAT(d) <- VAT(invoiceDetail);
+    valueVAT(d) <- valueVAT(invoiceDetail);
+    price(d) <- price(invoiceDetail);
+    invoicePrice(d) <- invoicePrice(invoiceDetail);    
+}
+
+descriptionIndexInvoiceDetail 'Строка накладной (продажа)' (Sale.InvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
+descriptionIndexInvoiceDetail 'Строка накладной (продажа)' (Sale.UserInvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
+
+quantityInvoiceDetail = GROUP SUM quantity(Sale.InvoiceDetail detail) BY invoice(invoiceDetail(detail)), invoice(detail);
+
+purchaseInvoices 'Накладные (закупка)' = GROUP CONCAT VARSTRING[255](description(Invoice purshase)) IF quantityInvoiceDetail(purshase, Sale.Invoice sale) , ', '
+                                                        BY sale
+                                                        ORDER purshase IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
+
+EXTEND FORM Sale.userInvoice
+    PROPERTIES(i) fillInvoice, purchaseInvoices READONLY
+    PROPERTIES (d) descriptionIndexInvoiceDetail
+;
+DESIGN Sale.userInvoice { headerCreateDetail{ MOVE GROUP(i,invoice) { type = CONTAINERV; }}}
+
+
+//-- Действие
+
+overFillInvoice = ABSTRACT LIST (Sale.UserInvoice, Invoice);
+overFillInvoice = ABSTRACT LIST (Sale.UserInvoiceDetail, InvoiceDetail);
+
+moveUserInvoice 'Накладная (продажа)'(Invoice invoice) =  {
+	NEWSESSION{
+	
+	    NEW i = Sale.UserInvoice {
+	
+	        agreement(i) <- agreement(invoice);
+	        priceListType(i) <- priceListType(invoice);
+	        supplier(i) <- customer(invoice);  // покупатель Purchase в продавца Sale, а покупатель Sale пустой
+	        supplierStock(i) <- customerStock(invoice);
+	        number(i) <- number(invoice);
+	        series(i) <- series(invoice);
+	        note(i) <- note(invoice);
+	        currency(i) <- currency(invoice);
+	        contractSku(i) <- contractSku(invoice);
+	        isCommission(i) <- isCommission(invoice);
+	        showPack(i) <- showPack(invoice);
+	        operation(i) <- saleOperation(operation(invoice));
+	        EXEC overFillInvoice(i, invoice);
+	
+	        FOR invoice(InvoiceDetail detail)==invoice NEW d = Sale.UserInvoiceDetail DO {
+	
+	            userInvoice(d) <- i;
+	            invoiceDetail(d) <- detail;
+	
+	            priceListType(d) <- priceListType(detail);
+	
+	            sku(d) <- sku(detail);
+	            quantity (d) <- quantity(detail);
+	            VAT (d) <- VAT(detail);
+	            price (d) <- price(detail);
+	            invoicePrice (d) <- invoicePrice(detail);
+	
+	            barcodePack (d) <- barcodePack(detail);
+	            amountPack (d) <- amountPack(detail);
+	            packQuantity (d) <- packQuantity(detail);
+	
+	            batch(d) <- batch(detail) WHERE NOT (notUseBatchSaleInvoice(operation(invoice)) OR skipFillBatch(d));	            
+	            EXEC overFillInvoice(d,detail);
+	        }
+	
+	    SHOW Sale.userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
+	    }
+	}
+} TOOLBAR;
+
+EXTEND FORM invoices
+    PROPERTIES(i) moveUserInvoice
+;
+DESIGN invoices {
+    createdContainer{
+        MOVE PROPERTY(moveUserInvoice(i));
+    }
+}
