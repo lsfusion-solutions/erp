@@ -37,24 +37,22 @@ public class FiscalEpsonCheckOpenZReportActionProperty extends ScriptingActionPr
             if(maxDesync == null)
                 maxDesync = 0L;
 
-            if (blockDesync) {
-                Object result = context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(5, comPort, baudRate));
-                if (result instanceof Date) {
-                    long delta = Math.abs(((Date)result).getTime() - System.currentTimeMillis()) / 1000;
-                    if(delta > maxDesync) {
-                        String message = "Рассинхронизация времени на кассе " + delta + "с. Чтобы открыть смену, необходимо синхронизировать время. Синхронизировать?";
-                        int confirmResult = (int) context.requestUserInteraction(new ConfirmClientAction("Синхронизация времени", message));
-                        if (confirmResult == JOptionPane.YES_OPTION) {
-                            result = context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(6, comPort, baudRate));
-                        } else
-                            throw new RuntimeException("Без синхронизации времени работа с кассой невозможна.");
-                    }
+            Object result = context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(5, comPort, baudRate));
+            if (result instanceof Date) {
+                long delta = Math.abs(((Date) result).getTime() - System.currentTimeMillis()) / 1000;
+                if (delta > maxDesync) {
+                    String message = "Рассинхронизация времени на кассе " + delta + "с. Чтобы открыть смену, необходимо синхронизировать время. Синхронизировать?";
+                    int confirmResult = (int) context.requestUserInteraction(new ConfirmClientAction("Синхронизация времени", message));
+                    if (confirmResult == JOptionPane.YES_OPTION) {
+                        result = context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(6, comPort, baudRate));
+                    } else if (blockDesync)
+                        throw new RuntimeException("Без синхронизации времени работа с кассой невозможна.");
                 }
-                if(result instanceof String)
-                    throw new RuntimeException("Ошибка синхронизации времени:" + result);
             }
-
-            Object result = context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(7, comPort, baudRate));
+            if (result instanceof String)
+                throw new RuntimeException("Ошибка синхронизации времени:" + result);
+            
+            result = context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(7, comPort, baudRate));
             if (result instanceof Integer) {
                 findProperty("fiscalEpsonElectronicJournalReadOffset[ZReport]").change(result, context, zReportObject);
             } else
