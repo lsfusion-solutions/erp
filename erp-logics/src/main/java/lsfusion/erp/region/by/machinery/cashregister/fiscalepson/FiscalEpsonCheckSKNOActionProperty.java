@@ -20,7 +20,7 @@ public class FiscalEpsonCheckSKNOActionProperty extends ScriptingActionProperty 
         try {
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
-            String result = (String) context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(6, comPort, baudRate));
+            String result = (String) context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(8, comPort, baudRate));
             if (result != null)
                 context.requestUserInteraction(new MessageClientAction("Связь с СКНО: " + result, "СКНО"));
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

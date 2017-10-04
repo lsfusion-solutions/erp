@@ -1058,17 +1058,17 @@ openZReport 'Открыть Z-отчет' (CashRegister cashRegister) = {
     }
 } IN receiptZReport;
 
-fiscalCheckOpenZReport 'Проверка перед открытием Z-отчета' () = ABSTRACT LIST ();
+fiscalCheckOpenZReport 'Проверка перед открытием Z-отчета' () = ABSTRACT LIST (ZReport);
 fiscalOpenZReport 'Открыть Z-отчет' () = ABSTRACT LIST ();
 
 openCurrentZReport 'Открыть Z-отчет'() = {
-    fiscalCheckOpenZReport();
     NEW z = ZReport {
         isPosted(z) <- TRUE;
         number(z) <- STRING[255](z);
         cashRegister(z) <- currentCashRegister();
         departmentStore(z) <- departmentStore(currentCashRegister()); // todo : приходится ставить из-за того, что на NEW срабатывает resolveAdd
         zReport(CashRegister cashRegister) <- z WHERE cashRegister == currentCashRegister();
+        fiscalCheckOpenZReport(z);
         apply();
     }
     fiscalOpenZReport();
@@ -1497,6 +1497,7 @@ currentZReportDepartmentStore() = currentZReport() IF departmentStoreCurrentCash
 closedCurrentZReportDepartmentStore() = closedCurrentZReport() IF departmentStoreCurrentCashRegister();
 
 fiscalElectronicJournal 'Печать контрольной ленты' = ABSTRACT LIST () CONFIRM;
+fiscalElectronicJournalToFile 'Печать контрольной ленты в файл' = ABSTRACT LIST () CONFIRM;
 
 resetted 'Аннулирован' = DATA BOOLEAN (Receipt);
 
@@ -1531,7 +1532,7 @@ EXTEND FORM operationCashRegister
     PROPERTIES() READONLY numberCurrentZReport SHOWIF departmentStoreCurrentCashRegister()
     PROPERTIES() fiscalZReport SHOWIF currentZReportDepartmentStore()
     PROPERTIES() openCurrentZReport SHOWIF closedCurrentZReportDepartmentStore()
-    PROPERTIES() fiscalElectronicJournal SHOWIF currentZReportDepartmentStore()
+    PROPERTIES() SHOWIF currentZReportDepartmentStore() fiscalElectronicJournal, fiscalElectronicJournalToFile
     PROPERTIES() fiscalResetReceipt SHOWIF currentZReportDepartmentStore()
     
     PROPERTIES addIncomeCashOperationForm() TODRAW c TOOLBAR  SHOWIF currentZReportDepartmentStore()
@@ -1552,6 +1553,7 @@ DESIGN operationCashRegister {
             MOVE PROPERTY(fiscalZReport()) { font = '24'; }
             MOVE PROPERTY(openCurrentZReport()) { font = '24'; };
             MOVE PROPERTY(fiscalElectronicJournal()) { font = '24'; }
+            MOVE PROPERTY(fiscalElectronicJournalToFile()) { font = '24'; }
         }
         secondRowActions {
             MOVE PROPERTY(fiscalResetReceipt()) { font = '24'; }

@@ -104,6 +104,19 @@ public class FiscalEpson {
         checkErrors(true);
     }
 
+    public static String readElectronicJournal(Integer offsetBefore) throws RuntimeException {
+        Integer offset = getElectronicJournalReadOffset();
+        checkErrors(true);
+
+        epsonActiveXComponent.setProperty("ElectronicJournalReadOffset", offsetBefore);
+        epsonActiveXComponent.setProperty("ElectronicJournalReadSize", offset - offsetBefore);
+
+        Dispatch.call(epsonDispatch, "ReadElectronicJournal");
+        checkErrors(true);
+
+        return epsonActiveXComponent.getPropertyAsString("ElectronicJournalData");
+    }
+
     public static void xReport() throws RuntimeException {
         openDayIfClosed();
         Dispatch.call(epsonDispatch, "PrintXReport");
@@ -250,16 +263,12 @@ public class FiscalEpson {
         }
     }
 
-    public static void synchronizeDateTime(long maxDesync) {
+    public static Date getDateTime() {
+       return epsonActiveXComponent.getProperty("DateTime").getJavaDate();
+    }
+
+    public static void synchronizeDateTime() {
         epsonActiveXComponent.setProperty("DateTime", new Variant(Calendar.getInstance().getTime()));
-        String error = checkErrors(false);
-        if(error != null) {
-            Date dateTime = epsonActiveXComponent.getProperty("DateTime").getJavaDate();
-            long delta = Math.abs(dateTime.getTime() - Calendar.getInstance().getTime().getTime());
-            if (delta > maxDesync) {
-                throw new RuntimeException("Рассинхронизация " + delta + "мс\n" + error);
-            }
-        }
     }
 
     public static String checkSKNO() {

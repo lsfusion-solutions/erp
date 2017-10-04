@@ -11,17 +11,17 @@ public class FiscalEpsonCustomOperationClientAction implements ClientAction {
     int type;
     int comPort;
     int baudRate;
-    long maxDesync;
+    int offsetBefore;
 
     public FiscalEpsonCustomOperationClientAction(int type, Integer comPort, Integer baudRate) {
         this(type, comPort, baudRate, null);
     }
 
-    public FiscalEpsonCustomOperationClientAction(int type, Integer comPort, Integer baudRate, Long maxDesync) {
+    public FiscalEpsonCustomOperationClientAction(int type, Integer comPort, Integer baudRate, Integer offsetBefore) {
         this.type = type;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
-        this.maxDesync = maxDesync == null ? 0 : maxDesync;
+        this.offsetBefore = offsetBefore == null ? 0 : offsetBefore;
     }
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
@@ -43,10 +43,16 @@ public class FiscalEpsonCustomOperationClientAction implements ClientAction {
                     FiscalEpson.cancelReceipt(true);
                     break;
                 case 5:
-                    FiscalEpson.synchronizeDateTime(maxDesync);
-                    break;
+                    return FiscalEpson.getDateTime();
                 case 6:
+                    FiscalEpson.synchronizeDateTime();
+                    break;
+                case 7:
+                    return FiscalEpson.getElectronicJournalReadOffset();
+                case 8:
                     return FiscalEpson.checkSKNO();
+                case 9:
+                    return FiscalEpson.readElectronicJournal(offsetBefore);
                 default:
                     break;
             }
