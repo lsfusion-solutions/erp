@@ -2,10 +2,6 @@ package lsfusion.erp.integration.universal.userpricelist;
 
 import com.hexiong.jdbf.DBFReader;
 import com.hexiong.jdbf.JDBFException;
-import jxl.Sheet;
-import jxl.Workbook;
-import jxl.WorkbookSettings;
-import jxl.read.biff.BiffException;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.MapFact;
@@ -101,7 +97,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException | BiffException | ParseException | JDBFException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException | ParseException | JDBFException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
@@ -111,7 +107,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
     public boolean importData(ExecutionContext context, DataObject userPriceListObject, ImportPriceListSettings settings, Map<DataObject, String[]> priceColumns, 
                               Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, byte[] file, boolean apply)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, UniversalImportException, SQLHandledException, JDBFException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, UniversalImportException, SQLHandledException, JDBFException {
 
         this.itemArticleLM = context.getBL().getModule("ItemArticle");
         this.itemAlcoholLM = context.getBL().getModule("ItemAlcohol");
@@ -691,7 +687,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                                                                   Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                   Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
                                                                   List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
-            throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
+            throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
@@ -760,7 +756,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                                                                   Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                   Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
                                                                   List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
-            throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
+            throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
@@ -836,7 +832,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                                                                    Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                    Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
                                                                    List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
-            throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
+            throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
