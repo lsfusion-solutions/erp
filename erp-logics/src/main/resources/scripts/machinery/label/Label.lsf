@@ -845,9 +845,9 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
 	                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
 	                
                         IF notCheckEqualRetailPrice() THEN
-                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
                         ELSE
-                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d);
+                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
 	                    
 	                    print(t);
 	            }
@@ -917,9 +917,9 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
 	                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
 	                
                                 IF notCheckEqualRetailPrice() THEN
-                                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+                                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
                                 ELSE
-                                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d);
+                                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
 	                    
 	                            print(t);
 	                        }                        
@@ -984,6 +984,7 @@ overQuantityPrint = DATA LOCAL NESTED INTEGER (Sku);
 addedTransaction = DATA LOCAL LabelTransaction();
 
 notCheckEqualRetailPrice 'Не печатать ценники только БЕЗ цены до' = DATA BOOLEAN ();
+skipDelete = ABSTRACT VALUE BOOLEAN (LabelTransactionDetail);
 
 createLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore) = {
     // бежим по всем типам ценников из управленческих параметров
@@ -1014,9 +1015,9 @@ createLabelTransaction 'Распечатать ценники'(DepartmentStore d
         DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
 
         IF notCheckEqualRetailPrice() THEN
-            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
         ELSE
-            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d);
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
          
         print(t);                 
     }
@@ -1069,9 +1070,9 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
             DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
 
             IF notCheckEqualRetailPrice() THEN
-                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
             ELSE
-                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d);
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d)  AND NOT skipDelete(d);
         
             print(t);
         }     
