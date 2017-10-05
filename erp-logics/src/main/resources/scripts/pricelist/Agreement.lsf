@@ -144,6 +144,10 @@ nameDefaultAgreement 'Соглашение по умолчанию' (LegalEntity
 
 isDefault 'Соглашение по умолчанию' (Agreement agreement, LegalEntity supplier, LegalEntity customer) = defaultAgreement(supplier, customer, currentDateTime()) == agreement;
 
+changeUserDefaultAgreement (Agreement agreement, LegalEntity supplier, LegalEntity customer) = {
+    userDefaultAgreementSupplierCustomer(supplier, customer) <- agreement;
+}
+
 // ----------------------------------------------- Виды цен --------------------------------- //
 
 isPurchase 'Закупка' (agreement) = GROUP SUM 1 IF inSupplier(Agreement agreement, LegalEntity supplier) AND isSupplier(supplier) AND 
@@ -521,7 +525,7 @@ createAgreementSupplierCustomer 'Добавить'(LegalEntity supplier, LegalEn
 EXTEND FORM legalEntity
 
     OBJECTS ags=Agreement GRID
-    PROPERTIES(ags, s, l) SHOWIF isCustomer(l) isDefault
+    PROPERTIES(ags, s, l) SHOWIF isCustomer(l) isDefault ON CHANGE changeUserDefaultAgreement(ags, s, l)
     PROPERTIES(ags, l) SHOWIF isCustomer(l) inCustomer
     PROPERTIES(ags) SHOWIF isCustomer(l) READONLY name, number, series, date, time,
                              fromDate, fromTime, toDate, toTime,
@@ -538,7 +542,7 @@ EXTEND FORM legalEntity
 
     OBJECTS agc=Agreement GRID 
     PROPERTIES(agc, c) SHOWIF isSupplier(l) READONLY inCustomer
-    PROPERTIES(agc, l, c) SHOWIF isSupplier(l) isDefault
+    PROPERTIES(agc, l, c) SHOWIF isSupplier(l) isDefault ON CHANGE changeUserDefaultAgreement(agc, l, c)
     PROPERTIES(agc) SHOWIF isSupplier(l) READONLY name, number, series, date, time,
                              fromDate, fromTime, toDate, toTime,
                              nameCurrency, namePriceListType, note
