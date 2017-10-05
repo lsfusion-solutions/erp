@@ -793,10 +793,10 @@ type(InUserStockDocumentDetail l) += 'Учетный документ (поль�
 
 
 //-------------------- Групповое закрытие периода по магазинам --------------------
-select 'Вкл.'= DATA LOCAL BOOLEAN (Stock);
+isSelect 'Вкл.'= DATA LOCAL BOOLEAN (Stock);
 
 closeDocumentsStocks 'Закрыть документы'() = {
-    FOR StockDocumentLedger ledger AND select(stock(ledger)) AND date(ledger) < documentsClosedDate(stock(ledger)) AND isOpened(ledger) DO {
+    FOR StockDocumentLedger ledger AND isSelect(stock(ledger)) AND date(ledger) < documentsClosedDate(stock(ledger)) AND isOpened(ledger) DO {
         close(ledger);
     }
     apply();   
@@ -809,13 +809,13 @@ FORM closingDocuments 'Закрытие периода'
     FILTERS stringEqualsAll(a)
     
     OBJECTS s = Stock
-    PROPERTIES(s) READONLY select EDITABLE, id, name, nameLegalEntity, documentsClosedDate EDITABLE
+    PROPERTIES(s) READONLY isSelect EDITABLE, id, name, nameLegalEntity, documentsClosedDate EDITABLE
     ORDER BY name(s)       
     FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
             isCompany(s),
             countCompanyStock(sg)
     FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
-    FILTERGROUP select FILTER 'Отм.' select(s) 'F9'
+    FILTERGROUP select FILTER 'Отм.' isSelect(s) 'F9'
     
     PROPERTIES closeDocumentsStocks()
 ;
