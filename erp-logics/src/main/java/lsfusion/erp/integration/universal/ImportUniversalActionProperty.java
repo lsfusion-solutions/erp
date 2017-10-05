@@ -14,6 +14,9 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFRow;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
@@ -241,12 +244,130 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return getXLSFieldValue(sheet, row, importColumnDetail, null, false, false);
     }
 
+    //1
+    protected String getXLSFieldValue(HSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
+        return getXLSFieldValue(sheet, row, importColumnDetail, null, false, false);
+    }
+
     protected String getXLSFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, String defaultValue)
             throws UniversalImportException {
         return getXLSFieldValue(sheet, row, importColumnDetail, defaultValue, false, false);
     }
 
+    //2
+    protected String getXLSFieldValue(HSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, String defaultValue)
+            throws UniversalImportException {
+        return getXLSFieldValue(sheet, row, importColumnDetail, defaultValue, false, false);
+    }
+
     protected String getXLSFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, String defaultValue,
+                                      boolean isNumeric, boolean ignoreException) throws UniversalImportException {
+        try {
+            if (importColumnDetail == null) return defaultValue;
+            String result = "";
+            for (String cell : importColumnDetail.indexes) {
+                if (cell == null) return defaultValue;
+                String value;
+                if(isParenthesisedValue(cell)) {
+                    Pair<Integer, Integer> indexes = findParenthesesIndexes(cell);
+                    String first = cell.substring(0, indexes.first);
+                    String firstType = "";
+                    if(!first.isEmpty()) {
+                        firstType = first.substring(first.length() - 1);
+                        first = first.substring(0, first.length() - 1);
+                    }
+                    String second = cell.substring(indexes.first + 1, indexes.second);
+                    String third = cell.substring(indexes.second + 1);
+                    String thirdType = "";
+                    if(!third.isEmpty()) {
+                        thirdType = third.substring(third.length() - 1);
+                        third = third.substring(0, third.length() - 1);
+                    }
+                    BigDecimal firstResult = getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(first));
+                    BigDecimal secondResult = getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(second));
+                    BigDecimal thirdResult = getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(third));
+                    value = formatValue(parenthesisAction(parenthesisAction(firstResult, secondResult, firstType), thirdResult, thirdType));
+                } else if (isConstantValue(cell))
+                    value = parseConstantFieldPattern(cell);
+                else if (isColumnRowValue(cell)) {
+                    String[] splittedCell = cell.replace(":", "").split("_");
+                    value = getXLSFieldValue(sheet, importColumnDetail, parseIndex(splittedCell, 1), parseIndex(splittedCell, 0), defaultValue);
+                } else if (isRoundedValue(cell)) {
+                    String[] splittedCell = splitRoundedCell(cell);
+                    value = getRoundedValue(getXLSFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0])), defaultValue, isNumeric, ignoreException), splittedCell[1]);
+                } else if (isDivisionValue(cell)) {
+                    String[] splittedField = splitCell(cell, "/");
+                    BigDecimal dividedValue = null;
+                    int c = 0;
+                    for (String arg : splittedField) {
+                        dividedValue = checkedDivide(dividedValue, getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg)), c);
+                        c++;
+                    }
+                    value = formatValue(dividedValue);
+                } else if (isMultiplyValue(cell)) {
+                    String[] splittedField = splitCell(cell, "\\*");
+                    BigDecimal multipliedValue = null;
+                    int c = 0;
+                    for (String arg : splittedField) {
+                        multipliedValue = checkedMultiply(multipliedValue, getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg)), c);
+                        c++;
+                    }
+                    value = formatValue(multipliedValue);
+                } else if (isSumValue(cell)) {
+                    String[] splittedField = splitCell(cell, "\\+", false);
+                    String summedValue = null;
+                    int c = 0;
+                    for (String arg : splittedField) {
+                        summedValue = checkedSum(summedValue, getXLSFieldValue(sheet, row, importColumnDetail.clone(arg)), c, isNumeric);
+                        c++;
+                    }
+                    value = formatValue(summedValue);
+                } else if (isSubtractValue(cell)) {
+                    String[] splittedField = splitCell(cell, "\\-");
+                    BigDecimal subtractedValue = null;
+                    int c = 0;
+                    for (String arg : splittedField) {
+                        subtractedValue = checkedSubtract(subtractedValue, getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg)), c);
+                        c++;
+                    }
+                    value = formatValue(subtractedValue);
+                } else if (isOrValue(cell)) {
+                    value = "";
+                    String[] splittedField = splitCell(cell, "\\|");
+                    for (int i = splittedField.length - 1; i >= 0; i--) {
+                        String orValue = getXLSFieldValue(sheet, row, importColumnDetail.clone(splittedField[i]), null, isNumeric, ignoreException);
+                        if (orValue != null) {
+                            value = orValue;
+                            break;
+                        }
+                    }
+                } else if (isSubstringValue(cell)) {
+                    String[] splittedCell = splitCellSubstring(cell);
+                    value = getSubstring(getXLSFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0]), defaultValue, isNumeric, ignoreException),
+                            parseSubstring(splittedCell, 1), parseSubstring(splittedCell, 2));
+                } else if (isPatternedDateTimeValue(cell)) {
+                    String[] splittedCell = cell.split("~");
+                    Calendar calendar = Calendar.getInstance();
+                    Date date = parseDate(getXLSFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0])), null, false, ignoreException));
+                    if (date != null)
+                        calendar.setTime(date);
+                    return parseDateTimePattern(splittedCell, calendar);
+                } else {
+                    value = cell.isEmpty() ? defaultValue : getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(cell), "");
+                }
+                result = trySum(result, value, isNumeric);
+            }
+            return result.isEmpty() ? defaultValue : result;
+        } catch (Exception e) {
+            if (ignoreException)
+                return defaultValue;
+            else
+                throw new UniversalImportException(importColumnDetail, row, e);
+        }
+    }
+
+    //3
+    protected String getXLSFieldValue(HSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, String defaultValue,
                                       boolean isNumeric, boolean ignoreException) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return defaultValue;
@@ -374,7 +495,41 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         }
     }
 
+    //4
+    protected String getXLSFieldValue(HSSFSheet sheet, ImportColumnDetail importColumnDetail, Integer row, Integer column, String defaultValue) throws UniversalImportException {
+        try {
+            if (column == null) return defaultValue;
+            HSSFRow hssfRow = sheet.getRow(row);
+            if (hssfRow == null) return defaultValue;
+            HSSFCell hssfCell = hssfRow.getCell(column);
+            if (hssfCell == null) return defaultValue;
+
+            String result;
+            switch (hssfCell.getCellType()) {
+                case Cell.CELL_TYPE_NUMERIC:
+                case Cell.CELL_TYPE_FORMULA:
+                    result = decimalFormat.format(hssfCell.getNumericCellValue());
+                    result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
+                    break;
+                case Cell.CELL_TYPE_STRING:
+                default:
+                    result = (hssfCell.getStringCellValue().isEmpty()) ? defaultValue : trim(hssfCell.getStringCellValue());
+                    break;
+            }
+            return result;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return defaultValue;
+        } catch (Exception e) {
+            throw new UniversalImportException(importColumnDetail, row, e);
+        }
+    }
+
     protected BigDecimal getXLSBigDecimalFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
+        return parseBigDecimal(getXLSFieldValue(sheet, row, importColumnDetail, null, true, false));
+    }
+
+    //5
+    protected BigDecimal getXLSBigDecimalFieldValue(HSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
         return parseBigDecimal(getXLSFieldValue(sheet, row, importColumnDetail, null, true, false));
     }
 
@@ -383,7 +538,18 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return date == null ? null : new Time(date.getTime());
     }
 
+    //6
+    protected Time getXLSTimeFieldValue(HSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
+        Date date = getXLSDateFieldValue(sheet, row, importColumnDetail, null);
+        return date == null ? null : new Time(date.getTime());
+    }
+
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
+        return getXLSDateFieldValue(sheet, row, importColumnDetail, null);
+    }
+
+    //7
+    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
         return getXLSDateFieldValue(sheet, row, importColumnDetail, null);
     }
 
@@ -391,11 +557,33 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return getXLSDateFieldValue(sheet, row, importColumnDetail, null, ignoreException);
     }
 
+    //8
+    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, boolean ignoreException) throws UniversalImportException {
+        return getXLSDateFieldValue(sheet, row, importColumnDetail, null, ignoreException);
+    }
+
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, Date defaultDate) throws UniversalImportException {
         return getXLSDateFieldValue(sheet, row, importColumnDetail, defaultDate, false);
     }
 
+    //9
+    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, Date defaultDate) throws UniversalImportException {
+        return getXLSDateFieldValue(sheet, row, importColumnDetail, defaultDate, false);
+    }
+
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, Date defaultDate, boolean ignoreException) throws UniversalImportException {
+        try {
+            return parseDate(getXLSFieldValue(sheet, row, importColumnDetail, null, false, ignoreException), defaultDate);
+        } catch (ParseException e) {
+            if (ignoreException)
+                return defaultDate;
+            else
+                throw new UniversalImportException(importColumnDetail, row, e);
+        }
+    }
+
+    //10
+    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, Date defaultDate, boolean ignoreException) throws UniversalImportException {
         try {
             return parseDate(getXLSFieldValue(sheet, row, importColumnDetail, null, false, ignoreException), defaultDate);
         } catch (ParseException e) {

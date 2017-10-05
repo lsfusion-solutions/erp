@@ -33,6 +33,8 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.xBaseJ.xBaseJException;
@@ -125,7 +127,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         String fileExtension = settings.getFileExtension();
 
         List<String> stringFields = Arrays.asList("idUserPriceList", "idItemGroup", "extraBarcodeItem", "articleItem", "captionItem", 
-                "idUOMItem", "valueVAT", "originalName", "originalBarcode", "alcoholItem");
+                "idUOMItem", "valueVAT", "originalName", "originalBarcode", "alcoholItem", "sidOrigin2Country", "nameCountry", "nameOriginCountry");
 
         List<String> bigDecimalFields = Arrays.asList("amountPackBarcode", "netWeightItem", "grossWeightItem", "alcoholSupplierType");
 
@@ -494,6 +496,49 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("alcoholItem"));
             }
 
+            ImportField sidOrigin2CountryField = new ImportField(LM.findProperty("sidOrigin2[Country]"));
+            ImportField nameCountryField = new ImportField(LM.findProperty("name[Country]"));
+            ImportField nameOriginCountryField = new ImportField(LM.findProperty("nameOrigin[Country]"));
+
+            boolean showSidOrigin2Country = showField(userPriceListDetailList, "sidOrigin2Country");
+            boolean showNameCountry = showField(userPriceListDetailList, "nameCountry");
+            boolean showNameOriginCountry = showField(userPriceListDetailList, "nameOriginCountry");
+
+            ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
+                    (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
+            LCP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[STRING[2]]") :
+                    (showNameCountry ? LM.findProperty("countryName[VARISTRING[50]]") : (showNameOriginCountry ? LM.findProperty("countryOrigin[VARISTRING[50]]") : null));
+            String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
+                    (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));
+            ImportKey<?> countryKey = countryField == null ? null :
+                    new ImportKey((CustomClass) LM.findClass("Country"), countryAggr.getMapping(countryField));
+
+            if (countryKey != null) {
+                keys.add(countryKey);
+
+                props.add(new ImportProperty(countryField, LM.findProperty("country[Item]").getMapping(itemKey),
+                        object(LM.findClass("Country")).getMapping(countryKey), getReplaceOnlyNull(defaultColumns, countryReplaceField)));
+
+                if (showSidOrigin2Country) {
+                    props.add(new ImportProperty(sidOrigin2CountryField, LM.findProperty("sidOrigin2[Country]").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "sidOrigin2Country")));
+                    fields.add(sidOrigin2CountryField);
+                    for (int i = 0; i < userPriceListDetailList.size(); i++)
+                        data.get(i).add(userPriceListDetailList.get(i).getFieldValue("sidOrigin2Country"));
+                }
+                if (showNameCountry) {
+                    props.add(new ImportProperty(nameCountryField, LM.findProperty("name[Country]").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "nameCountry")));
+                    fields.add(nameCountryField);
+                    for (int i = 0; i < userPriceListDetailList.size(); i++)
+                        data.get(i).add(userPriceListDetailList.get(i).getFieldValue("nameCountry"));
+                }
+                if (showNameOriginCountry) {
+                    props.add(new ImportProperty(nameOriginCountryField, LM.findProperty("nameOrigin[Country]").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "nameOriginCountry")));
+                    fields.add(nameOriginCountryField);
+                    for (int i = 0; i < userPriceListDetailList.size(); i++)
+                        data.get(i).add(userPriceListDetailList.get(i).getFieldValue("nameOriginCountry"));
+                }
+            }
+
             for (Map.Entry<String, ImportColumnDetail> entry : customColumns.entrySet()) {
                 ImportColumnDetail customColumn = entry.getValue();
                 LCP<?> customProp = (LCP<?>) context.getBL().findSafeProperty(customColumn.propertyCanonicalName);
@@ -650,13 +695,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
-        WorkbookSettings ws = new WorkbookSettings();
-        ws.setEncoding("cp1251");
-        ws.setGCDisabled(true);
-        Workbook wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
-        Sheet sheet = wb.getSheet(0);
+        HSSFWorkbook wb = new HSSFWorkbook(new ByteArrayInputStream(importFile));
+        HSSFSheet sheet = wb.getSheetAt(0);
 
-        for (int i = settings.getStartRow() - 1; i < sheet.getRows(); i++) {
+        for (int i = settings.getStartRow() - 1; i <= sheet.getLastRowNum(); i++) {
 
             String checkColumn = getXLSFieldValue(sheet, i, new ImportColumnDetail(settings.getCheckColumn(), settings.getCheckColumn(), false));
             if(settings.getCheckColumn() == null || checkColumn != null) {
