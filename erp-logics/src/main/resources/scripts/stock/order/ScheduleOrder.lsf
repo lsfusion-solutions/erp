@@ -376,14 +376,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     monthInDate 'Месяц'(ScheduleOrderDetail scheduleOrderDetail) = extractMonthName(dateSupply(scheduleOrderDetail));
     DOWInDate 'День недели'(ScheduleOrderDetail scheduleOrderDetail) = extractDOWName(dateSupply(scheduleOrderDetail));
 
-    order = STRUCT(dateSupply(ScheduleOrderDetail scheduleOrderDetail), scheduleOrderDetail) IF isOpened(scheduleOrderDetail) MATERIALIZED;
-
-    concatNextDetail(scheduleOrderDetail, scheduleOrder) = GROUP MIN order(ScheduleOrderDetail scheduleOrderDetail1) IF 
-                                                                                  dateSupply(scheduleOrderDetail1) > dateSupply(ScheduleOrderDetail scheduleOrderDetail)
-                                                                               BY scheduleOrderDetail, scheduleOrder(scheduleOrderDetail1);
-
-    next(ScheduleOrderDetail scheduleOrderDetail) = concatNextDetail(scheduleOrderDetail, scheduleOrder(scheduleOrderDetail))[2];
-
+    next(ScheduleOrderDetail d) = PARTITION PREV d IF isOpened(d) BY scheduleOrder(d) ORDER DESC dateSupply(d);
     dateSupplyNext(ScheduleOrderDetail scheduleOrderDetail) = dateSupply(next(scheduleOrderDetail));
 
     scheduleOrderDetail = DATA ScheduleOrderDetail(UserOrder) INDEXED;
