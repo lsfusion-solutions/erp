@@ -29,8 +29,10 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.hssf.usermodel.HSSFFormulaEvaluator;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.xBaseJ.xBaseJException;
@@ -692,15 +694,16 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
         HSSFWorkbook wb = new HSSFWorkbook(new ByteArrayInputStream(importFile));
+        FormulaEvaluator formulaEvaluator = new HSSFFormulaEvaluator(wb);
         HSSFSheet sheet = wb.getSheetAt(0);
 
         for (int i = settings.getStartRow() - 1; i <= sheet.getLastRowNum(); i++) {
 
-            String checkColumn = getXLSFieldValue(sheet, i, new ImportColumnDetail(settings.getCheckColumn(), settings.getCheckColumn(), false));
+            String checkColumn = getXLSFieldValue(formulaEvaluator, sheet, i, new ImportColumnDetail(settings.getCheckColumn(), settings.getCheckColumn(), false));
             if(settings.getCheckColumn() == null || checkColumn != null) {
                 Map<String, Object> fieldValues = new HashMap<>();
                 for (String field : stringFields) {
-                    String value = getXLSFieldValue(sheet, i, defaultColumns.get(field));
+                    String value = getXLSFieldValue(formulaEvaluator, sheet, i, defaultColumns.get(field));
                     if (field.equals("extraBarcodeItem")) {
                         fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7, settings.isBarcodeMaybeUPC()));
                     } else if (field.equals("valueVAT")) {
@@ -709,36 +712,36 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                         fieldValues.put(field, value);
                 }
                 for (String field : bigDecimalFields) {
-                    BigDecimal value = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get(field));
+                    BigDecimal value = getXLSBigDecimalFieldValue(formulaEvaluator, sheet, i, defaultColumns.get(field));
                     if(field.equals("alcoholSupplierType")) {
                         fieldValues.put(field, value == null ? null : value.intValue());
                     } else                   
                         fieldValues.put(field, value);
                 }
                 for (String field : dateFields) {
-                    Date value = getXLSDateFieldValue(sheet, i, defaultColumns.get(field));
+                    Date value = getXLSDateFieldValue(formulaEvaluator, sheet, i, defaultColumns.get(field));
                     fieldValues.put(field, value);
                 }
 
-                String idItem = getXLSFieldValue(sheet, i, defaultColumns.get("idItem"));
-                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, defaultColumns.get("barcodeItem")), 7, settings.isBarcodeMaybeUPC());
-                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, defaultColumns.get("packBarcode")), 7, settings.isBarcodeMaybeUPC());
-                Date dateUserPriceList = getXLSDateFieldValue(sheet, i, defaultColumns.get("dateUserPriceList"));
-                Date dateFrom = getXLSDateFieldValue(sheet, i, defaultColumns.get("dateFrom"), dateDocument);
+                String idItem = getXLSFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("idItem"));
+                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("barcodeItem")), 7, settings.isBarcodeMaybeUPC());
+                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("packBarcode")), 7, settings.isBarcodeMaybeUPC());
+                Date dateUserPriceList = getXLSDateFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("dateUserPriceList"));
+                Date dateFrom = getXLSDateFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("dateFrom"), dateDocument);
                 Date dateVAT = dateUserPriceList == null ? dateFrom : dateUserPriceList;
-                BigDecimal quantityAdjustment = getXLSBigDecimalFieldValue(sheet, i, new ImportColumnDetail("quantityAdjustment", settings.getQuantityAdjustmentColumn(), false));
+                BigDecimal quantityAdjustment = getXLSBigDecimalFieldValue(formulaEvaluator, sheet, i, new ImportColumnDetail("quantityAdjustment", settings.getQuantityAdjustmentColumn(), false));
                 String idUserPriceListDetail = makeIdUserPriceListDetail((String) fieldValues.get("idUserPriceList"), userPriceListObject, i);
                 String extIdPackBarcode = packBarcode == null ? ((settings.getItemKeyType().equals("barcode") ? barcodeItem : idItem) + "_pack") : packBarcode;
 
                 LinkedHashMap<String, String> customValues = new LinkedHashMap<>();
                 for (Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
-                    customValues.put(column.getKey(), getXLSFieldValue(sheet, i, column.getValue()));
+                    customValues.put(column.getKey(), getXLSFieldValue(formulaEvaluator, sheet, i, column.getValue()));
                 }
 
                 if (!idUserPriceListDetail.startsWith("_")) {
                     Map<DataObject, BigDecimal> prices = new HashMap<>();
                     for (Map.Entry<DataObject, String[]> entry : priceColumns.entrySet()) {
-                        BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, new ImportColumnDetail("price", entry.getValue(), false));
+                        BigDecimal price = getXLSBigDecimalFieldValue(formulaEvaluator, sheet, i, new ImportColumnDetail("price", entry.getValue(), false));
                         prices.put(entry.getKey(), price);
                     }
                     userPriceListDetailList.add(new UserPriceListDetail(customValues, fieldValues, settings.getIsPosted(),
