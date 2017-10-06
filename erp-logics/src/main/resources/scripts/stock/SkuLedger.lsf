@@ -118,8 +118,6 @@ CONSTRAINT SETCHANGED(id(Batch b)) AND [= GROUP SUM 1 BY id(Batch b)](id(b)) > 1
 expires(Batch batch, DATETIME dateTime, LONG period) = expiryDate(batch) < sum(toDate(dateTime), period);
 expires(Batch batch, DATE date, LONG period) = expiryDate(batch) < sum(date, period);
 
-order (Batch batch) = STRUCT(dateTime(batch), batch) MATERIALIZED;
-
 isBatch (Batch batch, Sku sku) = sku(batch) == sku;
 
 isParent (SkuGroup skuGroup, Batch batch) = isParent(skuGroup, sku(batch));
@@ -386,31 +384,31 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     lastOrderBatch(sku, stock)  =
         GROUP LAST Batch batch
               BY skuLedger(batch, Stock stock), stock
-              ORDER order(batch) MATERIALIZED TABLE extraSkuStock;
+              ORDER dateTime(batch), batch MATERIALIZED TABLE extraSkuStock;
               
               
     lastOrderBatchA(sku, stock, date)  =
         GROUP LAST Batch batch
               BY skuLedger(batch, Stock stock), stock, DATE dateIn
-              ORDER order(batch)
+              ORDER dateTime(batch), batch
               WHERE date(batch) <= dateIn;   
                          
     lastOrderBatchA(sku, stock, dateTimeIn)  =
         GROUP LAST Batch batch
               BY skuLedger(batch, Stock stock), stock, DATETIME dateTimeIn
-              ORDER order(batch)
+              ORDER dateTime(batch), batch
               WHERE dateTime(batch) <= dateTimeIn;   
                
     lastOrderBatchB(sku, stock, date)  =
         GROUP LAST Batch batch
               BY skuLedger(batch, Stock stock), stock, DATE dateIn
-              ORDER order(batch)
+              ORDER dateTime(batch), batch
               WHERE date(batch) < dateIn;   
                          
     lastOrderBatchB(sku, stock, dateTimeIn)  =
         GROUP LAST Batch batch
               BY skuLedger(batch, Stock stock), stock, DATETIME dateTimeIn
-              ORDER order(batch)
+              ORDER dateTime(batch), batch
               WHERE dateTime(batch) < dateTimeIn;                 
                
               
@@ -429,13 +427,13 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     batchLastManufactureDate (sku, stock)  =
         GROUP LAST manufactureDate(Batch batch)
               BY skuLedger(batch, Stock stock), stock
-              ORDER order(batch)
+              ORDER dateTime(batch), batch
               WHERE manufactureDate(batch) COMPLEX;
               
     batchLastExpiryDate (sku, stock)  =
         GROUP LAST expiryDate(Batch batch)
               BY skuLedger(batch, Stock stock), stock
-              ORDER order(batch)
+              ORDER dateTime(batch), batch
               WHERE expiryDate(batch) COMPLEX;    
     
     useFillBatchProperty 'Использовать последние: срок годности, дату и время изготовления' = DATA BOOLEAN ();
@@ -790,7 +788,7 @@ quantity (InLIFOSkuLedger ledger, Batch batch) =
         PARTITION UNGROUP quantity[SkuLedger]
                   LIMIT STRICT limitNew(ledger, batch)
                   BY ledger
-                  ORDER DESC order(ledger, batch), order(batch);
+                  ORDER DESC order(ledger, batch), dateTime(batch), batch;
 
 order = ABSTRACT LONG (OutFIFOSkuLedger, Batch);
 limitNew = IF OutFIFOSkuLedger ledger IS OutFIFOSkuLedger THEN (
@@ -805,7 +803,7 @@ quantity (OutFIFOSkuLedger ledger, Batch batch) =
         PARTITION UNGROUP quantity[SkuLedger]
                   LIMIT STRICT limitNew(ledger, batch)
                   BY ledger
-                  ORDER order(ledger, batch), order(batch);
+                  ORDER order(ledger, batch), dateTime(batch), batch;
 
 quantity (DataSkuLedger ledger, Batch batch) = MULTI quantity[InLIFOSkuLedger,Batch](ledger, batch) (+) 0, // (+) 0 делается, чтобы все 0 стали NULL 
                                                    quantity[OutFIFOSkuLedger,Batch](ledger, batch);

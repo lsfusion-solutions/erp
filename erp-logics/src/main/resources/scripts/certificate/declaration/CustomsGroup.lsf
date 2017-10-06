@@ -68,14 +68,11 @@ META defineCustomsRate(class, object, caption)
     codeCustomsGroup 'ТН ВЭД (код)' (class customsRate) = code(customsGroup(customsRate)) IN base MAXCHARWIDTH 10;
     nameCustomsGroup 'ТН ВЭД' (class customsRate) = name(customsGroup(customsRate)) IN base MAXCHARWIDTH 50;
 
-    order = STRUCT(dateFrom(class object), object) MATERIALIZED;
-
-    concat##class (customsGroup, date) = GROUP MAX order(class object) IF
+    object (CustomsGroup customsGroup, DATE date) = GROUP LAST class object IF
                                                                        (dateFrom(object) < DATE date AND
                                                                        dateTo(object) > date)
-                                                                    BY customsGroup(object), date;
-
-    object (CustomsGroup customsGroup, DATE date) = concat##class(customsGroup, date)[2];
+                                                                    BY customsGroup(object), date
+                                                                    ORDER dateFrom(object), object;
 END
 
 @defineCustomsRate(VATCustomsRate, VATCustomsRate, 'Ставка НДС');

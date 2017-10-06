@@ -697,12 +697,12 @@ createBatchUserAdjustmentDetail(UserAdjustment adjustment) = {
     adjust(Batch b) <- PARTITION UNGROUP adjust
                                             LIMIT -balance(b) IF balance(b) < 0
                                             BY sku(b)
-                                            ORDER order(b) WHERE balance(b) < 0;
+                                            ORDER dateTime(b), b WHERE balance(b) < 0;
     
     adjust(Batch b) <- - PARTITION UNGROUP adjust
                                             LIMIT balance(b) IF balance(b) > 0
                                             BY sku(b)
-                                            ORDER order(b) WHERE balance(b) > 0;
+                                            ORDER dateTime(b), b WHERE balance(b) > 0;
 
     FOR adjust(Batch b) ORDER nameSku(b) NEW d = UserAdjustmentDetail DO {            
         userAdjustment(d) <- adjustment;
