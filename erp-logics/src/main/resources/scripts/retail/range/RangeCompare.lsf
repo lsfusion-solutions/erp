@@ -1,0 +1,51 @@
+MODULE RangeCompare;
+
+REQUIRE RangeLevel;
+
+NAMESPACE Range;
+
+inSession 'Вкл.' = DATA LOCAL BOOLEAN (RangeRev);
+
+EXTEND FORM range
+    PROPERTIES inSession(v) BEFORE dateTime(v)
+;
+
+levels(RangeRev v, Sku s) = OVERRIDE name(level(v,s)),'';
+changed(Sku s) = [= GROUP SUM 1 IF [=GROUP SUM 1 IF inSession(RangeRev v) BY Sku s, levels(v, s)](Sku s, VARISTRING[10] l) BY s](s) > 1;
+nameSupplier 'Поставщик' (Sku s, Stock st)=  
+    nameCompanyA(defaultPriceListType(), s, st, [= GROUP MAX dateTime(RangeRev v) IF inSession(v)]());
+
+FORM rangeCompare 'Сравнение версий матрицы' 
+    OBJECTS d = Stock PANEL
+    PROPERTIES(d) SELECTOR name
+    FILTERS isCompany(d)
+
+    OBJECTS v = RangeRev
+    FILTERS inSession(v)
+    OBJECTS s = Sku
+    PROPERTIES READONLY id(s), idBarcode(s), name(s), nameSupplier(s,d)
+    PROPERTIES READONLY levels(v,s) COLUMNS(v) HEADER date(v)
+    ORDER BY name(s)
+    FILTERS changed(s);
+;
+
+DESIGN rangeCompare {
+    BOX {
+        preferredSize = (1024, 768);
+        REMOVE TOOLBARBOX;
+    }
+}
+
+comareRangeRev 'Сравнить версии' () = {
+    IF [= GROUP SUM 1 IF inSession(RangeRev v)]() > 1 THEN {
+        SHOW rangeCompare;
+    } ELSE {
+        MESSAGE 'Не выбраны версии для сравнения';
+    }
+    
+} TOOLBAR;
+
+EXTEND FORM range
+    PROPERTIES comareRangeRev() TODRAW v
+;
+
