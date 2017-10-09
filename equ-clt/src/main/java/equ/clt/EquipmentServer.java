@@ -169,7 +169,7 @@ public class EquipmentServer {
                         }
 
                     } catch (Exception e) {
-                        equipmentLogger.error("Unhandled exception : ", e);
+                        equipmentLogger.error("Unhandled exception in main cycle: ", e);
                         remote = null;
                         processTransactionThread.interrupt();
                         processTransactionThread = null;
@@ -178,8 +178,11 @@ public class EquipmentServer {
                         processDeleteBarcodeThread.interrupt();
                         processDeleteBarcodeThread = null;
                         if(sendSalesThread != null) {
+                            //TODO: временные логи, не забыть убрать
+                            equipmentLogger.info("Interrupting sendSalesThread");
                             sendSalesThread.interrupt();
                             sendSalesThread = null;
+                            equipmentLogger.info("Interrupted sendSalesThread");
                         }
                         sendSoftCheckThread.interrupt();
                         sendSoftCheckThread = null;
@@ -244,7 +247,7 @@ public class EquipmentServer {
                                 equipmentLogger.info("task group done: " + task.groupId);
                             }
                         } catch (Exception e) {
-                            equipmentLogger.error("Unhandled exception : ", e);
+                            equipmentLogger.error("Unhandled exception in singleTransactionExecutor: ", e);
                         }
                     }
                 }
@@ -547,7 +550,7 @@ public class EquipmentServer {
                 } catch (InterruptedException e) {
                     return;
                 } catch (Exception e) {
-                    equipmentLogger.error("Unhandled exception : ", e);
+                    equipmentLogger.error("Unhandled exception in consumer: ", e);
                 }
             }
         }
