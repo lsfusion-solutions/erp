@@ -140,12 +140,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                         case "ordrsp":
                                             if (!invoices)
                                                 orderResponses.put(documentId, parseOrderResponse(subXMLRootNode, context, url, login, password,
-                                                        host, port, provider, documentId, sendReplies));
+                                                        host, port, provider, documentId, sendReplies, disableConfirmation));
                                             break;
                                         case "desadv":
                                             if (!invoices)
                                                 despatchAdvices.put(documentId, parseDespatchAdvice(subXMLRootNode, context, url, login, password,
-                                                        host, port, provider, documentId, sendReplies));
+                                                        host, port, provider, documentId, sendReplies, disableConfirmation));
                                             break;
                                         case "blrwbl":
                                             if (invoices)
@@ -405,7 +405,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private DocumentData parseOrderResponse(Element rootNode, ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private DocumentData parseOrderResponse(Element rootNode, ExecutionContext context, String url, String login, String password, String host,
+                                            Integer port, String provider, String documentId, boolean sendReplies, boolean disableConfirmation) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> firstData = new ArrayList<>();
         List<List<Object>> secondData = new ArrayList<>();
 
@@ -421,7 +422,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Timestamp deliveryDateTimeSecond = parseTimestamp(rootNode.getChildText("deliveryDateTimeSecond"));
         String note = rootNode.getChildText("comment");
 
-        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider, documentId, documentNumber, orderNumber, sendReplies);
+        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider, documentId,
+                documentNumber, orderNumber, sendReplies, disableConfirmation);
 
         int i = 1;
         for (Object line : rootNode.getChildren("line")) {
@@ -629,7 +631,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private DocumentData parseDespatchAdvice(Element rootNode, ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private DocumentData parseDespatchAdvice(Element rootNode, ExecutionContext context, String url, String login, String password, String host,
+                                             Integer port, String provider, String documentId, boolean sendReplies, boolean disableConfirmation)
+            throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> firstData = new ArrayList<>();
         List<List<Object>> secondData = new ArrayList<>();
 
@@ -644,7 +648,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Timestamp deliveryDateTimeFirst = parseTimestamp(rootNode.getChildText("deliveryDateTimeFirst"));
         String note = nullIfEmpty(rootNode.getChildText("comment"));
 
-        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider, documentId, documentNumber, orderNumber, sendReplies);
+        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider,
+                documentId, documentNumber, orderNumber, sendReplies, disableConfirmation);
 
         int i = 1;
         for (Object line : rootNode.getChildren("line")) {
@@ -1198,11 +1203,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private Map<String, String> getOrderBarcodesMap(ExecutionContext context, String url, String login, String password, String host, Integer port,
-                                                    String provider, String documentId, String documentNumber, String orderNumber, boolean sendReplies)
+                                                    String provider, String documentId, String documentNumber, String orderNumber,
+                                                    boolean sendReplies, boolean disableConfirmation)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         Map<String, String> orderBarcodesMap = new HashMap<>();
         if (orderNumber != null) {
-            if (findProperty("eOrder[VARSTRING[28]]").read(context, new DataObject(orderNumber)) == null && sendReplies) {
+            if (findProperty("eOrder[VARSTRING[28]]").read(context, new DataObject(orderNumber)) == null && sendReplies && !disableConfirmation) {
                 sendRecipientError(context, url, login, password, host, port, provider, documentId, documentNumber, String.format("Заказ %s не найден)", orderNumber));
             }
 
