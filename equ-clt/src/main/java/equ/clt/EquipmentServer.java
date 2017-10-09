@@ -294,7 +294,10 @@ public class EquipmentServer {
                 @Override
                 void runTask() throws Exception {
                     try {
-                        if(isTimeToRun())
+                        //если проблема в этом, то вставить такие проверки для всех consumer'ов
+                        if(sendSalesThread.isInterrupted()) {
+                            sendSalesLogger.info("Interrupted SendSalesThread is still alive!");
+                        } else if(isTimeToRun())
                             SendSalesEquipmentServer.sendSalesInfo(remote, sidEquipmentServer, mergeBatches);
                     } catch (ConnectException e) {
                         needReconnect = true;
