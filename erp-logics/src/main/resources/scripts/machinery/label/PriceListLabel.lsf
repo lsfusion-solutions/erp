@@ -84,11 +84,9 @@ createSelectedSkuStockSnapshotPriceList 'Перепечатать ценники
 
 defaultDataPriceListType = GROUP MAX DataPriceListType type IF in( UserPriceList p, type) BY p;
 overCreate(LabelTransaction t) += {
-    IF  priceDoc() THEN {
-        FOR labelTransaction(LabelTransactionDetail d) == t DO {            
-            price(d) <- price(userPriceListDetail(priceDoc(),sku(d)), overPriceListType(t) AS DataPriceListType);
-            retailPrice(d) <- priceBefore(userPriceListDetail(priceDoc(),sku(d)));
-        }        
+    IF  priceDoc() THEN {        
+        price(LabelTransactionDetail d) <- price(userPriceListDetail(priceDoc(),sku(d)), overPriceListType(t) AS DataPriceListType) WHERE labelTransaction(d) == t;
+        retailPrice(LabelTransactionDetail d) <- priceBefore(userPriceListDetail(priceDoc(),sku(d))) WHERE labelTransaction(d) == t;                
     }   
 }
 
