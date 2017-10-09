@@ -74,8 +74,9 @@ isChange = DATA LOCAL NESTED BOOLEAN (LegalEntity);
 EXTEND FORM itemGroups 
     PROPERTIES(g) READONLYIF isReadonly() excludePercService
 ;
-
-excludeService 'Исключить из подстчета "Качество сервиса"' (order) = GROUP SUM 1 IF sum(OrderDetail idetail) AND excludePercService(skuGroup(sku(idetail))) BY order(idetail);
+overExcludeService  = ABSTRACT VALUE BOOLEAN (Purchase.Order);
+excludeService 'Исключить из подстчета "Качество сервиса"' (Purchase.Order o) = [ = GROUP SUM 1 IF sum(OrderDetail idetail) AND excludePercService(skuGroup(sku(idetail))) BY order(idetail)](o)
+                                                                                   OR overExcludeService(o);
 
 sumShippedService (supplier, dateFrom, dateTo)= GROUP SUM sumShippedOrderDetail(Order order) 
     IF shipmentDate(order) >= DATE dateFrom AND shipmentDate(order) <= DATE dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order)
