@@ -38,10 +38,12 @@ roundCondition (AlcoholLimitDetail h) = roundCondition(alcoholLimit(h));
 
 minPrice 'Минимальная цена'(AlcoholLimitDetail d, Alcohol a) = round(volume(d) * basePrice(d) / value(baseAlcohol(d)) * value(a), roundCondition(d));
 
+isRB 'Производство РБ' = DATA BOOLEAN (AlcoholLimit);
+
 FORM alcoholLimit 'Минимальные цены на алкоголь'
 
     OBJECTS r = AlcoholLimit PANEL
-    PROPERTIES (r) isPosted, date, time, basePrice, nameBaseAlcohol, nameRoundCondition, note
+    PROPERTIES (r) isPosted, date, time, basePrice, nameBaseAlcohol, nameRoundCondition, note, isRB
                                                               
     PROPERTIES (r) READONLY countAlcoholLimitDetail       
 
@@ -81,7 +83,8 @@ DESIGN alcoholLimit {
                         type = CONTAINERH;
                         MOVE PROPERTY (isPosted(r));
                         MOVE PROPERTY(date(r));
-                        MOVE PROPERTY(time(r));                 
+                        MOVE PROPERTY(time(r)); 
+                        MOVE PROPERTY (isRB(r));              
                     }
                     NEW second {
                         type = CONTAINERH;
@@ -120,6 +123,7 @@ copy 'Копировать' (AlcoholLimit alco)= {
             basePrice(a) <- basePrice(alco);
             baseAlcohol(a) <- baseAlcohol(alco);
             roundCondition(a) <- roundCondition(alco);
+            isRB(a) <- isRB(alco);
             FOR alco == alcoholLimit(AlcoholLimitDetail alcoDet) NEW d = AlcoholLimitDetail DO {
                 alcoholLimit(d) <- a;
                 volume(d) <- volume(alcoDet);
@@ -133,7 +137,7 @@ copy 'Копировать' (AlcoholLimit alco)= {
 FORM alcoholLimits 'Минимальные цены на алкоголь'
 
     OBJECTS r = AlcoholLimit 
-    PROPERTIES (r) READONLY isPosted, date, time,basePrice, nameBaseAlcohol, nameRoundCondition, note        
+    PROPERTIES (r) READONLY isPosted, date, time,basePrice, nameBaseAlcohol, nameRoundCondition, note, isRB        
     PROPERTIES (r) READONLY countAlcoholLimitDetail
     
     PROPERTIES (r) NEWSESSION NEW, EDIT, copy, deleter=DELETE   
@@ -206,4 +210,10 @@ NAVIGATOR {
 minAlcoholLimitPrice = GROUP LAST minPrice(AlcoholLimitDetail ad, Alcohol a) 
             BY Item s, DATETIME dt
             ORDER dateTime(ad), ad
-            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a;
+            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT isRB(alcoholLimit(ad));
+            
+minAlcoholLimitPriceRB = GROUP LAST minPrice(AlcoholLimitDetail ad, Alcohol a) 
+            BY Item s, DATETIME dt
+            ORDER dateTime(ad), ad
+            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND isRB(alcoholLimit(ad));
+   
