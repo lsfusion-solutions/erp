@@ -895,7 +895,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private Map<String, Payment> readPaymentMap(Connection conn, Set<Integer> cashPayments,
-                                                Set<Integer> cardPayments, Set<Integer> giftCardPayments) throws SQLException {
+                                                Set<Integer> cardPayments, Set<Integer> giftCardPayments, List<String> giftCardList) throws SQLException {
 
         Map<String, Payment> paymentMap = new HashMap<>();
 
@@ -925,6 +925,15 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 String giftCard = rs.getString(6); //p.card_number
                 if (giftCard.isEmpty())
                     giftCard = null;
+                
+                if (giftCard != null && giftCardList != null) {
+                    for (String prefix : giftCardList) {
+                        if (giftCard.startsWith(prefix)) {
+                            paymentType = 2;
+                            break;
+                        }
+                    }
+                }
 
                 Payment paymentEntry = paymentMap.get(key);
                 if (paymentEntry == null)
@@ -992,7 +1001,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     " WHERE r.ext_processed = 0 AND r.result = 0 AND i.type = 0";
             ResultSet rs = statement.executeQuery(query);
 
-            Map<String, Payment> paymentMap = readPaymentMap(conn, cashPayments, cardPayments, giftCardPayments);
+            Map<String, Payment> paymentMap = readPaymentMap(conn, cashPayments, cardPayments, giftCardPayments, giftCardList);
             if (paymentMap != null) {
                 while (rs.next()) {
 
