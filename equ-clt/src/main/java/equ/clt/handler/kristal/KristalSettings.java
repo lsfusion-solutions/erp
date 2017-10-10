@@ -4,6 +4,8 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.commons.lang3.StringUtils.trim;
+
 public class KristalSettings implements Serializable{
 
     public String sqlUsername;
@@ -32,7 +34,10 @@ public class KristalSettings implements Serializable{
             String[] hosts = sqlHost.split(",");
             for (String host : hosts) {
                 String[] entry = host.split("->");
-                this.sqlHost.put(entry[0], entry.length >= 2 ? entry[1] : entry[0]);
+                String dir = trim(entry[0]);
+                if(dir != null) {
+                    this.sqlHost.put(dir.toLowerCase(), trim(entry.length >= 2 ? entry[1] : entry[0]));
+                }
             }
         }
         this.sqlPort = sqlPort;

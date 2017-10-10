@@ -483,11 +483,10 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
         if(kristalSettings == null) {
             sendSoftCheckLogger.error("No kristalSettings found");
         } else {
-            for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
+            for (String sqlHost : kristalSettings.sqlHost.values()) {
                 Connection conn = null;
                 try {
 
-                    String sqlHost = trim(sqlHostEntry.getValue());
                     sendSoftCheckLogger.info("Kristal: connection to " + sqlHost);
 
                     String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
@@ -532,47 +531,44 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
         List<CashierTime> result = new ArrayList<>();
 
-        if(kristalSettings == null) {
+        if (kristalSettings == null) {
             machineryExchangeLogger.error("Kristal CashierTime: No kristalSettings found");
         } else {
             for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
                 Connection conn = null;
                 try {
 
-                    String dir = trim(sqlHostEntry.getKey());
-                    String sqlHost = trim(sqlHostEntry.getValue());
-                    if(dir != null) {
-                        dir = dir.toLowerCase();
-                        machineryExchangeLogger.info("Kristal CashierTime: connection to " + sqlHost);
+                    String dir = sqlHostEntry.getKey();
+                    String sqlHost = sqlHostEntry.getValue();
+                    machineryExchangeLogger.info("Kristal CashierTime: connection to " + sqlHost);
 
-                        String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                                sqlHost, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
-                        Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-                        conn = DriverManager.getConnection(url);
+                    String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
+                            sqlHost, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                    Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                    conn = DriverManager.getConnection(url);
 
-                        int start = 1;
-                        int limit = 10000;
-                        Integer lastCount = null;
-                        while (lastCount == null || lastCount == limit) {
-                            List<CashierTime> cashierTimeList = readCashierTime(conn, directoryGroupCashRegisterMap, requestExchange, dir, start, limit);
-                            result.addAll(cashierTimeList);
-                            lastCount = cashierTimeList.size();
-                            start += lastCount;
-                        }
-                        result.addAll(readCashierTimeZReport(conn, directoryGroupCashRegisterMap, requestExchange, dir));
-
-                        Timestamp dateTo = null;
-                        for (int i = result.size() - 1; i >= 0; i--) {
-                            CashierTime ct = result.get(i);
-                            if (ct.logOffCashier == null) {
-                                ct.logOffCashier = getLogOffTime(conn, ct.numberCashier, ct.numberCashRegister, ct.logOnCashier, dateTo);
-                            }
-                            ct.idCashierTime = ct.numberCashier + "/" + ct.numberCashRegister + "/" + ct.logOnCashier + "/" + ct.logOffCashier + "/" + (ct.isZReport != null ? "1" : "0");
-                            dateTo = ct.logOnCashier;
-                        }
-
-                        machineryExchangeLogger.info(String.format("Kristal CashierTime: server %s, found %s entries", sqlHost, result.size()));
+                    int start = 1;
+                    int limit = 10000;
+                    Integer lastCount = null;
+                    while (lastCount == null || lastCount == limit) {
+                        List<CashierTime> cashierTimeList = readCashierTime(conn, directoryGroupCashRegisterMap, requestExchange, dir, start, limit);
+                        result.addAll(cashierTimeList);
+                        lastCount = cashierTimeList.size();
+                        start += lastCount;
                     }
+                    result.addAll(readCashierTimeZReport(conn, directoryGroupCashRegisterMap, requestExchange, dir));
+
+                    Timestamp dateTo = null;
+                    for (int i = result.size() - 1; i >= 0; i--) {
+                        CashierTime ct = result.get(i);
+                        if (ct.logOffCashier == null) {
+                            ct.logOffCashier = getLogOffTime(conn, ct.numberCashier, ct.numberCashRegister, ct.logOnCashier, dateTo);
+                        }
+                        ct.idCashierTime = ct.numberCashier + "/" + ct.numberCashRegister + "/" + ct.logOnCashier + "/" + ct.logOffCashier + "/" + (ct.isZReport != null ? "1" : "0");
+                        dateTo = ct.logOnCashier;
+                    }
+
+                    machineryExchangeLogger.info(String.format("Kristal CashierTime: server %s, found %s entries", sqlHost, result.size()));
                 } catch (SQLException e) {
                     machineryExchangeLogger.error("Kristal CashierTime: ", e);
                 } finally {
@@ -677,65 +673,62 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
         } else {
 
             for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
-                String dir = trim(sqlHostEntry.getKey());
-                String host = trim(sqlHostEntry.getValue());
+                String dir = sqlHostEntry.getKey();
+                String host = sqlHostEntry.getValue();
 
-                if(dir != null) {
-                    dir = dir.toLowerCase();
-                    Connection conn = null;
-                    try {
+                Connection conn = null;
+                try {
 
-                        StringBuilder nppCashRegisters = new StringBuilder();
-                        for (List<Object> cashRegisterEntry : cashRegisterList) {
-                            Integer nppCashRegister = cashRegisterEntry.size() >= 1 ? (Integer) cashRegisterEntry.get(0) : null;
-                            String directory = cashRegisterEntry.size() >= 2 ? (String) cashRegisterEntry.get(1) : null;
-                            if (directory != null) {
-                                directory = directory.toLowerCase();
-                                if (directory.contains(dir) || dir.equals(host)) //dir.equals(host) - old host format, without dir
-                                    nppCashRegisters.append(nppCashRegister).append(",");
-                            }
+                    StringBuilder nppCashRegisters = new StringBuilder();
+                    for (List<Object> cashRegisterEntry : cashRegisterList) {
+                        Integer nppCashRegister = cashRegisterEntry.size() >= 1 ? (Integer) cashRegisterEntry.get(0) : null;
+                        String directory = cashRegisterEntry.size() >= 2 ? (String) cashRegisterEntry.get(1) : null;
+                        if (directory != null) {
+                            directory = directory.toLowerCase();
+                            if (directory.contains(dir) || dir.equals(host)) //dir.equals(host) - old host format, without dir
+                                nppCashRegisters.append(nppCashRegister).append(",");
                         }
-                        nppCashRegisters = new StringBuilder((nppCashRegisters.length() == 0) ? nppCashRegisters.toString() : nppCashRegisters.substring(0, nppCashRegisters.length() - 1));
-                        if (nppCashRegisters.length() > 0) {
-                            requestExchangeLogger.info("Kristal: checking zReports sum, CashRegisters: " + nppCashRegisters);
+                    }
+                    nppCashRegisters = new StringBuilder((nppCashRegisters.length() == 0) ? nppCashRegisters.toString() : nppCashRegisters.substring(0, nppCashRegisters.length() - 1));
+                    if (nppCashRegisters.length() > 0) {
+                        requestExchangeLogger.info("Kristal: checking zReports sum, CashRegisters: " + nppCashRegisters);
 
-                            String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                                    host, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
-                            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-                            conn = DriverManager.getConnection(url);
-                            Statement statement = conn.createStatement();
-                            String queryString = "SELECT GangNumber, CashNumber, Summa, GangDateStart FROM OperGang WHERE CashNumber IN (" + nppCashRegisters + ")";
-                            ResultSet rs = statement.executeQuery(queryString);
-                            while (rs.next()) {
-                                String numberZReport = String.valueOf(rs.getInt(1));
-                                Integer nppCashRegister = rs.getInt(2);
-                                String key = numberZReport + "/" + nppCashRegister;
-                                if (zReportSumMap.containsKey(key)) {
-                                    List<Object> fusionEntry = zReportSumMap.get(key);
-                                    BigDecimal fusionSum = (BigDecimal) fusionEntry.get(0);
-                                    fusionSum = fusionSum == null ? null : fusionSum.setScale(2, RoundingMode.HALF_UP);
-                                    Date fusionDate = (Date) fusionEntry.get(1);
-                                    String nameDepartmentStore = (String) fusionEntry.get(2);
-                                    BigDecimal kristalSum = BigDecimal.valueOf(rs.getDouble(3)).setScale(2, RoundingMode.HALF_UP);
-                                    Date kristalDate = rs.getDate(4);
-                                    if (fusionSum == null || fusionSum.compareTo(kristalSum) != 0) {
-                                        if (kristalDate.compareTo(fusionDate) == 0) {
-                                            result.add(Arrays.asList((Object) nppCashRegister,
-                                                    String.format("ZReport %s (store %s, date %s).\nChecksum failed: %s(fusion) != %s(kristal);\n", numberZReport, nameDepartmentStore, kristalDate, fusionSum, kristalSum)));
-                                            requestExchangeLogger.error(String.format("%s. Store %s. CashRegister %s. ZReport %s checksum failed: %s(fusion) != %s(kristal);", kristalDate, nameDepartmentStore, nppCashRegister, numberZReport, fusionSum, kristalSum));
-                                        } else {
-                                            requestExchangeLogger.error(String.format("Not equal dates for CashRegister %s, ZReport %s (%s(fusion) and %s (kristal);", nppCashRegister, numberZReport, fusionDate, kristalDate));
-                                        }
+                        String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
+                                host, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                        Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                        conn = DriverManager.getConnection(url);
+                        Statement statement = conn.createStatement();
+                        String queryString = "SELECT GangNumber, CashNumber, Summa, GangDateStart FROM OperGang WHERE CashNumber IN (" + nppCashRegisters + ")";
+                        ResultSet rs = statement.executeQuery(queryString);
+                        while (rs.next()) {
+                            String numberZReport = String.valueOf(rs.getInt(1));
+                            Integer nppCashRegister = rs.getInt(2);
+                            String key = numberZReport + "/" + nppCashRegister;
+                            if (zReportSumMap.containsKey(key)) {
+                                List<Object> fusionEntry = zReportSumMap.get(key);
+                                BigDecimal fusionSum = (BigDecimal) fusionEntry.get(0);
+                                fusionSum = fusionSum == null ? null : fusionSum.setScale(2, RoundingMode.HALF_UP);
+                                Date fusionDate = (Date) fusionEntry.get(1);
+                                String nameDepartmentStore = (String) fusionEntry.get(2);
+                                BigDecimal kristalSum = BigDecimal.valueOf(rs.getDouble(3)).setScale(2, RoundingMode.HALF_UP);
+                                Date kristalDate = rs.getDate(4);
+                                if (fusionSum == null || fusionSum.compareTo(kristalSum) != 0) {
+                                    if (kristalDate.compareTo(fusionDate) == 0) {
+                                        result.add(Arrays.asList((Object) nppCashRegister,
+                                                String.format("ZReport %s (store %s, date %s).\nChecksum failed: %s(fusion) != %s(kristal);\n", numberZReport, nameDepartmentStore, kristalDate, fusionSum, kristalSum)));
+                                        requestExchangeLogger.error(String.format("%s. Store %s. CashRegister %s. ZReport %s checksum failed: %s(fusion) != %s(kristal);", kristalDate, nameDepartmentStore, nppCashRegister, numberZReport, fusionSum, kristalSum));
+                                    } else {
+                                        requestExchangeLogger.error(String.format("Not equal dates for CashRegister %s, ZReport %s (%s(fusion) and %s (kristal);", nppCashRegister, numberZReport, fusionDate, kristalDate));
                                     }
                                 }
                             }
                         }
-                    } catch (SQLException e) {
-                        e.printStackTrace();
-                    } finally {
-                        if (conn != null)
-                            conn.close();
                     }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                } finally {
+                    if (conn != null)
+                        conn.close();
                 }
             }
         }
@@ -759,50 +752,47 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 Connection conn = null;
                 try {
 
-                    String dir = trim(sqlHostEntry.getKey());
-                    String host = trim(sqlHostEntry.getValue());
+                    String dir = sqlHostEntry.getKey();
+                    String host = sqlHostEntry.getValue();
 
-                    if(dir != null) {
-                        dir = dir.toLowerCase();
-                        Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
-                        for (CashRegisterInfo c : cashRegisterInfoList) {
-                            if(c.number != null && c.numberGroup != null && c.directory != null) {
-                                String directory = c.directory.toLowerCase();
-                                if (dir != null && (directory.contains(dir) || dir.equals(host))) {
-                                    directoryCashRegisterMap.put(dir + "_" + c.number, c);
-                                }
+                    Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
+                    for (CashRegisterInfo c : cashRegisterInfoList) {
+                        if (c.number != null && c.numberGroup != null && c.directory != null) {
+                            String directory = c.directory.toLowerCase();
+                            if (directory.contains(dir) || dir.equals(host)) {
+                                directoryCashRegisterMap.put(dir + "_" + c.number, c);
                             }
                         }
+                    }
 
-                        String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                                host, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
-                        Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-                        sendSalesLogger.info("Kristal CashDocument connection: " + url);
+                    String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
+                            host, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                    Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                    sendSalesLogger.info("Kristal CashDocument connection: " + url);
 
-                        conn = DriverManager.getConnection(url);
-                        Statement statement = conn.createStatement();
-                        String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber, Ck_NSmena FROM OperGangMoney WHERE Taken='1'";
-                        if (lastDaysCashDocument != null) {
-                            Calendar c = Calendar.getInstance();
-                            c.add(Calendar.DATE, -lastDaysCashDocument);
-                            queryString += " AND Ck_Date >='" + new SimpleDateFormat("yyyyMMdd").format(c.getTime()) + "'";
-                        }
-                        ResultSet rs = statement.executeQuery(queryString);
-                        while (rs.next()) {
-                            String number = rs.getString("Ck_Number");
-                            Integer ckNSmena = rs.getInt("Ck_NSmena");
-                            Timestamp dateTime = rs.getTimestamp("Ck_Date");
-                            Date date = new Date(dateTime.getTime());
-                            Time time = new Time(dateTime.getTime());
+                    conn = DriverManager.getConnection(url);
+                    Statement statement = conn.createStatement();
+                    String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber, Ck_NSmena FROM OperGangMoney WHERE Taken='1'";
+                    if (lastDaysCashDocument != null) {
+                        Calendar c = Calendar.getInstance();
+                        c.add(Calendar.DATE, -lastDaysCashDocument);
+                        queryString += " AND Ck_Date >='" + new SimpleDateFormat("yyyyMMdd").format(c.getTime()) + "'";
+                    }
+                    ResultSet rs = statement.executeQuery(queryString);
+                    while (rs.next()) {
+                        String number = rs.getString("Ck_Number");
+                        Integer ckNSmena = rs.getInt("Ck_NSmena");
+                        Timestamp dateTime = rs.getTimestamp("Ck_Date");
+                        Date date = new Date(dateTime.getTime());
+                        Time time = new Time(dateTime.getTime());
 
-                            Integer nppMachinery = rs.getInt("CashNumber");
-                            CashRegisterInfo cashRegister = directoryCashRegisterMap.get(dir + "_" + nppMachinery);
-                            if (cashRegister != null) {
-                                BigDecimal sum = rs.getBigDecimal("Ck_Summa");
-                                String idCashDocument = host + "/" + nppMachinery + "/" + number + "/" + ckNSmena;
-                                if (!cashDocumentSet.contains(idCashDocument))
-                                    result.add(new CashDocument(idCashDocument, number, date, time, cashRegister.numberGroup, nppMachinery, null, sum));
-                            }
+                        Integer nppMachinery = rs.getInt("CashNumber");
+                        CashRegisterInfo cashRegister = directoryCashRegisterMap.get(dir + "_" + nppMachinery);
+                        if (cashRegister != null) {
+                            BigDecimal sum = rs.getBigDecimal("Ck_Summa");
+                            String idCashDocument = host + "/" + nppMachinery + "/" + number + "/" + ckNSmena;
+                            if (!cashDocumentSet.contains(idCashDocument))
+                                result.add(new CashDocument(idCashDocument, number, date, time, cashRegister.numberGroup, nppMachinery, null, sum));
                         }
                     }
                 } catch (SQLException e) {
