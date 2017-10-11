@@ -118,6 +118,9 @@ sumA 'Итоговая сумма отчета' = GROUP SUM sumA(Sku sku) IF inc
 // ---- Отчет по остаткам
 
 balanceB 'Остаток (до)' = DATA LOCAL NUMERIC[16,5] (Batch);
+fillBatch 'По партиям' = DATA LOCAL BOOLEAN ();
+filterGroups 'Для отмеченных групп' = DATA LOCAL BOOLEAN ();
+inGroup (GroupType gt, Sku sk) = IF filterGroups() THEN (inSession(group(gt,sk))) ELSE TRUE;
 
 overFillReportBalanceData = ABSTRACT (GroupType, DATETIME);
 
@@ -125,21 +128,25 @@ fillReportBalanceData 'Рассчитать'(GroupType gt, DATETIME dt) = {
 
     IF [ = GROUP SUM 1 IF inBackSheet(Stock st)]() == 1 THEN
     {
-        balanceB(Sku sk) <- balanceB(sk, [= GROUP MIN Stock st IF inBackSheet(st)](), dt);
-        sumB(Sku sk) <- sumB(sk, [= GROUP MIN Stock st IF inBackSheet(st)](), dt);
+        balanceB(Sku sk) <- balanceB(sk, [= GROUP MIN Stock st IF inBackSheet(st)](), dt) IF inGroup(gt,sk);
+        sumB(Sku sk) <- sumB(sk, [= GROUP MIN Stock st IF inBackSheet(st)](), dt) IF inGroup(gt,sk);
         
-        balanceB(Batch batch) <- balanceB(batch, [= GROUP MIN Stock st IF inBackSheet(st)](), dt);
+        IF fillBatch() THEN {
+            balanceB(Batch batch) <- balanceB(batch, [= GROUP MIN Stock st IF inBackSheet(st)](), dt) IF inGroup(gt,sku(batch));
+        }
     }  
     ELSE
     {
-        balanceB(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM balanceB(Sku sk, Stock st, DATETIME dt) IF inBackSheet(st) BY sk, dt](sk, dt));
-        sumB(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumB(Sku sk, Stock st, DATETIME dt) IF inBackSheet(st) BY sk, dt](sk, dt)); 
+        balanceB(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM balanceB(Sku sk, Stock st, DATETIME dt) IF inBackSheet(st) BY sk, dt](sk, dt) IF inGroup(gt,sk));
+        sumB(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumB(Sku sk, Stock st, DATETIME dt) IF inBackSheet(st) BY sk, dt](sk, dt) IF inGroup(gt,sk)); 
         
-        balanceB(Batch batch) <- NUMERIC[16,5]([ = GROUP SUM balanceB(Batch bt, Stock st, DATETIME dt) IF inBackSheet(st) BY bt, dt](batch, dt));
+        IF fillBatch() THEN {
+            balanceB(Batch batch) <- NUMERIC[16,5]([ = GROUP SUM balanceB(Batch bt, Stock st, DATETIME dt) IF inBackSheet(st) BY bt, dt](batch, dt)) IF inGroup(gt,sku(batch));
+        }
     }   
     
-    balanceB(Group g) <- [ = GROUP SUM balanceB(Sku sk) BY group(GroupType gt, sk)](g) IF  groupType(g) == gt;
-    sumB(Group g) <- [ = GROUP SUM sumB(Sku sk) BY group(GroupType gt, sk)](g) IF  groupType(g) == gt;
+    balanceB(Group g) <- [ = GROUP SUM balanceB(Sku sk) IF inGroup(GroupType gt, sk) BY group(gt, sk)](g) IF  groupType(g) == gt;
+    sumB(Group g) <- [ = GROUP SUM sumB(Sku sk) IF inGroup(GroupType gt, sk) BY group(gt, sk)](g) IF  groupType(g) == gt;
        
     overFillReportBalanceData(gt,dt);
 }
@@ -266,6 +273,13 @@ changeStocksBalance(GroupType gt, DATETIME dt) = {
     }
 }
 
+changeFillBalance(GroupType gt, DATETIME dt) = {
+    INPUT b = BOOLEAN DO {
+        fillBatch() <- b;
+        fillReportBalanceData(gt, dt);
+    }
+}
+
 showMovementSkuBackSheet 'Показать движение товара по складу' (Sku sku) = { 
     NEWSESSION NESTED(inBackSheet) 
         SHOW movementSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inBackSheet(st)]() ; 
@@ -302,6 +316,8 @@ FORM reportBalanceStock 'Отчет по остаткам'
 //    PROPERTIES(gt) READONLY sessionConcatGroups
 
     PROPERTIES inBackSheetStocks() ON CHANGE changeStocksBalance(gt, d)
+    
+    PROPERTIES filterGroups(), fillBatch() ON CHANGE changeFillBalance(gt, d)
 
     TREE skuTree sk = Group PARENT parent
     PROPERTIES inSession(sk) BACKGROUND backgroundInSession(sk)
@@ -323,12 +339,12 @@ FORM reportBalanceStock 'Отчет по остаткам'
         FILTER 'С остатком (кол-во/сумма)' balanceB(s) OR sumB(s) 'F8'   
 
     OBJECTS           bt=Batch
-    PROPERTIES(bt)    READONLY date, name ON SHORTCUT showMovementBatchBackSheet(bt), idBarcodeSku, 
+    PROPERTIES(bt)    SHOWIF fillBatch() READONLY date, name ON SHORTCUT showMovementBatchBackSheet(bt), idBarcodeSku, 
                       nameSku ON SHORTCUT showMovementSkuBackSheet(bt), shortNameUOM//, shippedQuantityBatch
     FILTERS           isParent(sk, bt)
     ORDER BY          date(bt), name(bt), nameSku(bt)
 
-    PROPERTIES(bt) READONLY balanceB
+    PROPERTIES(bt) SHOWIF fillBatch() READONLY balanceB
     FILTERS balanceB(bt)
 
     EVENTS 
@@ -346,6 +362,11 @@ DESIGN reportBalanceStock {
             type = CONTAINERH;
             MOVE PROPERTY(inBackSheetStocks());        
         }
+    }
+    NEW optionsComtainer {
+        type = CONTAINERH;
+        MOVE PROPERTY (filterGroups());
+        MOVE PROPERTY (fillBatch());
     }
     NEW bottomContainer {
         fill = 1;
