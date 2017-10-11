@@ -112,7 +112,7 @@ public class ShuttleBoardDaemon extends BoardDaemon {
                     if (inFromClient != null)
                         inFromClient.close();
                 } catch (IOException e) {
-                    terminalLogger.error("ShuttleBoard Error occured: ", e);
+                    terminalLogger.error("ShuttleBoard Error occurred: ", e);
                 }
             }
             return null;

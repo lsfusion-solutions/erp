@@ -109,7 +109,7 @@ public class ShtrihBoardDaemon extends BoardDaemon {
                     if (inFromClient != null)
                         inFromClient.close();
                 } catch (IOException e) {
-                    terminalLogger.error(getEventName() + " error occured: ", e);
+                    terminalLogger.error(getEventName() + " error occurred: ", e);
                 }
             }
             return null;
