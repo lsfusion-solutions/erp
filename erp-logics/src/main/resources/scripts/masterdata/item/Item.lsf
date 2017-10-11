@@ -127,7 +127,12 @@ DESIGN options {
     }
 };
 
-@defineExternalizable(item, VARSTRING[100]);
+
+id 'Код' = DATA VARSTRING[100] (Item) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+TABLE itemId (VARSTRING[100]);
+item (id) = GROUP AGGR (Item item) BY id (item) MATERIALIZED TABLE itemId; // нужно MATERIALIZED, чтобы не допускало одинаковых кодов, а кидала UPDATE_CONFLICT
+
 @defineOption(replaceSpacesInItemId, 'Замещать пробелы в коде товара', items);
 WHEN LOCAL CHANGED (id(Item i)) AND replaceSpacesInItemId()  DO id(i) <- replace(id(i), ' ', '');
 
