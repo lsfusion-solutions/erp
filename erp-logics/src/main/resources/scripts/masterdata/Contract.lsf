@@ -140,6 +140,72 @@ DESIGN contractDialog {
     }
 }
 
+// ----------------- Объединение ------------------------
+
+in 'Отм.' = DATA LOCAL BOOLEAN (Contract);
+
+FORM confirmReplaceContract 'Объединяемые договора'
+    OBJECTS contract = Contract PANEL 
+
+    OBJECTS c = Contract  
+    PROPERTIES(c) READONLY seriesNumber, namePartyA, namePartyB
+    FILTERS c==contract
+
+    OBJECTS c2 = Contract
+    PROPERTIES(c2) in
+    PROPERTIES(c2) READONLY seriesNumber, namePartyA, namePartyB
+    FILTERS in(c2)
+;
+
+DESIGN confirmReplaceContract {
+    REMOVE BOX(contract);
+    NEW splitContainer{
+        type = SPLITV;
+        fill = 1;
+        MOVE BOX(c){
+            caption = 'Основной договор';
+        }
+        MOVE BOX(c2){
+            caption = 'Удаляемый договор';
+        }           
+    }
+    MOVE TOOLBARBOX;
+}
+
+replace = ABSTRACT LIST (Contract, Contract);
+preReplace = ABSTRACT LIST (Contract, Contract);
+
+replace 'Объединить'(Contract contract) = {
+    setNoEventsInTransaction();
+    DIALOG confirmReplaceContract OBJECTS contract = contract DO {
+        FOR in(Contract c) AND contract IS Contract DO {
+            IF c != contract AND partyA(c) == partyA(contract) AND partyB(c) == partyB(contract) THEN {
+                preReplace(c, contract);
+                replace(c, contract);
+                in(c) <- NULL;
+                DELETE c;
+            } ELSE {
+                MESSAGE 'Выделенный договор не может совпадать с объединяемым и должен иметь одиного поставщика и покупателя';
+            }
+        }
+        apply();
+    }
+    
+    in(Contract c) <- NULL;
+               
+    dropNoEventsInTransaction();
+} CONFIRM;
+
+EXTEND FORM contracts
+    PROPERTIES(c) in BEFORE namePartyA(c), replace
+;
+
+DESIGN contracts {
+   TOOLBARRIGHT (c) {
+    MOVE PROPERTY (replace(c)) BEFORE TOOLBAR(c);
+   }
+}
+
 // ------------------------------------ Макрос для создания договоров по умолчанию ----------------------------- //
 
 //META defineContractDefault (contract, partyA, partyB)
@@ -214,6 +280,8 @@ META defineDocumentContract (objectClass, contractType, contractTypeClass, prefi
     dateFrom###contractType 'Дата договора' (objectClass o) = dateFrom(contractType(o)) IN documentPrm;
 
     description###contractType 'Описание договора' (objectClass o)= CONCAT ' ', seriesNumber###contractType(o), ' от ' + dateFrom###contractType(o);
+    
+    replace(contractTypeClass c, contractTypeClass o) += {ASSIGN contractType(objectClass object) <- o WHERE contractType(object) == c;}
 
     isCommission 'Продажа на комиссию' = DATA BOOLEAN (objectClass) IN documentPrm;
     isCommission(objectClass o) <- type(contractType(o)) == ContractSkuType.commission

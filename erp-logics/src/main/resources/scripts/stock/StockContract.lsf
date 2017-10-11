@@ -29,7 +29,8 @@ META defineInStockGroupObject(prop, object, objectClass)
     in###prop 'Отм' (Stock stock, ###object object) =
         (OVERRIDE dataIn###prop(stock, object),
                  in###prop(stockGroup(stock), object)) IF in(prop(object), stock) MATERIALIZED;
-    replace(Stock s, Stock o) += {ASSIGN dataIn###prop(o, ###object object) <- TRUE WHERE in###prop(s, object) AND NOT in###prop(o, object);}                   
+    replace(Stock s, Stock o) += {ASSIGN dataIn###prop(o, ###object object) <- TRUE WHERE in###prop(s, object) AND NOT in###prop(o, object);}
+    preReplace(###object c, ###object object) += {ASSIGN dataIn###prop(Stock s, object) <- TRUE WHERE in###prop(s, c) AND NOT in###prop(s, object);}                 
                  
     countDataIn###prop##StockGroups = GROUP SUM 1 IF  dataIn###prop(StockGroup stockGroup, ###object object) BY object;            
                                   
