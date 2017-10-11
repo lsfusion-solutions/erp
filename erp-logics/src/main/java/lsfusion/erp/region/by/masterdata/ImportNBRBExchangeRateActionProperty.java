@@ -122,7 +122,7 @@ public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActi
                     if(denominate)
                         rate = safeDivide(rate, 10000);
 
-                    exchangesList.add(new Exchange(charCode, "BLR", new Date(DateUtils.parseDate(exchangeNode.getString("Date"), new String[]{"yyyy-MM-dd'T'HH:mm:ss"}).getTime()),
+                    exchangesList.add(new Exchange(charCode, "BYN", new Date(DateUtils.parseDate(exchangeNode.getString("Date"), new String[]{"yyyy-MM-dd'T'HH:mm:ss"}).getTime()),
                             safeDivide(rate, scale, 6)));
                 }
                 if (exchangesList.size() > 0)

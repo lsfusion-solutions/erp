@@ -405,7 +405,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
             String idDepartmentStore = getDBFFieldValue(importStrvarFile, "K_SKL", charset);
             idDepartmentStore = idDepartmentStore.replace("МГ", prefixStore);
             String idItem = getDBFFieldValue(importStrvarFile, "K_GRMAT", charset);
-            String shortNameCurrency = "BLR";
+            String shortNameCurrency = "BYN";
             BigDecimal pricePriceListDetail = getDBFBigDecimalFieldValue(importStrvarFile, "N_CENU", charset);
 
             Object[] priceDate = postvarMap.get(idSupplier + idItem);
@@ -439,7 +439,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
 
             String idSupplier = getDBFFieldValue(importPostvarFile, "K_ANA", charset);
             String idItem = getDBFFieldValue(importPostvarFile, "K_GRMAT", charset);
-            String shortNameCurrency = "BLR";
+            String shortNameCurrency = "BYN";
             BigDecimal pricePriceListDetail = getDBFBigDecimalFieldValue(importPostvarFile, "N_CENU", charset);
 
             data.add(new PriceList(idSupplier, idItem, idSupplier, shortNameCurrency, pricePriceListDetail));
@@ -607,7 +607,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
 
         DBF importFile = new DBF(path);
         int recordCount = importFile.getRecordCount();
-        String shortNameCurrency = "BLR";
+        String shortNameCurrency = "BYN";
 
         List<Contract> contractsList = new ArrayList<>();
         List<String> idContracts = new ArrayList<>();

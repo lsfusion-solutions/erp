@@ -13,6 +13,14 @@ shortName 'Наименование (сокр.)' = DATA STRING[3] (Currency);
 documentName 'Наименование (в документах)' = DATA STRING[10] (Currency);
 currencyShortName (string) = GROUP AGGR Currency currency BY shortName(currency) WHERE currency IS Currency;
 
+onStarted() += {
+    NEWSESSION {
+        setNoCancelInTransaction();
+        shortName(Currency c) <- 'BYN' WHERE shortName(c) == 'BLR';
+        APPLY;
+    }
+}
+
 defaultCurrency = DATA Currency (); 
 nameDefaultCurrency 'Валюта по умолчанию' = name(defaultCurrency()) PREFCHARWIDTH 30;
 

@@ -1159,7 +1159,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[VARSTRING[100]]").readClasses(session, new DataObject("Coordinated", StringClass.get(100)));
                     if (dataPriceListTypeObject instanceof NullValue) {
                         dataPriceListTypeObject = session.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
-                        ObjectValue defaultCurrency = findProperty("currencyShortName[STRING[3]]").readClasses(session, new DataObject("BLR", StringClass.get(3)));
+                        ObjectValue defaultCurrency = findProperty("currencyShortName[STRING[3]]").readClasses(session, new DataObject("BYN", StringClass.get(3)));
                         findProperty("name[PriceListType]").change("Поставщика (согласованная)", session, (DataObject) dataPriceListTypeObject);
                         findProperty("currency[DataPriceListType]").change(defaultCurrency, session, (DataObject) dataPriceListTypeObject);
                         findProperty("id[DataPriceListType]").change("Coordinated", session, (DataObject) dataPriceListTypeObject);
@@ -1276,7 +1276,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[VARSTRING[100]]").readClasses(session, new DataObject("Offered", StringClass.get(100)));
                     if (dataPriceListTypeObject instanceof NullValue) {
                         dataPriceListTypeObject = session.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
-                        ObjectValue defaultCurrency = findProperty("currencyShortName[STRING[3]]").readClasses(session, new DataObject("BLR", StringClass.get(3)));
+                        ObjectValue defaultCurrency = findProperty("currencyShortName[STRING[3]]").readClasses(session, new DataObject("BYN", StringClass.get(3)));
                         findProperty("name[PriceListType]").change("Поставщика (предлагаемая)", session, (DataObject) dataPriceListTypeObject);
                         findProperty("currency[DataPriceListType]").change(defaultCurrency, session, (DataObject) dataPriceListTypeObject);
                         findProperty("id[DataPriceListType]").change("Offered", session, (DataObject) dataPriceListTypeObject);
@@ -1520,7 +1520,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     LM.object(findClass("Currency")).getMapping(currencyKey)));
             fields.add(shortNameCurrencyField);
             for (int i = 0; i < legalEntitiesList.size(); i++)
-                data.get(i).add("BLR");
+                data.get(i).add("BYN");
 
             ImportField idLegalEntityGroupField = new ImportField(findProperty("id[LegalEntityGroup]"));
             ImportKey<?> legalEntityGroupKey = new ImportKey((CustomClass) findClass("LegalEntityGroup"),
