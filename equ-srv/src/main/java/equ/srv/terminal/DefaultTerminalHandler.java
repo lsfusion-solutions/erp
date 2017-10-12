@@ -64,7 +64,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public List<String> readItem(DataSession session, DataObject user, String barcode) throws RemoteException, SQLException {
+    public Object readItem(DataSession session, DataObject user, String barcode, String bin) throws RemoteException, SQLException {
         try {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {

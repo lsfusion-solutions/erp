@@ -44,6 +44,7 @@ public class TerminalServer extends MonitorServer {
     public static byte GET_ALL_BASE_ERROR = 108;
     public static String GET_ALL_BASE_ERROR_TEXT = "Ошибка при формировании базы";
     public static byte SAVE_PALLET_ERROR = 109;
+    public static byte GET_ITEM_INFO_ERROR = 110;
     public static byte UNKNOWN_COMMAND = 111;
     public static String UNKNOWN_COMMAND_TEXT = "Неизвестный запрос";
 
@@ -139,7 +140,7 @@ public class TerminalServer extends MonitorServer {
             // аналогичный механизм в ShtrihBoardDaemon, но через Executor пока не принципиально
             startListenThread();
         } catch (IOException e) {
-            logger.error("Error occured while listening to port: ", e);
+            logger.error(String.format("Error occurred while listening to host %s, port %s: ", host, port), e);
         }
     }
 
@@ -161,7 +162,7 @@ public class TerminalServer extends MonitorServer {
                         logger.info("submitting task for socket : " + socket + " " + System.identityHashCode(socket));
                         listenExecutorService.submit(new SocketCallable(socket));
                     } catch (IOException e) {
-                        logger.error("Error occured while submitting socket: ", e);
+                        logger.error("Error occurred while submitting socket: ", e);
                     }
                 }
             }
@@ -232,19 +233,25 @@ public class TerminalServer extends MonitorServer {
                         try {
                             logger.info("requested getItemInfo");
                             String[] params = readParams(inFromClient);
-                            if (params.length == 2) {
+                            if (params.length >= 2) {
                                 logger.info("requested barcode " + params[1]);
                                 sessionId = params[0];
                                 String barcode = params[1];
+                                String bin = params.length == 3 ? params[2] : null;
                                 DataObject user = userMap.get(sessionId);
                                 if (user == null) {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    itemInfo = readItem(user, barcode);
-                                    if (itemInfo == null) {
+                                    Object readItemResult = readItem(user, barcode, bin);
+                                    if (readItemResult == null) {
                                         errorCode = ITEM_NOT_FOUND;
                                         errorText = ITEM_NOT_FOUND_TEXT;
+                                    } else if(readItemResult instanceof String) {
+                                        errorCode = GET_ITEM_INFO_ERROR;
+                                        errorText = (String) readItemResult;
+                                    } else {
+                                        itemInfo = (List<String>) readItemResult;
                                     }
                                 }
                             } else {
@@ -465,7 +472,7 @@ public class TerminalServer extends MonitorServer {
                 Thread.sleep(1000);
                 return null;
             } catch (Throwable e) {
-                logger.error("Error occured: ", e);
+                logger.error("Error occurred: ", e);
             } finally {
                 try {
                     if (outToClient != null)
@@ -473,7 +480,7 @@ public class TerminalServer extends MonitorServer {
                     if (inFromClient != null)
                         inFromClient.close();
                 } catch (IOException e) {
-                    logger.error("Error occured: ", e);
+                    logger.error("Error occurred: ", e);
                 }
             }
             return null;
@@ -519,7 +526,7 @@ public class TerminalServer extends MonitorServer {
         try {
             return value == null || value.isEmpty() ? null : new BigDecimal(value);
         } catch (Exception e) {
-            logger.error("Error occured while parsing numeric value: ", e);
+            logger.error("Error occurred while parsing numeric value: ", e);
             return null;
         }
     }
@@ -528,7 +535,7 @@ public class TerminalServer extends MonitorServer {
         try {
             return value == null || value.isEmpty() || value.equals("0") ? null : Integer.parseInt(value);
         } catch (Exception e) {
-            logger.error("Error occured while parsing integer value: ", e);
+            logger.error("Error occurred while parsing integer value: ", e);
             return null;
         }
     }
@@ -581,8 +588,8 @@ public class TerminalServer extends MonitorServer {
         return null;
     }
 
-    protected List<String> readItem(DataObject user, String barcode) throws RemoteException, SQLException {
-        return terminalHandlerInterface.readItem(createSession(), user, barcode);
+    protected Object readItem(DataObject user, String barcode, String bin) throws RemoteException, SQLException {
+        return terminalHandlerInterface.readItem(createSession(), user, barcode, bin);
     }
 
     protected String readItemHtml(String barcode, String idStock) throws RemoteException, SQLException {
