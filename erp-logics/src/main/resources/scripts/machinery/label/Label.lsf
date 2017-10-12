@@ -103,6 +103,16 @@ in (LabelType labelType, Sku sku, DepartmentStore departmentStore) = ((in(labelT
     AND in(labelType, departmentStore)) AND NOT skip(labelType, sku, departmentStore)) OR over(labelType, sku, departmentStore);
 inPrint(LabelType labelType, Sku sku, DepartmentStore departmentStore)  = in(labelType, sku, departmentStore) AND NOT exclude(labelType, sku); 
 
+
+quantityChildWithExclude(group, operation) = GROUP SUM 1 IF dataExclude(LabelType labelType, Group childGroup) AND isParent(childGroup, Group group) BY group, labelType MATERIALIZED;
+quantityParentWithExclude (group, operation) = GROUP SUM 1 IF dataExclude(LabelType labelType, Group parentGroup) AND isParent(Group group, parentGroup) BY group, labelType MATERIALIZED;          
+    
+backgroundExclude 'Цвет' (Group group, LabelType labelType) = CASE
+    WHEN dataExclude(labelType, group) THEN RGB(0,0,0)
+    WHEN nearestExclude(labelType, group) THEN RGB(230,248,250) 
+    WHEN quantityChildWithExclude(group, labelType) != descendantNumber(group) AND NOT quantityParentWithExclude (group, labelType) THEN RGB(203,203,203);    
+
+
 //-- Множитель
 dataCount 'Множитель' = DATA INTEGER (LabelType, Group);
 dataCount 'Множитель' = DATA INTEGER (LabelType, Sku);
@@ -175,7 +185,7 @@ FORM labelType 'Тип ценника'
     ORDER BY order(g), name(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
-    PROPERTIES(l, g) in, count, include, exclude
+    PROPERTIES(l, g) in, count, include, exclude BACKGROUND backgroundExclude(g,l)
 
     OBJECTS sk = Sku
     PROPERTIES(sk) READONLY name, idBarcode
