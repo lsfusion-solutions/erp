@@ -388,8 +388,20 @@ public class MassaKRL10Handler extends ScalesHandler {
     private byte[] getItemBytes(ScalesItemInfo item, Integer nameLineLength, String barcodePrefix, boolean first) throws DecoderException {
         byte[] firstBytes = first ? getBytes("01PC0000000001") : new byte[0];
         //потенциально длина со знаками переноса строк ("|") может превысить максимум
-        byte[] nameBytes = toAscii(trim(item.name, "", 248), nameLineLength);
-        byte[] descriptionBytes = toAscii(trim(item.description, "", 998), nameLineLength);
+
+        String name;
+        String description;
+        if(item.description != null && item.description.contains("@@")) {
+            String[] splitted = item.description.split("@@");
+            name = splitted[1];
+            description = splitted[0];
+        } else {
+            name = item.name;
+            description = item.description;
+        }
+
+        byte[] nameBytes = toAscii(trim(name, "", 248), nameLineLength);
+        byte[] descriptionBytes = toAscii(trim(description, "", 998), nameLineLength);
 
         String idItem = trim(item.idBarcode, 15);
 
