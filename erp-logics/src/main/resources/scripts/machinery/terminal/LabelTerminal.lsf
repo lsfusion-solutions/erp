@@ -37,7 +37,7 @@ createLabelTransaction 'Распечатать ценники'(TerminalDocument 
 	
 	    // бежим по всем типам ценников из управленческих параметров
 	    // для каждого создаем по операции печати ценников
-	    FOR ([= GROUP SUM 1 IF in(Sku sku) AND in(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stock(terminalDocument)))
+	    FOR ([= GROUP SUM 1 IF in(Sku sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stock(terminalDocument)))
 	        NEW t = LabelTransaction DO {
 	            departmentStore(t) <- stock(terminalDocument);
 	            priceTransactionDocument(t) <- terminalDocument;
@@ -45,7 +45,7 @@ createLabelTransaction 'Распечатать ценники'(TerminalDocument 
 	            
 	            FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND 
 	                in(Sku sku) AND sku == sku(dd) AND 
-	                in(labelType, sku, stock(terminalDocument)) AND 
+	                inPrint(labelType, sku, stock(terminalDocument)) AND 
 	                PriceListType pt == overPriceListType(t) NOINLINE (pt)
 	                NEW d = LabelTransactionDetail DO {
 	                labelTransaction(d) <- t;
@@ -91,7 +91,7 @@ createSnapshotTerminalDocumentLabel 'Перепечатать ценники'(Te
 	            priceTransactionDocument(t) <- terminalDocument;
 	            labelType(t) <- type;
 	
-	            FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND in(Sku sku) AND sku == sku(dd)
+	            FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND in(Sku sku) AND sku == sku(dd) AND NOT exclude(type, sku)
 	                AND PriceListType pt == overPriceListType(t) NOINLINE (pt)
 	                NEW d = LabelTransactionDetail DO {
 	                    labelTransaction(d) <- t;

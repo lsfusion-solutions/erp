@@ -14,7 +14,7 @@ createLabelTransaction 'Распечатать ценники'(Disparity dispari
 	        
 	            // бежим по всем типам ценников из управленческих параметров
 	            // для каждого создаем по операции печати ценников
-	            FOR ([= GROUP SUM 1 IF in(Sku sku) AND in(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stock(disparity)))
+	            FOR ([= GROUP SUM 1 IF in(Sku sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stock(disparity)))
 	                NEW t = LabelTransaction DO {
 	                    departmentStore(t) <- stock(disparity);
 	                    priceTransactionDocument(t) <- disparity;
@@ -22,7 +22,7 @@ createLabelTransaction 'Распечатать ценники'(Disparity dispari
 	                    
 	                    FOR disparity(DisparityDetail dd) == disparity AND 
 	                        in(Sku sku) AND sku == inputSku(dd) AND 
-	                        in(labelType, sku, stock(disparity)) AND 
+	                        inPrint(labelType, sku, stock(disparity)) AND 
 	                        PriceListType pt == overPriceListType(t) NOINLINE (pt)
 	                        NEW d = LabelTransactionDetail DO {
 	                        labelTransaction(d) <- t;
@@ -68,7 +68,7 @@ createSnapshotLabelTransaction 'Перепечатать ценники'(Dispari
 	                        labelType(t) <- type;
 	            
 	                        FOR disparity(DisparityDetail dd) == disparity 
-	                            AND in(Sku sku) AND sku == inputSku(dd)
+	                            AND in(Sku sku) AND sku == inputSku(dd) AND NOT exclude(type, sku)
 	                            AND PriceListType pt == overPriceListType(t) NOINLINE (pt)
 	                            NEW d = LabelTransactionDetail DO {
 	                                labelTransaction(d) <- t;

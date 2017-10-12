@@ -68,7 +68,7 @@ createInvoiceLabelTransaction 'Распечатать ценники'(Purchase.I
 	    
 	        // бежим по всем типам ценников из управленческих параметров
 	        // для каждого создаем по операции печати ценников
-	        FOR ([= GROUP SUM 1 IF in(Sku sku) AND in(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, customerStock(invoice)))
+	        FOR ([= GROUP SUM 1 IF in(Sku sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, customerStock(invoice)))
 	            NEW t = LabelTransaction DO {
 	                departmentStore(t) <- customerStock(invoice);
 	                priceTransactionDocument(t) <- invoice;
@@ -76,7 +76,7 @@ createInvoiceLabelTransaction 'Распечатать ценники'(Purchase.I
 	                
 	                FOR invoice(Purchase.InvoiceDetail dd) == invoice AND 
 	                    in(Sku sku) AND sku == sku(dd) AND 
-	                    in(labelType, sku, customerStock(invoice)) AND 
+	                    inPrint(labelType, sku, customerStock(invoice)) AND 
 	                    PriceListType pt == overPriceListType(t) NOINLINE (pt)
 	                    NEW d = LabelTransactionDetail DO {
 	                        labelTransaction(d) <- t;

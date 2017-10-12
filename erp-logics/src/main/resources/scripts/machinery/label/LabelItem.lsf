@@ -19,7 +19,7 @@ EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressManufacturerIte
 
 createItemLabelsTransaction 'Сформировать ценники'(Sku item, DepartmentStore stock) = {
 	NEWSESSION {
-	     FOR in(LabelType labelType, item, stock)
+	     FOR inPrint(LabelType labelType, item, stock)
 	         NEW t = LabelTransaction DO {
 	             departmentStore(t) <- stock;
 	             labelType(t) <- labelType;
@@ -40,26 +40,29 @@ createItemLabelsTransaction 'Сформировать ценники'(Sku item, 
 }
 
 createItemTransaction 'Сформировать ценник'(Sku item, DepartmentStore stock, LabelType labelType) = {
-	NEWSESSION {
-	    NEW t = LabelTransaction {
-	            departmentStore(t) <- stock;
-	            labelType(t) <- labelType;
-	            
-	            FOR PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
-	                labelTransaction(d) <- t;
-	                sku(d) <- item;
-	                name(d) <- name(item);
-	                quantity(d) <- count(labelType, sku(d));
-	                                                                             
-	                createAttribute(d);
-	
-	                price(d) <- calcPrice(pt, d);
-	                retailPrice(d) <- overRetailPrice(d); 
-	            } 
-	            // вызываем печатную форму для каждого из них
-	            print(t);
-	    }
-	}
+	IF NOT exclude(labelType, item) THEN{
+        NEWSESSION {
+            NEW t = LabelTransaction {
+                    departmentStore(t) <- stock;
+                    labelType(t) <- labelType;
+                    
+                    FOR PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
+                        labelTransaction(d) <- t;
+                        sku(d) <- item;
+                        name(d) <- name(item);
+                        quantity(d) <- count(labelType, sku(d));
+                                                                                     
+                        createAttribute(d);
+        
+                        price(d) <- calcPrice(pt, d);
+                        retailPrice(d) <- overRetailPrice(d); 
+                    } 
+                    // вызываем печатную форму для каждого из них
+                    print(t);
+            }
+        }	
+	} ELSE MESSAGE 'Для данного типа ценника и товара запрещена печать';	
+
 } IMAGE 'print.png';
 
 EXTEND FORM item

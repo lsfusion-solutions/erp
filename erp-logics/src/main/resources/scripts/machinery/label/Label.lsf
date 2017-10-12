@@ -69,25 +69,39 @@ nameGroupType 'Тип классификатора' (LabelType labelType) = name
 
 TABLE labelTypeGroup (LabelType, Group);
 dataIn 'Вкл.' = DATA BOOLEAN (LabelType, Group);
+dataExclude 'Искл.' = DATA BOOLEAN (LabelType, Group); 
+
 TABLE labelTypeSku (LabelType, Sku);
 dataIn 'Вкл.' = DATA BOOLEAN (LabelType, Sku);
+dataExclude 'Искл.' = DATA BOOLEAN (LabelType, Sku);
 
 levelParent (labelType, group) = GROUP MIN level(Group group, Group parent) IF dataIn(LabelType labelType, parent)
                                                               BY labelType, group MATERIALIZED;
 nearestParent (LabelType labelType, Group group) = group(group, levelParent (labelType, group));
 nearestIn 'Вкл.' (LabelType labelType, Group group) =
     dataIn(labelType, nearestParent (labelType, group)) MATERIALIZED;
+    
+levelParentExclude (labelType, group) = GROUP MIN level(Group group, Group parent) IF dataExclude(LabelType labelType, parent)
+                                                              BY labelType, group MATERIALIZED;
+nearestParentExclude (LabelType labelType, Group group) = group(group, levelParentExclude (labelType, group));
+nearestExclude 'Вкл.' (LabelType labelType, Group group) =
+    dataExclude(labelType, nearestParentExclude (labelType, group)) MATERIALIZED;
 
 in 'Вкл.' (LabelType labelType, Group group) =
     OVERRIDE dataIn(labelType, group), nearestIn(labelType, group) MATERIALIZED;
-
+exclude 'Искл.' (LabelType labelType, Group group) =
+    OVERRIDE dataExclude(labelType, group), nearestExclude(labelType, group) MATERIALIZED;
+    
 in 'Вкл.' (LabelType labelType, Sku sku) =
     OVERRIDE dataIn(labelType, sku), in(labelType, group(groupType(labelType), sku));
-
+exclude 'Искл.' (LabelType labelType, Sku sku) =
+    OVERRIDE dataExclude(labelType, sku), exclude(labelType, group(groupType(labelType), sku));
+    
 over = ABSTRACT BOOLEAN (LabelType, Sku, DepartmentStore);
 skip = ABSTRACT BOOLEAN (LabelType, Sku, DepartmentStore);
 in (LabelType labelType, Sku sku, DepartmentStore departmentStore) = ((in(labelType, sku) 
     AND in(labelType, departmentStore)) AND NOT skip(labelType, sku, departmentStore)) OR over(labelType, sku, departmentStore);
+inPrint(LabelType labelType, Sku sku, DepartmentStore departmentStore)  = in(labelType, sku, departmentStore) AND NOT exclude(labelType, sku); 
 
 //-- Множитель
 dataCount 'Множитель' = DATA INTEGER (LabelType, Group);
@@ -161,12 +175,12 @@ FORM labelType 'Тип ценника'
     ORDER BY order(g), name(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
-    PROPERTIES(l, g) in, count, include
+    PROPERTIES(l, g) in, count, include, exclude
 
     OBJECTS sk = Sku
     PROPERTIES(sk) READONLY name, idBarcode
     FILTERS isParent(g, sk) OR sk IS Sku AND NOT g
-    PROPERTIES(l, sk) in, count, include
+    PROPERTIES(l, sk) in, count, include, exclude
 
     EDIT LabelType OBJECT l
 ;
@@ -809,7 +823,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
         
             // бежим по всем типам ценников из управленческих параметров
             // для каждого создаем по операции печати ценников
-            FOR ([= GROUP SUM 1 IF in(###skuProp sku) AND in(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stockProp(document)))
+            FOR ([= GROUP SUM 1 IF in(###skuProp sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stockProp(document)))
                 NEW t = LabelTransaction DO {
                     departmentStore(t) <- stockProp(document);
                     priceTransactionDocument(t) <- document;
@@ -818,7 +832,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
                     
                     FOR document(###detailProp##Detail dd) == document AND 
                         in(###skuProp sku) AND sku == skuProp(dd) AND 
-                        in(labelType, sku, stockProp(document)) AND 
+                        inPrint(labelType, sku, stockProp(document)) AND 
                         PriceListType pt == overPriceListType(t) NOINLINE (pt)
                         NEW d = LabelTransactionDetail DO {
 
@@ -887,7 +901,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
 	                        labelType(t) <- type;
 	            
 	                        FOR document(###detailProp##Detail dd) == document AND in(###skuProp sku) AND sku == skuProp(dd)
-	                            AND PriceListType pt == overPriceListType(t) NOINLINE (pt)
+	                            AND PriceListType pt == overPriceListType(t) AND NOT exclude(type, sku) NOINLINE (pt)
 	                            NEW d = LabelTransactionDetail DO {
 	                                labelTransaction(d) <- t;
 	                                skuProp(d) <- sku;
@@ -997,12 +1011,12 @@ skipDelete = ABSTRACT VALUE BOOLEAN (LabelTransactionDetail);
 createLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore) = {
     // бежим по всем типам ценников из управленческих параметров
     // для каждого создаем по операции печати ценников
-    FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,DepartmentStore d) BY l, d](LabelType labelType, departmentStore) NEW t = LabelTransaction DO { 
+    FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,DepartmentStore d) AND NOT exclude(l,s) BY l, d](LabelType labelType, departmentStore) NEW t = LabelTransaction DO { 
         departmentStore(t) <- departmentStore;
         labelType(t) <- labelType;
         addedTransaction() <- t;
         
-        FOR select(Sku sku, labelType, departmentStore) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
+        FOR select(Sku sku, labelType, departmentStore) AND NOT exclude(labelType,sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
             
             labelTransaction(d) <- t;
             sku(d) <- sku;
@@ -1044,7 +1058,7 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
         labelType(t) <- labelType;
         addedTransaction() <- t;
         
-        FOR select(Sku sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
+        FOR select(Sku sku) AND NOT exclude(labelType,sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
             labelTransaction(d) <- t;
             sku(d) <- sku;
 
@@ -1112,7 +1126,7 @@ createSelectedSkuStockLabelTransaction 'Распечатать ценники'()
     IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
             FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock] (DepartmentStore stock) AND stock IS DepartmentStore DO {        
-                select(Sku sku, LabelType labelType, stock) <- select(sku, stock) AND in(labelType, sku, stock);   
+                select(Sku sku, LabelType labelType, stock) <- select(sku, stock) AND inPrint(labelType, sku, stock);   
                 createLabelTransaction(stock);
             }
             
@@ -1169,7 +1183,7 @@ EXTEND  FORM currentBalanceSkuStock
 printSelectedSkuLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore) = {
     IF [=GROUP SUM 1 IF select(Sku sku)]() THEN {
         NEWSESSION NESTED (select[Sku]) {
-            select(Sku sku, LabelType labelType, departmentStore) <- select(sku) AND in(labelType, sku, departmentStore);   
+            select(Sku sku, LabelType labelType, departmentStore) <- select(sku) AND inPrint(labelType, sku, departmentStore);   
             createLabelTransaction(departmentStore);
             apply();
         }
@@ -1209,7 +1223,7 @@ needLabelTransactionDepartmentStore (PriceListType type, Sku sku, Stock stock) =
 
 createAllLabelTransaction 'Все товары'(DepartmentStore stock) = {
     select(Sku sku, LabelType labelType, stock) <- needLabelTransactionDepartmentStore(priceListType(labelType), sku, stock) 
-                AND in(labelType, sku, stock);   
+                AND inPrint(labelType, sku, stock);   
     
     createLabelTransaction(stock);
 
@@ -1221,7 +1235,7 @@ createAllLabelTransaction 'Все товары'(DepartmentStore stock) = {
 
 createBalanceLabelTransaction 'Остатки'(DepartmentStore stock) = {
     select(Sku sku, LabelType labelType, stock) <- needLabelTransactionDepartmentStore(priceListType(labelType), sku, stock) 
-                AND in(labelType, sku, stock) AND balanceA(sku, stock, currentDateTime());   
+                AND inPrint(labelType, sku, stock) AND balanceA(sku, stock, currentDateTime());   
                 
     createLabelTransaction(stock);
 
