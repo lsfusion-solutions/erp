@@ -101,8 +101,11 @@ WHEN SET(EOrderResponse r == orderResponse(EOrderResponseDetail d))  AND NOT [= 
         userOrder(od) <- eOrder(r);
     } 
 
-notEqualResponseEDI(Purchase.UserOrder o) = NOT quantityResponseEDI(o) == quantityOrderDetail(o) OR [=GROUP SUM 1 IF NOT priceResponseEDI(UserOrderDetail d) == price(d) BY userOrder(d) ](o);
-skipPostConfirmed(Purchase.UserOrder o) += WHEN isEOrder(o AS UserOrder) AND notEqualResponseEDI(o) THEN TRUE;
+notEqualPriceEDI = ABSTRACT CASE OVERRIDE BOOLEAN (Purchase.OrderDetail);
+notEqualPriceEDI(OrderDetail d) += WHEN d IS Purchase.OrderDetail AND NOT priceResponseEDI(d) == price(d) THEN TRUE ;
+
+notEqualResponseEDI(Purchase.Order o) =  o IS Purchase.Order AND NOT quantityResponseEDI(o) == quantityOrderDetail(o) OR [=GROUP SUM 1 IF notEqualPriceEDI(OrderDetail d) BY order(d) ](o) MATERIALIZED;
+skipPostConfirmed(Purchase.Order o) += WHEN isEOrder(o AS Order) AND notEqualResponseEDI(o) THEN TRUE;
 
 showAgree(Purchase.Order o) = isConfirmed(o) AND isEOrder(o) AND notEqualResponseEDI(o);
 overAgree = ABSTRACT LIST (UserOrder);

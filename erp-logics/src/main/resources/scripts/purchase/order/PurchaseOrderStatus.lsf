@@ -237,9 +237,9 @@ orderConfirmation = ABSTRACT BOOLEAN (UserOrder);
 disablePosted (UserOrder o) += (orderConfirmation(agreement(o)) OR orderConfirmation(contractSku(o)) OR orderConfirmation(o)) IF NOT isConfirmed(o);
 
 //для планировщика
-skipPostConfirmed = ABSTRACT CASE BOOLEAN (UserOrder); 
+skipPostConfirmed = ABSTRACT CASE BOOLEAN (Order); 
 postConfirmedOrders 'Провести подтвержденные заказы'() = {
-    FOR isConfirmed(Purchase.UserOrder o) AND NOT isPosted(o) AND NOT isClosed(o) AND NOT skipPostConfirmed(o) DO NEWSESSION {
+    FOR isConfirmed(Purchase.Order o) AND  isDraft(o) AND isOpened(o) AND NOT skipPostConfirmed(o) DO NEWSESSION {
         isPosted(o) <- TRUE;
         APPLY;
     }
