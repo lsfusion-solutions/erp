@@ -1,0 +1,42 @@
+MODULE PurchaseShipmentRu;
+
+REQUIRE PurchaseShipment;
+
+NAMESPACE Purchase;
+
+FORM printPurchaseInvoiceRu 'Приходная накладная'
+    OBJECTS s = Shipment PANEL
+    PROPERTIES(s) number, date, nameSupplier, nameCustomer, nameCustomerStock, countShipmentDetail, sumShipmentDetail
+    
+    OBJECTS d = ShipmentDetail
+    PROPERTIES(d) index, nameSku, shortNameUOMSku, price, quantity, sum
+    FILTERS shipment(d) == s
+;
+
+printPurchaseInvoiceRu 'Приходная накладная (xls)' (Shipment s) = {
+    PRINT printPurchaseInvoiceRu OBJECTS s = s XLS;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM shipments  
+    PROPERTIES(s)  printPurchaseInvoiceRu
+;
+
+DESIGN shipments {
+    printContainer {
+        MOVE PROPERTY (printPurchaseInvoiceRu(s));
+    }
+}
+
+printPurchaseInvoiceRu 'Приходная накладная (xls)' (Invoice i) = {
+    PRINT printPurchaseInvoiceRu OBJECTS s = invoiceShipment(i) XLS;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM invoices  
+    PROPERTIES(i)  printPurchaseInvoiceRu SHOWIF createShipment(i)
+;
+
+DESIGN invoices {
+    printContainer {
+        MOVE PROPERTY (printPurchaseInvoiceRu(i));
+    }
+}
