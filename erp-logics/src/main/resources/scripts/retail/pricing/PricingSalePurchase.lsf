@@ -13,8 +13,10 @@ NAMESPACE Sale;
 
 // Изменененно кол-во для расценки (пока нигде не используется)
 extraPurchasePricingQuantity = ABSTRACT NUMERIC[14,3] (UserInvoiceDetail) MATERIALIZED;
-purchasePricingQuantity(UserInvoiceDetail detail) <- quantity(detail) (+) extraPurchasePricingQuantity(detail)
-    WHEN CHANGED(quantity(detail)) OR CHANGED(extraPurchasePricingQuantity(detail));
+overPurchasePricingQuantity = ABSTRACT NUMERIC[16,5] (UserInvoiceDetail) MATERIALIZED;
+overPurchaseQuantity(UserInvoiceDetail detail) = OVERRIDE overPurchasePricingQuantity(detail), quantity(detail);
+purchasePricingQuantity(UserInvoiceDetail detail) <- overPurchaseQuantity(detail) (+) extraPurchasePricingQuantity(detail)
+    WHEN CHANGED(overPurchaseQuantity(detail)) OR CHANGED(extraPurchasePricingQuantity(detail));
 
 // Виды цен
 
@@ -165,6 +167,7 @@ namePurchasePricingOperation 'Операция расценка (закупка)
 purchasePricingOperation (UserInvoice invoice) <- purchasePricingOperation(operation(invoice))
     WHEN CHANGED(operation(invoice));
 
+overPurchasePricingQuantity(UserInvoiceDetail detail) += (OVERRIDE purchaseShipmentQuantity(detail), 0.0 IF detail IS UserInvoiceDetail) IF useShipmentQuantity(purchasePricingOperation(detail));
 // Записываем тип цены по умолчанию из операции
 
 calcPurchaseRetailPriceListType (UserInvoice invoice) <- IF pricingPriceListType(purchasePricingOperation(invoice)) 

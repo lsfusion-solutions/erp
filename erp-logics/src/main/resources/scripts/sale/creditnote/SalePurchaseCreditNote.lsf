@@ -1,0 +1,36 @@
+MODULE SalePurchaseCreditNote;
+
+REQUIRE SaleCreditNote, PurchaseCreditNote, SalePurchaseOperation, SalePurchaseInvoiceShipment;
+
+PRIORITY Sale;
+
+GROUP invoice 'Информация о накладной' : base;
+
+createPurchaseCreditNote 'Создать акт расхождения (закупка)' = ABSTRACT BOOLEAN (Invoice) MATERIALIZED;
+createPurchaseCreditNote 'Создать акт расхождения (закупка)' = DATA BOOLEAN (UserInvoice) MATERIALIZED;
+createPurchaseCreditNote(UserInvoice invoice) += createPurchaseCreditNote(invoice);
+
+createPurchaseCreditNote 'Создать акт расхождения (закупка)' (InvoiceDetail invoiceDetail) = createPurchaseCreditNote(invoice(invoiceDetail))MATERIALIZED;
+createPurchaseCreditNote 'Создать акт расхождения (закупка)' (UserInvoiceDetail userInvoiceDetail) = createPurchaseCreditNote(userInvoice(userInvoiceDetail));
+//backgroundPurchase 'Цвет' (Invoice invoice) = RGB(255, 255, 190) IF invoice IS Invoice;
+
+isCompanyCustomer (UserInvoice userInvoice) =  isCompany(customer(userInvoice));
+EXTEND FORM userInvoice
+    PROPERTIES(i) BACKGROUND backgroundPurchaseShipment(i) SHOWIF createPurchaseShipment(i) createPurchaseCreditNote
+;
+DESIGN userInvoice {
+    headerCreateDocuments {
+        NEW headerCreatePurchaseCreditNote {
+            caption = 'Акт расхождения (закупка)';
+            MOVE PROPERTY(createPurchaseCreditNote(i));        
+        }
+        
+    }
+}
+
+// -- Операция
+@defineOperationProperty(createPurchaseCreditNote, 'Акт расхождения (закупка)', purchaseContainer);
+@deriveDocumentOperationProperty(UserInvoice, createPurchaseCreditNote);
+                                 
+//--
+createCreditNote(PurchaseInvoice invoice) += createPurchaseCreditNote(invoice(invoice));
