@@ -10,13 +10,21 @@ invoiceDetail = ABSTRACT InvoiceDetail (PricingDetail) MATERIALIZED INDEXED;
 
 backgroundRetail 'Цвет' (Invoice invoice) = RGB(224, 255, 255) IF invoice IS Invoice;
 
-@defineDocumentAbstractDetailMarkupCustomPrefix(invoiceDetail, retail, );
-@defineDocumentAbstractDetailMarkupSumCustomPrefix (invoiceDetail, retail, );
-@defineDocumentAbstractDetailVATCustom(invoiceDetail, retail, ' розничный');
-@defineDocumentAbstractDetailVATDataSumCustomPrefix(invoiceDetail, retail, ' розничная');
-@defineDocumentAbstractDetailPriceCustomPrefix(invoiceDetail, retail, ' розничная');
-@defineDocumentAbstractDetailDataSumCustomPrefix(invoiceDetail, retail, ' розничная');
-@defineDocumentAbstractDetailQuantityCustomPrefix(invoiceDetail, pricing, ' (расценено)');
+retailMarkup 'Надбавка,%' = ABSTRACT NUMERIC[8,3] (InvoiceDetail);
+retailMarkupSum 'Сумма надбавки' = ABSTRACT NUMERIC[18,4] (InvoiceDetail);
+
+retailVAT(invoiceDetail) = ABSTRACT Range (InvoiceDetail);
+numberRetailVAT 'НДС, номер розничный' (InvoiceDetail invoiceDetail) = number(retailVAT(invoiceDetail));
+valueRetailVAT 'НДС, % розничный' (invoiceDetail) = ABSTRACT NUMERIC[10,5] (InvoiceDetail);
+calcValueRetailVAT 'НДС (перегруженный), % розничный' (invoiceDetail) = ABSTRACT NUMERIC[10,5] (InvoiceDetail);
+
+retailVATSum 'Сумма НДС розничная' = ABSTRACT NUMERIC[18,4] (InvoiceDetail);
+
+retailPrice 'Цена розничная' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
+
+retailSum 'Сумма розничная' = ABSTRACT NUMERIC[18,4] (InvoiceDetail) MATERIALIZED;
+
+pricingQuantity 'Кол-во (расценено)' = ABSTRACT NUMERIC[16,5] (InvoiceDetail);
 
 retailSumInvoiceDetail 'Сумма розничная' (invoice) = GROUP SUM retailSum(InvoiceDetail idetail) BY invoice(idetail) IN documentSum;
 
