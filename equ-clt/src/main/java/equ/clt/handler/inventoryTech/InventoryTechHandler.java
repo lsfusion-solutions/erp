@@ -629,7 +629,7 @@ public class InventoryTechHandler extends TerminalHandler {
             NumField2 PRICE = new NumField2("PRICE", 13, 2);
             NumField2 PRICEREST = new NumField2("PRICEREST", 13, 2);
             NumField2 QUANREST = new NumField2("QUANREST", 13, 3);
-            NumField2 NAME = new NumField2("NAME", 200, 0);
+            CharField NAME = new CharField("NAME", 200);
             CharField MOD_DTST = new CharField("MOD_DTST", 14);
             NumField2 NOMPOS = new NumField2("NOMPOS", 4, 0);
 
