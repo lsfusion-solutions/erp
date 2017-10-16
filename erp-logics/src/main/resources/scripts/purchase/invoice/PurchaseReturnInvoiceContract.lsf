@@ -6,35 +6,18 @@ NAMESPACE PurchaseReturn;
 
 @defineInvoicePaymentCondition(' (закупка-возврат)');
 
+@defineInvoiceContractSum();
+
 // ------------------- Проведение по регистру задолженностей ----------------------- //
 
 @implementContractLedger(, Invoice, contractSku);
-sum[ContractLedger](Invoice contractLedger) +=
-    (IF currency(contractLedger) != currency(contractSku(contractLedger)) THEN 
-        NUMERIC[18,4](-invoiceSumInvoiceDetail(contractLedger) * 
-                      rateOn(typeExchange(contractSku(contractLedger)), 
-                                                     currency(contractLedger),
-                                                     date(contractLedger)))
-    ELSE 
-        -invoiceSumInvoiceDetail(contractLedger)) IF isSaleType(contractSku(contractLedger)) AND isPrepaymentType(paymentCondition(contractLedger));
+sum[ContractLedger](Invoice contractLedger) += 
+    (OVERRIDE -contractSum(contractLedger), -invoiceSumInvoiceDetail(contractLedger)) 
+    IF isSaleType(contractSku(contractLedger)) AND isPrepaymentType(paymentCondition(contractLedger));
 ;
 
 @implementContractLedger(a, Invoice, contractSku);
-sum[ContractALedger](Invoice contractALedger) +=
-    IF currency(contractALedger) != currency(contractSku(contractALedger)) THEN 
-        NUMERIC[18,4](-invoiceSumInvoiceDetail(contractALedger) * 
-                      rateOn(typeExchange(contractSku(contractALedger)), 
-                                                     currency(contractALedger),
-                                                     date(contractALedger)))
-    ELSE 
-        -invoiceSumInvoiceDetail(contractALedger);
+sum[ContractALedger](Invoice contractALedger) += OVERRIDE -contractSum(contractALedger), -invoiceSumInvoiceDetail(contractALedger); 
 
 @implementOutContractLedger(Invoice, contractSku);
-sum[OutContractLedger](Invoice outContractLedger) += 
-    IF currency(outContractLedger) != currency(contractSku(outContractLedger)) THEN 
-        NUMERIC[18,4](invoiceSumInvoiceDetail(outContractLedger) * 
-                      rateOn(typeExchange(contractSku(outContractLedger)), 
-                                                     currency(outContractLedger),
-                                                     date(outContractLedger)))
-    ELSE 
-        invoiceSumInvoiceDetail(outContractLedger);
+sum[OutContractLedger](Invoice outContractLedger) += OVERRIDE contractSum(outContractLedger), invoiceSumInvoiceDetail(outContractLedger);

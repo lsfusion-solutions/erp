@@ -29,3 +29,19 @@ END
 
 paymentCondition 'Условия оплаты' = ABSTRACT PaymentCondition (Invoice) MATERIALIZED;
 descriptionPaymentCondition 'Условия оплаты' (Invoice i) = description(paymentCondition(i)) IN base MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+META defineInvoiceContractSum (sign)
+
+    contractSum 'Сумма по договору' = ABSTRACT NUMERIC[18,4] (Invoice);
+    contractSum 'Сумма по договору' = DATA NUMERIC[18,4] (UserInvoice);
+    contractSum (UserInvoice i) += contractSum(i);
+    
+    WHEN (CHANGED(currency(UserInvoice i)) OR CHANGED(contractSku(i))) AND currency(i) != currency(contractSku(i)) AND typeExchange(contractSku(i)) DO
+        contractSum(i) <- NUMERIC[18,4](invoiceSumInvoiceDetail(i) * 
+                                            rateOn(typeExchange(contractSku(i)), 
+                                                         currency(i),
+                                                         date(i)));     
+
+    WHEN (CHANGED(currency(UserInvoice i)) OR CHANGED(currency(contractSku(i)))) AND currency(i) == currency(contractSku(i)) AND NOT CHANGED(contractSum(i)) DO
+        contractSum(i) <- NULL;     
+END

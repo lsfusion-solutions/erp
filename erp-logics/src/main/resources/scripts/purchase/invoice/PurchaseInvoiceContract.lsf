@@ -6,28 +6,15 @@ NAMESPACE Purchase;
 
 @defineInvoicePaymentCondition(' (закупка)');
 
+@defineInvoiceContractSum();
 // ------------------- Проведение по регистру задолженностей ----------------------- //
 
 @implementContractLedger(a, Invoice, contractSku);
-sum[ContractALedger](Invoice contractALedger) +=
-    IF currency(contractALedger) != currency(contractSku(contractALedger)) THEN 
-        NUMERIC[18,4](invoiceSumInvoiceDetail(contractALedger) * 
-                      rateOn(typeExchange(contractSku(contractALedger)), 
-                                                     currency(contractALedger),
-                                                     date(contractALedger)))
-    ELSE 
-        invoiceSumInvoiceDetail(contractALedger);
+sum[ContractALedger](Invoice contractALedger) += OVERRIDE contractSum(contractALedger), invoiceSumInvoiceDetail(contractALedger);
 
 @implementContractPrepaymentLedger(invoice, invoiceSumInvoiceDetail, contractSku);
 
 @implementInContractLedger(Invoice, contractSku);
-sum[InContractLedger](Invoice inContractLedger) +=
-    IF currency(inContractLedger) != currency(contractSku(inContractLedger)) THEN 
-        NUMERIC[18,4](invoiceSumInvoiceDetail(inContractLedger) * 
-                      rateOn(typeExchange(contractSku(inContractLedger)), 
-                                                     currency(inContractLedger),
-                                                     date(inContractLedger)))
-    ELSE 
-        invoiceSumInvoiceDetail(inContractLedger);
+sum[InContractLedger](Invoice inContractLedger) += OVERRIDE contractSum(inContractLedger), invoiceSumInvoiceDetail(inContractLedger);
 
 inContractLedger[ContractLedger](InvoiceContractLedger l) += invoice(l);

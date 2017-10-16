@@ -90,15 +90,8 @@ META implementContractPrepaymentLedgerInner(object, classPrefix, sumProp, contra
                                                       OVERRIDE overCalendarPaymentDateTime(l), calendarPaymentDateTime(l);
     contract(###object##ContractLedger object##ContractLedger) += contractProp(object(object##ContractLedger));
     description(###object##ContractLedger object##ContractLedger) += description(object(object##ContractLedger));
-    sum(###object##ContractLedger object##ContractLedger) +=
-        IF currency(object(object##ContractLedger)) != currency(contractProp(object(object##ContractLedger))) THEN 
-            NUMERIC[18,4](sumProp(object(object##ContractLedger)) * 
-                          rateOn(typeExchange(contractProp(object(object##ContractLedger))), 
-                                                                              currency((object(object##ContractLedger))),
-                                                                              date(object(object##ContractLedger))) * 
-                          percent(paymentPeriod(object##ContractLedger)) / 100.0)
-        ELSE 
-            NUMERIC[18,4](sumProp(object(object##ContractLedger)) * percent(paymentPeriod(object##ContractLedger)) / 100.0);
+    sum(###object##ContractLedger l) +=
+        NUMERIC[18,4]((OVERRIDE contractSum(invoice(l)), invoiceSumInvoiceDetail(invoice(l))) * percent(paymentPeriod(l)) / 100.0);
     descriptionPaymentDatesPercent 'Дата оплаты'  = GROUP CONCAT 
         (toDateDDMMYYYY(date(###object##ContractLedger l)) +'-'+ percent(paymentPeriod(l)) +'%') , ', '
             BY object(l)
