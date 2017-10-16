@@ -1,0 +1,43 @@
+MODULE ReceiptDetailReport;
+
+REQUIRE ZReport, ZReportDiscountCard;
+
+NAMESPACE ZReport;
+
+nameStock 'Склад' = name(saleStock());
+
+saleDiscountCard  = DATA LOCAL DiscountCard ();
+numberDiscountCard 'Дисконтная карта' = seriesNumber(saleDiscountCard());
+nameDiscountCard 'Наименование дисконтной карты' (ReceiptDetail receiptDetail) = name(discountCard(receipt(receiptDetail)));
+
+FORM receiptDetailReport 'Регистр строк чека'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)       
+     
+//    OBJECTS ds = DepartmentStore PANEL     
+//    PROPERTIES name[Stock](ds)  SELECTOR
+    PROPERTIES() nameStock, numberDiscountCard
+    
+    OBJECTS rd = ReceiptDetail
+    PROPERTIES(rd) nameDepartmentStore, numberZReport, numberReceipt, numberDiscountCard, nameLegalEntityDiscountCard, nameDiscountCard, date, time,  id, number, nameSku, idBarcode, quantity, price, sum, discountSum 
+    FILTERS date(rd) >= dFrom AND date(rd)<= dTo AND (name(departmentStore(rd)) == nameStock() OR NOT nameStock())  AND (numberDiscountCard(rd) == numberDiscountCard() OR NOT numberDiscountCard())
+;
+
+DESIGN receiptDetailReport {
+    NEW operationContainer{
+        type = CONTAINERH;
+        caption = 'Фильтры';
+        MOVE PROPERTY(nameStock());
+        MOVE PROPERTY(numberDiscountCard());
+    }
+    MOVE BOX(rd);
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    retailNavigator {
+        retailReports BEFORE retailMasterData {
+            ADD receiptDetailReport;
+        }
+    }
+}
