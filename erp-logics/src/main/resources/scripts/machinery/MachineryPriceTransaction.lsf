@@ -703,6 +703,7 @@ createAttribute = ABSTRACT LIST (MachineryPriceTransaction, GroupMachinery);
 exclude = DATA LOCAL BOOLEAN (GroupMachinery);
 
 supressNoNeedMessage() = DATA LOCAL BOOLEAN (); // не выдавать сообщение если загрузка не требуется
+skipChangePrice = ABSTRACT VALUE BOOLEAN (Barcode);
 
 createMachineryPriceTransaction 'Создать транзакцию'(Stock stock) = {
     LOCAL message = TEXT();
@@ -726,7 +727,7 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
         in(Barcode barcode) <- TRUE IF price(barcode, groupMachinery) WHERE in(barcode); // если есть цена
 
         IF NOT createMachineryPriceTransactionAll() AND NOT createMachineryPriceTransactionSnapshot() THEN
-            in(Barcode barcode) <- TRUE IF NOT (price(barcode, groupMachinery) == transactionPrice(barcode, groupMachinery)) WHERE in(barcode);
+            in(Barcode barcode) <- TRUE IF NOT (price(barcode, groupMachinery) == transactionPrice(barcode, groupMachinery)) WHERE in(barcode) AND NOT skipChangePrice(barcode);
             
         in(Barcode barcode) <- NULL WHERE in(barcode) AND (skipMachineryPriceTransaction(sku(barcode), stock, currentDateTime()) OR inactive(sku(barcode))); // если есть запрет на загрузку
         
