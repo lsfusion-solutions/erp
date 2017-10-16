@@ -296,7 +296,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, item.idItem, 1, offset); //PACKID
                 setObject(ps, transaction.nppGroupMachinery, 2, offset); //PRCLEVELID
                 setObject(ps, HandlerUtils.safeMultiply(item.price, 100), 3, offset); //PACKPRICE
-                setObject(ps, item.minPrice, 4, offset); //PACKMINPRICE
+                setObject(ps, item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO, 4, offset); //PACKMINPRICE
                 setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
                 setObject(ps, "0", 6, offset); //DELFLAG
                 setObject(ps, "1", 7, offset); //UPDATENUM

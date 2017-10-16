@@ -228,7 +228,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         inventObject.put("barcode", removeCheckDigitFromBarcode(item.idBarcode, appendBarcode)); //основной штрих-код
         inventObject.put("deptcode", 1); //код отдела
         inventObject.put("price", item.price); //цена
-        inventObject.put("minprice", item.minPrice); //минимальная цена
+        inventObject.put("minprice", item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO); //минимальная цена
         //inventObject.put("isInvent", true);
         inventObject.put("isInventItem", true); //признак это товар (1) или группа (0)
         inventObject.put("articul", item.idItem); //артикул

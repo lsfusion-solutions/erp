@@ -916,7 +916,7 @@ END
 
 META defineMachineryPriceTransactionAttributeStockAction(object, caption, nameProp)
     @defineMachineryPriceTransactionAttributeBase(object, caption, nameProp);
-    createAttribute(MachineryPriceTransaction t, Stock stock) += { ASSIGN object(t, Barcode barcode) <- object(barcode, stock)
+    createAttribute(MachineryPriceTransaction t, Stock stock) += { object(t, Barcode barcode) <- object(barcode, stock)
                                                                       WHERE in(t, barcode); }
 END
 META defineMachineryPriceTransactionAttributeStock(object, caption, type)
@@ -1270,7 +1270,7 @@ dataMinPrice 'Минимальная цена' = ABSTRACT NUMERIC[16,4] (Barcode
 dataMinPrice 'Минимальная цена (предв.)' = DATA NUMERIC[16,4] (MachineryPriceTransaction, Barcode);
 dataMinPrice(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
 @defineMachineryPriceTransactionAttributeStockAction(dataMinPrice, 'Минимальная цена', );
-minPrice 'Минимальная цена (рез.)' (MachineryPriceTransaction m, Barcode b) =  MIN dataMinPrice(m, b), price(m, b);
+minPrice 'Минимальная цена (рез.)' (MachineryPriceTransaction m, Barcode b) =  min(dataMinPrice(m, b), price(m, b));
 
 EXTEND FORM machineryPriceTransaction PROPERTIES(t, b) minPrice;
 EXTEND FORM machineryPriceTransactions PROPERTIES(t, b) READONLY minPrice;

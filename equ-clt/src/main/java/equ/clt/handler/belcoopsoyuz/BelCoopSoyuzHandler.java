@@ -402,7 +402,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                         putField(dbfFile, FORMAT, item.splitItem ? "999.999" : "999", 10, append);
                         putNumField(dbfFile, NEOBFREE, item.balance == null ? BigDecimal.ZERO : item.balance, append); //остаток
                         putField(dbfFile, CESUCOD, item.section, 25, append);
-                        putNumField(dbfFile, NEASPRIC, item.minPrice, append);
+                        putNumField(dbfFile, NEASPRIC, item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO, append);
 
                         if (recordNumber != null)
                             dbfFile.update();
