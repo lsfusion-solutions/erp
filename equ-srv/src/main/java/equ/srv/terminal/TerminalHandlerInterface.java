@@ -9,7 +9,9 @@ import java.sql.SQLException;
 import java.util.List;
 
 public interface TerminalHandlerInterface {
-
+    
+    void init();
+    
     List<Object> readHostPort(DataSession session) throws RemoteException, SQLException;
 
     Object readItem(DataSession session, DataObject user, String barcode, String bin) throws RemoteException, SQLException;

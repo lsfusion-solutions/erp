@@ -49,6 +49,14 @@ public class TerminalServer extends MonitorServer {
     public static String UNKNOWN_COMMAND_TEXT = "Неизвестный запрос";
 
     public static final byte GET_USER_INFO = 4;
+
+    @Override
+    protected void onInit(LifecycleEvent event) {
+        super.onInit(event);
+        
+        terminalHandlerInterface.init();
+    }
+
     public static final byte GET_ITEM_INFO = 5;
     public static final byte SAVE_DOCUMENT = 6;
     public static final byte GET_ITEM_HTML = 7;

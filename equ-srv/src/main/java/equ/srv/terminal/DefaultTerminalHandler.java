@@ -50,6 +50,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
+    public void init() {
+        TerminalEquipmentServer.init(getLogicsInstance().getBusinessLogics());
+    }
+
+    @Override
     public List<Object> readHostPort(DataSession session) throws RemoteException, SQLException {
         try {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
