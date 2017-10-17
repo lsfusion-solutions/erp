@@ -275,10 +275,10 @@ public class FiscalEpson {
         try {
             Dispatch.call(epsonDispatch, "ReadTaxAuthoritiesControlUnitStatus");
         } catch (Exception e) {
-            return "Связь отсутствует";
+            return "отсутствует";
         }
         checkErrors(true);
-        return epsonActiveXComponent.getPropertyAsString("TaxAuthoritiesControlUnitStatus");
+        return "OK";//epsonActiveXComponent.getPropertyAsString("TaxAuthoritiesControlUnitStatus");
     }
 
     private static Integer toInt(Variant variant) {
