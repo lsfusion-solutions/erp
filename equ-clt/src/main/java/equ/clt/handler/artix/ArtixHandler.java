@@ -821,7 +821,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
 
                                     String idItem = inventPosition.getString("inventCode");
-                                    String barcode = appendCheckDigitToBarcode(inventPosition.getString("barCode"), 7, appendBarcode);
+                                    String barcodeString = inventPosition.getString("barCode");
+                                    String barcode = idItem != null && barcodeString != null && idItem.equals(barcodeString) ? null :
+                                            appendCheckDigitToBarcode(barcodeString, 7, appendBarcode);
                                     Integer numberReceiptDetail = inventPosition.getInt("posNum");
 
                                     BigDecimal quantity = BigDecimal.valueOf(inventPosition.getDouble("quant"));
