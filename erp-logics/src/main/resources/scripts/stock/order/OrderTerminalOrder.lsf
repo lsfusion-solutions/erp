@@ -1,0 +1,29 @@
+MODULE OrderTerminalOrder;
+
+REQUIRE Order, TerminalOrder;
+
+NAMESPACE Order;
+
+EXTEND CLASS Order : TerminalOrder;
+EXTEND CLASS OrderDetail : TerminalOrderDetail;
+
+date[TerminalOrder] (Order order) += date(order);
+number[TerminalOrder] (Order o) += number(o);
+idSupplier[TerminalOrder] (Order o) += idExternalStock(o);
+isOpened[TerminalOrder] (Order o) += isOpened(o);
+
+order[TerminalOrderDetail] (OrderDetail d) += order(d);
+
+terminalBarcode = ABSTRACT VARSTRING[100](OrderDetail);
+idBarcodeSku[TerminalOrderDetail] (OrderDetail d) += OVERRIDE terminalBarcode(d), idBarcodeSku(d);
+
+idSku[TerminalOrderDetail] (OrderDetail d) += idSku(d);
+nameSku[TerminalOrderDetail] (OrderDetail d) += nameSku(d);
+price[TerminalOrderDetail] (OrderDetail d) += price(d);
+orderQuantity[TerminalOrderDetail] (OrderDetail d) += quantity(d);
+
+nameManufacturerSku (Order.OrderDetail d) = name(manufacturer(sku(d)));
+nameManufacturerSku[TerminalOrderDetail] (Order.OrderDetail d) += nameManufacturerSku(d);
+
+passScalesSku(Order.OrderDetail d) = passScales(sku(d));
+passScalesSku[TerminalOrderDetail] (Order.OrderDetail d) += passScalesSku(d);

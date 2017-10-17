@@ -2,8 +2,6 @@ MODULE TerminalHandler; //для работы терминалов нужна з
 
 REQUIRE Terminal, MachineryPriceTransaction, Order, Invoice;
 
-useInvoice 'Загружать в терминалы накладные' = DATA BOOLEAN ();
-
 process 'Обработка документа ТСД' (terminalDocument) = ABSTRACT LIST (TerminalDocument);
 process (TerminalDocument document) += {
     sku(TerminalDocumentDetail d) <- OVERRIDE skuBarcode(barcode(d)), sku(barcode(d)) WHERE terminalDocument(d) == document;
@@ -22,12 +20,6 @@ shortNameLastUser 'Пользователь' (Terminal terminal) = shortName(las
 
 manufacturer = ABSTRACT LegalEntity (Item);
 nameManufacturer (Barcode barcode) = name(manufacturer(skuBarcode(id(barcode))));
-
-nameManufacturerSku (Invoice.InvoiceDetail d) = name(manufacturer(sku(d)));
-passScalesSku(Invoice.InvoiceDetail d) = passScales(sku(d));
-
-nameManufacturerSku (Order.OrderDetail d) = name(manufacturer(sku(d)));
-passScalesSku(Order.OrderDetail d) = passScales(sku(d));
 
 EXTEND FORM groupTerminal PROPERTIES(t) AFTER npp(t) id, blocked, lastConnectionTime, shortNameLastUser;
 EXTEND FORM groupsTerminal
@@ -51,9 +43,6 @@ dataPriceListTypeTerminal = DATA LedgerPriceListType();
 defaultPriceListTypeTerminal = ABSTRACT LedgerPriceListType();
 priceListTypeTerminal = OVERRIDE dataPriceListTypeTerminal(), defaultPriceListTypeTerminal();
 namePriceListTypeTerminal 'Вид цен (фильтр ассортимента поставщика)' = name(priceListTypeTerminal());
-
-filter = ABSTRACT VALUE BOOLEAN (Order.Order, Stock); 
-filter = ABSTRACT VALUE BOOLEAN (Invoice.Invoice, Stock); 
 
 EXTEND FORM options
     PROPERTIES() hostTerminalServer, portTerminalServer, useCurrentPriceInTerminal, useCurrentQuantityInTerminal, namePriceListTypeTerminal
