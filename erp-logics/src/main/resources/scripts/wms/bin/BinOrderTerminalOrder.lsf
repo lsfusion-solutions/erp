@@ -1,0 +1,31 @@
+MODULE BinOrderTerminalOrder;
+
+REQUIRE BinOrder, TerminalOrder, Item;
+
+NAMESPACE Bin;
+
+EXTEND CLASS BinOrder : TerminalOrder;
+EXTEND CLASS BinOrderDetail : TerminalOrderDetail;
+
+date[TerminalOrder] (BinOrder o) += date(o);
+number[TerminalOrder] (BinOrder o) += number(o);
+isOpened[TerminalOrder] (BinOrder o) += isOpened(o);
+
+order[TerminalOrderDetail] (BinOrderDetail d) += binOrder(d);
+
+terminalBarcode = ABSTRACT VARSTRING[100](BinOrderDetail);
+idBarcodeSku[TerminalOrderDetail] (BinOrderDetail d) += OVERRIDE terminalBarcode(d), idBarcodeSku(d);
+
+idSku[TerminalOrderDetail] (BinOrderDetail d) += idSku(d);
+nameSku[TerminalOrderDetail] (BinOrderDetail d) += nameSku(d);
+price[TerminalOrderDetail] (BinOrderDetail d) += price(d);
+orderQuantity[TerminalOrderDetail] (BinOrderDetail d) += quantity(d);
+
+nameManufacturerSku (BinOrderDetail d) = name(manufacturer(sku(d)));
+nameManufacturerSku[TerminalOrderDetail] (BinOrderDetail d) += nameManufacturerSku(d);
+
+passScalesSku(BinOrderDetail d) = passScales(sku(d));
+passScalesSku[TerminalOrderDetail] (BinOrderDetail d) += passScalesSku(d);
+
+field1 (BinOrderDetail d) += VARISTRING[250](packQuantity(d));
+field2 (BinOrderDetail d) += nameSkuGroup(sku(d));

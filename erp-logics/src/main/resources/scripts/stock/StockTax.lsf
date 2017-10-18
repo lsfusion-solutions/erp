@@ -14,6 +14,11 @@ valueVAT 'НДС, %' (Sku s, Stock st, DATE d) = valueVAT(s, country(st), d);
 
 valueVAT 'НДС, %' (Sku s, Stock st) = valueVAT(s, st, currentDate()); 
 
+VAT 'НДС' (Sku s) = VAT(s, defaultCountry()) MATERIALIZED;
+
+valueVAT 'НДС, %' (Sku s, DATE date) = valueRate(VAT(s), date);
+valueVAT 'НДС, %' (Sku s) = valueVAT(s, currentDate());
+
 META deriveDocumentDetailVAT (concrete, prefixP, dateProp,  skuProp, stockProp)
     prefixP##VAT(###concrete##Detail detail) <- VAT (skuProp(detail), country(stockProp(detail)))
         WHEN DO CHANGED(skuProp(detail)) OR CHANGED (stockProp(detail));
