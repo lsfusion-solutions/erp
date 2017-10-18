@@ -281,6 +281,12 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " maxquant    REAL," +
                 " minprice    REAL," +
                 " maxprice    REAL," +
+                " field1   TEXT," +
+                " field2   TEXT," +
+                " field3   TEXT," +
+                " pos_field1   TEXT," +
+                " pos_field2   TEXT," +
+                " pos_field3   TEXT," +
                 "PRIMARY KEY (num, barcode))";
         statement.executeUpdate(sql);
         statement.execute("CREATE INDEX zayavki_post ON zayavki (post);");
@@ -292,7 +298,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalOrder order : terminalOrderList) {
                     if (order.number != null) {
@@ -307,6 +313,12 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(8,formatValue(order.maxQuantity));
                         statement.setObject(9,formatValue(order.minPrice));
                         statement.setObject(10,formatValue(order.maxPrice));
+                        statement.setObject(11,formatValue(order.headField1));
+                        statement.setObject(12,formatValue(order.headField2));
+                        statement.setObject(13,formatValue(order.headField3));
+                        statement.setObject(14,formatValue(order.posField1));
+                        statement.setObject(15,formatValue(order.posField2));
+                        statement.setObject(16,formatValue(order.posField3));
                         statement.addBatch();
                     }
                 }
