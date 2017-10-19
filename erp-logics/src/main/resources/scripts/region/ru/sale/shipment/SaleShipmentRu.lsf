@@ -1,0 +1,79 @@
+MODULE SaleShipmentRu;
+
+REQUIRE SaleShipment;
+
+NAMESPACE Sale;
+
+FORM printSaleInvoiceRu 'Расходная накладная'
+    OBJECTS s = Shipment PANEL
+    PROPERTIES(s) number, date, nameSupplier, nameCustomer, nameCustomerStock, countShipmentDetail, sumShipmentDetail
+    
+    OBJECTS d = ShipmentDetail
+    PROPERTIES(d) index, nameSku, shortNameUOMSku, price, quantity, sum
+    FILTERS shipment(d) == s
+;
+
+printSaleInvoiceRu 'Расходная накладная (xls)' (Shipment s) = {
+    PRINT printSaleInvoiceRu OBJECTS s = s XLS;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM shipments  
+    PROPERTIES(s)  printSaleInvoiceRu
+;
+
+DESIGN shipments {
+    printContainer {
+        MOVE PROPERTY (printSaleInvoiceRu(s));
+    }
+}
+
+printSaleInvoiceRu 'Расходная накладная (xls)' (Invoice i) = {
+    PRINT printSaleInvoiceRu OBJECTS s = invoiceShipment(i) XLS;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM invoices  
+    PROPERTIES(i)  printSaleInvoiceRu SHOWIF createShipment(i)
+;
+
+DESIGN invoices {
+    printContainer {
+        MOVE PROPERTY (printSaleInvoiceRu(i));
+    }
+}
+
+FORM printSaleReceiptRu 'Товарный чек'
+    OBJECTS s = Shipment PANEL 
+    PROPERTIES(s) nameSupplier, number, date, sumShipmentDetail, countShipmentDetail
+    
+    OBJECTS d = ShipmentDetail
+    PROPERTIES(d) index, idSku, nameSku, quantity, shortNameUOMSku, price, sum
+    FILTERS shipment(d) == s
+;
+
+printSaleReceiptRu 'Товарный чек (xls)' (Shipment s) = {
+    PRINT printSaleReceiptRu OBJECTS s = s XLS;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM shipments  
+    PROPERTIES(s)  printSaleReceiptRu
+;
+
+DESIGN shipments {
+    printContainer {
+        MOVE PROPERTY (printSaleReceiptRu(s));
+    }
+}
+
+printSaleReceiptRu 'Товарный чек (xls)' (Invoice i) = {
+    PRINT printSaleReceiptRu OBJECTS s = invoiceShipment(i) XLS;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM invoices  
+    PROPERTIES(i)  printSaleReceiptRu SHOWIF createShipment(i)
+;
+
+DESIGN invoices {
+    printContainer {
+        MOVE PROPERTY (printSaleReceiptRu(i));
+    }
+}
