@@ -1098,7 +1098,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCard[Receipt]").getMapping(receiptKey),
                                     discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
                         }
-                        returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("login[CustomUser]").getMapping(employeeKey), true));
                         returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
                                 zReportLM.object(zReportLM.findClass("CustomUser")).getMapping(employeeKey)));
                         returnProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
@@ -1147,7 +1146,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                             giftCardProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
                                     zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
-                            giftCardProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("login[CustomUser]").getMapping(employeeKey), true));
                             giftCardProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
                                     zReportLM.object(zReportLM.findClass("CustomUser")).getMapping(employeeKey)));
                             giftCardProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
