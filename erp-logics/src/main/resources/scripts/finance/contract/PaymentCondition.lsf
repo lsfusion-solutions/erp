@@ -61,10 +61,12 @@ shortDescriptionPeriod 'Условия оплаты' (paymentCondition) =
 //descriptionPaymentCondition 'Условия оплаты' (paymentCondition) =
 //    OVERRIDE 'По факту реализации' IF paymentCondition IS PaymentCondition , 
 //             descriptionPeriodPaymentCondition(paymentCondition) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
+extraDescription = ABSTRACT VARSTRING[255] (PaymentCondition);
 description 'Условия оплаты' (PaymentCondition paymentCondition) = CASE 
     WHEN isRequirementType(paymentCondition) THEN 'Требование '+ descriptionPeriod(paymentCondition)
     WHEN type(paymentCondition) == AgreementPaymentType.prepayment THEN descriptionPeriod(paymentCondition)
-    WHEN paymentCondition IS PaymentCondition THEN staticCaption(type(paymentCondition)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+    WHEN paymentCondition IS PaymentCondition THEN (CONCAT '', staticCaption(type(paymentCondition)), extraDescription(paymentCondition)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 paymentConditionDescription = GROUP MAX PaymentCondition c BY description(c);
 
 shortDescription 'Условия оплаты' (PaymentCondition paymentCondition) = CASE 
@@ -80,6 +82,8 @@ sumPercent(paymentCondition) = GROUP SUM percent(PaymentPeriod paymentPeriod) BY
 CONSTRAINT sumPercent(PaymentCondition paymentCondition) != 100.0 CHECKED BY sumPercent[PaymentCondition]
     MESSAGE 'Сумма процентов рассрочки должна быть равна 100';
 
+showPaymentPeriod = ABSTRACT VALUE BOOLEAN (PaymentCondition);
+showPaymentPeriod (PaymentCondition pc) += type(pc) == AgreementPaymentType.prepayment OR type(pc) == AgreementPaymentType.advancePayment;
 FORM paymentCondition 'Условие оплаты'
 
     OBJECTS pc = PaymentCondition PANEL
@@ -87,10 +91,10 @@ FORM paymentCondition 'Условие оплаты'
     PROPERTIES(pc) isRequirement SHOWIF isPrepaymentType(pc)
 
     OBJECTS pp = PaymentPeriod GRID
-    PROPERTIES(pp) countDays SHOWIF isPrepaymentType(pc),
-                   percent SHOWIF isPrepaymentType(pc)
-    PROPERTIES(pp) NEW SHOWIF isPrepaymentType(pc),
-                   DELETE SHOWIF isPrepaymentType(pc) GRID
+    PROPERTIES(pp) countDays SHOWIF showPaymentPeriod(pc),
+                   percent SHOWIF showPaymentPeriod(pc)
+    PROPERTIES(pp) NEW SHOWIF showPaymentPeriod(pc),
+                   DELETE SHOWIF showPaymentPeriod(pc) GRID
 
     FILTERS paymentCondition(pp) == pc
 
