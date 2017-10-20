@@ -4,7 +4,9 @@ REQUIRE ZReport, ZReportDiscountCard;
 
 NAMESPACE ZReport;
 
-nameStock 'Склад' = name(saleStock());
+filterDepartmentStore  = DATA LOCAL DepartmentStore();
+nameFilterDepartmentStore 'Магазин' = name(filterDepartmentStore());
+filterDepartmentStore(ReceiptDetail d) = departmentStore(d) == filterDepartmentStore() OR NOT filterDepartmentStore();
 
 saleDiscountCard  = DATA LOCAL DiscountCard ();
 numberDiscountCard 'Дисконтная карта' = seriesNumber(saleDiscountCard());
@@ -14,21 +16,31 @@ FORM receiptDetailReport 'Регистр строк чека'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
     PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)       
      
-//    OBJECTS ds = DepartmentStore PANEL     
-//    PROPERTIES name[Stock](ds)  SELECTOR
-    PROPERTIES() nameStock, numberDiscountCard
+    PROPERTIES() nameFilterDepartmentStore, numberDiscountCard
     
     OBJECTS rd = ReceiptDetail
-    PROPERTIES(rd) nameDepartmentStore, numberZReport, numberReceipt, numberDiscountCard, nameLegalEntityDiscountCard, nameDiscountCard, date, time,  id, number, nameSku, idBarcode, signedQuantity, price, signedSum, signedDiscountSum
-    FILTERS date(rd) >= dFrom AND date(rd)<= dTo AND (name(departmentStore(rd)) == nameStock() OR NOT nameStock())  AND (numberDiscountCard(rd) == numberDiscountCard() OR NOT numberDiscountCard())
+    PROPERTIES(rd) READONLY nameDepartmentStore, numberZReport, numberReceipt, numberDiscountCard, nameLegalEntityDiscountCard, nameDiscountCard, date, time,  
+                            id, number, nameSku, idBarcode, signedQuantity, price, signedSum, signedDiscountSum
+    FILTERS date(rd) >= dFrom AND date(rd)<= dTo,
+            filterDepartmentStore(rd),
+            numberDiscountCard(rd) == numberDiscountCard() OR NOT numberDiscountCard()
 ;
 
 DESIGN receiptDetailReport {
-    NEW operationContainer{
+    NEW dates {
         type = CONTAINERH;
-        caption = 'Фильтры';
-        MOVE PROPERTY(nameStock());
-        MOVE PROPERTY(numberDiscountCard());
+        caption = 'Период';
+        MOVE PROPERTY(valFrom){caption = 'Дата с';}
+        MOVE PROPERTY(valTo){caption = 'Дата по';}
+    }
+    NEW top{
+        type = CONTAINERH;       
+        NEW operationContainer{
+            type = CONTAINERH;
+            caption = 'Фильтры';
+            MOVE PROPERTY(nameFilterDepartmentStore());
+            MOVE PROPERTY(numberDiscountCard());
+        }
     }
     MOVE BOX(rd);
     MOVE TOOLBARBOX;
