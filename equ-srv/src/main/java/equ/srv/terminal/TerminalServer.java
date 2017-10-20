@@ -25,6 +25,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.*;
 
+import static lsfusion.base.BaseUtils.trimToNull;
+
 public class TerminalServer extends MonitorServer {
 
     public static byte WRONG_PARAMETER_COUNT = 101;
@@ -245,7 +247,7 @@ public class TerminalServer extends MonitorServer {
                                 logger.info("requested barcode " + params[1]);
                                 sessionId = params[0];
                                 String barcode = params[1];
-                                String bin = params.length == 3 ? params[2] : null;
+                                String bin = params.length == 3 ? trimToNull(params[2]) : null;
                                 DataObject user = userMap.get(sessionId);
                                 if (user == null) {
                                     errorCode = AUTHORISATION_REQUIRED;
