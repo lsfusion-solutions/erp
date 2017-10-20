@@ -50,6 +50,8 @@ inBackSheet 'Вкл.' = DATA LOCAL BOOLEAN (LegalEntity);
 
 inBackSheetSupplier 'Поставщики' () =
     GROUP CONCAT fullName(LegalEntity le) IF inBackSheet(le) ,', ' PREFCHARWIDTH 50;
+inBackSheetSupplierId 'Поставщики' () =
+    GROUP CONCAT id(LegalEntity le) IF inBackSheet(le) ,',' PREFCHARWIDTH 50;
 
 META setNameGroup(number)
     setNameGroup##number () ={
@@ -186,8 +188,18 @@ changeSuppliersBackSheet() = {
     }
 }
 
+changeSuppliersIdBackSheet() = {
+    INPUT s = VARSTRING[255] DO {
+        inBackSheet(LegalEntity l) <- NULL;
+        FOR LegalEntity l IF isWordInCSV(id(l), s) == 1 DO {
+            inBackSheet(l) <- TRUE;
+        }
+    }
+}
+
 EXTEND FORM reportBalanceStock
-    PROPERTIES inBackSheetSupplier() ON CHANGE changeSuppliersBackSheet() 
+    PROPERTIES inBackSheetSupplier() ON CHANGE changeSuppliersBackSheet()
+    PROPERTIES inBackSheetSupplierId() ON CHANGE changeSuppliersIdBackSheet()
     PROPERTIES() gStock, gSku, gGroup, gSupplier
         
     OBJECTS gr = INTEGER 
@@ -202,8 +214,9 @@ DESIGN reportBalanceStock {
     topContainer {
         NEW suppliers {
             caption = 'Поставщики';
-            type = CONTAINERH;
-            MOVE PROPERTY(inBackSheetSupplier());        
+            type = CONTAINERV;
+            MOVE PROPERTY(inBackSheetSupplier()) {caption ='Наименования';};
+            MOVE PROPERTY(inBackSheetSupplierId()) {caption ='Коды';};
         }
     }
     tabContainer {
