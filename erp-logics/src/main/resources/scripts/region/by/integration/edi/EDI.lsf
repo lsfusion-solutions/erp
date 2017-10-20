@@ -384,8 +384,12 @@ EXTEND FORM computers PROPERTIES(c) READONLY certificateEDI, passwordEDI, signer
 in 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
 signAndSend 'Подписать и отправить' = ABSTRACT LIST (EInvoice);
 signAndSendEDI 'Подписать и отправить'() = {
-    FOR in(EInvoice i) DO 
-        signAndSend(i);
+    FOR in(EInvoice i) DO { 
+        IF EDIProvider(supplier(i)) THEN
+            signAndSend(i);
+        ELSE
+            MESSAGE 'Не выбран EDI провайдер для накладной : ' + number(i);
+    }
     ELSE
         MESSAGE 'Не выбрано ни одной накладной';
     
