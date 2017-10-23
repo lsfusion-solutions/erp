@@ -235,6 +235,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         inventObject.put("rtext", item.name); //текст для чека
         inventObject.put("name", item.name); //наименование товара
         inventObject.put("measurecode", 1); //код единицы измерения
+        if (item.balance != null) {
+            inventObject.put("remain", item.balance);
+            inventObject.put("remaindate", new SimpleDateFormat("yyyy-MM-ddTHH:mm:ss").format(Calendar.getInstance().getTime()));
+        }
         List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.extIdItemGroup);
         if (itemGroupList != null) {
             inventObject.put("inventgroup", itemGroupList.get(0).extIdItemGroup); //код родительской группы товаров
