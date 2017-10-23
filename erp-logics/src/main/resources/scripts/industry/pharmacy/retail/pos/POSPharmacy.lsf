@@ -12,40 +12,52 @@ receiptDetail =  GROUP MAX (ReceiptSaleDetail receiptDetail)
     
 minDelta 'Отклонение по количеству в чеке' = DATA NUMERIC[16,5]();
 
+checkBlisterAmount 'Запрет на продажу блистеров, если в карточке не указано количество' = DATA BOOLEAN ();
+
 EXTEND FORM options
-    PROPERTIES () minDelta
+    PROPERTIES () minDelta, checkBlisterAmount
 ;
 
 DESIGN options {
     pharmacy {
         MOVE PROPERTY(minDelta());
     }
+    pos {
+        MOVE PROPERTY(checkBlisterAmount());
+    }
 }
         
 changeQuantityValue (Batch batch, Receipt receipt, NUMERIC[16,5] n) =  {
-    IF receiptDetail(batch, receipt) THEN {
-        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
-            IF minDelta() AND delta(prevCurrentBalance(batch, receipt), n) < minDelta() THEN {
-                quantity(ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);    
-            } ELSE {
-                quantity(ReceiptSaleDetail receiptDetail) <- n WHERE receiptDetail == receiptDetail(batch, receipt);
-            }
-        } ELSE {
-            FOR receiptDetail(batch, receipt) == ReceiptDetail d DO
-                DELETE d;
-        }
+    IF receipt IS Receipt AND blisterAmount(sku(batch)) AND n AND NOT trunc(n*blisterAmount(sku(batch)),0) == n*blisterAmount(sku(batch)) AND checkBlisterAmount() THEN {
+        MESSAGE 'Количество блистеров должно быть целым';
+    } ELSE 
+    IF batch IS Batch AND receipt IS Receipt AND n AND NOT  blisterAmount(sku(batch)) AND NOT trunc(n,0) == n AND checkBlisterAmount() THEN {
+        MESSAGE 'Нельзя продавать блистеры, т.к в карточке не указано количество';
     } ELSE {
-        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
-            NEW d = ReceiptSaleDetail {
-                receipt(d) <- receipt;
-                sku(d) <- sku(batch);
-                batch(d) <- batch;
+        IF receiptDetail(batch, receipt) THEN {
+            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
                 IF minDelta() AND delta(prevCurrentBalance(batch, receipt), n) < minDelta() THEN {
                     quantity(ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);    
                 } ELSE {
                     quantity(ReceiptSaleDetail receiptDetail) <- n WHERE receiptDetail == receiptDetail(batch, receipt);
                 }
-                price(d) <- currentPOSPrice(batch, receipt);
+            } ELSE {
+                FOR receiptDetail(batch, receipt) == ReceiptDetail d DO
+                    DELETE d;
+            }
+        } ELSE {
+            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+                NEW d = ReceiptSaleDetail {
+                    receipt(d) <- receipt;
+                    sku(d) <- sku(batch);
+                    batch(d) <- batch;
+                    IF minDelta() AND delta(prevCurrentBalance(batch, receipt), n) < minDelta() THEN {
+                        quantity(ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);    
+                    } ELSE {
+                        quantity(ReceiptSaleDetail receiptDetail) <- n WHERE receiptDetail == receiptDetail(batch, receipt);
+                    }
+                    price(d) <- currentPOSPrice(batch, receipt);
+                }
             }
         }
     }
@@ -127,6 +139,18 @@ skipFilters 'Обнулить поиск' () = {
     filterPrice() <- NULL;
     filterNameSku() <- NULL; 
 } EDITKEY 'ESCAPE';
+
+//сумма строки чека
+priceSumBlister 'Сумма без скидки' = round(blisterQuantity(batch(ReceiptSaleDetail detail), receipt(detail)) * currentPOSBlisterPrice(batch(detail), receipt(detail)), roundCondition(departmentStore(detail)));
+sum (ReceiptSaleDetail detail) <- IF blisterAmount(sku(detail)) 
+    THEN (priceSumBlister(detail) (-) discountSum(detail) (-) extraDiscountSum(detail)) 
+    ELSE calcSum(detail)
+    WHEN CHANGED (quantity(detail)) OR
+         CHANGED (price(detail)) OR
+         CHANGED (discountPercent(detail)) OR
+         CHANGED (discountSum(detail)) OR
+         CHANGED (extraDiscountSum(detail)) OR
+         CHANGED (departmentStore(detail));
            
 EXTEND FORM POS
     PROPERTIES () SHOWIF currentZReport() filterBarcode EVENTID 'SCANNER', filterPrice, filterNameSku

@@ -7,12 +7,23 @@ NAMESPACE Pricing;
 limitRetailMarkupPharmacyCondition 'Условие округления предельной розничной цены' = DATA RoundCondition ();
 nameLimitRetailMarkupPharmacyCondition 'Условие округления предельной розничной цены' = name(limitRetailMarkupPharmacyCondition());
 
+onlyModRetailPrice 'Ограничение на кратность цены относительно количества блистеров' = DATA BOOLEAN ();
+
+//currentRetailPrice 'Цена розничная' (Batch bt, Stock stock) = prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType, bt, stock, currentDateTime());
+
+CONSTRAINT (SETCHANGED(currentRetailPricingPrice(Sku sk, Stock st)) OR SETCHANGED(blisterAmount(sk))) AND blisterAmount(sk) AND currentRetailPricingPrice(sk,st) AND st IS DepartmentStore
+    AND onlyModRetailPrice() AND NOT trunc(currentRetailPricingPrice(sk,st)/blisterAmount(sk),2) == currentRetailPricingPrice(sk,st)/blisterAmount(sk)
+        MESSAGE 'Розничная цена должна быть кратна количеству блистеров';
+
 EXTEND FORM options
-    PROPERTIES () nameLimitRetailMarkupPharmacyCondition
+    PROPERTIES () nameLimitRetailMarkupPharmacyCondition, onlyModRetailPrice
 ;
 
 DESIGN options {
     pricings {
         MOVE PROPERTY(nameLimitRetailMarkupPharmacyCondition());       
+    }
+    pharmacy {
+        MOVE PROPERTY(onlyModRetailPrice());
     }
 }

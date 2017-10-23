@@ -27,3 +27,19 @@ WHEN LOCAL FORMS userInvoice GOAFTER sku[UserInvoiceDetail] CHANGED(sku(UserInvo
 } 
 
 priceDivider(UserInvoiceDetail detail) += blisterAmount(detail);
+
+checkCountLedgerRetailPrice 'Запрет на изменение розничной цены, если есть продажи по партии' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () checkCountLedgerRetailPrice
+;
+
+DESIGN options {
+    purchase {
+        MOVE PROPERTY(checkCountLedgerRetailPrice());
+    }
+
+}
+
+CONSTRAINT SETCHANGED(retailPrice(InvoiceDetail detail)) AND checkCountLedgerRetailPrice() AND countLedger(Batch b,customerStock(detail)) > 1 AND detail == invoiceDetail(b)
+    MESSAGE 'Нельзя менять расценку, т.к. по партии были продажи. Составьте акт переоценки';
