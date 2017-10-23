@@ -34,6 +34,10 @@ selected 'Отм.' = DATA LOCAL BOOLEAN (BinOrder);
 
 @defineDocumentInterfaceDetailQuantity(binOrder);
 
+balanceB 'Остаток (до)' = ABSTRACT NUMERIC[16,5] (BinOrderDetail) MATERIALIZED;
+balanceB 'Остаток (до)' = DATA NUMERIC[16,5] (UserBinOrderDetail);
+balanceB (UserBinOrderDetail binOrderDetail) += balanceB(binOrderDetail);   
+
 @defineDocumentDetailGrossWeight(binOrder, sku);
 
 @defineDocumentHeaderSkuQuantity(binOrder, sku);
@@ -116,7 +120,7 @@ FORM userBinOrder 'Заказ на перемещение по ячейкам (�
     PROPERTIES (o) closeDateTime
     
     OBJECTS d = UserBinOrderDetail
-    PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d), quantity, sumGrossWeight
+    PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d), quantity, sumGrossWeight, balanceB READONLY 
     PROPERTIES (d) NEW, deleteod = DELETE GRID
     PROPERTIES(o) TODRAW d fillDocument, addDetailDialogSkuStockUserBinOrderDetail,
                            addDetailInputBarcodeUserBinOrderDetail, deleteUserBinOrderDetail
@@ -292,7 +296,7 @@ FORM binOrders  'Заказы на перемещение по ячейкам'
     FILTERS filterDateFrom(o), filterDateTo(o), filterStock(o)
     
     OBJECTS d = BinOrderDetail
-    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, nameOutBin, nameInBin, quantity, grossWeight
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, nameOutBin, nameInBin, quantity, grossWeight, balanceB
     
     PROPERTIES (o) READONLY PANEL createdNameUser[UserBinOrder], createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
@@ -577,4 +581,8 @@ DESIGN binOrders {
     printContainer {
         MOVE PROPERTY(printBinOrder(o));
     }
+}
+
+WHEN LOCAL (CHANGED(sku(UserBinOrderDetail d)) OR ((CHANGED(stock(d)) OR CHANGED(dateTime(d))) AND NOT isPosted(d))) AND NOT CHANGED (balanceB(d)) DO {
+    balanceB(d) <- balanceB(sku(d),stock(d),dateTime(d));
 }
