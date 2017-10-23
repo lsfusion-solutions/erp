@@ -1,0 +1,129 @@
+MODULE Packet;
+
+REQUIRE Stock, Barcode, WMS;
+
+//------------------------- Упаковка -----------------------------//
+
+CLASS Packet 'Упаковка' ;
+TABLE packet (Packet);
+
+@defineExternalizable(packet, VARSTRING[100]);
+name 'Наименование' = DATA VARISTRING[20](Packet);
+
+
+FORM packet 'Упаковка'
+    OBJECTS s = Packet PANEL
+    PROPERTIES(s) name, id SHOWIF showIDs()
+    EDIT Packet OBJECT s
+;
+
+FORM packets 'Упаковка'
+
+    OBJECTS s = Packet
+    PROPERTIES(s) READONLY name, id SHOWIF showIDs()
+    PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE 
+
+    ORDER BY name(s)
+
+    LIST Packet OBJECT s
+;
+
+DESIGN packets { preferredSize = (1024, 768); }
+
+                                                               
+//--------------------------------------------------Упаковка для Detail--------------------------------------//
+
+META defineDocumentDetailPacketCustom(detail, prefix, caption)
+    prefix###packet = DATA Packet (###detail);
+    name###prefix##Packet 'Упаковка'###caption (###detail detail) = Packet.name(prefix###packet(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+END
+META defineDocumentAbstractDetailPacketCustom(detail, prefix, caption)
+    prefix###packet = ABSTRACT Packet (###detail) MATERIALIZED;
+    name###prefix##Packet 'Упаковка'###caption (###detail detail) = Packet.name(prefix###packet(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+END
+META defineDocumentInterfaceDetailPacketCustom(detail, prefix, caption)
+    @defineDocumentAbstractDetailPacketCustom(detail, prefix, caption);
+    @defineDocumentDetailPacketCustom(user###detail, prefix, caption);
+    prefix###packet(User###detail detail) += prefix###packet(detail);
+END
+META defineDocumentInterfaceDetailPacketCustom(detail)
+    @defineDocumentInterfaceDetailPacketCustom(detail, , );
+END
+
+META defineDocumentAbstractDetailPacket(object)
+    @defineDocumentAbstractDetailPacketCustom(object###detail, , );
+END
+
+META defineDocumentInterfaceDetailPacket(object, caption)
+    @defineDocumentInterfaceDetailPacketCustom(object###detail, , caption);
+END
+META defineDocumentInterfaceDetailPacket(object)
+    @defineDocumentInterfaceDetailPacketCustom(object###detail, , );
+END
+
+META extendFormInterfaceDetailPacket(object, concrete, prefix, befProp)
+    @defineDocumentInterfaceProperty (object, showPacket, 'Упаковка');
+
+    EXTEND FORM user###object
+        PROPERTIES(concrete) concrete##howPacket
+        PROPERTIES (d) SHOWIF concrete##howPacket(concrete) namePacket BEFORE befProp(d)
+    ;
+    DESIGN user###object {
+        headerExtraParams {
+            NEW headerPacket {
+                caption = 'Упаковка';
+                type = CONTAINERH;
+                MOVE PROPERTY(concrete##howPacket(concrete));
+            }
+        }
+    }
+    EXTEND FORM object##s
+    PROPERTIES (d) READONLY SHOWIF concrete##howPacket(concrete) namePacket BEFORE befProp(d)
+    ;
+END
+
+//---------------- invoiceShipment --------------------//
+
+META defineInvoiceShipmentPacket(stockProp)
+
+    @defineDocumentInterfaceDetailPacket(invoice);
+    packet (InvoiceShipmentDetail detail) += packet(invoiceDetail(detail));
+
+    @defineDocumentInterfaceProperty (invoice, showPacket, 'Упаковка');
+
+    EXTEND FORM userInvoice
+        PROPERTIES(i) showPacket
+        PROPERTIES(d) AFTER invoiceSum(d) SHOWIF showPacket(i) BACKGROUND backgroundShipped(i)
+                      namePacket
+    ;
+    DESIGN userInvoice {
+        headerExtraParams {
+            NEW headerExtraPacket {
+                caption = 'Упаковка';
+                MOVE PROPERTY(showPacket(i));
+            }
+        }
+    }
+
+    EXTEND FORM invoices
+        PROPERTIES(d) READONLY AFTER invoiceSum(d) SHOWIF showPacket(i) BACKGROUND backgroundShipped(i)
+                      namePacket
+    ;
+    EXTEND FORM invoiceDetails
+        PROPERTIES(d) READONLY AFTER invoiceSum(d) SHOWIF showPacket(d) BACKGROUND backgroundShipped(d)
+                      namePacket
+    ;
+    
+    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += {      
+        packet(d) <- packet(detail);
+    }     
+
+END
+
+NAVIGATOR {
+    WMSNavigator {
+        NEW packetNavigator 'Упаковкаа' {
+            ADD packets;
+        }
+    }
+}
