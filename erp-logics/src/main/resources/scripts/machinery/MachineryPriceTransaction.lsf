@@ -777,6 +777,16 @@ createBalanceMachineryPriceTransaction 'Остатки'(Stock stock) = {
 	}
 } CONFIRM IN incrementMachineryPrice;
 
+createBalanceSnapshotMachineryPriceTransaction 'Остатки (целиком)'(Stock stock) = {
+	NEWSESSION {
+	    createMachineryPriceTransaction(Sku sku) <- TRUE IF currentBalance(sku, stock);
+	    createMachineryPriceTransactionComment() <- 'Загрузка остатков (целиком)';
+        createMachineryPriceTransactionAll() <- TRUE;
+	    createMachineryPriceTransaction(stock);
+	    apply();
+	}
+} CONFIRM IN incrementMachineryPrice;
+
 createPriceMachineryPriceTransaction 'Все товары'(Stock stock) = {
 	NEWSESSION {
 	    createMachineryPriceTransaction(Sku sku) <- TRUE;
