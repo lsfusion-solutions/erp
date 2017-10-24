@@ -1247,10 +1247,20 @@ deleteSnapshots 'Удальть старые аналитические отче
 }
 
 
-filterSnapshotSupplier = DATA LOCAL LegalEntity ();
-nameFilterSnapshotSupplier 'Поставщик' = name(filterSnapshotSupplier()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
-filterSupplierSnapshot (Batch bt) = supplier(bt) == filterSnapshotSupplier() OR (bt IS Batch AND NOT filterSnapshotSupplier());   
-filterSupplierSnapshot (Sku s,Stock st)   = supplierLastOrderBatch(s, st) == filterSnapshotSupplier() OR (s IS Sku AND st IS Stock AND NOT filterSnapshotSupplier());   
+nameFilterSnapshotSupplier 'Поставщики' = GROUP CONCAT name(LegalEntity l) IF in(l), ', ' ORDER l MINCHARWIDTH 20 PREFCHARWIDTH 30;
+filterSupplierSnapshot (Batch bt) = in(supplier(bt)) OR (bt IS Batch AND NOT nameFilterSnapshotSupplier());
+filterSupplierSnapshot (Sku s,Stock st)   = in(supplierLastOrderBatch(s, st)) OR (s IS Sku AND st IS Stock AND NOT nameFilterSnapshotSupplier());  
+
+changeFilterSnapshotSupplier() = {
+    DIALOG dialogLegalEntities OBJECTS l INPUT DO {
+        IF NOT [= GROUP SUM 1 IF in(LegalEntity le)]() THEN
+            in(l) <- TRUE;
+    }
+}
+
+orderSort 'Порядок (внутри группы)' (SkuGroup g) = PARTITION SUM 1 BY groupType(g), parent(g) ORDER sort(g);
+canonicalOrderSort 'Порядок' (SkuGroup g) = VARSTRING[250]([ = GROUP CONCAT lpad(VARSTRING[3](orderSort(SkuGroup parent)), 3, '0') , '.' BY SkuGroup child ORDER DESC level(child, parent)](g));
+nameLevel4 'Наименование' (SkuGroup g) = VARSTRING[100](repeat('    ', INTEGER(level(g))-1)) + name(g);
 
 FORM snapshot 'Аналитический отчет'                                   
     OBJECTS r = Snapshot PANEL
@@ -1297,7 +1307,7 @@ FORM snapshot 'Аналитический отчет'
     ORDER BY order(sk), name(sk)
     FILTERGROUP inactivesk FILTER 'Активные' active(sk) 'F5' DEFAULT
     
-    PROPERTIES() nameFilterSnapshotSupplier
+    PROPERTIES() nameFilterSnapshotSupplier ON CHANGE changeFilterSnapshotSupplier()
     
     OBJECTS           sts=(st=Stock, s=Sku)
     PROPERTIES        READONLY name(s), idBarcode(s), id(s) SHOWIF showIDs(), name(st), nameSupplierLastOrderBatch(s, st)
@@ -1338,7 +1348,7 @@ FORM snapshot 'Аналитический отчет'
     FILTERS filterMove(s,st,r)
                                                                                                                                                                                       
 //--batch
-    PROPERTIES()      nameB = nameFilterSnapshotSupplier
+    PROPERTIES()      nameB = nameFilterSnapshotSupplier ON CHANGE changeFilterSnapshotSupplier()
     OBJECTS           stb=(ss=Stock, bt=Batch) GRID
     PROPERTIES        READONLY SHOWIF isBatch(r) nameSku(bt), idBarcodeSku(bt), name(ss), name(bt), nameSupplier(bt), nameSupplierStock(bt) 
     ORDER BY          nameSku(bt)
@@ -1394,7 +1404,23 @@ FORM snapshot 'Аналитический отчет'
                       costA SHOWIF isCostBalanceA(r),
                       VATSupplierA SHOWIF isVATSupplierBalanceA(r),
                       costVATSupplierA SHOWIF isCostVATSupplierBalanceA(r),
-                      netWeightA SHOWIF isNetWeightBalanceA(r)               
+                      netWeightA SHOWIF isNetWeightBalanceA(r)  
+    OBJECTS skg = SkuGroup GRID
+    PROPERTIES READONLY nameLevel4(skg), canonicalOrderSort(skg)
+    PROPERTIES(skg,r) READONLY BACKGROUND hintBalanceBBackground() balanceB SHOWIF isQuantityBalanceB(r), 
+                      sumB SHOWIF isSumBalanceB(r),                      
+                      costB SHOWIF isCostBalanceB(r),
+                      VATSupplierB SHOWIF isVATSupplierBalanceB(r),
+                      costVATSupplierB SHOWIF isCostVATSupplierBalanceB(r),
+                      netWeightB SHOWIF isNetWeightBalanceB(r)
+    PROPERTIES(skg,r) READONLY BACKGROUND hintBalanceABackground() balanceA SHOWIF isQuantityBalanceA(r), 
+                      sumA SHOWIF isSumBalanceA(r),
+                      costA SHOWIF isCostBalanceA(r),
+                      VATSupplierA SHOWIF isVATSupplierBalanceA(r),
+                      costVATSupplierA SHOWIF isCostVATSupplierBalanceA(r),
+                      netWeightA SHOWIF isNetWeightBalanceA(r)
+    ORDER BY canonicalOrderSort(skg)
+    FILTERGROUP inactiveg FILTER 'Активные' active(sk1) 'F5' DEFAULT       
        
 //-- По складам           
     TREE stockTree1 a1 = STRING[3], sg1 = StockGroup PARENT parent
@@ -1709,7 +1735,13 @@ DESIGN snapshot {
                             MOVE BOX(d4) {caption = 'В динамике';}   
                         }      
                     }
-                    MOVE BOX(TREE skuTree1) { caption = 'По группам'; }  
+                    NEW tabb3 {
+                        caption = 'По группам';
+                        type = TABBED;
+                        fill = 1;
+                        MOVE BOX(TREE skuTree1) { caption = 'Дерево'; }
+                        MOVE BOX(skg) { caption = 'Таблица'; }
+                    }  
                     NEW sup {
                         fill = 1;
                         caption = 'По поставщикам';
