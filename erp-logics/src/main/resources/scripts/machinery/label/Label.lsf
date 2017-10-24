@@ -820,148 +820,217 @@ EXTEND FORM customLabelTransaction
 // ------------------------- Подключение печати ценников в документ --------------------- //
 notChangePrintPrice 'Не печатать ценники, если цена не изменилась' = ABSTRACT VALUE BOOLEAN (LabelTransaction);
 
+inLabel 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+filterLabel 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+ok = DATA LOCAL NESTED BOOLEAN ();  
+ 
+
+FORM selectLabelSkus 'Выбор товаров'
+    OBJECTS s = Sku
+    PROPERTIES (s) READONLY inLabel EDITABLE, id, idBarcode, name, canonicalNameSkuGroup, nameSkuGroup  
+    FILTERS filterLabel(s)
+    
+    FILTERGROUP inactive FILTER 'Активные' active(s) 'F10' DEFAULT
+    FILTERGROUP select FILTER 'Отм.' inLabel(s) 'F9' 
+;
+DESIGN selectLabelSkus{
+    BOX {
+        preferredSize = (1024, 768);
+    }
+}
+
 META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, stockProp, prefix)
 
-    createAttribute = ABSTRACT LIST (###detailProp##Detail, LabelTransactionDetail);
+    createAttribute = ABSTRACT LIST (###detailProp##Detail, LabelTransactionDetail);    
+    
+    createLabelTransactionParam (###document document) = {       
+        // бежим по всем типам ценников из управленческих параметров
+        // для каждого создаем по операции печати ценников
+        FOR ([= GROUP SUM 1 IF inLabel(###skuProp sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stockProp(document)))
+            NEW t = LabelTransaction DO {
+                departmentStore(t) <- stockProp(document);
+                priceTransactionDocument(t) <- document;
+                labelType(t) <- labelType;
+                LOCAL lastPriceLabel = NUMERIC[16,4] (LabelTransactionDetail);
+                
+                FOR document(###detailProp##Detail dd) == document AND 
+                    inLabel(###skuProp sku) AND sku == skuProp(dd) AND 
+                    inPrint(labelType, sku, stockProp(document)) AND 
+                    PriceListType pt == overPriceListType(t) NOINLINE (pt)
+                    NEW d = LabelTransactionDetail DO {
+    
+                    IF notChangePrintPrice(t) THEN {
+                        lastPriceLabel(d) <- NUMERIC[16,4](priceLabelTransactionDetail(sku, departmentStore(t)));
+                    }
+                    labelTransaction(d) <- t;
+                    skuProp(d) <- sku;
+                    batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
+                    name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
+                    createAttribute(d);
+    
+                    quantity(d) <- IF include(labelType, skuProp(d))
+                                                            THEN INTEGER(prefix###quantity(dd))
+                                                         ELSE count(labelType, skuProp(d));
+    
+                    price(d) <- calcPrice(pt, d);
+                    IF notChangePrintPrice(t) THEN {
+                        DELETE d WHERE price(d) == lastPriceLabel(d);
+                    }
+                    retailPrice(d) <- overRetailPrice(d);
+                    createAttribute(dd, d);
+                }
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+            
+                IF notCheckEqualRetailPrice() THEN
+                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+                ELSE
+                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+                    
+                IF [ = GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](t) THEN {
+                    Label.ok() <- TRUE;
+                    print(t);
+                } ELSE {
+                    DELETE t WHERE t IS LabelTransaction;
+                }
+                
+        }   
+    };      
     
     createLabelTransaction 'Распечатать ценники'(###document document) = {
-	NEWSESSION {       		       	    
-        ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO { 
-            LOCAL in = BOOLEAN (Sku);
-            in(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
-            LOCAL NESTED ok = BOOLEAN ();               
-        
-            // бежим по всем типам ценников из управленческих параметров
-            // для каждого создаем по операции печати ценников
-            FOR ([= GROUP SUM 1 IF in(###skuProp sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stockProp(document)))
-                NEW t = LabelTransaction DO {
-                    departmentStore(t) <- stockProp(document);
-                    priceTransactionDocument(t) <- document;
-                    labelType(t) <- labelType;
-                    LOCAL lastPriceLabel = NUMERIC[16,4] (LabelTransactionDetail);
-                    
-                    FOR document(###detailProp##Detail dd) == document AND 
-                        in(###skuProp sku) AND sku == skuProp(dd) AND 
-                        inPrint(labelType, sku, stockProp(document)) AND 
-                        PriceListType pt == overPriceListType(t) NOINLINE (pt)
-                        NEW d = LabelTransactionDetail DO {
+        NEWSESSION {       		       	    
+            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO {             
+                Label.ok() <- NULL;
+                inLabel(###skuProp sku) <- NULL;
+                inLabel(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);                      
+                createLabelTransactionParam(document);             
+                printed(document) <- TRUE WHERE isPosted(document);
+                APPLY;
+                IF NOT Label.ok() THEN {
+                    MESSAGE 'В данном документе нет подходящих товаров для печати ценников.';
+                }            
+            }
+        }
+    } TOOLBAR CONFIRM;
+    
+    createLabelTransactionChoice 'Распечатать ценники (частично)'(###document document) = {
+        NEWSESSION {       		       	    
+            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO {             
+                Label.ok() <- NULL;
+                inLabel(###skuProp sku) <- NULL;
+                filterLabel(###skuProp sku) <- NULL;
+                filterLabel(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);                   
+                
+                DIALOG selectLabelSkus OBJECTS s INPUT NOMANAGESESSIONX DO {
+                    IF NOT [ = GROUP SUM 1 IF inLabel(###skuProp sku)]() THEN {
+                        inLabel(s) <- TRUE;
+                    }
+                    createLabelTransactionParam(document);             
+                    printed(document) <- TRUE WHERE isPosted(document);
+                    APPLY;
+                    IF NOT Label.ok() THEN {
+                        MESSAGE 'В данном документе нет подходящих товаров для печати ценников.';
+                    }                    
+                }                                                              
+            }
+        }
+    } TOOLBAR CONFIRM;    
 
-                        IF notChangePrintPrice(t) THEN {
-                            lastPriceLabel(d) <- NUMERIC[16,4](priceLabelTransactionDetail(sku, departmentStore(t)));
-                        }
+
+    
+    createLabelTransaction(###document document) += { createLabelTransaction(document); }
+
+    createSnapshotLabelTransactionParam (###document document) = {
+	                
+        DIALOG selectLabelTypes OBJECTS ds = stockProp(document), l INPUT NOMANAGESESSIONX DO {
+            IF NOT countSelectType() THEN {  
+                select(l) <- TRUE;
+            }                                        
+            FOR select(LabelType type) NEW t = LabelTransaction DO {              
+                departmentStore(t) <- stockProp(document);
+                priceTransactionDocument(t) <- document;
+                labelType(t) <- type;
+    
+                FOR document(###detailProp##Detail dd) == document AND inLabel(###skuProp sku) AND sku == skuProp(dd)
+                    AND PriceListType pt == overPriceListType(t) AND NOT exclude(type, sku) NOINLINE (pt)
+                    NEW d = LabelTransactionDetail DO {
                         labelTransaction(d) <- t;
                         skuProp(d) <- sku;
                         batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
+    
                         name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
+                        documentQuantity(d) <- prefix###quantity(dd); 
+                        
+                        price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
+                        retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
+                                                                   
+                        quantity(d) <- IF NOT countLabel(departmentStore(d)) 
+                                                                 THEN (IF include(labelType(d), skuProp(d)) 
+                                                                    THEN INTEGER(documentQuantity(d))
+                                                                     ELSE count(labelType(d), skuProp(d)))
+                                                                 ELSE countLabel(departmentStore(d));                                             
+                                                                                                                                                                                      
                         createAttribute(d);
-
-                        quantity(d) <- IF include(labelType, skuProp(d))
-                                                                THEN INTEGER(prefix###quantity(dd))
-                                                             ELSE count(labelType, skuProp(d));
-
-                        price(d) <- calcPrice(pt, d);
-                        IF notChangePrintPrice(t) THEN {
-                            DELETE d WHERE price(d) == lastPriceLabel(d);
-                        }
-                        retailPrice(d) <- overRetailPrice(d);
                         createAttribute(dd, d);
+                }
+                IF change(stockProp(document)) THEN {
+                    LOCAL printed = BOOLEAN();
+                    printed() <- NULL;
+                    DIALOG customLabelTransaction OBJECTS l = t NOMANAGESESSIONX DO {
+                        print(t);
+                        printed() <- TRUE;
                     }
+                    IF NOT printed() THEN {
+                        cancel();
+                    }             
+                } ELSE {
                     DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
-                
+        
                     IF notCheckEqualRetailPrice() THEN
                         DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
                     ELSE
                         DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
-                        
-                    IF [ = GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](t) THEN {
-                        ok() <- TRUE;
-                        print(t);
-                    } ELSE {
-                        DELETE t WHERE t IS LabelTransaction;
-                    }
-                    
+            
+                    print(t);
+                }                        
             }
-            printed(document) <- TRUE WHERE isPosted(document);
-            APPLY;
-            IF NOT ok() THEN {
-                MESSAGE 'В данном документе нет подходящих товаров для печати ценников.';
-            }            
-        }
-    }
-} TOOLBAR CONFIRM;
-    
-    createLabelTransaction(###document document) += { createLabelTransaction(document); }
+            APPLY; 
+        }                                                                                                        
+
+    } TOOLBAR;
+
 
     createSnapshotLabelTransaction 'Перепечатать ценники'(###document document) = {
-	NEWSESSION {
-	
+	NEWSESSION {	
 	        IF is(document) THEN 
 	            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO{ 
 	                
-	                LOCAL in = BOOLEAN (Sku);    
-	                in(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
-	                
-	                DIALOG selectLabelTypes OBJECTS ds = stockProp(document), l INPUT NOMANAGESESSIONX DO {
-	                    IF NOT countSelectType() THEN {  
-	                        select(l) <- TRUE;
-	                    }                                        
-	                    FOR select(LabelType type) NEW t = LabelTransaction DO {              
-	                        departmentStore(t) <- stockProp(document);
-	                        priceTransactionDocument(t) <- document;
-	                        labelType(t) <- type;
-	            
-	                        FOR document(###detailProp##Detail dd) == document AND in(###skuProp sku) AND sku == skuProp(dd)
-	                            AND PriceListType pt == overPriceListType(t) AND NOT exclude(type, sku) NOINLINE (pt)
-	                            NEW d = LabelTransactionDetail DO {
-	                                labelTransaction(d) <- t;
-	                                skuProp(d) <- sku;
-	                                batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
-	            
-	                                name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
-	                                documentQuantity(d) <- prefix###quantity(dd); 
-	                                
-	                                price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
-	                                retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
-	                                                                           
-	                                quantity(d) <- IF NOT countLabel(departmentStore(d)) 
-	                                                                         THEN (IF include(labelType(d), skuProp(d)) 
-	                                                                            THEN INTEGER(documentQuantity(d))
-	                                                                             ELSE count(labelType(d), skuProp(d)))
-	                                                                         ELSE countLabel(departmentStore(d));                                              
-	                                                                           
-	                                                                           
-	                                
-	                                
-	                                createAttribute(d);
-	                                createAttribute(dd, d);
-	                        }
-	                        IF change(stockProp(document)) THEN {
-	                            LOCAL printed = BOOLEAN();
-	                            printed() <- NULL;
-	                            DIALOG customLabelTransaction OBJECTS l = t NOMANAGESESSIONX DO {
-	                                print(t);
-	                                printed() <- TRUE;
-	                            }
-	                            IF NOT printed() THEN {
-	                                cancel();
-	                            }             
-	                        } ELSE {
-	                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
-	                
-                                IF notCheckEqualRetailPrice() THEN
-                                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
-                                ELSE
-                                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
-	                    
-	                            print(t);
-	                        }                        
-	                    }
-	                    APPLY; 
-	                }                                                                                                        
+	                inLabel(###skuProp sku) <- NULL;
+	                inLabel(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
+	                createSnapshotLabelTransactionParam(document);                                                                                                        
 	            }            
 	        
 	    }
-} TOOLBAR;
+    } TOOLBAR;
+
+    createSnapshotLabelTransactionChoice 'Перепечатать ценники (частично)'(###document document) = { // todo: пока не используется, возможно со временем
+	    NEWSESSION {	
+	        IF is(document) THEN 
+	            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO{ 
+	                
+                inLabel(###skuProp sku) <- NULL;
+                filterLabel(###skuProp sku) <- NULL;
+                filterLabel(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);                   
+                
+                DIALOG selectLabelSkus OBJECTS s INPUT NOMANAGESESSIONX DO {
+                    IF NOT [ = GROUP SUM 1 IF inLabel(###skuProp sku)]() THEN {
+                        inLabel(s) <- TRUE;
+                    } 
+                    createSnapshotLabelTransactionParam(document);                                                                                                        
+	            }            
+	        }
+	    }
+    } TOOLBAR;
+
     
     createSnapshotLabelTransaction(###document document) += { createSnapshotLabelTransaction(document); }
 

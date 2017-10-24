@@ -15,3 +15,24 @@ skip[PriceTransactionDocument](Repricing document) += skipChangeLedger(document)
 createAttribute (RepricingDetail r, LabelTransactionDetail t) += {
     retailPrice(t) <- curRetailPrice(r) WHERE curRetailPrice(r) > retailPrice(r) AND NOT overRetailPrice(t);
 }
+EXTEND FORM repricings
+    PROPERTIES(p) createLabelTransactionChoice SHOWIF showPrintLabelTransaction(p) 
+                       
+;
+DESIGN repricings {
+    label {
+        caption = 'Ценники' ;
+        type = CONTAINERV;    
+        NEW labelFirst {
+            type = CONTAINERV;
+            MOVE PROPERTY (createLabelTransaction(p));
+            MOVE PROPERTY (createSnapshotLabelTransaction(p));                
+        }
+        NEW labelSecond {
+            type = CONTAINERV;
+            caption = 'Выбор позиций';
+            MOVE PROPERTY (createLabelTransactionChoice(p));
+        } 
+    }
+    
+}

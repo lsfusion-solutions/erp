@@ -12,3 +12,25 @@ batch(ProductDetail d)= orderOutputDetail(d);
 @defineDocumentLabelTransaction(order, product, sku, batch, productsStock, output);
 
 @extendFormDocumentLabelTransaction(orders, o, order, nameOperation, machineryContainer);
+
+EXTEND FORM orders
+    PROPERTIES(o) createLabelTransactionChoice SHOWIF showPrintLabelTransaction(o) 
+                       
+;
+DESIGN orders {
+    label {
+        caption = 'Ценники' ;
+        type = CONTAINERV;    
+        NEW labelFirst {
+            type = CONTAINERV;
+            MOVE PROPERTY (createLabelTransaction(o));
+            MOVE PROPERTY (createSnapshotLabelTransaction(o));                
+        }
+        NEW labelSecond {
+            type = CONTAINERV;
+            caption = 'Выбор позиций';
+            MOVE PROPERTY (createLabelTransactionChoice(o));
+        } 
+    }
+    
+}

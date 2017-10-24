@@ -17,16 +17,25 @@ showToPrintLabelTransaction 'Показывать' (Invoice invoice) = isPosted(
 EXTEND FORM invoices
 PROPERTIES(i) statusLabel  BACKGROUND backgroundPrintLabelTransaction(i) READONLY AFTER isCommission(i),
               createLabelTransaction SHOWIF showToPrintLabelTransaction(i), 
-              createSnapshotLabelTransaction SHOWIF isPosted(i)
+              createSnapshotLabelTransaction SHOWIF isPosted(i),
+              createLabelTransactionChoice SHOWIF showToPrintLabelTransaction(i)
+              
 ;
 DESIGN invoices {
     machineryContainer{
         NEW label {
             caption = 'Ценники' ;
             type = CONTAINERV;    
-            
-            MOVE PROPERTY (createLabelTransaction(i));
-            MOVE PROPERTY (createSnapshotLabelTransaction(i));
+            NEW labelFirst {
+                type = CONTAINERV;
+                MOVE PROPERTY (createLabelTransaction(i));
+                MOVE PROPERTY (createSnapshotLabelTransaction(i));                
+            }
+            NEW labelSecond {
+                type = CONTAINERV;
+                caption = 'Выбор позиций';
+                MOVE PROPERTY (createLabelTransactionChoice(i));
+            } 
         }
     }
 }
