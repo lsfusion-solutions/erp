@@ -78,7 +78,7 @@ overCopy (DataPriceListType priceListType) += {
 	            roundCondition(p) <- roundCondition(priceListType);
 	            currency(p) <- currency(priceListType);
 	                                    
-	            SHOW dataPriceListType OBJECTS d=p MANAGESESSION DOCKED; 
+	            SHOW dataPriceListType OBJECTS d=p DOCKED; 
 	        }
 	    }
 	}
@@ -533,7 +533,7 @@ FORM userPriceList 'Прайс'
 
     TREE skuTree sk = Group PARENT parent
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-    ORDER BY order(sk), skuTreeName
+    ORDER order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS d = UserPriceListDetail
@@ -547,7 +547,7 @@ FORM userPriceList 'Прайс'
                   exclude, NEW, deleted = DELETE GRID
     PROPERTIES(d, tc) price COLUMNS (tc) HEADER headerNameData(tc) BACKGROUND background(tc)
     PROPERTIES(p) TODRAW d  fillDocument, addDetailInputBarcodeUserPriceListDetail
-    ORDER BY index(d)
+    ORDER index(d)
     FILTERS userPriceList(d) == p,
             isParent(sk, sku[PriceListDetail](d)) OR NOT group(groupType(sk), sku[PriceListDetail](d)),
             groupType(p) == groupType(sk)
@@ -558,7 +558,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
     PROPERTIES(p) allStocks[PriceList] TODRAW a BACKGROUND backgroundAllStocks(p)
     PROPERTIES(p, sg) in BACKGROUND backgroundIn(p,sg)
-    ORDER BY sgTreeName
+    ORDER sgTreeName
     FILTERS stringEqualsAll(a)
     FILTERS countCompanyStock(sg)
 
@@ -586,7 +586,7 @@ FORM userPriceList 'Прайс'
 
     TREE skuTree2 sk2 = Group PARENT parent
     PROPERTIES READONLY order(sk2), skuTreeName2 = name(sk2)
-    ORDER BY order(sk2), skuTreeName2
+    ORDER order(sk2), skuTreeName2
     FILTERGROUP inactive1 FILTER 'Активные' active(sk2) 'F5' DEFAULT
 
     OBJECTS ts2 = Stock PANEL
@@ -611,7 +611,7 @@ FORM userPriceList 'Прайс'
     FILTERGROUP activeSku 
         FILTER 'Активные' active(s2) DEFAULT
         FILTER 'Неактивные' inactive(s2) 
-    ORDER BY inputName2
+    ORDER inputName2
 
     OBJECTS b=Batch
     PROPERTIES in(b, p) ON CHANGE changeIn(b, p) 
@@ -625,7 +625,7 @@ FORM userPriceList 'Прайс'
             isParent[SkuGroup,Batch](sk2, b)
     FILTERGROUP filters4
         FILTER 'С остатком' prevCurrentBalance(b, ts2) 'F10' DEFAULT
-    ORDER BY nameSku(b)
+    ORDER nameSku(b)
 
     EVENTS
         ON OK prePost(p)
@@ -717,7 +717,7 @@ DESIGN userPriceList {
                     MOVE PROPERTY (toTime(p));
                 }
             }
-            MOVE GROUP(p,documentPrm){
+            MOVE GROUP(documentPrm,p){
                 caption = 'Параметры документа';
                 type = COLUMNS;
                 columns = 3;
@@ -822,7 +822,7 @@ DESIGN userPriceList {
     }
 }
 
-edit(UserPriceListDetail d) += { DIALOG userPriceList OBJECTS p = userPriceList(d), d = d AUTOX DOCKED; }
+edit(UserPriceListDetail d) += { DIALOG userPriceList OBJECTS p = userPriceList(d), d = d DOCKED; }
     
 // -------------------------------- Изменение цен для строк ------------------------------ //
 
@@ -1040,9 +1040,9 @@ copyData(PriceList priceList, UserPriceList userPriceList) = {
         EXEC copyAbstractData(priceList, userPriceList);
         FOR userPriceList(UserPriceListDetail detail) == priceList DO {
             NEW d = UserPriceListDetail {
-                ASSIGN userPriceList(d) <- userPriceList;
-                ASSIGN sku(d) <- sku(detail);
-                ASSIGN price(d, DataPriceListType priceListType) <- price[PriceListDetail,DataPriceListType](detail, priceListType);
+                userPriceList(d) <- userPriceList;
+                sku(d) <- sku(detail);
+                price(d, DataPriceListType priceListType) <- price[PriceListDetail,DataPriceListType](detail, priceListType);
             }
         }
 }
@@ -1051,7 +1051,7 @@ copySession 'Копировать'(PriceList priceList) = {
 
     NEW u = UserPriceList {
         EXEC copyData(priceList, u);
-        SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+        SHOW userPriceList OBJECTS p = u DOCKED;
     }
 }
 
@@ -1060,7 +1060,7 @@ copy 'Копировать'(PriceList priceList) = {
 	
 	    NEW u = UserPriceList {
 	        EXEC copyData(priceList, u);
-	        SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+	        SHOW userPriceList OBJECTS p = u DOCKED;
 	    }
 	}
 }
@@ -1070,7 +1070,7 @@ updateSession 'Обновить'(PriceList priceList) = {
 	
 	    NEW u = UserPriceList {
 	        copyData(priceList, u);
-	        DIALOG userPriceList OBJECTS p = u MANAGESESSION DOCKED NOCANCEL DO {
+	        DIALOG userPriceList OBJECTS p = u DOCKED NOCANCEL DO {
 	            toDate[UserPriceList](priceList) <- fromDate(u);
 	            toTime[UserPriceList](priceList) <- fromTime(u);
 	        }
@@ -1083,7 +1083,7 @@ update 'Обновить'(PriceList priceList) = {
 	
 	    NEW u = UserPriceList {
 	        copyData(priceList, u);
-	        DIALOG userPriceList OBJECTS p = u MANAGESESSION DOCKED NOCANCEL DO {
+	        DIALOG userPriceList OBJECTS p = u DOCKED NOCANCEL DO {
 	            toDate[UserPriceList](priceList) <- fromDate(u);
 	            toTime[UserPriceList](priceList) <- fromTime(u);
 	            apply();
@@ -1132,7 +1132,7 @@ FORM priceLists 'Прайсы'
                            shortNameUOMSku, nameBatch, nameCompany
     PROPERTIES(d) READONLYIF isReadonly()  BACKGROUND background(d)  AFTER nameSku(d) originalIdBarcodeSku SHOWIF showOriginalIdBarcodeSku(p), originalNameSku SHOWIF showOriginalNameSku(p)
     
-    ORDER BY index(d)
+    ORDER index(d)
     
     OBJECTS ts = Stock
     PROPERTIES(ts) READONLY name
@@ -1195,8 +1195,8 @@ DESIGN priceLists {
                 caption = 'История';
                 type = CONTAINERV;
 
-                MOVE GROUP(p,created);
-                MOVE GROUP(p,posted);
+                MOVE GROUP(created,p);
+                MOVE GROUP(posted,p);
             }
             NEW printTab {
                 caption = 'Печатные формы';
@@ -1276,7 +1276,7 @@ addUserPriceList 'Добавить'(LegalEntity legalEntity) = {
 	    NEW u = UserPriceList {
 	        company(u) <- legalEntity;
 	        overAdd(u); 
-	        SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+	        SHOW userPriceList OBJECTS p = u DOCKED;
 	    }
 	}
 } TOOLBAR;
@@ -1324,7 +1324,7 @@ equals (PriceList priceList1, PriceList priceList2) = company(priceList1) == com
 findEqualsPriceLists 'Найти дубликаты прайсов'() = {
     FOR UserPriceList p1 IS UserPriceList NOINLINE DO {
         FOR equals(p1, PriceList p2) NOINLINE DO {
-            ASSIGN dataIn[UserPriceList,Stock](p2, Stock s) <- dataIn(p1, s) WHERE dataIn(p1, s);
+            dataIn[UserPriceList,Stock](p2, Stock s) <- dataIn(p1, s) WHERE dataIn(p1, s);
             DELETE p1;
             apply();
             BREAK;

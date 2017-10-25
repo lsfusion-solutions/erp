@@ -22,7 +22,7 @@ perform 'Принять'(OrderDetail od, UserInvoice invoice) = {
         overFill(d, od);        
         perform (d,od);
     }   
-} TOOLBAR EDITKEY 'BACK_SPACE';
+} TOOLBAR CHANGEKEY 'BACK_SPACE';
 
 priceLocal 'Цена' = DATA LOCAL NUMERIC[16,4] (OrderDetail);
 quantityLocal 'Количество' = DATA LOCAL NUMERIC[14,3](OrderDetail);
@@ -82,7 +82,7 @@ correct 'Корректировать'(OrderDetail od, UserInvoice invoice) = {
         overFill(d, od);
         correct (d,od);
     }   
-} TOOLBAR EDITKEY 'F9';
+} TOOLBAR CHANGEKEY 'F9';
 
 EXTEND FORM userInvoice
     OBJECTS od = OrderDetail GRID
@@ -90,7 +90,7 @@ EXTEND FORM userInvoice
                quantity(od), price(od), sum(od), invoiceSum(od) 
     PROPERTIES SHOWIF countIncludeOrders(i) perform(od,i), correct(od,i)               
                
-    ORDER BY  index(od)          
+    ORDER  index(od)          
     FILTERS  include(order(od), i)         
     FILTERGROUP orderFilter
         FILTER 'Без выписки' NOT countInvoiceDetails(od) DEFAULT 
@@ -149,7 +149,7 @@ extraCreateMultiUserInvoice 'Создать накладную (без стро�
 	            fillHeader(i, order);               
 	            include(order, i)<- TRUE;
 	                          
-	            SHOW userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
+	            SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
 	        }
 	    }
 	}
@@ -165,7 +165,7 @@ FORM selectOrderOrderDetail 'Формирование нескольких на�
     TREE skuTree sg = SkuGroup PARENT parent
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
     FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
-    ORDER BY order(sg), skuGroupName
+    ORDER order(sg), skuGroupName
     
     OBJECTS d=OrderDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku
@@ -173,7 +173,7 @@ FORM selectOrderOrderDetail 'Формирование нескольких на�
                    numberVAT, valueVAT, VATSum, invoiceSum,
                    toInvoice BACKGROUND backgroundQuantityParam(d)
     PROPERTIES(d)  numberInvoice              
-    ORDER BY index(d)
+    ORDER index(d)
 
     FILTERS order(d) == o
     FILTERGROUP filterInvoiced 
@@ -227,7 +227,7 @@ extraCreateInvoices 'Создать несколько накладных'(Order
                                 overFill(d, orderDetail);
                         }
                                   
-                        SHOW userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
+                        SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
                     }
                 }
             }

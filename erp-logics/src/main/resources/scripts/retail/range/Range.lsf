@@ -45,7 +45,7 @@ FORM range 'Ассортиментная матрица'
     TREE skuTree sg = SkuGroup PARENT parent
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
     PROPERTIES inData(r, sg) BACKGROUND backgroundIn(r, sg)
-    ORDER BY order(sg), skuGroupName
+    ORDER order(sg), skuGroupName
     
     FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
 
@@ -80,13 +80,13 @@ FORM ranges 'Ассортиментные матрицы'
     TREE skuTree sg = SkuGroup PARENT parent
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
     FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
-    ORDER BY order(sg), skuGroupName
+    ORDER order(sg), skuGroupName
     
     OBJECTS r = Range
     PROPERTIES(r) READONLY name
     PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE 
     FILTERS inParent(r, sg) OR NOT countSkuGroup(r)
-    ORDER BY name(r)
+    ORDER name(r)
     
     LIST Range OBJECT r
 ;
@@ -261,13 +261,13 @@ FORM rangeRev 'Версия ассортиментной матрицы'
     FILTERGROUP active 
         FILTER 'Активный' active(s) 'F11' DEFAULT
     
-    ORDER BY name(s)
+    ORDER name(s)
             
     OBJECTS store = Store
     PROPERTIES  READONLY name(store), nameStoreType(store), currentBalance(s,store), dateLastMoved(s,store), 
                 dateLastOrderBatch(s,store), nameSupplierLastBatch(s,store),
                 quantitySold(store,s,dFrom,dTo), sumSold(store,s,dFrom,dTo)
-    ORDER BY nameStoreType(store)
+    ORDER nameStoreType(store)
     FILTERS quantitySold(store,s,dFrom,dTo) OR sumSold(store,s,dFrom,dTo) OR currentBalance(s,store)         
     FILTERGROUP activeStore 
         FILTER 'Активный' active(store) 'F11' DEFAULT
@@ -305,7 +305,7 @@ copy 'Копировать'(RangeRev pr) = {
 	    NEW r = RangeRev {
 	        range(r) <- range(pr);
 	        overCopy(r,pr);
-	        SHOW rangeRev OBJECTS v = r MANAGESESSION DOCKED;
+	        SHOW rangeRev OBJECTS v = r DOCKED;
 	    }
 	}
 } TOOLBAR;
@@ -350,7 +350,7 @@ createRangeRev 'Создать версию'(Range range, DATE date) = {
 	        range(v) <- range;
 	        overCopy(v,rev ());
 	        //level(v, Sku s) <- level(rev(), s);
-	        SHOW rangeRev OBJECTS v=v MANAGESESSION DOCKED;
+	        SHOW rangeRev OBJECTS v=v DOCKED;
 	    }
 	}
 } TOOLBAR;
@@ -443,13 +443,13 @@ FORM storeRange 'Ассортимент магазинов'
     TREE skuTree sg = SkuGroup PARENT parent
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
     FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
-    ORDER BY order(sg), skuGroupName
+    ORDER order(sg), skuGroupName
 
     // По магазинам
     OBJECTS st = Store GRID 
     PROPERTIES READONLY name(st), nameStoreType(st), orderNumber(st)
-//    ORDER BY nameStoreType(st), name(st)
-    ORDER BY orderNumber(st)
+//    ORDER nameStoreType(st), name(st)
+    ORDER orderNumber(st)
     FILTERS active(st),
             filterStoreType(st)   
             
@@ -459,14 +459,14 @@ FORM storeRange 'Ассортимент магазинов'
     PROPERTIES(sr) READONLY name
     //PROPERTIES nameOverLevel(sr, st, d) BACKGROUND backgroundLevel(sr, st, d) ON CHANGE changeLevel(sr, st, d) ON CHANGEWYS changeWYSLevel(sr, st, d) COLUMNS (st) HEADER name(st)
     //PROPERTIES countSku(sr, st, d) COLUMNS (st) HEADER name(st) 
-    ORDER BY name(sr)
+    ORDER name(sr)
     FILTERS inParent(sr, sg) OR NOT countSkuGroup(sr)
 
     OBJECTS ss = Sku GRID 
     PROPERTIES(ss) READONLY BACKGROUND backgroundRange(ss) idBarcode, name, nameUOM
     //PROPERTIES READONLY nameLevel(sr, ss, d)
     PROPERTIES(ss, st, d) READONLY countRange COLUMNS (st) HEADER name(st)
-    //ORDER BY nameLevel(sr, ss, d), name(ss)
+    //ORDER nameLevel(sr, ss, d), name(ss)
     //FILTERS level(sr, ss, d)
 
     // -------------- Ассортимент магазина ------------------ //
@@ -475,7 +475,7 @@ FORM storeRange 'Ассортимент магазинов'
 
     TREE treeGroup g=SkuGroup PARENT parent
     PROPERTIES READONLY order(g), name(g)
-    ORDER BY order(g), name(g)
+    ORDER order(g), name(g)
     FILTERGROUP inactiveD FILTER 'Активные' active(g) 'F5' DEFAULT
 
     OBJECTS sk = Sku 

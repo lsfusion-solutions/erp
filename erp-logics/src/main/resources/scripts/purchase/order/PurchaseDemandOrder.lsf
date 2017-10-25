@@ -32,7 +32,7 @@ fillDemandUserOrder (UserOrder o, LegalEntity supplier, Stock stock, PriceListTy
 
     fillRecommendedQuantityStock(o);
 
-    SHOW userOrder OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
+    SHOW userOrder OBJECTS o = o DOCKED NOCANCEL;
 }
 
 createDemandUserOrder 'Создать заказ'(LegalEntity supplier, Stock stock, PriceListType priceListType, DATETIME dateTime, DATE dFrom, DATE dTo) = {
@@ -77,7 +77,7 @@ FORM demandOrder 'Заказы по потребностям'
     OBJECTS l = LegalEntity GRID
     PROPERTIES(l) READONLY name, numberSkuPurchaseSupplier
     PROPERTIES createDemandUserOrder(l, st, p, dt, dFrom, dTo) TODRAW l TOOLBAR
-    ORDER BY name(l)
+    ORDER name(l)
     FILTERS isSupplier(l)
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
     PROPERTIES recalculateNumberSkuPurchaseSupplier(st, p, i, dt) TODRAW l
@@ -86,13 +86,13 @@ FORM demandOrder 'Заказы по потребностям'
 
     TREE skuTree sk = SkuGroup PARENT parent
     PROPERTIES order(sk) READONLY, skuTreeName = name(sk) READONLY
-    ORDER BY order(sk), skuTreeName
+    ORDER order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS s = Sku
     PROPERTIES READONLY BACKGROUND backgroundDemand(s, st) idBarcode(s), name(s) ON SHORTCUT showBalanceMovementSku(s, st) ON SHORTCUT showBalancePriceSku(s, st) ON SHORTCUT showBalanceReserveSku(s, st) , shortNameUOM(s) 
     PROPERTIES READONLY amountPack(s)
-    ORDER BY name(s)
+    ORDER name(s)
     FILTERS isParent(sk, s)
 
     PROPERTIES READONLY overPurchaseReserve(st, s, dt), averageSold(s, st), quantitySold(s, st, dFrom, dTo), currentBalance(s, st), currentReserve(s, st),

@@ -40,7 +40,7 @@ FORM inventoryCommittee 'Комиссия для инвентаризации'
     PROPERTIES(c, ts) in 
     FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
     FILTERS isParent(sg, ts)
-    ORDER BY tsTreeName
+    ORDER tsTreeName
 
 
     OBJECTS e=Employee
@@ -179,7 +179,7 @@ FORM selectSkuGroups 'Выбор групп'
     TREE skuTree2 sk2 = SkuGroup PARENT parent
     PROPERTIES READONLY order(sk2), name(sk2)
     PROPERTIES include(in,sk2)
-    ORDER BY order(sk2), name(sk2)
+    ORDER order(sk2), name(sk2)
     PROPERTIES (in) resetIncludeSkuGroups TOOLBAR TODRAW sk2 SHOWIF countIncludeSku(in)
     FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F5' DEFAULT       
 ;
@@ -1107,7 +1107,7 @@ FORM collationSheetBatches 'Партии'
     PROPERTIES(d, b) cost
     FILTERS sku(b) == s,
             countLedger(b, stock(cs))
-    ORDER BY dateTime(b)
+    ORDER dateTime(b)
 ;
 
 DESIGN collationSheetBatches {
@@ -1209,7 +1209,7 @@ FORM dialogStockInventory 'Выбор складов для инвентариз
 
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
     PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
-    ORDER BY sgTreeName
+    ORDER sgTreeName
     FILTERS stringEqualsAll(a)
 
     OBJECTS ts=Stock
@@ -1220,7 +1220,7 @@ FORM dialogStockInventory 'Выбор складов для инвентариз
     FILTERGROUP filters
         FILTER 'Только склады компании' isCompany(ts) 'F10' DEFAULT
     FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
-    ORDER BY tsTreeName
+    ORDER tsTreeName
 ;
 @extendFormFilterStockAccess(ts, dialogStockInventory);
 @extendFormFilterStockGroupAccess(sg, dialogStockInventory);
@@ -1256,7 +1256,7 @@ FORM dialogSkuCollationSheet 'Выбор SKU для сличительной в�
 
     TREE treeGroup g=SkuGroup PARENT parent
     PROPERTIES READONLY order(g), name(g)
-    ORDER BY order(g), name(g)
+    ORDER order(g), name(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
     OBJECTS i=Sku
@@ -1265,7 +1265,7 @@ FORM dialogSkuCollationSheet 'Выбор SKU для сличительной в�
     PROPERTIES(cs, i) in
 
     FILTERS isParent(g, i)
-    ORDER BY name(i)
+    ORDER name(i)
 ;
 
 DESIGN dialogSkuCollationSheet {
@@ -1323,7 +1323,7 @@ FORM listInventory 'Опись'
     
     TREE skuTree g = SkuGroup PARENT parent
     PROPERTIES READONLY order(g), name(g)
-    ORDER BY order(g), name(g)
+    ORDER order(g), name(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
         
     OBJECTS         pl=PageInventory GRID
@@ -1362,17 +1362,17 @@ DESIGN listInventory {
         NEW header {
             type = CONTAINERH;
             NEW row {
-                MOVE GROUP(li,documentHeader) {
+                MOVE GROUP(documentHeader,li) {
                     type = CONTAINERH;
                     MOVE PROPERTY(nameInventory(li));
                     MOVE PROPERTY(name(li));
                 }
-                MOVE GROUP(li,inventoryCommittee) {
+                MOVE GROUP(inventoryCommittee,li) {
                     type = CONTAINERH;
                 }
                 NEW createContainer {
                     type = CONTAINERH;
-                    MOVE GROUP(li,documentPrm) {
+                    MOVE GROUP(documentPrm,li) {
                         columns = 2;
                     }
                     NEW create {
@@ -1381,7 +1381,7 @@ DESIGN listInventory {
                     }
                 }
             }
-            MOVE GROUP(li,documentSum) {
+            MOVE GROUP(documentSum,li) {
                 columns = 1;
                 PROPERTY(countPageInventory(li)) {
                     caption = 'Количество страниц';
@@ -1424,7 +1424,7 @@ addListInventory 'Добавить'(Stock stock, Inventory inventory) = {
 	        stock(g) <- stock;
 	        inventory(g) <- inventory;
 	        inSession(SkuGroup group) <- include(inventory, group);
-	        SHOW listInventory OBJECTS li = g MANAGESESSION DOCKED NOCANCEL;
+	        SHOW listInventory OBJECTS li = g DOCKED NOCANCEL;
 	    }
 	}
 } TOOLBAR IMAGE 'add.png';
@@ -1445,7 +1445,7 @@ changeAddDetailInput(PageInventory page) = {
     INPUT s = STRING[20] DO
         changeAddDetailInputIdSku(s, page);
 };
-addDetailInput 'Код товара:' (page) = DATA LOCAL STRING[20] (PageInventory) TOOLBAR EDITKEY 'F5' 
+addDetailInput 'Код товара:' (page) = DATA LOCAL STRING[20] (PageInventory) TOOLBAR CHANGEKEY 'F5' 
                                                                         ON CHANGE { changeAddDetailInput(page); } PREFCHARWIDTH 10;  
                                                                      
 changeAddDetailInputBarcode(VARSTRING[15] barcode, PageInventory page) = {
@@ -1464,7 +1464,7 @@ changeAddDetailInputBarcode(PageInventory page) = {
     INPUT s = VARSTRING[15] DO 
         changeAddDetailInputBarcode(s, page);
 }
-addDetailInputBarcode 'Штрихкод товара:' (page) = DATA LOCAL VARSTRING[15] (PageInventory) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
+addDetailInputBarcode 'Штрихкод товара:' (page) = DATA LOCAL VARSTRING[15] (PageInventory) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
                                                                         ON CHANGE { changeAddDetailInputBarcode(page); } PREFCHARWIDTH 15;
 
 EXTEND FORM listInventory
@@ -1537,7 +1537,7 @@ FORM inventory 'Инвентаризация'
     PROPERTIES (li,it) READONLY quantityPageInventoryDetail, pricePageInventoryDetail SHOWIF isSku(li),
                        sumPageInventoryDetail SHOWIF isSku(li)
     FILTERS            quantityPageInventoryDetail(li,it)
-    ORDER BY           itNameSku
+    ORDER           itNameSku
 
     OBJECTS         bt=Batch GRID
     PROPERTIES (li,bt) READONLY SHOWIF isBatch(li) index
@@ -1564,7 +1564,7 @@ FORM inventory 'Инвентаризация'
 
     TREE treeGroup g=SkuGroup PARENT parent
     PROPERTIES READONLY order(g), name(g), overSumPageInventoryDetail(cs,g), overSumBalance(cs,g), overSumShortage(cs,g)
-    ORDER BY order(g), name(g)
+    ORDER order(g), name(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
     OBJECTS          i=Sku GRID
@@ -1578,7 +1578,7 @@ FORM inventory 'Инвентаризация'
                                                 isParent(g, i)
     FILTERGROUP notEqualsPriceSkuFilters
             FILTER 'Товар с разными ценами' differentPrice(cs, i) 'F10'
-    ORDER BY                                    iNameSku
+    ORDER                                    iNameSku
 
     OBJECTS         b=Batch GRID
     PROPERTIES(b) READONLY SHOWIF isBatch(cs) idBarcodeSku, nameSku, name, cost
@@ -1604,7 +1604,7 @@ DESIGN inventory {
         fill = 1;
         NEW headerBox {
             caption = 'Параметры';
-            MOVE GROUP(in,documentHeader) {
+            MOVE GROUP(documentHeader,in) {
                 type = CONTAINERH;
                 MOVE PROPERTY(nameStock(in));
                 MOVE PROPERTY(nameNumerator(in));
@@ -1617,7 +1617,7 @@ DESIGN inventory {
             NEW header {
                 type = CONTAINERH;
                 NEW headerColumn1 {
-                    MOVE GROUP(in,documentPrm) {
+                    MOVE GROUP(documentPrm,in) {
                         type = COLUMNS;
                         columns = 2;
                         MOVE PROPERTY(nameTypeOfAddition(in));                    
@@ -1628,7 +1628,7 @@ DESIGN inventory {
                         MOVE PROPERTY(nameIncludeSkuGroups(in));
                         MOVE PROPERTY(note(in));
                     }
-                    MOVE GROUP(in,inventoryCommittee) {
+                    MOVE GROUP(inventoryCommittee,in) {
                         type = CONTAINERH;
                     }
     
@@ -1690,14 +1690,14 @@ DESIGN inventory {
                 fill = 1;
                 NEW pop11 {
                     fill = 1;
-                    MOVE GROUP(in,inventoryAction) {
+                    MOVE GROUP(inventoryAction,in) {
                         type = CONTAINERH;
                     }
                     MOVE BOX(cs) {
                         preferredSize = ( -1, 0);
                     }
                 }
-                MOVE GROUP(cs,) {
+                MOVE GROUP(,cs) {
                     type = COLUMNS;
                     columns = 1;
                     caption = 'Суммы товар/тара';
@@ -1721,11 +1721,11 @@ DESIGN inventory {
     MOVE TOOLBARBOX;
 }
 
-edit (InInventoryBatchDetail d) += { DIALOG inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d) AUTOX DOCKED; }
-edit (InInventorySkuDetail d) += { DIALOG inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d) AUTOX DOCKED; }
+edit (InInventoryBatchDetail d) += { DIALOG inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d) DOCKED; }
+edit (InInventorySkuDetail d) += { DIALOG inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d) DOCKED; }
 
-edit (OutInventoryBatchDetail d) += { DIALOG inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d) AUTOX DOCKED; }
-edit (OutInventorySkuDetail d) += { DIALOG inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d) AUTOX DOCKED; }
+edit (OutInventoryBatchDetail d) += { DIALOG inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d) DOCKED; }
+edit (OutInventorySkuDetail d) += { DIALOG inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d) DOCKED; }
 
 show 'Просмотреть' (InInventoryBatchDetail d) = {
 	NEWSESSION {
@@ -1794,7 +1794,7 @@ FORM inventories 'Инвентаризации'
     OBJECTS il=InventorySkuDetail GRID
     PROPERTIES(il) READONLY SHOWIF isSku(in) nameStock, idBarcode, nameSku, quantity, sum
     FILTERS                                           inventory(il) == in
-    ORDER BY                                          nameStock(il), nameSku(il)
+    ORDER                                          nameStock(il), nameSku(il)
 
     OBJECTS ib=InventoryBatchDetail  GRID
     PROPERTIES(ib) READONLY SHOWIF isBatch(in) nameStock, idBarcode, nameSku,
@@ -1805,7 +1805,7 @@ FORM inventories 'Инвентаризации'
     PROPERTIES(li) READONLY name, nameStock, countIndex SHOWIF isSku(li), countIndexBatch SHOWIF isBatch(li),
                             quantityPageInventoryDetail, sumPageInventoryDetail
     FILTERS                 inventory(li) == in
-    ORDER BY                nameStock(li)
+    ORDER                nameStock(li)
 
     OBJECTS         i=Sku GRID
     PROPERTIES(li,i) READONLY index
@@ -1814,7 +1814,7 @@ FORM inventories 'Инвентаризации'
                               pricePageInventoryDetail SHOWIF isSku(li),
                               sumPageInventoryDetail SHOWIF isSku(li)
     FILTERS                   quantityPageInventoryDetail(li,i)
-    ORDER BY                  index(li,i)
+    ORDER                  index(li,i)
 
     OBJECTS         b=Batch GRID
     PROPERTIES(li,b) READONLY SHOWIF isBatch(li) index
@@ -1831,7 +1831,7 @@ FORM inventories 'Инвентаризации'
                                          sumItemShortage, sumContainerShortage,
                                          sumItemAccountB SHOWIF showAccountSums(cs), sumContainerAccountB SHOWIF showAccountSums(cs)
     FILTERS                              inventory(cs) == in
-    ORDER BY                             nameStock(cs)
+    ORDER                             nameStock(cs)
 
     OBJECTS          it=Sku GRID
     PROPERTIES(it) READONLY                                   nASku=name, idBarcode
@@ -1840,7 +1840,7 @@ FORM inventories 'Инвентаризации'
                                                               priceBalance BACKGROUND differentPrice(cs, it)
     PROPERTIES(cs,it) READONLY SHOWIF isSku(cs) sumPageInventoryDetail, sumBalance, sumShortage
     FILTERS                                                   include(cs, it) OR overInclude(cs,it)
-    ORDER BY                                                  nASku
+    ORDER                                                  nASku
 
     OBJECTS         bt=Batch GRID 
     PROPERTIES(bt)    READONLY SHOWIF isBatch(cs) nameSku, idBarcodeSku, name, cost
@@ -1904,8 +1904,8 @@ DESIGN inventories {
             NEW documentHistory {
                 type = CONTAINERV;
                 caption = 'История';
-                MOVE GROUP(in,created);
-                MOVE GROUP(in,posted);
+                MOVE GROUP(created,in);
+                MOVE GROUP(posted,in);
             }
         }
     }
@@ -1937,7 +1937,7 @@ EXTEND FORM inventory
 ;
 
 DESIGN inventory{
-    GROUP(in,documentHeader) {
+    GROUP(documentHeader,in) {
         type = CONTAINERV;
         NEW first {
             type = CONTAINERH;
@@ -2056,7 +2056,7 @@ overRecalculateBalance(Inventory in) += {
                 partitionQuantity(cs, Batch bt) <- calcPartitionQuantity(cs,bt); 
             }
             FOR quantityPageInventoryDetail(cs,Sku sk) AND NOT batchQuantity(cs,sk) == quantityPageInventoryDetail(cs,sk) DO {
-                MESSAGE NOWAIT (CONCAT ' ', 'Для товара:', name(sk), '('+id(sk)+')', 'в количестве', quantityPageInventoryDetail(cs,sk)+' единиц', 'нет подходящих партий.');
+                MESSAGE (CONCAT ' ', 'Для товара:', name(sk), '('+id(sk)+')', 'в количестве', quantityPageInventoryDetail(cs,sk)+' единиц', 'нет подходящих партий.') NOWAIT;
             }            
         }
     }    

@@ -76,7 +76,7 @@ FORM statisticReportType 'Тип статистического отчета'
                    sidStatisticGroup ON CHANGE changeStatisticGroup(d), nameUOM, round    
     PROPERTIES READONLY childNumbers(d)                
     PROPERTIES (d) NEW, deleteid=DELETE GRID              
-    ORDER BY index(d)
+    ORDER index(d)
     PROPERTIES(r) TODRAW d deleteStatisticReportTypeDetail    
     FILTERS statisticReportType(d) == r
     
@@ -84,7 +84,7 @@ FORM statisticReportType 'Тип статистического отчета'
     PROPERTIES (dd) READONLY index, name, number, nameStatisticGroup,
                    sidStatisticGroup, nameUOM, round                
     PROPERTIES (dd,d) in 
-    ORDER BY index(dd) 
+    ORDER index(dd) 
     FILTERS statisticReportType(dd) == r,
             dd != d    
 
@@ -97,10 +97,10 @@ DESIGN statisticReportType {
         NEW headerBox {
             type = CONTAINERH;
 
-            MOVE GROUP(r,documentPrm) {
+            MOVE GROUP(documentPrm,r) {
                columns = 2;
             }
-            MOVE GROUP(r,documentSum) {
+            MOVE GROUP(documentSum,r) {
                 columns = 1;
             }
         }
@@ -144,7 +144,7 @@ copy 'Копировать' (StatisticReportType type) = {
 	            parent(d) <- detail;
 	        }
 	        in(StatisticReportTypeDetail d, StatisticReportTypeDetail parent) <- in(parent(d), parent(parent)) WHERE statisticReportType(d) == r AND statisticReportType(parent) == r;
-	        SHOW statisticReportType OBJECTS r = r MANAGESESSION DOCKED NOCANCEL;
+	        SHOW statisticReportType OBJECTS r = r DOCKED NOCANCEL;
 	    }
 	}
 } TOOLBAR ;
@@ -162,7 +162,7 @@ FORM statisticReportTypes 'Типы статистических отчетов'
     OBJECTS d = StatisticReportTypeDetail
     PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
                    sidStatisticGroup, nameUOM, round 
-    ORDER BY index(d)
+    ORDER index(d)
 
     FILTERS statisticReportType(d) == r
                 
@@ -190,7 +190,7 @@ DESIGN statisticReportTypes {
                     caption = 'История';
                     type = CONTAINERV;
 
-                    MOVE GROUP(r,created);                       
+                    MOVE GROUP(created,r);                       
                 }
                 NEW printTab {
                     caption = 'Печатные формы';
@@ -607,7 +607,7 @@ FORM statisticReport 'Статистический отчет'
                 fillRegionData TODRAW d SHOWIF isRegionThing(r),
                 fillSumData TODRAW d SHOWIF isStockSum(r) ,
                 fillSumRegionData TODRAW d SHOWIF isRegionSum(r)    
-    ORDER BY index(d)
+    ORDER index(d)
     PROPERTIES(r) TODRAW d deleteStatisticReportDetail    
     FILTERS statisticReport(d) == r   
     
@@ -617,7 +617,7 @@ FORM statisticReport 'Статистический отчет'
     PROPERTIES (dd) READONLY SHOWIF showThingDD(r) sold, soldResident, balance, balanceResident  
     PROPERTIES (dd) READONLY SHOWIF showSumDD(r) soldSum, soldSumResident, balanceSum    
                        
-    ORDER BY index(dd)
+    ORDER index(dd)
     FILTERS statisticReport(dd) == r,
             dd != d
     PROPERTIES in (dd, d) SHOWIF showDD(r)
@@ -637,7 +637,7 @@ DESIGN statisticReport {
             NEW headerParams {
                 fill = 1;
                 type = CONTAINERV;
-                MOVE GROUP(r,documentHeader) {
+                MOVE GROUP(documentHeader,r) {
                     type = CONTAINERV;
                     NEW doc1 {
                         type = CONTAINERH;
@@ -663,9 +663,9 @@ DESIGN statisticReport {
                         MOVE PROPERTY(time(r));
                     }                       
                 }
-                MOVE GROUP(r,documentPrm);
+                MOVE GROUP(documentPrm,r);
             }
-            MOVE GROUP(r,documentSum) {
+            MOVE GROUP(documentSum,r) {
                 columns = 1;
             }
         }
@@ -759,7 +759,7 @@ createSumReport 'Создать суммарный отчет'()= {
 	            balanceSum(d) <- IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.stock THEN [= GROUP SUM balanceSum(Stock s,StatisticGroup sg) BY sg](statisticGroup(d))
 	                ELSE IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.region THEN [= GROUP SUM balanceSum(Region s,StatisticGroup sg) BY sg](statisticGroup(d));
 	        }
-	        SHOW statisticReport OBJECTS r = s MANAGESESSION DOCKED NOCANCEL;
+	        SHOW statisticReport OBJECTS r = s DOCKED NOCANCEL;
 	    }
 	    in(StatisticReport r) <- NULL;
 	}
@@ -858,7 +858,7 @@ FORM statisticReports 'Статистические отчеты'
                    sidStatisticGroup, nameUOM, round, childNumbers
     PROPERTIES (d) SHOWIF isThing(r) sold, soldResident, balance, balanceResident  
     PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumResident, balanceSum
-    ORDER BY index(d)
+    ORDER index(d)
     FILTERS statisticReport(d) == r
                 
     LIST StatisticReport OBJECT r
@@ -885,7 +885,7 @@ DESIGN statisticReports {
                     caption = 'История';
                     type = CONTAINERV;
 
-                    MOVE GROUP(r,created);                       
+                    MOVE GROUP(created,r);                       
                 }
                 NEW printTab {
                     caption = 'Печатные формы';

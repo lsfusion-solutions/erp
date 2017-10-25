@@ -217,19 +217,19 @@ FORM receiptReport 'Отчет по чекам'
     PROPERTIES  name(s)READONLY, in(s,r)  
                  
     TREE groupTree g=Group PARENT parent
-    PROPERTIES READONLY order(g), id(g), name(g), in(g,r) EDITABLE 
+    PROPERTIES READONLY order(g), id(g), name(g), in(g,r) CHANGEABLE 
     FILTERS groupType(g) == groupType(r)
-    ORDER BY order(g), name(g)
+    ORDER order(g), name(g)
     FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F5' DEFAULT      
                
     TREE legalEntityTree lg = LegalEntityGroup PARENT parent
     PROPERTIES READONLY  name(lg)
-    ORDER BY name(lg)
+    ORDER name(lg)
     PROPERTIES(lg,r) in
 
     OBJECTS l = LegalEntity
     PROPERTIES(l) READONLY id SHOWIF showIDs(), legalEntityName = name
-    ORDER BY legalEntityName
+    ORDER legalEntityName
     FILTERS isParent(lg, l) OR (l IS LegalEntity AND NOT lg)
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
     PROPERTIES(l,r) in
@@ -247,7 +247,7 @@ FORM receiptReport 'Отчет по чекам'
     
     PROPERTIES(r)  fillData TOOLBAR TODRAW d  
     
-    ORDER BY index(d)
+    ORDER index(d)
 
     PROPERTIES(r) TODRAW d deleteReceiptReportDetail
     
@@ -259,7 +259,7 @@ FORM receiptReport 'Отчет по чекам'
     PROPERTIES (dd) NEW, deleteidd=DELETE GRID                    
     PROPERTIES deleteIntervalReportDetail(d) TODRAW dd 
     
-    ORDER BY sum(dd)  
+    ORDER sum(dd)  
                  
     FILTERS receiptReportDetail(dd) == d
             
@@ -274,11 +274,11 @@ DESIGN receiptReport {
             type = CONTAINERH;
             NEW r1 {
                 type = CONTAINERV;
-                MOVE GROUP(r,numbered);
-                MOVE GROUP(r,documentHeader);
-                MOVE GROUP(r,documentPrm);
+                MOVE GROUP(numbered,r);
+                MOVE GROUP(documentHeader,r);
+                MOVE GROUP(documentPrm,r);
             }
-            MOVE GROUP(r,documentSum) {type = CONTAINERV;}
+            MOVE GROUP(documentSum,r) {type = CONTAINERV;}
             
         }        
         NEW headerBox {
@@ -347,7 +347,7 @@ FORM receiptReports 'Отчеты по чекам'
                    countBonDetail, countSelectedBonDetail,
                    sumBon, sumSelectedBonDetail
     
-    ORDER BY index(d)
+    ORDER index(d)
 
     FILTERS receiptReport(d) == r
                 
@@ -374,7 +374,7 @@ DESIGN receiptReports {
                     caption = 'История';
                     type = CONTAINERV;
 
-                    MOVE GROUP(r,created);                       
+                    MOVE GROUP(created,r);                       
                 }
                 NEW printTab {
                     caption = 'Печатные формы';

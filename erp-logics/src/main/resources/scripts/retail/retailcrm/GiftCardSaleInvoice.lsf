@@ -131,7 +131,7 @@ DESIGN dialogGiftCard {
 
 fillDetailDialogSkuGiftCard 'Подбор сертификатов'(Sale.Invoice invoice) = {
     in(GiftCard g) <- NULL;
-    DIALOG dialogGiftCard OBJECTS o = invoice NOMANAGESESSIONX DO {
+    DIALOG dialogGiftCard OBJECTS o = invoice NOMANAGESESSION DO {
         FOR in(GiftCard g) NEW gd = InvoiceGiftCardSaleDetail DO {
             invoice(gd) <- invoice;
             giftCard(gd) <- g;
@@ -150,7 +150,7 @@ CONSTRAINT isGiftCard(Sale.Invoice o) AND isPosted(o) AND (quantityInvoiceGiftCa
 
 EXTEND FORM Sale.userInvoice
     OBJECTS gd = InvoiceGiftCardSaleDetail GRID 
-    PROPERTIES (gd) SHOWIF isGiftCard(i) READONLY seriesNumber, sum, DELETE EDITABLE GRID
+    PROPERTIES (gd) SHOWIF isGiftCard(i) READONLY seriesNumber, sum, DELETE CHANGEABLE GRID
     FILTERS invoice(gd) == i
     
     PROPERTIES (i) SHOWIF isGiftCard(i) fillDetailDialogSkuGiftCard TODRAW gd 
@@ -163,7 +163,7 @@ DESIGN Sale.userInvoice {
 }
 
 
-edit(InvoiceGiftCardSaleDetail d) += { DIALOG Sale.userInvoice OBJECTS i = invoice(d), gd = d AUTOX DOCKED; }
+edit(InvoiceGiftCardSaleDetail d) += { DIALOG Sale.userInvoice OBJECTS i = invoice(d), gd = d DOCKED; }
 
 show(InvoiceGiftCardSaleDetail d) = {
 	NEWSESSION {
@@ -274,23 +274,23 @@ addCustomer 'Добавить'() = {
 	            isDataDefault(uc) <- TRUE ;
 	        }
 	        
-	        SHOW giftCardSaleCustomer OBJECTS l = l MANAGESESSION  NOCANCEL;
+	        SHOW giftCardSaleCustomer OBJECTS l = l NOCANCEL;
 	    }
 	    
 	}
-} IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
 
 editCustomer 'Редактировать' (LegalEntity l) = {
 	NEWSESSION {
-	        SHOW giftCardSaleCustomer OBJECTS l = l MANAGESESSION  NOCANCEL;
+	        SHOW giftCardSaleCustomer OBJECTS l = l NOCANCEL;
 	}
-} IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+} IMAGE 'edit.png' CHANGEKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 FORM giftCardLegalEntitys 'Покупатели'
     OBJECTS l=LegalEntity
     PROPERTIES(l) READONLY name, address, phone, numberAccount, nameBank, dateFromContract, numberContract
     PROPERTIES addCustomer() TODRAW l, editCustomer(l)
-    ORDER BY name(l)
+    ORDER name(l)
     
     FILTERS giftCardLegalEntityGroup() == legalEntityGroup(l)
 ;
@@ -367,7 +367,7 @@ addGiftCardInvoice 'Продажа сертификатов'() = {
 	                invoicePrice(d) <- round2(prevList(priceListType(d), d) );
 	    
 	            }  
-	            SHOW Sale.userInvoice OBJECTS i=o MANAGESESSION DOCKED NOCANCEL; 
+	            SHOW Sale.userInvoice OBJECTS i=o DOCKED NOCANCEL; 
 	        }
 	    }    
 	}
@@ -419,7 +419,7 @@ FORM saleGiftCardDashboard 'Выписка подарочных сертифик
     PROPERTIES (d) READONLY BACKGROUND backgroundSkuDetail(d) idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
     PROPERTIES (d) READONLY quantity, namePriceListType, price, sum,
                    numberVAT, valueVAT, VATSum, invoiceSum
-    ORDER BY index(d)
+    ORDER index(d)
 
     FILTERS invoice(d) == i
     FILTERS filterGiftCard(i)
@@ -427,7 +427,7 @@ FORM saleGiftCardDashboard 'Выписка подарочных сертифик
     OBJECTS l=LegalEntity
     PROPERTIES(l) READONLY name, address, UNP, phone, numberAccount, nameBank, dateFromContract, numberContract
     PROPERTIES addCustomer() TODRAW l, editCustomer(l)
-    ORDER BY name(l)
+    ORDER name(l)
     
     FILTERS giftCardLegalEntityGroup() == legalEntityGroup(l)
 ;
@@ -456,7 +456,7 @@ DESIGN saleGiftCardDashboard {
                 NEW printContainer {
                     caption = 'Печать';
                     type = CONTAINERV;
-                    MOVE GROUP(i,print);
+                    MOVE GROUP(print,i);
                 }
             }
         }

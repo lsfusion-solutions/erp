@@ -338,7 +338,7 @@ FORM sumStockDocumentLedger 'Товарный отчет'
             date(il) >= dtFrom,
             date(il) <= dtTo,
             isCompany(ds)
-    ORDER BY date(il)
+    ORDER date(il)
 
     OBJECTS ol = OutStockDocumentLedger
     PROPERTIES(ol) READONLY isClosed, isPosted, date, 
@@ -350,7 +350,7 @@ FORM sumStockDocumentLedger 'Товарный отчет'
             stock(ol) == ds,
             date(ol) >= dtFrom,
             date(ol) <= dtTo
-    ORDER BY date(ol)
+    ORDER date(ol)
 ;
 @extendFormFilterStockAccess(ds, sumStockDocumentLedger);
 
@@ -390,9 +390,9 @@ DESIGN sumStockDocumentLedger {
     NEW sums {
         caption = 'Суммы';
         type = CONTAINERV;
-        MOVE GROUP(ds,ledgerItem);
-        MOVE GROUP(ds,ledgerContainer);
-        MOVE GROUP(ds,ledger);
+        MOVE GROUP(ledgerItem,ds);
+        MOVE GROUP(ledgerContainer,ds);
+        MOVE GROUP(ledger,ds);
     }
 
     NEW topContainer{
@@ -627,7 +627,7 @@ DESIGN userStockDocument {
             NEW headerRow1 {
                 fill = 1;
                 type = CONTAINERV;
-                MOVE GROUP(i,documentHeader) {
+                MOVE GROUP(documentHeader,i) {
                     type = CONTAINERV;
                     NEW row1 {
                         type = CONTAINERH;
@@ -643,11 +643,11 @@ DESIGN userStockDocument {
                         MOVE PROPERTY(time(i));                        
                     }                    
                 }
-                MOVE GROUP(i,documentPrm) {
+                MOVE GROUP(documentPrm,i) {
                     columns = 2;
                 }
             }
-            MOVE GROUP(i,documentSum) {
+            MOVE GROUP(documentSum,i) {
                 columns = 1;
             }
         }
@@ -714,8 +714,8 @@ DESIGN stockDocuments {
                     type = CONTAINERV;
                     fill = 1;
 
-                    MOVE GROUP(i,created);
-                    MOVE GROUP(i,posted);
+                    MOVE GROUP(created,i);
+                    MOVE GROUP(posted,i);
                 }
             }
         }
@@ -787,7 +787,7 @@ type(InUserStockDocumentDetail l) += 'Учетный документ (поль�
 //descriptionStockDocumentLedger (ledger) += descriptionUserStockDocumentDetail(ledger);                                                                                                                                                                                                                                   
 //sumContainerIncStockDocumentLedger(ledger) += sumContainerUserStockDocumentDetail(ledger);
 //sumItemIncStockDocumentLedger(ledger) += sumItemUserStockDocumentDetail(ledger);
-//editStockDocumentLedger(ledger) += (ledger) NEWSESSION {FORM userStockDocument OBJECTS i = userStockDocumentUserStockDocumentDetail(ledger), d = ledger MANAGESESSION DOCKEDMODAL;}
+//editStockDocumentLedger(ledger) += (ledger) NEWSESSION {FORM userStockDocument OBJECTS i = userStockDocumentUserStockDocumentDetail(ledger), d = ledger DOCKEDMODAL;}
 //closeStockDocumentLedger(ledger) += closeUserStockDocumentDetail(ledger);
 //typeStockDocumentLedger(l) += 'Учетный документ' IF l IS UserStockDocumentDetail;
 
@@ -805,12 +805,12 @@ closeDocumentsStocks 'Закрыть документы'() = {
 FORM closingDocuments 'Закрытие периода'
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
     PROPERTIES READONLY VALUE(a), name(sg)
-    ORDER BY name(sg)
+    ORDER name(sg)
     FILTERS stringEqualsAll(a)
     
     OBJECTS s = Stock
-    PROPERTIES(s) READONLY isSelect EDITABLE, id, name, nameLegalEntity, documentsClosedDate EDITABLE
-    ORDER BY name(s)       
+    PROPERTIES(s) READONLY isSelect CHANGEABLE, id, name, nameLegalEntity, documentsClosedDate CHANGEABLE
+    ORDER name(s)       
     FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
             isCompany(s),
             countCompanyStock(sg)

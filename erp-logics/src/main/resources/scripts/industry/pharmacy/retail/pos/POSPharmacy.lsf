@@ -138,7 +138,7 @@ skipFilters 'Обнулить поиск' () = {
     filterBarcode() <- NULL;
     filterPrice() <- NULL;
     filterNameSku() <- NULL; 
-} EDITKEY 'ESCAPE';
+} CHANGEKEY 'ESCAPE';
 
 //сумма строки чека
 priceSumBlister 'Сумма без скидки' = round(blisterQuantity(batch(ReceiptSaleDetail detail), receipt(detail)) * currentPOSBlisterPrice(batch(detail), receipt(detail)), roundCondition(departmentStore(detail)));
@@ -161,7 +161,7 @@ EXTEND FORM POS
     PROPERTIES (bt, r) SHOWIF currentZReport() blisterQuantity ON CHANGE changeBlisterQuantity(bt, r) READONLYIF readOnlyBlisterQuantity(bt, r) BACKGROUND backgroundBlisterQuantity(bt, r)
     PROPERTIES (bt, r) SHOWIF currentZReport() READONLY prevCurrentBalance, currentPOSPrice, currentPOSBlisterPrice BACKGROUND backgroundBlisterQuantity(bt, r)
     PROPERTIES (bt) SHOWIF currentZReport() READONLY expiryDate BACKGROUND backgroundExpiryDate(bt, r), seriesPharmacy, nameManufacturer, nameCountry, nameSubstance
-    ORDER BY prevNameSku(bt)
+    ORDER prevNameSku(bt)
     FILTERS filterPrice(bt, r), filterNameSku(bt), filterBarcode(bt)  
     FILTERS prevCurrentBalance(bt, r)
 //    FILTERGROUP balance
@@ -192,11 +192,11 @@ EXTEND FORM POS
     PROPERTIES (bt1, r) SHOWIF currentZReport() READONLY prevCurrentBalance, currentPOSPrice, currentPOSBlisterPrice  BACKGROUND backgroundBlisterQuantity(bt1, r)
     PROPERTIES (bt1) SHOWIF currentZReport() READONLY expiryDate BACKGROUND backgroundExpiryDate(bt, r), seriesPharmacy, nameManufacturer, nameCountry
     FILTERS prevCurrentBalance(bt1, r), substance(bt)==substance(bt1) AND NOT sku(bt)==sku(bt1)
-    ORDER BY prevNameSku(bt1)        
+    ORDER prevNameSku(bt1)        
 ;
     
 DESIGN POS {
-    GROUP(r,receiptSaleAction) {
+    GROUP(receiptSaleAction,r) {
         MOVE PROPERTY(filterBarcode()){ caption = 'Ввести штрих код'; panelCaptionAbove = TRUE; font = 'bold 22'; editKey = 'F4'; }
         MOVE PROPERTY(filterPrice()){ caption = 'Ввести цену'; panelCaptionAbove = TRUE; font = 'bold 22'; editKey = 'F5'; }
         MOVE PROPERTY(filterNameSku()){ caption = 'Ввести наименование'; panelCaptionAbove = TRUE; font = 'bold 22'; editKey = 'F3'; }
@@ -250,7 +250,7 @@ DESIGN POS {
             PROPERTY(nameManufacturer(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 15; preferredCharWidth = 30;}
             PROPERTY(nameCountry(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 8; preferredCharWidth = 15;}
         }
-        MOVE GROUP(r,receiptReturnAction) {
+        MOVE GROUP(receiptReturnAction,r) {
             caption = 'Возврат';
         }
     }

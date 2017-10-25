@@ -134,7 +134,7 @@ FORM legalEntityGroups 'Группы организаций'
 
     TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent
     PROPERTIES READONLY lgTreeName = name(lg)
-    ORDER BY lgTreeName
+    ORDER lgTreeName
 
     LIST LegalEntityGroup OBJECT lg
 ;
@@ -312,10 +312,10 @@ DESIGN legalEntity {
                 NEW row12 {
                     type = COLUMNS;
                     columns = 2;
-                    MOVE GROUP(l,law) {
+                    MOVE GROUP(law,l) {
                         columns = 1;
                     }   
-                    MOVE GROUP(l,filterEntity) {
+                    MOVE GROUP(filterEntity,l) {
                         columns = 1;
                     }
                 }
@@ -324,10 +324,10 @@ DESIGN legalEntity {
             NEW column2 {
                 type = CONTAINERV;
                 
-                MOVE GROUP(l,contact) {
+                MOVE GROUP(contact,l) {
                     columns = 1;
                 }
-                MOVE GROUP(l,management) {
+                MOVE GROUP(management,l) {
                     columns = 1;
                 }
             }
@@ -352,7 +352,7 @@ FORM dialogLegalEntities 'Организации'
                                           nameLegalEntityGroup
     PROPERTIES(l) READONLY address, phone, email
     PROPERTIES(l) READONLY isSupplier, isCompany, isCustomer
-    ORDER BY nameL
+    ORDER nameL
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT    
     FILTERS isParent(legalEntityGroup(l), lg) OR
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
@@ -413,7 +413,7 @@ copy 'Копировать' (LegalEntity l) = {
                 dateTo(newLs) <- dateTo(ls);                
             }
             
-            SHOW legalEntity OBJECTS l = newL DOCKED MANAGESESSION;
+            SHOW legalEntity OBJECTS l = newL DOCKED;
         }
     }
 }
@@ -431,7 +431,7 @@ FORM legalEntities 'Организации'
     PROPERTIES(l) READONLYIF isReadonly() address, phone, email
     PROPERTIES(l) READONLYIF isReadonly() isSupplier, isCompany, isCustomer
     PROPERTIES(l) NEWSESSION TOOLBAR NEW, EDIT, deletel=DELETE , replace , copy  
-    ORDER BY nameL
+    ORDER nameL
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT    
     FILTERS isParent(legalEntityGroup(l), lg) OR
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
@@ -469,7 +469,7 @@ FORM companyLegalEntities 'Организации'
                            nameLegalEntityGroup
     PROPERTIES(l) READONLY address, phone
     PROPERTIES(l) READONLY isSupplier, isCompany, isCustomer
-    ORDER BY nameL
+    ORDER nameL
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
     FILTERS isParent(legalEntityGroup(l), lg) OR
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
@@ -506,7 +506,7 @@ FORM supplierLegalEntities 'Организации'
                                           nameLegalEntityGroup
     PROPERTIES(l) READONLY                address, phone
     PROPERTIES(l) READONLYIF isReadonly() isSupplier, isCompany, isCustomer
-    ORDER BY nameL
+    ORDER nameL
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
     FILTERS isParent(legalEntityGroup(l), lg) OR
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
@@ -543,7 +543,7 @@ FORM customerLegalEntities 'Организации'
                                           nameLegalEntityGroup
     PROPERTIES(l) READONLY                address, phone
     PROPERTIES(l) READONLYIF isReadonly() isSupplier, isCompany, isCustomer
-    ORDER BY nameL
+    ORDER nameL
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
     FILTERS isParent(legalEntityGroup(l), lg) OR
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
@@ -591,7 +591,7 @@ META defineDocumentHeaderLegalEntity (object, contact, contactCaption)
     name###contact contactCaption (###object object)= name(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
     fullName###contact contactCaption###' (полное наименование)' (###object object)= fullName(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
     address###contact contactCaption###' (адрес)' (###object object)= address(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
-    replace(LegalEntity l, LegalEntity o) += {ASSIGN contact(###object object) <- o WHERE contact(object) == l;} 
+    replace(LegalEntity l, LegalEntity o) += {contact(###object object) <- o WHERE contact(object) == l;} 
 END
 META defineDocumentAbstractHeaderLegalEntity (object, contact, contactCaption)
     contact (object) = ABSTRACT LegalEntity (###object) MATERIALIZED;

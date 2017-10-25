@@ -30,7 +30,7 @@ dimensionsType 'Субконто' (GLAccount) = GROUP CONCAT VARSTRING[255](name
                                                 ORDER order (GLAccount,dimensionType) MINCHARWIDTH 40 PREFCHARWIDTH 80 MATERIALIZED;
 
 overCopy(GLAccount from, GLAccount to) += {
-    ASSIGN order(to, DimensionType dimensionType) <- order(from, dimensionType);
+    order(to, DimensionType dimensionType) <- order(from, dimensionType);
 }
 
 prev (GLAccount account, DimensionType type) = PARTITION PREV type IF order(account, type) BY account
@@ -237,13 +237,13 @@ EXTEND FORM userGeneralLedger
     PROPERTIES READONLY name(d), orderDebit(g,d)
     PROPERTIES nameDebit(g,d)
     FILTERS orderDebit(g,d)
-    ORDER BY orderDebit(g,d)
+    ORDER orderDebit(g,d)
 
     OBJECTS c = DimensionType
     PROPERTIES READONLY name(c), orderCredit(g,c)
     PROPERTIES nameCredit(g,c)
     FILTERS orderCredit(g,c)
-    ORDER BY orderCredit(g,c)
+    ORDER orderCredit(g,c)
 ;
 DESIGN userGeneralLedger {
     NEW row BEFORE TOOLBARBOX{
@@ -287,7 +287,7 @@ FORM userDimensions 'Субконто (польз.)'
     OBJECTS t=UserDimension
     PROPERTIES(t) READONLY NEWSESSION staticCaption, name, nameDimensionType, DELETE 
     PROPERTIES(t) NEWSESSION NEW, EDIT
-    ORDER BY name(t)
+    ORDER name(t)
     LIST UserDimension OBJECT t
 ;
 DESIGN userDimensions { BOX { preferredSize = (600, 400); } }
@@ -324,7 +324,7 @@ idDimensionsCredit 'Субконто (кредит)' (ledger) = GROUP CONCAT VAR
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 loadDefaultGLAccount 'Добавить субконто'(INTEGER integer, VARSTRING[20] sidType, VARSTRING[20] sidAccount, DimensionType type) = {
-    ASSIGN order(GLAccount g,type) <- integer WHERE g == GLAccountIdTypeIdGLAccount(sidType, sidAccount);
+    order(GLAccount g,type) <- integer WHERE g == GLAccountIdTypeIdGLAccount(sidType, sidAccount);
 }
 loadDefaultDimensionGLAccounts 'Загрузить стандартный субконто для счетов' () = ABSTRACT LIST () IN loadDefault;
 

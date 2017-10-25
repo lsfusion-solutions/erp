@@ -58,7 +58,7 @@ EXTEND FORM options
     TREE skuTree sk = SkuGroup PARENT parent
     PROPERTIES(sk) READONLY order, name
     PROPERTIES(sk) component BACKGROUND backgroundComponent(sk), product BACKGROUND backgroundProduct(sk)
-    ORDER BY order(sk), name(sk)
+    ORDER order(sk), name(sk)
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT    
 ;
 DESIGN options {
@@ -87,9 +87,9 @@ shortNameUOM 'Ед. изм.' (Material material) = shortName(UOM(material)) IN b
 country (material) = ABSTRACT Country (Material) MATERIALIZED;
 nameCountry 'Страна' (Material material) = name(country(material)) IN base;
 
-addMaterial 'Добавить' = ABSTRACT LIST () IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
+addMaterial 'Добавить' = ABSTRACT LIST () IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
 
-copy 'Копировать' = ABSTRACT LIST (Material) EDITKEY 'F5' TOOLBAR;
+copy 'Копировать' = ABSTRACT LIST (Material) CHANGEKEY 'F5' TOOLBAR;
 
 sku (material) = ABSTRACT Sku (Material) MATERIALIZED;
 
@@ -101,7 +101,7 @@ FORM materials 'Материалы'
     TREE skuTree sg = SkuGroup PARENT parent
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
     FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
-    ORDER BY order(sg), skuGroupName
+    ORDER order(sg), skuGroupName
     FILTERS filterComponent(sg)
     
     OBJECTS m = Material
@@ -109,7 +109,7 @@ FORM materials 'Материалы'
     PROPERTIES() addMaterial TODRAW m
     PROPERTIES(m) EDIT NEWSESSION, copy
     FILTERS isParent(sg, m)
-    ORDER BY name(m)
+    ORDER name(m)
 
     LIST Material OBJECT m
 ;
@@ -451,7 +451,7 @@ EXTEND FORM products
                   nettoQuantity, overNettoNetWeight,
                   wastage,
                   bruttoQuantity, overBruttoNetWeight
-    ORDER BY index(c)
+    ORDER index(c)
     FILTERS       BOM(c) == BOM(p)                                                                                      
 ; 
 DESIGN products {
@@ -490,21 +490,21 @@ FORM BOM 'Спецификация'
                   nettoQuantity ON CHANGE changeNettoQuantity(c), overNettoNetWeight READONLY,
                   wastage ON CHANGE changeWastage(c),
                   bruttoQuantity ON CHANGE changeBruttoQuantity(c), overBruttoNetWeight READONLY
-    ORDER BY index(c)
+    ORDER index(c)
     PROPERTIES(c) NEW, deletec=DELETE GRID
     PROPERTIES(b) TODRAW c deleteComponent
     FILTERS       BOM(c) == b
     
     TREE stockTree sg = StockGroup PARENT parent
     PROPERTIES    name(sg) READONLY, in(b,sg) BACKGROUND backgroundIn(b,sg)
-    ORDER BY      name(sg)
+    ORDER      name(sg)
     
     OBJECTS ts=Stock
     PROPERTIES    name(ts) READONLY, id(ts) READONLY SHOWIF showIDs(), in(b,ts)
 
     FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
     FILTERS isParent(sg, ts)
-    ORDER BY name(ts)
+    ORDER name(ts)
     
     FILTERGROUP BOM FILTER 'Отм.' in(b,ts) 'ctrl F9'
 
@@ -549,7 +549,7 @@ DESIGN BOM {
                     MOVE PROPERTY(time(b));                    
                     
                 }
-                MOVE GROUP(b,documentPrm) {
+                MOVE GROUP(documentPrm,b) {
                     type = CONTAINERH;
                 }
                 NEW kitchen {
@@ -559,7 +559,7 @@ DESIGN BOM {
                 }
 
             }
-            MOVE GROUP(b,documentSum) {
+            MOVE GROUP(documentSum,b) {
                 columns = 1;
             }
         }
@@ -602,12 +602,12 @@ copy 'Копировать'(BOM BOM) = {
 	
 	        EXEC overCopy(BOM, b);
 	        
-	        SHOW BOM OBJECTS b = b MANAGESESSION DOCKED;
+	        SHOW BOM OBJECTS b = b DOCKED;
 	    }
 	}
 } TOOLBAR;
 
-edit(Product p) += { DIALOG BOM OBJECTS b = BOM(p), p = p AUTOX DOCKED; }
+edit(Product p) += { DIALOG BOM OBJECTS b = BOM(p), p = p DOCKED; }
 
 relationProducts (sku,BOM)= GROUP SUM 1 BY sku(Product p), BOM(p);
 relationComponents (sku,BOM)= GROUP SUM 1 BY material(Component c), BOM(c);
@@ -629,10 +629,10 @@ addBOM 'Добавить'(Sku sku) = {
 	            BOM(p) <- b;
 	            sku(p) <- sku;
 	        } 
-	        SHOW BOM OBJECTS  b = b MANAGESESSION  DOCKED;
+	        SHOW BOM OBJECTS  b = b DOCKED;
 	    }
 	}
-} TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+} TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
 
 FORM BOMs 'Спецификации'
 
@@ -661,7 +661,7 @@ FORM BOMs 'Спецификации'
     PROPERTIES(p1) READONLY idBarcode, Stock.id SHOWIF showIDs(), Stock.name, Stock.shortNameUOM
     PROPERTIES     TODRAW p1 NEWSESSION addSkuP1 = addSku(), EDIT(p1), DELETE(p1)  
     FILTERS        isProductGroup(p1)
-    ORDER BY name(p1)
+    ORDER name(p1)
     
     OBJECTS b1=BOM    
     PROPERTIES(b1) READONLY inactive, products, name, date, number, series, components, overNettoNetWeightProduct, overNettoNetWeightComponent, 
@@ -674,7 +674,7 @@ FORM BOMs 'Спецификации'
     PROPERTIES(c1) BACKGROUND  background(c) READONLY index, idBarcodeSku, id SHOWIF showIDs(), 
                    nameMaterial, shortNameUOM, nettoQuantity, overNettoNetWeight, wastage, bruttoQuantity, overBruttoNetWeight
     FILTERS        BOM(c1) == b1   
-    ORDER BY index(c1)
+    ORDER index(c1)
     
 
     OBJECTS c2 = Sku
@@ -686,7 +686,7 @@ FORM BOMs 'Спецификации'
                    overBruttoNetWeightyComponent, pricePercent, note, stocks
     PROPERTIES(b2) NEWSESSION EDIT                
     FILTERS        relationComponents(c2,b2)           
-    ORDER BY name(c2)
+    ORDER name(c2)
     
     OBJECTS p2 = Product
     PROPERTIES(p2) READONLY index, idBarcodeSku, id SHOWIF showIDs(), nameSku, shortNameUOM, 
@@ -722,7 +722,7 @@ DESIGN BOMs {
                     NEW documentHistory {
                         caption = 'История';
     
-                        MOVE GROUP(b,created);
+                        MOVE GROUP(created,b);
                     }
                     NEW printTab {
                         caption = 'Печатные формы';
@@ -769,7 +769,7 @@ copyBOMProduct 'Копировать'(Sku sku) = {
     Stock.copy(sku);
     IF addedSku() THEN
         SEEK BOMs.p1 = addedSku(); 
-} EDITKEY 'F5' TOOLBAR;
+} CHANGEKEY 'F5' TOOLBAR;
 
 EXTEND FORM BOMs PROPERTIES(p1) copyBOMProduct;
 
@@ -777,7 +777,7 @@ copyBOMComponent 'Копировать'(Sku sku) = {
     Stock.copy(sku);
     IF addedSku() THEN
         SEEK BOMs.c2 = addedSku(); 
-} EDITKEY 'F5' TOOLBAR;
+} CHANGEKEY 'F5' TOOLBAR;
 
 EXTEND FORM BOMs PROPERTIES(c2) copyBOMComponent;
 
@@ -827,7 +827,7 @@ DESIGN BOMsDialog {
                 NEW documentHistory {
                     caption = 'История';
 
-                    MOVE GROUP(b,created);
+                    MOVE GROUP(created,b);
                 }                
             }                
         }                                                              
@@ -872,7 +872,7 @@ FORM manufacturingCommittee 'Комиссия производство'
     PROPERTIES(c, ts) in 
     FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
     FILTERS isParent(sg, ts)
-    ORDER BY tsTreeName
+    ORDER tsTreeName
 
     OBJECTS e=Employee
     PROPERTIES(e)      READONLY name[Contact], firstName, lastName, namePosition
@@ -1052,9 +1052,9 @@ EXTEND FORM BOM
 
     TREE skuTree g = SkuGroup PARENT parent
     PROPERTIES READONLY order(g), name(g)
-    ORDER BY name(g)
+    ORDER name(g)
     FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F5' DEFAULT
-    ORDER BY order(g)
+    ORDER order(g)
     
     OBJECTS m = Material
     PROPERTIES(m) READONLY id SHOWIF showIDs(), name, shortNameUOM 
@@ -1063,7 +1063,7 @@ EXTEND FORM BOM
     PROPERTIES(b,m) READONLY  prevCurrentBalance     
 
     FILTERS isParent(g, m)
-    ORDER BY name(m)    
+    ORDER name(m)    
   
     FILTERGROUP filters
         FILTER 'Изделие' m IS Product 'F11'
@@ -1112,7 +1112,7 @@ NAVIGATOR {
 
 showBOM 'Показать спецификацию' (Component c) = {
     FOR b == BOM(material(c)) AND p == material(c) DO
-        NEWSESSION SHOW BOM OBJECTS b = b, p = p AUTOX; }  
+        NEWSESSION SHOW BOM OBJECTS b = b, p = p; }  
 SHORTCUT nameMaterial[Component];
 
 

@@ -498,7 +498,7 @@ FORM requestExchange 'Запрос обмена данными'
     OBJECTS s = Stock GRID
     PROPERTIES(s, r) SHOWIF showExtraStocks(r) in
     PROPERTIES(s) READONLY SHOWIF showExtraStocks(r) id, name, nameLegalEntity
-    ORDER BY nameLegalEntity(s)
+    ORDER nameLegalEntity(s)
     FILTERS isCompany(s), active(s), inGroupMachinery(s)
     
     OBJECTS m = Machinery 
@@ -566,7 +566,7 @@ copy 'Копировать'(RequestExchange request) = {
 	        
 	        overCopy(request, r);
 	        
-	        SHOW requestExchange OBJECTS r = r MANAGESESSION DOCKED;
+	        SHOW requestExchange OBJECTS r = r DOCKED;
 	    }   
 	}
 } TOOLBAR;
@@ -762,10 +762,10 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
     }
 
     IF sentSomething() THEN
-        MESSAGE NOWAIT message();
+        MESSAGE message() NOWAIT;
     ELSE
         IF NOT supressNoNeedMessage() THEN
-            MESSAGE NOWAIT 'Загрузка прайса в оборудование не требуется.';
+            MESSAGE 'Загрузка прайса в оборудование не требуется.' NOWAIT;
 };
 
 createBalanceMachineryPriceTransaction 'Остатки'(Stock stock) = {
@@ -866,7 +866,7 @@ createSelectMachineryPriceTransaction 'Все товары'(Stock stock) = {
 GROUP documentMachineryPrice 'Из документа' : public;
 createDocumentMachineryPriceTransaction 'Из документа'(Stock stock) = {
 	NEWSESSION {
-	    DIALOG documents MANAGESESSION DO {
+	    DIALOG documents DO {
 	        createMachineryPriceTransaction(Sku sku) <- TRUE WHERE countDocumentDetail(sku, [= GROUP MAX Document d IF inSession(d)]());
 	        createMachineryPriceTransactionDocument() <- [= GROUP MAX Document d IF inSession(d)]();
 	        createMachineryPriceTransactionSnapshot() <- TRUE ;
@@ -883,9 +883,9 @@ EXTEND FORM machineryPriceTransactions
 
 DESIGN machineryPriceTransactions {
     header {
-        MOVE GROUP(s,incrementMachineryPrice);
-        MOVE GROUP(s,snapshotMachineryPrice);
-        MOVE GROUP(s,documentMachineryPrice);
+        MOVE GROUP(incrementMachineryPrice,s);
+        MOVE GROUP(snapshotMachineryPrice,s);
+        MOVE GROUP(documentMachineryPrice,s);
     }
 }
 
@@ -896,7 +896,7 @@ META defineMachineryPriceTransactionAttributeBase(object, caption, nameProp)
         object(prevLastTransaction(barcode, groupMachinery), barcode);
 
     snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +=
-        { ASSIGN object(t, Barcode barcode) <- prevTransaction###object(barcode, groupMachinery) WHERE in(t, barcode); }
+        { object(t, Barcode barcode) <- prevTransaction###object(barcode, groupMachinery) WHERE in(t, barcode); }
 
     EXTEND FORM machineryPriceTransaction PROPERTIES(t, b) nameProp###object;
     EXTEND FORM machineryPriceTransactions PROPERTIES(t, b) READONLY nameProp###object;
@@ -906,7 +906,7 @@ END
 META defineMachineryPriceTransactionAttributeAction(object, caption, type, nameProp)
     @defineMachineryPriceTransactionAttributeBase(object, caption, nameProp);
     over###object = ABSTRACT type (MachineryPriceTransaction, Barcode);
-    createAttribute(MachineryPriceTransaction t) += { ASSIGN object(t, Barcode barcode) <- OVERRIDE over###object(t, barcode), object(barcode)
+    createAttribute(MachineryPriceTransaction t) += { object(t, Barcode barcode) <- OVERRIDE over###object(t, barcode), object(barcode)
                                                           WHERE in(t, barcode); }
 END
 
@@ -1202,7 +1202,7 @@ EXTEND FORM machineryPriceTransactions
     PROPERTIES(mt) READONLY createdNameUser, createdHostnameComputer
     
     PROPERTIES(mt, bb) READONLY name, price
-    ORDER BY date(mt) DESC, time(mt) DESC
+    ORDER date(mt) DESC, time(mt) DESC
     FILTERS stock(mt) == s
     FILTERS in(mt, bb)          
 ;

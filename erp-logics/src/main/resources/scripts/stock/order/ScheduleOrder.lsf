@@ -56,7 +56,7 @@ nameSupplierStock 'Склад поставщика' (ScheduleOrder scheduleOrder
 
 stocks 'Склады' (scheduleOrder) = ABSTRACT VARSTRING[500] (ScheduleOrder) MINCHARWIDTH 20 PREFCHARWIDTH 40 MATERIALIZED;
 
-addScheduleOrderSupplierCustomer 'Добавить' = ABSTRACT LIST (LegalEntity, LegalEntity) IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
+addScheduleOrderSupplierCustomer 'Добавить' = ABSTRACT LIST (LegalEntity, LegalEntity) IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
 
 GROUP schedule 'График' : public;
 countDaysPreOrders 'Кол-во дней для предварительных заказов' = DATA INTEGER () IN schedule;
@@ -450,7 +450,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 	            overCreate(o);
 	            overCreateDetail(o);
 	
-	            SHOW userOrder OBJECTS o = o MANAGESESSION DOCKED;
+	            SHOW userOrder OBJECTS o = o DOCKED;
 	        }
 	    }
 } TOOLBAR;
@@ -499,7 +499,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         OBJECTS dow=DOW GRID 
         PROPERTIES(dow) READONLY SHOWIF toShowGenDayMonth(s) staticCaption, number
         PROPERTIES      SHOWIF toShowGenDayMonth(s) scheduleOrderTimeIn(s,dow) ON CHANGE changeScheduleOrderTimeIn(s,dow)    
-        ORDER BY number(dow)
+        ORDER number(dow)
         OBJECTS m=Month GRID
         PROPERTIES(m) READONLY staticCaption SHOWIF toShowMonths(s)
         PROPERTIES(s, m) inScheduleOrder SHOWIF toShowMonths(s)
@@ -512,7 +512,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
         PROPERTIES(s) allStocks TODRAW a BACKGROUND backgroundAllStocks(s)
         PROPERTIES(s, sg) in BACKGROUND background(s, sg)
-        ORDER BY sgTreeName
+        ORDER sgTreeName
         FILTERS stringEqualsAll(a)
         FILTERS count###customerFilter##Stock(sg)
     
@@ -533,7 +533,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                         nameCustomer, nameCustomerStock,
                         nameOperation
         PROPERTIES (sd) createScheduleUser, deletesd=DELETE GRID
-        ORDER BY dateSupply(sd)
+        ORDER dateSupply(sd)
         PROPERTIES  TODRAW sd create(s), reCreate(s)
 
         PROPERTIES(sd) NEW 
@@ -673,7 +673,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 	                   
 	            EXEC overCopy(scheduleOrder, o);
 	
-	            SHOW scheduleOrder OBJECTS s = o MANAGESESSION DOCKED;
+	            SHOW scheduleOrder OBJECTS s = o DOCKED;
 	        }
 	    }
 } TOOLBAR;
@@ -693,10 +693,10 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 	            supplier(s) <- supplier;
 	            customer(s) <- customer;
 	
-	            SHOW scheduleOrder OBJECTS s = s MANAGESESSION DOCKED;
+	            SHOW scheduleOrder OBJECTS s = s DOCKED;
 	        }
 	    }
-} IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
 
     addScheduleOrderSupplierCustomer(LegalEntity supplier, LegalEntity customer) += { addScheduleOrderSupplierCustomer(supplier, customer); }
 
@@ -732,7 +732,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 //        FILTERGROUP openFilter
 //            FILTER 'Не аннулированные' 'F6' isOpenedScheduleOrderDetail(sd)  
                     
-        ORDER BY dateSupply(sd)
+        ORDER dateSupply(sd)
 
         FILTERS supplier(sd) == supplier() OR (sd IS ScheduleOrderDetail AND NOT supplier()),
                 supplierStock(sd) == supplierStock() OR (sd IS ScheduleOrderDetail AND NOT supplierStock()),
@@ -771,7 +771,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         PROPERTIES (dd) READONLY quantity, price, sum,
                        numberVAT, valueVAT, VATSum, invoiceSum,
                        nameCustomerStock, shipmentDate, shipmentTime
-        ORDER BY index(dd)
+        ORDER index(dd)
 
         FILTERS order(dd) == o                  
                           
@@ -824,7 +824,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         FILTERGROUP openFilter
             FILTER 'Не аннулированные' isOpened(sd) 'F6' DEFAULT  
             
-        ORDER BY dateSupply(sd)
+        ORDER dateSupply(sd)
 
         FILTERS supplier(sd) == supplier() OR (sd IS ScheduleOrderDetail AND NOT supplier()),
                 supplierStock(sd) == supplierStock() OR (sd IS ScheduleOrderDetail AND NOT supplierStock()),
@@ -989,7 +989,7 @@ META defineScheduleOrderDashboard(sign, stockFilter)
         PROPERTIES(s,d) READONLY countRemaining
         PROPERTIES(s) NEWSESSION copy, EDIT 
         PROPERTIES(s) show
-        ORDER BY endDate(s)
+        ORDER endDate(s)
 
         FILTERS supplier(s) == supplier() OR (s IS ScheduleOrder AND NOT supplier()),
                 supplierStock(s) == supplierStock() OR (s IS ScheduleOrder AND NOT supplierStock()),
@@ -1004,7 +1004,7 @@ META defineScheduleOrderDashboard(sign, stockFilter)
                       nameCustomer, stocks, nameType     
         PROPERTIES(ss) NEWSESSION NEW, EDIT, DELETE               
         PROPERTIES(ss) show
-        ORDER BY startDate(ss)
+        ORDER startDate(ss)
               
         PROPERTIES (ss) READONLY PANEL createdTime, createdNameUser, createdHostnameComputer
               

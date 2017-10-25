@@ -443,7 +443,7 @@ post 'Смешанная'(Receipt receipt) = {
             DELETE Payment p WHERE receipt(p) == receipt;
         }
     } 
-} EDITKEY 'F9' IN receiptAction;
+} CHANGEKEY 'F9' IN receiptAction;
 
 postCard 'Карточкой'(Receipt receipt) = {
     IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
@@ -474,7 +474,7 @@ postCard 'Карточкой'(Receipt receipt) = {
         }
     }
         
-} EDITKEY 'F10' CONFIRM IN receiptAction;
+} CHANGEKEY 'F10' CONFIRM IN receiptAction;
 
 postCash 'Наличными'(Receipt receipt) = {
     IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
@@ -506,7 +506,7 @@ postCash 'Наличными'(Receipt receipt) = {
         IF NOT printed() THEN
             DELETE Payment p WHERE receipt(p) == receipt;
     }  
-} EDITKEY 'F11' IN receiptAction;
+} CHANGEKEY 'F11' IN receiptAction;
 
 //Оплата бонусами
 
@@ -576,7 +576,7 @@ postBonus 'Бонусами'(Receipt receipt) = {
             overPostBonus(receipt);        
         }
     }
-} EDITKEY 'F8' IN receiptAction;
+} CHANGEKEY 'F8' IN receiptAction;
 
 resetBoard 'Сбросить текст на дисплее' = ABSTRACT LIST(Receipt);
 
@@ -587,7 +587,7 @@ cancel 'Обнулить'(Receipt receipt) = {
         createCurrentReceipt();
     }
     fiscalCancel(receipt);
-} EDITKEY 'shift F11' CONFIRM IN receiptAction;
+} CHANGEKEY 'shift F11' CONFIRM IN receiptAction;
 
 // Операции по добавлению строк в чек
 
@@ -600,7 +600,7 @@ FORM chooseBatchReceipt 'Выбор партии'
     PROPERTIES(bt) READONLY dateTime, documentNameSku, name
     PROPERTIES(bt, st) READONLY prevCurrentBalance
     PROPERTIES(bt, d) READONLY currentPOSPrice
-    ORDER BY dateTime(bt) DESC
+    ORDER dateTime(bt) DESC
     FILTERS sku(bt) == sku(d),
             currentPOSPrice(bt, d)
     FILTERGROUP balance
@@ -718,7 +718,7 @@ FORM searchSkuSaleReceipt 'Поиск SKU'
 
     TREE skuTree sk = SkuGroup PARENT parent
     PROPERTIES READONLY skuTreeName = name(sk, st)
-    ORDER BY skuTreeName
+    ORDER skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS           s = Sku GRID
@@ -728,7 +728,7 @@ FORM searchSkuSaleReceipt 'Поиск SKU'
     PROPERTIES        READONLY idBarcode(s)
     FILTERS           isParent(sk, s),
                       name(s)
-    ORDER BY          name(s)
+    ORDER          name(s)
 
     FILTERGROUP filters
         FILTER 'Доступные для продажи' filterSearchSale(s, st, r) 'F10' DEFAULT
@@ -766,7 +766,7 @@ searchSkuSale 'Поиск'(Receipt receipt) = {
     DIALOG searchSkuSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt, s INPUT DO {
         createSaleDetail[Receipt,Sku,STRING[15]](receipt, s, idBarcode[Sku](s));
     }
-} EDITKEY 'F3' IN receiptSaleAction;
+} CHANGEKEY 'F3' IN receiptSaleAction;
 
 // Поиск подбором Batch
 FORM searchBatchSaleReceipt 'Поиск партии'
@@ -775,7 +775,7 @@ FORM searchBatchSaleReceipt 'Поиск партии'
 
     TREE skuTree sk = SkuGroup PARENT parent
     PROPERTIES READONLY skuTreeName = name(sk, st)
-    ORDER BY skuTreeName
+    ORDER skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS           b = Batch GRID
@@ -786,7 +786,7 @@ FORM searchBatchSaleReceipt 'Поиск партии'
         
     PROPERTIES        READONLY idBarcodeSku(b), name(b)
     FILTERS           isParent(sk, sku(b))
-    ORDER BY          documentNameSku(b)
+    ORDER          documentNameSku(b)
 
     FILTERGROUP filters
         FILTER 'Партии с остатком' prevCurrentBalance(b, st) 'F10' DEFAULT
@@ -820,7 +820,7 @@ searchBatchSale 'Поиск'(Receipt receipt) = {
     DIALOG searchBatchSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt, b INPUT DO {
         createSaleDetail[Receipt,Batch,STRING[15]](receipt, b, idBarcodeSku[Batch](b));
     }
-} EDITKEY 'F3' IN receiptSaleAction;
+} CHANGEKEY 'F3' IN receiptSaleAction;
 
 
 // Возвраты
@@ -957,7 +957,7 @@ scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = {
         } ELSE
             MESSAGE CONCAT ' ', 'Не найден штрихкод', barcodeInput();
     }
-} EDITKEY 'F7' IN receiptReturnAction;
+} CHANGEKEY 'F7' IN receiptReturnAction;
 
 // Поиск
 
@@ -998,7 +998,7 @@ createReturn (Receipt receipt, Receipt receiptReturn, ReceiptSaleDetail d) = {
 searchSkuReturn 'Поиск'(Receipt receipt) = {
     DIALOG searchSkuReturnReceipt OBJECTS st = departmentStore(receipt), c = cashRegister(receipt), s INPUT, r INPUT DO
         createReturn(receipt, s, r);
-} EDITKEY 'F6' IN receiptReturnAction;
+} CHANGEKEY 'F6' IN receiptReturnAction;
 
 // Дисконтные карты
 
@@ -1039,11 +1039,11 @@ inputDiscountCardNumber 'Ввести номер'(Receipt receipt) = {
         } ELSE
             MESSAGE 'Дисконтная карта с такой серией и номером не найдена';
     }
-} IN receiptDiscount EDITKEY 'F5';
+} IN receiptDiscount CHANGEKEY 'F5';
 
 clearDiscountCard 'Сбросить'(Receipt receipt) = {
-    ASSIGN discountCard(receipt) <- NULL;
-} IN receiptDiscount EDITKEY 'shift F5';
+    discountCard(receipt) <- NULL;
+} IN receiptDiscount CHANGEKEY 'shift F5';
 
 // Операции с Z-отчетами
 
@@ -1223,7 +1223,7 @@ FORM POS
     PROPERTIES(d) SHOWIF currentZReport() READONLY PANEL BACKGROUND background(r, d) 
                         idBarcodePanel = idBarcode,
                         nameSkuPanel = nameSku,
-                        quantityPanel = quantity EDITABLE EVENTID 'SCALES',
+                        quantityPanel = quantity CHANGEABLE EVENTID 'SCALES',
                         shortNameUOMSkuPanel = shortNameUOMSku,
                         pricePanel = price,
                         sumPanel = sum
@@ -1265,20 +1265,20 @@ DESIGN POS {
         type = CONTAINERH;
         alignment = STRETCH;
 
-        MOVE GROUP(r,receiptSaleAction) {
+        MOVE GROUP(receiptSaleAction,r) {
             type = CONTAINERV;
             alignment = STRETCH;
             MOVE PROPERTY(searchSkuSale(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22';}
             MOVE PROPERTY(searchBatchSale(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
             MOVE PROPERTY(barcodeSale) { caption = 'Ввести штрихкод'; panelCaptionAbove = TRUE; focusable = FALSE; font = 'bold 22'; editKey = 'F4'; }
         }
-        MOVE GROUP(r,receiptReturnAction) {
+        MOVE GROUP(receiptReturnAction,r) {
             type = CONTAINERV;
             alignment = STRETCH;
             MOVE PROPERTY(searchSkuReturn(r)) { fill = 1; focusable = FALSE; font = 'bold 22'; }
             MOVE PROPERTY(scanBarcodeReturn(r)) { fill = 1; focusable = FALSE; font = 'bold 22'; }
         }
-        MOVE GROUP(r,receiptDiscount) {
+        MOVE GROUP(receiptDiscount,r) {
             fill = 1;
             type = CONTAINERV;
             MOVE PROPERTY(nameLegalEntityDiscountCard(r)) { alignment = STRETCH; caption = 'Держатель'; focusable = FALSE; font = 'bold 22'; }
@@ -1418,7 +1418,7 @@ DESIGN POS {
         }
         NEW east {
             alignment = STRETCH;
-            MOVE GROUP(r,receiptAction) {
+            MOVE GROUP(receiptAction,r) {
                 type = CONTAINERV;
                 alignment = STRETCH;
                 MOVE PROPERTY(postBonus(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
@@ -1541,7 +1541,7 @@ EXTEND FORM operationCashRegister
     OBJECTS z = ZReport
     PROPERTIES(z) READONLY isPosted, number, date, time, nameDepartmentStore,
                            overNumberCashRegister, sumCash, sumReceiptDetail, basis
-    ORDER BY date(z), time(z)
+    ORDER date(z), time(z)
     FILTERS date(z) >= dFrom,
             date(z) <= dTo,
             cashRegister(z) == currentCashRegister()

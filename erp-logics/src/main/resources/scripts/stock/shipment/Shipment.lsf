@@ -267,7 +267,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         INPUT s = VARSTRING[15] DO
             addDetailBarcodeUserShipmentDetail(userShipment, processedBarcode(s), shipmentDimension(userShipment));
     };
-    addDetailInputBarcodeDimensionUserShipmentDetail 'Ввод штрихкода :' (userShipment) = DATA LOCAL VARSTRING[15] (UserShipment) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
+    addDetailInputBarcodeDimensionUserShipmentDetail 'Ввод штрихкода :' (userShipment) = DATA LOCAL VARSTRING[15] (UserShipment) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
                                                                             ON CHANGE { changeAddDetailInputBarcodeDimensionUserShipmentDetail(userShipment); }
 
 // --------------------------- Формы --------------------------------- //
@@ -291,7 +291,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                         nameSku BACKGROUND backgroundSku(d), shortNameUOMSku
         PROPERTIES (d) quantity, price, sum, manufactureDate, expiryDate,
                        NEW, deletesd=DELETE GRID
-        ORDER BY index(d)
+        ORDER index(d)
 
         PROPERTIES(s) TODRAW d fillDocument, addDetailDialogSkuStockUserShipmentDetail,
                                addDetailInputBarcodeDimensionUserShipmentDetail, deleteUserShipmentDetail
@@ -320,7 +320,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                                 fill = 1;
                                 type = CONTAINERV;
                                 
-                                MOVE GROUP(s,documentHeader) {
+                                MOVE GROUP(documentHeader,s) {
                                     type = CONTAINERV;
                                     NEW first {
                                         type = CONTAINERH;
@@ -357,7 +357,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                                     NEW headerMainParams {
                                         caption = 'Основные параметры';
                                         type = CONTAINERV;
-                                        MOVE GROUP(s,documentPrm) {
+                                        MOVE GROUP(documentPrm,s) {
                                             columns = 2;
                                         }
                                     }
@@ -379,7 +379,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                                 }
                             }
             
-                            MOVE GROUP(s,documentSum) {
+                            MOVE GROUP(documentSum,s) {
                                 columns = 1;
                             }
                         }
@@ -432,7 +432,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 	                }
 	            }
 	
-	            SHOW userShipment OBJECTS s = s MANAGESESSION DOCKED NOCANCEL;
+	            SHOW userShipment OBJECTS s = s DOCKED NOCANCEL;
 	        }
 	    }
 } TOOLBAR;
@@ -520,7 +520,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         OBJECTS d = ShipmentDetail
         PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
         PROPERTIES (d) READONLY quantity, price, sum, manufactureDate, expiryDate
-        ORDER BY index(d)
+        ORDER index(d)
         FILTERS shipment(d) == s
         FILTERS filterDateFrom(s), 
                 filterDateTo(s),
@@ -574,8 +574,8 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                 NEW documentHistory {
                     caption = 'История';
 
-                    MOVE GROUP(s,created);
-                    MOVE GROUP(s,posted);
+                    MOVE GROUP(created,s);
+                    MOVE GROUP(posted,s);
                 }
                 NEW printTab {
                     caption = 'Печатные формы';
@@ -598,7 +598,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @extendFormEditable(shipments);
     @defineFilterIsOpened (shipment, shipments, s);
     @defineDocumentLogForm(shipments, s);
-    edit(UserShipmentDetail d) += { DIALOG userShipment OBJECTS s = userShipment(d), d = d AUTOX DOCKED; }
+    edit(UserShipmentDetail d) += { DIALOG userShipment OBJECTS s = userShipment(d), d = d DOCKED; }
     
     show 'Просмотреть' = ABSTRACT LIST  (ShipmentDetail) TOOLBAR;
     show(UserShipmentDetail d) = {

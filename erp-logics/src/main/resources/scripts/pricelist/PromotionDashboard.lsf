@@ -73,12 +73,12 @@ EXTEND FORM promotionDashboard
 
     TREE cskg cskg = SkuGroup PARENT parent
     PROPERTIES READONLY order(cskg), cskgName = name(cskg)
-    ORDER BY order(cskg), cskgName
+    ORDER order(cskg), cskgName
     FILTERGROUP inactive FILTER 'Активные' active(cskg) 'F5' DEFAULT
 
     OBJECTS csk = PriceListDetail
     PROPERTIES(csk) READONLY nameSku, idBarcodeSku, fromDateTime, toDateTime, namePromotion
-    ORDER BY nameSku(csk), fromDateTime(csk)
+    ORDER nameSku(csk), fromDateTime(csk)
     FILTERS isParent(cskg, sku(csk)),
             fromDate(csk) <= toDate(dt) AND NOT (toDate(csk) < toDate(dt)),
             in(csk,pt) AND price(csk,pt),
@@ -138,10 +138,10 @@ addUserPriceList 'Добавить'(PriceListType type, DATETIME dateTime, Price
 	        in[UserPriceList,DataPriceListType](p, type) <- TRUE;
 	        show[PriceList,PriceListType](p, type) <- TRUE;
 	        overAdd(p); 
-	        SHOW userPriceList OBJECTS p = p MANAGESESSION DOCKED NOCANCEL;
+	        SHOW userPriceList OBJECTS p = p DOCKED NOCANCEL;
 	    }
 	}
-} TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+} TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
 
 EXTEND FORM promotionDashboard
     OBJECTS p = UserPriceList
@@ -150,7 +150,7 @@ EXTEND FORM promotionDashboard
                            nameCurrency, nameCompany, priceListTypes, stocks,
                            note
     PROPERTIES(p) NEWSESSION EDIT, DELETE
-    ORDER BY fromDate(p), fromTime(p)
+    ORDER fromDate(p), fromTime(p)
     FILTERS in(p, pt),
             operation(p) ==o
     PROPERTIES(pt, dt, o) addUserPriceList TODRAW p       
@@ -166,7 +166,7 @@ EXTEND FORM promotionDashboard
                            shortNameUOMSku, nameBatch, nameCompany
     PROPERTIES(d) READONLY AFTER nameSku(d) originalIdBarcodeSku SHOWIF showOriginalIdBarcodeSku[PriceList](p), originalNameSku SHOWIF showOriginalNameSku[PriceList](p)
     
-    ORDER BY index(d)
+    ORDER index(d)
     
     OBJECTS ts = Stock
     PROPERTIES(ts) READONLY name

@@ -200,7 +200,7 @@ FORM orderSkuLedgerStocksNotDate 'Резерв товара'
     PROPERTIES(s) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description, nameStock,
                   toShipQuantity, quantity
     PROPERTIES(s) NEWSESSION EDIT
-    ORDER BY statusReserve(s), dateTime(s)
+    ORDER statusReserve(s), dateTime(s)
     FILTERS sku(s)==sk
 
     FILTERS isPosted(s) AND isOpened(s)
@@ -235,7 +235,7 @@ FORM orderSkuLedgerNotDate 'Резерв товара по складу'
     PROPERTIES(s) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                   toShipQuantity, quantity
     PROPERTIES(s) NEWSESSION EDIT
-    ORDER BY statusReserve(s), dateTime(s)
+    ORDER statusReserve(s), dateTime(s)
     FILTERS stock(s)==st,
             sku(s)==sk
 
@@ -265,12 +265,12 @@ DESIGN orderSkuLedgerNotDate {
 META defineReserveSku(detail, stockProp)
     showReserveSkuStock 'Показать резерв товара по складу' (###detail detail) = {
         FOR sk == sku(detail) AND st == stockProp(detail) DO
-            NEWSESSION SHOW orderSkuLedgerNotDate OBJECTS sk = sk, st = st AUTOX; } 
+            NEWSESSION SHOW orderSkuLedgerNotDate OBJECTS sk = sk, st = st; } 
     SHORTCUT nameSku[###detail];
     
     showReserveSku 'Показать резерв товара' (###detail detail) = {
         FOR sk == sku(detail) DO
-            NEWSESSION SHOW orderSkuLedgerStocksNotDate OBJECTS sk = sk AUTOX; } 
+            NEWSESSION SHOW orderSkuLedgerStocksNotDate OBJECTS sk = sk; } 
     SHORTCUT nameSku[###detail];
 END
 META defineReserveSku(detail)
@@ -285,9 +285,9 @@ META defineReserveSku(detail)
     SHORTCUT nameSku[###detail];
 END
     
-showReserveSku 'Показать резерв' (Sku sku) = { NEWSESSION SHOW orderSkuLedgerStocksNotDate OBJECTS sk = sku AUTOX; }  SHORTCUT name[Sku];
+showReserveSku 'Показать резерв' (Sku sku) = { NEWSESSION SHOW orderSkuLedgerStocksNotDate OBJECTS sk = sku; }  SHORTCUT name[Sku];
 
-showReserveSku 'Показать резерв товара по складу' (Sku sku, Stock stock) = { NEWSESSION SHOW orderSkuLedgerNotDate OBJECTS sk = sku, st = stock AUTOX; }
+showReserveSku 'Показать резерв товара по складу' (Sku sku, Stock stock) = { NEWSESSION SHOW orderSkuLedgerNotDate OBJECTS sk = sku, st = stock; }
 showBalanceReserveSku(Sku sku, Stock stock) += { showReserveSku(sku, stock); } 
   
 FORM orderSkuLedger 'Резерв по позициям на дату'
@@ -307,7 +307,7 @@ FORM orderSkuLedger 'Резерв по позициям на дату'
                   dateTime, nameContact, nameContactStock, description,
                   toShipQuantity, quantity
     PROPERTIES(s) NEWSESSION EDIT
-    ORDER BY statusReserve(s)
+    ORDER statusReserve(s)
     FILTERS stock(s)==st,
             sku(s)==sk
 
@@ -352,7 +352,7 @@ FORM orderBatchLedgerNotDate 'Резерв по партиям'
                   dateTime, nameContact, nameContactStock, description,
                   toShipQuantity, quantity
     PROPERTIES(s) NEWSESSION EDIT
-    ORDER BY statusReserve(s), dateTime(s)
+    ORDER statusReserve(s), dateTime(s)
     FILTERS stock(s)==st,
             batch(s)==bt
 
@@ -395,7 +395,7 @@ FORM orderBatchLedger 'Резерв по партиям'
                   dateTime, nameContact, nameContactStock, description,
                   toShipQuantity, quantity
     PROPERTIES(s) NEWSESSION EDIT
-    ORDER BY statusReserve(s)
+    ORDER statusReserve(s)
     FILTERS stock(s)==st,
             batch(s)==bt
 
@@ -688,7 +688,7 @@ META extendFormDocumentSkuOrderLedgerOver(object, form, concrete, stockProp)
                 NEWSESSION SHOW orderSkuLedger OBJECTS t = t, st = st, sk = sku ;
         } ELSE {
             FOR st == stockProp(object) DO
-                NEWSESSION SHOW orderSkuLedgerNotDate OBJECTS st = st, sk = sku AUTOX;
+                NEWSESSION SHOW orderSkuLedgerNotDate OBJECTS st = st, sk = sku;
         }
     }     
     @defineReserveSku(object###Detail, stockProp);     

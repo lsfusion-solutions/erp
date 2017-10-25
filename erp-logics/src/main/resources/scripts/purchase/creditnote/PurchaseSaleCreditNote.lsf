@@ -134,7 +134,7 @@ dateFromReturnContractSku 'Дата договора' (UserCreditNote o) = dateF
 
 descriptionReturnContractSku 'Описание договора' (UserCreditNote o)= CONCAT ' ', seriesNumberReturnContractSku(o), ' от ' + dateFromReturnContractSku(o);
 
-replace(ContractSku c, ContractSku o) += {ASSIGN contractSku(UserCreditNote object) <- o WHERE contractSku(object) == c;}
+replace(ContractSku c, ContractSku o) += {contractSku(UserCreditNote object) <- o WHERE contractSku(object) == c;}
 
 isCommissionReturn 'Продажа на комиссию' = DATA BOOLEAN (UserCreditNote) IN documentPrm;
 isCommissionReturn(UserCreditNote o) <- type(returnContractSku(o)) == ContractSkuType.commission
@@ -203,7 +203,7 @@ relationSale 'Связь' (sale) = GROUP SUM quantityCreditNoteDetail (CreditNot
 EXTEND FORM Sale.userCreditNote
     PROPERTIES(c) fillCreditNote, purchaseCreditNotes READONLY
 ;
-DESIGN Sale.userCreditNote { headerRow12{ type = CONTAINERH; MOVE GROUP(c,creditNote) { type = CONTAINERV; }}}
+DESIGN Sale.userCreditNote { headerRow12{ type = CONTAINERH; MOVE GROUP(creditNote,c) { type = CONTAINERV; }}}
 
 
 
@@ -322,7 +322,7 @@ moveUserCreditNote 'Акт расхождения (продажа)'(CreditNote c
 	            EXEC overFillCreditNote(d,detail);
 	        }
 	
-	    SHOW Sale.userCreditNote OBJECTS c = i MANAGESESSION DOCKED NOCANCEL;
+	    SHOW Sale.userCreditNote OBJECTS c = i DOCKED NOCANCEL;
 	    }
 	}
 } TOOLBAR;

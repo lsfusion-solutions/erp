@@ -23,7 +23,7 @@ order 'Порядок' = DATA INTEGER (StatusInternetOrder);
 FORM statusInternetOrder 'Статус'
     OBJECTS o = StatusInternetOrder
     PROPERTIES(o) READONLY name, order
-    ORDER BY order(o)
+    ORDER order(o)
     
     LIST StatusInternetOrder OBJECT o 
 ;   
@@ -307,7 +307,7 @@ FORM internetOrder 'Интернет-заказ'
                    
     PROPERTIES (d)  NEW, deleteod = DELETE
                    
-    ORDER BY index(d)
+    ORDER index(d)
 
     PROPERTIES(o) TODRAW d deleteInternetOrderDetail
     FILTERS internetOrder(d) == o
@@ -337,7 +337,7 @@ DESIGN internetOrder {
                 fill = 3;
                 type = CONTAINERV;
 
-                MOVE GROUP(o,documentHeader) {
+                MOVE GROUP(documentHeader,o) {
                     type = CONTAINERV;
                     NEW first {
                         type = CONTAINERH;
@@ -386,7 +386,7 @@ DESIGN internetOrder {
             NEW rightContainer{
                 fill = 1;
                 type = CONTAINERV;
-                MOVE GROUP(o,documentSum) {
+                MOVE GROUP(documentSum,o) {
                     columns = 1;
                 }                
                 NEW payment {
@@ -454,12 +454,12 @@ copy 'Копировать'(InternetOrderDetail detail) = {
         discountPrice(d) <- discountPrice(detail);
         Sale.supplierStock[InternetOrderDetail](d) <- Sale.supplierStock[InternetOrderDetail](detail);
     }
-} EDITKEY 'F5' TOOLBAR;
+} CHANGEKEY 'F5' TOOLBAR;
 
 EXTEND FORM internetOrder PROPERTIES(d) copy ;
 DESIGN internetOrder { PROPERTY(copy(d)) { focusable = FALSE; } }
 
-edit (InternetOrderDetail d) += { DIALOG internetOrder OBJECTS o = internetOrder(d), d = d AUTOX DOCKED; }
+edit (InternetOrderDetail d) += { DIALOG internetOrder OBJECTS o = internetOrder(d), d = d DOCKED; }
 
 overCopy = ABSTRACT LIST (InternetOrder, InternetOrder);
 copy 'Копировать'(InternetOrder internetOrder) = {
@@ -478,7 +478,7 @@ copy 'Копировать'(InternetOrder internetOrder) = {
 	            }
 	        }
 	
-	        SHOW internetOrder OBJECTS o = o MANAGESESSION DOCKED;
+	        SHOW internetOrder OBJECTS o = o DOCKED;
 	    }
 	}
 } TOOLBAR;
@@ -513,7 +513,7 @@ FORM internetOrders 'Интернет-заказы'
     PROPERTIES (d) READONLY BACKGROUND background(d) quantity, price, discountPrice BACKGROUND backgroundDiscount(o), 
                                                      discountPercent  BACKGROUND backgroundDiscount(o), sum, 
                                                      discountSum BACKGROUND backgroundDiscount(o), nameSupplierStock
-    ORDER BY index(d)
+    ORDER index(d)
 
     FILTERS internetOrder(d) == o                          
     
@@ -543,8 +543,8 @@ DESIGN internetOrders {
                 caption = 'История';
                 type = CONTAINERV;
 
-                MOVE GROUP(o,created);
-                MOVE GROUP(o,posted);
+                MOVE GROUP(created,o);
+                MOVE GROUP(posted,o);
             }
             NEW printTab {
                 caption = 'Печатные формы';
@@ -660,7 +660,7 @@ FORM  internetOrderPrint 'Интернет-заказ'
     PROPERTIES (d) READONLY  index, idBarcodeSku, idSku, nameSku, shortNameUOMSku
     PROPERTIES (d) READONLY quantity, price, discountPrice, discountPercent, sum, discountSum, diffDiscountSum, fullNameSupplierStock, nameSupplierStock, addressSupplierStock
                 
-    ORDER BY index(d)
+    ORDER index(d)
 
     FILTERS internetOrder(d) == o,
             NOT skip(d)   
@@ -737,7 +737,7 @@ EXTEND FORM internetOrder
 
     TREE skuTree sk = SkuGroup PARENT parent
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-    ORDER BY order(sk), skuTreeName
+    ORDER order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS           sts=(ts=Stock, ks=Sku) GRID
@@ -749,7 +749,7 @@ EXTEND FORM internetOrder
                       ts == supplierStock(o)
 
     FILTERS           name(ks)
-    ORDER BY          name(ks)
+    ORDER          name(ks)
 
     PROPERTIES        quantitySupplier(ks, o, ts) ON CHANGE changeQuantity(ks, o, ts) 
                             BACKGROUND backgroundQuantity(ks, o, ts)

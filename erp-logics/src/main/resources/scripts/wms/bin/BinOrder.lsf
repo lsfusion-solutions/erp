@@ -125,7 +125,7 @@ FORM userBinOrder 'Заказ на перемещение по ячейкам (�
     PROPERTIES(o) TODRAW d fillDocument, addDetailDialogSkuStockUserBinOrderDetail,
                            addDetailInputBarcodeUserBinOrderDetail, deleteUserBinOrderDetail
     FILTERS binOrder(d)==o
-    ORDER BY index(d)
+    ORDER index(d)
     EDIT UserBinOrder OBJECT o
     
     EVENTS
@@ -149,7 +149,7 @@ DESIGN userBinOrder {
                         fill = 1;
                         type = CONTAINERV;
     
-                        MOVE GROUP(o,documentHeader) {
+                        MOVE GROUP(documentHeader,o) {
                             type = CONTAINERV;
                             NEW first {
                                 type = CONTAINERH;
@@ -175,7 +175,7 @@ DESIGN userBinOrder {
                             NEW headerMainParams {
                                 caption = 'Основные параметры';
                                 type = CONTAINERV;
-                                MOVE GROUP(o,documentPrm) {
+                                MOVE GROUP(documentPrm,o) {
                                     columns = 3;
                                 }
                             }
@@ -187,7 +187,7 @@ DESIGN userBinOrder {
                         }  
                     }
     
-                    MOVE GROUP(o,documentSum) {
+                    MOVE GROUP(documentSum,o) {
                         columns = 1;
                     }
                 }
@@ -245,7 +245,7 @@ copy 'Копировать'(BinOrder order) = {
 	            }
 	        }
 	
-	        SHOW userBinOrder OBJECTS o = o MANAGESESSION DOCKED;
+	        SHOW userBinOrder OBJECTS o = o DOCKED;
 	    }
 	}
 } TOOLBAR;
@@ -264,7 +264,7 @@ copy 'Копировать'(UserBinOrderDetail detail) = {
         
         EXEC overCopy(d, detail);                              
     }
-} EDITKEY 'F5' TOOLBAR;
+} CHANGEKEY 'F5' TOOLBAR;
 
 filterBinOrderDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterDateFrom (BinOrder o) = date(o) >= filterBinOrderDateFrom() OR (o IS BinOrder AND NOT filterBinOrderDateFrom());      
@@ -307,7 +307,7 @@ FORM binOrders  'Заказы на перемещение по ячейкам'
     PROPERTIES     NEWSESSION deleteo=DELETE(o) SHOWIF overShowDelete(o) //isUserOpenedOrder(o)
             
     FILTERS binOrder(d)==o
-    ORDER BY index(d)
+    ORDER index(d)
     LIST BinOrder OBJECT o
 ;
 
@@ -353,8 +353,8 @@ DESIGN binOrders 'Заказы на перемещение по ячейкам' 
                 caption = 'История';
                 type = CONTAINERV;
 
-                MOVE GROUP(o,created);
-                MOVE GROUP(o,posted);
+                MOVE GROUP(created,o);
+                MOVE GROUP(posted,o);
             }
             NEW printTab {
                 caption = 'Печатные формы';

@@ -130,7 +130,7 @@ FORM statisticGroup 'Статистическая группа'
     EDIT StatisticGroup OBJECT g
 ;
 DESIGN statisticGroup {
-        GROUP(g,) {
+        GROUP(,g) {
             columns = 3;
         }
     MOVE TOOLBARBOX;
@@ -141,12 +141,12 @@ add 'Добавить'(StatisticGroup group, StatisticGroupType type) = {
 	    NEW g = StatisticGroup {
 	        parent(g) <- group;
 	        groupType(g) <- type;
-	        SHOW statisticGroup OBJECTS g = g MANAGESESSION DOCKED NOCANCEL;
+	        SHOW statisticGroup OBJECTS g = g DOCKED NOCANCEL;
 	    }
 	}
-} TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+} TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
 
-add 'Добавить' (StatisticGroup group)= { add(group, groupType(group)); } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+add 'Добавить' (StatisticGroup group)= { add(group, groupType(group)); } TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
 
 TABLE statisticGroupTypeSku (StatisticGroupType, Sku);
 statistic = ABSTRACT StatisticGroup (StatisticGroupType, Sku) MATERIALIZED;
@@ -174,7 +174,7 @@ FORM statisticGroups 'Статистические группы'
     PROPERTIES READONLY name(g), sid(g)
     PROPERTIES(g,c)       add SHOWIF countStatisticGroups(c)
     PROPERTIES(g) NEWSESSION EDIT, NEW SHOWIF showAdd(c)
-    ORDER BY sid(g)
+    ORDER sid(g)
 
     OBJECTS cg=StatisticGroup
     PROPERTIES(cg)     READONLYIF isReadonly() canonicalNumberName, sid, nameUOM, nameReportUOM,
@@ -229,13 +229,13 @@ FORM statisticGroupDialog 'Статистические группы'
     PROPERTIES(g) READONLY name, nameUOM, sid, canonicalNumber
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE 
     FILTERS groupType(g) == c
-    ORDER BY canonicalNumber(g)
+    ORDER canonicalNumber(g)
     
     OBJECTS s = StatisticGroup
     PROPERTIES(s) READONLY name, nameUOM, sid, canonicalNumber 
     PROPERTIES(s) NEWSESSION add = NEW, EDIT, DELETE 
     FILTERS isParent(s,g)
-    ORDER BY canonicalNumber(s)
+    ORDER canonicalNumber(s)
     
     LIST StatisticGroup OBJECT s
 ;
@@ -739,26 +739,26 @@ showPrint (Stock st) = st IS Stock AND NOT skipPrint(st);
 
 loadDefaultStatisticGroupType 'Добавить значение классификатора стат.групп'(VARISTRING[100] iname, VARSTRING[20] isid, STRING[3] isidCountry) = {
     NEW t = StatisticGroupType {
-        ASSIGN name(t) <- iname;
-        ASSIGN id (t) <- isid;
-        ASSIGN country(t) <- country(isidCountry);
+        name(t) <- iname;
+        id (t) <- isid;
+        country(t) <- country(isidCountry);
     }
 }
 
 loadDefaultStatistic 'Добавить значение статистические группы'(VARSTRING[20] sidType, STRING[12] sidParent, VARISTRING[250] iname, STRING[12] isid, GroupStatic groupStatic, value) = {
     NEW g = StatisticGroup {
-        ASSIGN groupType(g) <- statisticGroupTypeId(sidType);
-        ASSIGN parent(g) <- groupIdTypeIdGroup(sidType, sidParent);
+        groupType(g) <- statisticGroupTypeId(sidType);
+        parent(g) <- groupIdTypeIdGroup(sidType, sidParent);
 
-        ASSIGN name(g) <- iname;
-        ASSIGN sid(g) <- isid;
-        ASSIGN unitMeasure(g) <- groupStatic;
-        ASSIGN conversionFactor(g) <- NUMERIC[14,5](value);
+        name(g) <- iname;
+        sid(g) <- isid;
+        unitMeasure(g) <- groupStatic;
+        conversionFactor(g) <- NUMERIC[14,5](value);
     }
 }
 
 loadDefaultResidentCountry 'Добавить отеч. производ'(STRING[3] idCountry, STRING[3] idCountry2) = {
-    ASSIGN resident(Country a,Country b) <- TRUE WHERE a == country(idCountry) AND b == country(idCountry2);
+    resident(Country a,Country b) <- TRUE WHERE a == country(idCountry) AND b == country(idCountry2);
 }
 
 loadDefaultStatisticGroups 'Загрузить стандартные статистические группы и классификатор' () = ABSTRACT LIST ()  IN loadDefault;
@@ -1146,7 +1146,7 @@ FORM statisticalReportStockSelectPrint 'Статистический отчет'
     PROPERTIES(g, dTo) READONLY valueByTo, valueResidentByTo,
                                    sumBalanceABy, sumResidentBalanceABy
     PROPERTIES READONLY canonicalOrderSort(g), level(g)
-    ORDER BY canonicalOrderSort(g)                                                                    
+    ORDER canonicalOrderSort(g)                                                                    
    
     FILTERS groupType(g) == c
                                   
@@ -1180,7 +1180,7 @@ FORM statisticalReportStockSelect 'Статистический отчет'
  
     OBJECTS s=Stock 
     PROPERTIES(s) inStat, name READONLY, nameRegion READONLY
-    ORDER BY name(s)
+    ORDER name(s)
     FILTERS s IS Stock AND NOT stg IS StockGroup OR isParent(stg, s)
  
     FILTERS countCompanyStock(stg), isCompany(s) 
@@ -1235,7 +1235,7 @@ DESIGN statisticalReportStockSelect {
 //    MOVE BOX(sk) {caption = 'Товары без групп';}
     NEW printContainer {
         type = CONTAINERH;
-        MOVE GROUP(s,print);
+        MOVE GROUP(print,s);
     }
     MOVE TOOLBARBOX;    
 }

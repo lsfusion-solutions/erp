@@ -339,7 +339,7 @@ FORM dialogBatchStockOrder 'Партии'
     PROPERTIES(bt, st, t) READONLY accountPriceA
     
     FILTERS skuLedger(bt, st) == sk
-    ORDER BY dateTime(bt)
+    ORDER dateTime(bt)
     
     FILTERGROUP batch
         FILTER 'Партии с остатком до операции' balanceB(bt, st, t) > 0 'F11'
@@ -595,7 +595,7 @@ FORM substitutesSku 'Замены'
     TREE skuTree sg = SkuGroup PARENT parent
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
     FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
-    ORDER BY order(sg)
+    ORDER order(sg)
     
     OBJECTS sk = Sku
     PROPERTIES(sk) READONLY name, idBarcode, shortNameUOM
@@ -606,7 +606,7 @@ FORM substitutesSku 'Замены'
     PROPERTIES() addSku TODRAW sk
     PROPERTIES(sk) EDIT NEWSESSION, copy
     FILTERS isParent(sg, sk)
-    ORDER BY name(sk)
+    ORDER name(sk)
 
     FILTERGROUP filter1
         FILTER 'Товары с остатком' currentBalanceSkuSubstitutes(sk) AND stockSubstitutesSku() 'F10' DEFAULT
@@ -1235,7 +1235,7 @@ DESIGN order {
             type = CONTAINERH;
 
             NEW headerRow1 {
-                MOVE GROUP(o,documentHeader) {
+                MOVE GROUP(documentHeader,o) {
                     type = CONTAINERH;
                     MOVE PROPERTY(isPosted(o)) { preferredCharWidth = 10; }
                     MOVE PROPERTY(nameNumerator(o));
@@ -1262,7 +1262,7 @@ DESIGN order {
                 }
                 NEW headerRow12 {
                     type = CONTAINERH;
-                    MOVE GROUP(o,documentPrm) {
+                    MOVE GROUP(documentPrm,o) {
                         type = CONTAINERH;
                     }
                     NEW timeRow {
@@ -1282,7 +1282,7 @@ DESIGN order {
                 } 
             }
 
-            MOVE GROUP(o,documentSum) {
+            MOVE GROUP(documentSum,o) {
                 columns = 1;
             }
         }
@@ -1551,8 +1551,8 @@ DESIGN orders {
             NEW documentHistory {
                 caption = 'История';
 
-                MOVE GROUP(o,created);
-                MOVE GROUP(o,posted);
+                MOVE GROUP(created,o);
+                MOVE GROUP(posted,o);
             }
             NEW printTab {
                 caption = 'Печатные формы';
@@ -1679,7 +1679,7 @@ printRequestSkus 'Требование на сырье' (Order order) = { PRINT 
 EXTEND FORM orders
     PROPERTIES(o)  printRequestSkus, printRequestSkusProduct
 ;
-DESIGN orders {printTab { MOVE GROUP(o,print) {align = LEADING;}}}
+DESIGN orders {printTab { MOVE GROUP(print,o) {align = LEADING;}}}
 //------------------------------------------ Опеределение операции для order ------------------------------------//
 
 operation = DATA Operation (Order) MATERIALIZED INDEXED;
@@ -1786,7 +1786,7 @@ copy 'Копировать'(Order order) = {
 	            multiplier(sku,o) <- multiplier(sku,order);
 	        }
 	        overCopy(o,order);
-	        SHOW order OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
+	        SHOW order OBJECTS o = o DOCKED NOCANCEL;
 	    }
 	}
 } TOOLBAR;
@@ -1796,7 +1796,7 @@ EXTEND FORM order
 ;
 
 DESIGN order{
-    GROUP(o,documentHeader){
+    GROUP(documentHeader,o){
         NEW header1 {
             type = CONTAINERH; 
             MOVE PROPERTY(isPosted(o));
@@ -1887,7 +1887,7 @@ EXTEND FORM order
 
     TREE skuTree g = SkuGroup PARENT parent
     PROPERTIES READONLY order(g), name(g)
-    ORDER BY order(g), name(g)
+    ORDER order(g), name(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
     FILTERGROUP product FILTER 'Готовые изделия' filterProduct(g) 'shift F5' DEFAULT
     
@@ -1899,7 +1899,7 @@ EXTEND FORM order
         FILTER 'Текущие' isActive(BOM(p)) 'F7'            
         FILTER 'Активные' isActive(BOM(p)) OR (fromDate(BOM(p)) > currentDate()) 'F8' DEFAULT
         
-    ORDER BY nameSku(p)
+    ORDER nameSku(p)
     
     FILTERS                isParent(g, sku(p)),
                            active(sku(p)),
@@ -1924,7 +1924,7 @@ DESIGN order{
     }
 }
 
-edit (ProductDetail d) += { DIALOG order OBJECTS o = order(d), pd = d AUTOX DOCKED; }
+edit (ProductDetail d) += { DIALOG order OBJECTS o = order(d), pd = d DOCKED; }
 
 show 'Просмотреть' (ProductDetail d) = {
 	NEWSESSION {
@@ -1965,7 +1965,7 @@ EXTEND FORM order
 
     TREE skuTree1 g1 = SkuGroup PARENT parent
     PROPERTIES READONLY order(g1), name(g1)
-    ORDER BY order(g1), name(g1)
+    ORDER order(g1), name(g1)
     FILTERGROUP inactive1 FILTER 'Активные' active(g1) 'F5' DEFAULT
     FILTERGROUP component FILTER 'Сырье' filterComponent(g1) 'shift F5' DEFAULT
 
@@ -1976,7 +1976,7 @@ EXTEND FORM order
     PROPERTIES(o,p1) bruttoQuantityBrutto ON CHANGE changeBruttoQuantityBrutto(p1,o)
     PROPERTIES(p1, o) prevCurrentBalance 
 
-    ORDER BY name(p1)
+    ORDER name(p1)
     
     FILTERS isParent(g1, p1),
             active(p1)    
@@ -2076,17 +2076,17 @@ SHORTCUT substituteNameSku[ComponentDetail];
 
 showBOM 'Показать спецификацию' (ProductDetail d) = {
     FOR b == BOM(d) AND p == product(d) DO
-        NEWSESSION SHOW BOM OBJECTS b = b, p = p AUTOX; } 
+        NEWSESSION SHOW BOM OBJECTS b = b, p = p; } 
 SHORTCUT nameProduct[ProductDetail];
 
 showBOM 'Показать спецификацию' (ComponentDetail d) = {
     FOR  b == BOM(d) AND c == component(d) DO
-        NEWSESSION SHOW BOM OBJECTS b = b, c = c AUTOX; } 
+        NEWSESSION SHOW BOM OBJECTS b = b, c = c; } 
 SHORTCUT nameComponent[ComponentDetail];
 
 showBOMName'Показать спецификацию' (ComponentDetail d) = {
     FOR b == BOM(d) DO
-        NEWSESSION SHOW BOM OBJECTS b = b AUTOX; } 
+        NEWSESSION SHOW BOM OBJECTS b = b; } 
 SHORTCUT fullNameBOM[ComponentDetail];
 
 @defineOperationChangesDocument(order, Order, preventChangesDocument, createdUser);

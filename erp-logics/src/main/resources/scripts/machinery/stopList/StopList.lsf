@@ -169,7 +169,7 @@ FORM stopList 'Запрет продаж по кассе'
     PROPERTIES(ts, sl)  in, succeeded 
 
     FILTERS isParent(sg, ts)
-    ORDER BY name(sg)                                        
+    ORDER name(sg)                                        
 
     OBJECTS d = StopListDetail
     PROPERTIES(d)   index,
@@ -184,12 +184,12 @@ FORM stopList 'Запрет продаж по кассе'
     
     TREE skuTree sk = SkuGroup PARENT parent
     PROPERTIES READONLY order(sk), name(sk)
-    ORDER BY order(sk), name(sk)
+    ORDER order(sk), name(sk)
 
     OBJECTS           ks=Sku 
     PROPERTIES        READONLY name(ks), idBarcode(ks), shortNameUOM(ks)
     PROPERTIES        addSku() TODRAW ks, EDIT(ks) NEWSESSION, copy(ks), count(ks,sl) ON CHANGE changeValue(ks,sl)
-    ORDER BY          name(ks) 
+    ORDER          name(ks) 
     FILTERS           isParent(sk, ks),
                       name(ks)
       
@@ -210,7 +210,7 @@ DESIGN stopList {
             NEW headerRow1 {
                 fill = 1;
                 type = CONTAINERV;
-                MOVE GROUP(sl,documentHeader) {
+                MOVE GROUP(documentHeader,sl) {
                     type = CONTAINERH;
                     MOVE PROPERTY(isPosted(sl)) { preferredCharWidth = 10; }
                     MOVE PROPERTY(nameNumerator(sl));
@@ -227,10 +227,10 @@ DESIGN stopList {
                     MOVE PROPERTY (toDate(sl));
                     MOVE PROPERTY (toTime(sl));   
                 }
-                MOVE GROUP(sl,documentPrm);
+                MOVE GROUP(documentPrm,sl);
             }
 
-            MOVE GROUP(sl,documentSum) {
+            MOVE GROUP(documentSum,sl) {
                 columns = 1;
             }
         }
@@ -318,8 +318,8 @@ DESIGN stopLists {
                 NEW documentHistory {
                     caption = 'История';
 
-                    MOVE GROUP(sl,created);
-                    MOVE GROUP(sl,posted);
+                    MOVE GROUP(created,sl);
+                    MOVE GROUP(posted,sl);
                 }
                 NEW errors {
                     caption = 'Ошибки';                    
@@ -374,7 +374,7 @@ createRequestStopList 'Включить в стоп-лист'()  = {
                     stopList(d) <- sl;
                     sku(d) <- sku;            
                 } 
-                 SHOW stopList OBJECTS sl = sl MANAGESESSION DOCKED;
+                 SHOW stopList OBJECTS sl = sl DOCKED;
             }
         }
         IF NOT notResetStopListSelectSku() THEN {
@@ -396,7 +396,7 @@ excludeRequestStopList 'Исключить из стоп-листа'()  = {
                     stopList(d) <- sl;
                     sku(d) <- sku;            
                 } 
-                 SHOW stopList OBJECTS sl = sl MANAGESESSION DOCKED;
+                 SHOW stopList OBJECTS sl = sl DOCKED;
             }
         }
         IF NOT notResetStopListSelectSku() THEN {

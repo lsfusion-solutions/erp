@@ -36,8 +36,8 @@ moveItemGroup 'Перенести отмеченные группы в теку�
 
     FOR in(ItemGroup i) DO{
         IF i != itemGroup THEN {
-            ASSIGN parent(i) <- itemGroup;
-            ASSIGN in(i) <- NULL;
+            parent(i) <- itemGroup;
+            in(i) <- NULL;
         } ELSE {
             MESSAGE 'Выделенная товарная группа не может совпадать с объединяемой';
         }
@@ -60,7 +60,7 @@ FORM itemGroups 'Товарные группы'
     PROPERTIES READONLYIF isReadonly() order(g), id(g) SHOWIF showIDs(), name(g), canonicalName (g)
     PROPERTIES(g) NEWSESSION NEW, EDIT, deleteg=DELETE 
     FILTERS inIFilterName(g) OR NOT filterNameItemGroup()
-    ORDER BY order(g), canonicalName(g)
+    ORDER order(g), canonicalName(g)
 ;
 
 DESIGN itemGroups {
@@ -72,12 +72,12 @@ DESIGN itemGroups {
 FORM dialogItemGroups 'Товарные группы'
     TREE treeGroups tg=ItemGroup PARENT parent
     PROPERTIES READONLY order(tg), id(tg) SHOWIF showIDs(), name(tg)
-    ORDER BY order(tg), name(tg)
+    ORDER order(tg), name(tg)
 
     OBJECTS g=ItemGroup
     PROPERTIES(g) NEWSESSION order READONLY, id SHOWIF showIDs() READONLY, name READONLY, canonicalName READONLY, DELETE 
     PROPERTIES(g) NEWSESSION NEW, EDIT
-    ORDER BY order(g), canonicalName(g)
+    ORDER order(g), canonicalName(g)
 
     FILTERS isParent(g, tg)
 
@@ -328,7 +328,7 @@ disallowEditing[Sku](Item sku) += disallowEditing(sku);
 
 edit(Item item) += {
     IF NOT disallowEditing(item) THEN {
-        DIALOG EDIT Item = item AUTOX DOCKED;
+        DIALOG EDIT Item = item DOCKED;
     } ELSE {
         MESSAGE 'Запрещено редактировать товар после обработки.';
     } 
@@ -356,7 +356,7 @@ FORM items 'Товары'
     TREE groupTree g=Group PARENT parent
     PROPERTIES READONLY order(g), id(g), name(g)
     FILTERS groupType(g) == gt, g IS Group AND NOT (g IS SkuGroup AND NOT g IS ItemGroup)
-    ORDER BY order(g), name(g)
+    ORDER order(g), name(g)
     FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F5' DEFAULT
     
     OBJECTS i=Item  
@@ -457,7 +457,7 @@ META defineItemAttribute (attribute, caption, group)
 
     setNullShow###attribute 'Снять признак для всех потомков'(ItemGroup itemGroup) = {
         FOR isParent (ItemGroup childGroup, itemGroup) DO {
-            ASSIGN userShow###attribute(childGroup) <- NULL;
+            userShow###attribute(childGroup) <- NULL;
         }
     } SHORTCUT userShow###attribute[ItemGroup] CONFIRM;
 END
@@ -495,11 +495,11 @@ FORM itemOptions 'Настройка атрибутов'
     TREE groups g=ItemGroup PARENT parent
     PROPERTIES (g) READONLY order, id SHOWIF showIDs(), name
     PROPERTIES (g) NEWSESSION EDIT
-    ORDER BY order(g), name(g)    
+    ORDER order(g), name(g)    
     
     TREE treeGroups tg=ItemGroup PARENT parent
     PROPERTIES (tg) READONLY order, id SHOWIF showIDs(), name
-    ORDER BY order(tg), name(tg)    
+    ORDER order(tg), name(tg)    
     
     OBJECTS ia1 = ItemAttribute
     PROPERTIES staticIA1= staticCaption(ia1)   
@@ -629,7 +629,7 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
         PROPERTIES in(object)
         PROPERTIES READONLY nameProp(object)
         PROPERTIES(object) NEWSESSION NEW, EDIT, delete###object =DELETE         
-        ORDER BY nameProp(object)
+        ORDER nameProp(object)
         PROPERTIES replace(object) TOOLBAR
         
         OBJECTS object##Item = Item
@@ -976,7 +976,7 @@ META defineItemFilterValue(object, captionProp, o)
         PROPERTIES READONLY order(g), name(g)
         PROPERTIES in(o,g) BACKGROUND backgroundWith(o,g)
         
-        ORDER BY order(g), name(g)
+        ORDER order(g), name(g)
         FILTERS active(g)
     ;
     DESIGN object {
@@ -1012,7 +1012,7 @@ META defineItemFilterValue(object, captionProp, o)
     
         OBJECTS t= ###object
         PROPERTIES(t) name READONLY
-        ORDER BY name(t)
+        ORDER name(t)
     ;
     DESIGN object##s###session { BOX { preferredSize = (600, 400); } }    
   
@@ -1035,7 +1035,7 @@ META defineItemFilterValue(object, captionProp, o)
             }
             SEEK object##s###session.t = (IF object##Name(localName()) THEN object##Name(localName()) ELSE loc());
         }
-    } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+    } TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
     
     EXTEND FORM object##s###session
         PROPERTIES NEWSESSION add###object(gg) TODRAW t, EDIT(t), deletet = DELETE(t) 
@@ -1071,7 +1071,7 @@ EXTEND FORM extractStringAttributeItem
     OBJECTS v = VARSTRING[100] GRID
     PROPERTIES(v) value = VALUE ON CHANGE changePossibleStringAttributeValue(v) 
     FILTERS possibleStringAttributeValue(v)
-    ORDER BY value
+    ORDER value
 ;
 
 DESIGN extractStringAttributeItem {
@@ -1307,7 +1307,7 @@ FORM brands 'Бренды'
     OBJECTS t=Brand
     PROPERTIES(t) NEWSESSION name READONLY, site READONLY, id READONLY SHOWIF showIDs(), deleteb=DELETE 
     PROPERTIES(t) NEWSESSION NEW, EDIT
-    ORDER BY name(t)
+    ORDER name(t)
     LIST Brand OBJECT t
 ;
 DESIGN brands { BOX { preferredSize = (600, 400); } }
@@ -1384,7 +1384,7 @@ FORM manufacturerDialog 'Производители товара'
     PROPERTIES(m) NEWSESSION name READONLY, id READONLY SHOWIF showIDs(), 
                   originalName, originalAddress, nameCountry, deleteManufacturer =DELETE 
     PROPERTIES(m) NEWSESSION NEW, EDIT
-    ORDER BY name(m)
+    ORDER name(m)
     LIST Manufacturer OBJECT m
 ;
 DESIGN manufacturerDialog { BOX { preferredSize = (600, 400); } }
@@ -1449,21 +1449,21 @@ EXTEND FORM items
 
 DESIGN item {
     itemPrimaryColumn1 {
-        MOVE GROUP(i,itemBase) {
+        MOVE GROUP(itemBase,i) {
             columns = 2;
             PROPERTY(composition(i)) {
                 minimumCharWidth = 20;
                 preferredCharWidth = 40;
             }
         }
-        MOVE GROUP(i,itemOriginal) {
+        MOVE GROUP(itemOriginal,i) {
             columns = 2;
         }
     }
 }
 DESIGN item {
     itemPrimaryColumn1 {
-        NEW regionPrm AFTER GROUP(i,itemBase) {
+        NEW regionPrm AFTER GROUP(itemBase,i) {
             type = COLUMNS;
             columns = 2;
             caption = 'Региональные свойства';
@@ -1497,7 +1497,7 @@ WHEN LOCAL (CHANGED(netWeight(Item sku)) OR (CHANGED(UOM(sku) AND grossWeight(UO
 
 DESIGN item {
     itemPrimaryColumn2 {
-        MOVE GROUP(i,itemSize) {
+        MOVE GROUP(itemSize,i) {
             columns = 2;
         }
     }
@@ -1550,7 +1550,7 @@ DESIGN item { itemHeader {MOVE PROPERTY(nameAttribute(i)); } }
 
 name(Item item) += nameAttribute(item);
 loadDefaultItemAttributes() += {
-    ASSIGN numberInName(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
+    numberInName(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 
 EXTEND FORM items
@@ -1561,7 +1561,7 @@ EXTEND FORM items
         FILTER 'С группами' isParent(g, i) 'F9' DEFAULT
         FILTER 'Без групп' nameAttribute(i) IF gt IS GroupType AND NOT group(gt,i) 'F8'
 
-    ORDER BY nameAttribute(i)
+    ORDER nameAttribute(i)
 ;
 
 DESIGN items {
@@ -1574,14 +1574,14 @@ DESIGN items {
 dataTitleCashRegister 'Наименование для касс' = DATA VARSTRING[100] (Barcode);
 titleCashRegister 'Наименование для касс' = OVERRIDE dataTitleCashRegister(Barcode barcode), nameCashRegisterAttribute(sku(barcode)) MINCHARWIDTH 30 PREFCHARWIDTH 30;
 loadDefaultItemAttributes() += {
-    ASSIGN numberInNameCashRegister(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
+    numberInNameCashRegister(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 // Весы
 @defineItemAttributeName(scales, ' (весы)', public);
 dataTitleScales 'Наименование для весов' = DATA VARSTRING[100] (Barcode);
 titleScales 'Наименование для весов' = OVERRIDE dataTitleScales(Barcode barcode), nameScalesAttribute(sku(barcode)) MINCHARWIDTH 30 PREFCHARWIDTH 30;
 loadDefaultItemAttributes() += {
-    ASSIGN numberInNameScales(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
+    numberInNameScales(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 
 // Сроки годности
@@ -1602,7 +1602,7 @@ EXTEND FORM item PROPERTIES(i) SHOWIF showExpiry(i) expiryDays, expiryMonth;
 EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showExpiry(g) expiryDays, expiryMonth;
 DESIGN item {
     itemPrimaryColumn2 {
-        MOVE GROUP(i,itemExpiry) {
+        MOVE GROUP(itemExpiry,i) {
             columns = 1;
         }
     }    
@@ -1664,23 +1664,23 @@ DESIGN itemGroup {
             NEW params {
                 fill = 1;
                 caption = 'Параметры';
-                MOVE GROUP(g, paramsItemGroup);
+                MOVE GROUP(paramsItemGroup,g);
             }
             NEW attributes {
                 fill = 1;
                 caption = 'Атрибуты';
-                MOVE GROUP(g, itemBase) {
+                MOVE GROUP(itemBase,g) {
                     columns = 6;
                 }
-                MOVE GROUP(g, itemOriginal) {
+                MOVE GROUP(itemOriginal,g) {
                     columns = 6;            
                 }
-                MOVE GROUP(g, itemSize) {
+                MOVE GROUP(itemSize,g) {
                     columns = 6;
                 }
                 NEW itemGroupDetail1 {
                     type = CONTAINERH;
-                    MOVE GROUP(g,itemExpiry) {type = CONTAINERH;}
+                    MOVE GROUP(itemExpiry,g) {type = CONTAINERH;}
                 }                    
             }
         }
@@ -1736,20 +1736,20 @@ copy 'Копировать' (Item item)= {
         NEWSESSION NESTED (addedSku[]) {
             NEW i = Item {
                 copyDataItem(item, i);
-                DIALOG item OBJECTS i = i MANAGESESSION DOCKED NOCANCEL DO {
+                DIALOG item OBJECTS i = i DOCKED NOCANCEL DO {
                     addedSku() <- i;
                 }
             }
         }
     }
-} EDITKEY 'F5' TOOLBAR;
+} CHANGEKEY 'F5' TOOLBAR;
 
 copyItems 'Копировать' (Item item) = {
     copy(item);
     IF (addedSku()) THEN {
         SEEK items.i = addedSku();
     }
-} EDITKEY 'F5' TOOLBAR;
+} CHANGEKEY 'F5' TOOLBAR;
 
 EXTEND FORM items PROPERTIES (i) copyItems;
 DESIGN items { PROPERTY(copyItems(i)) { focusable = FALSE; } }
@@ -1774,7 +1774,7 @@ createItemBarcode (VARSTRING[15] barcode, DATE date)= {
 	                dataDate(bc) <- date;
 	                sku(bc) <- i;
 	            }
-	            SHOW item OBJECTS i = i MANAGESESSION DOCKED;
+	            SHOW item OBJECTS i = i DOCKED;
 	        }
 	    } ELSE {
 	        NEW bc = Barcode {
@@ -1783,7 +1783,7 @@ createItemBarcode (VARSTRING[15] barcode, DATE date)= {
 	
 	            NEW s = Item {
 	                sku(bc) <- s;
-	                SHOW item OBJECTS i = s, b = bc MANAGESESSION DOCKED;
+	                SHOW item OBJECTS i = s, b = bc DOCKED;
 	            }
 	        }
 	    }
@@ -1910,7 +1910,7 @@ DESIGN itemGroup {
         NEW default {
             fill = 1;
             caption = 'Значения по умолчанию';
-            MOVE GROUP(g, defaultItemGroup) {
+            MOVE GROUP(defaultItemGroup,g) {
                 caption ='';
                 columns = 3;
                 PROPERTY(caption(g)) {minimumCharWidth = 20; preferredCharWidth = 40;}

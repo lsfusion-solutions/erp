@@ -78,13 +78,13 @@ EXTEND FORM priceListDashboard
 
     TREE cskg cskg = SkuGroup PARENT parent
     PROPERTIES READONLY order(cskg), cskgName = name(cskg)
-    ORDER BY order(cskg), cskgName
+    ORDER order(cskg), cskgName
     FILTERGROUP inactive FILTER 'Активные' active(cskg) 'F5' DEFAULT
 
     OBJECTS csk = Sku
     PROPERTIES(csk)          in
     PROPERTIES(csk) READONLY name, id, idBarcode
-    ORDER BY name(csk)
+    ORDER name(csk)
     FILTERS isParent(cskg, csk)
 
     PROPERTIES READONLY cPrice = activePriceA(pt, csk, c, dt) // последний прайс, в котором есть цена
@@ -97,7 +97,7 @@ EXTEND FORM priceListDashboard
     PROPERTIES(cst)          READONLY name
     PROPERTIES(csk, cst, dt) READONLY balanceA
     PROPERTIES               READONLY cPriceStock = priceA(pt, csk, cst, c, dt)
-    ORDER BY name(cst)
+    ORDER name(cst)
     FILTERS priceA(pt, csk, cst, c, dt)
     FILTERGROUP inactiveStock2 FILTER 'Активный' active(cst) 'ctrl F10' DEFAULT 
        
@@ -201,7 +201,7 @@ includeDataCompany 'Включить'(DATETIME dateTime, PriceListType dataPrice
                 activePriceA(dataPriceListType, sku(d), company, dateTime)
                 WHERE userPriceList(d) == u;
             operation(u) <- operation;     
-            SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+            SHOW userPriceList OBJECTS p = u DOCKED;
             in(Sku s) <- NULL;
         }
     }
@@ -219,7 +219,7 @@ modifyDataCompany 'Изменить'(DATETIME dateTime, PriceListType dataPriceL
                 dataIn(u, stock) <- TRUE;
             }
             operation(u) <- operation;  
-            SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+            SHOW userPriceList OBJECTS p = u DOCKED;
             in(Sku s) <- NULL;
         }
     }
@@ -234,7 +234,7 @@ excludeDataCompany 'Исключить'(DATETIME dateTime, PriceListType dataPri
                 dataIn(u, stock) <- TRUE;
             }
             operation(u) <- operation;  
-            SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+            SHOW userPriceList OBJECTS p = u DOCKED;
             in(Sku s) <- NULL;
         }
     }
@@ -277,14 +277,14 @@ EXTEND FORM priceListDashboard
 
     TREE sskg sskg = SkuGroup PARENT parent
     PROPERTIES READONLY order(sskg), sskgName = name(sskg)
-    ORDER BY order(sskg), sskgName
+    ORDER order(sskg), sskgName
     FILTERGROUP inactive2 FILTER 'Активные' active(sskg) 'F5' DEFAULT
 
     OBJECTS ssk = Sku
     PROPERTIES(ssk)          in
     PROPERTIES(ssk) READONLY name, idBarcode
     PROPERTIES      READONLY balanceA(ssk, s, dt)
-    ORDER BY name(ssk)
+    ORDER name(ssk)
     FILTERS isParent(sskg, ssk)
 
     PROPERTIES(pt, ssk, s, dt) READONLY sPrice = priceA,
@@ -300,7 +300,7 @@ EXTEND FORM priceListDashboard
                                           nameCompanyA,
                                           descriptionA
     FILTERGROUP inactiveStock FILTER 'Активный' active(sst) 'ctrl F10' DEFAULT    
-    ORDER BY name(cst)
+    ORDER name(cst)
     FILTERS priceA(pt, ssk, sst, dt)
 
     OBJECTS spl = PriceListLedger
@@ -379,7 +379,7 @@ createCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListType dat
     NEWSESSION NESTED (in[Sku]) {
         NEW u = UserPriceList {
             fillCompanyPriceList(u, company, dateTime, dataPriceListType, stock);
-            SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+            SHOW userPriceList OBJECTS p = u DOCKED;
             in(Sku s) <- NULL;
         }
     }
@@ -392,7 +392,7 @@ createWPricesCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListT
             price[UserPriceListDetail,DataPriceListType](UserPriceListDetail d, dataPriceListType) <-
                 priceA[LedgerPriceListType,Sku,Stock,DATETIME](dataPriceListType, sku(d), stock, dateTime)
                 WHERE userPriceList(d) == u;
-            SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+            SHOW userPriceList OBJECTS p = u DOCKED;
             in(Sku s) <- NULL;
         }
     }
@@ -440,10 +440,10 @@ addUserPriceList 'Добавить'(LegalEntity legalEntity, PriceListType type,
 	        in[UserPriceList,DataPriceListType](p, type) <- TRUE;
 	        show[PriceList,PriceListType](p, type) <- TRUE;
 	        overAdd(p); 
-	        SHOW userPriceList OBJECTS p=p MANAGESESSION DOCKED NOCANCEL;
+	        SHOW userPriceList OBJECTS p=p DOCKED NOCANCEL;
 	    }
 	}
-} TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+} TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
 
 EXTEND FORM priceListDashboard
     PROPERTIES() pCurrentLegalEntity = nameCurrentLegalEntity
@@ -454,7 +454,7 @@ EXTEND FORM priceListDashboard
                            nameCurrency, nameCompany, priceListTypes, stocks,
                            note
     PROPERTIES(p) NEWSESSION EDIT, DELETE , update TOOLBAR
-    ORDER BY fromDate(p), fromTime(p)
+    ORDER fromDate(p), fromTime(p)
     FILTERS in(p, pt),
             company(p) == c
     PROPERTIES(c, pt, dt) addUserPriceList TODRAW p       
@@ -492,7 +492,7 @@ importUserPriceList 'Импортировать'(LegalEntity c, ImportUserPriceL
 	        }
 	        
 	        importAction(p);
-	        SHOW userPriceList OBJECTS p = p MANAGESESSION DOCKED;
+	        SHOW userPriceList OBJECTS p = p DOCKED;
 	    }
 	}
 } TOOLBAR;

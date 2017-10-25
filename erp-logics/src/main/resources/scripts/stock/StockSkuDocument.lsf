@@ -93,7 +93,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp, stockProp)
 
         TREE skuTree sk = SkuGroup PARENT parent
         PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-        ORDER BY order(sk), skuTreeName
+        ORDER order(sk), skuTreeName
         FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
         OBJECTS ks=Sku
@@ -110,7 +110,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp, stockProp)
         FILTERS                isParent(sk, ks)
         FILTERGROUP activeSku FILTER 'Активные' active(ks) DEFAULT
 
-        ORDER BY inputName
+        ORDER inputName
     ;
 
     seek###skuProp##Barcode(###object object, VARSTRING[15] barcode) = { 
@@ -126,7 +126,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp, stockProp)
             seek###skuProp##Barcode(object, s);
         }        
     };
-    seek###skuProp 'Поиск по штрихкоду:' (###object object) = DATA LOCAL VARSTRING[15] (###object) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
+    seek###skuProp 'Поиск по штрихкоду:' (###object object) = DATA LOCAL VARSTRING[15] (###object) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
                                                                             ON CHANGE { seekOver###skuProp(object); }       
     EXTEND FORM form
         PROPERTIES(concrete) TODRAW ks seek###skuProp    
@@ -287,7 +287,7 @@ META extendFormDocumentBatch(object, detail, form, concrete, batchProp)
         FILTERS                isParent(sk, b),
                                activeSku(b)
 
-        ORDER BY nameSku(b)
+        ORDER nameSku(b)
     ;                                        
 
     DESIGN form {
@@ -451,13 +451,13 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
 
         TREE stockTree a = STRING[3], sg = StockGroup PARENT parent, ts = Stock
         PROPERTIES READONLY VALUE(a), sgTreeName = name(sg), tsTreeName = name(ts)
-        ORDER BY sgTreeName
+        ORDER sgTreeName
         FILTERS stringEqualsAll(a),
                 stockGroup(ts) == sg
         FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
         TREE skuTree sk = SkuGroup PARENT parent
         PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-        ORDER BY order(sk), skuTreeName
+        ORDER order(sk), skuTreeName
         FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
         OBJECTS           sst=Stock
@@ -475,7 +475,7 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
                           st == stockProp###stock(concrete)
 
         FILTERS           name(ks)
-        ORDER BY          sortOrder###object(ks, concrete, st), name(ks)
+        ORDER          sortOrder###object(ks, concrete, st), name(ks)
 
         PROPERTIES        quantity###stockProp(ks, concrete, st) ON CHANGE changeQuantity(ks, concrete, st) 
                                 BACKGROUND backgroundQuantity(ks, concrete, st)
@@ -629,7 +629,7 @@ META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stock
 //                          legalEntityStock(sto) == legalEntityProp###object(concrete),
 //                          activeStock(sto)
                           sto == stockProp###stock(concrete)
-        ORDER BY          prevNameSku(b)
+        ORDER          prevNameSku(b)
 
         PROPERTIES        SHOWIF showBatch(concrete) quantity###stockProp(b, concrete, sto) ON CHANGE changeQuantity(b, concrete, sto) 
                                     BACKGROUND backgroundQuantity(b, concrete, sto)
@@ -727,13 +727,13 @@ META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityPr
 
         TREE stockTree a = STRING[3], sg = StockGroup PARENT parent, ts = Stock
         PROPERTIES READONLY SHOWIF n##concrete##t###stockProp(o) VALUE(a), sgTreeName = name(sg), tsTreeName = name(ts)
-        ORDER BY sgTreeName
+        ORDER sgTreeName
         FILTERS stringEqualsAll(a),
                 st##concrete##ckGr##concrete##up(ts) == sg
         FILTERGROUP object##inactiveStock1 FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
         TREE skuTree sk = SkuGroup PARENT parent
         PROPERTIES READONLY concrete##rder(sk), skuTreeName = name(sk)
-        ORDER BY concrete##rder(sk), skuTreeName
+        ORDER concrete##rder(sk), skuTreeName
         FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
         OBJECTS cc = Stock GRID
@@ -748,7 +748,7 @@ META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityPr
                           legalEntity(st) == legalEntityProp(concrete),
                           active(st)
 
-        ORDER BY          name(ks), name(st)
+        ORDER          name(ks), name(st)
 
         PROPERTIES quantity###legalEntityProp(ks, concrete, st) READONLY BACKGROUND backgr##concrete##undQuantity(ks, concrete, st)
         PROPERTIES quantity###legalEntityProp##Cust##concrete##mer(ks, concrete, st, cc)  COLUMNS (cc) HEADER nameQuantityCust##concrete##mer(cc) ON CHANGE changeQuantityCust##concrete##mer(ks, concrete, st, cc)
@@ -879,7 +879,7 @@ META extendFormDocumentBatchStockExtraCustom(object, form, concrete, legalEntity
                           (sto == ts AND sg IS StockGroup OR isParent(sg, sto) AND NOT ts OR sto IS Stock AND NOT sg AND NOT ts) AND NOT stockProp(concrete) OR
                           sto == stockProp(concrete) AND NOT sg AND NOT ts,
                           legalEntity(sto) == legalEntityProp(o)
-        ORDER BY          nameSku(b)
+        ORDER          nameSku(b)
 
         PROPERTIES quantity###legalEntityProp(b, concrete, sto) READONLY BACKGROUND backgr##concrete##undQuantity(b, concrete, sto)
         PROPERTIES quantity###legalEntityProp##Cust##concrete##mer(b, concrete, sto, ccc)  COLUMNS (ccc) HEADER nameQuantityCust##concrete##mer(ccc) ON CHANGE changeQuantityCust##concrete##mer(b, concrete, sto, ccc)
@@ -949,7 +949,7 @@ META extendFormDocumentSkuStockIn(object, form, concrete)
         PROPERTIES READONLY order(sk), name(sk)
         FILTERS groupType(sk) == groupType(concrete)
         FILTERGROUP object##inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
-        ORDER BY order(sk), name(sk) 
+        ORDER order(sk), name(sk) 
         OBJECTS ks=Sku
         PROPERTIES             in(ks,concrete) ON CHANGE changeIn(ks, concrete), inputName = name(ks) READONLY
         PROPERTIES(ks)          READONLY idBarcode, id SHOWIF showIDs(), shortNameUOM
@@ -958,7 +958,7 @@ META extendFormDocumentSkuStockIn(object, form, concrete)
 
         FILTERS                isParent(sk, ks) OR ks IS Sku AND NOT sk
 
-        ORDER BY inputName
+        ORDER inputName
         FILTERGROUP activeSku FILTER 'Активные' active(ks) DEFAULT
 
         FILTERGROUP object##filterBalance
@@ -1026,7 +1026,7 @@ META defineDialogSku (form)
     FORM form 'Подбор SKU'
         TREE skuTree sk = SkuGroup PARENT parent
         PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-        ORDER BY order(sk), skuTreeName
+        ORDER order(sk), skuTreeName
         FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
         OBJECTS s=Sku                                 //form###nameSku 'Наименование' (sku) = IF form###stock() THEN nameSkuStock(sku, form###stock()) ELSE nameSku(sku);
@@ -1036,13 +1036,13 @@ META defineDialogSku (form)
 
         FILTERS                isParent(sk, s)
         FILTERGROUP activeSku FILTER 'Активные' active(s) DEFAULT
-        ORDER BY inputName
+        ORDER inputName
 
         OBJECTS si=Sku
         PROPERTIES READONLY     idBarcode(si), selectedName = name(si)
         PROPERTIES(si)          dialogQuantity
         FILTERS                 dialogQuantity(si)
-        ORDER BY selectedName
+        ORDER selectedName
     ;
 
     DESIGN form {
@@ -1121,8 +1121,8 @@ END
 META defineAddDetailDialogSkuStockCustomInner (object, class, detail, caption, skuProp, stockProp, form)
     @defineAddDetailDialogSkuCustom(object, detail, caption, skuProp, form);
     addDetail###form##Stock###detail 'Подбор товаров'###caption(class object) = {
-        ASSIGN form##Stock() <- stockProp(object);
-        ASSIGN dialogAll(###skuProp sku) <- NULL;
+        form##Stock() <- stockProp(object);
+        dialogAll(###skuProp sku) <- NULL;
 
         EXEC addDetail###form###detail(object);
     } TOOLBAR;
@@ -1169,14 +1169,14 @@ FORM dialogSkuGroup 'Подбор товарных групп'
     TREE skuTree sk = SkuGroup PARENT parent
     PROPERTIES inSession(sk)
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-    ORDER BY order(sk), skuTreeName
+    ORDER order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS skg = SkuGroup
     PROPERTIES(skg)         inSession    
     PROPERTIES READONLY     name(skg)
     FILTERS                 inSession(skg)
-    ORDER BY name(skg)
+    ORDER name(skg)
 ;
 
 DESIGN dialogSkuGroup {

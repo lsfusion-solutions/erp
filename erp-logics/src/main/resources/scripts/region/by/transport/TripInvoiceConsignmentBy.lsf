@@ -8,7 +8,7 @@ waybill(Invoice invoice) += seriesNumber(trip(invoice));
 
 META setTripPropTrip(prop)
     setTrip###prop##Trip(Invoice invoice) = {
-        ASSIGN prop(invoice) <- prop(trip(invoice));
+        prop(invoice) <- prop(trip(invoice));
     }
     WHEN CHANGED(prop(trip(Invoice invoice))) DO EXEC setTrip###prop##Trip(invoice);
 END
@@ -27,7 +27,7 @@ nameForwarder 'Товар к перевозке принял (экспедито
 overForwarder= OVERRIDE  dataForwarder(Trip t), driver(t);
 
 setTripForwarderTrip(Invoice invoice) = {
-    ASSIGN dataForwarder(invoice) <- overForwarder(trip(invoice));
+    dataForwarder(invoice) <- overForwarder(trip(invoice));
 }
 WHEN CHANGED(overForwarder(trip(Invoice invoice))) DO EXEC setTripForwarderTrip(invoice);
 
@@ -58,28 +58,28 @@ documentNameCurrency 'Валюта в накладной сокр.' (Trip trip) 
 //Время прибытия                              
 timeOfArrival 'Время прибытия' = DATA TIME (Trip);
 setTripDateTimeTrip(Invoice invoice) = {
-    ASSIGN arrivalTime(invoice) <- dateTimeToDateTime(date(invoice), timeOfArrival(trip(invoice)));
+    arrivalTime(invoice) <- dateTimeToDateTime(date(invoice), timeOfArrival(trip(invoice)));
 }
 WHEN CHANGED(dateTime(trip(Invoice invoice))) DO EXEC setTripDateTimeTrip(invoice);
 
 downtime 'Время простоя (мин.)' = DATA  INTEGER (Trip);
 setTripDowntimeTrip(Invoice invoice) = {
-    ASSIGN downtime(invoice) <- downtime(trip(invoice));
+    downtime(invoice) <- downtime(trip(invoice));
 }
 WHEN CHANGED(downtime(trip(Invoice invoice))) DO EXEC setTripDowntimeTrip(invoice);
 
 overCopy(Trip t, Trip trip) += {
-    ASSIGN issuanceAllowed(t) <- issuanceAllowed(trip);         
-    ASSIGN issuanceExecuted(t) <- issuanceExecuted(trip);        
-    ASSIGN dataForwarder(t) <- dataForwarder(trip);        
-    ASSIGN loadingExecuter(t) <- loadingExecuter(trip);        
-    ASSIGN unloadingExecuter(t) <- unloadingExecuter(trip);
-    ASSIGN wayOfLoading(t) <- wayOfLoading(trip);
-    ASSIGN wayOfUnloading(t) <- wayOfUnloading(trip);
-    ASSIGN codeLoading(t) <- codeLoading(trip);
-    ASSIGN currency(t) <- currency(trip);
-    ASSIGN timeOfArrival(t) <- timeOfArrival(trip);
-    ASSIGN downtime(t) <- downtime(trip);
+    issuanceAllowed(t) <- issuanceAllowed(trip);         
+    issuanceExecuted(t) <- issuanceExecuted(trip);        
+    dataForwarder(t) <- dataForwarder(trip);        
+    loadingExecuter(t) <- loadingExecuter(trip);        
+    unloadingExecuter(t) <- unloadingExecuter(trip);
+    wayOfLoading(t) <- wayOfLoading(trip);
+    wayOfUnloading(t) <- wayOfUnloading(trip);
+    codeLoading(t) <- codeLoading(trip);
+    currency(t) <- currency(trip);
+    timeOfArrival(t) <- timeOfArrival(trip);
+    downtime(t) <- downtime(trip);
 }
 
 printHorizontalConsignment 'Печать ТТН-1 (гор.)' (Trip trip) = {

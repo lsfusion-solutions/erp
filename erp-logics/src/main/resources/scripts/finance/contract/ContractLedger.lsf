@@ -252,8 +252,8 @@ writeFIFOApply 'Расписать по FIFO'(OutContractLedger outContractLedge
 
 writeLIFO 'Расписать по LIFO'(OutContractLedger outContractLedger) = {
 
-    ASSIGN cost(outContractLedger, InContractLedger inContractLedger) <- NULL;
-    ASSIGN cost(outContractLedger, InContractLedger inContractLedger) <- sumInLIFO(outContractLedger, inContractLedger);
+    cost(outContractLedger, InContractLedger inContractLedger) <- NULL;
+    cost(outContractLedger, InContractLedger inContractLedger) <- sumInLIFO(outContractLedger, inContractLedger);
 }
 
 writeLIFOApply 'Расписать по LIFO'(OutContractLedger outContractLedger) = {
@@ -369,13 +369,13 @@ FORM costContractLedger 'Разнесение документов'
                            costedInContractLedger BACKGROUND background(o, d)
     PROPERTIES(o) TOOLBAR writeFIFOApply TODRAW i ,
                   writeLIFOApply TODRAW i 
-    ORDER BY date(o)
+    ORDER date(o)
 
     PROPERTIES(i) READONLY date BACKGROUND background(i, d),
                            description BACKGROUND background(i, d),
                            debt BACKGROUND background(i, d)
     PROPERTIES(o, i) cost BACKGROUND background(i, d)
-    ORDER BY date(i)
+    ORDER date(i)
 
     FILTERGROUP filters1
         FILTER 'Неразнесенные' isCosted(o) 'F9' DEFAULT
@@ -427,27 +427,27 @@ FORM contractLedger 'Управление задолженностями'
                               balanceAA BACKGROUND backgroundSumA(c)
     PROPERTIES(c) READONLY debtSum BACKGROUND backgroundBonusSum(c)
 
-//    ORDER BY seriesNumber(c)
+//    ORDER seriesNumber(c)
 
     OBJECTS cl = ContractLedger
     PROPERTIES(cl) READONLY date BACKGROUND background(cl, d),
                             sum BACKGROUND backgroundSum(cl, d),
                             description BACKGROUND background(cl, d)
-    ORDER BY date(cl)
+    ORDER date(cl)
     FILTERS active(cl)
 
     OBJECTS cal = ContractALedger
     PROPERTIES(cal) READONLY date BACKGROUND background(cal, d),
                              sum BACKGROUND backgroundSum(cal, d),
                              description BACKGROUND background(cal, d)
-    ORDER BY date(cal)
+    ORDER date(cal)
     FILTERS active(cal)
 
     OBJECTS ic = InContractLedger
     PROPERTIES(ic) READONLY date, description, sum, descriptionPaymentCondition
     PROPERTIES(ic) READONLY debt BACKGROUND backgroundBonusSum(ic)
 
-    ORDER BY date(ic)
+    ORDER date(ic)
     FILTERS active(ic)
     FILTERGROUP filters1 
         FILTER 'Неоплаченные' debt(ic) 'F6' DEFAULT
@@ -458,20 +458,20 @@ FORM contractLedger 'Управление задолженностями'
     PROPERTIES(icoc) READONLY date, description, sum
     PROPERTIES(icoc, d) READONLY costedInContractLedger
     PROPERTIES READONLY cost(icoc, ic)
-    ORDER BY date(icoc)
+    ORDER date(icoc)
 
     OBJECTS oc = OutContractLedger
     PROPERTIES(oc) READONLY date, description, sum
     PROPERTIES(oc, d) READONLY costedInContractLedger
     PROPERTIES(oc) TOOLBAR writeFIFO SHOWIF is(oc),
                                        writeLIFO SHOWIF is(oc)
-    ORDER BY date(oc)
+    ORDER date(oc)
 
     OBJECTS ocic = InContractLedger
     PROPERTIES(ocic) READONLY date, description, sum
     PROPERTIES(ocic, d) READONLY debt
     PROPERTIES READONLY cost(oc, ocic)
-    ORDER BY date(ocic)
+    ORDER date(ocic)
     FILTERS active(ocic)
 
     FILTERS contract(cl) == c,
@@ -562,7 +562,7 @@ FORM unpaidDocuments 'Неоплаченные документы'
                            nameCurrencyContract, seriesNumberContract, sum, 
                            costedOutContractLedger, debt, description                             
                              
-    ORDER BY date(i), number(i)
+    ORDER date(i), number(i)
     FILTERS active(i), contract(i),  
             contract(i) == contractProp() OR (i IS InContractLedger AND NOT seriesNumberContractProp()),
             partyBContract(i) == partyB() OR (i IS InContractLedger AND NOT partyB()),

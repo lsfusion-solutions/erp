@@ -485,7 +485,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                        invoicePrice ON CHANGE changeInvoicePrice(d),
                        VATSum, invoiceSum, sumNetWeight BACKGROUND backgroundSku(d), 
                        sumGrossWeight BACKGROUND backgroundSku(d), NEW, deleteid=DELETE GRID
-        ORDER BY index(d)
+        ORDER index(d)
 
         PROPERTIES(i) TODRAW d fillDocument, addDetailDialogSkuStockUserInvoiceDetail,
                                addDetailInputBarcodeUserInvoiceDetail, deleteUserInvoiceDetail
@@ -517,7 +517,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                         NEW headerParams {
                             fill = 1;
         
-                            MOVE GROUP(i,documentHeader) {
+                            MOVE GROUP(documentHeader,i) {
                                 type = CONTAINERV;
                                 NEW first {
                                     type = CONTAINERH;
@@ -559,7 +559,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                                         MOVE PROPERTY(seriesNumberContractSku(i));
                                         MOVE PROPERTY(isCommission(i));
                                     }
-                                    MOVE GROUP(i,documentPrm) {
+                                    MOVE GROUP(documentPrm,i) {
                                         columns = 2;
                                     }
                                 }
@@ -586,7 +586,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                                 }
                             }
                         }
-                        MOVE GROUP(i,documentSum) {
+                        MOVE GROUP(documentSum,i) {
                             columns = 1;
                             NEW sumWeight {
                                 caption = 'Вес';
@@ -664,7 +664,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 	                }
 	            }
 	
-	            SHOW userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
+	            SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
 	        }
 	    }
 } TOOLBAR;
@@ -684,7 +684,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
             
             overCopy(d, detail);                              
         }
-    } EDITKEY 'F5' TOOLBAR;
+    } CHANGEKEY 'F5' TOOLBAR;
     
     EXTEND FORM userInvoice PROPERTIES(d) copy ;
     DESIGN userInvoice { PROPERTY(copy(d)) { focusable = FALSE; } }
@@ -765,7 +765,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
         PROPERTIES (d) READONLY BACKGROUND backgroundSkuDetail(d) idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
         PROPERTIES (d) READONLY quantity, namePriceListType, price, sum,
                        numberVAT, valueVAT, VATSum, invoiceSum
-        ORDER BY index(d)
+        ORDER index(d)
 
         FILTERS invoice(d) == i
         FILTERS filterDateFrom(i), 
@@ -825,8 +825,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                         caption = 'История';
                         type = CONTAINERV;
 
-                        MOVE GROUP(i,created);
-                        MOVE GROUP(i,posted);
+                        MOVE GROUP(created,i);
+                        MOVE GROUP(posted,i);
                     }
                     NEW printTab {
                         caption = 'Печатные формы';
@@ -874,7 +874,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
          OR (valueVAT(d) == overSetValueVAT(d))) 
             THEN RGB(255,0,0); 
             
-    edit(UserInvoiceDetail d) += { DIALOG userInvoice OBJECTS i = userInvoice(d), d = d AUTOX; }
+    edit(UserInvoiceDetail d) += { DIALOG userInvoice OBJECTS i = userInvoice(d), d = d; }
     
     show 'Просмотреть' = ABSTRACT LIST (InvoiceDetail) TOOLBAR;
     show(UserInvoiceDetail d) = {
@@ -1309,7 +1309,7 @@ META defineInvoicePayment(dumb)
         OBJECTS pm = Payment
         PROPERTIES(pm) READONLY seriesNumber, dateTime, namePayer, nameBeneficiary,
                                 note, isPosted
-        ORDER BY dateTime(pm)
+        ORDER dateTime(pm)
         PROPERTIES(pm, i) cost
         PROPERTIES TODRAW pm TOOLBAR addPaymentInvoice(i), editInvoice(pm, i)
         PROPERTIES(pm) DELETE GRID

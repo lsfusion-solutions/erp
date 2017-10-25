@@ -35,7 +35,7 @@ FORM dialogUOMs 'Единицы измерений'
     OBJECTS u=UOM
     PROPERTIES(u) READONLYIF isReadonly() name, id SHOWIF showIDs(), shortName, shortNameBase, genitiveName, factor,
                            split, netWeight, grossWeight
-    ORDER BY name(u)                         
+    ORDER name(u)                         
     LIST UOM OBJECT u
 ;
 
@@ -43,7 +43,7 @@ FORM UOMs 'Единицы измерений'
     OBJECTS u=UOM
     PROPERTIES(u) READONLYIF isReadonly() name, id SHOWIF showIDs(), shortName, shortNameBase, genitiveName, factor,
                            split, netWeight, grossWeight
-    ORDER BY name(u)                         
+    ORDER name(u)                         
     PROPERTIES(u) NEWSESSION NEW, EDIT, DELETE 
 ;
 @extendFormEditable(UOMs);
@@ -155,7 +155,7 @@ FORM moveCustomGroup 'Дополнительные группы'
     TREE treeGroups g=CustomGroup PARENT parent
     PROPERTIES(g) READONLY id, name, canonicalName
     FILTERS customGroupType(g) == t
-    ORDER BY canonicalName(g)
+    ORDER canonicalName(g)
 ;
 
 move 'Перенести отмеченные группы'(CustomGroupType customGroupType) = {
@@ -198,7 +198,7 @@ FORM customGroups 'Дополнительные группы'
     PROPERTIES(g) READONLY id, name, canonicalName
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE 
     FILTERS customGroupType(g) == t
-    ORDER BY canonicalName(g)
+    ORDER canonicalName(g)
 
     LIST CustomGroup OBJECT g
 ;
@@ -359,10 +359,10 @@ countSku 'Кол-во непосредственных товаров в гру�
 // ----------------------- Действия по изменению Sku ----------------------------------- //
 disallowEditing 'Запретить редактирование' = ABSTRACT BOOLEAN (Sku);
 
-addSku 'Добавить' = ABSTRACT LIST () IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
+addSku 'Добавить' = ABSTRACT LIST () IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
 
 addedSku = DATA LOCAL Sku ();
-copy 'Копировать' = ABSTRACT LIST (Sku) EDITKEY 'F5' TOOLBAR;
+copy 'Копировать' = ABSTRACT LIST (Sku) CHANGEKEY 'F5' TOOLBAR;
 
 // ------------------------- Формы ------------------------------------ //
 
@@ -371,7 +371,7 @@ FORM skus 'Sku'
     TREE skuTree sg = SkuGroup PARENT parent
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
     FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
-    ORDER BY order(sg), skuGroupName
+    ORDER order(sg), skuGroupName
      
     OBJECTS s = Sku
     PROPERTIES(s) READONLY id SHOWIF showIDs()
@@ -380,7 +380,7 @@ FORM skus 'Sku'
     PROPERTIES(s) EDIT NEWSESSION, copy
     FILTERS isParent(sg, s),
             name(s)
-    ORDER BY name(s)
+    ORDER name(s)
     
     FILTERGROUP active
         FILTER 'Активные' active(s) 'F11' DEFAULT
@@ -447,7 +447,7 @@ META defineDocumentDetailSkuCustomPrefixInner (detail, skuClass, skuClassUpper, 
     prefix###shortNameUOM###skuClass 'Ед. изм.'###caption = shortNameUOM(prefix###skuClass(###detail detail)) IN recognize;
     prefix###idBarcode###skuClass 'Штрихкод'###caption (###detail detail) = idBarcode(prefix###skuClass(detail)) IN recognize;
     prefix###nameCountry###skuClass 'Страна'###caption (###detail detail) = nameCountry(prefix###skuClass(detail));
-    replace(###skuClass s, ###skuClass d) += {ASSIGN prefix###skuClass(###detail detail) <- d WHERE prefix###skuClass(detail) == s;}
+    replace(###skuClass s, ###skuClass d) += {prefix###skuClass(###detail detail) <- d WHERE prefix###skuClass(detail) == s;}
 END
 
 META defineDocumentAbstractDetailSkuCustomPrefix (detail, skuClass, prefix, caption)

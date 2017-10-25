@@ -588,7 +588,7 @@ META checkConsignmentAttribute(type, attrib, msg, skipProp)
 checkMandatoryAttribute(Consignment c) += {
     IF is##type(c) AND NOT attrib(c) AND NOT skipProp(c) THEN {
         stopPrintConsignment() <- TRUE;
-        MESSAGE NOWAIT msg;
+        MESSAGE msg NOWAIT;
     }
 }
 END
@@ -618,13 +618,13 @@ META defineConsignmentFormSimple(form, caption)
         PROPERTIES(d) order, index, nameSku, shortNameUOM, quantity, price,
                       sum, vat, useEmptyVAT, sumVAT, sumInvoice,
                       note, extraDescription
-        ORDER BY order(d), index(d)
+        ORDER order(d), index(d)
         FILTERS consignment(d) == c,
                 quantity(d),
                 NOT skip(d)
     ;
     printSimple###form caption (Consignment consignment) = { PRINT consignmentSimple###form OBJECTS c = consignment; }  IMAGE 'print.png' IN print;
-    printSimple###form##Auto caption (Consignment consignment) = { PRINT consignmentSimple###form OBJECTS c = consignment AUTO; } IMAGE 'print.png' IN print;
+    printSimple###form##Auto caption (Consignment consignment) = { PRINT consignmentSimple###form OBJECTS c = consignment NOPREVIEW; } IMAGE 'print.png' IN print;
 END
 
 
@@ -647,7 +647,7 @@ META defineConsignmentFormSimpleExtra(form, caption)
         PROPERTIES(d) order, index, nameSku, shortNameUOM, quantity, price,
                       sum, vat, useEmptyVAT, sumVAT, sumInvoice,
                       note, extraDescription
-        ORDER BY order(d), index(d)
+        ORDER order(d), index(d)
         FILTERS consignment(d) == c,
                 quantity(d),
                 NOT skip(d)
@@ -661,7 +661,7 @@ META defineConsignmentFormSimpleExtra(form, caption)
 	    }
 } IMAGE 'print.png' IN print;
     
-    printSimple###form##Auto caption (Consignment consignment) = { PRINT consignmentSimple###form OBJECTS c = consignment AUTO; } IMAGE 'print.png' IN print;        
+    printSimple###form##Auto caption (Consignment consignment) = { PRINT consignmentSimple###form OBJECTS c = consignment NOPREVIEW; } IMAGE 'print.png' IN print;        
 END
 
 @defineConsignmentFormSimple(vertical, 'ТН-2, вертикальная');
@@ -754,7 +754,7 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
                       prefix##packQuantityConsignmentDetail=packQuantity, prefix##grossWeightTonConsignmentDetail=grossWeightTon,
                       prefix##grossWeightConsignmentDetail=grossWeight,prefix##noteConsignmentDetail=note, 
                       prefix##extraDescriptionConsignmentDetail=extraDescription
-        ORDER BY prefix##orderConsignmentDetail, prefix##indexConsignmentDetail
+        ORDER prefix##orderConsignmentDetail, prefix##indexConsignmentDetail
         FILTERS consignment(prefix##d) == prefix,
                 quantity(prefix##d),
                 NOT skip(prefix##d)
@@ -770,7 +770,7 @@ META definePrintConsignmentForm(form, caption, prefix)  //печать накл�
     print###form##Auto caption (Consignment consignment) = {
         stopPrintConsignment() <- NULL;
         checkMandatoryAttribute(consignment);
-        IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment AUTO;
+        IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment NOPREVIEW;
     } IMAGE 'print.png' IN print; 
 END 
 META definePrintConsignmentFormExtra(form, caption, prefix)  //печать накладной по сторонам
@@ -789,7 +789,7 @@ META definePrintConsignmentFormExtra(form, caption, prefix)  //печать на
     print###form##Auto caption (Consignment consignment) = {
         stopPrintConsignment() <- NULL;
         checkMandatoryAttribute(consignment);
-        IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment AUTO;
+        IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment NOPREVIEW;
     } IMAGE 'print.png' IN print; 
 END 
   
@@ -815,7 +815,7 @@ META defineExtendPrintConsignmentFormAll(form, caption, prefixA, prefixB)       
     print###form###prefixA##uto caption (Consignment consignment) = {
         stopPrintConsignment() <- NULL;
         checkMandatoryAttribute(consignment);
-        PRINT consignment###form OBJECTS prefixA = consignment, prefixB = consignment AUTO;
+        PRINT consignment###form OBJECTS prefixA = consignment, prefixB = consignment NOPREVIEW;
     } IMAGE 'print.png' IN print; 
 END   
 
@@ -958,7 +958,7 @@ FORM consignment 'Атрибуты накладной'
     PROPERTIES(d) order, index, nameSku READONLY, shortNameUOM READONLY, quantity, price,
                   sum, vat, sumVAT, sumInvoice,
                   packQuantity, grossWeight, note, extraDescription READONLY
-    ORDER BY order(d), index(d)  
+    ORDER order(d), index(d)  
 
     FILTERS consignment(d) == c,
             NOT skip(d)
@@ -1003,13 +1003,13 @@ DESIGN consignment {
                 MOVE PROPERTY(UNPPayer(c));
                 MOVE PROPERTY(addressPayer(c));
             }
-            MOVE GROUP(c,carConsignment) {
+            MOVE GROUP(carConsignment,c) {
                 columns = 3;
             }
-            MOVE GROUP(c,issuanceConsignment) {
+            MOVE GROUP(issuanceConsignment,c) {
                 columns = 2;
             }
-            MOVE GROUP(c,loadingConsignment) {
+            MOVE GROUP(loadingConsignment,c) {
                 columns = 3;
             }
             
@@ -1029,7 +1029,7 @@ DESIGN consignment {
         NEW sum {
             caption = 'Суммы';
             type = CONTAINERH;
-            MOVE GROUP(c,sumConsignment) {
+            MOVE GROUP(sumConsignment,c) {
                 columns = 4;
                 MOVE PROPERTY(countConsignmentDetail(c));
                 MOVE PROPERTY(quantityConsignmentDetail(c));
@@ -1066,7 +1066,7 @@ editAttributes 'Заполнить атрибуты накладной' (Consign
 	            }        
 	        }
 	    }    
-	    SHOW consignment OBJECTS c = consignment MANAGESESSION DOCKED; 
+	    SHOW consignment OBJECTS c = consignment DOCKED; 
 	}
 } IMAGE 'edit.png';
 

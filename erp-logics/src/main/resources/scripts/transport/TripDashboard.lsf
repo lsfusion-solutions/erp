@@ -11,7 +11,7 @@ countInCreatingTripOrder = GROUP SUM 1 IF inCreatingTrip(Order order);
 
 editTrip 'Редактировать рейс'(Order order) = {
 	NEWSESSION {
-	    SHOW trip OBJECTS t = trip(order) MANAGESESSION DOCKED;
+	    SHOW trip OBJECTS t = trip(order) DOCKED;
 	}
 }
 
@@ -23,7 +23,7 @@ FORM optionTrip 'Настройки рейса'
                    timeOfArrival, downtime        
 ;
 DESIGN optionTrip {
-//    GROUP(t,) {
+//    GROUP(,t) {
 //        columns = 2;
 //    }
     NEW consignmentContainer {
@@ -65,17 +65,17 @@ createTripOrder 'Взять в рейс'() = {
                     AND NOT trip(order) DO {
                 trip(order) <- t;
             }
-            DIALOG optionTrip OBJECTS t = t MANAGESESSION DOCKED NOCANCEL DO {
+            DIALOG optionTrip OBJECTS t = t DOCKED NOCANCEL DO {
                 overPrint(t);
             }
         }
     }
-} TOOLBAR EDITKEY 'ctrl ENTER';
+} TOOLBAR CHANGEKEY 'ctrl ENTER';
 
 cancelTrip 'Отменить'(Order order) = {
-    ASSIGN trip (order) <- NULL;
+    trip (order) <- NULL;
     EXEC apply();
-} TOOLBAR EDITKEY 'ctrl DELETE';
+} TOOLBAR CHANGEKEY 'ctrl DELETE';
 
 hideInCreatingTrip = TRUE AND NOT (calcPart(Order o) OR calcFull(o));
 

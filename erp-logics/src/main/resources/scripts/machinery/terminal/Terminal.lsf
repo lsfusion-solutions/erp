@@ -375,7 +375,7 @@ FORM terminalDocumentPrint 'Документ ТСД'
 
     OBJECTS tdd=TerminalDocumentDetail
     PROPERTIES(tdd) READONLY number, barcode, name, price, quantity, sum, dateTimeScan
-    ORDER BY number(tdd)
+    ORDER number(tdd)
 
     FILTERS terminalDocument(tdd) == td
 ;
@@ -429,14 +429,14 @@ DESIGN terminalDocuments {
                 NEW documentHistory {
                     caption = 'История';
                     type = CONTAINERV;
-                    MOVE GROUP(td,created);
+                    MOVE GROUP(created,td);
                 }
                 NEW printTab {
                     caption = 'Печатные формы';
                     NEW printContainer {
                         caption = 'Печать';
                         type = CONTAINERV;
-                        MOVE GROUP(td,print);
+                        MOVE GROUP(print,td);
                     }
                 }
                 NEW actionContainer {
@@ -556,9 +556,9 @@ END
 // Модели терминалов сбора данных
 loadDefaultTerminalModel 'Добавить модель терминала'(VARSTRING[20] stringOne, VARISTRING[110] stringTwo, VARSTRING[200] stringThree) = {
     NEW tm = TerminalModel {
-         ASSIGN sid(tm) <- stringOne;   
-         ASSIGN name(tm) <- stringTwo;
-         ASSIGN handler(tm) <- stringThree;
+         sid(tm) <- stringOne;   
+         name(tm) <- stringTwo;
+         handler(tm) <- stringThree;
     }
 }
 
@@ -587,18 +587,18 @@ loadDefaultTerminalHandbookTypes 'Загрузить стандартные ви
 // Типы документов терминалов сбора данных
 loadDefault 'Добавить тип документа ТСД'(VARSTRING[200] nameString, GroupTerminalDocumentType gtdt, VARSTRING[100] idTypeString, INTEGER flagInteger, VARSTRING[100] handbook1String, VARSTRING[100] handbook2String) = {
     NEW tdt = TerminalDocumentType {
-        ASSIGN name(tdt) <- nameString;
-        ASSIGN groupTerminalDocumentType(tdt) <- gtdt;
-        ASSIGN terminalHandbookType1(tdt) <- terminalHandbookType(handbook1String);
-        ASSIGN terminalHandbookType2(tdt) <- terminalHandbookType(handbook2String);
-        ASSIGN id(tdt) <- idTypeString;
-        ASSIGN flag(tdt) <-flagInteger;
+        name(tdt) <- nameString;
+        groupTerminalDocumentType(tdt) <- gtdt;
+        terminalHandbookType1(tdt) <- terminalHandbookType(handbook1String);
+        terminalHandbookType2(tdt) <- terminalHandbookType(handbook2String);
+        id(tdt) <- idTypeString;
+        flag(tdt) <-flagInteger;
     }
 }
 
 loadDefaultTerminalDocumentTypes 'Загрузить стандартные типы документов ТСД'() = {
     NEW gtdt = GroupTerminalDocumentType {
-        ASSIGN name(gtdt) <- 'Группа типов документов';
+        name(gtdt) <- 'Группа типов документов';
         EXEC loadDefault('Инвентаризация', gtdt, '01', 31, ' ', ' ');
         EXEC loadDefault('Приход', gtdt, '02', 31, '01', ' ');
         EXEC loadDefault('Отгрузка по безналичному расчёту', gtdt, '03', 31, '01', ' ');

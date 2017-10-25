@@ -140,7 +140,7 @@ FORM acquisitionTargets 'Цели приобретение'
     OBJECTS t=AcquisitionTarget
     PROPERTIES(t) NEWSESSION name READONLY, id READONLY SHOWIF showIDs(), deleteb=DELETE 
     PROPERTIES(t) NEWSESSION NEW, EDIT
-    ORDER BY name(t)
+    ORDER name(t)
     LIST AcquisitionTarget OBJECT t
 ;
 DESIGN acquisitionTargets { BOX { preferredSize = (600, 400); } }
@@ -425,7 +425,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                        VATSum BACKGROUND backgroundSku(d), invoiceSum BACKGROUND backgroundSku(d),
                        shipmentDate BACKGROUND backgroundSku(d), shipmentTime BACKGROUND backgroundSku(d), 
                        closeDate BACKGROUND backgroundSku(d), NEW, deleteod = DELETE GRID
-        ORDER BY index(d)
+        ORDER index(d)
 
         PROPERTIES(o) TODRAW d fillDocument, addDetailDialogSkuStockUserOrderDetail,
                                addDetailInputBarcodeUserOrderDetail, deleteUserOrderDetail
@@ -454,7 +454,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                             fill = 1;
                             type = CONTAINERV;
         
-                            MOVE GROUP(o,documentHeader) {
+                            MOVE GROUP(documentHeader,o) {
                                 type = CONTAINERV;
                                 NEW first {
                                     type = CONTAINERH;
@@ -499,7 +499,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                                         MOVE PROPERTY(seriesNumberContractSku(o));
                                         MOVE PROPERTY(isCommission(o));
                                     }
-                                    MOVE GROUP(o,documentPrm) {
+                                    MOVE GROUP(documentPrm,o) {
                                         columns = 3;
                                     }
                                 }
@@ -541,7 +541,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                             }
                         }
         
-                        MOVE GROUP(o,documentSum) {
+                        MOVE GROUP(documentSum,o) {
                             columns = 1;
                         }
                     }
@@ -599,7 +599,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 	                }
 	            }
 	
-	            SHOW userOrder OBJECTS o = o MANAGESESSION DOCKED;
+	            SHOW userOrder OBJECTS o = o DOCKED;
 	        }
 	    }
 } TOOLBAR;
@@ -621,7 +621,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
             
             EXEC overCopy(d, detail);                              
         }
-    } EDITKEY 'F5' TOOLBAR;
+    } CHANGEKEY 'F5' TOOLBAR;
     
     EXTEND FORM userOrder PROPERTIES(d) copy ;
     DESIGN userOrder { PROPERTY(copy(d)) { focusable = FALSE; } }
@@ -698,7 +698,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                        price BACKGROUND backgroundParam(d), sum,
                        numberVAT, valueVAT, VATSum, invoiceSum,
                        name###stockProp##Stock, shipmentDate, shipmentTime
-        ORDER BY index(d)
+        ORDER index(d)
 
         FILTERS order(d) == o
         FILTERS filterDateFrom(o), 
@@ -758,8 +758,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                     caption = 'История';
                     type = CONTAINERV;
 
-                    MOVE GROUP(o,created);
-                    MOVE GROUP(o,posted);
+                    MOVE GROUP(created,o);
+                    MOVE GROUP(posted,o);
                 }
                 NEW printTab {
                     caption = 'Печатные формы';
@@ -785,7 +785,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineFilterIsOpened (order, orders, o); 
     @defineDocumentLogForm(orders, o);
  
-    edit(UserOrderDetail d) += { DIALOG userOrder OBJECTS o = userOrder(d), d = d AUTOX DOCKED; }
+    edit(UserOrderDetail d) += { DIALOG userOrder OBJECTS o = userOrder(d), d = d DOCKED; }
     
     show 'Просмотреть' (UserOrder i) =  {
         NEWSESSION{

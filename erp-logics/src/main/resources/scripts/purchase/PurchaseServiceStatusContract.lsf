@@ -7,7 +7,7 @@ NAMESPACE Purchase;
 contractSku = DATA ContractSku(ServiceStatusDetail);// NONULL;
 descriptionContractSku 'Договор' (ServiceStatusDetail d) = description(contractSku(d)) IN recognize;
 
-replace(ContractSku c, ContractSku o) += {ASSIGN contractSku(ServiceStatusDetail object) <- o WHERE contractSku(object) == c;}
+replace(ContractSku c, ContractSku o) += {contractSku(ServiceStatusDetail object) <- o WHERE contractSku(object) == c;}
 
 CONSTRAINT legalEntity(ServiceStatusDetail d) AND contractSku(d) AND NOT supplier(contractSku(d)) == legalEntity(d)
     MESSAGE 'Поставщик "Статус качества" не соответствует поставщику договора';
@@ -133,13 +133,13 @@ EXTEND FORM legalEntity
     
     OBJECTS cs = ContractSku
     PROPERTIES (cs) SHOWIF isSupplier(l) READONLY number, series, dateFrom, dateTo,
-                dataPercService EDITABLE , nameServiceStatus ON CHANGE changeServiceStatusContract(cs) BACKGROUND backgroundServiceStatus(cs) EDITABLE, percService 
+                dataPercService CHANGEABLE , nameServiceStatus ON CHANGE changeServiceStatusContract(cs) BACKGROUND backgroundServiceStatus(cs) CHANGEABLE, percService 
     FILTERS supplier(cs) == l
     OBJECTS sdc = ServiceStatusDetail
     
     PROPERTIES (sdc) SHOWIF isSupplier(l) READONLY fromDate, toDate, percService, nameServiceStatus
     PROPERTIES (sdc) SHOWIF isSupplier(l) READONLY createdTime, createdNameUser, createdHostnameComputer
-    ORDER BY fromDate(sdc) DESC
+    ORDER fromDate(sdc) DESC
     FILTERS legalEntity(sdc) == l,
             contractSku(sdc) == cs
         
@@ -170,13 +170,13 @@ DESIGN legalEntity {
 
 EXTEND FORM userContractSku
     PROPERTIES (c) READONLY 
-                dataPercService EDITABLE , nameServiceStatus ON CHANGE changeServiceStatusContract(c) BACKGROUND backgroundServiceStatus(c) EDITABLE, percService 
+                dataPercService CHANGEABLE , nameServiceStatus ON CHANGE changeServiceStatusContract(c) BACKGROUND backgroundServiceStatus(c) CHANGEABLE, percService 
 
     OBJECTS sdc = ServiceStatusDetail
     
     PROPERTIES (sdc) READONLY fromDate, toDate, percService, nameServiceStatus
     PROPERTIES (sdc) READONLY createdTime, createdNameUser, createdHostnameComputer
-    ORDER BY fromDate(sdc) DESC
+    ORDER fromDate(sdc) DESC
     FILTERS legalEntity(sdc) == supplier(c),
             contractSku(sdc) == c
 ;

@@ -90,7 +90,7 @@ FORM GLAccounts 'Счета'
     PROPERTIES(g) READONLY canonicalId
     PROPERTIES(g) NEWSESSION NEW, EDIT, deletea=DELETE 
     FILTERS GLAccountType(g) == t
-    ORDER BY canonicalId(g)
+    ORDER canonicalId(g)
 ;
 
 DESIGN GLAccounts {
@@ -130,7 +130,7 @@ FORM GLAccountDialog 'Счета'
     PROPERTIES(g) READONLY canonicalId
     PROPERTIES(g) NEWSESSION NEW, EDIT, deletea=DELETE 
     FILTERS GLAccountType(g) == t
-    ORDER BY canonicalId(g)
+    ORDER canonicalId(g)
     LIST GLAccount OBJECT g
 ;
 
@@ -140,20 +140,20 @@ copy 'Копировать'(GLAccountType GLAccountType) = {
 	    LOCAL mapping = GLAccount (GLAccount);
 	
 	    NEW t = GLAccountType {
-	        ASSIGN currency(t) <- currency(GLAccountType);
+	        currency(t) <- currency(GLAccountType);
 	
 	        FOR GLAccountType(GLAccount GLAccount) == GLAccountType DO {
 	            NEW d=GLAccount {
-	                ASSIGN GLAccountType(d) <- t;
-	                ASSIGN name(d) <- name(GLAccount);
-	                ASSIGN id(d) <- id(GLAccount);
-	                ASSIGN parent(d) <- mapping(parent(GLAccount));
-	                ASSIGN mapping(GLAccount) <- d;
+	                GLAccountType(d) <- t;
+	                name(d) <- name(GLAccount);
+	                id(d) <- id(GLAccount);
+	                parent(d) <- mapping(parent(GLAccount));
+	                mapping(GLAccount) <- d;
 	                EXEC overCopy(GLAccount, d);
 	            }
 	        }
 	
-	        SHOW GLAccountType OBJECTS g = t MANAGESESSION DOCKED;
+	        SHOW GLAccountType OBJECTS g = t DOCKED;
 	    }
 	}
 } TOOLBAR;
@@ -175,17 +175,17 @@ NAVIGATOR {
 
 loadDefaultGLAccountType 'Добавить значение плана счетов'(VARISTRING[150] iname, VARSTRING[20] isid, STRING[3] isidCurrency) = {
     NEW t = GLAccountType {
-        ASSIGN name(t) <- iname;
-        ASSIGN id (t) <- isid;
-        ASSIGN currency(t) <- currencyShortName(isidCurrency);
+        name(t) <- iname;
+        id (t) <- isid;
+        currency(t) <- currencyShortName(isidCurrency);
     }
 }
 loadDefaultGLAccount 'Добавить значение счета'(VARSTRING[255] iname, VARSTRING[20] isid, VARSTRING[20] sidType, VARSTRING[20] sidParent) = {
     NEW g = GLAccount {
-        ASSIGN name(g) <- iname;
-        ASSIGN id(g) <- isid;
-        ASSIGN GLAccountType(g) <- GLAccountTypeIdGLAccountType(sidType);
-        ASSIGN parent (g) <- GLAccountIdTypeIdGLAccount(sidType, sidParent);
+        name(g) <- iname;
+        id(g) <- isid;
+        GLAccountType(g) <- GLAccountTypeIdGLAccountType(sidType);
+        parent (g) <- GLAccountIdTypeIdGLAccount(sidType, sidParent);
     }
 }
 loadDefaultGLAccounts 'Загрузить стандартный план счетов и счета' () = ABSTRACT LIST ()  IN loadDefault;

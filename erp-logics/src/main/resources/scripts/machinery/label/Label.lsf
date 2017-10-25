@@ -177,12 +177,12 @@ FORM labelType 'Тип ценника'
     PROPERTIES(l) TODRAW a  in, include
     PROPERTIES in(l,st), in(l,s), in(l,d)
 
-    ORDER BY depName
+    ORDER depName
 
     TREE treeGroup g=Group PARENT parent
     PROPERTIES READONLY order(g), name(g)
     FILTERS groupType(g) == groupType(l)
-    ORDER BY order(g), name(g)
+    ORDER order(g), name(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
     PROPERTIES(l, g) in, count, include, exclude BACKGROUND backgroundExclude(g,l)
@@ -397,7 +397,7 @@ FORM printLabelTransaction 'Печать ценников'
     FILTERS labelTransaction(d) == l,
             NOT skipPrint(d),
             NOT skip(d)
-    ORDER BY firstSort(d), secondSort(d)
+    ORDER firstSort(d), secondSort(d)
     REPORTFILES l fileTemplate(l), TOP topFileTemplate(l)
 ;
 
@@ -410,7 +410,7 @@ print(LabelTransaction t) = {
         customPrint(t);
     ELSE
         IF labelPrintAuto() THEN {
-            PRINT printLabelTransaction OBJECTS l = t AUTO;
+            PRINT printLabelTransaction OBJECTS l = t NOPREVIEW;
         } ELSE {
             PRINT printLabelTransaction OBJECTS l = t ;
         }
@@ -489,7 +489,7 @@ addLabelTransaction 'Добавить'(DepartmentStore dep) = {
 	NEWSESSION {
 	    NEW l = LabelTransaction {
 	        departmentStore(l) <- dep;
-	        DIALOG customLabelTransaction OBJECTS l=l MANAGESESSION DOCKED NOCANCEL DO { 
+	        DIALOG customLabelTransaction OBJECTS l=l DOCKED NOCANCEL DO { 
 	            print(l);
 	        }
 	    }
@@ -538,7 +538,7 @@ FORM labelTransactions 'Печать ценников'
     PROPERTIES(l) NEWSESSION EDIT , DELETE  
     PROPERTIES(l) printTo  
     FILTERS departmentStore(l) == d
-    ORDER BY date(l), time(l)
+    ORDER date(l), time(l)
     FILTERGROUP inactive FILTER 'Активные' active(labelType(l)) 'F10' DEFAULT
 
     OBJECTS dt = LabelTransactionDetail
@@ -560,7 +560,7 @@ FORM labelTransactions 'Печать ценников'
             quantity, name, price, retailPrice, discountSum, discountPercent
             
     PROPERTIES printLabelTransactionDetail(dts) TOOLBAR 
-    ORDER BY date(dts) DESC, time(dts) DESC
+    ORDER date(dts) DESC, time(dts) DESC
     FILTERS sku(dts) == s,
             departmentStore(dts) == d
 ;
@@ -588,7 +588,7 @@ DESIGN labelTransactions {
                     } 
                     NEW printTab {
                         caption = 'Печатные формы';
-                        MOVE GROUP(l,print);
+                        MOVE GROUP(print,l);
                     } 
                 }              
             }
@@ -827,7 +827,7 @@ ok = DATA LOCAL NESTED BOOLEAN ();
 
 FORM selectLabelSkus 'Выбор товаров'
     OBJECTS s = Sku
-    PROPERTIES (s) READONLY inLabel EDITABLE, id, idBarcode, name, canonicalNameSkuGroup, nameSkuGroup  
+    PROPERTIES (s) READONLY inLabel CHANGEABLE, id, idBarcode, name, canonicalNameSkuGroup, nameSkuGroup  
     FILTERS filterLabel(s)
     
     FILTERGROUP inactive FILTER 'Активные' active(s) 'F10' DEFAULT
@@ -920,7 +920,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
                 filterLabel(###skuProp sku) <- NULL;
                 filterLabel(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);                   
                 
-                DIALOG selectLabelSkus OBJECTS s INPUT NOMANAGESESSIONX DO {
+                DIALOG selectLabelSkus OBJECTS s INPUT NOMANAGESESSION DO {
                     IF NOT [ = GROUP SUM 1 IF inLabel(###skuProp sku)]() THEN {
                         inLabel(s) <- TRUE;
                     }
@@ -941,7 +941,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
 
     createSnapshotLabelTransactionParam (###document document) = {
 	                
-        DIALOG selectLabelTypes OBJECTS ds = stockProp(document), l INPUT NOMANAGESESSIONX DO {
+        DIALOG selectLabelTypes OBJECTS ds = stockProp(document), l INPUT NOMANAGESESSION DO {
             IF NOT countSelectType() THEN {  
                 select(l) <- TRUE;
             }                                        
@@ -975,7 +975,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
                 IF change(stockProp(document)) THEN {
                     LOCAL printed = BOOLEAN();
                     printed() <- NULL;
-                    DIALOG customLabelTransaction OBJECTS l = t NOMANAGESESSIONX DO {
+                    DIALOG customLabelTransaction OBJECTS l = t NOMANAGESESSION DO {
                         print(t);
                         printed() <- TRUE;
                     }
@@ -1021,7 +1021,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
                 filterLabel(###skuProp sku) <- NULL;
                 filterLabel(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);                   
                 
-                DIALOG selectLabelSkus OBJECTS s INPUT NOMANAGESESSIONX DO {
+                DIALOG selectLabelSkus OBJECTS s INPUT NOMANAGESESSION DO {
                     IF NOT [ = GROUP SUM 1 IF inLabel(###skuProp sku)]() THEN {
                         inLabel(s) <- TRUE;
                     } 
@@ -1160,7 +1160,7 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
         IF change(departmentStore) THEN {
             LOCAL printed = BOOLEAN();
             printed() <- NULL;
-            DIALOG customLabelTransaction OBJECTS l = t NOMANAGESESSIONX DO {    
+            DIALOG customLabelTransaction OBJECTS l = t NOMANAGESESSION DO {    
                 print(t);
                 printed() <- TRUE;
             }             
@@ -1236,7 +1236,7 @@ createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать цен�
         NEWSESSION NESTED (select[Sku,Stock]) {
 
             FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](DepartmentStore stock) AND stock IS DepartmentStore DO {  
-                DIALOG selectLabelTypes OBJECTS ds = stock, l INPUT NOMANAGESESSIONX DO { 
+                DIALOG selectLabelTypes OBJECTS ds = stock, l INPUT NOMANAGESESSION DO { 
                     select(Sku sku) <- select(sku, stock);     
                     IF NOT countSelectType() THEN {
                         select(l) <- TRUE;
@@ -1276,7 +1276,7 @@ printSelectedSkuLabelTransaction 'Распечатать ценники'(Departm
 printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore) = {
     IF [=GROUP SUM 1 IF select(Sku sku)]() THEN  { 
         NEWSESSION NESTED (select[Sku]) {
-            DIALOG selectLabelTypes OBJECTS ds = departmentStore, l INPUT NOMANAGESESSIONX DO {       
+            DIALOG selectLabelTypes OBJECTS ds = departmentStore, l INPUT NOMANAGESESSION DO {       
                 IF NOT countSelectType() THEN {
                     select(l) <- TRUE;
                 }                                                            
@@ -1332,7 +1332,7 @@ DESIGN labelTransactions {
     NEW header BEFORE pane{
         type = CONTAINERH;
         MOVE BOX(d);
-        MOVE GROUP(d,incrementMachineryLabel);
+        MOVE GROUP(incrementMachineryLabel,d);
     }
 } 
 

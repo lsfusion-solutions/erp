@@ -81,7 +81,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
     countBlanketOrderDetail 'Кол-во строк по складу '(stock, blanketOrder) = GROUP SUM 1 BY supplierStock(BlanketOrderDetail blanketOrderDetail), blanketOrder(blanketOrderDetail);
     in 'В заказе' (blanketOrder, stock) = DATA BOOLEAN (BlanketOrder, Stock); //customerStock
     in###customerFilter 'Отм.' (BlanketOrder blanketOrder, Stock stock) = in(customerFilter(blanketOrder), stock);
-    replace(Stock s, Stock o) += {ASSIGN in(BlanketOrder blanketOrder, o) <- TRUE WHERE in(blanketOrder, s) AND NOT in(blanketOrder, o);}   
+    replace(Stock s, Stock o) += {in(BlanketOrder blanketOrder, o) <- TRUE WHERE in(blanketOrder, s) AND NOT in(blanketOrder, o);}   
 
     @defineDocumentHeaderAgreement (blanketOrder);
     @deriveDocumentHeaderAgreement (blanketOrder, supplier, customer, 'множественный заказ'###sign, NS);
@@ -223,7 +223,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
                     fill = 1;
                     type = CONTAINERV;
 
-                    MOVE GROUP(o,documentHeader) {
+                    MOVE GROUP(documentHeader,o) {
                         type = CONTAINERH;
                         MOVE PROPERTY(isPosted(o)) { preferredCharWidth = 10; }
                         MOVE PROPERTY(nameNumerator(o));
@@ -248,7 +248,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
                     }
                     NEW headerRow12 {
                         type = CONTAINERH;
-                        MOVE GROUP(o,documentPrm) {
+                        MOVE GROUP(documentPrm,o) {
                             columns = 2;
                         }
                         NEW documentShipmentGroup {
@@ -260,7 +260,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
                         }
                     }
                 }
-                MOVE GROUP(o,documentSum) {
+                MOVE GROUP(documentSum,o) {
                     columns = 1;
                 }
             }
@@ -283,7 +283,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
         }
     }
 
-    edit(BlanketOrderDetail d) += { DIALOG blanketOrder OBJECTS o = blanketOrder(d), d = d AUTOX DOCKED; }
+    edit(BlanketOrderDetail d) += { DIALOG blanketOrder OBJECTS o = blanketOrder(d), d = d DOCKED; }
 
 //-- SKU
     @defineDocumentSkuStockExtra(blanketOrder, sku, supplierStock, customerStock);
@@ -338,7 +338,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
 	                }
 	            }
 	
-	            SHOW blanketOrder OBJECTS o = o MANAGESESSION DOCKED;
+	            SHOW blanketOrder OBJECTS o = o DOCKED;
 	        }
 	    }
 } TOOLBAR;
@@ -391,8 +391,8 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
                 NEW documentHistory {
                     caption = 'История';
 
-                    MOVE GROUP(o,created);
-                    MOVE GROUP(o,posted);
+                    MOVE GROUP(created,o);
+                    MOVE GROUP(posted,o);
                 }
                 NEW printTab {
                     caption = 'Печатные формы';

@@ -52,7 +52,7 @@ contractSku = DATA ContractSku (SaleReport);
 numberContractSku 'Договор (номер)' (SaleReport o) = number[Contract](contractSku(o)) IN documentPrm;
 descriptionContractSku 'Договор' (SaleReport o) = description(contractSku(o)) IN documentPrm;
 
-replace(ContractSku c, ContractSku o) += {ASSIGN contractSku(SaleReport object) <- o WHERE contractSku(object) == c;}
+replace(ContractSku c, ContractSku o) += {contractSku(SaleReport object) <- o WHERE contractSku(object) == c;}
 
 CONSTRAINT contractSku(SaleReport o) AND NOT company(o) == partyB(contractSku(o))
     CHECKED BY contractSku[SaleReport] MESSAGE 'Организация (покупатель) договора не соответствует компании в акте реализации';    
@@ -226,7 +226,7 @@ FORM saleReport 'Акт реализации'
     
     PROPERTIES(r)  fillData TOOLBAR TODRAW d  
     
-    ORDER BY index(d)
+    ORDER index(d)
 
     PROPERTIES(r) TODRAW d deleteSaleReportDetail
     
@@ -247,7 +247,7 @@ DESIGN saleReport {
             NEW headerParams {
                 fill = 1;
                 type = CONTAINERV;
-                MOVE GROUP(r,documentHeader) {
+                MOVE GROUP(documentHeader,r) {
                     type = CONTAINERV;
                     NEW first {
                         type = CONTAINERH;
@@ -269,9 +269,9 @@ DESIGN saleReport {
                         MOVE PROPERTY(numberContractSku(r));    
                     }                                                                                                                       
                 }
-                MOVE GROUP(r,documentPrm);
+                MOVE GROUP(documentPrm,r);
             }
-            MOVE GROUP(r,documentSum) {
+            MOVE GROUP(documentSum,r) {
                 columns = 1;
             }
         }
@@ -312,7 +312,7 @@ FORM reportsSales 'Акты реализации'
     PROPERTIES (d) READONLY sumBalanceB, sumReturn, quantity, price, sum, numberVAT, 
                    valueVAT, VATSum, invoiceSum, sumBalanceA 
     
-    ORDER BY index(d)
+    ORDER index(d)
 
     FILTERS saleReport(d) == r
                 
@@ -340,8 +340,8 @@ DESIGN reportsSales {
                     caption = 'История';
                     type = CONTAINERV;
 
-                    MOVE GROUP(r,created);
-                    MOVE GROUP(r,posted);
+                    MOVE GROUP(created,r);
+                    MOVE GROUP(posted,r);
                 }
                 NEW printTab {
                     caption = 'Печатные формы';
@@ -400,7 +400,7 @@ FORM detailSaleReport 'Акт реализации'
     PROPERTIES (d) quantity, price, sum, numberVAT, valueVAT, VATSum, invoiceSum,
                    sumBalanceB, sumBalanceA, sumReturn 
     
-    ORDER BY index(d)    
+    ORDER index(d)    
     FILTERS saleReport(d) == r
 ;
 printDetail 'Акт реализации' (SaleReport report) =
@@ -411,7 +411,7 @@ EXTEND FORM reportsSales
 ;
 DESIGN reportsSales {
     printContainer {
-        MOVE GROUP(r,print);
+        MOVE GROUP(print,r);
     }    
 }
 

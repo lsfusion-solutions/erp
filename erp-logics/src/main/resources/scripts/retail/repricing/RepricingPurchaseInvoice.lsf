@@ -160,7 +160,7 @@ backgroundShowDataSkipRepricing (SkuGroup skuGroup) =
 
 setNullShowDataSkipRepricing 'Снять признак для всех потомков'(SkuGroup skuGroup) = {
     FOR isParent (SkuGroup childGroup, skuGroup) DO {
-        ASSIGN skipRepricing(childGroup) <- NULL;
+        skipRepricing(childGroup) <- NULL;
     }
 } SHORTCUT skipRepricing[SkuGroup] CONFIRM;
   
@@ -260,7 +260,7 @@ createExtraValuationNotForm 'Создать дооценку'(Stock department, 
 createExtraValuation 'Создать дооценку'(Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation) = {
 	NEWSESSION {
 	    createExtraValuationNotForm(department, timeFrom, timeTo, operation);
-	    SHOW userRepricing  OBJECTS p = repricingForm() MANAGESESSION DOCKED NOCANCEL;  
+	    SHOW userRepricing  OBJECTS p = repricingForm() DOCKED NOCANCEL;  
 	    repricingForm() <- NULL;      
 	}
 }                 
@@ -317,9 +317,9 @@ EXTEND FORM options
     PROPERTIES() nameToRepricingOperation, toRepricingTime, toRepricingCountDays, minQuantityToRepricing, toRepricingTimeTo, toRepricingCountDaysTo, createExtraValuationAllStocks
     
     TREE skuTree g = SkuGroup PARENT parent
-    PROPERTIES READONLY order(g), skuGroupName = name(g), skipRepricing(g) EDITABLE BACKGROUND backgroundShowDataSkipRepricing(g)
+    PROPERTIES READONLY order(g), skuGroupName = name(g), skipRepricing(g) CHANGEABLE BACKGROUND backgroundShowDataSkipRepricing(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
-    ORDER BY order(g), skuGroupName
+    ORDER order(g), skuGroupName
 ;
 
 DESIGN options {

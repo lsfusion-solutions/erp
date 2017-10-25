@@ -276,7 +276,7 @@ DESIGN order {
         }
     }
     
-    GROUP(o,documentSum) {
+    GROUP(documentSum,o) {
         MOVE PROPERTY(outputProductsSumProductDetail(o)) AFTER PROPERTY(sumProductDetail(o)) { preferredCharWidth = 13;}
     }
 }
@@ -398,7 +398,7 @@ DESIGN userOutput {
             NEW headerRow1 {
                 type = CONTAINERV;
 
-                MOVE GROUP(o,documentHeader) {
+                MOVE GROUP(documentHeader,o) {
                     type = CONTAINERH;
                     MOVE PROPERTY(isPosted(o)) { preferredCharWidth = 10; }
                     MOVE PROPERTY(nameStock(o));
@@ -412,17 +412,17 @@ DESIGN userOutput {
                     type = CONTAINERV;
                     NEW headerRow122 {
                         type = CONTAINERV;
-                        MOVE GROUP(o,documentPrm) {
+                        MOVE GROUP(documentPrm,o) {
                             type = CONTAINERH;
                         }
-                        MOVE GROUP(o,order){
+                        MOVE GROUP(order,o){
                             type = CONTAINERH;
                         }
                     }
                 }
             }
 
-            MOVE GROUP(o,documentSum) {
+            MOVE GROUP(documentSum,o) {
                 columns = 1;
             }
         }
@@ -442,7 +442,7 @@ show(UserOutputDetail d) = {
 }
 show(UserOutputDetail d) += { show(d); }
 
-edit(UserOutputDetail d) += { DIALOG userOutput OBJECTS o = userOutput(d), d = d AUTOX DOCKED; }
+edit(UserOutputDetail d) += { DIALOG userOutput OBJECTS o = userOutput(d), d = d DOCKED; }
 edit(OrderOutputDetail d) += { edit(productDetail(d)); }
 
 show[SkuLedger](OutputDetail batch) += { show(batch); }
@@ -452,21 +452,21 @@ show(OrderOutputDetail d) += { show(productDetail(d)); }
 copy 'Копировать'(UserOutput userOutput) = {
 	NEWSESSION {
 	    NEW o = UserOutput {
-	        ASSIGN stock(o) <- stock(userOutput);
-	        ASSIGN currency(o) <- currency(userOutput);
-	        ASSIGN priceListType(o) <- priceListType(userOutput);
-	        ASSIGN note(o) <- note(userOutput);
+	        stock(o) <- stock(userOutput);
+	        currency(o) <- currency(userOutput);
+	        priceListType(o) <- priceListType(userOutput);
+	        note(o) <- note(userOutput);
 	
 	        FOR userOutput(UserOutputDetail userOutputDetail) == userOutput DO {
 	            NEW d=UserOutputDetail {
-	                ASSIGN userOutput(d) <- o;
-	                ASSIGN sku(d) <- sku(userOutputDetail);
-	                ASSIGN quantity(d) <- quantity(userOutputDetail);
-	                ASSIGN priceListType(d) <- priceListType(userOutputDetail);
-	                ASSIGN productDetail(d) <- productDetail(userOutputDetail);
+	                userOutput(d) <- o;
+	                sku(d) <- sku(userOutputDetail);
+	                quantity(d) <- quantity(userOutputDetail);
+	                priceListType(d) <- priceListType(userOutputDetail);
+	                productDetail(d) <- productDetail(userOutputDetail);
 	            }
 	        }
-	        SHOW userOutput OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
+	        SHOW userOutput OBJECTS o = o DOCKED NOCANCEL;
 	    }
 	}
 } TOOLBAR;
@@ -512,8 +512,8 @@ DESIGN outputs {
             NEW documentHistory {
                 caption = 'История';
 
-                MOVE GROUP(o,created);
-                MOVE GROUP(o,posted);
+                MOVE GROUP(created,o);
+                MOVE GROUP(posted,o);
             }
             NEW printTab {
                 caption = 'Печатные формы';

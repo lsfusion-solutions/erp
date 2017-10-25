@@ -5,7 +5,7 @@ REQUIRE ContractLedger, Payment;
 contract 'Контракт' (payment) = DATA Contract (Payment);
 seriesNumberContract 'Номер договора' (Payment payment) = seriesNumber(contract(payment));
 
-replace(Contract c, Contract o) += {ASSIGN contract(Payment object) <- o WHERE contract(object) == c;}
+replace(Contract c, Contract o) += {contract(Payment object) <- o WHERE contract(object) == c;}
 
 currencyContract(Payment payment) = currency(contract(payment)) MATERIALIZED;
 nameCurrencyContract 'Валюта' (Payment payment) = name(currencyContract(payment));
@@ -128,7 +128,7 @@ EXTEND FORM payment
 
     PROPERTIES(i) READONLY date, description, debt
     PROPERTIES(p, i) cost
-    ORDER BY date(i)
+    ORDER date(i)
 
     FILTERS contract(i) == contract(p),
             isPosted(i)
@@ -169,7 +169,7 @@ EXTEND FORM payments
 currentInContractLedger = DATA LOCAL InContractLedger ();
 WHEN LOCAL FORMS payment
     CHANGED(sumContract(Payment p)) AND currentInContractLedger()
-        DO ASSIGN cost(p, InContractLedger i) <- sumContract(p) WHERE i == currentInContractLedger();
+        DO cost(p, InContractLedger i) <- sumContract(p) WHERE i == currentInContractLedger();
 
 //------------------------------------- Платежи по договору --------------------------------------------------------//
 overSum = ABSTRACT NUMERIC[18,4] (Currency, DATE);
@@ -184,7 +184,7 @@ pay 'Оплатить по договору'(Contract contract, DATE date) = {
 	        sumContract(pm) <- OVERRIDE overSum(currency(contract), date), balanceA(contract, date);
 	        sum(pm) <- round2(OVERRIDE overSum(currency(contract), date), balanceA(contract, date)) IF currencyContract(pm) == currencyAccountFrom(pm);
 	        writeFIFO(pm);
-	        SHOW payment OBJECTS p = pm MANAGESESSION DOCKED NOCANCEL;
+	        SHOW payment OBJECTS p = pm DOCKED NOCANCEL;
 	    }
 	}
 }
@@ -198,7 +198,7 @@ addPayment 'Оплатить'(Contract contract) = {
 	        payer(p) <- partyB(contract);
 	        beneficiary(p) <- partyA(contract);
 	        contract(p) <- contract;
-	        SHOW payment OBJECTS p=p MANAGESESSION DOCKED NOCANCEL;
+	        SHOW payment OBJECTS p=p DOCKED NOCANCEL;
 	    }
 	}
 }
@@ -224,7 +224,7 @@ EXTEND FORM contractLedger
     PROPERTIES(pm) TOOLBAR writeFIFO, writeLIFO
     PROPERTIES addPayment(c) TODRAW pm TOOLBAR
     PROPERTIES(pm) NEWSESSION EDIT, DELETE 
-    ORDER BY date(pm), time(pm)
+    ORDER date(pm), time(pm)
 
     FILTERS contract(pm) == c
 ;
