@@ -41,10 +41,10 @@ import java.util.*;
 
 public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
-    String mainPage = "//e-dostavka.by";
+    String mainPage = "https://e-dostavka.by";
     String httpsMainPage = "https://e-dostavka.by";
-    String itemGroupPattern = "\\/\\/e-dostavka\\.by\\/catalog\\/\\d+\\.html";
-    String itemPattern = "\\/\\/e-dostavka\\.by\\/catalog\\/item_\\d+\\.html";
+    String itemGroupPattern = "https:\\/\\/e-dostavka\\.by\\/catalog\\/\\d+\\.html";
+    String itemPattern = "https:\\/\\/e-dostavka\\.by\\/catalog\\/item_\\d+\\.html";
     String userAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36";
 
     public ImportEurooptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
@@ -664,7 +664,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         while (count > 0) {
             try {
                 Thread.sleep(50);
-                Connection connection = Jsoup.connect("http:" + url);
+                Connection connection = Jsoup.connect(url);
                 connection.timeout(0);
                 connection.userAgent(userAgent);
                 return connection.get();
