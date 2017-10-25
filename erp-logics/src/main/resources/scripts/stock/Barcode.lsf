@@ -29,6 +29,11 @@ WHEN CHANGED(id(Barcode b) IF active(b)) AND NOT CHANGED(extId(b)) DO
 dataAmount 'Множитель' = DATA NUMERIC[14,3] (Barcode);
 amount 'Множитель' = OVERRIDE dataAmount (Barcode barcode), (1.0 IF barcode IS Barcode) MATERIALIZED;
 
+checkAmount 'Множитель больше 0' = DATA BOOLEAN ();
+
+CONSTRAINT SETCHANGED(Barcode barcode IS Barcode AND NOT amount(barcode) > 0) AND checkAmount() 
+    MESSAGE 'Множитель должен быть больше 0';
+
 completeBarcode = FORMULA TEXT PG 'completeBarcode($1)', MS 'dbo.completeBarcode($1)';
 
 allowIncorrectBarcode 'Разрешить некорректные штрихкоды' = DATA BOOLEAN();
@@ -69,7 +74,7 @@ CONSTRAINT id(Barcode b) AND onlyActiveBarcode() AND NOT active(b)
     MESSAGE 'В системе уже присутствует такой штрихкод';
 
 EXTEND FORM options
-    PROPERTIES() allowIncorrectBarcode, onlyEANBarcode, setIdBarcodeSku, onlyActiveBarcode
+    PROPERTIES() allowIncorrectBarcode, onlyEANBarcode, setIdBarcodeSku, onlyActiveBarcode, checkAmount
 ;
 
 DESIGN options {
@@ -79,7 +84,8 @@ DESIGN options {
             MOVE PROPERTY(allowIncorrectBarcode());   
             MOVE PROPERTY(onlyEANBarcode());   
             MOVE PROPERTY(setIdBarcodeSku());   
-            MOVE PROPERTY(onlyActiveBarcode());   
+            MOVE PROPERTY(onlyActiveBarcode());
+            MOVE PROPERTY(checkAmount());
         }
     }
 }
