@@ -1,0 +1,39 @@
+MODULE ContractSaleReport;
+
+REQUIRE SaleReportContract;
+
+NAMESPACE SaleReport;
+
+currentBalance(Batch batch) = NUMERIC[16,4]([= X*Y](currentBalance(batch),invoicePrice(invoiceDetail(batch))));
+currentBalanceSum(Contract contract) = GROUP SUM currentBalance(Batch batch)
+    IF partyA(Contract contract) == supplier(batch) AND contract == contractSku(invoice(invoiceDetail(batch))) BY contract;
+
+createReportSales 'Создать акт реализации' (Contract contract) = {
+    IF currentBalanceA(contract) (-) currentBalance(contract) (-) currentBalanceSum(contract) THEN {
+        NEW r = SaleReport {
+            company(r) <- partyB(contract);
+            supplier(r) <- partyA(contract);
+            contractSku(r) <- contract;
+            NEW d = SaleReportDetail {
+                saleReport(d) <- r;
+                invoiceSum(d) <- currentBalanceA(contract) (-) currentBalance(contract) (-) currentBalanceSum(contract);
+            }
+            isPosted(r) <- TRUE;    
+        }
+        apply();
+    }
+}
+
+createReportsSales 'Создать по остаткам' () = {
+    DIALOG contracts OBJECTS c INPUT DO {
+        IF NOT [= GROUP SUM 1 IF in(Contract c)]() THEN
+            in(c) <- TRUE;
+        FOR in(Contract contract) DO {
+            createReportSales(contract);
+        } 
+    }
+}
+
+EXTEND FORM reportsSales
+    PROPERTIES createReportsSales() TOOLBAR;
+;
