@@ -1187,6 +1187,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 }
                                 if (barcode == null && sale.idItem != null) {
                                     barcode = trim((String) itemLM.findProperty("idBarcodeSku[VARSTRING[100]]").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
+                                    if (barcode == null) barcode = sale.idItem;
                                     barcodeMap.put(sale.idItem, barcode);
                                 }
 
