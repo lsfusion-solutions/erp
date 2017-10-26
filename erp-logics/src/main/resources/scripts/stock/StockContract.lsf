@@ -121,11 +121,16 @@ replace(LegalEntity l, LegalEntity o) += {
 }   
 
 //для договора
+CLASS ContractType 'Тип договора';
+
+contractType = ABSTRACT ContractType (Contract);
+nameContractType 'Тип договора'  = staticCaption(contractType(Contract c));
 
 CLASS ContractSkuType 'Тип договора на поставку' {
     sale 'Договор купли-продажи',
     commission 'Договор комиссии'
-}
+}: ContractType;
+
 FORM contractSkuTypes 'Типы договоров на поставку'
     OBJECTS t = ContractSkuType
     PROPERTIES(t) READONLY staticCaption
@@ -138,6 +143,7 @@ isSaleType(ContractSku contract) = type(contract) == ContractSkuType.sale;
 isCommissionType(ContractSku contract) = type(contract) == ContractSkuType.commission;
 
 type (ContractSku o) <- ContractSkuType.sale WHEN SET(o IS ContractSku);
+contractType (ContractSku c) += type(c);
 
 // Формы
 FORM userContractSku 'Договор на поставку товаров'
@@ -260,13 +266,13 @@ addUserContractSkuSupplierCustomer 'Добавить'(LegalEntity supplier, Lega
 is (UserContractSku contractSku) = contractSku IS UserContractSku;
 
 EXTEND FORM contracts
-    PROPERTIES(c) READONLY nameType
+    PROPERTIES(c) READONLY nameContractType 
     PROPERTIES(c) NEWSESSION NEW[UserContractSku]
 ;
 
 FORM contractSkus 'Договоры на поставку'
     OBJECTS c = ContractSku   
-    PROPERTIES(c) READONLY nameSupplier, namePartyAStocks, nameCustomer, namePartyBStocks, nameType,
+    PROPERTIES(c) READONLY nameSupplier, namePartyAStocks, nameCustomer, namePartyBStocks, nameContractType,
                   seriesNumber, dateFrom, dateTo, nameCurrency,  nameTypeExchange, note
     PROPERTIES(c) NEWSESSION NEW[UserContractSku], EDIT
 

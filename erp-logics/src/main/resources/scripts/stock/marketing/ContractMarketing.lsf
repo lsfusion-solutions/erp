@@ -1,0 +1,263 @@
+MODULE ContractMarketing;
+
+REQUIRE StockContract;
+
+NAMESPACE Contract;
+
+EXTEND CLASS ContractType {
+    marketing 'Договор маркетинга'
+}
+
+CLASS ContractMarketing 'Договор маркетинга' : Contract;
+@defineDocumentHeaderNumber(ContractMarketing);
+@defineExternalizable(contractMarketing, VARSTRING[100]);
+@defineNumeratedID(ContractMarketing, 'Договоры маркетинга (код)', Id);
+
+id(ContractMarketing c) += id(c);
+
+number (ContractMarketing contract) += number(contract);
+series (ContractMarketing contract) += series(contract);
+
+@defineNumeratedDefault(ContractMarketing, 'Договоры', 'ДП');
+
+word 'Файл договора' (ContractMarketing) = DATA WORDFILE (ContractMarketing);
+saveWord 'Загрузить файл договора' (ContractMarketing c) = { INPUT =word(c) CHANGE; }
+openWord 'Просмотреть файл договора' (ContractMarketing c) = { OPEN word(c); }
+word(ContractMarketing contract) += word(contract);
+
+supplier = DATA LegalEntity (ContractMarketing);
+nameSupplier 'Поставщик' (ContractMarketing contract) = name(supplier(contract)) IN recognize MINCHARWIDTH 20 PREFCHARWIDTH 40;
+partyA (ContractMarketing contract) += supplier(contract);
+
+
+TABLE stockGroupContractMarketing (StockGroup, ContractMarketing);
+@defineInStockGroupObject(supplier, contractMarketing);
+inPartyA (Stock stock, ContractMarketing contract) += inSupplier(stock,contract);
+
+countSuppliersStock = GROUP SUM 1 IF inSupplier(Stock stock,ContractMarketing contract) BY contract;
+
+CONSTRAINT supplier(ContractMarketing contract) AND inSupplier(Stock stock, contract) AND NOT
+    in(supplier(contract), stock) MESSAGE 'Поставщик и склад поставщика для договора не имеют связи';
+
+
+//--------------------------------------------//
+customer = DATA LegalEntity (ContractMarketing);
+nameCustomer 'Покупатель' (ContractMarketing contract) = name(customer(contract)) IN recognize MINCHARWIDTH 20 PREFCHARWIDTH 40;
+partyB (ContractMarketing contract) += customer(contract);
+
+@defineInStockGroupObject(customer, contractMarketing);
+
+inPartyB (Stock stock, ContractMarketing contract) += inCustomer(stock,contract);
+
+countCustomersStock= GROUP SUM 1 IF inCustomer(Stock stock,ContractMarketing contract) BY contract;
+
+CONSTRAINT customer(ContractMarketing contract) AND inCustomer(Stock stock, contract) AND NOT
+    in(customer(contract), stock) MESSAGE 'Покупатель и склад покупателя для договора не имеют связи';
+
+TABLE supplierCustomerMarketing(LegalEntity, LegalEntity);
+@defineContractDefault(contractMarketing, LegalEntity, Stock, LegalEntity, Stock, supplier, customer);
+
+//объединение организаций
+replace(LegalEntity l, LegalEntity o) += {
+    supplier(ContractMarketing contract) <- o WHERE supplier(contract) == l;
+    customer(ContractMarketing contract) <- o WHERE customer(contract) == l;
+}   
+
+// Формы
+FORM contractMarketing 'Договор маркетинга'
+    OBJECTS c = ContractMarketing PANEL
+    PROPERTIES(c) nameSupplier, nameCustomer, isDataDefault, 
+                  nameNumerator, number, series, dateFrom, dateTo,
+                  nameCurrency,  nameTypeExchange, descriptionPaymentCondition,
+                  note, saveWord, openWord, id SHOWIF showIDs()
+
+        TREE stockTree a=STRING[3], sg = StockGroup PARENT parent
+        PROPERTIES READONLY VALUE(a),name(sg)
+        PROPERTIES(c) allSupplierStocks TODRAW a BACKGROUND backgroundAllSupplierStocks(c)
+        PROPERTIES(sg,c) inSupplier BACKGROUND backgroundInSupplier(sg,c)
+        ORDER name(sg)
+        FILTERS stringEqualsAll(a)
+        FILTERS countSupplierStock(sg) OR countCompanyStock(sg)
+    
+        OBJECTS ss = Stock
+        PROPERTIES READONLY  name(ss), id(ss) SHOWIF showIDs()
+        PROPERTIES(ss,c)    inSupplier BACKGROUND backgroundInSupplier(ss,c)
+        FILTERS ss IS Stock AND NOT sg IS StockGroup OR isParent(sg, ss),
+                in(supplier(c), ss),
+                isCompany(ss) OR isSupplier(ss)
+        FILTERGROUP filters
+                FILTER 'Отм.'  inSupplier(ss,c) 'F10'   
+
+        TREE stockTree1 b=STRING[3], sg1 = StockGroup PARENT parent
+        PROPERTIES READONLY VALUE(b), name(sg1)
+        PROPERTIES(c) allCustomerStocks TODRAW b BACKGROUND backgroundAllCustomerStocks(c)
+        PROPERTIES(sg1,c) inCustomer BACKGROUND backgroundInCustomer(sg1,c)
+        ORDER name(sg1)
+        FILTERS stringEqualsAll(b)
+        FILTERS countCustomerStock(sg1) OR countCompanyStock(sg1)
+    
+        OBJECTS ss1 = Stock
+        PROPERTIES READONLY  name(ss1), id(ss1) SHOWIF showIDs()
+        PROPERTIES(ss1,c)    inCustomer BACKGROUND backgroundInCustomer(ss1,c)
+        FILTERS ss1 IS Stock AND NOT sg1 IS StockGroup OR isParent(sg1, ss1),
+                in(customer(c), ss1),
+                isCompany(ss1) OR isCustomer(ss1)
+        FILTERGROUP filters1
+                FILTER 'Отм.'  inCustomer(ss1,c) 'F10'   
+      
+    EDIT ContractMarketing OBJECT c
+
+;
+
+
+DESIGN contractMarketing {
+    NEW north {
+        type = CONTAINERH;
+        MOVE GROUP(numbered,c) {
+            type = CONTAINERH;
+        }
+        MOVE GROUP(contract,c) {
+        MOVE PROPERTY (id(c));
+            type = CONTAINERH;
+        }
+    }
+    NEW params {
+        type = COLUMNS;
+        columns = 4;
+        caption = 'Параметры';
+        MOVE PROPERTY(nameSupplier(c));
+        MOVE PROPERTY(nameCustomer(c));
+        MOVE PROPERTY(isDataDefault(c));
+    }
+    MOVE GROUP(payment,c);
+    NEW text {
+        type = CONTAINERH;
+        caption = 'Содержание';
+        MOVE PROPERTY(saveWord(c));
+        MOVE PROPERTY(openWord(c));
+    }
+    NEW tabContainer{
+        fill = 1;
+        type = TABBED;
+        NEW supplier{
+            fill = 1;
+            type = SPLITH;
+            caption = 'Склады поставщика';
+            MOVE BOX(TREE stockTree) {caption = 'Группа складов';}
+            MOVE BOX(ss) { fill = 2;}
+        }
+        NEW customer{
+            fill = 1;
+            type = SPLITH;
+            caption = 'Склады покупателя';
+            MOVE BOX(TREE stockTree1) {caption = 'Группа складов';}
+            MOVE BOX(ss1) { fill = 2;}
+        }
+        NEW noteContainer {
+            fill = 1;
+            caption = 'Примечание';
+            MOVE PROPERTY(note(c)) {
+                panelCaptionAbove = TRUE;
+                fill = 1;
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+WHEN LOCAL FORMS contractMarketing SETCHANGED(supplier(ContractMarketing contract)) DO {
+    currency(contract) <- OVERRIDE currency(supplier(contract)), defaultCurrency();
+}
+
+addUserContractMarketingSupplierCustomer 'Добавить'(LegalEntity supplier, LegalEntity customer) = {
+	NESTEDSESSION{
+	    NEW uc = ContractMarketing {
+	        supplier(uc) <- supplier;
+	        customer(uc) <- customer;
+	        currency(uc) <- OVERRIDE currency(supplier), defaultCurrency();
+	        SHOW contractMarketing OBJECTS c = uc DOCKED;
+	    }
+	}
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
+
+is (ContractMarketing contractSku) = contractSku IS ContractMarketing;
+
+EXTEND FORM contracts
+    PROPERTIES(c) NEWSESSION newCM = NEW[ContractMarketing]
+;
+DESIGN contracts{
+    PROPERTY (newCM) { caption = 'Договор маркетинга';}
+}
+
+
+FORM ContractMarketings 'Договоры маркетинга'
+    OBJECTS c = ContractMarketing   
+    PROPERTIES(c) READONLY nameSupplier, namePartyAStocks, nameCustomer, namePartyBStocks, 
+                  seriesNumber, dateFrom, dateTo, nameCurrency,  nameTypeExchange, note
+    PROPERTIES(c) NEWSESSION NEW[ContractMarketing], EDIT
+
+    LIST ContractMarketing OBJECT c
+;
+
+
+// ----------------------------- Расширяем форму организаций ------------------------------------------- //
+
+isCustomer(LegalEntity l,ContractMarketing css) = isCustomer(l) AND is(css);
+isSupplier(LegalEntity l,ContractMarketing csc) = isSupplier(l) AND is(csc);
+EXTEND FORM legalEntity
+
+    OBJECTS css1 = ContractMarketing GRID
+    PROPERTIES(css1) SHOWIF isCustomer(l) READONLY seriesNumber,  dateFrom,
+                    dateTo, nameCurrency, note, descriptionPaymentCondition, namePartyAStocks, namePartyBStocks
+    PROPERTIES      SHOWIF isCustomer(l) addUserContractMarketingSupplierCustomer(s, l) TODRAW css1 
+    PROPERTIES(css1) SHOWIF isCustomer(l) NESTEDSESSION EDIT
+    PROPERTIES(css1) DELETE SHOWIF isCustomer(l,css1) GRID
+    
+    FILTERS customer(css1) == l,
+            supplier(css1) == s
+
+    OBJECTS csc1 = ContractMarketing GRID
+    PROPERTIES(csc1) SHOWIF isSupplier(l) READONLY seriesNumber, dateFrom,
+                    dateTo, nameCurrency, note, descriptionPaymentCondition
+    PROPERTIES SHOWIF isSupplier(l) addUserContractMarketingSupplierCustomer(l, c) TODRAW csc1 
+    PROPERTIES(csc1) SHOWIF isSupplier(l) NESTEDSESSION EDIT
+    PROPERTIES(csc1) DELETE SHOWIF isSupplier(l,csc1) GRID
+    FILTERS customer(csc1) == c,
+            supplier(csc1) == l
+;
+
+DESIGN legalEntity {
+    docPurchaseContainer {
+        MOVE BOX(css1) {
+            caption = 'Договоры маркетинга';
+        }
+    }
+    docSaleContainer {
+        MOVE BOX(csc1) {
+            caption = 'Договоры маркетинга';
+        }
+    }
+}
+
+contractType (ContractMarketing c) += ContractType.marketing IF  c IS ContractMarketing;
+
+contractSku = DATA ContractSku (ContractMarketing);
+seriesNumberContractSku 'Договор поставки (серия/номер)' (ContractMarketing c) = seriesNumber(contractSku(c));
+
+contractMarketing = GROUP AGGR ContractMarketing c BY contractSku(c);
+
+CONSTRAINT contractSku(ContractMarketing c) AND supplier(c) AND NOT supplier(c) == supplier(contractSku(c))
+    MESSAGE 'Поставщик по договору маркетинга должен быть равен поставщику по основному договору';
+CONSTRAINT contractSku(ContractMarketing c) AND customer(c) AND NOT customer(c) == customer(contractSku(c))
+    MESSAGE 'Покупатель по договору маркетинга должен быть равен покупателю по основному договору';
+CONSTRAINT contractSku(ContractMarketing c) AND currency(c) AND NOT currency(c) == currency(contractSku(c))
+    MESSAGE 'Валюта по договору маркетинга должна быть равна валюте по основному договору';
+        
+EXTEND FORM contractMarketing
+    PROPERTIES (c) seriesNumberContractSku
+;
+DESIGN contractMarketing {
+    params {
+        MOVE PROPERTY(seriesNumberContractSku(c));
+    } 
+}
