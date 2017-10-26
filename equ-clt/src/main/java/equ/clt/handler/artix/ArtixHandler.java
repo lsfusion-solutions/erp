@@ -826,7 +826,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                     String idItem = inventPosition.getString("inventCode");
                                     String barcodeString = inventPosition.getString("barCode");
-                                    String barcode = idItem != null && barcodeString != null && idItem.equals(barcodeString) ? null :
+                                    // вот такой вот чит из-за того, что могут ввести код товара в кассе
+                                    String barcode = idItem != null && idItem.length() < 11 && barcodeString != null && idItem.equals(barcodeString) ? null :
                                             appendCheckDigitToBarcode(barcodeString, 7, appendBarcode);
                                     Integer numberReceiptDetail = inventPosition.getInt("posNum");
 
