@@ -683,7 +683,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         if(url == null) return null;
         File file;
         try {
-            URLConnection connection = new URL("http:" + url).openConnection();
+            URLConnection connection = new URL(url).openConnection();
             InputStream input = connection.getInputStream();
             byte[] buffer = new byte[4096];
             int n;
