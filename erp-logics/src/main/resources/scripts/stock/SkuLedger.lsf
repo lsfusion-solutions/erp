@@ -974,12 +974,12 @@ DESIGN costSkuBatchLedger {
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Sku) CHANGEKEY 'F3';
 resetAllSelectedSku 'Сбросить для всех'() = {
     select(Sku sku) <- NULL WHERE select(sku);
-} SHORTCUT select[Sku];
+} CONTEXTMENU select[Sku];
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Sku, Stock) CHANGEKEY 'F3';
 resetAllSelectedSkuStock 'Сбросить для всех'() = {
     select(Sku sku, Stock stock) <- NULL WHERE select(sku, stock);
-} SHORTCUT select[Sku,Stock];
+} CONTEXTMENU select[Sku,Stock];
 
 countSelectSkus 'Отм.' = GROUP SUM 1 IF select(Sku sku) MINCHARWIDTH 3 PREFCHARWIDTH 3 TOOLBAR ;
 countSelectSkuStocks 'Отм.' = GROUP SUM 1 IF select(Sku sku, Stock stock) MINCHARWIDTH 3 PREFCHARWIDTH 3 TOOLBAR;
@@ -987,7 +987,7 @@ countSelectSkuStocks 'Отм.' = GROUP SUM 1 IF select(Sku sku, Stock stock) MIN
 multipleStores 'Несколько складов' = DATA LOCAL BOOLEAN ();
 singleStore = NOT multipleStores();
 
-// Пока вот так, так иначе будет циклическая зависимость, а Extend'ить ON SHORTCUT нельзя
+// Пока вот так, так иначе будет циклическая зависимость, а Extend'ить ON CONTEXTMENU нельзя
 showBalanceMovementSku 'Показать движение товара по складу' (sku, stock) = ABSTRACT (Sku, Stock);
 showBalancePriceSku 'Показать изменение цены товара по складу' (sku, stock) = ABSTRACT (Sku, Stock);
 showBalanceReserveSku 'Показать резерв товара по складу' (sku, stock) = ABSTRACT (Sku, Stock);
@@ -1017,7 +1017,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
 
     OBJECTS           sts=(st=Stock, s=Sku)
     PROPERTIES        select(s,st)
-    PROPERTIES        BACKGROUND backgroundBalance(s,st) READONLY name(s) ON SHORTCUT showBalanceMovementSku(s, st) ON SHORTCUT showBalancePriceSku(s, st) ON SHORTCUT showBalanceReserveSku(s,st), id(s) SHOWIF showIDs(), nameCountry(s), 
+    PROPERTIES        BACKGROUND backgroundBalance(s,st) READONLY name(s) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s,st), id(s) SHOWIF showIDs(), nameCountry(s), 
                       stockName = name(st) SHOWIF multipleStores(), nameUOM(s)  //  idBarcodeSku
     FILTERS           isParent(sk, s),
                       IF multipleStores() THEN 
@@ -1115,7 +1115,7 @@ EXTEND FORM currentBalanceSkuStock FILTERS accessCompany(currentUser(), st) OR N
 //    FOR [= FILTER currentBalanceSkuStock.sts](st,s) DO {
 //        selectSkuStock(s, st) <- NULL WHERE selectSkuStock(s, st);
 //    }
-//} SHORTCUT selectSkuStock;
+//} CONTEXTMENU selectSkuStock;
 
 FORM balanceSkuStock 'Остатки на дату'
 
@@ -1142,7 +1142,7 @@ FORM balanceSkuStock 'Остатки на дату'
 
     OBJECTS           sts=(st=Stock, s=Sku)
     PROPERTIES        select(s,st)
-    PROPERTIES        READONLY BACKGROUND backgroundBalance(s,st,t) name(s) ON SHORTCUT showBalanceMovementSku(s, st) ON SHORTCUT showBalancePriceSku(s, st) ON SHORTCUT showBalanceReserveSku(s,st), id(s) SHOWIF showIDs(), nameCountry(s), stockName = name(st) SHOWIF multipleStores(), nameUOM(s)  //  idBarcodeSku
+    PROPERTIES        READONLY BACKGROUND backgroundBalance(s,st,t) name(s) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s,st), id(s) SHOWIF showIDs(), nameCountry(s), stockName = name(st) SHOWIF multipleStores(), nameUOM(s)  //  idBarcodeSku
     FILTERS           isParent(sk, s),
                       IF multipleStores() THEN 
                           st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
