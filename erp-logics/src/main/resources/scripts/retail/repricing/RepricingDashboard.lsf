@@ -148,7 +148,7 @@ FORM repricingDashboard 'Переоценка'
     PROPERTIES(sk) READONLY idBarcode, id, name ON CONTEXTMENU showMovementSku(sk, d) ON CONTEXTMENU showMovementPriceSku(sk, d), shortNameUOM
     PROPERTIES     READONLY dateTimeLastMoved(sk, d), dateTimeLastOrderBatch(sk, d), nameSupplierLastOrderBatch(sk, d), nameCountry(sk), currentBalance(sk,d), 
                    managementRetailPrice(sk), retailPricingPriceB(sk,d,t) 
-    PROPERTIES (d,o,t)  TODRAW sk  TOOLBAR calculateDashboardRepricing, calculateDashboardManagementRepricingForm, createDashboardRepricing ,
+    PROPERTIES (d,o,t)  TODRAW sk  TOOLBAR calculateDashboardRepricing, calculateDashboardManagementRepricingForm, 
                                               createRepricingLabelTransaction,
                                               createSnapshotRepricingLabelTransactionDepartmentStore
     PROPERTIES() READONLY countSelectSkus SHOWIF countSelectSkus() TODRAW sk                                          
@@ -224,6 +224,26 @@ DESIGN repricingDashboard {
 @extendFormFilterStockAccess(d, repricingDashboard);
 @extendFormFilterAccessStock(Repricing, p, repricingDashboard, departmentStore, company);
 @extendFormFilterRoleAccess(repricing, p, repricingDashboard); 
+
+
+createDashboardRepricing 'Создать переоценку'(Stock d, Operation o, DATETIME dt) = {
+	NEWSESSION NESTED LOCAL  {
+	    createDashboardRepricingNotForm(d, o, dt);
+	    DIALOG userRepricing OBJECTS p = repForm() DOCKED NOCANCEL DO {
+	        inDashboardRepricing(Sku sku) <- NULL;
+	        IF updateDateTime() THEN {
+	            SEEK repricingDashboard.t = currentDateTime();
+	        }	        
+	    }
+	    repForm() <- NULL;      
+	}
+} 
+
+EXTEND FORM  repricingDashboard
+    PROPERTIES (d,o,t)  TODRAW sk  TOOLBAR AFTER calculateDashboardManagementRepricingForm(d,o,t) createDashboardRepricing
+
+;
+
 NAVIGATOR {
     retailDashboardNavigator {
         ADD repricingDashboard;
