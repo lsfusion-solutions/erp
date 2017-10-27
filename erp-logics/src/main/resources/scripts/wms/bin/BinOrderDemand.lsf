@@ -12,20 +12,22 @@ maxBinReserve (Sku sku, UserBinOrder order) = maxBinReserve(sku, inBin(order));
 
 minAvailableQuantity (Sku sku, Bin bin) = MAX OVERRIDE availableQuantity(sku, bin), 0.0, 0.0 IF sku IS Sku AND bin IS Bin;
 preCalcRecQuantity  (Sku sku, Bin bin) = maxBinReserve(sku, bin) (-) minAvailableQuantity(sku, bin); //расчетная потребность
+
+availableQuantityOutBin 'Доступно' (Sku sku, Operation operation, Stock stock) = availableQuantity(sku, outBin(operation, stock)) (-) extraFromBinTransfer(sku, stock);
  
 recommendedQuantity 'Рекомендуемое к перемещению кол-во'  (Sku sku, Operation operation, Stock stock)  = 
     IF minAvailableQuantity(sku, inBin(operation, stock)) <= binReserve(sku, inBin(operation, stock)) THEN
-        IF availableQuantity(sku, outBin(operation, stock)) > preCalcRecQuantity(sku, inBin(operation, stock)) 
+        IF availableQuantityOutBin(sku, operation, stock) > preCalcRecQuantity(sku, inBin(operation, stock)) 
             THEN preCalcRecQuantity(sku, inBin(operation, stock))
-            ELSE availableQuantity(sku, outBin(operation, stock));
+            ELSE availableQuantityOutBin(sku, operation, stock);
 
 ceilCalcRecQuantity (Sku sku, Operation operation, Stock stock) =  IF Purchase.amountPack(sku) > 0 
     THEN ceil(recommendedQuantity(sku, operation, stock), amountPack(sku)) IF amountPack(sku)!=0
     ELSE (IF split(sku) THEN ceil(recommendedQuantity(sku, operation, stock)) ELSE recommendedQuantity(sku, operation, stock));
 
-ceilAvailableQuantity (Sku sku, Operation operation, Stock stock) = IF amountPack(sku) > 0 AND availableQuantity(sku, outBin(operation, stock)) > amountPack(sku) 
-    THEN floor(availableQuantity(sku, outBin(operation, stock))/(amountPack(sku) IF amountPack(sku)!=0))*amountPack(sku)
-    ELSE (IF split(sku) THEN floor(availableQuantity(sku, outBin(operation, stock))) ELSE availableQuantity(sku, outBin(operation, stock)));
+ceilAvailableQuantity (Sku sku, Operation operation, Stock stock) = IF amountPack(sku) > 0 AND availableQuantityOutBin(sku, operation, stock) > amountPack(sku) 
+    THEN floor(availableQuantityOutBin(sku, operation, stock)/(amountPack(sku) IF amountPack(sku)!=0))*amountPack(sku)
+    ELSE (IF split(sku) THEN floor(availableQuantityOutBin(sku, operation, stock)) ELSE availableQuantityOutBin(sku, operation, stock));
     
 recommendedPackQuantity 'Рекомендуемое к перемещению кол-во' (Sku sku, Operation operation, Stock stock) = 
     IF ceilAvailableQuantity(sku, operation, stock)> 0.0 AND ceilCalcRecQuantity(sku, operation, stock)> 0.0 THEN
