@@ -531,7 +531,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
             }
 
             //цены сознательно поменяли местами, чтобы работали старые ценники
-            command1 = command1 + "GPR1" + retailPrice + separator;
+            command1 = command1 + "GPR1" + price /*retailPrice*/ + separator;
             command1 = command1 + "EXPR" + price + separator;
 
             String prefix = scales.pieceCodeGroupScales != null && nonWeight ? scales.pieceCodeGroupScales : scales.weightCodeGroupScales;
