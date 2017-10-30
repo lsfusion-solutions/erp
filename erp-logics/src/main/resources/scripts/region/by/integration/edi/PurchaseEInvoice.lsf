@@ -7,6 +7,18 @@ PRIORITY Purchase;
 NAMESPACE EDI;
 
 
+eOperation = DATA Operation(LegalEntity);
+nameEOperation 'Операция (Закупка) для электронных накладных'(LegalEntity l) = name(eOperation(l));
+
+EXTEND FORM legalEntity
+    PROPERTIES (l) nameEOperation;
+
+DESIGN legalEntity {
+    EDI{
+        MOVE PROPERTY (nameEOperation(l));
+    }
+} 
+
 eInvoice = ABSTRACT EInvoice (Invoice);
 eInvoice = DATA EInvoice (UserInvoice);
 eInvoice(UserInvoice i) += eInvoice(i);
@@ -47,6 +59,7 @@ copyData(EInvoice ei, Invoice i) = {
     eInvoice(i) <- ei;
     number(i) <- deliveryNoteNumber(ei);
     series(i) <- NULL;
+    operation(i) <- eOperation(supplier(ei)) WHERE eOperation(supplier(ei));
     supplier(i) <- supplier(ei);
     supplierStock(i) <- defaultStock(supplier(ei));
     customer(i) <- customer(ei);
