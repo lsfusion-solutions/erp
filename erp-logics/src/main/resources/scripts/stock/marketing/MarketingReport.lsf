@@ -65,19 +65,53 @@ fillData 'Заполнить данные'(MarketingReport report) = {
         
         LOCAL inc = BOOLEAN (Invoice.Invoice);
         IF contract(report) IS ContractMarketing THEN {
-            inc (Invoice.Invoice i) <- TRUE WHERE date(i) >= fromDate(report) AND date(i) <= toDate(report) AND isPosted(i) AND marketingSumInvoiceDetail(i) 
+            inc (Invoice.Invoice i) <- TRUE WHERE date(i) >= fromDate(report) AND date(i) <= toDate(report) AND isPosted(i) //AND marketingSumInvoiceDetail(i) 
                                             AND contract(report) == contractMarketing(contractSku(i));
         } ELSE {
-            inc (Invoice.Invoice i) <- TRUE WHERE date(i) >= fromDate(report) AND date(i) <= toDate(report) AND isPosted(i) AND marketingSumInvoiceDetail(i) 
+            inc (Invoice.Invoice i) <- TRUE WHERE date(i) >= fromDate(report) AND date(i) <= toDate(report) AND isPosted(i) //AND marketingSumInvoiceDetail(i) 
                                             AND contract(report) == contractSku(i);
         }
         
-        FOR inc (Invoice.Invoice i) NEW d = MarketingReportDetail DO {
+        FOR inc (Invoice.Invoice i) ORDER date(i) NEW d = MarketingReportDetail DO {
             marketingReport(d) <- report;
             invoice(d) <- i;                                                                                                                 
         }    
     }
        
+}
+skipMarketingReport 'Не создавать маркетинговый отчет' = ABSTRACT BOOLEAN (ContractMarketing);
+
+firstMarketingDate = firstDayOfMonth(sumMonth(currentDate(), -1));
+lastMarketingDate = lastDayOfMonth(sumMonth(currentDate(), -1));
+marketingReport = GROUP MAX MarketingReport r IF isPosted(r) BY contract(r), fromDate(r), toDate(r);
+
+createAutoMarketingReportFull 'Создать маркетинговый отчет (месяц)'(DATE df, DATE dt) = {
+    FOR ContractMarketing c IS ContractMarketing 
+        //AND inSalereport(Stock stock) AND partyB(c) == company
+        AND NOT marketingReport(c, df, dt)
+        AND NOT skipMarketingReport(c) DO {
+        NEWSESSION {
+            NEW r = MarketingReport {
+        
+                contract(r) <- c;
+                fromDate(r) <- df;
+                toDate(r) <- dt;
+                isPosted(r) <- TRUE;
+                
+                fillData(r);
+            
+                IF countMarketingReportDetail(r) THEN {
+                    apply();
+                } ELSE {
+                    cancel();
+                }
+            }
+        }
+    }
+}
+createAutoMarketingReportFull 'Создать маркетинговый отчет (месяц)'() = {
+    createAutoMarketingReportFull(firstMarketingDate(), lastMarketingDate());
+
 }
 
 FORM marketingReport 'Маркетинговый отчет'
@@ -171,13 +205,22 @@ DESIGN marketingReport {
     }
 }
 
-FORM marketingReports 'Маркетинговые отчеты'
+filterMarketingReportDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (MarketingReport i) = date(i) >= filterMarketingReportDateFrom() OR (i IS MarketingReport AND NOT filterMarketingReportDateFrom());      
 
+filterMarketingReportDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (MarketingReport i) = date(i) <= filterMarketingReportDateTo() OR (i IS MarketingReport AND NOT filterMarketingReportDateTo());      
+
+filterMarketingReportSupplier = DATA LOCAL LegalEntity ();
+nameFilterMarketingReportSupplier 'Поставщик' = name(filterMarketingReportSupplier()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterSupplier (MarketingReport i) = partyA(contract(i)) == filterMarketingReportSupplier() OR (i IS MarketingReport AND NOT filterMarketingReportSupplier());   
+
+FORM marketingReports 'Маркетинговые отчеты'
+    PROPERTIES () filterMarketingReportDateFrom, filterMarketingReportDateTo, nameFilterMarketingReportSupplier
+    
     OBJECTS r = MarketingReport 
-    PROPERTIES (r) READONLY isPosted, seriesNumberContractMarketing,  
-                   number, series, date, time,
-                   nameCurrency, note, fromDate, toDate,
-                   namePartyAContractMarketing, namePartyBContractMarketing
+    PROPERTIES (r) READONLY isPosted, number, series, date, time, seriesNumberContractMarketing, namePartyAContractMarketing, namePartyBContractMarketing,                    
+                   fromDate, toDate, nameCurrency, note                   
                 
     PROPERTIES (r) READONLY countMarketingReportDetail, sumMarketingReportDetail, VATSumMarketingReportDetail, invoiceSumMarketingReportDetail, marketingSumMarketingReportDetail                                           
 
@@ -192,7 +235,10 @@ FORM marketingReports 'Маркетинговые отчеты'
     
     ORDER index(d)
 
-    FILTERS marketingReport(d) == r
+    FILTERS marketingReport(d) == r,
+            filterDateFrom(r),
+            filterDateTo(r),
+            filterSupplier(r)
                 
     LIST MarketingReport OBJECT r
 ;
@@ -229,6 +275,13 @@ DESIGN marketingReports {
                     }
                 }
             }
+        }
+        NEW filter BEFORE documentContainer {
+            type = CONTAINERH;
+            caption = 'Фильтры';
+            MOVE PROPERTY (filterMarketingReportDateFrom());
+            MOVE PROPERTY (filterMarketingReportDateTo());
+            MOVE PROPERTY (nameFilterMarketingReportSupplier());
         }
     }
 }
