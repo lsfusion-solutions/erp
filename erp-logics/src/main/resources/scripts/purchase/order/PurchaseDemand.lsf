@@ -56,9 +56,13 @@ numberSkuPurchaseReserve 'Кол-во товаров' (supplier, stock, priceLis
 limitRecommendedQuantity = ABSTRACT VALUE BOOLEAN (Sku, UserOrder);
 
 MOQ 'MOQ' = ABSTRACT NUMERIC[16,5] (Sku);
+skipPack = ABSTRACT BOOLEAN (Sku, Stock, NUMERIC[16,5]);
 overRecommendedQuantity = ABSTRACT LIST (UserOrderDetail,Sku);
 
-ceilRecommendedQuantity(Sku sku, NUMERIC[16,5] r) = IF (MIN MOQ(sku), amountPack(sku)) > 0 THEN ceil(r, (MIN MOQ(sku), amountPack(sku))) ELSE (IF split(sku) THEN r ELSE ceil(r));
+ceilRecommendedQuantity(Sku sku, Stock stock, NUMERIC[16,5] r) = 
+    IF (MIN MOQ(sku), amountPack(sku)) > 0 AND stock IS Stock AND NOT skipPack(sku, stock, r) 
+        THEN ceil(r, (MIN MOQ(sku), amountPack(sku))) 
+        ELSE (IF split(sku) THEN r ELSE ceil(r));
 
 fillRecommendedQuantityStock 'Заполнить рекомендуемым'(UserOrder userOrder) = {
     LOCAL in = BOOLEAN (Sku);
@@ -66,11 +70,11 @@ fillRecommendedQuantityStock 'Заполнить рекомендуемым'(Use
                               ledgerPriceListType(priceListType(userOrder, sku)),
                               sku, customerStock(userOrder), supplier(userOrder), dateTime(userOrder))
                           AND NOT limitRecommendedQuantity(sku, userOrder); 
-    FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, customerStock(userOrder), userOrder)
+    FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, customerStock(userOrder), userOrder) NOINLINE
         NEW d = UserOrderDetail DO {
             userOrder(d) <- userOrder;
             sku(d) <- sku;
-            quantity (d) <- ceilRecommendedQuantity(sku, r);
+            quantity (d) <- ceilRecommendedQuantity(sku, customerStock(userOrder), r);
             overRecommendedQuantity(d,sku);
         }
 } TOOLBAR CONFIRM;
