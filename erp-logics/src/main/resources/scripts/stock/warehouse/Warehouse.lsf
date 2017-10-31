@@ -163,6 +163,75 @@ DESIGN warehouse {
     MOVE TOOLBARBOX;
 }
 
+FORM warehousesCompany 'Собственные склады'
+
+    TREE warehouseTree b=STRING[3], wg = WarehouseGroup PARENT parent
+    PROPERTIES READONLY VALUE(b), wgTreeName = name(wg)
+    ORDER wgTreeName
+    FILTERS stringEqualsAll(b)
+
+    OBJECTS w=Warehouse
+    PROPERTIES(w) READONLYIF isReadonly() name, fullName, id SHOWIF showIDs(), nameWarehouseGroup, 
+                  address, email, nameLegalEntity, nameRegion, latitude[POI], longitude[POI]
+    ORDER name(w)
+    FILTERS isParent(wg, w) OR (w IS Warehouse AND wg IS WarehouseGroup AND NOT warehouseGroup(w)) OR (w IS Warehouse AND NOT wg),
+            isCompany(w)
+;
+
+DESIGN warehousesCompany {
+    BOX{
+        preferredSize = (1024, 768);    
+        NEW mainContainer{
+            fill = 1;
+            type = SPLITH;
+    
+            MOVE BOX(TREE warehouseTree) {caption = 'Группы складов';}
+            MOVE BOX(w) {
+                fill = 3;
+                GRID(w) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }    
+}
+
+FORM dialogWarehouses 'Склады'
+
+    TREE warehouseTree b=STRING[3], wg = WarehouseGroup PARENT parent
+    PROPERTIES READONLY VALUE(b), wgTreeName = name(wg)
+    ORDER wgTreeName
+    FILTERS stringEqualsAll(b)
+
+    OBJECTS w=Warehouse
+    PROPERTIES(w) READONLYIF isReadonly() name, fullName, id SHOWIF showIDs(), nameWarehouseGroup, 
+                  address, email, nameLegalEntity, nameRegion, latitude[POI], longitude[POI]
+    ORDER name(w)
+    FILTERS isParent(wg, w) OR (w IS Warehouse AND wg IS WarehouseGroup AND NOT warehouseGroup(w)) OR (w IS Warehouse AND NOT wg)
+
+    LIST Warehouse OBJECT w
+;
+
+DESIGN dialogWarehouses {
+    BOX{
+        preferredSize = (1024, 768);   
+        NEW mainContainer{
+            fill = 1;
+            type = SPLITH;
+    
+            MOVE BOX(TREE warehouseTree) {caption = 'Группы складов';}
+            MOVE BOX(w) {
+                fill = 3;
+                GRID(w) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }    
+}
+
 FORM warehouses 'Склады'
 
     TREE warehouseTree b=STRING[3], wg = WarehouseGroup PARENT parent
@@ -177,8 +246,6 @@ FORM warehouses 'Склады'
     PROPERTIES(w) NEWSESSION NEW, EDIT, deletew=DELETE 
     ORDER name(w)
     FILTERS isParent(wg, w) OR (w IS Warehouse AND wg IS WarehouseGroup AND NOT warehouseGroup(w)) OR (w IS Warehouse AND NOT wg)
-
-    LIST Warehouse OBJECT w
 ;
 
 DESIGN warehouses {
