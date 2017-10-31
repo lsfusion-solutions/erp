@@ -149,6 +149,44 @@ DESIGN employee {
     }
 }
 
+//Временный доступ
+CLASS TemporaryAccess 'Временный доступ';
+TABLE temporaryAccess (TemporaryAccess);
+
+dateFrom 'Дата с' = DATA DATE (TemporaryAccess);
+dateTo 'Дата по' = DATA DATE (TemporaryAccess);
+employee 'Сотрудник' = DATA Employee (TemporaryAccess);
+stock 'Склад' = DATA Stock (TemporaryAccess);
+nameStock 'Склад' (TemporaryAccess t) = name(stock(t));
+
+CONSTRAINT dateTo(TemporaryAccess t) < dateFrom(t)
+    MESSAGE 'Дата окончания доступа не может быть меньше даты начала';
+CONSTRAINT SET(dateFrom(TemporaryAccess t)) AND dateFrom(t) < currentDate()
+    MESSAGE 'Дата начала доступа не может быть меньше текущей даты';
+
+WHEN SET(dateFrom(TemporaryAccess t) <= currentDate()) AND CHANGED(currentDate()) AND currentDate() <= dateTo(t)  DO
+    dataAccessCompany(Stock s, Employee e) <- TRUE WHERE s == stock(t) AND e == employee(t);
+WHEN SET(dateTo(TemporaryAccess t) < currentDate()) AND CHANGED(currentDate()) DO
+    dataAccessCompany(Stock s, Employee e) <- NULL WHERE s == stock(t) AND e == employee(t);
+
+EXTEND FORM employee
+    OBJECTS ta = TemporaryAccess GRID 
+    PROPERTIES(ta) nameStock, dateFrom, dateTo, DELETE, NEW
+    ORDER nameStock(ta), dateFrom(ta) DESC
+    FILTERS employee(ta) == e
+;
+
+DESIGN employee {
+    stockSplitContainer {
+        NEW stocks {
+            type = SPLITV;
+            fill = 1;
+            MOVE BOX(s);
+            MOVE BOX (ta);
+        }
+    }
+}
+
 // ----------------------------------- Комиссии ---------------------------------------------------------- //
 
 META defineCommitteeEmployee (committee, prefix, caption)
