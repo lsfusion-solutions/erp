@@ -1,6 +1,6 @@
 MODULE PriceListItem;
 
-REQUIRE PriceList, Item;
+REQUIRE PriceList, Item, PriceListAccount;
 
 NAMESPACE PriceList;
 
@@ -76,4 +76,48 @@ DESIGN item {
     }
 }
 
+showInfo 'Показывать в информации по товару' = DATA BOOLEAN (LedgerPriceListType);
 
+EXTEND FORM options
+    OBJECTS plt = LedgerPriceListType
+    PROPERTIES(plt) READONLY id, name, objectClassName
+    PROPERTIES(plt) showInfo
+;
+
+DESIGN options {
+    items {
+        MOVE BOX(plt);
+    }
+}
+
+EXTEND FORM itemInfo
+    OBJECTS t = LedgerPriceListType
+    
+    PROPERTIES READONLY TODRAW st currentPrice(t,s,st) COLUMNS (t) HEADER name(t)
+    FILTERS showInfo(t)
+    
+    PROPERTIES accountPriceA(b,st1)
+    
+    OBJECTS t1 = LedgerPriceListType
+    PROPERTIES READONLY name(t1), objectClassName(t1), currentPrice(t1,s,st1)
+    FILTERS currentPrice(t1,s,st1)
+    
+    OBJECTS pp = (t2 = LedgerPriceListType, pl = PriceListLedger, st2 = Stock)
+    PROPERTIES READONLY  name(t2), description(pl),  fromDateTime(pl, t2, st2), toDateTime(pl, t2, st2), price(pl, t2, st2)
+    PROPERTIES(pl) EDIT
+    ORDER name(t2), fromDateTime(pl, t2, st2) DESC
+    FILTERS sku(pl, t2, st2) == s,
+            active(pl, t2, st2),
+            st1 == st2,
+            t2 == t1
+;
+
+DESIGN itemInfo {
+    bottomContainer {
+        NEW priceLists {
+            caption = 'По видам цен';
+            MOVE BOX(t1);
+            MOVE BOX(pp) {caption = 'Изменение цены';}
+        }
+    }
+}

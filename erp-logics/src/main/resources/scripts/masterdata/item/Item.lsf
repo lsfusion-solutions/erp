@@ -1926,3 +1926,84 @@ DESIGN itemGroup {
 
 WHEN LOCAL CHANGED(itemGroup(Item i)) AND CustomGroupType dc IS CustomGroupType AND NOT customGroup(dc, i) DO
     customGroup(dc, i) <- customGroup(dc, itemGroup(i));
+
+// форма просмотра информации по товару
+FORM itemInfo 'Информация по товару'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES dFrom = VALUE(df), dTo = VALUE(dt)
+
+    OBJECTS s = Sku PANEL
+    PROPERTIES(s) READONLY name, nameUOM, nameSkuGroup, nameCountry, nameBrand, resident, nameManufacturer, valueVAT
+    
+    OBJECTS st = Stock
+    PROPERTIES(st) READONLY name 
+    PROPERTIES(s,st) READONLY valueVAT
+    FILTERS isCompany(st),
+            accessCompany(st)
+    
+    OBJECTS st1 = Stock PANEL 
+    PROPERTIES(st1) name SELECTOR
+    FILTERS isCompany(st1),
+            accessCompany(st1)
+    
+    OBJECTS b = Batch
+    PROPERTIES(b) READONLY name, nameSupplier, shippedQuantity, currentBalance, cost, dateTime, seriesNumber
+    PROPERTIES(b,st1) currentBalance
+    ORDER dateTime(b) DESC 
+    FILTERS sku(b) == s
+;
+
+setDates() = {
+    SEEK itemInfo.df = sum(currentDate(), -7);
+}
+
+EXTEND FORM itemInfo
+    EVENTS ON INIT setDates()
+;
+
+DESIGN itemInfo {
+    BOX {
+        preferredSize = (1024, 768);
+        NEW topContainer {
+            NEW firstLine {
+                type = CONTAINERH;
+                MOVE PROPERTY(name(s));
+                MOVE PROPERTY(nameUOM(s));
+                MOVE PROPERTY(nameSkuGroup(s)); 
+            }
+            NEW secondLine {
+                type = CONTAINERH;
+                MOVE PROPERTY(nameCountry(s));
+                MOVE PROPERTY(nameBrand(s));
+                MOVE PROPERTY(resident(s));
+                MOVE PROPERTY(nameManufacturer(s));
+                MOVE PROPERTY(valueVAT(s));
+            }
+        }
+        NEW stockFilter {
+            caption = 'Склад';
+            MOVE PROPERTY(name(st1));
+        }
+        NEW bottomContainer {
+            type = TABBED;
+            fill = 1;
+            NEW stocks {
+                caption = 'По складам';
+                NEW dates {
+                    caption = 'Интервал';
+                    type = CONTAINERH;
+                    MOVE PROPERTY(dFrom) {caption = 'Дата с';}
+                    MOVE PROPERTY(dTo) {caption = 'Дата по';}
+                }
+                MOVE BOX(st);
+            }
+            NEW batches {
+                caption = 'По партиям';
+                MOVE BOX(b);
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+showBalancesSku 'Показать информацию по товару' (Item item) = { SHOW itemInfo OBJECTS s = item AS Item; }  CONTEXTMENU name[Item];
