@@ -84,7 +84,7 @@ skipMarketingReport 'Не создавать маркетинговый отче
 firstMarketingDate = firstDayOfMonth(sumMonth(currentDate(), -1));
 lastMarketingDate = lastDayOfMonth(sumMonth(currentDate(), -1));
 marketingReport = GROUP MAX MarketingReport r IF isPosted(r) BY contract(r), fromDate(r), toDate(r);
-
+overFillData = ABSTRACT LIST (MarketingReport);
 createAutoMarketingReportFull 'Создать маркетинговый отчет (месяц)'(DATE df, DATE dt) = {
     FOR ContractMarketing c IS ContractMarketing 
         //AND inSalereport(Stock stock) AND partyB(c) == company
@@ -99,7 +99,7 @@ createAutoMarketingReportFull 'Создать маркетинговый отч�
                 isPosted(r) <- TRUE;
                 
                 fillData(r);
-            
+                overFillData(r);
                 IF countMarketingReportDetail(r) THEN {
                     apply();
                 } ELSE {
@@ -294,14 +294,16 @@ NAVIGATOR {
 
 // ------------------ Проведение по регистру задолженности ------------------ //
 
+overSumMarketingReportDetail = ABSTRACT NUMERIC[18,4](MarketingReport);
+
 @implementContractLedger( , MarketingReport, contract);
                                    
-sum[ContractLedger](MarketingReport contractLedger) += - NUMERIC[18,4](marketingSumMarketingReportDetail(contractLedger));
+sum[ContractLedger](MarketingReport contractLedger) += - (OVERRIDE overSumMarketingReportDetail(contractLedger), NUMERIC[18,4](marketingSumMarketingReportDetail(contractLedger)));
 
 @implementContractLedger(a , MarketingReport, contract);
-sum[ContractALedger](MarketingReport contractALedger) += - NUMERIC[18,4](marketingSumMarketingReportDetail(contractALedger));
+sum[ContractALedger](MarketingReport contractALedger) += - (OVERRIDE overSumMarketingReportDetail(contractALedger), NUMERIC[18,4](marketingSumMarketingReportDetail(contractALedger)));
 
 @implementOutContractLedger(MarketingReport, contract);
 
-sum[OutContractLedger](MarketingReport outContractLedger) +=  NUMERIC[22,8](marketingSumMarketingReportDetail(outContractLedger));
+sum[OutContractLedger](MarketingReport outContractLedger) +=  (OVERRIDE overSumMarketingReportDetail(outContractLedger), NUMERIC[18,4](marketingSumMarketingReportDetail(outContractLedger)));
 
