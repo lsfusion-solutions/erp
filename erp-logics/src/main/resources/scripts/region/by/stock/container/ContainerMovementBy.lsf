@@ -6,23 +6,26 @@ NAMESPACE ContainerMovement;
 
 FORM printContainerMovementBy 'Отчет по таре'
 
-    OBJECTS params = (dFrom = DATE, dTo = DATE, dep = DepartmentStore) PANEL
+    OBJECTS params = (dFrom = DATE, dTo = DATE) PANEL
     PROPERTIES objFrom = VALUE(dFrom), objTo = VALUE(dTo)
-    PROPERTIES(dep) SELECTOR name, nameStore, nameLegalEntity
-
-    OBJECTS bt=Batch
-    PROPERTIES() balanceInBatches, balanceOutBatches, sumMoveOutBatches, balanceMoveInBatches,sumMoveInBatches, balanceMoveOutBatches 
-    PROPERTIES READONLY accountSumContainerStockDateFrom(), accountSumContainerStockDateTo()
-    PROPERTIES(bt) READONLY idBarcodeSku, nameSku, nameSupplier, lastPrice
-    PROPERTIES(bt) READONLY balanceIn, sumIn, balanceOut, sumOut, balanceMoveIn, sumMoveIn, balanceMoveOut, sumMoveOut
+    PROPERTIES() READONLY namesDepartmentStores, namesStores, namesLegalEntities
+    PROPERTIES() READONLY accountSumContainerStockDateFrom, accountSumContainerStockDateTo
+    PROPERTIES() READONLY balanceInBatches, balanceOutBatches, sumMoveOutBatches, balanceMoveInBatches, sumMoveInBatches, balanceMoveOutBatches
     
-    FILTERS inContainerMovement(bt)
+    OBJECTS sb = (dep = DepartmentStore, bt = Batch)
+    PROPERTIES(dep) READONLY name
+    PROPERTIES(dep) READONLY balanceInBatches, balanceOutBatches, sumMoveOutBatches, balanceMoveInBatches, sumMoveInBatches, balanceMoveOutBatches
+    PROPERTIES(dep) READONLY accountSumContainerDateFrom, accountSumContainerDateTo
+    PROPERTIES(bt) READONLY idBarcodeSku, nameSku, nameSupplier
+    PROPERTIES(dep,bt) READONLY lastPrice, balanceIn, sumIn, balanceOut, sumOut, balanceMoveIn, sumMoveIn, balanceMoveOut, sumMoveOut
     
-    ORDER nameSku(bt)
+    FILTERS inContainerMovement(dep,bt)
+    
+    ORDER name(dep), nameSku(bt)    
 ;
 
 printContainerMovementBy 'Распечатать' (DATE dateFrom, DATE dateTo, DepartmentStore departmentStore) =
-    { PRINT printContainerMovementBy OBJECTS dFrom = dateFrom, dTo = dateTo, dep = departmentStore; }   IMAGE 'print.png' IN print;
+    { PRINT printContainerMovementBy OBJECTS dFrom = dateFrom, dTo = dateTo; }   IMAGE 'print.png' IN print;
 
 EXTEND FORM containerMovement
 
@@ -81,15 +84,15 @@ FORM printStockDocumentContainerBy 'Товарный отчет с тарой'
     ORDER orderResponsiblePerson(ds,e)
     
     OBJECTS bt=(sk=Sku, p = NUMERIC[16,4])
-    PROPERTIES() balanceInBatches, balanceOutBatches, sumMoveOutBatches, balanceMoveInBatches,sumMoveInBatches, balanceMoveOutBatches 
+    PROPERTIES(ds) balanceInBatches, balanceOutBatches, sumMoveOutBatches, balanceMoveInBatches,sumMoveInBatches, balanceMoveOutBatches 
 
-    PROPERTIES(sk,p) balanceInPrice, sumInPrice, balanceOutPrice, sumOutPrice, sumMoveOutPrice, balanceMoveInPrice,sumMoveInPrice, balanceMoveOutPrice 
+    PROPERTIES(ds,sk,p) balanceInPrice, sumInPrice, balanceOutPrice, sumOutPrice, sumMoveOutPrice, balanceMoveInPrice,sumMoveInPrice, balanceMoveOutPrice 
     PROPERTIES READONLY accountSumContainerStockDateFrom(), accountSumContainerStockDateTo()
     PROPERTIES(sk) READONLY idBarcode, name
     PROPERTIES price = VALUE (p)
     
     FILTERS isContainer(sk),
-            balanceInPrice (sk,p) OR balanceOutPrice(sk,p) OR balanceMoveInPrice(sk,p) OR balanceMoveOutPrice(sk,p),
+            balanceInPrice (ds,sk,p) OR balanceOutPrice(ds,sk,p) OR balanceMoveInPrice(ds,sk,p) OR balanceMoveOutPrice(ds,sk,p),
             sk IS Sku AND ds IS Stock
     
     ORDER name(sk)    
@@ -102,8 +105,8 @@ FORM printStockDocumentContainerBy 'Товарный отчет с тарой'
 ;
 
 printDocumentContainerBy 'С тарой' (DATE dateFrom, DATE dateTo, Stock stock) = {    
-
-    includeContainerMovementBatchFromTo (stock, dateFrom, dateTo);
+    in(stock) <- TRUE;
+    includeContainerMovementBatchFromTo (dateFrom, dateTo);
     PRINT printStockDocumentContainerBy OBJECTS dtFrom = dateFrom, dtTo = dateTo, ds = stock ;
     
 }  IMAGE 'print.png' IN print;
