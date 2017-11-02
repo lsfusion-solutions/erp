@@ -1,0 +1,22 @@
+MODULE PriceListLedgerAccountWarehouse;
+
+REQUIRE PriceListLedgerAccount, Warehouse;
+
+NAMESPACE PriceList;
+
+
+checkPriceWarehouse 'Учетная цена партии должна быть равна ее себестоимости (опт. склад)' = DATA BOOLEAN ();
+
+CONSTRAINT (SET(price(PriceListLedger ledger, SystemLedgerPriceListType.accountPriceListType, Stock stock) != cost(Batch bt) 
+                AND checkPriceWarehouse() AND sku(bt) == sku(ledger, SystemLedgerPriceListType.accountPriceListType, stock)  
+                AND stock IS Warehouse AND in(ledger, bt)))     
+    MESSAGE 'Учетная цена партии должна быть равна ее себестоимости';
+
+EXTEND FORM options
+    PROPERTIES () checkPriceWarehouse
+;
+DESIGN options {
+    commons {
+        MOVE PROPERTY (checkPriceWarehouse());
+    }
+}
