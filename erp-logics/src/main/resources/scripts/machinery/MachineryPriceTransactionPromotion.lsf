@@ -1,39 +1,42 @@
 MODULE MachineryPriceTransactionPromotion;
 
-REQUIRE MachineryPriceTransaction;
+REQUIRE MachineryPriceTransaction, Store;
 
 NAMESPACE Machinery;
 
+
+TABLE promotionSkuDepartmentStore(Sku, DepartmentStore);
+
 isForbidPromotion 'Запрет' = DATA BOOLEAN (SkuGroup);
-isForbidPromotion 'Запрет (склад)' = DATA BOOLEAN (SkuGroup, Stock);
-overIsForbidPromotion 'Запрет (перегруженный)' = OVERRIDE isForbidPromotion(SkuGroup group, Stock stock), isForbidPromotion(group) IF stock IS Stock;
+isForbidPromotion 'Запрет (склад)' = DATA BOOLEAN (SkuGroup, DepartmentStore);
+overIsForbidPromotion 'Запрет (перегруженный)' = OVERRIDE isForbidPromotion(SkuGroup group, DepartmentStore stock), isForbidPromotion(group) IF stock IS DepartmentStore;
 
 isForbidPromotion 'Запрет' = DATA BOOLEAN (Sku);
-isForbidPromotion 'Запрет(склад)' = DATA BOOLEAN (Sku, Stock);
-overIsForbidPromotion 'Запрет (перегруженный)' = OVERRIDE isForbidPromotion(Sku sku, Stock stock), isForbidPromotion(sku) IF stock IS Stock;
+isForbidPromotion 'Запрет(склад)' = DATA BOOLEAN (Sku, DepartmentStore) TABLE promotionSkuDepartmentStore;
+overIsForbidPromotion 'Запрет (перегруженный)' = OVERRIDE isForbidPromotion(Sku sku, DepartmentStore stock), isForbidPromotion(sku) IF stock IS DepartmentStore;
 
 levelParent(group) = GROUP MIN level(SkuGroup group, SkuGroup parent) IF isForbidPromotion(parent)
     BY group;
 nearestParent(SkuGroup group) = group(group, levelParent(group));
 nearestForbidPromotion(SkuGroup group) = isForbidPromotion(nearestParent(group));
 
-levelParent (group, stock) = GROUP MIN level(SkuGroup group, SkuGroup parent) IF isForbidPromotion(parent, Stock stock)
+levelParent (group, stock) = GROUP MIN level(SkuGroup group, SkuGroup parent) IF isForbidPromotion(parent, DepartmentStore stock)
     BY group, stock;
-nearestParent (SkuGroup group, Stock stock) = group(group, levelParent(group, stock));
-nearestForbidPromotion (SkuGroup group, Stock stock) = isForbidPromotion(nearestParent (group, stock), stock);
+nearestParent (SkuGroup group, DepartmentStore stock) = group(group, levelParent(group, stock));
+nearestForbidPromotion (SkuGroup group, DepartmentStore stock) = isForbidPromotion(nearestParent (group, stock), stock);
 
-levelParentOver (group, stock) = GROUP MIN level(SkuGroup group, SkuGroup parent) IF overIsForbidPromotion(parent, Stock stock)
+levelParentOver (group, stock) = GROUP MIN level(SkuGroup group, SkuGroup parent) IF overIsForbidPromotion(parent, DepartmentStore stock)
     BY group, stock;
-nearestParentOver (SkuGroup group, Stock stock) = group(group, levelParentOver(group, stock));
-nearestOverForbidPromotion (SkuGroup group, Stock stock) = overIsForbidPromotion(nearestParentOver (group, stock), stock);
+nearestParentOver (SkuGroup group, DepartmentStore stock) = group(group, levelParentOver(group, stock));
+nearestOverForbidPromotion (SkuGroup group, DepartmentStore stock) = overIsForbidPromotion(nearestParentOver (group, stock), stock);
 
-resultForbidPromotion 'Запрет (перегруженный)' ( SkuGroup group, Stock stock) = OVERRIDE
+resultForbidPromotion 'Запрет (перегруженный)' ( SkuGroup group, DepartmentStore stock) = OVERRIDE
     overIsForbidPromotion( group, stock),
-    nearestOverForbidPromotion(group, stock);
+    nearestOverForbidPromotion(group, stock) MATERIALIZED;
 
 resultForbidPromotion 'Запрет (перегруженный)' = OVERRIDE 
-    overIsForbidPromotion(Sku sku, Stock stock),
-    resultForbidPromotion(skuGroup(sku), stock) ;
+    overIsForbidPromotion(Sku sku, DepartmentStore stock),
+    resultForbidPromotion(skuGroup(sku), stock) MATERIALIZED TABLE promotionSkuDepartmentStore;
 
      
 quantityChildWithForbidPromotion (group) = GROUP SUM 1 IF isForbidPromotion(SkuGroup childGroup) AND isParent(childGroup, SkuGroup group) BY group;
@@ -43,22 +46,22 @@ backgroundIsForbidPromotion 'Цвет' (SkuGroup group) = CASE
     WHEN nearestForbidPromotion(group) THEN RGB(230,248,250) 
     WHEN quantityChildWithForbidPromotion(group) != descendantNumber(group) AND NOT quantityParentWithForbidPromotion(group) THEN RGB(203,203,203);           
    
-quantityChildWithForbidPromotion (group, stock) = GROUP SUM 1 IF isForbidPromotion(SkuGroup childGroup, Stock stock) AND isParent(childGroup, SkuGroup group) BY group, stock;
-quantityParentWithForbidPromotion (group, stock) = GROUP SUM 1 IF isForbidPromotion(SkuGroup parentGroup, Stock stock) AND isParent(SkuGroup group, parentGroup) BY group, stock;          
-backgroundIsForbidPromotion 'Цвет' (SkuGroup group, Stock stock) = CASE
+quantityChildWithForbidPromotion (group, stock) = GROUP SUM 1 IF isForbidPromotion(SkuGroup childGroup, DepartmentStore stock) AND isParent(childGroup, SkuGroup group) BY group, stock;
+quantityParentWithForbidPromotion (group, stock) = GROUP SUM 1 IF isForbidPromotion(SkuGroup parentGroup, DepartmentStore stock) AND isParent(SkuGroup group, parentGroup) BY group, stock;          
+backgroundIsForbidPromotion 'Цвет' (SkuGroup group, DepartmentStore stock) = CASE
     WHEN isForbidPromotion(group, stock) THEN RGB(0,0,0)
     WHEN nearestForbidPromotion(group, stock) THEN RGB(230,248,250) 
     WHEN quantityChildWithForbidPromotion(group, stock) != descendantNumber(group) AND NOT quantityParentWithForbidPromotion(group, stock) THEN RGB(203,203,203);           
 
-quantityChildWithOverForbidPromotion (group, stock) = GROUP SUM 1 IF overIsForbidPromotion(SkuGroup childGroup, Stock stock) AND isParent(childGroup, SkuGroup group) BY group, stock;
-quantityParentWithOverForbidPromotion (group, stock) = GROUP SUM 1 IF overIsForbidPromotion(SkuGroup parentGroup, Stock stock) AND isParent(SkuGroup group, parentGroup) BY group, stock;          
-backgroundIsOverForbidPromotion 'Цвет' (SkuGroup group, Stock stock) = CASE
+quantityChildWithOverForbidPromotion (group, stock) = GROUP SUM 1 IF overIsForbidPromotion(SkuGroup childGroup, DepartmentStore stock) AND isParent(childGroup, SkuGroup group) BY group, stock;
+quantityParentWithOverForbidPromotion (group, stock) = GROUP SUM 1 IF overIsForbidPromotion(SkuGroup parentGroup, DepartmentStore stock) AND isParent(SkuGroup group, parentGroup) BY group, stock;          
+backgroundIsOverForbidPromotion 'Цвет' (SkuGroup group, DepartmentStore stock) = CASE
     WHEN overIsForbidPromotion(group, stock) THEN RGB(0,0,0)
     WHEN nearestOverForbidPromotion(group, stock) THEN RGB(230,248,250) 
     WHEN quantityChildWithOverForbidPromotion(group, stock) != descendantNumber(group) AND NOT quantityParentWithOverForbidPromotion(group, stock) THEN RGB(203,203,203);           
 
 FORM forbidPromotion 'Запрет на применение скидок'
-    OBJECTS st = Stock PANEL 
+    OBJECTS st = DepartmentStore PANEL 
     PROPERTIES name(st) SELECTOR
     FILTERS isCompany(st)
     
