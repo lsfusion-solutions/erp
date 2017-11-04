@@ -21,11 +21,13 @@ recommendedQuantity 'Рекомендуемое к перемещению кол
             THEN preCalcRecQuantity(sku, inBin(operation, stock))
             ELSE availableQuantityOutBin(sku, operation, stock);
 
-ceilCalcRecQuantity (Sku sku, Operation operation, Stock stock) =  IF Purchase.amountPack(sku) > 0 
+@defineOption(checkAmountPack, 'Проверять кратность упаковки в заказах на перемещение', BOOLEAN, WMS);
+
+ceilCalcRecQuantity (Sku sku, Operation operation, Stock stock) =  IF checkAmountPack() AND Purchase.amountPack(sku) > 0 
     THEN ceil(recommendedQuantity(sku, operation, stock), amountPack(sku)) IF amountPack(sku)!=0
     ELSE (IF split(sku) THEN ceil(recommendedQuantity(sku, operation, stock)) ELSE recommendedQuantity(sku, operation, stock));
 
-ceilAvailableQuantity (Sku sku, Operation operation, Stock stock) = IF amountPack(sku) > 0 AND availableQuantityOutBin(sku, operation, stock) > amountPack(sku) 
+ceilAvailableQuantity (Sku sku, Operation operation, Stock stock) = IF checkAmountPack() AND amountPack(sku) > 0 AND availableQuantityOutBin(sku, operation, stock) > amountPack(sku) 
     THEN floor(availableQuantityOutBin(sku, operation, stock)/(amountPack(sku) IF amountPack(sku)!=0))*amountPack(sku)
     ELSE (IF split(sku) THEN floor(availableQuantityOutBin(sku, operation, stock)) ELSE availableQuantityOutBin(sku, operation, stock));
     
@@ -46,7 +48,7 @@ fillRecommendedQuantity 'Заполнить рекомендуемым' (UserBin
                 THEN  {
                     quantity(d) <- recommendedPackQuantity(sku, operation(userOrder), stock(userOrder));     
                 } ELSE 
-                    IF recommendedPackQuantity(sku, operation(userOrder), stock(userOrder))/Purchase.amountPack(sku) > 1.0 AND Purchase.amountPack(sku)> 0.0 
+                    IF checkAmountPack() AND recommendedPackQuantity(sku, operation(userOrder), stock(userOrder))/Purchase.amountPack(sku) > 1.0 AND Purchase.amountPack(sku)> 0.0 
                         THEN {
                             quantity(d) <- recommendedPackQuantity(sku, operation(userOrder), stock(userOrder)) (-) Purchase.amountPack(sku);    
                         } ELSE {
