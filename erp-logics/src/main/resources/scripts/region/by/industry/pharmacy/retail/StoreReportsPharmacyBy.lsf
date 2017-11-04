@@ -7,10 +7,12 @@ NAMESPACE StoreReports;
 //отчет по обязательному перечню
 minBalance 'Минимальный остаток' (PharmacyCompalsoryGroup group, DepartmentStore departmentStore) = minBalance(group, pharmacyCategory(store(departmentStore)));
 
-currentBalance 'Текущий остаток (обязат.)' = GROUP SUM currentBalance(Sku sku, Stock stock)
+currentBalance 'Текущий остаток (обязат.)' = GROUP SUM 
+    IF active(pharmacyCompalsoryGroup(Sku sku)) THEN currentBalance(sku, Stock stock)
     BY pharmacyCompalsoryGroup(sku), stock;
     
-availableQuantity 'Доступное количество (обязат.)' = GROUP SUM availableQuantity(Sku sku, Stock stock)
+availableQuantity 'Доступное количество (обязат.)' = GROUP SUM 
+    IF active(pharmacyCompalsoryGroup(Sku sku)) THEN availableQuantity(sku, Stock stock)
     BY pharmacyCompalsoryGroup(sku), stock;    
     
 notEnoughBalance (PharmacyCompalsoryGroup group, DepartmentStore departmentStore) = currentBalance(group, departmentStore) < minBalance(group, departmentStore) OR
@@ -35,6 +37,8 @@ FORM currentBalanceCompalsoryGroups 'Остатки по обязательно�
      FILTERGROUP enough
          FILTER 'Остаток меньше нормы' notEnoughBalance(g, s)
          FILTER 'Доступно меньше нормы' notEnougAvailableQuantity(g, s)
+    FILTERGROUP active
+        FILTER 'Активные' active(g) DEFAULT
      
      OBJECTS i = Item GRID
      PROPERTIES (i) READONLY name ON CONTEXTMENU showBalanceMovementSku(i, s) ON CONTEXTMENU showBalancePriceSku(i, s) ON CONTEXTMENU showBalanceReserveSku(i, s), 

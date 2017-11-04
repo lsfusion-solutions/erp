@@ -405,9 +405,14 @@ groupType(PharmacyCompalsoryGroup group) += PharmacyAdditionalGroupType.compalso
 
 minBalance 'Минимальный остаток' = DATA NUMERIC[16,5](PharmacyCompalsoryGroup, PharmacyCategory);
 
+inactive 'Неактивная' = DATA BOOLEAN (PharmacyCompalsoryGroup);
+active 'Активная' (PharmacyCompalsoryGroup group) = group IS PharmacyCompalsoryGroup AND NOT inactive(group);
+
+
+
 FORM pharmacyCompalsoryGroup 'Группа обязательного перечня'
     OBJECTS g = PharmacyCompalsoryGroup PANEL
-    PROPERTIES(g) name, id
+    PROPERTIES(g) name, id, inactive
     
     OBJECTS pc = PharmacyCategory
     PROPERTIES(pc) READONLY order, staticCaption
@@ -425,10 +430,12 @@ DESIGN pharmacyCompalsoryGroup {
 
 FORM pharmacyCompalsoryGroups 'Группы обязательного перечня'
     OBJECTS g = PharmacyCompalsoryGroup
-    PROPERTIES(g) READONLY name, id
+    PROPERTIES(g) READONLY name, id, inactive
     PROPERTIES (g) NEWSESSION NEW, EDIT, DELETE 
     PROPERTIES () isEditable
     ORDER name(g)
+    FILTERGROUP active
+        FILTER 'Активные' active(g) DEFAULT
 ;
 
 FORM dialogPharmacyCompalsoryGroups 'Группы обязательного перечня'
@@ -439,6 +446,9 @@ FORM dialogPharmacyCompalsoryGroups 'Группы обязательного п�
 ;
 
 @defineObjectItemAttribute(pharmacyCompalsoryGroup, PharmacyCompalsoryGroup, name, 'Группа обязательного перечня', itemPharmacy);
+
+namePharmacyCompalsoryGroupActive 'Группа обязательного перечня' (Item item) = IF active(pharmacyCompalsoryGroup(item))
+    THEN name(pharmacyCompalsoryGroup(item)) IN itemPharmacy;
 
 //
 CLASS PharmacyBaseGroup 'Группа основного перечня': Group;
