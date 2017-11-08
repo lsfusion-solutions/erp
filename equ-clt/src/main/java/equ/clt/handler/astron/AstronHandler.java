@@ -357,18 +357,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private void truncateTables(Connection conn) throws SQLException {
-        PreparedStatement ps = null;
-        try {
-            ps = conn.prepareStatement("TRUNCATE TABLE ?");
-            for (String table : new String[]{"GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC"}) {
-                setObject(ps, table, 1);
-                ps.addBatch();
+        for (String table : new String[]{"GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC"}) {
+            try (Statement s = conn.createStatement()) {
+                s.execute("TRUNCATE TABLE " + table);
             }
-            ps.executeBatch();
-            conn.commit();
-        } finally {
-            closeStatement(ps);
         }
+        conn.commit();
     }
 
     private void setObject(PreparedStatement ps, Object value, int index, int columnsSize) throws SQLException {
