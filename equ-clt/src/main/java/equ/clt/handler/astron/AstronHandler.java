@@ -679,7 +679,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private Connection getConnection(String connectionString, String user, String password) throws SQLException, ClassNotFoundException {
         Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-        Connection conn = DriverManager.getConnection(connectionString, user, password);
+        //https://github.com/Microsoft/mssql-jdbc/wiki/QueryTimeout
+        Connection conn = DriverManager.getConnection(connectionString + ";queryTimeout=5", user, password);
         conn.setAutoCommit(false);
         return conn;
     }
