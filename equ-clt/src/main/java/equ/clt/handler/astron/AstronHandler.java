@@ -119,7 +119,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     private void exportGrp(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
         PreparedStatement ps = null;
         try {
-            String[] columns = new String[]{"GRPID", "PARENTGRPID", "GRPNAME", "DELFLAG", "UPDATENUM"};
+            String[] columns = new String[]{"GRPID", "PARENTGRPID", "GRPNAME", "DELFLAG"};
             String[] keys = new String[]{"GRPID"};
             int offset = columns.length + keys.length;
             ps = getPreparedStatement(conn, "GRP", columns, keys);
@@ -134,9 +134,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             setObject(ps, parseGroup(itemGroup.idParentItemGroup), 2, offset); //PARENTGRPID
                             setObject(ps, trim(itemGroup.nameItemGroup, "", 50), 3, offset); //GRPNAME
                             setObject(ps, "0", 4, offset); //DELFLAG
-                            setObject(ps, "1", 5, offset); //UPDATENUM
 
-                            setObject(ps, parseGroup(itemGroup.extIdItemGroup), 6); //GRPID
+                            setObject(ps, parseGroup(itemGroup.extIdItemGroup), 5); //GRPID
 
                             ps.addBatch();
                         }
@@ -153,7 +152,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     private void exportArt(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
         PreparedStatement ps = null;
         try {
-            String[] columns = new String[]{"ARTID", "GRPID", "TAXGRPID", "ARTCODE", "ARTNAME", "ARTSNAME", "DELFLAG", "UPDATENUM"};
+            String[] columns = new String[]{"ARTID", "GRPID", "TAXGRPID", "ARTCODE", "ARTNAME", "ARTSNAME", "DELFLAG"};
             String[] keys = new String[]{"ARTID"};
             int offset = columns.length + keys.length;
             ps = getPreparedStatement(conn, "ART", columns, keys);
@@ -167,9 +166,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, trim(item.name, "", 50), 5, offset); //ARTNAME
                 setObject(ps, trim(item.name, "", 50), 6, offset); //ARTSNAME
                 setObject(ps, "0", 7, offset); //DELFLAG
-                setObject(ps, "1", 8, offset); //UPDATENUM
 
-                setObject(ps, item.idItem, 9); //ARTID
+                setObject(ps, item.idItem, 8); //ARTID
 
                 ps.addBatch();
             }
@@ -183,7 +181,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     private void exportUnit(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
         PreparedStatement ps = null;
         try {
-            String[] columns = new String[]{"UNITID", "UNITNAME", "UNITFULLNAME", "DELFLAG", "UPDATENUM"};
+            String[] columns = new String[]{"UNITID", "UNITNAME", "UNITFULLNAME", "DELFLAG"};
             String[] keys = new String[]{"UNITID"};
             int offset = columns.length + keys.length;
             ps = getPreparedStatement(conn, "UNIT", columns, keys);
@@ -196,9 +194,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     setObject(ps, item.shortNameUOM, 2, offset); //UNITNAME
                     setObject(ps, item.shortNameUOM, 3, offset); //UNITFULLNAME
                     setObject(ps, "0", 4, offset); //DELFLAG
-                    setObject(ps, "1", 5, offset); //UPDATENUM
 
-                    setObject(ps, idUOM, 6); //UNITID
+                    setObject(ps, idUOM, 5); //UNITID
 
                     ps.addBatch();
                 }
@@ -223,7 +220,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         PreparedStatement ps = null;
         try {
             String[] columns = new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID",
-                    "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG", "UPDATENUM"};
+                    "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG"};
             String[] keys = new String[]{"PACKID"};
             int offset = columns.length + keys.length;
             ps = getPreparedStatement(conn, "PACK", columns, keys);
@@ -242,9 +239,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     setObject(ps, item.passScalesItem ? 0 : 1, 8, offset); //PACKDTYPE
                     setObject(ps, trim(item.name, "", 50), 9, offset); //PACKNAME
                     setObject(ps, "0", 10, offset); //DELFLAG
-                    setObject(ps, "1", 11, offset); //UPDATENUM
 
-                    setObject(ps, item.idItem, 12); //PACKID
+                    setObject(ps, item.idItem, 11); //PACKID
 
                     ps.addBatch();
                 }
@@ -259,7 +255,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     private void exportExBarc(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
         PreparedStatement ps = null;
         try {
-            String[] columns = new String[]{"EXBARCID", "PACKID", "EXBARCTYPE", "EXBARCBODY", "DELFLAG", "UPDATENUM"};
+            String[] columns = new String[]{"EXBARCID", "PACKID", "EXBARCTYPE", "EXBARCBODY", "DELFLAG"};
             String[] keys = new String[]{"EXBARCID"};
             int offset = columns.length + keys.length;
             ps = getPreparedStatement(conn, "EXBARC", columns, keys);
@@ -271,9 +267,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, "", 3, offset); //EXBARCTYPE
                 setObject(ps, item.idBarcode, 4, offset); //EXBARCBODY
                 setObject(ps, "0", 5, offset); //DELFLAG
-                setObject(ps, "1", 6, offset); //UPDATENUM
 
-                setObject(ps, item.idItem, 7); //EXBARCID
+                setObject(ps, item.idItem, 6); //EXBARCID
 
                 ps.addBatch();
             }
@@ -287,7 +282,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     private void exportPackPrc(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
         PreparedStatement ps = null;
         try {
-            String[] columns = new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG", "UPDATENUM"};
+            String[] columns = new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"};
             String[] keys = new String[]{"PACKID", "PRCLEVELID"};
             int offset = columns.length + keys.length;
             ps = getPreparedStatement(conn, "PACKPRC", columns, keys);
@@ -300,10 +295,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO, 4, offset); //PACKMINPRICE
                 setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
                 setObject(ps, "0", 6, offset); //DELFLAG
-                setObject(ps, "1", 7, offset); //UPDATENUM
 
-                setObject(ps, item.idItem, 8); //PACKID
-                setObject(ps, transaction.nppGroupMachinery, 9); //PRCLEVELID
+                setObject(ps, item.idItem, 7); //PACKID
+                setObject(ps, transaction.nppGroupMachinery, 8); //PRCLEVELID
 
                 ps.addBatch();
             }
