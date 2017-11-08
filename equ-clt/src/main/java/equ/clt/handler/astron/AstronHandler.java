@@ -90,6 +90,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                         exportPackPrc(conn, transaction);
                                     }
                                 } catch (Exception e) {
+                                    processTransactionLogger.error("Astron: ", e);
                                     exception = e;
                                 }
                                 sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
