@@ -477,6 +477,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<AstronRecord> recordList = new ArrayList<>();
 
+        createExtraColumns(conn);
+
         Statement statement = null;
         try {
             statement = conn.createStatement();
@@ -588,6 +590,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 try {
                     conn = getConnection(connectionString, user, password);
 
+                    createExtraColumns(conn);
+
                     for (RequestExchange entry : requestExchangeList) {
                         Statement statement = null;
                         try {
@@ -660,6 +664,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 } catch (SQLException ignored) {
                 }
             }
+        }
+    }
+
+    private void createExtraColumns(Connection conn) throws SQLException {
+        Statement statement = null;
+        try {
+            statement = conn.createStatement();
+            String query = "IF COL_LENGTH('SALES', 'FUSION_PROCESSED') IS NULL BEGIN ALTER TABLE SALES ADD FUSION_PROCESSED INT NULL; END";
+            statement.execute(query);
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        } finally {
+            if (statement != null)
+                statement.close();
         }
     }
 
