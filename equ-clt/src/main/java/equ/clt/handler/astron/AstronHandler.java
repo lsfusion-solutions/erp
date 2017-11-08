@@ -67,6 +67,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                         new RuntimeException(String.format("data from previous transactions was not processed (%s flags not set to zero)", flags))));
                             }
                         } else {
+                            truncateTables(conn);
                             for (TransactionCashRegisterInfo transaction : transactionList) {
                                 Exception exception = null;
                                 try {
@@ -352,6 +353,21 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         } finally {
             if (statement != null)
                 statement.close();
+        }
+    }
+
+    private void truncateTables(Connection conn) throws SQLException {
+        PreparedStatement ps = null;
+        try {
+            ps = conn.prepareStatement("TRUNCATE TABLE ?");
+            for (String table : new String[]{"GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC"}) {
+                setObject(ps, table, 1);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+            conn.commit();
+        } finally {
+            closeStatement(ps);
         }
     }
 
