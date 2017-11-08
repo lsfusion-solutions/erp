@@ -39,15 +39,17 @@ allUserSnapshot 'Разрешить загрузку целиком всем п�
 
 showSection 'Показывать секции' = DATA BOOLEAN (CashRegisterModel);
 
+useValueIdUOM 'Использовать внутренний id для единиц измерений' = DATA BOOLEAN (CashRegisterModel);
+
 FORM cashRegisterModel 'Модель касс'
     OBJECTS c=CashRegisterModel PANEL
-    PROPERTIES(c) name, sid, note, handler, dateTo, maxSum, ignoreCashRegisterServer, allUserSnapshot, showSection
+    PROPERTIES(c) name, sid, note, handler, dateTo, maxSum, ignoreCashRegisterServer, allUserSnapshot, showSection, useValueIdUOM
     EDIT CashRegisterModel OBJECT c
 ;
 
 FORM cashRegistersModels 'Модели касс'
     OBJECTS c=CashRegisterModel
-    PROPERTIES(c) READONLY name, sid, handler, note, maxSum, ignoreCashRegisterServer, allUserSnapshot, showSection
+    PROPERTIES(c) READONLY name, sid, handler, note, maxSum, ignoreCashRegisterServer, allUserSnapshot, showSection, useValueIdUOM
     PROPERTIES(c) NEWSESSION NEW, EDIT, DELETE 
     LIST CashRegisterModel OBJECT c
 ;
@@ -328,7 +330,7 @@ EXTEND FORM stores
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 cashRegisterSID (cashRegisterModel) = GROUP MAX CashRegisterModel scalesModel BY sid (scalesModel);
 
-loadDefaultCashRegisterModel 'Добавить модель касс'(VARISTRING[110] iname, VARSTRING[20] isid, VARSTRING[200] ihandler, BOOLEAN iShowSection, BOOLEAN iIgnoreCashRegisterServer) = {
+loadDefaultCashRegisterModel 'Добавить модель касс'(VARISTRING[110] iname, VARSTRING[20] isid, VARSTRING[200] ihandler, BOOLEAN iShowSection, BOOLEAN iIgnoreCashRegisterServer, BOOLEAN useValueIdUOM) = {
     IF NOT cashRegisterSID(isid) THEN {
         NEW crm = CashRegisterModel {
              name(crm) <- iname;
@@ -336,29 +338,30 @@ loadDefaultCashRegisterModel 'Добавить модель касс'(VARISTRING
              handler(crm) <- ihandler;
              showSection(crm) <- iShowSection;
              ignoreCashRegisterServer(crm) <- iIgnoreCashRegisterServer;
+             useValueIdUOM(crm) <- useValueIdUOM;
         }
     }
 }
 
 loadDefaultCashRegisterModels 'Загрузить стандартные модели касс'() = {
-    EXEC loadDefaultCashRegisterModel('Кассы Atol', 'Atol', 'equ.clt.handler.atol.AtolHandler', NULL, NULL);
-    EXEC loadDefaultCashRegisterModel('Кассы EasyCSV', 'EasyCSVC', 'equ.clt.handler.easy.EasyCSVHandler', NULL, NULL);
-    EXEC loadDefaultCashRegisterModel('Кассы Kristal', 'Kristal', 'equ.clt.handler.kristal.KristalHandler', NULL, NULL);
-    EXEC loadDefaultCashRegisterModel('Кассы Kristal 10', 'Kristal10', 'equ.clt.handler.kristal10.Kristal10Handler', NULL, NULL);
-    EXEC loadDefaultCashRegisterModel('Кассы Maxishop', 'Maxishop', 'equ.clt.handler.maxishop.MaxishopHandler', NULL, NULL);
-    EXEC loadDefaultCashRegisterModel('Кассы UKM4', 'Ukm4', 'equ.clt.handler.ukm4.UKM4Handler', NULL, NULL);
-    EXEC loadDefaultCashRegisterModel('Кассы UKM4 MySQL', 'Ukm4-mysql', 'equ.clt.handler.ukm4mysql.UKM4MySQLHandler', TRUE, NULL);
-    EXEC loadDefaultCashRegisterModel('Кассы HTC', 'HTC', 'equ.clt.handler.htc.HTCHandler', NULL, NULL);
-    EXEC loadDefaultCashRegisterModel('Кассы BelCoopSoyuz', 'BelCoopSoyuz', 'equ.clt.handler.belcoopsoyuz.BelCoopSoyuzHandler', TRUE, NULL);
-    EXEC loadDefaultCashRegisterModel('Кассовый сервер Astron', 'Astron', 'equ.clt.handler.astron.AstronHandler', NULL, NULL);
-    EXEC loadDefaultCashRegisterModel('Кассовый сервер EQS', 'EQS', 'equ.clt.handler.eqs.EQSHandler', NULL, NULL);
-    EXEC loadDefaultCashRegisterModel('Кассовый сервер Artix', 'Artix', 'equ.clt.handler.artix.ArtixHandler', NULL, NULL);
-    EXEC loadDefaultCashRegisterModel('Фискальный регистратор DateCS', 'DateCS', NULL, NULL, NULL);
-    EXEC loadDefaultCashRegisterModel('Фискальный регистратор VMK', 'VMK', NULL, NULL, TRUE);
-    EXEC loadDefaultCashRegisterModel('Фискальный регистратор Casbi', 'Casbi', NULL, NULL, NULL);
-    EXEC loadDefaultCashRegisterModel('Фискальный регистратор Shtrih', 'Shtrih', NULL, NULL, TRUE);
-    EXEC loadDefaultCashRegisterModel('Фискальный регистратор Absolut', 'Absolut', NULL, NULL, TRUE);
-    EXEC loadDefaultCashRegisterModel('Фискальный регистратор Epson', 'Epson', NULL, NULL, TRUE);
+    EXEC loadDefaultCashRegisterModel('Кассы Atol', 'Atol', 'equ.clt.handler.atol.AtolHandler', NULL, NULL, NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы EasyCSV', 'EasyCSVC', 'equ.clt.handler.easy.EasyCSVHandler', NULL, NULL, NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы Kristal', 'Kristal', 'equ.clt.handler.kristal.KristalHandler', NULL, NULL, NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы Kristal 10', 'Kristal10', 'equ.clt.handler.kristal10.Kristal10Handler', NULL, NULL, NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы Maxishop', 'Maxishop', 'equ.clt.handler.maxishop.MaxishopHandler', NULL, NULL, NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы UKM4', 'Ukm4', 'equ.clt.handler.ukm4.UKM4Handler', NULL, NULL, NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы UKM4 MySQL', 'Ukm4-mysql', 'equ.clt.handler.ukm4mysql.UKM4MySQLHandler', TRUE, NULL, NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы HTC', 'HTC', 'equ.clt.handler.htc.HTCHandler', NULL, NULL, NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы BelCoopSoyuz', 'BelCoopSoyuz', 'equ.clt.handler.belcoopsoyuz.BelCoopSoyuzHandler', TRUE, NULL, NULL);
+    EXEC loadDefaultCashRegisterModel('Кассовый сервер Astron', 'Astron', 'equ.clt.handler.astron.AstronHandler', NULL, NULL, TRUE);
+    EXEC loadDefaultCashRegisterModel('Кассовый сервер EQS', 'EQS', 'equ.clt.handler.eqs.EQSHandler', NULL, NULL, NULL);
+    EXEC loadDefaultCashRegisterModel('Кассовый сервер Artix', 'Artix', 'equ.clt.handler.artix.ArtixHandler', NULL, NULL, TRUE);
+    EXEC loadDefaultCashRegisterModel('Фискальный регистратор DateCS', 'DateCS', NULL, NULL, NULL, NULL);
+    EXEC loadDefaultCashRegisterModel('Фискальный регистратор VMK', 'VMK', NULL, NULL, TRUE, NULL);
+    EXEC loadDefaultCashRegisterModel('Фискальный регистратор Casbi', 'Casbi', NULL, NULL, NULL, NULL);
+    EXEC loadDefaultCashRegisterModel('Фискальный регистратор Shtrih', 'Shtrih', NULL, NULL, TRUE, NULL);
+    EXEC loadDefaultCashRegisterModel('Фискальный регистратор Absolut', 'Absolut', NULL, NULL, TRUE, NULL);
+    EXEC loadDefaultCashRegisterModel('Фискальный регистратор Epson', 'Epson', NULL, NULL, TRUE, NULL);
 } IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultCashRegisterModels);
