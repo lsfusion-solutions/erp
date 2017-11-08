@@ -703,7 +703,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     private void writeStringToFile(File file, String data) throws IOException {
-        FileUtils.writeStringToFile(file, data, true);
+        FileUtils.writeStringToFile(file, data, encoding, true);
     }
 
     @Override
