@@ -993,11 +993,12 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         try {
             statement = conn.createStatement();
             String query = "SELECT sql_no_cache i.store, i.cash_number, i.cash_id, i.id, i.receipt_header, i.var, i.item, i.total_quantity, i.price, i.total," +
-                    " i.position, i.real_amount, i.stock_id, r.type, r.shift_open, r.global_number, r.date, r.cash_id, r.id, r.login, s.date, rip.value" +
+                    " i.position, i.real_amount, i.stock_id, r.type, r.shift_open, r.global_number, r.date, r.cash_id, r.id, r.login, s.date, rip.value, l.user_id, l.user_name " +
                     " FROM receipt_item AS i" +
                     " JOIN receipt AS r ON i.receipt_header = r.id AND i.cash_id = r.cash_id" +
                     " JOIN shift AS s ON r.shift_open = s.id AND r.cash_id = s.cash_id" +
                     " LEFT JOIN receipt_item_properties AS rip ON i.cash_id = rip.cash_id AND i.id = rip.receipt_item AND rip.code = '$GiftCard_Number$' " +
+                    " LEFT JOIN login AS l ON r.cash_id = l.cash_id AND r.login = l.id  "+
                     " WHERE r.ext_processed = 0 AND r.result = 0 AND i.type = 0";
             ResultSet rs = statement.executeQuery(query);
 
