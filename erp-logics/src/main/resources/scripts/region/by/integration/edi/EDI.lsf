@@ -425,23 +425,25 @@ good = ABSTRACT CASE BOOLEAN (EInvoiceMessage);
 
 
 FORM eInvoices 'Электронные накладные EDI'
-OBJECTS e = EInvoice
-PROPERTIES(e) in, exported
-PROPERTIES(e) READONLY dateTime, number, deliveryNoteNumber, deliveryNoteDateTime, glnSupplier, nameSupplier, addressSupplier, unpSupplier, 
-                       nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock
-PROPERTIES(e) contactCustomerStock, reportId, reportDate, reportName
+    OBJECTS e = EInvoice
+    PROPERTIES(e) in, exported
+    PROPERTIES(e) READONLY dateTime, number, deliveryNoteNumber, deliveryNoteDateTime, glnSupplier, nameSupplier, addressSupplier, unpSupplier, 
+                           nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock
+    PROPERTIES(e) contactCustomerStock, reportId, reportDate, reportName
+    FILTERGROUP notExported
+        FILTER 'Не экспортированы' NOT exported(e) 'F11' DEFAULT
+    
+    OBJECTS d = EInvoiceDetail
+    PROPERTIES(d) READONLY lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, valueVAT, lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges
 
-OBJECTS d = EInvoiceDetail
-PROPERTIES(d) READONLY lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, valueVAT, lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges
+    PROPERTIES() signAndSendEDI TODRAW e TOOLBAR
 
-PROPERTIES() signAndSendEDI TODRAW e TOOLBAR
+    FILTERS eInvoice(d) == e
 
-FILTERS eInvoice(d) == e
-
-OBJECTS m = EInvoiceMessage
-PROPERTIES(m) READONLY numberEInvoice, dateTime, code, description
-FILTERS eInvoice(m) == e
-ORDER dateTime(m);
+    OBJECTS m = EInvoiceMessage
+    PROPERTIES(m) READONLY numberEInvoice, dateTime, code, description
+    FILTERS eInvoice(m) == e
+    ORDER dateTime(m);
 ;
 
 DESIGN eInvoices {
