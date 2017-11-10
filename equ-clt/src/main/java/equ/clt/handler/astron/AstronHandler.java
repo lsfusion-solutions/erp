@@ -226,7 +226,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             int offset = columns.length + keys.length;
             ps = getPreparedStatement(conn, "PACK", columns, keys);
 
-            Set<Integer> usedPackIds = new HashSet<>();
+            Set<Long> usedPackIds = new HashSet<>();
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 CashRegisterItemInfo item = transaction.itemsList.get(i);
                 Integer idUOM = parseUOM(item.idUOM);
@@ -255,15 +255,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private Integer getPackId(Set<Integer> usedPackIds, ItemInfo item) {
+    private Integer getPackId(Set<Long> usedPackIds, ItemInfo item) {
         int i = 0;
-        Integer packId;
+        Long packId;
         do {
-            packId = Integer.parseInt(item.idItem) * 10 + i;
+            packId = Long.parseLong(item.idItem) * 10 + i;
+            if(packId > Integer.MAX_VALUE)
+                packId = Long.parseLong(item.idItem);
             i++;
         } while (usedPackIds.contains(packId));
         usedPackIds.add(packId);
-        return packId;
+        return packId.intValue();
     }
 
     private void exportExBarc(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
@@ -274,16 +276,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             int offset = columns.length + keys.length;
             ps = getPreparedStatement(conn, "EXBARC", columns, keys);
 
-            Set<Integer> usedPackIds = new HashSet<>();
+            Set<Long> usedPackIds = new HashSet<>();
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 CashRegisterItemInfo item = transaction.itemsList.get(i);
-                setObject(ps, item.idItem, 1, offset); //EXBARCID
-                setObject(ps, getPackId(usedPackIds, item), 2, offset); //PACKID
+                Integer packId = getPackId(usedPackIds, item);
+                setObject(ps, packId, 1, offset); //EXBARCID
+                setObject(ps, packId, 2, offset); //PACKID
                 setObject(ps, "", 3, offset); //EXBARCTYPE
                 setObject(ps, item.idBarcode, 4, offset); //EXBARCBODY
                 setObject(ps, "0", 5, offset); //DELFLAG
 
-                setObject(ps, item.idItem, 6); //EXBARCID
+                setObject(ps, packId, 6); //EXBARCID
 
                 ps.addBatch();
             }
@@ -302,7 +305,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             int offset = columns.length + keys.length;
             ps = getPreparedStatement(conn, "PACKPRC", columns, keys);
 
-            Set<Integer> usedPackIds = new HashSet<>();
+            Set<Long> usedPackIds = new HashSet<>();
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 CashRegisterItemInfo item = transaction.itemsList.get(i);
                 Integer packId = getPackId(usedPackIds, item);
@@ -428,7 +431,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                 processStopListLogger.info("astron: executing stopLists, table packprc");
                 ps = conn.prepareStatement(String.format("UPDATE [PACKPRC] SET DELFLAG = %s WHERE PACKID=? AND PRCLEVELID=?", stopListInfo.exclude ? "0" : "1"));
-                Set<Integer> usedPackIds = new HashSet<>();
+                Set<Long> usedPackIds = new HashSet<>();
                 for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                     for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
                         ps.setObject(1, getPackId(usedPackIds, item)); //PACKID
