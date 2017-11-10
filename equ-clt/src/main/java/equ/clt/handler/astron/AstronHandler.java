@@ -227,6 +227,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             ps = getPreparedStatement(conn, "PACK", columns, keys);
 
             Set<Long> usedPackIds = new HashSet<>();
+            Set<String> idItems = new HashSet<>();
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 CashRegisterItemInfo item = transaction.itemsList.get(i);
                 Integer idUOM = parseUOM(item.idUOM);
@@ -236,7 +237,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     setObject(ps, item.idItem, 2, offset); //ARTID
                     setObject(ps, "1", 3, offset); //PACKQUANT
                     setObject(ps, "0", 4, offset); //PACKSHELFLIFE
-                    setObject(ps, true, 5, offset); //ISDEFAULT
+                    if(idItems.contains(item.idItem)) {
+                        setObject(ps, false, 5, offset); //ISDEFAULT
+                    } else {
+                        setObject(ps, true, 5, offset); //ISDEFAULT
+                        idItems.add(item.idItem);
+                    }
                     setObject(ps, idUOM, 6, offset); //UNITID
                     setObject(ps, "", 7, offset); //QUANTMASK
                     setObject(ps, item.passScalesItem ? 0 : 1, 8, offset); //PACKDTYPE
