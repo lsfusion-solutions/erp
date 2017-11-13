@@ -368,3 +368,22 @@ DESIGN inventory {
 }
 
 @extendFormEditable(inventory);
+
+//журнал инвенторизации
+idTerminalHandbookType1 'Зона' (TerminalDocumentDetail detail) = idTerminalHandbookType1(terminalDocument(detail));
+idTerminalHandbookType2 'Комиссия' (TerminalDocumentDetail detail) = idTerminalHandbookType2(terminalDocument(detail));
+
+EXTEND FORM inventories
+    OBJECTS tdd=TerminalDocumentDetail
+    PROPERTIES(tdd) READONLY id, number, barcode, name, price, quantity, sum, comment, dateTimeScan, idTerminalHandbookType1, idTerminalHandbookType2    
+    FILTERS in(in,terminalDocument(tdd))   
+;
+
+DESIGN inventories {
+    wor {
+        NEW tddLog {
+            caption = 'Строки описей';
+            MOVE BOX(tdd);
+        }
+    }
+}
