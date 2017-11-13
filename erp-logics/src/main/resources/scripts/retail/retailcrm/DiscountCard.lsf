@@ -78,9 +78,11 @@ NAVIGATOR {
 }
 
 // Сроки действия
+notFillDate 'Не заполнять дату выдачи' = DATA BOOLEAN ();
+
 GROUP discountCardDate 'Срок действия' : base;
 date 'Дата выдачи' (discountCard) = DATA DATE (DiscountCard) IN discountCardDate;
-date (DiscountCard discountCard) <- currentDate() WHEN SET(discountCard IS DiscountCard);
+date (DiscountCard discountCard) <- currentDate() WHEN SET(discountCard IS DiscountCard) AND NOT notFillDate();
 
 dateTo 'Дата окончания действия' (discountCard) = DATA DATE (DiscountCard) IN discountCardDate;
 
@@ -225,11 +227,14 @@ NAVIGATOR {
         ADD discountCards;
     }
 }
-
+EXTEND FORM options
+    PROPERTIES notFillDate()
+;
 DESIGN options {
     pane {        
         NEW discountCards {
             caption = 'Дисконтные карты';
+            MOVE PROPERTY (notFillDate());
         }
     }
 }
