@@ -71,14 +71,20 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
                 String glnCustomer = (String) findProperty("glnCustomer[EInvoice]").read(context, eInvoiceObject);
                 String glnCustomerStock = (String) findProperty("glnCustomerStock[EInvoice]").read(context, eInvoiceObject);
 
+                boolean isCancel = findProperty("isCancel[EInvoice]").read(context, eInvoiceObject) != null;
+
                 //создаём BLRAPN и BLRWBR
                 try(DataSession session = context.createSession()) {
                     byte[] blrapn = createBLRAPN(context, eInvoiceObject, documentNumberBLRAPN, documentDate, referenceNumber, referenceDate, glnCustomer);
-                    byte[] blrwbr = createBLRWBR(context, eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, referenceDate, glnCustomer, glnCustomerStock);
-                    if(blrapn != null && blrwbr != null) {
-                        xmls.add(blrapn);
+                    if (blrapn == null)
+                        return;
+                    xmls.add(blrapn);
+                    if (!isCancel) {
+                        byte[] blrwbr = createBLRWBR(context, eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, referenceDate, glnCustomer, glnCustomerStock);
+                        if (blrwbr == null)
+                            return;
                         xmls.add(blrwbr);
-                    } else return;
+                    }
 
                     //Подписываем
                     Object signResult = context.requestUserInteraction(new SignEDIClientAction(xmls, signerPathEDI, outputEDI, certificateEDI, passwordEDI));
@@ -88,7 +94,7 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
                         //Отправляем
                         if (sendBLRAPN(context, url, login, password, host, port, provider, ((ArrayList) signResult).get(0), eInvoiceObject, documentNumberBLRAPN, documentDate, referenceNumber, glnCustomer, glnCustomerStock)) {
                             findProperty("blrapn[EInvoice]").change(documentNumberBLRAPN, session, eInvoiceObject);
-                            if (sendBLRWBR(context, url, login, password, host, port, provider, ((ArrayList) signResult).get(1), eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, glnCustomer, glnCustomerStock))
+                            if (!isCancel && sendBLRWBR(context, url, login, password, host, port, provider, ((ArrayList) signResult).get(1), eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, glnCustomer, glnCustomerStock))
                                 findProperty("blrwbr[EInvoice]").change(documentNumberBLRWBR, session, eInvoiceObject);
                         }
                         session.apply(context);

@@ -852,6 +852,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Element deliveryNoteElement = rootNode.getChild("DeliveryNote");
         String deliveryNoteNumber = deliveryNoteElement.getChildText("DeliveryNoteID");
         Timestamp dateTime = parseTimestamp(deliveryNoteElement.getChildText("CreationDateTime"), "yyyyMMddHHmmss");
+        String functionCode = deliveryNoteElement.getChildText("FunctionCode");
+        Boolean isCancel = functionCode != null && functionCode.equals("1") ? true : null;
 
         Element shipperElement = deliveryNoteElement.getChild("Shipper");
         String supplierGLN = shipperElement.getChildText("GLN");
@@ -881,7 +883,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             BigDecimal lineItemAmountCharges = parseBigDecimal(lineElement.getChildText("LineItemAmountCharges"));
             if (lineItemID != null || lineItemBuyerID != null)
                 data.add(Arrays.<Object>asList(id, documentNumber, dateTime, deliveryNoteNumber, dateTime, supplierGLN,
-                        buyerGLN, destinationGLN, idDetail, lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
+                        buyerGLN, destinationGLN, isCancel, idDetail, lineItemID, lineItemBuyerID, lineItemName,
+                        quantityDespatched, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
                         lineItemAmount, lineItemAmountCharges));
         }
         return new DocumentData(documentNumber, data, null);
@@ -944,6 +947,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(GLNCustomerStockEInvoiceField, findProperty("customerStock[EInvoice]").getMapping(eInvoiceKey),
                     object(findClass("Stock")).getMapping(customerStockKey)));
             fields.add(GLNCustomerStockEInvoiceField);
+
+            ImportField isCancelEInvoiceField = new ImportField(findProperty("isCancel[EInvoice]"));
+            props.add(new ImportProperty(isCancelEInvoiceField, findProperty("isCancel[EInvoice]").getMapping(eInvoiceKey)));
+            fields.add(isCancelEInvoiceField);
 
             ImportField idEInvoiceDetailField = new ImportField(findProperty("id[EInvoiceDetail]"));
             ImportKey<?> eInvoiceDetailKey = new ImportKey((CustomClass) findClass("EInvoiceDetail"),
