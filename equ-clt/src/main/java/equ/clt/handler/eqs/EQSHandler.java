@@ -395,167 +395,171 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 Integer type = rs.getInt(1); //type, Тип операции: 1. 2. Закрытие смены 3. Внесение 4. Выдача 5. Открытие чека 6. Регистрация 7. Оплата 8. Закрытие чека
 
                 Date dateReceipt = rs.getDate(12); // r.date
-                Time timeReceipt = rs.getTime(12); //r.date
-                String numberZReport = rs.getString(14); //zReport
-                Integer numberReceipt = rs.getInt(3); //doc, Номер чека
-                if(numberZReport != null && numberZReport.trim().equals("0")) {
-                    numberReceipt = numberReceipt * 10000 + timeReceipt.getHours() * 100 + timeReceipt.getMinutes();
-                }
-                switch (type) {
-                    case 1: //Открытие смены
-                    case 2: //Закрытие смены
-                    case 3: //Внесение
-                    case 4: //Выдача
-                        readRecordSet.add(id);
-                        break;
-                    case 5: //Открытие чека
-                        position = 0;
-                        currentSalesInfoList = new ArrayList<>();
-                        currentReadRecordSet = new HashSet<>();
-                        saleReturnMap = new HashMap<>();
-                        currentReadRecordSet.add(id);
-                        break;
-                    case 6: //Регистрация
-                        currentReadRecordSet.add(id);
-                    
-                        position++;
+                if(dateReceipt == null) {
+                    //записи без даты считаем некорректными
+                    readRecordSet.add(id);
+                } else {
+                    Time timeReceipt = rs.getTime(12); //r.date
+                    String numberZReport = rs.getString(14); //zReport
+                    Integer numberReceipt = rs.getInt(3); //doc, Номер чека
+                    if (numberZReport != null && numberZReport.trim().equals("0")) {
+                        numberReceipt = numberReceipt * 10000 + timeReceipt.getHours() * 100 + timeReceipt.getMinutes();
+                    }
+                    switch (type) {
+                        case 1: //Открытие смены
+                        case 2: //Закрытие смены
+                        case 3: //Внесение
+                        case 4: //Выдача
+                            readRecordSet.add(id);
+                            break;
+                        case 5: //Открытие чека
+                            position = 0;
+                            currentSalesInfoList = new ArrayList<>();
+                            currentReadRecordSet = new HashSet<>();
+                            saleReturnMap = new HashMap<>();
+                            currentReadRecordSet.add(id);
+                            break;
+                        case 6: //Регистрация
+                            currentReadRecordSet.add(id);
 
-                        Integer cash_id = rs.getInt(2); //ecr, Номер КСА
+                            position++;
 
-                        CashRegisterInfo cashRegister = machineryMap.get(cash_id);
-                        Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
+                            Integer cash_id = rs.getInt(2); //ecr, Номер КСА
 
-                        String idBarcode = appendCheckDigitToBarcode(rs.getString(4), 7, appendBarcode); //barcode, Штрих-код товара
-                        String idItem = String.valueOf(rs.getLong(5)); //code, Код товара
-                        BigDecimal totalQuantity = rs.getBigDecimal(6); //qty, Количество
-                        BigDecimal price = rs.getBigDecimal(7); //price, Цена
-                        BigDecimal sum = rs.getBigDecimal(8); //amount, Сумма
-                        BigDecimal discountPercent = HandlerUtils.safeAbs(rs.getBigDecimal(18)); //pdiscount, % скидки/наценки
-                        if(discountPercent != null && discountPercent.compareTo(BigDecimal.ZERO) == 0)
-                            discountPercent = null;
-                        BigDecimal discountSum = HandlerUtils.safeAbs(rs.getBigDecimal(9)); //discount, Сумма скидки/наценки
-                        sum = HandlerUtils.safeAdd(sum, rs.getBigDecimal(9)); //discountSum is negative
-                        String idSection = rs.getString(10); //department, Номер отдела
+                            CashRegisterInfo cashRegister = machineryMap.get(cash_id);
+                            Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
-                        Integer flags = rs.getInt(11); //flags, Флаги: bit 0 - Возврат bit 1 - Скидка/Наценка (при любой скидке этот бит всегда = 1) bit 2 - Сторнирование/Коррекция
-                        //0 - продажа, 1 - возврат, 4 - возврат со сторнированием/коррекцией
+                            String idBarcode = appendCheckDigitToBarcode(rs.getString(4), 7, appendBarcode); //barcode, Штрих-код товара
+                            String idItem = String.valueOf(rs.getLong(5)); //code, Код товара
+                            BigDecimal totalQuantity = rs.getBigDecimal(6); //qty, Количество
+                            BigDecimal price = rs.getBigDecimal(7); //price, Цена
+                            BigDecimal sum = rs.getBigDecimal(8); //amount, Сумма
+                            BigDecimal discountPercent = HandlerUtils.safeAbs(rs.getBigDecimal(18)); //pdiscount, % скидки/наценки
+                            if (discountPercent != null && discountPercent.compareTo(BigDecimal.ZERO) == 0)
+                                discountPercent = null;
+                            BigDecimal discountSum = HandlerUtils.safeAbs(rs.getBigDecimal(9)); //discount, Сумма скидки/наценки
+                            sum = HandlerUtils.safeAdd(sum, rs.getBigDecimal(9)); //discountSum is negative
+                            String idSection = rs.getString(10); //department, Номер отдела
 
-                        //тут порядок обратный
-                        //boolean isSale = !getBit(flags, 2);
-                        //boolean isReturn = getBit(flags, 2);
+                            Integer flags = rs.getInt(11); //flags, Флаги: bit 0 - Возврат bit 1 - Скидка/Наценка (при любой скидке этот бит всегда = 1) bit 2 - Сторнирование/Коррекция
+                            //0 - продажа, 1 - возврат, 4 - возврат со сторнированием/коррекцией
 
-                        String discountCard = trim(rs.getString(16), null, 18); //r.customer
-                        if (discountCard != null && discountCard.isEmpty())
-                            discountCard = null;
+                            //тут порядок обратный
+                            //boolean isSale = !getBit(flags, 2);
+                            //boolean isReturn = getBit(flags, 2);
 
-                        boolean isGiftCard = false;
-                        if (giftCardRegexp != null && idBarcode != null) {
-                            Pattern pattern = Pattern.compile(giftCardRegexp);
-                            Matcher matcher = pattern.matcher(idBarcode);
-                            isGiftCard = matcher.matches();
-                        }
+                            String discountCard = trim(rs.getString(16), null, 18); //r.customer
+                            if (discountCard != null && discountCard.isEmpty())
+                                discountCard = null;
 
-                        boolean isReturnGiftCard = isGiftCard && totalQuantity != null && totalQuantity.compareTo(BigDecimal.ZERO) < 0;
-
-                        boolean isDiscount = getBit(flags, 1);
-                        boolean discountRecord = (idBarcode == null || idBarcode.isEmpty()) && isDiscount;
-                        if (discountRecord) {
-
-                            BigDecimal totalSum = BigDecimal.ZERO;
-                            for (SalesInfo s : currentSalesInfoList) {
-                                totalSum = safeAdd(totalSum, s.sumReceiptDetail);
+                            boolean isGiftCard = false;
+                            if (giftCardRegexp != null && idBarcode != null) {
+                                Pattern pattern = Pattern.compile(giftCardRegexp);
+                                Matcher matcher = pattern.matcher(idBarcode);
+                                isGiftCard = matcher.matches();
                             }
 
-                            BigDecimal remainSum = discountSum;
-                            int i = 1;
-                            for (SalesInfo s : currentSalesInfoList) {
-                                if(i < currentSalesInfoList.size()) {
-                                    BigDecimal extraDiscount = getExtraDiscount(totalSum, discountSum, s.sumReceiptDetail);
-                                    s.sumReceiptDetail = safeSubtract(s.sumReceiptDetail, extraDiscount);
-                                    s.discountSumReceiptDetail = safeAdd(s.discountSumReceiptDetail, extraDiscount);
-                                    remainSum = safeSubtract(remainSum, extraDiscount);
-                                    i++;
-                                } else {
-                                    s.sumReceiptDetail = safeSubtract(s.sumReceiptDetail, remainSum);
-                                    s.discountSumReceiptDetail = safeAdd(s.discountSumReceiptDetail, remainSum);
+                            boolean isReturnGiftCard = isGiftCard && totalQuantity != null && totalQuantity.compareTo(BigDecimal.ZERO) < 0;
+
+                            boolean isDiscount = getBit(flags, 1);
+                            boolean discountRecord = (idBarcode == null || idBarcode.isEmpty()) && isDiscount;
+                            if (discountRecord) {
+
+                                BigDecimal totalSum = BigDecimal.ZERO;
+                                for (SalesInfo s : currentSalesInfoList) {
+                                    totalSum = safeAdd(totalSum, s.sumReceiptDetail);
                                 }
-                            }
-                        } else {
-                            SalesInfo salesInfo = new SalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, cash_id, numberZReport,
-                                    dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null,
-                                    null, null, null, null, null, idBarcode, idItem, null, null, totalQuantity,
-                                    price, sum, discountPercent, discountSum, null, discountCard,
-                                    position, null, idSection);
-                            //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки
-                            //(на самом деле так кассиры узнают цену). "Аннигилируем" эти две строки.
-                            List<SalesInfo> saleReturnEntryList = saleReturnMap.get(idBarcode);
-                            if (saleReturnEntryList != null) {
-                                boolean found = false;
-                                for (Iterator<SalesInfo> iterator = saleReturnEntryList.iterator(); iterator.hasNext();) {
-                                    SalesInfo saleReturnEntry = iterator.next();
-                                    if (needAnnihilate(saleReturnEntry, totalQuantity, discountSum)) {
-                                        iterator.remove();
-                                        currentSalesInfoList.remove(saleReturnEntry);
-                                        found = true;
-                                        break;
+
+                                BigDecimal remainSum = discountSum;
+                                int i = 1;
+                                for (SalesInfo s : currentSalesInfoList) {
+                                    if (i < currentSalesInfoList.size()) {
+                                        BigDecimal extraDiscount = getExtraDiscount(totalSum, discountSum, s.sumReceiptDetail);
+                                        s.sumReceiptDetail = safeSubtract(s.sumReceiptDetail, extraDiscount);
+                                        s.discountSumReceiptDetail = safeAdd(s.discountSumReceiptDetail, extraDiscount);
+                                        remainSum = safeSubtract(remainSum, extraDiscount);
+                                        i++;
+                                    } else {
+                                        s.sumReceiptDetail = safeSubtract(s.sumReceiptDetail, remainSum);
+                                        s.discountSumReceiptDetail = safeAdd(s.discountSumReceiptDetail, remainSum);
                                     }
                                 }
-                                if (!found) {
+                            } else {
+                                SalesInfo salesInfo = new SalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, cash_id, numberZReport,
+                                        dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null,
+                                        null, null, null, null, null, idBarcode, idItem, null, null, totalQuantity,
+                                        price, sum, discountPercent, discountSum, null, discountCard,
+                                        position, null, idSection);
+                                //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки
+                                //(на самом деле так кассиры узнают цену). "Аннигилируем" эти две строки.
+                                List<SalesInfo> saleReturnEntryList = saleReturnMap.get(idBarcode);
+                                if (saleReturnEntryList != null) {
+                                    boolean found = false;
+                                    for (Iterator<SalesInfo> iterator = saleReturnEntryList.iterator(); iterator.hasNext(); ) {
+                                        SalesInfo saleReturnEntry = iterator.next();
+                                        if (needAnnihilate(saleReturnEntry, totalQuantity, discountSum)) {
+                                            iterator.remove();
+                                            currentSalesInfoList.remove(saleReturnEntry);
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                    if (!found) {
+                                        saleReturnEntryList.add(salesInfo);
+                                        currentSalesInfoList.add(salesInfo);
+                                    }
+                                } else {
+                                    saleReturnEntryList = new ArrayList<>();
                                     saleReturnEntryList.add(salesInfo);
                                     currentSalesInfoList.add(salesInfo);
                                 }
-                            } else {
-                                saleReturnEntryList = new ArrayList<>();
-                                saleReturnEntryList.add(salesInfo);
-                                currentSalesInfoList.add(salesInfo);
+                                saleReturnMap.put(idBarcode, saleReturnEntryList);
                             }
-                            saleReturnMap.put(idBarcode, saleReturnEntryList);
-                        }
-                        break;
-                    case 7: //Оплата
-                        currentReadRecordSet.add(id);
+                            break;
+                        case 7: //Оплата
+                            currentReadRecordSet.add(id);
 
-                        BigDecimal sumPayment = rs.getBigDecimal(8); //amount, Сумма
-                        Integer typePayment = rs.getInt(15); //Payment, Номер оплаты
-                        for (SalesInfo salesInfo : currentSalesInfoList) {
-                            if (typePayment == 0)
-                                salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
-                            else if (typePayment == 1)
-                                salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sumPayment);
-                            else if (typePayment == 2) {
-                                GiftCard sumGiftCard = salesInfo.sumGiftCardMap.get(null);
-                                salesInfo.sumGiftCardMap.put(null, new GiftCard(HandlerUtils.safeAdd(sumGiftCard.sum, sumPayment)));
-                            } 
-                            else if (typePayment == 3)
-                                salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sumPayment);
-                            else
-                                salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
-                        }
-                        break;
-                    case 8: //Закрытие чека
-                        currentReadRecordSet.add(id);
-
-                        BigDecimal change = rs.getBigDecimal(17);
-                        if (change != null && change.compareTo(BigDecimal.ZERO) != 0) {
+                            BigDecimal sumPayment = rs.getBigDecimal(8); //amount, Сумма
+                            Integer typePayment = rs.getInt(15); //Payment, Номер оплаты
                             for (SalesInfo salesInfo : currentSalesInfoList) {
-                                GiftCard sumGiftCard = salesInfo.sumGiftCardMap.get(null);
-                                //отнимаем "сдачу" от подарочного сертификата либо от наличных
-                                if (sumGiftCard != null && sumGiftCard.sum != null && (salesInfo.sumCash == null || salesInfo.sumCash.compareTo(BigDecimal.ZERO) == 0)) {
-                                    change = sumGiftCard.sum != null && sumGiftCard.sum.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(change) : change;
-                                    sumGiftCard.sum = safeSubtract(sumGiftCard.sum, change);
-                                    salesInfo.sumGiftCardMap.put(null, sumGiftCard);
-                                } else {
-                                    change = salesInfo.sumCash != null && salesInfo.sumCash.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(change) : change;
-                                    salesInfo.sumCash = HandlerUtils.safeSubtract(salesInfo.sumCash, change);
+                                if (typePayment == 0)
+                                    salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
+                                else if (typePayment == 1)
+                                    salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sumPayment);
+                                else if (typePayment == 2) {
+                                    GiftCard sumGiftCard = salesInfo.sumGiftCardMap.get(null);
+                                    salesInfo.sumGiftCardMap.put(null, new GiftCard(HandlerUtils.safeAdd(sumGiftCard.sum, sumPayment)));
+                                } else if (typePayment == 3)
+                                    salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sumPayment);
+                                else
+                                    salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
+                            }
+                            break;
+                        case 8: //Закрытие чека
+                            currentReadRecordSet.add(id);
+
+                            BigDecimal change = rs.getBigDecimal(17);
+                            if (change != null && change.compareTo(BigDecimal.ZERO) != 0) {
+                                for (SalesInfo salesInfo : currentSalesInfoList) {
+                                    GiftCard sumGiftCard = salesInfo.sumGiftCardMap.get(null);
+                                    //отнимаем "сдачу" от подарочного сертификата либо от наличных
+                                    if (sumGiftCard != null && sumGiftCard.sum != null && (salesInfo.sumCash == null || salesInfo.sumCash.compareTo(BigDecimal.ZERO) == 0)) {
+                                        change = sumGiftCard.sum != null && sumGiftCard.sum.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(change) : change;
+                                        sumGiftCard.sum = safeSubtract(sumGiftCard.sum, change);
+                                        salesInfo.sumGiftCardMap.put(null, sumGiftCard);
+                                    } else {
+                                        change = salesInfo.sumCash != null && salesInfo.sumCash.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(change) : change;
+                                        salesInfo.sumCash = HandlerUtils.safeSubtract(salesInfo.sumCash, change);
+                                    }
                                 }
                             }
-                        }
-                        salesInfoList.addAll(currentSalesInfoList);
-                        readRecordSet.addAll(currentReadRecordSet);
+                            salesInfoList.addAll(currentSalesInfoList);
+                            readRecordSet.addAll(currentReadRecordSet);
 
-                        currentSalesInfoList = new ArrayList<>();
-                        currentReadRecordSet = new HashSet<>();
-                        break;
+                            currentSalesInfoList = new ArrayList<>();
+                            currentReadRecordSet = new HashSet<>();
+                            break;
+                    }
                 }
             }
             if (salesInfoList.size() > 0)
