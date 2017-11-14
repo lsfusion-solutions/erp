@@ -1,7 +1,16 @@
 MODULE RangeLevel;
 
 REQUIRE Range;
+
 NAMESPACE Range;
+
+depth 'Глубина матрицы' = DATA INTEGER (Range);
+EXTEND FORM range
+    PROPERTIES (r) depth
+;
+EXTEND FORM ranges
+    PROPERTIES (r)  READONLY depth
+;
 
 CLASS RangeLevel 'Уровень ассортимента';
 TABLE rangeLevel(RangeLevel);
@@ -38,11 +47,13 @@ NAVIGATOR {
 
 TABLE rangeRangeLevel(Range, RangeLevel);
 in 'Вкл' = DATA BOOLEAN (Range, RangeLevel);
+depth 'Глубина матрицы' = DATA INTEGER (Range, RangeLevel);
+depth 'Глубина матрицы' (RangeRev v, RangeLevel l)= depth(range(v),l);
 
 EXTEND FORM range 
     OBJECTS l = RangeLevel
     PROPERTIES(l) READONLY name
-    PROPERTIES(r, l) in
+    PROPERTIES(r, l) in, depth
 ;
 
 DESIGN range {
@@ -70,6 +81,23 @@ CONSTRAINT level(RangeRev r, Sku s) AND NOT in(r, level(r, s))
     
 countSku 'Кол-во товаров' = GROUP SUM 1 IF level(RangeRev r, Sku s) BY r; 
 
+CONSTRAINT CHANGED(countSku(RangeRev v)) AND depth(range(v)) < countSku(v)
+    MESSAGE 'Превышено максимально количество товаров по матрице';
+
+notCheckDepthRange 'Не проверять глубину матрицы при изменении значения глубины' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () notCheckDepthRange
+;
+DESIGN options {
+    range {
+        MOVE PROPERTY (notCheckDepthRange());
+    }
+}  
+    
+CONSTRAINT CHANGED(depth(range(RangeRev v))) AND rangeRev(range(v), currentDate()) == v AND  depth(range(v)) < countSku(v) AND NOT notCheckDepthRange()
+    MESSAGE 'Превышено максимально количество товаров по матрице для действующей версии';
+
 countSku 'Кол-во товаров' = GROUP SUM 1 BY RangeRev r, level(r, Sku s);
 
 countRecSku 'Кол-во товаров' = GROUP SUM countSku(RangeRev r, RangeLevel l) IF l <= (RangeLevel level AS RangeLevel) BY r, level;
@@ -78,6 +106,12 @@ countSku 'Кол-во товаров' (Range r, DATE d) = countSku(rangeRev(r, d
 countSku 'Кол-во товаров' (Range r, RangeLevel l, DATE d)= countSku(rangeRev(r, d), l);
 
 countSkus 'Кол-во наименований' = GROUP SUM 1 BY RangeRev v, level(v,Sku sku);
+
+CONSTRAINT CHANGED(countSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countSku(v,l)
+    MESSAGE 'Превышено максимально количество товаров по матрице для уровня';
+
+CONSTRAINT CHANGED(depth(range(RangeRev v), RangeLevel l)) AND rangeRev(range(v), currentDate()) == v AND  depth(range(v), l) < countSku(v,l) AND NOT notCheckDepthRange()
+    MESSAGE 'Превышено максимально количество товаров по матрице для действующей версии';
 
 countSkus 'Кол-во наименований (всего)' (v, supplier, pt, d) = GROUP SUM 1 IF level(RangeRev v, Sku sku)
     BY v, companyA(LedgerPriceListType pt, sku, Stock d, dateTime(v)), pt, d;
@@ -100,7 +134,7 @@ EXTEND  FORM rangeRev
         FILTER 'Без поставщиков' level(v, s) AND NOT priceA(pt, s, d, dateTime(v))   
         
     OBJECTS l = RangeLevel AFTER store
-    PROPERTIES READONLY name(l), countSkus(v,l)  
+    PROPERTIES READONLY name(l), depth(v,l), countSkus(v,l)  
     FILTERS in(v, l)  
    
     OBJECTS l2 = RangeLevel GRID AFTER store
