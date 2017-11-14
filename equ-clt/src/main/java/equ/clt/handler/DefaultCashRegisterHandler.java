@@ -45,7 +45,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     }
 
     @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, RequestExchange requestExchange) throws IOException {
 
     }
 

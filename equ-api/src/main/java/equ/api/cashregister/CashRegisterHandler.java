@@ -19,7 +19,7 @@ public abstract class CashRegisterHandler<S extends SalesBatch> extends Machiner
 
     public abstract void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException;
 
-    public abstract void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException;
+    public abstract void sendCashierInfoList(List<CashierInfo> cashierInfoList, RequestExchange requestExchange) throws IOException;
 
     public abstract List<CashierTime> requestCashierTime(RequestExchange requestExchange, List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException;
 
@@ -27,6 +27,7 @@ public abstract class CashRegisterHandler<S extends SalesBatch> extends Machiner
     
     public abstract SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException;
 
+    //TODO: убрать directorySet, когда не останется использований
     public abstract void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
                                           Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException;
 

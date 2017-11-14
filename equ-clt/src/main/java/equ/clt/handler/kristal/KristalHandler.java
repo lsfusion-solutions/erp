@@ -915,14 +915,14 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     }
 
     @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, RequestExchange requestExchange) throws IOException {
         machineryExchangeLogger.info("Kristal: Send CashierInfoList");
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
         String idPositionCashier = kristalSettings != null ? kristalSettings.getIdPositionCashier() : null;
 
-        for (Map.Entry<String, Set<String>> entry : directoryStockMap.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : requestExchange.directoryStockMap.entrySet()) {
             String directory = entry.getKey();
             Set<String> stockSet = entry.getValue();
 

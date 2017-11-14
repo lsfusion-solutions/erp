@@ -18,4 +18,9 @@ public abstract class MachineryHandler<T extends TransactionInfo, M extends Mach
         this.remote = remote;
     }
 
+
+    public boolean fitHandler(MachineryInfo m) {
+        return m.handlerModel != null && m.handlerModel.endsWith(getClass().getName());
+    }
+
 }

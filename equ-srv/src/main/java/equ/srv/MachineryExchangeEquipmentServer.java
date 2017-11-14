@@ -89,8 +89,6 @@ public class MachineryExchangeEquipmentServer {
                     String idDiscountCardTo = trim((String) requestExchangeResult.getValue(i).get("idDiscountCardToRequestExchange").getValue());
                     String typeRequestExchange = trim((String) requestExchangeResult.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
 
-                    Set<CashRegisterInfo> cashRegisterSet = new HashSet<>();
-
                     //terminalOrder - единственный тип запроса для ТСД. Все остальные - только для касс
                     if(typeRequestExchange != null && typeRequestExchange.contains("terminalOrder")) {
 
@@ -118,15 +116,18 @@ public class MachineryExchangeEquipmentServer {
                                 idStock = trim((String) result.getValue(j).get("idStockTerminal").getValue());
                             }
 
-                            requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), cashRegisterSet,
-                                    idStock, new HashMap<String, Set<String>>(), dateFromRequestExchange, dateToRequestExchange,
-                                    startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
+                            requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), new HashSet<CashRegisterInfo>(),
+                                    new HashSet<CashRegisterInfo>(), idStock, new HashMap<String, Set<String>>(), dateFromRequestExchange,
+                                    dateToRequestExchange, startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
                         }
 
                     } else {
 
                         if(cashRegisterLM != null) {
 
+                            //extraCashRegisterSet добавлен, чтобы заменить directoryStockMap
+                            Set<CashRegisterInfo> cashRegisterSet = new HashSet<>();
+                            Set<CashRegisterInfo> extraCashRegisterSet = readExtraCashRegisterSet(session, requestExchangeObject);
                             Map<String, Set<String>> directoryStockMap = readExtraStockRequestExchange(session, requestExchangeObject);
                             String idStock = null;
 
@@ -158,7 +159,7 @@ public class MachineryExchangeEquipmentServer {
                                 putDirectoryStockMap(directoryStockMap, directoryCashRegister, idStock);
                             }
 
-                            requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), cashRegisterSet,
+                            requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), cashRegisterSet, extraCashRegisterSet,
                                     idStock, directoryStockMap, dateFromRequestExchange, dateToRequestExchange,
                                     startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
 
@@ -172,6 +173,32 @@ public class MachineryExchangeEquipmentServer {
             }
         }
         return requestExchangeList;
+    }
+
+    private static Set<CashRegisterInfo> readExtraCashRegisterSet(DataSession session, DataObject requestExchangeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Set<CashRegisterInfo> extraCashRegisterSet = new HashSet<>();
+        KeyExpr stockExpr = new KeyExpr("stock");
+        KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
+        ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "stock", stockExpr, "cashRegister", cashRegisterExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+
+        String[] cashRegisterNames = new String[]{"overDirectory", "idStock", "handlerModelCashRegister"};
+        LCP[] cashRegisterProperties = cashRegisterLM.findProperties("overDirectory[CashRegister]", "idStock[CashRegister]", "handlerModel[CashRegister]");
+        for (int j = 0; j < cashRegisterProperties.length; j++) {
+            query.addProperty(cashRegisterNames[j], cashRegisterProperties[j].getExpr(cashRegisterExpr));
+        }
+        query.and(cashRegisterLM.findProperty("in[Stock,RequestExchange]").getExpr(stockExpr, requestExchangeObject.getExpr()).getWhere());
+        query.and(cashRegisterLM.findProperty("overDirectory[CashRegister]").getExpr(cashRegisterExpr).getWhere());
+        query.and(cashRegisterLM.findProperty("stock[CashRegister]").getExpr(cashRegisterExpr).compare(stockExpr, Compare.EQUALS));
+        query.and(cashRegisterLM.findProperty("inactive[CashRegister]").getExpr(cashRegisterExpr).getWhere().not());
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+        for (ImMap<Object, Object> entry : result.values()) {
+            String handlerModel = trim((String) entry.get("handlerModel"));
+            String directory = trim((String) entry.get("overDirectory"));
+            String idStock = trim((String) entry.get("idStock"));
+            extraCashRegisterSet.add(new CashRegisterInfo(null, null, null, handlerModel, null, directory, null, idStock, false, null, null, null));
+        }
+        return extraCashRegisterSet;
     }
 
     private static Map<String, Set<String>> readExtraStockRequestExchange(DataSession session, DataObject requestExchangeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {

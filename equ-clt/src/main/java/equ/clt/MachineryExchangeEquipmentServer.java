@@ -49,7 +49,7 @@ public class MachineryExchangeEquipmentServer {
                                     if (requestExchange.isCashier()) {
                                         List<CashierInfo> cashierInfoList = remote.readCashierInfoList();
                                         if (cashierInfoList != null && !cashierInfoList.isEmpty()) {
-                                            ((CashRegisterHandler) clsHandler).sendCashierInfoList(cashierInfoList, requestExchange.directoryStockMap);
+                                            ((CashRegisterHandler) clsHandler).sendCashierInfoList(cashierInfoList, requestExchange);
                                         }
                                         sendCashierTime(remote, sidEquipmentServer, (CashRegisterHandler) clsHandler, requestExchange, machineryInfoList);
                                         remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));

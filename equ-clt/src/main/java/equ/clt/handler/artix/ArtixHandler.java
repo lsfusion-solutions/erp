@@ -663,11 +663,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, RequestExchange requestExchange) throws IOException {
 
         machineryExchangeLogger.info(logPrefix + "Send CashierInfoList");
 
-        for (Map.Entry<String, Set<String>> entry : directoryStockMap.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : requestExchange.directoryStockMap.entrySet()) {
 
             try {
 
