@@ -90,83 +90,83 @@ allStocks 'Только итоги' = DATA LOCAL BOOLEAN ();
 showProperty = DepartmentStore ds IS DepartmentStore AND NOT allStocks();
 
 //----в разрезе недели
-sumReceiptDetailZReport 'Сумма Z-отчета' (number, dateFrom, dateTo) = GROUP SUM sumReceiptDetail(ZReport zReport) IF 
+sumReceiptDetailZReport 'Сумма Z-отчета' (number, year, dateFrom, dateTo) = GROUP SUM sumReceiptDetail(ZReport zReport) IF 
     date(zReport) >= (DATE dateFrom AS DATE) AND date(zReport) <= (DATE dateTo AS DATE) AND isPosted(zReport) AND
     inReport(departmentStore(zReport))
-        BY extractWeekZeroBased(date(zReport)), dateFrom, dateTo;
+        BY extractWeekZeroBased(date(zReport)), extractYear(date(zReport)), dateFrom, dateTo;
     
-sumReceiptDetailZReport 'Сумма Z-отчета' (stock, number, dateFrom, dateTo)= GROUP SUM sumReceiptDetail(ZReport zReport) IF 
+sumReceiptDetailZReport 'Сумма Z-отчета' (stock, number, year, dateFrom, dateTo)= GROUP SUM sumReceiptDetail(ZReport zReport) IF 
     date(zReport) >= (DATE dateFrom AS DATE) AND date(zReport) <= (DATE dateTo AS DATE) AND isPosted(zReport)
-        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), dateFrom, dateTo;
-discountSumZReport 'Сумма скидок Z-отчета' (stock, number, dateFrom, dateTo)= GROUP SUM discountSum(ZReport zReport) IF 
+        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), extractYear(date(zReport)), dateFrom, dateTo;
+discountSumZReport 'Сумма скидок Z-отчета' (stock, number, year, dateFrom, dateTo)= GROUP SUM discountSum(ZReport zReport) IF 
     date(zReport) >= (DATE dateFrom AS DATE) AND date(zReport) <= (DATE dateTo AS DATE) AND isPosted(zReport)
-        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), dateFrom, dateTo;
-countReceipt 'Кол-во чеков в магазине за день' (departmentStore, number, dateFrom, dateTo) = GROUP SUM countReceipt(ZReport zReport) IF 
+        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), extractYear(date(zReport)), dateFrom, dateTo;
+countReceipt 'Кол-во чеков в магазине за день' (departmentStore, number, year, dateFrom, dateTo) = GROUP SUM countReceipt(ZReport zReport) IF 
     date(zReport) >= (DATE dateFrom AS DATE) AND date(zReport) <= (DATE dateTo AS DATE) AND isPosted(zReport) 
-        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), dateFrom, dateTo;
-countReturnReceipt 'Кол-во возвратных чеков за день' (departmentStore, number, dateFrom, dateTo) = GROUP SUM countReturnReceipt(ZReport zReport) IF 
+        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), extractYear(date(zReport)), dateFrom, dateTo;
+countReturnReceipt 'Кол-во возвратных чеков за день' (departmentStore, number, year, dateFrom, dateTo) = GROUP SUM countReturnReceipt(ZReport zReport) IF 
     date(zReport) >= (DATE dateFrom AS DATE) AND date(zReport) <= (DATE dateTo AS DATE) AND isPosted(zReport) 
-        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), dateFrom, dateTo;
+        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), extractYear(date(zReport)), dateFrom, dateTo;
 countFiscalReceipt 'Кол-во фискальных чеков за день' = 
-    countReceipt(DepartmentStore departmentStore, INTEGER number, DATE dateFrom, DATE dateTo) (-) countReturnReceipt(departmentStore, number, dateFrom, dateTo);
-averageSumReceipt 'Средняя сумма чека в магазине за день' (DepartmentStore departmentStore, INTEGER number, DATE dateFrom, DATE dateTo) = 
-    sumReceiptDetailZReport(departmentStore, number, dateFrom, dateTo) / countFiscalReceipt(departmentStore, number, dateFrom, dateTo);
-sumPositiveCashPaymentZReport 'Сумма продажа (наличные)' (stock, number, dateFrom, dateTo)= GROUP SUM sumPositiveCashPayment(ZReport zReport) IF 
+    countReceipt(DepartmentStore departmentStore, INTEGER number, INTEGER year, DATE dateFrom, DATE dateTo) (-) countReturnReceipt(departmentStore, number, year, dateFrom, dateTo);
+averageSumReceipt 'Средняя сумма чека в магазине за день' (DepartmentStore departmentStore, INTEGER number, INTEGER year, DATE dateFrom, DATE dateTo) = 
+    sumReceiptDetailZReport(departmentStore, number, year, dateFrom, dateTo) / countFiscalReceipt(departmentStore, number, year, dateFrom, dateTo);
+sumPositiveCashPaymentZReport 'Сумма продажа (наличные)' (stock, number, year, dateFrom, dateTo)= GROUP SUM sumPositiveCashPayment(ZReport zReport) IF 
     date(zReport) >= (DATE dateFrom AS DATE) AND date(zReport) <= (DATE dateTo AS DATE) AND isPosted(zReport)
-        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), dateFrom, dateTo;
-sumPositiveCardPaymentZReport 'Сумма продажа (карточка)' (stock, number, dateFrom, dateTo)= GROUP SUM sumPositiveCardPayment(ZReport zReport) IF 
+        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), extractYear(date(zReport)), dateFrom, dateTo;
+sumPositiveCardPaymentZReport 'Сумма продажа (карточка)' (stock, number, year, dateFrom, dateTo)= GROUP SUM sumPositiveCardPayment(ZReport zReport) IF 
     date(zReport) >= (DATE dateFrom AS DATE) AND date(zReport) <= (DATE dateTo AS DATE) AND isPosted(zReport)
-        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), dateFrom, dateTo;
-VATSumSaleZReport 'Сумма НДС по продажам' (stock, number, dateFrom, dateTo)= GROUP SUM sumVATReceiptDetail(ZReport zReport) IF 
+        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), extractYear(date(zReport)), dateFrom, dateTo;
+VATSumSaleZReport 'Сумма НДС по продажам' (stock, number, year, dateFrom, dateTo)= GROUP SUM sumVATReceiptDetail(ZReport zReport) IF 
     date(zReport) >= (DATE dateFrom AS DATE) AND date(zReport) <= (DATE dateTo AS DATE) AND isPosted(zReport)
-        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), dateFrom, dateTo;
-sumNegativeCashPaymentZReport 'Сумма возврата (наличные)' (stock, number, dateFrom, dateTo)= GROUP SUM sumNegativeCashPayment(ZReport zReport) IF 
+        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), extractYear(date(zReport)), dateFrom, dateTo;
+sumNegativeCashPaymentZReport 'Сумма возврата (наличные)' (stock, number, year, dateFrom, dateTo)= GROUP SUM sumNegativeCashPayment(ZReport zReport) IF 
     date(zReport) >= (DATE dateFrom AS DATE) AND date(zReport) <= (DATE dateTo AS DATE) AND isPosted(zReport)
-        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), dateFrom, dateTo;
-sumNegativeCardPaymentZReport 'Сумма возврата (карточка)' (stock, number, dateFrom, dateTo)= GROUP SUM sumNegativeCardPayment(ZReport zReport) IF 
+        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), extractYear(date(zReport)), dateFrom, dateTo;
+sumNegativeCardPaymentZReport 'Сумма возврата (карточка)' (stock, number, year, dateFrom, dateTo)= GROUP SUM sumNegativeCardPayment(ZReport zReport) IF 
     date(zReport) >= (DATE dateFrom AS DATE) AND date(zReport) <= (DATE dateTo AS DATE) AND isPosted(zReport)
-        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), dateFrom, dateTo;
-countReceiptDetail 'Кол-во позиций чеков в магазине за период' (departmentStore, number, dateFrom, dateTo) = GROUP SUM countReceiptDetail(ZReport zReport) IF 
+        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), extractYear(date(zReport)), dateFrom, dateTo;
+countReceiptDetail 'Кол-во позиций чеков в магазине за период' (departmentStore, number, year, dateFrom, dateTo) = GROUP SUM countReceiptDetail(ZReport zReport) IF 
     date(zReport) >= (DATE dateFrom AS DATE) AND date(zReport) <= (DATE dateTo AS DATE) AND isPosted(zReport)
-        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), dateFrom, dateTo;
-averageCountReceiptDetail 'Среднее кол-во позиций в чеке в магазине за париод' (DepartmentStore departmentStore, INTEGER number, DATE dateFrom, DATE dateTo) = 
-    NUMERIC[16,4](countReceiptDetail(departmentStore, number, dateFrom, dateTo)) / NUMERIC[16,4](countReceipt(departmentStore, number, dateFrom, dateTo));
+        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), extractYear(date(zReport)), dateFrom, dateTo;
+averageCountReceiptDetail 'Среднее кол-во позиций в чеке в магазине за париод' (DepartmentStore departmentStore, INTEGER number, INTEGER year, DATE dateFrom, DATE dateTo) = 
+    NUMERIC[16,4](countReceiptDetail(departmentStore, number, year, dateFrom, dateTo)) / NUMERIC[16,4](countReceipt(departmentStore, number, year, dateFrom, dateTo));
         
         
 sumReceiptDetailZReportStocks 'Сумма Z-отчета' = GROUP SUM sumReceiptDetailZReport(DepartmentStore st,DATE dt) IF 
     dt >= (DATE dateFrom AS DATE) AND dt <= (DATE dateTo AS DATE) AND inReport(st) 
-        BY extractWeekZeroBased(dt), dateFrom, dateTo;
+        BY extractWeekZeroBased(dt), extractYear(dt), dateFrom, dateTo;
 discountSumZReportStocks 'Сумма скидок Z-отчета' = GROUP SUM discountSumZReport(DepartmentStore st,DATE dt) IF 
     dt >= (DATE dateFrom AS DATE) AND dt <= (DATE dateTo AS DATE) AND inReport(st) 
-        BY extractWeekZeroBased(dt), dateFrom, dateTo;
+        BY extractWeekZeroBased(dt), extractYear(dt), dateFrom, dateTo;
 countReceiptStocks 'Кол-во чеков в магазине за день' = GROUP SUM countReceipt(DepartmentStore st,DATE dt) IF 
     dt >= (DATE dateFrom AS DATE) AND dt <= (DATE dateTo AS DATE) AND inReport(st) 
-        BY extractWeekZeroBased(dt), dateFrom, dateTo;
+        BY extractWeekZeroBased(dt), extractYear(dt), dateFrom, dateTo;
 countFiscalReceiptStocks 'Кол-во фискальных чеков за день' = GROUP SUM countFiscalReceipt(DepartmentStore st,DATE dt) IF 
     dt >= (DATE dateFrom AS DATE) AND dt <= (DATE dateTo AS DATE) AND inReport(st) 
-        BY extractWeekZeroBased(dt), dateFrom, dateTo;
-averageSumReceiptStocks 'Средняя сумма чека в магазине за день' (INTEGER number, DATE dateFrom, DATE dateTo) = 
-    sumReceiptDetailZReportStocks(number, dateFrom, dateTo) / countReceiptStocks(number, dateFrom, dateTo);
+        BY extractWeekZeroBased(dt), extractYear(dt), dateFrom, dateTo;
+averageSumReceiptStocks 'Средняя сумма чека в магазине за день' (INTEGER number, INTEGER year, DATE dateFrom, DATE dateTo) = 
+    sumReceiptDetailZReportStocks(number, year, dateFrom, dateTo) / countReceiptStocks(number, year, dateFrom, dateTo);
 sumPositiveCashPaymentZReportStocks 'Сумма продажа (наличные)' = GROUP SUM sumPositiveCashPaymentZReport(DepartmentStore st,DATE dt) IF 
     dt >= (DATE dateFrom AS DATE) AND dt <= (DATE dateTo AS DATE) AND inReport(st) 
-        BY extractWeekZeroBased(dt), dateFrom, dateTo;
+        BY extractWeekZeroBased(dt), extractYear(dt), dateFrom, dateTo;
 sumPositiveCardPaymentZReportStocks 'Сумма продажа (карточка)' = GROUP SUM sumPositiveCardPaymentZReport(DepartmentStore st,DATE dt) IF 
     dt >= (DATE dateFrom AS DATE) AND dt <= (DATE dateTo AS DATE) AND inReport(st) 
-        BY extractWeekZeroBased(dt), dateFrom, dateTo;
+        BY extractWeekZeroBased(dt), extractYear(dt), dateFrom, dateTo;
 VATSumSaleZReportStocks 'Сумма НДС по продажам' = GROUP SUM VATSumSaleZReport(DepartmentStore st,DATE dt) IF 
     dt >= (DATE dateFrom AS DATE) AND dt <= (DATE dateTo AS DATE) AND inReport(st) 
-        BY extractWeekZeroBased(dt), dateFrom, dateTo;
+        BY extractWeekZeroBased(dt), extractYear(dt), dateFrom, dateTo;
 sumNegativeCashPaymentZReportStocks  'Сумма возврата (наличные)' = GROUP SUM sumNegativeCashPaymentZReport(DepartmentStore st,DATE dt) IF 
     dt >= (DATE dateFrom AS DATE) AND dt <= (DATE dateTo AS DATE) AND inReport(st) 
-        BY extractWeekZeroBased(dt), dateFrom, dateTo;
+        BY extractWeekZeroBased(dt), extractYear(dt), dateFrom, dateTo;
 sumNegativeCardPaymentZReportStocks 'Сумма возврата (карточка)' = GROUP SUM sumNegativeCardPaymentZReport(DepartmentStore st,DATE dt) IF 
     dt >= (DATE dateFrom AS DATE) AND dt <= (DATE dateTo AS DATE) AND inReport(st) 
-        BY extractWeekZeroBased(dt), dateFrom, dateTo;
+        BY extractWeekZeroBased(dt), extractYear(dt), dateFrom, dateTo;
 countReceiptDetailStocks 'Кол-во позиций чеков в магазине за период' = GROUP SUM countReceiptDetail(DepartmentStore st,DATE dt) IF 
     dt >= (DATE dateFrom AS DATE) AND dt <= (DATE dateTo AS DATE) AND inReport(st) 
-        BY extractWeekZeroBased(dt), dateFrom, dateTo;
-averageCountReceiptDetailStocks 'Среднее кол-во позиций в чеке в магазине за париод' (INTEGER number, DATE dateFrom, DATE dateTo) =  
-    NUMERIC[16,4](countReceiptDetailStocks(number, dateFrom, dateTo)) / NUMERIC[16,4](countReceiptStocks(number, dateFrom, dateTo));
+        BY extractWeekZeroBased(dt), extractYear(dt), dateFrom, dateTo;
+averageCountReceiptDetailStocks 'Среднее кол-во позиций в чеке в магазине за париод' (INTEGER number, INTEGER year, DATE dateFrom, DATE dateTo) =  
+    NUMERIC[16,4](countReceiptDetailStocks(number, year, dateFrom, dateTo)) / NUMERIC[16,4](countReceiptStocks(number, year, dateFrom, dateTo));
 
 sumReceiptDetailZReport 'Сумма Z-отчета' (stock, dateFrom, dateTo)= GROUP SUM sumReceiptDetail(ZReport zReport) IF 
     date(zReport) >= (DATE dateFrom AS DATE) AND date(zReport) <= (DATE dateTo AS DATE) AND isPosted(zReport)
@@ -299,59 +299,63 @@ FORM saleZreportStock 'Отчет по магазинам'
       
       
 //----в разрезе недели
-    OBJECTS n = INTEGER GRID
-    PROPERTIES READONLY VALUE(n)  HEADER 'Номер недели'    
-    FILTERS    sumReceiptDetailZReport(n,dFrom,dTo)
+    OBJECTS ny = (n = INTEGER, y = INTEGER) GRID
+    PROPERTIES READONLY n = VALUE(n) HEADER 'Номер недели'
+    PROPERTIES READONLY y = VALUE(y) HEADER 'Год'
+    FILTERS sumReceiptDetailZReport(n,y,dFrom,dTo)
+    ORDER y, n
     
-    PROPERTIES READONLY SHOWIF showProperty(stw) sumReceiptDetailZReport(stw,n,dFrom,dTo)  COLUMNS (stw) HEADER nameReceiptDetailZReport(stw)
-    PROPERTIES READONLY SHOWIF showProperty(stw) discountSumZReport(stw,n,dFrom,dTo)  COLUMNS (stw) HEADER nameDiscountSum(stw)
+    PROPERTIES READONLY SHOWIF showProperty(stw) sumReceiptDetailZReport(stw,n,y,dFrom,dTo)  COLUMNS (stw) HEADER nameReceiptDetailZReport(stw)
+    PROPERTIES READONLY SHOWIF showProperty(stw) discountSumZReport(stw,n,y,dFrom,dTo)  COLUMNS (stw) HEADER nameDiscountSum(stw)
     
-    PROPERTIES READONLY SHOWIF showProperty(stw) countReceipt(stw,n,dFrom,dTo) COLUMNS (stw) HEADER countReceipt(stw)
-    PROPERTIES READONLY SHOWIF showProperty(stw) countFiscalReceipt(stw,n,dFrom,dTo) COLUMNS (stw) HEADER countFiscalReceipt(stw)
-    PROPERTIES READONLY SHOWIF showProperty(stw) averageSumReceipt(stw,n,dFrom,dTo) COLUMNS (stw) HEADER averageSumReceipt(stw)
+    PROPERTIES READONLY SHOWIF showProperty(stw) countReceipt(stw,n,y,dFrom,dTo) COLUMNS (stw) HEADER countReceipt(stw)
+    PROPERTIES READONLY SHOWIF showProperty(stw) countFiscalReceipt(stw,n,y,dFrom,dTo) COLUMNS (stw) HEADER countFiscalReceipt(stw)
+    PROPERTIES READONLY SHOWIF showProperty(stw) averageSumReceipt(stw,n,y,dFrom,dTo) COLUMNS (stw) HEADER averageSumReceipt(stw)
     
 //--
-    PROPERTIES READONLY SHOWIF allStocks() sumReceiptDetailZReportStocks(n,dFrom,dTo)
-    PROPERTIES READONLY SHOWIF allStocks() discountSumZReportStocks(n,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() sumReceiptDetailZReportStocks(n,y,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() discountSumZReportStocks(n,y,dFrom,dTo)
     
-    PROPERTIES READONLY SHOWIF allStocks() countReceiptStocks(n,dFrom,dTo)
-    PROPERTIES READONLY SHOWIF allStocks() countFiscalReceiptStocks(n,dFrom,dTo)
-    PROPERTIES READONLY SHOWIF allStocks() averageSumReceiptStocks(n,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() countReceiptStocks(n,y,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() countFiscalReceiptStocks(n,y,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() averageSumReceiptStocks(n,y,dFrom,dTo)
     
     
-    OBJECTS nw = INTEGER GRID
-    PROPERTIES READONLY VALUE(nw)  HEADER 'Номер недели'    
-    FILTERS    sumReceiptDetailZReport(nw,dFrom,dTo)
+    OBJECTS nyw = (nw = INTEGER, yw = INTEGER) GRID
+    PROPERTIES READONLY nw = VALUE(nw) HEADER 'Номер недели'
+    PROPERTIES READONLY yw = VALUE(yw) HEADER 'Год'
+    FILTERS sumReceiptDetailZReport(nw,yw,dFrom,dTo)
+    ORDER yw, nw
 
-    PROPERTIES READONLY SHOWIF showProperty(stsw) sumReceiptDetailZReport(stsw,nw,dFrom,dTo)  COLUMNS (stsw) HEADER nameReceiptDetailZReport(stsw)
-    PROPERTIES READONLY SHOWIF showProperty(stsw) sumPositiveCashPaymentZReport(stsw,nw,dFrom,dTo)  COLUMNS (stsw) HEADER namePositiveCash(stsw)
-    PROPERTIES READONLY SHOWIF showProperty(stsw) sumPositiveCardPaymentZReport(stsw,nw,dFrom,dTo)  COLUMNS (stsw) HEADER namePositiveCard(stsw)
-    PROPERTIES READONLY SHOWIF showProperty(stsw) discountSumZReport(stsw,nw,dFrom,dTo)  COLUMNS (stsw) HEADER nameDiscountSum(stsw)
-    PROPERTIES READONLY SHOWIF showProperty(stsw) VATSumSaleZReport(stsw,nw,dFrom,dTo)  COLUMNS (stsw) HEADER nameVATSumSale(stsw)
+    PROPERTIES READONLY SHOWIF showProperty(stsw) sumReceiptDetailZReport(stsw,nw,yw,dFrom,dTo)  COLUMNS (stsw) HEADER nameReceiptDetailZReport(stsw)
+    PROPERTIES READONLY SHOWIF showProperty(stsw) sumPositiveCashPaymentZReport(stsw,nw,yw,dFrom,dTo)  COLUMNS (stsw) HEADER namePositiveCash(stsw)
+    PROPERTIES READONLY SHOWIF showProperty(stsw) sumPositiveCardPaymentZReport(stsw,nw,yw,dFrom,dTo)  COLUMNS (stsw) HEADER namePositiveCard(stsw)
+    PROPERTIES READONLY SHOWIF showProperty(stsw) discountSumZReport(stsw,nw,yw,dFrom,dTo)  COLUMNS (stsw) HEADER nameDiscountSum(stsw)
+    PROPERTIES READONLY SHOWIF showProperty(stsw) VATSumSaleZReport(stsw,nw,yw,dFrom,dTo)  COLUMNS (stsw) HEADER nameVATSumSale(stsw)
     
-    PROPERTIES READONLY SHOWIF showProperty(stsw) sumNegativeCashPaymentZReport(stsw,nw,dFrom,dTo)  COLUMNS (stsw) HEADER nameNegativeCash(stsw)                                 
-    PROPERTIES READONLY SHOWIF showProperty(stsw) sumNegativeCardPaymentZReport(stsw,nw,dFrom,dTo)  COLUMNS (stsw) HEADER nameNegativeCard(stsw)
+    PROPERTIES READONLY SHOWIF showProperty(stsw) sumNegativeCashPaymentZReport(stsw,nw,yw,dFrom,dTo)  COLUMNS (stsw) HEADER nameNegativeCash(stsw)                                 
+    PROPERTIES READONLY SHOWIF showProperty(stsw) sumNegativeCardPaymentZReport(stsw,nw,yw,dFrom,dTo)  COLUMNS (stsw) HEADER nameNegativeCard(stsw)
     
-    PROPERTIES READONLY SHOWIF showProperty(stsw) countReceipt(stsw,nw,dFrom,dTo) COLUMNS (stsw) HEADER countReceipt(stsw)
-    PROPERTIES READONLY SHOWIF showProperty(stsw) countFiscalReceipt(stsw,nw,dFrom,dTo) COLUMNS (stsw) HEADER countFiscalReceipt(stsw)                                 
-    PROPERTIES READONLY SHOWIF showProperty(stsw) averageSumReceipt(stsw,nw,dFrom,dTo) COLUMNS (stsw) HEADER averageSumReceipt(stsw)                                 
-    PROPERTIES READONLY SHOWIF showProperty(stsw) countReceiptDetail(stsw,nw,dFrom,dTo) COLUMNS (stsw) HEADER countReceiptDetail(stsw)                                 
-    PROPERTIES READONLY SHOWIF showProperty(stsw) averageCountReceiptDetail(stsw,nw,dFrom,dTo) COLUMNS (stsw) HEADER averageCountReceiptDetail(stsw)
+    PROPERTIES READONLY SHOWIF showProperty(stsw) countReceipt(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER countReceipt(stsw)
+    PROPERTIES READONLY SHOWIF showProperty(stsw) countFiscalReceipt(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER countFiscalReceipt(stsw)                                 
+    PROPERTIES READONLY SHOWIF showProperty(stsw) averageSumReceipt(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER averageSumReceipt(stsw)                                 
+    PROPERTIES READONLY SHOWIF showProperty(stsw) countReceiptDetail(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER countReceiptDetail(stsw)                                 
+    PROPERTIES READONLY SHOWIF showProperty(stsw) averageCountReceiptDetail(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER averageCountReceiptDetail(stsw)
 //--
-    PROPERTIES READONLY SHOWIF allStocks() sumReceiptDetailZReportStocks(nw,dFrom,dTo)
-    PROPERTIES READONLY SHOWIF allStocks() sumPositiveCashPaymentZReportStocks(nw,dFrom,dTo)
-    PROPERTIES READONLY SHOWIF allStocks() sumPositiveCardPaymentZReportStocks(nw,dFrom,dTo)
-    PROPERTIES READONLY SHOWIF allStocks() discountSumZReportStocks(nw,dFrom,dTo)
-    PROPERTIES READONLY SHOWIF allStocks() VATSumSaleZReportStocks(nw,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() sumReceiptDetailZReportStocks(nw,yw,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() sumPositiveCashPaymentZReportStocks(nw,yw,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() sumPositiveCardPaymentZReportStocks(nw,yw,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() discountSumZReportStocks(nw,yw,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() VATSumSaleZReportStocks(nw,yw,dFrom,dTo)
     
-    PROPERTIES READONLY SHOWIF allStocks() sumNegativeCashPaymentZReportStocks(nw,dFrom,dTo)                
-    PROPERTIES READONLY SHOWIF allStocks() sumNegativeCardPaymentZReportStocks(nw,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() sumNegativeCashPaymentZReportStocks(nw,yw,dFrom,dTo)                
+    PROPERTIES READONLY SHOWIF allStocks() sumNegativeCardPaymentZReportStocks(nw,yw,dFrom,dTo)
     
-    PROPERTIES READONLY SHOWIF allStocks() countReceiptStocks(nw,dFrom,dTo)
-    PROPERTIES READONLY SHOWIF allStocks() countFiscalReceiptStocks(nw,dFrom,dTo)                               
-    PROPERTIES READONLY SHOWIF allStocks() averageSumReceiptStocks(nw,dFrom,dTo)                              
-    PROPERTIES READONLY SHOWIF allStocks() countReceiptDetailStocks(nw,dFrom,dTo)                                 
-    PROPERTIES READONLY SHOWIF allStocks() averageCountReceiptDetailStocks(nw,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() countReceiptStocks(nw,yw,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() countFiscalReceiptStocks(nw,yw,dFrom,dTo)                               
+    PROPERTIES READONLY SHOWIF allStocks() averageSumReceiptStocks(nw,yw,dFrom,dTo)                              
+    PROPERTIES READONLY SHOWIF allStocks() countReceiptDetailStocks(nw,yw,dFrom,dTo)                                 
+    PROPERTIES READONLY SHOWIF allStocks() averageCountReceiptDetailStocks(nw,yw,dFrom,dTo)
 
 //--По магазинам (кратко)
     PROPERTIES READONLY name(stst), sumReceiptDetailZReport(stst,dFrom,dTo), discountSumZReport(stst,dFrom,dTo), countReceipt(stst,dFrom,dTo),
@@ -391,7 +395,7 @@ DESIGN saleZreportStock {
                 MOVE BOX(d) {
                     caption = 'По дням';
                 }
-                MOVE BOX(n) {
+                MOVE BOX(ny) {
                     caption = 'По неделям';
                 }
                 MOVE BOX(stst) {
@@ -405,7 +409,7 @@ DESIGN saleZreportStock {
                 MOVE BOX(dt) {
                     caption = 'По дням';
                 }
-                MOVE BOX(nw) {
+                MOVE BOX(nyw) {
                     caption = 'По неделям';
                 }
                 MOVE BOX(stsst) {
@@ -437,26 +441,26 @@ DESIGN saleZreportStock {
         PROPERTY(sumNegativeCardPaymentZReportStocks(dt)) { background = #C4FFBD; } 
                                                                 
 //----в разрезе недели
-        PROPERTY(discountSumZReport(stw,n,dFrom,dTo)) { background = #EEFFEE; }          
-        PROPERTY(discountSumZReportStocks(n,dFrom,dTo)) { background = #EEFFEE; }
+        PROPERTY(discountSumZReport(stw,n,y,dFrom,dTo)) { background = #EEFFEE; }          
+        PROPERTY(discountSumZReportStocks(n,y,dFrom,dTo)) { background = #EEFFEE; }
         
-        PROPERTY(sumPositiveCashPaymentZReport(stsw,nw,dFrom,dTo)) { background = #FFEEEE; } 
-        PROPERTY(sumPositiveCardPaymentZReport(stsw,nw,dFrom,dTo)) { background = #F4FFBD; }
+        PROPERTY(sumPositiveCashPaymentZReport(stsw,nw,yw,dFrom,dTo)) { background = #FFEEEE; } 
+        PROPERTY(sumPositiveCardPaymentZReport(stsw,nw,yw,dFrom,dTo)) { background = #F4FFBD; }
         
-        PROPERTY(discountSumZReport(stsw,nw,dFrom,dTo)) { background = #EEFFEE; }  
-        PROPERTY(VATSumSaleZReport(stsw,nw,dFrom,dTo)) { background = #E4FFBD; }             
+        PROPERTY(discountSumZReport(stsw,nw,yw,dFrom,dTo)) { background = #EEFFEE; }  
+        PROPERTY(VATSumSaleZReport(stsw,nw,yw,dFrom,dTo)) { background = #E4FFBD; }             
                 
-        PROPERTY(sumNegativeCashPaymentZReport(stsw,nw,dFrom,dTo)) { background = #D4FFFF; }              
-        PROPERTY(sumNegativeCardPaymentZReport(stsw,nw,dFrom,dTo)) { background = #C4FFBD; }
+        PROPERTY(sumNegativeCashPaymentZReport(stsw,nw,yw,dFrom,dTo)) { background = #D4FFFF; }              
+        PROPERTY(sumNegativeCardPaymentZReport(stsw,nw,yw,dFrom,dTo)) { background = #C4FFBD; }
         
-        PROPERTY(sumPositiveCashPaymentZReportStocks(nw,dFrom,dTo)) { background = #FFEEEE; } 
-        PROPERTY(sumPositiveCardPaymentZReportStocks(nw,dFrom,dTo)) { background = #F4FFBD; }    
+        PROPERTY(sumPositiveCashPaymentZReportStocks(nw,yw,dFrom,dTo)) { background = #FFEEEE; } 
+        PROPERTY(sumPositiveCardPaymentZReportStocks(nw,yw,dFrom,dTo)) { background = #F4FFBD; }    
         
-        PROPERTY(discountSumZReportStocks(nw,dFrom,dTo)) { background = #EEFFEE; }  
-        PROPERTY(VATSumSaleZReportStocks(nw,dFrom,dTo)) { background = #E4FFBD; }             
+        PROPERTY(discountSumZReportStocks(nw,yw,dFrom,dTo)) { background = #EEFFEE; }  
+        PROPERTY(VATSumSaleZReportStocks(nw,yw,dFrom,dTo)) { background = #E4FFBD; }             
                 
-        PROPERTY(sumNegativeCashPaymentZReportStocks(nw,dFrom,dTo)) { background = #D4FFFF; }              
-        PROPERTY(sumNegativeCardPaymentZReportStocks(nw,dFrom,dTo)) { background = #C4FFBD; }
+        PROPERTY(sumNegativeCashPaymentZReportStocks(nw,yw,dFrom,dTo)) { background = #D4FFFF; }              
+        PROPERTY(sumNegativeCardPaymentZReportStocks(nw,yw,dFrom,dTo)) { background = #C4FFBD; }
 //--По магазинам
         PROPERTY(sumPositiveCashPaymentZReport(stsst,dFrom,dTo)) { background = #FFEEEE; } 
         PROPERTY(sumPositiveCardPaymentZReport(stsst,dFrom,dTo)) { background = #F4FFBD; }
