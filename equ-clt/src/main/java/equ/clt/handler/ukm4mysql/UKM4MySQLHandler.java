@@ -1042,6 +1042,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         //String idEmployee = loginMap.get(login);
 
                         String giftCardValue = rs.getString(22); //rip.value
+                        String idEmployee = String.valueOf(rs.getInt(23)); //l.user_id
+                        String lastNameContact = rs.getString(24); //l.user_name
+
                         boolean isGiftCard = giftCardValue != null && !giftCardValue.isEmpty();
                         if (isGiftCard)
                             idBarcode = giftCardValue;
@@ -1067,8 +1070,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         BigDecimal discountSumReceiptDetail = HandlerUtils.safeSubtract(sum, realAmount);
                         if (totalQuantity != null) {
                             salesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, cash_id, numberZReport,
-                                    dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, null/*idEmployee*/,
-                                    null, null, paymentEntry.sumCard, paymentEntry.sumCash, sumGiftCardMap, idBarcode, idItem, null, null, totalQuantity,
+                                    dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee,
+                                    null, lastNameContact, paymentEntry.sumCard, paymentEntry.sumCash, sumGiftCardMap, idBarcode, idItem, null, null, totalQuantity,
                                     price, isSale ? realAmount : realAmount.negate(), discountSumReceiptDetail, null, null,
                                     position, null, idSection));
                             receiptSet.add(Pair.create(idReceipt, cash_id));
