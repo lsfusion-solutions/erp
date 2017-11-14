@@ -76,9 +76,13 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     String patternedDateTimePattern = "(.*)(~(.*))+";
     String roundedPattern = "(.*)\\[(\\-?)\\d+\\]";
     String columnRowPattern = ":(\\d+)_(\\d+)";
-    DecimalFormat decimalFormat = new DecimalFormat("#.#####");
-    DataFormatter dataFormatter = new DataFormatter();
+    static DecimalFormat decimalFormat = new DecimalFormat("#.#####");
+    static DataFormatter dataFormatter = new DataFormatter();
     protected String currentTimestamp;
+
+    static {
+        dataFormatter.setDefaultNumberFormat(decimalFormat);
+    }
 
     protected String getCSVFieldValue(List<String[]> valuesList, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
         return getCSVFieldValue(valuesList, importColumnDetail, row, false, false);
@@ -515,7 +519,14 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     break;
                 case Cell.CELL_TYPE_FORMULA:
                     formulaEvaluator.evaluate(hssfCell);
-                    result = dataFormatter.formatCellValue(hssfCell, formulaEvaluator);
+                    switch (hssfCell.getCachedFormulaResultType()) {
+                        case Cell.CELL_TYPE_NUMERIC:
+                            result = dataFormatter.getDefaultFormat(hssfCell).format(hssfCell.getNumericCellValue());
+                            break;
+                        default:
+                            result = dataFormatter.formatCellValue(hssfCell);
+                            break;
+                    }
                     result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
                     break;
                 case Cell.CELL_TYPE_STRING:
@@ -1273,8 +1284,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             return value1;
         try {
             if (isNumeric) {
-                BigDecimal value1Numeric = value1.isEmpty() ? BigDecimal.ZERO : new BigDecimal(value1);
-                BigDecimal value2Numeric = value2.isEmpty() ? BigDecimal.ZERO : new BigDecimal(value2);
+                BigDecimal value1Numeric = value1.isEmpty() ? BigDecimal.ZERO : new BigDecimal(value1.replace(",", "."));
+                BigDecimal value2Numeric = value2.isEmpty() ? BigDecimal.ZERO : new BigDecimal(value2.replace(",", "."));
                 return String.valueOf(value1Numeric.add(value2Numeric));
             } else return value1 + value2;
         } catch (Exception e) {
