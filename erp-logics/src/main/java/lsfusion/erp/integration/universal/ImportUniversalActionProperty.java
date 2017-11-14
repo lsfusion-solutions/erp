@@ -556,12 +556,6 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return date == null ? null : new Time(date.getTime());
     }
 
-    //6
-    protected Time getXLSTimeFieldValue(FormulaEvaluator formulaEvaluator, HSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
-        Date date = getXLSDateFieldValue(formulaEvaluator, sheet, row, importColumnDetail, null);
-        return date == null ? null : new Time(date.getTime());
-    }
-
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
         return getXLSDateFieldValue(sheet, row, importColumnDetail, null);
     }
@@ -573,11 +567,6 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, boolean ignoreException) throws UniversalImportException {
         return getXLSDateFieldValue(sheet, row, importColumnDetail, null, ignoreException);
-    }
-
-    //8
-    protected Date getXLSDateFieldValue(FormulaEvaluator formulaEvaluator, HSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, boolean ignoreException) throws UniversalImportException {
-        return getXLSDateFieldValue(formulaEvaluator, sheet, row, importColumnDetail, null, ignoreException);
     }
 
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, Date defaultDate) throws UniversalImportException {

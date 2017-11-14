@@ -1,8 +1,5 @@
 package lsfusion.erp.integration.universal.productionorder;
 
-import jxl.Sheet;
-import jxl.Workbook;
-import jxl.WorkbookSettings;
 import jxl.read.biff.BiffException;
 import lsfusion.base.IOUtils;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
@@ -14,6 +11,7 @@ import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.classes.ValueClass;
+import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.BusinessLogics;
@@ -22,10 +20,13 @@ import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
+import org.apache.poi.hssf.usermodel.HSSFFormulaEvaluator;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.xBaseJ.DBF;
@@ -300,18 +301,26 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         
         List<String> bigDecimalFields = Arrays.asList("price", "componentsPrice", "valueVAT", "markup", "sum", "outputQuantity", "dataIndex", "costPrice");
 
-        List<String> dateFields = Arrays.asList("dateDocument");
-        
-        if (fileExtension.equals("DBF"))
-            orderDetailsList = importOrdersFromDBF(file, importColumns, stringFields, bigDecimalFields, dateFields, startRow, isPosted, orderObject);
-        else if (fileExtension.equals("XLS"))
-            orderDetailsList = importOrdersFromXLS(file, importColumns, stringFields, bigDecimalFields, dateFields, startRow, isPosted, orderObject);
-        else if (fileExtension.equals("XLSX"))
-            orderDetailsList = importOrdersFromXLSX(file, importColumns, stringFields, bigDecimalFields, dateFields, startRow, isPosted, orderObject);
-        else if (fileExtension.equals("CSV") || fileExtension.equals("TXT"))
-            orderDetailsList = importOrdersFromCSV(file, importColumns, stringFields, bigDecimalFields, dateFields, startRow, isPosted, separator, orderObject);
-        else
-            orderDetailsList = null;
+        List<String> dateFields = Collections.singletonList("dateDocument");
+
+        switch (fileExtension) {
+            case "DBF":
+                orderDetailsList = importOrdersFromDBF(file, importColumns, stringFields, bigDecimalFields, dateFields, startRow, isPosted, orderObject);
+                break;
+            case "XLS":
+                orderDetailsList = importOrdersFromXLS(file, importColumns, stringFields, bigDecimalFields, dateFields, startRow, isPosted, orderObject);
+                break;
+            case "XLSX":
+                orderDetailsList = importOrdersFromXLSX(file, importColumns, stringFields, bigDecimalFields, dateFields, startRow, isPosted, orderObject);
+                break;
+            case "CSV":
+            case "TXT":
+                orderDetailsList = importOrdersFromCSV(file, importColumns, stringFields, bigDecimalFields, dateFields, startRow, isPosted, separator, orderObject);
+                break;
+            default:
+                orderDetailsList = null;
+                break;
+        }
 
         return orderDetailsList;
     }
@@ -323,30 +332,28 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
         List<ProductionOrderDetail> result = new ArrayList<>();
 
-        WorkbookSettings ws = new WorkbookSettings();
-        ws.setEncoding("cp1251");
-        ws.setGCDisabled(true);
-        Workbook wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
-        Sheet sheet = wb.getSheet(0);
+        HSSFWorkbook wb = new HSSFWorkbook(new ByteArrayInputStream(importFile));
+        FormulaEvaluator formulaEvaluator = new HSSFFormulaEvaluator(wb);
+        HSSFSheet sheet = wb.getSheetAt(0);
 
-        for (int i = startRow - 1; i < sheet.getRows(); i++) {
+        for (int i = startRow - 1; i < sheet.getLastRowNum(); i++) {
             Map<String, Object> fieldValues = new HashMap<>();
             for(String field : stringFields) {
-                fieldValues.put(field, getXLSFieldValue(sheet, i, importColumns.get(field)));
+                fieldValues.put(field, getXLSFieldValue(formulaEvaluator, sheet, i, importColumns.get(field)));
             }
             for(String field : bigDecimalFields) {
-                BigDecimal value = getXLSBigDecimalFieldValue(sheet, i, importColumns.get(field));
+                BigDecimal value = getXLSBigDecimalFieldValue(formulaEvaluator, sheet, i, importColumns.get(field));
                 if(field.equals("dataIndex"))
                     fieldValues.put(field, value == null ? null : value.intValue());
                 else
                     fieldValues.put(field, value);
             }
             for(String field : dateFields) {
-                fieldValues.put(field, getXLSDateFieldValue(sheet, i, importColumns.get(field)));
+                fieldValues.put(field, getXLSDateFieldValue(formulaEvaluator, sheet, i, importColumns.get(field)));
             }
             
-            String numberOrder = getXLSFieldValue(sheet, i, importColumns.get("numberDocument"));
-            String idOrder = getXLSFieldValue(sheet, i, importColumns.get("idDocument"), numberOrder);
+            String numberOrder = getXLSFieldValue(formulaEvaluator, sheet, i, importColumns.get("numberDocument"));
+            String idOrder = getXLSFieldValue(formulaEvaluator, sheet, i, importColumns.get("idDocument"), numberOrder);
             String idOrderDetail = makeIdOrderDetail(orderObject, numberOrder, i);
             
             result.add(new ProductionOrderDetail(fieldValues, isPosted, idOrder, numberOrder, idOrderDetail));
@@ -483,8 +490,8 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         } finally {
             if (file != null)
                 file.close();
-            if (tempFile != null)
-                tempFile.delete();
+            if (tempFile != null && !tempFile.delete())
+                tempFile.deleteOnExit();
         }
         return result;
     }
