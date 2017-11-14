@@ -160,17 +160,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 CashRegisterItemInfo item = transaction.itemsList.get(i);
-                setObject(ps, item.idItem, 1, offset); //ARTID
-                setObject(ps, parseGroup(item.extIdItemGroup), 2, offset); //GRPID
-                setObject(ps, item.vat == null ? "0" : item.vat, 3, offset); //TAXGRPID
-                setObject(ps, item.idItem, 4, offset); //ARTCODE
-                setObject(ps, trim(item.name, "", 50), 5, offset); //ARTNAME
-                setObject(ps, trim(item.name, "", 50), 6, offset); //ARTSNAME
-                setObject(ps, "0", 7, offset); //DELFLAG
+                Integer idItem = parseIdItem(item);
+                if(idItem != null) {
+                    setObject(ps, idItem, 1, offset); //ARTID
+                    setObject(ps, parseGroup(item.extIdItemGroup), 2, offset); //GRPID
+                    setObject(ps, item.vat == null ? "0" : item.vat, 3, offset); //TAXGRPID
+                    setObject(ps, idItem, 4, offset); //ARTCODE
+                    setObject(ps, trim(item.name, "", 50), 5, offset); //ARTNAME
+                    setObject(ps, trim(item.name, "", 50), 6, offset); //ARTSNAME
+                    setObject(ps, "0", 7, offset); //DELFLAG
 
-                setObject(ps, item.idItem, 8); //ARTID
+                    setObject(ps, idItem, 8); //ARTID
 
-                ps.addBatch();
+                    ps.addBatch();
+                }
             }
             ps.executeBatch();
             conn.commit();
@@ -226,22 +229,22 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             int offset = columns.length + keys.length;
             ps = getPreparedStatement(conn, "PACK", columns, keys);
 
-            Set<Long> usedPackIds = new HashSet<>();
-            Set<String> idItems = new HashSet<>();
+            Set<Integer> idItems = new HashSet<>();
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 CashRegisterItemInfo item = transaction.itemsList.get(i);
                 Integer idUOM = parseUOM(item.idUOM);
-                if (idUOM != null) {
-                    Integer packId = getPackId(usedPackIds, item);
+                Integer idItem = parseIdItem(item);
+                if (idUOM != null && idItem != null) {
+                    Integer packId = getPackId(item);
                     setObject(ps, packId, 1, offset); //PACKID
-                    setObject(ps, item.idItem, 2, offset); //ARTID
+                    setObject(ps, idItem, 2, offset); //ARTID
                     setObject(ps, "1", 3, offset); //PACKQUANT
                     setObject(ps, "0", 4, offset); //PACKSHELFLIFE
-                    if(idItems.contains(item.idItem)) {
+                    if(idItems.contains(idItem)) {
                         setObject(ps, false, 5, offset); //ISDEFAULT
                     } else {
                         setObject(ps, true, 5, offset); //ISDEFAULT
-                        idItems.add(item.idItem);
+                        idItems.add(idItem);
                     }
                     setObject(ps, idUOM, 6, offset); //UNITID
                     setObject(ps, "", 7, offset); //QUANTMASK
@@ -261,17 +264,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private Integer getPackId(Set<Long> usedPackIds, ItemInfo item) {
-        int i = 0;
-        Long packId;
-        do {
-            packId = Long.parseLong(item.idItem) * 10 + i;
-            if(packId > Integer.MAX_VALUE)
-                packId = Long.parseLong(item.idItem);
-            i++;
-        } while (usedPackIds.contains(packId));
-        usedPackIds.add(packId);
-        return packId.intValue();
+    private Integer getPackId(CashRegisterItemInfo item) {
+        //Потенциальная опасность, если база перейдёт границу Integer.MAX_VALUE
+        return item.barcodeObject.intValue();
+    }
+
+    private Integer parseIdItem(CashRegisterItemInfo item) {
+        try {
+            return Integer.parseInt(item.idItem);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void exportExBarc(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
@@ -282,19 +285,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             int offset = columns.length + keys.length;
             ps = getPreparedStatement(conn, "EXBARC", columns, keys);
 
-            Set<Long> usedPackIds = new HashSet<>();
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 CashRegisterItemInfo item = transaction.itemsList.get(i);
-                Integer packId = getPackId(usedPackIds, item);
-                setObject(ps, packId, 1, offset); //EXBARCID
-                setObject(ps, packId, 2, offset); //PACKID
-                setObject(ps, "", 3, offset); //EXBARCTYPE
-                setObject(ps, item.idBarcode, 4, offset); //EXBARCBODY
-                setObject(ps, "0", 5, offset); //DELFLAG
+                if(item.idBarcode != null) {
+                    Integer packId = getPackId(item);
+                    setObject(ps, packId, 1, offset); //EXBARCID
+                    setObject(ps, packId, 2, offset); //PACKID
+                    setObject(ps, "", 3, offset); //EXBARCTYPE
+                    setObject(ps, item.idBarcode, 4, offset); //EXBARCBODY
+                    setObject(ps, "0", 5, offset); //DELFLAG
 
-                setObject(ps, packId, 6); //EXBARCID
+                    setObject(ps, packId, 6); //EXBARCID
 
-                ps.addBatch();
+                    ps.addBatch();
+                }
             }
             ps.executeBatch();
             conn.commit();
@@ -311,10 +315,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             int offset = columns.length + keys.length;
             ps = getPreparedStatement(conn, "PACKPRC", columns, keys);
 
-            Set<Long> usedPackIds = new HashSet<>();
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 CashRegisterItemInfo item = transaction.itemsList.get(i);
-                Integer packId = getPackId(usedPackIds, item);
+                Integer packId = getPackId(item);
                 setObject(ps, packId, 1, offset); //PACKID
                 setObject(ps, transaction.nppGroupMachinery, 2, offset); //PRCLEVELID
                 setObject(ps, HandlerUtils.safeMultiply(item.price, 100), 3, offset); //PACKPRICE
@@ -437,12 +440,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                 processStopListLogger.info("astron: executing stopLists, table packprc");
                 ps = conn.prepareStatement(String.format("UPDATE [PACKPRC] SET DELFLAG = %s WHERE PACKID=? AND PRCLEVELID=?", stopListInfo.exclude ? "0" : "1"));
-                Set<Long> usedPackIds = new HashSet<>();
                 for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                     for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
-                        ps.setObject(1, getPackId(usedPackIds, item)); //PACKID
-                        ps.setObject(2, nppGroupMachinery); //PRCLEVELID
-                        ps.addBatch();
+                        if(item instanceof CashRegisterItemInfo) {
+                            ps.setObject(1, getPackId((CashRegisterItemInfo) item)); //PACKID
+                            ps.setObject(2, nppGroupMachinery); //PRCLEVELID
+                            ps.addBatch();
+                        }
                     }
                 }
                 ps.executeBatch();

@@ -438,7 +438,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                     List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<>();
 
-                    for (ImMap<Object, Object> row : skuResult.valueIt()) {
+                    for (int i = 0, size = skuResult.size(); i < size; i++) {
+                        Long barcodeObject = (Long) skuResult.getKey(i).get("barcode");
+                        ImMap<Object, Object> row = skuResult.getValue(i);
+
                         String barcode = getRowValue(row, "idBarcode");
                         BigDecimal amountBarcode = (BigDecimal) row.get("amountBarcode");
                         String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
@@ -470,8 +473,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Timestamp restrictionToDateTime = (Timestamp) row.get("restrictionToDateTimeMachineryPriceTransactionBarcode");
 
                         CashRegisterItemInfo c = new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
-                                pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, itemGroupObject, description, idBrand, nameBrand, idSeason,
-                                nameSeason, idDepartmentStoreGroupCashRegister, section, deleteSection, minPrice, overIdItemGroup, amountBarcode, balance, restrictionToDateTime);
+                                pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, itemGroupObject, description, idBrand, nameBrand,
+                                idSeason, nameSeason, idDepartmentStoreGroupCashRegister, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
+                                balance, restrictionToDateTime, barcodeObject);
                         cashRegisterItemInfoList.add(c);
                     }
                     
