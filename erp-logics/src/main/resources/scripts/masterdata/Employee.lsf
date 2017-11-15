@@ -49,12 +49,20 @@ positionShortName 'Должность ФИО (инициалы)' (Employee emplo
 limitAccess 'Ограничить доступ' = DATA BOOLEAN (Employee);
 showLimitAccess = limitAccess(Employee e) AND showIDs();
 
+inactive 'Неактивный' = DATA BOOLEAN (Employee);
+active 'Активный' (Employee e) =  e IS Employee AND NOT inactive(e);
+
+WHEN SET (Employee e IS Employee AND NOT login(e)) DO {
+    limitAccess(e) <- TRUE;
+    isLocked(e)<- TRUE;   
+}
+
 FORM employee 'Сотрудник'
     OBJECTS e=Employee PANEL
     PROPERTIES(e)      objectClassName, lastName, firstName, initialsEmployee, id SHOWIF showIDs(), namePosition,
                        login, 
                        sha256Password ON CHANGE changeSHA256Password(e),
-                       email, nameMainRole, limitAccess, isLocked
+                       email, nameMainRole, limitAccess, isLocked, inactive
     OBJECTS r = UserRole
     PROPERTIES (r) READONLY name, sid
     PROPERTIES in(e,r)
@@ -95,6 +103,7 @@ DESIGN employee {
                 columns = 1;
                 MOVE PROPERTY(limitAccess(e));
                 MOVE PROPERTY(isLocked(e));
+                MOVE PROPERTY(inactive(e)); 
             }
         }
         NEW pane {
@@ -130,9 +139,12 @@ userRoles 'Доп. роли' = GROUP CONCAT name(UserRole role) IF in(Employee e
 FORM employees 'Сотрудники'
     PROPERTIES isEditable()
     OBJECTS e=Employee
+    PROPERTIES(e) READONLY active
     PROPERTIES(e) READONLYIF isReadonly() lastName, firstName, initialsEmployee, id SHOWIF showIDs(), namePosition, shortName, login, nameMainRole, userRoles, isLocked, lastActivity
     PROPERTIES(e) NEWSESSION addE=NEW, editE=EDIT, deleteE=DELETE , copyEmployee
     LIST Employee OBJECT e
+    
+    FILTERGROUP active FILTER 'Активные' active(e) 'F5'  DEFAULT              
 ;
 
 DESIGN employees {
