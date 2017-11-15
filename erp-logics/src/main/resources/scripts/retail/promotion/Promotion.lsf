@@ -1,0 +1,267 @@
+MODULE Promotion;
+
+REQUIRE ItemManager;
+
+NAMESPACE Promotion;
+
+CLASS Promotion 'Акция';
+TABLE promotion (Promotion);
+
+CLASS PromotionDetail 'Строка акции';
+TABLE promotionDetail (PromotionDetail);
+
+changedTime 'Время последнего изменения'= DATA DATETIME (PromotionDetail);
+changedTime (PromotionDetail detail) <- currentDateTime() WHEN CHANGED(detail IS PromotionDetail);
+    
+changedUser = DATA CustomUser (PromotionDetail);
+changedNameUser 'Изменен пользователем' (PromotionDetail detail) = name[Contact](changedUser(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+changedUser (PromotionDetail detail) <- currentUser() WHEN CHANGED (detail IS PromotionDetail);
+    
+changedComputer = DATA Computer (PromotionDetail);
+changedHostnameComputer 'Изменен на компьютере' (PromotionDetail detail) = hostname(changedComputer(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+changedComputer (PromotionDetail detail) <- currentComputer() WHEN CHANGED(detail IS PromotionDetail);
+
+promotion 'Акция' = DATA Promotion (PromotionDetail);
+
+name 'Наименование' = DATA VARSTRING[100] (Promotion) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+fromDate 'Дата с' = DATA DATE (Promotion);
+toDate 'Дата по' = DATA DATE (Promotion);
+
+CLASS PromotionType 'Тип акции';
+TABLE promotionType (PromotionType);
+
+id 'Код' = DATA VARISTRING[100] (PromotionType) IN base;
+promotionType(id) = GROUP AGGR (PromotionType type) BY id(type);
+
+name 'Наименование' = DATA VARSTRING[100] (PromotionType) IN base;
+
+promotionType 'Тип акции' = DATA PromotionType (Promotion);
+namePromotionType 'Тип акции' (Promotion promotion) = name(promotionType(promotion));
+
+CLASS ExtraPromotionType 'Тип подакции';
+TABLE extraPromotionType (ExtraPromotionType);
+
+id 'Код' = DATA VARSTRING[100] (ExtraPromotionType) IN base;
+extraPromotionType(id) = GROUP AGGR (ExtraPromotionType type) BY id(type);
+
+name 'Наименование' = DATA VARSTRING[100] (ExtraPromotionType) IN base;
+
+extraPromotionType 'Тип подакции' = DATA ExtraPromotionType (Promotion);
+nameExtraPromotionType 'Тип подакции' (Promotion promotion) = name(extraPromotionType(promotion));
+
+extraPromotionType 'Тип подакции' = DATA ExtraPromotionType (PromotionDetail);
+nameExtraPromotionType 'Тип подакции' (PromotionDetail detail) = name(extraPromotionType(detail));
+overrideExtraPromotionType 'Тип подакции' (PromotionDetail detail) = OVERRIDE extraPromotionType(detail), extraPromotionType(promotion(detail));
+nameOverrideExtraPromotionType 'Тип подакции' (PromotionDetail detail) = name(overrideExtraPromotionType(detail));
+
+sku 'Товар' = DATA Sku (PromotionDetail);
+
+idBarcode 'Штрихкод' (PromotionDetail detail) = idBarcode(sku(detail));
+nameSkuGroup2 'Категория' (PromotionDetail detail) = nameSkuGroup2(sku(detail));
+nameSkuGroup3 'Направление' (PromotionDetail detail) = nameSkuGroup3(sku(detail));
+nameSkuGroup4 'Группа' (PromotionDetail detail) = nameSkuGroup4(sku(detail));
+nameBrand 'Бренд' (PromotionDetail detail) = nameBrand(sku(detail));
+nameCustomUser 'Категорийный менеджер' (PromotionDetail detail) = nameCustomUser(skuGroup(sku(detail)));
+nameSku 'Товар' (PromotionDetail detail) = name(sku(detail));
+
+
+CLASS Flyer 'Листовка';
+TABLE flyer (Flyer);
+
+id 'Код' = DATA VARSTRING[100] (Flyer) IN base;
+flyer(id) = GROUP AGGR (Flyer flyer) BY id(flyer);
+
+name 'Наименование' = DATA VARSTRING[100] (Flyer) IN base;
+
+flyer 'Листовка' = DATA Flyer (Promotion);
+nameFlyer 'Листовка' (Promotion promotion) = name(flyer(promotion));
+
+flyer 'Листовка' = DATA Flyer (PromotionDetail);
+nameFlyer 'Листовка' (PromotionDetail detail) = name(flyer(detail));
+overrideFlyer 'Листовка' (PromotionDetail detail) = OVERRIDE flyer(detail), flyer(promotion(detail));
+nameOverrideFlyer 'Листовка' (PromotionDetail detail) = name(overrideFlyer(detail));
+
+paymentForFlyer 'Оплата участия в листовке' = DATA BOOLEAN (PromotionDetail);
+decreaseSupplierPercent 'Уменьшение % маркетинга поставщика' = DATA BOOLEAN (PromotionDetail);
+
+supplierPromotionDiscount 'Скидка поставщика в Акцию' = DATA NUMERIC[16,4] (PromotionDetail);
+valueVAT 'Ставка НДС' = DATA NUMERIC[10,5] (PromotionDetail);
+price 'Стандартная цена без НДС' = DATA NUMERIC[16,4] (PromotionDetail);
+markup 'Стандартная наценка' = DATA NUMERIC[8,3] (PromotionDetail);
+retailPrice 'Розничная цена стандартная' = DATA NUMERIC[16,4] (PromotionDetail);
+
+promotionPrice 'Цена для акции без НДС' = DATA NUMERIC[16,4] (PromotionDetail);
+promotionLogisticPrice 'Цена для акции с учетом логистической надбавки без НДС' = DATA NUMERIC[16,4] (PromotionDetail);
+promotionVATPrice 'Цена для акции с НДС' = DATA NUMERIC[16,4] (PromotionDetail);
+promotionMarkup 'Акционная наценка' = DATA NUMERIC[8,3] (PromotionDetail);
+proposedPromotionPrice 'Предлагаемая акционная цена' = DATA NUMERIC[16,4] (PromotionDetail);
+promotionMarkupSum 'Сумма акционной наценки' = DATA NUMERIC[16,4] (PromotionDetail);
+discount 'Акционная скидка' = DATA NUMERIC[8,3] (PromotionDetail);
+
+CLASS StatusSku 'Статус товара';
+TABLE statusSku (StatusSku);
+
+id 'Код' = DATA VARSTRING[100] (StatusSku) IN base;
+statusSku(id) = GROUP AGGR (StatusSku status) BY id(status);
+
+name 'Наименование' = DATA VARSTRING[100] (StatusSku) IN base;
+
+statusSku 'Статус товара после акции' = DATA StatusSku (PromotionDetail);
+nameStatusSku 'Статус товара после акции' (PromotionDetail detail) = name(statusSku(detail));
+
+plannedQuantitySold 'Планируемое количество продаж' = DATA NUMERIC[16,5] (PromotionDetail);
+plannedTurnover 'Планируемый товарооборот' = DATA NUMERIC[18,4] (PromotionDetail);
+plannedProfit 'Планируемый доход' = DATA NUMERIC[18,4] (PromotionDetail);
+recommendedReserve 'Рекомендуемый запас для ФЛ' = DATA NUMERIC[16,5] (PromotionDetail);
+
+CLASS PromoType 'Тип промо';
+TABLE promoType (PromoType);
+
+id 'Код' = DATA VARSTRING[100] (PromoType) IN base;
+promoType(id) = GROUP AGGR (PromoType type) BY id(type);
+
+name 'Наименование' = DATA VARSTRING[100] (PromoType) IN base;
+
+promoType 'Тип промо' = DATA PromoType (Promotion);
+namePromoType 'Тип промо' (Promotion promotion)= name(promoType(promotion));
+ 
+promoType 'Тип промо' = DATA PromoType (PromotionDetail);
+namePromoType 'Тип промо' (PromotionDetail detail) = name(promoType(detail));
+overridePromoType 'Тип промо' (PromotionDetail detail) = OVERRIDE promoType(detail), promoType(promotion(detail));
+nameOverridePromoType 'Тип промо' (PromotionDetail detail) = name(overridePromoType(detail)); 
+
+CLASS DiscountType 'Тип скидки';
+TABLE discountType (DiscountType);
+
+id 'Код' = DATA VARSTRING[100] (DiscountType) IN base;
+discountType(id) = GROUP AGGR (DiscountType type) BY id(type);
+
+name 'Наименование' = DATA VARSTRING[100] (DiscountType) IN base;
+
+discountType 'Тип скидки' = DATA DiscountType (PromotionDetail);
+nameDiscountType 'Тип скидки' (PromotionDetail detail) = name(discountType(detail));
+
+CLASS DiscountingType 'Тип начисления скидки';
+TABLE discountingType (DiscountingType);
+
+id 'Код' = DATA VARSTRING[100] (DiscountingType) IN base;
+discountingType(id) = GROUP AGGR (DiscountingType type) BY id(type);
+
+name 'Наименование' = DATA VARSTRING[100] (DiscountingType) IN base;
+
+discountingType 'Тип начисления скидки/бонуса' = DATA DiscountingType (PromotionDetail);
+nameDiscountingType 'Тип начисления скидки/бонуса' (PromotionDetail detail) = name(discountingType(detail));
+
+bonusSum 'Сумма бонусов' = DATA NUMERIC[16,5] (PromotionDetail);
+bonusPercent 'Процент бонусов' = DATA NUMERIC[8,3] (PromotionDetail);
+
+//актуальные виды акции
+subway 'Метро' = DATA BOOLEAN (Promotion);
+radio 'Радио' = DATA BOOLEAN (Promotion);
+citylight 'Ситилайт' = DATA BOOLEAN (Promotion);
+billboard 'Билборд' = DATA BOOLEAN (Promotion);
+TVcommercial 'ТВ реклама' = DATA BOOLEAN (Promotion);
+stockTVcommercial 'ТВ реклама в магазинах' = DATA BOOLEAN (Promotion);
+elevator 'Лифты' = DATA BOOLEAN (Promotion);
+newspaper 'Газеты/журналы' = DATA BOOLEAN (Promotion);
+internet 'Интернет' = DATA BOOLEAN (Promotion);
+transport 'Реклама на транспорте' = DATA BOOLEAN (Promotion);
+sms 'СМС рассылка' = DATA BOOLEAN (Promotion);
+email 'E-mail рассылка' = DATA BOOLEAN (Promotion);
+shoppingRoomPoster 'Плакат в торговом зале' = DATA BOOLEAN (Promotion);
+
+FORM promotion 'Акция'
+    OBJECTS p = Promotion PANEL 
+    PROPERTIES(p) name, fromDate, toDate, namePromotionType, nameExtraPromotionType, namePromoType, nameFlyer,
+                  subway, radio, citylight, billboard, TVcommercial, stockTVcommercial, elevator, newspaper,
+                  internet, transport, sms, email, shoppingRoomPoster
+    
+    OBJECTS d = PromotionDetail
+    PROPERTIES(d) idBarcode, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, nameOverrideExtraPromotionType,
+                  nameOverrideFlyer, paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT, price, markup, retailPrice,
+                  promotionPrice, promotionLogisticPrice, promotionVATPrice, promotionMarkup, proposedPromotionPrice, promotionMarkupSum, discount,
+                  nameStatusSku, plannedQuantitySold, plannedTurnover, plannedProfit, recommendedReserve, nameOverridePromoType, nameDiscountingType,
+                  bonusSum, bonusPercent, changedTime, changedNameUser, changedHostnameComputer, NEW, deleted = DELETE GRID
+    ORDER nameSku(d)
+    FILTERS promotion(d) == p
+                 
+    EDIT Promotion OBJECT p
+;
+
+DESIGN promotion {
+    NEW top {
+        type = CONTAINERH;
+        NEW headContainer {
+            caption = 'Шапка документа';       
+            type = CONTAINERV;
+            NEW first {
+                type = CONTAINERH;
+                MOVE PROPERTY(name(p));                
+            }
+            NEW second {
+                type = CONTAINERH;
+                MOVE PROPERTY(namePromotionType(p));
+                MOVE PROPERTY(nameExtraPromotionType(p));  
+            }
+            NEW third {
+                type = CONTAINERH;
+                 MOVE PROPERTY(namePromoType(p));
+                 MOVE PROPERTY(nameFlyer(p));
+            }
+            NEW fourth {
+                caption = 'Период действия';
+                type = CONTAINERH;
+                MOVE PROPERTY(fromDate(p));
+                MOVE PROPERTY(toDate(p));
+            }
+        }
+        NEW types {
+            caption = 'Актуальные виды акции';
+            type = COLUMNS;
+            columns = 2;
+            MOVE PROPERTY(subway(p));
+            MOVE PROPERTY(radio(p));
+            MOVE PROPERTY(citylight(p));
+            MOVE PROPERTY(billboard(p));
+            MOVE PROPERTY(TVcommercial(p));
+            MOVE PROPERTY(stockTVcommercial(p));
+            MOVE PROPERTY(elevator(p));
+            MOVE PROPERTY(newspaper(p));
+            MOVE PROPERTY(internet(p));
+            MOVE PROPERTY(transport(p));
+            MOVE PROPERTY(sms(p));
+            MOVE PROPERTY(email(p));
+            MOVE PROPERTY(shoppingRoomPoster(p));
+        }
+    }
+    NEW detailContainer {
+        fill = 1;
+        MOVE BOX(d);
+    }
+
+    MOVE TOOLBARBOX;
+}
+
+FORM promotions 'Акции'
+    OBJECTS p = Promotion
+    PROPERTIES(p) READONLY name, fromDate, toDate, namePromotionType, nameExtraPromotionType, namePromoType, nameFlyer
+    PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
+    ORDER toDate(p) DESC, name(p) 
+    
+    OBJECTS d = PromotionDetail
+    PROPERTIES(d) READONLY idBarcode, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, nameOverrideExtraPromotionType,
+                  nameOverrideFlyer, paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT, price, markup, retailPrice,
+                  promotionPrice, promotionLogisticPrice, promotionVATPrice, promotionMarkup, proposedPromotionPrice, promotionMarkupSum, discount,
+                  nameStatusSku, plannedQuantitySold, plannedTurnover, plannedProfit, recommendedReserve, nameOverridePromoType, nameDiscountingType,
+                  bonusSum, bonusPercent, changedTime, changedNameUser, changedHostnameComputer
+    ORDER nameSku(d)
+    FILTERS promotion(d) == p
+    
+    LIST Promotion OBJECT p
+;
+
+NAVIGATOR {
+    priceListDocuments {
+        ADD promotions;
+    }
+}
