@@ -561,13 +561,14 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
     }
 
     private Document getDocument(NetLayer lowerNetLayer, String url) throws IOException {
+        ServerLoggers.importLogger.info(String.format("Import Euroopt: read url : %s", url));
         int count = 3;
         while (count > 0) {
             try {
                 Thread.sleep(50);
                 if (lowerNetLayer == null) {
                     Connection connection = Jsoup.connect(url);
-                    connection.timeout(60000);
+                    connection.timeout(10000);
                     connection.userAgent(userAgent);
                     return connection.get();
                 } else {
