@@ -107,11 +107,16 @@ EXTEND FORM legalEntities PROPERTIES(l) READONLYIF isReadonly() GLN, nameEDIProv
 nameEDIProvider'Провайдер EDI'(EOrder o) = nameEDIProvider(supplier(o));
 
 dataGLN 'GLN' = DATA VARSTRING[13] (Stock);
-GLN 'GLN' (Stock s) = OVERRIDE dataGLN(s), GLN(legalEntity(s)) IF countStock(legalEntity(s)) == 1;
-stockGLN (stock) = GROUP AGGR Stock stock BY GLN(stock);
+GLN 'GLN' (Stock s) = OVERRIDE dataGLN(s), GLN(legalEntity(s)) IF countStock(legalEntity(s)) == 1 OR s IS Stock AND notCompany(s);
+
+companyStockGLN = GROUP AGGR Stock stock BY GLN(stock) WHERE isCompany(stock);
+
+stockGLN = GROUP MAX Stock stock BY GLN(stock);
 legalEntityStockGLN(VARSTRING[13] GLN) = legalEntity(stockGLN(GLN));
+
 GLNSupplierStock 'GLN поставщика' (EOrder e) = GLN(supplierStock(e));
 GLNCustomerStock 'GLN покупателя' (EOrder e) = GLN(customerStock(e));
+
 EXTEND FORM warehouse PROPERTIES(w) GLN;
 EXTEND FORM warehouses PROPERTIES(w) READONLY GLN;
 DESIGN warehouse {

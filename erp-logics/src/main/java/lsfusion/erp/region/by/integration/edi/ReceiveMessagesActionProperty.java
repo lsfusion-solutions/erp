@@ -530,7 +530,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField GLNCustomerStockEOrderResponseField = new ImportField(findProperty("GLN[Stock]"));
             ImportKey<?> customerStockKey = new ImportKey((CustomClass) findClass("Stock"),
-                    findProperty("stockGLN[VARSTRING[13]]").getMapping(GLNCustomerStockEOrderResponseField));
+                    findProperty("companyStockGLN[VARSTRING[13]]").getMapping(GLNCustomerStockEOrderResponseField));
             customerStockKey.skipKey = true;
             keys.add(customerStockKey);
             props.add(new ImportProperty(GLNCustomerStockEOrderResponseField, findProperty("customerStock[EOrderResponse]").getMapping(eOrderResponseKey),
@@ -746,7 +746,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField GLNCustomerStockEOrderDespatchAdviceField = new ImportField(findProperty("GLN[Stock]"));
             ImportKey<?> customerStockKey = new ImportKey((CustomClass) findClass("Stock"),
-                    findProperty("stockGLN[VARSTRING[13]]").getMapping(GLNCustomerStockEOrderDespatchAdviceField));
+                    findProperty("companyStockGLN[VARSTRING[13]]").getMapping(GLNCustomerStockEOrderDespatchAdviceField));
             customerStockKey.skipKey = true;
             keys.add(customerStockKey);
             props.add(new ImportProperty(GLNCustomerStockEOrderDespatchAdviceField, findProperty("customerStock[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey),
@@ -941,7 +941,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField GLNCustomerStockEInvoiceField = new ImportField(findProperty("GLN[Stock]"));
             ImportKey<?> customerStockKey = new ImportKey((CustomClass) findClass("Stock"),
-                    findProperty("stockGLN[VARSTRING[13]]").getMapping(GLNCustomerStockEInvoiceField));
+                    findProperty("companyStockGLN[VARSTRING[13]]").getMapping(GLNCustomerStockEInvoiceField));
             customerStockKey.skipKey = true;
             keys.add(customerStockKey);
             props.add(new ImportProperty(GLNCustomerStockEInvoiceField, findProperty("customerStock[EInvoice]").getMapping(eInvoiceKey),
