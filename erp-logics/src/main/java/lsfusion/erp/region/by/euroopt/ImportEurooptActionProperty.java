@@ -567,7 +567,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 Thread.sleep(50);
                 if (lowerNetLayer == null) {
                     Connection connection = Jsoup.connect(url);
-                    connection.timeout(0);
+                    connection.timeout(60000);
                     connection.userAgent(userAgent);
                     return connection.get();
                 } else {
@@ -579,7 +579,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             } catch (HttpStatusException e) {
                 count--;
                 if (count <= 0)
-                    ServerLoggers.importLogger.error("ImportEuroopt Error: ", e);
+                    ServerLoggers.importLogger.error("ImportEuroopt Error for url " + url + ": ", e);
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);
             }
@@ -623,7 +623,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 } catch (HttpStatusException e) {
                     count--;
                     if (count <= 0)
-                        ServerLoggers.importLogger.error("ImportEuroopt Error: ", e);
+                        ServerLoggers.importLogger.error("ImportEuroopt Error for url " + url + ": ", e);
                 } catch (InterruptedException e) {
                     throw Throwables.propagate(e);
                 }
