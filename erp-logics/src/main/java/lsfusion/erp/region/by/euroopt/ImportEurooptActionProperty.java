@@ -42,7 +42,7 @@ import java.util.*;
 public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
     String mainPage = "https://e-dostavka.by";
-    String itemGroupPattern = "https:\\/\\/e-dostavka\\.by\\/catalog\\/\\d\\d\\d\\d\\.html";
+    String itemGroupPattern = "https:\\/\\/e-dostavka\\.by\\/catalog\\/\\d{4}\\.html";
     String itemPattern = "https:\\/\\/e-dostavka\\.by\\/catalog\\/item_\\d+\\.html";
     String userAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36";
 
@@ -479,15 +479,17 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         Set<String> itemsSet = new LinkedHashSet<>();
         for (String itemGroupURL : getItemGroupURLSet(lowerNetLayer)) {
             int page = 1;
-            String prevHash = null;
+            String prevPageHash = null;
             boolean notLastPage = true;
             while (notLastPage) {
                 int step = 1;
+                String prevStepHash = null;
                 boolean notLastStep = true;
-                String hash = "";
+                String pageHash = "";
                 while (notLastStep) {
                     Set<String> stepItemsSet = new LinkedHashSet<>();
-                    Document doc = getDocument(lowerNetLayer, itemGroupURL + "?page=" + page + "&lazy_steep=" + step);
+                    String stepHash = "";
+                    Document doc = getDocument(lowerNetLayer, itemGroupURL + "?page=" + page + "&1=" + step);
                     if (doc != null) {
                         String title = doc.getElementsByTag("title").text();
                         for (Element item : doc.getElementsByTag("a")) {
@@ -503,15 +505,17 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                                 ServerLoggers.importLogger.info(String.format("Import Euroopt: preparing item page #%s: %s (%s)", itemsSet.size() + 1, stepItem, title));
                                 itemsSet.add(stepItem);
                             }
-                            hash += stepItem;
+                            pageHash += stepItem;
+                            stepHash += stepItem;
                         }
                     }
-                    notLastStep = !stepItemsSet.isEmpty();
+                    notLastStep = !stepItemsSet.isEmpty() && !stepHash.equals(prevStepHash);
+                    prevStepHash = stepHash;
                     step++;
                 }
                 page++;
-                notLastPage = !hash.equals(prevHash);
-                prevHash = hash;
+                notLastPage = !pageHash.equals(prevPageHash);
+                prevPageHash = pageHash;
             }
         }
         return itemsSet;
