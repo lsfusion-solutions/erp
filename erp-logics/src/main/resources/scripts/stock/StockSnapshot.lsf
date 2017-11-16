@@ -712,6 +712,9 @@ backgroundStatus 'Цвет' (Snapshot snapshot) =  CASE
                                           WHEN snapshot IS Snapshot THEN RGB(255,200,216)
                                       ;
 //overNetWeightSkuBatch (batch)= OVERRIDE overNetWeightSku(skuBatch(batch)), (sumNetWeightInvoiceDetail(invoiceDetailBatch(batch))/(quantityInvoiceDetail(invoiceDetailBatch(batch)) IF quantityInvoiceDetail(invoiceDetailBatch(batch))!=0));
+
+singleStock = DATA LOCAL Stock();
+
 takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = {
     IF currentUser() IS Employee AND [= GROUP SUM 1 IF include(Snapshot s, Stock st) AND NOT accessCompany(currentUser(), st) BY s](snapshot) THEN {
         dataInclude(snapshot, Stock st) <- include(snapshot, st) AND accessCompany(currentUser(), st);
@@ -719,66 +722,122 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = {
         dataInclude(snapshot, StockGroup g) <- NULL;
     }
     apply();  
-    startTime(snapshot) <- currentDateTime();   
+    startTime(snapshot) <- currentDateTime();
+    
+    
+    singleStock() <- [= GROUP MAX Stock stock IF include(Snapshot snapshot, stock) AND countIncludeStocks(snapshot) == 1 BY snapshot](snapshot);
+       
     IF countIncludeSku(snapshot) AND countIncludeStock(snapshot) THEN {      
         IF isQuantity(snapshot) THEN {         
             
             IF isBalanceA(snapshot) THEN {
                 balanceA(Sku sku, Stock stock, snapshot) <- NULL;
-                balanceA(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](balanceA(sku, stock, dateTo)) 
-                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND balanceA(sku, stock, dateTo);
+                IF singleStock() THEN {
+                    balanceA(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](balanceA(sku, stock, dateTo)) 
+                        WHERE stock == singleStock() AND include(snapshot, sku) AND balanceA(sku, stock, dateTo);
+                } ELSE {
+                    balanceA(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](balanceA(sku, stock, dateTo)) 
+                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND balanceA(sku, stock, dateTo);
+                }
             }
                     
             IF isIn(snapshot) THEN {            
                 inQuantity(Sku sku, Stock stock, snapshot) <- NULL;
-                inQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySumIn(sku, stock, dateFrom, dateTo)) 
-                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantitySumIn(sku, stock, dateFrom, dateTo);
+                IF singleStock() THEN {
+                    inQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySumIn(sku, stock, dateFrom, dateTo)) 
+                        WHERE stock == singleStock() AND include(snapshot, sku) AND quantitySumIn(sku, stock, dateFrom, dateTo);
+                } ELSE {
+                    inQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySumIn(sku, stock, dateFrom, dateTo)) 
+                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantitySumIn(sku, stock, dateFrom, dateTo);
+                }
             }
 
             IF isOut(snapshot) THEN { 
                 outQuantity(Sku sku, Stock stock, snapshot) <- NULL;
-                outQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySumOut(sku, stock, dateFrom, dateTo)) 
-                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantitySumOut(sku, stock, dateFrom, dateTo);
+                IF singleStock() THEN {
+                    outQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySumOut(sku, stock, dateFrom, dateTo)) 
+                        WHERE stock == singleStock() AND include(snapshot, sku) AND quantitySumOut(sku, stock, dateFrom, dateTo);
+                } ELSE {
+                    outQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySumOut(sku, stock, dateFrom, dateTo)) 
+                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantitySumOut(sku, stock, dateFrom, dateTo);
+                }
             }
             
             IF isBalanceB(snapshot) THEN {
                 balanceB(Sku sku, Stock stock, snapshot) <- NULL;
-                IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN
-                    balanceB(Sku sku, Stock stock, snapshot) <- (balanceA(sku, stock, snapshot) (-) inQuantity(sku, stock, snapshot) (+) outQuantity(sku, stock, snapshot))
-                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND (balanceA(sku, stock, snapshot) (-) inQuantity(sku, stock, snapshot) (+) outQuantity(sku, stock, snapshot));
-                ELSE 
-                    balanceB(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](balanceB(sku, stock, dateFrom)) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND balanceB(sku, stock, dateFrom);
+                IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN {
+                    IF singleStock() THEN {
+                        balanceB(Sku sku, Stock stock, snapshot) <- (balanceA(sku, stock, snapshot) (-) inQuantity(sku, stock, snapshot) (+) outQuantity(sku, stock, snapshot))
+                            WHERE stock == singleStock() AND include(snapshot, sku) AND (balanceA(sku, stock, snapshot) (-) inQuantity(sku, stock, snapshot) (+) outQuantity(sku, stock, snapshot));
+                    } ELSE {
+                        balanceB(Sku sku, Stock stock, snapshot) <- (balanceA(sku, stock, snapshot) (-) inQuantity(sku, stock, snapshot) (+) outQuantity(sku, stock, snapshot))
+                            WHERE include(snapshot, stock) AND include(snapshot, sku) AND (balanceA(sku, stock, snapshot) (-) inQuantity(sku, stock, snapshot) (+) outQuantity(sku, stock, snapshot));
+                    }
+                } ELSE {
+                    IF singleStock() THEN {
+                        balanceB(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](balanceB(sku, stock, dateFrom)) 
+                            WHERE stock == singleStock() AND include(snapshot, sku) AND balanceB(sku, stock, dateFrom);
+                    } ELSE {
+                        balanceB(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](balanceB(sku, stock, dateFrom)) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku) AND balanceB(sku, stock, dateFrom);
+                    }
+                } 
             }
         }
         IF isSum(snapshot) THEN {         
 
             IF isBalanceA(snapshot) THEN {
                 sumA(Sku sku, Stock stock, snapshot) <- NULL;
-                sumA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumA(sku, stock, dateTo)) 
-                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumA(sku, stock, dateTo);
+                IF singleStock() THEN {
+                    sumA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumA(sku, stock, dateTo)) 
+                        WHERE stock == singleStock() AND include(snapshot, sku) AND sumA(sku, stock, dateTo);
+                } ELSE {
+                    sumA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumA(sku, stock, dateTo)) 
+                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumA(sku, stock, dateTo);
+                }
             }
 
             IF isIn(snapshot) THEN { 
                 inSum(Sku sku, Stock stock, snapshot) <- NULL;
-                inSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumIn(sku, stock, dateFrom, dateTo)) 
-                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumIn(sku, stock, dateFrom, dateTo);
+                IF singleStock() THEN {
+                    inSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumIn(sku, stock, dateFrom, dateTo)) 
+                        WHERE stock == singleStock() AND include(snapshot, sku) AND sumIn(sku, stock, dateFrom, dateTo);
+                } ELSE {
+                    inSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumIn(sku, stock, dateFrom, dateTo)) 
+                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumIn(sku, stock, dateFrom, dateTo);
+                }
             }
 
             IF isOut(snapshot) THEN {
                 outSum(Sku sku, Stock stock, snapshot) <- NULL;
-                outSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumOut(sku, stock, dateFrom, dateTo)) 
-                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumOut(sku, stock, dateFrom, dateTo);
+                IF singleStock() THEN {
+                    outSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumOut(sku, stock, dateFrom, dateTo)) 
+                        WHERE stock == singleStock() AND include(snapshot, sku) AND sumOut(sku, stock, dateFrom, dateTo);
+                } ELSE {
+                    outSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumOut(sku, stock, dateFrom, dateTo)) 
+                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumOut(sku, stock, dateFrom, dateTo);
+                }
             }
             
             IF isBalanceB(snapshot) THEN {
                 sumB(Sku sku, Stock stock, snapshot) <- NULL;
-                IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN
-                    sumB(Sku sku, Stock stock, snapshot) <- (sumA(sku, stock, snapshot) (-) inSum(sku, stock, snapshot) (+) outSum(sku, stock, snapshot))
-                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND (sumA(sku, stock, snapshot) (-) inSum(sku, stock, snapshot) (+) outSum(sku, stock, snapshot));
-                ELSE
-                    sumB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumB(sku, stock, dateFrom)) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumB(sku, stock, dateFrom);
+                IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN {
+                    IF singleStock() THEN {
+                        sumB(Sku sku, Stock stock, snapshot) <- (sumA(sku, stock, snapshot) (-) inSum(sku, stock, snapshot) (+) outSum(sku, stock, snapshot))
+                            WHERE stock == singleStock() AND include(snapshot, sku) AND (sumA(sku, stock, snapshot) (-) inSum(sku, stock, snapshot) (+) outSum(sku, stock, snapshot));
+                    } ELSE {
+                        sumB(Sku sku, Stock stock, snapshot) <- (sumA(sku, stock, snapshot) (-) inSum(sku, stock, snapshot) (+) outSum(sku, stock, snapshot))
+                            WHERE include(snapshot, stock) AND include(snapshot, sku) AND (sumA(sku, stock, snapshot) (-) inSum(sku, stock, snapshot) (+) outSum(sku, stock, snapshot));
+                    }
+                } ELSE {
+                    IF singleStock() THEN {
+                        sumB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumB(sku, stock, dateFrom)) 
+                            WHERE stock == singleStock() AND include(snapshot, sku) AND sumB(sku, stock, dateFrom);
+                    } ELSE {
+                        sumB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumB(sku, stock, dateFrom)) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumB(sku, stock, dateFrom);
+                    }
+                }   
             }
                         
         }   
@@ -930,58 +989,110 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = {
             IF isQuantity(snapshot) THEN {
                 IF isBalanceA(snapshot) THEN {
                     balanceA(Batch batch, Stock stock, snapshot) <- NULL;
-                    balanceA(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](balanceA(batch, stock, dateTo)) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND balanceA(batch, stock, dateTo);
+                    IF singleStock () THEN {
+                        balanceA(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](balanceA(batch, stock, dateTo)) 
+                            WHERE stock == singleStock() AND include(snapshot, sku(batch)) AND balanceA(batch, stock, dateTo);
+                    } ELSE {
+                        balanceA(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](balanceA(batch, stock, dateTo)) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND balanceA(batch, stock, dateTo);
+                    }
                 }
                 
                 IF isIn(snapshot) THEN {
                     inQuantity(Batch batch, Stock stock, snapshot) <- NULL;
-                    inQuantity(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](costInBalance(batch, stock, dateFrom, dateTo)) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND costInBalance(batch, stock, dateFrom, dateTo);
+                    IF singleStock () THEN {
+                        inQuantity(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](costInBalance(batch, stock, dateFrom, dateTo)) 
+                            WHERE stock == singleStock() AND include(snapshot, sku(batch)) AND costInBalance(batch, stock, dateFrom, dateTo);
+                    } ELSE {
+                        inQuantity(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](costInBalance(batch, stock, dateFrom, dateTo)) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND costInBalance(batch, stock, dateFrom, dateTo);
+                    }
                 }
         
                 IF isOut(snapshot) THEN {
                     outQuantity(Batch batch, Stock stock, snapshot) <- NULL;
-                    outQuantity(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](costOutBalance(batch, stock, dateFrom, dateTo)) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND costOutBalance(batch, stock, dateFrom, dateTo);
+                    IF singleStock () THEN {
+                        outQuantity(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](costOutBalance(batch, stock, dateFrom, dateTo)) 
+                            WHERE stock == singleStock() AND include(snapshot, sku(batch)) AND costOutBalance(batch, stock, dateFrom, dateTo);
+                    } ELSE {
+                        outQuantity(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](costOutBalance(batch, stock, dateFrom, dateTo)) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND costOutBalance(batch, stock, dateFrom, dateTo);
+                    }
                 }
 
                 IF isBalanceB(snapshot) THEN {
                     balanceB(Batch batch, Stock stock, snapshot) <- NULL;
-                    IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN
-                        balanceB(Batch batch, Stock stock, snapshot) <- (balanceA(batch, stock, snapshot) (-) inQuantity(batch, stock, snapshot) (+) outQuantity(batch, stock, snapshot))
-                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND (balanceA(batch, stock, snapshot) (-) inQuantity(batch, stock, snapshot) (+) outQuantity(batch, stock, snapshot));
-                    ELSE
-                        balanceB(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](balanceB(batch, stock, dateFrom)) 
-                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND balanceB(batch, stock, dateFrom);
+                    IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN {
+                        IF singleStock () THEN {
+                            balanceB(Batch batch, Stock stock, snapshot) <- (balanceA(batch, stock, snapshot) (-) inQuantity(batch, stock, snapshot) (+) outQuantity(batch, stock, snapshot))
+                                WHERE stock == singleStock() AND include(snapshot, sku(batch)) AND (balanceA(batch, stock, snapshot) (-) inQuantity(batch, stock, snapshot) (+) outQuantity(batch, stock, snapshot));
+                        } ELSE {
+                            balanceB(Batch batch, Stock stock, snapshot) <- (balanceA(batch, stock, snapshot) (-) inQuantity(batch, stock, snapshot) (+) outQuantity(batch, stock, snapshot))
+                                WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND (balanceA(batch, stock, snapshot) (-) inQuantity(batch, stock, snapshot) (+) outQuantity(batch, stock, snapshot));
+                        }
+                    } ELSE {
+                        IF singleStock () THEN {
+                            balanceB(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](balanceB(batch, stock, dateFrom)) 
+                                WHERE stock == singleStock() AND include(snapshot, sku(batch)) AND balanceB(batch, stock, dateFrom);
+                        } ELSE {
+                            balanceB(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](balanceB(batch, stock, dateFrom)) 
+                                WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND balanceB(batch, stock, dateFrom);
+                        }
+                    }    
                 }
             }
             IF isSum(snapshot) THEN {  
                 IF isIn(snapshot) THEN {
                     inSum(Batch batch, Stock stock, snapshot) <- NULL;
-                    inSum(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](costSumInBalance(batch, stock, dateFrom, dateTo)) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND costSumInBalance(batch, stock, dateFrom, dateTo);
+                    IF singleStock () THEN {
+                        inSum(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](costSumInBalance(batch, stock, dateFrom, dateTo)) 
+                            WHERE stock == singleStock() AND include(snapshot, sku(batch)) AND costSumInBalance(batch, stock, dateFrom, dateTo);
+                    } ELSE {
+                        inSum(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](costSumInBalance(batch, stock, dateFrom, dateTo)) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND costSumInBalance(batch, stock, dateFrom, dateTo);
+                    }
                 }
         
                 IF isOut(snapshot) THEN {
                     outSum(Batch batch, Stock stock, snapshot) <- NULL;
-                    outSum(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](costSumOutBalance(batch, stock, dateFrom, dateTo)) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND costSumOutBalance(batch, stock, dateFrom, dateTo);
+                    IF singleStock () THEN {
+                        outSum(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](costSumOutBalance(batch, stock, dateFrom, dateTo)) 
+                            WHERE stock == singleStock() AND include(snapshot, sku(batch)) AND costSumOutBalance(batch, stock, dateFrom, dateTo);
+                    } ELSE {
+                        outSum(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](costSumOutBalance(batch, stock, dateFrom, dateTo)) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND costSumOutBalance(batch, stock, dateFrom, dateTo);
+                    }
                 }               
             
                 IF isBalanceA(snapshot) THEN {
                     sumA(Batch batch, Stock stock, snapshot) <- NULL;
-                    sumA(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](balanceA(batch, stock, dateTo)*cost(batch)) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND balanceA(batch, stock, dateTo);
+                    IF singleStock () THEN {
+                        sumA(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](balanceA(batch, stock, dateTo)*cost(batch)) 
+                            WHERE stock == singleStock() AND include(snapshot, sku(batch)) AND balanceA(batch, stock, dateTo);
+                    } ELSE {
+                        sumA(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](balanceA(batch, stock, dateTo)*cost(batch)) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND balanceA(batch, stock, dateTo);
+                    }
                 }                  
                 IF isBalanceB(snapshot) THEN {
                     sumB(Batch batch, Stock stock, snapshot) <- NULL;
-                    IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN
-                        sumB(Batch batch, Stock stock, snapshot) <- (sumA(batch, stock, snapshot) (-) inSum(batch, stock, snapshot) (+) outSum(batch, stock, snapshot))
-                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND (sumA(batch, stock, snapshot) (-) inSum(batch, stock, snapshot) (+) outSum(batch, stock, snapshot));
-                    ELSE
-                        sumB(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](balanceB(batch, stock, dateFrom)*cost(batch)) 
-                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND balanceB(batch, stock, dateFrom);
+                    IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN {
+                        IF singleStock () THEN {
+                            sumB(Batch batch, Stock stock, snapshot) <- (sumA(batch, stock, snapshot) (-) inSum(batch, stock, snapshot) (+) outSum(batch, stock, snapshot))
+                                WHERE stock == singleStock() AND include(snapshot, sku(batch)) AND (sumA(batch, stock, snapshot) (-) inSum(batch, stock, snapshot) (+) outSum(batch, stock, snapshot));
+                        } ELSE {
+                            sumB(Batch batch, Stock stock, snapshot) <- (sumA(batch, stock, snapshot) (-) inSum(batch, stock, snapshot) (+) outSum(batch, stock, snapshot))
+                                WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND (sumA(batch, stock, snapshot) (-) inSum(batch, stock, snapshot) (+) outSum(batch, stock, snapshot));
+                        }
+                    } ELSE {
+                        IF singleStock () THEN {
+                            sumB(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](balanceB(batch, stock, dateFrom)*cost(batch)) 
+                                WHERE stock == singleStock() AND include(snapshot, sku(batch)) AND balanceB(batch, stock, dateFrom);
+                        } ELSE {
+                            sumB(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](balanceB(batch, stock, dateFrom)*cost(batch)) 
+                                WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND balanceB(batch, stock, dateFrom);
+                        }
+                    }  
                 }             
             }  
             IF isVATSupplier(snapshot) THEN {
@@ -1037,7 +1148,7 @@ takeData 'Сформировать отчет' (Snapshot snapshot) = {
             takeFromTo(snapshot, fromDate(snapshot), toDate(snapshot));
     } ELSE {
         takeFromTo(snapshot, fromDate(snapshot), toDate(snapshot));    
-    }    
+    }
 }
 
 filterMove (Sku s, Stock st, Snapshot r) = balanceB(s,st,r) OR balanceA(s,st,r) OR 
