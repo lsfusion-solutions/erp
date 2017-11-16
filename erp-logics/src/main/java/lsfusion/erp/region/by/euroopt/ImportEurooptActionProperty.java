@@ -7,6 +7,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultImportActionProperty;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.data.SQLHandledException;
@@ -46,6 +47,8 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
     String itemPattern = "https:\\/\\/e-dostavka\\.by\\/catalog\\/item_\\d+\\.html";
     String userAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36";
 
+    private static String logPrefix = "Import Euroopt: ";
+
     public ImportEurooptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }
@@ -57,10 +60,11 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             boolean useTor = findProperty("importEurooptUseTor[]").read(context) != null;
             boolean importItems = findProperty("importEurooptItems[]").read(context) != null;
             boolean onlyImages = findProperty("importEurooptOnlyImages[]").read(context) != null;
+            boolean smallImages = findProperty("importEurooptSmallImages[]").read(context) != null;
             boolean importUserPriceLists = findProperty("importEurooptUserPriceLists[]").read(context) != null;
             boolean skipKeys = findProperty("importEurooptSkipKeys[]").read(context) != null;
 
-            List<List<List<Object>>> data = importDataFromWeb(context, useTor, importItems, onlyImages, importUserPriceLists, skipKeys);
+            List<List<List<Object>>> data = importDataFromWeb(context, useTor, importItems, onlyImages, smallImages, importUserPriceLists, skipKeys);
 
             if (importItems) {
                 if (onlyImages)
@@ -70,6 +74,8 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             }
             if (importUserPriceLists)
                 importUserPriceLists(context, data.get(1), skipKeys);
+
+            context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт Евроопт"));
 
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
@@ -290,26 +296,28 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private List<List<List<Object>>> importDataFromWeb(ExecutionContext context, boolean useTor, boolean importItems, boolean onlyImages, boolean importUserPriceLists, boolean skipKeys)
+    private List<List<List<Object>>> importDataFromWeb(ExecutionContext context, boolean useTor, boolean importItems, boolean onlyImages,
+                                                       boolean smallImages, boolean importUserPriceLists, boolean skipKeys)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> itemsList = new ArrayList<>();
         List<List<Object>> userPriceListsList = new ArrayList<>();
         Map<String, String> barcodeSet = getBarcodeSet(context);
         int imageCount = 0;
+        int skipped = 0;
         try {
 
             NetLayer lowerNetLayer = useTor ? getNetLayer() : null;
             String idPriceList = "euroopt" + String.valueOf(Calendar.getInstance().getTimeInMillis());
-            Set<String> itemURLSet = getItemURLSet(lowerNetLayer);
+            Map<String, String> itemURLMap = getItemURLMap(lowerNetLayer);
             int idPriceListDetail = 1;
             int i = 1;
-            for (String itemURL : itemURLSet) {
-                ServerLoggers.importLogger.info(String.format("Import Euroopt: parsing item page #%s: %s", i, (useTor ? mainPage : "") + itemURL));
+            for (Map.Entry<String, String> itemURLEntry : itemURLMap.entrySet()) {
+                String itemURL = itemURLEntry.getKey();
+                String smallImage = itemURLEntry.getValue();
+                ServerLoggers.importLogger.info(String.format(logPrefix + "parsing item page #%s: %s", i, (useTor ? mainPage : "") + itemURL));
                 Document doc = getDocument(lowerNetLayer, itemURL);
                 if (doc != null) {
                     String title = doc.getElementsByTag("title").text();
-                    Elements prodImage = doc.getElementsByClass("increaseImage");
-                    File imageItem = null;
                     List<BigDecimal> price = getPrice(doc);
                     Elements descriptionElement = doc.getElementsByClass("description");
                     List<Node> descriptionAttributes = descriptionElement.size() == 0 ? new ArrayList<Node>() : descriptionElement.get(0).childNodes();
@@ -328,9 +336,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                         }
                         if (idBarcode != null && (!skipKeys || barcodeSet.containsKey(idBarcode))) {
                             if (importItems) {
-                                imageItem = prodImage.size() == 0 ? null : readImage(lowerNetLayer, prodImage.get(0).attr("href"));
-                                byte[] imageBytes = imageItem == null ? null : IOUtils.getFileBytes(imageItem);
-                                ServerLoggers.importLogger.info((imageBytes != null ? "image read successful" : prodImage.size() == 0 ? "No image found" : "Image read failed") + " (" + title + ")");
+                                byte[] imageBytes = getImage(lowerNetLayer, doc, title, smallImage, smallImages);
                                 if (imageBytes != null)
                                     imageCount++;
                                 itemsList.add(Arrays.asList((Object) idBarcode, imageBytes));
@@ -345,7 +351,8 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             //to avoid duplicates
                             barcodeSet.remove(idBarcode);
                         } else {
-                            ServerLoggers.importLogger.info((idBarcode == null ? "No barcode, item skipped" : "Not in base, item skipped") + " (" + title + ")");
+                            ServerLoggers.importLogger.info(logPrefix + (idBarcode == null ? "no barcode, item skipped" : "not in base, item skipped") + " (" + title + ")");
+                            skipped++;
                         }
                     } else {
                         String captionItem = doc.getElementsByTag("h1").text();
@@ -414,9 +421,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                         if (idBarcode != null && (!skipKeys || barcodeSet.containsKey(idBarcode))) {
 
                             if (importItems) {
-                                imageItem = prodImage.size() == 0 ? null : readImage(lowerNetLayer, prodImage.get(0).attr("href"));
-                                byte[] imageBytes = imageItem == null ? null : IOUtils.getFileBytes(imageItem);
-                                ServerLoggers.importLogger.info((imageBytes != null ? "image read successful" : prodImage.size() == 0 ? "No image found" : "Image read failed") + " " + title);
+                                byte[] imageBytes = getImage(lowerNetLayer, doc, title, smallImage, smallImages);
                                 if (imageBytes != null)
                                     imageCount++;
                                 itemsList.add(Arrays.asList((Object) idBarcode, idItemGroup, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
@@ -433,19 +438,38 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             //to avoid duplicates
                             barcodeSet.remove(idBarcode);
                         } else {
-                            ServerLoggers.importLogger.info((idBarcode == null ? "No barcode, item skipped" : "Not in base, item skipped")  + " (" + title + ")");
+                            ServerLoggers.importLogger.info(logPrefix + (idBarcode == null ? "no barcode, item skipped" : "not in base, item skipped")  + " (" + title + ")");
+                            skipped++;
                         }
                     }
-                    if (imageItem != null && !imageItem.delete())
-                        imageItem.deleteOnExit();
                 }
                 i++;
             }
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
-        ServerLoggers.importLogger.info(String.format("Read %s items (%s with images), %s priceLists", itemsList.size(), imageCount, userPriceListsList.size()));
+        ServerLoggers.importLogger.info(String.format(logPrefix + "read finished. %s items (%s with images), %s items without barcode skipped, %s priceLists", itemsList.size(), imageCount, skipped, userPriceListsList.size()));
         return Arrays.asList(itemsList, userPriceListsList);
+    }
+
+    private byte[] getImage(NetLayer lowerNetLayer, Document doc, String title, String smallImage, boolean smallImages) throws IOException {
+        File imageItem = null;
+        try {
+            String imageURL;
+            if (smallImages) {
+                imageURL = smallImage;
+            } else {
+                Elements prodImage = doc.getElementsByClass("increaseImage");
+                imageURL = prodImage.size() == 0 ? null : prodImage.get(0).attr("href");
+            }
+            imageItem = readImage(lowerNetLayer, imageURL);
+            byte[] imageBytes = imageItem == null ? null : IOUtils.getFileBytes(imageItem);
+            ServerLoggers.importLogger.info(logPrefix + (imageBytes != null ? "image read successful" : imageURL == null ? "no image found" : "image read failed") + " " + title);
+            return imageBytes;
+        } finally {
+            if (imageItem != null && !imageItem.delete())
+                imageItem.deleteOnExit();
+        }
     }
 
     private String parseChild(Element element, int child) {
@@ -475,8 +499,8 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         return value == null || value.isEmpty() ? null : new BigDecimal(value.replace("р", "").replace("к.", ""));
     }
 
-    private Set<String> getItemURLSet(NetLayer lowerNetLayer) throws IOException {
-        Set<String> itemsSet = new LinkedHashSet<>();
+    private Map<String, String> getItemURLMap(NetLayer lowerNetLayer) throws IOException {
+        Map<String, String> itemsMap = new LinkedHashMap<>();
         for (String itemGroupURL : getItemGroupURLSet(lowerNetLayer)) {
             int page = 1;
             String prevPageHash = null;
@@ -487,29 +511,34 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 boolean notLastStep = true;
                 String pageHash = "";
                 while (notLastStep) {
-                    Set<String> stepItemsSet = new LinkedHashSet<>();
+                    Map<String, String> stepItemsMap = new LinkedHashMap<>();
                     String stepHash = "";
-                    Document doc = getDocument(lowerNetLayer, itemGroupURL + "?page=" + page + "&lazy_steep=" + step);
+                    String url = itemGroupURL + "?page=" + page + "&lazy_steep=" + step;
+                    ServerLoggers.importLogger.info(String.format(logPrefix + "reading itemGroup url %s", url));
+                    Document doc = getDocument(lowerNetLayer, url);
                     if (doc != null) {
                         String title = doc.getElementsByTag("title").text();
                         for (Element item : doc.getElementsByTag("a")) {
                             String href = item.attr("href");
                             if (href != null && href.matches(itemPattern)) {
+                                Elements images = item.getElementsByTag("img");
+                                String image = images.isEmpty() ? null : images.get(0).attr("src");
                                 if (lowerNetLayer != null)
                                     href = href.replace(mainPage, "");
-                                stepItemsSet.add(href);
+                                if(stepItemsMap.get(href) == null)
+                                    stepItemsMap.put(href, image);
                             }
                         }
-                        for (String stepItem : stepItemsSet) {
-                            if (!itemsSet.contains(stepItem)) {
-                                ServerLoggers.importLogger.info(String.format("Import Euroopt: preparing item page #%s: %s (%s)", itemsSet.size() + 1, stepItem, title));
-                                itemsSet.add(stepItem);
+                        for (Map.Entry<String, String> stepItem : stepItemsMap.entrySet()) {
+                            if (!itemsMap.containsKey(stepItem.getKey())) {
+                                ServerLoggers.importLogger.info(String.format(logPrefix + "preparing item page #%s: %s (%s)", itemsMap.size() + 1, stepItem, title));
+                                itemsMap.put(stepItem.getKey(), stepItem.getValue());
                             }
-                            pageHash += stepItem;
                             stepHash += stepItem;
                         }
+                        pageHash += stepHash;
                     }
-                    notLastStep = !stepItemsSet.isEmpty() && !stepHash.equals(prevStepHash);
+                    notLastStep = !stepItemsMap.isEmpty() && !stepHash.equals(prevStepHash);
                     prevStepHash = stepHash;
                     step++;
                 }
@@ -518,12 +547,14 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 prevPageHash = pageHash;
             }
         }
-        return itemsSet;
+        return itemsMap;
     }
 
     private Set<String> getItemGroupURLSet(NetLayer lowerNetLayer) throws IOException {
         Set<String> itemGroupsSet = new HashSet<>();
-        Document doc = getDocument(lowerNetLayer, lowerNetLayer == null ? mainPage + "/" : "/catalog/");
+        String mainUrl = lowerNetLayer == null ? mainPage + "/" : "/catalog/";
+        ServerLoggers.importLogger.info(String.format(logPrefix + "reading url %s", mainUrl));
+        Document doc = getDocument(lowerNetLayer, mainUrl);
         if (doc != null) {
             for (Element url : doc.getElementsByTag("a")) {
                 String href = url.attr("href");
@@ -531,13 +562,13 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                     if (lowerNetLayer != null)
                         href = href.replace(mainPage, "");
                     if (!itemGroupsSet.contains(href)) {
-                        ServerLoggers.importLogger.info(String.format("Import Euroopt: preparing item group page #%s: %s", itemGroupsSet.size() + 1, href));
+                        ServerLoggers.importLogger.info(String.format(logPrefix + "preparing item group page #%s: %s", itemGroupsSet.size() + 1, href));
                         itemGroupsSet.add(href);
                     }
                 }
             }
         }
-        return itemGroupsSet;
+        return new HashSet<>(new ArrayList<>(itemGroupsSet).subList(100, 105));
     }
 
     private Map<String, String> getBarcodeSet(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -565,7 +596,6 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
     }
 
     private Document getDocument(NetLayer lowerNetLayer, String url) throws IOException {
-        ServerLoggers.importLogger.info(String.format("Import Euroopt: read url : %s", url));
         int count = 3;
         while (count > 0) {
             try {
@@ -584,7 +614,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             } catch (HttpStatusException e) {
                 count--;
                 if (count <= 0)
-                    ServerLoggers.importLogger.error("ImportEuroopt Error for url " + url + ": ", e);
+                    ServerLoggers.importLogger.error(logPrefix + "error for url " + url + ": ", e);
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);
             }
@@ -628,7 +658,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 } catch (HttpStatusException e) {
                     count--;
                     if (count <= 0)
-                        ServerLoggers.importLogger.error("ImportEuroopt Error for url " + url + ": ", e);
+                        ServerLoggers.importLogger.error(logPrefix + "error for url " + url + ": ", e);
                 } catch (InterruptedException e) {
                     throw Throwables.propagate(e);
                 }
