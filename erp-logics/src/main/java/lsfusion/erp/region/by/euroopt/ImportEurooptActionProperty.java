@@ -489,7 +489,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 while (notLastStep) {
                     Set<String> stepItemsSet = new LinkedHashSet<>();
                     String stepHash = "";
-                    Document doc = getDocument(lowerNetLayer, itemGroupURL + "?page=" + page + "&1=" + step);
+                    Document doc = getDocument(lowerNetLayer, itemGroupURL + "?page=" + page + "&lazy_steep=" + step);
                     if (doc != null) {
                         String title = doc.getElementsByTag("title").text();
                         for (Element item : doc.getElementsByTag("a")) {
