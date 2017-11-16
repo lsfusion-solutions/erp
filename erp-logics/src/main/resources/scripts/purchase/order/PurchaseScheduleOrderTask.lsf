@@ -1,0 +1,30 @@
+MODULE PurchaseScheduleOrderTask;
+
+REQUIRE PurchaseScheduleOrder, Task;
+
+NAMESPACE Purchase;
+
+skipScheduleOrderDetailTask = ABSTRACT BOOLEAN (ScheduleOrderDetail);
+relationTask =   GROUP SUM 1  BY scheduleOrderDetail(UserOrder order); 
+hasAccessScheduleOrderDetail(CustomUser u, ScheduleOrderDetail d) = accessCompany(u,customerStock(d));
+needScheduleOrderDetailTask  (ScheduleOrderDetail d) = isOpened(d) AND dateOrder(d) <= currentDate() AND NOT (skipScheduleOrderDetailTask(d) OR relationTask(d));
+dateTime (ScheduleOrderDetail d) = dateTimeToDateTime(dateOrder(d), 00:00); 
+description (ScheduleOrderDetail d) = CONCAT ' ', 'Предаварительный заказ (закупка)', 'Поставщик: ' + nameSupplier(d)+'.', 'Склад пок-ля: ' + nameCustomerStock(d)+'.', 'Дата ' + dateOrder(d) MINCHARWIDTH 30 PREFCHARWIDTH 50;                                                                                                      
+
+@defineTask(ScheduleOrderDetail, scheduleOrderDetail, scheduleOrderDetail, 'Создание заказа по графику (закупка)', needScheduleOrderDetailTask);
+
+endOfTheDay (TaskScheduleOrderDetail i) += TRUE IF i IS TaskScheduleOrderDetail;
+
+run (TaskScheduleOrderDetail i) += {
+    LOCAL NESTED link = ScheduleOrderDetail ();
+    link() <- scheduleOrderDetail(i);
+    createScheduleUser(scheduleOrderDetail(i));
+    IF NOT relationTask(link()) THEN {
+        ASK 'Аннулировать предварителный заказ?' DO {
+            NEWSESSION {
+                isClosed(ScheduleOrderDetail d) <- TRUE WHERE link() == d;           
+                APPLY;
+            }         
+        }   
+    }    
+}
