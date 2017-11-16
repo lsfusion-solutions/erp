@@ -1,0 +1,19 @@
+MODULE PricingLabelTask;
+
+REQUIRE PricingLabel, Task;
+
+NAMESPACE Pricing;
+
+skipPricingTask = ABSTRACT BOOLEAN (Pricing);
+
+needLabelPricingTask 'Показывать' (Pricing p) = isPosted(p) AND NOT (Label.skip(p) OR printed[PriceTransactionDocument](p) OR skipPricingTask(p));
+hasAccessLabelPricing(CustomUser u, Pricing i) = accessCompany(u,departmentStore(i));
+
+
+@defineTask(Pricing, pricing, labelPricing, 'Печать ценников (акт расценки)', needLabelPricingTask) ;
+
+endOfTheDay (TaskLabelPricing i) += TRUE IF i IS TaskLabelPricing;
+
+run (TaskLabelPricing i) += {
+    createLabelTransaction(pricing(i));
+}

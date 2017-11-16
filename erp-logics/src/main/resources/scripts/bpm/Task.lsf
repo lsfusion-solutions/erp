@@ -1,0 +1,328 @@
+MODULE Task;
+
+REQUIRE Utils, Country, Authentication, Dashboard, StockSkuDocument;
+NAMESPACE Task;
+
+disableEvents = DATA LOCAL BOOLEAN ();
+
+GROUP Task 'Задачи';
+
+// Модуль задачи
+CLASS Type 'Тип задачи';
+TABLE type (Type);
+dataName = DATA VARSTRING[100](Type);
+name (Type t) = OVERRIDE dataName(t), staticCaption(t) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+
+FORM type 'Тип задачи'
+    OBJECTS t=Type PANEL
+    PROPERTIES(t) name 
+    EDIT Type OBJECT t
+;
+
+FORM types 'Типы задач'
+    OBJECTS t = Type
+    PROPERTIES(t) READONLY name
+    PROPERTIES(t) NEWSESSION EDIT
+    LIST Type OBJECT t
+;
+
+// Задание
+
+CLASS ABSTRACT Task 'Задание';
+TABLE task(Task) FULL;
+
+backgroundFill = RGB(255, 255, 224);
+
+//document = ABSTRACT Document (Task) MATERIALIZED;
+
+type = ABSTRACT Type (Task) MATERIALIZED;       
+nameType 'Тип задачи' (Task t)= name(type(t)) PREFCHARWIDTH 20;
+
+dateTimeStart 'Дата/время начала' = ABSTRACT DATETIME (Task) MATERIALIZED MINCHARWIDTH 17 PREFCHARWIDTH 20 MAXCHARWIDTH 20;
+description 'Описание' = ABSTRACT VARISTRING[1000](Task) MATERIALIZED MINCHARWIDTH 10 PREFCHARWIDTH 20;
+run 'Выполнить' = ABSTRACT (Task);
+endOfTheDay 'До конца дня' = ABSTRACT BOOLEAN (Task) MATERIALIZED;
+countDays 'Кол-во дней' = ABSTRACT INTEGER (Task) MATERIALIZED MINCHARWIDTH 3 PREFCHARWIDTH 3 MAXCHARWIDTH 3;
+id 'ИД' = ABSTRACT VARSTRING[30] (Task) MATERIALIZED; 
+
+dateStart 'Дата начала' (Task t) = DATE(dateTimeStart(t));
+deadlineDate (Task t) = jumpWorkdays(defaultCountry(),dateStart(t), countDays(t));
+deadline 'Выполнить до' (t) = dateTimeToDateTime(deadlineDate(t), IF endOfTheDay(t) THEN 23:59 ELSE TIME(dateTimeStart(t))) MINCHARWIDTH 17 PREFCHARWIDTH 20 MAXCHARWIDTH 20;
+overdeadline 'Просрочено' (t) = deadline(t) < currentDateTime();
+
+assigned = ABSTRACT BOOLEAN (CustomUser, Task) MATERIALIZED;
+skip = ABSTRACT BOOLEAN (CustomUser, Task);
+
+TABLE customUserTask (CustomUser, Task);
+in (CustomUser u, Task t) = assigned(u, t) AND NOT skip(u, t) MATERIALIZED;
+
+backgroundDescription = ABSTRACT COLOR (Task);
+
+type = DATA LOCAL Type ();
+nameType 'Тип задачи' = name (type()) MINCHARWIDTH 20;
+
+FORM tasks 'Задачи'
+    PROPERTIES () nameType
+            
+    OBJECTS dd=(df = DATE, dt = DATE) PANEL
+    PROPERTIES valDf = VALUE(df), valDt = VALUE(dt) 
+
+    OBJECTS t = Task GRID
+    PROPERTIES(t) READONLY nameType, dateTimeStart, countDays, deadline, description BACKGROUND backgroundDescription(t)
+    PROPERTIES(t) run TOOLBAR
+    ORDER deadline(t) DESC
+    FILTERS in(currentUser(), t),
+            type(t) == type() OR NOT type()
+
+    FILTERGROUP dateCur
+        FILTER 'За период' dateStart(t) >= df  AND dateStart(t) <= dt 'F10' DEFAULT    
+    
+    FILTERGROUP overDeadLine
+        FILTER 'Просроченные' overdeadline(t) 'F9'
+;
+
+DESIGN tasks {
+    NEW params FIRST {
+        caption = 'Фильтры';
+        type = CONTAINERH;
+        MOVE PROPERTY(valDf) {caption = 'Дата с';}
+        MOVE PROPERTY(valDt) {caption = 'Дата по';}        
+        MOVE PROPERTY (nameType());
+    }
+    BOX(t) {
+        PROPERTY(run(t)){
+            preferredValueHeight = 32;
+            fontStyle = 'bold';
+            fontSize = 18;
+            //alignment = STRETCH;
+        }
+        PROPERTY (countDays(t)) { minimumCharWidth = 5; preferredCharWidth = 10;}
+    }
+}
+
+
+//----------------- Логирование изменений в задачах ------------------- //
+
+CLASS TaskLog 'Запись лога задач';
+TABLE taskLog(TaskLog);
+
+type  = DATA Type(TaskLog);
+nameType 'Тип задачи' (TaskLog l) = name(type(l));
+
+startDateTime 'Дата/время начала' = DATA DATETIME (TaskLog);
+deadlineDateTime 'Выполнить до' = DATA DATETIME (TaskLog);
+description 'Описание' = DATA VARSTRING[1000](TaskLog);
+
+userName 'Имя пользователя' = DATA VARSTRING[100] (TaskLog);
+dateTimeSession 'Время выполнения' = DATA DATETIME (TaskLog);
+dateSession'Дата выполнения' (TaskLog l) = DATE(dateTimeSession(l));
+timeSession 'Время выполнения' (TaskLog l) = TIME(dateTimeSession(l));
+
+diffDates (DATETIME dateFrom, DATETIME dateTo) = [= FORMULA INTEGER PG 'SELECT EXTRACT (epoch FROM (($1) - ($2)))'](dateFrom AS DATETIME, dateTo AS DATETIME);
+initialTimeS 'Ожидаемое время выполнения, c' (TaskLog l) = diffDates(deadlineDateTime(l), startDateTime(l));
+realTimeS 'Реальное время выполнения, c' (TaskLog l) = diffDates(dateTimeSession(l), startDateTime(l));
+initialTimeH 'Ожидаемое время выполнения, ч' (TaskLog l) = initialTimeS(l) / 3600.0;
+realTimeH 'Реальное время выполнения, ч' (TaskLog l) = realTimeS(l) / 3600.0;
+
+WHEN DROPPED(Task o IS Task) DO {
+    NEW t = TaskLog { 
+        type(t) <- PREV(type(o));
+        startDateTime(t) <- PREV(dateTimeStart(o));
+        deadlineDateTime(t) <- PREV(deadline(o));
+        description(t) <- PREV(description(o));
+        userName(t) <- name(currentUser());
+        dateTimeSession(t) <- currentDateTime();
+    }
+}
+
+FORM taskLogs 'Журнал выполнения задач'
+    PROPERTIES () nameType
+
+    OBJECTS t=TaskLog
+    PROPERTIES(t) READONLY nameType, startDateTime, deadlineDateTime, description, userName, dateSession, timeSession, initialTimeS, realTimeS, initialTimeH, realTimeH
+    FILTERS  type(t) == type() OR NOT type()
+;
+DESIGN taskLogs {
+    NEW filter {
+        caption = 'Фильтры';
+        MOVE PROPERTY (nameType());
+    }
+    MOVE BOX(t);
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    systemEvents {
+        ADD taskLogs;
+    }
+}
+
+NAVIGATOR {
+    dashboardNavigator {
+        NEW taskDashboard 'BPM' {
+            ADD tasks;
+        }
+    }
+}
+
+// ------------- Уведомления ------------ //
+
+skipNotification = ABSTRACT VALUE BOOLEAN (Task);
+
+FORM notification
+    OBJECTS r = RICHTEXT PANEL
+    PROPERTIES(r) notification = VALUE
+;
+
+notificationStart = ABSTRACT RICHTEXT (Task);
+subjectNotificationStart = ABSTRACT VARSTRING[100] (Task);
+
+hasAttachment = ABSTRACT BOOLEAN (Task);
+attachment = ABSTRACT CUSTOMFILE (Task);
+attachmentName = ABSTRACT VARSTRING[100] (Task);
+
+generateAttachment (Task t) = ABSTRACT LIST (Task);
+
+emailTask 'Почта для отсылки уведомлений по задачам'= DATA VARSTRING[300] () MINCHARWIDTH 30 PREFCHARWIDTH 50 IN documentPrm; 
+EXTEND FORM options
+    PROPERTIES () emailTask
+;
+DESIGN options {
+    commons {
+        MOVE PROPERTY (emailTask());
+    }
+}
+
+emailNotificationStart 'Отправить' (CustomUser u, Task t) = {
+    
+    IF hasAttachment(t) THEN {
+        generateAttachment(t);
+        EMAIL 
+            FROM emailTask()
+            SUBJECT (OVERRIDE subjectNotificationStart(t), 'Уведомление по задаче от ' + dateStart(t))
+            TO email(u)
+            INLINE notification OBJECTS r = notificationStart(t)
+            ATTACH FILE attachment(t) NAME attachmentName(t);
+    } ELSE
+        EMAIL 
+            FROM emailTask()
+            SUBJECT (OVERRIDE subjectNotificationStart(t), 'Уведомление по задаче от ' + dateStart(t))
+            TO email(u)
+            INLINE notification OBJECTS r = notificationStart(t);
+    
+}
+
+WHEN SET(Task t IS Task) AND notificationStart(t) AND NOT (disableEvents() OR skipNotification(t)) AND emailTask() DO {
+    FOR in(CustomUser u, t) AND email(u) DO {
+        emailNotificationStart(u, t);
+    }
+}
+
+DESIGN options {
+    pane {
+        NEW task {        
+            caption = 'Задачи';
+            NEW taskTop {
+                MOVE PROPERTY (emailTask());
+            }                        
+            NEW taskNotifications { 
+                fill = 1;
+                type = TABBED;              
+                caption = 'Уведомления по задачам';        
+            }
+        }
+    }
+}
+
+META defineTask(NS, cls, taskName, taskCaption, taskProp, dateTimeProp)
+
+    // Задача по заявке
+    GROUP Task###taskName taskCaption;
+    CLASS Task###taskName taskCaption : Task;
+    
+    EXTEND CLASS Task.Type {
+        taskName taskCaption  
+    }
+
+    @defineAggregation(cls, task###taskName, taskProp);
+        type (Task###taskName t) += Task.Type.taskName IF t IS Task###taskName;
+    
+    //document (Task###taskName t) += cls(t);
+    description(Task###taskName t) += description(cls(t));
+    dateTimeStart(Task###taskName t)+= dateTimeProp(cls(t));//dateTime###taskName(cls(t));
+
+
+    @defineTaskPeriod(NS, taskName, taskCaption);
+    overCountDays = ABSTRACT INTEGER (Task###taskName);
+    countDays(Task###taskName t) += OVERRIDE overCountDays(t), countDays###Task###taskName##Date() IF t IS Task###taskName;
+    
+    // Назначаем задачи ролям
+    taskName taskCaption = DATA BOOLEAN (UserRole) IN Task;
+    EXTEND FORM userRole
+        PROPERTIES(ur) NS###taskName = taskName
+    ;
+    DESIGN userRole {
+        MOVE GROUP(Task,ur) BEFORE TOOLBARBOX;  
+    }
+    
+    has###taskName (CustomUser u) = GROUP SUM 1 IF has(CustomUser user AS CustomUser, UserRole role) AND taskName(role) BY user MATERIALIZED;
+    assigned (CustomUser u, Task t) += has###taskName(u) AND hasAccess###taskName(u,cls[Task###taskName](t)); 
+    
+    @defineAppTaskNotification(NS, cls, taskName, taskCaption);   
+    
+END
+META defineTask(NS, cls, taskName, taskCaption, taskProp)
+    @defineTask(NS, cls, taskName, taskCaption, taskProp, dateTime);
+END
+
+META defineTaskPeriod(NS, taskName, caption)
+    @definePeriod(NS, Task###taskName, caption);
+END
+
+META definePeriod(NS, name, caption)
+    countDays###name##Date 'Кол-во дней для '###caption = DATA INTEGER() IN name;
+    
+    EXTEND FORM options
+        PROPERTIES() NS##CountDaysD###name = countDays###name##Date
+    ;
+    DESIGN options {
+        taskTop {
+            MOVE PROPERTY(NS##CountDaysD###name);
+        }    
+    }
+    
+END
+META defineAppTaskNotification (NS, cls, taskName, taskCaption)
+
+    notificationStart###taskName taskCaption = DATA RICHTEXT ();
+    subjectNotificationStart###taskName taskCaption = DATA VARSTRING[100] ();
+    
+    EXTEND FORM options
+        PROPERTIES NS###notificationStart###taskName = notificationStart###taskName(), NS###subjectNotificationStart###taskName = subjectNotificationStart###taskName()
+    ;
+    
+    DESIGN options {
+        taskNotifications {
+            NEW NS##Notification###taskName {
+                caption = taskCaption;
+                fill = 1;
+                MOVE PROPERTY(NS###subjectNotificationStart###taskName) { caption = 'Заголовок'; };
+                MOVE PROPERTY(NS###notificationStart###taskName) { caption = 'Текст'; fill = 1; panelCaptionAbove = TRUE; }
+            }
+        }
+    }
+    
+    notificationStart(Task###taskName t) += RICHTEXT(notificationStart###taskName()+(CONCAT '', '<br>'+'Количество дней для выполнения '+'<b>'+countDays(t)+'</b>',
+                                                                '<br>'+'Крайний срок ' +'<b>'+toDateDDMMYY(deadline(t))+'</b>',
+                                                                '<br>'+'<b>'+description(t)+'</b>'))
+                                                            IF t IS Task###taskName AND notificationStart###taskName(); 
+    subjectNotificationStart(Task###taskName t) += VARSTRING[100](subjectNotificationStart###taskName()) IF t IS Task###taskName; 
+
+END
+
+//printnotification 'Печать' (Task t) = {PRINT notification OBJECTS r = notificationStart(t);}
+//
+//EXTEND FORM tasks
+//    PROPERTIES (t) READONLY notificationStart, subjectNotificationStart
+//    PROPERTIES printnotification(t) TOOLBAR 
+//;

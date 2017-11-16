@@ -1,0 +1,16 @@
+MODULE PricingMachineryTask;
+
+REQUIRE Task, PricingMachinery, PricingLabelTask;
+
+NAMESPACE Pricing;
+
+hasAccessMachineryPricing(CustomUser u, Pricing i) = accessCompany(u,departmentStore(i));
+needMachineryPricingTask 'Показывать' (Pricing p) = isPosted(p) AND NOT (Machinery.skip(p) OR sent[Machinery.PriceTransactionDocument](p) OR skipPricingTask(p));
+                                                                                                         
+@defineTask(Pricing, pricing, machineryPricing, 'Загрузка в оборудование (акт расценки)', needMachineryPricingTask);
+
+endOfTheDay (TaskMachineryPricing i) += TRUE IF i IS TaskMachineryPricing;
+
+run (TaskMachineryPricing i) += {
+    createMachineryPriceTransaction(pricing(i));
+}

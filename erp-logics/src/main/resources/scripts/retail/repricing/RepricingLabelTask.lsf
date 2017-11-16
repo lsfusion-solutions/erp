@@ -1,0 +1,18 @@
+MODULE RepricingLabelTask;
+
+REQUIRE RepricingLabel, Task;
+
+NAMESPACE Repricing;
+
+skipRepricingTask = ABSTRACT BOOLEAN (Repricing);
+
+needLabelRepricingTask 'Показывать' (Repricing p) = isPosted(p) AND NOT (Label.skip(p) OR printed[PriceTransactionDocument](p) OR skipRepricingTask(p));
+hasAccessLabelRepricing(CustomUser u, Repricing i) = accessCompany(u,departmentStore(i));
+
+@defineTask(Repricing, repricing, labelRepricing, 'Печать ценников (акт переоценки)', needLabelRepricingTask);
+
+endOfTheDay (TaskLabelRepricing i) += TRUE IF i IS TaskLabelRepricing;
+
+run (TaskLabelRepricing i) += {
+    createLabelTransaction(repricing(i));
+}
