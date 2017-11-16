@@ -42,7 +42,7 @@ import java.util.*;
 public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
     String mainPage = "https://e-dostavka.by";
-    String itemGroupPattern = "https:\\/\\/e-dostavka\\.by\\/catalog\\/\\d+\\.html";
+    String itemGroupPattern = "https:\\/\\/e-dostavka\\.by\\/catalog\\/\\d\\d\\d\\d\\.html";
     String itemPattern = "https:\\/\\/e-dostavka\\.by\\/catalog\\/item_\\d+\\.html";
     String userAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36";
 
