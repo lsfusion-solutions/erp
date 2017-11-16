@@ -1,6 +1,6 @@
 MODULE Promotion;
 
-REQUIRE ItemManager;
+REQUIRE ItemManager, PriceListDashboard, PriceListPromotion;
 
 NAMESPACE Promotion;
 
@@ -51,8 +51,8 @@ nameExtraPromotionType 'Тип подакции' (Promotion promotion) = name(ex
 
 extraPromotionType 'Тип подакции' = DATA ExtraPromotionType (PromotionDetail);
 nameExtraPromotionType 'Тип подакции' (PromotionDetail detail) = name(extraPromotionType(detail));
-overrideExtraPromotionType 'Тип подакции' (PromotionDetail detail) = OVERRIDE extraPromotionType(detail), extraPromotionType(promotion(detail));
-nameOverrideExtraPromotionType 'Тип подакции' (PromotionDetail detail) = name(overrideExtraPromotionType(detail));
+overExtraPromotionType 'Тип подакции' (PromotionDetail detail) = OVERRIDE extraPromotionType(detail), extraPromotionType(promotion(detail));
+nameOverExtraPromotionType 'Тип подакции' (PromotionDetail detail) = name(overExtraPromotionType(detail));
 
 sku 'Товар' = DATA Sku (PromotionDetail);
 
@@ -78,20 +78,19 @@ nameFlyer 'Листовка' (Promotion promotion) = name(flyer(promotion));
 
 flyer 'Листовка' = DATA Flyer (PromotionDetail);
 nameFlyer 'Листовка' (PromotionDetail detail) = name(flyer(detail));
-overrideFlyer 'Листовка' (PromotionDetail detail) = OVERRIDE flyer(detail), flyer(promotion(detail));
-nameOverrideFlyer 'Листовка' (PromotionDetail detail) = name(overrideFlyer(detail));
+overFlyer 'Листовка' (PromotionDetail detail) = OVERRIDE flyer(detail), flyer(promotion(detail));
+nameOverFlyer 'Листовка' (PromotionDetail detail) = name(overFlyer(detail));
 
 paymentForFlyer 'Оплата участия в листовке' = DATA BOOLEAN (PromotionDetail);
 decreaseSupplierPercent 'Уменьшение % маркетинга поставщика' = DATA BOOLEAN (PromotionDetail);
 
-supplierPromotionDiscount 'Скидка поставщика в Акцию' = DATA NUMERIC[16,4] (PromotionDetail);
+supplierPromotionDiscount 'Скидка поставщика в Акцию' = DATA NUMERIC[8,3] (PromotionDetail);
 valueVAT 'Ставка НДС' = DATA NUMERIC[10,5] (PromotionDetail);
 price 'Стандартная цена без НДС' = DATA NUMERIC[16,4] (PromotionDetail);
 markup 'Стандартная наценка' = DATA NUMERIC[8,3] (PromotionDetail);
 retailPrice 'Розничная цена стандартная' = DATA NUMERIC[16,4] (PromotionDetail);
 
 promotionPrice 'Цена для акции без НДС' = DATA NUMERIC[16,4] (PromotionDetail);
-promotionLogisticPrice 'Цена для акции с учетом логистической надбавки без НДС' = DATA NUMERIC[16,4] (PromotionDetail);
 promotionVATPrice 'Цена для акции с НДС' = DATA NUMERIC[16,4] (PromotionDetail);
 promotionMarkup 'Акционная наценка' = DATA NUMERIC[8,3] (PromotionDetail);
 proposedPromotionPrice 'Предлагаемая акционная цена' = DATA NUMERIC[16,4] (PromotionDetail);
@@ -109,11 +108,6 @@ name 'Наименование' = DATA VARSTRING[100] (StatusSku) IN base;
 statusSku 'Статус товара после акции' = DATA StatusSku (PromotionDetail);
 nameStatusSku 'Статус товара после акции' (PromotionDetail detail) = name(statusSku(detail));
 
-plannedQuantitySold 'Планируемое количество продаж' = DATA NUMERIC[16,5] (PromotionDetail);
-plannedTurnover 'Планируемый товарооборот' = DATA NUMERIC[18,4] (PromotionDetail);
-plannedProfit 'Планируемый доход' = DATA NUMERIC[18,4] (PromotionDetail);
-recommendedReserve 'Рекомендуемый запас для ФЛ' = DATA NUMERIC[16,5] (PromotionDetail);
-
 CLASS PromoType 'Тип промо';
 TABLE promoType (PromoType);
 
@@ -127,8 +121,8 @@ namePromoType 'Тип промо' (Promotion promotion)= name(promoType(promotio
  
 promoType 'Тип промо' = DATA PromoType (PromotionDetail);
 namePromoType 'Тип промо' (PromotionDetail detail) = name(promoType(detail));
-overridePromoType 'Тип промо' (PromotionDetail detail) = OVERRIDE promoType(detail), promoType(promotion(detail));
-nameOverridePromoType 'Тип промо' (PromotionDetail detail) = name(overridePromoType(detail)); 
+overPromoType 'Тип промо' (PromotionDetail detail) = OVERRIDE promoType(detail), promoType(promotion(detail));
+nameOverPromoType 'Тип промо' (PromotionDetail detail) = name(overPromoType(detail)); 
 
 CLASS DiscountType 'Тип скидки';
 TABLE discountType (DiscountType);
@@ -170,6 +164,31 @@ sms 'СМС рассылка' = DATA BOOLEAN (Promotion);
 email 'E-mail рассылка' = DATA BOOLEAN (Promotion);
 shoppingRoomPoster 'Плакат в торговом зале' = DATA BOOLEAN (Promotion);
 
+//расчетные данные
+WHEN LOCAL CHANGED(sku(PromotionDetail detail)) DO {
+    valueVAT(detail) <- valueVAT(sku(detail));
+    price(detail) <- [=GROUP MAX priceB(defaultPriceListType(), Sku sku, Stock stock, currentDateTime()) BY sku](sku(detail));
+    retailPrice(detail) <- [=GROUP MAX priceB(promotionPriceListType(), Sku sku, Stock stock, currentDateTime()) BY sku](sku(detail));
+}
+WHEN LOCAL (CHANGED(promotionPrice(PromotionDetail detail)) OR CHANGED(price(detail))) AND price(detail) > 0.0 DO {
+    supplierPromotionDiscount(detail) <- NUMERIC[8,3]((1.0 - promotionPrice(detail)/price(detail)) * 100.0);
+}
+WHEN LOCAL (CHANGED(retailPrice(PromotionDetail detail)) OR CHANGED(valueVAT(detail)) OR CHANGED(price(detail))) AND price(detail) > 0.0 DO {
+    markup(detail) <- NUMERIC[8,3]((((retailPrice(detail)/(1.0+valueVAT(detail)/100.0))-price(detail))/price(detail)) * 100.0);
+}
+WHEN LOCAL (CHANGED(promotionPrice(PromotionDetail detail)) OR CHANGED(valueVAT(detail))) DO {
+    promotionVATPrice(detail) <- NUMERIC[16,4](promotionPrice(detail)*(1.0+valueVAT(detail)/100.0));
+}
+WHEN LOCAL (CHANGED(promotionMarkupSum(PromotionDetail detail)) OR CHANGED(promotionPrice(detail))) AND promotionPrice(detail) > 0.0 DO {
+    promotionMarkup(detail) <- NUMERIC[8,3]((promotionMarkupSum(detail)/promotionPrice(detail)) * 100.0);
+}
+WHEN LOCAL (CHANGED(proposedPromotionPrice(PromotionDetail detail)) OR CHANGED(valueVAT(detail)) OR CHANGED(promotionPrice(detail))) DO {
+    promotionMarkupSum(detail) <- NUMERIC[16,4]((proposedPromotionPrice(detail)/(1.0+valueVAT(detail)/100.0))-promotionPrice(detail));
+}
+WHEN LOCAL (CHANGED(proposedPromotionPrice(PromotionDetail detail)) OR CHANGED(retailPrice(detail))) AND retailPrice(detail) > 0.0 DO {
+    discount(detail) <- NUMERIC[8,3]((1.0-proposedPromotionPrice(detail)/retailPrice(detail)) * 100.0);
+}
+
 FORM promotion 'Акция'
     OBJECTS p = Promotion PANEL 
     PROPERTIES(p) name, fromDate, toDate, namePromotionType, nameExtraPromotionType, namePromoType, nameFlyer,
@@ -177,13 +196,16 @@ FORM promotion 'Акция'
                   internet, transport, sms, email, shoppingRoomPoster
     
     OBJECTS d = PromotionDetail
-    PROPERTIES(d) idBarcode, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, nameOverrideExtraPromotionType,
-                  nameOverrideFlyer, paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT, price, markup, retailPrice,
-                  promotionPrice, promotionLogisticPrice, promotionVATPrice, promotionMarkup, proposedPromotionPrice, promotionMarkupSum, discount,
-                  nameStatusSku, plannedQuantitySold, plannedTurnover, plannedProfit, recommendedReserve, nameOverridePromoType, nameDiscountingType,
-                  bonusSum, bonusPercent, changedTime, changedNameUser, changedHostnameComputer, NEW, deleted = DELETE GRID
+    PROPERTIES(d) idBarcode, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, nameOverExtraPromotionType,
+                  nameOverFlyer, paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT, price, markup, retailPrice,
+                  promotionPrice, promotionVATPrice, promotionMarkup, proposedPromotionPrice, promotionMarkupSum, discount, nameStatusSku,
+                  nameOverPromoType,nameDiscountType, nameDiscountingType, bonusSum, bonusPercent, changedTime, changedNameUser,
+                  changedHostnameComputer, NEW, deleted = DELETE GRID
     ORDER nameSku(d)
-    FILTERS promotion(d) == p
+    FILTERS promotion(d) == p,
+            access(currentUser(), sku(d)) OR NOT sku(d)
+    
+    
                  
     EDIT Promotion OBJECT p
 ;
@@ -249,13 +271,13 @@ FORM promotions 'Акции'
     ORDER toDate(p) DESC, name(p) 
     
     OBJECTS d = PromotionDetail
-    PROPERTIES(d) READONLY idBarcode, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, nameOverrideExtraPromotionType,
-                  nameOverrideFlyer, paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT, price, markup, retailPrice,
-                  promotionPrice, promotionLogisticPrice, promotionVATPrice, promotionMarkup, proposedPromotionPrice, promotionMarkupSum, discount,
-                  nameStatusSku, plannedQuantitySold, plannedTurnover, plannedProfit, recommendedReserve, nameOverridePromoType, nameDiscountingType,
-                  bonusSum, bonusPercent, changedTime, changedNameUser, changedHostnameComputer
+    PROPERTIES(d) READONLY idBarcode, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, nameOverExtraPromotionType,
+                  nameOverFlyer, paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT, price, markup, retailPrice,
+                  promotionPrice, promotionVATPrice, promotionMarkup, proposedPromotionPrice, promotionMarkupSum, discount, nameStatusSku,
+                  nameOverPromoType,nameDiscountType, nameDiscountingType, bonusSum, bonusPercent, changedTime, changedNameUser, changedHostnameComputer
     ORDER nameSku(d)
-    FILTERS promotion(d) == p
+    FILTERS promotion(d) == p,
+            access(currentUser(), sku(d)) OR NOT sku(d)
     
     LIST Promotion OBJECT p
 ;
