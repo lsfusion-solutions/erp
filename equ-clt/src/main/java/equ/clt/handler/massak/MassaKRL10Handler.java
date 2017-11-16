@@ -9,6 +9,7 @@ import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
 import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -38,6 +39,9 @@ public class MassaKRL10Handler extends ScalesHandler {
     byte snapshotItemByte = (byte) 1;
     byte notSnapshotPluByte = (byte) 105;
     byte snapshotPluByte = (byte) 5;
+
+    //включить для вывода в лог отправляемых запросов
+    private boolean debugMode = false;
 
     protected FileSystemXmlApplicationContext springContext;
 
@@ -161,6 +165,8 @@ public class MassaKRL10Handler extends ScalesHandler {
 
         bytes.putShort((short) getCRC16(bytes.array()));
 
+        if(debugMode)
+            processTransactionLogger.info("SetWorkMode: " + Hex.encodeHexString(bytes.array()));
         port.getOutputStream().write(bytes.array());
         port.getOutputStream().flush();
     }
@@ -316,6 +322,9 @@ public class MassaKRL10Handler extends ScalesHandler {
 
             bytes.putShort((short) getCRC16(bytes.array()));
 
+            if(debugMode)
+                processTransactionLogger.info("Send File: " + Hex.encodeHexString(bytes.array()));
+
             port.getOutputStream().write(bytes.array());
         } catch (IOException e) {
             logError(errors, String.format(logPrefix + "%s Send command exception: ", port.getAddress()), e);
@@ -343,6 +352,9 @@ public class MassaKRL10Handler extends ScalesHandler {
             bytes.putInt(17); //16 plu, 1 item
 
             bytes.putShort((short) getCRC16(bytes.array()));
+
+            if(debugMode)
+                processTransactionLogger.info("Reset files: " + Hex.encodeHexString(bytes.array()));
 
             port.getOutputStream().write(bytes.array());
             port.getOutputStream().flush();
