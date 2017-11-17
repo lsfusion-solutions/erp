@@ -24,8 +24,12 @@ changedComputer (PromotionDetail detail) <- currentComputer() WHEN CHANGED(detai
 promotion 'Акция' = DATA Promotion (PromotionDetail);
 
 name 'Наименование' = DATA VARSTRING[100] (Promotion) MINCHARWIDTH 30 PREFCHARWIDTH 50;
-fromDate 'Дата с' = DATA DATE (Promotion);
-toDate 'Дата по' = DATA DATE (Promotion);
+fromDate 'Дата с' = DATA DATETIME (Promotion);
+toDate 'Дата по' = DATA DATETIME (Promotion);
+
+name 'Наименование' (PromotionDetail detail) = name(promotion(detail));
+fromDate 'Дата с' (PromotionDetail detail) = fromDate(promotion(detail));
+toDate 'Дата по' (PromotionDetail detail) = toDate(promotion(detail));
 
 CLASS PromotionType 'Тип акции';
 TABLE promotionType (PromotionType);
@@ -64,6 +68,9 @@ nameBrand 'Бренд' (PromotionDetail detail) = nameBrand(sku(detail));
 nameCustomUser 'Категорийный менеджер' (PromotionDetail detail) = nameCustomUser(skuGroup(sku(detail)));
 nameSku 'Товар' (PromotionDetail detail) = name(sku(detail));
 
+TABLE promotionDetailLegalEntity (PromotionDetail, LegalEntity);
+countStocks 'Количество складов компании' = DATA INTEGER (PromotionDetail, LegalEntity);
+nameSuppliers 'Поставщики' = GROUP CONCAT name(LegalEntity company) IF countStocks(PromotionDetail detail, company), ', ' BY detail  MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 CLASS Flyer 'Листовка';
 TABLE flyer (Flyer);
@@ -164,11 +171,46 @@ sms 'СМС рассылка' = DATA BOOLEAN (Promotion);
 email 'E-mail рассылка' = DATA BOOLEAN (Promotion);
 shoppingRoomPoster 'Плакат в торговом зале' = DATA BOOLEAN (Promotion);
 
+approved 'Утвержден' = DATA BOOLEAN (PromotionDetail);
+excluded 'Исключен после утверждения' = DATA BOOLEAN (PromotionDetail);
+
+//политика безопасности
+proposeDate 'Дата предложения' = DATA DATE (Promotion);
+approveDate 'Дата утверждения'= DATA DATE (Promotion);
+
+allowEditProposedPromotionDetail 'Разрешить редактировать строки акции после даты предложения' = DATA BOOLEAN (UserRole);
+allowEditApprovedPromotionDetail 'Разрешить редактировать строки акции после даты утверждения' = DATA BOOLEAN (UserRole);
+
+EXTEND FORM userRole
+    PROPERTIES(ur) allowEditProposedPromotionDetail, allowEditApprovedPromotionDetail
+;
+
+showApproved (PromotionDetail detail) = currentDate() >= proposeDate(promotion(detail));
+showExcluded (PromotionDetail detail) = currentDate() >= approveDate(promotion(detail));
+
+CONSTRAINT DROPPED(PromotionDetail detail IS PromotionDetail) AND currentDate() >= proposeDate(PREV(promotion(detail))) AND 
+    (NOT allowEditProposedPromotionDetail(mainRole(currentUser())) OR currentDate() >= approveDate(PREV(promotion(detail))))
+        MESSAGE 'Запрещено удалять строки акции после наступления даты предложения (утверждения)';
+CONSTRAINT SET(PromotionDetail detail IS PromotionDetail) AND currentDate() >= proposeDate(promotion(detail)) AND 
+    (NOT allowEditProposedPromotionDetail(mainRole(currentUser())) OR currentDate() >= approveDate(PREV(promotion(detail))))
+        MESSAGE 'Запрещено добавлять строки акции после наступления даты предложения (утверждения)';
+CONSTRAINT DROPCHANGED(sku(PromotionDetail detail)) AND currentDate() >= proposeDate(promotion(detail)) AND 
+    (NOT allowEditProposedPromotionDetail(mainRole(currentUser())) OR currentDate() >= approveDate(PREV(promotion(detail))))
+        MESSAGE 'Запрещено изменять товар после наступления даты предложения (утверждения)';
+
+//CONSTRAINT DROPCHANGED(PromotionDetail detail) AND currentDate() >= approveDate(promotion(detail)) AND NOT allowEditApprovedPromotionDetail(mainRole(currentUser()))
+    //MESSAGE 'Запрещено удалять строки акции после даты утверждения';
+CONSTRAINT (CHANGED(price(PromotionDetail detail)) OR CHANGED(retailPrice(detail)) OR CHANGED(approved(detail))) AND 
+    currentDate() >= approveDate(PREV(promotion(detail))) AND NOT allowEditApprovedPromotionDetail(mainRole(currentUser()))
+        MESSAGE 'Запрещено изменять в строке акции Стандартную цену без НДС, Розничную цену и Утверждение';
+
+
 //расчетные данные
-WHEN LOCAL CHANGED(sku(PromotionDetail detail)) DO {
+WHEN LOCAL (CHANGED(sku(PromotionDetail detail)) OR CHANGED(fromDate(detail))) DO {
     valueVAT(detail) <- valueVAT(sku(detail));
-    price(detail) <- [=GROUP MAX priceB(defaultPriceListType(), Sku sku, Stock stock, currentDateTime()) BY sku](sku(detail));
-    retailPrice(detail) <- [=GROUP MAX priceB(promotionPriceListType(), Sku sku, Stock stock, currentDateTime()) BY sku](sku(detail));
+    price(detail) <- [=GROUP MAX priceA(defaultPriceListType(), sku(PromotionDetail detail), Stock stock, fromDate(detail)) BY detail](detail);
+    retailPrice(detail) <- [=GROUP MAX priceA(promotionPriceListType(), sku(PromotionDetail detail), Stock stock, fromDate(detail)) BY detail](detail);
+    countStocks(detail, LegalEntity company) <- [= GROUP SUM 1 IF priceA(defaultPriceListType(),sku(PromotionDetail detail), Stock stock, LegalEntity company, fromDate(detail)) BY detail, company](detail,company);
 }
 WHEN LOCAL (CHANGED(promotionPrice(PromotionDetail detail)) OR CHANGED(price(detail))) AND price(detail) > 0.0 DO {
     supplierPromotionDiscount(detail) <- NUMERIC[8,3]((1.0 - promotionPrice(detail)/price(detail)) * 100.0);
@@ -189,18 +231,24 @@ WHEN LOCAL (CHANGED(proposedPromotionPrice(PromotionDetail detail)) OR CHANGED(r
     discount(detail) <- NUMERIC[8,3]((1.0-proposedPromotionPrice(detail)/retailPrice(detail)) * 100.0);
 }
 
+backgroundCur 'Цвет' (PromotionDetail detail) = RGB(218,255,196) IF detail IS PromotionDetail;
+backgroundAfter 'Цвет' (PromotionDetail detail) = RGB(255,203,197) IF detail IS PromotionDetail;
+backgroundPromo 'Цвет' (PromotionDetail detail) = RGB(255,157,146) IF detail IS PromotionDetail;
+
 FORM promotion 'Акция'
     OBJECTS p = Promotion PANEL 
     PROPERTIES(p) name, fromDate, toDate, namePromotionType, nameExtraPromotionType, namePromoType, nameFlyer,
                   subway, radio, citylight, billboard, TVcommercial, stockTVcommercial, elevator, newspaper,
-                  internet, transport, sms, email, shoppingRoomPoster
+                  internet, transport, sms, email, shoppingRoomPoster, proposeDate, approveDate
     
     OBJECTS d = PromotionDetail
     PROPERTIES(d) idBarcode, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, nameOverExtraPromotionType,
-                  nameOverFlyer, paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT, price, markup, retailPrice,
-                  promotionPrice, promotionVATPrice, promotionMarkup, proposedPromotionPrice, promotionMarkupSum, discount, nameStatusSku,
-                  nameOverPromoType,nameDiscountType, nameDiscountingType, bonusSum, bonusPercent, changedTime, changedNameUser,
-                  changedHostnameComputer, NEW, deleted = DELETE GRID
+                  nameSuppliers, nameOverFlyer, paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT
+    PROPERTIES(d) BACKGROUND backgroundCur(d) price, markup, retailPrice
+    PROPERTIES(d) BACKGROUND backgroundAfter(d) promotionPrice BACKGROUND backgroundPromo(d), promotionVATPrice, promotionMarkup,
+                  proposedPromotionPrice BACKGROUND backgroundPromo(d), promotionMarkupSum, discount
+    PROPERTIES(d) nameStatusSku, nameOverPromoType, nameDiscountType, nameDiscountingType, bonusSum, bonusPercent, changedTime, changedNameUser,
+                  changedHostnameComputer, approved SHOWIF showApproved(d), excluded SHOWIF showExcluded(d), NEW, deleted = DELETE GRID
     ORDER nameSku(d)
     FILTERS promotion(d) == p,
             access(currentUser(), sku(d)) OR NOT sku(d)
@@ -235,6 +283,12 @@ DESIGN promotion {
                 type = CONTAINERH;
                 MOVE PROPERTY(fromDate(p));
                 MOVE PROPERTY(toDate(p));
+            }
+            NEW fifth {
+                caption = 'Даты закрытия доступа';
+                type = CONTAINERH;
+                MOVE PROPERTY(proposeDate(p));
+                MOVE PROPERTY(approveDate(p));
             }
         }
         NEW types {
@@ -272,9 +326,12 @@ FORM promotions 'Акции'
     
     OBJECTS d = PromotionDetail
     PROPERTIES(d) READONLY idBarcode, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, nameOverExtraPromotionType,
-                  nameOverFlyer, paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT, price, markup, retailPrice,
-                  promotionPrice, promotionVATPrice, promotionMarkup, proposedPromotionPrice, promotionMarkupSum, discount, nameStatusSku,
-                  nameOverPromoType,nameDiscountType, nameDiscountingType, bonusSum, bonusPercent, changedTime, changedNameUser, changedHostnameComputer
+                  nameSuppliers, nameOverFlyer, paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT
+    PROPERTIES(d) READONLY BACKGROUND backgroundCur(d) price, markup, retailPrice
+    PROPERTIES(d) READONLY BACKGROUND backgroundAfter(d) promotionPrice BACKGROUND backgroundPromo(d), promotionVATPrice, promotionMarkup,
+                  proposedPromotionPrice BACKGROUND backgroundPromo(d), promotionMarkupSum, discount
+    PROPERTIES(d) READONLY nameStatusSku, nameOverPromoType, nameDiscountType, nameDiscountingType, bonusSum, bonusPercent, changedTime, 
+                  changedNameUser, changedHostnameComputer, approved SHOWIF showApproved(d), excluded SHOWIF showExcluded(d)
     ORDER nameSku(d)
     FILTERS promotion(d) == p,
             access(currentUser(), sku(d)) OR NOT sku(d)
