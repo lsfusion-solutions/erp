@@ -92,7 +92,8 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
                     if (signResult instanceof List) {
 
                         //Отправляем
-                        if (sendBLRAPN(context, url, login, password, host, port, provider, ((ArrayList) signResult).get(0), eInvoiceObject, documentNumberBLRAPN, documentDate, referenceNumber, glnCustomer, glnCustomerStock)) {
+                        if (sendBLRAPN(context, url, login, password, host, port, provider, ((ArrayList) signResult).get(0), eInvoiceObject,
+                                documentNumberBLRAPN, documentDate, referenceNumber, glnCustomer, glnCustomerStock, isCancel)) {
                             findProperty("blrapn[EInvoice]").change(documentNumberBLRAPN, session, eInvoiceObject);
                             if (!isCancel && sendBLRWBR(context, url, login, password, host, port, provider, ((ArrayList) signResult).get(1), eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, glnCustomer, glnCustomerStock))
                                 findProperty("blrwbr[EInvoice]").change(documentNumberBLRWBR, session, eInvoiceObject);
@@ -253,11 +254,11 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
 
     private boolean sendBLRAPN(ExecutionContext context, String url, String login, String password, String host, Integer port,
                             String provider, Object signedDocument, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber,
-                            String glnCustomer, String glnCustomerStock) throws JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
+                            String glnCustomer, String glnCustomerStock, boolean showMessages) throws JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         boolean result = false;
         if(signedDocument instanceof byte[]) {
             sendDocument(context, url, login, password, host, port, provider, referenceNumber, generateXML(login, password, documentNumber, documentDate, glnCustomer, glnCustomerStock,
-                    new String(Base64.encodeBase64((byte[]) signedDocument)), "BLRAPN"), eInvoiceObject, false);
+                    new String(Base64.encodeBase64((byte[]) signedDocument)), "BLRAPN"), eInvoiceObject, showMessages);
             result = true;
         } else {
             context.delayUserInteraction(new MessageClientAction(String.format("BLRAPN %s не подписан. Ошибка: %s", referenceNumber, signedDocument), "Ошибка"));
