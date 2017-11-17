@@ -1734,3 +1734,16 @@ setSku 'Сменить товар'(Batch batch) = {
 EXTEND FORM currentBalanceBatchStock
 	PROPERTIES(bt) setSku 
 ;
+
+checkDateTimeSkuLedger 'Для ригистра движения должна быть задана дата/время' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () checkDateTimeSkuLedger
+;
+DESIGN options {
+    commons {
+        MOVE PROPERTY(checkDateTimeSkuLedger());
+    }
+}
+
+CONSTRAINT SET (isPosted(SkuLedger l) AND NOT dateTime(l))  AND checkDateTimeSkuLedger()
+    MESSAGE 'Для ригистра движения должна быть задана дата/время';
