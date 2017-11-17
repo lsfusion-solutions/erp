@@ -1500,6 +1500,11 @@ saved 'Сохранена' (Inventory i) = PREV(i IS Inventory);
 
 backgroundQuantity = ABSTRACT CASE COLOR (CollationSheet, Sku);
 
+showMovementSkuStock 'Показать движение товара по складу' (CollationSheet cs, Sku sku) = {
+    FOR s == sku AND st == stock(cs) DO
+        NEWSESSION SHOW movementSkuStock OBJECTS s = s, st = st; 
+}
+
 FORM inventory 'Инвентаризация'
     OBJECTS          in=Inventory PANEL
     PROPERTIES (in)  isBatch, isPrice, isShortageStockDocument, nameNumerator, number, series,
@@ -1568,7 +1573,7 @@ FORM inventory 'Инвентаризация'
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
     OBJECTS          i=Sku GRID
-    PROPERTIES(i) READONLY                      idBarcode, iNameSku = name, id
+    PROPERTIES(i) READONLY                      idBarcode, iNameSku = name ON CONTEXTMENU showMovementSkuStock(cs,i), id
     PROPERTIES(cs, i)                           quantityPageInventoryDetail ON CHANGE overChangeQuantityPageInventoryDetail(cs,i) BACKGROUND backgroundQuantity(cs,i), quantityBalance, quantityShortage ON CONTEXTMENU showCost(cs, i)
     PROPERTIES(cs, i) SHOWIF isSku(in) pricePageInventoryDetail BACKGROUND differentPrice(cs, i),
                                                 priceBalance BACKGROUND differentPrice(cs, i)
