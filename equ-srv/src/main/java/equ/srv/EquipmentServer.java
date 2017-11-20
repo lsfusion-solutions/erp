@@ -1195,7 +1195,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 }
                                 if (barcode == null && sale.idItem != null) {
                                     barcode = trim((String) itemLM.findProperty("idBarcodeSku[VARSTRING[100]]").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
-                                    if (barcode == null) barcode = sale.idItem;
+                                    //чит на случай, когда штрихкод приходит в код товара, copy-paste from ArtixHandler
+                                    if (barcode == null)
+                                        barcode = appendCheckDigitToBarcode(sale.idItem, 7, true);
                                     barcodeMap.put(sale.idItem, barcode);
                                 }
 
@@ -1327,6 +1329,47 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    private String appendCheckDigitToBarcode(String barcode, Integer minLength, boolean appendBarcode) {
+        if(appendBarcode) {
+            if (barcode == null || (minLength != null && barcode.length() < minLength))
+                return null;
+
+            try {
+                if (barcode.length() == 11) {
+                    return appendEAN13("0" + barcode).substring(1, 13);
+                } else if (barcode.length() == 12) {
+                    return appendEAN13(barcode);
+                } else if (barcode.length() == 7) {  //EAN-8
+                    int checkSum = 0;
+                    for (int i = 0; i <= 6; i = i + 2) {
+                        checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i))) * 3;
+                        checkSum += i == 6 ? 0 : Integer.valueOf(String.valueOf(barcode.charAt(i + 1)));
+                    }
+                    checkSum %= 10;
+                    if (checkSum != 0)
+                        checkSum = 10 - checkSum;
+                    return barcode.concat(String.valueOf(checkSum));
+                } else
+                    return barcode;
+            } catch (Exception e) {
+                return barcode;
+            }
+        } else
+            return barcode;
+    }
+
+    private String appendEAN13(String barcode) {
+        int checkSum = 0;
+        for (int i = 0; i <= 10; i = i + 2) {
+            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
+            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+        }
+        checkSum %= 10;
+        if (checkSum != 0)
+            checkSum = 10 - checkSum;
+        return barcode.concat(String.valueOf(checkSum));
     }
 
     private boolean overDocumentsClosedDate(SalesInfo salesInfo, boolean ignoreReceiptsAfterDocumentsClosedDate, List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList) {
