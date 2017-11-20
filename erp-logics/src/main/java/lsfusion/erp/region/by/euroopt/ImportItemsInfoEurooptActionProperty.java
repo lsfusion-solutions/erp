@@ -42,12 +42,11 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
         try {
 
             boolean useTor = findProperty("ImportEuroopt.useTor[]").read(context) != null;
-            boolean skipKeys = findProperty("skipKeys[]").read(context) != null;
             boolean onlyBarcode = findProperty("onlyBarcode[]").read(context) != null;
 
-            List<List<Object>> data = getItemsInfo(context, useTor, skipKeys, onlyBarcode);
+            List<List<Object>> data = getItemsInfo(context, useTor, onlyBarcode);
             if(!data.isEmpty()) {
-                importItems(context, data, skipKeys, onlyBarcode);
+                importItems(context, data, onlyBarcode);
                 context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён.\nКоличество обновлённых товаров: " + data.size(), "Импорт товаров Евроопт"));
             }
 
@@ -57,7 +56,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
 
     }
 
-    private void importItems(ExecutionContext context, List<List<Object>> data, boolean skipKeys, boolean onlyBarcode) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importItems(ExecutionContext context, List<List<Object>> data, boolean onlyBarcode) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();
@@ -70,31 +69,20 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
         keys.add(eurooptItemKey);
         fields.add(urlEurooptItemField);
 
-        ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
+        ImportField idBarcodeEurooptItemField = new ImportField(findProperty("idBarcode[EurooptItem]"));
         ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                findProperty("skuBarcode[STRING[15]]").getMapping(idBarcodeSkuField));
-        itemKey.skipKey = skipKeys;
+                findProperty("skuBarcode[STRING[15]]").getMapping(idBarcodeEurooptItemField));
+        itemKey.skipKey = true;
         keys.add(itemKey);
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("item[EurooptItem]").getMapping(eurooptItemKey),
-                object(findClass("Item")).getMapping(itemKey)));
-        fields.add(idBarcodeSkuField);
+        props.add(new ImportProperty(idBarcodeEurooptItemField, findProperty("idBarcode[EurooptItem]").getMapping(eurooptItemKey)));
+        fields.add(idBarcodeEurooptItemField);
 
         if(!onlyBarcode) {
-
-            ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
-                    findProperty("extBarcode[VARSTRING[100]]").getMapping(idBarcodeSkuField));
-            barcodeKey.skipKey = skipKeys;
-            keys.add(barcodeKey);
-            props.add(new ImportProperty(idBarcodeSkuField, findProperty("sku[Barcode]").getMapping(barcodeKey),
-                    object(findClass("Item")).getMapping(itemKey)));
-            props.add(new ImportProperty(idBarcodeSkuField, findProperty("extId[Barcode]").getMapping(barcodeKey), true));
-            props.add(new ImportProperty(idBarcodeSkuField, findProperty("id[Barcode]").getMapping(barcodeKey), true));
-            props.add(new ImportProperty(idBarcodeSkuField, findProperty("id[Item]").getMapping(itemKey), true));
 
             ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
             ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
                     findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
-            itemGroupKey.skipKey = skipKeys;
+            itemGroupKey.skipKey = true;
             keys.add(itemGroupKey);
             props.add(new ImportProperty(idItemGroupField, findProperty("id[ItemGroup]").getMapping(itemGroupKey), true));
             props.add(new ImportProperty(idItemGroupField, findProperty("name[ItemGroup]").getMapping(itemGroupKey), true));
@@ -137,7 +125,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
             ImportField idManufacturerField = new ImportField(findProperty("id[Manufacturer]"));
             ImportKey<?> manufacturerKey = new ImportKey((CustomClass) findClass("Manufacturer"),
                     findProperty("manufacturer[VARSTRING[100]]").getMapping(idManufacturerField));
-            manufacturerKey.skipKey = skipKeys;
+            manufacturerKey.skipKey = true;
             keys.add(manufacturerKey);
             props.add(new ImportProperty(idManufacturerField, findProperty("id[Manufacturer]").getMapping(manufacturerKey), true));
             props.add(new ImportProperty(idManufacturerField, findProperty("name[Manufacturer]").getMapping(manufacturerKey), true));
@@ -151,8 +139,6 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
             UOMKey.skipKey = true;
             keys.add(UOMKey);
             props.add(new ImportProperty(idUOMField, findProperty("UOM[Item]").getMapping(itemKey),
-                    object(findClass("UOM")).getMapping(UOMKey), true));
-            props.add(new ImportProperty(idUOMField, findProperty("UOM[Barcode]").getMapping(barcodeKey),
                     object(findClass("UOM")).getMapping(UOMKey), true));
             fields.add(idUOMField);
 
@@ -180,7 +166,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
         }
     }
 
-    private List<List<Object>> getItemsInfo(ExecutionContext context, boolean useTor, boolean skipKeys, boolean onlyBarcode) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
+    private List<List<Object>> getItemsInfo(ExecutionContext context, boolean useTor, boolean onlyBarcode) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         List<List<Object>> itemsList = new ArrayList<>();
         Map<String, String> barcodeSet = getBarcodeSet(context);
         List<String> itemURLs = getItemURLs(context);
@@ -224,7 +210,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
                         }
                     }
 
-                    if (idBarcode != null && (!skipKeys || barcodeSet.containsKey(idBarcode))) {
+                    if (idBarcode != null && barcodeSet.containsKey(idBarcode)) {
 
                         if(onlyBarcode) {
                             itemsList.add(Arrays.asList((Object) itemURL, idBarcode));

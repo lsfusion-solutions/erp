@@ -23,9 +23,7 @@ CLASS EurooptItem 'Товар';
 TABLE eurooptItem (EurooptItem);
 
 eurooptItemList = DATA EurooptItemList(EurooptItem);
-item = DATA Item(EurooptItem);
-idBarcode 'Штрихкод' (EurooptItem e) = idBarcode(item(e));
-name 'Наименование' (EurooptItem e) = name(item(e));
+idBarcode 'Штрихкод' (EurooptItem e) = DATA VARSTRING[15](EurooptItem);
 url 'URL' = DATA VARSTRING[255] (EurooptItem);
 in 'Вкл.'(EurooptItem e) = in(eurooptItemList(e));
 eurooptItem = GROUP AGGR EurooptItem e BY url(e);
@@ -33,7 +31,6 @@ eurooptItem = GROUP AGGR EurooptItem e BY url(e);
 useTor 'Использовать Tor' = DATA BOOLEAN();
 synchronizeItemsAction 'Синхронизировать списки товаров' = CUSTOM 'lsfusion.erp.region.by.euroopt.SynchronizeItemsEurooptActionProperty' ();
 importItemsInfoAction 'Импортировать информацию о товарах' = CUSTOM 'lsfusion.erp.region.by.euroopt.ImportItemsInfoEurooptActionProperty' ();
-skipKeys 'Не создавать новые товары' = DATA BOOLEAN();
 onlyBarcode 'Импортировать только штрихкоды' = DATA BOOLEAN();
 importImageAndPriceAction 'Импортировать изображения и цены товаров' = CUSTOM 'lsfusion.erp.region.by.euroopt.ImportImageAndPriceEurooptActionProperty' ();
 importImages 'Импортировать изображения' = DATA BOOLEAN();
@@ -42,11 +39,11 @@ importPrices 'Импортировать цены' = DATA BOOLEAN();
 idItemGroup 'Код группы товаров' (Barcode barcode) = id(skuGroup(sku(barcode)));
 
 EXTEND FORM integrationData
-    PROPERTIES() synchronizeItemsAction, skipKeys, onlyBarcode, importItemsInfoAction, importImages, importPrices, importImageAndPriceAction, useTor
+    PROPERTIES() synchronizeItemsAction, onlyBarcode, importItemsInfoAction, importImages, importPrices, importImageAndPriceAction, useTor
     OBJECTS eig = EurooptItemGroup, eil = EurooptItemList, ei = EurooptItem
     PROPERTIES(eig) READONLY in CHANGEABLE, title, url
     PROPERTIES(eil) in, url READONLY
-    PROPERTIES(ei) READONLY url, idBarcode, name
+    PROPERTIES(ei) READONLY url, idBarcode
     FILTERS eurooptItemGroup(eil) == eig, eurooptItemList(ei) == eil          
 ;
 DESIGN integrationData {
@@ -57,7 +54,6 @@ DESIGN integrationData {
             MOVE PROPERTY(synchronizeItemsAction());
             NEW items {
                 caption = 'Импорт товаров';
-                MOVE PROPERTY(skipKeys());
                 MOVE PROPERTY(onlyBarcode());      
                 MOVE PROPERTY(importItemsInfoAction());                             
             }
