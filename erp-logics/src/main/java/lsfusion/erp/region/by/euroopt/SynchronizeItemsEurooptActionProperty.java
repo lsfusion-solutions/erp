@@ -29,11 +29,11 @@ public class SynchronizeItemsEurooptActionProperty extends EurooptActionProperty
 
         try {
 
-            boolean useTor = findProperty("importEurooptUseTor[]").read(context) != null;
+            boolean useTor = findProperty("ImportEuroopt.useTor[]").read(context) != null;
             List<List<Object>> data = getItems(useTor ? getNetLayer() : null);
             synchronizeItems(context, data);
 
-            context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт Евроопт"));
+            context.delayUserInteraction(new MessageClientAction("Cинхронизация успешно завершёна", "Синхронизация товаров Евроопт"));
 
         } catch (IOException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
@@ -114,7 +114,7 @@ public class SynchronizeItemsEurooptActionProperty extends EurooptActionProperty
                     ServerLoggers.importLogger.info(String.format(logPrefix + "reading itemGroup url %s (%s of %s)", stepUrl, count, itemGroups.size()));
                     Document doc = getDocument(lowerNetLayer, stepUrl);
                     if (doc != null) {
-                        String itemGroupTitle = doc.getElementsByTag("title").text();
+                        String itemGroupTitle = doc.getElementsByTag("title").text().replace(" - Каталог товаров", "");
                         for (Element item : doc.getElementsByTag("a")) {
                             String href = item.attr("href");
                             if (href != null && href.matches(itemPattern)) {
