@@ -6,6 +6,7 @@ import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 import lsfusion.interop.form.ReportGenerationData;
 import net.sf.jasperreports.engine.JRException;
+import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.DataConsolidateFunction;
 import org.apache.poi.ss.util.AreaReference;
 import org.apache.poi.ss.util.CellReference;
@@ -90,7 +91,7 @@ public class ExportExcelXSSFPivotAction implements ClientAction {
 
                 if (rowsCount > 2) {
                     String lastCell = getCellIndex(columnsCount - 1, rowsCount == 0 ? 2 : rowsCount);
-                    XSSFPivotTable pivotTable = destinationSheet.createPivotTable(new AreaReference("B2:" + lastCell), new CellReference("A" + (j + 2 + filterFieldsEntry.size())), sourceSheet);
+                    XSSFPivotTable pivotTable = destinationSheet.createPivotTable(new AreaReference("B2:" + lastCell, SpreadsheetVersion.EXCEL2007), new CellReference("A" + (j + 2 + filterFieldsEntry.size())), sourceSheet);
 
                     //map index -> header caption
                     LinkedHashMap<String, Integer> columnIndexMap = getFieldCaptionMap(sourceSheet, columnsCount);
@@ -360,7 +361,7 @@ public class ExportExcelXSSFPivotAction implements ClientAction {
     //стандартного добавления колонки без аггрегирующей функции в apache.poi нет, поэтому добавляем таким странным образом
     private void addColumnLabel(XSSFPivotTable pivotTable, int columnIndex) {
         AreaReference pivotArea = new AreaReference(pivotTable.getPivotCacheDefinition().getCTPivotCacheDefinition()
-                .getCacheSource().getWorksheetSource().getRef());
+                .getCacheSource().getWorksheetSource().getRef(), SpreadsheetVersion.EXCEL2007);
         int lastRowIndex = pivotArea.getLastCell().getRow() - pivotArea.getFirstCell().getRow();
         int lastColIndex = pivotArea.getLastCell().getCol() - pivotArea.getFirstCell().getCol();
 
