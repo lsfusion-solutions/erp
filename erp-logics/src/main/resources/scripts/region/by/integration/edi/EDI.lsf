@@ -430,6 +430,8 @@ code 'Код сообщения' = DATA VARSTRING[10] (EInvoiceMessage);
 description 'Текст сообщения' = DATA VARSTRING[200] (EInvoiceMessage);
 good = ABSTRACT CASE BOOLEAN (EInvoiceMessage);
 
+backgroundVAT 'Цвет' (EInvoiceDetail d) = IF sku(lineItemBuyerID(d)) AND NOT valueVAT(d) == valueVAT(sku(lineItemBuyerID(d)))
+                                                   THEN RGB(255,0,0);
 
 FORM eInvoices 'Электронные накладные EDI'
     OBJECTS e = EInvoice
@@ -441,7 +443,7 @@ FORM eInvoices 'Электронные накладные EDI'
         FILTER 'Не экспортированы' NOT exported(e) 'F11' DEFAULT
     
     OBJECTS d = EInvoiceDetail
-    PROPERTIES(d) READONLY lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, valueVAT, lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges
+    PROPERTIES(d) READONLY lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, valueVAT BACKGROUND backgroundVAT(d), lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges
 
     PROPERTIES() signAndSendEDI TODRAW e TOOLBAR
 
