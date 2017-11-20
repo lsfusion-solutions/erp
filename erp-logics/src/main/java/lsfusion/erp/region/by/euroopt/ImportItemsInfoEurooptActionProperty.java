@@ -43,10 +43,11 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
 
             boolean useTor = findProperty("ImportEuroopt.useTor[]").read(context) != null;
             boolean skipKeys = findProperty("skipKeys[]").read(context) != null;
+            boolean onlyBarcode = findProperty("onlyBarcode[]").read(context) != null;
 
-            List<List<Object>> data = getItemsInfo(context, useTor, skipKeys);
+            List<List<Object>> data = getItemsInfo(context, useTor, skipKeys, onlyBarcode);
             if(!data.isEmpty()) {
-                importItems(context, data, skipKeys);
+                importItems(context, data, skipKeys, onlyBarcode);
                 context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён.\nКоличество обновлённых товаров: " + data.size(), "Импорт товаров Евроопт"));
             }
 
@@ -56,113 +57,117 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
 
     }
 
-    private void importItems(ExecutionContext context, List<List<Object>> data, boolean skipKeys) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importItems(ExecutionContext context, List<List<Object>> data, boolean skipKeys, boolean onlyBarcode) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();
         List<ImportKey<?>> keys = new ArrayList<>();
-
-        ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
-        ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                findProperty("skuBarcode[STRING[15]]").getMapping(idBarcodeSkuField));
-        itemKey.skipKey = skipKeys;
-        keys.add(itemKey);
-        fields.add(idBarcodeSkuField);
-
-        ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
-                findProperty("extBarcode[VARSTRING[100]]").getMapping(idBarcodeSkuField));
-        barcodeKey.skipKey = skipKeys;
-        keys.add(barcodeKey);
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("sku[Barcode]").getMapping(barcodeKey),
-                object(findClass("Item")).getMapping(itemKey)));
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("extId[Barcode]").getMapping(barcodeKey), true));
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("id[Barcode]").getMapping(barcodeKey), true));
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("id[Item]").getMapping(itemKey), true));
-
-        ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
-        ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
-                findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
-        itemGroupKey.skipKey = skipKeys;
-        keys.add(itemGroupKey);
-        props.add(new ImportProperty(idItemGroupField, findProperty("id[ItemGroup]").getMapping(itemGroupKey), true));
-        props.add(new ImportProperty(idItemGroupField, findProperty("name[ItemGroup]").getMapping(itemGroupKey), true));
-        props.add(new ImportProperty(idItemGroupField, findProperty("itemGroup[Item]").getMapping(itemKey),
-                LM.object(findClass("ItemGroup")).getMapping(itemGroupKey), true));
-        fields.add(idItemGroupField);
-
-        ImportField captionItemField = new ImportField(findProperty("caption[Item]"));
-        props.add(new ImportProperty(captionItemField, findProperty("caption[Item]").getMapping(itemKey), true));
-        fields.add(captionItemField);
-
-        ImportField netWeightItemField = new ImportField(findProperty("netWeight[Item]"));
-        props.add(new ImportProperty(netWeightItemField, findProperty("netWeight[Item]").getMapping(itemKey), true));
-        fields.add(netWeightItemField);
-
-        ImportField descriptionItemField = new ImportField(findProperty("description[Item]"));
-        props.add(new ImportProperty(descriptionItemField, findProperty("description[Item]").getMapping(itemKey), true));
-        fields.add(descriptionItemField);
-
-        ImportField compositionItemField = new ImportField(findProperty("composition[Item]"));
-        props.add(new ImportProperty(compositionItemField, findProperty("composition[Item]").getMapping(itemKey), true));
-        fields.add(compositionItemField);
-
-        ImportField proteinsItemField = new ImportField(findProperty("proteins[Item]"));
-        props.add(new ImportProperty(proteinsItemField, findProperty("proteins[Item]").getMapping(itemKey), true));
-        fields.add(proteinsItemField);
-
-        ImportField fatsItemField = new ImportField(findProperty("fats[Item]"));
-        props.add(new ImportProperty(fatsItemField, findProperty("fats[Item]").getMapping(itemKey), true));
-        fields.add(fatsItemField);
-
-        ImportField carbohydratesItemField = new ImportField(findProperty("carbohydrates[Item]"));
-        props.add(new ImportProperty(carbohydratesItemField, findProperty("carbohydrates[Item]").getMapping(itemKey), true));
-        fields.add(carbohydratesItemField);
-
-        ImportField energyItemField = new ImportField(findProperty("energy[Item]"));
-        props.add(new ImportProperty(energyItemField, findProperty("energy[Item]").getMapping(itemKey), true));
-        fields.add(energyItemField);
-
-        ImportField idManufacturerField = new ImportField(findProperty("id[Manufacturer]"));
-        ImportKey<?> manufacturerKey = new ImportKey((CustomClass) findClass("Manufacturer"),
-                findProperty("manufacturer[VARSTRING[100]]").getMapping(idManufacturerField));
-        manufacturerKey.skipKey = skipKeys;
-        keys.add(manufacturerKey);
-        props.add(new ImportProperty(idManufacturerField, findProperty("id[Manufacturer]").getMapping(manufacturerKey), true));
-        props.add(new ImportProperty(idManufacturerField, findProperty("name[Manufacturer]").getMapping(manufacturerKey), true));
-        props.add(new ImportProperty(idManufacturerField, findProperty("manufacturer[Item]").getMapping(itemKey),
-                LM.object(findClass("Manufacturer")).getMapping(manufacturerKey), true));
-        fields.add(idManufacturerField);
-
-        ImportField idUOMField = new ImportField(findProperty("id[UOM]"));
-        ImportKey<?> UOMKey = new ImportKey((CustomClass) findClass("UOM"),
-                findProperty("UOM[VARSTRING[100]]").getMapping(idUOMField));
-        UOMKey.skipKey = true;
-        keys.add(UOMKey);
-        props.add(new ImportProperty(idUOMField, findProperty("UOM[Item]").getMapping(itemKey),
-                object(findClass("UOM")).getMapping(UOMKey), true));
-        props.add(new ImportProperty(idUOMField, findProperty("UOM[Barcode]").getMapping(barcodeKey),
-                object(findClass("UOM")).getMapping(UOMKey), true));
-        fields.add(idUOMField);
-
-        ImportField idBrandField = new ImportField(findProperty("id[Brand]"));
-        ImportKey<?> brandKey = new ImportKey((CustomClass) findClass("Brand"),
-                findProperty("brand[VARSTRING[100]]").getMapping(idBrandField));
-        brandKey.skipKey = true;
-        keys.add(brandKey);
-        props.add(new ImportProperty(idBrandField, findProperty("id[Brand]").getMapping(brandKey), true));
-        props.add(new ImportProperty(idBrandField, findProperty("name[Brand]").getMapping(brandKey), true));
-        props.add(new ImportProperty(idBrandField, findProperty("brand[Item]").getMapping(itemKey),
-                object(findClass("Brand")).getMapping(brandKey), true));
-        fields.add(idBrandField);
 
         ImportField urlEurooptItemField = new ImportField(findProperty("url[EurooptItem]"));
         ImportKey<?> eurooptItemKey = new ImportKey((CustomClass) findClass("EurooptItem"),
                 findProperty("eurooptItem[STRING[255]]").getMapping(urlEurooptItemField));
         eurooptItemKey.skipKey = true;
         keys.add(eurooptItemKey);
+        fields.add(urlEurooptItemField);
+
+        ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
+        ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
+                findProperty("skuBarcode[STRING[15]]").getMapping(idBarcodeSkuField));
+        itemKey.skipKey = skipKeys;
+        keys.add(itemKey);
         props.add(new ImportProperty(idBarcodeSkuField, findProperty("item[EurooptItem]").getMapping(eurooptItemKey),
                 object(findClass("Item")).getMapping(itemKey)));
-        fields.add(urlEurooptItemField);
+        fields.add(idBarcodeSkuField);
+
+        if(!onlyBarcode) {
+
+            ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
+                    findProperty("extBarcode[VARSTRING[100]]").getMapping(idBarcodeSkuField));
+            barcodeKey.skipKey = skipKeys;
+            keys.add(barcodeKey);
+            props.add(new ImportProperty(idBarcodeSkuField, findProperty("sku[Barcode]").getMapping(barcodeKey),
+                    object(findClass("Item")).getMapping(itemKey)));
+            props.add(new ImportProperty(idBarcodeSkuField, findProperty("extId[Barcode]").getMapping(barcodeKey), true));
+            props.add(new ImportProperty(idBarcodeSkuField, findProperty("id[Barcode]").getMapping(barcodeKey), true));
+            props.add(new ImportProperty(idBarcodeSkuField, findProperty("id[Item]").getMapping(itemKey), true));
+
+            ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
+            ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
+                    findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
+            itemGroupKey.skipKey = skipKeys;
+            keys.add(itemGroupKey);
+            props.add(new ImportProperty(idItemGroupField, findProperty("id[ItemGroup]").getMapping(itemGroupKey), true));
+            props.add(new ImportProperty(idItemGroupField, findProperty("name[ItemGroup]").getMapping(itemGroupKey), true));
+            props.add(new ImportProperty(idItemGroupField, findProperty("itemGroup[Item]").getMapping(itemKey),
+                    LM.object(findClass("ItemGroup")).getMapping(itemGroupKey), true));
+            fields.add(idItemGroupField);
+
+            ImportField captionItemField = new ImportField(findProperty("caption[Item]"));
+            props.add(new ImportProperty(captionItemField, findProperty("caption[Item]").getMapping(itemKey), true));
+            fields.add(captionItemField);
+
+            ImportField netWeightItemField = new ImportField(findProperty("netWeight[Item]"));
+            props.add(new ImportProperty(netWeightItemField, findProperty("netWeight[Item]").getMapping(itemKey), true));
+            fields.add(netWeightItemField);
+
+            ImportField descriptionItemField = new ImportField(findProperty("description[Item]"));
+            props.add(new ImportProperty(descriptionItemField, findProperty("description[Item]").getMapping(itemKey), true));
+            fields.add(descriptionItemField);
+
+            ImportField compositionItemField = new ImportField(findProperty("composition[Item]"));
+            props.add(new ImportProperty(compositionItemField, findProperty("composition[Item]").getMapping(itemKey), true));
+            fields.add(compositionItemField);
+
+            ImportField proteinsItemField = new ImportField(findProperty("proteins[Item]"));
+            props.add(new ImportProperty(proteinsItemField, findProperty("proteins[Item]").getMapping(itemKey), true));
+            fields.add(proteinsItemField);
+
+            ImportField fatsItemField = new ImportField(findProperty("fats[Item]"));
+            props.add(new ImportProperty(fatsItemField, findProperty("fats[Item]").getMapping(itemKey), true));
+            fields.add(fatsItemField);
+
+            ImportField carbohydratesItemField = new ImportField(findProperty("carbohydrates[Item]"));
+            props.add(new ImportProperty(carbohydratesItemField, findProperty("carbohydrates[Item]").getMapping(itemKey), true));
+            fields.add(carbohydratesItemField);
+
+            ImportField energyItemField = new ImportField(findProperty("energy[Item]"));
+            props.add(new ImportProperty(energyItemField, findProperty("energy[Item]").getMapping(itemKey), true));
+            fields.add(energyItemField);
+
+            ImportField idManufacturerField = new ImportField(findProperty("id[Manufacturer]"));
+            ImportKey<?> manufacturerKey = new ImportKey((CustomClass) findClass("Manufacturer"),
+                    findProperty("manufacturer[VARSTRING[100]]").getMapping(idManufacturerField));
+            manufacturerKey.skipKey = skipKeys;
+            keys.add(manufacturerKey);
+            props.add(new ImportProperty(idManufacturerField, findProperty("id[Manufacturer]").getMapping(manufacturerKey), true));
+            props.add(new ImportProperty(idManufacturerField, findProperty("name[Manufacturer]").getMapping(manufacturerKey), true));
+            props.add(new ImportProperty(idManufacturerField, findProperty("manufacturer[Item]").getMapping(itemKey),
+                    LM.object(findClass("Manufacturer")).getMapping(manufacturerKey), true));
+            fields.add(idManufacturerField);
+
+            ImportField idUOMField = new ImportField(findProperty("id[UOM]"));
+            ImportKey<?> UOMKey = new ImportKey((CustomClass) findClass("UOM"),
+                    findProperty("UOM[VARSTRING[100]]").getMapping(idUOMField));
+            UOMKey.skipKey = true;
+            keys.add(UOMKey);
+            props.add(new ImportProperty(idUOMField, findProperty("UOM[Item]").getMapping(itemKey),
+                    object(findClass("UOM")).getMapping(UOMKey), true));
+            props.add(new ImportProperty(idUOMField, findProperty("UOM[Barcode]").getMapping(barcodeKey),
+                    object(findClass("UOM")).getMapping(UOMKey), true));
+            fields.add(idUOMField);
+
+            ImportField idBrandField = new ImportField(findProperty("id[Brand]"));
+            ImportKey<?> brandKey = new ImportKey((CustomClass) findClass("Brand"),
+                    findProperty("brand[VARSTRING[100]]").getMapping(idBrandField));
+            brandKey.skipKey = true;
+            keys.add(brandKey);
+            props.add(new ImportProperty(idBrandField, findProperty("id[Brand]").getMapping(brandKey), true));
+            props.add(new ImportProperty(idBrandField, findProperty("name[Brand]").getMapping(brandKey), true));
+            props.add(new ImportProperty(idBrandField, findProperty("brand[Item]").getMapping(itemKey),
+                    object(findClass("Brand")).getMapping(brandKey), true));
+            fields.add(idBrandField);
+
+        }
 
         ImportTable table = new ImportTable(fields, data);
 
@@ -175,7 +180,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
         }
     }
 
-    private List<List<Object>> getItemsInfo(ExecutionContext context, boolean useTor, boolean skipKeys) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
+    private List<List<Object>> getItemsInfo(ExecutionContext context, boolean useTor, boolean skipKeys, boolean onlyBarcode) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         List<List<Object>> itemsList = new ArrayList<>();
         Map<String, String> barcodeSet = getBarcodeSet(context);
         List<String> itemURLs = getItemURLs(context);
@@ -218,48 +223,55 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
                             }
                         }
                     }
-                    Elements propertyAttributes = doc.getElementsByClass("property_group");
-                    String descriptionItem = null;
-                    String compositionItem = null;
-                    BigDecimal proteinsItem = null;
-                    BigDecimal fatsItem = null;
-                    BigDecimal carbohydratesItem = null;
-                    BigDecimal energyItem = null;
-                    String manufacturerItem = null;
-                    for (Element propertyAttribute : propertyAttributes) {
-                        Elements propertyRows = propertyAttribute.select("tr");
-                        for (Element propertyRow : propertyRows) {
-                            String type = parseChild(propertyRow, 0);
-                            String value = parseChild(propertyRow, 1);
-                            switch (type) {
-                                case "Краткое описание":
-                                    descriptionItem = value;
-                                    break;
-                                case "Состав":
-                                    compositionItem = value;
-                                    break;
-                                case "Белки":
-                                    proteinsItem = parseBigDecimalWeight(value);
-                                    break;
-                                case "Жиры":
-                                    fatsItem = parseBigDecimalWeight(value);
-                                    break;
-                                case "Углеводы":
-                                    carbohydratesItem = parseBigDecimalWeight(value);
-                                    break;
-                                case "Энергетическая ценность на 100 г":
-                                    energyItem = parseBigDecimalWeight(value.split("\\s(ккал|калл)")[0]);
-                                    break;
-                                case "Производитель":
-                                    manufacturerItem = value;
-                                    break;
-                            }
-                        }
-                    }
+
                     if (idBarcode != null && (!skipKeys || barcodeSet.containsKey(idBarcode))) {
 
-                        itemsList.add(Arrays.asList((Object) idBarcode, idItemGroup, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
-                                fatsItem, carbohydratesItem, energyItem, manufacturerItem, UOMItem, brandItem, itemURL));
+                        if(onlyBarcode) {
+                            itemsList.add(Arrays.asList((Object) itemURL, idBarcode));
+                        } else {
+
+                            Elements propertyAttributes = doc.getElementsByClass("property_group");
+                            String descriptionItem = null;
+                            String compositionItem = null;
+                            BigDecimal proteinsItem = null;
+                            BigDecimal fatsItem = null;
+                            BigDecimal carbohydratesItem = null;
+                            BigDecimal energyItem = null;
+                            String manufacturerItem = null;
+                            for (Element propertyAttribute : propertyAttributes) {
+                                Elements propertyRows = propertyAttribute.select("tr");
+                                for (Element propertyRow : propertyRows) {
+                                    String type = parseChild(propertyRow, 0);
+                                    String value = parseChild(propertyRow, 1);
+                                    switch (type) {
+                                        case "Краткое описание":
+                                            descriptionItem = value;
+                                            break;
+                                        case "Состав":
+                                            compositionItem = value;
+                                            break;
+                                        case "Белки":
+                                            proteinsItem = parseBigDecimalWeight(value);
+                                            break;
+                                        case "Жиры":
+                                            fatsItem = parseBigDecimalWeight(value);
+                                            break;
+                                        case "Углеводы":
+                                            carbohydratesItem = parseBigDecimalWeight(value);
+                                            break;
+                                        case "Энергетическая ценность на 100 г":
+                                            energyItem = parseBigDecimalWeight(value.split("\\s(ккал|калл)")[0]);
+                                            break;
+                                        case "Производитель":
+                                            manufacturerItem = value;
+                                            break;
+                                    }
+                                }
+                            }
+
+                            itemsList.add(Arrays.asList((Object) itemURL, idBarcode, idItemGroup, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
+                                    fatsItem, carbohydratesItem, energyItem, manufacturerItem, UOMItem, brandItem));
+                        }
                         //to avoid duplicates
                         barcodeSet.remove(idBarcode);
                         ServerLoggers.importLogger.info(String.format(logPrefix + "parsed item page #%s of %s: %s", i, itemURLs.size(), title));

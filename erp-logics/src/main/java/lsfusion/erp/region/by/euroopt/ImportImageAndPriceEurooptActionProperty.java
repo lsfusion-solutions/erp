@@ -44,7 +44,6 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         try {
 
             boolean useTor = findProperty("ImportEuroopt.useTor[]").read(context) != null;
-            boolean skipKeys = findProperty("skipKeys[]").read(context) != null;
             boolean importImages = findProperty("importImages[]").read(context) != null;
             boolean importPrices = findProperty("importPrices[]").read(context) != null;
 
@@ -52,9 +51,9 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
                 List<List<List<Object>>> data = getData(context, useTor, importImages, importPrices);
                 if (!data.get(0).isEmpty() || !data.get(1).isEmpty()) {
                     if (importImages)
-                        importImages(context, data.get(0), skipKeys);
+                        importImages(context, data.get(0));
                     if (importPrices)
-                        importPrices(context, data.get(1), skipKeys);
+                        importPrices(context, data.get(1));
 
                     context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт Евроопт"));
                 }
@@ -68,7 +67,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
 
     }
 
-    private void importImages(ExecutionContext context, List<List<Object>> data, boolean skipKeys) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importImages(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();
@@ -77,7 +76,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
         ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                 findProperty("skuBarcode[STRING[15]]").getMapping(idBarcodeSkuField));
-        itemKey.skipKey = skipKeys;
+        itemKey.skipKey = true;
         keys.add(itemKey);
         fields.add(idBarcodeSkuField);
 
@@ -97,7 +96,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         }
     }
 
-    private void importPrices(ExecutionContext context, List<List<Object>> data, boolean skipKeys) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importPrices(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();
@@ -130,7 +129,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
 
         ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
         ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"), findProperty("skuBarcode[STRING[15]]").getMapping(idBarcodeSkuField));
-        itemKey.skipKey = skipKeys;
+        itemKey.skipKey = true;
         keys.add(itemKey);
         props.add(new ImportProperty(idBarcodeSkuField, findProperty("originalIdBarcodeSku[UserPriceListDetail]").getMapping(userPriceListDetailKey)));
         props.add(new ImportProperty(idBarcodeSkuField, findProperty("sku[UserPriceListDetail]").getMapping(userPriceListDetailKey),
