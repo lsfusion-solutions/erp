@@ -183,7 +183,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
             int idPriceListDetail = 1;
             int i = 1;
             for (String itemListURL : itemListURLList) {
-                ServerLoggers.importLogger.info(String.format(logPrefix + "parsing itemGroup page #%s: %s", i, (useTor ? mainPage : "") + itemListURL));
+                ServerLoggers.importLogger.info(String.format(logPrefix + "parsing itemGroup page #%s of %s: %s", i, itemListURLList.size(), (useTor ? mainPage : "") + itemListURL));
                 Document doc = getDocument(lowerNetLayer, itemListURL);
                 if (doc != null) {
 
