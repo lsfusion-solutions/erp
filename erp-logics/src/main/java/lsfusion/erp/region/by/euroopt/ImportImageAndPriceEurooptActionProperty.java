@@ -57,8 +57,6 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
                         importPrices(context, data.get(1), skipKeys);
 
                     context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт Евроопт"));
-                } else {
-                    context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного существующего товара", "Ошибка"));
                 }
             } else {
                 context.delayUserInteraction(new MessageClientAction("Выберите хотя бы одну из опций импорта", "Ошибка"));
@@ -180,56 +178,61 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         List<String> itemListURLList = itemListData.first;
         Map<String, String> barcodeMap = itemListData.second;
 
-        int idPriceListDetail = 1;
-        int i = 1;
-        for (String itemListURL : itemListURLList) {
-            ServerLoggers.importLogger.info(String.format(logPrefix + "parsing itemGroup page #%s: %s", i, (useTor ? mainPage : "") + itemListURL));
-            Document doc = getDocument(lowerNetLayer, itemListURL);
-            if (doc != null) {
+        if(!itemListURLList.isEmpty()) {
 
-                for (Element productCard : doc.getElementsByClass("products_card")) {
+            int idPriceListDetail = 1;
+            int i = 1;
+            for (String itemListURL : itemListURLList) {
+                ServerLoggers.importLogger.info(String.format(logPrefix + "parsing itemGroup page #%s: %s", i, (useTor ? mainPage : "") + itemListURL));
+                Document doc = getDocument(lowerNetLayer, itemListURL);
+                if (doc != null) {
 
-                    Element titleElement = productCard.getElementsByClass("title").first();
-                    if (titleElement != null) {
-                        Element itemURLElement = titleElement.getElementsByTag("a").first();
-                        if (itemURLElement != null) {
-                            String itemURL = itemURLElement.attr("href");
-                            String idBarcode = barcodeMap.get(itemURL);
-                            if (idBarcode != null) {
+                    for (Element productCard : doc.getElementsByClass("products_card")) {
 
-                                if (importImages) {
-                                    String image = productCard.getElementsByClass("img").get(0).getElementsByClass("retina_redy").get(0).attr("src");
-                                    byte[] imageBytes = getImage(lowerNetLayer, idBarcode, image);
-                                    if (imageBytes != null)
-                                        imagesList.add(Arrays.asList((Object) idBarcode, imageBytes));
-                                }
+                        Element titleElement = productCard.getElementsByClass("title").first();
+                        if (titleElement != null) {
+                            Element itemURLElement = titleElement.getElementsByTag("a").first();
+                            if (itemURLElement != null) {
+                                String itemURL = itemURLElement.attr("href");
+                                String idBarcode = barcodeMap.get(itemURL);
+                                if (idBarcode != null) {
 
-                                if (importPrices) {
-                                    List<BigDecimal> prices = getPrices(productCard);
-                                    if (prices.size() >= 1) {
-                                        BigDecimal price = prices.get(0);
-                                        if (price != null)
-                                            userPriceListsList.add(Arrays.asList((Object) idPriceList, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price, true));
+                                    if (importImages) {
+                                        String image = productCard.getElementsByClass("img").get(0).getElementsByClass("retina_redy").get(0).attr("src");
+                                        byte[] imageBytes = getImage(lowerNetLayer, idBarcode, image);
+                                        if (imageBytes != null)
+                                            imagesList.add(Arrays.asList((Object) idBarcode, imageBytes));
                                     }
-                                    if (prices.size() >= 2) {
-                                        BigDecimal price = prices.get(0);
-                                        if (price != null)
-                                            userPriceListsList.add(Arrays.asList((Object) idPriceList, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price, true));
+
+                                    if (importPrices) {
+                                        List<BigDecimal> prices = getPrices(productCard);
+                                        if (prices.size() >= 1) {
+                                            BigDecimal price1 = prices.get(0);
+                                            if (price1 != null)
+                                                userPriceListsList.add(Arrays.asList((Object) idPriceList, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price1, true));
+                                            if (prices.size() >= 2) {
+                                                BigDecimal price2 = prices.get(0);
+                                                if (price2 != null)
+                                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price2, true));
+                                            }
+                                            idPriceListDetail++;
+                                        }
                                     }
-                                    idPriceListDetail++;
                                 }
                             }
                         }
                     }
-                }
 
+                }
+                i++;
             }
-            i++;
+            if (importImages)
+                ServerLoggers.importLogger.info(String.format(logPrefix + "reading images finished. %s items with images found", imagesList.size()));
+            if (importPrices)
+                ServerLoggers.importLogger.info(String.format(logPrefix + "reading prices finished. %s prices for %s items found", userPriceListsList.size(), idPriceListDetail - 1));
+        } else {
+            context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного импортированного товара", "Ошибка"));
         }
-        if (importImages)
-            ServerLoggers.importLogger.info(String.format(logPrefix + "reading images finished. %s items with images found", imagesList.size()));
-        if (importPrices)
-            ServerLoggers.importLogger.info(String.format(logPrefix + "reading prices finished. %s prices found", userPriceListsList.size()));
         return Arrays.asList(imagesList, userPriceListsList);
     }
 

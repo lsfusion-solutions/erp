@@ -47,9 +47,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
             List<List<Object>> data = getItemsInfo(context, useTor, skipKeys);
             if(!data.isEmpty()) {
                 importItems(context, data, skipKeys);
-                context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт товаров Евроопт"));
-            } else {
-                context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного существующего товара!", "Ошибка"));
+                context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён.\nКоличество обновлённых товаров: " + data.size(), "Импорт товаров Евроопт"));
             }
 
         } catch (IOException | ScriptingErrorLog.SemanticErrorException e) {
@@ -181,7 +179,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
         List<List<Object>> itemsList = new ArrayList<>();
         Map<String, String> barcodeSet = getBarcodeSet(context);
         List<String> itemURLs = getItemURLs(context);
-        if(!itemURLs.isEmpty()) {
+        if (!itemURLs.isEmpty()) {
             ServerLoggers.importLogger.info(String.format(logPrefix + "import %s item(s)", itemURLs.size()));
             int skipped = 0;
             NetLayer lowerNetLayer = useTor ? getNetLayer() : null;
@@ -273,6 +271,10 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
                 i++;
             }
             ServerLoggers.importLogger.info(String.format(logPrefix + "read finished. %s items, %s items without barcode skipped", itemsList.size(), skipped));
+            if (itemsList.isEmpty())
+                context.delayUserInteraction(new MessageClientAction("Не найдёно ни одного существующего в базе товара!", "Ошибка"));
+        } else {
+            context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного товара!", "Ошибка"));
         }
         return itemsList;
     }
