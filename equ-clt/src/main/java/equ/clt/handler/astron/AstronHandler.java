@@ -476,7 +476,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
         Map<Integer, CashRegisterInfo> machineryMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.handlerModel != null && c.handlerModel.endsWith("AstronHandler")) {
+            if (fitHandler(c)) {
                 if (c.number != null && c.numberGroup != null)
                     machineryMap.put(c.number, c);
             }
