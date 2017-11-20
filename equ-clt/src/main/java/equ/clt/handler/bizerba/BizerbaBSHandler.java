@@ -33,4 +33,9 @@ public class BizerbaBSHandler extends BizerbaHandler {
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) throws IOException {
         sendStopListInfo(stopListInfo, machineryInfoSet, charset, encode);
     }
+
+    @Override
+    protected String getPricesCommand(int price, int retailPrice) {
+        return "GPR1" + price + separator + "EXPR" + retailPrice + separator;
+    }
 }

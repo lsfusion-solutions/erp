@@ -530,9 +530,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 command1 = command1 + "KLAR4" + separator;
             }
 
-            //цены сознательно поменяли местами, чтобы работали старые ценники
-            command1 = command1 + "GPR1" + price /*retailPrice*/ + separator;
-            command1 = command1 + "EXPR" + price + separator;
+            command1+= getPricesCommand(price, retailPrice);
 
             String prefix = scales.pieceCodeGroupScales != null && nonWeight ? scales.pieceCodeGroupScales : scales.weightCodeGroupScales;
             String idBarcode = item.idBarcode != null && prefix != null && item.idBarcode.length() == 5 ? ("0" + prefix + item.idBarcode + "00000") : item.idBarcode;
@@ -550,6 +548,10 @@ public abstract class BizerbaHandler extends ScalesHandler {
             sendCommand(errors, port, command1, charset, scales.port, encode);
             return receiveReply(errors, port, charset, scales.port);
         }
+    }
+
+    protected String getPricesCommand(int price, int retailPrice) {
+        return "GPR1" + retailPrice + separator + "EXPR" + price + separator;
     }
 
     private int getPrice(BigDecimal price) {
