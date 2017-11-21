@@ -31,18 +31,43 @@ plan 'Планируемые продажи' (Sku s, UserOrder o, Stock st) =
 
 overCoeffPromotion 'Акционный коэфф.' (Sku s) = 
     OVERRIDE coeffPromotion(s), 1.0 IF s;
-    
-overQuantitySoldInterval() = ABSTRACT LIST ();
+
+
+@defineGroupDefaultValue(seasonalityCoeff, 'Коэфф. сезонности (упр.)', NUMERIC[14,3], skuGroup);
+overSeasonalityCoeff 'Коэфф. сезонности (упр.)' (SkuGroup g) = OVERRIDE seasonalityCoeff(g), 0.0 IF g IS SkuGroup;
+
+coeffSeason 'Сезонный коэффициент (расч.)' = DATA NUMERIC[16,5] (SkuGroup);
+
+coeffSeason 'Коэффициент сезонности' (Sku s) = 
+    1.0 (+) (coeffSeason(skuGroup(s)) -1.0) * overSeasonalityCoeff(skuGroup(s));
+
+@defineGroupDefaultValue(countSeason, 'Количество дней для расчета сезонного коэффициента продаж', INTEGER, skuGroup);
+
+dispersionSold 'Дисперсия однодневных продаж' = DATA NUMERIC[14,3] (Sku, Stock);  
+
+@defineGroupDefaultValue(safetyCoeff, 'Z-оценка (упр.)', NUMERIC[14,3], skuGroup);
+
+zScore 'Z-оценка' (Sku sk) = safetyCoeff(skuGroup(sk));
+
+
+//рассчет значений
+lastYearCurrent = DATE(sumYear(currentDate(),-1));
+
 calcQuantitySoldInterval 'Рассчитать однодневные продажи'() = {
     averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](quantitySold (sku, stock, fromSoldDate(sku), toSoldDate(sku)) / countSoldDays(skuGroup(sku)));
     APPLY;
 
-    overQuantitySoldInterval();   
+    coeffSeason(SkuGroup sk) <- max (min([ = X/Y]([ = GROUP SUM sumSold(Sku s, Stock st, lastYearCurrent(), sum(lastYearCurrent(), countSeason(skuGroup(s))-1)) IF isCompany(st) BY skuGroup(s)](sk), 
+                                         [ = GROUP SUM sumSold(Sku s, Stock st, subtract(lastYearCurrent(), countSeason(skuGroup(s))), subtract(lastYearCurrent(),1)) IF isCompany(st) BY skuGroup(s)](sk)), 5), 0.2); 
+                                             
+    APPLY;
+    
+    dispersionSold(Sku sku, Stock stock) <- sqrt([ = GROUP SUM sqr((OVERRIDE quantitySold(Sku sku, Stock stock, DATE date), 0.0 IF sku IS Sku AND stock IS Stock AND date IS DATE) -  averageSold(sku, stock)) 
+                                                            IF iterate(date, fromSoldDate(sku), toSoldDate(sku)) BY sku, stock](sku, stock) / countSoldDays(skuGroup(sku)));
+    APPLY;   
 }
 
 
-
-overQuantityPromotionSoldInterval() = ABSTRACT LIST ();
 isPromotion = ABSTRACT CASE BOOLEAN (PriceListDetail);
 
 calcQuantityPromotionSoldInterval 'Рассчитать однодневные продажи (акции)'() = {
@@ -66,9 +91,12 @@ calcQuantityPromotionSoldInterval 'Рассчитать однодневные �
     averageSoldPromotion(Sku sku, Stock stock) <- NUMERIC[14,3](averageSold (sku, stock) * coeffPromotion(sku))
                                                         WHERE dateFromPromotion(sku, stock) >= currentDate();
     APPLY;
-    
-    overQuantityPromotionSoldInterval();
 
+    dispersionSold(Sku sku, Stock stock) <- sqrt([ = GROUP SUM NUMERIC[20,6](sqr((OVERRIDE quantitySold(Sku sku, Stock stock, DATE date), 0.0 IF sku IS Sku AND stock IS Stock AND date IS DATE) -  averageSold(sku, stock))) 
+                                                            IF iterate(date, sum(dateToPromotion(sku, stock), 1), subtract(currentDate(), 1)) BY sku, stock](sku, stock) / max(daysBetweenDates(subtract(currentDate(), 1), dateToPromotion(sku, stock)),1)) WHERE dateToPromotion(sku, stock) <= subtract(currentDate(), 6);
+    APPLY;
+    dispersionSold(Sku sku, Stock stock) <- sqrt([ = GROUP SUM NUMERIC[20,6](sqr((OVERRIDE quantitySold(Sku sku, Stock stock, DATE date), 0.0 IF sku IS Sku AND stock IS Stock AND date IS DATE) -  averageSold(sku, stock))) 
+                                                            IF iterate(date, subtract(dateFromPromotion(sku, stock), countSoldDays(skuGroup(sku))), subtract(dateFromPromotion(sku, stock), 1)) BY sku, stock](sku, stock) / max(daysBetweenDates(dateFromPromotion(sku, stock), subtract(dateFromPromotion(sku, stock), countSoldDays(skuGroup(sku)))),1)) WHERE dateToPromotion(sku, stock) > subtract(currentDate(), 6);
     APPLY;
 }
 
@@ -79,8 +107,14 @@ FORM soldParams 'Параметры автозаказа'
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
     ORDER order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT    
-    PROPERTIES(sk) countSoldDays, coeffPromotion
+    PROPERTIES(sk) countSoldDays, countSeason, overSeasonalityCoeff, safetyCoeff, coeffPromotion   
 ;
+
+DESIGN soldParams {
+    PROPERTY(safetyCoeff(sk)) {
+        toolTip = 'Коэффициент, который определяет величину страхового запаса с необходимой вероятностью доступности товара (99% : 2.575, 95% : 1.950, 90% : 1.645, 70% : 1.035, 50% : 0.675)';
+    }
+}
 
 NAVIGATOR {
     purchasePurchaseNavigator {
@@ -89,7 +123,7 @@ NAVIGATOR {
 }
 
 EXTEND FORM userOrder
-    PROPERTIES READONLY PANEL TODRAW sts averageSold(ks,st), quantityDaysRegular(ks, o, st), planRegular(ks,o,st), insuranceReserve(ks,o,st) 
+    PROPERTIES READONLY PANEL TODRAW sts averageSold(ks,st), quantityDaysRegular(ks, o, st), planRegular(ks,o,st), insuranceReserve(ks,o,st), dispersionSold(ks,st), zScore(ks), coeffSeason(ks)
     PROPERTIES READONLY PANEL SHOWIF dateFromPromotion(ks, st) dateFromPromotion(ks, st), dateToPromotion(ks, st), overCoeffPromotion(ks), 
                                      averageSoldPromotion(ks, st), quantityDaysPromotion(ks, o, st), planPromotion(ks, o, st) 
 ;
@@ -103,7 +137,12 @@ DESIGN userOrder {
             MOVE PROPERTY (quantityDaysRegular(ks, o, st));
             MOVE PROPERTY (planRegular(ks, o, st));
         }
-
+        NEW insurance {
+            caption = 'Расчетный запас';
+            MOVE PROPERTY (dispersionSold(ks, st));
+            MOVE PROPERTY (zScore(ks));
+            MOVE PROPERTY (coeffSeason(ks));            
+        }
         NEW buffer {
             caption = 'Буферы';
             MOVE PROPERTY (insuranceReserve(ks, o, st));
