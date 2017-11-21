@@ -33,6 +33,8 @@ import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static lsfusion.base.BaseUtils.trim;
+
 public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
     private LogicsInstance logicsInstance;
@@ -262,10 +264,6 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             }
         }
         return result;
-    }
-
-    private String trim(String input) {
-        return input == null ? null : input.trim();
     }
 
     private void createOrderTable(Connection connection) throws SQLException {

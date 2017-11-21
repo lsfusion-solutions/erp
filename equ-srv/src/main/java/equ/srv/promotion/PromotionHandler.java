@@ -23,6 +23,8 @@ import java.sql.Time;
 import java.util.ArrayList;
 import java.util.List;
 
+import static lsfusion.base.BaseUtils.trim;
+
 public class PromotionHandler extends RmiServer implements PromotionInterface, InitializingBean {
 
     @Override
@@ -143,10 +145,6 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
-    }
-
-    protected String trim(String input) {
-        return input == null ? null : input.trim();
     }
     
     @Override
