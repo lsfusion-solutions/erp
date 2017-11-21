@@ -40,8 +40,60 @@ importPrices 'Импортировать цены' = DATA BOOLEAN();
 
 idItemGroup 'Код группы товаров' (Barcode barcode) = id(skuGroup(sku(barcode)));
 
+FORM exportEuroopt 'Экспорт товаров'
+    OBJECTS i = EurooptItem
+    PROPERTIES READONLY titleItemGroup 'Заголовок' = title(eurooptItemGroup(eurooptItemList(i))), 
+                        urlItemGroup 'URL группы' = url(eurooptItemGroup(eurooptItemList(i))),
+                        urlItemList 'URL списка' = url(eurooptItemList(i)),
+                        url = url(i),
+                        idBarcode = idBarcode(i)
+    ORDER urlItemGroup, urlItemList, url
+;
+
+exportEuroopt 'Экспорт товаров (xls)' () = {
+    PRINT exportEuroopt XLS;
+}
+
+importEuroopt 'Импорт товаров (xls)' () = {
+    LOCAL NESTED titleItemGroup = VARSTRING[100] (INTEGER);
+    LOCAL NESTED urlItemGroup = VARSTRING[255] (INTEGER);
+    LOCAL NESTED urlItemList = VARSTRING[255] (INTEGER);
+    LOCAL NESTED url = VARSTRING[255] (INTEGER);
+    LOCAL NESTED idBarcode = VARSTRING[15] (INTEGER);
+    
+    INPUT f = EXCELFILE DO { 
+        DELETE EurooptItem e WHERE e IS EurooptItem;
+        DELETE EurooptItemList e WHERE e IS EurooptItemList;
+        DELETE EurooptItemGroup e WHERE e IS EurooptItemGroup;
+        apply();
+           
+        IMPORT XLS TO titleItemGroup=B, urlItemGroup=C, urlItemList=D, url=E, idBarcode=F
+                      FROM f AS EXCELFILE;
+                      
+        FOR INTEGER i == [=GROUP MIN INTEGER i IF i >= 2 BY lower(urlItemGroup(i))](VARSTRING[255] url) AND NOT eurooptItemGroup(url) NEW eig = EurooptItemGroup DO {
+            url(eig) <- urlItemGroup(i);
+            title(eig) <- titleItemGroup(i);
+        }
+        apply();
+        
+        FOR INTEGER i == [=GROUP MIN INTEGER i IF i >= 2 BY lower(urlItemList(i))](VARSTRING[255] url) AND NOT eurooptItemList(url) NEW eil = EurooptItemList DO {
+            url(eil) <- urlItemList(i);
+            eurooptItemGroup(eil) <- eurooptItemGroup(urlItemGroup(i));
+        }
+        apply();
+        
+        FOR INTEGER i == [=GROUP MIN INTEGER i IF i >= 2 BY lower(url(i))](VARSTRING[255] url) AND NOT eurooptItem(url) NEW ei = EurooptItem DO {
+            url(ei) <- url(i);
+            eurooptItemList(ei) <- eurooptItemList(urlItemList(i));
+            idBarcode(ei) <- idBarcode(i);
+        }
+        apply();
+    }
+}
+
 EXTEND FORM integrationData
-    PROPERTIES() synchronizeItemsAction, onlyBarcode, importItemsInfoAction, importImages, importPrices, importImageAndPriceAction, useTor
+    PROPERTIES() synchronizeItemsAction, onlyBarcode, importItemsInfoAction, importImages, importPrices, importImageAndPriceAction, useTor,
+                 exportEuroopt, importEuroopt
     OBJECTS eig = EurooptItemGroup, eil = EurooptItemList, ei = EurooptItem
     PROPERTIES(eig) READONLY in CHANGEABLE, title, url
     PROPERTIES(eil) in, url READONLY
@@ -64,6 +116,10 @@ DESIGN integrationData {
                 MOVE PROPERTY(importImages());
                 MOVE PROPERTY(importPrices());
                 MOVE PROPERTY(importImageAndPriceAction());
+            }
+            NEW xls {
+                MOVE PROPERTY(exportEuroopt());
+                MOVE PROPERTY(importEuroopt());
             }
             MOVE BOX(eig);
             MOVE BOX(eil);
