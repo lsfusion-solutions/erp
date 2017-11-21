@@ -77,6 +77,10 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
         props.add(new ImportProperty(idBarcodeEurooptItemField, findProperty("idBarcode[EurooptItem]").getMapping(eurooptItemKey)));
         fields.add(idBarcodeEurooptItemField);
 
+        ImportField noBarcodeEurooptItemField = new ImportField(findProperty("noBarcode[EurooptItem]"));
+        props.add(new ImportProperty(noBarcodeEurooptItemField, findProperty("noBarcode[EurooptItem]").getMapping(eurooptItemKey)));
+        fields.add(noBarcodeEurooptItemField);
+
         if(!onlyBarcode) {
 
             ImportField captionItemField = new ImportField(findProperty("caption[Item]"));
@@ -160,7 +164,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
         List<String> itemURLs = getItemURLs(context);
         if (!itemURLs.isEmpty()) {
             ServerLoggers.importLogger.info(String.format(logPrefix + "import %s item(s)", itemURLs.size()));
-            int skipped = 0;
+            int noBarcodeCount = 0;
             NetLayer lowerNetLayer = useTor ? getNetLayer() : null;
 
             int i = 1;
@@ -196,63 +200,65 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
                         }
                     }
 
-                    if (idBarcode != null) {
+                    Boolean noBarcode = null;
+                    if (idBarcode == null) {
+                        noBarcode = true;
+                        noBarcodeCount++;
+                    }
 
-                        if(onlyBarcode) {
-                            itemsList.add(Arrays.asList((Object) itemURL, idBarcode));
-                        } else {
+                    if (onlyBarcode) {
+                        itemsList.add(Arrays.asList((Object) itemURL, idBarcode, noBarcode));
+                    } else {
 
-                            Elements propertyAttributes = doc.getElementsByClass("property_group");
-                            String descriptionItem = null;
-                            String compositionItem = null;
-                            BigDecimal proteinsItem = null;
-                            BigDecimal fatsItem = null;
-                            BigDecimal carbohydratesItem = null;
-                            BigDecimal energyItem = null;
-                            String manufacturerItem = null;
-                            for (Element propertyAttribute : propertyAttributes) {
-                                Elements propertyRows = propertyAttribute.select("tr");
-                                for (Element propertyRow : propertyRows) {
-                                    String type = parseChild(propertyRow, 0);
-                                    String value = parseChild(propertyRow, 1);
-                                    switch (type) {
-                                        case "Краткое описание":
-                                            descriptionItem = value;
-                                            break;
-                                        case "Состав":
-                                            compositionItem = value;
-                                            break;
-                                        case "Белки":
-                                            proteinsItem = parseBigDecimalWeight(value);
-                                            break;
-                                        case "Жиры":
-                                            fatsItem = parseBigDecimalWeight(value);
-                                            break;
-                                        case "Углеводы":
-                                            carbohydratesItem = parseBigDecimalWeight(value);
-                                            break;
-                                        case "Энергетическая ценность на 100 г":
-                                            energyItem = parseBigDecimalWeight(value.split("\\s(ккал|калл)")[0]);
-                                            break;
-                                        case "Производитель":
-                                            manufacturerItem = value;
-                                            break;
-                                    }
+                        Elements propertyAttributes = doc.getElementsByClass("property_group");
+                        String descriptionItem = null;
+                        String compositionItem = null;
+                        BigDecimal proteinsItem = null;
+                        BigDecimal fatsItem = null;
+                        BigDecimal carbohydratesItem = null;
+                        BigDecimal energyItem = null;
+                        String manufacturerItem = null;
+                        for (Element propertyAttribute : propertyAttributes) {
+                            Elements propertyRows = propertyAttribute.select("tr");
+                            for (Element propertyRow : propertyRows) {
+                                String type = parseChild(propertyRow, 0);
+                                String value = parseChild(propertyRow, 1);
+                                switch (type) {
+                                    case "Краткое описание":
+                                        descriptionItem = value;
+                                        break;
+                                    case "Состав":
+                                        compositionItem = value;
+                                        break;
+                                    case "Белки":
+                                        proteinsItem = parseBigDecimalWeight(value);
+                                        break;
+                                    case "Жиры":
+                                        fatsItem = parseBigDecimalWeight(value);
+                                        break;
+                                    case "Углеводы":
+                                        carbohydratesItem = parseBigDecimalWeight(value);
+                                        break;
+                                    case "Энергетическая ценность на 100 г":
+                                        energyItem = parseBigDecimalWeight(value.split("\\s(ккал|калл)")[0]);
+                                        break;
+                                    case "Производитель":
+                                        manufacturerItem = value;
+                                        break;
                                 }
                             }
-
-                            itemsList.add(Arrays.asList((Object) itemURL, idBarcode, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
-                                    fatsItem, carbohydratesItem, energyItem, manufacturerItem, UOMItem, brandItem));
                         }
-                        ServerLoggers.importLogger.info(String.format(logPrefix + "parsed item page #%s of %s: %s", i, itemURLs.size(), title));
-                    } else {
-                        ServerLoggers.importLogger.info(logPrefix + (idBarcode == null ? "no barcode, item skipped" : "not in base, item skipped") + " (" + title + ")");
-                        skipped++;
+
+                        itemsList.add(Arrays.asList((Object) itemURL, idBarcode, noBarcode, captionItem, netWeight,
+                                descriptionItem, compositionItem, proteinsItem, fatsItem, carbohydratesItem,
+                                energyItem, manufacturerItem, UOMItem, brandItem));
                     }
+                    ServerLoggers.importLogger.info(String.format(logPrefix + "parsed item page #%s of %s: %s", i, itemURLs.size(), title));
+
                 }
                 i++;
             }
-            ServerLoggers.importLogger.info(String.format(logPrefix + "read finished. %s items, %s items without barcode skipped", itemsList.size(), skipped));
+            ServerLoggers.importLogger.info(String.format(logPrefix + "read finished. %s items, %s items without barcode skipped", itemsList.size(), noBarcodeCount));
             if (itemsList.isEmpty())
                 context.delayUserInteraction(new MessageClientAction("Не найдёно ни одного существующего в базе товара!", "Ошибка"));
         } else {
