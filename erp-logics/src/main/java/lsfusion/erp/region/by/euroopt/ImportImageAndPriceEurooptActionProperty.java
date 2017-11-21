@@ -331,7 +331,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         query.addProperty("urlItem", findProperty("url[EurooptItem]").getExpr(context.getModifier(), itemExpr));
         query.addProperty("barcode", findProperty("idBarcode[EurooptItem]").getExpr(context.getModifier(), itemExpr));
         query.and(findProperty("in[EurooptItem]").getExpr(context.getModifier(), itemExpr).getWhere());
-        query.and(findProperty("idBarcode[EurooptItem]").getExpr(context.getModifier(), itemExpr).getWhere());
+        query.and(findProperty("sku[EurooptItem]").getExpr(context.getModifier(), itemExpr).getWhere());
         query.and(findProperty("eurooptItemList[EurooptItem]").getExpr(context.getModifier(), itemExpr).compare(itemListExpr, Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
         for (ImMap<Object, Object> entry : result.values()) {
