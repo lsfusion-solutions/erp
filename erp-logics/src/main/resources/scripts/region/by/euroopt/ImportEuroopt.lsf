@@ -48,6 +48,7 @@ FORM exportEuroopt 'Экспорт товаров'
                         urlItemGroup 'URL группы' = url(eurooptItemGroup(eurooptItemList(i))),
                         urlItemList 'URL списка' = url(eurooptItemList(i)),
                         url = url(i),
+                        noBarcode 'Без штрихкода' = 1 IF noBarcode(i),
                         idBarcode = idBarcode(i)
     ORDER urlItemGroup, urlItemList, url
 ;
@@ -61,6 +62,7 @@ importEuroopt 'Импорт товаров (xls)' () = {
     LOCAL NESTED urlItemGroup = VARSTRING[255] (INTEGER);
     LOCAL NESTED urlItemList = VARSTRING[255] (INTEGER);
     LOCAL NESTED url = VARSTRING[255] (INTEGER);
+    LOCAL NESTED noBarcode = VARSTRING[1] (INTEGER);
     LOCAL NESTED idBarcode = VARSTRING[15] (INTEGER);
     
     INPUT f = EXCELFILE DO { 
@@ -69,7 +71,7 @@ importEuroopt 'Импорт товаров (xls)' () = {
         DELETE EurooptItemGroup e WHERE e IS EurooptItemGroup;
         apply();
            
-        IMPORT XLS TO titleItemGroup=B, urlItemGroup=C, urlItemList=D, url=E, idBarcode=F
+        IMPORT XLS TO titleItemGroup=B, urlItemGroup=C, urlItemList=D, url=E, noBarcode=F, idBarcode=G
                       FROM f AS EXCELFILE;
                       
         FOR INTEGER i == [=GROUP MIN INTEGER i IF i >= 2 BY lower(urlItemGroup(i))](VARSTRING[255] url) AND NOT eurooptItemGroup(url) NEW eig = EurooptItemGroup DO {
@@ -87,6 +89,7 @@ importEuroopt 'Импорт товаров (xls)' () = {
         FOR INTEGER i == [=GROUP MIN INTEGER i IF i >= 2 BY lower(url(i))](VARSTRING[255] url) AND NOT eurooptItem(url) NEW ei = EurooptItem DO {
             url(ei) <- url(i);
             eurooptItemList(ei) <- eurooptItemList(urlItemList(i));
+            noBarcode(ei) <- TRUE IF noBarcode(i) == '1';
             idBarcode(ei) <- idBarcode(i);
         }
         apply();
