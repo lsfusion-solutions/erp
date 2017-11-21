@@ -235,13 +235,16 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         return Arrays.asList(imagesList, userPriceListsList);
     }
 
-    private byte[] getImage(NetLayer lowerNetLayer, String barcode, String smallImage) throws IOException {
+    private byte[] getImage(NetLayer lowerNetLayer, String barcode, String smallImage) {
         File imageItem = null;
         try {
             imageItem = readImage(lowerNetLayer, smallImage);
             byte[] imageBytes = imageItem == null ? null : IOUtils.getFileBytes(imageItem);
             ServerLoggers.importLogger.info(logPrefix + (imageBytes != null ? "image read successful" : smallImage == null ? "no image found" : "image read failed") + " for barcode " + barcode);
             return imageBytes;
+        } catch (IOException e) {
+            ServerLoggers.importLogger.info(logPrefix + "image read failed for barcode " + barcode);
+            return null;
         } finally {
             if (imageItem != null && !imageItem.delete())
                 imageItem.deleteOnExit();
