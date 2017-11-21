@@ -11,23 +11,22 @@ coeffPromotion 'Акц. коэфф.' (Sku s) = coeffPromotion(skuGroup(s));
 
 fromSoldDate (Sku s)= subtract(currentDate() ,countSoldDays(skuGroup(s)));      
 toSoldDate (Sku s)= subtract(currentDate(), 1) IF s IS Sku ;   
-fromSoldDateMin = GROUP MIN fromSoldDate (Sku s) ;
 
 dateFromPromotion 'Дата начала акции' = DATA DATE (Sku, Stock);
 dateToPromotion 'Дата окончания акции' = DATA DATE (Sku, Stock);
 averageSoldPromotion 'Продаж в день за акцию' = DATA NUMERIC[14,3] (Sku, Stock);   
 
-insuranceReserve 'Страховой запас' = ABSTRACT NUMERIC[16,5](Sku, UserOrder, Stock);
+insuranceReserve 'Страховой запас' = ABSTRACT NUMERIC[16,5](Sku, UserOrder);
 
-quantityDaysPromotion 'Кол-во дней' (Sku s, UserOrder o, Stock st) = quantityDays((MIN dateToPromotion(s, st), nextShipmentDate(o)), (MAX date(o), dateFromPromotion(s, st))) IF dateToPromotion(s, st) >= date(o);
+quantityDaysPromotion 'Кол-во дней' (Sku s, UserOrder o) = quantityDays((MIN dateToPromotion(s, customerStock(o)), nextShipmentDate(o)), (MAX date(o), dateFromPromotion(s, customerStock(o)))) IF dateToPromotion(s, customerStock(o)) >= date(o);
 
-planPromotion 'Планируемые продажи' (Sku s, UserOrder o, Stock st) = quantityDaysPromotion(s, o, st) * averageSoldPromotion(s, st);
+planPromotion 'Планируемые продажи' (Sku s, UserOrder o) = quantityDaysPromotion(s, o) * averageSoldPromotion(s, customerStock(o));
  
-quantityDaysRegular 'Кол-во дней' (Sku s, UserOrder o, Stock st) = (quantityDaysNextShipment(o) (-) quantityDaysPromotion(s, o, st));
-planRegular 'Планируемые продажи' (Sku s, UserOrder o, Stock st) = (quantityDaysNextShipment(o) (-) quantityDaysPromotion(s, o, st)) * averageSold(s, st); 
+quantityDaysRegular 'Кол-во дней' (Sku s, UserOrder o) = (quantityDaysNextShipment(o) (-) quantityDaysPromotion(s, o));
+planRegular 'Планируемые продажи' (Sku s, UserOrder o) = (quantityDaysNextShipment(o) (-) quantityDaysPromotion(s, o)) * averageSold(s, customerStock(o)); 
 
-plan 'Планируемые продажи' (Sku s, UserOrder o, Stock st) =
-    planPromotion(s, o, st) (+) planRegular(s, o, st);
+plan 'Планируемые продажи' (Sku s, UserOrder o) =
+    planPromotion(s, o) (+) planRegular(s, o);
 
 overCoeffPromotion 'Акционный коэфф.' (Sku s) = 
     OVERRIDE coeffPromotion(s), 1.0 IF s;
@@ -123,9 +122,9 @@ NAVIGATOR {
 }
 
 EXTEND FORM userOrder
-    PROPERTIES READONLY PANEL TODRAW sts averageSold(ks,st), quantityDaysRegular(ks, o, st), planRegular(ks,o,st), insuranceReserve(ks,o,st), dispersionSold(ks,st), zScore(ks), coeffSeason(ks)
+    PROPERTIES READONLY PANEL TODRAW sts averageSold(ks,st), quantityDaysRegular(ks, o), planRegular(ks,o), insuranceReserve(ks,o), dispersionSold(ks,st), zScore(ks), coeffSeason(ks)
     PROPERTIES READONLY PANEL SHOWIF dateFromPromotion(ks, st) dateFromPromotion(ks, st), dateToPromotion(ks, st), overCoeffPromotion(ks), 
-                                     averageSoldPromotion(ks, st), quantityDaysPromotion(ks, o, st), planPromotion(ks, o, st) 
+                                     averageSoldPromotion(ks, st), quantityDaysPromotion(ks, o), planPromotion(ks, o) 
 ;
 DESIGN userOrder {
     PANEL(sts) {
@@ -134,8 +133,8 @@ DESIGN userOrder {
         NEW sales {
             caption = 'Продажи';
             MOVE PROPERTY (averageSold(ks, st));
-            MOVE PROPERTY (quantityDaysRegular(ks, o, st));
-            MOVE PROPERTY (planRegular(ks, o, st));
+            MOVE PROPERTY (quantityDaysRegular(ks, o));
+            MOVE PROPERTY (planRegular(ks, o));
         }
         NEW insurance {
             caption = 'Расчетный запас';
@@ -145,7 +144,7 @@ DESIGN userOrder {
         }
         NEW buffer {
             caption = 'Буферы';
-            MOVE PROPERTY (insuranceReserve(ks, o, st));
+            MOVE PROPERTY (insuranceReserve(ks, o));
         }
         NEW promotion {
             caption = 'Акции';
@@ -155,8 +154,8 @@ DESIGN userOrder {
             MOVE PROPERTY (dateToPromotion(ks, st));
             MOVE PROPERTY (overCoeffPromotion(ks));
             MOVE PROPERTY (averageSoldPromotion(ks, st));
-            MOVE PROPERTY (quantityDaysPromotion(ks, o, st));
-            MOVE PROPERTY (planPromotion(ks, o, st));
+            MOVE PROPERTY (quantityDaysPromotion(ks, o));
+            MOVE PROPERTY (planPromotion(ks, o));
         }
     }
 }

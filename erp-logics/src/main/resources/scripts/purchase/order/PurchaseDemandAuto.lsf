@@ -5,15 +5,15 @@ REQUIRE PurchaseDemand, PurchaseAutoOrder;
 NAMESPACE Purchase;
 
 
-insuranceReserve  (Sku sk, UserOrder o, Stock st) += NUMERIC[16,5](zScore(sk) * 
-                                                                    dispersionSold(sk,st) *
+insuranceReserve  (Sku sk, UserOrder o) += NUMERIC[16,5](zScore(sk) * 
+                                                                    dispersionSold(sk, customerStock(o)) *
                                                                     NUMERIC[8,2](quantityDaysNextShipment(o)) /
                                                                     sqrt(NUMERIC[8,3](countSoldDays(skuGroup(sk))))); 
     
-recQuantity 'Кол-во к заказу' (Sku s, UserOrder o, Stock st) =  plan(s,o,st) * coeffSeason(s) (+) 
-                                                                                  (MAX insuranceReserve(s,o,st) * coeffSeason(s) * overCoeffPromotion(s), 
-                                                                                       purchaseReserve(st, s, date(o))) (-)              
-                                                                                  (currentBalance(s, st) IF currentBalance(s, st) > 0) (-)
-                                                                                   currentReservePurchase(s, st);
+recQuantity 'Кол-во к заказу' (Sku s, UserOrder o) =  plan(s, o) * coeffSeason(s) (+) 
+                                                                                  (MAX insuranceReserve(s, o) * coeffSeason(s) * overCoeffPromotion(s), 
+                                                                                       purchaseReserve(customerStock(o), s, date(o))) (-)              
+                                                                                  (currentBalance(s, customerStock(o)) IF currentBalance(s, customerStock(o)) > 0) (-)
+                                                                                   currentReservePurchase(s, customerStock(o));
     
-recommendedQuantity (Sku s, Stock st, UserOrder o) += NUMERIC[16,5](recQuantity(s,o,st)) IF recQuantity(s,o,st) > 0;   
+recommendedQuantity (Sku s, UserOrder o) += NUMERIC[16,5](recQuantity(s, o)) IF recQuantity(s, o) > 0;   

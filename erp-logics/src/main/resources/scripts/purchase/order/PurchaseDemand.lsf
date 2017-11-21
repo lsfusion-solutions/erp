@@ -20,11 +20,11 @@ WHEN LOCAL CHANGED (date(UserOrder o)) AND NOT CHANGED(dateToSoldPeriod(o)) DO {
     dateToSoldPeriod(o) <- subtract(date(o),1);   
 }
 
-quantitySold 'Продано' (Sku sku, Stock stock, UserOrder userOrder) = quantitySold(sku, stock, dateFromSoldPeriod(userOrder), dateToSoldPeriod(userOrder));
+quantitySold 'Продано' (Sku sku, UserOrder userOrder) = quantitySold(sku, customerStock(userOrder), dateFromSoldPeriod(userOrder), dateToSoldPeriod(userOrder));
 
 purchaseReserve 'Страховой запас (кол-во)' = ABSTRACT NUMERIC[16,5](Stock, Sku, DATE);
 
-recommendedQuantity 'Рекомендуемое к закупке кол-во' = ABSTRACT NUMERIC[16,5] (Sku, Stock, UserOrder);    
+recommendedQuantity 'Рекомендуемое к закупке кол-во' = ABSTRACT NUMERIC[16,5] (Sku, UserOrder);    
 
 purchaseReserve 'Страховой запас (кол-во)' (Sku sku, Stock stock, UserOrder userOrder) = purchaseReserve(stock, sku, date(userOrder));
 
@@ -56,7 +56,7 @@ fillRecommendedQuantityStock 'Заполнить рекомендуемым'(Use
                               ledgerPriceListType(priceListType(userOrder, sku)),
                               sku, customerStock(userOrder), supplier(userOrder), dateTime(userOrder))
                           AND NOT limitRecommendedQuantity(sku, userOrder); 
-    FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, customerStock(userOrder), userOrder)
+    FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder)
         NEW d = UserOrderDetail DO {
             userOrder(d) <- userOrder;
             sku(d) <- sku;
@@ -68,9 +68,9 @@ fillRecommendedQuantityStock 'Заполнить рекомендуемым'(Use
 EXTEND FORM userOrder
     PROPERTIES(o) TODRAW sts PANEL dateFromSoldPeriod, dateToSoldPeriod
 
-    PROPERTIES READONLY AFTER prevCurrentBalance(ks,st) purchaseReserve(ks,st,o), quantitySold(ks,st,o)
+    PROPERTIES READONLY AFTER prevCurrentBalance(ks,st) purchaseReserve(ks,st,o), quantitySold(ks, o)
     PROPERTIES READONLY AFTER quantityCustomer(ks, o, st)
-        recommendedQuantity(ks,st,o) ON CONTEXTMENU fillRecommendedQuantityStock(o)
+        recommendedQuantity(ks, o) ON CONTEXTMENU fillRecommendedQuantityStock(o)
 ;
 
 DESIGN userOrder {
