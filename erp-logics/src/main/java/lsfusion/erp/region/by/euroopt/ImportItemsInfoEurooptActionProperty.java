@@ -12,8 +12,6 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
@@ -29,7 +27,9 @@ import org.silvertunnel_ng.netlib.api.NetLayer;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty {
 
@@ -78,17 +78,6 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
         fields.add(idBarcodeEurooptItemField);
 
         if(!onlyBarcode) {
-
-            ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
-            ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
-                    findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
-            itemGroupKey.skipKey = true;
-            keys.add(itemGroupKey);
-            props.add(new ImportProperty(idItemGroupField, findProperty("id[ItemGroup]").getMapping(itemGroupKey), true));
-            props.add(new ImportProperty(idItemGroupField, findProperty("name[ItemGroup]").getMapping(itemGroupKey), true));
-            props.add(new ImportProperty(idItemGroupField, findProperty("itemGroup[Item]").getMapping(itemKey),
-                    LM.object(findClass("ItemGroup")).getMapping(itemGroupKey), true));
-            fields.add(idItemGroupField);
 
             ImportField captionItemField = new ImportField(findProperty("caption[Item]"));
             props.add(new ImportProperty(captionItemField, findProperty("caption[Item]").getMapping(itemKey), true));
@@ -168,7 +157,6 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
 
     private List<List<Object>> getItemsInfo(ExecutionContext context, boolean useTor, boolean onlyBarcode) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         List<List<Object>> itemsList = new ArrayList<>();
-        Map<String, String> barcodeSet = getBarcodeSet(context);
         List<String> itemURLs = getItemURLs(context);
         if (!itemURLs.isEmpty()) {
             ServerLoggers.importLogger.info(String.format(logPrefix + "import %s item(s)", itemURLs.size()));
@@ -185,7 +173,6 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
                     List<Node> descriptionAttributes = descriptionElement.size() == 0 ? new ArrayList<Node>() : descriptionElement.get(0).childNodes();
                     String idBarcode = null;
                     String captionItem = doc.getElementsByTag("h1").text();
-                    String idItemGroup = null;
                     String brandItem = null;
                     BigDecimal netWeight = null;
                     String UOMItem = null;
@@ -196,7 +183,6 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
                             switch (type) {
                                 case "Штрих-код:":
                                     idBarcode = value;
-                                    idItemGroup = barcodeSet.containsKey(idBarcode) ? barcodeSet.get(idBarcode) : "ВСЕ";
                                     break;
                                 case "Торговая марка:":
                                     brandItem = value;
@@ -210,7 +196,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
                         }
                     }
 
-                    if (idBarcode != null && barcodeSet.containsKey(idBarcode)) {
+                    if (idBarcode != null) {
 
                         if(onlyBarcode) {
                             itemsList.add(Arrays.asList((Object) itemURL, idBarcode));
@@ -255,11 +241,9 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
                                 }
                             }
 
-                            itemsList.add(Arrays.asList((Object) itemURL, idBarcode, idItemGroup, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
+                            itemsList.add(Arrays.asList((Object) itemURL, idBarcode, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
                                     fatsItem, carbohydratesItem, energyItem, manufacturerItem, UOMItem, brandItem));
                         }
-                        //to avoid duplicates
-                        barcodeSet.remove(idBarcode);
                         ServerLoggers.importLogger.info(String.format(logPrefix + "parsed item page #%s of %s: %s", i, itemURLs.size(), title));
                     } else {
                         ServerLoggers.importLogger.info(logPrefix + (idBarcode == null ? "no barcode, item skipped" : "not in base, item skipped") + " (" + title + ")");
@@ -279,23 +263,6 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
 
     private String parseChild(Element element, int child) {
         return element.children().size() > child ? Jsoup.parse(element.childNode(child).outerHtml()).text() : "";
-    }
-
-    private Map<String, String> getBarcodeSet(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, String> barcodeSet = new HashMap<>();
-        KeyExpr barcodeExpr = new KeyExpr("barcode");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "barcode", barcodeExpr);
-        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-        query.addProperty("idBarcode", findProperty("id[Barcode]").getExpr(context.getModifier(), barcodeExpr));
-        query.addProperty("idItemGroupBarcode", findProperty("idItemGroup[Barcode]").getExpr(context.getModifier(), barcodeExpr));
-        query.and(findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
-        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> itemResult = query.executeClasses(context);
-        for (ImMap<Object, ObjectValue> entry : itemResult.values()) {
-            String idBarcode = trim((String) entry.get("idBarcode").getValue());
-            String idItemGroupBarcode = trim((String) entry.get("idItemGroupBarcode").getValue());
-            barcodeSet.put(idBarcode, idItemGroupBarcode);
-        }
-        return barcodeSet;
     }
 
     private List<String> getItemURLs(ExecutionContext context) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
