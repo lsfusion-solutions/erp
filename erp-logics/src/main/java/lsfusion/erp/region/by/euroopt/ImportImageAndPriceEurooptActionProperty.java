@@ -210,7 +210,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
                                             if (price1 != null)
                                                 userPriceListsList.add(Arrays.asList((Object) idPriceList, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price1, true));
                                             if (prices.size() >= 2) {
-                                                BigDecimal price2 = prices.get(0);
+                                                BigDecimal price2 = prices.get(1);
                                                 if (price2 != null)
                                                     userPriceListsList.add(Arrays.asList((Object) idPriceList, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price2, true));
                                             }
