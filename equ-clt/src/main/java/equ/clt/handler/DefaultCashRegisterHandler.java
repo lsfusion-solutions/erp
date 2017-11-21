@@ -8,11 +8,24 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.ParseException;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends CashRegisterHandler<S> {
+
+    protected Set<CashRegisterInfo> getCashRegisterSet(RequestExchange requestExchange, boolean extra) {
+        Set<CashRegisterInfo> cashRegisterSet = new HashSet<>();
+        for (CashRegisterInfo cashRegister : requestExchange.cashRegisterSet) {
+            if (fitHandler(cashRegister))
+                cashRegisterSet.add(cashRegister);
+        }
+        if(extra) {
+            for (CashRegisterInfo cashRegister : requestExchange.extraCashRegisterSet) {
+                if (fitHandler(cashRegister))
+                    cashRegisterSet.add(cashRegister);
+            }
+        }
+        return cashRegisterSet;
+    }
 
     @Override
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) throws IOException {

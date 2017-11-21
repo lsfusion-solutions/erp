@@ -438,23 +438,21 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Long> succeededRequests,
                                  Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
-            for (CashRegisterInfo cashRegister : entry.cashRegisterSet) {
-                if (directorySet.contains(cashRegister.directory)) {
-                    String directory = cashRegister.directory + "/sale" + cashRegister.number;
-                    sendSalesLogger.info(logPrefix + "creating request file for directory : " + directory);
-                    if (new File(directory).exists() || new File(directory).mkdirs()) {
-                        String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
-                        String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
+            for (CashRegisterInfo cashRegister : getCashRegisterSet(entry, true)) {
+                String directory = cashRegister.directory + "/sale" + cashRegister.number;
+                sendSalesLogger.info(logPrefix + "creating request file for directory : " + directory);
+                if (new File(directory).exists() || new File(directory).mkdirs()) {
+                    String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
+                    String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
-                        Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/sale.req"), "utf-8"));
-                        String data = String.format("###\n%s-%s", dateFrom, dateTo);
-                        writer.write(data);
-                        writer.close();
-                    } else {
-                        failedRequests.put(entry.requestExchange, new RuntimeException("Failed to create directory " + directory));
-                    }
-                    succeededRequests.add(entry.requestExchange);
+                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/sale.req"), "utf-8"));
+                    String data = String.format("###\n%s-%s", dateFrom, dateTo);
+                    writer.write(data);
+                    writer.close();
+                } else {
+                    failedRequests.put(entry.requestExchange, new RuntimeException("Failed to create directory " + directory));
                 }
+                succeededRequests.add(entry.requestExchange);
             }
         }
     }
@@ -492,7 +490,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         Set<String> directorySet = new HashSet<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null && c.number != null && c.handlerModel != null && c.handlerModel.endsWith("ArtixHandler")) {
+            if (fitHandler(c) && c.directory != null && c.number != null) {
                 directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
                 directorySet.add(c.directory);
             }
@@ -826,6 +824,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                     String idItem = inventPosition.getString("inventCode");
                                     String barcodeString = inventPosition.getString("barCode");
+
+                                    //обнаруживаем продажу сертификатов
+                                    boolean isGiftCard = false;
+                                    if (giftCardRegexp != null && barcodeString != null) {
+                                        Pattern pattern = Pattern.compile(giftCardRegexp);
+                                        Matcher matcher = pattern.matcher(barcodeString);
+                                        isGiftCard = matcher.matches();
+                                    }
+
                                     // вот такой вот чит из-за того, что могут ввести код товара в кассе
                                     String barcode = idItem != null && barcodeString != null && idItem.equals(barcodeString) ? null :
                                             appendCheckDigitToBarcode(barcodeString, 7, appendBarcode);
@@ -845,22 +852,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     for (int j= 0; j < discountPositionsArray.length(); j++) {
                                         JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
                                         discountPercentReceiptDetail = safeAdd(discountPercentReceiptDetail, BigDecimal.valueOf(discountPosition.getDouble("discSize")));
-                                    }
-
-                                    //обнаруживаем продажу сертификатов
-                                    boolean isGiftCard = false;
-                                    /*if (barcode != null && barcode.equals("99999")) {
-                                        isGiftCard = true;
-                                        while(usedBarcodes.contains(dateTimeReceipt + "/" + count)) {
-                                            count++;
-                                        }
-                                        barcode = dateTimeReceipt + "/" + count;
-                                        usedBarcodes.add(barcode);
-                                    }*/
-                                    if (giftCardRegexp != null && barcode != null) {
-                                        Pattern pattern = Pattern.compile(giftCardRegexp);
-                                        Matcher matcher = pattern.matcher(barcode);
-                                        isGiftCard = matcher.matches();
                                     }
 
                                     CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
