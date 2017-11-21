@@ -258,8 +258,9 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         try {
             Element priceElement = productCard.getElementsByClass("price").first();
             if (priceElement != null) {
+                boolean red = productCard.classNames().contains("red");
                 Elements oldPriceElement = priceElement.getElementsByClass("Old_price");
-                String oldPriceValue = oldPriceElement == null ? null : oldPriceElement.text().replace(" ", "");
+                String oldPriceValue = oldPriceElement == null || !red ? null : oldPriceElement.text().replace(" ", "");
                 oldPrice = formatPrice(oldPriceValue);
                 String priceValue = (oldPriceElement != null && oldPriceElement.size() != 0 ? priceElement.text().replace(oldPriceElement.first().text(), "") : priceElement.text()).replace(" ", "");
                 newPrice = formatPrice(priceValue);
