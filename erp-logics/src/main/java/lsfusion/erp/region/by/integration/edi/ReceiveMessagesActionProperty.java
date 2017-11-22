@@ -428,7 +428,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         int i = 1;
         for (Object line : rootNode.getChildren("line")) {
             Element lineElement = (Element) line;
-            String dataGTIN = lineElement.getChildText("GTIN");
+            String dataGTIN = trim(lineElement.getChildText("GTIN"));
             String GTIN;
             String barcode;
             if (orderBarcodesMap.containsKey(dataGTIN)) {
