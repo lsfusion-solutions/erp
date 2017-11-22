@@ -235,7 +235,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.handlerModel != null && c.directory != null && c.number != null && c.handlerModel.endsWith("UKM4Handler")) {
+            if (fitHandler(c) && c.directory != null && c.number != null) {
                 directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
             }
         }

@@ -196,7 +196,7 @@ public class LSTerminalHandler extends TerminalHandler {
             Map<String, TerminalInfo> directoryMachineryMap = new HashMap<>();
             for (Object m : machineryInfoList) {
                 TerminalInfo t = (TerminalInfo) m;
-                if (t.directory != null && t.handlerModel != null && t.handlerModel.endsWith("LSTerminalHandler")) {
+                if (fitHandler(t) && t.directory != null) {
                     directoryMachineryMap.put(t.directory, t);
                 }
             }

@@ -322,7 +322,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
             Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
             Set<String> directorySet = new HashSet<>();
             for (CashRegisterInfo c : cashRegisterInfoList) {
-                if (c.directory != null && c.handlerModel != null && c.handlerModel.endsWith("AtolHandler")) {
+                if (fitHandler(c) && c.directory != null) {
                     directorySet.add(c.directory);
                     if (c.number != null && c.numberGroup != null) {
                         directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
