@@ -109,6 +109,10 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         props.add(new ImportProperty(idUserPriceListField, findProperty("id[UserPriceList]").getMapping(userPriceListKey)));
         fields.add(idUserPriceListField);
 
+        ImportField isPostedUserPriceListField = new ImportField(findProperty("isPosted[UserPriceList]"));
+        props.add(new ImportProperty(isPostedUserPriceListField, findProperty("isPosted[UserPriceList]").getMapping(userPriceListKey)));
+        fields.add(isPostedUserPriceListField);
+
         ImportField idOperationField = new ImportField(findProperty("id[PriceList.Operation]"));
         ImportKey<?> operationKey = new ImportKey((CustomClass) findClass("PriceList.Operation"),
                 findProperty("operation[VARISTRING[100]]").getMapping(idOperationField));
@@ -208,11 +212,11 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
                                         if (prices.size() >= 1) {
                                             BigDecimal price1 = prices.get(0);
                                             if (price1 != null)
-                                                userPriceListsList.add(Arrays.asList((Object) idPriceList, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price1, true));
+                                                userPriceListsList.add(Arrays.asList((Object) idPriceList, true, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price1, true));
                                             if (prices.size() >= 2) {
                                                 BigDecimal price2 = prices.get(1);
                                                 if (price2 != null)
-                                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price2, true));
+                                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, true, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price2, true));
                                             }
                                             idPriceListDetail++;
                                         }
