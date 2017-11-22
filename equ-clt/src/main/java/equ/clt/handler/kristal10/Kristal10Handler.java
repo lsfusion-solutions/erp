@@ -27,6 +27,10 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static equ.clt.handler.HandlerUtils.safeAdd;
+import static equ.clt.handler.HandlerUtils.safeDivide;
+import static equ.clt.handler.HandlerUtils.safeMultiply;
+
 public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesBatch> {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
@@ -811,10 +815,6 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         return dateTime == null ? defaultValue : new SimpleDateFormat(format).format(dateTime);
     }
 
-//    private String formatTime(Time time) {
-//        return new SimpleDateFormat("HH:mm:ss.SSS").format(time);
-//    }
-
     private String currentDate() {
         return new SimpleDateFormat("yyyy-MM-dd").format(Calendar.getInstance().getTime()) + "T00:00:00";
     }
@@ -1042,7 +1042,8 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                     sumReceiptDetail = (sumReceiptDetail != null && !isSale) ? sumReceiptDetail.negate() : sumReceiptDetail;
                                     currentPaymentSum = HandlerUtils.safeAdd(currentPaymentSum, sumReceiptDetail);
                                     BigDecimal discountSumReceiptDetail = readBigDecimalXMLAttribute(positionEntryNode, "discountValue");
-                                    //discountSumReceiptDetail = (discountSumReceiptDetail != null && !isSale) ? discountSumReceiptDetail.negate() : discountSumReceiptDetail; 
+                                    BigDecimal discountPercentReceiptDetail = discountSumReceiptDetail != null && discountSumReceiptDetail.compareTo(BigDecimal.ZERO) > 0 ?
+                                            safeDivide(safeMultiply(discountSumReceiptDetail, 100), safeAdd(discountSumReceiptDetail, sumReceiptDetail)) : null;
                                     Integer numberReceiptDetail = readIntegerXMLAttribute(positionEntryNode, "order");
 
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
@@ -1063,17 +1064,16 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                         String id = nppGroupMachinery + "_" + numberCashRegister + "_" + numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(dateReceipt) + "_" + numberReceipt + "_" + numberReceiptDetail;  
                                         if (ids.contains(id)) {
                                             sendSalesLogger.error("found duplicate key : " + id);
-//                                            numberReceipt += 10000;
                                         } else {
                                             ids.add(id);
                                         }
 
                                         if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                             sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
-                                        currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister,
-                                                numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash,
-                                                sumGiftCardMap, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
-                                                discountSumReceipt, discountCard, numberReceiptDetail, fileName, null));
+                                        currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister, numberZReport, dateReceipt, timeReceipt,
+                                                numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash, sumGiftCardMap,
+                                                barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
+                                                discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, fileName, null));
                                     }
                                     count++;
                                 }
