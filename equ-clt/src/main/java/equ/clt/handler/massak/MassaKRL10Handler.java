@@ -639,7 +639,9 @@ public class MassaKRL10Handler extends ScalesHandler {
                                         while (!result && attempts < 3) {
                                             if (attempts > 0)
                                                 reopenPort(port);
-                                            result = loadItem(localErrors, port, item, nameLineLength, scales.weightCodeGroupScales, (short) count, (short) transaction.itemsList.size(), count == 1 && transaction.snapshot,
+                                            short current = (short) (transaction.snapshot ? count : 1);
+                                            short total = (short) (transaction.snapshot ? transaction.itemsList.size() : 1);
+                                            result = loadItem(localErrors, port, item, nameLineLength, scales.weightCodeGroupScales, current, total, count == 1 && transaction.snapshot,
                                                     transaction.snapshot ? snapshotItemByte : notSnapshotItemByte);
                                             attempts++;
                                         }
@@ -667,7 +669,9 @@ public class MassaKRL10Handler extends ScalesHandler {
                                         while (!result && attempts < 3) {
                                             if (attempts > 0)
                                                 reopenPort(port);
-                                            result = loadPLU(localErrors, port, item, (short) count, (short) transaction.itemsList.size(), count == 1 && transaction.snapshot,
+                                            short current = (short) (transaction.snapshot ? count : 1);
+                                            short total = (short) (transaction.snapshot ? transaction.itemsList.size() : 1);
+                                            result = loadPLU(localErrors, port, item, current, total, count == 1 && transaction.snapshot,
                                                     transaction.snapshot ? snapshotPluByte : notSnapshotPluByte);
                                             attempts++;
                                         }
