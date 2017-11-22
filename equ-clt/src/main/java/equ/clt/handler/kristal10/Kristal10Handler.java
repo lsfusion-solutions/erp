@@ -496,7 +496,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         Set<String> directorySet = new HashSet<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null && c.number != null && c.handlerModel != null && c.handlerModel.endsWith("Kristal10Handler")) {
+            if (fitHandler(c) && c.directory != null && c.number != null) {
                 directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
                 directorySet.add(c.directory);
             }
@@ -1112,7 +1112,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null && c.number != null && c.handlerModel.endsWith("Kristal10Handler")) {
+            if (fitHandler(c) && c.directory != null && c.number != null) {
                 directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
             }
         }
