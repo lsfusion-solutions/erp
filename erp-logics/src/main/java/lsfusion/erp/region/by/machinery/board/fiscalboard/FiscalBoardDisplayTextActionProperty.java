@@ -17,6 +17,8 @@ import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.util.Iterator;
 
+import static lsfusion.base.BaseUtils.trim;
+
 public class FiscalBoardDisplayTextActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptDetailInterface;
 
@@ -87,9 +89,5 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
             result = df.format(value).replace(",", ".");
         }
         return result == null ? "0.00" : result;
-    }
-
-    protected String trim(String input) {
-        return input == null ? null : input.trim();
     }
 }
