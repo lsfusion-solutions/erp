@@ -60,7 +60,7 @@ extraFromBinTransfer 'Заказано (доп.)' = ABSTRACT NUMERIC[16,5](Sku, 
 prevFromBinTransfer 'Заказано' (Sku sku, Bin bin) = PREV(fromBinTransfer(sku, bin));
 prevToBinTransfer 'Заказано' (Sku sku, Bin bin) = PREV(toBinTransfer(sku, bin));
 
-availableQuantity 'Доступно' (Sku sku, Bin bin) = prevCurrentBalance(sku, bin) (+) prevToBinTransfer(sku, bin) (-) prevFromBinTransfer(sku, bin);
+availableQuantity 'Доступно' (Sku sku, Bin bin) = (MAX prevCurrentBalance(sku, bin), 0.0) (+) prevToBinTransfer(sku, bin) (-) prevFromBinTransfer(sku, bin);
 
 inAvailableQuantity 'Доступно (ячейка в)' (Sku sku, UserBinOrder order) = availableQuantity(sku, inBin(order));
 outAvailableQuantity 'Доступно (ячейка из)' (Sku sku, UserBinOrder order) = availableQuantity(sku, outBin(order)) (-) extraFromBinTransfer(sku, stock(order));
