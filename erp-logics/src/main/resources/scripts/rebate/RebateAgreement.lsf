@@ -1,0 +1,80 @@
+MODULE RebateAgreement;
+REQUIRE Agreement;
+NAMESPACE Rebate;
+
+//---------------- Ретро-бонусы-----------------//
+
+CLASS RebateType 'Вид ретро-бонусов' {
+    perc 'Процент от суммы поступлений'
+}
+TABLE rebateType (RebateType); 
+
+dataName 'Наименование' = DATA VARSTRING[255] (RebateType) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+name (RebateType t) = OVERRIDE dataName(t), staticCaption(t);
+
+
+FORM rebateType 'Вид ретро-бонусов'
+    OBJECTS t=RebateType PANEL
+    PROPERTIES(t) name
+    EDIT RebateType OBJECT t
+;
+
+FORM rebateTypes 'Вид ретро-бонусов'
+    OBJECTS t=RebateType
+    PROPERTIES(t) NEWSESSION name READONLY, deleteb=DELETE 
+    PROPERTIES(t) NEWSESSION NEW, EDIT
+    ORDER name(t)
+    LIST RebateType OBJECT t
+;
+DESIGN rebateTypes { BOX { preferredSize = (600, 400); } }
+
+rebateType = DATA RebateType (Agreement);
+nameType 'Вид ретро-бонусов' (Agreement d) = name(rebateType(d));
+
+includeVATRebate 'Включать НДС' = DATA BOOLEAN (Agreement);
+
+CLASS Condition 'Условия бонусов';
+TABLE condition (Condition);
+
+name 'Наименование' = DATA VARSTRING[50](Condition);
+
+agreement = DATA Agreement (Condition) NONULL DELETE;
+
+fromSum 'Сумма от' =  DATA NUMERIC[16,4](Condition);
+toSum 'Сумма до' =  DATA NUMERIC[16,4](Condition);
+perc '%' =  DATA NUMERIC[10,4](Condition);
+
+defaultCondition (sum, agreement) =
+    GROUP LAST Condition c
+          BY NUMERIC[18,4] sum AS NUMERIC[18,4], agreement(c)
+          ORDER fromSum(c), c
+          WHERE sum >= fromSum(c) AND NOT sum >= toSum(c);
+          
+percDefaultCondition '%' (NUMERIC[18,4] sum, Agreement a) = perc(defaultCondition(sum,a));
+
+@defineDocumentDetailIndex(agreement, Condition);
+
+EXTEND FORM agreement
+    PROPERTIES (a) nameType, includeVATRebate SHOWIF rebateType(a)
+    
+    OBJECTS cn = Condition
+    PROPERTIES (cn) SHOWIF rebateType(a) index, fromSum, toSum, perc,  NEW, DELETE
+    FILTERS agreement(cn) == a
+;
+DESIGN agreement {
+    tabContainer {
+        NEW rebate {
+            caption = 'Ретро-бонусы';
+            fill = 1;
+            NEW rebateTop {
+                type = CONTAINERH;
+                MOVE PROPERTY (nameType(a));
+                MOVE PROPERTY (includeVATRebate(a));
+            }
+            MOVE BOX(cn);
+        }
+    }
+}
+
+ 
+

@@ -1,0 +1,91 @@
+MODULE RebateDashboard;
+
+REQUIRE RebateAgreement, PurchaseReturnInvoice;
+NAMESPACE Rebate;
+
+//-- Управление бонусами
+
+sumR 'Сумма без НДС' = DATA LOCAL NESTED NUMERIC[18,4] (Agreement,LegalEntity);
+invoiceSumR 'Сумма c НДС' = DATA LOCAL NESTED NUMERIC[18,4] (Agreement,LegalEntity);
+percR '%' = DATA LOCAL NESTED NUMERIC[18,4] (Agreement,LegalEntity);
+sumRebate 'Сумма услуги' = DATA LOCAL NESTED NUMERIC[18,4] (Agreement,LegalEntity);
+
+select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Agreement,LegalEntity);
+resetSelect 'Сбросить отмеченные' () = { 
+    select(Agreement a,LegalEntity l) <- NULL;
+}
+
+sumR (Invoice.Invoice i) = CASE 
+    WHEN i IS Purchase.Invoice THEN sumInvoiceDetail(i)
+    WHEN i IS PurchaseReturn.Invoice THEN -sumInvoiceDetail(i);  
+invoiceSumR (Invoice.Invoice i) = CASE 
+    WHEN i IS Purchase.Invoice THEN invoiceSumInvoiceDetail(i)
+    WHEN i IS PurchaseReturn.Invoice THEN -invoiceSumInvoiceDetail(i);  
+
+resetPropRebate ()= {
+    sumR (Agreement a,LegalEntity l) <- NULL;
+    invoiceSumR (Agreement a,LegalEntity l) <- NULL;
+    percR (Agreement a,LegalEntity l) <- NULL;
+    sumRebate (Agreement a,LegalEntity l) <- NULL;
+}
+resetPropRebateEx ()= {
+    resetPropRebate();
+    select (Agreement a,LegalEntity l) <- NULL;
+}         
+fillPropRebate 'Заполнить данные' (LegalEntity c, DATE df, DATE dt) = {
+    IF [ = GROUP SUM 1 IF select(Agreement a,LegalEntity l)]() THEN {
+        resetPropRebate();
+        LOCAL inc = BOOLEAN (Invoice.Invoice);
+        inc(Invoice.Invoice i) <- TRUE WHERE Invoice.isPosted(i) AND select(agreement(i),Invoice.supplier(i)) AND Invoice.date(i) >= df 
+            AND Invoice.date(i) <= dt AND  Invoice.customer(i) == c AND ((i IS Purchase.Invoice) OR (i IS PurchaseReturn.Invoice));
+        
+        sumR (Agreement a,LegalEntity s) <- [ = GROUP SUM sumR (Invoice.Invoice i) IF inc(i) BY agreement(i), supplier(i)](a,s) WHERE select(a,s);
+        invoiceSumR (Agreement a,LegalEntity s) <- [ = GROUP SUM invoiceSumR (Invoice.Invoice i) IF inc(i) BY agreement(i), supplier(i)](a,s) WHERE select(a,s);
+        
+        percR (Agreement a,LegalEntity s) <- percDefaultCondition(invoiceSumR(a,s),a) WHERE select(a,s) AND includeVATRebate(a);
+        sumRebate (Agreement a,LegalEntity s) <- round2(NUMERIC[18,4](invoiceSumR(a,s)*percR(a,s)/100.0)) WHERE select(a,s) AND includeVATRebate(a);
+
+        percR (Agreement a,LegalEntity s) <- percDefaultCondition(sumR(a,s),a) WHERE select(a,s) AND NOT includeVATRebate(a);
+        sumRebate (Agreement a,LegalEntity s) <- round2(NUMERIC[18,4](sumR(a,s)*percR(a,s)/100.0)) WHERE select(a,s) AND NOT includeVATRebate(a);
+         
+    } ELSE {
+        MESSAGE 'Не отмечены соглашения для обработки';
+    }        
+} 
+
+
+FORM rebateDashboard 'Управление бонусами'
+
+    OBJECTS dates = (dFrom = DATE, dTo = DATE, c = LegalEntity) PANEL
+    PROPERTIES dFrom = VALUE(dFrom), dTo = VALUE(dTo), name(c) SELECTOR 
+    FILTERS isCompany(c)
+
+    OBJECTS as = (a = Agreement, s = LegalEntity)
+    PROPERTIES (a,s) select
+    PROPERTIES(a) READONLY name, seriesNumber, dateTime,
+                           fromDateTime, toDateTime,
+                           nameCurrency, namePriceListType, note
+    PROPERTIES (s) READONLY name
+    PROPERTIES (a,s) READONLY sumR, invoiceSumR, percR, sumRebate    
+    FILTERS fromDate(a) <= dTo, 
+            NOT toDate(a) <  dFrom,
+            rebateType(a),
+            inCustomer(a,c),
+            inSupplier(a,s)                               
+    
+    PROPERTIES TOOLBAR TODRAW as resetSelect(), fillPropRebate(c,dFrom,dTo) 
+            
+    EVENTS ON CHANGE c resetPropRebateEx ()
+    EVENTS ON CHANGE dFrom resetPropRebateEx ()
+    EVENTS ON CHANGE dTo resetPropRebateEx ()
+;
+DESIGN rebateDashboard {
+    PROPERTY (name(c)) { caption = 'Компания';}
+    PROPERTY (name(s)) { caption = 'Поставщик';}
+}
+
+NAVIGATOR { 
+    purchaseDashboardNavigator {
+        ADD rebateDashboard;
+    }
+}
