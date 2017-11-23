@@ -49,7 +49,7 @@ public class SendSalesEquipmentServer {
 
                         SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
 
-                        requestSalesInfo(remote, getSalesInfoExchangeList(requestExchangeList), handler, directorySet);
+                        requestSalesInfo(remote, sidEquipmentServer, getSalesInfoExchangeList(requestExchangeList), handler, directorySet);
 
                         sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
@@ -78,23 +78,28 @@ public class SendSalesEquipmentServer {
         return salesInfoExchangeList;
     }
 
-    static void requestSalesInfo(EquipmentServerInterface remote, List<RequestExchange> requestExchangeList, CashRegisterHandler handler, Set<String> directorySet)
+    static void requestSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, List<RequestExchange> requestExchangeList, CashRegisterHandler handler, Set<String> directorySet)
             throws IOException, ParseException, SQLException {
-        if (!requestExchangeList.isEmpty()) {
-            sendSalesLogger.info("Requesting SalesInfo");
-            Set<Long> succeededRequests = new HashSet<>();
-            Map<Long, Throwable> failedRequests = new HashMap<>();
-            Map<Long, Throwable> ignoredRequests = new HashMap<>();
+        try {
+            if (!requestExchangeList.isEmpty()) {
+                sendSalesLogger.info("Requesting SalesInfo");
+                Set<Long> succeededRequests = new HashSet<>();
+                Map<Long, Throwable> failedRequests = new HashMap<>();
+                Map<Long, Throwable> ignoredRequests = new HashMap<>();
 
-            handler.requestSalesInfo(requestExchangeList, directorySet, succeededRequests, failedRequests, ignoredRequests);
-            if (!succeededRequests.isEmpty())
-                remote.finishRequestExchange(succeededRequests);
-            if (!failedRequests.isEmpty())
+                handler.requestSalesInfo(requestExchangeList, directorySet, succeededRequests, failedRequests, ignoredRequests);
+                if (!succeededRequests.isEmpty())
+                    remote.finishRequestExchange(succeededRequests);
+                if (!failedRequests.isEmpty())
                     remote.errorRequestExchange(failedRequests);
-            if (!ignoredRequests.isEmpty()) {
-                remote.finishRequestExchange(new HashSet<>(ignoredRequests.keySet()));
-                remote.errorRequestExchange(ignoredRequests);
+                if (!ignoredRequests.isEmpty()) {
+                    remote.finishRequestExchange(new HashSet<>(ignoredRequests.keySet()));
+                    remote.errorRequestExchange(ignoredRequests);
+                }
             }
+        } catch (Throwable t) {
+            sendSalesLogger.error("Request SalesInfo error: ", t);
+            EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, t);
         }
     }
 
