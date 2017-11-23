@@ -146,7 +146,7 @@ public class InventoryTechHandler extends TerminalHandler {
             Map<String, TerminalInfo> directoryMachineryMap = new HashMap<>();
             for (Object m : machineryInfoList) {
                 TerminalInfo t = (TerminalInfo) m;
-                if (t.directory != null && t.handlerModel != null && t.handlerModel.endsWith("InventoryTechHandler")) {
+                if (fitHandler(t) && t.directory != null) {
                     directorySet.add(t.directory);
                     directoryMachineryMap.put(t.directory, t);
                 }

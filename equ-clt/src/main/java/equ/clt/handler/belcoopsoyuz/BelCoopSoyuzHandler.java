@@ -558,7 +558,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
 
         Map<String, CashRegisterInfo> sectionCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.section != null && c.handlerModel != null && c.handlerModel.endsWith("BelCoopSoyuzHandler")) {
+            if (fitHandler(c) && c.section != null) {
                 sectionCashRegisterMap.put(c.section, c);
             }
         }
