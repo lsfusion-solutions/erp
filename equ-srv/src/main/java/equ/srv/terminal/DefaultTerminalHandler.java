@@ -155,7 +155,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 ObjectValue priceListTypeObject = terminalHandlerLM.findProperty("priceListTypeTerminal[]").readClasses(session);
                 //если prefix null, то таблицу не выгружаем. Если prefix пустой (skipPrefix), то таблицу выгружаем, но без префикса
                 String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
-                List<List<Object>> barcodeList = readBarcodeList(session, stockObject);
+                List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject);
                 List<TerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject);
                 List<TerminalAssortment> assortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
@@ -218,8 +218,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         return null;
     }
 
-    private List<List<Object>> readBarcodeList(DataSession session, ObjectValue stockObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        List<List<Object>> result = new ArrayList<>();
+    private List<TerminalBarcode> readBarcodeList(DataSession session, ObjectValue stockObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<TerminalBarcode> result = new ArrayList<>();
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
             boolean currentPrice = terminalHandlerLM.findProperty("useCurrentPriceInTerminal").read(session) != null;
@@ -243,6 +243,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             }
             if(currentQuantity)
                 barcodeQuery.addProperty("quantity", terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+            barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
             barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> barcodeResult = barcodeQuery.execute(session);
@@ -258,8 +259,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 String idSkuBarcode = trim((String) entry.get("idSkuBarcode"));
                 String nameManufacturer = trim((String) entry.get("nameManufacturer"));
                 String isWeight = entry.get("passScales") != null ? "1" : "0";
+                String mainBarcode = trim((String) entry.get("mainBarcode"));
 
-                result.add(Arrays.<Object>asList(idBarcode, nameSkuBarcode, price, quantityBarcodeStock, idSkuBarcode, nameManufacturer, isWeight));
+                result.add(new TerminalBarcode(idBarcode, nameSkuBarcode, price, quantityBarcodeStock, idSkuBarcode, nameManufacturer, isWeight, mainBarcode));
 
             }
         }
@@ -345,30 +347,32 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " fld4    TEXT," +
                 " fld5    TEXT," +
                 " image   TEXT," +
-                " weight TEXT)";
+                " weight  TEXT," +
+                " main_barcode TEXT)";
         statement.executeUpdate(sql);
         statement.close();
     }
 
-    private void updateGoodsTable(Connection connection, List<List<Object>> barcodeList, List<TerminalOrder> orderList) throws SQLException {
+    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<TerminalOrder> orderList) throws SQLException {
         if (!barcodeList.isEmpty() || !orderList.isEmpty()) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, '', '', '', '', ?);";
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, '', '', '', '', ?, ?);";
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
-                for (List<Object> barcode : barcodeList) {
-                    if (barcode.get(0) != null) {
-                        statement.setObject(1, formatValue(barcode.get(0))); //idBarcode
-                        statement.setObject(2, formatValue(barcode.get(1))); //name
-                        statement.setObject(3, formatValue(barcode.get(2))); //price
-                        statement.setObject(4, formatValue(barcode.get(3))); //quantity
-                        statement.setObject(5, formatValue(barcode.get(4))); //idItem
-                        statement.setObject(6, formatValue(barcode.get(5))); //manufacturer
-                        statement.setObject(7, formatValue(barcode.get(6))); //weight
+                for (TerminalBarcode barcode : barcodeList) {
+                    if (barcode.idBarcode != null) {
+                        statement.setObject(1, formatValue(barcode.idBarcode)); //idBarcode
+                        statement.setObject(2, formatValue(barcode.nameSkuBarcode)); //name
+                        statement.setObject(3, formatValue(barcode.price)); //price
+                        statement.setObject(4, formatValue(barcode.quantityBarcodeStock)); //quantity
+                        statement.setObject(5, formatValue(barcode.idSkuBarcode)); //idItem
+                        statement.setObject(6, formatValue(barcode.nameManufacturer)); //manufacturer
+                        statement.setObject(7, formatValue(barcode.isWeight)); //weight
+                        statement.setObject(8, formatValue(barcode.mainBarcode)); //main_barcode
                         statement.addBatch();
-                        usedBarcodes.add((String) barcode.get(0));
+                        usedBarcodes.add((String) barcode.idBarcode);
                     }
                 }
                 for(TerminalOrder order : orderList) {
@@ -711,5 +715,27 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         }
     }
 
+    private class TerminalBarcode {
+        String idBarcode;
+        String nameSkuBarcode;
+        BigDecimal price;
+        BigDecimal quantityBarcodeStock;
+        String idSkuBarcode;
+        String nameManufacturer;
+        String isWeight;
+        String mainBarcode;
+
+        public TerminalBarcode(String idBarcode, String nameSkuBarcode, BigDecimal price, BigDecimal quantityBarcodeStock,
+                               String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode) {
+            this.idBarcode = idBarcode;
+            this.nameSkuBarcode = nameSkuBarcode;
+            this.price = price;
+            this.quantityBarcodeStock = quantityBarcodeStock;
+            this.idSkuBarcode = idSkuBarcode;
+            this.nameManufacturer = nameManufacturer;
+            this.isWeight = isWeight;
+            this.mainBarcode = mainBarcode;
+        }
+    }
 
 }
