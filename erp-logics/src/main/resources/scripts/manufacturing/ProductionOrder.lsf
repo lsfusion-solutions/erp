@@ -879,7 +879,7 @@ WHEN LOCAL (CHANGED(componentsCountry(Order order)) OR
 
 skip(d) = ABSTRACT BOOLEAN (ComponentDetail);
 
-valueVAT(ComponentDetail d) = OVERRIDE valueVAT(batch(d)), valueVAT(sku(d), order(d)) MATERIALIZED;
+valueVAT(ComponentDetail d) = OVERRIDE valueVAT(batch(d)) IF (valueVAT(batch(d)) !=0.0), valueVAT(sku(d), order(d)) MATERIALIZED;
 sumVAT (ComponentDetail d) = sum(d) * valueVAT(d) / (100.0 + valueVAT(d));
 sumVATComponents (ProductDetail d) = [= GROUP SUM sumVAT(ComponentDetail d) IF NOT skip(d) BY BOM(d), order(d)](BOM(d), order(d)); 
 sumVATComponentDetail = GROUP SUM sum(ComponentDetail d) IF NOT skip(d) BY BOM(d), order(d);
