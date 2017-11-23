@@ -245,27 +245,31 @@ DESIGN options {
 META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuProp)
     idetail(object, sku) = GROUP MAX (###idetail detail) BY object(detail), skuProp(detail);
 
+create###idetail##New (###object object, VARSTRING[15] barcode, Sku skuProp) = {
+    LOCAL dialogBarcodeDetail = idetailClass();
+    dialogBarcodeDetail() <- idetail(object, skuProp);
+    IF dialogBarcodeDetail() IS idetailClass THEN {
+        quantity(###idetail detail) <-
+            quantity(detail) (+) (amount(barcode(barcode, date(object))) IF detail IS idetailClass)
+            WHERE detail == dialogBarcodeDetail();
+        seek(dialogBarcodeDetail());
+    } ELSE {
+        NEW w = idetailClass {
+            object(w) <- object;
+            skuProp(w) <- skuProp;
+            quantity(w) <- amount(barcode(barcode, date(object)));
+            seek(w);
+        }
+    }
+    setAddedUser(skuProp);
+}
+
     addDetailBarcode###idetail(###object object, VARSTRING[15] barcode) = {
         LOCAL dialogBarcode###skuProp = Sku ();
         dialogBarcode###skuProp() <- skuProp##Barcode(barcode, date(object));
 
         IF dialogBarcode###skuProp() IS Sku THEN {
-            LOCAL dialogBarcodeDetail = idetailClass();
-            dialogBarcodeDetail() <- idetail(object, dialogBarcode###skuProp());
-            IF dialogBarcodeDetail() IS idetailClass THEN {
-                quantity(###idetail detail) <-
-                    quantity(detail) (+) (amount(barcode(barcode, date(object))) IF detail IS idetailClass)
-                    WHERE detail == dialogBarcodeDetail();
-                seek(dialogBarcodeDetail());
-            } ELSE {
-                NEW w = idetailClass {
-                    object(w) <- object;
-                    skuProp(w) <- dialogBarcode###skuProp();
-                    quantity(w) <- amount(barcode(barcode, date(object)));
-                    seek(w);
-                }
-            }
-            setAddedUser(dialogBarcode###skuProp());
+            create###idetail##New(object, barcode, dialogBarcode###skuProp());
         } ELSE {
             IF NOT notForm###skuProp() THEN {
                 DIALOG emptyBarcodeSkus OBJECTS s INPUT DO {
@@ -288,7 +292,7 @@ META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuP
                 dialogBarcode###skuProp() <- skuProp##Barcode(barcode, date(object));
             }
             IF dialogBarcode###skuProp() THEN {
-                setAddedUser(dialogBarcode###skuProp());
+                create###idetail##New(object, barcode, dialogBarcode###skuProp());
             }
             IF notForm###skuProp() AND notCreateItem() AND NOT dialogBarcodeSku() AND errorMessageNotFormSku() THEN MESSAGE errorMessageNotFormSku();
         }
