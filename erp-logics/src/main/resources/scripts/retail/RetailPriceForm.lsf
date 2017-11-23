@@ -46,14 +46,23 @@ backgroundMarkupSkuGroupOver (CalcPriceListType type, Sku sku, Stock stock) = CA
     WHEN CHANGED(markup(type,sku)) AND stock IS Stock THEN RGB(204,255,204)
     WHEN retailCalcPriceListType (stock) == type AND sku IS Sku THEN RGB(255, 250, 205);
 
+GROUP retailPrice 'Значения по умолчанию Форма "Розничные цены"';
+
 defaultRetailOperation  = DATA PriceList.Operation();
-nameDefaultRetailOperation 'Операция для работы на форме "Розничные цены"' () = name(defaultRetailOperation());
+nameDefaultRetailOperation 'Операция' () = name(defaultRetailOperation()) IN retailPrice;
+
+comparePriceListType  = DATA PriceListType();
+nameComparePriceListtype 'Вид цен для сравнения' () = name(comparePriceListType()) IN retailPrice;
+
+compareStock  = DATA Stock();
+nameCompareStock 'Магазин для сравнения' () = name(compareStock()) IN retailPrice;
+
 EXTEND FORM options
-    PROPERTIES () nameDefaultRetailOperation
+    PROPERTIES () nameDefaultRetailOperation, nameComparePriceListtype, nameCompareStock
 ;
 DESIGN options {
     price {
-        MOVE PROPERTY (nameDefaultRetailOperation());   
+        MOVE GROUP(retailPrice) {type = CONTAINERH;}
     }
 
 }
@@ -82,6 +91,12 @@ createPriceList 'Создать прайс (отм.)' (DATETIME dt) = {
 }
 backgroundPromotion(Sku sku, Stock stock, DATETIME dt) =  RGB(216,224,255) IF promotionPriceListDetailA(sku, stock, dt);
 
+currentCompare 'Цена конкурента' (Sku sku, DATETIME dt) = priceA(comparePriceListType(), sku, compareStock(), dt);
+currentOwn (Sku sk, Stock d, DATETIME dt) = OVERRIDE priceA(retailPriceListType(d), sk, d,dt), priceA(retailCalcPriceListType(d), sk, d, dt);
+backgroundCompare (Sku sk, Stock d, DATETIME dt) = CASE
+    WHEN currentOwn(sk,d,dt) <= currentCompare(sk,dt) THEN RGB(204,255,204)
+    WHEN currentOwn(sk,d,dt) > currentCompare(sk,dt) THEN RGB(255, 117, 117);
+
 FORM retailPrices 'Розничные цены'
     OBJECTS dt = DATETIME PANEL
     PROPERTIES(dt) VALUE
@@ -100,7 +115,7 @@ FORM retailPrices 'Розничные цены'
     FILTERS filterRetailCalc(pt1)
     OBJECTS pt2 = PriceListType GRID
     FILTERS filterRetail(pt2)
-   
+       
     OBJECTS sk=Sku
     PROPERTIES (sk) select//, hasRetailPrice
     PROPERTIES (sk) READONLY BACKGROUND backgroundPromotion(sk,d,dt) name, id, idBarcode, nameCountry
@@ -113,13 +128,18 @@ FORM retailPrices 'Розничные цены'
     PROPERTIES READONLY currentCalc(pt1,sk,d,dt) COLUMNS 'f'  (pt1) HEADER ('РЦ, над. '+name(pt1)) BACKGROUND backgroundMarkupSkuGroupOver(pt1,sk,d)        
     //-- розничная (упр.)
     PROPERTIES READONLY currentCalcM(pt2,sk,d,dt) COLUMNS'f'  (pt2) HEADER ('РЦ, упр. '+name(pt2))  BACKGROUND backgroundRetail(pt2,d)
+    //-- конкуренты
+    PROPERTIES READONLY currentCompare(sk,dt)  BACKGROUND backgroundCompare(sk,d,dt)    
     
     PROPERTIES (sk)  editSk = EDIT NEWSESSION
     PROPERTIES createPriceList(dt) TOOLBAR TODRAW sk
     ORDER name(sk)
     FILTERS isParent(sg, sk)
+    
     FILTERGROUP promotion
         FILTER 'В акции' promotionPriceListDetailA(sk, d, dt)
+    FILTERGROUP supplier
+        FILTER 'Есть входная цена' currentCalcB(basePriceListType(retailCalcPriceListType(d)),sk,d,dt)  
             
     FILTERGROUP processing
 //        FILTER 'С остатками  и без цен' availableQuantity(sk, s) > 0 AND NOT localHasRetailPrice(sk)
