@@ -855,6 +855,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     }
 
                                     CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
+                                    if(cashRegister == null)
+                                        sendSalesLogger.error(logPrefix + String.format("CashRegister %s not found (file %s)", numberCashRegister, file.getAbsolutePath()));
                                     Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
                                     Date startDate = cashRegister == null ? null : cashRegister.startDate;
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
