@@ -1,0 +1,228 @@
+MODULE LabelDirectPrint;
+
+REQUIRE Label, Printer, LabelItem;
+
+NAMESPACE Label;
+
+
+CLASS NetworkPrinter 'Сетевой принтер';
+TABLE networkPrinter(NetworkPrinter);
+TABLE networkPrinterEmployee(NetworkPrinter, Employee);
+
+name 'Имя принтера' = DATA VARSTRING[100](NetworkPrinter) IN base;
+path 'Путь к принтеру' = DATA VARSTRING[100](NetworkPrinter) IN base;
+
+stock = DATA Stock (NetworkPrinter);
+nameStock 'Склад' (NetworkPrinter p) = name(stock(p));
+
+CONSTRAINT stock(NetworkPrinter p) AND NOT isCompany(stock(p)) CHECKED BY stock[NetworkPrinter] MESSAGE 'Склад для принтера не является складом компании'; 
+
+countNetworkPrinter(s) = GROUP SUM 1 BY stock(NetworkPrinter p); 
+
+in 'Отм' = DATA BOOLEAN (NetworkPrinter, Employee);
+
+FORM networkPrinters 'Выбор принтера'
+    OBJECTS s = Stock PANEL
+    OBJECTS p = NetworkPrinter
+    PROPERTIES (p) READONLY name, path
+    FILTERS s == stock(p), in(p, currentUser())
+;
+
+FORM networkPrintersList 'Принтеры этикеток'
+    OBJECTS p = NetworkPrinter
+    PROPERTIES (p) name, path, nameStock, NEW, DELETE GRID
+    PROPERTIES () getAvailablePrinters TOOLBAR TODRAW p
+
+    OBJECTS e = Employee
+    PROPERTIES in(p, e)
+    PROPERTIES (e) READONLY shortName, namePosition, nameMainRole
+    FILTERS accessCompany(e, stock(p))
+    FILTERGROUP access
+        FILTER 'Основной склад' stock(p) == stock(e) 'F4'
+;
+
+DESIGN networkPrintersList {
+    NEW top{
+        fill = 1;
+        type = CONTAINERH ;
+        MOVE BOX(p);
+    }
+    NEW bottom {
+        fill = 1;
+        MOVE BOX(e);
+    }
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    labelNavigator {
+        ADD networkPrintersList;
+    }
+}
+
+textTemplate 'Текст шаблона' = DATA TEXT (LabelType);
+
+EXTEND FORM labelType PROPERTIES textTemplate(l);
+
+DESIGN labelType {
+    specification{
+        NEW itemtextCase{
+            caption = 'Текст шаблона';
+            fill = 1;
+            MOVE PROPERTY (textTemplate(l) ){preferredValueSize = (600, 600);};
+        }
+    }
+    
+}
+
+text (LabelTransactionDetail labelTransDet) = replace(textTemplate(labelType(labelTransaction(labelTransDet))),'\n','\r');
+
+formattedText = DATA LOCAL TEXT ();
+fullFormattedText = DATA LOCAL TEXT ();
+tempName = DATA  LOCAL TEXT ();
+charset = DATA  LOCAL VARSTRING[10]();
+
+substrToWrap = FORMULA TEXT 'substring(substring(($1) from 1 for ($2)) from 1 for ($2) - CASE WHEN char_length(($1)) > ($2) THEN position(\' \' in reverse(substring(($1) from 1 for ($2)))) ELSE 0 END ) ';
+replaceFirst = FORMULA TEXT 'regexp_replace(($1),($2),($3))';
+
+toDateDDMMYYYYUS = FORMULA VARSTRING[10] 'to_char(($1),\'DD/MM/YYYY\')';
+
+needCustomPrint (LabelTransaction labelTrans) += TRUE IF textTemplate(labelType(labelTrans));
+
+prefixCompleteBarcode = ABSTRACT STRING[2]();
+completedIdBarcode(LabelTransactionDetail ld) =  IF charLength(idBarcode(ld)) == 5 AND prefixCompleteBarcode() 
+    THEN completeBarcode(prefixCompleteBarcode() + idBarcode(ld) + '00000') 
+    ELSE idBarcode(ld);
+
+lpad1Char 'Для 1 разряда' = DATA INTEGER (LabelType);
+lpad2Char 'Для 2 разрядов' = DATA INTEGER (LabelType);
+lpad3Char 'Для 3 разрядов' = DATA INTEGER (LabelType);
+lpad4Char 'Для 4 разрядов' = DATA INTEGER (LabelType);
+
+EXTEND FORM labelType
+    PROPERTIES (l) lpad1Char, lpad2Char, lpad3Char, lpad4Char
+;
+
+DESIGN labelType{
+    itemtextCase{
+        NEW lpad{
+            caption = 'Отступы слева для цены';
+            MOVE PROPERTY (lpad1Char(l));
+            MOVE PROPERTY (lpad2Char(l));
+            MOVE PROPERTY (lpad3Char(l));
+            MOVE PROPERTY (lpad4Char(l));
+        }
+    }
+}
+
+caseLpad(TEXT t, LabelType lt) = CASE
+    WHEN charLength(t) == 4 THEN OVERRIDE lpad4Char(lt), 8
+    WHEN charLength(t) == 3 THEN OVERRIDE lpad3Char(lt), 10
+    WHEN charLength(t) == 2 THEN OVERRIDE lpad2Char(lt), 11
+    WHEN charLength(t) == 1 THEN OVERRIDE lpad1Char(lt), 13
+    ELSE 10;
+
+dynamicLpad(INTEGER p, LabelType lt) = lpad(TEXT(p), caseLpad(TEXT(p), lt),' ');
+
+beforeDirectPrint = ABSTRACT LIST (LabelTransaction);
+overDirectPrint = ABSTRACT LIST (LabelTransactionDetail);
+
+overPrintNameSku = ABSTRACT VARSTRING[255](LabelTransactionDetail);
+
+customPrint(LabelTransaction labelTrans) += {
+    fullFormattedText() <-NULL;
+    
+    beforeDirectPrint(labelTrans);
+    
+    FOR labelTrans == labelTransaction(LabelTransactionDetail ld) DO {
+        formattedText() <- text(ld);
+        
+        IF isSubstring(formattedText(),'#EncodeWindows = Yes') == 1 THEN {
+            charset() <-  'CP1251';
+            formattedText() <- replace(formattedText(), '#EncodeWindows = Yes', '');
+        } ELSE charset() <-  'CP866';         
+        
+        formattedText() <- replace(formattedText(),'@6.18.4@', CONCAT '/', 'руб', lower(shortNameUOMSku(ld)));
+        formattedText() <- replace(formattedText(),'@32.1@', CASE WHEN charLength(idBarcode(ld)) == 8 THEN 'G'
+                                                                WHEN charLength(idBarcode(ld)) == 12 THEN 'B'
+                                                                WHEN charLength(idBarcode(ld)) == 13 OR charLength(idBarcode(ld)) == 5 THEN 'F' 
+                                                                ELSE 'E' );
+        formattedText() <- replace(formattedText(),'@31.13.8@', completedIdBarcode(ld));
+        
+        formattedText() <- replace(formattedText(),'@11.10.2@', lpad(VARSTRING[10](toDateDDMMYYYYUS(date(labelTrans))), 10,' '));
+      
+        formattedText() <- replaceFirst(formattedText(),'@10.30.1@', substrToWrap(nameSku(ld), 30));
+        tempName() <- ltrim(replace(nameSku(ld), substrToWrap(nameSku(ld), 30), ''));
+        formattedText() <- replaceFirst(formattedText(),'@10.30.1@', substrToWrap(tempName(), 30));
+        tempName() <- ltrim(replace( tempName(), substrToWrap(tempName(), 30), ''));
+        formattedText() <- replaceFirst(formattedText(),'@10.30.1@', substrToWrap(tempName(), 30));
+        
+        IF overPrintNameSku(ld) THEN {
+            formattedText() <- replaceFirst(formattedText(),'@3.25.1@', substrToWrap(overPrintNameSku(ld), 25));    
+        } ELSE {
+            formattedText() <- replaceFirst(formattedText(),'@3.25.1@', substrToWrap(nameSku(ld), 25)); 
+        }
+        
+        IF nameCountrySku(ld) THEN {
+            formattedText() <- replaceFirst(formattedText(),'@52.25.1@', nameCountrySku(ld));   
+            formattedText() <- replaceFirst(formattedText(),'@5.70.1@', nameCountrySku(ld));  
+        }
+
+        IF nameManufacturerItem(ld) THEN {
+            formattedText() <- replaceFirst(formattedText(),'@52.25.1@', substrToWrap(nameManufacturerItem(ld), 25));
+            tempName() <- ltrim(replace(nameManufacturerItem(ld), substrToWrap(nameManufacturerItem(ld), 25), ''));
+            formattedText() <- replaceFirst(formattedText(),'@52.25.1@', substrToWrap(tempName(), 25));
+            tempName() <- ltrim(replace( tempName(), substrToWrap(tempName(), 25), ''));
+            formattedText() <- replaceFirst(formattedText(),'@52.25.1@', substrToWrap(tempName(), 25));   
+            
+            formattedText() <- replaceFirst(formattedText(),'@5.70.1@', substrToWrap(nameManufacturerItem(ld), 70));
+            tempName() <- ltrim(replace(nameManufacturerItem(ld), substrToWrap(nameManufacturerItem(ld), 70), ''));
+            formattedText() <- replaceFirst(formattedText(),'@5.70.1@', substrToWrap(tempName(), 70));
+        } ELSE {
+            formattedText() <- replace(formattedText(),'@52.25.1@', '');
+            formattedText() <- replace(formattedText(),'@5.70.1@', '');
+        }
+        IF discountSum(ld) > 0.0 THEN {
+            formattedText() <- replace(formattedText(),'@YourDiscount@', 'Ваша скидка:');
+        } ELSE formattedText() <- replace(formattedText(),'@YourDiscount@', '');
+               
+        //цены с копейками 
+        IF priceRubB(ld) THEN {
+            formattedText() <- replace(formattedText(),'@priceRub@', dynamicLpad(priceRubB(ld), labelType(ld) )) WHERE priceRubB(ld);
+        } ELSE formattedText() <- replace(formattedText(),'@priceRub@', '');
+        IF discountPriceRubB(ld) AND discountSum(ld) > 0.0 THEN {
+            formattedText() <- replace(formattedText(),'@discountPriceRub@', dynamicLpad(discountPriceRubB(ld), labelType(ld)) + '.') WHERE discountPriceRubB(ld);
+        } ELSE formattedText() <- replace(formattedText(),'@discountPriceRub@', '');
+        IF retailPriceRubB(ld) THEN {
+            formattedText() <- replace(formattedText(),'@retailPriceRub@', dynamicLpad(retailPriceRubB(ld), labelType(ld))) WHERE retailPriceRubB(ld);
+        } ELSE formattedText() <- replace(formattedText(),'@retailPriceRub@', '');    
+        
+        IF priceKopB(ld) THEN {
+            formattedText() <- replace(formattedText(),'@priceKop@', priceKopB(ld));
+        } ELSE formattedText() <- replace(formattedText(),'@priceKop@', '');
+        IF discountPriceKopB(ld) AND discountSum(ld) > 0.0 THEN {
+            formattedText() <- replace(formattedText(),'@discountPriceKop@', discountPriceKopB(ld)) ;
+        } ELSE formattedText() <- replace(formattedText(),'@discountPriceKop@', '');
+        IF retailPriceKopB(ld) THEN {
+            formattedText() <- replace(formattedText(),'@retailPriceKop@', retailPriceKopB(ld));
+        } ELSE formattedText() <- replace(formattedText(),'@retailPriceKop@', '');        
+        
+        formattedText() <- replace(formattedText(),'@33.4@', VARSTRING[4](OVERRIDE quantity(ld), 1 IF ld IS LabelTransactionDetail));
+        
+        overDirectPrint(ld); 
+        
+        fullFormattedText() <- CONCAT '', fullFormattedText() , formattedText();
+        
+    }
+    
+    IF countNetworkPrinter(departmentStore(labelTrans)) AND [= GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](labelTrans) THEN {
+        printed() <- NULL;
+        DIALOG networkPrinters OBJECTS s = departmentStore(labelTrans), p INPUT NOMANAGESESSION DO {
+            writeToPrinter(fullFormattedText(), charset(), path(p)) ;
+        }
+        IF NOT printed() THEN {
+            DELETE labelTrans;
+        }
+    }
+
+};
