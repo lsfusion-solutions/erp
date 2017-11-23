@@ -1,4 +1,4 @@
-MODULE RetailPriceForm;
+MODULE RetailPriceDashboard;
 
 REQUIRE PriceListStore, PriceListDashboard, PriceListPromotion;
 
@@ -110,7 +110,7 @@ changeRetailPriceM (LedgerPriceListType type, Sku sk, Stock d, DATETIME dt) = {
     NEWSESSION SHOW userPriceList OBJECTS p = userPriceList(lastPriceListLedger(type,sk,d,dt)), d=userPriceListDetail(userPriceList(lastPriceListLedger(type,sk,d,dt)), sk);  
 }
 
-FORM retailPrices 'Розничные цены'
+FORM retailPriceDashboard 'Розничные цены'
     OBJECTS dt = DATETIME PANEL
     PROPERTIES(dt) VALUE
     
@@ -131,8 +131,8 @@ FORM retailPrices 'Розничные цены'
        
     OBJECTS sk=Sku
     PROPERTIES (sk) select//, hasRetailPrice
-    PROPERTIES (sk) READONLY BACKGROUND backgroundPromotion(sk,d,dt) name, id, idBarcode, nameCountry
-    PROPERTIES  READONLY balanceB(sk,d,dt), valueVAT(sk,d)
+    PROPERTIES (sk) READONLY name BACKGROUND backgroundPromotion(sk,d,dt), id, idBarcode, nameCountry
+    PROPERTIES  READONLY currentBalance(sk,d), valueVAT(sk)
     //-- входная цена
     PROPERTIES READONLY currentCalcM(pt0,sk,d,dt) COLUMNS (pt0)  HEADER ('Вход. цена '+name(pt0)) BACKGROUND backgroundCalc(pt0,d)
     //-- надбавка  
@@ -181,9 +181,9 @@ FORM retailPrices 'Розничные цены'
         
     EVENTS ON INIT fillDefault()
 ;
-@extendFormFilterStockAccess(d, retailPrices);
+@extendFormFilterStockAccess(d, retailPriceDashboard);
 
-DESIGN retailPrices {
+DESIGN retailPriceDashboard {
      NEW pane {
          fill = 1;
          type = CONTAINERV;
@@ -230,6 +230,6 @@ DESIGN retailPrices {
 
 NAVIGATOR {
     priceListDashboardNavigator {
-        ADD retailPrices;
+        ADD retailPriceDashboard;
     }
 }
