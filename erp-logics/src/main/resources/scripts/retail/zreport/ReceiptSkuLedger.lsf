@@ -26,7 +26,14 @@ sku = DATA Sku (ReceiptSaleSkuLedger);
 date = DATA DATE (ReceiptSaleSkuLedger);
 price = DATA NUMERIC[16,4] (ReceiptSaleSkuLedger);
 
-@defineAggregationCustom(departmentStoreReceiptSaleSkuLedger, skuReceiptSaleSkuLedger, dateReceiptSaleSkuLedger, priceReceiptSaleSkuLedger, departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[16,4], receiptSaleSkuLedger, ReceiptSaleSkuLedger, countReceiptSaleDetail);
+receiptSaleSkuLedger (departmentStore, sku, date, price) =
+    GROUP NAGGR ReceiptSaleSkuLedger receiptSaleSkuLedger BY departmentStore(receiptSaleSkuLedger), sku(receiptSaleSkuLedger), date(receiptSaleSkuLedger), price(receiptSaleSkuLedger) 
+    WHERE receiptSaleSkuLedger IS ReceiptSaleSkuLedger;// MATERIALIZED INDEXED;
+
+countReceiptSaleDetail(DepartmentStore departmentStore, Sku sku, DATE date, NUMERIC[16,4] price) => receiptSaleSkuLedger(departmentStore, sku, date, price) RESOLVE LEFT;
+
+is(ReceiptSaleSkuLedger receiptSaleSkuLedger) = receiptSaleSkuLedger IS ReceiptSaleSkuLedger;
+is(ReceiptSaleSkuLedger receiptSaleSkuLedger) => countReceiptSaleDetail(departmentStore(receiptSaleSkuLedger), sku(receiptSaleSkuLedger), date(receiptSaleSkuLedger), price(receiptSaleSkuLedger)) RESOLVE RIGHT;
 
 INDEX sku(ReceiptSaleSkuLedger o), departmentStore(o);
 INDEX price(ReceiptSaleSkuLedger o), departmentStore(o), date(o);
