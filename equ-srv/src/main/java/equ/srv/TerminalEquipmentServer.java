@@ -1,8 +1,6 @@
 package equ.srv;
 
 import com.google.common.base.Throwables;
-import equ.api.terminal.TerminalAssortment;
-import equ.api.terminal.TerminalHandbookType;
 import equ.api.terminal.*;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -23,6 +21,7 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
+import java.awt.*;
 import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.Date;
@@ -59,12 +58,12 @@ public class TerminalEquipmentServer {
                 String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
                         "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "passScalesSkuOrderDetail", "minDeviationQuantityOrderDetail",
                         "maxDeviationQuantityOrderDetail", "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail",
-                        "headField1", "headField2", "headField3", "posField1", "posField2", "posField3"};
+                        "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3"};
                 LCP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
                         "nameSku[TerminalOrderDetail]", "price[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
                         "nameManufacturerSku[TerminalOrderDetail]", "passScalesSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
                         "maxDeviationQuantity[TerminalOrderDetail]", "minDeviationPrice[TerminalOrderDetail]", "maxDeviationPrice[TerminalOrderDetail]",
-                        "headField1[TerminalOrderDetail]", "headField2[TerminalOrderDetail]", "headField3[TerminalOrderDetail]",
+                        "color[TerminalOrderDetail]", "headField1[TerminalOrderDetail]", "headField2[TerminalOrderDetail]", "headField3[TerminalOrderDetail]",
                         "posField1[TerminalOrderDetail]", "posField2[TerminalOrderDetail]", "posField3[TerminalOrderDetail]");
                 for (int i = 0; i < orderDetailProperties.length; i++) {
                     orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
@@ -92,6 +91,8 @@ public class TerminalEquipmentServer {
                     BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail");
                     String nameManufacturer = (String) entry.get("nameManufacturerSkuOrderDetail");
                     String weight = entry.get("passScalesSkuOrderDetail") != null ? "1" : "0";
+                    String color = formatColor((Color) entry.get("color"));
+
                     String headField1 = (String) entry.get("headField1");
                     String headField2 = (String) entry.get("headField2");
                     String headField3 = (String) entry.get("headField3");
@@ -99,14 +100,18 @@ public class TerminalEquipmentServer {
                     String posField2 = (String) entry.get("posField2");
                     String posField3 = (String) entry.get("posField3");
                     terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, idItem, name, price,
-                            quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, headField1, headField2, headField3,
-                            posField1, posField2, posField3));
+                            quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
+                            headField1, headField2, headField3, posField1, posField2, posField3));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
         return terminalOrderList;
+    }
+
+    private static String formatColor(Color color) {
+        return color == null ? null : String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
     }
 
     public static List<TerminalAssortment> readTerminalAssortmentList(DataSession session, BusinessLogics BL, ObjectValue priceListTypeObject, ObjectValue stockGroupMachineryObject)

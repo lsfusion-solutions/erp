@@ -19,6 +19,7 @@ public class TerminalOrder implements Serializable {
     public BigDecimal maxPrice;
     public String manufacturer;
     public String weight;
+    public String color;
     public String headField1;
     public String headField2;
     public String headField3;
@@ -28,7 +29,7 @@ public class TerminalOrder implements Serializable {
 
     public TerminalOrder(Date date, String number, String supplier, String barcode, String idItem, String name, BigDecimal price,
                          BigDecimal quantity, BigDecimal minQuantity, BigDecimal maxQuantity, BigDecimal minPrice,
-                         BigDecimal maxPrice, String manufacturer, String weight,
+                         BigDecimal maxPrice, String manufacturer, String weight, String color,
                          String headField1, String headField2, String headField3, String posField1, String posField2, String posField3) {
         this.date = date;
         this.number = number;
@@ -44,6 +45,7 @@ public class TerminalOrder implements Serializable {
         this.maxPrice = maxPrice;
         this.manufacturer = manufacturer;
         this.weight = weight;
+        this.color = color;
         this.headField1 = headField1;
         this.headField2 = headField2;
         this.headField3 = headField3;
