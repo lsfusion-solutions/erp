@@ -440,20 +440,30 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         for (RequestExchange entry : requestExchangeList) {
             for (CashRegisterInfo cashRegister : getCashRegisterSet(entry, true)) {
                 String directory = cashRegister.directory + "/sale" + cashRegister.number;
-                sendSalesLogger.info(logPrefix + "creating request file for directory : " + directory);
-                if (new File(directory).exists() || new File(directory).mkdirs()) {
-                    String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
-                    String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
+                try {
+                    sendSalesLogger.info(logPrefix + "creating request file for directory : " + directory);
+                    if (new File(directory).exists() || new File(directory).mkdirs()) {
+                        String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
+                        String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
-                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/sale.req"), "utf-8"));
-                    String data = String.format("###\n%s-%s", dateFrom, dateTo);
-                    writer.write(data);
-                    writer.close();
-                } else {
-                    failedRequests.put(entry.requestExchange, new RuntimeException("Failed to create directory " + directory));
+                        File reqFile = new File(directory + "/sale.req");
+                        if (!reqFile.exists()) {
+                            Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(reqFile), "utf-8"));
+                            String data = String.format("###\n%s-%s", dateFrom, dateTo);
+                            writer.write(data);
+                            writer.close();
+                        } else {
+                            failedRequests.put(entry.requestExchange, new RuntimeException("Previous sale.req is not processed in directory " + directory));
+                        }
+                    } else {
+                        failedRequests.put(entry.requestExchange, new RuntimeException("Failed to create directory " + directory));
+                    }
+                } catch (Exception e) {
+                    failedRequests.put(entry.requestExchange, new RuntimeException("Exception while creating sale.req in directory " + directory, e));
                 }
-                succeededRequests.add(entry.requestExchange);
             }
+            if (!failedRequests.containsKey(entry.requestExchange))
+                succeededRequests.add(entry.requestExchange);
         }
     }
 
