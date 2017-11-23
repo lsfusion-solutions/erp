@@ -8,30 +8,24 @@ NAMESPACE PriceList;
 filterRetailCalc = GROUP SUM 1 BY retailCalcPriceListType (DepartmentStore d); 
 filterRetail = GROUP SUM 1 BY retailPriceListType (DepartmentStore d); 
 filterBase = GROUP SUM 1 BY basePriceListType(retailCalcPriceListType (DepartmentStore d)); 
-
-headerNameCalcPerc (CalcPriceListType c) =
-    name(c)+', %' MINCHARWIDTH 30 MAXCHARWIDTH 50;
-//headerNameCalc (PriceListType c) =
-//    name(c) MINCHARWIDTH 30 MAXCHARWIDTH 50;  
-    
+   
 currentCalc (CalcPriceListType type, Sku sku, Stock stock, DATETIME dt) = priceA(type, sku, stock, dt);
-currentCalcM (PriceListType type, Sku sku, Stock stock, DATETIME dt) = priceA(type, sku, stock, dt);
-currentCalcB (BasePriceListType type, Sku sku, Stock stock, DATETIME dt) = priceA(type, sku, stock, dt);
+currentCalcM (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dt) = priceA(type, sku, stock, dt);
 
 changeDataMarkup (CalcPriceListType pt1, Sku sk) = {
     INPUT n = NUMERIC[8,2] DO
         dataMarkup(pt1, sk) <- n;
 }
 changeDataMarkupALL (CalcPriceListType pt1, Sku sk) = {
-    SHOW calcPriceListType OBJECTS c = pt1, s=sk NOMANAGESESSION;
+    NEWSESSION SHOW calcPriceListType OBJECTS c = pt1, s=sk;
 }
-backgroundCalc (BasePriceListType type, Stock stock) = CASE
+backgroundCalc (LedgerPriceListType type, Stock stock) = CASE
     WHEN basePriceListType(retailCalcPriceListType (stock)) == type THEN RGB(255, 218, 205)
-    WHEN type IS  BasePriceListType AND stock IS Stock THEN RGB(255, 244, 240);
+    WHEN type IS  LedgerPriceListType AND stock IS Stock THEN RGB(255, 244, 240);
     
-backgroundRetail (PriceListType type, Stock stock) = CASE
+backgroundRetail (LedgerPriceListType type, Stock stock) = CASE
     WHEN retailPriceListType (stock)== type THEN RGB(186, 248, 255)
-    WHEN type IS  PriceListType AND stock IS Stock THEN RGB(237, 253, 255);
+    WHEN type IS  LedgerPriceListType AND stock IS Stock THEN RGB(237, 253, 255);
 
 backgroundMarkupSku (CalcPriceListType type, Sku sku, Stock stock) = CASE 
     WHEN CHANGED(dataMarkup(type,sku)) AND stock IS Stock THEN RGB(204,255,204)
@@ -39,7 +33,7 @@ backgroundMarkupSku (CalcPriceListType type, Sku sku, Stock stock) = CASE
 
 markupGroup (CalcPriceListType type, Sku sku) = markup(type, skuGroup(sku));   
 backgroundMarkupSkuGroup (CalcPriceListType type, Sku sku, Stock stock) = CASE 
-    WHEN CHANGED(markupGroup(type,sku)) AND stock IS Stock THEN RGB(204,255,204)
+    //WHEN CHANGED(markupGroup(type,sku)) AND stock IS Stock THEN RGB(204,255,204)
     WHEN retailCalcPriceListType (stock) == type AND sku IS Sku THEN RGB(255, 250, 205);
     
 backgroundMarkupSkuGroupOver (CalcPriceListType type, Sku sku, Stock stock) = CASE 
@@ -51,7 +45,7 @@ GROUP retailPrice 'Значения по умолчанию Форма "Розн
 defaultRetailOperation  = DATA PriceList.Operation();
 nameDefaultRetailOperation 'Операция' () = name(defaultRetailOperation()) IN retailPrice;
 
-comparePriceListType  = DATA PriceListType();
+comparePriceListType  = DATA LedgerPriceListType();
 nameComparePriceListtype 'Вид цен для сравнения' () = name(comparePriceListType()) IN retailPrice;
 
 compareStock  = DATA Stock();
@@ -91,11 +85,30 @@ createPriceList 'Создать прайс (отм.)' (DATETIME dt) = {
 }
 backgroundPromotion(Sku sku, Stock stock, DATETIME dt) =  RGB(216,224,255) IF promotionPriceListDetailA(sku, stock, dt);
 
-currentCompare 'Цена конкурента' (Sku sku, DATETIME dt) = priceA(comparePriceListType(), sku, compareStock(), dt);
-currentOwn (Sku sk, Stock d, DATETIME dt) = OVERRIDE priceA(retailPriceListType(d), sk, d,dt), priceA(retailCalcPriceListType(d), sk, d, dt);
+currentCompare 'Цена конкурента' (Sku sku, DATETIME dt) = priceA[LedgerPriceListType,Sku,Stock,DATETIME](comparePriceListType(), sku, compareStock(), dt);
+currentOwn (Sku sk, Stock d, DATETIME dt) = OVERRIDE currentCalcM(retailPriceListType(d), sk, d,dt), currentCalc(retailCalcPriceListType(d), sk, d, dt);
 backgroundCompare (Sku sk, Stock d, DATETIME dt) = CASE
     WHEN currentOwn(sk,d,dt) <= currentCompare(sk,dt) THEN RGB(204,255,204)
     WHEN currentOwn(sk,d,dt) > currentCompare(sk,dt) THEN RGB(255, 117, 117);
+ 
+filter0= DATA LOCAL NESTED BOOLEAN (LedgerPriceListType);   
+filter1 = DATA LOCAL NESTED BOOLEAN (CalcPriceListType);
+filter2 = DATA LOCAL NESTED BOOLEAN (LedgerPriceListType);
+
+
+fillDefault () = {    
+    filter0(LedgerPriceListType p) <- NULL;
+    filter1(CalcPriceListType p) <- NULL;
+    filter2(LedgerPriceListType p) <- NULL;
+
+    filter0(LedgerPriceListType p) <- TRUE WHERE filterBase(p);
+    filter1(CalcPriceListType p) <- TRUE WHERE filterRetailCalc(p);
+    filter2(LedgerPriceListType p) <- TRUE WHERE filterRetail(p);
+}
+
+changeRetailPriceM (LedgerPriceListType type, Sku sk, Stock d, DATETIME dt) = {
+    NEWSESSION SHOW userPriceList OBJECTS p = userPriceList(lastPriceListLedger(type,sk,d,dt)), d=userPriceListDetail(userPriceList(lastPriceListLedger(type,sk,d,dt)), sk);  
+}
 
 FORM retailPrices 'Розничные цены'
     OBJECTS dt = DATETIME PANEL
@@ -109,25 +122,25 @@ FORM retailPrices 'Розничные цены'
     ORDER order(sg), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sg) DEFAULT
     
-    OBJECTS pt0 = BasePriceListType GRID
-    FILTERS filterBase(pt0)
+    OBJECTS pt0 = LedgerPriceListType GRID
+    FILTERS filter0(pt0)
     OBJECTS pt1 = CalcPriceListType GRID
-    FILTERS filterRetailCalc(pt1)
-    OBJECTS pt2 = PriceListType GRID
-    FILTERS filterRetail(pt2)
+    FILTERS filter1(pt1)
+    OBJECTS pt2 = LedgerPriceListType GRID
+    FILTERS filter2(pt2)
        
     OBJECTS sk=Sku
     PROPERTIES (sk) select//, hasRetailPrice
     PROPERTIES (sk) READONLY BACKGROUND backgroundPromotion(sk,d,dt) name, id, idBarcode, nameCountry
     PROPERTIES  READONLY balanceB(sk,d,dt), valueVAT(sk,d)
     //-- входная цена
-    PROPERTIES READONLY currentCalcB(pt0,sk,d,dt) COLUMNS (pt0)  HEADER ('Вход. цена '+name(pt0)) BACKGROUND backgroundCalc(pt0,d)
+    PROPERTIES READONLY currentCalcM(pt0,sk,d,dt) COLUMNS (pt0)  HEADER ('Вход. цена '+name(pt0)) BACKGROUND backgroundCalc(pt0,d)
     //-- надбавка  
     PROPERTIES dataMarkup(pt1,sk) COLUMNS 'f'  (pt1) HEADER ('% ТН, товар '+name(pt1))  ON CHANGE changeDataMarkup (pt1,sk) BACKGROUND backgroundMarkupSku(pt1,sk,d)
     PROPERTIES markupGroup(pt1,sk) COLUMNS 'f' (pt1) HEADER ('% ТН, группа '+name(pt1)) ON CHANGE changeDataMarkupALL(pt1,sk)  BACKGROUND backgroundMarkupSkuGroup(pt1,sk,d)              
     PROPERTIES READONLY currentCalc(pt1,sk,d,dt) COLUMNS 'f'  (pt1) HEADER ('РЦ, над. '+name(pt1)) BACKGROUND backgroundMarkupSkuGroupOver(pt1,sk,d)        
     //-- розничная (упр.)
-    PROPERTIES READONLY currentCalcM(pt2,sk,d,dt) COLUMNS'f'  (pt2) HEADER ('РЦ, упр. '+name(pt2))  BACKGROUND backgroundRetail(pt2,d)
+    PROPERTIES currentCalcM(pt2,sk,d,dt) COLUMNS'f'  (pt2) HEADER ('РЦ, упр. '+name(pt2)) ON CHANGE changeRetailPriceM(pt2,sk,d,dt) BACKGROUND backgroundRetail(pt2,d)
     //-- конкуренты
     PROPERTIES READONLY currentCompare(sk,dt)  BACKGROUND backgroundCompare(sk,d,dt)    
     
@@ -139,7 +152,7 @@ FORM retailPrices 'Розничные цены'
     FILTERGROUP promotion
         FILTER 'В акции' promotionPriceListDetailA(sk, d, dt)
     FILTERGROUP supplier
-        FILTER 'Есть входная цена' currentCalcB(basePriceListType(retailCalcPriceListType(d)),sk,d,dt)  
+        FILTER 'Есть входная цена' currentCalcM(basePriceListType(retailCalcPriceListType(d)),sk,d,dt)  
             
     FILTERGROUP processing
 //        FILTER 'С остатками  и без цен' availableQuantity(sk, s) > 0 AND NOT localHasRetailPrice(sk)
@@ -148,8 +161,25 @@ FORM retailPrices 'Розничные цены'
 //        FILTER 'Текущий прайс' localHasRetailPrice(sk) DEFAULT
 //        FILTER 'С разной себестоимостью' warehouseCostPriceListLedgerB(sk, toDateTime(dt)) != calcWarehousePrice(sk)
 
-    FILTERGROUP activeSku FILTER 'Активные' active(sk) DEFAULT
+    FILTERGROUP activeSku FILTER 'Активные' active(sk) DEFAULT 
 
+    PROPERTIES() filterPriceListDateFrom, filterPriceListDateTo, nameFilterPriceListCompany    
+    OBJECTS p = PriceList LAST
+    PROPERTIES(p) READONLY
+           isPosted , number, series, date, time,
+           fromDate, fromTime, toDate, toTime, 
+           nameCurrency, nameCompany, nameCompanyStock,
+           note
+    PROPERTIES (p) NEWSESSION NEW[UserPriceList], editP = EDIT SHOWIF showChange(p), DELETE SHOWIF (is[UserPriceList](p) AND showChange(p))
+    FILTERGROUP inactivePriceList
+        FILTER 'Текущие' isActive(p,dt) 'F10'            
+        FILTER 'Активные' isActive(p,dt) OR (fromDateTime(p) > dt) 'F10' DEFAULT
+    
+    FILTERS filterDateFrom(p), 
+            filterDateTo(p),
+            filterCompany(p)              
+        
+    EVENTS ON INIT fillDefault()
 ;
 @extendFormFilterStockAccess(d, retailPrices);
 
@@ -169,14 +199,29 @@ DESIGN retailPrices {
          }
          NEW rightContainer {
              fill = 1;
-
-             caption = 'Товары';
-             type = SPLITH;
-             MOVE BOX(TREE skuTree);
-             MOVE BOX(sk) {
-                 fill = 3;                               
+             type = TABBED;
+             NEW skus {
+                 caption = 'Товары';
+                 type = SPLITH;
+                 fill = 1;
+                 MOVE BOX(TREE skuTree);
+                 MOVE BOX(sk) {
+                     fill = 3;                               
+                 }            
              }
-                                              
+             NEW price {
+                fill = 1;
+                caption = 'Прайсы';
+                NEW topFilter {
+                    type = CONTAINERH ;
+                    caption = 'Фильтры';
+                    MOVE PROPERTY(filterPriceListDateFrom());
+                    MOVE PROPERTY(filterPriceListDateTo());
+                    MOVE PROPERTY(nameFilterPriceListCompany());
+                } 
+                MOVE BOX(p);   
+             }
+                                                        
          }
         
      }
