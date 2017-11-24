@@ -14,7 +14,9 @@ skipShowEdit(PriceListLedger pl) +=  preventChangesDocument(mainRole(currentUser
 TABLE priceListTypeOperation(PriceListType, Operation);
 
 change 'Изменять цены' = DATA BOOLEAN (DataPriceListType, Operation);
+orderIn 'Порядок (изм.)' = DATA INTEGER (DataPriceListType, Operation);
 show 'Показывать цены' = DATA BOOLEAN (PriceListType, Operation);
+orderShow 'Порядок (показ.)' = DATA INTEGER (PriceListType, Operation);
 
 TABLE stockOperation(Stock, Operation);
 TABLE stockGroupOperation(StockGroup, Operation);
@@ -121,9 +123,12 @@ EXTEND FORM priceLists
 
 in(UserPriceList priceList, DataPriceListType dataPriceListType) <- change(dataPriceListType, operation(priceList))
     WHEN CHANGED(operation(priceList));
-
+orderIn(UserPriceList priceList, DataPriceListType dataPriceListType) <- orderIn(dataPriceListType, operation(priceList))
+    WHEN CHANGED(operation(priceList));
 show(UserPriceList priceList, PriceListType priceListType) <- show(priceListType, operation(priceList))
     WHEN CHANGED(operation(priceList));
+orderShow(UserPriceList priceList, PriceListType priceListType) <- orderShow(priceListType, operation(priceList))
+    WHEN CHANGED(operation(priceList));    
 
 WHEN LOCAL CHANGED(operation(UserPriceList priceList)) AND dataLegalEntity(operation(priceList)) DO
     company(priceList) <- dataLegalEntity(operation(priceList));
@@ -193,7 +198,7 @@ showNotCompanyStocksUser(UserPriceList priceList) <- showNotCompanyStocks(operat
 
 EXTEND FORM operation
     OBJECTS pt = PriceListType
-    PROPERTIES(pt, o) change TODRAW pt , show
+    PROPERTIES(pt, o) change TODRAW pt, orderIn TODRAW pt, show, orderShow
     PROPERTIES(pt) READONLY name, nameCurrency, objectClassName
     FILTERGROUP filters
         FILTER 'Показывать отмеченные' change(pt, o) 'F9'

@@ -156,10 +156,18 @@ show 'Показывать цены' = ABSTRACT BOOLEAN (PriceList, PriceListTyp
 show 'Показывать цены' = DATA BOOLEAN (UserPriceList, PriceListType);
 show (UserPriceList priceList, PriceListType priceListType) += show(priceList, priceListType);
 
+orderShow 'Порядок (показ.)' = ABSTRACT INTEGER (PriceList, PriceListType) MATERIALIZED;
+orderShow 'Порядок (показ.)' = DATA INTEGER (UserPriceList, PriceListType);
+orderShow (UserPriceList priceList, PriceListType priceListType) += orderShow(priceList, priceListType);
+
 TABLE priceListDataPriceListType (PriceList, DataPriceListType);
 in 'Изменять цены' = ABSTRACT BOOLEAN (PriceList, DataPriceListType) MATERIALIZED;
 in 'Изменять цены' = DATA BOOLEAN (UserPriceList, DataPriceListType);
 in (UserPriceList priceList, DataPriceListType dataPriceListType) += in(priceList, dataPriceListType);
+
+orderIn 'Порядок (изм.)' = ABSTRACT INTEGER (PriceList, DataPriceListType) MATERIALIZED;
+orderIn 'Порядок (изм.)' = DATA INTEGER (UserPriceList, DataPriceListType);
+orderIn (UserPriceList priceList, DataPriceListType dataPriceListType) += orderIn(priceList, dataPriceListType);
 
 priceListTypes 'Цены' (priceList) = GROUP CONCAT name[PriceListType](DataPriceListType priceListType) IF in(PriceList priceList, priceListType) , ', '
                                                BY priceList
@@ -516,16 +524,20 @@ FORM userPriceList 'Прайс'
 
     OBJECTS t = PriceListType
     PROPERTIES(t) READONLY name, includeVAT[LedgerPriceListType] 
-    PROPERTIES(p, t) in[UserPriceList,DataPriceListType] , show[PriceList,PriceListType]
+    PROPERTIES(p, t) in[UserPriceList,DataPriceListType], orderIn[UserPriceList,DataPriceListType], show[PriceList,PriceListType], orderShow[PriceList,PriceListType]
     FILTERS (currency(p) == currency(t)) OR 
             NOT currency(t) OR NOT currency(p) 
 
     OBJECTS tc = DataPriceListType GRID
+    PROPERTIES (p,tc) orderIn[UserPriceList,DataPriceListType]
+    ORDER orderIn(p,tc)
     FILTERS in(p, tc), 
             (currency(p) == currency[PriceListType](tc)) OR 
             NOT currency[PriceListType](tc) OR NOT currency(p) 
 
     OBJECTS to = PriceListType GRID
+    PROPERTIES orderShow[PriceList,PriceListType](p,to)
+    ORDER orderShow(p,to)    
     FILTERS show[PriceList,PriceListType](p, to)
 
     OBJECTS th = DataPriceListType GRID
@@ -781,7 +793,8 @@ DESIGN userPriceList {
             caption = 'Вид цен';
             MOVE BOX(t);
         }
-
+        REMOVE BOX(tc);
+        REMOVE BOX(to);        
         NEW fourthContainer {
             caption = 'Подбор';
             NEW topThirdContainer{
@@ -863,7 +876,7 @@ FORM chooseMarkUpSkuUserPriceList 'Наценка'
 
     OBJECTS pt = PriceListType PANEL
     PROPERTIES(pt) SELECTOR name
-
+    FILTERS in[UserPriceList,DataPriceListType](p,pt) OR show[UserPriceList, PriceListType](p,pt)
     OBJECTS n = NUMERIC[20,7] PANEL
     PROPERTIES(n) objValue = VALUE HEADER headerNumericCaption(m)
 
