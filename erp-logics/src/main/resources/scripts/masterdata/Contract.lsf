@@ -179,13 +179,15 @@ replace 'Объединить'(Contract contract) = {
     setNoEventsInTransaction();
     DIALOG confirmReplaceContract OBJECTS contract = contract DO {
         FOR in(Contract c) AND contract IS Contract DO {
-            IF c != contract AND partyA(c) == partyA(contract) AND partyB(c) == partyB(contract) THEN {
-                preReplace(c, contract);
-                replace(c, contract);
-                in(c) <- NULL;
-                DELETE c;
-            } ELSE {
-                MESSAGE 'Выделенный договор не может совпадать с объединяемым и должен иметь одиного поставщика и покупателя';
+            IF c != contract THEN {
+                IF partyA(c) == partyA(contract) AND partyB(c) == partyB(contract) THEN {
+                    preReplace(c, contract);
+                    replace(c, contract);
+                    in(c) <- NULL;
+                    DELETE c;
+                } ELSE {
+                    MESSAGE 'Выделенные договоры не могут быть объединены. Поставщик и покупатель должны быть одинаковыми';
+                }
             }
         }
         apply();
