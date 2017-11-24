@@ -165,11 +165,12 @@ FORM retailPriceDashboard 'Розничные цены'
     FILTERGROUP activeSku FILTER 'Активные' active(sk) DEFAULT 
 
     PROPERTIES() filterPriceListDateFrom, filterPriceListDateTo, nameFilterPriceListCompany    
+    
     OBJECTS p = PriceList LAST
-    PROPERTIES(p) READONLY
+    PROPERTIES(p) READONLY BACKGROUND background(p)
            isPosted , number, series, date, time,
-           fromDate, fromTime, toDate, toTime, 
-           nameCurrency, nameCompany, nameCompanyStock,
+           fromDate, fromTime, toDate, toTime, nameOperation, 
+           nameCurrency, nameCompany, nameCompanyStock, priceListTypes, stocks,
            note
     PROPERTIES (p) NEWSESSION NEW[UserPriceList], editP = EDIT SHOWIF showChange(p), DELETE SHOWIF (is[UserPriceList](p) AND showChange(p))
     FILTERGROUP inactivePriceList
@@ -178,7 +179,8 @@ FORM retailPriceDashboard 'Розничные цены'
     
     FILTERS filterDateFrom(p), 
             filterDateTo(p),
-            filterCompany(p)              
+            filterCompany(p),
+            [  = GROUP SUM 1 IF in[PriceList, DataPriceListType](PriceList p,DataPriceListType pt2) AND filter2(pt2)  BY p](p)            
         
     EVENTS ON INIT fillDefault()
 ;
