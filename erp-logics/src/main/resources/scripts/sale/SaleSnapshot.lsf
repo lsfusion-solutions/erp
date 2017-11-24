@@ -52,7 +52,7 @@ saleVATSum 'НДС продажа' (group, stock, snapshot) =
         BY group, stock, snapshot MATERIALIZED;         
 saleMarkupSum 'Надбавка продажа' (SkuGroup group, Stock stock, Snapshot snapshot) =
     saleSum(group, stock, snapshot) (-) saleVATSum(group, stock, snapshot) (-) saleCostSum(group, stock, snapshot);
-saleMarkupPerc 'Надбавка, % средн.' = saleMarkupSum(SkuGroup group, Stock stock, Snapshot snapshot)*100.00 / saleCostSum(group, stock, snapshot);
+saleMarkupPerc 'Надбавка, % средн.' = saleMarkupSum(SkuGroup group, Stock stock, Snapshot snapshot)*100.00 / saleCostSum(group, stock, snapshot) ;
 saleMarkupPercRet 'Надбавка, % от цены' = saleMarkupSum(SkuGroup group, Stock stock, Snapshot snapshot)*100.00 / saleSum(group, stock, snapshot);
 
 saleVATSupplier 'НДС поставщика продажа' (group, stock, snapshot) =
@@ -254,6 +254,7 @@ overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += {
         }    
         IF isSum(snapshot) THEN {   
             saleSum(Sku sku, Stock stock, snapshot) <- NULL;
+            saleVATSum(Sku sku, Stock stock, snapshot) <- NULL;
             IF singleStock() THEN {
                 saleSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumSold(sku, stock, dateFrom, dateTo)) 
                     WHERE stock == singleStock() AND include(snapshot, sku) AND sumSold(sku, stock, dateFrom, dateTo);    
