@@ -629,7 +629,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         Set<String> directorySet = new HashSet<>();
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.handlerModel != null && c.handlerModel.endsWith("UKM4MySQLHandler")) {
+            if (fitHandler(c)) {
                 directorySet.add(c.directory);
                 if (c.number != null)
                     directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
@@ -832,7 +832,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         String weightCode = null;
         Map<Integer, CashRegisterInfo> machineryMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.handlerModel != null && c.handlerModel.endsWith("UKM4MySQLHandler")) {
+            if (fitHandler(c)) {
                 if (c.number != null && c.numberGroup != null)
                     machineryMap.put(c.number, c);
                 if (c.weightCodeGroupCashRegister != null) {

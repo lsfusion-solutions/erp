@@ -607,7 +607,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.handlerModel != null && c.directory != null && c.handlerModel.endsWith("HTCHandler")) {
+            if (fitHandler(c) && c.directory != null) {
                     directoryCashRegisterMap.put(c.directory, c);
             }
         }

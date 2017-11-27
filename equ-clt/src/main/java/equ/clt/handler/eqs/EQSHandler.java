@@ -330,7 +330,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
         Map<Integer, CashRegisterInfo> machineryMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.handlerModel != null && c.handlerModel.endsWith("EQSHandler")) {
+            if (fitHandler(c)) {
                 if (c.number != null && c.numberGroup != null && c.directory != null && c.directory.equals(directory))
                     machineryMap.put(c.number, c);
             }
