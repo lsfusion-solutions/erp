@@ -26,15 +26,28 @@ import java.util.concurrent.Future;
 public class DigiHandler extends ScalesHandler {
 
     private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    
+    protected static short cmdWrite = 0xF1;
+    protected static short cmdCls = 0xF2;
+    protected static short filePLU = 0x25;
 
-    private static short cmdWrite = 0xF1;
-    private static short cmdCls = 0xF2;
-    private static short filePLU = 0x25;
-
-    private FileSystemXmlApplicationContext springContext;
+    protected FileSystemXmlApplicationContext springContext;
 
     public DigiHandler(FileSystemXmlApplicationContext springContext) {
         this.springContext = springContext;
+    }
+
+    protected String getLogPrefix() {
+        return "Digi SM300: ";
+    }
+    
+    @Override
+    public String getGroupId(TransactionScalesInfo transactionInfo) throws IOException {
+        StringBuilder groupId = new StringBuilder();
+        for (MachineryInfo scales : transactionInfo.machineryInfoList) {
+            groupId.append(scales.port).append(";");
+        }
+        return getLogPrefix() + groupId;
     }
 
     @Override
@@ -45,10 +58,10 @@ public class DigiHandler extends ScalesHandler {
 
         Map<String, String> brokenPortsMap = new HashMap<>();
         if(transactionList.isEmpty()) {
-            processTransactionLogger.error("Digi: Empty transaction list!");
+            processTransactionLogger.error(getLogPrefix() + "Empty transaction list!");
         }
         for(TransactionScalesInfo transaction : transactionList) {
-            processTransactionLogger.info("Digi: Send Transaction # " + transaction.id);
+            processTransactionLogger.info(getLogPrefix() + "Send Transaction # " + transaction.id);
 
             DigiSettings digiSettings = springContext.containsBean("digiSettings") ? (DigiSettings) springContext.getBean("digiSettings") : null;
             Integer maxLineLength = digiSettings != null ? digiSettings.getMaxLineLength() : null;
@@ -65,7 +78,7 @@ public class DigiHandler extends ScalesHandler {
                     Map<String, List<String>> errors = new HashMap<>();
                     Set<String> ips = new HashSet<>();
 
-                    processTransactionLogger.info("Digi: Starting sending to " + enabledScalesList.size() + " scales...");
+                    processTransactionLogger.info(getLogPrefix() + "Starting sending to " + enabledScalesList.size() + " scales...");
                     Collection<Callable<SendTransactionResult>> taskList = new LinkedList<>();
                     for (ScalesInfo scales : enabledScalesList) {
                         if (scales.port != null) {
@@ -108,16 +121,16 @@ public class DigiHandler extends ScalesHandler {
 
     protected void errorMessages(Map<String, List<String>> errors, Set<String> ips, Map<String, String> brokenPortsMap) {
         if (!errors.isEmpty()) {
-            String message = "";
+            StringBuilder message = new StringBuilder();
             for (Map.Entry<String, List<String>> entry : errors.entrySet()) {
-                message += entry.getKey() + ": \n";
+                message.append(entry.getKey()).append(": \n");
                 for (String error : entry.getValue()) {
-                    message += error + "\n";
+                    message.append(error).append("\n");
                 }
             }
-            throw new RuntimeException(message);
+            throw new RuntimeException(message.toString());
         } else if (ips.isEmpty() && brokenPortsMap.isEmpty())
-            throw new RuntimeException("Digi: No IP-addresses defined");
+            throw new RuntimeException(getLogPrefix() + "No IP-addresses defined");
     }
 
     private byte[] makeRecord(ScalesItemInfo item, String weightCode, String pieceCode, Integer maxLineLength) throws UnsupportedEncodingException {
@@ -291,14 +304,16 @@ public class DigiHandler extends ScalesHandler {
 //        return (byte) (byteValue & ~(1 << pos));
 //    }
 
-    private String fillLeadingZeroes(String input, int length) {
+    protected String fillLeadingZeroes(Object input, int length) {
         if (input == null)
             return null;
-        if (input.length() > length)
-            input = input.substring(0, length);
-        while (input.length() < length)
+        if(!(input instanceof String))
+            input = String.valueOf(input);
+        if (((String) input).length() > length)
+            input = ((String) input).substring(0, length);
+        while (((String) input).length() < length)
             input = "0" + input;
-        return input;
+        return (String) input;
     }
 
     private String fillTrailingZeroes(String input, int length) {
@@ -309,18 +324,16 @@ public class DigiHandler extends ScalesHandler {
         return input;
     }
 
-    private int sendRecord(DataSocket socket, short cmd, short file, byte[] record) throws IOException, CommunicationException {
+    protected int sendRecord(DataSocket socket, short cmd, short file, byte[] record) throws IOException, CommunicationException {
         ByteBuffer bytes = ByteBuffer.allocate(record.length + 2);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
-
         bytes.put((byte) cmd);
         bytes.put((byte) file);
         bytes.put(record);
-
         return sendCommand(socket, bytes.array());
     }
 
-    private int sendCommand(DataSocket socket, byte[] bytes) throws IOException {
+    protected int sendCommand(DataSocket socket, byte[] bytes) throws IOException {
         int attempts = 0;
         while (attempts < 3) {
             try {
@@ -330,7 +343,7 @@ public class DigiHandler extends ScalesHandler {
             } catch (CommunicationException e) {
                 attempts++;
                 if (attempts == 3)
-                    processTransactionLogger.error("Digi SendCommand Error: ", e);
+                    processTransactionLogger.error(getLogPrefix() + "SendCommand Error: ", e);
             }
         }
         return -1;
@@ -342,12 +355,12 @@ public class DigiHandler extends ScalesHandler {
             socket.inputStream.read(buffer);
             return buffer[0] == 6 ? 0 : buffer[0]; //это либо байт ошибки, либо первый байт хвоста (:)
         } catch (Exception e) {
-            processTransactionLogger.error("Digi ReceiveReply Error: ", e);
+            processTransactionLogger.error(getLogPrefix() + "ReceiveReply Error: ", e);
             return -1;
         }
     }
 
-    private List<ScalesInfo> getEnabledScalesList(TransactionScalesInfo transaction, List<MachineryInfo> succeededScalesList) {
+    protected List<ScalesInfo> getEnabledScalesList(TransactionScalesInfo transaction, List<MachineryInfo> succeededScalesList) {
         List<ScalesInfo> enabledScalesList = new ArrayList<>();
         for (ScalesInfo scales : transaction.machineryInfoList) {
             if (scales.succeeded)
@@ -368,15 +381,6 @@ public class DigiHandler extends ScalesHandler {
     }
 
     @Override
-    public String getGroupId(TransactionScalesInfo transactionInfo) throws IOException {
-        String groupId = "";
-        for (MachineryInfo scales : transactionInfo.machineryInfoList) {
-            groupId += scales.port + ";";
-        }
-        return "digi" + groupId;
-    }
-
-    @Override
     public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
     }
 
@@ -389,7 +393,7 @@ public class DigiHandler extends ScalesHandler {
         return scales instanceof ScalesInfo ? ((ScalesInfo) scales).pieceCodeGroupScales : null;
     }
 
-    private byte[] getBytes(String value) throws UnsupportedEncodingException {
+    protected byte[] getBytes(String value) throws UnsupportedEncodingException {
         return value.getBytes("cp866");
     }
 
@@ -424,7 +428,7 @@ public class DigiHandler extends ScalesHandler {
                 int globalError = 0;
                 boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
                 if (needToClear) {
-                    processTransactionLogger.info("Digi: Deleting all plu at scales " + scales.port);
+                    processTransactionLogger.info(getLogPrefix() + "Deleting all plu at scales " + scales.port);
                     int reply = sendRecord(socket, cmdCls, filePLU, new byte[0]);
                     if (reply != 0) {
                         logError(localErrors, String.format("Deleting all plu at scales %s failed. Error: %s\n", scales.port, reply));
@@ -433,25 +437,25 @@ public class DigiHandler extends ScalesHandler {
                 }
 
                 if (cleared || !needToClear) {
-                    processTransactionLogger.info("Digi: Sending items..." + scales.port);
+                    processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
                     if (localErrors.isEmpty()) {
                         int count = 0;
                         for (ScalesItemInfo item : transaction.itemsList) {
                             count++;
                             if (!Thread.currentThread().isInterrupted() && globalError < 3) {
-                                processTransactionLogger.info(String.format("Digi: IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                 int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                 int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
                                 if(item.idBarcode.length() <= 5) {
                                     byte[] record = makeRecord(item, getWeightCode(scales), getPieceCode(scales), maxLineLength);
-                                    processTransactionLogger.info(String.format("Digi: Sending item %s to scales %s", pluNumber, scales.port));
+                                    processTransactionLogger.info(String.format(getLogPrefix() + "Sending item %s to scales %s", pluNumber, scales.port));
                                     int reply = sendRecord(socket, cmdWrite, filePLU, record);
                                     if (reply != 0) {
-                                        logError(localErrors, String.format("Digi: Send item %s to scales %s failed. Error: %s", pluNumber, scales.port, reply));
+                                        logError(localErrors, String.format(getLogPrefix() + "Send item %s to scales %s failed. Error: %s", pluNumber, scales.port, reply));
                                         globalError++;
                                     }
                                 } else {
-                                    processTransactionLogger.info(String.format("Digi: Sending item %s to scales %s failed: incorrect barcode %s", pluNumber, scales.port, item.idBarcode));
+                                    processTransactionLogger.info(String.format(getLogPrefix() + "Sending item %s to scales %s failed: incorrect barcode %s", pluNumber, scales.port, item.idBarcode));
                                 }
                             } else break;
                         }
@@ -460,30 +464,28 @@ public class DigiHandler extends ScalesHandler {
                 }
 
             } catch (Exception e) {
-                logError(localErrors, String.format("Digi: IP %s error, transaction %s;", scales.port, transaction.id), e);
+                logError(localErrors, String.format(getLogPrefix() + "IP %s error, transaction %s;", scales.port, transaction.id), e);
             } finally {
-                processTransactionLogger.info("Digi: Finally disconnecting..." + scales.port);
+                processTransactionLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
                 try {
                     socket.close();
                 } catch (CommunicationException e) {
-                    logError(localErrors, String.format("Digi: IP %s close port error ", scales.port), e);
+                    logError(localErrors, String.format(getLogPrefix() + "IP %s close port error ", scales.port), e);
                 }
             }
-            processTransactionLogger.info("Digi: Completed ip: " + scales.port);
+            processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
             return new SendTransactionResult(scales, localErrors, cleared);
         }
     }
 
-    private void logError(List<String> errors, String errorText) {
+    protected void logError(List<String> errors, String errorText) {
         logError(errors, errorText, null);
     }
 
-    private void logError(List<String> errors, String errorText, Throwable t) {
+    protected void logError(List<String> errors, String errorText, Throwable t) {
         errors.add(errorText + (t == null ? "" : ('\n' + t.toString())));
         processTransactionLogger.error(errorText, t);
     }
-
-
 
     class SendTransactionResult {
         public ScalesInfo scalesInfo;
