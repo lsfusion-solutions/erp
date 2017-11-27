@@ -252,6 +252,8 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
     private String zeroedInt(int value, int len) {
         String result = String.valueOf(value);
+        if (result.length() > len)
+            result = result.substring(0, len);
         while (result.length() < len)
             result = "0" + result;
         return result;
@@ -456,7 +458,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         Integer pluNumber = getPluNumber(item);
 
         String command2 = "TFZU@00@04";
-        String captionItem = trim(item.name, "").replace('@', 'a');
+        String captionItem = trimToEmpty(item.name).replace('@', 'a');
         if(capitalLetters)
             captionItem = captionItem.toUpperCase();
         if (captionItem.isEmpty())
@@ -577,10 +579,6 @@ public abstract class BizerbaHandler extends ScalesHandler {
     protected void logError(List<String> errors, String errorText, Throwable t) {
         errors.add(errorText.replace("\u001b", "").replace("\u0000", "") + (t == null ? "" : ('\n' + t.toString())));
         processTransactionLogger.error(errorText, t);
-    }
-
-    protected String trim(String input, String defaultValue) {
-        return input == null ? defaultValue : input.trim();
     }
 
     class SendTransactionTask implements Callable<SendTransactionResult> {
