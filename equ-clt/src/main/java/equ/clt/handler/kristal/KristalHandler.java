@@ -967,7 +967,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         Map<String, Boolean> directoryNotDetailedMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.handlerModel != null && c.directory != null && c.handlerModel.endsWith("KristalHandler")) {
+            if (fitHandler(c) && c.directory != null) {
                 directoryNotDetailedMap.put(c.directory, c.notDetailed);
                 if (c.number != null)
                     directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
