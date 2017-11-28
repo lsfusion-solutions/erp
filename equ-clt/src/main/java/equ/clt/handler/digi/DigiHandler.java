@@ -30,6 +30,7 @@ public class DigiHandler extends ScalesHandler {
     protected static short cmdWrite = 0xF1;
     protected static short cmdCls = 0xF2;
     protected static short filePLU = 0x25;
+    protected static short fileKeyAssignment = 0x41;
 
     protected FileSystemXmlApplicationContext springContext;
 
@@ -117,6 +118,14 @@ public class DigiHandler extends ScalesHandler {
             sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(clearedScalesList, succeededScalesList, exception));
         }
         return sendTransactionBatchMap;
+    }
+
+    protected boolean clearFile(DataSocket socket, List<String> localErrors, String port, short file) throws IOException, CommunicationException {
+        processTransactionLogger.info(getLogPrefix() + String.format("Deleting file %s at scales %s", file, port));
+        int reply = sendRecord(socket, cmdCls, file, new byte[0]);
+        if (reply != 0)
+            logError(localErrors, String.format("Deleting file %s at scales %s failed. Error: %s\n", file, port, reply));
+        return reply == 0;
     }
 
     protected void errorMessages(Map<String, List<String>> errors, Set<String> ips, Map<String, String> brokenPortsMap) {
@@ -427,14 +436,8 @@ public class DigiHandler extends ScalesHandler {
                 socket.open();
                 int globalError = 0;
                 boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
-                if (needToClear) {
-                    processTransactionLogger.info(getLogPrefix() + "Deleting all plu at scales " + scales.port);
-                    int reply = sendRecord(socket, cmdCls, filePLU, new byte[0]);
-                    if (reply != 0) {
-                        logError(localErrors, String.format("Deleting all plu at scales %s failed. Error: %s\n", scales.port, reply));
-                    } else
-                        cleared = true;
-                }
+                if (needToClear)
+                    cleared = clearFile(socket, localErrors, scales.port, filePLU);
 
                 if (cleared || !needToClear) {
                     processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);

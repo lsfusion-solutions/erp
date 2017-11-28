@@ -99,7 +99,7 @@ public class DigiSM120Handler extends DigiHandler {
         return sendTransactionBatchMap;
     }
 
-    private byte[] makeRecord(ScalesItemInfo item) throws IOException, DecoderException {
+    private byte[] makePLURecord(ScalesItemInfo item) throws IOException, DecoderException {
 
         Integer plu = item.pluNumber == null ? Integer.parseInt(item.idItem) : item.pluNumber;
         String pluNumber = fillLeadingZeroes(plu, 6);
@@ -168,6 +168,28 @@ public class DigiSM120Handler extends DigiHandler {
         return bytes.array();
     }
 
+    private byte[] makeKeyAssignmentRecord(ScalesItemInfo item) throws IOException, DecoderException {
+
+        Integer plu = item.pluNumber == null ? Integer.parseInt(item.idItem) : item.pluNumber;
+        String pluNumber = fillLeadingZeroes(plu, 6);
+        int flagForDelete = 0; //No data/0: Add or Change, 1: Delete
+
+        if(plu > 0 && plu <= 120) {
+            Integer pageNumber = plu / 56;
+            byte[] dataBytes = getBytes(pageNumber + separator + pluNumber + separator + flagForDelete + separator + pluNumber + separator +
+                    "0" + separator + pluNumber);
+
+            int totalSize = dataBytes.length + 8;
+            ByteBuffer bytes = ByteBuffer.allocate(totalSize);
+            bytes.putInt(plu); //4 bytes
+            bytes.putShort((short) totalSize); //2 bytes
+            bytes.put(dataBytes);
+            bytes.put(new byte[]{0x0d, 0x0a});
+
+            return bytes.array();
+        } else return null;
+    }
+
     private String getPrice(BigDecimal price) {
         return fillLeadingZeroes(safeMultiply(price, 100).intValue(), 6);
     }
@@ -203,14 +225,8 @@ public class DigiSM120Handler extends DigiHandler {
                 socket.open();
                 int globalError = 0;
                 boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
-                if (needToClear) {
-                    processTransactionLogger.info(getLogPrefix() + "Deleting all plu at scales " + scales.port);
-                    int reply = sendRecord(socket, cmdCls, filePLU, new byte[0]);
-                    if (reply != 0) {
-                        logError(localErrors, String.format("Deleting all plu at scales %s failed. Error: %s\n", scales.port, reply));
-                    } else
-                        cleared = true;
-                }
+                if (needToClear)
+                    cleared = clearFile(socket, localErrors, scales.port, filePLU) && clearFile(socket, localErrors, scales.port, fileKeyAssignment);
 
                 if (cleared || !needToClear) {
                     processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
@@ -223,12 +239,16 @@ public class DigiSM120Handler extends DigiHandler {
                                 int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                 int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
                                 if(item.idBarcode.length() <= 5) {
-                                    byte[] record = makeRecord(item);
-                                    processTransactionLogger.info(String.format(getLogPrefix() + "Sending item %s to scales %s", pluNumber, scales.port));
-                                    int reply = sendRecord(socket, cmdWrite, filePLU, record);
-                                    if (reply != 0) {
-                                        logError(localErrors, String.format(getLogPrefix() + "Send item %s to scales %s failed. Error: %s", pluNumber, scales.port, reply));
+                                    int pluReply = sendPLU(socket, item, pluNumber);
+                                    if (pluReply != 0) {
+                                        logError(localErrors, String.format(getLogPrefix() + "Send item %s to scales %s failed. Error: %s", pluNumber, scales.port, pluReply));
                                         globalError++;
+                                    } else {
+                                        int keyAssignmentReply = sendKeyAssignment(socket, item, pluNumber);
+                                        if (keyAssignmentReply != 0) {
+                                            logError(localErrors, String.format(getLogPrefix() + "Send item %s to scales %s failed. Error: %s", pluNumber, scales.port, keyAssignmentReply));
+                                            globalError++;
+                                        }
                                     }
                                 } else {
                                     processTransactionLogger.info(String.format(getLogPrefix() + "Sending item %s to scales %s failed: incorrect barcode %s", pluNumber, scales.port, item.idBarcode));
@@ -251,6 +271,20 @@ public class DigiSM120Handler extends DigiHandler {
             }
             processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
             return new SendTransactionResult(scales, localErrors, cleared);
+        }
+
+        private int sendPLU(DataSocket socket, ScalesItemInfo item, int pluNumber) throws IOException, DecoderException, CommunicationException {
+            byte[] record = makePLURecord(item);
+            processTransactionLogger.info(String.format(getLogPrefix() + "Sending plu file item %s to scales %s", pluNumber, scales.port));
+            return sendRecord(socket, cmdWrite, filePLU, record);
+        }
+
+        private int sendKeyAssignment(DataSocket socket, ScalesItemInfo item, int pluNumber) throws IOException, DecoderException, CommunicationException {
+            byte[] record = makeKeyAssignmentRecord(item);
+            if (record != null) {
+                processTransactionLogger.info(String.format(getLogPrefix() + "Sending keyAssignment file item %s to scales %s", pluNumber, scales.port));
+                return sendRecord(socket, cmdWrite, fileKeyAssignment, record);
+            } else return 0;
         }
     }
 }
