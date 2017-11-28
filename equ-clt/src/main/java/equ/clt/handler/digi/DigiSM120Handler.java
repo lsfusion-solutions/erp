@@ -174,8 +174,9 @@ public class DigiSM120Handler extends DigiHandler {
         String pluNumber = fillLeadingZeroes(plu, 6);
         int flagForDelete = 0; //No data/0: Add or Change, 1: Delete
 
-        if(plu > 0 && plu <= 120) {
-            Integer pageNumber = plu / 56;
+        //хотя по документации можно до 256 товаров на каждой из 3 страниц, но кнопок на табло только 56
+        if(plu > 0 && plu <= 56) {
+            Integer pageNumber = 0;
             byte[] dataBytes = getBytes(pageNumber + separator + pluNumber + separator + flagForDelete + separator + pluNumber + separator +
                     "0" + separator + pluNumber);
 
