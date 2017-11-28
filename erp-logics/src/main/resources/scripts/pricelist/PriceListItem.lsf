@@ -90,6 +90,8 @@ DESIGN options {
     }
 }
 
+currentPrice 'Текущая цена' (CalcPriceListType type, Sku sku, Stock stock) = priceA(type, sku, stock, currentDateTime());
+
 EXTEND FORM itemInfo
     OBJECTS t = LedgerPriceListType
     
@@ -110,14 +112,26 @@ EXTEND FORM itemInfo
             active(pl, t2, st2),
             st1 == st2,
             t2 == t1
+            
+    OBJECTS t3 = CalcPriceListType
+    PROPERTIES READONLY name(t3), nameCurrency(t3), markup(t3,s), currentPrice(t3,s,st)
+    FILTERS currentPrice(t3,s,st)
 ;
 
 DESIGN itemInfo {
     bottomContainer {
         NEW priceLists {
             caption = 'По видам цен';
-            MOVE BOX(t1);
-            MOVE BOX(pp) {caption = 'Изменение цены';}
+            type = TABBED;
+            NEW ledger {
+                caption = 'Регистровый';
+                MOVE BOX(t1);
+                MOVE BOX(pp) {caption = 'Изменение цены';}
+            }
+            NEW calc {
+                caption = 'Расчетный';
+                MOVE BOX(t3);
+            }
         }
     }
 }
