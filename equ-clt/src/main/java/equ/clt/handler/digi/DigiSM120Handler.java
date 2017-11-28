@@ -47,6 +47,10 @@ public class DigiSM120Handler extends DigiHandler {
         for(TransactionScalesInfo transaction : transactionList) {
             processTransactionLogger.info(getLogPrefix() + "Send Transaction # " + transaction.id);
 
+            DigiSM120Settings digiSettings = springContext.containsBean("digiSM120Settings") ? (DigiSM120Settings) springContext.getBean("digiSM120Settings") : null;
+            Integer nameLineFont = digiSettings != null ? digiSettings.getNameLineFont() : 9;
+            Integer nameLineLength = digiSettings != null ? digiSettings.getNameLineLength() : 23;
+
             List<MachineryInfo> succeededScalesList = new ArrayList<>();
             List<MachineryInfo> clearedScalesList = new ArrayList<>();
             Exception exception = null;
@@ -67,7 +71,7 @@ public class DigiSM120Handler extends DigiHandler {
                                 errors.put(scales.port, Collections.singletonList(String.format("Broken ip: %s, error: %s", scales.port, brokenPortError)));
                             } else {
                                 ips.add(scales.port);
-                                taskList.add(new SendTransactionTask(transaction, scales));
+                                taskList.add(new SendTransactionTask(transaction, scales, nameLineFont, nameLineLength));
                             }
                         }
                     }
@@ -99,7 +103,7 @@ public class DigiSM120Handler extends DigiHandler {
         return sendTransactionBatchMap;
     }
 
-    private byte[] makePLURecord(ScalesItemInfo item) throws IOException, DecoderException {
+    private byte[] makePLURecord(ScalesItemInfo item, Integer nameLineFont, Integer nameLineLength) throws IOException, DecoderException {
 
         Integer plu = item.pluNumber == null ? Integer.parseInt(item.idItem) : item.pluNumber;
         String pluNumber = fillLeadingZeroes(plu, 6);
@@ -155,7 +159,7 @@ public class DigiSM120Handler extends DigiHandler {
                 "0" + separator + "0" + separator + "0" + separator + "0" + separator + "0" + separator + "0" + separator +
                 "0" + separator + "0" + separator + "000000" + separator + "000000" + separator + "000000" + separator +
                 "000000" + separator + "000000" + separator + "00000000" + separator + "00000000" + separator + "00000" + separator +
-                "000000" + separator + getNameLines(item.name) + separator + "000000" + separator + "000000" + separator + "0" + separator + "000000" + separator +
+                "000000" + separator + getNameLines(item.name, nameLineFont, nameLineLength) + separator + "000000" + separator + "000000" + separator + "0" + separator + "000000" + separator +
                 "000000" + separator + "00" + separator + "00");
 
         int totalSize = dataBytes.length + 8;
@@ -195,12 +199,12 @@ public class DigiSM120Handler extends DigiHandler {
         return fillLeadingZeroes(safeMultiply(price, 100).intValue(), 6);
     }
 
-    private String getNameLines(String name) {
-        int lineLength = 23;
-        String first = getNameLine("09", name.substring(0, Math.min(name.length(), lineLength)));
-        String second = getNameLine("09", name.substring(Math.min(name.length(), lineLength), Math.min(name.length(), lineLength * 2)));
-        String third = getNameLine("00", name.substring(Math.min(name.length(), lineLength * 2), Math.min(name.length(), lineLength * 3)));
-        String fourth = getNameLine("00", name.substring(Math.min(name.length(), lineLength * 3), Math.min(name.length(), lineLength * 4)));
+    private String getNameLines(String name, Integer lineFont, Integer lineLength) {
+        String font = fillLeadingZeroes(lineFont, 2);
+        String first = getNameLine(font, name.substring(0, Math.min(name.length(), lineLength)));
+        String second = getNameLine(font, name.substring(Math.min(name.length(), lineLength), Math.min(name.length(), lineLength * 2)));
+        String third = getNameLine(font, name.substring(Math.min(name.length(), lineLength * 2), Math.min(name.length(), lineLength * 3)));
+        String fourth = getNameLine(font, name.substring(Math.min(name.length(), lineLength * 3), Math.min(name.length(), lineLength * 4)));
         return first + separator + second + separator + third + separator + fourth;
     }
 
@@ -211,10 +215,14 @@ public class DigiSM120Handler extends DigiHandler {
     class SendTransactionTask implements Callable<SendTransactionResult> {
         TransactionScalesInfo transaction;
         ScalesInfo scales;
+        Integer nameLineFont;
+        Integer nameLineLength;
 
-        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
+        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, Integer nameLineFont, Integer nameLineLength) {
             this.transaction = transaction;
             this.scales = scales;
+            this.nameLineFont = nameLineFont;
+            this.nameLineLength = nameLineLength;
         }
 
         @Override
@@ -275,7 +283,7 @@ public class DigiSM120Handler extends DigiHandler {
         }
 
         private int sendPLU(DataSocket socket, ScalesItemInfo item, int pluNumber) throws IOException, DecoderException, CommunicationException {
-            byte[] record = makePLURecord(item);
+            byte[] record = makePLURecord(item, nameLineFont, nameLineLength);
             processTransactionLogger.info(String.format(getLogPrefix() + "Sending plu file item %s to scales %s", pluNumber, scales.port));
             return sendRecord(socket, cmdWrite, filePLU, record);
         }
