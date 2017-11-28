@@ -135,8 +135,6 @@ public class DigiSM120Handler extends DigiHandler {
         String stepDiscountType = "02"; //"0: No step discount, 1: Free item, 2: Unit price discount, 3: Unit price % discount, 4: Total price discount, 5: Total price % discount, 6: Fixed price discount, 11: U.P./PCS - U.P./kg
         String typeOfMarkdown = "0"; //"0: No markdown, 1: Unit price markdown, 2: Price markdown, 3: Unit price and price markdown
 
-        String emptyNameLine = getNameLine("00", ""); //можно задать до 4 строк наименования, но пока ограничимся одной
-
         byte[] dataBytes = getBytes(pluNumber + separator + flagForDelete + separator + isWeight + separator + "0" + separator +
                 "1" + separator + "1" + separator + "1" + separator + "1" + separator + "1" + separator  + "0" + separator +
                 "0" + separator + "0" + separator + "0" + separator + "0" + separator + "0" + separator + "0" + separator +
@@ -157,8 +155,7 @@ public class DigiSM120Handler extends DigiHandler {
                 "0" + separator + "0" + separator + "0" + separator + "0" + separator + "0" + separator + "0" + separator +
                 "0" + separator + "0" + separator + "000000" + separator + "000000" + separator + "000000" + separator +
                 "000000" + separator + "000000" + separator + "00000000" + separator + "00000000" + separator + "00000" + separator +
-                "000000" + separator + getNameLine("09", item.name) + separator + emptyNameLine + separator + emptyNameLine + separator +
-                emptyNameLine + separator + "000000" + separator + "000000" + separator + "0" + separator + "000000" + separator +
+                "000000" + separator + getNameLines(item.name) + separator + "000000" + separator + "000000" + separator + "0" + separator + "000000" + separator +
                 "000000" + separator + "00" + separator + "00");
 
         int totalSize = dataBytes.length + 8;
@@ -173,6 +170,15 @@ public class DigiSM120Handler extends DigiHandler {
 
     private String getPrice(BigDecimal price) {
         return fillLeadingZeroes(safeMultiply(price, 100).intValue(), 6);
+    }
+
+    private String getNameLines(String name) {
+        int lineLength = 23;
+        String first = getNameLine("09", name.substring(0, Math.min(name.length(), lineLength)));
+        String second = getNameLine("09", name.substring(Math.min(name.length(), lineLength), Math.min(name.length(), lineLength * 2)));
+        String third = getNameLine("00", name.substring(Math.min(name.length(), lineLength * 2), Math.min(name.length(), lineLength * 3)));
+        String fourth = getNameLine("00", name.substring(Math.min(name.length(), lineLength * 3), Math.min(name.length(), lineLength * 4)));
+        return first + separator + second + separator + third + separator + fourth;
     }
 
     private String getNameLine(String font, String line) {
