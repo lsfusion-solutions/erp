@@ -9,7 +9,7 @@ NAMESPACE Repricing;
 @Label.implementPriceTransactionDocument(Repricing);
 skip[PriceTransactionDocument](Repricing document) += skipChangeLedger(document);
 
-@defineDocumentLabelTransaction(repricing, sku, batch, departmentStore);
+@defineDocumentLabelTransaction(repricing, Repricing, sku, batch, departmentStore);
 @extendFormDocumentLabelTransaction(repricings, p, repricing, skipChangeLedger, machineryContainer);
 
 createAttribute (RepricingDetail r, LabelTransactionDetail t) += {
@@ -35,4 +35,16 @@ DESIGN repricings {
         } 
     }
     
+}
+
+printExistingPrice (LabelTransaction t) += printExistingPrice() AND priceTransactionDocument(t) IS Repricing;
+
+createLabelTransaction 'Сформировать ценники' (DATE date) = {
+    FOR NOT labelTransaction(Repricing repricing) AND date(repricing) == date DO {
+        inLabel(Sku sku) <- NULL;
+        inLabel(Sku sku) <- TRUE IF countRepricingDetail(sku, repricing);
+        notPrint() <- TRUE;
+        createLabelTransactionParam(repricing);
+        notPrint() <- NULL;
+    }
 }

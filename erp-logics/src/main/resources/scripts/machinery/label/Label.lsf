@@ -315,9 +315,12 @@ fileTemplate 'Файл шаблона' (LabelTransaction transaction) = fileTemp
 
 topFileTemplate 'Файл шаблона (верхний)' = fileTemplate(orientation(labelType(LabelTransaction transaction)));
 
-priceTransactionDocument = DATA PriceTransactionDocument (LabelTransaction);
+priceTransactionDocument = DATA PriceTransactionDocument (LabelTransaction) INDEXED;
 description 'Основание загрузки' (LabelTransaction transaction) =
     description(priceTransactionDocument(transaction));
+
+labelTransaction (PriceTransactionDocument d) = GROUP LAST LabelTransaction l BY priceTransactionDocument(l) ORDER dateTime(l), l;
+labelTransaction (PriceTransactionDocument d, LabelType t) = GROUP LAST LabelTransaction l BY priceTransactionDocument(l), labelType(l) ORDER dateTime(l), l;
 
 statusLabel 'Статус печати ценника' (PriceTransactionDocument document) =
                                                         CASE
@@ -401,19 +404,22 @@ FORM printLabelTransaction 'Печать ценников'
     REPORTFILES l fileTemplate(l), TOP topFileTemplate(l)
 ;
 
+notPrint = DATA LOCAL NESTED BOOLEAN (); 
 needCustomPrint = ABSTRACT BOOLEAN (LabelTransaction);
 customPrint = ABSTRACT (LabelTransaction);
 labelPrintAuto = DATA LOCAL NESTED BOOLEAN ();
 
 print(LabelTransaction t) = {
-    IF needCustomPrint(t) THEN
-        customPrint(t);
-    ELSE
-        IF labelPrintAuto() THEN {
-            PRINT printLabelTransaction OBJECTS l = t NOPREVIEW;
-        } ELSE {
-            PRINT printLabelTransaction OBJECTS l = t ;
-        }
+    IF NOT notPrint() THEN {
+        IF needCustomPrint(t) THEN
+            customPrint(t);
+        ELSE
+            IF labelPrintAuto() THEN {
+                PRINT printLabelTransaction OBJECTS l = t NOPREVIEW;
+            } ELSE {
+                PRINT printLabelTransaction OBJECTS l = t ;
+            }
+    }
 }
 
 selected 'Отм.' = DATA LOCAL BOOLEAN (LabelTransactionDetail);
@@ -819,6 +825,7 @@ EXTEND FORM customLabelTransaction
 
 // ------------------------- Подключение печати ценников в документ --------------------- //
 notChangePrintPrice 'Не печатать ценники, если цена не изменилась' = ABSTRACT VALUE BOOLEAN (LabelTransaction);
+printExistingPrice 'Печатать готовые ценники' = ABSTRACT VALUE BOOLEAN (LabelTransaction);
 
 inLabel 'Отм.' = DATA LOCAL BOOLEAN (Sku);
 filterLabel 'Отм.' = DATA LOCAL BOOLEAN (Sku);
@@ -839,11 +846,11 @@ DESIGN selectLabelSkus{
     }
 }
 
-META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, stockProp, prefix)
+META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchProp, stockProp, prefix)
 
     createAttribute = ABSTRACT LIST (###detailProp##Detail, LabelTransactionDetail);    
     
-    createLabelTransactionParam (###document document) = {       
+    createLabelTransactionParam (cls document) = {       
         // бежим по всем типам ценников из управленческих параметров
         // для каждого создаем по операции печати ценников
         FOR ([= GROUP SUM 1 IF inLabel(###skuProp sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stockProp(document)))
@@ -896,23 +903,32 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
         }   
     };      
     
-    createLabelTransaction 'Распечатать ценники'(###document document) = {
-        NEWSESSION {       		       	    
-            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO {             
-                Label.ok() <- NULL;
-                inLabel(###skuProp sku) <- NULL;
-                inLabel(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);                      
-                createLabelTransactionParam(document);             
+    createLabelTransaction 'Распечатать ценники'(cls document) = {
+        IF document IS cls THEN {
+            IF printExistingPrice(labelTransaction(document)) THEN {
+                FOR LabelTransaction t == labelTransaction(document, LabelType type) DO {
+                    print(t);
+                }
                 printed(document) <- TRUE WHERE isPosted(document);
                 APPLY;
-                IF NOT Label.ok() THEN {
-                    MESSAGE 'В данном документе нет подходящих товаров для печати ценников.';
-                }            
+            } ELSE
+            NEWSESSION {       		       	    
+                ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO {             
+                    Label.ok() <- NULL;
+                    inLabel(###skuProp sku) <- NULL;
+                    inLabel(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);                      
+                    createLabelTransactionParam(document);             
+                    printed(document) <- TRUE WHERE isPosted(document);
+                    APPLY;
+                    IF NOT Label.ok() THEN {
+                        MESSAGE 'В данном документе нет подходящих товаров для печати ценников.';
+                    }            
+                }
             }
         }
     } TOOLBAR CONFIRM;
     
-    createLabelTransactionChoice 'Распечатать ценники (частично)'(###document document) = {
+    createLabelTransactionChoice 'Распечатать ценники (частично)'(cls document) = {
         NEWSESSION {       		       	    
             ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO {             
                 Label.ok() <- NULL;
@@ -937,9 +953,9 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
 
 
     
-    createLabelTransaction(###document document) += { createLabelTransaction(document); }
+    createLabelTransaction(cls document) += { createLabelTransaction(document); }
 
-    createSnapshotLabelTransactionParam (###document document) = {
+    createSnapshotLabelTransactionParam (cls document) = {
 	                
         DIALOG selectLabelTypes OBJECTS ds = stockProp(document), l INPUT NOMANAGESESSION DO {
             IF NOT countSelectType() THEN {  
@@ -1000,7 +1016,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
     } TOOLBAR;
 
 
-    createSnapshotLabelTransaction 'Перепечатать ценники'(###document document) = {
+    createSnapshotLabelTransaction 'Перепечатать ценники'(cls document) = {
 	NEWSESSION {	
 	        IF is(document) THEN 
 	            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO{ 
@@ -1013,7 +1029,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
 	    }
     } TOOLBAR;
 
-    createSnapshotLabelTransactionChoice 'Перепечатать ценники (частично)'(###document document) = { // todo: пока не используется, возможно со временем
+    createSnapshotLabelTransactionChoice 'Перепечатать ценники (частично)'(cls document) = { // todo: пока не используется, возможно со временем
 	    NEWSESSION {	
 	        IF is(document) THEN 
 	            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO{ 
@@ -1033,21 +1049,21 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
     } TOOLBAR;
 
     
-    createSnapshotLabelTransaction(###document document) += { createSnapshotLabelTransaction(document); }
+    createSnapshotLabelTransaction(cls document) += { createSnapshotLabelTransaction(document); }
 
-    showPrintLabelTransaction 'Показывать' (###document document) = isPosted(document) AND NOT Label.skip(document);
+    showPrintLabelTransaction 'Показывать' (cls document) = isPosted(document) AND NOT Label.skip(document);
                                                                                                //AND NOT printedPriceTransactionDocument(document);
-    showPrintLabelTransaction (###document document) += showPrintLabelTransaction(document);
+    showPrintLabelTransaction (cls document) += showPrintLabelTransaction(document);
     
-    backgroundPrintLabelTransaction 'Цвет' (###document document) = RGB(212,255,212) IF showPrintLabelTransaction(document) AND NOT printed(document);
+    backgroundPrintLabelTransaction 'Цвет' (cls document) = RGB(212,255,212) IF showPrintLabelTransaction(document) AND NOT printed(document);
 END
 
-META defineDocumentLabelTransaction (document, skuProp, batchProp, stockProp, prefix)
-    @defineDocumentLabelTransaction (document, document, skuProp, batchProp, stockProp, prefix);
+META defineDocumentLabelTransaction (document, cls, skuProp, batchProp, stockProp, prefix)
+    @defineDocumentLabelTransaction (document, cls, document, skuProp, batchProp, stockProp, prefix);
 END
 
-META defineDocumentLabelTransaction (document, skuProp, batchProp, stockProp)
-    @defineDocumentLabelTransaction (document, skuProp, batchProp, stockProp, );
+META defineDocumentLabelTransaction (document, cls, skuProp, batchProp, stockProp)
+    @defineDocumentLabelTransaction (document, cls, skuProp, batchProp, stockProp, );
 END
 
 META extendFormDocumentLabelTransaction(form, object, document, afterProp, propContainer)
@@ -1186,9 +1202,10 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
 
 notChangePrintPrice 'Не печатать ценники, если цена не изменилась' = DATA BOOLEAN ();
 notResetLabelSelectSku 'Не сбрасывать отмеченные товары при печати ценников' = DATA BOOLEAN ();
+printExistingPrice 'Печатать готовые ценники' = DATA BOOLEAN ();
 
 EXTEND FORM options
-    PROPERTIES() notResetLabelSelectSku, notChangePrintPrice, notCheckEqualRetailPrice
+    PROPERTIES() notResetLabelSelectSku, notChangePrintPrice, notCheckEqualRetailPrice, printExistingPrice
 ;
 DESIGN options {
     pane {
@@ -1198,6 +1215,7 @@ DESIGN options {
             MOVE PROPERTY(notResetLabelSelectSku());
             MOVE PROPERTY (notChangePrintPrice());
             MOVE PROPERTY (notCheckEqualRetailPrice());
+            MOVE PROPERTY (printExistingPrice());
         }
     }
 }
