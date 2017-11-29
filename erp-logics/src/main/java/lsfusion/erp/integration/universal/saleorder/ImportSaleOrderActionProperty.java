@@ -30,6 +30,10 @@ import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
+import org.apache.poi.hssf.usermodel.HSSFFormulaEvaluator;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.xBaseJ.DBF;
@@ -395,17 +399,15 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
         String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
         String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
-        
-        WorkbookSettings ws = new WorkbookSettings();
-        ws.setEncoding("cp1251");
-        ws.setGCDisabled(true);
-        Workbook wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
-        Sheet sheet = wb.getSheet(0);
 
-        for (int i = startRow - 1; i < sheet.getRows(); i++) {
+        HSSFWorkbook wb = new HSSFWorkbook(new ByteArrayInputStream(importFile));
+        FormulaEvaluator formulaEvaluator = new HSSFFormulaEvaluator(wb);
+        HSSFSheet sheet = wb.getSheetAt(0);
+
+        for (int i = startRow - 1; i < sheet.getLastRowNum(); i++) {
             Map<String, Object> fieldValues = new HashMap<>();
             for(String field : stringFields) {
-                String value = getXLSFieldValue(sheet, i, importColumns.get(field));
+                String value = getXLSFieldValue(formulaEvaluator, sheet, i, importColumns.get(field));
                 switch (field) {
                     case "idDocumentDetail":
                         fieldValues.put(field, String.valueOf(orderObject) + i);
@@ -427,20 +429,20 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 }
             }
             for(String field : bigDecimalFields) {
-                BigDecimal value = getXLSBigDecimalFieldValue(sheet, i, importColumns.get(field));
+                BigDecimal value = getXLSBigDecimalFieldValue(formulaEvaluator, sheet, i, importColumns.get(field));
                 if (field.equals("dataIndex"))
                     fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
                 else
                     fieldValues.put(field, value);
             }
             for(String field : dateFields) {
-                fieldValues.put(field, getXLSDateFieldValue(sheet, i, importColumns.get(field)));
+                fieldValues.put(field, getXLSDateFieldValue(formulaEvaluator, sheet, i, importColumns.get(field)));
             }
             
             SaleOrderDetail saleOrderDetail = new SaleOrderDetail(fieldValues, isPosted);
 
-            String primaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
-            String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
+            String primaryKeyColumnValue = getXLSFieldValue(formulaEvaluator, sheet, i, importColumns.get(primaryKeyColumn));
+            String secondaryKeyColumnValue = getXLSFieldValue(formulaEvaluator, sheet, i, importColumns.get(secondaryKeyColumn));
             if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
                 primaryList.add(saleOrderDetail);
             else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
