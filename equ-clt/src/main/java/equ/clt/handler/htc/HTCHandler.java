@@ -336,7 +336,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
             File cachedDiscFile = null;
             
-            for(String directory : requestExchange.directoryStockMap.keySet()) {
+            for(String directory : getDirectorySet(requestExchange)) {
                 Date startDate = requestExchange.startDate;
 
                 machineryExchangeLogger.info("HTCHandler: sending " + discountCardList.size() + " discount cards to : " + directory + (startDate != null ? (" starting from " + startDate) : "") );
@@ -408,7 +408,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
             File cachedQuantityFile = null;
             File cachedSumFile = null;
             
-            for(String directory : requestExchange.directoryStockMap.keySet()) {
+            for(String directory : getDirectorySet(requestExchange)) {
 
                 cachedTimeFile = sendPromotionTimeFile(promotionInfo.promotionTimeList, directory, cachedTimeFile);
                 cachedQuantityFile = sendPromotionQuantityFile(promotionInfo.promotionQuantityList, directory, cachedQuantityFile);
@@ -813,8 +813,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         boolean useDataDirectory = htcSettings == null || htcSettings.isUseDataDirectory();
 
         for (RequestExchange entry : requestExchangeList) {
-            for (String directory : entry.directoryStockMap.keySet()) {
-                if (!directorySet.contains(directory)) continue;
+            for (String directory : getDirectorySet(entry)) {
                 List<RequestExchange> requestExchangeEntry = requestExchangeMap.containsKey(directory) ? requestExchangeMap.get(directory) : new ArrayList<RequestExchange>();
                 requestExchangeEntry.add(entry);
                 requestExchangeMap.put(directory, requestExchangeEntry);

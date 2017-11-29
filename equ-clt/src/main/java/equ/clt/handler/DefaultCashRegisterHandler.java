@@ -27,6 +27,19 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
         return cashRegisterSet;
     }
 
+    public Set<String> getDirectorySet(RequestExchange requestExchange) {
+        Set<String> directorySet = new HashSet<>();
+        for (CashRegisterInfo cashRegister : requestExchange.cashRegisterSet) {
+            if (fitHandler(cashRegister))
+                directorySet.add(cashRegister.directory);
+        }
+        for (CashRegisterInfo cashRegister : requestExchange.extraCashRegisterSet) {
+            if (fitHandler(cashRegister))
+                directorySet.add(cashRegister.directory);
+        }
+        return directorySet;
+    }
+
     @Override
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) throws IOException {
         return null;

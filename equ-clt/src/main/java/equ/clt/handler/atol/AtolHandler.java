@@ -188,10 +188,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
             String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
             sendSalesLogger.info("Atol: creating request files");
-            for (String directory : entry.directoryStockMap.keySet()) {
-
-                if (!directorySet.contains(directory)) continue;
-
+            for (String directory : getDirectorySet(entry)) {
                 String exchangeDirectory = directory + "/IN";
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
                     File salesFlagFile = new File(exchangeDirectory + "/sales-flag.txt");
