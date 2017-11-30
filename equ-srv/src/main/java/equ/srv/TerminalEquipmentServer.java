@@ -27,8 +27,7 @@ import java.rmi.RemoteException;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Calendar;
+import java.util.*;
 import java.util.List;
 
 import static org.apache.commons.lang3.StringUtils.trim;
@@ -42,7 +41,7 @@ public class TerminalEquipmentServer {
     }
 
     public static List<TerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject) throws RemoteException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-        List<TerminalOrder> terminalOrderList = new ArrayList<>();
+        Map<String, TerminalOrder> terminalOrderMap = new HashMap<>();
 
         if (terminalOrderLM != null) {
             try {
@@ -99,15 +98,20 @@ public class TerminalEquipmentServer {
                     String posField1 = (String) entry.get("posField1");
                     String posField2 = (String) entry.get("posField2");
                     String posField3 = (String) entry.get("posField3");
-                    terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, idItem, name, price,
-                            quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
-                            headField1, headField2, headField3, posField1, posField2, posField3));
+                    String key = numberOrder + "/" + barcode;
+                    TerminalOrder terminalOrder = terminalOrderMap.get(key);
+                    if (terminalOrder != null)
+                        terminalOrder.quantity = safeAdd(terminalOrder.quantity, quantity);
+                    else
+                        terminalOrderMap.put(key, new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, idItem, name, price,
+                                quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
+                                headField1, headField2, headField3, posField1, posField2, posField3));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
-        return terminalOrderList;
+        return new ArrayList<>(terminalOrderMap.values());
     }
 
     private static String formatColor(Color color) {
@@ -261,5 +265,11 @@ public class TerminalEquipmentServer {
             }
         }
         return terminalLegalEntityList;
+    }
+
+    private static BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
     }
 }
