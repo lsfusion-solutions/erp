@@ -89,11 +89,11 @@ public class ShuttleBoardDaemon extends BoardDaemon {
                     while((b = inFromClient.readByte()) != 13) // /r
                         barcode.append((char) b);
 
-                    //getHostName is slow operation, so we use map
+                    //getHostAddress is slow operation, so we use map
                     InetAddress inetAddress = socket.getInetAddress();
                     String ip = ipMap.get(inetAddress);
                     if(ip == null) {
-                        ip = inetAddress.getHostName();
+                        ip = inetAddress.getHostAddress();
                         ipMap.put(inetAddress, ip);
                     }
                     byte[] message = readMessage(barcode.toString(), ip);

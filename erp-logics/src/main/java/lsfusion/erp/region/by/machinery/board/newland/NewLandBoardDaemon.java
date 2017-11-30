@@ -84,12 +84,10 @@ public class NewLandBoardDaemon extends BoardDaemon {
                 String barcode = inFromClient.readLine();
 
                 if(barcode != null) {
-                    //getHostName is slow operation, so we use map
+                    //getHostAddress is slow operation, so we use map
                     InetAddress inetAddress = socket.getInetAddress();
                     String ip = ipMap.get(inetAddress);
                     if(ip == null) {
-                        //TODO: поменяли getHostName на getHostAddress, по идее, так правильней. Если проблем не будет, то сделать
-                        //то же самое для остальных BoardDaemon
                         ip = inetAddress.getHostAddress();
                         ipMap.put(inetAddress, ip);
                     }

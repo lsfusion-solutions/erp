@@ -84,11 +84,11 @@ public class ShtrihBoardDaemon extends BoardDaemon {
 
                 if (barcode != null) {
 
-                    //getHostName is slow operation, so we use map
+                    //getHostAddress is slow operation, so we use map
                     InetAddress inetAddress = socket.getInetAddress();
                     String ip = ipMap.get(inetAddress);
                     if (ip == null) {
-                        ip = inetAddress.getHostName();
+                        ip = inetAddress.getHostAddress();
                         ipMap.put(inetAddress, ip);
                     }
                     barcode = barcode.length() > 2 ? barcode.substring(2) : barcode;
