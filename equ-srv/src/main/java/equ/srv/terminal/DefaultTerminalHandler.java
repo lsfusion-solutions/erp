@@ -20,6 +20,7 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
+import java.awt.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -30,6 +31,7 @@ import java.sql.Date;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -101,13 +103,19 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     df.setGroupingUsed(false);
                     priceValue = df.format(price).replace(",", ".");
                 }
+                String mainBarcode = (String) terminalHandlerLM.findProperty("idMainBarcode[Barcode]").read(session, barcodeObject);
+                String color = formatColor((Color) terminalHandlerLM.findProperty("color[Sku, Stock]").read(session, skuObject, stockObject));
                 return Arrays.asList(barcode, nameSkuBarcode, priceValue == null ? "0" : priceValue,
-                        quantity == null ? "0" : String.valueOf(quantity.longValue()), "", "", "", "", "", isWeight);
+                        quantity == null ? "0" : String.valueOf(quantity.longValue()), "", "", "", "", "", isWeight, mainBarcode, color);
             } else return null;
 
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    private String formatColor(Color color) {
+        return color == null ? null : String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
     }
 
     @Override
