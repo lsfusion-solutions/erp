@@ -675,11 +675,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         machineryExchangeLogger.info(logPrefix + "Send CashierInfoList");
 
-        for (Map.Entry<String, Set<String>> entry : requestExchange.directoryStockMap.entrySet()) {
+        for (String directory : getDirectorySet(requestExchange)) {
 
             try {
-
-                String directory = entry.getKey();
 
                 File tmpFile = File.createTempFile("pos",".aif");
 

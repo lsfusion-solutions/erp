@@ -231,14 +231,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
         int discountCardThreadCount = eqsSettings != null ? eqsSettings.getDiscountCardThreadCount() : 0;
 
-        Set<String> directorySet = new HashSet<>();
-        for (CashRegisterInfo cashRegister : requestExchange.cashRegisterSet) {
-            directorySet.add(cashRegister.directory);
-        }
-        directorySet.addAll(requestExchange.directoryStockMap.keySet());
-
         Collection<Callable<Exception>> taskList = new ArrayList<>();
-        for (String directory : directorySet) {
+        for (String directory : getDirectorySet(requestExchange)) {
             taskList.add(new SendDiscountCardsTask(discountCardList, directory));
         }
 
@@ -600,28 +594,27 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             Statement statement = null;
             try {
                 Class.forName("com.mysql.jdbc.Driver");
-                for (String directory : entry.directoryStockMap.keySet()) {
-                    if (directorySet.contains(directory)) {
 
-                        EQSConnectionString params = new EQSConnectionString(directory);
-                        if (params.connectionString != null) {
-                            sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
-                            conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+                for (String directory : getDirectorySet(entry)) {
 
-                            String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
-                            Calendar cal = Calendar.getInstance();
-                            cal.setTime(entry.dateTo);
-                            cal.add(Calendar.DATE, 1);
-                            sendSalesLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
-                            String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
-                            sendSalesLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
+                    EQSConnectionString params = new EQSConnectionString(directory);
+                    if (params.connectionString != null) {
+                        sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
+                        conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
-                            statement = conn.createStatement();
-                            String query = String.format("UPDATE history SET new = 1 WHERE date >= '%s' AND date <='%s'", dateFrom, dateTo);
-                            sendSalesLogger.info(logPrefix + "RequestSalesInfo: " + query);
-                            statement.execute(query);
-                            succeededRequests.add(entry.requestExchange);
-                        }
+                        String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
+                        Calendar cal = Calendar.getInstance();
+                        cal.setTime(entry.dateTo);
+                        cal.add(Calendar.DATE, 1);
+                        sendSalesLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
+                        String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+                        sendSalesLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
+
+                        statement = conn.createStatement();
+                        String query = String.format("UPDATE history SET new = 1 WHERE date >= '%s' AND date <='%s'", dateFrom, dateTo);
+                        sendSalesLogger.info(logPrefix + "RequestSalesInfo: " + query);
+                        statement.execute(query);
+                        succeededRequests.add(entry.requestExchange);
                     }
                 }
             } catch (Exception e) {
