@@ -80,6 +80,7 @@ public class EquipmentServer {
     private boolean mergeBatches = false;
     private boolean disableSales = false;
     private Integer loginTimeout;
+    private Integer waitForThreadDeath;
 
     public EquipmentServer(final String sidEquipmentServer, final String serverHost, final int serverPort, final String serverDB) {
         
@@ -509,6 +510,14 @@ public class EquipmentServer {
             DriverManager.setLoginTimeout(loginTimeout);
     }
 
+    public Integer getWaitForThreadDeath() {
+        return waitForThreadDeath;
+    }
+
+    public void setWaitForThreadDeath(Integer waitForThreadDeath) {
+        this.waitForThreadDeath = waitForThreadDeath;
+    }
+
     public Integer getTransactionThreadCount() {
         return transactionThreadCount;
     }
@@ -795,8 +804,7 @@ public class EquipmentServer {
         try {
             if (thread != null) {
                 thread.interrupt();
-                //TODO: параметризовать (придётся менять equ-api)
-                thread.join(300000); //5 minutes
+                thread.join(waitForThreadDeath != null ? waitForThreadDeath * 1000 : 300000); //5 minutes
             }
         } catch (InterruptedException e) {
             equipmentLogger.error("Thread has been interrupted while join: ", e);
