@@ -228,11 +228,28 @@ DESIGN userAdjustment {
     }
 }
 
+//----------------------------------------------- Операции -----------------------------------------------------//
+@defineDocumentInterfaceOperation (adjustment, Stock, );
+
+@defineDocumentOperationConstraint(adjustment, 'изменение остатков', Adjustment);
+@defineDocumentOperationRolePrefix(userAdjustment, );
+
+EXTEND FORM userAdjustment
+    PROPERTIES(i) nameOperation
+;
+DESIGN userAdjustment{
+    first{
+        MOVE PROPERTY (nameOperation(i)) BEFORE PROPERTY(nameStock(i));
+    }
+}
+
+@defineOperationChangesDocument(adjustment, Adjustment, preventChangesDocument, created);
+
 skipShowEdit = ABSTRACT BOOLEAN (Adjustment);
 skipShowDelete = ABSTRACT BOOLEAN (Adjustment);
 
-showEdit (Adjustment a) = isOpened(a) AND NOT skipShowEdit(a); 
-showDelete(UserAdjustment a) = isOpened(a) AND is(a) AND NOT skipShowDelete(a);
+showEdit (Adjustment a) = showEditDeleteUser(a) AND isOpened(a) AND NOT skipShowEdit(a); 
+showDelete(UserAdjustment a) = showEditDeleteUser(a) AND isOpened(a) AND is(a) AND NOT skipShowDelete(a);
 
 actualBalance 'Остаток фактический' (Sku sku, UserAdjustment userAdjustment, Stock stock)= currentBalance(sku, stock) (+) quantity(sku, userAdjustment, stock);
 
@@ -266,7 +283,7 @@ FORM adjustments 'Изменения остатков'
     
     OBJECTS i = Adjustment
     PROPERTIES (i) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time,
-                            nameStock, nameCurrency
+                            nameStock, nameOperation, nameCurrency
     PROPERTIES (i) READONLY countAdjustmentDetail, quantityAdjustmentDetail,
                             sumAdjustmentDetail
     PROPERTIES (i) READONLYIF isReadonly() note
@@ -289,6 +306,7 @@ FORM adjustments 'Изменения остатков'
     LIST Adjustment OBJECT i
 ;
 @extendFormFilterAccessStock(Adjustment, i, adjustments, stock, company);
+@extendFormFilterRoleAccess(adjustment, i, adjustments);
 
 DESIGN adjustments {
     BOX {
@@ -356,24 +374,6 @@ NAVIGATOR {
         }
     }
 }
-
-//----------------------------------------------- Операции -----------------------------------------------------//
-@defineDocumentInterfaceOperation (adjustment, Stock, );
-@extendFormFilterRoleAccess(adjustment, i, adjustments);
-@defineDocumentOperationConstraint(adjustment, 'изменение остатков', Adjustment);
-@defineDocumentOperationRolePrefix(userAdjustment, );
-
-EXTEND FORM userAdjustment
-    PROPERTIES(i) nameOperation
-;
-DESIGN userAdjustment{
-    first{
-        MOVE PROPERTY (nameOperation(i)) BEFORE PROPERTY(nameStock(i));
-    }
-}
-EXTEND FORM adjustments
-    PROPERTIES(i) READONLYIF isReadonly() nameOperation AFTER nameStock(i)
-;
 
 //---------------------------- Изменение остатка sku----------------------------//
 
