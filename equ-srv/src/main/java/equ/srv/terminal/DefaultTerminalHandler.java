@@ -356,7 +356,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " fld5    TEXT," +
                 " image   TEXT," +
                 " weight  TEXT," +
-                " main_barcode TEXT)";
+                " main_barcode TEXT," +
+                " color TEXT)";
         statement.executeUpdate(sql);
         statement.close();
     }
