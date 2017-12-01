@@ -35,7 +35,7 @@ public class BizerbaBSHandler extends BizerbaHandler {
     }
 
     @Override
-    protected String getPricesCommand(int price, int retailPrice) {
-        return "GPR1" + price + separator + "EXPR" + retailPrice + separator;
+    protected String getPricesCommand(int price, int retailPrice, boolean notInvertPrices) {
+        return notInvertPrices ? super.getPricesCommand(price, retailPrice, true) : ("GPR1" + price + separator + "EXPR" + retailPrice + separator);
     }
 }

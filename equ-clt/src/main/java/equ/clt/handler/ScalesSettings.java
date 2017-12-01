@@ -10,6 +10,7 @@ public class ScalesSettings implements Serializable{
     private boolean allowParallel;
     private boolean capitalLetters;
     private Integer advancedClearMaxPLU;
+    private boolean notInvertPrices; //временная опция для BizerbaBS
 
     public ScalesSettings() {}
 
@@ -68,5 +69,13 @@ public class ScalesSettings implements Serializable{
 
     public void setAdvancedClearMaxPLU(Integer advancedClearMaxPLU) {
         this.advancedClearMaxPLU = advancedClearMaxPLU;
+    }
+
+    public boolean isNotInvertPrices() {
+        return notInvertPrices;
+    }
+
+    public void setNotInvertPrices(boolean notInvertPrices) {
+        this.notInvertPrices = notInvertPrices;
     }
 }

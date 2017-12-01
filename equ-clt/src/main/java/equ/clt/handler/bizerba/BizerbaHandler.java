@@ -79,6 +79,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
             ScalesSettings bizerbaSettings = springContext.containsBean("bizerbaSettings") ? (ScalesSettings) springContext.getBean("bizerbaSettings") : null;
             boolean capitalLetters = bizerbaSettings != null && bizerbaSettings.isCapitalLetters();
+            boolean notInvertPrices = bizerbaSettings != null && bizerbaSettings.isNotInvertPrices();
 
             List<MachineryInfo> succeededScalesList = new ArrayList<>();
             List<MachineryInfo> clearedScalesList = new ArrayList<>();
@@ -101,7 +102,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                                 errors.put(scales.port, Collections.singletonList(String.format("Broken ip: %s, error: %s", scales.port, brokenPortError)));
                             } else {
                                 ips.add(scales.port);
-                                taskList.add(new SendTransactionTask(transaction, scales, port, charset, encode, capitalLetters));
+                                taskList.add(new SendTransactionTask(transaction, scales, port, charset, encode, capitalLetters, notInvertPrices));
                             }
                         }
                     }
@@ -453,7 +454,8 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return messageMap;
     }
 
-    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, boolean encode, boolean capitalLetters) throws CommunicationException, IOException {
+    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset,
+                           boolean encode, boolean capitalLetters, boolean notInvertPrices) throws CommunicationException, IOException {
 
         Integer pluNumber = getPluNumber(item);
 
@@ -532,7 +534,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 command1 = command1 + "KLAR4" + separator;
             }
 
-            command1+= getPricesCommand(price, retailPrice);
+            command1+= getPricesCommand(price, retailPrice, notInvertPrices);
 
             String prefix = scales.pieceCodeGroupScales != null && nonWeight ? scales.pieceCodeGroupScales : scales.weightCodeGroupScales;
             String idBarcode = item.idBarcode != null && prefix != null && item.idBarcode.length() == 5 ? ("0" + prefix + item.idBarcode + "00000") : item.idBarcode;
@@ -552,7 +554,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         }
     }
 
-    protected String getPricesCommand(int price, int retailPrice) {
+    protected String getPricesCommand(int price, int retailPrice, boolean notInvertPrices) {
         return "GPR1" + retailPrice + separator + "EXPR" + price + separator;
     }
 
@@ -588,14 +590,17 @@ public abstract class BizerbaHandler extends ScalesHandler {
         String charset;
         boolean encode;
         boolean capitalLetters;
+        boolean notInvertPrices;
 
-        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, TCPPort port, String charset, boolean encode, boolean capitalLetters) {
+        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, TCPPort port, String charset,
+                                   boolean encode, boolean capitalLetters, boolean notInvertPrices) {
             this.transaction = transaction;
             this.scales = scales;
             this.port = port;
             this.charset = charset;
             this.encode = encode;
             this.capitalLetters = capitalLetters;
+            this.notInvertPrices = notInvertPrices;
         }
 
         @Override
@@ -626,7 +631,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                                         int attempts = 0;
                                         String result = null;
                                         while((result == null || !result.equals("0")) && attempts < 3) {
-                                            result = loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters);
+                                            result = loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters, notInvertPrices);
                                             attempts++;
                                         }
                                         if (result != null && !result.equals("0")) {
