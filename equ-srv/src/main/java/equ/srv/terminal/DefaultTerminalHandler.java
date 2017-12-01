@@ -367,7 +367,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, '', '', '', '', ?, ?);";
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, '', '', '', '', ?, ?, '');";
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
                 for (TerminalBarcode barcode : barcodeList) {
