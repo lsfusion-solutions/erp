@@ -171,26 +171,21 @@ public class EquipmentServer {
                     } catch (Exception e) {
                         equipmentLogger.error("Unhandled exception in main cycle: ", e);
                         remote = null;
-                        processTransactionThread.interrupt();
+                        interruptThread(processTransactionThread);
                         processTransactionThread = null;
-                        processStopListThread.interrupt();
+                        interruptThread(processStopListThread);
                         processStopListThread = null;
-                        processDeleteBarcodeThread.interrupt();
+                        interruptThread(processDeleteBarcodeThread);
                         processDeleteBarcodeThread = null;
-                        if(sendSalesThread != null) {
-                            //TODO: временные логи, не забыть убрать
-                            equipmentLogger.info("Interrupting sendSalesThread");
-                            sendSalesThread.interrupt();
-                            sendSalesThread = null;
-                            equipmentLogger.info("Interrupted sendSalesThread");
-                        }
-                        sendSoftCheckThread.interrupt();
+                        interruptThread(sendSalesThread);
+                        sendSalesThread = null;
+                        interruptThread(sendSoftCheckThread);
                         sendSoftCheckThread = null;
-                        sendTerminalDocumentThread.interrupt();
+                        interruptThread(sendTerminalDocumentThread);
                         sendTerminalDocumentThread = null;
-                        machineryExchangeThread.interrupt();
+                        interruptThread(machineryExchangeThread);
                         machineryExchangeThread = null;
-                        processMonitorThread.interrupt();
+                        interruptThread(processMonitorThread);
                         processMonitorThread = null;
 
                         singleTransactionExecutor.shutdown();
@@ -483,30 +478,21 @@ public class EquipmentServer {
     };
 
     public void stop() {
-        if(processTransactionThread != null)
-            processTransactionThread.interrupt();
-        if(processStopListThread != null)
-            processStopListThread.interrupt();
-        if(processDeleteBarcodeThread != null)
-            processDeleteBarcodeThread.interrupt();
-        if(sendSalesThread != null) {
-            sendSalesThread.interrupt();
-        }
-        if(sendSoftCheckThread != null)
-            sendSoftCheckThread.interrupt();
-        if(sendTerminalDocumentThread != null)
-            sendTerminalDocumentThread.interrupt();
-        if(machineryExchangeThread != null)
-            machineryExchangeThread.interrupt();
-        if(processMonitorThread != null)
-            processMonitorThread.interrupt();
+        interruptThread(processTransactionThread);
+        interruptThread(processStopListThread);
+        interruptThread(processDeleteBarcodeThread);
+        interruptThread(sendSalesThread);
+        interruptThread(sendSoftCheckThread);
+        interruptThread(sendTerminalDocumentThread);
+        interruptThread(machineryExchangeThread);
+        interruptThread(processMonitorThread);
         if (singleTransactionExecutor != null)
             singleTransactionExecutor.shutdown();
         if(futures != null)
             for(Future future : futures) {
                 future.cancel(true);
             }
-        thread.interrupt();
+        interruptThread(thread);
     }
 
     public void setMergeBatches(boolean mergeBatches) {
@@ -803,5 +789,17 @@ public class EquipmentServer {
 
     public static ExecutorService getFixedThreadPool(int nThreads, String name) {
         return Executors.newFixedThreadPool(nThreads, new DaemonThreadFactory(name));
+    }
+
+    private void interruptThread(Thread thread) {
+        try {
+            if (thread != null) {
+                thread.interrupt();
+                //TODO: параметризовать (придётся менять equ-api)
+                thread.join(300000); //5 minutes
+            }
+        } catch (InterruptedException e) {
+            equipmentLogger.error("Thread has been interrupted while join: ", e);
+        }
     }
 }
