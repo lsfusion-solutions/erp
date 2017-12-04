@@ -773,8 +773,9 @@ DESIGN dialogBatchStockIn {
 
 // Расчет себестоимости
 
+TABLE notCostedSkuLedger (SkuLedger);
 needToCost 'Требуется расчет себестоимости' (SkuLedger ledger) = signedQuantityActive(ledger)
-                                                                        AND quantity(ledger) != (OVERRIDE costed(ledger), 0.0);
+                                                                        AND quantity(ledger) != (OVERRIDE costed(ledger), 0.0) MATERIALIZED TABLE notCostedSkuLedger;
 
 order = ABSTRACT LONG (InLIFOSkuLedger, Batch);
 limitNew = IF InLIFOSkuLedger ledger IS InLIFOSkuLedger THEN (
@@ -885,12 +886,15 @@ currentBalance 'Текущий остаток' (SkuLedger bil, Batch bt) = curre
 countLedger 'Кол-во движений' (SkuLedger bil, Batch bt) = countLedger(bt, stock(bil));
 
 FORM costSkuLedger 'Себестоимость (операции)'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES dFrom = VALUE(dFrom), dTo = VALUE(dTo)
+
     OBJECTS bil = SkuLedger
     PROPERTIES(bil) READONLY dateTime, date, description, idSku, nameSku, nameStock,
                              quantity, costed, sum
     PROPERTIES(bil)          resetCost GRID
     PROPERTIES(bil)          EDIT SHOWIF allowedEdit(bil) NEWSESSION, show SHOWIF allowedShow(bil)
-    FILTERS active(bil)
+    FILTERS active(bil), dateTime(bil) >= DATETIME(dFrom), dateTime(bil) < DATETIME(sum(dTo,1)) 
     ORDER dateTime(bil)
 
     FILTERGROUP needToCostDataSkuLedger
@@ -912,6 +916,11 @@ FORM costSkuLedger 'Себестоимость (операции)'
 ;
 
 DESIGN costSkuLedger {
+    NEW filterContainer {
+        type = CONTAINERH;
+        MOVE PROPERTY(dFrom);
+        MOVE PROPERTY(dTo);
+    }
     NEW topContainer{
         fill = 1;
         type = SPLITV;
@@ -1734,7 +1743,7 @@ EXTEND FORM currentBalanceBatchStock
 	PROPERTIES(bt) setSku 
 ;
 
-checkDateTimeSkuLedger 'Для ригистра движения должна быть задана дата/время' = DATA BOOLEAN ();
+checkDateTimeSkuLedger 'Для регистра движения должна быть задана дата/время' = DATA BOOLEAN ();
 EXTEND FORM options
     PROPERTIES () checkDateTimeSkuLedger
 ;
