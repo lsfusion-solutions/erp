@@ -471,6 +471,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " barcode TEXT," +
                 "PRIMARY KEY ( post, barcode))";
         statement.executeUpdate(sql);
+        statement.execute("CREATE INDEX assort_k ON assort (post,barcode);");
         statement.close();
     }
 
