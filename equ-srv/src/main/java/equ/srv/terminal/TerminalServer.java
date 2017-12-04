@@ -643,7 +643,7 @@ public class TerminalServer extends MonitorServer {
     }
 
     private void write(DataOutputStream outToClient, String value) throws IOException {
-        outToClient.write(value.getBytes("cp1251"));
+        outToClient.write((value == null ? "" : value).getBytes("cp1251"));
         outToClient.flush();
     }
 }
