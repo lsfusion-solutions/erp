@@ -386,9 +386,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
         for (RequestExchange entry : requestExchangeList) {
             int count = 0;
             String requestResult = null;
-            for (String directory : entry.directoryStockMap.keySet()) {
-
-                if (!directorySet.contains(directory)) continue;
+            for (String directory : getDirectorySet(entry)) {
 
                 sendSalesLogger.info("Kristal: creating request files for directory : " + directory);
 

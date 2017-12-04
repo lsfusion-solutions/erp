@@ -736,7 +736,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         String discountCardDirectory = kristalSettings != null ? kristalSettings.getDiscountCardDirectory() : null;
 
         if (!discountCardList.isEmpty()) {
-            for (String directory : requestExchange.directoryStockMap.keySet()) {
+            for (String directory : getDirectorySet(requestExchange)) {
 
                 String exchangeDirectory = directory + (discountCardDirectory != null ? discountCardDirectory : "/products/source/");
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {

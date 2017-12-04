@@ -203,8 +203,10 @@ public class SendSalesEquipmentServer {
                     sendSalesLogger.info("Executing checkZReportSum");
 
                     Set<String> stockSet = new HashSet<>();
-                    for(Set<String> entry : request.directoryStockMap.values())
-                        stockSet.addAll(entry);
+                    for(CashRegisterInfo entry : request.cashRegisterSet)
+                        stockSet.add(entry.idDepartmentStore);
+                    for(CashRegisterInfo entry : request.extraCashRegisterSet)
+                        stockSet.add(entry.idDepartmentStore);
 
                     for (String idStock : stockSet) {
                         Map<String, List<Object>> zReportSumMap = remote.readRequestZReportSumMap(idStock, request.dateFrom, request.dateTo);
