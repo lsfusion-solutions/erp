@@ -3,6 +3,7 @@ package equ.srv.terminal;
 import com.google.common.base.Throwables;
 import equ.api.terminal.*;
 import equ.srv.TerminalEquipmentServer;
+import lsfusion.base.BaseUtils;
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -164,7 +165,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 //если prefix null, то таблицу не выгружаем. Если prefix пустой (skipPrefix), то таблицу выгружаем, но без префикса
                 String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
                 List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject);
+
                 List<TerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject);
+                Map<String, List<String>> extraBarcodeMap = readExtraBarcodeMap(session);
+
                 List<TerminalAssortment> assortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
                 List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, BL);
@@ -175,7 +179,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
 
                 createGoodsTable(connection);
-                updateGoodsTable(connection, barcodeList, orderList);
+                updateGoodsTable(connection, barcodeList, orderList, extraBarcodeMap);
 
                 createOrderTable(connection);
                 updateOrderTable(connection, orderList, prefix);
@@ -279,6 +283,36 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         return result;
     }
 
+    private Map<String, List<String>> readExtraBarcodeMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, List<String>> result = new HashMap<>();
+        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+        if (terminalHandlerLM != null) {
+
+            KeyExpr barcodeExpr = new KeyExpr("barcode");
+            ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev((Object) "barcode", barcodeExpr);
+
+            QueryBuilder<Object, Object> barcodeQuery = new QueryBuilder<>(barcodeKeys);
+            barcodeQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
+            barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
+            barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
+            barcodeQuery.and(terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr).getWhere());
+
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> barcodeResult = barcodeQuery.execute(session);
+            for (ImMap<Object, Object> entry : barcodeResult.values()) {
+
+                String idBarcode = BaseUtils.trim((String) entry.get("idBarcode"));
+                String mainBarcode = BaseUtils.trim((String) entry.get("mainBarcode"));
+
+                List<String> barcodeList = result.get(mainBarcode);
+                if (barcodeList == null)
+                    barcodeList = new ArrayList<>();
+                barcodeList.add(idBarcode);
+                result.put(mainBarcode, barcodeList);
+            }
+        }
+        return result;
+    }
+
     private void createOrderTable(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
         String sql = "CREATE TABLE zayavki " +
@@ -365,7 +399,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         statement.close();
     }
 
-    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<TerminalOrder> orderList) throws SQLException {
+    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<TerminalOrder> orderList, Map<String, List<String>> extraBarcodeMap) throws SQLException {
         if (!barcodeList.isEmpty() || !orderList.isEmpty()) {
             PreparedStatement statement = null;
             try {
@@ -384,19 +418,37 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(7, formatValue(barcode.isWeight)); //weight
                         statement.setObject(8, formatValue(barcode.mainBarcode)); //main_barcode
                         statement.addBatch();
-                        usedBarcodes.add((String) barcode.idBarcode);
+                        usedBarcodes.add(barcode.idBarcode);
                     }
                 }
-                for(TerminalOrder order : orderList) {
-                    if (order.barcode != null && !usedBarcodes.contains(order.barcode)) {
-                        statement.setObject(1, formatValue(order.barcode)); //idBarcode
-                        statement.setObject(2, formatValue(order.name)); //name
-                        statement.setObject(3, formatValue(order.price)); //price
-                        statement.setObject(4, formatValue(order.quantity)); //quantity
-                        statement.setObject(5, formatValue(order.idItem)); //idItem
-                        statement.setObject(6, formatValue(order.manufacturer)); //manufacturer
-                        statement.setObject(7, formatValue(order.weight)); //weight
-                        statement.addBatch();
+                for (TerminalOrder order : orderList) {
+                    if (order.barcode != null) {
+                        List<String> extraBarcodeList = extraBarcodeMap.get(order.barcode);
+                        if (extraBarcodeList != null) {
+                            for (String extraBarcode : extraBarcodeList) {
+                                if(!usedBarcodes.contains(extraBarcode)) {
+                                    statement.setObject(1, formatValue(extraBarcode)); //idBarcode
+                                    statement.setObject(2, formatValue(order.name)); //name
+                                    statement.setObject(3, formatValue(order.price)); //price
+                                    statement.setObject(4, formatValue(order.quantity)); //quantity
+                                    statement.setObject(5, formatValue(order.idItem)); //idItem
+                                    statement.setObject(6, formatValue(order.manufacturer)); //manufacturer
+                                    statement.setObject(7, formatValue(order.weight)); //weight
+                                    statement.addBatch();
+                                }
+                            }
+                        } else {
+                            if(!usedBarcodes.contains(order.barcode)) {
+                                statement.setObject(1, formatValue(order.barcode)); //idBarcode
+                                statement.setObject(2, formatValue(order.name)); //name
+                                statement.setObject(3, formatValue(order.price)); //price
+                                statement.setObject(4, formatValue(order.quantity)); //quantity
+                                statement.setObject(5, formatValue(order.idItem)); //idItem
+                                statement.setObject(6, formatValue(order.manufacturer)); //manufacturer
+                                statement.setObject(7, formatValue(order.weight)); //weight
+                                statement.addBatch();
+                            }
+                        }
                     }
                 }
                 statement.executeBatch();
