@@ -115,7 +115,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     private String formatColor(Color color) {
-        return color == null ? null : String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
+        return color == null ? "" : String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
     }
 
     @Override
