@@ -425,24 +425,20 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider, documentId,
                 documentNumber, orderNumber, sendReplies, disableConfirmation);
 
-        int i = 1;
         for (Object line : rootNode.getChildren("line")) {
             Element lineElement = (Element) line;
             String dataGTIN = trim(lineElement.getChildText("GTIN"));
             String GTIN;
             String barcode;
-            //todo: временные логи, не забыть убрать
             if (orderBarcodesMap.containsKey(dataGTIN)) {
                 barcode = orderBarcodesMap.get(dataGTIN);
                 GTIN = null;
-                ServerLoggers.importLogger.info(String.format("Order %s: GTIN %s found in map, barcode %s", orderNumber, dataGTIN, barcode));
             } else {
                 barcode = null;
                 GTIN = dataGTIN;
-                ServerLoggers.importLogger.info(String.format("Order %s: GTIN %s not found in map", orderNumber, dataGTIN));
             }
             String id = supplierGLN + "/" + documentNumber;
-            String idDetail = id + "/" + i++;
+            String idDetail = id + "/" + dataGTIN;
             String action = lineElement.getChildText("action");
             String actionObject = getAction(action);
             BigDecimal quantityOrdered = parseBigDecimal(lineElement.getChildText("quantityOrdered"));
@@ -1236,8 +1232,6 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             for (ImMap<Object, Object> entry : result.values()) {
                 String idBarcode = (String) entry.get("idBarcode");
                 String GTINBarcode = (String) entry.get("GTINBarcode");
-                //todo: временные логи, не забыть убрать
-                ServerLoggers.importLogger.info(String.format("Order %s: OrderBarcodeMap GTIN %s -> Barcode %s", orderNumber, GTINBarcode, idBarcode));
                 orderBarcodesMap.put(GTINBarcode, idBarcode);
             }
         }
