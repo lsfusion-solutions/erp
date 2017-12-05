@@ -9,9 +9,9 @@ invoice = DATA Invoice(EOrderDespatchAdvice);
 digits = FORMULA VARSTRING[250] 'regexp_replace(($1), \'\\D\', \'\', \'g\')';
 
 indexSku(EOrderDespatchAdviceDetail d) = PARTITION SUM 1 BY sku(d), eOrder(orderDespatchAdvice(d)) ORDER quantityOrdered(d), d MATERIALIZED INDEXED;
-despatchAdviceDetail = GROUP MAX EOrderDespatchAdviceDetail ed 
-    IF eOrder(orderDespatchAdvice(ed)) == order(Purchase.OrderDetail d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed) 
-    BY d;
+orderDetail = GROUP MAX Purchase.OrderDetail d
+    IF eOrder(orderDespatchAdvice(EOrderDespatchAdviceDetail ed)) == order(d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed) 
+    BY ed;
 
 createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a) = {
     
@@ -23,18 +23,18 @@ createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a) =
             number(i) <- VARSTRING[28](digits(deliveryNoteNumber(a)));
             series(i) <- VARSTRING[2](left(replace(deliveryNoteNumber(a), digits(deliveryNoteNumber(a)), ''), 2));
             
-            FOR orderDespatchAdvice(EOrderDespatchAdviceDetail ad) == a AND despatchAdviceDetail(OrderDetail od) == ad AND NOT skipCreateUserInvoice(od)
+            FOR orderDespatchAdvice(EOrderDespatchAdviceDetail ad) == a AND NOT skipCreateUserInvoice(orderDetail(ad))
                 ORDER ad 
                 NEW d = UserInvoiceDetail DO {
                     userInvoice(d) <- i;
-                    orderDetail(d) <- od;
+                    orderDetail(d) <- orderDetail(ad); //если в ответе несколько строк к одной строке заказа то подставится событием, потому что indexSku не равны
                     sku(d) <- sku(ad);
                     quantity(d) <- quantityDespatch(ad);
-                    VAT(d) <- VAT(od);
-                    valueVAT(d) <- valueVAT(od);
-                    priceListType(d) <- priceListType(od);
+                    VAT(d) <- VAT(orderDetail(ad));
+                    valueVAT(d) <- valueVAT(orderDetail(ad));
+                    priceListType(d) <- priceListType(orderDetail(ad));
                     price(d) <- lineItemPrice(ad);
-                    overFill(d, od);
+                    overFill(d, orderDetail(ad));
             }
             
             include(Order order, i) <- TRUE WHERE order == eOrder(a);
