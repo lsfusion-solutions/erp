@@ -688,31 +688,34 @@ inAdjustment = DATA LOCAL NESTED BOOLEAN (Stock);
 
 createBatchUserAdjustmentDetail(UserAdjustment adjustment) = {
 
-    LOCAL balance = NUMERIC[16,5] (Batch);
-    balance(Batch b) <- NULL;
-    balance(Batch b) <- balanceB(b, stock(adjustment), dateTime(adjustment)) WHERE inAdjustment(sku(b));
-    
-    LOCAL adjust = NUMERIC[16,5] (Sku);
-    adjust (Sku s) <- NULL; 
-    adjust (Sku s) <- min(-[= GROUP SUM balance(Batch b) IF balance(b) < 0 BY sku(b)](s), [= GROUP SUM balance(Batch b) IF balance(b) > 0 BY sku(b)](s));
-    
-    LOCAL adjust = NUMERIC[16,5] (Batch);
-    adjust(Batch b) <- NULL; 
-    adjust(Batch b) <- PARTITION UNGROUP adjust
-                                            LIMIT -balance(b) IF balance(b) < 0
-                                            BY sku(b)
-                                            ORDER dateTime(b), b WHERE balance(b) < 0;
-    
-    adjust(Batch b) <- - PARTITION UNGROUP adjust
-                                            LIMIT balance(b) IF balance(b) > 0
-                                            BY sku(b)
-                                            ORDER dateTime(b), b WHERE balance(b) > 0;
+    FOR Stock stock == stock(adjustment) AND DATETIME dateTime == dateTime(adjustment) DO {
 
-    FOR adjust(Batch b) ORDER nameSku(b) NEW d = UserAdjustmentDetail DO {            
-        userAdjustment(d) <- adjustment;
-        sku(d) <- sku(b);
-        batch(d) <- b;
-        quantity(d) <- adjust(b);
+        LOCAL balance = NUMERIC[16,5] (Batch);
+        balance(Batch b) <- NULL;
+        balance(Batch b) <- balanceB(b, stock, dateTime) WHERE balanceB(b, stock, dateTime) AND inAdjustment(sku(b));
+        
+        LOCAL adjust = NUMERIC[16,5] (Sku);
+        adjust (Sku s) <- NULL; 
+        adjust (Sku s) <- min(-[= GROUP SUM balance(Batch b) IF balance(b) < 0 BY sku(b)](s), [= GROUP SUM balance(Batch b) IF balance(b) > 0 BY sku(b)](s));
+        
+        LOCAL adjust = NUMERIC[16,5] (Batch);
+        adjust(Batch b) <- NULL; 
+        adjust(Batch b) <- PARTITION UNGROUP adjust
+                                                LIMIT -balance(b) IF balance(b) < 0
+                                                BY sku(b)
+                                                ORDER dateTime(b), b WHERE balance(b) < 0;
+        
+        adjust(Batch b) <- - PARTITION UNGROUP adjust
+                                                LIMIT balance(b) IF balance(b) > 0
+                                                BY sku(b)
+                                                ORDER dateTime(b), b WHERE balance(b) > 0;
+    
+        FOR adjust(Batch b) ORDER nameSku(b) NEW d = UserAdjustmentDetail DO {            
+            userAdjustment(d) <- adjustment;
+            sku(d) <- sku(b);
+            batch(d) <- b;
+            quantity(d) <- adjust(b);
+        }
     }
 }
 
