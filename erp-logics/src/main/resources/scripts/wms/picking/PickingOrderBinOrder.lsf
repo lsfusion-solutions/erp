@@ -1,0 +1,31 @@
+MODULE PickingOrderBinOrder;
+
+REQUIRE PickingOrderBin, BinOrder;
+
+NAMESPACE Picking;
+
+
+defaultBinOrderOperation 'Операция по умолчанию для заказа на перемещение по ячейкам' = DATA Bin.Operation();
+nameDefaultBinOrderOperation 'Операция по умолчанию для заказа на перемещение по ячейкам' = name(defaultBinOrderOperation());
+
+EXTEND FORM options PROPERTIES() nameDefaultBinOrderOperation;
+DESIGN options { WMS { MOVE PROPERTY(nameDefaultBinOrderOperation()); } }
+
+EXTEND CLASS UserPickingOrder : BinOrder;
+date[BinOrder](UserPickingOrder o) += date(o);
+time[BinOrder](UserPickingOrder o) += time(o);
+number[BinOrder](UserPickingOrder o) += number(o);
+series[BinOrder](UserPickingOrder o) += series(o);
+operation(UserPickingOrder o) += defaultBinOrderOperation() IF o IS UserPickingOrder;
+isPosted[BinOrder](UserPickingOrder o) += isPosted(o);
+isClosed[BinOrder](UserPickingOrder o) += isClosed(o);
+note[BinOrder](UserPickingOrder o) += note(o);
+stock[BinOrder](UserPickingOrder binOrder) += stock(binOrder);
+description[BinOrder](UserPickingOrder o) += description(o);
+
+EXTEND CLASS UserPickingOrderDetail : BinOrderDetail;
+binOrder(UserPickingOrderDetail d) += userPickingOrder(d);
+index[BinOrderDetail](UserPickingOrderDetail d) += index(d);
+outBin(UserPickingOrderDetail d) += bin(d);
+sku[BinOrderDetail](UserPickingOrderDetail binOrderDetail) += sku(binOrderDetail);
+quantity[BinOrderDetail](UserPickingOrderDetail binOrderDetail) += quantity(binOrderDetail);
