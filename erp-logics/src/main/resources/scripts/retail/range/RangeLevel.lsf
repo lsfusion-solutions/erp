@@ -79,21 +79,27 @@ CONSTRAINT level(RangeRev r, Sku s) AND NOT in(r, level(r, s))
     CHECKED BY level[RangeRev,Sku] 
     MESSAGE 'Уровень ассортимента для товара не соответствует типу ассортимента';
     
-countSku 'Кол-во товаров' = GROUP SUM 1 IF level(RangeRev r, Sku s) BY r; 
-
-CONSTRAINT CHANGED(countSku(RangeRev v)) AND depth(range(v)) < countSku(v)
-    MESSAGE 'Превышено максимально количество товаров по матрице';
+countSku 'Кол-во товаров' = GROUP SUM 1 IF level(RangeRev r, Sku s) BY r;   
 
 notCheckDepthRange 'Не проверять глубину матрицы при изменении значения глубины' = DATA BOOLEAN ();
+notCheckDepth 'Не проверять глубину матрицы' = DATA BOOLEAN ();
+notCheckDepthLoc 'Не проверять глубину матрицы' = DATA LOCAL BOOLEAN ();
 
 EXTEND FORM options
-    PROPERTIES () notCheckDepthRange
+    PROPERTIES () notCheckDepthRange, notCheckDepth
 ;
 DESIGN options {
     range {
         MOVE PROPERTY (notCheckDepthRange());
+        MOVE PROPERTY (notCheckDepth());
     }
 }  
+
+CONSTRAINT CHANGED(countSku(RangeRev v)) AND depth(range(v)) < countSku(v) AND NOT (notCheckDepth() OR notCheckDepthLoc())
+    MESSAGE 'Превышено максимально количество товаров по матрице';
+//CONSTRAINT CHANGED(countSku(RangeRev v)) AND depth(range(v)) < countSku(v) AND NOT (PREV(countSku(v)) >= countSku(v) )
+//    MESSAGE 'Превышено максимально количество товаров по матрице';  
+
     
 CONSTRAINT CHANGED(depth(range(RangeRev v))) AND rangeRev(range(v), currentDate()) == v AND  depth(range(v)) < countSku(v) AND NOT notCheckDepthRange()
     MESSAGE 'Превышено максимально количество товаров по матрице для действующей версии';
@@ -107,8 +113,10 @@ countSku 'Кол-во товаров' (Range r, RangeLevel l, DATE d)= countSku(
 
 countSkus 'Кол-во наименований' = GROUP SUM 1 BY RangeRev v, level(v,Sku sku);
 
-CONSTRAINT CHANGED(countSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countSku(v,l)
+CONSTRAINT CHANGED(countSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countSku(v,l) AND NOT (notCheckDepth() OR notCheckDepthLoc())
     MESSAGE 'Превышено максимально количество товаров по матрице для уровня';
+//CONSTRAINT CHANGED(countSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countSku(v,l) AND NOT (PREV(countSku(v,l)) >= countSku(v,l) )
+//    MESSAGE 'Превышено максимально количество товаров по матрице для уровня';
 
 CONSTRAINT CHANGED(depth(range(RangeRev v), RangeLevel l)) AND rangeRev(range(v), currentDate()) == v AND  depth(range(v), l) < countSku(v,l) AND NOT notCheckDepthRange()
     MESSAGE 'Превышено максимально количество товаров по матрице для действующей версии';
