@@ -40,6 +40,20 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
         return directorySet;
     }
 
+    public Map<String, Set<String>> getDirectoryStockMap(RequestExchange requestExchange){
+        Map<String, Set<String>> directoryStockMap = new HashMap<>();
+        for(CashRegisterInfo cashRegister : requestExchange.extraCashRegisterSet) {
+            if(fitHandler(cashRegister)) {
+                Set<String> stockSet = directoryStockMap.get(cashRegister.directory);
+                if (stockSet == null)
+                    stockSet = new HashSet();
+                stockSet.add(cashRegister.idDepartmentStore);
+                directoryStockMap.put(cashRegister.directory, stockSet);
+            }
+        }
+        return directoryStockMap;
+    }
+
     @Override
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) throws IOException {
         return null;

@@ -910,7 +910,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
         String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
         String idPositionCashier = kristalSettings != null ? kristalSettings.getIdPositionCashier() : null;
 
-        for (Map.Entry<String, Set<String>> entry : requestExchange.directoryStockMap.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : getDirectoryStockMap(requestExchange).entrySet()) {
             String directory = entry.getKey();
             Set<String> stockSet = entry.getValue();
 
