@@ -45,11 +45,30 @@ toDate 'Дата по' (MarketingReportDetail d)= toDate(marketingReport(d));
 invoice  = DATA Invoice.Invoice (MarketingReportDetail);
 seriesNumberInvoice 'Серия/номер' (MarketingReportDetail d) = Invoice.seriesNumber(invoice(d));
 dateInvoice 'Дата' (MarketingReportDetail d) = Invoice.date(invoice(d));
+calcSum 'Сумма' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN sumInvoiceDetail[Invoice](invoice(d)) ELSE - sumInvoiceDetail[Invoice](invoice(d));
+calcVATSum 'Сумма НДС' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN VATSumInvoiceDetail[Invoice](invoice(d)) ELSE - VATSumInvoiceDetail[Invoice](invoice(d));
+calcInvoiceSum 'Сумма с НДС' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN invoiceSumInvoiceDetail[Invoice](invoice(d)) ELSE - invoiceSumInvoiceDetail[Invoice](invoice(d));
+calcMarketingSum 'Сумма маркетинга' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN marketingSumInvoiceDetail[Invoice](invoice(d)) ELSE - marketingSumInvoiceDetail[Invoice](invoice(d));
 
-sum 'Сумма' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN sumInvoiceDetail[Invoice](invoice(d)) ELSE - sumInvoiceDetail[Invoice](invoice(d));
-VATSum 'Сумма НДС' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN VATSumInvoiceDetail[Invoice](invoice(d)) ELSE - VATSumInvoiceDetail[Invoice](invoice(d));
-invoiceSum 'Сумма с НДС' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN invoiceSumInvoiceDetail[Invoice](invoice(d)) ELSE - invoiceSumInvoiceDetail[Invoice](invoice(d));
-marketingSum 'Сумма маркетинга' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN marketingSumInvoiceDetail[Invoice](invoice(d)) ELSE - marketingSumInvoiceDetail[Invoice](invoice(d));
+
+sum 'Сумма' = DATA NUMERIC[18,4](MarketingReportDetail);
+VATSum 'Сумма НДС' = DATA NUMERIC[18,4](MarketingReportDetail);
+invoiceSum 'Сумма с НДС' = DATA NUMERIC[18,4](MarketingReportDetail);
+marketingSum 'Сумма маркетинга' = DATA NUMERIC[18,4](MarketingReportDetail);
+
+migratedSumMarketing= DATA BOOLEAN ();
+onStarted () += {
+    IF NOT migratedSumMarketing() THEN {
+        migratedSumMarketing() <- TRUE;
+        setNoCancelInTransaction();
+        sum(MarketingReportDetail d) <- calcSum(d);
+        VATSum(MarketingReportDetail d) <- calcVATSum(d);
+        invoiceSum(MarketingReportDetail d) <- calcInvoiceSum(d);
+        marketingSum(MarketingReportDetail d) <- calcMarketingSum(d);
+        apply();
+        dropNoCancelInTransaction();
+    }
+}
 
 nameSupplierStock 'Склад поставщика' (MarketingReportDetail d) = name(supplierStock(invoice(d)));
 nameCustomerStock 'Склад покупателя' (MarketingReportDetail d) = name(customerStock(invoice(d)));
@@ -58,7 +77,7 @@ nameCustomerStock 'Склад покупателя' (MarketingReportDetail d) = 
 @defineDocumentHeaderSumPrefix (marketingReport, VAT, ' НДС');
 @defineDocumentHeaderSumPrefix (marketingReport, invoice, ' с НДС');
 @defineDocumentHeaderSumPrefix (marketingReport, marketing, ' маркетинга');
-    
+fillDataEx = ABSTRACT LIST (MarketingReport);
 fillData 'Заполнить данные'(MarketingReport report) = {
     IF contract(report) THEN {
         DELETE MarketingReportDetail d WHERE d IS MarketingReportDetail AND marketingReport(d)== report;
@@ -74,8 +93,14 @@ fillData 'Заполнить данные'(MarketingReport report) = {
         
         FOR inc (Invoice.Invoice i) ORDER date(i) NEW d = MarketingReportDetail DO {
             marketingReport(d) <- report;
-            invoice(d) <- i;                                                                                                                 
-        }    
+            invoice(d) <- i;                
+            sum(d) <- calcSum(d);
+            VATSum(d) <- calcVATSum(d);
+            invoiceSum(d) <- calcInvoiceSum(d);
+            marketingSum(d) <- calcMarketingSum(d);            
+                                                                                                                         
+        }
+        fillDataEx(report);    
     }
        
 }
@@ -126,8 +151,8 @@ FORM marketingReport 'Маркетинговый отчет'
 
     OBJECTS d = MarketingReportDetail
     PROPERTIES (d) index
-    PROPERTIES (d) seriesNumberInvoice, dateInvoice, nameSupplierStock, nameCustomerStock                   
-    PROPERTIES (d) sum, VATSum, invoiceSum, marketingSum             
+    PROPERTIES (d) READONLY seriesNumberInvoice, dateInvoice, nameSupplierStock, nameCustomerStock                   
+    PROPERTIES (d) READONLY sum, VATSum, invoiceSum, marketingSum             
     PROPERTIES (d) NEW, deleteid=DELETE GRID
     
     PROPERTIES(r)  fillData TOOLBAR TODRAW d  
