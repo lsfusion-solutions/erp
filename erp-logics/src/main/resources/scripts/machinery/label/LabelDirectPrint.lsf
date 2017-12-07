@@ -4,6 +4,9 @@ REQUIRE Label, Printer, LabelItem;
 
 NAMESPACE Label;
 
+//todo: временно тут, но надо будет перенести в fsl
+//text, charset, ip, port
+writeToSocketAction = CUSTOM 'lsfusion.erp.utils.WriteToServerSocketActionProperty' (TEXT, VARSTRING[10], VARSTRING[30], INTEGER);
 
 CLASS NetworkPrinter 'Сетевой принтер';
 TABLE networkPrinter(NetworkPrinter);
@@ -15,6 +18,17 @@ path 'Путь к принтеру' = DATA VARSTRING[100](NetworkPrinter) IN bas
 stock = DATA Stock (NetworkPrinter);
 nameStock 'Склад' (NetworkPrinter p) = name(stock(p));
 
+CLASS NetworkPrinterType 'Тип печати' {
+    clientPrintService 'Служба печати на клиенте',
+    serverPrintService 'Служба печати на сервере',
+    serverSocket 'Сокет на сервере'
+}
+name(NetworkPrinterType t) = staticCaption(t) IF t IS NetworkPrinterType IN recognize;
+
+networkPrinterType = DATA NetworkPrinterType (NetworkPrinter);
+overNetworkPrinterType(NetworkPrinter p) = OVERRIDE networkPrinterType(p), NetworkPrinterType.clientPrintService;
+nameNetworkPrinterType 'Тип печати' (NetworkPrinter p) = name(overNetworkPrinterType(p));
+
 CONSTRAINT stock(NetworkPrinter p) AND NOT isCompany(stock(p)) CHECKED BY stock[NetworkPrinter] MESSAGE 'Склад для принтера не является складом компании'; 
 
 countNetworkPrinter(s) = GROUP SUM 1 BY stock(NetworkPrinter p); 
@@ -24,13 +38,13 @@ in 'Отм' = DATA BOOLEAN (NetworkPrinter, Employee);
 FORM networkPrinters 'Выбор принтера'
     OBJECTS s = Stock PANEL
     OBJECTS p = NetworkPrinter
-    PROPERTIES (p) READONLY name, path
+    PROPERTIES (p) READONLY name, path, nameNetworkPrinterType
     FILTERS s == stock(p), in(p, currentUser())
 ;
 
 FORM networkPrintersList 'Принтеры этикеток'
     OBJECTS p = NetworkPrinter
-    PROPERTIES (p) name, path, nameStock, NEW, DELETE GRID
+    PROPERTIES (p) name, path, nameStock, nameNetworkPrinterType, NEW, DELETE GRID
     PROPERTIES () getAvailablePrinters TOOLBAR TODRAW p
 
     OBJECTS e = Employee
@@ -218,7 +232,12 @@ customPrint(LabelTransaction labelTrans) += {
     IF countNetworkPrinter(departmentStore(labelTrans)) AND [= GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](labelTrans) THEN {
         printed() <- NULL;
         DIALOG networkPrinters OBJECTS s = departmentStore(labelTrans), p INPUT NOMANAGESESSION DO {
-            writeToPrinter(fullFormattedText(), charset(), path(p)) ;
+        
+            CASE WHEN networkPrinterType(p) == NetworkPrinterType.serverSocket 
+                    THEN writeToSocketAction(fullFormattedText(), charset(), getWord(path(p), ':', 1), INTEGER(getWord(path(p), ':', 2)));
+                 WHEN networkPrinterType(p) == NetworkPrinterType.serverPrintService 
+                    THEN writeToServerPrinter(fullFormattedText(), charset(), path(p));
+            ELSE writeToPrinter(fullFormattedText(), charset(), path(p)) ;
         }
         IF NOT printed() THEN {
             DELETE labelTrans;
@@ -226,7 +245,3 @@ customPrint(LabelTransaction labelTrans) += {
     }
 
 };
-
-//todo: временно тут, но надо будет перенести в fsl
-//text, charset, ip, port
-writeToSocketAction = CUSTOM 'lsfusion.erp.utils.WriteToServerSocketActionProperty' (TEXT, VARSTRING[10], VARSTRING[30], INTEGER);
