@@ -30,10 +30,11 @@ public class FiscalAbsolutZReportActionProperty extends ScriptingActionProperty 
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             String fiscalAbsolutReportTop = (String) findProperty("fiscalAbsolutReportTop[]").read(context);
             boolean saveCommentOnFiscalTape = findProperty("saveCommentOnFiscalTapeAbsolut[]").read(context) != null;
+            boolean useSKNO = findProperty("useSKNOAbsolutCurrentCashRegister[]").read(context) != null;
 
             if (context.checkApply()) {
                 Object result = context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(logPath, comPort, baudRate, 2,
-                        fiscalAbsolutReportTop, saveCommentOnFiscalTape));
+                        fiscalAbsolutReportTop, saveCommentOnFiscalTape, useSKNO));
                 if (result != null) {
                     context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                 } else {
@@ -42,7 +43,7 @@ public class FiscalAbsolutZReportActionProperty extends ScriptingActionProperty 
                             "или 'Нет', если печать завершилась с ошибкой"));
                     if (dialogResult == JOptionPane.YES_OPTION) {
                         result = context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(logPath, comPort, baudRate, 3,
-                                fiscalAbsolutReportTop, saveCommentOnFiscalTape));
+                                fiscalAbsolutReportTop, saveCommentOnFiscalTape, useSKNO));
                         if (result != null) {
                             context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                         }

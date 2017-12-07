@@ -28,11 +28,13 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
     boolean sumPayment;
     Integer maxLines;
     boolean printSumWithDiscount;
+    boolean useSKNO;
 
     public FiscalAbsolutPrintReceiptClientAction(String logPath, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
                                                  ReceiptInstance receipt, String receiptTop, String receiptBottom,
                                                  String receiptCode128, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT,
-                                                 boolean giftCardAsNotPayment, boolean sumPayment, Integer maxLines, boolean printSumWithDiscount) {
+                                                 boolean giftCardAsNotPayment, boolean sumPayment, Integer maxLines, boolean printSumWithDiscount,
+                                                 boolean useSKNO) {
         this.logPath = logPath;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
@@ -48,6 +50,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         this.sumPayment = sumPayment;
         this.maxLines = maxLines;
         this.printSumWithDiscount = printSumWithDiscount;
+        this.useSKNO = useSKNO;
     }
 
 
@@ -73,7 +76,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                 if (receipt.receiptSaleList.size() != 0) {
                     opened = FiscalAbsolut.openReceipt(true);
                     if (opened) {
-                        if (!printReceipt(receipt.receiptSaleList)) {
+                        if (!printReceipt(receipt.receiptSaleList, useSKNO)) {
                             String error = FiscalAbsolut.getError(false);
                             FiscalAbsolut.cancelReceipt();
                             return error;
@@ -86,7 +89,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                 if (receipt.receiptReturnList.size() != 0) {
                     opened = FiscalAbsolut.openReceipt(false);
                     if (opened) {
-                        if (!printReceipt(receipt.receiptReturnList)) {
+                        if (!printReceipt(receipt.receiptReturnList, useSKNO)) {
                             String error = FiscalAbsolut.getError(false);
                             FiscalAbsolut.cancelReceipt();
                             return error;
@@ -107,7 +110,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         }
     }
 
-    private boolean printReceipt(List<ReceiptItem> receiptList) {
+    private boolean printReceipt(List<ReceiptItem> receiptList, boolean useSKNO) {
 
         FiscalAbsolut.printFiscalText(receiptTop);
         FiscalAbsolut.printBarcode(receiptCode128);
@@ -136,7 +139,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
             FiscalAbsolut.printFiscalText(getFiscalString("", " \n( __________ _______________ )"));
             FiscalAbsolut.printFiscalText(getFiscalString("", " (подпись)     ФИО      \n "));
 
-            if (!FiscalAbsolut.registerAndDiscountItem(sum, discountSum))
+            if (!FiscalAbsolut.registerAndDiscountItem(sum, discountSum, useSKNO))
                 return false;
 
             if (!FiscalAbsolut.subtotal())
@@ -169,7 +172,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                 }
                 discountSum = discountSum.add(receipt.sumDisc == null ? BigDecimal.ZERO : receipt.sumDisc);
 
-                if (!FiscalAbsolut.registerAndDiscountItem(sum, discountSum))
+                if (!FiscalAbsolut.registerAndDiscountItem(sum, discountSum, useSKNO))
                     return false;
 
                 if (!FiscalAbsolut.subtotal())
@@ -188,7 +191,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
 
                 //обычный чек
                 for (ReceiptItem item : receiptList) {
-                    if (!FiscalAbsolut.registerItem(item, saveCommentOnFiscalTape, groupPaymentsByVAT, maxLines))
+                    if (!FiscalAbsolut.registerItem(item, saveCommentOnFiscalTape, groupPaymentsByVAT, maxLines, useSKNO))
                         return false;
                     if (!FiscalAbsolut.discountItem(item, receipt.numberDiscountCard))
                         return false;

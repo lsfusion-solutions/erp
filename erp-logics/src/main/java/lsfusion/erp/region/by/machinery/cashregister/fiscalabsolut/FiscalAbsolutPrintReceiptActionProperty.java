@@ -162,12 +162,15 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
 
                 String prefix = (String) findProperty("fiscalAbsolutPrefixCode128[]").read(context);
                 String receiptCode128 = prefix == null ? null : (prefix + receiptObject.getValue());
+
+                boolean useSKNO = findProperty("useSKNOAbsolutCurrentCashRegister[]").read(context) != null;
+
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalAbsolutPrintReceiptClientAction(logPath, comPort, baudRate, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalAbsolutReceiptTop, fiscalAbsolutReceiptBottom, receiptCode128, saveCommentOnFiscalTape, groupPaymentsByVAT,
-                            giftCardAsNotPayment, sumPaymentAbsolut, maxLinesAbsolut, printSumWithDiscount));
+                            giftCardAsNotPayment, sumPaymentAbsolut, maxLinesAbsolut, printSumWithDiscount, useSKNO));
                     if (result != null) {
                         ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Error: " + result);
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));

@@ -14,18 +14,22 @@ public class FiscalAbsolutCustomOperationClientAction implements ClientAction {
     private int type;
     private String textTop;
     private boolean saveCommentOnFiscalTape;
+    private boolean useSKNO;
 
-    public FiscalAbsolutCustomOperationClientAction(String logPath, Integer comPort, Integer baudRate, int type, boolean saveCommentOnFiscalTape) {
-        this(logPath, comPort, baudRate, type, null, saveCommentOnFiscalTape);
+    public FiscalAbsolutCustomOperationClientAction(String logPath, Integer comPort, Integer baudRate, int type,
+                                                    boolean saveCommentOnFiscalTape, boolean useSKNO) {
+        this(logPath, comPort, baudRate, type, null, saveCommentOnFiscalTape, useSKNO);
     }
 
-    public FiscalAbsolutCustomOperationClientAction(String logPath, Integer comPort, Integer baudRate, int type, String textTop, boolean saveCommentOnFiscalTape) {
+    public FiscalAbsolutCustomOperationClientAction(String logPath, Integer comPort, Integer baudRate, int type,
+                                                    String textTop, boolean saveCommentOnFiscalTape, boolean useSKNO) {
         this.logPath = logPath;
         this.type = type;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.comPort = comPort == null ? 0 : comPort;
         this.textTop = textTop;
         this.saveCommentOnFiscalTape = saveCommentOnFiscalTape;
+        this.useSKNO = useSKNO;
     }
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
@@ -50,7 +54,7 @@ public class FiscalAbsolutCustomOperationClientAction implements ClientAction {
                     FiscalAbsolut.cancelReceipt();
                     break;
                 case 9:
-                    if(!FiscalAbsolut.zeroReceipt()) {
+                    if(!FiscalAbsolut.zeroReceipt(useSKNO)) {
                         String error = FiscalAbsolut.getError(true);
                         FiscalAbsolut.cancelReceipt();
                         return error;

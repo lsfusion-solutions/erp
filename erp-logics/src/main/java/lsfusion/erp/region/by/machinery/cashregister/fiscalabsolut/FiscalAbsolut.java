@@ -67,7 +67,7 @@ public class FiscalAbsolut {
         Boolean PrintComment(byte[] comment);
 
         Boolean FullProd(String plu, double price, double quant,
-                         int dep, int group, int tax, byte[] naim);
+                         int dep, int group, int tax, byte[] naim, int codtyp);
 
         Boolean Prod(String plu, double price, double quant, int dep,
                      int group);
@@ -264,10 +264,10 @@ public class FiscalAbsolut {
         }
     }
 
-    public static boolean registerAndDiscountItem(BigDecimal sum, BigDecimal discSum) {
+    public static boolean registerAndDiscountItem(BigDecimal sum, BigDecimal discSum, boolean useSKNO) {
         try {
             logAction("FullProd", "11110", sum, 1, 1, 0, 0, "");
-            if (absolutDLL.absolut.FullProd("11110", formatPrice(sum), 1, 1, 1, 0, getBytes(""))) {
+            if (absolutDLL.absolut.FullProd("11110", formatPrice(sum), 1, 1, 1, 0, getBytes(""), getCodeType(useSKNO))) {
                 double discountSum = formatPrice(discSum);
                 if (discountSum != 0.0) {
                     boolean discount = discountSum < 0;
@@ -280,7 +280,7 @@ public class FiscalAbsolut {
         }
     }
 
-    static boolean registerItem(ReceiptItem item, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT, Integer maxLines) {
+    static boolean registerItem(ReceiptItem item, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT, Integer maxLines, boolean useSKNO) {
         try {
             double price = formatAbsPrice(item.price);
             //if(item.barcode != null)
@@ -295,7 +295,7 @@ public class FiscalAbsolut {
             int tax = groupPaymentsByVAT ? (item.valueVAT == 20.0 ? 1 : item.valueVAT == 10.0 ? 2 : item.valueVAT == 0.0 ? 3 : 0) : 0;
             String plu = item.barcode +  (groupPaymentsByVAT ? (item.valueVAT == 20.0 ? "1" : item.valueVAT == 10.0 ? "2" : item.valueVAT == 0.0 ? "3" : "0") : "");
             logAction("FullProd", plu, price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, item.barcode);
-            return absolutDLL.absolut.FullProd(plu, price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, getBytes(item.barcode));
+            return absolutDLL.absolut.FullProd(plu, price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, getBytes(item.barcode), getCodeType(useSKNO));
         } catch (UnsupportedEncodingException e) {
             return false;
         }
@@ -343,13 +343,13 @@ public class FiscalAbsolut {
             checkErrors(true);
     }
 
-    static boolean zeroReceipt() {
+    static boolean zeroReceipt(boolean useSKNO) {
         try {
             smenBegin();
             if(!openReceipt(true))
                 return false;
             logAction("FullProd", "11110", 0, 1, 1, 0, 0, "");
-            if(!absolutDLL.absolut.FullProd("11110", 0, 1, 1, 1, 0, getBytes("")))
+            if(!absolutDLL.absolut.FullProd("11110", 0, 1, 1, 1, 0, getBytes(""), getCodeType(useSKNO)))
                 return false;
             if (!subtotal())
                 return false;
@@ -466,6 +466,10 @@ public class FiscalAbsolut {
             result.add(value);
         }
         return result;
+    }
+
+    private static int getCodeType(boolean useSKNO) {
+        return useSKNO ? 0 : -1;
     }
 }
 
