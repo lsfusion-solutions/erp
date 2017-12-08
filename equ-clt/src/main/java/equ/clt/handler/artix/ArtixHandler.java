@@ -115,6 +115,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                             //scale item groups
                             //writeStringToFile(tmpFile, "{\"command\": \"clearTmcScaleGroup\"}\n---\n");
+
+                            //barcodes
+                            writeStringToFile(tmpFile, "{\"command\": \"clearBarcode\"}\n---\n");
                         }
 
                         //items
@@ -600,12 +603,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }*/
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) {
         //TODO
     }
 
     @Override
-    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
+    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) {
         //TODO
         return true;
     }
@@ -827,7 +830,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                 JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
 
                                 for (int i = 0; i < inventPositionsArray.length(); i++) {
-                                    int count = 1;
                                     JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
 
                                     String idItem = inventPosition.getString("inventCode");
