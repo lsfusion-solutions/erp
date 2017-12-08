@@ -18,6 +18,7 @@ public class UKM4MySQLSettings implements Serializable{
     private Boolean useBarcodeAsId;
     private Boolean appendBarcode;
     private Integer lastDaysCashDocument;
+    private boolean useShiftNumberAsNumberZReport;
 
     public UKM4MySQLSettings() {
     }
@@ -110,5 +111,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setLastDaysCashDocument(Integer lastDaysCashDocument) {
         this.lastDaysCashDocument = lastDaysCashDocument;
+    }
+
+    public boolean isUseShiftNumberAsNumberZReport() {
+        return useShiftNumberAsNumberZReport;
+    }
+
+    public void setUseShiftNumberAsNumberZReport(boolean useShiftNumberAsNumberZReport) {
+        this.useShiftNumberAsNumberZReport = useShiftNumberAsNumberZReport;
     }
 }

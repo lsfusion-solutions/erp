@@ -848,6 +848,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         List<String> giftCardList = ukm4MySQLSettings == null ? new ArrayList<String>() : ukm4MySQLSettings.getGiftCardList();
         boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
         boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
+        boolean useShiftNumberAsNumberZReport = ukm4MySQLSettings != null && ukm4MySQLSettings.isUseShiftNumberAsNumberZReport();
 
         UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
 
@@ -866,7 +867,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                     checkIndices(conn);
                     salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments,
-                            giftCardList, useBarcodeAsId, appendBarcode, directory);
+                            giftCardList, useBarcodeAsId, appendBarcode, useShiftNumberAsNumberZReport, directory);
 
                 } finally {
                     if (conn != null)
@@ -982,7 +983,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
     private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, Map<Integer, CashRegisterInfo> machineryMap,
                                                      Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments,
-                                                     List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode, String directory) throws SQLException {
+                                                     List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode,
+                                                     boolean useShiftNumberAsNumberZReport, String directory) throws SQLException {
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
         //Map<Integer, String> loginMap = readLoginMap(conn);
@@ -1032,7 +1034,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         Integer receiptType = rs.getInt(14); //r.type
                         boolean isSale = receiptType == 0 || receiptType == 8;
                         boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
-                        String numberZReport = rs.getString(15); //r.shift_open
+                        String numberZReport = useShiftNumberAsNumberZReport ? String.valueOf(rs.getInt(25)) : rs.getString(15); //s.number or r.shift_open
                         Integer numberReceipt = rs.getInt(16); //r.global_number
                         Date dateReceipt = rs.getDate(17); // r.date
                         Time timeReceipt = rs.getTime(17); //r.date
