@@ -123,7 +123,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         //items
                         for (CashRegisterItemInfo item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                writeStringToFile(tmpFile, getAddInventItemJSON(transaction, item, appendBarcode) + "\n---\n");
+                                String inventItem = getAddInventItemJSON(transaction, item, appendBarcode);
+                                if(inventItem != null)
+                                    writeStringToFile(tmpFile, inventItem + "\n---\n");
                             }
                         }
 
@@ -223,31 +225,34 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item, boolean appendBarcode) throws JSONException {
-        JSONObject rootObject = new JSONObject();
+        Integer idUOM = parseUOM(item.idUOM);
+        if(idUOM != null) {
+            JSONObject rootObject = new JSONObject();
 
-        JSONObject inventObject = new JSONObject();
-        rootObject.put("invent", inventObject);
-        inventObject.put("inventcode", trim(item.idItem, 20)); //код товара
-        inventObject.put("barcode", removeCheckDigitFromBarcode(item.idBarcode, appendBarcode)); //основной штрих-код
-        inventObject.put("deptcode", 1); //код отдела
-        inventObject.put("price", item.price); //цена
-        inventObject.put("minprice", item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO); //минимальная цена
-        //inventObject.put("isInvent", true);
-        inventObject.put("isInventItem", true); //признак это товар (1) или группа (0)
-        inventObject.put("articul", item.idItem); //артикул
-        inventObject.put("rtext", item.name); //текст для чека
-        inventObject.put("name", item.name); //наименование товара
-        inventObject.put("measurecode", 1); //код единицы измерения
-        if (item.balance != null) {
-            inventObject.put("remain", item.balance);
-            inventObject.put("remaindate", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(Calendar.getInstance().getTime()));
-        }
-        List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.extIdItemGroup);
-        if (itemGroupList != null) {
-            inventObject.put("inventgroup", itemGroupList.get(0).extIdItemGroup); //код родительской группы товаров
-        }
-        rootObject.put("command", "addInventItem");
-        return rootObject.toString();
+            JSONObject inventObject = new JSONObject();
+            rootObject.put("invent", inventObject);
+            inventObject.put("inventcode", trim(item.idItem, 20)); //код товара
+            inventObject.put("barcode", removeCheckDigitFromBarcode(item.idBarcode, appendBarcode)); //основной штрих-код
+            inventObject.put("deptcode", 1); //код отдела
+            inventObject.put("price", item.price); //цена
+            inventObject.put("minprice", item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO); //минимальная цена
+            //inventObject.put("isInvent", true);
+            inventObject.put("isInventItem", true); //признак это товар (1) или группа (0)
+            inventObject.put("articul", item.idItem); //артикул
+            inventObject.put("rtext", item.name); //текст для чека
+            inventObject.put("name", item.name); //наименование товара
+            inventObject.put("measurecode", idUOM); //код единицы измерения
+            if (item.balance != null) {
+                inventObject.put("remain", item.balance);
+                inventObject.put("remaindate", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(Calendar.getInstance().getTime()));
+            }
+            List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.extIdItemGroup);
+            if (itemGroupList != null) {
+                inventObject.put("inventgroup", itemGroupList.get(0).extIdItemGroup); //код родительской группы товаров
+            }
+            rootObject.put("command", "addInventItem");
+            return rootObject.toString();
+        } else return null;
     }
 
     private String getAddInventGroupJSON(ItemGroup itemGroup) throws JSONException {
@@ -347,7 +352,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         } else return null;
     }*/
 
-    private String getAddMCashUserJSON(CashierInfo cashier) throws JSONException, ParseException {
+    private String getAddMCashUserJSON(CashierInfo cashier) throws JSONException {
         JSONObject rootObject = new JSONObject();
 
         JSONObject inventGroupObject = new JSONObject();
@@ -371,7 +376,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return rootObject.toString();
     }
 
-    private String getAddCardJSON(DiscountCard card, boolean active) throws JSONException, ParseException {
+    private String getAddCardJSON(DiscountCard card, boolean active) throws JSONException {
         JSONObject rootObject = new JSONObject();
 
         JSONObject cardObject = new JSONObject();
@@ -389,7 +394,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return rootObject.toString();
     }
 
-    private String getAddCardGroupJSON(DiscountCard d) throws JSONException, ParseException {
+    private String getAddCardGroupJSON(DiscountCard d) throws JSONException {
         JSONObject rootObject = new JSONObject();
 
         JSONObject cardGroupObject = new JSONObject();
@@ -439,7 +444,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Long> succeededRequests,
-                                 Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+                                 Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
         for (RequestExchange entry : requestExchangeList) {
             for (CashRegisterInfo cashRegister : getCashRegisterSet(entry, true)) {
                 String directory = cashRegister.directory + "/sale" + cashRegister.number;
@@ -484,7 +489,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     String directory = f.getParent() + "/success-" + formatDate(new Date(System.currentTimeMillis())) + "/";
                     if (new File(directory).exists() || new File(directory).mkdirs())
                         FileCopyUtils.copy(f, new File(directory + f.getName()));
-                } catch (IOException | ParseException e) {
+                } catch (IOException e) {
                     throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
                 }
             }
@@ -668,7 +673,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     throw new RuntimeException(logPrefix + "globalExchangeDirectory not found, sendDiscountCard skipped");
                 }
             }
-        } catch (ParseException | JSONException e) {
+        } catch (JSONException e) {
             throw Throwables.propagate(e);
         }
     }
@@ -704,7 +709,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 machineryExchangeLogger.info(logPrefix + "waiting for deletion of cashiers file " + file.getAbsolutePath());
                 waitForDeletion(file, flagFile);
 
-            } catch (ParseException | JSONException e) {
+            } catch (JSONException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -716,7 +721,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
+    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
@@ -906,7 +911,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(value);
     }*/
 
-    private String formatDate(Date value) throws ParseException {
+    private String formatDate(Date value) {
         return value == null ? null : new SimpleDateFormat("yyyy-MM-dd").format(value);
     }
 
