@@ -17,7 +17,20 @@ discountCard (ReceiptReturnDetail d) = discountCard(receipt(d));
 discountCard (ReceiptDetail d) = discountCard(receipt(d));
 idDiscountCard 'Код дисконтной карты' (ReceiptDetail d) = id(discountCard(d));
 
-CONSTRAINT dateTo(discountCard(Receipt receipt)) < date(receipt) AND countReceiptSaleDetail(receipt) CHECKED BY discountCard[Receipt] MESSAGE 'Закончился срок действия карты';
+banValidity 'Не проверять срок действия дисконтной карты' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () banValidity
+;
+DESIGN options {
+    discountCards{
+        MOVE PROPERTY (banValidity());
+    }
+}
+
+CONSTRAINT dateTo(discountCard(Receipt receipt)) < date(receipt) AND countReceiptSaleDetail(receipt) AND NOT banValidity()
+    CHECKED BY discountCard[Receipt] 
+        MESSAGE 'Закончился срок действия карты';
 
 numberDiscountCard 'Номер дисконтной карты' (Receipt receipt) = seriesNumber(discountCard(receipt)) IN receiptDiscount;
 nameLegalEntityDiscountCard 'Держатель дисконтной карты' (Receipt receipt) = nameLegalEntity(discountCard(receipt)) IN receiptDiscount MINCHARWIDTH 30 PREFCHARWIDTH 40;
