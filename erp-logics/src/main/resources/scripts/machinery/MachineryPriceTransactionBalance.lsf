@@ -4,4 +4,26 @@ REQUIRE MachineryPriceTransaction;
 
 balance 'Баланс' (Barcode b, Stock st) = currentBalance(sku(b), st);
 
-@defineMachineryPriceTransactionAttributeStock(balance, 'Остаток', NUMERIC[16,5]);
+
+balance 'Остаток' = DATA NUMERIC[16,5] (MachineryPriceTransaction, Barcode);
+balance(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
+@defineMachineryPriceTransactionAttributeBase(balance, 'Остаток', );
+
+balanceToDate 'Загружать в оборудование остатки на дату/время транзакции' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() balanceToDate
+;
+DESIGN options {
+    machinery {
+        MOVE PROPERTY(balanceToDate());
+    }
+}
+
+createAttribute(MachineryPriceTransaction t, Stock stock) += { 
+    IF NOT balanceToDate() THEN {
+        balance(t, Barcode barcode) <- balance(barcode, stock) WHERE in(t, barcode); 
+    } ELSE {
+        balance(t, Barcode barcode) <- prevBalanceB(sku(barcode), stock, dateTime(t)) WHERE in(t, barcode);  
+    }
+    
+}
