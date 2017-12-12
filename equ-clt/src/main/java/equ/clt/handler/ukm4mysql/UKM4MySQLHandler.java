@@ -934,7 +934,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         }
                     }
                 }
-                //если тип оплаты не найден, считаем безналом
+                //если тип оплаты не найден, считаем налом
                 if(paymentType != 0 && paymentType != 1 && paymentType != 2)
                     paymentType = 0;
 
