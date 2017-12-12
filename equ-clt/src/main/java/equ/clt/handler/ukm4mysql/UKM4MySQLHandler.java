@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.*;
 import java.sql.Date;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -706,7 +705,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) {
         if (!stopListInfo.exclude) {
 
             for (String directory : directorySet) {
@@ -792,7 +791,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     @Override
-    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
+    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) {
 
         try {
             if (!deleteBarcodeInfo.barcodeList.isEmpty()) {
@@ -825,7 +824,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
+    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
 
         UKM4MySQLSalesBatch salesBatch = null;
 
@@ -935,6 +934,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         }
                     }
                 }
+                //если тип оплаты не найден, считаем безналом
+                if(paymentType != 0 && paymentType != 1 && paymentType != 2)
+                    paymentType = 0;
 
                 Payment paymentEntry = paymentMap.get(key);
                 if (paymentEntry == null)
@@ -1094,7 +1096,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
         for (RequestExchange requestExchange : requestExchangeList) {
             for (String directory : getDirectorySet(requestExchange)) {
                 Connection conn = null;
