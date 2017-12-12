@@ -9,7 +9,8 @@ NAMESPACE Sale;
 TABLE internetUserInvoiceDetail(UserInvoiceDetail);
 
 internetOrderDetail = DATA InternetOrderDetail (UserInvoiceDetail) TABLE internetUserInvoiceDetail;
-userInvoiceDetail = GROUP MAX UserInvoiceDetail d BY internetOrderDetail(d);
+INDEX internetOrderDetail(UserInvoiceDetail d), d;
+userInvoiceDetail = GROUP LAST UserInvoiceDetail d BY internetOrderDetail(d) ORDER d MATERIALIZED;
 
 descriptionInternetOrderDetail 'Интернет-заказ' (UserInvoiceDetail userInvoiceDetail) = description(internetOrderDetail(userInvoiceDetail)) IN order;
 CONSTRAINT internetOrderDetail(UserInvoiceDetail d) AND NOT sku(d) == sku(internetOrderDetail(d)) 
