@@ -105,7 +105,7 @@ public class DigiSM120Handler extends DigiHandler {
 
     private byte[] makePLURecord(ScalesItemInfo item, Integer nameLineFont, Integer nameLineLength) throws IOException, DecoderException {
 
-        Integer plu = item.pluNumber == null ? Integer.parseInt(item.idItem) : item.pluNumber;
+        Integer plu = item.pluNumber == null ? Integer.parseInt(item.idBarcode) : item.pluNumber;
         String pluNumber = fillLeadingZeroes(plu, 6);
 
         int flagForDelete = 0; //No data/0: Add or Change, 1: Delete
@@ -174,7 +174,7 @@ public class DigiSM120Handler extends DigiHandler {
 
     private byte[] makeKeyAssignmentRecord(ScalesItemInfo item) throws IOException, DecoderException {
 
-        Integer plu = item.pluNumber == null ? Integer.parseInt(item.idItem) : item.pluNumber;
+        Integer plu = item.pluNumber == null ? Integer.parseInt(item.idBarcode) : item.pluNumber;
         String pluNumber = fillLeadingZeroes(plu, 6);
         int flagForDelete = 0; //No data/0: Add or Change, 1: Delete
 
