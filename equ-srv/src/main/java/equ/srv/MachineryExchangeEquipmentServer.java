@@ -13,7 +13,9 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
-import lsfusion.server.classes.*;
+import lsfusion.server.classes.ConcreteCustomClass;
+import lsfusion.server.classes.DateClass;
+import lsfusion.server.classes.LongClass;
 import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -23,8 +25,8 @@ import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 
 import java.io.ByteArrayOutputStream;
@@ -168,14 +170,14 @@ public class MachineryExchangeEquipmentServer {
                     }
                 }
                 session.apply(BL, stack);
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
         return requestExchangeList;
     }
 
-    private static Set<CashRegisterInfo> readExtraCashRegisterSet(DataSession session, DataObject requestExchangeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private static Set<CashRegisterInfo> readExtraCashRegisterSet(DataSession session, DataObject requestExchangeObject) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         Set<CashRegisterInfo> extraCashRegisterSet = new HashSet<>();
         KeyExpr stockExpr = new KeyExpr("stock");
         KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
@@ -201,7 +203,7 @@ public class MachineryExchangeEquipmentServer {
         return extraCashRegisterSet;
     }
 
-    private static Map<String, Set<String>> readExtraStockRequestExchange(DataSession session, DataObject requestExchangeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private static Map<String, Set<String>> readExtraStockRequestExchange(DataSession session, DataObject requestExchangeObject) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         Map<String, Set<String>> directoryStockMap = new HashMap<>();
         KeyExpr stockExpr = new KeyExpr("stock");
         KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
@@ -237,7 +239,7 @@ public class MachineryExchangeEquipmentServer {
                     errorRequestExchange(session, request.getKey(), request.getValue());
                 }
                 session.apply(BL, stack);
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -248,13 +250,13 @@ public class MachineryExchangeEquipmentServer {
             try (DataSession session = dbManager.createSession()) {
                 errorRequestExchange(session, requestExchange, t);
                 session.apply(BL, stack);
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
     }
 
-    private static void errorRequestExchange(DataSession session, Long requestExchange, Throwable t) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private static void errorRequestExchange(DataSession session, Long requestExchange, Throwable t) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         DataObject errorObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeError"));
         machineryPriceTransactionLM.findProperty("date[RequestExchangeError]").change(getCurrentTimestamp(), session, errorObject);
         OutputStream os = new ByteArrayOutputStream();
@@ -272,7 +274,7 @@ public class MachineryExchangeEquipmentServer {
                     machineryPriceTransactionLM.findProperty("dateTimeSucceeded[RequestExchange]").change(getCurrentTimestamp(), session, requestExchangeObject);
                 }
                 session.apply(BL, stack);
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -375,7 +377,7 @@ public class MachineryExchangeEquipmentServer {
                     String idStock = getRowValue(row, "idStockEmployee");
                     cashierInfoList.add(new CashierInfo(numberCashier, nameCashier, idPosition, idStock));
                 }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -433,7 +435,7 @@ public class MachineryExchangeEquipmentServer {
                     terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, null, name, price,
                             quantity, minQuantity, maxQuantity, minPrice, maxPrice, null, null, null, null, null, null, null, null, null));
                 }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -475,7 +477,7 @@ public class MachineryExchangeEquipmentServer {
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), trim((String) row.get("portMachinery")),
                             trim((String) row.get("overDirectoryMachinery"))));
                 }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }

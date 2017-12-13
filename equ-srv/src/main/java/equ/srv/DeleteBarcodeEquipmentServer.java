@@ -15,8 +15,8 @@ import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.*;
 import lsfusion.server.logics.linear.LCP;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 
 import java.io.ByteArrayOutputStream;
@@ -91,7 +91,7 @@ class DeleteBarcodeEquipmentServer {
                     barcodeMap.put(key, deleteBarcodeInfo);
 
                 }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }

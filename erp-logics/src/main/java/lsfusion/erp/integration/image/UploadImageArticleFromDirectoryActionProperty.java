@@ -8,13 +8,12 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.apache.poi.util.IOUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -23,7 +22,7 @@ import java.util.Iterator;
 public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface articleInterface;
 
-    public UploadImageArticleFromDirectoryActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public UploadImageArticleFromDirectoryActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -63,7 +62,7 @@ public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActi
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException | IOException ignored) {
+        } catch (ScriptingModuleErrorLog.SemanticError | IOException ignored) {
         }
 
 

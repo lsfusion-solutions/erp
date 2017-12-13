@@ -1,16 +1,16 @@
 package lsfusion.erp.region.by.integration.excel;
 
+import jxl.read.biff.BiffException;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
-import jxl.read.biff.BiffException;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -76,7 +76,7 @@ public class ImportExcelAllActionProperty extends ScriptingActionProperty {
                     new ImportActionProperty(LM).makeImport(importData, context);
                 }
             }
-        } catch (BiffException | ScriptingErrorLog.SemanticErrorException | IOException | ParseException e) {
+        } catch (BiffException | ScriptingModuleErrorLog.SemanticError | IOException | ParseException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
     }

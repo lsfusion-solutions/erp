@@ -16,8 +16,8 @@ import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpResponse;
@@ -46,7 +46,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port, String provider, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
-            throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+            throws IOException, ScriptingModuleErrorLog.SemanticError, SQLHandledException, SQLException {
         if (context.getDbManager().isServer()) {
             Element rootElement = new Element("Envelope", soapenvNamespace);
             rootElement.setNamespace(soapenvNamespace);
@@ -100,7 +100,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
     private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port,
                                 String provider, String responseMessage, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
-            throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JDOMException {
+            throws IOException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException, JDOMException {
         Map<String, Pair<String, String>> succeededMap = new HashMap<>();
         Map<String, DocumentData> orderMessages = new HashMap<>();
         Map<String, DocumentData> orderResponses = new HashMap<>();
@@ -353,7 +353,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new DocumentData(documentNumber, null, null);
     }
 
-    private String importOrderMessages(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importOrderMessages(ExecutionContext context, DocumentData data) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         String message = null;
         List<List<Object>> importData = data == null ? null : data.firstData;
         if (importData != null && !importData.isEmpty()) {
@@ -406,7 +406,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private DocumentData parseOrderResponse(Element rootNode, ExecutionContext context, String url, String login, String password, String host,
-                                            Integer port, String provider, String documentId, boolean sendReplies, boolean disableConfirmation) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+                                            Integer port, String provider, String documentId, boolean sendReplies, boolean disableConfirmation) throws IOException, JDOMException, ScriptingModuleErrorLog.SemanticError, SQLHandledException, SQLException {
         List<List<Object>> firstData = new ArrayList<>();
         List<List<Object>> secondData = new ArrayList<>();
 
@@ -459,22 +459,22 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new DocumentData(documentNumber, firstData, secondData);
     }
 
-    private String getResponseType(String id) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String getResponseType(String id) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         String value = id == null ? null : id.equals("4") ? "changed" : id.equals("27") ? "cancelled" : id.equals("29") ? "accepted" : null;
         return value == null ? null : ("EDI_EOrderResponseType." + value.toLowerCase());
     }
 
-    private String getAction(String id) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String getAction(String id) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         String value = id == null ? null : id.equals("1") ? "added" : id.equals("3") ? "changed" : id.equals("5") ? "accepted" : id.equals("7") ? "cancelled" : null;
         return value == null ? null : ("EDI_EOrderResponseDetailAction." + value.toLowerCase());
     }
 
-    private String importOrderResponses(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importOrderResponses(ExecutionContext context, DocumentData data) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         String message = importOrderResponses(context, data, true);
         return message == null ? importOrderResponses(context, data, false) : message;
     }
 
-    private String importOrderResponses(ExecutionContext context, DocumentData data, boolean first) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importOrderResponses(ExecutionContext context, DocumentData data, boolean first) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         String message = null;
         List<List<Object>> importData = data == null ? null : (first ? data.firstData : data.secondData);
         if (importData != null && !importData.isEmpty()) {
@@ -632,7 +632,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
     private DocumentData parseDespatchAdvice(Element rootNode, ExecutionContext context, String url, String login, String password, String host,
                                              Integer port, String provider, String documentId, boolean sendReplies, boolean disableConfirmation)
-            throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+            throws IOException, JDOMException, ScriptingModuleErrorLog.SemanticError, SQLHandledException, SQLException {
         List<List<Object>> firstData = new ArrayList<>();
         List<List<Object>> secondData = new ArrayList<>();
 
@@ -685,12 +685,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new DocumentData(documentNumber, firstData, secondData);
     }
 
-    private String importDespatchAdvices(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importDespatchAdvices(ExecutionContext context, DocumentData data) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         String message = importDespatchAdvices(context, data, true);
         return message == null ? importDespatchAdvices(context, data, false) : message;
     }
 
-    private String importDespatchAdvices(ExecutionContext context, DocumentData data, boolean first) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importDespatchAdvices(ExecutionContext context, DocumentData data, boolean first) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         String message = null;
         List<List<Object>> importData = data == null ? null : (first ? data.firstData : data.secondData);
         if (importData != null && !importData.isEmpty()) {
@@ -842,7 +842,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private DocumentData parseEInvoice(Element rootNode) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, ParseException {
+    private DocumentData parseEInvoice(Element rootNode) throws IOException, JDOMException, ScriptingModuleErrorLog.SemanticError, SQLHandledException, SQLException, ParseException {
         List<List<Object>> data = new ArrayList<>();
 
         Element messageHeaderElement = rootNode.getChild("MessageHeader");
@@ -889,7 +889,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new DocumentData(documentNumber, data, null);
     }
 
-    private String importEInvoices(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importEInvoices(ExecutionContext context, DocumentData data) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         String message = null;
         List<List<Object>> importData = data == null ? null : data.firstData;
         if (importData != null && !importData.isEmpty()) {
@@ -1012,7 +1012,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private DocumentData parseInvoiceMessage(ExecutionContext context, Element rootNode, String provider, String documentId) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private DocumentData parseInvoiceMessage(ExecutionContext context, Element rootNode, String provider, String documentId) throws IOException, JDOMException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         Element acknowledgementElement = rootNode.getChild("Acknowledgement");
 
@@ -1042,7 +1042,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new DocumentData(documentNumber, null, null);
     }
 
-    private String importInvoiceMessages(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importInvoiceMessages(ExecutionContext context, DocumentData data) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         String message = null;
         List<List<Object>> importData = data == null ? null : data.firstData;
         if (importData != null && !importData.isEmpty()) {
@@ -1139,7 +1139,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         }
     }
 
-    protected boolean sendRecipientError(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String documentNumber, String error) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+    protected boolean sendRecipientError(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String documentNumber, String error) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException, IOException, JDOMException {
         boolean succeeded = false;
         String currentDate = formatDate(new Timestamp(Calendar.getInstance().getTime().getTime()));
         String contentSubXML = getErrorSubXML(documentId, documentNumber, error);
@@ -1191,7 +1191,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return succeeded;
     }
 
-    private String getErrorSubXML(String documentId, String documentNumber, String error) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private String getErrorSubXML(String documentId, String documentNumber, String error) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
         Element rootElement = new Element("SYSTEMMESSAGE");
         Document doc = new Document(rootElement);
         doc.setRootElement(rootElement);
@@ -1211,7 +1211,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     private Map<String, String> getOrderBarcodesMap(ExecutionContext context, String url, String login, String password, String host, Integer port,
                                                     String provider, String documentId, String documentNumber, String orderNumber,
                                                     boolean sendReplies, boolean disableConfirmation)
-            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+            throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException, IOException, JDOMException {
         Map<String, String> orderBarcodesMap = new HashMap<>();
         if (orderNumber != null) {
             if (findProperty("eOrder[VARSTRING[28]]").read(context, new DataObject(orderNumber)) == null && sendReplies && !disableConfirmation) {

@@ -4,8 +4,8 @@ import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
@@ -28,11 +28,11 @@ public class DefaultImportXLSXActionProperty extends DefaultImportActionProperty
         super(LM);
     }
 
-    public DefaultImportXLSXActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public DefaultImportXLSXActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, valueClass);
     }
 
-    public DefaultImportXLSXActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public DefaultImportXLSXActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, classes);
     }
 

@@ -18,8 +18,8 @@ import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.linear.LCP;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.log4j.Logger;
 
@@ -77,7 +77,7 @@ public class TerminalDocumentEquipmentServer {
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
                             trim((String) row.get("directoryGroupTerminal")), (String) row.get("idPriceListTypeGroupMachinery")));
                 }
-            } catch (ScriptingErrorLog.SemanticErrorException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError e) {
                 throw new RuntimeException(e.toString());
             } catch (SQLHandledException e) {
                 throw Throwables.propagate(e);

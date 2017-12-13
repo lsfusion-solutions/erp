@@ -7,20 +7,20 @@ import lsfusion.server.integration.ImportKey;
 import lsfusion.server.integration.ImportProperty;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 
 public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoiceActionProperty {
 
-    public ImportPurchaseInvoiceItemArticle(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportPurchaseInvoiceItemArticle(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
         super(LM);
     }
 
     public void makeImport(ExecutionContext context, List<ImportField> fields, List<ImportKey<?>> keys, List<ImportProperty<?>> props, LinkedHashMap<String, ImportColumnDetail> defaultColumns,
-                           List<PurchaseInvoiceDetail> userInvoiceDetailsList, List<List<Object>> data, ImportKey<?> itemKey, ImportKey<?> articleKey) throws ScriptingErrorLog.SemanticErrorException {
+                           List<PurchaseInvoiceDetail> userInvoiceDetailsList, List<List<Object>> data, ImportKey<?> itemKey, ImportKey<?> articleKey) throws ScriptingModuleErrorLog.SemanticError {
         ScriptingLogicsModule LM = context.getBL().getModule("ItemArticle");
 
         if (LM != null && itemKey != null && articleKey != null) {

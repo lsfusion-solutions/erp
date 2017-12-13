@@ -14,8 +14,8 @@ import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -33,7 +33,7 @@ import java.util.List;
 
 public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty {
 
-    public ImportItemsInfoEurooptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportItemsInfoEurooptActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
         super(LM);
     }
 
@@ -50,13 +50,13 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
                 context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён.\nКоличество обновлённых товаров: " + data.size(), "Импорт товаров Евроопт"));
             }
 
-        } catch (IOException | ScriptingErrorLog.SemanticErrorException e) {
+        } catch (IOException | ScriptingModuleErrorLog.SemanticError e) {
             throw Throwables.propagate(e);
         }
 
     }
 
-    private void importItems(ExecutionContext context, List<List<Object>> data, boolean onlyBarcode) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importItems(ExecutionContext context, List<List<Object>> data, boolean onlyBarcode) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();
@@ -159,7 +159,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
         }
     }
 
-    private List<List<Object>> getItemsInfo(ExecutionContext context, boolean useTor, boolean onlyBarcode) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
+    private List<List<Object>> getItemsInfo(ExecutionContext context, boolean useTor, boolean onlyBarcode) throws ScriptingModuleErrorLog.SemanticError, SQLHandledException, SQLException, IOException {
         List<List<Object>> itemsList = new ArrayList<>();
         List<String> itemURLs = getItemURLs(context);
         if (!itemURLs.isEmpty()) {
@@ -271,7 +271,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
         return element.children().size() > child ? Jsoup.parse(element.childNode(child).outerHtml()).text() : "";
     }
 
-    private List<String> getItemURLs(ExecutionContext context) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<String> getItemURLs(ExecutionContext context) throws IOException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         List<String> itemURLs = new ArrayList<>();
         KeyExpr itemExpr = new KeyExpr("eurooptItem");
         ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev((Object) "eurooptItem", itemExpr);

@@ -12,11 +12,14 @@ import lsfusion.server.form.instance.FormRow;
 import lsfusion.server.form.instance.PropertyDrawInstance;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 abstract class ExportSQLActionProperty extends ScriptingActionProperty {
     String idForm; //idForm = table
@@ -161,7 +164,7 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                     ServerLoggers.importLogger.info("ExportSQL: finished");
                 }
             }
-        } catch (ClassNotFoundException | ScriptingErrorLog.SemanticErrorException e) {
+        } catch (ClassNotFoundException | ScriptingModuleErrorLog.SemanticError e) {
             throw Throwables.propagate(e);
         } finally {
             if (ps != null)

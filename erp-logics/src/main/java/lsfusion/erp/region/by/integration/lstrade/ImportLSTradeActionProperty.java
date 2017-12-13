@@ -4,8 +4,8 @@ import lsfusion.erp.integration.*;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
 
@@ -98,7 +98,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
 
                 new ImportActionProperty(LM).makeImport(importData, context);
             }
-        } catch (ScriptingErrorLog.SemanticErrorException | ParseException | IOException | xBaseJException e) {
+        } catch (ScriptingModuleErrorLog.SemanticError | ParseException | IOException | xBaseJException e) {
             throw new RuntimeException(e);
         }
     }
@@ -304,7 +304,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
     }
 
     private List<UserInvoiceDetail> importUserInvoicesFromDBF(String sprcontPath, String ostnPath) throws
-            IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException {
+            IOException, xBaseJException, ParseException, ScriptingModuleErrorLog.SemanticError {
 
         Map<String, String> contractSupplierMap = new HashMap<>();
 
@@ -421,7 +421,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
     }
 
     private List<PriceList> importPriceListSuppliersFromDBF(String postvarPath, Integer numberOfItems) throws
-            IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException {
+            IOException, xBaseJException, ScriptingModuleErrorLog.SemanticError, SQLException {
 
         checkFileExistence(postvarPath);
 

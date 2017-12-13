@@ -8,8 +8,8 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 
 import java.math.BigDecimal;
@@ -19,7 +19,7 @@ import java.util.Iterator;
 public class FiscalCasbiDisplayTextActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptDetailInterface;
 
-    public FiscalCasbiDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalCasbiDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -53,7 +53,7 @@ public class FiscalCasbiDisplayTextActionProperty extends ScriptingActionPropert
                 if (result != null)
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
-        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingModuleErrorLog.SemanticError e) {
             throw new RuntimeException(e);
         }
 

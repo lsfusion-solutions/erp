@@ -5,8 +5,8 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.SQLException;
 
@@ -23,7 +23,7 @@ public class FiscalEpsonCheckSKNOActionProperty extends ScriptingActionProperty 
             String result = (String) context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(8, comPort, baudRate));
             if (result != null)
                 context.requestUserInteraction(new MessageClientAction("Связь СКНО: " + result, "СКНО"));
-        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingModuleErrorLog.SemanticError e) {
             throw new RuntimeException(e);
         }
     }

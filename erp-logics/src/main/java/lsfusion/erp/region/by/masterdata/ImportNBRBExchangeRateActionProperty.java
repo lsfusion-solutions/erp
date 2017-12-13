@@ -8,8 +8,8 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.time.DateUtils;
 import org.json.JSONArray;
@@ -30,7 +30,7 @@ import java.util.List;
 
 public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActionProperty {
 
-    public ImportNBRBExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportNBRBExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, valueClass);
     }
 
@@ -42,7 +42,7 @@ public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActi
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected void importExchanges(Date dateFrom, Date dateTo, String shortNameCurrency, ExecutionContext context, boolean denominate) throws ScriptingErrorLog.SemanticErrorException, IOException, SQLException, ParseException, SQLHandledException, JSONException {
+    protected void importExchanges(Date dateFrom, Date dateTo, String shortNameCurrency, ExecutionContext context, boolean denominate) throws ScriptingModuleErrorLog.SemanticError, IOException, SQLException, ParseException, SQLHandledException, JSONException {
 
 
         List<Exchange> exchangesList = importExchangesFromXMLDenominated(dateFrom, dateTo, shortNameCurrency, denominate);

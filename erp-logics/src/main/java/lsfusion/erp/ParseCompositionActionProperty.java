@@ -9,8 +9,8 @@ import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.SQLException;
 import java.util.regex.Matcher;
@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 
 public class ParseCompositionActionProperty extends DefaultIntegrationActionProperty {
 
-    public ParseCompositionActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public ParseCompositionActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, valueClass);
     }
 
@@ -30,7 +30,7 @@ public class ParseCompositionActionProperty extends DefaultIntegrationActionProp
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {       
     }
     
-    protected void parseComposition(ExecutionContext context, boolean isItem, DataObject obj, String composition) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected void parseComposition(ExecutionContext context, boolean isItem, DataObject obj, String composition) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         if (notNullNorEmpty(composition)) {
             Pattern compositionPattern = Pattern.compile("(?:(\\d+)%(?:\\s)?)(\\D*)");
             Matcher compositionMatcher = compositionPattern.matcher(composition);

@@ -13,8 +13,8 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.apache.http.client.utils.DateUtils;
 import org.jdom.*;
 import org.jdom.input.SAXBuilder;
@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
 public class ImportXMLDeclarationActionProperty extends DefaultImportActionProperty {
     private final ClassPropertyInterface declarationInterface;
 
-    public ImportXMLDeclarationActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportXMLDeclarationActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -140,7 +140,7 @@ public class ImportXMLDeclarationActionProperty extends DefaultImportActionPrope
                         context.delayUserInteraction(new MessageClientAction("Структура документа не соответствует ожидаемой", "Ошибка"));
                 }
             }
-        } catch (IOException | ScriptingErrorLog.SemanticErrorException | SQLException | JDOMException e) {
+        } catch (IOException | ScriptingModuleErrorLog.SemanticError | SQLException | JDOMException e) {
             throw Throwables.propagate(e);
         }
     }

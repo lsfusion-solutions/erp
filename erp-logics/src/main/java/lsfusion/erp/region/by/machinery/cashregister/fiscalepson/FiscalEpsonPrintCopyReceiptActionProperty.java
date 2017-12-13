@@ -7,14 +7,14 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.SQLException;
 
 public class FiscalEpsonPrintCopyReceiptActionProperty extends ScriptingActionProperty {
 
-    public FiscalEpsonPrintCopyReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalEpsonPrintCopyReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
         super(LM);
     }
 
@@ -39,7 +39,7 @@ public class FiscalEpsonPrintCopyReceiptActionProperty extends ScriptingActionPr
                 context.requestUserInteraction(new MessageClientAction("Ошибка! Не удалось получить данные о последнем чеке", "Копия чека"));
             }
 
-        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingModuleErrorLog.SemanticError e) {
             throw Throwables.propagate(e);
         }
 

@@ -20,8 +20,8 @@ import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.poi.hssf.usermodel.HSSFFormulaEvaluator;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
@@ -42,11 +42,11 @@ import java.util.*;
 public class ImportProductionOrderActionProperty extends ImportDocumentActionProperty {
     private final ClassPropertyInterface orderInterface;
 
-    public ImportProductionOrderActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportProductionOrderActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
         this(LM, LM.findClass("Production.Order"));
     }
     
-    public ImportProductionOrderActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportProductionOrderActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -90,7 +90,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException | BiffException | ParseException e) {
+        } catch (ScriptingModuleErrorLog.SemanticError | xBaseJException | IOException | BiffException | ParseException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
@@ -100,7 +100,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
     public boolean makeImport(BusinessLogics BL, DataSession session, ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
                               byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject)
-            throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
+            throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingModuleErrorLog.SemanticError, UniversalImportException, SQLHandledException {
 
         List<ProductionOrderDetail> orderDetailsList = importOrdersFromFile(orderObject, importColumns, file, fileExtension, settings.getStartRow(), settings.isPosted(), settings.getSeparator());
 
@@ -113,7 +113,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
     public boolean importOrders(List<ProductionOrderDetail> orderDetailsList, BusinessLogics BL, DataSession session,
                                 ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, ObjectValue operationObject)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
+            throws SQLException, ScriptingModuleErrorLog.SemanticError, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
 
         if (orderDetailsList != null && (orderObject !=null || showField(orderDetailsList, "idOrder"))) {
 
@@ -293,7 +293,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
     public List<ProductionOrderDetail> importOrdersFromFile(DataObject orderObject, Map<String, ImportColumnDetail> importColumns, 
                                                                   byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String separator)
-            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
+            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingModuleErrorLog.SemanticError, BiffException, SQLHandledException {
 
         List<ProductionOrderDetail> orderDetailsList;
 
@@ -328,7 +328,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
     private List<ProductionOrderDetail> importOrdersFromXLS(byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
                                                             Integer startRow, Boolean isPosted, DataObject orderObject)
-            throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+            throws IOException, BiffException, UniversalImportException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         List<ProductionOrderDetail> result = new ArrayList<>();
 
@@ -365,7 +365,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
     private List<ProductionOrderDetail> importOrdersFromCSV(byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
                                                             Integer startRow, Boolean isPosted, String separator, DataObject orderObject)
-            throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
+            throws UniversalImportException, ScriptingModuleErrorLog.SemanticError, SQLException, IOException, SQLHandledException {
 
         List<ProductionOrderDetail> result = new ArrayList<>();
         
@@ -406,7 +406,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
     private List<ProductionOrderDetail> importOrdersFromXLSX(byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                              List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
                                                              Integer startRow, Boolean isPosted, DataObject orderObject)
-            throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+            throws IOException, UniversalImportException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         List<ProductionOrderDetail> result = new ArrayList<>();
         

@@ -5,8 +5,8 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.lifecycle.LifecycleEvent;
 import lsfusion.server.logics.*;
 import lsfusion.server.logics.scripted.ScriptingBusinessLogics;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.springframework.util.Assert;
 
@@ -47,7 +47,7 @@ public class ShtrihBoardDaemon extends BoardDaemon {
             String host = (String) LM.findProperty("hostShtrihBoard[]").read(session);
             Integer port = (Integer) LM.findProperty("portShtrihBoard[]").read(session);
             setupDaemon(dbManager, host, port != null ? port : 2004);
-        } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+        } catch (SQLException | ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
             throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
         }
     }
@@ -115,7 +115,7 @@ public class ShtrihBoardDaemon extends BoardDaemon {
             return null;
         }
 
-        private byte[] readMessage(String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
+        private byte[] readMessage(String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingModuleErrorLog.SemanticError {
             byte[] messageBytes = null;
             int length = 60;
             try (DataSession session = dbManager.createSession()) {

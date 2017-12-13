@@ -8,12 +8,15 @@ import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.form.entity.FormEntity;
 import lsfusion.server.form.entity.PropertyDrawEntity;
-import lsfusion.server.form.instance.*;
+import lsfusion.server.form.instance.FormData;
+import lsfusion.server.form.instance.FormInstance;
+import lsfusion.server.form.instance.FormRow;
+import lsfusion.server.form.instance.PropertyDrawInstance;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 
@@ -105,7 +108,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
                 }
             }
 
-        } catch (ScriptingErrorLog.SemanticErrorException | IOException e) {
+        } catch (ScriptingModuleErrorLog.SemanticError | IOException e) {
             throw Throwables.propagate(e);
         }
     }

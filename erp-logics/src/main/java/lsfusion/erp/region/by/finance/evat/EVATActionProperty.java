@@ -3,7 +3,6 @@ package lsfusion.erp.region.by.finance.evat;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
-import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -12,18 +11,20 @@ import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 public class EVATActionProperty extends GenerateXMLEVATActionProperty {
 
     private final ClassPropertyInterface typeInterface;
 
-    public EVATActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public EVATActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -69,7 +70,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
         }
     }
 
-    private void sendAndSign(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private void sendAndSign(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext context) throws ScriptingModuleErrorLog.SemanticError, SQLHandledException, SQLException {
         ServerLoggers.importLogger.info("EVAT: generateXMLs started");
         Map<String, Map<Long, List<Object>>> files = generateXMLs(context);
         if (!(files.isEmpty())) {
@@ -106,7 +107,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
         }
     }
 
-    private void getStatus(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private void getStatus(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext context) throws ScriptingModuleErrorLog.SemanticError, SQLHandledException, SQLException {
         Map<String, Map<Long, String>> invoices = getInvoices(context);
         if (!(invoices.isEmpty())) {
             ServerLoggers.importLogger.info("EVAT : start checking status " + invoices.keySet());
@@ -142,7 +143,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
         }
     }
 
-    private ObjectValue getServerStatusObject(String value, String number) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private ObjectValue getServerStatusObject(String value, String number) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         ObjectValue serverStatusObject = null;
         if(value != null) {
             String id = null;

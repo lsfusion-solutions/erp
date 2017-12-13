@@ -1,19 +1,22 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
-import lsfusion.server.data.SQLHandledException;
-import org.xBaseJ.DBF;
-import org.xBaseJ.xBaseJException;
 import lsfusion.base.IOUtils;
-import lsfusion.server.classes.*;
+import lsfusion.server.classes.CustomClass;
+import lsfusion.server.classes.CustomStaticFormatFileClass;
+import lsfusion.server.classes.DateClass;
+import lsfusion.server.classes.StringClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
+import org.xBaseJ.DBF;
+import org.xBaseJ.xBaseJException;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,12 +52,12 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
                     importParents(context, file);
                 }
             }
-        } catch (xBaseJException | IOException | ScriptingErrorLog.SemanticErrorException e) {
+        } catch (xBaseJException | IOException | ScriptingModuleErrorLog.SemanticError e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void importGroups(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importGroups(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         List<List<Object>> data = new ArrayList<>();
 
@@ -125,7 +128,7 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
         }
     }
 
-    private void importParents(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importParents(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         List<List<Object>> data = new ArrayList<>();
         File tempFile = null;

@@ -5,14 +5,14 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.SQLException;
 
 public class FiscalShtrihAdvancePaperActionProperty extends ScriptingActionProperty {
 
-    public FiscalShtrihAdvancePaperActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalShtrihAdvancePaperActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
         super(LM);
     }
 
@@ -28,7 +28,7 @@ public class FiscalShtrihAdvancePaperActionProperty extends ScriptingActionPrope
             if (result != null)
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             
-        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingModuleErrorLog.SemanticError e) {
             throw new RuntimeException(e);
         }
     }

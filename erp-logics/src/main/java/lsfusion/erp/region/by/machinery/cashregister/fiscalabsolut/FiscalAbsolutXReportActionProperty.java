@@ -7,8 +7,8 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.SQLException;
 
@@ -37,7 +37,7 @@ public class FiscalAbsolutXReportActionProperty extends ScriptingActionProperty 
                 ServerLoggers.systemLogger.error("FiscalAbsolutXReport Error: " + result);
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
-        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingModuleErrorLog.SemanticError e) {
             throw Throwables.propagate(e);
         }
     }

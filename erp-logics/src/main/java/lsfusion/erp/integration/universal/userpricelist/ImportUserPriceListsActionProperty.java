@@ -18,8 +18,8 @@ import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.property.PropertyInterface;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.io.File;
 import java.sql.SQLException;
@@ -29,7 +29,7 @@ import java.util.Map;
 
 public class ImportUserPriceListsActionProperty extends DefaultImportActionProperty {
 
-    public ImportUserPriceListsActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportUserPriceListsActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
         super(LM);
     }
 
@@ -90,7 +90,7 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (ScriptingModuleErrorLog.SemanticError e) {
             throw new RuntimeException(e);
         }
     }

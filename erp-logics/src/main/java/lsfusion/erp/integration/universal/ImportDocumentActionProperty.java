@@ -19,8 +19,8 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.StringUtils;
 
@@ -37,15 +37,15 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     public static int IMPORT_RESULT_ERROR = -1;
     public static int IMPORT_RESULT_DOCUMENTS_CLOSED_DATE = -2;
 
-    public ImportDocumentActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportDocumentActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, valueClass);
     }
 
-    public ImportDocumentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportDocumentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, classes);
     }
 
-    public ImportDocumentActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportDocumentActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
         super(LM);
     }
 
@@ -54,7 +54,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         skuImportCodeLM = context.getBL().getModule("SkuImportCode");
     }
 
-    protected List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(DataSession session, ObjectValue importTypeObject) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         LinkedHashMap<String, ImportColumnDetail> defaultColumns = new LinkedHashMap<>();
         LinkedHashMap<String, ImportColumnDetail> customColumns = new LinkedHashMap<>();
@@ -97,7 +97,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         return Arrays.asList(defaultColumns, customColumns);
     }
 
-    protected Map<String, String> readStockMapping(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected Map<String, String> readStockMapping(DataSession session, ObjectValue importTypeObject) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         Map<String, String> stockMapping = new HashMap<>();
 
@@ -120,7 +120,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         return stockMapping;
     }
 
-    public ImportDocumentSettings readImportDocumentSettings(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public ImportDocumentSettings readImportDocumentSettings(DataSession session, ObjectValue importTypeObject) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         Map<String, String> stockMapping = readStockMapping(session, importTypeObject);
         String fileExtension = trim((String) findProperty("captionFileExtension[ImportType]").read(session, importTypeObject));
         String primaryKeyType = parseKeyType((String) findProperty("namePrimaryKeyType[ImportType]").read(session, importTypeObject));
@@ -146,7 +146,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         return (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "barcodeItem" : keyType.equals("importCode") ? "idImportCode": "idBatch";
     }
     
-    public LCP getItemKeyGroupAggr(String keyType) throws ScriptingErrorLog.SemanticErrorException {
+    public LCP getItemKeyGroupAggr(String keyType) throws ScriptingModuleErrorLog.SemanticError {
         if(keyType == null || keyType.equals("item"))
             return findProperty("item[VARSTRING[100]]");
         else if(keyType.equals("barcode"))
@@ -156,26 +156,26 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         else return findProperty("skuBatch[VARSTRING[100]]");
     }
 
-    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LCP sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {
+    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LCP sidProperty, String nameField, ImportKey<?> key) throws ScriptingModuleErrorLog.SemanticError {
         ImportField field = new ImportField(sidProperty);
         props.add(new ImportProperty(field, sidProperty.getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
         fields.add(field);
     }
 
-    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LCP sidProperty, String nameField, Object key) throws ScriptingErrorLog.SemanticErrorException {
+    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LCP sidProperty, String nameField, Object key) throws ScriptingModuleErrorLog.SemanticError {
         ImportField field = new ImportField(sidProperty);
         props.add(new ImportProperty(field, sidProperty.getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
         fields.add(field);
     }
 
     protected boolean checkKeyColumnValue(String keyColumn, String keyColumnValue, boolean keyIsDigit)
-            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+            throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         return checkKeyColumnValue(keyColumn, keyColumnValue, keyIsDigit, null, null, false);
     }
     
     protected boolean checkKeyColumnValue(String keyColumn, String keyColumnValue, boolean keyIsDigit,
                                           DataSession session, String keyType, boolean checkExistence)
-            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+            throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         if(keyColumn != null && keyColumn.equals("barcodeItem"))
             keyColumnValue = BarcodeUtils.appendCheckDigitToBarcode(keyColumnValue, 7);
         return keyColumn != null && keyColumnValue != null && !keyColumnValue.isEmpty() && (!keyIsDigit || keyColumnValue.matches("(\\d|\\-)+")) 

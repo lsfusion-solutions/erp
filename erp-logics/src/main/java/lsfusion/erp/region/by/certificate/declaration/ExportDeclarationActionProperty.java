@@ -10,7 +10,6 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
-import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -20,8 +19,8 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.io.*;
 import java.math.BigDecimal;
@@ -32,7 +31,7 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
     private final ClassPropertyInterface declarationInterface;
     String row;
 
-    public ExportDeclarationActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ExportDeclarationActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -284,7 +283,7 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
             fileTSDocs44.delete();
             context.delayUserInterfaction(new ExportFileClientAction(files));
 
-        } catch (IOException | SQLException | ScriptingErrorLog.SemanticErrorException e) {
+        } catch (IOException | SQLException | ScriptingModuleErrorLog.SemanticError e) {
             throw Throwables.propagate(e);
         }
     }

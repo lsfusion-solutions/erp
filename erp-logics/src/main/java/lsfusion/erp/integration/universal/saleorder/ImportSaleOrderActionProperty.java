@@ -17,6 +17,7 @@ import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.classes.ValueClass;
+import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.BusinessLogics;
@@ -26,9 +27,8 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.context.ExecutionStack;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -48,11 +48,11 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     // Опциональные модули
     ScriptingLogicsModule saleManufacturingPriceLM;
 
-    public ImportSaleOrderActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportSaleOrderActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
         this(LM, LM.findClass("Sale.UserOrder"));
     }
 
-    public ImportSaleOrderActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportSaleOrderActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -98,7 +98,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                                 session.apply(context);
 
                                 findAction("formRefresh[]").execute(context);
-                            } catch (IOException | xBaseJException | ParseException | ScriptingErrorLog.SemanticErrorException | BiffException e) {
+                            } catch (IOException | xBaseJException | ParseException | ScriptingModuleErrorLog.SemanticError | BiffException e) {
                                 ServerLoggers.importLogger.error("ImportSaleOrder failed, file " + file.getKey(), e);
                                 throw Throwables.propagate(e);
                             }
@@ -106,7 +106,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (ScriptingModuleErrorLog.SemanticError e) {
             throw Throwables.propagate(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
@@ -117,7 +117,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     public boolean makeImport(BusinessLogics BL, DataSession session, ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
                               byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject, ObjectValue supplierObject,
                               ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
-            throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
+            throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingModuleErrorLog.SemanticError, UniversalImportException, SQLHandledException {
 
         this.saleManufacturingPriceLM = BL.getModule("SaleManufacturingPrice");
 
@@ -142,7 +142,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                                 ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType,
                                 ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject,
                                 ObjectValue customerObject, ObjectValue customerStockObject)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
+            throws SQLException, ScriptingModuleErrorLog.SemanticError, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
 
         if (orderDetailsList != null) {
             
@@ -348,7 +348,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     public List<List<SaleOrderDetail>> importOrdersFromFile(DataSession session, Long orderObject, Map<String, ImportColumnDetail> importColumns,
                                                             byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String separator,
                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit)
-            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
+            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingModuleErrorLog.SemanticError, BiffException, SQLHandledException {
 
         List<List<SaleOrderDetail>> orderDetailsList;
 
@@ -388,7 +388,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
                                                             String primaryKeyType, boolean checkExistence,  String secondaryKeyType, boolean keyIsDigit,
                                                             Integer startRow, Boolean isPosted, Long orderObject)
-            throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+            throws IOException, BiffException, UniversalImportException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<>();
         List<SaleOrderDetail> secondaryList = new ArrayList<>();
@@ -453,7 +453,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     private List<List<SaleOrderDetail>> importOrdersFromCSV(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, String primaryKeyType, boolean checkExistence, 
                                                             String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted, String separator, Long orderObject)
-            throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
+            throws UniversalImportException, ScriptingModuleErrorLog.SemanticError, SQLException, IOException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<>();
         List<SaleOrderDetail> secondaryList = new ArrayList<>();
@@ -522,7 +522,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                                                              List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
                                                              String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, 
                                                              Integer startRow, Boolean isPosted, Long orderObject)
-            throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+            throws IOException, UniversalImportException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<>();
         List<SaleOrderDetail> secondaryList = new ArrayList<>();
@@ -585,7 +585,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, 
                                                             Integer startRow, Boolean isPosted, Long orderObject)
-            throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, SQLHandledException {
+            throws IOException, xBaseJException, ParseException, ScriptingModuleErrorLog.SemanticError, SQLException, UniversalImportException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<>();
         List<SaleOrderDetail> secondaryList = new ArrayList<>();
@@ -665,7 +665,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         return Arrays.asList(primaryList, secondaryList);
     }
 
-    private String readIdCustomer(DataSession session, String idCustomerStock) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String readIdCustomer(DataSession session, String idCustomerStock) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idCustomerStock));
         ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntity[Stock]").readClasses(session, (DataObject) customerStockObject));
         return (String) (customerObject == null ? null : findProperty("id[LegalEntity]").read(session, customerObject));

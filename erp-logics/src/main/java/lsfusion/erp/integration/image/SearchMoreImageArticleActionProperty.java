@@ -5,14 +5,14 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.SQLException;
 
 public class SearchMoreImageArticleActionProperty extends DefaultImageArticleActionProperty {
 
-    public SearchMoreImageArticleActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public SearchMoreImageArticleActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
         super(LM);
     }
 
@@ -25,7 +25,7 @@ public class SearchMoreImageArticleActionProperty extends DefaultImageArticleAct
 
             if (articleObject instanceof DataObject)
                 loadImages(context, (DataObject) articleObject, start, 8);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (ScriptingModuleErrorLog.SemanticError e) {
             throw new RuntimeException(e);
         }
 

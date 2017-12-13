@@ -25,8 +25,8 @@ import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.property.PropertyInterface;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFFormulaEvaluator;
@@ -58,11 +58,11 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     private ScriptingLogicsModule salePackLM;
     private ScriptingLogicsModule stockAdjustmentLM;
 
-    public ImportUserPriceListActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportUserPriceListActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
         this(LM, LM.findClass("UserPriceList"));
     }
     
-    public ImportUserPriceListActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportUserPriceListActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -99,7 +99,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException | ParseException | JDBFException e) {
+        } catch (ScriptingModuleErrorLog.SemanticError | xBaseJException | IOException | ParseException | JDBFException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
@@ -109,7 +109,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
     public boolean importData(ExecutionContext context, DataObject userPriceListObject, ImportPriceListSettings settings, Map<DataObject, String[]> priceColumns, 
                               Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, byte[] file, boolean apply)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, UniversalImportException, SQLHandledException, JDBFException {
+            throws SQLException, ScriptingModuleErrorLog.SemanticError, IOException, xBaseJException, ParseException, UniversalImportException, SQLHandledException, JDBFException {
 
         this.itemArticleLM = context.getBL().getModule("ItemArticle");
         this.itemAlcoholLM = context.getBL().getModule("ItemAlcohol");
@@ -163,7 +163,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
     private boolean importUserPriceListDetails(ExecutionContext context, List<UserPriceListDetail> userPriceListDetailList, ImportPriceListSettings settings, Set<DataObject> priceColumns, 
                                                Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, DataObject userPriceListObject, boolean apply) 
-                                               throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+                                               throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         if (userPriceListDetailList != null) {
             
@@ -586,7 +586,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
     private boolean importAdjustmentDetails(ExecutionContext context, List<UserPriceListDetail> dataAdjustment,
                                             DataObject stockObject, String itemKeyType, boolean apply)
-            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+            throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         if (stockAdjustmentLM != null && dataAdjustment != null) {
 
@@ -689,7 +689,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                                                                   Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                   Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
                                                                   List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
-            throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
+            throws IOException, ParseException, ScriptingModuleErrorLog.SemanticError, SQLException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
@@ -759,7 +759,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                                                                   Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                   Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
                                                                   List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
-            throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
+            throws IOException, ParseException, ScriptingModuleErrorLog.SemanticError, SQLException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
@@ -835,7 +835,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                                                                    Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                    Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
                                                                    List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
-            throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
+            throws IOException, ParseException, ScriptingModuleErrorLog.SemanticError, SQLException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
@@ -904,7 +904,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                                                                   Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                   Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
                                                                   List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
-            throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, JDBFException {
+            throws IOException, xBaseJException, ParseException, ScriptingModuleErrorLog.SemanticError, SQLException, UniversalImportException, JDBFException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
@@ -983,7 +983,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    public List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         LinkedHashMap<String, ImportColumnDetail> defaultColumns = new LinkedHashMap<>();
         LinkedHashMap<String, ImportColumnDetail> customColumns = new LinkedHashMap<>();
@@ -1026,7 +1026,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return Arrays.asList(defaultColumns, customColumns);
     }
 
-    public Map<DataObject, String[]> readPriceImportColumns(ExecutionContext context, ObjectValue importUserPriceListTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public Map<DataObject, String[]> readPriceImportColumns(ExecutionContext context, ObjectValue importUserPriceListTypeObject) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
 
         Map<DataObject, String[]> importColumns = new HashMap<>();
 
@@ -1053,7 +1053,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return importColumns;
     }
 
-    public ImportPriceListSettings readImportPriceListSettings(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public ImportPriceListSettings readImportPriceListSettings(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         String fileExtension = trim((String) findProperty("captionImportUserPriceListTypeFileExtension[ImportUserPriceListType]").read(context, importTypeObject));
         String quantityAdjustmentColumn = (String) findProperty("quantityAdjustment[ImportUserPriceListType]").read(context, importTypeObject);
 

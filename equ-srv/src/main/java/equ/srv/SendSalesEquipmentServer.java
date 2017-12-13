@@ -21,8 +21,8 @@ import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 
 import java.io.IOException;
@@ -94,7 +94,7 @@ public class SendSalesEquipmentServer {
                             (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"), (Date) row.get("documentsClosedDate"));
                     cashRegisterInfoList.add(c);
                 }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -116,7 +116,7 @@ public class SendSalesEquipmentServer {
                 for (ImMap<Object, Object> row : result.values()) {
                     cashDocumentSet.add((String) row.get("idCashDocument"));
                 }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -293,7 +293,7 @@ public class SendSalesEquipmentServer {
                 }
 
                 session.apply(BL, stack);
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -321,7 +321,7 @@ public class SendSalesEquipmentServer {
                 for (ImMap<Object, Object> row : result.values()) {
                     zReportSumMap.put((String) row.get("idZReport"), (BigDecimal) row.get("sumReceiptDetailZReport"));
                 }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -338,7 +338,7 @@ public class SendSalesEquipmentServer {
                     }
                 }
 
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -396,7 +396,7 @@ public class SendSalesEquipmentServer {
                         cashRegisterList.put(nppGroupMachinery, nppMachineryList);
                     }
                 }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
 
@@ -417,7 +417,7 @@ public class SendSalesEquipmentServer {
                 for (ImMap<Object, Object> entry : zReportResult.values()) {
                     cashRegisterList.add((Integer) entry.get("npp"));
                 }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
+            } catch (ScriptingModuleErrorLog.SemanticError | SQLException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }

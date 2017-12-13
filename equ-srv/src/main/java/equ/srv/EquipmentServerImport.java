@@ -6,8 +6,8 @@ import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.BusinessLogics;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 
 import java.math.BigDecimal;
@@ -17,7 +17,7 @@ import java.util.*;
 
 public class EquipmentServerImport {
 
-    public static void importPayment(BusinessLogics BL, DataSession session, List<SalesInfo> data, Date startDate, Boolean timeId) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static void importPayment(BusinessLogics BL, DataSession session, List<SalesInfo> data, Date startDate, Boolean timeId) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         ScriptingLogicsModule zReportLM = BL.getModule("ZReport");
         if (zReportLM != null) {
 
@@ -59,7 +59,7 @@ public class EquipmentServerImport {
         }
     }
 
-    public static void importPaymentGiftCard(BusinessLogics BL, DataSession session, List<SalesInfo> data, Date startDate, Boolean timeId) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static void importPaymentGiftCard(BusinessLogics BL, DataSession session, List<SalesInfo> data, Date startDate, Boolean timeId) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         ScriptingLogicsModule giftCardLM = BL.getModule("GiftCard");
         if (giftCardLM != null) {
 

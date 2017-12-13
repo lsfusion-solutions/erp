@@ -4,9 +4,11 @@ import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import org.apache.poi.hssf.usermodel.*;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFRow;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -26,11 +28,11 @@ public class DefaultImportXLSPOIActionProperty extends DefaultImportActionProper
         super(LM);
     }
 
-    public DefaultImportXLSPOIActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public DefaultImportXLSPOIActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, valueClass);
     }
 
-    public DefaultImportXLSPOIActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public DefaultImportXLSPOIActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, classes);
     }
 

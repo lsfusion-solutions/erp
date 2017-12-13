@@ -1,7 +1,6 @@
 package lsfusion.erp.region.ru.masterdata;
 
 import com.google.common.base.Throwables;
-import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.classes.ValueClass;
@@ -11,8 +10,8 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.time.DateUtils;
 import org.jdom.Document;
@@ -35,7 +34,7 @@ import java.util.List;
 public class ImportCBRFExchangeRateActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface currencyInterface;
 
-    public ImportCBRFExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportCBRFExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -56,13 +55,13 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
             if (cbrfDateFrom != null && cbrfDateTo != null && extraSIDCurrency != null)
                 importExchanges(cbrfDateFrom, cbrfDateTo, extraSIDCurrency, context);
 
-        } catch (IOException | JDOMException | ParseException | ScriptingErrorLog.SemanticErrorException e) {
+        } catch (IOException | JDOMException | ParseException | ScriptingModuleErrorLog.SemanticError e) {
             throw Throwables.propagate(e);
         }
 
     }
 
-    private void importExchanges(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, ParseException, SQLHandledException {
+    private void importExchanges(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext context) throws ScriptingModuleErrorLog.SemanticError, IOException, JDOMException, SQLException, ParseException, SQLHandledException {
 
 
         List<Exchange> exchangesList = importExchangesFromXML(dateFrom, dateTo, extraSIDCurrency, context);
@@ -115,7 +114,7 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
         }
     }
 
-    private List<Exchange> importExchangesFromXML(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext context) throws IOException, JDOMException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<Exchange> importExchangesFromXML(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext context) throws IOException, JDOMException, ParseException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
         SAXBuilder builder = new SAXBuilder();
 
         List<Exchange> exchangesList = new ArrayList<>();

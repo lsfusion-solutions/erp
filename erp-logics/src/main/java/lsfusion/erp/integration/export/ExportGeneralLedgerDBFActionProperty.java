@@ -22,11 +22,12 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.apache.commons.io.FileUtils;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
@@ -55,13 +56,13 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             else
                 context.delayUserInterfaction(new MessageClientAction("По заданным параметрам не найдено ни одной проводки", "Ошибка"));
             
-        } catch (IOException | SQLException | JDBFException | ScriptingErrorLog.SemanticErrorException e) {
+        } catch (IOException | SQLException | JDBFException | ScriptingModuleErrorLog.SemanticError e) {
             throw Throwables.propagate(e);
         }
     }
 
     private File exportGeneralLedgers(ExecutionContext context, ObjectValue dateFrom, ObjectValue dateTo, ObjectValue legalEntity, ObjectValue glAccountType) 
-            throws JDBFException, ScriptingErrorLog.SemanticErrorException, IOException, SQLException, SQLHandledException {
+            throws JDBFException, ScriptingModuleErrorLog.SemanticError, IOException, SQLException, SQLHandledException {
 
         OverJDBField[] fields = {
 

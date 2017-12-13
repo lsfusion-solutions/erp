@@ -2,14 +2,13 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalcasbi;
 
 import lsfusion.interop.action.ConfirmClientAction;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.ValueClass;
 import lsfusion.server.context.ThreadLocalContext;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 
 import javax.swing.*;
@@ -43,7 +42,7 @@ public class FiscalCasbiZReportActionProperty extends ScriptingActionProperty {
                     }
                 }
             }
-        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingModuleErrorLog.SemanticError e) {
             throw new RuntimeException(e);
         }
     }
