@@ -19,8 +19,8 @@ import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -50,7 +50,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
             try {
                 importOrder(context, file);
                 finishImportOrder(context, attachment.getKey());
-            } catch (ScriptingModuleErrorLog.SemanticError | IOException | ParseException e) {
+            } catch (ScriptingErrorLog.SemanticErrorException | IOException | ParseException e) {
                 ServerLoggers.importLogger.error("Импорт из почты: ошибка при чтении файла" + fileName);
             }
 
@@ -95,13 +95,13 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
                     }
                 }
             }
-        } catch (ScriptingModuleErrorLog.SemanticError e) {
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
         return attachmentMap;
     }
 
-    private void importOrder(ExecutionContext context, byte[] file) throws IOException, ParseException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private void importOrder(ExecutionContext context, byte[] file) throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Integer firstRow = (Integer) findProperty("importEmailOrderFirstRow[]").read(context);
         String numberCell = (String) findProperty("importEmailOrderNumberCell[]").read(context);
@@ -156,7 +156,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
         }
     }
 
-    private void finishImportOrder(ExecutionContext context, DataObject orderObject) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void finishImportOrder(ExecutionContext context, DataObject orderObject) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (DataSession session = context.createSession()) {
             findProperty("importedOrder[AttachmentEmail]").change(true, session, (DataObject) orderObject);
             session.apply(context);

@@ -12,8 +12,8 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.xBaseJ.xBaseJException;
 
@@ -24,7 +24,7 @@ import java.util.List;
 
 public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionProperty {
 
-    public ImportPurchaseInvoicesActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
+    public ImportPurchaseInvoicesActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }
 
@@ -65,7 +65,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                     }
                 }
             }
-        } catch (ScriptingModuleErrorLog.SemanticError | BiffException | UniversalImportException | ParseException | xBaseJException | IOException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | BiffException | UniversalImportException | ParseException | xBaseJException | IOException e) {
             throw Throwables.propagate(e);
         }
     }

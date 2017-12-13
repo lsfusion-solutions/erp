@@ -13,8 +13,8 @@ import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.xBaseJ.xBaseJException;
 
@@ -26,7 +26,7 @@ import java.util.Map;
 
 public class ImportProductionOrdersFileActionProperty extends ImportDocumentActionProperty {
     
-    public ImportProductionOrdersFileActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
+    public ImportProductionOrdersFileActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }
 
@@ -65,7 +65,7 @@ public class ImportProductionOrdersFileActionProperty extends ImportDocumentActi
                     }
                 }
             }
-        } catch (ScriptingModuleErrorLog.SemanticError | ParseException | BiffException | IOException | xBaseJException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | ParseException | BiffException | IOException | xBaseJException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();

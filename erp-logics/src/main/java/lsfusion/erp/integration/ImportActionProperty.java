@@ -10,8 +10,8 @@ import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.xBaseJ.xBaseJException;
 
@@ -116,7 +116,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importParentGroups(List<ItemGroup> parentGroupsList) throws ScriptingModuleErrorLog.SemanticError, SQLHandledException, SQLException {
+    private void importParentGroups(List<ItemGroup> parentGroupsList) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (notNullNorEmpty(parentGroupsList)) {
 
             ServerLoggers.importLogger.info("importParentGroups");
@@ -157,7 +157,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importItemGroups(List<ItemGroup> itemGroupsList) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importItemGroups(List<ItemGroup> itemGroupsList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (notNullNorEmpty(itemGroupsList)) {
 
@@ -196,7 +196,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importWares(List<Ware> waresList) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importWares(List<Ware> waresList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (warePurchaseInvoiceLM != null && notNullNorEmpty(waresList)) {
 
@@ -241,7 +241,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importItems(List<Item> itemsList, Integer numberOfItemsAtATime) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importItems(List<Item> itemsList, Integer numberOfItemsAtATime) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         try {
             Integer numAtATime = (numberOfItemsAtATime == null || numberOfItemsAtATime <= 0) ? 5000 : numberOfItemsAtATime;
@@ -258,7 +258,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importUOMs(List<UOM> uomsList) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private void importUOMs(List<UOM> uomsList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if (uomsList == null)
             return;
 
@@ -303,7 +303,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
     }
 
 
-    private void importPackOfItems(List<Item> itemsList) throws SQLException, IOException, xBaseJException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importPackOfItems(List<Item> itemsList) throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         if (!notNullNorEmpty(itemsList)) return;
 
         ServerLoggers.importLogger.info("importItems " + itemsList.size());
@@ -646,7 +646,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
     private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Integer numberAtATime, boolean skipKeys,
                                     boolean userInvoiceCreateNewItems)
-            throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (notNullNorEmpty(userInvoiceDetailsList)) {
 
@@ -1137,7 +1137,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
     }
 
     private void importPriceListStores(List<PriceListStore> priceListStoresList, Integer numberAtATime, boolean skipKeys) 
-            throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (notNullNorEmpty(priceListStoresList) && importUserPriceListLM != null && storeLM != null) {
 
@@ -1254,7 +1254,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
     }
 
     private void importPriceListSuppliers(List<PriceList> priceListSuppliersList, Integer numberAtATime, boolean skipKeys) 
-            throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (notNullNorEmpty(priceListSuppliersList)) {
 
@@ -1362,7 +1362,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importLegalEntities(List<LegalEntity> legalEntitiesList) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importLegalEntities(List<LegalEntity> legalEntitiesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (notNullNorEmpty(legalEntitiesList)) {
 
@@ -1546,7 +1546,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importEmployees(List<Employee> employeesList) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importEmployees(List<Employee> employeesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (notNullNorEmpty(employeesList)) {
 
@@ -1608,7 +1608,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importWarehouseGroups(List<WarehouseGroup> warehouseGroupsList) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importWarehouseGroups(List<WarehouseGroup> warehouseGroupsList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (notNullNorEmpty(warehouseGroupsList)) {
 
@@ -1647,7 +1647,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importWarehouses(List<Warehouse> warehousesList) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importWarehouses(List<Warehouse> warehousesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (notNullNorEmpty(warehousesList)) {
 
@@ -1713,7 +1713,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importStores(List<LegalEntity> storesList, boolean skipKeys) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importStores(List<LegalEntity> storesList, boolean skipKeys) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (storeLM != null && notNullNorEmpty(storesList)) {
 
@@ -1790,7 +1790,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importDepartmentStores(List<DepartmentStore> departmentStoresList) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importDepartmentStores(List<DepartmentStore> departmentStoresList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (storeLM != null && notNullNorEmpty(departmentStoresList)) {
 
@@ -1839,7 +1839,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importBanks(List<Bank> banksList) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importBanks(List<Bank> banksList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (notNullNorEmpty(banksList)) {
 
@@ -1902,7 +1902,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importRateWastes(List<RateWaste> rateWastesList) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importRateWastes(List<RateWaste> rateWastesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (writeOffItemLM != null && notNullNorEmpty(rateWastesList)) {
 
@@ -1957,7 +1957,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         }
     }
 
-    private void importContracts(List<Contract> contractsList, boolean skipKeys) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importContracts(List<Contract> contractsList, boolean skipKeys) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (notNullNorEmpty(contractsList)) {
 

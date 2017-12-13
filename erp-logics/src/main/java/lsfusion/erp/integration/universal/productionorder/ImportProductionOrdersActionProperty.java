@@ -17,8 +17,8 @@ import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.property.PropertyInterface;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 
 import java.io.File;
@@ -27,7 +27,7 @@ import java.util.Map;
 
 public class ImportProductionOrdersActionProperty extends ImportDocumentActionProperty {
 
-    public ImportProductionOrdersActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
+    public ImportProductionOrdersActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }
 
@@ -91,7 +91,7 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
                     }
                 }
             }
-        } catch (ScriptingModuleErrorLog.SemanticError e) {
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
     }

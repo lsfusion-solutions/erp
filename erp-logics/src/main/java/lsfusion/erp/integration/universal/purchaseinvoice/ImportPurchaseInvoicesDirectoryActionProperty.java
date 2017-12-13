@@ -17,8 +17,8 @@ import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.property.PropertyInterface;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 
 import java.io.File;
@@ -26,7 +26,7 @@ import java.sql.SQLException;
 
 public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumentActionProperty {
 
-    public ImportPurchaseInvoicesDirectoryActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
+    public ImportPurchaseInvoicesDirectoryActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }
 
@@ -95,7 +95,7 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                     }
                 }
             }
-        } catch (ScriptingModuleErrorLog.SemanticError e) {
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
     }

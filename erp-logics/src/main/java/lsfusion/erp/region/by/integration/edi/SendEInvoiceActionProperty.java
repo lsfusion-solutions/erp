@@ -10,8 +10,8 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.CalcProperty;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpResponse;
@@ -44,7 +44,7 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
         eInvoiceInterface = i.next();
     }
 
-    protected void sendEInvoice(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException, IOException, JDOMException {
+    protected void sendEInvoice(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         if (context.getDbManager().isServer()) {
 
             String signerPathEDI = (String) findProperty("signerPathEDI[]").read(context);
@@ -150,7 +150,7 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
     }
 
     private void sendDocument(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String referenceNumber, String documentXML,
-                              DataObject eInvoiceObject, boolean showMessages) throws IOException, JDOMException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+                              DataObject eInvoiceObject, boolean showMessages) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         HttpResponse httpResponse = sendRequest(host, port, login, password, url, documentXML, null);
         RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
@@ -181,12 +181,12 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
     public ImMap<CalcProperty, Boolean> aspectChangeExtProps() {
         try {
             return getChangeProps((CalcProperty) findProperty("exported[EInvoice]").property);
-        } catch (ScriptingModuleErrorLog.SemanticError e) {
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
             return null;
         }
     }
 
-    protected byte[] createBLRAPN(ExecutionContext context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer) throws IOException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    protected byte[] createBLRAPN(ExecutionContext context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         File tmpFile = null;
         try {
 
@@ -254,7 +254,7 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
 
     private boolean sendBLRAPN(ExecutionContext context, String url, String login, String password, String host, Integer port,
                             String provider, Object signedDocument, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber,
-                            String glnCustomer, String glnCustomerStock, boolean showMessages) throws JDOMException, ScriptingModuleErrorLog.SemanticError, SQLHandledException, SQLException, IOException {
+                            String glnCustomer, String glnCustomerStock, boolean showMessages) throws JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         boolean result = false;
         if(signedDocument instanceof byte[]) {
             sendDocument(context, url, login, password, host, port, provider, referenceNumber, generateXML(login, password, documentNumber, documentDate, glnCustomer, glnCustomerStock,
@@ -266,7 +266,7 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
         return result;
     }
 
-    protected byte[] createBLRWBR(ExecutionContext context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer, String glnCustomerStock) throws IOException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    protected byte[] createBLRWBR(ExecutionContext context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer, String glnCustomerStock) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         File tmpFile = null;
         try {
 
@@ -378,7 +378,7 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
 
     private boolean sendBLRWBR(ExecutionContext context, String url, String login, String password, String host, Integer port,
                                String provider, Object signedDocument, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber,
-                               String glnCustomer, String glnCustomerStock) throws JDOMException, ScriptingModuleErrorLog.SemanticError, SQLHandledException, SQLException, IOException {
+                               String glnCustomer, String glnCustomerStock) throws JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         boolean result = false;
         if(signedDocument instanceof byte[]) {
             sendDocument(context, url, login, password, host, port, provider, referenceNumber, generateXML(login, password, documentNumber, documentDate, glnCustomer, glnCustomerStock,

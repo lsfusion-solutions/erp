@@ -28,8 +28,8 @@ import lsfusion.server.integration.*;
 import lsfusion.server.lifecycle.LifecycleEvent;
 import lsfusion.server.logics.*;
 import lsfusion.server.logics.linear.LCP;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.remote.RmiServer;
 import lsfusion.server.session.DataSession;
 import org.apache.log4j.Logger;
@@ -690,12 +690,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
             }
             return transactionList;
-        } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private List<Integer> readTroubleMachineryGroups(DataSession session, Integer minutes) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private List<Integer> readTroubleMachineryGroups(DataSession session, Integer minutes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<Integer> result = new ArrayList();
         if(minutes != null) {
             KeyExpr groupMachineryExpr = new KeyExpr("GroupMachinery");
@@ -724,7 +724,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return result;
     }
 
-    private Map<String, List<ItemGroup>> readItemGroupMap(DataSession session) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private Map<String, List<ItemGroup>> readItemGroupMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, List<ItemGroup>> result = new HashMap<>();
         Map<String, ItemGroup> itemGroupMap = new HashMap<>();
         
@@ -1380,7 +1380,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 salesInfo.dateReceipt.compareTo(salesInfo.cashRegisterInfo.documentsClosedDate) < 0;
     }
     
-    private String logCompleteMessage(ExecutionStack stack, DataSession mainSession, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart, String sidEquipmentServer, String directory) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private String logCompleteMessage(ExecutionStack stack, DataSession mainSession, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart, String sidEquipmentServer, String directory) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         
         String message = formatCompleteMessage(mainSession, data, dataSize, left, timeStart, directory);
         

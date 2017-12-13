@@ -7,14 +7,14 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.SQLException;
 
 public class FiscalAbsolutPrintCopyReceiptActionProperty extends ScriptingActionProperty {
 
-    public FiscalAbsolutPrintCopyReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
+    public FiscalAbsolutPrintCopyReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
 
     }
@@ -33,7 +33,7 @@ public class FiscalAbsolutPrintCopyReceiptActionProperty extends ScriptingAction
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
 
-        } catch (SQLException | ScriptingModuleErrorLog.SemanticError e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
 

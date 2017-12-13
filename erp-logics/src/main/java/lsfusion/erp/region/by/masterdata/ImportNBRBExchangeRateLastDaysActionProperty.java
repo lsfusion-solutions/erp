@@ -6,8 +6,8 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.json.JSONException;
 
 import java.io.IOException;
@@ -20,7 +20,7 @@ import java.util.Iterator;
 public class ImportNBRBExchangeRateLastDaysActionProperty extends ImportNBRBExchangeRateActionProperty {
     private final ClassPropertyInterface currencyInterface;
 
-    public ImportNBRBExchangeRateLastDaysActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
+    public ImportNBRBExchangeRateLastDaysActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -51,7 +51,7 @@ public class ImportNBRBExchangeRateLastDaysActionProperty extends ImportNBRBExch
 
             }
 
-        } catch (IOException | ScriptingModuleErrorLog.SemanticError | ParseException | JSONException e) {
+        } catch (IOException | ScriptingErrorLog.SemanticErrorException | ParseException | JSONException e) {
             throw Throwables.propagate(e);
         }
 

@@ -12,8 +12,8 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -51,7 +51,7 @@ public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
 
                 }
             }
-        } catch (IOException | BiffException | ParseException| ScriptingModuleErrorLog.SemanticError e) {
+        } catch (IOException | BiffException | ParseException| ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
     }

@@ -9,8 +9,8 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -20,7 +20,7 @@ public class FiscalAbsolutPrintReturnInvoicePaymentActionProperty extends Script
     private final ClassPropertyInterface invoiceInterface;
     private final ClassPropertyInterface paymentInterface;
 
-    public FiscalAbsolutPrintReturnInvoicePaymentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
+    public FiscalAbsolutPrintReturnInvoicePaymentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -61,7 +61,7 @@ public class FiscalAbsolutPrintReturnInvoicePaymentActionProperty extends Script
                 findProperty("printReceiptResult[]").change((Boolean) null, context);
             }
             
-        } catch (SQLException | ScriptingModuleErrorLog.SemanticError e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
 

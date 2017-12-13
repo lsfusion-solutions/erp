@@ -5,20 +5,20 @@ import lsfusion.server.integration.ImportField;
 import lsfusion.server.integration.ImportKey;
 import lsfusion.server.integration.ImportProperty;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 
 public class ImportPurchaseInvoiceCustomsGroupArticle extends ImportDefaultPurchaseInvoiceActionProperty {
 
-    public ImportPurchaseInvoiceCustomsGroupArticle(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
+    public ImportPurchaseInvoiceCustomsGroupArticle(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }
 
     public void makeImport(ExecutionContext context, List<ImportField> fields, List<ImportProperty<?>> props, LinkedHashMap<String, ImportColumnDetail> defaultColumns,
-                           List<PurchaseInvoiceDetail> userInvoiceDetailsList, List<List<Object>> data, ImportKey<?> itemKey, ImportKey<?> articleKey) throws ScriptingModuleErrorLog.SemanticError {
+                           List<PurchaseInvoiceDetail> userInvoiceDetailsList, List<List<Object>> data, ImportKey<?> itemKey, ImportKey<?> articleKey) throws ScriptingErrorLog.SemanticErrorException {
         ScriptingLogicsModule LM = context.getBL().getModule("CustomsGroupArticle");
 
         if (LM != null && itemKey != null && articleKey != null) {

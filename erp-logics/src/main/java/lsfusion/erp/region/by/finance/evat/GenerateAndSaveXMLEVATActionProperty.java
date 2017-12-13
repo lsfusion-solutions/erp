@@ -5,8 +5,8 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.SQLException;
 import java.util.Iterator;
@@ -15,7 +15,7 @@ public class GenerateAndSaveXMLEVATActionProperty extends GenerateXMLEVATActionP
 
     private final ClassPropertyInterface evatInterface;
 
-    public GenerateAndSaveXMLEVATActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
+    public GenerateAndSaveXMLEVATActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

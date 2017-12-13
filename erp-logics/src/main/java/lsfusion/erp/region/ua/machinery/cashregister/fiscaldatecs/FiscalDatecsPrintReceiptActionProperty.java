@@ -16,8 +16,8 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -27,7 +27,7 @@ import java.util.List;
 public class FiscalDatecsPrintReceiptActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptInterface;
 
-    public FiscalDatecsPrintReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
+    public FiscalDatecsPrintReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -121,7 +121,7 @@ public class FiscalDatecsPrintReceiptActionProperty extends ScriptingActionPrope
                         context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
                 }
             }
-        } catch (SQLException | ScriptingModuleErrorLog.SemanticError e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
 

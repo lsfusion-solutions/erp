@@ -24,8 +24,8 @@ import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 
 import java.io.ByteArrayOutputStream;
@@ -140,7 +140,7 @@ public class StopListEquipmentServer {
                 }
 
                 stopListInfoList.addAll(stopListInfoMap.values());
-            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -148,7 +148,7 @@ public class StopListEquipmentServer {
         return stopListInfoList;
     }
 
-    private static Map<String, Map<String, Set<MachineryInfo>>> getStockMap(DataSession session) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private static Map<String, Map<String, Set<MachineryInfo>>> getStockMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, Map<String, Set<MachineryInfo>>> stockMap = new HashMap<>();
 
         KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
@@ -201,7 +201,7 @@ public class StopListEquipmentServer {
         return stockMap;
     }
 
-    private static Map<String, ItemInfo> getStopListItemMap(DataSession session, DataObject stopListObject, Set<String> idStockSet) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private static Map<String, ItemInfo> getStopListItemMap(DataSession session, DataObject stopListObject, Set<String> idStockSet) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, ItemInfo> stopListItemList = new HashMap<>();
 
         KeyExpr sldExpr = new KeyExpr("stopListDetail");
@@ -248,7 +248,7 @@ public class StopListEquipmentServer {
         return stopListItemList;
     }
 
-    private static Set<String> getInGroupMachineryItemSet(DataSession session, DataObject stopListObject, DataObject groupMachineryObject) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private static Set<String> getInGroupMachineryItemSet(DataSession session, DataObject stopListObject, DataObject groupMachineryObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Set<String> inGroupMachineryItemSet = new HashSet<>();
 
         KeyExpr sldExpr = new KeyExpr("stopListDetail");

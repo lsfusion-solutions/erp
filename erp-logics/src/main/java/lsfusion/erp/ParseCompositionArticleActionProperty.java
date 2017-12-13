@@ -6,8 +6,8 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.SQLException;
 import java.util.Iterator;
@@ -15,7 +15,7 @@ import java.util.Iterator;
 public class ParseCompositionArticleActionProperty extends ParseCompositionActionProperty {
     private final ClassPropertyInterface articleInterface;
 
-    public ParseCompositionArticleActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
+    public ParseCompositionArticleActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -31,7 +31,7 @@ public class ParseCompositionArticleActionProperty extends ParseCompositionActio
             String compositionArticle = trim((String) findProperty("composition[Article]").read(context, articleObject));
             parseComposition(context, false, articleObject, compositionArticle);
             
-        } catch (ScriptingModuleErrorLog.SemanticError e) {
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
     }

@@ -5,8 +5,8 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.lifecycle.LifecycleEvent;
 import lsfusion.server.logics.*;
 import lsfusion.server.logics.scripted.ScriptingBusinessLogics;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.lang.ArrayUtils;
 import org.springframework.util.Assert;
@@ -46,7 +46,7 @@ public class ShuttleBoardDaemon extends BoardDaemon {
             String host = (String) LM.findProperty("hostShuttleBoard[]").read(session);
             Integer port = (Integer) LM.findProperty("portShuttleBoard[]").read(session);
             setupDaemon(dbManager, host, port != null ? port : 9101);
-        } catch (SQLException | ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
         }
     }
@@ -118,7 +118,7 @@ public class ShuttleBoardDaemon extends BoardDaemon {
             return null;
         }
 
-        private byte[] readMessage(String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingModuleErrorLog.SemanticError {
+        private byte[] readMessage(String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
             terminalLogger.info(String.format("Shuttle request ip %s, barcode %s", ip, idBarcode));
             try (DataSession session = dbManager.createSession()) {
 

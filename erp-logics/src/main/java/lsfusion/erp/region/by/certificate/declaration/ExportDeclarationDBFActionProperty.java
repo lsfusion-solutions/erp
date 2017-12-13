@@ -21,8 +21,8 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.xBaseJ.DBF;
 import org.xBaseJ.fields.Field;
 import org.xBaseJ.xBaseJException;
@@ -39,7 +39,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
     private final String DOP_NOMER = "D4035121";
 
-    public ExportDeclarationDBFActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
+    public ExportDeclarationDBFActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -104,12 +104,12 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                 if(outputFiles.size() > 0)
                     context.delayUserInterfaction(new ExportFileClientAction(outputFiles));
             }
-        } catch (SQLException | ScriptingModuleErrorLog.SemanticError | JDBFException | IOException | xBaseJException | ParseException e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException | JDBFException | IOException | xBaseJException | ParseException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private Declaration exportDeclaration(ExecutionContext context, DataObject declarationObject) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private Declaration exportDeclaration(ExecutionContext context, DataObject declarationObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         String numberDeclaration = (String) findProperty("number[Declaration]").read(context, declarationObject);  //GA, NOMER_GTD
         BigDecimal sumDeclaration = (BigDecimal) findProperty("sumDeclarationDetail[Declaration]").read(context, declarationObject);  //G222
@@ -194,7 +194,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                 addressLegalEntityDeclaration, declarationDetailList, sumDeclaration, countDeclaration);
     }
 
-    private G44 exportG44ToList(ExecutionContext context, DataObject declarationObject) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private G44 exportG44ToList(ExecutionContext context, DataObject declarationObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<G44Detail> customsDocumentDetailList = new ArrayList<>();
         List<G44Detail> complianceDetailList = new ArrayList<>();

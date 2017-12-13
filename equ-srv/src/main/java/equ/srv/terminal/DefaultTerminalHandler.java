@@ -17,8 +17,8 @@ import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.*;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 
 import java.awt.*;
@@ -230,7 +230,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         return null;
     }
 
-    private List<TerminalBarcode> readBarcodeList(DataSession session, ObjectValue stockObject) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private List<TerminalBarcode> readBarcodeList(DataSession session, ObjectValue stockObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalBarcode> result = new ArrayList<>();
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
@@ -283,7 +283,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         return result;
     }
 
-    private Map<String, List<String>> readExtraBarcodeMap(DataSession session) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private Map<String, List<String>> readExtraBarcodeMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, List<String>> result = new HashMap<>();
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if (terminalHandlerLM != null) {

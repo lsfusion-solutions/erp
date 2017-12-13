@@ -6,8 +6,8 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,7 +18,7 @@ public class LoadImageArticleActionProperty extends DefaultImageArticleActionPro
     private final ClassPropertyInterface articleInterface;
     private final ClassPropertyInterface urlInterface;
 
-    public LoadImageArticleActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
+    public LoadImageArticleActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -39,7 +39,7 @@ public class LoadImageArticleActionProperty extends DefaultImageArticleActionPro
                 findProperty("image[Article]").change(IOUtils.getFileBytes(file), context, articleObject);
                 file.delete();
             }
-        } catch (IOException | ScriptingModuleErrorLog.SemanticError e) {
+        } catch (IOException | ScriptingErrorLog.SemanticErrorException e) {
             e.printStackTrace();
         }
     }

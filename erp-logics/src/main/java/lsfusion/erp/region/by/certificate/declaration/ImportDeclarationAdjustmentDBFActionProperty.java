@@ -14,8 +14,8 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
 
@@ -29,7 +29,7 @@ public class ImportDeclarationAdjustmentDBFActionProperty extends DefaultImportD
     String charset = "cp866";
     private final ClassPropertyInterface declarationInterface;
 
-    public ImportDeclarationAdjustmentDBFActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
+    public ImportDeclarationAdjustmentDBFActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -55,12 +55,12 @@ public class ImportDeclarationAdjustmentDBFActionProperty extends DefaultImportD
 
                 }
             }
-        } catch (SQLException | ScriptingModuleErrorLog.SemanticError | xBaseJException | IOException e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private void importDeclarationAdjustments(ExecutionContext context, DataObject declarationObject, byte[] entry) throws SQLException, ScriptingModuleErrorLog.SemanticError, IOException, xBaseJException, SQLHandledException {
+    private void importDeclarationAdjustments(ExecutionContext context, DataObject declarationObject, byte[] entry) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
 
         Map<String, List<List<Object>>> declarationAdjustmentsMap = readDeclarationAdjustmentsFromDBF(entry);
 
@@ -107,7 +107,7 @@ public class ImportDeclarationAdjustmentDBFActionProperty extends DefaultImportD
         }
     }
 
-    private Map<String, List<List<Object>>> readDeclarationAdjustmentsFromDBF(byte[] entry) throws ScriptingModuleErrorLog.SemanticError, SQLException, IOException, xBaseJException, SQLHandledException {
+    private Map<String, List<List<Object>>> readDeclarationAdjustmentsFromDBF(byte[] entry) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
 
         Map<String, List<List<Object>>> declarationsMap = new HashMap<>();
         File tempFile = null;

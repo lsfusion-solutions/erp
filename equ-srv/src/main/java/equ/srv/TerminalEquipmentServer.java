@@ -17,8 +17,8 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.PropertyInterface;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 
 import java.awt.*;
@@ -40,7 +40,7 @@ public class TerminalEquipmentServer {
         terminalOrderLM = BL.getModule("TerminalOrder");
     }
 
-    public static List<TerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject) throws RemoteException, SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    public static List<TerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject) throws RemoteException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         Map<String, TerminalOrder> terminalOrderMap = new HashMap<>();
 
         if (terminalOrderLM != null) {
@@ -107,7 +107,7 @@ public class TerminalEquipmentServer {
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3));
                 }
-            } catch (ScriptingModuleErrorLog.SemanticError | SQLHandledException e) {
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -119,7 +119,7 @@ public class TerminalEquipmentServer {
     }
 
     public static List<TerminalAssortment> readTerminalAssortmentList(DataSession session, BusinessLogics BL, ObjectValue priceListTypeObject, ObjectValue stockGroupMachineryObject)
-            throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalAssortment> terminalAssortmentList = new ArrayList<>();
         ScriptingLogicsModule machineryPriceTransactionLM = BL.getModule("MachineryPriceTransaction");
         if (machineryPriceTransactionLM != null) {
@@ -148,7 +148,7 @@ public class TerminalEquipmentServer {
         return terminalAssortmentList;
     }
 
-    public static List<TerminalHandbookType> readTerminalHandbookTypeList(DataSession session, BusinessLogics BL) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    public static List<TerminalHandbookType> readTerminalHandbookTypeList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalHandbookType> terminalHandbookTypeList = new ArrayList<>();
         ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
         if(terminalLM != null) {
@@ -171,7 +171,7 @@ public class TerminalEquipmentServer {
         return terminalHandbookTypeList;
     }
 
-    public static List<TerminalDocumentType> readTerminalDocumentTypeList(DataSession session, BusinessLogics BL) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    public static List<TerminalDocumentType> readTerminalDocumentTypeList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalDocumentType> terminalDocumentTypeList = new ArrayList<>();
         ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
         if(terminalLM != null) {
@@ -200,7 +200,7 @@ public class TerminalEquipmentServer {
         return terminalDocumentTypeList;
     }
 
-    public static List<TerminalLegalEntity> readCustomANAList(DataSession session, BusinessLogics BL) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    public static List<TerminalLegalEntity> readCustomANAList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalLegalEntity> customANAList = new ArrayList<>();
         ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
         if (terminalLM != null) {
@@ -244,7 +244,7 @@ public class TerminalEquipmentServer {
         return customANAList;
     }
 
-    public static List<TerminalLegalEntity> readTerminalLegalEntityList(DataSession session, BusinessLogics BL) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    public static List<TerminalLegalEntity> readTerminalLegalEntityList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalLegalEntity> terminalLegalEntityList = new ArrayList<>();
         ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
         if (terminalLM != null) {

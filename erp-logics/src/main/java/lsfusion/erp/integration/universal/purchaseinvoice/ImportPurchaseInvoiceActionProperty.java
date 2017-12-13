@@ -28,8 +28,8 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -48,11 +48,11 @@ import java.util.*;
 public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseInvoiceActionProperty {
     private final ClassPropertyInterface userInvoiceInterface;
 
-    public ImportPurchaseInvoiceActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
+    public ImportPurchaseInvoiceActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         this(LM, LM.findClass("Purchase.UserInvoice"));
     }
     
-    public ImportPurchaseInvoiceActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
+    public ImportPurchaseInvoiceActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -140,7 +140,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     }
                 }
             }
-        } catch (ScriptingModuleErrorLog.SemanticError | IOException | ParseException | BiffException | xBaseJException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | IOException | ParseException | BiffException | xBaseJException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
@@ -153,7 +153,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                           String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN,
                           boolean checkInvoiceExistence, boolean ignoreInvoicesAfterDocumentsClosedDate)
             throws SQLHandledException, ParseException, UniversalImportException, IOException, SQLException, BiffException,
-            xBaseJException, ScriptingModuleErrorLog.SemanticError {
+            xBaseJException, ScriptingErrorLog.SemanticErrorException {
         
         List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(session, importTypeObject);
         Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, checkInvoiceExistence);
@@ -190,7 +190,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                   DataObject userInvoiceObject, String keyType, ObjectValue operationObject,
                                   ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject,
                                   ObjectValue customerStockObject, boolean ignoreInvoicesAfterDocumentsClosedDate)
-            throws SQLException, ScriptingModuleErrorLog.SemanticError, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
 
 
         if (notNullNorEmpty(userInvoiceDetailsList)) {
@@ -719,7 +719,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                                                            Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN, boolean checkInvoiceExistence,
                                                                            byte[] file, String fileExtension, ImportDocumentSettings importSettings,
                                                                            String staticNameImportType, String staticCaptionImportType)
-            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingModuleErrorLog.SemanticError, BiffException, SQLHandledException {
+            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
 
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList;
 
@@ -775,7 +775,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
                                                                         boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                         String staticNameImportType, String staticCaptionImportType)
-            throws IOException, BiffException, UniversalImportException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+            throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<>();
@@ -908,7 +908,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
                                                                         boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject, 
                                                                         String staticNameImportType, String staticCaptionImportType)
-            throws IOException, UniversalImportException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+            throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<>();
@@ -1036,7 +1036,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                                                          Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
                                                                          boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                          String staticNameImportType, String staticCaptionImportType)
-            throws IOException, UniversalImportException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+            throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<>();
@@ -1159,7 +1159,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
                                                                         boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                         String staticNameImportType, String staticCaptionImportType)
-            throws IOException, xBaseJException, UniversalImportException, ParseException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+            throws IOException, xBaseJException, UniversalImportException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<>();
@@ -1307,7 +1307,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
     private boolean checkArticles(ExecutionContext context, DataSession session, String propertyImportType, String staticNameImportType, 
                                   String staticCaptionImportType, List<PurchaseInvoiceDetail> primaryList, List<PurchaseInvoiceDetail> secondaryList)
-            throws ScriptingModuleErrorLog.SemanticError, SQLHandledException, SQLException {
+            throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (propertyImportType != null) {
             LCP<?> sidProp = (LCP)context.getBL().findSafeProperty(propertyImportType);
             if (sidProp != null) {
@@ -1346,7 +1346,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
     }
     
     private List<Object> getArticlesMap(DataSession session, LCP<?> idArticleProp, LCP<?> sidProperty)
-            throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {        
+            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {        
         
         Set<String> articleSet = new HashSet<>();
         Map<String, String> articlePropertyMap = new HashMap<>();
@@ -1372,7 +1372,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         return Arrays.asList(articleSet, articlePropertyMap);
     }
 
-    protected Set<String> getPurchaseInvoiceSet(DataSession session, boolean checkInvoiceExistence) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    protected Set<String> getPurchaseInvoiceSet(DataSession session, boolean checkInvoiceExistence) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         if(!checkInvoiceExistence)
             return null;
@@ -1428,7 +1428,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         return new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
     }
     
-    private String readIdCustomer(DataSession session, String idCustomerStock) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private String readIdCustomer(DataSession session, String idCustomerStock) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idCustomerStock));
         ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntity[Stock]").readClasses(session, (DataObject) customerStockObject));
         return (String) (customerObject == null ? null : findProperty("id[LegalEntity]").read(session, customerObject));

@@ -7,8 +7,8 @@ import lsfusion.server.integration.*;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -43,7 +43,7 @@ public class ImportFormularActionProperty extends ScriptingActionProperty {
             // Close the result set, statement and the connection
         } catch (SQLException e) {
             context.delayUserInterfaction(new MessageClientAction("Ошибка при подключении к базе данных : " + e.getLocalizedMessage(), "Импорт данных"));
-        } catch (ScriptingModuleErrorLog.SemanticError e) {
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         } finally {
             if (conn != null)
@@ -51,7 +51,7 @@ public class ImportFormularActionProperty extends ScriptingActionProperty {
         }
     }
 
-    private void importItemGroup(ExecutionContext context, Connection conn) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void importItemGroup(ExecutionContext context, Connection conn) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         ResultSet rs = conn.createStatement().executeQuery(
                 "SELECT num_class AS ext_id, name_u AS name, par AS par_id FROM klass");

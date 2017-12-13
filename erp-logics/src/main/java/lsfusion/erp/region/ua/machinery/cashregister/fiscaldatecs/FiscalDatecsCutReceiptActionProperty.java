@@ -5,14 +5,14 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.SQLException;
 
 public class FiscalDatecsCutReceiptActionProperty extends ScriptingActionProperty {
 
-    public FiscalDatecsCutReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
+    public FiscalDatecsCutReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }
 
@@ -27,7 +27,7 @@ public class FiscalDatecsCutReceiptActionProperty extends ScriptingActionPropert
                 context.apply();
             else
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
-        } catch (SQLException | ScriptingModuleErrorLog.SemanticError e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
     }

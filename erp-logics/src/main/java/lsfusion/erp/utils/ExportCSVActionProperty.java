@@ -15,8 +15,8 @@ import lsfusion.server.form.instance.PropertyDrawInstance;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 
@@ -108,7 +108,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
                 }
             }
 
-        } catch (ScriptingModuleErrorLog.SemanticError | IOException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | IOException e) {
             throw Throwables.propagate(e);
         }
     }

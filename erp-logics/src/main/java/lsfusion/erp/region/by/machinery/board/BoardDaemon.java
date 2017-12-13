@@ -7,7 +7,7 @@ import lsfusion.server.lifecycle.MonitorServer;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.LogicsInstance;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
@@ -54,7 +54,7 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
         return logicsInstance;
     }
 
-    protected void setupDaemon(DBManager dbManager, String host, Integer port) throws SQLException, ScriptingModuleErrorLog.SemanticError {
+    protected void setupDaemon(DBManager dbManager, String host, Integer port) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         if (daemonTasksExecutor != null)
             daemonTasksExecutor.shutdown();

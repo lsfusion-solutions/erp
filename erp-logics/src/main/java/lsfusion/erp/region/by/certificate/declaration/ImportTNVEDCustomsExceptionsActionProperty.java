@@ -17,8 +17,8 @@ import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.time.DateUtils;
 import org.xBaseJ.DBF;
@@ -53,12 +53,12 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
                 }
             }
 
-        } catch (xBaseJException | IOException | ScriptingModuleErrorLog.SemanticError | ParseException e) {
+        } catch (xBaseJException | IOException | ScriptingErrorLog.SemanticErrorException | ParseException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private void importVATException(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingModuleErrorLog.SemanticError, SQLException, ParseException, SQLHandledException {
+    private void importVATException(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, ParseException, SQLHandledException {
 
         List<List<Object>> data = importVATExceptionFromDBF(context, fileBytes);
 
@@ -109,7 +109,7 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
         }
     }
 
-    private List<List<Object>> importVATExceptionFromDBF(ExecutionContext context, byte[] fileBytes) throws IOException, xBaseJException, ParseException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private List<List<Object>> importVATExceptionFromDBF(ExecutionContext context, byte[] fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<List<Object>> data = new ArrayList<>();
         Map<String, List<Object>> dataVATMap = new HashMap<>();
@@ -163,7 +163,7 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
         return data;
     }
 
-    private Set<String> getTNVEDSet(ExecutionContext context) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private Set<String> getTNVEDSet(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Set<String> tnvedSet = new HashSet<>();
 

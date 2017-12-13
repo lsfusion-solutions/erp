@@ -16,8 +16,8 @@ import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.time.DateUtils;
 import org.xBaseJ.DBF;
@@ -57,12 +57,12 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
                 }
             }
 
-        } catch (xBaseJException | IOException | ScriptingModuleErrorLog.SemanticError | ParseException e) {
+        } catch (xBaseJException | IOException | ScriptingErrorLog.SemanticErrorException | ParseException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void importDuty(ExecutionContext<ClassPropertyInterface> context, List<List<Object>> data) throws IOException, xBaseJException, ScriptingModuleErrorLog.SemanticError, SQLException, ParseException, SQLHandledException {
+    private void importDuty(ExecutionContext<ClassPropertyInterface> context, List<List<Object>> data) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, ParseException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();
@@ -124,7 +124,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         }
     }
 
-    private void importVAT(ExecutionContext<ClassPropertyInterface> context, List<List<Object>> data) throws IOException, xBaseJException, ScriptingModuleErrorLog.SemanticError, SQLException, ParseException, SQLHandledException {
+    private void importVAT(ExecutionContext<ClassPropertyInterface> context, List<List<Object>> data) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, ParseException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();
@@ -170,7 +170,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         }
     }
 
-    private List<List<List<Object>>> importDutiesFromDBF(ExecutionContext context, byte[] fileBytes) throws IOException, xBaseJException, ParseException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private List<List<List<Object>>> importDutiesFromDBF(ExecutionContext context, byte[] fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Set<String> tnvedSet = getTNVEDSet(context);
         Map<String, BigDecimal> registrationMap = new HashMap<>();
@@ -229,7 +229,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         return Arrays.asList(dataDuty, dataVAT);
     }
 
-    private Set<String> getTNVEDSet(ExecutionContext context) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private Set<String> getTNVEDSet(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Set<String> tnvedSet = new HashSet<>();
 

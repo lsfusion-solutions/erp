@@ -9,8 +9,8 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -27,7 +27,7 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
         super(LM);
     }
 
-    public DefaultImageArticleActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingModuleErrorLog.SemanticError {
+    public DefaultImageArticleActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, valueClass);
     }
 
@@ -132,7 +132,7 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
         return file;
     }
 
-    private String formatURL(ExecutionContext context, DataObject articleObject, int pageSize, int start) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private String formatURL(ExecutionContext context, DataObject articleObject, int pageSize, int start) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String patternImageArticle = trim((String) findProperty("patternImage[Article]").read(context, articleObject));
         String idArticle = trim((String) findProperty("id[Article]").read(context, articleObject), "");
         String idBrandArticle = trim((String) findProperty("idBrand[Article]").read(context, articleObject), "");

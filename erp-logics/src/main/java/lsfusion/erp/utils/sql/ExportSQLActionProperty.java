@@ -12,8 +12,8 @@ import lsfusion.server.form.instance.FormRow;
 import lsfusion.server.form.instance.PropertyDrawInstance;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -164,7 +164,7 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                     ServerLoggers.importLogger.info("ExportSQL: finished");
                 }
             }
-        } catch (ClassNotFoundException | ScriptingModuleErrorLog.SemanticError e) {
+        } catch (ClassNotFoundException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         } finally {
             if (ps != null)

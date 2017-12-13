@@ -17,8 +17,8 @@ import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.jsoup.HttpStatusException;
 import org.jsoup.nodes.Document;
@@ -35,7 +35,7 @@ import java.util.*;
 
 public class ImportImageAndPriceEurooptActionProperty extends EurooptActionProperty {
 
-    public ImportImageAndPriceEurooptActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
+    public ImportImageAndPriceEurooptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }
 
@@ -61,13 +61,13 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
                 context.delayUserInteraction(new MessageClientAction("Выберите хотя бы одну из опций импорта", "Ошибка"));
             }
 
-        } catch (IOException | ScriptingModuleErrorLog.SemanticError e) {
+        } catch (IOException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
 
     }
 
-    private void importImages(ExecutionContext context, List<List<Object>> data) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private void importImages(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();
@@ -96,7 +96,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         }
     }
 
-    private void importPrices(ExecutionContext context, List<List<Object>> data) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private void importPrices(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();
@@ -171,7 +171,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
     }
 
     private List<List<List<Object>>> getData(ExecutionContext context, boolean useTor, boolean importImages, boolean importPrices)
-            throws ScriptingModuleErrorLog.SemanticError, SQLHandledException, SQLException, IOException {
+            throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         List<List<Object>> imagesList = new ArrayList<>();
         List<List<Object>> userPriceListsList = new ArrayList<>();
 
@@ -324,7 +324,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         return null;
     }
 
-    private Pair<List<String>, Map<String, String>> getItemListData(ExecutionContext context) throws IOException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private Pair<List<String>, Map<String, String>> getItemListData(ExecutionContext context) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<String> itemListURLList = new ArrayList<>();
         Map<String, String> barcodeMap = new HashMap<>();
         KeyExpr itemListExpr = new KeyExpr("eurooptItemList");

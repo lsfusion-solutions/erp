@@ -7,8 +7,8 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import javax.swing.*;
 import java.sql.SQLException;
@@ -58,7 +58,7 @@ public class FiscalEpsonCheckOpenZReportActionProperty extends ScriptingActionPr
             } else
                 throw new RuntimeException("Ошибка записи начала отчёта:" + result);
 
-        } catch (SQLException | ScriptingModuleErrorLog.SemanticError e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
     }

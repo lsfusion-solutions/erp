@@ -8,8 +8,8 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.apache.poi.util.IOUtils;
 
 import java.io.File;
@@ -23,7 +23,7 @@ import java.util.Iterator;
 public class UploadImageArticleFromURLActionProperty extends DefaultImageArticleActionProperty {
     private final ClassPropertyInterface articleInterface;
 
-    public UploadImageArticleFromURLActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingModuleErrorLog.SemanticError {
+    public UploadImageArticleFromURLActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -46,7 +46,7 @@ public class UploadImageArticleFromURLActionProperty extends DefaultImageArticle
                 imageFile.delete();
 
             }
-        } catch (ScriptingModuleErrorLog.SemanticError | IOException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | IOException e) {
             throw Throwables.propagate(e);
         }
 

@@ -8,8 +8,8 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -21,7 +21,7 @@ import java.util.*;
 
 public class SynchronizeItemsEurooptActionProperty extends EurooptActionProperty {
 
-    public SynchronizeItemsEurooptActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
+    public SynchronizeItemsEurooptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }
 
@@ -35,13 +35,13 @@ public class SynchronizeItemsEurooptActionProperty extends EurooptActionProperty
 
             context.delayUserInteraction(new MessageClientAction("Cинхронизация успешно завершёна", "Синхронизация товаров Евроопт"));
 
-        } catch (IOException | ScriptingModuleErrorLog.SemanticError e) {
+        } catch (IOException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
 
     }
 
-    private void synchronizeItems(ExecutionContext context, List<List<Object>> data) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private void synchronizeItems(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();

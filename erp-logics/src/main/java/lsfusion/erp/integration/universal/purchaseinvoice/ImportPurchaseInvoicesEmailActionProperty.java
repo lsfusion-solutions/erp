@@ -27,8 +27,8 @@ import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.property.PropertyInterface;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 
 import java.io.File;
@@ -44,7 +44,7 @@ import java.util.zip.ZipInputStream;
 
 public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentActionProperty {
 
-    public ImportPurchaseInvoicesEmailActionProperty(ScriptingLogicsModule LM) throws ScriptingModuleErrorLog.SemanticError {
+    public ImportPurchaseInvoicesEmailActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }
 
@@ -192,12 +192,12 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                     }
                 }
             }
-        } catch (ScriptingModuleErrorLog.SemanticError e) {
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void logImportError(ExecutionContext context, ObjectValue attachmentEmailObject, String error, boolean isOld) throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+    private void logImportError(ExecutionContext context, ObjectValue attachmentEmailObject, String error, boolean isOld) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (DataSession postImportSession = context.createSession()) {
             findProperty("lastError[AttachmentEmail]").change(error, postImportSession, (DataObject) attachmentEmailObject);
             if (isOld)

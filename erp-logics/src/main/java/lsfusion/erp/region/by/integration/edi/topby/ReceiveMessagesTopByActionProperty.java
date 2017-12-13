@@ -7,8 +7,8 @@ import lsfusion.server.ServerLoggers;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -38,7 +38,7 @@ public class ReceiveMessagesTopByActionProperty extends ReceiveMessagesActionPro
                 context.delayUserInteraction(new MessageClientAction(provider + " cообщения не получены: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
             }
 
-        } catch (ScriptingModuleErrorLog.SemanticError | IOException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | IOException e) {
             throw Throwables.propagate(e);
         }
     }

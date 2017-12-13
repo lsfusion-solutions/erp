@@ -12,8 +12,8 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.session.DataSession;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
@@ -52,12 +52,12 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
                     importParents(context, file);
                 }
             }
-        } catch (xBaseJException | IOException | ScriptingModuleErrorLog.SemanticError e) {
+        } catch (xBaseJException | IOException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void importGroups(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private void importGroups(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<List<Object>> data = new ArrayList<>();
 
@@ -128,7 +128,7 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
         }
     }
 
-    private void importParents(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    private void importParents(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<List<Object>> data = new ArrayList<>();
         File tempFile = null;

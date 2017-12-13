@@ -7,8 +7,8 @@ import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.jdom.JDOMException;
 
 import java.io.IOException;
@@ -37,7 +37,7 @@ public class SendEInvoiceEDNActionProperty extends SendEInvoiceActionProperty {
                 context.delayUserInteraction(new MessageClientAction(provider + " Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
             }
 
-        } catch (ScriptingModuleErrorLog.SemanticError | IOException | JDOMException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | IOException | JDOMException e) {
             ServerLoggers.importLogger.error(provider + " error: ", e);
             context.delayUserInteraction(new MessageClientAction(provider + " error: " + e.getMessage(), "Ошибка"));
         }

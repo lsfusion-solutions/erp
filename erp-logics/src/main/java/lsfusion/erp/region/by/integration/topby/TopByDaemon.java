@@ -10,8 +10,8 @@ import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.logics.scripted.ScriptingBusinessLogics;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
@@ -65,7 +65,7 @@ public class TopByDaemon extends MonitorServer implements InitializingBean {
         Assert.notNull(topByLM, "Module TopBy must be specified");
         try {
             setupDaemon(dbManager);
-        } catch (SQLException | ScriptingModuleErrorLog.SemanticError e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException("Error starting TopBy Daemon: ", e);
         }
     }
@@ -92,7 +92,7 @@ public class TopByDaemon extends MonitorServer implements InitializingBean {
         return logicsInstance;
     }
 
-    public void setupDaemon(DBManager dbManager) throws SQLException, ScriptingModuleErrorLog.SemanticError {
+    public void setupDaemon(DBManager dbManager) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         if (daemonTasksExecutor != null)
             daemonTasksExecutor.shutdown();
@@ -222,7 +222,7 @@ public class TopByDaemon extends MonitorServer implements InitializingBean {
             }
         }
 
-        private void importUserInvoice(ExecutionStack stack, InputDocument inputDocument, Integer uniqueMessageNumber) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+        private void importUserInvoice(ExecutionStack stack, InputDocument inputDocument, Integer uniqueMessageNumber) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 //            List<ImportProperty<?>> props = new ArrayList<>();
 //            List<ImportField> fields = new ArrayList<>();
 //            List<ImportKey<?>> keys = new ArrayList<>();
@@ -567,7 +567,7 @@ public class TopByDaemon extends MonitorServer implements InitializingBean {
             }
         }
 
-        private void createOutputDocument(String directoryOut, Integer uniqueMessageNumber, InputDocument inputDocument, boolean wbl) throws IOException, SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+        private void createOutputDocument(String directoryOut, Integer uniqueMessageNumber, InputDocument inputDocument, boolean wbl) throws IOException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
             String nameChief = null;
 //            try (DataSession session = dbManager.createSession()) {
 //                nameChief = (String) topByLM.findProperty("nameCustomUserChief[LegalEntity]").read(session, topByLM.findProperty("legalGLN[VARSTRING[13]]").readClasses(session, new DataObject(inputDocument.glnCustomer)));

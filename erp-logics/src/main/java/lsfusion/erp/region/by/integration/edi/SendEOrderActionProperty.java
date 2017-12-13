@@ -16,8 +16,8 @@ import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.CalcProperty;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpResponse;
@@ -45,7 +45,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
         eOrderInterface = i.next();
     }
 
-    protected void sendEOrder(ExecutionContext context, String url, String login, String password, String host, Integer port, String outputDir, String provider) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException, IOException, JDOMException {
+    protected void sendEOrder(ExecutionContext context, String url, String login, String password, String host, Integer port, String outputDir, String provider) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         if(context.getDbManager().isServer()) {
             DataObject eOrderObject = context.getDataKeyValue(eOrderInterface);
 
@@ -141,7 +141,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
     private String readContentSubXML(ExecutionContext context, DataObject eOrderObject, String documentNumber, String documentDate,
                                      String deliveryDate, String GLNSupplierStock, String nameSupplier, String nameCustomer,
                                      String GLNCustomer, String GLNCustomerStock, String nameCustomerStock, String note, String outputDir)
-            throws SQLException, ScriptingModuleErrorLog.SemanticError, SQLHandledException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         Element rootElement = new Element("ORDERS");
         Document doc = new Document(rootElement);
         doc.setRootElement(rootElement);
@@ -229,7 +229,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
     public ImMap<CalcProperty, Boolean> aspectChangeExtProps() {
         try {
             return getChangeProps((CalcProperty) findProperty("exported[EOrder]").property);
-        } catch (ScriptingModuleErrorLog.SemanticError e) {
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
             return null;
         }
     }

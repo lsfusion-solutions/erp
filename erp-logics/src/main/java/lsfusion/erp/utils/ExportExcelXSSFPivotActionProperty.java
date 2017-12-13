@@ -12,8 +12,8 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.logics.scripted.ScriptingModuleErrorLog;
 import lsfusion.server.remote.InteractiveFormReportManager;
 
 import java.sql.SQLException;
@@ -103,13 +103,13 @@ public abstract class ExportExcelXSSFPivotActionProperty extends ScriptingAction
                         readFieldCaptions(properties, rows), readFieldCaptions(properties, columns), readFieldCaptions(properties, filters), readFieldCaptions(properties, cells)));
             }
 
-        } catch (ScriptingModuleErrorLog.SemanticError e) {
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
     }
 
     //по id свойств получаем заголовки колонок
-    public List<List<List<Object>>> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<List<String>> fields) throws ScriptingModuleErrorLog.SemanticError {
+    public List<List<List<Object>>> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<List<String>> fields) throws ScriptingErrorLog.SemanticErrorException {
         List<List<List<Object>>> result = new ArrayList<>();
         if (fields != null) {
             for (List<String> fieldsEntry : fields) {
@@ -166,7 +166,7 @@ public abstract class ExportExcelXSSFPivotActionProperty extends ScriptingAction
         return result;
     }
 
-    public String readTitle(ExecutionContext context, Map<String, DataObject> valuesMap, String idTitle) throws ScriptingModuleErrorLog.SemanticError, SQLException, SQLHandledException {
+    public String readTitle(ExecutionContext context, Map<String, DataObject> valuesMap, String idTitle) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String result = null;
         if (idTitle != null) {
             
