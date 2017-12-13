@@ -143,13 +143,11 @@ createManufacturingPurchaseSale 'Создать поступление на це
 	        }
 	    }
 	    DIALOG selectParams OBJECTS si = si DO {
-	        FOR purchaseSku(Sale.InvoiceDetail sd) AND sku(sd) AND NOT uniqueSubstituteFromTo(purchaseSku(sd), sku(sd)) NEW s = Substitute DO {
-	            fromSku(s) <- purchaseSku(sd);
-	            toSku(s) <- sku(sd);
-	            multiplier(s) <- coeffPurchase(sd);
-	            IF uniqueSubstituteFromTo(purchaseSku(sd), sku(sd)) THEN {
-	                BREAK;
-	            }
+	        FOR invoice(Sale.InvoiceDetail sd)==si AND sku(sd)==Sku sku AND NOT uniqueSubstituteFromTo(purchaseSku(sd), sku(sd)) 
+	            AND NUMERIC[10,5] coeff == [= GROUP MAX coeffPurchase(Sale.InvoiceDetail sd) BY invoice(sd), purchaseSku(sd), sku(sd)](si, Sku psku,  sku) NEW s = Substitute DO {
+                    fromSku(s) <- psku;
+                    toSku(s) <- sku;
+                    multiplier(s) <- coeff;
 	        } 
 	        NEW pi = UserInvoice {
 	            supplier(pi) <- supplier(si);
