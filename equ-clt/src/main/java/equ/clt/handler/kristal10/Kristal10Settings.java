@@ -25,6 +25,7 @@ public class Kristal10Settings implements Serializable{
     private String discountCardDirectory;
     private String notGTINPrefixes;
     private List<String> notGTINPrefixesList = new ArrayList<>();
+    private String giftCardRegexp;
 
     public Kristal10Settings() {
     }
@@ -192,5 +193,13 @@ public class Kristal10Settings implements Serializable{
     public void setNotGTINPrefixes(String notGTINPrefixes) {
         this.notGTINPrefixes = notGTINPrefixes;
         this.notGTINPrefixesList.addAll(Arrays.asList(notGTINPrefixes.split(",\\s?")));
+    }
+
+    public String getGiftCardRegexp() {
+        return giftCardRegexp;
+    }
+
+    public void setGiftCardRegexp(String giftCardRegexp) {
+        this.giftCardRegexp = giftCardRegexp;
     }
 }

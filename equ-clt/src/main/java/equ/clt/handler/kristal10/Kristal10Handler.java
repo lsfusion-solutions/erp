@@ -26,6 +26,8 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static equ.clt.handler.HandlerUtils.safeAdd;
 import static equ.clt.handler.HandlerUtils.safeDivide;
@@ -825,6 +827,9 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
         boolean ignoreSalesDepartmentNumber = kristalSettings != null && kristalSettings.getIgnoreSalesDepartmentNumber() != null && kristalSettings.getIgnoreSalesDepartmentNumber();
         boolean ignoreFileLocks = kristalSettings != null && kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
+        String giftCardRegexp = kristalSettings != null ? kristalSettings.getGiftCardRegexp() : null;
+        if(giftCardRegexp == null)
+            giftCardRegexp = "(?!666)\\d{3}";
 
         Map<String, Integer> directoryDepartNumberGroupCashRegisterMap = new HashMap<>();
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
@@ -1007,13 +1012,17 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                                     //обнаруживаем продажу сертификатов
                                     boolean isGiftCard = false;
-                                    if (barcode != null && barcode.length() == 3 && !barcode.equals("666")) {
-                                        isGiftCard = true;
-                                        while(usedBarcodes.contains(dateTimeReceipt + "/" + count)) {
-                                            count++;
+                                    if (barcode != null) {
+                                        Pattern pattern = Pattern.compile(giftCardRegexp);
+                                        Matcher matcher = pattern.matcher(barcode);
+                                        isGiftCard = matcher.matches();
+                                        if (isGiftCard) {
+                                            while (usedBarcodes.contains(dateTimeReceipt + "/" + count)) {
+                                                count++;
+                                            }
+                                            barcode = dateTimeReceipt + "/" + count;
+                                            usedBarcodes.add(barcode);
                                         }
-                                        barcode = dateTimeReceipt + "/" + count;
-                                        usedBarcodes.add(barcode);
                                     }
 
                                     BigDecimal quantity = readBigDecimalXMLAttribute(positionEntryNode, "count");
