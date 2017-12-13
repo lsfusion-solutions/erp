@@ -2083,3 +2083,17 @@ showToShow (Inventory i) = i IS Inventory AND NOT overShowEdit(i);
 EXTEND FORM inventories
     PROPERTIES show(in) SHOWIF showToShow(in) BEFORE editIn
 ;
+
+fillClosedDate 'Заполнять дату закрытия документов после проведения инвентаризации' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () fillClosedDate
+;
+DESIGN options {
+    inventory{
+        MOVE PROPERTY (fillClosedDate());
+    }
+}
+
+WHEN SET (isPosted(Inventory i)) AND fillClosedDate() DO {
+    documentsClosedDate(Stock st) <- date(i) WHERE include(st,i);
+}
