@@ -97,8 +97,8 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
             case 19:
                 return new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime());
         }
-        return new Date(DateUtils.parseDate(value, new String[]{"MM,yy_", "d.MM.yy", "MM.yyyy", "MM-yyyy", "MMyy", "MM.yy", "yyyyMMdd",
-                "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy", "dd.MM.yyyy HH:mm", "dd.MM.yyyy HH:mm:ss"}).getTime());
+        return new Date(DateUtils.parseDate(value, new String[]{"MM,yy_", "d.MM.yy", "MM.yyyy", "MM-yyyy", "MMyy", "MM.yy",
+                "MM/yy", "yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy", "dd.MM.yyyy HH:mm", "dd.MM.yyyy HH:mm:ss"}).getTime());
     }
 
     protected BigDecimal parseBigDecimal(String value) {
