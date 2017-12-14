@@ -1,6 +1,6 @@
 MODULE LabelDirectPrint;
 
-REQUIRE Label, Printer, LabelItem;
+REQUIRE Label, Printer, Com, LabelItem;
 
 NAMESPACE Label;
 
@@ -20,6 +20,8 @@ nameStock 'Склад' (NetworkPrinter p) = name(stock(p));
 
 CLASS NetworkPrinterType 'Тип печати' {
     clientPrintService 'Служба печати на клиенте',
+    clientComPort 'COM-порт на клиенте',
+    clientFile 'Файловая система на клиенте',
     serverPrintService 'Служба печати на сервере',
     serverSocket 'Сокет на сервере'
 }
@@ -143,6 +145,26 @@ overDirectPrint = ABSTRACT LIST (LabelTransactionDetail);
 
 overPrintNameSku = ABSTRACT VARSTRING[255](LabelTransactionDetail);
 
+overPrintToCom = ABSTRACT CASE (NetworkPrinter);
+overPrintToCom(NetworkPrinter p) += WHEN p IS NetworkPrinter THEN { MESSAGE 'Отправка на COM еще не поддерживается';}
+
+overPrintToFile = ABSTRACT CASE (NetworkPrinter);
+overPrintToFile(NetworkPrinter p) += WHEN p IS NetworkPrinter THEN { MESSAGE 'Отправка Файл еще не поддерживается';}
+
+DESIGN options {
+    label{
+        NEW networkPrinter{
+            caption = 'Сетевой принтер';
+        }
+    }
+} 
+ 
+@defineOption(notShowNetworkPrinterDialog, 'Не отображать диалог выбора принтера', networkPrinter);
+@defineOption(baudrateComNetworkPrinder, 'Скорость COM-порта', INTEGER, networkPrinter);
+
+countPrinters = GROUP SUM 1 IF in(NetworkPrinter p, currentUser()) BY stock( p);
+currentPrinter = GROUP MIN NetworkPrinter p IF in(p, currentUser()) BY stock(p);
+
 customPrint(LabelTransaction labelTrans) += {
     fullFormattedText() <-NULL;
     
@@ -231,14 +253,39 @@ customPrint(LabelTransaction labelTrans) += {
     
     IF countNetworkPrinter(departmentStore(labelTrans)) AND [= GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](labelTrans) THEN {
         printed() <- NULL;
-        DIALOG networkPrinters OBJECTS s = departmentStore(labelTrans), p INPUT NOMANAGESESSION DO {
         
-            CASE WHEN networkPrinterType(p) == NetworkPrinterType.serverSocket 
-                    THEN writeToSocketAction(fullFormattedText(), charset(), getWord(path(p), ':', 1), INTEGER(getWord(path(p), ':', 2)));
-                 WHEN networkPrinterType(p) == NetworkPrinterType.serverPrintService 
-                    THEN writeToServerPrinter(fullFormattedText(), charset(), path(p));
-            ELSE writeToPrinter(fullFormattedText(), charset(), path(p)) ;
+        LOCAL printer = NetworkPrinter ();
+        
+        IF countPrinters(departmentStore(labelTrans)) == 1 AND notShowNetworkPrinterDialog() THEN {
+            printer() <- currentPrinter(departmentStore(labelTrans));
+        } ELSE {
+            DIALOG networkPrinters OBJECTS s = departmentStore(labelTrans), p INPUT NOMANAGESESSION DO 
+                printer() <- p;
         }
+        
+        CASE WHEN networkPrinterType(printer()) == NetworkPrinterType.serverSocket 
+                THEN {
+                    writeToSocketAction(fullFormattedText(), charset(), getWord(path(printer()), ':', 1), INTEGER(getWord(path(printer()), ':', 2)));
+                    printed() <- TRUE;
+                }
+            WHEN networkPrinterType(printer()) == NetworkPrinterType.serverPrintService 
+                THEN writeToServerPrinter(fullFormattedText(), charset(), path(printer()));
+            WHEN networkPrinterType(printer()) == NetworkPrinterType.clientComPort
+                THEN {
+                    stringToCustomFile(fullFormattedText(), charset(), NULL);
+                    //writeToComPort(resultCustomFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', ''))); 
+                    //printed() <- TRUE;
+                    overPrintToCom(printer());
+                }
+            WHEN networkPrinterType(printer()) == NetworkPrinterType.clientFile
+                THEN {
+                    stringToCustomFile(fullFormattedText(), charset(), NULL);
+//                    SAVE resultCustomFile() PATH path(p) NODIALOG;
+//                    printed() <- TRUE;
+                    overPrintToFile(printer());
+                }
+        ELSE writeToPrinter(fullFormattedText(), charset(), path(printer())) ;
+        
         IF NOT printed() THEN {
             DELETE labelTrans;
         }
