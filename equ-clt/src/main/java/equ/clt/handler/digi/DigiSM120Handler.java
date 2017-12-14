@@ -109,7 +109,9 @@ public class DigiSM120Handler extends DigiHandler {
         String pluNumber = fillLeadingZeroes(plu, 6);
 
         int flagForDelete = 0; //No data/0: Add or Change, 1: Delete
-        int isWeight = item.splitItem ? 0 : 1; //0: Weighed item   1: Non-weighed item
+        //временно весовой товар определяется как в старых Digi
+        //int isWeight = item.splitItem ? 0 : 1; //0: Weighed item   1: Non-weighed item
+        int isWeight = item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ") ? 1 : 0;
         String price = getPrice(item.price); //max 9999.99
         String labelFormat1 = "017";
         String labelFormat2 = "0";
