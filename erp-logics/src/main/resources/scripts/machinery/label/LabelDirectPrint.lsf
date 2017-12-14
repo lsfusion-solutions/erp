@@ -166,7 +166,7 @@ countPrinters = GROUP SUM 1 IF in(NetworkPrinter p, currentUser()) BY stock( p);
 currentPrinter = GROUP MIN NetworkPrinter p IF in(p, currentUser()) BY stock(p);
 
 customPrint(LabelTransaction labelTrans) += {
-    fullFormattedText() <-NULL;
+    fullFormattedText() <- NULL;
     
     beforeDirectPrint(labelTrans);
     
@@ -183,20 +183,26 @@ customPrint(LabelTransaction labelTrans) += {
                                                                 WHEN charLength(idBarcode(ld)) == 12 THEN 'B'
                                                                 WHEN charLength(idBarcode(ld)) == 13 OR charLength(idBarcode(ld)) == 5 THEN 'F' 
                                                                 ELSE 'E' );
-        formattedText() <- replace(formattedText(),'@31.13.8@', completedIdBarcode(ld));
+
+        IF completedIdBarcode(ld) THEN {
+            formattedText() <- replace(formattedText(),'@31.13.8@', completedIdBarcode(ld));
+        } ELSE formattedText() <- replace(formattedText(),'@31.13.8@', '');
         
         formattedText() <- replace(formattedText(),'@11.10.2@', lpad(VARSTRING[10](toDateDDMMYYYYUS(date(labelTrans))), 10,' '));
       
-        formattedText() <- replaceFirst(formattedText(),'@10.30.1@', substrToWrap(nameSku(ld), 30));
-        tempName() <- ltrim(replace(nameSku(ld), substrToWrap(nameSku(ld), 30), ''));
-        formattedText() <- replaceFirst(formattedText(),'@10.30.1@', substrToWrap(tempName(), 30));
-        tempName() <- ltrim(replace( tempName(), substrToWrap(tempName(), 30), ''));
-        formattedText() <- replaceFirst(formattedText(),'@10.30.1@', substrToWrap(tempName(), 30));
+        IF nameSku(ld) THEN { 
+            formattedText() <- replaceFirst(formattedText(),'@10.30.1@', substrToWrap(nameSku(ld), 30));
+            tempName() <- ltrim(replace(nameSku(ld), substrToWrap(nameSku(ld), 30), ''));
+            formattedText() <- replaceFirst(formattedText(),'@10.30.1@', substrToWrap(tempName(), 30));
+            tempName() <- ltrim(replace( tempName(), substrToWrap(tempName(), 30), ''));
+            formattedText() <- replaceFirst(formattedText(),'@10.30.1@', substrToWrap(tempName(), 30));
+        }
         
         IF overPrintNameSku(ld) THEN {
             formattedText() <- replaceFirst(formattedText(),'@3.25.1@', substrToWrap(overPrintNameSku(ld), 25));    
         } ELSE {
-            formattedText() <- replaceFirst(formattedText(),'@3.25.1@', substrToWrap(nameSku(ld), 25)); 
+            IF nameSku(ld) THEN 
+                formattedText() <- replaceFirst(formattedText(),'@3.25.1@', substrToWrap(nameSku(ld), 25)); 
         }
         
         IF nameCountrySku(ld) THEN {
