@@ -184,11 +184,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             parseSubstring(splittedCell, 1), parseSubstring(splittedCell, 2));
                 } else if (isPatternedDateTimeValue(cell)) {
                     String[] splittedCell = cell.split("~");
-                    Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getCSVFieldValue(valuesList, importColumnDetail.clone(trim(splittedCell[0])), row, false, ignoreException));
-                    if (date != null)
-                        calendar.setTime(date);
-                    return parseDateTimePattern(splittedCell, calendar);
+                    return parseDateTimePattern(splittedCell, parseDate(getCSVFieldValue(valuesList,
+                            importColumnDetail.clone(trim(splittedCell[0])), row, false, ignoreException)), defaultValue);
                 } else {
                     value = cell.isEmpty() ? defaultValue : getCSVFieldValue(valuesList.get(row - 1), parseIndex(cell), "");
                 }
@@ -354,11 +351,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             parseSubstring(splittedCell, 1), parseSubstring(splittedCell, 2));
                 } else if (isPatternedDateTimeValue(cell)) {
                     String[] splittedCell = cell.split("~");
-                    Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getXLSFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0])), null, false, ignoreException));
-                    if (date != null)
-                        calendar.setTime(date);
-                    return parseDateTimePattern(splittedCell, calendar);
+                    return parseDateTimePattern(splittedCell, parseDate(getXLSFieldValue(sheet, row,
+                            importColumnDetail.clone(trim(splittedCell[0])), null, false, ignoreException)), defaultValue);
                 } else {
                     value = cell.isEmpty() ? defaultValue : getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(cell), "");
                 }
@@ -461,11 +455,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             parseSubstring(splittedCell, 1), parseSubstring(splittedCell, 2));
                 } else if (isPatternedDateTimeValue(cell)) {
                     String[] splittedCell = cell.split("~");
-                    Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getXLSFieldValue(formulaEvaluator, sheet, row, importColumnDetail.clone(trim(splittedCell[0])), null, false, ignoreException));
-                    if (date != null)
-                        calendar.setTime(date);
-                    return parseDateTimePattern(splittedCell, calendar);
+                    return parseDateTimePattern(splittedCell, parseDate(getXLSFieldValue(formulaEvaluator, sheet, row,
+                            importColumnDetail.clone(trim(splittedCell[0])), null, false, ignoreException)), defaultValue);
                 } else {
                     value = cell.isEmpty() ? defaultValue : getXLSFieldValue(formulaEvaluator, sheet, importColumnDetail, row, parseIndex(cell), "");
                 }
@@ -700,11 +691,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             isDate, defaultValue, isNumeric, ignoreException), parseSubstring(splittedCell, 1), parseSubstring(splittedCell, 2));
                 } else if (isPatternedDateTimeValue(cell)) {
                     String[] splittedCell = cell.split("~");
-                    Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getXLSXFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0])), isDate, null, false, ignoreException));
-                    if (date != null)
-                        calendar.setTime(date);
-                    return parseDateTimePattern(splittedCell, calendar);
+                    return parseDateTimePattern(splittedCell, parseDate(getXLSXFieldValue(sheet, row,
+                            importColumnDetail.clone(trim(splittedCell[0])), isDate, null, false, ignoreException)), defaultValue);
                 } else {
                     value = cell.isEmpty() ? defaultValue : getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(cell), isDate, "");
                 }
@@ -877,12 +865,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             row, charset, null, isNumeric, ignoreException), parseSubstring(splittedField, 1), parseSubstring(splittedField, 2));
                 } else if (isPatternedDateTimeValue(column)) {
                     String[] splittedField = column.split("~");
-                    Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getDBFFieldValue(importFile, importColumnDetail.clone(trim(splittedField[0])),
-                            row, charset, defaultValue, false, ignoreException));
-                    if (date != null)
-                        calendar.setTime(date);
-                    return parseDateTimePattern(splittedField, calendar);
+                    return parseDateTimePattern(splittedField, parseDate(getDBFFieldValue(importFile, importColumnDetail.clone(trim(splittedField[0])),
+                            row, charset, defaultValue, false, ignoreException)), defaultValue);
                 } else {
                     value = column.isEmpty() ? defaultValue : trim(new String(importFile.getField(column).getBytes(), charset));
                 }
@@ -1032,12 +1016,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             row, defaultValue, isNumeric, zeroIsNull, ignoreException), parseSubstring(splittedField, 1), parseSubstring(splittedField, 2));
                 } else if (isPatternedDateTimeValue(column)) {
                     String[] splittedField = column.split("~");
-                    Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(trim(splittedField[0])),
-                            row, defaultValue, false, zeroIsNull, ignoreException));
-                    if (date != null)
-                        calendar.setTime(date);
-                    return parseDateTimePattern(splittedField, calendar);
+                    return parseDateTimePattern(splittedField, parseDate(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(trim(splittedField[0])),
+                            row, defaultValue, false, zeroIsNull, ignoreException)), defaultValue);
                 } else {
                     value = column.isEmpty() ? defaultValue : formatValue(entry[fieldNamesMap.get(column.toUpperCase())]);
                     if (value != null && value.equals("0") && !isNumeric && zeroIsNull) {
@@ -1155,7 +1135,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 trim(value.substring(from, Math.min(value.length(), to + 1)));
     }
 
-    private String getRoundedValue(String value, String scale) throws UniversalImportException {
+    private String getRoundedValue(String value, String scale) {
         return value == null ? null : decimalFormat.format(new BigDecimal(trim(value).replace(",", ".")).setScale(Integer.parseInt(scale), RoundingMode.HALF_UP));
     }
 
@@ -1167,26 +1147,30 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         } else return parseIndex(value);
     }
 
-    private String parseDateTimePattern(String[] splittedField, Calendar calendar) {
-        for (int i = 1; i < splittedField.length; i++) {
-            String pattern = splittedField[i];
-            if (pattern.startsWith("y="))
-                calendar.set(Calendar.YEAR, parseDateFieldPattern("y=", pattern, calendar.get(Calendar.YEAR)));
-            else if (pattern.startsWith("M="))
-                calendar.set(Calendar.MONTH, parseDateFieldPattern("M=", pattern, 12) - 1);
-            else if (pattern.startsWith("h="))
-                calendar.set(Calendar.HOUR, parseDateFieldPattern("h=", pattern, 23));
-            else if (pattern.startsWith("m="))
-                calendar.set(Calendar.MINUTE, parseDateFieldPattern("m=", pattern, 59));
-            else if (pattern.startsWith("s="))
-                calendar.set(Calendar.SECOND, parseDateFieldPattern("s=", pattern, 59));
-        }
-        for (int i = 1; i < splittedField.length; i++) {
-            String pattern = splittedField[i];
-            if (pattern.startsWith("d="))
-                calendar.set(Calendar.DAY_OF_MONTH, parseDateFieldPattern("d=", pattern, calendar.getActualMaximum(Calendar.DAY_OF_MONTH)));
-        }
-        return new SimpleDateFormat("dd.MM.yyyy hh:mm:ss").format(calendar.getTime());
+    private String parseDateTimePattern(String[] splittedField, Date date, String defaultValue) {
+        if (date != null) {
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(date);
+            for (int i = 1; i < splittedField.length; i++) {
+                String pattern = splittedField[i];
+                if (pattern.startsWith("y="))
+                    calendar.set(Calendar.YEAR, parseDateFieldPattern("y=", pattern, calendar.get(Calendar.YEAR)));
+                else if (pattern.startsWith("M="))
+                    calendar.set(Calendar.MONTH, parseDateFieldPattern("M=", pattern, 12) - 1);
+                else if (pattern.startsWith("h="))
+                    calendar.set(Calendar.HOUR, parseDateFieldPattern("h=", pattern, 23));
+                else if (pattern.startsWith("m="))
+                    calendar.set(Calendar.MINUTE, parseDateFieldPattern("m=", pattern, 59));
+                else if (pattern.startsWith("s="))
+                    calendar.set(Calendar.SECOND, parseDateFieldPattern("s=", pattern, 59));
+            }
+            for (int i = 1; i < splittedField.length; i++) {
+                String pattern = splittedField[i];
+                if (pattern.startsWith("d="))
+                    calendar.set(Calendar.DAY_OF_MONTH, parseDateFieldPattern("d=", pattern, calendar.getActualMaximum(Calendar.DAY_OF_MONTH)));
+            }
+            return new SimpleDateFormat("dd.MM.yyyy hh:mm:ss").format(calendar.getTime());
+        } else return defaultValue;
     }
 
     private int parseDateFieldPattern(String type, String value, int maxValue) {
@@ -1344,7 +1328,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return Pair.create(openIndex, closeIndex);
     }
 
-    private BigDecimal parenthesisAction(BigDecimal firstResult, BigDecimal secondResult, String type) throws UniversalImportException {
+    private BigDecimal parenthesisAction(BigDecimal firstResult, BigDecimal secondResult, String type) {
         BigDecimal result;
 
         switch (type) {
