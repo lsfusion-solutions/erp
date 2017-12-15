@@ -1,0 +1,275 @@
+MODULE PreOrder;
+
+REQUIRE OrderLedger, SaleOrder;
+
+CLASS PreOrder 'Резерв' : Document;
+CLASS PreOrderDetail 'Строка резерва' : DocumentDetail;
+
+@defineDocument(preOrder);
+@deriveDocumentHeaderTimePrefix(PreOrder, );
+
+@defineDocumentHeaderNumber(PreOrder);
+@defineNumeratedDefault(PreOrder, 'Резерв', 'РО');
+
+@defineDocumentDataStock(preOrder, stock, 'Склад поставщика', supplier);
+@defineDocumentDialogStocks(preOrder, supplierStock, company, , );
+
+@defineDocumentDescription (preOrder, 'Резерв');
+
+@defineDocumentDetailSkuCustomPrefix(preOrderDetail, sku, , );
+@defineDocumentDetailBatchCustomPrefix(preOrderDetail, batch, );
+
+@defineDocumentHeaderPosted(PreOrder);
+@defineDocumentDetailPosted(preOrder);
+@defineDocumentHeaderClosed(PreOrder);
+@defineDocumentDetailClosed(preOrder);
+
+@defineDocumentDetailQuantityCustomPrefix (preOrderDetail, , );
+@defineDocumentHeaderQuantity(preOrder);
+
+@defineAddDetailDialogSkuStock(preOrder, sku, supplierStock, dialogSku);
+@defineAddDetailDialogBarcode(preOrder, sku);
+
+disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (PreOrder); 
+overPrePost 'Провести' (PreOrder o) = {
+    IF NOT disablePosted(o) THEN {
+        isPosted(o) <- TRUE;
+    } 
+}
+
+operation = DATA Sale.Operation (PreOrder);
+nameOperation 'Операция' (PreOrder o) = name(operation(o));
+idOperation 'ID операции' (PreOrder o) = id(operation(o));
+
+operation 'Операция' (PreOrderDetail d) = operation(preOrder(d));
+nameOperation 'Операция' (PreOrderDetail d) = name(operation(d));
+
+@defineDocumentDataTimePrefix(preOrder, from, ' с') ;
+
+fromDate(PreOrder order) <- date(order) WHEN CHANGED(date(order));
+fromTime(PreOrder order) <- time(order) WHEN CHANGED(time(order));
+
+isClosed[Document](PreOrder preOrder) += isClosed(preOrder);
+isPosted[Document](PreOrder preOrder) += isPosted(preOrder);
+number[Document](PreOrder preOrder) += number(preOrder);
+series[Document](PreOrder preOrder) += series(preOrder);
+date[Document](PreOrder preOrder) += date(preOrder);
+
+index[DocumentDetail](PreOrderDetail detail) += index(detail);
+sku[DocumentDetail](PreOrderDetail detail) += sku(detail);
+quantity[DocumentDetail](PreOrderDetail detail) += quantity(detail);
+
+document[DocumentDetail](PreOrderDetail detail) += preOrder(detail);
+
+supplierStock[Document](PreOrder o) += supplierStock(o);
+
+FORM preOrder 'Резерв'
+
+    OBJECTS o = PreOrder PANEL
+    PROPERTIES (o) isPosted, nameSupplierStock ON CHANGE changeSupplierStockCompany(o),
+                   nameOperation, nameNumerator, number, series, date, time, note, 
+                   fromDate, fromTime
+
+    PROPERTIES (o) READONLY quantityPreOrderDetail, countPreOrderDetail                        
+
+    OBJECTS d = PreOrderDetail
+    PROPERTIES (d) index
+    PROPERTIES (d) idBarcodeSku, idSku, nameSku, shortNameUOMSku//, nameBatch
+    PROPERTIES (d) quantity                
+                
+    PROPERTIES (d) NEW, deleteid=DELETE GRID
+    
+    ORDER index(d)
+    
+    FILTERS preOrder(d) == o
+    
+    PROPERTIES(o) TODRAW d addDetailDialogSkuStockPreOrderDetail,
+                           addDetailInputBarcodePreOrderDetail, deletePreOrderDetail    
+
+    EDIT PreOrder OBJECT o
+    
+    EVENTS
+        ON OK overPrePost(o)
+;
+
+DESIGN preOrder {
+    BOX {
+        preferredSize = (1024, 768);
+        NEW headerBox {
+            type = CONTAINERH;
+
+            NEW headerParams {
+                fill = 1;
+                type = CONTAINERV;
+                MOVE GROUP(documentHeader,o) {
+                    type = CONTAINERV;
+                    NEW first {
+                        type = CONTAINERH;
+                        MOVE PROPERTY (isPosted(o));         
+                        MOVE PROPERTY (nameOperation(o));         
+                        MOVE PROPERTY(nameSupplierStock(o));                                 
+                    }
+                    NEW second { 
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameNumerator(o));
+                        MOVE PROPERTY(number(o));
+                        MOVE PROPERTY(series(o));
+                        MOVE PROPERTY(date(o));
+                        MOVE PROPERTY(time(o));
+                    } 
+                                                                                                                     
+                }
+                NEW ship1 {
+                    caption = 'Действие';
+                    type = CONTAINERH;
+                    MOVE PROPERTY (fromDate(o));
+                    MOVE PROPERTY (fromTime(o));                     
+                }                   
+                  
+                MOVE GROUP(documentPrm,o);
+            }
+            MOVE GROUP(documentSum,o) {
+                columns = 1;
+            }
+        }        
+        NEW specificationBox {
+            fill = 1;
+            MOVE BOX(d) {
+                caption = 'Спецификация';
+            }
+        }
+        MOVE TOOLBARBOX;
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        } 
+    }
+}
+
+FORM preOrders 'Резервы'
+
+    OBJECTS o = PreOrder 
+    PROPERTIES (o) READONLY isClosed, isPosted, nameSupplierStock, nameOperation, 
+                   number, series, date, time, note
+                
+    PROPERTIES (o) READONLY countPreOrderDetail
+    PROPERTIES (o) NEWSESSION NEW, EDIT, deleter=DELETE   
+    PROPERTIES (o) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer 
+    PROPERTIES (o) close SHOWIF isOpened(o), open SHOWIF isClosed(o)
+        
+    OBJECTS d = PreOrderDetail
+    PROPERTIES (d) READONLY index
+    PROPERTIES (d) READONLY idBarcodeSku, idSku, nameSku, shortNameUOMSku//, nameBatch                   
+    PROPERTIES (d) READONLY quantity     
+    ORDER index(d)
+
+    FILTERS preOrder(d) == o
+                
+    LIST PreOrder OBJECT o
+;
+DESIGN preOrders {
+    BOX {
+        preferredSize = (1024, 768);
+
+        NEW documentContainer BEFORE TOOLBARBOX {
+            fill = 1;
+
+            type = SPLITV;
+            MOVE BOX(o);    
+
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE BOX(d) {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+                    type = CONTAINERV;
+
+                    MOVE GROUP(created,o);                       
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                        type = CONTAINERV;
+                    }
+                }
+            }
+        }
+    }
+}
+
+@defineDocumentLogForm(preOrders, o);
+
+NAVIGATOR {
+    saleSaleNavigator {
+        ADD preOrders BEFORE orders;
+    }
+}
+
+@defineDocumentOperationStock(preOrder, supplier, 'Склад поставщика');
+@deriveDocumentOperationStock(preOrder, supplier, preOrder);
+
+//---------------------- Проведение по регистру ------------------------//
+
+edit(PreOrderDetail d) += { DIALOG preOrder OBJECTS o = preOrder(d), d = d DOCKED; }
+
+orderedOrderDetail 'Израсходовано' (pd) = GROUP SUM quantity(Sale.OrderDetail d) 
+    IF isPosted(d) AND dateTime(d) >= fromDateTime(PreOrderDetail pd) AND operation(pd) == operation(d) AND supplierStock(pd) == supplierStock(d) AND sku(pd) == sku(d)
+    BY pd;
+orderedOrderDetail 'Израсходовано' (pd, so) = GROUP SUM quantity(Sale.OrderDetail d) 
+    IF isPosted(d) AND dateTime(d) >= fromDateTime(PreOrderDetail pd) AND operation(pd) == operation(d) AND supplierStock(pd) == supplierStock(d) AND sku(pd) == sku(d)
+    BY pd,Sale.order(d);    
+orders 'Заказы' (d) = GROUP CONCAT seriesNumber(Sale.Order so) IF orderedOrderDetail(PreOrderDetail d, so) , ', '
+                                       BY d
+                                       ORDER Sale.dateTime(so), so MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    
+    
+calcQuantity 'Доступно' (PreOrderDetail pd) = IF  (quantity(pd) (-) orderedOrderDetail(pd)) >0 THEN (quantity(pd) (-) orderedOrderDetail(pd)) ELSE 0.0;
+
+EXTEND FORM preOrder
+    PROPERTIES (d) READONLY BEFORE deleteid orderedOrderDetail, orders, calcQuantity
+;
+EXTEND FORM preOrders
+    PROPERTIES (d) READONLY orderedOrderDetail, orders, calcQuantity
+;
+
+EXTEND CLASS PreOrderDetail : OrderLedger;
+
+dateTime (PreOrderDetail ledger) +=  dateTime(ledger);
+isPosted (PreOrderDetail ledger) += isPosted(ledger);
+isClosed (PreOrderDetail ledger) += isClosed(ledger);
+sku[OrderLedger] (PreOrderDetail ledger) += sku(ledger);
+batch[OrderLedger] (PreOrderDetail ledger) += batch(ledger);
+stock (PreOrderDetail ledger) += supplierStock(ledger);
+description (PreOrderDetail ledger) += description(ledger);
+quantity[OrderLedger] (PreOrderDetail ledger) += calcQuantity(ledger);
+toShipQuantity (PreOrderDetail ledger) += calcQuantity(ledger);
+//contact (PreOrderDetail ledger) += legalEntityCustomerStock(ledger);
+//contactStock (PreOrderDetail ledger) += customerStock(ledger);   
+operation[OrderLedger](PreOrderDetail ledger) += operation(ledger);
+
+TABLE operationStockSku (Sale.Operation,Stock,Sku);
+
+quantityPreOrder 'Резерв операции' (o,st,s) = GROUP SUM calcQuantity(PreOrderDetail d) 
+    IF isPosted(d) AND NOT isClosed(d) 
+    BY operation(d), sku(d), supplierStock(d) MATERIALIZED;
+prevQuantityPreOrder 'Резерв операции' (Sale.Operation o, Sku s, Stock st) = PREV(quantityPreOrder(o, s, st));
+    
+prevQuantityPreOrder 'Резерв операции' (Sku s, Stock st, UserOrder o) = prevQuantityPreOrder(operation(o), s, st);  
+
+TABLE operationStockBatch (Sale.Operation,Stock,Batch);
+
+quantityPreOrder 'Резерв операции' (o,st,s) = GROUP SUM calcQuantity(PreOrderDetail d) 
+    IF isPosted(d) AND NOT isClosed(d) 
+    BY operation(d), batch(d), supplierStock(d) MATERIALIZED;
+prevQuantityPreOrder 'Резерв операции' (Sale.Operation o, Batch b, Stock st) = PREV(quantityPreOrder(o, b, st));
+    
+prevQuantityPreOrder 'Резерв операции' (Batch b, Stock st, UserOrder o) = prevQuantityPreOrder(operation(o), b, st);  
+
+EXTEND FORM userOrder
+    PROPERTIES READONLY prevQuantityPreOrder(ks, st, o) AFTER prevCurrentReserveSale(ks,st)
+;
