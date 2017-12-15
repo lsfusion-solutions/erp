@@ -173,7 +173,7 @@ public class DigiSM120Handler extends DigiHandler {
         return bytes.array();
     }
 
-    private byte[] makeKeyAssignmentRecord(ScalesItemInfo item) throws IOException, DecoderException {
+    private byte[] makeKeyAssignmentRecord(ScalesItemInfo item) throws IOException {
 
         Integer plu = item.pluNumber == null ? Integer.parseInt(item.idBarcode) : item.pluNumber;
         String pluNumber = fillLeadingZeroes(plu, 6);
