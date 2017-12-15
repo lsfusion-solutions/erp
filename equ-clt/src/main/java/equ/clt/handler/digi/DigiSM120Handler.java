@@ -6,7 +6,6 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
-import org.apache.commons.codec.DecoderException;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -103,7 +102,7 @@ public class DigiSM120Handler extends DigiHandler {
         return sendTransactionBatchMap;
     }
 
-    private byte[] makePLURecord(ScalesItemInfo item, Integer nameLineFont, Integer nameLineLength) throws IOException, DecoderException {
+    private byte[] makePLURecord(ScalesItemInfo item, Integer nameLineFont, Integer nameLineLength) throws IOException {
 
         Integer plu = item.pluNumber == null ? Integer.parseInt(item.idBarcode) : item.pluNumber;
         String pluNumber = fillLeadingZeroes(plu, 6);
@@ -115,10 +114,10 @@ public class DigiSM120Handler extends DigiHandler {
         String price = getPrice(item.price); //max 9999.99
         String labelFormat1 = "017";
         String labelFormat2 = "0";
-        String barcodeFormat = "12";
-        String barcodeFlagOfEANData = "12";
+        String barcodeFormat = "1"; //F1F2 CCCCC XCD XXXX CD
+        String barcodeFlagOfEANData = "22"; //weight prefix
 
-        String itemCodeOfEANData = "3456789012"; //6-digit Item code + 4-digit Expanded item code
+        String itemCodeOfEANData = pluNumber + "0000"; //6-digit Item code + 4-digit Expanded item code
         String extendItemCodeOfEANData = "";
         String barcodeTypeOfEANData = "0"; //0: EAN 9: ITF
         String rightSideDataOfEANData = "1"; //0: Price 1: Weight 2: QTY 3: Original price 4: Weight/QTY 5: U.P. 6: U.P. after discount
@@ -284,13 +283,13 @@ public class DigiSM120Handler extends DigiHandler {
             return new SendTransactionResult(scales, localErrors, cleared);
         }
 
-        private int sendPLU(DataSocket socket, ScalesItemInfo item, int pluNumber) throws IOException, DecoderException, CommunicationException {
+        private int sendPLU(DataSocket socket, ScalesItemInfo item, int pluNumber) throws IOException, CommunicationException {
             byte[] record = makePLURecord(item, nameLineFont, nameLineLength);
             processTransactionLogger.info(String.format(getLogPrefix() + "Sending plu file item %s to scales %s", pluNumber, scales.port));
             return sendRecord(socket, cmdWrite, filePLU, record);
         }
 
-        private int sendKeyAssignment(DataSocket socket, ScalesItemInfo item, int pluNumber) throws IOException, DecoderException, CommunicationException {
+        private int sendKeyAssignment(DataSocket socket, ScalesItemInfo item, int pluNumber) throws IOException, CommunicationException {
             byte[] record = makeKeyAssignmentRecord(item);
             if (record != null) {
                 processTransactionLogger.info(String.format(getLogPrefix() + "Sending keyAssignment file item %s to scales %s", pluNumber, scales.port));

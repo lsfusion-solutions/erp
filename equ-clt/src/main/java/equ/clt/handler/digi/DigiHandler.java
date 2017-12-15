@@ -333,7 +333,7 @@ public class DigiHandler extends ScalesHandler {
         return input;
     }
 
-    protected int sendRecord(DataSocket socket, short cmd, short file, byte[] record) throws IOException, CommunicationException {
+    protected int sendRecord(DataSocket socket, short cmd, short file, byte[] record) throws IOException {
         ByteBuffer bytes = ByteBuffer.allocate(record.length + 2);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
         bytes.put((byte) cmd);
