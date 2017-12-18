@@ -49,10 +49,10 @@ public class DigiSM120Handler extends DigiHandler {
             DigiSM120Settings digiSettings = springContext.containsBean("digiSM120Settings") ? (DigiSM120Settings) springContext.getBean("digiSM120Settings") : null;
             Integer nameLineFont = digiSettings != null ? digiSettings.getNameLineFont() : null;
             if (nameLineFont == null)
-                nameLineFont = 9;
+                nameLineFont = 7;
             Integer nameLineLength = digiSettings != null ? digiSettings.getNameLineLength() : null;
             if (nameLineLength == null)
-                nameLineLength = 22;
+                nameLineLength = 28;
             Integer descriptionLineFont = digiSettings != null ? digiSettings.getDescriptionLineFont() : null;
             if (descriptionLineFont == null)
                 descriptionLineFont = 2;
@@ -113,7 +113,6 @@ public class DigiSM120Handler extends DigiHandler {
     }
 
     private byte[] makePLURecord(ScalesItemInfo item, Integer plu, String piecePrefix, String weightPrefix, Integer nameLineFont, Integer nameLineLength) throws IOException {
-        String pluNumber = fillLeadingZeroes(plu, 6);
         int flagForDelete = 0; //No data/0: Add or Change, 1: Delete
         //временно весовой товар определяется как в старых Digi
         //int isWeight = item.splitItem ? 0 : 1; //0: Weighed item   1: Non-weighed item
@@ -125,7 +124,7 @@ public class DigiSM120Handler extends DigiHandler {
         String barcodeFormat = "1"; //F1F2 CCCCC XCD XXXX CD
         String barcodeFlagOfEANData = isWeight ? (piecePrefix != null ? piecePrefix : "21") : (weightPrefix != null ? weightPrefix : "20");
 
-        String itemCodeOfEANData = pluNumber + "0000"; //6-digit Item code + 4-digit Expanded item code
+        String itemCodeOfEANData = plu + "0000"; //6-digit Item code + 4-digit Expanded item code
         String extendItemCodeOfEANData = "";
         String barcodeTypeOfEANData = "0"; //0: EAN 9: ITF
         String rightSideDataOfEANData = "1"; //0: Price 1: Weight 2: QTY 3: Original price 4: Weight/QTY 5: U.P. 6: U.P. after discount
@@ -149,7 +148,7 @@ public class DigiSM120Handler extends DigiHandler {
         String stepDiscountType = "02"; //"0: No step discount, 1: Free item, 2: Unit price discount, 3: Unit price % discount, 4: Total price discount, 5: Total price % discount, 6: Fixed price discount, 11: U.P./PCS - U.P./kg
         String typeOfMarkdown = "0"; //"0: No markdown, 1: Unit price markdown, 2: Price markdown, 3: Unit price and price markdown
 
-        byte[] dataBytes = getBytes(pluNumber + separator + flagForDelete + separator + isWeightCode + separator + "0" + separator +
+        byte[] dataBytes = getBytes(plu + separator + flagForDelete + separator + isWeightCode + separator + "0" + separator +
                 "1" + separator + "1" + separator + "1" + separator + "1" + separator + "1" + separator  + "0" + separator +
                 "0" + separator + "0" + separator + "0" + separator + "0" + separator + "0" + separator + "0" + separator +
                 "0" + separator + "0" + separator + price + separator + labelFormat1 + separator + labelFormat2 + separator +
@@ -158,8 +157,8 @@ public class DigiSM120Handler extends DigiHandler {
                 cellByDate + separator + cellByTime + separator + "000" + separator + "000" + separator + "0000" + separator +
                 "000000" + separator + "0000" + separator + quantity + separator + quantitySymbol + separator + "0" + separator +
                 "0000" + separator + "00" + separator + "00" + separator + "00" + separator + "00" + separator + "00" + separator +
-                "00" + separator + "00" + separator + "00" + separator + "00" + separator + "00" + separator + pluNumber + separator +
-                pluNumber + separator + "000000" + separator + "000000" + separator + "000000" + separator + "000000" + separator +
+                "00" + separator + "00" + separator + "00" + separator + "00" + separator + "00" + separator + plu + separator +
+                plu + separator + "000000" + separator + "000000" + separator + "000000" + separator + "000000" + separator +
                 "000000" + separator + "000000" + separator + "000000" + separator + "000000" + separator + "000000" + separator +
                 "000000" + separator + "000000" + separator + "000000" + separator + "000000" + separator + "000000" + separator +
                 "000000" + separator + "000000" + separator + "000000" + separator + "000000" + separator + "000000" + separator +
@@ -329,9 +328,12 @@ public class DigiSM120Handler extends DigiHandler {
                 int lineNumber = 1;
                 int reply = sendIngredientRecord(socket, localErrors, plu, "delete", lineNumber, 2, descriptionLineFont);
                 while (!description.isEmpty() && reply == 0) {
-                    String lineData = encodeText(description.substring(0, Math.min(description.length(), descriptionLineLength)));
-                    description = description.substring(Math.min(description.length(), descriptionLineLength));
-                    reply = sendIngredientRecord(socket, localErrors, plu, lineData, lineNumber, 0, descriptionLineFont);
+                    int to = description.contains("\n") ? Math.min(descriptionLineLength, description.indexOf("\n")) : descriptionLineLength;
+                    String lineData = description.substring(0, Math.min(description.length(), to));
+                    description = description.substring(lineData.length());
+                    while (description.startsWith("\n"))
+                        description = description.substring(1);
+                    reply = sendIngredientRecord(socket, localErrors, plu, encodeText(lineData), lineNumber, 0, descriptionLineFont);
                     lineNumber++;
                 }
                 return reply == 0;
@@ -341,10 +343,10 @@ public class DigiSM120Handler extends DigiHandler {
         private int sendIngredientRecord(DataSocket socket, List<String> localErrors, Integer plu, String lineData, int lineNumber, int flagForDelete, int fontSize) throws IOException {
             //FlagForDelete: No data/0: Add or Change   1: Delete line   2: Delete record
             byte[] record = makeIngredientRecord(plu, lineData, lineNumber, flagForDelete, fontSize);
-            processTransactionLogger.info(String.format(getLogPrefix() + "Sending ingredient file item %s to scales %s", plu, scales.port));
+            processTransactionLogger.info(String.format(getLogPrefix() + "Sending ingredient file item %s line %s to scales %s", plu, lineNumber, scales.port));
             int reply = sendRecord(socket, cmdWrite, fileIngredient, record);
             if (reply != 0)
-                logError(localErrors, String.format(getLogPrefix() + "Send ingredient %s to scales %s failed. Error: %s", plu, scales.port, reply));
+                logError(localErrors, String.format(getLogPrefix() + "Send ingredient file item %s line %s to scales %s failed. Error: %s", plu, lineNumber, scales.port, reply));
             return reply;
         }
 
