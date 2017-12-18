@@ -112,7 +112,7 @@ public class DigiSM120Handler extends DigiHandler {
         return sendTransactionBatchMap;
     }
 
-    private byte[] makePLURecord(ScalesItemInfo item, Integer plu, Integer nameLineFont, Integer nameLineLength) throws IOException {
+    private byte[] makePLURecord(ScalesItemInfo item, Integer plu, String weightPrefix, Integer nameLineFont, Integer nameLineLength) throws IOException {
         String pluNumber = fillLeadingZeroes(plu, 6);
         int flagForDelete = 0; //No data/0: Add or Change, 1: Delete
         //временно весовой товар определяется как в старых Digi
@@ -122,7 +122,7 @@ public class DigiSM120Handler extends DigiHandler {
         String labelFormat1 = "017";
         String labelFormat2 = "0";
         String barcodeFormat = "1"; //F1F2 CCCCC XCD XXXX CD
-        String barcodeFlagOfEANData = "22"; //weight prefix
+        String barcodeFlagOfEANData = weightPrefix != null ? weightPrefix : "22";
 
         String itemCodeOfEANData = pluNumber + "0000"; //6-digit Item code + 4-digit Expanded item code
         String extendItemCodeOfEANData = "";
@@ -285,7 +285,7 @@ public class DigiSM120Handler extends DigiHandler {
                                 processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                 Integer pluNumber = getPlu(item);
                                 if(item.idBarcode.length() <= 5) {
-                                    if (!sendPLU(socket, localErrors, item, pluNumber)
+                                    if (!sendPLU(socket, localErrors, item, pluNumber, scales.weightCodeGroupScales)
                                             || !sendIngredient(socket, localErrors, item, pluNumber, descriptionLineFont, descriptionLineLength)
                                             || !sendKeyAssignment(socket, localErrors, pluNumber))
                                         globalError++;
@@ -312,8 +312,8 @@ public class DigiSM120Handler extends DigiHandler {
             return new SendTransactionResult(scales, localErrors, cleared);
         }
 
-        private boolean sendPLU(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu) throws IOException {
-            byte[] record = makePLURecord(item, plu, nameLineFont, nameLineLength);
+        private boolean sendPLU(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu, String weightPrefix) throws IOException {
+            byte[] record = makePLURecord(item, plu, weightPrefix, nameLineFont, nameLineLength);
             processTransactionLogger.info(String.format(getLogPrefix() + "Sending plu file item %s to scales %s", plu, scales.port));
             int reply = sendRecord(socket, cmdWrite, filePLU, record);
             if(reply != 0)

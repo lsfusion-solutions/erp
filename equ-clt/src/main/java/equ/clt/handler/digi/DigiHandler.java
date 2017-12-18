@@ -48,7 +48,7 @@ public class DigiHandler extends ScalesHandler {
     }
     
     @Override
-    public String getGroupId(TransactionScalesInfo transactionInfo) throws IOException {
+    public String getGroupId(TransactionScalesInfo transactionInfo) {
         StringBuilder groupId = new StringBuilder();
         for (MachineryInfo scales : transactionInfo.machineryInfoList) {
             groupId.append(scales.port).append(";");
@@ -125,7 +125,7 @@ public class DigiHandler extends ScalesHandler {
         return sendTransactionBatchMap;
     }
 
-    protected boolean clearFile(DataSocket socket, List<String> localErrors, String port, short file) throws IOException, CommunicationException {
+    protected boolean clearFile(DataSocket socket, List<String> localErrors, String port, short file) throws IOException {
         processTransactionLogger.info(getLogPrefix() + String.format("Deleting file %s at scales %s", file, port));
         int reply = sendRecord(socket, cmdCls, file, new byte[0]);
         if (reply != 0)
