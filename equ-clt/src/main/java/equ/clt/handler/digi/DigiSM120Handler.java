@@ -58,7 +58,7 @@ public class DigiSM120Handler extends DigiHandler {
                 descriptionLineFont = 2;
             Integer descriptionLineLength = digiSettings != null ? digiSettings.getDescriptionLineLength() : null;
             if (descriptionLineLength == null)
-                descriptionLineLength = 56;
+                descriptionLineLength = 55;
 
             List<MachineryInfo> succeededScalesList = new ArrayList<>();
             List<MachineryInfo> clearedScalesList = new ArrayList<>();
@@ -112,17 +112,18 @@ public class DigiSM120Handler extends DigiHandler {
         return sendTransactionBatchMap;
     }
 
-    private byte[] makePLURecord(ScalesItemInfo item, Integer plu, String weightPrefix, Integer nameLineFont, Integer nameLineLength) throws IOException {
+    private byte[] makePLURecord(ScalesItemInfo item, Integer plu, String piecePrefix, String weightPrefix, Integer nameLineFont, Integer nameLineLength) throws IOException {
         String pluNumber = fillLeadingZeroes(plu, 6);
         int flagForDelete = 0; //No data/0: Add or Change, 1: Delete
         //временно весовой товар определяется как в старых Digi
         //int isWeight = item.splitItem ? 0 : 1; //0: Weighed item   1: Non-weighed item
-        int isWeight = item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ") ? 1 : 0;
+        boolean isWeight = item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
+        int isWeightCode = isWeight ? 1 : 0;
         String price = getPrice(item.price); //max 9999.99
         String labelFormat1 = "017";
         String labelFormat2 = "0";
         String barcodeFormat = "1"; //F1F2 CCCCC XCD XXXX CD
-        String barcodeFlagOfEANData = weightPrefix != null ? weightPrefix : "22";
+        String barcodeFlagOfEANData = isWeight ? (piecePrefix != null ? piecePrefix : "21") : (weightPrefix != null ? weightPrefix : "20");
 
         String itemCodeOfEANData = pluNumber + "0000"; //6-digit Item code + 4-digit Expanded item code
         String extendItemCodeOfEANData = "";
@@ -147,7 +148,7 @@ public class DigiSM120Handler extends DigiHandler {
         String stepDiscountType = "02"; //"0: No step discount, 1: Free item, 2: Unit price discount, 3: Unit price % discount, 4: Total price discount, 5: Total price % discount, 6: Fixed price discount, 11: U.P./PCS - U.P./kg
         String typeOfMarkdown = "0"; //"0: No markdown, 1: Unit price markdown, 2: Price markdown, 3: Unit price and price markdown
 
-        byte[] dataBytes = getBytes(pluNumber + separator + flagForDelete + separator + isWeight + separator + "0" + separator +
+        byte[] dataBytes = getBytes(pluNumber + separator + flagForDelete + separator + isWeightCode + separator + "0" + separator +
                 "1" + separator + "1" + separator + "1" + separator + "1" + separator + "1" + separator  + "0" + separator +
                 "0" + separator + "0" + separator + "0" + separator + "0" + separator + "0" + separator + "0" + separator +
                 "0" + separator + "0" + separator + price + separator + labelFormat1 + separator + labelFormat2 + separator +
@@ -234,11 +235,11 @@ public class DigiSM120Handler extends DigiHandler {
     }
 
     private String getNameLine(String font, String line) {
-        return font + separator + "\"" + encodeText(line) + "\"";
+        return font + separator + encodeText(line);
     }
 
     private String encodeText(String line) {
-        return line.replace("\"", "\"\"");
+        return "\"" + line.replace("\"", "\"\"") + "\"";
     }
 
     private Integer getPlu(ScalesItemInfo item) {
@@ -285,7 +286,7 @@ public class DigiSM120Handler extends DigiHandler {
                                 processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                 Integer pluNumber = getPlu(item);
                                 if(item.idBarcode.length() <= 5) {
-                                    if (!sendPLU(socket, localErrors, item, pluNumber, scales.weightCodeGroupScales)
+                                    if (!sendPLU(socket, localErrors, item, pluNumber, scales.pieceCodeGroupScales, scales.weightCodeGroupScales)
                                             || !sendIngredient(socket, localErrors, item, pluNumber, descriptionLineFont, descriptionLineLength)
                                             || !sendKeyAssignment(socket, localErrors, pluNumber))
                                         globalError++;
@@ -312,8 +313,8 @@ public class DigiSM120Handler extends DigiHandler {
             return new SendTransactionResult(scales, localErrors, cleared);
         }
 
-        private boolean sendPLU(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu, String weightPrefix) throws IOException {
-            byte[] record = makePLURecord(item, plu, weightPrefix, nameLineFont, nameLineLength);
+        private boolean sendPLU(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu, String piecePrefix, String weightPrefix) throws IOException {
+            byte[] record = makePLURecord(item, plu, piecePrefix, weightPrefix, nameLineFont, nameLineLength);
             processTransactionLogger.info(String.format(getLogPrefix() + "Sending plu file item %s to scales %s", plu, scales.port));
             int reply = sendRecord(socket, cmdWrite, filePLU, record);
             if(reply != 0)
@@ -323,12 +324,11 @@ public class DigiSM120Handler extends DigiHandler {
 
         private boolean sendIngredient(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu, Integer descriptionLineFont, Integer descriptionLineLength) throws IOException {
             if(item.description != null) {
-                //временно вырезаем кавычки и запятые
-                String description = item.description.replace("\"", "").replace(",", ".");
+                String description = item.description;
                 int lineNumber = 1;
                 int reply = sendIngredientRecord(socket, localErrors, plu, "delete", lineNumber, 2, descriptionLineFont);
                 while (!description.isEmpty() && reply == 0) {
-                    String lineData = description.substring(0, Math.min(description.length(), descriptionLineLength));
+                    String lineData = encodeText(description.substring(0, Math.min(description.length(), descriptionLineLength)));
                     description = description.substring(Math.min(description.length(), descriptionLineLength));
                     reply = sendIngredientRecord(socket, localErrors, plu, lineData, lineNumber, 0, descriptionLineFont);
                     lineNumber++;
