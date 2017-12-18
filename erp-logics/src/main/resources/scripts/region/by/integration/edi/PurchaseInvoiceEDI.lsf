@@ -6,12 +6,17 @@ NAMESPACE Purchase;
 
 invoice = DATA Invoice(EOrderDespatchAdvice);
 
+TABLE EOrderDespatchAdviceDetail(Purchase.UserInvoiceDetail);
+EOrderDespatchAdviceDetail = DATA EOrderDespatchAdviceDetail(Purchase.UserInvoiceDetail) TABLE EOrderDespatchAdviceDetail;
+
 digits = FORMULA VARSTRING[250] 'regexp_replace(($1), \'\\D\', \'\', \'g\')';
 
 indexSku(EOrderDespatchAdviceDetail d) = PARTITION SUM 1 BY sku(d), eOrder(orderDespatchAdvice(d)) ORDER quantityOrdered(d), d MATERIALIZED INDEXED;
 orderDetail = GROUP MAX Purchase.OrderDetail d
     IF eOrder(orderDespatchAdvice(EOrderDespatchAdviceDetail ed)) == order(d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed) 
     BY ed;
+    
+prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND EOrderDespatchAdviceDetail(d) AND isStock(sku(d))  THEN lineItemPrice(EOrderDespatchAdviceDetail(d));
 
 createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a) = {
     
@@ -27,6 +32,8 @@ createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a) =
                 ORDER ad 
                 NEW d = UserInvoiceDetail DO {
                     userInvoice(d) <- i;
+                    EOrderDespatchAdviceDetail(d) <- ad;
+                    
                     orderDetail(d) <- orderDetail(ad); //если в ответе несколько строк к одной строке заказа то подставится событием, потому что indexSku не равны
                     sku(d) <- sku(ad);
                     quantity(d) <- quantityDespatch(ad);
