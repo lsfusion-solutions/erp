@@ -9,6 +9,7 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -30,7 +31,11 @@ public class DigiHandler extends ScalesHandler {
     protected static short cmdWrite = 0xF1;
     protected static short cmdCls = 0xF2;
     protected static short filePLU = 0x25;
+    protected static short fileIngredient = 0x3A;
     protected static short fileKeyAssignment = 0x41;
+
+    //включить для вывода в лог отправляемых запросов
+    private boolean debugMode = false;
 
     protected FileSystemXmlApplicationContext springContext;
 
@@ -346,6 +351,8 @@ public class DigiHandler extends ScalesHandler {
         int attempts = 0;
         while (attempts < 3) {
             try {
+                if(debugMode)
+                    processTransactionLogger.info(Hex.encodeHexString(bytes));
                 socket.outputStream.write(bytes);
                 socket.outputStream.flush();
                 return receiveReply(socket);

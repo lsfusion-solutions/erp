@@ -102,11 +102,8 @@ public class DigiSM120Handler extends DigiHandler {
         return sendTransactionBatchMap;
     }
 
-    private byte[] makePLURecord(ScalesItemInfo item, Integer nameLineFont, Integer nameLineLength) throws IOException {
-
-        Integer plu = item.pluNumber == null ? Integer.parseInt(item.idBarcode) : item.pluNumber;
+    private byte[] makePLURecord(ScalesItemInfo item, Integer plu, Integer nameLineFont, Integer nameLineLength) throws IOException {
         String pluNumber = fillLeadingZeroes(plu, 6);
-
         int flagForDelete = 0; //No data/0: Add or Change, 1: Delete
         //временно весовой товар определяется как в старых Digi
         //int isWeight = item.splitItem ? 0 : 1; //0: Weighed item   1: Non-weighed item
@@ -146,7 +143,7 @@ public class DigiSM120Handler extends DigiHandler {
                 "0" + separator + "0" + separator + price + separator + labelFormat1 + separator + labelFormat2 + separator +
                 barcodeFormat + separator + barcodeFlagOfEANData + separator + itemCodeOfEANData + separator + extendItemCodeOfEANData + separator +
                 barcodeTypeOfEANData + separator + rightSideDataOfEANData + separator + "000000" + separator + "000000" + separator +
-                cellByDate + separator + cellByTime + separator + "000" + separator + "000" + separator + "0000" + separator +
+                cellByDate + separator + cellByTime + separator + cellByDate + separator + "000" + separator + "0000" + separator +
                 "000000" + separator + "0000" + separator + quantity + separator + quantitySymbol + separator + "0" + separator +
                 "0000" + separator + "00" + separator + "00" + separator + "00" + separator + "00" + separator + "00" + separator +
                 "00" + separator + "00" + separator + "00" + separator + "00" + separator + "00" + separator + pluNumber + separator +
@@ -173,9 +170,30 @@ public class DigiSM120Handler extends DigiHandler {
         return bytes.array();
     }
 
-    private byte[] makeKeyAssignmentRecord(ScalesItemInfo item) throws IOException {
+    private byte[] makeIngredientRecord(Integer plu, String lineData, Integer lineNumber, int flagForDelete) throws IOException {
+        String pluNumber = fillLeadingZeroes(plu, 6);
 
-        Integer plu = item.pluNumber == null ? Integer.parseInt(item.idBarcode) : item.pluNumber;
+        String fontSize = "05";
+
+        byte[] dataBytes = getBytes(pluNumber + separator + lineNumber + separator + flagForDelete + separator + fontSize + separator +
+                "0" + separator + lineData);
+
+        int totalSize = dataBytes.length + 8;
+        ByteBuffer bytes = ByteBuffer.allocate(totalSize);
+
+        bytes.put(lineNumber.byteValue()); // line number
+        //bytes.put(plu >>> 24); //first byte
+        bytes.put((byte) (plu >>> 16)); //second byte
+        bytes.put((byte) (plu >>> 8)); //third byte
+        bytes.put(plu.byteValue()); //fourth byte
+        bytes.putShort((short) totalSize); //2 bytes
+        bytes.put(dataBytes);
+        bytes.put(new byte[]{0x0d, 0x0a});
+
+        return bytes.array();
+    }
+
+    private byte[] makeKeyAssignmentRecord(Integer plu) throws IOException {
         String pluNumber = fillLeadingZeroes(plu, 6);
         int flagForDelete = 0; //No data/0: Add or Change, 1: Delete
 
@@ -213,6 +231,10 @@ public class DigiSM120Handler extends DigiHandler {
         return font + separator + "\"" + line.replace("\"", "\"\"") + "\"";
     }
 
+    private Integer getPlu(ScalesItemInfo item) {
+        return item.pluNumber == null ? Integer.parseInt(item.idBarcode) : item.pluNumber;
+    }
+
     class SendTransactionTask implements Callable<SendTransactionResult> {
         TransactionScalesInfo transaction;
         ScalesInfo scales;
@@ -246,20 +268,10 @@ public class DigiSM120Handler extends DigiHandler {
                             count++;
                             if (!Thread.currentThread().isInterrupted() && globalError < 3) {
                                 processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
-                                int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
+                                Integer pluNumber = getPlu(item);
                                 if(item.idBarcode.length() <= 5) {
-                                    int pluReply = sendPLU(socket, item, pluNumber);
-                                    if (pluReply != 0) {
-                                        logError(localErrors, String.format(getLogPrefix() + "Send item %s to scales %s failed. Error: %s", pluNumber, scales.port, pluReply));
+                                    if (!sendPLU(socket, localErrors, item, pluNumber) || !sendIngredient(socket, localErrors, item, pluNumber) || !sendKeyAssignment(socket, localErrors, pluNumber))
                                         globalError++;
-                                    } else {
-                                        int keyAssignmentReply = sendKeyAssignment(socket, item, pluNumber);
-                                        if (keyAssignmentReply != 0) {
-                                            logError(localErrors, String.format(getLogPrefix() + "Send item %s to scales %s failed. Error: %s", pluNumber, scales.port, keyAssignmentReply));
-                                            globalError++;
-                                        }
-                                    }
                                 } else {
                                     processTransactionLogger.info(String.format(getLogPrefix() + "Sending item %s to scales %s failed: incorrect barcode %s", pluNumber, scales.port, item.idBarcode));
                                 }
@@ -283,18 +295,47 @@ public class DigiSM120Handler extends DigiHandler {
             return new SendTransactionResult(scales, localErrors, cleared);
         }
 
-        private int sendPLU(DataSocket socket, ScalesItemInfo item, int pluNumber) throws IOException, CommunicationException {
-            byte[] record = makePLURecord(item, nameLineFont, nameLineLength);
-            processTransactionLogger.info(String.format(getLogPrefix() + "Sending plu file item %s to scales %s", pluNumber, scales.port));
-            return sendRecord(socket, cmdWrite, filePLU, record);
+        private boolean sendPLU(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu) throws IOException {
+            byte[] record = makePLURecord(item, plu, nameLineFont, nameLineLength);
+            processTransactionLogger.info(String.format(getLogPrefix() + "Sending plu file item %s to scales %s", plu, scales.port));
+            int reply = sendRecord(socket, cmdWrite, filePLU, record);
+            if(reply != 0)
+            logError(localErrors, String.format(getLogPrefix() + "Send plu %s to scales %s failed. Error: %s", plu, scales.port, reply));
+            return reply == 0;
         }
 
-        private int sendKeyAssignment(DataSocket socket, ScalesItemInfo item, int pluNumber) throws IOException, CommunicationException {
-            byte[] record = makeKeyAssignmentRecord(item);
+        private boolean sendIngredient(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu) throws IOException {
+            String description = item.description;
+            int lineNumber = 1;
+            int reply = sendIngredientRecord(socket, localErrors, plu, "delete", lineNumber, 2);
+            while (description != null && !description.isEmpty() && reply == 0) {
+                String lineData = description.substring(0, Math.min(description.length(), 100));
+                description = description.substring(Math.min(description.length(), 100));
+                reply = sendIngredientRecord(socket, localErrors, plu, lineData, lineNumber, 0);
+                lineNumber++;
+            }
+            return reply == 0;
+        }
+
+        private int sendIngredientRecord(DataSocket socket, List<String> localErrors, Integer plu, String lineData, int lineNumber, int flagForDelete) throws IOException {
+            //FlagForDelete: No data/0: Add or Change   1: Delete line   2: Delete record
+            byte[] record = makeIngredientRecord(plu, lineData, lineNumber, flagForDelete);
+            processTransactionLogger.info(String.format(getLogPrefix() + "Sending ingredient file item %s to scales %s", plu, scales.port));
+            int reply = sendRecord(socket, cmdWrite, fileIngredient, record);
+            if (reply != 0)
+                logError(localErrors, String.format(getLogPrefix() + "Send ingredient %s to scales %s failed. Error: %s", plu, scales.port, reply));
+            return reply;
+        }
+
+        private boolean sendKeyAssignment(DataSocket socket, List<String> localErrors, Integer plu) throws IOException {
+            byte[] record = makeKeyAssignmentRecord(plu);
             if (record != null) {
-                processTransactionLogger.info(String.format(getLogPrefix() + "Sending keyAssignment file item %s to scales %s", pluNumber, scales.port));
-                return sendRecord(socket, cmdWrite, fileKeyAssignment, record);
-            } else return 0;
+                processTransactionLogger.info(String.format(getLogPrefix() + "Sending keyAssignment file item %s to scales %s", plu, scales.port));
+                int reply = sendRecord(socket, cmdWrite, fileKeyAssignment, record);
+                if (reply != 0)
+                    logError(localErrors, String.format(getLogPrefix() + "Send keyAssignment %s to scales %s failed. Error: %s", plu, scales.port, reply));
+                return reply == 0;
+            } else return true;
         }
     }
 }
