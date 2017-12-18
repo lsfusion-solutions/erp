@@ -460,9 +460,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             String data = String.format("###\n%s-%s", dateFrom, dateTo);
                             writer.write(data);
                             writer.close();
-                        } else {
+                        } /*else {
                             failedRequests.put(entry.requestExchange, new RuntimeException("Previous sale.req is not processed in directory " + directory));
-                        }
+                        }*/
                     } else {
                         failedRequests.put(entry.requestExchange, new RuntimeException("Failed to create directory " + directory));
                     }
