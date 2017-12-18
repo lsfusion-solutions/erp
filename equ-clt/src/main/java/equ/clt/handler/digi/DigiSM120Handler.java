@@ -324,7 +324,7 @@ public class DigiSM120Handler extends DigiHandler {
 
         private boolean sendIngredient(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu, Integer descriptionLineFont, Integer descriptionLineLength) throws IOException {
             if(item.description != null) {
-                String description = item.description;
+                String description = item.description.replace("\r", "");
                 int lineNumber = 1;
                 int reply = sendIngredientRecord(socket, localErrors, plu, "delete", lineNumber, 2, descriptionLineFont);
                 while (!description.isEmpty() && reply == 0) {
