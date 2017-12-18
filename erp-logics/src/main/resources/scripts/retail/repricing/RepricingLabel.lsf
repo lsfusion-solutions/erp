@@ -40,11 +40,12 @@ DESIGN repricings {
 printExistingPrice (LabelTransaction t) += printExistingPrice() AND priceTransactionDocument(t) IS Repricing;
 
 createLabelTransaction 'Сформировать ценники' (DATE date) = {
-    FOR NOT labelTransaction(Repricing repricing) AND date(repricing) == date DO {
-        inLabel(Sku sku) <- NULL;
-        inLabel(Sku sku) <- TRUE IF countRepricingDetail(sku, repricing);
-        notPrint() <- TRUE;
-        createLabelTransactionParam(repricing);
-        notPrint() <- NULL;
-    }
+    NEWEXECUTOR 
+        FOR NOT labelTransaction(Repricing repricing) AND date(repricing) == date DO NEWTHREAD NEWSESSION NEWSQL {  
+            inLabel(Sku sku) <- TRUE IF countRepricingDetail(sku, repricing);
+            notPrint() <- TRUE;
+            createLabelTransactionParam(repricing);
+            APPLY;
+        }
+    THREADS 4;
 }
