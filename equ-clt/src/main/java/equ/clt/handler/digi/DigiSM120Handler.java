@@ -130,8 +130,9 @@ public class DigiSM120Handler extends DigiHandler {
         String barcodeTypeOfEANData = "0"; //0: EAN 9: ITF
         String rightSideDataOfEANData = "1"; //0: Price 1: Weight 2: QTY 3: Original price 4: Weight/QTY 5: U.P. 6: U.P. after discount
 
-        String cellByDate = fillLeadingZeroes(item.daysExpiry == null ? 0 : item.daysExpiry, 3); //days
-        String cellByTime = fillLeadingZeroes(item.hoursExpiry == null ? 0 : item.hoursExpiry, 2) + "00";//HHmm
+        Integer daysExpiry = item.daysExpiry == null ? 0 : item.daysExpiry;
+        Integer cellByDate = daysExpiry * 24; //days * 24
+        String cellByTime = fillLeadingZeroes(item.hoursExpiry == null ? 0 : item.hoursExpiry, 2) + "00";//HHmm //не отображается
 
         String quantity = "0001";
         String quantitySymbol = "00"; //0 No print, 1 PCS, 2 FOR, 3 kg, 4 lb, 5 g, 6 oz
@@ -154,7 +155,7 @@ public class DigiSM120Handler extends DigiHandler {
                 "0" + separator + "0" + separator + price + separator + labelFormat1 + separator + labelFormat2 + separator +
                 barcodeFormat + separator + barcodeFlagOfEANData + separator + itemCodeOfEANData + separator + extendItemCodeOfEANData + separator +
                 barcodeTypeOfEANData + separator + rightSideDataOfEANData + separator + "000000" + separator + "000000" + separator +
-                cellByDate + separator + cellByTime + separator + cellByDate + separator + "000" + separator + "0000" + separator +
+                cellByDate + separator + cellByTime + separator + "000" + separator + "000" + separator + "0000" + separator +
                 "000000" + separator + "0000" + separator + quantity + separator + quantitySymbol + separator + "0" + separator +
                 "0000" + separator + "00" + separator + "00" + separator + "00" + separator + "00" + separator + "00" + separator +
                 "00" + separator + "00" + separator + "00" + separator + "00" + separator + "00" + separator + pluNumber + separator +
