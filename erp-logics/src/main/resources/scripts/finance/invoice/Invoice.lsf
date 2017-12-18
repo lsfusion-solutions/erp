@@ -982,7 +982,7 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
     returnQuantityInvoiceDetail 'Кол-во (возвращено)' (invoice) =  GROUP SUM returnQuantity(nsdir.InvoiceDetail invoiceDetail) BY invoice(invoiceDetail) MATERIALIZED;
     toReturnQuantity 'Кол-во доступно к возврату' (nsdir.InvoiceDetail invoiceDetail)= quantity(invoiceDetail) (-) returnQuantity(invoiceDetail);    
 
-    indexLastReturnInvoiceDetail = GROUP CONCAT VARSTRING[5](index(InvoiceDetail d)) IF returnQuantity(invoiceDetail(d)) > quantity(invoiceDetail(d)), ', ';
+    indexLastReturnInvoiceDetail = GROUP CONCAT VARSTRING[5](index(InvoiceDetail d)) IF SET(returnQuantity(invoiceDetail(d)) > quantity(invoiceDetail(d))), ', ';
     
     CONSTRAINT returnQuantity(invoiceDetail(InvoiceDetail d)) > quantity((invoiceDetail(d)))
         MESSAGE 'Количество строки №' + indexLastReturnInvoiceDetail() + ' возврата больше чем количество строки основания';
