@@ -47,8 +47,18 @@ public class DigiSM120Handler extends DigiHandler {
             processTransactionLogger.info(getLogPrefix() + "Send Transaction # " + transaction.id);
 
             DigiSM120Settings digiSettings = springContext.containsBean("digiSM120Settings") ? (DigiSM120Settings) springContext.getBean("digiSM120Settings") : null;
-            Integer nameLineFont = digiSettings != null ? digiSettings.getNameLineFont() : 9;
-            Integer nameLineLength = digiSettings != null ? digiSettings.getNameLineLength() : 23;
+            Integer nameLineFont = digiSettings != null ? digiSettings.getNameLineFont() : null;
+            if (nameLineFont == null)
+                nameLineFont = 9;
+            Integer nameLineLength = digiSettings != null ? digiSettings.getNameLineLength() : null;
+            if (nameLineLength == null)
+                nameLineLength = 22;
+            Integer descriptionLineFont = digiSettings != null ? digiSettings.getDescriptionLineFont() : null;
+            if (descriptionLineFont == null)
+                descriptionLineFont = 2;
+            Integer descriptionLineLength = digiSettings != null ? digiSettings.getDescriptionLineLength() : null;
+            if (descriptionLineLength == null)
+                descriptionLineLength = 56;
 
             List<MachineryInfo> succeededScalesList = new ArrayList<>();
             List<MachineryInfo> clearedScalesList = new ArrayList<>();
@@ -70,7 +80,7 @@ public class DigiSM120Handler extends DigiHandler {
                                 errors.put(scales.port, Collections.singletonList(String.format("Broken ip: %s, error: %s", scales.port, brokenPortError)));
                             } else {
                                 ips.add(scales.port);
-                                taskList.add(new SendTransactionTask(transaction, scales, nameLineFont, nameLineLength));
+                                taskList.add(new SendTransactionTask(transaction, scales, nameLineFont, nameLineLength, descriptionLineFont, descriptionLineLength));
                             }
                         }
                     }
@@ -170,22 +180,18 @@ public class DigiSM120Handler extends DigiHandler {
         return bytes.array();
     }
 
-    private byte[] makeIngredientRecord(Integer plu, String lineData, Integer lineNumber, int flagForDelete) throws IOException {
-        String pluNumber = fillLeadingZeroes(plu, 6);
+    private byte[] makeIngredientRecord(Integer plu, String lineData, Integer lineNumber, int flagForDelete, int fontSize) throws IOException {
 
-        String fontSize = "05";
-
-        byte[] dataBytes = getBytes(pluNumber + separator + lineNumber + separator + flagForDelete + separator + fontSize + separator +
-                "0" + separator + lineData);
+        byte[] dataBytes = getBytes(plu + separator + lineNumber + separator + flagForDelete + separator + fontSize + separator + lineData);
 
         int totalSize = dataBytes.length + 8;
         ByteBuffer bytes = ByteBuffer.allocate(totalSize);
 
-        bytes.put(lineNumber.byteValue()); // line number
         //bytes.put(plu >>> 24); //first byte
         bytes.put((byte) (plu >>> 16)); //second byte
         bytes.put((byte) (plu >>> 8)); //third byte
         bytes.put(plu.byteValue()); //fourth byte
+        bytes.put(lineNumber.byteValue()); // line number
         bytes.putShort((short) totalSize); //2 bytes
         bytes.put(dataBytes);
         bytes.put(new byte[]{0x0d, 0x0a});
@@ -228,7 +234,11 @@ public class DigiSM120Handler extends DigiHandler {
     }
 
     private String getNameLine(String font, String line) {
-        return font + separator + "\"" + line.replace("\"", "\"\"") + "\"";
+        return font + separator + "\"" + encodeText(line) + "\"";
+    }
+
+    private String encodeText(String line) {
+        return line.replace("\"", "\"\"");
     }
 
     private Integer getPlu(ScalesItemInfo item) {
@@ -240,12 +250,16 @@ public class DigiSM120Handler extends DigiHandler {
         ScalesInfo scales;
         Integer nameLineFont;
         Integer nameLineLength;
+        Integer descriptionLineFont;
+        Integer descriptionLineLength;
 
-        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, Integer nameLineFont, Integer nameLineLength) {
+        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, Integer nameLineFont, Integer nameLineLength, Integer descriptionLineFont, Integer descriptionLineLength) {
             this.transaction = transaction;
             this.scales = scales;
             this.nameLineFont = nameLineFont;
             this.nameLineLength = nameLineLength;
+            this.descriptionLineFont = descriptionLineFont;
+            this.descriptionLineLength = descriptionLineLength;
         }
 
         @Override
@@ -258,8 +272,9 @@ public class DigiSM120Handler extends DigiHandler {
                 int globalError = 0;
                 boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
                 if (needToClear)
-                    cleared = clearFile(socket, localErrors, scales.port, filePLU) && clearFile(socket, localErrors, scales.port, fileKeyAssignment);
-
+                    cleared = clearFile(socket, localErrors, scales.port, filePLU)
+                            && clearFile(socket, localErrors, scales.port, fileIngredient)
+                            && clearFile(socket, localErrors, scales.port, fileKeyAssignment);
                 if (cleared || !needToClear) {
                     processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
                     if (localErrors.isEmpty()) {
@@ -270,7 +285,9 @@ public class DigiSM120Handler extends DigiHandler {
                                 processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                 Integer pluNumber = getPlu(item);
                                 if(item.idBarcode.length() <= 5) {
-                                    if (!sendPLU(socket, localErrors, item, pluNumber) || !sendIngredient(socket, localErrors, item, pluNumber) || !sendKeyAssignment(socket, localErrors, pluNumber))
+                                    if (!sendPLU(socket, localErrors, item, pluNumber)
+                                            || !sendIngredient(socket, localErrors, item, pluNumber, descriptionLineFont, descriptionLineLength)
+                                            || !sendKeyAssignment(socket, localErrors, pluNumber))
                                         globalError++;
                                 } else {
                                     processTransactionLogger.info(String.format(getLogPrefix() + "Sending item %s to scales %s failed: incorrect barcode %s", pluNumber, scales.port, item.idBarcode));
@@ -304,22 +321,24 @@ public class DigiSM120Handler extends DigiHandler {
             return reply == 0;
         }
 
-        private boolean sendIngredient(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu) throws IOException {
-            String description = item.description;
-            int lineNumber = 1;
-            int reply = sendIngredientRecord(socket, localErrors, plu, "delete", lineNumber, 2);
-            while (description != null && !description.isEmpty() && reply == 0) {
-                String lineData = description.substring(0, Math.min(description.length(), 100));
-                description = description.substring(Math.min(description.length(), 100));
-                reply = sendIngredientRecord(socket, localErrors, plu, lineData, lineNumber, 0);
-                lineNumber++;
-            }
-            return reply == 0;
+        private boolean sendIngredient(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu, Integer descriptionLineFont, Integer descriptionLineLength) throws IOException {
+            if(item.description != null) {
+                String description = encodeText(item.description);
+                int lineNumber = 1;
+                int reply = sendIngredientRecord(socket, localErrors, plu, "delete", lineNumber, 2, descriptionLineFont);
+                while (!description.isEmpty() && reply == 0) {
+                    String lineData = description.substring(0, Math.min(description.length(), descriptionLineLength));
+                    description = description.substring(Math.min(description.length(), descriptionLineLength));
+                    reply = sendIngredientRecord(socket, localErrors, plu, lineData, lineNumber, 0, descriptionLineFont);
+                    lineNumber++;
+                }
+                return reply == 0;
+            } else return true;
         }
 
-        private int sendIngredientRecord(DataSocket socket, List<String> localErrors, Integer plu, String lineData, int lineNumber, int flagForDelete) throws IOException {
+        private int sendIngredientRecord(DataSocket socket, List<String> localErrors, Integer plu, String lineData, int lineNumber, int flagForDelete, int fontSize) throws IOException {
             //FlagForDelete: No data/0: Add or Change   1: Delete line   2: Delete record
-            byte[] record = makeIngredientRecord(plu, lineData, lineNumber, flagForDelete);
+            byte[] record = makeIngredientRecord(plu, lineData, lineNumber, flagForDelete, fontSize);
             processTransactionLogger.info(String.format(getLogPrefix() + "Sending ingredient file item %s to scales %s", plu, scales.port));
             int reply = sendRecord(socket, cmdWrite, fileIngredient, record);
             if (reply != 0)

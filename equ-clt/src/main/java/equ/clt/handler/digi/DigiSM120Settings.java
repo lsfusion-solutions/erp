@@ -6,6 +6,8 @@ public class DigiSM120Settings implements Serializable{
 
     private Integer nameLineFont;
     private Integer nameLineLength;
+    private Integer descriptionLineFont;
+    private Integer descriptionLineLength;
 
     public DigiSM120Settings() {
     }
@@ -24,5 +26,21 @@ public class DigiSM120Settings implements Serializable{
 
     public Integer getNameLineLength() {
         return nameLineLength;
+    }
+
+    public Integer getDescriptionLineFont() {
+        return descriptionLineFont;
+    }
+
+    public void setDescriptionLineFont(Integer descriptionLineFont) {
+        this.descriptionLineFont = descriptionLineFont;
+    }
+
+    public Integer getDescriptionLineLength() {
+        return descriptionLineLength;
+    }
+
+    public void setDescriptionLineLength(Integer descriptionLineLength) {
+        this.descriptionLineLength = descriptionLineLength;
     }
 }
