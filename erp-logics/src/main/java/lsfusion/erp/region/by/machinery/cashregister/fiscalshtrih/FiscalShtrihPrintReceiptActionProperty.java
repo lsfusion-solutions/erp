@@ -28,7 +28,7 @@ import java.util.List;
 public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptInterface;
 
-    public FiscalShtrihPrintReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalShtrihPrintReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

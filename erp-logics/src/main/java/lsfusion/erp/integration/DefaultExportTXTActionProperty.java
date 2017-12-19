@@ -4,7 +4,6 @@ import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.io.UnsupportedEncodingException;
@@ -20,7 +19,7 @@ public class DefaultExportTXTActionProperty extends DefaultExportActionProperty 
         super(LM);
     }
 
-    public DefaultExportTXTActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public DefaultExportTXTActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 

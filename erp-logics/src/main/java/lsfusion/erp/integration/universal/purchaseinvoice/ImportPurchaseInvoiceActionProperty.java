@@ -52,7 +52,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         this(LM, LM.findClass("Purchase.UserInvoice"));
     }
     
-    public ImportPurchaseInvoiceActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportPurchaseInvoiceActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

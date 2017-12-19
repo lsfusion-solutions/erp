@@ -19,7 +19,7 @@ import java.util.Iterator;
 public class FiscalAbsolutServiceInOutActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface cashOperationInterface;
 
-    public FiscalAbsolutServiceInOutActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalAbsolutServiceInOutActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

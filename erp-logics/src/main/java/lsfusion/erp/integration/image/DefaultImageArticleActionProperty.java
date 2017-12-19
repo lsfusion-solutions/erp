@@ -27,7 +27,7 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
         super(LM);
     }
 
-    public DefaultImageArticleActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public DefaultImageArticleActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 

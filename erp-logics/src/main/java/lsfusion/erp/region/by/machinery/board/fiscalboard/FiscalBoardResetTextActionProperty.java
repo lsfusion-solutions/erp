@@ -17,7 +17,7 @@ import static lsfusion.base.BaseUtils.trimToEmpty;
 public class FiscalBoardResetTextActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptInterface;
 
-    public FiscalBoardResetTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalBoardResetTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

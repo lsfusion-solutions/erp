@@ -24,7 +24,7 @@ import java.util.Iterator;
 public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptInterface;
 
-    public TerminalJadeEKOPaymentTerminalReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public TerminalJadeEKOPaymentTerminalReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

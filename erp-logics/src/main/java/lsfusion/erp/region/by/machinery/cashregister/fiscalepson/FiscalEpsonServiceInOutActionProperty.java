@@ -19,7 +19,7 @@ import static lsfusion.base.BaseUtils.trim;
 public class FiscalEpsonServiceInOutActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface cashOperationInterface;
 
-    public FiscalEpsonServiceInOutActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalEpsonServiceInOutActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

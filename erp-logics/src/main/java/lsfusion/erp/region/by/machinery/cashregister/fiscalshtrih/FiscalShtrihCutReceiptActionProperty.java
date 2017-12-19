@@ -12,7 +12,7 @@ import java.sql.SQLException;
 
 public class FiscalShtrihCutReceiptActionProperty extends ScriptingActionProperty {
 
-    public FiscalShtrihCutReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalShtrihCutReceiptActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

@@ -18,7 +18,7 @@ import java.util.Iterator;
 public class FiscalVMKCancelReceiptActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptInterface;
 
-    public FiscalVMKCancelReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalVMKCancelReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

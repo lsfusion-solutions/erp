@@ -4,7 +4,6 @@ import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.sql.SQLException;
@@ -15,7 +14,7 @@ public class DefaultExportActionProperty extends DefaultIntegrationActionPropert
         super(LM);
     }
 
-    public DefaultExportActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public DefaultExportActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
     

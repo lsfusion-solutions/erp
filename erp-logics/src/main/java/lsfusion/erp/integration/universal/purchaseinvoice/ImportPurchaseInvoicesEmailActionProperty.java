@@ -44,7 +44,7 @@ import java.util.zip.ZipInputStream;
 
 public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentActionProperty {
 
-    public ImportPurchaseInvoicesEmailActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportPurchaseInvoicesEmailActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

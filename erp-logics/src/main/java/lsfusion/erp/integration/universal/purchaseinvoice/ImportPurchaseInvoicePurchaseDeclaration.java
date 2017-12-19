@@ -14,7 +14,7 @@ import java.util.List;
 
 public class ImportPurchaseInvoicePurchaseDeclaration extends ImportDefaultPurchaseInvoiceActionProperty {
 
-    public ImportPurchaseInvoicePurchaseDeclaration(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportPurchaseInvoicePurchaseDeclaration(ScriptingLogicsModule LM) {
         super(LM);
     }
 

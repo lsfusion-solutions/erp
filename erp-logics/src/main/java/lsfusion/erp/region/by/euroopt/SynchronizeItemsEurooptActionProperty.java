@@ -21,7 +21,7 @@ import java.util.*;
 
 public class SynchronizeItemsEurooptActionProperty extends EurooptActionProperty {
 
-    public SynchronizeItemsEurooptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public SynchronizeItemsEurooptActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

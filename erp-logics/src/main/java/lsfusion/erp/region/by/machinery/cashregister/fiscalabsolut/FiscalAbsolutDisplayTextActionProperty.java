@@ -23,7 +23,7 @@ import static org.apache.commons.lang3.StringUtils.trim;
 public class FiscalAbsolutDisplayTextActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptDetailInterface;
 
-    public FiscalAbsolutDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalAbsolutDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

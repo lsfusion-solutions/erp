@@ -14,7 +14,7 @@ import java.sql.SQLException;
 
 public class FiscalVMKAdvancePaperActionProperty extends ScriptingActionProperty {
 
-    public FiscalVMKAdvancePaperActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalVMKAdvancePaperActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

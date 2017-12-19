@@ -18,7 +18,7 @@ import java.util.Iterator;
 public class FiscalDatecsDisplayTextActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptDetailInterface;
 
-    public FiscalDatecsDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalDatecsDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

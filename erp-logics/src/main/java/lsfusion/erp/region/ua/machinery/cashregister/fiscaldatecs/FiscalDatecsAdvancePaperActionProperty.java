@@ -12,7 +12,7 @@ import java.sql.SQLException;
 
 public class FiscalDatecsAdvancePaperActionProperty extends ScriptingActionProperty {
 
-    public FiscalDatecsAdvancePaperActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalDatecsAdvancePaperActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

@@ -14,7 +14,7 @@ import java.sql.SQLException;
 
 public class FiscalVMKPrintCopyReceiptActionProperty extends ScriptingActionProperty {
 
-    public FiscalVMKPrintCopyReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalVMKPrintCopyReceiptActionProperty(ScriptingLogicsModule LM) {
         super(LM);
 
     }

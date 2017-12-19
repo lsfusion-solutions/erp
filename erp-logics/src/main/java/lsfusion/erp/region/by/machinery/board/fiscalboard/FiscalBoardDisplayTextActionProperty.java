@@ -22,7 +22,7 @@ import static lsfusion.base.BaseUtils.trim;
 public class FiscalBoardDisplayTextActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptDetailInterface;
 
-    public FiscalBoardDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalBoardDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

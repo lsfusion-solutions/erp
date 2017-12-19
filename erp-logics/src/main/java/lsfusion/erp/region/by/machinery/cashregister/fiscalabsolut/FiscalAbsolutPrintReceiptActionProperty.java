@@ -31,7 +31,7 @@ import java.util.List;
 public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptInterface;
 
-    public FiscalAbsolutPrintReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalAbsolutPrintReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

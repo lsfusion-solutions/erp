@@ -30,7 +30,7 @@ import java.util.List;
 
 public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActionProperty {
 
-    public ImportNBRBExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportNBRBExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 

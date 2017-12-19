@@ -19,7 +19,7 @@ import java.util.Iterator;
 public class ImportNBRBExchangeRateDateFromDateToActionProperty extends ImportNBRBExchangeRateActionProperty {
     private final ClassPropertyInterface currencyInterface;
 
-    public ImportNBRBExchangeRateDateFromDateToActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportNBRBExchangeRateDateFromDateToActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

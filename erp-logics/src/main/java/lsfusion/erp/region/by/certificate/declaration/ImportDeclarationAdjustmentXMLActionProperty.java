@@ -12,7 +12,6 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.jdom.Document;
 import org.jdom.Element;
@@ -31,7 +30,7 @@ import java.util.List;
 public class ImportDeclarationAdjustmentXMLActionProperty extends DefaultImportActionProperty {
     private final ClassPropertyInterface declarationInterface;
 
-    public ImportDeclarationAdjustmentXMLActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportDeclarationAdjustmentXMLActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

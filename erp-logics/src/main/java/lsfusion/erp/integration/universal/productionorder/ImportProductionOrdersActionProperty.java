@@ -27,7 +27,7 @@ import java.util.Map;
 
 public class ImportProductionOrdersActionProperty extends ImportDocumentActionProperty {
 
-    public ImportProductionOrdersActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportProductionOrdersActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

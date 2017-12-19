@@ -39,7 +39,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
     private final String DOP_NOMER = "D4035121";
 
-    public ExportDeclarationDBFActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ExportDeclarationDBFActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

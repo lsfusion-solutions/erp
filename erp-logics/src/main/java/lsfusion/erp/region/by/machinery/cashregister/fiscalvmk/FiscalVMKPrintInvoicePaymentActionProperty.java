@@ -21,7 +21,7 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
     private final ClassPropertyInterface invoiceInterface;
     private final ClassPropertyInterface paymentInterface;
 
-    public FiscalVMKPrintInvoicePaymentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalVMKPrintInvoicePaymentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

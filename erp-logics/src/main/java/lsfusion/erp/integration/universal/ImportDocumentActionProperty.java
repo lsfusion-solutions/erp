@@ -37,15 +37,15 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     public static int IMPORT_RESULT_ERROR = -1;
     public static int IMPORT_RESULT_DOCUMENTS_CLOSED_DATE = -2;
 
-    public ImportDocumentActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportDocumentActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 
-    public ImportDocumentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportDocumentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 
-    public ImportDocumentActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportDocumentActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

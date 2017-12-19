@@ -16,7 +16,7 @@ public class ImportPurchaseInvoiceTaxItem extends ImportDefaultPurchaseInvoiceAc
 
     String defaultCountry = "БЕЛАРУСЬ";
 
-    public ImportPurchaseInvoiceTaxItem(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportPurchaseInvoiceTaxItem(ScriptingLogicsModule LM) {
         super(LM);
     }
 

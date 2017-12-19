@@ -2,7 +2,6 @@ package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.server.classes.ValueClass;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.lang.reflect.Field;
@@ -11,15 +10,15 @@ import java.util.Map;
 
 public class ImportDefaultPurchaseInvoiceActionProperty extends ImportDocumentActionProperty {
 
-    public ImportDefaultPurchaseInvoiceActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportDefaultPurchaseInvoiceActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 
-    public ImportDefaultPurchaseInvoiceActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportDefaultPurchaseInvoiceActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 
-    public ImportDefaultPurchaseInvoiceActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportDefaultPurchaseInvoiceActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

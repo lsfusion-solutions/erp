@@ -35,7 +35,7 @@ import java.util.*;
 
 public class ImportImageAndPriceEurooptActionProperty extends EurooptActionProperty {
 
-    public ImportImageAndPriceEurooptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportImageAndPriceEurooptActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

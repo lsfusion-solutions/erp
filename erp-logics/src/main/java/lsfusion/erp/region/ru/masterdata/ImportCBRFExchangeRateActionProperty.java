@@ -34,7 +34,7 @@ import java.util.List;
 public class ImportCBRFExchangeRateActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface currencyInterface;
 
-    public ImportCBRFExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportCBRFExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

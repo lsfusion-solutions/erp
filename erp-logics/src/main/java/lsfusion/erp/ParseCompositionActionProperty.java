@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 
 public class ParseCompositionActionProperty extends DefaultIntegrationActionProperty {
 
-    public ParseCompositionActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public ParseCompositionActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 

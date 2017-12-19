@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
 public class ImportXMLDeclarationActionProperty extends DefaultImportActionProperty {
     private final ClassPropertyInterface declarationInterface;
 
-    public ImportXMLDeclarationActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportXMLDeclarationActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

@@ -20,7 +20,7 @@ public class FiscalAbsolutPrintReturnInvoicePaymentActionProperty extends Script
     private final ClassPropertyInterface invoiceInterface;
     private final ClassPropertyInterface paymentInterface;
 
-    public FiscalAbsolutPrintReturnInvoicePaymentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalAbsolutPrintReturnInvoicePaymentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

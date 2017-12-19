@@ -17,7 +17,7 @@ import java.util.Iterator;
 public class FiscalCasbiServiceInOutActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface cashOperationInterface;
 
-    public FiscalCasbiServiceInOutActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalCasbiServiceInOutActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

@@ -13,7 +13,7 @@ import java.util.List;
 
 public class ImportPurchaseInvoicePurchaseManufacturingPrice extends ImportDefaultPurchaseInvoiceActionProperty {
 
-    public ImportPurchaseInvoicePurchaseManufacturingPrice(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportPurchaseInvoicePurchaseManufacturingPrice(ScriptingLogicsModule LM) {
         super(LM);
     }
 

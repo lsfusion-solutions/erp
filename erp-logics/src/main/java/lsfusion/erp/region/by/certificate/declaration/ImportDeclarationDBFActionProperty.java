@@ -36,7 +36,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
     String charset = "cp866";
     private final ClassPropertyInterface declarationInterface;
 
-    public ImportDeclarationDBFActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportDeclarationDBFActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

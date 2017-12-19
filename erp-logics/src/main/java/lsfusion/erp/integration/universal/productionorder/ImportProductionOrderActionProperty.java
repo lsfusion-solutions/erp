@@ -46,7 +46,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         this(LM, LM.findClass("Production.Order"));
     }
     
-    public ImportProductionOrderActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportProductionOrderActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

@@ -6,7 +6,6 @@ import lsfusion.server.ServerLoggers;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
@@ -32,7 +31,7 @@ public class EurooptActionProperty extends DefaultImportActionProperty {
 
     String logPrefix = "Import Euroopt: ";
 
-    public EurooptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public EurooptActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

@@ -22,7 +22,7 @@ import java.util.Iterator;
 public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface articleInterface;
 
-    public UploadImageArticleFromDirectoryActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public UploadImageArticleFromDirectoryActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

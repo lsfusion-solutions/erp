@@ -5,7 +5,6 @@ import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.lang3.time.DateUtils;
 import org.xBaseJ.DBF;
@@ -25,11 +24,11 @@ public class DefaultImportDBFActionProperty extends DefaultImportActionProperty 
         super(LM);
     }
 
-    public DefaultImportDBFActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public DefaultImportDBFActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 
-    public DefaultImportDBFActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public DefaultImportDBFActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 

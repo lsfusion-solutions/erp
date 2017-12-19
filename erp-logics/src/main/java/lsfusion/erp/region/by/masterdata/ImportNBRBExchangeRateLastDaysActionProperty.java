@@ -20,7 +20,7 @@ import java.util.Iterator;
 public class ImportNBRBExchangeRateLastDaysActionProperty extends ImportNBRBExchangeRateActionProperty {
     private final ClassPropertyInterface currencyInterface;
 
-    public ImportNBRBExchangeRateLastDaysActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportNBRBExchangeRateLastDaysActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

@@ -33,7 +33,7 @@ import java.util.List;
 
 public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty {
 
-    public ImportItemsInfoEurooptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportItemsInfoEurooptActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

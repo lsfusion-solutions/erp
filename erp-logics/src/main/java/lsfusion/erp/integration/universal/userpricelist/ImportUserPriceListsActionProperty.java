@@ -29,7 +29,7 @@ import java.util.Map;
 
 public class ImportUserPriceListsActionProperty extends DefaultImportActionProperty {
 
-    public ImportUserPriceListsActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportUserPriceListsActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

@@ -24,7 +24,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
 
     private final ClassPropertyInterface typeInterface;
 
-    public EVATActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public EVATActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

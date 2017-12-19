@@ -31,7 +31,7 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
     private final ClassPropertyInterface declarationInterface;
     String row;
 
-    public ExportDeclarationActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ExportDeclarationActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

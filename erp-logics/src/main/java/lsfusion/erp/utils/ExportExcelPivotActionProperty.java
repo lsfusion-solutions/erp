@@ -108,7 +108,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
         }
     }
 
-    public List<List<List<Object>>> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<List<String>> fields) throws ScriptingErrorLog.SemanticErrorException {
+    public List<List<List<Object>>> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<List<String>> fields) {
         List<List<List<Object>>> result = new ArrayList<>();
         if (fields != null) {
             for (List<String> fieldsEntry : fields) {

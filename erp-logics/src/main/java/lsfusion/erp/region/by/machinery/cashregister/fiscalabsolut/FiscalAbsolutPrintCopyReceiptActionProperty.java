@@ -14,9 +14,8 @@ import java.sql.SQLException;
 
 public class FiscalAbsolutPrintCopyReceiptActionProperty extends ScriptingActionProperty {
 
-    public FiscalAbsolutPrintCopyReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalAbsolutPrintCopyReceiptActionProperty(ScriptingLogicsModule LM) {
         super(LM);
-
     }
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {

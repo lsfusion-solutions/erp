@@ -14,7 +14,7 @@ import java.sql.SQLException;
 
 public class FiscalEpsonPrintCopyReceiptActionProperty extends ScriptingActionProperty {
 
-    public FiscalEpsonPrintCopyReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalEpsonPrintCopyReceiptActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

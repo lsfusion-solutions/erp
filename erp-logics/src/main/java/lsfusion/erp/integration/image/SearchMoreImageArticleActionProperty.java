@@ -12,7 +12,7 @@ import java.sql.SQLException;
 
 public class SearchMoreImageArticleActionProperty extends DefaultImageArticleActionProperty {
 
-    public SearchMoreImageArticleActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public SearchMoreImageArticleActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

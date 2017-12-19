@@ -17,7 +17,7 @@ import java.util.Iterator;
 public class FiscalShtrihServiceInOutActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface cashOperationInterface;
 
-    public FiscalShtrihServiceInOutActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalShtrihServiceInOutActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

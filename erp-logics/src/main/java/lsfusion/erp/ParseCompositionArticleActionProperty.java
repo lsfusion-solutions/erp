@@ -15,7 +15,7 @@ import java.util.Iterator;
 public class ParseCompositionArticleActionProperty extends ParseCompositionActionProperty {
     private final ClassPropertyInterface articleInterface;
 
-    public ParseCompositionArticleActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public ParseCompositionArticleActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

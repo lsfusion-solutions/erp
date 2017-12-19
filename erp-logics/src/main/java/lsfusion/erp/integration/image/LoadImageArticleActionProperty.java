@@ -18,7 +18,7 @@ public class LoadImageArticleActionProperty extends DefaultImageArticleActionPro
     private final ClassPropertyInterface articleInterface;
     private final ClassPropertyInterface urlInterface;
 
-    public LoadImageArticleActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public LoadImageArticleActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

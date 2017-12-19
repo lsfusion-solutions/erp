@@ -26,7 +26,7 @@ import java.sql.SQLException;
 
 public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumentActionProperty {
 
-    public ImportPurchaseInvoicesDirectoryActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportPurchaseInvoicesDirectoryActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 

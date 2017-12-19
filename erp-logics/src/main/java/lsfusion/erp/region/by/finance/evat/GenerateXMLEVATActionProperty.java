@@ -42,7 +42,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
     private final ClassPropertyInterface evatInterface;
 
-    public GenerateXMLEVATActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public GenerateXMLEVATActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
