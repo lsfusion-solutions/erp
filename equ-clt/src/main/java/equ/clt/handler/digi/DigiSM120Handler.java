@@ -367,6 +367,6 @@ public class DigiSM120Handler extends DigiHandler {
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MILLISECOND, 0);
         long diff = date.getTime() - cal.getTime().getTime();
-        return (int) TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
+        return Math.max(0, (int) TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS));
     }
 }
