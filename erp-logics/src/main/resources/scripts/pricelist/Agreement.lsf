@@ -211,8 +211,10 @@ nearestDataIn (Agreement agreement, Group group) =
 
 in 'Вкл.' (Agreement agreement, Group group) =  OVERRIDE dataIn(agreement, group), 
                                                                                  nearestDataIn(agreement, group) MATERIALIZED;
+
+skipIn = ABSTRACT VALUE BOOLEAN (Agreement,Sku);
     
-in 'Вкл.' (Agreement agreement, Sku sku) = in (agreement, group(groupType(agreement),sku));
+in 'Вкл.' (Agreement a, Sku s) = in (a, group(groupType(a),s)) AND NOT skipIn(a,s);
 
 quantityChildWith (group, agreement) = GROUP SUM 1 IF dataIn(Agreement agreement, Group childGroup) AND isParent(childGroup, Group group) BY group, agreement MATERIALIZED;
 quantityParentWith (group, agreement) = GROUP SUM 1 IF dataIn(Agreement agreement, Group parentGroup) AND isParent(Group group, parentGroup) BY group, agreement MATERIALIZED;                                                                        

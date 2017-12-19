@@ -1,0 +1,26 @@
+MODULE AgreementBrand;
+
+REQUIRE Agreement, Item;
+
+TABLE agreementBrand(Agreement, Brand);
+
+//-- Если выбирают бренд, то должны быть отмечены и группы товаров
+
+in 'Вкл.' = DATA BOOLEAN (Agreement, Brand);
+countBrands = GROUP SUM 1 IF in(Agreement a, Brand b) BY a MATERIALIZED;
+
+skipIn(Agreement a, Sku s) += countBrands(a) AND s IS Sku AND NOT in(a,brand(s));
+
+EXTEND FORM agreement
+    OBJECTS b = Brand
+    PROPERTIES (b) READONLY name, id
+    PROPERTIES (a,b) in
+    
+    FILTERGROUP select FILTER 'Отм.' in(a,b) 'F10' 
+    
+;
+DESIGN agreement {
+    tabContainer {
+        MOVE BOX(b) {caption = 'Уточнение по брендам';}
+    }   
+}
