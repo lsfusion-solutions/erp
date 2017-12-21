@@ -9,7 +9,21 @@ NAMESPACE Invoice;
 CLASS MarketingReport 'Маркетинговый отчет';
 CLASS MarketingReportDetail 'Строка маркетингового отчета';
 
-@defineDocument(marketingReport);
+
+@defineDocumentTables(marketingReport);
+
+@defineDocumentRelation(marketingReport);
+@defineDocumentDetailIndex(marketingReport);
+@defineDocumentDetailSortOrder(marketingReport);
+
+@defineDocumentTime(marketingReport);
+note 'Примечание' = DATA VARISTRING[1000] (MarketingReport) MINCHARWIDTH 30 PREFCHARWIDTH 50 IN documentPrm MATERIALIZED;
+@defineDocumentIs(MarketingReport);
+
+@defineDocumentHeaderCreated(MarketingReport);
+
+@defineDocumentDetailActions(marketingReport);
+
 @defineDocumentHeaderPosted(MarketingReport);
 @defineDocumentDetailPosted(marketingReport);
 
@@ -50,6 +64,8 @@ calcVATSum 'Сумма НДС' = IF in[Invoice](invoice(MarketingReportDetail d)
 calcInvoiceSum 'Сумма с НДС' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN invoiceSumInvoiceDetail[Invoice](invoice(d)) ELSE - invoiceSumInvoiceDetail[Invoice](invoice(d));
 calcMarketingSum 'Сумма маркетинга' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN marketingSumInvoiceDetail[Invoice](invoice(d)) ELSE - marketingSumInvoiceDetail[Invoice](invoice(d));
 
+marketingSumInvoiceDetailEx 'Сумма маркетинга'  = GROUP SUM marketingSum(InvoiceDetail d) IF include(ContractMarketing c, sku(d)) BY invoice(d), c; 
+calcMarketingSumEx 'Сумма маркетинга' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN marketingSumInvoiceDetailEx(invoice(d), contract(marketingReport(d))) ELSE - marketingSumInvoiceDetailEx(invoice(d), contract(marketingReport(d)));
 
 sum 'Сумма' = DATA NUMERIC[18,4](MarketingReportDetail);
 VATSum 'Сумма НДС' = DATA NUMERIC[18,4](MarketingReportDetail);
@@ -77,6 +93,9 @@ nameCustomerStock 'Склад покупателя' (MarketingReportDetail d) = 
 @defineDocumentHeaderSumPrefix (marketingReport, VAT, ' НДС');
 @defineDocumentHeaderSumPrefix (marketingReport, invoice, ' с НДС');
 @defineDocumentHeaderSumPrefix (marketingReport, marketing, ' маркетинга');
+
+countCustomerStocks = GROUP SUM 1 IF inCustomer(Stock stock, ContractMarketing c) BY c;
+
 fillDataEx = ABSTRACT LIST (MarketingReport);
 fillData 'Заполнить данные'(MarketingReport report) = {
     IF contract(report) THEN {
@@ -85,7 +104,11 @@ fillData 'Заполнить данные'(MarketingReport report) = {
         LOCAL inc = BOOLEAN (Invoice.Invoice);
         IF contract(report) IS ContractMarketing THEN {
             inc (Invoice.Invoice i) <- TRUE WHERE date(i) >= fromDate(report) AND date(i) <= toDate(report) AND isPosted(i) //AND marketingSumInvoiceDetail(i) 
-                                            AND contract(report) == contractMarketing(contractSku(i));
+                                            AND contractSku(contract(report)) == contractSku(i);
+                                            
+            IF countCustomerStocks(contract(report)) THEN {
+                inc (Invoice.Invoice i) <- NULL WHERE inc(i) AND NOT inCustomer[Stock,ContractMarketing](supplierStock(i), contract(report));     
+            }
         } ELSE {
             inc (Invoice.Invoice i) <- TRUE WHERE date(i) >= fromDate(report) AND date(i) <= toDate(report) AND isPosted(i) //AND marketingSumInvoiceDetail(i) 
                                             AND contract(report) == contractSku(i);
@@ -97,8 +120,9 @@ fillData 'Заполнить данные'(MarketingReport report) = {
             sum(d) <- calcSum(d);
             VATSum(d) <- calcVATSum(d);
             invoiceSum(d) <- calcInvoiceSum(d);
-            marketingSum(d) <- calcMarketingSum(d);            
-                                                                                                                         
+            marketingSum(d) <- IF contract(report) IS ContractMarketing 
+                                    THEN  calcMarketingSumEx(d) 
+                                    ELSE calcMarketingSum(d);                                                                                                                                               
         }
         fillDataEx(report);    
     }

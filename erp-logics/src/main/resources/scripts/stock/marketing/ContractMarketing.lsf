@@ -1,6 +1,6 @@
 MODULE ContractMarketing;
 
-REQUIRE StockContract;
+REQUIRE StockContract, Sku, Barcode;
 
 NAMESPACE Contract;
 
@@ -63,6 +63,32 @@ replace(LegalEntity l, LegalEntity o) += {
     customer(ContractMarketing contract) <- o WHERE customer(contract) == l;
 }   
 
+//-- Выбор групп товара  
+TABLE contractMarketingSkuGroup (ContractMarketing, SkuGroup);  
+TABLE contractMarketingSku (ContractMarketing, Sku);      
+dataInclude 'Вкл' = DATA BOOLEAN (ContractMarketing, SkuGroup);
+
+levelParentInclude (contractMarketing, skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataInclude(ContractMarketing contractMarketing, parent)
+                                                              BY contractMarketing, skuGroup MATERIALIZED;    
+nearestParentInclude (ContractMarketing contractMarketing, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(contractMarketing, skuGroup));
+nearestInclude (ContractMarketing contractMarketing, SkuGroup skuGroup) = dataInclude(contractMarketing, nearestParentInclude (contractMarketing, skuGroup));
+
+include 'Вкл' (ContractMarketing contractMarketing, SkuGroup skuGroup) =
+    OVERRIDE dataInclude(contractMarketing, skuGroup), 
+             nearestInclude (contractMarketing, skuGroup) MATERIALIZED;    
+             
+exclude 'Исключить' = DATA BOOLEAN (ContractMarketing, Sku); 
+                      
+include 'Вкл' (ContractMarketing contractMarketing, Sku sku) = include(contractMarketing, skuGroup(sku)) AND NOT exclude(contractMarketing, sku);  
+                    
+countIncludeSku 'Вкл' (contractMarketing) = GROUP SUM 1 IF include(ContractMarketing contractMarketing, Sku sku) BY contractMarketing;                    
+
+nameIncludeSkuGroups 'Группы товаров (все)' (document)= 
+    GROUP CONCAT name(SkuGroup skuGroup) IF dataInclude(ContractMarketing document, skuGroup), ', ' 
+    BY document 
+    ORDER skuGroup
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
 // Формы
 FORM contractMarketing 'Договор маркетинга'
     OBJECTS c = ContractMarketing PANEL
@@ -104,6 +130,21 @@ FORM contractMarketing 'Договор маркетинга'
                 isCompany(ss1) OR isCustomer(ss1)
         FILTERGROUP filters1
                 FILTER 'Отм.'  inCustomer(ss1,c) 'F10'   
+                                
+    TREE skuTree g = SkuGroup PARENT parent
+    PROPERTIES READONLY order(g), id(g), name(g)
+    ORDER order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) DEFAULT    
+    
+    OBJECTS s = Sku
+    PROPERTIES  READONLY include(c, s)
+    PROPERTIES (s) READONLY idBarcode, name, id SHOWIF showIDs()
+    PROPERTIES  include(c, g), exclude(c, s)
+    FILTERGROUP sku 
+        FILTER 'Вкл.' include(c, s) 'F10' DEFAULT 
+    FILTERGROUP active 
+        FILTER 'Активные' active(s) 'F5' DEFAULT         
+    FILTERS isParent(g,s)                                                
       
     EDIT ContractMarketing OBJECT c
 
@@ -153,6 +194,13 @@ DESIGN contractMarketing {
             MOVE BOX(TREE stockTree1) {caption = 'Группа складов';}
             MOVE BOX(ss1) { fill = 2;}
         }
+        NEW incl {
+            caption = 'SKU';
+            fill = 1;
+            type = SPLITH ;
+            MOVE BOX(TREE skuTree){ caption = 'Группы товара';}
+            MOVE BOX(s) {fill = 2;}                       
+        }        
         NEW noteContainer {
             fill = 1;
             caption = 'Примечание';
@@ -160,7 +208,7 @@ DESIGN contractMarketing {
                 panelCaptionAbove = TRUE;
                 fill = 1;
             }
-        }
+        }       
     }
     MOVE TOOLBARBOX;
 }
@@ -243,8 +291,6 @@ contractType (ContractMarketing c) += ContractType.marketing IF  c IS ContractMa
 
 contractSku = DATA ContractSku (ContractMarketing);
 seriesNumberContractSku 'Договор поставки (серия/номер)' (ContractMarketing c) = seriesNumber(contractSku(c));
-
-contractMarketing = GROUP AGGR ContractMarketing c BY contractSku(c);
 
 CONSTRAINT contractSku(ContractMarketing c) AND supplier(c) AND NOT supplier(c) == supplier(contractSku(c))
     CHECKED BY contractSku[ContractMarketing]
