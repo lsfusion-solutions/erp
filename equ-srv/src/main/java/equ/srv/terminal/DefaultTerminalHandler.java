@@ -434,6 +434,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                     statement.setObject(5, formatValue(order.idItem)); //idItem
                                     statement.setObject(6, formatValue(order.manufacturer)); //manufacturer
                                     statement.setObject(7, formatValue(order.weight)); //weight
+                                    statement.setObject(8, formatValue(order.barcode));
                                     statement.addBatch();
                                 }
                             }
@@ -446,6 +447,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                 statement.setObject(5, formatValue(order.idItem)); //idItem
                                 statement.setObject(6, formatValue(order.manufacturer)); //manufacturer
                                 statement.setObject(7, formatValue(order.weight)); //weight
+                                statement.setObject(8, formatValue(order.barcode)); //idBarcode
                                 statement.addBatch();
                             }
                         }
