@@ -69,9 +69,8 @@ DESIGN operation {
 @deriveDocumentHeaderTimeBeforePrefix(UserPriceList, toPriceBefore);
 
 CONSTRAINT showPriceBefore(UserPriceList p) AND isPosted(p) AND
-            ((fromPriceBeforeDateTime(p) >= fromDateTime(p) AND fromPriceBeforeDateTime(p) <= toDateTime(p)) OR
-            (toPriceBeforeDateTime(p) >= fromDateTime(p) AND toPriceBeforeDateTime(p) <= toDateTime(p))) 
-    MESSAGE 'Дата с (Цена до) и Дата по (Цена до)не могут быть в интервале самого прайса.';
+            (fromPriceBeforeDateTime(p) > fromDateTime(p)) OR (toPriceBeforeDateTime(p) < toDateTime(p))
+    MESSAGE 'Дата с (Цена до) и Дата по (Цена до)не могут быть в интервале самого прайса';
     
 CONSTRAINT showPriceBefore(UserPriceList p) AND isPosted(p) AND NOT skipConstraintPriceBefore(operation(p)) AND 
             (NOT fromPriceBeforeDateTime(p) OR NOT toPriceBeforeDateTime(p)) AND [= GROUP SUM 1 IF priceBefore(UserPriceListDetail d) BY userPriceList(d)](p)
