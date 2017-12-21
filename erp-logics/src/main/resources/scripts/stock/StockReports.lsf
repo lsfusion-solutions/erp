@@ -51,6 +51,7 @@ balanceA 'Остаток на конец' = DATA LOCAL NUMERIC[16,5] (Group);
 sumA 'Сумма на конец' = DATA LOCAL NUMERIC[18,4] (Group);
 
 inBackSheet 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+inBackSheetDialog 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 
 inBackSheetStocks 'Склады' () =
     GROUP CONCAT name(Stock st) IF inBackSheet(st) ,', ' PREFCHARWIDTH 50;
@@ -229,14 +230,22 @@ FORM dialogStocksBackSheet 'Выбор складов'
 
     OBJECTS s = Stock
     PROPERTIES(s) READONLY id, name
-    PROPERTIES (s) inBackSheet
+    PROPERTIES (s) inBackSheetDialog
     ORDER name(s)
     FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
             isCompany(s),
             countCompanyStock(sg)
 
     FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
-    FILTERGROUP select FILTER 'Отм.' inBackSheet(s) 'F9' 
+    FILTERGROUP select FILTER 'Отм.' inBackSheet(s) 'F9'
+    
+    EVENTS
+        ON INIT {
+            inBackSheetDialog(Stock st) <- inBackSheet(st);
+        },
+        ON OK {
+            inBackSheet(Stock st) <- inBackSheetDialog(st);
+        }
 ;
 
 DESIGN dialogStocksBackSheet {

@@ -34,6 +34,7 @@ markupSumStock 'Надбавка' = DATA LOCAL NUMERIC[18,4] (Group);
 sumStock 'Сумма' = DATA LOCAL NUMERIC[18,4] (Group);
 
 inSaleReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+inSaleReportDialog 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 
 inSaleReportStocks 'Склады' () =
     GROUP CONCAT name(Stock st) IF inSaleReport(st) ,', ' PREFCHARWIDTH 30;
@@ -724,14 +725,22 @@ FORM dialogStocksSaleReport 'Выбор складов'
 
     OBJECTS s = Stock
     PROPERTIES(s) READONLY id, name
-    PROPERTIES (s) inSaleReport
+    PROPERTIES (s) inSaleReportDialog
     ORDER name(s)
     FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
             isCompany(s),
             countCompanyStock(sg)
 
     FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
-    FILTERGROUP select FILTER 'Отм.' inSaleReport(s) 'F9' 
+    FILTERGROUP select FILTER 'Отм.' inSaleReport(s) 'F9'
+    
+    EVENTS 
+        ON INIT {
+            inSaleReportDialog(Stock st) <- inSaleReport(st);
+        },
+        ON OK {
+            inSaleReport(Stock st) <- inSaleReportDialog(st);
+        }
 ;
 
 DESIGN dialogStocksSaleReport {
