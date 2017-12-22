@@ -839,6 +839,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                     String idItem = inventPosition.getString("inventCode");
                                     String barcodeString = inventPosition.getString("barCode");
+                                    String opCode = inventPosition.getString("opCode");
+
+                                    // вот такой вот чит из-за того, что могут ввести код товара в кассе
+                                    String barcode = idItem != null && barcodeString != null && idItem.equals(barcodeString) ? null :
+                                            appendCheckDigitToBarcode(barcodeString, 7, appendBarcode);
 
                                     //обнаруживаем продажу сертификатов
                                     boolean isGiftCard = false;
@@ -846,11 +851,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         Pattern pattern = Pattern.compile(giftCardRegexp);
                                         Matcher matcher = pattern.matcher(barcodeString);
                                         isGiftCard = matcher.matches();
+                                    } else if (opCode != null && opCode.equals("63")) {
+                                        barcode = inventPosition.getString("bcode_main");
+                                        isGiftCard = true;
                                     }
 
-                                    // вот такой вот чит из-за того, что могут ввести код товара в кассе
-                                    String barcode = idItem != null && barcodeString != null && idItem.equals(barcodeString) ? null :
-                                            appendCheckDigitToBarcode(barcodeString, 7, appendBarcode);
                                     Integer numberReceiptDetail = inventPosition.getInt("posNum");
 
                                     BigDecimal quantity = BigDecimal.valueOf(inventPosition.getDouble("quant"));
