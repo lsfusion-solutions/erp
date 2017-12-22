@@ -61,3 +61,17 @@ WHEN LOCAL FORMS userInvoice (CHANGED (batch(UserInvoiceDetail detail)) OR
                                CHANGED (customerStock(detail))) AND batch(detail) AND NOT CHANGED(contractPrice(detail)) DO {
     contractPrice(detail) <- contractPrice(batch(detail));
 }
+
+blisterAmount 'Кол-во блистеров (в ед.)' = ABSTRACT INTEGER (Batch);
+
+EXTEND FORM batches
+    PROPERTIES(bt) READONLY blisterAmount
+;
+
+EXTEND FORM currentBalanceSkuStock
+    PROPERTIES(bt) blisterAmount AFTER name(bt)
+;
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES(bt) blisterAmount AFTER nameSku(bt)
+;

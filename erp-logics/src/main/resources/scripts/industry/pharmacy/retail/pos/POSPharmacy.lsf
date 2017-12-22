@@ -1,6 +1,6 @@
 MODULE POSPharmacy;
 
-REQUIRE POS, StockPharmacy, ItemPharmacy, Bin;
+REQUIRE POS, StockPharmacy, ItemPharmacy, Bin, PurchaseInvoicePharmacy;
 
 NAMESPACE POS;
 
@@ -27,7 +27,7 @@ DESIGN options {
     }
 }
 
-blisterAmount 'Кол-во блистеров' (Batch batch) = blisterAmount(sku(batch));
+//blisterAmount 'Кол-во блистеров' (Batch batch) = blisterAmount(sku(batch));
         
 //changeQuantityValue (Batch batch, Receipt receipt, NUMERIC[16,5] n) =  {
 //    IF receipt IS Receipt AND blisterAmount(sku(batch)) AND n AND NOT trunc(n*blisterAmount(sku(batch)),0) == n*blisterAmount(sku(batch)) AND checkBlisterAmount() THEN {
@@ -208,7 +208,7 @@ skipFilters 'Обнулить поиск' () = {
 
 //сумма строки чека
 priceSumBlister 'Сумма без скидки' = round(blisterQuantity(batch(ReceiptSaleDetail detail), receipt(detail)) * currentPOSBlisterPrice(batch(detail), receipt(detail)), roundCondition(departmentStore(detail)));
-sum (ReceiptSaleDetail detail) <- IF blisterAmount(sku(detail)) 
+sum (ReceiptSaleDetail detail) <- IF blisterAmount(sku(detail)) OR blisterAmount(batch(detail))
     THEN (priceSumBlister(detail) (-) discountSum(detail) (-) extraDiscountSum(detail)) 
     ELSE calcSum(detail)
     WHEN CHANGED (quantity(detail)) OR

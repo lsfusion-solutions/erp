@@ -1,17 +1,23 @@
 MODULE PricingPurchasePharmacy;
 
-REQUIRE PricingPurchasePriceDivider, ItemPharmacy, PricingSumPurchase;
+REQUIRE PricingPurchasePriceDivider, ItemPharmacy, PricingSumPurchase, PurchaseInvoicePharmacy;
 
 NAMESPACE Purchase;
 
 blisterAmount 'Кол-во блистеров (в ед.)' = ABSTRACT INTEGER(InvoiceDetail) MINCHARWIDTH 3 PREFCHARWIDTH 6;    
 blisterAmount 'Кол-во блистеров (в ед.)' = DATA INTEGER(UserInvoiceDetail) MINCHARWIDTH 3 PREFCHARWIDTH 6;
 
+CONSTRAINT blisterAmount(UserInvoiceDetail d) AND NOT blisterAmount(d) > 0 
+    MESSAGE 'Кол-во блистеров должно быть положительным';
+
 blisterAmount (UserInvoiceDetail detail) += blisterAmount(detail);
+blisterAmount (Batch b) += OVERRIDE blisterAmount(invoiceDetail(shipmentDetail(b))), blisterAmount(sku(b));
 
 setBlisterAmount (UserInvoiceDetail detail) = {
-    INPUT i = INTEGER DO
+    INPUT i = INTEGER DO {
         blisterAmount(detail) <- i IF i != 0;
+        blisterAmount(Sku sku) <- i WHERE sku(detail) == sku AND NOT blisterAmount(sku);
+    }    
 }
 
 EXTEND FORM userInvoice
