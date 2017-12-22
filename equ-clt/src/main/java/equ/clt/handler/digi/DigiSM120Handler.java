@@ -122,7 +122,7 @@ public class DigiSM120Handler extends DigiHandler {
         String price = getPrice(item.price); //max 9999.99
         String labelFormat1 = "017";
         String labelFormat2 = "0";
-        String barcodeFormat = "1"; //F1F2 CCCCC XCD XXXX CD
+        String barcodeFormat = "5"; //F1F2 CCCCC XXXXX CD
         String barcodeFlagOfEANData = isWeight ? (piecePrefix != null ? piecePrefix : "21") : (weightPrefix != null ? weightPrefix : "20");
 
         String itemCodeOfEANData = plu + "0000"; //6-digit Item code + 4-digit Expanded item code
