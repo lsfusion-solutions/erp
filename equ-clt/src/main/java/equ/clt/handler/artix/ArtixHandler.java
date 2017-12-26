@@ -381,7 +381,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         JSONObject cardObject = new JSONObject();
         rootObject.put("card", cardObject);
-        cardObject.put("idcard", card.idDiscountCard); //идентификационный код карты
+        cardObject.put("idcard", card.numberDiscountCard); //идентификационный код карты
         cardObject.put("idcardgroup", card.idDiscountCardType); //идентификационный код группы карт
         cardObject.put("idclient", card.numberDiscountCard); //идентификационный код клиента
         cardObject.put("number", card.numberDiscountCard); //номер карты
