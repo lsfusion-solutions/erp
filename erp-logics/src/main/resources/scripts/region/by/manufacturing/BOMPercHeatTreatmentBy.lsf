@@ -1,0 +1,47 @@
+MODULE BOMPercHeatTreatmentBy;
+REQUIRE BOMHeatTreatmentBy;
+
+NAMESPACE BOM;
+
+//-- тепловая обработка    
+wastageHeat 'Отходы при тепловой обработке, %' = DATA NUMERIC[8,3] (Component);  
+wastageCold 'Отходы при холодной обработке, %' = DATA NUMERIC[8,3] (Component);  
+
+wastageColdHeat (Component c) =  NUMERIC[8,3](round3([= (1.0-((100.0-X)*(100.0-Y)/10000.0))*100.0](
+            (OVERRIDE wastageCold(c), 0.0 IF c IS Component),
+            (OVERRIDE wastageHeat(c), 0.0 IF c IS Component))));
+
+
+wastageHeat (Component c,DATE date) += wastageHeat(c) IF date IS DATE;  
+wastageCold (Component c,DATE date) += wastageCold(c) IF date IS DATE;  
+
+WHEN LOCAL FORMS BOM (CHANGED (wastageHeat(Component c)) OR CHANGED (wastageCold(c))) AND NOT CHANGED (wastage(c)) DO {
+    wastage(c) <- wastageColdHeat(c);
+}
+WHEN LOCAL FORMS BOM (DROPPED (wastage(Component c)))  DO {
+
+}
+
+overChangeWastage (Component c) += {
+    wastageHeat(c) <- NULL;
+    wastageCold(c) <- NULL;
+}
+                                                                                                                                                                                                                                                                                                                                       
+changeWastageHeat(Component c) = {
+    INPUT n = wastageHeat(c) DO {
+        wastageHeat(c) <- n;  
+        wastage(c) <-  wastageColdHeat(c);
+        bruttoQuantity(c) <- NUMERIC[16,5](nettoQuantity(c)/(1 - (OVERRIDE n/100.0 IF c IS Component))); 
+    }
+} 
+changeWastageCold(Component c) = {
+    INPUT n = wastageCold(c) DO {
+        wastageCold(c) <- n;  
+        wastage(c) <-  wastageColdHeat(c);
+        bruttoQuantity(c) <- NUMERIC[16,5](nettoQuantity(c)/(1 - (OVERRIDE n/100.0 IF c IS Component))); 
+    }
+}
+
+EXTEND FORM BOM
+    PROPERTIES (c) AFTER wastage(c) wastageCold ON CHANGE changeWastageCold(c), wastageHeat ON CHANGE changeWastageHeat(c)
+;

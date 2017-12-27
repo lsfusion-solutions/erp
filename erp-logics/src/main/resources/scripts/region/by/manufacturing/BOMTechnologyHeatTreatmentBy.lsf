@@ -1,0 +1,31 @@
+MODULE BOMTechnologyHeatTreatmentBy;
+
+REQUIRE BOMHeatTreatmentBy, BOMHeatTreatment, BOMTechnology;
+
+NAMESPACE BOM;
+
+//-- тепловая обработка    
+countHeatTechnologies (c)= GROUP SUM 1 IF in(Technology t, Component c) AND heat(t) BY c;    
+    
+minHeatTechnology (c) = GROUP MIN Technology t IF in(t,Component c) AND heat(t) BY c;
+maxHeatTechnology (c) = GROUP MAX Technology t IF in(t,Component c) AND heat(t) BY c;
+//equalsMaxMinHeatTechnologyComponent (c) = minHeatTechnologyComponent (c) == maxHeatTechnologyComponent (c);      
+
+wastageHeat (Component c,DATE date) += NUMERIC[8,3](round3([= (1.0-((100.0-X)*(100.0-Y)*(100.0-Z)/1000000.0))*100.0](
+    (IF countHeatTechnologies(c) THEN (OVERRIDE wastage(minHeatTechnology(c),material(c), date), 0.0 IF c IS Component) ELSE 0.0 IF c IS Component),
+    (IF countHeatTechnologies(c) > 1 THEN (OVERRIDE wastage(maxHeatTechnology(c),material(c), date), 0.0 IF c IS Component) ELSE 0.0 IF c IS Component),
+    (IF heatWastage(c) THEN (OVERRIDE wastage(c), 0.0 IF c IS Component) ELSE 0.0 IF c IS Component) 
+))) IF c IS Component  AND date IS DATE;  
+//-- холодная обработка
+countColdTechnologies (c)= GROUP SUM 1 IF in(Technology t, Component c) AND NOT heat(t) BY c;    
+    
+minColdTechnology (c) = GROUP MIN Technology t IF in(t,Component c) AND NOT heat(t) BY c;
+maxColdTechnology (c) = GROUP MAX Technology t IF in(t,Component c) AND NOT heat(t) BY c;
+//equalsMaxMinColdTechnologyComponent (c) = minColdTechnologyComponent (c) == maxColdTechnologyComponent (c);    
+     
+wastageCold (Component c,DATE date)+=  NUMERIC[8,3](round3([= (1.0-((100.0-X)*(100.0-Y)*(100.0-Z)/1000000.0))*100.0](
+    (IF countColdTechnologies(c) THEN (OVERRIDE wastage(minHeatTechnology(c),material(c), date), 0.0 IF c IS Component) ELSE 0.0 IF c IS Component),
+    (IF countColdTechnologies(c) > 1 THEN (OVERRIDE wastage(maxHeatTechnology(c),material(c), date), 0.0 IF c IS Component) ELSE 0.0 IF c IS Component),
+    (IF NOT heatWastage(c) THEN (OVERRIDE wastage(c), 0.0 IF c IS Component) ELSE 0.0 IF c IS Component) 
+))) IF c IS Component  AND date IS DATE;    
+   

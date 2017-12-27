@@ -1,45 +1,28 @@
 MODULE  BOMHeatTreatmentBy;
 
-REQUIRE BOMBy, BOMHeatTreatment, BOMTechnology;
+REQUIRE BOMBy;
 
 NAMESPACE BOM;
 
 // ----------------- Акт контрольной проработки-------------------- //
-
+//overActQuantity(Product p) = OVERRIDE actQuantity(BOM(p)), quantity(p); 
 actNettoNetWeight 'Вес нетто изделия для акта г' (Product p) = actQuantity(BOM(p))* (OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product)*1000;
 nameSkus 'Компоненты (все)' = GROUP CONCAT Stock.name(Sku sku) IF recBruttoQuantity(BOM BOM, sku, DATE date), ', ' 
     BY BOM, date
     ORDER Stock.name(sku);
     
-netWeightProduct 'Вес' (BOM) = GROUP SUM netWeight(sku(Product p))*1000 BY BOM(p);    
+netWeightProduct 'Вес' (BOM) = GROUP SUM netWeight(sku(Product p))*1000 BY BOM(p);   
+wastageHeat 'Отходы при тепловой обработке, %' = ABSTRACT VALUE NUMERIC[8,3] (Component ,DATE );  
+wastageCold 'Отходы при холодной обработке, %' = ABSTRACT VALUE NUMERIC[8,3] (Component ,DATE );   
+wastageHeat (Component c,DATE date) += 0.0 IF c IS Component AND date IS DATE;  
+wastageCold (Component c,DATE date) += 0.0 IF c IS Component AND date IS DATE;  
     
-//-- тепловая обработка    
-countHeatTechnologies (c)= GROUP SUM 1 IF in(Technology t, Component c) AND heat(t) BY c;    
-    
-minHeatTechnology (c) = GROUP MIN Technology t IF in(t,Component c) AND heat(t) BY c;
-maxHeatTechnology (c) = GROUP MAX Technology t IF in(t,Component c) AND heat(t) BY c;
-//equalsMaxMinHeatTechnologyComponent (c) = minHeatTechnologyComponent (c) == maxHeatTechnologyComponent (c);    
-     
-wastageHeat (Component c,DATE date) = [= (1-((100-X)*(100-Y)*(100-Z)/1000000))*100](
-    (IF countHeatTechnologies(c) THEN (OVERRIDE wastage(minHeatTechnology(c),material(c), date), 0 IF c IS Component) ELSE 0 IF c IS Component),
-    (IF countHeatTechnologies(c) > 1 THEN (OVERRIDE wastage(maxHeatTechnology(c),material(c), date), 0 IF c IS Component) ELSE 0 IF c IS Component),
-    (IF heatWastage(c) THEN (OVERRIDE wastage(c), 0 IF c IS Component) ELSE 0 IF c IS Component) 
-);
-//-- холодная обработка
-countColdTechnologies (c)= GROUP SUM 1 IF in(Technology t, Component c) AND NOT heat(t) BY c;    
-    
-minColdTechnology (c) = GROUP MIN Technology t IF in(t,Component c) AND NOT heat(t) BY c;
-maxColdTechnology (c) = GROUP MAX Technology t IF in(t,Component c) AND NOT heat(t) BY c;
-//equalsMaxMinColdTechnologyComponent (c) = minColdTechnologyComponent (c) == maxColdTechnologyComponent (c);    
-     
-wastageCold (Component c,DATE date) = [= (1-((100-X)*(100-Y)*(100-Z)/1000000))*100](
-    (IF countColdTechnologies(c) THEN (OVERRIDE wastage(minHeatTechnology(c),material(c), date), 0 IF c IS Component) ELSE 0 IF c IS Component),
-    (IF countColdTechnologies(c) > 1 THEN (OVERRIDE wastage(maxHeatTechnology(c),material(c), date), 0 IF c IS Component) ELSE 0 IF c IS Component),
-    (IF NOT heatWastage(c) THEN (OVERRIDE wastage(c), 0 IF c IS Component) ELSE 0 IF c IS Component) 
-);    
-
-actBruttoNetWeight 'Выход полуфабриката брутто, г' (Component c,DATE dt)=overBruttoQuantity(c,dt)*actQuantity(BOM(c))*1000/quantityProduct(BOM(c));
 actNettoNetWeight 'Выход полуфабриката нетто, г' (Component c)=nettoQuantity(c)*actQuantity(BOM(c))*1000*(OVERRIDE overNetWeight(c), 1.0 IF c IS Component)/quantityProduct(BOM(c));
+actBruttoNetWeight 'Выход полуфабриката брутто, г' (Component c,DATE dt)=overBruttoQuantity(c,dt)*actQuantity(BOM(c))*1000.0/quantityProduct(BOM(c));
+actBruttoNetWeightEx 'Выход полуфабриката брутто, г' (Component c,DATE dt) = IF wastageHeat(c,dt) == 0.0
+    THEN actNettoNetWeight(c) IF dt IS DATE 
+    ELSE actBruttoNetWeight(c,dt)*(100.0-wastageCold(c,dt))/100.0;
+
 actBruttoNetWeight 'Вес товара для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= recBruttoQuantity(BOM(material(component)), sku, date) *
     bruttoQuantity(component, date)/
     (quantity(material(component)) IF quantity(material(component))!=0) *
@@ -65,14 +48,14 @@ actBruttoNetWeight 'Вес изделия по товарам, брутто г' 
 
 actBruttoNetWeightSkus 'Вес брутто изделия по товарам, г' (product, date)= GROUP SUM actBruttoNetWeight(Product product, Sku sku, DATE date) BY product, date;
 actPerc '%' (Product p,DATE dt) = (1 - (actNettoNetWeight(p)/ (actBruttoNetWeightSkus(p,dt) IF actBruttoNetWeightSkus(p,dt)!=0)))*100;
-
+overFullNameCompany (BOM b) = OVERRIDE fullName(company(b)), fullNameLegalEntity(actStock(b));
 FORM actStudyOfCulinaryBOM 'Акт контрольной проработки'
     OBJECTS dt=DATE PANEL
     PROPERTIES (dt) date = VALUE , extractYearBOMs 
 
     OBJECTS b=BOM PANEL 
     PROPERTIES(b)  READONLY products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightComponent, pricePercent, note
-    PROPERTIES(b) nameOwnershipCompany, nameCompany, shortNameOwnershipCompany, recipes, extractYearFromDate,
+    PROPERTIES(b) nameOwnershipCompany, nameCompany, overFullNameCompany, shortNameOwnershipCompany, recipes, extractYearFromDate,
                   actQuantity, nameActStock, actStudyOfCulinaryCommittee, commonNameEmployeeCommittee, netWeightProduct, date    
    
     PROPERTIES(b,dt) firstShortNameChief, namePositionChief, nameSkus
@@ -86,7 +69,7 @@ FORM actStudyOfCulinaryBOM 'Акт контрольной проработки'
     OBJECTS c = Component GRID
     FILTERS       BOM(c) == b,
                   material(c) IS Product     
-    PROPERTIES    READONLY  nameMaterial(c), wastageHeat(c,dt), wastageCold(c,dt), actBruttoNetWeight(c,dt), 
+    PROPERTIES    READONLY  nameMaterial(c), wastageHeat(c,dt), wastageCold(c,dt), actBruttoNetWeight(c,dt), actBruttoNetWeightEx(c,dt), 
                   actNettoNetWeight(c), actBruttoNetWeightSkus(c,dt), actNBruttoNetWeightSkus(c,dt)         
 
     OBJECTS sk = Sku
@@ -97,7 +80,7 @@ FORM actStudyOfCulinaryBOM 'Акт контрольной проработки'
     
     OBJECTS cc = Component
     PROPERTIES(cc) READONLY nameMaterial, shortNameUOM, overNettoNetWeight
-    PROPERTIES    READONLY  wastageHeat(cc,dt), wastageCold(cc,dt), actBruttoNetWeight(cc,dt), 
+    PROPERTIES    READONLY  wastageHeat(cc,dt), wastageCold(cc,dt), actBruttoNetWeight(cc,dt), actBruttoNetWeightEx(cc,dt),
                   actNettoNetWeight(cc)                                    
                   
     FILTERS       BOM(cc) == b,
