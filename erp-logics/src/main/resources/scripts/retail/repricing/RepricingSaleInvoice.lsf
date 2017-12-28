@@ -1,0 +1,195 @@
+MODULE RepricingSaleInvoice;
+
+REQUIRE SaleInvoice, Repricing, PricingSale;
+PRIORITY Sale;
+
+NAMESPACE Repricing;
+
+
+createRepricing 'Создавать акт переоценки' = DATA BOOLEAN (Sale.Operation);
+
+EXTEND FORM Sale.operation
+    PROPERTIES(o) createRepricing
+;
+DESIGN Sale.operation {
+    createContainer {
+        MOVE PROPERTY(createRepricing(o));
+    }
+}
+
+repricingSaleStore = DATA Repricing (Invoice);
+repricingSaleStore (InvoiceDetail d) = repricingSaleStore(invoice(d));
+descriptionRepricingSaleStore 'Переоценка' (Invoice i) = description(repricingSaleStore(i)) MINCHARWIDTH 25;
+
+processedRepricingSaleStore 'Обработан' = DATA BOOLEAN (Invoice);
+
+toRepricingOperationSaleStore  = DATA Repricing.Operation ();
+nameToRepricingOperationSaleStore 'Операция для переоценки' = name(toRepricingOperationSaleStore());
+  
+
+toRepricingTimeSaleStore 'Время (с) для переоценки' = DATA TIME ();
+toRepricingCountDaysSaleStore 'Количество дней анализа для переоценки (с)' = DATA INTEGER ();
+toRepricingDateTimeSaleStore 'Дата/время документа (с)' () = dateTimeToDateTime(subtract(currentDate(), toRepricingCountDaysSaleStore()), toRepricingTimeSaleStore()); 
+
+
+toRepricingTimeToSaleStore 'Время (по) для переоценки' = DATA TIME ();
+toRepricingCountDaysToSaleStore 'Количество дней анализа для переоценки (по)' = DATA INTEGER ();
+toRepricingDateTimeToSaleStore 'Дата/время документа (по)' () = OVERRIDE dateTimeToDateTime(subtract(currentDate(), toRepricingCountDaysToSaleStore()), toRepricingTimeToSaleStore()), currentDateTime(); 
+
+inSaleStore = DATA LOCAL BOOLEAN (InvoiceDetail);
+prevRetailPricingPriceB 'Цена учетная до' (InvoiceDetail detail) = IF batch(detail) 
+    THEN prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(detail), supplierStock(detail), pricingDateTime(detail))
+    ELSE prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), supplierStock(detail), pricingDateTime(detail));
+
+needToRepricingSaleStore 'Фильтр' (Invoice i)=    
+    isPosted(i) AND createShipment(i) AND createRepricing(operation(i)) 
+    AND NOT (repricingSaleStore(i) OR processedRepricingSaleStore(i));
+; 
+needToRepricingSaleStore 'Фильтр' (InvoiceDetail d)= 
+    needToRepricingSaleStore(invoice(d)) AND pricingQuantity(d) AND isStockSku(d) AND 
+    prevRetailPricingPriceB(d) != shipmentPrice(d)
+; 
+
+statusRepricingSaleStore 'Статус переоценки' (Invoice i) = CASE     
+    WHEN repricingSaleStore(i) THEN 'Создан'
+    WHEN processedRepricingSaleStore(i) THEN 'Обработан'
+    WHEN createRepricing(operation(i)) AND isPosted(i) AND createShipment(i) THEN 'Не создан'
+    ELSE 'Не трубуется';
+backgroundStatusRepricingSaleStore (Invoice i) = RGB(212,255,212) IF createRepricing(operation(i)) AND 
+                                                                                isPosted(i) AND createShipment(i) AND NOT (repricingSaleStore(i) OR processedRepricingSaleStore(i)) ;
+  
+needToRepricingSaleStore 'Фильтр' (InvoiceDetail d, Stock department, DATETIME timeFrom, DATETIME timeTo)= 
+    needToRepricingSaleStore(d) AND 
+    supplierStock(d) == department AND         
+    shipmentDateTime(d) >= timeFrom AND
+    shipmentDateTime(d) <= timeTo 
+; 
+
+createRepricingSaleStoreOver 'Создать переоценку'(Invoice i) = {
+    NEW r = UserRepricing {
+        departmentStore(r) <-  supplierStock(i);
+        operation(r) <- toRepricingOperationSaleStore();        
+        
+        skipChangeLedger(r) <- TRUE ;
+        isPosted(r) <- TRUE;
+        date(r) <-  pricingDate(i);
+        time(r) <- sumSeconds(pricingTime(i),1); 
+        beforeDate(r) <- date(r);             
+
+        // 
+        FOR inSaleStore(InvoiceDetail detail) AND invoice (detail)== i NEW rd = UserRepricingDetail DO {
+            userRepricing(rd) <- r;
+            sku(rd) <- sku(detail);
+            quantity(rd) <- pricingQuantity(detail);
+
+            //curPrice(rd) <- price(detail);
+            curRetailPrice(rd) <- prevRetailPricingPriceB(detail);
+
+            //price(rd) <- price(detail);
+            retailPrice(rd) <- shipmentPrice(detail);                          
+        }    
+        repricingSaleStore(i) <- r ;       
+    }   
+ 
+} 
+
+createRepricingSaleStore 'Создать переоценку'(Invoice i) = {
+    IF repricingSaleStore(i) THEN {
+        MESSAGE 'Документ переоценки был создан ранее';
+    } ELSE {
+        IF NOT processedRepricingSaleStore(i) THEN NEWSESSION { 
+            inSaleStore(InvoiceDetail d) <- NULL;           
+            inSaleStore(InvoiceDetail d) <- needToRepricingSaleStore(d) WHERE invoice(d) == i;
+                
+            IF [ = GROUP SUM 1 IF inSaleStore(InvoiceDetail d) BY invoice(d)](i) THEN {
+                createRepricingSaleStoreOver(i);
+                APPLY;
+                IF NOT canceled() THEN MESSAGE 'Документ переоценки создан' NOWAIT; 
+            } ELSE {
+                processedRepricingSaleStore(i) <- TRUE;
+                APPLY;
+                IF NOT canceled() THEN MESSAGE 'Создание документа переоценки не требуется' NOWAIT; 
+            }
+            
+        } ELSE {
+            MESSAGE 'Документ был обработан ранее'; 
+        }    
+    }       
+} 
+showRepricingSaleStore (Invoice i) = createRepricing(operation(i)) AND isPosted(i) AND createShipment(i) 
+                                                AND NOT (repricingSaleStore(i) OR processedRepricingSaleStore(i));
+
+EXTEND FORM invoices
+    PROPERTIES (i) READONLY statusRepricingSaleStore BACKGROUND backgroundStatusRepricingSaleStore(i), descriptionRepricingSaleStore
+    PROPERTIES (i) createRepricingSaleStore SHOWIF showRepricingSaleStore(i)
+;
+DESIGN invoices {
+    actionContainer {
+        NEW rep {
+            caption = 'Переоценка';
+            MOVE PROPERTY (createRepricingSaleStore(i));
+        }    
+    }
+}
+
+
+filterToRepricingDateSaleStore 'Фильтр' (Invoice d, Stock department, DATETIME timeFrom, DATETIME timeTo)= 
+    needToRepricingSaleStore(d) AND
+    supplierStock(d) == department AND         
+    shipmentDateTime(d) >= timeFrom AND
+    shipmentDateTime(d) <= timeTo
+; 
+
+createRepricingSaleStore 'Создать переоценку'(Stock department, DATETIME timeFrom, DATETIME timeTo) = {
+
+    inSaleStore(InvoiceDetail d) <- NULL;           
+    inSaleStore(InvoiceDetail d) <- needToRepricingSaleStore(d,department, timeFrom, timeTo);
+           
+    processedRepricingSaleStore(Invoice i) <- TRUE WHERE filterToRepricingDateSaleStore(i,department, timeFrom, timeTo) AND NOT [ = GROUP SUM 1 IF inSaleStore(InvoiceDetail d) BY invoice(d)](i);
+            
+    FOR [ = GROUP SUM 1 IF inSaleStore(InvoiceDetail d) BY invoice(d)](Invoice i) DO {
+        createRepricingSaleStoreOver(i);
+    }    
+} 
+// для планировщика
+createRepricingSaleStore 'Создать переоценку по накладным (продажа)'() = {
+	NEWSESSION {  
+        FOR DepartmentStore department IS DepartmentStore AND active(department) AND isCompany(department) DO {
+            createRepricingSaleStore(department, toRepricingDateTimeSaleStore(), toRepricingDateTimeToSaleStore());                                     
+        } 	    
+	    APPLY;
+	}
+}
+
+EXTEND FORM options
+    PROPERTIES() nameToRepricingOperationSaleStore, toRepricingTimeSaleStore, toRepricingCountDaysSaleStore, toRepricingTimeToSaleStore, toRepricingCountDaysToSaleStore, createRepricingSaleStore
+;
+
+DESIGN options {
+    rBody {
+        type = CONTAINERH;
+        NEW repricingSaleStore {
+            caption = 'Переоценка по накладным (продажа)';
+            MOVE PROPERTY(nameToRepricingOperationSaleStore());
+            MOVE PROPERTY(toRepricingTimeSaleStore());
+            MOVE PROPERTY(toRepricingCountDaysSaleStore());
+            MOVE PROPERTY(toRepricingTimeToSaleStore());
+            MOVE PROPERTY(toRepricingCountDaysToSaleStore());                 
+            MOVE PROPERTY(createRepricingSaleStore());
+        }        
+    }
+}
+
+disableUpdateShipmentPrice(UserInvoiceDetail d) += createRepricing(operation(d));
+disableUpdateRetailPrice(UserInvoiceDetail d) += createRepricing(operation(d));
+
+WHEN LOCAL FORMS userInvoice (CHANGED(sku(UserInvoiceDetail d)) OR CHANGED(operation(d)) OR CHANGED(invoicePrice(d)))  AND createRepricing(operation(d)) DO {    
+    IF NOT CHANGED(shipmentPrice(d)) THEN {
+        shipmentPrice(d) <- invoicePrice(d);    
+    }
+    IF NOT CHANGED(retailPrice(d)) THEN {
+        retailPrice(d) <- invoicePrice(d);    
+    }
+}       
+
+
