@@ -524,8 +524,23 @@ META defineOrderInvoice(sign, stockProp)
     notIncludeInvoiceDetailOrder 'Есть строки накладной с сылкой на заказ, который не включен в накладную' (invoice)= GROUP SUM 1 
         IF relationInvoiceDetail(Order order, Invoice invoice) AND NOT include[Order,UserInvoice](order, invoice)  BY invoice;         
 
+
+    defaultOrder = GROUP MAX Order o IF include(o, UserInvoice i) BY i;
+    skipSetContractSku(UserInvoice o) += contractSku(defaultOrder(o)) IS ContractSku; 
+
+    defaultOrderDetail (batch, userInvoice) = GROUP MAX OrderDetail detail IF include(order(detail), UserInvoice userInvoice) 
+        BY batch(detail), userInvoice;
+
+    defaultOrderDetail (sku, userInvoice) = GROUP MAX OrderDetail detail IF include(order(detail), UserInvoice userInvoice) 
+        BY sku(detail), userInvoice;
+    
+    defaultOrderDetail(UserInvoiceDetail detail) = OVERRIDE defaultOrderDetail(batch(detail), userInvoice(detail)), defaultOrderDetail(sku(detail), userInvoice(detail));
+
     dialogIncludeOrdersUser 'Включить заказы в накладную' (Invoice userInvoice) = {
         DIALOG includeOrdersUserInvoice OBJECTS i = userInvoice DO {
+            IF countInvoiceDetail(userInvoice) AND countIncludeOrders(userInvoice) THEN {
+                orderDetail(InvoiceDetail d) <- defaultOrderDetail(d)  WHERE invoice(d) == userInvoice AND NOT include[Order,UserInvoice](order(orderDetail(d)), invoice(d));// AND defaultOrderDetail(d);
+            }
             IF notRelationInvoiceDetailOrder(userInvoice) THEN {
                 ASK 'Создать по выбранным заказам строки накладной?' DO {  
                     FOR include[Order,UserInvoice](Order order, userInvoice) AND NOT  relationInvoiceDetail(order, userInvoice) DO {
@@ -549,27 +564,16 @@ META defineOrderInvoice(sign, stockProp)
         }                 
     } IN orders;
     
-    defaultOrder = GROUP MAX Order o IF include(o, UserInvoice i) BY i;
-    skipSetContractSku(UserInvoice o) += contractSku(defaultOrder(o)) IS ContractSku; 
-
-    defaultOrderDetail (batch, userInvoice) = GROUP MAX OrderDetail detail IF include(order(detail), UserInvoice userInvoice) 
-        BY batch(detail), userInvoice;
-
-    defaultOrderDetail (sku, userInvoice) = GROUP MAX OrderDetail detail IF include(order(detail), UserInvoice userInvoice) 
-        BY sku(detail), userInvoice;
-    
-    defaultOrderDetail(UserInvoiceDetail detail) = OVERRIDE defaultOrderDetail(batch(detail), userInvoice(detail)), defaultOrderDetail(sku(detail), userInvoice(detail));
-
     connectOrder 'Привязать строку накладной к заказу'(UserInvoiceDetail detail) = {
         orderDetail(detail) <- defaultOrderDetail(detail) 
                                                     WHERE defaultOrderDetail(detail);
     } ASON CONTEXTMENU descriptionOrder[UserInvoiceDetail];
-
-    connectOrder 'Привязать все строки накладной к заказам'(UserInvoice userInvoice) = {
-        FOR userInvoice(UserInvoiceDetail detail) == userInvoice DO {
+   
+    connectOrderAll 'Привязать все строки накладной к заказам'(UserInvoiceDetail d) = {
+        FOR userInvoice(UserInvoiceDetail detail) == userInvoice(d) DO {
             EXEC connectOrder(detail);
         }
-    } ASON CONTEXTMENU descriptionOrder[UserInvoiceDetail];
+    } ASON CONTEXTMENU descriptionOrder[UserInvoiceDetail];    
 
     WHEN LOCAL FORMS userInvoice
         (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(batch(detail))) AND NOT orderDetail(detail)       
