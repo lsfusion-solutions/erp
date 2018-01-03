@@ -97,19 +97,32 @@ FORM generationDiscountCards 'Генерация дисконтных карт'
     PROPERTIES(n) SELECTOR name
 
     OBJECTS quantityCards=INTEGER PANEL
-    PROPERTIES(quantityCards) intValueQuantityCards = VALUE;
+    PROPERTIES(quantityCards) intValueQuantityCards = VALUE
+
+    OBJECTS t=DiscountCardType PANEL
+    PROPERTIES(t) SELECTOR staticCaption
+    
+    OBJECTS p=NUMERIC[18,4] PANEL
+    PROPERTIES(p) percent = VALUE
+;
 
 DESIGN generationDiscountCards {
     BOX {
         PROPERTY(intValueQuantityCards) {
             caption = 'Количество дисконтных карт';
         }
+        PROPERTY(staticCaption(t)) {
+            caption = 'Наименование';
+        }
+        PROPERTY(percent) {
+            caption = 'Процент скидки';
+        }
     }
 }
 
 overGenerateDiscountCard = ABSTRACT LIST (DiscountCard);
 generateDiscountCards 'Сгенерировать дисконтные карты'() = {
-    DIALOG generationDiscountCards OBJECTS n=defaultNumeratorDiscountCard(), n INPUT, quantityCards INPUT CHECK DO {
+    DIALOG generationDiscountCards OBJECTS n=defaultNumeratorDiscountCard(), n INPUT, quantityCards INPUT, t INPUT, p INPUT CHECK DO {
         LOCAL num = INTEGER();
         num() <- 0;
         WHILE num() < quantityCards DO {
@@ -118,6 +131,8 @@ generateDiscountCards 'Сгенерировать дисконтные карт�
                 numerator(d) <- n;
                 number(d) <- curStringValue(numerator(d));
                 series(d) <- series(numerator(d));
+                discountCardType(d) <- t;
+                percent(d) <- p;
                 curValue(Numerator numerator) <- curValue(numerator) + 1 WHERE numerator == numerator(d);
                 num() <- num() + 1;
                 overGenerateDiscountCard(d);
