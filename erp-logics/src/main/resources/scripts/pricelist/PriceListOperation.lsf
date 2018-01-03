@@ -326,3 +326,66 @@ clearApplicationLog () += {
         excludePriceListsToDate();
     } 
 }
+
+nameOperation 'Операция' (PriceListDetail priceListDetail) = name(operation(priceListDetail));
+priceListType 'Вид цены' (PriceListDetail priceListDetail) = OVERRIDE dialogPriceListType(sku(priceListDetail)), defaultChangePriceListType(priceListDetail);
+namePriceListType 'Вид цены' (PriceListDetail priceListDetail) = name(priceListType(priceListDetail));
+price 'Цена' (PriceListDetail priceListDetail) = price(priceListDetail, priceListType(priceListDetail));
+
+EXTEND FORM movementPriceSkuStocks
+    OBJECTS d = (d = PriceListDetail, sd = Stock)
+    PROPERTIES READONLY isPosted(d), exclude(d), seriesNumber(d), name(sd), nameOperation(d), fromDateTime(d), toDateTime(d), namePriceListType(d), price(d)
+    ORDER name(sd), fromDateTime(d) DESC
+    FILTERS sku(d) == s,
+            in(d,sd)
+;
+
+DESIGN movementPriceSkuStocks {
+    BOX {
+        NEW tab AFTER BOX(pp){
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(pp);
+            MOVE BOX(d);
+        }       
+    }
+}
+
+EXTEND FORM movementPriceSkuStock
+    OBJECTS d = PriceListDetail
+    PROPERTIES READONLY isPosted(d), exclude(d), seriesNumber(d), nameOperation(d), fromDateTime(d), toDateTime(d), namePriceListType(d), price(d)
+    ORDER fromDateTime(d) DESC
+    FILTERS sku(d) == s,
+            in(d,st)    
+;
+
+DESIGN movementPriceSkuStock {
+    BOX {
+        NEW tab AFTER BOX(pp){
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(pp);
+            MOVE BOX(d);
+        }       
+    }
+}
+
+EXTEND FORM movementPriceSkuStockSupplier
+    OBJECTS d = PriceListDetail
+    PROPERTIES READONLY isPosted(d), exclude(d), seriesNumber(d), nameOperation(d), nameCompany(d), fromDateTime(d), toDateTime(d), namePriceListType(d), price(d)
+    ORDER fromDateTime(d) DESC
+    FILTERS sku(d) == s,
+            in(d,st),
+            (d IS PriceListDetail AND NOT dialogSupplier(sku(d),st)) OR dialogSupplier(sku(d),st) == company(d)
+;
+
+DESIGN movementPriceSkuStockSupplier {
+    BOX {
+        NEW tab AFTER BOX(pp){
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(pp);
+            MOVE BOX(d);
+        }       
+    }
+}
