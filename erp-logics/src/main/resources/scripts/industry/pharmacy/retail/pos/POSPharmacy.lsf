@@ -102,6 +102,17 @@ backgroundQuantity (Batch batch, Receipt receipt) = IF quantity(batch, receipt) 
     THEN RGB(255,128,128);
 
 //продажа блистеров
+qauntityPOSRoundCondition 'Кол-во знаков после запятой в кол-ве строки чека' = DATA INTEGER ();
+
+EXTEND FORM options
+    PROPERTIES qauntityPOSRoundCondition()
+;
+
+DESIGN options {
+    pos{
+        MOVE PROPERTY(qauntityPOSRoundCondition());
+    }
+}
 
 blisterQuantity 'Кол-во блистеров' (Batch batch, Receipt receipt) = round0(quantity(batch, receipt)*blisterAmount(batch));
 
@@ -113,10 +124,10 @@ backgroundBlisterQuantity 'Цвет' (Batch batch, Receipt receipt)  = RGB(250, 
 //    INPUT i = INTEGER DO
 //        IF receiptDetail(batch, receipt) THEN {
 //            IF (i AND NOT deleteNullDetail()) OR (deleteNullDetail() AND i != 0) THEN {
-//                IF minDelta() AND delta(prevCurrentBalance(batch, receipt), round(NUMERIC[16,5](i)/blisterAmount(batch), 3)) < minDelta() THEN {
+//                IF minDelta() AND delta(prevCurrentBalance(batch, receipt), round(NUMERIC[16,5](i)/blisterAmount(batch), qauntityPOSRoundCondition())) < minDelta() THEN {
 //                    quantity (ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);
 //                } ELSE {
-//                    quantity(ReceiptSaleDetail receiptDetail) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), 3)) WHERE receiptDetail == receiptDetail(batch, receipt);
+//                    quantity(ReceiptSaleDetail receiptDetail) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), qauntityPOSRoundCondition())) WHERE receiptDetail == receiptDetail(batch, receipt);
 //                }
 //    //            sum(ReceiptSaleDetail receiptDetail) <-round2((price(receiptDetail)/blisterAmount(batch))*requestedInteger()) WHERE receiptDetail == receiptDetail(batch, receipt);
 //            } ELSE {
@@ -129,10 +140,10 @@ backgroundBlisterQuantity 'Цвет' (Batch batch, Receipt receipt)  = RGB(250, 
 //                    receipt(d) <- receipt;
 //                    sku(d) <- sku(batch);
 //                    batch(d) <- batch;
-//                    IF minDelta() AND delta(prevCurrentBalance(batch, receipt), round(NUMERIC[16,5](i)/blisterAmount(batch), 3)) < minDelta() THEN {
+//                    IF minDelta() AND delta(prevCurrentBalance(batch, receipt), round(NUMERIC[16,5](i)/blisterAmount(batch), qauntityPOSRoundCondition())) < minDelta() THEN {
 //                        quantity (d) <- prevCurrentBalance(batch, receipt);
 //                    } ELSE {
-//                        quantity (d) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), 3));
+//                        quantity (d) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), qauntityPOSRoundCondition()));
 //                    }
 //                    price(d) <- currentPOSPrice(batch, receipt);
 //    //                sum(d) <-round((price(d)/blisterAmount(batch))*requestedInteger(), roundCondition(departmentStore(d)));
@@ -148,10 +159,10 @@ changeBlisterQuantity(Batch batch, Receipt receipt) = {
                 IF prevCurrentBalance(batch, receipt) != trunc(prevCurrentBalance(batch, receipt), 0) AND blisterAmount(batch) AND
                     NOT (NUMERIC[16,5](i)/blisterAmount(batch)) == trunc(NUMERIC[16,5](i)/blisterAmount(batch), 0) THEN {
                     quantity(ReceiptSaleDetail receiptDetail) <- 
-                        prevCurrentBalance(batch, receipt) (-) round((round0(prevCurrentBalance(batch, receipt) * blisterAmount(batch)) (-) i) / blisterAmount(batch), 3)
+                        prevCurrentBalance(batch, receipt) (-) round((round0(prevCurrentBalance(batch, receipt) * blisterAmount(batch)) (-) i) / blisterAmount(batch), qauntityPOSRoundCondition())
                             WHERE receiptDetail == receiptDetail(batch, receipt);     
                 } ELSE {
-                    quantity(ReceiptSaleDetail receiptDetail) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), 3)) WHERE receiptDetail == receiptDetail(batch, receipt);
+                    quantity(ReceiptSaleDetail receiptDetail) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), qauntityPOSRoundCondition())) WHERE receiptDetail == receiptDetail(batch, receipt);
                 }
             } ELSE {
                 FOR receiptDetail(batch, receipt) == ReceiptDetail d DO
@@ -166,10 +177,10 @@ changeBlisterQuantity(Batch batch, Receipt receipt) = {
                     IF prevCurrentBalance(batch, receipt) != trunc(prevCurrentBalance(batch, receipt), 0) AND blisterAmount(batch) AND
                         NOT (NUMERIC[16,5](i)/blisterAmount(batch)) == trunc(NUMERIC[16,5](i)/blisterAmount(batch), 0) THEN {
                         quantity(ReceiptSaleDetail receiptDetail) <- 
-                            prevCurrentBalance(batch, receipt) (-) round((round0(prevCurrentBalance(batch, receipt) * blisterAmount(batch)) (-) i) / blisterAmount(batch), 3)
+                            prevCurrentBalance(batch, receipt) (-) round((round0(prevCurrentBalance(batch, receipt) * blisterAmount(batch)) (-) i) / blisterAmount(batch), qauntityPOSRoundCondition())
                                 WHERE receiptDetail == receiptDetail(batch, receipt);     
                     } ELSE {
-                        quantity (d) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), 3));
+                        quantity (d) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), qauntityPOSRoundCondition()));
                     }
                     price(d) <- currentPOSPrice(batch, receipt);
                 }
@@ -238,9 +249,9 @@ changeBlisterQuantity(ReceiptDetail detail) = {
                 NOT (NUMERIC[16,5](i)/blisterAmount(batch(detail))) == trunc(NUMERIC[16,5](i)/blisterAmount(batch(detail)), 0) THEN {
                 quantity(detail) <- 
                     prevCurrentBalance(batch(detail), departmentStore(detail)) (-) 
-                    round((round0(prevCurrentBalance(batch(detail), departmentStore(detail)) * blisterAmount(batch(detail))) (-) i) / blisterAmount(batch(detail)), 3);  
+                    round((round0(prevCurrentBalance(batch(detail), departmentStore(detail)) * blisterAmount(batch(detail))) (-) i) / blisterAmount(batch(detail)), qauntityPOSRoundCondition());  
             } ELSE {
-                quantity(detail) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch(detail)), 3));
+                quantity(detail) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch(detail)), qauntityPOSRoundCondition()));
             }
         } ELSE {
             DELETE detail;
