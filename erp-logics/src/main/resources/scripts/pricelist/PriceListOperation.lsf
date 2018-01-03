@@ -310,4 +310,19 @@ DESIGN userPriceList{
         MOVE PROPERTY(nameCompanyStock(p)) AFTER PROPERTY(nameCompany(p));
     }    
 }
-  
+
+@defineOperationProperty(countDaysToExcludePriceLists, 'Кол-во дней через которое прайс исключается из регистра', INTEGER, paramsContainer);
+
+excludePriceListsToDate 'Исключить прайсы из регистра до даты' () = {
+    exclude(UserPriceListDetail d) <- TRUE WHERE toDate(d) < subtract(currentDate(), countDaysToExcludePriceLists(operation(d))) AND NOT exclude(d) AND countDaysToExcludePriceLists(operation(d));
+    APPLY ;
+}
+
+EXTEND FORM options PROPERTIES() excludePriceListsToDate;
+DESIGN options { price { MOVE PROPERTY(excludePriceListsToDate()); } }
+
+clearApplicationLog () += {
+    NEWSESSION {
+        excludePriceListsToDate();
+    } 
+}
