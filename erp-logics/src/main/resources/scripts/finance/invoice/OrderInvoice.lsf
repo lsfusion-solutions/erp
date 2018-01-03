@@ -132,6 +132,7 @@ META defineOrderInvoice(sign, stockProp)
 
     quantityOrder 'К-во в заказе' (InvoiceDetail d) = quantity(orderDetail(d)); 
     priceOrder 'Цена в заказе' (InvoiceDetail d) = price(orderDetail(d));
+    invoicePriceOrder 'Цена с НДС в заказе' (InvoiceDetail d) = invoicePrice(orderDetail(d));
 
     // ------------------------------- Создание нового инвойса на основе заказов ---------------------------- //
 
@@ -233,7 +234,7 @@ META defineOrderInvoice(sign, stockProp)
     }
     
     skipDeriveOrderPrice = ABSTRACT BOOLEAN (UserInvoiceDetail);
-    prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND orderDetail(d) AND NOT notFillPriceInvoiceOrder(operation(d)) AND NOT skipDeriveOrderPrice(d) THEN priceOrder(d);
+    prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND orderDetail(d) AND NOT notFillPriceInvoiceOrder(operation(d)) AND NOT skipDeriveOrderPrice(d) THEN (IF includeVAT(t) THEN invoicePriceOrder(d) ELSE priceOrder(d));
     
     fillHeader(UserInvoice userInvoice, Order order) = {
         date(userInvoice) <- currentDate();
