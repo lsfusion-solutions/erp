@@ -1110,7 +1110,11 @@ closedCurrentZReportMessage '' = 'Не открыт Z-отчет';
 posExplicitBatchLedger(Receipt r) = explicitBatchLedger(r) AND currentZReport();
 posNotExplicitBatchLedger(Receipt r) = notExplicitBatchLedger(r) AND currentZReport();
 
-changeQuantity 'Изменить кол-во строки чека'(ReceiptDetail detail) = {
+backgroundQuantity = ABSTRACT COLOR (ReceiptDetail);
+
+changeQuantity 'Изменить кол-во строки чека' = ABSTRACT CASE OVERRIDE FIRST (ReceiptDetail);
+
+changeQuantity(ReceiptDetail detail) += WHEN detail IS ReceiptDetail THEN{
     INPUT n = NUMERIC[16,5] DO
         IF n THEN
             quantity(detail) <- n;
@@ -1218,7 +1222,7 @@ FORM POS
                         prevCurrentBalanceSku SHOWIF posNotExplicitBatchLedger(r),
                         prevCurrentBalanceBatch SHOWIF posExplicitBatchLedger(r)
     PROPERTIES(d) SHOWIF currentZReport() BACKGROUND background(r, d) 
-                        quantityGrid = quantity ON CHANGE changeQuantity(d), priceGrid = price, sumGrid = sum, discountPercent,
+                        quantityGrid = quantity ON CHANGE changeQuantity(d) BACKGROUND backgroundQuantity(d), priceGrid = price, sumGrid = sum, discountPercent,
                         discountSum, valueVAT, calcSumVAT//, numberVATReceiptDetail, , deleted=DELETESESSION
     PROPERTIES(d) SHOWIF currentZReport() READONLY PANEL BACKGROUND background(r, d) 
                         idBarcodePanel = idBarcode,

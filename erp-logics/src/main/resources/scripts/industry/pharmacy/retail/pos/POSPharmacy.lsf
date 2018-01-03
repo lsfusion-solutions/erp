@@ -206,6 +206,48 @@ skipFilters 'Обнулить поиск' () = {
     filterNameSku() <- NULL; 
 } CHANGEKEY 'ESCAPE';
 
+backgroundQuantity(ReceiptDetail detail) += IF detail IS ReceiptDetail THEN #D4FFD4;
+
+changeQuantity(ReceiptDetail detail) += WHEN detail IS ReceiptDetail THEN {
+    INPUT n = NUMERIC[16,5] DO {
+        IF n THEN {
+            IF detail IS ReceiptDetail AND blisterAmount(batch(detail)) AND n AND NOT trunc(n*blisterAmount(batch(detail)),0) == n*blisterAmount(batch(detail)) AND checkBlisterAmount() THEN {
+                MESSAGE 'Количество блистеров должно быть целым';
+            } ELSE 
+            IF detail IS ReceiptDetail AND batch(detail) AND n AND NOT  blisterAmount(batch(detail)) AND NOT trunc(n,0) == n AND checkBlisterAmount() THEN {
+                MESSAGE 'Нельзя продавать блистеры, т.к в карточке не указано количество';
+            } ELSE {
+                quantity(detail) <- n;
+            }          
+        }
+        ELSE
+            DELETE detail;   
+    }
+}
+
+blisterQuantity 'Кол-во блистеров' (ReceiptDetail detail) = round0(quantity(detail)*blisterAmount(batch(detail)));
+
+backgroundBlisterQuantity 'Цвет' (ReceiptDetail detail)  = IF detail IS ReceiptDetail AND blisterAmount(batch(detail)) THEN RGB(250, 236, 199);
+
+readOnlyBlisterQuantity (ReceiptDetail detail) = detail IS ReceiptDetail AND NOT blisterAmount(batch(detail));
+
+changeBlisterQuantity(ReceiptDetail detail) = {
+    INPUT i = INTEGER DO {
+        IF (i AND NOT deleteNullDetail()) OR (deleteNullDetail() AND i != 0) THEN {
+            IF prevCurrentBalance(batch(detail), departmentStore(detail)) != trunc(prevCurrentBalance(batch(detail), departmentStore(detail)), 0) AND blisterAmount(batch(detail)) AND
+                NOT (NUMERIC[16,5](i)/blisterAmount(batch(detail))) == trunc(NUMERIC[16,5](i)/blisterAmount(batch(detail)), 0) THEN {
+                quantity(detail) <- 
+                    prevCurrentBalance(batch(detail), departmentStore(detail)) (-) 
+                    round((round0(prevCurrentBalance(batch(detail), departmentStore(detail)) * blisterAmount(batch(detail))) (-) i) / blisterAmount(batch(detail)), 3);  
+            } ELSE {
+                quantity(detail) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch(detail)), 3));
+            }
+        } ELSE {
+            DELETE detail;
+        }
+    }    
+}
+
 //сумма строки чека
 priceSumBlister 'Сумма без скидки' = round(blisterQuantity(batch(ReceiptSaleDetail detail), receipt(detail)) * currentPOSBlisterPrice(batch(detail), receipt(detail)), roundCondition(departmentStore(detail)));
 sum (ReceiptSaleDetail detail) <- IF blisterAmount(sku(detail)) OR blisterAmount(batch(detail))
@@ -227,6 +269,7 @@ EXTEND FORM POS
     PROPERTIES (bt, r) SHOWIF currentZReport() blisterQuantity ON CHANGE changeBlisterQuantity(bt, r) READONLYIF readOnlyBlisterQuantity(bt, r) BACKGROUND backgroundBlisterQuantity(bt, r)
     PROPERTIES (bt, r) SHOWIF currentZReport() READONLY prevCurrentBalance, currentPOSPrice, currentPOSBlisterPrice BACKGROUND backgroundBlisterQuantity(bt, r)
     PROPERTIES (bt) SHOWIF currentZReport() READONLY expiryDate BACKGROUND backgroundExpiryDate(bt, r), seriesPharmacy, nameManufacturer, nameCountry, nameSubstance
+    PROPERTIES (d) SHOWIF currentZReport() blisterQuantity ON CHANGE changeBlisterQuantity(d) READONLYIF readOnlyBlisterQuantity(d) BACKGROUND backgroundBlisterQuantity(d) AFTER quantityGrid
     ORDER prevNameSku(bt)
     FILTERS filterPrice(bt, r), filterNameSku(bt), filterBarcode(bt)  
     FILTERS prevCurrentBalance(bt, r)
