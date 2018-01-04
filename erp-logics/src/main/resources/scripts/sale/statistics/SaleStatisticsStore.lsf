@@ -4,12 +4,21 @@ REQUIRE SaleStatistics, ZReport;
 
 NAMESPACE Sale;
 
+// было вот так - переделал на Z-отчет
+//sumCard 'Продано с использованием банк. карточек' (departmentStore, dateFrom, dateTo) = GROUP SUM sum(Payment payment) IF paymentMeans(payment)==PaymentMeans.paymentMeansCard
+//    AND date(receipt(payment)) >= DATE dateFrom AND date(receipt(payment)) <= DATE dateTo AND isPosted(receipt(payment))
+//        BY departmentStore(receipt(payment)), dateFrom, dateTo;
+//     
+//sumSale 'Продано по кассе' (departmentStore, dateFrom, dateTo) = GROUP SUM sumReceiptDetail(Receipt receipt)
+//    IF date(receipt) >= DATE dateFrom AND date(receipt) <= DATE dateTo AND isPosted(receipt)
+//        BY departmentStore(receipt), dateFrom, dateTo;
+
 sumCard 'Продано с использованием банк. карточек' (DATE dateFrom, DATE dateTo) =
-    GROUP SUM sumCard (Stock stock, DATE dateFrom, DATE dateTo) IF inStat(stock)
+    GROUP SUM sumCard (ZReport z) IF inStat(departmentStore(z)) AND DATE dateFrom <= date(z) AND DATE dateTo >= date(z) 
     BY dateFrom, dateTo;
 
 sumSale 'Продано по кассе' (DATE dateFrom, DATE dateTo) =
-    GROUP SUM sumSale (Stock stock, DATE dateFrom, DATE dateTo) IF inStat(stock)
+    GROUP SUM sumReceiptDetail (ZReport z) IF inStat(departmentStore(z)) AND DATE dateFrom <= date(z) AND DATE dateTo >= date(z) 
     BY dateFrom, dateTo; // вся сумма, с учетом проданных сертификатов
 
 EXTEND FORM statisticalReportStockSelect
