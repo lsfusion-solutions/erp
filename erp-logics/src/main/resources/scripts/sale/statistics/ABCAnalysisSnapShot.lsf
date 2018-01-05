@@ -1,0 +1,779 @@
+MODULE ABCAnalysisSnapShot;
+
+REQUIRE Store, SaleLedger;
+
+round4 (number) = round(number, 4);
+
+
+////////////////////// Операции ABC-отчета ////////////////////////////
+CLASS SnapshotABCOperation 'Операции ABC-отчета';
+TABLE snapshotABCOperation (SnapshotABCOperation);
+
+name 'Наименование' = DATA STRING[100] (SnapshotABCOperation) IN documentHeader;
+@defineExternalizable(snapshotABCOperation, VARSTRING[100]);
+
+perc_a 'A, %' = DATA NUMERIC[8,3](SnapshotABCOperation);
+perc_b 'B, %' = DATA NUMERIC[8,3](SnapshotABCOperation);
+perc_c 'C, %' = DATA NUMERIC[8,3](SnapshotABCOperation);
+
+CONSTRAINT perc_a(SnapshotABCOperation snapshot)+perc_b(snapshot)+perc_c(snapshot) != 100 MESSAGE 'Сумма процентов для групп A, B и C должна быть равна 100 !';
+
+groupType = DATA GroupType (SnapshotABCOperation);
+nameGroupType 'Тип классификатора SKU' (SnapshotABCOperation s)= name(groupType(s));
+
+// уровень товарного классификатора, в рамках которого необходимо рассчитывать рейтинг
+levelGroup 'Уровень групп товаров' = DATA LONG (SnapshotABCOperation);
+
+
+//-- Выбор складов
+TABLE SnapshotABCOperationStockGroup (SnapshotABCOperation, StockGroup); 
+TABLE SnapshotABCOperationStock (SnapshotABCOperation, Stock);
+
+allStockInclude 'Вкл' = DATA BOOLEAN (SnapshotABCOperation);
+dataInclude 'Вкл' = DATA BOOLEAN (SnapshotABCOperation, StockGroup);
+dataInclude 'Вкл' = DATA BOOLEAN (SnapshotABCOperation, Stock);
+
+levelParentInclude (SnapshotABCOperation, stockGroup) = GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataInclude(SnapshotABCOperation SnapshotABCOperation, parent)
+                                                              BY SnapshotABCOperation, stockGroup MATERIALIZED;    
+nearestParentInclude (SnapshotABCOperation SnapshotABCOperation, StockGroup stockGroup) = stockGroup(stockGroup, levelParentInclude(SnapshotABCOperation, stockGroup));
+nearestInclude (SnapshotABCOperation SnapshotABCOperation, StockGroup stockGroup) = dataInclude(SnapshotABCOperation, nearestParentInclude (SnapshotABCOperation, stockGroup));
+
+include 'Вкл' (SnapshotABCOperation SnapshotABCOperation, StockGroup stockGroup) =
+    OVERRIDE dataInclude(SnapshotABCOperation, stockGroup), 
+             nearestInclude (SnapshotABCOperation, stockGroup),
+             allStockInclude(SnapshotABCOperation) IF stockGroup IS StockGroup MATERIALIZED;
+
+include 'Вкл' (SnapshotABCOperation SnapshotABCOperation, Stock stock) =
+    (OVERRIDE dataInclude(SnapshotABCOperation, stock),
+             include(SnapshotABCOperation, stockGroup(stock))) IF isCompany(stock) MATERIALIZED;
+                        
+@defineBackgroundNearestBoolean(allStockInclude, include, SnapshotABCOperation, stock, nearestInclude, isCompany);            
+                          
+countIncludeStock  (SnapshotABCOperation) = GROUP SUM 1 IF include(SnapshotABCOperation SnapshotABCOperation, Stock stock) BY SnapshotABCOperation;      
+
+
+nameIncludeStockGroups 'Группы складов (все)' (document)= 
+    GROUP CONCAT name(StockGroup stockGroup) IF dataInclude(SnapshotABCOperation document, stockGroup), ', ' 
+    BY document 
+    ORDER stockGroup
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+nameIncludeStocks 'Склады (все)' (document)= 
+    GROUP CONCAT name(Stock stock) IF dataInclude(SnapshotABCOperation document, stock), ', ' 
+    BY document 
+    ORDER stock
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    
+nameIncludeStockGroupsStock 'Группы складов, склады (все)' (SnapshotABCOperation document) = CONCAT '; ', nameIncludeStockGroups(document), 
+                                                                                             nameIncludeStocks(document) MINCHARWIDTH 20 PREFCHARWIDTH 40;   
+        
+//-- Выбор групп товара  
+TABLE SnapshotABCOperationSkuGroup (SnapshotABCOperation, SkuGroup);  
+     
+dataInclude 'Вкл' = DATA BOOLEAN (SnapshotABCOperation, SkuGroup);
+
+levelParentInclude (SnapshotABCOperation, skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataInclude(SnapshotABCOperation SnapshotABCOperation, parent)
+                                                              BY SnapshotABCOperation, skuGroup MATERIALIZED;    
+nearestParentInclude (SnapshotABCOperation SnapshotABCOperation, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(SnapshotABCOperation, skuGroup));
+nearestInclude (SnapshotABCOperation SnapshotABCOperation, SkuGroup skuGroup) = dataInclude(SnapshotABCOperation, nearestParentInclude (SnapshotABCOperation, skuGroup));
+
+include 'Вкл' (SnapshotABCOperation SnapshotABCOperation, SkuGroup skuGroup) =
+    OVERRIDE dataInclude(SnapshotABCOperation, skuGroup), 
+             nearestInclude (SnapshotABCOperation, skuGroup) MATERIALIZED;    
+                      
+include 'Вкл' (SnapshotABCOperation SnapshotABCOperation, Sku sku) = include(SnapshotABCOperation, skuGroup(sku));  
+                    
+countIncludeSku 'Вкл' (SnapshotABCOperation) = GROUP SUM 1 IF include(SnapshotABCOperation SnapshotABCOperation, Sku sku) BY SnapshotABCOperation;                    
+
+nameIncludeSkuGroups 'Группы товаров (все)' (document)= 
+    GROUP CONCAT name(SkuGroup skuGroup) IF dataInclude(SnapshotABCOperation document, skuGroup), ', ' 
+    BY document 
+    ORDER skuGroup
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+FORM snapshotABCOperation 'Операции ABC-отчет'
+    OBJECTS t = SnapshotABCOperation PANEL
+    PROPERTIES(t) id SHOWIF showIDs(), name, nameGroupType, levelGroup, perc_a, perc_b, perc_c
+      
+//-- выбор складов                  
+    TREE stockTree2 a2 = STRING[3], sg2 = StockGroup PARENT parent, ts2 = Stock
+    PROPERTIES VALUE(a2) READONLY, allStockInclude(t) TODRAW a2 BACKGROUND backgroundAllStockInclude(t), 
+               name(sg2) READONLY, include(t,sg2) BACKGROUND backgroundInclude(t,sg2),
+               name(ts2) READONLY, include(t,ts2) BACKGROUND backgroundInclude(t,ts2)
+    ORDER name(sg2)
+    FILTERS stringEqualsAll(a2),
+            stockGroup(ts2) == sg2,
+            isCompany(ts2)
+    FILTERGROUP inactiveStock2 FILTER 'Активный' active(ts2) 'ctrl F10' DEFAULT                                                                                  
+          
+//-- выбор групп товара     
+    TREE skuTree2 sk2 = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sk2), name(sk2)
+    PROPERTIES include(t,sk2)
+    ORDER order(sk2), name(sk2)
+    FILTERS groupType(sk2)==groupType(t)
+    FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F5' DEFAULT                                                                  
+                     
+    EDIT SnapshotABCOperation OBJECT t
+;
+DESIGN snapshotABCOperation {
+    BOX {
+        preferredSize = (1024, 768);
+        NEW topContainer {
+            caption = 'Шапка документа';
+            type = CONTAINERH;
+            MOVE PROPERTY(id(t));
+            MOVE PROPERTY(name(t));
+        }
+        NEW paramContainer {
+            caption = 'Параметры';
+            type = CONTAINERH;                      
+            MOVE PROPERTY (nameGroupType(t)){ caption = 'Тип классификатора SKU';}
+            MOVE PROPERTY (levelGroup(t)){ caption = 'Уровень групп товаров';}
+            MOVE PROPERTY(perc_a(t));
+            MOVE PROPERTY(perc_b(t));
+            MOVE PROPERTY(perc_c(t));
+        }
+        NEW select{
+            fill = 1;
+            type = SPLITH;
+            MOVE BOX(TREE stockTree2) { fill = 1; caption = 'Выбор складов'; }   
+            MOVE BOX(TREE skuTree2) { fill = 1; caption = 'Выбор групп'; }   
+        }
+        MOVE TOOLBARBOX;
+    }            
+}
+FORM snapshotABCOperations 'Операции ABC-отчет'
+    OBJECTS t = SnapshotABCOperation
+    PROPERTIES(t) READONLY id SHOWIF showIDs(), name, nameGroupType, levelGroup, perc_a, perc_b, perc_c
+    PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE 
+    LIST SnapshotABCOperation OBJECT t
+;
+
+META deriveDocumentSnapshotABCProperty(property)
+    property (SnapshotABC o) <- property(snapshotABCOperation(o))
+        WHEN CHANGED(snapshotABCOperation(o));
+END
+
+
+
+//////////////////////Отчет ////////////////////////////
+
+CLASS SnapshotABC 'ABC-анализ';
+TABLE snapshotABC (SnapshotABC);
+
+snapshotABCOperation = DATA SnapshotABCOperation (SnapshotABC);
+nameSnapshotABCOperation 'Операция отчета' = name(snapshotABCOperation(SnapshotABC s)) IN documentHeader MINCHARWIDTH 15  PREFCHARWIDTH 20;
+
+@defineDocumentHeaderTime(SnapshotABC);
+@defineDocumentHeaderNote(SnapshotABC);
+@defineDocumentHeaderCreated(SnapshotABC);
+@deriveDocumentHeaderTimePrefix(SnapshotABC, );
+@defineDocumentHeaderNumber(SnapshotABC);
+@defineNumeratedDefault(SnapshotABC, 'ABC-анализ', 'AB');
+@defineDocumentHeaderDescription (SnapshotABC, 'ABC-анализ');
+
+fromDate 'Дата с' = DATA DATE (SnapshotABC) IN documentHeader;
+toDate 'Дата по' = DATA DATE (SnapshotABC) IN documentHeader;
+
+countDays 'Кол-во дней' (SnapshotABC s) = daysBetweenDates(toDate(s), fromDate(s)) + 1; 
+
+startTime 'Время начала формирования' = DATA DATETIME (SnapshotABC) IN created;
+finishTime 'Время окончания формирования' = DATA DATETIME (SnapshotABC) IN created;
+
+WHEN LOCAL SET(SnapshotABC o IS SnapshotABC) DO {
+    IF o IS SnapshotABC AND NOT fromDate(o) THEN fromDate(o) <- currentDate();
+    IF o IS SnapshotABC AND NOT toDate(o) THEN toDate(o) <- currentDate();
+};
+
+//-- Параметры отчета
+perc_a 'A, %' = DATA NUMERIC[8,3](SnapshotABC);
+@deriveDocumentSnapshotABCProperty(perc_a);
+
+perc_b 'B, %' = DATA NUMERIC[8,3](SnapshotABC);
+@deriveDocumentSnapshotABCProperty(perc_b);
+
+perc_c 'C, %' = DATA NUMERIC[8,3](SnapshotABC);
+@deriveDocumentSnapshotABCProperty(perc_c);
+
+groupType 'Тип классификатора SKU' = DATA GroupType (SnapshotABC);
+@deriveDocumentSnapshotABCProperty(groupType);
+nameGroupType 'Тип классификатора SKU' (SnapshotABC s) = name(groupType(s)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+
+levelGroup 'Уровень групп товаров' = DATA LONG (SnapshotABC);
+@deriveDocumentSnapshotABCProperty(levelGroup);
+//--
+
+
+//-- Выбор складов
+TABLE snapshotStockGroup (SnapshotABC, StockGroup); 
+TABLE snapshotStock (SnapshotABC, Stock);
+
+allStockInclude 'Вкл' = DATA BOOLEAN (SnapshotABC);
+dataInclude 'Вкл' = DATA BOOLEAN (SnapshotABC, StockGroup);
+dataInclude 'Вкл' = DATA BOOLEAN (SnapshotABC, Stock);
+
+levelParentInclude (snapshot, stockGroup) = GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataInclude(SnapshotABC snapshot, parent)
+                                                              BY snapshot, stockGroup MATERIALIZED;    
+nearestParentInclude (SnapshotABC snapshot, StockGroup stockGroup) = stockGroup(stockGroup, levelParentInclude(snapshot, stockGroup));
+nearestInclude (SnapshotABC snapshot, StockGroup stockGroup) = dataInclude(snapshot, nearestParentInclude (snapshot, stockGroup));
+
+include 'Вкл' (SnapshotABC snapshot, StockGroup stockGroup) =
+    OVERRIDE dataInclude(snapshot, stockGroup), 
+             nearestInclude (snapshot, stockGroup),
+             allStockInclude(snapshot) IF stockGroup IS StockGroup MATERIALIZED;
+
+include 'Вкл' (SnapshotABC snapshot, Stock stock) =
+    (OVERRIDE dataInclude(snapshot, stock),
+             include(snapshot, stockGroup(stock))) IF isCompany(stock) MATERIALIZED;
+countIncludeStocks= GROUP SUM 1 IF include(SnapshotABC r,Stock st) BY r;
+
+deleteIncludeStocks 'Сбросить отмеченные'(SnapshotABC r) = {
+    allStockInclude (r) <- NULL;
+    dataInclude(r,StockGroup g) <- NULL;
+    dataInclude (r,Stock st) <- NULL;
+};
+             
+@defineBackgroundNearestBoolean(allStockInclude, include, snapshotABC, stock, nearestInclude, isCompany);
+
+                      
+countIncludeStock  (snapshot) = GROUP SUM 1 IF include(SnapshotABC snapshot, Stock stock) BY snapshot;      
+
+
+nameIncludeStockGroups 'Группы складов (все)' (document)= 
+    GROUP CONCAT name(StockGroup stockGroup) IF dataInclude(SnapshotABC document, stockGroup), ', ' 
+    BY document 
+    ORDER stockGroup
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+nameIncludeStocks 'Склады (все)' (document)= 
+    GROUP CONCAT name(Stock stock) IF dataInclude(SnapshotABC document, stock), ', ' 
+    BY document 
+    ORDER stock
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    
+nameIncludeStockGroupsStock 'Группы складов, склады (все)' (SnapshotABC document) = CONCAT '; ', nameIncludeStockGroups(document), 
+                                                                                             nameIncludeStocks(document) MINCHARWIDTH 20 PREFCHARWIDTH 40;   
+    
+allStockInclude (SnapshotABC o) <- allStockInclude(snapshotABCOperation(o))
+    WHEN CHANGED(snapshotABCOperation(o));  
+dataInclude (SnapshotABC o,StockGroup g) <- dataInclude(snapshotABCOperation(o),g) IF g IS StockGroup
+    WHEN CHANGED(snapshotABCOperation(o));           
+dataInclude (SnapshotABC o,Stock g) <- dataInclude(snapshotABCOperation(o),g) IF g IS Stock
+    WHEN CHANGED(snapshotABCOperation(o));    
+            
+//-- Выбор групп товара  
+TABLE snapshotSkuGroup (SnapshotABC, SkuGroup);  
+     
+dataInclude 'Вкл' = DATA BOOLEAN (SnapshotABC, SkuGroup);
+
+levelParentInclude (snapshot, skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataInclude(SnapshotABC snapshot, parent)
+                                                              BY snapshot, skuGroup MATERIALIZED;    
+nearestParentInclude (SnapshotABC snapshot, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(snapshot, skuGroup));
+nearestInclude (SnapshotABC snapshot, SkuGroup skuGroup) = dataInclude(snapshot, nearestParentInclude (snapshot, skuGroup));
+
+include 'Вкл' (SnapshotABC snapshot, SkuGroup skuGroup) =
+    OVERRIDE dataInclude(snapshot, skuGroup), 
+             nearestInclude (snapshot, skuGroup) MATERIALIZED;    
+                      
+include 'Вкл' (SnapshotABC snapshot, Sku sku) = include(snapshot, skuGroup(sku)) AND groupType(skuGroup(sku)) == groupType(snapshot);  
+                    
+countIncludeSku 'Вкл' (snapshot) = GROUP SUM 1 IF include(SnapshotABC snapshot, Sku sku) BY snapshot;                    
+
+nameIncludeSkuGroups 'Группы товаров (все)' (document)= 
+    GROUP CONCAT name(SkuGroup skuGroup) IF dataInclude(SnapshotABC document, skuGroup), ', ' 
+    BY document 
+    ORDER skuGroup
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    
+dataInclude (SnapshotABC o,SkuGroup g) <- dataInclude(snapshotABCOperation(o),g) IF g IS SkuGroup
+    WHEN CHANGED(snapshotABCOperation(o));  
+
+deleteIncludeSkuGroups 'Сбросить отмеченные'(SnapshotABC r) = {
+    dataInclude(r,SkuGroup g) <- NULL;
+};
+
+
+//------------------------------ Sku -------------------------------//
+
+TABLE skuSnapshotABC (Sku, SnapshotABC);
+
+markupSumSold 'Доход' = DATA NUMERIC[18,4] (Sku, SnapshotABC);
+sumSold 'Выручка' = DATA NUMERIC[18,4] (Sku, SnapshotABC);
+
+percMarkupSold 'ВД (доход), %' = DATA NUMERIC[18,4] (Sku, SnapshotABC);
+percInMarkupSold 'Удельный вес (доход), %'= DATA NUMERIC[18,4] (Sku, SnapshotABC);
+indexMarkupBest 'Номер п/п (доход)' = DATA INTEGER (Sku, SnapshotABC);
+partitionMarkupBest = DATA NUMERIC[18,4] (Sku, SnapshotABC);  // сумма с накоплением
+
+percMarkupOrder 'Накопленный процент (доход)' = DATA NUMERIC[18,4] (Sku, SnapshotABC);
+statusMarkup 'Рейтинг (доход)' = DATA VARISTRING[1] (Sku, SnapshotABC);
+
+percInSumSold 'Удельный вес (сумма), %'= DATA NUMERIC[18,4] (Sku, SnapshotABC);
+indexSumBest 'Номер п/п (сумма)' = DATA INTEGER (Sku, SnapshotABC);
+partitionSumBest = DATA NUMERIC[18,4] (Sku, SnapshotABC);  // сумма с накоплением
+
+percSumOrder 'Накопленный процент (сумма)' = DATA NUMERIC[18,4] (Sku, SnapshotABC);
+statusSum 'Рейтинг (сумма)' = DATA VARISTRING[1] (Sku, SnapshotABC);
+
+backgroundStatusMarkup(Sku sku, SnapshotABC s) = CASE 
+    WHEN  statusMarkup(sku,s) == 'A' THEN RGB(204,255,204)
+    WHEN  statusMarkup(sku,s) == 'B' THEN RGB(255, 250, 205)
+    WHEN  statusMarkup(sku,s) THEN  RGB(255,238,238)
+;
+backgroundStatusSum(Sku sku, SnapshotABC s) = CASE 
+    WHEN  statusSum(sku,s) == 'A' THEN RGB(204,255,204)
+    WHEN  statusSum(sku,s) == 'B' THEN RGB(255, 250, 205)
+    WHEN  statusSum(sku,s) THEN  RGB(255,238,238)
+;
+
+//------------------------------ Общие итоги по отчету -------------------------------//
+
+markupSumSold 'Доход' = GROUP SUM markupSumSold(Sku sk, SnapshotABC snapshot) BY snapshot ;
+sumSold 'Выручка' = GROUP SUM sumSold(Sku sk, SnapshotABC snapshot) BY snapshot ;
+
+//------------------------------ Итоги по группе товаров указанного уровня -------------------------------//
+
+markupSumSold 'Доход'(group, SnapshotABC snapshot) =
+    GROUP SUM markupSumSold(Sku sk, SnapshotABC snapshot) 
+    BY groupRoot(group(groupType(snapshot), sk), levelGroup(snapshot)), snapshot;
+
+sumSold 'Выручка'(group, SnapshotABC snapshot) =
+    GROUP SUM sumSold(Sku sk, SnapshotABC snapshot) 
+    BY groupRoot(group(groupType(snapshot), sk), levelGroup(snapshot)), snapshot;
+
+//------------------------------- ACTION -------------------------------//   
+//overTakeFromTo= ABSTRACT LIST (SnapshotABC, DATE, DATE); 
+//overTakeSkuFromTo= ABSTRACT LIST (SnapshotABC, DATE, DATE);
+//overTakeBatchFromTo= ABSTRACT LIST (SnapshotABC, DATE, DATE);
+
+status 'Статус отчета' (SnapshotABC snapshot) = CASE
+                                          WHEN finishTime(snapshot) THEN 'Сформирован'
+                                          WHEN snapshot IS SnapshotABC THEN 'Не сформирован'
+                                          MINCHARWIDTH 10 PREFCHARWIDTH 15
+                                      ;
+backgroundStatus 'Цвет' (SnapshotABC snapshot) =  CASE                                             
+                                          WHEN finishTime(snapshot) THEN RGB(212,255,212)
+                                          WHEN snapshot IS SnapshotABC THEN RGB(255,200,216)
+                                      ;
+
+//// -----
+
+takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)  = {
+    IF currentUser() IS Employee AND [= GROUP SUM 1 IF include(SnapshotABC s, Stock st) AND NOT accessCompany(currentUser(), st) BY s](snapshot) THEN {
+        dataInclude(snapshot, Stock st) <- include(snapshot, st) AND accessCompany(currentUser(), st);
+        allStockInclude(snapshot) <- NULL;
+        dataInclude(snapshot, StockGroup g) <- NULL;
+    }
+    
+    apply();  
+    startTime(snapshot) <- currentDateTime();  
+    
+    IF countIncludeSku(snapshot) AND countIncludeStock(snapshot) THEN {      
+        
+        IF perc_a(snapshot)+perc_b(snapshot)+perc_c(snapshot) == 100 THEN {
+            
+            // по товарам
+            
+            markupSumSold(Sku sku, snapshot) <- NULL;
+            sumSold(Sku sku, snapshot) <- NULL;
+            
+            markupSumSold (Sku sku, snapshot) <- [=
+                GROUP SUM markupSumSold(Sku sk, Stock st, DATE dateFrom, DATE dateTo) IF include(SnapshotABC snapshot, st)
+                    BY sk, dateFrom, dateTo, snapshot ] (sku, dateFrom, dateTo, snapshot) WHERE include(snapshot, sku);
+            
+            sumSold (Sku sku, snapshot) <- [=
+                GROUP SUM sumSold(Sku sk, Stock st, DATE dateFrom, DATE dateTo) IF include(SnapshotABC snapshot, st)
+                    BY sk, dateFrom, dateTo, snapshot ] (sku, dateFrom, dateTo, snapshot) WHERE include(snapshot, sku);
+            
+            percMarkupSold(Sku sku, snapshot) <- round2(markupSumSold(sku, snapshot)*100.00 / sumSold(sku, snapshot));
+            
+            IF levelGroup(snapshot) == 1 THEN {
+                // считать проценты относительно общей суммы по всем группам товаров
+                
+                percInMarkupSold (Sku sku, snapshot) <- round4(markupSumSold(sku, snapshot)*100.00 / markupSumSold(snapshot));
+                indexMarkupBest(Sku sku, snapshot) <- PARTITION SUM 1 IF markupSumSold(sku, snapshot) BY snapshot ORDER DESC markupSumSold(sku, snapshot), name(sku);
+                partitionMarkupBest(Sku sku, snapshot) <- PARTITION SUM markupSumSold(sku, snapshot) BY snapshot ORDER indexMarkupBest(sku, snapshot) ;
+                percMarkupOrder(Sku sku, snapshot) <- round4(partitionMarkupBest(sku, snapshot)*100.00 / markupSumSold(snapshot));
+                
+                statusMarkup (Sku sku, snapshot) <- CASE 
+                    WHEN  percMarkupOrder(sku, snapshot) <= perc_a(snapshot) THEN 'A'
+                    WHEN  percMarkupOrder(sku, snapshot) <= perc_a(snapshot)+perc_b(snapshot) AND percMarkupOrder(sku, snapshot) > perc_a(snapshot) THEN 'B'
+                    WHEN  percMarkupOrder(sku, snapshot) >  perc_a(snapshot)+perc_b(snapshot) THEN 'C'
+                ;
+                
+                percInSumSold (Sku sku, snapshot) <- round4(sumSold(sku, snapshot)*100.00 / sumSold(snapshot));
+                indexSumBest(Sku sku, snapshot) <- PARTITION SUM 1 IF sumSold(sku, snapshot) BY snapshot ORDER DESC sumSold(sku, snapshot), name(sku);
+                partitionSumBest(Sku sku, snapshot) <- PARTITION SUM sumSold(sku, snapshot) BY snapshot ORDER indexSumBest(sku, snapshot) ;
+                percSumOrder(Sku sku, snapshot) <- round4(partitionSumBest(sku, snapshot)*100.00 / sumSold(snapshot));
+                
+                statusSum (Sku sku, snapshot) <- CASE 
+                    WHEN  percSumOrder(sku, snapshot) <= perc_a(snapshot) THEN 'A'
+                    WHEN  percSumOrder(sku, snapshot) <= perc_a(snapshot)+perc_b(snapshot) AND percSumOrder(sku, snapshot) > perc_a(snapshot) THEN 'B'
+                    WHEN  percSumOrder(sku, snapshot) >  perc_a(snapshot)+perc_b(snapshot) THEN 'C'
+                ;
+            }
+            
+            ELSE {
+                // считать проценты относительно определенного уровня группы товаров
+                
+                percInMarkupSold (Sku sku, snapshot) <- round4(markupSumSold(sku, snapshot)*100.00 /
+                        markupSumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot));
+                
+                ///aaa(Sku sku, snapshot) <- name(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)));
+
+                indexMarkupBest(Sku sku, snapshot) <- PARTITION SUM 1 IF markupSumSold(sku, snapshot)
+                        BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot  ORDER DESC markupSumSold(sku, snapshot), name(sku);
+                        
+                partitionMarkupBest(Sku sku, snapshot) <- PARTITION SUM markupSumSold(sku, snapshot) 
+                        BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot ORDER indexMarkupBest(sku, snapshot) ;
+                        
+                percMarkupOrder(Sku sku, snapshot) <- round4(partitionMarkupBest(sku, snapshot)*100.00 / 
+                        markupSumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot));
+                
+                statusMarkup (Sku sku, snapshot) <- CASE 
+                    WHEN  percMarkupOrder(sku, snapshot) <= perc_a(snapshot) THEN 'A'
+                    WHEN  percMarkupOrder(sku, snapshot) <= perc_a(snapshot)+perc_b(snapshot) AND percMarkupOrder(sku, snapshot) > perc_a(snapshot) THEN 'B'
+                    WHEN  percMarkupOrder(sku, snapshot) >  perc_a(snapshot)+perc_b(snapshot) THEN 'C'
+                ;
+                
+                percInSumSold (Sku sku, snapshot) <- round4(sumSold(sku, snapshot)*100.00 /
+                        sumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot));
+                        
+                indexSumBest(Sku sku, snapshot) <- PARTITION SUM 1 IF sumSold(sku, snapshot)
+                        BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot  ORDER DESC sumSold(sku, snapshot), name(sku);
+                        
+                partitionSumBest(Sku sku, snapshot) <- PARTITION SUM sumSold(sku, snapshot) 
+                        BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot ORDER indexSumBest(sku, snapshot) ;
+                        
+                percSumOrder(Sku sku, snapshot) <- round4(partitionSumBest(sku, snapshot)*100.00 / 
+                        sumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot));
+                
+                statusSum (Sku sku, snapshot) <- CASE 
+                    WHEN  percSumOrder(sku, snapshot) <= perc_a(snapshot) THEN 'A'
+                    WHEN  percSumOrder(sku, snapshot) <= perc_a(snapshot)+perc_b(snapshot) AND percSumOrder(sku, snapshot) > perc_a(snapshot) THEN 'B'
+                    WHEN  percSumOrder(sku, snapshot) >  perc_a(snapshot)+perc_b(snapshot) THEN 'C'
+                ;
+                
+            }
+            
+            finishTime(snapshot) <- currentDateTime();      
+            apply();
+        } ELSE {
+            MESSAGE 'Сумма процентов для групп A, B и C должна быть равна 100 !';
+        }           
+             
+    } ELSE {
+        MESSAGE 'Не выбраны группы товаров или склады для отчета !';
+    }           
+};
+
+
+
+takeData 'Сформировать отчет' (SnapshotABC snapshot) = { 
+    IF finishTime(snapshot) THEN {
+        ASK 'Вы действительно хотите выполнить действие "Сформировать отчет?"' DO            
+            takeFromTo(snapshot, fromDate(snapshot), toDate(snapshot));
+    } ELSE {
+        takeFromTo(snapshot, fromDate(snapshot), toDate(snapshot));    
+    }    
+}
+
+
+
+
+TABLE snapshotABCOperationDOW(SnapshotABCOperation, DOW);
+in 'Вкл.' = DATA BOOLEAN (SnapshotABCOperation, DOW);
+countDOWsIn = GROUP SUM 1 IF in(SnapshotABCOperation t,DOW d) BY t;
+oneReport 'Отдельный отчет для склада' = DATA BOOLEAN (SnapshotABCOperation);
+idReport 'Идентификатор для планировщика' = DATA STRING[100] (SnapshotABCOperation);
+countDays 'Количество дней' = DATA INTEGER (SnapshotABCOperation);
+countDaysDelete 'Количество дней для хранения отчетов' = DATA INTEGER (SnapshotABCOperation);
+
+
+TABLE snapshotTypeDays(SnapshotABCOperation, INTEGER);
+inDays 'Вкл.' = DATA BOOLEAN (SnapshotABCOperation, INTEGER);
+countDaysIn = GROUP SUM 1 IF inDays(SnapshotABCOperation t,INTEGER i) BY t;
+
+daysIn 'Числа'  = GROUP CONCAT VARSTRING[2](INTEGER i) IF inDays(SnapshotABCOperation t,i), ', '
+    BY t
+    ORDER i MINCHARWIDTH 10 PREFCHARWIDTH 10;
+    
+DOWsIn 'Дни недели'  = GROUP CONCAT staticCaption(DOW DOW) IF in(SnapshotABCOperation t,DOW), ', '
+    BY t
+    ORDER number(DOW) MINCHARWIDTH 15 PREFCHARWIDTH 30;    
+    
+EXTEND FORM snapshotABCOperations
+    PROPERTIES READONLY AFTER name(t) DOWsIn(t), daysIn(t)
+;
+
+EXTEND FORM snapshotABCOperation
+    OBJECTS dow = DOW    
+    PROPERTIES number(dow) READONLY, staticCaption(dow) READONLY, in(t,dow)
+    PROPERTIES(t) oneReport, countDays, countDaysDelete, idReport
+    ORDER number(dow)
+    
+    OBJECTS i = INTEGER    
+    PROPERTIES VALUE(i) READONLY , inDays(t,i)
+    FILTERS iterate(i,1,31)
+    
+;
+DESIGN snapshotABCOperation {
+    NEW paramContainerTab BEFORE TOOLBARBOX{
+        fill = 1;
+        type = TABBED;
+        MOVE select {caption = 'Выбор';}
+        NEW createContainer {
+            caption = 'Автоматическое формирование';
+            NEW createContainer1 {
+                type = CONTAINERH;
+                MOVE PROPERTY (oneReport(t));
+                MOVE PROPERTY (countDays(t));                
+                MOVE PROPERTY (idReport(t));
+                MOVE PROPERTY (countDaysDelete(t));
+            }
+            NEW tabContainer {
+                fill = 1;
+                type = SPLITH;
+                MOVE BOX(dow);
+                MOVE BOX(i) {caption = 'Числа месяца';}
+            }
+        }         
+    }
+}
+   
+in (SnapshotABCOperation type, DATE date) = ((countDOWsIn(type) AND in(type, extractDOW(date))) OR (type IS SnapshotABCOperation AND date IS DATE AND NOT countDOWsIn(type))) AND
+                              ((countDaysIn(type) AND inDays(type, extractDay(date))) OR (type IS SnapshotABCOperation AND date IS DATE AND NOT countDaysIn(type)));            
+
+
+
+  
+createSnapshotString 'Создать отчет'(STRING[100] string, DATE dateTo) = {
+	NEWSESSION { 
+	    FOR idReport(SnapshotABCOperation type) == string  DO {
+	        IF in(type, currentDate()) AND countDays(type) THEN {     
+	
+	            IF NOT oneReport(type)   THEN {
+	
+	                NEW r = SnapshotABC {                    
+	                    fromDate(r) <- subtract(dateTo,countDays(type)-1);
+	                    toDate(r) <- dateTo;
+	                    snapshotABCOperation(r) <- type;
+	                    takeFromTo(r, fromDate(r), toDate(r));                
+	                }
+    	            
+	            } ELSE {
+	                FOR include(type, Stock stock) NEW r = SnapshotABC DO {
+	                    fromDate(r) <- subtract(dateTo,countDays(type)-1);
+	                    toDate(r) <- dateTo;
+	                    snapshotABCOperation(r) <- type;
+	                    dataInclude(r, Stock st) <- NULL;
+	                    dataInclude(r, StockGroup st) <- NULL;
+	                    dataInclude(r, stock) <- TRUE;
+	                    allStockInclude(r) <- NULL;
+	                    takeFromTo(r, fromDate(r), toDate(r));                      
+	                }
+	            }
+	
+	            apply();
+	        }
+	    }
+	}
+}
+
+countDaysDeleteSnapshotsABC 'Дней хранить ABC-отчеты без операции' = DATA INTEGER ();
+
+EXTEND FORM options
+    PROPERTIES countDaysDeleteSnapshotsABC();
+    
+DESIGN options{
+    stock1 {
+        MOVE PROPERTY (countDaysDeleteSnapshotsABC());
+    }
+}
+
+deleteSnapshotsABC 'Удалить старые ABC-отчеты'()= {
+    FOR sum(date(SnapshotABC r),countDaysDelete(snapshotABCOperation(r))) < currentDate()
+        OR (NOT snapshotABCOperation(r) AND sum(date(r), countDaysDeleteSnapshotsABC()) < currentDate()) DO {
+            DELETE  r;
+            apply();
+        };
+}
+
+orderSort 'Порядок (внутри группы)' (SkuGroup g) = PARTITION SUM 1 BY groupType(g), parent(g) ORDER sort(g);
+canonicalOrderSort 'Порядок' (SkuGroup g) = VARSTRING[250]([ = GROUP CONCAT lpad(VARSTRING[3](orderSort(SkuGroup parent)), 3, '0') , '.' BY SkuGroup child ORDER DESC level(child, parent)](g));
+nameLevel4 'Наименование' (SkuGroup g) = VARSTRING[100](repeat('    ', INTEGER(level(g))-1)) + name(g);
+
+FORM snapshotABC 'ABC-отчет (new)'                                   
+    OBJECTS r = SnapshotABC PANEL
+    PROPERTIES (r) nameNumerator, 
+                   number, series, nameSnapshotABCOperation, date, time,
+                   note, fromDate, toDate,  
+                   nameGroupType, levelGroup, perc_a, perc_b, perc_c,
+                   markupSumSold READONLY ,
+                   sumSold READONLY
+                   
+//-- выбор складов                  
+    TREE stockTree2 a2 = STRING[3], sg2 = StockGroup PARENT parent, ts2 = Stock
+    PROPERTIES VALUE(a2) READONLY, allStockInclude(r) TODRAW a2 BACKGROUND backgroundAllStockInclude(r), 
+               name(sg2) READONLY, include(r,sg2) BACKGROUND backgroundInclude(r,sg2),
+               name(ts2) READONLY, include(r,ts2) BACKGROUND backgroundInclude(r,ts2)
+    ORDER name(sg2)
+    PROPERTIES deleteIncludeStocks(r) TOOLBAR
+    
+    FILTERS stringEqualsAll(a2),
+            stockGroup(ts2) == sg2,
+            isCompany(ts2)
+    FILTERGROUP inactiveStock2 FILTER 'Активный' active(ts2) 'ctrl F10' DEFAULT                                                                                  
+          
+//-- выбор групп товара     
+    TREE skuTree2 sk2 = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sk2), name(sk2)
+    PROPERTIES include(r,sk2)
+    ORDER order(sk2), name(sk2)
+    FILTERS groupType(sk2)==groupType(r)
+    FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F5' DEFAULT   
+    PROPERTIES deleteIncludeSkuGroups(r) TOOLBAR
+    
+    
+    TREE skuTree sk = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sk), name(sk), markupSumSold(sk,r), sumSold(sk,r)
+    ORDER order(sk), name(sk)
+    FILTERGROUP inactivesk FILTER 'Активные' active(sk) 'F5' DEFAULT
+    
+    
+    OBJECTS           s=Sku
+    FILTERS indexMarkupBest(s,r) AND isParent(sk, s)
+    
+    PROPERTIES (s,r)  indexMarkupBest
+    PROPERTIES        READONLY name(s), idBarcode(s), id(s) SHOWIF showIDs() 
+    PROPERTIES (s,r)  READONLY markupSumSold,
+                      percMarkupSold,  percInMarkupSold, percMarkupOrder,
+                      statusMarkup BACKGROUND backgroundStatusMarkup(s,r),
+                      sumSold,
+                      percInSumSold, percSumOrder,
+                      statusSum BACKGROUND backgroundStatusSum(s,r)
+
+    ORDER             indexMarkupBest(s,r)
+    
+    EDIT SnapshotABC OBJECT r
+    PROPERTIES(r)  takeData ;
+
+
+DESIGN snapshotABC {
+    BOX {
+        preferredSize = (1024, 768);
+        MOVE BOX(r) {
+            type = CONTAINERH;
+            MOVE GROUP(documentHeader,r);
+            MOVE GROUP(numbered,r); 
+            NEW date {
+                caption = 'Период';
+                type = CONTAINERH;
+                MOVE PROPERTY (fromDate(r));
+                MOVE PROPERTY (toDate(r));
+            }                                  
+        };
+        
+        NEW top {                     
+            fill = 1;
+            type = TABBED;
+            NEW paramContainer {
+                fill = 1;
+                caption = 'Параметры';
+                    NEW row1 {
+                        type = CONTAINERH; 
+                        caption = 'Основные';
+                        MOVE PROPERTY(nameGroupType(r));
+                        MOVE PROPERTY(levelGroup(r));
+                        MOVE PROPERTY(perc_a(r));
+                        MOVE PROPERTY(perc_b(r));
+                        MOVE PROPERTY(perc_c(r));
+                    }
+                
+                    MOVE GROUP(documentPrm,r);
+                    
+                    NEW itogi {
+                        caption = 'Итоги';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(markupSumSold(r)) { minimumCharWidth = 15; preferredCharWidth = 17;}
+                        MOVE PROPERTY(sumSold(r)) { minimumCharWidth = 15; preferredCharWidth = 17;}
+                    }
+                
+                NEW select{
+                    fill = 1;
+                    type = SPLITH;
+                    MOVE BOX(TREE stockTree2) { 
+                        fill = 1; caption = 'Выбор складов'; 
+                        TOOLBARBOX(TREE stockTree2) {
+                            MOVE PROPERTY (deleteIncludeStocks(r));
+                        }
+                    }   
+                    MOVE BOX(TREE skuTree2) { 
+                        fill = 1; caption = 'Выбор групп'; 
+                        TOOLBARBOX(TREE skuTree2) {
+                            MOVE PROPERTY (deleteIncludeSkuGroups(r));
+                        }
+                    }   
+                }   
+            }
+            
+            NEW resultContainer {
+                caption = 'Результат';
+                MOVE PROPERTY (takeData(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 36';  }
+                NEW resultContainer2 {
+                    fill = 7;
+                    type = TABBED;
+                    NEW tabb1 {
+                        caption = 'По товарам';
+                        type = SPLITH;          
+                        NEW firstCase {
+                            fill = 1;
+                            type = SPLITV;
+                            MOVE BOX(TREE skuTree) { caption = 'Группы'; }
+                        }
+                        NEW secondCase {
+                            fill = 2;
+                            type = TABBED;
+                            MOVE BOX(s) {caption = ' ';}
+                        }
+                    }
+                }                 
+            }
+        } 
+        MOVE TOOLBARBOX;
+    }
+}
+
+
+FORM snapshotsABC 'ABC-отчеты'
+
+    OBJECTS r = SnapshotABC LAST 
+    PROPERTIES (r) READONLY number, series, date, time,
+                   fromDate, toDate, nameSnapshotABCOperation, status BACKGROUND backgroundStatus(r), 
+                   startTime, finishTime, note, nameIncludeStockGroupsStock, nameIncludeSkuGroups,
+                   nameGroupType, levelGroup, perc_a, perc_b, perc_c
+                   
+    PROPERTIES (r) NEWSESSION NEW, EDIT, deleter=DELETE   
+    PROPERTIES (r) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer   
+                         
+    LIST SnapshotABC OBJECT r
+;
+DESIGN snapshotsABC {
+    BOX {
+        preferredSize = (1024, 768);
+        MOVE BOX(r);
+        MOVE GROUP(created,r); 
+        MOVE TOOLBARBOX;
+    }    
+} 
+
+NAVIGATOR {
+    retailNavigator {
+        NEW abcNavigator 'ABC анализ (new)' {
+            ADD snapshotABCOperations;
+            ADD snapshotsABC;
+        }
+    }
+}
+
