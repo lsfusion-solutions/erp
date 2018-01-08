@@ -815,7 +815,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 break;
                                             case 6:
                                                 String numberGiftCard = BaseUtils.trimToNull(moneyPosition.getString("cardnum"));
-                                                sumGiftCardMap.put(numberGiftCard, new GiftCard(sum, sum));
+                                                if (sumGiftCardMap.containsKey(numberGiftCard)) { // пока вот такой чит, так как в cardnum бывают пустые значения
+                                                    sumGiftCardMap.get(numberGiftCard).sum = HandlerUtils.safeAdd(sumGiftCardMap.get(numberGiftCard).sum, sum);
+                                                    sumGiftCardMap.get(numberGiftCard).price = HandlerUtils.safeAdd(sumGiftCardMap.get(numberGiftCard).price, sum);
+                                                } else
+                                                    sumGiftCardMap.put(numberGiftCard, new GiftCard(sum, sum));
                                                 break;
                                             default:
                                                 sumCash = HandlerUtils.safeAdd(sumCash, sum);
