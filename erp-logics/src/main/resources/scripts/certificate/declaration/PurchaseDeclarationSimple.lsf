@@ -1,0 +1,90 @@
+MODULE PurchaseDeclarationSimple;
+
+REQUIRE PurchaseDeclaration, PurchaseDeclarationDetail; 
+
+NAMESPACE Purchase;
+
+dataRegistrationSumDeclaration 'Таможенный сбор' = DATA NUMERIC[18,4] (UserInvoice) MINCHARWIDTH 15;
+dataDutySum 'Сумма (пошлина)'= DATA NUMERIC[18,4] (UserInvoiceDetail); 
+
+// Таможенный сбор
+coeffUserInvoice 'Удельный вес' (UserInvoiceDetail d) =
+    NUMERIC[22,8](sum(d)) / sumUserInvoiceDetail(userInvoice(d));
+
+calcRegistrationSumDeclaration 'Таможенный сбор' (UserInvoiceDetail d) =
+    PARTITION UNGROUP dataRegistrationSumDeclaration
+              PROPORTION ROUND(8) coeffUserInvoice(d)
+              BY userInvoice(d)
+              ORDER d;
+
+calcRegistrationPriceDeclaration 'Таможенный сбор (ед.)' (UserInvoiceDetail d) = Utils.round(calcRegistrationSumDeclaration(d) / (quantity(d) IF quantity(d) != 0), 8);
+                                                                                  
+changeDataRegistrationSumDeclaration(UserInvoice userInvoice) = {        
+    INPUT n = NUMERIC[18,4] DO { 
+       dataRegistrationSumDeclaration(userInvoice) <- n;                   
+       registrationPrice(UserInvoiceDetail detail) <- calcRegistrationPriceDeclaration(detail) WHERE userInvoice(detail) == userInvoice AND quantity(detail) != 0; 
+    }  
+}
+                                                                           
+WHEN LOCAL FORMS userInvoice CHANGED(sumUserInvoiceDetail(UserInvoice invoice)) AND showDeclaration(invoice) NOINLINE DO {
+    registrationPrice(UserInvoiceDetail detail) <- calcRegistrationPriceDeclaration(detail) WHERE quantity(detail) != 0 AND userInvoice(detail) == invoice;    
+}
+
+// таможенная пошлина
+calcDutyPrice(UserInvoiceDetail detail) = {
+    INPUT n = NUMERIC[18,4] DO {
+         dutySum(detail) <- n;
+         dutyPrice(detail) <- NUMERIC[20,8](dutySum(detail) / quantity(detail));
+    }                
+}
+
+WHEN LOCAL FORMS userInvoice CHANGED(dutySum(UserInvoiceDetail detail)) DO {
+    dutyPrice(detail) <- dutySum(detail) / quantity(detail);    
+}
+
+//разница по округлению
+roundSumRegistrationPriceDutyRate 'Округление (сбор)' = dataRegistrationSumDeclaration(UserInvoice invoice) (-) registrationSumUserInvoiceDetail(invoice); 
+roundRegistrationSumUserInvoiceDetail = round(registrationSumUserInvoiceDetail(UserInvoice invoice), homeCurrency(invoice));
+
+    
+//НДС
+declarationVATSum 'Сумма НДС' = DATA NUMERIC[18,4](UserInvoiceDetail) MINCHARWIDTH 10 PREFCHARWIDTH 12;
+declarationVATSumInvoiceDetail 'Сумма НДС' (d) =
+    GROUP SUM declarationVATSum(UserInvoiceDetail d) BY userInvoice(d) MINCHARWIDTH 15;
+        
+WHEN LOCAL FORMS userInvoice CHANGED(declarationVATSum(UserInvoiceDetail detail)) DO {
+    VATPrice(detail) <- declarationVATSum(detail)/quantity(detail);    
+}    
+    
+EXTEND FORM userInvoice
+    PROPERTIES(i)  SHOWIF showDeclaration(i)
+                   dataRegistrationSumDeclaration ON CHANGE changeDataRegistrationSumDeclaration(i)
+    PROPERTIES(i) READONLY SHOWIF showDeclaration(i) roundSumRegistrationPriceDutyRate  
+    PROPERTIES(d3) SHOWIF showDeclaration(i) quantity BEFORE price(d3)
+    PROPERTIES(d3) SHOWIF showDeclaration(i) dutySum BEFORE dutyPrice(d3) ON CHANGE calcDutyPrice(d3)
+    PROPERTIES(d3) SHOWIF showDeclaration(i) declarationVATSum BEFORE VATPrice(d3)
+;
+
+DESIGN userInvoice {              
+    declarationContainer {
+        type = CONTAINERV;      
+        NEW declarationContainerHeader {
+            type = COLUMNS;
+            columns = 4;    
+            MOVE PROPERTY(descriptionDeclarationTabUserInvoice);
+            MOVE PROPERTY(dataRegistrationSumDeclaration(i));
+            MOVE PROPERTY(roundSumRegistrationPriceDutyRate(i));
+        } 
+        NEW splitContainer{
+            type = SPLITV;
+            fill = 1;
+            MOVE BOX(d3){
+                fill = 2;
+            }  
+        }                     
+    }    
+}
+
+EXTEND FORM invoices
+    PROPERTIES (i) READONLY  dataRegistrationSumDeclaration 
+;
