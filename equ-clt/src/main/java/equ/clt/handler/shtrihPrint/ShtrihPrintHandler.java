@@ -7,6 +7,7 @@ import com.jacob.com.Variant;
 import equ.api.*;
 import equ.api.scales.*;
 import equ.clt.handler.ScalesSettings;
+import lsfusion.base.ExceptionUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -844,7 +845,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
     }
 
     private void logError(List<String> errors, String errorText, Throwable t) {
-        errors.add(errorText + (t == null ? "" : ('\n' + t.toString())));
+        errors.add(errorText + (t == null ? "" : ('\n' + ExceptionUtils.getStackTraceString(t))));
         processTransactionLogger.error(errorText, t);
     }
 

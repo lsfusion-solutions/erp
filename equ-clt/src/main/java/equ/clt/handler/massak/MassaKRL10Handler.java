@@ -8,6 +8,7 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
+import lsfusion.base.ExceptionUtils;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.log4j.Logger;
@@ -561,7 +562,7 @@ public class MassaKRL10Handler extends ScalesHandler {
     }
 
     protected void logError(List<String> errors, String errorText, Throwable t) {
-        errors.add(errorText.replace("\u001b", "").replace("\u0000", "") + (t == null ? "" : ('\n' + t.toString())));
+        errors.add(errorText.replace("\u001b", "").replace("\u0000", "") + (t == null ? "" : ('\n' + ExceptionUtils.getStackTraceString(t))));
         processTransactionLogger.error(errorText, t);
     }
 
