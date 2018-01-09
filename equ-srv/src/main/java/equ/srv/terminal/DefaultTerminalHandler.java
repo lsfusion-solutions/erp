@@ -633,7 +633,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 ImportField idTerminalDocumentField = new ImportField(terminalHandlerLM.findProperty("id[TerminalDocument]"));
                 ImportKey<?> terminalDocumentKey = new ImportKey((ConcreteCustomClass) terminalHandlerLM.findClass("TerminalDocument"),
-                        terminalHandlerLM.findProperty("terminalDocument[VARSTRING[100]]").getMapping(idTerminalDocumentField));
+                        terminalHandlerLM.findProperty("terminalDocument[VARSTRING[1000]]").getMapping(idTerminalDocumentField));
                 keys.add(terminalDocumentKey);
                 props.add(new ImportProperty(idTerminalDocumentField, terminalHandlerLM.findProperty("id[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(idTerminalDocumentField);
@@ -667,7 +667,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                     ImportField idTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("id[TerminalDocumentDetail]"));
                     ImportKey<?> terminalDocumentDetailKey = new ImportKey((ConcreteCustomClass) terminalHandlerLM.findClass("TerminalDocumentDetail"),
-                            terminalHandlerLM.findProperty("terminalIdTerminalId[VARSTRING[100],VARSTRING[100]]").getMapping(idTerminalDocumentField, idTerminalDocumentDetailField));
+                            terminalHandlerLM.findProperty("terminalIdTerminalId[VARSTRING[1000],VARSTRING[1000]]").getMapping(idTerminalDocumentField, idTerminalDocumentDetailField));
                     keys.add(terminalDocumentDetailKey);
                     props.add(new ImportProperty(idTerminalDocumentDetailField, terminalHandlerLM.findProperty("id[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                     props.add(new ImportProperty(idTerminalDocumentField, terminalHandlerLM.findProperty("terminalDocument[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey),
@@ -725,7 +725,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
 
-                ObjectValue terminalDocumentObject = terminalHandlerLM.findProperty("terminalDocument[VARSTRING[100]]").readClasses(session, session.getModifier(), session.getQueryEnv(), new DataObject(idTerminalDocument));
+                ObjectValue terminalDocumentObject = terminalHandlerLM.findProperty("terminalDocument[VARSTRING[1000]]").readClasses(session, session.getModifier(), session.getQueryEnv(), new DataObject(idTerminalDocument));
                 terminalHandlerLM.findProperty("createdUser[TerminalDocument]").change(userObject, session, (DataObject) terminalDocumentObject);
                 terminalHandlerLM.findAction("process[TerminalDocument]").execute(session, stack, terminalDocumentObject);
                 ServerLoggers.importLogger.info("start applying terminal document " + idTerminalDocument);
