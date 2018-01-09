@@ -9,6 +9,7 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
+import lsfusion.base.ExceptionUtils;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -142,7 +143,7 @@ public class DigiHandler extends ScalesHandler {
                     message.append(error).append("\n");
                 }
             }
-            throw new RuntimeException(message.toString());
+            throw new RuntimeException(getLogPrefix() + message.toString());
         } else if (ips.isEmpty() && brokenPortsMap.isEmpty())
             throw new RuntimeException(getLogPrefix() + "No IP-addresses defined");
     }
@@ -493,7 +494,7 @@ public class DigiHandler extends ScalesHandler {
     }
 
     protected void logError(List<String> errors, String errorText, Throwable t) {
-        errors.add(errorText + (t == null ? "" : ('\n' + t.toString())));
+        errors.add(errorText + (t == null ? "" : ('\n' + ExceptionUtils.getStackTraceString(t))));
         processTransactionLogger.error(errorText, t);
     }
 

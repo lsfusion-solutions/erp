@@ -223,7 +223,8 @@ public class DigiSM120Handler extends DigiHandler {
     }
 
     private String getPrice(BigDecimal price) {
-        return fillLeadingZeroes(safeMultiply(price, 100).intValue(), 6);
+        price = safeMultiply(price, 100);
+        return fillLeadingZeroes(price == null ? 0 : price.intValue(), 6);
     }
 
     private String getNameLines(String name, Integer lineFont, Integer lineLength) {
