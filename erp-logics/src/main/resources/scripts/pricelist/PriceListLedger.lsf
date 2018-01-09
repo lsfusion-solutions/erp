@@ -653,6 +653,25 @@ END
 META deriveDocumentDetailPriceAccountBatch (concrete, skuProp, stockProp)
     @deriveDocumentDetailPriceAccountBatch (concrete, , skuProp, stockProp);
 END
+META deriveDocumentDetailPriceAccountBatchDisable (concrete, prefixP, skuProp, stockProp)
+    disableUpdate###prefixP###price = ABSTRACT BOOLEAN (###concrete##Detail);
+
+    WHEN LOCAL (CHANGED(stockProp(###concrete##Detail detail)) OR
+                (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+                SETCHANGED(batch(detail))) AND batch(detail) AND NOT CHANGED(prefixP###price(detail)) AND NOT disableUpdate###prefixP###price(detail) DO
+        prefixP###price (detail) <- prevAccountPriceB(batch(detail), stockProp(detail), dateTime(detail));
+
+    WHEN LOCAL (CHANGED(skuProp(###concrete##Detail detail)) OR
+                CHANGED(stockProp(detail)) OR
+                (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+                DROPPED(batch(detail))) AND NOT batch(detail) AND NOT CHANGED(prefixP###price(detail)) AND NOT disableUpdate###prefixP###price(detail) DO
+        prefixP###price (detail) <- prevAccountPriceB(sku(detail), stockProp(detail), dateTime(detail));
+END
+
+META deriveDocumentDetailPriceAccountBatchDisable (concrete, skuProp, stockProp)
+    @deriveDocumentDetailPriceAccountBatchDisable (concrete, , skuProp, stockProp);
+END
+
 
 META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (concrete, priceListTypeProp, prefixP, prefixB, skuProp, stockProp)
     prefixP###price (###concrete##Detail detail)  <- IF batch(detail)
