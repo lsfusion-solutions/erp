@@ -35,7 +35,6 @@ import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.xBaseJ.xBaseJException;
 
 import java.io.*;
 import java.lang.reflect.Field;
@@ -44,7 +43,6 @@ import java.nio.charset.Charset;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Time;
-import java.text.ParseException;
 import java.util.*;
 
 public class ImportUserPriceListActionProperty extends ImportUniversalActionProperty {
@@ -99,7 +97,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException | ParseException | JDBFException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | IOException | JDBFException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
@@ -109,7 +107,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
     public boolean importData(ExecutionContext context, DataObject userPriceListObject, ImportPriceListSettings settings, Map<DataObject, String[]> priceColumns, 
                               Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, byte[] file, boolean apply)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, UniversalImportException, SQLHandledException, JDBFException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, UniversalImportException, SQLHandledException, JDBFException {
 
         this.itemArticleLM = context.getBL().getModule("ItemArticle");
         this.itemAlcoholLM = context.getBL().getModule("ItemAlcohol");
@@ -168,7 +166,20 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         if (userPriceListDetailList != null) {
             
             if(userPriceListDetailList.isEmpty())
-                return true;           
+                return true;
+
+            boolean isItemKey = (settings.getItemKeyType() == null || settings.getItemKeyType().equals("item"));
+            LCP iGroupAggr = findProperty(isItemKey ? "item[VARSTRING[100]]" : "skuBarcode[STRING[15]]");
+
+            if(settings.isDoNotCreateItems()) {
+                for (Iterator<UserPriceListDetail> iterator = userPriceListDetailList.iterator(); iterator.hasNext();) {
+                    UserPriceListDetail detail = iterator.next();
+                    String fieldValue = isItemKey ? detail.idItem : detail.barcodeItem;
+                    if (fieldValue == null || iGroupAggr.read(context, new DataObject(fieldValue)) == null) {
+                        iterator.remove();
+                    }
+                }
+            }
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
@@ -238,11 +249,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("amountPackBarcode"));
             }
 
-            boolean isItemKey = (settings.getItemKeyType() == null || settings.getItemKeyType().equals("item"));
-            
             ImportField idItemField = new ImportField(findProperty("id[Item]"));
-            
-            LCP iGroupAggr = findProperty(isItemKey ? "item[VARSTRING[100]]" : "skuBarcode[STRING[15]]");
+
             ImportField iField = isItemKey ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     iGroupAggr.getMapping(iField));
@@ -689,7 +697,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                                                                   Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                   Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
                                                                   List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
-            throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
+            throws IOException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
@@ -704,12 +712,17 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 Map<String, Object> fieldValues = new HashMap<>();
                 for (String field : stringFields) {
                     String value = getXLSFieldValue(formulaEvaluator, sheet, i, defaultColumns.get(field));
-                    if (field.equals("extraBarcodeItem")) {
-                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7, settings.isBarcodeMaybeUPC()));
-                    } else if (field.equals("valueVAT")) {
-                        fieldValues.put(field, parseVAT(value));
-                    } else
-                        fieldValues.put(field, value);
+                    switch (field) {
+                        case "extraBarcodeItem":
+                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7, settings.isBarcodeMaybeUPC()));
+                            break;
+                        case "valueVAT":
+                            fieldValues.put(field, parseVAT(value));
+                            break;
+                        default:
+                            fieldValues.put(field, value);
+                            break;
+                    }
                 }
                 for (String field : bigDecimalFields) {
                     BigDecimal value = getXLSBigDecimalFieldValue(formulaEvaluator, sheet, i, defaultColumns.get(field));
@@ -759,7 +772,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                                                                   Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                   Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
                                                                   List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
-            throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
+            throws IOException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
@@ -780,12 +793,17 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     Map<String, Object> fieldValues = new HashMap<>();
                     for (String field : stringFields) {
                         String value = getCSVFieldValue(valuesList, defaultColumns.get(field), count);
-                        if (field.equals("extraBarcodeItem")) {
-                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7, settings.isBarcodeMaybeUPC()));
-                        } else if (field.equals("valueVAT")) {
-                            fieldValues.put(field, parseVAT(value));
-                        } else
-                            fieldValues.put(field, value);
+                        switch (field) {
+                            case "extraBarcodeItem":
+                                fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7, settings.isBarcodeMaybeUPC()));
+                                break;
+                            case "valueVAT":
+                                fieldValues.put(field, parseVAT(value));
+                                break;
+                            default:
+                                fieldValues.put(field, value);
+                                break;
+                        }
                     }
                     for (String field : bigDecimalFields) {
                         BigDecimal value = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get(field), count);
@@ -835,7 +853,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                                                                    Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                    Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
                                                                    List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
-            throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
+            throws IOException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
@@ -849,12 +867,17 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 Map<String, Object> fieldValues = new HashMap<>();
                 for (String field : stringFields) {
                     String value = getXLSXFieldValue(sheet, i, defaultColumns.get(field));
-                    if (field.equals("extraBarcodeItem"))
-                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7, settings.isBarcodeMaybeUPC()));
-                    else if (field.equals("valueVAT")) {
-                        fieldValues.put(field, parseVAT(value));
-                    } else
-                        fieldValues.put(field, value);
+                    switch (field) {
+                        case "extraBarcodeItem":
+                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7, settings.isBarcodeMaybeUPC()));
+                            break;
+                        case "valueVAT":
+                            fieldValues.put(field, parseVAT(value));
+                            break;
+                        default:
+                            fieldValues.put(field, value);
+                            break;
+                    }
                 }
                 for (String field : bigDecimalFields) {
                     BigDecimal value = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get(field));
@@ -904,7 +927,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                                                                   Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                   Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
                                                                   List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
-            throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, JDBFException {
+            throws IOException, UniversalImportException, JDBFException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
@@ -932,12 +955,17 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 Map<String, Object> fieldValues = new HashMap<>();
                 for (String field : stringFields) {
                     String value = getJDBFFieldValue(entry, fieldNamesMap, defaultColumns.get(field), i);
-                    if (field.equals("extraBarcodeItem"))
-                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7, settings.isBarcodeMaybeUPC()));
-                    else if (field.equals("valueVAT")) {
-                        fieldValues.put(field, parseVAT(value));
-                    } else
-                        fieldValues.put(field, value);
+                    switch (field) {
+                        case "extraBarcodeItem":
+                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7, settings.isBarcodeMaybeUPC()));
+                            break;
+                        case "valueVAT":
+                            fieldValues.put(field, parseVAT(value));
+                            break;
+                        default:
+                            fieldValues.put(field, value);
+                            break;
+                    }
                 }
                 for (String field : bigDecimalFields) {
                     BigDecimal value = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, defaultColumns.get(field), i);
@@ -979,7 +1007,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         }
 
         dbfReader.close();
-        tempFile.delete();
+        if(!tempFile.delete())
+            tempFile.deleteOnExit();
         return userPriceListDetailList;
     }
 
