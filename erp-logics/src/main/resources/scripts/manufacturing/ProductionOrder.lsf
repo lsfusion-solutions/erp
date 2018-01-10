@@ -2117,3 +2117,15 @@ showToShow (Order o) = o IS Order AND NOT overShowEdit(o);
 EXTEND FORM orders
     PROPERTIES show(o) SHOWIF showToShow(o) BEFORE editO
 ;
+countProductDetail = GROUP SUM 1 BY order(ProductDetail pd), BOM(pd);
+countComponentDetail = GROUP SUM 1 BY order(ComponentDetail pd), BOM(pd);
+
+CONSTRAINT (CHANGED(isPosted(ProductDetail pd)) OR CHANGED(BOM(pd)) OR CHANGED(operation(pd))) 
+    AND isComponents(operation(pd)) AND isPosted(pd)
+    AND NOT countComponentDetail(order(pd), BOM(pd))
+        MESSAGE 'Внимание!!! Для изделий должны быть компоненты.';
+        
+CONSTRAINT (CHANGED(isPosted(ComponentDetail cd)) OR CHANGED(BOM(cd)) OR CHANGED(operation(cd))) 
+    AND isComponents(operation(cd)) AND isPosted(cd)
+    AND NOT countProductDetail(order(cd), BOM(cd))
+        MESSAGE 'Внимание!!! Для компонентов должны быть изделия.';
