@@ -905,7 +905,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             //sql_no_cache is workaround of the bug: https://bugs.mysql.com/bug.php?id=31353
             String query = "select sql_no_cache p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, p.card_number " +
                     "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id " +
-                    "where r.ext_processed = 0 AND r.result = 0 AND p.type != 3"; // type 3 это сдача
+                    "where r.ext_processed = 0 AND r.result = 0 AND p.type = 0"; // type 3 это сдача, type 2 - аннулирование
             ResultSet rs = statement.executeQuery(query);
             while (rs.next()) {
                 Integer cash_id = rs.getInt(1); //cash_id
