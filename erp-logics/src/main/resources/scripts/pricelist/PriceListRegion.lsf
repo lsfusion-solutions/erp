@@ -1,0 +1,24 @@
+MODULE PriceListRegion;
+
+REQUIRE PriceList;
+
+NAMESPACE PriceList;
+
+TABLE userPriceListRegion(UserPriceList, Region);
+in 'Вкл' = DATA BOOLEAN (UserPriceList, Region); 
+
+EXTEND FORM userPriceList
+    OBJECTS r = Region
+    PROPERTIES(r) READONLY name
+    PROPERTIES in(p, r)
+;
+
+DESIGN userPriceList {
+    stockGroups {
+        MOVE BOX(r);
+    }
+}
+
+countRegions = GROUP SUM 1 IF in(UserPriceList p, Region r) BY p MATERIALIZED;
+
+skip(Stock s, PriceList p) += countRegions(p) AND NOT in(p, region(s));
