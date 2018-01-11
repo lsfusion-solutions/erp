@@ -4,12 +4,17 @@ REQUIRE PriceListStore, PriceListDashboard, PriceListPromotion;
 
 NAMESPACE PriceList;
 // -------------------------- Текущие цены -------------------- //
-
 filterRetailCalc = GROUP SUM 1 BY retailCalcPriceListType (DepartmentStore d); 
-filterRetail = GROUP SUM 1 BY retailPriceListType (DepartmentStore d); 
+filterRetail (LedgerPriceListType t) = GROUP SUM 1 IF overIn(retailPriceListType (DepartmentStore d), LedgerPriceListType lt) BY lt; 
 filterBase = GROUP SUM 1 BY basePriceListType(retailCalcPriceListType (DepartmentStore d)); 
    
 currentCalc (CalcPriceListType type, Sku sku, Stock stock, DATETIME dt) = priceA(type, sku, stock, dt);
+
+currentMarkupM 'Надбавка, %' (LedgerPriceListType rt, LedgerPriceListType st, Sku sku, Stock stock, DATETIME dt) = 
+    [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                               priceA(rt, sku, stock, dt),
+                               priceA(st, sku, stock, dt),
+                               valueVAT(sku, stock));
 currentCalcM (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dt) = priceA(type, sku, stock, dt);
 
 changeDataMarkup (CalcPriceListType pt1, Sku sk) = {
@@ -24,7 +29,7 @@ backgroundCalc (LedgerPriceListType type, Stock stock) = CASE
     WHEN type IS  LedgerPriceListType AND stock IS Stock THEN RGB(255, 244, 240);
     
 backgroundRetail (LedgerPriceListType type, Stock stock) = CASE
-    WHEN retailPriceListType (stock)== type THEN RGB(186, 248, 255)
+    WHEN ledgerPriceListType(retailPriceListType (stock))== type THEN RGB(186, 248, 255)
     WHEN type IS  LedgerPriceListType AND stock IS Stock THEN RGB(237, 253, 255);
 
 backgroundMarkupSku (CalcPriceListType type, Sku sku, Stock stock) = CASE 
@@ -86,7 +91,7 @@ createPriceList 'Создать прайс (отм.)' (DATETIME dt) = {
 backgroundPromotion(Sku sku, Stock stock, DATETIME dt) =  RGB(216,224,255) IF promotionPriceListDetailA(sku, stock, dt);
 
 currentCompare 'Цена конкурента' (Sku sku, DATETIME dt) = priceA[LedgerPriceListType,Sku,Stock,DATETIME](comparePriceListType(), sku, compareStock(), dt);
-currentOwn (Sku sk, Stock d, DATETIME dt) = OVERRIDE currentCalcM(retailPriceListType(d), sk, d,dt), currentCalc(retailCalcPriceListType(d), sk, d, dt);
+currentOwn (Sku sk, Stock d, DATETIME dt) = OVERRIDE currentCalcM(ledgerPriceListType(retailPriceListType(d)), sk, d,dt), currentCalc(retailCalcPriceListType(d), sk, d, dt);
 backgroundCompare (Sku sk, Stock d, DATETIME dt) = CASE
     WHEN currentOwn(sk,d,dt) <= currentCompare(sk,dt) THEN RGB(204,255,204)
     WHEN currentOwn(sk,d,dt) > currentCompare(sk,dt) THEN RGB(255, 117, 117);
@@ -132,7 +137,7 @@ FORM retailPriceDashboard 'Розничные цены'
     OBJECTS sk=Sku
     PROPERTIES (sk) READONLY image PANEL SHOWIF hasImage(sk)
     PROPERTIES (sk) select//, hasRetailPrice
-    PROPERTIES (sk) READONLY name BACKGROUND backgroundPromotion(sk,d,dt), id, idBarcode, nameCountry
+    PROPERTIES (sk) READONLY name BACKGROUND backgroundPromotion(sk,d,dt) ON CONTEXTMENU showMovementSku(sk, d) ON CONTEXTMENU showMovementPriceSku(sk, d), id, idBarcode, nameCountry
     PROPERTIES  READONLY currentBalance(sk,d), valueVAT(sk)
     //-- входная цена
     PROPERTIES READONLY currentCalcM(pt0,sk,d,dt) COLUMNS (pt0)  HEADER ('Вход. цена '+name(pt0)) BACKGROUND backgroundCalc(pt0,d)
@@ -141,7 +146,8 @@ FORM retailPriceDashboard 'Розничные цены'
     PROPERTIES markupGroup(pt1,sk) COLUMNS 'f' (pt1) HEADER ('% ТН, группа '+name(pt1)) ON CHANGE changeDataMarkupALL(pt1,sk)  BACKGROUND backgroundMarkupSkuGroup(pt1,sk,d)              
     PROPERTIES READONLY currentCalc(pt1,sk,d,dt) COLUMNS 'f'  (pt1) HEADER ('РЦ, над. '+name(pt1)) BACKGROUND backgroundMarkupSkuGroupOver(pt1,sk,d)        
     //-- розничная (упр.)
-    PROPERTIES currentCalcM(pt2,sk,d,dt) COLUMNS'f'  (pt2) HEADER ('РЦ, упр. '+name(pt2)) ON CHANGE changeRetailPriceM(pt2,sk,d,dt) BACKGROUND backgroundRetail(pt2,d)
+    PROPERTIES currentMarkupM(pt2,pt0,sk,d,dt) COLUMNS 'f'  (pt2) HEADER ('Надбавка, упр., % '+name(pt2)) BACKGROUND backgroundRetail(pt2,d)
+    PROPERTIES currentCalcM(pt2,sk,d,dt) COLUMNS 'f'  (pt2) HEADER ('РЦ, упр. '+name(pt2)) ON CHANGE changeRetailPriceM(pt2,sk,d,dt) BACKGROUND backgroundRetail(pt2,d)
     //-- конкуренты
     PROPERTIES READONLY currentCompare(sk,dt)  BACKGROUND backgroundCompare(sk,d,dt)    
     
@@ -215,6 +221,7 @@ DESIGN retailPriceDashboard {
                      MOVE PROPERTY (image(sk)) {
                          fill = 1;
                          caption = '';
+                         focusable = FALSE;
                      }
                  }
                  MOVE BOX(sk) {

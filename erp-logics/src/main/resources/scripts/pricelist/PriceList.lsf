@@ -191,9 +191,15 @@ price(PriceListDetail detail, DataPriceListType type) => in (detail, type) RESOL
 //НДС
 
 valueVAT 'НДС' (PriceListDetail d) =
-    valueVAT(sku(d), country(company(d)), fromDate(d));
+    valueVAT(sku(d), fromDate(d));
 valueVAT 'НДС' (UserPriceListDetail d) =
-    valueVAT(sku(d), country(company(d)), fromDate(d));
+    valueVAT(sku(d), fromDate(d));
+
+// пока не смотрим на страну, так как могут быть прайсы без организаций
+//valueVAT 'НДС' (PriceListDetail d) =
+//    valueVAT(sku(d), country(company(d)), fromDate(d));
+//valueVAT 'НДС' (UserPriceListDetail d) =
+//    valueVAT(sku(d), country(company(d)), fromDate(d));
 
 // ---------------------  Склады, для которых действует прайс
 
@@ -650,6 +656,18 @@ FORM userPriceList 'Прайс'
 EXTEND FORM userPriceList
     PROPERTIES(d) BACKGROUND background(d) AFTER nameSku(d) originalIdBarcodeSku SHOWIF showOriginalIdBarcodeSku(p), originalNameSku  SHOWIF showOriginalNameSku(p)        
 ;
+
+// склад по умолчанию
+defaultStock = DATA Stock();
+nameDefaultStock 'Предпочтительный склад в прайс-листах' = name(defaultStock());
+EXTEND FORM options PROPERTIES() nameDefaultStock;
+DESIGN options { price { MOVE PROPERTY(nameDefaultStock()); } }
+
+seekDefaultStock = { SEEK userPriceList.tt = defaultStock(); }
+EXTEND FORM userPriceList
+    EVENTS ON INIT seekDefaultStock()
+;
+
 
 WHEN LOCAL FORMS userPriceList CHANGED(company(UserPriceList o)) DO {
     IF countStocks (company(o)) == 1 THEN
