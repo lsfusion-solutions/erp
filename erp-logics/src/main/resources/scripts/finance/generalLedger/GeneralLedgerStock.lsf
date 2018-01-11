@@ -22,25 +22,85 @@ DESIGN userGeneralLedger {
     }    
 }
 
-generalLedgersStock 'Склад' = DATA LOCAL NESTED Stock();
-nameGeneralLedgersStock 'Склад' = name(generalLedgersStock()) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+selectGLStock 'Отм.' = DATA LOCAL NESTED BOOLEAN (Stock);
+countSelectGLStock = GROUP SUM 1 IF selectGLStock(Stock st);
+minSelectGLStock = GROUP MIN Stock st IF selectGLStock(st);
+nameSelectGLStock 'Склады'  = GROUP CONCAT name(Stock st) IF selectGLStock(st), ', ' MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
-CONSTRAINT generalLedgersStock() AND NOT isCompany(generalLedgersStock())
-    CHECKED BY generalLedgersStock[] MESSAGE 'Выбран склад, который не принадлежит компании.';
+CONSTRAINT selectGLStock(Stock st) AND NOT isCompany(st)
+    MESSAGE 'Выбран склад, который не принадлежит компании.';
 
-changeGeneralLedgerStock () = {
-    DIALOG stocks OBJECTS s INPUT NULL DO {
-        generalLedgersStock() <- s;
-        SEEK generalLedgers.l = legalEntity(s);
+CONSTRAINT countSelectGLStock() AND [ = GROUP SUM 1 IF [ = GROUP SUM 1 IF selectGLStock(Stock st) BY legalEntity(st)](LegalEntity l)]()>1
+    MESSAGE 'Выбранные склады должны принадлежать одной компании.';
+notResetStock() = DATA LOCAL BOOLEAN ();   
+resetSelectGLStock () = {
+    IF NOT notResetStock() THEN{
+        selectGLStock(Stock st) <- NULL;  
     }
+    notResetStock() <- NULL;  
 }
 
-EXTEND FORM generalLedgers 
-    PROPERTIES nameGeneralLedgersStock() TODRAW dates ON CHANGE changeGeneralLedgerStock()
+FORM companyStocksEx 'Склады'
+    OBJECTS l = LegalEntity PANEL
 
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
+    ORDER sgTreeName
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES (s) selectGLStock
+    PROPERTIES(s) READONLY id, stockName = name, nameLegalEntity, nameCountry, address
+    ORDER stockName
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            in(l,s),
+            isCompany(s)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'F5' DEFAULT   
+    FILTERGROUP select FILTER 'Отмеченные' selectGLStock(s) 'F10'         
+;
+
+DESIGN companyStocksEx {
+    BOX {
+        preferredSize = (1024, 768);
+
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+
+            MOVE BOX(TREE stockTree) {
+                caption = 'Склады';
+            }
+
+            MOVE BOX(s) {
+                fill = 3;
+                GRID(s) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+@extendFormFilterStockGroupAccess(sg, companyStocksEx, company);
+@extendFormFilterStockAccess(s, companyStocksEx, company);
+
+changeSelectGLStock (LegalEntity l) = {
+    DIALOG companyStocksEx OBJECTS l = l, s INPUT NULL DO {
+        IF NOT countSelectGLStock() THEN {
+            selectGLStock(s) <- TRUE;
+        }
+    }
+}
+EXTEND FORM generalLedgers 
+    EVENTS ON CHANGE l resetSelectGLStock()
+;
+
+EXTEND FORM generalLedgers 
+    PROPERTIES nameSelectGLStock() TODRAW dates ON CHANGE changeSelectGLStock(l)
     PROPERTIES(g)  READONLY nameStock AFTER nameLegalEntity(g)
     
-    FILTERS generalLedgersStock() == stock(g) OR (NOT generalLedgersStock() AND g IS GeneralLedger)  
+    FILTERS selectGLStock(stock(g)) OR (NOT countSelectGLStock() AND g IS GeneralLedger)  
 ;
 
 @extendFormFilterAccessStock(generalLedger, g, generalLedgers, stock, company);
