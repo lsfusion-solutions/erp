@@ -2,6 +2,14 @@ MODULE FiscalEpson;
 
 REQUIRE POS, POSSection;
 
+needDLL() = GROUP SUM 1 IF computer(CashRegister c) == currentComputer() AND sidModel(groupMachinery(c)) == 'Epson';
+onClientStarted() += {
+	IF needDLL() THEN {
+	    IF NOT is64Java(currentComputer()) THEN
+	        loadLibrary('lib/win32/uniFiscalOcx.dll');
+	}
+};
+
 documentNumber 'Сквозной номер чека' (receipt) = DATA INTEGER (Receipt);
 
 fiscalEpsonPrint 'Напечатать фискальный чек' = CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonPrintReceiptActionProperty' (Receipt);
