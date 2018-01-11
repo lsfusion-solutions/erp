@@ -437,7 +437,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 barcode = null;
                 GTIN = dataGTIN;
             }
-            String id = supplierGLN + "/" + documentNumber;
+            String id = supplierGLN + "/" + documentNumber + "/" + orderNumber;
             String idDetail = id + "/" + dataGTIN;
             String action = lineElement.getChildText("action");
             String actionObject = getAction(action);
