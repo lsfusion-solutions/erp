@@ -171,7 +171,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             boolean isItemKey = (settings.getItemKeyType() == null || settings.getItemKeyType().equals("item"));
             LCP iGroupAggr = findProperty(isItemKey ? "item[VARSTRING[100]]" : "skuBarcode[STRING[15]]");
 
-            if(settings.isDoNotCreateItems()) {
+            if(settings.isCheckExistence()) {
                 for (Iterator<UserPriceListDetail> iterator = userPriceListDetailList.iterator(); iterator.hasNext();) {
                     UserPriceListDetail detail = iterator.next();
                     String fieldValue = isItemKey ? detail.idItem : detail.barcodeItem;
@@ -1107,10 +1107,11 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
         Boolean isPosted = (Boolean) findProperty("isPosted[ImportUserPriceListType]").read(context, importTypeObject);
         boolean doNotCreateItems = findProperty("doNotCreateItems[ImportUserPriceListType]").read(context, importTypeObject) != null;
+        boolean checkExistence = findProperty("checkExistence[ImportUserPriceListType]").read(context, importTypeObject) != null;
         boolean barcodeMaybeUPC = findProperty("barcodeMaybeUPC[ImportUserPriceListType]").read(context, importTypeObject) != null;
         String checkColumn = (String) findProperty("checkColumn[ImportUserPriceListType]").read(context, importTypeObject);
         return new ImportPriceListSettings(fileExtension, quantityAdjustmentColumn, operationObject, companyObject, stockObject, defaultItemGroupObject, 
-                itemKeyType, separator, startRow, isPosted, doNotCreateItems, barcodeMaybeUPC, checkColumn);
+                itemKeyType, separator, startRow, isPosted, doNotCreateItems, checkExistence, barcodeMaybeUPC, checkColumn);
     }
 
 
