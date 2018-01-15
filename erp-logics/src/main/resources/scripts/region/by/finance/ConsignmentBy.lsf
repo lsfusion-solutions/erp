@@ -291,6 +291,13 @@ overShipmentBase 'Основание отпуска' (consignment) = ABSTRACT VA
 shipmentBase 'Основание отпуска' (Consignment consignment) = OVERRIDE  overShipmentBase(consignment),
                                                                       dataShipmentBase(consignment),
                                                                       VARSTRING[100](descriptionContract(consignment)) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 35;
+                                                                      
+changeShipmentBase (Consignment consignment) = {   
+    INPUT s = shipmentBase(consignment) DO {
+        overShipmentBase(consignment) <- s;  
+    }                       
+}                                                                                                                                                                                                                 
+                                                                      
 notUseIssuanceAllowed 'Не использовать справочник сотрудников' = ABSTRACT BOOLEAN (Consignment);
 dataIssuanceAllowed = DATA VARSTRING[100](Consignment);
 overIssuanceAllowed (consignment) = DATA Employee (Consignment);
@@ -937,7 +944,7 @@ FORM consignment 'Атрибуты накладной'
     PROPERTIES(c)  number, series SHOWIF toShowSeries(c), date, UNPCustomer READONLY, UNPSupplier READONLY, 
                    addressSupplier READONLY, addressCustomer READONLY, fullNameSupplier READONLY, fullNameCustomer READONLY 
                    
-    PROPERTIES(c)  shipmentBase,
+    PROPERTIES(c)  shipmentBase ON CHANGE changeShipmentBase(c),
                    nameIssuanceAllowed ON CHANGE changeIssuanceAllowed(c), nameIssuanceExecuted ON CHANGE changeIssuanceExecuted(c),
                    forwarder ON CHANGE changeForwarder(c), overGoodsAccepted ON CHANGE changeGoodsAccepted(c),
                    sealNumberSupplier, sealNumberCustomer  
