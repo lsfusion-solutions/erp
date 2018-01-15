@@ -51,7 +51,7 @@ skipLoad = ABSTRACT BOOLEAN (DiscountCard);
 CLASS DiscountCardType 'Тип дисконтной карты';
 TABLE discountCardType (DiscountCardType);
 
-discountCardType = DATA DiscountCardType(DiscountCard);
+discountCardType = DATA DiscountCardType(DiscountCard) INDEXED;
 nameDiscountCardType 'Тип карты' = staticCaption(discountCardType(DiscountCard d));
 
 @defineExternalizable(discountCardType, VARSTRING[10]);
@@ -120,25 +120,26 @@ DESIGN generationDiscountCards {
     }
 }
 
+iterateLong(LONG i, LONG from, LONG to) = RECURSION i==from AND from IS LONG AND to IS LONG STEP i==$i+1 AND i<=to CYCLES IMPOSSIBLE;
+
 overGenerateDiscountCard = ABSTRACT LIST (DiscountCard);
 generateDiscountCards 'Сгенерировать дисконтные карты'() = {
     DIALOG generationDiscountCards OBJECTS n=defaultNumeratorDiscountCard(), n INPUT, quantityCards INPUT, t INPUT, p INPUT CHECK DO {
-        LOCAL num = INTEGER();
-        num() <- 0;
-        WHILE num() < quantityCards DO {
-            NEW d = DiscountCard {
-                // todo : делается влоб, поскольку numerator сейчас не умеет генерировать сразу несколько объектов
+        IF   quantityCards <= 100000 THEN { 
+            FOR iterateLong(LONG i, curValue(n), curValue(n) + quantityCards - 1) AND NOT discountSeriesNumber(CONCAT '', series(n), VARISTRING[28](i)) NEW d = DiscountCard DO {
                 numerator(d) <- n;
-                number(d) <- curStringValue(numerator(d));
-                series(d) <- series(numerator(d));
+                number(d) <- VARISTRING[28](i);
+                series(d) <- series(n);
                 discountCardType(d) <- t;
                 percent(d) <- p;
-                curValue(Numerator numerator) <- curValue(numerator) + 1 WHERE numerator == numerator(d);
-                num() <- num() + 1;
                 overGenerateDiscountCard(d);
             }
+        
+            curValue(Numerator numerator) <- curValue(numerator) + quantityCards WHERE numerator == n;
+            APPLY;
+        } ELSE {
+            MESSAGE 'Слишком большой интервал';
         }
-        APPLY;
     }
 }
 
