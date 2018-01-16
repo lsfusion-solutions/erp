@@ -1,6 +1,6 @@
 MODULE StockSnapshot;
 
-REQUIRE SkuLedger, Document, PriceListLedger, StockTax;
+REQUIRE SkuLedger, Document, PriceListLedger, StockTax, Item;
 
 NAMESPACE Stock;
 
@@ -678,11 +678,7 @@ nearestInclude (Snapshot snapshot, SkuGroup skuGroup) = dataInclude(snapshot, ne
 
 include 'Вкл' (Snapshot snapshot, SkuGroup skuGroup) =
     OVERRIDE dataInclude(snapshot, skuGroup), 
-             nearestInclude (snapshot, skuGroup) MATERIALIZED;    
-                      
-include 'Вкл' (Snapshot snapshot, Sku sku) = include(snapshot, skuGroup(sku));  
-                    
-countIncludeSku 'Вкл' (snapshot) = GROUP SUM 1 IF include(Snapshot snapshot, Sku sku) BY snapshot;                    
+             nearestInclude (snapshot, skuGroup) MATERIALIZED;                        
 
 nameIncludeSkuGroups 'Группы товаров (все)' (document)= 
     GROUP CONCAT name(SkuGroup skuGroup) IF dataInclude(Snapshot document, skuGroup), ', ' 
@@ -696,6 +692,63 @@ dataInclude (Snapshot o,SkuGroup g) <- dataInclude(snapshotType(o),g) IF g IS Sk
 deleteIncludeSkuGroups 'Сбросить отмеченные'(Snapshot r) = {
     dataInclude(r,SkuGroup g) <- NULL;
 };
+
+//-- Выбор поставщиков
+TABLE snapshotLegalEntity (Snapshot, LegalEntity);
+
+include 'Вкл' = DATA BOOLEAN (Snapshot, LegalEntity);
+
+deleteIncludeLegalEntities 'Сбросить отмеченные'(Snapshot r) = {
+    include(r,LegalEntity l) <- NULL;
+};
+
+countIncludeLegalEntities (Snapshot s) = GROUP SUM 1 IF include(Snapshot s, LegalEntity l) BY s;
+
+//-- Выбор групп брендов
+TABLE snapshotBrand (Snapshot, Brand);
+
+include 'Вкл' = DATA BOOLEAN (Snapshot, Brand);
+
+deleteIncludeBrands 'Сбросить отмеченные'(Snapshot r) = {
+    include(r,Brand b) <- NULL;
+};
+
+countIncludeBrands (Snapshot s) = GROUP SUM 1 IF include(Snapshot s, Brand b) BY s;
+
+//-- Выбор товара
+TABLE snapshotSku (Snapshot, Sku);
+
+dataInclude 'Вкл' = DATA BOOLEAN (Snapshot, Sku);
+
+includeSkuGroup (Snapshot snapshot, Sku sku) = [= GROUP MAX 1 IF include(Snapshot s, SkuGroup g) AND isParent(g, Sku sk) BY s, sk](snapshot, sku);
+includeBrand (Snapshot snapshot, Sku sku) = include(snapshot, brand(sku)) OR NOT countIncludeBrands(snapshot);
+includeLegalEntity (Snapshot snapshot, Sku sku) = include(snapshot, supplierLastOrderBatch(sku)) OR NOT countIncludeLegalEntities(snapshot);
+
+//skip = ABSTRACT BOOLEAN (Snapshot, Sku);
+
+filterLocal = DATA LOCAL BOOLEAN ();
+includeLocal = DATA LOCAL BOOLEAN (Sku);
+
+include 'Вкл' (Snapshot snapshot, Sku sku) =
+    includeSkuGroup(snapshot, sku) AND (NOT filterLocal() OR includeLocal(sku));
+    
+    //OVERRIDE dataInclude(snapshot, sku),
+             //(includeSkuGroup(snapshot, sku) AND includeBrand(snapshot, sku)) AND NOT skip(snapshot, sku);
+             
+countIncludeSku 'Вкл' (snapshot) = GROUP SUM 1 IF include(Snapshot snapshot, Sku sku) BY snapshot;
+
+deleteIncludeSkus 'Сбросить отмеченные'(Snapshot r) = {
+    dataInclude(r,Sku b) <- NULL;
+};
+
+addCommaBarcodeId 'Список ШК' = DATA LOCAL VARISTRING[500]() FIXEDCHARWIDTH 30;
+
+addCommaBarcodeId 'Добавить' (Snapshot s) = {
+    IF addCommaBarcodeId() THEN {
+        dataInclude(s, Sku sku) <- TRUE WHERE [=GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(addCommaBarcodeId(),' ',',')) == 1 BY sku(barcode)](sku);
+        addCommaBarcodeId() <- NULL;
+    }
+}
     
 //------------------------------- ACTION -------------------------------//   
 overTakeFromTo= ABSTRACT LIST (Snapshot, DATE, DATE); 
@@ -724,6 +777,20 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = {
     apply();  
     startTime(snapshot) <- currentDateTime();
     
+    filterLocal() <- NULL;
+    includeLocal(Sku s) <- NULL;
+    IF countIncludeBrands(snapshot) THEN {
+        filterLocal() <- TRUE;
+        includeLocal(Sku sku) <- include(snapshot, brand(sku)) WHERE include(snapshot, brand(sku));
+    }
+    IF countIncludeLegalEntities(snapshot) THEN {
+        IF filterLocal() THEN {
+            includeLocal(Sku sku) <- include(snapshot, supplierLastOrderBatch(sku)) WHERE includeLocal(sku);
+        } ELSE {
+            filterLocal() <- TRUE;
+            includeLocal(Sku sku) <- include(snapshot, supplierLastOrderBatch(sku)) WHERE include(snapshot, supplierLastOrderBatch(sku));
+        } 
+    }
     
     singleStock() <- [= GROUP MAX Stock stock IF include(Snapshot snapshot, stock) AND countIncludeStocks(snapshot) == 1 BY snapshot](snapshot);
        
@@ -1403,6 +1470,33 @@ FORM snapshot 'Аналитический отчет'
     ORDER order(sk2), name(sk2)
     FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F5' DEFAULT   
     PROPERTIES deleteIncludeSkuGroups(r) TOOLBAR
+    
+//-- выбор брендов
+    OBJECTS b = Brand
+    PROPERTIES include(r,b)
+    PROPERTIES(b) READONLY id, name
+    ORDER name(b)
+    FILTERGROUP inBrand FILTER 'Отмеченные' include(r,b)
+    PROPERTIES deleteIncludeBrands(r) TOOLBAR
+     
+//-- выбор товара
+    OBJECTS sku = Sku
+    PROPERTIES PANEL addCommaBarcodeId(), addCommaBarcodeId(r)
+    PROPERTIES dataInclude(r,sku)
+    PROPERTIES(sku) READONLY idBarcode, name, shortNameUOM
+    PROPERTIES(sku) READONLY nameSupplierLastOrderBatch
+    ORDER name(sku)
+    FILTERGROUP inSku FILTER 'Отмеченные' dataInclude(r,sku)
+    PROPERTIES deleteIncludeSkus(r) TOOLBAR
+    
+//-- выбор поставщиков
+    OBJECTS le = LegalEntity
+    PROPERTIES include(r,le)
+    PROPERTIES(le) id, name, fullName
+    ORDER name(le)
+    FILTERS isSupplier(le)
+    FILTERGROUP inLegalEntity FILTER 'Отмеченные' include(r,le)
+    PROPERTIES deleteIncludeLegalEntities(r) TOOLBAR
             
 //--stock    
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parent, ts = Stock
@@ -1778,19 +1872,53 @@ DESIGN snapshot {
                 MOVE GROUP(documentPrm,r);
                 NEW select{
                     fill = 1;
-                    type = SPLITH;
+                    type = TABBED ;
                     MOVE BOX(TREE stockTree2) { 
                         fill = 1; caption = 'Выбор складов'; 
                         TOOLBARBOX(TREE stockTree2) {
                             MOVE PROPERTY (deleteIncludeStocks(r));
                         }
-                    }   
-                    MOVE BOX(TREE skuTree2) { 
-                        fill = 1; caption = 'Выбор групп'; 
-                        TOOLBARBOX(TREE skuTree2) {
-                            MOVE PROPERTY (deleteIncludeSkuGroups(r));
+                    }
+                    MOVE BOX(le) { 
+                        fill = 1; caption = 'Выбор поставщиков'; 
+                        TOOLBARBOX(le) {
+                            MOVE PROPERTY (deleteIncludeLegalEntities(r));
                         }
-                    }   
+                    }
+                    NEW items {
+                        fill = 1; caption = 'Выбор товара';
+                        type = SPLITH;
+                        NEW leftI {
+                            fill = 1;
+                            type = SPLITV;
+                            MOVE BOX(TREE skuTree2) { 
+                                fill = 1; caption = 'Выбор групп'; 
+                                TOOLBARBOX(TREE skuTree2) {
+                                    MOVE PROPERTY (deleteIncludeSkuGroups(r));
+                                }
+                            }
+                            MOVE BOX(b) {
+                                fill = 1; caption = 'Выбор брендов';
+                                TOOLBARBOX(b) {
+                                    MOVE PROPERTY (deleteIncludeBrands(r));
+                                }
+                            }
+                        }
+                        NEW rightI {
+                            fill = 1;
+                            NEW addBarcode {
+                                type = CONTAINERH;
+                                MOVE PROPERTY (addCommaBarcodeId());
+                                MOVE PROPERTY (addCommaBarcodeId(r));
+                            }
+                            MOVE BOX(sku){
+                                fill = 1; caption = 'Выбор товара';
+                                TOOLBARBOX(sku) {
+                                    MOVE PROPERTY (deleteIncludeSkus(r));
+                                }
+                            }
+                        }
+                    }      
                 }   
             }
             
