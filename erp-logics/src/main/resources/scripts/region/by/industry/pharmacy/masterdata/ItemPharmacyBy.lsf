@@ -184,27 +184,25 @@ DESIGN pharmacyPriceGroups {
     }
 }
 
-NAVIGATOR {
-    skuNavigator {
-        ADD pharmacyMarkups;
-    }
-}
-
 @defineUniteAttributeItemWithoutExtendForm(pharmacyPriceGroup, namePharmacyPriceGroup, 'тип лекарственного средства', 'типы лекарственных средств', item);
 EXTEND FORM attributesItem
     OBJECTS pharmacyPriceGroup=PharmacyPriceGroup
     PROPERTIES in(pharmacyPriceGroup)       
-    PROPERTIES (pharmacyPriceGroup) name, id SHOWIF showIDs(), namePharmacyTypeGroup
+    PROPERTIES (pharmacyPriceGroup) name, id SHOWIF showIDs(), namePharmacyTypeGroup, inactive
     PROPERTIES(pharmacyPriceGroup) NEW, DELETE         
     PROPERTIES replace(pharmacyPriceGroup) TOOLBAR        
     ORDER id(pharmacyPriceGroup)
+    FILTERGROUP active
+        FILTER 'Активные' active(pharmacyPriceGroup) DEFAULT    
 
     OBJECTS pharmacyPriceInterval=PharmacyPriceInterval
     PROPERTIES (pharmacyPriceInterval) fromDatePharmacy, toDatePharmacy, pricePharmacy,
                                        wholesaleMarkup, retailMarkup
-    PROPERTIES(pharmacyPriceInterval) NEW, DELETE GRID
+    PROPERTIES (pharmacyPriceInterval) NEW, DELETE GRID
     FILTERS    pharmacyGroupPharmacy(pharmacyPriceInterval)==pharmacyPriceGroup
     ORDER pricePharmacy(pharmacyPriceInterval)
+    FILTERGROUP isActive
+        FILTER 'Действующие' isActive(pharmacyPriceInterval) DEFAULT    
 
     OBJECTS numeric=NUMERIC[14,3] PANEL
     PROPERTIES val = VALUE(numeric)
@@ -456,18 +454,20 @@ namePharmacyCompalsoryGroupActive 'Группа обязательного пе�
 CLASS PharmacyBaseGroup 'Группа основного перечня': Group;
 TABLE pharmacyBaseGroup(PharmacyBaseGroup);
 name 'Наименование' = DATA VARISTRING[50](PharmacyBaseGroup);
+pharmacyBaseGroupName = GROUP NAGGR PharmacyBaseGroup pharmacyBaseGroup BY name(pharmacyBaseGroup);
+
 @defineExternalizable(pharmacyBaseGroup, VARSTRING[100]);
 name(PharmacyBaseGroup group) += name(group);
 groupType(PharmacyBaseGroup group) += PharmacyAdditionalGroupType.base IF group IS PharmacyBaseGroup;
 
 FORM pharmacyBaseGroup 'Группа основного перечня'
-    OBJECTS g = PharmacyBaseGroup PANEL
-    PROPERTIES(g) name, id
-    EDIT PharmacyBaseGroup OBJECT g 
+    OBJECTS ph = PharmacyBaseGroup PANEL
+    PROPERTIES(ph) name, id
+    EDIT PharmacyBaseGroup OBJECT ph 
 ;
 
 DESIGN pharmacyBaseGroup {
-    PROPERTY(name(g)) {
+    PROPERTY(name(ph)) {
         fixedWidth = 300;
     }
 }
@@ -483,20 +483,21 @@ FORM pharmacyBaseGroups 'Группы основного перечня'
 
 @defineObjectItemAttribute(pharmacyBaseGroup, PharmacyBaseGroup, name, 'Группа основного перечня', itemPharmacy);
 
+@defineItemFilterValue(pharmacyBaseGroup, 'Группа основного перечня', ph);
+
+@defineUniteFilterAttributeItem(pharmacyBaseGroup, name, 'группа основного перечня', 'группы основного перечня', item);
+
 EXTEND FORM item 
-    PROPERTIES (i) namePharmacyCompalsoryGroup SHOWIF showPharmacyCompalsoryGroup(i),
-                   namePharmacyBaseGroup SHOWIF showPharmacyBaseGroup(i) 
+    PROPERTIES (i) namePharmacyCompalsoryGroup SHOWIF showPharmacyCompalsoryGroup(i)
 ;
 
 EXTEND FORM items 
-    PROPERTIES (i) namePharmacyCompalsoryGroup AFTER namePharmacyPriceGroup(i) SHOWIF showPharmacyCompalsoryGroup(i) READONLYIF isReadonly(), 
-                   namePharmacyBaseGroup AFTER namePharmacyPriceGroup(i) SHOWIF showPharmacyBaseGroup(i) READONLYIF isReadonly() 
+    PROPERTIES (i) namePharmacyCompalsoryGroup AFTER namePharmacyPriceGroup(i) SHOWIF showPharmacyCompalsoryGroup(i) READONLYIF isReadonly()
 ;
 
 NAVIGATOR {
     skuNavigator {
         ADD pharmacyCompalsoryGroups;
-        ADD pharmacyBaseGroups;
     }
 }
 
