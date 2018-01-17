@@ -512,3 +512,25 @@ DESIGN storeRange{
         }   
     }
 }
+
+// ---------- Импорт версии матрицы
+
+importXls 'Импорт' (RangeRev v) = {
+    INPUT f = EXCELFILE DO {
+        LOCAL barcode = VARSTRING[15] (INTEGER);
+        LOCAL name = VARSTRING[255] (INTEGER);
+        LOCAL level = VARSTRING[10] (INTEGER);
+        
+        IMPORT XLS TO barcode = A, name = B, level = C FROM f;
+        
+        FOR imported(INTEGER i) DO {
+            level(v, Sku s) <- rangeLevel(level(i)) WHERE sku(barcode(barcode(i), currentDate())) == s; 
+        }
+        IF [= GROUP SUM 1 IF NOT barcode(barcode(INTEGER i), currentDate())]() THEN 
+            MESSAGE 'Не найдены следующие штрих-коды : \n' + [= GROUP CONCAT (barcode(INTEGER i) + ' : ' + name(i)) IF NOT barcode(barcode(i), currentDate()), '\n']();
+    }
+}
+
+EXTEND FORM rangeRev
+    PROPERTIES(v) importXls TODRAW s TOOLBAR
+;
