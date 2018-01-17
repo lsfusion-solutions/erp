@@ -12,6 +12,13 @@ discountSum 'Сумма скидки' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot
 //-- Batch
 discountSum 'Сумма скидки' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 
+//-- По поставщикам
+discountSumBatch 'Сумма скидки' (supplier, snapshot) =
+    GROUP SUM discountSum (Batch batch, Stock stock, Snapshot snapshot) BY supplier(batch), snapshot;
+
+//-- По складу поставщика
+discountSumBatchSupplier 'Сумма скидки' (supplier, snapshot) =
+    GROUP SUM discountSum (Batch batch, Stock stock, Snapshot snapshot) BY supplierStock(batch), snapshot;
 
 //-- группа/склад       
 discountSum 'Сумма скидки' (group, stock, snapshot) =
@@ -135,6 +142,13 @@ EXTEND FORM snapshot
     PROPERTIES(ts1,r)  READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantity(ts1,r)                               
                        discountSum SHOWIF isSumDiscount(r)
 
+//-- По поставщикам
+    PROPERTIES(l,r)    READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantityBatch(l,r)
+                       discountSumBatch SHOWIF isSumDiscountBatch(r)
+                       
+//-- По складам поставщика
+    PROPERTIES(lst,r)  READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantityBatchSupplier(lst,r)
+                       discountSumBatchSupplier SHOWIF isSumDiscountBatch(r) 
 ;  
 DESIGN snapshot {
     row3 {
