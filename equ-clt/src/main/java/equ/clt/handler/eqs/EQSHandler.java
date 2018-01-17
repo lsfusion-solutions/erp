@@ -283,8 +283,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                     int count = 0;
                     for (DiscountCard card : discountCardList) {
-                        if (card.idDiscountCard != null) {
-                            ps.setString(1, trim(card.idDiscountCard, 20)); //code
+                        if (card.numberDiscountCard != null) {
+                            ps.setString(1, trim(card.numberDiscountCard, 20)); //code
                             String name = (card.lastNameContact == null ? "" : (card.lastNameContact + " "))
                                     + (card.firstNameContact == null ? "" : (card.firstNameContact + " "))
                                     + (card.middleNameContact == null ? "" : card.middleNameContact);
