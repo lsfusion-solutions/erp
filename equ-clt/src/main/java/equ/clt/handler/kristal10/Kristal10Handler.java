@@ -1012,7 +1012,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                                     //обнаруживаем продажу сертификатов
                                     boolean isGiftCard = false;
-                                    List<Element> pluginProperties = ((Element) positionNode).getChildren("plugin-property");
+                                    List<Element> pluginProperties = ((Element) positionEntryNode).getChildren("plugin-property");
                                     for (Element pluginProperty : pluginProperties) {
                                         String keyPluginProperty = pluginProperty.getAttributeValue("key");
                                         String valuePluginProperty = pluginProperty.getAttributeValue("value");
