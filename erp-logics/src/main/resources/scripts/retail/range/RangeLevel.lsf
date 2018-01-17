@@ -534,3 +534,25 @@ importXls 'Импорт' (RangeRev v) = {
 EXTEND FORM rangeRev
     PROPERTIES(v) importXls TODRAW s TOOLBAR
 ;
+
+//----фильтр по магазину
+filterStore = DATA LOCAL Store();
+nameFilterStore 'Магазин' = name(filterStore());
+
+CONSTRAINT filterStore() AND NOT accessCompany(currentUser(), filterStore())
+    CHECKED BY filterStore[]
+    MESSAGE 'В фильтре выбран Магазин, к которому нет доступа';
+    
+EXTEND FORM ranges
+    PROPERTIES nameFilterStore()
+    
+    FILTERS overLevel(r,filterStore(),d) OR NOT filterStore()
+;  
+
+DESIGN ranges {
+    NEW filters BEFORE pane {
+        type = CONTAINERH;
+        MOVE PROPERTY(date);
+        MOVE PROPERTY(nameFilterStore());
+    }
+}
