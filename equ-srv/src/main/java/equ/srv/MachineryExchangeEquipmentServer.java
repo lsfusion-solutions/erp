@@ -184,7 +184,7 @@ public class MachineryExchangeEquipmentServer {
         ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "stock", stockExpr, "cashRegister", cashRegisterExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
-        String[] cashRegisterNames = new String[]{"overDirectory", "idStock", "handlerModelCashRegister"};
+        String[] cashRegisterNames = new String[]{"overDirectory", "idStock", "handlerModel"};
         LCP[] cashRegisterProperties = cashRegisterLM.findProperties("overDirectory[CashRegister]", "idStock[CashRegister]", "handlerModel[CashRegister]");
         for (int j = 0; j < cashRegisterProperties.length; j++) {
             query.addProperty(cashRegisterNames[j], cashRegisterProperties[j].getExpr(cashRegisterExpr));
