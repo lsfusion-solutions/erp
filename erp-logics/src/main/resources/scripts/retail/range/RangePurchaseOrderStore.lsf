@@ -1,0 +1,19 @@
+MODULE RangePurchaseOrderStore;
+
+REQUIRE PurchaseOrder, Range, PurchaseDemand;
+
+NAMESPACE Range;
+
+useRange 'Использовать ассортиментную матрицу' = DATA BOOLEAN (StoreType);
+EXTEND FORM chainStores
+    PROPERTIES(s) useRange AFTER name(s)    
+;
+useRange 'Использовать ассортиментную матрицу' (Store s) = useRange(storeType(s)) MATERIALIZED; 
+useRange 'Использовать ассортиментную матрицу' (DepartmentStore s) = useRange(store(s)) MATERIALIZED; 
+
+EXTEND FORM userOrder
+    FILTERGROUP filter2
+        FILTER 'В ассортименте' countRange(ks, st, date(o)) 'F4';
+;
+
+limitRecommendedQuantity(Sku s, UserOrder o) += s IS Sku AND useRange(customerStock(o)) AND NOT countRange(s, customerStock(o), date(o));

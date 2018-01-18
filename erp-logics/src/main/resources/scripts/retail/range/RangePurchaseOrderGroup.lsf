@@ -1,0 +1,16 @@
+MODULE RangePurchaseOrderGroup;
+
+REQUIRE PurchaseOrder, Range, PurchaseDemand;
+
+NAMESPACE Range;
+
+@defineItemGroupValue(controlRange, 'Контролировать ассортимент', BOOLEAN);
+
+controlRange (Sku s) = controlRange(skuGroup(s)) MATERIALIZED;
+
+EXTEND FORM userOrder
+    FILTERGROUP filter2
+        FILTER 'В ассортименте' countRange(ks, st, date(o)) OR NOT controlRange(ks) 'F4' DEFAULT;
+;
+
+limitRecommendedQuantity(Sku s, UserOrder o) += s IS Sku AND controlRange(skuGroup(s)) AND NOT countRange(s, customerStock(o), date(o));
