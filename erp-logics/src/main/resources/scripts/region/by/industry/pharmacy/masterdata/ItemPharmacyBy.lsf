@@ -397,6 +397,8 @@ CLASS PharmacyCompalsoryGroup 'Группа обязательного пере�
 TABLE pharmacyCompalsoryGroup(PharmacyCompalsoryGroup);
 
 name 'Наименование' = DATA VARISTRING[50](PharmacyCompalsoryGroup);
+pharmacyCompalsoryGroupName = GROUP NAGGR PharmacyCompalsoryGroup pharmacyCompalsoryGroup BY name(pharmacyCompalsoryGroup);
+
 @defineExternalizable(pharmacyCompalsoryGroup, VARSTRING[100]);
 name(PharmacyCompalsoryGroup group) += name(group);
 groupType(PharmacyCompalsoryGroup group) += PharmacyAdditionalGroupType.compalsory IF group IS PharmacyCompalsoryGroup;
@@ -407,32 +409,22 @@ inactive 'Неактивная' = DATA BOOLEAN (PharmacyCompalsoryGroup);
 active 'Активная' (PharmacyCompalsoryGroup group) = group IS PharmacyCompalsoryGroup AND NOT inactive(group);
 
 FORM pharmacyCompalsoryGroup 'Группа обязательного перечня'
-    OBJECTS g = PharmacyCompalsoryGroup PANEL
-    PROPERTIES(g) name, id, inactive
+    OBJECTS pg = PharmacyCompalsoryGroup PANEL
+    PROPERTIES(pg) name, id, inactive
     
     OBJECTS pc = PharmacyCategory
     PROPERTIES(pc) READONLY order, staticCaption
     ORDER order(pc)
-    PROPERTIES(g, pc) minBalance
+    PROPERTIES(pg, pc) minBalance
     
-    EDIT PharmacyCompalsoryGroup OBJECT g 
+    EDIT PharmacyCompalsoryGroup OBJECT pg 
 ;
 
 DESIGN pharmacyCompalsoryGroup {
-    PROPERTY(name(g)) {
+    PROPERTY(name(pg)) {
         fixedWidth = 300;
     }
 }
-
-FORM pharmacyCompalsoryGroups 'Группы обязательного перечня'
-    OBJECTS g = PharmacyCompalsoryGroup
-    PROPERTIES(g) READONLY name, id, inactive
-    PROPERTIES (g) NEWSESSION NEW, EDIT, DELETE 
-    PROPERTIES () isEditable
-    ORDER name(g)
-    FILTERGROUP active
-        FILTER 'Активные' active(g) DEFAULT
-;
 
 FORM dialogPharmacyCompalsoryGroups 'Группы обязательного перечня'
     OBJECTS g = PharmacyCompalsoryGroup
@@ -444,6 +436,10 @@ FORM dialogPharmacyCompalsoryGroups 'Группы обязательного п�
 ;
 
 @defineObjectItemAttribute(pharmacyCompalsoryGroup, PharmacyCompalsoryGroup, name, 'Группа обязательного перечня', itemPharmacy);
+
+@defineItemFilterValue(pharmacyCompalsoryGroup, 'Группа обязательного перечня', pg);
+
+@defineUniteFilterAttributeItem(pharmacyCompalsoryGroup, name, 'группа обязательного перечня', 'группы обязательного перечня', item);
 
 namePharmacyCompalsoryGroupActive 'Группа обязательного перечня' (Item item) = IF active(pharmacyCompalsoryGroup(item))
     THEN name(pharmacyCompalsoryGroup(item)) IN itemPharmacy;
@@ -484,20 +480,6 @@ FORM pharmacyBaseGroups 'Группы основного перечня'
 @defineItemFilterValue(pharmacyBaseGroup, 'Группа основного перечня', ph);
 
 @defineUniteFilterAttributeItem(pharmacyBaseGroup, name, 'группа основного перечня', 'группы основного перечня', item);
-
-EXTEND FORM item 
-    PROPERTIES (i) namePharmacyCompalsoryGroup SHOWIF showPharmacyCompalsoryGroup(i)
-;
-
-EXTEND FORM items 
-    PROPERTIES (i) namePharmacyCompalsoryGroup AFTER namePharmacyPriceGroup(i) SHOWIF showPharmacyCompalsoryGroup(i) READONLYIF isReadonly()
-;
-
-NAVIGATOR {
-    skuNavigator {
-        ADD pharmacyCompalsoryGroups;
-    }
-}
 
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
