@@ -841,13 +841,15 @@ DESIGN options {
     }    
 }
 
+returnQuantity 'Количество возврата' (receiptDetail) = ABSTRACT NUMERIC[16,5] (ReceiptReturnDetail);
+
 createReturn 'Добавить строку возврата'(Receipt receipt, ReceiptSaleDetail receiptSaleDetail, VARSTRING[30] barcode) = {
     NEW d = ReceiptReturnDetail {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
         receiptSaleDetail(d) <- receiptSaleDetail;
         sku(d) <- sku(receiptSaleDetail);
-        quantity(d) <- 1.0;
+        quantity(d) <- OVERRIDE returnQuantity(d), 1.0;
         price(d) <- price(receiptSaleDetail);
         VAT(d) <- VAT(receiptSaleDetail);
         batch(d) <- batch(receiptSaleDetail);
@@ -961,6 +963,9 @@ scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = {
 
 // Поиск
 
+unreturned (ReceiptSaleDetail d) = quantity[ReceiptDetail](d) (-) quantityReturned(d);
+unreturned (Receipt) = GROUP SUM 1 IF unreturned (ReceiptSaleDetail d) > 0.0 BY receipt(d);
+
 FORM searchSkuReturnReceipt 'Поиск строки возврата'
     OBJECTS st = DepartmentStore PANEL
     OBJECTS c = CashRegister PANEL
@@ -971,6 +976,8 @@ FORM searchSkuReturnReceipt 'Поиск строки возврата'
                             countReceiptDetail, quantityReceiptDetail
     FILTERS departmentStore(s) == st,
             countReceiptSaleDetail(s) 
+    FILTERGROUP filter
+        FILTER 'Невозвращенные' unreturned(s) DEFAULT              
 
     OBJECTS r = ReceiptSaleDetail GRID
     PROPERTIES(r) READONLY  idBarcode, nameSku[ReceiptDetail], nameBatch SHOWIF explicitBatchLedger(st),
@@ -978,8 +985,8 @@ FORM searchSkuReturnReceipt 'Поиск строки возврата'
                             sum[ReceiptDetail], discountPercent, discountSum[ReceiptDetail]
     PROPERTIES(r) READONLY SHOWIF useBonus() bonusPaid, bonusSum                            
     FILTERS receipt(r) == s
-    FILTERGROUP filter
-        FILTER 'Невозвращенные' quantity[ReceiptDetail](r) (-) quantityReturned(r) > 0.0 DEFAULT           
+    FILTERGROUP filterDetail
+        FILTER 'Невозвращенные' unreturned(r) > 0.0 DEFAULT           
 ;
 DESIGN searchSkuReturnReceipt {
     preferredSize = (1024, 768);

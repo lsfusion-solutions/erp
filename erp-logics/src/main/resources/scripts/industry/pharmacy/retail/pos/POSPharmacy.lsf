@@ -242,14 +242,20 @@ backgroundBlisterQuantity 'Цвет' (ReceiptDetail detail)  = IF detail IS Rece
 
 readOnlyBlisterQuantity (ReceiptDetail detail) = detail IS ReceiptDetail AND NOT blisterAmount(batch(detail));
 
+returnQuantity(ReceiptReturnDetail detail) += IF quantity(receiptSaleDetail(detail)) < 1.0 THEN quantity(receiptSaleDetail(detail));                                                         
+
 changeBlisterQuantity(ReceiptDetail detail) = {
     INPUT i = INTEGER DO {
         IF (i AND NOT deleteNullDetail()) OR (deleteNullDetail() AND i != 0) THEN {
             IF prevCurrentBalance(batch(detail), departmentStore(detail)) != trunc(prevCurrentBalance(batch(detail), departmentStore(detail)), 0) AND blisterAmount(batch(detail)) AND
                 NOT (NUMERIC[16,5](i)/blisterAmount(batch(detail))) == trunc(NUMERIC[16,5](i)/blisterAmount(batch(detail)), 0) THEN {
-                quantity(detail) <- 
-                    prevCurrentBalance(batch(detail), departmentStore(detail)) (-) 
-                    round((round0(prevCurrentBalance(batch(detail), departmentStore(detail)) * blisterAmount(batch(detail))) (-) i) / blisterAmount(batch(detail)), qauntityPOSRoundCondition());  
+                    IF detail IS ReceiptReturnDetail THEN {
+                        quantity(detail) <- quantity(receiptSaleDetail(detail));
+                    } ELSE {
+                        quantity(detail) <- 
+                            prevCurrentBalance(batch(detail), departmentStore(detail)) (-) 
+                            round((round0(prevCurrentBalance(batch(detail), departmentStore(detail)) * blisterAmount(batch(detail))) (-) i) / blisterAmount(batch(detail)), qauntityPOSRoundCondition());
+                    }          
             } ELSE {
                 quantity(detail) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch(detail)), qauntityPOSRoundCondition()));
             }
