@@ -242,8 +242,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             }
 
             if (showField(userPriceListDetailList, "amountPackBarcode")) {
-                ImportField amountBarcodeField = new ImportField(findProperty("amount[Barcode]"));
-                props.add(new ImportProperty(amountBarcodeField, findProperty("amount[Barcode]").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "amountPackBarcode")));
+                ImportField amountBarcodeField = new ImportField(findProperty("dataAmount[Barcode]"));
+                props.add(new ImportProperty(amountBarcodeField, findProperty("dataAmount[Barcode]").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "amountPackBarcode")));
                 fields.add(amountBarcodeField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("amountPackBarcode"));
