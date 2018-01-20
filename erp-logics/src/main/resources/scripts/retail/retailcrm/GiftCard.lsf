@@ -359,3 +359,51 @@ overCopy(ReceiptGiftCardSaleDetail detail,Receipt r) += {
         }
     }
 }
+
+
+EXTEND CLASS SkuType {
+    skuTypeGiftCard 'Номинал подарочного сертификата'
+}
+
+isGiftCard (Sku sku) = skuType(sku) == SkuType.skuTypeGiftCard; 
+
+giftCardItemGroup = DATA ItemGroup ();
+nameGiftCardItemGroup 'Группа товаров для сертификатов' = name(giftCardItemGroup());
+
+EXTEND FORM options PROPERTIES() nameGiftCardItemGroup;
+DESIGN options { giftCards { MOVE PROPERTY(nameGiftCardItemGroup()); } }
+
+sku 'SKU' = DATA Sku (GiftCard);
+nameSku 'SKU'(GiftCard g) = name(sku(g));
+idBarcode 'Штрихкод SKU'(GiftCard g) = idBarcode(sku(g));
+idSku 'Код SKU'(GiftCard g) = idBarcode(sku(g));
+
+EXTEND FORM giftCard
+    PROPERTIES (g) nameSku;
+
+DESIGN giftCard {
+    topContainer{
+        MOVE PROPERTY(nameSku(g));
+    }
+}
+
+EXTEND FORM giftCards 
+    PROPERTIES(g) READONLYIF isReadonly() BEFORE date(g) idBarcode, nameSku;
+
+FORM generationGiftCardsSku
+    OBJECTS s = Sku 
+    PROPERTIES (s) READONLY name
+    FILTERS itemGroup(s) == giftCardItemGroup()
+;
+
+inputComplete = DATA LOCAL BOOLEAN ();
+generateSku = DATA LOCAL Sku ();
+overGenerateGiftCards(GiftCard g) += {
+    IF NOT inputComplete() THEN {
+        DIALOG generationGiftCardsSku OBJECTS s INPUT DO {
+            generateSku() <- s;
+        }
+        inputComplete () <- TRUE;
+    }
+    sku(g) <- generateSku() ;
+}
