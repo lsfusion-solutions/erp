@@ -556,3 +556,24 @@ DESIGN ranges {
         MOVE PROPERTY(nameFilterStore());
     }
 }
+
+createNewTopLevel 'Добавить верхний уровень' = {
+
+    NEW l = RangeLevel;
+    
+    LOCAL level = RangeLevel();
+    
+    FOR RangeLevel l IS RangeLevel ORDER DESC l DO {
+        IF level() THEN {
+            dataLevel(Range.Range r, Store s, DATE d) <- level() WHERE dataLevel(r, s, d) == l;
+            in(Range.Range r, RangeLevel ln) <- TRUE WHERE ln == level() AND in(r, l);
+            in(Range.Range r, l) <- NULL;
+            level(RangeRev v, Sku s) <- level() WHERE level(v, s) == l;
+            name(RangeLevel ln) <- name(l) WHERE ln == level();
+            name(l) <- NULL;
+        }
+        level() <- l;
+    }
+    APPLY;
+
+}
