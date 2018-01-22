@@ -184,8 +184,8 @@ public class MachineryExchangeEquipmentServer {
         ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "stock", stockExpr, "cashRegister", cashRegisterExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
-        String[] cashRegisterNames = new String[]{"overDirectory", "idStock", "handlerModel"};
-        LCP[] cashRegisterProperties = cashRegisterLM.findProperties("overDirectory[CashRegister]", "idStock[CashRegister]", "handlerModel[CashRegister]");
+        String[] cashRegisterNames = new String[]{"npp", "overDirectory", "idStock", "handlerModel"};
+        LCP[] cashRegisterProperties = cashRegisterLM.findProperties("npp[CashRegister]", "overDirectory[CashRegister]", "idStock[CashRegister]", "handlerModel[CashRegister]");
         for (int j = 0; j < cashRegisterProperties.length; j++) {
             query.addProperty(cashRegisterNames[j], cashRegisterProperties[j].getExpr(cashRegisterExpr));
         }
@@ -195,10 +195,11 @@ public class MachineryExchangeEquipmentServer {
         query.and(cashRegisterLM.findProperty("inactive[CashRegister]").getExpr(cashRegisterExpr).getWhere().not());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
         for (ImMap<Object, Object> entry : result.values()) {
+            Integer number = (Integer) entry.get("npp");
             String handlerModel = trim((String) entry.get("handlerModel"));
             String directory = trim((String) entry.get("overDirectory"));
             String idStock = trim((String) entry.get("idStock"));
-            extraCashRegisterSet.add(new CashRegisterInfo(null, null, null, handlerModel, null, directory, null, idStock, false, null, null, null));
+            extraCashRegisterSet.add(new CashRegisterInfo(null, number, null, handlerModel, null, directory, null, idStock, false, null, null, null));
         }
         return extraCashRegisterSet;
     }
