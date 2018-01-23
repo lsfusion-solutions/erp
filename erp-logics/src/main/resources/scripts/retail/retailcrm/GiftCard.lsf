@@ -37,6 +37,8 @@ nameDepartmentStore 'Отдел магазина' (GiftCardLedger g) = name(depa
 
 show 'Просмотреть' = ABSTRACT LIST (GiftCardLedger) TOOLBAR;
 
+namePaymentType 'Тип платежа' = ABSTRACT VARISTRING[110] (GiftCardLedger);
+
 //продажа подарочных сертификатов
 CLASS ABSTRACT SaleGiftCard 'Продажа подарочных сертификатов' : GiftCardLedger;
 
@@ -102,6 +104,8 @@ isReturn 'Возвратный' = DATA BOOLEAN (ReceiptGiftCardSaleDetail);
 
 sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (zReport)= GROUP SUM sum[ReceiptDetail](ReceiptGiftCardSaleDetail d) IF d IS ReceiptGiftCardSaleDetail BY zReport[ReceiptDetail](d);
 
+namePaymentType 'Тип платежа' (ReceiptGiftCardSaleDetail d) = [= GROUP CONCAT namePaymentType(Payment p), ', ' BY receipt(p)](receipt(d));
+
 //имплемент в GiftCardLedger
 isSold(ReceiptGiftCardSaleDetail detail) += detail IS ReceiptGiftCardSaleDetail;
 giftCard(ReceiptGiftCardSaleDetail detail) += giftCard(detail);
@@ -111,6 +115,7 @@ description(ReceiptGiftCardSaleDetail detail) += OVERRIDE 'Возврат' IF is
 numberDocument(ReceiptGiftCardSaleDetail detail) += VARSTRING[30](number(receipt(detail)));
 departmentStore(ReceiptGiftCardSaleDetail detail) += departmentStore(receipt(detail));
 isReturn(ReceiptGiftCardSaleDetail detail) += isReturn(detail);
+namePaymentType(ReceiptGiftCardSaleDetail detail) += VARISTRING[110](namePaymentType(detail));
 
 edit (ReceiptGiftCardSaleDetail d) += { DIALOG zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED; }
 
@@ -223,7 +228,7 @@ FORM giftCards 'Подарочные сертификаты'
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE TOOLBAR 
 
     OBJECTS l = GiftCardLedger
-    PROPERTIES(l) READONLY dateTime, seriesNumber, sum, description, numberDocument, nameDepartmentStore
+    PROPERTIES(l) READONLY dateTime, seriesNumber, sum, description, numberDocument, nameDepartmentStore, namePaymentType
     PROPERTIES (l) show //edit                    
                     
     ORDER dateTime(l)
