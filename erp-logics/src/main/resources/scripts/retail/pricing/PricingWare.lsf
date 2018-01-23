@@ -40,11 +40,11 @@ defaultInvoiceDetail = GROUP MAX invoiceDetail(PricingDetail d) BY pricing(d);
 nameOperationInvoice (Pricing p) = name(operation(defaultInvoiceDetail(p)));    
 
 //НДС поставщика и сумма с НДС  
-sumSosedi (PricingDetail d) = sum(invoiceDetail(d)) (-) sum(invoiceCreditNoteDetail(invoiceDetail(d)));     
+sumCNote (PricingDetail d) = sum(invoiceDetail(d)) (-) sum(invoiceCreditNoteDetail(invoiceDetail(d)));     
 invoiceSum (PricingDetail d) = invoiceSum(invoiceDetail(d)) (-) invoiceSum(invoiceCreditNoteDetail(invoiceDetail(d))) (+) extraRetailSum(d);//invoiceSum(invoiceDetail(d)) (+) extraRetailSum(d);
 
 valueVAT (PricingDetail d) = IF (invoice(invoiceDetail(d)) IS Sale.Invoice) THEN valueVAT(lastOrderBatchA(sku(d),stock(d),dateTime(d))) ELSE valueVAT(invoiceDetail(d));
-sumSupplier 'Сумма поставщика без НДС'(PricingDetail d) = IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN supplierSum[Sale.InvoiceDetail](invoiceDetail(d)) ELSE sumSosedi(d);
+sumSupplier 'Сумма поставщика без НДС'(PricingDetail d) = IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN supplierSum[Sale.InvoiceDetail](invoiceDetail(d)) ELSE sumCNote(d);
 VATSum 'Сумма НДС'(PricingDetail d) = IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN sumSupplier(d)*valueVAT(d)/100 
                                                         ELSE VATSum(invoiceDetail(d)) (-) VATSum(invoiceCreditNoteDetail(invoiceDetail(d)));
 sumSupplierWithVAT 'Сумма поставщика с НДС' (PricingDetail d) =  IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN sumSupplier(d) (+) extraRetailSum(d) (+) VATSum(d) ELSE invoiceSum(d);
@@ -74,7 +74,7 @@ FORM pricingWare 'Реестр цен'
                    retailMarkup, retailMarkupSum, numberRetailVAT, valueRetailVAT, retailVATSum,
                    extraRetailPrice, extraRetailSum, extraRetailVAT, extraRetailVATSum, extraSupplierSum, extraSupplierPrice,
                    notWareRetailPrice, retailMarkupPrice, retailVATSumNotWare, retailSumNotWare,
-                   calcMarkupPrice, calcVATPrice, retailVATPrice, retailMarkupSumNotWare, sumSosedi, sumSupplier, sumSupplierWithVAT
+                   calcMarkupPrice, calcVATPrice, retailVATPrice, retailMarkupSumNotWare, sumCNote, sumSupplier, sumSupplierWithVAT
                    
                    
     ORDER index(d)
@@ -108,7 +108,7 @@ FORM pricingWareAct 'Расходный акт'
                    retailMarkup, retailMarkupSum, numberRetailVAT, valueRetailVAT, retailVATSum,
                    extraRetailPrice, extraRetailSum, extraRetailVAT, extraRetailVATSum,
                    notWareRetailPrice, retailMarkupPrice, retailVATSumNotWare, retailSumNotWare,
-                   calcMarkupPrice, calcVATPrice, retailVATPrice, retailMarkupSumNotWare, sumSosedi
+                   calcMarkupPrice, calcVATPrice, retailVATPrice, retailMarkupSumNotWare, sumCNote
     ORDER index(d)
     FILTERS pricing(d) == p,
             d IS PricingDetail AND NOT (sku(d) IS Ware),
