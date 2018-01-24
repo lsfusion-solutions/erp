@@ -254,13 +254,27 @@ skipShowDelete = ABSTRACT BOOLEAN (Payment);
 skipOpen = ABSTRACT BOOLEAN (Payment);
 showClose (Payment p) = isOpened(p) AND NOT skipClose(p);   
 showOpen (Payment p) = isClosed(p) AND NOT skipOpen(p);   
-    
+
+//-------------------------------------------Удаление платежей---------------------------------------//
+in 'Отм.' = DATA LOCAL BOOLEAN (Payment);
+countIn = GROUP SUM 1 IF in(Payment payment);
+
+delete 'Удалить' (Payment payment) = {
+    IF countIn() THEN {
+        DELETE Payment p WHERE in(p) AND overShowDelete(p);
+    }
+    ELSE {
+        DELETE Payment p WHERE p == payment;
+    }
+    apply();
+} CONFIRM IMAGE 'delete.png';    
     
 FORM payments 'Платежи'
 
     PROPERTIES() filterPaymentDateFrom, filterPaymentDateTo, nameOperation, namePartyA, namePartyB
 
     OBJECTS p = Payment LAST
+    PROPERTIES(p) in
     PROPERTIES(p) READONLYIF isReadonly() isClosed, isPosted, isReturn, order, number, series,
                   date, time, namePayer, nameAccountFrom, nameBeneficiary, nameAccountTo,
                   nameCurrencyAccountTo, sum, note, nameOperation 
@@ -269,7 +283,8 @@ FORM payments 'Платежи'
                                                 postedNameUser, postedTime, postedHostnameComputer 
     PROPERTIES(p) NEWSESSION NEW, editP = EDIT SHOWIF overShowEdit(p)
     PROPERTIES (p) close SHOWIF showClose(p), open SHOWIF showOpen(p)
-    PROPERTIES (p) NEWSESSION deletep=DELETE SHOWIF overShowDelete(p), copy
+    PROPERTIES (p) delete SHOWIF overShowDelete(p) TOOLBAR AFTER editP
+    PROPERTIES (p) NEWSESSION copy
 
     ORDER date(p), order(p)
 
