@@ -29,14 +29,14 @@ overPrice = ABSTRACT NUMERIC[16,4] (Sku, Receipt, DATETIME);
 usePriceList (Receipt receipt) = usePriceList(groupCashRegister(receipt)) COMPLEX; 
 POSPrice 'Цена в кассе' (Sku sku, Receipt receipt, DATETIME dateTime) =
     IF usePriceList(receipt) THEN
-        priceA(POSPriceListType(receipt), sku, departmentStore(receipt), dateTime)
+        prevPriceA(POSPriceListType(receipt), sku, departmentStore(receipt), dateTime)
     ELSE
         overPrice(sku, receipt, dateTime); 
 currentPOSPrice 'Текущая цена' (Sku sku, Receipt receipt) = POSPrice(sku, receipt, currentDateTime());
 
 POSPrice 'Цена в кассе' (Batch batch, Receipt receipt, DATETIME dateTime) =
     IF usePriceList(receipt) THEN
-        priceA(POSPriceListType(receipt), batch, departmentStore(receipt), dateTime)
+        prevPriceA(POSPriceListType(receipt), batch, departmentStore(receipt), dateTime)
     ELSE
         overPrice(sku(batch), receipt, dateTime); 
 currentPOSPrice 'Текущая цена' (Batch batch, Receipt receipt) = POSPrice(batch, receipt, currentDateTime());
@@ -254,7 +254,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = {
                     taken(ReceiptSaleDetail detail) <- [= GROUP SUM use(ReceiptSaleDetail detail, PromotionCondition condition) BY detail](detail);
                 } ELSE {
                     FOR promotion(PromotionCondition condition) == promotion AND PriceListType pt == priceListType(condition) NOINLINE (pt) DO {
-                        taken(ReceiptSaleDetail detail, condition) <- NULL WHERE priceListType(condition) == pt AND NOT priceA(pt, sku(detail), departmentStore(detail), overDateTime(detail)) != price(detail); 
+                        taken(ReceiptSaleDetail detail, condition) <- NULL WHERE priceListType(condition) == pt AND NOT prevPriceA(pt, sku(detail), departmentStore(detail), overDateTime(detail)) != price(detail); 
                     }
                     taken(ReceiptSaleDetail detail) <- [= GROUP SUM taken(ReceiptSaleDetail detail, PromotionCondition condition) BY detail](detail);
                 }
@@ -287,7 +287,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = {
                     CASE WHEN sumDiscount(condition) THEN taken(detail, condition) * sumDiscount(condition)
                          WHEN resultPrice(condition, sku(detail)) THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) - resultPrice(condition, sku(detail)))
                          WHEN resultPrice(condition) THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) - resultPrice(condition))
-                         WHEN priceListType(condition) THEN taken(detail, condition) * (price(detail) - priceA(priceListType(condition), sku(detail), departmentStore(detail), overDateTime(detail)))
+                         WHEN priceListType(condition) THEN taken(detail, condition) * (price(detail) - prevPriceA(priceListType(condition), sku(detail), departmentStore(detail), overDateTime(detail)))
                          WHEN condition IS PromotionCondition THEN taken(detail, condition) * ((leftSum(detail) (-) (bonusPaid(detail) IF useBonus(condition))) / quantity(detail) * percent(condition) / 100)
                     WHERE taken(detail, condition) AND NOT sumReceipt(condition) AND NOT sumReceiptDiscount(condition);
 
