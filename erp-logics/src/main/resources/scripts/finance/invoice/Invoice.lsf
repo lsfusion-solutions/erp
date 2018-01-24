@@ -223,9 +223,10 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     isStockInvoices 'Разрешить ввод накладной'##sign##' без склада' = DATA BOOLEAN ();    
     equalsSeriesNumberInvoices 'Запретить ввод накладных'##sign##' с одинаковым "Серия/номер"' = DATA BOOLEAN (); 
     skipEqualsSeriesNumber = ABSTRACT BOOLEAN (Invoice);
+    isSeriesInvoices 'Запретить ввод накладных'##sign##' без серии' = DATA BOOLEAN ();
     
     EXTEND FORM options
-        PROPERTIES() NS###isStockInvoices = isStockInvoices, NS###equalsSeriesNumberInvoices = equalsSeriesNumberInvoices
+        PROPERTIES() NS###isStockInvoices = isStockInvoices, NS###equalsSeriesNumberInvoices = equalsSeriesNumberInvoices, NS###isSeriesInvoices = isSeriesInvoices
     ;
     
     DESIGN options {
@@ -234,6 +235,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                 caption = 'Накладная'##sign;
                 MOVE PROPERTY(NS###isStockInvoices);
                 MOVE PROPERTY(NS###equalsSeriesNumberInvoices);
+                MOVE PROPERTY(NS###isSeriesInvoices);
             } 
         }
     }
@@ -241,7 +243,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     CONSTRAINT isPosted(UserInvoice i) AND NOT isStockInvoices() AND NOT stockProp##Stock(i) 
         MESSAGE 'Для накладной'##sign##' должен быть задан склад';   
     CONSTRAINT  equalsSeriesNumberInvoices() AND [ = GROUP SUM 1 IF isPosted(Invoice i) AND NOT skipEqualsSeriesNumber(i) BY seriesNumber(i)](VARSTRING[28] series) >1
-        MESSAGE 'Запрещено вводить накладные'##sign##' с одинаковым "Серия/номер"';                 
+        MESSAGE 'Запрещено вводить накладные'##sign##' с одинаковым "Серия/номер"';
+    CONSTRAINT SETCHANGED(isPosted(UserInvoice i)) AND isSeriesInvoices() AND NOT series(i)
+        MESSAGE 'Для накладной'##sign##' должна быть задана серия';
     
     @defineDocumentInterfaceClosed(invoice);
     @defineDocumentClosedConstraint(UserInvoice);
