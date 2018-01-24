@@ -53,6 +53,8 @@ public class FiscalEpsonCustomOperationClientAction implements ClientAction {
                     return FiscalEpson.checkSKNO();
                 case 9:
                     return FiscalEpson.readElectronicJournal(offsetBefore);
+                case 10:
+                    return FiscalEpson.isZReportOpen();
                 default:
                     break;
             }

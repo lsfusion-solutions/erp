@@ -256,11 +256,15 @@ public class FiscalEpson {
     }
 
     public static void openDayIfClosed() {
-        Variant stateDayOpen = epsonActiveXComponent.getProperty("StateDayOpen");
-        if (toInt(stateDayOpen) == 0) {
+        if (!isZReportOpen()) {
             Dispatch.call(epsonDispatch, "OpenDay");
             checkErrors(true);
         }
+    }
+
+    public static boolean isZReportOpen() {
+        Variant stateDayOpen = epsonActiveXComponent.getProperty("StateDayOpen");
+        return toInt(stateDayOpen) == 1;
     }
 
     public static Date getDateTime() {
