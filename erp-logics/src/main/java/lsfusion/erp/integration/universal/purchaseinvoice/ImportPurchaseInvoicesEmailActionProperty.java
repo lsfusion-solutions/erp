@@ -151,6 +151,13 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                                             findProperty("original[Purchase.Invoice]").change(
                                                     new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)), currentSession, invoiceObject);
+                                            findProperty("currentInvoice[]").change(invoiceObject, currentSession);
+
+                                            String script = (String) findProperty("script[ImportType]").read(currentSession, importTypeObject);
+                                            if(script != null && !script.isEmpty()) {
+                                                findProperty("executionScript[ImportType]").change(String.format("run() = {%s;\n};", script), session, (DataObject) importTypeObject);
+                                                findAction("executeScript[ImportType]").execute(currentSession, context.stack, importTypeObject);
+                                            }
 
                                             findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
 
