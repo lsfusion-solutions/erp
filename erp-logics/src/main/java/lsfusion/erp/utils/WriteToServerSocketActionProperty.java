@@ -1,6 +1,7 @@
 package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -10,6 +11,7 @@ import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.net.Socket;
 import java.sql.SQLException;
 import java.util.Iterator;
@@ -33,19 +35,22 @@ public class WriteToServerSocketActionProperty extends ScriptingActionProperty {
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
-        try {
-            String text = (String) context.getDataKeyValue(textInterface).object;
-            String charset = (String) context.getDataKeyValue(charsetInterface).object;
-            String ip = (String) context.getDataKeyValue(ipInterface).object;
-            Integer port = (Integer) context.getDataKeyValue(portInterface).object;
+        String text = (String) context.getDataKeyValue(textInterface).object;
+        String charset = (String) context.getDataKeyValue(charsetInterface).object;
+        String ip = (String) context.getDataKeyValue(ipInterface).object;
+        Integer port = (Integer) context.getDataKeyValue(portInterface).object;
 
+        try {
             ServerLoggers.printerLogger.info(String.format("Write to server socket started for ip %s port %s", ip, port));
             try (OutputStream os = new Socket(ip, port).getOutputStream()) {
                 os.write(text.getBytes(charset));
             }
             ServerLoggers.printerLogger.info(String.format("Write to server socket finished for ip %s port %s", ip, port));
 
-        } catch (Exception e) {
+        } catch (ConnectException e) {
+            ServerLoggers.printerLogger.error("Write to server socket error", e);
+            context.delayUserInteraction(new MessageClientAction(String.format("Сокет %s:%s недоступен. \n%s", ip, port, e.getMessage()), "Ошибка"));
+        }catch (Exception e) {
             ServerLoggers.printerLogger.error("Write to server socket error", e);
             throw Throwables.propagate(e);
         }
