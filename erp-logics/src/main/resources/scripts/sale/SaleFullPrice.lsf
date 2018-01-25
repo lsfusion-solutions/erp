@@ -16,7 +16,7 @@ dataPercDiscount '% скидки' = DATA NUMERIC[8,4] (UserOrderDetail);
 percDiscount '% скидки' (UserOrderDetail d) = OVERRIDE dataPercDiscount(d), percDiscount(userOrder(d)) IF isItem(sku(d));
 percDiscount(UserOrderDetail d) += percDiscount(d);
 
-prevList (CalcPriceListType t, UserOrderDetail d) += WHEN t IS CalcPriceListType AND isItem(sku(d)) THEN
+prevList (PriceListType t, UserOrderDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) THEN
                     round2(NUMERIC[16,4](prevPriceB(t, sku(d), priceStock(d), dateTime(d))));
 
 recalculateDiscountPrice(UserOrderDetail d) = {
@@ -28,16 +28,16 @@ recalculateDiscountPrice(UserOrderDetail d) = {
 WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail] 
         (((CHANGED(priceStock(UserOrderDetail d)) OR CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
          (CHANGED(priceListType(d)) OR CHANGED(agreement(d)) OR CHANGED(sku(d))))
-         AND NOT CHANGED(fullPrice(d)) AND CalcPriceListType pt == priceListType(d) AND isItem(sku(d)) 
+         AND NOT CHANGED(fullPrice(d)) AND PriceListType pt == priceListType(d) AND isItem(sku(d)) 
          NOINLINE (pt) DO {
-    fullPrice(d) <- round2(prevPriceB(basePriceListType(pt), sku(d), priceStock(d), dateTime(d)));    
+    fullPrice(d) <- round2(prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), priceStock(d), dateTime(d)));    
 }
 
 // при изменении полной цены пересчитывается цена 
 WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail] 
         (CHANGED(fullPrice(UserOrderDetail d)))
          AND NOT CHANGED(percDiscount(d)) 
-         AND CalcPriceListType pt == priceListType(d) AND isItem(sku(d)) NOINLINE (pt) DO {
+         AND PriceListType pt == priceListType(d) AND isItem(sku(d)) NOINLINE (pt) DO {
     recalculateDiscountPrice(d);
 }
 
@@ -56,39 +56,37 @@ WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail]
 WHEN LOCAL FORMS userOrder GOAFTER fullPrice[UserOrderDetail] 
         (CHANGED(percDiscount(UserOrderDetail d)))
          AND NOT CHANGED(price(d)) 
-         AND CalcPriceListType pt == priceListType(d) AND fullPrice(d) AND isItem(sku(d)) NOINLINE (pt) DO {
+         AND PriceListType pt == priceListType(d) AND fullPrice(d) AND isItem(sku(d)) NOINLINE (pt) DO {
     recalculateDiscountPrice(d);
 }
 
 // при изменении цены меняется % скидки
 overChangePrice(UserOrderDetail d) += {
-    IF priceListType(d) IS CalcPriceListType AND fullPrice(d) AND isItem(sku(d)) THEN {
+    IF fullPrice(d) AND isItem(sku(d)) THEN {
         dataPercDiscount(d) <- NUMERIC[8,4]((1.0 - (price(d)/fullPrice(d)))*100.0);     
     }   
 }
 WHEN LOCAL FORMS userOrder GOAFTER price[UserOrderDetail] (CHANGED(price(UserOrderDetail d)))  AND 
-                             priceListType(d) IS CalcPriceListType AND fullPrice(d) AND isItem(sku(d)) AND
+                             fullPrice(d) AND isItem(sku(d)) AND
                              NOT CHANGED(percDiscount(d)) AND NOT CHANGED(fullPrice(d))DO {
     dataPercDiscount(d) <- NUMERIC[8,4]((1.0 - (price(d)/fullPrice(d)))*100.0);
 }
 
 recalculateFullPriceUserOrderDetail 'Пересчитать цены'() = {
-    FOR CalcPriceListType pt == priceListType(UserOrderDetail d) AND isItem(sku(d)) AND [= FILTER userOrder.d](d) NOINLINE (pt) DO {
-        fullPrice(d) <- round2(prevPriceB(basePriceListType(pt), sku(d), priceStock(d), dateTime(d)));    
+    FOR PriceListType pt == priceListType(UserOrderDetail d) AND isItem(sku(d)) AND [= FILTER userOrder.d](d) NOINLINE (pt) DO {
+        fullPrice(d) <- round2(prevPriceB((OVERRIDE basePriceListType(pt),pt), sku(d), priceStock(d), dateTime(d)));    
     }
 } ASON CONTEXTMENU fullPrice[UserOrderDetail];
 
 @defineOption(readonlySaleDiscount, 'Запретить редактирование % скидки в строках', sale);
 
 EXTEND FORM userOrder
-    PROPERTIES (o) //SHOWIF (priceListType(agreement(o)) IS CalcPriceListType) 
-        percDiscount 
-    PROPERTIES (d) //SHOWIF (priceListType(agreement(o)) IS CalcPriceListType) 
-        BEFORE  price(d) fullPrice, percDiscount READONLYIF readonlySaleDiscount()
+    PROPERTIES (o) percDiscount 
+    PROPERTIES (d) BEFORE  price(d) fullPrice, percDiscount READONLYIF readonlySaleDiscount()
 ;
 
 EXTEND FORM orders
-    PROPERTIES (d) READONLY SHOWIF (priceListType(agreement(o)) IS CalcPriceListType) BEFORE  price(d) fullPrice, percDiscount
+    PROPERTIES (d) READONLY BEFORE  price(d) fullPrice, percDiscount
 ;
 
 skipSetAgreement(UserOrder o) += priceListType(agreement(o)) IS CalcPriceListType;
@@ -115,7 +113,7 @@ dataPercDiscount '% скидки' = DATA NUMERIC[8,4] (UserInvoiceDetail);
 percDiscount '% скидки' (UserInvoiceDetail d) = OVERRIDE dataPercDiscount(d), percDiscount(userInvoice(d)) IF isItem(sku(d));
 percDiscount(UserInvoiceDetail d) += percDiscount(d);
 
-prevList (CalcPriceListType t, UserInvoiceDetail d) += WHEN t IS CalcPriceListType AND isItem(sku(d)) THEN
+prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) THEN
                     round2(NUMERIC[16,4](prevPriceB(t, sku(d), supplierStock(d), dateTime(d))));
 
 recalculateDiscountPrice(UserInvoiceDetail d) = {
@@ -128,9 +126,9 @@ WHEN LOCAL //FORMS userInvoice
         GOAFTER valueVAT[UserInvoiceDetail] 
         (((CHANGED(supplierStock(UserInvoiceDetail d)) OR CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
          (CHANGED(priceListType(d)) OR CHANGED(agreement(d)) OR CHANGED(sku(d))))
-         AND NOT CHANGED(fullPrice(d)) AND CalcPriceListType pt == priceListType(d) AND isItem(sku(d)) 
+         AND NOT CHANGED(fullPrice(d)) AND PriceListType pt == priceListType(d) AND isItem(sku(d)) 
          NOINLINE (pt) DO {
-    fullPrice(d) <- round2(prevPriceB(basePriceListType(pt), sku(d), supplierStock(d), dateTime(d)));    
+    fullPrice(d) <- round2(prevPriceB((OVERRIDE basePriceListType(pt),pt), sku(d), supplierStock(d), dateTime(d)));    
 }
 
 // при изменении полной цены пересчитывается цена 
@@ -138,7 +136,7 @@ WHEN LOCAL //FORMS userInvoice
         GOAFTER valueVAT[UserInvoiceDetail] 
         (CHANGED(fullPrice(UserInvoiceDetail d)))
          AND NOT CHANGED(percDiscount(d)) 
-         AND CalcPriceListType pt == priceListType(d) AND isItem(sku(d)) NOINLINE (pt) DO {
+         AND PriceListType pt == priceListType(d) AND isItem(sku(d)) NOINLINE (pt) DO {
     recalculateDiscountPrice(d);
 }
 
@@ -159,35 +157,35 @@ WHEN LOCAL //FORMS userInvoice
         GOAFTER fullPrice[UserInvoiceDetail] 
         (CHANGED(percDiscount(UserInvoiceDetail d)))
          AND NOT CHANGED(price(d)) 
-         AND CalcPriceListType pt == priceListType(d) AND fullPrice(d) AND isItem(sku(d)) NOINLINE (pt) DO {
+         AND PriceListType pt == priceListType(d) AND fullPrice(d) AND isItem(sku(d)) NOINLINE (pt) DO {
     recalculateDiscountPrice(d);
 }
 
 // при изменении цены меняется % скидки
 overChangePrice(UserInvoiceDetail d) += {
-    IF priceListType(d) IS CalcPriceListType AND fullPrice(d) AND isItem(sku(d)) THEN {
+    IF fullPrice(d) AND isItem(sku(d)) THEN {
         dataPercDiscount(d) <- NUMERIC[8,4]((1.0 - (price(d)/fullPrice(d)))*100.0);     
     }   
 }
 WHEN LOCAL FORMS userInvoice GOAFTER price[UserInvoiceDetail] (CHANGED(price(UserInvoiceDetail d)))  AND 
-                             priceListType(d) IS CalcPriceListType AND fullPrice(d) AND isItem(sku(d)) AND
+                             fullPrice(d) AND isItem(sku(d)) AND
                              NOT CHANGED(percDiscount(d)) AND NOT CHANGED(fullPrice(d))DO {
     dataPercDiscount(d) <- NUMERIC[8,4]((1.0 - (price(d)/fullPrice(d)))*100.0);
 }
 
 recalculateFullPriceUserInvoiceDetail 'Пересчитать цены'() = {
-    FOR CalcPriceListType pt == priceListType(UserInvoiceDetail d) AND isItem(sku(d)) AND [= FILTER userInvoice.d](d) NOINLINE (pt) DO {
-        fullPrice(d) <- round2(prevPriceB(basePriceListType(pt), sku(d), supplierStock(d), dateTime(d)));    
+    FOR PriceListType pt == priceListType(UserInvoiceDetail d) AND isItem(sku(d)) AND [= FILTER userInvoice.d](d) NOINLINE (pt) DO {
+        fullPrice(d) <- round2(prevPriceB((OVERRIDE basePriceListType(pt),pt), sku(d), supplierStock(d), dateTime(d)));    
     }
 } ASON CONTEXTMENU fullPrice[UserInvoiceDetail];
 
 EXTEND FORM userInvoice
-    PROPERTIES (i) SHOWIF (priceListType(agreement(i)) IS CalcPriceListType) percDiscount 
-    PROPERTIES (d) SHOWIF (priceListType(agreement(i)) IS CalcPriceListType) BEFORE  price(d) fullPrice, percDiscount READONLYIF readonlySaleDiscount()
+    PROPERTIES (i) percDiscount 
+    PROPERTIES (d) BEFORE  price(d) fullPrice, percDiscount READONLYIF readonlySaleDiscount()
 ;
 
 EXTEND FORM invoices
-    PROPERTIES (d) READONLY SHOWIF (priceListType(agreement(i)) IS CalcPriceListType) BEFORE  price(d) fullPrice, percDiscount
+    PROPERTIES (d) READONLY BEFORE  price(d) fullPrice, percDiscount
 ;
 
 skipEqualAgreements = ABSTRACT BOOLEAN (UserInvoice);
