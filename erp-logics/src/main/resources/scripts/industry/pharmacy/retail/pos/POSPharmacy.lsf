@@ -195,7 +195,7 @@ prescriptionMessage 'Рецепт' (Batch batch) = IF needPrescription(batch) TH
 backgroundExpiryDate = ABSTRACT COLOR (Batch, Receipt);           
 
 nameBin 'Ячейка' (Batch batch, Receipt receipt) = nameBin(departmentStore(zReport(receipt)), sku(batch));  
-currentPOSBlisterPrice 'Цена блистера' (Batch batch, Receipt receipt) = currentPOSPrice(batch, receipt)/blisterAmount(batch) IF currentPOSPrice(batch, receipt); 
+currentPOSBlisterPrice 'Цена блистера' (Batch batch, Receipt receipt) = currentPOSPrice(batch, receipt)/blisterAmount(batch); 
 
 pharmacyDescription 'Партия' (Batch batch) = CONCAT '', nameSku(batch), '/ ' + nameManufacturer(batch), '/ ' + nameCountry(batch);             
 
@@ -266,7 +266,7 @@ changeBlisterQuantity(ReceiptDetail detail) = {
 }
 
 //сумма строки чека
-priceSumBlister 'Сумма без скидки' = round(blisterQuantity(batch(ReceiptSaleDetail detail), receipt(detail)) * currentPOSBlisterPrice(batch(detail), receipt(detail)), roundCondition(departmentStore(detail)));
+priceSumBlister 'Сумма без скидки' = round2(blisterQuantity(ReceiptSaleDetail detail) * (price(detail) / blisterAmount(batch(detail))));
 sum (ReceiptSaleDetail detail) <- IF blisterAmount(batch(detail))
     THEN (priceSumBlister(detail) (-) discountSum(detail) (-) extraDiscountSum(detail)) 
     ELSE calcSum(detail)
