@@ -316,13 +316,15 @@ batch(ShipmentSkuLedger ledger) += batch(ledger);
 
 stockDocumentLedger (ShipmentSkuLedger ledger) += shipment(shipmentDetail(ledger)); 
 
-skuLedger (ShipmentDetail detail) = IF createBatch(detail) THEN shipmentBatch(detail) ELSE shipmentSkuLedger(detail);
 ledgerBatch (ShipmentDetail detail) = OVERRIDE batch(detail), shipmentBatch(detail);
 @implementDocumentBatch(shipment, ledger);
 
 @implementDocumentBatchForm(ps);
 
-cost(ShipmentDetail detail, Batch batch) += cost(skuLedger(detail), batch);
+cost(ShipmentDetail detail, Batch batch) += quantity(detail) IF batch == ledgerBatch(detail);
+// было вот так - теоретически так правильнее в случае, если на приходе будет себестоимость в cost, но из-за этого появляется зависимость между cost[SkuLedger,Batch], который меняют все, и priceListLedger для Batch
+//skuLedger (ShipmentDetail detail) = IF createBatch(detail) THEN shipmentBatch(detail) ELSE shipmentSkuLedger(detail);
+//cost(ShipmentDetail detail, Batch batch) += cost(skuLedger(detail), batch);
 
 batch[Invoice.InvoiceDetail](InvoiceDetail d) += OVERRIDE ledgerBatch(invoiceShipmentDetail(d)), batch(d);
 
