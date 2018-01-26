@@ -52,42 +52,30 @@ dmoved = DATA LOCAL BOOLEAN (Batch, Stock);
 overFillPropertyFromTo = ABSTRACT LIST (DATE, DATE);   
                    
 fillPropertyBatchStockFromTo 'Заполнить данные'(DATE dFrom,DATE dTo)  = {
-    dbalanceB(Batch bb,Stock sts) <- balanceB(bb,sts,dFrom) 
-        WHERE inBatchReport(sts);
-    dcostB(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceB(bb,sts) * cost(bb)) 
-        WHERE inBatchReport(sts); 
-    dVATSumB(Batch bb, Stock sts) <- NUMERIC[18,4](dcostB(bb, sts) * valueVAT(sts, bb, date(bb)) / 100.0)
-        WHERE inBatchReport(sts);
-    dSumB(Batch bb, Stock sts) <- NUMERIC[18,4](dcostB(bb, sts) (+) dVATSumB(bb, sts))
-        WHERE inBatchReport(sts);         
-    daccountSumB(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceB(bb,sts) * accountPriceB(bb,sts,dFrom)) 
-        WHERE inBatchReport(sts); 
+    dbalanceB(Batch bb,Stock sts) <- balanceB(bb,sts,dFrom) IF inBatchReport(sts);  
+    dcostB(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceB(bb,sts) * cost(bb)); 
+    dVATSumB(Batch bb, Stock sts) <- NUMERIC[18,4](dcostB(bb, sts) * valueVAT(sts, bb, date(bb)) / 100.0);
+    dSumB(Batch bb, Stock sts) <- NUMERIC[18,4](dcostB(bb, sts) (+) dVATSumB(bb, sts));         
+    
+    daccountSumB(Batch bb,Stock sts) <- NULL;
+    daccountSumB(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceB(bb,sts) * accountPriceB(bb,sts,dFrom)) WHERE dbalanceB(bb,sts); 
 //--            
-    dquantitySold(Batch bb,Stock sts) <- quantitySold(bb,sts,dFrom,dTo) 
-        WHERE inBatchReport(sts);
-    dcostSumSold(Batch bb,Stock sts) <- costSumSold(bb,sts,dFrom,dTo) 
-        WHERE inBatchReport(sts);
-    dmarkupSumSold(Batch bb,Stock sts) <- markupSumSold(bb,sts,dFrom,dTo) 
-        WHERE inBatchReport(sts);     
-    dsumVATSold(Batch bb,Stock sts) <- sumVATSold(bb,sts,dFrom,dTo) 
-        WHERE inBatchReport(sts);
-    dsumSold(Batch bb,Stock sts) <- sumSold(bb,sts,dFrom,dTo) 
-        WHERE inBatchReport(sts);
-    daveragePriceSold(Batch bb,Stock sts) <- NUMERIC[22,8](dsumSold(bb,sts) / dquantitySold(bb,sts))
-        WHERE inBatchReport(sts); 
-    daverageMarkupSold(Batch bb,Stock sts) <- NUMERIC[22,8](dmarkupSumSold(bb,sts) / dcostSumSold(bb,sts) * 100.0)
-        WHERE inBatchReport(sts);
+    dquantitySold(Batch bb,Stock sts) <- quantitySold(bb,sts,dFrom,dTo) IF inBatchReport(sts);
+    dcostSumSold(Batch bb,Stock sts) <- costSumSold(bb,sts,dFrom,dTo) IF inBatchReport(sts);
+    dmarkupSumSold(Batch bb,Stock sts) <- markupSumSold(bb,sts,dFrom,dTo) IF inBatchReport(sts);     
+    dsumVATSold(Batch bb,Stock sts) <- sumVATSold(bb,sts,dFrom,dTo) IF inBatchReport(sts);
+    dsumSold(Batch bb,Stock sts) <- sumSold(bb,sts,dFrom,dTo) IF inBatchReport(sts);
+    daveragePriceSold(Batch bb,Stock sts) <- NUMERIC[22,8](dsumSold(bb,sts) / dquantitySold(bb,sts)); 
+    daverageMarkupSold(Batch bb,Stock sts) <- NUMERIC[22,8](dmarkupSumSold(bb,sts) / dcostSumSold(bb,sts) * 100.0);
     //--
-    dbalanceA(Batch bb,Stock sts) <- balanceA(bb,sts,dTo) 
-        WHERE inBatchReport(sts);
-    dcostA(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceA(bb,sts) * cost(bb))
-        WHERE inBatchReport(sts); 
-    dVATSumA(Batch bb, Stock sts) <- NUMERIC[18,4](dcostA(bb, sts) * valueVAT(sts, bb, date(bb)) / 100.0)
-        WHERE inBatchReport(sts);
-    dSumA(Batch bb, Stock sts) <- NUMERIC[18,4](dcostA(bb, sts) (+) dVATSumA(bb, sts))
-        WHERE inBatchReport(sts);           
-    daccountSumA(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceA(bb,sts) * accountPriceA(bb,sts,dTo))
-        WHERE inBatchReport(sts); 
+
+    dbalanceA(Batch bb,Stock sts) <- balanceA(bb,sts,dTo) IF inBatchReport(sts);
+    dcostA(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceA(bb,sts) * cost(bb)) IF inBatchReport(sts); 
+    dVATSumA(Batch bb, Stock sts) <- NUMERIC[18,4](dcostA(bb, sts) * valueVAT(sts, bb, date(bb)) / 100.0);
+    dSumA(Batch bb, Stock sts) <- NUMERIC[18,4](dcostA(bb, sts) (+) dVATSumA(bb, sts));
+               
+    daccountSumA(Batch bb,Stock sts) <- NULL;
+    daccountSumA(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceA(bb,sts) * accountPriceA(bb,sts,dTo)) WHERE dbalanceA(bb,sts); 
     
     dmoved(Batch bb, Stock sts) <- dquantitySold(bb,sts) OR dbalanceB(bb,sts) OR dbalanceA(bb,sts);
     
@@ -119,7 +107,6 @@ FORM saleBatch 'Продажи по партиям'
     PROPERTIES(b)  READONLY nameSku, idBarcodeSku, nameSkuGroup3, nameSkuGroup4, date, cost,                     
                    currentValueVAT                    
     FILTERGROUP inactiveStock2 FILTER 'Активный' active(st) 'ctrl F10' DEFAULT                   
-    PROPERTIES(b)  READONLY image PANEL
     PROPERTIES     READONLY BACKGROUND backgroundLavender(b) balanceB(b,st,dFrom)  COLUMNS (st) HEADER nameBatchBalanceB(st)
     PROPERTIES     READONLY BACKGROUND backgroundLavender(b) accountSumB(b,st,dFrom)  COLUMNS (st) HEADER nameBatchSumB(st)
     PROPERTIES     READONLY BACKGROUND backgroundGreenTea(b) quantitySold(b,st,dFrom,dTo)  COLUMNS (st) HEADER nameBatchQuantitySold(st)  
@@ -160,6 +147,7 @@ FORM saleBatch 'Продажи по партиям'
 //-- Таблица                                                 
     OBJECTS stbs = (stst=Stock, bbb=Batch)                              
     PROPERTIES(stst)READONLY name                          
+    PROPERTIES(bbb)  READONLY image PANEL
     PROPERTIES(bbb) READONLY nameSku, idBarcodeSku, nameSupplier, nameSkuGroup3, nameSkuGroup4, date,  
                    cost
     PROPERTIES(stst, bbb) READONLY currentValueVAT
@@ -214,7 +202,7 @@ DESIGN saleBatch {
             NEW imageBox {
                 fill = 1;
                 caption = 'Изображение';                     
-                MOVE PROPERTY(image(b)) {
+                MOVE PROPERTY(image(bbb)) {
                     caption = '';
                     fill = 1;
                 }
