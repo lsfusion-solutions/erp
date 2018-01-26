@@ -6,7 +6,14 @@ NAMESPACE Item;
 
 @defineExternalizable(manufacturer, VARSTRING[100], ext);
 
-@defineNumeratedID(Manufacturer, 'Производители товара', ExtId);
+defaultExtIdNumeratorManufacturer = DATA Numerator ();
+nameDefaultExtIdNumeratorManufacturer 'Производители товара' = name(defaultExtIdNumeratorManufacturer()) IN defaultNumerator;
+WHEN SET(Manufacturer o IS Manufacturer) AND defaultExtIdNumeratorManufacturer() AND NOT extId(o) DO {
+    extId(o) <- CONCAT '', series(defaultExtIdNumeratorManufacturer()), curStringValue(defaultExtIdNumeratorManufacturer());  
+    incrementValueSession(defaultExtIdNumeratorManufacturer());
+} 
+
+EXTEND FORM defaultNumerators PROPERTIES() nameDefaultExtIdNumeratorManufacturer;
 
 EXTEND FORM manufacturer
     PROPERTIES(m) extId SHOWIF showIDs()
