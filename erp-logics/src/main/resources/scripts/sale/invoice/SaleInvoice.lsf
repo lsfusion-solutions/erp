@@ -255,8 +255,11 @@ CONSTRAINT isPosted(Invoice i) AND isCharLength(operation(i)) AND NOT (charLengt
     
 CONSTRAINT  isPosted(UserInvoiceDetail d) AND abs(invoiceSum(d) (-) sum(d) (-) VATSum(d)) > invoiceSumDeviation(operation(d)) 
         AND (CHANGED(sum(d)) OR CHANGED (valueVAT(d)) OR CHANGED (invoiceSum(d)) OR CHANGED (isPosted(d))) 
-        MESSAGE 'Отклонение Суммы с НДС превышает допустимое'; 
+        MESSAGE 'Отклонение Суммы с НДС превышает допустимое';
 
 CONSTRAINT  isPosted(UserInvoiceDetail d) AND abs(sum(d) (-) (OVERRIDE quantity(d), 0.0) * (OVERRIDE price(d), 0.0)) > invoiceSumDeviation(operation(d)) 
         AND (CHANGED(sum(d)) OR CHANGED (quantity(d)) OR CHANGED (price(d)) OR CHANGED (isPosted(d))) 
-        MESSAGE 'Отклонение Суммы превышает допустимое';      
+        MESSAGE 'Отклонение Суммы превышает допустимое';
+
+CONSTRAINT SETCHANGED(isPosted(UserInvoice i)) AND isSeriesInvoices(operation(i)) AND NOT series(i)
+        MESSAGE 'Для накладной должна быть задана серия';
