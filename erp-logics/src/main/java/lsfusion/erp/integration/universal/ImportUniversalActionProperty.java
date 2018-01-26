@@ -1238,9 +1238,14 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return input != null && input.matches(patternedDateTimePattern);
     }
 
+    //по идее, можно все вызывать с defaultValue = true, но на всякий случай оставляем по умолчанию как было
     protected boolean getReplaceOnlyNull(Map<String, ImportColumnDetail> importColumns, String columnName) {
+        return getReplaceOnlyNull(importColumns, columnName, false);
+    }
+
+    protected boolean getReplaceOnlyNull(Map<String, ImportColumnDetail> importColumns, String columnName, boolean defaultValue) {
         ImportColumnDetail column = importColumns.get(columnName);
-        return column != null && column.replaceOnlyNull;
+        return column == null ? defaultValue : column.replaceOnlyNull;
     }
 
     //чит для того, чтобы обрабатывать "без НДС" как 0

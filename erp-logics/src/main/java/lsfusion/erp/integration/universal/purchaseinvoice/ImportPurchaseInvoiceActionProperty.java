@@ -190,7 +190,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                   DataObject userInvoiceObject, String keyType, ObjectValue operationObject,
                                   ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject,
                                   ObjectValue customerStockObject, boolean ignoreInvoicesAfterDocumentsClosedDate)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
 
         if (notNullNorEmpty(userInvoiceDetailsList)) {
@@ -407,7 +407,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                         iGroupAggr.getMapping(iField));
                 keys.add(itemKey);
-                props.add(new ImportProperty(idItemField, findProperty("id[Item]").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "idItem")));
+                props.add(new ImportProperty(idItemField, findProperty("id[Item]").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "idItem", true)));
                 props.add(new ImportProperty(iField, findProperty("sku[Purchase.InvoiceDetail]").getMapping(userInvoiceDetailKey),
                         object(findClass("Sku")).getMapping(itemKey), getReplaceOnlyNull(defaultColumns, replaceField)));
                 props.add(new ImportProperty(iField, findProperty("sku[Barcode]").getMapping(barcodeKey),
@@ -775,7 +775,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
                                                                         boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                         String staticNameImportType, String staticCaptionImportType)
-            throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+            throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<>();
@@ -1159,7 +1159,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
                                                                         boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                         String staticNameImportType, String staticCaptionImportType)
-            throws IOException, xBaseJException, UniversalImportException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+            throws IOException, xBaseJException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<>();
@@ -1345,8 +1345,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         return true;
     }
     
-    private List<Object> getArticlesMap(DataSession session, LCP<?> idArticleProp, LCP<?> sidProperty)
-            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {        
+    private List<Object> getArticlesMap(DataSession session, LCP<?> idArticleProp, LCP<?> sidProperty) throws SQLException, SQLHandledException {
         
         Set<String> articleSet = new HashSet<>();
         Map<String, String> articlePropertyMap = new HashMap<>();
