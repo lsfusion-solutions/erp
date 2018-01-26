@@ -308,7 +308,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     Pair<String, String> documentNumberError = succeededEntry.getValue();
                     String documentNumber = documentNumberError.first;
                     String error = documentNumberError.second;
-                    confirmDocumentReceived(context, documentId, url, login, password, host, port, provider);
+                    if (error == null)
+                        confirmDocumentReceived(context, documentId, url, login, password, host, port, provider);
                     if (error != null && sendReplies)
                         succeeded = succeeded && sendRecipientError(context, url, login, password, host, port, provider, documentId, documentNumber, error);
                 }
