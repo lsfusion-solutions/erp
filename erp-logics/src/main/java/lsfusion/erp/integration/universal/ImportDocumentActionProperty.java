@@ -7,6 +7,7 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.classes.LogicalClass;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -54,7 +55,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         skuImportCodeLM = context.getBL().getModule("SkuImportCode");
     }
 
-    protected List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(ExecutionContext context, DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         LinkedHashMap<String, ImportColumnDetail> defaultColumns = new LinkedHashMap<>();
         LinkedHashMap<String, ImportColumnDetail> customColumns = new LinkedHashMap<>();
@@ -77,7 +78,11 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
             String staticNameProperty = trim((String) entry.get("staticName"));
             String field = getSplittedPart(staticNameProperty, "\\.", -1);
             String staticCaptionProperty = trim((String) entry.get("staticCaption"));
-            //String propertyImportTypeDetail = (String) entry.get("propertyImportTypeDetail");
+
+            String propertyCanonicalName = (String) entry.get("propertyImportTypeDetail");
+            LCP<?> customProp = propertyCanonicalName == null ? null : (LCP<?>) context.getBL().findSafeProperty(propertyCanonicalName);
+            boolean isBoolean = customProp != null && customProp.property.getType() instanceof LogicalClass;
+
             String keyImportTypeDetail = getSplittedPart((String) entry.get("nameKeyImportTypeDetail"), "\\.", 1);
             boolean replaceOnlyNull = entry.get("replaceOnlyNullImportTypeImportTypeDetail") != null;
             String indexes = (String) entry.get("indexImportTypeImportTypeDetail");
@@ -88,10 +93,10 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
                 for (int i = 0; i < splittedIndexes.length; i++)
                     splittedIndexes[i] = splittedIndexes[i].contains("=") ? splittedIndexes[i] : splittedIndexes[i].trim();
                 if(field != null)
-                    defaultColumns.put(field, new ImportColumnDetail(staticCaptionProperty, indexes, splittedIndexes, replaceOnlyNull));
+                    defaultColumns.put(field, new ImportColumnDetail(staticCaptionProperty, indexes, splittedIndexes, replaceOnlyNull, isBoolean));
                 else if(keyImportTypeDetail != null)
                     customColumns.put(staticCaptionProperty, new ImportColumnDetail(staticCaptionProperty, indexes, splittedIndexes, replaceOnlyNull,
-                            (String) entry.get("propertyImportTypeDetail"), keyImportTypeDetail));
+                            propertyCanonicalName, keyImportTypeDetail, isBoolean));
             }
         }
         return Arrays.asList(defaultColumns, customColumns);

@@ -1035,7 +1035,11 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String staticNameProperty = trim((String) entry.get("staticName"));
             String field = getSplittedPart(staticNameProperty, "\\.", -1);
             String staticCaptionProperty = trim((String) entry.get("staticCaption"));
-            //String propertyImportTypeDetail = (String) entry.get("propertyImportUserPriceListTypeDetail");
+
+            String propertyImportTypeDetail = (String) entry.get("propertyImportUserPriceListTypeDetail");
+            LCP<?> customProp = propertyImportTypeDetail == null ? null : (LCP<?>) context.getBL().findSafeProperty(propertyImportTypeDetail);
+            boolean isBoolean = customProp != null && customProp.property.getType() instanceof LogicalClass;
+
             String keyImportTypeDetail = getSplittedPart((String) entry.get("nameKeyImportUserPriceListTypeDetail"), "\\.", 1);
             boolean replaceOnlyNull = entry.get("replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail") != null;
             String indexes = (String) entry.get("indexImportUserPriceListTypeImportUserPriceListTypeDetail");
@@ -1046,10 +1050,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 for (int i = 0; i < splittedIndexes.length; i++)
                     splittedIndexes[i] = splittedIndexes[i].contains("=") ? splittedIndexes[i] : trim(splittedIndexes[i]);
                 if(field != null)
-                    defaultColumns.put(field, new ImportColumnDetail(staticCaptionProperty, indexes, splittedIndexes, replaceOnlyNull));
+                    defaultColumns.put(field, new ImportColumnDetail(staticCaptionProperty, indexes, splittedIndexes, replaceOnlyNull, isBoolean));
                 else if(keyImportTypeDetail != null)
                     customColumns.put(staticCaptionProperty, new ImportColumnDetail(staticCaptionProperty, indexes, splittedIndexes, replaceOnlyNull,
-                            (String) entry.get("propertyImportUserPriceListTypeDetail"), keyImportTypeDetail));
+                            propertyImportTypeDetail, keyImportTypeDetail, isBoolean));
             }
         }
         return Arrays.asList(defaultColumns, customColumns);

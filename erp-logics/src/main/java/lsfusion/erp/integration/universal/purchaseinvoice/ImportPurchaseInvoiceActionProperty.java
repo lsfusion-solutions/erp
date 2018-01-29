@@ -85,7 +85,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 String[] splittedFieldImportType = nameFieldImportType == null ? null : nameFieldImportType.split("\\.");
                 String staticNameImportType = splittedFieldImportType == null ? null : splittedFieldImportType[splittedFieldImportType.length - 1];
                 
-                List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(session, importTypeObject);
+                List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(context, session, importTypeObject);
                 Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, checkInvoiceExistence);
 
                 ImportDocumentSettings importSettings = readImportDocumentSettings(session, importTypeObject);
@@ -155,7 +155,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             throws SQLHandledException, ParseException, UniversalImportException, IOException, SQLException, BiffException,
             xBaseJException, ScriptingErrorLog.SemanticErrorException {
         
-        List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(session, importTypeObject);
+        List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(context, session, importTypeObject);
         Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, checkInvoiceExistence);
 
         ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);

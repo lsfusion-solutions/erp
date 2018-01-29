@@ -8,35 +8,37 @@ public class ImportColumnDetail {
     boolean replaceOnlyNull;
     public String propertyCanonicalName;
     public String key;
+    public boolean isBoolean;
 
     public ImportColumnDetail(String field, String singleIndex, boolean replaceOnlyNull) {
-        this(field, null, new String[] {singleIndex}, replaceOnlyNull);
+        this(field, singleIndex, replaceOnlyNull, false);
+    }
+
+    public ImportColumnDetail(String field, String singleIndex, boolean replaceOnlyNull, boolean isBoolean) {
+        this(field, null, new String[] {singleIndex}, replaceOnlyNull, isBoolean);
     }
     
     public ImportColumnDetail(String field, String[] indexes, boolean replaceOnlyNull) {
-        this(field, null, indexes, replaceOnlyNull);
+        this(field, null, indexes, replaceOnlyNull, false);
     }
     
-    public ImportColumnDetail(String field, String fullIndex, String[] indexes, boolean replaceOnlyNull) {
-        this(field, fullIndex, indexes, replaceOnlyNull, null, null);
+    public ImportColumnDetail(String field, String fullIndex, String[] indexes, boolean replaceOnlyNull, boolean isBoolean) {
+        this(field, fullIndex, indexes, replaceOnlyNull, null, null, isBoolean);
     }
     
     public ImportColumnDetail(String field, String fullIndex, String[] indexes, boolean replaceOnlyNull, 
-                              String propertyCanonicalName, String key) {
+                              String propertyCanonicalName, String key, boolean isBoolean) {
         this.field = field;
         this.fullIndex = fullIndex;
         this.indexes = indexes;
         this.replaceOnlyNull = replaceOnlyNull;
         this.propertyCanonicalName = propertyCanonicalName;
         this.key = key;
+        this.isBoolean = isBoolean;
     }
     
     public ImportColumnDetail clone(String fieldAndIndex) {
-        return clone(fieldAndIndex, fieldAndIndex);
-    }
-    
-    public ImportColumnDetail clone(String field, String singleIndex) {
-        return new ImportColumnDetail(field, singleIndex, replaceOnlyNull);
+        return new ImportColumnDetail(fieldAndIndex, fieldAndIndex, replaceOnlyNull, isBoolean);
     }
 
     public String getFullIndex() {

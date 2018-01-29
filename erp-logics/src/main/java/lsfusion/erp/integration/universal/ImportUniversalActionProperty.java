@@ -478,7 +478,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             String result;
             CellType cellType = cell.getType();
             if (cellType.equals(CellType.NUMBER)) {
-                result = decimalFormat.format(((NumberCell) cell).getValue());
+                double resultValue = ((NumberCell) cell).getValue();
+                if(importColumnDetail.isBoolean)
+                    result = parseBoolean(resultValue);
+                else
+                    result = decimalFormat.format(resultValue);
             } else if (cellType.equals(CellType.NUMBER_FORMULA)) {
                 result = decimalFormat.format(((NumberFormulaCell) cell).getValue());
             } else {
@@ -719,10 +723,15 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 case Cell.CELL_TYPE_FORMULA:
                     if (isDate)
                         result = formatValue(xssfCell.getDateCellValue());
-                    else {
+                    else if(importColumnDetail.isBoolean) {
+                        result = parseBoolean(xssfCell.getNumericCellValue());
+                    } else {
                         result = decimalFormat.format(xssfCell.getNumericCellValue());
                         result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
                     }
+                    break;
+                case Cell.CELL_TYPE_BOOLEAN:
+                    result = xssfCell.getBooleanCellValue() ? "true" : null;
                     break;
                 case Cell.CELL_TYPE_STRING:
                 default:
@@ -1296,6 +1305,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         if (value instanceof Date || value instanceof java.util.Date) {
             return new SimpleDateFormat("dd.MM.yyyy").format(value);
         } else return String.valueOf(value);
+    }
+
+    private String parseBoolean(double value) {
+        return value == 1 ? "true" : null;
     }
 
     private String checkedSum(String summedValue, String argument, int c, boolean isNumeric) {
