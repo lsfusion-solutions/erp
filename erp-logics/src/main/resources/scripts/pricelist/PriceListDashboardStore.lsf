@@ -9,10 +9,6 @@ countDepartmentStoreA 'В прайсе' (type, sku, store, company, dateTime) =
     GROUP SUM 1 IF priceA(LedgerPriceListType type, Sku sku, DepartmentStore stock, LegalEntity company, DATETIME dateTime)
     BY type, sku, store(stock), company, dateTime;
 
-countStoreA 'В прайсе' (type, sku, chainStores, company, dateTime) =
-    GROUP SUM 1 IF countDepartmentStoreA(LedgerPriceListType type, Sku sku, Store store, LegalEntity company, DATETIME dateTime)
-    BY type, sku, chainStores(store), company, dateTime;
-
 countStoreA 'В прайсе' (type, sku, storeType, company, dateTime) =
     GROUP SUM 1 IF countDepartmentStoreA(LedgerPriceListType type, Sku sku, Store store, LegalEntity company, DATETIME dateTime)
     BY type, sku, storeType(store), company, dateTime;
@@ -25,10 +21,6 @@ countStoreA 'В прайсе' (type, sku, company, dateTime) =
 countDepartmentStoreA 'В прайсе' (type, sku, store, dateTime) =
     GROUP SUM 1 IF priceA(LedgerPriceListType type, Sku sku, DepartmentStore stock, DATETIME dateTime)
     BY type, sku, store(stock), dateTime;
-
-countStoreA 'В прайсе' (type, sku, chainStores, dateTime) =
-    GROUP SUM 1 IF countDepartmentStoreA(LedgerPriceListType type, Sku sku, Store store, DATETIME dateTime)
-    BY type, sku, chainStores(store), dateTime;
 
 countStoreA 'В прайсе' (type, sku, storeType, dateTime) =
     GROUP SUM 1 IF countDepartmentStoreA(LedgerPriceListType type, Sku sku, Store store, DATETIME dateTime)
@@ -44,28 +36,19 @@ countStoreA 'В наличии' (sku, storeType, dateTime) =
     GROUP SUM 1 IF balanceA(Sku sku, Store store, DATETIME dateTime)
     BY sku, storeType(store), dateTime;
 
-countStoreA 'В наличии' (sku, chainStores, dateTime) =
-    GROUP SUM 1 IF balanceA(Sku sku, Store store, DATETIME dateTime)
-    BY sku, chainStores(store), dateTime;
-
 EXTEND FORM priceListDashboard
     // --- По организациям
     PROPERTIES READONLY countStoreA(pt, csk, c, dt) AFTER idBarcode(csk)
 
-    OBJECTS ccs = ChainStores
-    PROPERTIES READONLY name(ccs), countStore(ccs), countStoreA(pt, csk, ccs, c, dt), countStoreA(csk, ccs, dt)
-    FILTERS countStoreA(pt, csk, ccs, c, dt)
-
-    OBJECTS ctp=StoreType
+    OBJECTS ctp=StoreType BEFORE cst
     PROPERTIES READONLY name(ctp), countStore(ctp), countStoreA(pt, csk, ctp, c, dt), countStoreA(csk, ctp, dt)
     FILTERS countStoreA(pt, csk, ctp, c, dt)
+    
+    FILTERGROUP storeType
+        FILTER 'По формату' storeType(cst) == ctp DEFAULT
 
     // --- По складам
     PROPERTIES READONLY countStoreA(pt, ssk, dt) AFTER idBarcode(ssk)
-
-    OBJECTS scs = ChainStores
-    PROPERTIES READONLY name(scs), countStore(scs), countStoreA(pt, ssk, scs, dt), countStoreA(ssk, scs, dt)
-    FILTERS countStoreA(pt, ssk, scs, dt)
 
     OBJECTS stp=StoreType
     PROPERTIES READONLY name(stp), countStore(stp), countStoreA(pt, ssk, stp, dt), countStoreA(ssk, stp, dt)
@@ -74,11 +57,9 @@ EXTEND FORM priceListDashboard
 
 DESIGN priceListDashboard {
     cStocks {
-        MOVE BOX(ccs) BEFORE BOX(cst);
         MOVE BOX(ctp) BEFORE BOX(cst);
     }
     sStocks {
-        MOVE BOX(scs) BEFORE BOX(sst);
         MOVE BOX(stp) BEFORE BOX(sst);
     }
 }
