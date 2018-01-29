@@ -33,11 +33,12 @@ public class FiscalBoardResetTextActionProperty extends ScriptingActionProperty 
             if (!skipReceipt) {
                 Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
                 Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
+                boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
                 String defaultTextBoard = trimToEmpty((String) findProperty("defaultTextBoard[]").read(context));
 
                 String[] lines = generateText(defaultTextBoard, 20);
 
-                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard));
+                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase));
 
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

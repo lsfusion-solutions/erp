@@ -40,6 +40,7 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
             if (!skipReceipt) {
                 Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
                 Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
+                boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
 
                 String name = (String) findProperty("boardNameSku[ReceiptDetail]").read(session, receiptDetailObject);
                 name = trim(name == null ? (String) findProperty("nameSku[ReceiptDetail]").read(session, receiptDetailObject) : name);
@@ -51,7 +52,7 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
 
                 String[] lines = generateText(price, quantity, sum, name, 20);
 
-                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard));
+                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase));
 
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

@@ -16,9 +16,9 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
     Integer baudRateBoard;
     Integer comPortBoard;
 
-    public FiscalBoardDisplayTextClientAction(String line1, String line2, Integer baudRateBoard, Integer comPortBoard) {
-        this.line1 = line1;
-        this.line2 = line2;
+    public FiscalBoardDisplayTextClientAction(String line1, String line2, Integer baudRateBoard, Integer comPortBoard, boolean uppercase) {
+        this.line1 = uppercase(line1, uppercase);
+        this.line2 = uppercase(line2, uppercase);
         this.baudRateBoard = baudRateBoard;
         this.comPortBoard = comPortBoard;
     }
@@ -39,5 +39,9 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
             }
         }
         return null;
+    }
+
+    private String uppercase(String line, boolean uppercase) {
+        return uppercase ? line.toUpperCase() : line;
     }
 }
