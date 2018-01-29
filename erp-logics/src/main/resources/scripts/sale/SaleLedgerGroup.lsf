@@ -1,0 +1,88 @@
+MODULE SaleLedgerGroup;
+
+REQUIRE SaleLedger;
+
+NAMESPACE SaleLedger;
+
+//balanceB 'Остаток на начало (количество)' = DATA LOCAL NUMERIC[16,5] (Stock, LegalEntity, Group, Brand);
+sumB 'Остаток на начало (сумма)' = DATA LOCAL NUMERIC[18,4] (Stock, LegalEntity, Group, Brand);
+
+costSumSold 'Реализация (себестоимость)' = DATA LOCAL NUMERIC[16,3] (Stock, LegalEntity, Group, Brand);
+sumVATSold 'Реализация (НДС)' = DATA LOCAL NUMERIC[18,4] (Stock, LegalEntity, Group, Brand);
+sumSold 'Реализация (сумма)' = DATA LOCAL NUMERIC[18,4] (Stock, LegalEntity, Group, Brand);
+markupSumSold 'Реализация (надбавка)' (Stock s, LegalEntity l, Group g, Brand b) = sumSold(s, l, g, b) (-) sumVATSold(s, l, g, b) (-) costSumSold(s, l, g, b); 
+
+signedSum 'Изменение (сумма)' = DATA LOCAL NUMERIC[18,4] (Stock, LegalEntity, Group, Brand);
+
+//balanceA 'Остаток на конец (количество)' = DATA LOCAL NUMERIC[16,5] (Stock, LegalEntity, Group, Brand);
+sumA 'Остаток на конец (сумма)' = DATA LOCAL NUMERIC[18,4] (Stock, LegalEntity, Group, Brand);
+
+moved 'Было движение' = DATA LOCAL BOOLEAN (Stock, LegalEntity, Group, Brand);
+
+fillSaleGroup 'Заполнить' (GroupType gt, DATE dFrom, DATE dTo) = {
+//    balanceB(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
+//    balanceB(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP SUM balanceB(Sku sk, Stock st, DATE date) 
+//         BY date, GroupType gt, st, supplierLastOrderBatch(sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none)](dFrom, gt, st, g, b);
+
+    sumA(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
+    sumA(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP SUM sumA(Sku sk, Stock st, DATE date) 
+         BY date, GroupType gt, st, supplierLastOrderBatch(sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none)](dTo, gt, st, l, g, b);
+
+    costSumSold(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
+    costSumSold(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP SUM costSumSold(Sku sk, Stock st, DATE date) IF date >= DATE dFrom AND date <= DATE dTo 
+         BY dFrom, dTo, GroupType gt, st, supplierLastOrderBatch(sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none)](dFrom, dTo, gt, st, l, g, b);
+
+    sumVATSold(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
+    sumVATSold(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP SUM sumVATSold(Sku sk, Stock st, DATE date) IF date >= DATE dFrom AND date <= DATE dTo 
+         BY dFrom, dTo, GroupType gt, st, supplierLastOrderBatch(sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none)](dFrom, dTo, gt, st, l, g, b);
+
+    sumSold(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
+    sumSold(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP SUM sumSold(Sku sk, Stock st, DATE date) IF date >= DATE dFrom AND date <= DATE dTo 
+         BY dFrom, dTo, GroupType gt, st, supplierLastOrderBatch(sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none)](dFrom, dTo, gt, st, l, g, b);
+
+//    balanceA(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
+//    balanceA(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP SUM balanceA(Sku sk, Stock st, DATE date) 
+//         BY date, GroupType gt, st, supplierLastOrderBatch(sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none)](dTo, gt, st, g, b);
+
+    signedSum(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
+    signedSum(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP SUM signedSum(Sku sk, Stock st, DATE date) IF date >= DATE dFrom AND date <= DATE dTo 
+         BY dFrom, dTo, GroupType gt, st, supplierLastOrderBatch(sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none)](dFrom, dTo, gt, st, l, g, b);
+
+    sumB(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
+    sumB(Stock st, LegalEntity l, Group g, Brand b) <- sumA(st, l, g, b) (-) signedSum(st, l, g, b);
+         
+    moved(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
+    moved(Stock st, LegalEntity l, Group g, Brand b) <- sumB(st, l, g, b) OR sumA(st, l, g, b) OR sumSold(st, l, g, b); 
+}
+
+FORM saleGroup 'Продажи по группам'
+    OBJECTS gt = GroupType PANEL
+    PROPERTIES(gt) name SELECTOR
+    
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES VALUE(dFrom), VALUE(dTo) 
+
+    OBJECTS g = (s = Stock, l = LegalEntity, g = Group, b = Brand)
+    PROPERTIES READONLY name(s), name(l), name(g), emptyName(b)
+    
+    PROPERTIES fillSaleGroup(gt, dFrom, dTo) TODRAW g TOOLBAR 
+    
+//    PROPERTIES READONLY balanceB(s, l, g, b)
+    PROPERTIES READONLY sumB(s, l, g, b)
+    
+    PROPERTIES READONLY costSumSold(s, l, g, b)
+    PROPERTIES READONLY sumVATSold(s, l, g, b)
+    PROPERTIES READONLY markupSumSold(s, l, g, b)
+    PROPERTIES READONLY sumSold(s, l, g, b)
+
+//    PROPERTIES READONLY balanceA(s, l, g, b)
+    PROPERTIES READONLY sumA(s, l, g, b)
+
+    FILTERS moved(s, l, g, b)   
+;
+
+NAVIGATOR {
+    salesReports {
+        NEW saleGroup;
+    }
+}
