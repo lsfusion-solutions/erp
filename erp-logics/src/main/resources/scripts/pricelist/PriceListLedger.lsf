@@ -188,8 +188,10 @@ activeLedgerA (type, sku, companyStock, dateTime) =
 // ------------------ Расчет цен для sku / stock / datetime
 
 TABLE priceListLedgerLedgerPriceListTypeStock (PriceListLedger, LedgerPriceListType, Stock);
+
+skip = ABSTRACT BOOLEAN (LedgerPriceListType, Stock);
 active(PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
-    active(ledger, type) AND in(ledger, stock) MATERIALIZED;
+    active(ledger, type) AND in(ledger, stock) AND NOT skip(type, stock) MATERIALIZED;
 
 price 'Цена' (PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
     price(ledger, type) IF active(ledger, type, stock) MATERIALIZED;
