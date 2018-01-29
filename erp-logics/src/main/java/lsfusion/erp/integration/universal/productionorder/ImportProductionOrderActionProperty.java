@@ -1,6 +1,5 @@
 package lsfusion.erp.integration.universal.productionorder;
 
-import jxl.read.biff.BiffException;
 import lsfusion.base.IOUtils;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
@@ -90,7 +89,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException | BiffException | ParseException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException | ParseException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
@@ -100,7 +99,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
     public boolean makeImport(BusinessLogics BL, DataSession session, ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
                               byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject)
-            throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
+            throws ParseException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
         List<ProductionOrderDetail> orderDetailsList = importOrdersFromFile(orderObject, importColumns, file, fileExtension, settings.getStartRow(), settings.isPosted(), settings.getSeparator());
 
@@ -113,7 +112,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
     public boolean importOrders(List<ProductionOrderDetail> orderDetailsList, BusinessLogics BL, DataSession session,
                                 ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, ObjectValue operationObject)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, SQLHandledException {
 
         if (orderDetailsList != null && (orderObject !=null || showField(orderDetailsList, "idOrder"))) {
 
@@ -293,7 +292,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
     public List<ProductionOrderDetail> importOrdersFromFile(DataObject orderObject, Map<String, ImportColumnDetail> importColumns, 
                                                                   byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String separator)
-            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
+            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         List<ProductionOrderDetail> orderDetailsList;
 
@@ -328,7 +327,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
     private List<ProductionOrderDetail> importOrdersFromXLS(byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
                                                             Integer startRow, Boolean isPosted, DataObject orderObject)
-            throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+            throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ProductionOrderDetail> result = new ArrayList<>();
 

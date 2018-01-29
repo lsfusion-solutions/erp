@@ -1,6 +1,5 @@
 package lsfusion.erp.integration.universal.productionorder;
 
-import jxl.read.biff.BiffException;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
@@ -65,7 +64,7 @@ public class ImportProductionOrdersFileActionProperty extends ImportDocumentActi
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException | ParseException | BiffException | IOException | xBaseJException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | ParseException | IOException | xBaseJException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
