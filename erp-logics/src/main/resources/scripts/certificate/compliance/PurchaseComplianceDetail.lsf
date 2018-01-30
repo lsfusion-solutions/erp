@@ -12,7 +12,7 @@ in 'Вкл.' (Compliance compliance, UserInvoiceDetail invoiceDetail) = dataComp
 
 invoices 'Накладные' (compliance) =
     GROUP CONCAT shortDescription(UserInvoice invoice) IF in (Compliance compliance, invoice), ','
-              BY compliance ORDER invoice MATERIALIZED MINCHARWIDTH 40 PREFCHARWIDTH 80 MAXCHARWIDTH 120;
+              BY compliance ORDER invoice MATERIALIZED CHARWIDTH 40;
 
 // Тип сертификата
 nameComplianceTypeCompliance 'Тип сертификата' (UserInvoiceDetail invoiceDetail) = nameComplianceType(compliance(invoiceDetail));
@@ -92,7 +92,7 @@ certificateCostPrice[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += comp
 certificateCostSum[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += complianceSum(invoiceDetail);
 
 complianceSumUserInvoiceDetail 'Сертификация' = GROUP SUM complianceSum(UserInvoiceDetail d)
-                                                                BY compliance(d) MINCHARWIDTH 15 MATERIALIZED;
+                                                                BY compliance(d) CHARWIDTH 15 MATERIALIZED;
                                                                 
 overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += {      
     compliancePrice(d) <- compliancePrice(detail);

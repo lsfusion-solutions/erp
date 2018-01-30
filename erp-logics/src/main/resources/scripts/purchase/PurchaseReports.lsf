@@ -7,7 +7,7 @@ REQUIRE PurchaseLedger;
 inPurchaseReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 
 inPurchaseReportStocks 'Склады' () =
-    GROUP CONCAT name(Stock st) IF inPurchaseReport(st) ,', ' PREFCHARWIDTH 30;
+    GROUP CONCAT name(Stock st) IF inPurchaseReport(st) ,', ' CHARWIDTH 30;
 defaultStockPurchaseReport = GROUP MIN Stock st IF inPurchaseReport(st);
 
 dataInSession 'Отм.' = DATA LOCAL BOOLEAN (Group);
@@ -59,12 +59,12 @@ sumVATPurchasesStock 'Итоговая сумма НДС поступлений'
     GROUP SUM sumVAT(PurchaseLedger l) IF inSession(group(GroupType groupType, sku(l))) AND
                                                        active(l) AND inPurchaseReport(stock(l)) AND
                                                        date(l) >= DATE dateFrom AND date(l) <= DATE dateTo
-    BY groupType, dateFrom, dateTo PREFCHARWIDTH 15;
+    BY groupType, dateFrom, dateTo CHARWIDTH 15;
 sumPurchasesStock 'Итоговая сумма поступлений' (groupType, dateFrom, dateTo) =
     GROUP SUM sum(PurchaseLedger l) IF inSession(group(GroupType groupType, sku(l))) AND
                                                    active(l) AND inPurchaseReport(stock(l)) AND
                                                    date(l) >= DATE dateFrom AND date(l) <= DATE dateTo
-    BY groupType, dateFrom, dateTo PREFCHARWIDTH 15;
+    BY groupType, dateFrom, dateTo CHARWIDTH 15;
 
 //формы
 
@@ -362,7 +362,7 @@ FORM dialogStocksPurchaseReport 'Выбор складов'
 
 DESIGN dialogStocksPurchaseReport {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             type = SPLITH;
@@ -378,7 +378,7 @@ DESIGN dialogStocksPurchaseReport {
                     defaultComponent = TRUE;
                 }
                 PROPERTY(name(s)){
-                    minimumCharWidth = 35;
+                    charWidth = 35;
                 }
             }
         }

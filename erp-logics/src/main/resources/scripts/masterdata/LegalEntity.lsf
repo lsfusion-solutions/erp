@@ -22,7 +22,7 @@ shortName 'Cокращенное название' = DATA STRING[10] (Ownership)
 ownershipShortName (string) = GROUP NAGGR Ownership ownership BY shortName (ownership) WHERE ownership IS Ownership;
 
 country = DATA Country (Ownership);
-nameCountry 'Страна' (Ownership ownership) = name(country(ownership)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 20;
+nameCountry 'Страна' (Ownership ownership) = name(country(ownership)) CHARWIDTH 10;
 
 FORM ownership 'Форма собственности'
     OBJECTS o = Ownership PANEL
@@ -49,20 +49,20 @@ TABLE legalEntityDate (LegalEntity, DATE);
 
 @defineNumeratedID(LegalEntity, 'Организации');
 
-name 'Наименование' = DATA VARISTRING[150](LegalEntity) IN recognize INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+name 'Наименование' = DATA VARISTRING[150](LegalEntity) IN recognize INDEXED CHARWIDTH 20;
 
 name(LegalEntity group) += name(group) IF group IS LegalEntity;
 
 country = DATA Country(LegalEntity);
-nameCountry 'Страна' (LegalEntity legalEntity) = name(country(legalEntity)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 20;
+nameCountry 'Страна' (LegalEntity legalEntity) = name(country(legalEntity)) CHARWIDTH 10;
 country(LegalEntity l) <- defaultCountry() WHEN SET(l IS LegalEntity);
 
 currency = DATA Currency(LegalEntity);
-nameCurrency 'Базовая валюта' (LegalEntity legalEntity) = name(currency(legalEntity)) MINCHARWIDTH 10 PREFCHARWIDTH 10 MAXCHARWIDTH 15;
+nameCurrency 'Базовая валюта' (LegalEntity legalEntity) = name(currency(legalEntity)) CHARWIDTH 10;
 currency(LegalEntity legalEntity) <- currency(country(legalEntity)) WHEN CHANGED(country(legalEntity));
 
 language = DATA Language(LegalEntity);
-nameLanguage 'Язык' (LegalEntity legalEntity) = name(language(legalEntity)) MINCHARWIDTH 5 PREFCHARWIDTH 10 MAXCHARWIDTH 15;
+nameLanguage 'Язык' (LegalEntity legalEntity) = name(language(legalEntity)) CHARWIDTH 5;
 language(LegalEntity legalEntity) <- language(country(legalEntity)) WHEN CHANGED(country(legalEntity));
 
 GROUP law 'Реквизиты' : public;
@@ -74,7 +74,7 @@ shortNameOwnership 'Форма собственности (сокр.)' = shortNa
 CONSTRAINT country(ownership(LegalEntity legalEntity)) != country(legalEntity)
     CHECKED BY ownership[LegalEntity] MESSAGE 'Страна формы собственности должна совпадать со страной организации';
 
-fullName 'Полное наименование' = DATA VARISTRING[200] (LegalEntity) IN law MINCHARWIDTH 50 PREFCHARWIDTH 50;
+fullName 'Полное наименование' = DATA VARISTRING[200] (LegalEntity) IN law CHARWIDTH 50;
 
 setFullName 'Заполнить из наименования' (LegalEntity l) = {
     fullName(l) <- CONCAT ' ', nameOwnership(l), name(l);
@@ -88,9 +88,9 @@ notCalcServiceStatus 'Не заполнять статус качества се
 GROUP contact 'Контактная информация' : public;
 
 @defineHistorizable(phone, , 'Телефон/факс', VARSTRING[100], legalEntity, nameLegalEntity, contact);
-email 'E-mail' = DATA VARSTRING[400] (LegalEntity) IN contact MINCHARWIDTH 50 PREFCHARWIDTH 50;
-site 'Сайт' = DATA VARSTRING[100] (LegalEntity) IN contact MINCHARWIDTH 50 PREFCHARWIDTH 50;
-contacts 'Контактные лица' = DATA VARSTRING[300] (LegalEntity) IN contact MINCHARWIDTH 50 PREFCHARWIDTH 50;
+email 'E-mail' = DATA VARSTRING[400] (LegalEntity) IN contact CHARWIDTH 50;
+site 'Сайт' = DATA VARSTRING[100] (LegalEntity) IN contact CHARWIDTH 50;
+contacts 'Контактные лица' = DATA VARSTRING[300] (LegalEntity) IN contact CHARWIDTH 50;
 
 GROUP management 'Управление' : public;
 
@@ -285,7 +285,7 @@ FORM legalEntity 'Организация'
 
 DESIGN legalEntity {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         BOX(l) {
             type = CONTAINERH;
             
@@ -363,7 +363,7 @@ FORM dialogLegalEntities 'Организации'
 
 DESIGN dialogLegalEntities {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW topContainer {
             type = SPLITH;
             fill = 1;
@@ -440,7 +440,7 @@ FORM legalEntities 'Организации'
 
 DESIGN legalEntities {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW topContainer {
             type = SPLITH;
             fill = 1;
@@ -479,7 +479,7 @@ FORM companyLegalEntities 'Организации'
 
 DESIGN companyLegalEntities {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW topContainer{
             type = SPLITH;
             fill = 1;
@@ -516,7 +516,7 @@ FORM supplierLegalEntities 'Организации'
 
 DESIGN supplierLegalEntities {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW topContainer {
             type = SPLITH;
             fill = 1;
@@ -554,7 +554,7 @@ FORM customerLegalEntities 'Организации'
 
 DESIGN customerLegalEntities {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW topContainer{
             type = SPLITH;
             fill = 1;
@@ -588,17 +588,17 @@ NAVIGATOR {
 // -------------------------------------------- Макросы --------------------------------------------- //
 META defineDocumentHeaderLegalEntity (object, contact, contactCaption)
     contact (object) = DATA LegalEntity (###object);
-    name###contact contactCaption (###object object)= name(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
-    fullName###contact contactCaption###' (полное наименование)' (###object object)= fullName(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
-    address###contact contactCaption###' (адрес)' (###object object)= address(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
+    name###contact contactCaption (###object object)= name(contact(object)) IN documentPrm CHARWIDTH 20;
+    fullName###contact contactCaption###' (полное наименование)' (###object object)= fullName(contact(object)) IN documentPrm CHARWIDTH 20;    
+    address###contact contactCaption###' (адрес)' (###object object)= address(contact(object)) IN documentPrm CHARWIDTH 20;    
     replace(LegalEntity l, LegalEntity o) += {contact(###object object) <- o WHERE contact(object) == l;} 
 END
 META defineDocumentAbstractHeaderLegalEntity (object, contact, contactCaption)
     contact (object) = ABSTRACT LegalEntity (###object) MATERIALIZED;
-    name###contact contactCaption (###object object)= name(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
-    fullName###contact contactCaption###' (полное наименование)' (###object object)= fullName(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
-    address###contact contactCaption###' (адрес)' (###object object)= address(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
-    phone###contact contactCaption###' (телефон)' (###object object)= phone(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
+    name###contact contactCaption (###object object)= name(contact(object)) IN documentPrm CHARWIDTH 20;
+    fullName###contact contactCaption###' (полное наименование)' (###object object)= fullName(contact(object)) IN documentPrm CHARWIDTH 20;    
+    address###contact contactCaption###' (адрес)' (###object object)= address(contact(object)) IN documentPrm CHARWIDTH 20;    
+    phone###contact contactCaption###' (телефон)' (###object object)= phone(contact(object)) IN documentPrm CHARWIDTH 20;    
 
 END
 META defineDocumentInterfaceHeaderLegalEntity (object, contact, contactCaption)
@@ -689,7 +689,7 @@ END
 
 META defineDocumentAggregationHeaderLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA)
     legalEntityProp (###aggrObject object) = legalEntityProp(primObject(object)) MATERIALIZED;
-    name###legalEntityProp legalEntityCaption (###aggrObject object) = name(legalEntityProp(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    name###legalEntityProp legalEntityCaption (###aggrObject object) = name(legalEntityProp(object)) CHARWIDTH 20;
 END
 META defineDocumentAggregationHeaderLegalEntity (primObject, aggrObject, legalEntityProp, legalEntityCaption)
     @defineDocumentAggregationHeaderLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, , );

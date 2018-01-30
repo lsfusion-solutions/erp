@@ -173,8 +173,8 @@ VATCustomsException = ABSTRACT VATCustomsException(InvoiceDetail);
 VATCustomsException = DATA VATCustomsException(UserInvoiceDetail);
 VATCustomsException(UserInvoiceDetail d) += VATCustomsException(d);
 
-nameVATCustomsException 'Льгота НДС' (InvoiceDetail d) = name(VATCustomsException(d)) MINCHARWIDTH 15;
-nameVATCustomsException 'Льгота НДС' (UserInvoiceDetail d) = name(VATCustomsException(d)) MINCHARWIDTH 15;
+nameVATCustomsException 'Льгота НДС' (InvoiceDetail d) = name(VATCustomsException(d)) CHARWIDTH 15;
+nameVATCustomsException 'Льгота НДС' (UserInvoiceDetail d) = name(VATCustomsException(d)) CHARWIDTH 15;
 
 WHEN LOCAL FORMS userInvoice
     CHANGED(country(UserInvoiceDetail d)) OR CHANGED(sku(d)) DO
@@ -323,7 +323,7 @@ FORM declarationInvoices 'Выбрать накладные'
 
 DESIGN declarationInvoices {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW split {
             fill = 1;
             type = SPLITV;
@@ -349,7 +349,7 @@ in (invoice, declaration)= GROUP SUM 1 BY invoice(InvoiceDetail d), declaration(
 
 invoices 'Накладные' (declaration) =
     GROUP CONCAT shortDescription(Invoice invoice) IF in (invoice, Declaration declaration) AND currency(invoice) == currency(declaration), ','
-              BY declaration ORDER invoice MINCHARWIDTH 40 PREFCHARWIDTH 80 MAXCHARWIDTH 120;
+              BY declaration ORDER invoice CHARWIDTH 40;
 
 backgroundVATCustomsException 'Цвет' (UserInvoiceDetail invoiceDetail) = backgroundVATCustomsException() IF countVATCustomsException(customsGroup(invoiceDetail)) > 0;
 
@@ -415,7 +415,7 @@ codeCustomsGroup 'ТН ВЭД' (DeclarationInvoiceDetail d) = code(customsGroup(
 VATCustomsException 'Льгота НДС' = DATA VATCustomsException (DeclarationInvoiceDetail);
 nameVATCustomsException 'Льгота НДС' (DeclarationInvoiceDetail d) = name(VATCustomsException(d));
 
-description 'Описание' (DeclarationInvoiceDetail d) = CONCAT ',', nameCustoms(d), shortNameUOM(d), nameCountry(d), codeCustomsGroup(d) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+description 'Описание' (DeclarationInvoiceDetail d) = CONCAT ',', nameCustoms(d), shortNameUOM(d), nameCountry(d), codeCustomsGroup(d) CHARWIDTH 20;
 descriptionDeclarationInvoiceDetail 'Позиция декларации' (UserInvoiceDetail d) = description(declarationInvoiceDetail(d)); 
 EXTEND FORM declaration
     PROPERTIES(id) descriptionDeclarationInvoiceDetail 
@@ -435,7 +435,7 @@ sum (DeclarationInvoiceDetail d) <- quantity(d) * price(d)
     WHEN CHANGED(quantity(d)) OR CHANGED(price(d));
 
 sumDeclarationInvoiceDetail 'Сумма (по позициям декларации)' = GROUP SUM sum(DeclarationInvoiceDetail d)
-                                                                               BY declaration(d) MINCHARWIDTH 15;
+                                                                               BY declaration(d) CHARWIDTH 15;
 
 noneVATCustomsException(UserInvoiceDetail d) = OVERRIDE VATCustomsException(d), VATCustomsException.none;
 
@@ -639,7 +639,7 @@ idUOM 'Код ед. изм.' (DeclarationDetail declarationDetail) = id(UOM(decl
 shortNameUOM 'Ед. изм.' (DeclarationDetail declarationDetail) = shortName(UOM(declarationDetail));
 
 customsGroup = DATA CustomsGroup(DeclarationDetail);
-codeCustomsGroup 'ТН ВЭД' (DeclarationDetail declarationDetail) = code(customsGroup(declarationDetail)) MINCHARWIDTH 10 MAXCHARWIDTH 10 PREFCHARWIDTH 10 IN recognize;
+codeCustomsGroup 'ТН ВЭД' (DeclarationDetail declarationDetail) = code(customsGroup(declarationDetail)) FIXEDCHARWIDTH 10 IN recognize;
 
 country = DATA Country(DeclarationDetail);
 nameCountry 'Страна' (DeclarationDetail declarationDetail) = name(country(declarationDetail));
@@ -672,7 +672,7 @@ deliverySum 'Тр. расходы' = DATA NUMERIC[16,4] (DeclarationDetail);
 chargeSum 'Услуги' = DATA NUMERIC[16,4] (DeclarationDetail);
 
 // Суммы в национальной валюте
-homeSum 'Стоимость (декл.)' = DATA NUMERIC[18,4](DeclarationDetail) MINCHARWIDTH 12;
+homeSum 'Стоимость (декл.)' = DATA NUMERIC[18,4](DeclarationDetail) CHARWIDTH 12;
 homePrice 'Цена (декл.)' (DeclarationDetail d) = homeSum(d) / quantity(d);
 
 WHEN LOCAL FORMS declaration (CHANGED(sum(DeclarationDetail d)) OR CHANGED(rateExchange(declaration(d))) OR
@@ -691,7 +691,7 @@ WHEN LOCAL FORMS declaration (CHANGED(customsGroup(DeclarationDetail d)) OR CHAN
     weightDuty(d) <- weightDuty(customsGroup(d), date(d));
 }
 
-dutySum 'Пошлина' = DATA NUMERIC[18,4] (DeclarationDetail) MINCHARWIDTH 12;
+dutySum 'Пошлина' = DATA NUMERIC[18,4] (DeclarationDetail) CHARWIDTH 12;
 
 // НДС
 VAT 'НДС' = DATA Range(DeclarationDetail);
@@ -713,7 +713,7 @@ WHEN LOCAL FORMS declaration (CHANGED(customsGroup(DeclarationDetail d)) OR CHAN
                                ELSE
                                    VAT(customsGroup(d), date(d));
 
-VATSum 'НДС' = DATA NUMERIC[18,4] (DeclarationDetail) MINCHARWIDTH 12;
+VATSum 'НДС' = DATA NUMERIC[18,4] (DeclarationDetail) CHARWIDTH 12;
 
 // Порядковый номер строки
 userNumber 'Пользовательский номер' (declarationDetail) = DATA INTEGER (DeclarationDetail);
@@ -735,7 +735,7 @@ numberDefault 'Номер' (DeclarationDetail d) =
         PARTITION SUM 1 IF d IS DeclarationDetail AND NOT userNumber(d) BY declaration(d)
         ORDER numberOrder(d), d;
 
-number 'Номер' (DeclarationDetail declarationDetail) = OVERRIDE userNumber(declarationDetail), numberDefault(declarationDetail) MINCHARWIDTH 4 PREFCHARWIDTH 4 IN recognize;
+number 'Номер' (DeclarationDetail declarationDetail) = OVERRIDE userNumber(declarationDetail), numberDefault(declarationDetail) CHARWIDTH 4 IN recognize;
 
 fillExported (Declaration declaration) = {
     isExported(declaration) <- TRUE;
@@ -775,20 +775,20 @@ declarationDetail (declaration, number) = GROUP AGGR DeclarationDetail d BY decl
 // Итоги по декларации
 
 sumDeclarationDetail 'Стоимость' = GROUP SUM sum(DeclarationDetail declarationDetail)
-                                                BY declaration(declarationDetail) MINCHARWIDTH 15 MATERIALIZED;
+                                                BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 
 deliverySumDeclarationDetail 'Транспортные расходы' = GROUP SUM deliverySum(DeclarationDetail declarationDetail)
-                                                                       BY declaration(declarationDetail) MINCHARWIDTH 15 MATERIALIZED;
+                                                                       BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 
 chargeSumDeclarationDetail 'Услуги' = GROUP SUM chargeSum(DeclarationDetail declarationDetail)
-                                                       BY declaration(declarationDetail) MINCHARWIDTH 15 MATERIALIZED;
+                                                       BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 
 homeSumDeclarationDetail 'Стоимость (декл.)' = GROUP SUM homeSum(DeclarationDetail declarationDetail)
-                                                            BY declaration(declarationDetail) MINCHARWIDTH 15 MATERIALIZED;
+                                                            BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 
 dutySumDeclarationDetail 'Пошлина' (declaration) = GROUP SUM dutySum(DeclarationDetail declarationDetail)
-                                                                    BY declaration(declarationDetail) MINCHARWIDTH 15 MATERIALIZED;
-dataDutySum 'Пошлина' (declaration) = DATA NUMERIC[18,4] (Declaration) MINCHARWIDTH 15;                                                                 
+                                                                    BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
+dataDutySum 'Пошлина' (declaration) = DATA NUMERIC[18,4] (Declaration) CHARWIDTH 15;                                                                 
 dutySum 'Пошлина' (Declaration declaration)  =  OVERRIDE dataDutySum(declaration), dutySumDeclarationDetail(declaration);                                                                    
 backgroundDutySum = RGB(222,222,222) IF dataDutySum(Declaration declaration);
 changeDutySum(Declaration declaration) = {
@@ -799,8 +799,8 @@ changeDutySum(Declaration declaration) = {
 }
 
 VATSumDeclarationDetail 'НДС' (declaration) = GROUP SUM VATSum(DeclarationDetail declarationDetail)
-                                                                   BY declaration(declarationDetail) MINCHARWIDTH 15 MATERIALIZED;
-dataVATSum 'НДС' (declaration) = DATA NUMERIC[18,4] (Declaration) MINCHARWIDTH 15;  
+                                                                   BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
+dataVATSum 'НДС' (declaration) = DATA NUMERIC[18,4] (Declaration) CHARWIDTH 15;  
 VATSum 'НДС' (Declaration declaration)  = OVERRIDE dataVATSum(declaration), VATSumDeclarationDetail(declaration);
 backgroundVATSum = RGB(222,222,222) IF dataVATSum(Declaration declaration);
 changeVATSum(Declaration declaration) = {
@@ -823,7 +823,7 @@ declarationAdjustment (declarationAdjustment, number) = GROUP AGGR DeclarationAd
 
 date 'Дата' = DATA DATE (DeclarationAdjustment);
 name 'Наименование' = DATA VARISTRING[150] (DeclarationAdjustment);
-note 'Примечание' = DATA VARSTRING[100](DeclarationAdjustment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+note 'Примечание' = DATA VARSTRING[100](DeclarationAdjustment) CHARWIDTH 30;
 homeSum 'Стоимость корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, DeclarationDetail);
 dutySum 'Пошлина корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, DeclarationDetail);
 VATSum 'НДС корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, DeclarationDetail);
@@ -897,7 +897,7 @@ adjustHomePrice 'Цена (корр.)' (DeclarationDetail d) = adjustHomeSum(d) 
 
 adjustDutySum 'Пошлина (корр.)' (DeclarationDetail d) = OVERRIDE dutySum(defaultDutyDeclarationAdjustment(d),d), dutySum(d);
 adjustDutySumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP SUM adjustDutySum(DeclarationDetail declarationDetail)
-                                                                    BY declaration(declarationDetail) MINCHARWIDTH 15 MATERIALIZED;
+                                                                    BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 
 adjustDutySum 'Пошлина (корр.)' (Declaration d) = OVERRIDE dataDutySum(d), adjustDutySumDeclarationDetail(d); 
 
@@ -905,35 +905,35 @@ adjustVATSum 'Сумма НДС (корр.)'(DeclarationDetail d) = OVERRIDE VAT
 adjustVATPrice 'НДС за ед. (корр.)' (DeclarationDetail d) = adjustVATSum(d) / quantity(d);
 
 adjustVATSumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP SUM adjustVATSum(DeclarationDetail declarationDetail)
-                                                                    BY declaration(declarationDetail) MINCHARWIDTH 15 MATERIALIZED;
+                                                                    BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 
 adjustVATSum 'НДС (корр.)' (Declaration d) = OVERRIDE dataVATSum(d), adjustVATSumDeclarationDetail(d); 
 
 // ---------------------------------------------------- Суммы расходов по документу -------------------------------- //
 
 // Транспортные расходы
-deliverySum 'Транспортные расходы' = DATA NUMERIC[18,4] (Declaration) MINCHARWIDTH 15;
+deliverySum 'Транспортные расходы' = DATA NUMERIC[18,4] (Declaration) CHARWIDTH 15;
 deliverySumRound 'Транспортные расходы (округление)' (Declaration d) = deliverySum(d) (-) deliverySumDeclarationDetail(d);
 
 // Услуги
-chargeSum 'Услуги' = DATA NUMERIC[18,4] (Declaration) MINCHARWIDTH 15;
+chargeSum 'Услуги' = DATA NUMERIC[18,4] (Declaration) CHARWIDTH 15;
 chargeSumRound 'Услуги (округление)' (Declaration d) = chargeSum(d) (-) chargeSumDeclarationDetail(d);
 
 // Пошлина
 dutySumUserInvoiceDetail 'Пошлина (по накладным)' (d) =
-    GROUP SUM dutySum(UserInvoiceDetail d) BY declaration(d) MINCHARWIDTH 15;
+    GROUP SUM dutySum(UserInvoiceDetail d) BY declaration(d) CHARWIDTH 15;
 dutySumRound 'Пошлина (округление)' (Declaration d) = adjustDutySum(d) (-) dutySumUserInvoiceDetail(d);
 
 // Таможенный сбор
-registrationSum 'Таможенный сбор' = DATA NUMERIC[18,4] (Declaration) MINCHARWIDTH 15;
+registrationSum 'Таможенный сбор' = DATA NUMERIC[18,4] (Declaration) CHARWIDTH 15;
 
 // НДС
 VATSumUserInvoiceDetail 'НДС (по накладным)' (d) =
-    GROUP SUM quantity(UserInvoiceDetail d) * VATPrice[InvoiceDetail](d) BY declaration(d) MINCHARWIDTH 15;
+    GROUP SUM quantity(UserInvoiceDetail d) * VATPrice[InvoiceDetail](d) BY declaration(d) CHARWIDTH 15;
 VATSumRound 'НДС (округление)' (Declaration d) = adjustVATSum(d) (-) VATSumUserInvoiceDetail(d);
 
 registrationSumUserInvoiceDetail 'Таможенный сбор (по накладным)' (d) =
-    GROUP SUM registrationSum(UserInvoiceDetail d) BY declaration(d) MINCHARWIDTH 15;
+    GROUP SUM registrationSum(UserInvoiceDetail d) BY declaration(d) CHARWIDTH 15;
 registrationSumRound 'Таможенный сбор (округление)' (Declaration d) = registrationSum(d) (-) registrationSumUserInvoiceDetail(d);
 
 EXTEND FORM declaration
@@ -1036,7 +1036,7 @@ isWeightDuty (DeclarationDetail d) = calcSumWeightDuty(d) > calcSumPriceDuty(d);
 
 calcDutySum 'Пошлина' (DeclarationDetail d) = round((MAX calcSumWeightDuty(d),
                                                                      calcSumPriceDuty(d)),
-                                                                homeCurrency(d)) MINCHARWIDTH 12;
+                                                                homeCurrency(d)) CHARWIDTH 12;
 
 WHEN LOCAL FORMS declaration CHANGED(calcDutySum(DeclarationDetail d)) AND NOT CHANGED(dutySum(d)) AND NOT isExported(d) DO
     dutySum(d) <- calcDutySum(d);
@@ -1048,7 +1048,7 @@ baseVATSum(DeclarationDetail d) = homeSum(d) (+) dutySum(d);
 calcVATSum 'НДС' (DeclarationDetail d) =
     round(baseVATSum(d) *
                        percentVAT(d) / 100.0,
-                       homeCurrency(d)) MINCHARWIDTH 12;
+                       homeCurrency(d)) CHARWIDTH 12;
 
 WHEN LOCAL FORMS declaration
     (CHANGED(homeSum(DeclarationDetail d)) OR CHANGED(dutySum(d)) OR
@@ -1065,7 +1065,7 @@ maxRegistrationSum 'Таможенный сбор (валют.)' (d) =
 
 calcRegistrationSum 'Таможенный сбор' (Declaration d) = round(maxRegistrationSum(d) *
                                                                           rateExchangeCustomsZone(d),
-                                                                          homeCurrency(d)) MINCHARWIDTH 12;
+                                                                          homeCurrency(d)) CHARWIDTH 12;
 
 // -------------- Связь строк деклараций и строк накладных ---------------------- //
 
@@ -1083,15 +1083,15 @@ in (d, i) = GROUP SUM 1 IF in (DeclarationDetail d, UserInvoiceDetail i) BY d, u
 
 invoices 'Накладные' (d) =
     GROUP CONCAT seriesNumber[Invoice](UserInvoice i) IF in(DeclarationDetail d, i), ','
-              BY d ORDER i MINCHARWIDTH 20 PREFCHARWIDTH 40 MAXCHARWIDTH 60;
+              BY d ORDER i CHARWIDTH 20;
 
 dateInvoices 'Даты накладных' (d) =
     GROUP CONCAT toDateDDMMYY(date[Invoice](UserInvoice i)) IF in(DeclarationDetail d, i), ','
-              BY d ORDER i MINCHARWIDTH 20 PREFCHARWIDTH 40 MAXCHARWIDTH 60;
+              BY d ORDER i CHARWIDTH 20;
 
 nameSupplier 'Поставщики' = 
     GROUP CONCAT nameSupplier[Invoice](UserInvoice i) IF in(DeclarationDetail d, i), ','
-              BY d ORDER i MINCHARWIDTH 20 PREFCHARWIDTH 40 MAXCHARWIDTH 60;
+              BY d ORDER i CHARWIDTH 20;
 
 // --------------------------------- Ограничение на строки декларации ----------------------------------- //
 
@@ -1243,7 +1243,7 @@ calcSumPriceDuty 'Пошлина по стоимости' (DeclarationAdjustment
 
 calcDutySum 'Пошлина' (DeclarationAdjustment a, DeclarationDetail d) = round((MAX calcSumWeightDuty(d) IF a IS DeclarationAdjustment,
                                                                      calcSumPriceDuty(a,d)),
-                                                                homeCurrency(d)) MINCHARWIDTH 12;
+                                                                homeCurrency(d)) CHARWIDTH 12;
 
 WHEN LOCAL FORMS declaration (CHANGED(calcDutySum(DeclarationAdjustment a,DeclarationDetail d)) OR CHANGED (homeSum(a,d))) AND homeSum(a,d) AND NOT CHANGED(dutySum(a,d))  DO //AND NOT isExported(d)
     dutySum(a,d) <- calcDutySum(a,d);
@@ -1258,7 +1258,7 @@ baseVATSum(DeclarationAdjustment a, DeclarationDetail d) = homeSum(a,d) (+) duty
 calcVATSum 'НДС' (DeclarationAdjustment a, DeclarationDetail d) =
     round(baseVATSum(a,d) *
                        percentVAT(d) / 100.0,
-                       homeCurrency(d)) MINCHARWIDTH 12;
+                       homeCurrency(d)) CHARWIDTH 12;
 
 WHEN LOCAL FORMS declaration
     (CHANGED(homeSum(DeclarationAdjustment a, DeclarationDetail d)) OR CHANGED(dutySum(a,d)) OR
@@ -1550,8 +1550,8 @@ TABLE payment (Payment);
 name 'Наименование' = DATA VARISTRING[50](Payment);
 
 currency = DATA Currency (Payment);
-nameCurrency 'Валюта' = name(currency(Payment p)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
-shortNameCurrency 'Валюта' = shortName(currency(Payment p)) MINCHARWIDTH 7 PREFCHARWIDTH 7;
+nameCurrency 'Валюта' = name(currency(Payment p)) CHARWIDTH 15;
+shortNameCurrency 'Валюта' = shortName(currency(Payment p)) CHARWIDTH 7;
 
 sum 'Сумма' = DATA NUMERIC[18,4](Payment);
 

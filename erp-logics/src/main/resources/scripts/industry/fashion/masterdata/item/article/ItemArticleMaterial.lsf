@@ -13,7 +13,7 @@ percentMaterials 'Процент' (i) = GROUP SUM percent(Material m,Article i) 
 
 calcComposition 'Состав' (Article i) = VARSTRING[255](
                        [= GROUP CONCAT (percent(Material m,Article i)+'% '+name(m)) IF percent(m,i), ', ' BY i ORDER DESC percent(m,i)](i))
-                       MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 MATERIALIZED;
+                       CHARWIDTH 50 MATERIALIZED;
 
 WHEN LOCAL FORMS article CHANGED(calcComposition(Article i)) DO {
     composition(i) <- calcComposition(i);            
@@ -33,7 +33,7 @@ FORM articleMaterial 'Материалы'
     PROPERTIES(t) NEWSESSION NEW, EDIT
     ORDER name(t)
 ;
-DESIGN articleMaterial { BOX { preferredSize = (600, 400); } }     
+DESIGN articleMaterial { BOX { size = (600, 400); } }     
 
 createComposition 'Выбрать состав'(Article article) = {          
     SHOW articleMaterial OBJECTS i = article ; 

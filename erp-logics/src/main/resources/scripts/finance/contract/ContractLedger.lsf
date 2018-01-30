@@ -95,7 +95,7 @@ META implementContractPrepaymentLedgerInner(object, classPrefix, sumProp, contra
     descriptionPaymentDatesPercent 'Дата оплаты'  = GROUP CONCAT 
         (toDateDDMMYYYY(date(###object##ContractLedger l)) +'-'+ percent(paymentPeriod(l)) +'%') , ', '
             BY object(l)
-            ORDER date(l) MINCHARWIDTH 30 PREFCHARWIDTH 30;
+            ORDER date(l) CHARWIDTH 30;
 END
 
 //--------------------------------------------- Логика приходов и расходов ------------------------------------------------------//
@@ -117,7 +117,7 @@ META defineInOutContractLedgerPrefix(caption, prefix, classPrefix)
     INDEX contract(classPrefix##ContractLedger l), date(l);
 
     description 'Название документа' (prefix##ContractLedger) = ABSTRACT VARSTRING[200] (classPrefix##ContractLedger) MATERIALIZED;
-    sum 'Сумма' = ABSTRACT NUMERIC[22,8] (classPrefix##ContractLedger) MINCHARWIDTH 12 PREFCHARWIDTH 12 MATERIALIZED;
+    sum 'Сумма' = ABSTRACT NUMERIC[22,8] (classPrefix##ContractLedger) CHARWIDTH 12 MATERIALIZED;
 
     is (###prefix##ContractLedger prefix##ContractLedger) = prefix##ContractLedger IS classPrefix##ContractLedger;
     
@@ -125,9 +125,9 @@ END
 
 @defineInOutContractLedgerPrefix('Приход', in, In);
 
-number 'Номер документа' = ABSTRACT VARSTRING[28] (InContractLedger) MATERIALIZED MINCHARWIDTH 7;
+number 'Номер документа' = ABSTRACT VARSTRING[28] (InContractLedger) MATERIALIZED CHARWIDTH 7;
 series 'Серия' = ABSTRACT STRING[2] (InContractLedger) MATERIALIZED FIXEDCHARWIDTH 3;
-seriesNumber 'Серия/Номер' (InContractLedger i) = CONCAT '', series(i), number(i) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 MATERIALIZED;
+seriesNumber 'Серия/Номер' (InContractLedger i) = CONCAT '', series(i), number(i) CHARWIDTH 7 MATERIALIZED;
 customerStock = ABSTRACT Stock (InContractLedger) MATERIALIZED;
 nameCustomerStock 'Склад покупателя' (InContractLedger inContractLedger) = name(customerStock(inContractLedger));
 supplierStock (document) = ABSTRACT Stock (InContractLedger) MATERIALIZED;
@@ -166,7 +166,7 @@ costedOutContractLedger 'Оплачено по документу за пери�
 costedInContractLedger 'Расписано из документа' (outContractLedger) =
     GROUP SUM cost(OutContractLedger outContractLedger, InContractLedger inContractLedger) IF
     active(inContractLedger) //AND isPostedOutContractLedger(outContractLedger)
-    BY outContractLedger MATERIALIZED MINCHARWIDTH 15 PREFCHARWIDTH 15;
+    BY outContractLedger MATERIALIZED CHARWIDTH 15;
 costedInContractLedger 'Расписано из документа на дату' (outContractLedger, date) =
     GROUP SUM cost(OutContractLedger outContractLedger, InContractLedger inContractLedger) IF
               active(inContractLedger) AND //isPostedOutContractLedger(outContractLedger) AND
@@ -174,10 +174,10 @@ costedInContractLedger 'Расписано из документа на дату
     BY outContractLedger, date;
 
 debt 'Долг по документу' (InContractLedger inContractLedger) =
-    sum(inContractLedger) (-) costedOutContractLedger(inContractLedger) MINCHARWIDTH 12 PREFCHARWIDTH 12 MATERIALIZED INDEXED;
+    sum(inContractLedger) (-) costedOutContractLedger(inContractLedger) CHARWIDTH 12 MATERIALIZED INDEXED;
 
 debt 'Долг по документу на дату' (InContractLedger inContractLedger, DATE date) =
-    (sum(inContractLedger) IF date IS DATE) (-) costedOutContractLedger(inContractLedger, date) MINCHARWIDTH 12 PREFCHARWIDTH 12;
+    (sum(inContractLedger) IF date IS DATE) (-) costedOutContractLedger(inContractLedger, date) CHARWIDTH 12;
 
 //CONSTRAINT abs(costedInContractLedger(OutContractLedger outContractLedger)) > abs(sum(outContractLedger))
 //    MESSAGE 'Расписанная сумма должна быть равна сумме платежа';

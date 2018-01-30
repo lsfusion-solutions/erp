@@ -34,8 +34,8 @@ seriesNumberDate 'Номер/дата накладной' (Purchase.Invoice o) =
 seriesNumberDateInvoices 'Накладные' =  GROUP CONCAT seriesNumberDate(Purchase.Invoice invoice) IF inPurchase(invoice, User user), ', ' 
     BY user 
     ORDER date(invoice) 
-    MINCHARWIDTH 30 PREFCHARWIDTH 50;
-seriesNumberDateInvoicesCurrentUser 'Накладные' = seriesNumberDateInvoices(currentUser()) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    CHARWIDTH 30;
+seriesNumberDateInvoicesCurrentUser 'Накладные' = seriesNumberDateInvoices(currentUser()) CHARWIDTH 30;
 
 countInvoices 'Кол-во накладных' (user)= GROUP SUM 1 IF inPurchase(Purchase.Invoice invoice, User user) BY user;
 
@@ -64,7 +64,7 @@ FORM purchaseInvoices 'Выбрать накладные'
 
 DESIGN purchaseInvoices {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         REMOVE BOX(u);
         NEW tabContainer{
             type = TABBED;
@@ -115,7 +115,7 @@ defaultPurchaseInvoice (sku) =
                 AND NOT isCompanySupplier(detail) COMPLEX;
 
 descriptionDefaultPurchaseInvoice 'Последний инвойс' (Sku sku)= CONCAT ' ', seriesNumber(defaultPurchaseInvoice(sku)),
-                                                                          'от ' + date(defaultPurchaseInvoice(sku)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 30;
+                                                                          'от ' + date(defaultPurchaseInvoice(sku)) CHARWIDTH 10;
 // Подсчет непереведенных артикулов для групп
 countNotCompletedTranslateArticles 'Не обработано (к-во)' (group) = 
     GROUP SUM 1 IF notCompletedTranslate(Article article)  AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser())) BY itemGroup(article);
@@ -236,12 +236,12 @@ DESIGN articleTranslateDashboard {
         }
     }
 
-    PROPERTY(id(a)) { minimumCharWidth = 6;}
-    PROPERTY(id(i)) { minimumCharWidth = 6;}
-    PROPERTY(composition(i)) { minimumCharWidth = 30;}
-    PROPERTY(originalCustomsGroup(i)) { minimumCharWidth = 11;}
-    PROPERTY(caption(i)) { minimumCharWidth = 20;}
-    PROPERTY(composition(i)) { minimumCharWidth = 30;}
+    PROPERTY(id(a)) { charWidth = 6;}
+    PROPERTY(id(i)) { charWidth = 6;}
+    PROPERTY(composition(i)) { charWidth = 30;}
+    PROPERTY(originalCustomsGroup(i)) { charWidth = 11;}
+    PROPERTY(caption(i)) { charWidth = 20;}
+    PROPERTY(composition(i)) { charWidth = 30;}
 
     MOVE TOOLBARBOX;
 }

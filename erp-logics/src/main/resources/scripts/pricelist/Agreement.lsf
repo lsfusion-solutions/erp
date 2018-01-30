@@ -72,7 +72,7 @@ backgroundInSupplier'Цвет' (Agreement agreement, LegalEntity legalEntity) = 
 
 supplier 'Поставщики' (agreement) = GROUP CONCAT name(LegalEntity supplier) IF inSupplier(Agreement agreement, supplier) , ', '
                                                  BY agreement
-                                                 ORDER supplier MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
+                                                 ORDER supplier CHARWIDTH 30 MATERIALIZED;
 
 CONSTRAINT inSupplier(Agreement agreement, LegalEntity supplier) AND NOT isSeller(supplier)
     MESSAGE 'Для соглашения выбрано в качестве поставщика организация, не являющеяся поставщиком или компанией';
@@ -117,7 +117,7 @@ backgroundInCustomer'Цвет' (Agreement agreement, LegalEntity legalEntity) = 
     
 customer 'Покупатели' (agreement) = GROUP CONCAT name(LegalEntity customer) IF inCustomer(Agreement agreement, customer) , ', '
                                                  BY agreement
-                                                 ORDER customer MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
+                                                 ORDER customer CHARWIDTH 30 MATERIALIZED;
 
 CONSTRAINT inCustomer(Agreement agreement, LegalEntity customer) AND NOT isBuyer(customer)
     MESSAGE 'Для соглашения выбрано в качестве покупателя организация, не являющеяся покупателем или компанией';
@@ -578,11 +578,11 @@ DESIGN legalEntity {
 
 META defineDocumentAbstractHeaderAgreement (object)
     agreement (object) = ABSTRACT Agreement (###object) MATERIALIZED INDEXED;
-    nameAgreement 'Соглашение' (###object object)= name(agreement(object)) IN documentPrm MINCHARWIDTH 5 PREFCHARWIDTH 10;
+    nameAgreement 'Соглашение' (###object object)= name(agreement(object)) IN documentPrm CHARWIDTH 5;
 END
 META defineDocumentHeaderAgreement (object)
     agreement (object) = DATA Agreement (###object);
-    nameAgreement 'Соглашение' (###object object)= name(agreement(object)) IN documentPrm MINCHARWIDTH 5 PREFCHARWIDTH 10;
+    nameAgreement 'Соглашение' (###object object)= name(agreement(object)) IN documentPrm CHARWIDTH 5;
 END
 META defineDocumentInterfaceHeaderAgreement (object)
     @defineDocumentAbstractHeaderAgreement(object);
@@ -666,7 +666,7 @@ END
 //--------------------------------------- Для двух объектов (object1 - документ)----------------------------------------------------------//
 META defineDocumentHeaderAgreement (object1, object2)
     agreement (object1, object2) = DATA Agreement (###object1, ###object2);
-    nameAgreement 'Соглашение' (object1 object1, object2 object2)= name(agreement (object1, object2)) IN documentPrm MINCHARWIDTH 5 PREFCHARWIDTH 10;
+    nameAgreement 'Соглашение' (object1 object1, object2 object2)= name(agreement (object1, object2)) IN documentPrm CHARWIDTH 5;
     defaultPriceListType (object1 object1, object2 object2) = priceListType(agreement (object1, object2));
 END
 

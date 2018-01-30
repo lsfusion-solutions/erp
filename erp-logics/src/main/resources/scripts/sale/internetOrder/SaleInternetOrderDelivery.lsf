@@ -27,12 +27,12 @@ relation = GROUP SUM 1 IF in(DeliveryReport o, InternetOrderDetail d) BY o, inte
 
 seriesNumberInternetOrders 'Интернет-заказы' (deliveryReport) = GROUP CONCAT seriesNumber(InternetOrder order) IF relation(DeliveryReport deliveryReport, order) , ', '
                                                  BY deliveryReport
-                                                 ORDER order  MINCHARWIDTH 30 PREFCHARWIDTH 30;   
+                                                 ORDER order  CHARWIDTH 30;   
 
 dataDeliveryReportIndex 'Номер строки' = DATA INTEGER (InternetOrderDetail) INDEXED; 
 defaultDeliveryReportIndex 'Номер строки (авт.)' (InternetOrderDetail d) =
     PARTITION SUM 1 BY deliveryReport(d)
-    ORDER internetOrder(d),d MINCHARWIDTH 4 PREFCHARWIDTH 4;
+    ORDER internetOrder(d),d CHARWIDTH 4;
 indexDeliveryReport 'Номер строки' (InternetOrderDetail d) = OVERRIDE dataDeliveryReportIndex(d), defaultDeliveryReportIndex(d) IN recognize;
 
 pickingQuantityInternetOrderDetail 'Кол-во (всего) собрано' = GROUP SUM pickingQuantity(InternetOrderDetail d) 
@@ -66,7 +66,7 @@ nameStatus 'Статус' (DeliveryReport c) = staticCaption(status(c)) IN docum
 
 status(DeliveryReport r) <- StatusDeliveryReport.collected WHEN SET(r IS DeliveryReport);    
 
-seriesNumberPicking 'Номер комплектации' (InternetOrderDetail d) = seriesNumber(picking(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+seriesNumberPicking 'Номер комплектации' (InternetOrderDetail d) = seriesNumber(picking(d)) CHARWIDTH 10;
 
 
 
@@ -107,7 +107,7 @@ FORM deliveryReport 'Отчет курьера'
 DESIGN deliveryReport {
 
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW specificationBox BEFORE TOOLBARBOX{
             fill = 1;
             type = SPLITV;
@@ -195,7 +195,7 @@ filterDashboardDelivery = GROUP SUM 1 IF InternetOrderDetail detail IS InternetO
 inStockDeliveryReport = GROUP SUM 1 BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail), deliveryReport(detail); 
 supplierStocks 'Склады поставщика' = GROUP CONCAT name(Stock stock) IF inStockDeliveryReport(stock, DeliveryReport deliveryReport), ', '  
                                                                         BY deliveryReport 
-                                                                        ORDER name(stock) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+                                                                        ORDER name(stock) CHARWIDTH 30;
 filterDeliveryDashboard = ABSTRACT CASE BOOLEAN (InternetOrder);
 useFilterDeliveryDashboard = ABSTRACT BOOLEAN ();
 

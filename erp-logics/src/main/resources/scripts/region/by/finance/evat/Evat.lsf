@@ -12,13 +12,13 @@ isPosted 'Проведен' = ABSTRACT BOOLEAN (EVATDocument);
 overNeedCreateEVAT (EVATDocument d) = needCreateEVAT(d) AND isPosted(d);
 
 name 'Регистр-основание' = ABSTRACT VARISTRING[200] (EVATDocument) ;
-number 'Номер' = ABSTRACT VARSTRING[100] (EVATDocument) IN numbered MINCHARWIDTH 7;
+number 'Номер' = ABSTRACT VARSTRING[100] (EVATDocument) IN numbered CHARWIDTH 7;
 series 'Серия' = ABSTRACT STRING[2] (EVATDocument) IN numbered FIXEDCHARWIDTH 3;
-seriesNumber 'Серия/Номер' (EVATDocument d) = CONCAT '', series(d), number(d) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;
+seriesNumber 'Серия/Номер' (EVATDocument d) = CONCAT '', series(d), number(d) CHARWIDTH 7;
 
-VATSum 'Сумма НДС' = ABSTRACT NUMERIC[18,4] (EVATDocument) MINCHARWIDTH 10 PREFCHARWIDTH 15;
-VATSumRange 'Сумма НДС по шкале' = ABSTRACT NUMERIC[18,4] (EVATDocument, Range) MINCHARWIDTH 10 PREFCHARWIDTH 15;
-sumWithVATRange 'Сумма c НДС по шкале' = ABSTRACT NUMERIC[18,4] (EVATDocument, Range) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+VATSum 'Сумма НДС' = ABSTRACT NUMERIC[18,4] (EVATDocument) CHARWIDTH 10;
+VATSumRange 'Сумма НДС по шкале' = ABSTRACT NUMERIC[18,4] (EVATDocument, Range) CHARWIDTH 10;
+sumWithVATRange 'Сумма c НДС по шкале' = ABSTRACT NUMERIC[18,4] (EVATDocument, Range) CHARWIDTH 10;
 
 customer 'Покупатель' = ABSTRACT LegalEntity (EVATDocument);
 nameCustomer 'Покупатель' (EVATDocument d)= name(customer(d));
@@ -174,7 +174,7 @@ EVAT 'ЭСЧФ' (EVATDocument d) = GROUP MAX EVAT e BY EVATDocument(e);
 CONSTRAINT notNullEVATDocument() AND EVAT e IS EVAT AND NOT EVATDocument(e)
     MESSAGE 'У ЭСЧФ должна быть задана ссылка на исходный документ';
 
-seriesNumberEVATDocument 'Регистр (серия/номер)' (EVAT e) = seriesNumber(EVATDocument(e)) MINCHARWIDTH 7 PREFCHARWIDTH 15 MAXCHARWIDTH 20 IN register; 
+seriesNumberEVATDocument 'Регистр (серия/номер)' (EVAT e) = seriesNumber(EVATDocument(e)) CHARWIDTH 7 IN register; 
 dateEVATDocument 'Регистр (дата)' (EVAT e) = date(EVATDocument(e)) IN register; 
 
 in 'Вкл.' = DATA LOCAL BOOLEAN (EVAT);
@@ -220,7 +220,7 @@ WHEN SET(exported(EVAT e))
      DO exportYear(e) <- Time.extractYear(currentDate());
 
 
-UNPForeign 'УНП (иностр.)' = DATA VARSTRING[50] (LegalEntity) IN doc MINCHARWIDTH 15 PREFCHARWIDTH 20;
+UNPForeign 'УНП (иностр.)' = DATA VARSTRING[50] (LegalEntity) IN doc CHARWIDTH 15;
 CONSTRAINT sid(country(LegalEntity l)) != '112' AND NOT toShowIndividual(l) AND NOT UNPForeign(l) MESSAGE 'Для организации должен быть задан УНП';
 
 toShowForeign(LegalEntity l) += l IS LegalEntity AND country('112') != country(l) AND NOT toShowIndividual(l);

@@ -20,12 +20,12 @@ toDate(Registration certificate) += toDate(certificate);
 
 // ------ Номер ----------- //
 
-number 'Номер' = DATA VARISTRING[100] (Registration) NONULL IN numbered MINCHARWIDTH 30;
+number 'Номер' = DATA VARISTRING[100] (Registration) NONULL IN numbered CHARWIDTH 30;
 series 'Серия' = DATA STRING[2] (Registration) IN numbered FIXEDCHARWIDTH 3; 
 
 seriesNumber 'Серия/Номер' (Registration o) = 
     CONCAT '', series(o), number(o) 
-    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 MATERIALIZED;
+    CHARWIDTH 7 MATERIALIZED;
 
 series(Registration certificate) += series(certificate);
 number(Registration certificate) += number(certificate);
@@ -34,7 +34,7 @@ registration = GROUP AGGR Registration s BY number (s);
 
 // Описание
 description 'Свидетельство государственной регистрации' (Registration registration) = CONCAT ' ', seriesNumber(registration),
-                                                 'от ' + fromDate(registration), 'по ' + toDate(registration) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+                                                 'от ' + fromDate(registration), 'по ' + toDate(registration) CHARWIDTH 20;
 // История                                                 
 @defineDocumentHeaderCreated(Registration);                                                 
 
@@ -58,7 +58,7 @@ DESIGN registration {
             NEW header {
                 caption = 'Шапка документа';
                 type = CONTAINERH;
-                MOVE PROPERTY (number(c)) { minimumCharWidth = 70;};
+                MOVE PROPERTY (number(c)) { charWidth = 70;};
                 MOVE PROPERTY (series(c));
                 MOVE PROPERTY (date(c));
                 MOVE PROPERTY (time(c));
@@ -113,7 +113,7 @@ FORM registrations 'Свидетельства государственной р
 
 DESIGN registrations {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW header {
             fill = 1;
             type = SPLITV;

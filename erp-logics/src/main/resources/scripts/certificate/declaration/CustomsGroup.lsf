@@ -26,12 +26,12 @@ nameDefaultTypeExchange  'Тип обмена (по умолч.)' (CustomsZone c
 CLASS CustomsGroup 'Позиция ТН ВЭД';
 TABLE customsGroup (CustomsGroup);
 
-name 'Наименование' = DATA VARISTRING[1000](CustomsGroup) MINCHARWIDTH 30 PREFCHARWIDTH 60;
+name 'Наименование' = DATA VARISTRING[1000](CustomsGroup) CHARWIDTH 30;
 
 hasCode 'Есть код' = DATA BOOLEAN (CustomsGroup) IN base;
 dateFrom 'Дата с' = DATA DATE (CustomsGroup) IN base;
 dateTo 'Дата по' = DATA DATE (CustomsGroup) IN base;
-code 'Код' = DATA VARSTRING[10](CustomsGroup) IN base MINCHARWIDTH 10;
+code 'Код' = DATA VARSTRING[10](CustomsGroup) IN base CHARWIDTH 10;
 
 customsGroup (code) = GROUP AGGR CustomsGroup customsGroup BY code(customsGroup) WHERE customsGroup IS CustomsGroup;
 nearestCustomsGroup (code) = GROUP MIN CustomsGroup customsGroup IF startsWith(code(customsGroup), STRING[10] code AS STRING[10]) == 1 BY code;
@@ -65,8 +65,8 @@ META defineCustomsRate(class, object, caption)
     dateFrom 'Дата с' = DATA DATE(class) IN base;
     dateTo 'Дата по' = DATA DATE(class) IN base;
     customsGroup = DATA CustomsGroup(class) AUTOSET;
-    codeCustomsGroup 'ТН ВЭД (код)' (class customsRate) = code(customsGroup(customsRate)) IN base MAXCHARWIDTH 10;
-    nameCustomsGroup 'ТН ВЭД' (class customsRate) = name(customsGroup(customsRate)) IN base MAXCHARWIDTH 50;
+    codeCustomsGroup 'ТН ВЭД (код)' (class customsRate) = code(customsGroup(customsRate)) IN base;
+    nameCustomsGroup 'ТН ВЭД' (class customsRate) = name(customsGroup(customsRate)) IN base;
 
     object (CustomsGroup customsGroup, DATE date) = GROUP LAST class object IF
                                                                        (dateFrom(object) < DATE date AND
@@ -263,10 +263,10 @@ add 'Добавить'(CustomsGroup customsGroup) = {
 } TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
 
 
-caption 'Наименование' = DATA LOCAL VARISTRING[255]() MINCHARWIDTH 20 PREFCHARWIDTH 40;
-article 'Артикул' = DATA LOCAL VARSTRING[100]() MINCHARWIDTH 10 PREFCHARWIDTH 15;
+caption 'Наименование' = DATA LOCAL VARISTRING[255]() CHARWIDTH 20;
+article 'Артикул' = DATA LOCAL VARSTRING[100]() CHARWIDTH 10;
 originalCustomsGroup 'ТНВЭД (ориг)' = DATA LOCAL STRING[100] () FIXEDCHARWIDTH 10;
-composition 'Состав' = DATA LOCAL VARSTRING[255]() MINCHARWIDTH 40 PREFCHARWIDTH 60;
+composition 'Состав' = DATA LOCAL VARSTRING[255]() CHARWIDTH 40;
 gender 'Пол' = DATA LOCAL VARSTRING[50]();
 
 FORM customsGroups 'Позиции ТН ВЭД'

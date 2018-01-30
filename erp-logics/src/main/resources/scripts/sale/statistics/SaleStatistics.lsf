@@ -13,7 +13,7 @@ nameCountry 'Страна' (StatisticGroupType type)= name(country(type)) IN bas
 
 name 'Наименование' = DATA VARISTRING[100](StatisticGroupType);
 
-id 'Идентификатор' = DATA VARSTRING[20] (StatisticGroupType) MINCHARWIDTH 3 MAXCHARWIDTH 10 PREFCHARWIDTH 7;
+id 'Идентификатор' = DATA VARSTRING[20] (StatisticGroupType) CHARWIDTH 3;
 
 statisticGroupTypeId (string1) = GROUP AGGR StatisticGroupType type
     BY id(type) WHERE type IS StatisticGroupType;
@@ -50,7 +50,7 @@ DESIGN options{
 CLASS StatisticGroup 'Статистическая группа': Group;
 TABLE statisticGroup(StatisticGroup);
 
-name 'Наименование' = DATA VARISTRING[250](StatisticGroup) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+name 'Наименование' = DATA VARISTRING[250](StatisticGroup) CHARWIDTH 30;
 
 CLASS GroupStatic 'Ед. изм.' {
     statisticLiter 'Литр',
@@ -93,17 +93,17 @@ country = country(groupType(StatisticGroup group));
 nameCountry 'Страна' (StatisticGroup statisticGroup)= name(country(statisticGroup)) IN base;
 
 unitMeasure 'Ед. изм. ИД' (statisticGroup) = DATA GroupStatic (StatisticGroup);
-nameUOM 'Ед. изм.' (StatisticGroup statisticGroup) = staticCaption(unitMeasure(statisticGroup)) MINCHARWIDTH 15 MAXCHARWIDTH 15 PREFCHARWIDTH 15;
+nameUOM 'Ед. изм.' (StatisticGroup statisticGroup) = staticCaption(unitMeasure(statisticGroup)) FIXEDCHARWIDTH 15;
 
 dataNameReportUOM 'Ед. изм. для отчёта' = DATA VARISTRING[100](StatisticGroup);
-nameReportUOM 'Ед. изм. для отчёта' (StatisticGroup statisticGroup) = OVERRIDE dataNameReportUOM(statisticGroup), nameUOM(statisticGroup) MINCHARWIDTH 15 MAXCHARWIDTH 15 PREFCHARWIDTH 15; 
+nameReportUOM 'Ед. изм. для отчёта' (StatisticGroup statisticGroup) = OVERRIDE dataNameReportUOM(statisticGroup), nameUOM(statisticGroup) FIXEDCHARWIDTH 15; 
 
-sid 'Код группы' (statisticGroup) = DATA STRING[12] (StatisticGroup)  MINCHARWIDTH 12 MAXCHARWIDTH 12 PREFCHARWIDTH 12;
+sid 'Код группы' (statisticGroup) = DATA STRING[12] (StatisticGroup)  FIXEDCHARWIDTH 12;
 canonicalNumber 'Канонический код' (StatisticGroup statisticGroup) = VARSTRING[255](
                            [= GROUP CONCAT sid(StatisticGroup parent), ' / ' BY StatisticGroup child ORDER DESC level(child, parent)](statisticGroup))
-                           MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 MATERIALIZED;
+                           CHARWIDTH 50 MATERIALIZED;
 
-canonicalNumberName 'Канонический код-название' (StatisticGroup statisticGroup) = CONCAT ' / ', canonicalNumber(statisticGroup), name(statisticGroup) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+canonicalNumberName 'Канонический код-название' (StatisticGroup statisticGroup) = CONCAT ' / ', canonicalNumber(statisticGroup), name(statisticGroup) CHARWIDTH 30;
 
 groupIdTypeIdGroup (string1, string2) = GROUP AGGR StatisticGroup group
     BY id(groupType(group)), sid(group) WHERE group IS StatisticGroup;
@@ -241,7 +241,7 @@ FORM statisticGroupDialog 'Статистические группы'
 ;
 DESIGN statisticGroupDialog {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW top {
             fill = 1;
             type = SPLITH;

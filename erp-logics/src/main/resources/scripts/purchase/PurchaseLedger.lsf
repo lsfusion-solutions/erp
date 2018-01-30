@@ -49,7 +49,7 @@ numberDocument 'Номер документа' (ledger) = ABSTRACT VARSTRING[28]
 seriesDocument 'Серия документа' (ledger) = ABSTRACT STRING[2] (PurchaseLedger) MATERIALIZED;
 seriesNumberDocument 'Серия/Номер документа' (PurchaseLedger o) = 
     CONCAT '', seriesDocument(o), numberDocument(o) 
-    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 MATERIALIZED;
+    CHARWIDTH 7 MATERIALIZED;
         
 quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (PurchaseLedger) MATERIALIZED;
 shipmentQuantity 'Кол-во (поставлено)' (ledger) = ABSTRACT NUMERIC[16,5] (PurchaseLedger) MATERIALIZED;
@@ -107,7 +107,7 @@ lastSupplierStock (stock, sku) =
         ORDER dateTime(ledger), ledger
         WHERE active(ledger);
                 
-nameLastSupplierStock 'Склад поставщика (последний)' (Stock stock, Sku sku) = name(lastSupplierStock (stock, sku)) MINCHARWIDTH 12 PREFCHARWIDTH 15;              
+nameLastSupplierStock 'Склад поставщика (последний)' (Stock stock, Sku sku) = name(lastSupplierStock (stock, sku)) CHARWIDTH 12;              
 
 inSupplier 'Были поставки' (LegalEntity legalEntity, Sku sku) = TRUE IF countPurchaseSupplier(legalEntity, sku) MATERIALIZED;
 prevInSupplier 'Были поставки (пред.)' (LegalEntity legalEntity, Sku sku) = PREV(inSupplier(legalEntity, sku));
@@ -373,8 +373,8 @@ DESIGN purchaseLedger {
             MOVE BOX(dates) {
                 type = CONTAINERH;
                 MOVE PROPERTY (isShipmentDate());
-                PROPERTY(nameCurrency(te)) { caption = 'Валюта'; minimumCharWidth = 20;}
-                PROPERTY(nameType) { caption = 'Тип обмена'; minimumCharWidth = 20;}
+                PROPERTY(nameCurrency(te)) { caption = 'Валюта'; charWidth = 20;}
+                PROPERTY(nameType) { caption = 'Тип обмена'; charWidth = 20;}
             }
             NEW operationContainer{
                 type = COLUMNS;
@@ -385,8 +385,8 @@ DESIGN purchaseLedger {
             }  
             MOVE BOX(te) {
                 type = CONTAINERH;
-                PROPERTY(nameCurrency(te)) { caption = 'Валюта'; minimumCharWidth = 20;}
-                PROPERTY(nameType) { caption = 'Тип обмена'; minimumCharWidth = 20;}
+                PROPERTY(nameCurrency(te)) { caption = 'Валюта'; charWidth = 20;}
+                PROPERTY(nameType) { caption = 'Тип обмена'; charWidth = 20;}
             }
         }
         MOVE BOX(s){
@@ -430,7 +430,7 @@ EXTEND FORM balanceSkuStock PROPERTIES(s, st) averagePurchase READONLY;
 META defineSupplierDialogStockSku (form)
 
     form##Supplier = DATA LOCAL LegalEntity ();
-    form##NameSupplier 'Поставщик' () = name(form##Supplier()) PREFCHARWIDTH 30;
+    form##NameSupplier 'Поставщик' () = name(form##Supplier()) CHARWIDTH 30;
     dialogSuppliersFilter (Sku sku) =  inSupplier(form##Supplier(), sku) OR
                                     (sku IS Sku AND NOT form##Supplier());
 

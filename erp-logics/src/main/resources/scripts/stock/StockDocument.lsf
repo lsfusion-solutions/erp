@@ -27,7 +27,7 @@ nameStock 'Склад' (StockDocumentLedger ledger) = name(stock(ledger)) IN rec
 
 number 'Номер документа' (ledger) = ABSTRACT VARSTRING[28] (StockDocumentLedger) MATERIALIZED;
 series 'Серия документа' (ledger) = ABSTRACT STRING[2] (StockDocumentLedger) MATERIALIZED;
-seriesNumber 'Серия/номер документа' (StockDocumentLedger ledger) = CONCAT '', series(ledger), number(ledger) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20; 
+seriesNumber 'Серия/номер документа' (StockDocumentLedger ledger) = CONCAT '', series(ledger), number(ledger) CHARWIDTH 7; 
 
 legalEntity 'Контрагент' (ledger) = ABSTRACT LegalEntity (StockDocumentLedger) MATERIALIZED;
 nameLegalEntity 'Контрагент' (StockDocumentLedger ledger) = name(legalEntity(ledger)) IN recognize;
@@ -51,8 +51,8 @@ skip 'Не проводить' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger)
 active (StockDocumentLedger ledger) = isPosted(ledger) AND NOT skip(ledger);
 
 GROUP ledgerItem 'Суммы по товару' : public;
-sumItem 'Сумма прихода, товар' (ledger) = ABSTRACT NUMERIC[18,4] (IncStockDocumentLedger) MATERIALIZED IN ledgerItem MINCHARWIDTH 15 PREFCHARWIDTH 15;
-sumItem 'Сумма расхода, товар' (ledger) = ABSTRACT NUMERIC[18,4] (OutStockDocumentLedger) MATERIALIZED IN ledgerItem MINCHARWIDTH 15 PREFCHARWIDTH 15;
+sumItem 'Сумма прихода, товар' (ledger) = ABSTRACT NUMERIC[18,4] (IncStockDocumentLedger) MATERIALIZED IN ledgerItem CHARWIDTH 15;
+sumItem 'Сумма расхода, товар' (ledger) = ABSTRACT NUMERIC[18,4] (OutStockDocumentLedger) MATERIALIZED IN ledgerItem CHARWIDTH 15;
 sumItem 'Сумма, товар' (StockDocumentLedger ledger) = MULTI sumItem[IncStockDocumentLedger](ledger), -sumItem[OutStockDocumentLedger](ledger) MATERIALIZED;
 
 GROUP ledgerContainer 'Суммы по таре' : public;
@@ -61,8 +61,8 @@ sumContainer 'Сумма расхода, тара' (ledger) = ABSTRACT NUMERIC[1
 sumContainer 'Сумма, тара' (StockDocumentLedger ledger) = MULTI sumContainer[IncStockDocumentLedger](ledger), -sumContainer[OutStockDocumentLedger](ledger) MATERIALIZED;
 
 GROUP ledger 'Суммы (всего)' : public;
-sum 'Сумма прихода' (IncStockDocumentLedger ledger) = sumItem(ledger)(+) sumContainer(ledger) MATERIALIZED IN ledger MINCHARWIDTH 15 PREFCHARWIDTH 15;
-sum 'Сумма расхода' (OutStockDocumentLedger ledger) = sumItem(ledger)(+) sumContainer(ledger) MATERIALIZED IN ledger MINCHARWIDTH 15 PREFCHARWIDTH 15;
+sum 'Сумма прихода' (IncStockDocumentLedger ledger) = sumItem(ledger)(+) sumContainer(ledger) MATERIALIZED IN ledger CHARWIDTH 15;
+sum 'Сумма расхода' (OutStockDocumentLedger ledger) = sumItem(ledger)(+) sumContainer(ledger) MATERIALIZED IN ledger CHARWIDTH 15;
 sum 'Сумма' (StockDocumentLedger ledger) = MULTI sum[IncStockDocumentLedger](ledger), -sum[OutStockDocumentLedger](ledger) MATERIALIZED;
 
 allowedEdit (StockDocumentLedger ledger) = NOT isClosed(ledger) OR allowedEditClosedDocuments(currentUser());
@@ -83,12 +83,12 @@ countOutStockDocumentInterval 'Количество расходных док-о
 sumItemIncStockDocumentInterval 'Сумма прихода, товар' (stock, dtFrom, dtTo)=
     GROUP SUM sumItem(IncStockDocumentLedger incStockDocumentLedger) IF active(incStockDocumentLedger)
         AND date(incStockDocumentLedger) >= DATE dtFrom AND date(incStockDocumentLedger) <= DATE dtTo
-            BY stock(incStockDocumentLedger), dtFrom, dtTo IN ledgerItem MINCHARWIDTH 15 PREFCHARWIDTH 15;
+            BY stock(incStockDocumentLedger), dtFrom, dtTo IN ledgerItem CHARWIDTH 15;
 
 sumItemOutStockDocumentInterval 'Сумма расхода, товар' (stock, dtFrom, dtTo)=
     GROUP SUM sumItem(OutStockDocumentLedger outStockDocumentLedger) IF active(outStockDocumentLedger)
         AND date(outStockDocumentLedger) >= DATE dtFrom AND date(outStockDocumentLedger) <= DATE dtTo
-            BY stock(outStockDocumentLedger), dtFrom, dtTo IN ledgerItem MINCHARWIDTH 15 PREFCHARWIDTH 15;
+            BY stock(outStockDocumentLedger), dtFrom, dtTo IN ledgerItem CHARWIDTH 15;
 
 
 sumContainerIncStockDocumentInterval 'Сумма прихода, тара' (stock, dtFrom, dtTo)=
@@ -117,12 +117,12 @@ countOutStockDocumentInterval 'Количество расходных док-о
 sumItemIncStockDocumentInterval 'Сумма прихода, товар' (stock, dtFrom, dtTo, operation)=
     GROUP SUM sumItem(IncStockDocumentLedger incStockDocumentLedger) IF active(incStockDocumentLedger)
         AND date(incStockDocumentLedger) >= DATE dtFrom AND date(incStockDocumentLedger) <= DATE dtTo
-            BY stock(incStockDocumentLedger), dtFrom, dtTo, operation(incStockDocumentLedger) IN ledgerItem MINCHARWIDTH 15 PREFCHARWIDTH 15;
+            BY stock(incStockDocumentLedger), dtFrom, dtTo, operation(incStockDocumentLedger) IN ledgerItem CHARWIDTH 15;
 
 sumItemOutStockDocumentInterval 'Сумма расхода, товар' (stock, dtFrom, dtTo, operation)=
     GROUP SUM sumItem(OutStockDocumentLedger outStockDocumentLedger) IF active(outStockDocumentLedger)
         AND date(outStockDocumentLedger) >= DATE dtFrom AND date(outStockDocumentLedger) <= DATE dtTo
-            BY stock(outStockDocumentLedger), dtFrom, dtTo, operation(outStockDocumentLedger) IN ledgerItem MINCHARWIDTH 15 PREFCHARWIDTH 15;
+            BY stock(outStockDocumentLedger), dtFrom, dtTo, operation(outStockDocumentLedger) IN ledgerItem CHARWIDTH 15;
 
 
 sumContainerIncStockDocumentInterval 'Сумма прихода, тара' (stock, dtFrom, dtTo, operation)=
@@ -153,13 +153,13 @@ sumItemNotOperationIncStockDocumentInterval 'Сумма прихода, това
     GROUP SUM sumItem(IncStockDocumentLedger incStockDocumentLedger) IF active(incStockDocumentLedger)
         AND date(incStockDocumentLedger) >= DATE dtFrom AND date(incStockDocumentLedger) <= DATE dtTo
         AND NOT operation(incStockDocumentLedger)        
-            BY stock(incStockDocumentLedger), dtFrom, dtTo IN ledgerItem MINCHARWIDTH 15 PREFCHARWIDTH 15;
+            BY stock(incStockDocumentLedger), dtFrom, dtTo IN ledgerItem CHARWIDTH 15;
 
 sumItemNotOperationOutStockDocumentInterval 'Сумма расхода, товар' (stock, dtFrom, dtTo)=
     GROUP SUM sumItem(OutStockDocumentLedger outStockDocumentLedger) IF active(outStockDocumentLedger)
         AND date(outStockDocumentLedger) >= DATE dtFrom AND date(outStockDocumentLedger) <= DATE dtTo
         AND NOT operation(outStockDocumentLedger)
-            BY stock(outStockDocumentLedger), dtFrom, dtTo IN ledgerItem MINCHARWIDTH 15 PREFCHARWIDTH 15;
+            BY stock(outStockDocumentLedger), dtFrom, dtTo IN ledgerItem CHARWIDTH 15;
 
 
 sumContainerNotOperationIncStockDocumentInterval 'Сумма прихода, тара' (stock, dtFrom, dtTo)=
@@ -188,11 +188,11 @@ sumAccountADocumentLedger 'Остаток на конец' (Stock stock, DATETIM
 
 sumAccountBDocumentLedger 'Остаток на начало' (Stock stock, DATE date) = (currentSumDocumentLedger(stock) IF date IS DATE) (-)
                                                                   [= GROUP SUM sum (StockDocumentLedger ledger) IF date(ledger) >= DATE date AND active(ledger)
-                                                                         BY stock(ledger), date](stock, date) IN ledger MINCHARWIDTH 15 PREFCHARWIDTH 15;
+                                                                         BY stock(ledger), date](stock, date) IN ledger CHARWIDTH 15;
 
 sumAccountADocumentLedger 'Остаток на конец' (Stock stock, DATE date) = (currentSumDocumentLedger(stock) IF date IS DATE) (-)
                                                                  [= GROUP SUM sum (StockDocumentLedger ledger) IF date(ledger) > DATE date AND active(ledger)
-                                                                        BY stock(ledger), date](stock, date) IN ledger MINCHARWIDTH 15 PREFCHARWIDTH 15;
+                                                                        BY stock(ledger), date](stock, date) IN ledger CHARWIDTH 15;
 
 // -------------------------------------- Остатки по суммам (товар) --------------------------------------------- //
 
@@ -209,11 +209,11 @@ sumItemAccountADocumentLedger 'Остаток на конец, товар' (Stoc
 
 sumItemAccountBDocumentLedger 'Остаток на начало, товар' (Stock stock, DATE date) = (currentSumItemDocumentLedger(stock) IF date IS DATE) (-)
                                                                              [= GROUP SUM sumItem (StockDocumentLedger ledger) IF date(ledger) >= DATE date AND active(ledger)
-                                                                                    BY stock(ledger), date](stock, date) IN ledgerItem MINCHARWIDTH 15 PREFCHARWIDTH 15;
+                                                                                    BY stock(ledger), date](stock, date) IN ledgerItem CHARWIDTH 15;
 
 sumItemAccountADocumentLedger 'Остаток на конец, товар' (Stock stock, DATE date) = (currentSumItemDocumentLedger(stock) IF date IS DATE) (-)
                                                                             [= GROUP SUM sumItem (StockDocumentLedger ledger) IF date(ledger) > DATE date AND active(ledger)
-                                                                                   BY stock(ledger), date](stock, date) IN ledgerItem  MINCHARWIDTH 15 PREFCHARWIDTH 15;
+                                                                                   BY stock(ledger), date](stock, date) IN ledgerItem  CHARWIDTH 15;
 
 prevSumItemAccountBDocumentLedger 'Остаток на начало, товар' (Stock stock, DATETIME dateTime) = PREV(sumItemAccountBDocumentLedger(stock, dateTime));
 
@@ -243,11 +243,11 @@ prevSumContainerAccountBDocumentLedger (Stock stock, DATETIME dateTime) = PREV(s
 
 subtotalItemIncStockDocumentInterval 'Итого с остатком, товар' (Stock stock, DATE dtFrom, DATE dtTo) =
     sumItemAccountBDocumentLedger(stock, dtFrom) (+)
-     sumItemIncStockDocumentInterval(stock, dtFrom, dtTo) IN ledgerItem  MINCHARWIDTH 15 PREFCHARWIDTH 15;
+     sumItemIncStockDocumentInterval(stock, dtFrom, dtTo) IN ledgerItem  CHARWIDTH 15;
 
 subtotalContainerIncStockDocumentInterval 'Итого с остатком, тара' (Stock stock, DATE dtFrom, DATE dtTo) =
     sumContainerAccountBDocumentLedger(stock, dtFrom) (+)
-     sumContainerIncStockDocumentInterval(stock, dtFrom, dtTo) IN ledgerContainer MINCHARWIDTH 15 PREFCHARWIDTH 15;
+     sumContainerIncStockDocumentInterval(stock, dtFrom, dtTo) IN ledgerContainer CHARWIDTH 15;
 
 
 // ------------------------------------------- Ответственные лица --------------------------------------------- //
@@ -262,25 +262,25 @@ namePositionResponsiblies 'МОЛ(ы)' (Stock stock) = CONCAT ', ', positionName
      [ = GROUP CONCAT positionName(Employee employee) IF isResponsiblePerson(Stock stock, employee), ', '
      BY stock
      ORDER employee](stock)
-     MINCHARWIDTH 50 PREFCHARWIDTH 50;
+     CHARWIDTH 50;
 
 shortNamePositionResponsiblies 'МОЛ(ы)' (Stock stock) = CONCAT ', ', positionShortName(responsiblePerson(stock)),
     [ = GROUP CONCAT positionShortName(Employee employee) IF isResponsiblePerson(Stock stock, employee), ', '
     BY stock
     ORDER employee](stock)
-    MINCHARWIDTH 50 PREFCHARWIDTH 50;
+    CHARWIDTH 50;
 
 nameResponsiblies 'МОЛ(ы)' (Stock stock) = CONCAT ', ', name[Contact](responsiblePerson(stock)),
      [ = GROUP CONCAT name[Contact](Employee employee) IF isResponsiblePerson(Stock stock, employee), ', '
      BY stock
      ORDER employee](stock)
-     MINCHARWIDTH 50 PREFCHARWIDTH 50;
+     CHARWIDTH 50;
      
 shortNameResponsiblies 'МОЛ(ы)' (Stock stock) = CONCAT ', ', shortName(responsiblePerson(stock)),
      [ = GROUP CONCAT shortName(Employee employee) IF isResponsiblePerson(Stock stock, employee), ', '
      BY stock
      ORDER employee](stock)
-     MINCHARWIDTH 50 PREFCHARWIDTH 50;  
+     CHARWIDTH 50;  
 
 // Должность ФИО
 positionNameResponsiblePerson 'Материально ответственное лицо' (Stock stock) = positionName(responsiblePerson(stock)) IN responsibility; 
@@ -579,7 +579,7 @@ CLASS UserStockDocumentDetail 'Строка учетного документа 
 @defineDocumentDetailDescription(userStockDocument, UserStockDocumentDetail);
 
 @defineDocumentHeaderNote(UserStockDocument);
-note 'Примечание' = DATA VARSTRING[100] (UserStockDocumentDetail) MINCHARWIDTH 30 PREFCHARWIDTH 50 IN documentPrm;
+note 'Примечание' = DATA VARSTRING[100] (UserStockDocumentDetail) CHARWIDTH 30 IN documentPrm;
 
 @defineNumeratedDefault(UserStockDocument, 'Учетный документ', 'УД');
 
@@ -622,7 +622,7 @@ FORM userStockDocument 'Учетный документ'
 
 DESIGN userStockDocument {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW headerBox {
             type = CONTAINERH;
             NEW headerRow1 {
@@ -699,7 +699,7 @@ FORM stockDocuments 'Учетный документ'
 
 DESIGN stockDocuments {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW documentContainer BEFORE TOOLBARBOX {
             fill = 1;
             type = SPLITV;

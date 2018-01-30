@@ -52,27 +52,27 @@ shortDescription(PaymentPeriod paymentPeriod) =
 descriptionPeriod 'Условия оплаты' (paymentCondition) =
     GROUP CONCAT description(PaymentPeriod paymentPeriod) IF paymentCondition(paymentPeriod) == PaymentCondition paymentCondition, ', '
                 BY paymentCondition
-                ORDER paymentPeriod MINCHARWIDTH 20 PREFCHARWIDTH 30;
+                ORDER paymentPeriod CHARWIDTH 20;
 shortDescriptionPeriod 'Условия оплаты' (paymentCondition) =
     GROUP CONCAT shortDescription(PaymentPeriod paymentPeriod) IF paymentCondition(paymentPeriod) == PaymentCondition paymentCondition, ', '
                 BY paymentCondition
-                ORDER paymentPeriod MINCHARWIDTH 20 PREFCHARWIDTH 30;                
+                ORDER paymentPeriod CHARWIDTH 20;                
 
 //descriptionPaymentCondition 'Условия оплаты' (paymentCondition) =
 //    OVERRIDE 'По факту реализации' IF paymentCondition IS PaymentCondition , 
-//             descriptionPeriodPaymentCondition(paymentCondition) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+//             descriptionPeriodPaymentCondition(paymentCondition) CHARWIDTH 20;
 
 extraDescription = ABSTRACT VARSTRING[255] (PaymentCondition);
 description 'Условия оплаты' (PaymentCondition paymentCondition) = CASE 
     WHEN isRequirementType(paymentCondition) THEN 'Требование '+ descriptionPeriod(paymentCondition)
     WHEN type(paymentCondition) == AgreementPaymentType.prepayment THEN descriptionPeriod(paymentCondition)
-    WHEN paymentCondition IS PaymentCondition THEN (CONCAT '', staticCaption(type(paymentCondition)), extraDescription(paymentCondition)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+    WHEN paymentCondition IS PaymentCondition THEN (CONCAT '', staticCaption(type(paymentCondition)), extraDescription(paymentCondition)) CHARWIDTH 20;
 paymentConditionDescription = GROUP MAX PaymentCondition c BY description(c);
 
 shortDescription 'Условия оплаты' (PaymentCondition paymentCondition) = CASE 
     WHEN isRequirementType(paymentCondition) THEN 'Требование '+ shortDescriptionPeriod(paymentCondition)
     WHEN type(paymentCondition) == AgreementPaymentType.prepayment THEN shortDescriptionPeriod(paymentCondition)
-    WHEN paymentCondition IS PaymentCondition THEN staticCaption(type(paymentCondition)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+    WHEN paymentCondition IS PaymentCondition THEN staticCaption(type(paymentCondition)) CHARWIDTH 20;
     
 documentDescription 'Описание для документов' = DATA VARSTRING[100] (PaymentCondition);
 // Бонусы
@@ -103,7 +103,7 @@ FORM paymentCondition 'Условие оплаты'
 
 DESIGN paymentCondition {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
     }
 }
 

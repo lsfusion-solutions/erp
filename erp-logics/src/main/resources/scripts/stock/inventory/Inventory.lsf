@@ -23,10 +23,10 @@ name 'Наименование' = DATA VARISTRING[150](InventoryCommittee);
 name(InventoryCommittee committee) += name(committee) IF committee IS InventoryCommittee;
 
 committee(inventory) = DATA InventoryCommittee (Inventory);
-nameCommittee 'Название комиссии' (Inventory inventory) = name(committee(inventory)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
-nameChairmanCommittee 'Председатель комиссии' (Inventory inventory) = nameChairman(committee(inventory)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
-namePositionChairman 'Должность председателя' (Inventory inventory)  = namePositionChairman(committee(inventory)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
-nameEmployee 'Члены комиссии' (Inventory inventory) = nameEmployee(committee(inventory)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
+nameCommittee 'Название комиссии' (Inventory inventory) = name(committee(inventory)) IN inventoryCommittee CHARWIDTH 30;
+nameChairmanCommittee 'Председатель комиссии' (Inventory inventory) = nameChairman(committee(inventory)) IN inventoryCommittee CHARWIDTH 30;
+namePositionChairman 'Должность председателя' (Inventory inventory)  = namePositionChairman(committee(inventory)) IN inventoryCommittee CHARWIDTH 30;
+nameEmployee 'Члены комиссии' (Inventory inventory) = nameEmployee(committee(inventory)) IN inventoryCommittee CHARWIDTH 30;
 in 'Является членом комиссии' (Inventory inventory, Employee employee) = in(committee(inventory), employee);
 
 FORM inventoryCommittee 'Комиссия для инвентаризации'
@@ -63,7 +63,7 @@ FORM inventoryCommittee 'Комиссия для инвентаризации'
 
 DESIGN inventoryCommittee {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW caseOne BEFORE BOX(e) {
             fill = 1;
@@ -122,7 +122,7 @@ is (Inventory o) = o IS Inventory;
 isBatch 'По партиям' (inventory) = DATA BOOLEAN (Inventory);
 isSku (Inventory inventory) = inventory IS Inventory AND NOT isBatch(inventory);
 
-name 'Название инвентаризации' = DATA VARSTRING[100] (Inventory) IN documentPrm MINCHARWIDTH 50 PREFCHARWIDTH 50;
+name 'Название инвентаризации' = DATA VARSTRING[100] (Inventory) IN documentPrm CHARWIDTH 50;
 
 timeFrom 'Начато' (inventory) = DATA DATETIME (Inventory) IN documentPrm;
 timeTo 'Закончено' (inventory) = DATA DATETIME (Inventory) IN documentPrm;
@@ -136,11 +136,11 @@ countStocks 'Кол-во складов' = GROUP SUM 1 IF include(Stock st, Inve
 nameStock 'Склады' (inventory) =
     GROUP CONCAT name(Stock stock) IF include(stock, Inventory inventory), ', '
           BY inventory
-          ORDER stock MINCHARWIDTH 20 PREFCHARWIDTH 40;
+          ORDER stock CHARWIDTH 20;
 
 // Тип инвентаризации
 typeOfAddition(inventory) = DATA TypeOfAddition (Inventory);
-nameTypeOfAddition 'Тип инвентаризации' (Inventory inventory) = staticCaption(typeOfAddition(inventory)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
+nameTypeOfAddition 'Тип инвентаризации' (Inventory inventory) = staticCaption(typeOfAddition(inventory)) IN documentPrm CHARWIDTH 20;
 isPartly 'Частичная' = DATA BOOLEAN (Inventory);
 
 
@@ -167,7 +167,7 @@ nameIncludeSkuGroups 'Группы товаров' (document)=
     GROUP CONCAT name(SkuGroup skuGroup) IF dataInclude(Inventory document, skuGroup), ', ' 
     BY document 
     ORDER skuGroup
-    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    CHARWIDTH 20;
 
 resetIncludeSkuGroups  'Сбросить отмеченные'(Inventory in) = {
     dataInclude(in, SkuGroup g) <- NULL WHERE g IS SkuGroup ;    
@@ -186,7 +186,7 @@ FORM selectSkuGroups 'Выбор групп'
 ;
 DESIGN selectSkuGroups {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
     }
 }
 
@@ -239,10 +239,10 @@ GROUP inventoryCommittee 'Комиссия' : public;
 
 userCommittee(listInventory) = DATA InventoryCommittee (ListInventory);
 committee(ListInventory listInventory) = OVERRIDE userCommittee(listInventory), committee(inventory(listInventory));
-nameCommittee 'Название комиссии' (ListInventory listInventory) = name(committee(listInventory)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
-nameChairmanCommittee 'Председатель комиссии' (ListInventory listInventory) = nameChairman(committee(listInventory)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
-namePositionChairman 'Должность председателя' (ListInventory listInventory)  = namePositionChairman(committee(listInventory)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
-nameEmployee 'Члены комиссии' (ListInventory listInventory) = nameEmployee(committee(listInventory)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
+nameCommittee 'Название комиссии' (ListInventory listInventory) = name(committee(listInventory)) IN inventoryCommittee CHARWIDTH 30;
+nameChairmanCommittee 'Председатель комиссии' (ListInventory listInventory) = nameChairman(committee(listInventory)) IN inventoryCommittee CHARWIDTH 30;
+namePositionChairman 'Должность председателя' (ListInventory listInventory)  = namePositionChairman(committee(listInventory)) IN inventoryCommittee CHARWIDTH 30;
+nameEmployee 'Члены комиссии' (ListInventory listInventory) = nameEmployee(committee(listInventory)) IN inventoryCommittee CHARWIDTH 30;
 in 'Является членом комиссии' (ListInventory listInventory, Employee employee) = in(committee(listInventory), employee);
 
 // --------------------------------------------- Страницы описи ------------------------------------------ //
@@ -319,7 +319,7 @@ TABLE collationSheet (CollationSheet);
 @defineDocumentRelation(inventory, CollationSheet);
 
 @defineDocumentHeaderStock(collationSheet, stock, 'Склад');
-numberDisposal 'Основание для инвентаризации'  = DATA VARISTRING[100] (CollationSheet) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 30;
+numberDisposal 'Основание для инвентаризации'  = DATA VARISTRING[100] (CollationSheet) IN documentPrm CHARWIDTH 20;
 
 @defineDocumentDetailTime(inventory, CollationSheet);
 @defineDocumentDetailPosted(inventory, CollationSheet);
@@ -348,7 +348,7 @@ nameCollationSheet 'Название сл. ведомости' (ListInventory li
 collationSheet (PageInventoryDetail pageInventoryDetail) = collationSheet(listInventory(pageInventoryDetail)) MATERIALIZED INDEXED;
 
 typeOfAddition(CollationSheet collationSheet)= typeOfAddition(stock(collationSheet), inventory(collationSheet));
-nameTypeOfAddition 'Тип сличительной ведомости' (CollationSheet collationSheet) = staticCaption(typeOfAddition(collationSheet)) IN base MINCHARWIDTH 20 PREFCHARWIDTH 20;
+nameTypeOfAddition 'Тип сличительной ведомости' (CollationSheet collationSheet) = staticCaption(typeOfAddition(collationSheet)) IN base CHARWIDTH 20;
 
 in (Inventory inventory, Stock stock, ListInventory listInventory, PageInventory pageInventory, PageInventoryDetail pageInventoryDetail) = OVERRIDE
     stock(pageInventoryDetail) == stock AND inventory == inventory(pageInventoryDetail) AND NOT pageInventory AND NOT listInventory,
@@ -379,11 +379,11 @@ prevDate 'Дата предыдущей инвентаризации' (Collation
 
 // Комиссии
 committee = committee(inventory(CollationSheet collationSheet));
-nameCommittee 'Название комиссии' (CollationSheet collationSheet) = name(committee(collationSheet)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
-nameChairmanCommittee 'Председатель комиссии' (CollationSheet collationSheet) = nameChairman(committee(collationSheet)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
-firstShortNameChairmanCommittee 'Председатель комиссии (И.О. Фамилия)' (CollationSheet collationSheet) = firstShortName(chairman(committee(collationSheet))) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
-namePositionChairman 'Должность председателя' (CollationSheet collationSheet)  = namePositionChairman(committee(collationSheet)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
-nameEmployee 'Члены комиссии' (CollationSheet collationSheet) = nameEmployee(committee(collationSheet)) IN inventoryCommittee MINCHARWIDTH 30 PREFCHARWIDTH 30;
+nameCommittee 'Название комиссии' (CollationSheet collationSheet) = name(committee(collationSheet)) IN inventoryCommittee CHARWIDTH 30;
+nameChairmanCommittee 'Председатель комиссии' (CollationSheet collationSheet) = nameChairman(committee(collationSheet)) IN inventoryCommittee CHARWIDTH 30;
+firstShortNameChairmanCommittee 'Председатель комиссии (И.О. Фамилия)' (CollationSheet collationSheet) = firstShortName(chairman(committee(collationSheet))) IN inventoryCommittee CHARWIDTH 30;
+namePositionChairman 'Должность председателя' (CollationSheet collationSheet)  = namePositionChairman(committee(collationSheet)) IN inventoryCommittee CHARWIDTH 30;
+nameEmployee 'Члены комиссии' (CollationSheet collationSheet) = nameEmployee(committee(collationSheet)) IN inventoryCommittee CHARWIDTH 30;
 in 'Является членом комиссии' (CollationSheet collationSheet, Employee employee) = in(committee(collationSheet), employee);
 
 //---------------------------- Состав сличительной ведомости (Sku) ----------------------------//
@@ -564,9 +564,9 @@ countPageInventory 'К-во страниц' (collationSheet) =
 
 countPageInventoryDetail 'Кол-во строк' (listInventory) = GROUP SUM countPageInventoryDetail(PageInventory pageInventory) BY listInventory(pageInventory) IN documentSum;
 quantityPageInventoryDetail 'Кол-во товара' (listInventory) = 
-    GROUP SUM quantityPageInventoryDetail(PageInventory pageInventory) BY listInventory(pageInventory) IN documentSum MINCHARWIDTH 12 PREFCHARWIDTH 14;
+    GROUP SUM quantityPageInventoryDetail(PageInventory pageInventory) BY listInventory(pageInventory) IN documentSum CHARWIDTH 12;
 sumPageInventoryDetail 'Сумма товара' (listInventory) = 
-    GROUP SUM sumPageInventoryDetail(PageInventory pageInventory) BY listInventory(pageInventory) IN documentSum MINCHARWIDTH 12 PREFCHARWIDTH 14;
+    GROUP SUM sumPageInventoryDetail(PageInventory pageInventory) BY listInventory(pageInventory) IN documentSum CHARWIDTH 12;
 
 countPageInventoryDetail 'Кол-во строк' (stock, inventory) =
     GROUP SUM countPageInventoryDetail(ListInventory listInventory) BY stock(listInventory), inventory(listInventory) IN documentSum;
@@ -1064,7 +1064,7 @@ sum (InInventorySkuDetail inventorySkuDetail) = -sumShortage(collationSheet(inve
 
 sku(InventorySkuDetail inventorySkuDetail) = MULTI sku[OutInventorySkuDetail](inventorySkuDetail),
                                                   sku[InInventorySkuDetail](inventorySkuDetail) MATERIALIZED;
-nameSku 'Товар' (InventorySkuDetail inventorySkuDetail) = name(sku(inventorySkuDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
+nameSku 'Товар' (InventorySkuDetail inventorySkuDetail) = name(sku(inventorySkuDetail)) CHARWIDTH 15;
 idBarcode 'Штрихкод' (InventorySkuDetail inventorySkuDetail) =  idBarcode(sku(inventorySkuDetail));
 
 quantity 'Кол-во недостачи / излишка' (InventorySkuDetail inventorySkuDetail) = quantityShortage(collationSheet(inventorySkuDetail), sku(inventorySkuDetail)) MATERIALIZED;
@@ -1168,10 +1168,10 @@ sum (InInventoryBatchDetail inventoryBatchDetail) = -sumShortage(collationSheet(
 
 batch(InventoryBatchDetail inventoryBatchDetail) = MULTI batch[OutInventoryBatchDetail](inventoryBatchDetail),
                                                         batch[InInventoryBatchDetail](inventoryBatchDetail) MATERIALIZED;
-nameBatch 'Партия' (InventoryBatchDetail inventoryBatchDetail) = name(batch(inventoryBatchDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
+nameBatch 'Партия' (InventoryBatchDetail inventoryBatchDetail) = name(batch(inventoryBatchDetail)) CHARWIDTH 15;
 
 sku (InventoryBatchDetail inventoryBatchDetail) = sku(batch(inventoryBatchDetail));
-nameSku 'Товар' (InventoryBatchDetail inventoryBatchDetail) = nameSku(batch(inventoryBatchDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
+nameSku 'Товар' (InventoryBatchDetail inventoryBatchDetail) = nameSku(batch(inventoryBatchDetail)) CHARWIDTH 15;
 idBarcode 'Штрихкод' (InventoryBatchDetail inventoryBatchDetail) =  idBarcode(sku(inventoryBatchDetail));
 
 quantity 'Кол-во недостачи / излишка' (InventoryBatchDetail inventoryBatchDetail) = quantityShortage(collationSheet(inventoryBatchDetail), batch(inventoryBatchDetail)) MATERIALIZED;
@@ -1228,7 +1228,7 @@ FORM dialogStockInventory 'Выбор складов для инвентариз
 
 DESIGN dialogStockInventory {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         MOVE BOX(in) {
             PANEL(in) {
                 type = CONTAINERH;
@@ -1359,7 +1359,7 @@ FORM listInventory 'Опись'
 
 DESIGN listInventory {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW header {
             type = CONTAINERH;
             NEW row {
@@ -1447,7 +1447,7 @@ changeAddDetailInput(PageInventory page) = {
         changeAddDetailInputIdSku(s, page);
 };
 addDetailInput 'Код товара:' (page) = DATA LOCAL STRING[20] (PageInventory) TOOLBAR CHANGEKEY 'F5' 
-                                                                        ON CHANGE { changeAddDetailInput(page); } PREFCHARWIDTH 10;  
+                                                                        ON CHANGE { changeAddDetailInput(page); } CHARWIDTH 10;  
                                                                      
 changeAddDetailInputBarcode(VARSTRING[15] barcode, PageInventory page) = {
     IF skuBarcode(barcode, date(listInventory(page))) THEN {  
@@ -1466,7 +1466,7 @@ changeAddDetailInputBarcode(PageInventory page) = {
         changeAddDetailInputBarcode(s, page);
 }
 addDetailInputBarcode 'Штрихкод товара:' (page) = DATA LOCAL VARSTRING[15] (PageInventory) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
-                                                                        ON CHANGE { changeAddDetailInputBarcode(page); } PREFCHARWIDTH 15;
+                                                                        ON CHANGE { changeAddDetailInputBarcode(page); } CHARWIDTH 15;
 
 EXTEND FORM listInventory
     PROPERTIES (pl) TODRAW dp addDetailInputBarcode, addDetailInput  
@@ -1659,11 +1659,11 @@ DESIGN inventory {
             type = SPLITH;
             MOVE BOX(TREE treeStock) {
                 PROPERTY(isPosted(li)) {
-                        minimumCharWidth = 15;
+                        charWidth = 15;
                 }
                 PROPERTY (dumb(pl)) {
                     caption = 'Статус';
-                    minimumCharWidth = 15;
+                    charWidth = 15;
                 }
                 PROPERTY (post(li)) {
                     caption = 'Закрыть';
@@ -1700,7 +1700,7 @@ DESIGN inventory {
                         type = CONTAINERH;
                     }
                     MOVE BOX(cs) {
-                        preferredSize = ( -1, 0);
+                        size = ( -1, 0);
                     }
                 }
                 MOVE GROUP(,cs) {
@@ -1923,11 +1923,11 @@ DESIGN inventories {
 
 operation = DATA Operation (Inventory);
 nameOperation 'Операция' = name(operation(Inventory i));
-idOperation 'ID операции' = id(operation(Inventory i)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+idOperation 'ID операции' = id(operation(Inventory i)) CHARWIDTH 30;
 
 operation =  operation(inventory(CollationSheet collationSheet));
 nameOperation 'Операция' (CollationSheet cs) = name(operation(cs));
-idOperation 'ID операции' (CollationSheet cs) = id(operation(cs)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+idOperation 'ID операции' (CollationSheet cs) = id(operation(cs)) CHARWIDTH 30;
 
 @defineDocumentOperationRole(inventory);
 

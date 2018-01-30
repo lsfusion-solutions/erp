@@ -6,7 +6,7 @@ REQUIRE GeneralLedger;
 
 CLASS ABSTRACT Dimension 'Субконто';
 TABLE dimension(Dimension);
-name 'Название' = ABSTRACT VARISTRING[255] (Dimension) MINCHARWIDTH 40 PREFCHARWIDTH 80 MATERIALIZED;
+name 'Название' = ABSTRACT VARISTRING[255] (Dimension) CHARWIDTH 40 MATERIALIZED;
 
 FORM dimensions 'Субконто'
     OBJECTS d = Dimension
@@ -19,7 +19,7 @@ TABLE dimensionType(DimensionType);
 
 name 'Наименование' (DimensionType type) = staticCaption(type) IF type IS DimensionType;
 
-id 'Идентификатор' = DATA VARSTRING[20] (DimensionType) MINCHARWIDTH 3 MAXCHARWIDTH 10 PREFCHARWIDTH 7;
+id 'Идентификатор' = DATA VARSTRING[20] (DimensionType) CHARWIDTH 3;
 dimensionType = ABSTRACT CASE EXCLUSIVE DimensionType (Dimension) MATERIALIZED;
 nameDimensionType 'Тип субконто' (Dimension dimension) = name(dimensionType(dimension));
 
@@ -27,7 +27,7 @@ TABLE GLAccountDimensionType(GLAccount, DimensionType);
 order 'Порядковый номер' = DATA INTEGER (GLAccount,DimensionType);
 dimensionsType 'Субконто' (GLAccount) = GROUP CONCAT VARSTRING[255](name(DimensionType dimensionType)) IF order (GLAccount GLAccount,dimensionType) , ', '
                                                 BY GLAccount
-                                                ORDER order (GLAccount,dimensionType) MINCHARWIDTH 40 PREFCHARWIDTH 80 MATERIALIZED;
+                                                ORDER order (GLAccount,dimensionType) CHARWIDTH 40 MATERIALIZED;
 
 overCopy(GLAccount from, GLAccount to) += {
     order(to, DimensionType dimensionType) <- order(from, dimensionType);
@@ -140,10 +140,10 @@ orderCredit 'Порядковый номер' (GeneralLedger ledger, DimensionTy
 
 dimensionsDebit 'Субконто (дебет)' (ledger) = GROUP CONCAT VARSTRING[255](nameDebit(GeneralLedger ledger, DimensionType dimensionType)) IF orderDebit(ledger, dimensionType) , ', '
                                                 BY ledger
-                                                ORDER orderDebit (ledger, dimensionType) MINCHARWIDTH 40 PREFCHARWIDTH 80;
+                                                ORDER orderDebit (ledger, dimensionType) CHARWIDTH 40;
 dimensionsCredit 'Субконто (кредит)' (ledger) = GROUP CONCAT VARSTRING[255](nameCredit(GeneralLedger ledger, DimensionType dimensionType)) IF orderCredit(ledger, dimensionType) , ', '
                                                 BY ledger
-                                                ORDER orderCredit (ledger, dimensionType) MINCHARWIDTH 40 PREFCHARWIDTH 80;
+                                                ORDER orderCredit (ledger, dimensionType) CHARWIDTH 40;
 
 FORM dimensionType 'Тип субконто'
     OBJECTS d = DimensionType PANEL
@@ -266,7 +266,7 @@ EXTEND FORM generalLedgers
 CLASS UserDimension 'Субконто (польз.)' : Dimension;
 
 TABLE userDimension(UserDimension);
-name 'Название' = DATA VARISTRING[255] (UserDimension) MINCHARWIDTH 40 PREFCHARWIDTH 80;
+name 'Название' = DATA VARISTRING[255] (UserDimension) CHARWIDTH 40;
 name(UserDimension dimension)+= name(dimension);
 
 dimensionType = DATA DimensionType (UserDimension);
@@ -290,7 +290,7 @@ FORM userDimensions 'Субконто (польз.)'
     ORDER name(t)
     LIST UserDimension OBJECT t
 ;
-DESIGN userDimensions { BOX { preferredSize = (600, 400); } }
+DESIGN userDimensions { BOX { size = (600, 400); } }
 
 NAVIGATOR {
     accountType {
@@ -316,11 +316,11 @@ idCredit 'Субконто (кредит)' (GeneralLedger generalLedger, Dimensi
 
 idDimensionsDebit 'Субконто (дебет)' (ledger) = GROUP CONCAT VARSTRING[255](idDebit(GeneralLedger ledger, DimensionType dimensionType)) IF orderDebit(ledger, dimensionType) , ', '
                                                                        BY ledger
-                                                                    ORDER orderDebit (ledger, dimensionType) MINCHARWIDTH 5 PREFCHARWIDTH 15;
+                                                                    ORDER orderDebit (ledger, dimensionType) CHARWIDTH 5;
 
 idDimensionsCredit 'Субконто (кредит)' (ledger) = GROUP CONCAT VARSTRING[255](idCredit(GeneralLedger ledger, DimensionType dimensionType)) IF orderCredit(ledger, dimensionType) , ', '
                                                                          BY ledger
-                                                                      ORDER orderCredit (ledger, dimensionType) MINCHARWIDTH 5 PREFCHARWIDTH 15;
+                                                                      ORDER orderCredit (ledger, dimensionType) CHARWIDTH 5;
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 loadDefaultGLAccount 'Добавить субконто'(INTEGER integer, VARSTRING[20] sidType, VARSTRING[20] sidAccount, DimensionType type) = {

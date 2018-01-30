@@ -77,16 +77,16 @@ CLASS InternetOrderDetail 'Строка интернет-заказа';
 dataSupplierStock  = DATA Stock(InternetOrderDetail);
 supplierStock(InternetOrderDetail d) = OVERRIDE dataSupplierStock(d), supplierStock(internetOrder(d));
 
-nameSupplierStock 'Склад поставщика' (InternetOrderDetail idetail) = name(Sale.supplierStock[InternetOrderDetail](idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-fullNameSupplierStock 'Склад поставщика' (InternetOrderDetail idetail) = fullName(Sale.supplierStock[InternetOrderDetail](idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;      
-addressSupplierStock 'Адрес' (InternetOrderDetail idetail) = address(Sale.supplierStock[InternetOrderDetail](idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;       
+nameSupplierStock 'Склад поставщика' (InternetOrderDetail idetail) = name(Sale.supplierStock[InternetOrderDetail](idetail)) CHARWIDTH 10;
+fullNameSupplierStock 'Склад поставщика' (InternetOrderDetail idetail) = fullName(Sale.supplierStock[InternetOrderDetail](idetail)) CHARWIDTH 10;      
+addressSupplierStock 'Адрес' (InternetOrderDetail idetail) = address(Sale.supplierStock[InternetOrderDetail](idetail)) CHARWIDTH 10;       
 countrySupplierStock (InternetOrderDetail idetail) = country(Sale.supplierStock[InternetOrderDetail](idetail));
 legalEntitySupplierStock (InternetOrderDetail idetail) = legalEntity(Sale.supplierStock[InternetOrderDetail](idetail));
 
 inStockInternetOrder = GROUP SUM 1 BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail), internetOrder(detail); 
 supplierStocks 'Склады поставщика' = GROUP CONCAT name(Stock stock) IF inStockInternetOrder(stock, InternetOrder order), ', '  
                                                                         BY order 
-                                                                        ORDER name(stock) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+                                                                        ORDER name(stock) CHARWIDTH 30;
 
 changeSupplierStock(InternetOrderDetail o) = {
     DIALOG stocksCompany OBJECTS s = Sale.supplierStock[InternetOrderDetail](o) CHANGE;
@@ -205,21 +205,21 @@ openOriginal 'Файл XML'(InternetOrder o) = { OPEN original(o); }
 discountCard (InternetOrderDetail detail) = discountCard(internetOrder(detail));  
 numberDiscountCard 'Номер дисконтной карты'(InternetOrderDetail detail) = numberDiscountCard(internetOrder(detail));
 
-nameInternetCustomer 'Покупатель интернет магазина' = DATA VARSTRING[255] (InternetOrder) PREFCHARWIDTH 50 MAXCHARWIDTH 70;
+nameInternetCustomer 'Покупатель интернет магазина' = DATA VARSTRING[255] (InternetOrder) CHARWIDTH 50;
 //nameInternetCustomer(InternetOrder o) <- nameLegalEntity(discountCard(o)) WHEN SET(discountCard(o)) AND nameLegalEntity(discountCard(o));
 
-cityInternetCustomer 'Город доставки' = DATA VARSTRING[255] (InternetOrder) PREFCHARWIDTH 50 MAXCHARWIDTH 70;
-addressInternetCustomer 'Адрес доставки' = DATA VARSTRING[400] (InternetOrder) PREFCHARWIDTH 50 MAXCHARWIDTH 70;
+cityInternetCustomer 'Город доставки' = DATA VARSTRING[255] (InternetOrder) CHARWIDTH 50;
+addressInternetCustomer 'Адрес доставки' = DATA VARSTRING[400] (InternetOrder) CHARWIDTH 50;
 //addressInternetCustomer(InternetOrder o) <- addressLegalEntity(discountCard(o)) WHEN SET(discountCard(o)) AND addressLegalEntity(discountCard(o));
 
-phoneInternetCustomer 'Телефон покупателя' = DATA VARSTRING[100] (InternetOrder) PREFCHARWIDTH 50 MAXCHARWIDTH 70;
+phoneInternetCustomer 'Телефон покупателя' = DATA VARSTRING[100] (InternetOrder) CHARWIDTH 50;
 //phoneInternetCustomer(InternetOrder o) <- phoneLegalEntity(discountCard(o)) WHEN SET(discountCard(o)) AND phoneLegalEntity(discountCard(o));
-emailCustomer 'e-mail' = DATA VARSTRING[255] (InternetOrder) PREFCHARWIDTH 50 MAXCHARWIDTH 70;
+emailCustomer 'e-mail' = DATA VARSTRING[255] (InternetOrder) CHARWIDTH 50;
 
-nameInternetCustomer 'Покупатель интернет магазина' (InternetOrderDetail d) = nameInternetCustomer(internetOrder(d)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-cityInternetCustomer 'Город доставки' (InternetOrderDetail d) = cityInternetCustomer(internetOrder(d)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-addressInternetCustomer 'Адрес доставки' (InternetOrderDetail d) = addressInternetCustomer(internetOrder(d)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-phoneInternetCustomer 'Телефон покупателя' (InternetOrderDetail d) = phoneInternetCustomer(internetOrder(d)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+nameInternetCustomer 'Покупатель интернет магазина' (InternetOrderDetail d) = nameInternetCustomer(internetOrder(d)) CHARWIDTH 10;
+cityInternetCustomer 'Город доставки' (InternetOrderDetail d) = cityInternetCustomer(internetOrder(d)) CHARWIDTH 10;
+addressInternetCustomer 'Адрес доставки' (InternetOrderDetail d) = addressInternetCustomer(internetOrder(d)) CHARWIDTH 10;
+phoneInternetCustomer 'Телефон покупателя' (InternetOrderDetail d) = phoneInternetCustomer(internetOrder(d)) CHARWIDTH 10;
 
 fullNumber 'Полный номер' = DATA VARSTRING[10] (InternetOrder);
 
@@ -328,7 +328,7 @@ FORM internetOrder 'Интернет-заказ'
 DESIGN internetOrder {
 
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW headerBox {
             type = CONTAINERH;
@@ -341,8 +341,8 @@ DESIGN internetOrder {
                     type = CONTAINERV;
                     NEW first {
                         type = CONTAINERH;
-                        MOVE PROPERTY(isPosted(o)) { minimumCharWidth = 40; }
-                        MOVE PROPERTY(nameStatus(o)) { minimumCharWidth = 40; }
+                        MOVE PROPERTY(isPosted(o)) { charWidth = 40; }
+                        MOVE PROPERTY(nameStatus(o)) { charWidth = 40; }
                         MOVE PROPERTY(openOriginal(o));
                     }
                     NEW second { 
@@ -366,7 +366,7 @@ DESIGN internetOrder {
                     NEW firstCol {
                         type = CONTAINERV;
                         MOVE PROPERTY(numberDiscountCard(o));
-                        MOVE PROPERTY(nameInternetCustomer(o)){minimumCharWidth = 35;}
+                        MOVE PROPERTY(nameInternetCustomer(o)){charWidth = 35;}
                         MOVE PROPERTY(cityInternetCustomer(o));
                         MOVE PROPERTY(addressInternetCustomer(o));
                         MOVE PROPERTY(customerComment(o));
@@ -374,7 +374,7 @@ DESIGN internetOrder {
                     NEW secondCol {
                         type = CONTAINERV;
                         MOVE PROPERTY(issueCard(o));
-                        MOVE PROPERTY(phoneInternetCustomer(o)){minimumCharWidth = 35;}
+                        MOVE PROPERTY(phoneInternetCustomer(o)){charWidth = 35;}
                         MOVE PROPERTY(emailCustomer(o));
                         MOVE PROPERTY(deliveryDate(o));
                         MOVE PROPERTY(deliveryTimeFromInternetOrder(o));
@@ -393,12 +393,12 @@ DESIGN internetOrder {
                     type = COLUMNS;
                     columns = 1;
                     caption = 'Оплата и доставка';
-                    MOVE PROPERTY(namePaymentTypeInternetOrder(o)){minimumCharWidth = 30;}
+                    MOVE PROPERTY(namePaymentTypeInternetOrder(o)){charWidth = 30;}
                     MOVE PROPERTY(paymentCashSumInternetOrder(o));     
                     MOVE PROPERTY(paymentCardSumInternetOrder(o));                                                      
                     MOVE PROPERTY(paymentERIPSumInternetOrder(o));                                                      
                     MOVE PROPERTY(paymentDateInternetOrder(o));
-                    MOVE PROPERTY(numberPaymentDocumentInternetOrder(o)){minimumCharWidth = 20;}
+                    MOVE PROPERTY(numberPaymentDocumentInternetOrder(o)){charWidth = 20;}
                     MOVE PROPERTY(deliverySumInternetOrder(o));
                 }                   
             }
@@ -414,14 +414,14 @@ DESIGN internetOrder {
                     fill = 3;
                     caption = 'Спецификация';
                     GRIDBOX(d) {
-                        preferredHeight = 30;                
+                        height = 30;                
                     }
                 }
                 MOVE BOX(st) {
                     fill = 1;
                     caption = 'Склады';     
                     GRIDBOX(st) {
-                        preferredHeight = 30;
+                        height = 30;
                     }  
                     PROPERTY(prevAvailableQuantity(d, st)){ 
                         background = #F4FFBD; 
@@ -687,9 +687,9 @@ DESIGN internetOrders {
 }
 
 priceListType (internetOrder) = DATA PriceListType (InternetOrder);
-namePriceListType 'Вид цен' (InternetOrder o)= name(priceListType(o)) IN documentPrm MINCHARWIDTH 10 PREFCHARWIDTH 20;
+namePriceListType 'Вид цен' (InternetOrder o)= name(priceListType(o)) IN documentPrm CHARWIDTH 10;
 priceListType =  DATA PriceListType (InternetOrderDetail);
-namePriceListType 'Вид цен' (InternetOrderDetail d) = name(priceListType(d)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+namePriceListType 'Вид цен' (InternetOrderDetail d) = name(priceListType(d)) CHARWIDTH 10;
 
 defaultPriceListTypeInternetOrder = DATA PriceListType ();
 nameDefaultPriceListTypeInternetOrder 'Вид цены ИМ' = name(defaultPriceListTypeInternetOrder());
@@ -888,7 +888,7 @@ DESIGN options {
 }
 
 carrier = DATA Carrier (InternetOrder);
-nameCarrier 'Перевозчик' (InternetOrder o) = name(carrier(o)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+nameCarrier 'Перевозчик' (InternetOrder o) = name(carrier(o)) CHARWIDTH 10;
 
 EXTEND FORM internetOrder
     PROPERTIES(o) nameCarrier 

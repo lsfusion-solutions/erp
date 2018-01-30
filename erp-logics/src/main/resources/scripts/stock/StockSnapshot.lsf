@@ -58,16 +58,16 @@ nameIncludeStockGroups 'Группы складов (все)' (document)=
     GROUP CONCAT name(StockGroup stockGroup) IF dataInclude(SnapshotType document, stockGroup), ', ' 
     BY document 
     ORDER stockGroup
-    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    CHARWIDTH 20;
 
 nameIncludeStocks 'Склады (все)' (document)= 
     GROUP CONCAT name(Stock stock) IF dataInclude(SnapshotType document, stock), ', ' 
     BY document 
     ORDER stock
-    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    CHARWIDTH 20;
     
 nameIncludeStockGroupsStock 'Группы складов, склады (все)' (SnapshotType document) = CONCAT '; ', nameIncludeStockGroups(document), 
-                                                                                             nameIncludeStocks(document) MINCHARWIDTH 20 PREFCHARWIDTH 40;   
+                                                                                             nameIncludeStocks(document) CHARWIDTH 20;   
         
 //-- Выбор групп товара  
 TABLE snapshotTypeSkuGroup (SnapshotType, SkuGroup);  
@@ -91,7 +91,7 @@ nameIncludeSkuGroups 'Группы товаров (все)' (document)=
     GROUP CONCAT name(SkuGroup skuGroup) IF dataInclude(SnapshotType document, skuGroup), ', ' 
     BY document 
     ORDER skuGroup
-    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    CHARWIDTH 20;
 
 FORM snapshotType 'Тип аналитического отчета'
     OBJECTS t = SnapshotType PANEL
@@ -121,7 +121,7 @@ FORM snapshotType 'Тип аналитического отчета'
 ;
 DESIGN snapshotType {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW topContainer {
             caption = 'Шапка документа';
             type = CONTAINERH;
@@ -204,7 +204,7 @@ hintInBackground 'Лимонный' = RGB(255, 250, 205) IF TRUE;
 hintOutBackground 'Бороды Абдель-Керима' = RGB(213, 213, 213) IF TRUE;     // серый
 
 snapshotType= DATA SnapshotType (Snapshot);
-nameSnapshotType 'Тип отчета' = name(snapshotType(Snapshot s)) IN documentHeader MINCHARWIDTH 15  PREFCHARWIDTH 20;
+nameSnapshotType 'Тип отчета' = name(snapshotType(Snapshot s)) IN documentHeader CHARWIDTH 15;
 
 @defineDocumentHeaderTime(Snapshot);
 @defineDocumentHeaderNote(Snapshot);
@@ -648,16 +648,16 @@ nameIncludeStockGroups 'Группы складов (все)' (document)=
     GROUP CONCAT name(StockGroup stockGroup) IF dataInclude(Snapshot document, stockGroup), ', ' 
     BY document 
     ORDER stockGroup
-    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    CHARWIDTH 20;
 
 nameIncludeStocks 'Склады (все)' (document)= 
     GROUP CONCAT name(Stock stock) IF dataInclude(Snapshot document, stock), ', ' 
     BY document 
     ORDER stock
-    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    CHARWIDTH 20;
     
 nameIncludeStockGroupsStock 'Группы складов, склады (все)' (Snapshot document) = CONCAT '; ', nameIncludeStockGroups(document), 
-                                                                                             nameIncludeStocks(document) MINCHARWIDTH 20 PREFCHARWIDTH 40;   
+                                                                                             nameIncludeStocks(document) CHARWIDTH 20;   
     
 allStockInclude (Snapshot o) <- allStockInclude(snapshotType(o))
     WHEN CHANGED(snapshotType(o));  
@@ -684,7 +684,7 @@ nameIncludeSkuGroups 'Группы товаров (все)' (document)=
     GROUP CONCAT name(SkuGroup skuGroup) IF dataInclude(Snapshot document, skuGroup), ', ' 
     BY document 
     ORDER skuGroup
-    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    CHARWIDTH 20;
     
 dataInclude (Snapshot o,SkuGroup g) <- dataInclude(snapshotType(o),g) IF g IS SkuGroup
     WHEN CHANGED(snapshotType(o));  
@@ -758,7 +758,7 @@ overTakeBatchFromTo= ABSTRACT LIST (Snapshot, DATE, DATE);
 status 'Статус отчета' (Snapshot snapshot) = CASE
                                           WHEN finishTime(snapshot) THEN 'Сформирован'
                                           WHEN snapshot IS Snapshot THEN 'Не сформирован'
-                                          MINCHARWIDTH 10 PREFCHARWIDTH 15
+                                          CHARWIDTH 10
                                       ;
 backgroundStatus 'Цвет' (Snapshot snapshot) =  CASE                                             
                                           WHEN finishTime(snapshot) THEN RGB(212,255,212)
@@ -1323,11 +1323,11 @@ countDaysIn = GROUP SUM 1 IF inDays(SnapshotType t,INTEGER i) BY t;
 
 daysIn 'Числа'  = GROUP CONCAT VARSTRING[2](INTEGER i) IF inDays(SnapshotType t,i), ', '
     BY t
-    ORDER i MINCHARWIDTH 10 PREFCHARWIDTH 10;
+    ORDER i CHARWIDTH 10;
     
 DOWsIn 'Дни недели'  = GROUP CONCAT staticCaption(DOW DOW) IF in(SnapshotType t,DOW), ', '
     BY t
-    ORDER number(DOW) MINCHARWIDTH 15 PREFCHARWIDTH 30;    
+    ORDER number(DOW) CHARWIDTH 15;    
     
 EXTEND FORM snapshotTypes
     PROPERTIES READONLY AFTER name(t) DOWsIn(t), daysIn(t)
@@ -1425,7 +1425,7 @@ deleteSnapshots 'Удалить старые аналитические отче
 }
 
 
-nameFilterSnapshotSupplier 'Поставщики' = GROUP CONCAT name(LegalEntity l) IF in(l), ', ' ORDER l MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameFilterSnapshotSupplier 'Поставщики' = GROUP CONCAT name(LegalEntity l) IF in(l), ', ' ORDER l CHARWIDTH 20;
 filterSupplierSnapshot (Batch bt) = in(supplier(bt)) OR (bt IS Batch AND NOT nameFilterSnapshotSupplier());
 filterSupplierSnapshot (Sku s,Stock st)   = in(supplierLastOrderBatch(s, st)) OR (s IS Sku AND st IS Stock AND NOT nameFilterSnapshotSupplier());  
 
@@ -1811,7 +1811,7 @@ FORM snapshot 'Аналитический отчет'
 ;
 DESIGN snapshot {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         MOVE BOX(r) {
             type = CONTAINERH;
             MOVE GROUP(documentHeader,r);
@@ -2027,7 +2027,7 @@ FORM snapshots 'Аналитические отчеты'
 ;
 DESIGN snapshots {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         MOVE BOX(r);
         MOVE GROUP(created,r); 
         MOVE TOOLBARBOX;

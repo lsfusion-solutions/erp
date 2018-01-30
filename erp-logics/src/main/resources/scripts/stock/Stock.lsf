@@ -32,7 +32,7 @@ FORM stockGroups 'Группы складов'
 
 DESIGN stockGroups {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             type = SPLITH;
@@ -48,7 +48,7 @@ DESIGN stockGroups {
                     defaultComponent = TRUE;
                 }
                 PROPERTY(name(g)){
-                    minimumCharWidth = 35;
+                    charWidth = 35;
                 }
             }
         }
@@ -63,9 +63,9 @@ TABLE stockDate(Stock, DATE);
 
 @defineExternalizableAbstract(stock, VARSTRING[100]);
 
-name 'Наименование' = ABSTRACT VARISTRING[150](Stock) MATERIALIZED INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
-phone 'Телефон' = ABSTRACT VARISTRING[100](Stock) MATERIALIZED INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
-fullName 'Наименование полное' = ABSTRACT VARISTRING[150](Stock) MATERIALIZED INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+name 'Наименование' = ABSTRACT VARISTRING[150](Stock) MATERIALIZED INDEXED CHARWIDTH 20;
+phone 'Телефон' = ABSTRACT VARISTRING[100](Stock) MATERIALIZED INDEXED CHARWIDTH 20;
+fullName 'Наименование полное' = ABSTRACT VARISTRING[150](Stock) MATERIALIZED INDEXED CHARWIDTH 20;
 
 stockGroup (stock) = ABSTRACT StockGroup (Stock) MATERIALIZED INDEXED;
 nameStockGroup 'Группа' (Stock stock) = name(stockGroup (stock));
@@ -252,7 +252,7 @@ nameCountry (Stock poi) += nameCountry(poi);
 address 'Адрес' (stock) = ABSTRACT VARISTRING[100] (Stock) MATERIALIZED;
 mainAddress (Stock poi) += address(poi);
 
-email 'E-mail для заказов' (stock) = ABSTRACT VARSTRING[300] (Stock) MATERIALIZED MINCHARWIDTH 30 PREFCHARWIDTH 50;
+email 'E-mail для заказов' (stock) = ABSTRACT VARSTRING[300] (Stock) MATERIALIZED CHARWIDTH 30;
 
 //latitudeStock 'Координата X' = DATA NUMERIC[10,5](Stock);
 //longitudeStock 'Координата Y' = DATA NUMERIC[10,5](Stock);
@@ -279,10 +279,10 @@ TABLE region (Region);
 name 'Наименование' = DATA VARISTRING[100](Region);
 
 region 'Регион' (stock) = ABSTRACT Region (Stock) MATERIALIZED;
-nameRegion 'Регион' (Stock stock)= name(region(stock)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameRegion 'Регион' (Stock stock)= name(region(stock)) CHARWIDTH 20;
 
 region 'Регион' (stockGroup) = ABSTRACT Region (StockGroup) MATERIALIZED;
-nameRegion 'Регион' (StockGroup stockGroup)= name(region(stockGroup)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameRegion 'Регион' (StockGroup stockGroup)= name(region(stockGroup)) CHARWIDTH 20;
 
 FORM region 'Регион'
     OBJECTS r=Region PANEL
@@ -296,7 +296,7 @@ FORM regions 'Регионы'
     PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE 
     LIST Region OBJECT r
 ;
-DESIGN regions { BOX { preferredSize = (600, 400); } }
+DESIGN regions { BOX { size = (600, 400); } }
 
 // ----------------------------------------- Формы --------------------------------- //
 
@@ -319,7 +319,7 @@ FORM stocks 'Склады'
 
 DESIGN stocks {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             type = SPLITH;
@@ -335,7 +335,7 @@ DESIGN stocks {
                     defaultComponent = TRUE;
                 }
                 PROPERTY(stockName){
-                    minimumCharWidth = 35;
+                    charWidth = 35;
                 }
             }
         }
@@ -354,9 +354,9 @@ END
 META defineDocumentHeaderStockInner (object, stockClass, stockClassUpper, stockCaption, prefix)
     prefix###stockClass = DATA stockClassUpper(###object);
     name###prefix###stockClass stockCaption (###object object) = name(prefix###stockClass(object)) IN documentHeader
-            MINCHARWIDTH 20 PREFCHARWIDTH 20;
+            CHARWIDTH 20;
     fullName###prefix###stockClass stockCaption (###object object) = fullName(prefix###stockClass(object)) IN documentHeader
-            MINCHARWIDTH 20 PREFCHARWIDTH 20;
+            CHARWIDTH 20;
     replace(###stockClass s, ###stockClass o) += {prefix###stockClass(###object object) <- o WHERE prefix###stockClass(object) == s;}             
             
     prefix###legalEntityStock (###object object) = legalEntity(prefix###stockClass(object));
@@ -376,9 +376,9 @@ END
 META defineDocumentAbstractHeaderStockInner (object, stockClass, stockClassUpper, stockCaption, prefix)
     prefix###stockClass = ABSTRACT stockClassUpper(###object) MATERIALIZED INDEXED;
     name###prefix###stockClass stockCaption (###object object) = name(prefix###stockClass(object)) IN documentHeader
-            MINCHARWIDTH 20 PREFCHARWIDTH 20;
+            CHARWIDTH 20;
     fullName###prefix###stockClass stockCaption (###object object) = fullName(prefix###stockClass(object)) IN documentHeader
-            MINCHARWIDTH 20 PREFCHARWIDTH 20;
+            CHARWIDTH 20;
             
     prefix###legalEntityStock (###object object) = legalEntity(prefix###stockClass(object));
     name###prefix##LegalEntityStock 'Компания ('###stockCaption###')' (###object object) = name(prefix###legalEntityStock (object));
@@ -406,8 +406,8 @@ END
 
 META defineDocumentDetailStock (object, detail, stockClass, stockProp, stockCaption)
     stockProp (###detail idetail) = stockProp(object(idetail));
-    name###stockProp stockCaption (###detail idetail) = name(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-    fullName###stockProp stockCaption (###detail idetail) = fullName(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;    
+    name###stockProp stockCaption (###detail idetail) = name(stockProp(idetail)) CHARWIDTH 10;
+    fullName###stockProp stockCaption (###detail idetail) = fullName(stockProp(idetail)) CHARWIDTH 10;    
     country###stockProp (###detail idetail) = country(stockProp(idetail));
     legalEntity###stockProp (###detail idetail) = legalEntity(stockProp(idetail));
     nameLegalEntity###stockProp 'Компания ('###stockCaption###')' (###detail idetail) = name(legalEntity###stockProp (idetail));
@@ -423,8 +423,8 @@ END
 
 META defineDocumentDetailDataStockInner (object, detail, stockClass, stockClassUpper, stockProp, stockCaption)
     stockProp (###detail idetail) = stockProp(object(idetail)) MATERIALIZED;
-    name###stockProp stockCaption (###detail idetail) = name(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-    fullName###stockProp stockCaption (###detail idetail) = fullName(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;         
+    name###stockProp stockCaption (###detail idetail) = name(stockProp(idetail)) CHARWIDTH 10;
+    fullName###stockProp stockCaption (###detail idetail) = fullName(stockProp(idetail)) CHARWIDTH 10;         
     country###stockProp (###detail idetail) = country(stockProp(idetail));
     legalEntity###stockProp (###detail idetail) = legalEntity(stockProp(idetail));
     nameLegalEntity###stockProp 'Компания ('###stockCaption###')' (###detail idetail) = name(legalEntity###stockProp (idetail));
@@ -438,8 +438,8 @@ END
 
 META defineDocumentAbstractDetailDataStockInner (object, detail, stockClass, stockClassUpper, stockProp, stockCaption)
     stockProp (###detail idetail) = stockProp(object(idetail)) MATERIALIZED INDEXED;
-    name###stockProp stockCaption (###detail idetail) = name(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-    fullName###stockProp stockCaption (###detail idetail) = fullName(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;      
+    name###stockProp stockCaption (###detail idetail) = name(stockProp(idetail)) CHARWIDTH 10;
+    fullName###stockProp stockCaption (###detail idetail) = fullName(stockProp(idetail)) CHARWIDTH 10;      
     country###stockProp (###detail idetail) = country(stockProp(idetail));
     legalEntity###stockProp (###detail idetail) = legalEntity(stockProp(idetail));
     nameLegalEntity###stockProp 'Компания ('###stockCaption###')' (###detail idetail) = name(legalEntity###stockProp (idetail));
@@ -513,8 +513,8 @@ END
 // Склады
 META defineDocumentAggregationHeaderStockPrefix (primObject, aggrObject, stockClass, stockProp, stockCaption, prefixP, prefixA)
     stockProp###stockClass (###aggrObject object) = stockProp###stockClass(primObject(object)) MATERIALIZED;
-    name###stockProp###stockClass stockCaption (###aggrObject object) = name(stockProp###stockClass(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
-    fullName###stockProp###stockClass stockCaption (###aggrObject object) = fullName(stockProp###stockClass(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;    
+    name###stockProp###stockClass stockCaption (###aggrObject object) = name(stockProp###stockClass(object)) CHARWIDTH 20;
+    fullName###stockProp###stockClass stockCaption (###aggrObject object) = fullName(stockProp###stockClass(object)) CHARWIDTH 20;    
 END
 META defineDocumentAggregationHeaderStock (primObject, aggrObject, stockClass, stockProp, stockCaption)
     @defineDocumentAggregationHeaderStockPrefix (primObject, aggrObject, stockClass, stockProp, stockCaption, , );
@@ -554,7 +554,7 @@ FORM stocksCompany 'Собственные склады'
 
 DESIGN stocksCompany {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             type = SPLITH;
@@ -596,7 +596,7 @@ FORM companyStocks 'Склады'
 
 DESIGN companyStocks {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             type = SPLITH;
@@ -638,7 +638,7 @@ FORM supplierStocks 'Склады'
 
 DESIGN supplierStocks {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             type = SPLITH;
@@ -680,7 +680,7 @@ FORM customerStocks 'Склады'
 
 DESIGN customerStocks {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             type = SPLITH;
@@ -696,7 +696,7 @@ DESIGN customerStocks {
                     defaultComponent = TRUE;
                 }
                 PROPERTY(stockName){
-                    minimumCharWidth = 40;
+                    charWidth = 40;
                 }
             }
         }
@@ -762,7 +762,7 @@ FORM companysStock 'Склады'
 
 DESIGN companysStock {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             type = SPLITH;
@@ -803,7 +803,7 @@ FORM suppliersStock 'Склады'
 
 DESIGN suppliersStock {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             type = SPLITH;
@@ -844,7 +844,7 @@ FORM customersStock 'Склады'
 
 DESIGN customersStock {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             type = SPLITH;
@@ -860,7 +860,7 @@ DESIGN customersStock {
                     defaultComponent = TRUE;
                 }
                 PROPERTY(stockName){
-                    minimumCharWidth = 40;
+                    charWidth = 40;
                 }
             }
         }

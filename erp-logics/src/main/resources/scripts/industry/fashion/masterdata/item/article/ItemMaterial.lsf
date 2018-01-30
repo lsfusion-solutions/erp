@@ -28,7 +28,7 @@ FORM materials 'Материалы'
     ORDER name(t)
     LIST Material OBJECT t
 ;
-DESIGN materials { BOX { preferredSize = (600, 400); } }
+DESIGN materials { BOX { size = (600, 400); } }
 
 TABLE materialItem (Material, Item);
 percent 'Процент' = DATA INTEGER (Material, Item);
@@ -37,7 +37,7 @@ percentMaterials 'Процент' (i) = GROUP SUM percent(Material m,Item i) BY 
 
 calcComposition 'Состав' (Item i) = VARSTRING[255](
                        [= GROUP CONCAT (percent(Material m,Item i)+'% '+name(m)) IF percent(m,i), ', ' BY i ORDER DESC percent(m,i)](i))
-                       MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 MATERIALIZED;
+                       CHARWIDTH 50 MATERIALIZED;
 
 WHEN LOCAL FORMS item CHANGED(calcComposition(Item i)) DO {
     composition(i) <- calcComposition(i);            
@@ -55,14 +55,14 @@ FORM itemMaterial 'Материалы'
     PROPERTIES(t) NEWSESSION NEW, EDIT
     ORDER name(t)
 ;
-DESIGN itemMaterial { BOX { preferredSize = (600, 400); } }     
+DESIGN itemMaterial { BOX { size = (600, 400); } }     
 
 createComposition 'Выбрать состав'(Item item) = {          
     SHOW itemMaterial OBJECTS i = item ; 
 } ASON CONTEXTMENU composition[Item];  
 
 //добавление на форму атрибутов товара
-in 'Отм.' = DATA BOOLEAN (Material) MAXCHARWIDTH 5;
+in 'Отм.' = DATA BOOLEAN (Material);
 allowReplaceMaterial = DATA LOCAL BOOLEAN ();
 
 FORM confirmReplaceMaterial 'Объединяемые материалы'

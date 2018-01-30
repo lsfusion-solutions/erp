@@ -11,8 +11,8 @@ CLASS Article 'Артикул';
 TABLE article(Article);
 
 @defineExternalizable(article, VARSTRING[100]);
-caption 'Название' = DATA VARISTRING[255](Article) IN itemBase MINCHARWIDTH 20 PREFCHARWIDTH 40;
-originalCaption 'Наименование (ориг.)' = DATA VARISTRING[100] (Article) IN itemOriginal MINCHARWIDTH 20 PREFCHARWIDTH 40;
+caption 'Название' = DATA VARISTRING[255](Article) IN itemBase CHARWIDTH 20;
+originalCaption 'Наименование (ориг.)' = DATA VARISTRING[100] (Article) IN itemOriginal CHARWIDTH 20;
 
 itemGroup 'Группа товара' = DATA ItemGroup(Article);
 nameItemGroup 'Группа товара' (Article Article) = name(itemGroup(Article));
@@ -38,7 +38,7 @@ WHEN LOCAL CHANGED(itemGroup(Article a)) AND NOT caption(a) DO
 
 TABLE itemGroupArticle(ItemGroup, Article);
 isParent(ItemGroup group, Article article) = isParent(itemGroup(article), group) MATERIALIZED INDEXED;
-canonicalNameItemGroup 'Группа товара' (Article article) = canonicalName[Group](itemGroup(article)) MINCHARWIDTH 40 PREFCHARWIDTH 80;
+canonicalNameItemGroup 'Группа товара' (Article article) = canonicalName[Group](itemGroup(article)) CHARWIDTH 40;
 
 // --- Дополнительные группы
 TABLE customGroupTypeArticle(CustomGroupType, Article);
@@ -155,7 +155,7 @@ FORM articles 'Артикулы'
 
 DESIGN articles {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW rootContainer {
             fill = 1;
             type = SPLITH;
@@ -234,7 +234,7 @@ FORM colors 'Цвета товара'
     ORDER name(t)
     LIST Color OBJECT t
 ;
-DESIGN colors { BOX { preferredSize = (600, 400); } }
+DESIGN colors { BOX { size = (600, 400); } }
 
 @extendFormEditable(colors);
 @defineObjectItemAttribute(color, Color, name, 'Цвет', itemArticle);
@@ -273,8 +273,8 @@ EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameCo
 //  Ед. изм.
 UOM  = DATA UOM (Article);
 idUOM 'Единица измерения' (Article article) = id(UOM(article));
-nameUOM 'Единица измерения' (Article article) = name(UOM(article)) IN itemBase MINCHARWIDTH 10 PREFCHARWIDTH 10;
-shortNameUOM 'Краткое наименование' (Article article)=  shortName(UOM(article)) IN itemBase MINCHARWIDTH 3 PREFCHARWIDTH 6;
+nameUOM 'Единица измерения' (Article article) = name(UOM(article)) IN itemBase CHARWIDTH 10;
+shortNameUOM 'Краткое наименование' (Article article)=  shortName(UOM(article)) IN itemBase CHARWIDTH 3;
 
 WHEN LOCAL CHANGED(itemGroup(Article a)) AND NOT UOM(a) DO
     UOM(a) <- UOM(itemGroup(a));
@@ -282,15 +282,15 @@ overReplace (UOM new,UOM o) += {
     UOM(Article article) <- new WHERE UOM(article) == o;
 }
 //  Состав
-composition 'Состав' = DATA VARSTRING[255] (Article) IN itemBase MINCHARWIDTH 30 PREFCHARWIDTH 40;
-originalComposition 'Состав (ориг.)' = DATA VARSTRING[255] (Article) IN itemOriginal MINCHARWIDTH 30 PREFCHARWIDTH 40;
+composition 'Состав' = DATA VARSTRING[255] (Article) IN itemBase CHARWIDTH 30;
+originalComposition 'Состав (ориг.)' = DATA VARSTRING[255] (Article) IN itemOriginal CHARWIDTH 30;
 
 EXTEND FORM article PROPERTIES(a) composition, originalComposition, nameUOM;
 EXTEND FORM articles PROPERTIES(a) BEFORE nameColor(a) READONLYIF isReadonly() nameUOM, composition, originalComposition;
 
 //  Габариты
-netWeight 'Вес нетто, кг' = DATA NUMERIC[11,5] (Article) IN itemSize;// MINCHARWIDTH 8 PREFCHARWIDTH 12;
-grossWeight 'Вес брутто, кг' = DATA NUMERIC[11,5] (Article) IN itemSize;// MINCHARWIDTH 8 PREFCHARWIDTH 12;
+netWeight 'Вес нетто, кг' = DATA NUMERIC[11,5] (Article) IN itemSize;// CHARWIDTH 8;
+grossWeight 'Вес брутто, кг' = DATA NUMERIC[11,5] (Article) IN itemSize;// CHARWIDTH 8;
 
 EXTEND FORM article PROPERTIES(a) netWeight, grossWeight;
 DESIGN article {
@@ -322,7 +322,7 @@ FORM genders 'Пол'
     ORDER name(t)
     LIST Gender OBJECT t
 ;
-DESIGN genders { BOX { preferredSize = (600, 400); } }
+DESIGN genders { BOX { size = (600, 400); } }
 
 gender  = DATA Gender (Brand);
 nameGender 'Пол' (Brand b) = name(gender(b)) IN itemArticle;
@@ -353,7 +353,7 @@ TABLE size(Size);
 
 @defineExternalizable(size, VARSTRING[100]);
 
-name 'Наименование' = DATA VARISTRING[50](Size) MINCHARWIDTH 5 PREFCHARWIDTH 10;
+name 'Наименование' = DATA VARISTRING[50](Size) CHARWIDTH 5;
 sizeName = GROUP MAX Size size BY name(size);
 shortName 'Краткое наименование' = DATA ISTRING[10](Size);
 order 'Порядок' = DATA INTEGER (Size);
@@ -374,13 +374,13 @@ FORM sizes 'Размеры товара'
     ORDER name(t)
     LIST Size OBJECT t
 ;
-DESIGN sizes { BOX { preferredSize = (600, 400); } }
+DESIGN sizes { BOX { size = (600, 400); } }
 
 @defineObjectItemAttribute(size, Size, name, 'Размер', itemArticle);
 
 nameOriginalSize 'Размер (оригинальный)' (Item item) = nameOriginal(size(item)) IN itemArticle;
 dataOriginalSize 'Размер (оригинальный)' = DATA VARISTRING[50](Item);
-originalSize 'Размер (оригинальный)' (Item i) = OVERRIDE dataOriginalSize(i), nameOriginalSize(i) MINCHARWIDTH 3 PREFCHARWIDTH 5;
+originalSize 'Размер (оригинальный)' (Item i) = OVERRIDE dataOriginalSize(i), nameOriginalSize(i) CHARWIDTH 3;
 @implementItemAttribute(originalSize, 'Размер (оригинальный)', String, itemOriginalSize);
 
 @defineObjectItemAttributeBatch (size, nameSize, 'Размер');
@@ -495,7 +495,7 @@ FORM sizeGroups 'Размерные сетки'
      
     LIST SizeGroup OBJECT t
 ;
-DESIGN sizes { BOX { preferredSize = (600, 400); } }
+DESIGN sizes { BOX { size = (600, 400); } }
 
 sizeGroup = DATA SizeGroup (Article);
 nameSizeGroup 'Размерная сетка' (Article a) = name(sizeGroup(a)) IN itemArticle;

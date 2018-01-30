@@ -48,7 +48,7 @@ in 'Вкл.' = DATA BOOLEAN (Stock ,StopList);
 stocks 'Склады' (stopList) = GROUP CONCAT name(Stock stock) IF in(stock, StopList stopList) , ', '
                                          BY stopList
                                          ORDER stock
-                                         MINCHARWIDTH 30 PREFCHARWIDTH 50;
+                                         CHARWIDTH 30;
 CONSTRAINT  in(Stock stock, StopList stopList) AND NOT isCompany(stock)
     MESSAGE 'Для Запрета продаж по кассе выбран склад, который не принадлежит компании';                                       
                                          
@@ -82,7 +82,7 @@ toExport 'К загрузке' = countStocks(StopList l) AND NOT succeeded(l);
 statusSucceededStocks 'Статус загрузки' = CASE 
     WHEN succeeded(StopList l) AND isPosted(l) THEN 'Успешно загружен'
     WHEN countSucceededStocks(l) < countStocks(l)  AND isPosted(l) THEN 'Частично загружен'
-    WHEN  l IS StopList THEN 'Не загружался' MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    WHEN  l IS StopList THEN 'Не загружался' CHARWIDTH 10;
     
 backgroundStatusSucceededStocks = CASE 
     WHEN succeeded(StopList l) AND isPosted(l)  THEN RGB(212,255,212)
@@ -203,7 +203,7 @@ FORM stopList 'Запрет продаж по кассе'
 
 DESIGN stopList {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW headerBox {
             type = CONTAINERH;
 
@@ -212,7 +212,7 @@ DESIGN stopList {
                 type = CONTAINERV;
                 MOVE GROUP(documentHeader,sl) {
                     type = CONTAINERH;
-                    MOVE PROPERTY(isPosted(sl)) { minimumCharWidth = 10; }
+                    MOVE PROPERTY(isPosted(sl)) { charWidth = 10; }
                     MOVE PROPERTY(nameNumerator(sl));
                     MOVE PROPERTY(number(sl));
                     MOVE PROPERTY(series(sl));
@@ -300,7 +300,7 @@ FORM stopLists 'Запреты продаж по оборудованию'
 
 DESIGN stopLists {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW documentContainer  {
             fill = 1;
             type = SPLITV;
@@ -348,7 +348,7 @@ NAVIGATOR {
 //--
 statusStopList 'Запрет продаж' (Sku sku, Stock stock)= IF lastStopListDetail(sku, stock, currentDateTime())
     THEN 'В стоп-листе'
-    ELSE 'Нет запрета' MINCHARWIDTH 10 PREFCHARWIDTH 12;
+    ELSE 'Нет запрета' CHARWIDTH 10;
 backgroundStopList 'Цвет' (Sku sku, Stock stock) = RGB (255,0,0) IF lastStopListDetail(sku, stock, currentDateTime());
 
 

@@ -100,8 +100,8 @@ currency (ProductDetail productDetail) = currencyProduct(order(productDetail));
 @defineDocumentDetailStock (order, productDetail, stock, componentsStock, 'Склад компонент');
 //@defineDocumentDetailStock (order, productDetail, stock, productsStock, 'Склад изделий');
     productsStock (ProductDetail idetail) = productsStock(order(idetail)) MATERIALIZED;
-    nameProductsStock 'Склад изделий' (ProductDetail idetail) = name(productsStock(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-    fullNameProductsStock 'Склад изделий' (ProductDetail idetail) = fullName(productsStock(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;    
+    nameProductsStock 'Склад изделий' (ProductDetail idetail) = name(productsStock(idetail)) CHARWIDTH 10;
+    fullNameProductsStock 'Склад изделий' (ProductDetail idetail) = fullName(productsStock(idetail)) CHARWIDTH 10;    
     countryProductsStock (ProductDetail idetail) = country(productsStock(idetail));
     legalEntityProductsStock (ProductDetail idetail) = legalEntity(productsStock(idetail));
     nameLegalEntityProductsStock 'Компания (Склад изделий)' (ProductDetail idetail) = name(legalEntityProductsStock (idetail));
@@ -324,7 +324,7 @@ hideBatch = ABSTRACT VALUE BOOLEAN (ComponentDetail);
 showBatch(ComponentDetail d) = d IS ComponentDetail AND NOT hideBatch(d);
  
 batch = DATA Batch (ComponentDetail) INDEXED;
-nameBatch 'Партия' (ComponentDetail d) = name(batch(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+nameBatch 'Партия' (ComponentDetail d) = name(batch(d)) CHARWIDTH 20;
 
 FORM dialogBatchStockOrder 'Партии'
     OBJECTS st = Stock PANEL
@@ -618,7 +618,7 @@ FORM substitutesSku 'Замены'
 
 DESIGN substitutesSku {
     BOX {
-        preferredSize = (1200, 768);
+        size = (1200, 768);
 
         NEW topContainer {
             type = SPLITH;
@@ -1174,7 +1174,7 @@ FORM order 'Производственный заказ'
 DESIGN order {
 
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW specificationBox BEFORE TOOLBARBOX{
             fill = 1;
             type = TABBED;
@@ -1237,7 +1237,7 @@ DESIGN order {
             NEW headerRow1 {
                 MOVE GROUP(documentHeader,o) {
                     type = CONTAINERH;
-                    MOVE PROPERTY(isPosted(o)) { minimumCharWidth = 10; }
+                    MOVE PROPERTY(isPosted(o)) { charWidth = 10; }
                     MOVE PROPERTY(nameNumerator(o));
                     MOVE PROPERTY(number(o));
                     MOVE PROPERTY(series(o));
@@ -1290,7 +1290,7 @@ DESIGN order {
         PROPERTY(formOk()) {
             caption = 'Провести';
         }
-        PROPERTY(sumProductDetail(o)) { minimumCharWidth = 13;}
+        PROPERTY(sumProductDetail(o)) { charWidth = 13;}
     }
 }
 
@@ -1427,19 +1427,19 @@ filterOrderDateTo 'Дата по' = DATA LOCAL DATE ();
 filterDateTo (Order i) = date(i) <= filterOrderDateTo() OR (i IS Order AND NOT filterOrderDateTo());      
  
 filterOrderComponentsStock  = DATA LOCAL Stock ();
-nameFilterOrderComponentsStock 'Склад компонент' = name(filterOrderComponentsStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+nameFilterOrderComponentsStock 'Склад компонент' = name(filterOrderComponentsStock()) CHARWIDTH 15;          
 filterComponentsStock (Order i) = componentsStock(i) == filterOrderComponentsStock() OR (i IS Order AND NOT filterOrderComponentsStock());    
 
 filterOrderProductsStock  = DATA LOCAL Stock ();
-nameFilterOrderProductsStock 'Склад изделий' = name(filterOrderProductsStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+nameFilterOrderProductsStock 'Склад изделий' = name(filterOrderProductsStock()) CHARWIDTH 15;          
 filterProductsStock (Order i) = productsStock(i) == filterOrderProductsStock() OR (i IS Order AND NOT filterOrderProductsStock());      
 
 filterOrderCustomUser  = DATA LOCAL CustomUser ();
-nameFilterOrderCustomUser 'Создан пользователем' = name[Contact](filterOrderCustomUser()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+nameFilterOrderCustomUser 'Создан пользователем' = name[Contact](filterOrderCustomUser()) CHARWIDTH 15;          
 filterCustomUser (Order i) = createdUser(i) == filterOrderCustomUser() OR (i IS Order AND NOT filterOrderCustomUser());  
 
 filterOrderComputer = DATA LOCAL Computer ();
-nameFilterOrderComputer 'Создан на компьютере' = hostname(filterOrderComputer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+nameFilterOrderComputer 'Создан на компьютере' = hostname(filterOrderComputer()) CHARWIDTH 15;          
 filterComputer (Order i) = createdComputer(i) == filterOrderComputer() OR (i IS Order AND NOT filterOrderComputer());
 
 CONSTRAINT filterOrderProductsStock() AND NOT isCompany(filterOrderProductsStock())
@@ -1704,7 +1704,7 @@ DESIGN operation {
 }
 
 filterOrderOperation = DATA LOCAL Operation ();
-nameFilterOrderOperation 'Операция' = name(filterOrderOperation()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+nameFilterOrderOperation 'Операция' = name(filterOrderOperation()) CHARWIDTH 15;          
 filterOperation (Order i) = operation(i) == filterOrderOperation() OR (i IS Order AND NOT filterOrderOperation());
 
 EXTEND FORM orders

@@ -20,12 +20,12 @@ toDate(Sanitation certificate) += toDate(certificate);
 
 // ------ Номер ----------- //
 
-number 'Номер' = DATA VARISTRING[100] (Sanitation) NONULL IN numbered MINCHARWIDTH 10;
+number 'Номер' = DATA VARISTRING[100] (Sanitation) NONULL IN numbered CHARWIDTH 10;
 series 'Серия' = DATA STRING[2] (Sanitation) IN numbered FIXEDCHARWIDTH 3; 
 
 seriesNumber 'Серия/Номер' (Sanitation o) = 
     CONCAT '', series(o), number(o) 
-    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 MATERIALIZED;
+    CHARWIDTH 7 MATERIALIZED;
 
 series(Sanitation certificate) += series(certificate);
 number(Sanitation certificate) += number(certificate);
@@ -34,7 +34,7 @@ sanitation = GROUP AGGR Sanitation s BY number (s);
 
 // Описание
 description 'Удостоверение гигиенической регистрации' (Sanitation sanitation) = CONCAT ' ', seriesNumber(sanitation),
-                                                 'от ' + fromDate(sanitation), 'по ' + toDate(sanitation) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+                                                 'от ' + fromDate(sanitation), 'по ' + toDate(sanitation) CHARWIDTH 20;
 // История                                                 
 @defineDocumentHeaderCreated(Sanitation);                                                 
 
@@ -58,7 +58,7 @@ DESIGN sanitation {
             NEW header {
                 caption = 'Шапка документа';
                 type = CONTAINERH;
-                MOVE PROPERTY (number(c)) { minimumCharWidth = 70;};
+                MOVE PROPERTY (number(c)) { charWidth = 70;};
                 MOVE PROPERTY (series(c));
                 MOVE PROPERTY (date(c));
                 MOVE PROPERTY (time(c));
@@ -113,7 +113,7 @@ FORM sanitations 'Удостоверения гигиенической реги
 
 DESIGN sanitations {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW header {
             fill = 1;
             type = SPLITV;

@@ -93,16 +93,16 @@ nameIncludeStockGroups 'Группы складов (все)' (document)=
     GROUP CONCAT name(StockGroup stockGroup) IF dataInclude(Operation document, stockGroup), ', ' 
     BY document 
     ORDER stockGroup
-    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    CHARWIDTH 20;
 
 nameIncludeStocks 'Склады (все)' (document)= 
     GROUP CONCAT name(Stock stock) IF dataInclude(Operation document, stock), ', ' 
     BY document 
     ORDER stock
-    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    CHARWIDTH 20;
     
 nameIncludeStockGroupsStock 'Группы складов, склады (все)' (Operation document) = CONCAT '; ', nameIncludeStockGroups(document), 
-                                                                                             nameIncludeStocks(document) MINCHARWIDTH 20 PREFCHARWIDTH 40;   
+                                                                                             nameIncludeStocks(document) CHARWIDTH 20;   
         
 //-- Выбор групп товара  
 TABLE OperationSkuGroup (Operation, SkuGroup);  
@@ -126,7 +126,7 @@ nameIncludeSkuGroups 'Группы товаров (все)' (document)=
     GROUP CONCAT name(SkuGroup skuGroup) IF dataInclude(Operation document, skuGroup), ', ' 
     BY document 
     ORDER skuGroup
-    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    CHARWIDTH 20;
 
 FORM operation 'Операции ABC-отчет'
     OBJECTS t = Operation PANEL
@@ -155,7 +155,7 @@ FORM operation 'Операции ABC-отчет'
 ;
 DESIGN operation {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW topContainer {
             caption = 'Шапка документа';
             type = CONTAINERH;
@@ -203,7 +203,7 @@ CLASS SnapshotABC 'ABC-анализ';
 TABLE snapshotABC (SnapshotABC);
 
 operation = DATA Operation (SnapshotABC);
-nameOperation 'Операция отчета' = name(operation(SnapshotABC s)) IN documentHeader MINCHARWIDTH 15  PREFCHARWIDTH 20;
+nameOperation 'Операция отчета' = name(operation(SnapshotABC s)) IN documentHeader CHARWIDTH 15;
 
 @defineDocumentHeaderTime(SnapshotABC);
 @defineDocumentHeaderNote(SnapshotABC);
@@ -238,7 +238,7 @@ percC 'C, %' = DATA NUMERIC[8,3](SnapshotABC);
 
 groupType 'Тип классификатора SKU' = DATA GroupType (SnapshotABC);
 @deriveDocumentSnapshotABCProperty(groupType);
-nameGroupType 'Тип классификатора SKU' (SnapshotABC s) = name(groupType(s)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+nameGroupType 'Тип классификатора SKU' (SnapshotABC s) = name(groupType(s)) CHARWIDTH 10;
 
 levelGroup 'Уровень групп товаров' = DATA LONG (SnapshotABC);
 @deriveDocumentSnapshotABCProperty(levelGroup);
@@ -294,16 +294,16 @@ nameIncludeStockGroups 'Группы складов (все)' (document)=
     GROUP CONCAT name(StockGroup stockGroup) IF dataInclude(SnapshotABC document, stockGroup), ', ' 
     BY document 
     ORDER stockGroup
-    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    CHARWIDTH 20;
 
 nameIncludeStocks 'Склады (все)' (document)= 
     GROUP CONCAT name(Stock stock) IF dataInclude(SnapshotABC document, stock), ', ' 
     BY document 
     ORDER stock
-    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    CHARWIDTH 20;
     
 nameIncludeStockGroupsStock 'Группы складов, склады (все)' (SnapshotABC document) = CONCAT '; ', nameIncludeStockGroups(document), 
-                                                                                             nameIncludeStocks(document) MINCHARWIDTH 20 PREFCHARWIDTH 40;   
+                                                                                             nameIncludeStocks(document) CHARWIDTH 20;   
     
 allStockInclude (SnapshotABC o) <- allStockInclude(operation(o))
     WHEN CHANGED(operation(o));  
@@ -334,7 +334,7 @@ nameIncludeSkuGroups 'Группы товаров (все)' (document)=
     GROUP CONCAT name(SkuGroup skuGroup) IF dataInclude(SnapshotABC document, skuGroup), ', ' 
     BY document 
     ORDER skuGroup
-    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    CHARWIDTH 20;
     
 dataInclude (SnapshotABC o,SkuGroup g) <- dataInclude(operation(o),g) IF g IS SkuGroup
     WHEN CHANGED(operation(o));  
@@ -357,17 +357,17 @@ indexMarkupBest 'Номер п/п (доход)' = DATA INTEGER (Sku, SnapshotABC
 partitionMarkupBest = DATA NUMERIC[18,4] (Sku, SnapshotABC);  // сумма с накоплением
 
 percMarkupOrder 'Накопленный процент (доход)' = DATA NUMERIC[18,4] (Sku, SnapshotABC);
-statusMarkup 'Рейтинг (доход)' = DATA VARISTRING[1] (Sku, SnapshotABC) MINCHARWIDTH 7 PREFCHARWIDTH 7;
+statusMarkup 'Рейтинг (доход)' = DATA VARISTRING[1] (Sku, SnapshotABC) CHARWIDTH 7;
 
 percInSumSold 'Удельный вес (сумма), %'= DATA NUMERIC[18,4] (Sku, SnapshotABC);
 indexSumBest 'Номер п/п (сумма)' = DATA INTEGER (Sku, SnapshotABC);
 partitionSumBest = DATA NUMERIC[18,4] (Sku, SnapshotABC);  // сумма с накоплением
 
 percSumOrder 'Накопленный процент (сумма)' = DATA NUMERIC[18,4] (Sku, SnapshotABC);
-statusSum 'Рейтинг (сумма)' = DATA VARISTRING[1] (Sku, SnapshotABC) MINCHARWIDTH 7 PREFCHARWIDTH 7;
+statusSum 'Рейтинг (сумма)' = DATA VARISTRING[1] (Sku, SnapshotABC) CHARWIDTH 7;
 
-statusAll 'Рейтинг ABC' = DATA VARISTRING[2] (Sku, SnapshotABC) MINCHARWIDTH 7 PREFCHARWIDTH 7;
-statusGlobal 'Рейтинг общий' = DATA VARISTRING[3] (Sku, SnapshotABC) MINCHARWIDTH 7 PREFCHARWIDTH 7;
+statusAll 'Рейтинг ABC' = DATA VARISTRING[2] (Sku, SnapshotABC) CHARWIDTH 7;
+statusGlobal 'Рейтинг общий' = DATA VARISTRING[3] (Sku, SnapshotABC) CHARWIDTH 7;
 
 backgroundStatusMarkup(Sku sku, SnapshotABC s) = CASE 
     WHEN  statusMarkup(sku,s) == 'A' THEN RGB(204,255,204)
@@ -384,7 +384,7 @@ averageSold 'Средняя продажа за день' = DATA NUMERIC[16,5] (
 dispersionSold 'Дисперсия однодневных продаж' = DATA NUMERIC[16,5] (Sku, SnapshotABC);
 percKoeffVar 'Коэффициент вариации' = DATA NUMERIC[14,4] (Sku, SnapshotABC);
 
-statusQuantity 'Рейтинг XYZ' = DATA VARISTRING[1] (Sku, SnapshotABC) MINCHARWIDTH 7 PREFCHARWIDTH 7;
+statusQuantity 'Рейтинг XYZ' = DATA VARISTRING[1] (Sku, SnapshotABC) CHARWIDTH 7;
 backgroundStatusQuantity(Sku sku, SnapshotABC s) = CASE 
     WHEN  statusQuantity(sku,s) == 'X' THEN RGB(204,255,204)
     WHEN  statusQuantity(sku,s) == 'Y' THEN RGB(255, 250, 205)
@@ -414,7 +414,7 @@ sumSold 'Выручка'(group, SnapshotABC snapshot) =
 status 'Статус отчета' (SnapshotABC snapshot) = CASE
                                           WHEN finishTime(snapshot) THEN 'Сформирован'
                                           WHEN snapshot IS SnapshotABC THEN 'Не сформирован'
-                                          MINCHARWIDTH 10 PREFCHARWIDTH 15
+                                          CHARWIDTH 10
                                       ;
 backgroundStatus 'Цвет' (SnapshotABC snapshot) =  CASE                                             
                                           WHEN finishTime(snapshot) THEN RGB(212,255,212)
@@ -618,11 +618,11 @@ countDaysIn = GROUP SUM 1 IF inDays(Operation t,INTEGER i) BY t;
 
 daysIn 'Числа'  = GROUP CONCAT VARSTRING[2](INTEGER i) IF inDays(Operation t,i), ', '
     BY t
-    ORDER i MINCHARWIDTH 10 PREFCHARWIDTH 10;
+    ORDER i CHARWIDTH 10;
     
 DOWsIn 'Дни недели'  = GROUP CONCAT staticCaption(DOW DOW) IF in(Operation t,DOW), ', '
     BY t
-    ORDER number(DOW) MINCHARWIDTH 15 PREFCHARWIDTH 30;    
+    ORDER number(DOW) CHARWIDTH 15;    
     
 EXTEND FORM operations
     PROPERTIES READONLY AFTER name(t) DOWsIn(t), daysIn(t)
@@ -787,7 +787,7 @@ FORM snapshotABC 'ABC-отчет'
 
 DESIGN snapshotABC {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         MOVE BOX(r) {
             type = CONTAINERH;
             MOVE GROUP(documentHeader,r);
@@ -824,8 +824,8 @@ DESIGN snapshotABC {
                     NEW itogi {
                         caption = 'Итоги';
                         type = CONTAINERH;
-                        MOVE PROPERTY(markupSumSold(r)) { minimumCharWidth = 15;}
-                        MOVE PROPERTY(sumSold(r)) { minimumCharWidth = 15;}
+                        MOVE PROPERTY(markupSumSold(r)) { charWidth = 15;}
+                        MOVE PROPERTY(sumSold(r)) { charWidth = 15;}
                     }
                 
                 NEW select{
@@ -889,7 +889,7 @@ FORM snapshotsABC 'ABC-отчеты'
 ;
 DESIGN snapshotsABC {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         MOVE BOX(r);
         MOVE GROUP(created,r); 
         MOVE TOOLBARBOX;

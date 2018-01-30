@@ -5,9 +5,9 @@ REQUIRE Utils, Historizable, Security, DefaultData;
 CLASS ABSTRACT Operation 'Операция';
 TABLE operation(Operation);
 
-name 'Наименование' = ABSTRACT VARISTRING[100](Operation) PREFCHARWIDTH 30;
-nameReturn 'Наименование' = ABSTRACT VARISTRING[100](Operation) PREFCHARWIDTH 30;
-overName 'Наименование' = OVERRIDE nameReturn(Operation o), name(o) PREFCHARWIDTH 40;
+name 'Наименование' = ABSTRACT VARISTRING[100](Operation) CHARWIDTH 30;
+nameReturn 'Наименование' = ABSTRACT VARISTRING[100](Operation) CHARWIDTH 30;
+overName 'Наименование' = OVERRIDE nameReturn(Operation o), name(o) CHARWIDTH 40;
 
 id 'ID' = ABSTRACT VARISTRING[100](Operation);
 
@@ -37,7 +37,7 @@ META defineOperation(postfix, navigator)
 
     @defineCreated(Operation);
     
-    name 'Наименование' = DATA VARISTRING[100](Operation) PREFCHARWIDTH 30;
+    name 'Наименование' = DATA VARISTRING[100](Operation) CHARWIDTH 30;
     name(Operation operation) += name(operation);
     
     priceRound 'Количество знаков для округления сумм документов' = DATA INTEGER (Operation);
@@ -56,7 +56,7 @@ META defineOperation(postfix, navigator)
 
     DESIGN operation {
         BOX {
-            preferredSize = (1024, 768);
+            size = (1024, 768);
             NEW topContainer{
                 fill = 1;
                 type = CONTAINERV;
@@ -169,7 +169,7 @@ META defineDocumentOperation(object, char, befProp, befProperty)
         char.documentPrm{
             MOVE PROPERTY(name###operationUser###object) BEFORE PROPERTY(befProp###object);
         }
-        PROPERTY(name###operationUser###object) {minimumCharWidth = 30;} 
+        PROPERTY(name###operationUser###object) {charWidth = 30;} 
     }
     EXTEND FORM object##s
         PROPERTIES(char) READONLYIF isReadonly() name###operation###object BEFORE befProperty###object(char)
@@ -210,7 +210,7 @@ META defineDocumentOperationContainer(object, char, afProp, befProperty, contPro
         contProp {
             MOVE PROPERTY(nameOperation(char));
         }
-        PROPERTY(nameOperation(char)) {minimumCharWidth = 30;} 
+        PROPERTY(nameOperation(char)) {charWidth = 30;} 
     }
     EXTEND FORM object##s
         PROPERTIES(char) READONLYIF isReadonly() BACKGROUND backgroundOperation(char) nameOperation BEFORE befProperty(char)
@@ -613,7 +613,7 @@ END
 META defineOperationFilterProperty(object, objectClass, concrete, form, container, befProp)
     
     filter###object##Operation  = DATA LOCAL Operation ();
-    nameFilter###object##Operation 'Операция' = name(filter###object##Operation()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilter###object##Operation 'Операция' = name(filter###object##Operation()) CHARWIDTH 15;          
     filterOperation (###object concrete) = operation(concrete) == filter###object##Operation() OR (concrete IS objectClass AND NOT filter###object##Operation());   
 
 

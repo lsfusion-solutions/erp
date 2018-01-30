@@ -29,14 +29,14 @@ descriptionOrders 'Заказы' (r,i,d)=
     GROUP CONCAT description(Order o) IF in(o,Ramp r,Interval i), ', ' 
     BY r,i,shipmentDate(o)
     ORDER o 
-    MINCHARWIDTH 30 PREFCHARWIDTH 50;   
+    CHARWIDTH 30;   
 
 //nameSupplierOrdersRampIntervalDate 'Поставщик' (r,i,d) = nameSupplierOrder(orderRampIntervalDate(r,i,d));
 nameSupplierOrders 'Поставщики' (r,i,d)= 
     GROUP CONCAT name(LegalEntity s) IF countSupplier (Ramp r,Interval i,DATE d,s), ', ' 
     BY r,i,d
     ORDER s 
-    MINCHARWIDTH 30 PREFCHARWIDTH 50;   
+    CHARWIDTH 30;   
     
 //nameCustomerOrdersRampIntervalDate 'Покупатель' (r,i,d) = nameCustomerOrder(orderRampIntervalDate(r,i,d)); 
 countCustomer (r,i,d,c)= GROUP SUM 1 IF in(Order o,Ramp r,Interval i) BY r,i,shipmentDate(o), customer(o); 
@@ -44,7 +44,7 @@ nameCustomerOrders 'Покупатели' (r,i,d)=
     GROUP CONCAT name(LegalEntity c) IF countCustomer (Ramp r,Interval i,DATE d,c), ', ' 
     BY r,i,d
     ORDER c 
-    MINCHARWIDTH 30 PREFCHARWIDTH 50;   
+    CHARWIDTH 30;   
 descriptionOrders'Заказы' (Ramp r,Interval i,Order o) =  descriptionOrders(r,i,shipmentDate(o));    
 nameSupplierOrders 'Поставщики' (Ramp r,Interval i,Order o) = nameSupplierOrders(r,i,shipmentDate(o));
 nameCustomerOrders 'Покупатели' (Ramp r,Interval i,Order o) = nameCustomerOrders(r,i,shipmentDate(o));
@@ -53,7 +53,7 @@ descriptionRamps 'Рампы' (o)=
     GROUP CONCAT (CONCAT ' ', [= FORMULA STRING[10] 'to_char($1,\'DD.MM.YYYY\')'](shipmentDate(Order o)), time(Interval i), '№ '+name(Ramp r)) IF in(o,r,i), ', ' 
     BY o
     ORDER shipmentDate(o), name(r), time(i) 
-    MINCHARWIDTH 20 PREFCHARWIDTH 30;            
+    CHARWIDTH 20;            
 
 defaultShipmentTimeDate (o)= GROUP MIN time(Interval i) IF in(Order o,Ramp r,i) BY o;
 
@@ -90,7 +90,7 @@ FORM orderRamp 'Рампы'
 ;
 DESIGN orderRamp {
     BOX { 
-        preferredSize = (800, 800); 
+        size = (800, 800); 
         MOVE BOX(o);
         NEW row {
             type = SPLITV;

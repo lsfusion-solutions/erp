@@ -10,7 +10,7 @@ NAMESPACE Sale;
 CLASS StatisticReportType 'Тип статистического отчета';
 CLASS StatisticReportTypeDetail 'Строка типа статистического отчета';
 
-name 'Наименование' = DATA VARISTRING[255] (StatisticReportType) MINCHARWIDTH 20 PREFCHARWIDTH 30 IN documentPrm;
+name 'Наименование' = DATA VARISTRING[255] (StatisticReportType) CHARWIDTH 20 IN documentPrm;
 statisticReportType = GROUP AGGR StatisticReportType s BY name(s);
 
 @defineDocument(statisticReportType);
@@ -58,7 +58,7 @@ CONSTRAINT in(StatisticReportTypeDetail child, StatisticReportTypeDetail parent)
 childNumbers 'Строки' (detail) =
     GROUP CONCAT number(StatisticReportTypeDetail child) IF in(child, StatisticReportTypeDetail parent),'; '
     BY parent 
-    ORDER number(child), child  MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    ORDER number(child), child  CHARWIDTH 10;
 
 changeStatisticGroup(StatisticReportTypeDetail d) = {
     DIALOG statisticGroupDialog OBJECTS c = statisticGroupType(statisticReportType(d)) NULL, s = statisticGroup(d) CHANGE;
@@ -93,7 +93,7 @@ FORM statisticReportType 'Тип статистического отчета'
 
 DESIGN statisticReportType {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW headerBox {
             type = CONTAINERH;
 
@@ -170,7 +170,7 @@ FORM statisticReportTypes 'Типы статистических отчетов'
 ;
 DESIGN statisticReportTypes {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW documentContainer BEFORE TOOLBARBOX {
             fill = 1;
@@ -235,7 +235,7 @@ loadDefaultStStatisticReportType 'Загрузить стандартные ст
 CLASS StatisticReport 'Статистический отчет';
 CLASS StatisticReportDetail 'Строка статистического отчета';
 
-name 'Наименование' = DATA VARISTRING[255] (StatisticReport) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+name 'Наименование' = DATA VARISTRING[255] (StatisticReport) CHARWIDTH 20;
 @defineDocument(statisticReport);
 @deriveDocumentHeaderTimePrefix(StatisticReport, );
 
@@ -283,10 +283,10 @@ WHEN LOCAL SET(StatisticReport o IS StatisticReport) DO {
 };
 
 statisticGroupType = DATA StatisticGroupType (StatisticReport) AUTOSET NONULL DELETE;
-nameStatisticGroupType 'Тип классификатора' = name(statisticGroupType(StatisticReport r)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameStatisticGroupType 'Тип классификатора' = name(statisticGroupType(StatisticReport r)) IN documentPrm CHARWIDTH 20;
 
 statisticReportType = DATA StatisticReportType (StatisticReport);
-nameStatisticReportType 'Тип отчета' = name(statisticReportType(StatisticReport r)) MINCHARWIDTH 20 PREFCHARWIDTH 30 ;
+nameStatisticReportType 'Тип отчета' = name(statisticReportType(StatisticReport r)) CHARWIDTH 20 ;
 
 @defineDocumentDataStock(statisticReport, stock, 'Склад', );
 @defineDocumentDialogStocks(statisticReport, stock, company, , );
@@ -334,7 +334,7 @@ countIn = GROUP SUM 1 IF in(StatisticReport new, StatisticReport report) BY new;
 selectReports 'Отчеты' (report) =
     GROUP CONCAT seriesNumber(StatisticReport report) IF in(StatisticReport new, report),'; '
     BY new 
-    ORDER seriesNumber(report), report  MINCHARWIDTH 20 PREFCHARWIDTH 30;
+    ORDER seriesNumber(report), report  CHARWIDTH 20;
 
 isStock(StatisticReport r) = reportKind(r) == ReportKind.stock;
 isStockThing(StatisticReport r) = isStock(r) AND notSumReport(statisticReportType(r)) AND NOT countIn(r);
@@ -357,7 +357,7 @@ WHEN LOCAL SETCHANGED ( reportKind(StatisticReport r)) AND NOT company(r) AND is
 
 region = DATA Region (StatisticReport);
 nameRegion 'Регион' (StatisticReport r) = name(region(r));
-consolidateStocks 'Склады/Регионы' = DATA VARSTRING[255](StatisticReport) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+consolidateStocks 'Склады/Регионы' = DATA VARSTRING[255](StatisticReport) CHARWIDTH 20;
 
 nameStockRegion 'Склад/Регион' (StatisticReport r) = CASE 
     WHEN isStock(r) THEN nameStock(r) 
@@ -401,7 +401,7 @@ CONSTRAINT in(StatisticReportDetail child, StatisticReportDetail parent) AND par
 childNumbers 'Строки' (detail) =
     GROUP CONCAT number(StatisticReportDetail child) IF in(child, StatisticReportDetail parent),'; '
     BY parent 
-    ORDER number(child), child  MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    ORDER number(child), child  CHARWIDTH 10;
     
 overFillData = ABSTRACT LIST (StatisticReport);
 overFillData4 = ABSTRACT LIST (StatisticReport);
@@ -638,7 +638,7 @@ FORM statisticReport 'Статистический отчет'
 
 DESIGN statisticReport {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW headerBox {
             type = CONTAINERH;
             PROPERTY (index(d)) {caption ='Порядок';}
@@ -873,7 +873,7 @@ FORM statisticReports 'Статистические отчеты'
 ;
 DESIGN statisticReports {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW documentContainer BEFORE TOOLBARBOX {
             fill = 1;

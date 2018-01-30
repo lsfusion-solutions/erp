@@ -24,11 +24,11 @@ quantity (order, invoice) = GROUP SUM quantity(InvoiceDetail invoiceDetail)
 
 seriesNumberOrder 'Заказы' = GROUP CONCAT seriesNumber(Order order) IF quantity (order, Invoice invoice), ','
                                               BY invoice
-                                              ORDER order MINCHARWIDTH 10 PREFCHARWIDTH 20;
+                                              ORDER order CHARWIDTH 10;
 
 noteOrder 'Примечание (заказ)' = GROUP CONCAT note(Order order) IF quantity (order, Invoice invoice), ','
                                               BY invoice
-                                              ORDER order MINCHARWIDTH 30 PREFCHARWIDTH 50;
+                                              ORDER order CHARWIDTH 30;
 
 GROUP orders 'Приемка по заказам' : base;
 
@@ -112,12 +112,12 @@ META defineOrderInvoice(sign, stockProp)
     orders 'Заказы' (invoice) = GROUP CONCAT VARSTRING[255](description(Order order)) IF quantityInvoiceDetail(order, Invoice invoice) , ', '
                                              BY invoice
                                              ORDER order
-                                             IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
+                                             IN order CHARWIDTH 30 MATERIALIZED;
                                              
     invoices 'Накладные' (order) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF countInvoiceDetail(Order order, invoice) , ', '
                                              BY order
                                              ORDER invoice
-                                             IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50;                                             
+                                             IN invoice CHARWIDTH 30;                                             
 
     invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = GROUP SUM quantity(InvoiceDetail invoiceDetail) IF isPosted(invoiceDetail)
                                                                BY orderDetail(invoiceDetail) MATERIALIZED;
@@ -289,7 +289,7 @@ META defineOrderInvoice(sign, stockProp)
     userInvoice = DATA LOCAL UserInvoice (Order);
     
     TABLE orderUserInvoice (Order, UserInvoice);
-    include 'Вкл. в накладную' = DATA BOOLEAN (Order, UserInvoice) INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;  
+    include 'Вкл. в накладную' = DATA BOOLEAN (Order, UserInvoice) INDEXED CHARWIDTH 10;  
     countIncludeOrders (i) = GROUP SUM 1 IF include(Order o,UserInvoice i) BY i;
     
     beforeCreateInvoice = ABSTRACT LIST (Order);
@@ -395,7 +395,7 @@ META defineOrderInvoice(sign, stockProp)
 
     DESIGN invoiceOrders {
         BOX {
-            preferredSize = (1024, 768);
+            size = (1024, 768);
             NEW documentContainer BEFORE TOOLBARBOX {
 
                 type = CONTAINERV;
@@ -475,24 +475,24 @@ META defineOrderInvoice(sign, stockProp)
     ;            
 // Создание инвойса на основе нескольких заказов //
 
-    include 'Вкл. в накладную' = ABSTRACT BOOLEAN (Order, Invoice) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    include 'Вкл. в накладную' = ABSTRACT BOOLEAN (Order, Invoice) CHARWIDTH 10;
     countIncludeOrders (i) = GROUP SUM 1 IF include(Order o,Invoice i) BY i;
     includeOrders 'Заказы в накладной' (invoice) = GROUP CONCAT VARSTRING[255](description(Order order)) IF include(order, Invoice invoice) , ', '
                                                         BY invoice
-                                                        ORDER order IN orders MINCHARWIDTH 30 PREFCHARWIDTH 30;
+                                                        ORDER order IN orders CHARWIDTH 30;
                                                                                                                
     includeOrders 'Заказы в накладной' (userInvoice) = GROUP CONCAT VARSTRING[255](description(Order order)) IF include(order, UserInvoice userInvoice) , ', '
                                                         BY userInvoice
-                                                        ORDER order IN orders MINCHARWIDTH 30 PREFCHARWIDTH 30;
+                                                        ORDER order IN orders CHARWIDTH 30;
     include(Order order,UserInvoice invoice) += include(order,invoice);    
                                                     
     numberOrders 'Заказы в накладной' (invoice) = GROUP CONCAT VARSTRING[255](number(Order order)) IF include(order, Invoice invoice) , ', '
                                                      BY invoice
-                                                     ORDER order IN orders MINCHARWIDTH 30 PREFCHARWIDTH 30;
+                                                     ORDER order IN orders CHARWIDTH 30;
                                                                                                             
     numberOrders 'Заказы в накладной' (userInvoice) = GROUP CONCAT VARSTRING[255](number(Order order)) IF include(order, UserInvoice userInvoice) , ', '
                                                      BY userInvoice
-                                                     ORDER order IN orders MINCHARWIDTH 30 PREFCHARWIDTH 30;                                                   
+                                                     ORDER order IN orders CHARWIDTH 30;                                                   
                                                         
     FORM includeOrdersUserInvoice 'Заказы'
         OBJECTS i = UserInvoice PANEL

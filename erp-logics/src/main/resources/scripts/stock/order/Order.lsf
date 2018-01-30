@@ -85,7 +85,7 @@ packQuantityOrderDetail 'Кол-во (упаковок)(всего)' (order) = G
 taxNumberSupplier 'Налоговый номер постащика' = ABSTRACT VARSTRING[9] (Order);
 
 createdUser = ABSTRACT CustomUser (Order);
-createdNameUser 'Создан пользователем' (Order order) = name[Contact](createdUser(order)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+createdNameUser 'Создан пользователем' (Order order) = name[Contact](createdUser(order)) CHARWIDTH 10 IN created;
 
 operation = ABSTRACT Operation.Operation (Order) MATERIALIZED;
 nameOperation 'Операция' (Order order) = name(operation(order));  ////
@@ -143,7 +143,7 @@ FORM acquisitionTargets 'Цели приобретение'
     ORDER name(t)
     LIST AcquisitionTarget OBJECT t
 ;
-DESIGN acquisitionTargets { BOX { preferredSize = (600, 400); } }
+DESIGN acquisitionTargets { BOX { size = (600, 400); } }
 
 acquisitionTarget = ABSTRACT AcquisitionTarget(Order);
 nameAcquisitionTarget 'Цель приобретения' = name(acquisitionTarget(Order o));
@@ -168,7 +168,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     index[Order.OrderDetail](OrderDetail d) += index(d);
     
     createdUser = ABSTRACT CustomUser (Order);
-    createdNameUser 'Создан пользователем' (Order order) = name[Contact](createdUser(order)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+    createdNameUser 'Создан пользователем' (Order order) = name[Contact](createdUser(order)) CHARWIDTH 10 IN created;
     createdUser(UserOrder order) += createdUser(order) IF order IS UserOrder;    
     createdUser[Order.Order](Order order) += createdUser(order);    
     @deriveDocumentHeaderTimePrefix(UserOrder, );
@@ -444,7 +444,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     DESIGN userOrder {
 
         BOX {
-            preferredSize = (1024, 768);
+            size = (1024, 768);
             NEW mainTabbed {
                 type = TABBED;
                 fill = 1;
@@ -462,7 +462,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                                 type = CONTAINERV;
                                 NEW first {
                                     type = CONTAINERH;
-                                    MOVE PROPERTY(isPosted(o)) { minimumCharWidth = 40; }
+                                    MOVE PROPERTY(isPosted(o)) { charWidth = 40; }
                                 }
                                 NEW second { 
                                     type = CONTAINERH;
@@ -565,9 +565,9 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
             PROPERTY(formOk()) {
                 caption = 'Провести';
             }                        
-            PROPERTY(sumUserOrderDetail(o)) { minimumCharWidth = 13;}
-            PROPERTY(VATSumUserOrderDetail(o)) { minimumCharWidth = 13;}
-            PROPERTY(invoiceSumUserOrderDetail(o)) { minimumCharWidth = 13;}
+            PROPERTY(sumUserOrderDetail(o)) { charWidth = 13;}
+            PROPERTY(VATSumUserOrderDetail(o)) { charWidth = 13;}
+            PROPERTY(invoiceSumUserOrderDetail(o)) { charWidth = 13;}
             PROPERTY(deleteUserOrderDetail(o)){focusable = FALSE;}
             
         }
@@ -639,27 +639,27 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     filterDateTo (Order o) = date(o) <= filterOrderDateTo() OR (o IS Order AND NOT filterOrderDateTo());      
     
     filterOrderCustomer  = DATA LOCAL LegalEntity ();
-    nameFilterOrderCustomer 'Покупатель' = name(filterOrderCustomer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilterOrderCustomer 'Покупатель' = name(filterOrderCustomer()) CHARWIDTH 15;          
     filterCustomer (Order o) = customer(o) == filterOrderCustomer() OR (o IS Order AND NOT filterOrderCustomer());    
 
     filterOrderCustomerStock  = DATA LOCAL Stock ();
-    nameFilterOrderCustomerStock 'Склад покупателя' = name(filterOrderCustomerStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilterOrderCustomerStock 'Склад покупателя' = name(filterOrderCustomerStock()) CHARWIDTH 15;          
     filterCustomerStock (Order o) = customerStock(o) == filterOrderCustomerStock() OR (o IS Order AND NOT filterOrderCustomerStock());  
 
     filterOrderSupplier = DATA LOCAL LegalEntity ();
-    nameFilterOrderSupplier 'Поставщик' = name(filterOrderSupplier()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilterOrderSupplier 'Поставщик' = name(filterOrderSupplier()) CHARWIDTH 15;          
     filterSupplier (Order o) = supplier(o) == filterOrderSupplier() OR (o IS Order AND NOT filterOrderSupplier());      
 
     filterOrderSupplierStock  = DATA LOCAL Stock ();
-    nameFilterOrderSupplierStock 'Склад поставщика' = name(filterOrderSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilterOrderSupplierStock 'Склад поставщика' = name(filterOrderSupplierStock()) CHARWIDTH 15;          
     filterSupplierStock (Order o) = supplierStock(o) == filterOrderSupplierStock() OR (o IS Order AND NOT filterOrderSupplierStock()); 
            
     filterOrderCustomUser  = DATA LOCAL CustomUser ();
-    nameFilterOrderCustomUser 'Создан пользователем' = name[Contact](filterOrderCustomUser()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilterOrderCustomUser 'Создан пользователем' = name[Contact](filterOrderCustomUser()) CHARWIDTH 15;          
     filterCustomUser (Order i) = createdUser[UserOrder](i) == filterOrderCustomUser() OR (i IS Order AND NOT filterOrderCustomUser());  
 
     filterOrderComputer = DATA LOCAL Computer ();
-    nameFilterOrderComputer 'Создан на компьютере' = hostname(filterOrderComputer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilterOrderComputer 'Создан на компьютере' = hostname(filterOrderComputer()) CHARWIDTH 15;          
     filterComputer (Order i) = createdComputer(i) == filterOrderComputer() OR (i IS Order AND NOT filterOrderComputer());
     
     overShowEdit = ABSTRACT VALUE BOOLEAN (Order);

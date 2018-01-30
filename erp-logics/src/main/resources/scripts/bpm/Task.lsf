@@ -11,7 +11,7 @@ GROUP Task 'Задачи';
 CLASS Type 'Тип задачи';
 TABLE type (Type);
 dataName = DATA VARSTRING[100](Type);
-name (Type t) = OVERRIDE dataName(t), staticCaption(t) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+name (Type t) = OVERRIDE dataName(t), staticCaption(t) CHARWIDTH 15;
 
 FORM type 'Тип задачи'
     OBJECTS t=Type PANEL
@@ -36,18 +36,18 @@ backgroundFill = RGB(255, 255, 224);
 //document = ABSTRACT Document (Task) MATERIALIZED;
 
 type = ABSTRACT Type (Task) MATERIALIZED;       
-nameType 'Тип задачи' (Task t)= name(type(t)) PREFCHARWIDTH 20;
+nameType 'Тип задачи' (Task t)= name(type(t)) CHARWIDTH 20;
 
-dateTimeStart 'Дата/время начала' = ABSTRACT DATETIME (Task) MATERIALIZED MINCHARWIDTH 10 PREFCHARWIDTH 20 MAXCHARWIDTH 20;
-description 'Описание' = ABSTRACT VARISTRING[1000](Task) MATERIALIZED MINCHARWIDTH 30 PREFCHARWIDTH 150;
+dateTimeStart 'Дата/время начала' = ABSTRACT DATETIME (Task) MATERIALIZED CHARWIDTH 10;
+description 'Описание' = ABSTRACT VARISTRING[1000](Task) MATERIALIZED CHARWIDTH 30;
 run 'Выполнить' = ABSTRACT (Task);
 endOfTheDay 'До конца дня' = ABSTRACT BOOLEAN (Task) MATERIALIZED;
-countDays 'Кол-во дней' = ABSTRACT INTEGER (Task) MATERIALIZED MINCHARWIDTH 3 PREFCHARWIDTH 3 MAXCHARWIDTH 3;
+countDays 'Кол-во дней' = ABSTRACT INTEGER (Task) MATERIALIZED FIXEDCHARWIDTH 3;
 id 'ИД' = ABSTRACT VARSTRING[30] (Task) MATERIALIZED; 
 
 dateStart 'Дата начала' (Task t) = DATE(dateTimeStart(t));
 deadlineDate (Task t) = jumpWorkdays(defaultCountry(),dateStart(t), countDays(t));
-deadline 'Выполнить до' (t) = dateTimeToDateTime(deadlineDate(t), IF endOfTheDay(t) THEN 23:59 ELSE TIME(dateTimeStart(t))) MINCHARWIDTH 10 PREFCHARWIDTH 20 MAXCHARWIDTH 20;
+deadline 'Выполнить до' (t) = dateTimeToDateTime(deadlineDate(t), IF endOfTheDay(t) THEN 23:59 ELSE TIME(dateTimeStart(t))) CHARWIDTH 10;
 overdeadline 'Просрочено' (t) = deadline(t) < currentDateTime();
 
 assigned = ABSTRACT BOOLEAN (CustomUser, Task) MATERIALIZED;
@@ -59,7 +59,7 @@ in (CustomUser u, Task t) = assigned(u, t) AND NOT skip(u, t) MATERIALIZED;
 backgroundDescription = ABSTRACT COLOR (Task);
 
 type = DATA LOCAL Type ();
-nameType 'Тип задачи' = name (type()) MINCHARWIDTH 20;
+nameType 'Тип задачи' = name (type()) CHARWIDTH 20;
 
 FORM tasks 'Задачи'
     PROPERTIES () nameType
@@ -91,12 +91,12 @@ DESIGN tasks {
     }
     BOX(t) {
         PROPERTY(run(t)){
-            minimumValueHeight = 32;
+            valueHeight = 32;
             fontStyle = 'bold';
             fontSize = 18;
             //alignment = STRETCH;
         }
-        PROPERTY (countDays(t)) { minimumCharWidth = 5;}
+        PROPERTY (countDays(t)) { charWidth = 5;}
     }
 }
 
@@ -183,7 +183,7 @@ attachmentName = ABSTRACT VARSTRING[100] (Task);
 
 generateAttachment (Task t) = ABSTRACT LIST (Task);
 
-emailTask 'Почта для отсылки уведомлений по задачам'= DATA VARSTRING[300] () MINCHARWIDTH 30 PREFCHARWIDTH 50 IN documentPrm; 
+emailTask 'Почта для отсылки уведомлений по задачам'= DATA VARSTRING[300] () CHARWIDTH 30 IN documentPrm; 
 EXTEND FORM options
     PROPERTIES () emailTask
 ;

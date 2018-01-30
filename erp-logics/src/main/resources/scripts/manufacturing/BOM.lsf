@@ -77,9 +77,9 @@ isProductGroup 'Фильтр готовые изделия (группа)' (Sku 
 CLASS ABSTRACT Material 'Материал';
 TABLE material(Material);
 
-id 'Код' = ABSTRACT VARSTRING[100] (Material) MATERIALIZED INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+id 'Код' = ABSTRACT VARSTRING[100] (Material) MATERIALIZED INDEXED CHARWIDTH 10;
 
-name 'Наименование' (material) = ABSTRACT VARISTRING[255] (Material) MATERIALIZED INDEXED MINCHARWIDTH 40 PREFCHARWIDTH 80;
+name 'Наименование' (material) = ABSTRACT VARISTRING[255] (Material) MATERIALIZED INDEXED CHARWIDTH 40;
 
 UOM (material) = ABSTRACT UOM (Material) MATERIALIZED;
 shortNameUOM 'Ед. изм.' (Material material) = shortName(UOM(material)) IN base;
@@ -116,7 +116,7 @@ FORM materials 'Материалы'
 
 DESIGN materials {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             type = SPLITH;
@@ -174,7 +174,7 @@ name 'Наименование' = DATA VARISTRING[100](BOM);
 @defineNumeratedDefault(BOM, 'Спецификации', 'СП');
   
 description 'Название спецификации' (BOM BOM) = VARSTRING[200](CONCAT ' ', name(BOM), 
-                                                                          '№'+seriesNumber(BOM)) MINCHARWIDTH 30 PREFCHARWIDTH 50; 
+                                                                          '№'+seriesNumber(BOM)) CHARWIDTH 30; 
     
 
 fromDate 'Дата с' = DATA DATE (BOM) IN documentPrm;
@@ -201,7 +201,7 @@ nameSku 'SKU' (Product product) = Stock.name(sku(product)) IN recognize;
 idBarcodeSku 'Штрихкод' (Product product)= idBarcode(sku(product));
 idSku 'Код' (Product product)= Stock.id(sku(product));
 
-id 'Код изделия' (Product product) = Stock.id(sku(product))IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
+id 'Код изделия' (Product product) = Stock.id(sku(product))IN recognize CHARWIDTH 10;
 id(Product p) += id(p);
 
 editSku 'Редактировать SKU' (Product p) = { NEWSESSION { edit(sku(p)); } }
@@ -222,15 +222,15 @@ description 'Название документа' (Product product) = descriptio
 
 products 'Изделия' (BOM) = GROUP CONCAT VARISTRING[2000](CONCAT '', nameSku(Product p), ' ('+idSku(p)+')'), ', '
                                        BY BOM(p)
-                                       ORDER index(p), p MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
+                                       ORDER index(p), p CHARWIDTH 30 MATERIALIZED;
 
 idProducts 'Коды' (BOM) = GROUP CONCAT VARSTRING[255](idSku(Product p)), ', '
                                       BY BOM(p)
-                                      ORDER index(p), p MINCHARWIDTH 13 PREFCHARWIDTH 13 MATERIALIZED; 
+                                      ORDER index(p), p CHARWIDTH 13 MATERIALIZED; 
                                                                               
 fullName 'Полное название' (BOM BOM) = VARISTRING[2000] (CONCAT '/',
                                                               products(BOM),                                                                  
-                                                              name(BOM)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+                                                              name(BOM)) CHARWIDTH 30;
                                        
 @defineDocumentDetailQuantityCustomPrefix (product, , );
 
@@ -261,7 +261,7 @@ changePriceCoeff(Product product) = {
         pricePercent(product) <- NUMERIC[16,10](calcPricePercentNumeric(product, n));
 }
 series 'Серия' = series(BOM(Product p)) FIXEDCHARWIDTH 3;
-number 'Номер' = number(BOM(Product p)) MINCHARWIDTH 7;
+number 'Номер' = number(BOM(Product p)) CHARWIDTH 7;
 
 fromDate 'Дата с' = fromDate(BOM(Product p));
 toDate 'Дата по' = toDate(BOM(Product p));
@@ -306,10 +306,10 @@ sku 'Sku' (Component c) = sku(material(c)) MATERIALIZED INDEXED;
 
 components 'Компоненты' (BOM) = GROUP CONCAT VARISTRING[2000](CONCAT '', nameMaterial(Component component), ' ('+id(component)+')'), ', '
                                        BY BOM(component)
-                                       ORDER index(component), component MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
+                                       ORDER index(component), component CHARWIDTH 30 MATERIALIZED;
 idComponents 'Коды' (BOM) = GROUP CONCAT VARSTRING[255](id(Component component)), ', '
                                        BY BOM(component)
-                                       ORDER index(component), component MINCHARWIDTH 20 PREFCHARWIDTH 50 MATERIALIZED;                                       
+                                       ORDER index(component), component CHARWIDTH 20 MATERIALIZED;                                       
                                      
 name 'Компонент' (Component component) = VARSTRING[255](CONCAT '/', description(BOM(component)), 
                                                      nameMaterial(component)) MATERIALIZED;
@@ -438,10 +438,10 @@ editMaterial 'Редактировать компонент' (Component d) = { N
 
 stocks 'Склады' (BOM) = GROUP CONCAT name(Stock stock) IF in(BOM BOM, stock) , ', '
                                                  BY BOM
-                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
+                                                 ORDER stock CHARWIDTH 30 MATERIALIZED;
 stocksIDBOM 'Склады' (BOM) = GROUP CONCAT id(Stock stock) IF in(BOM BOM, stock) , ', '
                                                  BY BOM
-                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;          
+                                                 ORDER stock CHARWIDTH 30 MATERIALIZED;          
                                                                                         
                                                                                         
 EXTEND FORM products
@@ -515,7 +515,7 @@ FORM BOM 'Спецификация'
 DESIGN BOM {
 
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW specificationBox BEFORE TOOLBARBOX{
             type = TABBED;
             fill = 1;
@@ -542,7 +542,7 @@ DESIGN BOM {
                     caption = 'Шапка';
                     type = CONTAINERH;
                     MOVE PROPERTY(inactive(b));
-                    MOVE PROPERTY(name(b)) { minimumCharWidth = 20; }
+                    MOVE PROPERTY(name(b)) { charWidth = 20; }
                     MOVE PROPERTY(nameNumerator(b));
                     MOVE PROPERTY(number(b));
                     MOVE PROPERTY(series(b));
@@ -698,7 +698,7 @@ FORM BOMs 'Спецификации'
 
 DESIGN BOMs {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW documentContainer BEFORE TOOLBARBOX {
             type = TABBED ;
@@ -808,7 +808,7 @@ FORM BOMsDialog 'Спецификации'
 
 DESIGN BOMsDialog {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW bom BEFORE TOOLBARBOX {
             fill = 1;
             type = SPLITV;
@@ -891,7 +891,7 @@ FORM manufacturingCommittee 'Комиссия производство'
 
 DESIGN manufacturingCommittee {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW caseOne BEFORE BOX(e) {
             type = SPLITH;
@@ -919,7 +919,7 @@ FORM manufacturingCommitteeDialog 'Комиссии производство'
 // ----------------- Акт контрольной проработки-------------------- //
 
 actStudyOfCulinaryCommittee (BOM) = DATA ManufacturingCommittee(BOM);
-nameActStudyOfCulinaryCommittee 'Комиссия для акта' (BOM BOM) = name(actStudyOfCulinaryCommittee (BOM)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+nameActStudyOfCulinaryCommittee 'Комиссия для акта' (BOM BOM) = name(actStudyOfCulinaryCommittee (BOM)) IN documentPrm CHARWIDTH 20;
 nameEmployeeCommittee 'Члены комиссии' (BOM BOM)= nameEmployee(actStudyOfCulinaryCommittee(BOM));
 
 inCommittee (BOM BOM, Employee employee) = in(actStudyOfCulinaryCommittee (BOM), employee);

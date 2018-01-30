@@ -23,7 +23,7 @@ relationInvoice 'Связь' (shipment) = GROUP SUM 1 IF quantityShipmentDetail 
 
 invoices 'Накладные' (shipment) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, Shipment shipment) , ', '
                                                 BY shipment
-                                                ORDER invoice MINCHARWIDTH 30 PREFCHARWIDTH 50;
+                                                ORDER invoice CHARWIDTH 30;
 
 shipped 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
                                                                    BY invoiceDetail(shipmentDetail) MATERIALIZED;
@@ -111,7 +111,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
 
     invoices 'Накладные' (shipment) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, Shipment shipment) , ', '
                                                     BY shipment
-                                                    ORDER invoice IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
+                                                    ORDER invoice IN invoice CHARWIDTH 30 MATERIALIZED;
 
     shipped 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
                                                                        BY invoiceDetail(shipmentDetail) MATERIALIZED;
@@ -188,7 +188,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
 
     DESIGN shipmentInvoices {
         BOX {
-            preferredSize = (1024, 768);
+            size = (1024, 768);
             NEW header {
                 type = CONTAINERH;
                 MOVE BOX(s) { caption = 'Поставщик';};
@@ -225,10 +225,10 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
 // Создание поставки на основе нескольких инвойсов //
 
     TABLE invoiceUserShipment (Invoice, UserShipment);
-    include 'Вкл. в приемку' = DATA BOOLEAN (Invoice, UserShipment) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    include 'Вкл. в приемку' = DATA BOOLEAN (Invoice, UserShipment) CHARWIDTH 10;
     includeInvoices 'Накладные в приемке' (userShipment) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF include(invoice, UserShipment userShipment) , ', '
                                                         BY userShipment
-                                                        ORDER invoice IN invoices MINCHARWIDTH 30 PREFCHARWIDTH 30 MATERIALIZED;
+                                                        ORDER invoice IN invoices CHARWIDTH 30 MATERIALIZED;
     FORM includeInvoicesUserShipment 'Накладные'
         OBJECTS s = UserShipment PANEL
 
@@ -405,7 +405,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
                 MOVE PROPERTY(shipmentDate(i));
                 MOVE PROPERTY(shipmentTime(i));
             }
-            PROPERTY(shipmentSumUserInvoiceDetail(i)) { minimumCharWidth = 13;}                       
+            PROPERTY(shipmentSumUserInvoiceDetail(i)) { charWidth = 13;}                       
         }
     }
 

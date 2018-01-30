@@ -43,14 +43,14 @@ overDate 'Дата' (consignment) = ABSTRACT DATE (Consignment);
 date 'Дата' (Consignment consignment) = OVERRIDE overDate(consignment), dataDate(consignment);
 
 
-number 'Номер' = ABSTRACT VARSTRING[28] (Consignment) IN numbered MINCHARWIDTH 7;
+number 'Номер' = ABSTRACT VARSTRING[28] (Consignment) IN numbered CHARWIDTH 7;
 series 'Серия' = ABSTRACT STRING[2] (Consignment) IN numbered FIXEDCHARWIDTH 3; 
 
 overSeriesNumber 'Серия/Номер' (consignment) = ABSTRACT STRING[31] (Consignment);
 
 seriesNumber 'Серия/Номер' (Consignment o) = OVERRIDE 
     overSeriesNumber(o),
-    (CONCAT '', series(o), number(o))  MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;
+    (CONCAT '', series(o), number(o))  CHARWIDTH 7;
 
 
 // ------------- Типы накладной ------------------ //
@@ -118,10 +118,10 @@ extraUNPSupplier 'УНП получателя' = ABSTRACT VARSTRING[50] (Consign
 UNPSupplier 'УНП отправителя' (Consignment consignment) = OVERRIDE overUNPSupplier(consignment), extraUNPSupplier(consignment), UNP(supplier(consignment));
 overAddressSupplier = ABSTRACT VARISTRING[150] (Consignment);
 addressSupplier 'Юр. адрес отправителя' (Consignment consignment) =
-    OVERRIDE overAddressSupplier(consignment), address(supplier(consignment), date(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    OVERRIDE overAddressSupplier(consignment), address(supplier(consignment), date(consignment)) CHARWIDTH 30;
 overFullNameSupplier = ABSTRACT VARISTRING[200] (Consignment);  
 fullNameSupplier 'Наим-ие отправителя' (Consignment consignment) = 
-    OVERRIDE overFullNameSupplier(consignment), fullName(supplier(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;    
+    OVERRIDE overFullNameSupplier(consignment), fullName(supplier(consignment)) CHARWIDTH 30;    
 extraDescriptionSupplier = ABSTRACT VARISTRING[255] (Consignment);  
 
 dataCustomer = ABSTRACT LegalEntity (Consignment);
@@ -135,12 +135,12 @@ UNPCustomer 'УНП получателя' (Consignment consignment) = OVERRIDE o
 overAddressCustomer = ABSTRACT VARISTRING[150] (Consignment);
 extraAddressCustomer = ABSTRACT VARISTRING[150] (Consignment);
 addressCustomer 'Юр. адрес получателя' (Consignment consignment) =
-    OVERRIDE overAddressCustomer(consignment), extraAddressCustomer(consignment), address(customer(consignment), date(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
-nameCustomer 'Наим-ие получателя' (Consignment consignment) = name(customer(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    OVERRIDE overAddressCustomer(consignment), extraAddressCustomer(consignment), address(customer(consignment), date(consignment)) CHARWIDTH 30;
+nameCustomer 'Наим-ие получателя' (Consignment consignment) = name(customer(consignment)) CHARWIDTH 30;
 overFullNameCustomer = ABSTRACT VARISTRING[200] (Consignment);  
 extraFullNameCustomer = ABSTRACT VARISTRING[200] (Consignment);  
 fullNameCustomer 'Наим-ие получателя' (Consignment consignment) = 
-    OVERRIDE overFullNameCustomer(consignment), extraFullNameCustomer(consignment), fullName(customer(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    OVERRIDE overFullNameCustomer(consignment), extraFullNameCustomer(consignment), fullName(customer(consignment)) CHARWIDTH 30;
 extraDescriptionCustomer = ABSTRACT VARISTRING[255] (Consignment);  
 
 extraUNPPayer 'УНП получателя' = ABSTRACT VARSTRING[50] (Consignment);
@@ -161,7 +161,7 @@ dataTruck = ABSTRACT Truck(Consignment);
 truck(Consignment consignment) = OVERRIDE dataTruck(consignment), defaultTruck(consignment);  
 
 dataNameTruck = DATA VARSTRING[70](Consignment);
-nameTruck 'Автомобиль' (Consignment consignment) = OVERRIDE dataNameTruck(consignment), name(truck(consignment)) MINCHARWIDTH 15 PREFCHARWIDTH 30 IN carConsignment;
+nameTruck 'Автомобиль' (Consignment consignment) = OVERRIDE dataNameTruck(consignment), name(truck(consignment)) CHARWIDTH 15 IN carConsignment;
 skipTruck 'Пропустить проверку автомобиля' = ABSTRACT CASE BOOLEAN (Consignment);
 
 notUseDriverTruck = ABSTRACT BOOLEAN(Consignment);
@@ -217,7 +217,7 @@ ownerTrackType 'Владелец автомобиля' = ABSTRACT OwnerTrackType
 //    WHEN supplier(consignment) == legalEntity(truck(consignment)) OR ownerTrackType(consignment) == OwnerTrackType.supplier THEN 'Грузоотправитель'
 //    WHEN customer(consignment) == legalEntity(truck(consignment)) OR ownerTrackType(consignment) == OwnerTrackType.customer THEN 'Грузополучатель'
 //    ELSE 
-//    OVERRIDE nameLegalEntity(truck(consignment)), owner(truck(consignment))), dataOwnerTruck(consignment)  IN carConsignment MINCHARWIDTH 15 PREFCHARWIDTH 30;
+//    OVERRIDE nameLegalEntity(truck(consignment)), owner(truck(consignment))), dataOwnerTruck(consignment)  IN carConsignment CHARWIDTH 15;
 
 ownerTruck 'Владелец автомобиля' (Consignment consignment) = CASE 
     WHEN supplier(consignment) == legalEntity(truck(consignment)) OR ownerTrackType(consignment) == OwnerTrackType.supplier THEN 'Грузоотправитель'
@@ -226,7 +226,7 @@ ownerTruck 'Владелец автомобиля' (Consignment consignment) = C
 
 dataTrailer = ABSTRACT VARSTRING[100] (Consignment);
 trailer 'Прицеп' (Consignment consignment) = OVERRIDE dataTrailer(consignment),
-                                                     trailer(truck(consignment)) MINCHARWIDTH 15 PREFCHARWIDTH 30 IN carConsignment;
+                                                     trailer(truck(consignment)) CHARWIDTH 15 IN carConsignment;
 
 driver = ABSTRACT CASE Employee(Consignment);
 dataEmployee = ABSTRACT Employee(Consignment);
@@ -234,7 +234,7 @@ dataEmployee = ABSTRACT Employee(Consignment);
 dataNameDriver = DATA VARSTRING[30] (Consignment);
 nameDriver 'Водитель' (Consignment consignment) = OVERRIDE dataNameDriver(consignment), 
                                                           shortName(dataEmployee(consignment)),
-                                                          shortName(driver(consignment)) MINCHARWIDTH 15 PREFCHARWIDTH 30 IN carConsignment;
+                                                          shortName(driver(consignment)) CHARWIDTH 15 IN carConsignment;
 skipDriver 'Пропустить проверку водителя' = ABSTRACT CASE BOOLEAN (Consignment);
                                                           
 changeDriver(Consignment consignment) = {
@@ -259,26 +259,26 @@ dataWaybill 'Путевой лист' (consignment) = ABSTRACT VARSTRING[20] (Co
 
 waybill 'Путевой лист' (consignment) = ABSTRACT STRING[30] (Consignment);
 
-overWaybill 'Путевой лист' (Consignment consignment) = OVERRIDE dataWaybill(consignment), waybill(consignment) MINCHARWIDTH 15 PREFCHARWIDTH 30 IN carConsignment;
+overWaybill 'Путевой лист' (Consignment consignment) = OVERRIDE dataWaybill(consignment), waybill(consignment) CHARWIDTH 15 IN carConsignment;
 skipWaybill 'Пропустить проверку путевого листа' = ABSTRACT CASE BOOLEAN (Consignment);
 
 // Склад погрузки
 supplierStock (consignment) = ABSTRACT Stock (Consignment);
-nameSupplierStock 'Склад погрузки' (Consignment consignment) = name(supplierStock(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 30;
+nameSupplierStock 'Склад погрузки' (Consignment consignment) = name(supplierStock(consignment)) CHARWIDTH 30;
 
 dataAddressSupplierStock 'Пункт погрузки' (consignment) = ABSTRACT VARSTRING[150] (Consignment);
 addressSupplierStock 'Пункт погрузки' (Consignment consignment) = OVERRIDE dataAddressSupplierStock (consignment),
-                                                                          address(supplierStock(consignment)) MINCHARWIDTH 40 PREFCHARWIDTH 50 IN carConsignment;
+                                                                          address(supplierStock(consignment)) CHARWIDTH 40 IN carConsignment;
 
 // Склад разгрузки
 customerStock (consignment) = ABSTRACT Stock (Consignment);
-nameCustomerStock 'Склад разгрузки' (Consignment consignment) = name(customerStock(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 30;
+nameCustomerStock 'Склад разгрузки' (Consignment consignment) = name(customerStock(consignment)) CHARWIDTH 30;
 
 dataAddressCustomerStock 'Пункт разгрузки' (consignment) = ABSTRACT VARSTRING[150] (Consignment) IN carConsignment;
 addressCustomerStock 'Пункт разгрузки' (Consignment consignment) = OVERRIDE dataAddressCustomerStock (consignment),
-                                                                           address(customerStock(consignment)) MINCHARWIDTH 40 PREFCHARWIDTH 50 IN carConsignment;
+                                                                           address(customerStock(consignment)) CHARWIDTH 40 IN carConsignment;
 
-readdressing 'Переадресовка' (consignment) = ABSTRACT VARSTRING[50] (Consignment) MINCHARWIDTH 40 PREFCHARWIDTH 50 IN carConsignment;
+readdressing 'Переадресовка' (consignment) = ABSTRACT VARSTRING[50] (Consignment) CHARWIDTH 40 IN carConsignment;
 
 // ------------------------------------- Отпуск товара --------------------------------- //
 
@@ -293,7 +293,7 @@ dataShipmentBase 'Основание отпуска' (consignment) = ABSTRACT VA
 overShipmentBase 'Основание отпуска' (consignment) = ABSTRACT VARSTRING[100] (Consignment);
 shipmentBase 'Основание отпуска' (Consignment consignment) = OVERRIDE  overShipmentBase(consignment),
                                                                       dataShipmentBase(consignment),
-                                                                      VARSTRING[100](descriptionContract(consignment)) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 35;
+                                                                      VARSTRING[100](descriptionContract(consignment)) IN issuanceConsignment CHARWIDTH 20;
                                                                       
 changeShipmentBase (Consignment consignment) = {   
     INPUT s = shipmentBase(consignment) DO {
@@ -307,7 +307,7 @@ overIssuanceAllowed (consignment) = DATA Employee (Consignment);
 issuanceAllowed (consignment) = ABSTRACT Employee (Consignment);
 nameIssuanceAllowed 'Отпуск разрешил' (Consignment consignment) = OVERRIDE dataIssuanceAllowed(consignment),
                                                                                               positionShortName(issuanceAllowed(consignment)), // для агрегированных объектов (накладная на основании накладной)
-                                                                                              positionShortName(overIssuanceAllowed(consignment)) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 50;
+                                                                                              positionShortName(overIssuanceAllowed(consignment)) IN issuanceConsignment CHARWIDTH 20;
 changeIssuanceAllowed(Consignment consignment) = {    
     IF notUseIssuanceAllowed(consignment) THEN {
         INPUT s = dataIssuanceAllowed(consignment) DO {
@@ -337,7 +337,7 @@ overIssuanceExecuted (consignment) = DATA Employee(Consignment);
 issuanceExecuted (consignment) = ABSTRACT Employee(Consignment);
 nameIssuanceExecuted 'Отпуск произвел' (Consignment consignment) = OVERRIDE  dataIssuanceExecuted(consignment),
                                                                                                 positionShortName(issuanceExecuted(consignment)),
-                                                                                                positionShortName(overIssuanceExecuted(consignment)) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 45;
+                                                                                                positionShortName(overIssuanceExecuted(consignment)) IN issuanceConsignment CHARWIDTH 20;
 changeIssuanceExecuted(Consignment consignment) = {    
     IF notUseIssuanceExecuted(consignment) THEN {
         INPUT s = dataIssuanceExecuted(consignment) DO {
@@ -360,7 +360,7 @@ dataForwarder  = ABSTRACT Employee (Consignment);
 dataNameForwarder = DATA VARSTRING[100](Consignment);
 forwarder 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (Consignment consignment) = OVERRIDE  
     dataNameForwarder(consignment), 
-    positionShortName(dataForwarder(consignment)) IN issuanceConsignment MINCHARWIDTH 30 PREFCHARWIDTH 60;
+    positionShortName(dataForwarder(consignment)) IN issuanceConsignment CHARWIDTH 30;
 
 changeForwarder(Consignment consignment) = {
     
@@ -375,8 +375,8 @@ changeForwarder(Consignment consignment) = {
     }        
 }
 
-warrant 'По доверенности (номер, дата)' (consignment) = ABSTRACT VARSTRING[30] (Consignment) IN issuanceConsignment MINCHARWIDTH 15 PREFCHARWIDTH 30;
-warrantHolder 'По доверенности выданной ' (consignment) = ABSTRACT VARSTRING[200] (Consignment) IN issuanceConsignment MINCHARWIDTH 15 PREFCHARWIDTH 30;
+warrant 'По доверенности (номер, дата)' (consignment) = ABSTRACT VARSTRING[30] (Consignment) IN issuanceConsignment CHARWIDTH 15;
+warrantHolder 'По доверенности выданной ' (consignment) = ABSTRACT VARSTRING[200] (Consignment) IN issuanceConsignment CHARWIDTH 15;
 
 useGoodsAccepted 'Использовать справочник сотрудников' = ABSTRACT BOOLEAN (Consignment);
 
@@ -384,7 +384,7 @@ dataGoodsAccepted = DATA Employee(Consignment);
 goodsAccepted 'Принял грузополучатель' (consignment) = ABSTRACT VARSTRING[150] (Consignment) IN issuanceConsignment;
 overGoodsAccepted 'Принял грузополучатель'  = OVERRIDE 
     goodsAccepted(Consignment consignment), 
-    positionShortName(dataGoodsAccepted(consignment)) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    positionShortName(dataGoodsAccepted(consignment)) IN issuanceConsignment CHARWIDTH 20;
     
 changeGoodsAccepted(Consignment consignment) = {    
     IF useGoodsAccepted(consignment) THEN {
@@ -398,8 +398,8 @@ changeGoodsAccepted(Consignment consignment) = {
     }        
 }   
 
-sealNumberSupplier 'Номер пломбы грузоотправителя' = ABSTRACT VARSTRING[50] (Consignment) IN issuanceConsignment MINCHARWIDTH 15 PREFCHARWIDTH 30;
-sealNumberCustomer 'Номер пломбы грузополучателя' = ABSTRACT VARSTRING[50] (Consignment) IN issuanceConsignment MINCHARWIDTH 15 PREFCHARWIDTH 30;
+sealNumberSupplier 'Номер пломбы грузоотправителя' = ABSTRACT VARSTRING[50] (Consignment) IN issuanceConsignment CHARWIDTH 15;
+sealNumberCustomer 'Номер пломбы грузополучателя' = ABSTRACT VARSTRING[50] (Consignment) IN issuanceConsignment CHARWIDTH 15;
 
 // ------------------------------------- Погрузочно-разгрузочные работы --------------------------------- //
 
@@ -458,7 +458,7 @@ additionalDocuments 'С товаром переданы документы' (con
 dataNote 'Примечание' (consignment) = ABSTRACT VARSTRING[500] (Consignment);
 overNote 'Примечание' (consignment) = DATA VARSTRING[500] (Consignment) ;
 extraNote 'Примечание' (consignment) = ABSTRACT VARSTRING[500] (Consignment) ;
-note 'Примечание' (Consignment consignment) = OVERRIDE overNote(consignment), dataNote(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 80;
+note 'Примечание' (Consignment consignment) = OVERRIDE overNote(consignment), dataNote(consignment) CHARWIDTH 30;
 
 namePayer 'Заказчик перевозки ' (Consignment consignment) =
     name(payer(consignment)) + ' , ' + UNP(payer(consignment)) IN carConsignment;
@@ -469,8 +469,8 @@ skip = ABSTRACT BOOLEAN (ConsignmentDetail);
 showNullQuantity = ABSTRACT BOOLEAN (ConsignmentDetail);
 
 batch = ABSTRACT Batch (ConsignmentDetail);
-descriptionBatch 'Партия' (ConsignmentDetail d) = description(batch(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
-nameBatch 'Партия' (ConsignmentDetail d) = name(batch(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+descriptionBatch 'Партия' (ConsignmentDetail d) = description(batch(d)) CHARWIDTH 20;
+nameBatch 'Партия' (ConsignmentDetail d) = name(batch(d)) CHARWIDTH 20;
 
 dataSku (d) = ABSTRACT Sku (ConsignmentDetail);
 overSku (d) = ABSTRACT Sku (ConsignmentDetail);
@@ -481,11 +481,11 @@ dataNameSku = ABSTRACT VARISTRING[255](ConsignmentDetail);
 
 nameSku 'Наименование товара' (ConsignmentDetail d) = CONCAT ' ',
     (OVERRIDE overDocumentNameSku(batch(d)), dataNameSku(d), name(sku(d))),
-    overNameSku(d) MINCHARWIDTH 30;
+    overNameSku(d) CHARWIDTH 30;
 
 overNameUOM = ABSTRACT VARISTRING[255](ConsignmentDetail);
     
-shortNameUOM 'Единица измерения' (ConsignmentDetail d) = OVERRIDE overNameUOM(d), shortNameUOM(sku(d)) MINCHARWIDTH 5;
+shortNameUOM 'Единица измерения' (ConsignmentDetail d) = OVERRIDE overNameUOM(d), shortNameUOM(sku(d)) CHARWIDTH 5;
 
 consignment (d) = ABSTRACT Consignment (ConsignmentDetail);
 
@@ -540,9 +540,9 @@ grossWeightTon 'Масса груза, т.' (ConsignmentDetail d) = round6(NUMER
 dataNote 'Примечание' = ABSTRACT VALUE VARSTRING[150] (ConsignmentDetail);
 TABLE consignmentDetail(ConsignmentDetail);
 overNote 'Примечание' = DATA VARSTRING[150] (ConsignmentDetail) ;
-note 'Примечание' (ConsignmentDetail d) = OVERRIDE overNote(d), dataNote(d) MINCHARWIDTH 30 PREFCHARWIDTH 80;
+note 'Примечание' (ConsignmentDetail d) = OVERRIDE overNote(d), dataNote(d) CHARWIDTH 30;
 
-extraDescription 'Доп. наименование' (d) = ABSTRACT VARSTRING[1500] (ConsignmentDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
+extraDescription 'Доп. наименование' (d) = ABSTRACT VARSTRING[1500] (ConsignmentDetail) CHARWIDTH 30;
 
 countConsignmentDetail 'Количество строк' (consignment) = GROUP SUM 1 IF ConsignmentDetail d IS ConsignmentDetail AND NOT skip(d)
                                                             BY consignment(d) IN sumConsignment;
@@ -978,7 +978,7 @@ FORM consignment 'Атрибуты накладной'
 ;
 
 DESIGN consignment {
-    preferredSize = (1024, 768);
+    size = (1024, 768);
     NEW pane {
         fill = 1;
         type = TABBED;
@@ -1018,11 +1018,11 @@ DESIGN consignment {
             }
             MOVE GROUP(carConsignment,c) {
                 columns = 3;
-                PROPERTY(addressCustomerStock(c)) { minimumCharWidth = 70; };
+                PROPERTY(addressCustomerStock(c)) { charWidth = 70; };
             }
             MOVE GROUP(issuanceConsignment,c) {
                 columns = 2;
-                PROPERTY(forwarder(c)) { minimumCharWidth = 50; };
+                PROPERTY(forwarder(c)) { charWidth = 50; };
             }
             MOVE GROUP(loadingConsignment,c) {
                 columns = 3;
@@ -1060,7 +1060,7 @@ DESIGN consignment {
         MOVE BOX(d) {
             caption = 'Спецификация';
             PROPERTY(order(d)) {
-                minimumCharWidth = 10;
+                charWidth = 10;
             }
         };
         
@@ -1535,15 +1535,15 @@ DESIGN legalEntity {
     }
 }
 
-UNPLegalEntity 'УНП получателя' = DATA VARSTRING[9] (Stock) IN invoiceConsignment PREFCHARWIDTH 30; 
+UNPLegalEntity 'УНП получателя' = DATA VARSTRING[9] (Stock) IN invoiceConsignment CHARWIDTH 30; 
 overUNPSupplier(Consignment consignment) += UNPLegalEntity(supplierStock(consignment));
 overUNPCustomer(Consignment consignment) += UNPLegalEntity(customerStock(consignment));
 
-nameConsigmentLegalEntity 'Наименование юр. лица' = DATA VARSTRING[200] (Stock) IN invoiceConsignment PREFCHARWIDTH 30;
+nameConsigmentLegalEntity 'Наименование юр. лица' = DATA VARSTRING[200] (Stock) IN invoiceConsignment CHARWIDTH 30;
 overFullNameSupplier(Consignment consignment) += nameConsigmentLegalEntity(supplierStock(consignment));
 overFullNameCustomer(Consignment consignment) += nameConsigmentLegalEntity(customerStock(consignment));
 
-addressConsigmentLegalEntity 'Юр. адрес отправителя' = DATA VARISTRING[150] (Stock) IN invoiceConsignment PREFCHARWIDTH 30;
+addressConsigmentLegalEntity 'Юр. адрес отправителя' = DATA VARISTRING[150] (Stock) IN invoiceConsignment CHARWIDTH 30;
 overAddressSupplier(Consignment consignment) += addressConsigmentLegalEntity(supplierStock(consignment));
 overAddressCustomer(Consignment consignment) += addressConsigmentLegalEntity(customerStock(consignment));
 

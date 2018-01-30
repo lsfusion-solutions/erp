@@ -20,7 +20,7 @@ name 'Наименование' = DATA VARISTRING[150](GLAccountType);
 
 currency = DATA Currency (GLAccountType);
 nameCurrency 'Валюта' (GLAccountType GLAccountType)= name(currency(GLAccountType));
-id 'Идентификатор' = DATA VARSTRING[20] (GLAccountType) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+id 'Идентификатор' = DATA VARSTRING[20] (GLAccountType) CHARWIDTH 15;
 
 GLAccountTypeIdGLAccountType (string1) = GROUP AGGR GLAccountType GLAccountType
     BY id(GLAccountType) WHERE GLAccountType IS GLAccountType;
@@ -43,22 +43,22 @@ FORM GLAccountTypes 'Планы счетов'
 CLASS GLAccount 'Счет';
 TABLE GLAccount(GLAccount);
 
-name 'Наименование' = DATA VARSTRING[255] (GLAccount) MINCHARWIDTH 40 MAXCHARWIDTH 80 PREFCHARWIDTH 80;
+name 'Наименование' = DATA VARSTRING[255] (GLAccount) CHARWIDTH 40;
 GLAccountType = DATA GLAccountType (GLAccount) AUTOSET;
 nameGLAccountType 'План счетов' (GLAccount GLAccount)= name(GLAccountType(GLAccount));
 nameCurrency 'Валюта' (GLAccount GLAccount) = nameCurrency(GLAccountType(GLAccount));
 
-id 'Идентификатор' = DATA VARSTRING[20] (GLAccount) MINCHARWIDTH 5 MAXCHARWIDTH 10 PREFCHARWIDTH 10;
+id 'Идентификатор' = DATA VARSTRING[20] (GLAccount) CHARWIDTH 5;
 
 TABLE GLAccountGLAccount(GLAccount, GLAccount);
 @defineHierarchy(GLAccount);
 
 canonicalId 'Канонический код' (GLAccount GLAccount) = VARSTRING[255](
                            [= GROUP CONCAT id(GLAccount parent), ' / ' BY GLAccount child ORDER DESC level(child, parent)](GLAccount))
-                           MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 MATERIALIZED;
+                           CHARWIDTH 50 MATERIALIZED;
 canonicalNames 'Каноническое имя' (GLAccount GLAccount) = VARSTRING[255](
                            [= GROUP CONCAT name(GLAccount parent), ' / ' BY GLAccount child ORDER DESC level(child, parent)](GLAccount))
-                           MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 MATERIALIZED;
+                           CHARWIDTH 50 MATERIALIZED;
 
 nameAccountParent 'Родительский объект' (GLAccount GLAccount)= name(parent(GLAccount));
 idGLAccountParent 'Родительский объект' (GLAccount GLAccount)= id(parent(GLAccount));

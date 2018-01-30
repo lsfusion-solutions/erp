@@ -81,8 +81,8 @@ nameStock 'Склад' (Batch batch) = name(stock(batch));
 cost 'Себестоимость' (batch) = ABSTRACT NUMERIC[16,4] (Batch) MATERIALIZED;
 prevCost 'Себестоимость' (Batch batch) = PREV(cost(batch));
 
-description 'Описание' (batch) = ABSTRACT VARISTRING[200] (Batch) MATERIALIZED IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 60;
-name 'Название' (batch) = ABSTRACT VARISTRING[200] (Batch) MATERIALIZED IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 60;
+description 'Описание' (batch) = ABSTRACT VARISTRING[200] (Batch) MATERIALIZED IN recognize CHARWIDTH 30;
+name 'Название' (batch) = ABSTRACT VARISTRING[200] (Batch) MATERIALIZED IN recognize CHARWIDTH 30;
 
 expiryDate 'Годен до' (batch) = ABSTRACT DATE (Batch) MATERIALIZED INDEXED;
 prevExpiryDate 'Годен до' (Batch batch) = PREV(expiryDate(batch));
@@ -90,9 +90,9 @@ prevExpiryDate 'Годен до' (Batch batch) = PREV(expiryDate(batch));
 manufactureDate 'Дата изготовления' (batch) = ABSTRACT DATE (Batch) MATERIALIZED INDEXED;
 prevManufactureDate 'Дата изготовления' (Batch batch) = PREV(manufactureDate(batch));
 
-number 'Номер документа' = ABSTRACT VARSTRING[28] (Batch) MINCHARWIDTH 8 MATERIALIZED;
+number 'Номер документа' = ABSTRACT VARSTRING[28] (Batch) CHARWIDTH 8 MATERIALIZED;
 series 'Серия документа' = ABSTRACT STRING[2] (Batch) FIXEDCHARWIDTH 3 MATERIALIZED;
-seriesNumber 'Серия/Номер' (Batch o) = CONCAT '', series(o), number(o) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 MATERIALIZED;
+seriesNumber 'Серия/Номер' (Batch o) = CONCAT '', series(o), number(o) CHARWIDTH 7 MATERIALIZED;
     
 supplier = ABSTRACT LegalEntity (Batch) MATERIALIZED;
 prevSupplier (Batch batch) = PREV(supplier(batch));
@@ -109,7 +109,7 @@ supplierStock = ABSTRACT Stock (Batch) MATERIALIZED;
 nameSupplierStock 'Склад поставщика' (Batch batch) = name(supplierStock(batch));
 prevSupplierStock (Batch batch) = PREV(supplierStock(batch));
 
-id 'Код' = ABSTRACT VARSTRING[100] (Batch) MATERIALIZED INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15 IN recognize;
+id 'Код' = ABSTRACT VARSTRING[100] (Batch) MATERIALIZED INDEXED CHARWIDTH 10 IN recognize;
 batch = GROUP MAX Batch b BY id(b);
 
 @defineOption(disableUniqueIdBatch, 'Не контролировать уникальность кодов партий', stock1);
@@ -689,7 +689,7 @@ FORM batches 'Партии'
 
 DESIGN batches {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             fill = 1;
@@ -990,8 +990,8 @@ resetAllSelectedSkuStock 'Сбросить для всех'() = {
     select(Sku sku, Stock stock) <- NULL WHERE select(sku, stock);
 } ASON CONTEXTMENU select[Sku,Stock];
 
-countSelectSkus 'Отм.' = GROUP SUM 1 IF select(Sku sku) MINCHARWIDTH 3 PREFCHARWIDTH 3 TOOLBAR ;
-countSelectSkuStocks 'Отм.' = GROUP SUM 1 IF select(Sku sku, Stock stock) MINCHARWIDTH 3 PREFCHARWIDTH 3 TOOLBAR;
+countSelectSkus 'Отм.' = GROUP SUM 1 IF select(Sku sku) CHARWIDTH 3 TOOLBAR ;
+countSelectSkuStocks 'Отм.' = GROUP SUM 1 IF select(Sku sku, Stock stock) CHARWIDTH 3 TOOLBAR;
 
 multipleStores 'Несколько складов' = DATA LOCAL BOOLEAN ();
 singleStore = NOT multipleStores();
@@ -1070,7 +1070,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
 
 DESIGN currentBalanceSkuStock {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW filter {
             type = CONTAINERH;
             MOVE PROPERTY (multipleStores());
@@ -1191,7 +1191,7 @@ FORM balanceSkuStock 'Остатки на дату'
 
 DESIGN balanceSkuStock {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW filter {
             type = CONTAINERH;
             MOVE PROPERTY (valT);
@@ -1299,7 +1299,7 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
 
 DESIGN currentBalanceBatchStock {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW filter {
             type = CONTAINERH;
             MOVE PROPERTY (multipleStores());
@@ -1407,7 +1407,7 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
 
 DESIGN balanceBatchStock {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW filter {
             type = CONTAINERH;
             MOVE PROPERTY (valT);
@@ -1601,9 +1601,9 @@ END
 
 META defineDocumentDetailBatchCustomPrefixInner(detail, batchProp, batchClass, prefix)
     batchProp = DATA batchClass (###detail) INDEXED;
-    description##batchClass 'Партия' (###detail detail) = Stock.description(batchProp(detail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
-    name##batchClass 'Партия' (###detail detail) = name(batchProp(detail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
-    documentName##batchClass 'Наименование (для документов)' (###detail detail) = documentNameSku(batchProp(detail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    description##batchClass 'Партия' (###detail detail) = Stock.description(batchProp(detail)) CHARWIDTH 20;
+    name##batchClass 'Партия' (###detail detail) = name(batchProp(detail)) CHARWIDTH 20;
+    documentName##batchClass 'Наименование (для документов)' (###detail detail) = documentNameSku(batchProp(detail)) CHARWIDTH 20;
     
     CONSTRAINT sku(batchProp(###detail detail)) != sku(detail) CHECKED BY batchProp[###detail]
         MESSAGE 'Товар партии строки должен соответствовать SKU строки';
@@ -1614,7 +1614,7 @@ END
 
 //META defineDocumentDetailBatchCustom(detail, batchProp)
 //    batch###detail = DATA batchProp (Detail);
-//    descriptionBatch###detail 'Партия' (detail) = descriptionBatch(batch###detail(detail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+//    descriptionBatch###detail 'Партия' (detail) = descriptionBatch(batch###detail(detail)) CHARWIDTH 20;
 //
 //    CONSTRAINT skuBatch(batch###detail(detail)) != sku###detail(detail) CHECKED BY batch###detail
 //        MESSAGE 'Товар партии строки должен соответствовать SKU строки';
@@ -1632,9 +1632,9 @@ END
 
 META defineDocumentAbstractDetailBatchCustomInner(detail, batchProp, batchClass)
     batchProp = ABSTRACT batchClass (###detail) MATERIALIZED INDEXED;
-    description##batchClass 'Партия' (###detail detail) = description(batchProp(detail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
-    name##batchClass 'Партия' (###detail detail) = name(batchProp(detail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
-    documentName##batchClass 'Наименование (для документов)' (###detail detail) = documentNameSku(batchProp(detail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    description##batchClass 'Партия' (###detail detail) = description(batchProp(detail)) CHARWIDTH 20;
+    name##batchClass 'Партия' (###detail detail) = name(batchProp(detail)) CHARWIDTH 20;
+    documentName##batchClass 'Наименование (для документов)' (###detail detail) = documentNameSku(batchProp(detail)) CHARWIDTH 20;
 END
 META defineDocumentInterfaceDetailBatchCustom(detail, batchProp)
     @defineDocumentAbstractDetailBatchCustom(detail, batchProp);

@@ -18,12 +18,12 @@ TABLE certificate(Certificate);
 @defineDocumentAbstractHeaderTimePrefix(Certificate, from, ' с');
 @defineDocumentAbstractHeaderTimePrefix(Certificate, to, ' по');
 
-number 'Номер' = ABSTRACT VARISTRING[100] (Certificate) IN numbered MATERIALIZED MINCHARWIDTH 10;
+number 'Номер' = ABSTRACT VARISTRING[100] (Certificate) IN numbered MATERIALIZED CHARWIDTH 10;
 series 'Серия' = ABSTRACT STRING[2] (Certificate) IN numbered MATERIALIZED FIXEDCHARWIDTH 3; 
 
 seriesNumber 'Серия/Номер' (Certificate o) = 
     CONCAT '', series(o), number(o) 
-    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 MATERIALIZED;
+    CHARWIDTH 7 MATERIALIZED;
 
 description 'Документ качества' (Certificate certificate) = CONCAT ' ', seriesNumber(certificate), 'от ' + fromDate(certificate), 'по ' + toDate(certificate);
 
@@ -88,14 +88,14 @@ META defineDocumentCertificateTextPrefix(document, prefix, caption)
     EXTEND FORM user###document PROPERTIES(dc) prefix##Text;
     DESIGN user###document {
         PROPERTY(prefix##Text(dc)){
-            minimumValueSize = (200, 36);
+            valueSize = (200, 36);
         }
     }
 
     EXTEND FORM document##s PROPERTIES(dc) READONLY prefix##Text;
     DESIGN document##s {
         PROPERTY(prefix##Text(dc)){
-            minimumValueSize = (200, 36);
+            valueSize = (200, 36);
         }
     }
 

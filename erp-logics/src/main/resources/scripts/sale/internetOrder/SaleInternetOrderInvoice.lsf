@@ -33,14 +33,14 @@ countUserInvoiceDetail(internetOrderDetail, invoice) =
 
 internetOrders 'Интернет-заказы' (invoice) = GROUP CONCAT VARSTRING[255](description(InternetOrderDetail internetOrderDetail)) IF countUserInvoiceDetail(internetOrderDetail, Invoice invoice) , ', '
                                              BY invoice
-                                             ORDER internetOrderDetail MINCHARWIDTH 30 PREFCHARWIDTH 50 MATERIALIZED;
+                                             ORDER internetOrderDetail CHARWIDTH 30 MATERIALIZED;
                                              
 invoices 'Накладные' (internetOrder) = GROUP CONCAT VARSTRING[255](description(UserInvoice invoice)) IF countUserInvoiceDetail(InternetOrderDetail internetOrderDetail, invoice) , ', '
                                              BY internetOrder(internetOrderDetail)
-                                             ORDER invoice MINCHARWIDTH 30 PREFCHARWIDTH 50;     
+                                             ORDER invoice CHARWIDTH 30;     
                                                                                      
 invoices 'Накладные' (internetOrderDetail) = GROUP CONCAT VARSTRING[255](description(UserInvoiceDetail detail)) IF internetOrderDetail(detail), ', '
-                                             BY internetOrderDetail(detail) MINCHARWIDTH 30 PREFCHARWIDTH 50;                                                                                       
+                                             BY internetOrderDetail(detail) CHARWIDTH 30;                                                                                       
 
 invoiced 'Кол-во (выписано)' (InternetOrderDetail internetOrderDetail) =
     GROUP SUM quantity(UserInvoiceDetail invoiceDetail) BY internetOrderDetail(invoiceDetail);

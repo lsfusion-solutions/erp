@@ -64,9 +64,9 @@ TABLE terminalHandbookType(TerminalHandbookType);
 
 name 'Наименование' = DATA VARSTRING[100] (TerminalHandbookType);
 propertyID 'Свойство ID' = DATA Property (TerminalHandbookType);
-canonicalNamePropertyID 'Свойство ID' (t) = canonicalName(propertyID(t)) PREFCHARWIDTH 30; 
+canonicalNamePropertyID 'Свойство ID' (t) = canonicalName(propertyID(t)) CHARWIDTH 30; 
 propertyName 'Свойство наименование' = DATA Property (TerminalHandbookType);
-canonicalNamePropertyName 'Свойство наименование' (t) = canonicalName(propertyName(t)) PREFCHARWIDTH 30; 
+canonicalNamePropertyName 'Свойство наименование' (t) = canonicalName(propertyName(t)) CHARWIDTH 30; 
 
 useForExport 'Использовать для выгрузки' = DATA BOOLEAN (TerminalHandbookType);
 skipPrefix 'Не выгружать префикс' = DATA BOOLEAN (TerminalHandbookType);
@@ -91,7 +91,7 @@ FORM terminalHandbookTypes 'Виды справочников ТСД'
 CLASS GroupTerminalDocumentType 'Группа типов документов';
 TABLE groupTerminalDocumentType (GroupTerminalDocumentType);
 
-name 'Наименование группы' = DATA VARSTRING[200] (GroupTerminalDocumentType) IN base MINCHARWIDTH 10 PREFCHARWIDTH 20;
+name 'Наименование группы' = DATA VARSTRING[200] (GroupTerminalDocumentType) IN base CHARWIDTH 10;
 groupTerminalDocumentType 'Группа типов документов' = DATA GroupTerminalDocumentType (GroupTerminal);
 nameGroupTerminalDocumentType 'Группа типов документов' (GroupTerminal groupTerminal) = name(groupTerminalDocumentType(groupTerminal));
 skip 'Не передавать в онлайн-режиме' = DATA BOOLEAN (GroupTerminalDocumentType) IN base;
@@ -227,17 +227,17 @@ TABLE terminalDocument (TerminalDocument);
 
 TABLE terminalDocumentId(VARISTRING[1000]);
 
-id 'Код' = DATA VARSTRING[1000] (TerminalDocument) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+id 'Код' = DATA VARSTRING[1000] (TerminalDocument) IN recognize INDEXED CHARWIDTH 10;
 terminalDocument (id) = GROUP AGGR (TerminalDocument td) BY id (td) MATERIALIZED TABLE terminalDocumentId;
 
-title 'Имя' = DATA VARSTRING[100] (TerminalDocument) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
-comment 'Комментарий' = DATA VARSTRING[100] (TerminalDocument) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
+title 'Имя' = DATA VARSTRING[100] (TerminalDocument) IN base CHARWIDTH 20;
+comment 'Комментарий' = DATA VARSTRING[100] (TerminalDocument) IN base CHARWIDTH 20;
 quantity 'Количество' = DATA NUMERIC[14,3] (TerminalDocument) IN base;
 idTerminalHandbookType1 'Код в справочнике 1' = DATA VARSTRING[100] (TerminalDocument) IN base;
 idTerminalHandbookType2 'Код в справочнике 2' = DATA VARSTRING[100] (TerminalDocument) IN base;
 
 terminalDocumentType = DATA TerminalDocumentType (TerminalDocument);
-nameTerminalDocumentType 'Тип документа' (TerminalDocument terminalDocument) = name (terminalDocumentType (terminalDocument)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameTerminalDocumentType 'Тип документа' (TerminalDocument terminalDocument) = name (terminalDocumentType (terminalDocument)) CHARWIDTH 20;
 
 groupTerminal = DATA GroupTerminal (TerminalDocument);
 nameGroupTerminal 'Группа ТСД' (TerminalDocument terminalDocument) = name(groupTerminal(terminalDocument));
@@ -248,7 +248,7 @@ used 'Использован' (terminalDocument) = DATA BOOLEAN (TerminalDocumen
 notUsed 'Неиспользован' (TerminalDocument terminalDocument) = terminalDocument IS TerminalDocument AND NOT used(terminalDocument);
 
 createdUser = DATA CustomUser (TerminalDocument);
-createdNameUser 'Создан пользователем' (TerminalDocument td) = name[Contact](createdUser(td)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+createdNameUser 'Создан пользователем' (TerminalDocument td) = name[Contact](createdUser(td)) CHARWIDTH 10 IN created;
 createdUser (TerminalDocument o) <- currentUser() WHEN SET(o IS TerminalDocument);
 
 dataStock = DATA Stock (TerminalDocument);
@@ -268,12 +268,12 @@ CLASS TerminalDocumentDetail 'Строка документа ТСД';
 TABLE terminalDocumentDetail (TerminalDocumentDetail);
 TABLE sessionTerminalDocumentDetail (Session, TerminalDocumentDetail);
 
-id 'Код' = DATA VARSTRING[1000] (TerminalDocumentDetail) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+id 'Код' = DATA VARSTRING[1000] (TerminalDocumentDetail) IN recognize INDEXED CHARWIDTH 10;
 
 number 'Номер' = DATA INTEGER (TerminalDocumentDetail) IN base;
 index 'Номер строки ' (TerminalDocumentDetail d) =
     PARTITION SUM 1 BY terminalDocument(d)
-    ORDER number(d), d MINCHARWIDTH 4 PREFCHARWIDTH 4;
+    ORDER number(d), d CHARWIDTH 4;
 barcode 'Штрихкод' = DATA VARSTRING[15] (TerminalDocumentDetail) IN base;
 quantity 'Количество' = DATA NUMERIC[14,3] (TerminalDocumentDetail) IN base;
 price 'Цена' = DATA NUMERIC[16,4] (TerminalDocumentDetail) IN base;
@@ -315,7 +315,7 @@ terminalIdTerminalId (documentDetail, document) = GROUP AGGR TerminalDocumentDet
     BY id (terminalDocument(terminalDocumentDetail)), id(terminalDocumentDetail);    
 
 description 'Название документа' (TerminalDocument o) =
-    'Документ ТСД' + ' № ' + id(o) + ' от ' + date(o) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    'Документ ТСД' + ' № ' + id(o) + ' от ' + date(o) CHARWIDTH 30;
     
 @defineDocumentIs(TerminalDocument, TerminalDocumentDetail);
 @defineDocumentHeaderClosed(TerminalDocument);
@@ -412,7 +412,7 @@ FORM terminalDocuments 'Документы ТСД' AUTOREFRESH 60
 
 DESIGN terminalDocuments {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW topContainer{
             type = SPLITV;
             fill = 1;

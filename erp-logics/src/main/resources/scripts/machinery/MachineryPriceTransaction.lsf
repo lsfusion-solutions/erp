@@ -285,7 +285,7 @@ in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Machinery);
 npps 'Номера устройств' (transaction) =
     GROUP CONCAT STRING[3](npp(Machinery machinery)) IF in(MachineryPriceTransaction transaction, machinery), ','
           BY transaction
-          ORDER machinery MINCHARWIDTH 10 PREFCHARWIDTH 20 MATERIALIZED;
+          ORDER machinery CHARWIDTH 10 MATERIALIZED;
 
 // перезагрузка прайса целиком
 selected 'Вкл' = DATA LOCAL BOOLEAN (GroupMachinery);
@@ -318,7 +318,7 @@ FORM groupMachineryInput 'Выбор оборудования для перез�
 
 DESIGN groupMachineryInput {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
     }
     PROPERTY(sname) {
         focusable = FALSE;
@@ -444,7 +444,7 @@ TABLE stockRequestExchange(Stock, RequestExchange);
 in 'Вкл' = DATA BOOLEAN (Stock, RequestExchange);  
 extraStocks = GROUP CONCAT name(Stock stock) IF in(stock, RequestExchange requestExchange), ', ' 
                                                 BY requestExchange
-                                                ORDER name(stock) MINCHARWIDTH 30 PREFCHARWIDTH 30 MATERIALIZED;                                                                         
+                                                ORDER name(stock) CHARWIDTH 30 MATERIALIZED;                                                                         
 dateFrom 'Дата с' = DATA DATE (RequestExchange) NONULL IN recognize;
 dateTo 'Дата по' = DATA DATE (RequestExchange) NONULL;
 startDate 'Загружать дисконтные карты начиная с даты' = DATA DATE (RequestExchange);
@@ -483,7 +483,7 @@ TABLE requestExchangeError (RequestExchangeError);
 erTrace 'След ошибки' = DATA TEXT (RequestExchangeError);
 date 'Время' = DATA DATETIME (RequestExchangeError);
 requestExchange = DATA RequestExchange (RequestExchangeError);
-note 'Примечание' = DATA VARSTRING[100] (RequestExchange) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+note 'Примечание' = DATA VARSTRING[100] (RequestExchange) CHARWIDTH 30;
 
 inGroupMachinery (Stock stock) = [= GROUP SUM 1 BY stock(GroupMachinery gr)](stock);
 CONSTRAINT stock(RequestExchange r) AND NOT inGroupMachinery(stock(r)) CHECKED BY stock[RequestExchange]
@@ -573,7 +573,7 @@ copy 'Копировать'(RequestExchange request) = {
 
 allStocks 'Склады' (RequestExchange requestExchange)= 
     CONCAT ',', nameStock(requestExchange), extraStocks(requestExchange) 
-    MINCHARWIDTH 30 PREFCHARWIDTH 30 MATERIALIZED; 
+    CHARWIDTH 30 MATERIALIZED; 
 
 FORM requestExchanges 'Запросы обмена данными'
     
@@ -817,7 +817,7 @@ FORM selectGroupMachinery 'Выбор групп оборудования'
     FILTERGROUP mActive
         FILTER 'Активные' NOT inactive(m) DEFAULT 
 ;
-DESIGN selectGroupMachinery { BOX { preferredSize = (1024, 768); } }
+DESIGN selectGroupMachinery { BOX { size = (1024, 768); } }
 
 countSendAllMovedDays 'При загрузке целиком остатков включать товары с движением позже, дней' = DATA INTEGER ();
 

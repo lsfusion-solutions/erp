@@ -102,7 +102,7 @@ CONSTRAINT notNullInvoiceVAT() AND isItem(sku(InvoiceDetail detail)) AND isPoste
 
 shortDescription (Invoice invoice) = seriesNumber(invoice) + ' от ' + date(invoice);
 
-extraDescription 'Доп. наименование' (invoiceDetail) = ABSTRACT VARSTRING[1500] (InvoiceDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
+extraDescription 'Доп. наименование' (invoiceDetail) = ABSTRACT VARSTRING[1500] (InvoiceDetail) CHARWIDTH 30;
 
 editSku 'Редактировать SKU' (InvoiceDetail d) = { NEWSESSION { edit(sku(d)); } } TOOLBAR;
 
@@ -128,7 +128,7 @@ nameOperation 'Операция' (Invoice invoice) = name(operation(invoice));
 operation (InvoiceDetail d) = operation(invoice(d));
 createdTime 'Время создания'= ABSTRACT DATETIME (Invoice) IN created;
 createdUser = ABSTRACT CustomUser (Invoice);
-createdNameUser 'Создан пользователем' (Invoice o) = name[Contact](createdUser(o)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+createdNameUser 'Создан пользователем' (Invoice o) = name[Contact](createdUser(o)) CHARWIDTH 10;
 
 negativeValueInvoices 'Запретить ввод отрицательных значений в накладных' = DATA BOOLEAN ();
 
@@ -174,7 +174,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     index[Invoice.InvoiceDetail](InvoiceDetail d)+=index(d);
     
     createdUser = ABSTRACT CustomUser (Invoice);
-    createdNameUser 'Создан пользователем' (Invoice invoice) = name[Contact](createdUser(invoice)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+    createdNameUser 'Создан пользователем' (Invoice invoice) = name[Contact](createdUser(invoice)) CHARWIDTH 10 IN created;
     createdUser(UserInvoice invoice) += createdUser(invoice) IF invoice IS UserInvoice;
     
     createdTime (UserInvoice invoice) += createdTime(invoice) IF invoice IS UserInvoice;
@@ -508,7 +508,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
     DESIGN userInvoice {
         BOX {
-            preferredSize = (1024, 768);
+            size = (1024, 768);
             NEW mainTabbed {
                 fill = 1;
                 type = TABBED;
@@ -531,7 +531,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                                 NEW second { 
                                     type = CONTAINERH;
                                     MOVE PROPERTY(nameNumerator(i));
-                                    MOVE PROPERTY(number(i)) { minimumCharWidth = 15; };
+                                    MOVE PROPERTY(number(i)) { charWidth = 15; };
                                     MOVE PROPERTY(series(i));
                                     MOVE PROPERTY(date(i));
                                     MOVE PROPERTY(time(i));
@@ -574,7 +574,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                                     caption = 'Дополнительные параметры';
                                     type = COLUMNS;
                                     columns = 4;
-        //                            preferredSize = (500, -1);
+        //                            size = (500, -1);
                                 }
                                 NEW headerCreateDetail {
                                     caption = 'Основание';
@@ -585,7 +585,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                                     caption = 'Производные документы';
                                     type = COLUMNS;
                                     columns = 2;
-        //                            preferredSize = (500, -1);
+        //                            size = (500, -1);
                                 }
                                 NEW import {
                                     caption = 'Импорт';
@@ -617,9 +617,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
             PROPERTY(formOk()) {
                 caption = 'Провести';
             }
-            PROPERTY(sumUserInvoiceDetail(i)) { minimumCharWidth = 13;}
-            PROPERTY(VATSumUserInvoiceDetail(i)) { minimumCharWidth = 13;}  
-            PROPERTY(invoiceSumUserInvoiceDetail(i)) { minimumCharWidth = 13;}
+            PROPERTY(sumUserInvoiceDetail(i)) { charWidth = 13;}
+            PROPERTY(VATSumUserInvoiceDetail(i)) { charWidth = 13;}  
+            PROPERTY(invoiceSumUserInvoiceDetail(i)) { charWidth = 13;}
             PROPERTY(deleteUserInvoiceDetail(i)){focusable = FALSE;}
         }
     }
@@ -705,27 +705,27 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     filterDateTo (Invoice i) = date(i) <= filterInvoiceDateTo() OR (i IS Invoice AND NOT filterInvoiceDateTo());      
     
     filterInvoiceCustomer  = DATA LOCAL LegalEntity ();
-    nameFilterInvoiceCustomer 'Покупатель' = name(filterInvoiceCustomer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilterInvoiceCustomer 'Покупатель' = name(filterInvoiceCustomer()) CHARWIDTH 15;          
     filterCustomer (Invoice i) = customer(i) == filterInvoiceCustomer() OR (i IS Invoice AND NOT filterInvoiceCustomer());    
 
     filterInvoiceCustomerStock  = DATA LOCAL Stock ();
-    nameFilterInvoiceCustomerStock 'Склад покупателя' = name(filterInvoiceCustomerStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilterInvoiceCustomerStock 'Склад покупателя' = name(filterInvoiceCustomerStock()) CHARWIDTH 15;          
     filterCustomerStock (Invoice i) = customerStock(i) == filterInvoiceCustomerStock() OR (i IS Invoice AND NOT filterInvoiceCustomerStock());  
 
     filterInvoiceSupplier = DATA LOCAL LegalEntity ();
-    nameFilterInvoiceSupplier 'Поставщик' = name(filterInvoiceSupplier()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilterInvoiceSupplier 'Поставщик' = name(filterInvoiceSupplier()) CHARWIDTH 15;          
     filterSupplier (Invoice i) = supplier(i) == filterInvoiceSupplier() OR (i IS Invoice AND NOT filterInvoiceSupplier());      
 
     filterInvoiceSupplierStock  = DATA LOCAL Stock ();
-    nameFilterInvoiceSupplierStock 'Склад поставщика' = name(filterInvoiceSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilterInvoiceSupplierStock 'Склад поставщика' = name(filterInvoiceSupplierStock()) CHARWIDTH 15;          
     filterSupplierStock (Invoice i) = supplierStock(i) == filterInvoiceSupplierStock() OR (i IS Invoice AND NOT filterInvoiceSupplierStock());      
     
     filterInvoiceCustomUser  = DATA LOCAL CustomUser ();
-    nameFilterInvoiceCustomUser 'Создан пользователем' = name[Contact](filterInvoiceCustomUser()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilterInvoiceCustomUser 'Создан пользователем' = name[Contact](filterInvoiceCustomUser()) CHARWIDTH 15;          
     filterCustomUser (Invoice i) = createdUser[UserInvoice](i) == filterInvoiceCustomUser() OR (i IS Invoice AND NOT filterInvoiceCustomUser());  
 
     filterInvoiceComputer = DATA LOCAL Computer ();
-    nameFilterInvoiceComputer 'Создан на компьютере' = hostname(filterInvoiceComputer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilterInvoiceComputer 'Создан на компьютере' = hostname(filterInvoiceComputer()) CHARWIDTH 15;          
     filterComputer (Invoice i) = createdComputer(i) == filterInvoiceComputer() OR (i IS Invoice AND NOT filterInvoiceComputer());
     
     overShowEdit = ABSTRACT BOOLEAN (Invoice);
@@ -789,7 +789,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
     DESIGN invoices 'Накладные'###sign {
         BOX {
-            preferredSize = (1024, 768);
+            size = (1024, 768);
 
             NEW documentContainer BEFORE TOOLBARBOX {
                 fill = 1;
@@ -1336,11 +1336,11 @@ END
 
 META defineDocumentExtraFilters(object, objectClass, form, container)
     filter###object###CustomUser  = DATA LOCAL CustomUser ();
-    nameFilter###object###CustomUser 'Создан пользователем' = nameContact(filter###object###CustomUser()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilter###object###CustomUser 'Создан пользователем' = nameContact(filter###object###CustomUser()) CHARWIDTH 15;          
     filterCustomUser###object### (i) = createdNameUserUser###object###(i) == filter###object###CustomUser() OR (i IS objectClass AND NOT filter###object###CustomUser());  
 
     filter###object###Computer = DATA LOCAL Computer ();
-    nameFilter###object###Computer 'Создан на компьютере' = hostnameComputer(filter###object###Computer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    nameFilter###object###Computer 'Создан на компьютере' = hostnameComputer(filter###object###Computer()) CHARWIDTH 15;          
     filterComputer###object### (i) = createdComputerUser###object###(i) == filter###object###Computer() OR (i IS objectClass AND NOT filter###object###Computer());           
         
     EXTEND FORM form 

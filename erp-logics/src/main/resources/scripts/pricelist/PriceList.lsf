@@ -171,7 +171,7 @@ orderIn (UserPriceList priceList, DataPriceListType dataPriceListType) += orderI
 
 priceListTypes 'Цены' (priceList) = GROUP CONCAT name[PriceListType](DataPriceListType priceListType) IF in(PriceList priceList, priceListType) , ', '
                                                BY priceList
-                                               ORDER priceListType MINCHARWIDTH 10 PREFCHARWIDTH 20 MATERIALIZED;
+                                               ORDER priceListType CHARWIDTH 10 MATERIALIZED;
 priceListTypes 'Цены' (PriceListDetail d) = priceListTypes(priceList(d));
 
 // Строки
@@ -241,7 +241,7 @@ in 'Отм' (PriceList priceList, Stock stock) =
 
 stocks 'Склады' (priceList) = GROUP CONCAT VARISTRING[250] (name(Stock stock)) IF in(PriceList priceList, stock) , ', '
                                        BY priceList
-                                       ORDER stock MINCHARWIDTH 20 PREFCHARWIDTH 40 MATERIALIZED;
+                                       ORDER stock CHARWIDTH 20 MATERIALIZED;
 stocks 'Склады' (PriceListDetail d) = stocks(priceList(d));                                       
 // История
 @defineCreatedAbstract(PriceListDetail);
@@ -336,13 +336,13 @@ changePrice 'Изменение, %' (UserPriceListDetail priceListDetail, DataPr
 
 // Заголовки колонок
 headerNameCurrentData (PriceListType dataPriceListType) =
-    name(dataPriceListType) + ' (старая)' MINCHARWIDTH 30 MAXCHARWIDTH 50;
+    name(dataPriceListType) + ' (старая)' CHARWIDTH 30;
 
 headerNameChangeData (PriceListType dataPriceListType) =
-    name(dataPriceListType) + ' (изменение, %)' MINCHARWIDTH 30 MAXCHARWIDTH 50;
+    name(dataPriceListType) + ' (изменение, %)' CHARWIDTH 30;
 
 headerNameData (PriceListType dataPriceListType) =
-    name(dataPriceListType) MINCHARWIDTH 30 MAXCHARWIDTH 50;
+    name(dataPriceListType) CHARWIDTH 30;
     
 headerNameCompanyData (PriceListType dataPriceListType) = 'Организация (старая)' IF dataPriceListType IS PriceListType;    
 
@@ -729,7 +729,7 @@ DESIGN userPriceList {
                 
                 NEW first {
                     type = CONTAINERH;
-                    MOVE PROPERTY(isPosted(p)) { minimumCharWidth = 40; }
+                    MOVE PROPERTY(isPosted(p)) { charWidth = 40; }
                 }
                 NEW second { 
                     type = CONTAINERH;
@@ -1143,7 +1143,7 @@ filterPriceListDateTo 'Дата по' = DATA LOCAL DATE ();
 filterDateTo (PriceList p) = toDate(p) <= filterPriceListDateTo() OR (p IS PriceList AND NOT filterPriceListDateTo());      
 
 filterPriceListCompany  = DATA LOCAL LegalEntity ();
-nameFilterPriceListCompany 'Организация' = name(filterPriceListCompany()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+nameFilterPriceListCompany 'Организация' = name(filterPriceListCompany()) CHARWIDTH 15;          
 filterCompany (PriceList p) = company(p) == filterPriceListCompany() OR (p IS PriceList AND NOT filterPriceListCompany());       
 
 FORM priceLists 'Прайсы'

@@ -16,12 +16,12 @@ relation = GROUP SUM 1 IF in(Picking o, InternetOrderDetail d) BY o, internetOrd
 
 seriesNumberInternetOrders 'Интернет-заказы' (picking) = GROUP CONCAT seriesNumber(InternetOrder order) IF relation(Picking picking, order) , ', '
                                                  BY picking
-                                                 ORDER order  MINCHARWIDTH 30 PREFCHARWIDTH 30;   
+                                                 ORDER order  CHARWIDTH 30;   
 
 dataPickingIndex 'Номер строки' = DATA INTEGER (InternetOrderDetail) INDEXED; 
 defaultPickingIndex 'Номер строки (авт.)' (InternetOrderDetail d) =
     PARTITION SUM 1 BY picking(d)
-    ORDER internetOrder(d),d MINCHARWIDTH 4 PREFCHARWIDTH 4;
+    ORDER internetOrder(d),d CHARWIDTH 4;
 indexPicking 'Номер строки' (InternetOrderDetail d) = OVERRIDE dataPickingIndex(d), defaultPickingIndex(d) IN recognize;  
 
 sortOrder 'Порядок сортировки' (d) = ABSTRACT VARSTRING[100] (InternetOrderDetail);
@@ -76,7 +76,7 @@ FORM statusPicking 'Статус'
 ;  
 
 status = DATA StatusPicking(Picking);
-nameStatus 'Статус' (Picking p) = staticCaption(status(p)) IN documentPrm MINCHARWIDTH 8 PREFCHARWIDTH 10;
+nameStatus 'Статус' (Picking p) = staticCaption(status(p)) IN documentPrm CHARWIDTH 8;
 
 status (Picking o) <- StatusPicking.new WHEN SET(o IS Picking);
 
@@ -147,7 +147,7 @@ FORM picking 'Комплектация'
 DESIGN picking {
 
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW specificationBox BEFORE TOOLBARBOX{
             fill = 1;
             MOVE BOX(d) {

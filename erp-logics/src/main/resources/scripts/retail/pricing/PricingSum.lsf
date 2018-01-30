@@ -33,7 +33,7 @@ name(PricingCommittee committee) += name(committee) IF committee IS PricingCommi
 // ----------------------------------- Комиссия по умолчанию для отдела ------------------------------------------ //
 
 pricingCommittee 'Комиссия для акта расценки (ИД)' = DATA PricingCommittee (DepartmentStore);
-namePricingCommittee 'Комиссия для акта расценки' (DepartmentStore departmentStore) = name(pricingCommittee(departmentStore)) IN committee MINCHARWIDTH 20 PREFCHARWIDTH 30;
+namePricingCommittee 'Комиссия для акта расценки' (DepartmentStore departmentStore) = name(pricingCommittee(departmentStore)) IN committee CHARWIDTH 20;
 isDefault 'По умолчанию' (PricingCommittee pricingCommittee, DepartmentStore departmentStore) = pricingCommittee(departmentStore) == pricingCommittee;
 CONSTRAINT pricingCommittee(DepartmentStore departmentStore) AND NOT in(pricingCommittee(departmentStore), departmentStore)
     CHECKED BY pricingCommittee[DepartmentStore] MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';
@@ -75,7 +75,7 @@ FORM pricingCommittee 'Комиссия для акта расценки'
 
 DESIGN pricingCommittee {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW stocks AFTER BOX(c) {
             fill = 1;
@@ -116,7 +116,7 @@ GROUP pricingCommittee 'Комиссия' : public;
 META defineDocumentHeaderPricingCommittee(object, stockClass, prefix)
     prefix###pricingCommittee (object) = DATA PricingCommittee(###object);
 
-    name###prefix##PricingCommittee 'Комиссия' (###object object) = name(prefix###pricingCommittee(object)) IN documentPrm MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    name###prefix##PricingCommittee 'Комиссия' (###object object) = name(prefix###pricingCommittee(object)) IN documentPrm CHARWIDTH 10;
     prefix###pricingCommittee (###object object) <- pricingCommittee(stockClass(object))
         WHEN CHANGED(stockClass(object));
 
@@ -146,11 +146,11 @@ META defineDocumentHeaderPricingCommittee(object, stockClass, prefix)
     prefix###accountantMan 'Бухгалтер' (###object object) = OVERRIDE data###prefix##AccountantMan(object), accountantMan(prefix###pricingCommittee(object));
     prefix###headMan 'Зав. магазином' (###object object) = OVERRIDE data###prefix##HeadMan(object), headMan(prefix###pricingCommittee(object));
     
-    name###prefix##FormedMan 'Сформировал' (###object object) = name[Contact](prefix###formedMan(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
-    name###prefix##CheckedMan 'Проверил' (###object object) = name[Contact](prefix###checkedMan(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
-    name###prefix##LabeledMan 'Промаркировал' (###object object) = name[Contact](prefix###labeledMan(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
-    name###prefix##AccountantMan 'Бухгалтер' (###object object) = name[Contact](prefix###accountantMan(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
-    name###prefix##HeadMan 'Зав.маг.' (###object object) = name[Contact](prefix###headMan(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;    
+    name###prefix##FormedMan 'Сформировал' (###object object) = name[Contact](prefix###formedMan(object)) IN pricingCommittee CHARWIDTH 10;
+    name###prefix##CheckedMan 'Проверил' (###object object) = name[Contact](prefix###checkedMan(object)) IN pricingCommittee CHARWIDTH 10;
+    name###prefix##LabeledMan 'Промаркировал' (###object object) = name[Contact](prefix###labeledMan(object)) IN pricingCommittee CHARWIDTH 10;
+    name###prefix##AccountantMan 'Бухгалтер' (###object object) = name[Contact](prefix###accountantMan(object)) IN pricingCommittee CHARWIDTH 10;
+    name###prefix##HeadMan 'Зав.маг.' (###object object) = name[Contact](prefix###headMan(object)) IN pricingCommittee CHARWIDTH 10;    
        
     positionName###prefix##FormedMan 'Цены сформировал' (###object object) = positionName(prefix###formedMan(object)) IN pricingCommittee;
     positionName###prefix##CheckedMan 'Реестр проверил' (###object object) = positionName(prefix###checkedMan(object)) IN pricingCommittee;
@@ -167,7 +167,7 @@ END
 META defineDocumentHeaderAbstractPricingCommittee(object, stockClass, prefix)
     prefix###pricingCommittee (object) = ABSTRACT PricingCommittee(###object) MATERIALIZED;
 
-    name###prefix##PricingCommittee 'Комиссия для акта расценки' (###object object) = name(prefix###pricingCommittee(object)) IN documentPrm MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    name###prefix##PricingCommittee 'Комиссия для акта расценки' (###object object) = name(prefix###pricingCommittee(object)) IN documentPrm CHARWIDTH 10;
 
     data###prefix##FormedMan 'Цены сформировал' (object) = ABSTRACT Employee (###object);
     data###prefix##CheckedMan 'Реестр проверил' (object) = ABSTRACT Employee (###object);
@@ -270,7 +270,7 @@ skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALU
 skipChangeLedger 'Не изменять текущие цены' (UserPricingDetail d) = skipChangeLedger(userPricing(d)) IN documentPrm;
 skipChangeLedger (UserPricingDetail o) += skipChangeLedger(o);
 
-extraDescription 'Доп. наименование'  = ABSTRACT VARSTRING[255] (PricingDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
+extraDescription 'Доп. наименование'  = ABSTRACT VARSTRING[255] (PricingDetail) CHARWIDTH 30;
 
 // Возвраты
 isReturn 'Обратный' = ABSTRACT BOOLEAN (Pricing);
@@ -331,8 +331,8 @@ DESIGN userPricing {
         }
     }
 
-    PROPERTY(sumUserPricingDetail(p)) { minimumCharWidth = 13;}
-    PROPERTY(retailSumUserPricingDetail(p)) { minimumCharWidth = 13;}
+    PROPERTY(sumUserPricingDetail(p)) { charWidth = 13;}
+    PROPERTY(retailSumUserPricingDetail(p)) { charWidth = 13;}
 }
 
 // Список расценок

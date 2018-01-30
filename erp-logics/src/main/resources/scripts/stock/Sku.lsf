@@ -11,9 +11,9 @@ TABLE UOM (UOM);
 
 @defineExternalizable(UOM, VARSTRING[100]);
 
-name 'Наименование' = DATA VARISTRING[50](UOM) MINCHARWIDTH 7 PREFCHARWIDTH 14;
+name 'Наименование' = DATA VARISTRING[50](UOM) CHARWIDTH 7;
 UOMName = GROUP AGGR UOM uom BY name(uom); 
-shortName 'Краткое наименование' = DATA VARISTRING[100](UOM) MINCHARWIDTH 3 PREFCHARWIDTH 6;  ////
+shortName 'Краткое наименование' = DATA VARISTRING[100](UOM) CHARWIDTH 3;  ////
 
 base = DATA UOM(UOM);
 shortNameBase 'Базовая ед.изм.' (UOM UOM) = shortName(base(UOM)) IN base;
@@ -54,8 +54,8 @@ CLASS ABSTRACT Group 'Классификатор SKU';
 TABLE group(Group);
 
 name 'Наименование' = ABSTRACT VARISTRING[250](Group) MATERIALIZED INDEXED;
-order 'Порядок' = ABSTRACT INTEGER (Group) MATERIALIZED MINCHARWIDTH 2 PREFCHARWIDTH 2;
-id 'Код' = ABSTRACT VARSTRING[100] (Group) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
+order 'Порядок' = ABSTRACT INTEGER (Group) MATERIALIZED CHARWIDTH 2;
+id 'Код' = ABSTRACT VARSTRING[100] (Group) IN recognize CHARWIDTH 10;
 
 TABLE groupGroup(Group, Group);
 @defineHierarchyAbstract(group);
@@ -74,7 +74,7 @@ FORM groups 'Классификаторы SKU'
 ;
 
 CLASS ABSTRACT GroupType 'Тип классификатора SKU';
-name 'Наименование' = ABSTRACT VARISTRING[100](GroupType) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+name 'Наименование' = ABSTRACT VARISTRING[100](GroupType) CHARWIDTH 10;
 
 FORM groupTypes 'Типы классификатора SKU'
     OBJECTS g = GroupType
@@ -112,7 +112,7 @@ TABLE customGroup (CustomGroup);
 @defineExternalizable(customGroup, VARSTRING[100]);
 id(CustomGroup group) += id(group) IF group IS CustomGroup;
 
-name 'Наименование' = DATA VARISTRING[250](CustomGroup) MATERIALIZED INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
+name 'Наименование' = DATA VARISTRING[250](CustomGroup) MATERIALIZED INDEXED CHARWIDTH 20;
 
 name(CustomGroup group) += name(group) IF group IS CustomGroup;
 
@@ -214,9 +214,9 @@ DESIGN customGroups {
 CLASS ABSTRACT SkuGroup 'Группа SKU' : Group;
 TABLE skuGroup (SkuGroup);
 
-name 'Наименование' = ABSTRACT VARISTRING[250](SkuGroup) MATERIALIZED INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
-order 'Порядок' = ABSTRACT INTEGER (SkuGroup) MINCHARWIDTH 2 PREFCHARWIDTH 2;
-id 'Код' = ABSTRACT VARSTRING[100] (SkuGroup) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
+name 'Наименование' = ABSTRACT VARISTRING[250](SkuGroup) MATERIALIZED INDEXED CHARWIDTH 20;
+order 'Порядок' = ABSTRACT INTEGER (SkuGroup) CHARWIDTH 2;
+id 'Код' = ABSTRACT VARSTRING[100] (SkuGroup) IN recognize CHARWIDTH 10;
 
 sort = OVERRIDE lpad(VARSTRING[250](order(SkuGroup g)), 20, '0'), name(g);  
 
@@ -241,7 +241,7 @@ EXTEND CLASS SystemGroupType { skuGroupType 'Основной' }
 parent(SkuGroup skuGroup) += parent(skuGroup);
 
 TABLE skuGroupLanguage(SkuGroup, Language);
-name 'Наименование (иностр.)' = ABSTRACT VARSTRING[110] (SkuGroup, Language) MATERIALIZED MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
+name 'Наименование (иностр.)' = ABSTRACT VARSTRING[110] (SkuGroup, Language) MATERIALIZED CHARWIDTH 40 INDEXED AGGPROP;
 
 name 'Наименование (иностр.)' (SkuGroup skuGroup, Stock stock) = IF language(stock) THEN name(skuGroup, language(stock)) ELSE name(skuGroup);
 
@@ -304,14 +304,14 @@ nameSkuGroup6 'Субгруппа' (Sku sku) = name(skuGroup6(sku));
 groupType(SkuGroup group) += SystemGroupType.skuGroupType IF group IS SkuGroup;
 group(SystemGroupType type, Sku sku) += WHEN CLASS(skuGroup(sku)) AND type == SystemGroupType.skuGroupType THEN skuGroup(sku);
 
-name 'Наименование' (sku) = ABSTRACT VARISTRING[255] (Sku) MATERIALIZED MINCHARWIDTH 30 PREFCHARWIDTH 60 INDEXED AGGPROP IN base;
+name 'Наименование' (sku) = ABSTRACT VARISTRING[255] (Sku) MATERIALIZED CHARWIDTH 30 INDEXED AGGPROP IN base;
 
 UOM (sku) = ABSTRACT UOM (Sku) MATERIALIZED;
 nameUOM 'Ед. изм.' (Sku sku) = name(UOM(sku)) IN base;
 shortNameUOM 'Ед. изм.' (Sku sku) = shortName(UOM(sku)) IN base;
 
 country = ABSTRACT Country (Sku) MATERIALIZED;
-nameCountry 'Страна' (Sku sku) = name(country(sku)) MINCHARWIDTH 15 PREFCHARWIDTH 15 IN base;
+nameCountry 'Страна' (Sku sku) = name(country(sku)) CHARWIDTH 15 IN base;
 sidOrigin2Country 'Код 2 знака (ориг.)' (Sku sku) = sidOrigin2(country(sku));
 
 TABLE skuGroupSku(SkuGroup, Sku);
@@ -325,7 +325,7 @@ volume 'Объем' = ABSTRACT NUMERIC[9,3] (Sku) MATERIALIZED;
 composition 'Состав' = ABSTRACT VARSTRING[255] (Sku) MATERIALIZED;
 
 skuType = ABSTRACT SkuType (Sku) MATERIALIZED INDEXED;
-nameSkuType 'Тип товара' (Sku s) = staticCaption(skuType(s)) MINCHARWIDTH 5 PREFCHARWIDTH 5;
+nameSkuType 'Тип товара' (Sku s) = staticCaption(skuType(s)) CHARWIDTH 5;
 
 isStock 'Складируемый' (Sku sku) = isStock(skuType(sku)) MATERIALIZED;
 
@@ -390,7 +390,7 @@ FORM skus 'Sku'
 
 DESIGN skus {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             fill = 1;
@@ -443,7 +443,7 @@ END
 META defineDocumentDetailSkuCustomPrefixInner (detail, skuClass, skuClassUpper, prefix, caption)
     prefix###skuClass = DATA skuClassUpper (###detail) INDEXED;
     prefix###id###skuClass 'Код'###caption (###detail detail) = id(prefix###skuClass(detail)) IN recognize;
-    prefix###name###skuClass 'Наименование'###caption (###detail detail) = name(prefix###skuClass(detail)) IN recognize  MINCHARWIDTH 40 PREFCHARWIDTH 80;
+    prefix###name###skuClass 'Наименование'###caption (###detail detail) = name(prefix###skuClass(detail)) IN recognize  CHARWIDTH 40;
     prefix###shortNameUOM###skuClass 'Ед. изм.'###caption = shortNameUOM(prefix###skuClass(###detail detail)) IN recognize;
     prefix###idBarcode###skuClass 'Штрихкод'###caption (###detail detail) = idBarcode(prefix###skuClass(detail)) IN recognize;
     prefix###nameCountry###skuClass 'Страна'###caption (###detail detail) = nameCountry(prefix###skuClass(detail));

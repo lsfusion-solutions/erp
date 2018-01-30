@@ -16,7 +16,7 @@ extId 'Код' = DATA VARSTRING[100] (ItemGroup);
 overId 'Код' (ItemGroup g) = OVERRIDE extId(g), id(g);
 
 name 'Наименование' = DATA VARISTRING[250](ItemGroup) IN base;
-order 'Порядок' = DATA INTEGER (ItemGroup) MINCHARWIDTH 2 PREFCHARWIDTH 2 IN paramsItemGroup;
+order 'Порядок' = DATA INTEGER (ItemGroup) CHARWIDTH 2 IN paramsItemGroup;
 
 name(ItemGroup group) += name(group) IF group IS ItemGroup;
 order(ItemGroup group) += order(group) IF group IS ItemGroup;
@@ -91,7 +91,7 @@ FORM dialogItemGroups 'Товарные группы'
 
 DESIGN dialogItemGroups {
     BOX {
-        preferredSize = (1280, 1024);
+        size = (1280, 1024);
         NEW rootContainer BEFORE TOOLBARBOX {
             fill = 1;
             type = SPLITH;
@@ -128,7 +128,7 @@ DESIGN options {
 };
 
 
-id 'Код' = DATA VARSTRING[100] (Item) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+id 'Код' = DATA VARSTRING[100] (Item) IN recognize INDEXED CHARWIDTH 10;
 
 TABLE itemId (VARSTRING[100]);
 item (id) = GROUP AGGR (Item item) BY id (item) MATERIALIZED TABLE itemId; // нужно MATERIALIZED, чтобы не допускало одинаковых кодов, а кидала UPDATE_CONFLICT
@@ -575,7 +575,7 @@ DESIGN attributesItem {
 }
 
 META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
-    in 'Отм.' = DATA LOCAL NESTED BOOLEAN (###object) MAXCHARWIDTH 5;
+    in 'Отм.' = DATA LOCAL NESTED BOOLEAN (###object);
     allowReplace###object = DATA LOCAL BOOLEAN ();
     
     FORM confirmReplace###object 'Объединяемые '##caption2
@@ -663,7 +663,7 @@ META defineUniteFilterAttributeItem(object, nameProp, caption1, caption2, object
 END
 
 META defineUniteAttributeItemWithoutExtendForm(object, nameProp, caption1, caption2, object2)
-    in 'Отм.' = DATA LOCAL NESTED BOOLEAN (###object) MAXCHARWIDTH 5;
+    in 'Отм.' = DATA LOCAL NESTED BOOLEAN (###object);
     
     FORM confirmReplace###object 'Объединяемые '##caption2
         OBJECTS object = ###object PANEL 
@@ -742,7 +742,7 @@ META defineItemAttributeName (prefix, caption, group)
     name###prefix##Attribute 'Наименование'###caption (Item item) = OVERRIDE overName(item),
                             VARISTRING[255](
                     nameConcat###prefix##Attribute(item))
-                    IN group MATERIALIZED MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
+                    IN group MATERIALIZED CHARWIDTH 40 INDEXED AGGPROP;
     
     background###prefix (ItemAttribute a, ItemGroup g) = RGB(203,203,206) IF numberInName###prefix(a, g) AND NOT numberInName###prefix(a, g) == dataNumberInName###prefix(a,g);   
     EXTEND FORM itemOptions 
@@ -995,7 +995,7 @@ META defineItemFilterValue(object, captionProp, o)
     DESIGN object###session { 
         BOX { 
             REMOVE BOX(gg);
-            preferredSize = (600, 400); 
+            size = (600, 400); 
             MOVE BOX(v) {        
                 caption = captionProp;
                 PROPERTY (val) {
@@ -1014,7 +1014,7 @@ META defineItemFilterValue(object, captionProp, o)
         PROPERTIES(t) name READONLY
         ORDER name(t)
     ;
-    DESIGN object##s###session { BOX { preferredSize = (600, 400); } }    
+    DESIGN object##s###session { BOX { size = (600, 400); } }    
   
     add###object 'Добавить'(ItemGroup gg) = {
         DIALOG object###session OBJECTS gg = gg, v INPUT DO {
@@ -1229,7 +1229,7 @@ EXTEND FORM dialogItemGroups
 // ------ Базовые свойства товара ------ //
 
 // Название
-caption 'Название' = DATA VARISTRING[255] (Item) MINCHARWIDTH 20 PREFCHARWIDTH 40 IN itemBase;
+caption 'Название' = DATA VARISTRING[255] (Item) CHARWIDTH 20 IN itemBase;
 @defineItemAttribute(caption, , 'Название', itemBase);
 WHEN LOCAL FORMS item, items SETCHANGED (caption(Item i)) AND trimAttributes() DO {
     caption(i) <- trim(caption(i));
@@ -1316,7 +1316,7 @@ FORM brands 'Бренды'
     ORDER name(t)
     LIST Brand OBJECT t
 ;
-DESIGN brands { BOX { preferredSize = (600, 400); } }
+DESIGN brands { BOX { size = (600, 400); } }
 
 @defineObjectItemAttribute(brand, Brand, name, 'Бренд', itemBase);
 
@@ -1360,15 +1360,15 @@ TABLE manufacturer(Manufacturer);
 
 @defineExternalizable(manufacturer, VARSTRING[100]);
 
-name 'Наименование' = DATA VARISTRING[100](Manufacturer) IN recognize MINCHARWIDTH 15 PREFCHARWIDTH 25;
+name 'Наименование' = DATA VARISTRING[100](Manufacturer) IN recognize CHARWIDTH 15;
 manufacturerName = GROUP AGGR Manufacturer m BY name(m); 
-address 'Адрес производителя' = DATA VARSTRING[255] (Manufacturer) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+address 'Адрес производителя' = DATA VARSTRING[255] (Manufacturer) CHARWIDTH 20;
 
-originalName 'Наименование (ориг.)' = DATA VARISTRING[100](Manufacturer) MINCHARWIDTH 15 PREFCHARWIDTH 15;
-originalAddress 'Адрес производителя (ориг.)' = DATA VARSTRING[255] (Manufacturer) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+originalName 'Наименование (ориг.)' = DATA VARISTRING[100](Manufacturer) CHARWIDTH 15;
+originalAddress 'Адрес производителя (ориг.)' = DATA VARSTRING[255] (Manufacturer) CHARWIDTH 20;
 
 country = DATA Country (Manufacturer);
-nameCountry 'Страна' = name(country(Manufacturer m)) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+nameCountry 'Страна' = name(country(Manufacturer m)) CHARWIDTH 20;
 
 FORM manufacturer 'Производитель товара'
     OBJECTS m=Manufacturer PANEL
@@ -1380,7 +1380,7 @@ FORM manufacturer 'Производитель товара'
 DESIGN manufacturer {
     BOX {
         PROPERTY(name(m)){
-            minimumCharWidth = 50;    
+            charWidth = 50;    
         }
     }       
 }
@@ -1393,7 +1393,7 @@ FORM manufacturerDialog 'Производители товара'
     ORDER name(m)
     LIST Manufacturer OBJECT m
 ;
-DESIGN manufacturerDialog { BOX { preferredSize = (600, 400); } }
+DESIGN manufacturerDialog { BOX { size = (600, 400); } }
 
 @defineObjectItemAttribute(manufacturer, Manufacturer, name, 'Производитель', itemBase);
 @defineObjectItemAttributeBatch (manufacturer, nameManufacturer, 'Производитель');
@@ -1458,7 +1458,7 @@ DESIGN item {
         MOVE GROUP(itemBase,i) {
             columns = 2;
             PROPERTY(composition(i)) {
-                minimumCharWidth = 20;
+                charWidth = 20;
             }
         }
         MOVE GROUP(itemOriginal,i) {
@@ -1577,14 +1577,14 @@ DESIGN items {
 // Кассы
 @defineItemAttributeName(cashRegister, ' (кассы)', public);
 dataTitleCashRegister 'Наименование для касс' = DATA VARSTRING[100] (Barcode);
-titleCashRegister 'Наименование для касс' = OVERRIDE dataTitleCashRegister(Barcode barcode), nameCashRegisterAttribute(sku(barcode)) MINCHARWIDTH 30 PREFCHARWIDTH 30;
+titleCashRegister 'Наименование для касс' = OVERRIDE dataTitleCashRegister(Barcode barcode), nameCashRegisterAttribute(sku(barcode)) CHARWIDTH 30;
 loadDefaultItemAttributes() += {
     numberInNameCashRegister(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 // Весы
 @defineItemAttributeName(scales, ' (весы)', public);
 dataTitleScales 'Наименование для весов' = DATA VARSTRING[100] (Barcode);
-titleScales 'Наименование для весов' = OVERRIDE dataTitleScales(Barcode barcode), nameScalesAttribute(sku(barcode)) MINCHARWIDTH 30 PREFCHARWIDTH 30;
+titleScales 'Наименование для весов' = OVERRIDE dataTitleScales(Barcode barcode), nameScalesAttribute(sku(barcode)) CHARWIDTH 30;
 loadDefaultItemAttributes() += {
     numberInNameScales(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
@@ -1625,7 +1625,7 @@ META defineNumeratorItemGroup (prefix, caption, group)
 
     prefix##Numerator (ItemGroup itemGroup) =
         OVERRIDE data###prefix##Numerator(itemGroup), nearest###prefix##Numerator(itemGroup) MATERIALIZED;
-    name###prefix##Numerator caption (ItemGroup itemGroup) = name(prefix##Numerator(itemGroup)) MINCHARWIDTH 5 PREFCHARWIDTH 10 MAXCHARWIDTH 10 IN group;
+    name###prefix##Numerator caption (ItemGroup itemGroup) = name(prefix##Numerator(itemGroup)) CHARWIDTH 5 IN group;
 
     background###prefix##Numeratot (ItemGroup itemGroup) = IF data###prefix##Numerator(itemGroup) THEN
                                                                       RGB(190,190,190) IF itemGroup IS ItemGroup
@@ -1918,7 +1918,7 @@ DESIGN itemGroup {
             MOVE GROUP(defaultItemGroup,g) {
                 caption ='';
                 columns = 3;
-                PROPERTY(caption(g)) {minimumCharWidth = 20;}
+                PROPERTY(caption(g)) {charWidth = 20;}
             }
             NEW defaultPane {
                 fill = 1;
@@ -1968,7 +1968,7 @@ EXTEND FORM itemInfo
 
 DESIGN itemInfo {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
         NEW topContainer {
             NEW firstLine {
                 type = CONTAINERH;

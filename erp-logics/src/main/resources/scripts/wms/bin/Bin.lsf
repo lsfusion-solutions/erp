@@ -64,7 +64,7 @@ FORM bins 'Ячейки'
 
 DESIGN bins {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         NEW topContainer {
             type = SPLITH;
@@ -89,14 +89,14 @@ DESIGN bins {
 // ----------------------------------- Ledger ------------------------------------------ //
 //
 //bin = ABSTRACT Bin(DataSkuLedger) MATERIALIZED INDEXED;
-//nameBin 'Ячейка' (DataSkuLedger ledger) = name(bin(ledger)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+//nameBin 'Ячейка' (DataSkuLedger ledger) = name(bin(ledger)) CHARWIDTH 10;
 //
 //bin (batch) = ABSTRACT Bin (Batch) MATERIALIZED INDEXED;
 //prevBin (Batch batch) = PREV(bin(batch));
-//nameBin 'Ячейка' (Batch batch) = name(bin(batch)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+//nameBin 'Ячейка' (Batch batch) = name(bin(batch)) CHARWIDTH 10;
 //
 //bin (SkuLedger ledger) = MULTI bin[DataSkuLedger] (ledger), bin[Batch] (ledger) MATERIALIZED INDEXED;
-//nameBin 'Ячейка' (SkuLedger ledger) = name(bin(ledger)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+//nameBin 'Ячейка' (SkuLedger ledger) = name(bin(ledger)) CHARWIDTH 10;
 //
 //TABLE skuBin(Sku, Bin);
 //TABLE skuStockBin(Sku, Stock, Bin);
@@ -237,10 +237,10 @@ countIn = GROUP SUM 1 IF isParent(binGroup(Bin bin) , BinGroup parent) AND in(St
 
 bins 'Ячейки' (stock) = GROUP CONCAT name(Bin bin) IF in(Stock stock, bin) , ', '
                                        BY stock
-                                       ORDER bin MINCHARWIDTH 20 PREFCHARWIDTH 40 MATERIALIZED;
+                                       ORDER bin CHARWIDTH 20 MATERIALIZED;
 stocks 'Склады' (bin) = GROUP CONCAT name(Stock stock) IF in(stock, Bin bin) , ', '
                                        BY bin
-                                       ORDER stock MINCHARWIDTH 20 PREFCHARWIDTH 40 MATERIALIZED;
+                                       ORDER stock CHARWIDTH 20 MATERIALIZED;
 
 
 // ---------------- Ячейка по классификатору ------------------- //
@@ -249,10 +249,10 @@ groupType = DATA GroupType (Stock);
 nameGroupType 'Тип классификатора' (Stock stock) = name(groupType(stock));
 
 dataBin = DATA Bin (Stock, Group);
-nameDataBin 'Ячейка' (Stock stock,Group group) = name(dataBin(stock,group)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+nameDataBin 'Ячейка' (Stock stock,Group group) = name(dataBin(stock,group)) CHARWIDTH 10;
 
 dataBin = DATA Bin (Stock, Sku);
-nameDataBin 'Ячейка' (Stock stock,Sku sku) = name(dataBin(stock,sku)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+nameDataBin 'Ячейка' (Stock stock,Sku sku) = name(dataBin(stock,sku)) CHARWIDTH 10;
 
 levelParentBin (stock, group) = GROUP MIN level(Group group, Group parent) IF dataBin(Stock stock, parent)
                                                               BY stock, group MATERIALIZED;
@@ -262,10 +262,10 @@ nearestInBin  (Stock stock, Group group) =
     dataBin(stock, nearestParentBin (stock, group)) MATERIALIZED;
 
 bin (Stock stock, Group group) = OVERRIDE dataBin(stock, group), nearestInBin(stock, group) MATERIALIZED;
-nameBin 'Ячейка'= name(bin(Stock stock, Group group)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+nameBin 'Ячейка'= name(bin(Stock stock, Group group)) CHARWIDTH 10;
 
 bin (Stock stock, Sku sku) = OVERRIDE dataBin(stock, sku), bin(stock, group(groupType(stock), sku)) MATERIALIZED;
-nameBin 'Ячейка'= name(bin(Stock stock, Sku sku)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+nameBin 'Ячейка'= name(bin(Stock stock, Sku sku)) CHARWIDTH 10;
 
 CONSTRAINT dataBin(Stock stock, Group group) AND NOT in(stock, dataBin(stock, group))
            CHECKED BY dataBin[Stock,Group] MESSAGE 'Ячейка (для группы sku) не включена для склада';
@@ -311,7 +311,7 @@ FORM binStocks 'Ячейки'
 
 DESIGN binStocks {
     BOX {
-        preferredSize = (1024, 768);
+        size = (1024, 768);
 
         MOVE BOX(ts);
         NEW topContainer {
@@ -360,11 +360,11 @@ DESIGN binStocks {
 
 META defineDocumentDetailBinCustom(detail, prefix, caption)
     prefix###bin = DATA Bin (###detail);
-    name###prefix##Bin 'Ячейка'###caption (###detail detail) = name(prefix###bin(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+    name###prefix##Bin 'Ячейка'###caption (###detail detail) = name(prefix###bin(detail)) CHARWIDTH 10;
 END
 META defineDocumentAbstractDetailBinCustom(detail, prefix, caption)
     prefix###bin = ABSTRACT Bin (###detail) MATERIALIZED;
-    name###prefix##Bin 'Ячейка'###caption (###detail detail) = name(prefix###bin(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+    name###prefix##Bin 'Ячейка'###caption (###detail detail) = name(prefix###bin(detail)) CHARWIDTH 10;
 END
 META defineDocumentInterfaceDetailBinCustom(detail, prefix, caption)
     @defineDocumentAbstractDetailBinCustom(detail, prefix, caption);

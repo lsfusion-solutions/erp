@@ -20,12 +20,12 @@ toDate(Compliance certificate) += toDate(certificate);
 
 // ------ Номер ----------- //
 
-number 'Номер' = DATA VARISTRING[100] (Compliance) NONULL IN numbered MINCHARWIDTH 10;
+number 'Номер' = DATA VARISTRING[100] (Compliance) NONULL IN numbered CHARWIDTH 10;
 series 'Серия' = DATA STRING[2] (Compliance) IN numbered FIXEDCHARWIDTH 3; 
 
 seriesNumber 'Серия/Номер' (Compliance o) = 
     CONCAT '', series(o), number(o) 
-    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 MATERIALIZED;
+    CHARWIDTH 7 MATERIALIZED;
 
 series(Compliance compliance) += series(compliance);
 number(Compliance compliance) += number(compliance);
@@ -34,7 +34,7 @@ compliance (number) = GROUP NAGGR Compliance compliance BY number (compliance);
 
 // Описание
 description 'Сертификат соответствия' (Compliance compliance) = CONCAT ' ', seriesNumber(compliance),
-                                                 'от ' + fromDate(compliance), 'по ' + toDate(compliance) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+                                                 'от ' + fromDate(compliance), 'по ' + toDate(compliance) CHARWIDTH 20;
 // История                                                 
 @defineDocumentHeaderCreated(Compliance);                                                 
 
@@ -97,7 +97,7 @@ DESIGN compliance {
             NEW header {
                 caption = 'Шапка документа';
                 type = CONTAINERH;
-                MOVE PROPERTY (number(c)) { minimumCharWidth = 45;};
+                MOVE PROPERTY (number(c)) { charWidth = 45;};
                 MOVE PROPERTY (series(c));
                 MOVE PROPERTY (date(c));
                 MOVE PROPERTY (time(c));
@@ -186,7 +186,7 @@ FORM compliances 'Сертификаты соответствия'
 ;
 
 DESIGN compliances {
-    preferredSize = (1024, 768);
+    size = (1024, 768);
     NEW header {
         fill = 1;
         type = SPLITV;
