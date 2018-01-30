@@ -12,21 +12,22 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-import static lsfusion.base.BaseUtils.trimToEmpty;
-
 public class FiscalBoardResetTextActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptInterface;
+    private final ClassPropertyInterface timeoutInterface;
 
     public FiscalBoardResetTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptInterface = i.next();
+        timeoutInterface = i.next();
     }
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         DataObject receiptObject = context.getDataKeyValue(receiptInterface);
+        Integer timeout = (Integer) context.getKeyValue(timeoutInterface).getValue();
 
         try {
             boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
@@ -34,11 +35,11 @@ public class FiscalBoardResetTextActionProperty extends ScriptingActionProperty 
                 Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
                 Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
                 boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
-                String defaultTextBoard = trimToEmpty((String) findProperty("defaultTextBoard[]").read(context));
+                String defaultTextBoard = (String) findProperty("defaultTextBoard[]").read(context);
 
                 String[] lines = generateText(defaultTextBoard, 20);
 
-                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase));
+                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, timeout));
 
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

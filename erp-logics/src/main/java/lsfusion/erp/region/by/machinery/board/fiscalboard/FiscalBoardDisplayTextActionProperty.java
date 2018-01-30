@@ -52,7 +52,7 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
 
                 String[] lines = generateText(price, quantity, sum, name, 20);
 
-                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase));
+                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, null));
 
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
