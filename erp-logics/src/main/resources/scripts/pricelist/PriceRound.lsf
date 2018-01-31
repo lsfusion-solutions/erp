@@ -28,28 +28,31 @@ TABLE priceInterval (PriceInterval);
 
 roundCondition = DATA RoundCondition(PriceInterval) NONULL DELETE;
 
-from 'от' = DATA NUMERIC[16,4](PriceInterval) IN base;
-to 'до' = DATA NUMERIC[16,4](PriceInterval) IN base;
+from 'Цена от' = DATA NUMERIC[16,4](PriceInterval) IN base;
+to 'Остаток до' = DATA NUMERIC[16,4](PriceInterval) IN base;
 modifier 'Округлённая цена интервала' = DATA NUMERIC[16,4](PriceInterval) IN base;
 
-integer 'Целое' (price, RoundCondition roundCondition) = floor(price / denominatorPrice(roundCondition));
+dataDenominatorPrice 'Делитель' = DATA NUMERIC[16,4] (PriceInterval);
 
-fraction 'Дробное' (price, RoundCondition roundCondition) = price -
-    integer(price, roundCondition) * denominatorPrice(roundCondition);
+denominatorPrice (PriceInterval l) = OVERRIDE dataDenominatorPrice(l), denominatorPrice(roundCondition(l)) MATERIALIZED;
 
-modifierPriceInterval (price, roundCondition) =
-    GROUP LAST modifier(PriceInterval interval)
-          BY NUMERIC[22,10] price AS NUMERIC[22,10], roundCondition(interval)
+inInterval (NUMERIC[22,10] price, PriceInterval interval) = 
+    price >= from(interval) AND mod(price, denominatorPrice(interval)) < to(interval);
+
+onStarted () += {
+    minPrice(RoundCondition c) <- NULL WHERE NOT [= GROUP SUM 1 BY roundCondition(PriceInterval i)](c);
+} 
+
+priceInterval (NUMERIC[22,10] price, RoundCondition roundCondition) =
+    GROUP LAST floor(NUMERIC[22,10] price AS NUMERIC[22,10], denominatorPrice(PriceInterval interval)) + modifier(interval)
+          BY price, roundCondition(interval)
           ORDER interval
-          WHERE fraction(price, roundCondition(interval)) >= from(interval) AND
-                fraction(price, roundCondition(interval)) < to(interval);
-
+          WHERE inInterval(price, interval);
 
 round (NUMERIC[16,4] price, RoundCondition roundCondition) = NUMERIC[16,4](
-    IF (price AS NUMERIC[22,10]) > minPrice(roundCondition) AND modifierPriceInterval(price, roundCondition)
+    IF (price AS NUMERIC[22,10]) > minPrice(roundCondition)
         THEN
-            integer(price, roundCondition) * denominatorPrice(roundCondition) +
-            modifierPriceInterval(price, roundCondition)
+            priceInterval(price, roundCondition)
         ELSE
             Utils.round(price AS NUMERIC[22,10], priceRound(roundCondition))
     ) COMPLEX; // для COMPLEX
@@ -64,13 +67,13 @@ FORM priceIntervals 'Округления цен'
     OBJECTS rc=RoundCondition
     PROPERTIES(rc) name, denominatorPrice, minPrice, priceRound, NEW, DELETE 
     PROPERTIES(rc, c) isDefault
-    
-    OBJECTS p=PriceInterval
-    PROPERTIES(p) from, to, modifier, NEW, DELETE 
 
     OBJECTS nu=NUMERIC[16,4] PANEL
     PROPERTIES val = VALUE(nu)
     PROPERTIES(nu, rc) READONLY round
+    
+    OBJECTS p=PriceInterval
+    PROPERTIES(p) BACKGROUND inInterval(nu, p) from, dataDenominatorPrice, to, modifier, NEW, DELETE 
 
     FILTERS currency(rc) == c,
             roundCondition(p) == rc
