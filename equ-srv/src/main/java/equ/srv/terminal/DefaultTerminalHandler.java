@@ -256,11 +256,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("transactionPrice[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                     barcodeQuery.and(terminalHandlerLM.findProperty("transactionPrice[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
                 }
-                if (currentQuantity) {
+                if (currentQuantity)
                     barcodeQuery.addProperty("quantity", terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
-                    if(filterCurrentQuantity)
-                        barcodeQuery.and(terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
-                }
+                if (filterCurrentQuantity)
+                    barcodeQuery.and(terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
+
                 barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
 
