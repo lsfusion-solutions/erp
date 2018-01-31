@@ -142,7 +142,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                                 ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType,
                                 ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject,
                                 ObjectValue customerObject, ObjectValue customerStockObject)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (orderDetailsList != null) {
             

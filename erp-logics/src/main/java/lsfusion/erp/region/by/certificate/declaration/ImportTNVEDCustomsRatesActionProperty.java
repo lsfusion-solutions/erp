@@ -62,7 +62,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         }
     }
 
-    private void importDuty(ExecutionContext<ClassPropertyInterface> context, List<List<Object>> data) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importDuty(ExecutionContext<ClassPropertyInterface> context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();
@@ -124,7 +124,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         }
     }
 
-    private void importVAT(ExecutionContext<ClassPropertyInterface> context, List<List<Object>> data) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importVAT(ExecutionContext<ClassPropertyInterface> context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();

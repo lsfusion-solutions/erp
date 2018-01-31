@@ -112,7 +112,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
     public boolean importOrders(List<ProductionOrderDetail> orderDetailsList, BusinessLogics BL, DataSession session,
                                 ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, ObjectValue operationObject)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, SQLHandledException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (orderDetailsList != null && (orderObject !=null || showField(orderDetailsList, "idOrder"))) {
 
