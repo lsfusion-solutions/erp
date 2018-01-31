@@ -4,6 +4,8 @@ REQUIRE SaleLedger;
 
 NAMESPACE SaleLedger;
 
+showB 'Считать остаток на начало' = DATA LOCAL BOOLEAN (); 
+
 //balanceB 'Остаток на начало (количество)' = DATA LOCAL NUMERIC[16,5] (Stock, LegalEntity, Group, Brand);
 sumB 'Остаток на начало (сумма)' = DATA LOCAL NUMERIC[18,4] (Stock, LegalEntity, Group, Brand);
 
@@ -44,12 +46,15 @@ fillSaleGroup 'Заполнить' (GroupType gt, DATE dFrom, DATE dTo) = {
 //    balanceA(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP SUM balanceA(Sku sk, Stock st, DATE date) 
 //         BY date, GroupType gt, st, supplierLastOrderBatch(sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none)](dTo, gt, st, g, b);
 
-    signedSum(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
-    signedSum(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP SUM signedSum(Sku sk, Stock st, DATE date) IF date >= DATE dFrom AND date <= DATE dTo 
-         BY dFrom, dTo, GroupType gt, st, supplierLastOrderBatch(sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none)](dFrom, dTo, gt, st, l, g, b);
-
     sumB(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
-    sumB(Stock st, LegalEntity l, Group g, Brand b) <- sumA(st, l, g, b) (-) signedSum(st, l, g, b);
+
+    IF showB() THEN {
+        signedSum(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
+        signedSum(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP SUM signedSum(Sku sk, Stock st, DATE date) IF date >= DATE dFrom AND date <= DATE dTo 
+             BY dFrom, dTo, GroupType gt, st, supplierLastOrderBatch(sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none)](dFrom, dTo, gt, st, l, g, b);
+    
+        sumB(Stock st, LegalEntity l, Group g, Brand b) <- sumA(st, l, g, b) (-) signedSum(st, l, g, b);
+    }
          
     moved(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
     moved(Stock st, LegalEntity l, Group g, Brand b) <- sumB(st, l, g, b) OR sumA(st, l, g, b) OR sumSold(st, l, g, b); 
@@ -58,9 +63,11 @@ fillSaleGroup 'Заполнить' (GroupType gt, DATE dFrom, DATE dTo) = {
 FORM saleGroup 'Продажи по группам'
     OBJECTS gt = GroupType PANEL
     PROPERTIES(gt) name SELECTOR
+
+    PROPERTIES() showB TODRAW gt 
     
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
-    PROPERTIES VALUE(dFrom), VALUE(dTo) 
+    PROPERTIES VALUE(dFrom), VALUE(dTo)
 
     OBJECTS g = (s = Stock, l = LegalEntity, g = Group, b = Brand)
     PROPERTIES READONLY name(s), name(l), name(g), emptyName(b)
@@ -68,7 +75,7 @@ FORM saleGroup 'Продажи по группам'
     PROPERTIES fillSaleGroup(gt, dFrom, dTo) TODRAW g TOOLBAR 
     
 //    PROPERTIES READONLY balanceB(s, l, g, b)
-    PROPERTIES READONLY sumB(s, l, g, b)
+    PROPERTIES READONLY SHOWIF showB() sumB(s, l, g, b)
     
     PROPERTIES READONLY costSumSold(s, l, g, b)
     PROPERTIES READONLY sumVATSold(s, l, g, b)
