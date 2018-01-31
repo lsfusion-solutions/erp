@@ -39,8 +39,8 @@ public class FiscalBoardResetTextActionProperty extends FiscalBoardActionPropert
     }
 
     private String[] generateText(String text) {
-        String firstLine = fillSpaces(text.substring(0, Math.min(lineLength, text.length())), lineLength, true);
-        String secondLine = fillSpaces(text.substring(Math.min(lineLength, text.length()), Math.min(lineLength * 2, text.length())), lineLength, true);
+        String firstLine = fillSpaces(text == null ? "" : text.substring(0, Math.min(lineLength, text.length())), lineLength, true);
+        String secondLine = fillSpaces(text == null ? "" : text.substring(Math.min(lineLength, text.length()), Math.min(lineLength * 2, text.length())), lineLength, true);
         return new String[]{firstLine, secondLine};
     }
 }
