@@ -7,19 +7,17 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.text.DecimalFormat;
 import java.util.Iterator;
 
-import static lsfusion.base.BaseUtils.trim;
+import static lsfusion.base.BaseUtils.trimToEmpty;
 
-public class FiscalBoardDisplayTextActionProperty extends ScriptingActionProperty {
+public class FiscalBoardDisplayTextActionProperty extends FiscalBoardActionProperty {
     private final ClassPropertyInterface receiptDetailInterface;
 
     public FiscalBoardDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -36,59 +34,27 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
 
         try {
             ObjectValue receiptObject = findProperty("receipt[ReceiptDetail]").readClasses(session, receiptDetailObject);
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
-            if (!skipReceipt) {
-                Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
-                Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
-                boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
+            Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
+            Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
+            boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
 
-                String name = (String) findProperty("boardNameSku[ReceiptDetail]").read(session, receiptDetailObject);
-                name = trim(name == null ? (String) findProperty("nameSku[ReceiptDetail]").read(session, receiptDetailObject) : name);
-                name = name == null ? "" : name;
-                BigDecimal quantityValue = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(session, receiptDetailObject);
-                double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
-                BigDecimal price = (BigDecimal) findProperty("price[ReceiptDetail]").read(session, receiptDetailObject);
-                BigDecimal sum = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(session, (DataObject) receiptObject);
+            String name = trimToEmpty((String) findProperty("overNameSku[ReceiptDetail]").read(session, receiptDetailObject));
+            BigDecimal quantity = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(session, receiptDetailObject);
+            BigDecimal price = (BigDecimal) findProperty("price[ReceiptDetail]").read(session, receiptDetailObject);
+            BigDecimal sum = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(session, (DataObject) receiptObject);
 
-                String[] lines = generateText(price, quantity, sum, name, 20);
+            String[] lines = generateText(price, quantity == null ? BigDecimal.ZERO : quantity, sum, name);
+            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, null));
 
-                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, null));
-
-            }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private static String[] generateText(BigDecimal price, double quantity, BigDecimal sum, String nameItem, int len) {
+    private String[] generateText(BigDecimal price, BigDecimal quantity, BigDecimal sum, String nameItem) {
         String firstLine = " " + toStr(quantity) + "x" + toStr(price);
-        int length = len - Math.min(len, firstLine.length());
-        String name = nameItem.substring(0, Math.min(length, nameItem.length()));
-        while ((name + firstLine).length() < 20)
-            name = name + " ";
-        firstLine = name + firstLine;
-        String secondLine = toStr(sum);
-        while (secondLine.length() < (len - 5))
-            secondLine = " " + secondLine;
-        secondLine = "ИТОГ:" + secondLine;
+        firstLine = fillSpaces(nameItem, lineLength - firstLine.length(), true) + firstLine;
+        String secondLine = "ИТОГ:" + fillSpaces(toStr(sum), lineLength - 5);
         return new String[]{firstLine, secondLine};
-    }
-
-    private static String toStr(double value) {
-        boolean isInt = (value - (int) value) == 0;
-        return isInt ? String.valueOf((int) value) : String.valueOf(value);
-    }
-
-    public static String toStr(BigDecimal value) {
-        String result = null;
-        if (value != null) {
-            value = value.setScale(2, BigDecimal.ROUND_HALF_UP);
-            DecimalFormat df = new DecimalFormat();
-            df.setMaximumFractionDigits(2);
-            df.setMinimumFractionDigits(2);
-            df.setGroupingUsed(false);
-            result = df.format(value).replace(",", ".");
-        }
-        return result == null ? "0.00" : result;
     }
 }

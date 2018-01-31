@@ -32,8 +32,20 @@ EXTEND FORM groupCashRegister
 
 // Использование в POS
 fiscalBoardDisplayText 'Вывести текст на дисплей' = CUSTOM 'lsfusion.erp.region.by.machinery.board.fiscalboard.FiscalBoardDisplayTextActionProperty' (ReceiptDetail);
-fiscalDisplayText (ReceiptDetail receiptDetail) += { IF comPortBoard(cashRegister(receipt((receiptDetail)))) THEN fiscalBoardDisplayText(receiptDetail); }
+fiscalBoardPostPrint 'Вывести итоги на дисплей' = CUSTOM 'lsfusion.erp.region.by.machinery.board.fiscalboard.FiscalBoardPostPrintActionProperty' (Receipt, INTEGER);
+fiscalBoardResetText 'Сбросить текст на дисплее' = CUSTOM 'lsfusion.erp.region.by.machinery.board.fiscalboard.FiscalBoardResetTextActionProperty' (INTEGER);
 
-fiscalBoardResetText 'Сбросить текст на дисплее' = CUSTOM 'lsfusion.erp.region.by.machinery.board.fiscalboard.FiscalBoardResetTextActionProperty' (Receipt, INTEGER);
-postPrint (Receipt receipt) += { IF comPortBoard(cashRegister(receipt)) THEN fiscalBoardResetText(receipt, 3000); }
-resetBoard (Receipt receipt) += { IF comPortBoard(cashRegister(receipt)) THEN fiscalBoardResetText(receipt, 0); }
+fiscalDisplayText (ReceiptDetail receiptDetail) += { 
+    IF comPortBoard(cashRegister(receipt((receiptDetail)))) AND NOT fiscalSkip(receipt(receiptDetail)) THEN
+        fiscalBoardDisplayText(receiptDetail);
+}
+postPrint (Receipt receipt) += { 
+    IF comPortBoard(cashRegister(receipt)) AND NOT fiscalSkip(receipt) THEN { 
+        fiscalBoardPostPrint(receipt, 0);
+        fiscalBoardResetText(5000);
+    }
+}
+resetBoard (Receipt receipt) += { 
+    IF comPortBoard(cashRegister(receipt)) AND NOT fiscalSkip(receipt) THEN 
+        fiscalBoardResetText(0);
+}

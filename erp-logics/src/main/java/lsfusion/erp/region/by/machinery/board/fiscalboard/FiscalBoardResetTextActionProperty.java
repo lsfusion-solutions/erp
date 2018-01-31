@@ -2,60 +2,45 @@ package lsfusion.erp.region.by.machinery.board.fiscalboard;
 
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalBoardResetTextActionProperty extends ScriptingActionProperty {
-    private final ClassPropertyInterface receiptInterface;
+public class FiscalBoardResetTextActionProperty extends FiscalBoardActionProperty {
     private final ClassPropertyInterface timeoutInterface;
 
     public FiscalBoardResetTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
-        receiptInterface = i.next();
         timeoutInterface = i.next();
     }
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
-        DataObject receiptObject = context.getDataKeyValue(receiptInterface);
         Integer timeout = (Integer) context.getKeyValue(timeoutInterface).getValue();
 
         try {
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
-            if (!skipReceipt) {
-                Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
-                Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
-                boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
-                String defaultTextBoard = (String) findProperty("defaultTextBoard[]").read(context);
+            Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
+            Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
+            boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
+            String defaultTextBoard = (String) findProperty("defaultTextBoard[]").read(context);
 
-                String[] lines = generateText(defaultTextBoard, 20);
+            String[] lines = generateText(defaultTextBoard);
+            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, timeout));
 
-                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, timeout));
-
-            }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static String[] generateText(String text, int len) {
-        String firstLine = fillSpaces(text.substring(0, Math.min(len, text.length())), len);
-        String secondLine = fillSpaces(text.substring(Math.min(len, text.length()), Math.min(len * 2, text.length())), len);
+    private String[] generateText(String text) {
+        String firstLine = fillSpaces(text.substring(0, Math.min(lineLength, text.length())), lineLength, true);
+        String secondLine = fillSpaces(text.substring(Math.min(lineLength, text.length()), Math.min(lineLength * 2, text.length())), lineLength, true);
         return new String[]{firstLine, secondLine};
-    }
-
-    private static String fillSpaces(String value, int length) {
-        while (value.length() < length)
-            value += " ";
-        return value;
     }
 }
