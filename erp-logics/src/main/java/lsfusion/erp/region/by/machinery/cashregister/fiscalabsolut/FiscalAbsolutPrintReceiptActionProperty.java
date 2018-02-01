@@ -76,6 +76,7 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
 
                 ScriptingLogicsModule posGiftCardLM = context.getBL().getModule("POSGiftCard");
                 boolean giftCardAsNotPayment = posGiftCardLM != null && (posGiftCardLM.findProperty("giftCardAsNotPaymentCurrentCashRegister[]").read(context) != null);
+                String giftCardAsNotPaymentText = posGiftCardLM != null ? (String) (posGiftCardLM.findProperty("giftCardAsNotPaymentTextAbsolut[Receipt]").read(context, receiptObject)) : null;
 
                 BigDecimal sumDisc = null;
                 BigDecimal sumCard = null;
@@ -164,13 +165,16 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                 String receiptCode128 = prefix == null ? null : (prefix + receiptObject.getValue());
 
                 boolean useSKNO = findProperty("useSKNOAbsolutCurrentCashRegister[]").read(context) != null;
+                String UNP = (String) findProperty("UNPAbsolutCurrentCashRegister[]").read(context);
+                String regNumber = (String) findProperty("regNumberAbsolutCurrentCashRegister[]").read(context);
+                String machineryNumber = (String) findProperty("machineryNumberAbsolutCurrentCashRegister[]").read(context);
 
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalAbsolutPrintReceiptClientAction(logPath, comPort, baudRate, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalAbsolutReceiptTop, fiscalAbsolutReceiptBottom, receiptCode128, saveCommentOnFiscalTape, groupPaymentsByVAT,
-                            giftCardAsNotPayment, sumPaymentAbsolut, maxLinesAbsolut, printSumWithDiscount, useSKNO));
+                            giftCardAsNotPayment, giftCardAsNotPaymentText, sumPaymentAbsolut, maxLinesAbsolut, printSumWithDiscount, useSKNO, UNP, regNumber, machineryNumber));
                     if (result != null) {
                         ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Error: " + result);
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));

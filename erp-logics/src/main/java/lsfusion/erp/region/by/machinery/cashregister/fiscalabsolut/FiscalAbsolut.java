@@ -177,6 +177,21 @@ public class FiscalAbsolut {
         }
     }
 
+    public static boolean printMultilineFiscalText(String msg) {
+        if (msg != null && !msg.isEmpty()) {
+            for (String line : msg.split("\n")) {
+                int start = 0;
+                while (start < line.length()) {
+                    int end = Math.min(start + 30, line.length());
+                    if (!printFiscalText(line.substring(start, end)))
+                        return false;
+                    start = end;
+                }
+            }
+        }
+        return true;
+    }
+
     private static boolean printComment(String comment, boolean saveCommentOnFiscalTape) throws UnsupportedEncodingException {
         logAction(saveCommentOnFiscalTape ? "TextComment" : "PrintComment", comment);
         return saveCommentOnFiscalTape ?

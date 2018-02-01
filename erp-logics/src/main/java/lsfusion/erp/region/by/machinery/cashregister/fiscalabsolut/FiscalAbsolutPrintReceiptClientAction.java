@@ -25,16 +25,21 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
     boolean saveCommentOnFiscalTape;
     boolean groupPaymentsByVAT;
     boolean giftCardAsNotPayment;
+    String giftCardAsNotPaymentText;
     boolean sumPayment;
     Integer maxLines;
     boolean printSumWithDiscount;
     boolean useSKNO;
+    String UNP;
+    String regNumber;
+    String machineryNumber;
 
     public FiscalAbsolutPrintReceiptClientAction(String logPath, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
                                                  ReceiptInstance receipt, String receiptTop, String receiptBottom,
                                                  String receiptCode128, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT,
-                                                 boolean giftCardAsNotPayment, boolean sumPayment, Integer maxLines, boolean printSumWithDiscount,
-                                                 boolean useSKNO) {
+                                                 boolean giftCardAsNotPayment, String giftCardAsNotPaymentText, boolean sumPayment,
+                                                 Integer maxLines, boolean printSumWithDiscount, boolean useSKNO, String UNP,
+                                                 String regNumber, String machineryNumber) {
         this.logPath = logPath;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
@@ -47,10 +52,14 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         this.saveCommentOnFiscalTape = saveCommentOnFiscalTape;
         this.groupPaymentsByVAT = groupPaymentsByVAT;
         this.giftCardAsNotPayment = giftCardAsNotPayment;
+        this.giftCardAsNotPaymentText = giftCardAsNotPaymentText;
         this.sumPayment = sumPayment;
         this.maxLines = maxLines;
         this.printSumWithDiscount = printSumWithDiscount;
         this.useSKNO = useSKNO;
+        this.UNP = UNP;
+        this.regNumber = regNumber;
+        this.machineryNumber = machineryNumber;
     }
 
 
@@ -118,6 +127,8 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         //оплата подарочным сертификатом
         if (giftCardAsNotPayment && receipt.sumGiftCard != null) {
 
+            FiscalAbsolut.printFiscalText("         ТОВАРНЫЙ ЧЕК         ");
+
             BigDecimal sum = BigDecimal.ZERO;
             BigDecimal discountSum = BigDecimal.ZERO;
             DecimalFormat formatter = getFormatter();
@@ -135,9 +146,20 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
             discountSum = discountSum.add(receipt.sumDisc == null ? BigDecimal.ZERO : receipt.sumDisc);
             sum = sum.subtract(receipt.sumGiftCard).max(BigDecimal.ZERO);
 
-            FiscalAbsolut.printFiscalText(getFiscalString("Сертификат", formatter.format(receipt.sumGiftCard)));
+            FiscalAbsolut.printFiscalText(getFiscalString("Сертификат", formatter.format(receipt.sumGiftCard.negate())));
             FiscalAbsolut.printFiscalText(getFiscalString("", " \n( __________ _______________ )"));
             FiscalAbsolut.printFiscalText(getFiscalString("", " (подпись)     ФИО      \n "));
+
+            if(!FiscalAbsolut.printMultilineFiscalText(giftCardAsNotPaymentText))
+                return false;
+
+            FiscalAbsolut.printFiscalText("         КАССОВЫЙ ЧЕК         ");
+            if(UNP != null)
+                FiscalAbsolut.printFiscalText(getFiscalString("УНП", UNP));
+            if(regNumber != null)
+                FiscalAbsolut.printFiscalText(getFiscalString("РЕГ N", regNumber));
+            if(machineryNumber != null)
+                FiscalAbsolut.printFiscalText(getFiscalString("N КСА", machineryNumber));
 
             if (!FiscalAbsolut.registerAndDiscountItem(sum, discountSum, useSKNO))
                 return false;
