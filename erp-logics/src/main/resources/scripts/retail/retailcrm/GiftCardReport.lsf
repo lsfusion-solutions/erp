@@ -1,0 +1,211 @@
+MODULE GiftCardReport;
+
+REQUIRE GiftCardPurchase, GiftCardDefect;
+
+NAMESPACE GiftCard;
+
+//---- Полученные и использованные сертификаты
+
+numberFrom 'С' (GiftCardPurchaseDetail d)  = prefixGiftCard() + lpadStringWithZero(fromGiftCard(d), lengthGiftCard());
+numberTo 'По' (GiftCardPurchaseDetail d)  = prefixGiftCard() + lpadStringWithZero(toGiftCard(d), lengthGiftCard());
+count 'Кол-во' (GiftCardPurchaseDetail d) = toGiftCard(d) - fromGiftCard(d) +1;
+
+relation = GROUP SUM 1 IF dateSold(GiftCard g) >= DATE dFrom AND dateSold(g) <= DATE dTo 
+    BY numberReport(g), departmentStoreSold(g), sku(giftCardPurchaseDetail(g)), dFrom, dTo;
+    
+relationBalance = GROUP SUM 1 IF date(GiftCard g) <= DATE dTo AND (( NOT dateSold(g)) OR dateSold(g) > dTo) AND (( NOT dateDefect(g)) OR dateDefect(g) > dTo) 
+    BY numberReport(g), departmentStore(g), sku(giftCardPurchaseDetail(g)), dTo;    
+
+relationDefect = GROUP SUM 1 IF dateDefect(GiftCard g) >= DATE dFrom AND dateDefect(g) <= DATE dTo 
+    BY numberReport(g), departmentStoreDefect(g), sku(giftCardPurchaseDetail(g)), dFrom, dTo;
+
+from 'С' = DATA LOCAL INTEGER (INTEGER, Item);
+to 'По' = DATA LOCAL INTEGER (INTEGER, Item);
+count 'Кол-во' (INTEGER i, Item item) = to(i,item) - from(i,item) +1;
+numberFrom 'С' (INTEGER in, Item i)  = prefixGiftCard() + lpadStringWithZero(from(in,i), lengthGiftCard());
+numberTo 'По' (INTEGER in, Item i)  = prefixGiftCard() + lpadStringWithZero(to(in,i), lengthGiftCard());
+
+
+fromBalance 'С' = DATA LOCAL INTEGER (INTEGER, Item);
+toBalance 'По' = DATA LOCAL INTEGER (INTEGER, Item);
+countBalance 'Кол-во' (INTEGER i, Item item) = toBalance(i,item) - fromBalance(i,item) + 1;
+numberFromBalance 'С' (INTEGER in, Item i)  = prefixGiftCard() + lpadStringWithZero(fromBalance(in,i), lengthGiftCard());
+numberToBalance 'По' (INTEGER in, Item i)  = prefixGiftCard() + lpadStringWithZero(toBalance(in,i), lengthGiftCard());
+fromDefect 'С' = DATA LOCAL INTEGER (INTEGER, Item);
+toDefect 'По' = DATA LOCAL INTEGER (INTEGER, Item);
+countDefect 'Кол-во' (INTEGER i, Item item) = toDefect(i,item) - fromDefect(i,item) + 1;
+numberFromDefect 'С' (INTEGER in, Item i)  = prefixGiftCard() + lpadStringWithZero(fromDefect(in,i), lengthGiftCard());
+numberToDefect 'По' (INTEGER in, Item i)  = prefixGiftCard() + lpadStringWithZero(toDefect(in,i), lengthGiftCard());
+
+fill 'Заполнить данные'  (DATE df, DATE dt, Stock ds) = {
+
+    from(INTEGER in,Item i) <- NULL;            
+    to(INTEGER in,Item i) <- NULL;   
+     
+    fromBalance(INTEGER in,Item i) <- NULL;            
+    toBalance(INTEGER in,Item i) <- NULL; 
+         
+    fromDefect(INTEGER in,Item i) <- NULL;            
+    toDefect(INTEGER in,Item i) <- NULL;          
+         
+    FOR Item i  AND skuType(i) == SkuType.skuTypeGiftCard DO {
+        LOCAL int =  INTEGER ();       
+        LOCAL include =  BOOLEAN (INTEGER);
+        int() <- 1;
+        
+        //-- продажа
+        include(INTEGER number) <- TRUE WHERE relation(number, ds, i, df, dt);        
+        FOR include(INTEGER number)  ORDER  number DO {
+            IF to(int(),i) THEN {
+                int() <- int()+1 ;  
+            }
+            
+            from(INTEGER in,i) <- number WHERE in == int() AND NOT include(number-1);            
+            to(INTEGER in,i) <- number WHERE in == int() AND NOT include(number+1);
+        }
+        //-- остатки
+        include(INTEGER number) <- NULL;
+        int() <- 1;           
+        include(INTEGER number) <- TRUE WHERE relationBalance(number, ds, i, dt);
+        FOR include(INTEGER number)  ORDER  number DO {
+            IF toBalance(int(),i) THEN {
+                int() <- int()+1 ;  
+            }
+            
+            fromBalance(INTEGER in,i) <- number WHERE in == int() AND NOT include(number-1);            
+            toBalance(INTEGER in,i) <- number WHERE in == int() AND NOT include(number+1);
+        }
+        //-- испорчены
+        include(INTEGER number) <- NULL;
+        int() <- 1;           
+        include(INTEGER number) <- TRUE WHERE relationDefect(number, ds, i, df, dt);
+        FOR include(INTEGER number)  ORDER  number DO {
+            IF toDefect(int(),i) THEN {
+                int() <- int()+1 ;  
+            }
+            
+            fromDefect(INTEGER in,i) <- number WHERE in == int() AND NOT include(number-1);            
+            toDefect(INTEGER in,i) <- number WHERE in == int() AND NOT include(number+1);
+        }        
+                       
+    }        
+}
+
+filter1 = GROUP SUM 1 IF date(GiftCardPurchaseDetail d) >= DATE dFrom AND date(d) <= DATE dTo
+    BY sku(d), departmentStore(d), dFrom, dTo;
+    
+filter2 = GROUP SUM 1 IF count(INTEGER  in, Item i) OR countBalance(in,i) BY i;
+ 
+filter(Sku s, DepartmentStore ds, DATE df, DATE dt) = filter1(s,ds,df,dt) OR filter2(s);
+
+count = GROUP SUM count(INTEGER  in, Item i);
+
+FORM useGiftCardPrint 'Полученные и использованные сертификаты'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo) 
+    
+    OBJECTS st = Stock PANEL 
+    PROPERTIES (st) name, address
+    PROPERTIES count()
+    OBJECTS i = Item
+    PROPERTIES(i) READONLY caption, id, priceGiftCard, expireDaysGiftCard
+    FILTERS skuType(i) == SkuType.skuTypeGiftCard,
+            filter(i,st,dFrom,dTo)
+    
+    OBJECTS d = GiftCardPurchaseDetail
+    PROPERTIES (d) index, seriesNumber, date 
+    PROPERTIES (d) idSku, nameSku, price, expiryDays, count, numberFrom, numberTo    
+    FILTERS date(d) >=dFrom, date(d) <= dTo,
+            sku(d) == i,
+            departmentStore(d) == st
+            
+            
+    OBJECTS in = INTEGER 
+    PROPERTIES (in,i) from, to, count, numberFrom, numberTo
+    FILTERS count(in,i)  
+
+    OBJECTS in1 = INTEGER 
+    PROPERTIES (in1,i) fromBalance, toBalance, countBalance, numberFromBalance, numberToBalance
+    FILTERS countBalance(in1,i)   
+    
+    OBJECTS in2 = INTEGER 
+    PROPERTIES (in2,i) fromDefect, toDefect, countDefect, numberFromDefect, numberToDefect
+    FILTERS countDefect(in2,i)             
+
+;
+useGiftCardPrint 'Получ. и исп. ПС' (DepartmentStore ds, DATE df, DATE dt) = {
+    fill(df,dt,ds);
+    PRINT useGiftCardPrint OBJECTS st=ds, dFrom=df, dTo=dt ;
+}  IMAGE 'print.png'; 
+
+useGiftCardPrintXls 'Получ. и исп. ПС (xlsx)' (DepartmentStore ds, DATE df, DATE dt) = {
+    fill(df,dt,ds);
+    PRINT useGiftCardPrint OBJECTS st=ds, dFrom=df, dTo=dt XLSX;
+}  IMAGE 'print.png'; 
+
+// форма с отчетами
+FORM listGiftCards 'Отчет по ПС'
+
+    OBJECTS dates = ( df=DATE,dt=DATE) PANEL 
+    PROPERTIES valF= VALUE (df), valT = VALUE (dt)
+    OBJECTS ds = DepartmentStore PANEL 
+    PROPERTIES (ds) SELECTOR name
+    FILTERS isCompany(ds),
+            id(store(ds)) == id(ds)
+        
+    OBJECTS c = GiftCard
+    PROPERTIES (c) READONLY seriesNumber, date, dateSold, nameDepartmentStoreSold, 
+                   price, expireDate, dateUsed, nameDepartmentStoreUsed
+
+    FILTERGROUP stockFilter
+        FILTER 'По складу использования' departmentStore(receipt(used(c))) == ds
+        FILTER 'По складу активации' departmentStoreSold(c) == ds
+        
+    FILTERGROUP expire
+        FILTER 'Не использованные ' NOT dateUsed(c) AND NOT expireDate(c) <= dt
+        FILTER 'Использованные' dateUsed(c) OR expireDate(c) <= dt
+        
+    FILTERGROUP moveFilter
+        FILTER 'С движением' (dateSold(c) >= df AND dateSold(c) <= dt) OR 
+                             (dateUsed(c) >= df AND dateUsed(c) <= dt) OR 
+                             (expireDate(c) >= df AND expireDate(c) <= dt) DEFAULT 
+
+    PROPERTIES (ds,df,dt) useGiftCardPrint, useGiftCardPrintXls
+;
+
+DESIGN listGiftCards {
+    BOX {
+        NEW top {
+            fill = 1;
+            type = CONTAINERV;
+            NEW top1 {
+                type = CONTAINERH;
+                MOVE BOX(dates);
+                NEW printDates {
+                    caption = 'Печать';
+                    type = CONTAINERH;
+                }
+            }
+            NEW top2 {
+                type = CONTAINERH;
+                MOVE BOX(ds) { MOVE PROPERTY (name(ds));}
+                NEW printStore {
+                    caption = 'Печать';
+                    type = CONTAINERH;
+                    MOVE PROPERTY(useGiftCardPrint(ds, df, dt));
+                    MOVE PROPERTY(useGiftCardPrintXls(ds, df, dt));
+                }
+            }
+            MOVE BOX(c);
+        }
+    
+    }
+    MOVE TOOLBARBOX;
+}
+@extendFormFilterStockAccess(ds, listGiftCards);
+
+NAVIGATOR {
+    retailReports  {
+        NEW listGiftCards;
+    }
+}

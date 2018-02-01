@@ -1,0 +1,317 @@
+MODULE GiftCardPurchase;
+
+REQUIRE GiftCardItem;
+
+NAMESPACE GiftCard;
+
+prefixGiftCard 'Префикс генерации подарочных сертификатов' = DATA VARSTRING[10] ();
+lengthGiftCard 'Длина номера при генерации подарочных сертификатов' = DATA INTEGER ();
+
+EXTEND FORM options PROPERTIES() prefixGiftCard, lengthGiftCard;
+DESIGN options {
+    giftCards {
+        MOVE PROPERTY(prefixGiftCard());
+        MOVE PROPERTY(lengthGiftCard());
+    }
+}
+
+
+CLASS GiftCardPurchase 'Поступление подарочных сертификатов';
+CLASS GiftCardPurchaseDetail 'Поступление подарочных сертификатов';
+
+@defineDocument(giftCardPurchase);
+@defineDocumentHeaderNumber(GiftCardPurchase);
+@defineDocumentDataStock(giftCardPurchase, departmentStore, 'Склад',);
+@deriveDocumentHeaderTimePrefix(GiftCardPurchase, );
+
+@defineDocumentDetailNumber(giftCardPurchase, GiftCardPurchaseDetail);
+
+sku = DATA Sku (GiftCardPurchaseDetail);
+idSku 'Код'(GiftCardPurchaseDetail p) = id(sku(p));
+nameSku 'Номинал'(GiftCardPurchaseDetail p) = name(sku(p));
+
+changeSku 'Заменить товар' (GiftCardPurchaseDetail p ) = {
+    
+    DIALOG itemsGift OBJECTS i INPUT DO {
+        sku(p) <- i;
+    }    
+}
+
+expiryDays 'Срок действия (дней)' (GiftCardPurchaseDetail d) = expireDaysGiftCard(sku(d));
+price 'Номинал' (GiftCardPurchaseDetail d) = priceGiftCard(sku(d));
+
+fromGiftCard 'Номер с' = DATA INTEGER (GiftCardPurchaseDetail);
+toGiftCard 'Номер по' = DATA INTEGER (GiftCardPurchaseDetail);
+
+giftCardPurchaseDetail = DATA GiftCardPurchaseDetail (GiftCard) NONULL DELETE INDEXED;
+giftCardPurchase(GiftCard g) = giftCardPurchase(giftCardPurchaseDetail(g));
+
+departmentStore (GiftCard g) = DATA DepartmentStore (GiftCard);
+nameDepartmentStore 'Где выпущен' (GiftCard g) = name(departmentStore(g));
+
+deleteGiftCard 'Очистить'(GiftCardPurchase o) = {
+    DELETE GiftCard d WHERE giftCardPurchase(d) == o;
+} IN documentPrm TOOLBAR CONFIRM;
+
+generateGiftCards 'Сгенерировать подарочные сертификаты'(GiftCardPurchase p) = {
+    DELETE GiftCard d WHERE giftCardPurchase (d) == p;
+    
+    FOR p == giftCardPurchase(GiftCardPurchaseDetail d) DO {
+        LOCAL num = INTEGER();
+        num() <- fromGiftCard(d);
+        WHILE num() <= toGiftCard(d) DO {
+            NEW g = GiftCard {
+                giftCardPurchaseDetail(g) <- d;
+                number(g) <- prefixGiftCard() + lpadStringWithZero(num(), lengthGiftCard());
+                id(g) <- prefixGiftCard() + lpadStringWithZero(num(), lengthGiftCard());
+                departmentStore(g) <- departmentStore(d);
+                sku(g) <- sku(d);
+                price(g) <- price(d);
+                date(g) <- date(p);                
+                expiryDays(g) <- expiryDays(d);
+            }
+    
+            num() <- num() + 1;
+        }
+    }
+} IN documentPrm TOOLBAR CONFIRM;
+
+WHEN CHANGED (sku(GiftCardPurchaseDetail d)) AND giftCardPurchaseDetail(GiftCard g) == d DO {
+    sku(g) <- sku(d);
+    price(g) <- price(d);
+}
+
+CONSTRAINT SET (GiftCardPurchaseDetail d IS GiftCardPurchaseDetail) AND NOT [=GROUP SUM 1 BY giftCardPurchaseDetail(GiftCard g)](d)
+    MESSAGE 'Сгенерируйте номера сертификатов';
+
+numberReport 'Номер' (GiftCard g) = toInteger(right(number(g), lengthGiftCard()));
+    
+select 'Отм.' = DATA LOCAL BOOLEAN (GiftCard); 
+
+relation = GROUP SUM 1 IF select(GiftCard g) BY sku(g), numberReport(g);
+relation = GROUP SUM 1 IF select(GiftCard g) BY sku(g);
+
+fromN 'Номер с' = DATA LOCAL INTEGER (Sku); 
+toN 'Номер по' = DATA LOCAL INTEGER (Sku); 
+
+FORM selectGiftCards 'Выбор ПС'
+    OBJECTS s = Sku
+    PROPERTIES (s) READONLY idBarcode, name,  fromN CHANGEABLE , toN CHANGEABLE
+    FILTERS [ = GROUP SUM 1 BY sku(GiftCard g)](s)
+    
+    OBJECTS g = GiftCard
+    PROPERTIES (g) select
+    PROPERTIES(g) READONLY nameSku, idBarcode, number, series, nameDepartmentStore, id SHOWIF showIDs(), date, dateSold, 
+                  nameLegalEntity, nameDepartmentStoreSold, numberReceiptSold, expiryDays, price
+    ORDER nameSku(g), number(g)
+
+    FILTERGROUP sku FILTER 'По номиналу' sku(g) == s 'F9' DEFAULT 
+    FILTERGROUP select FILTER 'Отмеченные' select(g) 'F10'
+;
+
+DESIGN selectGiftCards {
+    BOX {
+        size = (1024, 768);
+        NEW body {
+            type = SPLITV;
+            fill = 1;
+            MOVE BOX(s) {
+                PROPERTY (fromN(s)) {background = #BDE3FF;}
+                PROPERTY (toN(s)) {background = #BDE3FF;}
+            }
+            MOVE BOX (g) { 
+                fill = 2;
+                PROPERTY (number(g)) {charWidth = 10;}
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+    
+moveGiftCards 'Переместить подарочные сертификаты'(GiftCardPurchase p) = {    
+    
+    IF countGiftCardPurchaseDetail(p) THEN {
+        ASK 'Очистить строки?' DO {
+            DELETE GiftCardPurchaseDetail d WHERE giftCardPurchase (d) == p;
+        }
+    } 
+    DIALOG  selectGiftCards NOMANAGESESSION DO {
+        FOR fromN(Sku s) AND toN(s) DO {
+            select(GiftCard g) <- TRUE WHERE iterate(INTEGER(numberReport(g)),fromN(s), toN(s)) AND sku(g) == s;  
+        }           
+        IF [ = GROUP SUM 1 IF select(GiftCard g)]() THEN {
+            FOR relation(Sku s) DO {
+                LOCAL int =  INTEGER ();       
+                LOCAL include =  BOOLEAN (INTEGER);
+                LOCAL from =  INTEGER (INTEGER);
+                LOCAL to =  INTEGER (INTEGER);
+                int() <- 1;      
+                
+                include(INTEGER number) <- TRUE WHERE relation(s,number);
+                FOR include(INTEGER number)  ORDER  number DO {
+                    IF to(int()) THEN {
+                        int() <- int()+1 ;  
+                    }    
+                    from(INTEGER in) <- number WHERE in == int() AND NOT include(number-1);            
+                    to(INTEGER in) <- number WHERE in == int() AND NOT include(number+1);                
+                }
+                FOR from(INTEGER in)   NEW d =  GiftCardPurchaseDetail DO {
+                    giftCardPurchase(d) <- p;    
+                    sku(d) <- s;
+                    fromGiftCard(d) <- from(in);
+                    toGiftCard(d) <- to(in);                    
+                    
+                    giftCardPurchaseDetail(GiftCard g) <- d WHERE iterate(numberReport(g),fromGiftCard(d), toGiftCard(d)) AND sku(d) == sku(g) AND select(g);  
+                    departmentStore(GiftCard g) <- departmentStore(p) WHERE iterate(numberReport(g),fromGiftCard(d), toGiftCard(d)) AND sku(d) == sku(g) AND select(g); 
+                }
+                                      
+            } 
+            select(GiftCard g) <- NULL;
+            fromN(Sku g) <- NULL;
+            toN(Sku g) <- NULL;
+            
+        } ELSE {
+          MESSAGE 'Надо выбрать сертификаты';
+        }              
+    }
+      
+}TOOLBAR;
+    
+
+FORM giftCardPurchase 'Поступление подарочных сертификатов'
+
+    OBJECTS p = GiftCardPurchase PANEL
+    PROPERTIES (p) date, time, series, number, nameDepartmentStore
+    
+    OBJECTS d = GiftCardPurchaseDetail
+    PROPERTIES (d) index 
+    PROPERTIES (d) ON CHANGE changeSku(d) idSku, nameSku, price, expiryDays
+    PROPERTIES (d) fromGiftCard, toGiftCard, NEW, deleteid=DELETE GRID
+    FILTERS giftCardPurchase(d) == p
+    
+    PROPERTIES(p) TODRAW d deleteGiftCard, generateGiftCards, moveGiftCards
+    ORDER index(d)
+
+    OBJECTS g = GiftCard
+    PROPERTIES (g) READONLY number
+
+    FILTERS giftCardPurchaseDetail(g) == d
+
+    EDIT GiftCardPurchase OBJECT p
+;
+
+DESIGN giftCardPurchase {
+    size = (1024, 768);
+    NEW headerBox {
+        type = CONTAINERH;
+
+        NEW headerParams {
+            fill = 1;
+            type = CONTAINERV;
+            MOVE GROUP(documentHeader,p) {
+                type = CONTAINERV;
+                NEW first {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(number(p));
+                    MOVE PROPERTY(series(p));
+                    MOVE PROPERTY(date(p));
+                    MOVE PROPERTY(time(p));                 
+                }
+                NEW second { 
+                    type = CONTAINERH;
+                    MOVE PROPERTY(nameDepartmentStore(p));  
+                }                                                                                                                       
+            }
+        }
+    }
+    NEW specificationBox {
+        fill = 1;
+        type = SPLITH;
+        MOVE BOX(d) {
+            caption = 'Спецификация';
+            fill = 2;
+        }
+        MOVE BOX(g) {
+            caption = 'Сертификаты';
+            fill = 1;
+        }
+    }
+    PROPERTY(formOk()) {
+        caption = 'Провести';
+    }
+    MOVE TOOLBARBOX;
+
+}
+
+fromNumberFilter 'Номер с' = DATA LOCAL VARSTRING[30]();
+toNumberFilter 'Номер по' = DATA LOCAL VARSTRING[30]();
+
+numberFilter(GiftCard g) = (toInteger(right(number(g), lengthGiftCard())) >= toInteger(right(fromNumberFilter(), lengthGiftCard())) OR NOT fromNumberFilter())
+                                        AND (toInteger(right(number(g), lengthGiftCard())) <= toInteger(right(toNumberFilter(), lengthGiftCard())) OR NOT toNumberFilter());
+
+FORM giftCardsDashboard 'Подарочные сертификаты'
+    PROPERTIES () fromNumberFilter, toNumberFilter
+    
+    OBJECTS g = GiftCard
+    PROPERTIES (g) READONLY number, series, date, nameDepartmentStore, expiryDays, price, dateSold, nameDepartmentStoreSold, 
+                    dateUsed, nameDepartmentStoreUsed
+    FILTERS numberFilter(g)
+    
+    FILTERGROUP filter1
+        FILTER 'Просрочен' expireDate(g) < currentDate() 'F10'
+        FILTER 'Не просрочен' sold(g) AND NOT (expireDate(g) < currentDate()) 'F9'
+ 
+        
+    FILTERGROUP filter2
+        FILTER 'Погашен' used(g) 'F8' 
+        FILTER 'Не погашен' sold(g) AND NOT used(g) 'F7'     
+    
+    OBJECTS i = Item
+    PROPERTIES (i) READONLY caption, id, priceGiftCard, expireDaysGiftCard
+    PROPERTIES TOOLBAR NEWSESSION addGift() TODRAW i, editGift(i), DELETE(i)
+    FILTERS skuType(i) == SkuType.skuTypeGiftCard
+    
+    OBJECTS p = GiftCardPurchase
+    PROPERTIES (p) READONLY number, series, date, time, nameDepartmentStore
+    PROPERTIES (p) TOOLBAR NEWSESSION NEW, EDIT, DELETE 
+    
+    OBJECTS gp = GiftCard
+    PROPERTIES(gp) READONLY number, idBarcode, nameSku, expiryDays, price
+    FILTERS giftCardPurchase(gp) == p
+;
+
+@extendFormFilterAccessStock(, g, giftCardsDashboard, departmentStore, company);
+@extendFormFilterAccessStock(, p, giftCardsDashboard, departmentStore, company);
+
+DESIGN giftCardsDashboard {
+    NEW tabs {
+        fill = 1;
+        type = TABBED;
+        NEW sale{
+            caption = 'Сертификаты';
+            NEW filters {
+                caption = 'Фильтр';
+                type = CONTAINERH ;
+                MOVE PROPERTY (fromNumberFilter());
+                MOVE PROPERTY (toNumberFilter());
+            }
+            MOVE BOX(g);
+        }
+        NEW purchase {
+            caption = 'Поступление сертификатов';
+            MOVE BOX(p);
+            MOVE BOX(gp);
+        }
+        NEW other{
+            caption = 'Номиналы';
+            MOVE BOX(i);
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    retailDashboardNavigator{
+        NEW giftCardsDashboard;
+    }
+}

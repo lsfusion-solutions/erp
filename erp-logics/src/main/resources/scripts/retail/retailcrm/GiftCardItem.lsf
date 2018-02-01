@@ -1,0 +1,99 @@
+MODULE GiftCardItem;
+
+REQUIRE GiftCard, Item;
+
+NAMESPACE GiftCard;
+
+EXTEND CLASS SkuType {
+    skuTypeGiftCard 'Номинал подарочного сертификата'
+}
+
+isGiftCard (Sku sku) = skuType(sku) == SkuType.skuTypeGiftCard; 
+
+giftCardItemGroup = DATA ItemGroup ();
+nameGiftCardItemGroup 'Группа товаров для сертификатов' = name(giftCardItemGroup());
+
+EXTEND FORM options PROPERTIES() nameGiftCardItemGroup;
+DESIGN options { giftCards { MOVE PROPERTY(nameGiftCardItemGroup()); } }
+
+sku 'SKU' = DATA Sku (GiftCard);
+nameSku 'SKU'(GiftCard g) = name(sku(g));
+idBarcode 'Штрихкод SKU'(GiftCard g) = idBarcode(sku(g));
+idSku 'Код SKU'(GiftCard g) = id(sku(g));
+
+EXTEND FORM giftCard
+    PROPERTIES (g) nameSku;
+
+DESIGN giftCard {
+    topContainer{
+        MOVE PROPERTY(nameSku(g));
+    }
+}
+
+EXTEND FORM giftCards 
+    PROPERTIES(g) READONLYIF isReadonly() BEFORE date(g) idBarcode, nameSku;
+
+FORM generationGiftCardsSku
+    OBJECTS s = Sku 
+    PROPERTIES (s) READONLY name
+    FILTERS itemGroup(s) == giftCardItemGroup()
+;
+
+inputComplete = DATA LOCAL BOOLEAN ();
+generateSku = DATA LOCAL Sku ();
+overGenerateGiftCards(GiftCard g) += {
+    IF NOT inputComplete() THEN {
+        DIALOG generationGiftCardsSku OBJECTS s INPUT DO {
+            generateSku() <- s;
+        }
+        inputComplete () <- TRUE;
+    }
+    sku(g) <- generateSku() ;
+}
+
+//номиналы сертификатов
+priceGiftCard 'Цена' = DATA NUMERIC[16,4](Item);
+expireDaysGiftCard 'Срок действия' = DATA INTEGER (Item);
+
+FORM editItemGift 'Номинал подарочных сертификатов'
+    OBJECTS i = Item PANEL
+    PROPERTIES(i) caption, id, priceGiftCard, expireDaysGiftCard
+;
+
+WHEN LOCAL FORMS editItemGift SETCHANGED (id(Item i)) DO  {
+    FOR NOT barcode(i) NEW b = Barcode DO {
+        sku(b) <- i;
+        id(b) <- id(i);
+    }
+    
+    FOR Barcode b == barcode(i)  DO
+        id(b) <- id(i);
+}
+
+overAddGift = ABSTRACT LIST (Item);
+addGift 'Добавить'() = {
+	NEWSESSION {
+	
+	    NEW i = Item {
+	        setNoCancelInTransaction();
+	        
+	        skuType(i) <- SkuType.skuTypeGiftCard;
+	        itemGroup(i) <- giftCardItemGroup();
+	        overAddGift(i);
+	        
+	        SHOW editItemGift OBJECTS i = i DOCKED NOCANCEL;
+	        dropNoCancelInTransaction();
+	    }
+	    
+	}
+} TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
+
+editGift 'Редактировать' (Item i) = { SHOW editItemGift OBJECTS i = i; }  IMAGE 'edit.png' CHANGEKEY 'BACK_SPACE' HIDE TOOLBAR;
+
+FORM itemsGift 'Номиналы подарочных сертификатов'
+    OBJECTS i = Item
+    PROPERTIES(i) READONLY caption, id, priceGiftCard, expireDaysGiftCard
+    PROPERTIES TOOLBAR NEWSESSION addGift() TODRAW i, editGift(i), DELETE(i)
+    FILTERS skuType(i) == SkuType.skuTypeGiftCard
+;
+DESIGN itemsGift { BOX { size = (600, 400); } }
