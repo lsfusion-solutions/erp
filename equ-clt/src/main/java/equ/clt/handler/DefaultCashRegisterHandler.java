@@ -18,7 +18,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
             if (fitHandler(cashRegister))
                 cashRegisterSet.add(cashRegister);
         }
-        if(extra) {
+        if (extra) {
             for (CashRegisterInfo cashRegister : requestExchange.extraCashRegisterSet) {
                 if (fitHandler(cashRegister))
                     cashRegisterSet.add(cashRegister);
@@ -29,33 +29,36 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
 
     public Set<String> getDirectorySet(RequestExchange requestExchange) {
         Set<String> directorySet = new HashSet<>();
-        for (CashRegisterInfo cashRegister : requestExchange.cashRegisterSet) {
-            if (fitHandler(cashRegister))
-                directorySet.add(cashRegister.directory);
-        }
-        for (CashRegisterInfo cashRegister : requestExchange.extraCashRegisterSet) {
-            if (fitHandler(cashRegister))
+        for (CashRegisterInfo cashRegister : join(requestExchange.cashRegisterSet, requestExchange.extraCashRegisterSet)) {
+            if (fitHandler(cashRegister) && cashRegister.directory != null)
                 directorySet.add(cashRegister.directory);
         }
         return directorySet;
     }
 
-    public Map<String, Set<String>> getDirectoryStockMap(RequestExchange requestExchange){
+    public Map<String, Set<String>> getDirectoryStockMap(RequestExchange requestExchange) {
         Map<String, Set<String>> directoryStockMap = new HashMap<>();
-        for(CashRegisterInfo cashRegister : requestExchange.extraCashRegisterSet) {
-            if(fitHandler(cashRegister)) {
+        for (CashRegisterInfo cashRegister : join(requestExchange.cashRegisterSet, requestExchange.extraCashRegisterSet)) {
+            if (fitHandler(cashRegister) && cashRegister.directory != null) {
                 Set<String> stockSet = directoryStockMap.get(cashRegister.directory);
                 if (stockSet == null)
                     stockSet = new HashSet();
-                stockSet.add(cashRegister.idDepartmentStore);
+                if (cashRegister.idDepartmentStore != null)
+                    stockSet.add(cashRegister.idDepartmentStore);
                 directoryStockMap.put(cashRegister.directory, stockSet);
             }
         }
         return directoryStockMap;
     }
 
+    Set<CashRegisterInfo> join(Set<CashRegisterInfo> set1, Set<CashRegisterInfo> set2) {
+        Set<CashRegisterInfo> result = new HashSet<>(set1);
+        result.addAll(set2);
+        return result;
+    }
+
     @Override
-    public String getGroupId(TransactionCashRegisterInfo transactionInfo) throws IOException {
+    public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
         return null;
     }
 
@@ -90,7 +93,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     }
 
     @Override
-    public List<CashierTime> requestCashierTime(RequestExchange requestExchange, List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException {
+    public List<CashierTime> requestCashierTime(RequestExchange requestExchange, List<MachineryInfo> cashRegisterInfoList) throws ClassNotFoundException, SQLException {
         return null;
     }
 
@@ -130,12 +133,12 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     }
 
     @Override
-    public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) throws ClassNotFoundException, SQLException {
+    public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) {
         return null;
     }
 
     @Override
-    public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) throws ClassNotFoundException, SQLException {
+    public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) {
         return null;
     }
 }
