@@ -436,9 +436,10 @@ DESIGN priceListDashboard {
 // ----------------------------------- Список прайсов ---------------------------- //
 // p
 
-addUserPriceList 'Добавить'(LegalEntity legalEntity, PriceListType type, DATETIME dateTime) = {
+addUserPriceList 'Добавить'(PriceList.Operation operation, LegalEntity legalEntity, PriceListType type, DATETIME dateTime) = {
 	NEWSESSION {
 	    NEW p = UserPriceList {
+	        operation(p) <- operation;
 	        company(p) <- legalEntity;
 	        fromDate(p) <- toDate(dateTime);
 	        fromTime(p) <- toTime(dateTime);
@@ -462,7 +463,7 @@ EXTEND FORM priceListDashboard
     ORDER fromDate(p), fromTime(p)
     FILTERS in(p, pt),
             company(p) == c
-    PROPERTIES(c, pt, dt) addUserPriceList TODRAW p       
+    PROPERTIES(o, c, pt, dt) addUserPriceList TODRAW p       
     FILTERGROUP inactivePriceList
         FILTER 'Текущие' isActive(p,dt) 'F11'            
         FILTER 'Активные' isActive(p,dt) OR (fromDateTime[PriceList](p) > dt) 'F10' DEFAULT   
