@@ -14,3 +14,7 @@ EXTEND FORM userOrder
 ;
 
 limitRecommendedQuantity(Sku s, UserOrder o) += s IS Sku AND controlRange(skuGroup(s)) AND NOT countRange(s, customerStock(o), date(o));
+
+CONSTRAINT (CHANGED(sku(Purchase.OrderDetail d)) OR CHANGED(customerStock(d)) OR CHANGED(date(d)) OR CHANGED(isPosted(d))) AND
+            isPosted(d) AND customerStock(d) IS DepartmentStore AND controlRange(skuGroup(sku(d))) AND NOT countRange(sku(d), customerStock(d), date(d))
+    MESSAGE 'В заказ включен товар отсутствующий в ассортиментной матрице'; 
