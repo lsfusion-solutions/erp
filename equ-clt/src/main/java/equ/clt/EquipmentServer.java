@@ -257,6 +257,7 @@ public class EquipmentServer {
                     if(isTimeToRun())
                         StopListEquipmentServer.processStopListInfo(remote);
                 } catch (ConnectException e) {
+                    processStopListLogger.error("Connect Exception: ", e);
                     needReconnect = true;
                 } catch (UnmarshalException e) {
                     if(e.getCause() instanceof InvalidClassException)
@@ -276,6 +277,7 @@ public class EquipmentServer {
                     if(isTimeToRun())
                         DeleteBarcodeEquipmentServer.processDeleteBarcodeInfo(remote);
                 } catch (ConnectException e) {
+                    processDeleteBarcodeLogger.error("Connect Exception: ", e);
                     needReconnect = true;
                 } catch (UnmarshalException e) {
                     if(e.getCause() instanceof InvalidClassException)
@@ -299,6 +301,7 @@ public class EquipmentServer {
                         } else if(isTimeToRun())
                             SendSalesEquipmentServer.sendSalesInfo(remote, sidEquipmentServer, mergeBatches);
                     } catch (ConnectException e) {
+                        sendSalesLogger.error("Connect Exception: ", e);
                         needReconnect = true;
                     } catch (UnmarshalException e) {
                         if (e.getCause() instanceof InvalidClassException)
@@ -319,6 +322,7 @@ public class EquipmentServer {
                     if(isTimeToRun())
                         SoftCheckEquipmentServer.sendSoftCheckInfo(remote);
                 } catch (ConnectException e) {
+                    sendSoftCheckLogger.error("Connect Exception: ", e);
                     needReconnect = true;
                 } catch (UnmarshalException e) {
                     if(e.getCause() instanceof InvalidClassException)
@@ -338,6 +342,7 @@ public class EquipmentServer {
                     if(isTimeToRun())
                         TerminalDocumentEquipmentServer.sendTerminalDocumentInfo(remote, sidEquipmentServer);
                 } catch (ConnectException e) {
+                    sendTerminalDocumentLogger.error("Connect Exception: ", e);
                     needReconnect = true;
                 } catch (UnmarshalException e) {
                     if(e.getCause() instanceof InvalidClassException)
@@ -357,6 +362,7 @@ public class EquipmentServer {
                     if(isTimeToRun())
                         MachineryExchangeEquipmentServer.processMachineryExchange(remote, sidEquipmentServer);
                 } catch (ConnectException e) {
+                    machineryExchangeLogger.error("Connect Exception: ", e);
                     needReconnect = true;
                 } catch (UnmarshalException e) {
                     if(e.getCause() instanceof InvalidClassException)
@@ -376,6 +382,7 @@ public class EquipmentServer {
                     if(isTimeToRun())
                         ProcessMonitorEquipmentServer.process(remote, sidEquipmentServer);
                 } catch (ConnectException e) {
+                    processMonitorLogger.error("Connect Exception: ", e);
                     needReconnect = true;
                 } catch (UnmarshalException e) {
                     if(e.getCause() instanceof InvalidClassException)
