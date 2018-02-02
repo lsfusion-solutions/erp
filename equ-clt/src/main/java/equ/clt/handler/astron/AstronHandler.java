@@ -72,23 +72,35 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 Exception exception = null;
                                 try {
                                     if (transaction.itemsList != null) {
-                                        processTransactionLogger.info(String.format("astron: transaction %s, table grp", transaction.id));
-                                        exportGrp(conn, transaction);
+                                        if (!Thread.currentThread().isInterrupted()) {
+                                            processTransactionLogger.info(String.format("astron: transaction %s, table grp", transaction.id));
+                                            exportGrp(conn, transaction);
+                                        }
 
-                                        processTransactionLogger.info(String.format("astron: transaction %s, table art", transaction.id));
-                                        exportArt(conn, transaction);
+                                        if (!Thread.currentThread().isInterrupted()) {
+                                            processTransactionLogger.info(String.format("astron: transaction %s, table art", transaction.id));
+                                            exportArt(conn, transaction);
+                                        }
 
-                                        processTransactionLogger.info(String.format("astron: transaction %s, table unit", transaction.id));
-                                        exportUnit(conn, transaction);
+                                        if (!Thread.currentThread().isInterrupted()) {
+                                            processTransactionLogger.info(String.format("astron: transaction %s, table unit", transaction.id));
+                                            exportUnit(conn, transaction);
+                                        }
 
-                                        processTransactionLogger.info(String.format("astron: transaction %s, table pack", transaction.id));
-                                        exportPack(conn, transaction);
+                                        if (!Thread.currentThread().isInterrupted()) {
+                                            processTransactionLogger.info(String.format("astron: transaction %s, table pack", transaction.id));
+                                            exportPack(conn, transaction);
+                                        }
 
-                                        processTransactionLogger.info(String.format("astron: transaction %s, table exbarc", transaction.id));
-                                        exportExBarc(conn, transaction);
+                                        if (!Thread.currentThread().isInterrupted()) {
+                                            processTransactionLogger.info(String.format("astron: transaction %s, table exbarc", transaction.id));
+                                            exportExBarc(conn, transaction);
+                                        }
 
-                                        processTransactionLogger.info(String.format("astron: transaction %s, table packprc", transaction.id));
-                                        exportPackPrc(conn, transaction);
+                                        if (!Thread.currentThread().isInterrupted()) {
+                                            processTransactionLogger.info(String.format("astron: transaction %s, table packprc", transaction.id));
+                                            exportPackPrc(conn, transaction);
+                                        }
                                     }
                                 } catch (Exception e) {
                                     processTransactionLogger.error("Astron: ", e);
@@ -427,7 +439,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) {
         AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
         String connectionString = astronSettings == null ? null : astronSettings.getConnectionString();
         String user = astronSettings == null ? null : astronSettings.getUser();
@@ -470,7 +482,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
+    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
 
         AstronSalesBatch salesBatch = null;
 
@@ -610,7 +622,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
         AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
         String connectionString = astronSettings == null ? null : astronSettings.getConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
         String user = astronSettings == null ? null : astronSettings.getUser(); //luxsoft
