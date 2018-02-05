@@ -72,35 +72,23 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 Exception exception = null;
                                 try {
                                     if (transaction.itemsList != null) {
-                                        if (!Thread.currentThread().isInterrupted()) {
-                                            processTransactionLogger.info(String.format("astron: transaction %s, table grp", transaction.id));
-                                            exportGrp(conn, transaction);
-                                        }
+                                        processTransactionLogger.info(String.format("astron: transaction %s, table grp", transaction.id));
+                                        exportGrp(conn, transaction);
 
-                                        if (!Thread.currentThread().isInterrupted()) {
-                                            processTransactionLogger.info(String.format("astron: transaction %s, table art", transaction.id));
-                                            exportArt(conn, transaction);
-                                        }
+                                        processTransactionLogger.info(String.format("astron: transaction %s, table art", transaction.id));
+                                        exportArt(conn, transaction);
 
-                                        if (!Thread.currentThread().isInterrupted()) {
-                                            processTransactionLogger.info(String.format("astron: transaction %s, table unit", transaction.id));
-                                            exportUnit(conn, transaction);
-                                        }
+                                        processTransactionLogger.info(String.format("astron: transaction %s, table unit", transaction.id));
+                                        exportUnit(conn, transaction);
 
-                                        if (!Thread.currentThread().isInterrupted()) {
-                                            processTransactionLogger.info(String.format("astron: transaction %s, table pack", transaction.id));
-                                            exportPack(conn, transaction);
-                                        }
+                                        processTransactionLogger.info(String.format("astron: transaction %s, table pack", transaction.id));
+                                        exportPack(conn, transaction);
 
-                                        if (!Thread.currentThread().isInterrupted()) {
-                                            processTransactionLogger.info(String.format("astron: transaction %s, table exbarc", transaction.id));
-                                            exportExBarc(conn, transaction);
-                                        }
+                                        processTransactionLogger.info(String.format("astron: transaction %s, table exbarc", transaction.id));
+                                        exportExBarc(conn, transaction);
 
-                                        if (!Thread.currentThread().isInterrupted()) {
-                                            processTransactionLogger.info(String.format("astron: transaction %s, table packprc", transaction.id));
-                                            exportPackPrc(conn, transaction);
-                                        }
+                                        processTransactionLogger.info(String.format("astron: transaction %s, table packprc", transaction.id));
+                                        exportPackPrc(conn, transaction);
                                     }
                                 } catch (Exception e) {
                                     processTransactionLogger.error("Astron: ", e);
@@ -141,17 +129,19 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(transaction.itemsList.get(i).extIdItemGroup);
                 if (itemGroupList != null) {
                     for (ItemGroup itemGroup : itemGroupList) {
-                        String idGroup = parseGroup(itemGroup.extIdItemGroup);
-                        if (idGroup != null) {
-                            setObject(ps, idGroup, 1, offset); //GRPID
-                            setObject(ps, parseGroup(itemGroup.idParentItemGroup), 2, offset); //PARENTGRPID
-                            setObject(ps, trim(itemGroup.nameItemGroup, "", 50), 3, offset); //GRPNAME
-                            setObject(ps, "0", 4, offset); //DELFLAG
+                        if (!Thread.currentThread().isInterrupted()) {
+                            String idGroup = parseGroup(itemGroup.extIdItemGroup);
+                            if (idGroup != null) {
+                                setObject(ps, idGroup, 1, offset); //GRPID
+                                setObject(ps, parseGroup(itemGroup.idParentItemGroup), 2, offset); //PARENTGRPID
+                                setObject(ps, trim(itemGroup.nameItemGroup, "", 50), 3, offset); //GRPNAME
+                                setObject(ps, "0", 4, offset); //DELFLAG
 
-                            setObject(ps, parseGroup(itemGroup.extIdItemGroup), 5); //GRPID
+                                setObject(ps, parseGroup(itemGroup.extIdItemGroup), 5); //GRPID
 
-                            ps.addBatch();
-                        }
+                                ps.addBatch();
+                            }
+                        } else break;
                     }
                 }
             }
@@ -171,21 +161,23 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             ps = getPreparedStatement(conn, "ART", columns, keys);
 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
-                CashRegisterItemInfo item = transaction.itemsList.get(i);
-                Integer idItem = parseIdItem(item);
-                if(idItem != null) {
-                    setObject(ps, idItem, 1, offset); //ARTID
-                    setObject(ps, parseGroup(item.extIdItemGroup), 2, offset); //GRPID
-                    setObject(ps, item.vat == null ? "0" : item.vat, 3, offset); //TAXGRPID
-                    setObject(ps, idItem, 4, offset); //ARTCODE
-                    setObject(ps, trim(item.name, "", 50), 5, offset); //ARTNAME
-                    setObject(ps, trim(item.name, "", 50), 6, offset); //ARTSNAME
-                    setObject(ps, "0", 7, offset); //DELFLAG
+                if (!Thread.currentThread().isInterrupted()) {
+                    CashRegisterItemInfo item = transaction.itemsList.get(i);
+                    Integer idItem = parseIdItem(item);
+                    if (idItem != null) {
+                        setObject(ps, idItem, 1, offset); //ARTID
+                        setObject(ps, parseGroup(item.extIdItemGroup), 2, offset); //GRPID
+                        setObject(ps, item.vat == null ? "0" : item.vat, 3, offset); //TAXGRPID
+                        setObject(ps, idItem, 4, offset); //ARTCODE
+                        setObject(ps, trim(item.name, "", 50), 5, offset); //ARTNAME
+                        setObject(ps, trim(item.name, "", 50), 6, offset); //ARTSNAME
+                        setObject(ps, "0", 7, offset); //DELFLAG
 
-                    setObject(ps, idItem, 8); //ARTID
+                        setObject(ps, idItem, 8); //ARTID
 
-                    ps.addBatch();
-                }
+                        ps.addBatch();
+                    }
+                } else break;
             }
             ps.executeBatch();
             conn.commit();
@@ -203,20 +195,22 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             ps = getPreparedStatement(conn, "UNIT", columns, keys);
 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
-                CashRegisterItemInfo item = transaction.itemsList.get(i);
-                Integer idUOM = parseUOM(item.idUOM);
-                if (idUOM != null) {
-                    setObject(ps, idUOM, 1, offset); //UNITID
-                    setObject(ps, item.shortNameUOM, 2, offset); //UNITNAME
-                    setObject(ps, item.shortNameUOM, 3, offset); //UNITFULLNAME
-                    setObject(ps, "0", 4, offset); //DELFLAG
+                if (!Thread.currentThread().isInterrupted()) {
+                    CashRegisterItemInfo item = transaction.itemsList.get(i);
+                    Integer idUOM = parseUOM(item.idUOM);
+                    if (idUOM != null) {
+                        setObject(ps, idUOM, 1, offset); //UNITID
+                        setObject(ps, item.shortNameUOM, 2, offset); //UNITNAME
+                        setObject(ps, item.shortNameUOM, 3, offset); //UNITFULLNAME
+                        setObject(ps, "0", 4, offset); //DELFLAG
 
-                    setObject(ps, idUOM, 5); //UNITID
+                        setObject(ps, idUOM, 5); //UNITID
 
-                    ps.addBatch();
-                }
-                ps.executeBatch();
-                conn.commit();
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                    conn.commit();
+                } else break;
             }
         } finally {
             closeStatement(ps);
@@ -243,31 +237,33 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             Set<Integer> idItems = new HashSet<>();
             for (int i = 0; i < transaction.itemsList.size(); i++) {
-                CashRegisterItemInfo item = transaction.itemsList.get(i);
-                Integer idUOM = parseUOM(item.idUOM);
-                Integer idItem = parseIdItem(item);
-                if (idUOM != null && idItem != null) {
-                    Integer packId = getPackId(item);
-                    setObject(ps, packId, 1, offset); //PACKID
-                    setObject(ps, idItem, 2, offset); //ARTID
-                    setObject(ps, "1", 3, offset); //PACKQUANT
-                    setObject(ps, "0", 4, offset); //PACKSHELFLIFE
-                    if(idItems.contains(idItem)) {
-                        setObject(ps, false, 5, offset); //ISDEFAULT
-                    } else {
-                        setObject(ps, true, 5, offset); //ISDEFAULT
-                        idItems.add(idItem);
+                if (!Thread.currentThread().isInterrupted()) {
+                    CashRegisterItemInfo item = transaction.itemsList.get(i);
+                    Integer idUOM = parseUOM(item.idUOM);
+                    Integer idItem = parseIdItem(item);
+                    if (idUOM != null && idItem != null) {
+                        Integer packId = getPackId(item);
+                        setObject(ps, packId, 1, offset); //PACKID
+                        setObject(ps, idItem, 2, offset); //ARTID
+                        setObject(ps, "1", 3, offset); //PACKQUANT
+                        setObject(ps, "0", 4, offset); //PACKSHELFLIFE
+                        if (idItems.contains(idItem)) {
+                            setObject(ps, false, 5, offset); //ISDEFAULT
+                        } else {
+                            setObject(ps, true, 5, offset); //ISDEFAULT
+                            idItems.add(idItem);
+                        }
+                        setObject(ps, idUOM, 6, offset); //UNITID
+                        setObject(ps, "", 7, offset); //QUANTMASK
+                        setObject(ps, item.passScalesItem ? 0 : 1, 8, offset); //PACKDTYPE
+                        setObject(ps, trim(item.name, "", 50), 9, offset); //PACKNAME
+                        setObject(ps, "0", 10, offset); //DELFLAG
+
+                        setObject(ps, packId, 11); //PACKID
+
+                        ps.addBatch();
                     }
-                    setObject(ps, idUOM, 6, offset); //UNITID
-                    setObject(ps, "", 7, offset); //QUANTMASK
-                    setObject(ps, item.passScalesItem ? 0 : 1, 8, offset); //PACKDTYPE
-                    setObject(ps, trim(item.name, "", 50), 9, offset); //PACKNAME
-                    setObject(ps, "0", 10, offset); //DELFLAG
-
-                    setObject(ps, packId, 11); //PACKID
-
-                    ps.addBatch();
-                }
+                } else break;
             }
             ps.executeBatch();
             conn.commit();
@@ -298,19 +294,21 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             ps = getPreparedStatement(conn, "EXBARC", columns, keys);
 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
-                CashRegisterItemInfo item = transaction.itemsList.get(i);
-                if(item.idBarcode != null) {
-                    Integer packId = getPackId(item);
-                    setObject(ps, packId, 1, offset); //EXBARCID
-                    setObject(ps, packId, 2, offset); //PACKID
-                    setObject(ps, "", 3, offset); //EXBARCTYPE
-                    setObject(ps, item.idBarcode, 4, offset); //EXBARCBODY
-                    setObject(ps, "0", 5, offset); //DELFLAG
+                if (!Thread.currentThread().isInterrupted()) {
+                    CashRegisterItemInfo item = transaction.itemsList.get(i);
+                    if (item.idBarcode != null) {
+                        Integer packId = getPackId(item);
+                        setObject(ps, packId, 1, offset); //EXBARCID
+                        setObject(ps, packId, 2, offset); //PACKID
+                        setObject(ps, "", 3, offset); //EXBARCTYPE
+                        setObject(ps, item.idBarcode, 4, offset); //EXBARCBODY
+                        setObject(ps, "0", 5, offset); //DELFLAG
 
-                    setObject(ps, packId, 6); //EXBARCID
+                        setObject(ps, packId, 6); //EXBARCID
 
-                    ps.addBatch();
-                }
+                        ps.addBatch();
+                    }
+                } else break;
             }
             ps.executeBatch();
             conn.commit();
@@ -328,19 +326,21 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             ps = getPreparedStatement(conn, "PACKPRC", columns, keys);
 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
-                CashRegisterItemInfo item = transaction.itemsList.get(i);
-                Integer packId = getPackId(item);
-                setObject(ps, packId, 1, offset); //PACKID
-                setObject(ps, transaction.nppGroupMachinery, 2, offset); //PRCLEVELID
-                setObject(ps, HandlerUtils.safeMultiply(item.price, 100), 3, offset); //PACKPRICE
-                setObject(ps, item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO, 4, offset); //PACKMINPRICE
-                setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
-                setObject(ps, "0", 6, offset); //DELFLAG
+                if (!Thread.currentThread().isInterrupted()) {
+                    CashRegisterItemInfo item = transaction.itemsList.get(i);
+                    Integer packId = getPackId(item);
+                    setObject(ps, packId, 1, offset); //PACKID
+                    setObject(ps, transaction.nppGroupMachinery, 2, offset); //PRCLEVELID
+                    setObject(ps, HandlerUtils.safeMultiply(item.price, 100), 3, offset); //PACKPRICE
+                    setObject(ps, item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO, 4, offset); //PACKMINPRICE
+                    setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
+                    setObject(ps, "0", 6, offset); //DELFLAG
 
-                setObject(ps, packId, 7); //PACKID
-                setObject(ps, transaction.nppGroupMachinery, 8); //PRCLEVELID
+                    setObject(ps, packId, 7); //PACKID
+                    setObject(ps, transaction.nppGroupMachinery, 8); //PRCLEVELID
 
-                ps.addBatch();
+                    ps.addBatch();
+                } else break;
             }
             ps.executeBatch();
             conn.commit();
