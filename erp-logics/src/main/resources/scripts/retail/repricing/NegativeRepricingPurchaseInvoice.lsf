@@ -1,0 +1,202 @@
+MODULE NegativeRepricingPurchaseInvoice;
+
+REQUIRE PricingPurchase, Repricing, PricingSumPurchase;
+
+PRIORITY Purchase;
+NAMESPACE Repricing;
+
+showNegativeMarkup 'Отрицательная ТН' = DATA BOOLEAN (Purchase.Operation);
+
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) showNegativeMarkup
+;
+DESIGN Purchase.operation {
+    showContainer {
+        MOVE PROPERTY(showNegativeMarkup(o));
+    }
+}
+
+@defineDocumentInterfaceDetailPricePrefix(invoice, afterRetail, ' розничная после');
+
+repricingOperation  = DATA Repricing.Operation ();
+nameRepricingOperation 'Операция (переоценка) отриц. ТН' ()= name(repricingOperation());
+
+EXTEND FORM options
+    PROPERTIES () nameRepricingOperation
+;
+DESIGN options{
+    rPanel {
+        PROPERTY (nameRepricingOperation());
+    }
+}
+repricingOperation  = ABSTRACT Repricing.Operation (Invoice);
+repricingOperation  = DATA Repricing.Operation (UserInvoice);
+repricingOperation(UserInvoice i) += repricingOperation(i);
+
+nameRepricingOperation 'Операция (переоценка) отриц. ТН' (UserInvoice i)= name(repricingOperation(i));
+
+repricingOperation (UserInvoice invoice) <- repricingOperation()
+    WHEN SET(invoice IS UserInvoice);
+
+// Комиссия
+@defineDocumentHeaderRepricingCommittee (invoice, customerStock) ; 
+
+afterRetailPrice = GROUP SUM 1 IF afterRetailPrice(InvoiceDetail d)
+    BY invoice(d) MATERIALIZED;
+
+CLASS InvoiceRepricingN 'Акт переоценки (отрицательные ТН)': Repricing;
+CLASS InvoiceRepricingNDetail 'Строка акта переоценки (отрицательные ТН)': RepricingDetail;
+
+@defineDocumentTables(invoiceRepricingN);
+@defineDocumentAggregation(invoice, invoiceRepricingN, afterRetailPrice);
+
+repricing(InvoiceRepricingNDetail detail) += invoiceRepricingN(detail);
+
+index(InvoiceRepricingNDetail detail) += index(detail);
+
+date(InvoiceRepricingN repricing) += DATE(sumSeconds(dateTime(repricing),1));
+time(InvoiceRepricingN repricing) += TIME(sumSeconds(dateTime(repricing),1));
+
+beforeDate(InvoiceRepricingN repricing) += date(repricing);
+beforeTime(InvoiceRepricingN repricing) += time(repricing);
+
+operation (InvoiceRepricingN repricing)+= repricingOperation(invoice(repricing));
+//changeSupplierPrice (InvoiceRepricingN repricing)+= changeSupplierPrice(repricingOperation(order(repricing)));
+ @defineDocumentAggregationStockPrefix(invoice, InvoiceRepricingN, customer, 'Склад', , );
+departmentStore(InvoiceRepricingN repricing) += customerStock(repricing) AS DepartmentStore;
+
+@defineDocumentAggregationHeaderPosted(invoice, invoiceRepricingN);
+@defineDocumentAggregationDetailPosted(invoice, invoiceRepricingN);
+
+isPosted(InvoiceRepricingN repricing) += isPosted(repricing);
+@defineDocumentAggregationHeaderClosed(invoice, invoiceRepricingN);
+@defineDocumentAggregationDetailClosed(invoice, invoiceRepricingN);
+
+isClosed(InvoiceRepricingN repricing) += isClosed(repricing);
+
+number 'Номер документа' (InvoiceRepricingN repricing) = number(invoice(repricing));
+number(InvoiceRepricingN repricing) += number(repricing);
+
+series 'Серия документа' (InvoiceRepricingN repricing) = series(invoice(repricing));
+series(InvoiceRepricingN repricing) += series(repricing);
+
+seriesNumber 'Серия/номер документа' (InvoiceRepricingN repricing) = seriesNumber(invoice(repricing));
+
+noteDisparity 'Примечание' (InvoiceRepricingN repricing) = note(invoice(repricing));
+note(InvoiceRepricingN repricing) += noteDisparity(repricing);
+
+currency  (InvoiceRepricingN repricing) = currency(invoice(repricing));
+currency (InvoiceRepricingN repricing) += currency(repricing);
+repricingCommittee(InvoiceRepricingN repricing) += repricingCommittee(invoice(repricing));
+numberDisposal(InvoiceRepricingN repricing) += dataNumberDisposal(invoice(repricing));
+
+@defineDocumentHeaderDescription(InvoiceRepricingN, 'Акт переоценки (отрицательные ТН)');
+@defineDocumentDetailDescription(invoiceRepricingN, InvoiceRepricingNDetail);
+
+description (InvoiceRepricingN repricing) += description(repricing);
+
+sku (InvoiceRepricingNDetail repricingDetail) = sku(invoiceDetail(repricingDetail));
+
+sku(InvoiceRepricingNDetail repricingDetail) +=  sku(repricingDetail);
+
+edit(InvoiceRepricingNDetail d) += { edit(invoiceDetail(d)); }
+show(InvoiceRepricingNDetail d) += { show(invoiceDetail(d)); }
+
+
+//----------------------------------------------------------------------------------------------------------
+
+@defineDocumentDetailDataSumCustomPrefix (UserInvoiceDetail, afterRetail, ' розничная после');
+calcAfterRetailSum(UserInvoiceDetail d) = NUMERIC[18,4](round(pricingQuantity(d) * afterRetailPrice(d), currency(d))); 
+afterRetailSum (UserInvoiceDetail d) <- calcAfterRetailSum(d)
+                WHEN DO CHANGED(pricingQuantity(d)) OR CHANGED (afterRetailPrice(d)) OR CHANGED(currency(d));
+
+@defineDocumentDetailMarkupPrefix (UserInvoice, afterRetail, ' после');
+afterRetailMarkup(UserInvoiceDetail d)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+    afterRetailPrice(d),
+    valueRetailVAT(d),
+    pricingPrice(d))
+    WHEN CHANGED(pricingPrice(d)) OR CHANGED (valueRetailVAT(d)) OR CHANGED(afterRetailPrice(d));
+
+@defineDocumentDetailVATDataSumCustomPrefix (userInvoiceDetail, afterRetail, ' после');
+afterRetailVATSum (UserInvoiceDetail d)  <- round([= X*Y/(100+Y)](afterRetailSum(d), valueRetailVAT(d)), currency(d))
+                WHEN CHANGED(afterRetailSum(d)) OR CHANGED (valueRetailVAT(d)) OR CHANGED (currency(d));
+                    
+@defineDocumentDetailMarkupSumCustomPrefix (userInvoiceDetail, afterRetail, ' после');
+afterRetailMarkupSum(UserInvoiceDetail d) <- afterRetailSum(d) (-) afterRetailVATSum (d) (-) pricingSum(d)
+                WHEN CHANGED(afterRetailSum(d)) OR CHANGED (afterRetailVATSum (d)) OR CHANGED (pricingSum(d));
+valueAfterRetailVAT(UserInvoiceDetail d) = valueRetailVAT(d) IF d IS UserInvoiceDetail;
+               
+@changeDocumentDetailPriceCustomPrefix(UserInvoiceDetail, afterRetail, pricing, afterRetail, afterRetail);
+@changeDocumentDetailMarkupCustomPrefix(UserInvoiceDetail,afterRetail, pricing,  afterRetail, afterRetail);
+
+//-------------------------------------------------------------------------------------------//
+quantity(InvoiceRepricingNDetail repricingDetail) += pricingQuantity(invoiceDetail(repricingDetail));
+
+price(InvoiceRepricingNDetail repricingDetail) += price(invoiceDetail(repricingDetail));
+curPrice(InvoiceRepricingNDetail repricingDetail) += price(invoiceDetail(repricingDetail));
+
+retailPrice(InvoiceRepricingNDetail repricingDetail) += afterRetailPrice(invoiceDetail(repricingDetail));
+curRetailPrice(InvoiceRepricingNDetail repricingDetail) += retailPrice(invoiceDetail(repricingDetail));
+
+retailSum(InvoiceRepricingNDetail repricingDetail) += afterRetailSum(invoiceDetail(repricingDetail));
+curRetailSum(InvoiceRepricingNDetail repricingDetail) += retailSum(invoiceDetail(repricingDetail));
+
+markup(InvoiceRepricingNDetail repricingDetail) += afterRetailMarkup(invoiceDetail(repricingDetail));
+curMarkup(InvoiceRepricingNDetail repricingDetail) += retailMarkup(invoiceDetail(repricingDetail));
+
+//VAT(InvoiceRepricingNDetail repricingDetail) += retailVAT(invoiceDetail(repricingDetail));
+//curVAT(InvoiceRepricingNDetail repricingDetail) += retailVAT(invoiceDetail(repricingDetail));
+
+valueVAT(InvoiceRepricingNDetail repricingDetail) += valueRetailVAT(invoiceDetail(repricingDetail));
+valueCurVAT(InvoiceRepricingNDetail repricingDetail) += valueRetailVAT(invoiceDetail(repricingDetail));
+
+sum(InvoiceRepricingNDetail repricingDetail) += sum(invoiceDetail(repricingDetail));
+curSum(InvoiceRepricingNDetail repricingDetail) += sum(invoiceDetail(repricingDetail));
+
+VATSum(InvoiceRepricingNDetail repricingDetail) += afterRetailVATSum(invoiceDetail(repricingDetail));
+curVATSum(InvoiceRepricingNDetail repricingDetail) += retailVATSum(invoiceDetail(repricingDetail));
+
+markupSum(InvoiceRepricingNDetail repricingDetail) += afterRetailMarkupSum(invoiceDetail(repricingDetail));
+curMarkupSum(InvoiceRepricingNDetail repricingDetail) += retailMarkupSum(invoiceDetail(repricingDetail));
+
+edit(InvoiceRepricingN repricing) += { edit(invoice(repricing)); }
+
+showRepricingN(UserInvoice i) = createPricing(i) AND showNegativeMarkup(operation(i));
+backgroundAfter 'Цвет' (UserInvoice o) = RGB(255, 255, 200) IF o IS UserInvoice;
+
+createAfterRetailPrice 'Проверить отриц. ТН' (UserInvoice i) = {
+    LOCAL in = BOOLEAN (UserInvoiceDetail);
+    afterRetailPrice(UserInvoiceDetail d) <- retailPrice(d) WHERE userInvoice(d) == i AND retailMarkup(d) <0.0;
+    in(UserInvoiceDetail d) <- TRUE WHERE userInvoice(d) == i AND retailMarkup(d) <0.0;    
+    retailMarkup(UserInvoiceDetail d) <- 0.0 WHERE in(d);  
+    retailPrice(UserInvoiceDetail d) <- calcRetailPrice(d) WHERE in(d);    
+} 
+afterPrice 'Цена поставщика после'(UserInvoiceDetail d) = pricingPrice(d) IF afterRetailPrice(d);
+afterSum 'Сумма поставщика после'(UserInvoiceDetail d) = pricingSum(d) IF afterRetailPrice(d);
+afterRetailVAT 'НДС, % розничный после'(UserInvoiceDetail d) = valueRetailVAT(d) IF afterRetailPrice(d);
+afterRetailMarkupSum1 'Сумма надбавки после' (UserInvoiceDetail d) = afterRetailMarkupSum(d) IF afterRetailPrice(d);
+
+EXTEND FORM userInvoice
+
+    PROPERTIES(i)   BACKGROUND backgroundAfter(i) SHOWIF showRepricingN(i) nameOperation = nameRepricingOperation,
+                    nameCommittee = nameRepricingCommittee, numberDisposal = dataNumberDisposal
+
+    PROPERTIES(pd) BACKGROUND backgroundAfter(i) SHOWIF showRepricingN(i) 
+                    afterPrice, afterSum,
+                    afterRetailMarkup ON CHANGE changeAfterRetailMarkup(pd), afterRetailMarkupSum1 ,
+                    afterRetailVAT READONLY, afterRetailVATSum, afterRetailPrice ON CHANGE changeAfterRetailPrice(pd), afterRetailSum
+    PROPERTIES (i) SHOWIF showRepricingN(i) createAfterRetailPrice TOOLBAR TODRAW pd         
+;
+DESIGN userInvoice {
+    headerCreateDocuments {
+        NEW createHeaderRepricing {
+            caption = 'Отрицательные ТН';
+            type = CONTAINERH;
+            MOVE PROPERTY(nameOperation) {caption = 'Операция'; charWidth=15;}
+            MOVE PROPERTY(nameCommittee) {caption = 'Комиссия'; charWidth=15;}
+            MOVE PROPERTY(numberDisposal) {caption = 'Распоряжение'; charWidth=15;}              
+        }
+    }
+}
+
+
