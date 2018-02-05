@@ -236,7 +236,7 @@ public class TerminalServer extends MonitorServer {
                         } catch (Exception e) {
                             logger.error("GetUserInfo Unknown error: ", e);
                             errorCode = UNKNOWN_ERROR;
-                            errorText = UNKNOWN_ERROR_TEXT;
+                            errorText = getUnknownErrorText(e);
                         }
                         break;
                     case GET_ITEM_INFO:
@@ -271,7 +271,7 @@ public class TerminalServer extends MonitorServer {
                         } catch (Exception e) {
                             logger.error("GetItemInfo Unknown error: ", e);
                             errorCode = UNKNOWN_ERROR;
-                            errorText = UNKNOWN_ERROR_TEXT;
+                            errorText = getUnknownErrorText(e);
                         }
                         break;
                     case SAVE_DOCUMENT:
@@ -343,7 +343,7 @@ public class TerminalServer extends MonitorServer {
                         } catch (Exception e) {
                             logger.error("SaveDocument Unknown error", e);
                             errorCode = UNKNOWN_ERROR;
-                            errorText = UNKNOWN_ERROR_TEXT;
+                            errorText = getUnknownErrorText(e);
                         }
                         break;
                     case GET_ITEM_HTML:
@@ -366,7 +366,7 @@ public class TerminalServer extends MonitorServer {
                         } catch (Exception e) {
                             logger.error("GetItemHtml Unknown error: ", e);
                             errorCode = UNKNOWN_ERROR;
-                            errorText = UNKNOWN_ERROR_TEXT;
+                            errorText = getUnknownErrorText(e);
                         }
                         break;
                     case GET_ALL_BASE:
@@ -393,7 +393,7 @@ public class TerminalServer extends MonitorServer {
                         } catch (Exception e) {
                             logger.error("GetAllBase Unknown error: ", e);
                             errorCode = UNKNOWN_ERROR;
-                            errorText = UNKNOWN_ERROR_TEXT;
+                            errorText = getUnknownErrorText(e);
                         }
                         break;
                     case SAVE_PALLET:
@@ -422,7 +422,7 @@ public class TerminalServer extends MonitorServer {
                         } catch (Exception e) {
                             logger.error("SavePallet Unknown error", e);
                             errorCode = UNKNOWN_ERROR;
-                            errorText = UNKNOWN_ERROR_TEXT;
+                            errorText = getUnknownErrorText(e);
                         }
                         break;
                     default:
@@ -645,5 +645,10 @@ public class TerminalServer extends MonitorServer {
     private void write(DataOutputStream outToClient, String value) throws IOException {
         outToClient.write((value == null ? "" : value).getBytes("cp1251"));
         outToClient.flush();
+    }
+
+    private String getUnknownErrorText(Exception e) {
+        String errorText = e.getMessage();
+        return errorText == null ? UNKNOWN_ERROR_TEXT : errorText.substring(0, Math.min(errorText.length(), errorText.indexOf('\n')));
     }
 }
