@@ -649,6 +649,10 @@ public class TerminalServer extends MonitorServer {
 
     private String getUnknownErrorText(Exception e) {
         String errorText = e.getMessage();
-        return errorText == null ? UNKNOWN_ERROR_TEXT : errorText.substring(0, Math.min(errorText.length(), errorText.indexOf('\n')));
+        if(errorText == null)
+            errorText = UNKNOWN_ERROR_TEXT;
+        else if(errorText.contains("\n"))
+            errorText = errorText.substring(0, errorText.indexOf('\n'));
+        return errorText;
     }
 }
