@@ -213,6 +213,7 @@ public class FiscalEpson {
         Integer offsetBefore = getElectronicJournalReadOffset();
         openReceipt(receipt.cashier, sale ? 1 : 2);
         for (ReceiptItem item : receipt.receiptList) {
+            printLine(item.barcode);
             registerItem(item);
             discountItem(item, !sale);
             printLine(item.vatString);
