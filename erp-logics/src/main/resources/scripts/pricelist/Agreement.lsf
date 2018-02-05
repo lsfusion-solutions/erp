@@ -515,12 +515,22 @@ addAgreementsCustomerSupplier 'Присоединить'(LegalEntity customer, L
         }
 } TOOLBAR;
 
+includeAllCompanies 'Включать по умолчанию все компании в соглашение' () = DATA BOOLEAN ();
+EXTEND FORM options PROPERTIES() includeAllCompanies;
+DESIGN options { agreement { MOVE PROPERTY(includeAllCompanies()); } }
 
 createAgreementSupplierCustomer 'Добавить'(LegalEntity supplier, LegalEntity customer) = {
 	NESTEDSESSION{
 	    NEW ag = Agreement {
 	        dataInCustomer(ag, customer) <- TRUE;
 	        dataInSupplier(ag, supplier) <- TRUE;
+	        
+	        IF isCompany(customer) THEN {
+	            dataInCustomer(ag, LegalEntity l) <- TRUE WHERE isCompany(l) AND active(l);
+	        }
+	        IF isCompany(supplier) THEN {
+	            dataInSupplier(ag, LegalEntity l) <- TRUE WHERE isCompany(l) AND active(l);
+	        }
 	        SHOW agreement OBJECTS a = ag DOCKED;
 	    }
 	}
