@@ -25,6 +25,10 @@ import java.sql.Timestamp;
 import java.text.ParseException;
 import java.util.*;
 
+import static equ.clt.handler.DBFUtils.getDBFFieldValue;
+import static equ.clt.handler.DBFUtils.putField;
+import static equ.clt.handler.DBFUtils.putNumField;
+
 public class InventoryTechHandler extends TerminalHandler {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
@@ -62,8 +66,8 @@ public class InventoryTechHandler extends TerminalHandler {
                 for (String path : directorySet) {
                     if (!Thread.currentThread().isInterrupted()) {
                         File directory = new File(path);
-                        if (!directory.exists())
-                            directory.mkdir();
+                        if (!directory.exists() && !directory.mkdir())
+                            processTransactionLogger.info("Failed to create directory " + directory.getAbsolutePath());
 
                         if (!directory.exists())
                             processTransactionLogger.info("Directory " + directory.getAbsolutePath() + " doesn't exist");
@@ -79,7 +83,8 @@ public class InventoryTechHandler extends TerminalHandler {
                             createEmptyDocFile(path);
                             createEmptyPosFile(path);
 
-                            createBasesUpdFile(path);
+                            if(!createBasesUpdFile(path))
+                                processTransactionLogger.error("Failed to create " + path + "/BASES.UPD");
 
                         } catch (Exception e) {
                             processTransactionLogger.error("InventoryTech Error: ", e);
@@ -122,7 +127,7 @@ public class InventoryTechHandler extends TerminalHandler {
                 for (Integer recordNumber : entry.getValue()) {
                     if (recordNumber != null) {
                         dbfFile.gotoRecord(recordNumber);
-                        putField(dbfFile, ACCEPTED, "1", true);
+                        putField(dbfFile, ACCEPTED, "1", 1, true);
                         dbfFile.update();
                     }
                 }
@@ -327,10 +332,10 @@ public class InventoryTechHandler extends TerminalHandler {
                                         dbfWriter.gotoRecord(recordNumber);
                                 }
 
-                                putField(dbfWriter, ARTICUL, trim(item.idBarcode, 15), append);
-                                putField(dbfWriter, NAME, trim(item.name, 200), append);
-                                putField(dbfWriter, QUAN, String.valueOf(item.quantity == null ? 1 : item.quantity.intValue()), append);
-                                putField(dbfWriter, PRICE, String.valueOf(item.price == null ? 0 : item.price), append);
+                                putField(dbfWriter, ARTICUL, item.idBarcode, 15, append);
+                                putField(dbfWriter, NAME, item.name, 200, append);
+                                putNumField(dbfWriter, QUAN, item.quantity == null ? 1 : item.quantity.intValue(), append);
+                                putNumField(dbfWriter, PRICE, item.price == null ? 0 : item.price.doubleValue(), append);
 
                                 if (recordNumber != null)
                                     dbfWriter.update();
@@ -400,8 +405,8 @@ public class InventoryTechHandler extends TerminalHandler {
                                         dbfWriter.gotoRecord(recordNumber);
                                 }
 
-                                putField(dbfWriter, ARTICUL, trim(item.idBarcode, 15), append);
-                                putField(dbfWriter, BARCODE, trim(item.idBarcode, 26), append);
+                                putField(dbfWriter, ARTICUL, item.idBarcode, 15, append);
+                                putField(dbfWriter, BARCODE, item.idBarcode, 26, append);
 
                                 if (recordNumber != null)
                                     dbfWriter.update();
@@ -468,7 +473,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     dbfWriter.startTop();
 
                     Set<String> usedCodes = new HashSet<>();
-                    putField(dbfWriter, VIDSPR, "10", append);
+                    putNumField(dbfWriter, VIDSPR, 10, append);
                     for (TerminalLegalEntity le : transaction.terminalLegalEntityList) {
                         if (!Thread.currentThread().isInterrupted()) {
                             if (!usedCodes.contains(le.idLegalEntity)) {
@@ -479,8 +484,8 @@ public class InventoryTechHandler extends TerminalHandler {
                                         dbfWriter.gotoRecord(recordNumber);
                                 }
 
-                                putField(dbfWriter, CODE, trim(le.idLegalEntity, 15), append);
-                                putField(dbfWriter, NAME, trim(le.nameLegalEntity, 200), append);
+                                putField(dbfWriter, CODE, le.idLegalEntity, 15, append);
+                                putField(dbfWriter, NAME, le.nameLegalEntity, 200, append);
 
                                 if (recordNumber != null)
                                     dbfWriter.update();
@@ -561,16 +566,16 @@ public class InventoryTechHandler extends TerminalHandler {
                                         dbfWriter.gotoRecord(recordNumber);
                                 }
 
-                                putField(dbfWriter, CODE, trim(tdt.id, 15), append);
-                                putField(dbfWriter, NAME, trim(tdt.name, 50), append);
+                                putField(dbfWriter, CODE, tdt.id, 15, append);
+                                putField(dbfWriter, NAME, tdt.name, 50, append);
                                 String sprt1 = tdt.analytics1 == null ? "" : tdt.analytics1.equals("ПС") ? "Организация" : tdt.analytics1;
-                                String vidspr1 = tdt.analytics1 == null ? "0" : tdt.analytics1.equals("ПС") ? "10" : tdt.analytics1;
+                                Integer vidspr1 = tdt.analytics1 == null ? 0 : tdt.analytics1.equals("ПС") ? 10 : parseInt(tdt.analytics1);
                                 String sprt2 = tdt.analytics2 == null ? "" : tdt.analytics2.equals("ПС") ? "Организация" : tdt.analytics2;
-                                String vidspr2 = tdt.analytics2 == null ? "0" : tdt.analytics2.equals("ПС") ? "10" : tdt.analytics2;
-                                putField(dbfWriter, VIDSPR1, vidspr1, append);
-                                putField(dbfWriter, SPRT1, trim(sprt1, 15), append);
-                                putField(dbfWriter, VIDSPR2, vidspr2, append);
-                                putField(dbfWriter, SPRT2, trim(sprt2, 15), append);
+                                Integer vidspr2 = tdt.analytics2 == null ? 0 : tdt.analytics2.equals("ПС") ? 10 : parseInt(tdt.analytics2);
+                                putNumField(dbfWriter, VIDSPR1, vidspr1, append);
+                                putField(dbfWriter, SPRT1, sprt1, 15, append);
+                                putNumField(dbfWriter, VIDSPR2, vidspr2, append);
+                                putField(dbfWriter, SPRT2, sprt2, 15, append);
 
                                 if (recordNumber != null)
                                     dbfWriter.update();
@@ -589,6 +594,14 @@ public class InventoryTechHandler extends TerminalHandler {
                         dbfWriter.close();
                 }
             }
+        }
+    }
+
+    private Integer parseInt(String value) {
+        try {
+            return value == null ? null : Integer.parseInt(value);
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -648,29 +661,13 @@ public class InventoryTechHandler extends TerminalHandler {
         }
     }
 
-    private void createBasesUpdFile(String path) throws IOException {
-        new File(path + "/BASES.UPD").createNewFile();
-    }
-
-    protected String getDBFFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
-        try {
-            String result = new String(importFile.getField(fieldName).getBytes(), charset).trim();
-            return result.isEmpty() ? null : result;
-        } catch (xBaseJException e) {
-            return null;
-        }
+    private boolean createBasesUpdFile(String path) throws IOException {
+        return new File(path + "/BASES.UPD").createNewFile();
     }
 
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
         String result = getDBFFieldValue(importFile, fieldName, charset);
         return (result == null || result.isEmpty() ? null : new BigDecimal(result.replace(",", ".")));
-    }
-
-    private void putField(DBF dbfFile, Field field, String value, boolean append) throws xBaseJException {
-        if(append)
-            dbfFile.getField(field.getName()).put(value == null ? "null" : value);
-        else
-            field.put(value == null ? "null" : value);
     }
 
     protected boolean listNotEmpty(List list) {
