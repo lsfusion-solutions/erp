@@ -323,14 +323,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
     private DocumentData parseOrderMessage(Element rootNode, String provider, String documentId) throws IOException, JDOMException {
 
-        String documentNumber = rootNode.getChildText("documentNumber");
+        String documentNumber = trim(rootNode.getChildText("documentNumber"));
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
 
         Element reference = rootNode.getChild("reference");
         if (reference != null) {
             String documentType = reference.getChildText("documentType");
             if (documentType != null && documentType.equals("ORDERS")) {
-                String orderNumber = reference.getChildText("documentNumber");
+                String orderNumber = trim(reference.getChildText("documentNumber"));
                 String code = reference.getChildText("code");
                 String description = reference.getChildText("description");
                 if (description == null || description.isEmpty()) {
@@ -411,7 +411,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         List<List<Object>> firstData = new ArrayList<>();
         List<List<Object>> secondData = new ArrayList<>();
 
-        String documentNumber = rootNode.getChildText("documentNumber");
+        String documentNumber = trim(rootNode.getChildText("documentNumber"));
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
         String responseType = rootNode.getChildText("function");
         String responseTypeObject = getResponseType(responseType);
@@ -637,7 +637,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         List<List<Object>> firstData = new ArrayList<>();
         List<List<Object>> secondData = new ArrayList<>();
 
-        String documentNumber = rootNode.getChildText("documentNumber");
+        String documentNumber = trim(rootNode.getChildText("documentNumber"));
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
         String deliveryNoteNumber = rootNode.getChildText("deliveryNoteNumber");
         Timestamp deliveryNoteDateTime = parseTimestamp(rootNode.getChildText("deliveryNoteDate"));
