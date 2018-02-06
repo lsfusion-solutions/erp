@@ -543,21 +543,20 @@ END
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
+terminalSID (model) = GROUP MAX TerminalModel model BY sid (model) IF model IS TerminalModel;
+
 // Модели терминалов сбора данных
-loadDefaultTerminalModel 'Добавить модель терминала'(VARSTRING[20] stringOne, VARISTRING[110] stringTwo, VARSTRING[200] stringThree) = {
-    NEW tm = TerminalModel {
-         sid(tm) <- stringOne;   
-         name(tm) <- stringTwo;
-         handler(tm) <- stringThree;
+loadDefaultTerminalModel 'Добавить модель терминала'(VARSTRING[20] sid, VARISTRING[110] name, VARSTRING[200] handler) = {
+    IF NOT terminalSID(sid) THEN {
+        NEW tm = TerminalModel {
+             sid(tm) <- sid;   
+             name(tm) <- name;
+             handler(tm) <- handler;
+        }
     }
 }
 
-loadDefaultTerminalModels 'Загрузить стандартные модели ТСД'() = {
-    EXEC loadDefaultTerminalModel('inventory', 'ТСД InventoryTech', 'equ.clt.handler.inventoryTech.InventoryTechHandler');
-    EXEC loadDefaultTerminalModel('EasyCSVT', 'ТСД EasyCSV', 'equ.clt.handler.easy.EasyCSVHandler');
-    EXEC loadDefaultTerminalModel('lsterminal', 'ТСД LSTerminal', 'equ.clt.handler.lsterminal.LSTerminalHandler');
-} IN loadDefault;
-
+loadDefaultTerminalModels 'Загрузить стандартные модели ТСД'() = ABSTRACT LIST () IN loadDefault;
 @implementLoadDefaultData(loadDefaultTerminalModels);
 
 // Виды справочников терминалов сбора данных
