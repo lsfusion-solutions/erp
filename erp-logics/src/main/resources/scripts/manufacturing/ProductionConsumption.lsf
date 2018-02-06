@@ -140,6 +140,21 @@ toConsumeComponentDetail 'Не списано по заказу' (order) =
 @defineDocumentDetailQuantityCustomPrefix (componentDetail, consumed, ' (списано)');
 @defineDocumentDetailDataSumCustomPrefix (componentDetail, consumed, ' (списано)');
 
+quantityRound 'Количество знаков для округления кол-ва списания' = DATA INTEGER (Operation);
+EXTEND FORM operation
+
+    PROPERTIES(o) quantityRound
+
+;
+DESIGN operation {
+    propertyContainer{
+
+        MOVE PROPERTY(quantityRound(o));
+    }
+}
+
+overQuantityRound (ComponentDetail cd) = OVERRIDE quantityRound(operation(cd)), 5 IF cd IS ComponentDetail;
+    
 consumedQuantity(ComponentDetail detail) <- quantity(detail) WHEN CHANGED(quantity(detail));
 
 calcConsumedSum = ABSTRACT VALUE NUMERIC[18,4] (ComponentDetail);
@@ -162,8 +177,11 @@ quantityOutput 'Кол-во спецификаций (произведенных
 recBruttoQuantityOutput 'Кол-во для произ-го' (BOM, order, sku) = GROUP SUM quantityOutput(BOM BOM, Order order) * recBruttoQuantity(BOM, Sku sku, date(order)) BY BOM, order, sku;
 recBruttoQuantityOutput 'Рекур.кол-во' (BOM, order, component) = GROUP SUM quantityOutput(BOM BOM, Order order) * recBruttoQuantity(BOM, Component component, date(order)) BY BOM, order, component;
 
-calcComponentConsumedQuantity (ComponentDetail d) = recBruttoQuantityOutput(BOM(d), order(d), component(d)) * quantityCoeff(d) * OVERRIDE multiplierSubstituteTo(bruttoSku(d), substituteSku(d)), 1.0;
-calcSkuConsumedQuantity (ComponentDetail d) = recBruttoQuantityOutput(BOM(d), order(d), bruttoSku(d)) * quantityCoeff(d) * OVERRIDE multiplierSubstituteTo(bruttoSku(d), substituteSku(d)), 1.0;
+calcComponentConsumedQuantity (ComponentDetail d) = 
+    round((recBruttoQuantityOutput(BOM(d), order(d), component(d)) * quantityCoeff(d) * OVERRIDE multiplierSubstituteTo(bruttoSku(d), substituteSku(d)), 1.0), overQuantityRound(d));
+calcSkuConsumedQuantity (ComponentDetail d) = 
+    round((recBruttoQuantityOutput(BOM(d), order(d), bruttoSku(d)) * quantityCoeff(d) * OVERRIDE multiplierSubstituteTo(bruttoSku(d), substituteSku(d)), 1.0), overQuantityRound(d));
+    
 createOutputComponent 'Заполнить списание'(Order order) = {
     consumedQuantity(ComponentDetail d) <- calcComponentConsumedQuantity(d) WHERE order(d) == order AND component(d);
     consumedQuantity(ComponentDetail d) <- calcSkuConsumedQuantity(d) WHERE order(d) == order AND NOT component(d);
