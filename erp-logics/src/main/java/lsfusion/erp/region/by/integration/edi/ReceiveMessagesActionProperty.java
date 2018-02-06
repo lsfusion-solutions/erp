@@ -418,7 +418,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         String buyerGLN = rootNode.getChildText("buyerGLN");
         String destinationGLN = rootNode.getChildText("destinationGLN");
         String supplierGLN = rootNode.getChildText("supplierGLN");
-        String orderNumber = rootNode.getChildText("orderNumber");
+        String orderNumber = trim(rootNode.getChildText("orderNumber"));
         Timestamp deliveryDateTimeFirst = parseTimestamp(rootNode.getChildText("deliveryDateTimeFirst"));
         Timestamp deliveryDateTimeSecond = parseTimestamp(rootNode.getChildText("deliveryDateTimeSecond"));
         String note = rootNode.getChildText("comment");
@@ -644,7 +644,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         String buyerGLN = rootNode.getChildText("buyerGLN");
         String destinationGLN = rootNode.getChildText("destinationGLN");
         String supplierGLN = rootNode.getChildText("supplierGLN");
-        String orderNumber = rootNode.getChildText("orderNumber");
+        String orderNumber = trim(rootNode.getChildText("orderNumber"));
         Timestamp deliveryDateTimeFirst = parseTimestamp(rootNode.getChildText("deliveryDateTimeFirst"));
         String note = nullIfEmpty(rootNode.getChildText("comment"));
 
