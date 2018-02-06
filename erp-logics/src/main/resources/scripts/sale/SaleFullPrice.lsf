@@ -37,7 +37,7 @@ WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail]
 WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail] 
         (CHANGED(fullPrice(UserOrderDetail d)))
          AND NOT CHANGED(percDiscount(d)) 
-         AND PriceListType pt == priceListType(d) AND isItem(sku(d)) NOINLINE (pt) DO {
+         AND isItem(sku(d)) DO {
     recalculateDiscountPrice(d);
 }
 
@@ -56,20 +56,20 @@ WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail]
 WHEN LOCAL FORMS userOrder GOAFTER fullPrice[UserOrderDetail] 
         (CHANGED(percDiscount(UserOrderDetail d)))
          AND NOT CHANGED(price(d)) 
-         AND PriceListType pt == priceListType(d) AND fullPrice(d) AND isItem(sku(d)) NOINLINE (pt) DO {
+         AND fullPrice(d) AND isItem(sku(d)) DO {
     recalculateDiscountPrice(d);
 }
 
 // при изменении цены меняется % скидки
 overChangePrice(UserOrderDetail d) += {
     IF fullPrice(d) AND isItem(sku(d)) THEN {
-        dataPercDiscount(d) <- NUMERIC[8,4]((1.0 - (price(d)/fullPrice(d)))*100.0);     
+        dataPercDiscount(d) <- NUMERIC[8,4](round2((1.0 - (price(d)/fullPrice(d)))*100.0));     
     }   
 }
 WHEN LOCAL FORMS userOrder GOAFTER price[UserOrderDetail] (CHANGED(price(UserOrderDetail d)))  AND 
                              fullPrice(d) AND isItem(sku(d)) AND
                              NOT CHANGED(percDiscount(d)) AND NOT CHANGED(fullPrice(d))DO {
-    dataPercDiscount(d) <- NUMERIC[8,4]((1.0 - (price(d)/fullPrice(d)))*100.0);
+    dataPercDiscount(d) <- NUMERIC[8,4](round2((1.0 - (price(d)/fullPrice(d)))*100.0));
 }
 
 recalculateFullPriceUserOrderDetail 'Пересчитать цены'() = {
@@ -136,7 +136,7 @@ WHEN LOCAL //FORMS userInvoice
         GOAFTER valueVAT[UserInvoiceDetail] 
         (CHANGED(fullPrice(UserInvoiceDetail d)))
          AND NOT CHANGED(percDiscount(d)) 
-         AND PriceListType pt == priceListType(d) AND isItem(sku(d)) NOINLINE (pt) DO {
+         AND isItem(sku(d)) DO {
     recalculateDiscountPrice(d);
 }
 
@@ -157,20 +157,20 @@ WHEN LOCAL //FORMS userInvoice
         GOAFTER fullPrice[UserInvoiceDetail] 
         (CHANGED(percDiscount(UserInvoiceDetail d)))
          AND NOT CHANGED(price(d)) 
-         AND PriceListType pt == priceListType(d) AND fullPrice(d) AND isItem(sku(d)) NOINLINE (pt) DO {
+         AND fullPrice(d) AND isItem(sku(d)) DO {
     recalculateDiscountPrice(d);
 }
 
 // при изменении цены меняется % скидки
 overChangePrice(UserInvoiceDetail d) += {
     IF fullPrice(d) AND isItem(sku(d)) THEN {
-        dataPercDiscount(d) <- NUMERIC[8,4]((1.0 - (price(d)/fullPrice(d)))*100.0);     
+        dataPercDiscount(d) <- NUMERIC[8,4](round2((1.0 - (price(d)/fullPrice(d)))*100.0));     
     }   
 }
 WHEN LOCAL FORMS userInvoice GOAFTER price[UserInvoiceDetail] (CHANGED(price(UserInvoiceDetail d)))  AND 
                              fullPrice(d) AND isItem(sku(d)) AND
                              NOT CHANGED(percDiscount(d)) AND NOT CHANGED(fullPrice(d))DO {
-    dataPercDiscount(d) <- NUMERIC[8,4]((1.0 - (price(d)/fullPrice(d)))*100.0);
+    dataPercDiscount(d) <- NUMERIC[8,4](round2((1.0 - (price(d)/fullPrice(d)))*100.0));
 }
 
 recalculateFullPriceUserInvoiceDetail 'Пересчитать цены'() = {
