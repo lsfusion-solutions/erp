@@ -683,34 +683,38 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         machineryExchangeLogger.info(logPrefix + "Send CashierInfoList");
 
-        for (String directory : getDirectorySet(requestExchange)) {
+        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
+        String globalExchangeDirectory = artixSettings != null ? artixSettings.getGlobalExchangeDirectory() : null;
+        if (globalExchangeDirectory != null) {
+            File directory = new File(globalExchangeDirectory);
+            if (directory.exists() || directory.mkdirs()) {
+                try {
 
-            try {
+                    File tmpFile = File.createTempFile("pos", ".aif");
 
-                File tmpFile = File.createTempFile("pos",".aif");
+                    String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
+                    File file = new File(directory + "/pos" + currentTime + ".aif");
 
-                String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
-                File file = new File(directory + "/pos" + currentTime + ".aif");
+                    machineryExchangeLogger.info(logPrefix + "creating cashiers file " + file.getAbsolutePath());
 
-                machineryExchangeLogger.info(logPrefix + "creating cashiers file " + file.getAbsolutePath());
+                    for (CashierInfo cashier : cashierInfoList) {
+                        writeStringToFile(tmpFile, getAddMCashUserJSON(cashier) + "\n---\n");
+                    }
 
-                for (CashierInfo cashier : cashierInfoList) {
-                    writeStringToFile(tmpFile, getAddMCashUserJSON(cashier) + "\n---\n");
+                    FileCopyUtils.copy(tmpFile, file);
+                    if (!tmpFile.delete())
+                        tmpFile.deleteOnExit();
+
+                    File flagFile = new File(directory + "/pos" + currentTime + ".flz");
+                    if (!flagFile.createNewFile())
+                        processTransactionLogger.info(String.format(logPrefix + "can't create flag file %s", flagFile.getAbsolutePath()));
+
+                    machineryExchangeLogger.info(logPrefix + "waiting for deletion of cashiers file " + file.getAbsolutePath());
+                    waitForDeletion(file, flagFile);
+
+                } catch (JSONException e) {
+                    throw Throwables.propagate(e);
                 }
-
-                FileCopyUtils.copy(tmpFile, file);
-                if(!tmpFile.delete())
-                    tmpFile.deleteOnExit();
-
-                File flagFile = new File(directory + "/pos" + currentTime + ".flz");
-                if(!flagFile.createNewFile())
-                    processTransactionLogger.info(String.format(logPrefix + "can't create flag file %s", flagFile.getAbsolutePath()));
-
-                machineryExchangeLogger.info(logPrefix + "waiting for deletion of cashiers file " + file.getAbsolutePath());
-                waitForDeletion(file, flagFile);
-
-            } catch (JSONException e) {
-                throw Throwables.propagate(e);
             }
         }
 
