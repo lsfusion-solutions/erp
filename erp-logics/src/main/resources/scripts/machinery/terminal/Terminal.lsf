@@ -300,17 +300,6 @@ WHEN LOCAL SETCHANGED(barcode(TerminalDocumentDetail d)) DO {
     sku(d) <- OVERRIDE skuBarcode(barcode(d)), sku(barcode(d));
 }
 
-migratedSku = DATA BOOLEAN ();
-onStarted () += {
-    IF NOT migratedSku() THEN {
-        migratedSku() <- TRUE;
-        setNoCancelInTransaction();
-        sku(TerminalDocumentDetail d) <- OVERRIDE sku(barcode(barcode(d), (OVERRIDE date(d), currentDate()))), sku(barcode(d));
-        apply();
-        dropNoCancelInTransaction();
-    }
-}
-
 terminalIdTerminalId (documentDetail, document) = GROUP AGGR TerminalDocumentDetail terminalDocumentDetail 
     BY id (terminalDocument(terminalDocumentDetail)), id(terminalDocumentDetail);    
 

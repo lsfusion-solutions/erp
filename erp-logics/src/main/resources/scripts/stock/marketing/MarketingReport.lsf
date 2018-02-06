@@ -72,20 +72,6 @@ VATSum 'Сумма НДС' = DATA NUMERIC[18,4](MarketingReportDetail);
 invoiceSum 'Сумма с НДС' = DATA NUMERIC[18,4](MarketingReportDetail);
 marketingSum 'Сумма маркетинга' = DATA NUMERIC[18,4](MarketingReportDetail);
 
-migratedSumMarketing= DATA BOOLEAN ();
-onStarted () += {
-    IF NOT migratedSumMarketing() THEN {
-        migratedSumMarketing() <- TRUE;
-        setNoCancelInTransaction();
-        sum(MarketingReportDetail d) <- calcSum(d);
-        VATSum(MarketingReportDetail d) <- calcVATSum(d);
-        invoiceSum(MarketingReportDetail d) <- calcInvoiceSum(d);
-        marketingSum(MarketingReportDetail d) <- calcMarketingSum(d);
-        apply();
-        dropNoCancelInTransaction();
-    }
-}
-
 nameSupplierStock 'Склад поставщика' (MarketingReportDetail d) = name(supplierStock(invoice(d)));
 nameCustomerStock 'Склад покупателя' (MarketingReportDetail d) = name(customerStock(invoice(d)));
 
