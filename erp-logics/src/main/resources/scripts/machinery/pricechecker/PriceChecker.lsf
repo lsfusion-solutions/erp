@@ -107,7 +107,7 @@ DESIGN groupsPriceChecker {
 @extendFormFilterAccessStock(GroupPriceChecker, grch, groupsPriceChecker, stock, company);
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
-priceCheckerSID (model) = GROUP MAX PriceCheckerModel model BY sid (model);
+priceCheckerSID (model) = GROUP MAX PriceCheckerModel model BY sid (model) IF model IS PriceCheckerModel;
 
 loadDefaultPriceCheckerModel 'Добавить модель прайс-чекера'(VARISTRING[110] name, VARSTRING[20] sid, VARSTRING[200] handler) = {
     IF NOT priceCheckerSID(sid) THEN {
@@ -119,12 +119,13 @@ loadDefaultPriceCheckerModel 'Добавить модель прайс-чеке�
     }
 }
 
-loadDefaultPriceCheckerModels 'Загрузить стандартные модели прайс-чекеров'() = {
-    EXEC loadDefaultPriceCheckerModel('Прайс-чекеры EasyCSV', 'EasyCSVP', 'equ.clt.handler.easy.EasyCSVHandler');
+loadDefaultPriceCheckerModels 'Загрузить стандартные модели прайс-чекеров'() = ABSTRACT LIST () IN loadDefault;
+
+loadDefaultPriceCheckerModels() += {
     EXEC loadDefaultPriceCheckerModel('Прайс-чекеры NewLand', 'NewLand', NULL);
     EXEC loadDefaultPriceCheckerModel('Прайс-чекеры Shuttle', 'Shuttle', NULL);
     EXEC loadDefaultPriceCheckerModel('Прайс-чекеры Shtrih', 'Shtrih', NULL);
-} IN loadDefault;
+};
 
 @implementLoadDefaultData(loadDefaultPriceCheckerModels);
 
