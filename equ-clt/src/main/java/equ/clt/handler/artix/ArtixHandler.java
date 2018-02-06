@@ -367,13 +367,21 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         JSONArray roleUsersArray = new JSONArray();
         JSONObject roleUsersObject = new JSONObject();
         if(cashier.idPosition != null)
-            roleUsersObject.put("rolecode", cashier.idPosition.substring(0, 1));
+            roleUsersObject.put("rolecode", getRoleCode(cashier.idPosition));
         roleUsersObject.put("rule", 1);
         roleUsersArray.put(roleUsersObject);
         inventGroupObject.put("roleusers", roleUsersArray);
 
         rootObject.put("command", "addMCashUser");
         return rootObject.toString();
+    }
+
+    private int getRoleCode(String idPosition) {
+        try {
+            return Integer.parseInt(idPosition.substring(0, 1));
+        } catch (Exception e) {
+            return 1;
+        }
     }
 
     private String getAddCardJSON(DiscountCard card, boolean active) throws JSONException {
