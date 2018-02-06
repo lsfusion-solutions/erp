@@ -50,6 +50,8 @@ toInvoiced(Order o) += WHEN o IS Order THEN TRUE IF toInvoice(o);
 toInvoiced = ABSTRACT CASE BOOLEAN (OrderDetail);
 toInvoiced (OrderDetail d) += WHEN d IS OrderDetail THEN TRUE IF toInvoice(d);
 
+skipDefaultOpened = ABSTRACT BOOLEAN (Invoice.Invoice);
+
 FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
 
     OBJECTS dt = DATE PANEL
@@ -83,7 +85,7 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
     PROPERTIES (i) NEWSESSION EDIT SHOWIF overShowEdit(i), deletei = DELETE SHOWIF overShowDelete(i)
 
     FILTERS out (i)                            
-    FILTERGROUP openedI  FILTER 'Открыт' isOpened(i) DEFAULT
+    FILTERGROUP openedI  FILTER 'Открыт' isOpened(i) OR skipDefaultOpened(i) DEFAULT
     FILTERGROUP filters1 FILTER 'Предыдущие накладные' date(i)<dt 'F7'
                          FILTER 'Накладные на дату' date(i)==dt 'F8' DEFAULT
                          FILTER 'Будущие накладные' date(i)>dt 'F9'
