@@ -216,6 +216,9 @@ public class TerminalEquipmentServer {
             query.and(terminalLM.findProperty("exportId[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
             query.and(terminalLM.findProperty("canonicalNamePropertyID[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
             query.and(terminalLM.findProperty("canonicalNamePropertyName[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
+            LCP<?> filterProperty = terminalLM.findProperty("filterProperty[TerminalHandbookType]");
+            if(filterProperty != null)
+                query.and(filterProperty.getExpr(terminalHandbookTypeExpr).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String prefix = trim((String) entry.get("exportId"));
