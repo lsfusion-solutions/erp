@@ -467,10 +467,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 props.add(new ImportProperty(valueVATUserPriceListDetailField, findProperty("VAT[Item,Country]").getMapping(itemKey, countryKey),
                         object(findClass("Range")).getMapping(VATKey), getReplaceOnlyNull(defaultColumns, "valueVAT")));
                 fields.add(countryVATField);
-                String defaultCountry = (String)findProperty("nameDefaultCountry[]").read(context);
-                if (defaultCountry == null)
-                    defaultCountry = "БЕЛАРУСЬ";
-
+                String defaultCountry = getDefaultCountry(context);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(defaultCountry);
             }

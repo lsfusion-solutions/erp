@@ -11,6 +11,7 @@ import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
@@ -1365,5 +1366,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 result = firstResult == null ? secondResult : firstResult;
         }
         return result;
+    }
+
+    protected String getDefaultCountry(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        String defaultCountry = (String) findProperty("nameDefaultCountry[]").read(context);
+        if (defaultCountry == null)
+            defaultCountry = "БЕЛАРУСЬ";
+        return defaultCountry;
     }
 }
