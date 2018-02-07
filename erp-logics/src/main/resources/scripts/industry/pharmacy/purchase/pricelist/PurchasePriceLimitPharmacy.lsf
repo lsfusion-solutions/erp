@@ -1,6 +1,6 @@
 MODULE PurchasePriceLimitPharmacy;
 
-REQUIRE PricingPriceLimitPharmacy, PricingPurchasePharmacy, PurchaseManufacturingPrice, PricingPriceLimit;
+REQUIRE PricingPriceLimitPharmacy, PricingPurchasePharmacy, PurchaseManufacturingPrice, PricingPriceLimit, PurchasePriceLimitFixed;
 
 NAMESPACE Purchase;
 
@@ -56,25 +56,13 @@ limitPharmacyPrice (UserInvoiceDetail detail) =
         ELSE calcLimitPharmacyPrice(detail)   
 ;
 
-useMaxRetailMarkup 'Использовать максимальновозможные розчничные надавки' = DATA BOOLEAN ();
-
-EXTEND FORM options
-    PROPERTIES useMaxRetailMarkup()
-;
-
-DESIGN options{
-    pricings{
-        MOVE PROPERTY(useMaxRetailMarkup());
-    }
-}
-
 WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(manufacturingPrice(d)) 
              OR CHANGED(sku(d)) OR CHANGED(price(d)) OR SET(showLimitPharmacyPrice(d)) OR CHANGED(pharmacyPriceGroup(sku(d)))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
              showLimitPharmacyPrice(d) NOINLINE DO {
     limitPharmacyMarkup(d) <- retailMarkupPharmacy(sku(d), NUMERIC[16,4](manufacturingPrice(d)), date(d));         
     IF limitPharmacyPrice(d) < retailPrice(d) OR (retailPriceListType(d) AND useMaxRetailMarkup()) THEN {
-        retailPrice(d) <- limitPharmacyPrice(d);
+        retailPrice(d) <- OVERRIDE min(limitPharmacyPrice(d),maxLimitPrice(d)), limitPharmacyPrice(d);
         retailMarkup(d) <- calcRetailMarkup(d);
     }
 }
