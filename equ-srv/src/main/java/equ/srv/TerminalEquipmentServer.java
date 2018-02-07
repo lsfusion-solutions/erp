@@ -208,22 +208,23 @@ public class TerminalEquipmentServer {
             KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
             ImRevMap<Object, KeyExpr> terminalHandbookTypeKeys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(terminalHandbookTypeKeys);
-            String[] names = new String[]{"exportId", "name", "propertyID", "propertyName"};
-            LCP<?>[] properties = terminalLM.findProperties("exportId[TerminalHandbookType]", "name[TerminalHandbookType]", "canonicalNamePropertyID[TerminalHandbookType]", "canonicalNamePropertyName[TerminalHandbookType]");
+            String[] names = new String[]{"exportId", "name", "propertyID", "propertyName", "filterProperty"};
+            LCP<?>[] properties = terminalLM.findProperties("exportId[TerminalHandbookType]", "name[TerminalHandbookType]",
+                    "canonicalNamePropertyID[TerminalHandbookType]", "canonicalNamePropertyName[TerminalHandbookType]",
+                    "canonicalNameFilterProperty[TerminalHandbookType]");
             for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
             }
             query.and(terminalLM.findProperty("exportId[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
             query.and(terminalLM.findProperty("canonicalNamePropertyID[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
             query.and(terminalLM.findProperty("canonicalNamePropertyName[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
-            LCP<?> filterProperty = terminalLM.findProperty("filterProperty[TerminalHandbookType]");
-            if(filterProperty != null)
-                query.and(filterProperty.getExpr(terminalHandbookTypeExpr).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String prefix = trim((String) entry.get("exportId"));
                 LCP propertyID = (LCP<?>) BL.findSafeProperty(trim((String) entry.get("propertyID")));
                 LCP propertyName = (LCP<?>) BL.findSafeProperty(trim((String) entry.get("propertyName")));
+                String canonicalNameFilterProperty = trim((String) entry.get("filterProperty"));
+                LCP filterProperty = canonicalNameFilterProperty != null ? (LCP<?>) BL.findSafeProperty(canonicalNameFilterProperty) : null;
 
                 if(propertyID != null && propertyName != null) {
                     ImOrderSet<PropertyInterface> interfaces = propertyID.listInterfaces;
@@ -233,6 +234,8 @@ public class TerminalEquipmentServer {
                         QueryBuilder<Object, Object> customANAQuery = new QueryBuilder<>(customANAKeys);
                         customANAQuery.addProperty("id", propertyID.getExpr(customANAExpr));
                         customANAQuery.addProperty("name", propertyName.getExpr(customANAExpr));
+                        if(filterProperty != null)
+                            customANAQuery.and(filterProperty.getExpr(customANAExpr).getWhere());
                         customANAQuery.and(propertyID.getExpr(customANAExpr).getWhere());
                         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> customANAResult = customANAQuery.execute(session);
                         for (ImMap<Object, Object> customANAEntry : customANAResult.values()) {

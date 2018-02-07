@@ -34,7 +34,7 @@ public class TerminalServer extends MonitorServer {
     public static byte UNKNOWN_ERROR = 102;
     public static String UNKNOWN_ERROR_TEXT = "Неизвестная ошибка";
     public static byte LOGIN_ERROR = 103;
-    public static String LOGIN_ERROR_TEXT = "Пользователь не найден";
+    public static String LOGIN_ERROR_TEXT = "Пользователь не найден или неверный пароль";
     public static byte ITEM_NOT_FOUND = 104;
     public static String ITEM_NOT_FOUND_TEXT = "Товар не найден";
     public static byte PROCESS_DOCUMENT_ERROR = 105;
