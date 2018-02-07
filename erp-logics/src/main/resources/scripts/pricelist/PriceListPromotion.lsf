@@ -15,9 +15,14 @@ promotionStartDateTime 'Дата/время определения акций' =
 TABLE promotionPriceListDetailStock (PriceListDetail, Stock);
 isPromotion (PriceListDetail d) = in(d, promotionPriceListType()) AND operation(d) == promotionPriceListOperation() AND isPosted(d) AND NOT toDateTime(d) < promotionStartDateTime(); 
 isPromotion (PriceListDetail d, Stock st) = isPromotion(d) AND in(priceList(d), st) MATERIALIZED TABLE promotionPriceListDetailStock;
+
 sku (PriceListDetail d, Stock st) = sku(d) IF isPromotion(d, st) MATERIALIZED TABLE promotionPriceListDetailStock;
+
 fromDateTime (PriceListDetail d, Stock st) = fromDateTime(d) IF isPromotion(d, st) MATERIALIZED TABLE promotionPriceListDetailStock;
+fromDate(PriceListDetail d, Stock st) = DATE(fromDateTime(d, st));
+
 toDateTime (PriceListDetail d, Stock st) = toDateTime(d) IF isPromotion(d, st) MATERIALIZED TABLE promotionPriceListDetailStock;
+toDate(PriceListDetail d, Stock st) = DATE(toDateTime(d, st));
 
 INDEX sku(PriceListDetail d, Stock st), st, fromDateTime(d, st), d;
 INDEX Stock st, fromDateTime(PriceListDetail d, st), sku(d, st);
@@ -56,3 +61,13 @@ EXTEND FORM currentBalanceSkuStock
 ;
 
 backgroundBalance(s,st) += WHEN promotionPriceListDetailA(s, st) THEN RGB(216,224,255);
+
+prevPromotionDetail (PriceListDetail d, Stock st) =  
+    PARTITION PREV d IF isPromotion(d, st) 
+              BY sku(d, st), st 
+              ORDER fromDateTime(d, st), d;
+
+prevToDateTimePromotion 'Дата/время окончания предыдущей акции' (PriceListDetail d, Stock st) = toDateTime(prevPromotionDetail(d, st));
+prevToDatePromotion 'Дата окончания предыдущей акции' (PriceListDetail d, Stock st) = DATE(prevToDateTimePromotion(d, st));
+
+regularPeriodBeforePromotion 'Кол-во дней между акциями' (PriceListDetail d, Stock st) = daysBetweenDates(fromDate(d, st), prevToDatePromotion(d, st)) - 1;
