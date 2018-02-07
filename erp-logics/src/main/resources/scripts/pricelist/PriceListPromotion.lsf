@@ -10,20 +10,35 @@ namePromotionPriceListOperation 'Операция акции' = name(promotionPr
 promotionPriceListType = DATA DataPriceListType();
 namePromotionPriceListType 'Вид цены акции' = name(promotionPriceListType());
 
+promotionStartDateTime 'Дата/время определения акций' = DATA DATETIME ();
+
+TABLE promotionPriceListDetailStock (PriceListDetail, Stock);
+isPromotion (PriceListDetail d) = in(d, promotionPriceListType()) AND operation(d) == promotionPriceListOperation() AND isPosted(d) AND NOT toDateTime(d) < promotionStartDateTime(); 
+isPromotion (PriceListDetail d, Stock st) = isPromotion(d) AND in(priceList(d), st) MATERIALIZED TABLE promotionPriceListDetailStock;
+sku (PriceListDetail d, Stock st) = sku(d) IF isPromotion(d, st) MATERIALIZED TABLE promotionPriceListDetailStock;
+fromDateTime (PriceListDetail d, Stock st) = fromDateTime(d) IF isPromotion(d, st) MATERIALIZED TABLE promotionPriceListDetailStock;
+toDateTime (PriceListDetail d, Stock st) = toDateTime(d) IF isPromotion(d, st) MATERIALIZED TABLE promotionPriceListDetailStock;
+
+INDEX sku(PriceListDetail d, Stock st), st, fromDateTime(d, st), d;
+INDEX Stock st, fromDateTime(PriceListDetail d, st), sku(d, st);
 
 EXTEND FORM options
-    PROPERTIES() namePromotionPriceListOperation, namePromotionPriceListType 
+    PROPERTIES() namePromotionPriceListOperation, namePromotionPriceListType, promotionStartDateTime 
 ;
 DESIGN options {
     price {
         MOVE PROPERTY(namePromotionPriceListOperation());
         MOVE PROPERTY(namePromotionPriceListType());
+        MOVE PROPERTY(promotionStartDateTime());
     }
 }   
 
-promotionPriceListDetailA (Sku sku, Stock stock, DATETIME dateTime) =
-    lastPriceListDetailA(promotionPriceListType(), sku, stock, dateTime, promotionPriceListOperation());
-    
+promotionPriceListDetailA (Sku sk, Stock st, DATETIME dt) = 
+    GROUP LAST PriceListDetail d
+          BY sku(d, Stock st), st, DATETIME dt
+          ORDER fromDateTime(d, st), d
+          WHERE fromDateTime(d, st) <= dt AND NOT toDateTime(d, st) < dt COMPLEX;
+
 promotionPriceListDetailA (Sku sku, Stock stock) = 
     promotionPriceListDetailA(sku, stock, currentDateTime());
     
