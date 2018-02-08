@@ -711,7 +711,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     String value = getXLSFieldValue(formulaEvaluator, sheet, i, defaultColumns.get(field));
                     switch (field) {
                         case "extraBarcodeItem":
-                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7, settings.isBarcodeMaybeUPC()));
+                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 5, settings.isBarcodeMaybeUPC()));
                             break;
                         case "valueVAT":
                             fieldValues.put(field, parseVAT(value));
@@ -734,8 +734,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 }
 
                 String idItem = getXLSFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("idItem"));
-                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("barcodeItem")), 7, settings.isBarcodeMaybeUPC());
-                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("packBarcode")), 7, settings.isBarcodeMaybeUPC());
+                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("barcodeItem")), 5, settings.isBarcodeMaybeUPC());
+                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("packBarcode")), 5, settings.isBarcodeMaybeUPC());
                 Date dateUserPriceList = getXLSDateFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("dateUserPriceList"));
                 Date dateFrom = getXLSDateFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("dateFrom"), dateDocument);
                 Date dateVAT = dateUserPriceList == null ? dateFrom : dateUserPriceList;
@@ -792,7 +792,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                         String value = getCSVFieldValue(valuesList, defaultColumns.get(field), count);
                         switch (field) {
                             case "extraBarcodeItem":
-                                fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7, settings.isBarcodeMaybeUPC()));
+                                fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 5, settings.isBarcodeMaybeUPC()));
                                 break;
                             case "valueVAT":
                                 fieldValues.put(field, parseVAT(value));
@@ -814,8 +814,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                         fieldValues.put(field, value);
                     }
 
-                    String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, defaultColumns.get("barcodeItem"), count), 7, settings.isBarcodeMaybeUPC());
-                    String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, defaultColumns.get("packBarcode"), count), 7, settings.isBarcodeMaybeUPC());
+                    String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, defaultColumns.get("barcodeItem"), count), 5, settings.isBarcodeMaybeUPC());
+                    String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, defaultColumns.get("packBarcode"), count), 5, settings.isBarcodeMaybeUPC());
                     String idItem = getCSVFieldValue(valuesList, defaultColumns.get("idItem"), count);
                     Date dateUserPriceList = getCSVDateFieldValue(valuesList, defaultColumns.get("dateFrom"), count);
                     Date dateFrom = getCSVDateFieldValue(valuesList, defaultColumns.get("dateFrom"), count, dateDocument);
@@ -866,7 +866,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     String value = getXLSXFieldValue(sheet, i, defaultColumns.get(field));
                     switch (field) {
                         case "extraBarcodeItem":
-                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7, settings.isBarcodeMaybeUPC()));
+                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 5, settings.isBarcodeMaybeUPC()));
                             break;
                         case "valueVAT":
                             fieldValues.put(field, parseVAT(value));
@@ -889,8 +889,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 }
 
                 String idItem = getXLSXFieldValue(sheet, i, defaultColumns.get("idItem"));
-                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, defaultColumns.get("barcodeItem")), 7, settings.isBarcodeMaybeUPC());
-                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, defaultColumns.get("packBarcode")), 7, settings.isBarcodeMaybeUPC());
+                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, defaultColumns.get("barcodeItem")), 5, settings.isBarcodeMaybeUPC());
+                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, defaultColumns.get("packBarcode")), 5, settings.isBarcodeMaybeUPC());
                 BigDecimal quantityAdjustment = getXLSXBigDecimalFieldValue(sheet, i, new ImportColumnDetail("quantityAdjustment", settings.getQuantityAdjustmentColumn(), false));
                 Date dateUserPriceList = getXLSXDateFieldValue(sheet, i, defaultColumns.get("dateUserPriceList"));
                 Date dateFrom = getXLSXDateFieldValue(sheet, i, defaultColumns.get("dateFrom"), dateDocument);
@@ -954,7 +954,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     String value = getJDBFFieldValue(entry, fieldNamesMap, defaultColumns.get(field), i);
                     switch (field) {
                         case "extraBarcodeItem":
-                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7, settings.isBarcodeMaybeUPC()));
+                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 5, settings.isBarcodeMaybeUPC()));
                             break;
                         case "valueVAT":
                             fieldValues.put(field, parseVAT(value));
@@ -976,8 +976,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     fieldValues.put(field, value);
                 }
 
-                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, defaultColumns.get("barcodeItem"), i), 7, settings.isBarcodeMaybeUPC());
-                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, defaultColumns.get("packBarcode"), i), 7, settings.isBarcodeMaybeUPC());
+                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, defaultColumns.get("barcodeItem"), i), 5, settings.isBarcodeMaybeUPC());
+                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, defaultColumns.get("packBarcode"), i), 5, settings.isBarcodeMaybeUPC());
                 String idItem = getJDBFFieldValue(entry, fieldNamesMap, defaultColumns.get("idItem"), i);
                 BigDecimal quantityAdjustment = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, new ImportColumnDetail("quantityAdjustment", settings.getQuantityAdjustmentColumn(), false), i);
                 Date dateUserPriceList = getJDBFDateFieldValue(entry, fieldNamesMap, defaultColumns.get("dateUserPriceList"), i);
