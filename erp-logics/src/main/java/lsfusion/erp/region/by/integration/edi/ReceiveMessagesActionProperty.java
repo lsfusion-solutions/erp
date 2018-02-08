@@ -186,7 +186,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             for (Map.Entry<String, DocumentData> message : orderMessages.entrySet()) {
                 String documentId = message.getKey();
                 DocumentData data = message.getValue();
-                if (data.firstData != null) {
+                if(data.skip) {
+                    succeededMap.put(documentId, Pair.create(data.documentNumber, (String) null));
+                    orderMessagesFailed++;
+                } else if (data.firstData != null) {
                     String error = importOrderMessages(context, data);
                     succeededMap.put(documentId, Pair.create(data.documentNumber, error));
                     if (error == null) {
@@ -329,26 +332,36 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Element reference = rootNode.getChild("reference");
         if (reference != null) {
             String documentType = reference.getChildText("documentType");
-            if (documentType != null && documentType.equals("ORDERS")) {
-                String orderNumber = trim(reference.getChildText("documentNumber"));
-                String code = reference.getChildText("code");
-                String description = reference.getChildText("description");
-                if (description == null || description.isEmpty()) {
-                    switch (code) {
-                        case "1251":
-                            description = "Сообщение прочитано получателем";
-                            break;
-                        case "1252":
-                            description = "Сообщение принято учётной системой получателя";
-                            break;
-                        default:
-                            description = null;
-                            break;
-                    }
+            if (documentType != null) {
+                switch (documentType) {
+                    case "ORDERS":
+                        String orderNumber = trim(reference.getChildText("documentNumber"));
+                        String code = reference.getChildText("code");
+                        String description = reference.getChildText("description");
+                        if (description == null || description.isEmpty()) {
+                            switch (code) {
+                                case "1251":
+                                    description = "Сообщение прочитано получателем";
+                                    break;
+                                case "1252":
+                                    description = "Сообщение принято учётной системой получателя";
+                                    break;
+                                default:
+                                    description = null;
+                                    break;
+                            }
+                        }
+                        return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList((Object) documentNumber, dateTime, code, description, orderNumber)), null);
+                    case "BLRWBR":
+                    case "BLRAPN":
+                        ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s skipped for documentType %s", provider, documentId, documentType));
+                        return new DocumentData(documentNumber, null, null, true);
+                    default:
+                        ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: incorrect documentType %s", provider, documentId, documentType));
+                        break;
                 }
-                return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList((Object) documentNumber, dateTime, code, description, orderNumber)), null);
             } else
-                ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: incorrect documentType %s", provider, documentId, documentType));
+                ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: no documentType tag", provider, documentId));
         } else
             ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: no reference tag", provider, documentId));
         return new DocumentData(documentNumber, null, null);
@@ -1255,11 +1268,17 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         String documentNumber;
         List<List<Object>> firstData;
         List<List<Object>> secondData;
+        boolean skip;
 
         public DocumentData(String documentNumber, List<List<Object>> firstData, List<List<Object>> secondData) {
+            this(documentNumber, firstData, secondData, false);
+        }
+
+        public DocumentData(String documentNumber, List<List<Object>> firstData, List<List<Object>> secondData, boolean skip) {
             this.documentNumber = documentNumber;
             this.firstData = firstData;
             this.secondData = secondData;
+            this.skip = skip;
         }
     }
 }
