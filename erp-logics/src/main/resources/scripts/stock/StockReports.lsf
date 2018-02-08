@@ -158,6 +158,8 @@ filterBalanceBAInOut (Sku s) = (balanceB(s) OR
     sumIn(s) OR
     sumOut(s));
 
+setInSession = DATA LOCAL BOOLEAN();
+
 //остатки по товарам
 FORM printListBalanceSkusStock 'Остатки по товарам'
     OBJECTS d = DATETIME PANEL
@@ -181,8 +183,19 @@ FORM printListBalanceSkusStock 'Остатки по товарам'
     FILTERS s IS Sku AND d IS DATETIME // фильтр, чтобы сохранилась старая иерархия
 ;
 
-printListBalanceSkus 'Списком' (DATETIME dateTime, GroupType gtype) =
-    { PRINT printListBalanceSkusStock OBJECTS d = dateTime, gt = gtype; } IMAGE 'print.png' IN print;  
+printListBalanceSkus 'Списком' (DATETIME dateTime, GroupType gtype, Group g) = { 
+    IF NOT countInSessionGroups() THEN {
+        setInSession() <- TRUE;
+        dataInSession(g) <- TRUE;       
+    }      
+    
+    PRINT printListBalanceSkusStock OBJECTS d = dateTime, gt = gtype; 
+
+    IF setInSession() THEN {
+        dataInSession(g) <- NULL;       
+        setInSession() <- NULL;
+    }      
+} IMAGE 'print.png' IN print;  
 
 accountPriceB 'Цена учетная' (Sku sku, DATETIME dateTime) = 
     NUMERIC[16,4]([ = GROUP MAX prevAccountPriceB(Sku sku, Stock st, DATETIME dt) IF inBackSheet(st) BY sku, dt](sku, dateTime));
@@ -218,8 +231,19 @@ FORM printBalanceSkusStock 'Остатки по товарам'
     FILTERS balanceB(s)
 ;
 
-printBalanceSkus 'По группам' (DATETIME dateTime, GroupType gtype) =
-    { PRINT printBalanceSkusStock OBJECTS d = dateTime, gt = gtype; } IMAGE 'print.png' IN print;
+printBalanceSkus 'По группам' (DATETIME dateTime, GroupType gtype, Group g) = { 
+    IF NOT countInSessionGroups() THEN {
+        setInSession() <- TRUE;
+        dataInSession(g) <- TRUE;       
+    }      
+    
+    PRINT printBalanceSkusStock OBJECTS d = dateTime, gt = gtype; 
+
+    IF setInSession() THEN {
+        dataInSession(g) <- NULL;       
+        setInSession() <- NULL;
+    }      
+} IMAGE 'print.png' IN print;
 
 FORM dialogStocksBackSheet 'Выбор складов'
 
@@ -341,7 +365,7 @@ FORM reportBalanceStock 'Отчет по остаткам'
     FILTERS isParent(sk, s)
 
     PROPERTIES(s) READONLY balanceB, sumB
-    PROPERTIES(d, gt) printListBalanceSkus, printBalanceSkus
+    PROPERTIES(d, gt,sk) printListBalanceSkus, printBalanceSkus
     FILTERGROUP balance 
         FILTER 'С остатком (кол-во)' balanceB(s) 'F7' DEFAULT
         FILTER 'С остатком (кол-во/сумма)' balanceB(s) OR sumB(s) 'F8'   
@@ -388,8 +412,8 @@ DESIGN reportBalanceStock {
                 NEW printSkuContainer{
                     type = CONTAINERH;
                     caption = 'Печать';
-                    MOVE PROPERTY(printListBalanceSkus(d,gt));
-                    MOVE PROPERTY(printBalanceSkus(d,gt));
+                    MOVE PROPERTY(printListBalanceSkus(d,gt,sk));
+                    MOVE PROPERTY(printBalanceSkus(d,gt,sk));
                 }
                 MOVE BOX(s);
             }
