@@ -104,7 +104,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                     userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence,
                                     file, fileExtension, importSettings, staticNameImportType, staticCaptionImportType);
 
+                            boolean needToApply = false;
                             if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 1) {
+                                if(notNullNorEmpty(userInvoiceDetailData.get(0)))
+                                    needToApply = true;
                                 Pair<Integer, DataObject> result = importUserInvoices(userInvoiceDetailData.get(0), context, session, importColumns.get(0),
                                         importColumns.get(1), userInvoiceObject, importSettings.getPrimaryKeyType(),
                                         operationObject, supplierObject, supplierStockObject, customerObject,
@@ -114,6 +117,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                             }
                             
                             if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 2) {
+                                if(notNullNorEmpty(userInvoiceDetailData.get(1)))
+                                    needToApply = true;
                                 Pair<Integer, DataObject> result = importUserInvoices(userInvoiceDetailData.get(1), context, session, importColumns.get(0),
                                         importColumns.get(1), userInvoiceObject, importSettings.getSecondaryKeyType(),
                                         operationObject, supplierObject, supplierStockObject, customerObject,
@@ -129,11 +134,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                             String script = (String) findProperty("script[ImportType]").read(context, importTypeObject);
                             if(script != null && !script.isEmpty()) {
+                                needToApply = true;
                                 findProperty("executionScript[ImportType]").change(String.format("run() = {%s;\n};", script), session, (DataObject) importTypeObject);
                                 findAction("executeScript[ImportType]").execute(context, importTypeObject);
                             }
 
-                            session.apply(context);
+                            if(needToApply)
+                                session.apply(context);
 
                             findAction("formRefresh[]").execute(context);
                         }
