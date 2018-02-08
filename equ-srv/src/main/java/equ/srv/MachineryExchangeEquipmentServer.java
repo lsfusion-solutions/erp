@@ -61,7 +61,7 @@ public class MachineryExchangeEquipmentServer {
         terminalLM = BL.getModule("EquipmentTerminal");
     }
 
-    public static List<RequestExchange> readRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack) throws RemoteException, SQLException {
+    public static List<RequestExchange> readRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack) throws SQLException {
 
         List<RequestExchange> requestExchangeList = new ArrayList();
         if(machineryLM != null && machineryPriceTransactionLM != null) {
@@ -137,9 +137,10 @@ public class MachineryExchangeEquipmentServer {
                             ImRevMap<Object, KeyExpr> cashRegisterKeys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
                             QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<>(cashRegisterKeys);
 
-                            String[] cashRegisterNames = new String[]{"overDirectoryCashRegister", "idStockCashRegister", "nppCashRegister", "handlerModelCashRegister"};
+                            String[] cashRegisterNames = new String[]{"overDirectoryCashRegister", "idStockCashRegister", "nppGroupMachinery",
+                                    "nppCashRegister", "handlerModelCashRegister"};
                             LCP[] cashRegisterProperties = cashRegisterLM.findProperties("overDirectory[CashRegister]", "idStock[CashRegister]",
-                                    "npp[CashRegister]", "handlerModel[CashRegister]");
+                                    "nppGroupMachinery[Machinery]", "npp[CashRegister]", "handlerModel[CashRegister]");
                             for (int j = 0; j < cashRegisterProperties.length; j++) {
                                 cashRegisterQuery.addProperty(cashRegisterNames[j], cashRegisterProperties[j].getExpr(cashRegisterExpr));
                             }
@@ -154,10 +155,11 @@ public class MachineryExchangeEquipmentServer {
 
                                 String directoryCashRegister = trim((String) result.getValue(j).get("overDirectoryCashRegister").getValue());
                                 idStock = trim((String) result.getValue(j).get("idStockCashRegister").getValue());
+                                Integer nppGroupMachinery = (Integer) result.getValue(j).get("nppGroupMachinery").getValue();
                                 Integer nppCashRegister = (Integer) result.getValue(j).get("nppCashRegister").getValue();
                                 String handlerModelCashRegister = trim((String) result.getValue(j).get("handlerModelCashRegister").getValue());
 
-                                cashRegisterSet.add(new CashRegisterInfo(null, nppCashRegister, handlerModelCashRegister, null, directoryCashRegister, null, null));
+                                cashRegisterSet.add(new CashRegisterInfo(nppGroupMachinery, nppCashRegister, handlerModelCashRegister, null, directoryCashRegister, null, null));
                                 putDirectoryStockMap(directoryStockMap, directoryCashRegister, idStock);
                             }
 

@@ -104,13 +104,17 @@ public class MachineryExchangeEquipmentServer {
     }
 
     private static void sendCashierTime(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, RequestExchange requestExchange, List<MachineryInfo> cashRegisterInfoList)
-            throws IOException, SQLException, ClassNotFoundException {
-        List<CashierTime> cashierTimeList = handler.requestCashierTime(requestExchange, cashRegisterInfoList);
-        if (cashierTimeList != null && !cashierTimeList.isEmpty()) {
-            machineryExchangeLogger.info("Sending cashier time (" + cashierTimeList.size() + ")");
-            String result = remote.sendCashierTimeList(cashierTimeList);
-            if (result != null)
-                EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result);
+            throws IOException, SQLException {
+        try {
+            List<CashierTime> cashierTimeList = handler.requestCashierTime(requestExchange, cashRegisterInfoList);
+            if (cashierTimeList != null && !cashierTimeList.isEmpty()) {
+                machineryExchangeLogger.info("Sending cashier time (" + cashierTimeList.size() + ")");
+                String result = remote.sendCashierTimeList(cashierTimeList);
+                if (result != null)
+                    EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result);
+            }
+        } catch (Exception e) {
+            EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
         }
     }
 }

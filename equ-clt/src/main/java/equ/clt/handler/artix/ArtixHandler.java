@@ -20,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Date;
 import java.sql.Time;
+import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -684,6 +685,114 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         } catch (JSONException e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    @Override
+    public List<CashierTime> requestCashierTime(RequestExchange requestExchange, List<MachineryInfo> cashRegisterInfoList) {
+
+        machineryExchangeLogger.info(logPrefix + "requesting CashierTime");
+
+        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
+        boolean disable = artixSettings != null && artixSettings.isDisableCopyToSuccess();
+
+        List<CashierTime> result = new ArrayList<>();
+
+        //Для каждой кассы отдельная директория, куда приходит реализация (cashierTime) только по этой кассе плюс в подпапке online могут быть текущие продажи
+        Map<Integer, MachineryInfo> departNumberCashRegisterMap = new HashMap<>();
+        Set<String> directorySet = new HashSet<>();
+        for (MachineryInfo c : getCashRegisterSet(requestExchange, true)) {
+            if (c.directory != null) {
+                departNumberCashRegisterMap.put(c.number, c);
+                directorySet.add(c.directory + "/sale" + c.number);
+                directorySet.add(c.directory + "/sale" + c.number + "/online");
+            }
+        }
+
+        List<File> files = new ArrayList<>();
+        for (String dir : directorySet) {
+            File[] filesList = new File(dir).listFiles(new FileFilter() {
+                @Override
+                public boolean accept(File pathname) {
+                    return pathname.getName().startsWith("cashier") && pathname.getPath().endsWith(".json");
+                }
+            });
+            if (filesList != null)
+                files.addAll(Arrays.asList(filesList));
+        }
+
+        machineryExchangeLogger.info(logPrefix + "found files with CashierTime: " + files.size());
+
+        for (File file : files) {
+            try {
+                machineryExchangeLogger.info(logPrefix + "reading " + file.getName());
+                String fileContent = readFile(file.getAbsolutePath(), encoding);
+
+                Pattern p = Pattern.compile(".*### securitylog info begin ###(.*)### securitylog info end ###.*");
+                Matcher m = p.matcher(fileContent);
+                if (m.matches()) {
+                    String[] documents = m.group(1).split("---");
+
+                    Timestamp logOnCashier = null;
+                    for (String document : documents) {
+
+                        JSONObject documentObject = new JSONObject(document);
+
+                        Integer opcode = documentObject.getInt("opcode");
+
+                        switch (opcode) {
+                            case 3:
+                                logOnCashier = parseTimestamp(documentObject.getString("optime"));
+                                break;
+                            case 4:
+                            case 13:
+                                if(logOnCashier != null) {
+                                    String numberCashier = documentObject.getString("cashiercard");
+                                    Timestamp logOffCashier = parseTimestamp(documentObject.getString("optime"));
+
+                                    Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashcode"));
+                                    MachineryInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
+                                    Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
+
+                                    result.add(new CashierTime(null, numberCashier, numberCashRegister, numberGroupCashRegister, logOnCashier, logOffCashier, false));
+                                    logOnCashier = null;
+                                }
+                                break;
+                        }
+                    }
+                }
+
+                if (!disable) {
+                    try {
+                        String directory = file.getParent() + "/success-" + formatDate(new Date(System.currentTimeMillis())) + "/";
+                        if (new File(directory).exists() || new File(directory).mkdirs())
+                            FileCopyUtils.copy(file, new File(directory + file.getName()));
+                    } catch (IOException e) {
+                        throw new RuntimeException("The file " + file.getAbsolutePath() + " can not be copied to success files", e);
+                    }
+                }
+
+                if (file.delete()) {
+                    sendSalesLogger.info(logPrefix + "file " + file.getAbsolutePath() + " has been deleted");
+                } else {
+                    throw new RuntimeException("The file " + file.getAbsolutePath() + " can not be deleted");
+                }
+
+            } catch (Throwable e) {
+                machineryExchangeLogger.error("File: " + file.getAbsolutePath(), e);
+                throw Throwables.propagate(e);
+            }
+        }
+
+        for (int i = result.size() - 1; i >= 0; i--) {
+            CashierTime ct = result.get(i);
+            ct.idCashierTime = ct.numberCashier + "/" + ct.numberCashRegister + "/" + ct.logOnCashier + "/" + ct.logOffCashier + "/" + (ct.isZReport != null ? "1" : "0");
+        }
+
+        return result;
+    }
+
+    private Timestamp parseTimestamp(String value) throws ParseException {
+        return new Timestamp(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(value).getTime());
     }
 
     @Override
