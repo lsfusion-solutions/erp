@@ -61,7 +61,7 @@ WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail]
              OR CHANGED(sku(d)) OR CHANGED(price(d)) OR SET(showLimitPharmacyPrice(d)) OR CHANGED(pharmacyPriceGroup(sku(d)))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
              showLimitPharmacyPrice(d) NOINLINE DO {
     limitPharmacyMarkup(d) <- retailMarkupPharmacy(sku(d), NUMERIC[16,4](manufacturingPrice(d)), date(d));         
-    IF limitPharmacyPrice(d) < retailPrice(d) OR (retailPriceListType(d) AND useMaxRetailMarkup()) THEN {
+    IF limitPharmacyPrice(d) < retailPrice(d) OR (retailPriceListType(d) AND (limitPharmacyPrice(d) OR maxLimitPrice(d)) AND useMaxRetailMarkup()) THEN {
         retailPrice(d) <- OVERRIDE min(limitPharmacyPrice(d),maxLimitPrice(d)), limitPharmacyPrice(d);
         retailMarkup(d) <- calcRetailMarkup(d);
     }
