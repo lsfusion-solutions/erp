@@ -71,7 +71,12 @@ WHEN LOCAL FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail]
     limitPharmacyMarkup[RepricingDetail](d) <- retailMarkupPharmacy(sku(d), NUMERIC[16,4](manufacturingPrice(d)), date(d));         
     IF limitPharmacyPrice(d) < retailPrice(d) THEN {
         retailPrice(d) <- limitPharmacyPrice(d);
-         
+        retailPrice(d) <- CASE WHEN round2(retailPrice(d)/priceDivider(d))*priceDivider(d) < retailPrice(d) AND 
+                                    round2(retailPrice(d)/priceDivider(d))*priceDivider(d) > price(d) 
+                               THEN round2(retailPrice(d)/priceDivider(d))*priceDivider(d)
+                               WHEN floor(retailPrice(d)/priceDivider(d)*100)*priceDivider(d)/100 <= price(d)                             
+                               THEN ceil(retailPrice(d)/priceDivider(d)*100)*priceDivider(d)/100
+                               ELSE floor(retailPrice(d)/priceDivider(d)*100)*priceDivider(d)/100 WHERE round2(retailPrice(d)/priceDivider(d))*priceDivider(d) != retailPrice(d);             
         markup(d) <- NUMERIC[8,3]([= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
                                                            retailPrice(d),
                                                            repricingPrice(d),
