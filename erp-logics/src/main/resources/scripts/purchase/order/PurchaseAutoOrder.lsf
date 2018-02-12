@@ -1,6 +1,6 @@
 MODULE PurchaseAutoOrder;
 
-REQUIRE PurchaseDemand, PurchaseScheduleOrder, PriceList;
+REQUIRE PurchaseDemand, PurchaseScheduleOrder, PriceListPromotion, Time;
 
 NAMESPACE Purchase;
 
@@ -12,9 +12,14 @@ coeffPromotion 'Акц. коэфф.' (Sku s) = coeffPromotion(skuGroup(s));
 fromSoldDate (Sku s)= subtract(currentDate() ,countSoldDays(skuGroup(s)));      
 toSoldDate (Sku s)= subtract(currentDate(), 1) IF s IS Sku ;   
 
-dateFromPromotion 'Дата начала акции' = DATA DATE (Sku, Stock);
-dateToPromotion 'Дата окончания акции' = DATA DATE (Sku, Stock);
-averageSoldPromotion 'Продаж в день за акцию' = DATA NUMERIC[14,3] (Sku, Stock);   
+dateFromRegular 'Дата начала продаж' = DATA DATE (Sku, Stock) TABLE extraSkuStock;
+dateToRegular 'Дата окончания продаж' = DATA DATE (Sku, Stock) TABLE extraSkuStock;
+
+TABLE promotionSkuStock (Sku, Stock);
+promotionDetail = DATA PriceListDetail (Sku, Stock) TABLE promotionSkuStock;
+dateFromPromotion 'Дата начала акции' = DATA DATE (Sku, Stock) TABLE promotionSkuStock;
+dateToPromotion 'Дата окончания акции' = DATA DATE (Sku, Stock) TABLE promotionSkuStock;
+averageSoldPromotion 'Продаж в день за акцию' = DATA NUMERIC[14,3] (Sku, Stock) TABLE promotionSkuStock;   
 
 insuranceReserve 'Страховой запас' = ABSTRACT NUMERIC[16,5](Sku, UserOrder);
 
@@ -92,6 +97,39 @@ calcQuantityPromotionSoldInterval 'Рассчитать однодневные �
     APPLY;
     dispersionSold(Sku sku, Stock stock) <- sqrt([ = GROUP SUM NUMERIC[20,6](sqr((OVERRIDE quantitySold(Sku sku, Stock stock, DATE date), 0.0 IF sku IS Sku AND stock IS Stock AND date IS DATE) -  averageSold(sku, stock))) 
                                                             IF iterate(date, subtract(dateFromPromotion(sku, stock), countSoldDays(skuGroup(sku))), subtract(dateFromPromotion(sku, stock), 1)) BY sku, stock](sku, stock) / max(daysBetweenDates(dateFromPromotion(sku, stock), subtract(dateFromPromotion(sku, stock), countSoldDays(skuGroup(sku)))),1)) WHERE dateToPromotion(sku, stock) > subtract(currentDate(), 6);
+    APPLY;
+}
+
+calcQuantityPromotionSoldIntervalNew 'Рассчитать однодневные продажи (акции)' () = {
+
+    promotionDetail(Sku s, Stock st) <- NULL;
+    promotionDetail(Sku s, Stock st) <- lastPromotionPriceListDetail(s, st) WHERE lastPromotionPriceListDetail(s, st);
+
+    dateFromPromotion(Sku s, Stock st) <- NULL;
+    dateFromPromotion(Sku s, Stock st) <- fromDate(promotionDetail(s, st)) WHERE promotionDetail(s, st);   
+
+    dateToPromotion(Sku s, Stock st) <- NULL;
+    dateToPromotion(Sku s, Stock st) <- toDate(promotionDetail(s, st)) WHERE promotionDetail(s, st);   
+
+    APPLY;
+
+    dateToRegular(Sku s, Stock st) <- NULL;
+    dateToRegular(Sku s, Stock st) <- subtract(fromDate(lastRegularPromotionDetail(s, st), st), 1) WHERE dateFromPromotion(s, st);
+    
+    dateFromRegular(Sku s, Stock st) <- NULL;
+    dateFromRegular(Sku s, Stock st) <- MAX sum(prevToDatePromotion(lastRegularPromotionDetail(s, st), st), 1), subtract(dateToRegular(s, st), countSoldDays(skuGroup(s))) WHERE dateFromPromotion(s, st);
+    averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](averageSold (sku, stock, dateFromRegular(sku, stock), dateToRegular(sku, stock))) 
+                                                                WHERE dateFromPromotion(sku, stock);
+
+    averageSoldPromotion(Sku sku, Stock stock) <- NULL;
+    averageSoldPromotion(Sku sku, Stock stock) <- NUMERIC[14,3](averageSold (sku, stock, dateFromPromotion(sku, stock), MIN dateToPromotion(sku, stock), subtract(currentDate(), 1)))  WHERE dateFromPromotion(sku, stock) < currentDate();
+    averageSoldPromotion(Sku sku, Stock stock) <- NUMERIC[14,3](averageSold (sku, stock) * coeffPromotion(sku))
+                                                        WHERE dateFromPromotion(sku, stock) >= currentDate();
+    APPLY;
+
+    dispersionSold(Sku sku, Stock stock) <- sqrt([ = GROUP SUM NUMERIC[20,6](sqr((OVERRIDE quantitySold(Sku sku, Stock stock, DATE date), 0.0 IF sku IS Sku AND stock IS Stock AND date IS DATE) -  averageSold(sku, stock))) 
+                                                            IF iterate(date, dateFromRegular(sku, stock), dateToRegular(sku, stock)) BY sku, stock](sku, stock) / daysBetweenDates(dateToRegular(sku, stock), dateFromRegular(sku, stock))) 
+                                                            WHERE dateFromPromotion(sku, stock);
     APPLY;
 }
 

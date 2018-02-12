@@ -44,9 +44,13 @@ promotionPriceListDetailA (Sku sk, Stock st, DATETIME dt) =
           ORDER fromDateTime(d, st), d
           WHERE fromDateTime(d, st) <= dt AND NOT toDateTime(d, st) < dt COMPLEX;
 
+lastPromotionPriceListDetail (Sku sk, Stock st) = GROUP LAST PriceListDetail d 
+                                                                           BY sku(d, Stock s), s
+                                                                           ORDER fromDateTime(d, s), d;
+
 promotionPriceListDetailA (Sku sku, Stock stock) = 
     promotionPriceListDetailA(sku, stock, currentDateTime());
-    
+
 inPromotionPriceListDetailA 'В акции' (Sku sku, Stock stock) =
     TRUE IF promotionPriceListDetailA(sku, stock);
 
@@ -63,7 +67,7 @@ EXTEND FORM currentBalanceSkuStock
 backgroundBalance(s,st) += WHEN promotionPriceListDetailA(s, st) THEN RGB(216,224,255);
 
 prevPromotionDetail (PriceListDetail d, Stock st) =  
-    PARTITION PREV d IF isPromotion(d, st) 
+    PARTITION PREV d 
               BY sku(d, st), st 
               ORDER fromDateTime(d, st), d;
 
@@ -71,3 +75,9 @@ prevToDateTimePromotion 'Дата/время окончания предыдущ
 prevToDatePromotion 'Дата окончания предыдущей акции' (PriceListDetail d, Stock st) = DATE(prevToDateTimePromotion(d, st));
 
 regularPeriodBeforePromotion 'Кол-во дней между акциями' (PriceListDetail d, Stock st) = daysBetweenDates(fromDate(d, st), prevToDatePromotion(d, st)) - 1;
+
+lastRegularPromotionDetail = GROUP LAST PriceListDetail d
+                                                      BY sku(d, Stock s), s
+                                                      ORDER fromDateTime(d, s), d
+                                                      WHERE NOT regularPeriodBeforePromotion(d, s) < 2;                                                      
+                                                           
