@@ -1,6 +1,6 @@
 MODULE PurchasePriceLimitPharmacy;
 
-REQUIRE PricingPriceLimitPharmacy, PricingPurchasePharmacy, PurchaseManufacturingPrice, PricingPriceLimit, PurchasePriceLimitFixed;
+REQUIRE PricingPriceLimitPharmacy, PricingPurchasePharmacy, PurchaseManufacturingPrice, PricingPriceLimit, PurchasePriceLimitFixedPharmacy;
 
 NAMESPACE Purchase;
 
@@ -64,9 +64,9 @@ WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail]
     IF limitPharmacyPrice(d) < retailPrice(d) THEN {
         retailPrice(d) <- OVERRIDE min(limitPharmacyPrice(d),maxLimitPrice(d)), limitPharmacyPrice(d);
         retailPrice(d) <- CASE WHEN round2(retailPrice(d)/priceDivider(d))*priceDivider(d) < retailPrice(d) AND 
-                                    round2(retailPrice(d)/priceDivider(d))*priceDivider(d) > price(d) 
+                                    round2(retailPrice(d)/priceDivider(d)/(1(+)valueRetailVAT(d)/100.0))*priceDivider(d) > price(d) 
                                THEN round2(retailPrice(d)/priceDivider(d))*priceDivider(d)
-                               WHEN floor(retailPrice(d)/priceDivider(d)*100)*priceDivider(d)/100 <= price(d)                             
+                               WHEN floor(retailPrice(d)/priceDivider(d)*100/(1(+)valueRetailVAT(d)/100.0))*priceDivider(d)/100 <= price(d)                             
                                THEN ceil(retailPrice(d)/priceDivider(d)*100)*priceDivider(d)/100
                                ELSE floor(retailPrice(d)/priceDivider(d)*100)*priceDivider(d)/100 WHERE round2(retailPrice(d)/priceDivider(d))*priceDivider(d) != retailPrice(d);           
         retailMarkup(d) <- calcRetailMarkup(d);

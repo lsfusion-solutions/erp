@@ -10,9 +10,9 @@ WHEN LOCAL FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail]
             (SETCHANGED(retailPrice(UserRepricingDetail d)) OR CHANGED(sku(d)) OR CHANGED(priceDivider(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
              round2(retailPrice(d)/priceDivider(d))*priceDivider(d) != retailPrice(d) NOINLINE DO {
         retailPrice(d) <- CASE WHEN round2(retailPrice(d)/priceDivider(d))*priceDivider(d) < retailPrice(d) AND 
-                                    round2(retailPrice(d)/priceDivider(d))*priceDivider(d) > price(d) 
+                                    round2(retailPrice(d)/priceDivider(d)/(1(+)valueVAT(d)/100.0))*priceDivider(d) > price(d) 
                                THEN round2(retailPrice(d)/priceDivider(d))*priceDivider(d)
-                               WHEN floor(retailPrice(d)/priceDivider(d)*100)*priceDivider(d)/100 <= price(d)                             
+                               WHEN floor(retailPrice(d)/priceDivider(d)*100/(1(+)valueVAT(d)/100.0))*priceDivider(d)/100 <= price(d)                             
                                THEN ceil(retailPrice(d)/priceDivider(d)*100)*priceDivider(d)/100
                                ELSE floor(retailPrice(d)/priceDivider(d)*100)*priceDivider(d)/100;     
         markup(d) <- NUMERIC[8,3]([= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
