@@ -11,6 +11,8 @@ TABLE networkPrinterEmployee(NetworkPrinter, Employee);
 name 'Имя принтера' = DATA VARSTRING[100](NetworkPrinter) IN base;
 path 'Путь к принтеру' = DATA VARSTRING[100](NetworkPrinter) IN base;
 
+@defineExternalizable(networkPrinter, VARSTRING[100]);
+
 stock = DATA Stock (NetworkPrinter);
 nameStock 'Склад' (NetworkPrinter p) = name(stock(p));
 
@@ -42,7 +44,7 @@ FORM networkPrinters 'Выбор принтера'
 
 FORM networkPrintersList 'Принтеры этикеток'
     OBJECTS p = NetworkPrinter
-    PROPERTIES (p) name, path, nameStock, nameNetworkPrinterType, NEW, DELETE GRID
+    PROPERTIES (p) id, name, path, nameStock, nameNetworkPrinterType, NEW, DELETE GRID
     PROPERTIES () getAvailablePrinters TOOLBAR TODRAW p
 
     OBJECTS e = Employee
@@ -155,37 +157,44 @@ DESIGN options {
 countPrinters = GROUP SUM 1 IF in(NetworkPrinter p, currentUser()) BY stock( p);
 currentPrinter = GROUP MIN NetworkPrinter p IF in(p, currentUser()) BY stock(p);
 
+printer = DATA LOCAL NetworkPrinter ();
+
 sendToNetworkPrinter (Stock st)= {
     printed() <- NULL;
     
-    LOCAL printer = NetworkPrinter ();
-    
-    IF countPrinters(st) == 1 AND notShowNetworkPrinterDialog() THEN {
-        printer() <- currentPrinter(st);
-    } ELSE {
-        DIALOG networkPrinters OBJECTS s = st, p INPUT NOMANAGESESSION DO 
-            printer() <- p;
+    IF NOT printer() THEN {
+        IF countPrinters(st) == 1 AND notShowNetworkPrinterDialog() THEN {
+            printer() <- currentPrinter(st);
+            } ELSE {
+                DIALOG networkPrinters OBJECTS s = st, p INPUT NOMANAGESESSION DO 
+                    printer() <- p;
+        
+        }
     }
     
-    CASE WHEN networkPrinterType(printer()) == NetworkPrinterType.serverSocket 
-            THEN {
-                writeToSocketAction(fullFormattedText(), charset(), getWord(path(printer()), ':', 1), INTEGER(getWord(path(printer()), ':', 2)));
-            }
-        WHEN networkPrinterType(printer()) == NetworkPrinterType.serverPrintService 
-            THEN writeToServerPrinter(fullFormattedText(), charset(), path(printer()));
-        WHEN networkPrinterType(printer()) == NetworkPrinterType.clientComPort
-            THEN {
-                stringToCustomFile(fullFormattedText(), charset(), NULL);
-                writeToComPort(resultCustomFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', ''))); 
-                printed() <- TRUE;
-            }
-        WHEN networkPrinterType(printer()) == NetworkPrinterType.clientFile
-            THEN {
-                stringToCustomFile(fullFormattedText(), charset(), NULL);
-                SAVE resultCustomFile() PATH path(printer()) NODIALOG;
-                printed() <- TRUE;
-            }
-    ELSE writeToPrinter(fullFormattedText(), charset(), path(printer())) ;
+    TRY {
+        CASE WHEN networkPrinterType(printer()) == NetworkPrinterType.serverSocket 
+                THEN {
+                    writeToSocketAction(fullFormattedText(), charset(), getWord(path(printer()), ':', 1), INTEGER(getWord(path(printer()), ':', 2)));
+                }
+            WHEN networkPrinterType(printer()) == NetworkPrinterType.serverPrintService 
+                THEN writeToServerPrinter(fullFormattedText(), charset(), path(printer()));
+            WHEN networkPrinterType(printer()) == NetworkPrinterType.clientComPort
+                THEN {
+                    stringToCustomFile(fullFormattedText(), charset(), NULL);
+                    writeToComPort(resultCustomFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', ''))); 
+                    printed() <- TRUE;
+                }
+            WHEN networkPrinterType(printer()) == NetworkPrinterType.clientFile
+                THEN {
+                    stringToCustomFile(fullFormattedText(), charset(), NULL);
+                    SAVE resultCustomFile() PATH path(printer()) NODIALOG;
+                    printed() <- TRUE;
+                }
+        ELSE writeToPrinter(fullFormattedText(), charset(), path(printer())) ;
+    } FINALLY {
+        printer() <- NULL;
+    }
 }
 
 customPrint(LabelTransaction labelTrans) += {

@@ -76,61 +76,66 @@ createLabelTransaction 'Распечатать ценники'(TerminalDocument 
 	}
 } TOOLBAR CONFIRM;
 
+in = DATA LOCAL BOOLEAN (Sku);   
+
+createSnapshotTerminalDocumentLabel(TerminalDocument terminalDocument, LabelType l) = { 
+    IF NOT countSelectType() THEN {  
+        select(LabelType type) <- TRUE WHERE type == l;
+    }                                        
+    FOR select(LabelType type) NEW t = LabelTransaction DO {              
+        departmentStore(t) <- stock(terminalDocument);
+        priceTransactionDocument(t) <- terminalDocument;
+        labelType(t) <- type;
+
+        FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND in(Sku sku) AND sku == sku(dd) AND NOT exclude(type, sku)
+            AND PriceListType pt == overPriceListType(t) NOINLINE (pt)
+            NEW d = LabelTransactionDetail DO {
+                labelTransaction(d) <- t;
+                sku(d) <- sku;
+
+                name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
+                documentQuantity(d) <- quantity(dd); 
+                
+                price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
+                retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
+                                                           
+                quantity(d) <- IF NOT countLabel(departmentStore(d)) 
+                                                         THEN INTEGER(documentQuantity(d))
+                                                         ELSE countLabel(departmentStore(d));                                              
+                                                           
+                                                           
+                
+                
+                createAttribute(d);
+                createAttribute(dd, d);
+        }
+        IF change(stock(terminalDocument)) THEN {
+            LOCAL printed = BOOLEAN();
+            printed() <- NULL;
+            DIALOG customLabelTransaction OBJECTS l = t NOMANAGESESSION DO {    
+                print(t);
+                printed() <- TRUE;
+            }             
+            IF NOT printed() THEN {
+                cancel();
+            }             
+        } ELSE {
+            print(t);
+        }                        
+    }
+    printed(terminalDocument) <- TRUE WHERE is(terminalDocument);    
+    used(terminalDocument) <- TRUE WHERE is(terminalDocument); 
+    
+    APPLY; 
+}
+
 createSnapshotTerminalDocumentLabel 'Перепечатать ценники'(TerminalDocument terminalDocument) = {
 	NEWSESSION {
 	        
-	    LOCAL in = BOOLEAN (Sku);    
 	    in(Sku sku) <- TRUE IF countTerminalDocumentDetail(sku, terminalDocument);
 	    
-	    DIALOG selectLabelTypes OBJECTS ds =  stock(terminalDocument), l INPUT NOMANAGESESSION DO { 
-	        IF NOT countSelectType() THEN {  
-	            select(LabelType type) <- TRUE WHERE type == l;
-	        }                                        
-	        FOR select(LabelType type) NEW t = LabelTransaction DO {              
-	            departmentStore(t) <- stock(terminalDocument);
-	            priceTransactionDocument(t) <- terminalDocument;
-	            labelType(t) <- type;
-	
-	            FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND in(Sku sku) AND sku == sku(dd) AND NOT exclude(type, sku)
-	                AND PriceListType pt == overPriceListType(t) NOINLINE (pt)
-	                NEW d = LabelTransactionDetail DO {
-	                    labelTransaction(d) <- t;
-	                    sku(d) <- sku;
-	
-	                    name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
-	                    documentQuantity(d) <- quantity(dd); 
-	                    
-	                    price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
-	                    retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
-	                                                               
-	                    quantity(d) <- IF NOT countLabel(departmentStore(d)) 
-	                                                             THEN INTEGER(documentQuantity(d))
-	                                                             ELSE countLabel(departmentStore(d));                                              
-	                                                               
-	                                                               
-	                    
-	                    
-	                    createAttribute(d);
-	                    createAttribute(dd, d);
-	            }
-	            IF change(stock(terminalDocument)) THEN {
-	                LOCAL printed = BOOLEAN();
-	                printed() <- NULL;
-	                DIALOG customLabelTransaction OBJECTS l = t NOMANAGESESSION DO {    
-	                    print(t);
-	                    printed() <- TRUE;
-	                }             
-	                IF NOT printed() THEN {
-	                    cancel();
-	                }             
-	            } ELSE {
-	                print(t);
-	            }                        
-	        }
-	        printed(terminalDocument) <- TRUE WHERE is(terminalDocument);    
-	        used(terminalDocument) <- TRUE WHERE is(terminalDocument); 
-	        
-	        apply(); 
+	    DIALOG selectLabelTypes OBJECTS ds =  stock(terminalDocument), l INPUT NOMANAGESESSION DO {
+	        createSnapshotTerminalDocumentLabel(terminalDocument, l);
 	    }                                                                                                                        
 	    
 	}

@@ -1,0 +1,40 @@
+MODULE LabelDirectPrintTerminal;
+
+REQUIRE LabelDirectPrint, LabelTerminal, TerminalHandler;
+
+NAMESPACE Label;
+
+
+isPrint 'Печать ценников' = DATA BOOLEAN (Terminal);
+
+EXTEND FORM terminal
+    PROPERTIES isPrint(t);
+    
+EXTEND FORM groupTerminal
+    PROPERTIES isPrint(t);
+
+activePrintTerminat(TerminalDocument td) = isPrint(createdTerminal(td));
+
+labelDirectPrintTerminalDocumentType = DATA TerminalDocumentType();
+nameLabelDirectPrintTerminalDocumentType 'Тип документа ТСД для автоматической печати ценников' = name(labelDirectPrintTerminalDocumentType());
+EXTEND FORM options 
+    PROPERTIES () nameLabelDirectPrintTerminalDocumentType;
+
+DESIGN options{
+    label{
+        MOVE PROPERTY (nameLabelDirectPrintTerminalDocumentType());
+    }
+}
+
+//для фильтра в ТСД
+in 'Вкл.' (LabelType lt, Employee e) = in(lt, stock(e)) MATERIALIZED; 
+
+process(TerminalDocument td) += {
+    
+    IF terminalDocumentType(td) = labelDirectPrintTerminalDocumentType() AND activePrintTerminat(td) THEN {
+        printer() <- networkPrinter(replace(idTerminalHandbookType2(td),idTerminalHandbookType2(labelDirectPrintTerminalDocumentType()),''));
+        in(Sku sku) <- TRUE IF countTerminalDocumentDetail(sku, td);
+        createSnapshotTerminalDocumentLabel(td, labelType(replace(idTerminalHandbookType1(td),idTerminalHandbookType1(labelDirectPrintTerminalDocumentType()),'')));
+    }
+
+}
