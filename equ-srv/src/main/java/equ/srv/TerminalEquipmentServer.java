@@ -16,6 +16,8 @@ import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
+import lsfusion.server.logics.property.ClassPropertyInterface;
+import lsfusion.server.logics.property.IsClassProperty;
 import lsfusion.server.logics.property.PropertyInterface;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
@@ -200,7 +202,7 @@ public class TerminalEquipmentServer {
         return terminalDocumentTypeList;
     }
 
-    public static List<TerminalLegalEntity> readCustomANAList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static List<TerminalLegalEntity> readCustomANAList(DataSession session, BusinessLogics BL, DataObject userObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalLegalEntity> customANAList = new ArrayList<>();
         ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
         if (terminalLM != null) {
@@ -234,8 +236,24 @@ public class TerminalEquipmentServer {
                         QueryBuilder<Object, Object> customANAQuery = new QueryBuilder<>(customANAKeys);
                         customANAQuery.addProperty("id", propertyID.getExpr(customANAExpr));
                         customANAQuery.addProperty("name", propertyName.getExpr(customANAExpr));
-                        if(filterProperty != null)
-                            customANAQuery.and(filterProperty.getExpr(customANAExpr).getWhere());
+                        if (filterProperty != null) {
+                            switch (filterProperty.listInterfaces.size()) {
+                                case 1:
+                                    customANAQuery.and(filterProperty.getExpr(customANAExpr).getWhere());
+                                    break;
+                                case 2:
+                                    //небольшой хак, для случая, когда второй параметр в фильтре - пользователь
+                                    Object interfaceObject = filterProperty.listInterfaces.get(1);
+                                    if (interfaceObject instanceof ClassPropertyInterface) {
+                                        if (IsClassProperty.fitClass(userObject.objectClass, ((ClassPropertyInterface) interfaceObject).interfaceClass))
+                                            customANAQuery.and(filterProperty.getExpr(customANAExpr, userObject.getExpr()).getWhere());
+                                    } else { //если не data property и второй параметр не пользователь, то фильтр отсечёт всё
+                                        customANAQuery.and(filterProperty.getExpr(customANAExpr, userObject.getExpr()).getWhere());
+                                    }
+                                    break;
+                            }
+                        }
+
                         customANAQuery.and(propertyID.getExpr(customANAExpr).getWhere());
                         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> customANAResult = customANAQuery.execute(session);
                         for (ImMap<Object, Object> customANAEntry : customANAResult.values()) {

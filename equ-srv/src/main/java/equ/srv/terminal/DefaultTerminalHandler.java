@@ -151,7 +151,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public byte[] readBase(DataSession session, DataObject userObject) throws RemoteException, SQLException {
+    public byte[] readBase(DataSession session, DataObject userObject) throws SQLException {
         Connection connection = null;
         File file = null;
         File zipFile = null;
@@ -172,7 +172,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 List<TerminalAssortment> assortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
                 List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, BL);
-                List<TerminalLegalEntity> customANAList = TerminalEquipmentServer.readCustomANAList(session, BL);
+                List<TerminalLegalEntity> customANAList = TerminalEquipmentServer.readCustomANAList(session, BL, userObject);
                 file = File.createTempFile("terminalHandler", ".db");
 
                 Class.forName("org.sqlite.JDBC");
@@ -625,7 +625,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public String importTerminalDocument(DataSession session, ExecutionStack stack, DataObject userObject, String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException {
+    public String importTerminalDocument(DataSession session, ExecutionStack stack, DataObject userObject, String idTerminal,
+                                         String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) {
         try {
 
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
@@ -731,6 +732,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 ObjectValue terminalDocumentObject = terminalHandlerLM.findProperty("terminalDocument[VARSTRING[1000]]").readClasses(session, session.getModifier(), session.getQueryEnv(), new DataObject(idTerminalDocument));
                 terminalHandlerLM.findProperty("createdUser[TerminalDocument]").change(userObject, session, (DataObject) terminalDocumentObject);
+                if(idTerminal != null) {
+                    ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[VARSTRING[100]]").readClasses(session, new DataObject(idTerminal));
+                    if (terminalObject instanceof DataObject)
+                        terminalHandlerLM.findProperty("createdTerminal[TerminalDocument]").change(terminalObject, session, (DataObject) terminalDocumentObject);
+                }
                 terminalHandlerLM.findAction("process[TerminalDocument]").execute(session, stack, terminalDocumentObject);
                 ServerLoggers.importLogger.info("start applying terminal document " + idTerminalDocument);
                 return session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);

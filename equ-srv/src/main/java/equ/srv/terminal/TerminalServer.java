@@ -67,7 +67,7 @@ public class TerminalServer extends MonitorServer {
 
     private static final Logger logger = Logger.getLogger("TerminalLogger");
 
-    private static ConcurrentHashMap<String, DataObject> userMap = new ConcurrentHashMap<>();
+    private static ConcurrentHashMap<String, UserInfo> userMap = new ConcurrentHashMap<>();
 
     boolean started = false;
     boolean stopped = false;
@@ -248,12 +248,12 @@ public class TerminalServer extends MonitorServer {
                                 sessionId = params[0];
                                 String barcode = params[1];
                                 String bin = params.length == 3 ? trimToNull(params[2]) : null;
-                                DataObject user = userMap.get(sessionId);
-                                if (user == null) {
+                                UserInfo userInfo = userMap.get(sessionId);
+                                if (userInfo == null || userInfo.user == null) {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    Object readItemResult = readItem(user, barcode, bin);
+                                    Object readItemResult = readItem(userInfo.user, barcode, bin);
                                     if (readItemResult == null) {
                                         errorCode = ITEM_NOT_FOUND;
                                         errorText = ITEM_NOT_FOUND_TEXT;
@@ -286,8 +286,8 @@ public class TerminalServer extends MonitorServer {
                                 } else {
                                     List<List<Object>> terminalDocumentDetailList = new ArrayList<>();
                                     String sessionIdDocument = document[0];
-                                    DataObject user = userMap.get(sessionIdDocument);
-                                    if (user == null) {
+                                    UserInfo userInfo = userMap.get(sessionIdDocument);
+                                    if (userInfo == null || userInfo.user == null) {
                                         errorCode = AUTHORISATION_REQUIRED;
                                         errorText = AUTHORISATION_REQUIRED_TEXT;
                                     } else {
@@ -329,7 +329,7 @@ public class TerminalServer extends MonitorServer {
                                         boolean emptyDocument = terminalDocumentDetailList.isEmpty();
                                         if (emptyDocument)
                                             terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType, ana1, ana2, comment));
-                                        result = importTerminalDocumentDetail(idDocument, user, terminalDocumentDetailList, emptyDocument);
+                                        result = importTerminalDocumentDetail(idDocument, userInfo.user, userInfo.idTerminal, terminalDocumentDetailList, emptyDocument);
                                         if (result != null) {
                                             errorCode = PROCESS_DOCUMENT_ERROR;
                                             errorText = PROCESS_DOCUMENT_ERROR_TEXT;
@@ -375,12 +375,12 @@ public class TerminalServer extends MonitorServer {
                             String[] params = readParams(inFromClient);
                             if (params.length == 1) {
                                 sessionId = params[0];
-                                DataObject user = userMap.get(sessionId);
-                                if (user == null) {
+                                UserInfo userInfo = userMap.get(sessionId);
+                                if (userInfo == null || userInfo.user == null) {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    fileBytes = readBase(user);
+                                    fileBytes = readBase(userInfo.user);
                                     if (fileBytes == null) {
                                         errorCode = GET_ALL_BASE_ERROR;
                                         errorText = GET_ALL_BASE_ERROR_TEXT;
@@ -404,12 +404,12 @@ public class TerminalServer extends MonitorServer {
                                 sessionId = params[0];
                                 String numberPallet = params[1];
                                 String nameBin = params[2];
-                                DataObject user = userMap.get(sessionId);
-                                if (user == null) {
+                                UserInfo userInfo = userMap.get(sessionId);
+                                if (userInfo == null || userInfo.user == null) {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    result = savePallet(user, numberPallet, nameBin);
+                                    result = savePallet(userInfo.user, numberPallet, nameBin);
                                     if (result != null) {
                                         errorCode = SAVE_PALLET_ERROR;
                                         errorText = result;
@@ -592,7 +592,7 @@ public class TerminalServer extends MonitorServer {
         DataObject userObject = terminalHandlerInterface.login(createSession(), getStack(), login, password, idTerminal);
         if (userObject != null) {
             String sessionId = String.valueOf((login + password + idTerminal).hashCode());
-            userMap.put(sessionId, userObject);
+            userMap.put(sessionId, new UserInfo(userObject, idTerminal));
             return sessionId;
         }
         return null;
@@ -616,9 +616,9 @@ public class TerminalServer extends MonitorServer {
         }
     }
 
-    protected String importTerminalDocumentDetail(String idTerminalDocument, DataObject userObject, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException {
+    protected String importTerminalDocumentDetail(String idTerminalDocument, DataObject userObject, String idTerminal, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException {
         try (DataSession session = createSession()) {
-            return terminalHandlerInterface.importTerminalDocument(session, getStack(), userObject, idTerminalDocument, terminalDocumentDetailList, emptyDocument);
+            return terminalHandlerInterface.importTerminalDocument(session, getStack(), userObject, idTerminal, idTerminalDocument, terminalDocumentDetailList, emptyDocument);
         }
     }
 
@@ -654,5 +654,15 @@ public class TerminalServer extends MonitorServer {
         else if(errorText.contains("\n"))
             errorText = errorText.substring(0, errorText.indexOf('\n'));
         return errorText;
+    }
+
+    private class UserInfo {
+        DataObject user;
+        String idTerminal;
+
+        public UserInfo(DataObject user, String idTerminal) {
+            this.user = user;
+            this.idTerminal = idTerminal;
+        }
     }
 }

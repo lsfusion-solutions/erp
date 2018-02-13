@@ -22,7 +22,7 @@ public interface TerminalHandlerInterface {
 
     String savePallet(DataSession session, ExecutionStack stack, DataObject user, String numberPallet, String nameBin) throws RemoteException, SQLException;
 
-    String importTerminalDocument(DataSession session, ExecutionStack stack, DataObject userObject, String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException;
+    String importTerminalDocument(DataSession session, ExecutionStack stack, DataObject userObject, String idTerminal, String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException;
 
     boolean isActiveTerminal(DataSession session, String idTerminal) throws RemoteException, SQLException;
 
