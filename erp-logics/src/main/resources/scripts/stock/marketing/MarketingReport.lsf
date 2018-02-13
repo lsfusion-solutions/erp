@@ -17,7 +17,7 @@ CLASS MarketingReportDetail 'Строка маркетингового отче�
 @defineDocumentDetailSortOrder(marketingReport);
 
 @defineDocumentTime(marketingReport);
-note 'Примечание' = DATA VARISTRING[1000] (MarketingReport) CHARWIDTH 30 IN documentPrm MATERIALIZED;
+note 'Примечание' = DATA VARISTRING[1000] (MarketingReport) CHARWIDTH 60 IN documentPrm MATERIALIZED;
 @defineDocumentIs(MarketingReport);
 
 @defineDocumentHeaderCreated(MarketingReport);
@@ -57,15 +57,20 @@ toDate 'Дата по' = DATA DATE (MarketingReport) IN documentHeader;
 toDate 'Дата по' (MarketingReportDetail d)= toDate(marketingReport(d));
 
 invoice  = DATA Invoice.Invoice (MarketingReportDetail);
-seriesNumberInvoice 'Серия/номер' (MarketingReportDetail d) = Invoice.seriesNumber(invoice(d));
+seriesInvoice 'Серия' (MarketingReportDetail d) = Invoice.series(invoice(d));
+numberInvoice 'Номер' (MarketingReportDetail d) = Invoice.number(invoice(d));
 dateInvoice 'Дата' (MarketingReportDetail d) = Invoice.date(invoice(d));
+sumNetWeight 'Вес нетто, кг.' (MarketingReportDetail d) = Invoice.sumNetWeightInvoiceDetail(invoice(d));
+
 calcSum 'Сумма' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN sumInvoiceDetail[Invoice](invoice(d)) ELSE - sumInvoiceDetail[Invoice](invoice(d));
 calcVATSum 'Сумма НДС' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN VATSumInvoiceDetail[Invoice](invoice(d)) ELSE - VATSumInvoiceDetail[Invoice](invoice(d));
 calcInvoiceSum 'Сумма с НДС' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN invoiceSumInvoiceDetail[Invoice](invoice(d)) ELSE - invoiceSumInvoiceDetail[Invoice](invoice(d));
 calcMarketingSum 'Сумма маркетинга' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN marketingSumInvoiceDetail[Invoice](invoice(d)) ELSE - marketingSumInvoiceDetail[Invoice](invoice(d));
 
-marketingSumInvoiceDetailEx 'Сумма маркетинга'  = GROUP SUM marketingSum(InvoiceDetail d) IF include(ContractMarketing c, sku(d)) BY invoice(d), c; 
-calcMarketingSumEx 'Сумма маркетинга' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN marketingSumInvoiceDetailEx(invoice(d), contract(marketingReport(d))) ELSE - marketingSumInvoiceDetailEx(invoice(d), contract(marketingReport(d)));
+marketingSumInvoiceDetailEx 'Сумма маркетинга'  = GROUP SUM marketingSum(InvoiceDetail d) 
+    IF include(ContractMarketing c, sku(d)) AND contractSku(c) == contractSku(invoice(d)) 
+        BY invoice(d), c; 
+calcMarketingSumEx 'Сумма маркетинга' (MarketingReportDetail d )= IF in[Invoice](invoice(d)) THEN marketingSumInvoiceDetailEx(invoice(d), contract(marketingReport(d))) ELSE - marketingSumInvoiceDetailEx(invoice(d), contract(marketingReport(d)));
 
 sum 'Сумма' = DATA NUMERIC[18,4](MarketingReportDetail);
 VATSum 'Сумма НДС' = DATA NUMERIC[18,4](MarketingReportDetail);
@@ -79,6 +84,8 @@ nameCustomerStock 'Склад покупателя' (MarketingReportDetail d) = 
 @defineDocumentHeaderSumPrefix (marketingReport, VAT, ' НДС');
 @defineDocumentHeaderSumPrefix (marketingReport, invoice, ' с НДС');
 @defineDocumentHeaderSumPrefix (marketingReport, marketing, ' маркетинга');
+
+sumNetWeightMarketingReportDetail 'Вес нетто, кг.' (marketingReport) = GROUP SUM sumNetWeight(MarketingReportDetail idetail) BY marketingReport(idetail) IN documentSum;
 
 countCustomerStocks = GROUP SUM 1 IF inCustomer(Stock stock, ContractMarketing c) BY c;
 
@@ -161,7 +168,7 @@ FORM marketingReport 'Маркетинговый отчет'
 
     OBJECTS d = MarketingReportDetail
     PROPERTIES (d) index
-    PROPERTIES (d) READONLY seriesNumberInvoice, dateInvoice, nameSupplierStock, nameCustomerStock                   
+    PROPERTIES (d) READONLY numberInvoice, seriesInvoice, dateInvoice, nameSupplierStock, nameCustomerStock, sumNetWeight                   
     PROPERTIES (d) READONLY sum, VATSum, invoiceSum, marketingSum             
     PROPERTIES (d) NEW, deleteid=DELETE GRID
     
@@ -265,7 +272,7 @@ FORM marketingReports 'Маркетинговые отчеты'
         
     OBJECTS d = MarketingReportDetail
     PROPERTIES (d) READONLY index
-    PROPERTIES (d) READONLY seriesNumberInvoice, dateInvoice, nameSupplierStock, nameCustomerStock                   
+    PROPERTIES (d) READONLY numberInvoice, seriesInvoice, dateInvoice, nameSupplierStock, nameCustomerStock, sumNetWeight                   
     PROPERTIES (d) READONLY sum, VATSum, invoiceSum, marketingSum  
     
     ORDER index(d)
