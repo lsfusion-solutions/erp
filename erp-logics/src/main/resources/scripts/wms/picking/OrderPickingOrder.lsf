@@ -135,8 +135,9 @@ diffQuantityPickingDetail 'Расхождение' = GROUP SUM diffQuantityPicki
 countPickingPicking 'Кол-во комплектаций' = GROUP SUM 1 BY order(pickingOrder(Picking picking)) MATERIALIZED;
 //calcPartOrder 'Частично собран' (order) = GROUP SUM 1 IF quantityPickingsPickingOrder(o) BY orderPickingOrder(o);
 //calcFullOrder 'Полностью собран' (order) = [= GROUP SUM 1 IF calcFullPickingOrder(o) BY orderPickingOrder(o)](order) == countPickingOrderOrder(order);
-calcPart 'Частично собран' (Order order) = countPickingOrder(order) == countPickingPicking(order) AND diffQuantityPickingDetail(order);
+//calcPart 'Частично собран' (Order order) = countPickingOrder(order) == countPickingPicking(order) AND diffQuantityPickingDetail(order);
 calcFull 'Полностью собран' (Order order) = countPickingOrder(order) AND NOT diffQuantityPickingDetail(order); 
+calcPart 'Частично собран' (Order order) = countPickingPicking(order) AND NOT calcFull(order);
 picked (Order order) = calcPart(order) OR calcFull(order);
 
 startDateTime 'Начало комплектации' (order) = GROUP MIN startDateTime(PickingOrder o) BY order(o);
