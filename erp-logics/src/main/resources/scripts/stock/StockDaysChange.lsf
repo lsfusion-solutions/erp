@@ -1,0 +1,104 @@
+MODULE StockDaysChange;
+
+REQUIRE SkuLedger, Item;
+
+NAMESPACE Stock;
+
+useDaysChange 'Расчитывать дни на складе регламентно' = DATA BOOLEAN ();
+
+// нужно чтобы не пропускать NULL signedQuantity
+adjSignedQuantity(Sku sku, Stock stock, DATE date, DATE dateFrom, DATE dateTo) = IF quantity(sku, stock, date) > 0 AND date >= dateFrom AND date <= dateTo THEN (OVERRIDE signedQuantity(sku, stock, date), 0);
+
+newQuantity(Sku sku, Stock stock, DATE date, DATE dateFrom, DATE dateTo) = balanceB(sku, stock, dateFrom) (+) (PARTITION SUM adjSignedQuantity(sku, stock, date, dateFrom, dateTo) BY sku, stock, dateFrom, dateTo ORDER date);
+prevQuantity(Sku sku, Stock stock, DATE date, DATE dateFrom, DATE dateTo) = newQuantity(sku, stock, date, dateFrom, dateTo) (-) adjSignedQuantity(sku, stock, date, dateFrom, dateTo);
+
+daysChange = DATA INTEGER (Sku, Stock, DATE);
+
+//  пред. остаток <= 0, нов. остаток > 0, +1 - появился
+//  пред. остаток > 0, нов. остаток <= 0 и не след. кол-во < 0, -1 - исчез
+calcDaysChange(Sku sku, Stock stock, DATE date, DATE dateFrom, DATE dateTo) =
+                                                                    IF adjSignedQuantity(sku, stock, date, dateFrom, dateTo) THEN (
+                                                                          IF newQuantity(sku, stock, date, dateFrom, dateTo) > 0 THEN (
+                                                                              IF NOT prevQuantity(sku, stock, date, dateFrom, dateTo) > 0 THEN // появился
+                                                                                  1
+                                                                          ) ELSE
+                                                                          IF prevQuantity(sku, stock, date, dateFrom, dateTo) > 0 THEN // исчез
+                                                                                  -1
+                                                                          ELSE // не было и нет, но движение есть
+                                                                              0
+                                                                    );
+                                                                    
+calculateDaysChange 'Рассчитать изменение остатка по дням' (DATE dateFrom, DATE dateTo) = {
+    APPLY {
+        daysChange(Sku sku, Stock stock, DATE date) <- NULL WHERE date >= dateFrom AND date <= dateTo;
+    }
+    APPLY {
+        daysChange(Sku sku, Stock stock, DATE date) <- calcDaysChange(sku, stock, date, dateFrom, dateTo) WHERE adjSignedQuantity(sku, stock, date, dateFrom, dateTo);
+    }
+}
+
+// ---------- При включенной опции будет считаться, что товар был в наличии, если по нему есть движение -------------- //
+checkChange 'Учитывать продажи в наличии товара' = DATA BOOLEAN (UOM);
+
+EXTEND FORM UOM
+    PROPERTIES(u) checkChange
+;
+
+EXTEND FORM UOMs
+    PROPERTIES(u) READONLYIF isReadonly() checkChange
+;
+
+@defineItemGroupValue (checkChange, 'Учитывать продажи в наличии товара', BOOLEAN);
+
+quantityChildWithCheckChange (itemGroup) = GROUP SUM 1 IF dataCheckChange(ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) BY itemGroup MATERIALIZED;
+quantityParentWithCheckChange (itemGroup) = GROUP SUM 1 IF dataCheckChange(ItemGroup parentItemGroup) AND isParent(ItemGroup itemGroup, parentItemGroup) BY itemGroup MATERIALIZED;
+
+backgroundShowCheckChange (ItemGroup itemGroup) =
+    IF dataCheckChange(itemGroup) THEN
+        RGB(0,0,0) IF itemGroup IS ItemGroup
+    ELSE
+        RGB(203,203,206) IF quantityChildWithCheckChange (itemGroup) != descendantNumber(itemGroup)
+                         AND NOT quantityParentWithCheckChange (itemGroup);
+
+EXTEND FORM itemGroups
+    PROPERTIES (g) READONLYIF isReadonly() checkChange BACKGROUND backgroundShowCheckChange(g)
+;
+
+checkChange (Sku sku) = OVERRIDE checkChange(skuGroup(sku)), checkChange(UOM(sku)) MATERIALIZED;
+
+// --- Свойство с расчетом кол-ва дней ---- //
+daysOnStock(Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = 
+    (IF balanceB(sku, stock, dateFrom) > 0 THEN 
+        (daysBetweenDates(dateTo, dateFrom)+1)) (+) 
+            [=GROUP SUM IF DATE date >= DATE dateFrom AND date <= DATE dateTo THEN 
+                            ((IF daysChange(Sku sku, Stock stock, date) > 0 OR (checkChange(sku) AND daysChange(sku, stock, date) == 0) THEN 1) (+) 
+                             daysChange(sku, stock, date) * daysBetweenDates(dateTo, date)) 
+                    BY sku, stock, dateFrom, dateTo](sku, stock, dateFrom, dateTo);
+
+// галочка, которая включает механизм
+EXTEND FORM options
+    PROPERTIES() useDaysChange
+;
+DESIGN options {
+    stock {
+        MOVE PROPERTY(useDaysChange());
+    }
+}
+
+//FORM daysChange
+//    OBJECTS (dateFrom = DATE, dateTo = DATE) PANEL
+//    PROPERTIES VALUE (dateFrom), VALUE (dateTo), calculateDaysChange(dateFrom, dateTo)
+//    OBJECTS stk = Stock 
+//    PROPERTIES name (stk), calculateDaysChange(stk,dateFrom,dateTo) 
+//    OBJECTS s = Sku 
+//    PROPERTIES (s) id, name, currentBalance
+//    PROPERTIES (s,stk) prevCurrentBalance
+//    OBJECTS (st=Stock, dt = DATE)
+//    PROPERTIES name(st),d=VALUE(dt),daysChange(s,st,dt),quantity(s, st, dt),signedQuantity(s,st,dt)
+//    FILTERS daysChange(s,st,dt)
+//    ORDER d
+//;
+//
+//NAVIGATOR {
+//    NEW daysChange;
+//}

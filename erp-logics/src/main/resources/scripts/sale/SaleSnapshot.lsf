@@ -1,6 +1,6 @@
 MODULE SaleSnapshot;
 
-REQUIRE SaleLedger, StockSnapshot;
+REQUIRE SaleLedger, StockSnapshot, StockDaysChange;
 
 NAMESPACE Sale;
 
@@ -13,8 +13,8 @@ saleCostSum 'Себестоимость продажа' = DATA NUMERIC[16,2] (Sk
 saleVATSum 'НДС продажа' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 saleMarkupSum 'Надбавка продажа' (Sku sku, Stock stock, Snapshot snapshot) =
     saleSum(sku, stock, snapshot) (-) saleVATSum(sku, stock, snapshot) (-) saleCostSum(sku, stock, snapshot);
-saleMarkupPerc 'Надбавка, % средн.' = saleMarkupSum(Sku sku, Stock stock, Snapshot snapshot) * 100.00 / saleCostSum(sku, stock, snapshot);
-saleMarkupPercRet 'Надбавка, % от цены' = saleMarkupSum(Sku sku, Stock stock, Snapshot snapshot) * 100.00 / saleSum(sku, stock, snapshot);
+saleMarkupPerc 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSum(Sku sku, Stock stock, Snapshot snapshot) * 100.00 / saleCostSum(sku, stock, snapshot));
+saleMarkupPercRet 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSum(Sku sku, Stock stock, Snapshot snapshot) * 100.00 / saleSum(sku, stock, snapshot));
 
 saleVATSupplier 'НДС поставщика продажа' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 saleCostVATSupplier 'С/С с НДС продажа' = saleVATSupplier(Sku sku, Stock stock, Snapshot snapshot) (+) 
@@ -28,8 +28,8 @@ saleCostSum 'Себестоимость продажа' = DATA NUMERIC[16,2] (Ba
 saleVATSum 'НДС продажа' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 saleMarkupSum 'Надбавка продажа' (Batch batch, Stock stock, Snapshot snapshot) =
     saleSum(batch, stock, snapshot) (-) saleVATSum(batch, stock, snapshot) (-) saleCostSum(batch, stock, snapshot); 
-saleMarkupPerc 'Надбавка, % средн.' = saleMarkupSum(Batch batch, Stock stock, Snapshot snapshot) * 100.00 / saleCostSum(batch, stock, snapshot);
-saleMarkupPercRet 'Надбавка, % от цены' = saleMarkupSum(Batch batch, Stock stock, Snapshot snapshot) * 100.00 / saleSum(batch, stock, snapshot);
+saleMarkupPerc 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSum(Batch batch, Stock stock, Snapshot snapshot) * 100.00 / saleCostSum(batch, stock, snapshot));
+saleMarkupPercRet 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSum(Batch batch, Stock stock, Snapshot snapshot) * 100.00 / saleSum(batch, stock, snapshot));
 
 saleVATSupplier 'НДС поставщика продажа' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 saleCostVATSupplier 'С/С с НДС продажа' = saleVATSupplier(Batch batch, Stock stock, Snapshot snapshot) (+) 
@@ -52,8 +52,8 @@ saleVATSum 'НДС продажа' (group, stock, snapshot) =
         BY group, stock, snapshot MATERIALIZED;         
 saleMarkupSum 'Надбавка продажа' (SkuGroup group, Stock stock, Snapshot snapshot) =
     saleSum(group, stock, snapshot) (-) saleVATSum(group, stock, snapshot) (-) saleCostSum(group, stock, snapshot);
-saleMarkupPerc 'Надбавка, % средн.' = saleMarkupSum(SkuGroup group, Stock stock, Snapshot snapshot)*100.00 / saleCostSum(group, stock, snapshot) ;
-saleMarkupPercRet 'Надбавка, % от цены' = saleMarkupSum(SkuGroup group, Stock stock, Snapshot snapshot)*100.00 / saleSum(group, stock, snapshot);
+saleMarkupPerc 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSum(SkuGroup group, Stock stock, Snapshot snapshot)*100.00 / saleCostSum(group, stock, snapshot));
+saleMarkupPercRet 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSum(SkuGroup group, Stock stock, Snapshot snapshot)*100.00 / saleSum(group, stock, snapshot));
 
 saleVATSupplier 'НДС поставщика продажа' (group, stock, snapshot) =
     GROUP SUM saleVATSupplier (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
@@ -74,8 +74,8 @@ saleVATSum 'НДС продажа' (group, snapshot) =
     GROUP SUM saleVATSum (SkuGroup group, Stock stock, Snapshot snapshot) BY group, snapshot;              
 saleMarkupSum 'Надбавка продажа' (group, snapshot) =
     GROUP SUM saleMarkupSum (SkuGroup group, Stock stock, Snapshot snapshot) BY group, snapshot; 
-saleMarkupPerc 'Надбавка, % средн.' = saleMarkupSum(SkuGroup group, Snapshot snapshot)*100.00 / saleCostSum(group, snapshot);
-saleMarkupPercRet 'Надбавка, % от цены' = saleMarkupSum(SkuGroup group, Snapshot snapshot)*100.00 / saleSum(group, snapshot);
+saleMarkupPerc 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSum(SkuGroup group, Snapshot snapshot)*100.00 / saleCostSum(group, snapshot));
+saleMarkupPercRet 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSum(SkuGroup group, Snapshot snapshot)*100.00 / saleSum(group, snapshot));
         
 saleVATSupplier 'НДС поставщика продажа' (group, snapshot) =
     GROUP SUM saleVATSupplier (SkuGroup group, Stock stock, Snapshot snapshot) BY group, snapshot; 
@@ -95,8 +95,8 @@ saleVATSum 'НДС продажа' (stock, snapshot) =
     GROUP SUM saleVATSum (Sku sku, Stock stock, Snapshot snapshot) BY stock, snapshot;              
 saleMarkupSum 'Надбавка продажа' (stock, snapshot) =
     GROUP SUM saleMarkupSum (Sku sku, Stock stock, Snapshot snapshot) BY stock, snapshot; 
-saleMarkupPerc 'Надбавка, % средн.' = saleMarkupSum(Stock stock, Snapshot snapshot)*100.00 / saleCostSum(stock, snapshot);
-saleMarkupPercRet 'Надбавка, % от цены' = saleMarkupSum(Stock stock, Snapshot snapshot)*100.00 / saleSum(stock, snapshot); 
+saleMarkupPerc 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSum(Stock stock, Snapshot snapshot)*100.00 / saleCostSum(stock, snapshot));
+saleMarkupPercRet 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSum(Stock stock, Snapshot snapshot)*100.00 / saleSum(stock, snapshot)); 
 
 saleVATSupplier 'НДС поставщика продажа' (stock, snapshot) =
     GROUP SUM saleVATSupplier (Sku sku, Stock stock, Snapshot snapshot) BY stock, snapshot; 
@@ -116,8 +116,8 @@ saleVATSumBatch 'НДС продажа' (supplier, snapshot) =
     GROUP SUM saleVATSum (Batch batch, Stock stock, Snapshot snapshot) BY supplier(batch), snapshot;        
 saleMarkupSumBatch 'Надбавка продажа' (supplier, snapshot) =
     GROUP SUM saleMarkupSum (Batch batch, Stock stock, Snapshot snapshot) BY supplier(batch), snapshot;     
-saleMarkupPercBatch 'Надбавка, % средн.' = saleMarkupSumBatch(LegalEntity supplier, Snapshot snapshot)*100.00 / saleCostSumBatch(supplier, snapshot);
-saleMarkupPercRetBatch 'Надбавка, % от цены' = saleMarkupSumBatch(LegalEntity supplier, Snapshot snapshot)*100.00 / saleSumBatch(supplier, snapshot);
+saleMarkupPercBatch 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSumBatch(LegalEntity supplier, Snapshot snapshot)*100.00 / saleCostSumBatch(supplier, snapshot));
+saleMarkupPercRetBatch 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSumBatch(LegalEntity supplier, Snapshot snapshot)*100.00 / saleSumBatch(supplier, snapshot));
 
 saleVATSupplierBatch 'НДС поставщика продажа' (supplier, snapshot) =
     GROUP SUM saleVATSupplier (Batch batch, Stock stock, Snapshot snapshot) BY supplier(batch), snapshot;
@@ -137,8 +137,8 @@ saleVATSumBatchSupplier 'НДС продажа' (supplier, snapshot) =
     GROUP SUM saleVATSum (Batch batch, Stock stock, Snapshot snapshot) BY supplierStock(batch), snapshot;        
 saleMarkupSumBatchSupplier 'Надбавка продажа' (supplier, snapshot) =
     GROUP SUM saleMarkupSum (Batch batch, Stock stock, Snapshot snapshot) BY supplierStock(batch), snapshot;     
-saleMarkupPercBatchSupplier 'Надбавка, % средн.' = saleMarkupSumBatchSupplier(Stock supplier, Snapshot snapshot)*100.00 / saleCostSumBatchSupplier(supplier, snapshot);
-saleMarkupPercRetBatchSupplier 'Надбавка, % от цены' = saleMarkupSumBatchSupplier(Stock supplier, Snapshot snapshot)*100.00 / saleSumBatchSupplier(supplier, snapshot);
+saleMarkupPercBatchSupplier 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSumBatchSupplier(Stock supplier, Snapshot snapshot)*100.00 / saleCostSumBatchSupplier(supplier, snapshot));
+saleMarkupPercRetBatchSupplier 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSumBatchSupplier(Stock supplier, Snapshot snapshot)*100.00 / saleSumBatchSupplier(supplier, snapshot));
 
 saleVATSupplierBatchSupplier 'НДС поставщика продажа' (supplier, snapshot) =
     GROUP SUM saleVATSupplier (Batch batch, Stock stock, Snapshot snapshot) BY supplierStock(batch), snapshot;
@@ -153,8 +153,8 @@ saleCostSum 'Себестоимость продажа' = DATA NUMERIC[16,2] (Sk
 saleVATSum 'НДС продажа' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
 saleMarkupSum 'Надбавка продажа' (Sku sku, Stock stock, Snapshot snapshot, DATE date) = 
     saleSum(sku, stock, snapshot, date) (-) saleVATSum(sku, stock, snapshot, date) (-) saleCostSum(sku, stock, snapshot, date); 
-saleMarkupPerc 'Надбавка, % средн.' = saleMarkupSum(Sku sku, Stock stock, Snapshot snapshot, DATE date)*100.00 / saleCostSum(sku, stock, snapshot, date);            
-saleMarkupPercRet 'Надбавка, % от цены' = saleMarkupSum(Sku sku, Stock stock, Snapshot snapshot, DATE date)*100.00 / saleSum(sku, stock, snapshot, date);            
+saleMarkupPerc 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSum(Sku sku, Stock stock, Snapshot snapshot, DATE date)*100.00 / saleCostSum(sku, stock, snapshot, date));            
+saleMarkupPercRet 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSum(Sku sku, Stock stock, Snapshot snapshot, DATE date)*100.00 / saleSum(sku, stock, snapshot, date));            
 
 saleVATSupplier 'НДС поставщика продажа' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
 saleCostVATSupplier 'С/С с НДС продажа' = saleVATSupplier(Sku sku, Stock stock, Snapshot snapshot, DATE date) (+) 
@@ -173,8 +173,8 @@ saleVATSum 'НДС продажа' (stock, snapshot, date) =
     GROUP SUM saleVATSum (Sku sku, Stock stock, Snapshot snapshot, DATE date) BY stock, snapshot, date;              
 saleMarkupSum 'Надбавка продажа' (stock, snapshot, date) =
     GROUP SUM saleMarkupSum (Sku sku, Stock stock, Snapshot snapshot, DATE date) BY stock, snapshot, date; 
-saleMarkupPerc 'Надбавка, % средн.' = saleMarkupSum(Stock stock, Snapshot snapshot, DATE date)*100.00 / saleCostSum(stock, snapshot, date);
-saleMarkupPercRet 'Надбавка, % от цены' = saleMarkupSum(Stock stock, Snapshot snapshot, DATE date)*100.00 / saleSum(stock, snapshot, date);
+saleMarkupPerc 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSum(Stock stock, Snapshot snapshot, DATE date)*100.00 / saleCostSum(stock, snapshot, date));
+saleMarkupPercRet 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSum(Stock stock, Snapshot snapshot, DATE date)*100.00 / saleSum(stock, snapshot, date));
 
 saleVATSupplier 'НДС поставщика продажа' (stock, snapshot, date) =
     GROUP SUM saleVATSupplier (Sku sku, Stock stock, Snapshot snapshot, DATE date) BY stock, snapshot, date; 
@@ -464,26 +464,31 @@ EXTEND FORM snapshot
 //------------------------  Товарооборачиваемость ----------------------//
 
 isSale 'Продажа' = DATA BOOLEAN (SnapshotType);
-turnoverSku 'Рассчитывать Товарооборачиваемость' = DATA BOOLEAN (SnapshotType); 
+turnoverSku 'Товарооборачиваемость' = DATA BOOLEAN (SnapshotType); 
+daysOnStockSku 'Дней на складе' = DATA BOOLEAN (SnapshotType); 
 
 EXTEND FORM snapshotType
-    PROPERTIES (t) isSale, turnoverSku
+    PROPERTIES (t) isSale, turnoverSku, daysOnStockSku
 ;
 DESIGN snapshotType {
     row6 {
         MOVE PROPERTY(isSale(t));
         MOVE PROPERTY(turnoverSku(t));                                             
+        MOVE PROPERTY(daysOnStockSku(t));                                             
     } 
 } 
 EXTEND FORM snapshotTypes
-    PROPERTIES (t) READONLY  isSale, turnoverSku
+    PROPERTIES (t) READONLY  isSale, turnoverSku, daysOnStockSku
 ;
 daysOnStock 'Дней на складе' = DATA INTEGER (Sku, Stock, Snapshot);
-cumBalance 'Накопленный остаток' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
-turnoverSku 'Рассчитывать Товарооборачиваемость' = DATA BOOLEAN (Snapshot) IN evidence; 
+cumBalance 'Накопленный остаток' = DATA NUMERIC[18,4] (Sku, Stock, Snapshot);
+turnoverSku 'Товарооборачиваемость' = DATA BOOLEAN (Snapshot) IN evidence; 
+daysOnStockSku 'Дней на складе' = DATA BOOLEAN (Snapshot) IN evidence; 
 
 @deriveDocumentSnapshotProperty(isSale);
 @deriveDocumentSnapshotProperty(turnoverSku);
+@deriveDocumentSnapshotProperty(daysOnStockSku);
+
 
 averageSold 'Продаж в день' (Sku sku, Stock stock, Snapshot snapshot) =  
     saleQuantity(sku, stock, snapshot) /
@@ -515,39 +520,57 @@ cumBalance 'Накопленный остаток' (stock, snapshot) =
 turnover 'Товарооборачиваемость, дн.' (Stock stock, Snapshot snapshot) = NUMERIC[12,3](cumBalance(stock, snapshot) /
     saleSum(stock, snapshot));          
  
+calcDataCumBalance(Sku sku, Stock stock, Snapshot snapshot, DATE dateFrom, DATE dateTo) = 
+    sumA(sku, stock, snapshot) * daysInclBetweenDates(dateFrom, dateTo)
+    (-)
+    [= GROUP SUM signedSum(Sku sku, Stock stock, DATE date) * daysInclBetweenDates(DATE dFrom, date) 
+        IF date >= dFrom AND date < DATE dTo
+        BY sku, stock, dFrom, dTo](sku, stock, dateFrom, dateTo);
+
+calcCumBalance(Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = 
+    sumA(sku, stock, dateTo) * daysInclBetweenDates(dateFrom, dateTo)
+    (-)
+    [= GROUP SUM signedSum(Sku sku, Stock stock, DATE date) * daysInclBetweenDates(DATE dFrom, date) 
+        IF date >= dFrom AND date < DATE dTo
+        BY sku, stock, dFrom, dTo](sku, stock, dateFrom, dateTo);
+ 
 overCalcSaleSkuParamsInterval= ABSTRACT LIST (Snapshot, DATE, DATE); 
 calcSaleSkuParamsInterval 'Рассчитать продажи в день и товарооборачиваемость'(Snapshot snapshot, DATE dateFrom, DATE dateTo) = {    
-    IF turnoverSku(snapshot) AND dateFrom IS DATE AND dateTo IS DATE THEN {
+    IF daysOnStockSku(snapshot) AND dateFrom IS DATE AND dateTo IS DATE THEN {
     
-        LOCAL daysOn = INTEGER (Sku, Stock);
-        LOCAL balance = NUMERIC[16,5] (Sku, Stock);
-        LOCAL quantity = NUMERIC[16,5] (Sku, Stock);
-        LOCAL cumBalance = NUMERIC[16,5] (Sku, Stock);
-        LOCAL dateCur = DATE();    
-    
-        dateCur() <- dateFrom;
-        quantity(Sku sku, Stock stock) <- balanceB(sku, stock, dateFrom) WHERE include(snapshot, stock) AND include(snapshot, sku) AND balanceB(sku, stock, dateFrom);
-        balance(Sku sku, Stock stock) <- sumB(sku, stock, dateFrom) WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumB(sku, stock, dateFrom);
-        daysOn(Sku sku, Stock stock) <- NULL;
+        IF useDaysChange() THEN {
+            daysOnStock(Sku sku, Stock stock, snapshot) <- NULL;
+            daysOnStock(Sku sku, Stock stock, snapshot) <- daysOnStock(sku, stock, dateFrom, dateTo) WHERE include(snapshot, stock) AND include(snapshot, sku) AND daysOnStock(sku, stock, dateFrom, dateTo);
+        } ELSE {
+            LOCAL daysOn = INTEGER (Sku, Stock);
+            LOCAL quantity = NUMERIC[16,5] (Sku, Stock);
+            LOCAL dateCur = DATE();    
         
-        WHILE dateCur() <= dateTo DO {
-            daysOn(Sku sku, Stock stock) <- daysOn(sku, stock) (+) (1 IF ((quantity(sku, stock) > 0) OR (quantity(sku, stock, dateCur()) > 0))) 
-                       WHERE include(snapshot, stock) AND include(snapshot, sku) AND 
-                       (daysOn(sku, stock) (+) (1 IF ((quantity(sku, stock) > 0) OR (quantity(sku, stock, dateCur()) > 0))));
-            cumBalance(Sku sku, Stock stock) <- cumBalance(sku, stock) (+) balance(sku, stock)
-                       WHERE include(snapshot, stock) AND include(snapshot, sku) AND
-                             balance(sku, stock);
-            quantity(Sku sku, Stock stock) <- quantity(sku, stock) (+) signedQuantity(sku, stock, dateCur()) 
-                       WHERE include(snapshot, stock) AND include(snapshot, sku) AND
-                             signedQuantity(sku, stock, dateCur());    
-            balance(Sku sku, Stock stock) <- balance(sku, stock) (+) signedSum(sku, stock, dateCur()) 
-                       WHERE include(snapshot, stock) AND include(snapshot, sku) AND
-                             signedSum(sku, stock, dateCur());    
-            dateCur() <- sum(dateCur(), 1);
+            dateCur() <- dateFrom;
+            quantity(Sku sku, Stock stock) <- balanceB(sku, stock, dateFrom) WHERE include(snapshot, stock) AND include(snapshot, sku) AND balanceB(sku, stock, dateFrom);
+            daysOn(Sku sku, Stock stock) <- NULL;
+            
+            WHILE dateCur() <= dateTo DO {
+                daysOn(Sku sku, Stock stock) <- daysOn(sku, stock) (+) (1 IF ((quantity(sku, stock) > 0) OR (quantity(sku, stock, dateCur()) > 0))) 
+                           WHERE include(snapshot, stock) AND include(snapshot, sku) AND 
+                           (daysOn(sku, stock) (+) (1 IF ((quantity(sku, stock) > 0) OR (quantity(sku, stock, dateCur()) > 0))));
+                quantity(Sku sku, Stock stock) <- quantity(sku, stock) (+) signedQuantity(sku, stock, dateCur()) 
+                           WHERE include(snapshot, stock) AND include(snapshot, sku) AND
+                                 signedQuantity(sku, stock, dateCur());    
+                dateCur() <- sum(dateCur(), 1);
+            }
+        
+            daysOnStock(Sku sku, Stock stock, snapshot) <- daysOn(sku, stock);
         }
+    }
     
-        daysOnStock(Sku sku, Stock stock, snapshot) <- daysOn(sku, stock);
-        cumBalance(Sku sku, Stock stock, snapshot) <- cumBalance(sku, stock);
+    IF turnoverSku(snapshot) AND dateFrom IS DATE AND dateTo IS DATE THEN {
+        cumBalance (Sku sku, Stock stock, snapshot) <- NULL;
+        IF isSum(snapshot) AND isBalanceA(snapshot) THEN
+            cumBalance (Sku sku, Stock stock, snapshot) <- calcDataCumBalance(sku, stock, snapshot, dateFrom, dateTo) WHERE include(snapshot, stock) AND include(snapshot, sku) AND calcDataCumBalance(sku, stock, snapshot, dateFrom, dateTo); 
+        ELSE
+            cumBalance (Sku sku, Stock stock, snapshot) <- calcCumBalance(sku, stock, dateFrom, dateTo) WHERE include(snapshot, stock) AND include(snapshot, sku) AND calcCumBalance(sku, stock, dateFrom, dateTo); 
+        
         overCalcSaleSkuParamsInterval(snapshot, dateFrom, dateTo);        
     }                                    
 } TOOLBAR;
@@ -605,10 +628,11 @@ overTakeBatchFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) +=  {
 
 //-- SHOWIF
 isTurnoverBatch= turnoverSku(Snapshot snapshot) AND isBatch(snapshot);
+isDaysOnStockBatch= daysOnStockSku(Snapshot snapshot) AND isBatch(snapshot);
 
 EXTEND FORM snapshot
 
-    PROPERTIES(r)      turnoverSku
+    PROPERTIES(r)      turnoverSku, daysOnStockSku 
     
 //-- По группам                           
     PROPERTIES(sk1,r)  READONLY SHOWIF turnoverSku(r) BACKGROUND hintSaleBackground() AFTER saleNetWeight(sk1,r)          
@@ -619,14 +643,18 @@ EXTEND FORM snapshot
                        turnover 
     
 //--sku  
-    PROPERTIES(s,st,r) SHOWIF turnoverSku(r) BACKGROUND hintSaleBackground() AFTER saleNetWeight(s,st,r)
-                       daysOnStock, 
+    PROPERTIES(s,st,r) SHOWIF daysOnStockSku(r) BACKGROUND hintSaleBackground() AFTER saleNetWeight(s,st,r)
+                       daysOnStock
+
+    PROPERTIES(s,st,r) SHOWIF turnoverSku(r) BACKGROUND hintSaleBackground() AFTER daysOnStock(s,st,r)
                        averageSold, 
                        turnover,
                        coutDaysToEnd
 //-- batch
-    PROPERTIES(bt,ss,r) SHOWIF isTurnoverBatch(r) BACKGROUND hintSaleBackground() AFTER saleNetWeight(bt,ss,r)
-                       daysOnStock, 
+    PROPERTIES(bt,ss,r) SHOWIF isDaysOnStockBatch(r) BACKGROUND hintSaleBackground() AFTER saleNetWeight(bt,ss,r)
+                       daysOnStock
+                        
+    PROPERTIES(bt,ss,r) SHOWIF isTurnoverBatch(r) BACKGROUND hintSaleBackground() AFTER daysOnStock(bt,ss,r)
                        averageSold, 
                        turnover     
 //-- По поставщикам                           
@@ -639,9 +667,10 @@ DESIGN snapshot {
     row6 {
         MOVE PROPERTY(isSale(r));
         MOVE PROPERTY(turnoverSku(r));                                             
+        MOVE PROPERTY(daysOnStockSku(r));                                             
     } 
 }  
 EXTEND FORM snapshots 
         PROPERTIES(r) READONLY BACKGROUND hintSaleBackground() isSale
-        PROPERTIES(r) READONLY turnoverSku
+        PROPERTIES(r) READONLY turnoverSku, daysOnStockSku
 ;                   
