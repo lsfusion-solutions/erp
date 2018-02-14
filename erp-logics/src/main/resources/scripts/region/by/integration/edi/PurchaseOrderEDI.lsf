@@ -44,7 +44,9 @@ isEOrder(Purchase.UserOrderDetail d) = isEOrder(userOrder(d));
 response = GROUP MAX EOrderResponse e BY eOrder(e);
 responseNote 'Примечание поставщика' (Purchase.Order o) = note(response(o)) IN documentPrm;
  
-indexSku(EOrderResponseDetail d) = PARTITION SUM 1 BY sku(d), eOrder(orderResponse(d)) ORDER quantityOrdered(d), d MATERIALIZED ;
+indexSku(EOrderResponseDetail d) = PARTITION SUM 1 BY sku(d), eOrder(orderResponse(d)) ORDER quantityOrdered(d), -quantityAccepted(d), d MATERIALIZED ;
+//сортировка по принятым откланенным, принятые первыми
+
 dataIndexSku = DATA INTEGER (Purchase.OrderDetail);
 indexSku(Purchase.OrderDetail d) = OVERRIDE dataIndexSku(d), 1;
 
