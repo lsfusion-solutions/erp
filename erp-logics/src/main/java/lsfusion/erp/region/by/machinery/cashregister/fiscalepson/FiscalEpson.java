@@ -3,9 +3,10 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalepson;
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
-import lsfusion.base.Pair;
 
 import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -147,12 +148,13 @@ public class FiscalEpson {
 
     }
 
-    public static void discountItem(ReceiptItem item, Boolean isReturn) throws RuntimeException {
+    public static void discountItem(ReceiptItem item, Boolean isReturn, DecimalFormat formatter) throws RuntimeException {
         if (item.discount != null && item.discount.doubleValue() != 0.0) {
             epsonActiveXComponent.setProperty("Article", new Variant(""));
             epsonActiveXComponent.setProperty("CorrectionAmount", new Variant(Math.abs(isReturn ? item.quantity.multiply(item.discount).doubleValue() : item.discount.doubleValue())));
             Dispatch.call(epsonDispatch, item.discount.doubleValue() > 0 ? "Surcharge" : "Discount");
             checkErrors(true);
+            printLine(getFiscalString("Сумма со скидкой", formatter.format(item.sumPos)));
         }
     }
 
@@ -212,10 +214,11 @@ public class FiscalEpson {
     public static PrintReceiptResult printReceipt(ReceiptInstance receipt, boolean sale) {
         Integer offsetBefore = getElectronicJournalReadOffset();
         openReceipt(receipt.cashier, sale ? 1 : 2);
+        DecimalFormat formatter = getFormatter();
         for (ReceiptItem item : receipt.receiptList) {
             printLine(item.barcode);
             registerItem(item);
-            discountItem(item, !sale);
+            discountItem(item, !sale, formatter);
             printLine(item.vatString);
 
         }
@@ -288,6 +291,21 @@ public class FiscalEpson {
 
     private static Integer toInt(Variant variant) {
         return variant == null ? null : variant.toInt(); //getInt выдаёт ошибку для variant type = 18, 19
+    }
+
+    private static String getFiscalString(String prefix, String value) {
+        while(value.length() < 40 - 1 - prefix.length()) //в комменте 40 символов
+            value = " " + value;
+        return prefix + " " + value;
+    }
+
+    private static DecimalFormat getFormatter() {
+        DecimalFormat formatter = new DecimalFormat("#,###.##");
+        formatter.setMinimumFractionDigits(2);
+        DecimalFormatSymbols symbols = formatter.getDecimalFormatSymbols();
+        symbols.setGroupingSeparator('`');
+        formatter.setDecimalFormatSymbols(symbols);
+        return formatter;
     }
 
     private static class ReceiptInfo {
