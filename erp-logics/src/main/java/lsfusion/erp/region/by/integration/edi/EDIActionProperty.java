@@ -99,7 +99,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
                     if (response != null) {
                         Element result = response.getChild(prefix + "Result", topNamespace);
                         if (result != null) {
-                            String successful = response.getChildText("succesful");
+                            String successful = result.getChildText("Succesful", topNamespace);
                             if (successful != null && !Boolean.parseBoolean(successful)) {
                                 String message = result.getChildText("Message", topNamespace);
                                 String errorCode = result.getChildText("ErrorCode", topNamespace);

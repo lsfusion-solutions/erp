@@ -76,7 +76,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             ServerLoggers.importLogger.info(provider + " ReceiveMessages request sent");
             String responseMessage = getResponseMessage(httpResponse);
             try {
-                RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "ReceiveMessages");
+                RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "GetDocuments");
                 switch (requestResult) {
                     case OK:
                         importMessages(context, url, login, password, host, port, provider, responseMessage, archiveDir, disableConfirmation, sendReplies, invoices);
