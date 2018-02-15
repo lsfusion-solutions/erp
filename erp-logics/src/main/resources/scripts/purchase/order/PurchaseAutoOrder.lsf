@@ -18,6 +18,7 @@ dateFromPromotion 'Дата начала акции' = DATA DATE (Sku, Stock) TA
 dateToPromotion 'Дата окончания акции' = DATA DATE (Sku, Stock) TABLE promotionSkuStock;
 averageSoldPromotion 'Продаж в день за акцию' = DATA NUMERIC[14,3] (Sku, Stock) TABLE promotionSkuStock;   
 
+regularPromotionDetail = DATA PriceListDetail (Sku, Stock) TABLE promotionSkuStock;
 dateFromRegular 'Дата начала продаж' = DATA DATE (Sku, Stock) TABLE promotionSkuStock;
 dateToRegular 'Дата окончания продаж' = DATA DATE (Sku, Stock) TABLE promotionSkuStock;
 
@@ -103,7 +104,7 @@ calcQuantityPromotionSoldInterval 'Рассчитать однодневные �
 calcQuantityPromotionSoldIntervalNew 'Рассчитать однодневные продажи (акции)' () = {
 
     promotionDetail(Sku s, Stock st) <- NULL;
-    promotionDetail(Sku s, Stock st) <- lastPromotionPriceListDetail(s, st) WHERE lastPromotionPriceListDetail(s, st);
+    promotionDetail(Sku s, Stock st) <- lastPromotionPriceListDetail(s, st) WHERE toDate(lastPromotionPriceListDetail(s, st), st) >= subtract(currentDate(), countSoldDays(skuGroup(s)));
 
     dateFromPromotion(Sku s, Stock st) <- NULL;
     dateFromPromotion(Sku s, Stock st) <- fromDate(promotionDetail(s, st)) WHERE promotionDetail(s, st);   
@@ -112,14 +113,20 @@ calcQuantityPromotionSoldIntervalNew 'Рассчитать однодневны�
     dateToPromotion(Sku s, Stock st) <- toDate(promotionDetail(s, st)) WHERE promotionDetail(s, st);   
 
     APPLY;
+    
+    regularPromotionDetail(Sku s, Stock st) <- NULL;
+    regularPromotionDetail(Sku s, Stock st) <- lastRegularPromotionDetail(s, st) WHERE dateFromPromotion(s, st);
 
     dateToRegular(Sku s, Stock st) <- NULL;
-    dateToRegular(Sku s, Stock st) <- subtract(fromDate(lastRegularPromotionDetail(s, st), st), 1) WHERE dateFromPromotion(s, st);
+    dateToRegular(Sku s, Stock st) <- IF dateToPromotion(s, st) < subtract(currentDate(), 1) THEN subtract(currentDate(), 1) ELSE (MIN subtract(currentDate(), 1), subtract(fromDate(regularPromotionDetail(s, st), st), 1)) WHERE regularPromotionDetail(s, st);
     
     dateFromRegular(Sku s, Stock st) <- NULL;
-    dateFromRegular(Sku s, Stock st) <- MAX sum(prevToDatePromotion(lastRegularPromotionDetail(s, st), st), 1), subtract(dateToRegular(s, st), countSoldDays(skuGroup(s))) WHERE dateFromPromotion(s, st);
+    dateFromRegular(Sku s, Stock st) <- IF dateToPromotion(s, st) < subtract(currentDate(), 1) THEN sum(dateToPromotion(s, st), 1) ELSE (MAX sum(prevToDatePromotion(regularPromotionDetail(s, st), st), 1), subtract(dateToRegular(s, st), countSoldDays(skuGroup(s)))) WHERE regularPromotionDetail(s, st);
+    
+    APPLY;
+    
     averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](averageSold (sku, stock, dateFromRegular(sku, stock), dateToRegular(sku, stock))) 
-                                                                WHERE dateFromPromotion(sku, stock);
+                                                                WHERE dateToRegular(sku, stock);
 
     averageSoldPromotion(Sku sku, Stock stock) <- NULL;
     averageSoldPromotion(Sku sku, Stock stock) <- NUMERIC[14,3](averageSold (sku, stock, dateFromPromotion(sku, stock), MIN dateToPromotion(sku, stock), subtract(currentDate(), 1)))  WHERE dateFromPromotion(sku, stock) < currentDate();
