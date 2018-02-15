@@ -9,24 +9,6 @@ NAMESPACE EDI;
 
 backgroundQuantityResponseEDI(Purchase.OrderDetail d) += RGB(255,0,0) IF quantityResponseEDI(d) != originalQuantity(d);
  
-logSendDocumentOrder(Purchase.Order o) = {
-	NEW d = DocumentLog {
-	    document(d) <- o;
-	    typeDocument(d) <- objectClassName(o);
-	    numberDocument(d) <- number(o);  
-	    seriesDocument(d) <- series(o); 
-	    dateDocument(d) <- date(o);
-	    typeChange(d) <- TypeChange.email;
-	    note(d) <- 'edi';      
-	    session(d) <- currentSession();  
-	    hostnameComputer(d) <- hostnameCurrentComputer();
-	    userLogin(d) <- login(currentUser()); 
-	    nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
-	    dateTimeSession(d) <- currentDateTime();  
-	    supplierStock(d) <- supplierStock(o);
-	    customerStock(d) <- customerStock(o);
-	}
-}
 
 overEmailCustomer(Order.Order order) += {
     IF NOT consumedEmailCustomer(order ) AND isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
@@ -44,7 +26,10 @@ overEmailCustomer(Order.Order order) += {
         }
         
         send[EOrder](order);
-        IF NOT sentDateTime[UserOrder](order) THEN logSendDocumentOrder(order);
+        IF NOT sentDateTime[UserOrder](order) THEN {
+            notEmailSend(order) <- 'edi';
+            logSendDocumentOrder(order);
+        }
         sentDateTime[UserOrder](order) <- currentDateTime() WHERE NOT sentDateTime[UserOrder](order);
     }
 }

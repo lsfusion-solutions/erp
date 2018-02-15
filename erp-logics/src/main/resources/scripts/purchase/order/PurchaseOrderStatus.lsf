@@ -140,6 +140,8 @@ EXTEND CLASS TypeChange{
     email 'Отправлен поставщику'
 }
 
+notEmailSend = DATA VARSTRING[10](Purchase.Order);
+
 logSendDocumentOrder(Purchase.Order o) = {
 	NEW d = DocumentLog {
 	    document(d) <- o;
@@ -148,7 +150,7 @@ logSendDocumentOrder(Purchase.Order o) = {
 	    seriesDocument(d) <- series(o); 
 	    dateDocument(d) <- date(o);
 	    typeChange(d) <- TypeChange.email;
-	    note(d) <- VARSTRING[255](OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o)));      
+	    note(d) <- IF notEmailSend(o) THEN notEmailSend(o) ELSE VARSTRING[255](OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o)));      
 	    session(d) <- currentSession();  
 	    hostnameComputer(d) <- hostnameCurrentComputer();
 	    userLogin(d) <- login(currentUser()); 
@@ -157,8 +159,10 @@ logSendDocumentOrder(Purchase.Order o) = {
 	    supplierStock(d) <- supplierStock(o);
 	    customerStock(d) <- customerStock(o);
 	    
-	    PRINT printOrderXLS OBJECTS o = o XLSX TO exportFile;
-	    file(d) <- exportFile();
+	    IF NOT notEmailSend(o) THEN {
+            PRINT printOrderXLS OBJECTS o = o XLSX TO exportFile;
+            file(d) <- exportFile();
+	    }
 	}
 }
 
