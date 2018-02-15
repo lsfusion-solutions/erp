@@ -472,10 +472,15 @@ EXTEND FORM rangeRev
 
 in (r, s) = GROUP SUM 1 IF level(RangeRev v, Sku s) BY range(v), s;
 
+ranges 'Ассортиментные матрицы' (Sku s, DATE d) = GROUP CONCAT name(Range r) IF level(r, Sku s, DATE d) ,', ' BY s, d CHARWIDTH 30; 
+
 EXTEND FORM ranges 
-    PROPERTIES READONLY nameLevel(r, s, d)
+    PROPERTIES READONLY nameLevel(r, s, d), ranges(s, d)
     ORDER nameLevel(r, s, d), name(s)
-    FILTERS in (r, s)
+    FILTERGROUP filterSku
+        FILTER 'По матрице' in(r, s) DEFAULT
+        FILTER 'По группе' ranges(s, d) AND isParent(sg, s)
+        
 ;
 
 
