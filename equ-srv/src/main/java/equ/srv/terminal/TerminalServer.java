@@ -325,7 +325,7 @@ public class TerminalServer extends MonitorServer {
                                                         extraField2DocumentDetail, extraField3DocumentDetail));
                                             }
                                         }
-                                        logger.info("receiving document number " + document[2] + " : " + params.size() + " records");
+                                        logger.info("receiving document number " + document[2] + " : " + (params.size() - 1) + " record(s)");
                                         boolean emptyDocument = terminalDocumentDetailList.isEmpty();
                                         if (emptyDocument)
                                             terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType, ana1, ana2, comment));
