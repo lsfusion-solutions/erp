@@ -5,7 +5,6 @@ REQUIRE PriceListOperation, PriceListBefore;
 NAMESPACE PriceList;
 
 promotionPriceListOperation = DATA Operation();
-namePromotionPriceListOperation 'Операция акции' = name(promotionPriceListOperation());
 
 isPromotion 'Является акцией' = DATA BOOLEAN (Operation);
 onStarted() += {
@@ -38,11 +37,10 @@ INDEX sku(PriceListDetail d, Stock st), st, fromDateTime(d, st), d;
 INDEX Stock st, fromDateTime(PriceListDetail d, st), sku(d, st);
 
 EXTEND FORM options
-    PROPERTIES() namePromotionPriceListOperation, namePromotionPriceListType, promotionStartDateTime 
+    PROPERTIES() namePromotionPriceListType, promotionStartDateTime 
 ;
 DESIGN options {
     price {
-        MOVE PROPERTY(namePromotionPriceListOperation());
         MOVE PROPERTY(namePromotionPriceListType());
         MOVE PROPERTY(promotionStartDateTime());
     }
@@ -66,6 +64,12 @@ inPromotionPriceListDetailA 'В акции' (Sku sku, Stock stock) =
 
 promotionPriceBeforeA 'Цена до акции' (Sku sku, Stock stock, DATETIME dateTime) =
     priceBefore(promotionPriceListDetailA(sku, stock, dateTime));
+
+fromDateTimePromotionA (Sku sk, Stock st, DATETIME dt) = fromDateTime(promotionPriceListDetailA(sk, st, dt));
+toDateTimePromotionA (Sku sk, Stock st, DATETIME dt) = toDateTime(promotionPriceListDetailA(sk, st, dt));
+
+fromDatePromotionA (Sku sk, Stock st, DATETIME dt) = fromDate(promotionPriceListDetailA(sk, st, dt));
+toDatePromotionA (Sku sk, Stock st, DATETIME dt) = toDate(promotionPriceListDetailA(sk, st, dt));
 
 // Добавляем фильтр и подсветку на форму текущих остатков
     
