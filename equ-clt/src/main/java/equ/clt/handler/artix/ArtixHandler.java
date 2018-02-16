@@ -1017,20 +1017,29 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                 }
                             }
                         }
-                    }
+                        filePathList.add(file.getAbsolutePath());
+                    } else
+                        safeFileDelete(file);
                 } catch (Throwable e) {
                     sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
                 }
-                filePathList.add(file.getAbsolutePath());
             }
         }
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
-                new ArtixSalesBatch(salesInfoList, filePathList, salesInfoList.isEmpty() && !filePathList.isEmpty());
+                new ArtixSalesBatch(salesInfoList, filePathList);
     }
 
     static String readFile(String path, String encoding) throws IOException {
         byte[] encoded = Files.readAllBytes(Paths.get(path));
         return new String(encoded, encoding).replace("\n", "");
+    }
+
+    private void safeFileDelete(File file) {
+        sendSalesLogger.info(logPrefix + String.format("deleting file %s without sales", file.getAbsolutePath()));
+        if (!file.delete()) {
+            file.deleteOnExit();
+            sendSalesLogger.info(logPrefix + String.format("failed to delete file %s without sales, will try to deleteOnExit", file.getAbsolutePath()));
+        }
     }
 
     private long parseDateTime(String value) throws ParseException {
