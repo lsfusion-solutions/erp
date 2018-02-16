@@ -374,6 +374,12 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     TABLE extraBatchStock(Batch, Stock);
     countLedger 'Кол-во движений'###caption (batch, stock) =
         GROUP SUM 1 IF signedQuantityActive(SkuLedger ledger, Batch batch) BY batch, stock(ledger) MATERIALIZED TABLE extraBatchStock;
+    prevCountLedger 'Кол-во движений'###caption (Batch b, Stock s) = PREV(countLedger(b, s));
+
+    countLedger 'Кол-во движений'###caption (Batch b, Stock s, DATETIME dt) = 
+        GROUP SUM 1 IF signedQuantityActive(SkuLedger ledger, Batch batch) AND dateTime(ledger) < DATETIME dt BY batch, stock(ledger), dt;
+    prevCountLedger 'Кол-во движений'###caption (Batch b, Stock s, DATETIME dt) = PREV(countLedger(b, s, dt));
+            
     skuLedger (Batch batch, Stock stock) = sku(batch) IF countLedger(batch, stock) MATERIALIZED TABLE extraBatchStock;
     INDEX skuLedger (Batch batch, Stock stock), stock;
 

@@ -617,7 +617,7 @@ calcQuantityPageInventoryDetail 'Кол-во по описям' (collationSheet,
 
 calcPartitionQuantity (CollationSheet cs, Batch batch) = 
     PARTITION UNGROUP notBatchQuantityPageInventoryDetail
-           LIMIT STRICT OVERRIDE (balanceB(batch, stock(cs), dateTime(cs)) (-) calcQuantityPageInventoryDetail(cs,batch)), 0.0 IF countLedger(batch, stock(cs)) AND dateTime(batch) < dateTime(cs)                            
+           LIMIT STRICT OVERRIDE (balanceB(batch, stock(cs), dateTime(cs)) (-) calcQuantityPageInventoryDetail(cs,batch)), 0.0 IF prevCountLedger(batch, stock(cs), dateTime(cs))                            
            BY cs, sku(batch)
            ORDER dateTime(batch), batch;
                                                            
@@ -1109,7 +1109,7 @@ FORM collationSheetBatches 'Партии'
     PROPERTIES(cs, b) READONLY currentBalance
     PROPERTIES(d, b) cost
     FILTERS sku(b) == s,
-            countLedger(b, stock(cs))
+            prevCountLedger(b, stock(cs))
     ORDER dateTime(b)
 ;
 
