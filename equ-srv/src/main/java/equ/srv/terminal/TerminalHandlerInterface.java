@@ -24,7 +24,7 @@ public interface TerminalHandlerInterface {
 
     String importTerminalDocument(DataSession session, ExecutionStack stack, DataObject userObject, String idTerminal, String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException;
 
-    boolean isActiveTerminal(DataSession session, String idTerminal) throws RemoteException, SQLException;
+    boolean isActiveTerminal(DataSession session, ExecutionStack stack, String idTerminal) throws RemoteException, SQLException;
 
     DataObject login(DataSession session, ExecutionStack stack, String login, String password, String idTerminal) throws RemoteException, SQLException;
 }

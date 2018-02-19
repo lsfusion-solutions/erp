@@ -219,7 +219,7 @@ public class TerminalServer extends MonitorServer {
                             String[] params = readParams(inFromClient);
                             if (params.length == 3) {
                                 logger.info("logging user " + params[0]);
-                                if (terminalHandlerInterface.isActiveTerminal(createSession(), params[2])) {
+                                if (terminalHandlerInterface.isActiveTerminal(createSession(), getStack(), params[2])) {
                                     result = login(params[0], params[1], params[2]);
                                     if (result == null) {
                                         errorCode = LOGIN_ERROR;
