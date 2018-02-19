@@ -882,146 +882,148 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             //Set<String> usedBarcodes = new HashSet<>();
 
             for (File file : files) {
-                try {
+                if (!Thread.currentThread().isInterrupted()) {
+                    try {
 
-                    String fileName = file.getName();
-                    sendSalesLogger.info(logPrefix + "reading " + fileName);
+                        String fileName = file.getName();
+                        sendSalesLogger.info(logPrefix + "reading " + fileName);
 
-                    String fileContent = readFile(file.getAbsolutePath(), encoding);
+                        String fileContent = readFile(file.getAbsolutePath(), encoding);
 
-                    Pattern p = Pattern.compile(".*### sales data begin ###(.*)### sales data end ###.*");
-                    Matcher m = p.matcher(fileContent);
-                    if (m.matches()) {
-                        String[] documents = m.group(1).split("---");
+                        Pattern p = Pattern.compile(".*### sales data begin ###(.*)### sales data end ###.*");
+                        Matcher m = p.matcher(fileContent);
+                        if (m.matches()) {
+                            String[] documents = m.group(1).split("---");
 
-                        for (String document : documents) {
+                            for (String document : documents) {
 
-                            JSONObject documentObject = new JSONObject(document);
+                                JSONObject documentObject = new JSONObject(document);
 
-                            Integer docType = documentObject.getInt("docType");
-                            boolean isSale = docType == 1;
-                            boolean isReturn = docType == 2 || docType == 25;
-                            if (isSale || isReturn) {
+                                Integer docType = documentObject.getInt("docType");
+                                boolean isSale = docType == 1;
+                                boolean isReturn = docType == 2 || docType == 25;
+                                if (isSale || isReturn) {
 
-                                Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
-                                String numberZReport = String.valueOf(documentObject.getInt("shift"));
-                                Integer numberReceipt = Integer.parseInt(documentObject.getString("docNum"));
-                                String idEmployee = documentObject.getString("userCode");
+                                    Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
+                                    String numberZReport = String.valueOf(documentObject.getInt("shift"));
+                                    Integer numberReceipt = Integer.parseInt(documentObject.getString("docNum"));
+                                    String idEmployee = documentObject.getString("userCode");
 
-                                long dateTimeReceipt = parseDateTime(documentObject.getString("timeEnd"));
-                                Date dateReceipt = new Date(dateTimeReceipt);
-                                Time timeReceipt = new Time(dateTimeReceipt);
+                                    long dateTimeReceipt = parseDateTime(documentObject.getString("timeEnd"));
+                                    Date dateReceipt = new Date(dateTimeReceipt);
+                                    Time timeReceipt = new Time(dateTimeReceipt);
 
-                                BigDecimal sumCard = BigDecimal.ZERO;
-                                BigDecimal sumCash = BigDecimal.ZERO;
-                                BigDecimal sumGiftCard = BigDecimal.ZERO;
-                                Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
+                                    BigDecimal sumCard = BigDecimal.ZERO;
+                                    BigDecimal sumCash = BigDecimal.ZERO;
+                                    BigDecimal sumGiftCard = BigDecimal.ZERO;
+                                    Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
 
-                                JSONArray moneyPositionsArray = documentObject.getJSONArray("moneyPositions");
+                                    JSONArray moneyPositionsArray = documentObject.getJSONArray("moneyPositions");
 
-                                for (int i = 0; i < moneyPositionsArray.length(); i++) {
-                                    JSONObject moneyPosition = moneyPositionsArray.getJSONObject(i);
+                                    for (int i = 0; i < moneyPositionsArray.length(); i++) {
+                                        JSONObject moneyPosition = moneyPositionsArray.getJSONObject(i);
 
-                                    Integer paymentType = moneyPosition.getInt("valCode");
-                                    Integer operationCode = moneyPosition.getInt("opCode");
-                                    BigDecimal sum = BigDecimal.valueOf(moneyPosition.getDouble("sumB"));
-                                    if (paymentType != null && ((isSale && operationCode.equals(70)) || (isReturn && operationCode.equals(74)))) {
-                                        sum = (sum != null && !isSale) ? sum.negate() : sum;
-                                        switch (paymentType) {
-                                            case 1:
-                                                sumCash = HandlerUtils.safeAdd(sumCash, sum);
-                                                break;
-                                            case 4:
-                                                sumCard = HandlerUtils.safeAdd(sumCard, sum);
-                                                break;
-                                            case 6:
-                                                String numberGiftCard = BaseUtils.trimToNull(moneyPosition.getString("cardnum"));
-                                                if (sumGiftCardMap.containsKey(numberGiftCard)) { // пока вот такой чит, так как в cardnum бывают пустые значения
-                                                    sumGiftCardMap.get(numberGiftCard).sum = HandlerUtils.safeAdd(sumGiftCardMap.get(numberGiftCard).sum, sum);
-                                                    sumGiftCardMap.get(numberGiftCard).price = HandlerUtils.safeAdd(sumGiftCardMap.get(numberGiftCard).price, sum);
-                                                } else
-                                                    sumGiftCardMap.put(numberGiftCard, new GiftCard(sum, sum));
-                                                break;
-                                            default:
-                                                sumCash = HandlerUtils.safeAdd(sumCash, sum);
-                                                break;
+                                        Integer paymentType = moneyPosition.getInt("valCode");
+                                        Integer operationCode = moneyPosition.getInt("opCode");
+                                        BigDecimal sum = BigDecimal.valueOf(moneyPosition.getDouble("sumB"));
+                                        if (paymentType != null && ((isSale && operationCode.equals(70)) || (isReturn && operationCode.equals(74)))) {
+                                            sum = (sum != null && !isSale) ? sum.negate() : sum;
+                                            switch (paymentType) {
+                                                case 1:
+                                                    sumCash = HandlerUtils.safeAdd(sumCash, sum);
+                                                    break;
+                                                case 4:
+                                                    sumCard = HandlerUtils.safeAdd(sumCard, sum);
+                                                    break;
+                                                case 6:
+                                                    String numberGiftCard = BaseUtils.trimToNull(moneyPosition.getString("cardnum"));
+                                                    if (sumGiftCardMap.containsKey(numberGiftCard)) { // пока вот такой чит, так как в cardnum бывают пустые значения
+                                                        sumGiftCardMap.get(numberGiftCard).sum = HandlerUtils.safeAdd(sumGiftCardMap.get(numberGiftCard).sum, sum);
+                                                        sumGiftCardMap.get(numberGiftCard).price = HandlerUtils.safeAdd(sumGiftCardMap.get(numberGiftCard).price, sum);
+                                                    } else
+                                                        sumGiftCardMap.put(numberGiftCard, new GiftCard(sum, sum));
+                                                    break;
+                                                default:
+                                                    sumCash = HandlerUtils.safeAdd(sumCash, sum);
+                                                    break;
+                                            }
                                         }
                                     }
-                                }
 
-                                String seriesNumberDiscountCard = null;
-                                JSONArray cardPositionsArray = documentObject.getJSONArray("cardPositions");
+                                    String seriesNumberDiscountCard = null;
+                                    JSONArray cardPositionsArray = documentObject.getJSONArray("cardPositions");
 
-                                for (int i = 0; i < cardPositionsArray.length(); i++) {
-                                    JSONObject cardPosition = cardPositionsArray.getJSONObject(i);
-                                    seriesNumberDiscountCard = cardPosition.getString("number");
-                                }
-
-                                JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
-
-                                for (int i = 0; i < inventPositionsArray.length(); i++) {
-                                    JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
-
-                                    String idItem = inventPosition.getString("inventCode");
-                                    String barcodeString = inventPosition.getString("barCode");
-                                    String opCode = inventPosition.getString("opCode");
-
-                                    // вот такой вот чит из-за того, что могут ввести код товара в кассе
-                                    String barcode = idItem != null && barcodeString != null && idItem.equals(barcodeString) ? null :
-                                            appendCheckDigitToBarcode(barcodeString, 7, appendBarcode);
-
-                                    //обнаруживаем продажу сертификатов
-                                    boolean isGiftCard = false;
-                                    if (giftCardRegexp != null && barcodeString != null) {
-                                        Pattern pattern = Pattern.compile(giftCardRegexp);
-                                        Matcher matcher = pattern.matcher(barcodeString);
-                                        isGiftCard = matcher.matches();
-                                    } else if (opCode != null && opCode.equals("63")) {
-                                        barcode = inventPosition.getString("bcode_main");
-                                        isGiftCard = true;
+                                    for (int i = 0; i < cardPositionsArray.length(); i++) {
+                                        JSONObject cardPosition = cardPositionsArray.getJSONObject(i);
+                                        seriesNumberDiscountCard = cardPosition.getString("number");
                                     }
 
-                                    Integer numberReceiptDetail = inventPosition.getInt("posNum");
+                                    JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
 
-                                    BigDecimal quantity = BigDecimal.valueOf(inventPosition.getDouble("quant"));
-                                    quantity = isReturn ? safeNegate(quantity) : quantity;
+                                    for (int i = 0; i < inventPositionsArray.length(); i++) {
+                                        JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
 
-                                    BigDecimal price = BigDecimal.valueOf(inventPosition.getDouble("price"));
-                                    BigDecimal discountSumReceiptDetail = BigDecimal.valueOf(inventPosition.getDouble("disc_abs"));
+                                        String idItem = inventPosition.getString("inventCode");
+                                        String barcodeString = inventPosition.getString("barCode");
+                                        String opCode = inventPosition.getString("opCode");
 
-                                    BigDecimal sumReceiptDetail = BigDecimal.valueOf((inventPosition.getDouble("posSum")));
-                                    sumReceiptDetail = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
+                                        // вот такой вот чит из-за того, что могут ввести код товара в кассе
+                                        String barcode = idItem != null && barcodeString != null && idItem.equals(barcodeString) ? null :
+                                                appendCheckDigitToBarcode(barcodeString, 7, appendBarcode);
 
-                                    BigDecimal discountPercentReceiptDetail = null;
-                                    JSONArray discountPositionsArray = inventPosition.getJSONArray("discountPositions");
-                                    for (int j= 0; j < discountPositionsArray.length(); j++) {
-                                        JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
-                                        discountPercentReceiptDetail = safeAdd(discountPercentReceiptDetail, BigDecimal.valueOf(discountPosition.getDouble("discSize")));
+                                        //обнаруживаем продажу сертификатов
+                                        boolean isGiftCard = false;
+                                        if (giftCardRegexp != null && barcodeString != null) {
+                                            Pattern pattern = Pattern.compile(giftCardRegexp);
+                                            Matcher matcher = pattern.matcher(barcodeString);
+                                            isGiftCard = matcher.matches();
+                                        } else if (opCode != null && opCode.equals("63")) {
+                                            barcode = inventPosition.getString("bcode_main");
+                                            isGiftCard = true;
+                                        }
+
+                                        Integer numberReceiptDetail = inventPosition.getInt("posNum");
+
+                                        BigDecimal quantity = BigDecimal.valueOf(inventPosition.getDouble("quant"));
+                                        quantity = isReturn ? safeNegate(quantity) : quantity;
+
+                                        BigDecimal price = BigDecimal.valueOf(inventPosition.getDouble("price"));
+                                        BigDecimal discountSumReceiptDetail = BigDecimal.valueOf(inventPosition.getDouble("disc_abs"));
+
+                                        BigDecimal sumReceiptDetail = BigDecimal.valueOf((inventPosition.getDouble("posSum")));
+                                        sumReceiptDetail = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
+
+                                        BigDecimal discountPercentReceiptDetail = null;
+                                        JSONArray discountPositionsArray = inventPosition.getJSONArray("discountPositions");
+                                        for (int j = 0; j < discountPositionsArray.length(); j++) {
+                                            JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
+                                            discountPercentReceiptDetail = safeAdd(discountPercentReceiptDetail, BigDecimal.valueOf(discountPosition.getDouble("discSize")));
+                                        }
+
+                                        CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
+                                        if (cashRegister == null)
+                                            sendSalesLogger.error(logPrefix + String.format("CashRegister %s not found (file %s)", numberCashRegister, file.getAbsolutePath()));
+                                        Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
+                                        Date startDate = cashRegister == null ? null : cashRegister.startDate;
+                                        if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
+                                            if (sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
+                                                sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
+                                            salesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
+                                                    dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
+                                                    sumCard, sumCash, sumGiftCardMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
+                                                    discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
+                                                    numberReceiptDetail, fileName, null, cashRegister));
+                                        }
+
                                     }
-
-                                    CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
-                                    if(cashRegister == null)
-                                        sendSalesLogger.error(logPrefix + String.format("CashRegister %s not found (file %s)", numberCashRegister, file.getAbsolutePath()));
-                                    Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
-                                    Date startDate = cashRegister == null ? null : cashRegister.startDate;
-                                    if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
-                                        if (sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
-                                            sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
-                                        salesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
-                                                dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
-                                                sumCard, sumCash, sumGiftCardMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
-                                                discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
-                                                numberReceiptDetail, fileName, null, cashRegister));
-                                    }
-
                                 }
                             }
-                        }
-                        filePathList.add(file.getAbsolutePath());
-                    } else
-                        safeFileDelete(file);
-                } catch (Throwable e) {
-                    sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
+                            filePathList.add(file.getAbsolutePath());
+                        } else
+                            safeFileDelete(file);
+                    } catch (Throwable e) {
+                        sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
+                    }
                 }
             }
         }
