@@ -573,7 +573,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null,
                                     null, sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, null, totalQuantity,
                                     price, isSale ? sumReceiptDetail : sumReceiptDetail.negate(), discountSumReceiptDetail,
-                                    null, null, curSalesInfoList.size() + 1, null, null));
+                                    null, null, curSalesInfoList.size() + 1, null, null, cashRegister));
                             break;
                         case 1: //оплата
                             BigDecimal sum = HandlerUtils.safeDivide(rs.getBigDecimal(13), 100); //SALESSUM

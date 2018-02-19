@@ -1,21 +1,31 @@
 package equ.clt.handler.maxishop;
 
-import equ.api.*;
-import equ.api.cashregister.*;
+import equ.api.ItemInfo;
+import equ.api.SalesBatch;
+import equ.api.SalesInfo;
+import equ.api.SendTransactionBatch;
+import equ.api.cashregister.CashRegisterInfo;
+import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
-import equ.clt.handler.HandlerUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.Util;
 import org.xBaseJ.fields.*;
 import org.xBaseJ.xBaseJException;
+
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.*;
+import java.sql.Time;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static equ.clt.handler.HandlerUtils.safeMultiply;
+import static equ.clt.handler.HandlerUtils.safeSubtract;
 
 public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBatch> {
 
@@ -125,18 +135,18 @@ public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBat
 
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
-        Map<Integer, String> cashRegisterDirectories = new HashMap<>();
+        Map<Integer, CashRegisterInfo> cashRegisterMap = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
-            if ((cashRegister.directory != null) && (!cashRegisterDirectories.containsValue(cashRegister.directory)))
-                cashRegisterDirectories.put(cashRegister.number, cashRegister.directory);
-            if ((cashRegister.port != null) && (!cashRegisterDirectories.containsValue(cashRegister.port)))
-                cashRegisterDirectories.put(cashRegister.number, cashRegister.port);
+            if (cashRegister.directory != null) {
+                cashRegisterMap.put(cashRegister.number, cashRegister);
+            }
         }
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<String> readFiles = new ArrayList<>();
-        for (Map.Entry<Integer, String> entry : cashRegisterDirectories.entrySet()) {
+        for (Map.Entry<Integer, CashRegisterInfo> entry : cashRegisterMap.entrySet()) {
             Integer numberCashRegister = entry.getKey();
-            String dir = entry.getValue();
+            CashRegisterInfo cashRegisterInfo = entry.getValue();
+            String dir = cashRegisterInfo.directory;
             DBF importFile = null;
             try {
                 if (dir != null && dir.equals(directory)) {
@@ -165,7 +175,7 @@ public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBat
                                         BigDecimal quantityReceiptDetail = new BigDecimal(new String(importFile.getField("JFQUANT").getBytes(), "Cp1251").trim());
                                         BigDecimal priceReceiptDetail = new BigDecimal(new String(importFile.getField("JFPRICE").getBytes(), "Cp1251").trim());
                                         BigDecimal discountSumReceiptDetail = new BigDecimal(new String(importFile.getField("JFDISCSUM").getBytes(), "Cp1251").trim());
-                                        BigDecimal sumReceiptDetail = roundSales(HandlerUtils.safeSubtract(HandlerUtils.safeMultiply(priceReceiptDetail, quantityReceiptDetail), discountSumReceiptDetail), 10);
+                                        BigDecimal sumReceiptDetail = roundSales(safeSubtract(safeMultiply(priceReceiptDetail, quantityReceiptDetail), discountSumReceiptDetail), 10);
 
                                         if (!oldReceiptNumber.equals(receiptNumber)) {
                                             numberReceiptDetail = 1;
@@ -173,7 +183,7 @@ public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBat
                                         }
                                         salesInfoList.add(new SalesInfo(false, numberCashRegister, null, zReportNumber, date, time, receiptNumber, date, time, null, null, null,
                                                 BigDecimal.ZERO, sumCash, BigDecimal.ZERO, barcodeReceiptDetail, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail,
-                                                discountSumReceiptDetail, null, null, numberReceiptDetail, fileName, null));
+                                                discountSumReceiptDetail, null, null, numberReceiptDetail, fileName, null, cashRegisterInfo));
                                         numberReceiptDetail++;
                                     }
                                 }

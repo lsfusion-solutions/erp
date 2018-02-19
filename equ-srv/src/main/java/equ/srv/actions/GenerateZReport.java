@@ -172,7 +172,7 @@ public class GenerateZReport extends DefaultIntegrationActionProperty {
                                                 numberZReport, date, time, receiptNumber, date, time, null, null, null, BigDecimal.ZERO,
                                                 BigDecimal.ZERO, BigDecimal.ZERO, item.barcode, null, null, null, quantityReceiptDetail,
                                                 item.price, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail,
-                                                null, null));
+                                                null, null, null));
                                         item.count = safeSubtract(item.count, quantityReceiptDetail);
                                     }
                                 }

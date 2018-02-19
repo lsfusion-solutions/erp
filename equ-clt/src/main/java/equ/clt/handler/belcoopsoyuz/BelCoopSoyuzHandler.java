@@ -698,12 +698,12 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                             case "ТОВАР":
                                 curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
                                         timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, (BigDecimal) null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
-                                        priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection));
+                                        priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection, cashRegister));
                                 break;
                             case "ТОВАР ВОЗВРАТ":
                                 curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
                                         timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, (BigDecimal) null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, HandlerUtils.safeNegate(quantityReceiptDetail),
-                                        priceReceiptDetail, HandlerUtils.safeNegate(sumReceiptDetail), discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection));
+                                        priceReceiptDetail, HandlerUtils.safeNegate(sumReceiptDetail), discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection, cashRegister));
                                 break;
                             case "ВСЕГО":
                                 for (SalesInfo salesInfo : curSalesInfoList) {

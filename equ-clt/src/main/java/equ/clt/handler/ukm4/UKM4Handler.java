@@ -330,7 +330,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                             null, null, null, operation % 2 == 1 ? quantityReceiptDetail : quantityReceiptDetail.negate(),
                             priceReceiptDetail,
                             operation % 2 == 1 ? sumReceiptDetail : sumReceiptDetail.negate(),
-                            discountSumReceiptDetail, null, discountCardNumber, numberReceiptDetail, null, null));
+                            discountSumReceiptDetail, null, discountCardNumber, numberReceiptDetail, null, null, cashRegister));
                 }
                 for (SalesInfo salesInfo : salesInfoList) {
                     salesInfo.sumCash = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[0];
