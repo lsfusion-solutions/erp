@@ -250,7 +250,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
+    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) {
 
         sendSoftCheckLogger.info("Atol: requesting succeeded SoftCheckInfo");
 

@@ -511,6 +511,91 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         }
     }
 
+    @Override
+    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) {
+        Map<String, Timestamp> result = new HashMap<>();
+        sendSalesLogger.info(logPrefix + "reading SoftCheckInfo");
+
+        List<File> files = new ArrayList<>();
+        //правильнее брать только только нужные подпапки, как в readSales, но для этого пришлось бы менять equ-api.
+        //так что пока ищем во всех подпапках + в подпапках в папке online.
+        //потенциальная проблема - левые файлы, а также файлы из папок выключенных касс
+        for (File dir : getSoftCheckDirectories(directorySet)) {
+            File[] filesList = dir.listFiles(new FileFilter() {
+                @Override
+                public boolean accept(File pathname) {
+                    return pathname.getName().startsWith("soft") && pathname.getPath().endsWith(".json");
+                }
+            });
+            if (filesList != null)
+                files.addAll(Arrays.asList(filesList));
+        }
+
+        if (files.isEmpty())
+            sendSalesLogger.info(logPrefix + "No soft check files found");
+        else {
+            sendSalesLogger.info(String.format(logPrefix + "found %s soft check file(s)", files.size()));
+
+            for (File file : files) {
+                if (!Thread.currentThread().isInterrupted()) {
+                    try {
+
+                        String fileName = file.getName();
+                        sendSalesLogger.info(logPrefix + "reading " + fileName);
+
+                        String fileContent = readFile(file.getAbsolutePath(), encoding);
+
+                        Pattern p = Pattern.compile("(?:.*)?### sales data begin ###(.*)### sales data end ###(?:.*)?");
+                        Matcher m = p.matcher(fileContent);
+                        if (m.matches()) {
+                            String[] documents = m.group(1).split("---");
+
+                            for (String document : documents) {
+
+                                JSONObject documentObject = new JSONObject(document);
+
+                                if (documentObject.getInt("docType") == 16) {
+                                    Timestamp dateTimeReceipt = new Timestamp(parseDateTime(documentObject.getString("timeEnd")));
+                                    JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
+                                    for (int i = 0; i < inventPositionsArray.length(); i++) {
+                                        JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
+                                        String invoiceNumber = inventPosition.getString("additionalbarcode");
+                                        result.put(invoiceNumber, dateTimeReceipt);
+                                    }
+                                }
+                            }
+                        }
+                        safeFileDelete(file);
+                    } catch (Throwable e) {
+                        sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    private List<File> getSoftCheckDirectories(Set<String> directorySet) {
+        List<File> directories = new ArrayList<>();
+        for(String directory : directorySet) {
+            File[] subDirectoryList = new File(directory).listFiles(new FileFilter() {
+                @Override
+                public boolean accept(File file) {
+                    return file.isDirectory();
+                }
+            });
+            if(subDirectoryList != null) {
+                for (File subDirectory : subDirectoryList) {
+                    directories.add(subDirectory);
+                    File onlineDir = new File(subDirectory.getAbsolutePath() + "/online");
+                    if(onlineDir.exists())
+                        directories.add(onlineDir);
+                }
+            }
+        }
+        return directories;
+    }
+
     /*@Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
 
@@ -727,7 +812,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 machineryExchangeLogger.info(logPrefix + "reading " + file.getName());
                 String fileContent = readFile(file.getAbsolutePath(), encoding);
 
-                Pattern p = Pattern.compile(".*### securitylog info begin ###(.*)### securitylog info end ###.*");
+                Pattern p = Pattern.compile("(?:.*)?### securitylog info begin ###(.*)### securitylog info end ###(?:.*)?");
                 Matcher m = p.matcher(fileContent);
                 if (m.matches()) {
                     String[] documents = m.group(1).split("---");
@@ -890,7 +975,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         String fileContent = readFile(file.getAbsolutePath(), encoding);
 
-                        Pattern p = Pattern.compile(".*### sales data begin ###(.*)### sales data end ###.*");
+                        Pattern p = Pattern.compile("(?:.*)?### sales data begin ###(.*)### sales data end ###(?:.*)?");
                         Matcher m = p.matcher(fileContent);
                         if (m.matches()) {
                             String[] documents = m.group(1).split("---");
@@ -1037,10 +1122,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     private void safeFileDelete(File file) {
-        sendSalesLogger.info(logPrefix + String.format("deleting file %s without sales", file.getAbsolutePath()));
+        sendSalesLogger.info(logPrefix + String.format("deleting file %s", file.getAbsolutePath()));
         if (!file.delete()) {
             file.deleteOnExit();
-            sendSalesLogger.info(logPrefix + String.format("failed to delete file %s without sales, will try to deleteOnExit", file.getAbsolutePath()));
+            sendSalesLogger.info(logPrefix + String.format("failed to delete file %s, will try to deleteOnExit", file.getAbsolutePath()));
         }
     }
 
