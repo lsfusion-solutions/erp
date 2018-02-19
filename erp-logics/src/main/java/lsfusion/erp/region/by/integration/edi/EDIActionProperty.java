@@ -5,6 +5,7 @@ import lsfusion.erp.integration.DefaultExportXMLActionProperty;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.auth.AuthScope;
@@ -85,6 +86,10 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
     }
 
     RequestResult getRequestResult(HttpResponse httpResponse, String responseMessage, String prefix) throws IOException, JDOMException {
+        return getRequestResult(httpResponse, responseMessage, null, prefix);
+    }
+
+    RequestResult getRequestResult(HttpResponse httpResponse, String responseMessage, String archiveDir, String prefix) throws IOException, JDOMException {
         RequestResult requestResult = RequestResult.OK;
         int status = httpResponse.getStatusLine().getStatusCode();
         if (status == 200) {
@@ -122,6 +127,13 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         } else {
             requestResult = RequestResult.UNKNOWN_ERROR;
             ServerLoggers.importLogger.error("RequestResult: " + httpResponse.getStatusLine());
+        }
+        if(requestResult != RequestResult.OK && archiveDir != null) {
+            try {
+                FileUtils.writeStringToFile(new File(archiveDir + "/response" + System.currentTimeMillis() + ".xml"), responseMessage);
+            } catch (Exception e) {
+                ServerLoggers.importLogger.error("Archive file error: ", e);
+            }
         }
         return requestResult;
     }

@@ -76,7 +76,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             ServerLoggers.importLogger.info(provider + " ReceiveMessages request sent");
             String responseMessage = getResponseMessage(httpResponse);
             try {
-                RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "GetDocuments");
+                RequestResult requestResult = getRequestResult(httpResponse, responseMessage, archiveDir, "GetDocuments");
                 switch (requestResult) {
                     case OK:
                         importMessages(context, url, login, password, host, port, provider, responseMessage, archiveDir, disableConfirmation, sendReplies, invoices);
@@ -140,12 +140,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                         case "ordrsp":
                                             if (!invoices)
                                                 orderResponses.put(documentId, parseOrderResponse(subXMLRootNode, context, url, login, password,
-                                                        host, port, provider, documentId, sendReplies, disableConfirmation));
+                                                        host, port, provider, archiveDir, documentId, sendReplies, disableConfirmation));
                                             break;
                                         case "desadv":
                                             if (!invoices)
                                                 despatchAdvices.put(documentId, parseDespatchAdvice(subXMLRootNode, context, url, login, password,
-                                                        host, port, provider, documentId, sendReplies, disableConfirmation));
+                                                        host, port, provider, archiveDir, documentId, sendReplies, disableConfirmation));
                                             break;
                                         case "blrwbl":
                                             if (invoices)
@@ -312,9 +312,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     String documentNumber = documentNumberError.first;
                     String error = documentNumberError.second;
                     if (error == null)
-                        confirmDocumentReceived(context, documentId, url, login, password, host, port, provider);
+                        confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir);
                     if (error != null && sendReplies)
-                        succeeded = succeeded && sendRecipientError(context, url, login, password, host, port, provider, documentId, documentNumber, error);
+                        succeeded = succeeded && sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, documentNumber, error);
                 }
 
             }
@@ -420,7 +420,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private DocumentData parseOrderResponse(Element rootNode, ExecutionContext context, String url, String login, String password, String host,
-                                            Integer port, String provider, String documentId, boolean sendReplies, boolean disableConfirmation) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+                                            Integer port, String provider, String archiveDir, String documentId, boolean sendReplies, boolean disableConfirmation)
+            throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> firstData = new ArrayList<>();
         List<List<Object>> secondData = new ArrayList<>();
 
@@ -436,8 +437,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Timestamp deliveryDateTimeSecond = parseTimestamp(rootNode.getChildText("deliveryDateTimeSecond"));
         String note = rootNode.getChildText("comment");
 
-        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider, documentId,
-                documentNumber, orderNumber, sendReplies, disableConfirmation);
+        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider,
+                archiveDir, documentId, documentNumber, orderNumber, sendReplies, disableConfirmation);
 
         for (Object line : rootNode.getChildren("line")) {
             Element lineElement = (Element) line;
@@ -645,7 +646,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private DocumentData parseDespatchAdvice(Element rootNode, ExecutionContext context, String url, String login, String password, String host,
-                                             Integer port, String provider, String documentId, boolean sendReplies, boolean disableConfirmation)
+                                             Integer port, String provider, String archiveDir, String documentId, boolean sendReplies, boolean disableConfirmation)
             throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> firstData = new ArrayList<>();
         List<List<Object>> secondData = new ArrayList<>();
@@ -662,7 +663,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         String note = nullIfEmpty(rootNode.getChildText("comment"));
 
         Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider,
-                documentId, documentNumber, orderNumber, sendReplies, disableConfirmation);
+                archiveDir, documentId, documentNumber, orderNumber, sendReplies, disableConfirmation);
 
         int i = 1;
         for (Object line : rootNode.getChildren("line")) {
@@ -1109,7 +1110,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private void confirmDocumentReceived(ExecutionContext context, String documentId, String url, String login, String password,
-                                         String host, Integer port, String provider) throws IOException, JDOMException {
+                                         String host, Integer port, String provider, String archiveDir) throws IOException, JDOMException {
 
         Element rootElement = new Element("Envelope", soapenvNamespace);
         rootElement.setNamespace(soapenvNamespace);
@@ -1138,7 +1139,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         String xml = new XMLOutputter().outputString(doc);
         HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
         ServerLoggers.importLogger.info(String.format("%s ConfirmDocumentReceived document %s: request sent", provider, documentId));
-        RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "ConfirmDocumentReceived");
+        RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), archiveDir, "ConfirmDocumentReceived");
         switch (requestResult) {
             case OK:
                 ServerLoggers.importLogger.info(String.format("%s ConfirmDocumentReceived document %s: request succeeded", provider, documentId));
@@ -1153,7 +1154,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         }
     }
 
-    protected boolean sendRecipientError(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String documentNumber, String error) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+    protected boolean sendRecipientError(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String archiveDir, String documentId, String documentNumber, String error) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         boolean succeeded = false;
         String currentDate = formatDate(new Timestamp(Calendar.getInstance().getTime().getTime()));
         String contentSubXML = getErrorSubXML(documentId, documentNumber, error);
@@ -1189,7 +1190,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         String xml = new XMLOutputter().outputString(doc);
         HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
         ServerLoggers.importLogger.info(String.format("%s RecipientError %s request sent", provider, documentId));
-        RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
+        RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), archiveDir, "SendDocument");
         switch (requestResult) {
             case OK:
                 succeeded = true;
@@ -1223,13 +1224,13 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private Map<String, String> getOrderBarcodesMap(ExecutionContext context, String url, String login, String password, String host, Integer port,
-                                                    String provider, String documentId, String documentNumber, String orderNumber,
+                                                    String provider, String archiveDir, String documentId, String documentNumber, String orderNumber,
                                                     boolean sendReplies, boolean disableConfirmation)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         Map<String, String> orderBarcodesMap = new HashMap<>();
         if (orderNumber != null) {
             if (findProperty("eOrder[VARSTRING[28]]").read(context, new DataObject(orderNumber)) == null && sendReplies && !disableConfirmation) {
-                sendRecipientError(context, url, login, password, host, port, provider, documentId, documentNumber, String.format("Заказ %s не найден)", orderNumber));
+                sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, documentNumber, String.format("Заказ %s не найден)", orderNumber));
             }
 
             KeyExpr orderDetailExpr = new KeyExpr("EOrderDetail");
