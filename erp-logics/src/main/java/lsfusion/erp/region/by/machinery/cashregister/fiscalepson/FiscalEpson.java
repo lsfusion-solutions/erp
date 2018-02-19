@@ -3,6 +3,10 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalepson;
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
+import org.apache.log4j.EnhancedPatternLayout;
+import org.apache.log4j.FileAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -14,6 +18,20 @@ public class FiscalEpson {
 
     static ActiveXComponent epsonActiveXComponent;
     static Dispatch epsonDispatch;
+
+    static Logger logger;
+    static {
+        try {
+            logger = Logger.getLogger("cashRegisterLog");
+            logger.setLevel(Level.INFO);
+            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
+                    "logs/cashregister.log");
+            logger.removeAllAppenders();
+            logger.addAppender(fileAppender);
+
+        } catch (Exception ignored) {
+        }
+    }
 
     static void init() {
         try {
@@ -54,7 +72,10 @@ public class FiscalEpson {
     }
 
     public static void closeReceipt() {
+        //временные логи, чтобы убедиться, что тормозит именно CloseReceipt
+        logger.info("Epson CloseReceipt started");
         Dispatch.call(epsonDispatch, "CloseReceipt");
+        logger.info("Epson CloseReceipt finished");
         checkErrors(true);
     }
 
