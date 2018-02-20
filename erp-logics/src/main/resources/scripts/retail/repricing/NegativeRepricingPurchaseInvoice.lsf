@@ -164,12 +164,16 @@ edit(InvoiceRepricingN repricing) += { edit(invoice(repricing)); }
 showRepricingN(UserInvoice i) = createPricing(i) AND showNegativeMarkup(operation(i));
 backgroundAfter 'Цвет' (UserInvoice o) = RGB(255, 255, 200) IF o IS UserInvoice;
 
+overCreateAfterRetailPrice = ABSTRACT (UserInvoice);
+
+needRepricing = DATA LOCAL BOOLEAN (UserInvoiceDetail);
+
 createAfterRetailPrice 'Проверить отриц. ТН' (UserInvoice i) = {
-    LOCAL in = BOOLEAN (UserInvoiceDetail);
     afterRetailPrice(UserInvoiceDetail d) <- retailPrice(d) WHERE userInvoice(d) == i AND retailMarkup(d) <0.0;
-    in(UserInvoiceDetail d) <- TRUE WHERE userInvoice(d) == i AND retailMarkup(d) <0.0;    
-    retailMarkup(UserInvoiceDetail d) <- 0.0 WHERE in(d);  
-    retailPrice(UserInvoiceDetail d) <- calcRetailPrice(d) WHERE in(d);    
+    needRepricing(UserInvoiceDetail d) <- TRUE WHERE userInvoice(d) == i AND retailMarkup(d) <0.0;    
+    retailMarkup(UserInvoiceDetail d) <- 0.0 WHERE needRepricing(d);  
+    retailPrice(UserInvoiceDetail d) <- calcRetailPrice(d) WHERE needRepricing(d);    
+    overCreateAfterRetailPrice(i);
 } 
 afterPrice 'Цена поставщика после'(UserInvoiceDetail d) = pricingPrice(d) IF afterRetailPrice(d);
 afterSum 'Сумма поставщика после'(UserInvoiceDetail d) = pricingSum(d) IF afterRetailPrice(d);
