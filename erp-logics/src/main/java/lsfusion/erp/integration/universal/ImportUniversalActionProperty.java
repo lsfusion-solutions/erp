@@ -509,8 +509,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             String result;
             switch (hssfCell.getCellType()) {
                 case Cell.CELL_TYPE_NUMERIC:
-                    result = decimalFormat.format(hssfCell.getNumericCellValue());
-                    result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
+                    if(importColumnDetail.isBoolean) {
+                        result = parseBoolean(hssfCell.getNumericCellValue());
+                    } else {
+                        result = decimalFormat.format(hssfCell.getNumericCellValue());
+                        result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
+                    }
                     break;
                 case Cell.CELL_TYPE_FORMULA:
                     formulaEvaluator.evaluate(hssfCell);
@@ -523,6 +527,9 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             break;
                     }
                     result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
+                    break;
+                case Cell.CELL_TYPE_BOOLEAN:
+                    result = hssfCell.getBooleanCellValue() ? "true" : null;
                     break;
                 case Cell.CELL_TYPE_STRING:
                 default:
