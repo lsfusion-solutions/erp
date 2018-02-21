@@ -680,3 +680,16 @@ EXTEND FORM writeOffs
     PROPERTIES show(w) SHOWIF showToShow(w) BEFORE editW
 ;
 
+firstOrderBatchBalance (Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q) = GROUP LAST Batch batch IF prevAvailableQuantity(batch, Stock stock, DATETIME dateTime) >= NUMERIC[16,5] q
+                                                   BY skuLedger(batch, stock), stock, dateTime, q
+                                                   ORDER DESC dateTime(batch), batch COMPLEX;
+
+
+fillBatch 'Проставить партию'(UserWriteOffDetail d)  = {    
+    batch(d) <- firstOrderBatchBalance(sku(d), stock(d), dateTime(d), quantity(d)); 
+} ASON CONTEXTMENU nameBatch[UserWriteOffDetail];
+
+fillAllBatch 'Проставить партии для всех'(UserWriteOffDetail detail) = {
+   FOR userWriteOff(detail) == userWriteOff(UserWriteOffDetail d) AND NOT batch(d) DO
+       fillBatch(d);
+} ASON CONTEXTMENU nameBatch[UserWriteOffDetail];
