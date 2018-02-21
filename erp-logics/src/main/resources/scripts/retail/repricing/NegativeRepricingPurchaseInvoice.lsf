@@ -65,8 +65,8 @@ operation (InvoiceRepricingN repricing)+= repricingOperation(invoice(repricing))
  @defineDocumentAggregationStockPrefix(invoice, InvoiceRepricingN, customer, 'Склад', , );
 departmentStore(InvoiceRepricingN repricing) += customerStock(repricing) AS DepartmentStore;
 
-@defineDocumentAggregationHeaderPosted(invoice, invoiceRepricingN);
-@defineDocumentAggregationDetailPosted(invoice, invoiceRepricingN);
+isPosted 'Проведен' (InvoiceRepricingN o) = isPosted(invoice(o)) AND createShipment(invoice(o));
+isPosted 'Проведен' (InvoiceRepricingNDetail o) = isPosted(invoiceDetail(o)) AND createShipment(invoiceDetail(o));
 
 isPosted(InvoiceRepricingN repricing) += isPosted(repricing);
 @defineDocumentAggregationHeaderClosed(invoice, invoiceRepricingN);
@@ -164,8 +164,6 @@ edit(InvoiceRepricingN repricing) += { edit(invoice(repricing)); }
 showRepricingN(UserInvoice i) = createPricing(i) AND showNegativeMarkup(operation(i));
 backgroundAfter 'Цвет' (UserInvoice o) = RGB(255, 255, 200) IF o IS UserInvoice;
 
-overCreateAfterRetailPrice = ABSTRACT (UserInvoice);
-
 needRepricing = DATA LOCAL BOOLEAN (UserInvoiceDetail);
 
 createAfterRetailPrice 'Проверить отриц. ТН' (UserInvoice i) = {
@@ -173,7 +171,6 @@ createAfterRetailPrice 'Проверить отриц. ТН' (UserInvoice i) = {
     needRepricing(UserInvoiceDetail d) <- TRUE WHERE userInvoice(d) == i AND retailMarkup(d) <0.0;    
     retailMarkup(UserInvoiceDetail d) <- 0.0 WHERE needRepricing(d);  
     retailPrice(UserInvoiceDetail d) <- calcRetailPrice(d) WHERE needRepricing(d);    
-    overCreateAfterRetailPrice(i);
 } 
 afterPrice 'Цена поставщика после'(UserInvoiceDetail d) = pricingPrice(d) IF afterRetailPrice(d);
 afterSum 'Сумма поставщика после'(UserInvoiceDetail d) = pricingSum(d) IF afterRetailPrice(d);
