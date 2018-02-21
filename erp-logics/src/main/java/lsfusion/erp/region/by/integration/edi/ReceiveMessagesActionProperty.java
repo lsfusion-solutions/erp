@@ -887,7 +887,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String lineItemBuyerID = lineElement.getChildText("LineItemBuyerID");
             String lineItemName = lineElement.getChildText("LineItemName");
 
-            String id = supplierGLN + "/" + documentNumber;
+            String id = supplierGLN + "/" + deliveryNoteNumber;
             String idDetail = id + "/" + lineItemNumber;
             BigDecimal quantityDespatched = parseBigDecimal(lineElement.getChildText("QuantityDespatched"));
             BigDecimal valueVAT = parseBigDecimal(lineElement.getChildText("TaxRate"));
