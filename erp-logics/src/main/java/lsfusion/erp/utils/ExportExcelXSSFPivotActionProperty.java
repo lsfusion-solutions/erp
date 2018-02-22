@@ -22,6 +22,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+//Ждём новых версий apache.poi, так как в 3.17 для сводных таблиц нет возможности задания формата ячеек, ширины колонок, имён колонок и столбцов.
+
 // Syntax:
 // xxx=yyy[zzz]~n/m-
 // xxx is formula 
