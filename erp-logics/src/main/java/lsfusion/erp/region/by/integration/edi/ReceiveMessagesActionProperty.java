@@ -1041,9 +1041,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
                 String invoiceNumber = referenceDocumentElement.getChildText("ID");
                 if (type.equals("BLRAPN"))
-                    invoiceNumber = (String) findProperty("numberEInvoiceBlrapn[VARSTRING[14]]").read(context, new DataObject(invoiceNumber));
+                    invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrapn[VARSTRING[28]]").read(context, new DataObject(invoiceNumber));
                 else if (type.equals("BLRWBR"))
-                    invoiceNumber = (String) findProperty("numberEInvoiceBlrwbr[VARSTRING[14]]").read(context, new DataObject(invoiceNumber));
+                    invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrwbr[VARSTRING[28]]").read(context, new DataObject(invoiceNumber));
 
                 Element errorOrAcknowledgementElement = acknowledgementElement.getChild("ErrorOrAcknowledgement");
                 if (errorOrAcknowledgementElement != null) {
@@ -1084,14 +1084,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(descriptionEInvoiceMessageField, findProperty("description[EInvoiceMessage]").getMapping(eInvoiceMessageKey)));
             fields.add(descriptionEInvoiceMessageField);
 
-            ImportField numberEInvoiceField = new ImportField(findProperty("number[EInvoice]"));
+            ImportField deliveryNoteNumberField = new ImportField(findProperty("deliveryNoteNumber[EInvoice]"));
             ImportKey<?> eInvoiceKey = new ImportKey((CustomClass) findClass("EInvoice"),
-                    findProperty("eInvoiceNumber[VARSTRING[28]]").getMapping(numberEInvoiceField));
+                    findProperty("eInvoiceDeliveryNoteNumber[VARSTRING[28]]").getMapping(deliveryNoteNumberField));
             eInvoiceKey.skipKey = true;
             keys.add(eInvoiceKey);
-            props.add(new ImportProperty(numberEInvoiceField, findProperty("eInvoice[EInvoiceMessage]").getMapping(eInvoiceMessageKey),
+            props.add(new ImportProperty(deliveryNoteNumberField, findProperty("eInvoice[EInvoiceMessage]").getMapping(eInvoiceMessageKey),
                     object(findClass("EInvoice")).getMapping(eInvoiceKey)));
-            fields.add(numberEInvoiceField);
+            fields.add(deliveryNoteNumberField);
 
             ImportTable table = new ImportTable(fields, importData);
 
