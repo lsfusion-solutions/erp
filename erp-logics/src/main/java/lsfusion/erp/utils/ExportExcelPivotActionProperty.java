@@ -158,7 +158,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
 
                     String fieldValue = null;
                     for (PropertyDrawView property : properties) {
-                        if (property.getSID().equals(field)) {
+                        if (property.getPropertyFormName().equals(field)) {
                             fieldValue = property.getCaption().toString();
                             break;
                         }
