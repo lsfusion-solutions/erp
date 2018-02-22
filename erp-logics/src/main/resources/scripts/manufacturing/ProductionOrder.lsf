@@ -235,7 +235,11 @@ CLASS ComponentDetail 'Строка компонента';
 TABLE componentDetail (ComponentDetail);
 TABLE sessionComponentDetail (Session, ComponentDetail);
 
-@defineDocumentRelation (order, ComponentDetail, );
+order = DATA Order (ComponentDetail) NONULL DELETE AGGR;
+
+countComponentDetail 'Кол-во строк' (o) =
+    GROUP SUM 1 BY order(ComponentDetail d) MATERIALIZED IN documentSum;
+
 @defineDocumentDetailIndex (order, ComponentDetail);
 @defineDocumentDetailActionsCustom (order, ComponentDetail);
 @defineDocumentDetailPosted (order, ComponentDetail);
@@ -370,8 +374,10 @@ TABLE BOMOrder(BOM, Order);
 quantityProducts 'Кол-во спецификаций' (BOM BOM, Order order) = [= GROUP MAX NUMERIC[19,8](quantity(Product product, Order order)) / quantity(product)
     BY BOM(product), order](BOM, order) MATERIALIZED;
     
-BOM= DATA BOM (ComponentDetail);
+BOM = DATA BOM (ComponentDetail);
 INDEX BOM(ComponentDetail cd), order(cd);
+INDEX order(ComponentDetail d), BOM(d);
+
 nameBOM 'Спецификация' = name(BOM(ComponentDetail d));    
 fullNameBOM 'Спецификация (полное название)' = fullName(BOM(ComponentDetail d));    
 
