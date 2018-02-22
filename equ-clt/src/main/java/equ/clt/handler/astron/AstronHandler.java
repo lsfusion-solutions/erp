@@ -25,6 +25,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
 
+    private static String logPrefix = "Astron: ";
+
     private FileSystemXmlApplicationContext springContext;
 
     public AstronHandler(FileSystemXmlApplicationContext springContext) {
@@ -72,31 +74,31 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 Exception exception = null;
                                 try {
                                     if (transaction.itemsList != null) {
-                                        processTransactionLogger.info(String.format("astron: transaction %s, table grp", transaction.id));
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table grp", transaction.id));
                                         exportGrp(conn, transaction);
 
-                                        processTransactionLogger.info(String.format("astron: transaction %s, table art", transaction.id));
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table art", transaction.id));
                                         exportArt(conn, transaction);
 
-                                        processTransactionLogger.info(String.format("astron: transaction %s, table unit", transaction.id));
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table unit", transaction.id));
                                         exportUnit(conn, transaction);
 
-                                        processTransactionLogger.info(String.format("astron: transaction %s, table pack", transaction.id));
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table pack", transaction.id));
                                         exportPack(conn, transaction);
 
-                                        processTransactionLogger.info(String.format("astron: transaction %s, table exbarc", transaction.id));
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table exbarc", transaction.id));
                                         exportExBarc(conn, transaction);
 
-                                        processTransactionLogger.info(String.format("astron: transaction %s, table packprc", transaction.id));
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table packprc", transaction.id));
                                         exportPackPrc(conn, transaction);
                                     }
                                 } catch (Exception e) {
-                                    processTransactionLogger.error("Astron: ", e);
+                                    processTransactionLogger.error(logPrefix, e);
                                     exception = e;
                                 }
                                 sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                             }
-                            processTransactionLogger.info("astron: waiting for processing transactions");
+                            processTransactionLogger.info(logPrefix + "waiting for processing transactions");
                             exportFlags(conn, "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'");
                             Throwable waitResult = waitFlags(conn, timeout);
                             if (waitResult != null) {
@@ -328,18 +330,23 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (!Thread.currentThread().isInterrupted()) {
                     CashRegisterItemInfo item = transaction.itemsList.get(i);
-                    Integer packId = getPackId(item);
-                    setObject(ps, packId, 1, offset); //PACKID
-                    setObject(ps, transaction.nppGroupMachinery, 2, offset); //PRCLEVELID
-                    setObject(ps, HandlerUtils.safeMultiply(item.price, 100), 3, offset); //PACKPRICE
-                    setObject(ps, item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO, 4, offset); //PACKMINPRICE
-                    setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
-                    setObject(ps, "0", 6, offset); //DELFLAG
+                    if (item.price != null) {
+                        Integer packId = getPackId(item);
+                        setObject(ps, packId, 1, offset); //PACKID
+                        setObject(ps, transaction.nppGroupMachinery, 2, offset); //PRCLEVELID
+                        BigDecimal packPrice = item.price != null && item.price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(item.price, 100);
+                        setObject(ps, packPrice, 3, offset); //PACKPRICE
+                        setObject(ps, item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO, 4, offset); //PACKMINPRICE
+                        setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
+                        setObject(ps, "0", 6, offset); //DELFLAG
 
-                    setObject(ps, packId, 7); //PACKID
-                    setObject(ps, transaction.nppGroupMachinery, 8); //PRCLEVELID
+                        setObject(ps, packId, 7); //PACKID
+                        setObject(ps, transaction.nppGroupMachinery, 8); //PRCLEVELID
 
-                    ps.addBatch();
+                        ps.addBatch();
+                    } else {
+                        processTransactionLogger.error(logPrefix + String.format("transaction %s, table packprc, item %s without price", transaction.id, item.idItem));
+                    }
                 } else break;
             }
             ps.executeBatch();
@@ -450,7 +457,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             try {
                 conn = getConnection(connectionString, user, password);
 
-                processStopListLogger.info("astron: executing stopLists, table packprc");
+                processStopListLogger.info(logPrefix + "executing stopLists, table packprc");
                 ps = conn.prepareStatement(String.format("UPDATE [PACKPRC] SET DELFLAG = %s WHERE PACKID=? AND PRCLEVELID=?", stopListInfo.exclude ? "0" : "1"));
                 for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                     for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
@@ -464,18 +471,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 ps.executeBatch();
                 conn.commit();
 
-                processTransactionLogger.info("astron: waiting for processing stopLists");
+                processTransactionLogger.info(logPrefix + "waiting for processing stopLists");
                 exportFlags(conn, "'ART'");
 
             } catch (Exception e) {
-                processStopListLogger.error("astron:", e);
+                processStopListLogger.error(logPrefix, e);
                 e.printStackTrace();
             } finally {
                 try {
                     closeStatement(ps);
                     closeConnection(conn);
                 } catch (SQLException e) {
-                    processStopListLogger.error("astron:", e);
+                    processStopListLogger.error(logPrefix, e);
                 }
             }
         }
@@ -610,7 +617,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             salesInfoList.addAll(curSalesInfoList);
 
             if (salesInfoList.size() > 0)
-                sendSalesLogger.info(String.format("Astron: found %s records", salesInfoList.size()));
+                sendSalesLogger.info(logPrefix + String.format("found %s records", salesInfoList.size()));
         } catch (SQLException | ParseException e) {
             throw Throwables.propagate(e);
         } finally {
