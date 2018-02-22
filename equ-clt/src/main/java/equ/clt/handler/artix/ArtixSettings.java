@@ -8,6 +8,7 @@ public class ArtixSettings implements Serializable{
     private boolean appendBarcode;
     private String giftCardRegexp;
     private boolean disableCopyToSuccess;
+    private boolean readCashDocuments;
 
     public ArtixSettings() {
     }
@@ -42,5 +43,13 @@ public class ArtixSettings implements Serializable{
 
     public void setDisableCopyToSuccess(boolean disableCopyToSuccess) {
         this.disableCopyToSuccess = disableCopyToSuccess;
+    }
+
+    public boolean isReadCashDocuments() {
+        return readCashDocuments;
+    }
+
+    public void setReadCashDocuments(boolean readCashDocuments) {
+        this.readCashDocuments = readCashDocuments;
     }
 }
