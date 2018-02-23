@@ -76,6 +76,7 @@ nameSku 'Товар' (PromotionDetail detail) = name(sku(detail));
 TABLE promotionDetailLegalEntity (PromotionDetail, LegalEntity);
 countStocks 'Количество складов компании' = DATA INTEGER (PromotionDetail, LegalEntity);
 nameSuppliers 'Поставщики' = GROUP CONCAT name(LegalEntity company) IF countStocks(PromotionDetail detail, company), ', ' BY detail  CHARWIDTH 30;
+in (Promotion p, LegalEntity c) = TRUE IF [= GROUP SUM countStocks(PromotionDetail detail, LegalEntity company) BY promotion(detail), company](p,c);
 
 CLASS Flyer 'Листовка';
 TABLE flyer (Flyer);
@@ -314,7 +315,11 @@ DESIGN promotions {
         fill = 1;
         type = SPLITV;
         MOVE BOX(p);
-        MOVE BOX(d);
+        NEW detailContainer {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(d);
+        }
     }
 }
 
@@ -417,5 +422,94 @@ NAVIGATOR {
     priceListDocuments {
         NEW promotions;
         NEW promotionsStock;
+    }
+}
+
+//-------------------Создание прайсов------------------
+
+TABLE promotionUserPriceList(Promotion, UserPriceList);
+in = DATA BOOLEAN (Promotion, UserPriceList);
+
+
+// Операция по умолчанию для поставщиков
+defaultSupplierOperation = DATA PriceList.Operation();
+nameDefaultSupplierOperation 'Операция для поставщиков по умолчанию' = name(defaultSupplierOperation());
+EXTEND FORM options
+    PROPERTIES() nameDefaultSupplierOperation
+;
+DESIGN options {
+    price {
+        MOVE PROPERTY(nameDefaultSupplierOperation());
+    }
+}
+
+createPriceList 'Создать прайсы' (Promotion p) = { 
+    NEWSESSION {
+        NEW priceList = UserPriceList {
+            fromDate(priceList) <- fromDate(p);
+            toDate(priceList) <- toDate(p);
+            operation(priceList) <- [= GROUP LAST PriceList.Operation o IF isPromotion(o)]();
+            company(priceList) <- dataLegalEntity(operation(priceList));
+            currency(priceList) <- defaultCurrency(operation(priceList));
+            note(priceList) <- name(p);
+            
+            IF NOT doNotSetStocksUserPriceList(operation(priceList)) AND NOT skipSetStocks(priceList) THEN {
+                allStocks(priceList) <- allStocks(operation(priceList));
+                dataIn(priceList, StockGroup stockGroup) <- dataIn(stockGroup, operation(priceList));
+                dataIn(priceList, Stock stock) <- dataIn(stock, operation(priceList));
+            }
+            
+            in(priceList, DataPriceListType type) <- change(type, operation(priceList));
+            show(priceList, DataPriceListType type) <- show(type, operation(priceList));
+            
+            FOR promotion(PromotionDetail pd) == p NEW detail = UserPriceListDetail DO {
+                priceList(detail) <- priceList;
+                sku(detail) <- sku(pd);
+                price(detail, DataPriceListType type) <- proposedPromotionPrice(pd) WHERE in(priceList, type);
+            }
+            in(p,priceList) <- TRUE;
+        }
+        
+        FOR in(p, LegalEntity company) NEW priceList = UserPriceList DO {
+            fromDate(priceList) <- fromDate(p);
+            toDate(priceList) <- toDate(p);
+            operation(priceList) <- defaultSupplierOperation();
+            company(priceList) <- company;
+            currency(priceList) <- defaultCurrency(operation(priceList));
+            note(priceList) <- name(p);
+            
+            IF NOT doNotSetStocksUserPriceList(operation(priceList)) AND NOT skipSetStocks(priceList) THEN {
+                allStocks(priceList) <- allStocks(operation(priceList));
+                dataIn(priceList, StockGroup stockGroup) <- dataIn(stockGroup, operation(priceList));
+                dataIn(priceList, Stock stock) <- dataIn(stock, operation(priceList));
+            }
+            
+            in(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
+            show(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
+            
+            FOR promotion(PromotionDetail pd) == p AND countStocks(pd,company) NEW detail = UserPriceListDetail DO {
+                priceList(detail) <- priceList;
+                sku(detail) <- sku(pd);
+                price(detail, DataPriceListType type) <- promotionPrice(pd) WHERE in(priceList, type);
+            }
+            in(p,priceList) <- TRUE;
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM promotions
+    PROPERTIES(p) createPriceList TOOLBAR
+    
+    OBJECTS pl = UserPriceList
+    PROPERTIES(pl) READONLY isPosted, number, series, date, time, fromDate, fromTime, toDate, toTime, countPriceListDetail,
+                            nameOperation, nameCurrency, nameCompany, nameCompanyStock, priceListTypes, stocks, note
+    PROPERTIES(pl) NEWSESSION EDIT, DELETE
+    FILTERS in(p,pl)
+;
+
+DESIGN promotions {
+    detailContainer {
+        MOVE BOX(pl);
     }
 }
