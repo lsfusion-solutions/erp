@@ -119,6 +119,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                             //barcodes
                             writeStringToFile(tmpFile, "{\"command\": \"clearBarcode\"}\n---\n");
+
+                            //искуственный товар для мягких чеков
+                            writeStringToFile(tmpFile, getAddInventItemSoftJSON() + "\n---\n");
                         }
 
                         //items
@@ -254,6 +257,16 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             rootObject.put("command", "addInventItem");
             return rootObject.toString();
         } else return null;
+    }
+
+    private String getAddInventItemSoftJSON() throws JSONException {
+        JSONObject rootObject = new JSONObject();
+        JSONObject inventObject = new JSONObject();
+        rootObject.put("invent", inventObject);
+        inventObject.put("inventcode", "9999"); //код товара
+        inventObject.put("barcode", "9999"); //основной штрих-код
+        rootObject.put("command", "addInventItem");
+        return rootObject.toString();
     }
 
     private String getAddInventGroupJSON(ItemGroup itemGroup) throws JSONException {
