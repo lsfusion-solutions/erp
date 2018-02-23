@@ -351,7 +351,7 @@ public class MachineryExchangeEquipmentServer {
         return discountCardList;
     }
 
-    public static List<CashierInfo> readCashierInfoList(DBManager dbManager) throws RemoteException, SQLException {
+    public static List<CashierInfo> readCashierInfoList(DBManager dbManager) throws SQLException {
         List<CashierInfo> cashierInfoList = new ArrayList<>();
         if(equLM != null) {
             try (DataSession session = dbManager.createSession()) {
@@ -368,6 +368,7 @@ public class MachineryExchangeEquipmentServer {
                 employeeQuery.and(equLM.findProperty("idStock[Employee]").getExpr(employeeExpr).getWhere());
                 employeeQuery.and(equLM.findProperty("id[Employee]").getExpr(employeeExpr).getWhere());
                 employeeQuery.and(equLM.findProperty("shortName[Contact]").getExpr(employeeExpr).getWhere());
+                employeeQuery.and(equLM.findProperty("active[Employee]").getExpr(employeeExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> employeeResult = employeeQuery.execute(session);
 
