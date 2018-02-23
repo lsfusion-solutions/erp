@@ -1515,7 +1515,7 @@ FORM snapshot 'Аналитический отчет'
     PROPERTIES() nameFilterSnapshotSupplier ON CHANGE changeFilterSnapshotSupplier()
     
     OBJECTS           sts=(st=Stock, s=Sku)
-    PROPERTIES        READONLY name(s), idBarcode(s), id(s) SHOWIF showIDs(), name(st), nameSupplierLastOrderBatch(s, st)
+    PROPERTIES        READONLY name(s), idBarcode(s), id(s) SHOWIF showIDs(), nameLegalEntity(st), name(st), nameSupplierLastOrderBatch(s, st)
     FILTERGROUP inactiveStockst FILTER 'Активный' active(st) 'ctrl F10' DEFAULT
     ORDER          name(s)
         
@@ -1555,7 +1555,7 @@ FORM snapshot 'Аналитический отчет'
 //--batch
     PROPERTIES()      nameB = nameFilterSnapshotSupplier ON CHANGE changeFilterSnapshotSupplier()
     OBJECTS           stb=(ss=Stock, bt=Batch) GRID
-    PROPERTIES        READONLY SHOWIF isBatch(r) nameSku(bt), idBarcodeSku(bt), name(ss), name(bt), nameSupplier(bt), nameSupplierStock(bt) 
+    PROPERTIES        READONLY SHOWIF isBatch(r) nameSku(bt), idBarcodeSku(bt), nameLegalEntity(ss), name(ss), name(bt), nameSupplier(bt), nameSupplierStock(bt) 
     ORDER          nameSku(bt)
     FILTERS           isParent(sk, bt),
                       ss == ts AND sg IS StockGroup OR isParent(sg, ss) AND NOT ts OR ss IS Stock AND NOT sg AND NOT ts,
@@ -1738,7 +1738,7 @@ FORM snapshot 'Аналитический отчет'
 //-- По SKU на дату         
            
     OBJECTS           sts3=(st3=Stock, s3=Sku, d3=DATE) GRID 
-    PROPERTIES        READONLY SHOWIF isDate(r) valD3 =VALUE(d3), name(s3), idBarcode(s3), name(st3) 
+    PROPERTIES        READONLY SHOWIF isDate(r) valD3 =VALUE(d3), name(s3), idBarcode(s3), nameLegalEntity(st3), name(st3) 
     
     ORDER          valD3     
     FILTERS           filterMove(r,d3)
@@ -1949,9 +1949,13 @@ DESIGN snapshot {
                                     MOVE PANEL(sts) FIRST{
                                         caption = 'Фильтр';
                                         MOVE PROPERTY (nameFilterSnapshotSupplier());
-                                    }                           
+                                    }
+                                    PROPERTY (name(st)) { caption = 'Наименование Склада'; }
                                 }
-                                MOVE BOX(sts3) {caption = 'В динамике';}
+                                MOVE BOX(sts3) {
+                                    caption = 'В динамике';
+                                    PROPERTY (name(st3)) { caption = 'Наименование Склада'; }
+                                }
                             }    
                             MOVE BOX(stb) {caption = 'Партии'; 
                                 MOVE PANEL(stb) FIRST{
@@ -1959,6 +1963,7 @@ DESIGN snapshot {
                                     MOVE PROPERTY (nameB);
                                 }                                
                                 PROPERTY(date(bt)) { caption = 'Дата прихода'; }
+                                PROPERTY (name(ss)) { caption = 'Наименование Склада'; }
                             }                                                  
                         }   
                     }
