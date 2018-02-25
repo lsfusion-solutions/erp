@@ -427,13 +427,11 @@ NAVIGATOR {
 
 //-------------------Создание прайсов------------------
 
-TABLE promotionUserPriceList(Promotion, UserPriceList);
-in = DATA BOOLEAN (Promotion, UserPriceList);
-
+promotion = DATA Promotion (UserPriceList);
 
 // Операция по умолчанию для поставщиков
 defaultSupplierOperation = DATA PriceList.Operation();
-nameDefaultSupplierOperation 'Операция для поставщиков по умолчанию' = name(defaultSupplierOperation());
+nameDefaultSupplierOperation 'Операция для протокола согласования цен по акции' = name(defaultSupplierOperation());
 EXTEND FORM options
     PROPERTIES() nameDefaultSupplierOperation
 ;
@@ -446,7 +444,9 @@ DESIGN options {
 createPriceList 'Создать прайсы' (Promotion p) = { 
     NEWSESSION {
         NEW priceList = UserPriceList {
+            isPosted(priceList) <- TRUE;
             fromDate(priceList) <- fromDate(p);
+            fromTime(priceList) <- 00:00;
             toDate(priceList) <- toDate(p);
             operation(priceList) <- [= GROUP LAST PriceList.Operation o IF isPromotion(o)]();
             company(priceList) <- dataLegalEntity(operation(priceList));
@@ -467,7 +467,7 @@ createPriceList 'Создать прайсы' (Promotion p) = {
                 sku(detail) <- sku(pd);
                 price(detail, DataPriceListType type) <- proposedPromotionPrice(pd) WHERE in(priceList, type);
             }
-            in(p,priceList) <- TRUE;
+            promotion(priceList) <- p;
         }
         
         FOR in(p, LegalEntity company) NEW priceList = UserPriceList DO {
@@ -478,11 +478,7 @@ createPriceList 'Создать прайсы' (Promotion p) = {
             currency(priceList) <- defaultCurrency(operation(priceList));
             note(priceList) <- name(p);
             
-            IF NOT doNotSetStocksUserPriceList(operation(priceList)) AND NOT skipSetStocks(priceList) THEN {
-                allStocks(priceList) <- allStocks(operation(priceList));
-                dataIn(priceList, StockGroup stockGroup) <- dataIn(stockGroup, operation(priceList));
-                dataIn(priceList, Stock stock) <- dataIn(stock, operation(priceList));
-            }
+            dataIn(priceList, Stock stock) <- TRUE IF [= GROUP SUM 1 IF priceA(defaultPriceListType(), sku(PromotionDetail d), Stock stock, LegalEntity company, DATETIME dateTime) BY promotion(d), stock, company, dateTime](p, stock, company, dateTimeToDateTime(fromDate(p), 00:00)) ;
             
             in(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
             show(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
@@ -492,7 +488,7 @@ createPriceList 'Создать прайсы' (Promotion p) = {
                 sku(detail) <- sku(pd);
                 price(detail, DataPriceListType type) <- promotionPrice(pd) WHERE in(priceList, type);
             }
-            in(p,priceList) <- TRUE;
+            promotion(priceList) <- p;
         }
         APPLY;
     }
@@ -505,7 +501,7 @@ EXTEND FORM promotions
     PROPERTIES(pl) READONLY isPosted, number, series, date, time, fromDate, fromTime, toDate, toTime, countPriceListDetail,
                             nameOperation, nameCurrency, nameCompany, nameCompanyStock, priceListTypes, stocks, note
     PROPERTIES(pl) NEWSESSION EDIT, DELETE
-    FILTERS in(p,pl)
+    FILTERS promotion(pl) == p
 ;
 
 DESIGN promotions {
