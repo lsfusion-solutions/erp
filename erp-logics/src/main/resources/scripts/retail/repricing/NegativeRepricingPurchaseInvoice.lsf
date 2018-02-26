@@ -166,11 +166,18 @@ backgroundAfter 'Цвет' (UserInvoice o) = RGB(255, 255, 200) IF o IS UserInvo
 
 needRepricing = DATA LOCAL BOOLEAN (UserInvoiceDetail);
 
+roundConditionMax = GROUP MAX RoundCondition c BY name(c), currency(c);
+
+calcRetailPriceUp(UserInvoiceDetail d)  = round(NUMERIC[16,4]([= X*(Y+100)*(Z+100)/10000](
+    pricingPrice(d),
+    retailMarkup(d),
+    valueRetailVAT(d))), (OVERRIDE roundConditionMax('До копеек (вверх)',currency(d)), roundCondition(d)));
+
 createAfterRetailPrice 'Проверить отриц. ТН' (UserInvoice i) = {
     afterRetailPrice(UserInvoiceDetail d) <- retailPrice(d) WHERE userInvoice(d) == i AND retailMarkup(d) <0.0;
     needRepricing(UserInvoiceDetail d) <- TRUE WHERE userInvoice(d) == i AND retailMarkup(d) <0.0;    
     retailMarkup(UserInvoiceDetail d) <- 0.0 WHERE needRepricing(d);  
-    retailPrice(UserInvoiceDetail d) <- calcRetailPrice(d) WHERE needRepricing(d);    
+    retailPrice(UserInvoiceDetail d) <- calcRetailPriceUp(d) WHERE needRepricing(d);    
 } 
 afterPrice 'Цена поставщика после'(UserInvoiceDetail d) = pricingPrice(d) IF afterRetailPrice(d);
 afterSum 'Сумма поставщика после'(UserInvoiceDetail d) = pricingSum(d) IF afterRetailPrice(d);
