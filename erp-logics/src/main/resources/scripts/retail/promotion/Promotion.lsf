@@ -65,7 +65,7 @@ nameOverExtraPromotionType 'Тип подакции' (PromotionDetail detail) = 
 
 sku 'Товар' = DATA Sku (PromotionDetail);
 
-idBarcode 'Штрихкод' (PromotionDetail detail) = idBarcode(sku(detail));
+idBarcodeSku 'Штрихкод' (PromotionDetail detail) = idBarcode(sku(detail));
 nameSkuGroup2 'Категория' (PromotionDetail detail) = nameSkuGroup2(sku(detail));
 nameSkuGroup3 'Направление' (PromotionDetail detail) = nameSkuGroup3(sku(detail));
 nameSkuGroup4 'Группа' (PromotionDetail detail) = nameSkuGroup4(sku(detail));
@@ -77,6 +77,10 @@ TABLE promotionDetailLegalEntity (PromotionDetail, LegalEntity);
 countStocks 'Количество складов компании' = DATA INTEGER (PromotionDetail, LegalEntity);
 nameSuppliers 'Поставщики' = GROUP CONCAT name(LegalEntity company) IF countStocks(PromotionDetail detail, company), ', ' BY detail  CHARWIDTH 30;
 in (Promotion p, LegalEntity c) = TRUE IF [= GROUP SUM countStocks(PromotionDetail detail, LegalEntity company) BY promotion(detail), company](p,c);
+
+recalculateCountStocks (PromotionDetail d) = {
+    countStocks(d, LegalEntity company) <- [= GROUP SUM 1 IF priceA(defaultPriceListType(),sku(PromotionDetail detail), Stock stock, LegalEntity company, toDateTime(fromDate(detail))) BY detail, company](d, company);
+}
 
 CLASS Flyer 'Листовка';
 TABLE flyer (Flyer);
@@ -218,24 +222,33 @@ backgroundCur 'Цвет' (PromotionDetail detail) = RGB(218,255,196) IF detail I
 backgroundAfter 'Цвет' (PromotionDetail detail) = RGB(255,203,197) IF detail IS PromotionDetail;
 backgroundPromo 'Цвет' (PromotionDetail detail) = RGB(255,157,146) IF detail IS PromotionDetail;
 
+@defineMovementSku(promotionDetail); //-- показываем по нажатию правой клавиши движение товара
+@defineBalancesSku(promotionDetail); //-- показываем по нажатию правой клавиши остатки товара
+
+@defineBarcodeSku(promotionDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара
+
+@defineMovementPriceSku(promotionDetail); //-- показываем по нажатию правой клавиши изменение цены товара
+
+@defineInfoSku(promotionDetail); //-- показываем по нажатию правой клавиши информацию по товару
+
 FORM promotion 'Акция'
     OBJECTS p = Promotion PANEL 
     PROPERTIES(p) name, fromDate, toDate, namePromotionType, nameExtraPromotionType, namePromoType, nameFlyer,
                   proposeDate, approveDate
     
     OBJECTS d = PromotionDetail
-    PROPERTIES(d) idBarcode, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, nameOverPromotionType, nameOverExtraPromotionType,
-                  nameSuppliers, nameOverFlyer, paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT
+    PROPERTIES(d) idBarcodeSku, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku,
+                  paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT
     PROPERTIES(d) BACKGROUND backgroundCur(d) price, markup, retailPrice
     PROPERTIES(d) BACKGROUND backgroundAfter(d) promotionPrice BACKGROUND backgroundPromo(d), promotionVATPrice, promotionMarkup,
                   proposedPromotionPrice BACKGROUND backgroundPromo(d), promotionMarkupSum, discount
-    PROPERTIES(d) nameStatusSku, nameOverPromoType, approved SHOWIF showApproved(d), excluded SHOWIF showExcluded(d), NEW, deleted = DELETE GRID
+    PROPERTIES(d) nameStatusSku, nameOverPromotionType, nameOverExtraPromotionType, nameOverPromoType, nameOverFlyer, approved SHOWIF showApproved(d), excluded SHOWIF showExcluded(d), NEW, deleted = DELETE GRID
     ORDER nameSku(d)
     FILTERS promotion(d) == p,
             access(currentUser(), sku(d)) OR NOT sku(d)
             
     OBJECTS dd = PromotionDetail
-    PROPERTIES(dd) idBarcode, nameSku, nameDiscountType, nameDiscountingType, bonusSum, bonusPercent, subway, radio, citylight, billboard, TVcommercial, 
+    PROPERTIES(dd) idBarcodeSku, nameSku, nameDiscountType, nameDiscountingType, bonusSum, bonusPercent, subway, radio, citylight, billboard, TVcommercial, 
                    stockTVcommercial, elevator, newspaper, internet, transport, sms, email, shoppingRoomPoster, comment, changedTime, changedNameUser,
                    changedHostnameComputer
     ORDER nameSku(dd)
@@ -296,7 +309,7 @@ FORM promotions 'Акции'
     ORDER toDate(p) DESC, name(p) 
     
     OBJECTS d = PromotionDetail
-    PROPERTIES(d) READONLY idBarcode, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, nameOverPromotionType, nameOverExtraPromotionType,
+    PROPERTIES(d) READONLY idBarcodeSku, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, nameOverPromotionType, nameOverExtraPromotionType,
                   nameSuppliers, nameOverFlyer, paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT
     PROPERTIES(d) READONLY BACKGROUND backgroundCur(d) price, markup, retailPrice
     PROPERTIES(d) READONLY BACKGROUND backgroundAfter(d) promotionPrice BACKGROUND backgroundPromo(d), promotionVATPrice, promotionMarkup,
@@ -323,11 +336,20 @@ DESIGN promotions {
     }
 }
 
+recalculateCountStocks 'Пересчитать поставщиков' () = {
+    FOR [= FILTER promotion.d](PromotionDetail d) DO
+        recalculateCountStocks(d); 
+}
+
+EXTEND FORM promotion
+    PROPERTIES(d) READONLY nameSuppliers ON CONTEXTMENU recalculateCountStocks() AFTER nameSku(d) 
+;
+
 WHEN LOCAL FORMS promotion (CHANGED(sku(PromotionDetail detail)) OR CHANGED(toDateTime(fromDate(detail)))) DO {
     valueVAT(detail) <- valueVAT(sku(detail));
     price(detail) <- [=GROUP MAX priceA(defaultPriceListType(), sku(PromotionDetail detail), Stock stock, toDateTime(fromDate(detail))) BY detail](detail);
     retailPrice(detail) <- [=GROUP MAX priceA(promotionPriceListType(), sku(PromotionDetail detail), Stock stock, toDateTime(fromDate(detail))) BY detail](detail);
-    countStocks(detail, LegalEntity company) <- [= GROUP SUM 1 IF priceA(defaultPriceListType(),sku(PromotionDetail detail), Stock stock, LegalEntity company, toDateTime(fromDate(detail))) BY detail, company](detail,company);
+    recalculateCountStocks (detail);
 }
 WHEN LOCAL FORMS promotion (CHANGED(promotionPrice(PromotionDetail detail)) OR CHANGED(price(detail))) AND price(detail) > 0.0 DO {
     supplierPromotionDiscount(detail) <- NUMERIC[8,3]((1.0 - promotionPrice(detail)/price(detail)) * 100.0);
@@ -388,7 +410,7 @@ FORM promotionsStock 'Акции (магазин)'
         FILTER 'Действующие' currentDate() >= fromDate(p) AND currentDate() <= toDate(p) DEFAULT
     
     OBJECTS d = PromotionDetail
-    PROPERTIES(d) READONLY idBarcode, nameSku, nameOverPromotionType, nameOverExtraPromotionType, nameOverFlyer
+    PROPERTIES(d) READONLY idBarcodeSku, nameSku, nameOverPromotionType, nameOverExtraPromotionType, nameOverFlyer
     PROPERTIES(s,d) currentBalance, averageSold
     PROPERTIES(d) READONLY BACKGROUND backgroundPromo(d) promotionPrice, proposedPromotionPrice
     PROPERTIES(d) READONLY nameStatusSku, nameOverPromoType, nameDiscountType, nameDiscountingType, status
@@ -453,12 +475,10 @@ createPriceList 'Создать прайсы' (Promotion p) = {
             currency(priceList) <- defaultCurrency(operation(priceList));
             note(priceList) <- name(p);
             
-            IF NOT doNotSetStocksUserPriceList(operation(priceList)) AND NOT skipSetStocks(priceList) THEN {
-                allStocks(priceList) <- allStocks(operation(priceList));
-                dataIn(priceList, StockGroup stockGroup) <- dataIn(stockGroup, operation(priceList));
-                dataIn(priceList, Stock stock) <- dataIn(stock, operation(priceList));
-            }
-            
+            allStocks(priceList) <- allStocks(operation(priceList));
+            dataIn(priceList, StockGroup stockGroup) <- dataIn(stockGroup, operation(priceList));
+            dataIn(priceList, Stock stock) <- dataIn(stock, operation(priceList));
+
             in(priceList, DataPriceListType type) <- change(type, operation(priceList));
             show(priceList, DataPriceListType type) <- show(type, operation(priceList));
             
@@ -466,6 +486,7 @@ createPriceList 'Создать прайсы' (Promotion p) = {
                 priceList(detail) <- priceList;
                 sku(detail) <- sku(pd);
                 price(detail, DataPriceListType type) <- proposedPromotionPrice(pd) WHERE in(priceList, type);
+                priceBefore(detail) <- retailPrice(pd);
             }
             promotion(priceList) <- p;
         }
@@ -478,7 +499,7 @@ createPriceList 'Создать прайсы' (Promotion p) = {
             currency(priceList) <- defaultCurrency(operation(priceList));
             note(priceList) <- name(p);
             
-            dataIn(priceList, Stock stock) <- TRUE IF [= GROUP SUM 1 IF priceA(defaultPriceListType(), sku(PromotionDetail d), Stock stock, LegalEntity company, DATETIME dateTime) BY promotion(d), stock, company, dateTime](p, stock, company, dateTimeToDateTime(fromDate(p), 00:00)) ;
+            dataIn(priceList, Stock stock) <- TRUE IF [= GROUP SUM 1 IF priceA(defaultPriceListType(), sku(PromotionDetail d), Stock stock, LegalEntity company, DATETIME dateTime) BY promotion(d), stock, company, dateTime](p, stock, company, toDateTime(fromDate(p))) ;
             
             in(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
             show(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
