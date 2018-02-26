@@ -74,8 +74,9 @@ public class FiscalEpson {
     public static void closeReceipt() {
         //временные логи, чтобы убедиться, что тормозит именно CloseReceipt
         logger.info("Epson CloseReceipt started");
+        long time = System.currentTimeMillis();
         Dispatch.call(epsonDispatch, "CloseReceipt");
-        logger.info("Epson CloseReceipt finished");
+        logger.info(String.format("Epson CloseReceipt finished: %s ms", (System.currentTimeMillis() - time)));
         checkErrors(true);
     }
 
