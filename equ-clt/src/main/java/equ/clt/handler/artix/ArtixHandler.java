@@ -812,28 +812,30 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     Timestamp logOnCashier = null;
                     for (String document : documents) {
 
-                        JSONObject documentObject = new JSONObject(document);
+                        if(!document.isEmpty()) {
+                            JSONObject documentObject = new JSONObject(document);
 
-                        Integer opcode = documentObject.getInt("opcode");
+                            Integer opcode = documentObject.getInt("opcode");
 
-                        switch (opcode) {
-                            case 3:
-                                logOnCashier = parseTimestamp(documentObject.getString("optime"));
-                                break;
-                            case 4:
-                            case 13:
-                                if(logOnCashier != null) {
-                                    String numberCashier = documentObject.getString("cashiercard");
-                                    Timestamp logOffCashier = parseTimestamp(documentObject.getString("optime"));
+                            switch (opcode) {
+                                case 3:
+                                    logOnCashier = parseTimestamp(documentObject.getString("optime"));
+                                    break;
+                                case 4:
+                                case 13:
+                                    if (logOnCashier != null) {
+                                        String numberCashier = documentObject.getString("cashiercard");
+                                        Timestamp logOffCashier = parseTimestamp(documentObject.getString("optime"));
 
-                                    Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashcode"));
-                                    MachineryInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
-                                    Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
+                                        Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashcode"));
+                                        MachineryInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
+                                        Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
 
-                                    result.add(new CashierTime(null, numberCashier, numberCashRegister, numberGroupCashRegister, logOnCashier, logOffCashier, false));
-                                    logOnCashier = null;
-                                }
-                                break;
+                                        result.add(new CashierTime(null, numberCashier, numberCashRegister, numberGroupCashRegister, logOnCashier, logOffCashier, false));
+                                        logOnCashier = null;
+                                    }
+                                    break;
+                            }
                         }
                     }
                 }
