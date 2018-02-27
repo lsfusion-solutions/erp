@@ -506,21 +506,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
 
-            if(!disable) {
-                try {
-                    String directory = f.getParent() + "/success-" + formatDate(new Date(System.currentTimeMillis())) + "/";
-                    if (new File(directory).exists() || new File(directory).mkdirs())
-                        FileCopyUtils.copy(f, new File(directory + f.getName()));
-                } catch (IOException e) {
-                    throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
-                }
-            }
-
-            if (f.delete()) {
-                sendSalesLogger.info(logPrefix + "file " + readFile + " has been deleted");
-            } else {
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
-            }
+            copyToSuccess(f, disable);
+            safeFileDelete(f, true);
         }
     }
 
@@ -528,6 +515,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) {
         Map<String, Timestamp> result = new HashMap<>();
         sendSalesLogger.info(logPrefix + "reading SoftCheckInfo");
+
+        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
+        boolean disable = artixSettings != null && artixSettings.isDisableCopyToSuccess();
 
         List<File> files = new ArrayList<>();
         //правильнее брать только только нужные подпапки, как в readSales, но для этого пришлось бы менять equ-api.
@@ -573,12 +563,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     for (int i = 0; i < inventPositionsArray.length(); i++) {
                                         JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
                                         String invoiceNumber = inventPosition.getString("additionalbarcode");
+                                        sendSalesLogger.info(logPrefix + "found softCheck " + invoiceNumber);
                                         result.put(invoiceNumber, dateTimeReceipt);
                                     }
                                 }
                             }
                         }
-                        safeFileDelete(file);
+                        copyToSuccess(file, disable);
+                        safeFileDelete(file, false);
                     } catch (Throwable e) {
                         sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
                     }
@@ -846,22 +838,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     }
                 }
 
-                if (!disable) {
-                    try {
-                        String directory = file.getParent() + "/success-" + formatDate(new Date(System.currentTimeMillis())) + "/";
-                        if (new File(directory).exists() || new File(directory).mkdirs())
-                            FileCopyUtils.copy(file, new File(directory + file.getName()));
-                    } catch (IOException e) {
-                        throw new RuntimeException("The file " + file.getAbsolutePath() + " can not be copied to success files", e);
-                    }
-                }
-
-                if (file.delete()) {
-                    sendSalesLogger.info(logPrefix + "file " + file.getAbsolutePath() + " has been deleted");
-                } else {
-                    throw new RuntimeException("The file " + file.getAbsolutePath() + " can not be deleted");
-                }
-
+                copyToSuccess(file, disable);
+                safeFileDelete(file, true);
             } catch (Throwable e) {
                 machineryExchangeLogger.error("File: " + file.getAbsolutePath(), e);
                 throw Throwables.propagate(e);
@@ -874,6 +852,18 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         }
 
         return result;
+    }
+
+    private void copyToSuccess(File file, boolean disable) {
+        if (!disable) {
+            try {
+                String directory = file.getParent() + "/success-" + formatDate(new Date(System.currentTimeMillis())) + "/";
+                if (new File(directory).exists() || new File(directory).mkdirs())
+                    FileCopyUtils.copy(file, new File(directory + file.getName()));
+            } catch (IOException e) {
+                throw new RuntimeException("The file " + file.getAbsolutePath() + " can not be copied to success files", e);
+            }
+        }
     }
 
     private Timestamp parseTimestamp(String value) throws ParseException {
@@ -1105,7 +1095,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             }
                             filePathList.add(file.getAbsolutePath());
                         } else
-                            safeFileDelete(file);
+                            safeFileDelete(file, false);
                     } catch (Throwable e) {
                         sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
                     }
@@ -1121,11 +1111,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return new String(encoded, encoding).replace("\n", "");
     }
 
-    private void safeFileDelete(File file) {
+    private void safeFileDelete(File file, boolean throwException) {
         sendSalesLogger.info(logPrefix + String.format("deleting file %s", file.getAbsolutePath()));
         if (!file.delete()) {
-            file.deleteOnExit();
-            sendSalesLogger.info(logPrefix + String.format("failed to delete file %s, will try to deleteOnExit", file.getAbsolutePath()));
+            if(throwException) {
+                throw new RuntimeException("The file " + file.getAbsolutePath() + " can not be deleted");
+            } else {
+                file.deleteOnExit();
+                sendSalesLogger.info(logPrefix + String.format("failed to delete file %s, will try to deleteOnExit", file.getAbsolutePath()));
+            }
         }
     }
 
