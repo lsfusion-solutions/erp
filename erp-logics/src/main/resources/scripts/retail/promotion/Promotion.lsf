@@ -102,8 +102,17 @@ paymentForFlyer 'Оплата участия в листовке' = DATA BOOLEAN
 decreaseSupplierPercent 'Уменьшение % маркетинга поставщика' = DATA BOOLEAN (PromotionDetail);
 
 supplierPromotionDiscount 'Скидка поставщика в Акцию' = DATA NUMERIC[8,3] (PromotionDetail);
+
 valueVAT 'Ставка НДС' = DATA NUMERIC[10,5] (PromotionDetail);
+recalculateValueVAT (PromotionDetail d) = {
+    valueVAT(d) <- valueVAT(sku(d));
+}
+
 price 'Стандартная цена без НДС' = DATA NUMERIC[16,4] (PromotionDetail);
+recalculatePrice (PromotionDetail d) = {
+    price(d) <- [=GROUP MAX prevPriceA(defaultPriceListType(), sku(PromotionDetail detail), Stock stock, toDateTime(fromDate(detail))) BY detail](d);
+}
+
 markup 'Стандартная наценка' = DATA NUMERIC[8,3] (PromotionDetail);
 retailPrice 'Розничная цена стандартная' = DATA NUMERIC[16,4] (PromotionDetail);
 
@@ -237,8 +246,8 @@ FORM promotion 'Акция'
                   proposeDate, approveDate
     
     OBJECTS d = PromotionDetail
-    PROPERTIES(d) idBarcodeSku, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku,
-                  paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT
+    PROPERTIES(d) idBarcodeSku, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, valueVAT, nameSuppliers,
+                  paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount
     PROPERTIES(d) BACKGROUND backgroundCur(d) price, markup, retailPrice
     PROPERTIES(d) BACKGROUND backgroundAfter(d) promotionPrice BACKGROUND backgroundPromo(d), promotionVATPrice, promotionMarkup,
                   proposedPromotionPrice BACKGROUND backgroundPromo(d), promotionMarkupSum, discount
@@ -336,20 +345,25 @@ DESIGN promotions {
     }
 }
 
-recalculateCountStocks 'Пересчитать поставщиков' () = {
-    FOR [= FILTER promotion.d](PromotionDetail d) DO
-        recalculateCountStocks(d); 
+recalculatePrices (PromotionDetail d) = {
+    recalculateValueVAT(d);
+    recalculatePrice(d);
+    
+    recalculateCountStocks (d);
 }
 
+recalculatePrices 'Пересчитать цены поставщиков' () = {
+    FOR [= FILTER promotion.d](PromotionDetail d) DO
+        recalculatePrices(d);
+} CONFIRM;
+
 EXTEND FORM promotion
-    PROPERTIES(d) READONLY nameSuppliers ON CONTEXTMENU recalculateCountStocks() AFTER nameSku(d) 
+    PROPERTIES recalculatePrices() TODRAW d TOOLBAR
 ;
 
-WHEN LOCAL FORMS promotion (CHANGED(sku(PromotionDetail detail)) OR CHANGED(toDateTime(fromDate(detail)))) DO {
-    valueVAT(detail) <- valueVAT(sku(detail));
-    price(detail) <- [=GROUP MAX priceA(defaultPriceListType(), sku(PromotionDetail detail), Stock stock, toDateTime(fromDate(detail))) BY detail](detail);
-    retailPrice(detail) <- [=GROUP MAX priceA(promotionPriceListType(), sku(PromotionDetail detail), Stock stock, toDateTime(fromDate(detail))) BY detail](detail);
-    recalculateCountStocks (detail);
+WHEN LOCAL FORMS promotion (CHANGED(sku(PromotionDetail detail)) OR CHANGED(fromDate(detail))) DO {
+    recalculatePrices(detail);
+    retailPrice(detail) <- [=GROUP MAX prevPriceA(promotionPriceListType(), sku(PromotionDetail detail), Stock stock, toDateTime(fromDate(detail))) BY detail](detail);
 }
 WHEN LOCAL FORMS promotion (CHANGED(promotionPrice(PromotionDetail detail)) OR CHANGED(price(detail))) AND price(detail) > 0.0 DO {
     supplierPromotionDiscount(detail) <- NUMERIC[8,3]((1.0 - promotionPrice(detail)/price(detail)) * 100.0);
@@ -492,6 +506,7 @@ createPriceList 'Создать прайсы' (Promotion p) = {
         }
         
         FOR in(p, LegalEntity company) NEW priceList = UserPriceList DO {
+            isPosted(priceList) <- TRUE;
             fromDate(priceList) <- fromDate(p);
             toDate(priceList) <- toDate(p);
             operation(priceList) <- defaultSupplierOperation();
@@ -499,7 +514,7 @@ createPriceList 'Создать прайсы' (Promotion p) = {
             currency(priceList) <- defaultCurrency(operation(priceList));
             note(priceList) <- name(p);
             
-            dataIn(priceList, Stock stock) <- TRUE IF [= GROUP SUM 1 IF priceA(defaultPriceListType(), sku(PromotionDetail d), Stock stock, LegalEntity company, DATETIME dateTime) BY promotion(d), stock, company, dateTime](p, stock, company, toDateTime(fromDate(p))) ;
+            dataIn(priceList, Stock stock) <- TRUE IF [= GROUP SUM 1 IF prevPriceA(defaultPriceListType(), sku(PromotionDetail d), Stock stock, LegalEntity company, DATETIME dateTime) BY promotion(d), stock, company, dateTime](p, stock, company, toDateTime(fromDate(p))) ;
             
             in(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
             show(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
@@ -513,7 +528,7 @@ createPriceList 'Создать прайсы' (Promotion p) = {
         }
         APPLY;
     }
-}
+} CONFIRM;
 
 EXTEND FORM promotions
     PROPERTIES(p) createPriceList TOOLBAR
