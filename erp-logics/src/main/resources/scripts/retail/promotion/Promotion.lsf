@@ -461,6 +461,29 @@ NAVIGATOR {
     }
 }
 
+createOrderSupplier 'Создать заказ по поставщику' (Stock stock, PromotionDetail detail) = {
+    LOCAL NESTED in = BOOLEAN (PromotionDetail);
+    in(PromotionDetail d) <-  [= FILTER promotionsStock.d](d);
+    NEWSESSION {
+        NEW o = Purchase.UserOrder {
+            customer(o) <- legalEntity(stock);
+            customerStock(o) <- stock;
+            supplier(o) <- supplier(stock,detail);
+            
+            FOR in(PromotionDetail d) AND supplier(stock,d) == supplier(stock,detail) NEW od = Purchase.UserOrderDetail DO {
+                order(od) <- o;
+                sku(od) <- sku(d);
+            }
+            
+            SHOW userOrder OBJECTS o = o DOCKED;
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM promotionsStock
+    PROPERTIES createOrderSupplier(s,d)
+;
+
 //-------------------Создание прайсов------------------
 
 promotion = DATA Promotion (UserPriceList);
