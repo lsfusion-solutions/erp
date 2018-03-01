@@ -361,9 +361,21 @@ EXTEND FORM promotion
     PROPERTIES recalculatePrices() TODRAW d TOOLBAR
 ;
 
+retailPriceListType = DATA LedgerPriceListType ();
+nameRetailPriceListType 'Вид стандартной цены для акции' () = name(retailPriceListType());
+EXTEND FORM options PROPERTIES nameRetailPriceListType();
+DESIGN options { 
+    price {
+        NEW promotionPrice {
+            caption = 'Акции';
+            MOVE PROPERTY(nameRetailPriceListType());        
+        }
+    } 
+}
+
 WHEN LOCAL FORMS promotion (CHANGED(sku(PromotionDetail detail)) OR CHANGED(fromDate(detail))) DO {
     recalculatePrices(detail);
-    retailPrice(detail) <- [=GROUP MAX prevPriceA(promotionPriceListType(), sku(PromotionDetail detail), Stock stock, toDateTime(fromDate(detail))) BY detail](detail);
+    retailPrice(detail) <- [=GROUP MAX prevPriceA(retailPriceListType(), sku(PromotionDetail detail), Stock stock, toDateTime(fromDate(detail))) BY detail](detail);
 }
 WHEN LOCAL FORMS promotion (CHANGED(promotionPrice(PromotionDetail detail)) OR CHANGED(price(detail))) AND price(detail) > 0.0 DO {
     supplierPromotionDiscount(detail) <- NUMERIC[8,3]((1.0 - promotionPrice(detail)/price(detail)) * 100.0);
@@ -495,7 +507,7 @@ EXTEND FORM options
     PROPERTIES() nameDefaultSupplierOperation
 ;
 DESIGN options {
-    price {
+    promotionPrice {
         MOVE PROPERTY(nameDefaultSupplierOperation());
     }
 }
