@@ -278,6 +278,9 @@ sum (ReceiptSaleDetail detail) <- IF blisterAmount(batch(detail))
          CHANGED (discountSum(detail)) OR
          CHANGED (extraDiscountSum(detail)) OR
          CHANGED (departmentStore(detail));
+
+prevAvailableQuantity 'Доступное к-во (всего)' (Batch batch, Receipt receipt) = prevAvailableQuantity(batch, departmentStore(receipt));
+prevAvailableQuantity 'Доступное к-во (всего)' (ReceiptDetail receiptDetail) = prevAvailableQuantity(batch(receiptDetail), receipt(receiptDetail));
            
 EXTEND FORM POS
     PROPERTIES () SHOWIF currentZReport() filterBarcode EVENTID 'SCANNER', filterPrice, filterNameSku
@@ -291,7 +294,8 @@ EXTEND FORM POS
     PROPERTIES (d) SHOWIF currentZReport() blisterQuantity ON CHANGE changeBlisterQuantity(d) READONLYIF readOnlyBlisterQuantity(d) BACKGROUND backgroundBlisterQuantity(d) AFTER quantityGrid
     ORDER prevNameSku(bt)
     FILTERS filterPrice(bt, r), filterNameSku(bt), filterBarcode(bt)  
-    FILTERS prevCurrentBalance(bt, r)
+    FILTERS prevCurrentBalance(bt, r),
+            prevAvailableQuantity(bt, r)
 //    FILTERGROUP balance
 //        FILTER 'В чеке' quantity(bt, r)
          
