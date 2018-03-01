@@ -18,6 +18,8 @@ acceptPrint 'Принять' (PickingOrder pickingOrder) = {
 
 isParent(SkuGroup sk, PickingOrderDetail detail) = isParent(sk, sku(detail));
 
+notShowUnaccept = ABSTRACT BOOLEAN(PickingOrder);
+
 FORM pickingDashboard 'Комплектация' AUTOREFRESH 60
 
     OBJECTS d = DATE PANEL
@@ -29,7 +31,7 @@ FORM pickingDashboard 'Комплектация' AUTOREFRESH 60
                     countPickingOrderDetail, quantityPickingOrderDetail, grossWeightPickingOrderDetail, note
 
     PROPERTIES (po) acceptPrint SHOWIF notAccepted(po),
-                    unaccept SHOWIF accepted(po), fully = fullyAssembled SHOWIF accepted(po),
+                    unaccept SHOWIF (accepted(po) AND NOT notShowUnaccept(po)), fully = fullyAssembled SHOWIF accepted(po),
                     partially = partiallyAssembled SHOWIF accepted(po)
                     
     FILTERS isPosted(po) 
