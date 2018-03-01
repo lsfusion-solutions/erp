@@ -95,7 +95,7 @@ public class DefaultExportXMLActionProperty extends DefaultExportActionProperty 
         String xml = new XMLOutputter(Format.getPrettyFormat().setEncoding(encoding)).outputString(doc);
         if (outputDir != null) {
             try {
-                FileUtils.writeStringToFile(new File(outputDir + "/" + new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(Calendar.getInstance().getTime()) + ".xml"), xml);
+                FileUtils.writeStringToFile(new File(outputDir + "/" + new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss-SSS").format(Calendar.getInstance().getTime()) + ".xml"), xml);
             } catch (Exception e) {
                 ServerLoggers.importLogger.error("Export Error: ", e);
             }
