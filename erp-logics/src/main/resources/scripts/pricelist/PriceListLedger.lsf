@@ -95,50 +95,6 @@ priceA 'Цена' (type, sku, dateTime) =
           WHERE active(ledger, type) AND
                 fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
-// ------------------ Расчет цен для sku / company ---------------- //
-
-priceB 'Цена' (type, sku, company, dateTime) =
-    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type)
-          BY type, sku(ledger), company(ledger), DATETIME dateTimeIn
-          ORDER fromDateTime(ledger), ledger
-          WHERE active(ledger, type) AND
-                fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
-
-priceA 'Цена' (type, sku, company, dateTime) =
-    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type)
-          BY type, sku(ledger), company(ledger), DATETIME dateTimeIn
-          ORDER fromDateTime(ledger), ledger
-          WHERE active(ledger, type) AND
-                fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
-
-priceListLedgerB 'Цена' (type, sku, company, dateTime) =
-    GROUP LAST PriceListLedger ledger
-          BY LedgerPriceListType type, sku(ledger), company(ledger), DATETIME dateTimeIn
-          ORDER fromDateTime(ledger), ledger
-          WHERE active(ledger, type) AND
-                fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
-
-priceListLedgerA 'Цена' (type, sku, company, dateTime) =
-    GROUP LAST PriceListLedger ledger
-          BY LedgerPriceListType type, sku(ledger), company(ledger), DATETIME dateTimeIn
-          ORDER fromDateTime(ledger), ledger
-          WHERE active(ledger, type) AND
-                fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
-
-descriptionB 'Описание' (type, sku, company, dateTime) =
-    GROUP LAST description(PriceListLedger ledger)
-          BY LedgerPriceListType type, sku(ledger), company(ledger), DATETIME dateTimeIn
-          ORDER fromDateTime(ledger), ledger
-          WHERE active(ledger, type) AND
-                fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
-
-descriptionA 'Описание' (type, sku, company, dateTime) =
-    GROUP LAST description(PriceListLedger ledger)
-          BY LedgerPriceListType type, sku(ledger), company(ledger), DATETIME dateTimeIn
-          ORDER fromDateTime(ledger), ledger
-          WHERE active(ledger, type) AND
-                fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
-
 // Только с ценами
 
 //activePriceB 'Цена' (type, sku, company, dateTime) =
@@ -210,8 +166,6 @@ toDateTime 'Дата/время по' (PriceListLedger ledger, LedgerPriceListTy
 
 company(PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
     company(ledger) IF active(ledger, type, stock) MATERIALIZED;
-    
-INDEX company(PriceListLedger ledger, LedgerPriceListType type, Stock stock), type, stock, fromDateTime(ledger, type, stock), ledger; 
 
 // По товарам
 activePriceB 'Цена' (type, sku, stock, dateTime) =
@@ -277,15 +231,31 @@ activeNextPriceB 'Цена' (type, sku, dateTime) =
 
 // По компаниям
 
+// ------------------ Расчет цен для sku / company ---------------- //
+
+INDEX LedgerPriceListType type, company(PriceListLedger ledger, type, Stock stock), sku(ledger, type, stock), fromDateTime(ledger, type, stock), ledger; 
+
 // расчет цены по компании считается на основе ledger/type/stock потому, что только в ней есть индекс по компании и виду цен одновременно, что позволяет быстро отсечь ненужные цены
-activePriceA 'Цена' (type, sku, company, dateTime) =
-    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
-          BY type, sku(ledger, type, stock), company(ledger, type, stock), DATETIME dateTimeIn
+activePriceListLedgerB 'Цена' (type, sku, company, dateTime) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger, type, Stock stock), company(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE price(ledger, type, stock) AND fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
+
+activePriceListLedgerA 'Цена' (type, sku, company, dateTime) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger, type, Stock stock), company(ledger), DATETIME dateTimeIn
           ORDER fromDateTime(ledger, type, stock), ledger
           WHERE price(ledger, type, stock) AND fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
-activeDescriptionA 'Описание' (type, sku, company, dateTime) =
-    GROUP LAST description(PriceListLedger ledger) IF price(ledger, LedgerPriceListType type, Stock stock)
+activeDescriptionB 'Описание' (LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime) =
+    description(activePriceListLedgerB(type, sku, company, dateTime));
+
+activeDescriptionA 'Описание' (LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime) =
+    description(activePriceListLedgerA(type, sku, company, dateTime));
+
+activePriceA 'Цена' (type, sku, company, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
           BY type, sku(ledger, type, stock), company(ledger, type, stock), DATETIME dateTimeIn
           ORDER fromDateTime(ledger, type, stock), ledger
           WHERE price(ledger, type, stock) AND fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
@@ -478,6 +448,8 @@ nameCompanyA 'Компания прайса' (LedgerPriceListType type, Batch ba
 @defineLastLedgerPriceListTypeBatchStock(description, 'Описание');
 
 // ------------------ Расчет цен для sku / stock / company / datetime
+
+INDEX company(PriceListLedger ledger, LedgerPriceListType type, Stock stock), type, stock, fromDateTime(ledger, type, stock), ledger; 
 
 priceB 'Цена' (type, sku, stock, company, dateTime) =
     GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
