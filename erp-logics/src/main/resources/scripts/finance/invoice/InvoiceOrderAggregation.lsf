@@ -155,6 +155,13 @@ META defineInvoiceOrder(sign, NS)
     
     sumInvoice (UserOrderDetail orderDetail) <- NUMERIC[18,4](round(invoiceQuantity[OrderDetail](orderDetail) * price[OrderDetail](orderDetail), currency[OrderDetail](orderDetail)))
                     WHEN DO CHANGED(invoiceQuantity[OrderDetail](orderDetail)) OR CHANGED (price[OrderDetail](orderDetail)) OR CHANGED(currency[OrderDetail](orderDetail));  
+//-- 
+    overInvoiceValueVAT 'НДС накладной, %' (orderDetail) = ABSTRACT NUMERIC[10,5] (OrderDetail);
+    overInvoiceValueVAT 'НДС накладной, %' (orderDetail) = DATA NUMERIC[10,5] (UserOrderDetail);
+    overInvoiceValueVAT(UserOrderDetail d) += overInvoiceValueVAT(d);  
+
+    overInvoiceVATSumInvoice 'Сумма НДС'  = ABSTRACT NUMERIC[18,4] (OrderDetail);
+//--
 
     VATSumInvoice 'Сумма НДС'  = DATA NUMERIC[18,4] (UserOrderDetail);
     VATSumInvoice 'Сумма НДС'  = ABSTRACT NUMERIC[18,4] (OrderDetail);
@@ -174,10 +181,10 @@ META defineInvoiceOrder(sign, NS)
     price(OrderInvoiceDetail invoiceDetail) += price(orderDetail(invoiceDetail));
     sum(OrderInvoiceDetail invoiceDetail) += sumInvoice(orderDetail(invoiceDetail));
     VAT(OrderInvoiceDetail invoiceDetail) += VAT(orderDetail(invoiceDetail));
-    valueVAT(OrderInvoiceDetail invoiceDetail) += valueVAT(orderDetail(invoiceDetail));
+    valueVAT(OrderInvoiceDetail invoiceDetail) += OVERRIDE overInvoiceValueVAT(orderDetail(invoiceDetail)), valueVAT(orderDetail(invoiceDetail));
     invoicePrice(OrderInvoiceDetail invoiceDetail) += invoicePrice(orderDetail(invoiceDetail));
     invoiceSum(OrderInvoiceDetail invoiceDetail) += invoiceSumInvoice(orderDetail(invoiceDetail));
-    VATSum(OrderInvoiceDetail invoiceDetail) += VATSumInvoice(orderDetail(invoiceDetail));
+    VATSum(OrderInvoiceDetail invoiceDetail) += OVERRIDE overInvoiceVATSumInvoice(orderDetail(invoiceDetail)), VATSumInvoice(orderDetail(invoiceDetail));
 
     orderDetail(OrderInvoiceDetail invoiceDetail) += orderDetail(invoiceDetail);
 
