@@ -14,8 +14,10 @@ minDelta 'Отклонение по количеству в чеке' = DATA NUM
 
 checkBlisterAmount 'Запрет на продажу блистеров, если в карточке не указано количество' = DATA BOOLEAN ();
 
+useBlisterInFiscalPrint 'Использовать блистеры при печати чека' = DATA BOOLEAN ();
+
 EXTEND FORM options
-    PROPERTIES () minDelta, checkBlisterAmount
+    PROPERTIES () minDelta, checkBlisterAmount, useBlisterInFiscalPrint
 ;
 
 DESIGN options {
@@ -24,6 +26,7 @@ DESIGN options {
     }
     pos {
         MOVE PROPERTY(checkBlisterAmount());
+        MOVE PROPERTY(useBlisterInFiscalPrint());
     }
 }
 
@@ -281,6 +284,8 @@ sum (ReceiptSaleDetail detail) <- IF blisterAmount(batch(detail))
 
 prevAvailableQuantity 'Доступное к-во (всего)' (Batch batch, Receipt receipt) = prevAvailableQuantity(batch, departmentStore(receipt));
 prevAvailableQuantity 'Доступное к-во (всего)' (ReceiptDetail receiptDetail) = prevAvailableQuantity(batch(receiptDetail), receipt(receiptDetail));
+
+blisterPrice 'Цена за блистер' (ReceiptSaleDetail receiptDetail) = price(receiptDetail) / blisterAmount(batch(receiptDetail));
            
 EXTEND FORM POS
     PROPERTIES () SHOWIF currentZReport() filterBarcode EVENTID 'SCANNER', filterPrice, filterNameSku
@@ -292,6 +297,7 @@ EXTEND FORM POS
     PROPERTIES (bt, r) SHOWIF currentZReport() READONLY prevCurrentBalance, currentPOSPrice, currentPOSBlisterPrice BACKGROUND backgroundBlisterQuantity(bt, r)
     PROPERTIES (bt) SHOWIF currentZReport() READONLY expiryDate BACKGROUND backgroundExpiryDate(bt, r), seriesPharmacy, nameManufacturer, nameCountry, nameSubstance
     PROPERTIES (d) SHOWIF currentZReport() blisterQuantity ON CHANGE changeBlisterQuantity(d) READONLYIF readOnlyBlisterQuantity(d) BACKGROUND backgroundBlisterQuantity(d) AFTER quantityGrid
+    PROPERTIES (d) READONLY SHOWIF currentZReport() blisterPrice BACKGROUND backgroundBlisterQuantity(d) AFTER priceGrid
     ORDER prevNameSku(bt)
     FILTERS filterPrice(bt, r), filterNameSku(bt), filterBarcode(bt)  
     FILTERS prevCurrentBalance(bt, r),
@@ -301,6 +307,12 @@ EXTEND FORM POS
          
     PROPERTIES () SHOWIF currentZReport() skipFilters TOOLBAR TODRAW bt         
 ;
+
+DESIGN POS {
+    PROPERTY(quantityGrid) {charWidth = 5;}
+    PROPERTY(blisterQuantity(d)) {font = '18'; charWidth = 5;}
+    PROPERTY(blisterPrice(d)) {font = '18';}
+}
 
 changeAnalogueBlisterQuantity(Batch batch, Receipt receipt) = {
     changeBlisterQuantity(batch, receipt);
