@@ -161,9 +161,11 @@ public class FiscalEpson {
     }
 
     public static void registerItem(ReceiptItem item) throws RuntimeException {
+        boolean useBlisters = item.useBlisters && item.blisterQuantity != null;
         epsonActiveXComponent.setProperty("Article", new Variant(item.name));
-        epsonActiveXComponent.setProperty("Price", new Variant(item.price.doubleValue()));
-        epsonActiveXComponent.setProperty("Quantity", new Variant(item.quantity.doubleValue()));
+        epsonActiveXComponent.setProperty("Price", new Variant(useBlisters ? item.blisterPrice.doubleValue() : item.price.doubleValue()));
+        epsonActiveXComponent.setProperty("Quantity", new Variant(useBlisters ? item.blisterQuantity.doubleValue() : item.quantity.doubleValue()));
+        epsonActiveXComponent.setProperty("QuantityUnit", new Variant(useBlisters ? "блистер" : ""));
         epsonActiveXComponent.setProperty("Department", new Variant(item.section != null ? item.section : (item.isGiftCard ? 3 : 0)));
         Dispatch.call(epsonDispatch, "Sale");
         checkErrors(true);
