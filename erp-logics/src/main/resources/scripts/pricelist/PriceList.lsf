@@ -187,6 +187,8 @@ in (PriceListDetail detail, DataPriceListType type) = in(priceList(detail), type
 in (UserPriceListDetail detail, DataPriceListType type) = in(userPriceList(detail), type);
 
 price(PriceListDetail detail, DataPriceListType type) => in (detail, type) RESOLVE RIGHT;
+WHEN SET(price(PriceListDetail detail, DataPriceListType type)) AND NOT in(detail, type) DO
+    price(detail, type) <- NULL;
 
 //НДС
 
@@ -1396,3 +1398,7 @@ show(UserPriceListDetail d) = {
 }
 show(UserPriceListDetail d) += { show(d); }    
 show[PriceListLedger] (PriceListDetail ledger) += {show(ledger);};
+
+// Храним количество прайс-листов для поставщика и вида цен
+TABLE dataPriceListTypeLegalEntitySku (DataPriceListType, LegalEntity, Sku);
+countPriceListDetail = GROUP SUM 1 IF in(PriceListDetail d, DataPriceListType t) BY t, company(d), sku(d) MATERIALIZED; 
