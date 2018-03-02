@@ -75,10 +75,9 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                 DataObject importTypeObject = importTypeResult.getKey(i).valueIt().iterator().next();
 
                 ObjectValue accountObject = entryValue.get("autoImportAccountImportType");
-                ObjectValue emailObject = entryValue.get("autoImportEmailImportType");
+                String emails = (String) entryValue.get("autoImportEmailImportType").getValue();
                 boolean completeIdItemAsEAN = entryValue.get("completeIdItemAsEANImportType") instanceof DataObject;
                 boolean checkInvoiceExistence = entryValue.get("autoImportCheckInvoiceExistenceImportType") instanceof DataObject;
-                String emailPattern = emailObject instanceof DataObject ? ((String) ((DataObject) emailObject).object).replace("*", ".*").toLowerCase() : null;
                 String staticNameImportType = (String) findProperty("staticNameImportTypeDetail[ImportType]").read(session, importTypeObject);
                 String staticCaptionImportType = (String) findProperty("staticCaptionImportTypeDetail[ImportType]").read(session, importTypeObject);
                 
@@ -86,7 +85,9 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                 String fileExtension = settings.getFileExtension();
                 boolean multipleDocuments = settings.isMultipleDocuments();
 
-                if (fileExtension != null && emailObject instanceof DataObject && accountObject instanceof DataObject) {
+                if (fileExtension != null && emails != null && accountObject instanceof DataObject) {
+
+                    String[] emailPatterns = emails.replace("*", ".*").toLowerCase().split(";");
 
                     KeyExpr emailExpr = new KeyExpr("email");
                     KeyExpr attachmentEmailExpr = new KeyExpr("attachmentEmail");
@@ -112,7 +113,18 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         boolean isOld = (Calendar.getInstance().getTime().getTime() - dateTimeReceivedEmail.getTime()) > (24*60*60*1000); //старше 24 часов
                         String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
-                        if (fromAddressEmail != null && fromAddressEmail.toLowerCase().matches(emailPattern)) {
+
+                        boolean matches = false;
+                        if (fromAddressEmail != null) {
+                            for (String emailPattern : emailPatterns) {
+                                if (fromAddressEmail.toLowerCase().matches(emailPattern)) {
+                                    matches = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (matches) {
                             byte[] fileAttachment = null;
                             try {
                                 fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
