@@ -265,6 +265,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         rootObject.put("invent", inventObject);
         inventObject.put("inventcode", "9999"); //код товара
         inventObject.put("barcode", "9999"); //основной штрих-код
+        JSONObject inventItemOptions = new JSONObject();
+        inventItemOptions.put("freesale", 1);
+        inventObject.put("inventitemoptions", inventItemOptions);
         rootObject.put("command", "addInventItem");
         return rootObject.toString();
     }
