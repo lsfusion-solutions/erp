@@ -85,7 +85,11 @@ WHEN CHANGED (sku(GiftCardPurchaseDetail d)) AND giftCardPurchaseDetail(GiftCard
 CONSTRAINT SET (GiftCardPurchaseDetail d IS GiftCardPurchaseDetail) AND NOT [=GROUP SUM 1 BY giftCardPurchaseDetail(GiftCard g)](d)
     MESSAGE 'Сгенерируйте номера сертификатов';
 
-numberReport 'Номер' (GiftCard g) = toInteger(right(number(g), lengthGiftCard()));
+numberReport 'Номер' (GiftCard g) = OVERRIDE 
+    toInteger(right(number(g), lengthGiftCard())),
+    toInteger(substrFrom(number(g),(charLength(prefixGiftCard())+1))) IF prefixGiftCard() AND substr(number(g),1,charLength(prefixGiftCard())) == prefixGiftCard(),
+    toInteger(number(g));
+
     
 select 'Отм.' = DATA LOCAL BOOLEAN (GiftCard); 
 
@@ -247,8 +251,13 @@ DESIGN giftCardPurchase {
 fromNumberFilter 'Номер с' = DATA LOCAL VARSTRING[30]();
 toNumberFilter 'Номер по' = DATA LOCAL VARSTRING[30]();
 
-numberFilter(GiftCard g) = (toInteger(right(number(g), lengthGiftCard())) >= toInteger(right(fromNumberFilter(), lengthGiftCard())) OR NOT fromNumberFilter())
-                                        AND (toInteger(right(number(g), lengthGiftCard())) <= toInteger(right(toNumberFilter(), lengthGiftCard())) OR NOT toNumberFilter());
+//numberFilter(GiftCard g) = (toInteger(right(number(g), lengthGiftCard())) >= toInteger(right(fromNumberFilter(), lengthGiftCard())) OR NOT fromNumberFilter())
+//                                        AND (toInteger(right(number(g), lengthGiftCard())) <= toInteger(right(toNumberFilter(), lengthGiftCard())) OR NOT toNumberFilter());
+numberReport 'Номер' (VARSTRING[30] number) = OVERRIDE 
+    toInteger(right(number, lengthGiftCard())),
+    toInteger(number);
+numberFilter(GiftCard g) = (numberReport(g) >= numberReport(fromNumberFilter()) OR NOT fromNumberFilter())
+                                        AND (numberReport(g) <= numberReport(toNumberFilter()) OR NOT toNumberFilter());
 
 FORM giftCardsDashboard 'Подарочные сертификаты'
     PROPERTIES () fromNumberFilter, toNumberFilter
