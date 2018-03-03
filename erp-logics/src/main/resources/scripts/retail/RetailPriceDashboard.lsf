@@ -67,6 +67,9 @@ DESIGN options {
     }
 
 }
+
+overCreate = ABSTRACT LIST (UserPriceListDetail);
+
 createPriceList 'Создать прайс (отм.)' (DATETIME dt) = {
     IF defaultRetailOperation() THEN {
         IF [ = GROUP SUM 1 IF select(Sku s) ]() THEN NEWSESSION {
@@ -78,6 +81,7 @@ createPriceList 'Создать прайс (отм.)' (DATETIME dt) = {
                 FOR select(Sku s)  NEW d = UserPriceListDetail DO {
                     userPriceList(d) <- p;
                     sku(d) <- s;
+                    overCreate(d);
                 }
                 DIALOG userPriceList OBJECTS p = p DOCKED NOCANCEL DO {
                     select(Sku s) <- NULL;
@@ -102,7 +106,7 @@ filter0= DATA LOCAL NESTED BOOLEAN (LedgerPriceListType);
 filter1 = DATA LOCAL NESTED BOOLEAN (CalcPriceListType);
 filter2 = DATA LOCAL NESTED BOOLEAN (LedgerPriceListType);
 
-
+overFillDefault() = ABSTRACT LIST ();
 fillDefault () = {    
     filter0(LedgerPriceListType p) <- NULL;
     filter1(CalcPriceListType p) <- NULL;
@@ -111,6 +115,8 @@ fillDefault () = {
     filter0(LedgerPriceListType p) <- TRUE WHERE filterBase(p);
     filter1(CalcPriceListType p) <- TRUE WHERE filterRetailCalc(p);
     filter2(LedgerPriceListType p) <- TRUE WHERE filterRetail(p);
+    
+    overFillDefault();
 }
 
 changeRetailPriceM (LedgerPriceListType type, Sku sk, Stock d, DATETIME dt) = {
