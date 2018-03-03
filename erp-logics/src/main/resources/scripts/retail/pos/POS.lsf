@@ -1169,11 +1169,11 @@ changeBonusPaid (ReceiptDetail d) = {
 
 //задание акций кассиром для всего чека
 
-setUserPromotionReceipt 'Применить скидку для всего чека' (Receipt receipt, PromotionCondition pc) = {
+setUserPromotionReceipt 'Применить для чека' (Receipt receipt, PromotionCondition pc) = {
     setUserPromotion(ReceiptSaleDetail detail, pc) <- TRUE WHERE receipt(detail) == receipt;
 }
 
-dropUserPromotionReceipt 'Сбросить скидку для всего чека' (Receipt receipt, PromotionCondition pc) = {
+dropUserPromotionReceipt 'Сбросить для чека' (Receipt receipt, PromotionCondition pc) = {
     setUserPromotion(ReceiptSaleDetail detail, pc) <- NULL WHERE receipt(detail) == receipt;
 }
 
@@ -1253,7 +1253,8 @@ FORM POS
 
     OBJECTS pcu = PromotionCondition GRID
     PROPERTIES(pcu) SHOWIF currentZReport() READONLY namePromotion, name, dateFrom, dateTo, percent
-    PROPERTIES(d, pcu) SHOWIF currentZReport() quantity, promotionSum, setUserPromotion ON CONTEXTMENU setUserPromotionReceipt(r, pcu) ON CONTEXTMENU dropUserPromotionReceipt(r, pcu) 
+    PROPERTIES(d, pcu) SHOWIF currentZReport() quantity, promotionSum, setUserPromotion ON CONTEXTMENU setUserPromotionReceipt(r, pcu) ON CONTEXTMENU dropUserPromotionReceipt(r, pcu)
+    PROPERTIES(r, pcu) PANEL setUserPromotionReceipt, dropUserPromotionReceipt
     FILTERS userSet(pcu) AND inReceiptSale(d, pcu)
 
     PROPERTIES() fiscalPrintCopyReceipt READONLYIF fiscalSkip(r), fiscalAdvancePaper READONLYIF fiscalSkip(r), 
@@ -1384,10 +1385,19 @@ DESIGN POS {
                     REMOVE TOOLBARLEFT(pc);
                     PROPERTY(promotionSum(d, pc)) {pattern = '#,##0.00';}                    
                 }
-                MOVE BOX(pcu) {
+                NEW manualPromotions {
+                    fill = 1;
                     caption = 'Возможные акции';
-                    REMOVE TOOLBARLEFT(pcu);
-                    PROPERTY(promotionSum(d, pcu)) {pattern = '#,##0.00';}
+                    type = CONTAINERH;
+                    MOVE BOX(pcu) {
+                        REMOVE TOOLBARLEFT(pcu); 
+                        caption = ''; 
+                    }
+                    NEW manualPromotionActions {
+                        alignment = STRETCH;
+                        MOVE PROPERTY(setUserPromotionReceipt(r, pcu)) { fill = 1; }
+                        MOVE PROPERTY(dropUserPromotionReceipt(r, pcu)) { fill = 1; }
+                    }
                 }
                 MOVE BOX(s){
                     caption = 'Остатки в других магазинах';
