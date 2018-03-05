@@ -299,6 +299,22 @@ DESIGN userPriceList{
 
 @defineOperationProperty(countDaysToExcludePriceLists, 'Кол-во дней через которое прайс исключается из регистра', INTEGER, paramsContainer);
 
+// Установка даты действия по для прайсов
+
+setToDateTime 'Установить дату действия по' (UserPriceList p) = {
+    LOCAL toDateTime = DATETIME();
+    
+    toDateTime() <- [= GROUP MAX (OVERRIDE [= GROUP MIN fromDateTime(UserPriceListDetail d) IF isPosted(userPriceList(d)) AND NOT PREV(toDateTime(d)) 
+                                                        AND in(d, DataPriceListType t) AND in(d, Stock st) AND fromDateTime(d) > DATETIME dt 
+                                                    BY sku(d), t, st, dt](sku(UserPriceListDetail d), DataPriceListType t, Stock s, fromDateTime(d)), 2040_01_01_00:00) 
+                                  IF in(d, t) AND in(d, s) 
+                             BY userPriceList(d)](p);
+    IF toDateTime() < 2040_01_01_00:00 THEN {
+        toDate(p) <- DATE(toDateTime());
+        toTime(p) <- TIME(toDateTime());
+    }
+}
+
 excludePriceListsToDate 'Исключить прайсы из регистра до даты' () = {
     exclude(UserPriceListDetail d) <- TRUE WHERE toDate(d) < subtract(currentDate(), countDaysToExcludePriceLists(operation(d))) AND NOT exclude(d) AND countDaysToExcludePriceLists(operation(d));
     APPLY ;
