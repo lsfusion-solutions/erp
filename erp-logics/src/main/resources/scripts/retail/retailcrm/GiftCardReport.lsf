@@ -5,9 +5,11 @@ REQUIRE GiftCardPurchase, GiftCardDefect;
 NAMESPACE GiftCard;
 
 //---- Полученные и использованные сертификаты
-
-numberFrom 'С' (GiftCardPurchaseDetail d)  = prefixGiftCard() + lpadStringWithZero(fromGiftCard(d), lengthGiftCard());
-numberTo 'По' (GiftCardPurchaseDetail d)  = prefixGiftCard() + lpadStringWithZero(toGiftCard(d), lengthGiftCard());
+numberGiftCardString 'С' (INTEGER i)  = (OVERRIDE prefixGiftCard(), VARSTRING[10]('') ) + (OVERRIDE lpadStringWithZero(i, lengthGiftCard()) , VARSTRING[28](i));
+numberFrom 'С' (GiftCardPurchaseDetail d)  = numberGiftCardString(fromGiftCard(d));
+//prefixGiftCard() + lpadStringWithZero(fromGiftCard(d), lengthGiftCard());
+numberTo 'По' (GiftCardPurchaseDetail d)  = numberGiftCardString(toGiftCard(d));
+//prefixGiftCard() + lpadStringWithZero(toGiftCard(d), lengthGiftCard());
 count 'Кол-во' (GiftCardPurchaseDetail d) = toGiftCard(d) - fromGiftCard(d) +1;
 
 relation = GROUP SUM 1 IF dateSold(GiftCard g) >= DATE dFrom AND dateSold(g) <= DATE dTo 
@@ -22,20 +24,20 @@ relationDefect = GROUP SUM 1 IF dateDefect(GiftCard g) >= DATE dFrom AND dateDef
 from 'С' = DATA LOCAL INTEGER (INTEGER, Item);
 to 'По' = DATA LOCAL INTEGER (INTEGER, Item);
 count 'Кол-во' (INTEGER i, Item item) = to(i,item) - from(i,item) +1;
-numberFrom 'С' (INTEGER in, Item i)  = prefixGiftCard() + lpadStringWithZero(from(in,i), lengthGiftCard());
-numberTo 'По' (INTEGER in, Item i)  = prefixGiftCard() + lpadStringWithZero(to(in,i), lengthGiftCard());
+numberFrom 'С' (INTEGER in, Item i)  = numberGiftCardString(from(in,i));
+numberTo 'По' (INTEGER in, Item i)  = numberGiftCardString(to(in,i));
 
 
 fromBalance 'С' = DATA LOCAL INTEGER (INTEGER, Item);
 toBalance 'По' = DATA LOCAL INTEGER (INTEGER, Item);
 countBalance 'Кол-во' (INTEGER i, Item item) = toBalance(i,item) - fromBalance(i,item) + 1;
-numberFromBalance 'С' (INTEGER in, Item i)  = prefixGiftCard() + lpadStringWithZero(fromBalance(in,i), lengthGiftCard());
-numberToBalance 'По' (INTEGER in, Item i)  = prefixGiftCard() + lpadStringWithZero(toBalance(in,i), lengthGiftCard());
+numberFromBalance 'С' (INTEGER in, Item i)  = numberGiftCardString(fromBalance(in,i));
+numberToBalance 'По' (INTEGER in, Item i)  = numberGiftCardString(toBalance(in,i));
 fromDefect 'С' = DATA LOCAL INTEGER (INTEGER, Item);
 toDefect 'По' = DATA LOCAL INTEGER (INTEGER, Item);
 countDefect 'Кол-во' (INTEGER i, Item item) = toDefect(i,item) - fromDefect(i,item) + 1;
-numberFromDefect 'С' (INTEGER in, Item i)  = prefixGiftCard() + lpadStringWithZero(fromDefect(in,i), lengthGiftCard());
-numberToDefect 'По' (INTEGER in, Item i)  = prefixGiftCard() + lpadStringWithZero(toDefect(in,i), lengthGiftCard());
+numberFromDefect 'С' (INTEGER in, Item i)  = numberGiftCardString(fromDefect(in,i));
+numberToDefect 'По' (INTEGER in, Item i)  = numberGiftCardString(toDefect(in,i));
 
 fill 'Заполнить данные'  (DATE df, DATE dt, Stock ds) = {
 
