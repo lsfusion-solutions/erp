@@ -1,0 +1,31 @@
+MODULE ImportCode;
+
+REQUIRE Integration;
+
+NAMESPACE Stock;
+
+CLASS ImportCode 'Код импорта';
+TABLE importCode(ImportCode);
+
+@defineExternalizable(importCode, VARSTRING[100],);
+
+META defineImportCode(objectCalss, form, obj, obj2)
+    obj2 = DATA objectCalss (ImportCode);
+    
+    obj2##ImportCode (VARSTRING[100] importCode) = obj2(importCode(importCode));
+    
+    EXTEND FORM form
+        OBJECTS obj = ImportCode
+        PROPERTIES(obj) id, NEW, DELETE GRID
+        
+        FILTERS obj2(obj)==obj2
+    ;
+    
+    DESIGN form {
+        obj2##TabBottomContainer{
+            MOVE BOX(obj);
+        }
+    }
+    
+    overReplace(objectCalss s, objectCalss d) += {obj2(ImportCode code) <- d WHERE obj2(code) == s;}
+END

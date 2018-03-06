@@ -1,28 +1,30 @@
 MODULE SkuImportCode;
 
-REQUIRE Item;
+REQUIRE Item, ImportCode;
 
 NAMESPACE Stock;
 
-CLASS ImportCode 'Код импорта';
+item = DATA Item (ImportCode);
 
-@defineExternalizable(importCode, VARSTRING[100],);
-
-sku = DATA Sku (ImportCode);
-
-skuImportCode (VARSTRING[100] importCode) = sku(importCode(importCode));
+itemImportCode (VARSTRING[100] importCode) = item(importCode(importCode));
 
 EXTEND FORM item
-    OBJECTS ii = ImportCode
-    PROPERTIES(ii) id, NEW, DELETE GRID
+    OBJECTS li = ImportCode
+    PROPERTIES(li) id, NEW, DELETE GRID
     
-    FILTERS sku(ii)==i
+    FILTERS item(li)==i
 ;
 
 DESIGN item {
     tabContaner{
-        MOVE BOX(ii);
+        MOVE BOX(li);
     }
 }
 
-replace(Sku s, Sku d) += {sku(ImportCode code) <- d WHERE sku(code) == s;}
+replace(Item s, Item d) += {item(ImportCode code) <- d WHERE item(code) == s;}
+
+@defineImportCode(Manufacturer, attributesItem, im, manufacturer);
+
+@defineImportCode(Country, attributesItem, ic, country);
+
+@defineImportCode(UOM, attributesItem, iu, UOM);
