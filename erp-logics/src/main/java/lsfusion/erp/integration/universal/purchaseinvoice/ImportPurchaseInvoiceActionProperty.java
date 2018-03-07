@@ -370,10 +370,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                 ImportField idImportCodeField = null;
                 if (skuImportCodeLM != null) {
-                    idImportCodeField = new ImportField(skuImportCodeLM.findProperty("itemId[ImportCode]"));
+                    idImportCodeField = new ImportField(skuImportCodeLM.findProperty("skuId[ImportCode]"));
                     ImportKey<?> importCodeKey = new ImportKey((CustomClass) skuImportCodeLM.findClass("ImportCode"),
-                            skuImportCodeLM.findProperty("importCode[VARSTRING[100]]").getMapping(idImportCodeField));
-                    props.add(new ImportProperty(idImportCodeField, skuImportCodeLM.findProperty("itemId[ImportCode]").getMapping(importCodeKey)));
+                            skuImportCodeLM.findProperty("skuImportCode[VARSTRING[100]]").getMapping(idImportCodeField));
+                    props.add(new ImportProperty(idImportCodeField, skuImportCodeLM.findProperty("skuId[ImportCode]").getMapping(importCodeKey)));
                     fields.add(idImportCodeField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idImportCode"));
