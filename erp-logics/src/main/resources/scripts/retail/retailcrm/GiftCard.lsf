@@ -75,6 +75,9 @@ seriesNumberGiftCard 'Серия/Номер сертификата' (ReceiptGift
 EXTEND FORM zReport
     PROPERTIES(d) seriesNumberGiftCard SHOWIF isReceiptGiftCardSaleDetail(d) 
 ;
+EXTEND FORM zReports
+    PROPERTIES(d) READONLY seriesNumberGiftCard SHOWIF isReceiptGiftCardSaleDetail(d) 
+;
 
 receipt = DATA Receipt (ReceiptGiftCardSaleDetail) NONULL DELETE;
 receipt(ReceiptGiftCardSaleDetail detail) += receipt(detail);
@@ -105,7 +108,8 @@ signedSum(ReceiptGiftCardSaleDetail detail) += sum(detail);
 
 isReturn 'Возвратный' = DATA BOOLEAN (ReceiptGiftCardSaleDetail);
 
-sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (zReport)= GROUP SUM sum[ReceiptDetail](ReceiptGiftCardSaleDetail d) IF d IS ReceiptGiftCardSaleDetail BY zReport[ReceiptDetail](d);
+sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (receiptDetail) = GROUP SUM sum[ReceiptDetail](ReceiptGiftCardSaleDetail d) IF d IS ReceiptGiftCardSaleDetail BY receipt[ReceiptDetail](d);
+sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (zReport)= GROUP SUM sum[ReceiptDetail](ReceiptGiftCardSaleDetail d) IF d IS ReceiptGiftCardSaleDetail BY zReport[ReceiptDetail](d) IN documentSum;
 
 namePaymentType 'Тип платежа' (ReceiptGiftCardSaleDetail d) = [= GROUP CONCAT namePaymentType(Payment p), ', ' BY receipt(p)](receipt(d));
 
@@ -349,9 +353,17 @@ sumGiftCardPayment 'Сумма продаж (сертификат)' (zReport) = 
 
 minGiftCardPaymentType() = GROUP MIN PaymentType paymentType IF paymentMeans(paymentType) == PaymentMeans.paymentMeansGiftCard;
 
+EXTEND FORM zReport
+    PROPERTIES (z) READONLY BEFORE sumNegativeCashPayment(z) sumGiftCardPayment
+    PROPERTIES (z) READONLY  sumReceiptDetailGiftCard
+    PROPERTIES (b) READONLY  sumReceiptDetailGiftCard AFTER sumCardPayment(b)
+    PROPERTIES (b) READONLY AFTER sumCardPayment(b) sumGiftCardPayment
+;
+
 EXTEND FORM zReports
     PROPERTIES (z) READONLY BEFORE sumNegativeCashPayment(z) sumGiftCardPayment
     PROPERTIES (z) READONLY  sumReceiptDetailGiftCard
+    PROPERTIES (b) READONLY  sumReceiptDetailGiftCard
     PROPERTIES (b) READONLY AFTER sumCardPayment(b) sumGiftCardPayment    
 ;
 
@@ -360,6 +372,9 @@ addGiftCardpayment 'Добавить ПС' (Receipt r) = { NEW p = PaymentGiftCa
 EXTEND FORM zReport
     PROPERTIES (b)  addGiftCardpayment TOOLBAR TODRAW p
     PROPERTIES (p) seriesNumber[GiftCardLedger] BEFORE del;
+
+EXTEND FORM zReports
+    PROPERTIES (p) READONLY seriesNumber[GiftCardLedger];
 
 overCopy(ReceiptGiftCardSaleDetail detail,Receipt r) += {
     IF detail IS ReceiptGiftCardSaleDetail THEN {
