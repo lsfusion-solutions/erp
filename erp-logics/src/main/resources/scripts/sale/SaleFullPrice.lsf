@@ -25,16 +25,35 @@ recalculateDiscountPrice(UserOrderDetail d) = {
 }
 
 // заполнение полной цены 
+fullPrevList (priceListType, userOrderDetail) = ABSTRACT CASE NUMERIC[16,4] (PriceListType, UserOrderDetail); 
+fullPrevList (PriceListType priceListType, UserOrderDetail userOrderDetail) += WHEN priceListType IS PriceListType AND sku(userOrderDetail) THEN  
+                                                     prevPriceB((OVERRIDE basePriceListType(priceListType), priceListType), 
+                                                        sku(userOrderDetail), priceStock(userOrderDetail), dateTime(userOrderDetail));
+
+fullPrevList (PriceListType priceListType, UserOrderDetail userOrderDetail) += WHEN priceListType IS PriceListType AND batch(userOrderDetail) THEN
+                                                     prevPriceB((OVERRIDE basePriceListType(priceListType), priceListType), 
+                                                        batch(userOrderDetail), priceStock(userOrderDetail), dateTime(userOrderDetail));
+                                                        
+disableUpdateOrderFullPrice = ABSTRACT VALUE BOOLEAN (UserOrderDetail);                                                        
+
 WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail] 
         (((CHANGED(priceStock(UserOrderDetail d)) OR CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
          (CHANGED(priceListType(d)) OR CHANGED(agreement(d)) OR CHANGED(sku(d))))
-         AND NOT CHANGED(fullPrice(d)) AND PriceListType pt == priceListType(d) AND isItem(sku(d)) 
+         AND NOT CHANGED(fullPrice(d)) AND PriceListType pt == priceListType(d) AND isItem(sku(d))
+         AND includeVAT(pt) AND NOT disableUpdateOrderFullPrice(d) 
          NOINLINE (pt) DO {
-    fullPrice(d) <- IF prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), customerStock(d), dateTime(d)) 
-                    THEN round2(prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), customerStock(d), dateTime(d)))
-                    ELSE round2(prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), priceStock(d), dateTime(d)));    
+    fullPrice(d) <- round2(fullPrevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d)));    
 }
 
+WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail] 
+        (((CHANGED(priceStock(UserOrderDetail d)) OR CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
+         (CHANGED(priceListType(d)) OR CHANGED(agreement(d)) OR CHANGED(sku(d))))
+         AND NOT CHANGED(fullPrice(d)) AND PriceListType pt == priceListType(d) AND isItem(sku(d))
+         AND NOT includeVAT(pt) AND NOT disableUpdateOrderFullPrice(d) 
+         NOINLINE (pt) DO {
+    fullPrice(d) <- fullPrevList(pt, d);    
+}
+    
 // при изменении полной цены пересчитывается цена 
 WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail] 
         (CHANGED(fullPrice(UserOrderDetail d)))
@@ -126,15 +145,33 @@ recalculateDiscountPrice(UserInvoiceDetail d) = {
 }
 
 // заполнение полной цены 
-WHEN LOCAL //FORMS userInvoice 
-        GOAFTER valueVAT[UserInvoiceDetail] 
+fullPrevList = ABSTRACT CASE NUMERIC[16,4] (PriceListType, UserInvoiceDetail); 
+fullPrevList (PriceListType priceListType, UserInvoiceDetail detail) += WHEN priceListType IS PriceListType AND sku(detail) THEN  
+                                                     prevPriceB((OVERRIDE basePriceListType(priceListType), priceListType), 
+                                                        sku(detail), supplierStock(detail), dateTime(detail));
+
+fullPrevList (PriceListType priceListType, UserInvoiceDetail detail) += WHEN priceListType IS PriceListType AND batch(detail) THEN
+                                                     prevPriceB((OVERRIDE basePriceListType(priceListType), priceListType), 
+                                                        batch(detail), supplierStock(detail), dateTime(detail));
+                                                        
+disableUpdateInvoiceFullPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);                                                        
+
+WHEN LOCAL FORMS userInvoice GOAFTER valueVAT[UserInvoiceDetail] 
         (((CHANGED(supplierStock(UserInvoiceDetail d)) OR CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
          (CHANGED(priceListType(d)) OR CHANGED(agreement(d)) OR CHANGED(sku(d))))
-         AND NOT CHANGED(fullPrice(d)) AND PriceListType pt == priceListType(d) AND isItem(sku(d)) 
+         AND NOT CHANGED(fullPrice(d)) AND PriceListType pt == priceListType(d) AND isItem(sku(d))
+         AND includeVAT(pt) AND NOT disableUpdateInvoiceFullPrice(d) 
          NOINLINE (pt) DO {
-            fullPrice(d) <- IF prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), customerStock(d), dateTime(d)) 
-                    THEN round2(prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), customerStock(d), dateTime(d)))
-                    ELSE round2(prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), supplierStock(d), dateTime(d)));    
+    fullPrice(d) <- round2(fullPrevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d)));    
+}
+
+WHEN LOCAL FORMS userInvoice GOAFTER valueVAT[UserInvoiceDetail] 
+        (((CHANGED(supplierStock(UserInvoiceDetail d)) OR CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
+         (CHANGED(priceListType(d)) OR CHANGED(agreement(d)) OR CHANGED(sku(d))))
+         AND NOT CHANGED(fullPrice(d)) AND PriceListType pt == priceListType(d) AND isItem(sku(d))
+         AND NOT includeVAT(pt) AND NOT disableUpdateInvoiceFullPrice(d) 
+         NOINLINE (pt) DO {
+    fullPrice(d) <- fullPrevList(pt, d);    
 }
 
 // при изменении полной цены пересчитывается цена 
