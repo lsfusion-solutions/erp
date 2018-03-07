@@ -12,6 +12,9 @@ TABLE giftCard(GiftCard);
 
 @defineNumeratedDefault(GiftCard, 'Подарочные сертификаты', 'ПС');
 
+inactive 'Неактивный' = DATA BOOLEAN (GiftCard);
+active 'Активный' (GiftCard g) = g IS GiftCard AND NOT inactive(g);
+
 // Уникальность
 giftCardSeriesNumber (string) =
     GROUP AGGR GiftCard giftCard
@@ -173,7 +176,7 @@ DESIGN generationGiftCards {
 
 overGenerateGiftCards = ABSTRACT LIST (GiftCard);
 
-generateGiftCards 'Сгенерировать подарочные сертификаты'() = {
+generateGiftCards 'Сгенерировать ПС'() = {
     DIALOG generationGiftCards OBJECTS n = defaultNumeratorGiftCard() INPUT, l = legalEntityGiftCard() INPUT,
                                        quantityCards INPUT, priceCards INPUT, dt INPUT, d INPUT DO {
         LOCAL num = INTEGER();
@@ -201,7 +204,7 @@ generateGiftCards 'Сгенерировать подарочные сертиф�
 //формы
 FORM giftCard 'Подарочный сертификат'
     OBJECTS g = GiftCard PANEL
-    PROPERTIES(g) nameNumerator, number, series, id SHOWIF showIDs(), date, price, expiryDays, nameLegalEntity
+    PROPERTIES(g) nameNumerator, number, series, id SHOWIF showIDs(), date, price, expiryDays, nameLegalEntity, inactive
 
     EDIT GiftCard OBJECT g
 ;
@@ -217,13 +220,14 @@ DESIGN giftCard {
         MOVE PROPERTY(expiryDays(g));
         MOVE PROPERTY(price(g));
         MOVE PROPERTY(nameLegalEntity(g));
+        MOVE PROPERTY(inactive(g));
     }
     MOVE TOOLBARBOX;
 }
 
 FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
-    PROPERTIES(g) READONLYIF isReadonly() number, series, id SHOWIF showIDs(), date, dateSold, nameLegalEntity, nameDepartmentStoreSold, numberReceiptSold, expiryDays, price
+    PROPERTIES(g) READONLYIF isReadonly() inactive, number, series, id SHOWIF showIDs(), date, dateSold, nameLegalEntity, nameDepartmentStoreSold, numberReceiptSold, expiryDays, price
     PROPERTIES generateGiftCards() TODRAW g 
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE TOOLBAR 
 
@@ -233,6 +237,10 @@ FORM giftCards 'Подарочные сертификаты'
                     
     ORDER dateTime(l)
     FILTERS giftCard(l) == g
+    
+    FILTERGROUP filter0
+        FILTER 'Активные' active(g) 'F5' DEFAULT 
+
 ;
 
 NAVIGATOR {
