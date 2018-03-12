@@ -26,12 +26,14 @@ toDate 'Дата по' = DATA DATE (DefectGiftCard) IN documentHeader;
 toDate 'Дата по' (DefectGiftCardDetail d)= toDate(defectGiftCard(d));
 
 giftCard = DATA GiftCard (DefectGiftCardDetail) INDEXED NONULL;
-seriesNumberGiftCard 'Серия/Номер' (DefectGiftCardDetail d) = seriesNumber(giftCard(d));
+seriesNumberGiftCard 'Серия/Номер' (DefectGiftCardDetail d) = seriesNumber(giftCard(d)) IN recognize;
 priceGiftCard 'Цена' (DefectGiftCardDetail d) = price(giftCard(d));
 expiryDaysGiftCard 'Срок действия' (DefectGiftCardDetail d) = expiryDays(giftCard(d));
 defectGiftCardDetail  = GROUP AGGR (DefectGiftCardDetail d) BY giftCard(d);
 
-CONSTRAINT giftCard(DefectGiftCardDetail d) AND used(giftCard(d))
+allowUsed 'Разрешить использованные' = DATA BOOLEAN (DefectGiftCardDetail);
+
+CONSTRAINT giftCard(DefectGiftCardDetail d) AND used(giftCard(d)) AND NOT allowUsed(d)
     CHECKED BY giftCard[DefectGiftCardDetail]
     MESSAGE 'Списывать можно только непогашенные подарочные сертификаты';
 
@@ -41,8 +43,7 @@ FORM defectGiftCard 'Списание испорченных ПС'
 
     OBJECTS r = DefectGiftCard PANEL
     PROPERTIES (r) nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(r),  nameNumerator, 
-                   number, series, date, time,
-                   note, fromDate, toDate
+                   number, series, date, time, note, fromDate, toDate
                         
                 
     PROPERTIES (r) countDefectGiftCardDetail
