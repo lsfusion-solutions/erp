@@ -16,9 +16,10 @@ public class ReceiptItem implements Serializable {
     public BigDecimal discount;
     public String vatString;
     public Integer section;
+    public String comment;
 
     public ReceiptItem(Boolean isGiftCard, BigDecimal price, BigDecimal quantity, boolean useBlisters, BigDecimal blisterPrice, BigDecimal blisterQuantity,
-                       String barcode, String name, BigDecimal sumPos, BigDecimal discount, String vatString, Integer section) {
+                       String barcode, String name, BigDecimal sumPos, BigDecimal discount, String vatString, Integer section, String comment) {
         this.isGiftCard = isGiftCard;
         this.price = price;
         this.quantity = quantity;
@@ -31,5 +32,6 @@ public class ReceiptItem implements Serializable {
         this.discount = discount;
         this.vatString = vatString;
         this.section = section;
+        this.comment = comment;
     }
 }

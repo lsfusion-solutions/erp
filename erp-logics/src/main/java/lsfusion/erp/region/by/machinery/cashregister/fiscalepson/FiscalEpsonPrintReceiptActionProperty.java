@@ -56,6 +56,7 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
 
                 String cashier = trim((String) findProperty("currentUserName[]").read(context));
+                String comment = (String) findProperty("fiscalEpsonComment[Receipt]").read(context, receiptObject);
 
                 BigDecimal sumCard = null;
                 BigDecimal sumCash = null;
@@ -91,11 +92,11 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                 String[] rdNames = new String[]{"nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
                         "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
                         "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail", "valueVATReceiptDetail",
-                        "calcSumVATReceiptDetail", "idSectionReceiptDetail"};
+                        "calcSumVATReceiptDetail", "idSectionReceiptDetail", "commentReceiptDetail"};
                 LCP[] rdProperties = findProperties("nameSku[ReceiptDetail]", "type[ReceiptDetail]", "quantity[ReceiptDetail]",
                         "quantity[ReceiptSaleDetail]", "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]",
                         "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]", "discountSum[ReceiptDetail]", "valueVAT[ReceiptDetail]",
-                        "calcSumVAT[ReceiptDetail]", "idSection[ReceiptDetail]");
+                        "calcSumVAT[ReceiptDetail]", "idSection[ReceiptDetail]", "fiscalEpsonComment[ReceiptDetail]");
                 for (int i = 0; i < rdProperties.length; i++) {
                     receiptDetailQuery.addProperty(rdNames[i], rdProperties[i].getExpr(context.getModifier(), receiptDetailExpr));
                 }
@@ -134,18 +135,18 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                     BigDecimal valueVAT = (BigDecimal) receiptDetailValues.get("valueVATReceiptDetail");
                     BigDecimal calcSumVAT = (BigDecimal) receiptDetailValues.get("calcSumVATReceiptDetail");
                     String vatString = valueVAT == null || calcSumVAT == null ? null : String.format("НДС: %s (%s%%)", formatSumVAT(calcSumVAT), formatValueVAT(valueVAT));
-
+                    String commentDetail = (String) receiptDetailValues.get("commentReceiptDetail");
                     if (quantitySale != null && !isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, useBlisters, blisterPrice, blisterQuantity, barcode, name,
-                                sumReceiptDetail, discountSumReceiptDetail, vatString, section));
+                                sumReceiptDetail, discountSumReceiptDetail, vatString, section, commentDetail));
                     if (quantity != null && isGiftCard) {
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantity, useBlisters, blisterPrice, blisterQuantity, barcode, "Подарочный сертификат",
-                                sumReceiptDetail, discountSumReceiptDetail, vatString, section));
+                                sumReceiptDetail, discountSumReceiptDetail, vatString, section, commentDetail));
                     }
                     if (quantityReturn != null) {
                         BigDecimal discount = discountSumReceiptDetail == null ? BigDecimal.ZERO : discountSumReceiptDetail.divide(quantityReturn);
                         receiptReturnItemList.add(new ReceiptItem(isGiftCard, price, quantityReturn, useBlisters, blisterPrice, blisterQuantity, barcode,
-                                name, sumReceiptDetail, discount, vatString, section));
+                                name, sumReceiptDetail, discount, vatString, section, commentDetail));
                     }
                 }
 
@@ -159,7 +160,7 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                                         new ReceiptInstance(sumCash == null ? null : sumCash.abs(),
                                                 sumCard == null ? null : sumCard.abs(),
                                                 sumGiftCard == null ? null : sumGiftCard.abs(), cashier,
-                                                isReturn ? receiptReturnItemList : receiptSaleItemList)));
+                                                isReturn ? receiptReturnItemList : receiptSaleItemList, comment)));
                         if (result.receiptNumber != null) {
                             findProperty("number[Receipt]").change(result.receiptNumber, context, receiptObject);
                             findProperty("documentNumber[Receipt]").change(result.documentNumber, context, receiptObject);

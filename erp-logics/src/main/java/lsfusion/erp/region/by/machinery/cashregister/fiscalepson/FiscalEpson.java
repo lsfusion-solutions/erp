@@ -240,11 +240,13 @@ public class FiscalEpson {
         Integer offsetBefore = getElectronicJournalReadOffset();
         openReceipt(receipt.cashier, sale ? 1 : 2);
         DecimalFormat formatter = getFormatter();
+        printLine(receipt.comment);
         for (ReceiptItem item : receipt.receiptList) {
             printLine(item.barcode);
             registerItem(item);
             discountItem(item, !sale, formatter);
             printLine(item.vatString);
+            printLine(item.comment);
 
         }
         ReceiptInfo receiptInfo = closeReceipt(receipt, sale);
