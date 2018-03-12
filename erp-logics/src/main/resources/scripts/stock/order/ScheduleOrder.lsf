@@ -267,6 +267,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     overCreate = ABSTRACT LIST (ScheduleOrderDetail); 
     
     lastShipment = GROUP MAX dateSupply(ScheduleOrderDetail d) IF dateSupply(d) <= DATE date BY scheduleOrder(d), date;
+    lastDateSupply = GROUP MAX dateSupply(ScheduleOrderDetail d) BY scheduleOrder(d), customerStock(d);
 
     create 'Сгенерировать предварительные заказы'(ScheduleOrder scheduleOrder) = {
         LOCAL toDate = DATE ();    
@@ -341,7 +342,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                         orderDate() <- subtract(tmpDate(), 
                                                     shipmentTime(shipmentScheduleOrderTime(scheduleOrder, 
                                                                                                                             extractDOW(tmpDate()))));
-                        FOR in(scheduleOrder, Stock stock) AND NOT countDetails(scheduleOrder, tmpDate(), orderDate(), stock) DO {                     
+                        FOR in(scheduleOrder, Stock stock) AND NOT tmpDate() <= lastDateSupply(scheduleOrder, stock) DO { //AND NOT countDetails(scheduleOrder, tmpDate(), orderDate(), stock) DO {                      
                             NEW o = ScheduleOrderDetail {
                                 dateOrder(o) <- orderDate();
                                 dateSupply(o) <- tmpDate();
