@@ -616,11 +616,15 @@ fillAllBatch 'Проставить партии для всех'(InternetOrderDe
        fillBatch(d);
 } ASON CONTEXTMENU nameBatch[InternetOrderDetail];
 
-WHEN LOCAL DROPPED (Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail)) AND isItem(sku(detail)) DO {
-    batch(detail) <- NULL;
-}
+//WHEN LOCAL DROPPED (Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail)) AND isItem(sku(detail)) DO {
+//    batch(detail) <- NULL;
+//}
+//WHEN LOCAL SETCHANGED(Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail)) AND isItem(sku(detail)) DO {
+//    batch(detail) <- firstOrderBatchBalance(sku(detail), Sale.supplierStock[InternetOrderDetail](detail), dateTime(detail), quantity(detail)); 
+//    overFillBatch(detail);
+//}
 
-WHEN LOCAL SETCHANGED(Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail)) AND isItem(sku(detail)) DO {
+WHEN LOCAL (CHANGED(Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail)) OR CHANGED (sku(detail))) AND isItem(sku(detail)) AND NOT CHANGED (batch(detail)) DO {
     batch(detail) <- firstOrderBatchBalance(sku(detail), Sale.supplierStock[InternetOrderDetail](detail), dateTime(detail), quantity(detail)); 
     overFillBatch(detail);
 }
