@@ -361,17 +361,17 @@ quantity 'Количество' = ABSTRACT NUMERIC[16,5] (ReceiptDetail) MATERIA
 quantity(ReceiptReturnDetail detail) += quantity(detail);
 quantity(ReceiptSaleDetail detail) += quantity(detail);
 
-price 'Цена' = ABSTRACT NUMERIC[16,4] (ReceiptDetail) MATERIALIZED;
+price 'Цена' = ABSTRACT NUMERIC[16,4] (ReceiptDetail) MATERIALIZED CHARWIDTH 8;
 price(ReceiptReturnDetail detail) += price(detail);
 price(ReceiptSaleDetail detail) += price(detail);
 
 INDEX sku(ReceiptDetail d), price(d);
 
-sum 'Сумма' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) MATERIALIZED;
+sum 'Сумма' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) MATERIALIZED CHARWIDTH 8;
 sum(ReceiptReturnDetail detail) += sum(detail);
 sum(ReceiptSaleDetail detail) += sum(detail);
 
-discountSum 'Сумма скидки' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) MATERIALIZED;
+discountSum 'Сумма скидки' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) MATERIALIZED CHARWIDTH 8;
 discountSum(ReceiptSaleDetail d) += discountSum(d);
 discountSum(ReceiptReturnDetail d) += discountSum(d);
 
@@ -456,7 +456,7 @@ WHEN CHANGED(VAT(ReceiptDetail d)) OR CHANGED(date(d)) OR CHANGED (batch(d)) DO 
 }
 
 sumVAT 'Сумма НДС' (d) = DATA NUMERIC[18,4] (ReceiptDetail);
-calcSumVAT 'Сумма НДС' (ReceiptDetail d) = round(sum(d) * valueVAT(d) / (100 + valueVAT(d)), currency(d));
+calcSumVAT 'Сумма НДС' (ReceiptDetail d) = round(sum(d) * valueVAT(d) / (100 + valueVAT(d)), currency(d)) CHARWIDTH 8;
 // пока делаем не сессионным событием, чтобы быстрее принималось
 WHEN CHANGED(valueVAT(ReceiptDetail d)) OR CHANGED(sum(d)) OR CHANGED(currency(d)) DO {
     sumVAT(d) <- calcSumVAT(d);
