@@ -195,6 +195,7 @@ EXTEND FORM ranges
 TABLE rangeStoreTypeDate(Range, StoreType, DATE);
 excludeLevel = DATA BOOLEAN (Range, StoreType, DATE);
 dataLevel = DATA RangeLevel (Range, StoreType, DATE);
+hasLevel (Range r, StoreType s, DATE d) = dataLevel(r, s, d) OR excludeLevel(r, s, d) MATERIALIZED;
 
 CONSTRAINT dataLevel(Range r, StoreType t, DATE d) AND NOT in(r, dataLevel(r, t, d))
     CHECKED BY dataLevel[Range,StoreType,DATE]
@@ -203,7 +204,7 @@ CONSTRAINT dataLevel(Range r, StoreType t, DATE d) AND NOT in(r, dataLevel(r, t,
 level (r, t, d) = GROUP LAST dataLevel(Range range, StoreType storeType, DATE dateIn)
                                               BY range, storeType, DATE date
                                               ORDER dateIn
-                                              WHERE (dataLevel(range, storeType, dateIn) OR excludeLevel(range, storeType, dateIn)) AND dateIn <= (date AS DATE); 
+                                              WHERE hasLevel(range, storeType, dateIn) AND dateIn <= (date AS DATE) COMPLEX; 
 
 date (r, t, d) = GROUP LAST DATE dateIn
                                               BY Range range, StoreType storeType, DATE date
@@ -225,6 +226,7 @@ countSku 'Кол-во товаров' (Range r, StoreType t, DATE d) = countRecS
 TABLE rangeStoreDate(Range, Store, DATE);
 dataLevel = DATA RangeLevel (Range, Store, DATE);
 excludeLevel = DATA BOOLEAN (Range, Store, DATE);
+hasLevel (Range r, Store s, DATE d) = dataLevel(r, s, d) OR excludeLevel(r, s, d) MATERIALIZED;
    
 CONSTRAINT dataLevel(Range r, Store st, DATE d) AND NOT in(r, dataLevel(r, st, d))
     CHECKED BY dataLevel[Range,Store,DATE]
@@ -233,7 +235,7 @@ CONSTRAINT dataLevel(Range r, Store st, DATE d) AND NOT in(r, dataLevel(r, st, d
 level (r, st, d) = GROUP LAST dataLevel(Range range, Store st, DATE dateIn)
                                               BY range, st, DATE date
                                               ORDER dateIn
-                                              WHERE (dataLevel(range, st, dateIn) OR excludeLevel(range, st, dateIn)) AND dateIn <= (date AS DATE); 
+                                              WHERE hasLevel(range, st, dateIn) AND dateIn <= (date AS DATE) COMPLEX; 
 
 date (r, st, d) = GROUP LAST DATE dateIn
                                               BY Range range, Store st, DATE date
