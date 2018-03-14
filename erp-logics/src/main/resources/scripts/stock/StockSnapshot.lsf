@@ -702,7 +702,7 @@ deleteIncludeLegalEntities 'Сбросить отмеченные'(Snapshot r) =
     include(r,LegalEntity l) <- NULL;
 };
 
-countIncludeLegalEntities (Snapshot s) = GROUP SUM 1 IF include(Snapshot s, LegalEntity l) BY s;
+countIncludeLegalEntities (Snapshot s) = GROUP SUM 1 IF include(Snapshot s, LegalEntity l) BY s MATERIALIZED COMPLEX;
 
 //-- Выбор групп брендов
 TABLE snapshotBrand (Snapshot, Brand);
@@ -785,10 +785,10 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = {
     }
     IF countIncludeLegalEntities(snapshot) THEN {
         IF filterLocal() THEN {
-            includeLocal(Sku sku) <- include(snapshot, supplierLastOrderBatch(sku)) WHERE includeLocal(sku);
+            includeLocal(Sku sku) <- TRUE WHERE includeLocal(sku) AND [= GROUP SUM 1 IF include(Snapshot s, supplierLastOrderBatch(Sku sku, Stock st)) AND include(s, st) BY s,sku](snapshot,sku);
         } ELSE {
             filterLocal() <- TRUE;
-            includeLocal(Sku sku) <- include(snapshot, supplierLastOrderBatch(sku)) WHERE include(snapshot, supplierLastOrderBatch(sku));
+            includeLocal(Sku sku) <- TRUE WHERE [= GROUP SUM 1 IF include(Snapshot s, supplierLastOrderBatch(Sku sku, Stock st)) AND include(s, st) BY s,sku](snapshot,sku);
         } 
     }
     
@@ -1523,7 +1523,8 @@ FORM snapshot 'Аналитический отчет'
                       st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
                       isCompany(st),
                       include(r,st),
-                      filterSupplierSnapshot(s,st)
+                      filterSupplierSnapshot(s,st),
+                      include(r,supplierLastOrderBatch(s, st)) OR NOT countIncludeLegalEntities(r)
 
     PROPERTIES(s, st, r) READONLY BACKGROUND hintBalanceBBackground() balanceB SHOWIF isQuantityBalanceB(r), 
                          sumB SHOWIF isSumBalanceB(r),                         
