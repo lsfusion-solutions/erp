@@ -27,3 +27,13 @@ createAttribute(MachineryPriceTransaction t, Stock stock) += {
     }
     
 }
+
+balanceDate 'Дата остатка' = DATA DATETIME (MachineryPriceTransaction, Barcode);
+balanceDate(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
+@defineMachineryPriceTransactionAttributeBase(balanceDate, 'Дата остатка', );
+
+balanceDate'Дата остатка' = ABSTRACT DATETIME (Stock);
+
+createAttribute(MachineryPriceTransaction t, Stock s) += { 
+    balanceDate(t, Barcode b) <- OVERRIDE balanceDate(s), currentDateTime() WHERE in(t, b);
+}
