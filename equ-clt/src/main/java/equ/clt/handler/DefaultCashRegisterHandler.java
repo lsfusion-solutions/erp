@@ -108,7 +108,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     }
 
     @Override
-    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
 
     }
 

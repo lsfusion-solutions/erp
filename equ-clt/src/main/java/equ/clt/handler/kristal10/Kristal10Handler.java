@@ -395,7 +395,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     @Override
-    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList,
                                  Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
             int count = 0;

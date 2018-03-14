@@ -49,7 +49,7 @@ public class SendSalesEquipmentServer {
 
                         SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
 
-                        requestSalesInfo(remote, sidEquipmentServer, getSalesInfoExchangeList(requestExchangeList), handler, directorySet);
+                        requestSalesInfo(remote, sidEquipmentServer, getSalesInfoExchangeList(requestExchangeList), handler);
 
                         sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
@@ -78,8 +78,8 @@ public class SendSalesEquipmentServer {
         return salesInfoExchangeList;
     }
 
-    static void requestSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, List<RequestExchange> requestExchangeList, CashRegisterHandler handler, Set<String> directorySet)
-            throws IOException, ParseException, SQLException {
+    static void requestSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, List<RequestExchange> requestExchangeList, CashRegisterHandler handler)
+            throws IOException, SQLException {
         try {
             if (!requestExchangeList.isEmpty()) {
                 sendSalesLogger.info("Requesting SalesInfo");
@@ -87,7 +87,7 @@ public class SendSalesEquipmentServer {
                 Map<Long, Throwable> failedRequests = new HashMap<>();
                 Map<Long, Throwable> ignoredRequests = new HashMap<>();
 
-                handler.requestSalesInfo(requestExchangeList, directorySet, succeededRequests, failedRequests, ignoredRequests);
+                handler.requestSalesInfo(requestExchangeList, succeededRequests, failedRequests, ignoredRequests);
                 if (!succeededRequests.isEmpty())
                     remote.finishRequestExchange(succeededRequests);
                 if (!failedRequests.isEmpty())

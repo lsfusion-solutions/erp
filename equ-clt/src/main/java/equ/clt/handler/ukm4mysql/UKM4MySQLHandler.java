@@ -1095,7 +1095,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     @Override
-    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList,
                                  Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
         for (RequestExchange requestExchange : requestExchangeList) {
             for (String directory : getDirectorySet(requestExchange)) {

@@ -587,7 +587,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     }
 
     @Override
-    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList,
                                  Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
             Connection conn = null;

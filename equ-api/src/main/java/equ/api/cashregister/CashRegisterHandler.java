@@ -27,8 +27,7 @@ public abstract class CashRegisterHandler<S extends SalesBatch> extends Machiner
     
     public abstract SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException;
 
-    //TODO: убрать directorySet, когда не останется использований
-    public abstract void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
+    public abstract void requestSalesInfo(List<RequestExchange> requestExchangeList,
                                           Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException;
 
     public abstract void finishReadingSalesInfo(S salesBatch);

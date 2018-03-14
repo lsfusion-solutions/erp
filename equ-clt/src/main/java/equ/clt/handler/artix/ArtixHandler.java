@@ -469,7 +469,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     @Override
-    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Long> succeededRequests,
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<Long> succeededRequests,
                                  Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
         for (RequestExchange entry : requestExchangeList) {
             for (CashRegisterInfo cashRegister : getCashRegisterSet(entry, true)) {

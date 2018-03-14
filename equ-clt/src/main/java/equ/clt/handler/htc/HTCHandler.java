@@ -805,7 +805,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
     }
 
     @Override
-    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList,
                                  Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
         Map<String, List<RequestExchange>> requestExchangeMap = new HashMap<>();
 

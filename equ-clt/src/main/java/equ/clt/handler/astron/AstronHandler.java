@@ -628,7 +628,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     @Override
-    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList,
                                  Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
         AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
         String connectionString = astronSettings == null ? null : astronSettings.getConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
