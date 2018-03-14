@@ -88,9 +88,10 @@ countRowsVerticalA 'Макс. кол-во строк в бланке (ТТН-1 �
 countRowsVerticalAB 'Макс. кол-во строк в бланке (ТТН-1 вер.А/Б)' = DATA INTEGER ();
 countRowsHorizontal 'Макс. кол-во строк в бланке (ТТН-1 гор.А)' = DATA INTEGER ();
 
-EXTEND FORM options
-    PROPERTIES() countRowsSimpleVertical, countRowsSimpleHorizontal, countRowsVerticalA, countRowsVerticalAB, countRowsHorizontal
+skipCountRows 'Не учитывать макс. кол-во строк при печати накладной с приложением' = DATA BOOLEAN ();
 
+EXTEND FORM options
+    PROPERTIES() countRowsSimpleVertical, countRowsSimpleHorizontal, countRowsVerticalA, countRowsVerticalAB, countRowsHorizontal, skipCountRows
 ;
 
 DESIGN options {
@@ -103,8 +104,8 @@ DESIGN options {
             MOVE PROPERTY(countRowsVerticalA());
             MOVE PROPERTY(countRowsVerticalAB());
             MOVE PROPERTY(countRowsHorizontal());
+            MOVE PROPERTY(skipCountRows());
         }
-
     }
 }
 
@@ -681,21 +682,43 @@ END
 @defineConsignmentFormSimple(horizontal, 'ТН-2, горизонтальная');
 @defineConsignmentFormSimpleExtra(attach, 'Приложение к ТН-2');
 printSimpleVerticalAttach 'ТН-2, вертикальная с приложением' (Consignment consignment) = {
-	NEWSESSION {        
+	NEWSESSION {
+	    LOCAL countRowsSimpleVerticalLocal = INTEGER ();
+	    LOCAL countRowsSimpleHorizontalLocal = INTEGER ();
+	    IF skipCountRows() THEN {
+	        countRowsSimpleVerticalLocal() <- countRowsSimpleVertical();
+	        countRowsSimpleHorizontalLocal() <- countRowsSimpleHorizontal();
+	        countRowsSimpleVertical() <- NULL;
+	        countRowsSimpleHorizontal() <- NULL;
+	    }
 	    PRINT consignmentSimpleAttach OBJECTS c = consignment ;
-	    countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);      
+	    countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
 	    printSimpleVertical(consignment);
-	    apply();      
-	    
+	    IF skipCountRows() THEN {
+	        countRowsSimpleVertical() <- countRowsSimpleVerticalLocal();
+            countRowsSimpleHorizontal() <- countRowsSimpleHorizontalLocal();
+	    }
+	    apply();
 	}
 } IMAGE 'print.png' IN print;
 printSimpleHorizontalAttach 'ТН-2, горизонтальная с приложением' (Consignment consignment) = {
-	NEWSESSION {        
+	NEWSESSION {
+	    LOCAL countRowsSimpleVerticalLocal = INTEGER ();
+        LOCAL countRowsSimpleHorizontalLocal = INTEGER ();
+        IF skipCountRows() THEN {
+            countRowsSimpleVerticalLocal() <- countRowsSimpleVertical();
+            countRowsSimpleHorizontalLocal() <- countRowsSimpleHorizontal();
+            countRowsSimpleVertical() <- NULL;
+            countRowsSimpleHorizontal() <- NULL;
+        }
 	    PRINT consignmentSimpleAttach OBJECTS c = consignment ;
-	    countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);      
+	    countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
 	    printSimpleHorizontal(consignment);
-	    apply();      
-	    
+	    IF skipCountRows() THEN {
+            countRowsSimpleVertical() <- countRowsSimpleVerticalLocal();
+            countRowsSimpleHorizontal() <- countRowsSimpleHorizontalLocal();
+        }
+	    apply();
 	}
 } IMAGE 'print.png' IN print;
 
@@ -817,9 +840,25 @@ META defineExtendPrintConsignmentFormAll(form, caption, prefixA, prefixB)       
 ///            stopPrintConsignment() <- NULL;
             checkMandatoryAttribute(consignment);
             IF NOT stopPrintConsignment() THEN {
+                LOCAL countRowsVerticalALocal = INTEGER ();
+                LOCAL countRowsVerticalABLocal = INTEGER ();
+                LOCAL countRowsHorizontalLocal = INTEGER ();
+                IF skipCountRows() THEN {
+                    countRowsVerticalALocal() <- countRowsVerticalA();
+                    countRowsVerticalABLocal() <- countRowsVerticalAB();
+                    countRowsHorizontalLocal() <- countRowsHorizontal();
+                    countRowsVerticalA() <- NULL;
+                    countRowsVerticalAB() <- NULL;
+                    countRowsHorizontal() <- NULL;
+                }
                 PRINT consignment###attach OBJECTS c = consignment ;
                 countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
                 PRINT consignment###form OBJECTS prefixA = consignment, prefixB = consignment ;
+                IF skipCountRows() THEN {
+                    countRowsVerticalA() <- countRowsVerticalALocal();
+                    countRowsVerticalAB() <- countRowsVerticalABLocal();
+                    countRowsHorizontal() <- countRowsHorizontalLocal();
+                }
                 apply();
             }            
         }
@@ -872,11 +911,26 @@ printVerticalABAttach 'ТТН-1 вертикальная (А/Б) с прилож
 	NEWSESSION {
 	    checkMandatoryAttribute(consignment);
 	    IF NOT stopPrintConsignment() THEN {
+	        LOCAL countRowsVerticalALocal = INTEGER ();
+            LOCAL countRowsVerticalABLocal = INTEGER ();
+            LOCAL countRowsHorizontalLocal = INTEGER ();
+            IF skipCountRows() THEN {
+                countRowsVerticalALocal() <- countRowsVerticalA();
+                countRowsVerticalABLocal() <- countRowsVerticalAB();
+                countRowsHorizontalLocal() <- countRowsHorizontal();
+                countRowsVerticalA() <- NULL;
+                countRowsVerticalAB() <- NULL;
+                countRowsHorizontal() <- NULL;
+            }
 	        PRINT consignmentAttach OBJECTS c = consignment ;
-	        countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);                      
+	        countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
 	        PRINT consignmentVerticalAB OBJECTS a = consignment ;
-	        apply(); 
-	        
+	        IF skipCountRows() THEN {
+                countRowsVerticalA() <- countRowsVerticalALocal();
+                countRowsVerticalAB() <- countRowsVerticalABLocal();
+                countRowsHorizontal() <- countRowsHorizontalLocal();
+            }
+	        apply();
 	    }
 	}
 } IMAGE 'print.png' IN print;
@@ -884,11 +938,26 @@ printHorizontalABAttach 'ТТН-1 горизонтальная (А/Б) с при
 	NEWSESSION {
 	    checkMandatoryAttribute(consignment);
 	    IF NOT stopPrintConsignment() THEN {
+	        LOCAL countRowsVerticalALocal = INTEGER ();
+            LOCAL countRowsVerticalABLocal = INTEGER ();
+            LOCAL countRowsHorizontalLocal = INTEGER ();
+            IF skipCountRows() THEN {
+                countRowsVerticalALocal() <- countRowsVerticalA();
+                countRowsVerticalABLocal() <- countRowsVerticalAB();
+                countRowsHorizontalLocal() <- countRowsHorizontal();
+                countRowsVerticalA() <- NULL;
+                countRowsVerticalAB() <- NULL;
+                countRowsHorizontal() <- NULL;
+            }
 	        PRINT consignmentAttach OBJECTS c = consignment ;
-	        countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);                      
+	        countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
 	        PRINT consignmentHorizontalAB OBJECTS a = consignment ;
-	        apply(); 
-	        
+	        IF skipCountRows() THEN {
+                countRowsVerticalA() <- countRowsVerticalALocal();
+                countRowsVerticalAB() <- countRowsVerticalABLocal();
+                countRowsHorizontal() <- countRowsHorizontalLocal();
+            }
+	        apply();
 	    }
 	}
 } IMAGE 'print.png' IN print;
