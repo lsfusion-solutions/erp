@@ -379,6 +379,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 if(machineryPriceTransactionBalanceLM != null) {
                     skuQuery.addProperty("balanceMachineryPriceTransactionBarcode",
                             machineryPriceTransactionBalanceLM.findProperty("balance[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
+                    skuQuery.addProperty("balanceDateMachineryPriceTransactionBarcode",
+                            machineryPriceTransactionBalanceLM.findProperty("balanceDate[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
                 }
 
                 if(machineryPriceTransactionPromotionLM != null) {
@@ -471,13 +473,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         String section = machineryPriceTransactionSectionLM == null ? null : (String) row.get("sectionMachineryPriceTransactionBarcode");
                         String deleteSection = machineryPriceTransactionSectionLM == null ? null : (String) row.get("deleteSectionBarcode");
                         BigDecimal balance = machineryPriceTransactionBalanceLM == null ? null : (BigDecimal) row.get("balanceMachineryPriceTransactionBarcode");
+                        Timestamp balanceDate = machineryPriceTransactionBalanceLM == null ? null : (Timestamp) row.get("balanceDateMachineryPriceTransactionBarcode");
                         BigDecimal minPrice = (BigDecimal) row.get("minPriceMachineryPriceTransactionBarcode");
                         Timestamp restrictionToDateTime = (Timestamp) row.get("restrictionToDateTimeMachineryPriceTransactionBarcode");
 
                         CashRegisterItemInfo c = new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, itemGroupObject, description, idBrand, nameBrand,
                                 idSeason, nameSeason, idDepartmentStoreGroupCashRegister, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
-                                balance, restrictionToDateTime, barcodeObject);
+                                balance, balanceDate, restrictionToDateTime, barcodeObject);
                         cashRegisterItemInfoList.add(c);
                     }
                     

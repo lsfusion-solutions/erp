@@ -87,7 +87,7 @@ class DeleteBarcodeEquipmentServer {
                                 overDepartmentNumberGroupMachinery, handlerModelGroupMachinery, directory);
                     deleteBarcodeInfo.barcodeList.add(new CashRegisterItemInfo(idSku, barcode, name, null, false, null, null,
                             false, valueVAT, null, null, idItemGroup, nameItemGroup, idUOM, shortNameUOM, null, null, null, null, null, null,
-                            idDepartmentStore, null, null, null, null, null, null, null, null));
+                            idDepartmentStore, null, null, null, null, null, null, null, null, null));
                     barcodeMap.put(key, deleteBarcodeInfo);
 
                 }

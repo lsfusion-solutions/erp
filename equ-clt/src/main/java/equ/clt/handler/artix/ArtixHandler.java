@@ -248,7 +248,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             inventObject.put("measurecode", idUOM); //код единицы измерения
             if (item.balance != null) {
                 inventObject.put("remain", item.balance);
-                inventObject.put("remaindate", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(Calendar.getInstance().getTime()));
+                inventObject.put("remaindate", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(item.balanceDate != null ? item.balanceDate : Calendar.getInstance().getTime()));
             }
             List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.extIdItemGroup);
             if (itemGroupList != null) {
