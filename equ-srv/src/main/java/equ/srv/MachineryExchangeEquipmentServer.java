@@ -119,18 +119,15 @@ public class MachineryExchangeEquipmentServer {
                             }
 
                             requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), new HashSet<CashRegisterInfo>(),
-                                    new HashSet<CashRegisterInfo>(), idStock, new HashMap<String, Set<String>>(), dateFromRequestExchange,
+                                    new HashSet<CashRegisterInfo>(), idStock, dateFromRequestExchange,
                                     dateToRequestExchange, startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
                         }
 
                     } else {
 
                         if(cashRegisterLM != null) {
-
-                            //extraCashRegisterSet добавлен, чтобы заменить directoryStockMap
                             Set<CashRegisterInfo> cashRegisterSet = new HashSet<>();
                             Set<CashRegisterInfo> extraCashRegisterSet = readExtraCashRegisterSet(session, requestExchangeObject);
-                            Map<String, Set<String>> directoryStockMap = readExtraStockRequestExchange(session, requestExchangeObject);
                             String idStock = null;
 
                             KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
@@ -160,11 +157,10 @@ public class MachineryExchangeEquipmentServer {
                                 String handlerModelCashRegister = trim((String) result.getValue(j).get("handlerModelCashRegister").getValue());
 
                                 cashRegisterSet.add(new CashRegisterInfo(nppGroupMachinery, nppCashRegister, handlerModelCashRegister, null, directoryCashRegister, null, null));
-                                putDirectoryStockMap(directoryStockMap, directoryCashRegister, idStock);
                             }
 
                             requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), cashRegisterSet, extraCashRegisterSet,
-                                    idStock, directoryStockMap, dateFromRequestExchange, dateToRequestExchange,
+                                    idStock, dateFromRequestExchange, dateToRequestExchange,
                                     startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
 
                         }
@@ -204,35 +200,6 @@ public class MachineryExchangeEquipmentServer {
             extraCashRegisterSet.add(new CashRegisterInfo(null, number, null, handlerModel, null, directory, null, idStock, false, null, null, null));
         }
         return extraCashRegisterSet;
-    }
-
-    private static Map<String, Set<String>> readExtraStockRequestExchange(DataSession session, DataObject requestExchangeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, Set<String>> directoryStockMap = new HashMap<>();
-        KeyExpr stockExpr = new KeyExpr("stock");
-        KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
-        ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "stock", stockExpr, "cashRegister", cashRegisterExpr);
-        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-
-        query.addProperty("idStock", cashRegisterLM.findProperty("id[Stock]").getExpr(stockExpr));
-        query.addProperty("overDirectoryCashRegister", cashRegisterLM.findProperty("overDirectory[CashRegister]").getExpr(cashRegisterExpr));
-        query.and(cashRegisterLM.findProperty("in[Stock,RequestExchange]").getExpr(stockExpr, requestExchangeObject.getExpr()).getWhere());
-        query.and(cashRegisterLM.findProperty("overDirectory[CashRegister]").getExpr(cashRegisterExpr).getWhere());
-        query.and(cashRegisterLM.findProperty("stock[CashRegister]").getExpr(cashRegisterExpr).compare(stockExpr, Compare.EQUALS));
-        query.and(cashRegisterLM.findProperty("inactive[CashRegister]").getExpr(cashRegisterExpr).getWhere().not());
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
-        for (ImMap<Object, Object> entry : result.values())
-            putDirectoryStockMap(directoryStockMap, trim((String) entry.get("overDirectoryCashRegister")), trim((String) entry.get("idStock")));
-        return directoryStockMap;
-    }
-
-    private static void putDirectoryStockMap(Map<String, Set<String>> directoryStockMap, String directory, String idStock) {
-        if(directory != null) {
-            Set<String> stockSet = directoryStockMap.get(directory);
-            if (stockSet == null)
-                stockSet = new HashSet();
-            stockSet.add(idStock);
-            directoryStockMap.put(directory, stockSet);
-        }
     }
 
     public static void errorRequestExchange(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Map<Long, Throwable> failedRequestsMap) throws RemoteException, SQLException {
