@@ -434,6 +434,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         boolean cleared = row.get("clearedMachineryPriceTransaction") != null;
                         Boolean disableSalesCashRegister = row.get("disableSalesCashRegister") != null;
                         boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
+                        //todo: убрать idDepartmentStoreGroupCashRegister, когда не останется использований
                         cashRegisterInfoList.add(new CashRegisterInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
                                 nameModelGroupMachinery, handlerModelGroupMachinery, portMachinery, directoryCashRegister,
                                 startDateGroupCashRegister, overDepartmentNumberGroupCashRegister, idDepartmentStoreGroupCashRegister, notDetailedGroupCashRegister,
@@ -477,17 +478,20 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal minPrice = (BigDecimal) row.get("minPriceMachineryPriceTransactionBarcode");
                         Timestamp restrictionToDateTime = (Timestamp) row.get("restrictionToDateTimeMachineryPriceTransactionBarcode");
 
+                        //todo: убрать idDepartmentStoreGroupCashRegister, когда не останется использований
                         CashRegisterItemInfo c = new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, itemGroupObject, description, idBrand, nameBrand,
                                 idSeason, nameSeason, idDepartmentStoreGroupCashRegister, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
                                 balance, balanceDate, restrictionToDateTime, barcodeObject);
                         cashRegisterItemInfoList.add(c);
                     }
-                    
+
+                    //todo: заменить использования idDepartmentStoreGroupCashRegister из CashRegisterItemInfo и CashRegisterInfo
                     transactionList.add(new TransactionCashRegisterInfo((Long) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,
-                            cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, overDepartmentNumberGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister));
+                            cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, overDepartmentNumberGroupCashRegister,
+                            idDepartmentStoreGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister));
 
                 } else if (isScalesPriceTransaction) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<>();
