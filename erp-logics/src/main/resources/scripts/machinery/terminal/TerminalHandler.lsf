@@ -38,6 +38,8 @@ hostTerminalServer 'Хост' = DATA VARSTRING[30] ();
 portTerminalServer 'Порт' = DATA INTEGER ();    
 
 useCurrentPriceInTerminal 'Загружать в терминал текущие цены' = DATA BOOLEAN ();
+skipFilterPrice 'Не фильтровать по цене' = DATA BOOLEAN ();
+
 useAccountPrice 'Использовать учетные цены' = ABSTRACT CASE BOOLEAN (Stock);
 currentPriceInTerminal 'Розничная цена' (Barcode barcode, Stock stock) = IF useAccountPrice(stock) 
     THEN currentAccountPriceA(sku(barcode), stock) 
@@ -55,7 +57,7 @@ priceListTypeTerminal = OVERRIDE dataPriceListTypeTerminal(), defaultPriceListTy
 namePriceListTypeTerminal 'Вид цен (фильтр ассортимента поставщика)' = name(priceListTypeTerminal());
 
 EXTEND FORM options
-    PROPERTIES() hostTerminalServer, portTerminalServer, useCurrentPriceInTerminal, useCurrentQuantityInTerminal, filterCurrentQuantityInTerminal, 
+    PROPERTIES() hostTerminalServer, portTerminalServer, useCurrentPriceInTerminal, skipFilterPrice, useCurrentQuantityInTerminal, filterCurrentQuantityInTerminal, 
     namePriceListTypeTerminal, skipGoodsInReadBase
 ;
 DESIGN options {
@@ -64,7 +66,11 @@ DESIGN options {
             caption = 'Настройки ТСД';
             MOVE PROPERTY(hostTerminalServer());
             MOVE PROPERTY(portTerminalServer());
-            MOVE PROPERTY(useCurrentPriceInTerminal());
+            NEW terminalServerPrices {
+                caption = 'Цены';
+                MOVE PROPERTY(useCurrentPriceInTerminal());
+                MOVE PROPERTY(skipFilterPrice());
+            }
             MOVE PROPERTY(useCurrentQuantityInTerminal());
             MOVE PROPERTY(filterCurrentQuantityInTerminal());
             MOVE PROPERTY(namePriceListTypeTerminal());
