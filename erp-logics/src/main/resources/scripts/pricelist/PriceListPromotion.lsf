@@ -7,14 +7,20 @@ NAMESPACE PriceList;
 promotionPriceListOperation = DATA Operation();
 
 isPromotion 'Является акцией' = DATA BOOLEAN (Operation);
+color 'Цвет' = DATA COLOR (Operation);
 onStarted() += {
     applyOnlyData();
     isPromotion(Operation o) <- TRUE WHERE o == promotionPriceListOperation();
     APPLY;
     applyAll();
 }
-EXTEND FORM operation PROPERTIES isPromotion(o);
-DESIGN operation { paramsContainer { MOVE PROPERTY(isPromotion(o)); } }
+EXTEND FORM operation PROPERTIES isPromotion(o), color(o);
+DESIGN operation { 
+    paramsContainer { 
+        MOVE PROPERTY(isPromotion(o)); 
+        MOVE PROPERTY(color(o)); 
+    } 
+}
 
 promotionPriceListType = DATA DataPriceListType();
 namePromotionPriceListType 'Вид цены акции' = name(promotionPriceListType());
@@ -79,6 +85,9 @@ promotionPriceBeforeA 'Цена до акции' (Sku sku, Stock stock, DATETIME
 
 fromDateTimePromotionA (Sku sk, Stock st, DATETIME dt) = fromDateTime(promotionPriceListDetailA(sk, st, dt));
 toDateTimePromotionA (Sku sk, Stock st, DATETIME dt) = toDateTime(promotionPriceListDetailA(sk, st, dt));
+
+colorPromotionA (Sku sk, Stock st, DATETIME dt) = color(operation(promotionPriceListDetailA(sk, st, dt)));
+colorPromotionA (Sku sk, Stock st) = colorPromotionA(sk, st, currentDateTime());
 
 fromDatePromotionA (Sku sk, Stock st, DATETIME dt) = fromDate(promotionPriceListDetailA(sk, st, dt));
 toDatePromotionA (Sku sk, Stock st, DATETIME dt) = toDate(promotionPriceListDetailA(sk, st, dt));
