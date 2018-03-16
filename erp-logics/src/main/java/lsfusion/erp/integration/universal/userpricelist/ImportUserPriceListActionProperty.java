@@ -544,7 +544,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             for (Map.Entry<String, ImportColumnDetail> entry : customColumns.entrySet()) {
                 ImportColumnDetail customColumn = entry.getValue();
-                LCP<?> customProp = (LCP<?>) context.getBL().findSafeProperty(customColumn.propertyCanonicalName);
+                LCP<?> customProp = context.getBL().findSafeProperty(customColumn.propertyCanonicalName);
                 if (customProp != null) {
                     ImportField customField = new ImportField(customProp);
                     ImportKey<?> customKey = null;
@@ -1034,7 +1034,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String staticCaptionProperty = trim((String) entry.get("staticCaption"));
 
             String propertyImportTypeDetail = (String) entry.get("propertyImportUserPriceListTypeDetail");
-            LCP<?> customProp = propertyImportTypeDetail == null ? null : (LCP<?>) context.getBL().findSafeProperty(propertyImportTypeDetail);
+            LCP<?> customProp = propertyImportTypeDetail == null ? null : context.getBL().findSafeProperty(propertyImportTypeDetail);
             boolean isBoolean = customProp != null && customProp.property.getType() instanceof LogicalClass;
 
             String keyImportTypeDetail = getSplittedPart((String) entry.get("nameKeyImportUserPriceListTypeDetail"), "\\.", 1);

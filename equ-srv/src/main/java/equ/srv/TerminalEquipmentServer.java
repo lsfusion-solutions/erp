@@ -223,10 +223,10 @@ public class TerminalEquipmentServer {
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String prefix = trim((String) entry.get("exportId"));
-                LCP propertyID = (LCP<?>) BL.findSafeProperty(trim((String) entry.get("propertyID")));
-                LCP propertyName = (LCP<?>) BL.findSafeProperty(trim((String) entry.get("propertyName")));
+                LCP propertyID = BL.findSafeProperty(trim((String) entry.get("propertyID")));
+                LCP propertyName = BL.findSafeProperty(trim((String) entry.get("propertyName")));
                 String canonicalNameFilterProperty = trim((String) entry.get("filterProperty"));
-                LCP filterProperty = canonicalNameFilterProperty != null ? (LCP<?>) BL.findSafeProperty(canonicalNameFilterProperty) : null;
+                LCP filterProperty = canonicalNameFilterProperty != null ? BL.findSafeProperty(canonicalNameFilterProperty) : null;
 
                 if(propertyID != null && propertyName != null) {
                     ImOrderSet<PropertyInterface> interfaces = propertyID.listInterfaces;
