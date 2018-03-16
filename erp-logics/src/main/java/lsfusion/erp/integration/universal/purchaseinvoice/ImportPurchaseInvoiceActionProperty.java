@@ -667,7 +667,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                 for (Map.Entry<String, ImportColumnDetail> entry : customColumns.entrySet()) {
                     ImportColumnDetail customColumn = entry.getValue();
-                    LCP<?> customProp = customColumn.propertyCanonicalName == null ? null : context.getBL().findSafeProperty(customColumn.propertyCanonicalName);
+                    LCP<?> customProp = customColumn.propertyCanonicalName == null ? null : (LCP<?>) context.getBL().findSafeProperty(customColumn.propertyCanonicalName);
                     if (customProp != null) {
                         ImportField customField = new ImportField(customProp);
                         ImportKey<?> customKey = null;
@@ -1316,7 +1316,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                   String staticCaptionImportType, List<PurchaseInvoiceDetail> primaryList, List<PurchaseInvoiceDetail> secondaryList)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (propertyImportType != null) {
-            LCP<?> sidProp = context.getBL().findSafeProperty(propertyImportType);
+            LCP<?> sidProp = (LCP)context.getBL().findSafeProperty(propertyImportType);
             if (sidProp != null) {
                 ScriptingLogicsModule itemArticleLM = context.getBL().getModule("ItemArticle");
                 LCP<?> idArticleProp = itemArticleLM.findProperty("id[Article]");

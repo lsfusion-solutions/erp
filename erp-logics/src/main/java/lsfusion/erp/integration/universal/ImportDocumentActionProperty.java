@@ -80,7 +80,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
             String staticCaptionProperty = trim((String) entry.get("staticCaption"));
 
             String propertyCanonicalName = (String) entry.get("propertyImportTypeDetail");
-            LCP<?> customProp = propertyCanonicalName == null ? null : context.getBL().findSafeProperty(propertyCanonicalName);
+            LCP<?> customProp = propertyCanonicalName == null ? null : (LCP<?>) context.getBL().findSafeProperty(propertyCanonicalName);
             boolean isBoolean = customProp != null && customProp.property.getType() instanceof LogicalClass;
 
             String keyImportTypeDetail = getSplittedPart((String) entry.get("nameKeyImportTypeDetail"), "\\.", 1);
