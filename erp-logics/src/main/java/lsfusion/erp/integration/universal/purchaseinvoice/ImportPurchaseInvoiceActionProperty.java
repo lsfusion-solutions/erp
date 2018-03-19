@@ -616,6 +616,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                 new ImportPurchaseInvoicePurchaseCompliance(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
 
+                new ImportPurchaseInvoiceSkuImportCode(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, itemKey, data);
+
                 if (showField(userInvoiceDetailsList, "rateExchange")) {
                     addDataField(props, fields, defaultColumns, findProperty("rateExchange[UserInvoiceDetail]"), "rateExchange", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
@@ -733,8 +735,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         //as in ImportDocument.lsf, CLASS ImportTypeDetail
         List<String> stringFields = Arrays.asList("idSupplier", "idSupplierStock", "currencyDocument", "idItem", "idItemGroup",
                 "barcodeItem", "originalCustomsGroupItem", "idBatch", "idImportCode", "idBox", "nameBox", "captionItem", "originalCaptionItem",
-                "UOMItem", "idManufacturer", "nameManufacturer", "sidOrigin2Country", "nameCountry", "nameOriginCountry", 
-                "importCountryBatch", "idCustomerStock", "contractPrice", "pharmacyPriceGroupItem", "valueVAT", "seriesPharmacy", 
+                "UOMItem", "importCodeUOM", "idManufacturer", "nameManufacturer", "importCodeManufacturer", "sidOrigin2Country", "nameCountry", "nameOriginCountry",
+                "importCountryBatch", "importCodeCountry", "idCustomerStock", "contractPrice", "pharmacyPriceGroupItem", "valueVAT", "seriesPharmacy",
                 "numberCompliance", "declaration", "idArticle", "captionArticle", "originalCaptionArticle", "idColor",
                 "nameColor", "idTheme", "nameTheme", "composition", "originalComposition", "idSize", "nameSize", "nameOriginalSize",
                 "idCollection", "nameCollection", "idSeasonYear", "idSeason", "nameSeason", "idBrand", "nameBrand");
