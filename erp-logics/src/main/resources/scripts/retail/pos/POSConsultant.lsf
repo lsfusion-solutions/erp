@@ -26,9 +26,17 @@ EXTEND FORM employees
     PROPERTIES (e) READONLYIF isReadonly() barcode
 ;
 
+FORM consultants
+    OBJECTS d = DepartmentStore
+
+    OBJECTS e = Employee
+    PROPERTIES(e) READONLY lastName, firstName, nameMainRole, nameStock, barcode
+    FILTERS isConsultant(e), in(d, e)
+;
+
 isConsultantReceipt 'Учет личных продаж' = DATA BOOLEAN (Store);
 isConsultantReceipt 'Учет личных продаж' = isConsultantReceipt(store(DepartmentStore d));
-isConsultantReceip = isConsultantReceipt(departmentStore(Receipt r));
+isConsultantReceipt = isConsultantReceipt(departmentStore(Receipt r));
 
 EXTEND FORM store
     PROPERTIES (s) isConsultantReceipt
@@ -76,9 +84,22 @@ CONSTRAINT consultant(ReceiptReturnDetail r) AND NOT isConsultant(consultant(r))
 consultant[ReceiptDetail](ReceiptSaleDetail d) += consultant(d);
 consultant[ReceiptDetail](ReceiptReturnDetail d) += consultant(d);
 
+changeConsultant (Receipt r) = {
+    DIALOG consultants OBJECTS d = departmentStore(r), e = consultant(r) CHANGE;
+}
+
+changeConsultant (ReceiptDetail d) = {
+    DIALOG consultants OBJECTS d = departmentStore(d), e = consultant(d) INPUT DO {
+        IF d IS ReceiptSaleDetail THEN
+            consultant[ReceiptSaleDetail](d) <- e;
+        IF d IS ReceiptReturnDetail THEN
+            consultant[ReceiptReturnDetail](d) <- e;
+    }
+}
+
 EXTEND FORM POS
-    PROPERTIES (r) SHOWIF isConsultantReceip(r) nameConsultant
-    PROPERTIES (d) SHOWIF isConsultantReceip(r) nameConsultant
+    PROPERTIES (r) SHOWIF isConsultantReceipt(r) nameConsultant ON CHANGE changeConsultant(r)
+    PROPERTIES (d) SHOWIF isConsultantReceipt(r) nameConsultant ON CHANGE changeConsultant(d)
 ;
 
 CONSTRAINT CHANGED(consultant(Receipt r)) AND NOT stock(consultant(r)) == departmentStore(r) AND SET (r IS Receipt)
@@ -97,10 +118,10 @@ DESIGN POS {
 }
 
 EXTEND FORM zReport
-    PROPERTIES (d) SHOWIF isConsultantReceip(b) nameConsultant
+    PROPERTIES (d) SHOWIF isConsultantReceipt(b) nameConsultant ON CHANGE changeConsultant(d)
 ;
 EXTEND FORM zReports
-    PROPERTIES (d) READONLY SHOWIF isConsultantReceip(b) nameConsultant
+    PROPERTIES (d) READONLY SHOWIF isConsultantReceipt(b) nameConsultant
 ;
 
 consultant = ABSTRACT Employee (SaleLedger);
