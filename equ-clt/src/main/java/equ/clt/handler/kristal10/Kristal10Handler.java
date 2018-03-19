@@ -117,7 +117,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     for (CashRegisterItemInfo item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
 
-                            String shopIndices = item.idDepartmentStore;
+                            String shopIndices = transaction.idDepartmentStoreGroupCashRegister;
                             if (useShopIndices && item.passScalesItem && weightShopIndices != null) {
                                 shopIndices += " " + weightShopIndices;
                             }

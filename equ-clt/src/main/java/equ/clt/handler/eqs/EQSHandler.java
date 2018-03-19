@@ -118,15 +118,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     if(skipIdDepartmentStore) {
                         truncateStatement.execute("TRUNCATE plu");
                     } else {
-                        //todo: добавить idDepartmentStoreGroupCashRegister в TransactionCashRegisterInfo
-                        String idDepartmentStore = null;
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
-                            if(idDepartmentStore == null)
-                                idDepartmentStore = item.idDepartmentStore;
-                        }
-
-                        if(idDepartmentStore != null)
-                            truncateStatement.execute("DELETE FROM plu WHERE store='"+idDepartmentStore+"'");
+                        if (transaction.idDepartmentStoreGroupCashRegister != null)
+                            truncateStatement.execute("DELETE FROM plu WHERE store='" + transaction.idDepartmentStoreGroupCashRegister + "'");
                     }
                 }
                 conn.setAutoCommit(false);
@@ -138,7 +131,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                 " cancelled=VALUES(cancelled), updecr=VALUES(updecr)");
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
-                    ps.setString(1, skipIdDepartmentStore ? "" : trim(item.idDepartmentStore, 10)); //store, код торговой точки
+                    ps.setString(1, skipIdDepartmentStore ? "" : trim(transaction.idDepartmentStoreGroupCashRegister, 10)); //store, код торговой точки
                     ps.setString(2, removeCheckDigitFromBarcode(trim(item.idBarcode, 20), appendBarcode)); //barcode, Штрих-код товара
                     ps.setString(3, trim(item.idItem, 20)); //art, Артикул
                     ps.setString(4, trim(item.name, 50)); //description, Наименование товара
