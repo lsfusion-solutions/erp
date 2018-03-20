@@ -34,6 +34,8 @@ type[EVATDocument](Sale.Invoice i) += EVATType.sale IF i IS Sale.Invoice;
 type[EVATDocument](SaleReturn.Invoice i) += EVATType.saleReturn IF i IS SaleReturn.Invoice;
 
 overCreateEVATSaleReturnInvoice = ABSTRACT LIST (EVAT, SaleReturn.Invoice);
+overCreateEVATSaleInvoice = ABSTRACT LIST (EVAT, Invoice);
+overEVATDetailSaleInvoiceDetail = ABSTRACT LIST (EVATDetail, InvoiceDetail);
 
 needCreateEVAT[EVATDocument](Sale.Invoice i) += WHEN eVAT(operation(i)) AND quantityInvoiceDetail(i) AND NOT skipCreateEVAT(i) THEN TRUE;
 
@@ -94,6 +96,8 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
         
         noCustomer(e) <- NOT VATSumInvoiceDetail(i);
         
+        overCreateEVATSaleInvoice(e,i);
+        
         FOR invoice(InvoiceDetail id) == i AND quantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
             evat(ed) <- e;
 
@@ -113,6 +117,7 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
                 descriptionType(ed) <- DescriptionType.vatExcemption;
             ELSE
                 descriptionType(ed) <- DescriptionType.deductionInFull IF NOT notDeductionInFull();
+            overEVATDetailSaleInvoiceDetail(ed,id);
         } 
     } 
     APPLY;
