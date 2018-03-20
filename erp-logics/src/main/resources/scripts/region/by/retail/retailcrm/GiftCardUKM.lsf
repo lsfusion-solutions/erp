@@ -1,0 +1,43 @@
+MODULE GiftCardUKM;
+
+REQUIRE GiftCard;
+
+NAMESPACE GiftCard;
+
+
+connectionStringExportGiftCards 'Строка подключения' = DATA VARSTRING[255] ();
+userExportGiftCards 'Пользователь' = DATA VARSTRING[255] ();
+passwordExportGiftCards 'Пароль' = DATA VARSTRING[255] ();
+
+inExportGiftCards 'Экспорт' = DATA LOCAL BOOLEAN (GiftCard);
+exportedExportGiftCards 'Экспортирован' = DATA BOOLEAN (GiftCard);
+exportedActive 'Экспортирован (активация)' = DATA BOOLEAN (GiftCard);
+exportGiftCardsUKMCustom 'Экспорт в УКМ' = CUSTOM 'lsfusion.erp.region.by.ukm.ExportGiftCardsActionProperty'();
+
+exportGiftCards 'Экспорт в УКМ' () = {
+
+    inExportGiftCards(GiftCard g) <- NULL WHERE inExportGiftCards(g) AND exportedActive(g);
+
+    exportGiftCardsUKMCustom();
+};
+
+EXTEND FORM giftCards
+    PROPERTIES(g) BEFORE number(g) inExportGiftCards, exportedExportGiftCards, exportedActive READONLY 
+    PROPERTIES() exportGiftCards BEFORE generateGiftCards() TODRAW g TOOLBAR
+;
+
+EXTEND FORM integrationData 
+    PROPERTIES() connectionStringExportGiftCards, userExportGiftCards, passwordExportGiftCards
+;
+
+DESIGN integrationData {
+    pane {
+        NEW exportGiftCards {
+            caption = 'Экспорт сертификатов';
+            MOVE PROPERTY(connectionStringExportGiftCards());
+            MOVE PROPERTY(userExportGiftCards());
+            MOVE PROPERTY(passwordExportGiftCards());
+        }    
+    }
+}
+

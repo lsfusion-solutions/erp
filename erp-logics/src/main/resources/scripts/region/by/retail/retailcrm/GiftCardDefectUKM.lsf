@@ -1,0 +1,20 @@
+MODULE GiftCardDefectUKM;
+
+REQUIRE GiftCardUKM, GiftCardDefect;
+
+NAMESPACE GiftCard;
+
+
+exportGiftCards 'Экспорт в УКМ' (DefectGiftCard i) = {
+    NEWSESSION {
+    
+        inExportGiftCards(GiftCard c) <- TRUE WHERE defectGiftCard(defectGiftCardDetail(c)) == i;
+        
+        MESSAGE  (OVERRIDE [=GROUP SUM 1 IF inExportGiftCards(GiftCard c)](), 0) + ' Принято к загрузке' NOWAIT;
+        exportGiftCardsUKMCustom();
+    }
+} TOOLBAR ;
+
+EXTEND FORM defectGiftCards
+    PROPERTIES(r) NEWSESSION exportGiftCards
+;
