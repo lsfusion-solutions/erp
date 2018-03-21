@@ -73,10 +73,12 @@ EXTEND FORM declaration
 
 DESIGN declaration {
     NEW params {
+        alignment = STRETCH;
         type = CONTAINERH;
         NEW paramsColumn1 {
-            type = CONTAINERV;
+            fill = 1;
             NEW documentParams {
+                alignment = STRETCH;
                 caption = 'Параметры документа';
                 type = COLUMNS;
                 columns = 2;
@@ -84,6 +86,7 @@ DESIGN declaration {
                 MOVE PROPERTY(nameCustomsZone(d));
             }
             NEW extraParams {
+                alignment = STRETCH;
                 type = CONTAINERH;
                 NEW currencyParams {
                     type = CONTAINERV;
@@ -1358,6 +1361,13 @@ recalculateRegistrationPriceInvoice 'Рассчитать сбор (за ед.)'
     
     IF calcSumCustoms() THEN {
         registrationSum(UserInvoiceDetail d) <- Utils.round(calcRegistrationSum(d), round(declaration(d))) WHERE declaration(d) == declaration;
+        
+        // устраняем отрицательные
+        LOCAL negative = NUMERIC[18,4] ();
+        negative () <- [= GROUP SUM registrationSum(UserInvoiceDetail d) IF registrationSum(d) < 0 BY declaration(d)](declaration);
+        registrationSum(UserInvoiceDetail d) <- 0 WHERE declaration(d) == declaration AND registrationSum(d) < 0;
+        registrationSum(UserInvoiceDetail d) <- registrationSum(d) (+) negative() WHERE d == [= GROUP LAST UserInvoiceDetail d BY declaration(d) ORDER sum(d), d](declaration); 
+        
         registrationPrice(UserInvoiceDetail d) <- Utils.round(registrationSum(d) / quantity(d), round(declaration(d))) WHERE declaration(d) == declaration;
     } ELSE {    
         registrationPrice(UserInvoiceDetail d) <- Utils.round(calcRegistrationSum(d) / quantity(d), round(declaration(d))) WHERE declaration(d) == declaration;
