@@ -52,10 +52,10 @@ public class SendEOrderActionProperty extends EDIActionProperty {
             Timestamp documentDateValue = (Timestamp) findProperty("sendDateTime[EOrder]").read(context, eOrderObject);
             Calendar cal = Calendar.getInstance();
             cal.add(Calendar.HOUR, 1);
-            String documentDate = formatDate(documentDateValue);
+            String documentDate = formatTimestamp(documentDateValue);
             Timestamp deliveryDateValue = (Timestamp) findProperty("shipmentDateTime[EOrder]").read(context, eOrderObject);
             Timestamp currentDateValue = new Timestamp(cal.getTime().getTime());
-            String deliveryDate = formatDate(deliveryDateValue != null ? (deliveryDateValue.getTime() > currentDateValue.getTime() ? deliveryDateValue : currentDateValue) : currentDateValue);
+            String deliveryDate = formatTimestamp(deliveryDateValue != null ? (deliveryDateValue.getTime() > currentDateValue.getTime() ? deliveryDateValue : currentDateValue) : currentDateValue);
             String documentNumber = (String) findProperty("number[EOrder]").read(context, eOrderObject);
 
             String error = "";

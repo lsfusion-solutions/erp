@@ -87,7 +87,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 RequestResult requestResult = getRequestResult(httpResponse, responseMessage, archiveDir, "GetDocuments");
                 switch (requestResult) {
                     case OK:
-                        importMessages(context, url, login, password, host, port, provider, responseMessage, archiveDir, disableConfirmation, sendReplies, invoices);
+                        importMessages(context, url, login, password, host, port, aliasEDSService, passwordEDSService, hostEDSService, portEDSService,
+                                provider, responseMessage, archiveDir, disableConfirmation, sendReplies, invoices);
                         break;
                     case AUTHORISATION_ERROR:
                         ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid login-password");
@@ -107,6 +108,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port,
+                                String aliasEDSService, String passwordEDSService, String hostEDSService, Integer portEDSService,
                                 String provider, String responseMessage, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JDOMException {
         Map<String, Pair<String, String>> succeededMap = new HashMap<>();
@@ -332,7 +334,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         }
     }
 
-    private DocumentData parseOrderMessage(Element rootNode, String provider, String documentId) throws IOException, JDOMException {
+    private DocumentData parseOrderMessage(Element rootNode, String provider, String documentId) {
 
         String documentNumber = trim(rootNode.getChildText("documentNumber"));
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
@@ -345,20 +347,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     case "ORDERS":
                         String orderNumber = trim(reference.getChildText("documentNumber"));
                         String code = reference.getChildText("code");
-                        String description = reference.getChildText("description");
-                        if (description == null || description.isEmpty()) {
-                            switch (code) {
-                                case "1251":
-                                    description = "Сообщение прочитано получателем";
-                                    break;
-                                case "1252":
-                                    description = "Сообщение принято учётной системой получателя";
-                                    break;
-                                default:
-                                    description = null;
-                                    break;
-                            }
-                        }
+                        String description = getDescriptionByCode(reference.getChildText("description"), code);
                         return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList((Object) documentNumber, dateTime, code, description, orderNumber)), null);
                     case "BLRWBR":
                     case "BLRAPN":
@@ -881,13 +870,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         String supplierGLN = shipperElement.getChildText("GLN");
 
         Element receiverElement = deliveryNoteElement.getChild("Receiver");
-        String buyerGLN = receiverElement.getChildText("GLN");
+        String customerGLN = receiverElement.getChildText("GLN");
 
         Element shipToElement = deliveryNoteElement.getChild("ShipTo");
-        String destinationGLN = shipToElement.getChildText("GLN");
+        String customerStockGLN = shipToElement.getChildText("GLN");
 
         Element despatchAdviceLogisticUnitLineItemElement = deliveryNoteElement.getChild("DespatchAdviceLogisticUnitLineItem");
 
+        String id = supplierGLN + "/" + deliveryNoteNumber;
         for (Object line : despatchAdviceLogisticUnitLineItemElement.getChildren("LineItem")) {
             Element lineElement = (Element) line;
             Integer lineItemNumber = Integer.parseInt(lineElement.getChildText("LineItemNumber"));
@@ -895,7 +885,6 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String lineItemBuyerID = lineElement.getChildText("LineItemBuyerID");
             String lineItemName = lineElement.getChildText("LineItemName");
 
-            String id = supplierGLN + "/" + deliveryNoteNumber;
             String idDetail = id + "/" + lineItemNumber;
             BigDecimal quantityDespatched = parseBigDecimal(lineElement.getChildText("QuantityDespatched"));
             BigDecimal valueVAT = parseBigDecimal(lineElement.getChildText("TaxRate"));
@@ -905,7 +894,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             BigDecimal lineItemAmountCharges = parseBigDecimal(lineElement.getChildText("LineItemAmountCharges"));
             if (lineItemID != null || lineItemBuyerID != null)
                 data.add(Arrays.<Object>asList(id, documentNumber, dateTime, deliveryNoteNumber, dateTime, supplierGLN,
-                        buyerGLN, destinationGLN, isCancel, idDetail, lineItemID, lineItemBuyerID, lineItemName,
+                        customerGLN, customerStockGLN, isCancel, idDetail, lineItemID, lineItemBuyerID, lineItemName,
                         quantityDespatched, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
                         lineItemAmount, lineItemAmountCharges));
         }
@@ -1164,7 +1153,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
     protected boolean sendRecipientError(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String archiveDir, String documentId, String documentNumber, String error) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         boolean succeeded = false;
-        String currentDate = formatDate(new Timestamp(Calendar.getInstance().getTime().getTime()));
+        String currentDate = formatTimestamp(new Timestamp(Calendar.getInstance().getTime().getTime()));
         String contentSubXML = getErrorSubXML(documentId, documentNumber, error);
 
         Element rootElement = new Element("Envelope", soapenvNamespace);
@@ -1271,6 +1260,20 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private String getDescriptionByCode(String description, String code) {
+        if (description == null || description.isEmpty()) {
+            switch (code) {
+                case "1251":
+                    return "Сообщение прочитано получателем";
+                case "1252":
+                    return "Сообщение принято учётной системой получателя";
+                default:
+                    return null;
+            }
+        } else
+            return description;
     }
 
     private class DocumentData {

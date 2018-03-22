@@ -7,10 +7,14 @@ import lsfusion.server.classes.ValueClass;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.AuthCache;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.entity.mime.FormBodyPart;
@@ -18,6 +22,9 @@ import org.apache.http.entity.mime.FormBodyPartBuilder;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.apache.http.entity.mime.content.StringBody;
+import org.apache.http.impl.auth.BasicScheme;
+import org.apache.http.impl.client.BasicAuthCache;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.CoreConnectionPNames;
 import org.jdom.Document;
@@ -45,10 +52,10 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
     }
 
     HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, Pair<String, byte[]> file) throws IOException {
-        return sendRequest(host, port, login, password, url, xml, null, file);
+        return sendRequest(host, port, login, password, url, xml, null, file, false);
     }
 
-    private HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, String soapAction, Pair<String, byte[]> file) throws IOException {
+    private HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, String soapAction, Pair<String, byte[]> file, boolean preemptiveAuthentication) throws IOException {
         // Send post request
         DefaultHttpClient httpclient = new DefaultHttpClient();
         httpclient.getCredentialsProvider().setCredentials(new AuthScope(host, port),
@@ -72,7 +79,23 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         }
         httpPost.setEntity(entity);
 
-        return httpclient.execute(httpPost);
+        if(preemptiveAuthentication) {
+            HttpHost targetHost = new HttpHost(host, port, "http");
+            CredentialsProvider credsProvider = new BasicCredentialsProvider();
+            credsProvider.setCredentials(AuthScope.ANY,
+                    new UsernamePasswordCredentials(login, password));
+
+            AuthCache authCache = new BasicAuthCache();
+            authCache.put(targetHost, new BasicScheme());
+
+            // Add AuthCache to the execution context
+            final HttpClientContext context = HttpClientContext.create();
+            context.setCredentialsProvider(credsProvider);
+            context.setAuthCache(authCache);
+
+            return httpclient.execute(httpPost, context);
+        } else
+            return httpclient.execute(httpPost);
     }
 
     protected String getResponseMessage(HttpResponse response) throws IOException {
@@ -138,7 +161,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         return requestResult;
     }
 
-    protected String formatDate(Timestamp date) {
+    protected String formatTimestamp(Timestamp date) {
         return date == null ? null : new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(date);
     }
 }
