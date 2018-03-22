@@ -447,6 +447,12 @@ eInvoice = DATA EInvoice(EInvoiceDetail) NONULL DELETE;
 lineItemID 'GTIN товара' = DATA VARSTRING[100] (EInvoiceDetail);
 lineItemBuyerID 'Код товара в ERP системе покупателя (грузополучателя)'= DATA VARSTRING[100] (EInvoiceDetail);
 lineItemName 'Наименование товара' = DATA VARSTRING[100] (EInvoiceDetail);
+grossWeightValue 'Масса груза' = DATA NUMERIC[12,6] (EInvoiceDetail);
+lineItemQuantityUOM 'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета' = DATA VARSTRING[3] (EInvoiceDetail);
+despatchUnitQuantityDespatched 'Количество в грузовых местах' = DATA NUMERIC[12,5] (EInvoiceDetail);
+taxRate 'Ставка НДС' = DATA NUMERIC[4,2] (EInvoiceDetail);
+additionalInformation 'Примечание, дополнительная информация о товаре' = DATA VARSTRING[512] (EInvoiceDetail);
+lineItemAmountExcise 'Сумма акциза' = DATA NUMERIC[12,5] (EInvoiceDetail);
 
 quantityDespatched 'Кол-во отгружаемого товара' = DATA NUMERIC[16,5] (EInvoiceDetail);
 valueVAT 'НДС, %' = DATA NUMERIC[16,5] (EInvoiceDetail);
@@ -456,6 +462,14 @@ lineItemAmountWithoutCharges 'Стоимость товарной позиции
 lineItemAmount 'Стоимость товарной позиции с НДС' = DATA NUMERIC[16,4] (EInvoiceDetail);
 lineItemAmountCharges 'Сумма НДС' = DATA NUMERIC[16,4] (EInvoiceDetail);
 
+totalAmountWithoutCharges 'Общая сумма без НДС' (eInvoice) = GROUP SUM lineItemAmountWithoutCharges(EInvoiceDetail d) BY eInvoice(d);
+totalAmountCharges 'Общая сумма НДС' (eInvoice) = GROUP SUM lineItemAmountCharges(EInvoiceDetail d) BY eInvoice(d);
+totalAmount 'Общая сумма с НДС' (eInvoice) = GROUP SUM lineItemAmount(EInvoiceDetail d) BY eInvoice(d);
+totalLineItem 'Всего количество товарных позиций' (eInvoice) = GROUP SUM 1 BY eInvoice(EInvoiceDetail d);
+totalLineItemQuantity 'Всего количество единиц' (eInvoice) = GROUP SUM quantityDespatched(EInvoiceDetail d) BY eInvoice(d);
+totalGrossWeight 'Всего масса груза в тоннах' (eInvoice) = GROUP SUM grossWeightValue(EInvoiceDetail d) BY eInvoice(d);
+totalDespatchUnitQuantity 'Всего грузовых мест' (eInvoice) = GROUP SUM despatchUnitQuantityDespatched(EInvoiceDetail d) BY eInvoice(d);
+totalAmountExcise 'Всего сумма акциза' (eInvoice) = GROUP SUM lineItemAmountExcise(EInvoiceDetail d) BY eInvoice(d);
 
 //-----------------------------------------Сообщение по накладной EDI-----------------------------------------//
 CLASS EInvoiceMessage 'Сообщение по накладной EDI';

@@ -45,7 +45,15 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         super(LM);
     }
 
-    protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port, String provider, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
+    protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port,
+                                   String provider, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
+            throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
+        receiveMessages(context, url, login, password, host, port, null, null, null, null, provider, archiveDir, disableConfirmation, sendReplies, invoices);
+    }
+
+    protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port,
+                                   String aliasEDSService, String passwordEDSService, String hostEDSService, Integer portEDSService,
+                                   String provider, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (context.getDbManager().isServer()) {
             Element rootElement = new Element("Envelope", soapenvNamespace);
