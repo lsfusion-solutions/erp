@@ -1,0 +1,58 @@
+MODULE RangeLevelLog;
+
+REQUIRE RangeLevel;
+
+NAMESPACE Range;
+
+CLASS RangeLevelLog 'Запись лога версии матрицы';
+
+dateTime 'Дата/время' = DATA DATETIME (RangeLevelLog);
+date 'Дата' (RangeLevelLog l) = DATE(dateTime(l));
+time 'Время' (RangeLevelLog l) = TIME(dateTime(l));
+
+rangeRev = DATA RangeRev (RangeLevelLog);
+range (RangeLevelLog l) = range(rangeRev(l));
+nameRange 'Ассортиментная матрица' (RangeLevelLog l) = name(range(l));
+dateTimeRangeRev 'Действует (с)' (RangeLevelLog l) = dateTime(rangeRev(l));
+
+sku = DATA Sku (RangeLevelLog);
+nameSku 'Товар' (RangeLevelLog l) = name(sku(l));
+idSku 'Код' (RangeLevelLog l) = id(sku(l));
+idBarcodeSku 'Штрихкод' (RangeLevelLog l) = idBarcode(sku(l));
+
+level = DATA RangeLevel (RangeLevelLog);
+nameLevel 'На уровень' (RangeLevelLog l) = name(level(l));
+
+prevLevel = DATA RangeLevel (RangeLevelLog);
+namePrevLevel 'С уровня' (RangeLevelLog l) = name(prevLevel(l));
+
+hostnameComputer 'Имя компьютера' = DATA VARISTRING[100] (RangeLevelLog); 
+user 'Логин пользователя' = DATA User (RangeLevelLog); 
+nameUser 'Логин пользователя' (RangeLevelLog l) = login(user(l));
+nameContact 'Имя пользователя' =  DATA VARSTRING[100] (RangeLevelLog) IN recognize;
+
+WHEN (SETCHANGED (level(RangeRev r, Sku s))) DO { 
+    NEW l = RangeLevelLog {
+        rangeRev(l) <- r;
+        sku(l) <- s;
+        level(l) <- level(r, s);
+        prevLevel(l) <- PREV(level(r, s));
+        dateTime(l) <- currentDateTime();
+        hostnameComputer(l) <- hostnameComputerConnection(currentSession());
+        user(l) <- user(currentSession()); 
+        nameContact(l) <- VARSTRING[100](nameContact(currentSession()));
+    }
+}
+
+EXTEND FORM rangeRev
+    OBJECTS rll = RangeLevelLog
+    PROPERTIES (rll) READONLY dateTime, nameSku, idBarcodeSku, namePrevLevel, nameLevel, hostnameComputer, nameUser, nameContact
+    FILTERS rangeRev(rll) = v
+;
+DESIGN rangeRev {
+    header {
+        MOVE BOX (rll) {
+            caption = 'История';
+        }   
+    }
+}
