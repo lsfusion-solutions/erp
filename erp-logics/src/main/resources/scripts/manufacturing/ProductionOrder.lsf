@@ -112,10 +112,20 @@ currency (ProductDetail productDetail) = currencyProduct(order(productDetail));
 CONSTRAINT sku(ProductDetail d) AND NOT isProductGroup(sku(d)) CHECKED  BY sku[ProductDetail]
     MESSAGE 'В качестве изделия выбран товар, который не входит в группу: Готовые изделия';
 
-product 'Изделие' = DATA Product (ProductDetail) NONULL INDEXED;
+product 'Изделие' = DATA Product (ProductDetail) INDEXED;
 nameProduct 'Изделие' (ProductDetail productDetail) = name(product(productDetail)) IN recognize;
 idProduct 'Код изделия' (ProductDetail d) = id(product(d));
 BOM 'Спецификация' (ProductDetail d) = BOM(product(d));
+
+isNotProduct 'Разрешить проводить документ без изделия ' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation PROPERTIES (o) isNotProduct;
+
+DESIGN operation {
+    constraintContainer {
+        MOVE PROPERTY(isNotProduct(o));
+    }
+}
 
 CONSTRAINT BOM(ProductDetail d) AND componentsStock(d) AND countStocks(BOM(d)) AND NOT in(BOM(d), componentsStock(d))
     CHECKED BY product[ProductDetail]
@@ -2135,3 +2145,7 @@ CONSTRAINT (CHANGED(isPosted(ComponentDetail cd)) OR CHANGED(BOM(cd)) OR CHANGED
     AND isComponents(operation(cd)) AND isPosted(cd)
     AND NOT countProductDetail(order(cd), BOM(cd))
         MESSAGE 'Внимание!!! Для компонентов должны быть изделия.';
+        
+CONSTRAINT CHANGED (isPosted(ProductDetail d)) AND NOT product(d) AND NOT isNotProduct(operation(d))
+    MESSAGE 'Для строки изделия не заполнено поле Изделие';
+        
