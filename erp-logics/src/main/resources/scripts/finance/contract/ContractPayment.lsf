@@ -35,6 +35,25 @@ sumContract(Payment payment) <- IF NOT currencyContract(payment) == currencyAcco
 
 autoWriteFIFO 'Автоматически расписывать по ФИФО' = DATA BOOLEAN (PaymentOperation.Operation);
 
+// заполнить договор при смене плательщика или бенефициара или даты платежа
+WHEN LOCAL FORMS payment (CHANGED(beneficiary(Payment payment)) OR CHANGED(payer(payment))
+            OR CHANGED(date(payment)) OR CHANGED(isReturn(payment))) AND NOT CHANGED(contract(payment))  NOINLINE DO {
+    IF NOT isReturn(payment) THEN { 
+        contract(payment) <- OVERRIDE defaultContractSkuSupplierCustomer(beneficiary(payment), payer(payment), date(payment)),
+                                      singleContractSkuSupplierCustomer(beneficiary(payment), payer(payment), date(payment))
+                                          IF countContractSkuSupplierCustomer(beneficiary(payment), payer(payment), date(payment)) == 1;
+    }
+    ELSE {
+        contract(payment) <- OVERRIDE defaultContractSkuSupplierCustomer(payer(payment), beneficiary(payment), date(payment)),
+                                      singleContractSkuSupplierCustomer(payer(payment), beneficiary(payment), date(payment))
+                                          IF countContractSkuSupplierCustomer(payer(payment), beneficiary(payment), date(payment)) == 1;
+    }
+}
+
+// заполнить счет бенефициара при смене бенефициара или договора
+accountTo(Payment payment) <- OVERRIDE accountBeneficiaries(contract(payment)), account(beneficiary(payment))
+    WHEN CHANGED(beneficiary(payment)) OR CHANGED(contract(payment));
+
 EXTEND FORM PaymentOperation.operation
     PROPERTIES (o) autoWriteFIFO
 ;
