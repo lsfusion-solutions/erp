@@ -8,10 +8,22 @@ NAMESPACE Purchase;
 
 @deriveDocumentHeaderSeparation(userOrder, supplier);
 
+showAllSkusNullSeparation 'Показывать все товары в заказе без признака разделения' =  DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () showAllSkusNullSeparation
+;
+
+DESIGN options { 
+    orders  { 
+        MOVE PROPERTY(showAllSkusNullSeparation()); 
+    } 
+}
+
 EXTEND FORM userOrder
     PROPERTIES(o) nameSeparation
 
     FILTERGROUP separation
         FILTER 'Признак разделения' separation(o) == separation(supplier(o), ks) OR 
-                                    (NOT separation(o) AND NOT nullSeparation(supplier(o), ks)) DEFAULT
+                                    (NOT separation(o) AND NOT (nullSeparation(supplier(o), ks)) OR showAllSkusNullSeparation()) DEFAULT
 ;
