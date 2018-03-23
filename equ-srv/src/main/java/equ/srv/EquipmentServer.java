@@ -480,15 +480,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal minPrice = (BigDecimal) row.get("minPriceMachineryPriceTransactionBarcode");
                         Timestamp restrictionToDateTime = (Timestamp) row.get("restrictionToDateTimeMachineryPriceTransactionBarcode");
 
-                        //todo: убрать idDepartmentStoreGroupCashRegister, когда не останется использований
                         CashRegisterItemInfo c = new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, itemGroupObject, description, idBrand, nameBrand,
-                                idSeason, nameSeason, idDepartmentStoreGroupCashRegister, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
+                                idSeason, nameSeason, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
                                 balance, balanceDate, restrictionToDateTime, barcodeObject);
                         cashRegisterItemInfoList.add(c);
                     }
 
-                    //todo: заменить использования idDepartmentStoreGroupCashRegister из CashRegisterItemInfo и CashRegisterInfo
+                    //todo: заменить использования idDepartmentStoreGroupCashRegister из CashRegisterInfo
                     transactionList.add(new TransactionCashRegisterInfo((Long) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,

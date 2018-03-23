@@ -12,7 +12,6 @@ public class CashRegisterItemInfo extends ItemInfo {
     public String nameBrand;
     public String idSeason;
     public String nameSeason;
-    public String idDepartmentStore;
     public String section;
     public String deleteSection;
     public BigDecimal minPrice;
@@ -27,7 +26,7 @@ public class CashRegisterItemInfo extends ItemInfo {
                                 Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
                                 String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM,
                                 Long itemGroupObject, String description, String idBrand, String nameBrand, String idSeason, String nameSeason,
-                                String idDepartmentStore, String section, String deleteSection, BigDecimal minPrice, String extIdItemGroup, BigDecimal amountBarcode,
+                                String section, String deleteSection, BigDecimal minPrice, String extIdItemGroup, BigDecimal amountBarcode,
                                 BigDecimal balance, Timestamp balanceDate, Timestamp restrictionToDateTime, Long barcodeObject) {
         super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, nameItemGroup,
                 idUOM, shortNameUOM);
@@ -37,7 +36,6 @@ public class CashRegisterItemInfo extends ItemInfo {
         this.nameBrand = nameBrand;
         this.idSeason = idSeason;
         this.nameSeason = nameSeason;
-        this.idDepartmentStore = idDepartmentStore;
         this.section = section;
         this.deleteSection = deleteSection;
         this.minPrice = minPrice;
