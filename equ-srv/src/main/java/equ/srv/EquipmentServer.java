@@ -85,6 +85,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     private ScriptingLogicsModule zReportLM;
     private ScriptingLogicsModule zReportDiscountCardLM;
     private ScriptingLogicsModule zReportSectionLM;
+    private ScriptingLogicsModule zReportExternalLM;
     
     private boolean started = false;
 
@@ -150,6 +151,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         zReportLM = getBusinessLogics().getModule("ZReport");
         zReportDiscountCardLM = getBusinessLogics().getModule("ZReportDiscountCard");
         zReportSectionLM = getBusinessLogics().getModule("ZReportSection");
+        zReportExternalLM = getBusinessLogics().getModule("ZReportExternal");
         DeleteBarcodeEquipmentServer.init(getBusinessLogics());
         MachineryExchangeEquipmentServer.init(getBusinessLogics());
         SendSalesEquipmentServer.init(getBusinessLogics());
@@ -1002,6 +1004,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                         ImportField seriesNumberDiscountCardField = discountCardLM == null ? null : new ImportField(discountCardLM.findProperty("seriesNumber[DiscountCard]"));
                         ImportField idSectionField = zReportSectionLM == null ? null : new ImportField(zReportSectionLM.findProperty("id[Section]"));
+                        ImportField externalSumZReportField = zReportExternalLM == null ? null : new ImportField(zReportExternalLM.findProperty("externalSum[ZReport]"));
 
                         List<ImportProperty<?>> saleProperties = new ArrayList<>();
                         List<ImportProperty<?>> returnProperties = new ArrayList<>();
@@ -1088,6 +1091,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                     zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
                         }
 
+                        if(zReportExternalLM != null) {
+                            saleProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
+                        }
+
                         //return 2
                         returnProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
                         returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
@@ -1143,6 +1150,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                     zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
                         }
 
+                        if(zReportExternalLM != null) {
+                            returnProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
+                        }
+
                         //giftCard 2
                         ImportKey<?> receiptGiftCardSaleDetailKey = null;
                         if (giftCardLM != null) {
@@ -1189,6 +1200,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                     zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
                         }
 
+                        if(zReportExternalLM != null) {
+                            giftCardProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
+                        }
+
                         List<List<Object>> dataSale = new ArrayList<>();
                         List<List<Object>> dataReturn = new ArrayList<>();
                         List<List<Object>> dataGiftCard = new ArrayList<>();
@@ -1221,6 +1236,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                         row = new ArrayList<>(row);
                                         row.add(sale.idSection);
                                     }
+                                    if(zReportExternalLM != null) {
+                                        row = new ArrayList<>(row);
+                                        row.add(sale.externalSumZReport);
+                                    }
                                     dataGiftCard.add(row);
                                 } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
                                     //return 3
@@ -1236,6 +1255,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                         row = new ArrayList<>(row);
                                         row.add(sale.idSection);
                                     }
+                                    if(zReportExternalLM != null) {
+                                        row = new ArrayList<>(row);
+                                        row.add(sale.externalSumZReport);
+                                    }
                                     dataReturn.add(row);
                                 } else {
                                     //sale 3
@@ -1250,6 +1273,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                     if (zReportSectionLM != null) {
                                         row = new ArrayList<>(row);
                                         row.add(sale.idSection);
+                                    }
+                                    if(zReportExternalLM != null) {
+                                        row = new ArrayList<>(row);
+                                        row.add(sale.externalSumZReport);
                                     }
                                     dataSale.add(row);
                                 }
@@ -1271,6 +1298,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             saleImportFields = new ArrayList<>(saleImportFields);
                             saleImportFields.add(idSectionField);
                         }
+                        if (zReportExternalLM != null) {
+                            saleImportFields = new ArrayList<>(saleImportFields);
+                            saleImportFields.add(externalSumZReportField);
+                        }
 
                         //return 4
                         List<ImportField> returnImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
@@ -1287,6 +1318,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             returnImportFields = new ArrayList<>(returnImportFields);
                             returnImportFields.add(idSectionField);
                         }
+                        if (zReportExternalLM != null) {
+                            returnImportFields = new ArrayList<>(returnImportFields);
+                            returnImportFields.add(externalSumZReportField);
+                        }
 
                         //giftCard 4
                         List<ImportField> giftCardImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
@@ -1297,6 +1332,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         if (zReportSectionLM != null) {
                             giftCardImportFields = new ArrayList<>(giftCardImportFields);
                             giftCardImportFields.add(idSectionField);
+                        }
+                        if (zReportExternalLM != null) {
+                            giftCardImportFields = new ArrayList<>(giftCardImportFields);
+                            giftCardImportFields.add(externalSumZReportField);
                         }
                         
                         //sale 5

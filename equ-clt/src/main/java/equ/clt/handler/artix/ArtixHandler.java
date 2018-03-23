@@ -973,6 +973,26 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         String fileContent = readFile(file.getAbsolutePath(), encoding);
 
+                        List<SalesInfo> currentSalesInfoList = new ArrayList<>();
+
+                        Map<String, BigDecimal> externalSumMap = new HashMap<>();
+                        Pattern shiftPattern = Pattern.compile("(?:.*)?### shift info begin ###(.*)### shift info end ###(?:.*)?");
+                        Matcher shiftMatcher = shiftPattern.matcher(fileContent);
+                        if (shiftMatcher.matches()) {
+                            String[] documents = shiftMatcher.group(1).split("---");
+                            for (String document : documents) {
+                                if (!document.isEmpty()) {
+                                    JSONObject documentObject = new JSONObject(document);
+
+                                    Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
+                                    String numberZReport = String.valueOf(documentObject.getInt("shift"));
+                                    BigDecimal sumGain = BigDecimal.valueOf(documentObject.getDouble("sumGain"));
+
+                                    externalSumMap.put(numberCashRegister + "/" + numberZReport, sumGain);
+                                }
+                            }
+                        }
+
                         Pattern p = Pattern.compile("(?:.*)?### sales data begin ###(.*)### sales data end ###(?:.*)?");
                         Matcher m = p.matcher(fileContent);
                         if (m.matches()) {
@@ -1091,7 +1111,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
                                                 if (sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                                     sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
-                                                salesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
+                                                currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
                                                         dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
                                                         sumCard, sumCash, sumGiftCardMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
@@ -1101,6 +1121,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     }
                                 }
                             }
+                            if(!externalSumMap.isEmpty()) {
+                                for(SalesInfo salesInfo : currentSalesInfoList) {
+                                    salesInfo.externalSumZReport = externalSumMap.get(salesInfo.nppMachinery + "/" + salesInfo.numberZReport);
+                                }
+                            }
+                            salesInfoList.addAll(currentSalesInfoList);
                             filePathList.add(file.getAbsolutePath());
                         } else
                             safeFileDelete(file, false);

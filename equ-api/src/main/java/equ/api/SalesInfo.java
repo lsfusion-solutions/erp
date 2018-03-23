@@ -42,6 +42,7 @@ public class SalesInfo implements Serializable {
     public String filename;
     public String idSection;
     public CashRegisterInfo cashRegisterInfo;
+    public BigDecimal externalSumZReport;
 
     public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
                      Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
@@ -112,6 +113,7 @@ public class SalesInfo implements Serializable {
                 numberReceiptDetail, filename, idSection, null);
     }
 
+    //Artix, Kristal10, UKM4MySQL
     public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
                      Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
                      String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, String barcodeItem,
