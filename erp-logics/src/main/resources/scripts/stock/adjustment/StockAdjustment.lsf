@@ -820,30 +820,33 @@ createBatchUserAdjustment 'Документ пересорта'() = {
 
 //------------------------------- Корректировка суммы ТО -----------------------//
 
+defaultOperationSum 'Операция для документа корректировки сумм ТО' = DATA Operation ();
+nameDefaultOperationSum 'Операция для документа корректировки сумм ТО' = name(defaultOperationSum());
+minSumAdjustment 'Минимальная сумма отклонения' = DATA NUMERIC[16,4] ();
+
+EXTEND FORM options
+    PROPERTIES() nameDefaultOperationSum, minSumAdjustment
+;
+
+DESIGN options {
+    stockAdjustment {
+        MOVE PROPERTY(nameDefaultOperationSum());
+        MOVE PROPERTY(minSumAdjustment());
+    }
+}
+
+
 accountSumB 'Учетная сумма'  (Sku s, Stock st, DATETIME dt)= balanceB(s,st,dt) * prevAccountPriceB(s, st, dt);
 diff 'Разница' (Sku s, Stock st, DATETIME dt) = sumB(s,st,dt)(-) accountSumB(s,st,dt);
 
 createSumUserAdjustment (UserAdjustment adjustment) = {
 
     // todo : деноминация
-    FOR sumDiff == diff(Sku s, stock(adjustment), dateTime(adjustment)) AND abs(sumDiff) > 0.1 AND inAdjustment(s) ORDER name(s) NEW d = UserAdjustmentDetail DO {            
+    FOR NUMERIC[32,9] sumDiff == diff(Sku s, stock(adjustment), dateTime(adjustment)) AND abs(sumDiff) > (OVERRIDE minSumAdjustment(), 0.1) AND inAdjustment(s) ORDER name(s) NEW d = UserAdjustmentDetail DO {            
         userAdjustment(d) <- adjustment;
         sku(d) <- s;       
         quantity(d) <- 0.0;
-        sum(d) <- (-sumDiff);
-    }
-}
-
-defaultOperationSum 'Операция для документа корректировки сумм ТО' = DATA Operation ();
-nameDefaultOperationSum 'Операция для документа корректировки сумм ТО' = name(defaultOperationSum());
-
-EXTEND FORM options
-    PROPERTIES() nameDefaultOperationSum
-;
-
-DESIGN options {
-    stockAdjustment {
-        MOVE PROPERTY(nameDefaultOperationSum());
+        sum(d) <- NUMERIC[18,4](-sumDiff);
     }
 }
 
