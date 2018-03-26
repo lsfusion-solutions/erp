@@ -43,6 +43,8 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
     static Namespace soapenvNamespace = Namespace.getNamespace("soapenv", "http://schemas.xmlsoap.org/soap/envelope/");
     static Namespace topNamespace = Namespace.getNamespace("top", "http://topby.by/");
 
+    String charset = "UTF-8";
+
     EDIActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
@@ -52,10 +54,10 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
     }
 
     HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, Pair<String, byte[]> file) throws IOException {
-        return sendRequest(host, port, login, password, url, xml, null, file, false);
+        return sendRequest(host, port, login, password, url, xml, file, false);
     }
 
-    private HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, String soapAction, Pair<String, byte[]> file, boolean preemptiveAuthentication) throws IOException {
+    private HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, Pair<String, byte[]> file, boolean preemptiveAuthentication) throws IOException {
         // Send post request
         DefaultHttpClient httpclient = new DefaultHttpClient();
         httpclient.getCredentialsProvider().setCredentials(new AuthScope(host, port),
@@ -67,8 +69,6 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         if (file == null || file.second == null) {
             entity = new StringEntity(xml, StandardCharsets.UTF_8);
             httpPost.addHeader("Content-type", "text/xml");
-            if(soapAction != null)
-                httpPost.addHeader("SOAPAction", soapAction);
         } else {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addPart(FormBodyPartBuilder.create("xml", new StringBody(xml, ContentType.create("application/xml", Charset.forName("UTF-8")))).build());

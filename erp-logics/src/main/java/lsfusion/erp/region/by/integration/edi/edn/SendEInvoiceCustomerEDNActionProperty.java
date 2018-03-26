@@ -1,6 +1,6 @@
-package lsfusion.erp.region.by.integration.edi.topby;
+package lsfusion.erp.region.by.integration.edi.edn;
 
-import lsfusion.erp.region.by.integration.edi.SendEInvoiceActionProperty;
+import lsfusion.erp.region.by.integration.edi.SendEInvoiceCustomerActionProperty;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ValueClass;
@@ -14,23 +14,30 @@ import org.jdom.JDOMException;
 import java.io.IOException;
 import java.sql.SQLException;
 
-public class SendEInvoiceTopByActionProperty extends SendEInvoiceActionProperty {
-    String provider = "TopBy";
+public class SendEInvoiceCustomerEDNActionProperty extends SendEInvoiceCustomerActionProperty {
+    String provider = "EDN";
 
-    public SendEInvoiceTopByActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public SendEInvoiceCustomerEDNActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+
         try {
-            String login = (String) findProperty("loginInvoiceTopBy[]").read(context);
-            String password = (String) findProperty("passwordInvoiceTopBy[]").read(context);
-            String host = (String) findProperty("hostInvoiceTopBy[]").read(context);
-            Integer port = (Integer) findProperty("portInvoiceTopBy[]").read(context);
+            String login = (String) findProperty("loginInvoiceEDN[]").read(context);
+            String password = (String) findProperty("passwordInvoiceEDN[]").read(context);
+            String host = (String) findProperty("hostInvoiceEDN[]").read(context);
+            Integer port = (Integer) findProperty("portInvoiceEDN[]").read(context);
+
+            String aliasEDSService = (String) findProperty("aliasEDSServiceEDN[]").read(context);
+            String passwordEDSService = (String) findProperty("passwordEDSServiceEDN[]").read(context);
+            String hostEDSService = (String) findProperty("hostEDSServiceEDN[]").read(context);
+            Integer portEDSService = (Integer) findProperty("portEDSServiceEDN[]").read(context);
+
             if (login != null && password != null && host != null && port != null) {
-                String url = String.format("http://%s:%s/DmcService", host, port);
-                sendEInvoice(context, url, login, password, host, port, provider);
+                String url = String.format("https://%s:%s/topby/DmcService?wsdl", host, port);
+                sendEInvoice(context, url, login, password, host, port, aliasEDSService, passwordEDSService, hostEDSService, portEDSService, provider);
             } else {
                 ServerLoggers.importLogger.info(provider + " SendEInvoice: не заданы имя пользователя / пароль / хост / порт");
                 context.delayUserInteraction(new MessageClientAction(provider + " Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));

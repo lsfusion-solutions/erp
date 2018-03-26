@@ -103,6 +103,26 @@ public class DefaultExportXMLActionProperty extends DefaultExportActionProperty 
         return xml;
     }
 
+    //новый метод, который заменит все остальные
+    protected String outputXMLString(Document doc, String encoding, String outputDir, String prefix, boolean escapeEntities) {
+        XMLOutputter xmlOutputter = escapeEntities ? new XMLOutputter(Format.getPrettyFormat().setEncoding(encoding)) {
+            @Override
+            public String escapeElementEntities(String str) {
+                return str;
+            }
+        } : new XMLOutputter(Format.getPrettyFormat().setEncoding(encoding));
+        String xml = xmlOutputter.outputString(doc);
+        if (outputDir != null) {
+            try {
+                FileUtils.writeStringToFile(new File(outputDir + "/" + (prefix != null ? prefix : "") +
+                        new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss-SSS").format(Calendar.getInstance().getTime()) + ".xml"), xml);
+            } catch (Exception e) {
+                ServerLoggers.importLogger.error("Export Error: ", e);
+            }
+        }
+        return xml;
+    }
+
     protected String sendRequest(String url, String xml) throws IOException {
         Request request = new Request.Builder().url(url).post(FormBody.create(MediaType.parse("application/xml"), xml)).build();
         return new OkHttpClient().newCall(request).execute().body().string();

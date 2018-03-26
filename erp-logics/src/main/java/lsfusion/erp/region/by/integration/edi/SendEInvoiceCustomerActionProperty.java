@@ -33,18 +33,20 @@ import java.util.Calendar;
 import java.util.Iterator;
 import java.util.List;
 
-public class SendEInvoiceActionProperty extends EDIActionProperty {
+public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
     protected final ClassPropertyInterface eInvoiceInterface;
-    String charset = "UTF-8";
 
-    public SendEInvoiceActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public SendEInvoiceCustomerActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         eInvoiceInterface = i.next();
     }
 
-    protected void sendEInvoice(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+    protected void sendEInvoice(ExecutionContext context, String url, String login, String password, String host, Integer port,
+                                String aliasEDSService, String passwordEDSService, String hostEDSService, Integer portEDSService,
+                                String provider)
+            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         if (context.getDbManager().isServer()) {
 
             String signerPathEDI = (String) findProperty("signerPathEDI[]").read(context);
@@ -180,7 +182,7 @@ public class SendEInvoiceActionProperty extends EDIActionProperty {
     @Override
     public ImMap<CalcProperty, Boolean> aspectChangeExtProps() {
         try {
-            return getChangeProps((CalcProperty) findProperty("exported[EInvoice]").property);
+            return getChangeProps((CalcProperty) findProperty("exportedCustomer[EInvoice]").property);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             return null;
         }

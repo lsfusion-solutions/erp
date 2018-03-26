@@ -1045,7 +1045,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 Element errorOrAcknowledgementElement = acknowledgementElement.getChild("ErrorOrAcknowledgement");
                 if (errorOrAcknowledgementElement != null) {
                     String code = errorOrAcknowledgementElement.getChildText("Code");
-                    String description = errorOrAcknowledgementElement.getChildText("Description");
+                    String description = getDescriptionByCode(errorOrAcknowledgementElement.getChildText("Description"), code);
                     return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList((Object) documentNumber, dateTime, code, description, invoiceNumber)), null);
                 }
             }
@@ -1269,6 +1269,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     return "Сообщение прочитано получателем";
                 case "1252":
                     return "Сообщение принято учётной системой получателя";
+                case "2650":
+                    return "Извещение о прочтении";
                 default:
                     return null;
             }
