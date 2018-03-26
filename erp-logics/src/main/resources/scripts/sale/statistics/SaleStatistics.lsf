@@ -1162,6 +1162,42 @@ printXLSStatisticalReportStockSelect 'Статистический отчет п
     PRINT statisticalReportStockSelectPrint OBJECTS c = c , dFrom = dFrom, dTo = dTo XLS;
 } IMAGE 'print.png' IN print;
 
+FORM statisticalReportStockInStatPrint 'Статистический отчет по складам'
+    OBJECTS params = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES objFrom = VALUE(dFrom), objTo = VALUE(dTo)
+     
+    PROPERTIES noThousandsInStatistics() 
+     
+    OBJECTS c = StatisticGroupType PANEL
+    PROPERTIES SELECTOR name(c)
+    PROPERTIES quantityNoGroups(c), quantityNoGroupsB(c, dFrom), quantityNoGroupsA(c, dTo)
+  
+    PROPERTIES quantitySoldNot(c,dFrom, dTo), balanceBNot(c, dFrom), balanceANot(c, dTo)
+    PROPERTIES() stocks, currentDateTime
+    
+    OBJECTS s = Stock
+    PROPERTIES name(s)
+    
+    OBJECTS g=StatisticGroup                                   
+
+    PROPERTIES(g) READONLY nameLevel4, sid, nameUOM, nameReportUOM
+
+    PROPERTIES(g, s, dFrom) READONLY valueByFrom, valueResidentByFrom,
+                                     sumBalanceBBy, sumResidentBalanceBBy
+    PROPERTIES(g, s, dFrom, dTo) READONLY valueBy, valueResidentBy,
+                                          totalSumSoldBy, totalSumResidentSoldBy
+    PROPERTIES(g, s, dTo) READONLY valueByTo, valueResidentByTo,
+                                   sumBalanceABy, sumResidentBalanceABy
+    PROPERTIES READONLY canonicalOrderSort(g), level(g)
+    ORDER canonicalOrderSort(g)                                                                    
+   
+    FILTERS groupType(g) == c, inStat(s)
+;
+
+printStatisticalReportStockInStat 'Статистический отчет с разбиением по складам' (StatisticGroupType c, DATE dFrom, DATE dTo, Stock s) = {
+    dataIn(s) <- TRUE WHERE NOT countInStat();
+    PRINT statisticalReportStockInStatPrint OBJECTS c = c, dFrom = dFrom, dTo = dTo ;
+} IMAGE 'print.png' IN print;  
 
 FORM statisticalReportStockSelect 'Статистический отчет'
 
@@ -1180,7 +1216,7 @@ FORM statisticalReportStockSelect 'Статистический отчет'
     FILTERS stringEqualsAll(sta)
  
     OBJECTS s=Stock 
-    PROPERTIES(s) inStat, name READONLY, nameRegion READONLY
+    PROPERTIES(s) inStat, name READONLY, nameLegalEntity READONLY, nameRegion READONLY
     ORDER name(s)
     FILTERS s IS Stock AND NOT stg IS StockGroup OR isParent(stg, s)
  
@@ -1191,7 +1227,8 @@ FORM statisticalReportStockSelect 'Статистический отчет'
 //    PROPERTIES READONLY name(sk)
 //    FILTERS NOT statistic(c,sk)
 
-    PROPERTIES  printXLSStatisticalReportStockSelect(c, dFrom, dTo, s), printStatisticalReportStockSelect(c, dFrom, dTo, s)
+    PROPERTIES  printXLSStatisticalReportStockSelect(c, dFrom, dTo, s), printStatisticalReportStockSelect(c, dFrom, dTo, s), 
+                printStatisticalReportStockInStat(c, dFrom, dTo, s)
 ;
 
 setDefaultStatisticGroupType() = {
