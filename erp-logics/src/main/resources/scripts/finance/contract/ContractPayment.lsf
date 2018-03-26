@@ -35,6 +35,18 @@ sumContract(Payment payment) <- IF NOT currencyContract(payment) == currencyAcco
 
 autoWriteFIFO 'Автоматически расписывать по ФИФО' = DATA BOOLEAN (PaymentOperation.Operation);
 
+
+// расчетный счет бенефициара в платежах
+accountBeneficiaries = DATA Bank.Account(Contract);
+numberAccountBeneficiaries 'р/сч бенефициара' (Contract contract)= number(accountBeneficiaries(contract)) IN payment;
+
+CONSTRAINT legalEntity(accountBeneficiaries(Contract contract)) != partyA(contract)  
+    CHECKED BY accountBeneficiaries[Contract] MESSAGE 'Организация р/сч бенефициара должна совпадать с бенефициаром';
+
+EXTEND FORM userContractSku
+ PROPERTIES(c) numberAccountBeneficiaries
+;
+
 // заполнить договор при смене плательщика или бенефициара или даты платежа
 WHEN LOCAL FORMS payment (CHANGED(beneficiary(Payment payment)) OR CHANGED(payer(payment))
             OR CHANGED(date(payment)) OR CHANGED(isReturn(payment))) AND NOT CHANGED(contract(payment))  NOINLINE DO {
