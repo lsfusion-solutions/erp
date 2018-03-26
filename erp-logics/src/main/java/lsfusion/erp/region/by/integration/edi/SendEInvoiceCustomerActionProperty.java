@@ -160,7 +160,7 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
             case OK:
                 if (showMessages) {
                     ServerLoggers.importLogger.info(String.format("%s SendEInvoice %s request succeeded", provider, referenceNumber));
-                    findProperty("exported[EInvoice]").change(true, context, eInvoiceObject);
+                    findProperty("exportedCustomer[EInvoice]").change(true, context, eInvoiceObject);
                     context.delayUserInteraction(new MessageClientAction(String.format("%s Накладная %s выгружена", provider, referenceNumber), "Экспорт"));
                     context.apply();
                 }
