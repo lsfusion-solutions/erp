@@ -63,6 +63,32 @@ EXTEND FORM invoices
 ;   
 @defineOrderShipmentExecution(); 
 @defineOrderInvoiceSupplierExecution(purchase, ' (закупка)');
+skipSelectSku = ABSTRACT BOOLEAN ();
+fillSelectSku = ABSTRACT LIST (DATE, DATE);
+fillSelectOrder(DATE df, DATE dt) += {
+    IF df IS DATE AND dt IS DATE THEN {
+        selectOrder(OrderDetail d) <- NULL;
+        IF NOT [ = GROUP SUM 1 IF selectOrder(LegalEntity l)]()  THEN {
+            selectOrder(LegalEntity l) <- TRUE WHERE active(l) AND isSupplier(l);    
+        }
+        IF NOT [ = GROUP SUM 1 IF selectOrder(Stock st)]()  THEN {
+            selectOrder(Stock st) <- TRUE WHERE active(st) AND isCompany(st) AND accessCompany(currentUser(), st); 
+        }
+        IF NOT skipSelectSku() THEN {
+            IF NOT [ = GROUP SUM 1 IF selectOrder(Sku s)]()  THEN {
+                selectOrder(Sku s) <- TRUE WHERE active(s) AND name(s); 
+            } 
+            selectOrder(OrderDetail d) <- TRUE WHERE isPosted(d) AND date(d) >= df AND date(d) <= dt AND selectOrder(supplier(d)) AND selectOrder(customerStock(d)) AND selectOrder(sku(d));            
+        } ELSE {
+            fillSelectSku(df,dt);
+        }
+              
+    }
+    formRefresh(); 
+}
+EXTEND FORM executionSupplierOrder
+    FILTERS isSupplier(l)
+;
 
 //----------------------------------------------- Операции -----------------------------------------------------//
 

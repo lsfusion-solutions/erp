@@ -1,0 +1,30 @@
+MODULE  PurchaseShipmentSeparation; 
+REQUIRE PurchaseOrderSeparation, PurchaseShipment;
+NAMESPACE Purchase;
+
+selectOrder 'Вкл.' = DATA LOCAL BOOLEAN (Separation);
+nameSeparation 'Признак разделения' (OrderDetail d) = name(separation(order(d)));
+EXTEND FORM executionSupplierOrder
+    PROPERTIES (d) READONLY nameSeparation
+
+    OBJECTS p = Separation
+    PROPERTIES (p) READONLY name, nameLegalEntity, selectOrder CHANGEABLE 
+    FILTERGROUP selectP FILTER 'Отм.' selectOrder(p) 'F6'
+;
+
+DESIGN executionSupplierOrder {
+    tab21 {
+        NEW tab22 {
+            fill = 1;
+            type = TABBED ;
+            MOVE BOX(p);
+            MOVE tab212 {caption = 'Товар';}
+        }    
+    }  
+}
+
+skipSelectSku() += TRUE IF [ = GROUP SUM 1 IF selectOrder(Separation s)]();
+
+fillSelectSku(DATE df, DATE dt) += {
+    selectOrder(OrderDetail d) <- TRUE WHERE isPosted(d) AND date(d) >= df AND date(d) <= dt AND selectOrder(supplier(d)) AND selectOrder(customerStock(d)) AND selectOrder(separation(order(d))); 
+}

@@ -230,7 +230,24 @@ META defineOrderInvoiceSupplierExecution (NS, sign)
     percentSumExecution '% исп. заявки (сумма)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) = sumShipped(supplier, dateFrom, dateTo)*100.00 /
         (sum(supplier, dateFrom, dateTo) IF sum(supplier, dateFrom, dateTo)!=0);    
     
-
+//--
+    percentQuantityExecution '% исп. заявки (кол-во)' (OrderDetail d)= shipped(d)*100.00 /
+        (quantity(d) IF quantity(d)!= 0);
+    shippedSum 'Сумма (поставлено)' (OrderDetail d) =   round(shipped(d)*price(d), currency(d));
+    percentSumExecution '% исп. заявки (сумма)' (OrderDetail d)= shippedSum(d)*100.00 /
+        (sum(d) IF sum(d)!= 0); 
+        
+        
+    selectOrder 'Вкл.' = DATA LOCAL BOOLEAN (LegalEntity);
+    selectOrder 'Вкл.' = DATA LOCAL BOOLEAN (Sku);    
+    selectOrder 'Вкл.' = DATA LOCAL BOOLEAN (Stock);    
+    selectOrder 'Вкл.' = DATA LOCAL BOOLEAN (OrderDetail);  
+    
+    fillSelectOrder  'Заполнить данные ' = ABSTRACT LIST (DATE, DATE);
+    resetSelectOrder () = { 
+        selectOrder(OrderDetail d) <- NULL; 
+        formRefresh();
+    }
     FORM executionSupplierOrder 'Исполнение заявок' 
     
         OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
@@ -250,13 +267,48 @@ META defineOrderInvoiceSupplierExecution (NS, sign)
                 supplier(o) == s,
                 date(o) >= dFrom,
                 date(o) <= dTo
-
+                                
+        OBJECTS l = LegalEntity
+        PROPERTIES(l) READONLY name, id, selectOrder CHANGEABLE 
+        FILTERS active(l)    
+        FILTERGROUP selectL FILTER 'Отм.' selectOrder(l) 'F6' 
+        
+        OBJECTS st = Stock
+        PROPERTIES(st) READONLY name, id, selectOrder CHANGEABLE
+        FILTERS isCompany(st), active(st)         
+        FILTERGROUP selectSt FILTER 'Отм.' selectOrder(st) 'F6'
+        
+        TREE skuTree sg = SkuGroup PARENT parent
+        PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+        FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
+        ORDER order(sg), skuGroupName
+         
+        OBJECTS sk = Sku
+        PROPERTIES(sk) READONLY id 
+        PROPERTIES(sk) READONLY name, shortNameUOM, selectOrder CHANGEABLE
+        FILTERS isParent(sg, sk),
+                name(sk),
+                active(sk)
+        ORDER name(sk)               
+        FILTERGROUP selectSk FILTER 'Отм.' selectOrder(sk) 'F6'
+                
+        OBJECTS d = OrderDetail
+        PROPERTIES (d) READONLY isPosted, isClosed, number, series, date, time,
+                                nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock, 
+                                idSku, idBarcodeSku, nameSku, shortNameUOMSku, quantity, shipped, percentQuantityExecution, 
+                                sum, shippedSum, percentSumExecution, VATSum, invoiceSum
+                                 
+        PROPERTIES(d) NEWSESSION EDIT 
+        PROPERTIES fillSelectOrder(dFrom,dTo) TOOLBAR TODRAW d
+        FILTERS selectOrder(d)              
+        EVENTS ON CHANGE dFrom resetSelectOrder ()         
+        EVENTS ON CHANGE dTo resetSelectOrder ()
     ; 
     
     @extendFormFilterAccessStock(Order, o, executionSupplierOrder, customerStock, company);
-    
+    @extendFormFilterStockAccess(st, executionSupplierOrder, company);
     DESIGN executionSupplierOrder 'Исполнение заявок'###sign {
-        BOX {
+        OBJECTS {
 
             NEW dates{
                 type = CONTAINERH;
@@ -268,12 +320,54 @@ META defineOrderInvoiceSupplierExecution (NS, sign)
                     caption = 'Дата по';
                 }
             }
+            NEW tab {
+                fill = 1;
+                type = TABBED;
+                NEW tab1 {
+                    caption = 'По организации';
+                    fill = 1;
+                    type = SPLITV;
+                    MOVE BOX(s);
+                    MOVE BOX(o);                    
+                }
+                NEW tab2 {
+                    caption = 'По товару';
+                    fill = 1;
+                    type = SPLITV;
+                    NEW tab21 {
+                        type = SPLITH;
+                        fill = 1;
+                        NEW tab211 {
+                            fill = 1;
+                            type = SPLITH;  
+                            MOVE BOX(l);
+                            MOVE BOX (st);                            
+                        }                     
 
-            MOVE BOX(s);
-            MOVE BOX(o);
-            MOVE TOOLBARBOX;
+                        NEW tab212 {
+                            fill = 1;
+                            type = SPLITH;
+                            MOVE BOX(TREE skuTree);
+                
+                            MOVE BOX(sk) {
+                                fill = 1;
+                                GRID(sk) {
+                                    defaultComponent = TRUE;
+                                }
+                            }
+                        }
+                    }
+                    MOVE BOX(d);                   
+                }                
+            }
+
+
+            
         }
-    }        
+    }   
+//    WHEN LOCAL FORMS executionSupplierOrder CHANGED(selectOrder(LegalEntity l)) OR CHANGED(selectOrder(Stock st)) OR CHANGED(selectOrder(Sku sk)) DO {
+//        resetSelectOrder ();
+//    }     
     NAVIGATOR {
         NS##sReports {
             NEW executionSupplierOrder;
