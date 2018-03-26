@@ -250,6 +250,8 @@ DESIGN giftCardPurchase {
 
 fromNumberFilter 'Номер с' = DATA LOCAL VARSTRING[30]();
 toNumberFilter 'Номер по' = DATA LOCAL VARSTRING[30]();
+filterDepartmentStore 'Магазин' = DATA LOCAL DepartmentStore();
+nameStoreFilter 'Магазин' = name(filterDepartmentStore());
 
 //numberFilter(GiftCard g) = (toInteger(right(number(g), lengthGiftCard())) >= toInteger(right(fromNumberFilter(), lengthGiftCard())) OR NOT fromNumberFilter())
 //                                        AND (toInteger(right(number(g), lengthGiftCard())) <= toInteger(right(toNumberFilter(), lengthGiftCard())) OR NOT toNumberFilter());
@@ -260,12 +262,12 @@ numberFilter(GiftCard g) = (numberReport(g) >= numberReport(fromNumberFilter()) 
                                         AND (numberReport(g) <= numberReport(toNumberFilter()) OR NOT toNumberFilter());
 
 FORM giftCardsDashboard 'Подарочные сертификаты'
-    PROPERTIES () fromNumberFilter, toNumberFilter
+    PROPERTIES () fromNumberFilter, toNumberFilter, nameStoreFilter 
     
     OBJECTS g = GiftCard
     PROPERTIES (g) READONLY number, series, date, nameDepartmentStore, expiryDays, price, dateSold, nameDepartmentStoreSold, 
                     dateUsed, nameDepartmentStoreUsed
-    FILTERS numberFilter(g)
+    FILTERS numberFilter(g), departmentStore(g) == filterDepartmentStore()
     
     FILTERGROUP filter1
         FILTER 'Просрочен' expireDate(g) < currentDate() 'F10'
@@ -304,6 +306,7 @@ DESIGN giftCardsDashboard {
                 type = CONTAINERH ;
                 MOVE PROPERTY (fromNumberFilter());
                 MOVE PROPERTY (toNumberFilter());
+                MOVE PROPERTY (nameStoreFilter());
             }
             MOVE BOX(g);
         }
