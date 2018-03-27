@@ -6,7 +6,12 @@ REQUIRE ZReport;
 CLASS GiftCard 'Подарочный сертификат';
 TABLE giftCard(GiftCard);
 
-@defineExternalizable(giftCard, VARSTRING[100]);
+id 'Код' = DATA VARSTRING[100] (GiftCard) IN recognize INDEXED CHARWIDTH 10;
+giftCard (id) = GROUP MAX (GiftCard giftCard) BY id (giftCard);
+countGiftCard = GROUP SUM 1 BY id (GiftCard giftCard);
+
+CONSTRAINT GiftCard giftCard IS GiftCard AND countGiftCard(id(giftCard)) >1
+    MESSAGE 'Нарушена уникальность свойства "Код" для подарочного сертификата' ;
 
 @defineNumbered(GiftCard);
 
@@ -24,7 +29,7 @@ giftCardSeriesNumber (string) =
 date 'Дата' = DATA DATE(GiftCard);
 expiryDays 'Срок действия (дней)' = DATA INTEGER(GiftCard);
 
-price 'Цена' = DATA NUMERIC[16,4] (GiftCard);
+price 'Цена' = DATA NUMERIC[16,4] (GiftCard) IN recognize;
 
 //регистр движений подарочного сертификата
 CLASS ABSTRACT GiftCardLedger 'Движение подарочных сертификатов';
