@@ -608,17 +608,14 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             for (Integer version : versionMap.keySet())
                 inVersions.append((inVersions.length() == 0) ? "" : ",").append(version);
 
-            Map<Integer, Long> result = new HashMap<>();
-            /*statement = conn.createStatement();
+            statement = conn.createStatement();
             String sql = "SELECT version FROM `signal` WHERE version IN (" + inVersions + ")";
             ResultSet resultSet = statement.executeQuery(sql);
             Map<Integer, Long> result = new HashMap<>();
             while (resultSet.next()) {
                 Integer version = resultSet.getInt(1);
                 result.put(version, versionMap.get(version));
-            }*/
-            result.put(1, versionMap.get(1));
-            result.put(2, versionMap.get(2));
+            }
             return result;
         } catch (Exception e) {
             throw Throwables.propagate(e);
