@@ -556,11 +556,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         Pattern p = Pattern.compile("(?:.*)?### sales data begin ###(.*)### sales data end ###(?:.*)?");
                         Matcher m = p.matcher(fileContent);
                         if (m.matches()) {
-                            String[] documents = m.group(1).split("---");
+                            //добавляем }, поскольку внутри элемента тоже может быть ---
+                            String[] documents = m.group(1).split("}---");
 
                             for (String document : documents) {
                                 if (!document.isEmpty()) {
-                                    JSONObject documentObject = new JSONObject(document);
+                                    JSONObject documentObject = new JSONObject(document + "}");
                                     if (documentObject.getInt("docType") == 16) {
                                         Timestamp dateTimeReceipt = new Timestamp(parseDateTime(documentObject.getString("timeEnd")));
                                         JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
@@ -990,7 +991,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         Matcher m = p.matcher(fileContent);
                         if (m.matches()) {
                             //добавляем }, поскольку внутри элемента тоже может быть ---
-                            String[] documents = m.group(1).split("---}");
+                            String[] documents = m.group(1).split("}---");
 
                             for (String document : documents) {
                                 if (!document.isEmpty()) {
