@@ -63,17 +63,18 @@ public class ImportPurchaseInvoiceSkuImportCode extends ImportDefaultPurchaseInv
                         object(LM.findClass("Country")).getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "importCodeCountry")));
                 props.add(new ImportProperty(countryIdImportCodeField, LM.findProperty("country[Item]").getMapping(itemKey),
                         object(LM.findClass("Country")).getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "importCodeCountry")));
+                props.add(new ImportProperty(countryIdImportCodeField, LM.findProperty("name[Country]").getMapping(countryKey), true));
                 fields.add(countryIdImportCodeField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("importCodeCountry"));
 
-                if (showField(userInvoiceDetailsList, "nameCountry")) {
+/*                if (showField(userInvoiceDetailsList, "nameCountry")) {
                     ImportField nameCountryField = new ImportField(LM.findProperty("name[Country]"));
                     props.add(new ImportProperty(nameCountryField, LM.findProperty("name[Country]").getMapping(countryKey), true));
                     fields.add(nameCountryField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameCountry"));
-                }
+                }*/
             }
 
             if (showField(userInvoiceDetailsList, "importCodeUOM")) {
