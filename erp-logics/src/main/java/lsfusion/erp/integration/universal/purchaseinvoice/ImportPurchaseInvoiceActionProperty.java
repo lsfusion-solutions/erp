@@ -460,6 +460,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     ImportField idUOMField = new ImportField(findProperty("id[UOM]"));
                     ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) findClass("UOM"),
                             findProperty("UOM[VARSTRING[100]]").getMapping(idUOMField));
+                    //from ImportPurchaseInvoiceSkuImportCode
+                    UOMKey.skipKey = context.getBL().getModule("SkuImportCode") != null && showField(userInvoiceDetailsList, "importCodeUOM");
                     keys.add(UOMKey);
                     props.add(new ImportProperty(idUOMField, findProperty("id[UOM]").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
                     props.add(new ImportProperty(idUOMField, findProperty("name[UOM]").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
@@ -475,6 +477,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     ImportField idManufacturerField = new ImportField(LM.findProperty("id[Manufacturer]"));
                     ImportKey<?> manufacturerKey = new ImportKey((CustomClass) LM.findClass("Manufacturer"),
                             LM.findProperty("manufacturer[VARSTRING[100]]").getMapping(idManufacturerField));
+                    //from ImportPurchaseInvoiceSkuImportCode
+                    manufacturerKey.skipKey = context.getBL().getModule("SkuImportCode") != null && showField(userInvoiceDetailsList, "importCodeManufacturer");
                     keys.add(manufacturerKey);
                     props.add(new ImportProperty(idManufacturerField, LM.findProperty("id[Manufacturer]").getMapping(manufacturerKey), getReplaceOnlyNull(defaultColumns, "idManufacturer")));
                     props.add(new ImportProperty(idManufacturerField, LM.findProperty("manufacturer[Item]").getMapping(itemKey),
@@ -508,6 +512,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                         new ImportKey((CustomClass) LM.findClass("Country"), countryAggr.getMapping(countryField));
 
                 if (countryKey != null) {
+                    //from ImportPurchaseInvoiceSkuImportCode
+                    countryKey.skipKey = context.getBL().getModule("SkuImportCode") != null && showField(userInvoiceDetailsList, "importCodeCountry");
                     keys.add(countryKey);
 
                     props.add(new ImportProperty(countryField, LM.findProperty("country[Item]").getMapping(itemKey),
