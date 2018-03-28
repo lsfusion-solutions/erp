@@ -917,7 +917,12 @@ DESIGN options {
 
 META defineObjectItemAttribute(attribute, attributeClass, identity, caption, group)
     attribute = DATA attributeClass (Item);
-    deleteUnusedAttributes() += { FOR (attributeClass o IS attributeClass) AND NOT [= GROUP SUM 1 BY attribute(Item item)](o) DO DELETE o; }
+    deleteUnusedAttributes() += { 
+        NEWSESSION { 
+            FOR (attributeClass o IS attributeClass) AND NOT [= GROUP SUM 1 BY attribute(Item item)](o) DO DELETE o; 
+            apply();
+        }
+    };    
     identity###attribute caption (Item item) = identity(attribute(item)) IN group;
 
     CONSTRAINT DROPPED(attributeClass o IS attributeClass) AND [= GROUP SUM 1 IF NOT attribute(Item o) BY PREV(attribute(o))](o)
