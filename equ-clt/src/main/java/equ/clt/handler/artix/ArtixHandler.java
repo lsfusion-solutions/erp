@@ -613,84 +613,73 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean readCashDocuments = artixSettings != null && artixSettings.isReadCashDocuments();
 
-        if(readCashDocuments) {
+        if (readCashDocuments) {
             //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
-            Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
-            Set<String> directorySet = new HashSet<>();
+            Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
             for (CashRegisterInfo c : cashRegisterInfoList) {
                 if (fitHandler(c) && c.directory != null && c.number != null) {
-                    departNumberCashRegisterMap.put(c.number, c);
-                    directorySet.add(c.directory + "/sale" + c.number);
-                    directorySet.add(c.directory + "/sale" + c.number + "/online");
+                    directoryCashRegisterMap.put(c.directory + "/sale" + c.number, c);
+                    directoryCashRegisterMap.put(c.directory + "/sale" + c.number + "/online", c);
                 }
             }
 
-            List<File> files = new ArrayList<>();
-            for (String dir : directorySet) {
-                File[] filesList = new File(dir).listFiles(new FileFilter() {
+            for (Map.Entry<String, CashRegisterInfo> directoryEntry : directoryCashRegisterMap.entrySet()) {
+                String directory = directoryEntry.getKey();
+                CashRegisterInfo cashRegister = directoryEntry.getValue();
+                File[] filesList = new File(directory).listFiles(new FileFilter() {
                     @Override
                     public boolean accept(File pathname) {
                         return pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json");
                     }
                 });
-                if (filesList != null)
-                    files.addAll(Arrays.asList(filesList));
-            }
 
-            if (files.isEmpty())
-                sendSalesLogger.info(logPrefix + "no cashDocument files found");
-            else {
-                sendSalesLogger.info(String.format(logPrefix + "found %s cashDocument file(s)", files.size()));
+                if (filesList != null && filesList.length > 0) {
+                    sendSalesLogger.info(String.format(logPrefix + "found %s cashDocument file(s) in %s", filesList.length, cashRegister.directory));
 
-                for (File file : files) {
-                    if (!Thread.currentThread().isInterrupted()) {
-                        try {
+                    for (File file : filesList) {
+                        if (!Thread.currentThread().isInterrupted()) {
+                            try {
+                                sendSalesLogger.info(logPrefix + "reading " + file.getName());
 
-                            String fileName = file.getName();
-                            sendSalesLogger.info(logPrefix + "reading " + fileName);
+                                Pattern p = Pattern.compile("(?:.*)?### sales data begin ###(.*)### sales data end ###(?:.*)?");
+                                Matcher m = p.matcher(readFile(file.getAbsolutePath(), encoding));
+                                if (m.matches()) {
 
-                            String fileContent = readFile(file.getAbsolutePath(), encoding);
+                                    for (String document : m.group(1).split("---")) {
+                                        if (!document.isEmpty()) {
 
-                            Pattern p = Pattern.compile("(?:.*)?### sales data begin ###(.*)### sales data end ###(?:.*)?");
-                            Matcher m = p.matcher(fileContent);
-                            if (m.matches()) {
-                                String[] documents = m.group(1).split("---");
+                                            JSONObject documentObject = new JSONObject(document);
 
-                                for (String document : documents) {
-                                    if (!document.isEmpty()) {
+                                            Integer docType = documentObject.getInt("docType");
+                                            boolean in = docType == 3;
+                                            boolean out = docType == 4;
+                                            if (in || out) {
 
-                                        JSONObject documentObject = new JSONObject(document);
+                                                String numberCashDocument = documentObject.getString("docNum");
 
-                                        Integer docType = documentObject.getInt("docType");
-                                        boolean in = docType == 3;
-                                        boolean out = docType == 4;
-                                        if (in || out) {
+                                                BigDecimal sumCashDocument = BigDecimal.valueOf(documentObject.getDouble("docSum"));
+                                                sumCashDocument = in ? sumCashDocument : safeNegate(sumCashDocument);
 
-                                            String numberCashDocument = documentObject.getString("docNum");
+                                                Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
 
-                                            BigDecimal sumCashDocument = BigDecimal.valueOf(documentObject.getDouble("docSum"));
-                                            sumCashDocument = in ? sumCashDocument : safeNegate(sumCashDocument);
+                                                long dateTimeCashDocument = parseDateTime(documentObject.getString("timeEnd"));
+                                                Date dateCashDocument = new Date(dateTimeCashDocument);
+                                                Time timeCashDocument = new Time(dateTimeCashDocument);
 
-                                            Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
-
-                                            long dateTimeCashDocument = parseDateTime(documentObject.getString("timeEnd"));
-                                            Date dateCashDocument = new Date(dateTimeCashDocument);
-                                            Time timeCashDocument = new Time(dateTimeCashDocument);
-
-                                            CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
-                                            Integer numberGroup = cashRegister == null ? null : cashRegister.numberGroup;
-                                            Date startDate = cashRegister == null ? null : cashRegister.startDate;
-                                            if (startDate == null || dateCashDocument.compareTo(startDate) >= 0) {
-                                                String idCashDocument = numberGroup + "/" + numberCashRegister + "/" + numberCashDocument;
-                                                cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
-                                                        numberGroup, numberCashRegister, null, sumCashDocument));
+                                                if (cashRegister.number.equals(numberCashRegister)) {
+                                                    if (cashRegister.startDate == null || dateCashDocument.compareTo(cashRegister.startDate) >= 0) {
+                                                        String idCashDocument = cashRegister.numberGroup + "/" + numberCashRegister + "/" + numberCashDocument;
+                                                        cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
+                                                                cashRegister.numberGroup, numberCashRegister, null, sumCashDocument));
+                                                    }
+                                                }
                                             }
                                         }
                                     }
                                 }
+                            } catch (Throwable e) {
+                                sendSalesLogger.error(logPrefix + "File " + file.getAbsolutePath(), e);
                             }
-                        } catch (Throwable e) {
-                            sendSalesLogger.error(logPrefix + "File " + file.getAbsolutePath(), e);
                         }
                     }
                 }
