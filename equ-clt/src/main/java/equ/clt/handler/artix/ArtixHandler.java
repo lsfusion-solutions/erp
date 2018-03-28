@@ -35,6 +35,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+    protected final static Logger softCheckLogger = Logger.getLogger("SoftCheckLogger");
 
     private static String logPrefix = "Artix: ";
 
@@ -518,7 +519,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     @Override
     public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) {
         Map<String, Timestamp> result = new HashMap<>();
-        sendSalesLogger.info(logPrefix + "reading SoftCheckInfo");
+        softCheckLogger.info(logPrefix + "reading SoftCheckInfo");
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean disable = artixSettings != null && artixSettings.isDisableCopyToSuccess();
@@ -539,16 +540,16 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         }
 
         if (files.isEmpty())
-            sendSalesLogger.info(logPrefix + "No soft check files found");
+            softCheckLogger.info(logPrefix + "No soft check files found");
         else {
-            sendSalesLogger.info(String.format(logPrefix + "found %s soft check file(s)", files.size()));
+            softCheckLogger.info(String.format(logPrefix + "found %s soft check file(s)", files.size()));
 
             for (File file : files) {
                 if (!Thread.currentThread().isInterrupted()) {
                     try {
 
                         String fileName = file.getName();
-                        sendSalesLogger.info(logPrefix + "reading " + fileName);
+                        softCheckLogger.info(logPrefix + "reading " + fileName);
 
                         String fileContent = readFile(file.getAbsolutePath(), encoding);
 
@@ -566,7 +567,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         for (int i = 0; i < inventPositionsArray.length(); i++) {
                                             JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
                                             String invoiceNumber = inventPosition.getString("additionalbarcode");
-                                            sendSalesLogger.info(logPrefix + "found softCheck " + invoiceNumber);
+                                            softCheckLogger.info(logPrefix + "found softCheck " + invoiceNumber);
                                             result.put(invoiceNumber, dateTimeReceipt);
                                         }
                                     }
@@ -576,7 +577,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         copyToSuccess(file, disable);
                         safeFileDelete(file, false);
                     } catch (Throwable e) {
-                        sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
+                        softCheckLogger.error("File: " + file.getAbsolutePath(), e);
                     }
                 }
             }
@@ -634,8 +635,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 });
 
                 if (filesList != null && filesList.length > 0) {
-                    sendSalesLogger.info(String.format(logPrefix + "found %s cashDocument file(s) in %s", filesList.length, cashRegister.directory));
-
                     for (File file : filesList) {
                         if (!Thread.currentThread().isInterrupted()) {
                             try {
@@ -644,6 +643,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                 Pattern p = Pattern.compile("(?:.*)?### sales data begin ###(.*)### sales data end ###(?:.*)?");
                                 Matcher m = p.matcher(readFile(file.getAbsolutePath(), encoding));
                                 if (m.matches()) {
+                                    int count = 0;
 
                                     //добавляем }, поскольку внутри элемента тоже может быть ---
                                     for (String document : m.group(1).split("}---")) {
@@ -673,9 +673,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                                 cashRegister.numberGroup, numberCashRegister, null, sumCashDocument));
                                                     }
                                                 }
+                                                count++;
                                             }
+
                                         }
                                     }
+                                    if(count > 0)
+                                        sendSalesLogger.info(String.format(logPrefix + "found %s cashDocument(s) in %s", count, file.getAbsolutePath()));
                                 }
                             } catch (Throwable e) {
                                 sendSalesLogger.error(logPrefix + "File " + file.getAbsolutePath(), e);
