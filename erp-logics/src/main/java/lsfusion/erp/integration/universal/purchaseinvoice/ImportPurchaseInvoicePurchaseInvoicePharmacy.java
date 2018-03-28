@@ -28,6 +28,8 @@ public class ImportPurchaseInvoicePurchaseInvoicePharmacy extends ImportDefaultP
                 ImportField nameImportCountryField = new ImportField(LM.findProperty("name[Country]"));
                 ImportKey<?> importCountryKey = new ImportKey((ConcreteCustomClass) LM.findClass("Country"),
                         LM.findProperty("countryName[VARISTRING[50]]").getMapping(nameImportCountryField));
+                //from ImportPurchaseInvoiceSkuImportCode
+                importCountryKey.skipKey = context.getBL().getModule("SkuImportCode") != null && showField(userInvoiceDetailsList, "importCodeCountry");
                 keys.add(importCountryKey);
                 props.add(new ImportProperty(nameImportCountryField, LM.findProperty("name[Country]").getMapping(importCountryKey), getReplaceOnlyNull(defaultColumns, "importCountryBatch")));
                 props.add(new ImportProperty(nameImportCountryField, LM.findProperty("importCountry[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),

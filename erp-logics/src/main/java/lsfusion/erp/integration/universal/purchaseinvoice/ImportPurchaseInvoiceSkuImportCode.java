@@ -42,7 +42,9 @@ public class ImportPurchaseInvoiceSkuImportCode extends ImportDefaultPurchaseInv
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("importCodeManufacturer"));
 
                 if (showField(userInvoiceDetailsList, "nameManufacturer")) {
-                    addDataField(props, fields, defaultColumns, LM.findProperty("name[Manufacturer]"), "nameManufacturer", manufacturerKey);
+                    ImportField nameManufacturerField = new ImportField(LM.findProperty("name[Manufacturer]"));
+                    props.add(new ImportProperty(nameManufacturerField, LM.findProperty("name[Manufacturer]").getMapping(manufacturerKey), true));
+                    fields.add(nameManufacturerField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameManufacturer"));
                 }
@@ -67,7 +69,7 @@ public class ImportPurchaseInvoiceSkuImportCode extends ImportDefaultPurchaseInv
 
                 if (showField(userInvoiceDetailsList, "nameCountry")) {
                     ImportField nameCountryField = new ImportField(LM.findProperty("name[Country]"));
-                    props.add(new ImportProperty(nameCountryField, LM.findProperty("name[Country]").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "nameCountry")));
+                    props.add(new ImportProperty(nameCountryField, LM.findProperty("name[Country]").getMapping(countryKey), true));
                     fields.add(nameCountryField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameCountry"));
