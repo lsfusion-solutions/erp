@@ -42,8 +42,8 @@ TABLE agreementLegalEntityGroup (Agreement, LegalEntityGroup);
 dataInSupplier 'Отм' = DATA BOOLEAN (Agreement, LegalEntityGroup);
 
 levelParentSupplier (agreement, legalEntityGroup) =
-    GROUP MIN level(LegalEntityGroup legalEntityGroup, LegalEntityGroup parent) IF dataInSupplier(Agreement agreement, parent)
-          BY agreement, legalEntityGroup MATERIALIZED;
+    GROUP
+          BY Agreement agreement, LegalEntityGroup legalEntityGroup MIN level(legalEntityGroup, LegalEntityGroup parent) IF dataInSupplier(agreement, parent) MATERIALIZED;
 nearestParentLegalEntitySupplier (Agreement agreement, LegalEntityGroup legalEntityGroup) =
     legalEntityGroup(legalEntityGroup, levelParentSupplier(agreement, legalEntityGroup));
 nearestInSupplier (Agreement agreement, LegalEntityGroup legalEntityGroup) =
@@ -52,8 +52,8 @@ nearestInSupplier (Agreement agreement, LegalEntityGroup legalEntityGroup) =
 inSupplier 'Отм' (Agreement agreement, LegalEntityGroup legalEntityGroup) = OVERRIDE dataInSupplier(agreement, legalEntityGroup),
                                                                         nearestInSupplier(agreement, legalEntityGroup);
                                                                         
-quantityChildWithSupplier (legalEntityGroup, agreement) = GROUP SUM 1 IF dataInSupplier(Agreement agreement, LegalEntityGroup childLegalEntityGroup) AND isParent(childLegalEntityGroup, LegalEntityGroup legalEntityGroup) BY legalEntityGroup, agreement MATERIALIZED;
-quantityParentWithSupplier (legalEntityGroup, agreement) = GROUP SUM 1 IF dataInSupplier(Agreement agreement, LegalEntityGroup parentLegalEntityGroup) AND isParent(LegalEntityGroup legalEntityGroup, parentLegalEntityGroup) BY legalEntityGroup, agreement MATERIALIZED;                                                                        
+quantityChildWithSupplier (legalEntityGroup, agreement) = GROUP BY LegalEntityGroup legalEntityGroup, Agreement agreement SUM 1 IF dataInSupplier(agreement, LegalEntityGroup childLegalEntityGroup) AND isParent(childLegalEntityGroup, legalEntityGroup) MATERIALIZED;
+quantityParentWithSupplier (legalEntityGroup, agreement) = GROUP BY LegalEntityGroup legalEntityGroup, Agreement agreement SUM 1 IF dataInSupplier(agreement, LegalEntityGroup parentLegalEntityGroup) AND isParent(legalEntityGroup, parentLegalEntityGroup) MATERIALIZED;                                                                        
                                                                            
 backgroundInSupplier 'Цвет' (Agreement agreement, LegalEntityGroup legalEntityGroup) = CASE 
     WHEN dataInSupplier(agreement, legalEntityGroup) THEN RGB(0,0,0)
@@ -70,23 +70,23 @@ inSupplier 'Отм' (Agreement agreement, LegalEntity legalEntity) = OVERRIDE da
 backgroundInSupplier'Цвет' (Agreement agreement, LegalEntity legalEntity) = IF dataInSupplier(agreement, legalEntity) THEN RGB(0,0,0)
     ELSE RGB(230,248,250) IF nearestInSupplier(agreement, legalEntityGroup(legalEntity));                                                            
 
-supplier 'Поставщики' (agreement) = GROUP CONCAT name(LegalEntity supplier) IF inSupplier(Agreement agreement, supplier) , ', '
-                                                 BY agreement
+supplier 'Поставщики' (agreement) = GROUP
+                                                 BY Agreement agreement CONCAT name(LegalEntity supplier) IF inSupplier(agreement, supplier) , ', '
                                                  ORDER supplier CHARWIDTH 30 MATERIALIZED;
 
 CONSTRAINT inSupplier(Agreement agreement, LegalEntity supplier) AND NOT isSeller(supplier)
     MESSAGE 'Для соглашения выбрано в качестве поставщика организация, не являющеяся поставщиком или компанией';
 
-defaultSupplier (agreement)= GROUP MIN LegalEntity legalEntity IF inSupplier(Agreement agreement, legalEntity) BY agreement; 
-countSuppliers (agreement) = GROUP SUM 1 IF inSupplier(Agreement agreement, LegalEntity legalEntity) BY agreement; 
+defaultSupplier (agreement)= GROUP BY Agreement agreement MIN LegalEntity legalEntity IF inSupplier(agreement, legalEntity); 
+countSuppliers (agreement) = GROUP BY Agreement agreement SUM 1 IF inSupplier(agreement, LegalEntity legalEntity); 
 // -------------------------------------- Покупатели -------------------------------- //
 
 // Группы покупателей
 dataInCustomer 'Отм' = DATA BOOLEAN (Agreement, LegalEntityGroup);
 
 levelParentCustomer (agreement, legalEntityGroup) =
-    GROUP MIN level(LegalEntityGroup legalEntityGroup, LegalEntityGroup parent) IF dataInCustomer(Agreement agreement, parent)
-          BY agreement, legalEntityGroup MATERIALIZED;
+    GROUP
+          BY Agreement agreement, LegalEntityGroup legalEntityGroup MIN level(legalEntityGroup, LegalEntityGroup parent) IF dataInCustomer(agreement, parent) MATERIALIZED;
 nearestParentLegalEntityCustomer (Agreement agreement, LegalEntityGroup legalEntityGroup) =
     legalEntityGroup(legalEntityGroup, levelParentCustomer(agreement, legalEntityGroup));
 nearestInCustomer (Agreement agreement, LegalEntityGroup legalEntityGroup) =
@@ -95,8 +95,8 @@ nearestInCustomer (Agreement agreement, LegalEntityGroup legalEntityGroup) =
 inCustomer 'Отм' (Agreement agreement, LegalEntityGroup legalEntityGroup) = OVERRIDE dataInCustomer(agreement, legalEntityGroup),
                                                                         nearestInCustomer(agreement, legalEntityGroup);
                                                                         
-quantityChildWithCustomer (legalEntityGroup, agreement) = GROUP SUM 1 IF dataInCustomer(Agreement agreement, LegalEntityGroup childLegalEntityGroup) AND isParent(childLegalEntityGroup, LegalEntityGroup legalEntityGroup) BY legalEntityGroup, agreement MATERIALIZED;
-quantityParentWithCustomer (legalEntityGroup, agreement) = GROUP SUM 1 IF dataInCustomer(Agreement agreement, LegalEntityGroup parentLegalEntityGroup) AND isParent(LegalEntityGroup legalEntityGroup, parentLegalEntityGroup) BY legalEntityGroup, agreement MATERIALIZED;     
+quantityChildWithCustomer (legalEntityGroup, agreement) = GROUP BY LegalEntityGroup legalEntityGroup, Agreement agreement SUM 1 IF dataInCustomer(agreement, LegalEntityGroup childLegalEntityGroup) AND isParent(childLegalEntityGroup, legalEntityGroup) MATERIALIZED;
+quantityParentWithCustomer (legalEntityGroup, agreement) = GROUP BY LegalEntityGroup legalEntityGroup, Agreement agreement SUM 1 IF dataInCustomer(agreement, LegalEntityGroup parentLegalEntityGroup) AND isParent(legalEntityGroup, parentLegalEntityGroup) MATERIALIZED;     
                                                                         
 //backgroundInAgreementCustomerGroup 'Цвет' (agreement, legalEntityGroup) = IF dataInAgreementCustomerGroup(agreement, legalEntityGroup) THEN RGB(0,0,0)
 //    ELSE RGB(230,248,250) IF nearestInAgreementCustomerGroup(agreement, legalEntityGroup);
@@ -115,8 +115,8 @@ inCustomer 'Отм' (Agreement agreement, LegalEntity legalEntity) = OVERRIDE da
 backgroundInCustomer'Цвет' (Agreement agreement, LegalEntity legalEntity) = IF dataInCustomer(agreement, legalEntity) THEN RGB(0,0,0)
     ELSE RGB(230,248,250) IF nearestInCustomer(agreement, legalEntityGroup(legalEntity)); 
     
-customer 'Покупатели' (agreement) = GROUP CONCAT name(LegalEntity customer) IF inCustomer(Agreement agreement, customer) , ', '
-                                                 BY agreement
+customer 'Покупатели' (agreement) = GROUP
+                                                 BY Agreement agreement CONCAT name(LegalEntity customer) IF inCustomer(agreement, customer) , ', '
                                                  ORDER customer CHARWIDTH 30 MATERIALIZED;
 
 CONSTRAINT inCustomer(Agreement agreement, LegalEntity customer) AND NOT isBuyer(customer)
@@ -124,18 +124,18 @@ CONSTRAINT inCustomer(Agreement agreement, LegalEntity customer) AND NOT isBuyer
 
 // ----------------------------------------------- Соглашение по умолчанию --------------------------- //
 
-countDefaultAgreement 'Кол-во соглашений' (supplier, customer, dateTime)= GROUP SUM 1 
-    IF inCustomer(Agreement agreement, LegalEntity customer) AND inSupplier(agreement, LegalEntity supplier)
-    AND fromDateTime(agreement) <= DATETIME dateTime AND NOT (toDateTime(agreement) < dateTime)    
-        BY supplier, customer, dateTime;
+countDefaultAgreement 'Кол-во соглашений' (supplier, customer, dateTime)= GROUP    
+        BY LegalEntity supplier, LegalEntity customer, DATETIME dateTime SUM 1 
+    IF inCustomer(Agreement agreement, customer) AND inSupplier(agreement, supplier)
+    AND fromDateTime(agreement) <= dateTime AND NOT (toDateTime(agreement) < dateTime);
 
 userDefaultAgreementSupplierCustomer = DATA Agreement (LegalEntity, LegalEntity);
 userDefaultAgreementSupplierCustomer(LegalEntity supplier, LegalEntity customer) => inCustomer(userDefaultAgreementSupplierCustomer(supplier, customer), customer) RESOLVE RIGHT;
 
-calcDefaultAgreement(supplier, customer, dateTime) = GROUP MAX Agreement agreement
-    IF inCustomer(agreement, LegalEntity customer) AND inSupplier(agreement, LegalEntity supplier)
-    AND fromDateTime(agreement) <= DATETIME dateTime AND NOT (toDateTime(agreement) < dateTime)    
-        BY supplier, customer, dateTime;
+calcDefaultAgreement(supplier, customer, dateTime) = GROUP    
+        BY LegalEntity supplier, LegalEntity customer, DATETIME dateTime MAX Agreement agreement
+    IF inCustomer(agreement, customer) AND inSupplier(agreement, supplier)
+    AND fromDateTime(agreement) <= dateTime AND NOT (toDateTime(agreement) < dateTime);
 
 defaultAgreement(LegalEntity supplier, LegalEntity customer, DATETIME dateTime) =  OVERRIDE 
     userDefaultAgreementSupplierCustomer(supplier, customer) IF dateTime IS DATETIME,
@@ -150,12 +150,12 @@ changeUserDefaultAgreement (Agreement agreement, LegalEntity supplier, LegalEnti
 
 // ----------------------------------------------- Виды цен --------------------------------- //
 
-isPurchase 'Закупка' (agreement) = GROUP SUM 1 IF inSupplier(Agreement agreement, LegalEntity supplier) AND isSupplier(supplier) AND 
-    inCustomer(agreement, LegalEntity customer) AND isCompany(customer)
-    BY agreement;
-isSale 'Продажа' (agreement) = GROUP SUM 1 IF inSupplier(Agreement agreement, LegalEntity supplier) AND isCompany(supplier) AND 
-    inCustomer(agreement, LegalEntity customer) AND isCustomer(customer)
-    BY agreement;
+isPurchase 'Закупка' (agreement) = GROUP
+    BY Agreement agreement SUM 1 IF inSupplier(agreement, LegalEntity supplier) AND isSupplier(supplier) AND 
+    inCustomer(agreement, LegalEntity customer) AND isCompany(customer);
+isSale 'Продажа' (agreement) = GROUP
+    BY Agreement agreement SUM 1 IF inSupplier(agreement, LegalEntity supplier) AND isCompany(supplier) AND 
+    inCustomer(agreement, LegalEntity customer) AND isCustomer(customer);
 
 // -- Основной вид цены
 priceListType 'Вид цены' (agreement) = DATA PriceListType (Agreement);
@@ -187,8 +187,8 @@ CONSTRAINT currency(Agreement agreement) != currency(dataPriceListType(agreement
            MESSAGE 'Валюта соглашения должна совпадать с валютой вида цены';
 
 levelParentPriceListType (agreement, group) =
-    GROUP MIN level(Group group, Group parent) IF dataPriceListType(Agreement agreement, parent)
-    BY agreement, group MATERIALIZED;
+    GROUP
+    BY Agreement agreement, Group group MIN level(group, Group parent) IF dataPriceListType(agreement, parent) MATERIALIZED;
 nearestParent (Agreement agreement, Group group) = group(group, levelParentPriceListType (agreement, group));
 nearestPriceListType (Agreement agreement, Group group) =
    dataPriceListType(agreement, nearestParent(agreement, group)) MATERIALIZED;
@@ -200,11 +200,11 @@ namePriceListType 'Вид цены' (Agreement agreement, Group group) =
 //--
 dataIn 'Вкл.' (agreement, group) = DATA BOOLEAN (Agreement, Group);
 
-countGroup (Agreement a) = GROUP SUM 1 IF dataIn(Agreement a, Group g) BY a MATERIALIZED;
+countGroup (Agreement a) = GROUP BY Agreement a SUM 1 IF dataIn(a, Group g) MATERIALIZED;
 
 levelParentDataIn (agreement, group) =
-    GROUP MIN level(Group group, Group parent) IF dataIn(Agreement agreement, parent)
-    BY agreement, group MATERIALIZED;
+    GROUP
+    BY Agreement agreement, Group group MIN level(group, Group parent) IF dataIn(agreement, parent) MATERIALIZED;
 nearestDataParent (Agreement agreement, Group group) = group(group, levelParentDataIn (agreement, group));
 nearestDataIn (Agreement agreement, Group group) =
    dataIn(agreement, nearestDataParent(agreement, group)) MATERIALIZED;
@@ -216,8 +216,8 @@ skipIn = ABSTRACT VALUE BOOLEAN (Agreement,Sku);
     
 in 'Вкл.' (Agreement a, Sku s) = in (a, group(groupType(a),s)) AND NOT skipIn(a,s);
 
-quantityChildWith (group, agreement) = GROUP SUM 1 IF dataIn(Agreement agreement, Group childGroup) AND isParent(childGroup, Group group) BY group, agreement MATERIALIZED;
-quantityParentWith (group, agreement) = GROUP SUM 1 IF dataIn(Agreement agreement, Group parentGroup) AND isParent(Group group, parentGroup) BY group, agreement MATERIALIZED;                                                                        
+quantityChildWith (group, agreement) = GROUP BY Group group, Agreement agreement SUM 1 IF dataIn(agreement, Group childGroup) AND isParent(childGroup, group) MATERIALIZED;
+quantityParentWith (group, agreement) = GROUP BY Group group, Agreement agreement SUM 1 IF dataIn(agreement, Group parentGroup) AND isParent(group, parentGroup) MATERIALIZED;                                                                        
                                                                            
 backgroundIn 'Цвет' (Agreement agreement, Group group) = CASE 
     WHEN dataIn(agreement, group) THEN RGB(0,0,0)

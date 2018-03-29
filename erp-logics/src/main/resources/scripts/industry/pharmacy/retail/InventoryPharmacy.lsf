@@ -8,10 +8,10 @@ NAMESPACE Inventory;
 
 isRetailPharmacy (Inventory inventory) = isRetailPharmacy(operation(inventory));
 
-pageInventoryDetail =  GROUP MAX (PageInventoryDetail detail)
-    BY batch(detail), pageInventory(detail);
+pageInventoryDetail =  GROUP
+    BY batch(PageInventoryDetail detail), pageInventory(detail) MAX (detail);
       
-pageInventory = GROUP MAX (PageInventory page) BY inventory(listInventory(page)) MATERIALIZED;
+pageInventory = GROUP BY inventory(listInventory(PageInventory page)) MAX (page) MATERIALIZED;
 
 CONSTRAINT isRetailPharmacy(inventory(ListInventory li)) AND countPageInventory(li)>1.0
     MESSAGE 'В инвентаризации по аптеке должна быть только 1 страница описи';
@@ -37,10 +37,10 @@ changeQuantityValue (Batch batch, PageInventory li, NUMERIC[16,5] n) =  {
     }
 }
 
-quantity 'Кол-во в описи' = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
-    BY pageInventory(pageInventoryDetail), batch(pageInventoryDetail);
-quantity 'Кол-во в описи' = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
-    BY pageInventory(pageInventoryDetail), sku(batch(pageInventoryDetail)), currentPrice(batch(pageInventoryDetail), pageInventory(pageInventoryDetail));
+quantity 'Кол-во в описи' = GROUP
+    BY pageInventory(PageInventoryDetail pageInventoryDetail), batch(pageInventoryDetail) SUM quantity(pageInventoryDetail);
+quantity 'Кол-во в описи' = GROUP
+    BY pageInventory(PageInventoryDetail pageInventoryDetail), sku(batch(pageInventoryDetail)), currentPrice(batch(pageInventoryDetail), pageInventory(pageInventoryDetail)) SUM quantity(pageInventoryDetail);
 prevBalanceB 'Тек. остаток' (Batch batch, PageInventory li) = prevBalanceB(batch, stock(listInventory(li)), dateTime(listInventory(li)));
 
 changeQuantity(Batch batch, PageInventory li) = {
@@ -51,18 +51,18 @@ changeQuantity(Batch batch, PageInventory li) = {
 prevBalanceB (Batch batch, PageInventory page, NUMERIC[16,4] price) = prevBalanceB(batch, page) 
     IF currentPrice(batch, page)==price;
 
-prevBalanceB 'Остаток'  = GROUP SUM prevBalanceB(Batch b, stock(listInventory(PageInventory li)), dateTime(listInventory(li))) BY sku(b), li, currentPrice(b,li);
+prevBalanceB 'Остаток'  = GROUP BY sku(Batch b), PageInventory li, currentPrice(b,li) SUM prevBalanceB(b, stock(listInventory(li)), dateTime(listInventory(li)));
 
 countLedger (Batch bt, PageInventory li) = prevCountLedger(bt, stock(listInventory(li)));
 quantityPurchase 'Кол-во в приходе' (Batch bt, PageInventory li) = quantityPurchase(bt, stock(listInventory(li)));
 
-quantityPurchase  = GROUP SUM quantityPurchase(Batch batch, PageInventory page) 
-    IF currentPrice(batch, page)==NUMERIC[16,4] price BY sku(batch), page, price;
+quantityPurchase  = GROUP BY sku(Batch batch), PageInventory page, NUMERIC[16,4] price SUM quantityPurchase(batch, page) 
+    IF currentPrice(batch, page)==price;
 
 quantityPurchase(Batch batch, PageInventory page, NUMERIC[16,4] price) =  quantityPurchase(batch, page)
     IF currentPrice(batch, page)== price;
     
-quantity = GROUP SUM quantity(PageInventoryDetail detail) BY batch(detail), pageInventory(detail), currentPrice(batch(detail), pageInventory(detail));   
+quantity = GROUP BY batch(PageInventoryDetail detail), pageInventory(detail), currentPrice(batch(detail), pageInventory(detail)) SUM quantity(detail);   
     
 calculatedQuantity = DATA LOCAL NESTED NUMERIC[16,5](Sku, PageInventory, NUMERIC[16,4]);
     
@@ -167,9 +167,9 @@ filterBarcode 'Ввести штрихкод' (Sku sku) = (filterBarcode() AND s
 
 checkPurchaseQuantity 'Контролировать в инвентаризации превышение количества по приходу' = DATA BOOLEAN ();
 
-quantityBatchInSku 'Кол-во партий по товару+цена+стр.инвентар.'  = GROUP SUM 1 IF currentPrice(Batch batch, PageInventory li) BY sku(batch), currentPrice(batch,li), li ; 
-quantityBatchInSkuOst 'Кол-во партий с остатком по товару+цена+стр.инвентар.' = GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND prevBalanceB(bt, li) BY sku(bt), currentPrice(bt,li), li ;
-quantityBatchInSkuDvi 'Кол-во партий с движением по товару+цена+стр.инвентар.' = GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND countLedger(bt, li) AND currentPrice(bt, li) BY sku(bt), currentPrice(bt,li), li ;
+quantityBatchInSku 'Кол-во партий по товару+цена+стр.инвентар.'  = GROUP BY sku(Batch batch), currentPrice(batch,PageInventory li), li SUM 1 IF currentPrice(batch, li) ; 
+quantityBatchInSkuOst 'Кол-во партий с остатком по товару+цена+стр.инвентар.' = GROUP BY sku(Batch bt), currentPrice(bt,PageInventory li), li SUM 1 IF currentPrice(bt, li) AND prevBalanceB(bt, li) ;
+quantityBatchInSkuDvi 'Кол-во партий с движением по товару+цена+стр.инвентар.' = GROUP BY sku(Batch bt), currentPrice(bt,PageInventory li), li SUM 1 IF currentPrice(bt, li) AND countLedger(bt, li) AND currentPrice(bt, li) ;
 
 filterPrice 'Ввести цену' (Sku sku, PageInventory li) = (filterPrice() AND quantityBatchInSku(sku, filterPrice(), li)) OR NOT filterPrice();
 

@@ -9,22 +9,22 @@ zReport = DATA ZReport (Payment.Payment);
 numberZReport 'Номер Z-отчета' = number(zReport(Payment.Payment payment));
 
 extraPositiveSumCash 'Дополнительная сумма Z-отчета(наличные)' = 
-    GROUP SUM sum(Payment.Payment payment) IF type(payment) == 0 AND NOT isReturn(payment) BY zReport(payment);         
+    GROUP BY zReport(Payment.Payment payment) SUM sum(payment) IF type(payment) == 0 AND NOT isReturn(payment);         
 extraNegativeSumCash 'Дополнительная сумма возврата Z-отчета(наличные)' = 
-    GROUP SUM sum(Payment.Payment payment)*(-1) IF type(payment) == 0 AND isReturn(payment) BY zReport(payment);
+    GROUP BY zReport(Payment.Payment payment) SUM sum(payment)*(-1) IF type(payment) == 0 AND isReturn(payment);
 extraSumCash 'Дополнительная сумма Z-отчета(наличные)' = 
     extraPositiveSumCash(ZReport zReport) (+) extraNegativeSumCash(zReport);            
      
 extraPositiveSumCard 'Дополнительная сумма Z-отчета(карточка)' = 
-    GROUP SUM sum(Payment.Payment payment) IF type(payment) == 1 AND NOT isReturn(payment) BY zReport(payment);          
+    GROUP BY zReport(Payment.Payment payment) SUM sum(payment) IF type(payment) == 1 AND NOT isReturn(payment);          
 extraNegativeSumCard 'Дополнительная сумма возврата Z-отчета(карточка)' = 
-    GROUP SUM sum(Payment.Payment payment)*(-1) IF type(payment) == 1 AND isReturn(payment) BY zReport(payment);
+    GROUP BY zReport(Payment.Payment payment) SUM sum(payment)*(-1) IF type(payment) == 1 AND isReturn(payment);
 extraSumCard 'Дополнительная сумма Z-отчета(карточка)' = 
     extraPositiveSumCard(ZReport zReport) (+) extraNegativeSumCard(zReport);       
         
 extraSum 'Дополнительная сумма Z-отчета' = 
-    [=GROUP SUM sum(Payment.Payment payment) IF NOT isReturn(payment) BY zReport(payment)](ZReport zReport) (-) 
-    [=GROUP SUM sum(Payment.Payment payment) IF isReturn(payment) BY zReport(payment)](zReport);   
+    [=GROUP BY zReport(Payment.Payment payment) SUM sum(payment) IF NOT isReturn(payment)](ZReport zReport) (-) 
+    [=GROUP BY zReport(Payment.Payment payment) SUM sum(payment) IF isReturn(payment)](zReport);   
 
 totalSumCash 'Общая сумма Z-отчета(наличные)' (ZReport ZReport) = sumCash(ZReport) (+) extraSumCash(ZReport);
 totalSumCard 'Общая сумма Z-отчета(карточка)' (ZReport ZReport) = sumCard(ZReport) (+) extraSumCard(ZReport);

@@ -24,15 +24,15 @@ extraComponentsQuantity 'Кол-во с учетом комплектов' = ABS
 
 isVATCustomsException 'По льготам' = DATA BOOLEAN (CustomsDocument); 
 
-in = GROUP SUM 1 IF in(DeclarationDetail d, UserInvoiceDetail i) BY d, brand(sku(i));
+in = GROUP BY DeclarationDetail d, brand(sku(UserInvoiceDetail i)) SUM 1 IF in(d, i);
 nameBrand 'Бренды' =
-    GROUP CONCAT name(Brand b) IF in(DeclarationDetail d, b), ','
-              BY d ORDER b CHARWIDTH 20;
+    GROUP
+              BY DeclarationDetail d CONCAT name(Brand b) IF in(d, b), ',' ORDER b CHARWIDTH 20;
 
-in = GROUP SUM 1 IF in(DeclarationDetail d, UserInvoiceDetail i) BY d, manufacturer(sku(i));
+in = GROUP BY DeclarationDetail d, manufacturer(sku(UserInvoiceDetail i)) SUM 1 IF in(d, i);
 nameManufacturer 'Производители' =
-    GROUP CONCAT name(Manufacturer m) IF in(DeclarationDetail d, m), ','
-              BY d ORDER m CHARWIDTH 20;
+    GROUP
+              BY DeclarationDetail d CONCAT name(Manufacturer m) IF in(d, m), ',' ORDER m CHARWIDTH 20;
 
 EXTEND FORM declaration
     PROPERTIES(cd) BEFORE deleted description, refDoc, typePayment, isVATCustomsException

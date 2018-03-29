@@ -12,7 +12,7 @@ CLASS AlcoholLimitDetail 'Строка минимальных цен на алк
 @defineDocumentPosted(alcoholLimit);
 
 volume 'Объем, л' = DATA NUMERIC[9,3] (AlcoholLimitDetail) NONULL;
-alcoholLimitDetail = GROUP AGGR AlcoholLimitDetail d BY volume(d), alcoholLimit(d);
+alcoholLimitDetail = GROUP BY volume(AlcoholLimitDetail d), alcoholLimit(d) AGGR d;
 
 value 'Содержание алкоголя, %' = DATA NUMERIC[8,3] (Alcohol);
 
@@ -207,13 +207,13 @@ NAVIGATOR {
     }
 }
 
-minAlcoholLimitPrice = GROUP LAST minPrice(AlcoholLimitDetail ad, Alcohol a) 
-            BY Item s, DATETIME dt
+minAlcoholLimitPrice = GROUP 
+            BY Item s, DATETIME dt LAST minPrice(AlcoholLimitDetail ad, Alcohol a)
             ORDER dateTime(ad), ad
             WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT isRB(alcoholLimit(ad));
             
-minAlcoholLimitPriceRB = GROUP LAST minPrice(AlcoholLimitDetail ad, Alcohol a) 
-            BY Item s, DATETIME dt
+minAlcoholLimitPriceRB = GROUP 
+            BY Item s, DATETIME dt LAST minPrice(AlcoholLimitDetail ad, Alcohol a)
             ORDER dateTime(ad), ad
             WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND isRB(alcoholLimit(ad));
    

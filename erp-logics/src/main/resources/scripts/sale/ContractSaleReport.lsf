@@ -5,8 +5,8 @@ REQUIRE SaleReportContract;
 NAMESPACE SaleReport;
 
 currentBalance(Batch batch) = NUMERIC[16,4]([= X*Y](currentBalance(batch),invoicePrice(invoiceDetail(batch))));
-currentBalanceSum(Contract contract) = GROUP SUM currentBalance(Batch batch)
-    IF partyA(Contract contract) == supplier(batch) AND contract == contractSku(invoice(invoiceDetail(batch))) BY contract;
+currentBalanceSum(Contract contract) = GROUP BY Contract contract SUM currentBalance(Batch batch)
+    IF partyA(contract) == supplier(batch) AND contract == contractSku(invoice(invoiceDetail(batch)));
 
 createReportSales 'Создать акт реализации' (Contract contract) = {
     IF currentBalanceA(contract) (-) currentBalance(contract) (-) currentBalanceSum(contract) THEN {

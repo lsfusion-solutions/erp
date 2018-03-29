@@ -12,9 +12,9 @@ EOrderDespatchAdviceDetail = DATA EOrderDespatchAdviceDetail(Purchase.UserInvoic
 digits = FORMULA VARSTRING[250] 'regexp_replace(($1), \'\\D\', \'\', \'g\')';
 
 indexSku(EOrderDespatchAdviceDetail d) = PARTITION SUM 1 BY sku(d), eOrder(orderDespatchAdvice(d)) ORDER quantityOrdered(d), d MATERIALIZED INDEXED;
-orderDetail = GROUP MAX Purchase.OrderDetail d
-    IF eOrder(orderDespatchAdvice(EOrderDespatchAdviceDetail ed)) == order(d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed) 
-    BY ed;
+orderDetail = GROUP 
+    BY EOrderDespatchAdviceDetail ed MAX Purchase.OrderDetail d
+    IF eOrder(orderDespatchAdvice(ed)) == order(d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed);
     
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND EOrderDespatchAdviceDetail(d)
     THEN MIN lineItemPrice(EOrderDespatchAdviceDetail(d)), priceOrder(d);
@@ -64,7 +64,7 @@ FORM selectDespatchAdvice 'Уведомления об отгрузке'
     FILTERGROUP invoice
         FILTER 'Не выписаны' NOT invoice(a) DEFAULT 
 ;
-countEOrderDespatchAdvice = GROUP SUM 1 IF NOT invoice(EOrderDespatchAdvice a) BY eOrder(a);
+countEOrderDespatchAdvice = GROUP BY eOrder(EOrderDespatchAdvice a) SUM 1 IF NOT invoice(a);
 
 beforeCreateInvoice(Purchase.Order o) += {
 

@@ -192,13 +192,13 @@ CONSTRAINT supplier(Sale.UserCreditNoteDetail detail) != supplier(creditNoteDeta
 descriptionIndexCreditNoteDetail 'Строка акта расхождения (закупка)' (Sale.CreditNoteDetail detail) = descriptionIndex(creditNoteDetail(detail));
 descriptionIndexCreditNoteDetail 'Строка акта расхождения (закупка)' (Sale.UserCreditNoteDetail detail) = descriptionIndex(creditNoteDetail(detail));
 
-quantityCreditNoteDetail (purchase, sale) = GROUP SUM quantity(Sale.CreditNoteDetail detail) BY creditNote(creditNoteDetail(detail)), creditNote(detail);
+quantityCreditNoteDetail (purchase, sale) = GROUP BY creditNote(creditNoteDetail(Sale.CreditNoteDetail detail)), creditNote(detail) SUM quantity(detail);
 
-purchaseCreditNotes 'Накладные (закупка)' (sale) = GROUP CONCAT VARSTRING[255](description(CreditNote purchase)) IF quantityCreditNoteDetail(purchase, Sale.CreditNote sale) , ', '
-                                                        BY sale
+purchaseCreditNotes 'Накладные (закупка)' (sale) = GROUP
+                                                        BY Sale.CreditNote sale CONCAT VARSTRING[255](description(CreditNote purchase)) IF quantityCreditNoteDetail(purchase, sale) , ', '
                                                         ORDER sale IN creditNote CHARWIDTH 30 MATERIALIZED;
 
-relationSale 'Связь' (sale) = GROUP SUM quantityCreditNoteDetail (CreditNote purchase, Sale.CreditNote sale) BY sale MATERIALIZED;
+relationSale 'Связь' (sale) = GROUP BY Sale.CreditNote sale SUM quantityCreditNoteDetail (CreditNote purchase, sale) MATERIALIZED;
 
 EXTEND FORM Sale.userCreditNote
     PROPERTIES(c) fillCreditNote, purchaseCreditNotes READONLY

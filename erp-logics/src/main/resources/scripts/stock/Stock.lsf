@@ -76,7 +76,7 @@ fullNameLegalEntity 'Компания' (Stock st)= fullName(legalEntity(st));
 
 idLegalEntity 'Компания' (Stock stock) = id(legalEntity(stock));
 
-countStock 'Кол-во складов компании' = GROUP SUM 1 BY legalEntity(Stock stock) MATERIALIZED;
+countStock 'Кол-во складов компании' = GROUP BY legalEntity(Stock stock) SUM 1 MATERIALIZED;
 
 quantityDaysCloseOrders 'Срок автоматического закрытия заказов' = ABSTRACT INTEGER(Stock) MATERIALIZED;
 autoCloseOrders 'Автоматически закрывать заказы' = ABSTRACT BOOLEAN (Stock) MATERIALIZED;
@@ -91,17 +91,17 @@ notCompany(Stock stock) = NOT isCompany(stock);
 
 legalEntityId (VARSTRING[100] stock)= legalEntity(stock(stock));
 
-countCompanyStock 'Кол-во складов' (stockGroup) = GROUP SUM 1 IF isCompany(Stock stock)
-    AND isParent(stockGroup(stock), StockGroup stockGroup)
-    BY stockGroup MATERIALIZED;
+countCompanyStock 'Кол-во складов' (stockGroup) = GROUP
+    BY StockGroup stockGroup SUM 1 IF isCompany(Stock stock)
+    AND isParent(stockGroup(stock), stockGroup) MATERIALIZED;
 
-countSupplierStock 'Кол-во складов' (stockGroup) = GROUP SUM 1 IF isSupplier(Stock stock)
-    AND isParent(stockGroup(stock), StockGroup stockGroup)
-    BY stockGroup MATERIALIZED;
+countSupplierStock 'Кол-во складов' (stockGroup) = GROUP
+    BY StockGroup stockGroup SUM 1 IF isSupplier(Stock stock)
+    AND isParent(stockGroup(stock), stockGroup) MATERIALIZED;
 
-countCustomerStock 'Кол-во складов' (stockGroup) = GROUP SUM 1 IF isCustomer(Stock stock)
-    AND isParent(stockGroup(stock), StockGroup stockGroup)
-    BY stockGroup MATERIALIZED;
+countCustomerStock 'Кол-во складов' (stockGroup) = GROUP
+    BY StockGroup stockGroup SUM 1 IF isCustomer(Stock stock)
+    AND isParent(stockGroup(stock), stockGroup) MATERIALIZED;
 
 TABLE userLegalEntityStock (LegalEntity, Stock);
 user 'Отм.' = ABSTRACT BOOLEAN (LegalEntity, Stock) MATERIALIZED;
@@ -109,10 +109,10 @@ in 'Отм.' (LegalEntity legalEntity, Stock stock) = (legalEntity(stock) == leg
 isDefault 'Свой склад' (LegalEntity legalEntity, Stock stock) = legalEntity(stock) == legalEntity;
 
 default 'По умолч.' = DATA BOOLEAN (Stock); 
-dataDefaultStock = GROUP AGGR Stock stock BY legalEntity(stock) WHERE default(stock);
+dataDefaultStock = GROUP BY legalEntity(Stock stock) AGGR stock WHERE default(stock);
 
-countStocks (legalEntity) = GROUP SUM 1 IF in(LegalEntity legalEntity, Stock stock) BY legalEntity;
-minStock 'Первый склад' (legalEntity)= GROUP MIN Stock stock IF in(LegalEntity legalEntity, stock) BY legalEntity;
+countStocks (legalEntity) = GROUP BY LegalEntity legalEntity SUM 1 IF in(legalEntity, Stock stock);
+minStock 'Первый склад' (legalEntity)= GROUP BY LegalEntity legalEntity MIN Stock stock IF in(legalEntity, stock);
 
 defaultStock 'Склад по умолчанию' (LegalEntity l) = OVERRIDE dataDefaultStock(l), minStock(l) IF countStocks(l) == 1;
 
@@ -184,7 +184,7 @@ replace 'Объединить'(Stock stock) = {
 } CONFIRM;
 
 dataStock = DATA Stock (LegalEntity);
-stock(LegalEntity legalEntity) = OVERRIDE dataStock(legalEntity) IF active(legalEntity), [= GROUP MIN Stock stock BY legalEntity(stock)](legalEntity) MATERIALIZED;
+stock(LegalEntity legalEntity) = OVERRIDE dataStock(legalEntity) IF active(legalEntity), [= GROUP BY legalEntity(Stock stock) MIN stock](legalEntity) MATERIALIZED;
 
 primaryLegalEntity 'Основной' (Stock stock) = stock(legalEntity(stock)) == stock;
 changePrimary(LegalEntity legalEntity, Stock stock) = {

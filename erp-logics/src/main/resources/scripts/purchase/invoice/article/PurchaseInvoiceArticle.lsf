@@ -113,18 +113,18 @@ changeItemGroupArticle(UserInvoiceArticleDetail detail) = {
         }
 }
 
-quantity 'Кол-во товара в документе' (cod,sid,detail, stock)=  GROUP SUM  quantity(UserInvoiceDetail userInvoiceDetail)
-    BY  calcColor(sku(userInvoiceDetail)), calcSize(sku(userInvoiceDetail)), 
-        userInvoiceArticleDetail(userInvoiceDetail), customerStock(userInvoiceDetail);
+quantity 'Кол-во товара в документе' (cod,sid,detail, stock)=  GROUP
+    BY  calcColor(sku(UserInvoiceDetail userInvoiceDetail)), calcSize(sku(userInvoiceDetail)), 
+        userInvoiceArticleDetail(userInvoiceDetail), customerStock(userInvoiceDetail) SUM  quantity(userInvoiceDetail);
 quantity 'Кол-во товара в документе' (Color color, Size size, UserInvoiceArticleDetail detail) = quantity(color, size, detail, customerStock(userInvoice(detail)));
-quantity 'Итого по артиклу' (color, detail) = GROUP SUM quantity(Color color, Size size, UserInvoiceArticleDetail detail)
-    BY color, detail;
-quantityUserInvoiceArticleDetails 'Итого' (color) = GROUP SUM quantity(Color color, Size size, UserInvoiceArticleDetail detail)
-    BY color;
+quantity 'Итого по артиклу' (color, detail) = GROUP
+    BY Color color, UserInvoiceArticleDetail detail SUM quantity(color, Size size, detail);
+quantityUserInvoiceArticleDetails 'Итого' (color) = GROUP
+    BY Color color SUM quantity(color, Size size, UserInvoiceArticleDetail detail);
 
-userInvoiceDetail (color, size, detail, stock) = GROUP MAX UserInvoiceDetail userInvoiceDetail
-    BY  calcColor(sku(userInvoiceDetail)), calcSize(sku(userInvoiceDetail)), 
-        userInvoiceArticleDetail(userInvoiceDetail), customerStock(userInvoiceDetail);
+userInvoiceDetail (color, size, detail, stock) = GROUP
+    BY  calcColor(sku(UserInvoiceDetail userInvoiceDetail)), calcSize(sku(userInvoiceDetail)), 
+        userInvoiceArticleDetail(userInvoiceDetail), customerStock(userInvoiceDetail) MAX userInvoiceDetail;
 
 userInvoiceDetail (Color color, Size size, UserInvoiceArticleDetail detail)= userInvoiceDetail(color, size, detail, customerStock(userInvoice(detail)));
                        
@@ -174,9 +174,9 @@ changeQuantity(Color color, Size size, UserInvoiceArticleDetail articleDetail) =
                                      
 order (UserInvoiceArticleDetail detail, Size size) = order(sizeGroup(article(detail)), size);                                         
    
-quantity 'Кол-во' (articleDetail) = GROUP SUM quantity(UserInvoiceDetail d) BY userInvoiceArticleDetail(d);  
+quantity 'Кол-во' (articleDetail) = GROUP BY userInvoiceArticleDetail(UserInvoiceDetail d) SUM quantity(d);  
 sum 'Сумма' (UserInvoiceArticleDetail articleDetail) = quantity(articleDetail) * price(articleDetail);  
-count 'Кол-во строк' (articleDetail) = GROUP SUM 1 BY userInvoiceArticleDetail(UserInvoiceDetail d);  
+count 'Кол-во строк' (articleDetail) = GROUP BY userInvoiceArticleDetail(UserInvoiceDetail d) SUM 1;  
 
 WHEN LOCAL FORMS userInvoice CHANGED(price(userInvoiceArticleDetail(UserInvoiceDetail d))) DO {
     price(d) <- price(userInvoiceArticleDetail(d));            

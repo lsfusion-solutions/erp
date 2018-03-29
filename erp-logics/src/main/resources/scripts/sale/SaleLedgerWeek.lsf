@@ -4,13 +4,13 @@ REQUIRE SaleLedger;
 
 NAMESPACE SaleLedger;
 
-quantitySold 'Продано за неделю (кол-во)' (sku, stock, week, dateFrom, dateTo) = GROUP SUM
-        quantitySold(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, extractWeek(date), dateFrom, dateTo;
+quantitySold 'Продано за неделю (кол-во)' (sku, stock, week, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, extractWeek(DATE date), DATE dateFrom, DATE dateTo SUM
+        quantitySold(sku, stock, date) IF date >= dateFrom AND date <= dateTo;
 
-sumSold 'Продано за неделю (сумма)' (sku, stock, week, dateFrom, dateTo) = GROUP SUM
-        sumSold(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, extractWeek(date), dateFrom, dateTo;
+sumSold 'Продано за неделю (сумма)' (sku, stock, week, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, extractWeek(DATE date), DATE dateFrom, DATE dateTo SUM
+        sumSold(sku, stock, date) IF date >= dateFrom AND date <= dateTo;
 
 averagePriceSold 'Средняя цена за неделю' (Sku sku, Stock stock, INTEGER week, DATE dateFrom, DATE dateTo)=  round2(sumSold(sku, stock, week, dateFrom, dateTo) /
         quantitySold(sku, stock, week, dateFrom, dateTo));
@@ -18,11 +18,11 @@ averagePriceSold 'Средняя цена за неделю' (Sku sku, Stock sto
 averageSold 'Продано за неделю кол-во/цена' (Sku sku, Stock stock, INTEGER week, DATE dateFrom, DATE dateTo)= 
         quantitySold(sku, stock, week, dateFrom, dateTo) + '(' + averagePriceSold(sku, stock, week, dateFrom, dateTo) + ')' CHARWIDTH 10;
 
-quantitySkuSold 'Продано за неделю (кол-во)' (week, dateFrom, dateTo) = GROUP SUM
-        quantitySold(Sku sku, Stock stock, INTEGER week, DATE dateFrom, DATE dateTo) BY  week, dateFrom, dateTo;
+quantitySkuSold 'Продано за неделю (кол-во)' (week, dateFrom, dateTo) = GROUP BY  INTEGER week, DATE dateFrom, DATE dateTo SUM
+        quantitySold(Sku sku, Stock stock, week, dateFrom, dateTo);
 
-sumSold 'Продано за неделю (сумма)' (week, dateFrom, dateTo) = GROUP SUM
-        sumSold(Sku sku, Stock stock, INTEGER week, DATE dateFrom, DATE dateTo) BY  week, dateFrom, dateTo;
+sumSold 'Продано за неделю (сумма)' (week, dateFrom, dateTo) = GROUP BY  INTEGER week, DATE dateFrom, DATE dateTo SUM
+        sumSold(Sku sku, Stock stock, week, dateFrom, dateTo);
 
 toString4 = FORMULA STRING[4] 'CAST($1 AS character(4))' FIXEDCHARWIDTH 4;
 

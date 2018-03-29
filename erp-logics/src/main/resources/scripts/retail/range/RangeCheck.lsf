@@ -13,10 +13,10 @@ overCopy(RangeRev r, RangeRev pr) += {
     include(r, Store st, Sku s) <- include(pr, st, s);
 }
 
-include 'В ассортименте' = GROUP SUM 1 IF include(rangeRev(Range r, DATE dt), Store store, Sku s) BY s,store,dt;
+include 'В ассортименте' = GROUP BY Sku s,Store store,DATE dt SUM 1 IF include(rangeRev(Range r, dt), store, s);
 in (Sku s, Range r, Store st, DATE d) += include(rangeRev(r, d), st, s);
 
-inFilter 'В ассортименте' = GROUP SUM 1 IF include(RangeRev v, Store st, Sku s) BY v,s;
+inFilter 'В ассортименте' = GROUP BY RangeRev v,Sku s SUM 1 IF include(v, Store st, s);
 EXTEND FORM rangeRev
     OBJECTS store1 = Store BEFORE s
     PROPERTIES (store1) nameStoreType
@@ -32,13 +32,13 @@ DESIGN rangeRev{
     PROPERTY(nameStoreType(store1)) { hide = TRUE;}
 }
 
-counInclude 'Кол-во товаров' = GROUP SUM 1 IF include(RangeRev v, Store st, Sku s) BY v,st;
-counInclude 'Кол-во товаров' = GROUP SUM 1 IF include(RangeRev v, Store st, Sku s) BY v,s;
-counInclude 'Кол-во товаров' = GROUP SUM 1 IF counInclude(RangeRev v, Sku s) BY v;
+counInclude 'Кол-во товаров' = GROUP BY RangeRev v,Store st SUM 1 IF include(v, st, Sku s);
+counInclude 'Кол-во товаров' = GROUP BY RangeRev v,Sku s SUM 1 IF include(v, Store st, s);
+counInclude 'Кол-во товаров' = GROUP BY RangeRev v SUM 1 IF counInclude(v, Sku s);
 counInclude'Кол-во товаров' (Range r, DATE dt) = counInclude(rangeRev(r,dt));
 counInclude'Кол-во товаров' (Range r, Sku s, DATE dt) = counInclude(rangeRev(r,dt),s);
-counInclude 'Кол-во товаров' = GROUP SUM 1 IF include(RangeRev v, Store st, Sku s) BY range(v),s;
-counInclude 'Кол-во товаров' = GROUP SUM 1 IF include(RangeRev v, Store st, Sku s) BY range(v),st,s;
+counInclude 'Кол-во товаров' = GROUP BY range(RangeRev v),Sku s SUM 1 IF include(v, Store st, s);
+counInclude 'Кол-во товаров' = GROUP BY range(RangeRev v),Store st,Sku s SUM 1 IF include(v, st, s);
 
 EXTEND FORM range
     PROPERTIES (v)       READONLY counInclude
@@ -62,7 +62,7 @@ EXTEND FORM ranges
 ;
 counInclude (Range r, Store st, DATE dt) = counInclude(rangeRev(r,dt), st);
 include (Range r, Store store, Sku s, DATE dt)= include(rangeRev(r, dt), store, s);
-include = GROUP SUM 1 IF include(Range r, Store store, Sku s, DATE dt) BY r,s,dt;
+include = GROUP BY Range r,Sku s,DATE dt SUM 1 IF include(r, Store store, s, dt);
 
 EXTEND FORM ranges      
     ORDER name(s)

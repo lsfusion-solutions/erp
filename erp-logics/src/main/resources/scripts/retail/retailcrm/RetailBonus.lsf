@@ -51,7 +51,7 @@ discountCard = DATA DiscountCard (BonusLedger) NONULL DELETE;
 typeBonusLedger = DATA TypeBonusLedger (BonusLedger) NONULL;
 nameTypeBonusLedger 'Тип начисления бонусов' (BonusLedger bl) = staticCaption(typeBonusLedger(bl));
 
-sumBonusLedger 'Начислено бонусов' = GROUP SUM sum(BonusLedger l) BY discountCard(l);
+sumBonusLedger 'Начислено бонусов' = GROUP BY discountCard(BonusLedger l) SUM sum(l);
 
 createdUser = DATA CustomUser (BonusLedger);
 createdUser (BonusLedger ledger) <- currentUser() WHEN SET(ledger IS BonusLedger);
@@ -106,4 +106,4 @@ EXTEND FORM discountCard
     PROPERTIES(l) READONLY seriesNumberTransferCard
 ;
 
-transferBonusLedger (DiscountCard c) = GROUP AGGR BonusLedger l BY transferCard(l);
+transferBonusLedger (DiscountCard c) = GROUP BY transferCard(BonusLedger l) AGGR l;

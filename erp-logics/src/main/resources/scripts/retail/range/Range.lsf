@@ -19,18 +19,18 @@ name 'Название' = DATA VARISTRING[100] (Range) IN recognize;
 TABLE rangeSkuGroup(Range, SkuGroup);
 inData 'Вкл' = DATA BOOLEAN (Range, SkuGroup);
 
-countSkuGroup 'Кол-во групп' = GROUP SUM 1 IF inData(Range r, SkuGroup g) BY r MATERIALIZED; 
+countSkuGroup 'Кол-во групп' = GROUP BY Range r SUM 1 IF inData(r, SkuGroup g) MATERIALIZED; 
 
-inParent (range, parent) = GROUP SUM 1 IF inData(Range range, SkuGroup child) AND isParent(child, SkuGroup parent)
-                              BY range, parent MATERIALIZED;
+inParent (range, parent) = GROUP
+                              BY Range range, SkuGroup parent SUM 1 IF inData(range, SkuGroup child) AND isParent(child, parent) MATERIALIZED;
 
-inChild (range, child) = GROUP SUM 1 IF inData(Range range, SkuGroup parent) AND isParent(SkuGroup child, parent)
-                              BY range, child MATERIALIZED;
+inChild (range, child) = GROUP
+                              BY Range range, SkuGroup child SUM 1 IF inData(range, SkuGroup parent) AND isParent(child, parent) MATERIALIZED;
                               
 inChild (Range range, Sku sku) = inChild(range, skuGroup(sku)); 
 
-quantityChildWith (skuGroup, range) = GROUP SUM 1 IF inData(Range range, SkuGroup childSkuGroup) AND isParent(childSkuGroup, SkuGroup skuGroup) BY skuGroup, range MATERIALIZED;
-quantityParentWith (skuGroup, range) = GROUP SUM 1 IF inData(Range range, SkuGroup parentSkuGroup) AND isParent(SkuGroup skuGroup, parentSkuGroup) BY skuGroup, range MATERIALIZED; 
+quantityChildWith (skuGroup, range) = GROUP BY SkuGroup skuGroup, Range range SUM 1 IF inData(range, SkuGroup childSkuGroup) AND isParent(childSkuGroup, skuGroup) MATERIALIZED;
+quantityParentWith (skuGroup, range) = GROUP BY SkuGroup skuGroup, Range range SUM 1 IF inData(range, SkuGroup parentSkuGroup) AND isParent(skuGroup, parentSkuGroup) MATERIALIZED; 
 
 backgroundIn 'Цвет' (Range range, SkuGroup skuGroup) = CASE 
     WHEN inData(range, skuGroup) THEN RGB(0,0,0)
@@ -104,7 +104,7 @@ DESIGN ranges {
     MOVE TOOLBARBOX;
 }
 
-countSkuGroup 'Кол-во групп' = GROUP SUM 1 IF inData(Range r, SkuGroup g) AND countAccess(Employee e, g) BY e, r; 
+countSkuGroup 'Кол-во групп' = GROUP BY Employee e, Range r SUM 1 IF inData(r, SkuGroup g) AND countAccess(e, g); 
 EXTEND FORM ranges FILTERS (r IS Range AND NOT ( limitAccess(currentUser()) AND countSkuGroup(r))) OR countSkuGroup(currentUser(), r);
 
 NAVIGATOR {
@@ -126,8 +126,8 @@ range 'Ассортиментная матрица' = DATA Range(RangeRev) NONUL
 nameRange 'Ассортиментная матрица'(RangeRev v) = name(range(v)) IN recognize;
 
 INDEX range(RangeRev v), date(v), v;
-rangeRev 'Версия' = GROUP LAST RangeRev rev
-                                       BY range(rev), DATE date
+rangeRev 'Версия' = GROUP
+                                       BY range(RangeRev rev), DATE date LAST rev
                                        ORDER date(rev), rev
                                        WHERE date(rev) <= (date AS DATE) COMPLEX;
                            
@@ -150,31 +150,31 @@ nameCompanyA 'Поставщик' (LedgerPriceListType pt, Sku s, Stock st, Rang
     nameCompanyA(pt, s, st, dateTime(v));
 
 
-currentBalanceDepartments 'Остаток (все магазины)' (sku) = GROUP SUM currentBalance(Sku sku, DepartmentStore stock) IF stock IS DepartmentStore  BY sku;
-quantitySoldDepartments 'Продано за интервал (кол-во) (все магазины)' (sku, dateFrom, dateTo) = GROUP SUM
-        quantitySold(Sku sku, DepartmentStore stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND stock IS DepartmentStore
-        BY sku, dateFrom, dateTo;
-sumSoldDepartments 'Продано за интервал (сумма) (все магазины)' (sku, dateFrom, dateTo) = GROUP SUM
-        sumSold(Sku sku, DepartmentStore stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND stock IS DepartmentStore
-        BY sku, dateFrom, dateTo;
+currentBalanceDepartments 'Остаток (все магазины)' (sku) = GROUP  BY Sku sku SUM currentBalance(sku, DepartmentStore stock) IF stock IS DepartmentStore;
+quantitySoldDepartments 'Продано за интервал (кол-во) (все магазины)' (sku, dateFrom, dateTo) = GROUP
+        BY Sku sku, DATE dateFrom, DATE dateTo SUM
+        quantitySold(sku, DepartmentStore stock, DATE date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore;
+sumSoldDepartments 'Продано за интервал (сумма) (все магазины)' (sku, dateFrom, dateTo) = GROUP
+        BY Sku sku, DATE dateFrom, DATE dateTo SUM
+        sumSold(sku, DepartmentStore stock, DATE date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore;
 
-currentBalance 'Остаток (все магазины)' (sku, store) = GROUP SUM currentBalance(Sku sku, DepartmentStore stock) IF stock IS DepartmentStore  BY sku, store(stock);
-quantitySold 'Продано за интервал (кол-во)' (store, sku, dateFrom, dateTo) = GROUP SUM
-        quantitySold(Sku sku, DepartmentStore stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND stock IS DepartmentStore
-        BY store(stock), sku, dateFrom, dateTo;
-sumSold 'Продано за интервал (сумма)' (store, sku, dateFrom, dateTo) = GROUP SUM
-        sumSold(Sku sku, DepartmentStore stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND stock IS DepartmentStore
-        BY store(stock), sku, dateFrom, dateTo;
+currentBalance 'Остаток (все магазины)' (sku, store) = GROUP  BY Sku sku, store(DepartmentStore stock) SUM currentBalance(sku, stock) IF stock IS DepartmentStore;
+quantitySold 'Продано за интервал (кол-во)' (store, sku, dateFrom, dateTo) = GROUP
+        BY store(DepartmentStore stock), Sku sku, DATE dateFrom, DATE dateTo SUM
+        quantitySold(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore;
+sumSold 'Продано за интервал (сумма)' (store, sku, dateFrom, dateTo) = GROUP
+        BY store(DepartmentStore stock), Sku sku, DATE dateFrom, DATE dateTo SUM
+        sumSold(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore;
 
-dateTimeLastMoved 'Время последнего движения' = GROUP MAX dateTimeLastMoved (Sku sku, DepartmentStore stock) BY sku, store(stock);
+dateTimeLastMoved 'Время последнего движения' = GROUP BY Sku sku, store(DepartmentStore stock) MAX dateTimeLastMoved (sku, stock);
 dateLastMoved 'Дата последнего движения'= toDate(dateTimeLastMoved(Sku s,Store st));
                                                                                        
-hasSkus 'Кол-во наименований по всему поставщику' (v, supplier, pt, d) = GROUP SUM 1 IF inChild(range(RangeRev v), Sku sku) 
-    BY v, companyA(LedgerPriceListType pt, sku, Stock d, dateTime(v)), pt, d;
+hasSkus 'Кол-во наименований по всему поставщику' (v, supplier, pt, d) = GROUP 
+    BY RangeRev v, companyA(LedgerPriceListType pt, Sku sku, Stock d, dateTime(v)), pt, d SUM 1 IF inChild(range(v), sku);
     
 lastOrderBatch (sku, store) =
-    GROUP LAST lastOrderBatch(Sku sku, DepartmentStore stock)
-        BY sku, store(stock)
+    GROUP
+        BY Sku sku, store(DepartmentStore stock) LAST lastOrderBatch(sku, stock)
         ORDER dateTimeLastOrderBatch(sku, stock), lastOrderBatch(sku, stock)
         WHERE lastOrderBatch(sku, stock);
 dateTimeLastOrderBatch 'Дата последнего прихода' (Sku sku,Store store) = dateTime(lastOrderBatch(sku,store));
@@ -407,12 +407,12 @@ EXTEND FORM ranges FILTERS (r1 IS Range AND NOT limitAccess(currentUser())) OR c
 // ----------------- Связь ассортиментов и магазинов --------------- //
 
 in 'В ассортименте' = ABSTRACT BOOLEAN (Sku, Range, Store, DATE);
-countRange 'В ассортименте' = GROUP SUM 1 IF in(Sku s, Range r, Store st, DATE d) BY s,st,d;
+countRange 'В ассортименте' = GROUP BY Sku s,Store st,DATE d SUM 1 IF in(s, Range r, st, d);
 countRange 'В ассортименте' (Sku s, DepartmentStore ds, DATE d) = countRange(s, store(ds), d); 
 
 in 'В ассортименте' (Sku sku, Range range, Store store) = in(sku, range, store, currentDate());
 
-nameGroup 'Включенные группы'(r) = GROUP CONCAT name(SkuGroup g) IF inData(Range r,g), ',' BY r CHARWIDTH 50 ;
+nameGroup 'Включенные группы'(r) = GROUP BY Range r CONCAT name(SkuGroup g) IF inData(r,g), ',' CHARWIDTH 50 ;
 
 EXTEND FORM ranges PROPERTIES nameGroup(r);
 

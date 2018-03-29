@@ -20,15 +20,15 @@ type[EVATDocument](PurchaseReturn.Invoice i) += EVATType.purchaseReturn IF i IS 
 needCreateEVAT[EVATDocument](Invoice i) += WHEN includeEVAT(i)  THEN TRUE;
 VATSum[EVATDocument] (PurchaseReturn.Invoice i) += NUMERIC[18,4](VATSumInvoiceDetail(i));
 
-VATSumRange[EVATDocument, Range](PurchaseReturn.Invoice i, Range r) += [= GROUP SUM VATSum(PurchaseReturn.InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
-sumWithVATRange[EVATDocument, Range](PurchaseReturn.Invoice i, Range r) += [= GROUP SUM invoiceSum(PurchaseReturn.InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
+VATSumRange[EVATDocument, Range](PurchaseReturn.Invoice i, Range r) += [= GROUP BY invoice(InvoiceDetail d), VAT(d) SUM VATSum(d)](i,r);
+sumWithVATRange[EVATDocument, Range](PurchaseReturn.Invoice i, Range r) += [= GROUP BY invoice(InvoiceDetail d), VAT(d) SUM invoiceSum(d)](i,r);
 customer[EVATDocument](PurchaseReturn.Invoice i) += customer(i);
 
 overCreateEVATPurchaseReturnInvoice = ABSTRACT LIST (EVAT, PurchaseReturn.Invoice);
 
 createEVATPurchaseReturnInvoice 'Накладные (закупка-возврат)' (DATE dFrom, DATE dTo) = {
     IF dFrom IS DATE AND dTo IS DATE THEN {
-        FOR includeEVAT(Invoice i) AND isPosted(i) AND NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo NEW e = EVAT DO {
+        FOR includeEVAT(Invoice i) AND isPosted(i) AND NOT [= GROUP BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e) SUM 1](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo NEW e = EVAT DO {
             EVATDocument(e) <- i;            
             status(e) <- EVATStatus.original;
             type(e) <- EVATType.purchaseReturn;

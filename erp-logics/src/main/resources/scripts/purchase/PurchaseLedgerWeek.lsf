@@ -4,13 +4,13 @@ REQUIRE PurchaseLedger;
 
 NAMESPACE PurchaseLedger;
 
-quantityPurchase 'Закуплено за неделю (кол-во)' (sku, stock, week, dateFrom, dateTo) = GROUP SUM
-        quantityPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, extractWeek(date), dateFrom, dateTo;
+quantityPurchase 'Закуплено за неделю (кол-во)' (sku, stock, week, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, extractWeek(DATE date), DATE dateFrom, DATE dateTo SUM
+        quantityPurchase(sku, stock, date) IF date >= dateFrom AND date <= dateTo;
 
-sumPurchase 'Закуплено за неделю (сумма)' (sku, stock, week, dateFrom, dateTo) = GROUP SUM
-        sumPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, extractWeek(date), dateFrom, dateTo;
+sumPurchase 'Закуплено за неделю (сумма)' (sku, stock, week, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, extractWeek(DATE date), DATE dateFrom, DATE dateTo SUM
+        sumPurchase(sku, stock, date) IF date >= dateFrom AND date <= dateTo;
 
 averagePricePurchase 'Средняя цена за неделю' (Sku sku, Stock stock, INTEGER week, DATE dateFrom, DATE dateTo)=  round2(sumPurchase(sku, stock, week, dateFrom, dateTo) /
         quantityPurchase(sku, stock, week, dateFrom, dateTo));
@@ -18,11 +18,11 @@ averagePricePurchase 'Средняя цена за неделю' (Sku sku, Stock
 averagePurchase 'Закуплено за неделю кол-во/цена' (Sku sku, Stock stock, INTEGER week, DATE dateFrom, DATE dateTo)= 
         quantityPurchase(sku, stock, week, dateFrom, dateTo) + '(' + averagePricePurchase(sku, stock, week, dateFrom, dateTo) + ')' CHARWIDTH 10;
 
-quantitySkuPurchase 'Закуплено за неделю (кол-во)' (week, dateFrom, dateTo) = GROUP SUM
-        quantityPurchase(Sku sku, Stock stock, INTEGER week, DATE dateFrom, DATE dateTo) BY  week, dateFrom, dateTo;
+quantitySkuPurchase 'Закуплено за неделю (кол-во)' (week, dateFrom, dateTo) = GROUP BY  INTEGER week, DATE dateFrom, DATE dateTo SUM
+        quantityPurchase(Sku sku, Stock stock, week, dateFrom, dateTo);
 
-sumPurchase 'Закуплено за неделю (сумма)' (week, dateFrom, dateTo) = GROUP SUM
-        sumPurchase(Sku sku, Stock stock, INTEGER week, DATE dateFrom, DATE dateTo) BY  week, dateFrom, dateTo;
+sumPurchase 'Закуплено за неделю (сумма)' (week, dateFrom, dateTo) = GROUP BY  INTEGER week, DATE dateFrom, DATE dateTo SUM
+        sumPurchase(Sku sku, Stock stock, week, dateFrom, dateTo);
 
 toString4 = FORMULA STRING[4] 'CAST($1 AS character(4))' FIXEDCHARWIDTH 4;
 

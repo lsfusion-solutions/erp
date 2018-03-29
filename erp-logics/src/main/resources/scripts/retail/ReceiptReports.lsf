@@ -63,10 +63,10 @@ in 'Вкл.' = DATA BOOLEAN (Store, ReceiptReport);
 TABLE groupReceiptReport (Group, ReceiptReport);
 inData 'Вкл.' = DATA BOOLEAN (Group, ReceiptReport);
 
-countInDataGroup (report)= GROUP SUM 1 IF inData(Group group, ReceiptReport report) BY report;
+countInDataGroup (report)= GROUP BY ReceiptReport report SUM 1 IF inData(Group group, report);
 
-levelParent (group, report) = GROUP MIN level(Group group, Group parent) IF inData(parent, ReceiptReport report)
-    BY group, report;
+levelParent (group, report) = GROUP
+    BY Group group, ReceiptReport report MIN level(group, Group parent) IF inData(parent, report);
 
 inParent (Group group, ReceiptReport report) = TRUE IF levelParent(group, report);
 
@@ -80,8 +80,8 @@ inData 'Вкл.' = DATA BOOLEAN (LegalEntityGroup, ReceiptReport);
 TABLE legalEntityReceiptReport (LegalEntity, ReceiptReport);
 inData 'Вкл.' = DATA BOOLEAN (LegalEntity, ReceiptReport);
 
-levelParent (group, report) = GROUP MIN level(LegalEntityGroup group, LegalEntityGroup parent) IF inData(parent, ReceiptReport report)
-    BY group, report;
+levelParent (group, report) = GROUP
+    BY LegalEntityGroup group, ReceiptReport report MIN level(group, LegalEntityGroup parent) IF inData(parent, report);
 inParent (LegalEntityGroup group, ReceiptReport report) = TRUE IF levelParent(group, report);
 
 in 'Вкл.' (LegalEntityGroup legalEntityGroup, ReceiptReport report) = OVERRIDE
@@ -92,7 +92,7 @@ in 'Вкл.' (LegalEntity company, ReceiptReport report) = OVERRIDE
     inData(company, report),    
     in(legalEntityGroup(company), report);
 
-countInLegalEntity (report)= GROUP SUM 1 IF in(LegalEntity company, ReceiptReport report) BY report;
+countInLegalEntity (report)= GROUP BY ReceiptReport report SUM 1 IF in(LegalEntity company, report);
 
 groupType = DATA GroupType (ReceiptReport);
 nameGroupType 'Классификатор' (ReceiptReport g) =  name(groupType(g));
@@ -128,44 +128,44 @@ in (ReceiptReport r, ReceiptDetail d) =
     AND (in(group(groupType(r), sku(d)), r) OR (sku(d) AND NOT countInDataGroup(r)))
     AND (in(supplierLastOrderBatch(sku(d), departmentStore(d)),r) OR (sku(d) AND NOT countInLegalEntity(r)));
 
-in (report, receipt) = GROUP SUM 1 IF in (ReceiptReport report, ReceiptDetail d) BY report, receipt(d);
+in (report, receipt) = GROUP BY ReceiptReport report, receipt(ReceiptDetail d) SUM 1 IF in (report, d);
 
-countBon 'Кол-во чеков' = GROUP SUM 1 IF in(ReceiptReport report, Receipt receipt) BY store(receipt), report;
-countBonDetail 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetail(Receipt receipt) IF in (ReceiptReport report, receipt) BY store(receipt), report;
-in 'Кол-во выбранных позиций' = GROUP SUM 1 IF in (ReceiptReport report, ReceiptDetail d) BY report, store(d);
-sumBonDetail 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetail(Receipt receipt) IF in (ReceiptReport report, receipt) BY store(receipt), report;
-sumSelectedBonDetail 'Сумма выбранных позиций' = GROUP SUM sum(ReceiptDetail d) IF in (ReceiptReport report, d) BY store(d), report;
+countBon 'Кол-во чеков' = GROUP BY store(Receipt receipt), ReceiptReport report SUM 1 IF in(report, receipt);
+countBonDetail 'Кол-во позиций в выбранных чеках' = GROUP BY store(Receipt receipt), ReceiptReport report SUM countReceiptDetail(receipt) IF in (report, receipt);
+in 'Кол-во выбранных позиций' = GROUP BY ReceiptReport report, store(ReceiptDetail d) SUM 1 IF in (report, d);
+sumBonDetail 'Сумма выбранных чеков' = GROUP BY store(Receipt receipt), ReceiptReport report SUM sumReceiptDetail(receipt) IF in (report, receipt);
+sumSelectedBonDetail 'Сумма выбранных позиций' = GROUP BY store(ReceiptDetail d), ReceiptReport report SUM sum(d) IF in (report, d);
 
 //-- С диапазонами сумм
 in (ReceiptReport report, Receipt receipt, IntervalReport interval) = in (report, receipt) IF
     receiptReport(interval) == report AND sumReceiptDetail(receipt) <= sum(interval) AND 
     ((fromSumIntervalReportReceipt(interval) < sumReceiptDetail(receipt)) OR  (NOT fromSumIntervalReportReceipt(interval)));
 
-countBon 'Кол-во чеков' = GROUP SUM 1 IF
-    in(ReceiptReport report, Receipt receipt, IntervalReport interval) 
-        BY store(receipt), report, interval;
-countBonDetail 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetail(Receipt receipt) IF 
-    in(ReceiptReport report, receipt, IntervalReport interval) 
-        BY store(receipt), report, interval;        
+countBon 'Кол-во чеков' = GROUP 
+        BY store(Receipt receipt), ReceiptReport report, IntervalReport interval SUM 1 IF
+    in(report, receipt, interval);
+countBonDetail 'Кол-во позиций в выбранных чеках' = GROUP 
+        BY store(Receipt receipt), ReceiptReport report, IntervalReport interval SUM countReceiptDetail(receipt) IF 
+    in(report, receipt, interval);        
         
-in 'Кол-во выбранных позиций' = GROUP SUM 1 IF 
-    in (ReceiptReport report, ReceiptDetail d) AND in(report, receipt(d), IntervalReport interval)  
-        BY report, store(d), interval;
+in 'Кол-во выбранных позиций' = GROUP  
+        BY ReceiptReport report, store(ReceiptDetail d), IntervalReport interval SUM 1 IF 
+    in (report, d) AND in(report, receipt(d), interval);
         
-sumBonDetail 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetail(Receipt receipt) IF
-     in(ReceiptReport report, receipt, IntervalReport interval) 
-        BY store(receipt), report, interval;
-sumSelectedBonDetail 'Сумма выбранных позиций' = GROUP SUM sum(ReceiptDetail d) IF
-    in (ReceiptReport report, d) AND in(report, receipt(d), IntervalReport interval)  
-        BY store(d), report, interval;
+sumBonDetail 'Сумма выбранных чеков' = GROUP 
+        BY store(Receipt receipt), ReceiptReport report, IntervalReport interval SUM sumReceiptDetail(receipt) IF
+     in(report, receipt, interval);
+sumSelectedBonDetail 'Сумма выбранных позиций' = GROUP  
+        BY store(ReceiptDetail d), ReceiptReport report, IntervalReport interval SUM sum(d) IF
+    in (report, d) AND in(report, receipt(d), interval);
 
 
 //--
-calcCountBon 'Кол-во чеков' = GROUP SUM 1 IF in(ReceiptReport report, Receipt receipt) BY report;
-calcCountBonDetail 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetail(Receipt receipt) IF in (ReceiptReport report, receipt) BY report;
-calcIn 'Кол-во выбранных позиций' = GROUP SUM 1 IF in (ReceiptReport report, ReceiptDetail d) BY  report;
-calcSumBonDetail 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetail(Receipt receipt) IF in (ReceiptReport report, receipt) BY report;
-calcSumSelectedBonDetail 'Сумма выбранных позиций' = GROUP SUM sum(ReceiptDetail d) IF in (ReceiptReport report, d) BY report;
+calcCountBon 'Кол-во чеков' = GROUP BY ReceiptReport report SUM 1 IF in(report, Receipt receipt);
+calcCountBonDetail 'Кол-во позиций в выбранных чеках' = GROUP BY ReceiptReport report SUM countReceiptDetail(Receipt receipt) IF in (report, receipt);
+calcIn 'Кол-во выбранных позиций' = GROUP BY  ReceiptReport report SUM 1 IF in (report, ReceiptDetail d);
+calcSumBonDetail 'Сумма выбранных чеков' = GROUP BY ReceiptReport report SUM sumReceiptDetail(Receipt receipt) IF in (report, receipt);
+calcSumSelectedBonDetail 'Сумма выбранных позиций' = GROUP BY ReceiptReport report SUM sum(ReceiptDetail d) IF in (report, d);
 
 
 fillData 'Заполнить данные'(ReceiptReport report) = {

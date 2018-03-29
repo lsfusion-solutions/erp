@@ -54,7 +54,7 @@ replace(Sku s, Batch b) += { sku(UserAdjustmentDetail detail) <- s WHERE batch(d
 @defineDocumentInterfaceDetailPrice(adjustment);
 
 id = DATA VARSTRING[100] (UserAdjustmentDetail);
-userAdjustmentDetail (id, userAdjustment) = GROUP AGGR UserAdjustmentDetail userAdjustmentDetail BY id(userAdjustmentDetail), userAdjustment(userAdjustmentDetail) WHERE userAdjustmentDetail IS UserAdjustmentDetail;
+userAdjustmentDetail (id, userAdjustment) = GROUP BY id(UserAdjustmentDetail userAdjustmentDetail), userAdjustment(userAdjustmentDetail) AGGR userAdjustmentDetail WHERE userAdjustmentDetail IS UserAdjustmentDetail;
 
 @deriveDocumentDetailPriceAccountBatch(userAdjustment, sku, stock);
 
@@ -385,13 +385,13 @@ CLASS InAdjustmentSkuDetail 'Изменение остатка (+)' : Adjustment
 
 needToOutLedger (AdjustmentDetail adjustmentDetail) = ((quantity(adjustmentDetail) < 0 ) OR batch(adjustmentDetail))
     AND isPosted(adjustmentDetail);
-needToOutLedger (adjustment) = GROUP SUM 1 IF needToOutLedger(AdjustmentDetail adjustmentDetail)
-    BY adjustment(adjustmentDetail);
+needToOutLedger (adjustment) = GROUP
+    BY adjustment(AdjustmentDetail adjustmentDetail) SUM 1 IF needToOutLedger(adjustmentDetail);
 
 // Все партии проводим по OutLedger
 needToInLedger (AdjustmentDetail adjustmentDetail) = isPosted(adjustmentDetail) AND NOT (quantity(adjustmentDetail) < 0) AND NOT batch(adjustmentDetail);
-needToInLedger (adjustment) = GROUP SUM 1 IF needToInLedger(AdjustmentDetail adjustmentDetail)
-    BY adjustment(adjustmentDetail);
+needToInLedger (adjustment) = GROUP
+    BY adjustment(AdjustmentDetail adjustmentDetail) SUM 1 IF needToInLedger(adjustmentDetail);
 
 @defineAggregation(adjustmentDetail, outAdjustmentSkuDetail, needToOutLedger);
 @defineAggregation(adjustmentDetail, inAdjustmentSkuDetail, needToInLedger);
@@ -478,15 +478,15 @@ show(UserAdjustmentDetail d) += { show(d); }
 show(InAdjustmentSkuDetail d) += { show(adjustmentDetail(d)); }
 show(OutAdjustmentSkuDetail d) += { show(adjustmentDetail(d)); }
 
-quantityPositiveAdjustmentDetail 'Кол-во приход (всего)' (adjustment) = GROUP SUM quantity(AdjustmentDetail idetail) IF quantity(idetail) >=0
-    BY adjustment(idetail) IN documentSum MATERIALIZED;
-quantityNegativeAdjustmentDetail 'Кол-во расход (всего)' (adjustment) = GROUP SUM -quantity(AdjustmentDetail idetail) IF quantity(idetail) <0
-    BY adjustment(idetail) IN documentSum MATERIALIZED;
+quantityPositiveAdjustmentDetail 'Кол-во приход (всего)' (adjustment) = GROUP
+    BY adjustment(AdjustmentDetail idetail) SUM quantity(idetail) IF quantity(idetail) >=0 IN documentSum MATERIALIZED;
+quantityNegativeAdjustmentDetail 'Кол-во расход (всего)' (adjustment) = GROUP
+    BY adjustment(AdjustmentDetail idetail) SUM -quantity(idetail) IF quantity(idetail) <0 IN documentSum MATERIALIZED;
 
-sumPositiveAdjustmentDetail 'Сумма приход (всего)' (adjustment) = GROUP SUM sum(AdjustmentDetail idetail) IF quantity(idetail) >=0
-    BY adjustment(idetail) IN documentSum MATERIALIZED;
-sumNegativeAdjustmentDetail 'Сумма расход (всего)' (adjustment) = GROUP SUM -sum(AdjustmentDetail idetail) IF quantity(idetail) <0
-    BY adjustment(idetail) IN documentSum MATERIALIZED;
+sumPositiveAdjustmentDetail 'Сумма приход (всего)' (adjustment) = GROUP
+    BY adjustment(AdjustmentDetail idetail) SUM sum(idetail) IF quantity(idetail) >=0 IN documentSum MATERIALIZED;
+sumNegativeAdjustmentDetail 'Сумма расход (всего)' (adjustment) = GROUP
+    BY adjustment(AdjustmentDetail idetail) SUM -sum(idetail) IF quantity(idetail) <0 IN documentSum MATERIALIZED;
     
 sumNegative = -sum(AdjustmentDetail idetail);
 quantityNegative = -quantity(AdjustmentDetail idetail);
@@ -602,7 +602,7 @@ calcSumB (Sku sku,Stock st,DATETIME dateTime) = balanceB(sku,st,dateTime) * prev
 needCreateAdjustment = (calcSumB (Sku sku,Stock st,DATETIME dateTime) OR  sumB (sku,st,dateTime)) AND NOT (calcSumB (sku,st,dateTime) ==  sumB (sku,st,dateTime));  
 
 createUserAdjustment(DATETIME dateTime) = {
-    FOR [ = GROUP SUM 1 IF needCreateAdjustment(Sku sku,Stock st,DATETIME dateTime) BY st,dateTime](Stock st,dateTime) AND isCompany(st) DO {
+    FOR [ = GROUP BY Stock st,DATETIME dateTime SUM 1 IF needCreateAdjustment(Sku sku,st,dateTime)](Stock st,dateTime) AND isCompany(st) DO {
         NEWSESSION {
             NEW a = UserAdjustment {
                 stock(a) <- st;
@@ -621,8 +621,8 @@ createUserAdjustment(DATETIME dateTime) = {
 
 dataInSession 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
 
-levelParent (group) = GROUP MIN level(SkuGroup group, SkuGroup parent) IF dataInSession(parent)
-    BY group;
+levelParent (group) = GROUP
+    BY SkuGroup group MIN level(group, SkuGroup parent) IF dataInSession(parent);
 
 inParent (SkuGroup group) = TRUE IF levelParent(group);
 
@@ -638,18 +638,18 @@ resetSelectedGroups  'Сбросить отмеченные'() = {
     dataInSession(SkuGroup g) <- NULL WHERE g IS SkuGroup ;    
 }  
 
-toAdjustment (s,st,dt) = GROUP SUM 1 IF 
-    balanceB(Batch b,Stock st,DATETIME dt) >0 AND balanceB(Batch b1,st,dt) <0 AND b !=b1 AND sku(b) == sku(b1)
-        BY sku(b),st,dt;
-toAdjustment = GROUP SUM 1 IF toAdjustment (Sku s,Stock st,DATETIME dt) BY st,dt;
+toAdjustment (s,st,dt) = GROUP
+        BY sku(Batch b),Stock st,DATETIME dt SUM 1 IF 
+    balanceB(b,st,dt) >0 AND balanceB(Batch b1,st,dt) <0 AND b !=b1 AND sku(b) == sku(b1);
+toAdjustment = GROUP BY Stock st,DATETIME dt SUM 1 IF toAdjustment (Sku s,st,dt);
 //abs
 
-toPositiveAdjustment (s,st,dt) = GROUP SUM balanceB(Batch b,Stock st,DATETIME dt) IF 
-    balanceB(b,st,dt) >0 
-        BY sku(b),st,dt;
-toNegativeAdjustment (s,st,dt) = GROUP SUM balanceB(Batch b,Stock st,DATETIME dt) IF 
-    balanceB(b,st,dt) <0 
-        BY sku(b),st,dt;
+toPositiveAdjustment (s,st,dt) = GROUP 
+        BY sku(Batch b),Stock st,DATETIME dt SUM balanceB(b,st,dt) IF 
+    balanceB(b,st,dt) >0;
+toNegativeAdjustment (s,st,dt) = GROUP 
+        BY sku(Batch b),Stock st,DATETIME dt SUM balanceB(b,st,dt) IF 
+    balanceB(b,st,dt) <0;
         
 FORM selectParamsAdjustment 'Параметры пересорта'
     OBJECTS st = Stock PANEL 
@@ -696,7 +696,7 @@ createBatchUserAdjustmentDetail(UserAdjustment adjustment) = {
         
         LOCAL adjust = NUMERIC[16,5] (Sku);
         adjust (Sku s) <- NULL; 
-        adjust (Sku s) <- min(-[= GROUP SUM balance(Batch b) IF balance(b) < 0 BY sku(b)](s), [= GROUP SUM balance(Batch b) IF balance(b) > 0 BY sku(b)](s));
+        adjust (Sku s) <- min(-[= GROUP BY sku(Batch b) SUM balance(b) IF balance(b) < 0](s), [= GROUP BY sku(Batch b) SUM balance(b) IF balance(b) > 0](s));
         
         LOCAL adjust = NUMERIC[16,5] (Batch);
         adjust(Batch b) <- NULL; 

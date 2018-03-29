@@ -41,7 +41,7 @@ isEOrder(Purchase.UserOrder o) = EDIProvider(supplier(o)) IS EDIProvider AND NOT
 isEOrder(Purchase.OrderDetail d) = isEOrder(order(d));
 isEOrder(Purchase.UserOrderDetail d) = isEOrder(userOrder(d));
 
-response = GROUP MAX EOrderResponse e BY eOrder(e);
+response = GROUP BY eOrder(EOrderResponse e) MAX e;
 responseNote 'Примечание поставщика' (Purchase.Order o) = note(response(o)) IN documentPrm;
  
 indexSku(EOrderResponseDetail d) = PARTITION SUM 1 BY sku(d), eOrder(orderResponse(d)) ORDER quantityOrdered(d), -quantityAccepted(d), d MATERIALIZED ;
@@ -50,16 +50,16 @@ indexSku(EOrderResponseDetail d) = PARTITION SUM 1 BY sku(d), eOrder(orderRespon
 dataIndexSku = DATA INTEGER (Purchase.OrderDetail);
 indexSku(Purchase.OrderDetail d) = OVERRIDE dataIndexSku(d), 1;
 
-responseDetail = GROUP MAX EOrderResponseDetail ed 
-    IF eOrder(ed) == order(Purchase.OrderDetail d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed) 
-    BY d;
+responseDetail = GROUP 
+    BY Purchase.OrderDetail d MAX EOrderResponseDetail ed 
+    IF eOrder(ed) == order(d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed);
 
 //тереоретически поставщик может поменять порядок строк, но пока для упрощения попробуем исходить из того что не поменяет
 //quantityAccepted = GROUP SUM quantityAccepted(EOrderResponseDetail d) BY sku(d), eOrder(orderResponse(d));
 //quantityResponseEDI 'Подтвержденное количество (EDI)'(Purchase.OrderDetail d) = PARTITION UNGROUP quantityAccepted LIMIT STRICT PREV(quantity(d)) BY sku(d), order(d);
 quantityResponseEDI 'Подтвержденное количество (EDI)'(Purchase.OrderDetail d) = quantityAccepted(responseDetail(d));
 backgroundQuantityResponseEDI = ABSTRACT COLOR (Purchase.OrderDetail);
-quantityResponseEDI = GROUP SUM quantityResponseEDI(Purchase.OrderDetail d) BY order(d);
+quantityResponseEDI = GROUP BY order(Purchase.OrderDetail d) SUM quantityResponseEDI(d);
 
 priceResponseEDI 'Подтвержденная цена (EDI)'(Purchase.OrderDetail d) = price(responseDetail(d));
 backgroundPriceResponseEDI(Purchase.OrderDetail d) = RGB(255,0,0) IF priceResponseEDI(d) != price(d);
@@ -81,4 +81,4 @@ WHEN SET (UserOrder o == eOrder(EOrderResponse od)) AND deliveryDateTime(od) AND
     shipmentTime(o) <- TIME(deliveryDateTime(od)) WHERE NOT shipmentTime(o);
 }
 
-despatchAdviceDetail = GROUP MAX EOrderDespatchAdviceDetail ed IF eOrder(orderDespatchAdvice(ed)) == order(Purchase.UserOrderDetail d) AND sku(ed) == sku(d) BY d;
+despatchAdviceDetail = GROUP BY UserOrderDetail d MAX EOrderDespatchAdviceDetail ed IF eOrder(orderDespatchAdvice(ed)) == order(d) AND sku(ed) == sku(d);

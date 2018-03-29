@@ -27,10 +27,10 @@ nameArticleAverageMarkupSold (Stock stock)= name(stock) + ' (ср. % надба�
     
 inArticleReport 'Отм.' = DATA LOCAL BOOLEAN (Stock);
 
-filterBalanceDate 'С остатком' (ar,dFrom, dTo) = GROUP SUM 1 IF inArticleReport(Stock st) AND (balanceB(Article ar,st,DATE dFrom) OR balanceA(ar,st,DATE dTo))
-    BY ar,dFrom, dTo;
-filterSoldDate 'С продажей' (ar,dFrom,dTo) = GROUP SUM quantitySold(Article ar,Stock st,DATE dFrom,DATE dTo) IF inArticleReport(st) 
-    BY ar,dFrom,dTo;   
+filterBalanceDate 'С остатком' (ar,dFrom, dTo) = GROUP
+    BY Article ar,DATE dFrom, DATE dTo SUM 1 IF inArticleReport(Stock st) AND (balanceB(ar,st,dFrom) OR balanceA(ar,st,dTo));
+filterSoldDate 'С продажей' (ar,dFrom,dTo) = GROUP 
+    BY Article ar,DATE dFrom,DATE dTo SUM quantitySold(ar,Stock st,dFrom,dTo) IF inArticleReport(st);   
 
 daysOnStock 'Дней на складе' = DATA LOCAL INTEGER (Article, Stock);
 averageReportSold 'Продаж в день' = DATA LOCAL NUMERIC[14,3] (Article, Stock);
@@ -40,14 +40,14 @@ daysOnStock 'Дней на складе (итого)' = DATA LOCAL INTEGER (Arti
 averageReportSold 'Продаж в день  (итого)' = DATA LOCAL NUMERIC[14,3] (Article);
 turnover 'Товарооборачиваемость  (итого)' = DATA LOCAL NUMERIC[16,4] (Article);
 
-filterBalanceDate 'С остатком' (ks,dFrom, dTo) = GROUP SUM 1 IF inArticleReport(Stock st) AND (balanceB(Sku ks,st,DATE dFrom) OR balanceA(ks,st,DATE dTo))
-    BY ks,dFrom, dTo;
-filterSoldDate 'С продажей' (ks,dFrom,dTo) = GROUP SUM quantitySold(Sku ks,Stock st,DATE dFrom,DATE dTo) IF inArticleReport(st) 
-    BY ks,dFrom,dTo; 
+filterBalanceDate 'С остатком' (ks,dFrom, dTo) = GROUP
+    BY Sku ks,DATE dFrom, DATE dTo SUM 1 IF inArticleReport(Stock st) AND (balanceB(ks,st,dFrom) OR balanceA(ks,st,dTo));
+filterSoldDate 'С продажей' (ks,dFrom,dTo) = GROUP 
+    BY Sku ks,DATE dFrom,DATE dTo SUM quantitySold(ks,Stock st,dFrom,dTo) IF inArticleReport(st); 
       
-quantitySoldIn 'Продано за интервал (кол-во)' (article, dateFrom, dateTo) = GROUP SUM
-        quantitySold(Article article, Stock stock, DATE dateFrom, DATE dateTo) IF inArticleReport(stock)
-        BY article, dateFrom, dateTo;      
+quantitySoldIn 'Продано за интервал (кол-во)' (article, dateFrom, dateTo) = GROUP
+        BY Article article, DATE dateFrom, DATE dateTo SUM
+        quantitySold(article, Stock stock, dateFrom, dateTo) IF inArticleReport(stock);      
       
 
 overCalcSaleArticleParamsInterval = ABSTRACT LIST (DATE, DATE);
@@ -69,7 +69,7 @@ calcSaleArticleParamsInterval 'Рассчитать продажи в день �
         cumBalance(Article a, Stock stock) <- cumBalance(a, stock) (+) balance(a, stock);  
         balance(Article a, Stock stock) <- balance(a, stock) (+)
                    signedQuantity(a, stock, dateCur());
-        daysOnStock(Article a) <- daysOnStock(a) (+) (1 IF [ = GROUP SUM 1 IF ((balance(Article a, Stock stock) > 0) OR (quantity(a, stock, dateCur()) > 0)) AND inArticleReport(stock) BY a](a));                                                
+        daysOnStock(Article a) <- daysOnStock(a) (+) (1 IF [ = GROUP BY Article a SUM 1 IF ((balance(a, Stock stock) > 0) OR (quantity(a, stock, dateCur()) > 0)) AND inArticleReport(stock)](a));                                                
 
         dateCur() <- sum(dateCur(), 1);
     }
@@ -82,7 +82,7 @@ calcSaleArticleParamsInterval 'Рассчитать продажи в день �
                                         
     averageReportSold(Article a) <- quantitySoldIn (a, dateFrom, dateTo) / daysOnStock(a);
     turnover(Article a) <- IF quantitySoldIn (a, dateFrom, dateTo) != 0 THEN
-                                         [ = GROUP SUM cumBalance(Article a, Stock stock) IF inArticleReport(stock) BY a](a) / quantitySoldIn (a, dateFrom, dateTo)
+                                         [ = GROUP BY Article a SUM cumBalance(a, Stock stock) IF inArticleReport(stock)](a) / quantitySoldIn (a, dateFrom, dateTo)
                                       ELSE
                                         9999.99;                                    
                                         
@@ -90,21 +90,21 @@ calcSaleArticleParamsInterval 'Рассчитать продажи в день �
 } TOOLBAR; 
 
 
-balanceBInReport 'Итого (остаток на начало)' (ar,dFrom)= GROUP SUM balanceB(Article ar,Stock st,DATE dFrom) IF inArticleReport(st) BY ar, dFrom;
-quantitySoldInReportDate 'Итого (продано кол-во)' (ar,dFrom,dTo)= GROUP SUM quantitySold(Article ar,Stock st,DATE dFrom,DATE dTo) IF inArticleReport(st) BY ar, dFrom, dTo;
-balanceAInReport 'Итого (остаток на конец)' (ar,dTo)= GROUP SUM balanceA(Article ar,Stock st,DATE dTo) IF inArticleReport(st) BY ar, dTo;
+balanceBInReport 'Итого (остаток на начало)' (ar,dFrom)= GROUP BY Article ar, DATE dFrom SUM balanceB(ar,Stock st,dFrom) IF inArticleReport(st);
+quantitySoldInReportDate 'Итого (продано кол-во)' (ar,dFrom,dTo)= GROUP BY Article ar, DATE dFrom, DATE dTo SUM quantitySold(ar,Stock st,dFrom,dTo) IF inArticleReport(st);
+balanceAInReport 'Итого (остаток на конец)' (ar,dTo)= GROUP BY Article ar, DATE dTo SUM balanceA(ar,Stock st,dTo) IF inArticleReport(st);
 
-sumBInReport 'Итого (сумма на начало)' (ar,dFrom)= GROUP SUM sumB(Article ar,Stock st,DATE dFrom) IF inArticleReport(st) BY ar, dFrom;
-sumSoldInReportDate 'Итого (продано сумма)' (ar,dFrom,dTo)= GROUP SUM sumSold(Article ar,Stock st,DATE dFrom,DATE dTo) IF inArticleReport(st) BY ar, dFrom, dTo;
-sumAInReport 'Итого (сумма на конец)' (ar,dTo)= GROUP SUM sumA(Article ar,Stock st,DATE dTo) IF inArticleReport(st) BY ar, dTo; 
+sumBInReport 'Итого (сумма на начало)' (ar,dFrom)= GROUP BY Article ar, DATE dFrom SUM sumB(ar,Stock st,dFrom) IF inArticleReport(st);
+sumSoldInReportDate 'Итого (продано сумма)' (ar,dFrom,dTo)= GROUP BY Article ar, DATE dFrom, DATE dTo SUM sumSold(ar,Stock st,dFrom,dTo) IF inArticleReport(st);
+sumAInReport 'Итого (сумма на конец)' (ar,dTo)= GROUP BY Article ar, DATE dTo SUM sumA(ar,Stock st,dTo) IF inArticleReport(st); 
 
-balanceBInReport 'Итого (остаток на начало)' (ks,dFrom)= GROUP SUM balanceB(Sku ks,Stock st,DATE dFrom) IF inArticleReport(st) BY ks, dFrom;
-quantitySoldInReportDate 'Итого (продано кол-во)' (ks,dFrom,dTo)= GROUP SUM quantitySold(Sku ks,Stock st,DATE dFrom,DATE dTo) IF inArticleReport(st) BY ks, dFrom, dTo;
-balanceAInReport 'Итого (остаток на конец)' (ks,dTo)= GROUP SUM balanceA(Sku ks,Stock st,DATE dTo) IF inArticleReport(st) BY ks, dTo;
+balanceBInReport 'Итого (остаток на начало)' (ks,dFrom)= GROUP BY Sku ks, DATE dFrom SUM balanceB(ks,Stock st,dFrom) IF inArticleReport(st);
+quantitySoldInReportDate 'Итого (продано кол-во)' (ks,dFrom,dTo)= GROUP BY Sku ks, DATE dFrom, DATE dTo SUM quantitySold(ks,Stock st,dFrom,dTo) IF inArticleReport(st);
+balanceAInReport 'Итого (остаток на конец)' (ks,dTo)= GROUP BY Sku ks, DATE dTo SUM balanceA(ks,Stock st,dTo) IF inArticleReport(st);
 
-sumBInReport 'Итого (сумма на начало)' (ks,dFrom)= GROUP SUM sumB(Sku ks,Stock st,DATE dFrom) IF inArticleReport(st) BY ks, dFrom;
-sumSoldInReportDate 'Итого (продано сумма)' (ks,dFrom,dTo)= GROUP SUM sumSold(Sku ks,Stock st,DATE dFrom,DATE dTo) IF inArticleReport(st) BY ks, dFrom, dTo;
-sumAInReport 'Итого (сумма на конец)' (ks,dTo)= GROUP SUM sumA(Sku ks,Stock st,DATE dTo) IF inArticleReport(st) BY ks, dTo; 
+sumBInReport 'Итого (сумма на начало)' (ks,dFrom)= GROUP BY Sku ks, DATE dFrom SUM sumB(ks,Stock st,dFrom) IF inArticleReport(st);
+sumSoldInReportDate 'Итого (продано сумма)' (ks,dFrom,dTo)= GROUP BY Sku ks, DATE dFrom, DATE dTo SUM sumSold(ks,Stock st,dFrom,dTo) IF inArticleReport(st);
+sumAInReport 'Итого (сумма на конец)' (ks,dTo)= GROUP BY Sku ks, DATE dTo SUM sumA(ks,Stock st,dTo) IF inArticleReport(st); 
 
 FORM saleArticle 'Продажи по артикулам'
 

@@ -7,9 +7,9 @@ NAMESPACE Item;
 completedCustomsAttributes 'Обработан' = DATA BOOLEAN (Item);
 
 // Подсчет необработанных артикулов для групп
-countNotCompletedCustomsAttributesArticles 'Не обработано (к-во)' (group) = GROUP SUM 1 IF completedTranslate(Item item) AND completedCustoms(item) 
-                                                                                AND NOT completedCustomsAttributes(item) BY itemGroup(item);
-recCountNotCompletedCustomsAttributesArticle 'Не обработано (к-во)' (parent) = GROUP SUM countNotCompletedCustomsAttributesArticles(ItemGroup child) IF isParent(child, ItemGroup parent) BY parent;
+countNotCompletedCustomsAttributesArticles 'Не обработано (к-во)' (group) = GROUP BY itemGroup(Item item) SUM 1 IF completedTranslate(item) AND completedCustoms(item) 
+                                                                                AND NOT completedCustomsAttributes(item);
+recCountNotCompletedCustomsAttributesArticle 'Не обработано (к-во)' (parent) = GROUP BY ItemGroup parent SUM countNotCompletedCustomsAttributesArticles(ItemGroup child) IF isParent(child, parent);
 
 // Льгты
 countVATCustomsException 'Кол-во' (Country country, Item item) = countVATCustomsException(customsGroup(country, item));
@@ -222,10 +222,11 @@ WHEN LOCAL FORMS articleCustomsAttributesDashboard
 lastWord = FORMULA PG 'CASE WHEN position(\'-\' in ($1)) > 0 THEN split_part(($1),\'-\',2) ELSE ($1) END', MS 'dbo.lastWord($1)';
 
 defaultVATCustomsException (country, item, date) =
-    GROUP MAX VATCustomsException exception IF
-              customsGroup(exception) == customsGroup(Country country, Item item) AND
+    GROUP
+          BY Country country, Item item, DATE date MAX VATCustomsException exception IF
+              customsGroup(exception) == customsGroup(country, item) AND
               autoFill(exception) AND
-              dateFrom(exception) <= DATE date AND NOT
+              dateFrom(exception) <= date AND NOT
               dateTo(exception) < date AND NOT
               (surelySizeHeight(customsGroup(exception)) AND toInteger(lastWord(nameSizeHeightCustoms(item))) > limitSizeHeight(exception)) AND NOT
               (surelySizeChest(customsGroup(exception)) AND toInteger(lastWord(sizeChestCustoms(item))) > limitSizeChest(exception)) AND NOT
@@ -235,8 +236,7 @@ defaultVATCustomsException (country, item, date) =
               (surelySizeHead(customsGroup(exception)) AND toInteger(sizeHeadCustoms(item)) > limitSizeHead(exception)) AND NOT
               (surelySizeBrush(customsGroup(exception)) AND toInteger(sizeBrushCustoms(item)) > limitSizeBrush(exception)) AND NOT
               (surelySizeHips(customsGroup(exception)) AND toInteger(sizeHipsCustoms(item)) > limitSizeHips(exception)) AND NOT
-              (surelySizeWaist(customsGroup(exception)) AND toInteger(sizeWaistCustoms(item)) > limitSizeWaist(exception))
-          BY country, item, date;
+              (surelySizeWaist(customsGroup(exception)) AND toInteger(sizeWaistCustoms(item)) > limitSizeWaist(exception));
 
 fillDefaultVATCustomsException 'Рассчитать льготу'(Country country, Item item) = {
     VATCustomsException(country, item) <- defaultVATCustomsException (country, item, dateArticleCustomsAttributesDashboard())
@@ -251,17 +251,17 @@ fillDefaultVATCustomsException 'Рассчитать льготу для все�
 } ASON CONTEXTMENU nameVATCustomsException[Country,Item]; 
 
 defaultShortVATCustomsException (country, item, date) =
-    GROUP MAX VATCustomsException exception IF
-              customsGroup(exception) == customsGroup(Country country, Item item) AND              
-              dateFrom(exception) <= DATE date AND NOT
-              dateTo(exception) < date
-          BY country, item, date;
+    GROUP
+          BY Country country, Item item, DATE date MAX VATCustomsException exception IF
+              customsGroup(exception) == customsGroup(country, item) AND              
+              dateFrom(exception) <= date AND NOT
+              dateTo(exception) < date;
 countDefaultShortVATCustomsException (country, item, date) =
-    GROUP SUM 1 IF
-              customsGroup(VATCustomsException exception) == customsGroup(Country country, Item item) AND              
-              dateFrom(exception) <= DATE date AND NOT
-              dateTo(exception) < date
-          BY country, item, date;
+    GROUP
+          BY Country country, Item item, DATE date SUM 1 IF
+              customsGroup(VATCustomsException exception) == customsGroup(country, item) AND              
+              dateFrom(exception) <= date AND NOT
+              dateTo(exception) < date;
           
 fillDefaultShortVATCustomsException 'Установить льготу'(Country country, Item item) = {
     VATCustomsException(country, item) <- defaultShortVATCustomsException (country, item, dateArticleCustomsAttributesDashboard())

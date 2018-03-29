@@ -53,7 +53,7 @@ FORM selectDepartmentStoreLabelType 'Выбор магазина и ценник
 createSelectedSkuStockSnapshotLabel 'Перепечатать ценники'(PriceTransactionDocument priceList) = {    
     DIALOG selectDepartmentStoreLabelType OBJECTS p = priceList, d INPUT, l INPUT DO {
         select(Sku sku) <- TRUE IF countPriceListDetail(sku,priceList);  
-        IF NOT [ = GROUP SUM 1 IF select(LabelType type, DepartmentStore d) BY d](d) THEN {
+        IF NOT [ = GROUP BY DepartmentStore d SUM 1 IF select(LabelType type, d)](d) THEN {
             select(l, d) <- TRUE;
         }         
         FOR select(LabelType type, d) DO {
@@ -71,7 +71,7 @@ createSelectedSkuStockSnapshotPriceList 'Перепечатать ценники
     DIALOG selectDepartmentStoreLabelType OBJECTS p = priceList, d INPUT, l INPUT DO { 
         select(Sku sku) <- TRUE IF countPriceListDetail(sku,priceList);
         priceDoc() <- priceList; 
-        IF NOT [ = GROUP SUM 1 IF select(LabelType type, DepartmentStore d) BY d](d) THEN {
+        IF NOT [ = GROUP BY DepartmentStore d SUM 1 IF select(LabelType type, d)](d) THEN {
             select(l, d) <- TRUE;
         }  
         FOR select(LabelType type, d) DO {
@@ -82,7 +82,7 @@ createSelectedSkuStockSnapshotPriceList 'Перепечатать ценники
     }
 } TOOLBAR;
 
-defaultDataPriceListType = GROUP MAX DataPriceListType type IF in( UserPriceList p, type) BY p;
+defaultDataPriceListType = GROUP BY UserPriceList p MAX DataPriceListType type IF in( p, type);
 overCreate(LabelTransaction t) += {
     IF  priceDoc() THEN {        
         price(LabelTransactionDetail d) <- price(userPriceListDetail(priceDoc(),sku(d)), overPriceListType(t) AS DataPriceListType) WHERE labelTransaction(d) == t;

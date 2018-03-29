@@ -11,8 +11,8 @@ in 'Вкл.' (Compliance compliance, UserInvoice invoice) = compliance(invoice)=
 in 'Вкл.' (Compliance compliance, UserInvoiceDetail invoiceDetail) = dataCompliance(invoiceDetail)==compliance;
 
 invoices 'Накладные' (compliance) =
-    GROUP CONCAT shortDescription(UserInvoice invoice) IF in (Compliance compliance, invoice), ','
-              BY compliance ORDER invoice MATERIALIZED CHARWIDTH 40;
+    GROUP
+              BY Compliance compliance CONCAT shortDescription(UserInvoice invoice) IF in (compliance, invoice), ',' ORDER invoice MATERIALIZED CHARWIDTH 40;
 
 // Тип сертификата
 nameComplianceTypeCompliance 'Тип сертификата' (UserInvoiceDetail invoiceDetail) = nameComplianceType(compliance(invoiceDetail));
@@ -59,14 +59,14 @@ WHEN LOCAL FORMS userInvoice CHANGED(complianceGroup(UserInvoiceDetail d)) AND c
     dataCompliance(d) <- compliance(userInvoice(d), complianceGroup(d));
 
 count 'Кол-во' (invoice, complianceGroup) =
-    GROUP SUM 1 BY userInvoice(UserInvoiceDetail detail), complianceGroup(detail) MATERIALIZED;
+    GROUP BY userInvoice(UserInvoiceDetail detail), complianceGroup(detail) SUM 1 MATERIALIZED;
 
 // ------------------- Заполнение сертификата, если он один для группы --------------------- //
 
 countComplianceForManufacturing 'Кол-во' (complianceGroup) =
-    GROUP SUM 1 IF in(ComplianceGroup complianceGroup, Compliance compliance) AND complianceType(compliance) ==ComplianceType.forManufacturing BY complianceGroup;
+    GROUP BY ComplianceGroup complianceGroup SUM 1 IF in(complianceGroup, Compliance compliance) AND complianceType(compliance) ==ComplianceType.forManufacturing;
 defaultComplianceForManufacturing  (complianceGroup) =
-    GROUP MIN Compliance compliance IF in(ComplianceGroup complianceGroup, compliance) AND complianceType(compliance) ==ComplianceType.forManufacturing BY complianceGroup;
+    GROUP BY ComplianceGroup complianceGroup MIN Compliance compliance IF in(complianceGroup, compliance) AND complianceType(compliance) ==ComplianceType.forManufacturing;
     
 fillCompliance 'Заполнить сертификаты (пр-во)'(UserInvoice invoice)  = {
     compliance(invoice,ComplianceGroup g) <-  defaultComplianceForManufacturing(g) 
@@ -91,8 +91,8 @@ complianceSum(UserInvoiceDetail d) <- quantity(d) * compliancePrice(d) WHEN CHAN
 certificateCostPrice[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += compliancePrice(invoiceDetail);
 certificateCostSum[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += complianceSum(invoiceDetail);
 
-complianceSumUserInvoiceDetail 'Сертификация' = GROUP SUM complianceSum(UserInvoiceDetail d)
-                                                                BY compliance(d) CHARWIDTH 15 MATERIALIZED;
+complianceSumUserInvoiceDetail 'Сертификация' = GROUP
+                                                                BY compliance(UserInvoiceDetail d) SUM complianceSum(d) CHARWIDTH 15 MATERIALIZED;
                                                                 
 overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += {      
     compliancePrice(d) <- compliancePrice(detail);

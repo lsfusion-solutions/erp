@@ -15,7 +15,7 @@ TABLE customsZone(CustomsZone);
 
 name 'Наименование' = DATA VARISTRING[50](CustomsZone) IN recognize;
 
-customsZone (name) = GROUP AGGR CustomsZone customsZone BY name(customsZone) WHERE customsZone IS CustomsZone;
+customsZone (name) = GROUP BY name(CustomsZone customsZone) AGGR customsZone WHERE customsZone IS CustomsZone;
 
 currency = DATA Currency(CustomsZone);
 nameCurrency 'Валюта' (CustomsZone customsZone) = name(currency(customsZone)) IN base;
@@ -33,8 +33,8 @@ dateFrom 'Дата с' = DATA DATE (CustomsGroup) IN base;
 dateTo 'Дата по' = DATA DATE (CustomsGroup) IN base;
 code 'Код' = DATA VARSTRING[10](CustomsGroup) IN base CHARWIDTH 10;
 
-customsGroup (code) = GROUP AGGR CustomsGroup customsGroup BY code(customsGroup) WHERE customsGroup IS CustomsGroup;
-nearestCustomsGroup (code) = GROUP MIN CustomsGroup customsGroup IF startsWith(code(customsGroup), STRING[10] code AS STRING[10]) == 1 BY code;
+customsGroup (code) = GROUP BY code(CustomsGroup customsGroup) AGGR customsGroup WHERE customsGroup IS CustomsGroup;
+nearestCustomsGroup (code) = GROUP BY STRING[10] code MIN CustomsGroup customsGroup IF startsWith(code(customsGroup), code AS STRING[10]) == 1;
 
 number 'Номер строки' = DATA INTEGER(CustomsGroup) IN base;
 
@@ -49,8 +49,8 @@ nameCustomsZone 'Таможенная зона' (Country country) = name(customs
 
 isCompliancedData 'Необходимость сертификации' = DATA BOOLEAN (CustomsGroup) IN base;
 
-levelParent (customsGroup) = GROUP MIN level(CustomsGroup customsGroup, CustomsGroup parent) IF isCompliancedData(parent)
-                                                BY customsGroup MATERIALIZED;
+levelParent (customsGroup) = GROUP
+                                                BY CustomsGroup customsGroup MIN level(customsGroup, CustomsGroup parent) IF isCompliancedData(parent) MATERIALIZED;
 
 isCompliancedParent (CustomsGroup customsGroup) = TRUE IF levelParent(customsGroup);
 
@@ -68,10 +68,10 @@ META defineCustomsRate(class, object, caption)
     codeCustomsGroup 'ТН ВЭД (код)' (class customsRate) = code(customsGroup(customsRate)) IN base;
     nameCustomsGroup 'ТН ВЭД' (class customsRate) = name(customsGroup(customsRate)) IN base;
 
-    object (CustomsGroup customsGroup, DATE date) = GROUP LAST class object IF
-                                                                       (dateFrom(object) < DATE date AND
+    object (CustomsGroup customsGroup, DATE date) = GROUP
+                                                                    BY customsGroup(class object), DATE date LAST object IF
+                                                                       (dateFrom(object) < date AND
                                                                        dateTo(object) > date)
-                                                                    BY customsGroup(object), date
                                                                     ORDER dateFrom(object), object;
 END
 
@@ -119,7 +119,7 @@ registration 'Таможенный сбор' (CustomsGroup customsGroup) = regis
 // Льгота НДС
 name 'Наименование' = DATA VARISTRING[150](VATCustomsException) IN base;
 number 'Номер' (VATCustomsException VATCustomsException) = PARTITION SUM 1 BY customsGroup(VATCustomsException) ORDER VATCustomsException;
-VATCustomsException (customsGroup, number) = GROUP AGGR VATCustomsException VATCustomsException BY code(customsGroup(VATCustomsException)), number(VATCustomsException);
+VATCustomsException (customsGroup, number) = GROUP BY code(customsGroup(VATCustomsException VATCustomsException)), number(VATCustomsException) AGGR VATCustomsException;
 
 range = DATA Range(VATCustomsException);
 numberRange 'Льгота НДС, номер' (VATCustomsException VATCustomsException) = number(range(VATCustomsException)) IN base;
@@ -130,9 +130,9 @@ valueCurrent 'Льгота НДС, %' (VATCustomsException VATCustomsException) 
 rangeVATCustomsException 'Льгота НДС' (CustomsGroup customsGroup, DATE date) = range(VATCustomsException(customsGroup, date));
 dataValueVATCustomsException 'Льгота НДС, %' (CustomsGroup customsGroup, DATE date) = valueRate(rangeVATCustomsException(customsGroup, date), date);
 
-countVATCustomsException 'Кол-во льгот' (customsGroup) = GROUP SUM 1 IF VATCustomsException VATCustomsException IS VATCustomsException BY customsGroup(VATCustomsException) MATERIALIZED;
+countVATCustomsException 'Кол-во льгот' (customsGroup) = GROUP BY customsGroup(VATCustomsException VATCustomsException) SUM 1 IF VATCustomsException IS VATCustomsException MATERIALIZED;
 
-nameVATCustomsException 'Наименование' (customsGroup) = GROUP CONCAT VARSTRING[255](name(VATCustomsException VATCustomsException))  , ', ' BY customsGroup(VATCustomsException);
+nameVATCustomsException 'Наименование' (customsGroup) = GROUP BY customsGroup(VATCustomsException VATCustomsException) CONCAT VARSTRING[255](name(VATCustomsException))  , ', ';
 
 //
 customsGroup = ABSTRACT CustomsGroup(Country, Sku);

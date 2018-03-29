@@ -53,25 +53,25 @@ DESIGN options {
 }   
 
 lastPromotionPriceListDetailB (Sku sk, DATETIME dt) = 
-    GROUP LAST PriceListDetail d
-          BY sku(d, Stock st), DATETIME dt
+    GROUP
+          BY sku(PriceListDetail d, Stock st), DATETIME dt LAST d
           ORDER fromDateTime(d, st), d
           WHERE fromDateTime(d, st) < dt COMPLEX;
 
 promotionPriceListDetailA (Sku sk, Stock st, DATETIME dt) = 
-    GROUP LAST PriceListDetail d
-          BY sku(d, Stock st), st, DATETIME dt
+    GROUP
+          BY sku(PriceListDetail d, Stock st), st, DATETIME dt LAST d
           ORDER fromDateTime(d, st), d
           WHERE fromDateTime(d, st) <= dt AND NOT toDateTime(d, st) < dt COMPLEX;
           
 promotionPriceListDetailA (Sku sk, Stock st, DATE dt) = 
-  GROUP LAST PriceListDetail d
-        BY sku(d, Stock st), st, DATE dt
+  GROUP
+        BY sku(PriceListDetail d, Stock st), st, DATE dt LAST d
         ORDER fromDateTime(d, st), d
         WHERE fromDateTime(d, st) < DATETIME(sum(dt, 1)) AND NOT toDateTime(d, st) < DATETIME(dt) COMPLEX;
 
-lastPromotionPriceListDetail (Sku sk, Stock st) = GROUP LAST PriceListDetail d 
-                                                                           BY sku(d, Stock s), s
+lastPromotionPriceListDetail (Sku sk, Stock st) = GROUP 
+                                                                           BY sku(PriceListDetail d, Stock s), s LAST d
                                                                            ORDER fromDateTime(d, s), d;
 
 promotionPriceListDetailA (Sku sku, Stock stock) = 
@@ -111,8 +111,8 @@ prevToDatePromotion 'Дата окончания предыдущей акции
 
 regularPeriodBeforePromotion 'Кол-во дней между акциями' (PriceListDetail d, Stock st) = daysBetweenDates(fromDate(d, st), prevToDatePromotion(d, st)) - 1;
 
-lastRegularPromotionDetail = GROUP LAST PriceListDetail d
-                                                      BY sku(d, Stock s), s
+lastRegularPromotionDetail = GROUP
+                                                      BY sku(PriceListDetail d, Stock s), s LAST d
                                                       ORDER fromDateTime(d, s), d
                                                       WHERE NOT regularPeriodBeforePromotion(d, s) < 2;                                                      
                                                            

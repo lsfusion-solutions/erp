@@ -45,8 +45,8 @@ TABLE stockStopList (Stock ,StopList);
 TABLE stockStopListDetail (Stock ,StopListDetail);
 
 in 'Вкл.' = DATA BOOLEAN (Stock ,StopList);
-stocks 'Склады' (stopList) = GROUP CONCAT name(Stock stock) IF in(stock, StopList stopList) , ', '
-                                         BY stopList
+stocks 'Склады' (stopList) = GROUP
+                                         BY StopList stopList CONCAT name(Stock stock) IF in(stock, stopList) , ', '
                                          ORDER stock
                                          CHARWIDTH 30;
 CONSTRAINT  in(Stock stock, StopList stopList) AND NOT isCompany(stock)
@@ -72,8 +72,8 @@ valueVATSku (StopListDetail stopListDetail) = valueVAT(sku(stopListDetail), coun
 succeeded 'Загружен в оборудование' = DATA BOOLEAN (Stock, StopList);
 notSucceeded 'Не загружен в оборудование' (Stock stock, StopList stopList) = stock IS Stock AND stopList IS StopList AND NOT succeeded(stock, stopList);   
 
-countSucceededStocks  = GROUP SUM 1 IF in(Stock stock, StopList list) AND succeeded(stock, list) BY list MATERIALIZED;
-countStocks  = GROUP SUM 1 IF in(Stock stock, StopList list) BY list MATERIALIZED;
+countSucceededStocks  = GROUP BY StopList list SUM 1 IF in(Stock stock, list) AND succeeded(stock, list) MATERIALIZED;
+countStocks  = GROUP BY StopList list SUM 1 IF in(Stock stock, list) MATERIALIZED;
 
 succeeded = countSucceededStocks(StopList l) == countStocks(l);
 
@@ -89,7 +89,7 @@ backgroundStatusSucceededStocks = CASE
     WHEN countSucceededStocks(l) < countStocks(l) AND isPosted(l) THEN RGB(255,238,165)    
     WHEN l IS StopList THEN RGB(255,255,255);
 
-stopList (number) = GROUP AGGR StopList stopList BY number(stopList);
+stopList (number) = GROUP BY number(StopList stopList) AGGR stopList;
 
 //--------------------Сообщения об ошибках при загрузке в кассы--------------------//
 CLASS StopListError 'Ошибка';
@@ -100,16 +100,16 @@ date 'Время возникновения' = DATA DATETIME (StopListError) IN 
 toDate 'Дата возникновения' (StopListError e) = DATE(date(e));
 errorTrace 'След исключения' = DATA TEXT (StopListError) IN base;
 stopList 'Запрет продаж по кассе (ID)' = DATA StopList(StopListError) IN base;
-quantityStopListError 'Количество ошибок' (StopList) = GROUP SUM 1 BY stopList (StopListError stopListError) IN base;
+quantityStopListError 'Количество ошибок' (StopList) = GROUP BY stopList (StopListError stopListError) SUM 1 IN base;
 
 @defineLog (StopListError, 'ошибок загрузки стоп-листов', log, toDate);
 
 //-- SKU
-stopListDetail (sku, stopList) =  GROUP MAX StopListDetail stopListDetail
-    BY sku(stopListDetail), stopList(stopListDetail);
+stopListDetail (sku, stopList) =  GROUP
+    BY sku(StopListDetail stopListDetail), stopList(stopListDetail) MAX stopListDetail;
 
-count 'Вкл.' (Sku sku, StopList stopList) =  TRUE IF [ = GROUP SUM 1 
-    BY sku(StopListDetail stopListDetail), stopList(stopListDetail)](sku, stopList);    
+count 'Вкл.' (Sku sku, StopList stopList) =  TRUE IF [ = GROUP 
+    BY sku(StopListDetail stopListDetail), stopList(stopListDetail) SUM 1](sku, stopList);    
 
 in (GroupMachinery groupMachinery, Sku sku, StopList stopList) =count(sku, stopList) AND in(groupMachinery, sku);
 in (GroupMachinery groupMachinery, StopListDetail stopListDetail) =in(groupMachinery, sku(stopListDetail), stopList(stopListDetail));                                         
@@ -138,15 +138,15 @@ fromDateTime(Stock stock, StopListDetail detail) = fromDateTime(detail) IF activ
 toDateTime(Stock stock, StopListDetail detail) = toDateTime(detail) IF active(stock, detail) MATERIALIZED; 
    
 inStopList (sku, stock, dateTime) =
-    GROUP LAST include(Stock stock, StopListDetail detail)
-          BY   sku(stock, detail), stock, DATETIME dateTimeIn
+    GROUP
+          BY   sku(Stock stock, StopListDetail detail), stock, DATETIME dateTimeIn LAST include(stock, detail)
           ORDER fromDateTime(stock, detail) , detail 
           WHERE dateTimeIn >= fromDateTime(stock, detail) 
                 AND NOT dateTimeIn >  toDateTime(stock, detail) COMPLEX;        
 
 lastStopListDetail (sku, stock, dateTime) =
-    GROUP LAST StopListDetail detail IF include(Stock stock, detail)
-          BY   sku(stock, detail), stock, DATETIME dateTimeIn
+    GROUP
+          BY   sku(Stock stock, StopListDetail detail), stock, DATETIME dateTimeIn LAST detail IF include(stock, detail)
           ORDER fromDateTime(stock, detail) , detail 
           WHERE dateTimeIn >= fromDateTime(stock, detail) 
                 AND NOT dateTimeIn >  toDateTime(stock, detail) COMPLEX;        
@@ -369,8 +369,8 @@ createRequestStopList 'Включить в стоп-лист'()  = {
     IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
             NEW sl = StopList {
-                in(Stock st, sl) <- TRUE WHERE [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](st);  
-                FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) AND NOT skip(sku, stock) BY sku](Sku sku) NEW d = StopListDetail DO {
+                in(Stock st, sl) <- TRUE WHERE [= GROUP BY Stock stock SUM 1 IF select(Sku sku, stock)](st);  
+                FOR [= GROUP BY Sku sku SUM 1 IF select(sku, Stock stock) AND NOT skip(sku, stock)](Sku sku) NEW d = StopListDetail DO {
                     stopList(d) <- sl;
                     sku(d) <- sku;            
                 } 
@@ -391,8 +391,8 @@ excludeRequestStopList 'Исключить из стоп-листа'()  = {
         NEWSESSION NESTED (select[Sku,Stock]) {
             NEW sl = StopList {
                 exclude(sl) <- TRUE;
-                in(Stock st, sl) <- TRUE WHERE [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](st);  
-                FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY sku](Sku sku) NEW d = StopListDetail DO {
+                in(Stock st, sl) <- TRUE WHERE [= GROUP BY Stock stock SUM 1 IF select(Sku sku, stock)](st);  
+                FOR [= GROUP BY Sku sku SUM 1 IF select(sku, Stock stock)](Sku sku) NEW d = StopListDetail DO {
                     stopList(d) <- sl;
                     sku(d) <- sku;            
                 } 
@@ -422,7 +422,7 @@ DESIGN currentBalanceSkuStock {
     }
 }
 
-countChangedSkus =  GROUP SUM 1 IF SETCHANGED (sku(StopListDetail d)) BY stopList(d);
+countChangedSkus =  GROUP BY stopList(StopListDetail d) SUM 1 IF SETCHANGED (sku(d));
 
 WHEN FORMS stopList CHANGED(exclude(StopList l)) OR CHANGED(countChangedSkus(l)) AND isPosted(l) DO {
     succeeded(Stock st, l) <- NULL WHERE st IS Stock;    
@@ -451,7 +451,7 @@ countDaysClearStopList 'За сколько дней хранить стоп-л�
 EXTEND FORM options PROPERTIES countDaysClearStopList();
 DESIGN options { log { MOVE PROPERTY(countDaysClearStopList());} }    
         
-lastStopListDetail = GROUP SUM 1 IF in(Stock s, stopList(StopListDetail d)) AND d == lastStopListDetail(sku(d), s, currentDateTime()) BY d;
+lastStopListDetail = GROUP BY StopListDetail d SUM 1 IF in(Stock s, stopList(d)) AND d == lastStopListDetail(sku(d), s, currentDateTime());
 
 clearApplicationLog () += {
 	NEWSESSION {
@@ -459,7 +459,7 @@ clearApplicationLog () += {
             DELETE StopListDetail d WHERE d IS StopListDetail AND date(d) <= subtract(currentDate(), countDaysClearStopList()) AND NOT lastStopListDetail(d);
 	        apply();
 	        
-	        DELETE StopList s WHERE s IS StopList AND NOT [= GROUP SUM 1 BY stopList(StopListDetail d)](s);
+	        DELETE StopList s WHERE s IS StopList AND NOT [= GROUP BY stopList(StopListDetail d) SUM 1](s);
 	        apply();
 	    }
 	}

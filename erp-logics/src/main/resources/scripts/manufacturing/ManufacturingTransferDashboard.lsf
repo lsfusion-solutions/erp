@@ -144,7 +144,7 @@ createManufacturingPurchaseSale 'Создать поступление на це
 	    }
 	    DIALOG selectParams OBJECTS si = si DO {
 	        FOR invoice(Sale.InvoiceDetail sd)==si AND sku(sd)==Sku sku AND NOT uniqueSubstituteFromTo(purchaseSku(sd), sku(sd)) 
-	            AND NUMERIC[10,5] coeff == [= GROUP MAX coeffPurchase(Sale.InvoiceDetail sd) BY invoice(sd), purchaseSku(sd), sku(sd)](si, Sku psku,  sku) NEW s = Substitute DO {
+	            AND NUMERIC[10,5] coeff == [= GROUP BY invoice(Sale.InvoiceDetail sd), purchaseSku(sd), sku(sd) MAX coeffPurchase(sd)](si, Sku psku,  sku) NEW s = Substitute DO {
                     fromSku(s) <- psku;
                     toSku(s) <- sku;
                     multiplier(s) <- coeff;
@@ -314,7 +314,7 @@ saleNameSku 'Товар (исходный)' (InvoiceDetail d) = nameSku(invoiceD
 saleQuantity 'Кол-во (исходное)' (InvoiceDetail d) = quantity(invoiceDetail(d));
 
 coeff 'Коэффициент' = quantity(InvoiceDetail d) / quantity(invoiceDetail(d)); 
-productionOrders 'Используется в заказах' = [= GROUP CONCAT number(Production.Order o), ',' IF [= GROUP SUM 1 BY order(ComponentDetail d), batch(d)](o, Batch b) BY b ORDER o](batch(Invoice.InvoiceDetail d));
+productionOrders 'Используется в заказах' = [= GROUP BY Batch b CONCAT number(Production.Order o), ',' IF [= GROUP BY order(ComponentDetail d), batch(d) SUM 1](o, b) ORDER o](batch(Invoice.InvoiceDetail d));
 
 coeffSku 'Коэфф. перевода'= quantity(invoiceDetail(invoiceDetail(Batch bt))) /
     (quantity(invoiceDetail(bt)) IF quantity(invoiceDetail(bt)) !=0.0); 

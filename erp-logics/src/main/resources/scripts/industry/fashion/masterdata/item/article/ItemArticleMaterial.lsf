@@ -9,10 +9,10 @@ NAMESPACE Item;
 TABLE materialArticle(Material, Article);
 percent 'Процент' = DATA INTEGER (Material, Article);
 
-percentMaterials 'Процент' (i) = GROUP SUM percent(Material m,Article i) BY i;
+percentMaterials 'Процент' (i) = GROUP BY Article i SUM percent(Material m,i);
 
 calcComposition 'Состав' (Article i) = VARSTRING[255](
-                       [= GROUP CONCAT (percent(Material m,Article i)+'% '+name(m)) IF percent(m,i), ', ' BY i ORDER DESC percent(m,i)](i))
+                       [= GROUP BY Article i CONCAT (percent(Material m,i)+'% '+name(m)) IF percent(m,i), ', ' ORDER DESC percent(m,i)](i))
                        CHARWIDTH 50 MATERIALIZED;
 
 WHEN LOCAL FORMS article CHANGED(calcComposition(Article i)) DO {

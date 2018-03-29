@@ -16,23 +16,23 @@ writeOffSum 'Сумма списание' = DATA NUMERIC[16,2] (Batch, Stock, Sn
 
 //-- группа/склад       
 writeOffQuantity 'Кол-во списание' (group, stock, snapshot) =
-    GROUP SUM writeOffQuantity (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot MATERIALIZED;
+    GROUP
+        BY SkuGroup group, Stock stock, Snapshot snapshot SUM writeOffQuantity (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
 writeOffSum 'Сумма списание' (group, stock, snapshot) =
-    GROUP SUM writeOffSum (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot MATERIALIZED;  
+    GROUP
+        BY SkuGroup group, Stock stock, Snapshot snapshot SUM writeOffSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;  
         
 //-- группа          
 writeOffQuantity 'Кол-во списание' (group, snapshot) =
-    GROUP SUM writeOffQuantity (SkuGroup group, Stock stock, Snapshot snapshot)  BY group, snapshot;    
+    GROUP  BY SkuGroup group, Snapshot snapshot SUM writeOffQuantity (group, Stock stock, snapshot);    
 writeOffSum 'Сумма списание' (group, snapshot) =
-    GROUP SUM writeOffSum (SkuGroup group, Stock stock, Snapshot snapshot)  BY group, snapshot;    
+    GROUP  BY SkuGroup group, Snapshot snapshot SUM writeOffSum (group, Stock stock, snapshot);    
                 
 //--По складам
 writeOffQuantity 'Кол-во списание' (stock, snapshot) =
-    GROUP SUM writeOffQuantity (SkuGroup sku, Stock stock, Snapshot snapshot)  BY stock, snapshot;   
+    GROUP  BY Stock stock, Snapshot snapshot SUM writeOffQuantity (SkuGroup sku, stock, snapshot);   
 writeOffSum 'Сумма списание' (stock, snapshot) =
-    GROUP SUM writeOffSum (SkuGroup sku, Stock stock, Snapshot snapshot)  BY stock, snapshot;  
+    GROUP  BY Stock stock, Snapshot snapshot SUM writeOffSum (SkuGroup sku, stock, snapshot);  
                      
 //-- Sku на дату
 writeOffQuantity 'Кол-во списание' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
@@ -40,9 +40,9 @@ writeOffSum 'Сумма списание' = DATA NUMERIC[16,2] (Sku, Stock, Snap
              
 //--По складам на дату     
 writeOffQuantity 'Кол-во списание' (stock, snapshot, date) =
-    GROUP SUM writeOffQuantity (Sku sku, Stock stock, Snapshot snapshot, DATE date)  BY stock, snapshot, date; 
+    GROUP  BY Stock stock, Snapshot snapshot, DATE date SUM writeOffQuantity (Sku sku, stock, snapshot, date); 
 writeOffSum 'Сумма списание' (stock, snapshot, date) =
-    GROUP SUM writeOffSum (Sku sku, Stock stock, Snapshot snapshot, DATE date)  BY stock, snapshot, date;    
+    GROUP  BY Stock stock, Snapshot snapshot, DATE date SUM writeOffSum (Sku sku, stock, snapshot, date);    
            
 nameWriteOffQuantity (Stock st) = CONCAT ' ', name(st), ' (кол-во списание)';
 nameWriteOffSum (Stock st) = CONCAT ' ', name(st), ' (сумма списание)';    
@@ -67,15 +67,15 @@ EXTEND FORM snapshotTypes
 
        
 //-- Расширяем ACTION    
-writeOffSum 'Списано (сумма)' (sku, stock, date) =  GROUP SUM sum(WriteOffDetail ledger) IF isPosted(ledger) BY sku(ledger), stock(ledger), date(ledger);
-writeOffQuantity 'Списано (кол-во)' (sku, stock, date) =  GROUP SUM quantity(WriteOffDetail ledger) IF isPosted(ledger) BY sku(ledger), stock(ledger), date(ledger);
+writeOffSum 'Списано (сумма)' (sku, stock, date) =  GROUP BY sku(WriteOffDetail ledger), stock(ledger), date(ledger) SUM sum(ledger) IF isPosted(ledger);
+writeOffQuantity 'Списано (кол-во)' (sku, stock, date) =  GROUP BY sku(WriteOffDetail ledger), stock(ledger), date(ledger) SUM quantity(ledger) IF isPosted(ledger);
   
-writeOffSum 'Списано за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        writeOffSum(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, dateFrom, dateTo;  
-writeOffQuantity 'списано за интервал (кол-во)' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        writeOffQuantity(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, dateFrom, dateTo;    
+writeOffSum 'Списано за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, DATE dateFrom, DATE dateTo SUM
+        writeOffSum(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;  
+writeOffQuantity 'списано за интервал (кол-во)' (sku, stock, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, DATE dateFrom, DATE dateTo SUM
+        writeOffQuantity(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;    
                     
 overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += {
     IF isWriteOff(snapshot) THEN {
@@ -110,15 +110,15 @@ overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += {
 };                                                                                                
                
 //-- Batch      
-writeOffSum 'Списано (сумма)' (batch, stock, date) =  GROUP SUM sum(WriteOffDetail ledger) IF isPosted(ledger) BY batch(ledger), stock(ledger), date(ledger);
-writeOffQuantity 'Списано (кол-во)' (batch, stock, date) =  GROUP SUM quantity(WriteOffDetail ledger) IF isPosted(ledger) BY batch(ledger), stock(ledger), date(ledger);
+writeOffSum 'Списано (сумма)' (batch, stock, date) =  GROUP BY batch(WriteOffDetail ledger), stock(ledger), date(ledger) SUM sum(ledger) IF isPosted(ledger);
+writeOffQuantity 'Списано (кол-во)' (batch, stock, date) =  GROUP BY batch(WriteOffDetail ledger), stock(ledger), date(ledger) SUM quantity(ledger) IF isPosted(ledger);
   
-writeOffSum 'Списано за интервал (сумма)' (batch, stock, dateFrom, dateTo) = GROUP SUM
-        writeOffSum(Batch batch, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY batch, stock, dateFrom, dateTo;  
-writeOffQuantity 'списано за интервал (кол-во)' (batch, stock, dateFrom, dateTo) = GROUP SUM
-        writeOffQuantity(Batch batch, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY batch, stock, dateFrom, dateTo;
+writeOffSum 'Списано за интервал (сумма)' (batch, stock, dateFrom, dateTo) = GROUP
+        BY Batch batch, Stock stock, DATE dateFrom, DATE dateTo SUM
+        writeOffSum(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;  
+writeOffQuantity 'списано за интервал (кол-во)' (batch, stock, dateFrom, dateTo) = GROUP
+        BY Batch batch, Stock stock, DATE dateFrom, DATE dateTo SUM
+        writeOffQuantity(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
 
 overTakeBatchFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += {
     IF isWriteOff(snapshot) THEN {

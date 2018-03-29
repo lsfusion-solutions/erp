@@ -18,19 +18,19 @@ WHEN LOCAL FORMS scheduleOrder CHANGED(customer(ScheduleOrder o)) DO {
 
 @defineDocumentOperationRoleOver(scheduleOrder, purchase);
     
-countShipment 'Кол-во поставок' (DOW, stock, date)= GROUP SUM 1 IF 
-    type(scheduleOrder(ScheduleOrderTime scheduleOrderTime))== GenType.genDayMonth AND 
-    DATE date >=  startDate(scheduleOrder(scheduleOrderTime)) AND NOT 
+countShipment 'Кол-во поставок' (DOW, stock, date)= GROUP
+        BY shipmentDOW(ScheduleOrderTime scheduleOrderTime), Stock stock, DATE date SUM 1 IF 
+    type(scheduleOrder(scheduleOrderTime))== GenType.genDayMonth AND 
+    date >=  startDate(scheduleOrder(scheduleOrderTime)) AND NOT 
     (date >  endDate(scheduleOrder(scheduleOrderTime))) AND 
-    in(scheduleOrder(scheduleOrderTime), Stock stock)
-        BY shipmentDOW(scheduleOrderTime), stock, date;
+    in(scheduleOrder(scheduleOrderTime), stock);
 
-countShipment 'Кол-во поставок' (DOW, stock, scheduleOrderTime, date)= GROUP SUM 1 IF 
-    type(scheduleOrder(ScheduleOrderTime scheduleOrderTime))== GenType.genDayMonth AND 
-    DATE date >=  startDate(scheduleOrder(scheduleOrderTime)) AND NOT 
+countShipment 'Кол-во поставок' (DOW, stock, scheduleOrderTime, date)= GROUP
+        BY shipmentDOW(ScheduleOrderTime scheduleOrderTime), Stock stock, scheduleOrderTime, DATE date SUM 1 IF 
+    type(scheduleOrder(scheduleOrderTime))== GenType.genDayMonth AND 
+    date >=  startDate(scheduleOrder(scheduleOrderTime)) AND NOT 
     (date >  endDate(scheduleOrder(scheduleOrderTime))) AND 
-    in(scheduleOrder(scheduleOrderTime), Stock stock)
-        BY shipmentDOW(scheduleOrderTime), stock, scheduleOrderTime, date;
+    in(scheduleOrder(scheduleOrderTime), stock);
  
 nameSupplier 'Поставщик'  (ScheduleOrderTime o)= name(supplier(scheduleOrder(o))) IN recognize;
 countShipmentDate 'Кол-во поставок' (DOW DOW, Stock stock, ScheduleOrder order) =  countShipment(DOW, stock, startDate(order));  
@@ -114,10 +114,10 @@ EXTEND FORM legalEntity
 // Добавляем Dashboard для работы с графиками закупок
 @defineScheduleOrderDashboard(' (закупка)', customer);
 
-countStocks (order)= GROUP SUM 1 IF in(ScheduleOrder order,Stock stock)
-    BY order;       
-countAccessCompanyEmployeeStock (order)= GROUP SUM 1 IF accessCompany(currentUser(),Stock stock) AND in(ScheduleOrder order,stock)
-    BY order;
+countStocks (order)= GROUP
+    BY ScheduleOrder order SUM 1 IF in(order,Stock stock);       
+countAccessCompanyEmployeeStock (order)= GROUP
+    BY ScheduleOrder order SUM 1 IF accessCompany(currentUser(),Stock stock) AND in(order,stock);
 EXTEND FORM scheduleOrderDashboard FILTERS countAccessCompanyEmployeeStock(s) OR NOT countStocks(s);
 EXTEND FORM scheduleOrderDashboard FILTERS countAccessCompanyEmployeeStock(ss) OR NOT countStocks(ss);
 

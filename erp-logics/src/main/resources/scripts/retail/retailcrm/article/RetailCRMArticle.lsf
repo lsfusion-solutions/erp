@@ -23,17 +23,17 @@ DESIGN options {
 }
 
 fullName(PromotionCondition c) = IF useFullNamePromotionCondition() THEN CONCAT '/', namePromotion(c), name(c) ELSE namePromotion(c);
-promotionConditions 'В акциях' = GROUP CONCAT ',', name(PromotionCondition c) IF in(c, Article a)
-                                              BY a
+promotionConditions 'В акциях' = GROUP
+                                              BY Article a CONCAT ',', name(PromotionCondition c) IF in(c, a)
                                               ORDER c;
 promotionConditions 'В других акциях' =
-                                        GROUP CONCAT fullName(PromotionCondition c) IF 
-                                                     inData(c, Article a) AND 
-                                                     dateTo(c) >= dateFrom(PromotionCondition pc) AND
+                                        GROUP
+                                              BY PromotionCondition pc, Article a CONCAT fullName(PromotionCondition c) IF 
+                                                     inData(c, a) AND 
+                                                     dateTo(c) >= dateFrom(pc) AND
                                                      dateTo(pc) >= dateFrom(c) AND 
                                                      c != pc AS PromotionCondition, 
                                               ','
-                                              BY pc, a
                                               ORDER c CHARWIDTH 10;
 
 overIn (PromotionCondition condition, Item sku) += inData(condition, article(sku));
@@ -42,7 +42,7 @@ nameBalance (Stock stock)= name(stock) + '(остаток)' CHARWIDTH 15;
 
 backgroundBalance (Promotion p)= RGB(204,204,255) IF p IS Promotion;
 
-prevCurrentBalance 'Итого (остаток)' (ar, sh) = GROUP SUM prevCurrentBalance(Article ar,DepartmentStore ddd) IF in(Promotion sh, store(ddd)) BY ar, sh;
+prevCurrentBalance 'Итого (остаток)' (ar, sh) = GROUP BY Article ar, Promotion sh SUM prevCurrentBalance(ar,DepartmentStore ddd) IF in(sh, store(ddd));
 
 copyProperties(PromotionCondition promotionConditionTo, PromotionCondition promotionConditionFrom) += {
     IF copyItems() THEN {
@@ -75,7 +75,7 @@ removeArticleXLS 'Исключить из акции (xlsx)' (PromotionCondition
     
     INPUT f = EXCELFILE DO {
         IMPORT XLS TO article = A FROM f AS EXCELFILE;
-        count() <- [= GROUP SUM 1 IF in(PromotionCondition c, article(article(INTEGER r))) AND imported(r) BY c](c);
+        count() <- [= GROUP BY PromotionCondition c SUM 1 IF in(c, article(article(INTEGER r))) AND imported(r)](c);
 
         FOR imported(INTEGER r) DO {
             in(c, Article a) <- NULL WHERE id(a) == article(r);

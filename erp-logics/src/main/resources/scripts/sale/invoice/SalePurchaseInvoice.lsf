@@ -207,18 +207,18 @@ CONSTRAINT supplier(Purchase.UserInvoiceDetail detail) != supplier(invoiceDetail
 descriptionIndexInvoiceDetail 'Строка накладной (продажа)' (Purchase.InvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
 descriptionIndexInvoiceDetail 'Строка накладной (продажа)' (Purchase.UserInvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
 
-quantityInvoiceDetail (sale, purchase) = GROUP SUM quantity(Purchase.InvoiceDetail detail) BY invoice(invoiceDetail(detail)), invoice(detail);
+quantityInvoiceDetail (sale, purchase) = GROUP BY invoice(invoiceDetail(Purchase.InvoiceDetail detail)), invoice(detail) SUM quantity(detail);
 
-saleInvoices 'Накладные (продажа)' (purchase) = GROUP CONCAT VARSTRING[255](description(Invoice sale)) IF quantityInvoiceDetail(sale, Purchase.Invoice purchase) , ', '
-                                                        BY purchase
+saleInvoices 'Накладные (продажа)' (purchase) = GROUP
+                                                        BY Purchase.Invoice purchase CONCAT VARSTRING[255](description(Invoice sale)) IF quantityInvoiceDetail(sale, purchase) , ', '
                                                         ORDER sale IN invoice CHARWIDTH 30 MATERIALIZED;
 
-relationPurchase 'Связь' (purchase) = GROUP SUM quantityInvoiceDetail (Invoice sale, Purchase.Invoice purchase) BY purchase MATERIALIZED INDEXED; // для NONULL фильтров
+relationPurchase 'Связь' (purchase) = GROUP BY Purchase.Invoice purchase SUM quantityInvoiceDetail (Invoice sale, purchase) MATERIALIZED INDEXED; // для NONULL фильтров
 
-invoiced 'Кол-во (выписано)' (invoiceDetail) = GROUP SUM quantity(Purchase.InvoiceDetail detail) IF isPosted(detail)
-                                                                   BY invoiceDetail(detail) MATERIALIZED;
+invoiced 'Кол-во (выписано)' (invoiceDetail) = GROUP
+                                                                   BY invoiceDetail(Purchase.InvoiceDetail detail) SUM quantity(detail) IF isPosted(detail) MATERIALIZED;
 
-invoiced 'Кол-во (выписано)' = GROUP SUM invoiced(InvoiceDetail detail) BY invoice(detail);
+invoiced 'Кол-во (выписано)' = GROUP BY invoice(InvoiceDetail detail) SUM invoiced(detail);
 
 statusInvoice 'Статус' = CASE WHEN invoiced(Invoice i) THEN 'Создано поступление'
                                                                         ELSE 'Не создано поступление';

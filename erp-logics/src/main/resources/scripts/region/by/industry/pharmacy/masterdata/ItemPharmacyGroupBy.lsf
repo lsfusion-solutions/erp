@@ -94,16 +94,16 @@ blrCurrency = currencyShortName('BYN') MATERIALIZED;
 pharmacyExchange (price, DATE date) = price / rateOn(pharmacyTypeExchange(), usdCurrency(), date);
 
 wholesaleMarkupPharmacy 'Оптовая надбавка' (priceGroup, price, date) =
-    GROUP LAST wholesaleMarkup(PharmacyPriceInterval interval)
-          BY pharmacyGroupPharmacy(interval), NUMERIC[16,4] price, DATE date
+    GROUP
+          BY pharmacyGroupPharmacy(PharmacyPriceInterval interval), NUMERIC[16,4] price, DATE date LAST wholesaleMarkup(interval)
           ORDER pricePharmacy(interval), interval
           WHERE pharmacyExchange(price AS NUMERIC[16,4], date) > pricePharmacy(interval) AND
                 date >= fromDatePharmacy(interval) AND NOT date > toDatePharmacy(interval) COMPLEX;
 prevWholesaleMarkupPharmacy 'Оптовая надбавка (пред.)' (PharmacyPriceGroup priceGroup, NUMERIC[16,4] price, DATE date) = PREV(wholesaleMarkupPharmacy(priceGroup, price, date)) COMPLEX;
 
 retailMarkupPharmacy 'Оптовая надбавка' (priceGroup, price, date) =
-    GROUP LAST retailMarkup(PharmacyPriceInterval interval)
-          BY pharmacyGroupPharmacy(interval), NUMERIC[16,4] price, DATE date
+    GROUP
+          BY pharmacyGroupPharmacy(PharmacyPriceInterval interval), NUMERIC[16,4] price, DATE date LAST retailMarkup(interval)
           ORDER pricePharmacy(interval), interval
           WHERE pharmacyExchange(price AS NUMERIC[16,4], date) > pricePharmacy(interval) AND
                 date >= fromDatePharmacy(interval) AND NOT date > toDatePharmacy(interval) COMPLEX;

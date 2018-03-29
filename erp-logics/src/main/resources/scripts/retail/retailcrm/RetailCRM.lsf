@@ -142,8 +142,8 @@ in 'В акции' (Promotion promotion, Store store) =
               in(promotion, storeType(store)))
     AND isCompany(store) MATERIALIZED;
 
-stores 'Магазины' (promotion) = GROUP CONCAT Store.name(Store store) IF in(Promotion promotion, store), ', '
-                                              BY promotion
+stores 'Магазины' (promotion) = GROUP
+                                              BY Promotion promotion CONCAT Store.name(Store store) IF in(promotion, store), ', '
                                               ORDER store MATERIALIZED CHARWIDTH 20;
 
 minSumBill 'Сумма чека (от)' (promotion) = DATA NUMERIC[16,4] (Promotion);
@@ -176,7 +176,7 @@ dateTo 'Действует (до)' (PromotionCondition promotionCondition) = dat
 orderPromotionType = orderPromotionType(promotion(PromotionCondition condition));
 nameOrderPromotionType 'Поряок применения акции' = staticCaption(orderPromotionType(PromotionCondition condition));
 
-countPromotionCondition 'Кол-во условий' (promotion) = GROUP SUM 1 IF promotion(PromotionCondition promotionCondition) == Promotion promotion BY promotion MATERIALIZED;
+countPromotionCondition 'Кол-во условий' (promotion) = GROUP BY Promotion promotion SUM 1 IF promotion(PromotionCondition promotionCondition) == promotion MATERIALIZED;
 
 minQuantity 'Количество (от)' = DATA NUMERIC[14,3] (PromotionCondition);
 CONSTRAINT minQuantity(PromotionCondition promotionCondition) <= 0.0 MESSAGE 'Количество в условии акции должно быть строго больше 0';
@@ -200,8 +200,8 @@ userSet 'Задается кассиром' (PromotionCondition promotionConditi
 // skuGroup
 TABLE promotionConditionSkuGroup (PromotionCondition, SkuGroup);
 inData 'В условии' = DATA BOOLEAN (PromotionCondition, SkuGroup);
-inParent (promotionCondition, skuGroup) = GROUP SUM 1 IF inData(PromotionCondition promotionCondition, SkuGroup parent) AND isParent(SkuGroup child, parent)
-                                                                          BY promotionCondition, child MATERIALIZED;
+inParent (promotionCondition, skuGroup) = GROUP
+                                                                          BY PromotionCondition promotionCondition, SkuGroup child SUM 1 IF inData(promotionCondition, SkuGroup parent) AND isParent(child, parent) MATERIALIZED;
 in 'В условии' = inParent(PromotionCondition promotionCondition, SkuGroup skuGroup) OR inData(promotionCondition, skuGroup);
 
 // sku

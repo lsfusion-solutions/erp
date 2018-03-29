@@ -21,9 +21,9 @@ DESIGN options {
     }
 }
 
-nearestOrderDetail = GROUP MAX OrderDetail d 
-    IF shipmentDate(d) <= DATE dt AND isPosted(d) AND NOT isClosed(d) AND toInvoice(d)
-    BY sku(d), supplierStock(d), customerStock(d), dt;
+nearestOrderDetail = GROUP
+    BY sku(OrderDetail d), supplierStock(d), customerStock(d), DATE dt MAX d 
+    IF shipmentDate(d) <= dt AND isPosted(d) AND NOT isClosed(d) AND toInvoice(d);
     
 supplierStock(TerminalDocument d) = IF skipPrefix(terminalHandbookType1(purchaseInvoiceTerminalDocumentType())) THEN stock(idTerminalHandbookType1(d))
     ELSE stock(replace(idTerminalHandbookType1(d),idTerminalHandbookType1(purchaseInvoiceTerminalDocumentType()),''));

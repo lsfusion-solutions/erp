@@ -136,36 +136,36 @@ CONSTRAINT isPosted(GeneralLedger ledger) AND reportinGeneralLedger() AND date(l
 META  defineGLAccountSum (caption, concrete, prefix)
     // без учета текущей даты
     prefix###sumB###concrete 'Сумма на начало дня '###caption (GLAccount GLAccount, LegalEntity company, DATE date) = sum###concrete(GLAccount, company)
-                                                                      (-) [= GROUP SUM sum###concrete(GLAccount GLAccount, LegalEntity company, DATE dateIn) IF dateIn >= DATE date
-                                                                                 BY GLAccount, company, date](GLAccount, company, date);
+                                                                      (-) [= GROUP
+                                                                                 BY GLAccount GLAccount, LegalEntity company, DATE date SUM sum###concrete(GLAccount, company, DATE dateIn) IF dateIn >= date](GLAccount, company, date);
     // с учетом текущей даты
     prefix###sumA###concrete 'Сумма на конец дня '###caption (GLAccount GLAccount, LegalEntity company, DATE date) = sum###concrete(GLAccount, company)
-                                                                     (-) [= GROUP SUM sum###concrete(GLAccount GLAccount, LegalEntity company, DATE dateIn) IF dateIn > DATE date
-                                                                                BY GLAccount, company, date](GLAccount, company, date);
+                                                                     (-) [= GROUP
+                                                                                BY GLAccount GLAccount, LegalEntity company, DATE date SUM sum###concrete(GLAccount, company, DATE dateIn) IF dateIn > date](GLAccount, company, date);
 END
 META defineGLAccountBalance (caption, prefix)
     prefix###balanceAGL 'Сальдо на начало дня '###caption (GLAccount GLAccount, LegalEntity company, DATE date) =  prefix###sumADebit(GLAccount, company, date) (-) prefix###sumACredit(GLAccount, company, date);
     prefix###balanceBGL 'Сальдо на конец дня '###caption (GLAccount GLAccount, LegalEntity company, DATE date) =  prefix###sumBDebit(GLAccount, company, date) (-) prefix###sumBCredit(GLAccount, company, date);
 END
 
-sumCredit 'Сумма (кредит)' (GLAccount, company)= GROUP SUM sum(GeneralLedger ledger) IF isPosted(ledger) BY credit(ledger), legalEntity(ledger);
-sumDebit 'Сумма (дебет)' (GLAccount, company)= GROUP SUM sum(GeneralLedger ledger) IF isPosted(ledger) BY debit(ledger), legalEntity(ledger);
+sumCredit 'Сумма (кредит)' (GLAccount, company)= GROUP BY credit(GeneralLedger ledger), legalEntity(ledger) SUM sum(ledger) IF isPosted(ledger);
+sumDebit 'Сумма (дебет)' (GLAccount, company)= GROUP BY debit(GeneralLedger ledger), legalEntity(ledger) SUM sum(ledger) IF isPosted(ledger);
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company)= sumDebit(GLAccount, company) (-) sumCredit(GLAccount, company);
 
 TABLE GLAccountLegalEntityDate(GLAccount, LegalEntity, DATE);
-sumCredit 'Сумма (кредит)' (GLAccount, company, date)= GROUP SUM sum(GeneralLedger ledger) IF isPosted(ledger)
-    BY credit(ledger), legalEntity(ledger), date(ledger);
-sumDebit 'Сумма (дебет)' (GLAccount, company, date)= GROUP SUM sum(GeneralLedger ledger) IF isPosted(ledger)
-    BY debit(ledger), legalEntity(ledger), date(ledger);
+sumCredit 'Сумма (кредит)' (GLAccount, company, date)= GROUP
+    BY credit(GeneralLedger ledger), legalEntity(ledger), date(ledger) SUM sum(ledger) IF isPosted(ledger);
+sumDebit 'Сумма (дебет)' (GLAccount, company, date)= GROUP
+    BY debit(GeneralLedger ledger), legalEntity(ledger), date(ledger) SUM sum(ledger) IF isPosted(ledger);
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, DATE date) =
     sumDebit(GLAccount, company, date) (-) sumCredit(GLAccount, company, date);
 
-sumCredit 'Сумма (кредит)' (GLAccount, company, dateFrom, dateTo) = GROUP SUM
-        sumCredit(GLAccount GLAccount, LegalEntity company, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY GLAccount, company, dateFrom, dateTo;
-sumDebit 'Сумма (дебет)' (GLAccount, company, dateFrom, dateTo) = GROUP SUM
-        sumDebit(GLAccount GLAccount, LegalEntity company, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY GLAccount, company, dateFrom, dateTo;
+sumCredit 'Сумма (кредит)' (GLAccount, company, dateFrom, dateTo) = GROUP
+        BY GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo SUM
+        sumCredit(GLAccount, company, DATE date) IF date >= dateFrom AND date <= dateTo;
+sumDebit 'Сумма (дебет)' (GLAccount, company, dateFrom, dateTo) = GROUP
+        BY GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo SUM
+        sumDebit(GLAccount, company, DATE date) IF date >= dateFrom AND date <= dateTo;
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo) =
     sumDebit(GLAccount, company, dateFrom, dateTo) (-) sumCredit(GLAccount, company, dateFrom, dateTo);
 
@@ -174,24 +174,24 @@ balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, DATE dateFrom,
 @defineGLAccountBalance ( , );
 
 //- Рекурсивно
-recSumCredit 'Сумма (кредит)' (GLAccount, company)=  GROUP SUM sumCredit(GLAccount child, LegalEntity company)
-    IF isParent(child, GLAccount GLAccount) BY GLAccount, company;
-recSumDebit 'Сумма (дебет)' (GLAccount, company)=  GROUP SUM sumDebit(GLAccount child, LegalEntity company)
-    IF isParent(child, GLAccount GLAccount) BY GLAccount, company;
+recSumCredit 'Сумма (кредит)' (GLAccount, company)=  GROUP BY GLAccount GLAccount, LegalEntity company SUM sumCredit(GLAccount child, company)
+    IF isParent(child, GLAccount);
+recSumDebit 'Сумма (дебет)' (GLAccount, company)=  GROUP BY GLAccount GLAccount, LegalEntity company SUM sumDebit(GLAccount child, company)
+    IF isParent(child, GLAccount);
 recBalance 'Сальдо' (GLAccount GLAccount, LegalEntity company)=
     recSumDebit(GLAccount, company) (-) recSumCredit(GLAccount, company);
 
-recSumCredit 'Сумма (кредит)' (GLAccount, company, date)=  GROUP SUM sumCredit(GLAccount child, LegalEntity company, DATE date)
-    IF isParent(child, GLAccount GLAccount) BY GLAccount, company, date;
-recSumDebit 'Сумма (дебет)' (GLAccount, company, date)=  GROUP SUM sumDebit(GLAccount child, LegalEntity company, DATE date)
-    IF isParent(child, GLAccount GLAccount) BY GLAccount, company, date;
+recSumCredit 'Сумма (кредит)' (GLAccount, company, date)=  GROUP BY GLAccount GLAccount, LegalEntity company, DATE date SUM sumCredit(GLAccount child, company, date)
+    IF isParent(child, GLAccount);
+recSumDebit 'Сумма (дебет)' (GLAccount, company, date)=  GROUP BY GLAccount GLAccount, LegalEntity company, DATE date SUM sumDebit(GLAccount child, company, date)
+    IF isParent(child, GLAccount);
 recBalance 'Сальдо' (GLAccount GLAccount, LegalEntity company, DATE date) =
     recSumDebit(GLAccount, company, date) (-) recSumCredit(GLAccount, company, date);
 
-recSumCredit 'Сумма (кредит)' (GLAccount, company, dateFrom, dateTo)=  GROUP SUM sumCredit(GLAccount child, LegalEntity company, DATE dateFrom, DATE dateTo)
-    IF isParent(child, GLAccount GLAccount) BY GLAccount, company, dateFrom, dateTo;
-recSumDebit 'Сумма (дебет)' (GLAccount, company, dateFrom, dateTo)=  GROUP SUM sumDebit(GLAccount child, LegalEntity company, DATE dateFrom, DATE dateTo)
-    IF isParent(child, GLAccount GLAccount) BY GLAccount, company, dateFrom, dateTo;
+recSumCredit 'Сумма (кредит)' (GLAccount, company, dateFrom, dateTo)=  GROUP BY GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo SUM sumCredit(GLAccount child, company, dateFrom, dateTo)
+    IF isParent(child, GLAccount);
+recSumDebit 'Сумма (дебет)' (GLAccount, company, dateFrom, dateTo)=  GROUP BY GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo SUM sumDebit(GLAccount child, company, dateFrom, dateTo)
+    IF isParent(child, GLAccount);
 recBalance 'Сальдо' (GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo) =
     recSumDebit(GLAccount, company, dateFrom, dateTo) (-) recSumCredit(GLAccount, company, dateFrom, dateTo);
 

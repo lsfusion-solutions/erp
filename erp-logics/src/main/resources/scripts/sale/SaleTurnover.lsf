@@ -12,13 +12,13 @@ soldSum 'Продано' = DATA NUMERIC[16,2] (LegalEntity, Stock, DATE);
 turnover 'Товарооборачиваемость, дн.' (LegalEntity su, Stock st, DATE dt) = NUMERIC[12,3](cumBalance(su, st, dt) /
     soldSum(su, st, dt));     
     
-cumBalance 'Остаток'= GROUP SUM cumBalance(LegalEntity su, Stock st, DATE date) BY su,date;
-soldSum 'Продано'= GROUP SUM soldSum(LegalEntity su, Stock st, DATE date) BY su,date;
+cumBalance 'Остаток'= GROUP BY LegalEntity su,DATE date SUM cumBalance(su, Stock st, date);
+soldSum 'Продано'= GROUP BY LegalEntity su,DATE date SUM soldSum(su, Stock st, date);
 turnover 'Товарооборачиваемость, дн.' (LegalEntity su,  DATE date) = NUMERIC[12,3](cumBalance(su, date) /
     soldSum(su, date));     
     
-cumBalance 'Остаток'= GROUP SUM cumBalance(LegalEntity su, Stock st, DATE date) IF DATE df <= date AND date <= DATE dt BY su,df,dt;
-soldSum 'Продано'= GROUP SUM soldSum(LegalEntity su, Stock st, DATE date) IF DATE df <= date AND date <= DATE dt BY su,df,dt;
+cumBalance 'Остаток'= GROUP BY LegalEntity su,DATE df,DATE dt SUM cumBalance(su, Stock st, DATE date) IF df <= date AND date <= dt;
+soldSum 'Продано'= GROUP BY LegalEntity su,DATE df,DATE dt SUM soldSum(su, Stock st, DATE date) IF df <= date AND date <= dt;
 turnover 'Товарооборачиваемость, дн.' (LegalEntity su,  DATE df, DATE dt) = NUMERIC[12,3](cumBalance(su, df, dt) /
     soldSum(su, df, dt));     
        
@@ -41,18 +41,18 @@ takeSupplier 'Рассчитать товарооборачиваемость (�
 	            
 	        dateCur() <- sum(date, -1);
 	
-	        balance(LegalEntity su, Stock st) <- NUMERIC[16,2]( [= GROUP SUM balanceA(Batch batch, Stock stock, DATE dt)*cost(batch) BY supplier(batch),stock,dt](su,st,dateCur())) WHERE isCompany(st) AND active(st) AND isSupplier(su);
+	        balance(LegalEntity su, Stock st) <- NUMERIC[16,2]( [= GROUP BY supplier(Batch batch),Stock stock,DATE dt SUM balanceA(batch, stock, dt)*cost(batch)](su,st,dateCur())) WHERE isCompany(st) AND active(st) AND isSupplier(su);
 	        
 	        WHILE dateCur() >= sum(date, -daysToTurnover()) DO {
 	                  
 	
 	                                        
-	            soldSum (LegalEntity su, Stock st, DATE dt) <- NUMERIC[16,2]( [= GROUP SUM sumSold(Batch batch, Stock stock, DATE dt) BY supplier(batch),stock,dt](su,st,dt)) 
+	            soldSum (LegalEntity su, Stock st, DATE dt) <- NUMERIC[16,2]( [= GROUP BY supplier(Batch batch),Stock stock,DATE dt SUM sumSold(batch, stock, dt)](su,st,dt)) 
 	                                        WHERE isCompany(st) AND active(st) AND isSupplier(su) AND dt == dateCur();                 
 	            
 	            
 	            balance(LegalEntity su, Stock st) <- balance(su, st) (-)
-	                                                 NUMERIC[16,2]( [= GROUP SUM signedQuantity(Batch batch, Stock stock, DATE dt)*cost(batch) BY supplier(batch),stock,dt](su,st,dateCur())) 
+	                                                 NUMERIC[16,2]( [= GROUP BY supplier(Batch batch),Stock stock,DATE dt SUM signedQuantity(batch, stock, dt)*cost(batch)](su,st,dateCur())) 
 	                                        WHERE isCompany(st) AND active(st) AND isSupplier(su); 
 	                                                   
 	            cumBalance (LegalEntity su, Stock st, DATE dt) <- balance(su, st)

@@ -35,7 +35,7 @@ CLASS PromotionType 'Тип акции';
 TABLE promotionType (PromotionType);
 
 id 'Код' = DATA VARISTRING[100] (PromotionType) IN base;
-promotionType(id) = GROUP AGGR (PromotionType type) BY id(type);
+promotionType(id) = GROUP BY id(PromotionType type) AGGR (type);
 
 name 'Наименование' = DATA VARSTRING[100] (PromotionType) IN base CHARWIDTH 10;
 
@@ -51,7 +51,7 @@ CLASS ExtraPromotionType 'Тип подакции';
 TABLE extraPromotionType (ExtraPromotionType);
 
 id 'Код' = DATA VARSTRING[100] (ExtraPromotionType) IN base;
-extraPromotionType(id) = GROUP AGGR (ExtraPromotionType type) BY id(type);
+extraPromotionType(id) = GROUP BY id(ExtraPromotionType type) AGGR (type);
 
 name 'Наименование' = DATA VARSTRING[100] (ExtraPromotionType) IN base CHARWIDTH 10;
 
@@ -75,18 +75,18 @@ nameSku 'Товар' (PromotionDetail detail) = name(sku(detail));
 
 TABLE promotionDetailLegalEntity (PromotionDetail, LegalEntity);
 countStocks 'Количество складов компании' = DATA INTEGER (PromotionDetail, LegalEntity);
-nameSuppliers 'Поставщики' = GROUP CONCAT name(LegalEntity company) IF countStocks(PromotionDetail detail, company), ', ' BY detail  CHARWIDTH 30;
-in (Promotion p, LegalEntity c) = TRUE IF [= GROUP SUM countStocks(PromotionDetail detail, LegalEntity company) BY promotion(detail), company](p,c);
+nameSuppliers 'Поставщики' = GROUP BY PromotionDetail detail CONCAT name(LegalEntity company) IF countStocks(detail, company), ', '  CHARWIDTH 30;
+in (Promotion p, LegalEntity c) = TRUE IF [= GROUP BY promotion(PromotionDetail detail), LegalEntity company SUM countStocks(detail, company)](p,c);
 
 recalculateCountStocks (PromotionDetail d) = {
-    countStocks(d, LegalEntity company) <- [= GROUP SUM 1 IF priceA(defaultPriceListType(),sku(PromotionDetail detail), Stock stock, LegalEntity company, toDateTime(fromDate(detail))) BY detail, company](d, company);
+    countStocks(d, LegalEntity company) <- [= GROUP BY PromotionDetail detail, LegalEntity company SUM 1 IF priceA(defaultPriceListType(),sku(detail), Stock stock, company, toDateTime(fromDate(detail)))](d, company);
 }
 
 CLASS Flyer 'Листовка';
 TABLE flyer (Flyer);
 
 id 'Код' = DATA VARSTRING[100] (Flyer) IN base;
-flyer(id) = GROUP AGGR (Flyer flyer) BY id(flyer);
+flyer(id) = GROUP BY id(Flyer flyer) AGGR (flyer);
 
 name 'Наименование' = DATA VARSTRING[100] (Flyer) IN base CHARWIDTH 10;
 
@@ -110,7 +110,7 @@ recalculateValueVAT (PromotionDetail d) = {
 
 price 'Стандартная цена без НДС' = DATA NUMERIC[16,4] (PromotionDetail);
 recalculatePrice (PromotionDetail d) = {
-    price(d) <- [=GROUP MAX prevPriceA(defaultPriceListType(), sku(PromotionDetail detail), Stock stock, toDateTime(fromDate(detail))) BY detail](d);
+    price(d) <- [=GROUP BY PromotionDetail detail MAX prevPriceA(defaultPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail)))](d);
 }
 
 markup 'Стандартная наценка' = DATA NUMERIC[8,3] (PromotionDetail);
@@ -127,7 +127,7 @@ CLASS StatusSku 'Статус товара';
 TABLE statusSku (StatusSku);
 
 id 'Код' = DATA VARSTRING[100] (StatusSku) IN base;
-statusSku(id) = GROUP AGGR (StatusSku status) BY id(status);
+statusSku(id) = GROUP BY id(StatusSku status) AGGR (status);
 
 name 'Наименование' = DATA VARSTRING[100] (StatusSku) IN base CHARWIDTH 10;
 
@@ -138,7 +138,7 @@ CLASS PromoType 'Тип промо';
 TABLE promoType (PromoType);
 
 id 'Код' = DATA VARSTRING[100] (PromoType) IN base;
-promoType(id) = GROUP AGGR (PromoType type) BY id(type);
+promoType(id) = GROUP BY id(PromoType type) AGGR (type);
 
 name 'Наименование' = DATA VARSTRING[100] (PromoType) IN base CHARWIDTH 10;
 
@@ -154,7 +154,7 @@ CLASS DiscountType 'Тип скидки';
 TABLE discountType (DiscountType);
 
 id 'Код' = DATA VARSTRING[100] (DiscountType) IN base;
-discountType(id) = GROUP AGGR (DiscountType type) BY id(type);
+discountType(id) = GROUP BY id(DiscountType type) AGGR (type);
 
 name 'Наименование' = DATA VARSTRING[100] (DiscountType) IN base CHARWIDTH 10;
 
@@ -165,7 +165,7 @@ CLASS DiscountingType 'Тип начисления скидки';
 TABLE discountingType (DiscountingType);
 
 id 'Код' = DATA VARSTRING[100] (DiscountingType) IN base;
-discountingType(id) = GROUP AGGR (DiscountingType type) BY id(type);
+discountingType(id) = GROUP BY id(DiscountingType type) AGGR (type);
 
 name 'Наименование' = DATA VARSTRING[100] (DiscountingType) IN base CHARWIDTH 10;
 
@@ -378,7 +378,7 @@ DESIGN options {
 
 WHEN LOCAL FORMS promotion (CHANGED(sku(PromotionDetail detail)) OR CHANGED(fromDate(detail))) DO {
     recalculatePrices(detail);
-    retailPrice(detail) <- [=GROUP MAX prevPriceA(retailPriceListType(), sku(PromotionDetail detail), Stock stock, toDateTime(fromDate(detail))) BY detail](detail);
+    retailPrice(detail) <- [=GROUP BY PromotionDetail detail MAX prevPriceA(retailPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail)))](detail);
 }
 WHEN LOCAL FORMS promotion (CHANGED(promotionPrice(PromotionDetail detail)) OR CHANGED(price(detail))) AND price(detail) > 0.0 DO {
     supplierPromotionDiscount(detail) <- NUMERIC[8,3]((1.0 - promotionPrice(detail)/price(detail)) * 100.0);
@@ -553,7 +553,7 @@ createPriceList 'Создать прайсы' (Promotion p) = {
             currency(priceList) <- defaultCurrency(operation(priceList));
             note(priceList) <- name(p);
             
-            dataIn(priceList, Stock stock) <- TRUE IF [= GROUP SUM 1 IF prevPriceA(defaultPriceListType(), sku(PromotionDetail d), Stock stock, LegalEntity company, DATETIME dateTime) BY promotion(d), stock, company, dateTime](p, stock, company, toDateTime(fromDate(p))) ;
+            dataIn(priceList, Stock stock) <- TRUE IF [= GROUP BY promotion(PromotionDetail d), Stock stock, LegalEntity company, DATETIME dateTime SUM 1 IF prevPriceA(defaultPriceListType(), sku(d), stock, company, dateTime)](p, stock, company, toDateTime(fromDate(p))) ;
             
             in(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
             show(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();

@@ -42,8 +42,8 @@ fillFromToBalance 'Заполнить с остатками' (GroupType gt, DATE
     averagePriceStore(Sku sk) <- NULL;  
     averageMarkup(Sku sk) <- NULL;  
 
-    balanceAStore(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM balanceA(Sku sk, Stock st, DATE date) IF inSaleReport(st) AND st IS DepartmentStore BY sk, date](sk, dt));           
-    balanceAWarehouse(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM balanceA(Sku sk, Stock st, DATE date) IF inSaleReportWarehouse(st) BY sk, date](sk, dt));   
+    balanceAStore(Sku sk) <- NUMERIC[16,5]([ = GROUP BY Sku sk, DATE date SUM balanceA(sk, Stock st, date) IF inSaleReport(st) AND st IS DepartmentStore](sk, dt));           
+    balanceAWarehouse(Sku sk) <- NUMERIC[16,5]([ = GROUP BY Sku sk, DATE date SUM balanceA(sk, Stock st, date) IF inSaleReportWarehouse(st)](sk, dt));   
     balanceATotal(Sku sk) <- balanceAStore(sk) (+) balanceAWarehouse(sk);           
     balanceADays(Sku sk) <- NUMERIC[13,2](balanceATotal(sk) / quantityStock(sk)) IF quantityStock(sk);           
     averageCost(Sku sk) <- NUMERIC[18,4](costSumStock(sk) / quantityStock(sk)) IF quantityStock(sk);   
@@ -55,7 +55,7 @@ fillFromToBalance 'Заполнить с остатками' (GroupType gt, DATE
 
 fillFromToPrice 'Сформировать цену' (GroupType gt, DATE df, DATE dt) = {
     maxPrice(Sku sk) <- NULL;  
-    maxPrice(Sku sk) <- NUMERIC[16,4]([ = GROUP MAX averagePrice(SaleLedger l) IF active(l) AND inSaleReport(stock(l)) AND date(l) >= DATE df AND date(l) <= DATE dt BY sku(l), df, dt](sk, df, dt));   
+    maxPrice(Sku sk) <- NUMERIC[16,4]([ = GROUP BY sku(SaleLedger l), DATE df, DATE dt MAX averagePrice(l) IF active(l) AND inSaleReport(stock(l)) AND date(l) >= df AND date(l) <= dt](sk, df, dt));   
 }
 
 changeWarehousesSalesReport(GroupType gt, DATE df, DATE dt) = {

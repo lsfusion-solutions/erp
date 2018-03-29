@@ -43,7 +43,7 @@ TABLE ware(Ware);
 id(Ware sku) += id(sku);
 
 name 'Наименование' = DATA VARISTRING[100](Ware);
-wareName = GROUP AGGR Ware ware BY name(ware); 
+wareName = GROUP BY name(Ware ware) AGGR ware; 
 
 wareGroup = DATA WareGroup(Ware) AUTOSET NONULL;
 skuGroup(Ware ware) += wareGroup(ware);
@@ -64,8 +64,8 @@ TABLE wareDate(Ware, DATE);
 
 dataPrice 'Цена' = DATA NUMERIC[16,4] (Ware, DATE) IN base;
 
-price 'Цена' (ware, date) = GROUP LAST  dataPrice(Ware ware, DATE dateIn)
-                                                                     BY    ware, DATE date
+price 'Цена' (ware, date) = GROUP
+                                                                     BY    Ware ware, DATE date LAST  dataPrice(ware, DATE dateIn)
                                                                      ORDER dateIn
                                                                      WHERE dataPrice(ware, dateIn) AND dateIn <= (date AS DATE) IN base;
 
@@ -233,8 +233,8 @@ TABLE customGroupTypeWareGroup(CustomGroupType, WareGroup);
 dataCustomGroup 'Дополнительная группа (по умолчанию)' = DATA CustomGroup (CustomGroupType, WareGroup);
 dataNameCustomGroupCustomGroup 'Дополнительная группа (по умолчанию)' (CustomGroupType customGroupType, WareGroup wareGroup) = name(dataCustomGroup(customGroupType, wareGroup));
 
-levelParentCustomGroup (customGroupType, wareGroup) = GROUP MIN level(WareGroup wareGroup, WareGroup parent) IF dataCustomGroup(CustomGroupType customGroupType, parent)
-                                                              BY customGroupType, wareGroup MATERIALIZED;    
+levelParentCustomGroup (customGroupType, wareGroup) = GROUP
+                                                              BY CustomGroupType customGroupType, WareGroup wareGroup MIN level(wareGroup, WareGroup parent) IF dataCustomGroup(customGroupType, parent) MATERIALIZED;    
 nearestParentCustomGroup (CustomGroupType customGroupType, WareGroup wareGroup) = wareGroup(wareGroup, levelParentCustomGroup(customGroupType, wareGroup));
 nearestCustomGroup (CustomGroupType customGroupType, WareGroup wareGroup) = dataCustomGroup(customGroupType, nearestParentCustomGroup (customGroupType, wareGroup));
 

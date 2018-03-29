@@ -14,11 +14,11 @@ inExtraCharge 'Вкл.' (Invoice invoice, UserInvoiceDetail detail) =
     OVERRIDE inDataExtraCharge(invoice, detail), inExtraCharge(invoice, userInvoice(detail));
 inExtraCharge(Invoice invoice, UserInvoiceDetail detail) += inExtraCharge(invoice, detail);
 
-inExtraCharge (charge, invoice) = GROUP SUM 1 IF inExtraCharge(Invoice charge, InvoiceDetail d) BY charge, invoice(d);
-nameSuppliers 'Поставщики' =GROUP CONCAT  nameSupplier(Invoice invoice) IF inExtraCharge(Invoice charge, invoice), '; ' 
-    BY charge ORDER invoice CHARWIDTH 20;
-seriesNumberSuppliers 'Накладные' =GROUP CONCAT  seriesNumber(Invoice invoice) IF inExtraCharge(Invoice charge, invoice), '; ' 
-    BY charge ORDER invoice CHARWIDTH 20;  
+inExtraCharge (charge, invoice) = GROUP BY Invoice charge, invoice(InvoiceDetail d) SUM 1 IF inExtraCharge(charge, d);
+nameSuppliers 'Поставщики' =GROUP 
+    BY Invoice charge CONCAT  nameSupplier(Invoice invoice) IF inExtraCharge(charge, invoice), '; ' ORDER invoice CHARWIDTH 20;
+seriesNumberSuppliers 'Накладные' =GROUP 
+    BY Invoice charge CONCAT  seriesNumber(Invoice invoice) IF inExtraCharge(charge, invoice), '; ' ORDER invoice CHARWIDTH 20;  
 
 overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) += {      
     inDataExtraCharge(Invoice i,d) <- inDataExtraCharge(i,detail);
@@ -49,11 +49,11 @@ changeExtraChargeSum(Invoice i, UserInvoiceDetail d) = {
 extraChargeSum (Invoice i, UserInvoiceDetail d) <- NUMERIC[18,4](round(quantity(d) * extraChargePrice(i,d), currency(i)))
                 WHEN DO CHANGED(quantity(d)) OR CHANGED (extraChargePrice(i,d)) OR CHANGED(currency(i));
 
-extraChargeSumInvoiceDetail 'Сумма доп. услуг (расписанная)' = GROUP SUM extraChargeSum(Invoice i,InvoiceDetail d) BY i;
-extraChargeSumUserInvoiceDetail 'Сумма доп. услуг (расписанная)' = GROUP SUM extraChargeSum(Invoice i,UserInvoiceDetail d) BY i;
+extraChargeSumInvoiceDetail 'Сумма доп. услуг (расписанная)' = GROUP BY Invoice i SUM extraChargeSum(i,InvoiceDetail d);
+extraChargeSumUserInvoiceDetail 'Сумма доп. услуг (расписанная)' = GROUP BY Invoice i SUM extraChargeSum(i,UserInvoiceDetail d);
 
-extraChargePrice 'Цена доп. услуг' (o, d) = GROUP SUM extraChargePrice(Invoice i,UserInvoiceDetail d) IF isPosted(i) BY operation(i),d;
-extraChargeSum  'Сумма доп. услуг' (o, d) = GROUP SUM extraChargeSum(Invoice i,UserInvoiceDetail d) IF isPosted(i) BY operation(i),d;
+extraChargePrice 'Цена доп. услуг' (o, d) = GROUP BY operation(Invoice i),UserInvoiceDetail d SUM extraChargePrice(i,d) IF isPosted(i);
+extraChargeSum  'Сумма доп. услуг' (o, d) = GROUP BY operation(Invoice i),UserInvoiceDetail d SUM extraChargeSum(i,d) IF isPosted(i);
 
 @defineOperationProperty(showExtraCharge, 'Доп. услуги', chargeContainer);
 @defineDocumentInterfaceProperty (invoice, showExtraCharge, 'Доп. услуги');
@@ -182,8 +182,8 @@ EXTEND FORM userInvoice
     PROPERTIES TOOLBAR TODRAW uid SHOWIF showExtraCharge(i)  selectExtraCharge(i), fillExtraChargePriceUser(i)
 ;
 
-calcExtraChargePrice (d) = GROUP SUM extraChargePrice(UserInvoice i,UserInvoiceDetail d) IF isPosted(i) BY d; //IF isPostedUserInvoiceDetail(d)
-calcExtraChargeSum (d) = GROUP SUM extraChargeSum(UserInvoice i,UserInvoiceDetail d) IF isPosted(i) BY d; //IF isPostedUserInvoiceDetail(d)
+calcExtraChargePrice (d) = GROUP BY UserInvoiceDetail d SUM extraChargePrice(UserInvoice i,d) IF isPosted(i); //IF isPostedUserInvoiceDetail(d)
+calcExtraChargeSum (d) = GROUP BY UserInvoiceDetail d SUM extraChargeSum(UserInvoice i,d) IF isPosted(i); //IF isPostedUserInvoiceDetail(d)
 
 WHEN CHANGED(calcExtraChargePrice(UserInvoiceDetail d)) DO
     chargePrice (d) <- calcExtraChargePrice(d);

@@ -9,12 +9,12 @@ statusStopList 'Запрет продаж' (RepricingDetail d)= IF skipMachinery
     ELSE 'Нет запрета' CHARWIDTH 10;
 backgroundStopList 'Цвет' (RepricingDetail d) = RGB (255,0,0) IF skipMachineryPriceTransaction(sku(d), departmentStore(d), currentDateTime());
 
-countInStopList 'Количество товаров в стоп-листе ' (i,s)= GROUP SUM 1 
-    IF skipMachineryPriceTransaction(sku(RepricingDetail d), departmentStore(d), currentDateTime()) 
-          BY repricing(d), sku(d);
+countInStopList 'Количество товаров в стоп-листе ' (i,s)= GROUP 
+          BY repricing(RepricingDetail d), sku(d) SUM 1 
+    IF skipMachineryPriceTransaction(sku(d), departmentStore(d), currentDateTime());
 
-countSkuInStopList 'Количество товаров в стоп-листе ' = GROUP SUM 1 
-    IF countInStopList(Repricing i,Sku s) BY i;
+countSkuInStopList 'Количество товаров в стоп-листе ' = GROUP BY Repricing i SUM 1 
+    IF countInStopList(i,Sku s);
             
 createReversStopList 'Исключить из стоп-листа'(Repricing repricing)  = {
 

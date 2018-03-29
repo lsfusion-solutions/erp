@@ -14,24 +14,24 @@ discountSum 'Сумма скидки' = DATA NUMERIC[16,2] (Batch, Stock, Snapsh
 
 //-- По поставщикам
 discountSumBatch 'Сумма скидки' (supplier, snapshot) =
-    GROUP SUM discountSum (Batch batch, Stock stock, Snapshot snapshot) BY supplier(batch), snapshot;
+    GROUP BY supplier(Batch batch), Snapshot snapshot SUM discountSum (batch, Stock stock, snapshot);
 
 //-- По складу поставщика
 discountSumBatchSupplier 'Сумма скидки' (supplier, snapshot) =
-    GROUP SUM discountSum (Batch batch, Stock stock, Snapshot snapshot) BY supplierStock(batch), snapshot;
+    GROUP BY supplierStock(Batch batch), Snapshot snapshot SUM discountSum (batch, Stock stock, snapshot);
 
 //-- группа/склад       
 discountSum 'Сумма скидки' (group, stock, snapshot) =
-    GROUP SUM discountSum (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
-        BY group, stock, snapshot MATERIALIZED;  
+    GROUP
+        BY SkuGroup group, Stock stock, Snapshot snapshot SUM discountSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;  
         
 //-- группа         
 discountSum 'Сумма скидки' (group, snapshot) =
-    GROUP SUM discountSum (SkuGroup group, Stock stock, Snapshot snapshot)  BY group, snapshot;    
+    GROUP  BY SkuGroup group, Snapshot snapshot SUM discountSum (group, Stock stock, snapshot);    
                 
 //--По складам
 discountSum 'Сумма скидки' (stock, snapshot) =
-    GROUP SUM discountSum (SkuGroup group, Stock stock, Snapshot snapshot)  BY stock, snapshot;  
+    GROUP  BY Stock stock, Snapshot snapshot SUM discountSum (SkuGroup group, stock, snapshot);  
                      
 //-- Sku на дату
 discountSum 'Сумма скидки' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);        
@@ -39,7 +39,7 @@ discountSum 'Сумма скидки' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot
 //--По складам на дату     
 
 discountSum 'Сумма скидки' (stock, snapshot, date) =
-    GROUP SUM discountSum (Sku sku, Stock stock, Snapshot snapshot, DATE date)  BY stock, snapshot, date;    
+    GROUP  BY Stock stock, Snapshot snapshot, DATE date SUM discountSum (Sku sku, stock, snapshot, date);    
            
 nameDiscountSum (Stock st) = CONCAT ' ', name(st), ' (сумма скидки)';    
        
@@ -62,11 +62,11 @@ EXTEND FORM snapshotTypes
 @deriveDocumentSnapshotProperty(isDiscount);      
        
 //-- Расширяем ACTION    
-discountSum 'Скидка (сумма)' (sku, stock, date) =  GROUP SUM discountSum(SaleLedger ledger) BY sku[SkuLedger](ledger), stock[SkuLedger](ledger), date[SkuLedger](ledger);
+discountSum 'Скидка (сумма)' (sku, stock, date) =  GROUP BY sku[SkuLedger](SaleLedger ledger), stock[SkuLedger](ledger), date[SkuLedger](ledger) SUM discountSum(ledger);
   
-discountSum 'Скидка за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        discountSum(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, dateFrom, dateTo;  
+discountSum 'Скидка за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, DATE dateFrom, DATE dateTo SUM
+        discountSum(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;  
 
                     
 overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += {
@@ -90,11 +90,11 @@ overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += {
 };                                                                                                
                
 //-- Batch      
-discountSum 'Скидка (сумма)' (batch, stock, date) =  GROUP SUM discountSum(SaleLedger ledger) BY batch[SkuLedger](ledger), stock[SkuLedger](ledger), date[SkuLedger](ledger);
+discountSum 'Скидка (сумма)' (batch, stock, date) =  GROUP BY batch[SkuLedger](SaleLedger ledger), stock[SkuLedger](ledger), date[SkuLedger](ledger) SUM discountSum(ledger);
   
-discountSum 'Скидка за интервал (сумма)' (batch, stock, dateFrom, dateTo) = GROUP SUM
-        discountSum(Batch batch, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY batch, stock, dateFrom, dateTo;  
+discountSum 'Скидка за интервал (сумма)' (batch, stock, dateFrom, dateTo) = GROUP
+        BY Batch batch, Stock stock, DATE dateFrom, DATE dateTo SUM
+        discountSum(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;  
 
 overTakeBatchFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += {
     IF isDiscount(snapshot) THEN {

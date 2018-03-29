@@ -23,10 +23,10 @@ in 'Вкл' (DeliveryReport o, InternetOrderDetail d) = deliveryReport(d) == o;
 
 @defineDocumentHeaderCount(deliveryReport, InternetOrderDetail);
 
-relation = GROUP SUM 1 IF in(DeliveryReport o, InternetOrderDetail d) BY o, internetOrder(d);
+relation = GROUP BY DeliveryReport o, internetOrder(InternetOrderDetail d) SUM 1 IF in(o, d);
 
-seriesNumberInternetOrders 'Интернет-заказы' (deliveryReport) = GROUP CONCAT seriesNumber(InternetOrder order) IF relation(DeliveryReport deliveryReport, order) , ', '
-                                                 BY deliveryReport
+seriesNumberInternetOrders 'Интернет-заказы' (deliveryReport) = GROUP
+                                                 BY DeliveryReport deliveryReport CONCAT seriesNumber(InternetOrder order) IF relation(deliveryReport, order) , ', '
                                                  ORDER order  CHARWIDTH 30;   
 
 dataDeliveryReportIndex 'Номер строки' = DATA INTEGER (InternetOrderDetail) INDEXED; 
@@ -35,16 +35,16 @@ defaultDeliveryReportIndex 'Номер строки (авт.)' (InternetOrderDet
     ORDER internetOrder(d),d CHARWIDTH 4;
 indexDeliveryReport 'Номер строки' (InternetOrderDetail d) = OVERRIDE dataDeliveryReportIndex(d), defaultDeliveryReportIndex(d) IN recognize;
 
-pickingQuantityInternetOrderDetail 'Кол-во (всего) собрано' = GROUP SUM pickingQuantity(InternetOrderDetail d) 
-    BY deliveryReport(d) IN documentSum;
+pickingQuantityInternetOrderDetail 'Кол-во (всего) собрано' = GROUP 
+    BY deliveryReport(InternetOrderDetail d) SUM pickingQuantity(d) IN documentSum;
 
-pickingSumInternetOrderDetail'Сумма (всего) собрано' = GROUP SUM pickingSum(InternetOrderDetail d) 
-    BY deliveryReport(d) IN documentSum;
+pickingSumInternetOrderDetail'Сумма (всего) собрано' = GROUP 
+    BY deliveryReport(InternetOrderDetail d) SUM pickingSum(d) IN documentSum;
 
 // Возврат
 returnQuantity 'Возвращено' = DATA NUMERIC[16,5](InternetOrderDetail);
-returnQuantityInternetOrderDetail'Кол-во (всего) возвращено' = GROUP SUM returnQuantity(InternetOrderDetail d) 
-    BY deliveryReport(d) IN documentSum;
+returnQuantityInternetOrderDetail'Кол-во (всего) возвращено' = GROUP 
+    BY deliveryReport(InternetOrderDetail d) SUM returnQuantity(d) IN documentSum;
 
 
 CLASS StatusDeliveryReport 'Статус' {
@@ -71,9 +71,9 @@ seriesNumberPicking 'Номер комплектации' (InternetOrderDetail d
 
 
 countInternetOrderDetail 'Кол-во строк товара в документе'  = 
-    GROUP SUM 1 IF sku(InternetOrderDetail idetail)
-          BY  sku(idetail),
-              deliveryReport(idetail);   
+    GROUP
+          BY  sku(InternetOrderDetail idetail),
+              deliveryReport(idetail) SUM 1 IF sku(idetail);   
 editReturnQuantity  = ABSTRACT BOOLEAN (InternetOrderDetail);
 
 FORM deliveryReport 'Отчет курьера'
@@ -175,7 +175,7 @@ createDeliveryReport 'Создать отчет курьера' (InternetOrder o
     IF countInternetOrders() THEN  {       
     
         NEWSESSION {
-            FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT deliveryReport(d) BY Sale.supplierStock[InternetOrderDetail](d), carrier(internetOrder(d))](Stock stock, Carrier carrier) NEW r = DeliveryReport DO {
+            FOR [=GROUP BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail d), carrier(internetOrder(d)) SUM 1 IF select(internetOrder(d)) AND NOT deliveryReport(d)](Stock stock, Carrier carrier) NEW r = DeliveryReport DO {
                 carrier(r) <- carrier;
                 FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND carrier(internetOrder(detail)) == carrier AND select(internetOrder(detail)) AND NOT deliveryReport(detail) DO {
                     deliveryReport(detail) <- r;                        
@@ -190,13 +190,13 @@ createDeliveryReport 'Создать отчет курьера' (InternetOrder o
 }
 
 
-filterDashboardDelivery = GROUP SUM 1 IF InternetOrderDetail detail IS InternetOrderDetail AND NOT deliveryReport(detail) 
-        BY internetOrder(detail);
+filterDashboardDelivery = GROUP 
+        BY internetOrder(InternetOrderDetail detail) SUM 1 IF detail IS InternetOrderDetail AND NOT deliveryReport(detail);
 
 
-inStockDeliveryReport = GROUP SUM 1 BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail), deliveryReport(detail); 
-supplierStocks 'Склады поставщика' = GROUP CONCAT name(Stock stock) IF inStockDeliveryReport(stock, DeliveryReport deliveryReport), ', '  
-                                                                        BY deliveryReport 
+inStockDeliveryReport = GROUP BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail), deliveryReport(detail) SUM 1; 
+supplierStocks 'Склады поставщика' = GROUP  
+                                                                        BY DeliveryReport deliveryReport CONCAT name(Stock stock) IF inStockDeliveryReport(stock, deliveryReport), ', ' 
                                                                         ORDER name(stock) CHARWIDTH 30;
 filterDeliveryDashboard = ABSTRACT CASE BOOLEAN (InternetOrder);
 useFilterDeliveryDashboard = ABSTRACT BOOLEAN ();

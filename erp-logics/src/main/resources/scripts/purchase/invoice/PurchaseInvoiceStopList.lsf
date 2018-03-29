@@ -9,12 +9,12 @@ statusStopList 'Запрет продаж' (Purchase.InvoiceDetail d)= IF skipMa
     ELSE 'Нет запрета' CHARWIDTH 10;
 backgroundStopList 'Цвет' (Purchase.InvoiceDetail d) = RGB (255,0,0) IF skipMachineryPriceTransaction(sku(d), customerStock(d), currentDateTime());
 
-countInStopList 'Количество товаров в стоп-листе ' (i,s)= GROUP SUM 1 
-    IF skipMachineryPriceTransaction(sku(Purchase.UserInvoiceDetail d), customerStock(d), currentDateTime()) 
-          BY userInvoice(d), sku(d);
+countInStopList 'Количество товаров в стоп-листе ' (i,s)= GROUP 
+          BY userInvoice(UserInvoiceDetail d), sku(d) SUM 1 
+    IF skipMachineryPriceTransaction(sku(d), customerStock(d), currentDateTime());
 
-countSkuInStopList 'Количество товаров в стоп-листе ' = GROUP SUM 1 
-    IF countInStopList(Purchase.UserInvoice i,Sku s) BY i;
+countSkuInStopList 'Количество товаров в стоп-листе ' = GROUP BY UserInvoice i SUM 1 
+    IF countInStopList(i,Sku s);
             
 createReversStopList 'Исключить из стоп-листа'(Purchase.Invoice invoice)  = {
 

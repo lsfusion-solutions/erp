@@ -18,7 +18,7 @@ sum 'Сумма' = DATA NUMERIC[18,4](MultiRatePayment);
 
 rateExchange 'Курс'(MultiRatePayment p) = rateOn(typeExchange(invoice(p)), currency(invoice(p)), date(p));
 
-sumPayments  = GROUP SUM sum(MultiRatePayment p) BY invoice(p);
+sumPayments  = GROUP BY invoice(MultiRatePayment p) SUM sum(p);
 CONSTRAINT sumInvoiceDetail(Invoice i) < sumPayments(i) MESSAGE 'Сумма платежей больше, чем сумма накладной';
 
 CONSTRAINT date(MultiRatePayment p) > dateRateExchange(invoice(p)) MESSAGE 'Дата предоплаты больше, чем дата выпуска в обращение';
@@ -49,7 +49,7 @@ calcRateExchangeMulti(UserInvoice i) = {
         coeffInvoice(i) <- (sumInvoiceDetail(invoice(pt)) - sumPayments(invoice(pt))) / sumInvoiceDetail(invoice(pt));
     }
     
-    rateExchangeMulti(i) <- NUMERIC[14,6]([= GROUP SUM coeff(MultiRatePayment pt) * rateExchange(pt) BY invoice(pt)](i) (+) coeffInvoice(i)*rateExchange(i));
+    rateExchangeMulti(i) <- NUMERIC[14,6]([= GROUP BY invoice(MultiRatePayment pt) SUM coeff(pt) * rateExchange(pt)](i) (+) coeffInvoice(i)*rateExchange(i));
     FOR (userInvoice(UserInvoiceDetail d) == i) DO {
         dataRateExchange(d) <- rateExchangeMulti(i);
     }

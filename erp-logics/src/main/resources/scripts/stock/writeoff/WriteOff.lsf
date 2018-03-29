@@ -148,7 +148,7 @@ CLASS Reason 'Причина списания';
 TABLE reason (Reason);
 
 name 'Наименование' = DATA VARISTRING[50](Reason);
-reason = GROUP AGGR Reason r BY name(r);
+reason = GROUP BY name(Reason r) AGGR r;
 
 inactive 'Неактивная' = DATA BOOLEAN (Reason);
 active 'Активный' (Reason r) = r IS Reason AND NOT inactive(r);
@@ -680,8 +680,8 @@ EXTEND FORM writeOffs
     PROPERTIES show(w) SHOWIF showToShow(w) BEFORE editW
 ;
 
-firstOrderBatchBalance (Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q) = GROUP LAST Batch batch IF prevAvailableQuantity(batch, Stock stock, DATETIME dateTime) >= NUMERIC[16,5] q
-                                                   BY skuLedger(batch, stock), stock, dateTime, q
+firstOrderBatchBalance (Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q) = GROUP
+                                                   BY skuLedger(Batch batch, Stock stock), stock, DATETIME dateTime, NUMERIC[16,5] q LAST batch IF prevAvailableQuantity(batch, stock, dateTime) >= q
                                                    ORDER DESC dateTime(batch), batch COMPLEX;
 
 

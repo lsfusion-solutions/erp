@@ -18,14 +18,14 @@ DESIGN options {
 
 
 
-countToNotification 'Сертификаты, которым нужно сообщение' (compliance, date) = GROUP SUM 1 
-    IF currentBalance(Batch b) AND subtract(toDateCompliance(b), countDaysToEndCompliance()) <= DATE date
-        BY compliance(b), date;
+countToNotification 'Сертификаты, которым нужно сообщение' (compliance, date) = GROUP
+        BY compliance(Batch b), DATE date SUM 1 
+    IF currentBalance(b) AND subtract(toDateCompliance(b), countDaysToEndCompliance()) <= date;
     
-countToNotification 'Кол-во сертификатов' (date) = GROUP SUM 1 IF countToNotification(Compliance compliance, DATE date) BY date;   
+countToNotification 'Кол-во сертификатов' (date) = GROUP BY DATE date SUM 1 IF countToNotification(Compliance compliance, date);   
     
-compliancesToNotification 'Сертификаты' (date) = GROUP CONCAT description(Compliance c) IF countToNotification(c, DATE date), ' , '
-           BY date
+compliancesToNotification 'Сертификаты' (date) = GROUP
+           BY DATE date CONCAT description(Compliance c) IF countToNotification(c, date), ' , '
            ORDER description(c)
 ;  
 FORM emailCompliance 'Сертификаты'

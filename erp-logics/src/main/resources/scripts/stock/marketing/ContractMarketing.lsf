@@ -34,7 +34,7 @@ TABLE stockGroupContractMarketing (StockGroup, ContractMarketing);
 @defineInStockGroupObject(supplier, contractMarketing);
 inPartyA (Stock stock, ContractMarketing contract) += inSupplier(stock,contract);
 
-countSuppliersStock = GROUP SUM 1 IF inSupplier(Stock stock,ContractMarketing contract) BY contract;
+countSuppliersStock = GROUP BY ContractMarketing contract SUM 1 IF inSupplier(Stock stock,contract);
 
 CONSTRAINT supplier(ContractMarketing contract) AND inSupplier(Stock stock, contract) AND NOT
     in(supplier(contract), stock) MESSAGE 'Поставщик и склад поставщика для договора не имеют связи';
@@ -49,7 +49,7 @@ partyB (ContractMarketing contract) += customer(contract);
 
 inPartyB (Stock stock, ContractMarketing contract) += inCustomer(stock,contract);
 
-countCustomersStock= GROUP SUM 1 IF inCustomer(Stock stock,ContractMarketing contract) BY contract;
+countCustomersStock= GROUP BY ContractMarketing contract SUM 1 IF inCustomer(Stock stock,contract);
 
 CONSTRAINT customer(ContractMarketing contract) AND inCustomer(Stock stock, contract) AND NOT
     in(customer(contract), stock) MESSAGE 'Покупатель и склад покупателя для договора не имеют связи';
@@ -68,8 +68,8 @@ TABLE contractMarketingSkuGroup (ContractMarketing, SkuGroup);
 TABLE contractMarketingSku (ContractMarketing, Sku);      
 dataInclude 'Вкл' = DATA BOOLEAN (ContractMarketing, SkuGroup);
 
-levelParentInclude (contractMarketing, skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataInclude(ContractMarketing contractMarketing, parent)
-                                                              BY contractMarketing, skuGroup MATERIALIZED;    
+levelParentInclude (contractMarketing, skuGroup) = GROUP
+                                                              BY ContractMarketing contractMarketing, SkuGroup skuGroup MIN level(skuGroup, SkuGroup parent) IF dataInclude(contractMarketing, parent) MATERIALIZED;    
 nearestParentInclude (ContractMarketing contractMarketing, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(contractMarketing, skuGroup));
 nearestInclude (ContractMarketing contractMarketing, SkuGroup skuGroup) = dataInclude(contractMarketing, nearestParentInclude (contractMarketing, skuGroup));
 
@@ -81,11 +81,11 @@ exclude 'Исключить' = DATA BOOLEAN (ContractMarketing, Sku);
                       
 include 'Вкл' (ContractMarketing contractMarketing, Sku sku) = include(contractMarketing, skuGroup(sku)) AND NOT exclude(contractMarketing, sku);  
                     
-countIncludeSku 'Вкл' (contractMarketing) = GROUP SUM 1 IF include(ContractMarketing contractMarketing, Sku sku) BY contractMarketing;                    
+countIncludeSku 'Вкл' (contractMarketing) = GROUP BY ContractMarketing contractMarketing SUM 1 IF include(contractMarketing, Sku sku);                    
 
 nameIncludeSkuGroups 'Группы товаров (все)' (document)= 
-    GROUP CONCAT name(SkuGroup skuGroup) IF dataInclude(ContractMarketing document, skuGroup), ', ' 
-    BY document 
+    GROUP 
+    BY ContractMarketing document CONCAT name(SkuGroup skuGroup) IF dataInclude(document, skuGroup), ', ' 
     ORDER skuGroup
     CHARWIDTH 20;
 

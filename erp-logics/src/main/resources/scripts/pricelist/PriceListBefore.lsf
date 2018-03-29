@@ -9,8 +9,8 @@ inBefore 'Изменять цены (до)' = ABSTRACT BOOLEAN (PriceList, DataP
 inBefore 'Изменять цены (до)' = DATA BOOLEAN (UserPriceList, DataPriceListType);
 inBefore (UserPriceList priceList, DataPriceListType dataPriceListType) += inBefore(priceList, dataPriceListType);
 
-countBeforeDataPriceListTypes = GROUP SUM 1 IF inBefore(PriceList p,DataPriceListType t) BY p;
-countBeforeDataPriceListTypes = GROUP SUM 1 IF inBefore(UserPriceList p,DataPriceListType t) BY p;
+countBeforeDataPriceListTypes = GROUP BY PriceList p SUM 1 IF inBefore(p,DataPriceListType t);
+countBeforeDataPriceListTypes = GROUP BY UserPriceList p SUM 1 IF inBefore(p,DataPriceListType t);
 
 changeBefore 'Изменять цены (до)' = DATA BOOLEAN (DataPriceListType, Operation);
 
@@ -73,7 +73,7 @@ CONSTRAINT showPriceBefore(UserPriceList p) AND isPosted(p) AND
     MESSAGE 'Дата с (Цена до) и Дата по (Цена до)не могут быть в интервале самого прайса';
     
 CONSTRAINT showPriceBefore(UserPriceList p) AND isPosted(p) AND NOT skipConstraintPriceBefore(operation(p)) AND 
-            (NOT fromPriceBeforeDateTime(p) OR NOT toPriceBeforeDateTime(p)) AND [= GROUP SUM 1 IF priceBefore(UserPriceListDetail d) BY userPriceList(d)](p)
+            (NOT fromPriceBeforeDateTime(p) OR NOT toPriceBeforeDateTime(p)) AND [= GROUP BY userPriceList(UserPriceListDetail d) SUM 1 IF priceBefore(d)](p)
     MESSAGE 'Дата с (Цена до) и Дата по (Цена до) должны быть заданы для прайса';
     
 CONSTRAINT showPriceBefore(userPriceList(UserPriceListDetail d)) AND isPosted(userPriceList(d))
@@ -129,8 +129,8 @@ show[PriceListLedger] (PriceListBeforeLedger ledger) += {show(priceListDetail(le
 
 // Расчет цены до для склада и sku
 lastBeforePriceListLedger 'Цена' (type, sku, stock, dateTime) =
-    GROUP LAST PriceListBeforeLedger ledger
-          BY LedgerPriceListType type, sku(ledger, type, Stock stock), stock, DATETIME dateTime
+    GROUP
+          BY LedgerPriceListType type, sku(PriceListBeforeLedger ledger, type, Stock stock), stock, DATETIME dateTime LAST ledger
           ORDER fromDateTime(ledger, type, stock), ledger
           WHERE ledger IS PriceListBeforeLedger AND NOT toDateTime(ledger, type, stock) < dateTime;
 

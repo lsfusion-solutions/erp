@@ -10,21 +10,21 @@ quantity 'Кол-во по акции' = DATA NUMERIC[16,5] (ReceiptSaleDetail, 
 promotionSum 'Сумма скидки' = DATA NUMERIC[18,4] (ReceiptSaleDetail, PromotionCondition);
 setUserPromotion 'Применить скидку' = DATA BOOLEAN (ReceiptSaleDetail, PromotionCondition);
 
-idPromotionConditions 'Коды акций' (d) = GROUP CONCAT id(PromotionCondition p) IF quantity(ReceiptSaleDetail d, p),
+idPromotionConditions 'Коды акций' (d) = GROUP
+                                                      BY ReceiptSaleDetail d CONCAT id(PromotionCondition p) IF quantity(d, p),
                                                       ','
-                                                      BY d
                                                       ORDER p;
                                                       
 namePromotionConditions 'Названия акций' (d) = 
     OVERRIDE IF d IS ReceiptSaleDetail THEN 
-        [=GROUP CONCAT name(PromotionCondition p) IF quantity(ReceiptSaleDetail d, p),
+        [=GROUP
+            BY ReceiptSaleDetail d CONCAT name(PromotionCondition p) IF quantity(d, p),
             ','
-            BY d
             ORDER p](d) 
     ELSE IF d IS ReceiptReturnDetail THEN 
-        [=GROUP CONCAT name(PromotionCondition p) IF quantity(receiptSaleDetail(ReceiptReturnDetail d), p),
+        [=GROUP
+            BY ReceiptReturnDetail d CONCAT name(PromotionCondition p) IF quantity(receiptSaleDetail(d), p),
             ','
-            BY d
             ORDER p](d), 
     'Не определено' 
     CHARWIDTH 20;

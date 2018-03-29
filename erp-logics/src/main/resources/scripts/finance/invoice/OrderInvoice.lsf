@@ -11,23 +11,23 @@ createUserInvoicePosted 'Создать проведенную накладну�
 
 orderDetail = ABSTRACT OrderDetail (InvoiceDetail) MATERIALIZED INDEXED;
 
-invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = GROUP SUM quantity(InvoiceDetail d) IF isPosted(d) BY orderDetail(d) MATERIALIZED;
+invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = GROUP BY orderDetail(InvoiceDetail d) SUM quantity(d) IF isPosted(d) MATERIALIZED;
                                                           
-invoicedOrderDetail 'Кол-во (выписано)' = GROUP SUM invoiced(OrderDetail detail) BY order(detail) MATERIALIZED;                                                         
+invoicedOrderDetail 'Кол-во (выписано)' = GROUP BY order(OrderDetail detail) SUM invoiced(detail) MATERIALIZED;                                                         
 
 toInvoice 'Не выписано' (OrderDetail orderDetail) = quantity (orderDetail) (-) invoiced(orderDetail);
-toInvoice 'Не выписано' (order) = GROUP SUM 1 IF toInvoice(OrderDetail orderDetail) > 0 BY order(orderDetail) MATERIALIZED;
+toInvoice 'Не выписано' (order) = GROUP BY order(OrderDetail orderDetail) SUM 1 IF toInvoice(orderDetail) > 0 MATERIALIZED;
 
-quantity (order, invoice) = GROUP SUM quantity(InvoiceDetail invoiceDetail)
-                                               BY order(orderDetail(invoiceDetail)),
-                                                  invoice(invoiceDetail);
+quantity (order, invoice) = GROUP
+                                               BY order(orderDetail(InvoiceDetail invoiceDetail)),
+                                                  invoice(invoiceDetail) SUM quantity(invoiceDetail);
 
-seriesNumberOrder 'Заказы' = GROUP CONCAT seriesNumber(Order order) IF quantity (order, Invoice invoice), ','
-                                              BY invoice
+seriesNumberOrder 'Заказы' = GROUP
+                                              BY Invoice invoice CONCAT seriesNumber(Order order) IF quantity (order, invoice), ','
                                               ORDER order CHARWIDTH 10;
 
-noteOrder 'Примечание (заказ)' = GROUP CONCAT note(Order order) IF quantity (order, Invoice invoice), ','
-                                              BY invoice
+noteOrder 'Примечание (заказ)' = GROUP
+                                              BY Invoice invoice CONCAT note(Order order) IF quantity (order, invoice), ','
                                               ORDER order CHARWIDTH 30;
 
 GROUP orders 'Приемка по заказам' : base;
@@ -39,11 +39,11 @@ minSelectedOrder = GROUP MIN Order o IF selected(o);
 overCreateMultiUserInvoice = ABSTRACT LIST (Order);
 
 countSelectedOrder 'Кол-во отм.' = GROUP SUM 1 IF selected(Order order);
-countSelectedClass 'Кол-во классов' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY objectClassName(order)](ISTRING[100] name);
-countSelectedFromClass 'Кол-во отправителей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY from(order)](LegalEntity from);
-countSelectedToClass 'Кол-во получателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY to(order)](LegalEntity to);
-countSelectedFromStockClass 'Кол-во складов отправителей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY fromStock(order)](Stock fromStock);
-countSelectedToStockClass 'Кол-во складов получателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY toStock(order)](Stock toStock);
+countSelectedClass 'Кол-во классов' = GROUP SUM 1 IF [= GROUP BY objectClassName(Order order) SUM 1 IF selected(order)](ISTRING[100] name);
+countSelectedFromClass 'Кол-во отправителей' = GROUP SUM 1 IF [= GROUP BY from(Order order) SUM 1 IF selected(order)](LegalEntity from);
+countSelectedToClass 'Кол-во получателей' = GROUP SUM 1 IF [= GROUP BY to(Order order) SUM 1 IF selected(order)](LegalEntity to);
+countSelectedFromStockClass 'Кол-во складов отправителей' = GROUP SUM 1 IF [= GROUP BY fromStock(Order order) SUM 1 IF selected(order)](Stock fromStock);
+countSelectedToStockClass 'Кол-во складов получателей' = GROUP SUM 1 IF [= GROUP BY toStock(Order order) SUM 1 IF selected(order)](Stock toStock);
 
 addUserInvoice = ABSTRACT LIST (Order);
 
@@ -107,26 +107,26 @@ META defineOrderInvoice(sign, stockProp)
     descriptionOrder 'Заказ' (InvoiceDetail invoiceDetail) = description(orderDetail(invoiceDetail)) IN order;
     descriptionOrder 'Заказ' (UserInvoiceDetail userInvoiceDetail) = description(orderDetail(userInvoiceDetail)) IN order;
 
-    quantityInvoiceDetail (order, invoice) = GROUP SUM quantity(InvoiceDetail invoiceDetail) BY order(orderDetail(invoiceDetail)), invoice(invoiceDetail);
-    countInvoiceDetail(order, invoice) = GROUP SUM 1 BY order(orderDetail(InvoiceDetail invoiceDetail)), invoice(invoiceDetail);
-    orders 'Заказы' (invoice) = GROUP CONCAT VARSTRING[255](description(Order order)) IF quantityInvoiceDetail(order, Invoice invoice) , ', '
-                                             BY invoice
+    quantityInvoiceDetail (order, invoice) = GROUP BY order(orderDetail(InvoiceDetail invoiceDetail)), invoice(invoiceDetail) SUM quantity(invoiceDetail);
+    countInvoiceDetail(order, invoice) = GROUP BY order(orderDetail(InvoiceDetail invoiceDetail)), invoice(invoiceDetail) SUM 1;
+    orders 'Заказы' (invoice) = GROUP
+                                             BY Invoice invoice CONCAT VARSTRING[255](description(Order order)) IF quantityInvoiceDetail(order, invoice) , ', '
                                              ORDER order
                                              IN order CHARWIDTH 30 MATERIALIZED;
                                              
-    invoices 'Накладные' (order) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF countInvoiceDetail(Order order, invoice) , ', '
-                                             BY order
+    invoices 'Накладные' (order) = GROUP
+                                             BY Order order CONCAT VARSTRING[255](description(Invoice invoice)) IF countInvoiceDetail(order, invoice) , ', '
                                              ORDER invoice
                                              IN invoice CHARWIDTH 30;                                             
 
-    invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = GROUP SUM quantity(InvoiceDetail invoiceDetail) IF isPosted(invoiceDetail)
-                                                               BY orderDetail(invoiceDetail) MATERIALIZED;
+    invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = GROUP
+                                                               BY orderDetail(InvoiceDetail invoiceDetail) SUM quantity(invoiceDetail) IF isPosted(invoiceDetail) MATERIALIZED;
                                                                
-    invoicedOrderDetail 'Кол-во (выписано)' (order) = GROUP SUM invoiced(OrderDetail orderDetail) BY order(orderDetail) IN documentSum;
+    invoicedOrderDetail 'Кол-во (выписано)' (order) = GROUP BY order(OrderDetail orderDetail) SUM invoiced(orderDetail) IN documentSum;
 
     toInvoice 'Не выписано' (OrderDetail orderDetail) = quantity (orderDetail) (-) invoiced(orderDetail);
     prevToInvoice (OrderDetail orderDetail) = PREV(toInvoice(orderDetail));
-    toInvoice (order) = GROUP SUM toInvoice(OrderDetail orderDetail) IF toInvoice(orderDetail) >0 BY order(orderDetail);
+    toInvoice (order) = GROUP BY order(OrderDetail orderDetail) SUM toInvoice(orderDetail) IF toInvoice(orderDetail) >0;
 
     backgroundInvoice 'Цвет' (Order order) = RGB(175, 255, 175) IF order IS Order;
 
@@ -136,11 +136,11 @@ META defineOrderInvoice(sign, stockProp)
 
     // ------------------------------- Создание нового инвойса на основе заказов ---------------------------- //
 
-    inSupplier (order, supplierStock) = GROUP SUM 1 IF supplierStock(OrderDetail orderDetail) == Stock supplierStock BY order(orderDetail), supplierStock;
-    inSupplier (order, legalEntity) = GROUP SUM 1 IF legalEntity(supplierStock(OrderDetail orderDetail)) == LegalEntity supplier BY order(orderDetail), supplier;
+    inSupplier (order, supplierStock) = GROUP BY order(OrderDetail orderDetail), Stock supplierStock SUM 1 IF supplierStock(orderDetail) == supplierStock;
+    inSupplier (order, legalEntity) = GROUP BY order(OrderDetail orderDetail), LegalEntity supplier SUM 1 IF legalEntity(supplierStock(orderDetail)) == supplier;
 
-    inCustomer (order, customerStock) = GROUP SUM 1 IF customerStock(OrderDetail orderDetail) == Stock customerStock BY order(orderDetail), customerStock;
-    inCustomer (order, legalEntity) = GROUP SUM 1 IF legalEntity(customerStock(OrderDetail orderDetail)) == LegalEntity customer BY order(orderDetail), customer;
+    inCustomer (order, customerStock) = GROUP BY order(OrderDetail orderDetail), Stock customerStock SUM 1 IF customerStock(orderDetail) == customerStock;
+    inCustomer (order, legalEntity) = GROUP BY order(OrderDetail orderDetail), LegalEntity customer SUM 1 IF legalEntity(customerStock(orderDetail)) == customer;
 
     useExplicitBatchDetailUserInvoice = ABSTRACT BOOLEAN (Order);
     forceExplicitBatchDetailUserInvoice = ABSTRACT BOOLEAN (Order);
@@ -290,7 +290,7 @@ META defineOrderInvoice(sign, stockProp)
     
     TABLE orderUserInvoice (Order, UserInvoice);
     include 'Вкл. в накладную' = DATA BOOLEAN (Order, UserInvoice) INDEXED CHARWIDTH 10;  
-    countIncludeOrders (i) = GROUP SUM 1 IF include(Order o,UserInvoice i) BY i;
+    countIncludeOrders (i) = GROUP BY UserInvoice i SUM 1 IF include(Order o,i);
     
     beforeCreateInvoice = ABSTRACT LIST (Order);
     invoiceCreated = DATA LOCAL NESTED BOOLEAN (Order);
@@ -476,22 +476,22 @@ META defineOrderInvoice(sign, stockProp)
 // Создание инвойса на основе нескольких заказов //
 
     include 'Вкл. в накладную' = ABSTRACT BOOLEAN (Order, Invoice) CHARWIDTH 10;
-    countIncludeOrders (i) = GROUP SUM 1 IF include(Order o,Invoice i) BY i;
-    includeOrders 'Заказы в накладной' (invoice) = GROUP CONCAT VARSTRING[255](description(Order order)) IF include(order, Invoice invoice) , ', '
-                                                        BY invoice
+    countIncludeOrders (i) = GROUP BY Invoice i SUM 1 IF include(Order o,i);
+    includeOrders 'Заказы в накладной' (invoice) = GROUP
+                                                        BY Invoice invoice CONCAT VARSTRING[255](description(Order order)) IF include(order, invoice) , ', '
                                                         ORDER order IN orders CHARWIDTH 30;
                                                                                                                
-    includeOrders 'Заказы в накладной' (userInvoice) = GROUP CONCAT VARSTRING[255](description(Order order)) IF include(order, UserInvoice userInvoice) , ', '
-                                                        BY userInvoice
+    includeOrders 'Заказы в накладной' (userInvoice) = GROUP
+                                                        BY UserInvoice userInvoice CONCAT VARSTRING[255](description(Order order)) IF include(order, userInvoice) , ', '
                                                         ORDER order IN orders CHARWIDTH 30;
     include(Order order,UserInvoice invoice) += include(order,invoice);    
                                                     
-    numberOrders 'Заказы в накладной' (invoice) = GROUP CONCAT VARSTRING[255](number(Order order)) IF include(order, Invoice invoice) , ', '
-                                                     BY invoice
+    numberOrders 'Заказы в накладной' (invoice) = GROUP
+                                                     BY Invoice invoice CONCAT VARSTRING[255](number(Order order)) IF include(order, invoice) , ', '
                                                      ORDER order IN orders CHARWIDTH 30;
                                                                                                             
-    numberOrders 'Заказы в накладной' (userInvoice) = GROUP CONCAT VARSTRING[255](number(Order order)) IF include(order, UserInvoice userInvoice) , ', '
-                                                     BY userInvoice
+    numberOrders 'Заказы в накладной' (userInvoice) = GROUP
+                                                     BY UserInvoice userInvoice CONCAT VARSTRING[255](number(Order order)) IF include(order, userInvoice) , ', '
                                                      ORDER order IN orders CHARWIDTH 30;                                                   
                                                         
     FORM includeOrdersUserInvoice 'Заказы'
@@ -518,22 +518,22 @@ META defineOrderInvoice(sign, stockProp)
         FILTERS document(d)==o
     ;
     
-    relationInvoiceDetail (order, invoice) = GROUP SUM 1 BY order(orderDetail(InvoiceDetail invoiceDetail)), invoice(invoiceDetail);
-    notRelationInvoiceDetailOrder 'Включенные заказы, но по которым не созданы строки' (invoice)= GROUP SUM 1 
-        IF include(Order order, UserInvoice invoice) AND NOT  relationInvoiceDetail(order, invoice) BY invoice; 
+    relationInvoiceDetail (order, invoice) = GROUP BY order(orderDetail(InvoiceDetail invoiceDetail)), invoice(invoiceDetail) SUM 1;
+    notRelationInvoiceDetailOrder 'Включенные заказы, но по которым не созданы строки' (invoice)= GROUP BY UserInvoice invoice SUM 1 
+        IF include(Order order, invoice) AND NOT  relationInvoiceDetail(order, invoice); 
         
-    notIncludeInvoiceDetailOrder 'Есть строки накладной с сылкой на заказ, который не включен в накладную' (invoice)= GROUP SUM 1 
-        IF relationInvoiceDetail(Order order, Invoice invoice) AND NOT include[Order,UserInvoice](order, invoice)  BY invoice;         
+    notIncludeInvoiceDetailOrder 'Есть строки накладной с сылкой на заказ, который не включен в накладную' (invoice)= GROUP  BY Invoice invoice SUM 1 
+        IF relationInvoiceDetail(Order order, invoice) AND NOT include[Order,UserInvoice](order, invoice);         
 
 
-    defaultOrder = GROUP MAX Order o IF include(o, UserInvoice i) BY i;
+    defaultOrder = GROUP BY UserInvoice i MAX Order o IF include(o, i);
     skipSetContractSku(UserInvoice o) += contractSku(defaultOrder(o)) IS ContractSku; 
 
-    defaultOrderDetail (batch, userInvoice) = GROUP MAX OrderDetail detail IF include(order(detail), UserInvoice userInvoice) 
-        BY batch(detail), userInvoice;
+    defaultOrderDetail (batch, userInvoice) = GROUP 
+        BY batch(OrderDetail detail), UserInvoice userInvoice MAX detail IF include(order(detail), userInvoice);
 
-    defaultOrderDetail (sku, userInvoice) = GROUP MAX OrderDetail detail IF include(order(detail), UserInvoice userInvoice) 
-        BY sku(detail), userInvoice;
+    defaultOrderDetail (sku, userInvoice) = GROUP 
+        BY sku(OrderDetail detail), UserInvoice userInvoice MAX detail IF include(order(detail), userInvoice);
     
     defaultOrderDetail(UserInvoiceDetail detail) = OVERRIDE defaultOrderDetail(batch(detail), userInvoice(detail)), defaultOrderDetail(sku(detail), userInvoice(detail));
 

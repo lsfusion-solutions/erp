@@ -170,17 +170,17 @@ CONSTRAINT supplier(SaleReturn.UserInvoiceDetail detail) != supplier(invoiceDeta
 descriptionIndexInvoiceDetail 'Строка накладной (закупка-возврат)' (SaleReturn.InvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
 descriptionIndexInvoiceDetail 'Строка накладной (закупка-возврат)' (SaleReturn.UserInvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
 
-quantityInvoiceDetail (purchaseReturn, saleReturn) = GROUP SUM quantity(SaleReturn.InvoiceDetail detail) BY invoice(invoiceDetail(detail)), invoice(detail);
+quantityInvoiceDetail (purchaseReturn, saleReturn) = GROUP BY invoice(invoiceDetail(SaleReturn.InvoiceDetail detail)), invoice(detail) SUM quantity(detail);
 
-purchaseReturnInvoices 'Накладные (закупка-возврат)' (saleReturn) = GROUP CONCAT VARSTRING[255](description(Invoice purchaseReturn)) IF quantityInvoiceDetail (purchaseReturn, SaleReturn.Invoice saleReturn), ', '
-                                                        BY saleReturn
+purchaseReturnInvoices 'Накладные (закупка-возврат)' (saleReturn) = GROUP
+                                                        BY SaleReturn.Invoice saleReturn CONCAT VARSTRING[255](description(Invoice purchaseReturn)) IF quantityInvoiceDetail (purchaseReturn, saleReturn), ', '
                                                         ORDER purchaseReturn IN invoice CHARWIDTH 30 MATERIALIZED;
 
-relationSaleReturn 'Связь' (saleReturn) = GROUP SUM quantityInvoiceDetail (Invoice purchaseReturn, SaleReturn.Invoice saleReturn) BY saleReturn MATERIALIZED;
+relationSaleReturn 'Связь' (saleReturn) = GROUP BY SaleReturn.Invoice saleReturn SUM quantityInvoiceDetail (Invoice purchaseReturn, saleReturn) MATERIALIZED;
 
-invoiced 'Кол-во (выписано)' (invoiceDetail) = GROUP SUM quantity(SaleReturn.InvoiceDetail detail) IF isPosted(detail)
-                                                                   BY invoiceDetail(detail) MATERIALIZED;
-invoiced 'Кол-во (выписано)' = GROUP SUM invoiced(InvoiceDetail detail) BY invoice(detail);                                                                   
+invoiced 'Кол-во (выписано)' (invoiceDetail) = GROUP
+                                                                   BY invoiceDetail(SaleReturn.InvoiceDetail detail) SUM quantity(detail) IF isPosted(detail) MATERIALIZED;
+invoiced 'Кол-во (выписано)' = GROUP BY invoice(InvoiceDetail detail) SUM invoiced(detail);                                                                   
                                                                    
 statusInvoice 'Статус' = CASE WHEN invoiced(Invoice i) THEN 'Создан возврат'
                                                                         ELSE 'Не создан возврат';                                                                   

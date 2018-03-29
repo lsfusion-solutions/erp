@@ -6,12 +6,12 @@ defaultRoundConditionPaymentInstallments  = DATA RoundCondition ();
 nameDefaultRoundConditionPaymentInstallments 'Условия округления рассрочки' = name(defaultRoundConditionPaymentInstallments());
 
 countContractSkuSupplierCustomer = 
-    GROUP SUM 1 IF dateFrom(ContractSku c) <= DATE dateIn AND NOT dateTo(c) < dateIn
-    BY currency(c), supplier(c), customer(c), dateIn;
+    GROUP
+    BY currency(ContractSku c), supplier(c), customer(c), DATE dateIn SUM 1 IF dateFrom(c) <= dateIn AND NOT dateTo(c) < dateIn;
 
 defaultContractSkCurrencyuSupplierCustomer = 
-    GROUP LAST ContractSku c IF dateFrom(c) <= DATE dateIn AND NOT dateTo(c) < dateIn
-    BY currency(c), supplier(c), customer(c), dateIn;
+    GROUP
+    BY currency(ContractSku c), supplier(c), customer(c), DATE dateIn LAST c IF dateFrom(c) <= dateIn AND NOT dateTo(c) < dateIn;
 
 EXTEND FORM options
     PROPERTIES() nameDefaultRoundConditionPaymentInstallments
@@ -32,15 +32,15 @@ debtDefaultCurrency 'Долг по документу (основная валю
         debt(ledger, date);
 
 balanceACurrencyPaymentInstallments 'Задолженность по рассрочке(валюта рассрочки)' = 
-    GROUP SUM balanceA(Contract contract, DATE date) IF partyB(contract) == LegalEntity legalEntity AND currency(contract) == defaultCurrencyPaymentInstallments()
-    BY legalEntity, date;
+    GROUP
+    BY LegalEntity legalEntity, DATE date SUM balanceA(Contract contract, date) IF partyB(contract) == legalEntity AND currency(contract) == defaultCurrencyPaymentInstallments();
 balanceADefaultCurrencyCurrencyPaymentInstallments 'Задолженность по рассрочке(основная валюта)' = 
-    GROUP SUM debtDefaultCurrency(InContractLedger ledger, DATE date)
-    BY partyBContract(ledger), date;
+    GROUP
+    BY partyBContract(InContractLedger ledger), DATE date SUM debtDefaultCurrency(ledger, date);
 
 balanceADefaultCurrency 'Задолженность по предоплате' = 
-    GROUP SUM balanceA(Contract contract, DATE date) IF partyB(contract) == LegalEntity legalEntity AND currency(contract) == defaultCurrency()
-    BY legalEntity, date;        
+    GROUP
+    BY LegalEntity legalEntity, DATE date SUM balanceA(Contract contract, date) IF partyB(contract) == legalEntity AND currency(contract) == defaultCurrency();        
     
 backgroundDebtInPaymentInstallments 'Цвет' () = RGB(213,249,185);
 backgroundDebtInPrePayment 'Цвет' () = RGB(255,200,125);

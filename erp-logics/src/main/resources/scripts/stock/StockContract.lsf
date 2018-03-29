@@ -13,8 +13,8 @@ META defineInStockGroupObject(prop, object, objectClass)
     dataIn###prop 'Отм.' = DATA BOOLEAN (StockGroup, objectClass);
 
     levelParent###prop##Stock (object, stockGroup) =
-        GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataIn###prop(parent, ###object object)
-              BY object, stockGroup MATERIALIZED;
+        GROUP
+              BY (###object object), StockGroup stockGroup MIN level(stockGroup, StockGroup parent) IF dataIn###prop(parent, object) MATERIALIZED;
     nearestParent###prop##contract (###object object, StockGroup stockGroup) = stockGroup(stockGroup, levelParent###prop##Stock(object, stockGroup));
     nearestIn###prop (StockGroup stockGroup, ###object object) =
         dataIn###prop(nearestParent###prop##contract(object, stockGroup), object) MATERIALIZED;
@@ -32,13 +32,13 @@ META defineInStockGroupObject(prop, object, objectClass)
     replace(Stock s, Stock o) += {dataIn###prop(o, ###object object) <- TRUE WHERE in###prop(s, object) AND NOT in###prop(o, object);}
     preReplace(###object c, ###object object) += {dataIn###prop(Stock s, object) <- TRUE WHERE in###prop(s, c) AND NOT in###prop(s, object);}                 
                  
-    countDataIn###prop##StockGroups = GROUP SUM 1 IF  dataIn###prop(StockGroup stockGroup, ###object object) BY object;            
+    countDataIn###prop##StockGroups = GROUP BY (###object object) SUM 1 IF  dataIn###prop(StockGroup stockGroup, object);            
                                   
     backgroundAll###prop##Stocks 'Цвет' (###object object) = IF all###prop##Stocks(object) THEN RGB(0,0,0)
         ELSE RGB(203,203,203) IF countDataIn###prop##StockGroups(object);      
      
-    quantityChildWithIn###prop (group, object) = GROUP SUM 1 IF dataIn###prop(StockGroup childGroup, ###object object) AND isParent(childGroup, StockGroup group) BY group, object MATERIALIZED;
-    quantityParentWithIn###prop (group, object) = GROUP SUM 1 IF dataIn###prop(StockGroup parentGroup, ###object object) AND isParent(StockGroup group, parentGroup) BY group, object MATERIALIZED;          
+    quantityChildWithIn###prop (group, object) = GROUP BY StockGroup group, ###object object SUM 1 IF dataIn###prop(StockGroup childGroup, object) AND isParent(childGroup, group) MATERIALIZED;
+    quantityParentWithIn###prop (group, object) = GROUP BY StockGroup group, ###object object SUM 1 IF dataIn###prop(StockGroup parentGroup, object) AND isParent(group, parentGroup) MATERIALIZED;          
           
     backgroundIn###prop 'Цвет' (StockGroup group, ###object object) = CASE
         WHEN dataIn###prop(group, object) THEN RGB(0,0,0)
@@ -91,7 +91,7 @@ TABLE stockGroupContractSku (StockGroup, ContractSku);
 @defineInStockGroupObject(supplier, contractSku);
 inPartyA (Stock stock, ContractSku contract) += inSupplier(stock,contract);
 
-countSuppliersStock = GROUP SUM 1 IF inSupplier(Stock stock,ContractSku contract) BY contract;
+countSuppliersStock = GROUP BY ContractSku contract SUM 1 IF inSupplier(Stock stock,contract);
 
 CONSTRAINT supplier(ContractSku contract) AND inSupplier(Stock stock, contract) AND NOT
     in(supplier(contract), stock) MESSAGE 'Поставщик и склад поставщика для договора не имеют связи';
@@ -106,7 +106,7 @@ partyB (ContractSku contract) += customer(contract);
 
 inPartyB (Stock stock, ContractSku contract) += inCustomer(stock,contract);
 
-countCustomersStock= GROUP SUM 1 IF inCustomer(Stock stock,ContractSku contract) BY contract;
+countCustomersStock= GROUP BY ContractSku contract SUM 1 IF inCustomer(Stock stock,contract);
 
 CONSTRAINT customer(ContractSku contract) AND inCustomer(Stock stock, contract) AND NOT
     in(customer(contract), stock) MESSAGE 'Покупатель и склад покупателя для договора не имеют связи';

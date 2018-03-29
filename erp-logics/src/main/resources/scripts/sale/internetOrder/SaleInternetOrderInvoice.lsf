@@ -10,7 +10,7 @@ TABLE internetUserInvoiceDetail(UserInvoiceDetail);
 
 internetOrderDetail = DATA InternetOrderDetail (UserInvoiceDetail) TABLE internetUserInvoiceDetail;
 INDEX internetOrderDetail(UserInvoiceDetail d), d;
-userInvoiceDetail = GROUP LAST UserInvoiceDetail d BY internetOrderDetail(d) ORDER d MATERIALIZED;
+userInvoiceDetail = GROUP BY internetOrderDetail(UserInvoiceDetail d) LAST d ORDER d MATERIALIZED;
 
 descriptionInternetOrderDetail 'Интернет-заказ' (UserInvoiceDetail userInvoiceDetail) = description(internetOrderDetail(userInvoiceDetail)) IN order;
 CONSTRAINT internetOrderDetail(UserInvoiceDetail d) AND NOT sku(d) == sku(internetOrderDetail(d)) 
@@ -26,31 +26,31 @@ EXTEND FORM userInvoice
 ;
 
 quantityUserInvoiceDetail (internetOrderDetail, UserInvoice invoice) = 
-    GROUP SUM quantity(UserInvoiceDetail invoiceDetail) BY internetOrderDetail(invoiceDetail), invoice(invoiceDetail);
+    GROUP BY internetOrderDetail(UserInvoiceDetail invoiceDetail), invoice(invoiceDetail) SUM quantity(invoiceDetail);
 
 countUserInvoiceDetail(internetOrderDetail, invoice) = 
-    GROUP SUM 1 BY internetOrderDetail(UserInvoiceDetail invoiceDetail), invoice(invoiceDetail);
+    GROUP BY internetOrderDetail(UserInvoiceDetail invoiceDetail), invoice(invoiceDetail) SUM 1;
 
-internetOrders 'Интернет-заказы' (invoice) = GROUP CONCAT VARSTRING[255](description(InternetOrderDetail internetOrderDetail)) IF countUserInvoiceDetail(internetOrderDetail, Invoice invoice) , ', '
-                                             BY invoice
+internetOrders 'Интернет-заказы' (invoice) = GROUP
+                                             BY Invoice invoice CONCAT VARSTRING[255](description(InternetOrderDetail internetOrderDetail)) IF countUserInvoiceDetail(internetOrderDetail, invoice) , ', '
                                              ORDER internetOrderDetail CHARWIDTH 30 MATERIALIZED;
                                              
-invoices 'Накладные' (internetOrder) = GROUP CONCAT VARSTRING[255](description(UserInvoice invoice)) IF countUserInvoiceDetail(InternetOrderDetail internetOrderDetail, invoice) , ', '
-                                             BY internetOrder(internetOrderDetail)
+invoices 'Накладные' (internetOrder) = GROUP
+                                             BY internetOrder(InternetOrderDetail internetOrderDetail) CONCAT VARSTRING[255](description(UserInvoice invoice)) IF countUserInvoiceDetail(internetOrderDetail, invoice) , ', '
                                              ORDER invoice CHARWIDTH 30;     
                                                                                      
-invoices 'Накладные' (internetOrderDetail) = GROUP CONCAT VARSTRING[255](description(UserInvoiceDetail detail)) IF internetOrderDetail(detail), ', '
-                                             BY internetOrderDetail(detail) CHARWIDTH 30;                                                                                       
+invoices 'Накладные' (internetOrderDetail) = GROUP
+                                             BY internetOrderDetail(UserInvoiceDetail detail) CONCAT VARSTRING[255](description(detail)) IF internetOrderDetail(detail), ', ' CHARWIDTH 30;                                                                                       
 
 invoiced 'Кол-во (выписано)' (InternetOrderDetail internetOrderDetail) =
-    GROUP SUM quantity(UserInvoiceDetail invoiceDetail) BY internetOrderDetail(invoiceDetail);
+    GROUP BY internetOrderDetail(UserInvoiceDetail invoiceDetail) SUM quantity(invoiceDetail);
 invoicedInternetOrderDetail 'Кол-во (выписано)' (internetOrder) = 
-    GROUP SUM invoiced(InternetOrderDetail internetOrderDetail) BY internetOrder(internetOrderDetail) IN documentSum;
+    GROUP BY internetOrder(InternetOrderDetail internetOrderDetail) SUM invoiced(internetOrderDetail) IN documentSum;
 
 toInvoice 'Не выписано' (InternetOrderDetail internetOrderDetail) = quantity(internetOrderDetail) (-) invoiced(internetOrderDetail);
 prevToInvoice (InternetOrderDetail internetOrderDetail) = PREV(toInvoice(internetOrderDetail));
 toInvoice (InternetOrder internetOrder) = 
-    GROUP SUM toInvoice(InternetOrderDetail internetOrderDetail) IF toInvoice(internetOrderDetail) >0 BY internetOrder(internetOrderDetail);
+    GROUP BY internetOrder(InternetOrderDetail internetOrderDetail) SUM toInvoice(internetOrderDetail) IF toInvoice(internetOrderDetail) >0;
     
 EXTEND FORM internetOrders
     PROPERTIES(o) READONLY invoicedInternetOrderDetail 
@@ -61,11 +61,11 @@ DESIGN internetOrders {
     PROPERTY (invoicedInternetOrderDetail(o)){background = #CCFFCC;}
 }
 
-isWarehouseDeliveryReport = GROUP SUM 1 IF inStockDeliveryReport(Warehouse w, DeliveryReport report) AND w IS Warehouse BY report;
-isDepartmentStoreDeliveryReport = GROUP SUM 1 IF inStockDeliveryReport(DepartmentStore d, DeliveryReport report) AND d IS DepartmentStore BY report;
+isWarehouseDeliveryReport = GROUP BY DeliveryReport report SUM 1 IF inStockDeliveryReport(Warehouse w, report) AND w IS Warehouse;
+isDepartmentStoreDeliveryReport = GROUP BY DeliveryReport report SUM 1 IF inStockDeliveryReport(DepartmentStore d, report) AND d IS DepartmentStore;
 
-relation = GROUP SUM 1 BY deliveryReport(internetOrderDetail(UserInvoiceDetail d)), userInvoice(d);
-countDeliveryReport = GROUP SUM 1 BY deliveryReport(internetOrderDetail(UserInvoiceDetail d));
+relation = GROUP BY deliveryReport(internetOrderDetail(UserInvoiceDetail d)), userInvoice(d) SUM 1;
+countDeliveryReport = GROUP BY deliveryReport(internetOrderDetail(UserInvoiceDetail d)) SUM 1;
 notDeliveryReport (DeliveryReport r)= r IS DeliveryReport AND NOT countDeliveryReport(r) AND isWarehouseDeliveryReport(r);
 
 CONSTRAINT DROPPED (DeliveryReport dr IS DeliveryReport) AND PREV (countDeliveryReport(dr)) 
@@ -98,8 +98,8 @@ createInvoice 'Создать накладную' (DeliveryReport r) = {
     select(r) <- TRUE;    
     IF [= GROUP SUM 1 IF pickingSumInternetOrderDetail(DeliveryReport r) AND NOT countDeliveryReport(r) AND select(r)]() THEN {
         NEWSESSION NESTED (select[DeliveryReport]){
-            FOR [= GROUP SUM pickingSum(InternetOrderDetail d) IF isItem(sku(d)) AND NOT userInvoiceDetail(d) AND select(deliveryReport(d))
-                    BY Sale.supplierStock[InternetOrderDetail](d), carrier(internetOrder(d))](Warehouse st, Carrier carrier) AND st IS Warehouse AND carrier IS Carrier NEW i = UserInvoice DO {
+            FOR [= GROUP
+                    BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail d), carrier(internetOrder(d)) SUM pickingSum(d) IF isItem(sku(d)) AND NOT userInvoiceDetail(d) AND select(deliveryReport(d))](Warehouse st, Carrier carrier) AND st IS Warehouse AND carrier IS Carrier NEW i = UserInvoice DO {
                 date(i) <- currentDate();
                 time(i) <- currentTime();
                 supplier(i) <- legalEntity(st);
@@ -144,8 +144,8 @@ createRetailInvoiceStore 'Создать накладную (розница с �
     select(r) <- TRUE;  
     IF [= GROUP SUM 1 IF pickingSumInternetOrderDetail(DeliveryReport r) AND NOT countDeliveryReport(r) AND select(r)]() THEN {
         NEWSESSION NESTED (select[DeliveryReport]){
-            FOR [= GROUP SUM pickingSum(InternetOrderDetail d) IF isItem(sku(d)) AND NOT userInvoiceDetail(d) AND select(deliveryReport(d))
-                BY deliveryReport(d), Sale.supplierStock[InternetOrderDetail](d)](r, Stock st) AND st IS DepartmentStore NEW i = UserInvoice DO {
+            FOR [= GROUP
+                BY deliveryReport(InternetOrderDetail d), Sale.supplierStock[InternetOrderDetail](d) SUM pickingSum(d) IF isItem(sku(d)) AND NOT userInvoiceDetail(d) AND select(deliveryReport(d))](r, Stock st) AND st IS DepartmentStore NEW i = UserInvoice DO {
                 date(i) <- currentDate();
                 time(i) <- currentTime();
                 supplier(i) <- legalEntity(st);
@@ -287,9 +287,9 @@ descriptionInvoice 'Строка накладной возврата' (InternetO
 seriesNumberInvoice 'Номер накладной возврата' (InternetOrderDetail d) = seriesNumber(invoiceDetail(d));
 dateInvoice 'Дата накладной возврата' (InternetOrderDetail d) = date(invoiceDetail(d));
 
-returnInternetOrderDetail = GROUP MAX InternetOrderDetail d BY invoiceDetail(d);
+returnInternetOrderDetail = GROUP BY invoiceDetail(InternetOrderDetail d) MAX d;
 
-relation = GROUP SUM 1 BY internetOrder(InternetOrderDetail d), userInvoice(userInvoiceDetail(d));
+relation = GROUP BY internetOrder(InternetOrderDetail d), userInvoice(userInvoiceDetail(d)) SUM 1;
 
 internetOrderPickingPrint 'Счет-заказ' (Invoice i) = {
     in(InternetOrder order) <- NULL;

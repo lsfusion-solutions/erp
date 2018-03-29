@@ -328,9 +328,9 @@ quantity (ShipmentSkuLedger ledger) = quantity(shipmentDetail(ledger));
 price (ShipmentSkuLedger ledger) = price(shipmentDetail(ledger));
 batch (ShipmentSkuLedger ledger) = batch(shipmentDetail(ledger));
 
-quantityShipmentSkuLedger (batch) = GROUP SUM quantity (ShipmentSkuLedger ledger) 
-                                                   IF NOT isCompanySupplier(shipmentDetail(ledger)) 
-                                               BY batch(ledger);
+quantityShipmentSkuLedger (batch) = GROUP 
+                                               BY batch(ShipmentSkuLedger ledger) SUM quantity (ledger) 
+                                                   IF NOT isCompanySupplier(shipmentDetail(ledger));
 extraShippedQuantity(Batch b) += quantityShipmentSkuLedger(b); 
 
 @implementSkuLedgerInLIFO(ShipmentSkuLedger, sku, stock);
@@ -360,8 +360,8 @@ show[SkuLedger](ShipmentSkuLedger shipmentSkuLedger) += { show(shipmentDetail(sh
 overBatch(InvoiceDetail detail)= OVERRIDE ledgerBatch(invoiceShipmentDetail(detail)), batch(detail);  
 
 //
-defaultUserShipmentDetail (sku, shipment, price) = GROUP MIN UserShipmentDetail detail IF NOT batch(detail)
-    BY sku(detail), userShipment(detail), price(detail);
+defaultUserShipmentDetail (sku, shipment, price) = GROUP
+    BY sku(UserShipmentDetail detail), userShipment(detail), price(detail) MIN detail IF NOT batch(detail);
 
 defaultUserShipmentDetail(UserShipmentDetail detail) = defaultUserShipmentDetail(sku(detail), userShipment(detail), price(detail));
 

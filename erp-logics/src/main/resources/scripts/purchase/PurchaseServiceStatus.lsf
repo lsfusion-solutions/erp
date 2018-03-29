@@ -44,8 +44,8 @@ nameServiceStatus 'Статус качества сервиса' (ServiceStatusD
 //        ORDER toDate(d), d
 //        WHERE d IS ServiceStatusDetail AND NOT isChange(d);
 lastServiceStatusDetail   =
-    GROUP LAST ServiceStatusDetail d
-        BY legalEntity(d)
+    GROUP
+        BY legalEntity(ServiceStatusDetail d) LAST d
         ORDER toDate(d), d
         WHERE d IS ServiceStatusDetail;
 INDEX legalEntity(ServiceStatusDetail d), toDate(d), d;
@@ -62,8 +62,8 @@ backgroundServiceStatus (LegalEntity l) = CASE
 ;
 
 prevStatus 'Статус качества сервиса'  =
-    GROUP LAST serviceStatus(ServiceStatusDetail d)
-        BY legalEntity(d), DATE date
+    GROUP
+        BY legalEntity(ServiceStatusDetail d), DATE date LAST serviceStatus(d)
         ORDER toDate(d), d
         WHERE date >= fromDate(d) AND date <= toDate(d) AND NOT isChange(d);
 
@@ -76,15 +76,15 @@ EXTEND FORM itemGroups
     PROPERTIES(g) READONLYIF isReadonly() excludePercService
 ;
 overExcludeService  = ABSTRACT VALUE BOOLEAN (Purchase.Order);
-excludeService 'Исключить из подстчета "Качество сервиса"' (Purchase.Order o) = [ = GROUP SUM 1 IF sum(OrderDetail idetail) AND excludePercService(skuGroup(sku(idetail))) BY order(idetail)](o)
+excludeService 'Исключить из подстчета "Качество сервиса"' (Purchase.Order o) = [ = GROUP BY order(OrderDetail idetail) SUM 1 IF sum(idetail) AND excludePercService(skuGroup(sku(idetail)))](o)
                                                                                    OR overExcludeService(o);
 
-sumShippedService (supplier, dateFrom, dateTo)= GROUP SUM sumShippedOrderDetail(Order order) 
-    IF shipmentDate(order) >= DATE dateFrom AND shipmentDate(order) <= DATE dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order)
-        BY supplier(order), dateFrom, dateTo;                                                   
-sumService (supplier, dateFrom, dateTo)= GROUP SUM sumOrderDetail(Order order) 
-    IF shipmentDate(order) >= DATE dateFrom AND shipmentDate(order) <= DATE dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order)
-        BY supplier(order), dateFrom, dateTo;      
+sumShippedService (supplier, dateFrom, dateTo)= GROUP
+        BY supplier(Order order), DATE dateFrom, DATE dateTo SUM sumShippedOrderDetail(order) 
+    IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order);                                                   
+sumService (supplier, dateFrom, dateTo)= GROUP
+        BY supplier(Order order), DATE dateFrom, DATE dateTo SUM sumOrderDetail(order) 
+    IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order);      
 percentSumExecutionService '% исп. заявки (сумма)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) = sumShippedService(supplier, dateFrom, dateTo)*100.00 /
     (sumService(supplier, dateFrom, dateTo) IF sumService(supplier, dateFrom, dateTo)!=0);   
 

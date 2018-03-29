@@ -5,8 +5,8 @@ REQUIRE Range, PriceListLedgerAccount;
 NAMESPACE Range;
 
 priceB 'Цена' (type, sku, store, dateTime) =
-    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
-          BY type, sku(ledger, type, stock), store(stock), DATETIME dateTimeIn
+    GROUP
+          BY LedgerPriceListType type, sku(PriceListLedger ledger, type, Stock stock), store(stock), DATETIME dateTimeIn LAST price(ledger, type, stock)
           ORDER fromDateTime(ledger, type, stock), ledger
           WHERE fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 prevPriceB 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Store store, DATETIME dateTime) = PREV(priceB(type, sku, store, dateTime)) COMPLEX;

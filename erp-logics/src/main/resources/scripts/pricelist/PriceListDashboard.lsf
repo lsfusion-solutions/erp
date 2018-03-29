@@ -220,7 +220,7 @@ modifyDataCompany 'Изменить'(DATETIME dateTime, PriceListType dataPriceL
             price[UserPriceListDetail,DataPriceListType](UserPriceListDetail d, dataPriceListType) <-
                 activePriceA(dataPriceListType, sku(d), company, dateTime)
                 WHERE userPriceList(d) == u;
-            FOR [= GROUP SUM 1 IF in(Sku sku) AND priceA(LedgerPriceListType t, sku, Stock st, LegalEntity c, DATETIME d) BY t, st, c, d] (dataPriceListType, Stock stock, company, dateTime) DO {
+            FOR [= GROUP BY LedgerPriceListType t, Stock st, LegalEntity c, DATETIME d SUM 1 IF in(Sku sku) AND priceA(t, sku, st, c, d)] (dataPriceListType, Stock stock, company, dateTime) DO {
                 dataIn(u, stock) <- TRUE;
             }
             operation(u) <- operation;  
@@ -235,7 +235,7 @@ excludeDataCompany 'Исключить'(DATETIME dateTime, PriceListType dataPri
     NEWSESSION NESTED (in[Sku]) {
         NEW u = UserPriceList {
             fillCompany(u, dateTime, dataPriceListType, company);
-            FOR [= GROUP SUM 1 IF in(Sku sku) AND priceA(LedgerPriceListType t, sku, Stock st, LegalEntity c, DATETIME d) BY t, st, c, d] (dataPriceListType, Stock stock, company, dateTime) DO {
+            FOR [= GROUP BY LedgerPriceListType t, Stock st, LegalEntity c, DATETIME d SUM 1 IF in(Sku sku) AND priceA(t, sku, st, c, d)] (dataPriceListType, Stock stock, company, dateTime) DO {
                 dataIn(u, stock) <- TRUE;
             }
             operation(u) <- operation;  
@@ -400,14 +400,14 @@ createWPricesCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListT
 
 // Изменение цен
 modifyData 'Изменить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = {
-    FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(LedgerPriceListType t, s, Stock st, DATETIME d), t, st, d] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
+    FOR [= GROUP BY companyA(LedgerPriceListType t, Sku s, Stock st, DATETIME d), t, st, d SUM 1 IF in(s)] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
         createWPricesCompanyPriceList(company, dateTime, dataPriceListType, stock);
     }
 }
 
 // Исключение из ассортимента
 excludeData 'Исключить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = {
-    FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(LedgerPriceListType t, s, Stock st, DATETIME d), t, st, d] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
+    FOR [= GROUP BY companyA(LedgerPriceListType t, Sku s, Stock st, DATETIME d), t, st, d SUM 1 IF in(s)] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
         createCompanyPriceList(company, dateTime, dataPriceListType, stock);
     }
 }

@@ -7,7 +7,7 @@ NAMESPACE Inventory;
 //------------------------------------------ Печатные формы -------------------------------------------------//
 
 //------------------------------------ Опись ------------------------------------------//
-countResponsiblePersonStock = TRUE IF [ =GROUP SUM 1 IF isOverResponsiblePerson(stock(ListInventory l), Employee e1) BY l](ListInventory l);
+countResponsiblePersonStock = TRUE IF [ =GROUP BY ListInventory l SUM 1 IF isOverResponsiblePerson(stock(l), Employee e1)](ListInventory l);
 
 FORM printListInventoryBy 'Опись'
 
@@ -124,13 +124,13 @@ printBy 'Сличительная ведомость' (CollationSheet collationS
 printByXLS 'Сл.вед. (xls)' (CollationSheet collationSheet) =
     { PRINT printCollationSheetBy OBJECTS cs = collationSheet XLS; } IMAGE 'print.png' IN print;
         
-quantityPageInventoryDetailSku 'Кол-во по описям' = GROUP SUM quantityPageInventoryDetail(CollationSheet sheet, Sku sku) BY sheet, skuGroup(sku);
-quantityBalanceSku 'Кол-во по остаткам' = GROUP SUM quantityBalance(CollationSheet sheet, Sku sku) BY sheet, skuGroup(sku);
-quantityShortageSku 'Кол-во недостачи' = GROUP SUM quantityShortage(CollationSheet sheet, Sku sku) BY sheet, skuGroup(sku);
+quantityPageInventoryDetailSku 'Кол-во по описям' = GROUP BY CollationSheet sheet, skuGroup(Sku sku) SUM quantityPageInventoryDetail(sheet, sku);
+quantityBalanceSku 'Кол-во по остаткам' = GROUP BY CollationSheet sheet, skuGroup(Sku sku) SUM quantityBalance(sheet, sku);
+quantityShortageSku 'Кол-во недостачи' = GROUP BY CollationSheet sheet, skuGroup(Sku sku) SUM quantityShortage(sheet, sku);
 
-sumPageInventoryDetailSku 'Сумма по описям' = GROUP SUM sumPageInventoryDetail(CollationSheet sheet, Sku sku) BY sheet, skuGroup(sku);
-sumBalanceSku 'Сумма по остаткам' = GROUP SUM sumBalance(CollationSheet sheet, Sku sku) BY sheet, skuGroup(sku);
-sumShortageSku 'Сумма недостачи' = GROUP SUM sumShortage(CollationSheet sheet, Sku sku) BY sheet, skuGroup(sku);     
+sumPageInventoryDetailSku 'Сумма по описям' = GROUP BY CollationSheet sheet, skuGroup(Sku sku) SUM sumPageInventoryDetail(sheet, sku);
+sumBalanceSku 'Сумма по остаткам' = GROUP BY CollationSheet sheet, skuGroup(Sku sku) SUM sumBalance(sheet, sku);
+sumShortageSku 'Сумма недостачи' = GROUP BY CollationSheet sheet, skuGroup(Sku sku) SUM sumShortage(sheet, sku);     
     
 FORM printCollationSheetByGroup 'Сличительная ведомость(по группам)'
 
@@ -176,13 +176,13 @@ printByGroup 'Сличительная ведомость(по группам)' 
 printByGroupXLS 'Сличительная ведомость(по группам) (xls)' (CollationSheet collationSheet) =
     { PRINT printCollationSheetByGroup OBJECTS cs = collationSheet XLS; } IMAGE 'print.png' IN print;    
     
-countIndex 'Количество наименований товара'(cs) = GROUP SUM 1 IF include(CollationSheet cs, Sku i)
-        BY cs IN documentSum;    
-countIndexBatch 'Количество наименований партий'(cs) = GROUP SUM 1 IF include(CollationSheet cs,Batch b) 
-    AND (quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b) OR sumBalance(cs, b))
-        BY cs IN documentSum;     
+countIndex 'Количество наименований товара'(cs) = GROUP
+        BY CollationSheet cs SUM 1 IF include(cs, Sku i) IN documentSum;    
+countIndexBatch 'Количество наименований партий'(cs) = GROUP
+        BY CollationSheet cs SUM 1 IF include(cs,Batch b) 
+    AND (quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b) OR sumBalance(cs, b)) IN documentSum;     
   
-countResponsiblePersonStock = TRUE IF [ =GROUP SUM 1 IF isOverResponsiblePerson(stock(CollationSheet cs), Employee e1) BY cs](CollationSheet cs);
+countResponsiblePersonStock = TRUE IF [ =GROUP BY CollationSheet cs SUM 1 IF isOverResponsiblePerson(stock(cs), Employee e1)](CollationSheet cs);
         
 FORM printCollationSheet 'Опись'
 
@@ -276,10 +276,10 @@ printXLS 'Опись (xls)' (CollationSheet collationSheet) =
     IMAGE 'print.png' IN print;
     
 
-countIndexFacts 'Количество наименований товара'(cs) = GROUP SUM 1 IF quantityPageInventoryDetail(CollationSheet cs, Sku i)
-        BY cs IN documentSum;    
-countIndexBatchFacts 'Количество наименований партий'(cs) = GROUP SUM 1 IF quantityPageInventoryDetail(CollationSheet cs,Batch b)    
-        BY cs IN documentSum; 
+countIndexFacts 'Количество наименований товара'(cs) = GROUP
+        BY CollationSheet cs SUM 1 IF quantityPageInventoryDetail(cs, Sku i) IN documentSum;    
+countIndexBatchFacts 'Количество наименований партий'(cs) = GROUP    
+        BY CollationSheet cs SUM 1 IF quantityPageInventoryDetail(cs,Batch b) IN documentSum; 
     
 FORM printCollationSheetFacts 'Опись (факт)'
 

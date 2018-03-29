@@ -101,7 +101,7 @@ createRepricingSaleStore 'Создать переоценку'(Invoice i) = {
             inSaleStore(InvoiceDetail d) <- NULL;           
             inSaleStore(InvoiceDetail d) <- needToRepricingSaleStore(d) WHERE invoice(d) == i;
                 
-            IF [ = GROUP SUM 1 IF inSaleStore(InvoiceDetail d) BY invoice(d)](i) THEN {
+            IF [ = GROUP BY invoice(InvoiceDetail d) SUM 1 IF inSaleStore(d)](i) THEN {
                 createRepricingSaleStoreOver(i);
                 APPLY;
                 IF NOT canceled() THEN MESSAGE 'Документ переоценки создан' NOWAIT; 
@@ -145,9 +145,9 @@ createRepricingSaleStore 'Создать переоценку'(Stock department,
     inSaleStore(InvoiceDetail d) <- NULL;           
     inSaleStore(InvoiceDetail d) <- needToRepricingSaleStore(d,department, timeFrom, timeTo);
            
-    processedRepricingSaleStore(Invoice i) <- TRUE WHERE filterToRepricingDateSaleStore(i,department, timeFrom, timeTo) AND NOT [ = GROUP SUM 1 IF inSaleStore(InvoiceDetail d) BY invoice(d)](i);
+    processedRepricingSaleStore(Invoice i) <- TRUE WHERE filterToRepricingDateSaleStore(i,department, timeFrom, timeTo) AND NOT [ = GROUP BY invoice(InvoiceDetail d) SUM 1 IF inSaleStore(d)](i);
             
-    FOR [ = GROUP SUM 1 IF inSaleStore(InvoiceDetail d) BY invoice(d)](Invoice i) DO {
+    FOR [ = GROUP BY invoice(InvoiceDetail d) SUM 1 IF inSaleStore(d)](Invoice i) DO {
         createRepricingSaleStoreOver(i);
     }    
 } 

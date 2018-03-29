@@ -277,10 +277,10 @@ CONSTRAINT stock(UserPicking picking) != stock(pickingOrder(picking))
 descriptionPickingOrder 'Заказ' (Picking picking) = description(pickingOrder(picking)) CHARWIDTH 30 IN pickingOrders;
 notePickingOrder 'Примечание (заказ)' (Picking p) = note(pickingOrder(p)); 
 
-quantityPickings 'Количество комплектаций' (pickingOrder) = GROUP SUM 1 BY pickingOrder(Picking picking) MATERIALIZED;
+quantityPickings 'Количество комплектаций' (pickingOrder) = GROUP BY pickingOrder(Picking picking) SUM 1 MATERIALIZED;
 
-pickings 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255](description(Picking picking)), ', '
-                                         BY pickingOrder(picking)
+pickings 'Комплектации' (pickingOrder) = GROUP
+                                         BY pickingOrder(Picking picking) CONCAT VARSTRING[255](description(picking)), ', '
                                          ORDER picking
 //                                         IN order
                                          CHARWIDTH 30 MATERIALIZED;
@@ -371,15 +371,15 @@ EXTEND FORM pickings
 
 notCount 'Не учитывать' = ABSTRACT BOOLEAN (Picking);
 
-countPickingOrderSku 'Кол-во наименований' (pickingOrder) = GROUP SUM 1 IF quantityPickingOrderDetail(Sku sku, PickingOrder pickingOrder) BY pickingOrder;
+countPickingOrderSku 'Кол-во наименований' (pickingOrder) = GROUP BY PickingOrder pickingOrder SUM 1 IF quantityPickingOrderDetail(Sku sku, pickingOrder);
 
-quantityPickingDetail 'Кол-во в комплектациях' (sku, pickingOrder) = GROUP SUM quantityPickingDetail(Sku sku, Picking picking) IF NOT notCount(picking) BY sku, pickingOrder(picking);
-countEqualPickingOrderSku 'Кол-во наименований с равным кол-ом товара' (pickingOrder) = GROUP SUM 1 IF quantityPickingDetail(Sku sku, PickingOrder pickingOrder) == quantityPickingOrderDetail(sku, pickingOrder) BY pickingOrder;
+quantityPickingDetail 'Кол-во в комплектациях' (sku, pickingOrder) = GROUP BY Sku sku, pickingOrder(Picking picking) SUM quantityPickingDetail(sku, picking) IF NOT notCount(picking);
+countEqualPickingOrderSku 'Кол-во наименований с равным кол-ом товара' (pickingOrder) = GROUP BY PickingOrder pickingOrder SUM 1 IF quantityPickingDetail(Sku sku, pickingOrder) == quantityPickingOrderDetail(sku, pickingOrder);
 
 calcFull 'Полностью собран' (PickingOrder pickingOrder) = countPickingOrderSku(pickingOrder) == countEqualPickingOrderSku(pickingOrder) MATERIALIZED;
 calcPart 'Частично собран' (PickingOrder pickingOrder) = quantityPickings(pickingOrder) AND NOT calcFull(pickingOrder);
 
-packQuantity 'Кол-во собранных мест' (pickingOrder) = GROUP SUM packQuantity(Picking picking) BY pickingOrder(picking);
+packQuantity 'Кол-во собранных мест' (pickingOrder) = GROUP BY pickingOrder(Picking picking) SUM packQuantity(picking);
 
 accepted 'Принят в работу' = DATA BOOLEAN (PickingOrder);
 notAccepted(PickingOrder o) = NOT accepted(o);

@@ -23,7 +23,7 @@ FORM operationDialogOperations 'Операции'
 
 TABLE userOperation (User, Operation);
 in (user, operation) = ABSTRACT BOOLEAN (User, Operation) MATERIALIZED;
-countUsers = GROUP SUM 1 IF in (User user, Operation operation) BY operation;
+countUsers = GROUP BY Operation operation SUM 1 IF in (User user, operation);
 
 // -------------------------------------- Макросы по созданию операций ---------------------------------- //
 
@@ -44,7 +44,7 @@ META defineOperation(postfix, navigator)
 
     id 'ID' = DATA VARISTRING[100](Operation);
     id(Operation operation) += id(operation);
-    operation (id) = GROUP MAX Operation operation BY id(operation);
+    operation (id) = GROUP BY id(Operation operation) MAX operation;
 
     FORM operation 'Операция'##postfix
         OBJECTS o = Operation PANEL
@@ -238,8 +238,8 @@ META defineOperationLegalEntity(prop, propPostfix, object, tabcaption)
     dataIn###prop 'Отм.' = DATA BOOLEAN (LegalEntityGroup, Operation);
 
     levelParent###propPostfix###prop (operation, legalEntityGroup) =
-        GROUP MIN level(LegalEntityGroup legalEntityGroup, LegalEntityGroup parent) IF dataIn###prop(parent, Operation operation)
-              BY operation, legalEntityGroup MATERIALIZED;
+        GROUP
+              BY Operation operation, LegalEntityGroup legalEntityGroup MIN level(legalEntityGroup, LegalEntityGroup parent) IF dataIn###prop(parent, operation) MATERIALIZED;
     nearestParent###propPostfix###prop##Group (Operation operation, LegalEntityGroup legalEntityGroup) = legalEntityGroup(legalEntityGroup, levelParent###propPostfix###prop(operation, legalEntityGroup));
     nearestIn###prop (LegalEntityGroup legalEntityGroup, Operation operation) =
         dataIn###prop(nearestParent###propPostfix###prop##Group(operation, legalEntityGroup), operation) MATERIALIZED;
@@ -252,8 +252,8 @@ META defineOperationLegalEntity(prop, propPostfix, object, tabcaption)
     in###prop 'Отм' (LegalEntity legalEntity, Operation operation) =
         OVERRIDE dataIn###prop(legalEntity, operation), nearestIn###prop(legalEntityGroup(legalEntity), operation);
         
-    quantityChildWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(LegalEntityGroup childGroup, Operation operation) AND isParent(childGroup, LegalEntityGroup group) BY group, operation MATERIALIZED;
-    quantityParentWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(LegalEntityGroup parentGroup, Operation operation) AND isParent(LegalEntityGroup group, parentGroup) BY group, operation MATERIALIZED;          
+    quantityChildWithIn###prop (group, operation) = GROUP BY LegalEntityGroup group, Operation operation SUM 1 IF dataIn###prop(LegalEntityGroup childGroup, operation) AND isParent(childGroup, group) MATERIALIZED;
+    quantityParentWithIn###prop (group, operation) = GROUP BY LegalEntityGroup group, Operation operation SUM 1 IF dataIn###prop(LegalEntityGroup parentGroup, operation) AND isParent(group, parentGroup) MATERIALIZED;          
         
     backgroundIn###prop 'Цвет' (LegalEntityGroup group, Operation operation) = CASE
         WHEN dataIn###prop(group, operation) THEN RGB(0,0,0)
@@ -313,14 +313,14 @@ END
 
 META defineCountLegalEntityOperation(prop, filter)
     // Подсчет органиизации по умолчанию            
-    count###prop (operation) = GROUP SUM 1 IF in###prop(LegalEntity legalEntity,Operation operation) AND is###filter(legalEntity)  BY operation;
-    default###prop (operation) = GROUP MIN LegalEntity legalEntity IF in###prop(legalEntity,Operation operation) AND is###filter(legalEntity) BY operation;   
+    count###prop (operation) = GROUP  BY Operation operation SUM 1 IF in###prop(LegalEntity legalEntity,operation) AND is###filter(legalEntity);
+    default###prop (operation) = GROUP BY Operation operation MIN LegalEntity legalEntity IF in###prop(legalEntity,operation) AND is###filter(legalEntity);   
 END
 
 META defineCountLegalEntityOperation(prop)
     // Подсчет органиизации по умолчанию            
-    count###prop (operation) = GROUP SUM 1 IF in###prop(LegalEntity legalEntity,Operation operation) BY operation;
-    default###prop (operation) = GROUP MIN LegalEntity legalEntity IF in###prop(legalEntity,Operation operation) BY operation;   
+    count###prop (operation) = GROUP BY Operation operation SUM 1 IF in###prop(LegalEntity legalEntity,operation);
+    default###prop (operation) = GROUP BY Operation operation MIN LegalEntity legalEntity IF in###prop(legalEntity,operation);   
 END
 
 META deriveDocumentOperationLegalEntity(objectClass, prop, form)
@@ -341,8 +341,8 @@ META defineOperationStock(prop, object, tabcaption)
     dataIn###prop 'Отм.' = DATA BOOLEAN (StockGroup, Operation);
 
     levelParent###prop##Stock (operation, stockGroup) =
-        GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataIn###prop(parent, Operation operation)
-              BY operation, stockGroup MATERIALIZED;
+        GROUP
+              BY Operation operation, StockGroup stockGroup MIN level(stockGroup, StockGroup parent) IF dataIn###prop(parent, operation) MATERIALIZED;
     nearestParent###prop##StockGroup (Operation operation, StockGroup stockGroup) = stockGroup(stockGroup, levelParent###prop##Stock(operation, stockGroup));
     nearestIn###prop (StockGroup stockGroup, Operation operation) =
         dataIn###prop(nearestParent###prop##StockGroup(operation, stockGroup), operation) MATERIALIZED;
@@ -358,13 +358,13 @@ META defineOperationStock(prop, object, tabcaption)
         OVERRIDE dataIn###prop(stock, operation),
                  in###prop(stockGroup(stock), operation);
                  
-    countDataIn###prop##StockGroups = GROUP SUM 1 IF  dataIn###prop(StockGroup stockGroup, Operation operation) BY operation;            
+    countDataIn###prop##StockGroups = GROUP BY Operation operation SUM 1 IF  dataIn###prop(StockGroup stockGroup, operation);            
                                   
     backgroundAll###prop##Stocks 'Цвет' (Operation operation) = IF all###prop##Stocks(operation) THEN RGB(0,0,0)
         ELSE RGB(203,203,203) IF countDataIn###prop##StockGroups(operation);      
      
-    quantityChildWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(StockGroup childGroup, Operation operation) AND isParent(childGroup, StockGroup group) BY group, operation MATERIALIZED;
-    quantityParentWithIn###prop (group, operation) = GROUP SUM 1 IF dataIn###prop(StockGroup parentGroup, Operation operation) AND isParent(StockGroup group, parentGroup) BY group, operation MATERIALIZED;          
+    quantityChildWithIn###prop (group, operation) = GROUP BY StockGroup group, Operation operation SUM 1 IF dataIn###prop(StockGroup childGroup, operation) AND isParent(childGroup, group) MATERIALIZED;
+    quantityParentWithIn###prop (group, operation) = GROUP BY StockGroup group, Operation operation SUM 1 IF dataIn###prop(StockGroup parentGroup, operation) AND isParent(group, parentGroup) MATERIALIZED;          
           
     backgroundIn###prop 'Цвет' (StockGroup group, Operation operation) = CASE
         WHEN dataIn###prop(group, operation) THEN RGB(0,0,0)
@@ -427,16 +427,16 @@ END
 
 META defineCountStockOperation(prop, filter, filterEntity)
     // Подсчет складов по умолчанию            
-    count###prop##Stock (operation) = GROUP SUM 1 IF in###prop(Stock stock,Operation operation)
+    count###prop##Stock (operation) = GROUP
+                                                            BY Operation operation SUM 1 IF in###prop(Stock stock,operation)
                                                         AND is###filter(stock) 
                                                         AND in###prop(legalEntity(stock),operation)
-                                                        AND is###filterEntity(legalEntity(stock))
-                                                            BY operation;
-    default###prop##Stock (operation) = GROUP MIN Stock stock IF in###prop(stock,Operation operation) 
+                                                        AND is###filterEntity(legalEntity(stock));
+    default###prop##Stock (operation) = GROUP
+                                                            BY Operation operation MIN Stock stock IF in###prop(stock,operation) 
                                                         AND is###filter(stock) 
                                                         AND in###prop(legalEntity(stock),operation)
-                                                        AND is###filterEntity(legalEntity(stock))
-                                                            BY operation;        
+                                                        AND is###filterEntity(legalEntity(stock));        
 END
 
 META deriveDocumentOperationStock(objectClass, prop, form)
@@ -501,9 +501,9 @@ META defineOperationRole(dumb)
     in (User user, Operation operation) = allRoles(operation) AND user IS User OR 
                                         dataIn(mainRole(user), operation) MATERIALIZED;
     in(User user, Operation operation) += in(user, operation);
-    countOperations (user) = GROUP SUM 1 IF in(User user, Operation operation) BY user;
-    countUsers = GROUP SUM 1 IF in (User user, Operation operation) BY operation;
-    defaultOperation 'Операция по умолчанию' (user) = GROUP MIN Operation operation IF in(User user, operation) BY user;
+    countOperations (user) = GROUP BY User user SUM 1 IF in(user, Operation operation);
+    countUsers = GROUP BY Operation operation SUM 1 IF in (User user, operation);
+    defaultOperation 'Операция по умолчанию' (user) = GROUP BY User user MIN Operation operation IF in(user, operation);
     
     preventChangesDocument 'Запретить редактирование' = DATA BOOLEAN (UserRole, Operation);
     preventChangesDocument (User user, Operation operation) = preventChangesDocument(mainRole(user), operation);

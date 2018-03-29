@@ -31,8 +31,8 @@ FORM ABCTypes 'Тип отчета'
 
 dataInSession 'Отм.' = DATA LOCAL BOOLEAN (Group);
 
-levelParent (group) = GROUP MIN level(Group group, Group parent) IF dataInSession(parent)
-    BY group;
+levelParent (group) = GROUP
+    BY Group group MIN level(group, Group parent) IF dataInSession(parent);
 nearestParentGroupInSession (Group g) =  group(g, levelParent(g));
 nearestInSession (Group g) =
     dataInSession(nearestParentGroupInSession(g)) MATERIALIZED;
@@ -44,12 +44,12 @@ inSession 'Отм.' (Group group) = OVERRIDE
     inParent(group);
 
 sessionConcatGroups 'Группы' (groupType) =
-    GROUP CONCAT name(Group group) IF inSession(group) AND NOT inSession(parent(group)),'; '
-    BY groupType(group);
+    GROUP
+    BY groupType(Group group) CONCAT name(group) IF inSession(group) AND NOT inSession(parent(group)),'; ';
     
 
-quantityChildWithSession (g) = GROUP SUM 1 IF dataInSession(Group child) AND isParent(child, Group parent) BY parent MATERIALIZED;
-quantityParentWithSession (g) = GROUP SUM 1 IF dataInSession(Group parent) AND isParent(Group child, parent) BY child MATERIALIZED;                                                                        
+quantityChildWithSession (g) = GROUP BY Group parent SUM 1 IF dataInSession(Group child) AND isParent(child, parent) MATERIALIZED;
+quantityParentWithSession (g) = GROUP BY Group child SUM 1 IF dataInSession(Group parent) AND isParent(child, parent) MATERIALIZED;                                                                        
                                                                            
 backgroundInSession 'Цвет' (Group g) = CASE 
     WHEN dataInSession(g) THEN RGB(0,0,0)
@@ -58,7 +58,7 @@ backgroundInSession 'Цвет' (Group g) = CASE
   
   
   
-countInSessionSkuGroups  = GROUP SUM 1 IF dataInSession(Group g) BY groupType(g);
+countInSessionSkuGroups  = GROUP BY groupType(Group g) SUM 1 IF dataInSession(g);
 
 resetSelectedGroups  'Сбросить отмеченные'() = {
     dataInSession(Group g) <- NULL WHERE g IS Group ;    
@@ -75,42 +75,42 @@ idSelectStocks 'Склады' = GROUP CONCAT id(Stock st) IF select(st),', ' CHA
 //--
 
 markupSumSold 'Доход'(groupType, group, dateFrom, dateTo) =
-    GROUP SUM markupSumSold(Sku sk, Stock st, DATE df, DATE dt) IF  isParent(Group g, sk) AND inSession(group(GroupType groupType, sk)) AND select(st)
-    BY groupType, g, df, dt;
+    GROUP
+    BY GroupType groupType, Group g, DATE df, DATE dt SUM markupSumSold(Sku sk, Stock st, df, dt) IF  isParent(g, sk) AND inSession(group(groupType, sk)) AND select(st);
                                                    
 quantitySold 'Кол-во'(groupType, group, dateFrom, dateTo) =
-    GROUP SUM quantitySold(Sku sk, Stock st, DATE df, DATE dt) IF  isParent(Group g, sk) AND inSession(group(GroupType groupType, sk)) AND select(st)
-    BY groupType, g, df, dt;
+    GROUP
+    BY GroupType groupType, Group g, DATE df, DATE dt SUM quantitySold(Sku sk, Stock st, df, dt) IF  isParent(g, sk) AND inSession(group(groupType, sk)) AND select(st);
                                                        
 sumSold 'Выручка'(groupType, group, dateFrom, dateTo) =
-    GROUP SUM sumSold(Sku sk, Stock st, DATE df, DATE dt) IF  isParent(Group g, sk) AND inSession(group(GroupType groupType, sk)) AND select(st)
-    BY groupType, g, df, dt; 
+    GROUP
+    BY GroupType groupType, Group g, DATE df, DATE dt SUM sumSold(Sku sk, Stock st, df, dt) IF  isParent(g, sk) AND inSession(group(groupType, sk)) AND select(st); 
 
 
 markupSumSold 'Доход'(groupType, sku, dateFrom, dateTo) =
-    GROUP SUM markupSumSold(Sku sk, Stock st, DATE df, DATE dt) IF  inSession(group(GroupType groupType, sk)) AND select(st)
-    BY groupType, sk, df, dt;
+    GROUP
+    BY GroupType groupType, Sku sk, DATE df, DATE dt SUM markupSumSold(sk, Stock st, df, dt) IF  inSession(group(groupType, sk)) AND select(st);
 
 quantitySold 'Кол-во'(groupType, sku, dateFrom, dateTo) =
-    GROUP SUM quantitySold(Sku sk, Stock st, DATE df, DATE dt) IF  inSession(group(GroupType groupType, sk)) AND select(st)
-    BY groupType, sk, df, dt;
+    GROUP
+    BY GroupType groupType, Sku sk, DATE df, DATE dt SUM quantitySold(sk, Stock st, df, dt) IF  inSession(group(groupType, sk)) AND select(st);
                                                        
 sumSold 'Выручка'(groupType, sku, dateFrom, dateTo) =
-    GROUP SUM sumSold(Sku sk, Stock st, DATE df, DATE dt) IF  inSession(group(GroupType groupType, sk)) AND select(st)
-    BY groupType, sk, df, dt;                                                
+    GROUP
+    BY GroupType groupType, Sku sk, DATE df, DATE dt SUM sumSold(sk, Stock st, df, dt) IF  inSession(group(groupType, sk)) AND select(st);                                                
 //--
                                                
 markupSumSold 'Доход'(groupType, dateFrom, dateTo) =
-    GROUP SUM markupSumSold(Sku sk, Stock st, DATE df, DATE dt) IF inSession(group(GroupType groupType, sk))  AND select(st)
-    BY groupType, df, dt;
+    GROUP
+    BY GroupType groupType, DATE df, DATE dt SUM markupSumSold(Sku sk, Stock st, df, dt) IF inSession(group(groupType, sk))  AND select(st);
                                                    
 quantitySold 'Кол-во'(groupType, dateFrom, dateTo) =
-    GROUP SUM quantitySold(Sku sk, Stock st, DATE df, DATE dt) IF inSession(group(GroupType groupType, sk))  AND select(st)
-    BY groupType, df, dt;
+    GROUP
+    BY GroupType groupType, DATE df, DATE dt SUM quantitySold(Sku sk, Stock st, df, dt) IF inSession(group(groupType, sk))  AND select(st);
                                                        
 sumSold 'Выручка'(groupType, dateFrom, dateTo) =
-    GROUP SUM sumSold(Sku sk, Stock st, DATE df, DATE dt) IF inSession(group(GroupType groupType, sk))  AND select(st)
-    BY groupType, df, dt;                                                 
+    GROUP
+    BY GroupType groupType, DATE df, DATE dt SUM sumSold(Sku sk, Stock st, df, dt) IF inSession(group(groupType, sk))  AND select(st);                                                 
                                                
                                                
 
@@ -202,13 +202,13 @@ partitionSumBest  (Sku s)= PARTITION SUM sumSold(s) BY skuType(s) ORDER indexSum
 partitionMarkupBest  (Sku s)= PARTITION SUM markupSumSold(s) BY skuType(s) ORDER indexMarkupBest(s)  CHARWIDTH 3 CHARWIDTH 6;
 partitionQuantityBest (Sku s)= PARTITION SUM quantitySold(s) BY skuType(s) ORDER indexQuantityBest(s)  CHARWIDTH 3 CHARWIDTH 6;
 
-sumBest = GROUP SUM sumSold(Group g) IF indexSumBest(g) <= best() BY groupType(g); 
-markupBest = GROUP SUM markupSumSold(Group g) IF indexMarkupBest(g) <= best() BY groupType(g); 
-quantityBest = GROUP SUM quantitySold(Group g) IF indexQuantityBest(g) <= best() BY groupType(g); 
+sumBest = GROUP BY groupType(Group g) SUM sumSold(g) IF indexSumBest(g) <= best(); 
+markupBest = GROUP BY groupType(Group g) SUM markupSumSold(g) IF indexMarkupBest(g) <= best(); 
+quantityBest = GROUP BY groupType(Group g) SUM quantitySold(g) IF indexQuantityBest(g) <= best(); 
 
-sumBestSku = GROUP SUM sumSold(Sku s) IF indexSumBest(s) <= best() BY groupType(skuGroup(s)); 
-markupBestSku = GROUP SUM markupSumSold(Sku s) IF indexMarkupBest(s) <= best() BY groupType(skuGroup(s)); 
-quantityBestSku = GROUP SUM quantitySold(Sku s) IF indexQuantityBest(s) <= best() BY groupType(skuGroup(s)); 
+sumBestSku = GROUP BY groupType(skuGroup(Sku s)) SUM sumSold(s) IF indexSumBest(s) <= best(); 
+markupBestSku = GROUP BY groupType(skuGroup(Sku s)) SUM markupSumSold(s) IF indexMarkupBest(s) <= best(); 
+quantityBestSku = GROUP BY groupType(skuGroup(Sku s)) SUM quantitySold(s) IF indexQuantityBest(s) <= best(); 
 
 percInSumBest 'Уд. вес' (GroupType t, Group g) = round4(sumSold(g)*100.00 / sumBest(t)); 
 percInMarkupBest 'Уд. вес'(GroupType t, Group g) = round4(markupSumSold(g)*100.00 / markupBest(t)); 
@@ -300,12 +300,12 @@ partitionSumWorst  (Sku s)= PARTITION SUM  sumSold(s) BY groupType(skuGroup(s)) 
 partitionMarkupWorst  (Sku s)= PARTITION SUM markupSumSold(s) BY groupType(skuGroup(s)) ORDER indexMarkupWorst(s)  CHARWIDTH 3 CHARWIDTH 6;
 partitionQuantityWorst (Sku s)= PARTITION SUM quantitySold(s) BY groupType(skuGroup(s)) ORDER indexQuantityWorst(s)  CHARWIDTH 3 CHARWIDTH 6;
 
-sumWorst = GROUP SUM sumSold(Group g) IF indexSumWorst(g) <= worst() BY groupType(g); 
-markupWorst = GROUP SUM markupSumSold(Group g) IF indexMarkupWorst(g) <= worst() BY groupType(g); 
-quantityWorst = GROUP SUM quantitySold(Group g) IF indexQuantityWorst(g) <= worst() BY groupType(g); 
-sumWorstSku = GROUP SUM sumSold(Sku s) IF indexSumWorst(s) <= worst() BY groupType(skuGroup(s)); 
-markupWorstSku = GROUP SUM markupSumSold(Sku s) IF indexMarkupWorst(s) <= worst() BY groupType(skuGroup(s)); 
-quantityWorstSku = GROUP SUM quantitySold(Sku s) IF indexQuantityWorst(s) <= worst() BY groupType(skuGroup(s)); 
+sumWorst = GROUP BY groupType(Group g) SUM sumSold(g) IF indexSumWorst(g) <= worst(); 
+markupWorst = GROUP BY groupType(Group g) SUM markupSumSold(g) IF indexMarkupWorst(g) <= worst(); 
+quantityWorst = GROUP BY groupType(Group g) SUM quantitySold(g) IF indexQuantityWorst(g) <= worst(); 
+sumWorstSku = GROUP BY groupType(skuGroup(Sku s)) SUM sumSold(s) IF indexSumWorst(s) <= worst(); 
+markupWorstSku = GROUP BY groupType(skuGroup(Sku s)) SUM markupSumSold(s) IF indexMarkupWorst(s) <= worst(); 
+quantityWorstSku = GROUP BY groupType(skuGroup(Sku s)) SUM quantitySold(s) IF indexQuantityWorst(s) <= worst(); 
 
 
 percInSumWorst(GroupType t, Group g) = round4(sumSold(g)*100.00 / sumWorst(t)); 

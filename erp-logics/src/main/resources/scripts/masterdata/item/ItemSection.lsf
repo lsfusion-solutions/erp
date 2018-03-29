@@ -8,7 +8,7 @@ TABLE SectionItem (Section, Item);
 TABLE sessionSectionItem (Session, Section, Item); 
 dataIn 'Отм' = DATA BOOLEAN (Section, Item);
 
-section (Item i) = GROUP MIN Section s IF dataIn(s, Item i) BY i;
+section (Item i) = GROUP BY Item i MIN Section s IF dataIn(s, i);
 idSection 'Секция' (Item item) = id(section(item)) CHARWIDTH 5;
 
 allowMultiSection 'Ререшить несколько секций' = DATA BOOLEAN ();
@@ -23,7 +23,7 @@ DESIGN options{
     }
 }
 
-CONSTRAINT [=GROUP SUM 1 IF dataIn(Section s, Item i) BY i](Item i) > 1 AND NOT allowMultiSection()
+CONSTRAINT [=GROUP BY Item i SUM 1 IF dataIn(Section s, i)](Item i) > 1 AND NOT allowMultiSection()
     MESSAGE 'Для товара может быть задана только одна секция';
 
 changeSection(Section s, Item i) = {

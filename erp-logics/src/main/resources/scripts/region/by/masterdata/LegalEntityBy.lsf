@@ -8,7 +8,7 @@ UNP 'УНП' = DATA VARSTRING[9] (LegalEntity) IN doc FIXEDCHARWIDTH 9;
 OKPO 'ОКПО' = DATA VARSTRING[20] (LegalEntity) IN doc CHARWIDTH 15;
 OKYLP 'ОКЮЛП' = DATA VARSTRING[20] (LegalEntity) IN doc CHARWIDTH 15;
 
-legalEntityUNP (unp) = GROUP MAX LegalEntity legalEntity BY UNP(legalEntity);
+legalEntityUNP (unp) = GROUP BY UNP(LegalEntity legalEntity) MAX legalEntity;
 
 META defineDocumentUNPLegalEntity(object, contact, caption)
     UNP###contact 'УНП'###caption (###object object) = UNP(contact(object)) IN documentPrm;
@@ -42,13 +42,13 @@ EXTEND FORM supplierLegalEntities
 ;
 
 uniqueUNPSupplier 'Запретить повтор УНП для поставщиков' = DATA BOOLEAN ();
-CONSTRAINT uniqueUNPSupplier() AND CHANGED (UNP(LegalEntity l)) AND [= GROUP SUM 1 IF isSupplier(LegalEntity l) BY UNP(l)](UNP(l)) > 1 MESSAGE 'Запрещен повтор УНП для поставщиков';
+CONSTRAINT uniqueUNPSupplier() AND CHANGED (UNP(LegalEntity l)) AND [= GROUP BY UNP(LegalEntity l) SUM 1 IF isSupplier(l)](UNP(l)) > 1 MESSAGE 'Запрещен повтор УНП для поставщиков';
 
 uniqueUNPCustomer 'Запретить повтор УНП для покупателей' = DATA BOOLEAN ();
-CONSTRAINT uniqueUNPCustomer() AND CHANGED (UNP(LegalEntity l)) AND [= GROUP SUM 1 IF isCustomer(LegalEntity l) BY UNP(l)](UNP(l)) > 1 MESSAGE 'Запрещен повтор УНП для покупателей';
+CONSTRAINT uniqueUNPCustomer() AND CHANGED (UNP(LegalEntity l)) AND [= GROUP BY UNP(LegalEntity l) SUM 1 IF isCustomer(l)](UNP(l)) > 1 MESSAGE 'Запрещен повтор УНП для покупателей';
 
 uniqueUNP 'Запретить повтор УНП' = DATA BOOLEAN ();
-CONSTRAINT uniqueUNP() AND CHANGED (UNP(LegalEntity l)) AND [= GROUP SUM 1 BY UNP(LegalEntity l)](UNP(l)) > 1 MESSAGE 'Запрещен повтор УНП';
+CONSTRAINT uniqueUNP() AND CHANGED (UNP(LegalEntity l)) AND [= GROUP BY UNP(LegalEntity l) SUM 1](UNP(l)) > 1 MESSAGE 'Запрещен повтор УНП';
 
 EXTEND FORM options
     PROPERTIES() uniqueUNPSupplier, uniqueUNPCustomer, uniqueUNP

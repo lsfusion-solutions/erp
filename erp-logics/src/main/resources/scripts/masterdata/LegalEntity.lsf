@@ -19,7 +19,7 @@ TABLE ownership (Ownership);
 name 'Наименование' = DATA VARISTRING[100](Ownership);
 
 shortName 'Cокращенное название' = DATA STRING[10] (Ownership) IN base FIXEDCHARWIDTH 6;
-ownershipShortName (string) = GROUP NAGGR Ownership ownership BY shortName (ownership) WHERE ownership IS Ownership;
+ownershipShortName (string) = GROUP BY shortName (Ownership ownership) NAGGR ownership WHERE ownership IS Ownership;
 
 country = DATA Country (Ownership);
 nameCountry 'Страна' (Ownership ownership) = name(country(ownership)) CHARWIDTH 10;
@@ -157,8 +157,8 @@ nameCountry 'Страна' = name(country(License license));
 
 legalEntity 'ЮЛ (ИД)' = DATA LegalEntity (License);
 
-license 'Действующая на дату' (legalEntity, date) = GROUP MAX License license IF dateFrom(license) <= DATE date AND NOT dateTo(license) < date
-                                                                         BY legalEntity(license), date;
+license 'Действующая на дату' (legalEntity, date) = GROUP
+                                                                         BY legalEntity(License license), DATE date MAX license IF dateFrom(license) <= date AND NOT dateTo(license) < date;
 currentLicense 'Действующая' (LegalEntity legalEntity) = license(legalEntity, currentDate());
 numberCurrentLicense 'Действующая лицензия' (LegalEntity legalEntity) = number(currentLicense(legalEntity)) IN law;
 

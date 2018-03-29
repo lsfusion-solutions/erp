@@ -65,15 +65,15 @@ productYield 'Выход' = DATA VARSTRING[100] (UserMenuDetail) CHARWIDTH 20;
 productYield(UserMenuDetail detail)+= productYield(detail);
 
 // --------------------------- Формы Меню ---------------------------------
-count 'Количество позиций в группе' (userMenu,group)= GROUP SUM 1
-    BY userMenu(UserMenuDetail detail), group(groupType(userMenu(detail)), sku(detail));
-count 'Количество позиций в группе' (menu,group)= GROUP SUM 1
-    BY menu(MenuDetail detail), group(groupType(menu(detail)), sku(detail));
+count 'Количество позиций в группе' (userMenu,group)= GROUP
+    BY userMenu(UserMenuDetail detail), group(groupType(userMenu(detail)), sku(detail)) SUM 1;
+count 'Количество позиций в группе' (menu,group)= GROUP
+    BY menu(MenuDetail detail), group(groupType(menu(detail)), sku(detail)) SUM 1;
 
-hasParent 'Количество позиций в группе' (userMenu, group)=  GROUP SUM count(UserMenu userMenu,Group child)
-    IF isParent(child, Group group) BY userMenu, group;
-hasParent 'Количество позиций в группе' (menu, group)=  GROUP SUM count(Menu menu,Group child)
-    IF isParent(child, Group group) BY menu, group;
+hasParent 'Количество позиций в группе' (userMenu, group)=  GROUP BY UserMenu userMenu, Group group SUM count(userMenu,Group child)
+    IF isParent(child, group);
+hasParent 'Количество позиций в группе' (menu, group)=  GROUP BY Menu menu, Group group SUM count(menu,Group child)
+    IF isParent(child, group);
 
 is (UserMenuDetail detail, Group group)= group(groupType(userMenu(detail)), sku(detail))==group;
 is (MenuDetail detail, Group group)= group(groupType(menu(detail)), sku(detail))==group;
@@ -88,10 +88,10 @@ positionNumber 'Порядок' = ABSTRACT INTEGER (Menu, Group);
 positionNumber 'Порядок' = DATA INTEGER (UserMenu, Group);
 positionNumber(UserMenu menu, Group group) += positionNumber(menu, group);
 //--
-hasParentUser 'Количество позиций в группе' (child, group)=  GROUP SUM count(UserMenu userMenu,Group child)
-    IF isParent(child, Group group) BY child, group;
-hasParent 'Количество позиций в группе' (child, group)=  GROUP SUM count(Menu menu,Group child)
-    IF isParent(child, Group group) BY child, group;
+hasParentUser 'Количество позиций в группе' (child, group)=  GROUP BY Group child, Group group SUM count(UserMenu userMenu,child)
+    IF isParent(child, group);
+hasParent 'Количество позиций в группе' (child, group)=  GROUP BY Group child, Group group SUM count(Menu menu,child)
+    IF isParent(child, group);
 
 hasParentUser (UserMenuDetail detail,Group group)= hasParentUser(group(groupType(userMenu(detail)), sku(detail)), group);
 hasParent (MenuDetail detail,Group group)= hasParent(group(groupType(menu(detail)), sku(detail)), group);

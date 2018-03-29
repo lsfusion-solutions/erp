@@ -79,7 +79,7 @@ DESIGN options {
 
 synchronizeDescription(MachineryPriceTransaction transaction, GroupScales groupMachinery) = {
     IF useCellScales() AND groupMachinery IS GroupScales THEN {
-        FOR [= GROUP SUM 1 BY MachineryPriceTransaction transaction, description(transaction, Barcode barcode)](transaction, TEXT description)
+        FOR [= GROUP BY MachineryPriceTransaction transaction, description(transaction, Barcode barcode) SUM 1](transaction, TEXT description)
             AND NOT cellScales(groupMachinery, description)
             NEW c = CellScales DO {
                 groupScales(c) <- groupMachinery;
@@ -142,8 +142,8 @@ expired 'Не грузить с истекшим ср. год-ти' (Item item) 
 
 expiredSku (Barcode barcode) = expired(sku(barcode));
 
-quantityChildWithExpired (itemGroup) = GROUP SUM 1 IF dataExpired(ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) BY itemGroup MATERIALIZED;
-quantityParentWithExpired (itemGroup) = GROUP SUM 1 IF dataExpired(ItemGroup parentItemGroup) AND isParent(ItemGroup itemGroup, parentItemGroup) BY itemGroup MATERIALIZED;
+quantityChildWithExpired (itemGroup) = GROUP BY ItemGroup itemGroup SUM 1 IF dataExpired(ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
+quantityParentWithExpired (itemGroup) = GROUP BY ItemGroup itemGroup SUM 1 IF dataExpired(ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
 
 showExpired 'Не грузить с истекшим ср. год-ти' (ItemGroup itemGroup) = TRUE IF (quantityChildWithExpired (itemGroup) (+) quantityParentWithExpired (itemGroup)) > 0 MATERIALIZED;
 

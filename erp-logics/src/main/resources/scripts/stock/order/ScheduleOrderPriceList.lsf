@@ -6,17 +6,17 @@ NAMESPACE  ScheduleOrder;
 
 //--
 META addScheduleOrder(filter, cap, filterStock) 
-    countPriceLists 'Поставщики, у которых есть действующие прайсы' (filter, stock, date) = GROUP SUM 1 
-        IF is###filter(filterStock(PriceList priceList)) AND isPosted(priceList) AND fromDate(priceList) <= (DATE date AS DATE) 
-        AND NOT (toDate(priceList) < (date AS DATE)) AND in(priceList, Stock stock)
-            BY filterStock(priceList), stock, date;
+    countPriceLists 'Поставщики, у которых есть действующие прайсы' (filter, stock, date) = GROUP
+            BY filterStock(PriceList priceList), Stock stock, DATE date SUM 1 
+        IF is###filter(filterStock(priceList)) AND isPosted(priceList) AND fromDate(priceList) <= (date AS DATE) 
+        AND NOT (toDate(priceList) < (date AS DATE)) AND in(priceList, stock);
         
-    countScheduleOrders 'Поставщики, у которых есть действующие и будующие графики заказов' (filter, stock, date) = GROUP SUM 1 IF 
-        startDate(ScheduleOrder order) AND NOT (endDate(order) < (DATE date AS DATE)) AND in(order, Stock stock)
-         BY filter(order), stock, date;  
+    countScheduleOrders 'Поставщики, у которых есть действующие и будующие графики заказов' (filter, stock, date) = GROUP
+         BY filter(ScheduleOrder order), Stock stock, DATE date SUM 1 IF 
+        startDate(order) AND NOT (endDate(order) < (date AS DATE)) AND in(order, stock);  
           
     filterLegalEntity 'Поставщики, у которых есть прайсы и нет графика заказов' (LegalEntity filter, Stock stock, DATE date) = countPriceLists  (filter, stock, date) IF NOT countScheduleOrders (filter, stock, date);
-    filterLegalEntity 'Поставщики, у которых есть прайсы и нет графика заказов' (filter, date)= GROUP SUM 1 IF filterLegalEntity(LegalEntity filter, Stock stock, DATE date) BY filter, date;
+    filterLegalEntity 'Поставщики, у которых есть прайсы и нет графика заказов' (filter, date)= GROUP BY LegalEntity filter, DATE date SUM 1 IF filterLegalEntity(filter, Stock stock, date);
     
     addScheduleOrder###filter 'Добавить'(LegalEntity filter, Stock stock) = {
 	NEWSESSION {

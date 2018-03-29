@@ -75,14 +75,14 @@ TABLE labelTypeSku (LabelType, Sku);
 dataIn 'Вкл.' = DATA BOOLEAN (LabelType, Sku);
 dataExclude 'Искл.' = DATA BOOLEAN (LabelType, Sku);
 
-levelParent (labelType, group) = GROUP MIN level(Group group, Group parent) IF dataIn(LabelType labelType, parent)
-                                                              BY labelType, group MATERIALIZED;
+levelParent (labelType, group) = GROUP
+                                                              BY LabelType labelType, Group group MIN level(group, Group parent) IF dataIn(labelType, parent) MATERIALIZED;
 nearestParent (LabelType labelType, Group group) = group(group, levelParent (labelType, group));
 nearestIn 'Вкл.' (LabelType labelType, Group group) =
     dataIn(labelType, nearestParent (labelType, group)) MATERIALIZED;
     
-levelParentExclude (labelType, group) = GROUP MIN level(Group group, Group parent) IF dataExclude(LabelType labelType, parent)
-                                                              BY labelType, group MATERIALIZED;
+levelParentExclude (labelType, group) = GROUP
+                                                              BY LabelType labelType, Group group MIN level(group, Group parent) IF dataExclude(labelType, parent) MATERIALIZED;
 nearestParentExclude (LabelType labelType, Group group) = group(group, levelParentExclude (labelType, group));
 nearestExclude 'Вкл.' (LabelType labelType, Group group) =
     dataExclude(labelType, nearestParentExclude (labelType, group)) MATERIALIZED;
@@ -104,8 +104,8 @@ in (LabelType labelType, Sku sku, DepartmentStore departmentStore) = ((in(labelT
 inPrint(LabelType labelType, Sku sku, DepartmentStore departmentStore)  = in(labelType, sku, departmentStore) AND NOT exclude(labelType, sku); 
 
 
-quantityChildWithExclude(group, operation) = GROUP SUM 1 IF dataExclude(LabelType labelType, Group childGroup) AND isParent(childGroup, Group group) BY group, labelType MATERIALIZED;
-quantityParentWithExclude (group, operation) = GROUP SUM 1 IF dataExclude(LabelType labelType, Group parentGroup) AND isParent(Group group, parentGroup) BY group, labelType MATERIALIZED;          
+quantityChildWithExclude(group, operation) = GROUP BY Group group, LabelType labelType SUM 1 IF dataExclude(labelType, Group childGroup) AND isParent(childGroup, group) MATERIALIZED;
+quantityParentWithExclude (group, operation) = GROUP BY Group group, LabelType labelType SUM 1 IF dataExclude(labelType, Group parentGroup) AND isParent(group, parentGroup) MATERIALIZED;          
     
 backgroundExclude 'Цвет' (Group group, LabelType labelType) = CASE
     WHEN dataExclude(labelType, group) THEN RGB(0,0,0)
@@ -117,8 +117,8 @@ backgroundExclude 'Цвет' (Group group, LabelType labelType) = CASE
 dataCount 'Множитель' = DATA INTEGER (LabelType, Group);
 dataCount 'Множитель' = DATA INTEGER (LabelType, Sku);
 
-levelParentCountLabel (labelType, group) = GROUP MIN level(Group group, Group parent) IF dataCount(LabelType labelType, parent)
-                                                              BY labelType, group MATERIALIZED;
+levelParentCountLabel (labelType, group) = GROUP
+                                                              BY LabelType labelType, Group group MIN level(group, Group parent) IF dataCount(labelType, parent) MATERIALIZED;
 nearestParentCountLabel (LabelType labelType, Group group) = group(group, levelParentCountLabel (labelType, group));
 nearestCountLabel 'Множитель' (LabelType labelType, Group group) =
     dataCount(labelType, nearestParentCountLabel (labelType, group)) MATERIALIZED;
@@ -136,8 +136,8 @@ include 'Из документа'= DATA BOOLEAN (LabelType);
 dataInclude 'Из документа' = DATA BOOLEAN (LabelType, Group);
 dataInclude 'Из документа' = DATA BOOLEAN (LabelType, Sku);
 
-levelParentIncludeLabel (labelType, group) = GROUP MIN level(Group group, Group parent) IF dataInclude(LabelType labelType, parent)
-                                                              BY labelType, group MATERIALIZED;
+levelParentIncludeLabel (labelType, group) = GROUP
+                                                              BY LabelType labelType, Group group MIN level(group, Group parent) IF dataInclude(labelType, parent) MATERIALIZED;
 nearestParentIncludeLabel (LabelType labelType, Group group) = group(group, levelParentIncludeLabel (labelType, group));
 nearestIncludeLabel 'Из документа' (LabelType labelType, Group group) =
     dataInclude(labelType, nearestParentIncludeLabel (labelType, group)) MATERIALIZED;
@@ -319,8 +319,8 @@ priceTransactionDocument = DATA PriceTransactionDocument (LabelTransaction) INDE
 description 'Основание загрузки' (LabelTransaction transaction) =
     description(priceTransactionDocument(transaction));
 
-labelTransaction (PriceTransactionDocument d) = GROUP LAST LabelTransaction l BY priceTransactionDocument(l) ORDER dateTime(l), l;
-labelTransaction (PriceTransactionDocument d, LabelType t) = GROUP LAST LabelTransaction l BY priceTransactionDocument(l), labelType(l) ORDER dateTime(l), l;
+labelTransaction (PriceTransactionDocument d) = GROUP BY priceTransactionDocument(LabelTransaction l) LAST l ORDER dateTime(l), l;
+labelTransaction (PriceTransactionDocument d, LabelType t) = GROUP BY priceTransactionDocument(LabelTransaction l), labelType(l) LAST l ORDER dateTime(l), l;
 
 statusLabel 'Статус печати ценника' (PriceTransactionDocument document) =
                                                         CASE
@@ -376,8 +376,8 @@ discountSum 'Скидка' (LabelTransactionDetail d) = retailPrice(d) - price(d
 fullNameLegalEntity 'Компания (полное наименование)' (LabelTransactionDetail d) = fullNameLegalEntity(labelTransaction(d));
 
 priceLabelTransactionDetail 'Текущая цена на ценниках' (sku, stock) =
-    GROUP LAST (price(LabelTransactionDetail ledger) / OVERRIDE amount(dataBarcode(ledger)), 1.0)
-          BY sku(ledger), departmentStore(ledger)
+    GROUP
+          BY sku(LabelTransactionDetail ledger), departmentStore(ledger) LAST (price(ledger) / OVERRIDE amount(dataBarcode(ledger)), 1.0)
           ORDER createdTime(ledger), ledger MATERIALIZED TABLE extraSkuStock;
 
 firstSort = ABSTRACT VALUE VARSTRING[100] (LabelTransactionDetail);
@@ -428,7 +428,7 @@ deleteNotSelectedDetail 'Удалить кроме отмеченных'(LabelTr
 } TOOLBAR;
 
 changeBarcode(LabelTransactionDetail d)  = {
-    IF [= GROUP SUM 1 IF id(Barcode b) BY sku(b)](sku(d)) > 1 THEN {
+    IF [= GROUP BY sku(Barcode b) SUM 1 IF id(b)](sku(d)) > 1 THEN {
         DIALOG barcodeSku OBJECTS s = sku(d), b = dataBarcode(d) INPUT NULL DO
             dataBarcode(d) <- b;
     }
@@ -514,7 +514,7 @@ deleteSelect 'Очистить все' () = {
 } ASON CONTEXTMENU select[LabelTransactionDetail];
 
 
-countSelectedLabelTransactions (t)  =   GROUP SUM 1 IF select(LabelTransactionDetail d) BY labelTransaction(d);
+countSelectedLabelTransactions (t)  =   GROUP BY labelTransaction(LabelTransactionDetail d) SUM 1 IF select(d);
 
 printLabelTransactionDetails 'Печать ценников'()  = {
     IF countSelectLabelTransactionDetails() THEN NEWSESSION NESTED (select[LabelTransactionDetail]) {
@@ -617,8 +617,8 @@ EXTEND FORM options PROPERTIES countDaysClearLabelTransaction();
 DESIGN options { log { MOVE PROPERTY(countDaysClearLabelTransaction());} } 
 
 lastTransaction 'Текущая цена на ценниках' (sku, stock) =
-    GROUP LAST LabelTransactionDetail d
-          BY sku(d), departmentStore(d)
+    GROUP
+          BY sku(LabelTransactionDetail d), departmentStore(d) LAST d
           ORDER dateTime(d), d
           WHERE d IS LabelTransactionDetail;
 
@@ -628,7 +628,7 @@ clearApplicationLog () += {
 	        DELETE LabelTransactionDetail d WHERE d IS LabelTransactionDetail AND NOT d == lastTransaction(sku(d), departmentStore(d)) AND date(d) <= subtract(currentDate(), countDaysClearLabelTransaction());
 	        apply();
 	        
-	        DELETE LabelTransaction t WHERE  t IS LabelTransaction AND NOT [= GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](t);
+	        DELETE LabelTransaction t WHERE  t IS LabelTransaction AND NOT [= GROUP BY labelTransaction(LabelTransactionDetail d) SUM 1](t);
 	        apply();
 	    }
 	}
@@ -756,8 +756,8 @@ addDetailDialogSkuStockLabelTransactionDetail 'Подбор товаров'(Labe
 @defineDocumentHeaderSkuQuantity(labelTransaction, sku);
 
 quantityLabelTransactionDetail 'Кол-во товара в документе'  = 
-    GROUP SUM quantity(LabelTransactionDetail idetail)
-          BY  labelTransaction(idetail);
+    GROUP
+          BY  labelTransaction(LabelTransactionDetail idetail) SUM quantity(idetail);
           
 defaultIndex 'Номер строки (авт.)' (LabelTransactionDetail d) =
     PARTITION SUM 1 BY labelTransaction(d)
@@ -765,8 +765,8 @@ defaultIndex 'Номер строки (авт.)' (LabelTransactionDetail d) =
 
 //-- Подбор товар/партии
 
-labelTransactionDetail (sku, labelTransaction, stock) =  GROUP MAX LabelTransactionDetail labelTransactionDetail
-    BY sku(labelTransactionDetail), labelTransaction(labelTransactionDetail), departmentStore(labelTransactionDetail);
+labelTransactionDetail (sku, labelTransaction, stock) =  GROUP
+    BY sku(LabelTransactionDetail labelTransactionDetail), labelTransaction(labelTransactionDetail), departmentStore(labelTransactionDetail) MAX labelTransactionDetail;
 labelTransactionDetail (Sku sku, LabelTransaction labelTransaction) = labelTransactionDetail(sku, labelTransaction, departmentStore(labelTransaction));
 
 currentBalance 'Остаток' (Sku sku, LabelTransaction labelTransaction) = currentBalance(sku, departmentStore(labelTransaction));
@@ -853,7 +853,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
     createLabelTransactionParam (cls document) = {       
         // бежим по всем типам ценников из управленческих параметров
         // для каждого создаем по операции печати ценников
-        FOR ([= GROUP SUM 1 IF inLabel(###skuProp sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stockProp(document)))
+        FOR ([= GROUP BY LabelType labelType, DepartmentStore departmentStore SUM 1 IF inLabel(###skuProp sku) AND inPrint(labelType, sku, departmentStore)](LabelType labelType, stockProp(document)))
             NEW t = LabelTransaction DO {
                 departmentStore(t) <- stockProp(document);
                 priceTransactionDocument(t) <- document;
@@ -893,7 +893,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                 ELSE
                     DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
                     
-                IF [ = GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](t) THEN {
+                IF [ = GROUP BY labelTransaction(LabelTransactionDetail d) SUM 1](t) THEN {
                     Label.ok() <- TRUE;
                     print(t);
                 } ELSE {
@@ -1107,7 +1107,7 @@ skipDelete = ABSTRACT VALUE BOOLEAN (LabelTransactionDetail);
 createLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore) = {
     // бежим по всем типам ценников из управленческих параметров
     // для каждого создаем по операции печати ценников
-    FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,DepartmentStore d) AND NOT exclude(l,s) BY l, d](LabelType labelType, departmentStore) NEW t = LabelTransaction DO { 
+    FOR [= GROUP BY LabelType l, DepartmentStore d SUM 1 IF select(Sku s,l,d) AND NOT exclude(l,s)](LabelType labelType, departmentStore) NEW t = LabelTransaction DO { 
         departmentStore(t) <- departmentStore;
         labelType(t) <- labelType;
         addedTransaction() <- t;
@@ -1223,7 +1223,7 @@ DESIGN options {
 createSelectedSkuStockLabelTransaction 'Распечатать ценники'() = {
     IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
-            FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock] (DepartmentStore stock) AND stock IS DepartmentStore DO {        
+            FOR [= GROUP BY Stock stock SUM 1 IF select(Sku sku, stock)] (DepartmentStore stock) AND stock IS DepartmentStore DO {        
                 select(Sku sku, LabelType labelType, stock) <- select(sku, stock) AND inPrint(labelType, sku, stock);   
                 createLabelTransaction(stock);
             }
@@ -1254,7 +1254,7 @@ createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать цен�
     IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {            
         NEWSESSION NESTED (select[Sku,Stock]) {
 
-            FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](DepartmentStore stock) AND stock IS DepartmentStore DO {  
+            FOR [= GROUP BY Stock stock SUM 1 IF select(Sku sku, stock)](DepartmentStore stock) AND stock IS DepartmentStore DO {  
                 DIALOG selectLabelTypes OBJECTS ds = stock, l INPUT NOMANAGESESSION DO { 
                     select(Sku sku) <- select(sku, stock);     
                     IF NOT countSelectType() THEN {

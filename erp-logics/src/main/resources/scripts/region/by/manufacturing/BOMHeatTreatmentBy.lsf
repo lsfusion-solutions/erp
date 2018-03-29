@@ -7,11 +7,11 @@ NAMESPACE BOM;
 // ----------------- Акт контрольной проработки-------------------- //
 //overActQuantity(Product p) = OVERRIDE actQuantity(BOM(p)), quantity(p); 
 actNettoNetWeight 'Вес нетто изделия для акта г' (Product p) = actQuantity(BOM(p))* (OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product)*1000;
-nameSkus 'Компоненты (все)' = GROUP CONCAT Stock.name(Sku sku) IF recBruttoQuantity(BOM BOM, sku, DATE date), ', ' 
-    BY BOM, date
+nameSkus 'Компоненты (все)' = GROUP 
+    BY BOM BOM, DATE date CONCAT Stock.name(Sku sku) IF recBruttoQuantity(BOM, sku, date), ', '
     ORDER Stock.name(sku);
     
-netWeightProduct 'Вес' (BOM) = GROUP SUM netWeight(sku(Product p))*1000 BY BOM(p);   
+netWeightProduct 'Вес' (BOM) = GROUP BY BOM(Product p) SUM netWeight(sku(p))*1000;   
 wastageHeat 'Отходы при тепловой обработке, %' = ABSTRACT VALUE NUMERIC[8,3] (Component ,DATE );  
 wastageCold 'Отходы при холодной обработке, %' = ABSTRACT VALUE NUMERIC[8,3] (Component ,DATE );   
 wastageHeat (Component c,DATE date) += 0.0 IF c IS Component AND date IS DATE;  
@@ -30,7 +30,7 @@ actBruttoNetWeight 'Вес товара для компонента, если о
     actQuantity(BOM(component))*1000/
     (quantityProduct(BOM(component)) IF quantityProduct(BOM(component))!=0); 
 
-actBruttoNetWeightSkus 'Вес компонента, если он полуфабрикат по товарам' (component, date)= GROUP SUM actBruttoNetWeight(Component component, Sku sku, DATE date) BY component, date;
+actBruttoNetWeightSkus 'Вес компонента, если он полуфабрикат по товарам' (component, date)= GROUP BY Component component, DATE date SUM actBruttoNetWeight(component, Sku sku, date);
 
 actNBruttoNetWeight 'Вес товара для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= recNettoQuantity(BOM(material(component)), sku) *
     bruttoQuantity(component, date)/
@@ -39,14 +39,14 @@ actNBruttoNetWeight 'Вес товара для компонента, если �
     actQuantity(BOM(component))*1000/
     (quantityProduct(BOM(component)) IF quantityProduct(BOM(component))!=0); 
 
-actNBruttoNetWeightSkus 'Вес компонента, если он полуфабрикат по товарам' (component, date)= GROUP SUM actNBruttoNetWeight(Component component, Sku sku, DATE date) BY component, date;
+actNBruttoNetWeightSkus 'Вес компонента, если он полуфабрикат по товарам' (component, date)= GROUP BY Component component, DATE date SUM actNBruttoNetWeight(component, Sku sku, date);
 
 actBruttoNetWeight 'Вес изделия по товарам, брутто г' (Product product, Sku sku, DATE date)= recBruttoQuantity(BOM(product), sku, date) *
     actQuantity(BOM(product))*1000/
     (quantity(product) IF (quantity(product)!=0)) *
     (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku); 
 
-actBruttoNetWeightSkus 'Вес брутто изделия по товарам, г' (product, date)= GROUP SUM actBruttoNetWeight(Product product, Sku sku, DATE date) BY product, date;
+actBruttoNetWeightSkus 'Вес брутто изделия по товарам, г' (product, date)= GROUP BY Product product, DATE date SUM actBruttoNetWeight(product, Sku sku, date);
 actPerc '%' (Product p,DATE dt) = (1 - (actNettoNetWeight(p)/ (actBruttoNetWeightSkus(p,dt) IF actBruttoNetWeightSkus(p,dt)!=0)))*100;
 overFullNameCompany (BOM b) = OVERRIDE fullName(company(b)), fullNameLegalEntity(actStock(b));
 FORM actStudyOfCulinaryBOM 'Акт контрольной проработки'

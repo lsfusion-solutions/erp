@@ -23,8 +23,8 @@ dataAccessCompany 'Доступ разрешен (компания)' = DATA BOOL
 dataAccessCompany 'Доступ разрешен (компания)' = DATA BOOLEAN (Stock, Employee);
 dataAccessCompany 'Доступ разрешен (компания)' = DATA BOOLEAN (StockGroup, Employee);
 
-levelParentCompany (employee, stockGroup) = GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataAccessCompany(parent, Employee employee)
-                                                               BY employee, stockGroup MATERIALIZED;
+levelParentCompany (employee, stockGroup) = GROUP
+                                                               BY Employee employee, StockGroup stockGroup MIN level(stockGroup, StockGroup parent) IF dataAccessCompany(parent, employee) MATERIALIZED;
 nearestParentCompany (Employee employee, StockGroup stockGroup) = stockGroup(stockGroup, levelParentCompany(employee, stockGroup));
 nearestInCompany (Employee employee, StockGroup stockGroup) =
     dataAccessCompany(nearestParentCompany (employee, stockGroup), employee) MATERIALIZED;
@@ -41,14 +41,14 @@ accessCompany 'Доступ разрешен (компания)' (Employee emplo
     dataAccessCompany(employee) AND isCompany(stock),
     employee IS Employee AND isCompany(stock) AND NOT limitAccess(employee) MATERIALIZED;
 countAccessCompanyStock 'Кол-во доступных подразделений (компания)' (employee) =
-    GROUP SUM 1 IF accessCompany(Employee employee, Stock stock) AND active(stock)
-          BY employee;
+    GROUP
+          BY Employee employee SUM 1 IF accessCompany(employee, Stock stock) AND active(stock);
 defaultCompanyStock  (employee) =
-    GROUP MIN  Stock stock IF accessCompany(Employee employee, stock) AND active(stock)
-          BY employee;
+    GROUP
+          BY Employee employee MIN  Stock stock IF accessCompany(employee, stock) AND active(stock);
           
-companyStocks  'Склады (компания)' (r) = GROUP CONCAT name(Stock st) IF accessCompany(Employee employee, st) , ', '
-                                       BY employee
+companyStocks  'Склады (компания)' (r) = GROUP
+                                       BY Employee employee CONCAT name(Stock st) IF accessCompany(employee, st) , ', '
                                        ORDER name(st) CHARWIDTH 20;            
           
           
@@ -60,9 +60,9 @@ END
 accessCompany 'Доступ разрешен (компания)' (Stock s) = accessCompany(currentUser(), s) OR (s IS Stock AND NOT limitAccess(currentUser()));
 
 countAccessCompany 'Кол-во доступных подразделений (компания)' (employee, stockGroup) =
-    GROUP SUM 1 IF accessCompany(Employee employee, Stock stock)
-                AND isParent(stockGroup(stock), StockGroup stockGroup)
-          BY employee, stockGroup MATERIALIZED;
+    GROUP
+          BY Employee employee, StockGroup stockGroup SUM 1 IF accessCompany(employee, Stock stock)
+                AND isParent(stockGroup(stock), stockGroup) MATERIALIZED;
           
 dataStock = DATA Stock (Employee);
 stock (Employee e) = OVERRIDE dataStock(e), defaultCompanyStock(e) IF countAccessCompanyStock (e) == 1;
@@ -235,56 +235,56 @@ in 'Является членом комиссии' (committee, employee) = DATA
 
 number 'Порядковый номер члены комиссии' = DATA INTEGER (Committee, Employee);
 employee (committee, number) = 
-    GROUP AGGR Employee employee BY Committee committee, number(committee, employee);  
+    GROUP BY Committee committee, number(committee, Employee employee) AGGR employee;  
 
 TABLE committeeStock (Committee, Stock);
 in 'Вкл.' = DATA BOOLEAN (Committee, Stock);
 
-countStock  (employee, committee) = GROUP SUM 1 IF in(Committee committee, Stock stock) AND in(stock, Employee employee) BY employee, committee;
+countStock  (employee, committee) = GROUP BY Employee employee, Committee committee SUM 1 IF in(committee, Stock stock) AND in(stock, employee);
 CONSTRAINT in(Committee committee, Employee employee) AND NOT countStock(employee, committee) AND NOT allowStockEmployee()
     CHECKED MESSAGE 'Член комиссии не входит в выбранные подразделения';
 
 @defineCommitteeEmployee(committee, chairman, 'Председатель');
 
 namePositionEmployee 'Члены комиссии' (committee) =
-     GROUP CONCAT positionName(Employee employee) IF in(Committee committee, employee), ', '
-     BY committee
+     GROUP
+     BY Committee committee CONCAT positionName(Employee employee) IF in(committee, employee), ', '
      ORDER number(committee, employee), employee
      CHARWIDTH 50;
 
 shortNamePositionEmployee 'Члены комиссии' (committee) =
-    GROUP CONCAT positionShortName(Employee employee) IF in(Committee committee, employee), ', '
-    BY committee
+    GROUP
+    BY Committee committee CONCAT positionShortName(Employee employee) IF in(committee, employee), ', '
     ORDER number(committee, employee), employee
     CHARWIDTH 50;
 
 nameEmployee 'Члены комиссии' (committee) =
-     GROUP CONCAT name[Contact](Employee employee) IF in(Committee committee, employee), ', '
-     BY committee
+     GROUP
+     BY Committee committee CONCAT name[Contact](Employee employee) IF in(committee, employee), ', '
      ORDER number(committee, employee), employee
      CHARWIDTH 50;
      
 shortNameEmployee 'Члены комиссии' (committee) =
-     GROUP CONCAT shortName(Employee employee) IF in(Committee committee, employee), ', '
-     BY committee
+     GROUP
+     BY Committee committee CONCAT shortName(Employee employee) IF in(committee, employee), ', '
      ORDER number(committee, employee), employee
      CHARWIDTH 50;     
 
 nameStocks 'Подразделения' (committee) =
-     GROUP CONCAT name(Stock stock) IF in(Committee committee, stock), ', '
-     BY committee
+     GROUP
+     BY Committee committee CONCAT name(Stock stock) IF in(committee, stock), ', '
      ORDER stock
      CHARWIDTH 50;
 
 // ---------------------------------- Доступ к складам --------------------------------------------------- //
 
-countAccessCompanyStock (employee, legalEntity) = GROUP SUM 1 
-    IF in(LegalEntity legalEntity, Stock stock) AND active(stock) AND accessCompany(Employee employee, stock)
-        BY employee, legalEntity;
+countAccessCompanyStock (employee, legalEntity) = GROUP
+        BY Employee employee, LegalEntity legalEntity SUM 1 
+    IF in(legalEntity, Stock stock) AND active(stock) AND accessCompany(employee, stock);
  
-defaultCompanyStock 'Склад по умолчанию (компания)' (employee, legalEntity)= GROUP MIN Stock stock 
-    IF in(LegalEntity legalEntity, stock) AND active(stock) AND accessCompany(Employee employee, stock)
-        BY employee, legalEntity;
+defaultCompanyStock 'Склад по умолчанию (компания)' (employee, legalEntity)= GROUP
+        BY Employee employee, LegalEntity legalEntity MIN Stock stock 
+    IF in(legalEntity, stock) AND active(stock) AND accessCompany(employee, stock);
                                                                                     
 // Для документа, у которого задан склад
 META extendFormFilterAccessStock(object, concrete, form, stockProp, filter)

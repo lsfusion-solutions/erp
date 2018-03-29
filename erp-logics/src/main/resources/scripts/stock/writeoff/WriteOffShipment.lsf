@@ -207,11 +207,11 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
     shipmentDetail = ABSTRACT ShipmentDetail (WriteOffDetail) MATERIALIZED;
     descriptionIndexShipmentDetail 'Строка поставки' (WriteOffDetail detail) = descriptionIndex(shipmentDetail(detail));
     
-    quantityWriteOffDetail (shipment, writeOff) = GROUP SUM quantity(WriteOffDetail writeOffDetail) BY shipment(shipmentDetail(writeOffDetail)), writeOff(writeOffDetail);
+    quantityWriteOffDetail (shipment, writeOff) = GROUP BY shipment(shipmentDetail(WriteOffDetail writeOffDetail)), writeOff(writeOffDetail) SUM quantity(writeOffDetail);
     
-    writtenOff 'Кол-во (списания)' (shipmentDetail) = GROUP SUM quantity(WriteOffDetail writeOffDetail) IF isPosted(writeOffDetail)
-                                                                       BY shipmentDetail(writeOffDetail);
-    writtenOff (shipment)= GROUP SUM writtenOff(ShipmentDetail shipmentDetail) BY shipment(shipmentDetail);
+    writtenOff 'Кол-во (списания)' (shipmentDetail) = GROUP
+                                                                       BY shipmentDetail(WriteOffDetail writeOffDetail) SUM quantity(writeOffDetail) IF isPosted(writeOffDetail);
+    writtenOff (shipment)= GROUP BY shipment(ShipmentDetail shipmentDetail) SUM writtenOff(shipmentDetail);
     notWrittenOff 'Поставки без списания' (Shipment shipment) = shipment IS Shipment AND NOT writtenOff (shipment);
     
     showWriteOff (Shipment shipment) =  shipment IS Shipment AND NOT createPurchaseWriteOff(shipment);
@@ -261,8 +261,8 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
     
     needToWritten (ShipmentDetail shipmentDetail) = writeOffQuantity(shipmentDetail) AND createPurchaseWriteOff(shipmentDetail);
     
-    needToWritten (shipment)= GROUP SUM 1 IF needToWritten(ShipmentDetail shipmentDetail)
-        BY shipment(shipmentDetail) MATERIALIZED;
+    needToWritten (shipment)= GROUP
+        BY shipment(ShipmentDetail shipmentDetail) SUM 1 IF needToWritten(shipmentDetail) MATERIALIZED;
     
     CLASS ShipmentWriteOff 'Акт списания на основе поставки '###sign: WriteOff;
     CLASS ShipmentWriteOffDetail 'Строка акта списания на основе поставки '###sign: WriteOffDetail;

@@ -12,14 +12,14 @@ numberTo 'По' (GiftCardPurchaseDetail d)  = numberGiftCardString(toGiftCard(d)
 //prefixGiftCard() + lpadStringWithZero(toGiftCard(d), lengthGiftCard());
 count 'Кол-во' (GiftCardPurchaseDetail d) = toGiftCard(d) - fromGiftCard(d) +1;
 
-relation = GROUP SUM 1 IF dateSold(GiftCard g) >= DATE dFrom AND dateSold(g) <= DATE dTo 
-    BY numberReport(g), departmentStoreSold(g), sku(giftCardPurchaseDetail(g)), dFrom, dTo;
+relation = GROUP 
+    BY numberReport(GiftCard g), departmentStoreSold(g), sku(giftCardPurchaseDetail(g)), DATE dFrom, DATE dTo SUM 1 IF dateSold(g) >= dFrom AND dateSold(g) <= dTo;
     
-relationBalance = GROUP SUM 1 IF date(GiftCard g) <= DATE dTo AND (( NOT dateSold(g)) OR dateSold(g) > dTo) AND (( NOT dateDefect(g)) OR dateDefect(g) > dTo) 
-    BY numberReport(g), departmentStore(g), sku(giftCardPurchaseDetail(g)), dTo;    
+relationBalance = GROUP 
+    BY numberReport(GiftCard g), departmentStore(g), sku(giftCardPurchaseDetail(g)), DATE dTo SUM 1 IF date(g) <= dTo AND (( NOT dateSold(g)) OR dateSold(g) > dTo) AND (( NOT dateDefect(g)) OR dateDefect(g) > dTo);    
 
-relationDefect = GROUP SUM 1 IF dateDefect(GiftCard g) >= DATE dFrom AND dateDefect(g) <= DATE dTo 
-    BY numberReport(g), departmentStoreDefect(g), sku(giftCardPurchaseDetail(g)), dFrom, dTo;
+relationDefect = GROUP 
+    BY numberReport(GiftCard g), departmentStoreDefect(g), sku(giftCardPurchaseDetail(g)), DATE dFrom, DATE dTo SUM 1 IF dateDefect(g) >= dFrom AND dateDefect(g) <= dTo;
 
 from 'С' = DATA LOCAL INTEGER (INTEGER, Item);
 to 'По' = DATA LOCAL INTEGER (INTEGER, Item);
@@ -93,10 +93,10 @@ fill 'Заполнить данные'  (DATE df, DATE dt, Stock ds) = {
     }        
 }
 
-filter1 = GROUP SUM 1 IF date(GiftCardPurchaseDetail d) >= DATE dFrom AND date(d) <= DATE dTo
-    BY sku(d), departmentStore(d), dFrom, dTo;
+filter1 = GROUP
+    BY sku(GiftCardPurchaseDetail d), departmentStore(d), DATE dFrom, DATE dTo SUM 1 IF date(d) >= dFrom AND date(d) <= dTo;
     
-filter2 = GROUP SUM 1 IF count(INTEGER  in, Item i) OR countBalance(in,i) BY i;
+filter2 = GROUP BY Item i SUM 1 IF count(INTEGER  in, i) OR countBalance(in,i);
  
 filter(Sku s, DepartmentStore ds, DATE df, DATE dt) = filter1(s,ds,df,dt) OR filter2(s);
 

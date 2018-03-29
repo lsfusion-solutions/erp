@@ -25,8 +25,8 @@ nameDimensionType 'Тип субконто' (Dimension dimension) = name(dimensi
 
 TABLE GLAccountDimensionType(GLAccount, DimensionType);
 order 'Порядковый номер' = DATA INTEGER (GLAccount,DimensionType);
-dimensionsType 'Субконто' (GLAccount) = GROUP CONCAT VARSTRING[255](name(DimensionType dimensionType)) IF order (GLAccount GLAccount,dimensionType) , ', '
-                                                BY GLAccount
+dimensionsType 'Субконто' (GLAccount) = GROUP
+                                                BY GLAccount GLAccount CONCAT VARSTRING[255](name(DimensionType dimensionType)) IF order (GLAccount,dimensionType) , ', '
                                                 ORDER order (GLAccount,dimensionType) CHARWIDTH 40 MATERIALIZED;
 
 overCopy(GLAccount from, GLAccount to) += {
@@ -61,76 +61,76 @@ overCopy(GeneralLedger from, UserGeneralLedger to) += {
     credit(to, DimensionType dimensionType) <- credit(from, dimensionType);
 }
 
-dimensionTypeIdDimensionType (string1) = GROUP AGGR DimensionType dimensionType BY id(dimensionType) WHERE dimensionType IS DimensionType;
+dimensionTypeIdDimensionType (string1) = GROUP BY id(DimensionType dimensionType) AGGR dimensionType WHERE dimensionType IS DimensionType;
 
 // Отбор субконто
 
-inDebit (gl, d)= GROUP SUM 1 BY GeneralLedger gl, debit(gl, DimensionType dt);  
-inCredit (gl, d) = GROUP SUM 1 BY GeneralLedger gl, credit(gl, DimensionType dt);
+inDebit (gl, d)= GROUP BY GeneralLedger gl, debit(gl, DimensionType dt) SUM 1;  
+inCredit (gl, d) = GROUP BY GeneralLedger gl, credit(gl, DimensionType dt) SUM 1;
 
 in (GeneralLedger gl, Dimension d) = inDebit(gl, d) OR inCredit(gl, d);  
 
 //-- Подсчет сумм одно субконто
 TABLE GLAccountLegalEntityDDate(GLAccount, LegalEntity, Dimension, DATE);
-sumCredit 'Сумма (кредит)' (GLAccount, company, d1, date)= GROUP SUM
-    sum(GeneralLedger ledger) IF isPosted(ledger) AND DimensionType t1 IS DimensionType
-        BY credit(ledger), legalEntity(ledger), credit(ledger,t1), date(ledger); // MATERIALIZED
-sumDebit 'Сумма (дебет)' (GLAccount, company, d1, date)= GROUP SUM
-    sum(GeneralLedger ledger) IF isPosted(ledger) AND DimensionType t1 IS DimensionType
-        BY debit(ledger), legalEntity(ledger), debit(ledger,t1), date(ledger); // MATERIALIZED
+sumCredit 'Сумма (кредит)' (GLAccount, company, d1, date)= GROUP
+        BY credit(GeneralLedger ledger), legalEntity(ledger), credit(ledger,DimensionType t1), date(ledger) SUM
+    sum(ledger) IF isPosted(ledger) AND t1 IS DimensionType; // MATERIALIZED
+sumDebit 'Сумма (дебет)' (GLAccount, company, d1, date)= GROUP
+        BY debit(GeneralLedger ledger), legalEntity(ledger), debit(ledger,DimensionType t1), date(ledger) SUM
+    sum(ledger) IF isPosted(ledger) AND t1 IS DimensionType; // MATERIALIZED
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, Dimension d1, DATE date)=
     sumDebit(GLAccount, company, d1, date) (-) sumCredit(GLAccount, company, d1, date);
 
-sumCredit 'Сумма (кредит)' (GLAccount, company, d1, dateFrom, dateTo) = GROUP SUM
-    sumCredit(GLAccount GLAccount, LegalEntity company, Dimension d1, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY GLAccount, company, d1, dateFrom, dateTo;
-sumDebit 'Сумма (дебет)' (GLAccount, company, d1, dateFrom, dateTo) = GROUP SUM
-    sumDebit(GLAccount GLAccount, LegalEntity company, Dimension d1, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY GLAccount, company, d1, dateFrom, dateTo;
+sumCredit 'Сумма (кредит)' (GLAccount, company, d1, dateFrom, dateTo) = GROUP
+        BY GLAccount GLAccount, LegalEntity company, Dimension d1, DATE dateFrom, DATE dateTo SUM
+    sumCredit(GLAccount, company, d1, DATE date) IF date >= dateFrom AND date <= dateTo;
+sumDebit 'Сумма (дебет)' (GLAccount, company, d1, dateFrom, dateTo) = GROUP
+        BY GLAccount GLAccount, LegalEntity company, Dimension d1, DATE dateFrom, DATE dateTo SUM
+    sumDebit(GLAccount, company, d1, DATE date) IF date >= dateFrom AND date <= dateTo;
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, Dimension d1, DATE dateFrom, DATE dateTo)=
     sumDebit(GLAccount, company, d1, dateFrom, dateTo) (-) sumCredit(GLAccount, company, d1, dateFrom, dateTo);
 
 //-- Подсчет сумм два субконто
 TABLE GLAccountLegalEntityDDDate(GLAccount, LegalEntity, Dimension, Dimension, DATE);
-sumCredit 'Сумма (кредит)' (GLAccount, company, d1, d2, date)= GROUP SUM
-    sum(GeneralLedger ledger) IF isPosted(ledger) AND DimensionType t1 IS DimensionType AND DimensionType t2 IS DimensionType  AND t1 != t2
-        BY credit(ledger), legalEntity(ledger), credit(ledger,t1), credit(ledger,t2), date(ledger); // MATERIALIZED
-sumDebit 'Сумма (дебет)' (GLAccount, company, d1, d2, date)= GROUP SUM
-    sum(GeneralLedger ledger) IF isPosted(ledger) AND DimensionType t1 IS DimensionType AND DimensionType t2 IS DimensionType  AND t1 != t2
-        BY debit(ledger), legalEntity(ledger), debit(ledger,t1), debit(ledger,t2), date(ledger); // MATERIALIZED
+sumCredit 'Сумма (кредит)' (GLAccount, company, d1, d2, date)= GROUP
+        BY credit(GeneralLedger ledger), legalEntity(ledger), credit(ledger,DimensionType t1), credit(ledger,DimensionType t2), date(ledger) SUM
+    sum(ledger) IF isPosted(ledger) AND t1 IS DimensionType AND t2 IS DimensionType  AND t1 != t2; // MATERIALIZED
+sumDebit 'Сумма (дебет)' (GLAccount, company, d1, d2, date)= GROUP
+        BY debit(GeneralLedger ledger), legalEntity(ledger), debit(ledger,DimensionType t1), debit(ledger,DimensionType t2), date(ledger) SUM
+    sum(ledger) IF isPosted(ledger) AND t1 IS DimensionType AND t2 IS DimensionType  AND t1 != t2; // MATERIALIZED
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, DATE date)=
     sumDebit(GLAccount, company, d1, d2, date) (-) sumCredit(GLAccount, company, d1, d2, date);
 
-sumCredit 'Сумма (кредит)' (GLAccount, company, d1, d2, dateFrom, dateTo) = GROUP SUM
-    sumCredit(GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY GLAccount, company, d1, d2, dateFrom, dateTo;
-sumDebit 'Сумма (дебет)' (GLAccount, company, d1, d2, dateFrom, dateTo) = GROUP SUM
-    sumDebit(GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY GLAccount, company, d1, d2, dateFrom, dateTo;
+sumCredit 'Сумма (кредит)' (GLAccount, company, d1, d2, dateFrom, dateTo) = GROUP
+        BY GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, DATE dateFrom, DATE dateTo SUM
+    sumCredit(GLAccount, company, d1, d2, DATE date) IF date >= dateFrom AND date <= dateTo;
+sumDebit 'Сумма (дебет)' (GLAccount, company, d1, d2, dateFrom, dateTo) = GROUP
+        BY GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, DATE dateFrom, DATE dateTo SUM
+    sumDebit(GLAccount, company, d1, d2, DATE date) IF date >= dateFrom AND date <= dateTo;
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, DATE dateFrom, DATE dateTo)=
     sumDebit(GLAccount, company, d1, d2, dateFrom, dateTo) (-) sumCredit(GLAccount, company, d1, d2, dateFrom, dateTo);
 
 //-- Подсчет сумм три субконто
 TABLE GLAccountLegalEntityDDDDate(GLAccount, LegalEntity, Dimension, Dimension, Dimension, DATE);
-sumCredit 'Сумма (кредит)' (GLAccount, company, d1, d2, d3, date) = GROUP SUM
-    sum(GeneralLedger ledger) IF isPosted(ledger) AND
-    DimensionType t1 IS DimensionType AND DimensionType t2 IS DimensionType AND DimensionType t3 IS DimensionType AND
-    t1 != t2 AND t2 != t3 AND t1 != t3
-        BY credit(ledger), legalEntity(ledger), credit(ledger,t1), credit(ledger,t2), credit(ledger,t3), date(ledger); // MATERIALIZED
-sumDebit 'Сумма (дебет)' (GLAccount, company, d1, d2, d3, date) = GROUP SUM
-    sum(GeneralLedger ledger) IF isPosted(ledger) AND
-    DimensionType t1 IS DimensionType AND DimensionType t2 IS DimensionType AND DimensionType t3 IS DimensionType AND
-    t1 != t2 AND t2 != t3 AND t1 != t3
-        BY debit(ledger), legalEntity(ledger), credit(ledger,t1), credit(ledger,t2), credit(ledger,t3), date(ledger); // MATERIALIZED
+sumCredit 'Сумма (кредит)' (GLAccount, company, d1, d2, d3, date) = GROUP
+        BY credit(GeneralLedger ledger), legalEntity(ledger), credit(ledger,DimensionType t1), credit(ledger,DimensionType t2), credit(ledger,DimensionType t3), date(ledger) SUM
+    sum(ledger) IF isPosted(ledger) AND
+    t1 IS DimensionType AND t2 IS DimensionType AND t3 IS DimensionType AND
+    t1 != t2 AND t2 != t3 AND t1 != t3; // MATERIALIZED
+sumDebit 'Сумма (дебет)' (GLAccount, company, d1, d2, d3, date) = GROUP
+        BY debit(GeneralLedger ledger), legalEntity(ledger), credit(ledger,DimensionType t1), credit(ledger,DimensionType t2), credit(ledger,DimensionType t3), date(ledger) SUM
+    sum(ledger) IF isPosted(ledger) AND
+    t1 IS DimensionType AND t2 IS DimensionType AND t3 IS DimensionType AND
+    t1 != t2 AND t2 != t3 AND t1 != t3; // MATERIALIZED
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, Dimension d3, DATE date)=
     sumDebit(GLAccount, company, d1, d2, d3, date) (-) sumCredit(GLAccount, company, d1, d2, d3, date);
 
-sumCredit 'Сумма (кредит)' (GLAccount, company, d1, d2, d3, dateFrom, dateTo) = GROUP SUM
-    sumCredit(GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, Dimension d3, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY GLAccount, company, d1, d2, d3, dateFrom, dateTo;
-sumDebit 'Сумма (дебет)' (GLAccount, company, d1, d2, d3, dateFrom, dateTo) = GROUP SUM
-    sumDebit(GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, Dimension d3, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY GLAccount, company, d1, d2, d3, dateFrom, dateTo;
+sumCredit 'Сумма (кредит)' (GLAccount, company, d1, d2, d3, dateFrom, dateTo) = GROUP
+        BY GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, Dimension d3, DATE dateFrom, DATE dateTo SUM
+    sumCredit(GLAccount, company, d1, d2, d3, DATE date) IF date >= dateFrom AND date <= dateTo;
+sumDebit 'Сумма (дебет)' (GLAccount, company, d1, d2, d3, dateFrom, dateTo) = GROUP
+        BY GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, Dimension d3, DATE dateFrom, DATE dateTo SUM
+    sumDebit(GLAccount, company, d1, d2, d3, DATE date) IF date >= dateFrom AND date <= dateTo;
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, Dimension d1, Dimension d2, Dimension d3, DATE dateFrom, DATE dateTo)=
     sumDebit(GLAccount, company, d1, d2, d3, dateFrom, dateTo) (-) sumCredit(GLAccount, company, d1, d2, d3, dateFrom, dateTo);
 
@@ -138,11 +138,11 @@ balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, Dimension d1, 
 orderDebit 'Порядковый номер' (GeneralLedger ledger, DimensionType dimensionType)=  order(debit(ledger), dimensionType);
 orderCredit 'Порядковый номер' (GeneralLedger ledger, DimensionType dimensionType)=  order(credit(ledger), dimensionType);
 
-dimensionsDebit 'Субконто (дебет)' (ledger) = GROUP CONCAT VARSTRING[255](nameDebit(GeneralLedger ledger, DimensionType dimensionType)) IF orderDebit(ledger, dimensionType) , ', '
-                                                BY ledger
+dimensionsDebit 'Субконто (дебет)' (ledger) = GROUP
+                                                BY GeneralLedger ledger CONCAT VARSTRING[255](nameDebit(ledger, DimensionType dimensionType)) IF orderDebit(ledger, dimensionType) , ', '
                                                 ORDER orderDebit (ledger, dimensionType) CHARWIDTH 40;
-dimensionsCredit 'Субконто (кредит)' (ledger) = GROUP CONCAT VARSTRING[255](nameCredit(GeneralLedger ledger, DimensionType dimensionType)) IF orderCredit(ledger, dimensionType) , ', '
-                                                BY ledger
+dimensionsCredit 'Субконто (кредит)' (ledger) = GROUP
+                                                BY GeneralLedger ledger CONCAT VARSTRING[255](nameCredit(ledger, DimensionType dimensionType)) IF orderCredit(ledger, dimensionType) , ', '
                                                 ORDER orderCredit (ledger, dimensionType) CHARWIDTH 40;
 
 FORM dimensionType 'Тип субконто'
@@ -316,12 +316,12 @@ idCredit 'Субконто (кредит)' (GeneralLedger generalLedger, Dimensi
     OVERRIDE overIdCredit(generalLedger, dimensionType),
              id(credit(generalLedger, dimensionType));
 
-idDimensionsDebit 'Субконто (дебет)' (ledger) = GROUP CONCAT VARSTRING[255](idDebit(GeneralLedger ledger, DimensionType dimensionType)) IF orderDebit(ledger, dimensionType) , ', '
-                                                                       BY ledger
+idDimensionsDebit 'Субконто (дебет)' (ledger) = GROUP
+                                                                       BY GeneralLedger ledger CONCAT VARSTRING[255](idDebit(ledger, DimensionType dimensionType)) IF orderDebit(ledger, dimensionType) , ', '
                                                                     ORDER orderDebit (ledger, dimensionType) CHARWIDTH 5;
 
-idDimensionsCredit 'Субконто (кредит)' (ledger) = GROUP CONCAT VARSTRING[255](idCredit(GeneralLedger ledger, DimensionType dimensionType)) IF orderCredit(ledger, dimensionType) , ', '
-                                                                         BY ledger
+idDimensionsCredit 'Субконто (кредит)' (ledger) = GROUP
+                                                                         BY GeneralLedger ledger CONCAT VARSTRING[255](idCredit(ledger, DimensionType dimensionType)) IF orderCredit(ledger, dimensionType) , ', '
                                                                       ORDER orderCredit (ledger, dimensionType) CHARWIDTH 5;
 // ----------------------------------- Стандартные данные ----------------------------------- //
 

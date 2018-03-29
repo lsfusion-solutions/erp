@@ -41,8 +41,8 @@ repricingOperation (UserInvoice invoice) <- repricingOperation()
 // Комиссия
 @defineDocumentHeaderRepricingCommittee (invoice, customerStock) ; 
 
-afterRetailPrice = GROUP SUM 1 IF afterRetailPrice(InvoiceDetail d)
-    BY invoice(d) MATERIALIZED;
+afterRetailPrice = GROUP
+    BY invoice(InvoiceDetail d) SUM 1 IF afterRetailPrice(d) MATERIALIZED;
 
 CLASS InvoiceRepricingN 'Акт переоценки (отрицательные ТН)': Repricing;
 CLASS InvoiceRepricingNDetail 'Строка акта переоценки (отрицательные ТН)': RepricingDetail;
@@ -166,7 +166,7 @@ backgroundAfter 'Цвет' (UserInvoice o) = RGB(255, 255, 200) IF o IS UserInvo
 
 needRepricing = DATA LOCAL BOOLEAN (UserInvoiceDetail);
 
-roundConditionMax = GROUP MAX RoundCondition c BY name(c), currency(c);
+roundConditionMax = GROUP BY name(RoundCondition c), currency(c) MAX c;
 
 calcRetailPriceUp(UserInvoiceDetail d)  = round(NUMERIC[16,4]([= X*(Y+100)*(Z+100)/10000](
     pricingPrice(d),

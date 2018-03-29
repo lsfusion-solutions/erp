@@ -14,7 +14,7 @@ directory = ABSTRACT VARSTRING[200] (GroupMachinery);
 inactive 'Неактивный' = ABSTRACT BOOLEAN (GroupMachinery);
 active 'Активный' (GroupMachinery group) = group IS GroupMachinery AND NOT inactive(group);
 
-groupMachineryNpp = GROUP AGGR GroupMachinery groupMachinery BY npp(groupMachinery);
+groupMachineryNpp = GROUP BY npp(GroupMachinery groupMachinery) AGGR groupMachinery;
 
 // -------------------------------- Склады --------------------------------------------- //
 
@@ -108,7 +108,7 @@ overNpp 'Номер' (Machinery machinery) = OVERRIDE shortDescription(machinery
 description 'Описание' = DATA VARSTRING[200] (Machinery) IN base;
 
 port 'Адрес/порт' = DATA VARSTRING[100] (Machinery) IN base CHARWIDTH 20;
-ports 'Адрес/порт' = GROUP CONCAT port(Machinery m), ',' BY groupMachinery(m) CHARWIDTH 20;
+ports 'Адрес/порт' = GROUP BY groupMachinery(Machinery m) CONCAT port(m), ',' CHARWIDTH 20;
 
 overInactive = ABSTRACT BOOLEAN (Machinery);
 inactive 'Неактивный' (Machinery m)= OVERRIDE overInactive(m), inactive(groupMachinery(m));

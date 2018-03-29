@@ -48,27 +48,27 @@ WHEN CHANGED(sumReceiptDetail(Receipt receipt)) OR CHANGED(sumCashPayment(receip
 calcSumVAT (ReceiptDetail detail, Payment payment) = sum(detail, payment) * valueVAT(detail) / (100 + valueVAT(detail));
 
 TABLE zReportPaymentMeansRange(ZReport, PaymentMeans, Range);
-sumSkuReceiptDetail 'Сумма по товарам' (zReport, paymentMeans, range) = GROUP SUM sum(ReceiptDetail detail, Payment payment) 
-    IF sku(detail) BY zReport(detail), paymentMeans(payment), VAT(detail);
+sumSkuReceiptDetail 'Сумма по товарам' (zReport, paymentMeans, range) = GROUP BY zReport(ReceiptDetail detail), paymentMeans(Payment payment), VAT(detail) SUM sum(detail, payment) 
+    IF sku(detail);
     
 sumVATSkuReceiptDetail 'Сумма НДС по товарам' (ZReport zReport, PaymentMeans paymentMeans, Range range) = (round2(
-    [= GROUP SUM calcSumVAT(ReceiptDetail detail, Payment payment) IF sku(detail) 
-        BY zReport(detail), paymentMeans(payment), VAT(detail)](zReport, paymentMeans, range)));
-sumVATSkuReceiptDetail 'Сумма НДС по товарам' (ZReport zReport, Range range)= NUMERIC[18,4]([=GROUP SUM sumVATSkuReceiptDetail(ZReport zReport, PaymentMeans paymentMeans, Range range) BY zReport, range](zReport, range));
+    [= GROUP 
+        BY zReport(ReceiptDetail detail), paymentMeans(Payment payment), VAT(detail) SUM calcSumVAT(detail, payment) IF sku(detail)](zReport, paymentMeans, range)));
+sumVATSkuReceiptDetail 'Сумма НДС по товарам' (ZReport zReport, Range range)= NUMERIC[18,4]([=GROUP BY ZReport zReport, Range range SUM sumVATSkuReceiptDetail(zReport, PaymentMeans paymentMeans, range)](zReport, range));
 
 sumCashSkuReceiptDetail 'Сумма (нал.) по товарам' (ZReport zReport, Range range) = sumSkuReceiptDetail(zReport, PaymentMeans.paymentMeansCash, range);
 sumCardSkuReceiptDetail 'Сумма (безнал.) по товарам' (ZReport zReport, Range range) = sumSkuReceiptDetail(zReport, PaymentMeans.paymentMeansCard, range);
 
-sumCashSkuReceiptDetail 'Сумма (нал.) по товарам' (zReport) = GROUP SUM sumCashSkuReceiptDetail(ZReport zReport, Range range) BY zReport;
-sumCardSkuReceiptDetail 'Сумма (нал.) по товарам' (zReport) = GROUP SUM sumCardSkuReceiptDetail(ZReport zReport, Range range) BY zReport;
+sumCashSkuReceiptDetail 'Сумма (нал.) по товарам' (zReport) = GROUP BY ZReport zReport SUM sumCashSkuReceiptDetail(zReport, Range range);
+sumCardSkuReceiptDetail 'Сумма (нал.) по товарам' (zReport) = GROUP BY ZReport zReport SUM sumCardSkuReceiptDetail(zReport, Range range);
 
 sumVATCashReceiptDetail 'Сумма НДС (нал.) по товарам' (ZReport zReport, Range range) = sumVATSkuReceiptDetail(zReport, PaymentMeans.paymentMeansCash, range);
 sumVATCardReceiptDetail 'Сумма НДС (безнал.) по товарам' (ZReport zReport, Range range) = sumVATSkuReceiptDetail(zReport, PaymentMeans.paymentMeansCard, range);
 
 // Продажи сертификатов
-sumGiftCardReceiptDetail 'Сумма проданных сертификатов' (zReport, paymentMeans) = GROUP SUM sum(ReceiptDetail detail, Payment payment) 
-    IF NOT sku(detail) BY zReport(detail), paymentMeans(payment);
-sumGiftCardReceiptDetail 'Сумма проданных сертификатов' (zReport) = GROUP SUM sumGiftCardReceiptDetail(ZReport zReport, PaymentMeans paymentMeans) BY zReport;    
+sumGiftCardReceiptDetail 'Сумма проданных сертификатов' (zReport, paymentMeans) = GROUP BY zReport(ReceiptDetail detail), paymentMeans(Payment payment) SUM sum(detail, payment) 
+    IF NOT sku(detail);
+sumGiftCardReceiptDetail 'Сумма проданных сертификатов' (zReport) = GROUP BY ZReport zReport SUM sumGiftCardReceiptDetail(zReport, PaymentMeans paymentMeans);    
 
 sumGiftCardCashReceiptDetail 'Сумма (нал.) проданных сертификатов' (ZReport zReport) = sumGiftCardReceiptDetail(zReport, PaymentMeans.paymentMeansCash);
 sumGiftCardCardReceiptDetail 'Сумма (безнал.) проданных сертификатов' (ZReport zReport) = sumGiftCardReceiptDetail(zReport, PaymentMeans.paymentMeansCard);   

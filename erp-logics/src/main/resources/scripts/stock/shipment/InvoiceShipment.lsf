@@ -18,32 +18,32 @@ descriptionIndexInvoiceDetail 'Строка накладной' (ShipmentDetail 
 
 @defineDocumentAbstractDetailQuantityCustomPrefix(invoiceDetail, shipment, ' (поставлено)');
 @defineDocumentHeaderQuantityCustomPrefix (invoice, invoiceDetail, shipment, ' (поставлено)');
-quantityShipmentDetail (invoice, shipment) = GROUP SUM quantity(ShipmentDetail shipmentDetail) BY invoice(invoiceDetail(shipmentDetail)), shipment(shipmentDetail);
-relationInvoice 'Связь' (shipment) = GROUP SUM 1 IF quantityShipmentDetail (Invoice invoice, Shipment shipment) BY shipment;
+quantityShipmentDetail (invoice, shipment) = GROUP BY invoice(invoiceDetail(ShipmentDetail shipmentDetail)), shipment(shipmentDetail) SUM quantity(shipmentDetail);
+relationInvoice 'Связь' (shipment) = GROUP BY Shipment shipment SUM 1 IF quantityShipmentDetail (Invoice invoice, shipment);
 
-invoices 'Накладные' (shipment) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, Shipment shipment) , ', '
-                                                BY shipment
+invoices 'Накладные' (shipment) = GROUP
+                                                BY Shipment shipment CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, shipment) , ', '
                                                 ORDER invoice CHARWIDTH 30;
 
-shipped 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
-                                                                   BY invoiceDetail(shipmentDetail) MATERIALIZED;
+shipped 'Кол-во (поставлено)' (invoiceDetail) = GROUP
+                                                                   BY invoiceDetail(ShipmentDetail shipmentDetail) SUM quantity(shipmentDetail) IF isPosted(shipmentDetail) MATERIALIZED;
                                                                    
-shipped 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shipped(InvoiceDetail detail)
-                                                                   BY invoice(detail) MATERIALIZED;   
-shippedNotCharge 'Кол-во (поставлено) по накладной (кроме услуг)' (invoice) = GROUP SUM shipped(InvoiceDetail detail) IF isNotCharge(sku(detail))
-                                                                   BY invoice(detail) MATERIALIZED;   
+shipped 'Кол-во (поставлено) по накладной' (invoice) = GROUP
+                                                                   BY invoice(InvoiceDetail detail) SUM shipped(detail) MATERIALIZED;   
+shippedNotCharge 'Кол-во (поставлено) по накладной (кроме услуг)' (invoice) = GROUP
+                                                                   BY invoice(InvoiceDetail detail) SUM shipped(detail) IF isNotCharge(sku(detail)) MATERIALIZED;   
                                                                    
 notShipped (Invoice invoice) = invoice IS Invoice AND NOT shipped(invoice);
                                                                                                                                        
 toShip 'Не поставлено' (InvoiceDetail invoiceDetail) = quantity (invoiceDetail) (-) shipped(invoiceDetail);
 
 toShipInvoiceDetail 'Не поставлено по накладной' (invoice) =
-    GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0
-          BY invoice(invoiceDetail); 
+    GROUP
+          BY invoice(InvoiceDetail invoiceDetail) SUM toShip(invoiceDetail) IF toShip(invoiceDetail) > 0; 
                        
 toShipNotChargeInvoiceDetail 'Не поставлено по накладной (кроме услуг)' (invoice) =
-    GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0 AND isNotCharge(sku(invoiceDetail))
-          BY invoice(invoiceDetail);                       
+    GROUP
+          BY invoice(InvoiceDetail invoiceDetail) SUM toShip(invoiceDetail) IF toShip(invoiceDetail) > 0 AND isNotCharge(sku(invoiceDetail));                       
           
 addUserShipment  = ABSTRACT CASE (Invoice);
 
@@ -106,26 +106,26 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     descriptionIndexInvoiceDetail 'Строка накладной' (ShipmentDetail detail) = descriptionIndex(invoiceDetail(detail));
     descriptionIndexInvoiceDetail 'Строка накладной' (UserShipmentDetail detail) = descriptionIndex(invoiceDetail(detail));
 
-    quantityShipmentDetail (invoice, shipment) = GROUP SUM quantity(ShipmentDetail shipmentDetail) BY invoice(invoiceDetail(shipmentDetail)), shipment(shipmentDetail);
-    relationInvoice 'Связь' (shipment) = GROUP SUM 1 IF quantityShipmentDetail (Invoice invoice, Shipment shipment) BY shipment;
+    quantityShipmentDetail (invoice, shipment) = GROUP BY invoice(invoiceDetail(ShipmentDetail shipmentDetail)), shipment(shipmentDetail) SUM quantity(shipmentDetail);
+    relationInvoice 'Связь' (shipment) = GROUP BY Shipment shipment SUM 1 IF quantityShipmentDetail (Invoice invoice, shipment);
 
-    invoices 'Накладные' (shipment) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, Shipment shipment) , ', '
-                                                    BY shipment
+    invoices 'Накладные' (shipment) = GROUP
+                                                    BY Shipment shipment CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, shipment) , ', '
                                                     ORDER invoice IN invoice CHARWIDTH 30 MATERIALIZED;
 
-    shipped 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
-                                                                       BY invoiceDetail(shipmentDetail) MATERIALIZED;
+    shipped 'Кол-во (поставлено)' (invoiceDetail) = GROUP
+                                                                       BY invoiceDetail(ShipmentDetail shipmentDetail) SUM quantity(shipmentDetail) IF isPosted(shipmentDetail) MATERIALIZED;
                                                                        
-    shipped 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shipped(InvoiceDetail detail) IF isPosted(detail)
-                                                                       BY invoice(detail) MATERIALIZED;  
-    shippedNotCharge 'Кол-во (поставлено) по накладной (кроме услуг)' (invoice) = GROUP SUM shipped(InvoiceDetail detail) IF isPosted(detail) AND isNotCharge(sku(detail))
-                                                                       BY invoice(detail) MATERIALIZED;                                                                           
+    shipped 'Кол-во (поставлено) по накладной' (invoice) = GROUP
+                                                                       BY invoice(InvoiceDetail detail) SUM shipped(detail) IF isPosted(detail) MATERIALIZED;  
+    shippedNotCharge 'Кол-во (поставлено) по накладной (кроме услуг)' (invoice) = GROUP
+                                                                       BY invoice(InvoiceDetail detail) SUM shipped(detail) IF isPosted(detail) AND isNotCharge(sku(detail)) MATERIALIZED;                                                                           
                                                                          
                                                                                                                                           
     shipmentQuantityInvoiceDetail 'Кол-во товара в документе' (sku, invoice) = 
-        GROUP SUM shipped(InvoiceDetail idetail)
-              BY  sku(idetail),
-                  invoice(idetail);
+        GROUP
+              BY  sku(InvoiceDetail idetail),
+                  invoice(idetail) SUM shipped(idetail);
                                                                                                                                                               
     notShipped = NOT shipped(Invoice invoice);
 
@@ -133,27 +133,27 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     cost = ABSTRACT NUMERIC[16,5] (ShipmentDetail, Batch) MATERIALIZED;
 
     TABLE invoiceDetailBatch (InvoiceDetail, Batch);
-    cost (invoiceDetail, batch) = GROUP SUM cost(ShipmentDetail shipmentDetail, Batch batch) BY invoiceDetail(shipmentDetail), batch MATERIALIZED;
-    in (InvoiceDetail invoiceDetail, Batch batch) = [= GROUP SUM 1 IF cost(ShipmentDetail shipmentDetail, Batch batch) BY invoiceDetail(shipmentDetail), batch](invoiceDetail, batch) OR 
+    cost (invoiceDetail, batch) = GROUP BY invoiceDetail(ShipmentDetail shipmentDetail), Batch batch SUM cost(shipmentDetail, batch) MATERIALIZED;
+    in (InvoiceDetail invoiceDetail, Batch batch) = [= GROUP BY invoiceDetail(ShipmentDetail shipmentDetail), Batch batch SUM 1 IF cost(shipmentDetail, batch)](invoiceDetail, batch) OR 
                                                      batch(invoiceDetail) == batch MATERIALIZED; // приходится делать OR, так как если количество 0, то партии не расписываются
 
-    countBatch 'Кол-во партий' (invoiceDetail) = GROUP SUM 1 IF in(InvoiceDetail invoiceDetail, Batch batch) BY invoiceDetail MATERIALIZED;
-    maxBatch (invoiceDetail) = GROUP MAX Batch batch IF in(InvoiceDetail invoiceDetail, batch) BY invoiceDetail;
+    countBatch 'Кол-во партий' (invoiceDetail) = GROUP BY InvoiceDetail invoiceDetail SUM 1 IF in(invoiceDetail, Batch batch) MATERIALIZED;
+    maxBatch (invoiceDetail) = GROUP BY InvoiceDetail invoiceDetail MAX Batch batch IF in(invoiceDetail, batch);
 
     toShip 'Не поставлено' (InvoiceDetail invoiceDetail) = (quantity(invoiceDetail) (-) shipped(invoiceDetail)) IF NOT isCharge(sku(invoiceDetail));
     prevToShip 'Не поставлено' (InvoiceDetail invoiceDetail) = PREV(toShip(invoiceDetail));
     toShip 'Не поставлено' (Invoice invoice) = quantityInvoiceDetail(invoice) (-) shipped(invoice) (-) quantityChargeInvoiceDetail(invoice);
 
     toShipInvoiceDetail 'Не поставлено по складу' (stock, invoice) =
-        GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0
-              BY stockProp(invoiceDetail), invoice(invoiceDetail);
+        GROUP
+              BY stockProp(InvoiceDetail invoiceDetail), invoice(invoiceDetail) SUM toShip(invoiceDetail) IF toShip(invoiceDetail) > 0;
 
     toShipInvoiceDetail 'Не поставлено по накладной' (invoice) =
-        GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0
-              BY invoice(invoiceDetail);
+        GROUP
+              BY invoice(InvoiceDetail invoiceDetail) SUM toShip(invoiceDetail) IF toShip(invoiceDetail) > 0;
     toShipNotChargeInvoiceDetail 'Не поставлено по накладной (кроме услуг)' (invoice) =
-        GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0 AND isNotCharge(sku(invoiceDetail))
-              BY invoice(invoiceDetail);
+        GROUP
+              BY invoice(InvoiceDetail invoiceDetail) SUM toShip(invoiceDetail) IF toShip(invoiceDetail) > 0 AND isNotCharge(sku(invoiceDetail));
     // Создание поставки на основе инвойса //
 
     backgroundShipped 'Цвет' (Invoice invoice) = RGB(255, 224, 255) IF invoice IS Invoice;
@@ -226,8 +226,8 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
 
     TABLE invoiceUserShipment (Invoice, UserShipment);
     include 'Вкл. в приемку' = DATA BOOLEAN (Invoice, UserShipment) CHARWIDTH 10;
-    includeInvoices 'Накладные в приемке' (userShipment) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF include(invoice, UserShipment userShipment) , ', '
-                                                        BY userShipment
+    includeInvoices 'Накладные в приемке' (userShipment) = GROUP
+                                                        BY UserShipment userShipment CONCAT VARSTRING[255](description(Invoice invoice)) IF include(invoice, userShipment) , ', '
                                                         ORDER invoice IN invoices CHARWIDTH 30 MATERIALIZED;
     FORM includeInvoicesUserShipment 'Накладные'
         OBJECTS s = UserShipment PANEL
@@ -256,10 +256,10 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     shipmentDimension = ABSTRACT ShipmentDimension (UserInvoiceDetail);
     nameShipmentDimension 'Регистр хранения' (UserInvoiceDetail detail) = name(shipmentDimension(detail));
     shipmentDimension(UserInvoiceDetail detail) += shipmentDimension(detail);
-    defaultInvoiceDetail (sku, userShipment) = GROUP MAX InvoiceDetail detail IF include(invoice(detail), UserShipment userShipment)
-        BY sku(detail), userShipment;
-    defaultInvoiceDetail (sku, dimension, userShipment) = GROUP MAX InvoiceDetail detail IF include(invoice(detail), UserShipment userShipment)
-        BY sku(detail), shipmentDimension(detail), userShipment;
+    defaultInvoiceDetail (sku, userShipment) = GROUP
+        BY sku(InvoiceDetail detail), UserShipment userShipment MAX detail IF include(invoice(detail), userShipment);
+    defaultInvoiceDetail (sku, dimension, userShipment) = GROUP
+        BY sku(InvoiceDetail detail), shipmentDimension(detail), UserShipment userShipment MAX detail IF include(invoice(detail), userShipment);
 
     fillInvoiceDetail 'Привязать поставку к накладным'(UserShipmentDetail detail, ShipmentDimension dimension) = {
 

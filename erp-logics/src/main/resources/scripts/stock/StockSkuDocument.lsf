@@ -28,8 +28,8 @@ META defineDocumentSkuPriceListTypeSystemLedger(object, stockClass, stockProp)
 END
 
 META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
-    detail###stockProp (sku, object, stock) =  GROUP MAX (###detail detail)
-        BY skuProp(detail), object(detail), stockProp###stockClass(detail);
+    detail###stockProp (sku, object, stock) =  GROUP
+        BY skuProp(###detail detail), object(detail), stockProp###stockClass(detail) MAX (detail);
     detail (###skuProp sku, ###object object) = detail###stockProp(sku, object, stockProp###stockClass(object));
 
     currentBalance 'Остаток' (###skuProp sku, ###object object) = currentBalance(sku, stockProp###stockClass(object));
@@ -214,15 +214,15 @@ META defineDocumentBatchPriceListTypeSystemLedger(object, stockClass, stockProp)
 END
 
 META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockProp)
-    detail###stockProp (batch, object, stock) =  GROUP MAX (###detail detail)
-        BY batchProp(detail), object(detail), stockProp###stockClass(detail);
+    detail###stockProp (batch, object, stock) =  GROUP
+        BY batchProp(###detail detail), object(detail), stockProp###stockClass(detail) MAX (detail);
     detail (###batchProp batch, ###object object) = detail###stockProp(batch, object, stockProp###stockClass(object));
 
     currentBalance 'Остаток' (###batchProp batch, ###object object) = currentBalance(batch, stockProp###stockClass(object));
     prevCurrentBalance 'Остаток' (###batchProp batch, ###object object) = prevCurrentBalance(batch, stockProp###stockClass(object));
 
-    quantity###detail 'Кол-во товара в документе' (batch, object) = GROUP SUM quantity(###detail detail)
-        BY batchProp(detail), object(detail);
+    quantity###detail 'Кол-во товара в документе' (batch, object) = GROUP
+        BY batchProp(###detail detail), object(detail) SUM quantity(detail);
 
     backgroundQuantity 'Цвет' (batch, object) = ABSTRACT CASE COLOR (Batch, ###object);  
 
@@ -389,11 +389,11 @@ META defineDocumentSkuStockPriceListTypeSystemLedger(object, stockProp)
 END
 
 META defineDocumentSkuStock(object, detail, skuProp, stockProp)
-    detail###stockProp (sku, object, stock) =  GROUP MAX (###detail detail)
-        BY skuProp(detail), object(detail), stockProp###stock(detail);
+    detail###stockProp (sku, object, stock) =  GROUP
+        BY skuProp(###detail detail), object(detail), stockProp###stock(detail) MAX (detail);
 
-    quantity###stockProp 'Кол-во товара в документе' (sku, object, stock) = GROUP SUM quantity(###detail detail)
-        BY skuProp(detail), object(detail), stockProp###stock(detail);
+    quantity###stockProp 'Кол-во товара в документе' (sku, object, stock) = GROUP
+        BY skuProp(###detail detail), object(detail), stockProp###stock(detail) SUM quantity(detail);
 
 //    backgroundQuantitySku###object###Stock 'Цвет' (sku, object, stock) = RGB(255,128,128) IF quantitySku###object###stockProp(sku, object, stock) AND NOT
 //        (quantitySku###object###stockProp(sku, object, stock) <= currentBalanceSkuStock(sku, stock));
@@ -560,11 +560,11 @@ META defineDocumentBatchStockPriceListTypeSystemLedger(object, stockProp)
 END
 
 META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
-    detail###stockProp (batch, object, stock) =  GROUP MAX (###detail detail)
-        BY batchProp(detail), object(detail), stockProp###stock(detail);
+    detail###stockProp (batch, object, stock) =  GROUP
+        BY batchProp(###detail detail), object(detail), stockProp###stock(detail) MAX (detail);
 
-    quantity###stockProp 'Кол-во товара в документе' (batch, object, stockProp###stock) = GROUP SUM quantity(###detail detail)
-        BY batchProp(detail), object(detail), stockProp###stock(detail);
+    quantity###stockProp 'Кол-во товара в документе' (batch, object, stockProp###stock) = GROUP
+        BY batchProp(###detail detail), object(detail), stockProp###stock(detail) SUM quantity(detail);
 
 //    backgroundQuantityBatch###object###Stock 'Цвет' (batch, object, stock) = RGB(255,128,128) IF quantityBatch###object###stockProp(batch, object, stock) AND NOT
 //        quantityBatch###object###stockProp(batch, object, stock) <= currentBalanceBatchStock(batch, stock);
@@ -675,14 +675,14 @@ META defineDocumentSkuStockExtra(object, detail, skuProp, stockProp, stockExtra)
             viewPriceCustomer(sku, stockProp, object, stockExtra) <- prevPriceB(pt, sku, stockProp, dateTime(object));
     }
 
-    detail##SupplierCustomer (sku, object, stockProp, stockExtra) =  GROUP MAX (###detail detail)
-        BY skuProp(detail), object(detail), stockProp(detail), stockExtra(detail);
+    detail##SupplierCustomer (sku, object, stockProp, stockExtra) =  GROUP
+        BY skuProp(###detail detail), object(detail), stockProp(detail), stockExtra(detail) MAX (detail);
 
-    quantitySupplierCustomer 'Кол-во товара в документе' (sku, object, stockProp, stockExtra) = GROUP SUM quantity(###detail detail)
-        BY skuProp(detail), object(detail), stockProp(detail), stockExtra(detail);
+    quantitySupplierCustomer 'Кол-во товара в документе' (sku, object, stockProp, stockExtra) = GROUP
+        BY skuProp(###detail detail), object(detail), stockProp(detail), stockExtra(detail) SUM quantity(detail);
 
-    quantitySupplier 'Итого' (sku, object, stockProp) = GROUP SUM quantity(###detail detail)
-        BY skuProp(detail), object(detail), stockProp(detail);
+    quantitySupplier 'Итого' (sku, object, stockProp) = GROUP
+        BY skuProp(###detail detail), object(detail), stockProp(detail) SUM quantity(detail);
 
 //    backgroundQuantitySku###object###Stock 'Цвет' (sku, object, stock) = RGB(255,128,128) IF quantitySku###object###stockProp(sku, object, stock) AND NOT
 //        (quantitySku###object###stockProp(sku, object, stock) <= currentBalanceSkuStock(sku, stock));
@@ -823,14 +823,14 @@ END
 
 META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp, stockExtra)
 
-    detail##SupplierCustomer (batch, object, stockProp, stockExtra) =  GROUP MAX (###detail detail)
-        BY batchProp(detail), object(detail), stockProp(detail), stockExtra(detail);
+    detail##SupplierCustomer (batch, object, stockProp, stockExtra) =  GROUP
+        BY batchProp(###detail detail), object(detail), stockProp(detail), stockExtra(detail) MAX (detail);
 
-    quantitySupplierCustomer 'Кол-во товара в документе' (batch, object, stockProp, stockExtra) = GROUP SUM quantity(###detail detail)
-        BY batchProp(detail), object(detail), stockProp(detail), stockExtra(detail);
+    quantitySupplierCustomer 'Кол-во товара в документе' (batch, object, stockProp, stockExtra) = GROUP
+        BY batchProp(###detail detail), object(detail), stockProp(detail), stockExtra(detail) SUM quantity(detail);
 
-    quantitySupplier 'Итого' (batch, object, stockProp) = GROUP SUM quantity(###detail detail)
-        BY batchProp(detail), object(detail), stockProp(detail);
+    quantitySupplier 'Итого' (batch, object, stockProp) = GROUP
+        BY batchProp(###detail detail), object(detail), stockProp(detail) SUM quantity(detail);
 
     backgroundQuantity 'Цвет' (batch, object, stock) = ABSTRACT CASE COLOR (Batch, ###object, Stock);          
 
@@ -913,7 +913,7 @@ META defineDocumentSkuStockIn(object, detail, skuProp, stockProp)
 
     currentBalance 'Остаток' (###skuProp sku, ###object object) = currentBalance(sku, stockProp(object));
     prevCurrentBalance 'Остаток' (###skuProp sku, ###object object) = prevCurrentBalance(sku, stockProp(object));
-    detail(sku, object) = GROUP SUM 1 BY skuProp(###detail detail), object(detail);
+    detail(sku, object) = GROUP BY skuProp(###detail detail), object(detail) SUM 1;
 
     in 'Отм.' (###skuProp sku, ###object object) = TRUE IF detail(sku, object);
 
@@ -1154,8 +1154,8 @@ END
 
 dataInSession 'Отм.' = DATA LOCAL BOOLEAN (Group);
 
-levelParent (group) = GROUP MIN level(Group group, Group parent) IF dataInSession(parent)
-    BY group;
+levelParent (group) = GROUP
+    BY Group group MIN level(group, Group parent) IF dataInSession(parent);
 
 inParent (Group group) = TRUE IF levelParent(group);
 
@@ -1226,9 +1226,9 @@ quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (DocumentDetail);
 price 'Цена' = ABSTRACT NUMERIC[16,4] (DocumentDetail);
 index 'Номер' = ABSTRACT INTEGER(DocumentDetail);
 
-countDocumentDetail 'Кол-во строк' (o) = GROUP SUM 1 BY document(DocumentDetail d);
-quantityDocumentDetail 'Кол-во товара' (sku, o) = GROUP SUM quantity(DocumentDetail d) BY sku(d), document(d);
-countDocumentDetail 'Кол-во строк товара' (sku, o) = GROUP SUM 1 IF document(DocumentDetail d)==Document o BY sku(d), document(d);
+countDocumentDetail 'Кол-во строк' (o) = GROUP BY document(DocumentDetail d) SUM 1;
+quantityDocumentDetail 'Кол-во товара' (sku, o) = GROUP BY sku(DocumentDetail d), document(d) SUM quantity(d);
+countDocumentDetail 'Кол-во строк товара' (sku, o) = GROUP BY sku(DocumentDetail d), document(d) SUM 1 IF document(d)==Document o;
 
 fillPriceDocuments 'Использовать цены' = DATA LOCAL BOOLEAN ();
 
@@ -1483,7 +1483,7 @@ WHEN ((SETCHANGED(number(Document o)) AND PREV(number(o))) OR (SETCHANGED(series
     }
 }
 
-WHEN (INTEGER x== [ = GROUP SUM 1 IF SET(DocumentDetail d IS DocumentDetail) BY document(d)](Document o)) IF NOT disableDocumentLog() DO {
+WHEN (INTEGER x== [ = GROUP BY document(DocumentDetail d) SUM 1 IF SET(d IS DocumentDetail)](Document o)) IF NOT disableDocumentLog() DO {
     NEW d = DocumentLog {
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);
@@ -1502,7 +1502,7 @@ WHEN (INTEGER x== [ = GROUP SUM 1 IF SET(DocumentDetail d IS DocumentDetail) BY 
     }
 }
 
-WHEN INTEGER x==[= GROUP SUM 1 IF DROPPED(DocumentDetail d IS DocumentDetail) BY PREV(document(d))](Document o) AND o IS Document AND NOT disableDocumentLog() NOINLINE DO {
+WHEN INTEGER x==[= GROUP BY PREV(document(DocumentDetail d)) SUM 1 IF DROPPED(d IS DocumentDetail)](Document o) AND o IS Document AND NOT disableDocumentLog() NOINLINE DO {
     NEW d = DocumentLog {
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);

@@ -21,17 +21,17 @@ nameAlcoholSupplierType 'Тип поставщика алкоголя' (Invoice 
 volume 'Объем' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) MATERIALIZED;
 signetVolume 'Объем' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) MATERIALIZED; 
 
-volumeInvoiceDetailLiterTypesFromTo 'Объем, л' = GROUP SUM signetVolume(InvoiceDetail d) IF 
-    isParent(Group group, sku(d)) AND isPosted(d) AND
-    date(d) >= DATE dateFrom AND date(d) <= DATE dateTo
-        BY group, customerStock(d), alcoholDirectionType(d), alcoholIncomeType(d), 
-            alcoholSupplierType(d), extractMonth(date(d)), dateFrom, dateTo; 
+volumeInvoiceDetailLiterTypesFromTo 'Объем, л' = GROUP
+        BY Group group, customerStock(InvoiceDetail d), alcoholDirectionType(d), alcoholIncomeType(d), 
+            alcoholSupplierType(d), extractMonth(date(d)), DATE dateFrom, DATE dateTo SUM signetVolume(d) IF 
+    isParent(group, sku(d)) AND isPosted(d) AND
+    date(d) >= dateFrom AND date(d) <= dateTo; 
 
-volumeInvoiceDetailTypes 'Объем, тыс дал.' = NUMERIC[20,8]([ =GROUP SUM signetVolume(InvoiceDetail d) IF 
-    isParent(Group group, sku(d)) AND isPosted(d) AND
-    date(d) >= DATE dateFrom AND date(d) <= DATE dateTo
-        BY group, customerStock(d), alcoholDirectionType(d), alcoholIncomeType(d), 
-            alcoholSupplierType(d), extractMonth(date(d)), dateFrom, dateTo](StatisticGroup group,Stock stock,AlcoholDirectionType type1,AlcoholIncomeType type2,AlcoholSupplierType type3,Month month,DATE dateFrom,DATE dateTo)) /
+volumeInvoiceDetailTypes 'Объем, тыс дал.' = NUMERIC[20,8]([ =GROUP
+        BY Group group, customerStock(InvoiceDetail d), alcoholDirectionType(d), alcoholIncomeType(d), 
+            alcoholSupplierType(d), extractMonth(date(d)), DATE dateFrom, DATE dateTo SUM signetVolume(d) IF 
+    isParent(group, sku(d)) AND isPosted(d) AND
+    date(d) >= dateFrom AND date(d) <= dateTo](StatisticGroup group,Stock stock,AlcoholDirectionType type1,AlcoholIncomeType type2,AlcoholSupplierType type3,Month month,DATE dateFrom,DATE dateTo)) /
             (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup);    
 
                                                     
@@ -67,16 +67,16 @@ FORM alcoholStockReports 'Отчет по алкоголю'
     FILTERS volumeInvoiceDetailTypes(sk,s,type1,type2,type3,m,dFrom,dTo)
 ;
 
-volumeInvoiceDetail 'Объем, тыс дал.' = NUMERIC[20,8]([ =GROUP SUM signetVolume(InvoiceDetail d) IF 
-    isParent(Group group, sku(d)) AND isPosted(d) AND
-    date(d) >= DATE dateFrom AND date(d) <= DATE dateTo //AND alcoholDirectionTypeInvoiceDetail(d)==AlcoholDirectionType.income
-        BY group, customerStock(d), supplier(d), alcoholDirectionType(d), extractMonth(date(d)), dateFrom, dateTo](StatisticGroup group,Stock stock,LegalEntity supplier,AlcoholDirectionType type,Month month,DATE dateFrom,DATE dateTo)) /
+volumeInvoiceDetail 'Объем, тыс дал.' = NUMERIC[20,8]([ =GROUP BY Group group, customerStock(InvoiceDetail d), supplier(d), alcoholDirectionType(d), extractMonth(date(d)), DATE dateFrom, DATE dateTo SUM signetVolume(d) IF 
+    isParent(group, sku(d)) AND isPosted(d) AND
+    date(d) >= dateFrom AND date(d) <= dateTo //AND alcoholDirectionTypeInvoiceDetail(d)==AlcoholDirectionType.income
+        ](StatisticGroup group,Stock stock,LegalEntity supplier,AlcoholDirectionType type,Month month,DATE dateFrom,DATE dateTo)) /
             (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup);  
 
-volumeInvoiceDetailCustomerFromTo 'Объем, тыс дал. (итого)' = GROUP SUM 
-    (NUMERIC[20,8](signetVolume(InvoiceDetail d))/(OVERRIDE conversionFactor(group(GroupType groupType, sku(d))), 1.0 IF group(groupType, sku(d)) IS StatisticGroup)) IF    
-    isPosted(d) AND date(d) >= DATE dateFrom AND date(d) <= DATE dateTo// AND alcoholDirectionTypeInvoiceDetail(d)==AlcoholDirectionType.income
-        BY groupType, customer(d), alcoholDirectionType(d), dateFrom, dateTo;
+volumeInvoiceDetailCustomerFromTo 'Объем, тыс дал. (итого)' = GROUP BY GroupType groupType, customer(InvoiceDetail d), alcoholDirectionType(d), DATE dateFrom, DATE dateTo SUM 
+    (NUMERIC[20,8](signetVolume(d))/(OVERRIDE conversionFactor(group(groupType, sku(d))), 1.0 IF group(groupType, sku(d)) IS StatisticGroup)) IF    
+    isPosted(d) AND date(d) >= dateFrom AND date(d) <= dateTo// AND alcoholDirectionTypeInvoiceDetail(d)==AlcoholDirectionType.income
+        ;
 
 FORM alcoholStockSupplierReports 'Отчет по алкоголю (поставщики)'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL

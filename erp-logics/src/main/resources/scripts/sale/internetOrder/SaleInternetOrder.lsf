@@ -83,9 +83,9 @@ addressSupplierStock 'Адрес' (InternetOrderDetail idetail) = address(Sale.s
 countrySupplierStock (InternetOrderDetail idetail) = country(Sale.supplierStock[InternetOrderDetail](idetail));
 legalEntitySupplierStock (InternetOrderDetail idetail) = legalEntity(Sale.supplierStock[InternetOrderDetail](idetail));
 
-inStockInternetOrder = GROUP SUM 1 BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail), internetOrder(detail); 
-supplierStocks 'Склады поставщика' = GROUP CONCAT name(Stock stock) IF inStockInternetOrder(stock, InternetOrder order), ', '  
-                                                                        BY order 
+inStockInternetOrder = GROUP BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail), internetOrder(detail) SUM 1; 
+supplierStocks 'Склады поставщика' = GROUP  
+                                                                        BY InternetOrder order CONCAT name(Stock stock) IF inStockInternetOrder(stock, order), ', ' 
                                                                         ORDER name(stock) CHARWIDTH 30;
 
 changeSupplierStock(InternetOrderDetail o) = {
@@ -128,7 +128,7 @@ CONSTRAINT isPosted(InternetOrderDetail d) AND price(d) < discountPrice(d)
 
 @defineDocumentDetailDataSumCustomPrefix(internetOrderDetail, discount, ' со скидкой');
 @deriveDocumentDetailSumCustomPrefix(internetOrderDetail, discount, currency, quantity);
-discountSumInternetOrderDetail 'Сумма со скидкой' (internetOrder) = GROUP SUM discountSum(InternetOrderDetail idetail) BY internetOrder(idetail) IN documentSum;
+discountSumInternetOrderDetail 'Сумма со скидкой' (internetOrder) = GROUP BY internetOrder(InternetOrderDetail idetail) SUM discountSum(idetail) IN documentSum;
 
 //discountPercent 'Процент скидки' (InternetOrderDetail d)= round2((price(d) - discountPrice(d)) * 100.0 / price(d));
 discountPercent 'Процент скидки' (InternetOrderDetail d)= DATA NUMERIC[8,3] (InternetOrderDetail);
@@ -850,7 +850,7 @@ name 'Наименование' = DATA VARSTRING[255] (Carrier);
 departmentStore = DATA DepartmentStore (Carrier);
 nameDepartmentStore 'Интернет магазин' (Carrier c) = name(departmentStore(c));
 
-carrier = GROUP AGGR (Carrier carrier) BY departmentStore(carrier);
+carrier = GROUP BY departmentStore(Carrier carrier) AGGR (carrier);
 
 FORM carrier 'Перевозчик'
     OBJECTS c = Carrier FIXED PANEL 

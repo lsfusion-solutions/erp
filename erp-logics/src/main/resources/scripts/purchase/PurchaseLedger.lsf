@@ -72,38 +72,38 @@ operation  (ledger) = ABSTRACT Purchase.Operation (PurchaseLedger) MATERIALIZED;
 nameOperation 'Операция' (PurchaseLedger ledger) = name(operation (ledger));
 
 TABLE skuStockLegalEntity (Sku, Stock, LegalEntity);
-countPurchaseSupplier 'Кол-во закуплено' = GROUP SUM 1 IF active(PurchaseLedger ledger)
-    BY supplier(ledger), stock(ledger), sku(ledger) MATERIALIZED;
+countPurchaseSupplier 'Кол-во закуплено' = GROUP
+    BY supplier(PurchaseLedger ledger), stock(ledger), sku(ledger) SUM 1 IF active(ledger) MATERIALIZED;
 prevCountSupplier (LegalEntity legalEntity, Stock stock, Sku sku)  = PREV(countPurchaseSupplier(legalEntity, stock, sku));
 
-countPurchaseSupplier 'Кол-во закуплено' = GROUP SUM countPurchaseSupplier(LegalEntity l, Stock st, Sku sk)
-    BY l, sk;
+countPurchaseSupplier 'Кол-во закуплено' = GROUP
+    BY LegalEntity l, Sku sk SUM countPurchaseSupplier(l, Stock st, sk);
     
-quantityPurchaseSupplier 'Кол-во закуплено' = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
-    BY supplierStock(ledger), sku(ledger);
+quantityPurchaseSupplier 'Кол-во закуплено' = GROUP
+    BY supplierStock(PurchaseLedger ledger), sku(ledger) SUM quantity(ledger) IF active(ledger);
     
 lastExternalSupplier (stock, sku) = 
-    GROUP LAST supplier(PurchaseLedger ledger)
-        BY stock(ledger), sku(ledger)
+    GROUP
+        BY stock(PurchaseLedger ledger), sku(ledger) LAST supplier(ledger)
         ORDER dateTime(ledger), ledger
         WHERE active(ledger) AND NOT isCompany(supplier(ledger));
     
 lastSupplier (stock, sku) = 
-    GROUP LAST supplier(PurchaseLedger ledger)
-        BY stock(ledger), sku(ledger)
+    GROUP
+        BY stock(PurchaseLedger ledger), sku(ledger) LAST supplier(ledger)
         ORDER dateTime(ledger), ledger
         WHERE active(ledger);
  
 lastSupplier (sku) = 
-    GROUP LAST supplier(PurchaseLedger ledger)
-        BY sku(ledger)
+    GROUP
+        BY sku(PurchaseLedger ledger) LAST supplier(ledger)
         ORDER dateTime(ledger), ledger
         WHERE active(ledger);
         
 //-- по складу поставщика        
 lastSupplierStock (stock, sku) = 
-    GROUP LAST supplierStock(PurchaseLedger ledger)
-        BY stock(ledger), sku(ledger)
+    GROUP
+        BY stock(PurchaseLedger ledger), sku(ledger) LAST supplierStock(ledger)
         ORDER dateTime(ledger), ledger
         WHERE active(ledger);
                 
@@ -122,7 +122,7 @@ cost 'Расписано из партии' = ABSTRACT NUMERIC[16,5] (PurchaseLe
 coeff 'Удельный вес' (PurchaseLedger ledger, Batch batch) =
     NUMERIC[22,8](cost(ledger, batch)/quantity(ledger));
 
-costSum 'Себестоимость' = GROUP SUM cost(PurchaseLedger ledger, Batch batch) * cost(batch) BY ledger;
+costSum 'Себестоимость' = GROUP BY PurchaseLedger ledger SUM cost(ledger, Batch batch) * cost(batch);
 
 //CONSTRAINT quantityPurchaseLedger(purchaseLedger) == 0 MESSAGE 'ошибка: Количество покупки не должно быть равно нулю';
 
@@ -136,137 +136,137 @@ sumVAT 'Сумма НДС' (PurchaseLedger ledger) = NUMERIC[18,4]([= X*Y/(100+Y
 
 
 //по складу и batch
-quantityPurchase (batch, stock, date) = GROUP SUM cost(PurchaseLedger ledger,Batch batch) IF active(ledger)
-    BY batch, stock(ledger), date(ledger);
-quantityPurchase =  GROUP SUM cost(PurchaseLedger ledger,Batch batch) IF active(ledger)
-    BY batch, stock(ledger);
-sumVATPurchase (batch, stock, date) = GROUP SUM sumVAT(PurchaseLedger ledger)*coeff(ledger,Batch batch) IF active(ledger)
-    BY batch, stock(ledger), date(ledger);
-sumPurchase (batch, stock, date) = GROUP SUM sum(PurchaseLedger ledger)*coeff(ledger,Batch batch) IF active(ledger)
-    BY batch, stock(ledger), date(ledger);    
-costSumPurchase (batch, stock, date) = GROUP SUM costSum(PurchaseLedger ledger)*coeff(ledger,Batch batch) IF active(ledger)
-    BY batch, stock(ledger), date(ledger);
+quantityPurchase (batch, stock, date) = GROUP
+    BY Batch batch, stock(PurchaseLedger ledger), date(ledger) SUM cost(ledger,batch) IF active(ledger);
+quantityPurchase =  GROUP
+    BY Batch batch, stock(PurchaseLedger ledger) SUM cost(ledger,batch) IF active(ledger);
+sumVATPurchase (batch, stock, date) = GROUP
+    BY Batch batch, stock(PurchaseLedger ledger), date(ledger) SUM sumVAT(ledger)*coeff(ledger,batch) IF active(ledger);
+sumPurchase (batch, stock, date) = GROUP
+    BY Batch batch, stock(PurchaseLedger ledger), date(ledger) SUM sum(ledger)*coeff(ledger,batch) IF active(ledger);    
+costSumPurchase (batch, stock, date) = GROUP
+    BY Batch batch, stock(PurchaseLedger ledger), date(ledger) SUM costSum(ledger)*coeff(ledger,batch) IF active(ledger);
     
 //по складу и Batch
-quantityPurchase 'Закуплено за интервал (кол-во)' (batch, stock, dateFrom, dateTo) = GROUP SUM
-        quantityPurchase(Batch batch, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY batch, stock, dateFrom, dateTo;
+quantityPurchase 'Закуплено за интервал (кол-во)' (batch, stock, dateFrom, dateTo) = GROUP
+        BY Batch batch, Stock stock, DATE dateFrom, DATE dateTo SUM
+        quantityPurchase(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
 
-sumVATPurchase 'Сумма НДС закупленного за интервал' (batch, stock, dateFrom, dateTo) = GROUP SUM
-        sumVATPurchase(Batch batch, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY batch, stock, dateFrom, dateTo;
+sumVATPurchase 'Сумма НДС закупленного за интервал' (batch, stock, dateFrom, dateTo) = GROUP
+        BY Batch batch, Stock stock, DATE dateFrom, DATE dateTo SUM
+        sumVATPurchase(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
 
-sumPurchase 'Закуплено за интервал (сумма)' (batch, stock, dateFrom, dateTo) = GROUP SUM
-        sumPurchase(Batch batch, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY batch, stock, dateFrom, dateTo;
+sumPurchase 'Закуплено за интервал (сумма)' (batch, stock, dateFrom, dateTo) = GROUP
+        BY Batch batch, Stock stock, DATE dateFrom, DATE dateTo SUM
+        sumPurchase(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
         
-costSumPurchase 'Себестоимость закупленного за интервал' (batch, stock, dateFrom, dateTo) = GROUP SUM
-        costSumPurchase(Batch batch, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY batch, stock, dateFrom, dateTo;     
+costSumPurchase 'Себестоимость закупленного за интервал' (batch, stock, dateFrom, dateTo) = GROUP
+        BY Batch batch, Stock stock, DATE dateFrom, DATE dateTo SUM
+        costSumPurchase(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;     
 
 TABLE purchaseSkuStockDate(Sku, Stock, DATE);
 
 //по складу и SKU
-quantityPurchase (sku, stock, date) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE purchaseSkuStockDate;
+quantityPurchase (sku, stock, date) = GROUP
+    BY sku(PurchaseLedger ledger), stock(ledger), date(ledger) SUM quantity(ledger) IF active(ledger) MATERIALIZED TABLE purchaseSkuStockDate;
 
-sumVATPurchase (sku, stock, date) = GROUP SUM sumVAT(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE purchaseSkuStockDate;
+sumVATPurchase (sku, stock, date) = GROUP
+    BY sku(PurchaseLedger ledger), stock(ledger), date(ledger) SUM sumVAT(ledger) IF active(ledger) MATERIALIZED TABLE purchaseSkuStockDate;
 
-sumPurchase (sku, stock, date) = GROUP SUM sum(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE purchaseSkuStockDate;
+sumPurchase (sku, stock, date) = GROUP
+    BY sku(PurchaseLedger ledger), stock(ledger), date(ledger) SUM sum(ledger) IF active(ledger) MATERIALIZED TABLE purchaseSkuStockDate;
     
-costSumPurchase (sku, stock, date) = GROUP SUM costSum(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE purchaseSkuStockDate;    
+costSumPurchase (sku, stock, date) = GROUP
+    BY sku(PurchaseLedger ledger), stock(ledger), date(ledger) SUM costSum(ledger) IF active(ledger) MATERIALIZED TABLE purchaseSkuStockDate;    
 
 //по складу, поставщику и SKU
-quantityPurchase (sku, stock, supplier, date) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplier(ledger), date(ledger);  // MATERIALIZED
+quantityPurchase (sku, stock, supplier, date) = GROUP
+    BY sku(PurchaseLedger ledger), stock(ledger), supplier(ledger), date(ledger) SUM quantity(ledger) IF active(ledger);  // MATERIALIZED
 
-sumVATPurchase (sku, stock, supplier, date) = GROUP SUM sumVAT(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplier(ledger), date(ledger);  // MATERIALIZED
+sumVATPurchase (sku, stock, supplier, date) = GROUP
+    BY sku(PurchaseLedger ledger), stock(ledger), supplier(ledger), date(ledger) SUM sumVAT(ledger) IF active(ledger);  // MATERIALIZED
 
-sumPurchase (sku, stock, supplier, date) = GROUP SUM sum(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplier(ledger), date(ledger);   // MATERIALIZED
+sumPurchase (sku, stock, supplier, date) = GROUP
+    BY sku(PurchaseLedger ledger), stock(ledger), supplier(ledger), date(ledger) SUM sum(ledger) IF active(ledger);   // MATERIALIZED
 
 
-quantityPurchase 'Кол-во закуплено' (sku, stock, supplier) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplier(ledger);  // MATERIALIZED
+quantityPurchase 'Кол-во закуплено' (sku, stock, supplier) = GROUP
+    BY sku(PurchaseLedger ledger), stock(ledger), supplier(ledger) SUM quantity(ledger) IF active(ledger);  // MATERIALIZED
     
 //по складу, складу поставщика  и SKU
-quantityPurchaseSupplier (sku, stock, supplierStock, date) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplierStock(ledger), date(ledger);  // MATERIALIZED
+quantityPurchaseSupplier (sku, stock, supplierStock, date) = GROUP
+    BY sku(PurchaseLedger ledger), stock(ledger), supplierStock(ledger), date(ledger) SUM quantity(ledger) IF active(ledger);  // MATERIALIZED
 
-sumVATPurchaseSupplier (sku, stock, supplierStock, date) = GROUP SUM sumVAT(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplierStock(ledger), date(ledger);  // MATERIALIZED
+sumVATPurchaseSupplier (sku, stock, supplierStock, date) = GROUP
+    BY sku(PurchaseLedger ledger), stock(ledger), supplierStock(ledger), date(ledger) SUM sumVAT(ledger) IF active(ledger);  // MATERIALIZED
 
-sumPurchaseSupplier (sku, stock, supplierStock, date) = GROUP SUM sum(PurchaseLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), supplierStock(ledger), date(ledger);   // MATERIALIZED
+sumPurchaseSupplier (sku, stock, supplierStock, date) = GROUP
+    BY sku(PurchaseLedger ledger), stock(ledger), supplierStock(ledger), date(ledger) SUM sum(ledger) IF active(ledger);   // MATERIALIZED
 
-quantityPurchaseSupplier 'Кол-во закуплено' (stock, supplierStock, sku) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
-    BY stock(ledger), supplierStock(ledger), sku(ledger);     
+quantityPurchaseSupplier 'Кол-во закуплено' (stock, supplierStock, sku) = GROUP
+    BY stock(PurchaseLedger ledger), supplierStock(ledger), sku(ledger) SUM quantity(ledger) IF active(ledger);     
 
 //по складу и SKU
-quantityPurchase 'Закуплено за интервал (кол-во)' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        quantityPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, dateFrom, dateTo;
+quantityPurchase 'Закуплено за интервал (кол-во)' (sku, stock, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, DATE dateFrom, DATE dateTo SUM
+        quantityPurchase(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
 
-sumVATPurchase 'Сумма НДС закупленного за интервал' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        sumVATPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, dateFrom, dateTo;
+sumVATPurchase 'Сумма НДС закупленного за интервал' (sku, stock, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, DATE dateFrom, DATE dateTo SUM
+        sumVATPurchase(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
 
-sumPurchase 'Закуплено за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        sumPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, dateFrom, dateTo;
+sumPurchase 'Закуплено за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, DATE dateFrom, DATE dateTo SUM
+        sumPurchase(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
         
-costSumPurchase 'Себестоимость закупленного за интервал' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        costSumPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, dateFrom, dateTo;
+costSumPurchase 'Себестоимость закупленного за интервал' (sku, stock, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, DATE dateFrom, DATE dateTo SUM
+        costSumPurchase(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
         
 //по складу, поставщику и SKU
-quantityPurchase 'Закуплено за интервал (кол-во)' (sku, stock, supplier, dateFrom, dateTo) = GROUP SUM
-        quantityPurchase(Sku sku, Stock stock, LegalEntity supplier, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, supplier, dateFrom, dateTo;
+quantityPurchase 'Закуплено за интервал (кол-во)' (sku, stock, supplier, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, LegalEntity supplier, DATE dateFrom, DATE dateTo SUM
+        quantityPurchase(sku, stock, supplier, DATE date) IF date >= dateFrom AND date <= dateTo;
 
-sumVATPurchase 'Сумма НДС закупленного за интервал' (sku, stock, supplier, dateFrom, dateTo) = GROUP SUM
-        sumVATPurchase(Sku sku, Stock stock, LegalEntity supplier, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, supplier, dateFrom, dateTo;
+sumVATPurchase 'Сумма НДС закупленного за интервал' (sku, stock, supplier, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, LegalEntity supplier, DATE dateFrom, DATE dateTo SUM
+        sumVATPurchase(sku, stock, supplier, DATE date) IF date >= dateFrom AND date <= dateTo;
 
-sumPurchase 'Закуплено за интервал (сумма)' (sku, stock, supplier, dateFrom, dateTo) = GROUP SUM
-        sumPurchase(Sku sku, Stock stock, LegalEntity supplier, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, supplier, dateFrom, dateTo;
+sumPurchase 'Закуплено за интервал (сумма)' (sku, stock, supplier, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, LegalEntity supplier, DATE dateFrom, DATE dateTo SUM
+        sumPurchase(sku, stock, supplier, DATE date) IF date >= dateFrom AND date <= dateTo;
 
 //по складу, складу поставщика и SKU
-quantityPurchaseSupplier 'Закуплено за интервал (кол-во)' (sku, stock, supplierStock, dateFrom, dateTo) = GROUP SUM
-        quantityPurchaseSupplier(Sku sku, Stock stock, Stock supplierStock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, supplierStock, dateFrom, dateTo;
+quantityPurchaseSupplier 'Закуплено за интервал (кол-во)' (sku, stock, supplierStock, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, Stock supplierStock, DATE dateFrom, DATE dateTo SUM
+        quantityPurchaseSupplier(sku, stock, supplierStock, DATE date) IF date >= dateFrom AND date <= dateTo;
 
-sumVATPurchaseSupplier 'Сумма НДС закупленного за интервал' (sku, stock, supplierStock, dateFrom, dateTo) = GROUP SUM
-        sumVATPurchaseSupplier(Sku sku, Stock stock, Stock supplierStock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, supplierStock, dateFrom, dateTo;
+sumVATPurchaseSupplier 'Сумма НДС закупленного за интервал' (sku, stock, supplierStock, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, Stock supplierStock, DATE dateFrom, DATE dateTo SUM
+        sumVATPurchaseSupplier(sku, stock, supplierStock, DATE date) IF date >= dateFrom AND date <= dateTo;
 
-sumPurchaseSupplier 'Закуплено за интервал (сумма)' (sku, stock, supplierStock, dateFrom, dateTo) = GROUP SUM
-        sumPurchaseSupplier(Sku sku, Stock stock, Stock supplierStock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, stock, supplierStock, dateFrom, dateTo;
+sumPurchaseSupplier 'Закуплено за интервал (сумма)' (sku, stock, supplierStock, dateFrom, dateTo) = GROUP
+        BY Sku sku, Stock stock, Stock supplierStock, DATE dateFrom, DATE dateTo SUM
+        sumPurchaseSupplier(sku, stock, supplierStock, DATE date) IF date >= dateFrom AND date <= dateTo;
 //по SKU
-quantityPurchase 'Закуплено за интервал (кол-во)' (sku, dateFrom, dateTo) = GROUP SUM
-        quantityPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, dateFrom, dateTo;
+quantityPurchase 'Закуплено за интервал (кол-во)' (sku, dateFrom, dateTo) = GROUP
+        BY Sku sku, DATE dateFrom, DATE dateTo SUM
+        quantityPurchase(sku, Stock stock, DATE date) IF date >= dateFrom AND date <= dateTo;
 
-sumPurchase 'Закуплено за интервал (сумма)' (sku, dateFrom, dateTo) = GROUP SUM
-        sumPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY sku, dateFrom, dateTo;
+sumPurchase 'Закуплено за интервал (сумма)' (sku, dateFrom, dateTo) = GROUP
+        BY Sku sku, DATE dateFrom, DATE dateTo SUM
+        sumPurchase(sku, Stock stock, DATE date) IF date >= dateFrom AND date <= dateTo;
 
 //---------------------------------Тип обмена---------------------------------------//
 
 sumPurchase (TypeExchange typeExchange, Sku sku, Stock stock, DATE date)= round((sumPurchase (sku, stock, date)/ rateOn(typeExchange, currency(stock), date)), currency(typeExchange));
 
-sumPurchase 'Закуплено за интервал (сумма-валюта)' (typeExchange, sku, stock, dateFrom, dateTo) = GROUP SUM
-        sumPurchase (TypeExchange typeExchange, Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
-        BY typeExchange, sku, stock, dateFrom, dateTo;
+sumPurchase 'Закуплено за интервал (сумма-валюта)' (typeExchange, sku, stock, dateFrom, dateTo) = GROUP
+        BY TypeExchange typeExchange, Sku sku, Stock stock, DATE dateFrom, DATE dateTo SUM
+        sumPurchase (typeExchange, sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
 
-sumPurchase 'Закуплено за интервал (сумма-валюта)' (typeExchange, sku, dateFrom, dateTo) = GROUP SUM
-        sumPurchase(TypeExchange typeExchange, Sku sku, Stock stock, DATE dateFrom, DATE dateTo) BY typeExchange, sku, dateFrom, dateTo;
+sumPurchase 'Закуплено за интервал (сумма-валюта)' (typeExchange, sku, dateFrom, dateTo) = GROUP BY TypeExchange typeExchange, Sku sku, DATE dateFrom, DATE dateTo SUM
+        sumPurchase(typeExchange, sku, Stock stock, dateFrom, dateTo);
 
 
 skuStockAveragePurchaseInterval 'Интервал расчета закупок в день' = DATA INTEGER ();

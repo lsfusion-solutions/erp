@@ -22,11 +22,11 @@ WHEN LOCAL SET(Period p IS Period) DO {
     IF p IS Period AND NOT dateTo(p) THEN dateTo(p) <- currentDate();
 };
 
-countPeriodCross (PeriodType pt) = GROUP SUM 1 IF dateFrom(Period p2)>= dateFrom(Period p1) AND dateFrom(p2)<= dateTo(p1) 
-                                                    AND type(p1) == type(p2) AND p1 != p2 BY type(p1);     
+countPeriodCross (PeriodType pt) = GROUP BY type(Period p1) SUM 1 IF dateFrom(Period p2)>= dateFrom(p1) AND dateFrom(p2)<= dateTo(p1) 
+                                                    AND type(p1) == type(p2) AND p1 != p2;     
 CONSTRAINT countPeriodCross(PeriodType pt) > 0 MESSAGE 'В указанных датах уже есть период такого типа';
 
-period(PeriodType type, DATE date) = GROUP LAST Period period BY type(period), DATE date 
+period(PeriodType type, DATE date) = GROUP BY type(Period period), DATE date LAST period 
                                                 ORDER dateFrom(period), period WHERE dateFrom(period)<=date AND dateTo(period)>=date; 
 
 FORM periodType 'Тип периода'

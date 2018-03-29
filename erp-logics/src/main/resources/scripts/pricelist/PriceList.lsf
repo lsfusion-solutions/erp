@@ -126,7 +126,7 @@ toTime(UserPriceList userPriceList) += toTime(userPriceList);
 
 //@defineDocumentInterfaceLegalEntity(priceList, company, 'Организация');
 @defineDocumentInterfaceDataLegalEntity(priceList, company, 'Организация');
-userPriceList (legalEntity) = GROUP MAX UserPriceList userPriceList BY company(userPriceList);
+userPriceList (legalEntity) = GROUP BY company(UserPriceList userPriceList) MAX userPriceList;
 @defineDocumentInterfaceDataStock(priceList, stock, 'Склад организации', company);
 CONSTRAINT company(UserPriceList priceList) AND companyStock(priceList) AND NOT
 in(company(priceList), companyStock(priceList))
@@ -169,8 +169,8 @@ orderIn 'Порядок (изм.)' = ABSTRACT INTEGER (PriceList, DataPriceListT
 orderIn 'Порядок (изм.)' = DATA INTEGER (UserPriceList, DataPriceListType);
 orderIn (UserPriceList priceList, DataPriceListType dataPriceListType) += orderIn(priceList, dataPriceListType);
 
-priceListTypes 'Цены' (priceList) = GROUP CONCAT name[PriceListType](DataPriceListType priceListType) IF in(PriceList priceList, priceListType) , ', '
-                                               BY priceList
+priceListTypes 'Цены' (priceList) = GROUP
+                                               BY PriceList priceList CONCAT name[PriceListType](DataPriceListType priceListType) IF in(priceList, priceListType) , ', '
                                                ORDER priceListType CHARWIDTH 10 MATERIALIZED;
 priceListTypes 'Цены' (PriceListDetail d) = priceListTypes(priceList(d));
 
@@ -220,8 +220,8 @@ dataIn 'Отм' = ABSTRACT BOOLEAN (PriceList, Stock) MATERIALIZED;
 dataIn 'Отм' = DATA BOOLEAN (UserPriceList, Stock);
 dataIn (UserPriceList priceList, Stock stock) += dataIn(priceList, stock);
 
-levelParent (priceList, stockGroup) = GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataIn(PriceList priceList, parent)
-                                                               BY priceList, stockGroup MATERIALIZED;
+levelParent (priceList, stockGroup) = GROUP
+                                                               BY PriceList priceList, StockGroup stockGroup MIN level(stockGroup, StockGroup parent) IF dataIn(priceList, parent) MATERIALIZED;
 
 inParent (PriceList priceList, StockGroup stockGroup) = TRUE IF levelParent (priceList, stockGroup) MATERIALIZED;
 
@@ -241,8 +241,8 @@ in 'Отм' (PriceList priceList, Stock stock) =
              
 @defineBackgroundNearestBoolean(allStocks, in, priceList, stock, inParent, isCompany);                    
 
-stocks 'Склады' (priceList) = GROUP CONCAT VARISTRING[250] (name(Stock stock)) IF in(PriceList priceList, stock) , ', '
-                                       BY priceList
+stocks 'Склады' (priceList) = GROUP
+                                       BY PriceList priceList CONCAT VARISTRING[250] (name(Stock stock)) IF in(priceList, stock) , ', '
                                        ORDER stock CHARWIDTH 20 MATERIALIZED;
 stocks 'Склады' (PriceListDetail d) = stocks(priceList(d));                                       
 // История
@@ -354,7 +354,7 @@ backgroundChange 'Цвет' (DataPriceListType dataPriceListType) = RGB(232,184,
 background 'Цвет' (DataPriceListType dataPriceListType) = RGB(213,249,185) IF dataPriceListType IS DataPriceListType;
 
 // Подбор товаров SKU
-detail= GROUP SUM 1 BY sku(UserPriceListDetail detail), userPriceList(detail);
+detail= GROUP BY sku(UserPriceListDetail detail), userPriceList(detail) SUM 1;
 
 in 'Вкл.' (Sku sku, UserPriceList price) = TRUE IF detail(sku, price);
 
@@ -372,8 +372,8 @@ changeIn(Sku sku, UserPriceList priceList) = {
 }
 
 // Подбор товаров batch
-detail(batch, price) = GROUP SUM 1 IF Batch batch == batch(UserPriceListDetail detail) AND UserPriceList price == userPriceList(detail)
-                                           BY batch(detail), userPriceList(detail);
+detail(batch, price) = GROUP
+                                           BY batch(UserPriceListDetail detail), userPriceList(detail) SUM 1 IF Batch batch == batch(detail) AND UserPriceList price == userPriceList(detail);
 
 in 'Вкл.' (Batch batch, UserPriceList price) = TRUE IF detail(batch, price);
 
@@ -401,7 +401,7 @@ supplier(PriceList priceList) += company(priceList);
 index[DocumentDetail](PriceListDetail priceList) += index(priceList);
 sku[DocumentDetail](PriceListDetail priceList) += sku(priceList);
 
-defaultChangePriceListType= GROUP MIN DataPriceListType pt IF in(PriceListDetail detail, pt) BY detail;
+defaultChangePriceListType= GROUP BY PriceListDetail detail MIN DataPriceListType pt IF in(detail, pt);
 price[DocumentDetail](PriceListDetail detail) += price(detail, defaultChangePriceListType(detail));
 
 document(PriceListDetail detail) += priceList(detail);
@@ -933,8 +933,8 @@ DESIGN chooseMarkUpSkuUserPriceList {
 isSelected 'Отм' = DATA LOCAL BOOLEAN (UserPriceListDetail);
 changeMarkUpChosenSku 'Изменить цену для отмеченных строк'(UserPriceList userPriceList, Stock stock) = {
     DIALOG chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList, pt INPUT, nt INPUT, m INPUT, n INPUT DO {
-        IF NOT [= GROUP SUM 1 IF isSelected(UserPriceListDetail priceListDetail)
-                      BY userPriceList(priceListDetail)](userPriceList) THEN
+        IF NOT [= GROUP
+                      BY userPriceList(UserPriceListDetail priceListDetail) SUM 1 IF isSelected(priceListDetail)](userPriceList) THEN
             MESSAGE 'Выберите хотя бы одну позицию';
         ELSE {
             LOCAL prev = NUMERIC[16,4] (UserPriceListDetail);
@@ -1349,13 +1349,13 @@ DESIGN legalEntity{
 
 // ------------------------------------------------- Сравнение прайсов ---------------------------- //
 
-count (sku, priceList) = GROUP SUM 1 BY sku(PriceListDetail detail), priceList(detail);
+count (sku, priceList) = GROUP BY sku(PriceListDetail detail), priceList(detail) SUM 1;
 
-countSkus (priceList) = GROUP SUM 1 IF count(Sku sku, PriceList priceList)
-    BY priceList;
+countSkus (priceList) = GROUP
+    BY PriceList priceList SUM 1 IF count(Sku sku, priceList);
 
-countSku (priceList1, priceList2) = GROUP SUM 1 IF count(Sku sku, PriceList priceList1) == count(sku, PriceList priceList2)
-    BY priceList1, priceList2;
+countSku (priceList1, priceList2) = GROUP
+    BY PriceList priceList1, PriceList priceList2 SUM 1 IF count(Sku sku, priceList1) == count(sku, priceList2);
 
 equals (PriceList priceList1, PriceList priceList2) = company(priceList1) == company(priceList2) AND
                                                     currency(priceList1) == currency(priceList2) AND
@@ -1380,7 +1380,7 @@ EXTEND FORM migrationData
     PROPERTIES() findEqualsPriceLists
 ;
 
-countPriceListDetail 'Кол-во строк' (sku, priceList) = GROUP SUM 1 BY sku(PriceListDetail d), priceList(d);
+countPriceListDetail 'Кол-во строк' (sku, priceList) = GROUP BY sku(PriceListDetail d), priceList(d) SUM 1;
 
 priceLimit 'Максимально допустимая цена' = DATA NUMERIC[16,4] (Currency);
 
@@ -1401,4 +1401,4 @@ show[PriceListLedger] (PriceListDetail ledger) += {show(ledger);};
 
 // Храним количество прайс-листов для поставщика и вида цен
 TABLE dataPriceListTypeLegalEntitySku (DataPriceListType, LegalEntity, Sku);
-countPriceListDetail = GROUP SUM 1 IF in(PriceListDetail d, DataPriceListType t) BY t, company(d), sku(d) MATERIALIZED; 
+countPriceListDetail = GROUP BY DataPriceListType t, company(PriceListDetail d), sku(d) SUM 1 IF in(d, t) MATERIALIZED; 

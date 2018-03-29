@@ -9,14 +9,14 @@ CLASS ZReportSaleSkuLedger 'Продажа за день (общ.)' : OutFIFOSku
 TABLE zReportSaleSkuLedger (ZReportSaleSkuLedger);
 TABLE zReportSkuPrice(ZReport, Sku, NUMERIC[16,4]);
 
-quantityReceiptSaleDetail 'Кол-во' = GROUP SUM quantity(ReceiptSaleDetail d) IF isPosted(d)
-    BY zReport(d), sku(d), price(d) MATERIALIZED;
-sumReceiptSaleDetail 'Сумма' = GROUP SUM sum(ReceiptSaleDetail d) IF isPosted(d)
-    BY zReport(d), sku(d), price(d) MATERIALIZED;
-discountSumReceiptSaleDetail 'Сумма скидки' = GROUP SUM discountSum(ReceiptSaleDetail d) IF isPosted(d)
-    BY zReport(d), sku(d), price(d) MATERIALIZED;
-countReceiptSaleDetail = GROUP SUM 1 IF isPosted(ReceiptSaleDetail d)
-    BY zReport(d), sku(d), price(d) MATERIALIZED;
+quantityReceiptSaleDetail 'Кол-во' = GROUP
+    BY zReport(ReceiptSaleDetail d), sku(d), price(d) SUM quantity(d) IF isPosted(d) MATERIALIZED;
+sumReceiptSaleDetail 'Сумма' = GROUP
+    BY zReport(ReceiptSaleDetail d), sku(d), price(d) SUM sum(d) IF isPosted(d) MATERIALIZED;
+discountSumReceiptSaleDetail 'Сумма скидки' = GROUP
+    BY zReport(ReceiptSaleDetail d), sku(d), price(d) SUM discountSum(d) IF isPosted(d) MATERIALIZED;
+countReceiptSaleDetail = GROUP
+    BY zReport(ReceiptSaleDetail d), sku(d), price(d) SUM 1 IF isPosted(d) MATERIALIZED;
 
 VATReceiptSaleDetail = DATA Range (ZReport, Sku, NUMERIC[16,4]);
 WHEN SET(quantityReceiptSaleDetail(ZReport zr, Sku sku, NUMERIC[16,4] price)) DO {
@@ -77,14 +77,14 @@ show[SaleLedger](ZReportSaleSkuLedger d) += { show(zReport(d)); }
 CLASS ZReportReturnSkuLedger 'Возврат за день (общ.)' : InLIFOSkuLedger, SaleLedger; //-- агрегированный объект
 TABLE zReportReturnSkuLedger (ZReportReturnSkuLedger);
 
-quantityReceiptReturnDetail 'Кол-во' = GROUP SUM quantity(ReceiptReturnDetail d) IF isPosted(d)
-    BY zReport(d), sku(d), price(d) MATERIALIZED;
-sumReceiptReturnDetail 'Сумма' = GROUP SUM sum(ReceiptReturnDetail d) IF isPosted(d)
-    BY zReport(d), sku(d), price(d) MATERIALIZED;
-discountSumReceiptReturnDetail 'Сумма скидки' = GROUP SUM discountSum(ReceiptReturnDetail d) IF isPosted(d)
-    BY zReport(d), sku(d), price(d) MATERIALIZED;
-countReceiptReturnDetail = GROUP SUM 1 IF isPosted(ReceiptReturnDetail d)
-    BY zReport(d), sku(d), price(d) MATERIALIZED;
+quantityReceiptReturnDetail 'Кол-во' = GROUP
+    BY zReport(ReceiptReturnDetail d), sku(d), price(d) SUM quantity(d) IF isPosted(d) MATERIALIZED;
+sumReceiptReturnDetail 'Сумма' = GROUP
+    BY zReport(ReceiptReturnDetail d), sku(d), price(d) SUM sum(d) IF isPosted(d) MATERIALIZED;
+discountSumReceiptReturnDetail 'Сумма скидки' = GROUP
+    BY zReport(ReceiptReturnDetail d), sku(d), price(d) SUM discountSum(d) IF isPosted(d) MATERIALIZED;
+countReceiptReturnDetail = GROUP
+    BY zReport(ReceiptReturnDetail d), sku(d), price(d) SUM 1 IF isPosted(d) MATERIALIZED;
 
 VATReceiptReturnDetail = DATA Range (ZReport, Sku, NUMERIC[16,4]);
 WHEN SET(quantityReceiptReturnDetail(ZReport zr, Sku sku, NUMERIC[16,4] price)) DO {

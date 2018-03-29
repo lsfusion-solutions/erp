@@ -9,8 +9,8 @@ TABLE legalEntityGroupEmployee(LegalEntityGroup, Employee);
 dataAccessCompany 'Доступ разрешен (компания)' = DATA BOOLEAN (LegalEntity, Employee);
 dataAccessCompany 'Доступ разрешен (компания)' = DATA BOOLEAN (LegalEntityGroup, Employee);
 
-levelParentCompany (employee, legalEntityGroup) = GROUP MIN level(LegalEntityGroup legalEntityGroup, LegalEntityGroup parent) IF dataAccessCompany(parent, Employee employee)
-                                                               BY employee, legalEntityGroup MATERIALIZED;
+levelParentCompany (employee, legalEntityGroup) = GROUP
+                                                               BY Employee employee, LegalEntityGroup legalEntityGroup MIN level(legalEntityGroup, LegalEntityGroup parent) IF dataAccessCompany(parent, employee) MATERIALIZED;
 nearestParentCompany (Employee employee, LegalEntityGroup legalEntityGroup) = legalEntityGroup(legalEntityGroup, levelParentCompany(employee, legalEntityGroup));
 nearestInCompany (Employee employee, LegalEntityGroup legalEntityGroup) =
     dataAccessCompany(nearestParentCompany (employee, legalEntityGroup), employee);
@@ -26,9 +26,9 @@ accessCompany 'Доступ разрешен (компания)' (Employee emplo
     employee IS Employee AND isCompany(legalEntity) AND NOT limitAccess(employee) MATERIALIZED;
 
 countAccessCompany 'Кол-во доступных подразделений (компания)' (employee, legalEntityGroup) =
-    GROUP SUM 1 IF accessCompany(Employee employee, LegalEntity legalEntity)
-                AND isParent(legalEntityGroup(legalEntity), LegalEntityGroup legalEntityGroup)
-          BY employee, legalEntityGroup MATERIALIZED;
+    GROUP
+          BY Employee employee, LegalEntityGroup legalEntityGroup SUM 1 IF accessCompany(employee, LegalEntity legalEntity)
+                AND isParent(legalEntityGroup(legalEntity), legalEntityGroup) MATERIALIZED;
           
 legalEntity = DATA LegalEntity (Employee);
 nameLegalEntity 'Организация' (Employee e) = name(legalEntity(e));
@@ -86,11 +86,11 @@ DESIGN  legalEntity {
 }
 // ------------------------------------ Доступные организации для пользователей -------------------------- //
 
-countAccessCompany (employee) = GROUP SUM 1 IF isCompany(LegalEntity legalEntity) AND accessCompany(Employee employee, legalEntity)
-                                              BY employee;
+countAccessCompany (employee) = GROUP
+                                              BY Employee employee SUM 1 IF isCompany(LegalEntity legalEntity) AND accessCompany(employee, legalEntity);
 
-defaultCompany 'Компания по умолчанию' (employee)= GROUP MIN LegalEntity legalEntity IF isCompany(legalEntity) AND accessCompany(Employee employee, legalEntity)
-                                                                 BY employee;
+defaultCompany 'Компания по умолчанию' (employee)= GROUP
+                                                                 BY Employee employee MIN LegalEntity legalEntity IF isCompany(legalEntity) AND accessCompany(employee, legalEntity);
 
 // Для документа, у которого задана организация
 META extendFormFilterAccessLegalEntity(object, concrete, form, organizationProp, filter)

@@ -72,23 +72,23 @@ priceListType(UserConsumptionDetail detail) <- priceListType(userConsumption(det
 
 //@defineDocumentHeaderItemSum(userConsumption, , ) // так как MATERIALIZED надо пока
 sumItemConsumptionDetail 'Сумма, товар' (consumption) =
-    GROUP SUM sum(ConsumptionDetail idetail) IF isItem(sku(idetail))
-        BY consumption(idetail) IN documentSum MATERIALIZED;
+    GROUP
+        BY consumption(ConsumptionDetail idetail) SUM sum(idetail) IF isItem(sku(idetail)) IN documentSum MATERIALIZED;
 sumContainerConsumptionDetail 'Сумма, тара' (consumption) =
-    GROUP SUM sum(ConsumptionDetail idetail) IF isContainer(sku(idetail))
-        BY consumption(idetail) IN documentSum;
+    GROUP
+        BY consumption(ConsumptionDetail idetail) SUM sum(idetail) IF isContainer(sku(idetail)) IN documentSum;
 sumChargeConsumptionDetail 'Сумма услуг' (consumption) =
-    GROUP SUM sum(ConsumptionDetail idetail) IF isCharge(sku(idetail))
-        BY consumption(idetail) IN documentSum;
+    GROUP
+        BY consumption(ConsumptionDetail idetail) SUM sum(idetail) IF isCharge(sku(idetail)) IN documentSum;
 sumNotChargeConsumptionDetail 'Сумма кроме услуг' (consumption) =
-    GROUP SUM sum(ConsumptionDetail idetail) IF isNotCharge(sku(idetail))
-        BY consumption(idetail) IN documentSum;
+    GROUP
+        BY consumption(ConsumptionDetail idetail) SUM sum(idetail) IF isNotCharge(sku(idetail)) IN documentSum;
 sumNotItemConsumptionDetail 'Сумма кроме товара' (consumption) =
-    GROUP SUM sum(ConsumptionDetail idetail) IF isNotItem(sku(idetail))
-        BY consumption(idetail) IN documentSum;
+    GROUP
+        BY consumption(ConsumptionDetail idetail) SUM sum(idetail) IF isNotItem(sku(idetail)) IN documentSum;
 sumNotContainerConsumptionDetail 'Сумма кроме тары' (consumption) =
-    GROUP SUM sum(ConsumptionDetail idetail) IF isNotContainer(sku(idetail))
-        BY consumption(idetail) IN documentSum;
+    GROUP
+        BY consumption(ConsumptionDetail idetail) SUM sum(idetail) IF isNotContainer(sku(idetail)) IN documentSum;
 
 @defineDocumentHeaderItemSum(userConsumption, , );
 
@@ -122,20 +122,20 @@ CONSTRAINT stock[ConsumptionDetail](UserConsumptionDetail detail) != componentsS
 descriptionIndexComponentDetail 'Строка компонента' (ConsumptionDetail detail) = descriptionIndex(componentDetail(detail));
 descriptionIndexComponentDetail 'Строка компонента' (UserConsumptionDetail detail) = descriptionIndex(componentDetail(detail));
 
-quantityConsumptionDetail (order, consumption) = GROUP SUM quantity(ConsumptionDetail consumptionDetail) BY order(componentDetail(consumptionDetail)), consumption(consumptionDetail);
+quantityConsumptionDetail (order, consumption) = GROUP BY order(componentDetail(ConsumptionDetail consumptionDetail)), consumption(consumptionDetail) SUM quantity(consumptionDetail);
 
-orders 'Заказы' (consumption) = GROUP CONCAT VARSTRING[255](description(Order order)) IF quantityConsumptionDetail(order, Consumption consumption) , ', '
-                                                BY consumption
+orders 'Заказы' (consumption) = GROUP
+                                                BY Consumption consumption CONCAT VARSTRING[255](description(Order order)) IF quantityConsumptionDetail(order, consumption) , ', '
                                                 ORDER order IN order CHARWIDTH 30;
 
-consumed 'Кол-во (списано)' (componentDetail) = GROUP SUM quantity(ConsumptionDetail consumptionDetail) IF isPosted(consumptionDetail)
-                                                                   BY componentDetail(consumptionDetail) MATERIALIZED;
+consumed 'Кол-во (списано)' (componentDetail) = GROUP
+                                                                   BY componentDetail(ConsumptionDetail consumptionDetail) SUM quantity(consumptionDetail) IF isPosted(consumptionDetail) MATERIALIZED;
 
 toConsume 'Не списано' (ComponentDetail componentDetail) = quantity (componentDetail) (-) consumed(componentDetail);
 
 toConsumeComponentDetail 'Не списано по заказу' (order) =
-    GROUP SUM toConsume(ComponentDetail componentDetail) IF toConsume(componentDetail) > 0
-          BY order(componentDetail);
+    GROUP
+          BY order(ComponentDetail componentDetail) SUM toConsume(componentDetail) IF toConsume(componentDetail) > 0;
 
 @defineDocumentDetailQuantityCustomPrefix (componentDetail, consumed, ' (списано)');
 @defineDocumentDetailDataSumCustomPrefix (componentDetail, consumed, ' (списано)');
@@ -162,20 +162,20 @@ calcConsumedSum(ComponentDetail componentDetail) += NUMERIC[18,4](round(consumed
 consumedSum (ComponentDetail componentDetail) <- calcConsumedSum(componentDetail)
                 WHEN DO CHANGED(consumedQuantity(componentDetail)) OR CHANGED (price(componentDetail)) OR CHANGED(currency(componentDetail));
 
-consumedSumComponentDetail 'Сумма списанных компонент' (order) = GROUP SUM consumedSum(ComponentDetail detail) BY order(detail) IN documentSum;
-consumedSumComponentDetail 'Сумма списанных компонент' (order,BOM) = GROUP SUM consumedSum(ComponentDetail detail) BY order(detail), BOM(detail) IN documentSum;
-consumedQuantityComponentDetail 'Кол-во списанных компонент' (order) = GROUP SUM consumedQuantity(ComponentDetail detail) BY order(detail) IN documentSum;
-consumedQuantityComponentDetail 'Кол-во списанных компонент' (order, BOM) = GROUP SUM consumedQuantity(ComponentDetail detail) BY order(detail), BOM(detail) IN documentSum;
+consumedSumComponentDetail 'Сумма списанных компонент' (order) = GROUP BY order(ComponentDetail detail) SUM consumedSum(detail) IN documentSum;
+consumedSumComponentDetail 'Сумма списанных компонент' (order,BOM) = GROUP BY order(ComponentDetail detail), BOM(detail) SUM consumedSum(detail) IN documentSum;
+consumedQuantityComponentDetail 'Кол-во списанных компонент' (order) = GROUP BY order(ComponentDetail detail) SUM consumedQuantity(detail) IN documentSum;
+consumedQuantityComponentDetail 'Кол-во списанных компонент' (order, BOM) = GROUP BY order(ComponentDetail detail), BOM(detail) SUM consumedQuantity(detail) IN documentSum;
 
 // Расчет количеств компонент для произведенных изделий
-quantityOutput 'Кол-во изделий в заказе (произведенных)' (product, order) = GROUP SUM outputQuantity(ProductDetail productDetail)
-    BY product(productDetail), order(productDetail);
+quantityOutput 'Кол-во изделий в заказе (произведенных)' (product, order) = GROUP
+    BY product(ProductDetail productDetail), order(productDetail) SUM outputQuantity(productDetail);
 
-quantityOutput 'Кол-во спецификаций (произведенных)' (BOM BOM, Order order) = [= GROUP MAX quantityOutput(Product product, Order order)/ quantity(product)
-    BY BOM(product), order](BOM, order) MATERIALIZED;
+quantityOutput 'Кол-во спецификаций (произведенных)' (BOM BOM, Order order) = [= GROUP
+    BY BOM(Product product), Order order MAX quantityOutput(product, order)/ quantity(product)](BOM, order) MATERIALIZED;
 
-recBruttoQuantityOutput 'Кол-во для произ-го' (BOM, order, sku) = GROUP SUM quantityOutput(BOM BOM, Order order) * recBruttoQuantity(BOM, Sku sku, date(order)) BY BOM, order, sku;
-recBruttoQuantityOutput 'Рекур.кол-во' (BOM, order, component) = GROUP SUM quantityOutput(BOM BOM, Order order) * recBruttoQuantity(BOM, Component component, date(order)) BY BOM, order, component;
+recBruttoQuantityOutput 'Кол-во для произ-го' (BOM, order, sku) = GROUP BY BOM BOM, Order order, Sku sku SUM quantityOutput(BOM, order) * recBruttoQuantity(BOM, sku, date(order));
+recBruttoQuantityOutput 'Рекур.кол-во' (BOM, order, component) = GROUP BY BOM BOM, Order order, Component component SUM quantityOutput(BOM, order) * recBruttoQuantity(BOM, component, date(order));
 
 calcComponentConsumedQuantity (ComponentDetail d) = 
     round((recBruttoQuantityOutput(BOM(d), order(d), component(d)) * quantityCoeff(d) * OVERRIDE multiplierSubstituteTo(bruttoSku(d), substituteSku(d)), 1.0), overQuantityRound(d));
@@ -640,7 +640,7 @@ NAVIGATOR {
 
 ////////////-----------Создание док-та списания сырья на основе производственного заказа-----------------//////////////
 
-requiredQuantitySubstitute 'Кол-во (всего) (компонент)' (order, sku) = GROUP SUM quantity(ComponentDetail idetail) BY order(idetail), sku(idetail);
+requiredQuantitySubstitute 'Кол-во (всего) (компонент)' (order, sku) = GROUP BY order(ComponentDetail idetail), sku(idetail) SUM quantity(idetail);
 
 balance = DATA LOCAL NUMERIC[16,3] (Sku);
 left = DATA LOCAL NUMERIC[16,3] (Sku);
@@ -806,11 +806,11 @@ DESIGN order {
     }
 }
 
-consumedQuantityComponentDetail= GROUP SUM consumedQuantity(ComponentDetail cd) BY BOM(cd), order(cd);
-outputQuantityProductDetail= GROUP SUM outputQuantity(ProductDetail pd) BY BOM(pd), order(pd);
+consumedQuantityComponentDetail= GROUP BY BOM(ComponentDetail cd), order(cd) SUM consumedQuantity(cd);
+outputQuantityProductDetail= GROUP BY BOM(ProductDetail pd), order(pd) SUM outputQuantity(pd);
 
-outputProductsSumProductDetail 'Сумма изделий' (BOM, order) = GROUP SUM outputProductsSum(ProductDetail d) BY BOM(product(d)), order(d);
-consumedSumComponentDetail 'Сумма компонентов' (BOM, order) = GROUP SUM consumedSum(ComponentDetail d) BY BOM(d), order(d);
+outputProductsSumProductDetail 'Сумма изделий' (BOM, order) = GROUP BY BOM(product(ProductDetail d)), order(d) SUM outputProductsSum(d);
+consumedSumComponentDetail 'Сумма компонентов' (BOM, order) = GROUP BY BOM(ComponentDetail d), order(d) SUM consumedSum(d);
 
 CONSTRAINT  createConsumption(Order order) AND createOutput(order) AND equalRestriction(order) 
     AND (outputProductsSumProductDetail(BOM BOM, order) != consumedSumComponentDetail(BOM, order))
@@ -827,7 +827,7 @@ DESIGN options {
     }
 }
 
-isProducts 'Было производство' (BOM)  = GROUP SUM 1 IF consumedQuantity(ComponentDetail cd) BY BOM(cd);
+isProducts 'Было производство' (BOM)  = GROUP BY BOM(ComponentDetail cd) SUM 1 IF consumedQuantity(cd);
                                                  
 CONSTRAINT SET(Component c IS Component) AND isProducts(BOM(c)) 
     AND banChangeBOMs()

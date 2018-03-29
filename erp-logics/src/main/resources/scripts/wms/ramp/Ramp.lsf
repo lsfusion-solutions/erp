@@ -33,7 +33,7 @@ generateInterval 'Сгенерировать' (IntervalType t) = {
             intervalType(i) <- t;
             time(i) <- time();
         }
-        IF sumMinutes(time(), interval(t)) < time() OR [= GROUP SUM 1 BY intervalType(Interval i)](t) > 3600 THEN
+        IF sumMinutes(time(), interval(t)) < time() OR [= GROUP BY intervalType(Interval i) SUM 1](t) > 3600 THEN
             BREAK; 
         ELSE
             time() <- sumMinutes(time(), interval(t));
@@ -110,11 +110,11 @@ intervalType= DATA IntervalType (Ramp);
 nameIntervalType 'Тип интервала' (Ramp r) = name(intervalType(r));
 
 in 'Вкл.' (Ramp r,Interval i)= intervalType(r) == intervalType(i);
-countInterval 'Кол-во интервалов' (r) = GROUP SUM 1 IF in(Ramp r,Interval i) BY r;
+countInterval 'Кол-во интервалов' (r) = GROUP BY Ramp r SUM 1 IF in(r,Interval i);
 
 stock= DATA Stock (Ramp);
 nameStock 'Склад' (Ramp r) = name(stock(r));
-countInterval 'Кол-во интервалов' (st) = GROUP SUM 1 IF in(Ramp r,Interval i) BY stock(r);
+countInterval 'Кол-во интервалов' (st) = GROUP BY stock(Ramp r) SUM 1 IF in(r,Interval i);
 
 CONSTRAINT stock(Ramp r) AND NOT isCompany(stock(r))
     CHECKED BY stock[Ramp] MESSAGE 'Для рампы должен быть задан склад компании';    
@@ -122,8 +122,8 @@ CONSTRAINT stock(Ramp r) AND NOT isCompany(stock(r))
 //--
 TABLE rampSkuGroup(Ramp, SkuGroup);
 inData 'Вкл.' = DATA BOOLEAN (Ramp, SkuGroup);
-levelParent (ramp, group) = GROUP MIN level(SkuGroup group, SkuGroup parent) IF inData(Ramp ramp, parent)
-                                                              BY ramp, group MATERIALIZED;
+levelParent (ramp, group) = GROUP
+                                                              BY Ramp ramp, SkuGroup group MIN level(group, SkuGroup parent) IF inData(ramp, parent) MATERIALIZED;
 
 nearestParent (Ramp ramp, SkuGroup group) = skuGroup(group, levelParent (ramp, group));
 nearestIn  (Ramp ramp, SkuGroup group) =
@@ -134,7 +134,7 @@ in 'Вкл.' (Ramp ramp, SkuGroup group) = OVERRIDE inData(ramp, group), nearest
 in 'Вкл.' (Ramp ramp, Sku sku) = in(ramp, skuGroup(sku));
 // Пока что простенькая логика привязки групп товаров к рампам, возможно надо будет переделать
 
-countSkuGroups (ramp) = GROUP SUM 1 IF inData(Ramp ramp, SkuGroup skuGroup) BY ramp;
+countSkuGroups (ramp) = GROUP BY Ramp ramp SUM 1 IF inData(ramp, SkuGroup skuGroup);
 
   
 FORM ramp 'Рампа'

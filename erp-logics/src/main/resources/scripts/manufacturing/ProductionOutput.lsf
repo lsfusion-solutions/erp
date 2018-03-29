@@ -88,20 +88,20 @@ CONSTRAINT stock[OutputDetail](UserOutputDetail detail) != productsStock(product
 descriptionIndexProductDetail 'Строка изделия' (OutputDetail detail) = descriptionIndex(productDetail(detail));
 descriptionIndexProductDetail 'Строка изделия' (UserOutputDetail detail) = descriptionIndex(productDetail(detail));
 
-quantityOutputDetail (order, output) = GROUP SUM quantity(OutputDetail outputDetail) BY order(productDetail(outputDetail)), output(outputDetail);
+quantityOutputDetail (order, output) = GROUP BY order(productDetail(OutputDetail outputDetail)), output(outputDetail) SUM quantity(outputDetail);
 
-orders 'Заказы' (output) = GROUP CONCAT VARSTRING[255](description(Order order)) IF quantityOutputDetail(order, Output output) , ', '
-                                                BY output
+orders 'Заказы' (output) = GROUP
+                                                BY Output output CONCAT VARSTRING[255](description(Order order)) IF quantityOutputDetail(order, output) , ', '
                                                 ORDER order IN order CHARWIDTH 30 MATERIALIZED;
 
-output 'Кол-во (произведено)' (productDetail) = GROUP SUM quantity(OutputDetail outputDetail) IF isPosted(outputDetail)
-                                                                   BY productDetail(outputDetail) MATERIALIZED;
+output 'Кол-во (произведено)' (productDetail) = GROUP
+                                                                   BY productDetail(OutputDetail outputDetail) SUM quantity(outputDetail) IF isPosted(outputDetail) MATERIALIZED;
 
 toOutput 'Не произведено' (ProductDetail productDetail) = quantity (productDetail) (-) output(productDetail);
 
 toOutputProductDetail 'Не прозиведено по заказу' (order) =
-    GROUP SUM toOutput(ProductDetail productDetail) IF toOutput(productDetail) > 0
-          BY order(productDetail);
+    GROUP
+          BY order(ProductDetail productDetail) SUM toOutput(productDetail) IF toOutput(productDetail) > 0;
 
 EXTEND FORM productDetails
     PROPERTIES(d) READONLY toOutput
@@ -249,11 +249,11 @@ fillOutputQuantityProductDetail 'Заполнить из остатков' (Orde
     overFillOutputQuantityProductDetail(order);
 } TOOLBAR;        
 
-outputProductsSumProductDetail 'Сумма произведенных изделий' (order) = GROUP SUM outputProductsSum(ProductDetail detail) BY order(detail) IN documentSum;
-outputProductsSumProductDetail 'Сумма произведенных изделий' (order, BOM) = GROUP SUM outputProductsSum(ProductDetail detail) BY order(detail), BOM(detail) IN documentSum;
+outputProductsSumProductDetail 'Сумма произведенных изделий' (order) = GROUP BY order(ProductDetail detail) SUM outputProductsSum(detail) IN documentSum;
+outputProductsSumProductDetail 'Сумма произведенных изделий' (order, BOM) = GROUP BY order(ProductDetail detail), BOM(detail) SUM outputProductsSum(detail) IN documentSum;
 
-outputQuantityProductDetail 'Кол-во произведенных изделий' (order) = GROUP SUM outputQuantity(ProductDetail detail) BY order(detail) IN documentSum;
-outputQuantityProductDetail 'Кол-во произведенных изделий' (order, BOM) = GROUP SUM outputQuantity(ProductDetail detail) BY order(detail), BOM(detail) IN documentSum;
+outputQuantityProductDetail 'Кол-во произведенных изделий' (order) = GROUP BY order(ProductDetail detail) SUM outputQuantity(detail) IN documentSum;
+outputQuantityProductDetail 'Кол-во произведенных изделий' (order, BOM) = GROUP BY order(ProductDetail detail), BOM(detail) SUM outputQuantity(detail) IN documentSum;
 
 backgroundOutput 'Цвет' (Order order) = RGB(255, 224, 255) IF order IS Order;
 showOutput (Order order) =  order IS Order AND NOT createOutput(order);

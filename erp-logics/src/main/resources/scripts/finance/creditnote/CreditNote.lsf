@@ -309,9 +309,9 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     descriptionIndexInvoice 'Накладная' (UserCreditNoteDetail userCreditNoteDetail) =  descriptionIndex(invoiceDetail(userCreditNoteDetail));
     descriptionIndexInvoiceInvoice 'Накладная' (CreditNoteDetail creditNoteDetail) =  descriptionIndex(invoiceDetail(creditNoteDetail));
 
-    quantity (invoice, creditNote) = GROUP SUM quantity(CreditNoteDetail creditNoteDetail) BY invoice(invoiceDetail(creditNoteDetail)), creditNote(creditNoteDetail);
-    invoices 'Накладные' (creditNote) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF quantity(invoice, CreditNote creditNote) , ', '
-                                                    BY creditNote
+    quantity (invoice, creditNote) = GROUP BY invoice(invoiceDetail(CreditNoteDetail creditNoteDetail)), creditNote(creditNoteDetail) SUM quantity(creditNoteDetail);
+    invoices 'Накладные' (creditNote) = GROUP
+                                                    BY CreditNote creditNote CONCAT VARSTRING[255](description(Invoice invoice)) IF quantity(invoice, creditNote) , ', '
                                                     ORDER invoice IN invoice CHARWIDTH 30;
 
     EXTEND FORM userCreditNote
@@ -359,7 +359,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
         createCreditNote(d) <- createCreditNote(s);
     }
 
-    needToCreditNote (invoice) = GROUP SUM 1 IF needToCreditNote(InvoiceDetail invoiceDetail) BY invoice(invoiceDetail) MATERIALIZED;
+    needToCreditNote (invoice) = GROUP BY invoice(InvoiceDetail invoiceDetail) SUM 1 IF needToCreditNote(invoiceDetail) MATERIALIZED;
 
     EXTEND FORM userInvoice PROPERTIES(i) createCreditNote;
     DESIGN userInvoice {

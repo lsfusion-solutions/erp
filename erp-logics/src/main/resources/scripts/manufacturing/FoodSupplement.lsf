@@ -4,21 +4,21 @@ REQUIRE BOMNutrition, PurchaseShipment, ProductionConsumption;
 
 NAMESPACE Production;
 
-supplementQuantity = GROUP SUM consumedQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 IF isSupplement(sku(cd)) BY order(cd), sku(cd); 
-supplementQuantity  = GROUP SUM consumedQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 
-    IF isSupplement(sku(cd)) AND order(cd) == order(ProductDetail pd) AND BOM(cd) == BOM(pd) 
-        BY pd, sku(cd); 
-supplementQuantity  = GROUP SUM consumedQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 
-    IF isSupplement(sku(cd)) AND order(cd) == order(ProductDetail pd) AND BOM(cd) == BOM(pd) 
-        BY pd; 
+supplementQuantity = GROUP BY order(ComponentDetail cd), sku(cd) SUM consumedQuantity(cd) * overNetWeight(sku(cd))*1000.0 IF isSupplement(sku(cd)); 
+supplementQuantity  = GROUP 
+        BY ProductDetail pd, sku(ComponentDetail cd) SUM consumedQuantity(cd) * overNetWeight(sku(cd))*1000.0 
+    IF isSupplement(sku(cd)) AND order(cd) == order(pd) AND BOM(cd) == BOM(pd); 
+supplementQuantity  = GROUP 
+        BY ProductDetail pd SUM consumedQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 
+    IF isSupplement(sku(cd)) AND order(cd) == order(pd) AND BOM(cd) == BOM(pd); 
         
-supplementQuantityPlan = GROUP SUM bruttoQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 IF isSupplement(sku(cd)) BY order(cd), sku(cd); 
-supplementQuantityPlan  = GROUP SUM bruttoQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 
-    IF isSupplement(sku(cd)) AND order(cd) == order(ProductDetail pd) AND BOM(cd) == BOM(pd) 
-        BY pd, sku(cd); 
-supplementQuantityPlan  = GROUP SUM bruttoQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 
-    IF isSupplement(sku(cd)) AND order(cd) == order(ProductDetail pd) AND BOM(cd) == BOM(pd) 
-        BY pd;   
+supplementQuantityPlan = GROUP BY order(ComponentDetail cd), sku(cd) SUM bruttoQuantity(cd) * overNetWeight(sku(cd))*1000.0 IF isSupplement(sku(cd)); 
+supplementQuantityPlan  = GROUP 
+        BY ProductDetail pd, sku(ComponentDetail cd) SUM bruttoQuantity(cd) * overNetWeight(sku(cd))*1000.0 
+    IF isSupplement(sku(cd)) AND order(cd) == order(pd) AND BOM(cd) == BOM(pd); 
+supplementQuantityPlan  = GROUP 
+        BY ProductDetail pd SUM bruttoQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 
+    IF isSupplement(sku(cd)) AND order(cd) == order(pd) AND BOM(cd) == BOM(pd);   
              
 isPlan 'План'  = DATA LOCAL BOOLEAN (Order);       
         

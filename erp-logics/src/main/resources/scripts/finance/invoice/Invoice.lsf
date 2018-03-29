@@ -190,7 +190,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     @defineDocumentInterfaceNumber(invoice);
     number[Invoice.Invoice] (Invoice invoice) += number(invoice);
     series[Invoice.Invoice] (Invoice invoice) += series(invoice);
-    invoice (number) = GROUP MAX NS.Invoice invoice BY number(invoice);
+    invoice (number) = GROUP BY number(Invoice invoice) MAX invoice;
     
     INDEX number(Invoice i);
 
@@ -242,7 +242,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
     CONSTRAINT isPosted(UserInvoice i) AND NOT isStockInvoices() AND NOT stockProp##Stock(i) 
         MESSAGE 'Для накладной'##sign##' должен быть задан склад';   
-    CONSTRAINT  equalsSeriesNumberInvoices() AND [ = GROUP SUM 1 IF isPosted(Invoice i) AND NOT skipEqualsSeriesNumber(i) BY seriesNumber(i)](VARSTRING[28] series) >1
+    CONSTRAINT  equalsSeriesNumberInvoices() AND [ = GROUP BY seriesNumber(Invoice i) SUM 1 IF isPosted(i) AND NOT skipEqualsSeriesNumber(i)](VARSTRING[28] series) >1
         MESSAGE 'Запрещено вводить накладные'##sign##' с одинаковым "Серия/номер"';
     
     @defineDocumentInterfaceClosed(invoice);
@@ -276,16 +276,16 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     INDEX sku(InvoiceDetail d), customerStock(d);
     sku[Invoice.InvoiceDetail](InvoiceDetail detail) += sku(detail);
     
-    countInSku (invoice) = GROUP SUM 1 IF in(Agreement agreement,sku(UserInvoiceDetail d)) 
+    countInSku (invoice) = GROUP
+            BY userInvoice(UserInvoiceDetail d) SUM 1 IF in(Agreement agreement,sku(d)) 
         AND fromDateTime(agreement) <= dateTime(d) AND NOT (toDateTime(agreement) < dateTime(d))
         AND inSupplier(agreement, supplier(d)) AND inCustomer(agreement, customer(d))
-        AND currency(d) == currency(agreement)
-            BY userInvoice(d);
+        AND currency(d) == currency(agreement);
             
-    maxAgreementInSku (invoice) = GROUP MAX Agreement agreement IF in(agreement,sku(UserInvoiceDetail d)) 
+    maxAgreementInSku (invoice) = GROUP
+            BY userInvoice(UserInvoiceDetail d) MAX Agreement agreement IF in(agreement,sku(d)) 
         AND fromDateTime(agreement) <= dateTime(d) AND NOT (toDateTime(agreement) < dateTime(d))
-        AND inSupplier(agreement, supplier(d)) AND inCustomer(agreement, customer(d))
-            BY userInvoice(d);
+        AND inSupplier(agreement, supplier(d)) AND inCustomer(agreement, customer(d));
                         
     isStockSku (InvoiceDetail invoiceDetail) = isStock(sku(invoiceDetail));
     isStockSku (UserInvoiceDetail userInvoiceDetail) = isStock(sku(userInvoiceDetail));
@@ -435,7 +435,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
             sumGrossWeight(InvoiceDetail d) <- NUMERIC[9,3](sumNetWeight(d)/(sumNetWeightInvoiceDetail(invoice) IF sumNetWeightInvoiceDetail(invoice) != 0) * n) WHERE invoice(d) == invoice;
     } 
         
-    countInvoiceDetail (stock, invoice) = GROUP SUM 1 BY stockProp##Stock(InvoiceDetail invoiceDetail), invoice(invoiceDetail);
+    countInvoiceDetail (stock, invoice) = GROUP BY stockProp##Stock(InvoiceDetail invoiceDetail), invoice(invoiceDetail) SUM 1;
 
     @implementDocumentSupplierCustomer(invoice);
     
@@ -999,9 +999,9 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
     invoiceDetail (userInvoiceDetail) = DATA nsdir.InvoiceDetail (nsret.UserInvoiceDetail) INDEXED;
     invoiceDetail(UserInvoiceDetail detail) += invoiceDetail(detail);
 
-    returnQuantity 'Кол-во (возвращено)' (invoiceDetail)= GROUP SUM quantity(InvoiceDetail invoiceDetail) IF isPosted(invoiceDetail) 
-        BY invoiceDetail(invoiceDetail) MATERIALIZED;
-    returnQuantityInvoiceDetail 'Кол-во (возвращено)' (invoice) =  GROUP SUM returnQuantity(nsdir.InvoiceDetail invoiceDetail) BY invoice(invoiceDetail) MATERIALIZED;
+    returnQuantity 'Кол-во (возвращено)' (invoiceDetail)= GROUP 
+        BY invoiceDetail(InvoiceDetail invoiceDetail) SUM quantity(invoiceDetail) IF isPosted(invoiceDetail) MATERIALIZED;
+    returnQuantityInvoiceDetail 'Кол-во (возвращено)' (invoice) =  GROUP BY invoice(nsdir.InvoiceDetail invoiceDetail) SUM returnQuantity(invoiceDetail) MATERIALIZED;
     toReturnQuantity 'Кол-во доступно к возврату' (nsdir.InvoiceDetail invoiceDetail)= quantity(invoiceDetail) (-) returnQuantity(invoiceDetail);    
 
     CONSTRAINT returnQuantity(invoiceDetail(InvoiceDetail d)) > quantity((invoiceDetail(d)))
@@ -1154,13 +1154,13 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
         MESSAGE 'Цена в возвратной накладной не соответствует цене в основании';  
             
     //----------- Автоматическое заполнение основания для возвратной накладной ------------------//
-    countInvoiceDetailsSupplierCustomerPrice 'Количество строк основания' = GROUP SUM 1 
-        IF date(nsdir.InvoiceDetail d) <= DATE date AND isPosted(d)
-            BY supplier(d), supplierStock(d), customer(d), customerStock(d), sku(d), price(d), date;
+    countInvoiceDetailsSupplierCustomerPrice 'Количество строк основания' = GROUP
+            BY supplier(nsdir.InvoiceDetail d), supplierStock(d), customer(d), customerStock(d), sku(d), price(d), DATE date SUM 1 
+        IF date(d) <= date AND isPosted(d);
     
-    invoiceDetailSupplierCustomerPrice 'Количество строк основания' = GROUP MAX nsdir.InvoiceDetail d 
-        IF date(d) <= DATE date AND isPosted(d)
-            BY supplier(d), supplierStock(d), customer(d), customerStock(d), sku(d), price(d), date;
+    invoiceDetailSupplierCustomerPrice 'Количество строк основания' = GROUP
+            BY supplier(nsdir.InvoiceDetail d), supplierStock(d), customer(d), customerStock(d), sku(d), price(d), DATE date MAX d 
+        IF date(d) <= date AND isPosted(d);
                 
     maxSaleInvoiceDetail(UserInvoiceDetail d) = invoiceDetailSupplierCustomerPrice(supplier(d),supplierStock(d), customer(d),customerStock(d),sku(d), price(d),date(d));
     countSaleInvoiceDetails(UserInvoiceDetail d) = countInvoiceDetailsSupplierCustomerPrice(supplier(d),supplierStock(d), customer(d),customerStock(d),sku(d), price(d), date(d));
@@ -1264,10 +1264,10 @@ META defineInvoiceHomeCurrency(companyProp)
     homeSum 'Сумма (конв.)' (InvoiceDetail d) = round2(sum(d) * rateExchange(d));
     homeSum 'Сумма (конв.)' (UserInvoiceDetail d) = round2(sum(d) * rateExchange(d));
 
-    homeSumInvoiceDetail 'Сумма (конв.)' (invoice) = GROUP SUM homeSum(InvoiceDetail d)
-                                                                  BY invoice(d);
-    homeSumUserInvoiceDetail 'Сумма (конв.)' (invoice) = GROUP SUM homeSum(UserInvoiceDetail d)
-                                                                          BY userInvoice(d);
+    homeSumInvoiceDetail 'Сумма (конв.)' (invoice) = GROUP
+                                                                  BY invoice(InvoiceDetail d) SUM homeSum(d);
+    homeSumUserInvoiceDetail 'Сумма (конв.)' (invoice) = GROUP
+                                                                          BY userInvoice(UserInvoiceDetail d) SUM homeSum(d);
                                                                           
     homePriceRound(InvoiceDetail d) += WHEN isHomeCurrency(d) THEN defaultRound(homeCurrency(d));
 

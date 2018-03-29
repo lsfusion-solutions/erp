@@ -64,21 +64,21 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
         MESSAGE 'Количество в строке заказа должно быть не отрицательным';
 
     quantityBlanketOrderDetail###customerFilter 'Кол-во (всего)' (blanketOrder, customerStock) = 
-        GROUP SUM quantity(BlanketOrderDetail idetail) 
-              BY blanketOrder(idetail), customerFilter##Stock(idetail) 
+        GROUP 
+              BY blanketOrder(BlanketOrderDetail idetail), customerFilter##Stock(idetail) SUM quantity(idetail) 
               IN documentSum;
               
     @defineDocumentHeaderQuantity(blanketOrder);
 
     quantityBlanketOrderDetail###customerFilter 'Кол-во товара в документе' (sku, blanketOrder, customerStock) = 
-        GROUP SUM quantity(BlanketOrderDetail idetail)
-              BY  sku(idetail),
+        GROUP
+              BY  sku(BlanketOrderDetail idetail),
                   blanketOrder(idetail),
-                  customerFilter##Stock(idetail);
+                  customerFilter##Stock(idetail) SUM quantity(idetail);
 
     @defineDocumentHeaderSkuQuantity(blanketOrder, sku);
 
-    countBlanketOrderDetail 'Кол-во строк по складу '(stock, blanketOrder) = GROUP SUM 1 BY supplierStock(BlanketOrderDetail blanketOrderDetail), blanketOrder(blanketOrderDetail);
+    countBlanketOrderDetail 'Кол-во строк по складу '(stock, blanketOrder) = GROUP BY supplierStock(BlanketOrderDetail blanketOrderDetail), blanketOrder(blanketOrderDetail) SUM 1;
     in 'В заказе' (blanketOrder, stock) = DATA BOOLEAN (BlanketOrder, Stock); //customerStock
     in###customerFilter 'Отм.' (BlanketOrder blanketOrder, Stock stock) = in(customerFilter(blanketOrder), stock);
     replace(Stock s, Stock o) += {in(BlanketOrder blanketOrder, o) <- TRUE WHERE in(blanketOrder, s) AND NOT in(blanketOrder, o);}   
@@ -140,23 +140,23 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
     @defineDocumentHeaderVATSum (blanketOrder, blanketOrderDetail, invoice);
 
     sumBlanketOrderDetail###customerFilter 'Сумма' (blanketOrder, customerStock) = 
-        GROUP SUM sum(BlanketOrderDetail idetail) 
-              BY blanketOrder(idetail), 
-                 customerFilter##Stock(idetail)  
+        GROUP 
+              BY blanketOrder(BlanketOrderDetail idetail), 
+                 customerFilter##Stock(idetail) SUM sum(idetail)  
               IN documentSum;
 
     @defineDocumentHeaderSum (blanketOrder);
 
     countBlanketOrderDetail###customerFilter 'Количество строк в документе' (order, stock) =
-        GROUP SUM 1 BY blanketOrder(BlanketOrderDetail d), customerFilter##Stock(d) MATERIALIZED IN documentSum;
+        GROUP BY blanketOrder(BlanketOrderDetail d), customerFilter##Stock(d) SUM 1 MATERIALIZED IN documentSum;
 
     CONSTRAINT customerFilter##Stock(BlanketOrderDetail blanketOrderDetail) AND NOT in(blanketOrder(blanketOrderDetail), customerFilter##Stock(blanketOrderDetail))
         CHECKED BY customerFilter##Stock[BlanketOrderDetail]
             MESSAGE 'Для строки множественного заказа выбран склад не включенный в заказ';
 
     customerFilter##Stocks 'Контрагенты' (blanketOrder) =
-        GROUP CONCAT name(Stock stock) IF in(BlanketOrder blanketOrder, stock), ', '
-        BY blanketOrder
+        GROUP
+        BY BlanketOrder blanketOrder CONCAT name(Stock stock) IF in(blanketOrder, stock), ', '
         ORDER stock CHARWIDTH 20 MATERIALIZED;
 
     @defineNumerated (blanketOrder, stock);

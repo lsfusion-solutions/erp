@@ -280,10 +280,10 @@ edit (OutputPricingDetail d)+= { edit(outputDetail(d)); }
 
 edit (OutputPricing p)+= { edit(output(p)); }
 //--
-quantity (output, outputPricing) = GROUP SUM quantity(outputDetail(OutputPricingDetail detail)) BY output(outputDetail(detail)), outputPricing(detail);
+quantity (output, outputPricing) = GROUP BY output(outputDetail(OutputPricingDetail detail)), outputPricing(detail) SUM quantity(outputDetail(detail));
 
-outputs 'Документы производства' (outputPricing) = GROUP CONCAT VARSTRING[255](description(Output output)) IF quantity (output, OutputPricing outputPricing) , ', '
-                                                BY outputPricing
+outputs 'Документы производства' (outputPricing) = GROUP
+                                                BY OutputPricing outputPricing CONCAT VARSTRING[255](description(Output output)) IF quantity (output, outputPricing) , ', '
                                                 ORDER output CHARWIDTH 30 MATERIALIZED;
 //descriptionDocumentPricing(pricing) += outputsOutputPricing(pricing);
 //EXTEND FORM pricings

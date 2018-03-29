@@ -41,19 +41,19 @@ quantity 'Кол-во для компонента, если он полуфаб�
     (quantity[Product](material(component)) IF quantity[Product](material(component))!=0) *
     (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)
     ;
-quantityBom 'Кол-во по спец. для полуфабрикатов' (BOM, sku, date) = GROUP SUM quantity(Component component, Sku sku, DATE date) BY BOM(component), sku, date;
-quantity 'Итого сырья на полуфабрикаты' (component, date) = GROUP SUM quantity(Component component, Sku sku, DATE date) BY component, date;
+quantityBom 'Кол-во по спец. для полуфабрикатов' (BOM, sku, date) = GROUP BY BOM(Component component), Sku sku, DATE date SUM quantity(component, sku, date);
+quantity 'Итого сырья на полуфабрикаты' (component, date) = GROUP BY Component component, DATE date SUM quantity(component, Sku sku, date);
 
 drynessQuantityBom 'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBom(BOM BOM, Item sku, DATE date)*percentDryness(sku)/100;
 
-recBruttoQuantity 'Кол-во компонентов в натуре' (BOM, date) = GROUP SUM recBruttoQuantity (BOM BOM, Sku sku, DATE date)*(OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku) BY BOM, date;
-recBruttoDrynessQuantity 'В сухих веществах' (BOM, date) = GROUP SUM recBruttoDrynessQuantity(BOM BOM, Item sku, DATE date) BY BOM, date;
+recBruttoQuantity 'Кол-во компонентов в натуре' (BOM, date) = GROUP BY BOM BOM, DATE date SUM recBruttoQuantity (BOM, Sku sku, date)*(OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku);
+recBruttoDrynessQuantity 'В сухих веществах' (BOM, date) = GROUP BY BOM BOM, DATE date SUM recBruttoDrynessQuantity(BOM, Item sku, date);
 
 drynessQuantity 'Кол-во для комонента(товар) в сухих веществах' (Component cc,DATE dt)=  bruttoQuantity(cc,dt) * 
                                                                                        (OVERRIDE overNetWeight(cc), 1.0 IF cc IS Component) *
                                                                                        percentDryness(cc)/100;
 drynessQuantity 'Кол-во для комонентов сухих веществах' (Component c) = overNettoNetWeight(c) * percentDryness(c)/100;
-drynessQuantityComponents 'Кол-во по комонентам в сухих веществах' (b) = GROUP SUM drynessQuantity(Component c) BY BOM(c);
+drynessQuantityComponents 'Кол-во по комонентам в сухих веществах' (b) = GROUP BY BOM(Component c) SUM drynessQuantity(c);
 calcPercentHumidity 'Массовая доля сухих веществ, %' (BOM b)= drynessQuantityComponents(b)/(overNettoNetWeightComponent(b) IF overNettoNetWeightComponent(b)!=0)*100; 
 
 //--
@@ -72,13 +72,13 @@ drynessQuantity'Кол-во в сухих веществах для нетто' 
                                                                           (OVERRIDE netWeight(sku) , 1.0 IF BOM IS BOM) *
                                                                           percentDryness(sku)/100;
 nettoQuantity 'Кол-во нетто' (BOM BOM,Sku sku) = recNettoQuantity(BOM,sku) * (OVERRIDE netWeight[Item](sku) , 1.0 IF BOM IS BOM);  
-nettoQuantity 'Кол-во нетто' (BOM) = GROUP SUM nettoQuantity(BOM BOM,Sku sku) BY BOM;                                                                        
+nettoQuantity 'Кол-во нетто' (BOM) = GROUP BY BOM BOM SUM nettoQuantity(BOM,Sku sku);                                                                        
                                                                           
-overDrynessQuantity 'Кол-вов сухих веществах для нетто' (BOM) = GROUP SUM drynessQuantity(BOM BOM,Item sku) BY BOM;
+overDrynessQuantity 'Кол-вов сухих веществах для нетто' (BOM) = GROUP BY BOM BOM SUM drynessQuantity(BOM,Item sku);
 overCalcPercentHumidity 'Массовая доля сухих веществ, %' (BOM b)= overDrynessQuantity(b)/(nettoQuantity(b) IF nettoQuantity(b)!=0)*100;                                                                                                                                                     
 
-productsUOM 'Изделия' (BOM) = GROUP CONCAT VARSTRING[255](shortNameUOM(Product p)), ', '
-                                       BY BOM(p)
+productsUOM 'Изделия' (BOM) = GROUP
+                                       BY BOM(Product p) CONCAT VARSTRING[255](shortNameUOM(p)), ', '
                                        ORDER index(p) CHARWIDTH 30 MATERIALIZED;
 
 FORM productionRecipe 'Производственная рецептура'
@@ -153,16 +153,16 @@ energyGramsQuantity 'Энергетическая ценность в рецеп
 
 
 //-- по всему изделию
-netGramsQuantity  'Кол-во на 100 гр. изделия в натуре всего' (p,d) = GROUP SUM netGramsQuantity(Product p,Sku sku,DATE d) BY p,d;
-netGramsDrynessQuantity  'Кол-во на 100 гр. изделия в сухих веществах всего' (p,d) = GROUP SUM netGramsDrynessQuantity(Product p,Item sku,DATE d) BY p,d;
+netGramsQuantity  'Кол-во на 100 гр. изделия в натуре всего' (p,d) = GROUP BY Product p,DATE d SUM netGramsQuantity(p,Sku sku,d);
+netGramsDrynessQuantity  'Кол-во на 100 гр. изделия в сухих веществах всего' (p,d) = GROUP BY Product p,DATE d SUM netGramsDrynessQuantity(p,Item sku,d);
 gramsQuantityComponents 'Кол-во на 100 гр. изделия в сухих веществах по компонентам' (Product p)= drynessQuantityComponents(BOM(p))/ (overNettoNetWeight(p) IF overNettoNetWeight(p) !=0) *1000/10;
 
 coeffGramsDrynessQuantity 'Коэффициент' (Product p,DATE d) = gramsQuantityComponents(p)/netGramsDrynessQuantity(p,d);
 
-proteinsGramsQuantity  'Белки в рецепте' (p,d) = GROUP SUM proteinsGramsQuantity(Product p,Item sku,DATE d) BY p,d;
-fatsGramsQuantity  'Жиры в рецепте' (p,d) = GROUP SUM fatsGramsQuantity(Product p,Item sku,DATE d) BY p,d;
-carbohydratesGramsQuantity  'Углеводы в рецепте' (p,d) = GROUP SUM carbohydratesGramsQuantity(Product p,Item sku,DATE d) BY p,d;
-energyGramsQuantity  'Энергетическая ценность в рецепте' (p,d) = GROUP SUM energyGramsQuantity(Product p,Item sku,DATE d) BY p,d;
+proteinsGramsQuantity  'Белки в рецепте' (p,d) = GROUP BY Product p,DATE d SUM proteinsGramsQuantity(p,Item sku,d);
+fatsGramsQuantity  'Жиры в рецепте' (p,d) = GROUP BY Product p,DATE d SUM fatsGramsQuantity(p,Item sku,d);
+carbohydratesGramsQuantity  'Углеводы в рецепте' (p,d) = GROUP BY Product p,DATE d SUM carbohydratesGramsQuantity(p,Item sku,d);
+energyGramsQuantity  'Энергетическая ценность в рецепте' (p,d) = GROUP BY Product p,DATE d SUM energyGramsQuantity(p,Item sku,d);
 
 netProteinsGramsQuantity  'Белки в рецепте' (Product p,DATE d) = proteinsGramsQuantity(p,d)*coeffGramsDrynessQuantity(p,d);
 netFatsGramsQuantity  'Жиры в рецепте' (Product p,DATE d) = fatsGramsQuantity(p,d)*coeffGramsDrynessQuantity(p,d);

@@ -7,8 +7,8 @@ NAMESPACE Invoice;
 inCreatePickingUserInvoicePosted = DATA LOCAL BOOLEAN (Order);
 countInCreatePickingUserInvoicePostedOrder = GROUP SUM 1 IF inCreatePickingUserInvoicePosted(Order o);
 
-countInCreatePickingUserInvoicePostedOrderParams = GROUP SUM 1 IF inCreatePickingUserInvoicePosted(Order o)
-                                                         BY from(o), to(o), fromStock(o), toStock(o);
+countInCreatePickingUserInvoicePostedOrderParams = GROUP
+                                                         BY from(Order o), to(o), fromStock(o), toStock(o) SUM 1 IF inCreatePickingUserInvoicePosted(o);
 countParamsInCreatePickingUserInvoicePostedOrder = GROUP SUM 1 IF countInCreatePickingUserInvoicePostedOrderParams(LegalEntity from, LegalEntity to, Stock fromStock, Stock toStock); 
 
 createPickingUserInvoicePosted 'Создать проведенную накладную' = ABSTRACT (Order);
@@ -154,4 +154,4 @@ META defineOrderInvoicePickingOrder (sign)
 END
 
 toInvoicePicked 'Не выписано' (OrderDetail d) = pickingQuantity(d) (-) invoiced(d);
-toInvoicePicked 'Не выписано' (o) = GROUP SUM 1 IF toInvoicePicked(OrderDetail d) > 0 BY order(d) MATERIALIZED;
+toInvoicePicked 'Не выписано' (o) = GROUP BY order(OrderDetail d) SUM 1 IF toInvoicePicked(d) > 0 MATERIALIZED;

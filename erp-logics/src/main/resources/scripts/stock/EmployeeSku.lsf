@@ -13,8 +13,8 @@ overCopy(Employee e,Employee employee) += {
     dataAccess(SkuGroup l,e) <- dataAccess(l,employee) WHERE dataAccess(l,employee);
 };
 
-levelParent (employee, skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataAccess(parent, Employee employee)
-                                                               BY employee, skuGroup MATERIALIZED;
+levelParent (employee, skuGroup) = GROUP
+                                                               BY Employee employee, SkuGroup skuGroup MIN level(skuGroup, SkuGroup parent) IF dataAccess(parent, employee) MATERIALIZED;
 nearestParent (Employee employee, SkuGroup skuGroup) = skuGroup(skuGroup, levelParent(employee, skuGroup));
 nearestIn (Employee employee, SkuGroup skuGroup) =
     dataAccess(nearestParent (employee, skuGroup), employee);
@@ -25,9 +25,9 @@ access 'Доступ разрешен' (Employee employee, SkuGroup skuGroup) = 
     employee IS Employee AND skuGroup IS SkuGroup AND NOT limitAccess(employee); // MATERIALIZED;
 
 countAccess 'Кол-во доступных групп' (employee, skuGroup) =
-    GROUP SUM 1 IF access(Employee employee, SkuGroup child)
-                AND isParent(child, SkuGroup parent)
-          BY employee, parent MATERIALIZED;
+    GROUP
+          BY Employee employee, SkuGroup parent SUM 1 IF access(employee, SkuGroup child)
+                AND isParent(child, parent) MATERIALIZED;
 
 EXTEND FORM employee
     TREE skuTree skg = SkuGroup PARENT parent

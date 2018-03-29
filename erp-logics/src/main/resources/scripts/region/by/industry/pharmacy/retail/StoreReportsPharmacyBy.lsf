@@ -8,24 +8,24 @@ NAMESPACE StoreReports;
 minBalance 'Минимальный остаток' (PharmacyCompalsoryGroup group, DepartmentStore departmentStore) =
     minBalance(group, pharmacyCategory(store(departmentStore))) IF active(group);
 
-currentBalance 'Текущий остаток (обязат.)' = GROUP SUM 
-    IF active(pharmacyCompalsoryGroup(Sku sku)) THEN currentBalance(sku, Stock stock)
-    BY pharmacyCompalsoryGroup(sku), stock;
+currentBalance 'Текущий остаток (обязат.)' = GROUP
+    BY pharmacyCompalsoryGroup(Sku sku), Stock stock SUM 
+    IF active(pharmacyCompalsoryGroup(sku)) THEN currentBalance(sku, stock);
     
-availableQuantity 'Доступное количество (обязат.)' = GROUP SUM 
-    IF active(pharmacyCompalsoryGroup(Sku sku)) THEN availableQuantity(sku, Stock stock)
-    BY pharmacyCompalsoryGroup(sku), stock;    
+availableQuantity 'Доступное количество (обязат.)' = GROUP
+    BY pharmacyCompalsoryGroup(Sku sku), Stock stock SUM 
+    IF active(pharmacyCompalsoryGroup(sku)) THEN availableQuantity(sku, stock);    
     
 notEnoughBalance (PharmacyCompalsoryGroup group, DepartmentStore departmentStore) = currentBalance(group, departmentStore) < minBalance(group, departmentStore) OR
     (minBalance(group, departmentStore) AND NOT currentBalance(group, departmentStore));
 notEnougAvailableQuantity (PharmacyCompalsoryGroup group, DepartmentStore departmentStore) = availableQuantity(group, departmentStore) < minBalance(group, departmentStore) OR 
     (minBalance(group, departmentStore) AND NOT availableQuantity(group, departmentStore)); 
       
-currentBalance 'Текущий остаток (осн.)' = GROUP SUM currentBalance(Sku sku, Stock stock)
-    BY pharmacyBaseGroup(sku), stock;
+currentBalance 'Текущий остаток (осн.)' = GROUP
+    BY pharmacyBaseGroup(Sku sku), Stock stock SUM currentBalance(sku, stock);
     
-availableQuantity 'Доступное количество (осн.)' = GROUP SUM availableQuantity(Sku sku, Stock stock)
-    BY pharmacyBaseGroup(sku), stock;        
+availableQuantity 'Доступное количество (осн.)' = GROUP
+    BY pharmacyBaseGroup(Sku sku), Stock stock SUM availableQuantity(sku, stock);        
     
 FORM currentBalanceCompalsoryGroups 'Остатки по обязательному перечню'
      OBJECTS s = DepartmentStore PANEL

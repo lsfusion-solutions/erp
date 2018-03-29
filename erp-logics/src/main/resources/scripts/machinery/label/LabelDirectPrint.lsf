@@ -31,7 +31,7 @@ nameNetworkPrinterType 'Тип печати' (NetworkPrinter p) = name(overNetwo
 
 CONSTRAINT stock(NetworkPrinter p) AND NOT isCompany(stock(p)) CHECKED BY stock[NetworkPrinter] MESSAGE 'Склад для принтера не является складом компании'; 
 
-countNetworkPrinter(s) = GROUP SUM 1 BY stock(NetworkPrinter p); 
+countNetworkPrinter(s) = GROUP BY stock(NetworkPrinter p) SUM 1; 
 
 in 'Отм' = DATA BOOLEAN (NetworkPrinter, Employee);
 
@@ -154,8 +154,8 @@ DESIGN options {
 @defineOption(notShowNetworkPrinterDialog, 'Не отображать диалог выбора принтера', networkPrinter);
 @defineOption(baudrateComNetworkPrinder, 'Скорость COM-порта', INTEGER, networkPrinter);
 
-countPrinters = GROUP SUM 1 IF in(NetworkPrinter p, currentUser()) BY stock( p);
-currentPrinter = GROUP MIN NetworkPrinter p IF in(p, currentUser()) BY stock(p);
+countPrinters = GROUP BY stock( NetworkPrinter p) SUM 1 IF in(p, currentUser());
+currentPrinter = GROUP BY stock(NetworkPrinter p) MIN p IF in(p, currentUser());
 
 printer = DATA LOCAL NetworkPrinter ();
 
@@ -289,7 +289,7 @@ customPrint(LabelTransaction labelTrans) += {
         
     }
     
-    IF countNetworkPrinter(departmentStore(labelTrans)) AND [= GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](labelTrans) THEN {
+    IF countNetworkPrinter(departmentStore(labelTrans)) AND [= GROUP BY labelTransaction(LabelTransactionDetail d) SUM 1](labelTrans) THEN {
 
         sendToNetworkPrinter(departmentStore(labelTrans));
         

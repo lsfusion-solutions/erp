@@ -15,16 +15,16 @@ toSku = DATA Sku(Substitute);
 idToSku 'Код товара на' (Substitute substitute)= id(toSku(substitute)) CHARWIDTH 10;
 nameToSku 'Товар на' (Substitute substitute)= name(toSku(substitute)) IN recognize;
 
-uniqueSubstituteFromTo = GROUP AGGR Substitute substitute BY fromSku(substitute), toSku(substitute) WHERE substitute IS Substitute;
-countSubstituteFromTo = GROUP SUM 1 BY fromSku(Substitute substitute), toSku(substitute);
-countSubstitutes = GROUP SUM 1 BY fromSku(Substitute substitute);
+uniqueSubstituteFromTo = GROUP BY fromSku(Substitute substitute), toSku(substitute) AGGR substitute WHERE substitute IS Substitute;
+countSubstituteFromTo = GROUP BY fromSku(Substitute substitute), toSku(substitute) SUM 1;
+countSubstitutes = GROUP BY fromSku(Substitute substitute) SUM 1;
 
-lastSubstituteFrom = GROUP LAST Substitute substitute
-                                     BY   fromSku(substitute)
+lastSubstituteFrom = GROUP
+                                     BY   fromSku(Substitute substitute) LAST substitute
                                      ORDER substitute;
 
-lastSubstituteTo = GROUP LAST Substitute substitute
-                                     BY   toSku(substitute)
+lastSubstituteTo = GROUP
+                                     BY   toSku(Substitute substitute) LAST substitute
                                      ORDER substitute;
 
 multiplier 'Коэффициент' = DATA NUMERIC[10,5] (Substitute) IN recognize;
@@ -55,9 +55,9 @@ use 'Можно использовать' (Substitute substitute, BOM BOM) =
     (allBOMs(substitute) AND BOM IS BOM AND NOT exclude(substitute, BOM)) OR 
     (include(substitute, BOM) AND NOT allBOMs(substitute)) COMPLEX;
 
-countComponent (material) = GROUP SUM 1 BY material(Component component);
+countComponent (material) = GROUP BY material(Component component) SUM 1;
 
-relation (material, BOM)  = GROUP SUM 1 BY material(Component c), BOM(c); 
+relation (material, BOM)  = GROUP BY material(Component c), BOM(c) SUM 1; 
 
 useDefaultComponentFilter 'Не использовать фильтр по спецификациям по умолчанию в заменах' = DATA BOOLEAN ();
 

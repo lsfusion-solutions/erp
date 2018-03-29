@@ -4,9 +4,9 @@ REQUIRE PriceListStore, PriceListDashboard, PriceListPromotion;
 
 NAMESPACE PriceList;
 // -------------------------- Текущие цены -------------------- //
-filterRetailCalc = GROUP SUM 1 BY retailCalcPriceListType (DepartmentStore d); 
-filterRetail (LedgerPriceListType t) = GROUP SUM 1 IF overIn(retailPriceListType (DepartmentStore d), LedgerPriceListType lt) BY lt; 
-filterBase = GROUP SUM 1 BY basePriceListType(retailCalcPriceListType (DepartmentStore d)); 
+filterRetailCalc = GROUP BY retailCalcPriceListType (DepartmentStore d) SUM 1; 
+filterRetail (LedgerPriceListType t) = GROUP BY LedgerPriceListType lt SUM 1 IF overIn(retailPriceListType (DepartmentStore d), lt); 
+filterBase = GROUP BY basePriceListType(retailCalcPriceListType (DepartmentStore d)) SUM 1; 
    
 currentCalc (CalcPriceListType type, Sku sku, Stock stock, DATETIME dt) = priceA(type, sku, stock, dt);
 
@@ -195,7 +195,7 @@ FORM retailPriceDashboard 'Розничные цены'
     FILTERS filterDateFrom(p), 
             filterDateTo(p),
             filterCompany(p),
-            [  = GROUP SUM 1 IF in[PriceList, DataPriceListType](PriceList p,DataPriceListType pt2) AND filter2(pt2)  BY p](p)            
+            [  = GROUP  BY PriceList p SUM 1 IF in[PriceList, DataPriceListType](p,DataPriceListType pt2) AND filter2(pt2)](p)            
         
     OBJECTS ct = CalcPriceListType
     PROPERTIES(ct) READONLY id, name

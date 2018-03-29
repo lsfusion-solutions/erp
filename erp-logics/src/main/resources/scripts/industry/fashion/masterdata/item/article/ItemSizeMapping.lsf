@@ -70,7 +70,7 @@ isFull (SizeMappingEx mx)=   sizeHeight(mx) OR
                         legLength(mx) OR
                         over(mx);
 
-countMappingEx (i)= GROUP SUM 1 IF  isISubstring(caption(Item i), name(SizeMappingEx mx)) == 1 AND isFull(mx) BY i;
+countMappingEx (i)= GROUP BY Item i SUM 1 IF  isISubstring(caption(i), name(SizeMappingEx mx)) == 1 AND isFull(mx);
 
 background (SizeMappingEx mx)= RGB(224, 224, 255) IF mx IS SizeMappingEx; 
 FORM sizeMappings 'Соответствие размеров'
@@ -93,7 +93,7 @@ FORM sizeMappings 'Соответствие размеров'
 ;
 
 isEACArticle 'EAC для артикула' = DATA BOOLEAN (SizeMappingEx);
-countMappingExIsEAC(a)= GROUP SUM 1 IF  isISubstring(caption(Article a), name(SizeMappingEx mx)) == 1 AND isEACArticle(mx) BY a;
+countMappingExIsEAC(a)= GROUP BY Article a SUM 1 IF  isISubstring(caption(a), name(SizeMappingEx mx)) == 1 AND isEACArticle(mx);
 mapIsEAC 'Заполнить "EAC" по наименованию' (Article a) =  {
     isEAC(a) <- TRUE WHERE  countMappingExIsEAC (a); 
 } ASON CONTEXTMENU isEAC[Article]; 
@@ -102,11 +102,11 @@ EXTEND FORM sizeMappings
     PROPERTIES(mx) BACKGROUND background(mx) isEACArticle
 ;
 
-sizeMapping (g, s, b)= GROUP MAX SizeMapping m BY itemGroup(m), size(m), brand(m);
+sizeMapping (g, s, b)= GROUP BY itemGroup(SizeMapping m), size(m), brand(m) MAX m;
 
 TABLE itemGroupSizeBrand (ItemGroup, Size, Brand); 
-levelParentSizeMapping (itemGroup, size, brand) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF sizeMapping(parent, Size size, Brand brand)
-                                                                  BY itemGroup, size, brand MATERIALIZED;    
+levelParentSizeMapping (itemGroup, size, brand) = GROUP
+                                                                  BY ItemGroup itemGroup, Size size, Brand brand MIN level(itemGroup, ItemGroup parent) IF sizeMapping(parent, size, brand) MATERIALIZED;    
 nearestParentSizeMapping (ItemGroup itemGroup, Size size, Brand brand) = itemGroup(itemGroup, levelParentSizeMapping(itemGroup, size, brand));
 nearestSizeMapping (ItemGroup itemGroup, Size size, Brand brand) = sizeMapping(nearestParentSizeMapping (itemGroup, size, brand), size, brand);
 
@@ -116,9 +116,9 @@ overSizeMapping 'Соответствие по умолчанию' (ItemGroup it
 
              
 TABLE itemGroupSize (ItemGroup, Size);
-sizeMapping (g, s)= GROUP MAX SizeMapping m BY itemGroup(m), size(m);
-levelParentSizeMapping (itemGroup, size) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF sizeMapping(parent, Size size)
-                                                                  BY itemGroup, size MATERIALIZED;    
+sizeMapping (g, s)= GROUP BY itemGroup(SizeMapping m), size(m) MAX m;
+levelParentSizeMapping (itemGroup, size) = GROUP
+                                                                  BY ItemGroup itemGroup, Size size MIN level(itemGroup, ItemGroup parent) IF sizeMapping(parent, size) MATERIALIZED;    
 nearestParentSizeMapping (ItemGroup itemGroup, Size size) = itemGroup(itemGroup, levelParentSizeMapping(itemGroup, size));
 nearestSizeMapping (ItemGroup itemGroup, Size size) = sizeMapping(nearestParentSizeMapping (itemGroup, size), size);
 
@@ -130,7 +130,7 @@ inMap = DATA LOCAL BOOLEAN (Item);
             
 META createSizeMappingExAttribute(property, mappingProp, captionProp, shortcutProp, prefix)
 
-    countMappingEx###property###prefix (i)= GROUP SUM 1 IF  isISubstring(caption(Item i), name(SizeMappingEx mx)) == 1 AND mappingProp(mx) BY i;
+    countMappingEx###property###prefix (i)= GROUP BY Item i SUM 1 IF  isISubstring(caption(i), name(SizeMappingEx mx)) == 1 AND mappingProp(mx);
     
     mappingProp###prefix##SizeMapping (ItemGroup g, Size s, Brand b) = mappingProp(overSizeMapping(g, s, b));  //  sizeMappingItemGroupSizeBrand
     mappingProp###prefix##SizeMapping (ItemGroup g, Size s) = mappingProp(overSizeMapping(g, s));
@@ -176,9 +176,9 @@ META createSizeMappingAttribute(attribute, type)
     @createSizeMappingAttribute(attribute, type, attribute);
 END
 META createSizeMappingAttribute(attribute, type, postfix)
-    count###postfix = GROUP SUM 1 BY itemGroup(Item i), size(i), brand(i), attribute(i);
-    best###attribute(itemGroup, size, brand) = GROUP LAST type attribute
-                                                         BY ItemGroup itemGroup, Size size, Brand brand 
+    count###postfix = GROUP BY itemGroup(Item i), size(i), brand(i), attribute(i) SUM 1;
+    best###attribute(itemGroup, size, brand) = GROUP
+                                                         BY ItemGroup itemGroup, Size size, Brand brand LAST type attribute 
                                                          ORDER count###postfix(itemGroup, size, brand, attribute), attribute
                                                          WHERE count###postfix(itemGroup, size, brand, attribute);
     

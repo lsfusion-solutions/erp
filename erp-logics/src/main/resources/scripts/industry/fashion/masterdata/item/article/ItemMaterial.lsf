@@ -33,10 +33,10 @@ DESIGN materials { BOX { size = (600, 400); } }
 TABLE materialItem (Material, Item);
 percent 'Процент' = DATA INTEGER (Material, Item);
 
-percentMaterials 'Процент' (i) = GROUP SUM percent(Material m,Item i) BY i;
+percentMaterials 'Процент' (i) = GROUP BY Item i SUM percent(Material m,i);
 
 calcComposition 'Состав' (Item i) = VARSTRING[255](
-                       [= GROUP CONCAT (percent(Material m,Item i)+'% '+name(m)) IF percent(m,i), ', ' BY i ORDER DESC percent(m,i)](i))
+                       [= GROUP BY Item i CONCAT (percent(Material m,i)+'% '+name(m)) IF percent(m,i), ', ' ORDER DESC percent(m,i)](i))
                        CHARWIDTH 50 MATERIALIZED;
 
 WHEN LOCAL FORMS item CHANGED(calcComposition(Item i)) DO {

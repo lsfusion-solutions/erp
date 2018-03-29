@@ -37,7 +37,7 @@ in(ChainStores chainStores, StoreType storeType) = chainStores(storeType) == cha
 
 parent (StoreType storeType) += chainStores(storeType);
 
-storeType 'Формат магазина по имени и торговой сети' (name, chainStores) = GROUP AGGR StoreType storeType BY name(storeType), id(chainStores(storeType)) WHERE storeType IS StoreType;
+storeType 'Формат магазина по имени и торговой сети' (name, chainStores) = GROUP BY name(StoreType storeType), id(chainStores(storeType)) AGGR storeType WHERE storeType IS StoreType;
 
 FORM storeType 'Формат магазина'
     OBJECTS t=StoreType PANEL
@@ -127,8 +127,8 @@ nameStoreType 'Формат' (Store store) = name(storeType(store)) IN base;
 orderNumber 'Порядковый номер магазина' = DATA INTEGER  (Store);
 
 countStore 'Кол-во магазинов' (storeType) =
-    GROUP SUM 1 IF storeType(Store store) == StoreType storeType
-    BY storeType;
+    GROUP
+    BY StoreType storeType SUM 1 IF storeType(Store store) == storeType;
 
 in (StoreType storeType, Store store) = storeType (store) == storeType;
 
@@ -209,9 +209,9 @@ phone 'Телефон магазина' (DepartmentStore d) = OVERRIDE dataPhone
 phone(DepartmentStore st) += phone(st);
 
 primaryDepartmentStore 'Основной отдел' (store) =
-    GROUP MIN DepartmentStore departmentStore BY store(departmentStore);
+    GROUP BY store(DepartmentStore departmentStore) MIN departmentStore;
 
-countDepartmentStore 'Кол-во отделов' (store) = GROUP SUM 1 IF DepartmentStore dep IS DepartmentStore BY store(dep);
+countDepartmentStore 'Кол-во отделов' (store) = GROUP BY store(DepartmentStore dep) SUM 1 IF dep IS DepartmentStore;
 
 address 'Адрес' (DepartmentStore departmentStore) = address(store(departmentStore));
 address (DepartmentStore departmentStore) += address(departmentStore);
@@ -229,7 +229,7 @@ region(DepartmentStore stock) += region(store(stock));
 
 @defineHistorizable(tradingSquare, , 'Торговая площадь', NUMERIC[10,2], departmentStore, nameDepartmentStore, public);
 
-tradingSquare (store, date) = GROUP SUM tradingSquare(DepartmentStore departmentStore, DATE date) BY store(departmentStore), date;
+tradingSquare (store, date) = GROUP BY store(DepartmentStore departmentStore), DATE date SUM tradingSquare(departmentStore, date);
 tradingSquare 'Торговая площадь' (Store store) = tradingSquare(store, currentDate());
 
 cashAccount 'Счет' = DATA Cash.Account (DepartmentStore);
@@ -250,8 +250,8 @@ in (ChainStores chainStores, StoreType storeType, DepartmentStore departmentStor
 inactive 'Неактивный' = DATA BOOLEAN (DepartmentStore);
 inactive(DepartmentStore st) += inactive(st);
 
-in 'Сотрудник магазина' (store, employee) = GROUP SUM 1 IF in(DepartmentStore d, Employee employee)
-    BY store(d), employee;
+in 'Сотрудник магазина' (store, employee) = GROUP
+    BY store(DepartmentStore d), Employee employee SUM 1 IF in(d, employee);
     
 CONSTRAINT chairman(Store store) AND NOT in(store, chairman(store))
     CHECKED BY chairman[Store] MESSAGE 'Работник должен быть сотрудником магазина';

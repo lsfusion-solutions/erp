@@ -20,7 +20,7 @@ EXTEND FORM pickingOrders
     PROPERTIES (o) READONLY orderSeriesNumber
 ;
 
-countPickingOrder = GROUP SUM 1 BY order(PickingOrder o) MATERIALIZED;
+countPickingOrder = GROUP BY order(PickingOrder o) SUM 1 MATERIALIZED;
 
 pickingNumber = ABSTRACT INTEGER (OrderDetail) MATERIALIZED;
 
@@ -52,18 +52,18 @@ addressToStock 'Пункт разгрузки' = address(toStock(Picking picking
 
 // ------------------------------------ Кол-во по заказам -------------------------------------- //
 
-pickingPickingDetail 'Скомплектовано' (order, sku) = GROUP SUM quantity(PickingDetail pickingDetail)
-                                                           BY order(pickingOrder(picking(pickingDetail))), sku(pickingDetail);
+pickingPickingDetail 'Скомплектовано' (order, sku) = GROUP
+                                                           BY order(pickingOrder(picking(PickingDetail pickingDetail))), sku(pickingDetail) SUM quantity(pickingDetail);
 pickingQuantity 'Кол-во (скомплектовано)' (OrderDetail orderDetail) = PARTITION UNGROUP pickingPickingDetail
                                                           LIMIT STRICT quantity (orderDetail)
                                                           BY order(orderDetail), sku(orderDetail)
                                                           ORDER orderDetail MATERIALIZED;
 
 //-- Количество излишне подобранных товаров, которых нет в заказе
-quantityPickingPickingDetail (order, sku)= GROUP SUM pickingQuantity(OrderDetail detail) BY order(detail), sku(detail);
+quantityPickingPickingDetail (order, sku)= GROUP BY order(OrderDetail detail), sku(detail) SUM pickingQuantity(detail);
 
 excessQuantityPickingPickingDetail (Order order, Sku sku) = pickingPickingDetail(order, sku) (-) quantityPickingPickingDetail (order, sku);
-excessQuantityPickingPickingDetail( order) = GROUP SUM 1 IF excessQuantityPickingPickingDetail (Order order, Sku sku) > 0 BY order;
+excessQuantityPickingPickingDetail( order) = GROUP BY Order order SUM 1 IF excessQuantityPickingPickingDetail (order, Sku sku) > 0;
 
 // ------------------------------------ Создание комплектации по заказу -------------------------------- //
 
@@ -74,7 +74,7 @@ CLASS OrderPickingOrderDetail 'Строка заказа на комплекта
 
 @defineDocumentTables(orderPickingOrder);
 
-quantityPickingNumber = GROUP SUM quantity(OrderDetail d) BY order(d), pickingNumber(d);
+quantityPickingNumber = GROUP BY order(OrderDetail d), pickingNumber(d) SUM quantity(d);
 overQuantity (Order order, INTEGER pickingNumber) = quantityPickingNumber (order, pickingNumber) AND createPickingOrder(order);
 
 @defineAggregationClass(order, Order, pickingNumber, INTEGER, orderPickingOrder, OrderPickingOrder, overQuantity);
@@ -124,15 +124,15 @@ batch(OrderPickingOrderDetail detail) += batch(orderDetail(detail));
 order(OrderPickingOrder pickingOrder) += order(pickingOrder);
 edit(OrderPickingOrder pickingOrder) += { edit(order(pickingOrder)); }
 
-accepted 'Принят в работу' (order) = GROUP SUM 1 IF accepted(PickingOrder o) BY order(o);
-countPerformer 'Комплектовщики' (order) = GROUP SUM 1 IF performer(PickingOrder order) BY order(order) MATERIALIZED;
-namePerformer 'Комплектовщики' (order) = GROUP CONCAT namePerformer(PickingOrder o), ',' BY order(o);
+accepted 'Принят в работу' (order) = GROUP BY order(PickingOrder o) SUM 1 IF accepted(o);
+countPerformer 'Комплектовщики' (order) = GROUP BY order(PickingOrder order) SUM 1 IF performer(order) MATERIALIZED;
+namePerformer 'Комплектовщики' (order) = GROUP BY order(PickingOrder o) CONCAT namePerformer(o), ',';
 
 diffQuantityPickingDetail 'Расхождение' = quantityPickingOrderDetail(Sku sku, PickingOrder order) (-) quantityPickingDetail(sku, order);
-diffQuantityPickingDetail 'Расхождение' = GROUP SUM diffQuantityPickingDetail(Sku sku, PickingOrder order) BY order MATERIALIZED;
-diffQuantityPickingDetail 'Расхождение' = GROUP SUM diffQuantityPickingDetail(PickingOrder o) BY order(o) MATERIALIZED;
+diffQuantityPickingDetail 'Расхождение' = GROUP BY PickingOrder order SUM diffQuantityPickingDetail(Sku sku, order) MATERIALIZED;
+diffQuantityPickingDetail 'Расхождение' = GROUP BY order(PickingOrder o) SUM diffQuantityPickingDetail(o) MATERIALIZED;
 
-countPickingPicking 'Кол-во комплектаций' = GROUP SUM 1 BY order(pickingOrder(Picking picking)) MATERIALIZED;
+countPickingPicking 'Кол-во комплектаций' = GROUP BY order(pickingOrder(Picking picking)) SUM 1 MATERIALIZED;
 //calcPartOrder 'Частично собран' (order) = GROUP SUM 1 IF quantityPickingsPickingOrder(o) BY orderPickingOrder(o);
 //calcFullOrder 'Полностью собран' (order) = [= GROUP SUM 1 IF calcFullPickingOrder(o) BY orderPickingOrder(o)](order) == countPickingOrderOrder(order);
 //calcPart 'Частично собран' (Order order) = countPickingOrder(order) == countPickingPicking(order) AND diffQuantityPickingDetail(order);
@@ -140,8 +140,8 @@ calcFull 'Полностью собран' (Order order) = countPickingOrder(ord
 calcPart 'Частично собран' (Order order) = countPickingPicking(order) AND NOT calcFull(order);
 picked (Order order) = calcPart(order) OR calcFull(order);
 
-startDateTime 'Начало комплектации' (order) = GROUP MIN startDateTime(PickingOrder o) BY order(o);
-finishDateTime 'Завершение комплектации' (order) = GROUP MAX finishDateTime(PickingOrder o) BY order(o);
+startDateTime 'Начало комплектации' (order) = GROUP BY order(PickingOrder o) MIN startDateTime(o);
+finishDateTime 'Завершение комплектации' (order) = GROUP BY order(PickingOrder o) MAX finishDateTime(o);
 
 statusPicking 'Статус комплектации' (Order order) = CASE
     WHEN calcFull(order) THEN 'Полностью собран'
@@ -160,8 +160,8 @@ backgroundStatusPicking 'Цвет' (Order order) = CASE
 statusPickingOrder = statusPicking(order(OrderDetail orderDetail));
 backgroundStatusPickingOrder = backgroundStatusPicking(order(OrderDetail orderDetail));
     
-packQuantity 'Кол-во собранных мест' (order) = GROUP SUM packQuantity(PickingOrder o) BY order(o);
-grossWeightOrderPicking 'Вес заказа' (order) = GROUP SUM grossWeightPickingOrderDetail(PickingOrder o) BY order(o); 
+packQuantity 'Кол-во собранных мест' (order) = GROUP BY order(PickingOrder o) SUM packQuantity(o);
+grossWeightOrderPicking 'Вес заказа' (order) = GROUP BY order(PickingOrder o) SUM grossWeightPickingOrderDetail(o); 
 
 notPicking 'Без комплектаций' (Order order) = order IS Order AND NOT (calcFull(order) OR calcPart(order) OR accepted(order));
 

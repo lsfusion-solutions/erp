@@ -126,12 +126,12 @@ certificateCostPrice(UserInvoiceDetail detail) += certificateCostPrice(detail);
 incomePrice (InvoiceDetail detail) = IF isHomeCurrency(invoice(detail)) THEN
                                        homePrice(detail)
                                     ELSE price(detail);
-incomeSum(invoice) = GROUP SUM incomePrice(InvoiceDetail detail) * quantity(detail) BY invoice(detail);
+incomeSum(invoice) = GROUP BY invoice(InvoiceDetail detail) SUM incomePrice(detail) * quantity(detail);
 
 incomePrice (UserInvoiceDetail detail) = IF isHomeCurrency(userInvoice(detail)) THEN
                                            homePrice(detail)
                                         ELSE price(detail);
-incomeSum(invoice) = GROUP SUM incomePrice(UserInvoiceDetail detail) * quantity(detail) BY userInvoice(detail);
+incomeSum(invoice) = GROUP BY userInvoice(UserInvoiceDetail detail) SUM incomePrice(detail) * quantity(detail);
 
 // todo : переделать на обычный +, чтобы incomePriceInvoiceDetail суммировался с остальными через OVERRIDE, 0
 costPrice(InvoiceDetail detail) = NUMERIC[16,4] (incomePrice(detail) (+) extraCostPrice(detail) (+)
@@ -331,25 +331,25 @@ purchaseInvoiceStockSumA 'Сумма поставщика (на вечер)' (Ba
     balanceA(batch, stock, date) * purchaseInvoiceStockPriceA(batch, stock, date);
 
 purchaseInvoiceStockSumBBatches 'Сумма поставщика (на утро)' (stock, date) =
-    GROUP SUM purchaseInvoiceStockSumB(Batch batch, Stock stock, DATE date)
-    BY stock, date;
+    GROUP
+    BY Stock stock, DATE date SUM purchaseInvoiceStockSumB(Batch batch, stock, date);
 purchaseInvoiceStockSumABatches 'Сумма поставщика (на вечер)' (stock, date) =
-    GROUP SUM purchaseInvoiceStockSumA(Batch batch, Stock stock, DATE date)
-    BY stock, date;
+    GROUP
+    BY Stock stock, DATE date SUM purchaseInvoiceStockSumA(Batch batch, stock, date);
 
 purchaseInvoiceStockSumBSkuBatch 'Сумма поставщика (на утро)' (group, stock, date) =
-    GROUP SUM purchaseInvoiceStockSumB(Batch batch, Stock stock, DATE date)
-    BY group(GroupType groupType, sku(batch)), stock, date;
+    GROUP
+    BY group(GroupType groupType, sku(Batch batch)), Stock stock, DATE date SUM purchaseInvoiceStockSumB(batch, stock, date);
 purchaseInvoiceStockSumRecBSkuBatch 'Сумма поставщика (на утро)' (group, stock, date) =
-    GROUP SUM purchaseInvoiceStockSumB(Batch batch, Stock stock, DATE date) IF isParent(Group group, batch)
-    BY group, stock, date;
+    GROUP
+    BY Group group, Stock stock, DATE date SUM purchaseInvoiceStockSumB(Batch batch, stock, date) IF isParent(group, batch);
 
 purchaseInvoiceStockSumASkuBatch 'Сумма поставщика (на вечер)' (group, stock, date) =
-    GROUP SUM purchaseInvoiceStockSumA(Batch batch, Stock stock, DATE date)
-    BY group(GroupType groupType, sku(batch)), stock, date;
+    GROUP
+    BY group(GroupType groupType, sku(Batch batch)), Stock stock, DATE date SUM purchaseInvoiceStockSumA(batch, stock, date);
 purchaseInvoiceStockSumRecASkuBatch 'Сумма поставщика на (вечер)' (group, stock, date) =
-    GROUP SUM purchaseInvoiceStockSumA(Batch batch, Stock stock, DATE date) IF isParent(Group group, batch)
-    BY group, stock, date;
+    GROUP
+    BY Group group, Stock stock, DATE date SUM purchaseInvoiceStockSumA(Batch batch, stock, date) IF isParent(group, batch);
 
 // ----------------- Текущие ---------------------- //
 
@@ -367,11 +367,11 @@ purchaseInvoiceStockSumB 'Сумма поставщика' (Batch batch, Stock s
     balanceB(batch, stock, dateTime) * purchaseInvoiceStockPriceB(batch, stock, dateTime);
 
 purchaseInvoiceStockSumBSkuBatch 'Сумма поставщика (на утро)' (group, stock, dateTime) =
-    GROUP SUM purchaseInvoiceStockSumB(Batch batch, Stock stock, DATETIME dateTime)
-    BY group(GroupType groupType, sku(batch)), stock, dateTime;
+    GROUP
+    BY group(GroupType groupType, sku(Batch batch)), Stock stock, DATETIME dateTime SUM purchaseInvoiceStockSumB(batch, stock, dateTime);
 purchaseInvoiceStockSumRecBSkuBatch 'Сумма поставщика (на утро)' (group, stock, dateTime) =
-    GROUP SUM purchaseInvoiceStockSumB(Batch batch, Stock stock, DATETIME dateTime) IF isParent(Group group, batch)
-    BY group, stock, dateTime;
+    GROUP
+    BY Group group, Stock stock, DATETIME dateTime SUM purchaseInvoiceStockSumB(Batch batch, stock, dateTime) IF isParent(group, batch);
 
 // Добавляем на форму остаток до
 balanceB 'Остаток (до)' (UserInvoiceDetail d) = prevBalanceB(sku(d), customerStock(d), dateTime(d));

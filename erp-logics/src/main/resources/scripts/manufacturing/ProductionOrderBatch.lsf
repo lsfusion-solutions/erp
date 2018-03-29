@@ -8,9 +8,9 @@ currentBalancePriceStock 'Текущий остаток' (Batch batch, Order ord
 prevCurrentBalancePriceStock 'Текущий остаток' (Batch batch, Order order) = prevCurrentBalance(batch, priceStock(order)); 
 priceStock 'Цена' (Batch batch, Order order)= OVERRIDE prevPriceB(priceListType(order), batch, priceStock(order), dateTime(order)), priceStock(sku(batch),order);                                                                                                                                                               
 
-quantityComponentDetail (bt,s,o)=  GROUP SUM quantity(ComponentDetail d)  BY  batch(d), sku(d), order(d);
-nameBatches 'Партии' = GROUP CONCAT name(Batch bt) IF quantityComponentDetail(bt,Sku s,Order o) , ', '
-    BY s,o
+quantityComponentDetail (bt,s,o)=  GROUP  BY  batch(ComponentDetail d), sku(d), order(d) SUM quantity(d);
+nameBatches 'Партии' = GROUP
+    BY Sku s,Order o CONCAT name(Batch bt) IF quantityComponentDetail(bt,s,o) , ', '
     ORDER bt CHARWIDTH 30;
 use 'Использовать партию'(Batch bt,Sku sk,Order o)  = {
     batch(ComponentDetail d) <- bt WHERE sku(d) == sk AND order(d) == o;
@@ -19,8 +19,8 @@ use 'Использовать партию'(Batch bt,Sku sk,Order o)  = {
     valueVAT(sk, o) <- valueVAT(bt);
 }
 
-defaultBatchPriceStock = GROUP LAST Batch batch
-    BY sku(batch), Order order
+defaultBatchPriceStock = GROUP
+    BY sku(Batch batch), Order order LAST batch
     ORDER currentBalancePriceStock(batch,order), batch
     WHERE currentBalancePriceStock(batch,order) >0;
 
@@ -30,7 +30,7 @@ useBatchSkuAll 'Партия с max остатком (для всех)'(Order o)
     dataBruttoPrice(Sku sk,o) <- priceStock(defaultBatchPriceStock(sk, o),o) WHERE defaultBatchPriceStock(sk, o) AND quantityComponentDetail(sk,o); 
     valueVAT(Sku sk, o) <- valueVAT(defaultBatchPriceStock(sk, o)) WHERE defaultBatchPriceStock(sk, o) AND quantityComponentDetail(sk,o);
 }
-maxBatch (s,o)=  GROUP MAX Batch bt IF quantityComponentDetail (bt,Sku s,Order o) BY s,o;
+maxBatch (s,o)=  GROUP BY Sku s,Order o MAX Batch bt IF quantityComponentDetail (bt,s,o);
 
 changeBatch(Sku s,Order o) = {
     DIALOG dialogBatchStockOrder OBJECTS st = componentsStock(o),
@@ -76,7 +76,7 @@ EXTEND FORM BOM
     PROPERTIES(c) productionNorm
 ;
 
-countProductionNormComponent(s) = GROUP SUM 1 IF productionNorm(Component c) BY sku(c) MATERIALIZED;
+countProductionNormComponent(s) = GROUP BY sku(Component c) SUM 1 IF productionNorm(c) MATERIALIZED;
 
 productionCoeff 'Параметры партии' = ABSTRACT NUMERIC[20,9] (Batch) MATERIALIZED;
 productionCoeff (ComponentDetail d) += NUMERIC[20,9]((100.0 - (productionNorm(component(d)) - productionCoeff(batch(d)))) / 100.0);

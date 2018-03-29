@@ -7,7 +7,7 @@ NAMESPACE Item;
 // Обработка статуса
 
 completedGroups 'Обработан' = DATA BOOLEAN (Item);
-notCompletedGroups 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedGroups(i) BY article(i);
+notCompletedGroups 'Не обработан' (article) = GROUP BY article(Item i) SUM 1 IF i IS Item AND NOT completedGroups(i);
 completedGroups 'Обработан' = Article a IS Article AND NOT notCompletedGroups(a);
 
 changeCompletedGroups (Article article) = {
@@ -17,9 +17,9 @@ changeCompletedGroups (Article article) = {
 
 // Подсчет непереведенных артикулов для групп
 countNotCompletedGroupsArticles 'Не обработано (к-во)' (group) = 
-    GROUP SUM 1 IF completedTranslate(Article article) AND notCompletedGroups(article) AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser())) 
-    BY itemGroup(article);
-recCountNotCompletedGroupsArticles 'Не обработано (к-во)' (parent) = GROUP SUM countNotCompletedGroupsArticles(ItemGroup child) IF isParent(child, ItemGroup parent) BY parent;
+    GROUP 
+    BY itemGroup(Article article) SUM 1 IF completedTranslate(article) AND notCompletedGroups(article) AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser()));
+recCountNotCompletedGroupsArticles 'Не обработано (к-во)' (parent) = GROUP BY ItemGroup parent SUM countNotCompletedGroupsArticles(ItemGroup child) IF isParent(child, parent);
 
 
 // необходимость заполнения группы 
@@ -31,7 +31,7 @@ backgroundChildNumberItemGroup 'Цвет' (Article article) = RGB(224, 224, 255)
 overNullGroups = ABSTRACT BOOLEAN (Item);
 nullGroups (Item item)= item IS Item AND NOT completedGroups(item) AND 
     (NOT itemGroup(item) OR childNumberItemGroup(item) OR overNullGroups(item));
-nullGroups (article)= GROUP SUM 1 IF nullGroups(Item item) AND NOT completedGroups(item) BY article(item);    
+nullGroups (article)= GROUP BY article(Item item) SUM 1 IF nullGroups(item) AND NOT completedGroups(item);    
 
 filterGroupsInvoice= DATA LOCAL Purchase.Invoice ();
 descriptionFilterGroupsInvoice 'Накладная' = description(filterGroupsInvoice());

@@ -75,9 +75,9 @@ CONSTRAINT in(Stock st,ScheduleOrderTime o,Ramp r,Interval i) AND NOT stock(r)==
 //-- По предварительным заказам
 TABLE scheduleOrderDetailRampInterval(ScheduleOrderDetail, Ramp, Interval);
 in 'Вкл.' = DATA BOOLEAN (ScheduleOrderDetail, Ramp, Interval);
-countIntervals (o,r) = GROUP SUM 1 IF in(ScheduleOrderDetail o,Ramp r,Interval i) BY o,r;
+countIntervals (o,r) = GROUP BY ScheduleOrderDetail o,Ramp r SUM 1 IF in(o,r,Interval i);
 
-countScheduleOrderDetails (date,r,i) = GROUP SUM 1 IF in(ScheduleOrderDetail o,Ramp r,Interval i) AND isOpened(o) BY dateSupply(o),r,i;
+countScheduleOrderDetails (date,r,i) = GROUP BY dateSupply(ScheduleOrderDetail o),Ramp r,Interval i SUM 1 IF in(o,r,i) AND isOpened(o);
   
 CONSTRAINT in(ScheduleOrderDetail o,Ramp r,Interval i) AND NOT in(r,i)
     MESSAGE 'Для предварительного заказа и склады включены рампа и интервал, у которых нет связи';   
@@ -94,8 +94,8 @@ overCreate(ScheduleOrderDetail o) += {
 }  
 
 descriptionRamps 'Рампы' (o)= 
-    GROUP CONCAT (CONCAT ' ', time(Interval i), name(Ramp r)) IF in(ScheduleOrderDetail o,r,i), ', ' 
-    BY o
+    GROUP 
+    BY ScheduleOrderDetail o CONCAT (CONCAT ' ', time(Interval i), name(Ramp r)) IF in(o,r,i), ', '
     ORDER name(r), time(i) 
     CHARWIDTH 20; 
       
@@ -106,7 +106,7 @@ overCreate(UserOrder o) += {
     }      
 } 
  
-backgroundIn = RGB(0,255,0) IF [ = GROUP SUM 1 IF in(Stock tts,ScheduleOrderTime d,Ramp r,Interval in) BY tts,d,r](Stock tts,ScheduleOrderTime d,Ramp r);      
+backgroundIn = RGB(0,255,0) IF [ = GROUP BY Stock tts,ScheduleOrderTime d,Ramp r SUM 1 IF in(tts,d,r,Interval in)](Stock tts,ScheduleOrderTime d,Ramp r);      
 EXTEND FORM scheduleOrder
     OBJECTS tts=Stock GRID       
     PROPERTIES (tts) SHOWIF toShowGenDayMonth(s) READONLY name    
@@ -162,13 +162,13 @@ DESIGN scheduleOrder {
     }
 }
 
-includeShipmentDowSupplierCustomer '' = GROUP SUM 1 IF isOpened(ScheduleOrderDetail d) AND dateSupply(d) >= DATE date AND
-    in(d,Ramp r,Interval i) 
-        BY extractDOW(dateSupply(d)), supplier(d), customer(d), r, i, date;
+includeShipmentDowSupplierCustomer '' = GROUP 
+        BY extractDOW(dateSupply(ScheduleOrderDetail d)), supplier(d), customer(d), Ramp r, Interval i, DATE date SUM 1 IF isOpened(d) AND dateSupply(d) >= date AND
+    in(d,r,i);
         
 descriptionSuppliersCustomer 'Поставщики' (dow, c, r, i, date)= 
-    GROUP CONCAT name(LegalEntity s) IF includeShipmentDowSupplierCustomer(DOW dow, s, LegalEntity c, Ramp r, Interval i,DATE date), ', ' 
-    BY dow, c, r, i, date
+    GROUP 
+    BY DOW dow, LegalEntity c, Ramp r, Interval i, DATE date CONCAT name(LegalEntity s) IF includeShipmentDowSupplierCustomer(dow, s, c, r, i,date), ', '
     ORDER name(s), s
     CHARWIDTH 20; 
 prevDescriptionSuppliersCustomer 'Поставщики' (DOW dow, LegalEntity c, Ramp r, Interval i, DATE date) = PREV(descriptionSuppliersCustomer(dow, c, r, i, date)) CHARWIDTH 20;
@@ -176,12 +176,12 @@ prevDescriptionSuppliersCustomer 'Поставщики' (DOW dow, LegalEntity c,
 descriptionSuppliers 'Поставщики' (ScheduleOrderTime d,Ramp r,Interval i) = descriptionSuppliersCustomer(shipmentDOW(d), customer(scheduleOrder(d)), r, i, startDate(scheduleOrder(d)));
 
     
-includeShipmentDowScheduleOrderCustomer '' = GROUP SUM 1 IF isOpened(ScheduleOrderDetail d) AND dateSupply(d) >= DATE date AND
-    in(d,Ramp r,Interval i) 
-        BY extractDOW(dateSupply(d)), scheduleOrder(d), r, i, date;
-countInclude = GROUP SUM 1 IF isOpened(ScheduleOrderDetail d) AND dateSupply(d) >= DATE date AND
-    in(d,Ramp r,Interval i) 
-        BY extractDOW(dateSupply(d)), r, i, date;
+includeShipmentDowScheduleOrderCustomer '' = GROUP 
+        BY extractDOW(dateSupply(ScheduleOrderDetail d)), scheduleOrder(d), Ramp r, Interval i, DATE date SUM 1 IF isOpened(d) AND dateSupply(d) >= date AND
+    in(d,r,i);
+countInclude = GROUP 
+        BY extractDOW(dateSupply(ScheduleOrderDetail d)), Ramp r, Interval i, DATE date SUM 1 IF isOpened(d) AND dateSupply(d) >= date AND
+    in(d,r,i);
                
 editScheduleOrder 'Редактировать' (ScheduleOrderTime d, Ramp r, Interval in, Stock tts) = {
     FOR includeShipmentDowScheduleOrderCustomer(shipmentDOW(d), ScheduleOrder o,  r, in, startDate(scheduleOrder(d))) AND o != scheduleOrder(d) DO {

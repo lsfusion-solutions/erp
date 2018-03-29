@@ -5,7 +5,7 @@ REQUIRE ZReport, DiscountCard;
 NAMESPACE ZReport;
 
 discountCard (receipt) = DATA DiscountCard (Receipt) INDEXED;
-countReceipt 'Кол-во чеков' = GROUP SUM 1 BY discountCard(Receipt r); 
+countReceipt 'Кол-во чеков' = GROUP BY discountCard(Receipt r) SUM 1; 
 externalCountReceipt 'Кол-во чеков(дополнительно)' = ABSTRACT INTEGER (DiscountCard) MATERIALIZED; 
 totalCountReceipt 'Кол-во чеков(всего)'(DiscountCard dc) = countReceipt(dc) (+) externalCountReceipt(dc); 
 prevCountReceipt 'Кол-во чеков' (DiscountCard dc) = PREV(countReceipt(dc));
@@ -38,8 +38,8 @@ numberDiscountCard 'Номер дисконтной карты' (ReceiptDetail r
 nameLegalEntityDiscountCard 'Держатель дисконтной карты' (ReceiptDetail receiptDetail) = nameLegalEntityDiscountCard(receipt(receiptDetail)) CHARWIDTH 30;
 nameDiscountCard 'Наименование дисконтной карты' (Receipt receipt) = name(discountCard(receipt));
 
-countReceiptsDiscountCard 'Кол-во чеков по дисконтным картам в Z-отчете' (zReport) = GROUP SUM 1 IF discountCard(Receipt receipt)  
-    BY zReport(receipt) MATERIALIZED IN documentSum;
+countReceiptsDiscountCard 'Кол-во чеков по дисконтным картам в Z-отчете' (zReport) = GROUP  
+    BY zReport(Receipt receipt) SUM 1 IF discountCard(receipt) MATERIALIZED IN documentSum;
     
 EXTEND FORM zReport
     PROPERTIES(b) AFTER nameEmployee(b) numberDiscountCard, nameLegalEntityDiscountCard
@@ -50,8 +50,8 @@ EXTEND FORM zReports
 
 //--Накопленные суммы
 
-posSum 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetail (Receipt receipt) BY discountCard(receipt) MATERIALIZED;
-posReturnSum 'Сумма возвратов' (discountCard) = GROUP SUM sum(ReceiptReturnDetail d) IF NOT discountCard[ReceiptDetail](d) BY discountCard(receiptSale(d)) MATERIALIZED; 
+posSum 'Сумма продаж' (discountCard) = GROUP BY discountCard(Receipt receipt) SUM sumReceiptDetail (receipt) MATERIALIZED;
+posReturnSum 'Сумма возвратов' (discountCard) = GROUP BY discountCard(receiptSale(ReceiptReturnDetail d)) SUM sum(d) IF NOT discountCard[ReceiptDetail](d) MATERIALIZED; 
 signedTransferSum 'Сумма переводов' (discountCard) = ABSTRACT NUMERIC[18,4] (DiscountCard) MATERIALIZED;
 
 cumulativeSum 'Накопленная сумма (основная)' (DiscountCard discountCard) = initialSum(discountCard) (+) posSum(discountCard) (-) posReturnSum(discountCard) (+) signedTransferSum(discountCard) MATERIALIZED;
@@ -60,7 +60,7 @@ externalSum 'Дополнительные накопления' (discountCard) =
 totalSum 'Накопленная сумма' (DiscountCard d) = cumulativeSum(d) (+) externalSum(d); 
 prevTotalSum 'Накопленная сумма' (DiscountCard d) = PREV(totalSum(d)); 
 
-dateFirstUse 'Дата первого использования'=  GROUP MIN date(Receipt receipt) BY discountCard (receipt);
+dateFirstUse 'Дата первого использования'=  GROUP BY discountCard (Receipt receipt) MIN date(receipt);
 
 //перевод накоплений по карте
 
@@ -71,7 +71,7 @@ transferSum 'Сумма перевода' = DATA NUMERIC[18,4] (DiscountCard);
 CONSTRAINT discountCard(DiscountCard c) == c
     MESSAGE 'Запрещено переводить накопления с карты на ту же карту';
 
-totalTransferSum 'Сумма переводов' = GROUP SUM transferSum(DiscountCard d) BY discountCard(d);
+totalTransferSum 'Сумма переводов' = GROUP BY discountCard(DiscountCard d) SUM transferSum(d);
 
 signedTransferSum(DiscountCard d) += totalTransferSum(d) (-) transferSum(d);
 

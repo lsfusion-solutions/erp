@@ -22,8 +22,8 @@ currency = DATA Currency (GLAccountType);
 nameCurrency 'Валюта' (GLAccountType GLAccountType)= name(currency(GLAccountType));
 id 'Идентификатор' = DATA VARSTRING[20] (GLAccountType) CHARWIDTH 15;
 
-GLAccountTypeIdGLAccountType (string1) = GROUP AGGR GLAccountType GLAccountType
-    BY id(GLAccountType) WHERE GLAccountType IS GLAccountType;
+GLAccountTypeIdGLAccountType (string1) = GROUP
+    BY id(GLAccountType GLAccountType) AGGR GLAccountType WHERE GLAccountType IS GLAccountType;
 
 FORM GLAccountType 'План счетов'
     OBJECTS g = GLAccountType PANEL
@@ -54,10 +54,10 @@ TABLE GLAccountGLAccount(GLAccount, GLAccount);
 @defineHierarchy(GLAccount);
 
 canonicalId 'Канонический код' (GLAccount GLAccount) = VARSTRING[255](
-                           [= GROUP CONCAT id(GLAccount parent), ' / ' BY GLAccount child ORDER DESC level(child, parent)](GLAccount))
+                           [= GROUP BY GLAccount child CONCAT id(GLAccount parent), ' / ' ORDER DESC level(child, parent)](GLAccount))
                            CHARWIDTH 50 MATERIALIZED;
 canonicalNames 'Каноническое имя' (GLAccount GLAccount) = VARSTRING[255](
-                           [= GROUP CONCAT name(GLAccount parent), ' / ' BY GLAccount child ORDER DESC level(child, parent)](GLAccount))
+                           [= GROUP BY GLAccount child CONCAT name(GLAccount parent), ' / ' ORDER DESC level(child, parent)](GLAccount))
                            CHARWIDTH 50 MATERIALIZED;
 
 nameAccountParent 'Родительский объект' (GLAccount GLAccount)= name(parent(GLAccount));
@@ -66,8 +66,8 @@ idGLAccountParent 'Родительский объект' (GLAccount GLAccount)=
 CONSTRAINT GLAccountType(parent(GLAccount GLAccount)) != GLAccountType(GLAccount)
            CHECKED BY parent[GLAccount] MESSAGE 'План счетов родительской объекта должна совпадать с планом счетов объекта';
 
-GLAccountIdTypeIdGLAccount (string1, string2) = GROUP AGGR GLAccount GLAccount
-    BY id(GLAccountType(GLAccount)), id(GLAccount) WHERE GLAccount IS GLAccount;
+GLAccountIdTypeIdGLAccount (string1, string2) = GROUP
+    BY id(GLAccountType(GLAccount GLAccount)), id(GLAccount) AGGR GLAccount WHERE GLAccount IS GLAccount;
 
 FORM GLAccount 'Счет'
     OBJECTS g=GLAccount PANEL

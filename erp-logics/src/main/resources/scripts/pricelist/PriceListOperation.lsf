@@ -44,8 +44,8 @@ CONSTRAINT dataLegalEntity(Operation operation) AND NOT in(dataLegalEntity(opera
 userDefaultCurrency = DATA Currency (Operation);
 //userDefaultCurrencyOperation(operation) => inCurrencyOperation(userDefaultCurrencyOperation(operation), operation) RESOLVE RIGHT;
 calcDefaultCurrency(operation) =
-    GROUP MAX Currency currency IF in(currency, Operation operation)
-    BY operation MATERIALIZED;
+    GROUP
+    BY Operation operation MAX Currency currency IF in(currency, operation) MATERIALIZED;
 defaultCurrency(Operation operation) = OVERRIDE userDefaultCurrency(operation),
                                                calcDefaultCurrency(operation) MATERIALIZED;
 nameDefaultCurrency 'Валюта по умолчанию' (Operation operation) = name(defaultCurrency(operation));
@@ -244,8 +244,8 @@ DESIGN operation {
 // Подсчет цен по прайс-листам
 
 priceListDetailA  (type, sku, stock, dateTime, operation) =
-    GROUP LAST PriceListDetail detail
-          BY DataPriceListType type, sku(detail), Stock stock, DATETIME dateTimeIn, operation(detail)
+    GROUP
+          BY DataPriceListType type, sku(PriceListDetail detail), Stock stock, DATETIME dateTimeIn, operation(detail) LAST detail
           ORDER fromDateTime(detail), detail
           WHERE in(detail, type) AND isPosted(detail) AND in(priceList(detail),stock) AND
                 fromDateTime(detail) <= dateTimeIn AND NOT toDateTime(detail) < dateTimeIn COMPLEX;
@@ -304,11 +304,11 @@ DESIGN userPriceList{
 setToDateTime 'Установить дату действия по' (UserPriceList p) = {
     LOCAL toDateTime = DATETIME();
     
-    toDateTime() <- [= GROUP MAX (OVERRIDE [= GROUP MIN fromDateTime(UserPriceListDetail d) IF isPosted(userPriceList(d)) AND NOT PREV(toDateTime(d)) 
-                                                        AND in(d, DataPriceListType t) AND in(d, Stock st) AND fromDateTime(d) > DATETIME dt 
-                                                    BY sku(d), t, st, dt](sku(UserPriceListDetail d), DataPriceListType t, Stock s, fromDateTime(d)), 2040_01_01_00:00) 
-                                  IF in(d, t) AND in(d, s) 
-                             BY userPriceList(d)](p);
+    toDateTime() <- [= GROUP 
+                             BY userPriceList(UserPriceListDetail d) MAX (OVERRIDE [= GROUP 
+                                                    BY sku(UserPriceListDetail d), DataPriceListType t, Stock st, DATETIME dt MIN fromDateTime(d) IF isPosted(userPriceList(d)) AND NOT PREV(toDateTime(d)) 
+                                                        AND in(d, t) AND in(d, st) AND fromDateTime(d) > dt](sku(d), DataPriceListType t, Stock s, fromDateTime(d)), 2040_01_01_00:00) 
+                                  IF in(d, t) AND in(d, s)](p);
     IF toDateTime() < 2040_01_01_00:00 THEN {
         toDate(p) <- DATE(toDateTime());
         toTime(p) <- TIME(toDateTime());

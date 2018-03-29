@@ -4,12 +4,12 @@ REQUIRE ZReportReport, GiftCard;
 
 NAMESPACE ZReport;
 
-sumGiftCardPaymentZReport 'Сумма продаж (сертификат)' (stock, date)= GROUP SUM sumGiftCardPayment(ZReport zReport) IF isPosted(zReport)
-        BY departmentStore(zReport), date(zReport);
-sumReceiptDetailGiftCardZReport 'Сумма проданных сертификатов' (stock, date)= GROUP SUM sumReceiptDetailGiftCard(ZReport zReport) IF isPosted(zReport)
-        BY departmentStore(zReport), date(zReport);                                              
-sumGiftCardPaymentZReportStocks 'Сумма продаж (сертификат)' = GROUP SUM sumGiftCardPaymentZReport(DepartmentStore st,DATE dt) IF inReport(st) BY dt;
-sumReceiptDetailGiftCardZReportStocks 'Сумма проданных сертификатов' = GROUP SUM sumReceiptDetailGiftCardZReport(DepartmentStore st,DATE dt) IF inReport(st) BY dt;
+sumGiftCardPaymentZReport 'Сумма продаж (сертификат)' (stock, date)= GROUP
+        BY departmentStore(ZReport zReport), date(zReport) SUM sumGiftCardPayment(zReport) IF isPosted(zReport);
+sumReceiptDetailGiftCardZReport 'Сумма проданных сертификатов' (stock, date)= GROUP
+        BY departmentStore(ZReport zReport), date(zReport) SUM sumReceiptDetailGiftCard(zReport) IF isPosted(zReport);                                              
+sumGiftCardPaymentZReportStocks 'Сумма продаж (сертификат)' = GROUP BY DATE dt SUM sumGiftCardPaymentZReport(DepartmentStore st,dt) IF inReport(st);
+sumReceiptDetailGiftCardZReportStocks 'Сумма проданных сертификатов' = GROUP BY DATE dt SUM sumReceiptDetailGiftCardZReport(DepartmentStore st,dt) IF inReport(st);
 
 EXTEND FORM saleZreportStock
     PROPERTIES READONLY SHOWIF showProperty(st) sumGiftCardPaymentZReport(st,dt)  COLUMNS (st) HEADER nameGiftCard(st)

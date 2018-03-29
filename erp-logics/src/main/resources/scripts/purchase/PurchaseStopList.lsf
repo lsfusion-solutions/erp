@@ -39,13 +39,13 @@ DESIGN stockDays {
 }
 
 
-quantityPurchase 'Закуплено за интервал (кол-во)' (sku, stock, dateFrom) = GROUP SUM
-        PurchaseLedger.quantityPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom 
-        BY sku, stock, dateFrom;
+quantityPurchase 'Закуплено за интервал (кол-во)' (sku, stock, dateFrom) = GROUP 
+        BY Sku sku, Stock stock, DATE dateFrom SUM
+        PurchaseLedger.quantityPurchase(sku, stock, DATE date) IF date >= dateFrom;
         
-notPurchase (stock, dateFrom, dateTime)= GROUP SUM 1 IF NOT (quantityPurchase(Sku sku, Stock stock, DATE dateFrom) OR currentBalance(sku, stock) OR lastStopListDetail(sku, stock, DATETIME dateTime)) 
-    AND sku IS Sku AND stock IS Stock AND dateFrom IS DATE AND dateTime IS DATETIME 
-        BY stock, dateFrom, dateTime; 
+notPurchase (stock, dateFrom, dateTime)= GROUP 
+        BY Stock stock, DATE dateFrom, DATETIME dateTime SUM 1 IF NOT (quantityPurchase(Sku sku, stock, dateFrom) OR currentBalance(sku, stock) OR lastStopListDetail(sku, stock, dateTime)) 
+    AND sku IS Sku AND stock IS Stock AND dateFrom IS DATE AND dateTime IS DATETIME; 
      
 createStopList 'Создать по товарам без прихода и остатка'()  = {
     DIALOG stockDays OBJECTS s INPUT, i INPUT DO {

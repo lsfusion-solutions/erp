@@ -142,8 +142,8 @@ descriptionPriceTransactionDocument 'Основание загрузки' (Machi
 description 'Основание' (MachineryPriceTransaction document) =
     OVERRIDE comment(document), descriptionPriceTransactionDocument(document);
 
-countProcess 'Кол-во ожидающих транзакций' (document) = GROUP SUM 1 IF process(MachineryPriceTransaction transaction)
-                                                                                 BY priceTransactionDocument(transaction) MATERIALIZED;
+countProcess 'Кол-во ожидающих транзакций' (document) = GROUP
+                                                                                 BY priceTransactionDocument(MachineryPriceTransaction transaction) SUM 1 IF process(transaction) MATERIALIZED;
 
 succeeded 'Загружен в оборудование' (PriceTransactionDocument document) = sent (document) IF NOT countProcess(document);
 
@@ -153,15 +153,15 @@ succeeded 'Загружено' = DATA BOOLEAN(Machinery, MachineryPriceTransacti
 dateTimeSucceeded 'Время загрузки' = DATA DATETIME(Machinery, MachineryPriceTransaction);
 
 countSucceededMachineries'Кол-во загруженного оборудования' (t) = 
-    GROUP SUM 1 IF succeeded(Machinery m, MachineryPriceTransaction t) OR 
-                   (succeeded(t) AND groupMachinery(m) == groupMachinery(t)) 
-          BY priceTransactionDocument(t) MATERIALIZED;
+    GROUP 
+          BY priceTransactionDocument(MachineryPriceTransaction t) SUM 1 IF succeeded(Machinery m, t) OR 
+                   (succeeded(t) AND groupMachinery(m) == groupMachinery(t)) MATERIALIZED;
     
-countSucceededMachineries'Кол-во загруженного оборудования' (machineryPriceTransaction) = GROUP SUM 1 
-    IF succeeded(Machinery m,MachineryPriceTransaction t) BY t MATERIALIZED;
+countSucceededMachineries'Кол-во загруженного оборудования' (machineryPriceTransaction) = GROUP BY MachineryPriceTransaction t SUM 1 
+    IF succeeded(Machinery m,t) MATERIALIZED;
 
-countMachineries 'Кол-во оборудования в группе' (gm) =GROUP SUM 1 BY groupMachinery(Machinery m);
-countMachineries 'Кол-во оборудования в группе' (priceTransactionDocument) = GROUP SUM countMachineries(groupMachinery(MachineryPriceTransaction t)) BY priceTransactionDocument(t);
+countMachineries 'Кол-во оборудования в группе' (gm) =GROUP BY groupMachinery(Machinery m) SUM 1;
+countMachineries 'Кол-во оборудования в группе' (priceTransactionDocument) = GROUP BY priceTransactionDocument(MachineryPriceTransaction t) SUM countMachineries(groupMachinery(t));
 concatSucceededMachineries 'Кол-во оборудования' (PriceTransactionDocument t)  = CONCAT '/', countSucceededMachineries(t), countMachineries(t); 
 
 statusMachinery 'Статус загрузки в оборудование' (PriceTransactionDocument document) =
@@ -199,20 +199,20 @@ dateTimeIn = dateTime(MachineryPriceTransaction transaction) IF in(transaction, 
 INDEX groupIn(MachineryPriceTransaction t, Barcode b), b, dateTimeIn(t,b), t;
     
 lastTransaction (barcode, groupMachinery) = 
-    GROUP LAST MachineryPriceTransaction transaction 
-          BY Barcode barcode, groupIn(transaction, barcode)
+    GROUP 
+          BY Barcode barcode, groupIn(MachineryPriceTransaction transaction, barcode) LAST transaction
           ORDER dateTimeIn(transaction, barcode), transaction
           WHERE NOT canceled(transaction) MATERIALIZED;
 
 lastTransaction (sku, stock) =
-    GROUP LAST lastTransaction(Barcode b, GroupMachinery g) 
-          BY sku(b), stock(g)
+    GROUP 
+          BY sku(Barcode b), stock(GroupMachinery g) LAST lastTransaction(b, g)
           ORDER dateTimeIn(lastTransaction(b, g), b), lastTransaction(b, g)
           WHERE lastTransaction(b, g);
           
 lastFullTransaction (barcode, groupMachinery) = 
-    GROUP LAST MachineryPriceTransaction transaction 
-          BY Barcode barcode, groupMachinery(transaction)
+    GROUP 
+          BY Barcode barcode, groupMachinery(MachineryPriceTransaction transaction) LAST transaction
           ORDER dateTime(transaction), transaction
           WHERE in(transaction, barcode) AND NOT canceled(transaction);
           
@@ -227,8 +227,8 @@ transactionPrice 'Текущая цена в оборудовании' (Barcode 
 prevTransactionPrice (Barcode barcode, GroupMachinery groupMachinery) = price(prevLastTransaction(barcode, groupMachinery),barcode);
 
 transactionPrice 'Текущая цена в оборудовании' (barcode, stock) =
-    GROUP LAST transactionPrice(Barcode b, GroupMachinery g) 
-          BY b, stock(g)
+    GROUP 
+          BY Barcode b, stock(GroupMachinery g) LAST transactionPrice(b, g)
           ORDER dateTimeIn(lastTransaction(b, g), b), lastTransaction(b, g)
           WHERE lastTransaction(b, g);
 
@@ -247,7 +247,7 @@ clearApplicationLog () += {
 	    in(MachineryPriceTransaction t, Barcode b) <- NULL WHERE NOT t == lastTransaction(b, groupMachinery(t)) AND date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
 	    apply();
 	    
-	    DELETE MachineryPriceTransaction t WHERE  t IS MachineryPriceTransaction AND NOT [= GROUP SUM 1 IF in(MachineryPriceTransaction t, Barcode b) BY t](t);
+	    DELETE MachineryPriceTransaction t WHERE  t IS MachineryPriceTransaction AND NOT [= GROUP BY MachineryPriceTransaction t SUM 1 IF in(t, Barcode b)](t);
 	    apply();
 	    }
 	}
@@ -262,12 +262,12 @@ date 'Время возникновения' = DATA DATETIME (MachineryPriceTran
 toDate 'Дата возникновения' (MachineryPriceTransactionError d) = DATE(date(d));
 errorTrace 'След исключения' = DATA TEXT (MachineryPriceTransactionError) IN base;
 machineryPriceTransaction 'Транзакция (ID)' = DATA MachineryPriceTransaction(MachineryPriceTransactionError) NONULL DELETE IN base INDEXED;
-quantityMachineryPriceTransactionError 'Количество ошибок' (MachineryPriceTransaction) = GROUP SUM 1 BY machineryPriceTransaction (MachineryPriceTransactionError machineryPriceTransactionError) MATERIALIZED IN base;
-lastDateMachineryPriceTransactionError 'Время последней ошибки' (MachineryPriceTransaction) = GROUP MAX date(MachineryPriceTransactionError machineryPriceTransactionError) BY machineryPriceTransaction (machineryPriceTransactionError) MATERIALIZED;
+quantityMachineryPriceTransactionError 'Количество ошибок' (MachineryPriceTransaction) = GROUP BY machineryPriceTransaction (MachineryPriceTransactionError machineryPriceTransactionError) SUM 1 MATERIALIZED IN base;
+lastDateMachineryPriceTransactionError 'Время последней ошибки' (MachineryPriceTransaction) = GROUP BY machineryPriceTransaction (MachineryPriceTransactionError machineryPriceTransactionError) MAX date(machineryPriceTransactionError) MATERIALIZED;
 
 lastTransaction (barcode, stock) =
-    GROUP LAST lastTransaction(Barcode b, GroupMachinery g)
-          BY b, stock(g)
+    GROUP
+          BY Barcode b, stock(GroupMachinery g) LAST lastTransaction(b, g)
           ORDER dateTimeIn(lastTransaction(b, g), b), lastTransaction(b, g)
           WHERE lastTransaction(b, g);
 
@@ -275,7 +275,7 @@ backgroundLastTransaction (Sku sku, Stock stock) = RGB (255,0,0) IF quantityMach
     succeeded(lastTransaction (barcode(sku), stock));  
 
 INDEX groupMachinery(MachineryPriceTransaction t), dateTime(t), t; 
-lastErrorTime (GroupMachinery g) = GROUP LAST dateTime(MachineryPriceTransaction t) IF quantityMachineryPriceTransactionError(t) BY groupMachinery(t) ORDER dateTime(t), t WHERE process(t);
+lastErrorTime (GroupMachinery g) = GROUP BY groupMachinery(MachineryPriceTransaction t) LAST dateTime(t) IF quantityMachineryPriceTransactionError(t) ORDER dateTime(t), t WHERE process(t);
 
 @defineLog (MachineryPriceTransactionError, 'ошибок загрузки прайсов', log, toDate);
 
@@ -283,8 +283,8 @@ lastErrorTime (GroupMachinery g) = GROUP LAST dateTime(MachineryPriceTransaction
 TABLE machineryPriceTransactionMachinery (MachineryPriceTransaction, Machinery);
 in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Machinery);
 npps 'Номера устройств' (transaction) =
-    GROUP CONCAT STRING[3](npp(Machinery machinery)) IF in(MachineryPriceTransaction transaction, machinery), ','
-          BY transaction
+    GROUP
+          BY MachineryPriceTransaction transaction CONCAT STRING[3](npp(Machinery machinery)) IF in(transaction, machinery), ','
           ORDER machinery CHARWIDTH 10 MATERIALIZED;
 
 // перезагрузка прайса целиком
@@ -444,8 +444,8 @@ CONSTRAINT stock(RequestExchange r) AND NOT isCompany(stock(r))
 
 TABLE stockRequestExchange(Stock, RequestExchange);
 in 'Вкл' = DATA BOOLEAN (Stock, RequestExchange);  
-extraStocks = GROUP CONCAT name(Stock stock) IF in(stock, RequestExchange requestExchange), ', ' 
-                                                BY requestExchange
+extraStocks = GROUP 
+                                                BY RequestExchange requestExchange CONCAT name(Stock stock) IF in(stock, requestExchange), ', '
                                                 ORDER name(stock) CHARWIDTH 30 MATERIALIZED;                                                                         
 dateFrom 'Дата с' = DATA DATE (RequestExchange) NONULL IN recognize;
 dateTo 'Дата по' = DATA DATE (RequestExchange) NONULL;
@@ -467,7 +467,7 @@ showStartDate(RequestExchange requestExchange) = requestExchangeType(requestExch
 
 TABLE machineryRequestExchange(Machinery, RequestExchange);
 dataIn 'Вкл' = DATA BOOLEAN (Machinery, RequestExchange); 
-machineries 'Оборудование' (requestExchange) = GROUP SUM 1 IF dataIn(Machinery m, RequestExchange requestExchange) BY requestExchange;  
+machineries 'Оборудование' (requestExchange) = GROUP BY RequestExchange requestExchange SUM 1 IF dataIn(Machinery m, requestExchange);  
 in (Machinery machinery, RequestExchange requestExchange) = dataIn(machinery, requestExchange) OR NOT machineries(requestExchange);     
      
 CLASS RequestExchangeLog 'Лог обмена данными';
@@ -487,7 +487,7 @@ date 'Время' = DATA DATETIME (RequestExchangeError);
 requestExchange = DATA RequestExchange (RequestExchangeError);
 note 'Примечание' = DATA VARSTRING[100] (RequestExchange) CHARWIDTH 30;
 
-inGroupMachinery (Stock stock) = [= GROUP SUM 1 BY stock(GroupMachinery gr)](stock);
+inGroupMachinery (Stock stock) = [= GROUP BY stock(GroupMachinery gr) SUM 1](stock);
 CONSTRAINT stock(RequestExchange r) AND NOT inGroupMachinery(stock(r)) CHECKED BY stock[RequestExchange]
     MESSAGE 'Склад без групп касс';
 
@@ -738,7 +738,7 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
         LOCAL countBarcode = INTEGER();
         countBarcode() <- [= GROUP SUM 1 IF in(Barcode barcode)]();
         LOCAL countSku = INTEGER();
-        countSku() <- [ = GROUP SUM 1 IF [= GROUP SUM 1 IF in(Barcode barcode) BY sku(barcode)](Sku sku)]();        
+        countSku() <- [ = GROUP SUM 1 IF [= GROUP BY sku(Barcode barcode) SUM 1 IF in(barcode)](Sku sku)]();        
         
         IF countBarcode() THEN {
             addedTransaction() <- NULL;
@@ -838,7 +838,7 @@ DESIGN options {
 createBalanceSelectMachineryPriceTransaction 'Остатки'(Stock stock) = {
 	NEWSESSION {
 	    DIALOG selectGroupMachinery OBJECTS st = stock DO
-	        IF [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
+	        IF [= GROUP BY stock(GroupMachinery gm) SUM 1 IF include(gm)](stock) THEN {
 	            exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
 	            
 	            createMachineryPriceTransaction(Sku sku) <-  currentBalance(sku, stock) OR sum(DATE(dateTimeLastMoved(sku, stock)), countSendAllMovedDays()) > currentDate();
@@ -853,7 +853,7 @@ createBalanceSelectMachineryPriceTransaction 'Остатки'(Stock stock) = {
 createSelectMachineryPriceTransaction 'Все товары'(Stock stock) = {
 	NEWSESSION {
 	    DIALOG selectGroupMachinery OBJECTS st = stock DO
-	        IF [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
+	        IF [= GROUP BY stock(GroupMachinery gm) SUM 1 IF include(gm)](stock) THEN {
 	            exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
 	            
 	            createMachineryPriceTransaction(Sku sku) <- TRUE;
@@ -1094,7 +1094,7 @@ createApplySelectedSkuPriceTransactionDocument 'Загрузить в обору
 createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование'() = {
 	NEWSESSION NESTED (select[Sku,Stock], createMachineryPriceTransactionSnapshot[], createMachineryPriceTransaction[Sku]) {
 	    IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
-	        FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](Stock stock) DO {
+	        FOR [= GROUP BY Stock stock SUM 1 IF select(Sku sku, stock)](Stock stock) DO {
 	            createMachineryPriceTransactionSnapshot() <- TRUE;
 	            createMachineryPriceTransaction(Sku sku) <- TRUE IF select(sku, stock);
 	            createMachineryPriceTransaction(stock);

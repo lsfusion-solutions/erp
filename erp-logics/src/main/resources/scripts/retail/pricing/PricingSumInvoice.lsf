@@ -26,7 +26,7 @@ retailSum 'Сумма розничная' = ABSTRACT NUMERIC[18,4] (InvoiceDetai
 
 pricingQuantity 'Кол-во (расценено)' = ABSTRACT NUMERIC[16,5] (InvoiceDetail);
 
-retailSumInvoiceDetail 'Сумма розничная' (invoice) = GROUP SUM retailSum(InvoiceDetail idetail) BY invoice(idetail) IN documentSum;
+retailSumInvoiceDetail 'Сумма розничная' (invoice) = GROUP BY invoice(InvoiceDetail idetail) SUM retailSum(idetail) IN documentSum;
 
 META defineInvoicePricingAggregationSum(concrete, concreteClass, sign, captionPre, captionPost, stockProp, prefix)
 
@@ -183,20 +183,20 @@ META defineInvoicePricingRelation(sign, stockProp)
     descriptionIndexInvoiceDetail 'Строка накладной' (PricingDetail detail) = descriptionIndex(invoiceDetail(detail));
     descriptionIndexInvoiceDetail 'Строка накладной' (UserPricingDetail detail) = descriptionIndex(invoiceDetail(detail));
 
-    quantityPricingDetail (invoice, pricing) = GROUP SUM quantity(PricingDetail pricingDetail) BY invoice(invoiceDetail(pricingDetail)), pricing(pricingDetail);
+    quantityPricingDetail (invoice, pricing) = GROUP BY invoice(invoiceDetail(PricingDetail pricingDetail)), pricing(pricingDetail) SUM quantity(pricingDetail);
 
-    invoices 'Накладные' (pricing) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityPricingDetail(invoice, Pricing pricing) , ', '
-                                                    BY pricing
+    invoices 'Накладные' (pricing) = GROUP
+                                                    BY Pricing pricing CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityPricingDetail(invoice, pricing) , ', '
                                                     ORDER invoice IN invoice CHARWIDTH 30 MATERIALIZED;
 
-    pricing 'Кол-во (расценено)' (invoiceDetail) = GROUP SUM quantity(PricingDetail pricingDetail) IF isPosted(pricingDetail)
-                                                                       BY invoiceDetail(pricingDetail) MATERIALIZED;
+    pricing 'Кол-во (расценено)' (invoiceDetail) = GROUP
+                                                                       BY invoiceDetail(PricingDetail pricingDetail) SUM quantity(pricingDetail) IF isPosted(pricingDetail) MATERIALIZED;
 
     toPricing 'Не расценено' (InvoiceDetail invoiceDetail) = quantity (invoiceDetail) (-) pricing(invoiceDetail);
 
     toPricingInvoiceDetail 'Не расценено по отделу' (stock, invoice) =
-        GROUP SUM toPricing(InvoiceDetail invoiceDetail) IF toPricing(invoiceDetail) > 0
-              BY stockProp(invoiceDetail), invoice(invoiceDetail);
+        GROUP
+              BY stockProp(InvoiceDetail invoiceDetail), invoice(invoiceDetail) SUM toPricing(invoiceDetail) IF toPricing(invoiceDetail) > 0;
 
     // Создание расценки на основе инвойса //
 

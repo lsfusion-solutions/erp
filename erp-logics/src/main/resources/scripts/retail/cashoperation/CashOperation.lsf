@@ -41,13 +41,13 @@ isNotPrinted 'Не распечатан' (OutcomeCashOrder outcomeCashOrder) =
     outcomeCashOrder IS OutcomeCashOrder  AND NOT isPrinted(outcomeCashOrder);
 
 curSumIncomeCashOrder 'Текущая сумма ПКО' (departmentStore) =
-    GROUP SUM sumCash(IncomeCashOrder incomeCashOrder) IF isPosted(incomeCashOrder)
-    BY departmentStore(incomeCashOrder);
+    GROUP
+    BY departmentStore(IncomeCashOrder incomeCashOrder) SUM sumCash(incomeCashOrder) IF isPosted(incomeCashOrder);
 
 sumAIncomeCashOrder 'Сумма ПКО после даты/время' (departmentStore, date) =
-    GROUP SUM sumCash(IncomeCashOrder incomeCashOrder) IF isPosted(incomeCashOrder) AND
-              dateTime(incomeCashOrder) > DATETIME date
-    BY departmentStore(incomeCashOrder), date;
+    GROUP
+    BY departmentStore(IncomeCashOrder incomeCashOrder), DATETIME date SUM sumCash(incomeCashOrder) IF isPosted(incomeCashOrder) AND
+              dateTime(incomeCashOrder) > date;
 
 sumIncomeCashOrder 'Сумма ПКО на дату/время' (DepartmentStore departmentStore, DATETIME date) =
     curSumIncomeCashOrder(departmentStore) (-)
@@ -56,13 +56,13 @@ sumIncomeCashOrder 'Сумма ПКО на дату/время' (DepartmentStore
 sumCash 'Сумма' = ABSTRACT NUMERIC[18,4] (OutcomeCashOrder) IN documentSum;
 
 curSumOutcomeCashOrder 'Текущая сумма РКО' (departmentStore) =
-    GROUP SUM sumCash(OutcomeCashOrder outcomeCashOrder) IF isPosted(outcomeCashOrder)
-    BY departmentStore(outcomeCashOrder);
+    GROUP
+    BY departmentStore(OutcomeCashOrder outcomeCashOrder) SUM sumCash(outcomeCashOrder) IF isPosted(outcomeCashOrder);
 
 sumAOutcomeCashOrder 'Сумма РКО после даты/время' (departmentStore, date) =
-    GROUP SUM sumCash(OutcomeCashOrder outcomeCashOrder) IF isPosted(outcomeCashOrder) AND
-              dateTime(outcomeCashOrder) > DATETIME date
-    BY departmentStore(outcomeCashOrder), date;
+    GROUP
+    BY departmentStore(OutcomeCashOrder outcomeCashOrder), DATETIME date SUM sumCash(outcomeCashOrder) IF isPosted(outcomeCashOrder) AND
+              dateTime(outcomeCashOrder) > date;
 
 sumOutcomeCashOrder 'Сумма РКО на дату/время' (DepartmentStore departmentStore, DATETIME date) =
     curSumOutcomeCashOrder(departmentStore) (-)
@@ -152,13 +152,13 @@ basis 'Основание' (IncomeCashOperation incomeCashOperation) =
     'Внесение денег №' + seriesNumber(incomeCashOperation) + ' с кассы ' + numberCashRegister(incomeCashOperation) + ' от ' + date(incomeCashOperation) IN documentPrm;
 
 curSumIncomeOperation 'Текущая сумма внесенных денег' (cashRegister) =
-    GROUP SUM sumCash(IncomeCashOperation incomeCashOperation)
-    BY cashRegister[CashOperation](incomeCashOperation);
+    GROUP
+    BY cashRegister[CashOperation](IncomeCashOperation incomeCashOperation) SUM sumCash(incomeCashOperation);
 
 sumAIncomeOperation 'Сумма внесенных денег после даты/время' (cashRegister, date) =
-    GROUP SUM sumCash(IncomeCashOperation incomeCashOperation) IF
-              dateTime[CashOperation](incomeCashOperation) > DATETIME date
-    BY cashRegister[CashOperation](incomeCashOperation), date;
+    GROUP
+    BY cashRegister[CashOperation](IncomeCashOperation incomeCashOperation), DATETIME date SUM sumCash(incomeCashOperation) IF
+              dateTime[CashOperation](incomeCashOperation) > date;
 
 sumIncomeOperation 'Сумма внесенных денег на дату/время' (CashRegister cashRegister, DATETIME date) =
     curSumIncomeOperation(cashRegister) (-)
@@ -221,13 +221,13 @@ basis 'Основание' (OutcomeCashOperation outcomeCashOperation) =
     CONCAT '', 'Изъятие денег',' №' + seriesNumber(outcomeCashOperation) , ' с кассы ' + numberCashRegister(outcomeCashOperation), ' от ' + date(outcomeCashOperation) IN documentPrm;
 
 curSumOutcomeOperation 'Текущая сумма изъятых денег' (cashRegister) =
-    GROUP SUM sumCash(OutcomeCashOperation outcomeCashOperation)
-    BY cashRegister[CashOperation](outcomeCashOperation);
+    GROUP
+    BY cashRegister[CashOperation](OutcomeCashOperation outcomeCashOperation) SUM sumCash(outcomeCashOperation);
 
 sumAOutcomeOperation 'Сумма изъятых денег после даты/время' (cashRegister, date) =
-    GROUP SUM sumCash(OutcomeCashOperation outcomeCashOperation) IF
-              dateTime[CashOperation](outcomeCashOperation) > DATETIME date
-    BY cashRegister[CashOperation](outcomeCashOperation), date;
+    GROUP
+    BY cashRegister[CashOperation](OutcomeCashOperation outcomeCashOperation), DATETIME date SUM sumCash(outcomeCashOperation) IF
+              dateTime[CashOperation](outcomeCashOperation) > date;
 
 sumOutcomeOperation 'Сумма изъятых денег на дату/время' (CashRegister cashRegister, DATETIME date) =
     curSumOutcomeOperation(cashRegister) (-)
