@@ -30,14 +30,6 @@ public class DefaultExportXMLActionProperty extends DefaultExportActionProperty 
         super(LM, classes);
     }
 
-    protected void outputXml(Document doc, Writer outputStreamWriter, String encoding) throws IOException {
-        XMLOutputter xmlOutput = new XMLOutputter();
-        xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
-        PrintWriter fw = new PrintWriter(outputStreamWriter);
-        xmlOutput.output(doc, fw);
-        fw.close();
-    }
-
     protected void setAttribute(Element element, String id, Object value) {
         if (value != null)
             element.setAttribute(new Attribute(id, String.valueOf(value)));
@@ -89,6 +81,14 @@ public class DefaultExportXMLActionProperty extends DefaultExportActionProperty 
     protected void addStringElement(Namespace namespace, Element parent, String id, String value) {
         if (value != null)
             parent.addContent(new Element(id, namespace).setText(value));
+    }
+
+    protected void outputXml(Document doc, Writer outputStreamWriter, String encoding) throws IOException {
+        XMLOutputter xmlOutput = new XMLOutputter();
+        xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
+        PrintWriter fw = new PrintWriter(outputStreamWriter);
+        xmlOutput.output(doc, fw);
+        fw.close();
     }
 
     protected String outputXML(Document doc, String encoding, String outputDir) {

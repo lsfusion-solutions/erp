@@ -2,10 +2,17 @@ package lsfusion.erp.region.by.integration.edi;
 
 import lsfusion.base.Pair;
 import lsfusion.erp.integration.DefaultExportXMLActionProperty;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ValueClass;
+import lsfusion.server.data.SQLHandledException;
+import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
@@ -36,12 +43,15 @@ import org.jdom.input.SAXBuilder;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 
 abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
     static Namespace soapenvNamespace = Namespace.getNamespace("soapenv", "http://schemas.xmlsoap.org/soap/envelope/");
     static Namespace topNamespace = Namespace.getNamespace("top", "http://topby.by/");
+    static Namespace ns2Namespace = Namespace.getNamespace("ns2", "http://ws.services.eds.topby.by/");
+    static Namespace wsNamespace = Namespace.getNamespace("ws", "http://ws.services.eds.topby.by/");
 
     String charset = "UTF-8";
 
@@ -89,6 +99,104 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         return outputXMLString(doc, charset, null, null, false);
     }
 
+
+    protected String signDocument(String documentType, String invoiceNumber, String hostEDSService, Integer portEDSService, String xml, String aliasEDSService, String passwordEDSService, String charset) throws IOException, JDOMException {
+        String urlEDSService = String.format("http://%s:%s/eds/services/EDSService?wsdl", hostEDSService, portEDSService);
+        String responseMessage = getResponseMessage(sendRequest(hostEDSService, portEDSService, "eds", "eds", urlEDSService, createSignRequest(xml, aliasEDSService, passwordEDSService, charset), null, true));
+        String error = null;
+        SAXBuilder builder = new SAXBuilder();
+        Document document = builder.build(IOUtils.toInputStream(responseMessage));
+        Element rootNode = document.getRootElement();
+        Namespace ns = rootNode.getNamespace();
+        if (ns != null) {
+            Element body = rootNode.getChild("Body", ns);
+            if (body != null) {
+                Element faultElement = body.getChild("Fault", ns);
+                if (faultElement != null) {
+                    error = faultElement.getChildText("faultstring");
+                } else {
+                    Element response = body.getChild("GetEDSResponse", ns2Namespace);
+                    if (response != null) {
+                        String waybill = response.getChildText("waybill");
+                        if (waybill != null) {
+                            responseMessage = StringEscapeUtils.unescapeXml(waybill);
+                        }
+                    }
+
+                }
+            }
+        }
+        if (error != null)
+            throw new RuntimeException(String.format("%s %s не подписан. Ошибка: %s", documentType, invoiceNumber, error));
+        return responseMessage;
+    }
+
+    private String createSignRequest(String xml, String alias, String password, String charset) {
+
+        Element rootElement = new Element("Envelope", soapenvNamespace);
+        rootElement.setNamespace(soapenvNamespace);
+        rootElement.addNamespaceDeclaration(soapenvNamespace);
+        rootElement.addNamespaceDeclaration(wsNamespace);
+        Document doc = new Document(rootElement);
+        doc.setRootElement(rootElement);
+
+        Element headerElement = new Element("Header", soapenvNamespace);
+        rootElement.addContent(headerElement);
+
+        Element bodyElement = new Element("Body", soapenvNamespace);
+
+        Element getEDSElement = new Element("GetEDS", wsNamespace);
+        addStringElement(getEDSElement, "waybill", String.format("<![CDATA[%s]]>", xml));
+
+        Element keyInfoElement = new Element("keyInfo");
+        addStringElement(keyInfoElement, "alias", alias);
+        addStringElement(keyInfoElement, "password", password);
+        getEDSElement.addContent(keyInfoElement);
+
+        bodyElement.addContent(getEDSElement);
+
+        rootElement.addContent(bodyElement);
+
+        return outputXMLString(doc, charset, null, null, true);
+    }
+
+    protected void sendDocument(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String invoiceNumber, String documentXML,
+                              DataObject eInvoiceObject, boolean showMessages, boolean isCancel, int step) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+
+        HttpResponse httpResponse = sendRequest(host, port, login, password, url, documentXML, null);
+        RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
+        switch (requestResult) {
+            case OK:
+                if (showMessages) {
+                    ServerLoggers.importLogger.info(String.format("%s SendEInvoice %s request succeeded", provider, invoiceNumber));
+                    switch (step) {
+                        case 1:
+                            findProperty("exportedSupplier[EInvoice]").change(true, context, eInvoiceObject);
+                            break;
+                        case 3:
+                            findProperty("exportedCustomer[EInvoice]").change(true, context, eInvoiceObject);
+                            break;
+                        case 4:
+                            findProperty("importedSupplier[EInvoice]").change(true, context, eInvoiceObject);
+                            break;
+                    }
+                    context.delayUserInteraction(new MessageClientAction(String.format("%s Накладная %s%s выгружена", provider, invoiceNumber, isCancel ? " (отмена)" : ""), "Экспорт"));
+                    context.apply();
+                }
+                break;
+            case AUTHORISATION_ERROR:
+                ServerLoggers.importLogger.error(String.format("%s SendEInvoice %s: invalid login-password", provider, invoiceNumber));
+                if (showMessages) {
+                    context.delayUserInteraction(new MessageClientAction(String.format("%s Накладная %s не выгружена: ошибка авторизации", provider, invoiceNumber), "Экспорт"));
+                }
+                break;
+            case UNKNOWN_ERROR:
+                ServerLoggers.importLogger.error(String.format("%s SendEInvoice %s: unknown error", provider, invoiceNumber));
+                if (showMessages) {
+                    context.delayUserInteraction(new MessageClientAction(String.format("%s Накладная %s не выгружена: неизвестная ошибка", provider, invoiceNumber), "Экспорт"));
+                }
+        }
+    }
 
     HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, Pair<String, byte[]> file) throws IOException {
         return sendRequest(host, port, login, password, url, xml, file, false);
