@@ -96,9 +96,9 @@ public class ShuttleBoardDaemon extends BoardDaemon {
                         ip = inetAddress.getHostAddress();
                         ipMap.put(inetAddress, ip);
                     }
-                    byte[] message = readMessage(barcode.toString(), ip);
-                    outToClient.write(message);
-                    terminalLogger.info(String.format("Shuttle successed request ip %s, barcode %s", ip, barcode.toString()));
+                    Result result = readMessage(barcode.toString(), ip);
+                    outToClient.write(result.bytes);
+                    terminalLogger.info(String.format("%s succeeded request ip %s, barcode %s, reply %s", getEventName(), ip, barcode.toString(), new String(result.bytes, 3, result.bytes.length - 3, result.charset)));
                 }
                 Thread.sleep(1000);
                 return null;
@@ -118,8 +118,11 @@ public class ShuttleBoardDaemon extends BoardDaemon {
             return null;
         }
 
-        private byte[] readMessage(String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
+        private Result readMessage(String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
             terminalLogger.info(String.format("Shuttle request ip %s, barcode %s", ip, idBarcode));
+            //хак. Иногда приходит штрихкод, начинающийся с F
+            if(idBarcode.startsWith("F"))
+                idBarcode = idBarcode.substring(1);
             try (DataSession session = dbManager.createSession()) {
 
                 String weightPrefix = (String) LM.findProperty("weightPrefixIP").read(session, new DataObject(ip));
@@ -146,10 +149,10 @@ public class ShuttleBoardDaemon extends BoardDaemon {
                     if (price == null || price.equals(BigDecimal.ZERO)) {
                         error = "Штрихкод не найден";
                     } else {
-                        return getPriceBytes(captionBytes, price, charset);
+                        return new Result(getPriceBytes(captionBytes, price, charset), charset);
                     }
                 }
-                return getErrorBytes(error, charset);
+                return new Result(getErrorBytes(error, charset), charset);
             }
         }
 
@@ -212,6 +215,16 @@ public class ShuttleBoardDaemon extends BoardDaemon {
                 bytes.add(carriageReturn);
             }
             return ArrayUtils.toPrimitive(bytes.toArray(new Byte[bytes.size()]));
+        }
+
+        private class Result {
+            byte[] bytes;
+            String charset;
+
+            public Result(byte[] bytes, String charset) {
+                this.bytes = bytes;
+                this.charset = charset;
+            }
         }
     }
 }
