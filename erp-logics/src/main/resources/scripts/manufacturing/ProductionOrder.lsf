@@ -898,9 +898,21 @@ skip(d) = ABSTRACT BOOLEAN (ComponentDetail);
 valueVAT(ComponentDetail d) = OVERRIDE valueVAT(batch(d)) IF (valueVAT(batch(d)) !=0.0), valueVAT(sku(d), order(d)) MATERIALIZED;
 sumVAT (ComponentDetail d) = sum(d) * valueVAT(d) / (100.0 + valueVAT(d));
 sumVATComponents (ProductDetail d) = [= GROUP SUM sumVAT(ComponentDetail d) IF NOT skip(d) BY BOM(d), order(d)](BOM(d), order(d)); 
-sumVATComponentDetail = GROUP SUM sum(ComponentDetail d) IF NOT skip(d) BY BOM(d), order(d);
-calcValueVAT 'НДС, %' = OVERRIDE (sumVATComponents(ProductDetail d) * 100.0 /
-                                                                     (sumVATComponentDetail(BOM(d), order(d)) - sumVATComponents(d))), 0.0;
+sumVATComponentDetail = GROUP SUM sum(ComponentDetail d) IF NOT skip(d) BY BOM(d), order(d);                                                            
+      
+useVATItem 'НДС изделия из карточки' = DATA BOOLEAN (Operation);
+EXTEND FORM operation PROPERTIES (o) useVATItem;
+
+DESIGN operation {
+    paramsContainer {
+        MOVE PROPERTY(useVATItem(o));
+    }
+}
+  
+calcValueVAT 'НДС, %' = OVERRIDE  valueVAT(sku(ProductDetail d),productsStock(d), date(d)) IF useVATItem(operation(d)),
+                                                    (sumVATComponents(d) * 100.0 / (sumVATComponentDetail(BOM(d), order(d)) - sumVATComponents(d))), 
+                                                    0.0;        
+                                                     
 // Расчет цен для изделий
 overFillPrice = ABSTRACT LIST (ProductDetail);
 fillPrice 'Заполнить цены для изделий'(ProductDetail detail) = {
