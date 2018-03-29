@@ -476,7 +476,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             for (CashRegisterInfo cashRegister : getCashRegisterSet(entry, true)) {
                 String directory = cashRegister.directory + "/sale" + cashRegister.number;
                 try {
-                    sendSalesLogger.info(logPrefix + "creating request file for directory : " + directory);
+                    sendSalesLogger.info(logPrefix + "creating request file for directory: " + directory);
                     if (new File(directory).exists() || new File(directory).mkdirs()) {
                         String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
                         String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
@@ -487,10 +487,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             String data = String.format("###\n%s-%s", dateFrom, dateTo);
                             writer.write(data);
                             writer.close();
-                        } /*else {
-                            failedRequests.put(entry.requestExchange, new RuntimeException("Previous sale.req is not processed in directory " + directory));
-                        }*/
+                            sendSalesLogger.info(logPrefix + "created request file for directory: " + directory);
+                        } else {
+                            sendSalesLogger.info(logPrefix + "request file already exists in directory: " + directory);
+                        }
                     } else {
+                        sendSalesLogger.info(logPrefix + "failed to create directory: " + directory);
                         failedRequests.put(entry.requestExchange, new RuntimeException("Failed to create directory " + directory));
                     }
                 } catch (Exception e) {
