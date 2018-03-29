@@ -35,7 +35,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -159,20 +158,20 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                             break;
                                         case "blrwbl":
                                             if (invoices)
-                                                eInvoices.put(documentId, parseEInvoice(subXMLRootNode));
+                                                eInvoices.put(documentId, parseBLRWBL(subXMLRootNode));
                                             break;
                                         case "blrapn":
                                             if (invoices)
                                                 invoiceMessages.put(documentId, parseInvoiceMessage(context, subXMLRootNode, provider, documentId));
                                             break;
                                     }
-                                } catch (JDOMException | ParseException e) {
+                                } catch (JDOMException e) {
                                     ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
                                 }
 
                                 if (archiveDir != null) {
                                     try {
-                                        FileUtils.writeStringToFile(new File(archiveDir + "/" + documentId), subXML);
+                                        FileUtils.writeStringToFile(new File(archiveDir + "/received/" + documentId), subXML);
                                     } catch (Exception e) {
                                         ServerLoggers.importLogger.error("Archive file error: ", e);
                                     }
@@ -252,7 +251,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             for (Map.Entry<String, DocumentData> eInvoice : eInvoices.entrySet()) {
                 String documentId = eInvoice.getKey();
                 DocumentData data = eInvoice.getValue();
-                String error = importEInvoices(context, data);
+                String error = importBLRWBL(context, data);
                 succeededMap.put(documentId, Pair.create(data.documentNumber, error));
                 if (error == null) {
                     ServerLoggers.importLogger.info(String.format("%s Import EInvoice %s succeeded", provider, documentId));
@@ -854,7 +853,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private DocumentData parseEInvoice(Element rootNode) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, ParseException {
+    private DocumentData parseBLRWBL(Element rootNode) {
         List<List<Object>> data = new ArrayList<>();
 
         Element messageHeaderElement = rootNode.getChild("MessageHeader");
@@ -901,7 +900,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new DocumentData(documentNumber, data, null);
     }
 
-    private String importEInvoices(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importBLRWBL(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String message = null;
         List<List<Object>> importData = data == null ? null : data.firstData;
         if (importData != null && !importData.isEmpty()) {

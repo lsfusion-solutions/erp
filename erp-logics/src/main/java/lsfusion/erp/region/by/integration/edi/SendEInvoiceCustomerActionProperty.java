@@ -18,7 +18,6 @@ import org.apache.http.HttpResponse;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
-import org.jdom.output.XMLOutputter;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -113,42 +112,6 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
         } else {
             context.delayUserInteraction(new MessageClientAction(provider + " SendEInvoice disabled, change serverComputer() to enable", "Экспорт"));
         }
-    }
-
-    private String generateXML(String login, String password, String documentNumber, String documentDate, String glnCustomer, String glnCustomerStock, String documentXML, String type) {
-        Element rootElement = new Element("Envelope", soapenvNamespace);
-        rootElement.setNamespace(soapenvNamespace);
-        rootElement.addNamespaceDeclaration(soapenvNamespace);
-        rootElement.addNamespaceDeclaration(topNamespace);
-
-        Document doc = new Document(rootElement);
-        doc.setRootElement(rootElement);
-
-        //parent: rootElement
-        Element headerElement = new Element("Header", soapenvNamespace);
-        rootElement.addContent(headerElement);
-
-        //parent: rootElement
-        Element bodyElement = new Element("Body", soapenvNamespace);
-        rootElement.addContent(bodyElement);
-
-        //parent: bodyElement
-        Element sendDocumentElement = new Element("SendDocument", topNamespace);
-        bodyElement.addContent(sendDocumentElement);
-
-        addStringElement(topNamespace, sendDocumentElement, "username", login);
-        addStringElement(topNamespace, sendDocumentElement, "password", password);
-        addStringElement(topNamespace, sendDocumentElement, "filename", "invoice" + documentNumber);
-        addStringElement(topNamespace, sendDocumentElement, "documentDate", documentDate);
-        addStringElement(topNamespace, sendDocumentElement, "documentNumber", documentNumber);
-        addStringElement(topNamespace, sendDocumentElement, "senderCode", glnCustomer);
-        addStringElement(topNamespace, sendDocumentElement, "receiverCode", glnCustomer);
-        addStringElement(topNamespace, sendDocumentElement, "deliveryPointCode", glnCustomerStock);
-
-        addStringElement(topNamespace, sendDocumentElement, "documentType", type);
-        addStringElement(topNamespace, sendDocumentElement, "content", documentXML);
-
-        return new XMLOutputter().outputString(doc);
     }
 
     private void sendDocument(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String referenceNumber, String documentXML,
@@ -259,7 +222,7 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
                             String glnCustomer, String glnCustomerStock, boolean showMessages) throws JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         boolean result = false;
         if(signedDocument instanceof byte[]) {
-            sendDocument(context, url, login, password, host, port, provider, referenceNumber, generateXML(login, password, documentNumber, documentDate, glnCustomer, glnCustomerStock,
+            sendDocument(context, url, login, password, host, port, provider, referenceNumber, generateXML(login, password, documentNumber, documentDate, glnCustomer, glnCustomer, glnCustomerStock,
                     new String(Base64.encodeBase64((byte[]) signedDocument)), "BLRAPN"), eInvoiceObject, showMessages);
             result = true;
         } else {
@@ -383,7 +346,7 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
                                String glnCustomer, String glnCustomerStock) throws JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         boolean result = false;
         if(signedDocument instanceof byte[]) {
-            sendDocument(context, url, login, password, host, port, provider, referenceNumber, generateXML(login, password, documentNumber, documentDate, glnCustomer, glnCustomerStock,
+            sendDocument(context, url, login, password, host, port, provider, referenceNumber, generateXML(login, password, documentNumber, documentDate, glnCustomer, glnCustomer, glnCustomerStock,
                     new String(Base64.encodeBase64((byte[]) signedDocument)), "BLRWBR"), eInvoiceObject, true);
             result = true;
         } else {

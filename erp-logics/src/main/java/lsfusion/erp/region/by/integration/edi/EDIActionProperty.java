@@ -53,6 +53,43 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         super(LM, classes);
     }
 
+    protected String generateXML(String login, String password, String documentNumber, String documentDate, String senderCode, String receiverCode, String deliveryPointCode, String documentXML, String type) {
+        Element rootElement = new Element("Envelope", soapenvNamespace);
+        rootElement.setNamespace(soapenvNamespace);
+        rootElement.addNamespaceDeclaration(soapenvNamespace);
+        rootElement.addNamespaceDeclaration(topNamespace);
+
+        Document doc = new Document(rootElement);
+        doc.setRootElement(rootElement);
+
+        //parent: rootElement
+        Element headerElement = new Element("Header", soapenvNamespace);
+        rootElement.addContent(headerElement);
+
+        //parent: rootElement
+        Element bodyElement = new Element("Body", soapenvNamespace);
+        rootElement.addContent(bodyElement);
+
+        //parent: bodyElement
+        Element sendDocumentElement = new Element("SendDocument", topNamespace);
+        bodyElement.addContent(sendDocumentElement);
+
+        addStringElement(topNamespace, sendDocumentElement, "username", login);
+        addStringElement(topNamespace, sendDocumentElement, "password", password);
+        addStringElement(topNamespace, sendDocumentElement, "filename", "invoice" + documentNumber);
+        addStringElement(topNamespace, sendDocumentElement, "documentDate", documentDate);
+        addStringElement(topNamespace, sendDocumentElement, "documentNumber", documentNumber);
+        addStringElement(topNamespace, sendDocumentElement, "senderCode", senderCode);
+        addStringElement(topNamespace, sendDocumentElement, "receiverCode", receiverCode);
+        addStringElement(topNamespace, sendDocumentElement, "deliveryPointCode", deliveryPointCode);
+
+        addStringElement(topNamespace, sendDocumentElement, "documentType", type);
+        addStringElement(topNamespace, sendDocumentElement, "content", documentXML);
+
+        return outputXMLString(doc, charset, null, null, false);
+    }
+
+
     HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, Pair<String, byte[]> file) throws IOException {
         return sendRequest(host, port, login, password, url, xml, file, false);
     }
@@ -68,7 +105,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         HttpEntity entity;
         if (file == null || file.second == null) {
             entity = new StringEntity(xml, StandardCharsets.UTF_8);
-            httpPost.addHeader("Content-type", "text/xml");
+            httpPost.addHeader("Content-type", "text/xml; charset=UTF-8");
         } else {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addPart(FormBodyPartBuilder.create("xml", new StringBody(xml, ContentType.create("application/xml", Charset.forName("UTF-8")))).build());
