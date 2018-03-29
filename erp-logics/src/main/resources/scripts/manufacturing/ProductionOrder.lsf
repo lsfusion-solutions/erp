@@ -908,8 +908,8 @@ DESIGN operation {
         MOVE PROPERTY(useVATItem(o));
     }
 }
-  
-calcValueVAT 'НДС, %' = OVERRIDE  valueVAT(sku(ProductDetail d),productsStock(d), date(d)) IF useVATItem(operation(d)),
+overCalcValueVAT = ABSTRACT NUMERIC[10,5](ProductDetail); 
+calcValueVAT 'НДС, %' (ProductDetail d) = OVERRIDE  overCalcValueVAT(d),
                                                     (sumVATComponents(d) * 100.0 / (sumVATComponentDetail(BOM(d), order(d)) - sumVATComponents(d))), 
                                                     0.0;        
                                                      
@@ -1730,6 +1730,8 @@ DESIGN operation {
         MOVE PROPERTY(hideBatchComponent(o));
     }
 }
+
+overCalcValueVAT(ProductDetail d)+= valueVAT(sku(d),productsStock(d), date(d)) IF useVATItem(operation(d));
 
 filterOrderOperation = DATA LOCAL Operation ();
 nameFilterOrderOperation 'Операция' = name(filterOrderOperation()) CHARWIDTH 15;          
