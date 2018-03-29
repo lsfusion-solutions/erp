@@ -50,33 +50,6 @@ public class ImportPurchaseInvoiceSkuImportCode extends ImportDefaultPurchaseInv
                 }
             }
 
-            if (showField(userInvoiceDetailsList, "importCodeCountry")) {
-                ImportField countryIdImportCodeField = new ImportField(LM.findProperty("countryId[ImportCode]"));
-                ImportKey<?> importCodeKey = new ImportKey((ConcreteCustomClass) LM.findClass("ImportCode"),
-                        LM.findProperty("countryImportCode[VARSTRING[100]]").getMapping(countryIdImportCodeField));
-                keys.add(importCodeKey);
-                ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) LM.findClass("Country"),
-                        LM.findProperty("countryIdImportCode[VARSTRING[100]]").getMapping(countryIdImportCodeField));
-                keys.add(countryKey);
-                props.add(new ImportProperty(countryIdImportCodeField, LM.findProperty("countryId[ImportCode]").getMapping(importCodeKey)));
-                props.add(new ImportProperty(countryIdImportCodeField, LM.findProperty("country[ImportCode]").getMapping(importCodeKey),
-                        object(LM.findClass("Country")).getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "importCodeCountry")));
-                props.add(new ImportProperty(countryIdImportCodeField, LM.findProperty("country[Item]").getMapping(itemKey),
-                        object(LM.findClass("Country")).getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "importCodeCountry")));
-                props.add(new ImportProperty(countryIdImportCodeField, LM.findProperty("name[Country]").getMapping(countryKey), true));
-                fields.add(countryIdImportCodeField);
-                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("importCodeCountry"));
-
-/*                if (showField(userInvoiceDetailsList, "nameCountry")) {
-                    ImportField nameCountryField = new ImportField(LM.findProperty("name[Country]"));
-                    props.add(new ImportProperty(nameCountryField, LM.findProperty("name[Country]").getMapping(countryKey), true));
-                    fields.add(nameCountryField);
-                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameCountry"));
-                }*/
-            }
-
             if (showField(userInvoiceDetailsList, "importCodeUOM")) {
                 ImportField UOMIdImportCodeField = new ImportField(LM.findProperty("UOMId[ImportCode]"));
                 ImportKey<?> importCodeKey = new ImportKey((ConcreteCustomClass) LM.findClass("ImportCode"),

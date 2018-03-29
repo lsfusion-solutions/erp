@@ -17,6 +17,13 @@ CLASS KeyType 'Ключ товара' {
     importCode 'Код импорта'
 }
 
+CLASS CountryKeyType 'Ключ страны' {
+    sidOrigin2Country 'Код страны 2 знака',
+    nameCountry 'Наименование страны',
+    nameOriginCountry 'Наименование страны (ориг.)',
+    importCodeCountry 'Код импорта страны'
+}
+
 CLASS CustomKeyType 'Ключ свойства' {
     item 'Товар',
     article   'Артикул',
@@ -125,6 +132,10 @@ secondaryKeyType 'Тип вторичного ключа' = DATA KeyType(ImportT
 captionSecondaryKeyType 'Тип вторичного ключа' (ImportType importType) = staticCaption(secondaryKeyType(importType));
 nameSecondaryKeyType 'Тип вторичного ключа' (ImportType importType) = staticName(secondaryKeyType(importType));
 
+countryKeyType 'Тип ключа для страны' = DATA CountryKeyType(ImportType);
+captionCountryKeyType 'Тип ключа для страны' (ImportType importType) = staticCaption(countryKeyType(importType));
+nameCountryKeyType 'Тип ключа для страны' (ImportType importType) = staticName(countryKeyType(importType));
+
 keyIsDigit 'Ключ содержит только цифры' (importType) = DATA BOOLEAN(ImportType);
 checkArticles 'Проверять артикулы на изменение' (importType) = DATA BOOLEAN(ImportType); 
 multipleDocuments 'Несколько документов в одном файле' (importType) = DATA BOOLEAN(ImportType); 
@@ -198,6 +209,12 @@ FORM customKeyTypes 'Ключи свойства'
     LIST CustomKeyType OBJECT k
 ;
 
+FORM countryKeyTypes 'Ключи товара'
+    OBJECTS k=CountryKeyType
+    PROPERTIES(k) READONLY staticCaption
+    LIST CountryKeyType OBJECT k
+;
+
 showSeparator (ImportType importType) = fileExtension(importType)==FileExtension.csv OR fileExtension(importType)==FileExtension.txt;
 
 FORM importType 'Тип импорта'
@@ -206,6 +223,7 @@ FORM importType 'Тип импорта'
                   separator SHOWIF showSeparator(i), captionPrimaryKeyType, checkExistencePrimaryKey,
                   captionSecondaryKeyType, keyIsDigit, 
                   checkArticles, propertyImportTypeDetail SHOWIF checkArticles(i), 
+                  captionCountryKeyType,
                   multipleDocuments,
                   useStockMapping, autoImport, 
                   autoImportDirectory SHOWIF autoImport(i),
@@ -264,8 +282,8 @@ FORM importTypes 'Типы импорта'
     OBJECTS i=ImportType
     PROPERTIES(i) READONLY name, captionFileExtension, startRow, isPosted,
                    separator SHOWIF showSeparator(i), captionPrimaryKeyType, checkExistencePrimaryKey,
-                   captionSecondaryKeyType, keyIsDigit, 
-                   checkArticles, multipleDocuments, autoImport, autoImportDirectory SHOWIF autoImport(i)
+                   captionSecondaryKeyType, keyIsDigit, checkArticles, captionCountryKeyType, 
+                   multipleDocuments, autoImport, autoImportDirectory SHOWIF autoImport(i)
     ORDER name(i)                   
     LIST ImportType OBJECT i
 ;
@@ -274,8 +292,7 @@ EXTEND FORM integrationData
     OBJECTS i=ImportType
     PROPERTIES(i) READONLY name, captionFileExtension, startRow, isPosted,
                    separator SHOWIF showSeparator(i), captionPrimaryKeyType, checkExistencePrimaryKey, 
-                   captionSecondaryKeyType, keyIsDigit, 
-                   checkArticles, multipleDocuments
+                   captionSecondaryKeyType, keyIsDigit, checkArticles, captionCountryKeyType, multipleDocuments
     PROPERTIES(i) NEWSESSION NEW, EDIT, DELETE 
 ;
 
