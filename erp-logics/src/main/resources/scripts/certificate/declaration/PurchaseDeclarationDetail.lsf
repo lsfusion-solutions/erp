@@ -735,7 +735,7 @@ DESIGN options {
 numberOrder (DeclarationDetail d) = ABSTRACT VALUE VARSTRING[100] (DeclarationDetail);
 numberOrder (DeclarationDetail d) += VARSTRING[100](codeCustomsGroup(d) IF NOT notOrderCustomsGroup());
 numberDefault 'Номер' (DeclarationDetail d) =
-        PARTITION SUM 1 IF d IS DeclarationDetail AND NOT userNumber(d) BY declaration(d)
+        PARTITION BY declaration(d) SUM 1 IF d IS DeclarationDetail AND NOT userNumber(d)
         ORDER numberOrder(d), d;
 
 number 'Номер' (DeclarationDetail declarationDetail) = OVERRIDE userNumber(declarationDetail), numberDefault(declarationDetail) CHARWIDTH 4 IN recognize;
@@ -1235,7 +1235,7 @@ DESIGN declarations {
 
 // Перенумерация
 numerateDetails 'Перенумеровать' (DeclarationDetail d) = {
-    userNumber(DeclarationDetail dd) <- PARTITION SUM 1 IF dd IS DeclarationDetail BY declaration(dd)
+    userNumber(DeclarationDetail dd) <- PARTITION BY declaration(dd) SUM 1 IF dd IS DeclarationDetail
                           ORDER [= ORDER declaration.dd](dd), dd WHERE declaration(dd) == declaration(d);
 } ASON CONTEXTMENU number[DeclarationDetail];  
 
@@ -1276,23 +1276,23 @@ WHEN LOCAL FORMS declaration
 dutySum(d) = GROUP BY declarationInvoiceDetail(DeclarationDetail dd) SUM adjustDutySum(dd) MATERIALIZED; 
 
 calcDutySum (UserInvoiceDetail d) =
-    PARTITION UNGROUP dutySum
+    PARTITION
+              BY declarationInvoiceDetail(d) UNGROUP dutySum
               PROPORTION STRICT ROUND(2) sum(d)
-              BY declarationInvoiceDetail(d)
               ORDER d;
 
 calcDataDutySum (UserInvoiceDetail d) =
-    PARTITION UNGROUP dataDutySum
+    PARTITION
+              BY declarationDeclarationInvoiceDetail(d) UNGROUP dataDutySum
               PROPORTION STRICT ROUND(2) sum(d)
-              BY declarationDeclarationInvoiceDetail(d)
               ORDER d;
 
 // Таможенный сбор
 
 calcRegistrationSum 'Таможенный сбор' (UserInvoiceDetail d) =
-    PARTITION UNGROUP registrationSum
+    PARTITION
+              BY declarationDeclarationInvoiceDetail(d) UNGROUP registrationSum
               PROPORTION STRICT ROUND(2) sum(d)
-              BY declarationDeclarationInvoiceDetail(d)
               ORDER d;
 
 // НДС
@@ -1300,17 +1300,17 @@ calcRegistrationSum 'Таможенный сбор' (UserInvoiceDetail d) =
 VATSum(d) = GROUP BY declarationInvoiceDetail(DeclarationDetail dd) SUM adjustVATSum(dd) MATERIALIZED; 
 
 calcVATSum (UserInvoiceDetail d) =
-    PARTITION UNGROUP VATSum
+    PARTITION
+              BY declarationInvoiceDetail(d) UNGROUP VATSum
               PROPORTION STRICT ROUND(2) sum(d)
-              BY declarationInvoiceDetail(d)
               ORDER d;
 
 calcVATPrice 'НДС (ед.)' (UserInvoiceDetail d) = Utils.round(calcVATSum(d) / quantity(d),
                                                            round(declaration(d)));                                                                                                                                                                   
 calcDataVATSum (UserInvoiceDetail d) =
-    PARTITION UNGROUP dataVATSum
+    PARTITION
+              BY declaration(d) UNGROUP dataVATSum
               PROPORTION STRICT ROUND(2) sum(d)
-              BY declaration(d)
               ORDER d;
 calcDataVATPrice 'НДС (ед.)' (UserInvoiceDetail d) = Utils.round(calcDataVATSum(d) / quantity(d),
                                                            round(declaration(d)));     

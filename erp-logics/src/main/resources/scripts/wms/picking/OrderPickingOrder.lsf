@@ -54,9 +54,9 @@ addressToStock 'Пункт разгрузки' = address(toStock(Picking picking
 
 pickingPickingDetail 'Скомплектовано' (order, sku) = GROUP
                                                            BY order(pickingOrder(picking(PickingDetail pickingDetail))), sku(pickingDetail) SUM quantity(pickingDetail);
-pickingQuantity 'Кол-во (скомплектовано)' (OrderDetail orderDetail) = PARTITION UNGROUP pickingPickingDetail
+pickingQuantity 'Кол-во (скомплектовано)' (OrderDetail orderDetail) = PARTITION
+                                                          BY order(orderDetail), sku(orderDetail) UNGROUP pickingPickingDetail
                                                           LIMIT STRICT quantity (orderDetail)
-                                                          BY order(orderDetail), sku(orderDetail)
                                                           ORDER orderDetail MATERIALIZED;
 
 //-- Количество излишне подобранных товаров, которых нет в заказе
@@ -101,7 +101,7 @@ time(OrderPickingOrder order) += time(order);
 
 stock(OrderPickingOrder order) += fromStock(order(order));
 
-index 'Номер комплектации (в заказе)' (OrderPickingOrder pickingOrder) = PARTITION SUM 1 BY order(pickingOrder) ORDER pickingOrder CHARWIDTH 4;
+index 'Номер комплектации (в заказе)' (OrderPickingOrder pickingOrder) = PARTITION BY order(pickingOrder) SUM 1 ORDER pickingOrder CHARWIDTH 4;
 numberIndex 'Комплектации заказа' (OrderPickingOrder pickingOrder) = VARSTRING[28] (CONCAT '/', number(order(pickingOrder)), 
     index(pickingOrder) IF countPickingOrder(order(pickingOrder))>1);
      

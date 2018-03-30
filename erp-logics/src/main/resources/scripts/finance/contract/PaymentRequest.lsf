@@ -76,19 +76,19 @@ CONSTRAINT partyB(contract(PaymentRequest paymentRequest)) != payer(paymentReque
     CHECKED BY contract[PaymentRequest] MESSAGE 'Договор должен соответствовать организациям покупателю и поставщику';
 
 sumInFIFO(PaymentRequest paymentRequest, InContractLedger inContractLedger) =
-    PARTITION UNGROUP sum
+    PARTITION
+              BY paymentRequest UNGROUP sum
               LIMIT toRequest(inContractLedger) IF toRequest(inContractLedger) > 0 AND
                     contract(paymentRequest) == contract(inContractLedger) AND
                     active(inContractLedger)
-              BY paymentRequest
               ORDER date(inContractLedger), number(inContractLedger), inContractLedger;
 
 sumInLIFO(PaymentRequest paymentRequest, InContractLedger inContractLedger) =
-    PARTITION UNGROUP sum
+    PARTITION
+              BY paymentRequest UNGROUP sum
               LIMIT toRequest(inContractLedger) IF toRequest(inContractLedger) > 0 AND
                     contract(paymentRequest) == contract(inContractLedger) AND
                     active(inContractLedger)
-              BY paymentRequest
               ORDER DESC date(inContractLedger), number(inContractLedger), inContractLedger;
 
 writeFIFO 'Расписать по FIFO'(PaymentRequest paymentRequest) = {

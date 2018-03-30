@@ -356,15 +356,15 @@ count 'Количество товара' = DATA LOCAL INTEGER (RangeLevel);
 countRangeLevels = GROUP BY Range r SUM  count(RangeLevel l) IF in(r,l);
 
 indexGroup 'Порядок' (RangeRev v, Sku sku, DATE dateFrom, LedgerPriceListType pt, Stock stock) =
-    PARTITION SUM 1 IF countFilter(range(v), sku, dateFrom) AND companyA(pt, sku, stock, dateTime(v))
-    BY v, dateFrom, pt, stock
+    PARTITION
+    BY v, dateFrom, pt, stock SUM 1 IF countFilter(range(v), sku, dateFrom) AND companyA(pt, sku, stock, dateTime(v))
     ORDER DESC countFilter(range(v), sku, dateFrom), sku;
 
 countFilter 'Кол-во магазинов' (RangeRev v, Sku sku, DATE dateFrom) = countFilter(range(v), sku, dateFrom);
 
 total 'Накоплено' (Range range, RangeLevel level) =
-    PARTITION SUM count(level) IF in(range,level)
-    BY range
+    PARTITION
+    BY range SUM count(level) IF in(range,level)
     ORDER  level;
 total 'Накоплено' = total(range(RangeRev v), RangeLevel level);      
     
@@ -528,7 +528,7 @@ importXls 'Импорт' (RangeRev v) = {
         LOCAL name = VARSTRING[255] (INTEGER);
         LOCAL level = VARSTRING[10] (INTEGER);
         
-        IMPORT XLS TO barcode = A, name = B, level = C FROM f;
+        IMPORT XLS FROM f TO barcode = A, name = B, level = C;
         
         FOR imported(INTEGER i) DO {
             level(v, Sku s) <- rangeLevel(level(i)) WHERE sku(barcode(barcode(i), currentDate())) == s; 

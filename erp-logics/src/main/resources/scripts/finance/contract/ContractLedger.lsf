@@ -192,21 +192,21 @@ debtNotPrePay (InContractLedger i) = debt(i) (-) prePay(i) MATERIALIZED;
 INDEX contract(InContractLedger i), debtNotPrePay(i);
 
 sumInFIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
-    [ = PARTITION UNGROUP notPrePay
+    [ = PARTITION
+              BY OutContractLedger outContractLedger UNGROUP notPrePay
               LIMIT debtNotPrePay(InContractLedger inContractLedger) IF
-                    contract(OutContractLedger outContractLedger) == contract(inContractLedger) AND
+                    contract(outContractLedger) == contract(inContractLedger) AND
                     active(inContractLedger)
-              BY outContractLedger
               ORDER overOrderDate(outContractLedger, inContractLedger), inContractLedger](inContractLedger, outContractLedger) 
     (+) prePay(outContractLedger, inContractLedger);
 
 
 sumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
-    [ = PARTITION UNGROUP notPrePay
+    [ = PARTITION
+              BY OutContractLedger outContractLedger UNGROUP notPrePay
               LIMIT debtNotPrePay(InContractLedger inContractLedger) IF
-                    contract(OutContractLedger outContractLedger) == contract(inContractLedger) AND
+                    contract(outContractLedger) == contract(inContractLedger) AND
                     active(inContractLedger)
-              BY outContractLedger
               ORDER DESC overOrderDate(outContractLedger, inContractLedger), inContractLedger](inContractLedger, outContractLedger)
     (+) prePay(outContractLedger, inContractLedger);    
 
@@ -228,11 +228,11 @@ sumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedge
 
 negativeSum 'Обратная сумма' (OutContractLedger outContractLedger) = -sum(outContractLedger);
 negativeSumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
-    PARTITION UNGROUP negativeSum
+    PARTITION
+              BY outContractLedger UNGROUP negativeSum
               LIMIT costedOutContractLedger(inContractLedger) IF
                     contract(outContractLedger) == contract(inContractLedger) AND
                     active(inContractLedger)
-              BY outContractLedger
               ORDER DESC overOrderDate(outContractLedger, inContractLedger), inContractLedger;
               
 skipCost = ABSTRACT BOOLEAN (OutContractLedger); 
@@ -336,7 +336,7 @@ writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразн
         cost(OutContractLedger ol, InContractLedger il) <- NULL WHERE changed(ol) AND costedInContractLedger(ol);
         
         LOCAL ordered = INTEGER (OutContractLedger);
-        ordered(OutContractLedger ledger) <- PARTITION SUM 1 IF changed(ledger) BY contract(ledger) ORDER dateTime(ledger), ledger;
+        ordered(OutContractLedger ledger) <- PARTITION BY contract(ledger) SUM 1 IF changed(ledger) ORDER dateTime(ledger), ledger;
     
         FOR iterate(INTEGER i, 1, [= GROUP MAX ordered(OutContractLedger ledger)]()) DO {
             LOCAL it = BOOLEAN (OutContractLedger);

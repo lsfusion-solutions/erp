@@ -186,21 +186,21 @@ averageDaysMarkupSum 'Средний дневной доход' (GroupType t, DA
 averageDaysQuantity 'Среднее дневное кол-во продаж' (GroupType t, DATE df, DATE dt) = round2(quantitySold(t) / NUMERIC[18,4](daysInclBetweenDates(df,dt))); 
 
 //-- Лучшие
-indexSumBest 'Номер п/п' (Group g)= PARTITION SUM 1 IF sumSold(g) BY groupType(g) ORDER DESC sumSold(g), name(g)  CHARWIDTH 3 CHARWIDTH 6;
-indexMarkupBest 'Номер п/п' (Group g)= PARTITION SUM 1 IF markupSumSold(g) BY groupType(g) ORDER DESC markupSumSold(g), name(g)  CHARWIDTH 3 CHARWIDTH 6;
-indexQuantityBest 'Номер п/п' (Group g)= PARTITION SUM 1 IF quantitySold(g) BY groupType(g) ORDER DESC quantitySold(g), name(g)  CHARWIDTH 3 CHARWIDTH 6;
+indexSumBest 'Номер п/п' (Group g)= PARTITION BY groupType(g) SUM 1 IF sumSold(g) ORDER DESC sumSold(g), name(g)  CHARWIDTH 3 CHARWIDTH 6;
+indexMarkupBest 'Номер п/п' (Group g)= PARTITION BY groupType(g) SUM 1 IF markupSumSold(g) ORDER DESC markupSumSold(g), name(g)  CHARWIDTH 3 CHARWIDTH 6;
+indexQuantityBest 'Номер п/п' (Group g)= PARTITION BY groupType(g) SUM 1 IF quantitySold(g) ORDER DESC quantitySold(g), name(g)  CHARWIDTH 3 CHARWIDTH 6;
 
-indexSumBest 'Номер п/п' (Sku s)= PARTITION SUM 1 IF sumSold(s) BY skuType(s) ORDER DESC sumSold(s), name(s)  CHARWIDTH 3 CHARWIDTH 6;
-indexMarkupBest 'Номер п/п' (Sku s)= PARTITION SUM 1 IF markupSumSold(s) BY skuType(s) ORDER DESC markupSumSold(s), name(s)  CHARWIDTH 3 CHARWIDTH 6;
-indexQuantityBest 'Номер п/п' (Sku s)= PARTITION SUM 1 IF quantitySold(s) BY skuType(s) ORDER DESC quantitySold(s), name(s)  CHARWIDTH 3 CHARWIDTH 6;
+indexSumBest 'Номер п/п' (Sku s)= PARTITION BY skuType(s) SUM 1 IF sumSold(s) ORDER DESC sumSold(s), name(s)  CHARWIDTH 3 CHARWIDTH 6;
+indexMarkupBest 'Номер п/п' (Sku s)= PARTITION BY skuType(s) SUM 1 IF markupSumSold(s) ORDER DESC markupSumSold(s), name(s)  CHARWIDTH 3 CHARWIDTH 6;
+indexQuantityBest 'Номер п/п' (Sku s)= PARTITION BY skuType(s) SUM 1 IF quantitySold(s) ORDER DESC quantitySold(s), name(s)  CHARWIDTH 3 CHARWIDTH 6;
 
-partitionSumBest  (Group g)= PARTITION SUM sumSold(g) BY groupType(g) ORDER indexSumBest(g)  CHARWIDTH 3 CHARWIDTH 6;
-partitionMarkupBest  (Group g)= PARTITION SUM markupSumSold(g) BY groupType(g) ORDER indexMarkupBest(g)  CHARWIDTH 3 CHARWIDTH 6;
-partitionQuantityBest (Group g)= PARTITION SUM quantitySold(g) BY groupType(g) ORDER indexQuantityBest(g)  CHARWIDTH 3 CHARWIDTH 6;
+partitionSumBest  (Group g)= PARTITION BY groupType(g) SUM sumSold(g) ORDER indexSumBest(g)  CHARWIDTH 3 CHARWIDTH 6;
+partitionMarkupBest  (Group g)= PARTITION BY groupType(g) SUM markupSumSold(g) ORDER indexMarkupBest(g)  CHARWIDTH 3 CHARWIDTH 6;
+partitionQuantityBest (Group g)= PARTITION BY groupType(g) SUM quantitySold(g) ORDER indexQuantityBest(g)  CHARWIDTH 3 CHARWIDTH 6;
 
-partitionSumBest  (Sku s)= PARTITION SUM sumSold(s) BY skuType(s) ORDER indexSumBest(s)  CHARWIDTH 3 CHARWIDTH 6;
-partitionMarkupBest  (Sku s)= PARTITION SUM markupSumSold(s) BY skuType(s) ORDER indexMarkupBest(s)  CHARWIDTH 3 CHARWIDTH 6;
-partitionQuantityBest (Sku s)= PARTITION SUM quantitySold(s) BY skuType(s) ORDER indexQuantityBest(s)  CHARWIDTH 3 CHARWIDTH 6;
+partitionSumBest  (Sku s)= PARTITION BY skuType(s) SUM sumSold(s) ORDER indexSumBest(s)  CHARWIDTH 3 CHARWIDTH 6;
+partitionMarkupBest  (Sku s)= PARTITION BY skuType(s) SUM markupSumSold(s) ORDER indexMarkupBest(s)  CHARWIDTH 3 CHARWIDTH 6;
+partitionQuantityBest (Sku s)= PARTITION BY skuType(s) SUM quantitySold(s) ORDER indexQuantityBest(s)  CHARWIDTH 3 CHARWIDTH 6;
 
 sumBest = GROUP BY groupType(Group g) SUM sumSold(g) IF indexSumBest(g) <= best(); 
 markupBest = GROUP BY groupType(Group g) SUM markupSumSold(g) IF indexMarkupBest(g) <= best(); 
@@ -284,21 +284,21 @@ backgroundStatus(GroupType t, Sku s, ABCType type) = CASE
 ;
 
 //-- Худшие
-indexSumWorst  (Group g)= PARTITION SUM 1 IF sumSold(g) BY groupType(g) ORDER sumSold(g), name(g)  CHARWIDTH 3 CHARWIDTH 6;
-indexMarkupWorst  (Group g)= PARTITION SUM 1 IF markupSumSold(g) BY groupType(g) ORDER markupSumSold(g), name(g)  CHARWIDTH 3 CHARWIDTH 6;
-indexQuantityWorst (Group g)= PARTITION SUM 1 IF quantitySold(g) BY groupType(g) ORDER quantitySold(g), name(g)  CHARWIDTH 3 CHARWIDTH 6;
+indexSumWorst  (Group g)= PARTITION BY groupType(g) SUM 1 IF sumSold(g) ORDER sumSold(g), name(g)  CHARWIDTH 3 CHARWIDTH 6;
+indexMarkupWorst  (Group g)= PARTITION BY groupType(g) SUM 1 IF markupSumSold(g) ORDER markupSumSold(g), name(g)  CHARWIDTH 3 CHARWIDTH 6;
+indexQuantityWorst (Group g)= PARTITION BY groupType(g) SUM 1 IF quantitySold(g) ORDER quantitySold(g), name(g)  CHARWIDTH 3 CHARWIDTH 6;
 
-indexSumWorst  (Sku s)= PARTITION SUM 1 IF sumSold(s) BY groupType(skuGroup(s)) ORDER sumSold(s), name(s)  CHARWIDTH 3 CHARWIDTH 6;
-indexMarkupWorst  (Sku s)= PARTITION SUM 1 IF markupSumSold(s) BY groupType(skuGroup(s)) ORDER markupSumSold(s), name(s)  CHARWIDTH 3 CHARWIDTH 6;
-indexQuantityWorst (Sku s)= PARTITION SUM 1 IF quantitySold(s) BY groupType(skuGroup(s)) ORDER quantitySold(s), name(s)  CHARWIDTH 3 CHARWIDTH 6;
+indexSumWorst  (Sku s)= PARTITION BY groupType(skuGroup(s)) SUM 1 IF sumSold(s) ORDER sumSold(s), name(s)  CHARWIDTH 3 CHARWIDTH 6;
+indexMarkupWorst  (Sku s)= PARTITION BY groupType(skuGroup(s)) SUM 1 IF markupSumSold(s) ORDER markupSumSold(s), name(s)  CHARWIDTH 3 CHARWIDTH 6;
+indexQuantityWorst (Sku s)= PARTITION BY groupType(skuGroup(s)) SUM 1 IF quantitySold(s) ORDER quantitySold(s), name(s)  CHARWIDTH 3 CHARWIDTH 6;
 
-partitionSumWorst  (Group g)= PARTITION SUM  sumSold(g) BY groupType(g) ORDER indexSumWorst(g)  CHARWIDTH 3 CHARWIDTH 6;
-partitionMarkupWorst  (Group g)= PARTITION SUM markupSumSold(g) BY groupType(g) ORDER indexMarkupWorst(g)  CHARWIDTH 3 CHARWIDTH 6;
-partitionQuantityWorst (Group g)= PARTITION SUM quantitySold(g) BY groupType(g) ORDER indexQuantityWorst(g)  CHARWIDTH 3 CHARWIDTH 6;
+partitionSumWorst  (Group g)= PARTITION BY groupType(g) SUM  sumSold(g) ORDER indexSumWorst(g)  CHARWIDTH 3 CHARWIDTH 6;
+partitionMarkupWorst  (Group g)= PARTITION BY groupType(g) SUM markupSumSold(g) ORDER indexMarkupWorst(g)  CHARWIDTH 3 CHARWIDTH 6;
+partitionQuantityWorst (Group g)= PARTITION BY groupType(g) SUM quantitySold(g) ORDER indexQuantityWorst(g)  CHARWIDTH 3 CHARWIDTH 6;
 
-partitionSumWorst  (Sku s)= PARTITION SUM  sumSold(s) BY groupType(skuGroup(s)) ORDER indexSumWorst(s)  CHARWIDTH 3 CHARWIDTH 6;
-partitionMarkupWorst  (Sku s)= PARTITION SUM markupSumSold(s) BY groupType(skuGroup(s)) ORDER indexMarkupWorst(s)  CHARWIDTH 3 CHARWIDTH 6;
-partitionQuantityWorst (Sku s)= PARTITION SUM quantitySold(s) BY groupType(skuGroup(s)) ORDER indexQuantityWorst(s)  CHARWIDTH 3 CHARWIDTH 6;
+partitionSumWorst  (Sku s)= PARTITION BY groupType(skuGroup(s)) SUM  sumSold(s) ORDER indexSumWorst(s)  CHARWIDTH 3 CHARWIDTH 6;
+partitionMarkupWorst  (Sku s)= PARTITION BY groupType(skuGroup(s)) SUM markupSumSold(s) ORDER indexMarkupWorst(s)  CHARWIDTH 3 CHARWIDTH 6;
+partitionQuantityWorst (Sku s)= PARTITION BY groupType(skuGroup(s)) SUM quantitySold(s) ORDER indexQuantityWorst(s)  CHARWIDTH 3 CHARWIDTH 6;
 
 sumWorst = GROUP BY groupType(Group g) SUM sumSold(g) IF indexSumWorst(g) <= worst(); 
 markupWorst = GROUP BY groupType(Group g) SUM markupSumSold(g) IF indexMarkupWorst(g) <= worst(); 

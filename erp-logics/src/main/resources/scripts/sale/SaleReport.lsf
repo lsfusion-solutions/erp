@@ -122,10 +122,10 @@ quantityReturnCompanyFromTo 'Возвращено' = GROUP
     BY Batch batch, legalEntity(stock(PurchaseLedger ledger)), DATE dateFrom, DATE dateTo SUM (-cost(ledger, batch)) IF cost(ledger, batch) <0 
     AND date(ledger) >= dateFrom AND date(ledger) <= dateTo AND inSalereport(stock(ledger));
 
-prevStocksReport 'Предыдущий отчет' (SaleReport saleReport) = PARTITION PREV saleReport IF companyStock(saleReport)
-    BY companyStock(saleReport), supplier(saleReport), contractSku(saleReport) ORDER toDate(saleReport);
-prevCompaniesReport 'Предыдущий отчет' (SaleReport saleReport) = PARTITION PREV saleReport IF NOT companyStock(saleReport)
-    BY company(saleReport), supplier(saleReport), contractSku(saleReport) ORDER toDate(saleReport);
+prevStocksReport 'Предыдущий отчет' (SaleReport saleReport) = PARTITION
+    BY companyStock(saleReport), supplier(saleReport), contractSku(saleReport) PREV saleReport IF companyStock(saleReport) ORDER toDate(saleReport);
+prevCompaniesReport 'Предыдущий отчет' (SaleReport saleReport) = PARTITION
+    BY company(saleReport), supplier(saleReport), contractSku(saleReport) PREV saleReport IF NOT companyStock(saleReport) ORDER toDate(saleReport);
 
 detail (b,r)= GROUP BY batch(SaleReportDetail d), saleReport(d) MAX d;             
 

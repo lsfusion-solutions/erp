@@ -364,11 +364,11 @@ description 'Название документа' (CollationSheet collationSheet
 
 userPrevDate 'Дата предыдущей инвентаризации' (collationSheet) = DATA DATE (CollationSheet) IN base;
 
-inventoryPrev (Stock stock, Inventory inventory) = PARTITION PREV inventory IF include(stock, inventory) AND isPosted(inventory)
-    BY stock ORDER DESC date(inventory);
+inventoryPrev (Stock stock, Inventory inventory) = PARTITION
+    BY stock PREV inventory IF include(stock, inventory) AND isPosted(inventory) ORDER DESC date(inventory);
 
-calcPrevDate 'Дата предыдущей инвентаризации' (CollationSheet collationSheet) = PARTITION PREV date(collationSheet) IF isPosted(collationSheet)
-    BY stock(collationSheet) ORDER date(collationSheet), collationSheet;
+calcPrevDate 'Дата предыдущей инвентаризации' (CollationSheet collationSheet) = PARTITION
+    BY stock(collationSheet) PREV date(collationSheet) IF isPosted(collationSheet) ORDER date(collationSheet), collationSheet;
     
 //calcPrevCollationSheet = GROUP LAST CollationSheet cs
 //                                                  BY stock(cs), DATE dateIn 
@@ -601,7 +601,7 @@ sumPageInventoryDetail 'Сумма в описи' (listInventory, sku) = GROUP
 
 differentPrice(CollationSheet collationSheet, Sku sku) = pricePageInventoryDetail(collationSheet, sku) != priceBalance(collationSheet, sku);
 
-index 'Номер строки' (ListInventory listInventory, Sku sku) = PARTITION SUM 1 IF  quantityPageInventoryDetail(listInventory, sku) > 0 BY listInventory ORDER name(sku);
+index 'Номер строки' (ListInventory listInventory, Sku sku) = PARTITION BY listInventory SUM 1 IF  quantityPageInventoryDetail(listInventory, sku) > 0 ORDER name(sku);
 countIndex 'Количество наименований товара'(listInventory) = GROUP
     BY ListInventory listInventory SUM 1 IF quantityPageInventoryDetail(listInventory, Sku sku) > 0 IN documentSum;  
     
@@ -616,9 +616,9 @@ calcQuantityPageInventoryDetail 'Кол-во по описям' (collationSheet,
     BY collationSheet(PageInventoryDetail pageInventoryDetail), batch(pageInventoryDetail) SUM quantity(pageInventoryDetail);
 
 calcPartitionQuantity (CollationSheet cs, Batch batch) = 
-    PARTITION UNGROUP notBatchQuantityPageInventoryDetail
-           LIMIT STRICT OVERRIDE (balanceB(batch, stock(cs), dateTime(cs)) (-) calcQuantityPageInventoryDetail(cs,batch)), 0.0 IF prevCountLedger(batch, stock(cs), dateTime(cs))                            
-           BY cs, sku(batch)
+    PARTITION                            
+           BY cs, sku(batch) UNGROUP notBatchQuantityPageInventoryDetail
+           LIMIT STRICT OVERRIDE (balanceB(batch, stock(cs), dateTime(cs)) (-) calcQuantityPageInventoryDetail(cs,batch)), 0.0 IF prevCountLedger(batch, stock(cs), dateTime(cs))
            ORDER dateTime(batch), batch;
                                                            
 partitionQuantity 'По FIFO' (CollationSheet cs, Batch batch) = DATA NUMERIC[16,5](CollationSheet, Batch);    
@@ -670,7 +670,7 @@ costSumPageInventoryDetail 'Сумма в описи(себестоимость)
 
 differentPrice(CollationSheet collationSheet, Batch batch) = priceMaxPageInventoryDetail(collationSheet, batch) != priceBalance(collationSheet, batch);
 
-index 'Номер строки' (ListInventory listInventory, Batch batch) = PARTITION SUM 1 IF  quantityPageInventoryDetail(listInventory, batch) > 0 BY listInventory ORDER name(sku(batch));
+index 'Номер строки' (ListInventory listInventory, Batch batch) = PARTITION BY listInventory SUM 1 IF  quantityPageInventoryDetail(listInventory, batch) > 0 ORDER name(sku(batch));
 countIndexBatch 'Количество партий' (listInventory) = GROUP
     BY ListInventory listInventory SUM 1 IF quantityPageInventoryDetail(listInventory, Batch batch) > 0 IN documentSum;
 
