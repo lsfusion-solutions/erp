@@ -1,0 +1,119 @@
+MODULE Imply;
+
+REQUIRE Utils;
+
+query() = {
+	LOCAL query = TEXT();
+	query() <- 'SELECT columns FROM dataset GROUP BY group';
+
+	stringToCustomFile('\{"query": "' + query() + '"\}','UTF-8','json');
+
+	LOCAL result = CUSTOMFILE();
+	EXTERNAL HTTP 'http://<ip>:8082/druid/v2/sql' PARAMS resultCustomFile() TO result;
+
+//	IMPORT JSON TO columns = columns FROM result();
+
+}
+
+runTask() = {
+    LOCAL template = CUSTOMFILE();
+    READ 'file://bi/turnover.json' TO template;
+    customFileToString(template(), 'UTF-8');
+    
+    stringToCustomFile(replace(replace(resultString(), '<DIRECTORY>', '/home/ftpuser/csv/'),
+                                                       '<FILE>', '' + 2018_01_01)
+                                                       , 'UTF-8', 'json');
+    
+    LOCAL result = CUSTOMFILE();
+    EXTERNAL HTTP 'http://195.201.119.122:8090/druid/indexer/v1/task' PARAMS resultCustomFile() TO result;
+}
+
+druidHost = DATA VARSTRING[100] ();
+
+dataSource 'Данные' = DATA LOCAL VARSTRING[100] (INTEGER);
+
+readDataSource() = {
+    LOCAL result = CUSTOMFILE();
+    EXTERNAL HTTP 'http://' + druidHost() + ':8082/druid/v2/datasources' TO result;
+        
+    customFileToString(result(), 'UTF-8');
+    
+    resultString() <- replace(resultString(), '[', '');
+    resultString() <- replace(resultString(), ']', '');
+    resultString() <- replace(resultString(), '"', '');
+    
+    dataSource(INTEGER i) <- getWord(resultString(), ',', i) IF iterate(i, 1, INTEGER(wordCount(resultString(), ',')));
+}
+
+dimension 'Измерения' = DATA LOCAL VARSTRING[100] (INTEGER);
+measure 'Метрики' = DATA LOCAL VARSTRING[100] (INTEGER);
+
+readDimensionsAndMeasures (VARSTRING[100] ds) = {
+    LOCAL result = CUSTOMFILE();
+    EXTERNAL HTTP 'http://' + druidHost() + ':8082/druid/v2/datasources/' + ds  TO result;
+    
+    LOCAL dimensions = TEXT();
+    LOCAL measures = TEXT();
+    
+    IMPORT JSON LIST FROM result() TO dimensions, measures;    
+    
+    dimensions() <- replace(dimensions(), '[', '');
+    dimensions() <- replace(dimensions(), ']', '');
+    dimensions() <- replace(dimensions(), '"', '');
+
+    dimension(INTEGER i) <- getWord(dimensions(), ',', i) IF iterate(i, 1, INTEGER(wordCount(dimensions(), ',')));
+    
+    measures() <- replace(measures(), '[', '');
+    measures() <- replace(measures(), ']', '');
+    measures() <- replace(measures(), '"', '');
+
+    measure(INTEGER i) <- getWord(measures(), ',', i) IF iterate(i, 1, INTEGER(wordCount(measures(), ',')));
+}
+
+selD 'Вкл' = DATA LOCAL BOOLEAN (INTEGER);
+selM 'Вкл' = DATA LOCAL BOOLEAN (INTEGER);
+
+runQuery 'Выполнить' (VARSTRING[100] ds) = {
+
+    LOCAL dimensions = TEXT();
+    dimensions () <- [= GROUP CONCAT dimension(INTEGER i) IF selD(i), ',']();
+    
+    LOCAL measures = TEXT();
+    measures () <- [= GROUP CONCAT measure(INTEGER i) IF selM(i), ',']();
+
+    LOCAL sumMeasures = TEXT();
+    sumMeasures () <- [= GROUP CONCAT ('sum(' + measure(INTEGER i) + ') AS ' + measure(i)) IF selM(i), ',']();
+    
+	LOCAL query = TEXT();
+	query() <- 'SELECT ' + dimensions() + ',' + sumMeasures() + ' FROM ' + ds + ' GROUP BY ' + dimensions();
+	
+	stringToCustomFile('\{"query": "' + query() + '"\}','UTF-8','json');
+
+	LOCAL result = CUSTOMFILE();
+	EXTERNAL HTTP 'http://' + druidHost() + ':8082/druid/v2/sql' PARAMS resultCustomFile() TO result;
+
+    OPEN result();
+//	IMPORT JSON TO columns = columns FROM result();
+
+}
+
+FORM druidConnector
+    OBJECTS s = INTEGER 'Данные'
+    PROPERTIES(s) READONLY dataSource
+    FILTERS dataSource(s)
+    
+    OBJECTS d = INTEGER 'Измерения'
+    PROPERTIES(d) selD
+    PROPERTIES(d) READONLY dimension
+    FILTERS dimension(d)
+
+    OBJECTS m = INTEGER 'Метрики'
+    PROPERTIES(m) selM
+    PROPERTIES(m) READONLY measure
+    FILTERS measure(m)
+    
+    EVENTS ON INIT readDataSource(),
+           ON CHANGE s {
+                readDimensionsAndMeasures(dataSource(s));
+           }
+;

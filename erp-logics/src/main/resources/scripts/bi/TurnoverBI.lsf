@@ -1,0 +1,28 @@
+MODULE StockBatchExport;
+
+REQUIRE SaleLedger, Pricing, Item;
+
+NAMESPACE Stock;
+
+exportJSON (DATE dFrom, DATE dTo) = {
+    LOCAL balance = NUMERIC[16,5] (Batch, Stock);
+    balance(Batch b, Stock st) <- balanceA(b, st, dTo);
+    
+    LOCAL date = DATE ();
+    date() <- dTo;
+    
+    WHILE date() >= dFrom DO {
+        printToLog('' + currentDateTime() + ' Started EXPORT ' + date() + ' - ' + [= GROUP SUM 1 IF balance(Batch b, Stock st)]());
+        EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
+                            nameStock = name(Stock st), nameSku = nameSku(Batch b), nameSupplier = nameSupplier(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
+                            group1 = nameSkuGroup2(sku(b)), brand = nameBrand(sku(b)),
+                            balance = DOUBLE(balance(b, st)), 
+                            quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
+               WHERE balance(b, st) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
+        printToLog('' + currentDateTime() + ' Started WRITE ');
+        WRITE 'file:///home/luxsoft/csv/' + date() FROM exportFile();
+        printToLog('' + currentDateTime() + 'Ended WRITE ');
+        balance(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date()); 
+        date() <- subtract(date(), 1);
+    } 
+}
