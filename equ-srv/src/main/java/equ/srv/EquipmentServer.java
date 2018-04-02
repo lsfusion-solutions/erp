@@ -912,469 +912,482 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
 
-    public String sendSalesInfoNonRemote(ExecutionStack stack, List<SalesInfo> salesInfoList, String sidEquipmentServer, String directory) throws IOException, SQLException {
+    public String sendSalesInfoNonRemote(ExecutionStack stack, List<SalesInfo> salesInfoList, String sidEquipmentServer, String directory) {
         try {
 
             if (zReportLM != null && notNullNorEmpty(salesInfoList)) {
 
                 Collections.sort(salesInfoList, COMPARATOR);
 
-                for (int start = 0; true;) {
-
-                    try (DataSession session = getDbManager().createSession()) {
-                        ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
-                        Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
-                        if (numberAtATime == null)
-                            numberAtATime = salesInfoList.size();
-
-                        boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
-                        List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(getDbManager());
-
-                        Timestamp timeStart = getCurrentTimestamp();
-
-                        int finish = (start + numberAtATime) < salesInfoList.size() ? (start + numberAtATime) : salesInfoList.size();
-
-                        Integer lastNumberReceipt = start < finish ? salesInfoList.get(finish - 1).numberReceipt : null;
-                        if (lastNumberReceipt != null) {
-                            while (start < finish && salesInfoList.size() > finish && salesInfoList.get(finish).numberReceipt.equals(lastNumberReceipt))
-                                finish++;
-                        }
-
-                        List<SalesInfo> data = start < finish ? salesInfoList.subList(start, finish) : new ArrayList<SalesInfo>();
-                        start = finish;
-                        int left = salesInfoList.size() - finish;
-                        if (!notNullNorEmpty(data))
-                            return null;
-
-                        logger.info(String.format("Sending SalesInfo from %s to %s", start, finish));
-
-                        Date startDate = (Date) equLM.findProperty("startDate[EquipmentServer]").read(session, equipmentServerObject);
-                        Boolean timeId = (Boolean) equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject);
-
-                        List<ImportKey<?>> saleKeys = new ArrayList<>();
-
-                        ImportField nppGroupMachineryField = new ImportField(zReportLM.findProperty("npp[GroupMachinery]"));
-                        ImportField nppMachineryField = new ImportField(zReportLM.findProperty("npp[Machinery]"));
-
-                        ImportField idZReportField = new ImportField(zReportLM.findProperty("id[ZReport]"));
-                        ImportField numberZReportField = new ImportField(zReportLM.findProperty("number[ZReport]"));
-                        ImportField dateZReportField = new ImportField(zReportLM.findProperty("date[ZReport]"));
-                        ImportField timeZReportField = new ImportField(zReportLM.findProperty("time[ZReport]"));
-
-                        ImportField idReceiptField = new ImportField(zReportLM.findProperty("id[Receipt]"));
-                        ImportField numberReceiptField = new ImportField(zReportLM.findProperty("number[Receipt]"));
-                        ImportField dateReceiptField = new ImportField(zReportLM.findProperty("date[Receipt]"));
-                        ImportField timeReceiptField = new ImportField(zReportLM.findProperty("time[Receipt]"));
-                        ImportField isPostedZReportField = new ImportField(zReportLM.findProperty("isPosted[ZReport]"));
-
-                        ImportField idEmployeeField = new ImportField(zReportLM.findProperty("id[Employee]"));
-                        ImportField firstNameContactField = new ImportField(zReportLM.findProperty("firstName[Contact]"));
-                        ImportField lastNameContactField = new ImportField(zReportLM.findProperty("lastName[Contact]"));
-
-                        ImportField idReceiptDetailField = new ImportField(zReportLM.findProperty("id[ReceiptDetail]"));
-                        ImportField numberReceiptDetailField = new ImportField(zReportLM.findProperty("number[ReceiptDetail]"));
-                        ImportField idBarcodeReceiptDetailField = new ImportField(zReportLM.findProperty("idBarcode[ReceiptDetail]"));
-
-                        //sale 1
-                        ImportField quantityReceiptSaleDetailField = new ImportField(zReportLM.findProperty("quantity[ReceiptSaleDetail]"));
-                        ImportField priceReceiptSaleDetailField = new ImportField(zReportLM.findProperty("price[ReceiptSaleDetail]"));
-                        ImportField sumReceiptSaleDetailField = new ImportField(zReportLM.findProperty("sum[ReceiptSaleDetail]"));
-                        ImportField discountSumSaleReceiptField = new ImportField(zReportLM.findProperty("discountSumSale[Receipt]"));
-
-                        //return 1
-                        ImportField idSaleReceiptReceiptReturnDetailField = new ImportField(zReportLM.findProperty("id[Receipt]"));
-                        ImportField quantityReceiptReturnDetailField = new ImportField(zReportLM.findProperty("quantity[ReceiptReturnDetail]"));
-                        ImportField priceReceiptReturnDetailField = new ImportField(zReportLM.findProperty("price[ReceiptReturnDetail]"));
-                        ImportField retailSumReceiptReturnDetailField = new ImportField(zReportLM.findProperty("sum[ReceiptReturnDetail]"));
-                        ImportField discountSumReceiptReturnDetailField = new ImportField(zReportLM.findProperty("discountSum[ReceiptReturnDetail]"));
-                        ImportField discountSumReturnReceiptField = new ImportField(zReportLM.findProperty("discountSumReturn[Receipt]"));
-
-                        //giftCard 1
-                        ImportField priceReceiptGiftCardSaleDetailField = null;
-                        ImportField sumReceiptGiftCardSaleDetailField = null;
-                        ImportField idGiftCardField = null;
-                        ImportField isReturnReceiptGiftCardSaleDetailField = null;
-                        if (giftCardLM != null) {
-                            priceReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("price[ReceiptGiftCardSaleDetail]"));
-                            sumReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("sum[ReceiptGiftCardSaleDetail]"));
-                            idGiftCardField = new ImportField(giftCardLM.findProperty("id[GiftCard]"));
-                            isReturnReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("isReturn[ReceiptGiftCardSaleDetail]"));
-                        }
-
-                        ImportField seriesNumberDiscountCardField = discountCardLM == null ? null : new ImportField(discountCardLM.findProperty("seriesNumber[DiscountCard]"));
-                        ImportField idSectionField = zReportSectionLM == null ? null : new ImportField(zReportSectionLM.findProperty("id[Section]"));
-                        ImportField externalSumZReportField = zReportExternalLM == null ? null : new ImportField(zReportExternalLM.findProperty("externalSum[ZReport]"));
-
-                        List<ImportProperty<?>> saleProperties = new ArrayList<>();
-                        List<ImportProperty<?>> returnProperties = new ArrayList<>();
-                        List<ImportProperty<?>> giftCardProperties = new ArrayList<>();
-
-                        ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport"), zReportLM.findProperty("zReport[VARSTRING[100]]").getMapping(idZReportField));
-                        saleKeys.add(zReportKey);
-
-                        ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("CashRegister"), zReportLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").getMapping(nppGroupMachineryField, nppMachineryField));
-                        cashRegisterKey.skipKey = true;
-                        saleKeys.add(cashRegisterKey);
-
-                        ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptField));
-                        saleKeys.add(receiptKey);
-
-                        ImportKey<?> skuKey = new ImportKey((CustomClass) zReportLM.findClass("Sku"), zReportLM.findProperty("skuBarcode[VARSTRING[15],DATE]").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
-                        saleKeys.add(skuKey);
-
-                        ImportKey<?> employeeKey = new ImportKey((CustomClass) zReportLM.findClass("Employee"), zReportLM.findProperty("employee[VARSTRING[100]]").getMapping(idEmployeeField));
-                        saleKeys.add(employeeKey);
-
-                        ImportKey<?> discountCardKey = discountCardLM == null ? null : new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountSeriesNumber[STRING[18]]").getMapping(seriesNumberDiscountCardField, dateReceiptField));
-                        if(discountCardKey != null)
-                            saleKeys.add(discountCardKey);
-
-                        ImportKey<?> giftCardKey = giftCardLM == null ? null : new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[VARSTRING[100]]").getMapping(idGiftCardField));
-
-                        ImportKey<?> sectionKey = zReportSectionLM == null ? null : new ImportKey((ConcreteCustomClass) zReportSectionLM.findClass("Section"), zReportSectionLM.findProperty("section[VARSTRING[100]]").getMapping(idSectionField));
-                        if(sectionKey != null)
-                            saleKeys.add(sectionKey);
-
-                        //sale 2
-                        saleProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
-                        saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
-                        saleProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
-                                zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
-                        saleProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
-                        saleProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
-                        saleProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
-
-                        saleProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
-                        saleProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
-                        saleProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("date[Receipt]").getMapping(receiptKey)));
-                        saleProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("time[Receipt]").getMapping(receiptKey)));
-                        saleProperties.add(new ImportProperty(discountSumSaleReceiptField, zReportLM.findProperty("discountSumSale[Receipt]").getMapping(receiptKey)));
-                        saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
-                                zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
-                        if (discountCardLM != null && zReportDiscountCardLM != null) {
-                            saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
-                            saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCard[Receipt]").getMapping(receiptKey),
-                                    discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
-                        }
-                        saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
-                        saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
-                                zReportLM.object(zReportLM.findClass("Employee")).getMapping(employeeKey)));
-                        saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
-                        saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
-
-                        ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
-                        saleKeys.add(receiptSaleDetailKey);
-
-                        saleProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
-                        saleProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("number[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
-                        saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("idBarcode[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
-                        saleProperties.add(new ImportProperty(quantityReceiptSaleDetailField, zReportLM.findProperty("quantity[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
-                        saleProperties.add(new ImportProperty(priceReceiptSaleDetailField, zReportLM.findProperty("price[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
-                        saleProperties.add(new ImportProperty(sumReceiptSaleDetailField, zReportLM.findProperty("sum[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
-
-                        ImportField discountPercentReceiptSaleDetailField = new ImportField(zReportLM.findProperty("discountPercent[ReceiptSaleDetail]"));
-                        saleProperties.add(new ImportProperty(discountPercentReceiptSaleDetailField, zReportLM.findProperty("discountPercent[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
-
-                        ImportField discountSumReceiptSaleDetailField = new ImportField(zReportLM.findProperty("discountSum[ReceiptSaleDetail]"));
-                        saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, zReportLM.findProperty("discountSum[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
-
-                        saleProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[ReceiptDetail]").getMapping(receiptSaleDetailKey),
-                                zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
-
-                        saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("sku[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey),
-                                zReportLM.object(zReportLM.findClass("Sku")).getMapping(skuKey)));
-
-                        if(zReportSectionLM != null) {
-                            saleProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("id[Section]").getMapping(sectionKey), true));
-                            saleProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("section[ReceiptDetail]").getMapping(receiptSaleDetailKey),
-                                    zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
-                        }
-
-                        if(zReportExternalLM != null) {
-                            saleProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
-                        }
-
-                        //return 2
-                        returnProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
-                        returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
-                        returnProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
-                                zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
-                        returnProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
-                        returnProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
-                        returnProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
-
-                        returnProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
-                        returnProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
-                        returnProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("date[Receipt]").getMapping(receiptKey)));
-                        returnProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("time[Receipt]").getMapping(receiptKey)));
-                        if (discountCardLM != null) {
-                            returnProperties.add(new ImportProperty(discountSumReturnReceiptField, zReportLM.findProperty("discountSumReturn[Receipt]").getMapping(receiptKey)));
-                        }
-                        returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
-                                zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
-                        if (discountCardLM != null && zReportDiscountCardLM != null) {
-                            returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
-                            returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCard[Receipt]").getMapping(receiptKey),
-                                    discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
-                        }
-
-                        returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
-                        returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
-                                zReportLM.object(zReportLM.findClass("CustomUser")).getMapping(employeeKey)));
-                        returnProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
-                        returnProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
-
-                        ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptReturnDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
-                        returnProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("number[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("idBarcode[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(quantityReceiptReturnDetailField, zReportLM.findProperty("quantity[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(priceReceiptReturnDetailField, zReportLM.findProperty("price[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(retailSumReceiptReturnDetailField, zReportLM.findProperty("sum[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(discountSumReceiptReturnDetailField, zReportLM.findProperty("discountSum[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[ReceiptDetail]").getMapping(receiptReturnDetailKey),
-                                zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
-
-                        returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("sku[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey),
-                                zReportLM.object(zReportLM.findClass("Sku")).getMapping(skuKey)));
-
-                        ImportKey<?> receiptSaleDetailReceiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idSaleReceiptReceiptReturnDetailField));
-                        receiptSaleDetailReceiptReturnDetailKey.skipKey = true;
-                        returnProperties.add(new ImportProperty(idSaleReceiptReceiptReturnDetailField, zReportLM.findProperty("saleReceipt[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey),
-                                zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptSaleDetailReceiptReturnDetailKey)));
-
-                        if(zReportSectionLM != null) {
-                            returnProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("id[Section]").getMapping(sectionKey), true));
-                            returnProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("section[ReceiptDetail]").getMapping(receiptReturnDetailKey),
-                                    zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
-                        }
-
-                        if(zReportExternalLM != null) {
-                            returnProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
-                        }
-
-                        //giftCard 2
-                        ImportKey<?> receiptGiftCardSaleDetailKey = null;
-                        if (giftCardLM != null) {
-                            giftCardProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
-                            giftCardProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
-                            giftCardProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
-                                    zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
-                            giftCardProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
-                            giftCardProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
-                            giftCardProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
-
-                            giftCardProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
-                            giftCardProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
-                            giftCardProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("date[Receipt]").getMapping(receiptKey)));
-                            giftCardProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("time[Receipt]").getMapping(receiptKey)));
-
-                            giftCardProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
-                                    zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
-
-                            giftCardProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
-                            giftCardProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
-                                    zReportLM.object(zReportLM.findClass("CustomUser")).getMapping(employeeKey)));
-                            giftCardProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
-                            giftCardProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
-
-                            receiptGiftCardSaleDetailKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("ReceiptGiftCardSaleDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
-                            giftCardProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey)));
-                            giftCardProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("number[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey)));
-                            giftCardProperties.add(new ImportProperty(priceReceiptGiftCardSaleDetailField, giftCardLM.findProperty("price[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey)));
-                            giftCardProperties.add(new ImportProperty(sumReceiptGiftCardSaleDetailField, giftCardLM.findProperty("sum[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey)));
-                            giftCardProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey),
-                                    zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
-
-                            giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("id[GiftCard]").getMapping(giftCardKey)));
-                            giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("number[GiftCard]").getMapping(giftCardKey)));
-                            giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("giftCard[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey),
-                                    zReportLM.object(giftCardLM.findClass("GiftCard")).getMapping(giftCardKey)));
-                            giftCardProperties.add(new ImportProperty(isReturnReceiptGiftCardSaleDetailField, giftCardLM.findProperty("isReturn[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey)));
-                        }
-
-                        if(zReportSectionLM != null) {
-                            giftCardProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("id[Section]").getMapping(sectionKey), true));
-                            giftCardProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("section[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey),
-                                    zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
-                        }
-
-                        if(zReportExternalLM != null) {
-                            giftCardProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
-                        }
-
-                        List<List<Object>> dataSale = new ArrayList<>();
-                        List<List<Object>> dataReturn = new ArrayList<>();
-                        List<List<Object>> dataGiftCard = new ArrayList<>();
-
-                        Map<Object, String> barcodeMap = new HashMap<>();
-                        for (SalesInfo sale : data) {
-                            if (!overDocumentsClosedDate(sale, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList)) {
-                                String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem :
-                                        (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : sale.idItem != null ? barcodeMap.get(sale.idItem) : null);
-                                if (barcode == null && sale.itemObject != null) {
-                                    barcode = trim((String) itemLM.findProperty("idBarcode[Sku]").read(session, new DataObject(sale.itemObject, (ConcreteCustomClass) itemLM.findClass("Item"))));
-                                    barcodeMap.put(sale.itemObject, barcode);
-                                }
-                                if (barcode == null && sale.idItem != null) {
-                                    barcode = trim((String) itemLM.findProperty("idBarcodeSku[VARSTRING[100]]").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
-                                    //чит на случай, когда штрихкод приходит в код товара, copy-paste from ArtixHandler
-                                    if (barcode == null)
-                                        barcode = appendCheckDigitToBarcode(sale.idItem, 7, true);
-                                    barcodeMap.put(sale.idItem, barcode);
-                                }
-
-                                String idReceipt = sale.getIdReceipt(startDate, timeId);
-                                if (sale.isGiftCard) {
-                                    //giftCard 3
-                                    List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
-                                            sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                            idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode,
-                                            sale.priceReceiptDetail, sale.sumReceiptDetail, sale.isReturnGiftCard ? true : null);
-                                    if (zReportSectionLM != null) {
-                                        row = new ArrayList<>(row);
-                                        row.add(sale.idSection);
-                                    }
-                                    if(zReportExternalLM != null) {
-                                        row = new ArrayList<>(row);
-                                        row.add(sale.externalSumZReport);
-                                    }
-                                    dataGiftCard.add(row);
-                                } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
-                                    //return 3
-                                    List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
-                                            sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                            idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
-                                            sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail);
-                                    if (discountCardLM != null) {
-                                        row = new ArrayList<>(row);
-                                        row.add(sale.seriesNumberDiscountCard);
-                                    }
-                                    if (zReportSectionLM != null) {
-                                        row = new ArrayList<>(row);
-                                        row.add(sale.idSection);
-                                    }
-                                    if(zReportExternalLM != null) {
-                                        row = new ArrayList<>(row);
-                                        row.add(sale.externalSumZReport);
-                                    }
-                                    dataReturn.add(row);
-                                } else {
-                                    //sale 3
-                                    List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
-                                            sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                            idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
-                                            sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountPercentReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
-                                    if (discountCardLM != null) {
-                                        row = new ArrayList<>(row);
-                                        row.add(sale.seriesNumberDiscountCard);
-                                    }
-                                    if (zReportSectionLM != null) {
-                                        row = new ArrayList<>(row);
-                                        row.add(sale.idSection);
-                                    }
-                                    if(zReportExternalLM != null) {
-                                        row = new ArrayList<>(row);
-                                        row.add(sale.externalSumZReport);
-                                    }
-                                    dataSale.add(row);
-                                }
-                            }
-                        }
-
-                        //sale 4
-                        List<ImportField> saleImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
-                                idZReportField, numberZReportField, dateZReportField, timeZReportField, dateReceiptField, timeReceiptField, isPostedZReportField,
-                                idEmployeeField, firstNameContactField, lastNameContactField, idReceiptField, numberReceiptField,
-                                idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
-                                quantityReceiptSaleDetailField, priceReceiptSaleDetailField, sumReceiptSaleDetailField,
-                                discountPercentReceiptSaleDetailField, discountSumReceiptSaleDetailField, discountSumSaleReceiptField);
-                        if (discountCardLM != null) {
-                            saleImportFields = new ArrayList<>(saleImportFields);
-                            saleImportFields.add(seriesNumberDiscountCardField);
-                        }
-                        if (zReportSectionLM != null) {
-                            saleImportFields = new ArrayList<>(saleImportFields);
-                            saleImportFields.add(idSectionField);
-                        }
-                        if (zReportExternalLM != null) {
-                            saleImportFields = new ArrayList<>(saleImportFields);
-                            saleImportFields.add(externalSumZReportField);
-                        }
-
-                        //return 4
-                        List<ImportField> returnImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
-                                idZReportField, numberZReportField, dateZReportField, timeZReportField, dateReceiptField, timeReceiptField, isPostedZReportField,
-                                idEmployeeField, firstNameContactField, lastNameContactField, idReceiptField, numberReceiptField,
-                                idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
-                                quantityReceiptReturnDetailField, priceReceiptReturnDetailField, retailSumReceiptReturnDetailField,
-                                discountSumReceiptReturnDetailField, discountSumReturnReceiptField, idSaleReceiptReceiptReturnDetailField);
-                        if (discountCardLM != null) {
-                            returnImportFields = new ArrayList<>(returnImportFields);
-                            returnImportFields.add(seriesNumberDiscountCardField);
-                        }
-                        if (zReportSectionLM != null) {
-                            returnImportFields = new ArrayList<>(returnImportFields);
-                            returnImportFields.add(idSectionField);
-                        }
-                        if (zReportExternalLM != null) {
-                            returnImportFields = new ArrayList<>(returnImportFields);
-                            returnImportFields.add(externalSumZReportField);
-                        }
-
-                        //giftCard 4
-                        List<ImportField> giftCardImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
-                                idZReportField, numberZReportField, dateZReportField, timeZReportField, dateReceiptField, timeReceiptField, isPostedZReportField,
-                                idEmployeeField, firstNameContactField, lastNameContactField, idReceiptField, numberReceiptField,
-                                idReceiptDetailField, numberReceiptDetailField, idGiftCardField,
-                                priceReceiptGiftCardSaleDetailField, sumReceiptGiftCardSaleDetailField, isReturnReceiptGiftCardSaleDetailField);
-                        if (zReportSectionLM != null) {
-                            giftCardImportFields = new ArrayList<>(giftCardImportFields);
-                            giftCardImportFields.add(idSectionField);
-                        }
-                        if (zReportExternalLM != null) {
-                            giftCardImportFields = new ArrayList<>(giftCardImportFields);
-                            giftCardImportFields.add(externalSumZReportField);
-                        }
-                        
-                        //sale 5
-                        new IntegrationService(session, new ImportTable(saleImportFields, dataSale), saleKeys, saleProperties).synchronize(true);
-
-                        //return 5
-                        List<ImportKey<?>> returnKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, employeeKey, receiptSaleDetailReceiptReturnDetailKey);
-                        if (discountCardLM != null) {
-                            returnKeys = new ArrayList<>(returnKeys);
-                            returnKeys.add(discountCardKey);
-                        }
-                        if (zReportSectionLM != null) {
-                            returnKeys = new ArrayList<>(returnKeys);
-                            returnKeys.add(sectionKey);
-                        }
-                        new IntegrationService(session, new ImportTable(returnImportFields, dataReturn), returnKeys, returnProperties).synchronize(true);
-
-                        //giftCard 5
-                        if (giftCardLM != null) {
-                            List<ImportKey<?>> giftCardKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptGiftCardSaleDetailKey, giftCardKey, employeeKey);
-                            new IntegrationService(session, new ImportTable(giftCardImportFields, dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
-                        }
-
-                        EquipmentServerImport.importPayment(getBusinessLogics(), session, data, startDate, timeId);
-
-                        EquipmentServerImport.importPaymentGiftCard(getBusinessLogics(), session, data, startDate, timeId);
-
-
-                        session.setKeepLastAttemptCountMap(true);
-                        String result = session.applyMessage(getBusinessLogics(), stack);
-                        if (result == null) {
-                            logCompleteMessage(stack, session, data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), left, timeStart, sidEquipmentServer, directory);
-                        } else
-                            return result;
+                try (DataSession outerSession = getDbManager().createSession()) {
+                    ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(outerSession, new DataObject(sidEquipmentServer));
+                    Integer maxThreads = (Integer) equLM.findProperty("maxThreads[EquipmentServer]").read(outerSession, equipmentServerObject);
+                    if (maxThreads == null || maxThreads <= 1)
+                        return importSalesInfoSingleThread(stack, sidEquipmentServer, directory, salesInfoList);
+                    else {
+                        //TODO: реализовать multithread
+                        return "Multithread sendSalesInfo is not available";
                     }
                 }
-            } else return null;
-
+            }
         } catch (Exception e) {
             throw Throwables.propagate(e);
+        }
+        return null;
+    }
+
+    private String importSalesInfoSingleThread(ExecutionStack stack, String sidEquipmentServer, String directory, List<SalesInfo> salesInfoList) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+        for (int start = 0; true;) {
+
+            try (DataSession session = getDbManager().createSession()) {
+                ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+                Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
+                if (numberAtATime == null)
+                    numberAtATime = salesInfoList.size();
+
+                boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
+                List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(getDbManager());
+
+                Timestamp timeStart = getCurrentTimestamp();
+
+                int finish = (start + numberAtATime) < salesInfoList.size() ? (start + numberAtATime) : salesInfoList.size();
+
+                Integer lastNumberReceipt = start < finish ? salesInfoList.get(finish - 1).numberReceipt : null;
+                if (lastNumberReceipt != null) {
+                    while (start < finish && salesInfoList.size() > finish && salesInfoList.get(finish).numberReceipt.equals(lastNumberReceipt))
+                        finish++;
+                }
+
+                List<SalesInfo> data = start < finish ? salesInfoList.subList(start, finish) : new ArrayList<SalesInfo>();
+                start = finish;
+                int left = salesInfoList.size() - finish;
+                if (!notNullNorEmpty(data))
+                    return null;
+
+                logger.info(String.format("Sending SalesInfo from %s to %s", start, finish));
+
+                Date startDate = (Date) equLM.findProperty("startDate[EquipmentServer]").read(session, equipmentServerObject);
+                Boolean timeId = (Boolean) equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject);
+
+                List<ImportKey<?>> saleKeys = new ArrayList<>();
+
+                ImportField nppGroupMachineryField = new ImportField(zReportLM.findProperty("npp[GroupMachinery]"));
+                ImportField nppMachineryField = new ImportField(zReportLM.findProperty("npp[Machinery]"));
+
+                ImportField idZReportField = new ImportField(zReportLM.findProperty("id[ZReport]"));
+                ImportField numberZReportField = new ImportField(zReportLM.findProperty("number[ZReport]"));
+                ImportField dateZReportField = new ImportField(zReportLM.findProperty("date[ZReport]"));
+                ImportField timeZReportField = new ImportField(zReportLM.findProperty("time[ZReport]"));
+
+                ImportField idReceiptField = new ImportField(zReportLM.findProperty("id[Receipt]"));
+                ImportField numberReceiptField = new ImportField(zReportLM.findProperty("number[Receipt]"));
+                ImportField dateReceiptField = new ImportField(zReportLM.findProperty("date[Receipt]"));
+                ImportField timeReceiptField = new ImportField(zReportLM.findProperty("time[Receipt]"));
+                ImportField isPostedZReportField = new ImportField(zReportLM.findProperty("isPosted[ZReport]"));
+
+                ImportField idEmployeeField = new ImportField(zReportLM.findProperty("id[Employee]"));
+                ImportField firstNameContactField = new ImportField(zReportLM.findProperty("firstName[Contact]"));
+                ImportField lastNameContactField = new ImportField(zReportLM.findProperty("lastName[Contact]"));
+
+                ImportField idReceiptDetailField = new ImportField(zReportLM.findProperty("id[ReceiptDetail]"));
+                ImportField numberReceiptDetailField = new ImportField(zReportLM.findProperty("number[ReceiptDetail]"));
+                ImportField idBarcodeReceiptDetailField = new ImportField(zReportLM.findProperty("idBarcode[ReceiptDetail]"));
+
+                //sale 1
+                ImportField quantityReceiptSaleDetailField = new ImportField(zReportLM.findProperty("quantity[ReceiptSaleDetail]"));
+                ImportField priceReceiptSaleDetailField = new ImportField(zReportLM.findProperty("price[ReceiptSaleDetail]"));
+                ImportField sumReceiptSaleDetailField = new ImportField(zReportLM.findProperty("sum[ReceiptSaleDetail]"));
+                ImportField discountSumSaleReceiptField = new ImportField(zReportLM.findProperty("discountSumSale[Receipt]"));
+
+                //return 1
+                ImportField idSaleReceiptReceiptReturnDetailField = new ImportField(zReportLM.findProperty("id[Receipt]"));
+                ImportField quantityReceiptReturnDetailField = new ImportField(zReportLM.findProperty("quantity[ReceiptReturnDetail]"));
+                ImportField priceReceiptReturnDetailField = new ImportField(zReportLM.findProperty("price[ReceiptReturnDetail]"));
+                ImportField retailSumReceiptReturnDetailField = new ImportField(zReportLM.findProperty("sum[ReceiptReturnDetail]"));
+                ImportField discountSumReceiptReturnDetailField = new ImportField(zReportLM.findProperty("discountSum[ReceiptReturnDetail]"));
+                ImportField discountSumReturnReceiptField = new ImportField(zReportLM.findProperty("discountSumReturn[Receipt]"));
+
+                //giftCard 1
+                ImportField priceReceiptGiftCardSaleDetailField = null;
+                ImportField sumReceiptGiftCardSaleDetailField = null;
+                ImportField idGiftCardField = null;
+                ImportField isReturnReceiptGiftCardSaleDetailField = null;
+                if (giftCardLM != null) {
+                    priceReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("price[ReceiptGiftCardSaleDetail]"));
+                    sumReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("sum[ReceiptGiftCardSaleDetail]"));
+                    idGiftCardField = new ImportField(giftCardLM.findProperty("id[GiftCard]"));
+                    isReturnReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("isReturn[ReceiptGiftCardSaleDetail]"));
+                }
+
+                ImportField seriesNumberDiscountCardField = discountCardLM == null ? null : new ImportField(discountCardLM.findProperty("seriesNumber[DiscountCard]"));
+                ImportField idSectionField = zReportSectionLM == null ? null : new ImportField(zReportSectionLM.findProperty("id[Section]"));
+                ImportField externalSumZReportField = zReportExternalLM == null ? null : new ImportField(zReportExternalLM.findProperty("externalSum[ZReport]"));
+
+                List<ImportProperty<?>> saleProperties = new ArrayList<>();
+                List<ImportProperty<?>> returnProperties = new ArrayList<>();
+                List<ImportProperty<?>> giftCardProperties = new ArrayList<>();
+
+                ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport"), zReportLM.findProperty("zReport[VARSTRING[100]]").getMapping(idZReportField));
+                saleKeys.add(zReportKey);
+
+                ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("CashRegister"), zReportLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").getMapping(nppGroupMachineryField, nppMachineryField));
+                cashRegisterKey.skipKey = true;
+                saleKeys.add(cashRegisterKey);
+
+                ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptField));
+                saleKeys.add(receiptKey);
+
+                ImportKey<?> skuKey = new ImportKey((CustomClass) zReportLM.findClass("Sku"), zReportLM.findProperty("skuBarcode[VARSTRING[15],DATE]").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
+                saleKeys.add(skuKey);
+
+                ImportKey<?> employeeKey = new ImportKey((CustomClass) zReportLM.findClass("Employee"), zReportLM.findProperty("employee[VARSTRING[100]]").getMapping(idEmployeeField));
+                saleKeys.add(employeeKey);
+
+                ImportKey<?> discountCardKey = discountCardLM == null ? null : new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountSeriesNumber[STRING[18]]").getMapping(seriesNumberDiscountCardField, dateReceiptField));
+                if(discountCardKey != null)
+                    saleKeys.add(discountCardKey);
+
+                ImportKey<?> giftCardKey = giftCardLM == null ? null : new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[VARSTRING[100]]").getMapping(idGiftCardField));
+
+                ImportKey<?> sectionKey = zReportSectionLM == null ? null : new ImportKey((ConcreteCustomClass) zReportSectionLM.findClass("Section"), zReportSectionLM.findProperty("section[VARSTRING[100]]").getMapping(idSectionField));
+                if(sectionKey != null)
+                    saleKeys.add(sectionKey);
+
+                //sale 2
+                saleProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
+                saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
+                saleProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
+                        zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
+                saleProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
+                saleProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
+                saleProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
+
+                saleProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
+                saleProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
+                saleProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("date[Receipt]").getMapping(receiptKey)));
+                saleProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("time[Receipt]").getMapping(receiptKey)));
+                saleProperties.add(new ImportProperty(discountSumSaleReceiptField, zReportLM.findProperty("discountSumSale[Receipt]").getMapping(receiptKey)));
+                saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
+                        zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
+                if (discountCardLM != null && zReportDiscountCardLM != null) {
+                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
+                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCard[Receipt]").getMapping(receiptKey),
+                            discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
+                }
+                saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
+                saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
+                        zReportLM.object(zReportLM.findClass("Employee")).getMapping(employeeKey)));
+                saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
+                saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
+
+                ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
+                saleKeys.add(receiptSaleDetailKey);
+
+                saleProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
+                saleProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("number[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
+                saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("idBarcode[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
+                saleProperties.add(new ImportProperty(quantityReceiptSaleDetailField, zReportLM.findProperty("quantity[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
+                saleProperties.add(new ImportProperty(priceReceiptSaleDetailField, zReportLM.findProperty("price[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
+                saleProperties.add(new ImportProperty(sumReceiptSaleDetailField, zReportLM.findProperty("sum[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
+
+                ImportField discountPercentReceiptSaleDetailField = new ImportField(zReportLM.findProperty("discountPercent[ReceiptSaleDetail]"));
+                saleProperties.add(new ImportProperty(discountPercentReceiptSaleDetailField, zReportLM.findProperty("discountPercent[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
+
+                ImportField discountSumReceiptSaleDetailField = new ImportField(zReportLM.findProperty("discountSum[ReceiptSaleDetail]"));
+                saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, zReportLM.findProperty("discountSum[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
+
+                saleProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[ReceiptDetail]").getMapping(receiptSaleDetailKey),
+                        zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
+
+                saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("sku[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey),
+                        zReportLM.object(zReportLM.findClass("Sku")).getMapping(skuKey)));
+
+                if(zReportSectionLM != null) {
+                    saleProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("id[Section]").getMapping(sectionKey), true));
+                    saleProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("section[ReceiptDetail]").getMapping(receiptSaleDetailKey),
+                            zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
+                }
+
+                if(zReportExternalLM != null) {
+                    saleProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
+                }
+
+                //return 2
+                returnProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
+                returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
+                returnProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
+                        zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
+                returnProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
+                returnProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
+                returnProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
+
+                returnProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
+                returnProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
+                returnProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("date[Receipt]").getMapping(receiptKey)));
+                returnProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("time[Receipt]").getMapping(receiptKey)));
+                if (discountCardLM != null) {
+                    returnProperties.add(new ImportProperty(discountSumReturnReceiptField, zReportLM.findProperty("discountSumReturn[Receipt]").getMapping(receiptKey)));
+                }
+                returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
+                        zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
+                if (discountCardLM != null && zReportDiscountCardLM != null) {
+                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
+                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCard[Receipt]").getMapping(receiptKey),
+                            discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
+                }
+
+                returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
+                returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
+                        zReportLM.object(zReportLM.findClass("CustomUser")).getMapping(employeeKey)));
+                returnProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
+                returnProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
+
+                ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptReturnDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
+                returnProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
+                returnProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("number[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
+                returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("idBarcode[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
+                returnProperties.add(new ImportProperty(quantityReceiptReturnDetailField, zReportLM.findProperty("quantity[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
+                returnProperties.add(new ImportProperty(priceReceiptReturnDetailField, zReportLM.findProperty("price[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
+                returnProperties.add(new ImportProperty(retailSumReceiptReturnDetailField, zReportLM.findProperty("sum[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
+                returnProperties.add(new ImportProperty(discountSumReceiptReturnDetailField, zReportLM.findProperty("discountSum[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
+                returnProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[ReceiptDetail]").getMapping(receiptReturnDetailKey),
+                        zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
+
+                returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("sku[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey),
+                        zReportLM.object(zReportLM.findClass("Sku")).getMapping(skuKey)));
+
+                ImportKey<?> receiptSaleDetailReceiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idSaleReceiptReceiptReturnDetailField));
+                receiptSaleDetailReceiptReturnDetailKey.skipKey = true;
+                returnProperties.add(new ImportProperty(idSaleReceiptReceiptReturnDetailField, zReportLM.findProperty("saleReceipt[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey),
+                        zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptSaleDetailReceiptReturnDetailKey)));
+
+                if(zReportSectionLM != null) {
+                    returnProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("id[Section]").getMapping(sectionKey), true));
+                    returnProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("section[ReceiptDetail]").getMapping(receiptReturnDetailKey),
+                            zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
+                }
+
+                if(zReportExternalLM != null) {
+                    returnProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
+                }
+
+                //giftCard 2
+                ImportKey<?> receiptGiftCardSaleDetailKey = null;
+                if (giftCardLM != null) {
+                    giftCardProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
+                    giftCardProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
+                    giftCardProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
+                            zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
+                    giftCardProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
+                    giftCardProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
+                    giftCardProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
+
+                    giftCardProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
+                    giftCardProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
+                    giftCardProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("date[Receipt]").getMapping(receiptKey)));
+                    giftCardProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("time[Receipt]").getMapping(receiptKey)));
+
+                    giftCardProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
+                            zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
+
+                    giftCardProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
+                    giftCardProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
+                            zReportLM.object(zReportLM.findClass("CustomUser")).getMapping(employeeKey)));
+                    giftCardProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
+                    giftCardProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
+
+                    receiptGiftCardSaleDetailKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("ReceiptGiftCardSaleDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
+                    giftCardProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey)));
+                    giftCardProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("number[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey)));
+                    giftCardProperties.add(new ImportProperty(priceReceiptGiftCardSaleDetailField, giftCardLM.findProperty("price[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey)));
+                    giftCardProperties.add(new ImportProperty(sumReceiptGiftCardSaleDetailField, giftCardLM.findProperty("sum[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey)));
+                    giftCardProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey),
+                            zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
+
+                    giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("id[GiftCard]").getMapping(giftCardKey)));
+                    giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("number[GiftCard]").getMapping(giftCardKey)));
+                    giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("giftCard[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey),
+                            zReportLM.object(giftCardLM.findClass("GiftCard")).getMapping(giftCardKey)));
+                    giftCardProperties.add(new ImportProperty(isReturnReceiptGiftCardSaleDetailField, giftCardLM.findProperty("isReturn[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey)));
+                }
+
+                if(zReportSectionLM != null) {
+                    giftCardProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("id[Section]").getMapping(sectionKey), true));
+                    giftCardProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("section[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey),
+                            zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
+                }
+
+                if(zReportExternalLM != null) {
+                    giftCardProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
+                }
+
+                List<List<Object>> dataSale = new ArrayList<>();
+                List<List<Object>> dataReturn = new ArrayList<>();
+                List<List<Object>> dataGiftCard = new ArrayList<>();
+
+                Map<Object, String> barcodeMap = new HashMap<>();
+                for (SalesInfo sale : data) {
+                    if (!overDocumentsClosedDate(sale, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList)) {
+                        String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem :
+                                (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : sale.idItem != null ? barcodeMap.get(sale.idItem) : null);
+                        if (barcode == null && sale.itemObject != null) {
+                            barcode = trim((String) itemLM.findProperty("idBarcode[Sku]").read(session, new DataObject(sale.itemObject, (ConcreteCustomClass) itemLM.findClass("Item"))));
+                            barcodeMap.put(sale.itemObject, barcode);
+                        }
+                        if (barcode == null && sale.idItem != null) {
+                            barcode = trim((String) itemLM.findProperty("idBarcodeSku[VARSTRING[100]]").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
+                            //чит на случай, когда штрихкод приходит в код товара, copy-paste from ArtixHandler
+                            if (barcode == null)
+                                barcode = appendCheckDigitToBarcode(sale.idItem, 7, true);
+                            barcodeMap.put(sale.idItem, barcode);
+                        }
+
+                        String idReceipt = sale.getIdReceipt(startDate, timeId);
+                        if (sale.isGiftCard) {
+                            //giftCard 3
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
+                                    sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
+                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode,
+                                    sale.priceReceiptDetail, sale.sumReceiptDetail, sale.isReturnGiftCard ? true : null);
+                            if (zReportSectionLM != null) {
+                                row = new ArrayList<>(row);
+                                row.add(sale.idSection);
+                            }
+                            if(zReportExternalLM != null) {
+                                row = new ArrayList<>(row);
+                                row.add(sale.externalSumZReport);
+                            }
+                            dataGiftCard.add(row);
+                        } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
+                            //return 3
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
+                                    sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
+                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
+                                    sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail);
+                            if (discountCardLM != null) {
+                                row = new ArrayList<>(row);
+                                row.add(sale.seriesNumberDiscountCard);
+                            }
+                            if (zReportSectionLM != null) {
+                                row = new ArrayList<>(row);
+                                row.add(sale.idSection);
+                            }
+                            if(zReportExternalLM != null) {
+                                row = new ArrayList<>(row);
+                                row.add(sale.externalSumZReport);
+                            }
+                            dataReturn.add(row);
+                        } else {
+                            //sale 3
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
+                                    sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
+                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
+                                    sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountPercentReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
+                            if (discountCardLM != null) {
+                                row = new ArrayList<>(row);
+                                row.add(sale.seriesNumberDiscountCard);
+                            }
+                            if (zReportSectionLM != null) {
+                                row = new ArrayList<>(row);
+                                row.add(sale.idSection);
+                            }
+                            if(zReportExternalLM != null) {
+                                row = new ArrayList<>(row);
+                                row.add(sale.externalSumZReport);
+                            }
+                            dataSale.add(row);
+                        }
+                    }
+                }
+
+                //sale 4
+                List<ImportField> saleImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
+                        idZReportField, numberZReportField, dateZReportField, timeZReportField, dateReceiptField, timeReceiptField, isPostedZReportField,
+                        idEmployeeField, firstNameContactField, lastNameContactField, idReceiptField, numberReceiptField,
+                        idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
+                        quantityReceiptSaleDetailField, priceReceiptSaleDetailField, sumReceiptSaleDetailField,
+                        discountPercentReceiptSaleDetailField, discountSumReceiptSaleDetailField, discountSumSaleReceiptField);
+                if (discountCardLM != null) {
+                    saleImportFields = new ArrayList<>(saleImportFields);
+                    saleImportFields.add(seriesNumberDiscountCardField);
+                }
+                if (zReportSectionLM != null) {
+                    saleImportFields = new ArrayList<>(saleImportFields);
+                    saleImportFields.add(idSectionField);
+                }
+                if (zReportExternalLM != null) {
+                    saleImportFields = new ArrayList<>(saleImportFields);
+                    saleImportFields.add(externalSumZReportField);
+                }
+
+                //return 4
+                List<ImportField> returnImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
+                        idZReportField, numberZReportField, dateZReportField, timeZReportField, dateReceiptField, timeReceiptField, isPostedZReportField,
+                        idEmployeeField, firstNameContactField, lastNameContactField, idReceiptField, numberReceiptField,
+                        idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
+                        quantityReceiptReturnDetailField, priceReceiptReturnDetailField, retailSumReceiptReturnDetailField,
+                        discountSumReceiptReturnDetailField, discountSumReturnReceiptField, idSaleReceiptReceiptReturnDetailField);
+                if (discountCardLM != null) {
+                    returnImportFields = new ArrayList<>(returnImportFields);
+                    returnImportFields.add(seriesNumberDiscountCardField);
+                }
+                if (zReportSectionLM != null) {
+                    returnImportFields = new ArrayList<>(returnImportFields);
+                    returnImportFields.add(idSectionField);
+                }
+                if (zReportExternalLM != null) {
+                    returnImportFields = new ArrayList<>(returnImportFields);
+                    returnImportFields.add(externalSumZReportField);
+                }
+
+                //giftCard 4
+                List<ImportField> giftCardImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
+                        idZReportField, numberZReportField, dateZReportField, timeZReportField, dateReceiptField, timeReceiptField, isPostedZReportField,
+                        idEmployeeField, firstNameContactField, lastNameContactField, idReceiptField, numberReceiptField,
+                        idReceiptDetailField, numberReceiptDetailField, idGiftCardField,
+                        priceReceiptGiftCardSaleDetailField, sumReceiptGiftCardSaleDetailField, isReturnReceiptGiftCardSaleDetailField);
+                if (zReportSectionLM != null) {
+                    giftCardImportFields = new ArrayList<>(giftCardImportFields);
+                    giftCardImportFields.add(idSectionField);
+                }
+                if (zReportExternalLM != null) {
+                    giftCardImportFields = new ArrayList<>(giftCardImportFields);
+                    giftCardImportFields.add(externalSumZReportField);
+                }
+
+                //sale 5
+                new IntegrationService(session, new ImportTable(saleImportFields, dataSale), saleKeys, saleProperties).synchronize(true);
+
+                //return 5
+                List<ImportKey<?>> returnKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, employeeKey, receiptSaleDetailReceiptReturnDetailKey);
+                if (discountCardLM != null) {
+                    returnKeys = new ArrayList<>(returnKeys);
+                    returnKeys.add(discountCardKey);
+                }
+                if (zReportSectionLM != null) {
+                    returnKeys = new ArrayList<>(returnKeys);
+                    returnKeys.add(sectionKey);
+                }
+                new IntegrationService(session, new ImportTable(returnImportFields, dataReturn), returnKeys, returnProperties).synchronize(true);
+
+                //giftCard 5
+                if (giftCardLM != null) {
+                    List<ImportKey<?>> giftCardKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptGiftCardSaleDetailKey, giftCardKey, employeeKey);
+                    new IntegrationService(session, new ImportTable(giftCardImportFields, dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
+                }
+
+                EquipmentServerImport.importPayment(getBusinessLogics(), session, data, startDate, timeId);
+
+                EquipmentServerImport.importPaymentGiftCard(getBusinessLogics(), session, data, startDate, timeId);
+
+
+                session.setKeepLastAttemptCountMap(true);
+                String result = session.applyMessage(getBusinessLogics(), stack);
+                if (result == null) {
+                    logCompleteMessage(stack, session, data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), left, timeStart, sidEquipmentServer, directory);
+                } else
+                    return result;
+            }
         }
     }
 

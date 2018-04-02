@@ -20,7 +20,6 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
@@ -193,14 +192,10 @@ public class GenerateZReport extends DefaultIntegrationActionProperty {
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
-        try {
-            EquipmentServer equipmentServer = context.getLogicsInstance().getCustomObject(EquipmentServer.class);
-            String res = equipmentServer.sendSalesInfoNonRemote(context.stack, salesInfoList, "equServer1", null);
-            if (res != null) {
-                throw new RuntimeException(res);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        EquipmentServer equipmentServer = context.getLogicsInstance().getCustomObject(EquipmentServer.class);
+        String res = equipmentServer.sendSalesInfoNonRemote(context.stack, salesInfoList, "equServer1", null);
+        if (res != null) {
+            throw new RuntimeException(res);
         }
     }
 
