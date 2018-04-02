@@ -1091,25 +1091,27 @@ stocks 'Склады' = GROUP CONCAT name(Stock s) IF inStat(s), ', ' ORDER s;
 countInStat = GROUP SUM 1 IF inStat(Stock s);
 
 quantityNoGroupsB 'Количество товаров без групп на начало' (StatisticGroupType type, DATE dFrom) = 
-        GROUP BY StatisticGroupType type, DATE date SUM 1 IF balanceB(Sku sku, Stock stock, date) AND type IS StatisticGroupType //AND Sku sku IS Sku AND Stock stock IS Stock AND DATE date IS DATE
-            AND NOT statistic(type, sku) AND inStat(stock);
+    GROUP BY StatisticGroupType type, DATE date SUM 1 IF [= GROUP BY Sku sku, DATE date SUM 1 IF balanceB(sku, Stock stock, date) AND inStat(stock)](Sku sku, date) 
+        AND type IS StatisticGroupType //AND Sku sku IS Sku AND Stock stock IS Stock AND DATE date IS DATE 
+        AND NOT statistic(type, sku);
 
 quantityNoGroupsA 'Количество товаров без групп на конец' (StatisticGroupType type, DATE dTo) = 
-        GROUP BY StatisticGroupType type, DATE date SUM 1 IF balanceA(Sku sku, Stock stock, date) AND type IS StatisticGroupType // AND Sku sku IS Sku AND Stock stock IS Stock AND DATE date IS DATE
-            AND NOT statistic(type, sku) AND inStat(stock);
+    GROUP BY StatisticGroupType type, DATE date SUM 1 IF [= GROUP BY Sku sku, DATE date SUM 1 IF balanceA(sku, Stock stock, date) AND inStat(stock)](Sku sku, date)  
+        AND type IS StatisticGroupType // AND Sku sku IS Sku AND Stock stock IS Stock AND DATE date IS DATE
+        AND NOT statistic(type, sku);
 
 quantityNoGroups 'Количество товаров без групп, шт' (StatisticGroupType type) = 
     GROUP BY StatisticGroupType type SUM 1 IF type IS StatisticGroupType AND Sku sku IS Sku AND
         NOT statistic(type, sku);
 
 quantitySoldNot 'Продано без группы, шт' (type, dateFrom, dateTo)=
-    GROUP BY StatisticGroupType type, DATE dateFrom, DATE dateTo SUM quantitySoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF type IS StatisticGroupType AND NOT       
+    GROUP BY StatisticGroupType type, DATE dateFrom, DATE dateTo SUM quantitySoldStatistic(Sku sku, Stock stock, dateFrom, dateTo) IF type IS StatisticGroupType AND NOT       
     statistic(type,sku) AND inStat(stock);  
 balanceBNot 'Остаток на начало без групп, шт' (type, date)=
-    GROUP BY StatisticGroupType type, DATE date SUM  balanceB (Sku sku, Stock stock, date) IF type IS StatisticGroupType AND NOT       
+    GROUP BY StatisticGroupType type, DATE date SUM balanceB(Sku sku, Stock stock, date) IF type IS StatisticGroupType AND NOT       
     statistic(type,sku) AND inStat(stock);  
 balanceANot 'Остаток на конец без групп, шт' (type, date)=
-    GROUP BY StatisticGroupType type, DATE date SUM  balanceA (Sku sku, Stock stock, date) IF type IS StatisticGroupType AND NOT       
+    GROUP BY StatisticGroupType type, DATE date SUM balanceA(Sku sku, Stock stock, date) IF type IS StatisticGroupType AND NOT       
     statistic(type,sku) AND inStat(stock);         
 
 noThousandsInStatistics 'Статистический отчёт в рублях' = DATA BOOLEAN ();
