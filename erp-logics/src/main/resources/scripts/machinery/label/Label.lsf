@@ -156,6 +156,9 @@ printNullPrice 'Включать позиции без цен' = DATA BOOLEAN (L
 
 notPrintRetailPrice 'Не печатать без цены до' = DATA BOOLEAN (LabelType);
 
+//не печеать весовой товары
+notPrintNetItem 'Не печатать весовой товар' = DATA BOOLEAN (LabelType);
+
 // Неактивный
 inactive 'Неактивный' = DATA BOOLEAN (LabelType);
 active 'Активный' (LabelType t) = t IS LabelType AND NOT inactive(t);
@@ -163,7 +166,8 @@ active 'Активный' (LabelType t) = t IS LabelType AND NOT inactive(t);
 FORM labelType 'Тип ценника'
     OBJECTS l = LabelType PANEL
     PROPERTIES(l) id, name, width, height, nameOrientation, fileTemplate,
-                  namePriceListType, nameGroupType, printNullPrice, notPrintRetailPrice, inactive
+                  namePriceListType, nameGroupType, printNullPrice, notPrintRetailPrice,
+                  notPrintNetItem, inactive
 
     TREE treeStore a=STRING[3], st=StoreType, s=Store
     PROPERTIES READONLY VALUE(a), name[StockGroup](st), name(s)
@@ -248,7 +252,7 @@ DESIGN labelType {
 
 FORM labelTypes 'Типы ценников'
     OBJECTS l = LabelType
-    PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate, namePriceListType, printNullPrice, notPrintRetailPrice, active
+    PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate, namePriceListType, printNullPrice, notPrintRetailPrice, notPrintNetItem, active
     PROPERTIES(l)          NEWSESSION NEW, EDIT, DELETE     
     FILTERGROUP inactive FILTER 'Активные' active(l) 'F10' DEFAULT
     LIST LabelType OBJECT l
@@ -342,6 +346,8 @@ priceListType(LabelTransactionDetail d) = overPriceListType(labelTransaction(d))
 
 printNullPrice = printNullPrice(labelType(LabelTransactionDetail detail));
 notPrintRetailPrice = notPrintRetailPrice(labelType(LabelTransactionDetail detail));
+
+notPrintNetItem = notPrintNetItem(labelType(LabelTransactionDetail detail));
 
 departmentStore (LabelTransactionDetail d) = departmentStore(labelTransaction(d)) MATERIALIZED;
 
@@ -439,7 +445,7 @@ FORM labelTypesDialog 'Доступные типы ценников'
     FILTERS isCompany(ds)
 
     OBJECTS l = LabelType
-    PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate, namePriceListType, printNullPrice
+    PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate, namePriceListType, printNullPrice, notPrintNetItem
     FILTERS in(l,ds)
     FILTERGROUP inactive FILTER 'Активные' active(l) 'F10' DEFAULT
 ;
@@ -892,6 +898,8 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                     DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
                 ELSE
                     DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+                
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND passScales(sku(d)) AND notPrintNetItem(d);
                     
                 IF [ = GROUP BY labelTransaction(LabelTransactionDetail d) SUM 1](t) THEN {
                     Label.ok() <- TRUE;
@@ -1006,6 +1014,8 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                         DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
                     ELSE
                         DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+                        
+                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND passScales(sku(d)) AND notPrintNetItem(d);
             
                     print(t);
                 }                        
@@ -1136,6 +1146,8 @@ createLabelTransaction 'Распечатать ценники'(DepartmentStore d
             DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
         ELSE
             DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+            
+        DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND passScales(sku(d)) AND notPrintNetItem(d);
          
         print(t);                 
     }
@@ -1191,6 +1203,8 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
                 DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
             ELSE
                 DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d)  AND NOT skipDelete(d);
+                
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND passScales(sku(d)) AND notPrintNetItem(d);
         
             print(t);
         }     
@@ -1243,7 +1257,7 @@ FORM selectLabelTypes 'Доступные типы ценников'
     OBJECTS l = LabelType GRID
     PROPERTIES(l) select
     PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate,
-                  namePriceListType, nameGroupType, printNullPrice, notPrintRetailPrice
+                  namePriceListType, nameGroupType, printNullPrice, notPrintRetailPrice, notPrintNetItem
     FILTERS in(l,ds)
     FILTERGROUP inactive FILTER 'Активные' active(l) 'F10' DEFAULT
 ;
