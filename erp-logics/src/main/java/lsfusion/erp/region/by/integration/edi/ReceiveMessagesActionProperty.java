@@ -8,12 +8,15 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
+import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.NullValue;
+import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
@@ -114,8 +117,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Map<String, DocumentData> orderMessages = new HashMap<>();
         Map<String, DocumentData> orderResponses = new HashMap<>();
         Map<String, DocumentData> despatchAdvices = new HashMap<>();
-        Map<String, DocumentData> eInvoices = new HashMap<>();
         Map<String, DocumentData> invoiceMessages = new HashMap<>();
+
+        List<ImportResult> importResultList = new ArrayList<>();
+        List<BLRWBL> blrwblList = new ArrayList<>();
 
         Document document = new SAXBuilder().build(new ByteArrayInputStream(responseMessage.getBytes("utf-8")));
         Element rootNode = document.getRootElement();
@@ -158,7 +163,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                             break;
                                         case "blrwbl":
                                             if (invoices)
-                                                eInvoices.put(documentId, parseBLRWBL(subXMLRootNode));
+                                                blrwblList.add(parseBLRWBL(subXMLRootNode, documentId));
                                             break;
                                         case "blrapn":
                                             if (invoices)
@@ -248,16 +253,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             int eInvoicesSucceeded = 0;
             int eInvoicesFailed = 0;
-            for (Map.Entry<String, DocumentData> eInvoice : eInvoices.entrySet()) {
-                String documentId = eInvoice.getKey();
-                DocumentData data = eInvoice.getValue();
-                String error = importBLRWBL(context, data);
-                succeededMap.put(documentId, Pair.create(data.documentNumber, error));
+            for (BLRWBL blrwbl : blrwblList) {
+                String error = importBLRWBL(context, blrwbl);
+                importResultList.add(new ImportResult(blrwbl.documentId, blrwbl.documentNumber, error));
                 if (error == null) {
-                    ServerLoggers.importLogger.info(String.format("%s Import EInvoice %s succeeded", provider, documentId));
+                    ServerLoggers.importLogger.info(String.format("%s Import EInvoice %s succeeded", provider, blrwbl.documentId));
                     eInvoicesSucceeded++;
                 } else {
-                    ServerLoggers.importLogger.error(String.format("%s Import EInvoice %s failed: %s", provider, documentId, error));
+                    ServerLoggers.importLogger.error(String.format("%s Import EInvoice %s failed: %s", provider, blrwbl.documentId, error));
                     eInvoicesFailed++;
                 }
             }
@@ -326,6 +329,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                         succeeded = succeeded && sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, documentNumber, error);
                 }
 
+                for (ImportResult importResult : importResultList) {
+                    if (importResult.error == null)
+                        confirmDocumentReceived(context, importResult.documentId, url, login, password, host, port, provider, archiveDir);
+                    if (importResult.error != null && sendReplies)
+                        succeeded = succeeded && sendRecipientError(context, url, login, password, host, port, provider, archiveDir, importResult.documentId, importResult.documentNumber, importResult.error);
+                }
             }
 
             if (succeeded)
@@ -853,7 +862,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private DocumentData parseBLRWBL(Element rootNode) {
+    private BLRWBL parseBLRWBL(Element rootNode, String documentId) {
         List<List<Object>> data = new ArrayList<>();
 
         Element messageHeaderElement = rootNode.getChild("MessageHeader");
@@ -892,129 +901,100 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             BigDecimal lineItemAmount = parseBigDecimal(lineElement.getChildText("LineItemAmount"));
             BigDecimal lineItemAmountCharges = parseBigDecimal(lineElement.getChildText("LineItemAmountCharges"));
             if (lineItemID != null || lineItemBuyerID != null)
-                data.add(Arrays.<Object>asList(id, documentNumber, dateTime, deliveryNoteNumber, dateTime, supplierGLN,
-                        customerGLN, customerStockGLN, isCancel, idDetail, lineItemID, lineItemBuyerID, lineItemName,
+                data.add(Arrays.<Object>asList(idDetail, lineItemID, lineItemBuyerID, lineItemName,
                         quantityDespatched, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
                         lineItemAmount, lineItemAmountCharges));
         }
-        return new DocumentData(documentNumber, data, null);
+        return new BLRWBL(documentId, id, documentNumber, dateTime, deliveryNoteNumber, isCancel, supplierGLN, customerGLN, customerStockGLN, data);
     }
 
-    private String importBLRWBL(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importBLRWBL(ExecutionContext context, BLRWBL blrwbl) {
         String message = null;
-        List<List<Object>> importData = data == null ? null : data.firstData;
+        List<List<Object>> importData = blrwbl.detailList;
         if (importData != null && !importData.isEmpty()) {
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
 
-            ImportField idEInvoiceField = new ImportField(findProperty("id[EInvoice]"));
-            ImportKey<?> eInvoiceKey = new ImportKey((CustomClass) findClass("EInvoice"),
-                    findProperty("eInvoice[VARSTRING[100]]").getMapping(idEInvoiceField));
-            keys.add(eInvoiceKey);
-            props.add(new ImportProperty(idEInvoiceField, findProperty("id[EInvoice]").getMapping(eInvoiceKey)));
-            fields.add(idEInvoiceField);
-
-            ImportField numberEInvoiceField = new ImportField(findProperty("number[EInvoice]"));
-            props.add(new ImportProperty(numberEInvoiceField, findProperty("number[EInvoice]").getMapping(eInvoiceKey)));
-            fields.add(numberEInvoiceField);
-
-            ImportField dateTimeEInvoiceField = new ImportField(findProperty("dateTime[EInvoice]"));
-            props.add(new ImportProperty(dateTimeEInvoiceField, findProperty("dateTime[EInvoice]").getMapping(eInvoiceKey)));
-            fields.add(dateTimeEInvoiceField);
-
-            ImportField deliveryNoteNumberEInvoiceField = new ImportField(findProperty("deliveryNoteNumber[EInvoice]"));
-            props.add(new ImportProperty(deliveryNoteNumberEInvoiceField, findProperty("deliveryNoteNumber[EInvoice]").getMapping(eInvoiceKey)));
-            fields.add(deliveryNoteNumberEInvoiceField);
-
-            ImportField deliveryNoteDateTimeEInvoiceField = new ImportField(findProperty("deliveryNoteDateTime[EInvoice]"));
-            props.add(new ImportProperty(deliveryNoteDateTimeEInvoiceField, findProperty("deliveryNoteDateTime[EInvoice]").getMapping(eInvoiceKey)));
-            fields.add(deliveryNoteDateTimeEInvoiceField);
-
-            ImportField GLNSupplierEInvoiceField = new ImportField(findProperty("GLN[LegalEntity]"));
-            ImportKey<?> supplierKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                    findProperty("legalEntityStockGLN[VARSTRING[13]]").getMapping(GLNSupplierEInvoiceField));
-            supplierKey.skipKey = true;
-            keys.add(supplierKey);
-            props.add(new ImportProperty(GLNSupplierEInvoiceField, findProperty("supplier[EInvoice]").getMapping(eInvoiceKey),
-                    object(findClass("LegalEntity")).getMapping(supplierKey)));
-            fields.add(GLNSupplierEInvoiceField);
-
-            ImportField GLNCustomerEInvoiceField = new ImportField(findProperty("GLN[LegalEntity]"));
-            ImportKey<?> customerKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                    findProperty("legalEntityGLN[VARSTRING[13]]").getMapping(GLNCustomerEInvoiceField));
-            customerKey.skipKey = true;
-            keys.add(customerKey);
-            props.add(new ImportProperty(GLNCustomerEInvoiceField, findProperty("customer[EInvoice]").getMapping(eInvoiceKey),
-                    object(findClass("LegalEntity")).getMapping(customerKey)));
-            fields.add(GLNCustomerEInvoiceField);
-
-            ImportField GLNCustomerStockEInvoiceField = new ImportField(findProperty("GLN[Stock]"));
-            ImportKey<?> customerStockKey = new ImportKey((CustomClass) findClass("Stock"),
-                    findProperty("companyStockGLN[VARSTRING[13]]").getMapping(GLNCustomerStockEInvoiceField));
-            customerStockKey.skipKey = true;
-            keys.add(customerStockKey);
-            props.add(new ImportProperty(GLNCustomerStockEInvoiceField, findProperty("customerStock[EInvoice]").getMapping(eInvoiceKey),
-                    object(findClass("Stock")).getMapping(customerStockKey)));
-            fields.add(GLNCustomerStockEInvoiceField);
-
-            ImportField isCancelEInvoiceField = new ImportField(findProperty("isCancel[EInvoice]"));
-            props.add(new ImportProperty(isCancelEInvoiceField, findProperty("isCancel[EInvoice]").getMapping(eInvoiceKey)));
-            fields.add(isCancelEInvoiceField);
-
-            ImportField idEInvoiceDetailField = new ImportField(findProperty("id[EInvoiceDetail]"));
-            ImportKey<?> eInvoiceDetailKey = new ImportKey((CustomClass) findClass("EInvoiceDetail"),
-                    findProperty("eInvoiceDetail[VARSTRING[100]]").getMapping(idEInvoiceDetailField));
-            keys.add(eInvoiceDetailKey);
-            props.add(new ImportProperty(idEInvoiceDetailField, findProperty("eInvoice[EInvoiceDetail]").getMapping(eInvoiceDetailKey),
-                    object(findClass("EInvoice")).getMapping(eInvoiceKey)));
-            props.add(new ImportProperty(idEInvoiceDetailField, findProperty("id[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
-            fields.add(idEInvoiceDetailField);
-
-            ImportField lineItemIDEInvoiceDetailField = new ImportField(findProperty("lineItemID[EInvoiceDetail]"));
-            props.add(new ImportProperty(lineItemIDEInvoiceDetailField, findProperty("lineItemID[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
-            fields.add(lineItemIDEInvoiceDetailField);
-
-            ImportField lineItemBuyerIDEInvoiceDetailField = new ImportField(findProperty("lineItemBuyerID[EInvoiceDetail]"));
-            props.add(new ImportProperty(lineItemBuyerIDEInvoiceDetailField, findProperty("lineItemBuyerID[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
-            fields.add(lineItemBuyerIDEInvoiceDetailField);
-
-            ImportField lineItemNameEInvoiceDetailField = new ImportField(findProperty("lineItemName[EInvoiceDetail]"));
-            props.add(new ImportProperty(lineItemNameEInvoiceDetailField, findProperty("lineItemName[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
-            fields.add(lineItemNameEInvoiceDetailField);
-
-            ImportField quantityDespatchedEInvoiceDetailField = new ImportField(findProperty("quantityDespatched[EInvoiceDetail]"));
-            props.add(new ImportProperty(quantityDespatchedEInvoiceDetailField, findProperty("quantityDespatched[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
-            fields.add(quantityDespatchedEInvoiceDetailField);
-
-            ImportField valueVATEInvoiceDetailField = new ImportField(findProperty("valueVAT[EInvoiceDetail]"));
-            props.add(new ImportProperty(valueVATEInvoiceDetailField, findProperty("valueVAT[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
-            fields.add(valueVATEInvoiceDetailField);
-
-            ImportField lineItemPriceEInvoiceDetailField = new ImportField(findProperty("lineItemPrice[EInvoiceDetail]"));
-            props.add(new ImportProperty(lineItemPriceEInvoiceDetailField, findProperty("lineItemPrice[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
-            fields.add(lineItemPriceEInvoiceDetailField);
-
-            ImportField lineItemAmountWithoutChargesEInvoiceDetailField = new ImportField(findProperty("lineItemAmountWithoutCharges[EInvoiceDetail]"));
-            props.add(new ImportProperty(lineItemAmountWithoutChargesEInvoiceDetailField, findProperty("lineItemAmountWithoutCharges[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
-            fields.add(lineItemAmountWithoutChargesEInvoiceDetailField);
-
-            ImportField lineItemAmountEInvoiceDetailField = new ImportField(findProperty("lineItemAmount[EInvoiceDetail]"));
-            props.add(new ImportProperty(lineItemAmountEInvoiceDetailField, findProperty("lineItemAmount[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
-            fields.add(lineItemAmountEInvoiceDetailField);
-
-            ImportField lineItemAmountChargesEInvoiceDetailField = new ImportField(findProperty("lineItemAmountCharges[EInvoiceDetail]"));
-            props.add(new ImportProperty(lineItemAmountChargesEInvoiceDetailField, findProperty("lineItemAmountCharges[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
-            fields.add(lineItemAmountChargesEInvoiceDetailField);
-
-            ImportTable table = new ImportTable(fields, importData);
-
             try (DataSession session = context.createSession()) {
-                session.pushVolatileStats("EDI_DA");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                message = session.applyMessage(context);
-                session.popVolatileStats();
+
+                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumber[VARSTRING[28]]").readClasses(session, new DataObject(blrwbl.deliveryNoteNumber));
+                if (eInvoiceObject instanceof NullValue) {
+                    eInvoiceObject = session.addObject((ConcreteCustomClass) findClass("EInvoice"));
+
+                    findProperty("importedCustomer[EInvoice]").change(true, session, (DataObject) eInvoiceObject);
+                    findProperty("id[EInvoice]").change(blrwbl.id, session, (DataObject) eInvoiceObject);
+                    findProperty("number[EInvoice]").change(blrwbl.documentNumber, session, (DataObject) eInvoiceObject);
+                    findProperty("dateTime[EInvoice]").change(blrwbl.dateTime, session, (DataObject) eInvoiceObject);
+                    findProperty("deliveryNoteDateTime[EInvoice]").change(blrwbl.dateTime, session, (DataObject) eInvoiceObject);
+                    findProperty("deliveryNoteNumber[EInvoice]").change(blrwbl.deliveryNoteNumber, session, (DataObject) eInvoiceObject);
+                    findProperty("isCancel[EInvoice]").change(blrwbl.isCancel, session, (DataObject) eInvoiceObject);
+
+                    ObjectValue supplierObject = findProperty("legalEntityStockGLN[VARSTRING[13]]").readClasses(session, new DataObject(blrwbl.supplierGLN));
+                    findProperty("supplier[EInvoice]").change(supplierObject, session, (DataObject) eInvoiceObject);
+
+                    ObjectValue customerObject = findProperty("legalEntityGLN[VARSTRING[13]]").readClasses(session, new DataObject(blrwbl.customerGLN));
+                    findProperty("customer[EInvoice]").change(customerObject, session, (DataObject) eInvoiceObject);
+
+                    ObjectValue customerStockObject = findProperty("companyStockGLN[VARSTRING[13]]").readClasses(session, new DataObject(blrwbl.customerStockGLN));
+                    findProperty("customerStock[EInvoice]").change(customerStockObject, session, (DataObject) eInvoiceObject);
+
+                    ImportField idEInvoiceDetailField = new ImportField(findProperty("id[EInvoiceDetail]"));
+                    ImportKey<?> eInvoiceDetailKey = new ImportKey((CustomClass) findClass("EInvoiceDetail"),
+                            findProperty("eInvoiceDetail[VARSTRING[100]]").getMapping(idEInvoiceDetailField));
+                    keys.add(eInvoiceDetailKey);
+                    props.add(new ImportProperty(idEInvoiceDetailField, findProperty("eInvoice[EInvoiceDetail]").getMapping(eInvoiceDetailKey),
+                            object(findClass("EInvoice")).getMapping(eInvoiceObject)));
+                    props.add(new ImportProperty(idEInvoiceDetailField, findProperty("id[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+                    fields.add(idEInvoiceDetailField);
+
+                    ImportField lineItemIDEInvoiceDetailField = new ImportField(findProperty("lineItemID[EInvoiceDetail]"));
+                    props.add(new ImportProperty(lineItemIDEInvoiceDetailField, findProperty("lineItemID[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+                    fields.add(lineItemIDEInvoiceDetailField);
+
+                    ImportField lineItemBuyerIDEInvoiceDetailField = new ImportField(findProperty("lineItemBuyerID[EInvoiceDetail]"));
+                    props.add(new ImportProperty(lineItemBuyerIDEInvoiceDetailField, findProperty("lineItemBuyerID[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+                    fields.add(lineItemBuyerIDEInvoiceDetailField);
+
+                    ImportField lineItemNameEInvoiceDetailField = new ImportField(findProperty("lineItemName[EInvoiceDetail]"));
+                    props.add(new ImportProperty(lineItemNameEInvoiceDetailField, findProperty("lineItemName[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+                    fields.add(lineItemNameEInvoiceDetailField);
+
+                    ImportField quantityDespatchedEInvoiceDetailField = new ImportField(findProperty("quantityDespatched[EInvoiceDetail]"));
+                    props.add(new ImportProperty(quantityDespatchedEInvoiceDetailField, findProperty("quantityDespatched[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+                    fields.add(quantityDespatchedEInvoiceDetailField);
+
+                    ImportField valueVATEInvoiceDetailField = new ImportField(findProperty("valueVAT[EInvoiceDetail]"));
+                    props.add(new ImportProperty(valueVATEInvoiceDetailField, findProperty("valueVAT[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+                    fields.add(valueVATEInvoiceDetailField);
+
+                    ImportField lineItemPriceEInvoiceDetailField = new ImportField(findProperty("lineItemPrice[EInvoiceDetail]"));
+                    props.add(new ImportProperty(lineItemPriceEInvoiceDetailField, findProperty("lineItemPrice[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+                    fields.add(lineItemPriceEInvoiceDetailField);
+
+                    ImportField lineItemAmountWithoutChargesEInvoiceDetailField = new ImportField(findProperty("lineItemAmountWithoutCharges[EInvoiceDetail]"));
+                    props.add(new ImportProperty(lineItemAmountWithoutChargesEInvoiceDetailField, findProperty("lineItemAmountWithoutCharges[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+                    fields.add(lineItemAmountWithoutChargesEInvoiceDetailField);
+
+                    ImportField lineItemAmountEInvoiceDetailField = new ImportField(findProperty("lineItemAmount[EInvoiceDetail]"));
+                    props.add(new ImportProperty(lineItemAmountEInvoiceDetailField, findProperty("lineItemAmount[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+                    fields.add(lineItemAmountEInvoiceDetailField);
+
+                    ImportField lineItemAmountChargesEInvoiceDetailField = new ImportField(findProperty("lineItemAmountCharges[EInvoiceDetail]"));
+                    props.add(new ImportProperty(lineItemAmountChargesEInvoiceDetailField, findProperty("lineItemAmountCharges[EInvoiceDetail]").getMapping(eInvoiceDetailKey)));
+                    fields.add(lineItemAmountChargesEInvoiceDetailField);
+
+                    ImportTable table = new ImportTable(fields, importData);
+
+                    session.pushVolatileStats("EDI_DA");
+                    IntegrationService service = new IntegrationService(session, table, keys, props);
+                    service.synchronize(true, false);
+                    message = session.applyMessage(context);
+                    session.popVolatileStats();
+                } else {
+                    findProperty("importedCustomer[EInvoice]").change(true, session, (DataObject) eInvoiceObject);
+                    message = session.applyMessage(context);
+                }
             } catch (Exception e) {
                 ServerLoggers.importLogger.error("ImportEInvoice Error: ", e);
                 message = e.getMessage();
@@ -1292,6 +1272,45 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             this.firstData = firstData;
             this.secondData = secondData;
             this.skip = skip;
+        }
+    }
+
+    private class ImportResult {
+        String documentId;
+        String documentNumber;
+        String error;
+
+        public ImportResult(String documentId, String documentNumber, String error) {
+            this.documentId = documentId;
+            this.documentNumber = documentNumber;
+            this.error = error;
+        }
+    }
+
+    private class BLRWBL {
+        String documentId;
+        String id;
+        String documentNumber;
+        Timestamp dateTime;
+        String deliveryNoteNumber;
+        Boolean isCancel;
+        String supplierGLN;
+        String customerGLN;
+        String customerStockGLN;
+        List<List<Object>> detailList;
+
+        public BLRWBL(String documentId, String id, String documentNumber, Timestamp dateTime, String deliveryNoteNumber, Boolean isCancel,
+                      String supplierGLN, String customerGLN, String customerStockGLN, List<List<Object>> detailList) {
+            this.documentId = documentId;
+            this.id = id;
+            this.documentNumber = documentNumber;
+            this.dateTime = dateTime;
+            this.deliveryNoteNumber = deliveryNoteNumber;
+            this.isCancel = isCancel;
+            this.supplierGLN = supplierGLN;
+            this.customerGLN = customerGLN;
+            this.customerStockGLN = customerStockGLN;
+            this.detailList = detailList;
         }
     }
 }
