@@ -171,9 +171,9 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         QueryBuilder<Object, Object> giftCardQuery = new QueryBuilder<>(giftCardKeys);
 
         String[] articleNames = new String[]{"number", "price", "idBarcode", "nameSku", "idDepartmentStore", "expiryDays",
-                "isSoldInvoice", "defectGiftCardDetail"};
+                "isSoldInvoice", "isDefect"};
         LCP[] articleProperties = findProperties("number[GiftCard]", "price[GiftCard]", "idBarcode[GiftCard]", "nameSku[GiftCard]",
-                "idDepartmentStore[GiftCard]", "expiryDays[GiftCard]", "isSoldInvoice[GiftCard]", "defectGiftCardDetail[GiftCard]");
+                "idDepartmentStore[GiftCard]", "expiryDays[GiftCard]", "isSoldInvoice[GiftCard]", "isDefect[GiftCard]");
         for (int j = 0; j < articleProperties.length; j++) {
             giftCardQuery.addProperty(articleNames[j], articleProperties[j].getExpr(giftCardExpr));
         }
@@ -193,7 +193,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
             String departmentStore = (String) resultValues.get("idDepartmentStore");
             Integer expiryDays = (Integer) resultValues.get("expiryDays");
             boolean active = resultValues.get("isSoldInvoice") != null;
-            boolean defect = resultValues.get("defectGiftCardDetail") != null;
+            boolean defect = resultValues.get("isDefect") != null;
             Calendar calendar = Calendar.getInstance();
             Date dateFrom = new Date(calendar.getTime().getTime());
             if (defect)
