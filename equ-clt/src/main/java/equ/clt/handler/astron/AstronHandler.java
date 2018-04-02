@@ -58,9 +58,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 if (connectionString == null) {
                     processTransactionLogger.error("No connectionString in astronSettings found");
                 } else {
-                    Connection conn = null;
-                    try {
-                        conn = getConnection(connectionString, user, password);
+                    try (Connection conn = getConnection(connectionString, user, password)) {
 
                         int flags = checkFlags(conn);
                         if (flags > 0) {
@@ -108,8 +106,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             }
                         }
 
-                    } finally {
-                        closeConnection(conn);
                     }
                 }
             } catch (ClassNotFoundException | SQLException | InterruptedException e) {
@@ -120,12 +116,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private void exportGrp(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
-        PreparedStatement ps = null;
-        try {
-            String[] columns = new String[]{"GRPID", "PARENTGRPID", "GRPNAME", "DELFLAG"};
-            String[] keys = new String[]{"GRPID"};
+        String[] keys = new String[]{"GRPID"};
+        String[] columns = new String[]{"GRPID", "PARENTGRPID", "GRPNAME", "DELFLAG"};
+        try (PreparedStatement ps = getPreparedStatement(conn, "GRP", columns, keys)) {
             int offset = columns.length + keys.length;
-            ps = getPreparedStatement(conn, "GRP", columns, keys);
 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(transaction.itemsList.get(i).extIdItemGroup);
@@ -149,18 +143,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
             ps.executeBatch();
             conn.commit();
-        } finally {
-            closeStatement(ps);
         }
     }
 
     private void exportArt(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
-        PreparedStatement ps = null;
-        try {
-            String[] columns = new String[]{"ARTID", "GRPID", "TAXGRPID", "ARTCODE", "ARTNAME", "ARTSNAME", "DELFLAG"};
-            String[] keys = new String[]{"ARTID"};
+        String[] keys = new String[]{"ARTID"};
+        String[] columns = new String[]{"ARTID", "GRPID", "TAXGRPID", "ARTCODE", "ARTNAME", "ARTSNAME", "DELFLAG"};
+        try (PreparedStatement ps = getPreparedStatement(conn, "ART", columns, keys)) {
             int offset = columns.length + keys.length;
-            ps = getPreparedStatement(conn, "ART", columns, keys);
 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (!Thread.currentThread().isInterrupted()) {
@@ -183,18 +173,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
             ps.executeBatch();
             conn.commit();
-        } finally {
-            closeStatement(ps);
         }
     }
 
     private void exportUnit(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
-        PreparedStatement ps = null;
-        try {
-            String[] columns = new String[]{"UNITID", "UNITNAME", "UNITFULLNAME", "DELFLAG"};
-            String[] keys = new String[]{"UNITID"};
+        String[] keys = new String[]{"UNITID"};
+        String[] columns = new String[]{"UNITID", "UNITNAME", "UNITFULLNAME", "DELFLAG"};
+        try (PreparedStatement ps = getPreparedStatement(conn, "UNIT", columns, keys)) {
             int offset = columns.length + keys.length;
-            ps = getPreparedStatement(conn, "UNIT", columns, keys);
 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (!Thread.currentThread().isInterrupted()) {
@@ -214,8 +200,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     conn.commit();
                 } else break;
             }
-        } finally {
-            closeStatement(ps);
         }
     }
 
@@ -229,13 +213,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private void exportPack(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
-        PreparedStatement ps = null;
-        try {
-            String[] columns = new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID",
-                    "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG"};
-            String[] keys = new String[]{"PACKID"};
+        String[] keys = new String[]{"PACKID"};
+        String[] columns = new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID",
+                "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG"};
+        try (PreparedStatement ps = getPreparedStatement(conn, "PACK", columns, keys)) {
             int offset = columns.length + keys.length;
-            ps = getPreparedStatement(conn, "PACK", columns, keys);
 
             Set<Integer> idItems = new HashSet<>();
             for (int i = 0; i < transaction.itemsList.size(); i++) {
@@ -269,8 +251,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
             ps.executeBatch();
             conn.commit();
-        } finally {
-            closeStatement(ps);
         }
     }
 
@@ -288,12 +268,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private void exportExBarc(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
-        PreparedStatement ps = null;
-        try {
-            String[] columns = new String[]{"EXBARCID", "PACKID", "EXBARCTYPE", "EXBARCBODY", "DELFLAG"};
-            String[] keys = new String[]{"EXBARCID"};
+        String[] keys = new String[]{"EXBARCID"};
+        String[] columns = new String[]{"EXBARCID", "PACKID", "EXBARCTYPE", "EXBARCBODY", "DELFLAG"};
+        try (PreparedStatement ps = getPreparedStatement(conn, "EXBARC", columns, keys)) {
             int offset = columns.length + keys.length;
-            ps = getPreparedStatement(conn, "EXBARC", columns, keys);
 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (!Thread.currentThread().isInterrupted()) {
@@ -314,18 +292,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
             ps.executeBatch();
             conn.commit();
-        } finally {
-            closeStatement(ps);
         }
     }
 
     private void exportPackPrc(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
-        PreparedStatement ps = null;
-        try {
-            String[] columns = new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"};
-            String[] keys = new String[]{"PACKID", "PRCLEVELID"};
+        String[] keys = new String[]{"PACKID", "PRCLEVELID"};
+        String[] columns = new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"};
+        try (PreparedStatement ps = getPreparedStatement(conn, "PACKPRC", columns, keys)) {
             int offset = columns.length + keys.length;
-            ps = getPreparedStatement(conn, "PACKPRC", columns, keys);
 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (!Thread.currentThread().isInterrupted()) {
@@ -351,27 +325,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
             ps.executeBatch();
             conn.commit();
-        } finally {
-            closeStatement(ps);
         }
     }
 
     private void exportFlags(Connection conn, String tables) throws SQLException {
         conn.setAutoCommit(true);
-        Statement statement = null;
-        try {
-            statement = conn.createStatement();
+        try (Statement statement = conn.createStatement()) {
             String sql = "UPDATE [DATAPUMP] SET recordnum = 1 WHERE dirname in (" + tables + ")";
             statement.executeUpdate(sql);
         } catch (Exception e) {
             throw Throwables.propagate(e);
-        } finally {
-            if (statement != null)
-                statement.close();
         }
     }
 
-    private Throwable waitFlags(Connection conn, int timeout) throws SQLException, InterruptedException {
+    private Throwable waitFlags(Connection conn, int timeout) throws InterruptedException {
         int count = 0;
         int flags;
         while ((flags = checkFlags(conn)) != 0) {
@@ -388,18 +355,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return null;
     }
 
-    private int checkFlags(Connection conn) throws SQLException {
-        Statement statement = null;
-        try {
-            statement = conn.createStatement();
+    private int checkFlags(Connection conn) {
+        try (Statement statement = conn.createStatement()) {
             String sql = "SELECT COUNT(*) FROM [DATAPUMP] WHERE dirname in ('GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC') AND recordnum = 1";
             ResultSet resultSet = statement.executeQuery(sql);
             return resultSet.next() ? resultSet.getInt(1) : 0;
         } catch (Exception e) {
             throw Throwables.propagate(e);
-        } finally {
-            if (statement != null)
-                statement.close();
         }
     }
 
@@ -452,13 +414,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         String user = astronSettings == null ? null : astronSettings.getUser();
         String password = astronSettings == null ? null : astronSettings.getPassword();
         if (connectionString != null) {
-            Connection conn = null;
-            PreparedStatement ps = null;
-            try {
-                conn = getConnection(connectionString, user, password);
+            try(Connection conn = getConnection(connectionString, user, password);
+                PreparedStatement ps = conn.prepareStatement(String.format("UPDATE [PACKPRC] SET DELFLAG = %s WHERE PACKID=? AND PRCLEVELID=?", stopListInfo.exclude ? "0" : "1"))) {
 
                 processStopListLogger.info(logPrefix + "executing stopLists, table packprc");
-                ps = conn.prepareStatement(String.format("UPDATE [PACKPRC] SET DELFLAG = %s WHERE PACKID=? AND PRCLEVELID=?", stopListInfo.exclude ? "0" : "1"));
                 for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                     for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
                         if(item instanceof CashRegisterItemInfo) {
@@ -476,14 +435,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             } catch (Exception e) {
                 processStopListLogger.error(logPrefix, e);
-                e.printStackTrace();
-            } finally {
-                try {
-                    closeStatement(ps);
-                    closeConnection(conn);
-                } catch (SQLException e) {
-                    processStopListLogger.error(logPrefix, e);
-                }
             }
         }
     }
@@ -511,12 +462,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             if (connectionString == null) {
                 processTransactionLogger.error("No exportConnectionString in astronSettings found");
             } else {
-                Connection conn = null;
-                try {
-                    conn = getConnection(connectionString, user, password);
+                try (Connection conn = getConnection(connectionString, user, password)) {
                     salesBatch = readSalesInfoFromSQL(conn, machineryMap);
-                } finally {
-                    closeConnection(conn);
                 }
             }
         } catch (Exception e) {
@@ -525,7 +472,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return salesBatch;
     }
 
-    private AstronSalesBatch readSalesInfoFromSQL(Connection conn, Map<Integer, CashRegisterInfo> machineryMap) throws SQLException {
+    private AstronSalesBatch readSalesInfoFromSQL(Connection conn, Map<Integer, CashRegisterInfo> machineryMap) {
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<AstronRecord> recordList = new ArrayList<>();
@@ -654,44 +601,36 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
         if (connectionString != null) {
 
-            try {
+            try (Connection conn = getConnection(connectionString, user, password)) {
 
-                Connection conn = null;
-                try {
-                    conn = getConnection(connectionString, user, password);
+                createExtraColumns(conn);
 
-                    createExtraColumns(conn);
-
-                    for (RequestExchange entry : requestExchangeList) {
-                        Statement statement = null;
-                        try {
-                            StringBuilder where = new StringBuilder();
-                            Long dateFrom = entry.dateFrom.getTime();
-                            Long dateTo = entry.dateTo.getTime();
-                            while (dateFrom <= dateTo) {
-                                String dateString = new SimpleDateFormat("yyyyMMdd").format(new Date(dateFrom));
-                                where.append((where.length() == 0) ? "" : " OR ").append("SALESTIME LIKE '").append(dateString).append("%'");
-                                dateFrom += 86400000;
-                            }
-                            if (where.length() > 0) {
-                                statement = conn.createStatement();
-                                String query = "UPDATE [SALES] SET FUSION_PROCESSED = 0 WHERE " + where;
-                                sendSalesLogger.info("Astron RequestSalesInfo: " + query);
-                                statement.executeUpdate(query);
-                                conn.commit();
-                            }
-                            succeededRequests.add(entry.requestExchange);
-
-                        } catch (SQLException e) {
-                            failedRequests.put(entry.requestExchange, e);
-                            e.printStackTrace();
-                        } finally {
-                            if (statement != null)
-                                statement.close();
+                for (RequestExchange entry : requestExchangeList) {
+                    Statement statement = null;
+                    try {
+                        StringBuilder where = new StringBuilder();
+                        Long dateFrom = entry.dateFrom.getTime();
+                        Long dateTo = entry.dateTo.getTime();
+                        while (dateFrom <= dateTo) {
+                            String dateString = new SimpleDateFormat("yyyyMMdd").format(new Date(dateFrom));
+                            where.append((where.length() == 0) ? "" : " OR ").append("SALESTIME LIKE '").append(dateString).append("%'");
+                            dateFrom += 86400000;
                         }
+                        if (where.length() > 0) {
+                            statement = conn.createStatement();
+                            String query = "UPDATE [SALES] SET FUSION_PROCESSED = 0 WHERE " + where;
+                            statement.executeUpdate(query);
+                            conn.commit();
+                        }
+                        succeededRequests.add(entry.requestExchange);
+
+                    } catch (SQLException e) {
+                        failedRequests.put(entry.requestExchange, e);
+                        sendSalesLogger.info(logPrefix, e);
+                    } finally {
+                        if (statement != null)
+                            statement.close();
                     }
-                } finally {
-                    closeConnection(conn);
                 }
             } catch (ClassNotFoundException | SQLException e) {
                 throw Throwables.propagate(e);
@@ -709,12 +648,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
         if (connectionString != null && salesBatch.recordList != null) {
 
-            Connection conn = null;
-            PreparedStatement ps = null;
-
-            try {
-                conn = getConnection(connectionString, user, password);
-                ps = conn.prepareStatement("UPDATE [SALES] SET FUSION_PROCESSED = 1 WHERE SALESNUM = ? AND SESSID = ? AND SYSTEMID = ? AND SAREAID = ?");
+            try (Connection conn = getConnection(connectionString, user, password); PreparedStatement ps = conn.prepareStatement("UPDATE [SALES] SET FUSION_PROCESSED = 1 WHERE SALESNUM = ? AND SESSID = ? AND SYSTEMID = ? AND SAREAID = ?")) {
                 for (AstronRecord record : salesBatch.recordList) {
                     ps.setInt(1, record.salesNum);
                     ps.setInt(2, record.sessId);
@@ -726,28 +660,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 conn.commit();
 
             } catch (SQLException | ClassNotFoundException e) {
-                e.printStackTrace();
-            } finally {
-                try {
-                    closeStatement(ps);
-                    closeConnection(conn);
-                } catch (SQLException ignored) {
-                }
+                throw Throwables.propagate(e);
             }
         }
     }
 
-    private void createExtraColumns(Connection conn) throws SQLException {
-        Statement statement = null;
-        try {
-            statement = conn.createStatement();
+    private void createExtraColumns(Connection conn) {
+        try (Statement statement = conn.createStatement()) {
             String query = "IF COL_LENGTH('SALES', 'FUSION_PROCESSED') IS NULL BEGIN ALTER TABLE SALES ADD FUSION_PROCESSED INT NULL; END";
             statement.execute(query);
         } catch (SQLException e) {
             throw Throwables.propagate(e);
-        } finally {
-            if (statement != null)
-                statement.close();
         }
     }
 
@@ -783,15 +706,5 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private String concat(String left, String right, String splitter) {
         return left + (left.isEmpty() ? "" : splitter) + right;
-    }
-
-    private void closeStatement(PreparedStatement ps) throws SQLException {
-        if (ps != null)
-            ps.close();
-    }
-
-    private void closeConnection(Connection conn) throws SQLException {
-        if (conn != null)
-            conn.close();
     }
 }

@@ -2,10 +2,8 @@ package equ.clt.handler.astron;
 
 import equ.api.SalesBatch;
 import equ.api.SalesInfo;
-import lsfusion.base.Pair;
 
 import java.util.List;
-import java.util.Set;
 
 public class AstronSalesBatch extends SalesBatch<AstronSalesBatch> {
     List<AstronHandler.AstronRecord> recordList;
