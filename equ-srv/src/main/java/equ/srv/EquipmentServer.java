@@ -958,6 +958,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             while (start < salesInfoList.size()) {
                 int finish = (start + numberAtATime) < salesInfoList.size() ? (start + numberAtATime) : salesInfoList.size();
 
+                Integer firstNppGroupMachinery = start < finish ? salesInfoList.get(start).nppGroupMachinery : null;
+                if(firstNppGroupMachinery != null) {
+                    while (start < finish && salesInfoList.size() > finish && salesInfoList.get(finish - 1).nppGroupMachinery != null && !salesInfoList.get(finish - 1).nppGroupMachinery.equals(firstNppGroupMachinery))
+                        finish--;
+                }
+
                 Integer lastNumberReceipt = start < finish ? salesInfoList.get(finish - 1).numberReceipt : null;
                 if (lastNumberReceipt != null) {
                     while (start < finish && salesInfoList.size() > finish && salesInfoList.get(finish).numberReceipt.equals(lastNumberReceipt))
