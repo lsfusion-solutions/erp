@@ -70,7 +70,7 @@ countCommissions 'Кол-во комиссий для принятия реше�
 in 'Вкл.' = DATA BOOLEAN (Inventory, TerminalDocument);
 in 'Вкл.' (Inventory i, TerminalDocumentDetail d) = in(i, terminalDocument(d));
 
-skipDelete (TerminalDocument d) += [= GROUP BY TerminalDocument d SUM 1 IF in(Inventory i, d)](d) > 0;
+skipDelete (TerminalDocument d) += [= GROUP SUM 1 IF in(Inventory i, d)]() > 0;
 
 zone (TerminalDocumentDetail d) = zone(terminalDocument(d)) MATERIALIZED;
 commission (TerminalDocumentDetail d) = commission(terminalDocument(d)) MATERIALIZED;
@@ -187,10 +187,10 @@ createListInventoryZone 'Создать опись по зоне' (Inventory in,
     LOCAL qty = NUMERIC[14,3](Inventory, Zone, Sku);
     qty(in, z, Sku s) <- toQuantity(in, z, s);
     
-    IF [= GROUP BY Inventory in, Zone z SUM qty(in, z, Sku s) ](in, z) THEN NEW li = ListInventory {    
+    IF [= GROUP SUM qty(in, z, Sku s) ]() THEN NEW li = ListInventory {    
         inventory(li) <- in;
         zone(li) <- z;
-        stock(li) <- [ = GROUP BY Inventory in MAX Stock st IF include(st, in)](in);
+        stock(li) <- [ = GROUP MAX Stock st IF include(st, in)]();
         note(li) <- VARSTRING[100]('Зона '+ name(z));
         
         NEW p = PageInventory {
@@ -210,11 +210,11 @@ createListInventoryZones 'Создать описи по зонам' (Inventory 
     LOCAL qty = NUMERIC[14,3](Inventory, Zone, Sku);
     qty(in, Zone z, Sku s) <- toQuantity(in, z, s);
     
-    FOR [= GROUP BY Inventory in, Zone z SUM qty(in, z, Sku s) ](in, Zone z) NEW li = ListInventory DO {
+    FOR [= GROUP BY Zone z SUM qty(in, z, Sku s) ](Zone z) NEW li = ListInventory DO {
     
         inventory(li) <- in;
         zone(li) <- z;
-        stock(li) <- [ = GROUP BY Inventory in MAX Stock st IF include(st, in)](in);
+        stock(li) <- [ = GROUP MAX Stock st IF include(st, in)]();
         note(li) <- VARSTRING[100]('Зона '+name(z));
         
         NEW p = PageInventory {

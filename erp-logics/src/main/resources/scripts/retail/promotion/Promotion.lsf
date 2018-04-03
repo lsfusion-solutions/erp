@@ -76,10 +76,10 @@ nameSku 'Товар' (PromotionDetail detail) = name(sku(detail));
 TABLE promotionDetailLegalEntity (PromotionDetail, LegalEntity);
 countStocks 'Количество складов компании' = DATA INTEGER (PromotionDetail, LegalEntity);
 nameSuppliers 'Поставщики' = GROUP BY PromotionDetail detail CONCAT name(LegalEntity company) IF countStocks(detail, company), ', '  CHARWIDTH 30;
-in (Promotion p, LegalEntity c) = TRUE IF [= GROUP BY promotion(PromotionDetail detail), LegalEntity company SUM countStocks(detail, company)](p,c);
+in (Promotion p, LegalEntity c) = TRUE IF [= GROUP BY promotion(PromotionDetail detail) SUM countStocks(detail, c)](p);
 
 recalculateCountStocks (PromotionDetail d) = {
-    countStocks(d, LegalEntity company) <- [= GROUP BY PromotionDetail detail, LegalEntity company SUM 1 IF priceA(defaultPriceListType(),sku(detail), Stock stock, company, toDateTime(fromDate(detail)))](d, company);
+    countStocks(d, LegalEntity company) <- [= GROUP SUM 1 IF priceA(defaultPriceListType(),sku(d), Stock stock, company, toDateTime(fromDate(d)))]();
 }
 
 CLASS Flyer 'Листовка';
@@ -110,7 +110,7 @@ recalculateValueVAT (PromotionDetail d) = {
 
 price 'Стандартная цена без НДС' = DATA NUMERIC[16,4] (PromotionDetail);
 recalculatePrice (PromotionDetail d) = {
-    price(d) <- [=GROUP BY PromotionDetail detail MAX prevPriceA(defaultPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail)))](d);
+    price(d) <- [=GROUP MAX prevPriceA(defaultPriceListType(), sku(d), Stock stock, toDateTime(fromDate(d)))]();
 }
 
 markup 'Стандартная наценка' = DATA NUMERIC[8,3] (PromotionDetail);
@@ -378,7 +378,7 @@ DESIGN options {
 
 WHEN LOCAL FORMS promotion (CHANGED(sku(PromotionDetail detail)) OR CHANGED(fromDate(detail))) DO {
     recalculatePrices(detail);
-    retailPrice(detail) <- [=GROUP BY PromotionDetail detail MAX prevPriceA(retailPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail)))](detail);
+    retailPrice(detail) <- [=GROUP MAX prevPriceA(retailPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail)))]();
 }
 WHEN LOCAL FORMS promotion (CHANGED(promotionPrice(PromotionDetail detail)) OR CHANGED(price(detail))) AND price(detail) > 0.0 DO {
     supplierPromotionDiscount(detail) <- NUMERIC[8,3]((1.0 - promotionPrice(detail)/price(detail)) * 100.0);
@@ -553,7 +553,7 @@ createPriceList 'Создать прайсы' (Promotion p) = {
             currency(priceList) <- defaultCurrency(operation(priceList));
             note(priceList) <- name(p);
             
-            dataIn(priceList, Stock stock) <- TRUE IF [= GROUP BY promotion(PromotionDetail d), Stock stock, LegalEntity company, DATETIME dateTime SUM 1 IF prevPriceA(defaultPriceListType(), sku(d), stock, company, dateTime)](p, stock, company, toDateTime(fromDate(p))) ;
+            dataIn(priceList, Stock stock) <- TRUE IF [= GROUP BY promotion(PromotionDetail d), DATETIME dateTime SUM 1 IF prevPriceA(defaultPriceListType(), sku(d), stock, company, dateTime)](p, toDateTime(fromDate(p))) ;
             
             in(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
             show(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();

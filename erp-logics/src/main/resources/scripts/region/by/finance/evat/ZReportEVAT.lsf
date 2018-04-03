@@ -5,7 +5,7 @@ REQUIRE ZReport, EVAT, CustomsGroup;
 NAMESPACE ZReport;
 
 createEVATZReport 'Z-отчеты' (LegalEntity l, DATE dFrom, DATE dTo) = {
-    FOR [= GROUP BY valueVAT(sku(ReceiptDetail d), defaultCountry(), DATE dTo), DATE dFrom, dTo SUM 1 IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](NUMERIC[10,5] vat, dFrom, dTo) NEW e = EVAT DO {
+    FOR [= GROUP BY valueVAT(sku(ReceiptDetail d), defaultCountry(), dTo) SUM 1 IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](NUMERIC[10,5] vat) NEW e = EVAT DO {
         status(e) <- EVATStatus.original;
         
         date(e) <- dTo;
@@ -26,7 +26,7 @@ createEVATZReport 'Z-отчеты' (LegalEntity l, DATE dFrom, DATE dTo) = {
 //        customer(e) <- l;
 //        branchCodeCustomer(e) <- branchCode(customerStock(i));
         
-        FOR [= GROUP BY sku(ReceiptSaleDetail d), DATE dFrom, DATE dTo SUM sum(d) IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](Sku sku, dFrom, dTo) AND valueVAT(sku, defaultCountry(), dTo) == vat NEW ed = EVATDetail DO {
+        FOR [= GROUP BY sku(ReceiptSaleDetail d) SUM sum(d) IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](Sku sku) AND valueVAT(sku, defaultCountry(), dTo) == vat NEW ed = EVATDetail DO {
             evat(ed) <- e;
 
             name(ed) <- name(sku);
@@ -35,13 +35,13 @@ createEVATZReport 'Z-отчеты' (LegalEntity l, DATE dFrom, DATE dTo) = {
             UOM(ed) <- UOM(sku);
 //            quantity(ed) <- [= GROUP SUM quantity(ReceiptSaleDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo); 
             vatRate(ed) <- vat;
-            vatSum(ed) <- [= GROUP BY sku(ReceiptSaleDetail d), DATE dFrom, DATE dTo SUM sumVAT(d) IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](sku, dFrom, dTo);
-            sumWithVAT(ed) <- [= GROUP BY sku(ReceiptSaleDetail d), DATE dFrom, DATE dTo SUM sum(d) IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](sku, dFrom, dTo);
+            vatSum(ed) <- [= GROUP BY sku(ReceiptSaleDetail d) SUM sumVAT(d) IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](sku);
+            sumWithVAT(ed) <- [= GROUP BY sku(ReceiptSaleDetail d) SUM sum(d) IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](sku);
             descriptionType(ed) <- IF valueVAT(sku, defaultCountry(), dTo) == 0 THEN DescriptionType.vatExcemption ELSE 
                                     IF NOT notDeductionInFull() THEN DescriptionType.deductionInFull;  
         } 
 
-        FOR [= GROUP BY sku(ReceiptReturnDetail d), DATE dFrom, DATE dTo SUM signedSum(d) IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](Sku sku, dFrom, dTo) AND valueVAT(sku, defaultCountry(), dTo) == vat NEW ed = EVATDetail DO {
+        FOR [= GROUP BY sku(ReceiptReturnDetail d) SUM signedSum(d) IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](Sku sku) AND valueVAT(sku, defaultCountry(), dTo) == vat NEW ed = EVATDetail DO {
             evat(ed) <- e;
 
             name(ed) <- name(sku);
@@ -50,8 +50,8 @@ createEVATZReport 'Z-отчеты' (LegalEntity l, DATE dFrom, DATE dTo) = {
             UOM(ed) <- UOM(sku);
 //            quantity(ed) <- [= GROUP SUM quantity(ReceiptReturnDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo); 
             vatRate(ed) <- vat;
-            vatSum(ed) <- [= GROUP BY sku(ReceiptReturnDetail d), DATE dFrom, DATE dTo SUM -sumVAT(d) IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](sku, dFrom, dTo);
-            sumWithVAT(ed) <- [= GROUP BY sku(ReceiptReturnDetail d), DATE dFrom, DATE dTo SUM -sum(d) IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](sku, dFrom, dTo);
+            vatSum(ed) <- [= GROUP BY sku(ReceiptReturnDetail d) SUM -sumVAT(d) IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](sku);
+            sumWithVAT(ed) <- [= GROUP BY sku(ReceiptReturnDetail d) SUM -sum(d) IF active(d) AND date(d) >= dFrom AND date(d) <= dTo](sku);
             descriptionType(ed) <- IF valueVAT(sku, defaultCountry(), dTo) == 0 THEN DescriptionType.vatExcemption ELSE 
                                      IF NOT notDeductionInFull() THEN DescriptionType.deductionInFull;  
         } 

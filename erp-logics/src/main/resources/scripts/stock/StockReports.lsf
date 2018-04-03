@@ -78,29 +78,29 @@ fillReportBackSheetFromTo 'Сформировать'(GroupType gt, DATE df, DATE
     sumOut(Group g) <- NULL;  
     sumA(Group g) <- NULL;  
 
-    balanceA(Sku sk) <- NUMERIC[16,5]([ = GROUP BY Sku sk, DATE dt SUM balanceA(sk, Stock st, dt) IF inBackSheet(st)](sk, dt));           
-    sumA(Sku sk) <- NUMERIC[18,4]([ = GROUP BY Sku sk, DATE dt SUM sumA(sk, Stock st, dt) IF inBackSheet(st)](sk, dt));  
+    balanceA(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM balanceA(sk, Stock st, dt) IF inBackSheet(st)]());           
+    sumA(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumA(sk, Stock st, dt) IF inBackSheet(st)]());  
 
-    quantityIn(Sku sk) <- NUMERIC[16,5]([ = GROUP BY Sku sk, DATE df, DATE dt SUM quantitySumIn(sk, Stock st, df, dt) IF inBackSheet(st)](sk, df, dt));           
-    sumIn(Sku sk) <- NUMERIC[18,4]([ = GROUP BY Sku sk, DATE df, DATE dt SUM sumIn(sk, Stock st, df, dt) IF inBackSheet(st)](sk, df, dt));  
+    quantityIn(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM quantitySumIn(sk, Stock st, df, dt) IF inBackSheet(st)]());           
+    sumIn(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumIn(sk, Stock st, df, dt) IF inBackSheet(st)]());  
 
-    quantityOut(Sku sk) <- NUMERIC[16,5]([ = GROUP BY Sku sk, DATE df, DATE dt SUM quantitySumOut(sk, Stock st, df, dt) IF inBackSheet(st)](sk, df, dt));           
-    sumOut(Sku sk) <- NUMERIC[18,4]([ = GROUP BY Sku sk, DATE df, DATE dt SUM sumOut(sk, Stock st, df, dt) IF inBackSheet(st)](sk, df, dt));  
+    quantityOut(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM quantitySumOut(sk, Stock st, df, dt) IF inBackSheet(st)]());           
+    sumOut(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumOut(sk, Stock st, df, dt) IF inBackSheet(st)]());  
 
-    balanceB(Sku sk) <- NUMERIC[16,5]([ = GROUP BY Sku sk, DATE df SUM balanceB(sk, Stock st, df) IF inBackSheet(st)](sk, df));           
-    sumB(Sku sk) <- NUMERIC[18,4]([ = GROUP BY Sku sk, DATE df SUM sumB(sk, Stock st, df) IF inBackSheet(st)](sk, df));  
+    balanceB(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM balanceB(sk, Stock st, df) IF inBackSheet(st)]());           
+    sumB(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumB(sk, Stock st, df) IF inBackSheet(st)]());  
 
-    balanceA(Group g) <- [ = GROUP BY group(GroupType gt, Sku sk) SUM balanceA(sk)](g) IF  groupType(g) == gt;           
-    sumA(Group g) <- [ = GROUP BY group(GroupType gt, Sku sk) SUM sumA(sk)](g) IF  groupType(g) == gt;   
+    balanceA(Group g) <- [ = GROUP BY group(GroupType ggt, Sku sk) SUM balanceA(sk)](g) IF  groupType(g) == gt;           
+    sumA(Group g) <- [ = GROUP BY group(GroupType ggt, Sku sk) SUM sumA(sk)](g) IF  groupType(g) == gt;   
 
-    quantityIn(Group g) <- [ = GROUP BY group(GroupType gt, Sku sk) SUM quantityIn(sk)](g) IF  groupType(g) == gt;          
-    sumIn(Group g) <- [ = GROUP BY group(GroupType gt, Sku sk) SUM sumIn(sk)](g) IF  groupType(g) == gt; 
+    quantityIn(Group g) <- [ = GROUP BY group(GroupType ggt, Sku sk) SUM quantityIn(sk)](g) IF  groupType(g) == gt;          
+    sumIn(Group g) <- [ = GROUP BY group(GroupType ggt, Sku sk) SUM sumIn(sk)](g) IF  groupType(g) == gt; 
 
-    quantityOut(Group g) <- [ = GROUP BY group(GroupType gt, Sku sk) SUM quantityOut(sk)](g) IF  groupType(g) == gt;          
-    sumOut(Group g) <- [ = GROUP BY group(GroupType gt, Sku sk) SUM sumOut(sk)](g) IF  groupType(g) == gt; 
+    quantityOut(Group g) <- [ = GROUP BY group(GroupType ggt, Sku sk) SUM quantityOut(sk)](g) IF  groupType(g) == gt;          
+    sumOut(Group g) <- [ = GROUP BY group(GroupType ggt, Sku sk) SUM sumOut(sk)](g) IF  groupType(g) == gt; 
 
-    balanceB(Group g) <- [ = GROUP BY group(GroupType gt, Sku sk) SUM balanceB(sk)](g) IF  groupType(g) == gt;           
-    sumB(Group g) <- [ = GROUP BY group(GroupType gt, Sku sk) SUM sumB(sk)](g) IF  groupType(g) == gt;   
+    balanceB(Group g) <- [ = GROUP BY group(GroupType ggt, Sku sk) SUM balanceB(sk)](g) IF  groupType(g) == gt;           
+    sumB(Group g) <- [ = GROUP BY group(GroupType ggt, Sku sk) SUM sumB(sk)](g) IF  groupType(g) == gt;   
 
     overFillReportBackSheetFromTo(gt, df, dt);      
 }
@@ -138,16 +138,16 @@ fillReportBalanceData 'Рассчитать'(GroupType gt, DATETIME dt) = {
     }  
     ELSE
     {
-        balanceB(Sku sk) <- NUMERIC[16,5]([ = GROUP BY Sku sk, DATETIME dt SUM balanceB(sk, Stock st, dt) IF inBackSheet(st)](sk, dt) IF inGroup(gt,sk));
-        sumB(Sku sk) <- NUMERIC[18,4]([ = GROUP BY Sku sk, DATETIME dt SUM sumB(sk, Stock st, dt) IF inBackSheet(st)](sk, dt) IF inGroup(gt,sk)); 
+        balanceB(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM balanceB(sk, Stock st, dt) IF inBackSheet(st)]() IF inGroup(gt,sk));
+        sumB(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumB(sk, Stock st, dt) IF inBackSheet(st)]() IF inGroup(gt,sk)); 
         
         IF fillBatch() THEN {
-            balanceB(Batch batch) <- NUMERIC[16,5]([ = GROUP BY Batch bt, DATETIME dt SUM balanceB(bt, Stock st, dt) IF inBackSheet(st)](batch, dt)) IF inGroup(gt,sku(batch));
+            balanceB(Batch batch) <- NUMERIC[16,5]([ = GROUP SUM balanceB(batch, Stock st, dt) IF inBackSheet(st)]()) IF inGroup(gt,sku(batch));
         }
     }   
     
-    balanceB(Group g) <- [ = GROUP BY group(GroupType gt, Sku sk) SUM balanceB(sk) IF inGroup(gt, sk)](g) IF  groupType(g) == gt;
-    sumB(Group g) <- [ = GROUP BY group(GroupType gt, Sku sk) SUM sumB(sk) IF inGroup(gt, sk)](g) IF  groupType(g) == gt;
+    balanceB(Group g) <- [ = GROUP BY group(GroupType ggt, Sku sk) SUM balanceB(sk) IF inGroup(ggt, sk)](g) IF  groupType(g) == gt;
+    sumB(Group g) <- [ = GROUP BY group(GroupType ggt, Sku sk) SUM sumB(sk) IF inGroup(ggt, sk)](g) IF  groupType(g) == gt;
        
     overFillReportBalanceData(gt,dt);
 }
@@ -198,7 +198,7 @@ printListBalanceSkus 'Списком' (DATETIME dateTime, GroupType gtype, Group
 } IMAGE 'print.png' IN print;  
 
 accountPriceB 'Цена учетная' (Sku sku, DATETIME dateTime) = 
-    NUMERIC[16,4]([ = GROUP BY Sku sku, DATETIME dt MAX prevAccountPriceB(sku, Stock st, dt) IF inBackSheet(st)](sku, dateTime));
+    NUMERIC[16,4]([ = GROUP MAX prevAccountPriceB(sku, Stock st, dateTime) IF inBackSheet(st)]());
 
 FORM printBalanceSkusStock 'Остатки по товарам'
     OBJECTS d = DATETIME PANEL

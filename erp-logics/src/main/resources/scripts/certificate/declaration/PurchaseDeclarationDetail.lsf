@@ -1347,7 +1347,7 @@ recalculateDutyPriceInvoice 'Рассчитать пошлины (за ед.)'(D
         IF dutySumRound(declaration) AND NOT notPaintRounding() THEN {
             LOCAL int = INTEGER();
             int() <-0;
-            FOR UserInvoiceDetail d == [ = GROUP BY declaration(UserInvoiceDetail d), quantity(d), dutyPrice(d) MAX d IF dutyPrice(d)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, -price DO {
+            FOR UserInvoiceDetail d == [ = GROUP BY declaration(UserInvoiceDetail ud), quantity(ud), dutyPrice(ud) MAX ud IF dutyPrice(ud)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, -price DO {
                 dutyPrice(d) <- Utils.round(((dutySumRound(declaration) / quantity(d)) (+) dutyPrice(d)), round(declaration));
                 int()<- int() + 1;    
                 IF int() > 20 OR NOT dutySumRound(declaration) THEN BREAK; // выход
@@ -1366,7 +1366,7 @@ recalculateRegistrationPriceInvoice 'Рассчитать сбор (за ед.)'
         LOCAL negative = NUMERIC[18,4] ();
         negative () <- [= GROUP BY declaration(UserInvoiceDetail d) SUM registrationSum(d) IF registrationSum(d) < 0](declaration);
         registrationSum(UserInvoiceDetail d) <- 0 WHERE declaration(d) == declaration AND registrationSum(d) < 0;
-        registrationSum(UserInvoiceDetail d) <- registrationSum(d) (+) negative() WHERE d == [= GROUP BY declaration(UserInvoiceDetail d) LAST d ORDER sum(d), d](declaration); 
+        registrationSum(UserInvoiceDetail d) <- registrationSum(d) (+) negative() WHERE d == [= GROUP BY declaration(UserInvoiceDetail ud) LAST ud ORDER sum(ud), ud](declaration); 
         
         registrationPrice(UserInvoiceDetail d) <- Utils.round(registrationSum(d) / quantity(d), round(declaration(d))) WHERE declaration(d) == declaration;
     } ELSE {    
@@ -1375,7 +1375,7 @@ recalculateRegistrationPriceInvoice 'Рассчитать сбор (за ед.)'
             LOCAL int = INTEGER();
             int() <-0;
             
-            FOR UserInvoiceDetail d == [ = GROUP BY declaration(UserInvoiceDetail d), quantity(d), registrationPrice(d) MAX d IF registrationPrice(d)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, -price DO {
+            FOR UserInvoiceDetail d == [ = GROUP BY declaration(UserInvoiceDetail ud), quantity(ud), registrationPrice(ud) MAX ud IF registrationPrice(ud)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, -price DO {
                 registrationPrice(d)<- Utils.round(((registrationSumRound(declaration) / quantity(d)) (+) registrationPrice(d)), round(declaration));
                 int()<- int() + 1;    
                 IF int() > 20 OR NOT registrationSumRound(declaration) THEN BREAK; // выход
@@ -1403,7 +1403,7 @@ recalculateVATPriceInvoice 'Рассчитать НДС (за ед.)'(Declaratio
         IF VATSumRound(declaration) AND NOT notPaintRounding() THEN {
             LOCAL int = INTEGER();
             int() <-0;
-            FOR UserInvoiceDetail d == [ = GROUP BY declaration(UserInvoiceDetail d), quantity(d), VATPrice(d) MAX d IF VATPrice(d)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, - price DO {
+            FOR UserInvoiceDetail d == [ = GROUP BY declaration(UserInvoiceDetail ud), quantity(ud), VATPrice(ud) MAX ud IF VATPrice(ud)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, - price DO {
                 VATPrice(d)<- Utils.round(((VATSumRound(declaration) / quantity(d)) (+) VATPrice(d)), round(declaration));
                 int()<- int() + 1;    
                 IF int() > 20 OR NOT VATSumRound(declaration) THEN BREAK; // выход

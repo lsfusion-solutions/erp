@@ -689,7 +689,7 @@ quantityPageInventoryDetail 'Кол-во по описям' (collationSheet) =
 //    GROUP SUM sum(PageInventoryDetail pageInventoryDetail) BY collationSheet(pageInventoryDetail) MATERIALIZED;
 
 sumPageInventoryDetail 'Сумма по описям' (CollationSheet cs) = IF isSkuBatch(cs)
-    THEN [ = GROUP BY CollationSheet cs SUM batchSumPageInventoryDetail(cs, Batch batch)] (cs)
+    THEN [ = GROUP SUM batchSumPageInventoryDetail(cs, Batch batch)] ()
     ELSE [ = GROUP BY collationSheet(PageInventoryDetail d) SUM sum(d)](cs) MATERIALIZED;
     
 // ------------------------------ Определение состава сличительной ведомости (Sku) ------------------------------------ //
@@ -708,7 +708,7 @@ priceBalance(CollationSheet collationSheet, Sku sku) <- OVERRIDE prevAccountPric
 
 include(collationSheet, batch) = DATA BOOLEAN (CollationSheet, Batch);
 include(CollationSheet collationSheet, Batch batch) <- include(collationSheet, PREV(sku(batch))) AND isBatch(collationSheet)
-                        WHEN [= CHANGED(include(CollationSheet collationSheet, Sku sku))](collationSheet, PREV(sku(batch)));
+                        WHEN [= CHANGED(include(collationSheet, Sku sku))](PREV(sku(batch)));
 
 priceBalance(CollationSheet collationSheet, Batch batch) <- prevAccountPriceB(
                 batch, stock(collationSheet), dateTime(inventory(collationSheet)))

@@ -134,7 +134,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
 
     TABLE invoiceDetailBatch (InvoiceDetail, Batch);
     cost (invoiceDetail, batch) = GROUP BY invoiceDetail(ShipmentDetail shipmentDetail), Batch batch SUM cost(shipmentDetail, batch) MATERIALIZED;
-    in (InvoiceDetail invoiceDetail, Batch batch) = [= GROUP BY invoiceDetail(ShipmentDetail shipmentDetail), Batch batch SUM 1 IF cost(shipmentDetail, batch)](invoiceDetail, batch) OR 
+    in (InvoiceDetail invoiceDetail, Batch batch) = [= GROUP BY invoiceDetail(ShipmentDetail shipmentDetail) SUM 1 IF cost(shipmentDetail, batch)](invoiceDetail) OR 
                                                      batch(invoiceDetail) == batch MATERIALIZED; // приходится делать OR, так как если количество 0, то партии не расписываются
 
     countBatch 'Кол-во партий' (invoiceDetail) = GROUP BY InvoiceDetail invoiceDetail SUM 1 IF in(invoiceDetail, Batch batch) MATERIALIZED;

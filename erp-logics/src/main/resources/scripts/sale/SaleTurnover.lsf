@@ -41,18 +41,18 @@ takeSupplier 'Рассчитать товарооборачиваемость (�
 	            
 	        dateCur() <- sum(date, -1);
 	
-	        balance(LegalEntity su, Stock st) <- NUMERIC[16,2]( [= GROUP BY supplier(Batch batch),Stock stock,DATE dt SUM balanceA(batch, stock, dt)*cost(batch)](su,st,dateCur())) WHERE isCompany(st) AND active(st) AND isSupplier(su);
+	        balance(LegalEntity su, Stock st) <- NUMERIC[16,2]( [= GROUP BY supplier(Batch batch),DATE dt SUM balanceA(batch, st, dt)*cost(batch)](su,dateCur())) WHERE isCompany(st) AND active(st) AND isSupplier(su);
 	        
 	        WHILE dateCur() >= sum(date, -daysToTurnover()) DO {
 	                  
 	
 	                                        
-	            soldSum (LegalEntity su, Stock st, DATE dt) <- NUMERIC[16,2]( [= GROUP BY supplier(Batch batch),Stock stock,DATE dt SUM sumSold(batch, stock, dt)](su,st,dt)) 
+	            soldSum (LegalEntity su, Stock st, DATE dt) <- NUMERIC[16,2]( [= GROUP BY supplier(Batch batch) SUM sumSold(batch, st, dt)](su)) 
 	                                        WHERE isCompany(st) AND active(st) AND isSupplier(su) AND dt == dateCur();                 
 	            
 	            
 	            balance(LegalEntity su, Stock st) <- balance(su, st) (-)
-	                                                 NUMERIC[16,2]( [= GROUP BY supplier(Batch batch),Stock stock,DATE dt SUM signedQuantity(batch, stock, dt)*cost(batch)](su,st,dateCur())) 
+	                                                 NUMERIC[16,2]( [= GROUP BY supplier(Batch batch),DATE dt SUM signedQuantity(batch, st, dt)*cost(batch)](su,dateCur())) 
 	                                        WHERE isCompany(st) AND active(st) AND isSupplier(su); 
 	                                                   
 	            cumBalance (LegalEntity su, Stock st, DATE dt) <- balance(su, st)

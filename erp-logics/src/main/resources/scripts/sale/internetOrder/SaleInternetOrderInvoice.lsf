@@ -96,7 +96,7 @@ EXTEND FORM deliveryDashboard
 //-- С оптового склада 
 createInvoice 'Создать накладную' (DeliveryReport r) = { 
     select(r) <- TRUE;    
-    IF [= GROUP SUM 1 IF pickingSumInternetOrderDetail(DeliveryReport r) AND NOT countDeliveryReport(r) AND select(r)]() THEN {
+    IF [= GROUP SUM 1 IF pickingSumInternetOrderDetail(DeliveryReport dr) AND NOT countDeliveryReport(dr) AND select(dr)]() THEN {
         NEWSESSION NESTED (select[DeliveryReport]){
             FOR [= GROUP
                     BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail d), carrier(internetOrder(d)) SUM pickingSum(d) IF isItem(sku(d)) AND NOT userInvoiceDetail(d) AND select(deliveryReport(d))](Warehouse st, Carrier carrier) AND st IS Warehouse AND carrier IS Carrier NEW i = UserInvoice DO {
@@ -142,7 +142,7 @@ prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AN
 overCreateRetailInvoiceStore = ABSTRACT LIST (UserInvoiceDetail);
 createRetailInvoiceStore 'Создать накладную (розница с магазина)' (DeliveryReport r) = {
     select(r) <- TRUE;  
-    IF [= GROUP SUM 1 IF pickingSumInternetOrderDetail(DeliveryReport r) AND NOT countDeliveryReport(r) AND select(r)]() THEN {
+    IF [= GROUP SUM 1 IF pickingSumInternetOrderDetail(DeliveryReport dr) AND NOT countDeliveryReport(dr) AND select(dr)]() THEN {
         NEWSESSION NESTED (select[DeliveryReport]){
             FOR [= GROUP
                 BY deliveryReport(InternetOrderDetail d), Sale.supplierStock[InternetOrderDetail](d) SUM pickingSum(d) IF isItem(sku(d)) AND NOT userInvoiceDetail(d) AND select(deliveryReport(d))](r, Stock st) AND st IS DepartmentStore NEW i = UserInvoice DO {

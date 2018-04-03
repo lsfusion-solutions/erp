@@ -35,19 +35,19 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         
         date(e) <- date(d);
         
-        numberContract (e) <- number([= GROUP BY declaration(InvoiceDetail d) MIN contractSku(d) IF currency(d) == currency(declaration(d))](d));
-        dateContract (e) <- dateFrom([= GROUP BY declaration(InvoiceDetail d) MIN contractSku(d) IF currency(d) == currency(declaration(d))](d));
+        numberContract (e) <- number([= GROUP BY declaration(InvoiceDetail id) MIN contractSku(id) IF currency(id) == currency(declaration(id))](d));
+        dateContract (e) <- dateFrom([= GROUP BY declaration(InvoiceDetail id) MIN contractSku(id) IF currency(id) == currency(declaration(id))](d));
         
         legalEntityStatusSupplier(e) <- LegalEntityStatus.foreignOrganization;
         legalEntityStatusCustomer(e) <- LegalEntityStatus.customer;
         codeDocType (e) <- 609;
-        dateDoc(e) <- date([= GROUP BY declaration(InvoiceDetail d) MIN d IF currency(d) == currency(declaration(d))](d));
-        seriesDoc(e) <- series([= GROUP BY declaration(InvoiceDetail d) MIN d IF currency(d) == currency(declaration(d))](d));
-        numberDoc(e) <- number([= GROUP BY declaration(InvoiceDetail d) MIN d IF currency(d) == currency(declaration(d))](d));
+        dateDoc(e) <- date([= GROUP BY declaration(InvoiceDetail id) MIN id IF currency(id) == currency(declaration(id))](d));
+        seriesDoc(e) <- series([= GROUP BY declaration(InvoiceDetail id) MIN id IF currency(id) == currency(declaration(id))](d));
+        numberDoc(e) <- number([= GROUP BY declaration(InvoiceDetail id) MIN id IF currency(id) == currency(declaration(id))](d));
         unpSender(e) <- UNP(l);
         
         //Поставщик
-        supplier(e) <- [= GROUP BY declaration(InvoiceDetail d) MIN supplier(d) IF currency(d) == currency(declaration(d))](d);
+        supplier(e) <- [= GROUP BY declaration(InvoiceDetail id) MIN supplier(id) IF currency(id) == currency(declaration(id))](d);
 //        branchCodeSupplier(e) <- branchCode(supplierStock(i));
         
         declarationSupplier(e) <- OVERRIDE number(d), 'не задан';
@@ -61,24 +61,24 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         consignor(e) <- VARISTRING[200](OVERRIDE fullName(supplier(e)), name(supplier(e)));
         unpConsignor (e) <- OVERRIDE UNPForeign(supplier(e)), UNP(supplier(e)); 
         countryCodeConsignor (e) <- sid(country(supplier(e)));
-        shippingAddressConsignor(e) <- address([= GROUP BY declaration(InvoiceDetail d) MIN supplierStock(d) IF currency(d) == currency(declaration(d))](d));
+        shippingAddressConsignor(e) <- address([= GROUP BY declaration(InvoiceDetail id) MIN supplierStock(id) IF currency(id) == currency(declaration(id))](d));
         
         //Грузополучатель
         consignee(e) <- VARISTRING[200](OVERRIDE fullName(customer(e)), name(customer(e)));
         countryCodeConsignee (e) <- sid(country(customer(e)));
         unpConsignee (e) <- UNP(customer(e)); 
-        shippingAddressConsignee(e) <- address([= GROUP BY declaration(InvoiceDetail d) MIN customerStock(d) IF currency(d) == currency(declaration(d))](d));
+        shippingAddressConsignee(e) <- address([= GROUP BY declaration(InvoiceDetail id) MIN customerStock(id) IF currency(id) == currency(declaration(id))](d));
                 
         FOR declaration(DeclarationDetail id) == d NEW ed = EVATDetail DO {
             evat(ed) <- e;
 
             name(ed) <- nameCustoms(id);
-            sku(ed) <- [= GROUP BY DeclarationDetail dd MAX sku(InvoiceDetail d) IF in(dd, d)](id);
+            sku(ed) <- [= GROUP MAX sku(InvoiceDetail ind) IF in(id, ind)]();
             code(ed) <- codeCustomsGroup(id);
             quantity(ed) <- quantity(id); 
-            UOM(ed) <- [= GROUP BY DeclarationDetail dd MAX UOM(sku(InvoiceDetail d)) IF in(dd, d)](id);
-            price(ed) <- IF useHomeSum() THEN [= GROUP BY DeclarationDetail dd SUM homeSum(InvoiceDetail d) IF in(dd, d)](id) / quantity(id) ELSE round2(price(id) * rateExchange(declaration(id)));
-            sum(ed) <- IF useHomeSum() THEN [= GROUP BY DeclarationDetail dd SUM homeSum(InvoiceDetail d) IF in(dd, d)](id) ELSE round2(sum(id) * rateExchange(declaration(id))); //homeSum(id) (+) dutySum(id);
+            UOM(ed) <- [= GROUP MAX UOM(sku(InvoiceDetail ind)) IF in(id, ind)]();
+            price(ed) <- IF useHomeSum() THEN [= GROUP SUM homeSum(InvoiceDetail ind) IF in(id, ind)]() / quantity(id) ELSE round2(price(id) * rateExchange(declaration(id)));
+            sum(ed) <- IF useHomeSum() THEN [= GROUP SUM homeSum(InvoiceDetail ind) IF in(id, ind)]() ELSE round2(sum(id) * rateExchange(declaration(id))); //homeSum(id) (+) dutySum(id);
             exciseSum(ed) <- 0;
             vatRate(ed) <- percentVAT(id);
             vatSum(ed) <- 0; // VATSum(id);

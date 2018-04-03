@@ -5,6 +5,6 @@ REQUIRE POS, OrderLedger;
 NAMESPACE POS;
 
 incorrectReceipt(Receipt r) += WHEN overBanNegativeBatch(departmentStore(r)) AND 
-                                    [= GROUP BY Receipt r SUM 1 IF [= GROUP BY batch(ReceiptSaleDetail d), receipt(d) SUM quantity(d)](Batch b, r) > prevCurrentBalance(b, departmentStore(r))](r) THEN 
-                                    TEXT('Продаваемое количество по партии ' + [= GROUP BY Receipt r CONCAT nameSku(Batch b) IF [= GROUP BY batch(ReceiptSaleDetail d), receipt(d) SUM quantity(d)](b, r) > prevCurrentBalance(b, departmentStore(r)), ', '](r) + ' больше текущего остатка');
+                                    [= GROUP SUM 1 IF [= GROUP BY batch(ReceiptSaleDetail d), receipt(d) SUM quantity(d)](Batch b, r) > prevCurrentBalance(b, departmentStore(r))]() THEN 
+                                    TEXT('Продаваемое количество по партии ' + [= GROUP CONCAT nameSku(Batch b) IF [= GROUP BY batch(ReceiptSaleDetail d), receipt(d) SUM quantity(d)](b, r) > prevCurrentBalance(b, departmentStore(r)), ', ']() + ' больше текущего остатка');
 

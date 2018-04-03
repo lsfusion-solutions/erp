@@ -130,14 +130,14 @@ createRetailPricesCompany(LegalEntity company, DATETIME dateTime, PriceListType 
 
 // Изменение цен
 modifyRetailPricesData 'Изменить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = {
-    FOR [= GROUP BY companyA(LedgerPriceListType t, Sku s, Stock st, DATETIME d), t, st, d SUM 1 IF in(s)] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
+    FOR [= GROUP BY companyA(dataPriceListType, Sku s, stock, dateTime) SUM 1 IF in(s)] (LegalEntity company) DO {
         createRetailPricesCompany(company, dateTime, dataPriceListType, stock);
     }
 }
 
 // Исключение из ассортимента
 excludeRetailData 'Исключить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = {
-    FOR [= GROUP BY companyA(LedgerPriceListType t, Sku s, Stock st, DATETIME d), t, st, d SUM 1 IF in(s)] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
+    FOR [= GROUP BY companyA(dataPriceListType, Sku s, stock, dateTime) SUM 1 IF in(s)] (LegalEntity company) DO {
         createRetailCompany(company, dateTime, dataPriceListType, stock);
     }
 }

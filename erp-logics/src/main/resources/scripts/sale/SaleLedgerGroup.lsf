@@ -28,19 +28,19 @@ fillSaleGroup 'Заполнить' (GroupType gt, DATE dFrom, DATE dTo) = {
 
     sumA(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
     sumA(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP 
-         BY DATE date, GroupType gt, Stock st, supplierLastOrderBatch(Sku sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none) SUM sumA(sk, st, date)](dTo, gt, st, l, g, b);
+         BY supplierLastOrderBatch(Sku sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none) SUM sumA(sk, st, dTo)](l, g, b);
 
     costSumSold(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
     costSumSold(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP 
-         BY DATE dFrom, DATE dTo, GroupType gt, Stock st, supplierLastOrderBatch(Sku sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none) SUM costSumSold(sk, st, DATE date) IF date >= dFrom AND date <= dTo](dFrom, dTo, gt, st, l, g, b);
+         BY supplierLastOrderBatch(Sku sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none) SUM costSumSold(sk, st, DATE date) IF date >= dFrom AND date <= dTo](l, g, b);
 
     sumVATSold(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
     sumVATSold(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP 
-         BY DATE dFrom, DATE dTo, GroupType gt, Stock st, supplierLastOrderBatch(Sku sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none) SUM sumVATSold(sk, st, DATE date) IF date >= dFrom AND date <= dTo](dFrom, dTo, gt, st, l, g, b);
+         BY supplierLastOrderBatch(Sku sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none) SUM sumVATSold(sk, st, DATE date) IF date >= dFrom AND date <= dTo](l, g, b);
 
     sumSold(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
     sumSold(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP 
-         BY DATE dFrom, DATE dTo, GroupType gt, Stock st, supplierLastOrderBatch(Sku sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none) SUM sumSold(sk, st, DATE date) IF date >= dFrom AND date <= dTo](dFrom, dTo, gt, st, l, g, b);
+         BY supplierLastOrderBatch(Sku sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none) SUM sumSold(sk, st, DATE date) IF date >= dFrom AND date <= dTo](l, g, b);
 
 //    balanceA(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
 //    balanceA(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP SUM balanceA(Sku sk, Stock st, DATE date) 
@@ -51,7 +51,7 @@ fillSaleGroup 'Заполнить' (GroupType gt, DATE dFrom, DATE dTo) = {
     IF showB() THEN {
         signedSum(Stock st, LegalEntity l, Group g, Brand b) <- NULL;
         signedSum(Stock st, LegalEntity l, Group g, Brand b) <- [= GROUP 
-             BY DATE dFrom, DATE dTo, GroupType gt, Stock st, supplierLastOrderBatch(Sku sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none) SUM signedSum(sk, st, DATE date) IF date >= dFrom AND date <= dTo](dFrom, dTo, gt, st, l, g, b);
+             BY supplierLastOrderBatch(Sku sk, st), group(gt, sk), (OVERRIDE brand(sk), Brand.none) SUM signedSum(sk, st, DATE date) IF date >= dFrom AND date <= dTo](l, g, b);
     
         sumB(Stock st, LegalEntity l, Group g, Brand b) <- sumA(st, l, g, b) (-) signedSum(st, l, g, b);
     }

@@ -382,7 +382,7 @@ quantity 'Кол-во изделий в заказе' (product, order) = GROUP
 
 TABLE BOMOrder(BOM, Order);
 quantityProducts 'Кол-во спецификаций' (BOM BOM, Order order) = [= GROUP
-    BY BOM(Product product), Order order MAX NUMERIC[19,8](quantity(product, order)) / quantity(product)](BOM, order) MATERIALIZED;
+    BY BOM(Product product) MAX NUMERIC[19,8](quantity(product, order)) / quantity(product)](BOM) MATERIALIZED;
     
 BOM = DATA BOM (ComponentDetail);
 INDEX BOM(ComponentDetail cd), order(cd);
@@ -547,7 +547,7 @@ WHEN LOCAL (CHANGED(priceListType(Order order)) OR CHANGED(componentsStock(order
                                                                                     componentsStock(order),
                                                                                     dateTime(order));
 
-calcCost 'Себестоимость' (Sku sku, Stock stock) = [= GROUP BY skuCurrentBalance(Batch b, Stock stock), stock SUM cost(b) * currentBalance(b, stock)](sku, stock) /
+calcCost 'Себестоимость' (Sku sku, Stock stock) = [= GROUP BY skuCurrentBalance(Batch b, stock) SUM cost(b) * currentBalance(b, stock)](sku) /
     (currentBalance(sku, stock) IF currentBalance(sku, stock) != 0);   
 
 WHEN LOCAL (CHANGED(quantityComponentDetail(Sku sku, Order order)) OR CHANGED(componentsStock(order)))
@@ -897,7 +897,7 @@ skip(d) = ABSTRACT BOOLEAN (ComponentDetail);
 
 valueVAT(ComponentDetail d) = OVERRIDE valueVAT(batch(d)) IF (valueVAT(batch(d)) !=0.0), valueVAT(sku(d), order(d)) MATERIALIZED;
 sumVAT (ComponentDetail d) = sum(d) * valueVAT(d) / (100.0 + valueVAT(d));
-sumVATComponents (ProductDetail d) = [= GROUP BY BOM(ComponentDetail d), order(d) SUM sumVAT(d) IF NOT skip(d)](BOM(d), order(d)); 
+sumVATComponents (ProductDetail d) = [= GROUP BY BOM(ComponentDetail cd), order(cd) SUM sumVAT(cd) IF NOT skip(cd)](BOM(d), order(d)); 
 sumVATComponentDetail = GROUP BY BOM(ComponentDetail d), order(d) SUM sum(d) IF NOT skip(d);                                                            
       
 useVATItem 'НДС изделия из карточки' = DATA BOOLEAN (Operation);
@@ -1095,7 +1095,7 @@ backgroundMarkup = ABSTRACT CASE COLOR (ProductDetail);
   //toSkuSubstitute(substitute)
 bruttoBalance 'Текущий остаток с учетом замен' (Sku sku,Order order) = currentBalance(sku, componentsStock(order)) (+) 
     [ = GROUP 
-        BY fromSku(Substitute substitute), Order order SUM NUMERIC[19,8](currentBalance(substitute, order)) / (multiplier(substitute) IF multiplier(substitute) != 0)](sku,order);  
+        BY fromSku(Substitute substitute) SUM NUMERIC[19,8](currentBalance(substitute, order)) / (multiplier(substitute) IF multiplier(substitute) != 0)](sku);  
  
 bruttoBalanceToSku 'Текущий остаток с учетом замен' (Substitute su, Order order)= bruttoBalance(toSku(su), order); 
 

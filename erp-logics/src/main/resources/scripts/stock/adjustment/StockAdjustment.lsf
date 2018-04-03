@@ -602,7 +602,7 @@ calcSumB (Sku sku,Stock st,DATETIME dateTime) = balanceB(sku,st,dateTime) * prev
 needCreateAdjustment = (calcSumB (Sku sku,Stock st,DATETIME dateTime) OR  sumB (sku,st,dateTime)) AND NOT (calcSumB (sku,st,dateTime) ==  sumB (sku,st,dateTime));  
 
 createUserAdjustment(DATETIME dateTime) = {
-    FOR [ = GROUP BY Stock st,DATETIME dateTime SUM 1 IF needCreateAdjustment(Sku sku,st,dateTime)](Stock st,dateTime) AND isCompany(st) DO {
+    FOR [ = GROUP BY Stock st SUM 1 IF needCreateAdjustment(Sku sku,st,dateTime)](Stock st) AND isCompany(st) DO {
         NEWSESSION {
             NEW a = UserAdjustment {
                 stock(a) <- st;

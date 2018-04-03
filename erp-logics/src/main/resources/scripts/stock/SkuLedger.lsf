@@ -113,7 +113,7 @@ id 'Код' = ABSTRACT VARSTRING[100] (Batch) MATERIALIZED INDEXED CHARWIDTH 10 
 batch = GROUP BY id(Batch b) MAX b;
 
 @defineOption(disableUniqueIdBatch, 'Не контролировать уникальность кодов партий', stock1);
-CONSTRAINT SETCHANGED(id(Batch b)) AND [= GROUP BY id(Batch b) SUM 1](id(b)) > 1 AND NOT disableUniqueIdBatch() MESSAGE 'Нарушена уникальность свойства Код партии';
+CONSTRAINT SETCHANGED(id(Batch b)) AND [= GROUP BY id(Batch bb) SUM 1](id(b)) > 1 AND NOT disableUniqueIdBatch() MESSAGE 'Нарушена уникальность свойства Код партии';
 
 expires(Batch batch, DATETIME dateTime, LONG period) = expiryDate(batch) < sum(toDate(dateTime), period);
 expires(Batch batch, DATE date, LONG period) = expiryDate(batch) < sum(date, period);
@@ -320,23 +320,23 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     // без учета текущей даты/времени
     balanceB 'Остаток на начало дня'###caption (Sku sku, Stock stock, DATE date) = currentBalance(sku, stock)
                                                                       (-) [= GROUP
-                                                                                 BY Sku sku, Stock stock, DATE date SUM signedQuantity (sku, stock, DATE dateIn) IF dateIn >= date](sku, stock, date);
+                                                                                 SUM signedQuantity (sku, stock, DATE dateIn) IF dateIn >= date]();
 
     // с учетом текущей даты/времени
     balanceA 'Остаток на конец дня'###caption (Sku sku, Stock stock, DATE date) = currentBalance(sku, stock)
                                                                      (-) [= GROUP
-                                                                                BY Sku sku, Stock stock, DATE date SUM signedQuantity (sku, stock, DATE dateIn) IF dateIn > date](sku, stock, date);
+                                                                                SUM signedQuantity (sku, stock, DATE dateIn) IF dateIn > date]();
 
     // без учета текущей даты/времени
     balanceB 'Остаток (до)'###caption (Sku sku, Stock stock, DATETIME dateTime) = currentBalance(sku, stock)
                                                                               (-) [= GROUP
-                                                                                         BY sku(SkuLedger ledger), stock(ledger), DATETIME dateTime SUM signedQuantityActive(ledger) IF dateTime(ledger) >= dateTime](sku, stock, dateTime);
+                                                                                         BY sku(SkuLedger ledger), stock(ledger) SUM signedQuantityActive(ledger) IF dateTime(ledger) >= dateTime](sku, stock);
     prevBalanceB 'Остаток (до)'###caption (Sku sku, Stock stock, DATETIME dateTime) = PREV(balanceB(sku, stock, dateTime) IF dateTime IS DATETIME);
 
     // с учетом текущей даты/времени
     balanceA 'Остаток (после)'###caption (Sku sku, Stock stock, DATETIME dateTime) = currentBalance(sku, stock)
                                                                              (-) [= GROUP
-                                                                                        BY sku(SkuLedger ledger), stock(ledger), DATETIME dateTime SUM signedQuantityActive(ledger) IF dateTime(ledger) > dateTime](sku, stock, dateTime);
+                                                                                        BY sku(SkuLedger ledger), stock(ledger) SUM signedQuantityActive(ledger) IF dateTime(ledger) > dateTime](sku, stock);
     prevBalanceA 'Остаток (после)'###caption (Sku sku, Stock stock, DATETIME dateTime) = PREV(balanceA(sku, stock, dateTime) IF dateTime IS DATETIME);
 
     balanceA 'Остаток (после)'###caption (group,  stock, dateTime) =
@@ -492,7 +492,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     // без учета текущей даты/времени
     sumB 'Сумма на начало дня'###caption (Sku sku, Stock stock, DATE date) = currentSum(sku, stock)
                                                                       (-) [= GROUP
-                                                                                 BY Sku sku, Stock stock, DATE date SUM signedSum (sku, stock, DATE dateIn) IF dateIn >= date](sku, stock, date);
+                                                                                 SUM signedSum (sku, stock, DATE dateIn) IF dateIn >= date]();
 
     sumB 'Сумма на начало дня' (stock, date) = GROUP BY Stock stock, DATE date SUM sumB(Sku sku, stock, date);
 
@@ -507,7 +507,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     // с учетом текущей даты/времени
     sumA 'Сумма на конец дня'###caption (Sku sku, Stock stock, DATE date) = currentSum(sku, stock)
                                                                      (-) [= GROUP
-                                                                                BY Sku sku, Stock stock, DATE date SUM signedSum (sku, stock, DATE dateIn) IF dateIn > date](sku, stock, date);
+                                                                                SUM signedSum (sku, stock, DATE dateIn) IF dateIn > date]();
 
     sumASku 'Сумма на конец дня (по группе)' (group, stock, date) =
         GROUP
@@ -520,7 +520,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     // без учета текущей даты/времени
     sumB 'Сумма (до)'###caption (Sku sku, Stock stock, DATETIME dateTime) = currentSum(sku, stock)
                                                                      (-) [= GROUP
-                                                                                BY sku(SkuLedger ledger), stock(ledger), DATETIME dateTime SUM signedSumActive(ledger) IF dateTime(ledger) >= dateTime](sku, stock, dateTime);
+                                                                                BY sku(SkuLedger ledger), stock(ledger) SUM signedSumActive(ledger) IF dateTime(ledger) >= dateTime](sku, stock);
     //-- использовать только при условии explicitBatchLedger для склада                                                                            
     sumB 'Сумма (до)'###caption (Batch batch, Stock stock, DATETIME dateTime) = GROUP
                                                                                     BY batch(SkuLedger ledger), stock(ledger), DATETIME dateTime SUM signedSumActive(ledger) IF dateTime(ledger) < dateTime;
@@ -533,7 +533,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     // с учетом текущей даты/времени
     sumA 'Сумма (после)'###caption (Sku sku, Stock stock, DATETIME dateTime) = currentSum(sku, stock)
                                                                      (-) [= GROUP
-                                                                                BY sku(SkuLedger ledger), stock(ledger), DATETIME dateTime SUM signedSumActive(ledger) IF dateTime(ledger) > dateTime](sku, stock, dateTime);
+                                                                                BY sku(SkuLedger ledger), stock(ledger) SUM signedSumActive(ledger) IF dateTime(ledger) > dateTime](sku, stock);
 
     sumA 'Сумма (после)' (SkuLedger ledger) = sumA(sku(ledger), stock(ledger), dateTime(ledger));
     sumB 'Сумма (до)' (SkuLedger ledger) = sumB(sku(ledger), stock(ledger), dateTime(ledger));
@@ -608,23 +608,23 @@ signedQuantity = GROUP
 // без учета текущей даты/времени
 balanceB 'Остаток на начало дня' (Batch batch, Stock stock, DATE date) = currentBalance(batch, stock)
     (-) [= GROUP
-           BY Batch batch, Stock stock, DATE date SUM signedQuantity(batch, stock, DATE dateIn) IF dateIn >= date](batch, stock, date);
+           SUM signedQuantity(batch, stock, DATE dateIn) IF dateIn >= date]();
 
 // с учетом текущей даты/времени
 balanceA 'Остаток на конец дня' (Batch batch, Stock stock, DATE date) = currentBalance(batch, stock)
     (-) [= GROUP
-           BY Batch batch, Stock stock, DATE date SUM signedQuantity(batch, stock, DATE dateIn) IF dateIn > date](batch, stock, date);
+           SUM signedQuantity(batch, stock, DATE dateIn) IF dateIn > date]();
 
 // без учета текущей даты/времени
 balanceB 'Остаток (до)' (Batch batch, Stock stock, DATETIME dateTime) = currentBalance(batch, stock)
     (-) [= GROUP
-    BY Batch batch, stock(SkuLedger ledger), DATETIME dateTime SUM signedQuantityActive (ledger, batch) IF dateTime(ledger) >= dateTime](batch, stock, dateTime);
+    BY stock(SkuLedger ledger) SUM signedQuantityActive (ledger, batch) IF dateTime(ledger) >= dateTime](stock);
 prevBalanceB 'Остаток (до)' (Batch batch, Stock stock, DATETIME dateTime) = PREV(balanceB(batch,stock,dateTime));
 
 // с учетом текущей даты/времени
 balanceA 'Остаток (после)' (Batch batch, Stock stock, DATETIME dateTime) = currentBalance(batch, stock)
     (-) [= GROUP
-    BY Batch batch, stock(SkuLedger ledger), DATETIME dateTime SUM signedQuantityActive (ledger, batch) IF dateTime(ledger) > dateTime](batch, stock, dateTime);
+    BY stock(SkuLedger ledger) SUM signedQuantityActive (ledger, batch) IF dateTime(ledger) > dateTime](stock);
 
 // Остатки по себестоимости
 costB 'Себестоимость на начало дня' (Batch batch, Stock stock, DATE date) = balanceB(batch, stock, date) * cost(batch);

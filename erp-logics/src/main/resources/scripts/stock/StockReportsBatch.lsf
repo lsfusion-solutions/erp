@@ -5,7 +5,7 @@ REQUIRE StockReports, PriceListLedgerAccount;
 NAMESPACE StockReports;
 
 accountSumB 'Сумма учетная' (Batch batch, DATETIME dateTime) =
-    NUMERIC[32,9]([ = GROUP BY Batch bt, DATETIME dt SUM accountSumB(bt, Stock st, dt) IF inBackSheet(st)](batch, dateTime));
+    NUMERIC[32,9]([ = GROUP SUM accountSumB(batch, Stock st, dateTime) IF inBackSheet(st)]());
 
 //остатки по партиям
 FORM printListBalanceBatchesStock 'Остатки по партиям'
@@ -33,7 +33,7 @@ printListBalanceBatches 'Списком' (DATETIME dateTime, GroupType gtype) =
     { PRINT printListBalanceBatchesStock OBJECTS d = dateTime, gt = gtype; }  IMAGE 'print.png' IN print;
 
 accountSumBSkuBatch 'Учетная сумма на начало дня(по партиям)' (Group group, DATETIME dateTime) =
-    NUMERIC[32,9]([ = GROUP BY Group group, DATETIME dt SUM accountSumBSkuBatch(group, Stock st, dt) IF inBackSheet(st)](group, dateTime));
+    NUMERIC[32,9]([ = GROUP SUM accountSumBSkuBatch(group, Stock st, dateTime) IF inBackSheet(st)]());
 
 FORM printBalanceBatchesStock 'Остатки по партиям'
     OBJECTS d = DATETIME PANEL
@@ -78,9 +78,9 @@ DESIGN options {
 }
 
 accountSumRecBSkuBatch 'Учетная сумма (по партиям)' (Group group, DATETIME dateTime) =
-    NUMERIC[32,9]([ = GROUP BY Group group, DATETIME dt SUM accountSumRecBSkuBatch(group, Stock st, dt) IF inBackSheet(st)](group, dateTime));
+    NUMERIC[32,9]([ = GROUP SUM accountSumRecBSkuBatch(group, Stock st, dateTime) IF inBackSheet(st)]());
 accountSumBatchB 'Сумма учетная по партиям' (Sku sku, DATETIME dateTime) =
-    NUMERIC[32,9]([ = GROUP BY Sku sk, DATETIME dt SUM accountSumBatchB(sk, Stock st, dt) IF inBackSheet(st)](sku, dateTime));
+    NUMERIC[32,9]([ = GROUP SUM accountSumBatchB(sku, Stock st, dateTime) IF inBackSheet(st)]());
 
 EXTEND FORM reportBalanceStock
     PROPERTIES(sk, d) READONLY accountSumRecBSkuBatch SHOWIF showAccountSumBatch()
