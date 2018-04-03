@@ -2,18 +2,28 @@ MODULE Imply;
 
 REQUIRE Utils;
 
-query() = {
-	LOCAL query = TEXT();
-	query() <- 'SELECT columns FROM dataset GROUP BY group';
+druidHost 'Хост для подключения Druid' = DATA VARSTRING[100] ();
+EXTEND FORM options
+    PROPERTIES druidHost();
+;
 
-	stringToCustomFile('\{"query": "' + query() + '"\}','UTF-8','json');
+DESIGN options {
+    pane {
+        NEW druid {
+            caption = 'Druid';
+            MOVE PROPERTY(druidHost());
+        }
+    }
+} 
 
-	LOCAL result = CUSTOMFILE();
-	EXTERNAL HTTP 'http://<ip>:8082/druid/v2/sql' PARAMS resultCustomFile() TO result;
+queryResult = DATA LOCAL CUSTOMFILE();
 
-//	IMPORT JSON TO columns = columns FROM result();
-
+// example : 'SELECT columns FROM dataset GROUP BY group';
+query(TEXT q) = {
+	stringToCustomFile('\{"query": "' + q + '"\}','UTF-8','json');
+	EXTERNAL HTTP 'http://' + druidHost() + ':8082/druid/v2/sql' PARAMS resultCustomFile() TO queryResult;
 }
+// example : IMPORT JSON TO columns = columns FROM result();
 
 runTask() = {
     LOCAL template = CUSTOMFILE();
@@ -28,7 +38,6 @@ runTask() = {
     EXTERNAL HTTP 'http://195.201.119.122:8090/druid/indexer/v1/task' PARAMS resultCustomFile() TO result;
 }
 
-druidHost = DATA VARSTRING[100] ();
 
 dataSource 'Данные' = DATA LOCAL VARSTRING[100] (INTEGER);
 
