@@ -72,8 +72,11 @@ overMarkup 'Надбавка, % (перегруженная)' (CalcPriceListType
     extraMarkup(type, sku),
     markup(type, group(groupType(type), sku)) MATERIALIZED;
 
+coeff 'Коэффициент' = ABSTRACT NUMERIC[8,2](CalcPriceListType, Sku);
+overCoeff(CalcPriceListType t, Sku s) = OVERRIDE coeff(t,s), 1.0 IF t IS CalcPriceListType AND s IS Sku;
+
 markup 'Надбавка, %' (CalcPriceListType type, Sku sku) = OVERRIDE
-    overMarkup(type, sku),
+    NUMERIC[8,2](overMarkup(type, sku)*overCoeff(type,sku)),
     overMarkup(parent(type), sku) MATERIALIZED;
     
 multiplier (CalcPriceListType type, Sku sku) = NUMERIC[10,4]((100.0 + markup(type, sku)) / 100.0) MATERIALIZED;
