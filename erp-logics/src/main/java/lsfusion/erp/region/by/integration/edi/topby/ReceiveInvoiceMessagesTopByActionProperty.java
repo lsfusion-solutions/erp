@@ -30,6 +30,7 @@ public class ReceiveInvoiceMessagesTopByActionProperty extends ReceiveMessagesAc
             Integer port = (Integer) findProperty("portInvoiceTopBy[]").read(context);
             String archiveDir = (String) findProperty("archiveDirTopBy[]").read(context);
             boolean disableConfirmation = findProperty("disableConfirmationTopBy[]").read(context) != null;
+            boolean receiveSupplierMessages = findProperty("receiveSupplierMessagesTopBy[]").read(context) != null;
 
             String aliasEDSService = (String) findProperty("aliasEDSServiceTopBy[]").read(context);
             String passwordEDSService = (String) findProperty("passwordEDSServiceTopBy[]").read(context);
@@ -39,7 +40,7 @@ public class ReceiveInvoiceMessagesTopByActionProperty extends ReceiveMessagesAc
             if (login != null && password != null && host != null && port != null) {
                 String url = String.format("http://%s:%s/DmcService", host, port);
                 receiveMessages(context, url, login, password, host, port, aliasEDSService, passwordEDSService, hostEDSService, portEDSService,
-                        provider, archiveDir, disableConfirmation, false, true);
+                        provider, archiveDir, disableConfirmation, receiveSupplierMessages, false, true);
             } else {
                 ServerLoggers.importLogger.info(provider + " ReceiveMessages: не заданы имя пользователя / пароль / хост / порт");
                 context.delayUserInteraction(new MessageClientAction(provider + " cообщения не получены: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));

@@ -50,12 +50,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port,
                                    String provider, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
-        receiveMessages(context, url, login, password, host, port, null, null, null, null, provider, archiveDir, disableConfirmation, sendReplies, invoices);
+        receiveMessages(context, url, login, password, host, port, null, null, null, null, provider, archiveDir,
+                disableConfirmation, false, sendReplies, invoices);
     }
 
     protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port,
                                    String aliasEDSService, String passwordEDSService, String hostEDSService, Integer portEDSService,
-                                   String provider, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
+                                   String provider, String archiveDir, boolean disableConfirmation, boolean receiveSupplierMessages,
+                                   boolean sendReplies, boolean invoices)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (context.getDbManager().isServer()) {
             Element rootElement = new Element("Envelope", soapenvNamespace);
@@ -90,7 +92,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 switch (requestResult) {
                     case OK:
                         importMessages(context, url, login, password, host, port, aliasEDSService, passwordEDSService, hostEDSService, portEDSService,
-                                provider, responseMessage, archiveDir, disableConfirmation, sendReplies, invoices);
+                                provider, responseMessage, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, invoices);
                         break;
                     case AUTHORISATION_ERROR:
                         ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid login-password");
@@ -111,7 +113,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
     private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port,
                                 String aliasEDSService, String passwordEDSService, String hostEDSService, Integer portEDSService,
-                                String provider, String responseMessage, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
+                                String provider, String responseMessage, String archiveDir, boolean disableConfirmation,
+                                boolean receiveSupplierMessages, boolean sendReplies, boolean invoices)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JDOMException {
         Map<String, Pair<String, String>> succeededMap = new HashMap<>();
         Map<String, DocumentData> orderMessages = new HashMap<>();
@@ -120,7 +123,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Map<String, DocumentData> invoiceMessages = new HashMap<>();
 
         List<ImportResult> importResultList = new ArrayList<>();
+        List<InvoiceMessage> invoiceSystemMessageList = new ArrayList<>();
         List<BLRWBL> blrwblList = new ArrayList<>();
+        List<BLRWBR> blrwbrList = new ArrayList<>();
 
         Document document = new SAXBuilder().build(new ByteArrayInputStream(responseMessage.getBytes("utf-8")));
         Element rootNode = document.getRootElement();
@@ -148,8 +153,17 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                     Element subXMLRootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes("utf-8"))).getRootElement();
                                     switch (documentType) {
                                         case "systemmessage":
-                                            if (!invoices)
-                                                orderMessages.put(documentId, parseOrderMessage(subXMLRootNode, provider, documentId));
+                                            if (invoices) {
+                                                if(receiveSupplierMessages) {
+                                                    InvoiceMessage invoiceSystemMessage = parseInvoiceSystemMessage(context, subXMLRootNode, documentId);
+                                                    if (invoiceSystemMessage != null)
+                                                        invoiceSystemMessageList.add(invoiceSystemMessage);
+                                                }
+                                            } else {
+                                                DocumentData orderMessage = parseOrderMessage(subXMLRootNode, provider, documentId, receiveSupplierMessages);
+                                                if(orderMessage != null)
+                                                    orderMessages.put(documentId, orderMessage);
+                                            }
                                             break;
                                         case "ordrsp":
                                             if (!invoices)
@@ -165,9 +179,16 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                             if (invoices)
                                                 blrwblList.add(parseBLRWBL(subXMLRootNode, documentId));
                                             break;
+                                        case "blrwbr":
+                                            if (invoices && receiveSupplierMessages) {
+                                                BLRWBR blrwbr = parseBLRWBR(subXMLRootNode);
+                                                importResultList.add(new ImportResult(documentId, blrwbr.documentNumber, null));
+                                                blrwbrList.add(blrwbr);
+                                            }
+                                            break;
                                         case "blrapn":
                                             if (invoices)
-                                                invoiceMessages.put(documentId, parseInvoiceMessage(context, subXMLRootNode, provider, documentId));
+                                                invoiceMessages.put(documentId, parseInvoiceMessage(context, subXMLRootNode, provider, documentId, receiveSupplierMessages));
                                             break;
                                     }
                                 } catch (JDOMException e) {
@@ -286,6 +307,18 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 }
             }
 
+            for (InvoiceMessage message : invoiceSystemMessageList) {
+                String error = importInvoiceSystemMessage(context, message);
+                importResultList.add(new ImportResult(message.documentId, message.documentNumber, error));
+                if (error == null) {
+                    ServerLoggers.importLogger.info(String.format("%s Import EInvoiceMessage %s succeeded", provider, message.documentId));
+                    invoiceMessagesSucceeded++;
+                } else {
+                    ServerLoggers.importLogger.error(String.format("%s Import EInvoiceMessage %s failed: %s", provider, message.documentId, error));
+                    invoiceMessagesFailed++;
+                }
+            }
+
             String message = "";
 
             if (orderMessagesSucceeded > 0)
@@ -335,6 +368,29 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     if (importResult.error != null && sendReplies)
                         succeeded = succeeded && sendRecipientError(context, url, login, password, host, port, provider, archiveDir, importResult.documentId, importResult.documentNumber, importResult.error);
                 }
+
+                for (BLRWBR blrwbr : blrwbrList) {
+                    //создаём BLRAPN и подписываем
+                    ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumber[VARSTRING[28]]").readClasses(context, new DataObject(blrwbr.deliveryNoteNumber));
+                    if (eInvoiceObject instanceof DataObject) {
+                        String invoiceNumber = trim((String) findProperty("number[EInvoice]").read(context, eInvoiceObject));
+                        String glnSupplier = (String) findProperty("glnSupplier[EInvoice]").read(context, eInvoiceObject);
+                        String glnCustomer = (String) findProperty("glnCustomer[EInvoice]").read(context, eInvoiceObject);
+                        String glnCustomerStock = (String) findProperty("glnCustomerStock[EInvoice]").read(context, eInvoiceObject);
+                        boolean isCancel = findProperty("isCancel[EInvoice]").read(context, eInvoiceObject) != null;
+                        String blrapn = createBLRAPN(context, (DataObject) eInvoiceObject, archiveDir, blrwbr.documentNumberBLRAPN, blrwbr.documentDate, blrwbr.documentId,
+                                blrwbr.creationDateTime, glnSupplier, glnCustomer);
+                        String signedBLRAPN = signDocument("BLRAPN", invoiceNumber, hostEDSService, portEDSService, blrapn, aliasEDSService, passwordEDSService, charset);
+                        //Отправляем
+                        if (signedBLRAPN != null) {
+                            sendDocument(context, url, login, password, host, port, provider, invoiceNumber, generateXML(login, password, invoiceNumber,
+                                    blrwbr.documentDate, glnSupplier, glnCustomer, glnCustomerStock,
+                                    new String(org.apache.commons.codec.binary.Base64.encodeBase64(signedBLRAPN.getBytes())), "BLRAPN"),
+                                    (DataObject) eInvoiceObject, true, isCancel, 4);
+                        }
+                    }
+                }
+
             }
 
             if (succeeded)
@@ -342,7 +398,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         }
     }
 
-    private DocumentData parseOrderMessage(Element rootNode, String provider, String documentId) {
+    private DocumentData parseOrderMessage(Element rootNode, String provider, String documentId, boolean receiveSupplierMessages) {
 
         String documentNumber = trim(rootNode.getChildText("documentNumber"));
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
@@ -361,6 +417,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     case "BLRAPN":
                         ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s skipped for documentType %s", provider, documentId, documentType));
                         return new DocumentData(documentNumber, null, null, true);
+                    case "BLRWBL":
+                    case "SYSTEMMESSAGE":
+                        if(receiveSupplierMessages)
+                            return null;
+                        else {
+                            ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: incorrect documentType %s", provider, documentId, documentType));
+                            break;
+                        }
                     default:
                         ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: incorrect documentType %s", provider, documentId, documentType));
                         break;
@@ -372,7 +436,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new DocumentData(documentNumber, null, null);
     }
 
-    private String importOrderMessages(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importOrderMessages(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException {
         String message = null;
         List<List<Object>> importData = data == null ? null : data.firstData;
         if (importData != null && !importData.isEmpty()) {
@@ -479,22 +543,22 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new DocumentData(documentNumber, firstData, secondData);
     }
 
-    private String getResponseType(String id) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String getResponseType(String id) {
         String value = id == null ? null : id.equals("4") ? "changed" : id.equals("27") ? "cancelled" : id.equals("29") ? "accepted" : null;
         return value == null ? null : ("EDI_EOrderResponseType." + value.toLowerCase());
     }
 
-    private String getAction(String id) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String getAction(String id) {
         String value = id == null ? null : id.equals("1") ? "added" : id.equals("3") ? "changed" : id.equals("5") ? "accepted" : id.equals("7") ? "cancelled" : null;
         return value == null ? null : ("EDI_EOrderResponseDetailAction." + value.toLowerCase());
     }
 
-    private String importOrderResponses(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importOrderResponses(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException {
         String message = importOrderResponses(context, data, true);
         return message == null ? importOrderResponses(context, data, false) : message;
     }
 
-    private String importOrderResponses(ExecutionContext context, DocumentData data, boolean first) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importOrderResponses(ExecutionContext context, DocumentData data, boolean first) throws ScriptingErrorLog.SemanticErrorException {
         String message = null;
         List<List<Object>> importData = data == null ? null : (first ? data.firstData : data.secondData);
         if (importData != null && !importData.isEmpty()) {
@@ -705,12 +769,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new DocumentData(documentNumber, firstData, secondData);
     }
 
-    private String importDespatchAdvices(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importDespatchAdvices(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException {
         String message = importDespatchAdvices(context, data, true);
         return message == null ? importDespatchAdvices(context, data, false) : message;
     }
 
-    private String importDespatchAdvices(ExecutionContext context, DocumentData data, boolean first) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importDespatchAdvices(ExecutionContext context, DocumentData data, boolean first) throws ScriptingErrorLog.SemanticErrorException {
         String message = null;
         List<List<Object>> importData = data == null ? null : (first ? data.firstData : data.secondData);
         if (importData != null && !importData.isEmpty()) {
@@ -1003,7 +1067,43 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private DocumentData parseInvoiceMessage(ExecutionContext context, Element rootNode, String provider, String documentId) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private InvoiceMessage parseInvoiceSystemMessage(ExecutionContext context, Element rootNode, String documentId) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+
+        String documentNumber = trim(rootNode.getChildText("documentNumber"));
+        Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
+
+        Element reference = rootNode.getChild("reference");
+        if (reference != null) {
+            String documentType = reference.getChildText("documentType");
+            if (documentType != null && (documentType.equals("BLRWBL") || documentType.equals("SYSTEMMESSAGE"))) {
+                String invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrwbl[VARSTRING[28]]").read(context, new DataObject(trim(reference.getChildText("documentNumber"))));
+                String code = reference.getChildText("code");
+                String description = getDescriptionByCode(reference.getChildText("description"), code);
+
+                return new InvoiceMessage(documentId, documentNumber, dateTime, code, description, invoiceNumber);
+            }
+        }
+        return null;
+    }
+
+    private BLRWBR parseBLRWBR(Element rootNode) {
+        String documentNumber = rootNode.getChild("MessageHeader").getChildText("MessageID");
+        Element deliveryNoteElement = rootNode.getChild("DeliveryNote");
+        String documentId = deliveryNoteElement.getChildText("DocumentID");
+        String creationDateTime = deliveryNoteElement.getChildText("CreationDateTime");
+        String deliveryNoteNumber = deliveryNoteElement.getChildText("DeliveryNoteID");
+
+        String functionCode = deliveryNoteElement.getChildText("FunctionCode");
+        Boolean isCancel = functionCode != null && functionCode.equals("1") ? true : null;
+
+        long currentTime = Calendar.getInstance().getTime().getTime();
+        String documentNumberBLRAPN = String.valueOf(currentTime);
+        String documentDate = new SimpleDateFormat("yyyyMMddHHmmss").format(currentTime);
+
+        return new BLRWBR(documentId, creationDateTime, documentNumber, deliveryNoteNumber, documentNumberBLRAPN, documentDate, isCancel);
+    }
+
+    private DocumentData parseInvoiceMessage(ExecutionContext context, Element rootNode, String provider, String documentId, boolean receiveSupplierMessages) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Element acknowledgementElement = rootNode.getChild("Acknowledgement");
 
@@ -1013,13 +1113,15 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Element referenceDocumentElement = acknowledgementElement.getChild("ReferenceDocument");
         if (referenceDocumentElement != null) {
             String type = referenceDocumentElement.getChildText("Type");
-            if (type != null && (type.equals("BLRAPN") || type.equals("BLRWBR"))) {
+            if (type != null && (type.equals("BLRAPN") || type.equals("BLRWBR") || (type.equals("BLRWBL") && receiveSupplierMessages))) {
 
                 String invoiceNumber = referenceDocumentElement.getChildText("ID");
                 if (type.equals("BLRAPN"))
                     invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrapn[VARSTRING[28]]").read(context, new DataObject(invoiceNumber));
                 else if (type.equals("BLRWBR"))
                     invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrwbr[VARSTRING[28]]").read(context, new DataObject(invoiceNumber));
+                else if (type.equals("BLRWBL") && receiveSupplierMessages)
+                    invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrwbl[VARSTRING[28]]").read(context, new DataObject(invoiceNumber));
 
                 Element errorOrAcknowledgementElement = acknowledgementElement.getChild("ErrorOrAcknowledgement");
                 if (errorOrAcknowledgementElement != null) {
@@ -1033,7 +1135,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new DocumentData(documentNumber, null, null);
     }
 
-    private String importInvoiceMessages(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importInvoiceMessages(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException {
         String message = null;
         List<List<Object>> importData = data == null ? null : data.firstData;
         if (importData != null && !importData.isEmpty()) {
@@ -1079,6 +1181,35 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 session.popVolatileStats();
             } catch (Exception e) {
                 ServerLoggers.importLogger.error("ImportInvoiceMessages Error: ", e);
+                message = e.getMessage();
+            }
+        }
+        return message;
+    }
+
+    private String importInvoiceSystemMessage(ExecutionContext context, InvoiceMessage invoiceMessage) {
+        String message = null;
+        if (invoiceMessage != null && invoiceMessage.invoiceNumber != null) {
+
+            try (DataSession session = context.createSession()) {
+
+                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumber[VARSTRING[24]]").readClasses(session, new DataObject(invoiceMessage.invoiceNumber));
+                if (eInvoiceObject instanceof DataObject) {
+
+                    ObjectValue eInvoiceMessageObject = findProperty("eInvoiceMessage[VARSTRING[24]]").readClasses(session, new DataObject(invoiceMessage.documentNumber));
+                    if (eInvoiceMessageObject instanceof NullValue) {
+                        eInvoiceMessageObject = session.addObject((ConcreteCustomClass) findClass("EInvoiceMessage"));
+                        findProperty("number[EInvoiceMessage]").change(invoiceMessage.documentNumber, session, (DataObject) eInvoiceMessageObject);
+                    }
+                    findProperty("dateTime[EInvoiceMessage]").change(invoiceMessage.dateTime, session, (DataObject) eInvoiceMessageObject);
+                    findProperty("code[EInvoiceMessage]").change(invoiceMessage.code, session, (DataObject) eInvoiceMessageObject);
+                    findProperty("description[EInvoiceMessage]").change(invoiceMessage.description, session, (DataObject) eInvoiceMessageObject);
+                    findProperty("eInvoice[EInvoiceMessage]").change(eInvoiceObject, session, (DataObject) eInvoiceMessageObject);
+
+                    message = session.applyMessage(context);
+                }
+            } catch (Exception e) {
+                ServerLoggers.importLogger.error("importInvoiceSystemMessage Error: ", e);
                 message = e.getMessage();
             }
         }
@@ -1182,7 +1313,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return succeeded;
     }
 
-    private String getErrorSubXML(String documentId, String documentNumber, String error) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private String getErrorSubXML(String documentId, String documentNumber, String error) {
         Element rootElement = new Element("SYSTEMMESSAGE");
         Document doc = new Document(rootElement);
         doc.setRootElement(rootElement);
@@ -1257,6 +1388,66 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             return description;
     }
 
+    private String createBLRAPN(ExecutionContext context, DataObject eInvoiceObject, String outputDir, String documentNumber, String documentDate,
+                                String referenceNumber, String referenceDate, String glnSupplier, String glnCustomer)
+            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+
+        outputDir = outputDir == null ? null : (outputDir + "/sent");
+
+        String error = "";
+
+        String deliveryNoteId = (String) findProperty("deliveryNoteNumber[EInvoice]").read(context, eInvoiceObject);
+        Timestamp deliveryNoteDateTime = (Timestamp) findProperty("deliveryNoteDateTime[EInvoice]").read(context, eInvoiceObject);
+
+        Element rootElement = new Element("BLRAPN");
+        rootElement.setAttribute("version", "0.1");
+        Document doc = new Document(rootElement);
+        doc.setRootElement(rootElement);
+
+        Element messageHeaderElement = new Element("MessageHeader");
+        addStringElement(messageHeaderElement, "MessageID", documentNumber);
+        addStringElement(messageHeaderElement, "MsgDateTime", documentDate);
+        addStringElement(messageHeaderElement, "MessageType", "BLRAPN");
+        addStringElement(messageHeaderElement, "MsgSenderID", glnSupplier);
+        addStringElement(messageHeaderElement, "MsgReceiverID", glnCustomer);
+        rootElement.addContent(messageHeaderElement);
+
+        Element acknowledgementElement = new Element("Acknowledgement");
+        addStringElement(acknowledgementElement, "DocumentID", documentNumber); //Номер электронного подтверждения или извещения
+        addIntegerElement(acknowledgementElement, "FunctionCode", 6); //Статус  подтверждения / извещения: 6  = Подтверждено
+        addStringElement(acknowledgementElement, "CreationDateTime", documentDate); //Дата и время создания подтверждения или извещения в формате ГГГГДДММЧЧММСС
+        addStringElement(acknowledgementElement, "DeliveryNoteID", deliveryNoteId); //Юридический номер документа, к которому относитсяподтверждение или извещение.
+        addStringElement(acknowledgementElement, "DeliveryNoteDate", deliveryNoteDateTime != null ? new SimpleDateFormat("yyyyMMdd").format(deliveryNoteDateTime) : null); //Юридическая дата документа, к которому относится подтверждение или извещение.
+
+        Element referenceDocumentElement = new Element("ReferenceDocument");
+        addStringElement(referenceDocumentElement, "Type", "BLRWBR");
+        addStringElement(referenceDocumentElement, "ID", referenceNumber); //Номер документа, к которому относится текущее подтверждение/извещение.
+        addStringElement(referenceDocumentElement, "Date", referenceDate); //Дата документа в формате ГГГГММДДЧЧММСС, к которому относится текущее подтверждение/извещение.
+        acknowledgementElement.addContent(referenceDocumentElement);
+
+        Element shipperElement = new Element("Shipper"); //грузоотправитель
+        addStringElement(shipperElement, "GLN", glnSupplier); //GLN грузоотправителя / поставщика / исполнителя
+        acknowledgementElement.addContent(shipperElement);
+
+        Element receiverElement = new Element("Receiver"); //грузополучатель
+        addStringElement(receiverElement, "GLN", glnCustomer); //GLN  грузополучателя / покупателя / заказчика
+        acknowledgementElement.addContent(receiverElement);
+
+        Element errorOrAcknowledgementElement = new Element("ErrorOrAcknowledgement");
+        addStringElement(errorOrAcknowledgementElement, "Code", "2650"); //Код подтверждения/извещения.
+        acknowledgementElement.addContent(errorOrAcknowledgementElement);
+
+        rootElement.addContent(acknowledgementElement);
+
+        if (error.isEmpty()) {
+            return outputXMLString(doc, charset, outputDir, "blrapn-", false);
+
+        } else {
+            context.delayUserInterfaction(new MessageClientAction(error, "Не все поля заполнены"));
+            return null;
+        }
+    }
+
     private class DocumentData {
         String documentNumber;
         List<List<Object>> firstData;
@@ -1287,6 +1478,27 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         }
     }
 
+    private class BLRWBR {
+        String documentId;
+        String creationDateTime;
+        String documentNumber;
+        String deliveryNoteNumber;
+        String documentNumberBLRAPN;
+        String documentDate;
+        Boolean isCancel;
+
+        public BLRWBR(String documentId, String creationDateTime, String documentNumber, String deliveryNoteNumber,
+                      String documentNumberBLRAPN, String documentDate, Boolean isCancel) {
+            this.documentId = documentId;
+            this.creationDateTime = creationDateTime;
+            this.documentNumber = documentNumber;
+            this.deliveryNoteNumber = deliveryNoteNumber;
+            this.documentNumberBLRAPN = documentNumberBLRAPN;
+            this.documentDate = documentDate;
+            this.isCancel = isCancel;
+        }
+    }
+
     private class BLRWBL {
         String documentId;
         String id;
@@ -1311,6 +1523,24 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             this.customerGLN = customerGLN;
             this.customerStockGLN = customerStockGLN;
             this.detailList = detailList;
+        }
+    }
+
+    private class InvoiceMessage {
+        String documentId;
+        String documentNumber;
+        Timestamp dateTime;
+        String code;
+        String description;
+        String invoiceNumber;
+
+        public InvoiceMessage(String documentId, String documentNumber, Timestamp dateTime, String code, String description, String invoiceNumber) {
+            this.documentId = documentId;
+            this.documentNumber = documentNumber;
+            this.dateTime = dateTime;
+            this.code = code;
+            this.description = description;
+            this.invoiceNumber = invoiceNumber;
         }
     }
 }
