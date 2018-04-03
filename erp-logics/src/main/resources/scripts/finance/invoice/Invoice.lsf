@@ -973,9 +973,11 @@ META defineInvoiceBatchDialogStock(stockProp, dialog)
             batch(d) <- bt;                            
         }
     }
+    
+    backgroundBatch 'Цвет' (d) = ABSTRACT CASE COLOR (UserInvoiceDetail);
 
     EXTEND FORM userInvoice
-        PROPERTIES (d) SHOWIF showBatch[Invoice](i) AFTER shortNameUOMSku(d) nameBatch ON CHANGE changeBatch(d), documentNameBatch ON CHANGE changeBatch(d)  
+        PROPERTIES (d) SHOWIF showBatch[Invoice](i) AFTER shortNameUOMSku(d) nameBatch BACKGROUND backgroundBatch(d) ON CHANGE changeBatch(d), documentNameBatch ON CHANGE changeBatch(d)  
     ;
     EXTEND FORM invoices PROPERTIES (d) READONLY AFTER shortNameUOMSku(d) SHOWIF showBatch(i) nameBatch, documentNameBatch;
 END
@@ -1120,8 +1122,10 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
         price(d) <- round2(prevList(pt, d));
         invoicePrice(d) <- round2(prevList(pt, d) * (100.0 (+) calcValueVAT(d)) / 100.0);
     }
-
-    EXTEND FORM userInvoice PROPERTIES (d) descriptionInvoiceDetail ON CHANGE change##nsdir##InvoiceDetail(d) 
+    
+    backgroundDescription 'Цвет' (d) = ABSTRACT CASE COLOR (UserInvoiceDetail);
+    
+    EXTEND FORM userInvoice PROPERTIES (d) descriptionInvoiceDetail BACKGROUND backgroundDescription(d) ON CHANGE change##nsdir##InvoiceDetail(d) 
                 AFTER shortNameUOMSku(d);
     EXTEND FORM nsdir.userInvoice PROPERTIES (d) READONLY returnQuantity BEFORE namePriceListType(d);
 
