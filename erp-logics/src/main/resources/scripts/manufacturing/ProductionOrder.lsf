@@ -426,8 +426,8 @@ createComponents 'Заполнить компоненты из специфик�
 
 } TOOLBAR;
 
-recBruttoQuantity 'Рекур.кол-во' (BOM, order, sku) = GROUP BY BOM BOM, Order order, Sku sku SUM quantityProducts(BOM, order) * recBruttoQuantity(BOM, sku, date(order));
-recBOMQuantity 'Рекур.кол-во' (BOM, order, sku) = GROUP BY BOM BOM, Order order, Sku sku SUM recBruttoQuantity(BOM, sku, date(order));
+recBruttoQuantity 'Рекур.кол-во' (BOM BOM, Order order, Sku sku) = GROUP SUM quantityProducts(BOM, order) * recBruttoQuantity(BOM, sku, date(order));
+recBOMQuantity 'Рекур.кол-во' (BOM BOM, Order order, Sku sku) = GROUP SUM recBruttoQuantity(BOM, sku, date(order));
 
 productionCoeff = ABSTRACT NUMERIC[20,9] (ComponentDetail);
 quantityCoeff(ComponentDetail d) = OVERRIDE productionCoeff(d), 1.0 IF d IS ComponentDetail MATERIALIZED; 
@@ -498,8 +498,8 @@ expand 'Развернуть изделие'(ComponentDetail componentDetail) = 
 background 'Цвет'  = ABSTRACT CASE COLOR (ComponentDetail);
 background (ComponentDetail cd) += WHEN product(cd) THEN  RGB(255,255,229);
 
-recBruttoQuantity 'Рекур.кол-во' (BOM, order, component) = GROUP BY BOM BOM, Order order, Component component SUM quantityProducts(BOM, order) * recBruttoQuantity(BOM, component, date(order));
-recBOMQuantity 'Рекур.кол-во' (BOM, order, component) = GROUP BY BOM BOM, Order order, Component component SUM recBruttoQuantity(BOM, component, date(order));
+recBruttoQuantity 'Рекур.кол-во' (BOM BOM, Order order, Component component) = GROUP SUM quantityProducts(BOM, order) * recBruttoQuantity(BOM, component, date(order));
+recBOMQuantity 'Рекур.кол-во' (BOM BOM, Order order, Component component) = GROUP SUM recBruttoQuantity(BOM, component, date(order));
 
 calcComponentBruttoQuantity (ComponentDetail d) = recBruttoQuantity(BOM(d), order(d), component(d)) * quantityCoeff(d);
 calcComponentBOMQuantity (ComponentDetail d) = recBOMQuantity(BOM(d), order(d), component(d)) * quantityCoeff(d);
@@ -1028,13 +1028,13 @@ prevBalanceSkuPriceStockSku 'Остаток с уч. коэфф.' (Order order, 
 //minSubstitutePriceSkuOrder = GROUP MIN multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order) IF 
 //    currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND (multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)) 
 //    BY sku, order;    
-maxSubstituteSkuPrice = GROUP 
-    BY Sku sku, Order order LAST Sku skuSubstitute
+maxSubstituteSkuPrice (Sku sku, Order order) = GROUP 
+    LAST Sku skuSubstitute
     ORDER multiplierSubstituteTo(sku, skuSubstitute)*priceStock(skuSubstitute,order), skuSubstitute     
     WHERE currentBalancePriceStock(skuSubstitute,order) >0 AND multiplierSubstituteTo(sku, skuSubstitute) AND priceStock(skuSubstitute,order) 
 ;    
-minSubstituteSkuPrice = GROUP 
-    BY Sku sku, Order order LAST Sku skuSubstitute
+minSubstituteSkuPrice (Sku sku, Order order) = GROUP 
+    LAST Sku skuSubstitute
     ORDER DESC multiplierSubstituteTo(sku, skuSubstitute)*priceStock(skuSubstitute,order), skuSubstitute
     WHERE currentBalancePriceStock(skuSubstitute,order) >0 AND multiplierSubstituteTo(sku, skuSubstitute) AND priceStock(skuSubstitute,order) 
 ;          
@@ -1069,9 +1069,9 @@ fillSubstitutePriceMin 'Исп. min цену'(Order order) = {
     }       
 } TOOLBAR;   
 //--
-maxSkuBalanceSubstitute (sku, order) =
+maxSkuBalanceSubstitute (Sku sku, Order order) =
     GROUP
-          BY   Sku sku, Order order LAST Sku skuSubstitute
+          LAST Sku skuSubstitute
           ORDER (currentBalancePriceStock(skuSubstitute,order) /(multiplierSubstituteTo(sku, skuSubstitute) IF multiplierSubstituteTo(sku, skuSubstitute)!=0)), skuSubstitute
           WHERE priceStock(skuSubstitute,order) AND currentBalancePriceStock(skuSubstitute,order) AND multiplierSubstituteTo(sku, skuSubstitute);
 

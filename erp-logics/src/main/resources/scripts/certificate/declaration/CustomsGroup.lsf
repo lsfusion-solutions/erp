@@ -34,7 +34,7 @@ dateTo 'Дата по' = DATA DATE (CustomsGroup) IN base;
 code 'Код' = DATA VARSTRING[10](CustomsGroup) IN base CHARWIDTH 10;
 
 customsGroup (code) = GROUP BY code(CustomsGroup customsGroup) AGGR customsGroup WHERE customsGroup IS CustomsGroup;
-nearestCustomsGroup (code) = GROUP BY STRING[10] code MIN CustomsGroup customsGroup IF startsWith(code(customsGroup), code AS STRING[10]) == 1;
+nearestCustomsGroup (STRING[10] code) = GROUP MIN CustomsGroup customsGroup IF startsWith(code(customsGroup), code AS STRING[10]) == 1;
 
 number 'Номер строки' = DATA INTEGER(CustomsGroup) IN base;
 
@@ -49,8 +49,8 @@ nameCustomsZone 'Таможенная зона' (Country country) = name(customs
 
 isCompliancedData 'Необходимость сертификации' = DATA BOOLEAN (CustomsGroup) IN base;
 
-levelParent (customsGroup) = GROUP
-                                                BY CustomsGroup customsGroup MIN level(customsGroup, CustomsGroup parent) IF isCompliancedData(parent) MATERIALIZED;
+levelParent (CustomsGroup customsGroup) = GROUP
+                                                MIN level(customsGroup, CustomsGroup parent) IF isCompliancedData(parent) MATERIALIZED;
 
 isCompliancedParent (CustomsGroup customsGroup) = TRUE IF levelParent(customsGroup);
 

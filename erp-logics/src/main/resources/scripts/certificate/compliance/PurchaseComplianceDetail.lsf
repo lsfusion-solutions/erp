@@ -10,9 +10,9 @@ in 'Вкл.' (Compliance compliance, UserInvoice invoice) = compliance(invoice)=
 
 in 'Вкл.' (Compliance compliance, UserInvoiceDetail invoiceDetail) = dataCompliance(invoiceDetail)==compliance;
 
-invoices 'Накладные' (compliance) =
+invoices 'Накладные' (Compliance compliance) =
     GROUP
-              BY Compliance compliance CONCAT shortDescription(UserInvoice invoice) IF in (compliance, invoice), ',' ORDER invoice MATERIALIZED CHARWIDTH 40;
+              CONCAT shortDescription(UserInvoice invoice) IF in (compliance, invoice), ',' ORDER invoice MATERIALIZED CHARWIDTH 40;
 
 // Тип сертификата
 nameComplianceTypeCompliance 'Тип сертификата' (UserInvoiceDetail invoiceDetail) = nameComplianceType(compliance(invoiceDetail));
@@ -63,10 +63,10 @@ count 'Кол-во' (invoice, complianceGroup) =
 
 // ------------------- Заполнение сертификата, если он один для группы --------------------- //
 
-countComplianceForManufacturing 'Кол-во' (complianceGroup) =
-    GROUP BY ComplianceGroup complianceGroup SUM 1 IF in(complianceGroup, Compliance compliance) AND complianceType(compliance) ==ComplianceType.forManufacturing;
-defaultComplianceForManufacturing  (complianceGroup) =
-    GROUP BY ComplianceGroup complianceGroup MIN Compliance compliance IF in(complianceGroup, compliance) AND complianceType(compliance) ==ComplianceType.forManufacturing;
+countComplianceForManufacturing 'Кол-во' (ComplianceGroup complianceGroup) =
+    GROUP SUM 1 IF in(complianceGroup, Compliance compliance) AND complianceType(compliance) ==ComplianceType.forManufacturing;
+defaultComplianceForManufacturing  (ComplianceGroup complianceGroup) =
+    GROUP MIN Compliance compliance IF in(complianceGroup, compliance) AND complianceType(compliance) ==ComplianceType.forManufacturing;
     
 fillCompliance 'Заполнить сертификаты (пр-во)'(UserInvoice invoice)  = {
     compliance(invoice,ComplianceGroup g) <-  defaultComplianceForManufacturing(g) 

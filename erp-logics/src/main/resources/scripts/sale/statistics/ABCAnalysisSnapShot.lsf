@@ -70,8 +70,8 @@ allStockInclude 'Вкл' = DATA BOOLEAN (Operation);
 dataInclude 'Вкл' = DATA BOOLEAN (Operation, StockGroup);
 dataInclude 'Вкл' = DATA BOOLEAN (Operation, Stock);
 
-levelParentInclude (Operation, stockGroup) = GROUP
-                                                              BY Operation Operation, StockGroup stockGroup MIN level(stockGroup, StockGroup parent) IF dataInclude(Operation, parent) MATERIALIZED;    
+levelParentInclude (Operation Operation, StockGroup stockGroup) = GROUP
+                                                              MIN level(stockGroup, StockGroup parent) IF dataInclude(Operation, parent) MATERIALIZED;    
 nearestParentInclude (Operation operation, StockGroup stockGroup) = stockGroup(stockGroup, levelParentInclude(operation, stockGroup));
 nearestInclude (Operation operation, StockGroup stockGroup) = dataInclude(operation, nearestParentInclude (operation, stockGroup));
 
@@ -86,18 +86,18 @@ include 'Вкл' (Operation Operation, Stock stock) =
                         
 @defineBackgroundNearestBoolean(allStockInclude, include, Operation, stock, nearestInclude, isCompany);            
                           
-countIncludeStock  (Operation) = GROUP BY Operation Operation SUM 1 IF include(Operation, Stock stock);      
+countIncludeStock  (Operation Operation) = GROUP SUM 1 IF include(Operation, Stock stock);      
 
 
-nameIncludeStockGroups 'Группы складов (все)' (document)= 
+nameIncludeStockGroups 'Группы складов (все)' (Operation document)= 
     GROUP 
-    BY Operation document CONCAT name(StockGroup stockGroup) IF dataInclude(document, stockGroup), ', ' 
+    CONCAT name(StockGroup stockGroup) IF dataInclude(document, stockGroup), ', ' 
     ORDER stockGroup
     CHARWIDTH 20;
 
-nameIncludeStocks 'Склады (все)' (document)= 
+nameIncludeStocks 'Склады (все)' (Operation document)= 
     GROUP 
-    BY Operation document CONCAT name(Stock stock) IF dataInclude(document, stock), ', ' 
+    CONCAT name(Stock stock) IF dataInclude(document, stock), ', ' 
     ORDER stock
     CHARWIDTH 20;
     
@@ -109,8 +109,8 @@ TABLE OperationSkuGroup (Operation, SkuGroup);
      
 dataInclude 'Вкл' = DATA BOOLEAN (Operation, SkuGroup);
 
-levelParentInclude (Operation, skuGroup) = GROUP
-                                                              BY Operation Operation, SkuGroup skuGroup MIN level(skuGroup, SkuGroup parent) IF dataInclude(Operation, parent) MATERIALIZED;    
+levelParentInclude (Operation Operation, SkuGroup skuGroup) = GROUP
+                                                              MIN level(skuGroup, SkuGroup parent) IF dataInclude(Operation, parent) MATERIALIZED;    
 nearestParentInclude (Operation Operation, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(Operation, skuGroup));
 nearestInclude (Operation Operation, SkuGroup skuGroup) = dataInclude(Operation, nearestParentInclude (Operation, skuGroup));
 
@@ -120,11 +120,11 @@ include 'Вкл' (Operation Operation, SkuGroup skuGroup) =
                       
 include 'Вкл' (Operation Operation, Sku sku) = include(Operation, skuGroup(sku));  
                     
-countIncludeSku 'Вкл' (Operation) = GROUP BY Operation Operation SUM 1 IF include(Operation, Sku sku);                    
+countIncludeSku 'Вкл' (Operation Operation) = GROUP SUM 1 IF include(Operation, Sku sku);                    
 
-nameIncludeSkuGroups 'Группы товаров (все)' (document)= 
+nameIncludeSkuGroups 'Группы товаров (все)' (Operation document)= 
     GROUP 
-    BY Operation document CONCAT name(SkuGroup skuGroup) IF dataInclude(document, skuGroup), ', ' 
+    CONCAT name(SkuGroup skuGroup) IF dataInclude(document, skuGroup), ', ' 
     ORDER skuGroup
     CHARWIDTH 20;
 
@@ -263,8 +263,8 @@ allStockInclude 'Вкл' = DATA BOOLEAN (SnapshotABC);
 dataInclude 'Вкл' = DATA BOOLEAN (SnapshotABC, StockGroup);
 dataInclude 'Вкл' = DATA BOOLEAN (SnapshotABC, Stock);
 
-levelParentInclude (snapshot, stockGroup) = GROUP
-                                                              BY SnapshotABC snapshot, StockGroup stockGroup MIN level(stockGroup, StockGroup parent) IF dataInclude(snapshot, parent) MATERIALIZED;    
+levelParentInclude (SnapshotABC snapshot, StockGroup stockGroup) = GROUP
+                                                              MIN level(stockGroup, StockGroup parent) IF dataInclude(snapshot, parent) MATERIALIZED;    
 nearestParentInclude (SnapshotABC snapshot, StockGroup stockGroup) = stockGroup(stockGroup, levelParentInclude(snapshot, stockGroup));
 nearestInclude (SnapshotABC snapshot, StockGroup stockGroup) = dataInclude(snapshot, nearestParentInclude (snapshot, stockGroup));
 
@@ -276,7 +276,7 @@ include 'Вкл' (SnapshotABC snapshot, StockGroup stockGroup) =
 include 'Вкл' (SnapshotABC snapshot, Stock stock) =
     (OVERRIDE dataInclude(snapshot, stock),
              include(snapshot, stockGroup(stock))) IF isCompany(stock) MATERIALIZED;
-countIncludeStocks= GROUP BY SnapshotABC r SUM 1 IF include(r,Stock st);
+countIncludeStocks (SnapshotABC r)= GROUP SUM 1 IF include(r,Stock st);
 
 deleteIncludeStocks 'Сбросить отмеченные'(SnapshotABC r) = {
     allStockInclude (r) <- NULL;
@@ -287,18 +287,18 @@ deleteIncludeStocks 'Сбросить отмеченные'(SnapshotABC r) = {
 @defineBackgroundNearestBoolean(allStockInclude, include, snapshotABC, stock, nearestInclude, isCompany);
 
                       
-countIncludeStock  (snapshot) = GROUP BY SnapshotABC snapshot SUM 1 IF include(snapshot, Stock stock);      
+countIncludeStock  (SnapshotABC snapshot) = GROUP SUM 1 IF include(snapshot, Stock stock);      
 
 
-nameIncludeStockGroups 'Группы складов (все)' (document)= 
+nameIncludeStockGroups 'Группы складов (все)' (SnapshotABC document)= 
     GROUP 
-    BY SnapshotABC document CONCAT name(StockGroup stockGroup) IF dataInclude(document, stockGroup), ', ' 
+    CONCAT name(StockGroup stockGroup) IF dataInclude(document, stockGroup), ', ' 
     ORDER stockGroup
     CHARWIDTH 20;
 
-nameIncludeStocks 'Склады (все)' (document)= 
+nameIncludeStocks 'Склады (все)' (SnapshotABC document)= 
     GROUP 
-    BY SnapshotABC document CONCAT name(Stock stock) IF dataInclude(document, stock), ', ' 
+    CONCAT name(Stock stock) IF dataInclude(document, stock), ', ' 
     ORDER stock
     CHARWIDTH 20;
     
@@ -317,8 +317,8 @@ TABLE snapshotSkuGroup (SnapshotABC, SkuGroup);
      
 dataInclude 'Вкл' = DATA BOOLEAN (SnapshotABC, SkuGroup);
 
-levelParentInclude (snapshot, skuGroup) = GROUP
-                                                              BY SnapshotABC snapshot, SkuGroup skuGroup MIN level(skuGroup, SkuGroup parent) IF dataInclude(snapshot, parent) MATERIALIZED;    
+levelParentInclude (SnapshotABC snapshot, SkuGroup skuGroup) = GROUP
+                                                              MIN level(skuGroup, SkuGroup parent) IF dataInclude(snapshot, parent) MATERIALIZED;    
 nearestParentInclude (SnapshotABC snapshot, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(snapshot, skuGroup));
 nearestInclude (SnapshotABC snapshot, SkuGroup skuGroup) = dataInclude(snapshot, nearestParentInclude (snapshot, skuGroup));
 
@@ -328,11 +328,11 @@ include 'Вкл' (SnapshotABC snapshot, SkuGroup skuGroup) =
                       
 include 'Вкл' (SnapshotABC snapshot, Sku sku) = include(snapshot, skuGroup(sku)) AND groupType(skuGroup(sku)) == groupType(snapshot);  
                     
-countIncludeSku 'Вкл' (snapshot) = GROUP BY SnapshotABC snapshot SUM 1 IF include(snapshot, Sku sku);                    
+countIncludeSku 'Вкл' (SnapshotABC snapshot) = GROUP SUM 1 IF include(snapshot, Sku sku);                    
 
-nameIncludeSkuGroups 'Группы товаров (все)' (document)= 
+nameIncludeSkuGroups 'Группы товаров (все)' (SnapshotABC document)= 
     GROUP 
-    BY SnapshotABC document CONCAT name(SkuGroup skuGroup) IF dataInclude(document, skuGroup), ', ' 
+    CONCAT name(SkuGroup skuGroup) IF dataInclude(document, skuGroup), ', ' 
     ORDER skuGroup
     CHARWIDTH 20;
     
@@ -393,8 +393,8 @@ backgroundStatusQuantity(Sku sku, SnapshotABC s) = CASE
 
 //------------------------------ Общие итоги по отчету -------------------------------//
 
-markupSumSold 'Доход' = GROUP BY SnapshotABC snapshot SUM markupSumSold(Sku sk, snapshot) ;
-sumSold 'Выручка' = GROUP BY SnapshotABC snapshot SUM sumSold(Sku sk, snapshot) ;
+markupSumSold 'Доход' (SnapshotABC snapshot) = GROUP SUM markupSumSold(Sku sk, snapshot) ;
+sumSold 'Выручка' (SnapshotABC snapshot) = GROUP SUM sumSold(Sku sk, snapshot) ;
 
 //------------------------------ Итоги по группе товаров указанного уровня -------------------------------//
 
@@ -605,7 +605,7 @@ takeData 'Сформировать отчет' (SnapshotABC snapshot) = {
 
 TABLE operationDOW(Operation, DOW);
 in 'Вкл.' = DATA BOOLEAN (Operation, DOW);
-countDOWsIn = GROUP BY Operation t SUM 1 IF in(t,DOW d);
+countDOWsIn (Operation t) = GROUP SUM 1 IF in(t,DOW d);
 oneReport 'Отдельный отчет для склада' = DATA BOOLEAN (Operation);
 idReport 'Идентификатор для планировщика' = DATA STRING[100] (Operation);
 countDays 'Количество дней' = DATA INTEGER (Operation);
@@ -614,14 +614,14 @@ countDaysDelete 'Количество дней для хранения отче�
 
 TABLE snapshotTypeDays(Operation, INTEGER);
 inDays 'Вкл.' = DATA BOOLEAN (Operation, INTEGER);
-countDaysIn = GROUP BY Operation t SUM 1 IF inDays(t,INTEGER i);
+countDaysIn (Operation t) = GROUP SUM 1 IF inDays(t,INTEGER i);
 
-daysIn 'Числа'  = GROUP
-    BY Operation t CONCAT VARSTRING[2](INTEGER i) IF inDays(t,i), ', '
+daysIn 'Числа' (Operation t)  = GROUP
+    CONCAT VARSTRING[2](INTEGER i) IF inDays(t,i), ', '
     ORDER i CHARWIDTH 10;
     
-DOWsIn 'Дни недели'  = GROUP
-    BY Operation t CONCAT staticCaption(DOW DOW) IF in(t,DOW), ', '
+DOWsIn 'Дни недели' (Operation t)  = GROUP
+    CONCAT staticCaption(DOW DOW) IF in(t,DOW), ', '
     ORDER number(DOW) CHARWIDTH 15;    
     
 EXTEND FORM operations

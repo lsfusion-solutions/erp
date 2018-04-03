@@ -371,10 +371,10 @@ EXTEND FORM pickings
 
 notCount 'Не учитывать' = ABSTRACT BOOLEAN (Picking);
 
-countPickingOrderSku 'Кол-во наименований' (pickingOrder) = GROUP BY PickingOrder pickingOrder SUM 1 IF quantityPickingOrderDetail(Sku sku, pickingOrder);
+countPickingOrderSku 'Кол-во наименований' (PickingOrder pickingOrder) = GROUP SUM 1 IF quantityPickingOrderDetail(Sku sku, pickingOrder);
 
 quantityPickingDetail 'Кол-во в комплектациях' (sku, pickingOrder) = GROUP BY Sku sku, pickingOrder(Picking picking) SUM quantityPickingDetail(sku, picking) IF NOT notCount(picking);
-countEqualPickingOrderSku 'Кол-во наименований с равным кол-ом товара' (pickingOrder) = GROUP BY PickingOrder pickingOrder SUM 1 IF quantityPickingDetail(Sku sku, pickingOrder) == quantityPickingOrderDetail(sku, pickingOrder);
+countEqualPickingOrderSku 'Кол-во наименований с равным кол-ом товара' (PickingOrder pickingOrder) = GROUP SUM 1 IF quantityPickingDetail(Sku sku, pickingOrder) == quantityPickingOrderDetail(sku, pickingOrder);
 
 calcFull 'Полностью собран' (PickingOrder pickingOrder) = countPickingOrderSku(pickingOrder) == countEqualPickingOrderSku(pickingOrder) MATERIALIZED;
 calcPart 'Частично собран' (PickingOrder pickingOrder) = quantityPickings(pickingOrder) AND NOT calcFull(pickingOrder);

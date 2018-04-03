@@ -7,20 +7,20 @@ NAMESPACE Item;
 @defineItemGroupObject(itemManager, 'Категорийный менеджер', Employee, nameCustomUser);  
 nameItemManager 'Категорийный менеджер' (ItemGroup itemGroup) = name[Contact](itemManager(itemGroup)); 
 
-countItemGroup (employee) = GROUP BY Employee employee SUM 1 IF dataItemManager(ItemGroup group) == employee MATERIALIZED;
+countItemGroup (Employee employee) = GROUP SUM 1 IF dataItemManager(ItemGroup group) == employee MATERIALIZED;
 
 TABLE employeeItemGroup(Employee, ItemGroup);
 accessManager 'Доступ разрешен' (Employee employee, ItemGroup itemGroup) = OVERRIDE
     nearestItemManager(itemGroup) == employee,  
     employee IS Employee AND itemGroup IS ItemGroup AND NOT countItemGroup(employee) AND NOT countManagers(employee) MATERIALIZED;
 
-countAccessManagers (employee, itemGroup) = GROUP BY Employee employee, ItemGroup itemGroup SUM 1 IF accessManager(Employee manager, itemGroup) AND inManager(manager, employee);
+countAccessManagers (Employee employee, ItemGroup itemGroup) = GROUP SUM 1 IF accessManager(Employee manager, itemGroup) AND inManager(manager, employee);
 
 access = countAccessManagers(Employee employee, ItemGroup itemGroup) OR accessManager(employee, itemGroup) MATERIALIZED;
 
-countAccessItem 'Кол-во доступных групп' (employee, itemGroup) =
+countAccessItem 'Кол-во доступных групп' (Employee employee, SkuGroup itemGroup) =
     GROUP
-       BY Employee employee, SkuGroup itemGroup SUM 1 IF access(employee, ItemGroup child)
+       SUM 1 IF access(employee, ItemGroup child)
              AND isParent(child, itemGroup) MATERIALIZED;
 
 access = access(Employee employee, itemGroup(Item item));                                     

@@ -120,8 +120,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     TABLE ScheduleOrderStock(ScheduleOrder, Stock);
     dataIn 'Отм' = DATA BOOLEAN (ScheduleOrder, Stock);
     
-    levelParent (scheduleOrder, stockGroup) = GROUP
-                                                                   BY ScheduleOrder scheduleOrder, StockGroup stockGroup MIN level(stockGroup, StockGroup parent) IF dataIn(scheduleOrder, parent) MATERIALIZED;
+    levelParent(ScheduleOrder scheduleOrder, StockGroup stockGroup)  = GROUP
+                                                                   MIN level(stockGroup, StockGroup parent) IF dataIn(scheduleOrder, parent) MATERIALIZED;
     
     inParent (ScheduleOrder scheduleOrder, StockGroup stockGroup) = TRUE IF levelParent (scheduleOrder, stockGroup) MATERIALIZED;
     
@@ -384,9 +384,9 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     dateSupplyNext(ScheduleOrderDetail scheduleOrderDetail) = dateSupply(next(scheduleOrderDetail));
 
     scheduleOrderDetail = DATA ScheduleOrderDetail(UserOrder) INDEXED;
-    quantityOrders 'Кол-во заказов' (scheduleOrderDetail) =
+    quantityOrders 'Кол-во заказов'(ScheduleOrderDetail scheduleOrderDetail)  =
         GROUP
-               BY ScheduleOrderDetail scheduleOrderDetail SUM 1 IF supplierStock[Order](UserOrder userOrder)==supplierStock(scheduleOrderDetail) AND
+               SUM 1 IF supplierStock[Order](UserOrder userOrder)==supplierStock(scheduleOrderDetail) AND
                        customerStock[Order](userOrder)==customerStock(scheduleOrderDetail) AND
                        shipmentDate(userOrder)==dateSupply(scheduleOrderDetail) AND
                        date[Order](userOrder)==dateOrder(scheduleOrderDetail) AND

@@ -39,12 +39,12 @@ DESIGN stockDays {
 }
 
 
-quantityPurchase 'Закуплено за интервал (кол-во)' (sku, stock, dateFrom) = GROUP 
-        BY Sku sku, Stock stock, DATE dateFrom SUM
+quantityPurchase 'Закуплено за интервал (кол-во)' (Sku sku, Stock stock, DATE dateFrom) = GROUP 
+        SUM
         PurchaseLedger.quantityPurchase(sku, stock, DATE date) IF date >= dateFrom;
         
-notPurchase (stock, dateFrom, dateTime)= GROUP 
-        BY Stock stock, DATE dateFrom, DATETIME dateTime SUM 1 IF NOT (quantityPurchase(Sku sku, stock, dateFrom) OR currentBalance(sku, stock) OR lastStopListDetail(sku, stock, dateTime)) 
+notPurchase (Stock stock, DATE dateFrom, DATETIME dateTime)= GROUP 
+        SUM 1 IF NOT (quantityPurchase(Sku sku, stock, dateFrom) OR currentBalance(sku, stock) OR lastStopListDetail(sku, stock, dateTime)) 
     AND sku IS Sku AND stock IS Stock AND dateFrom IS DATE AND dateTime IS DATETIME; 
      
 createStopList 'Создать по товарам без прихода и остатка'()  = {

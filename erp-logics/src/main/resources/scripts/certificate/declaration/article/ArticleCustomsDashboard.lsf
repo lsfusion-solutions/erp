@@ -20,7 +20,7 @@ changeCompletedCustoms (Article article) = {
 
 // Подсчет необработанных артикулов для групп
 countNotCompletedCustomsArticles 'Не обработано (к-во)' (group) = GROUP BY itemGroup(Article article) SUM 1 IF completedTranslate(article) AND notCompletedCustoms(article);
-recCountNotCompletedCustomsArticles 'Не обработано (к-во)' (parent) = GROUP BY ItemGroup parent SUM countNotCompletedCustomsArticles(ItemGroup child) IF isParent(child, parent);
+recCountNotCompletedCustomsArticles 'Не обработано (к-во)' (ItemGroup parent) = GROUP SUM countNotCompletedCustomsArticles(ItemGroup child) IF isParent(child, parent);
 
 // Не заполнены атрибуты
 nullCustoms 'Без атрибутов' (Country country, Item item) =  item IS Item AND country IS Country AND NOT customsGroup(country, item) AND NOT completedCustoms(item);
@@ -219,18 +219,18 @@ WHEN LOCAL FORMS articleCustomsDashboard
 count (customsGroup, country, caption, composition) = GROUP
     BY customsGroup(Country country,Item item), country, caption(item),  composition(item) SUM 1;
 
-defaultCustomsGroup (country, caption, composition) =
+defaultCustomsGroup (Country country, VARISTRING[255] caption, VARSTRING[255] composition) =
     GROUP
-        BY Country country, VARISTRING[255] caption, VARSTRING[255] composition LAST CustomsGroup customsGroup
+        LAST CustomsGroup customsGroup
         ORDER count(customsGroup, country, caption, composition), customsGroup
         WHERE count(customsGroup, country, caption, composition);
 
 count (customsGroup, country, caption, composition, gender, originalCustomsGroup) = GROUP
     BY customsGroup(Country country,Item item), country, caption(item),  composition(item), gender(item), originalCustomsGroup(item) SUM 1;
 
-defaultCustomsGroup (country, caption, composition, gender, originalCustomsGroup) =
+defaultCustomsGroup (Country country, VARISTRING[255] caption, VARSTRING[255] composition, Gender gender, STRING[10] originalCustomsGroup) =
     GROUP
-        BY Country country, VARISTRING[255] caption, VARSTRING[255] composition, Gender gender, STRING[10] originalCustomsGroup LAST CustomsGroup customsGroup
+        LAST CustomsGroup customsGroup
         ORDER count(customsGroup, country, caption, composition, gender, originalCustomsGroup), customsGroup
         WHERE count(customsGroup, country, caption, composition, gender, originalCustomsGroup);
 
@@ -331,9 +331,9 @@ fillDefaultCustomsGroupItemGender 'Заполнить текущий ТН ВЭД
 count (complianceGroup, country, caption, composition) = GROUP
     BY complianceGroup(Country country,Item item), country, caption(item),  composition(item) SUM 1;
 
-defaultComplianceGroup (country, caption, composition) =
+defaultComplianceGroup (Country country, VARISTRING[255] caption, VARSTRING[255] composition) =
     GROUP
-        BY Country country, VARISTRING[255] caption, VARSTRING[255] composition LAST ComplianceGroup complianceGroup
+        LAST ComplianceGroup complianceGroup
         ORDER count(complianceGroup, country, caption, composition), complianceGroup
         WHERE count(complianceGroup, country, caption, composition);
 

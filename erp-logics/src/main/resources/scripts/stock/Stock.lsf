@@ -91,16 +91,16 @@ notCompany(Stock stock) = NOT isCompany(stock);
 
 legalEntityId (VARSTRING[100] stock)= legalEntity(stock(stock));
 
-countCompanyStock 'Кол-во складов' (stockGroup) = GROUP
-    BY StockGroup stockGroup SUM 1 IF isCompany(Stock stock)
+countCompanyStock 'Кол-во складов' (StockGroup stockGroup) = GROUP
+    SUM 1 IF isCompany(Stock stock)
     AND isParent(stockGroup(stock), stockGroup) MATERIALIZED;
 
-countSupplierStock 'Кол-во складов' (stockGroup) = GROUP
-    BY StockGroup stockGroup SUM 1 IF isSupplier(Stock stock)
+countSupplierStock 'Кол-во складов' (StockGroup stockGroup) = GROUP
+    SUM 1 IF isSupplier(Stock stock)
     AND isParent(stockGroup(stock), stockGroup) MATERIALIZED;
 
-countCustomerStock 'Кол-во складов' (stockGroup) = GROUP
-    BY StockGroup stockGroup SUM 1 IF isCustomer(Stock stock)
+countCustomerStock 'Кол-во складов' (StockGroup stockGroup) = GROUP
+    SUM 1 IF isCustomer(Stock stock)
     AND isParent(stockGroup(stock), stockGroup) MATERIALIZED;
 
 TABLE userLegalEntityStock (LegalEntity, Stock);
@@ -111,8 +111,8 @@ isDefault 'Свой склад' (LegalEntity legalEntity, Stock stock) = legalEn
 default 'По умолч.' = DATA BOOLEAN (Stock); 
 dataDefaultStock = GROUP BY legalEntity(Stock stock) AGGR stock WHERE default(stock);
 
-countStocks (legalEntity) = GROUP BY LegalEntity legalEntity SUM 1 IF in(legalEntity, Stock stock);
-minStock 'Первый склад' (legalEntity)= GROUP BY LegalEntity legalEntity MIN Stock stock IF in(legalEntity, stock);
+countStocks (LegalEntity legalEntity) = GROUP SUM 1 IF in(legalEntity, Stock stock);
+minStock 'Первый склад' (LegalEntity legalEntity)= GROUP MIN Stock stock IF in(legalEntity, stock);
 
 defaultStock 'Склад по умолчанию' (LegalEntity l) = OVERRIDE dataDefaultStock(l), minStock(l) IF countStocks(l) == 1;
 

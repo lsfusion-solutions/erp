@@ -45,8 +45,8 @@ TABLE stockStopList (Stock ,StopList);
 TABLE stockStopListDetail (Stock ,StopListDetail);
 
 in 'Вкл.' = DATA BOOLEAN (Stock ,StopList);
-stocks 'Склады' (stopList) = GROUP
-                                         BY StopList stopList CONCAT name(Stock stock) IF in(stock, stopList) , ', '
+stocks 'Склады' (StopList stopList) = GROUP
+                                         CONCAT name(Stock stock) IF in(stock, stopList) , ', '
                                          ORDER stock
                                          CHARWIDTH 30;
 CONSTRAINT  in(Stock stock, StopList stopList) AND NOT isCompany(stock)
@@ -72,8 +72,8 @@ valueVATSku (StopListDetail stopListDetail) = valueVAT(sku(stopListDetail), coun
 succeeded 'Загружен в оборудование' = DATA BOOLEAN (Stock, StopList);
 notSucceeded 'Не загружен в оборудование' (Stock stock, StopList stopList) = stock IS Stock AND stopList IS StopList AND NOT succeeded(stock, stopList);   
 
-countSucceededStocks  = GROUP BY StopList list SUM 1 IF in(Stock stock, list) AND succeeded(stock, list) MATERIALIZED;
-countStocks  = GROUP BY StopList list SUM 1 IF in(Stock stock, list) MATERIALIZED;
+countSucceededStocks (StopList list)  = GROUP SUM 1 IF in(Stock stock, list) AND succeeded(stock, list) MATERIALIZED;
+countStocks (StopList list)  = GROUP SUM 1 IF in(Stock stock, list) MATERIALIZED;
 
 succeeded = countSucceededStocks(StopList l) == countStocks(l);
 
@@ -451,7 +451,7 @@ countDaysClearStopList 'За сколько дней хранить стоп-л�
 EXTEND FORM options PROPERTIES countDaysClearStopList();
 DESIGN options { log { MOVE PROPERTY(countDaysClearStopList());} }    
         
-lastStopListDetail = GROUP BY StopListDetail d SUM 1 IF in(Stock s, stopList(d)) AND d == lastStopListDetail(sku(d), s, currentDateTime());
+lastStopListDetail (StopListDetail d) = GROUP SUM 1 IF in(Stock s, stopList(d)) AND d == lastStopListDetail(sku(d), s, currentDateTime());
 
 clearApplicationLog () += {
 	NEWSESSION {

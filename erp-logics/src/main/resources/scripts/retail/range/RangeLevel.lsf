@@ -79,7 +79,7 @@ CONSTRAINT level(RangeRev r, Sku s) AND NOT in(r, level(r, s))
     CHECKED BY level[RangeRev,Sku] 
     MESSAGE 'Уровень ассортимента для товара не соответствует допустимым уровням ассортимента';
     
-countSku 'Кол-во товаров' = GROUP BY RangeRev r SUM 1 IF level(r, Sku s);   
+countSku 'Кол-во товаров' (RangeRev r) = GROUP SUM 1 IF level(r, Sku s);   
 
 notCheckDepthRange 'Не проверять глубину матрицы при изменении значения глубины' = DATA BOOLEAN ();
 notCheckDepth 'Не проверять глубину матрицы' = DATA BOOLEAN ();
@@ -106,7 +106,7 @@ CONSTRAINT CHANGED(depth(range(RangeRev v))) AND rangeRev(range(v), currentDate(
 
 countSku 'Кол-во товаров' = GROUP BY RangeRev r, level(r, Sku s) SUM 1;
 
-countRecSku 'Кол-во товаров' = GROUP BY RangeRev r, RangeLevel level SUM countSku(r, RangeLevel l) IF l <= (level AS RangeLevel);
+countRecSku 'Кол-во товаров' (RangeRev r, RangeLevel level) = GROUP SUM countSku(r, RangeLevel l) IF l <= (level AS RangeLevel);
 
 countSku 'Кол-во товаров' (Range r, DATE d) = countSku(rangeRev(r, d));
 countSku 'Кол-во товаров' (Range r, RangeLevel l, DATE d)= countSku(rangeRev(r, d), l);
@@ -170,8 +170,8 @@ EXTEND FORM range
     PROPERTIES READONLY countSku(v) AFTER dateTime(v), countSku(v, vl) COLUMNS (vl) HEADER name(vl)
 ;
 
-countSkuNotSupplier 'Кол-во товаров без поставщика' = GROUP 
-        BY DataPriceListType pt, DepartmentStore d, RangeRev v SUM 1 IF level(v, Sku sku) AND pt IS DataPriceListType AND d IS DepartmentStore 
+countSkuNotSupplier 'Кол-во товаров без поставщика' (DataPriceListType pt, DepartmentStore d, RangeRev v) = GROUP 
+        SUM 1 IF level(v, Sku sku) AND pt IS DataPriceListType AND d IS DepartmentStore 
     AND NOT priceA(pt, sku, d, dateTime(v)); 
 calcCountSkuNotSupplier 'Кол-во товаров без поставщика' (DataPriceListType pt, DepartmentStore d, Range r, DATE dt) = countSkuNotSupplier(pt, d , rangeRev(r, dt));
 
@@ -201,13 +201,13 @@ CONSTRAINT dataLevel(Range r, StoreType t, DATE d) AND NOT in(r, dataLevel(r, t,
     CHECKED BY dataLevel[Range,StoreType,DATE]
     MESSAGE 'Уровень ассортимента для формата магазина не соответствует допустимым уровням ассортимента';
 
-level (r, t, d) = GROUP
-                                              BY Range range, StoreType storeType, DATE date LAST dataLevel(range, storeType, DATE dateIn)
+level (Range range, StoreType storeType, DATE date) = GROUP
+                                              LAST dataLevel(range, storeType, DATE dateIn)
                                               ORDER dateIn
                                               WHERE hasLevel(range, storeType, dateIn) AND dateIn <= (date AS DATE) COMPLEX; 
 
-date (r, t, d) = GROUP
-                                              BY Range range, StoreType storeType, DATE date LAST DATE dateIn
+date (Range range, StoreType storeType, DATE date) = GROUP
+                                              LAST DATE dateIn
                                               ORDER dateIn
                                               WHERE dataLevel(range, storeType, dateIn) AND dateIn <= (date AS DATE); 
                                               
@@ -232,13 +232,13 @@ CONSTRAINT dataLevel(Range r, Store st, DATE d) AND NOT in(r, dataLevel(r, st, d
     CHECKED BY dataLevel[Range,Store,DATE]
     MESSAGE 'Уровень ассортимента для магазина не соответствует допустимым уровням ассортимента';
 
-level (r, st, d) = GROUP
-                                              BY Range range, Store st, DATE date LAST dataLevel(range, st, DATE dateIn)
+level (Range range, Store st, DATE date) = GROUP
+                                              LAST dataLevel(range, st, DATE dateIn)
                                               ORDER dateIn
                                               WHERE hasLevel(range, st, dateIn) AND dateIn <= (date AS DATE) COMPLEX; 
 
-date (r, st, d) = GROUP
-                                              BY Range range, Store st, DATE date LAST DATE dateIn
+date (Range range, Store st, DATE date) = GROUP
+                                              LAST DATE dateIn
                                               ORDER dateIn
                                               WHERE dataLevel(range, st, dateIn) AND dateIn <= (date AS DATE); 
 
@@ -260,7 +260,7 @@ changeWYSLevel (Range r, Store st, DATE d)= {
 }              
 backgroundLevel(Range range, Store store, DATE dateIn) = (dataLevel(range, store, dateIn) OR excludeLevel(range, store, dateIn));
 
-countRange 'В ассортименте' (s, t, d) = GROUP BY Sku s, StoreType t, DATE d SUM 1 IF level(Range range, t, d) >= level(range, s, d);
+countRange 'В ассортименте' (Sku s, StoreType t, DATE d) = GROUP SUM 1 IF level(Range range, t, d) >= level(range, s, d);
 
 overLevel(Range r, Store st, DATE d) = OVERRIDE level(r, st, d), level(r, storeType(st), d);  
 overDate 'Дата включения' (Range r, Store st, DATE d) = OVERRIDE date(r, st, d), date(r, storeType(st), d);  
@@ -272,8 +272,8 @@ countSku 'Кол-во товаров' (Range r, Store st, DATE d) = countRecSku(
 countRange 'В ассортименте' (Sku s, Range r, Store st, DATE d) =  overLevel(r, st, d) >= level(r, s, d);
 in (Sku s, Range r, Store st, DATE d) += overLevel(r, st, d) >= level(r, s, d);
 
-countRange = GROUP BY Store st, Sku sk, DATE d SUM 1 IF level(Range r, st, d) >= level(r, sk, d);
-countTypeRange = GROUP BY Store st, Sku sk, DATE d SUM 1 IF level(Range r, storeType(st), d) >= level(r, sk, d);
+countRange (Store st, Sku sk, DATE d) = GROUP SUM 1 IF level(Range r, st, d) >= level(r, sk, d);
+countTypeRange (Store st, Sku sk, DATE d) = GROUP SUM 1 IF level(Range r, storeType(st), d) >= level(r, sk, d);
 
 statusRange 'Вид ассортимента' (Store st, Sku s, DATE d) = CASE WHEN countRange(st, s, d) THEN 'Магазин'
     WHEN countTypeRange(st, s, d) THEN 'Формат';
@@ -348,12 +348,12 @@ countFilterRange  = GROUP
     BY Sku sku, store(DepartmentStore stock), DATE dateFrom SUM 1 IF (currentBalance(sku,stock) OR dateTimeLastMoved(sku, stock) > DATETIME(dateFrom AS DATE)) AND active(store(stock));
 
     
-countFilter 'Кол-во магазинов' (range, sku, dateFrom) = GROUP
-    BY Range range, Sku sku, DATE dateFrom SUM 1 IF countFilterRange(sku, Store store, dateFrom) 
+countFilter 'Кол-во магазинов' (Range range, Sku sku, DATE dateFrom) = GROUP
+    SUM 1 IF countFilterRange(sku, Store store, dateFrom) 
     AND inChild(range, sku);
 
 count 'Количество товара' = DATA LOCAL INTEGER (RangeLevel);
-countRangeLevels = GROUP BY Range r SUM  count(RangeLevel l) IF in(r,l);
+countRangeLevels (Range r) = GROUP SUM  count(RangeLevel l) IF in(r,l);
 
 indexGroup 'Порядок' (RangeRev v, Sku sku, DATE dateFrom, LedgerPriceListType pt, Stock stock) =
     PARTITION
@@ -368,13 +368,13 @@ total 'Накоплено' (Range range, RangeLevel level) =
     ORDER  level;
 total 'Накоплено' = total(range(RangeRev v), RangeLevel level);      
     
-level (sku, v, dateFrom, pt, stock) = 
+level (Sku sku, RangeRev v, DATE dateFrom, LedgerPriceListType pt, Stock stock) = 
     GROUP
-          BY Sku sku, RangeRev v, DATE dateFrom, LedgerPriceListType pt, Stock stock MIN RangeLevel level IF indexGroup(v, sku, dateFrom, pt, stock) <= total(range(v), level);
+          MIN RangeLevel level IF indexGroup(v, sku, dateFrom, pt, stock) <= total(range(v), level);
 
 
-countFilter 'Кол-во с продажей или остатком' (range, store, dateFrom) = GROUP
-        BY Range range, Store store, DATE dateFrom SUM 1 IF countFilterRange(Sku sku, store, dateFrom) 
+countFilter 'Кол-во с продажей или остатком' (Range range, Store store, DATE dateFrom) = GROUP
+        SUM 1 IF countFilterRange(Sku sku, store, dateFrom) 
     AND inChild(range, sku);
 
 countFilter 'Кол-во с продажей или остатком' (RangeRev v, Store store, DATE dateFrom) = countFilter(range(v), store, dateFrom);
@@ -474,7 +474,7 @@ EXTEND FORM rangeRev
 
 in (r, s) = GROUP BY range(RangeRev v), Sku s SUM 1 IF level(v, s);
 
-ranges 'Ассортиментные матрицы' (Sku s, DATE d) = GROUP BY Sku s, DATE d CONCAT name(Range r) IF level(r, s, d) ,', ' CHARWIDTH 30; 
+ranges 'Ассортиментные матрицы' (Sku s, DATE d) = GROUP CONCAT name(Range r) IF level(r, s, d) ,', ' CHARWIDTH 30; 
 
 EXTEND FORM ranges 
     PROPERTIES READONLY nameLevel(r, s, d), ranges(s, d)

@@ -217,14 +217,14 @@ NAVIGATOR {
 
 edit(PreOrderDetail d) += { DIALOG preOrder OBJECTS o = preOrder(d), d = d DOCKED; }
 
-orderedOrderDetail 'Израсходовано' (pd) = GROUP
-    BY PreOrderDetail pd SUM quantity(Sale.OrderDetail d) 
+orderedOrderDetail 'Израсходовано' (PreOrderDetail pd) = GROUP
+    SUM quantity(Sale.OrderDetail d) 
     IF isPosted(d) AND dateTime(d) >= fromDateTime(pd) AND operation(pd) == operation(d) AND supplierStock(pd) == supplierStock(d) AND sku(pd) == sku(d);
 orderedOrderDetail 'Израсходовано' (pd, so) = GROUP
     BY PreOrderDetail pd,Sale.order(Sale.OrderDetail d) SUM quantity(d) 
     IF isPosted(d) AND dateTime(d) >= fromDateTime(pd) AND operation(pd) == operation(d) AND supplierStock(pd) == supplierStock(d) AND sku(pd) == sku(d);    
-orders 'Заказы' (d) = GROUP
-                                       BY PreOrderDetail d CONCAT seriesNumber(Sale.Order so) IF orderedOrderDetail(d, so) , ', '
+orders 'Заказы' (PreOrderDetail d) = GROUP
+                                       CONCAT seriesNumber(Sale.Order so) IF orderedOrderDetail(d, so) , ', '
                                        ORDER Sale.dateTime(so), so CHARWIDTH 20;
     
     

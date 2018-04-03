@@ -43,8 +43,8 @@ TABLE legalEntitySkuGroup(LegalEntity, SkuGroup);
 dataSeparation  = DATA Separation (LegalEntity, SkuGroup);
 nameDataSeparation 'Признак распределения' (LegalEntity l, SkuGroup g) = name(dataSeparation(l,g));
 
-levelParentSeparation (supplier, skuGroup) = GROUP
-                                                              BY LegalEntity supplier, SkuGroup skuGroup MIN level(skuGroup, SkuGroup parent) IF dataSeparation(supplier, parent) MATERIALIZED;    
+levelParentSeparation (LegalEntity supplier, SkuGroup skuGroup) = GROUP
+                                                              MIN level(skuGroup, SkuGroup parent) IF dataSeparation(supplier, parent) MATERIALIZED;    
 nearestParentSeparation (LegalEntity supplier, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentSeparation(supplier, skuGroup));
 nearestSeparation (LegalEntity supplier, SkuGroup skuGroup) = dataSeparation(supplier, nearestParentSeparation (supplier, skuGroup));
 
@@ -61,8 +61,8 @@ nullSeparation (LegalEntity l, Sku s) = OVERRIDE dataSeparation(l, s), separatio
 separation (LegalEntity l, Sku s) = OVERRIDE nullSeparation(l, s), Separation.none IF l IS LegalEntity AND s IS Sku;  
 nameSeparation 'Признак распределения (перегруженный)' (LegalEntity l, Sku s) = name(separation(l,s));
 
-countSeparationSkuGroup  (supplier) = GROUP BY LegalEntity supplier SUM 1 IF separation(supplier, SkuGroup sku);                       
-countSeparationSku (supplier) = GROUP BY LegalEntity supplier SUM 1 IF separation(supplier, Sku sku);   
+countSeparationSkuGroup  (LegalEntity supplier) = GROUP SUM 1 IF separation(supplier, SkuGroup sku);                       
+countSeparationSku (LegalEntity supplier) = GROUP SUM 1 IF separation(supplier, Sku sku);   
 
 
 CONSTRAINT dataSeparation (LegalEntity l, SkuGroup g) AND NOT legalEntity(dataSeparation (l, g)) == l  

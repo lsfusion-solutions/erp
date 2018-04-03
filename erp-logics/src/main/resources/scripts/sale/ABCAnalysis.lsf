@@ -31,8 +31,8 @@ FORM ABCTypes 'Тип отчета'
 
 dataInSession 'Отм.' = DATA LOCAL BOOLEAN (Group);
 
-levelParent (group) = GROUP
-    BY Group group MIN level(group, Group parent) IF dataInSession(parent);
+levelParent (Group group) = GROUP
+    MIN level(group, Group parent) IF dataInSession(parent);
 nearestParentGroupInSession (Group g) =  group(g, levelParent(g));
 nearestInSession (Group g) =
     dataInSession(nearestParentGroupInSession(g)) MATERIALIZED;
@@ -48,8 +48,8 @@ sessionConcatGroups 'Группы' (groupType) =
     BY groupType(Group group) CONCAT name(group) IF inSession(group) AND NOT inSession(parent(group)),'; ';
     
 
-quantityChildWithSession (g) = GROUP BY Group parent SUM 1 IF dataInSession(Group child) AND isParent(child, parent) MATERIALIZED;
-quantityParentWithSession (g) = GROUP BY Group child SUM 1 IF dataInSession(Group parent) AND isParent(child, parent) MATERIALIZED;                                                                        
+quantityChildWithSession (Group parent) = GROUP SUM 1 IF dataInSession(Group child) AND isParent(child, parent) MATERIALIZED;
+quantityParentWithSession (Group child) = GROUP SUM 1 IF dataInSession(Group parent) AND isParent(child, parent) MATERIALIZED;                                                                        
                                                                            
 backgroundInSession 'Цвет' (Group g) = CASE 
     WHEN dataInSession(g) THEN RGB(0,0,0)
@@ -74,43 +74,43 @@ idSelectStocks 'Склады' = GROUP CONCAT id(Stock st) IF select(st),', ' CHA
             
 //--
 
-markupSumSold 'Доход'(groupType, group, dateFrom, dateTo) =
+markupSumSold 'Доход'(GroupType groupType, Group g, DATE df, DATE dt) =
     GROUP
-    BY GroupType groupType, Group g, DATE df, DATE dt SUM markupSumSold(Sku sk, Stock st, df, dt) IF  isParent(g, sk) AND inSession(group(groupType, sk)) AND select(st);
+    SUM markupSumSold(Sku sk, Stock st, df, dt) IF  isParent(g, sk) AND inSession(group(groupType, sk)) AND select(st);
                                                    
-quantitySold 'Кол-во'(groupType, group, dateFrom, dateTo) =
+quantitySold 'Кол-во'(GroupType groupType, Group g, DATE df, DATE dt) =
     GROUP
-    BY GroupType groupType, Group g, DATE df, DATE dt SUM quantitySold(Sku sk, Stock st, df, dt) IF  isParent(g, sk) AND inSession(group(groupType, sk)) AND select(st);
+    SUM quantitySold(Sku sk, Stock st, df, dt) IF  isParent(g, sk) AND inSession(group(groupType, sk)) AND select(st);
                                                        
-sumSold 'Выручка'(groupType, group, dateFrom, dateTo) =
+sumSold 'Выручка'(GroupType groupType, Group g, DATE df, DATE dt) =
     GROUP
-    BY GroupType groupType, Group g, DATE df, DATE dt SUM sumSold(Sku sk, Stock st, df, dt) IF  isParent(g, sk) AND inSession(group(groupType, sk)) AND select(st); 
+    SUM sumSold(Sku sk, Stock st, df, dt) IF  isParent(g, sk) AND inSession(group(groupType, sk)) AND select(st); 
 
 
-markupSumSold 'Доход'(groupType, sku, dateFrom, dateTo) =
+markupSumSold 'Доход'(GroupType groupType, Sku sk, DATE df, DATE dt) =
     GROUP
-    BY GroupType groupType, Sku sk, DATE df, DATE dt SUM markupSumSold(sk, Stock st, df, dt) IF  inSession(group(groupType, sk)) AND select(st);
+    SUM markupSumSold(sk, Stock st, df, dt) IF  inSession(group(groupType, sk)) AND select(st);
 
-quantitySold 'Кол-во'(groupType, sku, dateFrom, dateTo) =
+quantitySold 'Кол-во'(GroupType groupType, Sku sk, DATE df, DATE dt) =
     GROUP
-    BY GroupType groupType, Sku sk, DATE df, DATE dt SUM quantitySold(sk, Stock st, df, dt) IF  inSession(group(groupType, sk)) AND select(st);
+    SUM quantitySold(sk, Stock st, df, dt) IF  inSession(group(groupType, sk)) AND select(st);
                                                        
-sumSold 'Выручка'(groupType, sku, dateFrom, dateTo) =
+sumSold 'Выручка'(GroupType groupType, Sku sk, DATE df, DATE dt) =
     GROUP
-    BY GroupType groupType, Sku sk, DATE df, DATE dt SUM sumSold(sk, Stock st, df, dt) IF  inSession(group(groupType, sk)) AND select(st);                                                
+    SUM sumSold(sk, Stock st, df, dt) IF  inSession(group(groupType, sk)) AND select(st);                                                
 //--
                                                
-markupSumSold 'Доход'(groupType, dateFrom, dateTo) =
+markupSumSold 'Доход'(GroupType groupType, DATE df, DATE dt) =
     GROUP
-    BY GroupType groupType, DATE df, DATE dt SUM markupSumSold(Sku sk, Stock st, df, dt) IF inSession(group(groupType, sk))  AND select(st);
+    SUM markupSumSold(Sku sk, Stock st, df, dt) IF inSession(group(groupType, sk))  AND select(st);
                                                    
-quantitySold 'Кол-во'(groupType, dateFrom, dateTo) =
+quantitySold 'Кол-во'(GroupType groupType, DATE df, DATE dt) =
     GROUP
-    BY GroupType groupType, DATE df, DATE dt SUM quantitySold(Sku sk, Stock st, df, dt) IF inSession(group(groupType, sk))  AND select(st);
+    SUM quantitySold(Sku sk, Stock st, df, dt) IF inSession(group(groupType, sk))  AND select(st);
                                                        
-sumSold 'Выручка'(groupType, dateFrom, dateTo) =
+sumSold 'Выручка'(GroupType groupType, DATE df, DATE dt) =
     GROUP
-    BY GroupType groupType, DATE df, DATE dt SUM sumSold(Sku sk, Stock st, df, dt) IF inSession(group(groupType, sk))  AND select(st);                                                 
+    SUM sumSold(Sku sk, Stock st, df, dt) IF inSession(group(groupType, sk))  AND select(st);                                                 
                                                
                                                
 

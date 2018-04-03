@@ -62,10 +62,10 @@ carbohydrates 'Углеводы' (ProductDetail productDetail, Item sku) = netto
 proteins 'Белки' (ProductDetail productDetail, Item sku) = nettoQuantity (productDetail, sku)*netWeight(sku)*10*proteins(sku);
 energy 'Энерг.ценность'(ProductDetail productDetail, Item sku) = nettoQuantity (productDetail, sku)*netWeight(sku)*10*energy(sku);
 
-fatsInBOM 'Жиры'(productDetail) = GROUP BY ProductDetail productDetail SUM fats(productDetail, Item sku);
-carbohydratesInBOM 'Углеводы'(productDetail) = GROUP BY ProductDetail productDetail SUM carbohydrates(productDetail, Item sku);
-proteinsInBOM 'Белки'(productDetail) = GROUP BY ProductDetail productDetail SUM proteins(productDetail, Item sku);
-energyInBOM 'Энерг.ценность'(productDetail) = GROUP BY ProductDetail productDetail SUM energy(productDetail, Item sku);
+fatsInBOM 'Жиры'(ProductDetail productDetail) = GROUP SUM fats(productDetail, Item sku);
+carbohydratesInBOM 'Углеводы'(ProductDetail productDetail) = GROUP SUM carbohydrates(productDetail, Item sku);
+proteinsInBOM 'Белки'(ProductDetail productDetail) = GROUP SUM proteins(productDetail, Item sku);
+energyInBOM 'Энерг.ценность'(ProductDetail productDetail) = GROUP SUM energy(productDetail, Item sku);
 
 fats 'Жиры (ед.)'(ProductDetail productDetail) = fatsInBOM(productDetail) / (quantityInBOM(productDetail)*10*netWeight[Item](sku(productDetail)));
 carbohydrates 'Углеводы (ед.)'(ProductDetail productDetail) = carbohydratesInBOM(productDetail) / (quantityInBOM(productDetail)*10*netWeight[Item](sku(productDetail)));
@@ -93,7 +93,7 @@ VATSum 'Сумма НДС' (ProductDetail pd,ComponentDetail cd)= IF VAT(cd)
     THEN componentsSum(pd,cd) *valueVAT(cd)/100
     ELSE componentsSum(pd,cd) *(valueVAT(cd)/(100+valueVAT(cd)));
 
-totalVATSum 'Сумма НДС компонентов' (productDetail) = GROUP BY ProductDetail pd SUM VATSum (pd,ComponentDetail cd) MATERIALIZED;
+totalVATSum 'Сумма НДС компонентов' (ProductDetail pd) = GROUP SUM VATSum (pd,ComponentDetail cd) MATERIALIZED;
 
 FORM costCardOrderBy 'Калькуляционная карта' // с заменами
 
@@ -158,18 +158,18 @@ fullNameSupplierBatch 'Поставщик' (ComponentDetail b) = fullNameSupplie
 
 supplierPrice 'Цена поставщика' (ComponentDetail cd) = price(invoiceDetail(batch(cd))); 
 
-quantityProductDetails 'Кол-во' (cd) = GROUP
-        BY ComponentDetail cd SUM quantity(ProductDetail pd) IF 
+quantityProductDetails 'Кол-во' (ComponentDetail cd) = GROUP
+        SUM quantity(ProductDetail pd) IF 
     BOM(cd)== BOM(product(pd)) AND order(cd) == order(pd);      
 percOrder 'Норма выхода, %' (ProductDetail pd,ComponentDetail cd)=  quantity(pd) *100 /  (quantity(cd) IF (quantity(cd)!=0));  
-percProductDetail'Норма выхода, %' (cd) = GROUP
-        BY ComponentDetail cd SUM percOrder(ProductDetail pd,cd) IF 
+percProductDetail'Норма выхода, %' (ComponentDetail cd) = GROUP
+        SUM percOrder(ProductDetail pd,cd) IF 
     BOM(cd)== BOM(product(pd)) AND order(cd) == order(pd);       
 //percOrderProductDetail 'Норма выхода, %' (d)= quantityProductDetail(d) *100 /  (quantityProductDetailOrder(orderProductDetail(d)) IF quantityProductDetailOrder(orderProductDetail(d))!=0);               
 
 
-sumProductDetails 'Сумма' (cd) = GROUP
-        BY ComponentDetail cd SUM sum(ProductDetail pd) IF 
+sumProductDetails 'Сумма' (ComponentDetail cd) = GROUP
+        SUM sum(ProductDetail pd) IF 
     BOM(cd)== BOM(product(pd)) AND order(cd) == order(pd);    
 
 diffSum (ComponentDetail cd) = sum(cd)- sumProductDetails(cd);

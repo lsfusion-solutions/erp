@@ -84,7 +84,7 @@ quantity = GROUP BY Inventory i, zone(TerminalDocumentDetail d), sku(d) SUM quan
 
 quantity = GROUP BY Inventory i, zone(TerminalDocumentDetail d), commission(d), sku(d) SUM quantity(d) IF in(i, d);
 countValue = GROUP BY quantity(Inventory i, Zone z, Commission c, Sku s), i,z,s SUM 1;
-overToQuantity = GROUP BY Inventory i,Zone z,Sku s MIN NUMERIC[14,3] q IF countValue( q, i, z, s) >= countCommissions(i); 
+overToQuantity (Inventory i,Zone z,Sku s) = GROUP MIN NUMERIC[14,3] q IF countValue( q, i, z, s) >= countCommissions(i); 
 
 toQuantity 'В опись' (Inventory i, Zone z, Sku s) = OVERRIDE  dataQuantity(i,z,s), overToQuantity(i,z,s);
 
@@ -94,10 +94,10 @@ background (Inventory i, Zone z, Sku s) =  CASE
 ;
 hintSoldBackground 'Зеленого чая'  = RGB(204,255,204) IF TRUE;  
 
-diffQuantityInitial 'Количество расхождений (изначально)' = GROUP BY Inventory i,Zone z SUM 1 IF quantity (i, z, Sku s) 
+diffQuantityInitial 'Количество расхождений (изначально)' (Inventory i,Zone z) = GROUP SUM 1 IF quantity (i, z, Sku s) 
                                                        AND NOT overToQuantity(i, z, s);     
 
-diffQuantity 'Количество расхождений' = GROUP BY Inventory i,Zone z SUM 1 IF quantity (i, z, Sku s) 
+diffQuantity 'Количество расхождений' (Inventory i,Zone z) = GROUP SUM 1 IF quantity (i, z, Sku s) 
                                                        AND NOT overToQuantity(i, z, s) AND NOT dataQuantity(i, z, s);     
  
 diffBackground (Inventory i, Zone z) =  IF diffQuantity(i,z) THEN RGB(255,153,153) ELSE RGB (204,255,204);
@@ -108,7 +108,7 @@ filterDateFrom (TerminalDocument i) = date(i) >= filterTerminalDocumentDateFrom(
 filterTerminalDocumentDateTo 'Дата по' = DATA LOCAL DATE ();
 filterDateTo (TerminalDocument i) = date(i) <= filterTerminalDocumentDateTo() OR (i IS TerminalDocument AND NOT filterTerminalDocumentDateTo());   
 
-countInventories = GROUP BY TerminalDocument td SUM 1 IF in(Inventory in, td); 
+countInventories (TerminalDocument td) = GROUP SUM 1 IF in(Inventory in, td); 
 
 FORM searchTerminalDocument 'Документы ТСД'
     OBJECTS in = Inventory PANEL 

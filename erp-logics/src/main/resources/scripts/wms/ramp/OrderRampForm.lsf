@@ -4,18 +4,18 @@ REQUIRE OrderRamp;
 
 NAMESPACE Order;
 
-countOrders (ramp, date, dateFrom, dateTo) = GROUP
-        BY Ramp r, DATE d, DATE dateFrom, DATE dateTo SUM 1 IF 
+countOrders (Ramp r, DATE d, DATE dateFrom, DATE dateTo) = GROUP
+        SUM 1 IF 
     order(r,Interval i,d) AND d >= (dateFrom AS DATE) AND d <= (dateTo AS DATE);
         
 countOrders (stock, date, dateFrom, dateTo) = GROUP
         BY stock(Ramp r), DATE d, DATE dateFrom, DATE dateTo SUM 1 IF 
     order(r,Interval i,d) AND d >= (dateFrom AS DATE) AND d <= (dateTo AS DATE);     
-countDates 'Кол-во дней' (stock, dateFrom, dateTo) = GROUP
-        BY Stock stock, DATE dateFrom, DATE dateTo SUM 1 IF 
+countDates 'Кол-во дней' (Stock stock, DATE dateFrom, DATE dateTo) = GROUP
+        SUM 1 IF 
     countOrders (stock, DATE date, dateFrom, dateTo); 
                    
-countLoadInterval (ramp, date) = GROUP BY Ramp r, DATE d SUM 1 IF 
+countLoadInterval (Ramp r, DATE d) = GROUP SUM 1 IF 
     order(r,Interval i,d);  
 countLoadInterval (stock, date) = GROUP BY stock(Ramp r), DATE d SUM 1 IF
     order(r,Interval i,d);
@@ -24,7 +24,7 @@ percInterval '% загрузки рампы' (Ramp r,DATE d) = countLoadInterval
 percInterval '% загрузки рампы' (Stock st,DATE d) = countLoadInterval (st, d)* 100.00 / countInterval(st) ;          
         
 
-countLoadIntervalDate 'Кол-во загруженных интервалов' (st,dFrom,dTo) = GROUP BY Stock st,DATE dFrom,DATE dTo SUM countLoadInterval (st, DATE d) IF 
+countLoadIntervalDate 'Кол-во загруженных интервалов' (Stock st,DATE dFrom,DATE dTo) = GROUP SUM countLoadInterval (st, DATE d) IF 
     countOrders(st,d,dFrom,dTo);
     
 percInterval '% загрузки рамп' (Stock st,DATE dateFrom,DATE dateTo) = countLoadIntervalDate(st,dateFrom,dateTo) *100.00 / 

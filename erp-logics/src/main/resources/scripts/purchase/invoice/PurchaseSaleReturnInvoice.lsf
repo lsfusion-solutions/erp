@@ -172,11 +172,11 @@ descriptionIndexInvoiceDetail 'Строка накладной (закупка-�
 
 quantityInvoiceDetail (purchaseReturn, saleReturn) = GROUP BY invoice(invoiceDetail(SaleReturn.InvoiceDetail detail)), invoice(detail) SUM quantity(detail);
 
-purchaseReturnInvoices 'Накладные (закупка-возврат)' (saleReturn) = GROUP
-                                                        BY SaleReturn.Invoice saleReturn CONCAT VARSTRING[255](description(Invoice purchaseReturn)) IF quantityInvoiceDetail (purchaseReturn, saleReturn), ', '
+purchaseReturnInvoices 'Накладные (закупка-возврат)' (SaleReturn.Invoice saleReturn) = GROUP
+                                                        CONCAT VARSTRING[255](description(Invoice purchaseReturn)) IF quantityInvoiceDetail (purchaseReturn, saleReturn), ', '
                                                         ORDER purchaseReturn IN invoice CHARWIDTH 30 MATERIALIZED;
 
-relationSaleReturn 'Связь' (saleReturn) = GROUP BY SaleReturn.Invoice saleReturn SUM quantityInvoiceDetail (Invoice purchaseReturn, saleReturn) MATERIALIZED;
+relationSaleReturn 'Связь' (SaleReturn.Invoice saleReturn) = GROUP SUM quantityInvoiceDetail (Invoice purchaseReturn, saleReturn) MATERIALIZED;
 
 invoiced 'Кол-во (выписано)' (invoiceDetail) = GROUP
                                                                    BY invoiceDetail(SaleReturn.InvoiceDetail detail) SUM quantity(detail) IF isPosted(detail) MATERIALIZED;

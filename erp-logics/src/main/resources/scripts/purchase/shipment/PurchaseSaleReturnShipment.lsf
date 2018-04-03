@@ -71,11 +71,11 @@ overCopy[SaleReturn.UserShipmentDetail,SaleReturn.UserShipmentDetail](SaleReturn
 
 quantityShipmentDetail (purchaseReturn, saleReturn) = GROUP BY shipment(shipmentDetail(SaleReturn.ShipmentDetail detail)), shipment(detail) SUM quantity(detail);
 
-saleShipments 'Поставки (закупка-возврат)' (saleReturn) = GROUP
-                                                        BY SaleReturn.Shipment saleReturn CONCAT VARSTRING[255](description(Shipment purchaseReturn)) IF quantityShipmentDetail(purchaseReturn, saleReturn) , ', '
+saleShipments 'Поставки (закупка-возврат)' (SaleReturn.Shipment saleReturn) = GROUP
+                                                        CONCAT VARSTRING[255](description(Shipment purchaseReturn)) IF quantityShipmentDetail(purchaseReturn, saleReturn) , ', '
                                                         ORDER purchaseReturn IN shipment CHARWIDTH 30 MATERIALIZED;
 
-relationSaleReturn 'Связь' (saleReturn) = GROUP BY SaleReturn.Shipment saleReturn SUM quantityShipmentDetail (Shipment purchaseReturn, saleReturn) MATERIALIZED;
+relationSaleReturn 'Связь' (SaleReturn.Shipment saleReturn) = GROUP SUM quantityShipmentDetail (Shipment purchaseReturn, saleReturn) MATERIALIZED;
 
 shipped 'Кол-во (поставлено)' (shipmentDetail) = GROUP
                                                                    BY shipmentDetail(SaleReturn.ShipmentDetail detail) SUM quantity(detail) IF isPosted(detail) MATERIALIZED;

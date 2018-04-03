@@ -72,11 +72,11 @@ overCopy[Purchase.UserShipmentDetail,Purchase.UserShipmentDetail](Purchase.UserS
 
 quantityShipmentDetail (sale, purchase) = GROUP BY shipment(shipmentDetail(Purchase.ShipmentDetail detail)), shipment(detail) SUM quantity(detail);
 
-saleShipments 'Поставки (продажа)' (purchase) = GROUP
-                                                        BY Purchase.Shipment purchase CONCAT VARSTRING[255](description(Shipment sale)) IF quantityShipmentDetail(sale, purchase) , ', '
+saleShipments 'Поставки (продажа)' (Purchase.Shipment purchase) = GROUP
+                                                        CONCAT VARSTRING[255](description(Shipment sale)) IF quantityShipmentDetail(sale, purchase) , ', '
                                                         ORDER sale IN shipment CHARWIDTH 30 MATERIALIZED;
 
-relationPurchase 'Связь' (purchase) = GROUP BY Purchase.Shipment purchase SUM quantityShipmentDetail (Shipment sale, purchase) MATERIALIZED INDEXED; // для NONULL фильтров
+relationPurchase 'Связь' (Purchase.Shipment purchase) = GROUP SUM quantityShipmentDetail (Shipment sale, purchase) MATERIALIZED INDEXED; // для NONULL фильтров
 
 shipped 'Кол-во (поставлено)' (shipmentDetail) = GROUP
                                                                    BY shipmentDetail(Purchase.ShipmentDetail detail) SUM quantity(detail) IF isPosted(detail) MATERIALIZED;

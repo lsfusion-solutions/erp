@@ -9,8 +9,8 @@ prevCurrentBalancePriceStock 'Текущий остаток' (Batch batch, Order
 priceStock 'Цена' (Batch batch, Order order)= OVERRIDE prevPriceB(priceListType(order), batch, priceStock(order), dateTime(order)), priceStock(sku(batch),order);                                                                                                                                                               
 
 quantityComponentDetail (bt,s,o)=  GROUP  BY  batch(ComponentDetail d), sku(d), order(d) SUM quantity(d);
-nameBatches 'Партии' = GROUP
-    BY Sku s,Order o CONCAT name(Batch bt) IF quantityComponentDetail(bt,s,o) , ', '
+nameBatches 'Партии' (Sku s,Order o) = GROUP
+    CONCAT name(Batch bt) IF quantityComponentDetail(bt,s,o) , ', '
     ORDER bt CHARWIDTH 30;
 use 'Использовать партию'(Batch bt,Sku sk,Order o)  = {
     batch(ComponentDetail d) <- bt WHERE sku(d) == sk AND order(d) == o;
@@ -30,7 +30,7 @@ useBatchSkuAll 'Партия с max остатком (для всех)'(Order o)
     dataBruttoPrice(Sku sk,o) <- priceStock(defaultBatchPriceStock(sk, o),o) WHERE defaultBatchPriceStock(sk, o) AND quantityComponentDetail(sk,o); 
     valueVAT(Sku sk, o) <- valueVAT(defaultBatchPriceStock(sk, o)) WHERE defaultBatchPriceStock(sk, o) AND quantityComponentDetail(sk,o);
 }
-maxBatch (s,o)=  GROUP BY Sku s,Order o MAX Batch bt IF quantityComponentDetail (bt,s,o);
+maxBatch (Sku s,Order o)=  GROUP MAX Batch bt IF quantityComponentDetail (bt,s,o);
 
 changeBatch(Sku s,Order o) = {
     DIALOG dialogBatchStockOrder OBJECTS st = componentsStock(o),

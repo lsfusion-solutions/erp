@@ -160,11 +160,11 @@ sumDebit 'Сумма (дебет)' (GLAccount, company, date)= GROUP
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, DATE date) =
     sumDebit(GLAccount, company, date) (-) sumCredit(GLAccount, company, date);
 
-sumCredit 'Сумма (кредит)' (GLAccount, company, dateFrom, dateTo) = GROUP
-        BY GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo SUM
+sumCredit 'Сумма (кредит)' (GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         sumCredit(GLAccount, company, DATE date) IF date >= dateFrom AND date <= dateTo;
-sumDebit 'Сумма (дебет)' (GLAccount, company, dateFrom, dateTo) = GROUP
-        BY GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo SUM
+sumDebit 'Сумма (дебет)' (GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         sumDebit(GLAccount, company, DATE date) IF date >= dateFrom AND date <= dateTo;
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo) =
     sumDebit(GLAccount, company, dateFrom, dateTo) (-) sumCredit(GLAccount, company, dateFrom, dateTo);
@@ -174,23 +174,23 @@ balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, DATE dateFrom,
 @defineGLAccountBalance ( , );
 
 //- Рекурсивно
-recSumCredit 'Сумма (кредит)' (GLAccount, company)=  GROUP BY GLAccount GLAccount, LegalEntity company SUM sumCredit(GLAccount child, company)
+recSumCredit 'Сумма (кредит)' (GLAccount GLAccount, LegalEntity company)=  GROUP SUM sumCredit(GLAccount child, company)
     IF isParent(child, GLAccount);
-recSumDebit 'Сумма (дебет)' (GLAccount, company)=  GROUP BY GLAccount GLAccount, LegalEntity company SUM sumDebit(GLAccount child, company)
+recSumDebit 'Сумма (дебет)' (GLAccount GLAccount, LegalEntity company)=  GROUP SUM sumDebit(GLAccount child, company)
     IF isParent(child, GLAccount);
 recBalance 'Сальдо' (GLAccount GLAccount, LegalEntity company)=
     recSumDebit(GLAccount, company) (-) recSumCredit(GLAccount, company);
 
-recSumCredit 'Сумма (кредит)' (GLAccount, company, date)=  GROUP BY GLAccount GLAccount, LegalEntity company, DATE date SUM sumCredit(GLAccount child, company, date)
+recSumCredit 'Сумма (кредит)' (GLAccount GLAccount, LegalEntity company, DATE date)=  GROUP SUM sumCredit(GLAccount child, company, date)
     IF isParent(child, GLAccount);
-recSumDebit 'Сумма (дебет)' (GLAccount, company, date)=  GROUP BY GLAccount GLAccount, LegalEntity company, DATE date SUM sumDebit(GLAccount child, company, date)
+recSumDebit 'Сумма (дебет)' (GLAccount GLAccount, LegalEntity company, DATE date)=  GROUP SUM sumDebit(GLAccount child, company, date)
     IF isParent(child, GLAccount);
 recBalance 'Сальдо' (GLAccount GLAccount, LegalEntity company, DATE date) =
     recSumDebit(GLAccount, company, date) (-) recSumCredit(GLAccount, company, date);
 
-recSumCredit 'Сумма (кредит)' (GLAccount, company, dateFrom, dateTo)=  GROUP BY GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo SUM sumCredit(GLAccount child, company, dateFrom, dateTo)
+recSumCredit 'Сумма (кредит)' (GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo)=  GROUP SUM sumCredit(GLAccount child, company, dateFrom, dateTo)
     IF isParent(child, GLAccount);
-recSumDebit 'Сумма (дебет)' (GLAccount, company, dateFrom, dateTo)=  GROUP BY GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo SUM sumDebit(GLAccount child, company, dateFrom, dateTo)
+recSumDebit 'Сумма (дебет)' (GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo)=  GROUP SUM sumDebit(GLAccount child, company, dateFrom, dateTo)
     IF isParent(child, GLAccount);
 recBalance 'Сальдо' (GLAccount GLAccount, LegalEntity company, DATE dateFrom, DATE dateTo) =
     recSumDebit(GLAccount, company, dateFrom, dateTo) (-) recSumCredit(GLAccount, company, dateFrom, dateTo);

@@ -194,11 +194,11 @@ descriptionIndexCreditNoteDetail 'Строка акта расхождения (
 
 quantityCreditNoteDetail (purchase, sale) = GROUP BY creditNote(creditNoteDetail(Sale.CreditNoteDetail detail)), creditNote(detail) SUM quantity(detail);
 
-purchaseCreditNotes 'Накладные (закупка)' (sale) = GROUP
-                                                        BY Sale.CreditNote sale CONCAT VARSTRING[255](description(CreditNote purchase)) IF quantityCreditNoteDetail(purchase, sale) , ', '
+purchaseCreditNotes 'Накладные (закупка)' (Sale.CreditNote sale) = GROUP
+                                                        CONCAT VARSTRING[255](description(CreditNote purchase)) IF quantityCreditNoteDetail(purchase, sale) , ', '
                                                         ORDER sale IN creditNote CHARWIDTH 30 MATERIALIZED;
 
-relationSale 'Связь' (sale) = GROUP BY Sale.CreditNote sale SUM quantityCreditNoteDetail (CreditNote purchase, sale) MATERIALIZED;
+relationSale 'Связь' (Sale.CreditNote sale) = GROUP SUM quantityCreditNoteDetail (CreditNote purchase, sale) MATERIALIZED;
 
 EXTEND FORM Sale.userCreditNote
     PROPERTIES(c) fillCreditNote, purchaseCreditNotes READONLY

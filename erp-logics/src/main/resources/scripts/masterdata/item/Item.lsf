@@ -440,8 +440,8 @@ TABLE itemItemAttribute(Item, ItemAttribute);
 META defineItemAttribute (attribute, caption, group)
     userShow###attribute caption (itemGroup) = DATA BOOLEAN (ItemGroup) IN group;
 
-    quantityChildWith###attribute (itemGroup) = GROUP BY ItemGroup itemGroup SUM 1 IF userShow###attribute(ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
-    quantityParentWith###attribute (itemGroup) = GROUP BY ItemGroup itemGroup SUM 1 IF userShow###attribute(ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
+    quantityChildWith###attribute(ItemGroup itemGroup)  = GROUP SUM 1 IF userShow###attribute(ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
+    quantityParentWith###attribute(ItemGroup itemGroup)  = GROUP SUM 1 IF userShow###attribute(ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
 
     show###attribute caption (ItemGroup itemGroup) = TRUE IF (quantityChildWith###attribute (itemGroup) (+) quantityParentWith###attribute (itemGroup)) > 0 MATERIALIZED;
     showAny###attribute caption (ItemGroup itemGroup) = show###attribute(itemGroup) OR NOT itemGroup IS ItemGroup;
@@ -731,13 +731,13 @@ META defineItemAttributeName (prefix, caption, group)
     @defineItemDefaultValueCustom(numberInName###prefix, 'Порядковый номер в наименовании'##caption, INTEGER, itemAttribute);
 
     numberInName###prefix 'Порядковый номер в наименовании'##caption = DATA INTEGER (ItemAttribute) IN base;
-    numberInNameItemAttribute###prefix (itemGroup) = GROUP BY ItemGroup itemGroup SUM numberInName###prefix(ItemAttribute attribute, itemGroup);
+    numberInNameItemAttribute###prefix(ItemGroup itemGroup)  = GROUP SUM numberInName###prefix(ItemAttribute attribute, itemGroup);
     numberInName###prefix 'Порядковый номер в наименовании'##caption (ItemAttribute attribute, Item item) = 
         IF numberInNameItemAttribute###prefix(itemGroup(item))
             THEN numberInName###prefix(attribute, itemGroup(item))
             ELSE numberInName###prefix(attribute);
     
-    nameConcat###prefix##Attribute = GROUP BY Item item CONCAT completeName(item, ItemAttribute attribute)
+    nameConcat###prefix##Attribute (Item item) = GROUP CONCAT completeName(item, ItemAttribute attribute)
                                                    IF numberInName###prefix(attribute, item) AND value(item, attribute), ' ' ORDER numberInName###prefix(attribute, item), attribute MATERIALIZED;
     name###prefix##Attribute 'Наименование'###caption (Item item) = OVERRIDE overName(item),
                             VARISTRING[255](
@@ -797,8 +797,8 @@ META defineItemGroupObject(property, caption, type, typeIdentity, group)
     data###property caption = DATA type (ItemGroup);
     data###typeIdentity caption (ItemGroup itemGroup) = name(data###property(itemGroup)) IN group;
     
-    levelParent###property (itemGroup) = GROUP
-                                                                  BY ItemGroup itemGroup MIN level(itemGroup, ItemGroup parent) IF data###property(parent) MATERIALIZED;    
+    levelParent###property(ItemGroup itemGroup)  = GROUP
+                                                                  MIN level(itemGroup, ItemGroup parent) IF data###property(parent) MATERIALIZED;    
     nearestParent###property (ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###property(itemGroup));
     nearest###property (ItemGroup itemGroup) = data###property(nearestParent###property (itemGroup));
     property (ItemGroup itemGroup) =
@@ -828,8 +828,8 @@ END
 META defineItemGroupValue(property, caption, type, group)
     data###property caption = DATA type (ItemGroup) IN group;
     
-    levelParent###property (itemGroup) = GROUP
-                                                                  BY ItemGroup child MIN level(child, ItemGroup parent) IF data###property(parent) MATERIALIZED;    
+    levelParent###property(ItemGroup child)  = GROUP
+                                                                  MIN level(child, ItemGroup parent) IF data###property(parent) MATERIALIZED;    
     nearestParent###property (ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###property(itemGroup));
     nearest###property (ItemGroup itemGroup) = data###property(nearestParent###property (itemGroup));
     property caption (ItemGroup itemGroup) =
@@ -1526,8 +1526,8 @@ TABLE itemAttributeItemGroup(ItemAttribute, ItemGroup);
 
 @defineItemDefaultValueCustom(required, 'Обязательный для заполнения', BOOLEAN , itemAttribute);
 
-quantityChildWithRequired = GROUP BY ItemAttribute a, ItemGroup parent SUM 1 IF dataRequired(a, ItemGroup child) AND isParent(child, parent) ;
-quantityParentWithRequired = GROUP BY ItemAttribute a, ItemGroup child SUM 1 IF dataRequired(a, ItemGroup parent) AND isParent(child, parent) ;
+quantityChildWithRequired (ItemAttribute a, ItemGroup parent) = GROUP SUM 1 IF dataRequired(a, ItemGroup child) AND isParent(child, parent) ;
+quantityParentWithRequired (ItemAttribute a, ItemGroup child) = GROUP SUM 1 IF dataRequired(a, ItemGroup parent) AND isParent(child, parent) ;
 
 backgroundRequired (ItemAttribute a, ItemGroup g) =
     IF dataRequired(a, g) THEN
@@ -1628,8 +1628,8 @@ DESIGN item {
 
 META defineNumeratorItemGroup (prefix, caption, group)
     data###prefix##Numerator = DATA Numerator (ItemGroup);
-    levelParent###prefix##Numerator (itemGroup) = GROUP
-                                                                  BY ItemGroup itemGroup MIN level(itemGroup, ItemGroup parent) IF data###prefix##Numerator(parent) MATERIALIZED;
+    levelParent###prefix##Numerator(ItemGroup itemGroup)  = GROUP
+                                                                  MIN level(itemGroup, ItemGroup parent) IF data###prefix##Numerator(parent) MATERIALIZED;
     nearestParent###prefix##Numerator (ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###prefix##Numerator(itemGroup));
     nearest###prefix##Numerator (ItemGroup itemGroup) = data###prefix##Numerator(nearestParent###prefix##Numerator(itemGroup)) MATERIALIZED;
 

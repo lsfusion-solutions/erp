@@ -169,8 +169,8 @@ orderIn 'Порядок (изм.)' = ABSTRACT INTEGER (PriceList, DataPriceListT
 orderIn 'Порядок (изм.)' = DATA INTEGER (UserPriceList, DataPriceListType);
 orderIn (UserPriceList priceList, DataPriceListType dataPriceListType) += orderIn(priceList, dataPriceListType);
 
-priceListTypes 'Цены' (priceList) = GROUP
-                                               BY PriceList priceList CONCAT name[PriceListType](DataPriceListType priceListType) IF in(priceList, priceListType) , ', '
+priceListTypes 'Цены' (PriceList priceList) = GROUP
+                                               CONCAT name[PriceListType](DataPriceListType priceListType) IF in(priceList, priceListType) , ', '
                                                ORDER priceListType CHARWIDTH 10 MATERIALIZED;
 priceListTypes 'Цены' (PriceListDetail d) = priceListTypes(priceList(d));
 
@@ -220,8 +220,8 @@ dataIn 'Отм' = ABSTRACT BOOLEAN (PriceList, Stock) MATERIALIZED;
 dataIn 'Отм' = DATA BOOLEAN (UserPriceList, Stock);
 dataIn (UserPriceList priceList, Stock stock) += dataIn(priceList, stock);
 
-levelParent (priceList, stockGroup) = GROUP
-                                                               BY PriceList priceList, StockGroup stockGroup MIN level(stockGroup, StockGroup parent) IF dataIn(priceList, parent) MATERIALIZED;
+levelParent (PriceList priceList, StockGroup stockGroup) = GROUP
+                                                               MIN level(stockGroup, StockGroup parent) IF dataIn(priceList, parent) MATERIALIZED;
 
 inParent (PriceList priceList, StockGroup stockGroup) = TRUE IF levelParent (priceList, stockGroup) MATERIALIZED;
 
@@ -241,8 +241,8 @@ in 'Отм' (PriceList priceList, Stock stock) =
              
 @defineBackgroundNearestBoolean(allStocks, in, priceList, stock, inParent, isCompany);                    
 
-stocks 'Склады' (priceList) = GROUP
-                                       BY PriceList priceList CONCAT VARISTRING[250] (name(Stock stock)) IF in(priceList, stock) , ', '
+stocks 'Склады' (PriceList priceList) = GROUP
+                                       CONCAT VARISTRING[250] (name(Stock stock)) IF in(priceList, stock) , ', '
                                        ORDER stock CHARWIDTH 20 MATERIALIZED;
 stocks 'Склады' (PriceListDetail d) = stocks(priceList(d));                                       
 // История
@@ -401,7 +401,7 @@ supplier(PriceList priceList) += company(priceList);
 index[DocumentDetail](PriceListDetail priceList) += index(priceList);
 sku[DocumentDetail](PriceListDetail priceList) += sku(priceList);
 
-defaultChangePriceListType= GROUP BY PriceListDetail detail MIN DataPriceListType pt IF in(detail, pt);
+defaultChangePriceListType (PriceListDetail detail)= GROUP MIN DataPriceListType pt IF in(detail, pt);
 price[DocumentDetail](PriceListDetail detail) += price(detail, defaultChangePriceListType(detail));
 
 document(PriceListDetail detail) += priceList(detail);
@@ -1351,11 +1351,11 @@ DESIGN legalEntity{
 
 count (sku, priceList) = GROUP BY sku(PriceListDetail detail), priceList(detail) SUM 1;
 
-countSkus (priceList) = GROUP
-    BY PriceList priceList SUM 1 IF count(Sku sku, priceList);
+countSkus (PriceList priceList) = GROUP
+    SUM 1 IF count(Sku sku, priceList);
 
-countSku (priceList1, priceList2) = GROUP
-    BY PriceList priceList1, PriceList priceList2 SUM 1 IF count(Sku sku, priceList1) == count(sku, priceList2);
+countSku (PriceList priceList1, PriceList priceList2) = GROUP
+    SUM 1 IF count(Sku sku, priceList1) == count(sku, priceList2);
 
 equals (PriceList priceList1, PriceList priceList2) = company(priceList1) == company(priceList2) AND
                                                     currency(priceList1) == currency(priceList2) AND

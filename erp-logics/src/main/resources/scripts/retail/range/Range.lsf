@@ -19,18 +19,18 @@ name 'Название' = DATA VARISTRING[100] (Range) IN recognize;
 TABLE rangeSkuGroup(Range, SkuGroup);
 inData 'Вкл' = DATA BOOLEAN (Range, SkuGroup);
 
-countSkuGroup 'Кол-во групп' = GROUP BY Range r SUM 1 IF inData(r, SkuGroup g) MATERIALIZED; 
+countSkuGroup 'Кол-во групп' (Range r) = GROUP SUM 1 IF inData(r, SkuGroup g) MATERIALIZED; 
 
-inParent (range, parent) = GROUP
-                              BY Range range, SkuGroup parent SUM 1 IF inData(range, SkuGroup child) AND isParent(child, parent) MATERIALIZED;
+inParent (Range range, SkuGroup parent) = GROUP
+                              SUM 1 IF inData(range, SkuGroup child) AND isParent(child, parent) MATERIALIZED;
 
-inChild (range, child) = GROUP
-                              BY Range range, SkuGroup child SUM 1 IF inData(range, SkuGroup parent) AND isParent(child, parent) MATERIALIZED;
+inChild (Range range, SkuGroup child) = GROUP
+                              SUM 1 IF inData(range, SkuGroup parent) AND isParent(child, parent) MATERIALIZED;
                               
 inChild (Range range, Sku sku) = inChild(range, skuGroup(sku)); 
 
-quantityChildWith (skuGroup, range) = GROUP BY SkuGroup skuGroup, Range range SUM 1 IF inData(range, SkuGroup childSkuGroup) AND isParent(childSkuGroup, skuGroup) MATERIALIZED;
-quantityParentWith (skuGroup, range) = GROUP BY SkuGroup skuGroup, Range range SUM 1 IF inData(range, SkuGroup parentSkuGroup) AND isParent(skuGroup, parentSkuGroup) MATERIALIZED; 
+quantityChildWith (SkuGroup skuGroup, Range range) = GROUP SUM 1 IF inData(range, SkuGroup childSkuGroup) AND isParent(childSkuGroup, skuGroup) MATERIALIZED;
+quantityParentWith (SkuGroup skuGroup, Range range) = GROUP SUM 1 IF inData(range, SkuGroup parentSkuGroup) AND isParent(skuGroup, parentSkuGroup) MATERIALIZED; 
 
 backgroundIn 'Цвет' (Range range, SkuGroup skuGroup) = CASE 
     WHEN inData(range, skuGroup) THEN RGB(0,0,0)
@@ -104,7 +104,7 @@ DESIGN ranges {
     MOVE TOOLBARBOX;
 }
 
-countSkuGroup 'Кол-во групп' = GROUP BY Employee e, Range r SUM 1 IF inData(r, SkuGroup g) AND countAccess(e, g); 
+countSkuGroup 'Кол-во групп' (Employee e, Range r) = GROUP SUM 1 IF inData(r, SkuGroup g) AND countAccess(e, g); 
 EXTEND FORM ranges FILTERS (r IS Range AND NOT ( limitAccess(currentUser()) AND countSkuGroup(r))) OR countSkuGroup(currentUser(), r);
 
 NAVIGATOR {
@@ -150,12 +150,12 @@ nameCompanyA 'Поставщик' (LedgerPriceListType pt, Sku s, Stock st, Rang
     nameCompanyA(pt, s, st, dateTime(v));
 
 
-currentBalanceDepartments 'Остаток (все магазины)' (sku) = GROUP  BY Sku sku SUM currentBalance(sku, DepartmentStore stock) IF stock IS DepartmentStore;
-quantitySoldDepartments 'Продано за интервал (кол-во) (все магазины)' (sku, dateFrom, dateTo) = GROUP
-        BY Sku sku, DATE dateFrom, DATE dateTo SUM
+currentBalanceDepartments 'Остаток (все магазины)' (Sku sku) = GROUP  SUM currentBalance(sku, DepartmentStore stock) IF stock IS DepartmentStore;
+quantitySoldDepartments 'Продано за интервал (кол-во) (все магазины)' (Sku sku, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         quantitySold(sku, DepartmentStore stock, DATE date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore;
-sumSoldDepartments 'Продано за интервал (сумма) (все магазины)' (sku, dateFrom, dateTo) = GROUP
-        BY Sku sku, DATE dateFrom, DATE dateTo SUM
+sumSoldDepartments 'Продано за интервал (сумма) (все магазины)' (Sku sku, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         sumSold(sku, DepartmentStore stock, DATE date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore;
 
 currentBalance 'Остаток (все магазины)' (sku, store) = GROUP  BY Sku sku, store(DepartmentStore stock) SUM currentBalance(sku, stock) IF stock IS DepartmentStore;
@@ -407,12 +407,12 @@ EXTEND FORM ranges FILTERS (r1 IS Range AND NOT limitAccess(currentUser())) OR c
 // ----------------- Связь ассортиментов и магазинов --------------- //
 
 in 'В ассортименте' = ABSTRACT BOOLEAN (Sku, Range, Store, DATE);
-countRange 'В ассортименте' = GROUP BY Sku s,Store st,DATE d SUM 1 IF in(s, Range r, st, d);
+countRange 'В ассортименте' (Sku s,Store st,DATE d) = GROUP SUM 1 IF in(s, Range r, st, d);
 countRange 'В ассортименте' (Sku s, DepartmentStore ds, DATE d) = countRange(s, store(ds), d); 
 
 in 'В ассортименте' (Sku sku, Range range, Store store) = in(sku, range, store, currentDate());
 
-nameGroup 'Включенные группы'(r) = GROUP BY Range r CONCAT name(SkuGroup g) IF inData(r,g), ',' CHARWIDTH 50 ;
+nameGroup 'Включенные группы'(Range r) = GROUP CONCAT name(SkuGroup g) IF inData(r,g), ',' CHARWIDTH 50 ;
 
 EXTEND FORM ranges PROPERTIES nameGroup(r);
 

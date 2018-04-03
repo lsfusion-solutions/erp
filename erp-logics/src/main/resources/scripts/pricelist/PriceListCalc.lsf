@@ -45,8 +45,8 @@ TABLE calcPriceListTypeSku (CalcPriceListType, Sku);
 TABLE sessionCalcPriceListTypeSku (Session, CalcPriceListType, Sku);
 dataMarkup 'Надбавка, %' = DATA NUMERIC[8,2] (CalcPriceListType, Sku);
 
-levelParentMarkup (calcPriceListType, group) = GROUP
-                                                              BY CalcPriceListType calcPriceListType, Group group MIN level(group, Group parent) IF dataMarkup(calcPriceListType, parent) MATERIALIZED;
+levelParentMarkup (CalcPriceListType calcPriceListType, Group group) = GROUP
+                                                              MIN level(group, Group parent) IF dataMarkup(calcPriceListType, parent) MATERIALIZED;
 nearestParent (CalcPriceListType calcPriceListType, Group group) = group(group, levelParentMarkup(calcPriceListType, group));
 nearestMarkup 'Расчетная надбавка, %' (CalcPriceListType calcPriceListType, Group group) =
     dataMarkup(calcPriceListType, nearestParent(calcPriceListType, group)) MATERIALIZED;
@@ -55,8 +55,8 @@ markup 'Надбавка, %' (CalcPriceListType type, Group group) =
     OVERRIDE dataMarkup(type, group), nearestMarkup(type, group) MATERIALIZED;
     
                                                                      
-quantityChildWithMarkup  = GROUP BY Group parent, CalcPriceListType type SUM 1 IF dataMarkup(type, Group child) AND isParent(child, parent) MATERIALIZED;
-quantityParentWithMarkup  = GROUP BY Group child, CalcPriceListType type SUM 1 IF dataMarkup(type, Group parent) AND isParent(child, parent) MATERIALIZED;                                                                        
+quantityChildWithMarkup (Group parent, CalcPriceListType type)  = GROUP SUM 1 IF dataMarkup(type, Group child) AND isParent(child, parent) MATERIALIZED;
+quantityParentWithMarkup (Group child, CalcPriceListType type)  = GROUP SUM 1 IF dataMarkup(type, Group parent) AND isParent(child, parent) MATERIALIZED;                                                                        
 
 backgroundMarkup 'Цвет' (CalcPriceListType type, Group group) = CASE 
     WHEN dataMarkup(type, group) THEN RGB(230,248,250) 
@@ -91,8 +91,8 @@ CONSTRAINT currency(dataRoundCondition(CalcPriceListType type, Group group)) != 
            CHECKED BY dataRoundCondition[CalcPriceListType,Group]
            MESSAGE 'Валюта документа должна совпадать с валютой условия округления цены';
            
-levelParentRoundCondition (calcPriceListType, group) = GROUP
-                                                              BY CalcPriceListType calcPriceListType, Group group MIN level(group, Group parent) IF dataRoundCondition(calcPriceListType, parent) MATERIALIZED;
+levelParentRoundCondition (CalcPriceListType calcPriceListType, Group group) = GROUP
+                                                              MIN level(group, Group parent) IF dataRoundCondition(calcPriceListType, parent) MATERIALIZED;
 nearestParentRoundCondition (CalcPriceListType calcPriceListType, Group group) = group(group, levelParentRoundCondition(calcPriceListType, group));
 nearestRoundCondition  (CalcPriceListType calcPriceListType, Group group) =
     dataRoundCondition(calcPriceListType, nearestParentRoundCondition(calcPriceListType, group)) MATERIALIZED;

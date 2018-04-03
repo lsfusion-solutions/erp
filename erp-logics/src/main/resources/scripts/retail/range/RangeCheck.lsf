@@ -13,10 +13,10 @@ overCopy(RangeRev r, RangeRev pr) += {
     include(r, Store st, Sku s) <- include(pr, st, s);
 }
 
-include 'В ассортименте' = GROUP BY Sku s,Store store,DATE dt SUM 1 IF include(rangeRev(Range r, dt), store, s);
+include 'В ассортименте' (Sku s,Store store,DATE dt) = GROUP SUM 1 IF include(rangeRev(Range r, dt), store, s);
 in (Sku s, Range r, Store st, DATE d) += include(rangeRev(r, d), st, s);
 
-inFilter 'В ассортименте' = GROUP BY RangeRev v,Sku s SUM 1 IF include(v, Store st, s);
+inFilter 'В ассортименте' (RangeRev v,Sku s) = GROUP SUM 1 IF include(v, Store st, s);
 EXTEND FORM rangeRev
     OBJECTS store1 = Store BEFORE s
     PROPERTIES (store1) nameStoreType
@@ -32,9 +32,9 @@ DESIGN rangeRev{
     PROPERTY(nameStoreType(store1)) { hide = TRUE;}
 }
 
-counInclude 'Кол-во товаров' = GROUP BY RangeRev v,Store st SUM 1 IF include(v, st, Sku s);
-counInclude 'Кол-во товаров' = GROUP BY RangeRev v,Sku s SUM 1 IF include(v, Store st, s);
-counInclude 'Кол-во товаров' = GROUP BY RangeRev v SUM 1 IF counInclude(v, Sku s);
+counInclude 'Кол-во товаров' (RangeRev v,Store st) = GROUP SUM 1 IF include(v, st, Sku s);
+counInclude 'Кол-во товаров' (RangeRev v,Sku s) = GROUP SUM 1 IF include(v, Store st, s);
+counInclude 'Кол-во товаров' (RangeRev v) = GROUP SUM 1 IF counInclude(v, Sku s);
 counInclude'Кол-во товаров' (Range r, DATE dt) = counInclude(rangeRev(r,dt));
 counInclude'Кол-во товаров' (Range r, Sku s, DATE dt) = counInclude(rangeRev(r,dt),s);
 counInclude 'Кол-во товаров' = GROUP BY range(RangeRev v),Sku s SUM 1 IF include(v, Store st, s);
@@ -62,7 +62,7 @@ EXTEND FORM ranges
 ;
 counInclude (Range r, Store st, DATE dt) = counInclude(rangeRev(r,dt), st);
 include (Range r, Store store, Sku s, DATE dt)= include(rangeRev(r, dt), store, s);
-include = GROUP BY Range r,Sku s,DATE dt SUM 1 IF include(r, Store store, s, dt);
+include (Range r,Sku s,DATE dt) = GROUP SUM 1 IF include(r, Store store, s, dt);
 
 EXTEND FORM ranges      
     ORDER name(s)

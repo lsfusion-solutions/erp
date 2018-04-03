@@ -621,8 +621,8 @@ createUserAdjustment(DATETIME dateTime) = {
 
 dataInSession 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
 
-levelParent (group) = GROUP
-    BY SkuGroup group MIN level(group, SkuGroup parent) IF dataInSession(parent);
+levelParent (SkuGroup group) = GROUP
+    MIN level(group, SkuGroup parent) IF dataInSession(parent);
 
 inParent (SkuGroup group) = TRUE IF levelParent(group);
 
@@ -641,7 +641,7 @@ resetSelectedGroups  'Сбросить отмеченные'() = {
 toAdjustment (s,st,dt) = GROUP
         BY sku(Batch b),Stock st,DATETIME dt SUM 1 IF 
     balanceB(b,st,dt) >0 AND balanceB(Batch b1,st,dt) <0 AND b !=b1 AND sku(b) == sku(b1);
-toAdjustment = GROUP BY Stock st,DATETIME dt SUM 1 IF toAdjustment (Sku s,st,dt);
+toAdjustment (Stock st,DATETIME dt) = GROUP SUM 1 IF toAdjustment (Sku s,st,dt);
 //abs
 
 toPositiveAdjustment (s,st,dt) = GROUP 

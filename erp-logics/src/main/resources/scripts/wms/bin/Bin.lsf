@@ -222,8 +222,8 @@ dataIn 'Отм.' = DATA BOOLEAN (Stock, BinGroup);
 TABLE stockBin(Stock, Bin);
 dataIn 'Отм.' = DATA BOOLEAN (Stock, Bin);
 
-levelParent (stock, binGroup) = GROUP
-                                                               BY Stock stock, BinGroup binGroup MIN level(binGroup, BinGroup parent) IF dataIn(stock, parent) MATERIALIZED;
+levelParent (Stock stock, BinGroup binGroup) = GROUP
+                                                               MIN level(binGroup, BinGroup parent) IF dataIn(stock, parent) MATERIALIZED;
 nearestParent (Stock stock, BinGroup binGroup) =
     binGroup(binGroup, levelParent(stock, binGroup));
 nearestIn (Stock stock, BinGroup binGroup) =
@@ -233,13 +233,13 @@ in 'Отм.' (Stock stock, BinGroup binGroup) = OVERRIDE dataIn(stock, binGroup)
 
 in 'Отм.' (Stock stock, Bin bin) = OVERRIDE dataIn(stock, bin), in(stock, binGroup(bin)) MATERIALIZED;
 
-countIn = GROUP BY Stock stock, BinGroup parent SUM 1 IF isParent(binGroup(Bin bin) , parent) AND in(stock, bin);
+countIn (Stock stock, BinGroup parent) = GROUP SUM 1 IF isParent(binGroup(Bin bin) , parent) AND in(stock, bin);
 
-bins 'Ячейки' (stock) = GROUP
-                                       BY Stock stock CONCAT name(Bin bin) IF in(stock, bin) , ', '
+bins 'Ячейки' (Stock stock) = GROUP
+                                       CONCAT name(Bin bin) IF in(stock, bin) , ', '
                                        ORDER bin CHARWIDTH 20 MATERIALIZED;
-stocks 'Склады' (bin) = GROUP
-                                       BY Bin bin CONCAT name(Stock stock) IF in(stock, bin) , ', '
+stocks 'Склады' (Bin bin) = GROUP
+                                       CONCAT name(Stock stock) IF in(stock, bin) , ', '
                                        ORDER stock CHARWIDTH 20 MATERIALIZED;
 
 
@@ -254,8 +254,8 @@ nameDataBin 'Ячейка' (Stock stock,Group group) = name(dataBin(stock,group)
 dataBin = DATA Bin (Stock, Sku);
 nameDataBin 'Ячейка' (Stock stock,Sku sku) = name(dataBin(stock,sku)) CHARWIDTH 10;
 
-levelParentBin (stock, group) = GROUP
-                                                              BY Stock stock, Group group MIN level(group, Group parent) IF dataBin(stock, parent) MATERIALIZED;
+levelParentBin (Stock stock, Group group) = GROUP
+                                                              MIN level(group, Group parent) IF dataBin(stock, parent) MATERIALIZED;
 
 nearestParentBin (Stock stock, Group group) = group(group, levelParentBin (stock, group));
 nearestInBin  (Stock stock, Group group) =

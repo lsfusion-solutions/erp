@@ -23,12 +23,12 @@ DESIGN options {
 }
 
 fullName(PromotionCondition c) = IF useFullNamePromotionCondition() THEN CONCAT '/', namePromotion(c), name(c) ELSE namePromotion(c);
-promotionConditions 'В акциях' = GROUP
-                                              BY Article a CONCAT ',', name(PromotionCondition c) IF in(c, a)
+promotionConditions 'В акциях' (Article a) = GROUP
+                                              CONCAT ',', name(PromotionCondition c) IF in(c, a)
                                               ORDER c;
-promotionConditions 'В других акциях' =
+promotionConditions 'В других акциях' (PromotionCondition pc, Article a) =
                                         GROUP
-                                              BY PromotionCondition pc, Article a CONCAT fullName(PromotionCondition c) IF 
+                                              CONCAT fullName(PromotionCondition c) IF 
                                                      inData(c, a) AND 
                                                      dateTo(c) >= dateFrom(pc) AND
                                                      dateTo(pc) >= dateFrom(c) AND 
@@ -42,7 +42,7 @@ nameBalance (Stock stock)= name(stock) + '(остаток)' CHARWIDTH 15;
 
 backgroundBalance (Promotion p)= RGB(204,204,255) IF p IS Promotion;
 
-prevCurrentBalance 'Итого (остаток)' (ar, sh) = GROUP BY Article ar, Promotion sh SUM prevCurrentBalance(ar,DepartmentStore ddd) IF in(sh, store(ddd));
+prevCurrentBalance 'Итого (остаток)' (Article ar, Promotion sh) = GROUP SUM prevCurrentBalance(ar,DepartmentStore ddd) IF in(sh, store(ddd));
 
 copyProperties(PromotionCondition promotionConditionTo, PromotionCondition promotionConditionFrom) += {
     IF copyItems() THEN {

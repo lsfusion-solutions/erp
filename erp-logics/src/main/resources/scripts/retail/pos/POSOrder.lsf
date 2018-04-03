@@ -19,10 +19,10 @@ META defineOrderReceipt(sign, stockProp, supplierProp, customerProp, prop)
 
     quantityReceiptDetail (order, receipt) = GROUP BY order(orderDetail(ReceiptDetail receiptDetail)), receipt(receiptDetail) SUM quantity(receiptDetail);
     sumReceiptDetail (order, receipt) = GROUP BY order(orderDetail(ReceiptDetail receiptDetail)), receipt(receiptDetail) SUM sum(receiptDetail);
-    relationOrder 'Связь' (receipt) = GROUP BY Receipt receipt SUM 1 IF quantityReceiptDetail (Order order, receipt);
+    relationOrder 'Связь'(Receipt receipt)  = GROUP SUM 1 IF quantityReceiptDetail (Order order, receipt);
 
-    orders 'Заказы' (receipt) = GROUP
-                                                    BY Receipt receipt CONCAT VARSTRING[255](description(Order order)) IF quantityReceiptDetail(order, receipt) , ', '
+    orders 'Заказы'(Receipt receipt)  = GROUP
+                                                    CONCAT VARSTRING[255](description(Order order)) IF quantityReceiptDetail(order, receipt) , ', '
                                                     ORDER order IN order CHARWIDTH 30 MATERIALIZED;
 
     receipted 'Кол-во (по чеку)' (orderDetail) = GROUP BY orderDetail(ReceiptDetail receiptDetail) SUM quantity(receiptDetail) //IF isPostedReceiptDetail(receiptDetail)

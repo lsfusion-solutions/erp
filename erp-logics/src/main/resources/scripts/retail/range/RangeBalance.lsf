@@ -28,12 +28,12 @@ TABLE RangeDocumentStoreDate(RangeDocument, Store, DATE);
 
 //--
 countSku 'Кол-во позиций в ассортименте' = DATA INTEGER (RangeDocument, Store, DATE);     
-calcCountSku (st, d) =  GROUP BY  Store st, DATE d SUM 1 IF countRange(Sku s, st, d);
+calcCountSku (Store st, DATE d) =  GROUP SUM 1 IF countRange(Sku s, st, d);
 
 countAverageSku 'Кол-во позиций с остатком меньше ср.дн. р-ии' = DATA INTEGER (RangeDocument, Store, DATE); 
 averageSold 'Продаж в день' (sku, store) = GROUP BY Sku sku, store(DepartmentStore stock) SUM averageSold(sku, stock);
-calcCountAverageSku= GROUP          
-        BY  Store st, DATE d SUM 1 IF countRange(Sku s, st, d) AND NOT
+calcCountAverageSku (Store st, DATE d)= GROUP          
+        SUM 1 IF countRange(Sku s, st, d) AND NOT
     (balanceB(s, st, d) >= averageSold(s, st)) AND averageSold(s, st);  
         
 percAverageSku '% в ассортименте с остатком меньше ср.дн. р-ии' (RangeDocument document, Store store, DATE date)= 
@@ -42,16 +42,16 @@ percAverageSku '% в ассортименте с остатком меньше �
     100.00;       
         
 countLessSku 'Кол-во позиций без остатка или  с остатком меньше либо равным 0' = DATA INTEGER (RangeDocument, Store, DATE); 
-calcLessAverageSku= GROUP          
-        BY  Store st, DATE d SUM 1 IF countRange(Sku s, st, d) AND  NOT (balanceB(s, st, d) >0);   
+calcLessAverageSku (Store st, DATE d)= GROUP          
+        SUM 1 IF countRange(Sku s, st, d) AND  NOT (balanceB(s, st, d) >0);   
 percLessSku '% в ассортименте с остатком меньше либо равным 0' (RangeDocument document, Store store, DATE date)= 
     NUMERIC[12,4](countLessSku(document, store, date)) / 
     (countSku(document, store, date) IF countSku(document, store, date) != 0) * 
     100.00;    
        
 countNotSku 'Кол-во позиций с остатком без ассортимента' = DATA INTEGER (RangeDocument, Store, DATE); 
-calcCountNotSku= GROUP        
-        BY  Store st, DATE d SUM 1 IF balanceB(Sku s, st, d) >0 AND NOT countRange(s, st, d);       
+calcCountNotSku (Store st, DATE d)= GROUP        
+        SUM 1 IF balanceB(Sku s, st, d) >0 AND NOT countRange(s, st, d);       
              
 fillSku 'Заполнить данные по ассортименту'(RangeDocument document, Store store, DATE date) = {         
     countSku(document, store, date) <-  calcCountSku(store, date);  
@@ -80,11 +80,11 @@ fillSku 'Заполнить данные по ассортименту' (RangeDo
 TABLE RangeDocumentRangeStoreDate(RangeDocument, Range, Store, DATE);
 
 countSku 'Кол-во позиций в ассортименте' = DATA INTEGER (RangeDocument, Range, Store, DATE);    
-calcCountSku (range, store, date) =  GROUP BY  Range range, Store store, DATE date SUM 1 IF in(Sku sku, range, store, date);
+calcCountSku (Range range, Store store, DATE date) =  GROUP SUM 1 IF in(Sku sku, range, store, date);
 
 countAverageSku 'Кол-во позиций с остатком меньше ср.дн. р-ии' = DATA INTEGER (RangeDocument, Range, Store, DATE); 
-calcCountAverageSku= GROUP          
-        BY  Range r, Store st, DATE d SUM 1 IF in(Sku s, r, st, d) AND NOT
+calcCountAverageSku (Range r, Store st, DATE d)= GROUP          
+        SUM 1 IF in(Sku s, r, st, d) AND NOT
     (balanceB(s, st, d) >= averageSold(s, st)) AND averageSold(s, st);  
         
 percAverageSku '% в ассортименте с остатком меньше ср.дн. р-ии' (RangeDocument document, Range range, Store store, DATE date)= 
@@ -93,16 +93,16 @@ percAverageSku '% в ассортименте с остатком меньше �
     100.00;       
         
 countLessSku 'Кол-во позиций без остатка или  с остатком меньше либо равным 0' = DATA INTEGER (RangeDocument, Range, Store, DATE); 
-calcCountLessSku = GROUP          
-        BY  Range r, Store st, DATE d SUM 1 IF in(Sku s, r, st, d) AND  NOT (balanceB(s, st, d) >0);   
+calcCountLessSku (Range r, Store st, DATE d) = GROUP          
+        SUM 1 IF in(Sku s, r, st, d) AND  NOT (balanceB(s, st, d) >0);   
 percLessSku '% в ассортименте с остатком меньше либо равным 0' (RangeDocument document, Range range, Store store, DATE date)= 
     NUMERIC[12,4](countLessSku(document, range, store, date)) / 
     (countSku(document, range, store, date) IF countSku(document, range, store, date) != 0) * 
     100.00;    
        
 countNotSku 'Кол-во позиций с остатком без ассортимента' = DATA INTEGER (RangeDocument, Range, Store, DATE); 
-calcCountNotRangeIn= GROUP        
-        BY  Range r, Store st, DATE d SUM 1 IF balanceB(Sku s, st, d) >0 AND r IS Range AND NOT in(s, r, st, d);       
+calcCountNotRangeIn (Range r, Store st, DATE d)= GROUP        
+        SUM 1 IF balanceB(Sku s, st, d) >0 AND r IS Range AND NOT in(s, r, st, d);       
              
 fillSku 'Заполнить данные по ассортименту'(RangeDocument document, Range range, Store store, DATE date) = {         
     countSku(document, range, store, date) <-  calcCountSku(range, store, date);  

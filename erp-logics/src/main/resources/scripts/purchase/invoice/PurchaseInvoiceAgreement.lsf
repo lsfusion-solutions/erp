@@ -67,9 +67,9 @@ percDeviationUpPrice '% отклонения по цене вверх' = DATA NU
 // Уточнение по группам
 //-- вниз
 dataPercDeviationDownPrice '% отклонения по цене вниз' (agreement, group) = DATA NUMERIC[8,2] (Agreement, Group);
-levelParentPercDeviationDownPrice (agreement, group) =
+levelParentPercDeviationDownPrice (Agreement agreement, Group group) =
     GROUP
-    BY Agreement agreement, Group group MIN level(group, Group parent) IF dataPercDeviationDownPrice(agreement, parent) MATERIALIZED;
+    MIN level(group, Group parent) IF dataPercDeviationDownPrice(agreement, parent) MATERIALIZED;
 nearestParentPercDeviationDownPrice (Agreement agreement, Group group) = group(group, levelParentPercDeviationDownPrice (agreement, group));
 nearestPercDeviationDownPrice (Agreement agreement, Group group) =
    dataPercDeviationDownPrice(agreement, nearestParentPercDeviationDownPrice(agreement, group)) MATERIALIZED;
@@ -82,9 +82,9 @@ percDeviationDownPrice '% отклонения по цене вниз (пере�
 //-- вверх        
 dataPercDeviationUpPrice '% отклонения по цене вверх' (agreement, group) = DATA NUMERIC[8,2] (Agreement, Group);
 
-levelParentPercDeviationUpPrice (agreement, group) =
+levelParentPercDeviationUpPrice (Agreement agreement, Group group) =
     GROUP
-    BY Agreement agreement, Group group MIN level(group, Group parent) IF dataPercDeviationUpPrice(agreement, parent) MATERIALIZED;
+    MIN level(group, Group parent) IF dataPercDeviationUpPrice(agreement, parent) MATERIALIZED;
 nearestParentPercDeviationUpPrice (Agreement agreement, Group group) = group(group, levelParentPercDeviationUpPrice (agreement, group));
 nearestPercDeviationUpPrice (Agreement agreement, Group group) =
    dataPercDeviationUpPrice(agreement, nearestParentPercDeviationUpPrice(agreement, group)) MATERIALIZED;
@@ -282,11 +282,11 @@ EXTEND FORM userOrder
 maxDeviationQuantityOrder 'Макс. к-во' (InvoiceDetail d) = maxDeviationQuantity(orderDetail(d));
 minDeviationQuantityOrder 'Мин. к-во' (InvoiceDetail d) = minDeviationQuantity(orderDetail(d)); 
 
-percDeviationUpPriceOrders (i) = GROUP BY UserInvoice i SUM 1 IF include(Order o,i) AND showPercDeviationUpPrice(agreement(o));  
-percDeviationDownPriceOrders (i) = GROUP BY UserInvoice i SUM 1 IF include(Order o,i) AND showPercDeviationDownPrice(agreement(o));  
+percDeviationUpPriceOrders (UserInvoice i) = GROUP SUM 1 IF include(Order o,i) AND showPercDeviationUpPrice(agreement(o));  
+percDeviationDownPriceOrders (UserInvoice i) = GROUP SUM 1 IF include(Order o,i) AND showPercDeviationDownPrice(agreement(o));  
 
-percDeviationUpQuantityOrders (i) = GROUP BY UserInvoice i SUM 1 IF include(Order o,i) AND percDeviationUpQuantity(agreement(o));  
-percDeviationDownQuantityOrders (i) = GROUP BY UserInvoice i SUM 1 IF include(Order o,i) AND percDeviationDownQuantity(agreement(o)); 
+percDeviationUpQuantityOrders (UserInvoice i) = GROUP SUM 1 IF include(Order o,i) AND percDeviationUpQuantity(agreement(o));  
+percDeviationDownQuantityOrders (UserInvoice i) = GROUP SUM 1 IF include(Order o,i) AND percDeviationDownQuantity(agreement(o)); 
   
     
 backgroundMaxPrice (InvoiceDetail d) = IF price(d) > overMaxDeviationPrice(d) 

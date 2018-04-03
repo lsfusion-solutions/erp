@@ -17,8 +17,8 @@ TABLE StockSkuDate(Stock, Sku, DATE);
 dataStockReserveDays 'Страховой запас (дн.)' = DATA NUMERIC[14,3] (Stock, SkuGroup);
 dataStockReserveDays 'Страховой запас (дн.)' = DATA NUMERIC[14,3] (Stock, Sku) TABLE extraSkuStock;
 
-levelParent (stock, skuGroup) = GROUP
-                                                               BY Stock stock, SkuGroup skuGroup MIN level(skuGroup, SkuGroup parent) IF dataStockReserveDays(stock, parent) MATERIALIZED;
+levelParent (Stock stock, SkuGroup skuGroup) = GROUP
+                                                               MIN level(skuGroup, SkuGroup parent) IF dataStockReserveDays(stock, parent) MATERIALIZED;
 nearestParent (Stock stock, SkuGroup skuGroup) = skuGroup(skuGroup, levelParent(stock, skuGroup));
 nearestStockReserveDays (Stock stock, SkuGroup skuGroup) =
     dataStockReserveDays(stock, nearestParent(stock, skuGroup));

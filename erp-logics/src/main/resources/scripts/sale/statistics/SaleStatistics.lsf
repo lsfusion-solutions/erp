@@ -706,30 +706,30 @@ valueResidentByFrom 'В т.ч. отеч., ЕИ' (StatisticGroup group, Stock sto
     ;
 
 
-totalSumSoldBy 'Продано, руб.' (group, stock, dateFrom, dateTo)=
+totalSumSoldBy 'Продано, руб.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
     GROUP
-    BY StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isParent(group, sku);
+    SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isParent(group, sku);
 
-totalSumResidentSoldBy 'В т.ч.отеч., руб.' (group, stock, dateFrom, dateTo)=
+totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
     GROUP
-    BY StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF resident (group, sku);
+    SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF resident (group, sku);
 
 // суммовые показатели
-sumBalanceBBy 'Сумма остатка на начало, руб.' (group, stock, date) =
+sumBalanceBBy 'Сумма остатка на начало, руб.' (StatisticGroup group, Stock stock, DATE dateFrom) =
     GROUP
-    BY StatisticGroup group, Stock stock, DATE dateFrom SUM sumB (Sku sku, stock, dateFrom) IF isParent(group, sku);
+    SUM sumB (Sku sku, stock, dateFrom) IF isParent(group, sku);
 
-sumResidentBalanceBBy 'В т.ч.отеч., руб.' (group, stock, date) =
+sumResidentBalanceBBy 'В т.ч.отеч., руб.' (StatisticGroup group, Stock stock, DATE dateFrom) =
     GROUP
-    BY StatisticGroup group, Stock stock, DATE dateFrom SUM sumB (Sku sku, stock, dateFrom) IF resident (group, sku);
+    SUM sumB (Sku sku, stock, dateFrom) IF resident (group, sku);
 
-sumBalanceABy 'Сумма остатка на конец, руб.' (group, stock, date) =
+sumBalanceABy 'Сумма остатка на конец, руб.' (StatisticGroup group, Stock stock, DATE dateTo) =
     GROUP
-    BY StatisticGroup group, Stock stock, DATE dateTo SUM sumA (Sku sku, stock, dateTo) IF isParent(group, sku);
+    SUM sumA (Sku sku, stock, dateTo) IF isParent(group, sku);
 
-sumResidentBalanceABy 'В т.ч.отеч., руб.' (group, stock, date) =
+sumResidentBalanceABy 'В т.ч.отеч., руб.' (StatisticGroup group, Stock stock, DATE dateTo) =
     GROUP
-    BY StatisticGroup group, Stock stock, DATE dateTo SUM sumA (Sku sku, stock, dateTo) IF resident (group, sku);
+    SUM sumA (Sku sku, stock, dateTo) IF resident (group, sku);
 
 
 skipPrint = ABSTRACT CASE BOOLEAN (Stock);
@@ -813,8 +813,8 @@ allStocks 'Отм' = DATA LOCAL BOOLEAN();
 
 dataIn 'Отм.' = DATA LOCAL BOOLEAN (StockGroup);
 
-levelParentStock (stockGroup) =
-    GROUP BY StockGroup stockGroup MIN level(stockGroup, StockGroup parent) IF dataIn(parent) MATERIALIZED;
+levelParentStock (StockGroup stockGroup) =
+    GROUP MIN level(stockGroup, StockGroup parent) IF dataIn(parent) MATERIALIZED;
     
 nearestParentStockGroup (StockGroup stockGroup) = stockGroup(stockGroup, levelParentStock(stockGroup));
 nearestIn (StockGroup stockGroup) =
@@ -943,15 +943,15 @@ retailSumSoldResidentBy 'Продано, сум.' (StatisticGroup group, DATE da
         (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 //-- на конец
 netWeightBalanceALedger 'Вес товара на конец , кг' (Sku sku, DATE date) 
-   = GROUP BY Sku sku, DATE date SUM balanceA (sku, Stock stock, date) * netWeight(sku) IF inStat(stock);   
+   = GROUP SUM balanceA (sku, Stock stock, date) * netWeight(sku) IF inStat(stock);   
 volumeBalanceALedger 'Объем товара на конец , л' (Sku sku, DATE date) =
-    GROUP BY Sku sku, DATE date SUM balanceA (sku, Stock stock, date) * volume(sku) IF inStat(stock);;
+    GROUP SUM balanceA (sku, Stock stock, date) * volume(sku) IF inStat(stock);;
 
 //-- на начало
 netWeightBalanceBLedger 'Вес товара на начало , кг' (Sku sku, DATE date) =
-    GROUP BY Sku sku, DATE date SUM balanceB (sku, Stock stock, date) * netWeight(sku) IF inStat(stock);;
+    GROUP SUM balanceB (sku, Stock stock, date) * netWeight(sku) IF inStat(stock);;
 volumeBalanceBLedger 'Объем товара на начало , л' (Sku sku, DATE date) =
-    GROUP BY Sku sku, DATE date SUM balanceB (sku, Stock stock, date) * volume(sku) IF inStat(stock);;
+    GROUP SUM balanceB (sku, Stock stock, date) * volume(sku) IF inStat(stock);;
 
 
 valueBy 'Продано' (StatisticGroup group, DATE dateFrom, DATE dateTo) =
@@ -1062,56 +1062,56 @@ valueResidentByFrom 'В т.ч. отеч., ЕИ' (StatisticGroup group, DATE date
         ELSE 0 IF group IS StatisticGroup AND date IS DATE
     ;
 
-totalSumSoldBy 'Продано, руб.' (group, dateFrom, dateTo)=
+totalSumSoldBy 'Продано, руб.' (StatisticGroup group, DATE dateFrom, DATE dateTo)=
     GROUP
-    BY StatisticGroup group, DATE dateFrom, DATE dateTo SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku)  AND inStat(stock);
+    SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku)  AND inStat(stock);
 
-totalSumResidentSoldBy 'В т.ч.отеч., руб.' (group, dateFrom, dateTo)=
+totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, DATE dateFrom, DATE dateTo)=
     GROUP
-    BY StatisticGroup group, DATE dateFrom, DATE dateTo SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku)  AND inStat(stock);
+    SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku)  AND inStat(stock);
 
 // суммовые показатели
-sumBalanceBBy 'Сумма остатка на начало, руб.' (StatisticGroup group, DATE date) =
+sumBalanceBBy 'Сумма остатка на начало, руб.' (StatisticGroup group, DATE dateFrom) =
     GROUP
-    BY StatisticGroup group, DATE dateFrom SUM sumB (Sku sku, Stock stock, dateFrom) IF isParent(group, sku)  AND inStat(stock);
+    SUM sumB (Sku sku, Stock stock, dateFrom) IF isParent(group, sku)  AND inStat(stock);
 
-sumResidentBalanceBBy 'В т.ч.отеч., руб.' (group, date) =
+sumResidentBalanceBBy 'В т.ч.отеч., руб.' (StatisticGroup group, DATE dateFrom) =
     GROUP
-    BY StatisticGroup group, DATE dateFrom SUM sumB (Sku sku, Stock stock, dateFrom) IF resident (group, sku)  AND inStat(stock);
+    SUM sumB (Sku sku, Stock stock, dateFrom) IF resident (group, sku)  AND inStat(stock);
 
-sumBalanceABy 'Сумма остатка на конец, руб.' (group, date) =
+sumBalanceABy 'Сумма остатка на конец, руб.' (StatisticGroup group, DATE dateTo) =
     GROUP
-    BY StatisticGroup group, DATE dateTo SUM sumA (Sku sku, Stock stock, dateTo) IF isParent(group, sku)  AND inStat(stock);
+    SUM sumA (Sku sku, Stock stock, dateTo) IF isParent(group, sku)  AND inStat(stock);
 
-sumResidentBalanceABy 'В т.ч.отеч., руб.' (group, date) =
+sumResidentBalanceABy 'В т.ч.отеч., руб.' (StatisticGroup group, DATE dateTo) =
     GROUP
-    BY StatisticGroup group, DATE dateTo SUM sumA (Sku sku, Stock stock, dateTo) IF resident (group, sku)  AND inStat(stock);
+    SUM sumA (Sku sku, Stock stock, dateTo) IF resident (group, sku)  AND inStat(stock);
 
 stocks 'Склады' = GROUP CONCAT name(Stock s) IF inStat(s), ', ' ORDER s;
 countInStat = GROUP SUM 1 IF inStat(Stock s);
 
-quantityNoGroupsB 'Количество товаров без групп на начало' (StatisticGroupType type, DATE dFrom) = 
-    GROUP BY StatisticGroupType type, DATE date SUM 1 IF [= GROUP BY Sku sku SUM 1 IF balanceB(sku, Stock stock, date) AND inStat(stock)](Sku sku) 
+quantityNoGroupsB 'Количество товаров без групп на начало' (StatisticGroupType type, DATE date) = 
+    GROUP SUM 1 IF [= GROUP BY Sku sku SUM 1 IF balanceB(sku, Stock stock, date) AND inStat(stock)](Sku sku) 
         AND type IS StatisticGroupType //AND Sku sku IS Sku AND Stock stock IS Stock AND DATE date IS DATE 
         AND NOT statistic(type, sku);
 
-quantityNoGroupsA 'Количество товаров без групп на конец' (StatisticGroupType type, DATE dTo) = 
-    GROUP BY StatisticGroupType type, DATE date SUM 1 IF [= GROUP BY Sku sku SUM 1 IF balanceA(sku, Stock stock, date) AND inStat(stock)](Sku sku)  
+quantityNoGroupsA 'Количество товаров без групп на конец' (StatisticGroupType type, DATE date) = 
+    GROUP SUM 1 IF [= GROUP BY Sku sku SUM 1 IF balanceA(sku, Stock stock, date) AND inStat(stock)](Sku sku)  
         AND type IS StatisticGroupType // AND Sku sku IS Sku AND Stock stock IS Stock AND DATE date IS DATE
         AND NOT statistic(type, sku);
 
 quantityNoGroups 'Количество товаров без групп, шт' (StatisticGroupType type) = 
-    GROUP BY StatisticGroupType type SUM 1 IF type IS StatisticGroupType AND Sku sku IS Sku AND
+    GROUP SUM 1 IF type IS StatisticGroupType AND Sku sku IS Sku AND
         NOT statistic(type, sku);
 
-quantitySoldNot 'Продано без группы, шт' (type, dateFrom, dateTo)=
-    GROUP BY StatisticGroupType type, DATE dateFrom, DATE dateTo SUM quantitySoldStatistic(Sku sku, Stock stock, dateFrom, dateTo) IF type IS StatisticGroupType AND NOT       
+quantitySoldNot 'Продано без группы, шт' (StatisticGroupType type, DATE dateFrom, DATE dateTo)=
+    GROUP SUM quantitySoldStatistic(Sku sku, Stock stock, dateFrom, dateTo) IF type IS StatisticGroupType AND NOT       
     statistic(type,sku) AND inStat(stock);  
-balanceBNot 'Остаток на начало без групп, шт' (type, date)=
-    GROUP BY StatisticGroupType type, DATE date SUM balanceB(Sku sku, Stock stock, date) IF type IS StatisticGroupType AND NOT       
+balanceBNot 'Остаток на начало без групп, шт' (StatisticGroupType type, DATE date)=
+    GROUP SUM balanceB(Sku sku, Stock stock, date) IF type IS StatisticGroupType AND NOT       
     statistic(type,sku) AND inStat(stock);  
-balanceANot 'Остаток на конец без групп, шт' (type, date)=
-    GROUP BY StatisticGroupType type, DATE date SUM balanceA(Sku sku, Stock stock, date) IF type IS StatisticGroupType AND NOT       
+balanceANot 'Остаток на конец без групп, шт' (StatisticGroupType type, DATE date)=
+    GROUP SUM balanceA(Sku sku, Stock stock, date) IF type IS StatisticGroupType AND NOT       
     statistic(type,sku) AND inStat(stock);         
 
 noThousandsInStatistics 'Статистический отчёт в рублях' = DATA BOOLEAN ();

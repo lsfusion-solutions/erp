@@ -37,8 +37,8 @@ META defineInStockGroupObject(prop, object, objectClass)
     backgroundAll###prop##Stocks 'Цвет' (###object object) = IF all###prop##Stocks(object) THEN RGB(0,0,0)
         ELSE RGB(203,203,203) IF countDataIn###prop##StockGroups(object);      
      
-    quantityChildWithIn###prop (group, object) = GROUP BY StockGroup group, ###object object SUM 1 IF dataIn###prop(StockGroup childGroup, object) AND isParent(childGroup, group) MATERIALIZED;
-    quantityParentWithIn###prop (group, object) = GROUP BY StockGroup group, ###object object SUM 1 IF dataIn###prop(StockGroup parentGroup, object) AND isParent(group, parentGroup) MATERIALIZED;          
+    quantityChildWithIn###prop(StockGroup group, ###object object)  = GROUP SUM 1 IF dataIn###prop(StockGroup childGroup, object) AND isParent(childGroup, group) MATERIALIZED;
+    quantityParentWithIn###prop(StockGroup group, ###object object)  = GROUP SUM 1 IF dataIn###prop(StockGroup parentGroup, object) AND isParent(group, parentGroup) MATERIALIZED;          
           
     backgroundIn###prop 'Цвет' (StockGroup group, ###object object) = CASE
         WHEN dataIn###prop(group, object) THEN RGB(0,0,0)
@@ -91,7 +91,7 @@ TABLE stockGroupContractSku (StockGroup, ContractSku);
 @defineInStockGroupObject(supplier, contractSku);
 inPartyA (Stock stock, ContractSku contract) += inSupplier(stock,contract);
 
-countSuppliersStock = GROUP BY ContractSku contract SUM 1 IF inSupplier(Stock stock,contract);
+countSuppliersStock (ContractSku contract) = GROUP SUM 1 IF inSupplier(Stock stock,contract);
 
 CONSTRAINT supplier(ContractSku contract) AND inSupplier(Stock stock, contract) AND NOT
     in(supplier(contract), stock) MESSAGE 'Поставщик и склад поставщика для договора не имеют связи';
@@ -106,7 +106,7 @@ partyB (ContractSku contract) += customer(contract);
 
 inPartyB (Stock stock, ContractSku contract) += inCustomer(stock,contract);
 
-countCustomersStock= GROUP BY ContractSku contract SUM 1 IF inCustomer(Stock stock,contract);
+countCustomersStock (ContractSku contract)= GROUP SUM 1 IF inCustomer(Stock stock,contract);
 
 CONSTRAINT customer(ContractSku contract) AND inCustomer(Stock stock, contract) AND NOT
     in(customer(contract), stock) MESSAGE 'Покупатель и склад покупателя для договора не имеют связи';

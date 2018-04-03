@@ -12,8 +12,8 @@ defaultStockPurchaseReport = GROUP MIN Stock st IF inPurchaseReport(st);
 
 dataInSession 'Отм.' = DATA LOCAL BOOLEAN (Group);
 
-levelParent (group) = GROUP
-    BY Group group MIN level(group, Group parent) IF dataInSession(parent);
+levelParent (Group group) = GROUP
+    MIN level(group, Group parent) IF dataInSession(parent);
 
 inParent (Group group) = TRUE IF levelParent(group);
 
@@ -26,18 +26,18 @@ sessionConcatGroups 'Группы' (groupType) =
     BY groupType(Group group) CONCAT name(group) IF inSession(group) AND NOT inSession(parent(group)),',';
 
 //суммы поступлений по группе
-sumVATPurchasesStock 'Сумма НДС (по группе)'(group, dateFrom, dateTo) =
+sumVATPurchasesStock 'Сумма НДС (по группе)'(Group group, DATE dateFrom, DATE dateTo) =
     GROUP 
-    BY Group group, DATE dateFrom, DATE dateTo SUM sumVAT(PurchaseLedger l) IF isParent(group, sku(l)) AND active(l) AND inPurchaseReport(stock(l)) AND
+    SUM sumVAT(PurchaseLedger l) IF isParent(group, sku(l)) AND active(l) AND inPurchaseReport(stock(l)) AND
                                          date(l) >= dateFrom AND date(l) <= dateTo;
-sumPurchasesSkuStock 'Сумма поступлений (по группе)' (group, dateFrom, dateTo) =
+sumPurchasesSkuStock 'Сумма поступлений (по группе)' (Group group, DATE dateFrom, DATE dateTo) =
     GROUP
-    BY Group group, DATE dateFrom, DATE dateTo SUM sum(PurchaseLedger l) IF isParent(group, sku(l)) AND active(l) AND inPurchaseReport(stock(l)) AND
+    SUM sum(PurchaseLedger l) IF isParent(group, sku(l)) AND active(l) AND inPurchaseReport(stock(l)) AND
                                       date(l) >= dateFrom AND date(l) <= dateTo;
     
-sumRecPurchasesSkuStock 'Сумма поступлений (всего)' (group, dateFrom, dateTo) =
+sumRecPurchasesSkuStock 'Сумма поступлений (всего)' (Group group, DATE dateFrom, DATE dateTo) =
     GROUP
-    BY Group group, DATE dateFrom, DATE dateTo SUM sum(PurchaseLedger l) IF isParent(group, sku(l)) AND
+    SUM sum(PurchaseLedger l) IF isParent(group, sku(l)) AND
                                       active(l) AND inPurchaseReport(stock(l)) AND
                                       date(l) >= dateFrom AND date(l) <= dateTo;
 
@@ -55,14 +55,14 @@ sumPurchasesStock 'Сумма поступлений (по поставщику)
                                                    date(l) >= dateFrom AND date(l) <= dateTo;
 
 //итоговые суммы поступлений
-sumVATPurchasesStock 'Итоговая сумма НДС поступлений' (groupType, dateFrom, dateTo) =
+sumVATPurchasesStock 'Итоговая сумма НДС поступлений' (GroupType groupType, DATE dateFrom, DATE dateTo) =
     GROUP
-    BY GroupType groupType, DATE dateFrom, DATE dateTo SUM sumVAT(PurchaseLedger l) IF inSession(group(groupType, sku(l))) AND
+    SUM sumVAT(PurchaseLedger l) IF inSession(group(groupType, sku(l))) AND
                                                        active(l) AND inPurchaseReport(stock(l)) AND
                                                        date(l) >= dateFrom AND date(l) <= dateTo CHARWIDTH 15;
-sumPurchasesStock 'Итоговая сумма поступлений' (groupType, dateFrom, dateTo) =
+sumPurchasesStock 'Итоговая сумма поступлений' (GroupType groupType, DATE dateFrom, DATE dateTo) =
     GROUP
-    BY GroupType groupType, DATE dateFrom, DATE dateTo SUM sum(PurchaseLedger l) IF inSession(group(groupType, sku(l))) AND
+    SUM sum(PurchaseLedger l) IF inSession(group(groupType, sku(l))) AND
                                                    active(l) AND inPurchaseReport(stock(l)) AND
                                                    date(l) >= dateFrom AND date(l) <= dateTo CHARWIDTH 15;
 
@@ -96,16 +96,16 @@ FORM printListPurchasesReport 'Отчет по поступлениям'
 printListPurchasesReport 'Списком' (GroupType gt, DATE dateFrom, DATE dateTo) =
     { PRINT printListPurchasesReport OBJECTS gt = gt, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
 
-quantityPurchasesStock 'Закуплено за интервал (кол-во)' (sku, dateFrom, dateTo) = GROUP
-        BY Sku sku, DATE dateFrom, DATE dateTo SUM
+quantityPurchasesStock 'Закуплено за интервал (кол-во)' (Sku sku, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         quantityPurchase(sku, Stock stock, DATE date) IF date >= dateFrom AND date <= dateTo AND inPurchaseReport(stock);
 
-sumVATPurchasesStock 'Сумма НДС закупленного за интервал' (sku, dateFrom, dateTo) = GROUP
-        BY Sku sku, DATE dateFrom, DATE dateTo SUM
+sumVATPurchasesStock 'Сумма НДС закупленного за интервал' (Sku sku, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         sumVATPurchase(sku, Stock stock, DATE date) IF date >= dateFrom AND date <= dateTo AND inPurchaseReport(stock);
 
-sumPurchasesStock 'Закуплено за интервал (сумма)' (sku, dateFrom, dateTo) = GROUP
-        BY Sku sku, DATE dateFrom, DATE dateTo SUM
+sumPurchasesStock 'Закуплено за интервал (сумма)' (Sku sku, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         sumPurchase(sku, Stock stock, DATE date) IF date >= dateFrom AND date <= dateTo AND inPurchaseReport(stock);
 
 FORM printListSkuPurchasesReport 'Отчет по поступлениям'
@@ -269,16 +269,16 @@ printGroupSupplierPurchasesReportDetail 'По поставщикам' (GroupType
     { PRINT printGroupSupplierPurchasesReport OBJECTS gt = gt, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
 
 //по складу, поставщику и SKU
-quantityPurchasesStock 'Закуплено за интервал (кол-во)' (sku, supplier, dateFrom, dateTo) = GROUP
-        BY Sku sku, LegalEntity supplier, DATE dateFrom, DATE dateTo SUM
+quantityPurchasesStock 'Закуплено за интервал (кол-во)' (Sku sku, LegalEntity supplier, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         quantityPurchase(sku, Stock stock, supplier, DATE date) IF date >= dateFrom AND date <= dateTo AND inPurchaseReport(stock);
 
-sumVATPurchasesStock 'Сумма НДС закупленного за интервал' (sku, supplier, dateFrom, dateTo) = GROUP
-        BY Sku sku, LegalEntity supplier, DATE dateFrom, DATE dateTo SUM
+sumVATPurchasesStock 'Сумма НДС закупленного за интервал' (Sku sku, LegalEntity supplier, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         sumVATPurchase(sku, Stock stock, supplier, DATE date) IF date >= dateFrom AND date <= dateTo AND inPurchaseReport(stock);
 
-sumPurchasesStock 'Закуплено за интервал (сумма)' (sku, supplier, dateFrom, dateTo) = GROUP
-        BY Sku sku, LegalEntity supplier, DATE dateFrom, DATE dateTo SUM
+sumPurchasesStock 'Закуплено за интервал (сумма)' (Sku sku, LegalEntity supplier, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         sumPurchase(sku, Stock stock, supplier, DATE date) IF date >= dateFrom AND date <= dateTo AND inPurchaseReport(stock);
 
 FORM printGroupSupplierSkuPurchasesReport 'Отчет по поступлениям'

@@ -35,8 +35,8 @@ allStockInclude 'Вкл' = DATA BOOLEAN (SnapshotType);
 dataInclude 'Вкл' = DATA BOOLEAN (SnapshotType, StockGroup);
 dataInclude 'Вкл' = DATA BOOLEAN (SnapshotType, Stock);
 
-levelParentInclude (snapshotType, stockGroup) = GROUP
-                                                              BY SnapshotType snapshotType, StockGroup stockGroup MIN level(stockGroup, StockGroup parent) IF dataInclude(snapshotType, parent) MATERIALIZED;    
+levelParentInclude (SnapshotType snapshotType, StockGroup stockGroup) = GROUP
+                                                              MIN level(stockGroup, StockGroup parent) IF dataInclude(snapshotType, parent) MATERIALIZED;    
 nearestParentInclude (SnapshotType snapshotType, StockGroup stockGroup) = stockGroup(stockGroup, levelParentInclude(snapshotType, stockGroup));
 nearestInclude (SnapshotType snapshotType, StockGroup stockGroup) = dataInclude(snapshotType, nearestParentInclude (snapshotType, stockGroup));
 
@@ -51,18 +51,18 @@ include 'Вкл' (SnapshotType snapshotType, Stock stock) =
                         
 @defineBackgroundNearestBoolean(allStockInclude, include, snapshotType, stock, nearestInclude, isCompany);            
                           
-countIncludeStock  (snapshotType) = GROUP BY SnapshotType snapshotType SUM 1 IF include(snapshotType, Stock stock);      
+countIncludeStock  (SnapshotType snapshotType) = GROUP SUM 1 IF include(snapshotType, Stock stock);      
 
 
-nameIncludeStockGroups 'Группы складов (все)' (document)= 
+nameIncludeStockGroups 'Группы складов (все)' (SnapshotType document)= 
     GROUP 
-    BY SnapshotType document CONCAT name(StockGroup stockGroup) IF dataInclude(document, stockGroup), ', ' 
+    CONCAT name(StockGroup stockGroup) IF dataInclude(document, stockGroup), ', ' 
     ORDER stockGroup
     CHARWIDTH 20;
 
-nameIncludeStocks 'Склады (все)' (document)= 
+nameIncludeStocks 'Склады (все)' (SnapshotType document)= 
     GROUP 
-    BY SnapshotType document CONCAT name(Stock stock) IF dataInclude(document, stock), ', ' 
+    CONCAT name(Stock stock) IF dataInclude(document, stock), ', ' 
     ORDER stock
     CHARWIDTH 20;
     
@@ -74,8 +74,8 @@ TABLE snapshotTypeSkuGroup (SnapshotType, SkuGroup);
      
 dataInclude 'Вкл' = DATA BOOLEAN (SnapshotType, SkuGroup);
 
-levelParentInclude (snapshotType, skuGroup) = GROUP
-                                                              BY SnapshotType snapshotType, SkuGroup skuGroup MIN level(skuGroup, SkuGroup parent) IF dataInclude(snapshotType, parent) MATERIALIZED;    
+levelParentInclude (SnapshotType snapshotType, SkuGroup skuGroup) = GROUP
+                                                              MIN level(skuGroup, SkuGroup parent) IF dataInclude(snapshotType, parent) MATERIALIZED;    
 nearestParentInclude (SnapshotType snapshotType, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(snapshotType, skuGroup));
 nearestInclude (SnapshotType snapshotType, SkuGroup skuGroup) = dataInclude(snapshotType, nearestParentInclude (snapshotType, skuGroup));
 
@@ -85,11 +85,11 @@ include 'Вкл' (SnapshotType snapshotType, SkuGroup skuGroup) =
                       
 include 'Вкл' (SnapshotType snapshotType, Sku sku) = include(snapshotType, skuGroup(sku));  
                     
-countIncludeSku 'Вкл' (snapshotType) = GROUP BY SnapshotType snapshotType SUM 1 IF include(snapshotType, Sku sku);                    
+countIncludeSku 'Вкл' (SnapshotType snapshotType) = GROUP SUM 1 IF include(snapshotType, Sku sku);                    
 
-nameIncludeSkuGroups 'Группы товаров (все)' (document)= 
+nameIncludeSkuGroups 'Группы товаров (все)' (SnapshotType document)= 
     GROUP 
-    BY SnapshotType document CONCAT name(SkuGroup skuGroup) IF dataInclude(document, skuGroup), ', ' 
+    CONCAT name(SkuGroup skuGroup) IF dataInclude(document, skuGroup), ', ' 
     ORDER skuGroup
     CHARWIDTH 20;
 
@@ -315,179 +315,179 @@ costVATSupplierA 'С/С с НДС конец' = VATSupplierA(Sku sku, Stock stoc
 TABLE skuGroupStockSnapshot (SkuGroup, Stock, Snapshot);   
   
 //-- группа/склад       
-balanceB 'Кол-во начало' (group, stock, snapshot) =
+balanceB 'Кол-во начало' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM balanceB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
-netWeightB 'Вес начало' (group, stock, snapshot) =
+        SUM balanceB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
+netWeightB 'Вес начало' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM netWeightB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;               
-sumB 'Сумма начало' (group, stock, snapshot) =
+        SUM netWeightB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;               
+sumB 'Сумма начало' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM sumB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;    
-costB 'Себестоимость начало' (group, stock, snapshot) =
+        SUM sumB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;    
+costB 'Себестоимость начало' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM costB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;   
-VATSupplierB 'НДС поставщика начало' (group, stock, snapshot) =
+        SUM costB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;   
+VATSupplierB 'НДС поставщика начало' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM VATSupplierB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;   
+        SUM VATSupplierB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;   
 costVATSupplierB 'С/С с НДС начало' = VATSupplierB(SkuGroup group, Stock stock, Snapshot snapshot) (+) 
                                                                  costB(group, stock, snapshot);                                           
     
-inQuantity 'Кол-во приход' (group, stock, snapshot) =
+inQuantity 'Кол-во приход' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM inQuantity (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
-inNetWeight 'Вес приход' (group, stock, snapshot) =
+        SUM inQuantity (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
+inNetWeight 'Вес приход' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM inNetWeight (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;        
-inSum 'Сумма приход' (group, stock, snapshot) =
+        SUM inNetWeight (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;        
+inSum 'Сумма приход' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM inSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;  
+        SUM inSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;  
            
-outQuantity 'Кол-во расход' (group, stock, snapshot) =
+outQuantity 'Кол-во расход' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM outQuantity (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
-outNetWeight 'Вес расход' (group, stock, snapshot) =
+        SUM outQuantity (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
+outNetWeight 'Вес расход' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM outNetWeight (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;        
-outSum 'Сумма расход' (group, stock, snapshot) =
+        SUM outNetWeight (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;        
+outSum 'Сумма расход' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM outSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;             
+        SUM outSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;             
     
-balanceA 'Кол-во конец' (group, stock, snapshot) =
+balanceA 'Кол-во конец' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM balanceA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
-netWeightA 'Вес конец' (group, stock, snapshot) =
+        SUM balanceA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
+netWeightA 'Вес конец' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM netWeightA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;              
-sumA 'Сумма конец' (group, stock, snapshot) =
+        SUM netWeightA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;              
+sumA 'Сумма конец' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM sumA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;  
-costA 'Себестоимость конец' (group, stock, snapshot) =
+        SUM sumA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;  
+costA 'Себестоимость конец' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM costA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;   
-VATSupplierA 'НДС поставщика конец' (group, stock, snapshot) =
+        SUM costA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;   
+VATSupplierA 'НДС поставщика конец' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM VATSupplierA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;    
+        SUM VATSupplierA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;    
 costVATSupplierA 'С/С с НДС конец' = VATSupplierA(SkuGroup group, Stock stock, Snapshot snapshot) (+) 
                                                                 costA(group, stock, snapshot);                   
                    
 //-- группа          
-balanceB 'Кол-во начало' (group, snapshot) =
-    GROUP  BY SkuGroup group, Snapshot snapshot SUM balanceB (group, Stock stock, snapshot); 
-netWeightB 'Вес начало' (group, snapshot) =
-    GROUP  BY SkuGroup group, Snapshot snapshot SUM netWeightB (group, Stock stock, snapshot);         
-sumB 'Сумма начало' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM sumB (group, Stock stock, snapshot);   
-costB 'Себестоимость начало' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM costB (group, Stock stock, snapshot);            
-VATSupplierB 'НДС поставщика начало' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM VATSupplierB (group, Stock stock, snapshot);            
+balanceB 'Кол-во начало' (SkuGroup group, Snapshot snapshot) =
+    GROUP  SUM balanceB (group, Stock stock, snapshot); 
+netWeightB 'Вес начало' (SkuGroup group, Snapshot snapshot) =
+    GROUP  SUM netWeightB (group, Stock stock, snapshot);         
+sumB 'Сумма начало' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM sumB (group, Stock stock, snapshot);   
+costB 'Себестоимость начало' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM costB (group, Stock stock, snapshot);            
+VATSupplierB 'НДС поставщика начало' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM VATSupplierB (group, Stock stock, snapshot);            
 costVATSupplierB 'С/С с НДС начало' = VATSupplierB(SkuGroup group, Snapshot snapshot) (+) 
                                                             costB(group, snapshot);     
-inQuantity 'Кол-во приход' (group, snapshot) =
-    GROUP  BY SkuGroup group, Snapshot snapshot SUM inQuantity (group, Stock stock, snapshot); 
-inNetWeight 'Вес приход' (group, snapshot) =
-    GROUP  BY SkuGroup group, Snapshot snapshot SUM inNetWeight (group, Stock stock, snapshot);         
-inSum 'Сумма приход' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM inSum (group, Stock stock, snapshot);      
+inQuantity 'Кол-во приход' (SkuGroup group, Snapshot snapshot) =
+    GROUP  SUM inQuantity (group, Stock stock, snapshot); 
+inNetWeight 'Вес приход' (SkuGroup group, Snapshot snapshot) =
+    GROUP  SUM inNetWeight (group, Stock stock, snapshot);         
+inSum 'Сумма приход' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM inSum (group, Stock stock, snapshot);      
  
-outQuantity 'Кол-во расход' (group, snapshot) =
-    GROUP  BY SkuGroup group, Snapshot snapshot SUM outQuantity (group, Stock stock, snapshot); 
-outNetWeight 'Вес расход' (group, snapshot) =
-    GROUP  BY SkuGroup group, Snapshot snapshot SUM outNetWeight (group, Stock stock, snapshot);        
-outSum 'Сумма расход' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM outSum (group, Stock stock, snapshot);      
+outQuantity 'Кол-во расход' (SkuGroup group, Snapshot snapshot) =
+    GROUP  SUM outQuantity (group, Stock stock, snapshot); 
+outNetWeight 'Вес расход' (SkuGroup group, Snapshot snapshot) =
+    GROUP  SUM outNetWeight (group, Stock stock, snapshot);        
+outSum 'Сумма расход' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM outSum (group, Stock stock, snapshot);      
     
-balanceA 'Кол-во конец' (group, snapshot) =
-    GROUP  BY SkuGroup group, Snapshot snapshot SUM balanceA (group, Stock stock, snapshot); 
-netWeightA 'Вес конец' (group, snapshot) =
-    GROUP  BY SkuGroup group, Snapshot snapshot SUM netWeightA (group, Stock stock, snapshot);         
-sumA 'Сумма конец' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM sumA (group, Stock stock, snapshot); 
-costA 'Себестоимость конец' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM costA (group, Stock stock, snapshot);                                   
-VATSupplierA 'НДС поставщика конец' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM VATSupplierA (group, Stock stock, snapshot);                                    
+balanceA 'Кол-во конец' (SkuGroup group, Snapshot snapshot) =
+    GROUP  SUM balanceA (group, Stock stock, snapshot); 
+netWeightA 'Вес конец' (SkuGroup group, Snapshot snapshot) =
+    GROUP  SUM netWeightA (group, Stock stock, snapshot);         
+sumA 'Сумма конец' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM sumA (group, Stock stock, snapshot); 
+costA 'Себестоимость конец' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM costA (group, Stock stock, snapshot);                                   
+VATSupplierA 'НДС поставщика конец' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM VATSupplierA (group, Stock stock, snapshot);                                    
 costVATSupplierA 'С/С с НДС конец' = VATSupplierA(SkuGroup group, Snapshot snapshot) (+) 
                                                            costA(group, snapshot); 
 //--По складам
-balanceB 'Кол-во начало' (stock, snapshot) =
-    GROUP  BY Stock stock, Snapshot snapshot SUM balanceB (Sku sku, stock, snapshot); 
-netWeightB 'Вес начало' (stock, snapshot) =
-    GROUP  BY Stock stock, Snapshot snapshot SUM netWeightB (Sku sku, stock, snapshot);        
-sumB 'Сумма начало' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM sumB (Sku sku, stock, snapshot);        
-costB 'Себестоимость начало' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM costB (Sku sku, stock, snapshot); 
-VATSupplierB 'НДС поставщика начало' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM VATSupplierB (Sku sku, stock, snapshot); 
+balanceB 'Кол-во начало' (Stock stock, Snapshot snapshot) =
+    GROUP  SUM balanceB (Sku sku, stock, snapshot); 
+netWeightB 'Вес начало' (Stock stock, Snapshot snapshot) =
+    GROUP  SUM netWeightB (Sku sku, stock, snapshot);        
+sumB 'Сумма начало' (Stock stock, Snapshot snapshot) =
+    GROUP SUM sumB (Sku sku, stock, snapshot);        
+costB 'Себестоимость начало' (Stock stock, Snapshot snapshot) =
+    GROUP SUM costB (Sku sku, stock, snapshot); 
+VATSupplierB 'НДС поставщика начало' (Stock stock, Snapshot snapshot) =
+    GROUP SUM VATSupplierB (Sku sku, stock, snapshot); 
 costVATSupplierB 'С/С с НДС начало' = VATSupplierB(Stock stock, Snapshot snapshot) (+) 
                                                          costB(stock, snapshot);         
             
-inQuantity 'Кол-во приход' (stock, snapshot) =
-    GROUP  BY Stock stock, Snapshot snapshot SUM inQuantity (Sku sku, stock, snapshot); 
-inNetWeight 'Вес приход' (stock, snapshot) =
-    GROUP  BY Stock stock, Snapshot snapshot SUM inNetWeight (Sku sku, stock, snapshot);     
-inSum 'Сумма приход' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM inSum (Sku sku, stock, snapshot);      
+inQuantity 'Кол-во приход' (Stock stock, Snapshot snapshot) =
+    GROUP  SUM inQuantity (Sku sku, stock, snapshot); 
+inNetWeight 'Вес приход' (Stock stock, Snapshot snapshot) =
+    GROUP  SUM inNetWeight (Sku sku, stock, snapshot);     
+inSum 'Сумма приход' (Stock stock, Snapshot snapshot) =
+    GROUP SUM inSum (Sku sku, stock, snapshot);      
  
-outQuantity 'Кол-во расход' (stock, snapshot) =
-    GROUP  BY Stock stock, Snapshot snapshot SUM outQuantity (Sku sku, stock, snapshot); 
-outNetWeight 'Вес расход' (stock, snapshot) =
-    GROUP  BY Stock stock, Snapshot snapshot SUM outNetWeight (Sku sku, stock, snapshot);         
-outSum 'Сумма расход' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM outSum (Sku sku, stock, snapshot);      
+outQuantity 'Кол-во расход' (Stock stock, Snapshot snapshot) =
+    GROUP  SUM outQuantity (Sku sku, stock, snapshot); 
+outNetWeight 'Вес расход' (Stock stock, Snapshot snapshot) =
+    GROUP  SUM outNetWeight (Sku sku, stock, snapshot);         
+outSum 'Сумма расход' (Stock stock, Snapshot snapshot) =
+    GROUP SUM outSum (Sku sku, stock, snapshot);      
     
-balanceA 'Кол-во конец' (stock, snapshot) =
-    GROUP  BY Stock stock, Snapshot snapshot SUM balanceA (Sku sku, stock, snapshot); 
-netWeightA 'Вес конец' (stock, snapshot) =
-    GROUP  BY Stock stock, Snapshot snapshot SUM netWeightA (Sku sku, stock, snapshot);        
-sumA 'Сумма конец' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM sumA (Sku sku, stock, snapshot);   
-costA 'Себестоимость конец' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM costA (Sku sku, stock, snapshot);    
-VATSupplierA 'НДС поставщика конец' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM VATSupplierA (Sku sku, stock, snapshot);    
+balanceA 'Кол-во конец' (Stock stock, Snapshot snapshot) =
+    GROUP  SUM balanceA (Sku sku, stock, snapshot); 
+netWeightA 'Вес конец' (Stock stock, Snapshot snapshot) =
+    GROUP  SUM netWeightA (Sku sku, stock, snapshot);        
+sumA 'Сумма конец' (Stock stock, Snapshot snapshot) =
+    GROUP SUM sumA (Sku sku, stock, snapshot);   
+costA 'Себестоимость конец' (Stock stock, Snapshot snapshot) =
+    GROUP SUM costA (Sku sku, stock, snapshot);    
+VATSupplierA 'НДС поставщика конец' (Stock stock, Snapshot snapshot) =
+    GROUP SUM VATSupplierA (Sku sku, stock, snapshot);    
 costVATSupplierA 'С/С с НДС конец' = VATSupplierA(Stock stock, Snapshot snapshot) (+) 
                                                         costA(stock, snapshot);         
 //--По складам на дату        
-balanceB 'Кол-во начало' (stock, snapshot, date) =
-    GROUP  BY Stock stock, Snapshot snapshot, DATE date SUM balanceB (Sku sku, stock, snapshot, date); 
-netWeightB 'Вес начало' (stock, snapshot, date) =
-    GROUP  BY Stock stock, Snapshot snapshot, DATE date SUM netWeightB (Sku sku, stock, snapshot, date);             
-sumB 'Сумма начало' (stock, snapshot, date) =
-    GROUP BY Stock stock, Snapshot snapshot, DATE date SUM sumB (Sku sku, stock, snapshot, date);       
-costB 'Себестоимость начало' (stock, snapshot, date) =
-    GROUP BY Stock stock, Snapshot snapshot, DATE date SUM costB (Sku sku, stock, snapshot, date);    
-VATSupplierB 'НДС поставщика начало' (stock, snapshot, date) =
-    GROUP BY Stock stock, Snapshot snapshot, DATE date SUM VATSupplierB (Sku sku, stock, snapshot, date);     
+balanceB 'Кол-во начало' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP  SUM balanceB (Sku sku, stock, snapshot, date); 
+netWeightB 'Вес начало' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP  SUM netWeightB (Sku sku, stock, snapshot, date);             
+sumB 'Сумма начало' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP SUM sumB (Sku sku, stock, snapshot, date);       
+costB 'Себестоимость начало' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP SUM costB (Sku sku, stock, snapshot, date);    
+VATSupplierB 'НДС поставщика начало' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP SUM VATSupplierB (Sku sku, stock, snapshot, date);     
 costVATSupplierB 'С/С с НДС начало' = VATSupplierB(Stock stock, Snapshot snapshot, DATE date) (+) 
                                                              costB(stock, snapshot, date);         
     
-inQuantity 'Кол-во приход' (stock, snapshot, date) =
-    GROUP  BY Stock stock, Snapshot snapshot, DATE date SUM inQuantity (Sku sku, stock, snapshot, date); 
-inNetWeight 'Вес приход' (stock, snapshot, date) =
-    GROUP  BY Stock stock, Snapshot snapshot, DATE date SUM inNetWeight (Sku sku, stock, snapshot, date);     
-inSum 'Сумма приход' (stock, snapshot, date) =
-    GROUP BY Stock stock, Snapshot snapshot, DATE date SUM inSum (Sku sku, stock, snapshot, date);      
+inQuantity 'Кол-во приход' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP  SUM inQuantity (Sku sku, stock, snapshot, date); 
+inNetWeight 'Вес приход' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP  SUM inNetWeight (Sku sku, stock, snapshot, date);     
+inSum 'Сумма приход' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP SUM inSum (Sku sku, stock, snapshot, date);      
  
-outQuantity 'Кол-во расход' (stock, snapshot, date) =
-    GROUP  BY Stock stock, Snapshot snapshot, DATE date SUM outQuantity (Sku sku, stock, snapshot, date); 
-outNetWeight 'Вес расход' (stock, snapshot, date) =
-    GROUP  BY Stock stock, Snapshot snapshot, DATE date SUM outNetWeight (Sku sku, stock, snapshot, date);         
-outSum 'Сумма расход' (stock, snapshot, date) =
-    GROUP BY Stock stock, Snapshot snapshot, DATE date SUM outSum (Sku sku, stock, snapshot, date);      
+outQuantity 'Кол-во расход' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP  SUM outQuantity (Sku sku, stock, snapshot, date); 
+outNetWeight 'Вес расход' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP  SUM outNetWeight (Sku sku, stock, snapshot, date);         
+outSum 'Сумма расход' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP SUM outSum (Sku sku, stock, snapshot, date);      
     
-balanceA 'Кол-во конец' (stock, snapshot, date) =
-    GROUP  BY Stock stock, Snapshot snapshot, DATE date SUM balanceA (Sku sku, stock, snapshot, date); 
-netWeightA 'Вес конец' (stock, snapshot, date) =
-    GROUP  BY Stock stock, Snapshot snapshot, DATE date SUM netWeightA (Sku sku, stock, snapshot, date);        
-sumA 'Сумма конец' (stock, snapshot, date) =
-    GROUP BY Stock stock, Snapshot snapshot, DATE date SUM sumA (Sku sku, stock, snapshot, date);  
-costA 'Себестоимость конец' (stock, snapshot, date) =
-    GROUP BY Stock stock, Snapshot snapshot, DATE date SUM costA (Sku sku, stock, snapshot, date);    
-VATSupplierA 'НДС поставщика конец' (stock, snapshot, date) =
-    GROUP BY Stock stock, Snapshot snapshot, DATE date SUM VATSupplierA (Sku sku, stock, snapshot, date);     
+balanceA 'Кол-во конец' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP  SUM balanceA (Sku sku, stock, snapshot, date); 
+netWeightA 'Вес конец' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP  SUM netWeightA (Sku sku, stock, snapshot, date);        
+sumA 'Сумма конец' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP SUM sumA (Sku sku, stock, snapshot, date);  
+costA 'Себестоимость конец' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP SUM costA (Sku sku, stock, snapshot, date);    
+VATSupplierA 'НДС поставщика конец' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP SUM VATSupplierA (Sku sku, stock, snapshot, date);     
 costVATSupplierA 'С/С с НДС конец' = VATSupplierA(Stock stock, Snapshot snapshot, DATE date) (+) 
                                                              costA(stock, snapshot, date);   
                                                                    
@@ -617,8 +617,8 @@ allStockInclude 'Вкл' = DATA BOOLEAN (Snapshot);
 dataInclude 'Вкл' = DATA BOOLEAN (Snapshot, StockGroup);
 dataInclude 'Вкл' = DATA BOOLEAN (Snapshot, Stock);
 
-levelParentInclude (snapshot, stockGroup) = GROUP
-                                                              BY Snapshot snapshot, StockGroup stockGroup MIN level(stockGroup, StockGroup parent) IF dataInclude(snapshot, parent) MATERIALIZED;    
+levelParentInclude (Snapshot snapshot, StockGroup stockGroup) = GROUP
+                                                              MIN level(stockGroup, StockGroup parent) IF dataInclude(snapshot, parent) MATERIALIZED;    
 nearestParentInclude (Snapshot snapshot, StockGroup stockGroup) = stockGroup(stockGroup, levelParentInclude(snapshot, stockGroup));
 nearestInclude (Snapshot snapshot, StockGroup stockGroup) = dataInclude(snapshot, nearestParentInclude (snapshot, stockGroup));
 
@@ -630,7 +630,7 @@ include 'Вкл' (Snapshot snapshot, StockGroup stockGroup) =
 include 'Вкл' (Snapshot snapshot, Stock stock) =
     (OVERRIDE dataInclude(snapshot, stock),
              include(snapshot, stockGroup(stock))) IF isCompany(stock) MATERIALIZED;
-countIncludeStocks= GROUP BY Snapshot r SUM 1 IF include(r,Stock st);
+countIncludeStocks (Snapshot r)= GROUP SUM 1 IF include(r,Stock st);
 
 deleteIncludeStocks 'Сбросить отмеченные'(Snapshot r) = {
     allStockInclude (r) <- NULL;
@@ -641,18 +641,18 @@ deleteIncludeStocks 'Сбросить отмеченные'(Snapshot r) = {
 @defineBackgroundNearestBoolean(allStockInclude, include, snapshot, stock, nearestInclude, isCompany);
 
                       
-countIncludeStock  (snapshot) = GROUP BY Snapshot snapshot SUM 1 IF include(snapshot, Stock stock);      
+countIncludeStock  (Snapshot snapshot) = GROUP SUM 1 IF include(snapshot, Stock stock);      
 
 
-nameIncludeStockGroups 'Группы складов (все)' (document)= 
+nameIncludeStockGroups 'Группы складов (все)' (Snapshot document)= 
     GROUP 
-    BY Snapshot document CONCAT name(StockGroup stockGroup) IF dataInclude(document, stockGroup), ', ' 
+    CONCAT name(StockGroup stockGroup) IF dataInclude(document, stockGroup), ', ' 
     ORDER stockGroup
     CHARWIDTH 20;
 
-nameIncludeStocks 'Склады (все)' (document)= 
+nameIncludeStocks 'Склады (все)' (Snapshot document)= 
     GROUP 
-    BY Snapshot document CONCAT name(Stock stock) IF dataInclude(document, stock), ', ' 
+    CONCAT name(Stock stock) IF dataInclude(document, stock), ', ' 
     ORDER stock
     CHARWIDTH 20;
     
@@ -671,8 +671,8 @@ TABLE snapshotSkuGroup (Snapshot, SkuGroup);
      
 dataInclude 'Вкл' = DATA BOOLEAN (Snapshot, SkuGroup);
 
-levelParentInclude (snapshot, skuGroup) = GROUP
-                                                              BY Snapshot snapshot, SkuGroup skuGroup MIN level(skuGroup, SkuGroup parent) IF dataInclude(snapshot, parent) MATERIALIZED;    
+levelParentInclude (Snapshot snapshot, SkuGroup skuGroup) = GROUP
+                                                              MIN level(skuGroup, SkuGroup parent) IF dataInclude(snapshot, parent) MATERIALIZED;    
 nearestParentInclude (Snapshot snapshot, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(snapshot, skuGroup));
 nearestInclude (Snapshot snapshot, SkuGroup skuGroup) = dataInclude(snapshot, nearestParentInclude (snapshot, skuGroup));
 
@@ -680,9 +680,9 @@ include 'Вкл' (Snapshot snapshot, SkuGroup skuGroup) =
     OVERRIDE dataInclude(snapshot, skuGroup), 
              nearestInclude (snapshot, skuGroup) MATERIALIZED;                        
 
-nameIncludeSkuGroups 'Группы товаров (все)' (document)= 
+nameIncludeSkuGroups 'Группы товаров (все)' (Snapshot document)= 
     GROUP 
-    BY Snapshot document CONCAT name(SkuGroup skuGroup) IF dataInclude(document, skuGroup), ', ' 
+    CONCAT name(SkuGroup skuGroup) IF dataInclude(document, skuGroup), ', ' 
     ORDER skuGroup
     CHARWIDTH 20;
     
@@ -702,7 +702,7 @@ deleteIncludeLegalEntities 'Сбросить отмеченные'(Snapshot r) =
     include(r,LegalEntity l) <- NULL;
 };
 
-countIncludeLegalEntities (Snapshot s) = GROUP BY Snapshot s SUM 1 IF include(s, LegalEntity l) MATERIALIZED COMPLEX;
+countIncludeLegalEntities (Snapshot s) = GROUP SUM 1 IF include(s, LegalEntity l) MATERIALIZED COMPLEX;
 
 //-- Выбор групп брендов
 TABLE snapshotBrand (Snapshot, Brand);
@@ -713,7 +713,7 @@ deleteIncludeBrands 'Сбросить отмеченные'(Snapshot r) = {
     include(r,Brand b) <- NULL;
 };
 
-countIncludeBrands (Snapshot s) = GROUP BY Snapshot s SUM 1 IF include(s, Brand b);
+countIncludeBrands (Snapshot s) = GROUP SUM 1 IF include(s, Brand b);
 
 //-- Выбор товара
 TABLE snapshotSku (Snapshot, Sku);
@@ -735,7 +735,7 @@ include 'Вкл' (Snapshot snapshot, Sku sku) =
     //OVERRIDE dataInclude(snapshot, sku),
              //(includeSkuGroup(snapshot, sku) AND includeBrand(snapshot, sku)) AND NOT skip(snapshot, sku);
              
-countIncludeSku 'Вкл' (snapshot) = GROUP BY Snapshot snapshot SUM 1 IF include(snapshot, Sku sku);
+countIncludeSku 'Вкл' (Snapshot snapshot) = GROUP SUM 1 IF include(snapshot, Sku sku);
 
 deleteIncludeSkus 'Сбросить отмеченные'(Snapshot r) = {
     dataInclude(r,Sku b) <- NULL;
@@ -1228,8 +1228,8 @@ filterMove (Sku s, Stock st, Snapshot r, DATE d) = balanceB(s,st,r,d) OR balance
                                         sumB(s,st,r,d) OR sumA(s,st,r,d) OR 
                                         inSum(s,st,r,d) OR outSum(s,st,r,d) MATERIALIZED;  
                                         
-filterMove (r, d) = GROUP BY Snapshot r, DATE d SUM 1 IF filterMove (Sku s, Stock st, r, d);                                        
-filterMove (st, r, d) = GROUP BY Stock st, Snapshot r, DATE d SUM 1 IF filterMove (Sku s, st, r, d);                                       
+filterMove (Snapshot r, DATE d) = GROUP SUM 1 IF filterMove (Sku s, Stock st, r, d);                                        
+filterMove (Stock st, Snapshot r, DATE d) = GROUP SUM 1 IF filterMove (Sku s, st, r, d);                                       
                                                                               
 filterMove (Batch bt,Stock ss,Snapshot r)= balanceB(bt,ss,r) OR balanceA(bt,ss,r) OR 
                                         inQuantity(bt,ss,r) OR outQuantity(bt,ss,r) OR 
@@ -1310,7 +1310,7 @@ isVATSupplierBalanceADate = isVATSupplier(Snapshot snapshot) AND isBalanceA(snap
 
 TABLE snapshotTypeDOW(SnapshotType, DOW);
 in 'Вкл.' = DATA BOOLEAN (SnapshotType, DOW);
-countDOWsIn = GROUP BY SnapshotType t SUM 1 IF in(t,DOW d);
+countDOWsIn (SnapshotType t) = GROUP SUM 1 IF in(t,DOW d);
 oneReport 'Отдельный отчет для склада' = DATA BOOLEAN (SnapshotType);
 idReport 'Идентификатор для планировщика' = DATA STRING[100] (SnapshotType);
 countDays 'Количество дней' = DATA INTEGER (SnapshotType);
@@ -1319,14 +1319,14 @@ countDaysDelete 'Количество дней для хранения отче�
 
 TABLE snapshotTypeDays(SnapshotType, INTEGER);
 inDays 'Вкл.' = DATA BOOLEAN (SnapshotType, INTEGER);
-countDaysIn = GROUP BY SnapshotType t SUM 1 IF inDays(t,INTEGER i);
+countDaysIn (SnapshotType t) = GROUP SUM 1 IF inDays(t,INTEGER i);
 
-daysIn 'Числа'  = GROUP
-    BY SnapshotType t CONCAT VARSTRING[2](INTEGER i) IF inDays(t,i), ', '
+daysIn 'Числа' (SnapshotType t)  = GROUP
+    CONCAT VARSTRING[2](INTEGER i) IF inDays(t,i), ', '
     ORDER i CHARWIDTH 10;
     
-DOWsIn 'Дни недели'  = GROUP
-    BY SnapshotType t CONCAT staticCaption(DOW DOW) IF in(t,DOW), ', '
+DOWsIn 'Дни недели' (SnapshotType t)  = GROUP
+    CONCAT staticCaption(DOW DOW) IF in(t,DOW), ', '
     ORDER number(DOW) CHARWIDTH 15;    
     
 EXTEND FORM snapshotTypes

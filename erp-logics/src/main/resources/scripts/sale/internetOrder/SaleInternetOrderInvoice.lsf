@@ -31,8 +31,8 @@ quantityUserInvoiceDetail (internetOrderDetail, UserInvoice invoice) =
 countUserInvoiceDetail(internetOrderDetail, invoice) = 
     GROUP BY internetOrderDetail(UserInvoiceDetail invoiceDetail), invoice(invoiceDetail) SUM 1;
 
-internetOrders 'Интернет-заказы' (invoice) = GROUP
-                                             BY Invoice invoice CONCAT VARSTRING[255](description(InternetOrderDetail internetOrderDetail)) IF countUserInvoiceDetail(internetOrderDetail, invoice) , ', '
+internetOrders 'Интернет-заказы' (Invoice invoice) = GROUP
+                                             CONCAT VARSTRING[255](description(InternetOrderDetail internetOrderDetail)) IF countUserInvoiceDetail(internetOrderDetail, invoice) , ', '
                                              ORDER internetOrderDetail CHARWIDTH 30 MATERIALIZED;
                                              
 invoices 'Накладные' (internetOrder) = GROUP
@@ -61,8 +61,8 @@ DESIGN internetOrders {
     PROPERTY (invoicedInternetOrderDetail(o)){background = #CCFFCC;}
 }
 
-isWarehouseDeliveryReport = GROUP BY DeliveryReport report SUM 1 IF inStockDeliveryReport(Warehouse w, report) AND w IS Warehouse;
-isDepartmentStoreDeliveryReport = GROUP BY DeliveryReport report SUM 1 IF inStockDeliveryReport(DepartmentStore d, report) AND d IS DepartmentStore;
+isWarehouseDeliveryReport (DeliveryReport report) = GROUP SUM 1 IF inStockDeliveryReport(Warehouse w, report) AND w IS Warehouse;
+isDepartmentStoreDeliveryReport (DeliveryReport report) = GROUP SUM 1 IF inStockDeliveryReport(DepartmentStore d, report) AND d IS DepartmentStore;
 
 relation = GROUP BY deliveryReport(internetOrderDetail(UserInvoiceDetail d)), userInvoice(d) SUM 1;
 countDeliveryReport = GROUP BY deliveryReport(internetOrderDetail(UserInvoiceDetail d)) SUM 1;

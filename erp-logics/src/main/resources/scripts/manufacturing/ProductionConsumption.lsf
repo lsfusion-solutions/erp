@@ -124,8 +124,8 @@ descriptionIndexComponentDetail 'Строка компонента' (UserConsump
 
 quantityConsumptionDetail (order, consumption) = GROUP BY order(componentDetail(ConsumptionDetail consumptionDetail)), consumption(consumptionDetail) SUM quantity(consumptionDetail);
 
-orders 'Заказы' (consumption) = GROUP
-                                                BY Consumption consumption CONCAT VARSTRING[255](description(Order order)) IF quantityConsumptionDetail(order, consumption) , ', '
+orders 'Заказы' (Consumption consumption) = GROUP
+                                                CONCAT VARSTRING[255](description(Order order)) IF quantityConsumptionDetail(order, consumption) , ', '
                                                 ORDER order IN order CHARWIDTH 30;
 
 consumed 'Кол-во (списано)' (componentDetail) = GROUP
@@ -174,8 +174,8 @@ quantityOutput 'Кол-во изделий в заказе (произведен
 quantityOutput 'Кол-во спецификаций (произведенных)' (BOM BOM, Order order) = [= GROUP
     BY BOM(Product product) MAX quantityOutput(product, order)/ quantity(product)](BOM) MATERIALIZED;
 
-recBruttoQuantityOutput 'Кол-во для произ-го' (BOM, order, sku) = GROUP BY BOM BOM, Order order, Sku sku SUM quantityOutput(BOM, order) * recBruttoQuantity(BOM, sku, date(order));
-recBruttoQuantityOutput 'Рекур.кол-во' (BOM, order, component) = GROUP BY BOM BOM, Order order, Component component SUM quantityOutput(BOM, order) * recBruttoQuantity(BOM, component, date(order));
+recBruttoQuantityOutput 'Кол-во для произ-го' (BOM BOM, Order order, Sku sku) = GROUP SUM quantityOutput(BOM, order) * recBruttoQuantity(BOM, sku, date(order));
+recBruttoQuantityOutput 'Рекур.кол-во' (BOM BOM, Order order, Component component) = GROUP SUM quantityOutput(BOM, order) * recBruttoQuantity(BOM, component, date(order));
 
 calcComponentConsumedQuantity (ComponentDetail d) = 
     round((recBruttoQuantityOutput(BOM(d), order(d), component(d)) * quantityCoeff(d) * OVERRIDE multiplierSubstituteTo(bruttoSku(d), substituteSku(d)), 1.0), overQuantityRound(d));

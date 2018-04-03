@@ -19,10 +19,10 @@ descriptionIndexInvoiceDetail 'Строка накладной' (ShipmentDetail 
 @defineDocumentAbstractDetailQuantityCustomPrefix(invoiceDetail, shipment, ' (поставлено)');
 @defineDocumentHeaderQuantityCustomPrefix (invoice, invoiceDetail, shipment, ' (поставлено)');
 quantityShipmentDetail (invoice, shipment) = GROUP BY invoice(invoiceDetail(ShipmentDetail shipmentDetail)), shipment(shipmentDetail) SUM quantity(shipmentDetail);
-relationInvoice 'Связь' (shipment) = GROUP BY Shipment shipment SUM 1 IF quantityShipmentDetail (Invoice invoice, shipment);
+relationInvoice 'Связь' (Shipment shipment) = GROUP SUM 1 IF quantityShipmentDetail (Invoice invoice, shipment);
 
-invoices 'Накладные' (shipment) = GROUP
-                                                BY Shipment shipment CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, shipment) , ', '
+invoices 'Накладные' (Shipment shipment) = GROUP
+                                                CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, shipment) , ', '
                                                 ORDER invoice CHARWIDTH 30;
 
 shipped 'Кол-во (поставлено)' (invoiceDetail) = GROUP
@@ -107,10 +107,10 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     descriptionIndexInvoiceDetail 'Строка накладной' (UserShipmentDetail detail) = descriptionIndex(invoiceDetail(detail));
 
     quantityShipmentDetail (invoice, shipment) = GROUP BY invoice(invoiceDetail(ShipmentDetail shipmentDetail)), shipment(shipmentDetail) SUM quantity(shipmentDetail);
-    relationInvoice 'Связь' (shipment) = GROUP BY Shipment shipment SUM 1 IF quantityShipmentDetail (Invoice invoice, shipment);
+    relationInvoice 'Связь'(Shipment shipment)  = GROUP SUM 1 IF quantityShipmentDetail (Invoice invoice, shipment);
 
-    invoices 'Накладные' (shipment) = GROUP
-                                                    BY Shipment shipment CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, shipment) , ', '
+    invoices 'Накладные'(Shipment shipment)  = GROUP
+                                                    CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, shipment) , ', '
                                                     ORDER invoice IN invoice CHARWIDTH 30 MATERIALIZED;
 
     shipped 'Кол-во (поставлено)' (invoiceDetail) = GROUP
@@ -137,8 +137,8 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     in (InvoiceDetail invoiceDetail, Batch batch) = [= GROUP BY invoiceDetail(ShipmentDetail shipmentDetail) SUM 1 IF cost(shipmentDetail, batch)](invoiceDetail) OR 
                                                      batch(invoiceDetail) == batch MATERIALIZED; // приходится делать OR, так как если количество 0, то партии не расписываются
 
-    countBatch 'Кол-во партий' (invoiceDetail) = GROUP BY InvoiceDetail invoiceDetail SUM 1 IF in(invoiceDetail, Batch batch) MATERIALIZED;
-    maxBatch (invoiceDetail) = GROUP BY InvoiceDetail invoiceDetail MAX Batch batch IF in(invoiceDetail, batch);
+    countBatch 'Кол-во партий'(InvoiceDetail invoiceDetail)  = GROUP SUM 1 IF in(invoiceDetail, Batch batch) MATERIALIZED;
+    maxBatch(InvoiceDetail invoiceDetail)  = GROUP MAX Batch batch IF in(invoiceDetail, batch);
 
     toShip 'Не поставлено' (InvoiceDetail invoiceDetail) = (quantity(invoiceDetail) (-) shipped(invoiceDetail)) IF NOT isCharge(sku(invoiceDetail));
     prevToShip 'Не поставлено' (InvoiceDetail invoiceDetail) = PREV(toShip(invoiceDetail));
@@ -226,8 +226,8 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
 
     TABLE invoiceUserShipment (Invoice, UserShipment);
     include 'Вкл. в приемку' = DATA BOOLEAN (Invoice, UserShipment) CHARWIDTH 10;
-    includeInvoices 'Накладные в приемке' (userShipment) = GROUP
-                                                        BY UserShipment userShipment CONCAT VARSTRING[255](description(Invoice invoice)) IF include(invoice, userShipment) , ', '
+    includeInvoices 'Накладные в приемке'(UserShipment userShipment)  = GROUP
+                                                        CONCAT VARSTRING[255](description(Invoice invoice)) IF include(invoice, userShipment) , ', '
                                                         ORDER invoice IN invoices CHARWIDTH 30 MATERIALIZED;
     FORM includeInvoicesUserShipment 'Накладные'
         OBJECTS s = UserShipment PANEL

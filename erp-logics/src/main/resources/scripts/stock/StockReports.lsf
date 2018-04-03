@@ -2,8 +2,8 @@ MODULE StockReports;
 
 REQUIRE EmployeeStock, Barcode, PriceListLedger, StockSkuDocument, OrderLedger;
 
-quantityChildWithSession (group) = GROUP BY Group group SUM 1 IF dataInSession(Group childGroup) AND isParent(childGroup, group);
-quantityParentWithSession (group) = GROUP BY Group group SUM 1 IF dataInSession(Group parentGroup) AND isParent(group, parentGroup);                                                                        
+quantityChildWithSession (Group group) = GROUP SUM 1 IF dataInSession(Group childGroup) AND isParent(childGroup, group);
+quantityParentWithSession (Group group) = GROUP SUM 1 IF dataInSession(Group parentGroup) AND isParent(group, parentGroup);                                                                        
                                                                            
 backgroundInSession 'Цвет' (Group group) = CASE 
     WHEN dataInSession(group) THEN RGB(0,0,0)
@@ -14,13 +14,13 @@ backgroundInclude 'Цвет' (GroupType groupType, Sku sku) = IF include(sku)
     THEN RGB(0,0,0) 
     ELSE RGB(230,248,250) IF inSession(group(groupType, sku));
 
-countIncludeSku 'Кол-во непосредственных товаров в группе' (group, groupType) =
+countIncludeSku 'Кол-во непосредственных товаров в группе' (Group group, GroupType groupType) =
     GROUP
-    BY Group group, GroupType groupType SUM 1 IF group(groupType, Sku sku) == group AND include(groupType,sku);
+    SUM 1 IF group(groupType, Sku sku) == group AND include(groupType,sku);
     
-sessionConcatGroups 'Группы' (groupType) =
+sessionConcatGroups 'Группы' (GroupType groupType) =
     GROUP
-    BY GroupType groupType CONCAT name(Group group) IF countIncludeSku(group, groupType),',';  
+    CONCAT name(Group group) IF countIncludeSku(group, groupType),',';  
 
 // --------------------------------- Оптимизация с хранимыми свойствами ------------------------------------- //
  
@@ -105,16 +105,16 @@ fillReportBackSheetFromTo 'Сформировать'(GroupType gt, DATE df, DATE
     overFillReportBackSheetFromTo(gt, df, dt);      
 }
 
-recBalanceB 'Остаток на начало периода' = GROUP BY Group parent SUM balanceB (Group child) IF isParent(child, parent);
-recSumB 'Сумма на начало периода' = GROUP BY Group parent SUM sumB (Group child) IF isParent(child, parent);
-recSumIn 'Сумма пришедшего' = GROUP BY Group parent SUM sumIn (Group child) IF isParent(child, parent);
-recSumOut 'Сумма ушедшего' = GROUP BY Group parent SUM sumOut (Group child) IF isParent(child, parent);
-recSumA 'Сумма на конец периода' = GROUP BY Group parent SUM sumA (Group child) IF isParent(child, parent);
+recBalanceB 'Остаток на начало периода' (Group parent) = GROUP SUM balanceB (Group child) IF isParent(child, parent);
+recSumB 'Сумма на начало периода' (Group parent) = GROUP SUM sumB (Group child) IF isParent(child, parent);
+recSumIn 'Сумма пришедшего' (Group parent) = GROUP SUM sumIn (Group child) IF isParent(child, parent);
+recSumOut 'Сумма ушедшего' (Group parent) = GROUP SUM sumOut (Group child) IF isParent(child, parent);
+recSumA 'Сумма на конец периода' (Group parent) = GROUP SUM sumA (Group child) IF isParent(child, parent);
 
-sumB 'Итоговая сумма отчета' = GROUP BY GroupType groupType SUM sumB(Sku sku) IF include(groupType, sku) ;
-sumIn 'Итоговая сумма пришедшего товара отчета' = GROUP BY GroupType groupType SUM sumIn(Sku sku) IF include(groupType, sku);
-sumOut 'Итоговая сумма ушедшего товара отчета'  = GROUP BY GroupType groupType SUM sumOut(Sku sku) IF include(groupType, sku);
-sumA 'Итоговая сумма отчета' = GROUP BY GroupType groupType SUM sumA(Sku sku) IF include(groupType, sku);
+sumB 'Итоговая сумма отчета' (GroupType groupType) = GROUP SUM sumB(Sku sku) IF include(groupType, sku) ;
+sumIn 'Итоговая сумма пришедшего товара отчета' (GroupType groupType) = GROUP SUM sumIn(Sku sku) IF include(groupType, sku);
+sumOut 'Итоговая сумма ушедшего товара отчета' (GroupType groupType)  = GROUP SUM sumOut(Sku sku) IF include(groupType, sku);
+sumA 'Итоговая сумма отчета' (GroupType groupType) = GROUP SUM sumA(Sku sku) IF include(groupType, sku);
 
 // ---- Отчет по остаткам
 

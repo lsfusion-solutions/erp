@@ -64,8 +64,8 @@ TABLE wareDate(Ware, DATE);
 
 dataPrice 'Цена' = DATA NUMERIC[16,4] (Ware, DATE) IN base;
 
-price 'Цена' (ware, date) = GROUP
-                                                                     BY    Ware ware, DATE date LAST  dataPrice(ware, DATE dateIn)
+price 'Цена' (Ware ware, DATE date) = GROUP
+                                                                     LAST  dataPrice(ware, DATE dateIn)
                                                                      ORDER dateIn
                                                                      WHERE dataPrice(ware, dateIn) AND dateIn <= (date AS DATE) IN base;
 
@@ -233,8 +233,8 @@ TABLE customGroupTypeWareGroup(CustomGroupType, WareGroup);
 dataCustomGroup 'Дополнительная группа (по умолчанию)' = DATA CustomGroup (CustomGroupType, WareGroup);
 dataNameCustomGroupCustomGroup 'Дополнительная группа (по умолчанию)' (CustomGroupType customGroupType, WareGroup wareGroup) = name(dataCustomGroup(customGroupType, wareGroup));
 
-levelParentCustomGroup (customGroupType, wareGroup) = GROUP
-                                                              BY CustomGroupType customGroupType, WareGroup wareGroup MIN level(wareGroup, WareGroup parent) IF dataCustomGroup(customGroupType, parent) MATERIALIZED;    
+levelParentCustomGroup (CustomGroupType customGroupType, WareGroup wareGroup) = GROUP
+                                                              MIN level(wareGroup, WareGroup parent) IF dataCustomGroup(customGroupType, parent) MATERIALIZED;    
 nearestParentCustomGroup (CustomGroupType customGroupType, WareGroup wareGroup) = wareGroup(wareGroup, levelParentCustomGroup(customGroupType, wareGroup));
 nearestCustomGroup (CustomGroupType customGroupType, WareGroup wareGroup) = dataCustomGroup(customGroupType, nearestParentCustomGroup (customGroupType, wareGroup));
 

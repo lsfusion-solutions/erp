@@ -17,11 +17,11 @@ changeCompletedSticker (Article article) = {
 
 // Подсчет артикулов с незаполненными стикерами для групп
 countNotStickerArticles 'Не обработано (к-во)' (group) = GROUP BY itemGroup(Article article) SUM 1 IF completedTranslate(article) AND NOT completedSticker(article) AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser()));
-recCountNotStickerArticles 'Не обработано (к-во)' (parent) = GROUP BY ItemGroup parent SUM countNotStickerArticles(ItemGroup child) IF isParent(child, parent);
+recCountNotStickerArticles 'Не обработано (к-во)' (ItemGroup parent) = GROUP SUM countNotStickerArticles(ItemGroup child) IF isParent(child, parent);
 
 // ----------------- Типы ценников ----------------- //
 
-defaultLabelType (sku) = GROUP BY Sku sku MAX LabelType type IF in(type, sku);
+defaultLabelType (Sku sku) = GROUP MAX LabelType type IF in(type, sku);
 nameLabelType 'Тип ценника' (Sku sku)= name(defaultLabelType(sku)) CHARWIDTH 15;
 
 defaultLabelType (article) = GROUP BY article(Item sku) MAX LabelType type IF in(type, sku);
@@ -48,8 +48,8 @@ descriptionFilterStickerInvoice 'Накладная' = description(filterSticker
 TABLE userItemGroup(User, ItemGroup);
 dataIn 'Отм' = DATA BOOLEAN (User, ItemGroup);
 
-levelParent (user, itemGroup) = GROUP
-                                                               BY User user, ItemGroup itemGroup MIN level(itemGroup, ItemGroup parent) IF dataIn(user, parent) MATERIALIZED;
+levelParent (User user, ItemGroup itemGroup) = GROUP
+                                                               MIN level(itemGroup, ItemGroup parent) IF dataIn(user, parent) MATERIALIZED;
 
 inParent (User user, ItemGroup itemGroup) = TRUE IF levelParent (user, itemGroup) MATERIALIZED;
 
@@ -59,7 +59,7 @@ in 'Отм' (User user, ItemGroup itemGroup) = OVERRIDE
 
 in 'Отм' (User user, Article article) = inParent(user, itemGroup(article));
 
-itemGroups (user) = GROUP BY User user SUM 1 IF in(user, ItemGroup itemGroup);
+itemGroups (User user) = GROUP SUM 1 IF in(user, ItemGroup itemGroup);
     
 //currentUser
 inCurrentUser 'Отм.' (ItemGroup itemGroup) = in(currentUser(), itemGroup);
@@ -356,7 +356,7 @@ EXTEND FORM articleStickerDashboard
 
 countInLabelArticles 'Кол-во отм.' = GROUP SUM 1 IF inLabel(Article a, DepartmentStore st);
 countLabelTypeArticles  = GROUP SUM 1 IF [= GROUP BY defaultLabelType(Article a) SUM 1 IF inLabel(a, DepartmentStore st)](LabelType type);
-countInDepartmentStores = GROUP BY DepartmentStore st SUM 1 IF inLabel(Article a, st);
+countInDepartmentStores (DepartmentStore st) = GROUP SUM 1 IF inLabel(Article a, st);
 
 dataLastBatch = ABSTRACT Batch (Sku);
 

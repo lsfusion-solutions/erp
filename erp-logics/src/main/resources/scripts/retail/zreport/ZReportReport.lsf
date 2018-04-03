@@ -72,18 +72,18 @@ averageCountReceiptDetail (Stock stock)= name(stock) + ' (среднее кол-
 countFiscalReceipt (Stock stock)= name(stock) + ' (фискальных чеков)';      
   
                          
-sumReceiptDetailZReportStocks 'Сумма Z-отчета' = GROUP BY DATE dt SUM sumReceiptDetailZReport(DepartmentStore st,dt) IF inReport(st);
-sumPositiveCashPaymentZReportStocks 'Сумма продажа (наличные)' = GROUP BY DATE dt SUM sumPositiveCashPaymentZReport(DepartmentStore st,dt) IF inReport(st);
-sumPositiveCardPaymentZReportStocks 'Сумма продажа (карточка)' = GROUP BY DATE dt SUM sumPositiveCardPaymentZReport(DepartmentStore st,dt) IF inReport(st);
-discountSumZReportStocks 'Сумма скидок Z-отчета' = GROUP BY DATE dt SUM discountSumZReport(DepartmentStore st,dt) IF inReport(st);
-VATSumSaleZReportStocks 'Сумма НДС по продажам' = GROUP BY DATE dt SUM VATSumSaleZReport(DepartmentStore st,dt) IF inReport(st);
-sumNegativeCashPaymentZReportStocks  'Сумма возврата (наличные)' = GROUP BY DATE dt SUM sumNegativeCashPaymentZReport(DepartmentStore st,dt) IF inReport(st);
-sumNegativeCardPaymentZReportStocks 'Сумма возврата (карточка)' = GROUP BY DATE dt SUM sumNegativeCardPaymentZReport(DepartmentStore st,dt) IF inReport(st);
-countReceiptStocks 'Кол-во чеков в магазине за день' = GROUP BY DATE dt SUM countReceipt(DepartmentStore st,dt) IF inReport(st);
-countFiscalReceiptStocks 'Кол-во фискальных чеков за день' = GROUP BY DATE dt SUM countFiscalReceipt(DepartmentStore st,dt) IF inReport(st);
+sumReceiptDetailZReportStocks 'Сумма Z-отчета' (DATE dt) = GROUP SUM sumReceiptDetailZReport(DepartmentStore st,dt) IF inReport(st);
+sumPositiveCashPaymentZReportStocks 'Сумма продажа (наличные)' (DATE dt) = GROUP SUM sumPositiveCashPaymentZReport(DepartmentStore st,dt) IF inReport(st);
+sumPositiveCardPaymentZReportStocks 'Сумма продажа (карточка)' (DATE dt) = GROUP SUM sumPositiveCardPaymentZReport(DepartmentStore st,dt) IF inReport(st);
+discountSumZReportStocks 'Сумма скидок Z-отчета' (DATE dt) = GROUP SUM discountSumZReport(DepartmentStore st,dt) IF inReport(st);
+VATSumSaleZReportStocks 'Сумма НДС по продажам' (DATE dt) = GROUP SUM VATSumSaleZReport(DepartmentStore st,dt) IF inReport(st);
+sumNegativeCashPaymentZReportStocks  'Сумма возврата (наличные)' (DATE dt) = GROUP SUM sumNegativeCashPaymentZReport(DepartmentStore st,dt) IF inReport(st);
+sumNegativeCardPaymentZReportStocks 'Сумма возврата (карточка)' (DATE dt) = GROUP SUM sumNegativeCardPaymentZReport(DepartmentStore st,dt) IF inReport(st);
+countReceiptStocks 'Кол-во чеков в магазине за день' (DATE dt) = GROUP SUM countReceipt(DepartmentStore st,dt) IF inReport(st);
+countFiscalReceiptStocks 'Кол-во фискальных чеков за день' (DATE dt) = GROUP SUM countFiscalReceipt(DepartmentStore st,dt) IF inReport(st);
 averageSumReceiptStocks 'Средняя сумма чека в магазине за день' (DATE date) =     sumReceiptDetailZReportStocks(date) / countReceiptStocks(date);    
-countReceiptDetailStocks 'Кол-во позиций чеков в магазине за период' = GROUP BY DATE dt SUM countReceiptDetail(DepartmentStore st,dt) IF inReport(st);
-sumReceiptDetailZReport 'Сумма Z-отчета' = GROUP BY DATE dt SUM sumReceiptDetailZReport(DepartmentStore st,dt) IF inReport(st);
+countReceiptDetailStocks 'Кол-во позиций чеков в магазине за период' (DATE dt) = GROUP SUM countReceiptDetail(DepartmentStore st,dt) IF inReport(st);
+sumReceiptDetailZReport 'Сумма Z-отчета' (DATE dt) = GROUP SUM sumReceiptDetailZReport(DepartmentStore st,dt) IF inReport(st);
 averageCountReceiptDetailStocks 'Среднее кол-во позиций в чеке в магазине за париод' (DATE date) =  NUMERIC[16,4](countReceiptDetailStocks(date)) / NUMERIC[16,4](countReceiptStocks(date));
 
 allStocks 'Только итоги' = DATA LOCAL BOOLEAN ();
@@ -174,8 +174,8 @@ sumReceiptDetailZReport 'Сумма Z-отчета' (stock, dateFrom, dateTo)= G
 discountSumZReport 'Сумма скидок Z-отчета' (stock, dateFrom, dateTo)= GROUP
         BY departmentStore(ZReport zReport), DATE dateFrom, DATE dateTo SUM discountSum(zReport) IF 
     date(zReport) >= (dateFrom AS DATE) AND date(zReport) <= (dateTo AS DATE) AND isPosted(zReport);
-countReceipt 'Кол-во чеков' (departmentStore, dateFrom, dateTo)= GROUP     
-        BY DepartmentStore st, DATE dateFrom, DATE dateTo SUM countReceipt(st,DATE date) IF
+countReceipt 'Кол-во чеков' (DepartmentStore st, DATE dateFrom, DATE dateTo)= GROUP     
+        SUM countReceipt(st,DATE date) IF
     date >= (dateFrom AS DATE) AND date <= (dateTo AS DATE);
 countReturnReceipt 'Кол-во возвратных чеков' (departmentStore, dateFrom, dateTo) = GROUP 
         BY departmentStore(ZReport zReport), DATE dateFrom, DATE dateTo SUM countReturnReceipt(zReport) IF 

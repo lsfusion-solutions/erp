@@ -75,14 +75,14 @@ TABLE labelTypeSku (LabelType, Sku);
 dataIn 'Вкл.' = DATA BOOLEAN (LabelType, Sku);
 dataExclude 'Искл.' = DATA BOOLEAN (LabelType, Sku);
 
-levelParent (labelType, group) = GROUP
-                                                              BY LabelType labelType, Group group MIN level(group, Group parent) IF dataIn(labelType, parent) MATERIALIZED;
+levelParent (LabelType labelType, Group group) = GROUP
+                                                              MIN level(group, Group parent) IF dataIn(labelType, parent) MATERIALIZED;
 nearestParent (LabelType labelType, Group group) = group(group, levelParent (labelType, group));
 nearestIn 'Вкл.' (LabelType labelType, Group group) =
     dataIn(labelType, nearestParent (labelType, group)) MATERIALIZED;
     
-levelParentExclude (labelType, group) = GROUP
-                                                              BY LabelType labelType, Group group MIN level(group, Group parent) IF dataExclude(labelType, parent) MATERIALIZED;
+levelParentExclude (LabelType labelType, Group group) = GROUP
+                                                              MIN level(group, Group parent) IF dataExclude(labelType, parent) MATERIALIZED;
 nearestParentExclude (LabelType labelType, Group group) = group(group, levelParentExclude (labelType, group));
 nearestExclude 'Вкл.' (LabelType labelType, Group group) =
     dataExclude(labelType, nearestParentExclude (labelType, group)) MATERIALIZED;
@@ -104,8 +104,8 @@ in (LabelType labelType, Sku sku, DepartmentStore departmentStore) = ((in(labelT
 inPrint(LabelType labelType, Sku sku, DepartmentStore departmentStore)  = in(labelType, sku, departmentStore) AND NOT exclude(labelType, sku); 
 
 
-quantityChildWithExclude(group, operation) = GROUP BY Group group, LabelType labelType SUM 1 IF dataExclude(labelType, Group childGroup) AND isParent(childGroup, group) MATERIALIZED;
-quantityParentWithExclude (group, operation) = GROUP BY Group group, LabelType labelType SUM 1 IF dataExclude(labelType, Group parentGroup) AND isParent(group, parentGroup) MATERIALIZED;          
+quantityChildWithExclude(Group group, LabelType labelType) = GROUP SUM 1 IF dataExclude(labelType, Group childGroup) AND isParent(childGroup, group) MATERIALIZED;
+quantityParentWithExclude (Group group, LabelType labelType) = GROUP SUM 1 IF dataExclude(labelType, Group parentGroup) AND isParent(group, parentGroup) MATERIALIZED;          
     
 backgroundExclude 'Цвет' (Group group, LabelType labelType) = CASE
     WHEN dataExclude(labelType, group) THEN RGB(0,0,0)
@@ -117,8 +117,8 @@ backgroundExclude 'Цвет' (Group group, LabelType labelType) = CASE
 dataCount 'Множитель' = DATA INTEGER (LabelType, Group);
 dataCount 'Множитель' = DATA INTEGER (LabelType, Sku);
 
-levelParentCountLabel (labelType, group) = GROUP
-                                                              BY LabelType labelType, Group group MIN level(group, Group parent) IF dataCount(labelType, parent) MATERIALIZED;
+levelParentCountLabel (LabelType labelType, Group group) = GROUP
+                                                              MIN level(group, Group parent) IF dataCount(labelType, parent) MATERIALIZED;
 nearestParentCountLabel (LabelType labelType, Group group) = group(group, levelParentCountLabel (labelType, group));
 nearestCountLabel 'Множитель' (LabelType labelType, Group group) =
     dataCount(labelType, nearestParentCountLabel (labelType, group)) MATERIALIZED;
@@ -136,8 +136,8 @@ include 'Из документа'= DATA BOOLEAN (LabelType);
 dataInclude 'Из документа' = DATA BOOLEAN (LabelType, Group);
 dataInclude 'Из документа' = DATA BOOLEAN (LabelType, Sku);
 
-levelParentIncludeLabel (labelType, group) = GROUP
-                                                              BY LabelType labelType, Group group MIN level(group, Group parent) IF dataInclude(labelType, parent) MATERIALIZED;
+levelParentIncludeLabel (LabelType labelType, Group group) = GROUP
+                                                              MIN level(group, Group parent) IF dataInclude(labelType, parent) MATERIALIZED;
 nearestParentIncludeLabel (LabelType labelType, Group group) = group(group, levelParentIncludeLabel (labelType, group));
 nearestIncludeLabel 'Из документа' (LabelType labelType, Group group) =
     dataInclude(labelType, nearestParentIncludeLabel (labelType, group)) MATERIALIZED;

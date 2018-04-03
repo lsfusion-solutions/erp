@@ -59,9 +59,9 @@ description 'Название документа' = 'Платежное треб
 
 TABLE paymentRequestInContractLedger (PaymentRequest, InContractLedger);
 cost 'Сумма требования' (paymentRequest, inContractLedger) = DATA NUMERIC[18,4] (PaymentRequest, InContractLedger);
-requested 'Выставлено требований' (inContractLedger) =
+requested 'Выставлено требований' (InContractLedger inContractLedger) =
     GROUP
-    BY InContractLedger inContractLedger SUM cost(PaymentRequest paymentRequest, inContractLedger) IF isPosted(paymentRequest) MATERIALIZED;
+    SUM cost(PaymentRequest paymentRequest, inContractLedger) IF isPosted(paymentRequest) MATERIALIZED;
 
 requestedDebt 'Неоплаченных требований' (InContractLedger inContractLedger) =
     (MIN requested(inContractLedger), debt(inContractLedger)) IF requested(inContractLedger) AND debt(inContractLedger);

@@ -145,33 +145,33 @@ isReturn 'Возвратный' = ABSTRACT BOOLEAN (OutContractLedger) MATERIALI
 TABLE outContractLedgerInContractLedger (OutContractLedger, InContractLedger);
 TABLE sessionOutContractLedgerInContractLedger (Session, OutContractLedger, InContractLedger);
 prePay 'Предоплата' = ABSTRACT NUMERIC[18,4](OutContractLedger, InContractLedger) MATERIALIZED;
-prePay 'Предоплата' = GROUP BY InContractLedger i SUM prePay(OutContractLedger o, i) IF active(i) AND active(o) MATERIALIZED;
+prePay 'Предоплата' (InContractLedger i) = GROUP SUM prePay(OutContractLedger o, i) IF active(i) AND active(o) MATERIALIZED;
 prePay = ABSTRACT NUMERIC[18,4](OutContractLedger) MATERIALIZED;
 
 cost 'Оплачено из документа' (outContractLedger, inContractLedger) = DATA NUMERIC[18,4] (OutContractLedger, InContractLedger);
-costedOutContractLedger 'Оплачено по документу' (inContractLedger) =
+costedOutContractLedger 'Оплачено по документу' (InContractLedger inContractLedger) =
     GROUP
-    BY InContractLedger inContractLedger SUM cost(OutContractLedger outContractLedger, inContractLedger) IF
+    SUM cost(OutContractLedger outContractLedger, inContractLedger) IF
     active(inContractLedger) AND active(outContractLedger) MATERIALIZED;
-costedOutContractLedger 'Оплачено по документу на дату' =
+costedOutContractLedger 'Оплачено по документу на дату' (InContractLedger inContractLedger, DATE date) =
     GROUP
-    BY InContractLedger inContractLedger, DATE date SUM cost(OutContractLedger outContractLedger, inContractLedger) IF
+    SUM cost(OutContractLedger outContractLedger, inContractLedger) IF
               active(inContractLedger) AND active(outContractLedger) AND
               date(outContractLedger) <= date;
     
-costedOutContractLedger 'Оплачено по документу за период' =
+costedOutContractLedger 'Оплачено по документу за период' (InContractLedger inContractLedger, DATE dFrom, DATE dTo) =
     GROUP
-    BY InContractLedger inContractLedger, DATE dFrom, DATE dTo SUM cost(OutContractLedger outContractLedger, inContractLedger) IF
+    SUM cost(OutContractLedger outContractLedger, inContractLedger) IF
               active(inContractLedger) AND active(outContractLedger) AND
               date(outContractLedger) >= dFrom AND date(outContractLedger) <= dTo;
         
-costedInContractLedger 'Расписано из документа' (outContractLedger) =
-    GROUP BY OutContractLedger outContractLedger SUM cost(outContractLedger, InContractLedger inContractLedger) IF
+costedInContractLedger 'Расписано из документа' (OutContractLedger outContractLedger) =
+    GROUP SUM cost(outContractLedger, InContractLedger inContractLedger) IF
     active(inContractLedger) //AND isPostedOutContractLedger(outContractLedger)
      MATERIALIZED CHARWIDTH 15;
-costedInContractLedger 'Расписано из документа на дату' (outContractLedger, date) =
+costedInContractLedger 'Расписано из документа на дату' (OutContractLedger outContractLedger, DATE date) =
     GROUP
-    BY OutContractLedger outContractLedger, DATE date SUM cost(outContractLedger, InContractLedger inContractLedger) IF
+    SUM cost(outContractLedger, InContractLedger inContractLedger) IF
               active(inContractLedger) AND //isPostedOutContractLedger(outContractLedger) AND
               date(inContractLedger) <= date;
 

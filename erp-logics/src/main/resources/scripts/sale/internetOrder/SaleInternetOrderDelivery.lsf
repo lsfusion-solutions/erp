@@ -25,8 +25,8 @@ in 'Вкл' (DeliveryReport o, InternetOrderDetail d) = deliveryReport(d) == o;
 
 relation = GROUP BY DeliveryReport o, internetOrder(InternetOrderDetail d) SUM 1 IF in(o, d);
 
-seriesNumberInternetOrders 'Интернет-заказы' (deliveryReport) = GROUP
-                                                 BY DeliveryReport deliveryReport CONCAT seriesNumber(InternetOrder order) IF relation(deliveryReport, order) , ', '
+seriesNumberInternetOrders 'Интернет-заказы' (DeliveryReport deliveryReport) = GROUP
+                                                 CONCAT seriesNumber(InternetOrder order) IF relation(deliveryReport, order) , ', '
                                                  ORDER order  CHARWIDTH 30;   
 
 dataDeliveryReportIndex 'Номер строки' = DATA INTEGER (InternetOrderDetail) INDEXED; 
@@ -195,8 +195,8 @@ filterDashboardDelivery = GROUP
 
 
 inStockDeliveryReport = GROUP BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail), deliveryReport(detail) SUM 1; 
-supplierStocks 'Склады поставщика' = GROUP  
-                                                                        BY DeliveryReport deliveryReport CONCAT name(Stock stock) IF inStockDeliveryReport(stock, deliveryReport), ', ' 
+supplierStocks 'Склады поставщика' (DeliveryReport deliveryReport) = GROUP  
+                                                                        CONCAT name(Stock stock) IF inStockDeliveryReport(stock, deliveryReport), ', ' 
                                                                         ORDER name(stock) CHARWIDTH 30;
 filterDeliveryDashboard = ABSTRACT CASE BOOLEAN (InternetOrder);
 useFilterDeliveryDashboard = ABSTRACT BOOLEAN ();

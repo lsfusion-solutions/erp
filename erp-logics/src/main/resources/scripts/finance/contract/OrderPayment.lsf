@@ -18,17 +18,17 @@ DESIGN PaymentOperation.operation {
     }
 }
 
-minOrder = GROUP BY Invoice.Invoice i MIN Order o IF quantity (o, i); 
+minOrder (Invoice.Invoice i) = GROUP MIN Order o IF quantity (o, i); 
 
 prePay 'Предоплата' = DATA NUMERIC[18,4] (Payment, Order);
 
-prePay 'Предоплата'  =
+prePay 'Предоплата' (Order o)  =
     GROUP 
-    BY Order o SUM prePay(Payment p, o) IF
+    SUM prePay(Payment p, o) IF
     active[OutContractLedger](p) ;
-prePay 'Предоплата'  =
+prePay 'Предоплата' (Payment p)  =
     GROUP
-    BY Payment p SUM prePay(p, Order o) IF
+    SUM prePay(p, Order o) IF
     isPosted(o) ;
     
 prePay (OutContractLedger o) += prePay[Payment](o) IF o IS Payment;    

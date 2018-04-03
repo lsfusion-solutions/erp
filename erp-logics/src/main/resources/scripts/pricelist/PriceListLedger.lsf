@@ -50,7 +50,7 @@ countPriceListLedger = GROUP BY sku(PriceListLedger ledger) SUM 1;
 TABLE priceListLedgerBatch(PriceListLedger, Batch);
 in = ABSTRACT BOOLEAN (PriceListLedger, Batch) MATERIALIZED;
 
-batch = GROUP BY PriceListLedger ledger MAX Batch batch IF in(ledger, batch);
+batch (PriceListLedger ledger) = GROUP MAX Batch batch IF in(ledger, batch);
 idBatch (PriceListLedger ledger) = id(batch(ledger));
 
 description 'Описание' = ABSTRACT VARISTRING[200] (PriceListLedger) MATERIALIZED;
@@ -65,15 +65,15 @@ TABLE priceListLedgerLedgerPriceListType(PriceListLedger, LedgerPriceListType);
 in = ABSTRACT BOOLEAN (PriceListLedger, LedgerPriceListType) MATERIALIZED;
 price 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListLedger, LedgerPriceListType) MATERIALIZED;
 
-priceListTypes 'Цены' (priceList) = GROUP
-                                                                BY PriceListLedger priceList CONCAT name(LedgerPriceListType type) IF in(priceList, type) , ', '
+priceListTypes 'Цены' (PriceListLedger priceList) = GROUP
+                                                                CONCAT name(LedgerPriceListType type) IF in(priceList, type) , ', '
                                                                 ORDER type CHARWIDTH 20;
 
 in (ledger, stock) = ABSTRACT BOOLEAN (PriceListLedger, Stock);
-stock (ledger) = GROUP BY PriceListLedger ledger MAX Stock stock IF in(ledger, stock);
+stock (PriceListLedger ledger) = GROUP MAX Stock stock IF in(ledger, stock);
 
-stocks 'Склады' (priceList) = GROUP
-                                                   BY PriceListLedger priceList CONCAT name(Stock stock) IF in(priceList, stock) , ', '
+stocks 'Склады' (PriceListLedger priceList) = GROUP
+                                                   CONCAT name(Stock stock) IF in(priceList, stock) , ', '
                                                    ORDER stock CHARWIDTH 20;
 
 // ------------------ Расчет цен для sku ---------------- //
@@ -359,16 +359,16 @@ active(PriceListLedger ledger, LedgerPriceListType type, Stock stock, Batch batc
 
 // По партиям
 
-activePriceListLedgerB (type, batch, stock, dateTime) =
+activePriceListLedgerB (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn) =
     GROUP
-        BY LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn LAST PriceListLedger ledger
+        LAST PriceListLedger ledger
         ORDER fromDateTime(ledger, type, stock), ledger
         WHERE active(ledger, type, stock, batch) AND price(ledger, type, stock, batch) AND
               fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn;
 
-activePriceListLedgerA  (type, batch, stock, dateTime) =
+activePriceListLedgerA  (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn) =
     GROUP
-        BY LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn LAST PriceListLedger ledger
+        LAST PriceListLedger ledger
         ORDER fromDateTime(ledger, type, stock), ledger
         WHERE active(ledger, type, stock, batch) AND price(ledger, type, stock, batch) AND
               fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn;
@@ -400,16 +400,16 @@ prevPriceB 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Stock stoc
 prevPriceA 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = PREV(priceA(type, sku, stock, dateTime)) COMPLEX;
 
 //-- Только от партии
-priceBBatch 'Цена' (type, batch, stock, dateTime) =
+priceBBatch 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn) =
     GROUP
-        BY LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn LAST price(PriceListLedger ledger, type, stock, batch)
+        LAST price(PriceListLedger ledger, type, stock, batch)
         ORDER fromDateTime(ledger, type, stock), ledger
         WHERE active(ledger, type, stock, batch) AND
             fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
-priceABatch 'Цена' (type, batch, stock, dateTime) =
+priceABatch 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn) =
     GROUP
-        BY LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn LAST price(PriceListLedger ledger, type, stock, batch)
+        LAST price(PriceListLedger ledger, type, stock, batch)
         ORDER fromDateTime(ledger, type, stock), ledger
         WHERE active(ledger, type, stock, batch) AND
             fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
@@ -545,13 +545,13 @@ prevPriceListLedgerA (LedgerPriceListType type, Sku sku, Stock stock, Stock comp
     PREV(priceListLedgerA(type, sku, stock, companyStock, dateTime));
 
 
-countStockB 'Кол-во складов' (type, sku, company, dateTime) =
+countStockB 'Кол-во складов' (LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime) =
     GROUP
-    BY LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime SUM 1 IF priceB(type, sku, Stock stock, company, dateTime);
+    SUM 1 IF priceB(type, sku, Stock stock, company, dateTime);
 
-countStockA 'Кол-во складов' (type, sku, company, dateTime) =
+countStockA 'Кол-во складов' (LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime) =
     GROUP
-    BY LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime SUM 1 IF priceA(type, sku, Stock stock, company, dateTime);
+    SUM 1 IF priceA(type, sku, Stock stock, company, dateTime);
 
 // ------- НДС --- //
 
@@ -726,7 +726,7 @@ END
 dialogPriceListType = DATA LOCAL LedgerPriceListType (Sku, Stock);
 nameDialogPriceListType 'Вид цены' = name[PriceListType](dialogPriceListType(Sku sku, Stock stock));
 
-relation(s,st,t) = GROUP BY Sku s,Stock st,LedgerPriceListType t SUM 1 IF sku(PriceListLedger pl) == s AND isPosted(pl) AND active(pl, t)
+relation(Sku s,Stock st,LedgerPriceListType t) = GROUP SUM 1 IF sku(PriceListLedger pl) == s AND isPosted(pl) AND active(pl, t)
     AND in(pl,st) AND price(pl,t);
 CONSTRAINT dialogPriceListType(Sku s,Stock st) AND NOT relation(s,st,dialogPriceListType(s,st))
     CHECKED BY dialogPriceListType[Sku,Stock] MESSAGE 'Выбран вид цены, по которому нет истории изменения по данному товару';

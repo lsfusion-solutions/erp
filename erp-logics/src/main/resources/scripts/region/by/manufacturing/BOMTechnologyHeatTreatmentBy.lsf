@@ -5,10 +5,10 @@ REQUIRE BOMHeatTreatmentBy, BOMHeatTreatment, BOMTechnology;
 NAMESPACE BOM;
 
 //-- тепловая обработка    
-countHeatTechnologies (c)= GROUP BY Component c SUM 1 IF in(Technology t, c) AND heat(t);    
+countHeatTechnologies (Component c)= GROUP SUM 1 IF in(Technology t, c) AND heat(t);    
     
-minHeatTechnology (c) = GROUP BY Component c MIN Technology t IF in(t,c) AND heat(t);
-maxHeatTechnology (c) = GROUP BY Component c MAX Technology t IF in(t,c) AND heat(t);
+minHeatTechnology (Component c) = GROUP MIN Technology t IF in(t,c) AND heat(t);
+maxHeatTechnology (Component c) = GROUP MAX Technology t IF in(t,c) AND heat(t);
 //equalsMaxMinHeatTechnologyComponent (c) = minHeatTechnologyComponent (c) == maxHeatTechnologyComponent (c);      
 
 wastageHeat (Component c,DATE date) += NUMERIC[8,3](round3([= (1.0-((100.0-X)*(100.0-Y)*(100.0-Z)/1000000.0))*100.0](
@@ -17,10 +17,10 @@ wastageHeat (Component c,DATE date) += NUMERIC[8,3](round3([= (1.0-((100.0-X)*(1
     (IF heatWastage(c) THEN (OVERRIDE wastage(c), 0.0 IF c IS Component) ELSE 0.0 IF c IS Component) 
 ))) IF c IS Component  AND date IS DATE;  
 //-- холодная обработка
-countColdTechnologies (c)= GROUP BY Component c SUM 1 IF in(Technology t, c) AND NOT heat(t);    
+countColdTechnologies (Component c)= GROUP SUM 1 IF in(Technology t, c) AND NOT heat(t);    
     
-minColdTechnology (c) = GROUP BY Component c MIN Technology t IF in(t,c) AND NOT heat(t);
-maxColdTechnology (c) = GROUP BY Component c MAX Technology t IF in(t,c) AND NOT heat(t);
+minColdTechnology (Component c) = GROUP MIN Technology t IF in(t,c) AND NOT heat(t);
+maxColdTechnology (Component c) = GROUP MAX Technology t IF in(t,c) AND NOT heat(t);
 //equalsMaxMinColdTechnologyComponent (c) = minColdTechnologyComponent (c) == maxColdTechnologyComponent (c);    
      
 wastageCold (Component c,DATE date)+=  NUMERIC[8,3](round3([= (1.0-((100.0-X)*(100.0-Y)*(100.0-Z)/1000000.0))*100.0](

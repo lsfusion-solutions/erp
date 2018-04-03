@@ -6,8 +6,8 @@ REQUIRE SaleLedger, Store, StockMovement;
 
 dataInSession 'Отм.' = DATA LOCAL BOOLEAN (Group);
 
-levelParent (group) = GROUP
-    BY Group group MIN level(group, Group parent) IF dataInSession(parent);
+levelParent (Group group) = GROUP
+    MIN level(group, Group parent) IF dataInSession(parent);
 
 inParent (Group group) = TRUE IF levelParent(group);
 
@@ -76,21 +76,21 @@ filterFromTo (Sku s,Stock st,DATE df,DATE dt) =   quantitySold(s,st,df,dt) OR
                                                      sumVATSold(s,st,df,dt) OR 
                                                      costSumSold(s,st,df,dt);
 
-recSumStock 'Сумма' (group) =
+recSumStock 'Сумма' (Group parent) =
     GROUP
-    BY Group parent SUM sumStock (Group child) IF isParent(child, parent);
-recSumVATStock 'Сумма НДС' (group) =
+    SUM sumStock (Group child) IF isParent(child, parent);
+recSumVATStock 'Сумма НДС' (Group parent) =
     GROUP
-    BY Group parent SUM sumVATStock (Group child) IF isParent(child, parent);
-recCostSumStock 'Себестоимость' (group) =
+    SUM sumVATStock (Group child) IF isParent(child, parent);
+recCostSumStock 'Себестоимость' (Group parent) =
     GROUP
-    BY Group parent SUM costSumStock (Group child) IF isParent(child, parent);
-recMarkupSumStock 'Надбавка' (group) =
+    SUM costSumStock (Group child) IF isParent(child, parent);
+recMarkupSumStock 'Надбавка' (Group parent) =
     GROUP
-    BY Group parent SUM markupSumStock (Group child) IF isParent(child, parent);
-recQuantityStock 'Кол-во' (group) =
+    SUM markupSumStock (Group child) IF isParent(child, parent);
+recQuantityStock 'Кол-во' (Group parent) =
     GROUP
-    BY Group parent SUM quantityStock (Group child) IF isParent(child, parent);
+    SUM quantityStock (Group child) IF isParent(child, parent);
     
 // --------------------------------- Сравнение с интервалом ------------------------------------- //
 
@@ -136,21 +136,21 @@ fillSaleReportFromToCompare 'Сформировать'(GroupType gt, DATE df, DA
     }                 
 }
 
-recSumStockCompare 'Сумма (сравнение)' (group) =
+recSumStockCompare 'Сумма (сравнение)' (Group parent) =
     GROUP
-    BY Group parent SUM sumStockCompare (Group child) IF isParent(child, parent);
-recSumVATStockCompare 'Сумма НДС (сравнение)' (group) =
+    SUM sumStockCompare (Group child) IF isParent(child, parent);
+recSumVATStockCompare 'Сумма НДС (сравнение)' (Group parent) =
     GROUP
-    BY Group parent SUM sumVATStockCompare (Group child) IF isParent(child, parent);
-recCostSumStockCompare 'Себестоимость (сравнение)' (group) =
+    SUM sumVATStockCompare (Group child) IF isParent(child, parent);
+recCostSumStockCompare 'Себестоимость (сравнение)' (Group parent) =
     GROUP
-    BY Group parent SUM costSumStockCompare (Group child) IF isParent(child, parent);
-recMarkupSumStockCompare 'Надбавка (сравнение)' (group) =
+    SUM costSumStockCompare (Group child) IF isParent(child, parent);
+recMarkupSumStockCompare 'Надбавка (сравнение)' (Group parent) =
     GROUP
-    BY Group parent SUM markupSumStockCompare (Group child) IF isParent(child, parent);
-recQuantityStockCompare 'Кол-во (сравнение)' (group) =
+    SUM markupSumStockCompare (Group child) IF isParent(child, parent);
+recQuantityStockCompare 'Кол-во (сравнение)' (Group parent) =
     GROUP
-    BY Group parent SUM quantityStockCompare (Group child) IF isParent(child, parent);
+    SUM quantityStockCompare (Group child) IF isParent(child, parent);
     
 //цвета ячеек
 lessColor = #FFEEEE;
@@ -235,48 +235,48 @@ inSaleReportCustomerStocks 'Склады' () =
     GROUP CONCAT name(Stock st) IF inCustomerStockSaleReport(st) ,', ' CHARWIDTH 30;    
 
 //суммы продаж по складу покупателю
-costSumSalesStock 'Себестоимость продаж (по покупателю)' (groupType, dateFrom, dateTo) =
+costSumSalesStock 'Себестоимость продаж (по покупателю)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
     GROUP
-    BY GroupType groupType, DATE dateFrom, DATE dateTo SUM costSum(SaleLedger saleLedger) IF active(saleLedger) AND
+    SUM costSum(SaleLedger saleLedger) IF active(saleLedger) AND
                                                inSession(group(groupType, sku(saleLedger))) AND
                                                date(saleLedger) >= dateFrom AND
                                                date(saleLedger) <= dateTo AND
                                                inSaleReport(stock(saleLedger)) AND ((inCustomerStockSaleReport(customerStock(saleLedger)) IF countInCustomerStockSaleReport()) OR (customerStock(saleLedger) AND NOT countInCustomerStockSaleReport()));
-markupSumSalesStock 'Надбавка (по покупателю)'(groupType, dateFrom, dateTo) =
+markupSumSalesStock 'Надбавка (по покупателю)'(GroupType groupType, DATE dateFrom, DATE dateTo) =
     GROUP
-    BY GroupType groupType, DATE dateFrom, DATE dateTo SUM markupSum(SaleLedger saleLedger) IF active(saleLedger) AND
+    SUM markupSum(SaleLedger saleLedger) IF active(saleLedger) AND
                                                inSession(group(groupType, sku(saleLedger))) AND
                                                date(saleLedger) >= dateFrom AND
                                                date(saleLedger) <= dateTo AND
                                                inSaleReport(stock(saleLedger)) AND ((inCustomerStockSaleReport(customerStock(saleLedger)) IF countInCustomerStockSaleReport()) OR (customerStock(saleLedger) AND NOT countInCustomerStockSaleReport()));
-sumVATSalesStock 'Сумма НДС (по покупателю)'(groupType, dateFrom, dateTo) =
+sumVATSalesStock 'Сумма НДС (по покупателю)'(GroupType groupType, DATE dateFrom, DATE dateTo) =
     GROUP
-    BY GroupType groupType, DATE dateFrom, DATE dateTo SUM sumVAT(SaleLedger saleLedger) IF active(saleLedger) AND
+    SUM sumVAT(SaleLedger saleLedger) IF active(saleLedger) AND
                                               inSession(group(groupType, sku(saleLedger))) AND
                                               date(saleLedger) >= dateFrom AND
                                               date(saleLedger) <= dateTo AND 
                                               inSaleReport(stock(saleLedger)) AND ((inCustomerStockSaleReport(customerStock(saleLedger)) IF countInCustomerStockSaleReport()) OR (customerStock(saleLedger) AND NOT countInCustomerStockSaleReport()));
-sumSalesStock 'Сумма продаж (по покупателю)' (groupType, dateFrom, dateTo) =
+sumSalesStock 'Сумма продаж (по покупателю)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
     GROUP
-    BY GroupType groupType, DATE dateFrom, DATE dateTo SUM sum(SaleLedger saleLedger) IF active(saleLedger) AND
+    SUM sum(SaleLedger saleLedger) IF active(saleLedger) AND
                                            inSession(group(groupType, sku(saleLedger))) AND
                                            date(saleLedger) >= dateFrom AND
                                            date(saleLedger) <= dateTo AND
                                            inSaleReport(stock(saleLedger)) AND ((inCustomerStockSaleReport(customerStock(saleLedger)) IF countInCustomerStockSaleReport()) OR (customerStock(saleLedger) AND NOT countInCustomerStockSaleReport()));
 
 //суммы продаж по SKU    
-costSumStock 'Итоговая себестоимость продаж' (groupType) =
+costSumStock 'Итоговая себестоимость продаж' (GroupType groupType) =
     GROUP                                                
-        BY GroupType groupType SUM costSumStock(Sku sku) IF inSession(group(groupType, sku)) CHARWIDTH 15;
-markupSumStock 'Итоговая надбавка продаж' (groupType) =
+        SUM costSumStock(Sku sku) IF inSession(group(groupType, sku)) CHARWIDTH 15;
+markupSumStock 'Итоговая надбавка продаж' (GroupType groupType) =
     GROUP                                                
-        BY GroupType groupType SUM markupSumStock(Sku sku) IF inSession(group(groupType, sku)) CHARWIDTH 15;
-sumVATStock 'Итоговая сумма НДС продаж' (groupType) =
+        SUM markupSumStock(Sku sku) IF inSession(group(groupType, sku)) CHARWIDTH 15;
+sumVATStock 'Итоговая сумма НДС продаж' (GroupType groupType) =
     GROUP                                                
-        BY GroupType groupType SUM sumVATStock(Sku sku) IF inSession(group(groupType, sku)) CHARWIDTH 15;
-sumStock 'Итоговая сумма продаж' (groupType) =
+        SUM sumVATStock(Sku sku) IF inSession(group(groupType, sku)) CHARWIDTH 15;
+sumStock 'Итоговая сумма продаж' (GroupType groupType) =
     GROUP                                                
-        BY GroupType groupType SUM sumStock(Sku sku) IF inSession(group(groupType, sku)) CHARWIDTH 15;       
+        SUM sumStock(Sku sku) IF inSession(group(groupType, sku)) CHARWIDTH 15;       
 
 //формы
 FORM printListSalesReport 'Отчет по продажам'
@@ -591,24 +591,24 @@ printGrCustomerStockSalesReportXLS 'По складам покупателя (XL
 }   IMAGE 'print.png' IN print;
     
     
-quantitySold 'Продано за интервал (кол-во)' (sku, customer, dateFrom, dateTo) = GROUP
-        BY Sku sku, LegalEntity customer, DATE dateFrom, DATE dateTo SUM
+quantitySold 'Продано за интервал (кол-во)' (Sku sku, LegalEntity customer, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         quantitySold(sku, Stock stock, customer, dateFrom, dateTo) IF inSaleReport(stock);
 
-costSumSold 'Себестоимость проданного за интервал' (sku, customer, dateFrom, dateTo) = GROUP
-        BY Sku sku, LegalEntity customer, DATE dateFrom, DATE dateTo SUM        
+costSumSold 'Себестоимость проданного за интервал' (Sku sku, LegalEntity customer, DATE dateFrom, DATE dateTo) = GROUP
+        SUM        
         costSumSold(sku, Stock stock, customer, dateFrom, dateTo) IF inSaleReport(stock);
 
-markupSumSold 'Надбавка проданного за интервал' (sku, customer, dateFrom, dateTo) = GROUP
-        BY Sku sku, LegalEntity customer, DATE dateFrom, DATE dateTo SUM
+markupSumSold 'Надбавка проданного за интервал' (Sku sku, LegalEntity customer, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         markupSumSold(sku, Stock stock, customer, dateFrom, dateTo) IF inSaleReport(stock);
 
-sumVATSold 'Сумма НДС проданного за интервал' (sku, customer, dateFrom, dateTo) = GROUP
-        BY Sku sku, LegalEntity customer, DATE dateFrom, DATE dateTo SUM
+sumVATSold 'Сумма НДС проданного за интервал' (Sku sku, LegalEntity customer, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         sumVATSold(sku, Stock stock, customer, dateFrom, dateTo) IF inSaleReport(stock);
 
-sumSold 'Продано за интервал (сумма)' (sku, customer, dateFrom, dateTo) = GROUP
-        BY Sku sku, LegalEntity customer, DATE dateFrom, DATE dateTo SUM
+sumSold 'Продано за интервал (сумма)' (Sku sku, LegalEntity customer, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
         sumSold(sku, Stock stock, customer, dateFrom, dateTo) IF inSaleReport(stock);
     
     

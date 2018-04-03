@@ -157,7 +157,7 @@ countSucceededMachineries'Кол-во загруженного оборудов�
           BY priceTransactionDocument(MachineryPriceTransaction t) SUM 1 IF succeeded(Machinery m, t) OR 
                    (succeeded(t) AND groupMachinery(m) == groupMachinery(t)) MATERIALIZED;
     
-countSucceededMachineries'Кол-во загруженного оборудования' (machineryPriceTransaction) = GROUP BY MachineryPriceTransaction t SUM 1 
+countSucceededMachineries'Кол-во загруженного оборудования' (MachineryPriceTransaction t) = GROUP SUM 1 
     IF succeeded(Machinery m,t) MATERIALIZED;
 
 countMachineries 'Кол-во оборудования в группе' (gm) =GROUP BY groupMachinery(Machinery m) SUM 1;
@@ -282,9 +282,9 @@ lastErrorTime (GroupMachinery g) = GROUP BY groupMachinery(MachineryPriceTransac
 // Загрузка в конкретные устройства
 TABLE machineryPriceTransactionMachinery (MachineryPriceTransaction, Machinery);
 in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Machinery);
-npps 'Номера устройств' (transaction) =
+npps 'Номера устройств' (MachineryPriceTransaction transaction) =
     GROUP
-          BY MachineryPriceTransaction transaction CONCAT STRING[3](npp(Machinery machinery)) IF in(transaction, machinery), ','
+          CONCAT STRING[3](npp(Machinery machinery)) IF in(transaction, machinery), ','
           ORDER machinery CHARWIDTH 10 MATERIALIZED;
 
 // перезагрузка прайса целиком
@@ -444,8 +444,8 @@ CONSTRAINT stock(RequestExchange r) AND NOT isCompany(stock(r))
 
 TABLE stockRequestExchange(Stock, RequestExchange);
 in 'Вкл' = DATA BOOLEAN (Stock, RequestExchange);  
-extraStocks = GROUP 
-                                                BY RequestExchange requestExchange CONCAT name(Stock stock) IF in(stock, requestExchange), ', '
+extraStocks (RequestExchange requestExchange) = GROUP 
+                                                CONCAT name(Stock stock) IF in(stock, requestExchange), ', '
                                                 ORDER name(stock) CHARWIDTH 30 MATERIALIZED;                                                                         
 dateFrom 'Дата с' = DATA DATE (RequestExchange) NONULL IN recognize;
 dateTo 'Дата по' = DATA DATE (RequestExchange) NONULL;
@@ -467,7 +467,7 @@ showStartDate(RequestExchange requestExchange) = requestExchangeType(requestExch
 
 TABLE machineryRequestExchange(Machinery, RequestExchange);
 dataIn 'Вкл' = DATA BOOLEAN (Machinery, RequestExchange); 
-machineries 'Оборудование' (requestExchange) = GROUP BY RequestExchange requestExchange SUM 1 IF dataIn(Machinery m, requestExchange);  
+machineries 'Оборудование' (RequestExchange requestExchange) = GROUP SUM 1 IF dataIn(Machinery m, requestExchange);  
 in (Machinery machinery, RequestExchange requestExchange) = dataIn(machinery, requestExchange) OR NOT machineries(requestExchange);     
      
 CLASS RequestExchangeLog 'Лог обмена данными';

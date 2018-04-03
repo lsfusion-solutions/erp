@@ -47,7 +47,7 @@ number 'Код строки' = DATA STRING[10] (StatisticReportTypeDetail);
 TABLE statisticReportTypeDetailStatisticReportTypeDetail(StatisticReportTypeDetail, StatisticReportTypeDetail);
 
 in 'Вкл.' (StatisticReportTypeDetail child, StatisticReportTypeDetail parent) = DATA BOOLEAN (StatisticReportTypeDetail, StatisticReportTypeDetail); //(child,parent)
-count = GROUP BY StatisticReportTypeDetail parent SUM 1 IF in(StatisticReportTypeDetail child, parent); 
+count (StatisticReportTypeDetail parent) = GROUP SUM 1 IF in(StatisticReportTypeDetail child, parent); 
 count = GROUP BY statisticReportType(StatisticReportTypeDetail parent) SUM 1 IF in(StatisticReportTypeDetail child, parent);//BY statisticReportType(statisticReportTypeDetail (StatisticReportTypeDetail d)); 
 
 CONSTRAINT in(StatisticReportTypeDetail child, StatisticReportTypeDetail parent) AND NOT (statisticReportType(child) == statisticReportType(child))
@@ -55,9 +55,9 @@ CONSTRAINT in(StatisticReportTypeDetail child, StatisticReportTypeDetail parent)
 CONSTRAINT in(StatisticReportTypeDetail child, StatisticReportTypeDetail parent) AND parent == child
     MESSAGE 'У строки не может быть ссылка на саму себя.';
         
-childNumbers 'Строки' (detail) =
+childNumbers 'Строки' (StatisticReportTypeDetail parent) =
     GROUP
-    BY StatisticReportTypeDetail parent CONCAT number(StatisticReportTypeDetail child) IF in(child, parent),'; ' 
+    CONCAT number(StatisticReportTypeDetail child) IF in(child, parent),'; ' 
     ORDER number(child), child  CHARWIDTH 10;
 
 changeStatisticGroup(StatisticReportTypeDetail d) = {
@@ -329,11 +329,11 @@ TABLE statisticReportStatisticReport(StatisticReport, StatisticReport);
 
 in 'Отм' = DATA BOOLEAN (StatisticReport, StatisticReport); // (new , reports)
 isPeriod 'Суммарный за один и тот же период' = DATA BOOLEAN (StatisticReport);
-countIn = GROUP BY StatisticReport new SUM 1 IF in(new, StatisticReport report);
+countIn (StatisticReport new) = GROUP SUM 1 IF in(new, StatisticReport report);
 
-selectReports 'Отчеты' (report) =
+selectReports 'Отчеты' (StatisticReport new) =
     GROUP
-    BY StatisticReport new CONCAT seriesNumber(StatisticReport report) IF in(new, report),'; ' 
+    CONCAT seriesNumber(StatisticReport report) IF in(new, report),'; ' 
     ORDER seriesNumber(report), report  CHARWIDTH 20;
 
 isStock(StatisticReport r) = reportKind(r) == ReportKind.stock;
@@ -391,16 +391,16 @@ balanceSum 'Запас всего' = DATA NUMERIC[16,3] (StatisticReportDetail);
 TABLE statisticReportDetailStatisticReportDetail(StatisticReportDetail, StatisticReportDetail);
 
 in 'Вкл.' = DATA BOOLEAN  (StatisticReportDetail, StatisticReportDetail );//(child,parent)
-count = GROUP BY StatisticReportDetail parent SUM 1 IF in(StatisticReportDetail child, parent); 
+count (StatisticReportDetail parent) = GROUP SUM 1 IF in(StatisticReportDetail child, parent); 
 
 CONSTRAINT in(StatisticReportDetail child, StatisticReportDetail parent) AND NOT (statisticReport(parent) == statisticReport(child))
     MESSAGE 'Ссылка на строки другого статистического отчета.';
 CONSTRAINT in(StatisticReportDetail child, StatisticReportDetail parent) AND parent == child
     MESSAGE 'У строки не может быть ссылка на саму себя.';
     
-childNumbers 'Строки' (detail) =
+childNumbers 'Строки' (StatisticReportDetail parent) =
     GROUP
-    BY StatisticReportDetail parent CONCAT number(StatisticReportDetail child) IF in(child, parent),'; ' 
+    CONCAT number(StatisticReportDetail child) IF in(child, parent),'; ' 
     ORDER number(child), child  CHARWIDTH 10;
     
 overFillData = ABSTRACT LIST (StatisticReport);

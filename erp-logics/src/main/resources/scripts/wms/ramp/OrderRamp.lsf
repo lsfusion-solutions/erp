@@ -14,7 +14,7 @@ CONSTRAINT in(Order o,Ramp r,Interval i) AND NOT in(r,i)
 order (r,i,d)= GROUP BY Ramp r,Interval i,shipmentDate(Order o) MAX o IF in(o,r,i);   
 countSupplier (r,i,d,s)= GROUP BY Ramp r,Interval i,shipmentDate(Order o), supplier(o) SUM 1 IF in(o,r,i); 
 
-countSuppliers (r,i,d)= GROUP BY Ramp r,Interval i,DATE d SUM 1 IF countSupplier (r,i,d,LegalEntity s); 
+countSuppliers (Ramp r,Interval i,DATE d)= GROUP SUM 1 IF countSupplier (r,i,d,LegalEntity s); 
   
 banDiffSupplier'Запрет резервирования рамы на одно время для разных поставщиков (только заказы)'= DATA BOOLEAN (Ramp);
 EXTEND FORM ramp
@@ -32,30 +32,30 @@ descriptionOrders 'Заказы' (r,i,d)=
     CHARWIDTH 30;   
 
 //nameSupplierOrdersRampIntervalDate 'Поставщик' (r,i,d) = nameSupplierOrder(orderRampIntervalDate(r,i,d));
-nameSupplierOrders 'Поставщики' (r,i,d)= 
+nameSupplierOrders 'Поставщики' (Ramp r,Interval i,DATE d)= 
     GROUP 
-    BY Ramp r,Interval i,DATE d CONCAT name(LegalEntity s) IF countSupplier (r,i,d,s), ', '
+    CONCAT name(LegalEntity s) IF countSupplier (r,i,d,s), ', '
     ORDER s 
     CHARWIDTH 30;   
     
 //nameCustomerOrdersRampIntervalDate 'Покупатель' (r,i,d) = nameCustomerOrder(orderRampIntervalDate(r,i,d)); 
 countCustomer (r,i,d,c)= GROUP BY Ramp r,Interval i,shipmentDate(Order o), customer(o) SUM 1 IF in(o,r,i); 
-nameCustomerOrders 'Покупатели' (r,i,d)= 
+nameCustomerOrders 'Покупатели' (Ramp r,Interval i,DATE d)= 
     GROUP 
-    BY Ramp r,Interval i,DATE d CONCAT name(LegalEntity c) IF countCustomer (r,i,d,c), ', '
+    CONCAT name(LegalEntity c) IF countCustomer (r,i,d,c), ', '
     ORDER c 
     CHARWIDTH 30;   
 descriptionOrders'Заказы' (Ramp r,Interval i,Order o) =  descriptionOrders(r,i,shipmentDate(o));    
 nameSupplierOrders 'Поставщики' (Ramp r,Interval i,Order o) = nameSupplierOrders(r,i,shipmentDate(o));
 nameCustomerOrders 'Покупатели' (Ramp r,Interval i,Order o) = nameCustomerOrders(r,i,shipmentDate(o));
 
-descriptionRamps 'Рампы' (o)= 
+descriptionRamps 'Рампы' (Order o)= 
     GROUP 
-    BY Order o CONCAT (CONCAT ' ', [= FORMULA STRING[10] 'to_char($1,\'DD.MM.YYYY\')'](shipmentDate(o)), time(Interval i), '№ '+name(Ramp r)) IF in(o,r,i), ', '
+    CONCAT (CONCAT ' ', [= FORMULA STRING[10] 'to_char($1,\'DD.MM.YYYY\')'](shipmentDate(o)), time(Interval i), '№ '+name(Ramp r)) IF in(o,r,i), ', '
     ORDER shipmentDate(o), name(r), time(i) 
     CHARWIDTH 20;            
 
-defaultShipmentTimeDate (o)= GROUP BY Order o MIN time(Interval i) IF in(o,Ramp r,i);
+defaultShipmentTimeDate (Order o)= GROUP MIN time(Interval i) IF in(o,Ramp r,i);
 
 backgroundOrders 'Цвет (свой заказ)' (r,i,o) = ABSTRACT CASE COLOR(Ramp,Interval,Order);
 

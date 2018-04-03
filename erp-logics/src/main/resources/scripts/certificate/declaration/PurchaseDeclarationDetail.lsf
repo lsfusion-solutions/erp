@@ -350,9 +350,9 @@ selectInvoices 'Выбрать накладные'(Declaration declaration) = {
 // --------- Подобранные накладные
 in (invoice, declaration)= GROUP BY invoice(InvoiceDetail d), declaration(d) SUM 1;
 
-invoices 'Накладные' (declaration) =
+invoices 'Накладные' (Declaration declaration) =
     GROUP
-              BY Declaration declaration CONCAT shortDescription(Invoice invoice) IF in (invoice, declaration) AND currency(invoice) == currency(declaration), ',' ORDER invoice CHARWIDTH 40;
+              CONCAT shortDescription(Invoice invoice) IF in (invoice, declaration) AND currency(invoice) == currency(declaration), ',' ORDER invoice CHARWIDTH 40;
 
 backgroundVATCustomsException 'Цвет' (UserInvoiceDetail invoiceDetail) = backgroundVATCustomsException() IF countVATCustomsException(customsGroup(invoiceDetail)) > 0;
 
@@ -833,32 +833,32 @@ VATSum 'НДС корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, Declaratio
 
 date (DeclarationAdjustment o) <- currentDate() WHEN SET(o IS DeclarationAdjustment);
 
-defaultHomeDeclarationAdjustment (declarationDetail) = GROUP
-    BY  DeclarationDetail detail LAST DeclarationAdjustment adjustment
+defaultHomeDeclarationAdjustment (DeclarationDetail detail) = GROUP
+    LAST DeclarationAdjustment adjustment
     ORDER date(adjustment), adjustment
     WHERE homeSum(adjustment, detail);
 
-defaultDutyDeclarationAdjustment (declarationDetail) = GROUP
-    BY  DeclarationDetail detail LAST DeclarationAdjustment adjustment
+defaultDutyDeclarationAdjustment (DeclarationDetail detail) = GROUP
+    LAST DeclarationAdjustment adjustment
     ORDER date(adjustment), adjustment
     WHERE dutySum(adjustment, detail);
 
-defaultVATDeclarationAdjustment (declarationDetail) = GROUP
-    BY  DeclarationDetail detail LAST DeclarationAdjustment adjustment
+defaultVATDeclarationAdjustment (DeclarationDetail detail) = GROUP
+    LAST DeclarationAdjustment adjustment
     ORDER date(adjustment), adjustment
     WHERE VATSum(adjustment, detail);
     
-homeSum 'Сумма корр.' (a) = GROUP BY DeclarationAdjustment a SUM homeSum(a, DeclarationDetail dd);
-dutySum 'Пошлина корр.' (a) = GROUP BY DeclarationAdjustment a SUM dutySum(a, DeclarationDetail dd);
-VATSum 'НДС корр.' (a) = GROUP BY DeclarationAdjustment a SUM VATSum(a, DeclarationDetail dd);
+homeSum 'Сумма корр.' (DeclarationAdjustment a) = GROUP SUM homeSum(a, DeclarationDetail dd);
+dutySum 'Пошлина корр.' (DeclarationAdjustment a) = GROUP SUM dutySum(a, DeclarationDetail dd);
+VATSum 'НДС корр.' (DeclarationAdjustment a) = GROUP SUM VATSum(a, DeclarationDetail dd);
 
 homeSumToPay 'Сумма к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   homeSum(a,dd) - homeSum(dd);
 dutySumToPay 'Пошлина к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   dutySum(a,dd) - dutySum(dd);
 VATSumToPay 'НДС к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   VATSum(a,dd) - VATSum(dd);
 
-homeSumToPay 'Сумма к доплате'=  GROUP BY DeclarationAdjustment a SUM homeSumToPay(a, DeclarationDetail dd);
-dutySumToPay 'Пошлина к доплате' = GROUP BY DeclarationAdjustment a SUM dutySumToPay(a, DeclarationDetail dd);
-VATSumToPay 'НДС к доплате' = GROUP BY DeclarationAdjustment a SUM VATSumToPay(a, DeclarationDetail dd);
+homeSumToPay 'Сумма к доплате' (DeclarationAdjustment a)=  GROUP SUM homeSumToPay(a, DeclarationDetail dd);
+dutySumToPay 'Пошлина к доплате' (DeclarationAdjustment a) = GROUP SUM dutySumToPay(a, DeclarationDetail dd);
+VATSumToPay 'НДС к доплате' (DeclarationAdjustment a) = GROUP SUM VATSumToPay(a, DeclarationDetail dd);
 
 changeHomeSum (DeclarationAdjustment a, DeclarationDetail d) = {
     INPUT n = NUMERIC[18,4] DO 
@@ -1084,17 +1084,17 @@ countDeclarationInvoiceDetail(DeclarationDetail dd) = countDeclarationDetail(dec
 in (DeclarationDetail d, UserInvoiceDetail i) = declarationInvoiceDetail(d) == declarationInvoiceDetail(i);
 in (d, i) = GROUP BY DeclarationDetail d, userInvoice(UserInvoiceDetail i) SUM 1 IF in (d, i);
 
-invoices 'Накладные' (d) =
+invoices 'Накладные' (DeclarationDetail d) =
     GROUP
-              BY DeclarationDetail d CONCAT seriesNumber[Invoice](UserInvoice i) IF in(d, i), ',' ORDER i CHARWIDTH 20;
+              CONCAT seriesNumber[Invoice](UserInvoice i) IF in(d, i), ',' ORDER i CHARWIDTH 20;
 
-dateInvoices 'Даты накладных' (d) =
+dateInvoices 'Даты накладных' (DeclarationDetail d) =
     GROUP
-              BY DeclarationDetail d CONCAT toDateDDMMYY(date[Invoice](UserInvoice i)) IF in(d, i), ',' ORDER i CHARWIDTH 20;
+              CONCAT toDateDDMMYY(date[Invoice](UserInvoice i)) IF in(d, i), ',' ORDER i CHARWIDTH 20;
 
-nameSupplier 'Поставщики' = 
+nameSupplier 'Поставщики' (DeclarationDetail d) = 
     GROUP
-              BY DeclarationDetail d CONCAT nameSupplier[Invoice](UserInvoice i) IF in(d, i), ',' ORDER i CHARWIDTH 20;
+              CONCAT nameSupplier[Invoice](UserInvoice i) IF in(d, i), ',' ORDER i CHARWIDTH 20;
 
 // --------------------------------- Ограничение на строки декларации ----------------------------------- //
 
@@ -1544,8 +1544,8 @@ DESIGN declaration {
 
 // ---------------- Связь строки декларации и документов ---------------- //
 
-in (dd, cd) = GROUP
-    BY DeclarationDetail dd, CustomsDocument cd SUM 1 IF 
+in (DeclarationDetail dd, CustomsDocument cd) = GROUP
+    SUM 1 IF 
     in(cd, UserInvoice ui) AND in(dd, ui) AND declaration(cd) == declaration(dd);  
 
 // -------------------------- Дополнительные платежи для декларации ---------------------------- //

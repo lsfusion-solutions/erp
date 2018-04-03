@@ -31,16 +31,16 @@ debtDefaultCurrency 'Долг по документу (основная валю
     ELSE
         debt(ledger, date);
 
-balanceACurrencyPaymentInstallments 'Задолженность по рассрочке(валюта рассрочки)' = 
+balanceACurrencyPaymentInstallments 'Задолженность по рассрочке(валюта рассрочки)' (LegalEntity legalEntity, DATE date) = 
     GROUP
-    BY LegalEntity legalEntity, DATE date SUM balanceA(Contract contract, date) IF partyB(contract) == legalEntity AND currency(contract) == defaultCurrencyPaymentInstallments();
+    SUM balanceA(Contract contract, date) IF partyB(contract) == legalEntity AND currency(contract) == defaultCurrencyPaymentInstallments();
 balanceADefaultCurrencyCurrencyPaymentInstallments 'Задолженность по рассрочке(основная валюта)' = 
     GROUP
     BY partyBContract(InContractLedger ledger), DATE date SUM debtDefaultCurrency(ledger, date);
 
-balanceADefaultCurrency 'Задолженность по предоплате' = 
+balanceADefaultCurrency 'Задолженность по предоплате' (LegalEntity legalEntity, DATE date) = 
     GROUP
-    BY LegalEntity legalEntity, DATE date SUM balanceA(Contract contract, date) IF partyB(contract) == legalEntity AND currency(contract) == defaultCurrency();        
+    SUM balanceA(Contract contract, date) IF partyB(contract) == legalEntity AND currency(contract) == defaultCurrency();        
     
 backgroundDebtInPaymentInstallments 'Цвет' () = RGB(213,249,185);
 backgroundDebtInPrePayment 'Цвет' () = RGB(255,200,125);

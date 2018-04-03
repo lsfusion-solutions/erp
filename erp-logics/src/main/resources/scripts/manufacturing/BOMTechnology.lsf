@@ -147,7 +147,7 @@ DESIGN technologies {
 TABLE  technologyComponent (Technology, Component);
 
 in 'Вкл.' = DATA BOOLEAN (Technology, Component);
-countTechnologies = GROUP BY Component component SUM 1 IF in(Technology technology, component) MATERIALIZED;
+countTechnologies (Component component) = GROUP SUM 1 IF in(Technology technology, component) MATERIALIZED;
 
 coeffWastageTechnologies (Component component, DATE date) +=
     OVERRIDE Utils.round(exp([= GROUP SUM NUMERIC[20,9](ln((100.0 - wastage(Technology t, material(component), date)) / 100.0) IF in(t, component))]()), 9);
@@ -158,12 +158,12 @@ wastageTechnologies '% потерь (технология)' = (1.0 - coeffWastag
 //                                                    ELSE (0 IF component IS Component AND date IS DATE);   
 wastageTechnologies '% потерь (технология)' (Component component) = wastageTechnologies(component, currentDate());                                                                                                     
 
-technologiesInvoice 'Технологии' (component) = GROUP
-                                         BY Component component CONCAT VARSTRING[255](name(Technology technology)) IF in(technology, component) , ', '
+technologiesInvoice 'Технологии' (Component component) = GROUP
+                                         CONCAT VARSTRING[255](name(Technology technology)) IF in(technology, component) , ', '
                                          ORDER technology
                                          CHARWIDTH 30;
                                          
-in 'Связь' (technology, material) = GROUP BY Technology technology, Material material SUM 1 IF dataWastage(technology, material, DATE date);
+in 'Связь' (Technology technology, Material material) = GROUP SUM 1 IF dataWastage(technology, material, DATE date);
 
 CONSTRAINT in(Technology technology, Component component) AND NOT in(technology, material(component))
     MESSAGE 'Для компонента выбрана технология, у которой нет значения % потерь для SKU';

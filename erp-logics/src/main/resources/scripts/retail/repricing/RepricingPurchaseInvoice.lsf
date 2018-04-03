@@ -145,8 +145,8 @@ toRepricingDateTimeTo 'Дата/время документа (по)' () = OVERR
     
 @defineGroupDefaultValue(skipRepricing, 'Не дооценивать на приходе', BOOLEAN, skuGroup); 
           
-quantityChildWithDataSkipRepricing (skuGroup) = GROUP BY SkuGroup skuGroup SUM 1 IF dataSkipRepricing(SkuGroup childSkuGroup) AND isParent(childSkuGroup, skuGroup) MATERIALIZED;
-quantityParentWithDataSkipRepricing (skuGroup) = GROUP BY SkuGroup skuGroup SUM 1 IF dataSkipRepricing(SkuGroup parentSkuGroup) AND isParent(skuGroup, parentSkuGroup) MATERIALIZED;
+quantityChildWithDataSkipRepricing (SkuGroup skuGroup) = GROUP SUM 1 IF dataSkipRepricing(SkuGroup childSkuGroup) AND isParent(childSkuGroup, skuGroup) MATERIALIZED;
+quantityParentWithDataSkipRepricing (SkuGroup skuGroup) = GROUP SUM 1 IF dataSkipRepricing(SkuGroup parentSkuGroup) AND isParent(skuGroup, parentSkuGroup) MATERIALIZED;
 
 showDataSkipRepricing 'Не дооценивать на приходе' (SkuGroup skuGroup) = TRUE IF (quantityChildWithDataSkipRepricing (skuGroup) (+) quantityParentWithDataSkipRepricing (skuGroup)) > 0 MATERIALIZED;
 showAnyDataSkipRepricing 'Не дооценивать на приходе' (SkuGroup skuGroup) = showDataSkipRepricing(skuGroup) OR NOT skuGroup IS SkuGroup;

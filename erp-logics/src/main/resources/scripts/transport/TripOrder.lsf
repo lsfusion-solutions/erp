@@ -7,7 +7,7 @@ NAMESPACE Trip;
 
 trip = DATA Trip(Order) INDEXED;
 in 'Включен' (Trip trip, Order order) = trip(order) == trip;
-countOrder 'Кол-во заказов в рейсе' (trip) = GROUP BY Trip trip SUM 1 IF in(trip, Order order) MATERIALIZED; 
+countOrder 'Кол-во заказов в рейсе' (Trip trip) = GROUP SUM 1 IF in(trip, Order order) MATERIALIZED; 
 
 driverTrip = driver(trip(Order order));
 nameDriverTrip 'Водитель' (Order order) = name[Contact](driverTrip(order));
@@ -32,7 +32,7 @@ addressFirstStock 'Начальный пункт' (Trip trip) = address(firstSto
 stockPrev (Trip trip, Stock stock) = PARTITION BY trip PREV stock IF quantity(trip, stock) ORDER number(stock, trip);
 addressStockPrev 'Адрес' (Trip trip, Stock stock) = address(stockPrev (trip, stock));
 
-maxNumber(trip) = GROUP BY Trip trip MAX number(Stock stock, trip);
+maxNumber(Trip trip) = GROUP MAX number(Stock stock, trip);
 index 'Номер' (Trip trip, Order order) = maxNumber(trip) - number(toStock(order), trip) + 1 IF in(trip, order);
 
 CONSTRAINT number(Stock stock1, trip(Order order)) >= number(Stock stock2, trip(order)) IF quantityFrom(order, stock1)>0 AND quantityTo(order, stock2)>0

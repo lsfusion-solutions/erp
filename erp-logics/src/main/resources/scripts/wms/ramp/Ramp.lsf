@@ -110,7 +110,7 @@ intervalType= DATA IntervalType (Ramp);
 nameIntervalType 'Тип интервала' (Ramp r) = name(intervalType(r));
 
 in 'Вкл.' (Ramp r,Interval i)= intervalType(r) == intervalType(i);
-countInterval 'Кол-во интервалов' (r) = GROUP BY Ramp r SUM 1 IF in(r,Interval i);
+countInterval 'Кол-во интервалов' (Ramp r) = GROUP SUM 1 IF in(r,Interval i);
 
 stock= DATA Stock (Ramp);
 nameStock 'Склад' (Ramp r) = name(stock(r));
@@ -122,8 +122,8 @@ CONSTRAINT stock(Ramp r) AND NOT isCompany(stock(r))
 //--
 TABLE rampSkuGroup(Ramp, SkuGroup);
 inData 'Вкл.' = DATA BOOLEAN (Ramp, SkuGroup);
-levelParent (ramp, group) = GROUP
-                                                              BY Ramp ramp, SkuGroup group MIN level(group, SkuGroup parent) IF inData(ramp, parent) MATERIALIZED;
+levelParent (Ramp ramp, SkuGroup group) = GROUP
+                                                              MIN level(group, SkuGroup parent) IF inData(ramp, parent) MATERIALIZED;
 
 nearestParent (Ramp ramp, SkuGroup group) = skuGroup(group, levelParent (ramp, group));
 nearestIn  (Ramp ramp, SkuGroup group) =
@@ -134,7 +134,7 @@ in 'Вкл.' (Ramp ramp, SkuGroup group) = OVERRIDE inData(ramp, group), nearest
 in 'Вкл.' (Ramp ramp, Sku sku) = in(ramp, skuGroup(sku));
 // Пока что простенькая логика привязки групп товаров к рампам, возможно надо будет переделать
 
-countSkuGroups (ramp) = GROUP BY Ramp ramp SUM 1 IF inData(ramp, SkuGroup skuGroup);
+countSkuGroups (Ramp ramp) = GROUP SUM 1 IF inData(ramp, SkuGroup skuGroup);
 
   
 FORM ramp 'Рампа'

@@ -50,8 +50,8 @@ indexSku(EOrderResponseDetail d) = PARTITION BY sku(d), eOrder(orderResponse(d))
 dataIndexSku = DATA INTEGER (Purchase.OrderDetail);
 indexSku(Purchase.OrderDetail d) = OVERRIDE dataIndexSku(d), 1;
 
-responseDetail = GROUP 
-    BY Purchase.OrderDetail d MAX EOrderResponseDetail ed 
+responseDetail (Purchase.OrderDetail d) = GROUP 
+    MAX EOrderResponseDetail ed 
     IF eOrder(ed) == order(d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed);
 
 //тереоретически поставщик может поменять порядок строк, но пока для упрощения попробуем исходить из того что не поменяет
@@ -81,4 +81,4 @@ WHEN SET (UserOrder o == eOrder(EOrderResponse od)) AND deliveryDateTime(od) AND
     shipmentTime(o) <- TIME(deliveryDateTime(od)) WHERE NOT shipmentTime(o);
 }
 
-despatchAdviceDetail = GROUP BY UserOrderDetail d MAX EOrderDespatchAdviceDetail ed IF eOrder(orderDespatchAdvice(ed)) == order(d) AND sku(ed) == sku(d);
+despatchAdviceDetail (UserOrderDetail d) = GROUP MAX EOrderDespatchAdviceDetail ed IF eOrder(orderDespatchAdvice(ed)) == order(d) AND sku(ed) == sku(d);

@@ -33,12 +33,12 @@ META defineOrderShipment(sign, stockProp)
     quantityShipmentDetail (order, shipment) = GROUP BY order(ShipmentDetail shipmentDetail), shipment(shipmentDetail) SUM quantity(shipmentDetail);
     quantityShipmentDetail (Order order, Shipment shipment) += quantityShipmentDetail (order, shipment);
 
-    orders 'Заказы' (shipment) = GROUP
-                                               BY Shipment shipment CONCAT VARISTRING[255](description(Order order)) IF quantityShipmentDetail(order, shipment) , ', '
+    orders 'Заказы'(Shipment shipment)  = GROUP
+                                               CONCAT VARISTRING[255](description(Order order)) IF quantityShipmentDetail(order, shipment) , ', '
                                                ORDER order IN order CHARWIDTH 30 MATERIALIZED;
 
-    shipments 'Поставки' (order) = GROUP
-                                             BY Order order CONCAT VARISTRING[255](description(Shipment shipment)) IF quantityShipmentDetail(order, shipment) , ', '
+    shipments 'Поставки'(Order order)  = GROUP
+                                             CONCAT VARISTRING[255](description(Shipment shipment)) IF quantityShipmentDetail(order, shipment) , ', '
                                              ORDER shipment
                                              CHARWIDTH 30;                                             
 

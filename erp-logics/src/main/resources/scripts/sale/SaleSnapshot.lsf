@@ -35,71 +35,71 @@ saleVATSupplier 'НДС поставщика продажа' = DATA NUMERIC[16,2
 saleCostVATSupplier 'С/С с НДС продажа' = saleVATSupplier(Batch batch, Stock stock, Snapshot snapshot) (+) 
                                                                   saleCostSum(batch, stock, snapshot);
 //-- группа/склад       
-saleQuantity 'Кол-во продажа' (group, stock, snapshot) =
+saleQuantity 'Кол-во продажа' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM saleQuantity (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
-saleNetWeight 'Вес продажа' (group, stock, snapshot) =
+        SUM saleQuantity (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
+saleNetWeight 'Вес продажа' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM saleNetWeight (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;        
-saleSum 'Сумма продажа' (group, stock, snapshot) =
+        SUM saleNetWeight (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;        
+saleSum 'Сумма продажа' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM saleSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;                 
-saleCostSum 'Себестоимость продажа' (group, stock, snapshot) =
+        SUM saleSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;                 
+saleCostSum 'Себестоимость продажа' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM saleCostSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;         
-saleVATSum 'НДС продажа' (group, stock, snapshot) =
+        SUM saleCostSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;         
+saleVATSum 'НДС продажа' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM saleVATSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;         
+        SUM saleVATSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;         
 saleMarkupSum 'Надбавка продажа' (SkuGroup group, Stock stock, Snapshot snapshot) =
     saleSum(group, stock, snapshot) (-) saleVATSum(group, stock, snapshot) (-) saleCostSum(group, stock, snapshot);
 saleMarkupPerc 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSum(SkuGroup group, Stock stock, Snapshot snapshot)*100.00 / saleCostSum(group, stock, snapshot));
 saleMarkupPercRet 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSum(SkuGroup group, Stock stock, Snapshot snapshot)*100.00 / saleSum(group, stock, snapshot));
 
-saleVATSupplier 'НДС поставщика продажа' (group, stock, snapshot) =
+saleVATSupplier 'НДС поставщика продажа' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM saleVATSupplier (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;         
+        SUM saleVATSupplier (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;         
 saleCostVATSupplier 'С/С с НДС продажа' = saleVATSupplier(SkuGroup group, Stock stock, Snapshot snapshot) (+) 
                                                                   saleCostSum(group, stock, snapshot);        
                         
 //-- группа          
-saleQuantity 'Кол-во продажа' (group, snapshot) =
-    GROUP  BY SkuGroup group, Snapshot snapshot SUM saleQuantity (group, Stock stock, snapshot); 
-saleNetWeight 'Вес продажа' (group, snapshot) =
-    GROUP  BY SkuGroup group, Snapshot snapshot SUM saleNetWeight (group, Stock stock, snapshot);     
-saleSum 'Сумма продажа' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM saleSum (group, Stock stock, snapshot);              
-saleCostSum 'Себестоимость продажа' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM saleCostSum (group, Stock stock, snapshot);              
-saleVATSum 'НДС продажа' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM saleVATSum (group, Stock stock, snapshot);              
-saleMarkupSum 'Надбавка продажа' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM saleMarkupSum (group, Stock stock, snapshot); 
+saleQuantity 'Кол-во продажа' (SkuGroup group, Snapshot snapshot) =
+    GROUP  SUM saleQuantity (group, Stock stock, snapshot); 
+saleNetWeight 'Вес продажа' (SkuGroup group, Snapshot snapshot) =
+    GROUP  SUM saleNetWeight (group, Stock stock, snapshot);     
+saleSum 'Сумма продажа' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM saleSum (group, Stock stock, snapshot);              
+saleCostSum 'Себестоимость продажа' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM saleCostSum (group, Stock stock, snapshot);              
+saleVATSum 'НДС продажа' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM saleVATSum (group, Stock stock, snapshot);              
+saleMarkupSum 'Надбавка продажа' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM saleMarkupSum (group, Stock stock, snapshot); 
 saleMarkupPerc 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSum(SkuGroup group, Snapshot snapshot)*100.00 / saleCostSum(group, snapshot));
 saleMarkupPercRet 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSum(SkuGroup group, Snapshot snapshot)*100.00 / saleSum(group, snapshot));
         
-saleVATSupplier 'НДС поставщика продажа' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM saleVATSupplier (group, Stock stock, snapshot); 
+saleVATSupplier 'НДС поставщика продажа' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM saleVATSupplier (group, Stock stock, snapshot); 
 saleCostVATSupplier 'С/С с НДС продажа' = saleVATSupplier(SkuGroup group, Snapshot snapshot) (+) 
                                                              saleCostSum(group, snapshot);        
         
 //--По складам
-saleQuantity 'Кол-во продажа' (stock, snapshot) =
-    GROUP  BY Stock stock, Snapshot snapshot SUM saleQuantity (Sku sku, stock, snapshot); 
-saleNetWeight 'Вес продажа' (stock, snapshot) =
-    GROUP  BY Stock stock, Snapshot snapshot SUM saleNetWeight (Sku sku, stock, snapshot);     
-saleSum 'Сумма продажа' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM saleSum (Sku sku, stock, snapshot);   
-saleCostSum 'Себестоимость продажа' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM saleCostSum (Sku sku, stock, snapshot);              
-saleVATSum 'НДС продажа' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM saleVATSum (Sku sku, stock, snapshot);              
-saleMarkupSum 'Надбавка продажа' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM saleMarkupSum (Sku sku, stock, snapshot); 
+saleQuantity 'Кол-во продажа' (Stock stock, Snapshot snapshot) =
+    GROUP  SUM saleQuantity (Sku sku, stock, snapshot); 
+saleNetWeight 'Вес продажа' (Stock stock, Snapshot snapshot) =
+    GROUP  SUM saleNetWeight (Sku sku, stock, snapshot);     
+saleSum 'Сумма продажа' (Stock stock, Snapshot snapshot) =
+    GROUP SUM saleSum (Sku sku, stock, snapshot);   
+saleCostSum 'Себестоимость продажа' (Stock stock, Snapshot snapshot) =
+    GROUP SUM saleCostSum (Sku sku, stock, snapshot);              
+saleVATSum 'НДС продажа' (Stock stock, Snapshot snapshot) =
+    GROUP SUM saleVATSum (Sku sku, stock, snapshot);              
+saleMarkupSum 'Надбавка продажа' (Stock stock, Snapshot snapshot) =
+    GROUP SUM saleMarkupSum (Sku sku, stock, snapshot); 
 saleMarkupPerc 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSum(Stock stock, Snapshot snapshot)*100.00 / saleCostSum(stock, snapshot));
 saleMarkupPercRet 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSum(Stock stock, Snapshot snapshot)*100.00 / saleSum(stock, snapshot)); 
 
-saleVATSupplier 'НДС поставщика продажа' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM saleVATSupplier (Sku sku, stock, snapshot); 
+saleVATSupplier 'НДС поставщика продажа' (Stock stock, Snapshot snapshot) =
+    GROUP SUM saleVATSupplier (Sku sku, stock, snapshot); 
 saleCostVATSupplier 'С/С с НДС продажа' = saleVATSupplier(Stock stock, Snapshot snapshot) (+) 
                                                              saleCostSum(stock, snapshot);     
 
@@ -161,23 +161,23 @@ saleCostVATSupplier 'С/С с НДС продажа' = saleVATSupplier(Sku sku, 
                                                                     saleCostSum(sku, stock, snapshot, date);
 
 //--По складам на дату     
-saleQuantity 'Кол-во продажа' (stock, snapshot, date) =
-    GROUP  BY Stock stock, Snapshot snapshot, DATE date SUM saleQuantity (Sku sku, stock, snapshot, date); 
-saleNetWeight 'Вес продажа' (stock, snapshot, date) =
-    GROUP  BY Stock stock, Snapshot snapshot, DATE date SUM saleNetWeight (Sku sku, stock, snapshot, date);     
-saleSum 'Сумма продажа' (stock, snapshot, date) =
-    GROUP BY Stock stock, Snapshot snapshot, DATE date SUM saleSum (Sku sku, stock, snapshot, date);   
-saleCostSum 'Себестоимость продажа' (stock, snapshot, date) =
-    GROUP BY Stock stock, Snapshot snapshot, DATE date SUM saleCostSum (Sku sku, stock, snapshot, date);              
-saleVATSum 'НДС продажа' (stock, snapshot, date) =
-    GROUP BY Stock stock, Snapshot snapshot, DATE date SUM saleVATSum (Sku sku, stock, snapshot, date);              
-saleMarkupSum 'Надбавка продажа' (stock, snapshot, date) =
-    GROUP BY Stock stock, Snapshot snapshot, DATE date SUM saleMarkupSum (Sku sku, stock, snapshot, date); 
+saleQuantity 'Кол-во продажа' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP  SUM saleQuantity (Sku sku, stock, snapshot, date); 
+saleNetWeight 'Вес продажа' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP  SUM saleNetWeight (Sku sku, stock, snapshot, date);     
+saleSum 'Сумма продажа' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP SUM saleSum (Sku sku, stock, snapshot, date);   
+saleCostSum 'Себестоимость продажа' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP SUM saleCostSum (Sku sku, stock, snapshot, date);              
+saleVATSum 'НДС продажа' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP SUM saleVATSum (Sku sku, stock, snapshot, date);              
+saleMarkupSum 'Надбавка продажа' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP SUM saleMarkupSum (Sku sku, stock, snapshot, date); 
 saleMarkupPerc 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSum(Stock stock, Snapshot snapshot, DATE date)*100.00 / saleCostSum(stock, snapshot, date));
 saleMarkupPercRet 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSum(Stock stock, Snapshot snapshot, DATE date)*100.00 / saleSum(stock, snapshot, date));
 
-saleVATSupplier 'НДС поставщика продажа' (stock, snapshot, date) =
-    GROUP BY Stock stock, Snapshot snapshot, DATE date SUM saleVATSupplier (Sku sku, stock, snapshot, date); 
+saleVATSupplier 'НДС поставщика продажа' (Stock stock, Snapshot snapshot, DATE date) =
+    GROUP SUM saleVATSupplier (Sku sku, stock, snapshot, date); 
 saleCostVATSupplier 'С/С с НДС продажа' = saleVATSupplier(Stock stock, Snapshot snapshot, DATE date) (+) 
                                                                  saleCostSum(stock, snapshot, date);
 
@@ -501,21 +501,21 @@ coutDaysToEnd 'Дней хватит' (Sku sku, Stock stock, Snapshot snapshot) 
     averageSold(sku, stock, snapshot));
         
 //-- группа/склад       
-cumBalance 'Накопленный остаток' (group, stock, snapshot) =
+cumBalance 'Накопленный остаток' (SkuGroup group, Stock stock, Snapshot snapshot) =
     GROUP
-        BY SkuGroup group, Stock stock, Snapshot snapshot SUM cumBalance(Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;                       
+        SUM cumBalance(Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;                       
 turnover 'Товарооборачиваемость, дн.' (SkuGroup group, Stock stock, Snapshot snapshot) = NUMERIC[12,3](cumBalance(group, stock, snapshot) /
     saleSum(group, stock, snapshot));        
 //-- группа   
-cumBalance 'Накопленный остаток' (group, snapshot) =
-    GROUP BY SkuGroup group, Snapshot snapshot SUM cumBalance(group, Stock stock, snapshot) MATERIALIZED;   
+cumBalance 'Накопленный остаток' (SkuGroup group, Snapshot snapshot) =
+    GROUP SUM cumBalance(group, Stock stock, snapshot) MATERIALIZED;   
     
 turnover 'Товарооборачиваемость, дн.' (SkuGroup group, Snapshot snapshot) = NUMERIC[12,3](cumBalance(group, snapshot) /
     saleSum(group, snapshot));    
          
 //--По складам 
-cumBalance 'Накопленный остаток' (stock, snapshot) =
-    GROUP BY Stock stock, Snapshot snapshot SUM cumBalance(Sku sku, stock, snapshot);            
+cumBalance 'Накопленный остаток' (Stock stock, Snapshot snapshot) =
+    GROUP SUM cumBalance(Sku sku, stock, snapshot);            
 
 turnover 'Товарооборачиваемость, дн.' (Stock stock, Snapshot snapshot) = NUMERIC[12,3](cumBalance(stock, snapshot) /
     saleSum(stock, snapshot));          

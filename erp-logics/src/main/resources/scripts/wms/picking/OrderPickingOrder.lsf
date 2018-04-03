@@ -63,7 +63,7 @@ pickingQuantity 'Кол-во (скомплектовано)' (OrderDetail orderD
 quantityPickingPickingDetail (order, sku)= GROUP BY order(OrderDetail detail), sku(detail) SUM pickingQuantity(detail);
 
 excessQuantityPickingPickingDetail (Order order, Sku sku) = pickingPickingDetail(order, sku) (-) quantityPickingPickingDetail (order, sku);
-excessQuantityPickingPickingDetail( order) = GROUP BY Order order SUM 1 IF excessQuantityPickingPickingDetail (order, Sku sku) > 0;
+excessQuantityPickingPickingDetail(Order order) = GROUP SUM 1 IF excessQuantityPickingPickingDetail (order, Sku sku) > 0;
 
 // ------------------------------------ Создание комплектации по заказу -------------------------------- //
 
@@ -129,7 +129,7 @@ countPerformer 'Комплектовщики' (order) = GROUP BY order(PickingOr
 namePerformer 'Комплектовщики' (order) = GROUP BY order(PickingOrder o) CONCAT namePerformer(o), ',';
 
 diffQuantityPickingDetail 'Расхождение' = quantityPickingOrderDetail(Sku sku, PickingOrder order) (-) quantityPickingDetail(sku, order);
-diffQuantityPickingDetail 'Расхождение' = GROUP BY PickingOrder order SUM diffQuantityPickingDetail(Sku sku, order) MATERIALIZED;
+diffQuantityPickingDetail 'Расхождение' (PickingOrder order) = GROUP SUM diffQuantityPickingDetail(Sku sku, order) MATERIALIZED;
 diffQuantityPickingDetail 'Расхождение' = GROUP BY order(PickingOrder o) SUM diffQuantityPickingDetail(o) MATERIALIZED;
 
 countPickingPicking 'Кол-во комплектаций' = GROUP BY order(pickingOrder(Picking picking)) SUM 1 MATERIALIZED;

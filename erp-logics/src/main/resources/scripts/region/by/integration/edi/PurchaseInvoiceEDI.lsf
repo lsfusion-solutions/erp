@@ -12,8 +12,8 @@ EOrderDespatchAdviceDetail = DATA EOrderDespatchAdviceDetail(Purchase.UserInvoic
 digits = FORMULA VARSTRING[250] 'regexp_replace(($1), \'\\D\', \'\', \'g\')';
 
 indexSku(EOrderDespatchAdviceDetail d) = PARTITION BY sku(d), eOrder(orderDespatchAdvice(d)) SUM 1 ORDER quantityOrdered(d), d MATERIALIZED INDEXED;
-orderDetail = GROUP 
-    BY EOrderDespatchAdviceDetail ed MAX Purchase.OrderDetail d
+orderDetail (EOrderDespatchAdviceDetail ed) = GROUP 
+    MAX Purchase.OrderDetail d
     IF eOrder(orderDespatchAdvice(ed)) == order(d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed);
     
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND EOrderDespatchAdviceDetail(d)

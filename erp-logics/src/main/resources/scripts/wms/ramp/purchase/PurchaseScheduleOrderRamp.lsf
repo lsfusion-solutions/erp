@@ -75,7 +75,7 @@ CONSTRAINT in(Stock st,ScheduleOrderTime o,Ramp r,Interval i) AND NOT stock(r)==
 //-- По предварительным заказам
 TABLE scheduleOrderDetailRampInterval(ScheduleOrderDetail, Ramp, Interval);
 in 'Вкл.' = DATA BOOLEAN (ScheduleOrderDetail, Ramp, Interval);
-countIntervals (o,r) = GROUP BY ScheduleOrderDetail o,Ramp r SUM 1 IF in(o,r,Interval i);
+countIntervals (ScheduleOrderDetail o,Ramp r) = GROUP SUM 1 IF in(o,r,Interval i);
 
 countScheduleOrderDetails (date,r,i) = GROUP BY dateSupply(ScheduleOrderDetail o),Ramp r,Interval i SUM 1 IF in(o,r,i) AND isOpened(o);
   
@@ -93,9 +93,9 @@ overCreate(ScheduleOrderDetail o) += {
                                                             interval);                                                             
 }  
 
-descriptionRamps 'Рампы' (o)= 
+descriptionRamps 'Рампы' (ScheduleOrderDetail o)= 
     GROUP 
-    BY ScheduleOrderDetail o CONCAT (CONCAT ' ', time(Interval i), name(Ramp r)) IF in(o,r,i), ', '
+    CONCAT (CONCAT ' ', time(Interval i), name(Ramp r)) IF in(o,r,i), ', '
     ORDER name(r), time(i) 
     CHARWIDTH 20; 
       
@@ -166,9 +166,9 @@ includeShipmentDowSupplierCustomer '' = GROUP
         BY extractDOW(dateSupply(ScheduleOrderDetail d)), supplier(d), customer(d), Ramp r, Interval i, DATE date SUM 1 IF isOpened(d) AND dateSupply(d) >= date AND
     in(d,r,i);
         
-descriptionSuppliersCustomer 'Поставщики' (dow, c, r, i, date)= 
+descriptionSuppliersCustomer 'Поставщики' (DOW dow, LegalEntity c, Ramp r, Interval i, DATE date)= 
     GROUP 
-    BY DOW dow, LegalEntity c, Ramp r, Interval i, DATE date CONCAT name(LegalEntity s) IF includeShipmentDowSupplierCustomer(dow, s, c, r, i,date), ', '
+    CONCAT name(LegalEntity s) IF includeShipmentDowSupplierCustomer(dow, s, c, r, i,date), ', '
     ORDER name(s), s
     CHARWIDTH 20; 
 prevDescriptionSuppliersCustomer 'Поставщики' (DOW dow, LegalEntity c, Ramp r, Interval i, DATE date) = PREV(descriptionSuppliersCustomer(dow, c, r, i, date)) CHARWIDTH 20;
