@@ -21,25 +21,37 @@ public class EquipmentServerImport {
         ScriptingLogicsModule zReportLM = BL.getModule("ZReport");
         if (zReportLM != null) {
 
-            List<ImportProperty<?>> paymentProperties = new ArrayList<>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             ImportField idPaymentField = new ImportField(zReportLM.findProperty("id[Payment]"));
-            ImportField idReceiptField = new ImportField(zReportLM.findProperty("id[Receipt]"));
-            ImportField sidTypePaymentField = new ImportField(zReportLM.findProperty("sid[PaymentType]"));
-            ImportField sumPaymentField = new ImportField(zReportLM.findProperty("sum[Payment]"));
-            ImportField numberPaymentField = new ImportField(zReportLM.findProperty("number[Payment]"));
-
             ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport.Payment"), zReportLM.findProperty("payment[VARSTRING[100]]").getMapping(idPaymentField));
-            ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID[STRING[10]]").getMapping(sidTypePaymentField));
-            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptField));
+            keys.add(paymentKey);
+            props.add(new ImportProperty(idPaymentField, zReportLM.findProperty("id[Payment]").getMapping(paymentKey)));
+            fields.add(idPaymentField);
 
-            paymentProperties.add(new ImportProperty(idPaymentField, zReportLM.findProperty("id[Payment]").getMapping(paymentKey)));
-            paymentProperties.add(new ImportProperty(sumPaymentField, zReportLM.findProperty("sum[Payment]").getMapping(paymentKey)));
-            paymentProperties.add(new ImportProperty(numberPaymentField, zReportLM.findProperty("number[Payment]").getMapping(paymentKey)));
-            paymentProperties.add(new ImportProperty(sidTypePaymentField, zReportLM.findProperty("paymentType[Payment]").getMapping(paymentKey),
-                    zReportLM.object(zReportLM.findClass("PaymentType")).getMapping(paymentTypeKey)));
-            paymentProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[Payment]").getMapping(paymentKey),
+            ImportField idReceiptField = new ImportField(zReportLM.findProperty("id[Receipt]"));
+            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptField));
+            keys.add(receiptKey);
+            props.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[Payment]").getMapping(paymentKey),
                     zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
+            fields.add(idReceiptField);
+
+            ImportField sidTypePaymentField = new ImportField(zReportLM.findProperty("sid[PaymentType]"));
+            ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID[STRING[10]]").getMapping(sidTypePaymentField));
+            keys.add(paymentKey);
+            props.add(new ImportProperty(sidTypePaymentField, zReportLM.findProperty("paymentType[Payment]").getMapping(paymentKey),
+                    zReportLM.object(zReportLM.findClass("PaymentType")).getMapping(paymentTypeKey)));
+            fields.add(sidTypePaymentField);
+
+            ImportField sumPaymentField = new ImportField(zReportLM.findProperty("sum[Payment]"));
+            props.add(new ImportProperty(sumPaymentField, zReportLM.findProperty("sum[Payment]").getMapping(paymentKey)));
+            fields.add(sumPaymentField);
+
+            ImportField numberPaymentField = new ImportField(zReportLM.findProperty("number[Payment]"));
+            props.add(new ImportProperty(numberPaymentField, zReportLM.findProperty("number[Payment]").getMapping(paymentKey)));
+            fields.add(numberPaymentField);
 
             List<List<Object>> dataPayment = new ArrayList<>();
             for (int i = start; i < finish; i++) {
@@ -54,9 +66,7 @@ public class EquipmentServerImport {
             }
 
             if (!dataPayment.isEmpty())
-                new IntegrationService(session, new ImportTable(Arrays.asList(idPaymentField, idReceiptField, sidTypePaymentField,
-                        sumPaymentField, numberPaymentField), dataPayment), Arrays.asList(paymentKey, paymentTypeKey, receiptKey),
-                        paymentProperties).synchronize(true);
+                new IntegrationService(session, new ImportTable(fields, dataPayment), keys, props).synchronize(true);
         }
     }
 
@@ -64,25 +74,37 @@ public class EquipmentServerImport {
         ScriptingLogicsModule zReportLM = BL.getModule("ZReport");
         if (zReportLM != null) {
 
-            List<ImportProperty<?>> paymentProperties = new ArrayList<>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             ImportField idPaymentField = new ImportField(zReportLM.findProperty("id[Payment]"));
-            ImportField idReceiptField = new ImportField(zReportLM.findProperty("id[Receipt]"));
-            ImportField sidTypePaymentField = new ImportField(zReportLM.findProperty("sid[PaymentType]"));
-            ImportField sumPaymentField = new ImportField(zReportLM.findProperty("sum[Payment]"));
-            ImportField numberPaymentField = new ImportField(zReportLM.findProperty("number[Payment]"));
-
             ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport.Payment"), zReportLM.findProperty("payment[VARSTRING[100]]").getMapping(idPaymentField));
-            ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID[STRING[10]]").getMapping(sidTypePaymentField));
-            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptField));
+            keys.add(paymentKey);
+            props.add(new ImportProperty(idPaymentField, zReportLM.findProperty("id[Payment]").getMapping(paymentKey)));
+            fields.add(idPaymentField);
 
-            paymentProperties.add(new ImportProperty(idPaymentField, zReportLM.findProperty("id[Payment]").getMapping(paymentKey)));
-            paymentProperties.add(new ImportProperty(sumPaymentField, zReportLM.findProperty("sum[Payment]").getMapping(paymentKey)));
-            paymentProperties.add(new ImportProperty(numberPaymentField, zReportLM.findProperty("number[Payment]").getMapping(paymentKey)));
-            paymentProperties.add(new ImportProperty(sidTypePaymentField, zReportLM.findProperty("paymentType[Payment]").getMapping(paymentKey),
-                    zReportLM.object(zReportLM.findClass("PaymentType")).getMapping(paymentTypeKey)));
-            paymentProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[Payment]").getMapping(paymentKey),
+            ImportField idReceiptField = new ImportField(zReportLM.findProperty("id[Receipt]"));
+            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptField));
+            keys.add(receiptKey);
+            props.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[Payment]").getMapping(paymentKey),
                     zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
+            fields.add(idReceiptField);
+
+            ImportField sidTypePaymentField = new ImportField(zReportLM.findProperty("sid[PaymentType]"));
+            ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID[STRING[10]]").getMapping(sidTypePaymentField));
+            keys.add(paymentTypeKey);
+            props.add(new ImportProperty(sidTypePaymentField, zReportLM.findProperty("paymentType[Payment]").getMapping(paymentKey),
+                    zReportLM.object(zReportLM.findClass("PaymentType")).getMapping(paymentTypeKey)));
+            fields.add(sidTypePaymentField);
+
+            ImportField sumPaymentField = new ImportField(zReportLM.findProperty("sum[Payment]"));
+            props.add(new ImportProperty(sumPaymentField, zReportLM.findProperty("sum[Payment]").getMapping(paymentKey)));
+            fields.add(sumPaymentField);
+
+            ImportField numberPaymentField = new ImportField(zReportLM.findProperty("number[Payment]"));
+            props.add(new ImportProperty(numberPaymentField, zReportLM.findProperty("number[Payment]").getMapping(paymentKey)));
+            fields.add(numberPaymentField);
 
             List<List<Object>> dataPayment = new ArrayList<>();
             for (SalesInfo sale : data) {
@@ -96,9 +118,7 @@ public class EquipmentServerImport {
             }
 
             if (!dataPayment.isEmpty())
-                new IntegrationService(session, new ImportTable(Arrays.asList(idPaymentField, idReceiptField, sidTypePaymentField,
-                        sumPaymentField, numberPaymentField), dataPayment), Arrays.asList(paymentKey, paymentTypeKey, receiptKey),
-                        paymentProperties).synchronize(true);
+                new IntegrationService(session, new ImportTable(fields, dataPayment), keys, props).synchronize(true);
         }
     }
 
