@@ -72,6 +72,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 Exception exception = null;
                                 try {
                                     if (transaction.itemsList != null) {
+
+                                        ListIterator<CashRegisterItemInfo> iter = transaction.itemsList.listIterator();
+                                        while (iter.hasNext()) {
+                                            CashRegisterItemInfo item = iter.next();
+                                            if (!isValidItem(item)) {
+                                                processTransactionLogger.info(logPrefix +
+                                                        String.format("transaction %s, invalid item: barcode %s, id %s, uom %s", transaction.id, item.idBarcode, item.idItem, item.idUOM));
+                                                iter.remove();
+                                            }
+                                        }
+
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table grp", transaction.id));
                                         exportGrp(conn, transaction);
 
@@ -156,19 +167,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 if (!Thread.currentThread().isInterrupted()) {
                     CashRegisterItemInfo item = transaction.itemsList.get(i);
                     Integer idItem = parseIdItem(item);
-                    if (idItem != null) {
-                        setObject(ps, idItem, 1, offset); //ARTID
-                        setObject(ps, parseGroup(item.extIdItemGroup), 2, offset); //GRPID
-                        setObject(ps, item.vat == null ? "0" : item.vat, 3, offset); //TAXGRPID
-                        setObject(ps, idItem, 4, offset); //ARTCODE
-                        setObject(ps, trim(item.name, "", 50), 5, offset); //ARTNAME
-                        setObject(ps, trim(item.name, "", 50), 6, offset); //ARTSNAME
-                        setObject(ps, "0", 7, offset); //DELFLAG
+                    setObject(ps, idItem, 1, offset); //ARTID
+                    setObject(ps, parseGroup(item.extIdItemGroup), 2, offset); //GRPID
+                    setObject(ps, item.vat == null ? "0" : item.vat, 3, offset); //TAXGRPID
+                    setObject(ps, idItem, 4, offset); //ARTCODE
+                    setObject(ps, trim(item.name, "", 50), 5, offset); //ARTNAME
+                    setObject(ps, trim(item.name, "", 50), 6, offset); //ARTSNAME
+                    setObject(ps, "0", 7, offset); //DELFLAG
 
-                        setObject(ps, idItem, 8); //ARTID
+                    setObject(ps, idItem, 8); //ARTID
 
-                        ps.addBatch();
-                    }
+                    ps.addBatch();
                 } else break;
             }
             ps.executeBatch();
@@ -186,16 +195,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 if (!Thread.currentThread().isInterrupted()) {
                     CashRegisterItemInfo item = transaction.itemsList.get(i);
                     Integer idUOM = parseUOM(item.idUOM);
-                    if (idUOM != null) {
-                        setObject(ps, idUOM, 1, offset); //UNITID
-                        setObject(ps, item.shortNameUOM, 2, offset); //UNITNAME
-                        setObject(ps, item.shortNameUOM, 3, offset); //UNITFULLNAME
-                        setObject(ps, "0", 4, offset); //DELFLAG
+                    setObject(ps, idUOM, 1, offset); //UNITID
+                    setObject(ps, item.shortNameUOM, 2, offset); //UNITNAME
+                    setObject(ps, item.shortNameUOM, 3, offset); //UNITFULLNAME
+                    setObject(ps, "0", 4, offset); //DELFLAG
 
-                        setObject(ps, idUOM, 5); //UNITID
+                    setObject(ps, idUOM, 5); //UNITID
 
-                        ps.addBatch();
-                    }
+                    ps.addBatch();
                     ps.executeBatch();
                     conn.commit();
                 } else break;
@@ -225,28 +232,26 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     CashRegisterItemInfo item = transaction.itemsList.get(i);
                     Integer idUOM = parseUOM(item.idUOM);
                     Integer idItem = parseIdItem(item);
-                    if (idUOM != null && idItem != null) {
-                        Integer packId = getPackId(item);
-                        setObject(ps, packId, 1, offset); //PACKID
-                        setObject(ps, idItem, 2, offset); //ARTID
-                        setObject(ps, "1", 3, offset); //PACKQUANT
-                        setObject(ps, "0", 4, offset); //PACKSHELFLIFE
-                        if (idItems.contains(idItem)) {
-                            setObject(ps, false, 5, offset); //ISDEFAULT
-                        } else {
-                            setObject(ps, true, 5, offset); //ISDEFAULT
-                            idItems.add(idItem);
-                        }
-                        setObject(ps, idUOM, 6, offset); //UNITID
-                        setObject(ps, "", 7, offset); //QUANTMASK
-                        setObject(ps, item.passScalesItem ? 0 : 1, 8, offset); //PACKDTYPE
-                        setObject(ps, trim(item.name, "", 50), 9, offset); //PACKNAME
-                        setObject(ps, "0", 10, offset); //DELFLAG
-
-                        setObject(ps, packId, 11); //PACKID
-
-                        ps.addBatch();
+                    Integer packId = getPackId(item);
+                    setObject(ps, packId, 1, offset); //PACKID
+                    setObject(ps, idItem, 2, offset); //ARTID
+                    setObject(ps, "1", 3, offset); //PACKQUANT
+                    setObject(ps, "0", 4, offset); //PACKSHELFLIFE
+                    if (idItems.contains(idItem)) {
+                        setObject(ps, false, 5, offset); //ISDEFAULT
+                    } else {
+                        setObject(ps, true, 5, offset); //ISDEFAULT
+                        idItems.add(idItem);
                     }
+                    setObject(ps, idUOM, 6, offset); //UNITID
+                    setObject(ps, "", 7, offset); //QUANTMASK
+                    setObject(ps, item.passScalesItem ? 0 : 1, 8, offset); //PACKDTYPE
+                    setObject(ps, trim(item.name, "", 50), 9, offset); //PACKNAME
+                    setObject(ps, "0", 10, offset); //DELFLAG
+
+                    setObject(ps, packId, 11); //PACKID
+
+                    ps.addBatch();
                 } else break;
             }
             ps.executeBatch();
@@ -304,9 +309,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (!Thread.currentThread().isInterrupted()) {
                     CashRegisterItemInfo item = transaction.itemsList.get(i);
-                    Integer idUOM = parseUOM(item.idUOM);
-                    Integer idItem = parseIdItem(item);
-                    if (idUOM != null && idItem != null && item.price != null) {
+                    if (item.price != null) {
                         Integer packId = getPackId(item);
                         setObject(ps, packId, 1, offset); //PACKID
                         setObject(ps, transaction.nppGroupMachinery, 2, offset); //PRCLEVELID
@@ -328,6 +331,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             ps.executeBatch();
             conn.commit();
         }
+    }
+
+    private boolean isValidItem(CashRegisterItemInfo item) {
+        return parseUOM(item.idUOM) != null && parseIdItem(item) != null;
     }
 
     private void exportFlags(Connection conn, String tables) throws SQLException {
