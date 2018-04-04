@@ -12,14 +12,14 @@ END
 order 'Номер' = DATA LOCAL INTEGER(INTEGER);
 nameGroup 'Группировка' = DATA LOCAL VARSTRING[100](INTEGER);
 
-countGroup = OVERRIDE [=GROUP MAX order(INTEGER i)](), 0;
+countGroup = OVERRIDE (GROUP MAX order(INTEGER i)), 0;
 
 isSkuLastGroup = order(2) == countGroup();
 numberSkuGroup = order(2);
 
 addGroup(INTEGER i, VARSTRING[100] name) = {
     nameGroup(i) <- name;
-    order(i) <- (OVERRIDE [=GROUP MAX order(INTEGER in)](), 0) + 1;
+    order(i) <- (OVERRIDE (GROUP MAX order(INTEGER in)), 0) + 1;
 }
 reorderGroup() = {
     order(INTEGER i) <- PARTITION SUM 1 IF nameGroup(i) ORDER order(i);
@@ -84,9 +84,9 @@ fillGroupBalanceSkusStock 'Сформировать'(GroupType gt, DATETIME d) =
     sumB(Sku sk, Stock st) <- NULL; 
     costVATSum(Sku sk, Stock st) <- NULL;
     
-    balanceB(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM balanceB(sk, st, d) IF inBackSheet(st)]());
+    balanceB(Sku sk, Stock st) <- NUMERIC[16,5]((GROUP SUM balanceB(sk, st, d) IF inBackSheet(st)));
     costSumB(Sku sk, Stock st) <- NUMERIC[32,9]([ = GROUP BY DATE dd SUM costSumB(sk, st, dd) IF inBackSheet(st)](toDate(d)));
-    sumB(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumB(sk, st, d) IF inBackSheet(st)]());
+    sumB(Sku sk, Stock st) <- NUMERIC[18,4]((GROUP SUM sumB(sk, st, d) IF inBackSheet(st)));
     costVATSum(Sku sk, Stock st) <- NUMERIC[26,8]([ = GROUP BY sku(Batch b), DATE dt SUM costB(b, st, dt)*(1 + Stock.valueVAT(b)/100) IF inBackSheet(st)](sk, toDate(d)));
   
     setNameGroup1();
@@ -122,15 +122,15 @@ printGroupBalanceSkus 'Отчет по остаткам' (DATETIME dateTime, Gro
         MESSAGE 'Не задана группировка';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN {
+    IF NOT (GROUP SUM 1 IF inBackSheet(Stock st)) THEN {
         MESSAGE 'Не задан склад';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inSession(Group gr)]() THEN {
+    IF NOT (GROUP SUM 1 IF inSession(Group gr)) THEN {
         MESSAGE 'Не задана группа';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inBackSheet(LegalEntity le)]() THEN {
+    IF NOT (GROUP SUM 1 IF inBackSheet(LegalEntity le)) THEN {
         MESSAGE 'Не задан поставщик';
         RETURN;
     }
@@ -142,15 +142,15 @@ printXlsxGroupBalanceSkus 'Отчет по остаткам (XLSX)' (DATETIME da
         MESSAGE 'Не задана группировка';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN {
+    IF NOT (GROUP SUM 1 IF inBackSheet(Stock st)) THEN {
         MESSAGE 'Не задан склад';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inSession(Group gr)]() THEN {
+    IF NOT (GROUP SUM 1 IF inSession(Group gr)) THEN {
         MESSAGE 'Не задана группа';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inBackSheet(LegalEntity le)]() THEN {
+    IF NOT (GROUP SUM 1 IF inBackSheet(LegalEntity le)) THEN {
         MESSAGE 'Не задан поставщик';
         RETURN;
     }
@@ -184,7 +184,7 @@ DESIGN dialogSuppliersBackSheet {
 
 changeSuppliersBackSheet() = {
     DIALOG dialogSuppliersBackSheet OBJECTS s INPUT DO {
-        IF NOT [= GROUP SUM 1 IF inBackSheet(LegalEntity le)]() THEN
+        IF NOT (GROUP SUM 1 IF inBackSheet(LegalEntity le)) THEN
             inBackSheet(s) <- TRUE;
     }
 }

@@ -424,7 +424,7 @@ backgroundStatus 'Цвет' (SnapshotABC snapshot) =  CASE
 
 takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)  = {
     
-    IF currentUser() IS Employee AND [= GROUP SUM 1 IF include(snapshot, Stock st) AND NOT accessCompany(currentUser(), st)]() THEN {
+    IF currentUser() IS Employee AND (GROUP SUM 1 IF include(snapshot, Stock st) AND NOT accessCompany(currentUser(), st)) THEN {
         dataInclude(snapshot, Stock st) <- include(snapshot, st) AND accessCompany(currentUser(), st);
         allStockInclude(snapshot) <- NULL;
         dataInclude(snapshot, StockGroup g) <- NULL;
@@ -461,23 +461,20 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)  = {
     
     // Количество продаж товара (для XYZ-отчета)
     LOCAL quantitySold = NUMERIC[16,5] (Sku, DATE);            
-    quantitySold (Sku sku, DATE date) <- [=
-        GROUP
+    quantitySold (Sku sku, DATE date) <- (GROUP
             SUM quantitySold(sku, Stock st, date) 
-            IF include(snapshot, st) ] () WHERE include(snapshot, sku) AND date >= dateFrom AND date <= dateTo;
+            IF include(snapshot, st)) WHERE include(snapshot, sku) AND date >= dateFrom AND date <= dateTo;
     
     // по товарам
     
     markupSumSold(Sku sku, snapshot) <- NULL;
     sumSold(Sku sku, snapshot) <- NULL;
     
-    markupSumSold (Sku sku, snapshot) <- [=
-        GROUP
-            SUM markupSumSold(sku, Stock st, dateFrom, dateTo) IF include(snapshot, st) ] () WHERE include(snapshot, sku);
+    markupSumSold (Sku sku, snapshot) <- (GROUP
+            SUM markupSumSold(sku, Stock st, dateFrom, dateTo) IF include(snapshot, st)) WHERE include(snapshot, sku);
     
-    sumSold (Sku sku, snapshot) <- [=
-        GROUP
-            SUM sumSold(sku, Stock st, dateFrom, dateTo) IF include(snapshot, st) ] () WHERE include(snapshot, sku);
+    sumSold (Sku sku, snapshot) <- (GROUP
+            SUM sumSold(sku, Stock st, dateFrom, dateTo) IF include(snapshot, st)) WHERE include(snapshot, sku);
     
     percMarkupSold(Sku sku, snapshot) <- round2(markupSumSold(sku, snapshot)*100.00 / sumSold(sku, snapshot)) WHERE include(snapshot, sku);
     
@@ -556,15 +553,14 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)  = {
     
     ///// XYZ
     //  Среднее кол-во продаж в день
-    averageSold(Sku sku, snapshot) <- round3( [=
-        GROUP
-        SUM quantitySold (sku, Stock st, dateFrom, dateTo)  IF include(snapshot, st) ] ()
+    averageSold(Sku sku, snapshot) <- round3( (GROUP
+        SUM quantitySold (sku, Stock st, dateFrom, dateTo)  IF include(snapshot, st))
         / daysInclBetweenDates(fromDate(snapshot),toDate(snapshot))) WHERE include(snapshot, sku);
 
     //  Дисперсия однодневных продаж 
-    dispersionSold(Sku sku, snapshot) <- round3( sqrt([ = GROUP SUM sqr((OVERRIDE quantitySold(sku, DATE date), 0.0 IF sku IS Sku )
+    dispersionSold(Sku sku, snapshot) <- round3( sqrt((GROUP SUM sqr((OVERRIDE quantitySold(sku, DATE date), 0.0 IF sku IS Sku )
         -  averageSold(sku, snapshot))
-        IF iterate(date, fromDate(snapshot), toDate(snapshot))]() / 
+        IF iterate(date, fromDate(snapshot), toDate(snapshot))) / 
         daysInclBetweenDates(fromDate(snapshot),toDate(snapshot)))) WHERE include(snapshot, sku) ;
     
     dispersionSold(Sku sku, snapshot) <- 0.0 WHERE include(snapshot, sku) AND NOT dispersionSold(sku, snapshot); 
@@ -722,7 +718,7 @@ deleteSnapshotsABC 'Удалить старые ABC-отчеты'()= {
 }
 
 orderSort 'Порядок (внутри группы)' (SkuGroup g) = PARTITION BY groupType(g), parent(g) SUM 1 ORDER sort(g);
-canonicalOrderSort 'Порядок' (SkuGroup g) = VARSTRING[250]([ = GROUP CONCAT lpad(VARSTRING[3](orderSort(SkuGroup parent)), 3, '0') , '.' ORDER DESC level(g, parent)]());
+canonicalOrderSort 'Порядок' (SkuGroup g) = VARSTRING[250]((GROUP CONCAT lpad(VARSTRING[3](orderSort(SkuGroup parent)), 3, '0') , '.' ORDER DESC level(g, parent)));
 nameLevel4 'Наименование' (SkuGroup g) = VARSTRING[100](repeat('    ', INTEGER(level(g))-1)) + name(g);
 
 FORM snapshotABC 'ABC-отчет'                                   

@@ -20,7 +20,7 @@ EXTEND FORM invoices
 createExtraValuationNotFormExtra 'Создать дооценку'(Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation) = {
     LOCAL in = BOOLEAN (Invoice);
     in(Invoice invoice) <- filterToRepricingDate (invoice, department, timeFrom, timeTo);
-    IF [ = GROUP SUM 1 IF in(Invoice invoice)] () THEN {
+    IF (GROUP SUM 1 IF in(Invoice invoice)) THEN {
         
         LOCAL repricingQuantity =  NUMERIC[16,5] (InvoiceDetail);
         repricingQuantity(InvoiceDetail detail) <- NULL;
@@ -61,7 +61,7 @@ createExtraValuationNotFormExtra 'Создать дооценку'(Stock departm
             }
         }
                 
-        IF [ = GROUP SUM 1 IF positive(InvoiceDetail detail) OR negative(detail) ]() THEN {
+        IF (GROUP SUM 1 IF positive(InvoiceDetail detail) OR negative(detail)) THEN {
             FOR [ = GROUP BY invoice(InvoiceDetail detail) SUM 1 IF (positive(detail) OR negative(detail) )](Invoice i) DO  NEW r = UserRepricing {
                 departmentStore(r) <-  department;
                 operation(r) <- operation;
@@ -174,7 +174,7 @@ createRepricing 'Акт переоценки (дооценка)'(Invoice i) = {
                 }
             }
                     
-            IF [ = GROUP SUM 1 IF positive(InvoiceDetail detail) OR negative(detail) ]() THEN NEWSESSION NESTED(positive[InvoiceDetail], negative[InvoiceDetail], repricingQuantity[InvoiceDetail]){
+            IF (GROUP SUM 1 IF positive(InvoiceDetail detail) OR negative(detail)) THEN NEWSESSION NESTED(positive[InvoiceDetail], negative[InvoiceDetail], repricingQuantity[InvoiceDetail]){
                 NEW r = UserRepricing {
                     departmentStore(r) <-  customerStock(i);
                     operation(r) <- toRepricingOperation();

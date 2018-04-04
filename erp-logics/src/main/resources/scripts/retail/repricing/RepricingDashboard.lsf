@@ -8,7 +8,7 @@ NAMESPACE Repricing;
 
 createRepricingLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore, Operation operation, DATETIME dateTime) = {
 	NEWSESSION NESTED (select[Sku], inDashboardRepricing[Sku], managementRetailPrice[Sku], managementPriceListPrice[Sku]) {
-	    IF [=GROUP SUM 1 IF inDashboardRepricing(Sku sku)]() THEN {
+	    IF (GROUP SUM 1 IF inDashboardRepricing(Sku sku)) THEN {
 	        select(Sku sku, LabelType labelType, departmentStore) <- inDashboardRepricing(sku) AND inPrint(labelType, sku, departmentStore);   
 	        FOR [= GROUP BY LabelType l SUM 1 IF select(Sku s,l,departmentStore)](LabelType labelType) NEW t = LabelTransaction DO { 
 	            departmentStore(t) <- departmentStore;

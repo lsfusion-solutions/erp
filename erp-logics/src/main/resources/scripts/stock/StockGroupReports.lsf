@@ -12,13 +12,13 @@ END
 order 'Номер' = DATA LOCAL INTEGER(INTEGER);
 nameGroup 'Группировка' = DATA LOCAL VARSTRING[100](INTEGER);
 
-countGroup = OVERRIDE [=GROUP MAX order(INTEGER i)](), 0;
+countGroup = OVERRIDE (GROUP MAX order(INTEGER i)), 0;
 
 isSkuLastGroup = order(2) == countGroup();
 
 addGroup(INTEGER i, VARSTRING[100] name) = {
     nameGroup(i) <- name;
-    order(i) <- (OVERRIDE [=GROUP MAX order(INTEGER in)](), 0) + 1;
+    order(i) <- (OVERRIDE (GROUP MAX order(INTEGER in)), 0) + 1;
 }
 reorderGroup() = {
     order(INTEGER i) <- PARTITION SUM 1 IF nameGroup(i) ORDER order(i);
@@ -104,33 +104,33 @@ fillReportGroupBackSheetFromTo 'Сформировать'(GroupType gt, DATE df,
     quantitySold(Sku sk, Stock st) <- NULL;
     sumSold(Sku sk, Stock st) <- NULL;
 
-    balanceA(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM balanceA(sk, st, dt) IF inBackSheet(st)]()); 
+    balanceA(Sku sk, Stock st) <- NUMERIC[16,5]((GROUP SUM balanceA(sk, st, dt) IF inBackSheet(st))); 
     
-    costSumA(Sku sk, Stock st) <- NUMERIC[32,9]([ = GROUP SUM costSumA(sk, st, dt) IF inBackSheet(st)]()); 
+    costSumA(Sku sk, Stock st) <- NUMERIC[32,9]((GROUP SUM costSumA(sk, st, dt) IF inBackSheet(st))); 
      
-    sumA(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumA(sk, st, dt) IF inBackSheet(st)]());
+    sumA(Sku sk, Stock st) <- NUMERIC[18,4]((GROUP SUM sumA(sk, st, dt) IF inBackSheet(st)));
 
-    balanceB(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM balanceB(sk, st, df) IF inBackSheet(st)]());
+    balanceB(Sku sk, Stock st) <- NUMERIC[16,5]((GROUP SUM balanceB(sk, st, df) IF inBackSheet(st)));
     
-    costSumB(Sku sk, Stock st) <- NUMERIC[32,9]([ = GROUP SUM costSumB(sk, st, df) IF inBackSheet(st)]());
+    costSumB(Sku sk, Stock st) <- NUMERIC[32,9]((GROUP SUM costSumB(sk, st, df) IF inBackSheet(st)));
     
-    sumB(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumB(sk, st, df) IF inBackSheet(st)]());
+    sumB(Sku sk, Stock st) <- NUMERIC[18,4]((GROUP SUM sumB(sk, st, df) IF inBackSheet(st)));
     
-    quantityPurchase(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM quantityPurchase(sk, st, df, dt) IF inBackSheet(st)]());
+    quantityPurchase(Sku sk, Stock st) <- NUMERIC[16,5]((GROUP SUM quantityPurchase(sk, st, df, dt) IF inBackSheet(st)));
     
-    costSumPurchase(Sku sk, Stock st) <- NUMERIC[32,9]([ = GROUP SUM costSumPurchase(sk, st, df, dt) IF inBackSheet(st)]());
+    costSumPurchase(Sku sk, Stock st) <- NUMERIC[32,9]((GROUP SUM costSumPurchase(sk, st, df, dt) IF inBackSheet(st)));
     
-    sumPurchase(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumPurchase(sk, st, df, dt) IF inBackSheet(st)]());
+    sumPurchase(Sku sk, Stock st) <- NUMERIC[18,4]((GROUP SUM sumPurchase(sk, st, df, dt) IF inBackSheet(st)));
     
-    sumVATPurchase(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumVATPurchase(sk, st, df, dt) IF inBackSheet(st)]());
+    sumVATPurchase(Sku sk, Stock st) <- NUMERIC[18,4]((GROUP SUM sumVATPurchase(sk, st, df, dt) IF inBackSheet(st)));
     
-    quantitySold(Sku sk, Stock st) <- NUMERIC[16,5]([ = GROUP SUM quantitySold(sk, st, df, dt) IF inBackSheet(st)]());
+    quantitySold(Sku sk, Stock st) <- NUMERIC[16,5]((GROUP SUM quantitySold(sk, st, df, dt) IF inBackSheet(st)));
     
-    costSumSold(Sku sk, Stock st) <- NUMERIC[16,3]([ = GROUP SUM costSumSold(sk, st, df, dt) IF inBackSheet(st)]());
+    costSumSold(Sku sk, Stock st) <- NUMERIC[16,3]((GROUP SUM costSumSold(sk, st, df, dt) IF inBackSheet(st)));
      
-    sumSold(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumSold(sk, st, df, dt) IF inBackSheet(st)]());
+    sumSold(Sku sk, Stock st) <- NUMERIC[18,4]((GROUP SUM sumSold(sk, st, df, dt) IF inBackSheet(st)));
     
-    sumVATSold(Sku sk, Stock st) <- NUMERIC[18,4]([ = GROUP SUM sumVATSold(sk, st, df, dt) IF inBackSheet(st)]());
+    sumVATSold(Sku sk, Stock st) <- NUMERIC[18,4]((GROUP SUM sumVATSold(sk, st, df, dt) IF inBackSheet(st)));
     
     inSkuStock(Sku sk, Stock st) <- balanceA(sk, st) OR balanceB(sk, st) OR quantityPurchase(sk, st) OR quantitySold(sk, st);
     
@@ -163,11 +163,11 @@ printGroupBackSheet 'Отчет по товарообороту' (DATE dateFrom,
         MESSAGE 'Не задана группировка';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN {
+    IF NOT (GROUP SUM 1 IF inBackSheet(Stock st)) THEN {
         MESSAGE 'Не задан склад';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inSession(Group gr)]() THEN {
+    IF NOT (GROUP SUM 1 IF inSession(Group gr)) THEN {
         MESSAGE 'Не задана группа';
         RETURN;
     }
@@ -180,11 +180,11 @@ xlsxGroupBackSheet 'Отчет по товарообороту (XLSX)' (DATE dat
         MESSAGE 'Не задана группировка';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN {
+    IF NOT (GROUP SUM 1 IF inBackSheet(Stock st)) THEN {
         MESSAGE 'Не задан склад';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inSession(Group gr)]() THEN {
+    IF NOT (GROUP SUM 1 IF inSession(Group gr)) THEN {
         MESSAGE 'Не задана группа';
         RETURN;
     }

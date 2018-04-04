@@ -720,7 +720,7 @@ TABLE snapshotSku (Snapshot, Sku);
 
 dataInclude 'Вкл' = DATA BOOLEAN (Snapshot, Sku);
 
-includeSkuGroup (Snapshot snapshot, Sku sku) = [= GROUP MAX 1 IF include(snapshot, SkuGroup g) AND isParent(g, sku)]();
+includeSkuGroup (Snapshot snapshot, Sku sku) = (GROUP MAX 1 IF include(snapshot, SkuGroup g) AND isParent(g, sku));
 includeBrand (Snapshot snapshot, Sku sku) = include(snapshot, brand(sku)) OR NOT countIncludeBrands(snapshot);
 includeLegalEntity (Snapshot snapshot, Sku sku) = include(snapshot, supplierLastOrderBatch(sku)) OR NOT countIncludeLegalEntities(snapshot);
 
@@ -769,7 +769,7 @@ backgroundStatus 'Цвет' (Snapshot snapshot) =  CASE
 singleStock = DATA LOCAL Stock();
 
 takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = {
-    IF currentUser() IS Employee AND [= GROUP SUM 1 IF include(snapshot, Stock st) AND NOT accessCompany(currentUser(), st)]() THEN {
+    IF currentUser() IS Employee AND (GROUP SUM 1 IF include(snapshot, Stock st) AND NOT accessCompany(currentUser(), st)) THEN {
         dataInclude(snapshot, Stock st) <- include(snapshot, st) AND accessCompany(currentUser(), st);
         allStockInclude(snapshot) <- NULL;
         dataInclude(snapshot, StockGroup g) <- NULL;
@@ -785,14 +785,14 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = {
     }
     IF countIncludeLegalEntities(snapshot) THEN {
         IF filterLocal() THEN {
-            includeLocal(Sku sku) <- TRUE WHERE includeLocal(sku) AND [= GROUP SUM 1 IF include(snapshot, supplierLastOrderBatch(sku, Stock st)) AND include(snapshot, st)]();
+            includeLocal(Sku sku) <- TRUE WHERE includeLocal(sku) AND (GROUP SUM 1 IF include(snapshot, supplierLastOrderBatch(sku, Stock st)) AND include(snapshot, st));
         } ELSE {
             filterLocal() <- TRUE;
-            includeLocal(Sku sku) <- TRUE WHERE [= GROUP SUM 1 IF include(snapshot, supplierLastOrderBatch(sku, Stock st)) AND include(snapshot, st)]();
+            includeLocal(Sku sku) <- TRUE WHERE (GROUP SUM 1 IF include(snapshot, supplierLastOrderBatch(sku, Stock st)) AND include(snapshot, st));
         } 
     }
     
-    singleStock() <- [= GROUP MAX Stock stock IF include(snapshot, stock) AND countIncludeStocks(snapshot) == 1]();
+    singleStock() <- (GROUP MAX Stock stock IF include(snapshot, stock) AND countIncludeStocks(snapshot) == 1);
        
     IF countIncludeSku(snapshot) AND countIncludeStock(snapshot) THEN {      
         IF isQuantity(snapshot) THEN {         
@@ -1431,13 +1431,13 @@ filterSupplierSnapshot (Sku s,Stock st)   = in(supplierLastOrderBatch(s, st)) OR
 
 changeFilterSnapshotSupplier() = {
     DIALOG dialogLegalEntities OBJECTS l INPUT DO {
-        IF NOT [= GROUP SUM 1 IF in(LegalEntity le)]() THEN
+        IF NOT (GROUP SUM 1 IF in(LegalEntity le)) THEN
             in(l) <- TRUE;
     }
 }
 
 orderSort 'Порядок (внутри группы)' (SkuGroup g) = PARTITION BY groupType(g), parent(g) SUM 1 ORDER sort(g);
-canonicalOrderSort 'Порядок' (SkuGroup g) = VARSTRING[250]([ = GROUP CONCAT lpad(VARSTRING[3](orderSort(SkuGroup parent)), 3, '0') , '.' ORDER DESC level(g, parent)]());
+canonicalOrderSort 'Порядок' (SkuGroup g) = VARSTRING[250]((GROUP CONCAT lpad(VARSTRING[3](orderSort(SkuGroup parent)), 3, '0') , '.' ORDER DESC level(g, parent)));
 nameLevel4 'Наименование' (SkuGroup g) = VARSTRING[100](repeat('    ', INTEGER(level(g))-1)) + name(g);
 
 FORM snapshot 'Аналитический отчет'                                   

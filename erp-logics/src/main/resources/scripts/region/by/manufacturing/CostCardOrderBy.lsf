@@ -8,8 +8,8 @@ NAMESPACE Production;
 
 calcMultiplier(Sku sku, Order order)= OVERRIDE multiplier(sku, order), (1.000 IF sku IS Sku AND order IS Order);
 
-quantity (BOM BOM, Sku sku, Order order) = [= GROUP
-    SUM recBruttoNodeQuantity (BOM, sku, date(order)) * calcMultiplier(sku, order)]() IF bruttoQuantity(sku, order);
+quantity (BOM BOM, Sku sku, Order order) = (GROUP
+    SUM recBruttoNodeQuantity (BOM, sku, date(order)) * calcMultiplier(sku, order)) IF bruttoQuantity(sku, order);
 quantity 'Норма' (ProductDetail productDetail, Sku sku) = quantity(BOM(product(productDetail)), sku, order(productDetail));
 
 quantityInBOM 'Кол-во изделий в спец.'(ProductDetail productDetail)= quantity(product(productDetail));
@@ -53,8 +53,8 @@ retailVATPrice 'Цена НДС (ед.)' (ProductDetail productDetail)= overReta
 
 //--  Нетто
 
-nettoQuantity (BOM BOM, Sku sku, Order order) = [= GROUP
-    SUM recNettoNodeQuantity (BOM, sku) * calcMultiplier(sku, order)]() IF bruttoQuantity(sku, order);
+nettoQuantity (BOM BOM, Sku sku, Order order) = (GROUP
+    SUM recNettoNodeQuantity (BOM, sku) * calcMultiplier(sku, order)) IF bruttoQuantity(sku, order);
 
 nettoQuantity 'Нетто' (ProductDetail productDetail, Sku sku) = nettoQuantity(BOM(product(productDetail)), sku, order(productDetail));
 fats 'Жиры'(ProductDetail productDetail, Item sku) = nettoQuantity (productDetail, sku)*netWeight(sku)*10*fats(sku);

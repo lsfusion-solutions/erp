@@ -69,7 +69,7 @@ calcSaleArticleParamsInterval 'Рассчитать продажи в день �
         cumBalance(Article a, Stock stock) <- cumBalance(a, stock) (+) balance(a, stock);  
         balance(Article a, Stock stock) <- balance(a, stock) (+)
                    signedQuantity(a, stock, dateCur());
-        daysOnStock(Article a) <- daysOnStock(a) (+) (1 IF [ = GROUP SUM 1 IF ((balance(a, Stock stock) > 0) OR (quantity(a, stock, dateCur()) > 0)) AND inArticleReport(stock)]());                                                
+        daysOnStock(Article a) <- daysOnStock(a) (+) (1 IF (GROUP SUM 1 IF ((balance(a, Stock stock) > 0) OR (quantity(a, stock, dateCur()) > 0)) AND inArticleReport(stock)));                                                
 
         dateCur() <- sum(dateCur(), 1);
     }
@@ -82,7 +82,7 @@ calcSaleArticleParamsInterval 'Рассчитать продажи в день �
                                         
     averageReportSold(Article a) <- quantitySoldIn (a, dateFrom, dateTo) / daysOnStock(a);
     turnover(Article a) <- IF quantitySoldIn (a, dateFrom, dateTo) != 0 THEN
-                                         [ = GROUP SUM cumBalance(a, Stock stock) IF inArticleReport(stock)]() / quantitySoldIn (a, dateFrom, dateTo)
+                                         (GROUP SUM cumBalance(a, Stock stock) IF inArticleReport(stock)) / quantitySoldIn (a, dateFrom, dateTo)
                                       ELSE
                                         9999.99;                                    
                                         

@@ -366,10 +366,10 @@ skip 'Отм.' = ABSTRACT BOOLEAN (Sku, Stock);
 
 createRequestStopList 'Включить в стоп-лист'()  = {
 
-    IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
+    IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
             NEW sl = StopList {
-                in(Stock st, sl) <- TRUE WHERE [= GROUP SUM 1 IF select(Sku sku, st)]();  
+                in(Stock st, sl) <- TRUE WHERE (GROUP SUM 1 IF select(Sku sku, st));  
                 FOR [= GROUP BY Sku sku SUM 1 IF select(sku, Stock stock) AND NOT skip(sku, stock)](Sku sku) NEW d = StopListDetail DO {
                     stopList(d) <- sl;
                     sku(d) <- sku;            
@@ -387,11 +387,11 @@ createRequestStopList 'Включить в стоп-лист'()  = {
 } TOOLBAR;
 excludeRequestStopList 'Исключить из стоп-листа'()  = {
 
-    IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
+    IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
             NEW sl = StopList {
                 exclude(sl) <- TRUE;
-                in(Stock st, sl) <- TRUE WHERE [= GROUP SUM 1 IF select(Sku sku, st)]();  
+                in(Stock st, sl) <- TRUE WHERE (GROUP SUM 1 IF select(Sku sku, st));  
                 FOR [= GROUP BY Sku sku SUM 1 IF select(sku, Stock stock)](Sku sku) NEW d = StopListDetail DO {
                     stopList(d) <- sl;
                     sku(d) <- sku;            

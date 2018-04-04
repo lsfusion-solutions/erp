@@ -15,7 +15,7 @@ compactLedger 'Очистить регистр цен'(DATE dFrom, DATE dTo) = {
         
         LOCAL countMove = INTEGER (Sku, DepartmentStore);
         countMove(Sku s, DepartmentStore st) <- [= GROUP BY sku(UserInvoiceDetail d), customerStock(d) SUM 1 IF date(d) >= dFrom AND date(d) <= dTo](s, st);
-        MESSAGE 'Общее число строк: ' + [=GROUP SUM countMove(Sku s, DepartmentStore st)]() NOWAIT;
+        MESSAGE 'Общее число строк: ' + (GROUP SUM countMove(Sku s, DepartmentStore st)) NOWAIT;
         
         LOCAL NESTED price = NUMERIC[16,5] (Sku, DepartmentStore);
         price(Sku s, DepartmentStore st) <- prevPriceB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, s, st, DATETIME(dFrom)) WHERE countMove(s,st);
@@ -40,8 +40,8 @@ compactLedger 'Очистить регистр цен'(DATE dFrom, DATE dTo) = {
             }
 
             countMove(Sku s, DepartmentStore st) <- [= GROUP BY sku(UserInvoiceDetail d), customerStock(d), date( d) SUM 1](s, st, dt);
-            IF [=GROUP SUM 1 IF countMove(Sku s, DepartmentStore st)]() THEN 
-                MESSAGE CONCAT '', VARSTRING[10](dt), ' - Всего:' + [=GROUP SUM 1 IF countMove(Sku s, DepartmentStore st)](), ' Очищено:' + [= GROUP SUM 1 IF CHANGED (dataSkipChangeLedger(InvoiceDetail d))]() NOWAIT;
+            IF (GROUP SUM 1 IF countMove(Sku s, DepartmentStore st)) THEN 
+                MESSAGE CONCAT '', VARSTRING[10](dt), ' - Всего:' + (GROUP SUM 1 IF countMove(Sku s, DepartmentStore st)), ' Очищено:' + (GROUP SUM 1 IF CHANGED (dataSkipChangeLedger(InvoiceDetail d))) NOWAIT;
             
             dateLastCompactLedger() <- dt;
             APPLY ;

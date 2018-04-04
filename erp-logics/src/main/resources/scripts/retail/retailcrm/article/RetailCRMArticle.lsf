@@ -64,7 +64,7 @@ importArticleXLS 'Импорт (xlsx)' (PromotionCondition c) = {
             resultPrice(c, Sku s) <- price(r) WHERE id(article(s)) == article(r) AND price(r) > 0.0;
         }
         
-        MESSAGE 'Импортированы ' + (OVERRIDE [= GROUP SUM 1 IF article(article(INTEGER r))](), 0) + ' записей';
+        MESSAGE 'Импортированы ' + (OVERRIDE (GROUP SUM 1 IF article(article(INTEGER r))), 0) + ' записей';
     }
 }
           
@@ -75,7 +75,7 @@ removeArticleXLS 'Исключить из акции (xlsx)' (PromotionCondition
     
     INPUT f = EXCELFILE DO {
         IMPORT XLS FROM f AS EXCELFILE TO article = A;
-        count() <- [= GROUP SUM 1 IF in(c, article(article(INTEGER r))) AND imported(r)]();
+        count() <- (GROUP SUM 1 IF in(c, article(article(INTEGER r))) AND imported(r));
 
         FOR imported(INTEGER r) DO {
             in(c, Article a) <- NULL WHERE id(a) == article(r);

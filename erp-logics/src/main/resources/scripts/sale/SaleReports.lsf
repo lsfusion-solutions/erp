@@ -56,10 +56,10 @@ fillSaleReportFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt) 
     costSumStock(Group g) <- NULL;  
     markupSumStock(Group g) <- NULL; 
 
-    quantityStock(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM quantitySold(sk, Stock st, df, dt) IF inSaleReport(st)]());           
-    sumStock(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumSold(sk, Stock st, df, dt) IF inSaleReport(st)]());   
-    sumVATStock(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumVATSold(sk, Stock st, df, dt) IF inSaleReport(st)]());   
-    costSumStock(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM costSumSold(sk, Stock st, df, dt) IF inSaleReport(st)]());   
+    quantityStock(Sku sk) <- NUMERIC[16,5]((GROUP SUM quantitySold(sk, Stock st, df, dt) IF inSaleReport(st)));           
+    sumStock(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumSold(sk, Stock st, df, dt) IF inSaleReport(st)));   
+    sumVATStock(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumVATSold(sk, Stock st, df, dt) IF inSaleReport(st)));   
+    costSumStock(Sku sk) <- NUMERIC[18,4]((GROUP SUM costSumSold(sk, Stock st, df, dt) IF inSaleReport(st)));   
     markupSumStock(Sku sk) <- sumStock(sk) (-) sumVATStock(sk) (-) costSumStock(sk);
 
     quantityStock(Group g) <- [= GROUP BY group(GroupType ggt, Sku sk) SUM quantityStock(sk)](g) IF  groupType(g) == gt;
@@ -122,10 +122,10 @@ fillSaleReportFromToCompare 'Сформировать'(GroupType gt, DATE df, DA
         costSumStockCompare(Group g) <- NULL;  
         markupSumStockCompare(Group g) <- NULL; 
     
-        quantityStockCompare(Sku sk) <- NUMERIC[16,5]([ = GROUP SUM quantitySold(sk, Stock st, df, dt) IF inSaleReport(st)]());           
-        sumStockCompare(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumSold(sk, Stock st, df, dt) IF inSaleReport(st)]());   
-        sumVATStockCompare(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM sumVATSold(sk, Stock st, df, dt) IF inSaleReport(st)]());   
-        costSumStockCompare(Sku sk) <- NUMERIC[18,4]([ = GROUP SUM costSumSold(sk, Stock st, df, dt) IF inSaleReport(st)]());   
+        quantityStockCompare(Sku sk) <- NUMERIC[16,5]((GROUP SUM quantitySold(sk, Stock st, df, dt) IF inSaleReport(st)));           
+        sumStockCompare(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumSold(sk, Stock st, df, dt) IF inSaleReport(st)));   
+        sumVATStockCompare(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumVATSold(sk, Stock st, df, dt) IF inSaleReport(st)));   
+        costSumStockCompare(Sku sk) <- NUMERIC[18,4]((GROUP SUM costSumSold(sk, Stock st, df, dt) IF inSaleReport(st)));   
         markupSumStockCompare(Sku sk) <- sumStockCompare(sk) (-) sumVATStockCompare(sk) (-) costSumStockCompare(sk);
     
         quantityStockCompare(Group g) <- [= GROUP BY group(GroupType ggt, Sku sk) SUM quantityStockCompare(sk)](g) IF  groupType(g) == gt;
@@ -776,8 +776,8 @@ changeStocksSalesReport(GroupType gt, DATE df, DATE dt, DATE dfc, DATE dtc) = {
     }
 }
  
-showMovementSkuStocksSale 'Показать движение товара по складу' (Sku sku) = { NEWSESSION NESTED(inSaleReport) SHOW movementSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inSaleReport(st)]() ; }
-showMovementPriceSkuStocksSale 'Показать изменение цены товара по складу' (Sku sku) = { NEWSESSION NESTED(inSaleReport) SHOW movementPriceSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inSaleReport(st)]() ; }
+showMovementSkuStocksSale 'Показать движение товара по складу' (Sku sku) = { NEWSESSION NESTED(inSaleReport) SHOW movementSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inSaleReport(st)) ; }
+showMovementPriceSkuStocksSale 'Показать изменение цены товара по складу' (Sku sku) = { NEWSESSION NESTED(inSaleReport) SHOW movementPriceSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inSaleReport(st)) ; }
     
 FORM salesReport 'Отчет по продажам'
     OBJECTS df=DATE PANEL

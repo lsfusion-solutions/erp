@@ -71,8 +71,8 @@ includeContainerMovementBatchFromTo 'Рассчитать'(DATE dateFrom, DATE d
     
     inContainerMovement(Stock st, Batch bt) <- isPosted(bt) AND isContainer(bt) AND in(st);
     
-    inContainerMovement(Stock st, Batch bt) <- NULL WHERE [= GROUP SUM 1 IF LegalEntity.in(LegalEntity l)]() AND NOT LegalEntity.in(supplier(bt));
-    inContainerMovement(Stock st, Batch bt) <- NULL WHERE [= GROUP SUM 1 IF in(Item i)]() AND NOT in(sku(bt));
+    inContainerMovement(Stock st, Batch bt) <- NULL WHERE (GROUP SUM 1 IF LegalEntity.in(LegalEntity l)) AND NOT LegalEntity.in(supplier(bt));
+    inContainerMovement(Stock st, Batch bt) <- NULL WHERE (GROUP SUM 1 IF in(Item i)) AND NOT in(sku(bt));
     
     inContainerMovement(Stock st, Batch bt) <- NULL WHERE inContainerMovement(st,bt) AND NOT overMovementContainer(bt, st, dateFrom, dateTo);     
     
@@ -146,7 +146,7 @@ sumMoveOutPrice = GROUP BY Stock st, sku(Batch bt), lastPrice(st,bt) SUM sumMove
 
 changeDepartmentStores(DATE dateFrom, DATE dateTo) = {
     DIALOG departmentStores OBJECTS d INPUT DO {
-        IF NOT [= GROUP SUM 1 IF in(DepartmentStore ds)]() THEN
+        IF NOT (GROUP SUM 1 IF in(DepartmentStore ds)) THEN
             in(d) <- TRUE;
         includeContainerMovementBatchFromTo(dateFrom,dateTo);
     }

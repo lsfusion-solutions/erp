@@ -389,7 +389,7 @@ FORM terminalDocuments 'Документы ТСД' AUTOREFRESH 60
                     quantityTerminalDocumentDetail, createdNameUser PANEL, createdTime PANEL
     PROPERTIES(td)  NEWSESSION NEW, EDIT, DELETE 
     PROPERTIES (td) close SHOWIF isOpened(td), open SHOWIF isClosed(td)
-    FILTERS in(terminalDocumentType(td)) OR (td IS TerminalDocument AND NOT [=GROUP SUM 1 IF in(TerminalDocumentType t)]()),
+    FILTERS in(terminalDocumentType(td)) OR (td IS TerminalDocument AND NOT (GROUP SUM 1 IF in(TerminalDocumentType t))),
             stock(td) == filterStock() OR (td IS TerminalDocument AND NOT filterStock())
     OBJECTS tdd=TerminalDocumentDetail
     PROPERTIES(tdd) READONLY id, number, barcode, name, price, quantity, sum, comment, dateTimeScan, extraDate1, extraDate2, extraField1, extraField2, extraField3
@@ -497,7 +497,7 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
             in(TerminalDocumentType t) <- in(t, object);
             filterStock() <- stockProp(object);
             DIALOG terminalDocuments OBJECTS td INPUT DO {
-                IF NOT [=GROUP SUM 1 IF include(TerminalDocument ttd)]() THEN {
+                IF NOT (GROUP SUM 1 IF include(TerminalDocument ttd)) THEN {
                     include(td) <- TRUE;
                 }
                 used(TerminalDocument t) <- TRUE WHERE include(t);

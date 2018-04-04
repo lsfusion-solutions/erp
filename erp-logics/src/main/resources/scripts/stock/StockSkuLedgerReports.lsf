@@ -17,11 +17,11 @@ END
 order 'Номер' = DATA LOCAL INTEGER(INTEGER);
 nameGroup 'Группировка' = DATA LOCAL VARSTRING[100](INTEGER);
 
-countGroup = OVERRIDE [=GROUP MAX order(INTEGER i)](), 0;
+countGroup = OVERRIDE (GROUP MAX order(INTEGER i)), 0;
 
 addGroup(INTEGER i, VARSTRING[100] name) = {
     nameGroup(i) <- name;
-    order(i) <- (OVERRIDE [=GROUP MAX order(INTEGER in)](), 0) + 1;
+    order(i) <- (OVERRIDE (GROUP MAX order(INTEGER in)), 0) + 1;
 }
 reorderGroup() = {
     order(INTEGER i) <- PARTITION SUM 1 IF nameGroup(i) ORDER order(i);
@@ -98,7 +98,7 @@ costSum 'Сумма поставщика без НДС' (SkuLedger sl) = OVERRID
 
 sumVAT 'Сумма НДС' (SkuLedger sl) = OVERRIDE SkuLedger.sumVAT(sl), NUMERIC[18,4]([= X*Y/(100+Y)](sum(sl), valueVAT(sku(sl), stock(sl), date(sl))));
 
-costSumVAT 'Сумма НДС поставщика' (SkuLedger sl) = OVERRIDE SkuLedger.costSumVAT(sl), NUMERIC[18,4]([ = GROUP SUM costSum(sl, Batch batch)*Stock.valueVAT(batch)/100]());
+costSumVAT 'Сумма НДС поставщика' (SkuLedger sl) = OVERRIDE SkuLedger.costSumVAT(sl), NUMERIC[18,4]((GROUP SUM costSum(sl, Batch batch)*Stock.valueVAT(batch)/100));
 
 costVATSum 'Сумма поставщика с НДС' (SkuLedger sl) = costSumVAT(sl) (+) costSum(sl);
 
@@ -124,11 +124,11 @@ printGroupOperation 'Отчет по операциям' (DATE dateFrom, DATE da
         MESSAGE 'Не задана группировка';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN {
+    IF NOT (GROUP SUM 1 IF inBackSheet(Stock st)) THEN {
         MESSAGE 'Не задан склад';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inSession(Group gr)]() THEN {
+    IF NOT (GROUP SUM 1 IF inSession(Group gr)) THEN {
         MESSAGE 'Не задана группа';
         RETURN;
     }
@@ -141,11 +141,11 @@ xlsxGroupOperation 'Отчет по операциям (XLSX)' (DATE dateFrom, D
         MESSAGE 'Не задана группировка';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN {
+    IF NOT (GROUP SUM 1 IF inBackSheet(Stock st)) THEN {
         MESSAGE 'Не задан склад';
         RETURN;
     }
-    IF NOT [= GROUP SUM 1 IF inSession(Group gr)]() THEN {
+    IF NOT (GROUP SUM 1 IF inSession(Group gr)) THEN {
         MESSAGE 'Не задана группа';
         RETURN;
     }
@@ -198,7 +198,7 @@ DESIGN dialogStocksBackSheet {
 @extendFormFilterStockAccess(s, dialogStocksBackSheet, company);
 changeStocksBackSheet(GroupType gt, DATE df, DATE dt) = {
     DIALOG dialogStocksBackSheet OBJECTS s INPUT DO {
-        IF NOT [= GROUP SUM 1 IF inBackSheet(Stock st)]() THEN
+        IF NOT (GROUP SUM 1 IF inBackSheet(Stock st)) THEN
             inBackSheet(s) <- TRUE;
     }
 }

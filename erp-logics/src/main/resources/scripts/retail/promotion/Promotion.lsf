@@ -79,7 +79,7 @@ nameSuppliers 'Поставщики' (PromotionDetail detail) = GROUP CONCAT nam
 in (Promotion p, LegalEntity c) = TRUE IF [= GROUP BY promotion(PromotionDetail detail) SUM countStocks(detail, c)](p);
 
 recalculateCountStocks (PromotionDetail d) = {
-    countStocks(d, LegalEntity company) <- [= GROUP SUM 1 IF priceA(defaultPriceListType(),sku(d), Stock stock, company, toDateTime(fromDate(d)))]();
+    countStocks(d, LegalEntity company) <- (GROUP SUM 1 IF priceA(defaultPriceListType(),sku(d), Stock stock, company, toDateTime(fromDate(d))));
 }
 
 CLASS Flyer 'Листовка';
@@ -110,7 +110,7 @@ recalculateValueVAT (PromotionDetail d) = {
 
 price 'Стандартная цена без НДС' = DATA NUMERIC[16,4] (PromotionDetail);
 recalculatePrice (PromotionDetail d) = {
-    price(d) <- [=GROUP MAX prevPriceA(defaultPriceListType(), sku(d), Stock stock, toDateTime(fromDate(d)))]();
+    price(d) <- (GROUP MAX prevPriceA(defaultPriceListType(), sku(d), Stock stock, toDateTime(fromDate(d))));
 }
 
 markup 'Стандартная наценка' = DATA NUMERIC[8,3] (PromotionDetail);
@@ -378,7 +378,7 @@ DESIGN options {
 
 WHEN LOCAL FORMS promotion (CHANGED(sku(PromotionDetail detail)) OR CHANGED(fromDate(detail))) DO {
     recalculatePrices(detail);
-    retailPrice(detail) <- [=GROUP MAX prevPriceA(retailPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail)))]();
+    retailPrice(detail) <- (GROUP MAX prevPriceA(retailPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail))));
 }
 WHEN LOCAL FORMS promotion (CHANGED(promotionPrice(PromotionDetail detail)) OR CHANGED(price(detail))) AND price(detail) > 0.0 DO {
     supplierPromotionDiscount(detail) <- NUMERIC[8,3]((1.0 - promotionPrice(detail)/price(detail)) * 100.0);
@@ -522,7 +522,7 @@ createPriceList 'Создать прайсы' (Promotion p) = {
             fromDate(priceList) <- fromDate(p);
             fromTime(priceList) <- 00:00;
             toDate(priceList) <- toDate(p);
-            operation(priceList) <- [= GROUP LAST PriceList.Operation o IF isPromotion(o)]();
+            operation(priceList) <- (GROUP LAST PriceList.Operation o IF isPromotion(o));
             company(priceList) <- dataLegalEntity(operation(priceList));
             currency(priceList) <- defaultCurrency(operation(priceList));
             note(priceList) <- name(p);

@@ -247,7 +247,7 @@ clearApplicationLog () += {
 	    in(MachineryPriceTransaction t, Barcode b) <- NULL WHERE NOT t == lastTransaction(b, groupMachinery(t)) AND date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
 	    apply();
 	    
-	    DELETE MachineryPriceTransaction t WHERE  t IS MachineryPriceTransaction AND NOT [= GROUP SUM 1 IF in(t, Barcode b)]();
+	    DELETE MachineryPriceTransaction t WHERE  t IS MachineryPriceTransaction AND NOT (GROUP SUM 1 IF in(t, Barcode b));
 	    apply();
 	    }
 	}
@@ -736,9 +736,9 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
         in(Barcode barcode) <- NULL WHERE in(barcode) AND (skipMachineryPriceTransaction(sku(barcode), stock, currentDateTime()) OR inactive(sku(barcode))); // если есть запрет на загрузку
         
         LOCAL countBarcode = INTEGER();
-        countBarcode() <- [= GROUP SUM 1 IF in(Barcode barcode)]();
+        countBarcode() <- (GROUP SUM 1 IF in(Barcode barcode));
         LOCAL countSku = INTEGER();
-        countSku() <- [ = GROUP SUM 1 IF [= GROUP BY sku(Barcode barcode) SUM 1 IF in(barcode)](Sku sku)]();        
+        countSku() <- (GROUP SUM 1 IF [= GROUP BY sku(Barcode barcode) SUM 1 IF in(barcode)](Sku sku));        
         
         IF countBarcode() THEN {
             addedTransaction() <- NULL;
@@ -871,8 +871,8 @@ GROUP documentMachineryPrice 'Из документа' : public;
 createDocumentMachineryPriceTransaction 'Из документа'(Stock stock) = {
 	NEWSESSION {
 	    DIALOG documents DO {
-	        createMachineryPriceTransaction(Sku sku) <- TRUE WHERE countDocumentDetail(sku, [= GROUP MAX Document d IF inSession(d)]());
-	        createMachineryPriceTransactionDocument() <- [= GROUP MAX Document d IF inSession(d)]();
+	        createMachineryPriceTransaction(Sku sku) <- TRUE WHERE countDocumentDetail(sku, (GROUP MAX Document d IF inSession(d)));
+	        createMachineryPriceTransactionDocument() <- (GROUP MAX Document d IF inSession(d));
 	        createMachineryPriceTransactionSnapshot() <- TRUE ;
 	        createMachineryPriceTransaction(stock);
 	    }
@@ -1066,7 +1066,7 @@ DESIGN options {
 
 createSelectedSkuPriceTransactionDocument 'Загрузить в оборудование'(Stock stock) = {
 	NEWSESSION NESTED (select[Sku]) {
-	    IF [=GROUP SUM 1 IF select(Sku sku)]() THEN {
+	    IF (GROUP SUM 1 IF select(Sku sku)) THEN {
 	        createMachineryPriceTransactionSnapshot() <- TRUE;
 	        createMachineryPriceTransaction(Sku sku) <- TRUE IF select(sku);
 	        createMachineryPriceTransaction(stock);
@@ -1093,7 +1093,7 @@ createApplySelectedSkuPriceTransactionDocument 'Загрузить в обору
 
 createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование'() = {
 	NEWSESSION NESTED (select[Sku,Stock], createMachineryPriceTransactionSnapshot[], createMachineryPriceTransaction[Sku]) {
-	    IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
+	    IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
 	        FOR [= GROUP BY Stock stock SUM 1 IF select(Sku sku, stock)](Stock stock) DO {
 	            createMachineryPriceTransactionSnapshot() <- TRUE;
 	            createMachineryPriceTransaction(Sku sku) <- TRUE IF select(sku, stock);

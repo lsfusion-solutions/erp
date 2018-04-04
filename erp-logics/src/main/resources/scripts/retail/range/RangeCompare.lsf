@@ -11,9 +11,9 @@ EXTEND FORM range
 ;
 
 levels(RangeRev v, Sku s) = OVERRIDE name(level(v,s)),'';
-changed(Sku s) = [= GROUP SUM 1 IF [=GROUP BY levels(RangeRev v, s) SUM 1 IF inSession(v)](VARISTRING[10] l)]() > 1;
+changed(Sku s) = (GROUP SUM 1 IF [=GROUP BY levels(RangeRev v, s) SUM 1 IF inSession(v)](VARISTRING[10] l)) > 1;
 nameSupplier 'Поставщик' (Sku s, Stock st)=  
-    nameCompanyA(defaultPriceListType(), s, st, [= GROUP MAX dateTime(RangeRev v) IF inSession(v)]());
+    nameCompanyA(defaultPriceListType(), s, st, (GROUP MAX dateTime(RangeRev v) IF inSession(v)));
 
 FORM rangeCompare 'Сравнение версий матрицы' 
     OBJECTS d = Stock PANEL
@@ -36,7 +36,7 @@ DESIGN rangeCompare {
 }
 
 comareRangeRev 'Сравнить версии' () = {
-    IF [= GROUP SUM 1 IF inSession(RangeRev v)]() > 1 THEN {
+    IF (GROUP SUM 1 IF inSession(RangeRev v)) > 1 THEN {
         SHOW rangeCompare;
     } ELSE {
         MESSAGE 'Не выбраны версии для сравнения';

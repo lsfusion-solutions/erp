@@ -319,13 +319,13 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     // без учета текущей даты/времени
     balanceB 'Остаток на начало дня'###caption (Sku sku, Stock stock, DATE date) = currentBalance(sku, stock)
-                                                                      (-) [= GROUP
-                                                                                 SUM signedQuantity (sku, stock, DATE dateIn) IF dateIn >= date]();
+                                                                      (-) (GROUP
+                                                                                 SUM signedQuantity (sku, stock, DATE dateIn) IF dateIn >= date);
 
     // с учетом текущей даты/времени
     balanceA 'Остаток на конец дня'###caption (Sku sku, Stock stock, DATE date) = currentBalance(sku, stock)
-                                                                     (-) [= GROUP
-                                                                                SUM signedQuantity (sku, stock, DATE dateIn) IF dateIn > date]();
+                                                                     (-) (GROUP
+                                                                                SUM signedQuantity (sku, stock, DATE dateIn) IF dateIn > date);
 
     // без учета текущей даты/времени
     balanceB 'Остаток (до)'###caption (Sku sku, Stock stock, DATETIME dateTime) = currentBalance(sku, stock)
@@ -491,8 +491,8 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     // без учета текущей даты/времени
     sumB 'Сумма на начало дня'###caption (Sku sku, Stock stock, DATE date) = currentSum(sku, stock)
-                                                                      (-) [= GROUP
-                                                                                 SUM signedSum (sku, stock, DATE dateIn) IF dateIn >= date]();
+                                                                      (-) (GROUP
+                                                                                 SUM signedSum (sku, stock, DATE dateIn) IF dateIn >= date);
 
     sumB 'Сумма на начало дня'(Stock stock, DATE date)  = GROUP SUM sumB(Sku sku, stock, date);
 
@@ -506,8 +506,8 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     // с учетом текущей даты/времени
     sumA 'Сумма на конец дня'###caption (Sku sku, Stock stock, DATE date) = currentSum(sku, stock)
-                                                                     (-) [= GROUP
-                                                                                SUM signedSum (sku, stock, DATE dateIn) IF dateIn > date]();
+                                                                     (-) (GROUP
+                                                                                SUM signedSum (sku, stock, DATE dateIn) IF dateIn > date);
 
     sumASku 'Сумма на конец дня (по группе)' (group, stock, date) =
         GROUP
@@ -607,13 +607,13 @@ signedQuantity = GROUP
                                      
 // без учета текущей даты/времени
 balanceB 'Остаток на начало дня' (Batch batch, Stock stock, DATE date) = currentBalance(batch, stock)
-    (-) [= GROUP
-           SUM signedQuantity(batch, stock, DATE dateIn) IF dateIn >= date]();
+    (-) (GROUP
+           SUM signedQuantity(batch, stock, DATE dateIn) IF dateIn >= date);
 
 // с учетом текущей даты/времени
 balanceA 'Остаток на конец дня' (Batch batch, Stock stock, DATE date) = currentBalance(batch, stock)
-    (-) [= GROUP
-           SUM signedQuantity(batch, stock, DATE dateIn) IF dateIn > date]();
+    (-) (GROUP
+           SUM signedQuantity(batch, stock, DATE dateIn) IF dateIn > date);
 
 // без учета текущей даты/времени
 balanceB 'Остаток (до)' (Batch batch, Stock stock, DATETIME dateTime) = currentBalance(batch, stock)
@@ -826,7 +826,7 @@ updateDataSkuLedgerBatchCost() = {
     LOCAL ordered = INTEGER (DataSkuLedger);
     ordered(DataSkuLedger ledger) <- PARTITION BY sku[SkuLedger](ledger) SUM 1 IF changedSession(ledger) ORDER dateTime[SkuLedger](ledger), ledger;
 
-    FOR iterate(INTEGER i, 1, [= GROUP MAX ordered(DataSkuLedger ledger)]()) DO {
+    FOR iterate(INTEGER i, 1, (GROUP MAX ordered(DataSkuLedger ledger))) DO {
         it(DataSkuLedger ledger) <- ordered(ledger) == i; // чтобы определились классы
         
         overCostSkuLedgerBatch();
@@ -845,7 +845,7 @@ ON { // eventChangeLedger - так как внутрь рекурсивного 
                                   OR CHANGED(changed(ledger)))
                                  AND isPosted[SkuLedger](ledger));
 
-    IF [= GROUP MAX eventChanged(DataSkuLedger ledger)]() THEN
+    IF (GROUP MAX eventChanged(DataSkuLedger ledger)) THEN
         NEWSESSION NESTED (eventChanged[DataSkuLedger]) SINGLE {
             changedSession(DataSkuLedger ledger) <- eventChanged(ledger);
             updateDataSkuLedgerBatchCost();

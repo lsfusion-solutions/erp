@@ -35,13 +35,13 @@ expiryDate(UserShipmentDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHAN
 fillSelectOrder(DATE df, DATE dt) += {
     IF df IS DATE AND dt IS DATE THEN {
         selectOrder(OrderDetail d) <- NULL;
-        IF NOT [ = GROUP SUM 1 IF selectOrder(LegalEntity l)]()  THEN {
+        IF NOT (GROUP SUM 1 IF selectOrder(LegalEntity l))  THEN {
             selectOrder(LegalEntity l) <- TRUE WHERE active(l) AND isCustomer(l);    
         }
-        IF NOT [ = GROUP SUM 1 IF selectOrder(Stock st)]()  THEN {
+        IF NOT (GROUP SUM 1 IF selectOrder(Stock st))  THEN {
             selectOrder(Stock st) <- TRUE WHERE active(st) AND isCompany(st) AND accessCompany(currentUser(), st); 
         }
-        IF NOT [ = GROUP SUM 1 IF selectOrder(Sku s)]()  THEN {
+        IF NOT (GROUP SUM 1 IF selectOrder(Sku s))  THEN {
             selectOrder(Sku s) <- TRUE WHERE active(s) AND name(s); 
         } 
         selectOrder(OrderDetail d) <- TRUE WHERE isPosted(d) AND date(d) >= df AND date(d) <= dt AND selectOrder(customer(d)) AND selectOrder(supplierStock(d)) AND selectOrder(sku(d));          
