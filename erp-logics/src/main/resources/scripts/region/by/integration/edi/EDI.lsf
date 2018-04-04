@@ -510,17 +510,22 @@ background = ABSTRACT CASE COLOR (EInvoice);
 
 FORM eInvoices 'Электронные накладные EDI'
     OBJECTS e = EInvoice
-    PROPERTIES(e) in, exportedCustomer
+    PROPERTIES(e) in, importedCustomer, exportedSupplier, exportedCustomer, importedSupplier
     PROPERTIES(e) READONLY isCancel, dateTime BACKGROUND background(e), number BACKGROUND background(e), deliveryNoteNumber, deliveryNoteDateTime, glnSupplier, nameSupplier, addressSupplier, unpSupplier, 
                            nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock
     PROPERTIES(e) contactCustomerStock, reportId, reportDate, reportName
     FILTERGROUP notExported
-        FILTER 'Не экспортированы' NOT exportedCustomer(e) 'F11' DEFAULT
+        FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(e) 'F8'
+        FILTER 'Не импортированы (покупатель)' NOT importedCustomer(e) 'F9'
+        FILTER 'Не экспортированы (покупатель)' NOT exportedCustomer(e) 'F10'
+        FILTER 'Не импортированы (поставщик)' NOT importedSupplier(e) 'F11'
     
     OBJECTS d = EInvoiceDetail
-    PROPERTIES(d) READONLY lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, valueVAT BACKGROUND backgroundVAT(d), lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges
+    PROPERTIES(d) READONLY lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, valueVAT BACKGROUND backgroundVAT(d),
+     lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges,
+     grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, taxRate, additionalInformation, lineItemAmountExcise
 
-    PROPERTIES() TODRAW e TOOLBAR signAndSendCustomerEDI
+    PROPERTIES() TODRAW e TOOLBAR signAndSendSupplierEDI, signAndSendCustomerEDI
 
     FILTERS eInvoice(d) == e
 

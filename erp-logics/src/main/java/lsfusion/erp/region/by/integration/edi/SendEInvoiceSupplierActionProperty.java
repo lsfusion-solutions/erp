@@ -73,17 +73,15 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
 
                     //создаём BLRWBL, подписываем и отправляем
                     String blrwbl = createBLRWBL(context, eInvoiceObject, outputDir, documentNumber, documentDate, glnSupplier, glnCustomer, glnCustomerStock, isCancel);
-                    if (blrwbl != null) {
-                        String signedBLRWBL = signDocument("BLRWBL", referenceNumber, hostEDSService, portEDSService, blrwbl, aliasEDSService, passwordEDSService, charset);
-                        if (signedBLRWBL != null) {
-                            sendDocument(context, url, login, password, host, port, provider, referenceNumber, generateXML(login, password, referenceNumber,
-                                    documentDate, glnSupplier, glnCustomer, glnCustomerStock, new String(Base64.encodeBase64(signedBLRWBL.getBytes())), "BLRWBL"),
-                                    eInvoiceObject, true, isCancel, 1);
-                            findProperty("blrwbl[EInvoice]").change(documentNumber, session, eInvoiceObject);
-                            findProperty("blrwblDate[EInvoice]").change(new Timestamp(currentTime), session, eInvoiceObject);
-                        }
-                        session.apply(context);
+                    String signedBLRWBL = signDocument("BLRWBL", referenceNumber, hostEDSService, portEDSService, blrwbl, aliasEDSService, passwordEDSService, charset);
+                    if (signedBLRWBL != null) {
+                        sendDocument(context, url, login, password, host, port, provider, referenceNumber, generateXML(login, password, referenceNumber,
+                                documentDate, glnSupplier, glnCustomer, glnCustomerStock, new String(Base64.encodeBase64(signedBLRWBL.getBytes())), "BLRWBL"),
+                                eInvoiceObject, true, isCancel, 1);
+                        findProperty("blrwbl[EInvoice]").change(documentNumber, session, eInvoiceObject);
+                        findProperty("blrwblDate[EInvoice]").change(new Timestamp(currentTime), session, eInvoiceObject);
                     }
+                    session.apply(context);
                 } catch (Exception e) {
                     ServerLoggers.importLogger.error(String.format("%s SendEInvoice error", provider), e);
                     throw Throwables.propagate(e);
