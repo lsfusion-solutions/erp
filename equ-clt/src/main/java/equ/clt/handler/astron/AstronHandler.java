@@ -304,11 +304,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (!Thread.currentThread().isInterrupted()) {
                     CashRegisterItemInfo item = transaction.itemsList.get(i);
-                    if (item.price != null) {
+                    Integer idUOM = parseUOM(item.idUOM);
+                    Integer idItem = parseIdItem(item);
+                    if (idUOM != null && idItem != null && item.price != null) {
                         Integer packId = getPackId(item);
                         setObject(ps, packId, 1, offset); //PACKID
                         setObject(ps, transaction.nppGroupMachinery, 2, offset); //PRCLEVELID
-                        BigDecimal packPrice = item.price != null && item.price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(item.price, 100);
+                        BigDecimal packPrice = item.price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(item.price, 100);
                         setObject(ps, packPrice, 3, offset); //PACKPRICE
                         setObject(ps, item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO, 4, offset); //PACKMINPRICE
                         setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
