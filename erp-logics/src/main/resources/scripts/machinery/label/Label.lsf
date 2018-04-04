@@ -163,6 +163,9 @@ notPrintNetItem 'Не печатать весовой товар' = DATA BOOLEAN
 inactive 'Неактивный' = DATA BOOLEAN (LabelType);
 active 'Активный' (LabelType t) = t IS LabelType AND NOT inactive(t);
 
+TABLE labelTypeComputer(LabelType, Computer);
+customPrinter 'Имя принтера по умолчанию' = DATA VARSTRING[250] (LabelType, Computer);
+
 FORM labelType 'Тип ценника'
     OBJECTS l = LabelType PANEL
     PROPERTIES(l) id, name, width, height, nameOrientation, fileTemplate,
@@ -195,6 +198,10 @@ FORM labelType 'Тип ценника'
     PROPERTIES(sk) READONLY name, idBarcode
     FILTERS isParent(g, sk) OR sk IS Sku AND NOT g
     PROPERTIES(l, sk) in, count, include, exclude
+    
+    OBJECTS co = Computer
+    PROPERTIES(co) READONLY hostname
+    PROPERTIES(l, co) customPrinter
 
     EDIT LabelType OBJECT l
 ;
@@ -244,6 +251,11 @@ DESIGN labelType {
                     MOVE BOX(TREE treeGroup);
                     MOVE BOX(sk) {fill = 2;}
                 }
+            }
+            
+            NEW computerCase {
+                caption = 'Рабочие места';
+                MOVE BOX (co);
             }
         }
         MOVE TOOLBARBOX;
@@ -415,15 +427,17 @@ needCustomPrint = ABSTRACT BOOLEAN (LabelTransaction);
 customPrint = ABSTRACT (LabelTransaction);
 labelPrintAuto = DATA LOCAL NESTED BOOLEAN ();
 
+customPrinter(LabelTransaction l) = customPrinter(labelType(l), currentComputer());
+
 print(LabelTransaction t) = {
     IF NOT notPrint() THEN {
         IF needCustomPrint(t) THEN
             customPrint(t);
         ELSE
             IF labelPrintAuto() THEN {
-                PRINT printLabelTransaction OBJECTS l = t NOPREVIEW;
+                PRINT printLabelTransaction OBJECTS l = t NOPREVIEW TO customPrinter(t);
             } ELSE {
-                PRINT printLabelTransaction OBJECTS l = t ;
+                PRINT printLabelTransaction OBJECTS l = t TO customPrinter(t);
             }
     }
 }
