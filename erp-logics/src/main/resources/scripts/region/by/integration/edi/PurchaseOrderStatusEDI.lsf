@@ -8,7 +8,8 @@ NAMESPACE EDI;
 
 
 backgroundQuantityResponseEDI(Purchase.OrderDetail d) += RGB(255,0,0) IF quantityResponseEDI(d) != originalQuantity(d);
- 
+
+skuWithoutPrice 'Товары без цены' (Order o) = GROUP BY order(OrderDetail d) CONCAT idSku(d) + ' ' + nameSku(d), '\n' IF NOT price(d);
 
 overEmailCustomer(Order.Order order) += {
     IF NOT consumedEmailCustomer(order ) AND isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
@@ -22,6 +23,11 @@ overEmailCustomer(Order.Order order) += {
         
         IF shipmentDateTime(order) < sumMinutes(currentDateTime(), 60) THEN { //конкретно у СТТ текущего + час, поэтому пока для всех такое
             MESSAGE 'Дата/время поставки не может быть меньше текущего. Отправка отменена.';
+            RETURN;
+        }
+        
+        IF (skuWithoutPrice(order)) THEN {
+            MESSAGE 'Заказ не может быть отправлен, так как есть товары без цены: \n' + skuWithoutPrice(order) + '\nОтправка отменена';
             RETURN;
         }
         
