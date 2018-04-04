@@ -95,7 +95,7 @@ orderConfirmation(UserOrder o) += isEOrder(o);
 notEqualPriceEDI = ABSTRACT CASE OVERRIDE BOOLEAN (Purchase.OrderDetail);
 notEqualPriceEDI(OrderDetail d) += WHEN d IS Purchase.OrderDetail AND NOT priceResponseEDI(d) == price(d) THEN TRUE ;
 
-notEqualResponseEDI(Purchase.Order o) =  o IS Purchase.Order AND NOT quantityResponseEDI(o) == quantityOrderDetail(o) OR [=GROUP BY order(OrderDetail d) SUM 1 IF notEqualPriceEDI(d) ](o) MATERIALIZED;
+notEqualResponseEDI(Purchase.Order o) =  o IS Purchase.Order AND NOT quantityResponseEDI(o) == quantityOrderDetail(o) OR [=GROUP BY order(OrderDetail d) SUM 1 IF notEqualPriceEDI(d) ](o);
 skipPostConfirmed(Purchase.Order o) += WHEN isEOrder(o AS Order) AND notEqualResponseEDI(o) THEN TRUE;
 
 showAgree(Purchase.Order o) = isConfirmed(o) AND isEOrder(o) AND notEqualResponseEDI(o);
