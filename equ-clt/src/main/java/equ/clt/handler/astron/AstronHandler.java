@@ -49,77 +49,76 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
 
                 AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
-                String connectionString = astronSettings == null ? null : astronSettings.getConnectionString();
-                String user = astronSettings == null ? null : astronSettings.getUser();
-                String password = astronSettings == null ? null : astronSettings.getPassword();
-                Integer timeout = astronSettings == null ? null : astronSettings.getTimeout();
-                timeout = timeout == null ? 300 : timeout;
+                Integer timeout = astronSettings == null || astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
 
-                if (connectionString == null) {
-                    processTransactionLogger.error("No connectionString in astronSettings found");
-                } else {
-                    try (Connection conn = getConnection(connectionString, user, password)) {
+                for (TransactionCashRegisterInfo transaction : transactionList) {
 
-                        int flags = checkFlags(conn);
-                        if (flags > 0) {
-                            for (TransactionCashRegisterInfo transaction : transactionList) {
-                                sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(
-                                        new RuntimeException(String.format("data from previous transactions was not processed (%s flags not set to zero)", flags))));
-                            }
-                        } else {
-                            truncateTables(conn);
-                            for (TransactionCashRegisterInfo transaction : transactionList) {
-                                Exception exception = null;
-                                try {
-                                    if (transaction.itemsList != null) {
-
-                                        ListIterator<CashRegisterItemInfo> iter = transaction.itemsList.listIterator();
-                                        while (iter.hasNext()) {
-                                            CashRegisterItemInfo item = iter.next();
-                                            if (!isValidItem(item)) {
-                                                processTransactionLogger.info(logPrefix +
-                                                        String.format("transaction %s, invalid item: barcode %s, id %s, uom %s", transaction.id, item.idBarcode, item.idItem, item.idUOM));
-                                                iter.remove();
-                                            }
-                                        }
-
-                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table grp", transaction.id));
-                                        exportGrp(conn, transaction);
-
-                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table art", transaction.id));
-                                        exportArt(conn, transaction);
-
-                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table unit", transaction.id));
-                                        exportUnit(conn, transaction);
-
-                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table pack", transaction.id));
-                                        exportPack(conn, transaction);
-
-                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table exbarc", transaction.id));
-                                        exportExBarc(conn, transaction);
-
-                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table packprc", transaction.id));
-                                        exportPackPrc(conn, transaction);
-                                    }
-                                } catch (Exception e) {
-                                    processTransactionLogger.error(logPrefix, e);
-                                    exception = e;
-                                }
-                                sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
-                            }
-                            processTransactionLogger.info(logPrefix + "waiting for processing transactions");
-                            exportFlags(conn, "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'");
-                            Throwable waitResult = waitFlags(conn, timeout);
-                            if (waitResult != null) {
-                                for (Long id : sendTransactionBatchMap.keySet()) {
-                                    sendTransactionBatchMap.put(id, new SendTransactionBatch(waitResult));
-                                }
-                            }
+                    String directory = null;
+                    for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
+                        if (cashRegister.directory != null) {
+                            directory = cashRegister.directory;
                         }
+                    }
 
+                    AstronConnectionString params = new AstronConnectionString(directory);
+                    if (params.connectionString == null) {
+                        processTransactionLogger.error(logPrefix + "no connectionString found");
+                        sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(new RuntimeException("no connectionString found")));
+                    } else {
+
+                        Throwable exception = null;
+                        try (Connection conn = getConnection(params.connectionString, params.user, params.password)) {
+
+                            int flags = checkFlags(conn);
+                            if (flags > 100) {
+                                sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(new RuntimeException(String.format("data from previous transactions was not processed (%s flags not set to zero)", flags))));
+                                break;
+                            } else {
+                                truncateTables(conn);
+
+                                ListIterator<CashRegisterItemInfo> iter = transaction.itemsList.listIterator();
+                                while (iter.hasNext()) {
+                                    CashRegisterItemInfo item = iter.next();
+                                    if (!isValidItem(item)) {
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, invalid item: barcode %s, id %s, uom %s", transaction.id, item.idBarcode, item.idItem, item.idUOM));
+                                        iter.remove();
+                                    }
+                                }
+
+                                if (transaction.itemsList != null) {
+                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table grp", transaction.id));
+                                    exportGrp(conn, transaction);
+
+                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table art", transaction.id));
+                                    exportArt(conn, transaction);
+
+                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table unit", transaction.id));
+                                    exportUnit(conn, transaction);
+
+                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table pack", transaction.id));
+                                    exportPack(conn, transaction);
+
+                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table exbarc", transaction.id));
+                                    exportExBarc(conn, transaction);
+
+                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table packprc", transaction.id));
+                                    exportPackPrc(conn, transaction);
+
+                                    processTransactionLogger.info(logPrefix + "waiting for processing transactions");
+                                    exportFlags(conn, "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'");
+                                    exception = waitFlags(conn, timeout);
+                                }
+
+                            }
+
+                        } catch (Exception e) {
+                            processTransactionLogger.error(logPrefix, e);
+                            exception = e;
+                        }
+                        sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                     }
                 }
-            } catch (ClassNotFoundException | SQLException | InterruptedException e) {
+            } catch (ClassNotFoundException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -221,8 +220,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private void exportPack(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
         String[] keys = new String[]{"PACKID"};
-        String[] columns = new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID",
-                "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG"};
+        String[] columns = new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID", "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG"};
         try (PreparedStatement ps = getPreparedStatement(conn, "PACK", columns, keys)) {
             int offset = columns.length + keys.length;
 
@@ -389,14 +387,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private void setObject(PreparedStatement ps, Object value, int index) throws SQLException {
-        if (value instanceof Date)
-            ps.setDate(index, (Date) value);
-        else if (value instanceof Timestamp)
-            ps.setTimestamp(index, ((Timestamp) value));
-        else if (value instanceof String)
-            ps.setString(index, ((String) value).trim());
-        else
-            ps.setObject(index, value);
+        if (value instanceof Date) ps.setDate(index, (Date) value);
+        else if (value instanceof Timestamp) ps.setTimestamp(index, ((Timestamp) value));
+        else if (value instanceof String) ps.setString(index, ((String) value).trim());
+        else ps.setObject(index, value);
     }
 
     private PreparedStatement getPreparedStatement(Connection conn, String table, String[] columnNames, String[] keyNames) throws SQLException {
@@ -412,38 +406,35 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         for (String keyName : keyNames) {
             wheres = concat(wheres, keyName + "=?", " AND ");
         }
-        return conn.prepareStatement(String.format("UPDATE [%s] SET %s WHERE %s IF @@ROWCOUNT=0 INSERT INTO %s(%s) VALUES (%s)",
-                table, set, wheres, table, columns, params));
+        return conn.prepareStatement(String.format("UPDATE [%s] SET %s WHERE %s IF @@ROWCOUNT=0 INSERT INTO %s(%s) VALUES (%s)", table, set, wheres, table, columns, params));
     }
 
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) {
-        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
-        String connectionString = astronSettings == null ? null : astronSettings.getConnectionString();
-        String user = astronSettings == null ? null : astronSettings.getUser();
-        String password = astronSettings == null ? null : astronSettings.getPassword();
-        if (connectionString != null) {
-            try(Connection conn = getConnection(connectionString, user, password);
-                PreparedStatement ps = conn.prepareStatement(String.format("UPDATE [PACKPRC] SET DELFLAG = %s WHERE PACKID=? AND PRCLEVELID=?", stopListInfo.exclude ? "0" : "1"))) {
+        for (String directory : directorySet) {
+            AstronConnectionString params = new AstronConnectionString(directory);
+            if (params.connectionString != null) {
+                try (Connection conn = getConnection(params.connectionString, params.user, params.password); PreparedStatement ps = conn.prepareStatement(String.format("UPDATE [PACKPRC] SET DELFLAG = %s WHERE PACKID=? AND PRCLEVELID=?", stopListInfo.exclude ? "0" : "1"))) {
 
-                processStopListLogger.info(logPrefix + "executing stopLists, table packprc");
-                for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                    for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
-                        if(item instanceof CashRegisterItemInfo) {
-                            ps.setObject(1, getPackId((CashRegisterItemInfo) item)); //PACKID
-                            ps.setObject(2, nppGroupMachinery); //PRCLEVELID
-                            ps.addBatch();
+                    processStopListLogger.info(logPrefix + "executing stopLists, table packprc");
+                    for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
+                        for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
+                            if (item instanceof CashRegisterItemInfo) {
+                                ps.setObject(1, getPackId((CashRegisterItemInfo) item)); //PACKID
+                                ps.setObject(2, nppGroupMachinery); //PRCLEVELID
+                                ps.addBatch();
+                            }
                         }
                     }
+                    ps.executeBatch();
+                    conn.commit();
+
+                    processTransactionLogger.info(logPrefix + "waiting for processing stopLists");
+                    exportFlags(conn, "'ART'");
+
+                } catch (Exception e) {
+                    processStopListLogger.error(logPrefix, e);
                 }
-                ps.executeBatch();
-                conn.commit();
-
-                processTransactionLogger.info(logPrefix + "waiting for processing stopLists");
-                exportFlags(conn, "'ART'");
-
-            } catch (Exception e) {
-                processStopListLogger.error(logPrefix, e);
             }
         }
     }
@@ -456,23 +447,19 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         Map<Integer, CashRegisterInfo> machineryMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (fitHandler(c)) {
-                if (c.number != null && c.numberGroup != null)
+                if (c.number != null && c.numberGroup != null) {
                     machineryMap.put(c.number, c);
+                }
             }
         }
 
         try {
-
-            AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
-            String connectionString = astronSettings == null ? null : astronSettings.getConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
-            String user = astronSettings == null ? null : astronSettings.getUser(); //luxsoft
-            String password = astronSettings == null ? null : astronSettings.getPassword(); //123456
-
-            if (connectionString == null) {
-                processTransactionLogger.error("No exportConnectionString in astronSettings found");
+            AstronConnectionString params = new AstronConnectionString(directory);
+            if (params.connectionString == null) {
+                sendSalesLogger.error(logPrefix + "no connectionString found");
             } else {
-                try (Connection conn = getConnection(connectionString, user, password)) {
-                    salesBatch = readSalesInfoFromSQL(conn, machineryMap);
+                try (Connection conn = getConnection(params.connectionString, params.user, params.password)) {
+                    salesBatch = readSalesInfoFromSQL(conn, machineryMap, directory);
                 }
             }
         } catch (Exception e) {
@@ -481,7 +468,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return salesBatch;
     }
 
-    private AstronSalesBatch readSalesInfoFromSQL(Connection conn, Map<Integer, CashRegisterInfo> machineryMap) {
+    private AstronSalesBatch readSalesInfoFromSQL(Connection conn, Map<Integer, CashRegisterInfo> machineryMap, String directory) {
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<AstronRecord> recordList = new ArrayList<>();
@@ -489,8 +476,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         createExtraColumns(conn);
 
         try (Statement statement = conn.createStatement()) {
-            String query = "SELECT SALESCANC, SYSTEMID, SESSID, SALESTIME, FRECNUM, CASHIERID, SALESTAG, SALESBARC, SALESCODE, " +
-                    "SALESCOUNT, SALESPRICE, SALESSUM, SALESDISC, SALESTYPE, SALESNUM, SAREAID FROM [SALES] WHERE FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0 ORDER BY SALESTIME";
+            String query = "SELECT SALESCANC, SYSTEMID, SESSID, SALESTIME, FRECNUM, CASHIERID, SALESTAG, SALESBARC, SALESCODE, " + "SALESCOUNT, SALESPRICE, SALESSUM, SALESDISC, SALESTYPE, SALESNUM, SAREAID FROM [SALES] WHERE FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0 ORDER BY SALESTIME";
             ResultSet rs = statement.executeQuery(query);
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
@@ -529,11 +515,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             BigDecimal price = safeDivide(rs.getBigDecimal("SALESPRICE"), 100);
                             BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
                             BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
-                            curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport,
-                                    dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null,
-                                    null, sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, null, isSale ? totalQuantity : totalQuantity.negate(),
-                                    price, isSale ? sumReceiptDetail : sumReceiptDetail.negate(), discountSumReceiptDetail,
-                                    null, null, curSalesInfoList.size() + 1, null, null, cashRegister));
+                            curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, null, isSale ? totalQuantity : totalQuantity.negate(), price, isSale ? sumReceiptDetail : sumReceiptDetail.negate(), discountSumReceiptDetail, null, null, curSalesInfoList.size() + 1, null, null, cashRegister));
                             break;
                         }
                         case 5: {//Аннулированная товарная позиция
@@ -548,12 +530,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             BigDecimal sum = safeNegate(safeDivide(rs.getBigDecimal("SALESSUM"), 100));
                             Integer type = rs.getInt("SALESTYPE");
 
-                            salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport,
-                                    dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null,
-                                    null, type == 1 ? sum : null, type != 1 && type != 2 ? sum : null, type == 2 ? sum : null,
-                                    idBarcode, idItem, null, null, totalQuantity.negate(),
-                                    price, sumReceiptDetail.negate(), discountSumReceiptDetail,
-                                    null, null, curSalesInfoList.size() + 1, null, null, cashRegister));
+                            salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, type == 1 ? sum : null, type != 1 && type != 2 ? sum : null, type == 2 ? sum : null, idBarcode, idItem, null, null, totalQuantity.negate(), price, sumReceiptDetail.negate(), discountSumReceiptDetail, null, null, curSalesInfoList.size() + 1, null, null, cashRegister));
                             break;
                         }
                         case 1: {//оплата
@@ -597,79 +574,71 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         } catch (SQLException | ParseException e) {
             throw Throwables.propagate(e);
         }
-        return new AstronSalesBatch(salesInfoList, recordList);
+        return new AstronSalesBatch(salesInfoList, recordList, directory);
     }
 
     @Override
-    public void requestSalesInfo(List<RequestExchange> requestExchangeList,
-                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
-        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
-        String connectionString = astronSettings == null ? null : astronSettings.getConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
-        String user = astronSettings == null ? null : astronSettings.getUser(); //luxsoft
-        String password = astronSettings == null ? null : astronSettings.getPassword(); //123456
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
+        for (RequestExchange entry : requestExchangeList) {
+            for (String directory : getDirectorySet(entry)) {
+                AstronConnectionString params = new AstronConnectionString(directory);
+                if (params.connectionString != null) {
+                    try (Connection conn = getConnection(params.connectionString, params.user, params.password)) {
 
-        if (connectionString != null) {
+                        createExtraColumns(conn);
 
-            try (Connection conn = getConnection(connectionString, user, password)) {
+                        Statement statement = null;
+                        try {
+                            StringBuilder where = new StringBuilder();
+                            Long dateFrom = entry.dateFrom.getTime();
+                            Long dateTo = entry.dateTo.getTime();
+                            while (dateFrom <= dateTo) {
+                                String dateString = new SimpleDateFormat("yyyyMMdd").format(new Date(dateFrom));
+                                where.append((where.length() == 0) ? "" : " OR ").append("SALESTIME LIKE '").append(dateString).append("%'");
+                                dateFrom += 86400000;
+                            }
+                            if (where.length() > 0) {
+                                statement = conn.createStatement();
+                                String query = "UPDATE [SALES] SET FUSION_PROCESSED = 0 WHERE " + where;
+                                statement.executeUpdate(query);
+                                conn.commit();
+                            }
+                            succeededRequests.add(entry.requestExchange);
 
-                createExtraColumns(conn);
-
-                for (RequestExchange entry : requestExchangeList) {
-                    Statement statement = null;
-                    try {
-                        StringBuilder where = new StringBuilder();
-                        Long dateFrom = entry.dateFrom.getTime();
-                        Long dateTo = entry.dateTo.getTime();
-                        while (dateFrom <= dateTo) {
-                            String dateString = new SimpleDateFormat("yyyyMMdd").format(new Date(dateFrom));
-                            where.append((where.length() == 0) ? "" : " OR ").append("SALESTIME LIKE '").append(dateString).append("%'");
-                            dateFrom += 86400000;
+                        } catch (SQLException e) {
+                            failedRequests.put(entry.requestExchange, e);
+                            sendSalesLogger.info(logPrefix, e);
+                        } finally {
+                            if (statement != null) statement.close();
                         }
-                        if (where.length() > 0) {
-                            statement = conn.createStatement();
-                            String query = "UPDATE [SALES] SET FUSION_PROCESSED = 0 WHERE " + where;
-                            statement.executeUpdate(query);
-                            conn.commit();
-                        }
-                        succeededRequests.add(entry.requestExchange);
-
-                    } catch (SQLException e) {
-                        failedRequests.put(entry.requestExchange, e);
-                        sendSalesLogger.info(logPrefix, e);
-                    } finally {
-                        if (statement != null)
-                            statement.close();
+                    } catch (ClassNotFoundException | SQLException e) {
+                        throw Throwables.propagate(e);
                     }
                 }
-            } catch (ClassNotFoundException | SQLException e) {
-                throw Throwables.propagate(e);
             }
         }
     }
 
     @Override
     public void finishReadingSalesInfo(AstronSalesBatch salesBatch) {
+        for (String directory : salesBatch.directorySet) {
+            AstronConnectionString params = new AstronConnectionString(directory);
+            if (params.connectionString != null && salesBatch.recordList != null) {
 
-        AstronSettings astronMySQLSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
-        String connectionString = astronMySQLSettings == null ? null : astronMySQLSettings.getConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
-        String user = astronMySQLSettings == null ? null : astronMySQLSettings.getUser(); //luxsoft
-        String password = astronMySQLSettings == null ? null : astronMySQLSettings.getPassword(); //123456
+                try (Connection conn = getConnection(params.connectionString, params.user, params.password); PreparedStatement ps = conn.prepareStatement("UPDATE [SALES] SET FUSION_PROCESSED = 1 WHERE SALESNUM = ? AND SESSID = ? AND SYSTEMID = ? AND SAREAID = ?")) {
+                    for (AstronRecord record : salesBatch.recordList) {
+                        ps.setInt(1, record.salesNum);
+                        ps.setInt(2, record.sessId);
+                        ps.setInt(3, record.systemId);
+                        ps.setInt(4, record.sAreaId);
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                    conn.commit();
 
-        if (connectionString != null && salesBatch.recordList != null) {
-
-            try (Connection conn = getConnection(connectionString, user, password); PreparedStatement ps = conn.prepareStatement("UPDATE [SALES] SET FUSION_PROCESSED = 1 WHERE SALESNUM = ? AND SESSID = ? AND SYSTEMID = ? AND SAREAID = ?")) {
-                for (AstronRecord record : salesBatch.recordList) {
-                    ps.setInt(1, record.salesNum);
-                    ps.setInt(2, record.sessId);
-                    ps.setInt(3, record.systemId);
-                    ps.setInt(4, record.sAreaId);
-                    ps.addBatch();
+                } catch (SQLException | ClassNotFoundException e) {
+                    throw Throwables.propagate(e);
                 }
-                ps.executeBatch();
-                conn.commit();
-
-            } catch (SQLException | ClassNotFoundException e) {
-                throw Throwables.propagate(e);
             }
         }
     }
