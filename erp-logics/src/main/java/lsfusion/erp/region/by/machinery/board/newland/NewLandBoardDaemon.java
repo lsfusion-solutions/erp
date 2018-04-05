@@ -116,6 +116,9 @@ public class NewLandBoardDaemon extends BoardDaemon {
 
         private byte[] readMessage(String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
             terminalLogger.info(String.format("%s request ip %s, barcode %s", getEventName(), ip, idBarcode));
+            //хак. Иногда приходит штрихкод, начинающийся с F
+            if(idBarcode.startsWith("F"))
+                idBarcode = idBarcode.substring(1);
             try (DataSession session = dbManager.createSession()) {
 
                 String weightPrefix = (String) LM.findProperty("weightPrefixIP").read(session, new DataObject(ip));
