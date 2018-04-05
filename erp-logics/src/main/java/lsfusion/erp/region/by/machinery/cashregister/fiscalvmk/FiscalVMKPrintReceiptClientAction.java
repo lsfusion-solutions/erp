@@ -110,10 +110,10 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         FiscalVMK.printFiscalText(receiptTop);
 
         //касса выдаёт ошибку, если пробивается нулевая оплата безналом, а потом ненулевая наличными
-        if (receipt.sumCash != null && receipt.sumCard != null && receipt.sumCard.equals(BigDecimal.ZERO))
+        if (receipt.sumCash != null && receipt.sumCard != null && receipt.sumCard.compareTo(BigDecimal.ZERO) == 0)
             receipt.sumCard = null;
         //касса выдаёт ошибку, если пробивается ненулевая оплата безналом, а потом нулевая наличными
-        if (receipt.sumCard != null && receipt.sumCash != null && receipt.sumCash.equals(BigDecimal.ZERO))
+        if (receipt.sumCard != null && receipt.sumCash != null && receipt.sumCash.compareTo(BigDecimal.ZERO) == 0)
             receipt.sumCash = null;
 
         if (giftCardAsNotPayment && receipt.sumGiftCard != null) {
