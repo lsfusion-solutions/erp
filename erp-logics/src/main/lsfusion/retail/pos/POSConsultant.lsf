@@ -26,12 +26,12 @@ EXTEND FORM employees
     PROPERTIES (e) READONLYIF isReadonly() barcode
 ;
 
-FORM consultants
+FORM consultants 'Продавцы'
     OBJECTS d = DepartmentStore
 
     OBJECTS e = Employee
     PROPERTIES(e) READONLY lastName, firstName, nameMainRole, nameStock, barcode
-    FILTERS isConsultant(e), in(d, e)
+    FILTERS isConsultant(e), in(d, e), stock(e)==d
 ;
 
 isConsultantReceipt 'Учет личных продаж' = DATA BOOLEAN (Store);
@@ -89,7 +89,7 @@ changeConsultant (Receipt r) = {
 }
 
 changeConsultant (ReceiptDetail d) = {
-    DIALOG consultants OBJECTS d = departmentStore(d), e = consultant(d) INPUT DO {
+    DIALOG consultants OBJECTS d = departmentStore(d), e = consultant(d) INPUT NULL DO {
         IF d IS ReceiptSaleDetail THEN
             consultant[ReceiptSaleDetail](d) <- e;
         IF d IS ReceiptReturnDetail THEN
