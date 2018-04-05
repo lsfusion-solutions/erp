@@ -109,6 +109,13 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
 
         FiscalVMK.printFiscalText(receiptTop);
 
+        //касса выдаёт ошибку, если пробивается нулевая оплата безналом, а потом ненулевая наличными
+        if (receipt.sumCash != null && receipt.sumCard != null && receipt.sumCard.equals(BigDecimal.ZERO))
+            receipt.sumCard = null;
+        //касса выдаёт ошибку, если пробивается ненулевая оплата безналом, а потом нулевая наличными
+        if (receipt.sumCard != null && receipt.sumCash != null && receipt.sumCash.equals(BigDecimal.ZERO))
+            receipt.sumCash = null;
+
         if (giftCardAsNotPayment && receipt.sumGiftCard != null) {
 
             BigDecimal sum = BigDecimal.ZERO;
@@ -157,9 +164,6 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
 
             if (!FiscalVMK.totalCard(receipt.sumCard))
                 return null;
-            //касса выдаёт ошибку, если пробивается ненулевая оплата безналом, а потом нулевая наличными
-            if (receipt.sumCard != null && receipt.sumCash != null && receipt.sumCash.equals(BigDecimal.ZERO))
-                receipt.sumCash = null;
             if (!FiscalVMK.totalCash(receipt.sumCash))
                 return null;
             if(receipt.sumCard == null && receipt.sumCash == null && sum.doubleValue() == discountSum.abs().doubleValue())
