@@ -65,6 +65,7 @@ markupSumSold 'Продано (надбавка)' = DATA LOCAL NUMERIC[18,4] (IN
 sumVATSold 'Продано (сумма НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 sumSold 'Продано (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 turnover 'Оборачиваемость' = DATA LOCAL NUMERIC[12,3] (INTEGER);
+costBalance 'Себестоимость' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 
 balanceB 'Остаток на начало' = DATA LOCAL NUMERIC[16,4] (INTEGER);
 costBalanceB 'Себестоимость на начало' = DATA LOCAL NUMERIC[18,4] (INTEGER);
@@ -72,15 +73,32 @@ costBalanceB 'Себестоимость на начало' = DATA LOCAL NUMERIC
 balanceA 'Остаток на конец' = DATA LOCAL NUMERIC[16,4] (INTEGER);
 costBalanceA 'Себестоимость на конец' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 
-fillAnalyticalReport (DATE dateFrom, DATE dateTo) = {    
-    query('SELECT SUM(quantitySold) AS quantitySold, SUM(costSumSold) AS costSumSold, SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold) AS markupSumSold, SUM(sumVATSold) AS sumVATSold, SUM(sumSold) AS sumSold, SUM(costBalance)/SUM(costSumSold) AS turnover, ' 
+fillAnalyticalReport (DATE dateFrom, DATE dateTo) = {
+    nameGroup1(INTEGER i) <- NULL;
+    nameGroup2(INTEGER i) <- NULL;
+    nameGroup3(INTEGER i) <- NULL;
+    
+    quantitySold(INTEGER i) <- NULL;
+    costSumSold(INTEGER i) <- NULL;
+    markupSumSold(INTEGER i) <- NULL;
+    sumVATSold(INTEGER i) <- NULL;
+    sumSold(INTEGER i) <- NULL;
+    turnover(INTEGER i) <- NULL;
+    
+    balanceB(INTEGER i) <- NULL;
+    costBalanceB(INTEGER i) <- NULL;
+    
+    balanceA(INTEGER i) <- NULL;
+    costBalanceA(INTEGER i) <- NULL;
+     
+    query('SELECT SUM(quantitySold) AS quantitySold, SUM(costSumSold) AS costSumSold, SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold) AS markupSumSold, SUM(sumVATSold) AS sumVATSold, SUM(sumSold) AS sumSold, SUM(costBalance)/SUM(costSumSold) AS turnover, SUM(costBalance) AS costBalance, ' 
         + nameGroups() 
         + ' FROM turnover WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\') GROUP BY ' 
         + CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3());
         
     IMPORT JSON FROM queryResult() TO nameGroup1 = nameGroup1, nameGroup2 = nameGroup2, nameGroup3 = nameGroup3, 
                                       quantitySold = quantitySold, costSumSold = costSumSold, markupSumSold = markupSumSold,
-                                      sumVATSold = sumVATSold, sumSold = sumSold, turnover = turnover;
+                                      sumVATSold = sumVATSold, sumSold = sumSold, turnover = turnover, costBalance = costBalance;
     
     IF NOT isTimeGroup() THEN {
         LOCAL localNameGroup1 = VARSTRING[255] (INTEGER);
@@ -93,7 +111,7 @@ fillAnalyticalReport (DATE dateFrom, DATE dateTo) = {
         
         query('SELECT SUM(balance) AS balanceB, SUM(costBalance) AS costBalanceB, '
             + nameGroups()
-            + ' FROM turnover WHERE _time = TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') GROUP BY '
+            + ' FROM turnover WHERE __time = TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') GROUP BY '
             + CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3());
             
         IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
@@ -106,15 +124,15 @@ fillAnalyticalReport (DATE dateFrom, DATE dateTo) = {
         
         query('SELECT SUM(balance) AS balanceA, SUM(costBalance) AS costBalanceA, '
             + nameGroups()
-            + ' FROM turnover WHERE _time = TIME_PARSE(\'' + sum(dateTo,1) + '\',\'yyyy-MM-dd\') GROUP BY '
+            + ' FROM turnover WHERE __time = TIME_PARSE(\'' + sum(dateTo,1) + '\',\'yyyy-MM-dd\') GROUP BY '
             + CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3());
             
         IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
                                           localBalanceA = balanceA, localCostBalanceA = costBalanceA;
         
         FOR imported(INTEGER i) AND INTEGER number = [= GROUP BY nameGroup1(INTEGER n), nameGroup2(n), nameGroup3(n) LAST n ORDER n](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i)) DO {
-            balanceB(number) <- localBalanceA(i);
-            costBalanceB(number) <- localCostBalanceA(i);
+            balanceA(number) <- localBalanceA(i);
+            costBalanceA(number) <- localCostBalanceA(i);
         }
     }                                
 }
@@ -130,9 +148,11 @@ FORM printAnalyticalReport 'Аналитический отчет'
     
     OBJECTS i = INTEGER
     PROPERTIES(i) READONLY nameGroup1, nameGroup2, nameGroup3
-    
-    PROPERTIES(i) READONLY quantitySold, costSumSold, markupSumSold, sumVATSold, sumSold, turnover
-    FILTERS nameGroup1(i) 
+    PROPERTIES(i) READONLY balanceB, costBalanceB
+    PROPERTIES(i) READONLY quantitySold, costSumSold, markupSumSold, sumVATSold, sumSold, turnover, costBalance
+    PROPERTIES(i) READONLY balanceA, costBalanceA
+    FILTERS nameGroup1(i) AND dt IS DATE AND df IS DATE,
+            balanceB(i) OR quantitySold(i) OR balanceA(i)
             
     ORDER nameGroup1(i), nameGroup2(i), nameGroup3(i)
 ;
