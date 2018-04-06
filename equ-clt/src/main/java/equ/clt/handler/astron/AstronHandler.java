@@ -70,7 +70,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         try (Connection conn = getConnection(params.connectionString, params.user, params.password)) {
 
                             int flags = checkFlags(conn);
-                            if (flags > 100) {
+                            if (flags > 0) {
                                 sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(new RuntimeException(String.format("data from previous transactions was not processed (%s flags not set to zero)", flags))));
                                 break;
                             } else {
