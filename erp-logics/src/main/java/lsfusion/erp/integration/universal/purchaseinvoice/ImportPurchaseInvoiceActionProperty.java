@@ -495,6 +495,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 }
 
                 ScriptingLogicsModule skuImportCodeLM = context.getBL().getModule("SkuImportCode");
+                ScriptingLogicsModule purchaseInvoicePharmacyLM = context.getBL().getModule("PurchaseInvoicePharmacy");
 
                 ImportField sidOrigin2CountryField = new ImportField(LM.findProperty("sidOrigin2[Country]"));
                 ImportField nameCountryField = new ImportField(LM.findProperty("name[Country]"));
@@ -505,6 +506,33 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 boolean showNameCountry = showField(userInvoiceDetailsList, "nameCountry");
                 boolean showNameOriginCountry = showField(userInvoiceDetailsList, "nameOriginCountry");
                 boolean showImportCodeCountry = skuImportCodeLM != null && showField(userInvoiceDetailsList, "importCodeCountry");
+                boolean showImportCountryBatch = purchaseInvoicePharmacyLM != null && showField(userInvoiceDetailsList, "importCountryBatch");
+
+                //хак. Из-за проблемы одновременного создания страны по importCode (страна и страна ввоза) создаём страну предварительно
+                boolean preImportCountries = countryKeyType != null && countryKeyType.equals("importCodeCountry") && showImportCodeCountry && showImportCountryBatch;
+
+                if (preImportCountries) {
+                    List<List<Object>> countryData = new ArrayList<>();
+                    List<ImportProperty<?>> countryProps = new ArrayList<>();
+                    ImportKey<?> countryKey = new ImportKey((CustomClass) LM.findClass("Country"), skuImportCodeLM.findProperty("countryIdImportCode[VARSTRING[100]]").getMapping(countryIdImportCodeField));
+
+                    ImportKey<?> importCodeKey = new ImportKey((ConcreteCustomClass) skuImportCodeLM.findClass("ImportCode"), skuImportCodeLM.findProperty("countryImportCode[VARSTRING[100]]").getMapping(countryIdImportCodeField));
+
+                    countryProps.add(new ImportProperty(countryIdImportCodeField, skuImportCodeLM.findProperty("countryId[ImportCode]").getMapping(importCodeKey)));
+                    countryProps.add(new ImportProperty(countryIdImportCodeField, skuImportCodeLM.findProperty("country[ImportCode]").getMapping(importCodeKey), object(skuImportCodeLM.findClass("Country")).getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "importCodeCountry")));
+
+                    Set<Object> countrySet = new HashSet<>();
+                    for (PurchaseInvoiceDetail d : userInvoiceDetailsList) {
+                        countrySet.add(d.getFieldValue("importCodeCountry"));
+                        countrySet.add(d.getFieldValue("importCountryBatch"));
+                    }
+                    for (Object country : countrySet) {
+                        countryData.add(Collections.singletonList(country));
+                    }
+
+                    new IntegrationService(session, new ImportTable(Collections.singletonList(countryIdImportCodeField), countryData), Arrays.asList(countryKey, importCodeKey), countryProps).synchronize(true, false);
+                }
+
 
                 if (showSidOrigin2Country || showNameCountry || showNameOriginCountry || showImportCodeCountry) {
                     if (countryKeyType != null) {
@@ -533,6 +561,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                         if (countryField != null) {
                             ImportKey<?> countryKey = new ImportKey((CustomClass) LM.findClass("Country"), countryAggr.getMapping(countryField));
+                            countryKey.skipKey = preImportCountries;
                             keys.add(countryKey);
                             props.add(new ImportProperty(countryField, LM.findProperty("country[Item]").getMapping(itemKey),
                                     object(LM.findClass("Country")).getMapping(countryKey), getReplaceOnlyNull(defaultColumns, countryKeyType)));
@@ -559,6 +588,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                             if (showImportCodeCountry) {
                                 ImportKey<?> importCodeKey = new ImportKey((ConcreteCustomClass) skuImportCodeLM.findClass("ImportCode"),
                                         skuImportCodeLM.findProperty("countryImportCode[VARSTRING[100]]").getMapping(countryIdImportCodeField));
+                                importCodeKey.skipKey = preImportCountries;
                                 keys.add(importCodeKey);
                                 props.add(new ImportProperty(countryIdImportCodeField, skuImportCodeLM.findProperty("countryId[ImportCode]").getMapping(importCodeKey)));
                                 props.add(new ImportProperty(countryIdImportCodeField, skuImportCodeLM.findProperty("country[ImportCode]").getMapping(importCodeKey),
@@ -698,7 +728,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                 new ImportPurchaseInvoiceItemPharmacyBy(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, itemKey);
 
-                new ImportPurchaseInvoicePurchaseInvoicePharmacy(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey, countryKeyType);
+                new ImportPurchaseInvoicePurchaseInvoicePharmacy(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey, countryKeyType, preImportCountries);
 
                 new ImportPurchaseInvoicePurchaseCompliance(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
 

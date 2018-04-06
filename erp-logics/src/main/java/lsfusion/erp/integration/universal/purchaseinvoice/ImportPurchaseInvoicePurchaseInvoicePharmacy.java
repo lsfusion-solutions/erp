@@ -20,7 +20,7 @@ public class ImportPurchaseInvoicePurchaseInvoicePharmacy extends ImportDefaultP
     }
 
     public void makeImport(ExecutionContext context, List<ImportField> fields, List<ImportKey<?>> keys, List<ImportProperty<?>> props, LinkedHashMap<String, ImportColumnDetail> defaultColumns,
-                           List<PurchaseInvoiceDetail> userInvoiceDetailsList, List<List<Object>> data, ImportKey<?> userInvoiceDetailKey, String countryKeyType) throws ScriptingErrorLog.SemanticErrorException {
+                           List<PurchaseInvoiceDetail> userInvoiceDetailsList, List<List<Object>> data, ImportKey<?> userInvoiceDetailKey, String countryKeyType, boolean preImportCountries) throws ScriptingErrorLog.SemanticErrorException {
         ScriptingLogicsModule LM = context.getBL().getModule("PurchaseInvoicePharmacy");
 
         if (LM != null && userInvoiceDetailKey != null) {
@@ -59,10 +59,12 @@ public class ImportPurchaseInvoicePurchaseInvoicePharmacy extends ImportDefaultP
                             if(skuImportCodeLM != null) {
                                 countryField = countryIdImportCodeField;
                                 importCountryKey = new ImportKey((CustomClass) LM.findClass("Country"), skuImportCodeLM.findProperty("countryIdImportCode[VARSTRING[100]]").getMapping(countryField));
+                                importCountryKey.skipKey = preImportCountries;
                                 keys.add(importCountryKey);
 
                                 ImportKey<?> importCodeKey = new ImportKey((ConcreteCustomClass) skuImportCodeLM.findClass("ImportCode"),
                                         skuImportCodeLM.findProperty("countryImportCode[VARSTRING[100]]").getMapping(countryIdImportCodeField));
+                                importCodeKey.skipKey = preImportCountries;
                                 keys.add(importCodeKey);
                                 props.add(new ImportProperty(countryField, skuImportCodeLM.findProperty("countryId[ImportCode]").getMapping(importCodeKey)));
                                 props.add(new ImportProperty(countryField, LM.findProperty("name[Country]").getMapping(importCountryKey),true));
