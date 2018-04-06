@@ -91,8 +91,8 @@ EXTEND FORM storeRange
     FILTERS include(rn, ds, sk, d)
 ;
 
-WHEN autoSetGroupAttribute(mainRole(currentUser())) AND CHANGED(itemGroup(Item item)) AND include(RangeRev v, Store store, Sku s) AND NOT inChild(range(v), s) DO {
-    inData(Range r, SkuGroup g) <- TRUE WHERE r == range(v) AND g == skuGroup(s);
+WHEN autoSetGroupAttribute(mainRole(currentUser())) AND [= GROUP BY range(RangeRev v), itemGroup(Item item) SUM 1 IF CHANGED(itemGroup(item)) AND include(v, Store store, item) AND NOT inChild(range(v), item)](Range r, ItemGroup g) DO {
+    inData(r, g) <- TRUE;
 }
 
 CONSTRAINT include(RangeRev v, Store store, Sku s) AND NOT inChild(range(v), s) MESSAGE 'Товар не соответствует выбранным группам для ассортимента';
