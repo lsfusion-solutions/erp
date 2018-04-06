@@ -204,6 +204,7 @@ WHEN LOCAL FORMS payment
 
 //------------------------------------- Платежи по договору --------------------------------------------------------//
 overSum = ABSTRACT NUMERIC[18,4] (Currency, DATE);
+overCreate = ABSTRACT LIST (Payment);
 
 pay 'Оплатить по договору'(Contract contract, DATE date) = {
 	NEWSESSION {
@@ -215,6 +216,7 @@ pay 'Оплатить по договору'(Contract contract, DATE date) = {
 	        sumContract(pm) <- OVERRIDE overSum(currency(contract), date), balanceA(contract, date);
 	        sum(pm) <- round2(OVERRIDE overSum(currency(contract), date), balanceA(contract, date)) IF currencyContract(pm) == currencyAccountFrom(pm);
 	        writeFIFO(pm);
+	        overCreate(pm);
 	        SHOW payment OBJECTS p = pm DOCKED NOCANCEL;
 	    }
 	}
