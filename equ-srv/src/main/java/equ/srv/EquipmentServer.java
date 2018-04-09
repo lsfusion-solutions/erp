@@ -333,6 +333,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 if (isCashRegisterPriceTransaction) {
                     skuQuery.addProperty("amountBarcode", equLM.findProperty("amount[Barcode]").getExpr(barcodeExpr));
+                    skuQuery.addProperty("mainBarcode", equLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
                 }
                 
                 if(itemLM != null) {
@@ -441,7 +442,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         boolean cleared = row.get("clearedMachineryPriceTransaction") != null;
                         Boolean disableSalesCashRegister = row.get("disableSalesCashRegister") != null;
                         boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
-                        //todo: убрать idDepartmentStoreGroupCashRegister, когда не останется использований
                         cashRegisterInfoList.add(new CashRegisterInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
                                 nameModelGroupMachinery, handlerModelGroupMachinery, portMachinery, directoryCashRegister,
                                 startDateGroupCashRegister, overDepartmentNumberGroupCashRegister, idDepartmentStoreGroupCashRegister, notDetailedGroupCashRegister,
@@ -455,6 +455,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         ImMap<Object, Object> row = skuResult.getValue(i);
 
                         String barcode = getRowValue(row, "idBarcode");
+                        String mainBarcode = getRowValue(row, "mainBarcode");
                         BigDecimal amountBarcode = (BigDecimal) row.get("amountBarcode");
                         String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
@@ -488,11 +489,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         CashRegisterItemInfo c = new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, itemGroupObject, description, idBrand, nameBrand,
                                 idSeason, nameSeason, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
-                                balance, balanceDate, restrictionToDateTime, barcodeObject);
+                                balance, balanceDate, restrictionToDateTime, barcodeObject, mainBarcode);
                         cashRegisterItemInfoList.add(c);
                     }
 
-                    //todo: заменить использования idDepartmentStoreGroupCashRegister из CashRegisterInfo
                     transactionList.add(new TransactionCashRegisterInfo((Long) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,

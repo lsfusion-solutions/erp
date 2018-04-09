@@ -21,13 +21,14 @@ public class CashRegisterItemInfo extends ItemInfo {
     public Timestamp balanceDate;
     public Timestamp restrictionToDateTime;
     public Long barcodeObject;
+    public String mainBarcode;
 
     public CashRegisterItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry,
                                 Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
                                 String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM,
                                 Long itemGroupObject, String description, String idBrand, String nameBrand, String idSeason, String nameSeason,
                                 String section, String deleteSection, BigDecimal minPrice, String extIdItemGroup, BigDecimal amountBarcode,
-                                BigDecimal balance, Timestamp balanceDate, Timestamp restrictionToDateTime, Long barcodeObject) {
+                                BigDecimal balance, Timestamp balanceDate, Timestamp restrictionToDateTime, Long barcodeObject, String mainBarcode) {
         super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, nameItemGroup,
                 idUOM, shortNameUOM);
         this.itemGroupObject = itemGroupObject;
@@ -45,5 +46,6 @@ public class CashRegisterItemInfo extends ItemInfo {
         this.balanceDate = balanceDate;
         this.restrictionToDateTime = restrictionToDateTime;
         this.barcodeObject = barcodeObject;
+        this.mainBarcode = mainBarcode;
     }
 }

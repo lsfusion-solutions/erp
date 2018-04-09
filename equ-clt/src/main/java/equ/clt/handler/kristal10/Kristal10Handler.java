@@ -759,7 +759,6 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     }
 
                     for (DiscountCard d : discountCardList) {
-                        //todo: убрать после обновления сервера - эта проверка будет проводится на сервере
                         boolean active = requestExchange.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
                         if(active) {
                             //parent: rootElement

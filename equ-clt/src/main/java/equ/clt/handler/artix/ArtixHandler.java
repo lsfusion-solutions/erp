@@ -126,9 +126,18 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         }
 
                         //items
+                        Map<String, List<CashRegisterItemInfo>> barcodeMap = new HashMap<>();
                         for (CashRegisterItemInfo item : transaction.itemsList) {
+                            List<CashRegisterItemInfo> items = barcodeMap.get(item.mainBarcode);
+                            if (items == null)
+                                items = new ArrayList<>();
+                            items.add(item);
+                            barcodeMap.put(item.mainBarcode, items);
+                        }
+
+                        for (Map.Entry<String, List<CashRegisterItemInfo>> barcodeEntry : barcodeMap.entrySet()) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                String inventItem = getAddInventItemJSON(transaction, item, appendBarcode);
+                                String inventItem = getAddInventItemJSON(transaction, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode);
                                 if(inventItem != null)
                                     writeStringToFile(tmpFile, inventItem + "\n---\n");
                             }
@@ -229,7 +238,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return result;
     }
 
-    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item, boolean appendBarcode) throws JSONException {
+    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, String mainBarcode, List<CashRegisterItemInfo> items, boolean appendBarcode) throws JSONException {
+        Set<String> barcodes = new HashSet<>();
+        for(CashRegisterItemInfo item : items) {
+            if(!item.idBarcode.equals(item.mainBarcode)) {
+                barcodes.add(item.idBarcode);
+            }
+        }
+        CashRegisterItemInfo item = items.get(0);
         Integer idUOM = parseUOM(item.idUOM);
         if(idUOM != null) {
             JSONObject rootObject = new JSONObject();
@@ -237,7 +253,17 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             JSONObject inventObject = new JSONObject();
             rootObject.put("invent", inventObject);
             inventObject.put("inventcode", trim(item.idItem != null ? item.idItem : item.idBarcode, 20)); //код товара
-            inventObject.put("barcode", removeCheckDigitFromBarcode(item.idBarcode, appendBarcode)); //основной штрих-код
+            inventObject.put("barcode", removeCheckDigitFromBarcode(mainBarcode, appendBarcode));
+
+            if(!barcodes.isEmpty()) {
+                JSONArray barcodesArray = new JSONArray();
+                for(String barcode : barcodes) {
+                    barcodesArray.put(removeCheckDigitFromBarcode(barcode, appendBarcode));
+                }
+                inventObject.put("barcodes", barcodesArray);
+            }
+
+            //основной штрих-код
             inventObject.put("deptcode", 1); //код отдела
             inventObject.put("price", item.price); //цена
             inventObject.put("minprice", item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO); //минимальная цена
@@ -698,17 +724,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
         }
         return new CashDocumentBatch(cashDocumentList, null);
-    }
-
-    @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) {
-        //TODO
-    }
-
-    @Override
-    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) {
-        //TODO
-        return true;
     }
 
     @Override
