@@ -18,6 +18,7 @@ activeGroupMachinery (DeleteBarcode d) = NOT inactive(groupMachinery(d));
 succeeded 'Выполнен' = DATA BOOLEAN (DeleteBarcode); 
 dateTimeProcessing 'Принят в обработку' = DATA DATETIME (DeleteBarcode);
 dateTimeSucceeded 'Дата выполнения' = DATA DATETIME (DeleteBarcode);
+barcodeObject = DATA LONG (DeleteBarcode) NONULL;
 barcode 'Штрихкод' = DATA VARSTRING[100] (DeleteBarcode) NONULL;
 idSku 'Код товара' = DATA VARSTRING[100] (DeleteBarcode) NONULL;
 nameSku 'Наименование товара' = DATA VARISTRING[255] (DeleteBarcode) NONULL;
@@ -44,6 +45,7 @@ succeedDeleteBarcode(INTEGER nppGroupMachinery, VARSTRING[28] barcode) = {
 CLASS DeleteBarcodeError 'Ошибка';
 TABLE deleteBarcodeError (DeleteBarcodeError);
 
+groupMachinery = DATA GroupMachinery(DeleteBarcodeError) NONULL;
 data 'Сообщение об ошибке' = DATA VARSTRING[200] (DeleteBarcodeError) IN base;
 date 'Время возникновения' = DATA DATETIME (DeleteBarcodeError) IN base;
 errorTrace 'След исключения' = DATA TEXT (DeleteBarcodeError) IN base;
@@ -60,6 +62,7 @@ FORM deleteBarcodes 'Запросы удаления штрихкодов'
     
     OBJECTS e = DeleteBarcodeError
     PROPERTIES(e) READONLY data, date, errorTrace
+    FILTERS groupMachinery(e) == groupMachinery(d)
 ;
 
 NAVIGATOR {
@@ -70,6 +73,7 @@ NAVIGATOR {
 
 WHEN DROPPED (Barcode b IS Barcode) AND PREV(id(b)) AND NOT disableDeleteBarcode() DO {
     FOR GroupMachinery gm == [=GROUP BY directory(GroupMachinery ggm) MIN ggm IF active(ggm)](VARSTRING[200] dir) NEW d = DeleteBarcode DO {
+        barcodeObject(d) <- LONG(b);
         barcode(d) <- PREV (id(b));
         idSku(d) <- PREV(idSku(b));
         nameSku(d) <- PREV(nameSku(b));

@@ -50,10 +50,10 @@ class DeleteBarcodeEquipmentServer {
                 KeyExpr deleteBarcodeExpr = new KeyExpr("deleteBarcode");
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "deleteBarcode", deleteBarcodeExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-                String[] names = new String[]{"barcode", "idSku", "nameSku", "idUOMSku", "shortNameUOMSku",
+                String[] names = new String[]{"barcodeObject", "barcode", "idSku", "nameSku", "idUOMSku", "shortNameUOMSku",
                         "nppGroupMachinery", "overDepartmentNumberGroupMachinery",
                         "handlerModelGroupMachinery", "valueVATSku", "idItemGroup", "nameItemGroup", "directoryGroupMachinery",};
-                LCP[] properties = deleteBarcodeLM.findProperties("barcode[DeleteBarcode]", "idSku[DeleteBarcode]", "nameSku[DeleteBarcode]",
+                LCP[] properties = deleteBarcodeLM.findProperties("barcodeObject[DeleteBarcode]", "barcode[DeleteBarcode]", "idSku[DeleteBarcode]", "nameSku[DeleteBarcode]",
                         "idUOMSku[DeleteBarcode]", "shortNameUOMSku[DeleteBarcode]",
                         "nppGroupMachinery[DeleteBarcode]", "overDepartmentNumberGroupMachinery[DeleteBarcode]", "handlerModelGroupMachinery[DeleteBarcode]",
                         "valueVATSku[DeleteBarcode]", "idItemGroup[DeleteBarcode]", "nameItemGroup[DeleteBarcode]", "directoryGroupMachinery[DeleteBarcode]");
@@ -66,6 +66,7 @@ class DeleteBarcodeEquipmentServer {
                 query.and(deleteBarcodeLM.findProperty("succeeded[DeleteBarcode]").getExpr(deleteBarcodeExpr).getWhere().not());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
                 for (ImMap<Object, Object> value : result.values()) {
+                    Long barcodeObject = (Long) value.get("barcodeObject");
                     String barcode = (String) value.get("barcode");
                     String idSku = (String) value.get("idSku");
                     String name = (String) value.get("nameSku");
@@ -85,7 +86,7 @@ class DeleteBarcodeEquipmentServer {
                                 overDepartmentNumberGroupMachinery, handlerModelGroupMachinery, directory);
                     deleteBarcodeInfo.barcodeList.add(new CashRegisterItemInfo(idSku, barcode, name, null, false, null, null,
                             false, valueVAT, null, null, idItemGroup, nameItemGroup, idUOM, shortNameUOM, null, null, null, null, null, null,
-                            null, null, null, null, null, null, null, null, null));
+                            null, null, null, null, null, null, null, null, barcodeObject, null));
                     barcodeMap.put(key, deleteBarcodeInfo);
 
                 }
@@ -100,7 +101,7 @@ class DeleteBarcodeEquipmentServer {
         try (DataSession session = dbManager.createSession()) {
             DataObject errorObject = session.addObject((ConcreteCustomClass) deleteBarcodeLM.findClass("DeleteBarcodeError"));
             ObjectValue groupMachineryObject = deleteBarcodeLM.findProperty("groupMachineryNpp[INTEGER]").readClasses(session, new DataObject(nppGroupMachinery));
-            deleteBarcodeLM.findProperty("groupMachinery[DeleteBarcode]").change(groupMachineryObject, session, errorObject);
+            deleteBarcodeLM.findProperty("groupMachinery[DeleteBarcodeError]").change(groupMachineryObject, session, errorObject);
             deleteBarcodeLM.findProperty("data[DeleteBarcodeError]").change(exception.toString(), session, errorObject);
             deleteBarcodeLM.findProperty("date[DeleteBarcodeError]").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, errorObject);
             OutputStream os = new ByteArrayOutputStream();
