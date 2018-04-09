@@ -222,7 +222,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private void exportPack(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
         String[] keys = new String[]{"PACKID"};
-        String[] columns = new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID", "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG"};
+        String[] columns = new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID", "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG", "BARCID"};
         try (PreparedStatement ps = getPreparedStatement(conn, "PACK", columns, keys)) {
             int offset = columns.length + keys.length;
 
@@ -248,8 +248,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     setObject(ps, item.passScalesItem ? 0 : 1, 8, offset); //PACKDTYPE
                     setObject(ps, trim(item.name, "", 50), 9, offset); //PACKNAME
                     setObject(ps, "0", 10, offset); //DELFLAG
+                    setObject(ps, item.passScalesItem ? "2" : null, 11, offset); //BARCID
 
-                    setObject(ps, packId, 11); //PACKID
+                    setObject(ps, packId, 12); //PACKID
 
                     ps.addBatch();
                 } else break;
