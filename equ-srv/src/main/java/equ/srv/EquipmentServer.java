@@ -925,6 +925,18 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 Collections.sort(salesInfoList, COMPARATOR);
 
                 try (DataSession outerSession = getDbManager().createSession()) {
+
+                    //временная опция для Табака
+                    if(cashRegisterLM.findProperty("disableSalesForClosedZReports[]").read(outerSession) != null) {
+                        Set<String> closedZReportSet = readClosedZReportSet(outerSession);
+                        ListIterator<SalesInfo> iter = salesInfoList.listIterator();
+                        while (iter.hasNext()) {
+                            if (closedZReportSet.contains(iter.next().getIdZReport(null))){
+                                iter.remove();
+                            }
+                        }
+                    }
+
                     ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(outerSession, new DataObject(sidEquipmentServer));
                     Integer maxThreads = (Integer) equLM.findProperty("maxThreads[EquipmentServer]").read(outerSession, equipmentServerObject);
                     if (maxThreads == null || maxThreads <= 1)
@@ -2355,6 +2367,23 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     @Override
     public void logProcesses(String sidEquipmentServer, String data) throws RemoteException, SQLException {
         ProcessMonitorEquipmentServer.logProcesses(getBusinessLogics(), getDbManager(), getStack(), sidEquipmentServer, data);
+    }
+
+    private Set<String> readClosedZReportSet(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Set<String> result = new HashSet();
+        KeyExpr zReportExpr = new KeyExpr("ZReport");
+        ImRevMap<Object, KeyExpr> zReportKeys = MapFact.singletonRev((Object) "ZReport", zReportExpr);
+        QueryBuilder<Object, Object> zReportQuery = new QueryBuilder<>(zReportKeys);
+
+        zReportQuery.addProperty("idZReport", zReportLM.findProperty("id[ZReport]").getExpr(zReportExpr));
+        zReportQuery.and(zReportLM.findProperty("isClosed[ZReport]").getExpr(zReportExpr).getWhere());
+
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> zReportResult = zReportQuery.execute(session);
+        for (ImMap<Object, Object> row : zReportResult.valueIt()) {
+            String idZReport = (String) row.get("idZReport");
+            result.add(idZReport);
+        }
+        return result;
     }
 
 
