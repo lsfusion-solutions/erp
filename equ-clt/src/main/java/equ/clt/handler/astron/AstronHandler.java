@@ -52,6 +52,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                 AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
                 Integer timeout = astronSettings == null || astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
+                Map<Integer, Integer> groupMachineryMap = astronSettings == null ? new HashMap<Integer, Integer>() : astronSettings.getGroupMachineryMap();
 
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
@@ -106,11 +107,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table packprc", transaction.id));
                                     exportPackPrc(conn, transaction);
 
-                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table ARTEXTGRP", transaction.id));
-                                    exportArtExtgrp(conn, transaction);
+                                    Integer extGrpId = groupMachineryMap.get(transaction.nppGroupMachinery);
+                                    if(extGrpId != null) {
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table ARTEXTGRP", transaction.id));
+                                        exportArtExtgrp(conn, transaction, extGrpId);
+                                    }
 
                                     processTransactionLogger.info(logPrefix + "waiting for processing transactions");
-                                    exportFlags(conn, "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC', 'ARTEXTGRP'");
+                                    exportFlags(conn, "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'" + (extGrpId != null ? ", 'ARTEXTGRP'" : ""));
                                     exception = waitFlags(conn, timeout);
                                 }
 
@@ -189,18 +193,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportArtExtgrp(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
+    private void exportArtExtgrp(Connection conn, TransactionCashRegisterInfo transaction, Integer extGrpId) throws SQLException {
         String[] keys = new String[]{"ARTID"};
         String[] columns = new String[]{"ARTID", "EXTGRPID", "DELFLAG "};
         try (PreparedStatement ps = getPreparedStatement(conn, "ARTEXTGRP", columns, keys)) {
             int offset = columns.length + keys.length;
 
-            for (int i = 0; i < transaction.itemsList.size() && transaction.nppGroupMachinery == 75; i++) {
+            for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (!Thread.currentThread().isInterrupted()) {
                     CashRegisterItemInfo item = transaction.itemsList.get(i);
                     Integer idItem = parseIdItem(item);
                     setObject(ps, idItem, 1, offset); //ARTID
-                    setObject(ps, 1, 2, offset); //EXTGRPID
+                    setObject(ps, extGrpId, 2, offset); //EXTGRPID
                     setObject(ps, 0, 3, offset); //DELFLAG
 
                     setObject(ps, idItem, 4); //ARTID
@@ -263,7 +267,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     Integer packId = getPackId(item);
                     setObject(ps, packId, 1, offset); //PACKID
                     setObject(ps, idItem, 2, offset); //ARTID
-                    setObject(ps, "1", 3, offset); //PACKQUANT
+                    setObject(ps, item.passScalesItem || item.splitItem ? "1000" : "1", 3, offset); //PACKQUANT
                     setObject(ps, "0", 4, offset); //PACKSHELFLIFE
                     if (idItems.contains(idItem)) {
                         setObject(ps, false, 5, offset); //ISDEFAULT
@@ -272,8 +276,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         idItems.add(idItem);
                     }
                     setObject(ps, idUOM, 6, offset); //UNITID
-                    setObject(ps, "", 7, offset); //QUANTMASK
-                    setObject(ps, item.passScalesItem ? 0 : 1, 8, offset); //PACKDTYPE
+                    setObject(ps, item.splitItem ? 2 : "", 7, offset); //QUANTMASK
+                    setObject(ps, item.passScalesItem ? 0 : item.splitItem ? 2 : 1, 8, offset); //PACKDTYPE
                     setObject(ps, trim(item.name, "", 50), 9, offset); //PACKNAME
                     setObject(ps, "0", 10, offset); //DELFLAG
                     setObject(ps, item.passScalesItem ? "2" : null, 11, offset); //BARCID
@@ -302,7 +306,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     Integer packId = getPackId(item);
                     setObject(ps, packId, 1, offset); //PACKID
                     setObject(ps, idItem, 2, offset); //ARTID
-                    setObject(ps, "1", 3, offset); //PACKQUANT
+                    setObject(ps, item.passScalesItem || item.splitItem ? "1000" : "1", 3, offset); //PACKQUANT
                     setObject(ps, "0", 4, offset); //PACKSHELFLIFE
                     if (idItems.contains(idItem)) {
                         setObject(ps, false, 5, offset); //ISDEFAULT
