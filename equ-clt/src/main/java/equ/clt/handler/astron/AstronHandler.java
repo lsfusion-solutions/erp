@@ -106,8 +106,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table packprc", transaction.id));
                                     exportPackPrc(conn, transaction);
 
+                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table ARTEXTGRP", transaction.id));
+                                    exportArtExtgrp(conn, transaction);
+
                                     processTransactionLogger.info(logPrefix + "waiting for processing transactions");
-                                    exportFlags(conn, "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'");
+                                    exportFlags(conn, "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC', 'ARTEXTGRP'");
                                     exception = waitFlags(conn, timeout);
                                 }
 
@@ -185,6 +188,31 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             conn.commit();
         }
     }
+
+    private void exportArtExtgrp(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
+        String[] keys = new String[]{"ARTID"};
+        String[] columns = new String[]{"ARTID", "EXTGRPID", "DELFLAG "};
+        try (PreparedStatement ps = getPreparedStatement(conn, "ARTEXTGRP", columns, keys)) {
+            int offset = columns.length + keys.length;
+
+            for (int i = 0; i < transaction.itemsList.size() && transaction.nppGroupMachinery == 75; i++) {
+                if (!Thread.currentThread().isInterrupted()) {
+                    CashRegisterItemInfo item = transaction.itemsList.get(i);
+                    Integer idItem = parseIdItem(item);
+                    setObject(ps, idItem, 1, offset); //ARTID
+                    setObject(ps, 1, 2, offset); //EXTGRPID
+                    setObject(ps, 0, 3, offset); //DELFLAG
+
+                    setObject(ps, idItem, 4); //ARTID
+
+                    ps.addBatch();
+                } else break;
+            }
+            ps.executeBatch();
+            conn.commit();
+        }
+    }
+
 
     private void exportUnit(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
         String[] keys = new String[]{"UNITID"};
@@ -461,7 +489,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private int checkFlags(Connection conn) {
         try (Statement statement = conn.createStatement()) {
-            String sql = "SELECT COUNT(*) FROM [DATAPUMP] WHERE dirname in ('GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC') AND recordnum = 1";
+            String sql = "SELECT COUNT(*) FROM [DATAPUMP] WHERE dirname in ('GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC', 'ARTEXTGRP') AND recordnum = 1";
             ResultSet resultSet = statement.executeQuery(sql);
             return resultSet.next() ? resultSet.getInt(1) : 0;
         } catch (Exception e) {
@@ -470,7 +498,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private void truncateTables(Connection conn) throws SQLException {
-        for (String table : new String[]{"GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC"}) {
+        for (String table : new String[]{"GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC", "ARTEXTGRP"}) {
             try (Statement s = conn.createStatement()) {
                 s.execute("TRUNCATE TABLE " + table);
             }
