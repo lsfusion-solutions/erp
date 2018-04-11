@@ -255,13 +255,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             inventObject.put("inventcode", trim(item.idItem != null ? item.idItem : item.idBarcode, 20)); //код товара
             inventObject.put("barcode", removeCheckDigitFromBarcode(mainBarcode, appendBarcode));
 
-            if(!barcodes.isEmpty()) {
-                JSONArray barcodesArray = new JSONArray();
-                for(String barcode : barcodes) {
-                    barcodesArray.put(removeCheckDigitFromBarcode(barcode, appendBarcode));
-                }
-                inventObject.put("barcodes", barcodesArray);
-            }
+//            if(!barcodes.isEmpty()) {
+//                JSONArray barcodesArray = new JSONArray();
+//                for(String barcode : barcodes) {
+//                    barcodesArray.put(removeCheckDigitFromBarcode(barcode, appendBarcode));
+//                }
+//                inventObject.put("barcodes", barcodesArray);
+//            }
 
             //основной штрих-код
             inventObject.put("deptcode", 1); //код отдела
