@@ -4,23 +4,27 @@ REQUIRE SaleReportContract;
 
 NAMESPACE SaleReport;
 
-currentBalance(Batch batch) = NUMERIC[16,4]([= X*Y](currentBalance(batch),invoicePrice(invoiceDetail(batch))));
-currentBalanceSum(Contract contract) = GROUP SUM currentBalance(Batch batch)
-    IF partyA(contract) == supplier(batch) AND contract == contractSku(invoice(invoiceDetail(batch)));
+invoiceSumBalance 'Сумма остатка товара с НДС' = GROUP BY contractSku(invoiceDetail(Batch batch)), DATETIME date 
+    SUM round2(prevBalanceB(batch, Stock stock, date)*price(invoiceDetail(batch))*(valueVAT(batch) (+) 100)/100);
+invoiceSumBalance 'Сумма остатка товара с НДС' (ContractSku contract, DATE date) = invoiceSumBalance(contract, toDateTime(date));
 
-createReportSales 'Создать акт реализации' (Contract contract) = {
-    IF currentBalanceA(contract) (-) currentBalance(contract) (-) currentBalanceSum(contract) THEN {
+overCreateReportSales = ABSTRACT LIST (SaleReport, DATE);
+
+createReportSales 'Создать акт реализации' (Contract contract, DATE dt) = {
+    IF balanceBA(contract, dt) (-) currentBalance(contract) (-) invoiceSumBalance(contract, dt) THEN {
         NEW r = SaleReport {
             company(r) <- partyB(contract);
             supplier(r) <- partyA(contract);
             contractSku(r) <- contract;
             NEW d = SaleReportDetail {
                 saleReport(d) <- r;
-                invoiceSum(d) <- currentBalanceA(contract) (-) currentBalance(contract) (-) currentBalanceSum(contract);
+                invoiceSum(d) <- balanceBA(contract, dt) (-) currentBalance(contract) (-) invoiceSumBalance(contract, dt);
             }
-            isPosted(r) <- TRUE;    
+            isPosted(r) <- TRUE;
+            
+            overCreateReportSales(r, dt);
         }
-        apply();
+        APPLY ;
     }
 }
 
@@ -29,11 +33,18 @@ createReportsSales 'Создать по остаткам' () = {
         IF NOT (GROUP SUM 1 IF in(Contract cc)) THEN
             in(c) <- TRUE;
         FOR in(Contract contract) DO {
-            createReportSales(contract);
+            createReportSales(contract, currentDate());
         } 
     }
+    in(Contract c) <- NULL;
 }
 
 EXTEND FORM reportsSales
-    PROPERTIES createReportsSales() TOOLBAR;
+    PROPERTIES createReportsSales() TOOLBAR TODRAW r;
 ;
+
+createReportsSalesAll 'Создать по остаткам' (DATE dt) = {
+    FOR type(paymentCondition(ContractSku c)) == AgreementPaymentType.implement AND isCompany(partyB(c)) AND NOT skipSaleLedger(c) DO {
+        createReportSales(c, dt);
+    }
+}

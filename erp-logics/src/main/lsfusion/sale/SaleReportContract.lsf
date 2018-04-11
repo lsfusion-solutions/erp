@@ -4,7 +4,28 @@ REQUIRE SaleReport, ContractPayment;
 
 NAMESPACE SaleReport;
 
-@implementContractLedger(, SaleReport, contractSku);
+
+@defineDocumentHeaderTimePrefix(SaleReport, contract,' задолженности');
+
+EXTEND FORM saleReport
+    PROPERTIES (r) contractDate, contractTime;
+    
+DESIGN saleReport {
+    first {
+        MOVE PROPERTY (contractDate(r));
+        MOVE PROPERTY (contractTime(r));
+    }
+}
+
+EXTEND FORM reportsSales
+    PROPERTIES (r) BEFORE nameCurrency(r) READONLYIF isReadonly() contractDate, contractTime;
+
+EXTEND CLASS SaleReport : ContractLedger;
+    
+isPosted[ContractLedger](SaleReport contractLedger) += isPosted(contractLedger);
+dateTime[ContractLedger](SaleReport contractLedger) += OVERRIDE contractDateTime(contractLedger), dateTime(contractLedger);
+contract[ContractLedger](SaleReport contractLedger) += contractSku(contractLedger);
+description[ContractLedger](SaleReport contractLedger) += description(contractLedger);
 
 sum[ContractLedger](SaleReport contractLedger) += invoiceSumSaleReportDetail(contractLedger);
   
