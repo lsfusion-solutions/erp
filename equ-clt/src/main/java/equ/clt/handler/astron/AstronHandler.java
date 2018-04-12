@@ -692,7 +692,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     Time timeReceipt = new Time(salesTime);
 
                     Integer numberReceipt = rs.getInt("FRECNUM");
-                    String idEmployee = String.valueOf(rs.getInt("CASHIERID"));
+                    //пока импорт кассиров отключён, поскольку нет их имён. Имена можно взять в таблице CASHIER, если её нам начнут выгружать
+                    String idEmployee = null;//String.valueOf(rs.getInt("CASHIERID"));
                     Integer type = rs.getInt("SALESTYPE");
                     boolean isWeight = type == 0 || type == 2;
 
