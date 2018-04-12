@@ -102,6 +102,7 @@ public class StopListEquipmentServer {
                     QueryBuilder<Object, Object> stockQuery = new QueryBuilder<>(stockKeys);
                     stockQuery.addProperty("idStock", stopListLM.findProperty("id[Stock]").getExpr(stockExpr));
                     stockQuery.addProperty("nppGroupMachinery", machineryLM.findProperty("npp[GroupMachinery]").getExpr(groupMachineryExpr));
+                    stockQuery.and(stopListLM.findProperty("id[Stock]").getExpr(stockExpr).getWhere());
                     stockQuery.and(stopListLM.findProperty("in[Stock,StopList]").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
                     stockQuery.and(stopListLM.findProperty("notSucceeded[Stock,StopList]").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
                     stockQuery.and(machineryLM.findProperty("stock[GroupMachinery]").getExpr(groupMachineryExpr).compare(stockExpr, Compare.EQUALS));
