@@ -659,8 +659,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT sales.SALESCANC, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, sales.SALESTAG, sales.SALESBARC, " +
-                    "sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, sess.SESSSTART " +
-                    "FROM SALES sales LEFT JOIN SESS sess ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
+                    "sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART " +
+                    "FROM SALES sales LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
+                    "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID AND NOT (sales.SYSTEMID = 301 AND sales.SESSID < 3) " + // временная доп проверка
                     "WHERE FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0 ORDER BY SALESTIME, SALESNUM";
             ResultSet rs = statement.executeQuery(query);
 
