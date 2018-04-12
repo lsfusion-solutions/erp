@@ -9,6 +9,7 @@ public class ArtixSettings implements Serializable{
     private String giftCardRegexp;
     private boolean disableCopyToSuccess;
     private boolean readCashDocuments;
+    private boolean exportClients;
 
     public ArtixSettings() {
     }
@@ -51,5 +52,13 @@ public class ArtixSettings implements Serializable{
 
     public void setReadCashDocuments(boolean readCashDocuments) {
         this.readCashDocuments = readCashDocuments;
+    }
+
+    public boolean isExportClients() {
+        return exportClients;
+    }
+
+    public void setExportClients(boolean exportClients) {
+        this.exportClients = exportClients;
     }
 }

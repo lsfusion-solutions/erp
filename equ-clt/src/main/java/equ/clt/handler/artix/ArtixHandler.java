@@ -472,7 +472,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return rootObject.toString();
     }
 
-/*    private String getAddClientJSON(DiscountCard card) throws JSONException, ParseException {
+    private String getAddClientJSON(DiscountCard card) throws JSONException {
         JSONObject rootObject = new JSONObject();
 
         JSONObject clientObject = new JSONObject();
@@ -488,7 +488,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             clientObject.put("birthday", new SimpleDateFormat("yyyy-MM-dd").format(card.birthdayContact)); //день рождения, год рождения должен быть больше 1900
         rootObject.put("command", "addClient");
         return rootObject.toString();
-    }*/
+    }
 
     private void waitForDeletion(File file, File flagFile) {
         int count = 0;
@@ -745,6 +745,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                 ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
                 String globalExchangeDirectory = artixSettings != null ? artixSettings.getGlobalExchangeDirectory() : null;
+                boolean exportClients = artixSettings != null ? artixSettings.isExportClients() : null;
                 if(globalExchangeDirectory != null) {
                     if (new File(globalExchangeDirectory).exists() || new File(globalExchangeDirectory).mkdirs()) {
                         machineryExchangeLogger.info(String.format(logPrefix + "Send DiscountCards to %s", globalExchangeDirectory));
@@ -769,11 +770,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             }
                         }
 
-//                        for (DiscountCard d : discountCardList) {
-//                            if(d.typeDiscountCard != null) {
-//                                writeStringToFile(tmpFile, getAddClientJSON(d) + "\n---\n");
-//                            }
-//                        }
+                        if(exportClients) {
+                            for (DiscountCard d : discountCardList) {
+                                if (d.idDiscountCard != null) {
+                                    writeStringToFile(tmpFile, getAddClientJSON(d) + "\n---\n");
+                                }
+                            }
+                        }
 
                         FileCopyUtils.copy(tmpFile, file);
                         if(!tmpFile.delete())
