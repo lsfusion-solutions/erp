@@ -957,7 +957,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String lineItemBuyerID = lineElement.getChildText("LineItemBuyerID");
             String lineItemName = lineElement.getChildText("LineItemName");
 
-            String idDetail = id + "/" + lineItemNumber;
+            String idDetail = id + "/" + lineItemNumber + (isCancel != null ? "_cancel" : "");
             BigDecimal quantityDespatched = parseBigDecimal(lineElement.getChildText("QuantityDespatched"));
             BigDecimal valueVAT = parseBigDecimal(lineElement.getChildText("TaxRate"));
             BigDecimal lineItemPrice = parseBigDecimal(lineElement.getChildText("LineItemPrice"));
@@ -982,7 +982,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             try (DataSession session = context.createSession()) {
 
-                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumber[VARSTRING[28]]").readClasses(session, new DataObject(blrwbl.deliveryNoteNumber));
+                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumberIsCancel[VARSTRING[28], INTEGER]").readClasses(session, new DataObject(blrwbl.deliveryNoteNumber), new DataObject(blrwbl.isCancel ? 1 : 0));
                 if (eInvoiceObject instanceof NullValue) {
                     eInvoiceObject = session.addObject((ConcreteCustomClass) findClass("EInvoice"));
 
