@@ -1,49 +1,76 @@
 MODULE Druid;
 
-REQUIRE Utils;
+REQUIRE Utils, Time;
 
-druidHost 'Хост для подключения Druid' = DATA VARSTRING[100] ();
-EXTEND FORM options
-    PROPERTIES druidHost();
+host 'Хост для подключения' = DATA VARSTRING[100] ();
+
+// ----------------- Загрузка данных ------------------- //
+
+exportDirectory 'Путь для экспорта файлов' = DATA VARSTRING[500] ();
+// file:///mnt/backup/csv/
+// ftp://ftpuser:f7y45cnb@195.201.124.251:21/csv/
+
+importDirectory 'Путь для экспорта файлов' = DATA VARSTRING[500] ();
+// /mnt/backup/csv/
+
+
+EXTEND FORM integrationData
+    PROPERTIES host(), exportDirectory(), importDirectory()
+    
+    OBJECTS (druidFrom = DATE, druidTo = DATE) PANEL
+    PROPERTIES druidFrom 'С' = VALUE(druidFrom), druidTo 'По' = VALUE(druidTo)
 ;
 
-DESIGN options {
+DESIGN integrationData {
     pane {
         NEW druid {
             caption = 'Druid';
-            MOVE PROPERTY(druidHost());
+            MOVE PROPERTY(host());
+            MOVE PROPERTY(exportDirectory());
+            MOVE PROPERTY(importDirectory());
         }
     }
 } 
+
+ingestBatch (VARSTRING[100] id, DATE date) = {
+    printToLog('' + currentDateTime() + ' Started WRITE ');
+    WRITE exportDirectory() + id + date FROM exportFile();
+    printToLog('' + currentDateTime() + 'Ended WRITE ');
+    
+    runTask(id, date);
+}
+
+runTask(VARSTRING[100] id, DATE date) = {
+    LOCAL template = CUSTOMFILE();
+    READ 'file://bi/' + id + '.json' TO template;
+    customFileToString(template(), 'UTF-8');
+    
+    stringToCustomFile(replace(replace(resultString(), '<DIRECTORY>', importDirectory()),
+                                                       '<FILE>', id + date)
+                                                       , 'UTF-8', 'json');
+    
+    LOCAL result = CUSTOMFILE();
+    EXTERNAL HTTP 'http://' + host() + ':8090/druid/indexer/v1/task' PARAMS resultCustomFile() TO result;
+}
+
+// ----------------- Запросы ------------------- //
 
 queryResult = DATA LOCAL CUSTOMFILE();
 
 // example : 'SELECT columns FROM dataset GROUP BY group';
 query(TEXT q) = {
 	stringToCustomFile('\{"query": "' + q + '"\}','UTF-8','json');
-	EXTERNAL HTTP 'http://' + druidHost() + ':8082/druid/v2/sql' PARAMS resultCustomFile() TO queryResult;
+	EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/sql' PARAMS resultCustomFile() TO queryResult;
 }
 // example : IMPORT JSON TO columns = columns FROM result();
 
-runTask() = {
-    LOCAL template = CUSTOMFILE();
-    READ 'file://bi/turnover.json' TO template;
-    customFileToString(template(), 'UTF-8');
-    
-    stringToCustomFile(replace(replace(resultString(), '<DIRECTORY>', '/home/ftpuser/csv/'),
-                                                       '<FILE>', '' + 2018_01_01)
-                                                       , 'UTF-8', 'json');
-    
-    LOCAL result = CUSTOMFILE();
-    EXTERNAL HTTP 'http://195.201.119.122:8090/druid/indexer/v1/task' PARAMS resultCustomFile() TO result;
-}
-
+// ----------------- Обращение к метаданным ------------------- //
 
 dataSource 'Данные' = DATA LOCAL VARSTRING[100] (INTEGER);
 
 readDataSource() = {
     LOCAL result = CUSTOMFILE();
-    EXTERNAL HTTP 'http://' + druidHost() + ':8082/druid/v2/datasources' TO result;
+    EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/datasources' TO result;
         
     customFileToString(result(), 'UTF-8');
     
@@ -59,7 +86,7 @@ measure 'Метрики' = DATA LOCAL VARSTRING[100] (INTEGER);
 
 readDimensionsAndMeasures (VARSTRING[100] ds) = {
     LOCAL result = CUSTOMFILE();
-    EXTERNAL HTTP 'http://' + druidHost() + ':8082/druid/v2/datasources/' + ds  TO result;
+    EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/datasources/' + ds  TO result;
     
     LOCAL dimensions = TEXT();
     LOCAL measures = TEXT();
@@ -99,7 +126,7 @@ runQuery 'Выполнить' (VARSTRING[100] ds) = {
 	stringToCustomFile('\{"query": "' + query() + '"\}','UTF-8','json');
 
 	LOCAL result = CUSTOMFILE();
-	EXTERNAL HTTP 'http://' + druidHost() + ':8082/druid/v2/sql' PARAMS resultCustomFile() TO result;
+	EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/sql' PARAMS resultCustomFile() TO result;
 
     OPEN result();
 //	IMPORT JSON TO columns = columns FROM result();
