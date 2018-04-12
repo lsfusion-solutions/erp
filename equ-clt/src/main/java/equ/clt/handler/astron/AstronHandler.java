@@ -675,6 +675,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     CashRegisterInfo cashRegister = machineryMap.get(nppCashRegister);
                     Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
+                    Integer salesNum = rs.getInt("SALESNUM");
+
                     Integer sessionId = rs.getInt("SESSID");
                     String numberZReport = String.valueOf(sessionId);
                     long salesTime = DateUtils.parseDate(rs.getString("SALESTIME"), "yyyyMMddHHmmss").getTime();
@@ -698,7 +700,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
                             BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
                             boolean isSale = recordType == 0;
-                            curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, null, isSale ? totalQuantity : totalQuantity.negate(), price, isSale ? sumReceiptDetail : sumReceiptDetail.negate(), discountSumReceiptDetail, null, null, curSalesInfoList.size() + 1, null, null, cashRegister));
+                            curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, null, isSale ? totalQuantity : totalQuantity.negate(), price, isSale ? sumReceiptDetail : sumReceiptDetail.negate(), discountSumReceiptDetail, null, null, salesNum, null, null, cashRegister));
                             break;
                         }
                         case 5: {//Аннулированная товарная позиция
@@ -711,7 +713,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                             BigDecimal sum = safeNegate(sumReceiptDetail);
 
-                            salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, type == 1 ? sum : null, type != 1 && type != 2 ? sum : null, type == 2 ? sum : null, idBarcode, idItem, null, null, totalQuantity.negate(), price, sumReceiptDetail.negate(), discountSumReceiptDetail, null, null, curSalesInfoList.size() + 1, null, null, cashRegister));
+                            salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, type == 1 ? sum : null, type != 1 && type != 2 ? sum : null, type == 2 ? sum : null, idBarcode, idItem, null, null, totalQuantity.negate(), price, sumReceiptDetail.negate(), discountSumReceiptDetail, null, null, salesNum, null, null, cashRegister));
                             break;
                         }
                         case 1: {//оплата
@@ -741,7 +743,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         }
                     }
 
-                    Integer salesNum = rs.getInt("SALESNUM");
                     Integer sAreaId = rs.getInt("SAREAID");
                     recordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                 }
