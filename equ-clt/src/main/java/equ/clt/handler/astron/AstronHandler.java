@@ -661,7 +661,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             String query = "SELECT sales.SALESCANC, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, sales.SALESTAG, sales.SALESBARC, " +
                     "sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, sess.SESSSTART " +
                     "FROM SALES sales LEFT JOIN SESS sess ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
-                    "WHERE FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0 ORDER BY SALESTIME";
+                    "WHERE FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0 ORDER BY SALESTIME, SALESNUM";
             ResultSet rs = statement.executeQuery(query);
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
