@@ -658,7 +658,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         createExtraColumns(conn);
 
         try (Statement statement = conn.createStatement()) {
-            String query = "SELECT SALESCANC, SYSTEMID, SESSID, SALESTIME, FRECNUM, CASHIERID, SALESTAG, SALESBARC, SALESCODE, SALESCOUNT, SALESPRICE, SALESSUM, SALESDISC, SALESTYPE, SALESNUM, SAREAID FROM [SALES] WHERE FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0 ORDER BY SALESTIME";
+            String query = "SELECT sales.SALESCANC, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, sales.SALESTAG, sales.SALESBARC, " +
+                    "sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, sess.SESSSTART " +
+                    "FROM SALES sales LEFT JOIN SESS sess ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
+                    "WHERE FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0 ORDER BY SALESTIME";
             ResultSet rs = statement.executeQuery(query);
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
@@ -679,6 +682,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                     Integer sessionId = rs.getInt("SESSID");
                     String numberZReport = String.valueOf(sessionId);
+
+                    long sessStart = DateUtils.parseDate(rs.getString("SESSSTART"), "yyyyMMddHHmmss").getTime();
+                    Date dateZReport = new Date(sessStart);
+                    Time timeZReport = new Time(sessStart);
+
                     long salesTime = DateUtils.parseDate(rs.getString("SALESTIME"), "yyyyMMddHHmmss").getTime();
                     Date dateReceipt = new Date(salesTime);
                     Time timeReceipt = new Time(salesTime);
@@ -700,7 +708,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
                             BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
                             boolean isSale = recordType == 0;
-                            curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, null, isSale ? totalQuantity : totalQuantity.negate(), price, isSale ? sumReceiptDetail : sumReceiptDetail.negate(), discountSumReceiptDetail, null, null, salesNum, null, null, cashRegister));
+                            curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, null, isSale ? totalQuantity : totalQuantity.negate(), price, isSale ? sumReceiptDetail : sumReceiptDetail.negate(), discountSumReceiptDetail, null, null, salesNum, null, null, cashRegister));
                             break;
                         }
                         case 5: {//Аннулированная товарная позиция
@@ -713,7 +721,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                             BigDecimal sum = safeNegate(sumReceiptDetail);
 
-                            salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, type == 1 ? sum : null, type != 1 && type != 2 ? sum : null, type == 2 ? sum : null, idBarcode, idItem, null, null, totalQuantity.negate(), price, sumReceiptDetail.negate(), discountSumReceiptDetail, null, null, salesNum, null, null, cashRegister));
+                            salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, type == 1 ? sum : null, type != 1 && type != 2 ? sum : null, type == 2 ? sum : null, idBarcode, idItem, null, null, totalQuantity.negate(), price, sumReceiptDetail.negate(), discountSumReceiptDetail, null, null, salesNum, null, null, cashRegister));
                             break;
                         }
                         case 1: {//оплата
