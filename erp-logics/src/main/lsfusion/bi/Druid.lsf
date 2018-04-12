@@ -17,7 +17,7 @@ importDirectory 'Путь для экспорта файлов' = DATA VARSTRING
 EXTEND FORM integrationData
     PROPERTIES host(), exportDirectory(), importDirectory()
     
-    OBJECTS (druidFrom = DATE, druidTo = DATE) PANEL
+    OBJECTS dates = (druidFrom = DATE, druidTo = DATE) PANEL
     PROPERTIES druidFrom 'С' = VALUE(druidFrom), druidTo 'По' = VALUE(druidTo)
 ;
 
@@ -28,17 +28,11 @@ DESIGN integrationData {
             MOVE PROPERTY(host());
             MOVE PROPERTY(exportDirectory());
             MOVE PROPERTY(importDirectory());
+            
+            MOVE BOX(dates);
         }
     }
 } 
-
-ingestBatch (VARSTRING[100] id, DATE date) = {
-    printToLog('' + currentDateTime() + ' Started WRITE ');
-    WRITE exportDirectory() + id + date FROM exportFile();
-    printToLog('' + currentDateTime() + 'Ended WRITE ');
-    
-    runTask(id, date);
-}
 
 runTask(VARSTRING[100] id, DATE date) = {
     LOCAL template = CUSTOMFILE();
@@ -51,6 +45,14 @@ runTask(VARSTRING[100] id, DATE date) = {
     
     LOCAL result = CUSTOMFILE();
     EXTERNAL HTTP 'http://' + host() + ':8090/druid/indexer/v1/task' PARAMS resultCustomFile() TO result;
+}
+
+ingestBatch (VARSTRING[100] id, DATE date) = {
+    printToLog('' + currentDateTime() + ' Started WRITE ');
+    WRITE exportDirectory() + id + date FROM exportFile();
+    printToLog('' + currentDateTime() + 'Ended WRITE ');
+    
+    runTask(id, date);
 }
 
 // ----------------- Запросы ------------------- //
