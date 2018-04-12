@@ -239,10 +239,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, String mainBarcode, List<CashRegisterItemInfo> items, boolean appendBarcode) throws JSONException {
-        Set<String> barcodes = new HashSet<>();
+        Set<CashRegisterItemInfo> barcodes = new HashSet<>();
         for(CashRegisterItemInfo item : items) {
             if(!item.idBarcode.equals(item.mainBarcode)) {
-                barcodes.add(item.idBarcode);
+                barcodes.add(item);
             }
         }
         CashRegisterItemInfo item = items.get(0);
@@ -255,13 +255,23 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             inventObject.put("inventcode", trim(item.idItem != null ? item.idItem : item.idBarcode, 20)); //код товара
             inventObject.put("barcode", removeCheckDigitFromBarcode(mainBarcode, appendBarcode));
 
-//            if(!barcodes.isEmpty()) {
-//                JSONArray barcodesArray = new JSONArray();
-//                for(String barcode : barcodes) {
-//                    barcodesArray.put(removeCheckDigitFromBarcode(barcode, appendBarcode));
-//                }
-//                inventObject.put("barcodes", barcodesArray);
-//            }
+            if(!barcodes.isEmpty()) {
+                JSONArray barcodesArray = new JSONArray();
+                for(CashRegisterItemInfo barcode : barcodes) {
+                    JSONObject barcodeObject = new JSONObject();
+
+                    barcodeObject.put("additionalprices", new JSONArray());
+                    barcodeObject.put("barcode", removeCheckDigitFromBarcode(barcode.idBarcode, appendBarcode));
+                    barcodeObject.put("cquant", barcode.amountBarcode);
+                    barcodeObject.put("measurecode", idUOM);
+                    barcodeObject.put("minprice",  barcode.flags == null || ((barcode.flags & 16) == 0) ? barcode.price : barcode.minPrice != null ? barcode.minPrice : BigDecimal.ZERO);
+                    barcodeObject.put("name", barcode.name);
+                    barcodeObject.put("price", barcode.price);
+
+                    barcodesArray.put(barcodeObject);
+                }
+                inventObject.put("barcodes", barcodesArray);
+            }
 
             //основной штрих-код
             inventObject.put("deptcode", 1); //код отдела
