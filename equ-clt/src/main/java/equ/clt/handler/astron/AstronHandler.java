@@ -658,104 +658,99 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         createExtraColumns(conn);
 
         try (Statement statement = conn.createStatement()) {
-            String query = "SELECT sales.SALESCANC, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, sales.SALESTAG, sales.SALESBARC, " +
+            String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, sales.SALESTAG, sales.SALESBARC, " +
                     "sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART " +
                     "FROM SALES sales LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID AND NOT (sales.SYSTEMID = 301 AND sales.SESSID < 3) " + // временная доп проверка
-                    "WHERE FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0 ORDER BY SALESTIME, SALESNUM";
+                    "WHERE (FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0) AND SALESCANC = 0 ORDER BY SALESTIME, SALESNUM";
             ResultSet rs = statement.executeQuery(query);
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
 
+            boolean isCancellation = false;
             BigDecimal sumCash = null;
             BigDecimal sumCard = null;
             BigDecimal sumGiftCard = null;
             while (rs.next()) {
 
-                boolean cancelled = rs.getInt("SALESCANC") == 1;
-                if (!cancelled) {
+                Integer nppCashRegister = rs.getInt("SYSTEMID");
+                CashRegisterInfo cashRegister = machineryMap.get(nppCashRegister);
+                Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
-                    Integer nppCashRegister = rs.getInt("SYSTEMID");
-                    CashRegisterInfo cashRegister = machineryMap.get(nppCashRegister);
-                    Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
+                Integer salesNum = rs.getInt("SALESNUM");
 
-                    Integer salesNum = rs.getInt("SALESNUM");
+                Integer sessionId = rs.getInt("SESSID");
+                String numberZReport = String.valueOf(sessionId);
 
-                    Integer sessionId = rs.getInt("SESSID");
-                    String numberZReport = String.valueOf(sessionId);
+                long sessStart = DateUtils.parseDate(rs.getString("SESSSTART"), "yyyyMMddHHmmss").getTime();
+                Date dateZReport = new Date(sessStart);
+                Time timeZReport = new Time(sessStart);
 
-                    long sessStart = DateUtils.parseDate(rs.getString("SESSSTART"), "yyyyMMddHHmmss").getTime();
-                    Date dateZReport = new Date(sessStart);
-                    Time timeZReport = new Time(sessStart);
+                long salesTime = DateUtils.parseDate(rs.getString("SALESTIME"), "yyyyMMddHHmmss").getTime();
+                Date dateReceipt = new Date(salesTime);
+                Time timeReceipt = new Time(salesTime);
 
-                    long salesTime = DateUtils.parseDate(rs.getString("SALESTIME"), "yyyyMMddHHmmss").getTime();
-                    Date dateReceipt = new Date(salesTime);
-                    Time timeReceipt = new Time(salesTime);
+                Integer numberReceipt = rs.getInt("FRECNUM");
+                //пока импорт кассиров отключён, поскольку нет их имён. Имена можно взять в таблице CASHIER, если её нам начнут выгружать
+                String idEmployee = null;//String.valueOf(rs.getInt("CASHIERID"));
+                Integer type = rs.getInt("SALESTYPE");
+                boolean isWeight = type == 0 || type == 2;
 
-                    Integer numberReceipt = rs.getInt("FRECNUM");
-                    //пока импорт кассиров отключён, поскольку нет их имён. Имена можно взять в таблице CASHIER, если её нам начнут выгружать
-                    String idEmployee = null;//String.valueOf(rs.getInt("CASHIERID"));
-                    Integer type = rs.getInt("SALESTYPE");
-                    boolean isWeight = type == 0 || type == 2;
+                Integer recordType = rs.getInt("SALESTAG");
 
-                    Integer recordType = rs.getInt("SALESTAG");
-
-                    switch (recordType) {
-                        case 0: //товарная позиция
-                        case 3: {//Возвращенная товарная позиция
-                            String idBarcode = rs.getString("SALESBARC");
-                            String idItem = String.valueOf(rs.getInt("SALESCODE"));
-                            BigDecimal totalQuantity = safeDivide(rs.getBigDecimal("SALESCOUNT"), isWeight ? 1000 : 1);
-                            BigDecimal price = safeDivide(rs.getBigDecimal("SALESPRICE"), 100);
-                            BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
-                            BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
-                            boolean isSale = recordType == 0;
-                            curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, null, isSale ? totalQuantity : totalQuantity.negate(), price, isSale ? sumReceiptDetail : sumReceiptDetail.negate(), discountSumReceiptDetail, null, null, salesNum, null, null, cashRegister));
-                            break;
-                        }
-                        case 5: {//Аннулированная товарная позиция
-                            String idBarcode = rs.getString("SALESBARC");
-                            String idItem = String.valueOf(rs.getInt("SALESCODE"));
-                            BigDecimal totalQuantity = safeDivide(rs.getBigDecimal("SALESCOUNT"), isWeight ? 1000 : 1);
-                            BigDecimal price = safeDivide(rs.getBigDecimal("SALESPRICE"), 100);
-                            BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
-                            BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
-
-                            BigDecimal sum = safeNegate(sumReceiptDetail);
-
-                            salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, type == 1 ? sum : null, type != 1 && type != 2 ? sum : null, type == 2 ? sum : null, idBarcode, idItem, null, null, totalQuantity.negate(), price, sumReceiptDetail.negate(), discountSumReceiptDetail, null, null, salesNum, null, null, cashRegister));
-                            break;
-                        }
-                        case 1: {//оплата
-                            BigDecimal sum = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
-                            switch (type) {
-                                case 1:
-                                    sumCard = safeAdd(sumCard, sum);
-                                    break;
-                                case 2:
-                                    sumGiftCard = safeAdd(sumGiftCard, sum);
-                                    break;
-                                case 0:
-                                default:
-                                    sumCash = safeAdd(sumCash, sum);
-                                    break;
-                            }
-
-                            break;
-                        }
-                        case 2: {//пролог чека
-                            sumCash = null;
-                            sumCard = null;
-                            sumGiftCard = null;
-                            salesInfoList.addAll(curSalesInfoList);
-                            curSalesInfoList = new ArrayList<>();
-                            break;
-                        }
+                switch (recordType) {
+                    case 0: //товарная позиция
+                    case 3: {//Возвращенная товарная позиция
+                        String idBarcode = rs.getString("SALESBARC");
+                        String idItem = String.valueOf(rs.getInt("SALESCODE"));
+                        BigDecimal totalQuantity = safeDivide(rs.getBigDecimal("SALESCOUNT"), isWeight ? 1000 : 1);
+                        BigDecimal price = safeDivide(rs.getBigDecimal("SALESPRICE"), 100);
+                        BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
+                        BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
+                        boolean isReturn = recordType == 3;
+                        totalQuantity = isCancellation ^ isReturn ? totalQuantity.negate() : totalQuantity; //cancellation XOR return
+                        sumReceiptDetail = isCancellation ^ isReturn ? sumReceiptDetail.negate() : sumReceiptDetail; //cancellation XOR return
+                        curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport,
+                                numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem,
+                                null, null, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, null, salesNum, null, null, cashRegister));
+                        break;
                     }
+                    case 1: {//оплата
+                        String salesAttrs = rs.getString("SALESATTRS");
+                        String[] salesAttrsSplitted = salesAttrs != null ? salesAttrs.split(":") : new String[0];
+                        if(salesAttrsSplitted.length == 3 || salesAttrsSplitted.length == 4) {
+                            Integer cancellationReceipt = parseInt(salesAttrsSplitted[2]);
+                            isCancellation = cancellationReceipt != null;
+                        }
+                        BigDecimal sum = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
+                        switch (type) {
+                            case 1:
+                                sumCard = safeAdd(sumCard, sum);
+                                break;
+                            case 2:
+                                sumGiftCard = safeAdd(sumGiftCard, sum);
+                                break;
+                            case 0:
+                            default:
+                                sumCash = safeAdd(sumCash, sum);
+                                break;
+                        }
 
-                    Integer sAreaId = rs.getInt("SAREAID");
-                    recordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
+                        break;
+                    }
+                    case 2: {//пролог чека
+                        isCancellation = false;
+                        sumCash = null;
+                        sumCard = null;
+                        sumGiftCard = null;
+                        salesInfoList.addAll(curSalesInfoList);
+                        curSalesInfoList = new ArrayList<>();
+                        break;
+                    }
                 }
+
+                Integer sAreaId = rs.getInt("SAREAID");
+                recordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
             }
 
             salesInfoList.addAll(curSalesInfoList);
@@ -766,6 +761,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             throw Throwables.propagate(e);
         }
         return new AstronSalesBatch(salesInfoList, recordList, directory);
+    }
+
+    private Integer parseInt(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override
