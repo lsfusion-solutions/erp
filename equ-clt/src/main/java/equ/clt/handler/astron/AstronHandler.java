@@ -63,19 +63,19 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         }
                     }
 
+                    Throwable exception = null;
+
                     AstronConnectionString params = new AstronConnectionString(directory);
                     if (params.connectionString == null) {
                         processTransactionLogger.error(logPrefix + "no connectionString found");
-                        sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(new RuntimeException("no connectionString found")));
+                        exception = new RuntimeException("no connectionString found");
                     } else {
 
-                        Throwable exception = null;
                         try (Connection conn = getConnection(params.connectionString, params.user, params.password)) {
 
                             int flags = checkFlags(conn);
                             if (flags > 0) {
-                                sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(new RuntimeException(String.format("data from previous transactions was not processed (%s flags not set to zero)", flags))));
-                                break;
+                                exception = new RuntimeException(String.format("data from previous transactions was not processed (%s flags not set to zero)", flags));
                             } else {
                                 truncateTables(conn);
 
@@ -124,8 +124,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             processTransactionLogger.error(logPrefix, e);
                             exception = e;
                         }
-                        sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                     }
+                    sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                 }
             } catch (ClassNotFoundException e) {
                 throw Throwables.propagate(e);
