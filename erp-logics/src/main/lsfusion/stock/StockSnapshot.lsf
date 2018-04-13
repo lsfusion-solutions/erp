@@ -82,10 +82,6 @@ nearestInclude (SnapshotType snapshotType, SkuGroup skuGroup) = dataInclude(snap
 include 'Вкл' (SnapshotType snapshotType, SkuGroup skuGroup) =
     OVERRIDE dataInclude(snapshotType, skuGroup), 
              nearestInclude (snapshotType, skuGroup) MATERIALIZED;    
-                      
-include 'Вкл' (SnapshotType snapshotType, Sku sku) = include(snapshotType, skuGroup(sku));  
-                    
-countIncludeSku 'Вкл' (SnapshotType snapshotType) = GROUP SUM 1 IF include(snapshotType, Sku sku);                    
 
 nameIncludeSkuGroups 'Группы товаров (все)' (SnapshotType document)= 
     GROUP 
@@ -909,21 +905,29 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = {
                         
         }   
         IF isCost(snapshot) THEN {
-            costA(Sku sku, Stock stock, snapshot) <- NULL;
-            costA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)) 
-                WHERE include(snapshot, stock) AND include(snapshot, sku) AND isBalanceA(snapshot) AND costSumA(sku, stock, dateTo);
+            IF isBalanceA(snapshot) THEN {
+                costA(Sku sku, Stock stock, snapshot) <- NULL;
+                costA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumA(sku, stock, dateTo);
+            }
                                
-            costB(Sku sku, Stock stock, snapshot) <- NULL;
-            costB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)) 
-                WHERE include(snapshot, stock) AND include(snapshot, sku) AND isBalanceB(snapshot) AND costSumB(sku, stock, dateFrom);        
+            IF isBalanceB(snapshot) THEN {
+                costB(Sku sku, Stock stock, snapshot) <- NULL;
+                costB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumB(sku, stock, dateFrom);
+            }        
         }      
         IF isVATSupplier(snapshot) THEN {
-            VATSupplierA(Sku sku, Stock stock, snapshot) <- NULL;
-            VATSupplierA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)*valueVAT(sku,country(stock),dateTo)/100) 
-                WHERE include(snapshot, stock) AND include(snapshot, sku) AND  isBalanceA(snapshot) AND costSumA(sku, stock, dateTo);               
-            VATSupplierB(Sku sku, Stock stock, snapshot) <- NULL;
-            VATSupplierB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)*valueVAT(sku,country(stock),dateTo)/100) 
-                WHERE include(snapshot, stock) AND include(snapshot, sku) AND isBalanceB(snapshot) AND costSumB(sku, stock, dateFrom);        
+            IF isBalanceA(snapshot) THEN {
+                VATSupplierA(Sku sku, Stock stock, snapshot) <- NULL;
+                VATSupplierA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)*valueVAT(sku,country(stock),dateTo)/100) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumA(sku, stock, dateTo);               
+            }
+            IF isBalanceB(snapshot) THEN {
+                VATSupplierB(Sku sku, Stock stock, snapshot) <- NULL;
+                VATSupplierB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)*valueVAT(sku,country(stock),dateTo)/100) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumB(sku, stock, dateFrom);
+            }        
         } 
         IF isNetWeight(snapshot) THEN {         
             
