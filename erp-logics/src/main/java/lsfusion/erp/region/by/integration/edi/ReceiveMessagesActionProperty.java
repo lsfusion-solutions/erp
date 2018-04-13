@@ -982,7 +982,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             try (DataSession session = context.createSession()) {
 
-                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumberIsCancel[VARSTRING[28], INTEGER]").readClasses(session, new DataObject(blrwbl.deliveryNoteNumber), new DataObject(blrwbl.isCancel ? 1 : 0));
+                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumberIsCancel[VARSTRING[28], INTEGER]").readClasses(session, new DataObject(blrwbl.deliveryNoteNumber), new DataObject(blrwbl.isCancel != null ? 1 : 0));
                 if (eInvoiceObject instanceof NullValue) {
                     eInvoiceObject = session.addObject((ConcreteCustomClass) findClass("EInvoice"));
 
@@ -1061,7 +1061,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 }
             } catch (Exception e) {
                 ServerLoggers.importLogger.error("ImportEInvoice Error: ", e);
-                message = e.getMessage();
+                message = "ImportEInvoice Error: " + e.getMessage();
             }
         }
         return message;
