@@ -62,6 +62,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
+        boolean isExportSoftCheckItem = artixSettings != null && artixSettings.isExportSoftCheckItem();
 
         Map<Long, SendTransactionBatch> result = new HashMap<>();
         Map<Long, Exception> failedTransactionMap = new HashMap<>();
@@ -121,8 +122,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             //barcodes
                             writeStringToFile(tmpFile, "{\"command\": \"clearBarcode\"}\n---\n");
 
-                            //искуственный товар для мягких чеков
-                            writeStringToFile(tmpFile, getAddInventItemSoftJSON() + "\n---\n");
+                            if(isExportSoftCheckItem) {
+                                //искуственный товар для мягких чеков
+                                writeStringToFile(tmpFile, getAddInventItemSoftJSON() + "\n---\n");
+                            }
                         }
 
                         //items

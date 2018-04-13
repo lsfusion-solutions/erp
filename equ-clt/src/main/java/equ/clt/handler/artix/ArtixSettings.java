@@ -10,6 +10,7 @@ public class ArtixSettings implements Serializable{
     private boolean disableCopyToSuccess;
     private boolean readCashDocuments;
     private boolean exportClients;
+    private boolean exportSoftCheckItem;
 
     public ArtixSettings() {
     }
@@ -60,5 +61,13 @@ public class ArtixSettings implements Serializable{
 
     public void setExportClients(boolean exportClients) {
         this.exportClients = exportClients;
+    }
+
+    public boolean isExportSoftCheckItem() {
+        return exportSoftCheckItem;
+    }
+
+    public void setExportSoftCheckItem(boolean exportSoftCheckItem) {
+        this.exportSoftCheckItem = exportSoftCheckItem;
     }
 }
