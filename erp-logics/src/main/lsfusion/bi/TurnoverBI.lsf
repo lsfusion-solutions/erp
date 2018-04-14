@@ -35,3 +35,540 @@ exportDruid 'Выгрузить Оборачиваемость' (DATE dFrom, DAT
 EXTEND FORM integrationData
     PROPERTIES exportDruid(druidFrom, druidTo)
 ;
+
+
+META createGroup(object, name, number)
+    g###object name = DATA LOCAL BOOLEAN();
+    WHEN LOCAL SET(g###object()) AND countGroup() < 3 DO addGroup(number, name);
+    WHEN LOCAL SET(g###object()) AND countGroup() == 3 DO { g###object() <- NULL; };
+    WHEN LOCAL DROPPED(g###object()) DO deleteGroup(number);   
+END 
+
+order 'Номер' = DATA LOCAL INTEGER(INTEGER);
+nameGroup 'Группировка' = DATA LOCAL VARSTRING[100](INTEGER);
+
+countGroup = OVERRIDE [=GROUP MAX order(INTEGER i)](), 0;
+
+addGroup(INTEGER i, VARSTRING[100] name) = {
+    nameGroup(i) <- name;
+    order(i) <- (OVERRIDE [=GROUP MAX order(INTEGER in)](), 0) + 1;
+}
+reorderGroup() = {
+    order(INTEGER i) <- PARTITION SUM 1 IF nameGroup(i) ORDER order(i);
+}
+deleteGroup(INTEGER i) = {
+    nameGroup(i) <- NULL;
+    order(i) <- NULL;
+    reorderGroup();
+}
+
+@createGroup(stock, 'По магазину', 1);
+@createGroup(supplier, 'По поставщику', 2);
+@createGroup(group, 'По группам товара', 3);
+@createGroup(sku, 'По товару', 4);
+@createGroup(brand, 'По бренду', 5);
+@createGroup(month, 'По месяцам', 6);
+@createGroup(week, 'По неделям', 7);
+@createGroup(day, 'По дням', 8);
+
+
+nameGroupDB(INTEGER i) = CASE
+    WHEN i == 1 THEN 'nameStock'
+    WHEN i == 2 THEN 'nameSupplier'
+    WHEN i == 3 THEN 'group1'
+    WHEN i == 4 THEN 'nameSku'
+    WHEN i == 5 THEN 'brand'
+    WHEN i == 6 THEN 'TIME_FORMAT(__time,\'yyyy-MM\')'
+    WHEN i == 7 THEN 'TIME_FORMAT(__time,\'yyyy неделя ww\')'
+    WHEN i == 8 THEN 'TIME_FORMAT(__time,\'yyyy-MM-dd\')';
+
+nameGroup1() = GROUP MAX nameGroupDB(INTEGER i) IF order(i) == 1;
+nameGroup2() = GROUP MAX nameGroupDB(INTEGER i) IF order(i) == 2;
+nameGroup3() = GROUP MAX nameGroupDB(INTEGER i) IF order(i) == 3;
+
+nameGroups = CONCAT ', ', (OVERRIDE nameGroup1(), '\'\'') + ' AS nameGroup1', (OVERRIDE nameGroup2(), '\'\'') + ' AS nameGroup2', (OVERRIDE nameGroup3(), '\'\'') + ' AS nameGroup3';
+
+isTimeGroup() = order(6) OR order(7) OR order(8);
+
+nameGroup1 = DATA LOCAL VARSTRING[255] (INTEGER);
+nameGroup2 = DATA LOCAL VARSTRING[255] (INTEGER);
+nameGroup3 = DATA LOCAL VARSTRING[255] (INTEGER);
+
+quantitySold 'Продано (кол-во)' = DATA LOCAL NUMERIC[16,4] (INTEGER);
+costSumSold 'Продано (себестоимость)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+markupSumSold 'Продано (надбавка)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumVATSold 'Продано (сумма НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumSold 'Продано (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+turnover 'Оборачиваемость' = DATA LOCAL NUMERIC[12,3] (INTEGER);
+costBalance 'Себестоимость' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+
+balanceB 'Остаток на начало' = DATA LOCAL NUMERIC[16,4] (INTEGER);
+costBalanceB 'Себестоимость на начало' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+
+balanceA 'Остаток на конец' = DATA LOCAL NUMERIC[16,4] (INTEGER);
+costBalanceA 'Себестоимость на конец' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+
+countRows 'Количество строк' () = GROUP SUM 1 IF nameGroup1(INTEGER i);
+
+//------- Группы складов -------
+dataInclude 'Вкл' = DATA LOCAL BOOLEAN (StockGroup);
+
+levelParentInclude(StockGroup stockGroup) = GROUP MIN level(stockGroup, StockGroup parent) IF dataInclude(parent);    
+nearestParentInclude(StockGroup stockGroup) = stockGroup(stockGroup, levelParentInclude(stockGroup));
+nearestInclude(StockGroup stockGroup) = dataInclude(nearestParentInclude(stockGroup));
+
+include 'Вкл' (StockGroup stockGroup) = OVERRIDE dataInclude(stockGroup), nearestInclude (stockGroup);
+
+deleteIncludeStockGroups 'Сбросить отмеченные'() = {
+    dataInclude(StockGroup g) <- NULL;
+};
+
+nameIncludeStockGroups 'Группы складов (все)' ()= GROUP CONCAT name(StockGroup stockGroup) IF dataInclude(stockGroup), ', ' ORDER stockGroup;
+
+//------- Склады -------
+dataInclude 'Вкл' = DATA LOCAL BOOLEAN (Stock);
+
+include 'Вкл' (Stock stock) = (OVERRIDE dataInclude(stock), include(stockGroup(stock))) IF isCompany(stock);
+
+deleteIncludeStocks 'Сбросить отмеченные'() = {
+    dataInclude (Stock st) <- NULL;
+};
+
+nameIncludeStocks 'Склады (все)' ()= GROUP CONCAT name(Stock stock) IF dataInclude(stock), ', ' ORDER stock;
+
+nameIncludeStockGroupsStock 'Группы складов, склады (все)' () = CONCAT '; ', nameIncludeStockGroups(), nameIncludeStocks() CHARWIDTH 20;
+
+FORM dialogStockGroupsStock 'Склады'
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY VALUE(a), name(sg)
+    PROPERTIES include(sg)
+    ORDER name(sg)
+    PROPERTIES deleteIncludeStockGroups() TODRAW sg TOOLBAR
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, name
+    PROPERTIES (s) include
+    ORDER name(s)
+    PROPERTIES deleteIncludeStocks() TODRAW s TOOLBAR
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            isCompany(s),
+            countCompanyStock(sg)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
+    FILTERGROUP select FILTER 'Отм.' include(s) 'F9'
+;
+DESIGN dialogStockGroupsStock {
+    BOX {
+        size = (1024, 768);
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX(TREE stockTree) {
+                caption = 'Склады';
+            }
+            MOVE BOX(s) {
+                fill = 1.5;
+                GRID(s) {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(name(s)){
+                    charWidth = 35;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+changeIncludeStockGroupsStock() = {
+    DIALOG dialogStockGroupsStock;
+}
+
+//------- Поставщики -------
+include 'Вкл' = DATA LOCAL BOOLEAN (LegalEntity);
+
+deleteIncludeLegalEntities 'Сбросить отмеченные'() = {
+    include(LegalEntity l) <- NULL;
+};
+
+nameIncludeLegalEntities 'Поставщики (все)' () = GROUP CONCAT (OVERRIDE name(LegalEntity le),'') IF include(le), ', ' ORDER le;
+
+FORM dialogLegalEntity 'Поставщики'
+    OBJECTS le = LegalEntity
+    PROPERTIES include(le)
+    PROPERTIES(le) READONLY id, name, fullName
+    ORDER name(le)
+    FILTERS isSupplier(le)
+    FILTERGROUP inLegalEntity FILTER 'Отмеченные' include(le)
+    PROPERTIES deleteIncludeLegalEntities() TODRAW le TOOLBAR
+;
+DESIGN dialogLegalEntity {
+    BOX { size = (1024, 768); }
+}
+
+changeIncludeLegalEntities() = {
+    DIALOG dialogLegalEntity OBJECTS le INPUT DO {
+        IF NOT (GROUP SUM 1 IF include(LegalEntity l)) THEN
+            include(le) <- TRUE;
+    }
+}
+
+//------- Брэнды -------
+include 'Вкл' = DATA LOCAL BOOLEAN (Brand);
+
+deleteIncludeBrands 'Сбросить отмеченные'() = {
+    include(Brand b) <- NULL;
+};
+
+nameIncludeBrands 'Брэнд (все)' () = GROUP CONCAT (OVERRIDE name(Brand b),'') IF include(b), ', ' ORDER b;
+
+commaBrandId 'Список кодов' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDTH 30;
+
+addCommaBrandId 'Добавить' () = {
+    IF commaBrandId() THEN {
+        include(Brand b) <- TRUE WHERE (GROUP SUM 1 IF isWordInCSV(id(b), replace(commaBrandId(),' ',',')) == 1);
+        commaBrandId() <- NULL;
+    }
+}
+
+FORM dialogBrand 'Брэнды'
+    OBJECTS b = Brand
+    PROPERTIES PANEL commaBrandId(), addCommaBrandId()
+    PROPERTIES include(b)
+    PROPERTIES(b) READONLY id, name
+    ORDER name(b)
+    FILTERGROUP inBrand FILTER 'Отмеченные' include(b)
+    PROPERTIES deleteIncludeBrands() TODRAW b TOOLBAR    
+;
+DESIGN dialogBrand {
+    BOX { size = (1024, 768); }
+}
+
+changeIncludeBrands() = {
+    DIALOG dialogBrand OBJECTS b INPUT DO {
+        IF NOT (GROUP SUM 1 IF include(Brand br)) THEN
+            include(b) <- TRUE;
+    }
+}
+
+//------- Группы товаров -------
+dataInclude 'Вкл' = DATA LOCAL BOOLEAN (SkuGroup);
+
+levelParentInclude(SkuGroup skuGroup) = GROUP
+    MIN level(skuGroup, SkuGroup parent) IF dataInclude(parent);    
+nearestParentInclude(SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(skuGroup));
+nearestInclude(SkuGroup skuGroup) = dataInclude(nearestParentInclude (skuGroup));
+
+include 'Вкл' (SkuGroup skuGroup) =
+    OVERRIDE dataInclude(skuGroup), 
+             nearestInclude(skuGroup);
+
+deleteIncludeSkuGroups 'Сбросить отмеченные'() = {
+    dataInclude(SkuGroup g) <- NULL;
+};
+
+nameIncludeSkuGroups 'Группы товаров (все)' ()= 
+    GROUP 
+    CONCAT name(SkuGroup skuGroup) IF dataInclude(skuGroup), ', ' 
+    ORDER skuGroup;
+
+//------- Товары -------
+dataInclude 'Вкл' = DATA LOCAL BOOLEAN (Sku);
+
+includeSkuGroup (Sku sku) = TRUE IF (GROUP MAX 1 IF include(SkuGroup g) AND isParent(g, sku));
+
+include 'Вкл' (Sku sku) = OVERRIDE dataInclude(sku), includeSkuGroup(sku);
+
+deleteIncludeSkus 'Сбросить отмеченные'() = {
+    dataInclude(Sku b) <- NULL;
+};
+
+nameIncludeSkus 'Товары (все)' = GROUP CONCAT name(Sku sku) IF dataInclude(sku), ', ' ORDER sku;
+
+commaBarcodeId 'Список ШК' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDTH 30;
+
+addCommaBarcodeId 'Добавить' () = {
+    IF commaBarcodeId() THEN {
+        dataInclude(Sku sku) <- TRUE WHERE [=GROUP BY sku(Barcode barcode) SUM 1 IF isWordInCSV(id(barcode), replace(commaBarcodeId(),' ',',')) == 1](sku);
+        commaBarcodeId() <- NULL;
+    }
+}
+
+FORM dialogSku 'Товары'
+    TREE skuTree sk = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sk), name(sk)
+    PROPERTIES include(sk)
+    ORDER order(sk), name(sk)
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT   
+    PROPERTIES deleteIncludeSkuGroups() TODRAW sk TOOLBAR
+
+    OBJECTS sku = Sku
+    PROPERTIES PANEL commaBarcodeId(), addCommaBarcodeId()
+    PROPERTIES include(sku)
+    PROPERTIES(sku) READONLY idBarcode, name, shortNameUOM
+    ORDER name(sku)
+    FILTERS isParent(sk,sku)
+    FILTERGROUP inSku FILTER 'Отмеченные' include(sku)
+    PROPERTIES deleteIncludeSkus() TODRAW sku TOOLBAR
+;
+DESIGN dialogSku {
+    BOX {
+        size = (1024, 768);
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX(TREE skuTree) {
+                caption = 'Склады';
+            }
+            MOVE BOX(sku) {
+                fill = 1.5;
+                GRID(sku) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+changeIncludeSkus() = {
+    DIALOG dialogSku;
+}
+
+
+fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
+    nameGroup1(INTEGER i) <- NULL;
+    nameGroup2(INTEGER i) <- NULL;
+    nameGroup3(INTEGER i) <- NULL;
+    
+    quantitySold(INTEGER i) <- NULL;
+    costSumSold(INTEGER i) <- NULL;
+    markupSumSold(INTEGER i) <- NULL;
+    sumVATSold(INTEGER i) <- NULL;
+    sumSold(INTEGER i) <- NULL;
+    turnover(INTEGER i) <- NULL;
+    
+    balanceB(INTEGER i) <- NULL;
+    costBalanceB(INTEGER i) <- NULL;
+    
+    balanceA(INTEGER i) <- NULL;
+    costBalanceA(INTEGER i) <- NULL;
+    
+    LOCAL query = TEXT ();
+    query() <- replace('SELECT SUM(quantitySold) AS quantitySold, SUM(costSumSold) AS costSumSold, SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold) AS markupSumSold, SUM(sumVATSold) AS sumVATSold, SUM(sumSold) AS sumSold, SUM(costBalance)/SUM(costSumSold) AS turnover, SUM(costBalance) AS costBalance, ' 
+                       + nameGroups() + ' FROM turnover'
+                       + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+                       + (OVERRIDE ' AND nameStock IN (' + (GROUP CONCAT TEXT('\''+ name(Stock s) +'\'') IF include(s),',') + ')','')
+                       + (OVERRIDE ' AND nameSupplier IN (' + (GROUP CONCAT TEXT('\''+ name(LegalEntity le) +'\'') IF include(le),',') + ')','')
+                       + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ (OVERRIDE name(Brand b),'') +'\'') IF include(b),',') + ')','')
+                       + (OVERRIDE ' AND barcodeSku IN (' + (GROUP CONCAT TEXT('\''+ idBarcode(Sku sku) +'\'') IF include(sku),',') + ')','')
+                       + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3())
+                       + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"');
+     
+    query(replace('SELECT SUM(quantitySold) AS quantitySold, SUM(costSumSold) AS costSumSold, SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold) AS markupSumSold, SUM(sumVATSold) AS sumVATSold, SUM(sumSold) AS sumSold, SUM(costBalance)/SUM(costSumSold) AS turnover, SUM(costBalance) AS costBalance, ' 
+         + nameGroups() + ' FROM turnover'
+         + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+         + (OVERRIDE ' AND nameStock IN (' + (GROUP CONCAT TEXT('\''+ name(Stock s) +'\'') IF include(s),',') + ')','')
+         + (OVERRIDE ' AND nameSupplier IN (' + (GROUP CONCAT TEXT('\''+ name(LegalEntity le) +'\'') IF include(le),',') + ')','')
+         + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ (OVERRIDE name(Brand b),'') +'\'') IF include(b),',') + ')','')
+         + (OVERRIDE ' AND barcodeSku IN (' + (GROUP CONCAT TEXT('\''+ idBarcode(Sku sku) +'\'') IF include(sku),',') + ')','')
+         + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3())
+         + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+        
+    IMPORT JSON FROM queryResult() TO nameGroup1 = nameGroup1, nameGroup2 = nameGroup2, nameGroup3 = nameGroup3, 
+                                      quantitySold = quantitySold, costSumSold = costSumSold, markupSumSold = markupSumSold,
+                                      sumVATSold = sumVATSold, sumSold = sumSold, turnover = turnover, costBalance = costBalance;
+    
+    IF NOT isTimeGroup() THEN {
+        LOCAL localNameGroup1 = VARSTRING[255] (INTEGER);
+        LOCAL localNameGroup2 = VARSTRING[255] (INTEGER);
+        LOCAL localNameGroup3 = VARSTRING[255] (INTEGER);
+        LOCAL localBalanceB = NUMERIC[16,4] (INTEGER);
+        LOCAL localCostBalanceB = NUMERIC[18,4] (INTEGER);
+        LOCAL localBalanceA = NUMERIC[16,4] (INTEGER);
+        LOCAL localCostBalanceA = NUMERIC[18,4] (INTEGER);
+        
+        query(replace('SELECT SUM(balance) AS balanceB, SUM(costBalance) AS costBalanceB, '
+            + nameGroups() + ' FROM turnover'
+            + ' WHERE __time = TIME_PARSE(\'' + sum(dateFrom,-1) + '\',\'yyyy-MM-dd\')'
+            + (OVERRIDE ' AND nameStock IN (' + (GROUP CONCAT TEXT('\''+ name(Stock s) +'\'') IF include(s),',') + ')','')
+            + (OVERRIDE ' AND nameSupplier IN (' + (GROUP CONCAT TEXT('\''+ name(LegalEntity le) +'\'') IF include(le),',') + ')','')
+            + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ (OVERRIDE name(Brand b),'') +'\'') IF include(b),',') + ')','')
+            + (OVERRIDE ' AND barcodeSku IN (' + (GROUP CONCAT TEXT('\''+ idBarcode(Sku sku) +'\'') IF include(sku),',') + ')','')
+            + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3())
+            + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+            
+        IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
+                                          localBalanceB = balanceB, localCostBalanceB = costBalanceB;
+        
+        FOR imported(INTEGER i) AND INTEGER number = [= GROUP BY nameGroup1(INTEGER n), nameGroup2(n), nameGroup3(n) LAST n ORDER n](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i)) DO {
+            balanceB(number) <- localBalanceB(i);
+            costBalanceB(number) <- localCostBalanceB(i);
+        }
+        
+        query(replace('SELECT SUM(balance) AS balanceA, SUM(costBalance) AS costBalanceA, '
+            + nameGroups() + ' FROM turnover'
+            + ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+            + (OVERRIDE ' AND nameStock IN (' + (GROUP CONCAT TEXT('\''+ name(Stock s) +'\'') IF include(s),',') + ')','')
+            + (OVERRIDE ' AND nameSupplier IN (' + (GROUP CONCAT TEXT('\''+ name(LegalEntity le) +'\'') IF include(le),',') + ')','')
+            + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ (OVERRIDE name(Brand b),'') +'\'') IF include(b),',') + ')','')
+            + (OVERRIDE ' AND barcodeSku IN (' + (GROUP CONCAT TEXT('\''+ idBarcode(Sku sku) +'\'') IF include(sku),',') + ')','')
+            + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3())
+            + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+            
+        IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
+                                          localBalanceA = balanceA, localCostBalanceA = costBalanceA;
+        
+        FOR imported(INTEGER i) AND INTEGER number = [= GROUP BY nameGroup1(INTEGER n), nameGroup2(n), nameGroup3(n) LAST n ORDER n](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i)) DO {
+            balanceA(number) <- localBalanceA(i);
+            costBalanceA(number) <- localCostBalanceA(i);
+        }
+    }                                
+}
+
+FORM printTurnoverReport 'Оборачиваемость'
+    OBJECTS df=DATE PANEL
+    PROPERTIES dateFrom = VALUE(df)
+   
+    OBJECTS dt=DATE PANEL
+    PROPERTIES dateTo = VALUE(dt)
+       
+    PROPERTIES() countGroup, countRows, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeSkuGroups
+    
+    OBJECTS i = INTEGER
+    PROPERTIES(i) READONLY nameGroup1, nameGroup2, nameGroup3
+    PROPERTIES(i) READONLY balanceB, costBalanceB
+    PROPERTIES(i) READONLY quantitySold, costSumSold, markupSumSold, sumVATSold, sumSold, turnover, costBalance
+    PROPERTIES(i) READONLY balanceA, costBalanceA
+    FILTERS nameGroup1(i) AND dt IS DATE AND df IS DATE,
+            balanceB(i) OR quantitySold(i) OR balanceA(i)
+            
+    ORDER nameGroup1(i), nameGroup2(i), nameGroup3(i)
+;
+
+printTurnoverReportXLSX 'Оборачиваемость с группировкой (XLSX)' (DATE dateFrom, DATE dateTo) = {
+    IF countGroup() == 0 THEN {
+        MESSAGE 'Не задана группировка';
+        RETURN;
+    }
+    fillTurnoverReport(dateFrom, dateTo);
+    PRINT printTurnoverReport OBJECTS df = dateFrom, dt = dateTo XLSX;
+}  IMAGE 'print.png' IN print;
+
+FORM printTurnoverReportTable 'Оборачиваемость'
+    OBJECTS df=DATE PANEL
+    PROPERTIES dateFrom = VALUE(df)
+   
+    OBJECTS dt=DATE PANEL
+    PROPERTIES dateTo = VALUE(dt)
+       
+    PROPERTIES() countGroup, countRows, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeSkuGroups
+    
+    OBJECTS i = INTEGER
+    PROPERTIES(i) READONLY nameGroup1, nameGroup2, nameGroup3
+    PROPERTIES(i) READONLY balanceB, costBalanceB
+    PROPERTIES(i) READONLY quantitySold, costSumSold, markupSumSold, sumVATSold, sumSold, turnover, costBalance
+    PROPERTIES(i) READONLY balanceA, costBalanceA
+    FILTERS nameGroup1(i) AND dt IS DATE AND df IS DATE,
+            balanceB(i) OR quantitySold(i) OR balanceA(i)
+            
+    ORDER nameGroup1(i), nameGroup2(i), nameGroup3(i)
+;
+
+printTurnoverReportTableXLSX 'Оборачиваемость (XLSX)' (DATE dateFrom, DATE dateTo) = {
+    IF countGroup() == 0 THEN {
+        MESSAGE 'Не задана группировка';
+        RETURN;
+    }
+    fillTurnoverReport(dateFrom, dateTo);
+    PRINT printTurnoverReportTable OBJECTS df = dateFrom, dt = dateTo XLSX;
+}  IMAGE 'print.png' IN print;
+
+FORM turnoverReport 'Оборачиваемость'
+    OBJECTS df=DATE PANEL
+    PROPERTIES dateFrom = VALUE(df)
+   
+    OBJECTS dt=DATE PANEL
+    PROPERTIES dateTo = VALUE(dt)
+    
+    PROPERTIES nameIncludeStockGroups() ON CHANGE changeIncludeStockGroupsStock()
+    PROPERTIES nameIncludeStocks() ON CHANGE changeIncludeStockGroupsStock()
+    PROPERTIES nameIncludeLegalEntities() ON CHANGE changeIncludeLegalEntities()
+    PROPERTIES nameIncludeBrands() ON CHANGE changeIncludeBrands()
+    PROPERTIES nameIncludeSkuGroups() ON CHANGE changeIncludeSkus()
+    PROPERTIES nameIncludeSkus() ON CHANGE changeIncludeSkus()
+    
+//-- выбор группировки    
+    PROPERTIES() gStock, gSupplier, gGroup, gSku, gBrand, gMonth, gWeek, gDay
+    
+    OBJECTS gr = INTEGER 
+    PROPERTIES(gr) READONLY order, nameGroup
+    ORDER order(gr)
+    FILTERS nameGroup(gr)
+    
+    PROPERTIES(df,dt) printTurnoverReportXLSX, printTurnoverReportTableXLSX
+    
+    EVENTS 
+        ON INIT {
+            SEEK turnoverReport.df = sum(currentDate(), -1);
+            SEEK turnoverReport.dt = sum(currentDate(), -1);
+        }
+;
+
+DESIGN turnoverReport {
+    NEW topContainer {
+        type = CONTAINERV;
+        NEW dates {
+            type = CONTAINERH;
+            caption = 'Период';
+            MOVE PROPERTY(dateFrom){caption = 'Дата (с)';}
+            MOVE PROPERTY(dateTo){caption = 'Дата (по)';}
+        }
+        NEW filters {
+            type = CONTAINERV;
+            caption = 'Фильтры';
+            MOVE PROPERTY (nameIncludeStockGroups());
+            MOVE PROPERTY (nameIncludeStocks());
+            MOVE PROPERTY (nameIncludeLegalEntities());
+            MOVE PROPERTY (nameIncludeBrands());
+            MOVE PROPERTY (nameIncludeSkuGroups());
+            MOVE PROPERTY (nameIncludeSkus());
+        }
+    }
+    NEW bottomContainer {
+        fill = 2;
+        type = SPLITV;
+        NEW rhContainer {
+            fill = 1;
+            type = CONTAINERH;
+            caption = 'Группировка';
+            NEW checkBoxContainer{
+                type = CONTAINERV;
+                MOVE PROPERTY(gStock());
+                MOVE PROPERTY(gSupplier());
+                MOVE PROPERTY(gGroup());
+                MOVE PROPERTY(gSku());
+                MOVE PROPERTY(gBrand());
+                MOVE PROPERTY(gMonth());
+                MOVE PROPERTY(gWeek());
+                MOVE PROPERTY(gDay());
+            }
+            MOVE BOX(gr) { caption = 'Порядок группировки'; };
+        } 
+    }
+    MOVE TOOLBARBOX {
+        TOOLBAR {
+            MOVE PROPERTY (printTurnoverReportXLSX(df,dt));
+            MOVE PROPERTY (printTurnoverReportTableXLSX(df,dt));
+        }
+    };
+}
+
+NAVIGATOR {
+    dashboardNavigator {
+        NEW FOLDER bi 'BI' {
+            NEW turnoverReport;
+        }
+    }
+}
