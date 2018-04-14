@@ -90,7 +90,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                             FiscalAbsolut.cancelReceipt();
                             return error;
                         } else
-                            FiscalAbsolut.closeReceipt();
+                            return FiscalAbsolut.closeAndGetNumberReceipt(useSKNO);
                     } else
                         return FiscalAbsolut.getError(false);
                 }
@@ -103,7 +103,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                             FiscalAbsolut.cancelReceipt();
                             return error;
                         } else
-                            FiscalAbsolut.closeReceipt();
+                            return FiscalAbsolut.closeAndGetNumberReceipt(useSKNO);
                     } else
                         return FiscalAbsolut.getError(false);
                 }

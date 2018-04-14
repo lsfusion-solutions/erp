@@ -176,8 +176,16 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                             fiscalAbsolutReceiptTop, fiscalAbsolutReceiptBottom, receiptCode128, saveCommentOnFiscalTape, groupPaymentsByVAT,
                             giftCardAsNotPayment, giftCardAsNotPaymentText, sumPaymentAbsolut, maxLinesAbsolut, printSumWithDiscount, useSKNO, UNP, regNumber, machineryNumber));
                     if (result != null) {
-                        ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Error: " + result);
-                        context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                        if (result instanceof Integer) {
+                            findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
+                            if (context.apply())
+                                findAction("createCurrentReceipt[]").execute(context);
+                            else
+                                ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Apply Error");
+                        } else {
+                            ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Error: " + result);
+                            context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                        }
                     } else {
                         if (context.apply())
                             findAction("createCurrentReceipt[]").execute(context);

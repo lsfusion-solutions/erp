@@ -97,6 +97,8 @@ public class FiscalAbsolut {
         Boolean PrintBarCode(int typ, byte[] cod, int width, int height, int feed);
 
         Boolean SetLogPath(byte[] path);
+
+        void LastChkInfo(byte[] buffer, int buflen);
     }
 
     public static String getError(boolean closePort) {
@@ -142,6 +144,32 @@ public class FiscalAbsolut {
     public static boolean closeReceipt() {
         logAction("EndChk");
         return absolutDLL.absolut.EndChk();
+    }
+
+    public static Integer closeAndGetNumberReceipt(boolean useSKNO) {
+        closeReceipt();
+        if (useSKNO) {
+            try {
+                int buflen = 255;
+                byte[] buffer = new byte[buflen];
+                logAction("LastChkInfo");
+                absolutDLL.absolut.LastChkInfo(buffer, buflen);
+                checkErrors(false);
+                return parseCheckNumber(Native.toString(buffer, "cp1251"));
+            } catch (Exception e) {
+                logger.error("FiscalAbsolut Error: ", e);
+            }
+        }
+        return null;
+    }
+
+    private static Integer parseCheckNumber(String value) {
+        try {
+            String[] splitted = value != null ? value.split(",") : null;
+            return splitted != null && splitted.length > 2 ? Integer.parseInt(splitted[1]) : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public static boolean cancelReceipt() {
