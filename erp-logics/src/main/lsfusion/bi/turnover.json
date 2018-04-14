@@ -22,6 +22,10 @@
                 "type": "float"
               },
               {
+                "name": "price",
+                "type": "float"
+              },
+              {
                 "name": "valueVAT",
                 "type": "float"
               },
@@ -40,17 +44,22 @@
           "expression": null
         },
         {
-          "type": "floatSum",
-          "name": "sumBalance",
-          "fieldName": "sumBalance",
-          "expression": null
-        },
-        {
           "type": "javascript",
           "name": "costBalance",
           "fieldNames": [
             "balance",
             "cost"
+          ],
+          "fnAggregate": "function(current, a, b)      { return current + (a * b); }",
+          "fnReset": "function()                   { return 0; }",
+          "fnCombine": "function(partialA, partialB) { return partialA + partialB; }"
+        },
+        {
+          "type": "javascript",
+          "name": "sumBalance",
+          "fieldNames": [
+            "balance",
+            "price"
           ],
           "fnAggregate": "function(current, a, b)      { return current + (a * b); }",
           "fnReset": "function()                   { return 0; }",
@@ -64,7 +73,7 @@
             "cost",
             "valueVAT"
           ],
-          "fnAggregate": "function(current, a, b, c)      { return current + (a * b) * (100 + c) / 100; }",
+          "fnAggregate": "function(current, a, b, c)      { return current + (a * b * (1.0 + (c / 100.0))); }",
           "fnReset": "function()                   { return 0; }",
           "fnCombine": "function(partialA, partialB) { return partialA + partialB; }"
         },
@@ -75,32 +84,27 @@
           "expression": null
         },
         {
-          "type": "javascript",
-          "name": "costSumPurchase",
-          "fieldNames": [
-            "quantityPurchase",
-            "cost"
-          ],
-          "fnAggregate": "function(current, a, b)      { return current + (a * b); }",
-          "fnReset": "function()                   { return 0; }",
-          "fnCombine": "function(partialA, partialB) { return partialA + partialB; }"
-        },
-        {
-          "type": "javascript",
-          "name": "costSumVATPurchase",
-          "fieldNames": [
-            "quantityPurchase",
-            "cost"
-          ],
-          "fnAggregate": "function(current, a, b)      { return current + (a * b) * (100 + c) / 100; }",
-          "fnReset": "function()                   { return 0; }",
-          "fnCombine": "function(partialA, partialB) { return partialA + partialB; }"
+          "type": "floatSum",
+          "name": "sumVATPurchase",
+          "fieldName": "sumVATPurchase",
+          "expression": null
         },
         {
           "type": "floatSum",
           "name": "sumPurchase",
           "fieldName": "sumPurchase",
           "expression": null
+        },
+        {
+          "type": "javascript",
+          "name": "sumPricePurchase",
+          "fieldNames": [
+            "quantityPurchase",
+            "price"
+          ],
+          "fnAggregate": "function(current, a, b)      { return current + (a * b); }",
+          "fnReset": "function()                   { return 0; }",
+          "fnCombine": "function(partialA, partialB) { return partialA + partialB; }"
         },
         {
           "type": "floatSum",
@@ -124,9 +128,10 @@
           "name": "costSumVATSold",
           "fieldNames": [
             "quantitySold",
-            "cost"
+            "cost",
+            "valueVAT"
           ],
-          "fnAggregate": "function(current, a, b)      { return current + (a * b) * (100 + c) / 100; }",
+          "fnAggregate": "function(current, a, b, c)      { return current + (a * b * (1.0 + (c / 100.0))); }",
           "fnReset": "function()                   { return 0; }",
           "fnCombine": "function(partialA, partialB) { return partialA + partialB; }"
         },
