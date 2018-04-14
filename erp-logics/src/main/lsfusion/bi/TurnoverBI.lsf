@@ -1,6 +1,6 @@
 MODULE TurnoverBI;
 
-REQUIRE SaleLedger, Pricing, Item, Druid;
+REQUIRE PurchaseLedger, SaleLedger, Pricing, Item, Druid;
 
 NAMESPACE BI;
 
@@ -8,6 +8,9 @@ exportDruid 'Выгрузить Оборачиваемость' (DATE dFrom, DAT
     LOCAL balance = NUMERIC[16,5] (Batch, Stock);
     balance(Batch b, Stock st) <- balanceA(b, st, dTo);
     
+    LOCAL sum = NUMERIC[18,4] (Sku, Stock);
+    sum(Sku s, Stock st) <- sumA(s, st, dTo);
+
     LOCAL date = DATE ();
     date() <- dTo;
     
@@ -16,13 +19,15 @@ exportDruid 'Выгрузить Оборачиваемость' (DATE dFrom, DAT
         EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
                             nameStock = name(Stock st), nameSku = nameSku(Batch b), barcodeSku = idBarcodeSku(b), nameSupplier = nameSupplier(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
                             group1 = nameSkuGroup2(sku(b)), brand = nameBrand(sku(b)),
-                            balance = DOUBLE(balance(b, st)), 
+                            balance = DOUBLE(balance(b, st)), sumBalance = DOUBLE(balance(b, st) * sum(sku(b), st) / [= GROUP BY sku(Batch bb), Stock stb SUM balance(bb, stb)](sku(b), st)),
+                            quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
                             quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
-               WHERE balance(b, st) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
+               WHERE balance(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
 
         ingestBatch('turnover', date());
 
         balance(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date()); 
+        sum(Sku s, Stock st) <- sum(s, st) (-) signedSum(s, st, date()) WHERE signedSum(s, st, date()); 
         date() <- subtract(date(), 1);
     } 
 } CONFIRM;
