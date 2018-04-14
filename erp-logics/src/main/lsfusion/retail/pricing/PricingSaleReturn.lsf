@@ -1,0 +1,105 @@
+MODULE PricingSaleReturn;
+
+REQUIRE PricingSale, SaleReturnInvoice, SaleReturnShipment;
+
+NAMESPACE SaleReturn;
+
+
+// Добавляем цены поставщика
+@defineDocumentInterfaceDetailPricePrefix(invoice, supplier, ' поставщика');
+@defineDocumentInterfaceDetailDataSumPrefix (invoice, supplier, ' поставщика');
+@deriveDocumentDetailSumCustomRoundPrefix(userInvoiceDetail, supplier, currency, quantity,priceRound);
+@defineDocumentInterfaceHeaderSumPrefix (invoice, supplier, ' поставщика');
+
+// Создаем акт расценки
+roundCondition(UserInvoiceDetail userInvoiceDetail) = roundCondition(supplierStock(userInvoiceDetail));
+@defineInvoicePricingAggregation(invoice, Invoice, ' (продажа)', 'Акт расценки при продаже', 'Проведенный акт расценки при продаже', supplier, supplier);
+@defineInvoicePricingAggregationSum(invoice, Invoice, ' (продажа)', 'Акт расценки при продаже', 'Проведенный акт расценки при продаже', supplier, supplier);
+batch(InvoicePricingDetail detail) += batch(invoiceDetail(detail));
+edit (InvoicePricingDetail d)+= { edit(invoiceDetail(d)); }
+
+
+// Автоматически проставляем цены поставщика и розничные
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
+              CHANGED(supplierStock(detail)) OR
+              (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+              CHANGED(batch(detail))) AND NOT CHANGED(supplierPrice (detail)) DO {
+    supplierPrice (detail)  <- round2(IF batch(detail) 
+                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                                   batch(detail),
+                                                                                                   supplierStock(detail),
+                                                                                                   dateTime(detail))
+                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                                 sku(detail),
+                                                                                                 supplierStock(detail),
+                                                                                                 dateTime(detail)));
+}
+disableUpdateRetailPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail); 
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
+              CHANGED(supplierStock(detail)) OR              
+              (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+              CHANGED(batch(detail))) AND NOT CHANGED(retailPrice (detail)) AND NOT disableUpdateRetailPrice(detail) DO {
+    retailPrice (detail)  <- (IF batch(detail)
+                                                THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                               batch(detail),
+                                                                                               supplierStock(detail),
+                                                                                               dateTime(detail))
+                                                ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                             sku(detail),
+                                                                                             supplierStock(detail),
+                                                                                             dateTime(detail))) (-) extraRetailPrice(detail);
+}
+
+// Автоматический расчет розничной надбавки
+retailMarkup(UserInvoiceDetail userInvoiceDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+    retailPrice(userInvoiceDetail),
+    valueRetailVAT(userInvoiceDetail),
+    pricingPrice(userInvoiceDetail))
+    WHEN CHANGED(retailPrice(userInvoiceDetail)) OR
+         CHANGED (valueRetailVAT(userInvoiceDetail)) OR
+         CHANGED(supplierPrice(userInvoiceDetail));
+
+overRetailVAT = ABSTRACT VALUE Range (UserInvoiceDetail);
+WHEN LOCAL FORMS userInvoice
+    (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED (supplierStock(detail)) OR 
+     CHANGED(overRetailVAT(detail))) AND NOT CHANGED(retailVAT(detail)) DO {
+        retailVAT(detail) <- OVERRIDE overRetailVAT(detail),
+                                                       VAT (sku(detail), country(supplierStock(detail)));
+    } // записываем шкалу
+
+//------------------------------ Создание агрегированных объектов через операции -----------------------------//
+@deriveDocumentOperationProperty(UserInvoice, createPricing);
+
+// Добавление цены поставщика на форму
+EXTEND FORM userInvoice
+    PROPERTIES(i) SHOWIF createPricing[Invoice](i) BACKGROUND backgroundRetail(i)
+                     supplierSumUserInvoiceDetail
+    PROPERTIES(pd) SHOWIF createPricing[Invoice](i) BACKGROUND backgroundRetail(i) BEFORE retailMarkup(pd)
+                     supplierPrice, supplierSum
+;
+EXTEND FORM invoices
+    PROPERTIES(i) READONLY BACKGROUND backgroundRetail(i) BEFORE retailSumInvoiceDetail(i)
+                           supplierSumInvoiceDetail
+    PROPERTIES(d) READONLY SHOWIF createPricing(i) BACKGROUND backgroundRetail(i) BEFORE retailMarkup(d)
+                           supplierPrice, supplierSum
+;
+
+// Помечаем, что этот акт расценки не меняет текущие цены и является обратным
+skipChangeLedger(InvoicePricingDetail d) += d IS InvoicePricingDetail;
+isReturn(InvoicePricing pricing) += pricing IS InvoicePricing;
+
+// Операция расценки
+@defineDocumentInterfaceOperationPrefix (invoice, pricing, Pricing, ' ( расценка)');
+pricingOperation (UserInvoice invoice) <- pricingOperation(operation(invoice))
+    WHEN CHANGED(operation(invoice));
+operation(InvoicePricing pricing) += pricingOperation(invoice(pricing));
+
+// Добавляем операцию расценки на форму
+EXTEND FORM userInvoice
+    PROPERTIES(i) SHOWIF createPricing(i) BACKGROUND backgroundRetail(i) namePricingOperation
+;
+DESIGN userInvoice {
+    headerCreatePricing {
+        MOVE PROPERTY(namePricingOperation(i));// BEFORE PROPERTY(namePricingCommitteeUserInvoice(i));
+    }
+}
