@@ -35,7 +35,7 @@ DESIGN integrationData {
     }
 } 
 
-runTask(VARSTRING[100] id, DATE date) = {
+runImportTask(VARSTRING[100] id, DATE date) = {
     LOCAL template = CUSTOMFILE();
     READ 'file://bi/' + id + '.json' TO template;
     customFileToString(template(), 'UTF-8');
@@ -53,7 +53,16 @@ ingestBatch (VARSTRING[100] id, DATE date) = {
     WRITE exportDirectory() + id + date FROM exportFile();
     printToLog('' + currentDateTime() + 'Ended WRITE ');
     
-    runTask(id, date);
+    runImportTask(id, date);
+}
+
+
+runKillTask(VARSTRING[100] id, DATE dFrom, DATE dTo) = {
+    stringToCustomFile('\{ "type":"kill", "dataSource" : "' + id + '", "interval" : "' + dFrom + '/' + sum(dTo, 1) + '" \}' 
+                                                       , 'UTF-8', 'json');
+    
+    LOCAL result = CUSTOMFILE();
+    EXTERNAL HTTP 'http://' + host() + ':8090/druid/indexer/v1/task' PARAMS resultCustomFile() TO result;
 }
 
 // ----------------- Запросы ------------------- //
