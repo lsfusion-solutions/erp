@@ -121,73 +121,103 @@ EXTEND FORM snapshotTypes
 overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += {
     IF isPurchase(snapshot) THEN {
         IF isDate(snapshot) THEN {
-            purchaseQuantity(Sku sku, Stock stock, snapshot, DATE date) <- NULL;
-            purchaseQuantity(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[14,3](quantityPurchase(sku, stock, date)) 
-                WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
-                    AND date <= (dateTo AS DATE) AND quantityPurchase(sku, stock, date) AND isQuantity(snapshot);
+            IF isQuantity(snapshot) THEN {
+                purchaseQuantity(Sku sku, Stock stock, snapshot, DATE date) <- NULL;
+                purchaseQuantity(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[14,3](quantityPurchase(sku, stock, date)) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                        AND date <= (dateTo AS DATE) AND quantityPurchase(sku, stock, date);
+            }
             
-            purchaseNetWeight(Sku sku, Stock stock, snapshot, DATE date) <- NULL;
-            purchaseNetWeight(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[14,3](quantityPurchase(sku, stock, date)*overNetWeight(sku)) 
-                WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
-                    AND date <= (dateTo AS DATE) AND quantityPurchase(sku, stock, date) AND isNetWeight(snapshot);
+            IF isNetWeight(snapshot) THEN {
+                purchaseNetWeight(Sku sku, Stock stock, snapshot, DATE date) <- NULL;
+                purchaseNetWeight(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[14,3](quantityPurchase(sku, stock, date)*overNetWeight(sku)) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                        AND date <= (dateTo AS DATE) AND quantityPurchase(sku, stock, date);
+            }
             
-            purchaseSum(Sku sku, Stock stock, snapshot, DATE date) <- NULL;                            
-            purchaseSum(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[16,2](sumPurchase(sku, stock, date)) 
-                WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
-                    AND date <= (dateTo AS DATE) AND sumPurchase(sku, stock, date) AND isSum(snapshot);  
+            IF isSum(snapshot) THEN {
+                purchaseSum(Sku sku, Stock stock, snapshot, DATE date) <- NULL;                            
+                purchaseSum(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[16,2](sumPurchase(sku, stock, date)) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                        AND date <= (dateTo AS DATE) AND sumPurchase(sku, stock, date);
+            }  
                 
-            purchaseCost(Sku sku, Stock stock, snapshot, DATE date) <- NULL; 
-            purchaseCost(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[16,2](costSumPurchase(sku, stock, date)) 
-                WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
-                    AND date <= (dateTo AS DATE) AND costSumPurchase(sku, stock, date) AND isCost(snapshot);   
-                                       
-            purchaseVATSupplier(Sku sku, Stock stock, snapshot, DATE date) <- NULL;
-            purchaseVATSupplier(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[16,2](sumVATPurchase(sku, stock, date)) 
-                WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
-                    AND date <= (dateTo AS DATE) AND sumVATPurchase(sku, stock, date) AND isVATSupplier(snapshot);                      
-                     
+            IF isCost(snapshot) THEN {
+                purchaseCost(Sku sku, Stock stock, snapshot, DATE date) <- NULL; 
+                purchaseCost(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[16,2](costSumPurchase(sku, stock, date)) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                        AND date <= (dateTo AS DATE) AND costSumPurchase(sku, stock, date);
+            }   
+            
+            IF isVATSupplier(snapshot) THEN {
+                purchaseVATSupplier(Sku sku, Stock stock, snapshot, DATE date) <- NULL;
+                purchaseVATSupplier(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[16,2](sumVATPurchase(sku, stock, date)) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                        AND date <= (dateTo AS DATE) AND sumVATPurchase(sku, stock, date);
+            }                      
         }
-        purchaseQuantity(Sku sku, Stock stock, snapshot) <- NULL;
-        purchaseQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantityPurchase(sku, stock, dateFrom, dateTo)) 
-            WHERE include(snapshot, stock) AND include(snapshot, sku) AND isQuantity(snapshot) AND quantityPurchase(sku, stock, dateFrom, dateTo);
+        IF isQuantity(snapshot) THEN {        
+            purchaseQuantity(Sku sku, Stock stock, snapshot) <- NULL;
+            purchaseQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantityPurchase(sku, stock, dateFrom, dateTo)) 
+                WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantityPurchase(sku, stock, dateFrom, dateTo);
+        }
         
-        purchaseNetWeight(Sku sku, Stock stock, snapshot) <- NULL;    
-        purchaseNetWeight(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantityPurchase(sku, stock, dateFrom, dateTo)*overNetWeight(sku)) 
-            WHERE include(snapshot, stock) AND include(snapshot, sku) AND isNetWeight(snapshot) AND quantityPurchase(sku, stock, dateFrom, dateTo);
+        IF isNetWeight(snapshot) THEN {        
+            purchaseNetWeight(Sku sku, Stock stock, snapshot) <- NULL;    
+            purchaseNetWeight(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantityPurchase(sku, stock, dateFrom, dateTo)*overNetWeight(sku)) 
+                WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantityPurchase(sku, stock, dateFrom, dateTo);
+        }
+
+        IF isSum(snapshot) THEN {        
+            purchaseSum(Sku sku, Stock stock, snapshot) <- NULL;                
+            purchaseSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumPurchase(sku, stock, dateFrom, dateTo)) 
+                WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumPurchase(sku, stock, dateFrom, dateTo);
+        }   
         
-        purchaseSum(Sku sku, Stock stock, snapshot) <- NULL;                
-        purchaseSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumPurchase(sku, stock, dateFrom, dateTo)) 
-            WHERE include(snapshot, stock) AND include(snapshot, sku) AND isSum(snapshot) AND sumPurchase(sku, stock, dateFrom, dateTo);   
+        IF isCost(snapshot) THEN {
+            purchaseCost(Sku sku, Stock stock, snapshot) <- NULL;    
+            purchaseCost(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumPurchase(sku, stock, dateFrom, dateTo)) 
+                WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumPurchase(sku, stock, dateFrom, dateTo);
+        }  
         
-        purchaseCost(Sku sku, Stock stock, snapshot) <- NULL;    
-        purchaseCost(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumPurchase(sku, stock, dateFrom, dateTo)) 
-            WHERE include(snapshot, stock) AND include(snapshot, sku) AND isCost(snapshot) AND costSumPurchase(sku, stock, dateFrom, dateTo);  
-        
-        purchaseVATSupplier(Sku sku, Stock stock, snapshot) <- NULL;                  
-        purchaseVATSupplier(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumVATPurchase(sku, stock, dateFrom, dateTo)) 
-            WHERE include(snapshot, stock) AND include(snapshot, sku) AND isVATSupplier(snapshot) AND sumVATPurchase(sku, stock, dateFrom, dateTo);   
+        IF isVATSupplier(snapshot) THEN {
+            purchaseVATSupplier(Sku sku, Stock stock, snapshot) <- NULL;                  
+            purchaseVATSupplier(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumVATPurchase(sku, stock, dateFrom, dateTo)) 
+                WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumVATPurchase(sku, stock, dateFrom, dateTo);
+        }   
                          
         //batch
-        purchaseQuantity(Batch batch, Stock stock, snapshot) <- NULL;
-        purchaseQuantity(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](quantityPurchase(batch, stock, dateFrom, dateTo)) 
-            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND isQuantity(snapshot) AND quantityPurchase(batch, stock, dateFrom, dateTo);
-        
-        purchaseNetWeight(Batch batch, Stock stock, snapshot) <- NULL;    
-        purchaseNetWeight(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](quantityPurchase(batch, stock, dateFrom, dateTo)*overNetWeight(sku(batch))) 
-            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND isNetWeight(snapshot) AND quantityPurchase(batch, stock, dateFrom, dateTo);
-        
-        purchaseSum(Batch batch, Stock stock, snapshot) <- NULL;                
-        purchaseSum(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](sumPurchase(batch, stock, dateFrom, dateTo)) 
-            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND isSum(snapshot) AND sumPurchase(batch, stock, dateFrom, dateTo);   
-        
-        purchaseCost(Batch batch, Stock stock, snapshot) <- NULL;    
-        purchaseCost(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](costSumPurchase(batch, stock, dateFrom, dateTo)) 
-            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND isCost(snapshot) AND costSumPurchase(batch, stock, dateFrom, dateTo);  
-        
-        purchaseVATSupplier(Batch batch, Stock stock, snapshot) <- NULL;                  
-        purchaseVATSupplier(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](sumVATPurchase(batch, stock, dateFrom, dateTo)) 
-            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND isVATSupplier(snapshot) AND sumVATPurchase(batch, stock, dateFrom, dateTo);                                                                             
-                         
+        IF isBatch(snapshot) THEN {
+            IF isQuantity(snapshot) THEN {
+                purchaseQuantity(Batch batch, Stock stock, snapshot) <- NULL;
+                purchaseQuantity(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](quantityPurchase(batch, stock, dateFrom, dateTo)) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND quantityPurchase(batch, stock, dateFrom, dateTo);
+            }
+            
+            IF isNetWeight(snapshot) THEN {
+                purchaseNetWeight(Batch batch, Stock stock, snapshot) <- NULL;    
+                purchaseNetWeight(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](quantityPurchase(batch, stock, dateFrom, dateTo)*overNetWeight(sku(batch))) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND quantityPurchase(batch, stock, dateFrom, dateTo);
+            }
+            
+            IF isSum(snapshot) THEN {
+                purchaseSum(Batch batch, Stock stock, snapshot) <- NULL;                
+                purchaseSum(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](sumPurchase(batch, stock, dateFrom, dateTo)) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND sumPurchase(batch, stock, dateFrom, dateTo);
+            }   
+            
+            IF isCost(snapshot) THEN {
+                purchaseCost(Batch batch, Stock stock, snapshot) <- NULL;    
+                purchaseCost(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](costSumPurchase(batch, stock, dateFrom, dateTo)) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND costSumPurchase(batch, stock, dateFrom, dateTo);
+            }  
+            
+            IF isVATSupplier(snapshot) THEN {
+                purchaseVATSupplier(Batch batch, Stock stock, snapshot) <- NULL;                  
+                purchaseVATSupplier(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](sumVATPurchase(batch, stock, dateFrom, dateTo)) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND sumVATPurchase(batch, stock, dateFrom, dateTo);
+            }
+        }                                                                             
     }    
 }; 
 //-- SHOWIF
