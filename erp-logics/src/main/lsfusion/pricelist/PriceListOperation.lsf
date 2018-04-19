@@ -25,10 +25,7 @@ TABLE legalEntityGroupOperation(LegalEntityGroup, Operation);
 @defineOperationStock(, st, 'Склады');
 @defineOperationLegalEntity( ,legalEntity, l, 'Организации');
 
-EXTEND FORM operation
-    FILTERS countCompanyStock(stg),
-            isCompany(st)
-;
+
 
 dataLegalEntity = DATA LegalEntity (Operation);
 
@@ -193,9 +190,10 @@ showOriginalIdBarcodeSku(UserPriceList priceList) <- showOriginalIdBarcodeSku(op
     WHEN CHANGED(operation(priceList));
     
 showNotCompanyStocks 'Склады контрагентов' = DATA BOOLEAN (Operation);
-showNotCompanyStocksUser(UserPriceList priceList) <- showNotCompanyStocks(operation(priceList))
+showNotCompanyStocks(UserPriceList priceList) <- showNotCompanyStocks(operation(priceList))
     WHEN CHANGED(operation(priceList));
-
+show (Operation o, Stock st) =  IF showNotCompanyStocks(o) THEN st IS Stock ELSE (isCompany(st) AND o IS Operation);
+show (Operation o, StockGroup g) =  IF showNotCompanyStocks(o) THEN g IS StockGroup ELSE (countCompanyStock(g) AND o IS Operation);
 EXTEND FORM operation
     OBJECTS pt = PriceListType
     PROPERTIES(pt, o) change TODRAW pt, orderIn TODRAW pt, show, orderShow
@@ -205,13 +203,22 @@ EXTEND FORM operation
     PROPERTIES(l, o) isDefault AFTER in(l,o)
     PROPERTIES(c, o) isDefault AFTER in(c,o)
     PROPERTIES(o) nameDefaultLegalEntity, nameDefaultCurrency
-    FILTERS isCompany(st)
+    PROPERTIES(st) READONLY nameLegalEntity
+    FILTERS show(o,stg),
+            show(o,st)
     PROPERTIES(o) showOriginalIdBarcodeSku, showOriginalNameSku, showDateTime, showBatch, 
                   showCompany, showNotCompanyStocks
     
 ;
 
 DESIGN operation {
+    BOX(st) {
+        NEW topSt FIRST{
+        type = CONTAINERH;
+            MOVE PROPERTY(showNotCompanyStocks(o)); 
+            MOVE PROPERTY(doNotSetStocksUserPriceList(o)) ;            
+        }           
+    }
     headContainer {
         NEW defaultContainer{
             type = CONTAINERH;
@@ -230,7 +237,6 @@ DESIGN operation {
             MOVE PROPERTY(showDateTime(o));
             MOVE PROPERTY(showBatch(o));
             MOVE PROPERTY(showCompany(o));
-            MOVE PROPERTY(showNotCompanyStocks(o));
         }
         NEW constraintContainer {
             caption = 'Ограничения';
