@@ -289,6 +289,10 @@ deleteIncludeSkuGroups 'Сбросить отмеченные'() = {
 };
 
 nameIncludeSkuGroups 'Группы товаров (все)' ()= GROUP CONCAT name(SkuGroup skuGroup) IF dataInclude(skuGroup), ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups1 'Направления (все)' = GROUP CONCAT TEXT('\''+ (OVERRIDE name(SkuGroup skuGroup),'') +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 2, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups2 'Группы (все)' = GROUP CONCAT TEXT('\''+ (OVERRIDE name(SkuGroup skuGroup),'') +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 3, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups3 'Подгруппы (все)' = GROUP CONCAT TEXT('\''+ (OVERRIDE name(SkuGroup skuGroup),'') +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 4, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups4 'Субгруппы (все)' = GROUP CONCAT TEXT('\''+ (OVERRIDE name(SkuGroup skuGroup),'') +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 5, ', ' ORDER skuGroup CHARWIDTH 20;
 
 //------- Товары -------
 dataInclude 'Вкл' = DATA LOCAL BOOLEAN (Sku);
@@ -359,6 +363,14 @@ changeIncludeBarcodes() = {
     }
 }
 
+filter() = (OVERRIDE ' AND nameStock IN (' + (GROUP CONCAT TEXT('\''+ name(Stock s) +'\'') IF include(s),',') + ')','')
+                    + (OVERRIDE ' AND nameSupplier IN (' + (GROUP CONCAT TEXT('\''+ name(LegalEntity le) +'\'') IF include(le),',') + ')','')
+                    + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ (OVERRIDE name(Brand b),'') +'\'') IF include(b),',') + ')','')
+                    + (OVERRIDE ' AND group1 IN (' + nameIncludeSkuGroups1() + ')','')
+                    + (OVERRIDE ' AND group2 IN (' + nameIncludeSkuGroups2() + ')','')
+                    + (OVERRIDE ' AND group3 IN (' + nameIncludeSkuGroups3() + ')','')
+                    + (OVERRIDE ' AND group4 IN (' + nameIncludeSkuGroups4() + ')','')
+                    + (OVERRIDE ' AND barcodeSku IN (' + (GROUP CONCAT TEXT('\''+ idBarcode(Sku sku) +'\'') IF dataInclude(sku),',') + ')','');
 
 fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
     nameGroup1(INTEGER i) <- NULL;
@@ -393,25 +405,39 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
     costVATBalanceA(INTEGER i) <- NULL;
     sumBalanceA(INTEGER i) <- NULL;
     
-    query(replace('SELECT SUM(quantitySold) AS quantitySold, SUM(costSumSold) AS costSumSold, SUM(costSumVATSold) AS costSumVATSold, SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold) AS markupSumSold, (SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold))*100/SUM(costSumSold) AS percMarkupSumSold, SUM(sumVATSold) AS sumVATSold, SUM(sumSold) AS sumSold, SUM(sumPriceSold) AS sumPriceSold, SUM(quantityPurchase) AS quantityPurchase, SUM(sumPurchase)-SUM(sumVATPurchase) AS sumMinusVATPurchase, SUM(sumVATPurchase) AS sumVATPurchase, SUM(sumPurchase) AS sumPurchase, SUM(sumPricePurchase) AS sumPricePurchase,  SUM(costBalance)/SUM(costSumSold) AS turnover, SUM(costBalance) AS costBalance, ' 
-         + nameGroups() + ' FROM turnover'
-         + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
-         + (OVERRIDE ' AND nameStock IN (' + (GROUP CONCAT TEXT('\''+ name(Stock s) +'\'') IF include(s),',') + ')','')
-         + (OVERRIDE ' AND nameSupplier IN (' + (GROUP CONCAT TEXT('\''+ name(LegalEntity le) +'\'') IF include(le),',') + ')','')
-         + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ (OVERRIDE name(Brand b),'') +'\'') IF include(b),',') + ')','')
-         + (OVERRIDE ' AND barcodeSku IN (' + (GROUP CONCAT TEXT('\''+ idBarcode(Sku sku) +'\'') IF include(sku),',') + ')','')
-         + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3())
-         + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+    IF isTimeGroup() THEN {
+        query(replace('SELECT SUM(quantitySold) AS quantitySold, SUM(costSumSold) AS costSumSold, SUM(costSumVATSold) AS costSumVATSold, SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold) AS markupSumSold, (SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold))*100/SUM(costSumSold) AS percMarkupSumSold, SUM(sumVATSold) AS sumVATSold, SUM(sumSold) AS sumSold, SUM(sumPriceSold) AS sumPriceSold, SUM(quantityPurchase) AS quantityPurchase, SUM(sumPurchase)-SUM(sumVATPurchase) AS sumMinusVATPurchase, SUM(sumVATPurchase) AS sumVATPurchase, SUM(sumPurchase) AS sumPurchase, SUM(sumPricePurchase) AS sumPricePurchase,  SUM(costBalance)/SUM(costSumSold) AS turnover, SUM(costBalance) AS costBalance, ' 
+             + 'SUM(balance)/COUNT(DISTINCT __time) AS balanceA, SUM(costBalance)/COUNT(DISTINCT __time) AS costBalanceA, SUM(costVATBalance)/COUNT(DISTINCT __time) AS costVATBalanceA, SUM(sumBalance)/COUNT(DISTINCT __time) AS sumBalanceA, '
+             + nameGroups() + ' FROM turnover'
+             + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+             + filter()
+             + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3())
+             + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+            
+        IMPORT JSON FROM queryResult() TO nameGroup1 = nameGroup1, nameGroup2 = nameGroup2, nameGroup3 = nameGroup3, 
+                                          quantitySold = quantitySold, costSumSold = costSumSold, costSumVATSold = costSumVATSold,
+                                          markupSumSold = markupSumSold, percMarkupSumSold = percMarkupSumSold,
+                                          sumVATSold = sumVATSold, sumSold = sumSold, sumPriceSold = sumPriceSold,
+                                          quantityPurchase = quantityPurchase, sumMinusVATPurchase = sumMinusVATPurchase,
+                                          sumVATPurchase = sumVATPurchase, sumPurchase = sumPurchase, sumPricePurchase = sumPricePurchase,
+                                          turnover = turnover, costBalance = costBalance, balanceA = balanceA, costBalanceA = costBalanceA,
+                                          costVATBalanceA = costVATBalanceA, sumBalanceA = sumBalanceA;
+    } ELSE {
+        query(replace('SELECT SUM(quantitySold) AS quantitySold, SUM(costSumSold) AS costSumSold, SUM(costSumVATSold) AS costSumVATSold, SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold) AS markupSumSold, (SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold))*100/SUM(costSumSold) AS percMarkupSumSold, SUM(sumVATSold) AS sumVATSold, SUM(sumSold) AS sumSold, SUM(sumPriceSold) AS sumPriceSold, SUM(quantityPurchase) AS quantityPurchase, SUM(sumPurchase)-SUM(sumVATPurchase) AS sumMinusVATPurchase, SUM(sumVATPurchase) AS sumVATPurchase, SUM(sumPurchase) AS sumPurchase, SUM(sumPricePurchase) AS sumPricePurchase,  SUM(costBalance)/SUM(costSumSold) AS turnover, SUM(costBalance) AS costBalance, ' 
+             + nameGroups() + ' FROM turnover'
+             + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+             + filter()
+             + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3())
+             + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+            
+        IMPORT JSON FROM queryResult() TO nameGroup1 = nameGroup1, nameGroup2 = nameGroup2, nameGroup3 = nameGroup3, 
+                                          quantitySold = quantitySold, costSumSold = costSumSold, costSumVATSold = costSumVATSold,
+                                          markupSumSold = markupSumSold, percMarkupSumSold = percMarkupSumSold,
+                                          sumVATSold = sumVATSold, sumSold = sumSold, sumPriceSold = sumPriceSold,
+                                          quantityPurchase = quantityPurchase, sumMinusVATPurchase = sumMinusVATPurchase,
+                                          sumVATPurchase = sumVATPurchase, sumPurchase = sumPurchase, sumPricePurchase = sumPricePurchase,
+                                          turnover = turnover, costBalance = costBalance;
         
-    IMPORT JSON FROM queryResult() TO nameGroup1 = nameGroup1, nameGroup2 = nameGroup2, nameGroup3 = nameGroup3, 
-                                      quantitySold = quantitySold, costSumSold = costSumSold, costSumVATSold = costSumVATSold,
-                                      markupSumSold = markupSumSold, percMarkupSumSold = percMarkupSumSold,
-                                      sumVATSold = sumVATSold, sumSold = sumSold, sumPriceSold = sumPriceSold,
-                                      quantityPurchase = quantityPurchase, sumMinusVATPurchase = sumMinusVATPurchase,
-                                      sumVATPurchase = sumVATPurchase, sumPurchase = sumPurchase, sumPricePurchase = sumPricePurchase,
-                                      turnover = turnover, costBalance = costBalance;
-    
-    IF NOT isTimeGroup() THEN {
         LOCAL localNameGroup1 = VARSTRING[255] (INTEGER);
         LOCAL localNameGroup2 = VARSTRING[255] (INTEGER);
         LOCAL localNameGroup3 = VARSTRING[255] (INTEGER);
@@ -427,10 +453,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
         query(replace('SELECT SUM(balance) AS balanceB, SUM(costBalance) AS costBalanceB, SUM(costVATBalance) AS costVATBalanceB, SUM(sumBalance) AS sumBalanceB, '
             + nameGroups() + ' FROM turnover'
             + ' WHERE __time = TIME_PARSE(\'' + sum(dateFrom,-1) + '\',\'yyyy-MM-dd\')'
-            + (OVERRIDE ' AND nameStock IN (' + (GROUP CONCAT TEXT('\''+ name(Stock s) +'\'') IF include(s),',') + ')','')
-            + (OVERRIDE ' AND nameSupplier IN (' + (GROUP CONCAT TEXT('\''+ name(LegalEntity le) +'\'') IF include(le),',') + ')','')
-            + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ (OVERRIDE name(Brand b),'') +'\'') IF include(b),',') + ')','')
-            + (OVERRIDE ' AND barcodeSku IN (' + (GROUP CONCAT TEXT('\''+ idBarcode(Sku sku) +'\'') IF include(sku),',') + ')','')
+            + filter()
             + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3())
             + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
@@ -448,10 +471,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
         query(replace('SELECT SUM(balance) AS balanceA, SUM(costBalance) AS costBalanceA, SUM(costVATBalance) AS costVATBalanceA, SUM(sumBalance) AS sumBalanceA, '
             + nameGroups() + ' FROM turnover'
             + ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
-            + (OVERRIDE ' AND nameStock IN (' + (GROUP CONCAT TEXT('\''+ name(Stock s) +'\'') IF include(s),',') + ')','')
-            + (OVERRIDE ' AND nameSupplier IN (' + (GROUP CONCAT TEXT('\''+ name(LegalEntity le) +'\'') IF include(le),',') + ')','')
-            + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ (OVERRIDE name(Brand b),'') +'\'') IF include(b),',') + ')','')
-            + (OVERRIDE ' AND barcodeSku IN (' + (GROUP CONCAT TEXT('\''+ idBarcode(Sku sku) +'\'') IF include(sku),',') + ')','')
+            + filter()
             + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3())
             + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
@@ -475,7 +495,7 @@ FORM printTurnoverReport 'Оборачиваемость'
     OBJECTS dt=DATE PANEL
     PROPERTIES dateTo = VALUE(dt)
        
-    PROPERTIES() countGroup, countRows, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeSkuGroups, nameIncludeSkus
+    PROPERTIES() countGroup, countRows, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeSkuGroups, nameIncludeSkus, isTimeGroup
     
     OBJECTS i = INTEGER
     PROPERTIES(i) READONLY nameGroup1, nameGroup2, nameGroup3
