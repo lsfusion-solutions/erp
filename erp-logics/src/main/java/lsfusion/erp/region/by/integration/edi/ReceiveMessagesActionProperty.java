@@ -949,7 +949,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
         Element despatchAdviceLogisticUnitLineItemElement = deliveryNoteElement.getChild("DespatchAdviceLogisticUnitLineItem");
 
-        String id = supplierGLN + "/" + deliveryNoteNumber;
+        String id = supplierGLN + "/" + deliveryNoteNumber + (isCancel != null ? "_cancel" : "");
         for (Object line : despatchAdviceLogisticUnitLineItemElement.getChildren("LineItem")) {
             Element lineElement = (Element) line;
             Integer lineItemNumber = Integer.parseInt(lineElement.getChildText("LineItemNumber"));
@@ -957,7 +957,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String lineItemBuyerID = lineElement.getChildText("LineItemBuyerID");
             String lineItemName = lineElement.getChildText("LineItemName");
 
-            String idDetail = id + "/" + lineItemNumber + (isCancel != null ? "_cancel" : "");
+            String idDetail = id + "/" + lineItemNumber;
             BigDecimal quantityDespatched = parseBigDecimal(lineElement.getChildText("QuantityDespatched"));
             BigDecimal valueVAT = parseBigDecimal(lineElement.getChildText("TaxRate"));
             BigDecimal lineItemPrice = parseBigDecimal(lineElement.getChildText("LineItemPrice"));
