@@ -134,7 +134,7 @@ TABLE itemId (VARSTRING[100]);
 item (id) = GROUP BY id (Item item) AGGR (item) MATERIALIZED TABLE itemId; // нужно MATERIALIZED, чтобы не допускало одинаковых кодов, а кидала UPDATE_CONFLICT
 
 @defineOption(replaceSpacesInItemId, 'Замещать пробелы в коде товара', items);
-WHEN LOCAL CHANGED (id(Item i)) AND replaceSpacesInItemId()  DO id(i) <- replace(id(i), ' ', '');
+WHEN LOCAL CHANGED (id(Item i)) AND replaceSpacesInItemId()  INLINE DO id(i) <- replace(id(i), ' ', '');
 
 @defineNumeratedID(Item, 'Товары');
 
@@ -1366,7 +1366,7 @@ TABLE manufacturer(Manufacturer);
 @defineExternalizable(manufacturer, VARSTRING[200]);
 
 name 'Наименование' = DATA VARISTRING[200](Manufacturer) IN recognize CHARWIDTH 15;
-manufacturerName = GROUP BY name(Manufacturer m) AGGR m; 
+manufacturerName = GROUP BY name(Manufacturer m) NAGGR m; 
 address 'Адрес производителя' = DATA VARSTRING[255] (Manufacturer) CHARWIDTH 20;
 
 originalName 'Наименование (ориг.)' = DATA VARISTRING[100](Manufacturer) CHARWIDTH 15;
