@@ -20,8 +20,10 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
     WHILE date() >= dFrom DO {
         printToLog('' + currentDateTime() + ' Started EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balance(Batch b, Stock st)));
         EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
-                            nameStock = name(Stock st), nameSku = replace(nameSku(Batch b), '\n', ''), barcodeSku = idBarcodeSku(b), nameSupplier = nameSupplier(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
-                            group1 = nameSkuGroup2(sku(b)), brand = nameBrand(sku(b)), price = DOUBLE(sum(sku(b), st) / balance(sku(b), st)),
+                            nameStock = name(Stock st), nameFormatStock = nameParent(stockGroup(st)),
+                            nameSku = replace(nameSku(Batch b), '\n', ''), barcodeSku = idBarcodeSku(b), idSku = idSku(b), nameSupplier = nameSupplier(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
+                            group1 = nameSkuGroup2(sku(b)), group2 = nameSkuGroup3(sku(b)), group3 = nameSkuGroup4(sku(b)), group4 = nameSkuGroup5(sku(b)),
+                            brand = nameBrand(sku(b)), price = DOUBLE(sum(sku(b), st) / balance(sku(b), st)),
                             balance = DOUBLE(balance(b, st)),
                             quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
                             quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
