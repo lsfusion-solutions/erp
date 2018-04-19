@@ -266,7 +266,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     barcodeObject.put("additionalprices", new JSONArray());
                     barcodeObject.put("barcode", removeCheckDigitFromBarcode(barcode.idBarcode, appendBarcode));
                     barcodeObject.put("cquant", barcode.amountBarcode);
-                    barcodeObject.put("measurecode", idUOM);
+                    barcodeObject.put("measurecode", barcode.idUOM);
                     barcodeObject.put("minprice",  barcode.flags == null || ((barcode.flags & 16) == 0) ? barcode.price : barcode.minPrice != null ? barcode.minPrice : BigDecimal.ZERO);
                     barcodeObject.put("name", barcode.name);
                     barcodeObject.put("price", barcode.price);
