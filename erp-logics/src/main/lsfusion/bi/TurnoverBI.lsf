@@ -72,23 +72,29 @@ deleteGroup(INTEGER i) = {
 
 @createGroup(stock, 'По магазину', 1);
 @createGroup(supplier, 'По поставщику', 2);
-@createGroup(group, 'По группам товара', 3);
-@createGroup(sku, 'По товару', 4);
-@createGroup(brand, 'По бренду', 5);
-@createGroup(month, 'По месяцам', 6);
-@createGroup(week, 'По неделям', 7);
-@createGroup(day, 'По дням', 8);
+@createGroup(group1, 'По направлению', 3);
+@createGroup(group2, 'По группе', 4);
+@createGroup(group3, 'По подгруппе', 5);
+@createGroup(group4, 'По субгруппе', 6);
+@createGroup(sku, 'По товару', 7);
+@createGroup(brand, 'По бренду', 8);
+@createGroup(month, 'По месяцам', 9);
+@createGroup(week, 'По неделям', 10);
+@createGroup(day, 'По дням', 11);
 
 
 nameGroupDB(INTEGER i) = CASE
     WHEN i == 1 THEN 'nameStock'
     WHEN i == 2 THEN 'nameSupplier'
     WHEN i == 3 THEN 'group1'
-    WHEN i == 4 THEN 'nameSku'
-    WHEN i == 5 THEN 'brand'
-    WHEN i == 6 THEN 'TIME_FORMAT(__time,\'yyyy-MM\')'
-    WHEN i == 7 THEN 'TIME_FORMAT(__time,\'yyyy неделя ww\')'
-    WHEN i == 8 THEN 'TIME_FORMAT(__time,\'yyyy-MM-dd\')';
+    WHEN i == 4 THEN 'group2'
+    WHEN i == 5 THEN 'group3'
+    WHEN i == 6 THEN 'group4'
+    WHEN i == 7 THEN 'nameSku'
+    WHEN i == 8 THEN 'brand'
+    WHEN i == 9 THEN 'TIME_FORMAT(__time,\'yyyy-MM\')'
+    WHEN i == 10 THEN 'TIME_FORMAT(__time,\'yyyy неделя ww\')'
+    WHEN i == 11 THEN 'TIME_FORMAT(__time,\'yyyy-MM-dd\')';
 
 nameGroup1() = GROUP MAX nameGroupDB(INTEGER i) IF order(i) == 1;
 nameGroup2() = GROUP MAX nameGroupDB(INTEGER i) IF order(i) == 2;
@@ -96,7 +102,12 @@ nameGroup3() = GROUP MAX nameGroupDB(INTEGER i) IF order(i) == 3;
 
 nameGroups = CONCAT ', ', (OVERRIDE nameGroup1(), '\'\'') + ' AS nameGroup1', (OVERRIDE nameGroup2(), '\'\'') + ' AS nameGroup2', (OVERRIDE nameGroup3(), '\'\'') + ' AS nameGroup3';
 
-isTimeGroup() = order(6) OR order(7) OR order(8);
+isTimeGroup() = gMonth() OR gWeek() OR gDay();
+
+isTimeGroup2() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 2 AND ( i == 9 OR i == 10 OR i == 11));
+isTimeGroup3() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 3 AND ( i == 9 OR i == 10 OR i == 11));
+printSumGroup1() = TRUE IF NOT isTimeGroup() OR NOT (isTimeGroup2() OR isTimeGroup3());
+printSumGroup2() = TRUE IF NOT isTimeGroup() OR NOT isTimeGroup3();
 
 nameGroup1 = DATA LOCAL VARSTRING[255] (INTEGER);
 nameGroup2 = DATA LOCAL VARSTRING[255] (INTEGER);
@@ -146,7 +157,7 @@ deleteIncludeStockGroups 'Сбросить отмеченные'() = {
     dataInclude(StockGroup g) <- NULL;
 };
 
-nameIncludeStockGroups 'Группы складов (все)' ()= GROUP CONCAT name(StockGroup stockGroup) IF dataInclude(stockGroup), ', ' ORDER stockGroup CHARWIDTH 20;
+nameIncludeStockGroups 'Группы складов (все)' ()= GROUP CONCAT TEXT(name(StockGroup stockGroup)) IF dataInclude(stockGroup), ', ' ORDER stockGroup CHARWIDTH 20;
 
 //------- Склады -------
 dataInclude 'Вкл' = DATA LOCAL BOOLEAN (Stock);
@@ -157,7 +168,7 @@ deleteIncludeStocks 'Сбросить отмеченные'() = {
     dataInclude (Stock st) <- NULL;
 };
 
-nameIncludeStocks 'Склады (все)' ()= GROUP CONCAT name(Stock stock) IF dataInclude(stock), ', ' ORDER stock CHARWIDTH 20;
+nameIncludeStocks 'Склады (все)' ()= GROUP CONCAT TEXT(name(Stock stock)) IF dataInclude(stock), ', ' ORDER stock CHARWIDTH 20;
 
 nameIncludeStockGroupsStock 'Группы складов, склады (все)' () = CONCAT '; ', nameIncludeStockGroups(), nameIncludeStocks() CHARWIDTH 20;
 
@@ -215,7 +226,7 @@ deleteIncludeLegalEntities 'Сбросить отмеченные'() = {
     include(LegalEntity l) <- NULL;
 };
 
-nameIncludeLegalEntities 'Поставщики (все)' () = GROUP CONCAT (OVERRIDE name(LegalEntity le),'') IF include(le), ', ' ORDER le CHARWIDTH 20;
+nameIncludeLegalEntities 'Поставщики (все)' () = GROUP CONCAT TEXT((OVERRIDE name(LegalEntity le),'')) IF include(le), ', ' ORDER le CHARWIDTH 20;
 
 FORM dialogLegalEntity 'Поставщики'
     OBJECTS le = LegalEntity
@@ -244,7 +255,7 @@ deleteIncludeBrands 'Сбросить отмеченные'() = {
     include(Brand b) <- NULL;
 };
 
-nameIncludeBrands 'Брэнд (все)' () = GROUP CONCAT (OVERRIDE name(Brand b),'') IF include(b), ', ' ORDER b CHARWIDTH 20;
+nameIncludeBrands 'Брэнд (все)' () = GROUP CONCAT TEXT((OVERRIDE name(Brand b),'')) IF include(b), ', ' ORDER b CHARWIDTH 20;
 
 commaBrandId 'Список кодов' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDTH 30;
 
@@ -288,7 +299,7 @@ deleteIncludeSkuGroups 'Сбросить отмеченные'() = {
     dataInclude(SkuGroup g) <- NULL;
 };
 
-nameIncludeSkuGroups 'Группы товаров (все)' ()= GROUP CONCAT name(SkuGroup skuGroup) IF dataInclude(skuGroup), ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups 'Группы товаров (все)' ()= GROUP CONCAT TEXT(name(SkuGroup skuGroup)) IF dataInclude(skuGroup), ', ' ORDER skuGroup CHARWIDTH 20;
 nameIncludeSkuGroups1 'Направления (все)' = GROUP CONCAT TEXT('\''+ (OVERRIDE name(SkuGroup skuGroup),'') +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 2, ', ' ORDER skuGroup CHARWIDTH 20;
 nameIncludeSkuGroups2 'Группы (все)' = GROUP CONCAT TEXT('\''+ (OVERRIDE name(SkuGroup skuGroup),'') +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 3, ', ' ORDER skuGroup CHARWIDTH 20;
 nameIncludeSkuGroups3 'Подгруппы (все)' = GROUP CONCAT TEXT('\''+ (OVERRIDE name(SkuGroup skuGroup),'') +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 4, ', ' ORDER skuGroup CHARWIDTH 20;
@@ -306,7 +317,7 @@ deleteIncludeSkus 'Сбросить отмеченные'() = {
 };
 
 nameIncludeSkus 'Товары (все)' = GROUP CONCAT replace(name(Sku sku), '\n', '') IF dataInclude(sku), ', ' ORDER sku CHARWIDTH 20;
-nameIncludeBarcodes 'ШК (все)' = GROUP CONCAT idBarcode(Sku sku) IF dataInclude(sku), ',' ORDER sku CHARWIDTH 20;
+nameIncludeBarcodes 'ШК (все)' = GROUP CONCAT TEXT(idBarcode(Sku sku)) IF dataInclude(sku), ',' ORDER sku CHARWIDTH 20;
 
 commaBarcodeId 'Список ШК' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDTH 30;
 
@@ -365,7 +376,7 @@ changeIncludeBarcodes() = {
 
 filter() = (OVERRIDE ' AND nameStock IN (' + (GROUP CONCAT TEXT('\''+ name(Stock s) +'\'') IF include(s),',') + ')','')
                     + (OVERRIDE ' AND nameSupplier IN (' + (GROUP CONCAT TEXT('\''+ name(LegalEntity le) +'\'') IF include(le),',') + ')','')
-                    + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ (OVERRIDE name(Brand b),'') +'\'') IF include(b),',') + ')','')
+                    + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ (OVERRIDE replace(name(Brand b),'\'','\'\''),'') +'\'') IF include(b),',') + ')','')
                     + (OVERRIDE ' AND group1 IN (' + nameIncludeSkuGroups1() + ')','')
                     + (OVERRIDE ' AND group2 IN (' + nameIncludeSkuGroups2() + ')','')
                     + (OVERRIDE ' AND group3 IN (' + nameIncludeSkuGroups3() + ')','')
@@ -407,7 +418,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
     
     IF isTimeGroup() THEN {
         query(replace('SELECT SUM(quantitySold) AS quantitySold, SUM(costSumSold) AS costSumSold, SUM(costSumVATSold) AS costSumVATSold, SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold) AS markupSumSold, (SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold))*100/SUM(costSumSold) AS percMarkupSumSold, SUM(sumVATSold) AS sumVATSold, SUM(sumSold) AS sumSold, SUM(sumPriceSold) AS sumPriceSold, SUM(quantityPurchase) AS quantityPurchase, SUM(sumPurchase)-SUM(sumVATPurchase) AS sumMinusVATPurchase, SUM(sumVATPurchase) AS sumVATPurchase, SUM(sumPurchase) AS sumPurchase, SUM(sumPricePurchase) AS sumPricePurchase,  SUM(costBalance)/SUM(costSumSold) AS turnover, SUM(costBalance) AS costBalance, ' 
-             + 'SUM(balance)/COUNT(DISTINCT __time) AS balanceA, SUM(costBalance)/COUNT(DISTINCT __time) AS costBalanceA, SUM(costVATBalance)/COUNT(DISTINCT __time) AS costVATBalanceA, SUM(sumBalance)/COUNT(DISTINCT __time) AS sumBalanceA, '
+             + 'SUM(balance)' + (IF gDay() THEN '' ELSE '/COUNT(DISTINCT __time)') + ' AS balanceA, SUM(costBalance)' + (IF gDay() THEN '' ELSE '/COUNT(DISTINCT __time)') + ' AS costBalanceA, SUM(costVATBalance)' + (IF gDay() THEN '' ELSE '/COUNT(DISTINCT __time)') + ' AS costVATBalanceA, SUM(sumBalance)' + (IF gDay() THEN '' ELSE '/COUNT(DISTINCT __time)') + ' AS sumBalanceA, '
              + nameGroups() + ' FROM turnover'
              + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
              + filter()
@@ -495,7 +506,8 @@ FORM printTurnoverReport 'Оборачиваемость'
     OBJECTS dt=DATE PANEL
     PROPERTIES dateTo = VALUE(dt)
        
-    PROPERTIES() countGroup, countRows, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeSkuGroups, nameIncludeSkus, isTimeGroup
+    PROPERTIES() countGroup, countRows, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeSkuGroups, nameIncludeSkus, 
+                 printSumGroup1, printSumGroup2
     
     OBJECTS i = INTEGER
     PROPERTIES(i) READONLY nameGroup1, nameGroup2, nameGroup3
@@ -550,6 +562,11 @@ printTurnoverReportTableXLSX 'Без группировки (XLSX)' (DATE dateFr
     PRINT printTurnoverReportTable OBJECTS df = dateFrom, dt = dateTo XLSX;
 }  IMAGE 'print.png' IN print;
 
+showGroup1 = GROUP SUM 1 IF level(SkuGroup skuGroup) == 2;
+showGroup2 = GROUP SUM 1 IF level(SkuGroup skuGroup) == 3;
+showGroup3 = GROUP SUM 1 IF level(SkuGroup skuGroup) == 4;
+showGroup4 = GROUP SUM 1 IF level(SkuGroup skuGroup) == 5;
+
 FORM turnoverReport 'Оборачиваемость'
     OBJECTS df=DATE PANEL
     PROPERTIES dateFrom = VALUE(df)
@@ -566,7 +583,8 @@ FORM turnoverReport 'Оборачиваемость'
     PROPERTIES nameIncludeBarcodes() ON CHANGE changeIncludeBarcodes()
     
 //-- выбор группировки    
-    PROPERTIES() gStock, gSupplier, gGroup, gSku, gBrand, gMonth, gWeek, gDay
+    PROPERTIES() gStock, gSupplier, gGroup1 SHOWIF showGroup1(), gGroup2 SHOWIF showGroup2(), gGroup3 SHOWIF showGroup3(),
+                 gGroup4 SHOWIF showGroup4(), gSku, gBrand, gMonth, gWeek, gDay
     
     OBJECTS gr = INTEGER 
     PROPERTIES(gr) READONLY order, nameGroup
@@ -616,7 +634,10 @@ DESIGN turnoverReport {
                 type = CONTAINERV;
                 MOVE PROPERTY(gStock());
                 MOVE PROPERTY(gSupplier());
-                MOVE PROPERTY(gGroup());
+                MOVE PROPERTY(gGroup1());
+                MOVE PROPERTY(gGroup2());
+                MOVE PROPERTY(gGroup3());
+                MOVE PROPERTY(gGroup4());
                 MOVE PROPERTY(gSku());
                 MOVE PROPERTY(gBrand());
                 MOVE PROPERTY(gMonth());
