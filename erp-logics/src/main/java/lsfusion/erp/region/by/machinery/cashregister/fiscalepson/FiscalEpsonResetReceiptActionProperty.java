@@ -35,6 +35,9 @@ public class FiscalEpsonResetReceiptActionProperty extends ScriptingActionProper
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
 
+                Integer cardType = (Integer) findProperty("cardTypeCurrentCashRegister[]").read(context.getSession());
+                Integer giftCardType = (Integer) findProperty("giftCardTypeCurrentCashRegister[]").read(context.getSession());
+
                 String cashier = trim((String) findProperty("currentUserName[]").read(context));
                 Integer numberReceipt = (Integer) findProperty("documentNumber[Receipt]").read(context.getSession(), receiptObject);
                 BigDecimal totalSum = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context.getSession(), receiptObject);
@@ -43,7 +46,7 @@ public class FiscalEpsonResetReceiptActionProperty extends ScriptingActionProper
                 ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
                 BigDecimal sumGiftCard = giftCardLM == null ? null : (BigDecimal) giftCardLM.findProperty("sumGiftCardPayment[Receipt]").read(context.getSession(), receiptObject);
 
-                String result = (String) context.requestUserInteraction(new FiscalEpsonResetReceiptClientAction(comPort, baudRate, cashier, numberReceipt, totalSum, sumCash, sumCard, sumGiftCard));
+                String result = (String) context.requestUserInteraction(new FiscalEpsonResetReceiptClientAction(comPort, baudRate, cashier, numberReceipt, totalSum, sumCash, sumCard, sumGiftCard, cardType, giftCardType));
                 if (result == null) {
                     findProperty("resetted[Receipt]").change(true, context, receiptObject);
                     if (!context.apply())

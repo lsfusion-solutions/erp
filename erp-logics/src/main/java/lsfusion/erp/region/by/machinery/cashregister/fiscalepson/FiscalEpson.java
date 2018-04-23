@@ -87,7 +87,7 @@ public class FiscalEpson {
         }
     }
 
-    public static void resetReceipt(String cashier, Integer documentNumberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard) throws RuntimeException {
+    public static void resetReceipt(String cashier, Integer documentNumberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard, Integer cardType, Integer giftCardType) throws RuntimeException {
         boolean sale = totalSum.doubleValue() > 0;
         epsonActiveXComponent.setProperty("CancellationDocumentNumber", new Variant(documentNumberReceipt));
         epsonActiveXComponent.setProperty("CancellationAmount", new Variant(totalSum));
@@ -97,13 +97,13 @@ public class FiscalEpson {
         checkErrors(true);
         if(sumCard != null) {
             epsonActiveXComponent.setProperty("Amount", new Variant(sumCard.doubleValue()));
-            epsonActiveXComponent.setProperty("NoncashType", new Variant(0));
+            epsonActiveXComponent.setProperty("NoncashType", new Variant(cardType == null ? 0 : cardType));
             Dispatch.call(epsonDispatch, sale ? "Repaynoncash" : "PayNoncash");
             checkErrors(true);
         }
         if(sumGiftCard != null) {
             epsonActiveXComponent.setProperty("Amount", new Variant(sumGiftCard.doubleValue()));
-            epsonActiveXComponent.setProperty("NonCashType", new Variant(1));
+            epsonActiveXComponent.setProperty("NonCashType", new Variant(giftCardType == null ? 1 : giftCardType));
             Dispatch.call(epsonDispatch, sale ? "Repaynoncash" : "PayNoncash");
             checkErrors(true);
         }
