@@ -104,6 +104,7 @@ public class CheckWayBoardDaemon extends BoardDaemon {
                 return null;
             } catch (SocketTimeoutException ignored) {
             } catch (Exception e) {
+                e.printStackTrace();
                 terminalLogger.error("CheckWayBoard Error: ", e);
             } finally {
                 try {
@@ -112,6 +113,7 @@ public class CheckWayBoardDaemon extends BoardDaemon {
                     if (inFromClient != null)
                         inFromClient.close();
                 } catch (IOException e) {
+                    e.printStackTrace();
                     terminalLogger.error("CheckWayBoard Error occurred: ", e);
                 }
             }
