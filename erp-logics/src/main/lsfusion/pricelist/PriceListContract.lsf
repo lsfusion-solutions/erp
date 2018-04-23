@@ -25,8 +25,8 @@ seriesNumberContractSku 'Номер договора' (PriceListDetail d) = seri
 isCommission(UserPriceList o) <- type(contractSku(o)) == ContractSkuType.commission
     WHEN CHANGED(contractSku(o));
 
-
-WHEN LOCAL (CHANGED(company(UserPriceList o)) OR CHANGED(companyStock(o)) OR CHANGED(fromDate(o))) AND NOT CHANGED(contractSku(o)) DO {
+skipChangeContractSku = ABSTRACT VALUE BOOLEAN (UserPriceList);
+WHEN LOCAL (CHANGED(company(UserPriceList o)) OR CHANGED(companyStock(o)) OR CHANGED(fromDate(o))) AND NOT CHANGED(contractSku(o)) AND NOT skipChangeContractSku(o) DO {
             
     contractSku(o) <- defaultContractSkuSupplier(company(o), companyStock(o), fromDate(o))
                                     IF countContractSkuSupplier(company(o), companyStock(o), fromDate(o)) == 1;
