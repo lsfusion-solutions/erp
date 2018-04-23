@@ -158,7 +158,7 @@ public class CheckWayBoardDaemon extends BoardDaemon {
 
         private byte[] getPriceBytes(byte[] captionBytes, BigDecimal price, String charset) throws UnsupportedEncodingException {
             byte[] priceBytes = formatPrice(price).getBytes(charset);
-            ByteBuffer bytes = ByteBuffer.allocate(12 + captionBytes.length + priceBytes.length);
+            ByteBuffer bytes = ByteBuffer.allocate(18 + captionBytes.length + priceBytes.length);
 
             bytes.put(new byte[] {(byte) 0x1b, (byte) 0x2e, (byte) 0x30, (byte) 0x1b, (byte) 0x42, (byte) 0x30, (byte) 0x30}); //normal font size
             bytes.put(new byte[] {(byte) 0x1b, (byte) 0x27, (byte) 0x30, (byte) 0x30}); //clear screen, cursor top left
@@ -176,7 +176,7 @@ public class CheckWayBoardDaemon extends BoardDaemon {
         private byte[] getErrorBytes(String error, String charset) throws UnsupportedEncodingException {
             byte[] errorBytes = getTextBytes(error, 10, charset);
 
-            ByteBuffer bytes = ByteBuffer.allocate(6 + errorBytes.length);
+            ByteBuffer bytes = ByteBuffer.allocate(12 + errorBytes.length);
 
             bytes.put(new byte[] {(byte) 0x1b, (byte) 0x2e, (byte) 0x30, (byte) 0x1b, (byte) 0x42, (byte) 0x30, (byte) 0x30}); //normal font size
             bytes.put(new byte[] {(byte) 0x1b, (byte) 0x27, (byte) 0x30, (byte) 0x30}); //clear screen, cursor top left
