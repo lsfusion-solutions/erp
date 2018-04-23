@@ -55,6 +55,9 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
 
+                Integer cardType = (Integer) findProperty("cardTypeCurrentCashRegister[]").read(context.getSession());
+                Integer giftCardType = (Integer) findProperty("giftCardTypeCurrentCashRegister[]").read(context.getSession());
+
                 String cashier = trim((String) findProperty("currentUserName[]").read(context));
                 String comment = (String) findProperty("fiscalEpsonComment[Receipt]").read(context, receiptObject);
 
@@ -160,7 +163,7 @@ public class FiscalEpsonPrintReceiptActionProperty extends ScriptingActionProper
                                         new ReceiptInstance(sumCash == null ? null : sumCash.abs(),
                                                 sumCard == null ? null : sumCard.abs(),
                                                 sumGiftCard == null ? null : sumGiftCard.abs(), cashier,
-                                                isReturn ? receiptReturnItemList : receiptSaleItemList, comment)));
+                                                isReturn ? receiptReturnItemList : receiptSaleItemList, comment), cardType, giftCardType));
                         if (result.receiptNumber != null) {
                             findProperty("number[Receipt]").change(result.receiptNumber, context, receiptObject);
                             findProperty("documentNumber[Receipt]").change(result.documentNumber, context, receiptObject);

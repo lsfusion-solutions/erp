@@ -191,18 +191,18 @@ public class FiscalEpson {
         }
     }
 
-    public static ReceiptInfo closeReceipt(ReceiptInstance receipt, boolean sale) throws RuntimeException {
+    public static ReceiptInfo closeReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType) throws RuntimeException {
         Dispatch.call(epsonDispatch, "CompleteReceipt");
         checkErrors(true);
         if(receipt.sumCard != null) {
             epsonActiveXComponent.setProperty("Amount", new Variant(receipt.sumCard.doubleValue()));
-            epsonActiveXComponent.setProperty("NoncashType", new Variant(0));
+            epsonActiveXComponent.setProperty("NoncashType", new Variant(cardType == null ? 0 : cardType));
             Dispatch.call(epsonDispatch, sale ? "PayNoncash" : "Repaynoncash");
             checkErrors(true);
         }
         if(receipt.sumGiftCard != null) {
             epsonActiveXComponent.setProperty("Amount", new Variant(receipt.sumGiftCard.doubleValue()));
-            epsonActiveXComponent.setProperty("NonCashType", new Variant(1));
+            epsonActiveXComponent.setProperty("NonCashType", new Variant(giftCardType == null ? 1 : giftCardType));
             Dispatch.call(epsonDispatch, sale ? "PayNoncash" : "Repaynoncash");
             checkErrors(true);
         }
@@ -236,7 +236,7 @@ public class FiscalEpson {
         } else return null;
     }
 
-    public static PrintReceiptResult printReceipt(ReceiptInstance receipt, boolean sale) {
+    public static PrintReceiptResult printReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType) {
         Integer offsetBefore = getElectronicJournalReadOffset();
         openReceipt(receipt.cashier, sale ? 1 : 2);
         DecimalFormat formatter = getFormatter();
@@ -249,7 +249,7 @@ public class FiscalEpson {
             printLine(item.comment);
 
         }
-        ReceiptInfo receiptInfo = closeReceipt(receipt, sale);
+        ReceiptInfo receiptInfo = closeReceipt(receipt, sale, cardType, giftCardType);
         Integer offsetAfter = getElectronicJournalReadOffset();
         return new PrintReceiptResult(receiptInfo.documentNumber, receiptInfo.receiptNumber, offsetBefore, offsetAfter - offsetBefore, receiptInfo.sessionNumber);
     }
