@@ -129,7 +129,7 @@ public class CheckWayBoardDaemon extends BoardDaemon {
 
                 String weightPrefix = (String) LM.findProperty("weightPrefixIP").read(session, new DataObject(ip));
                 String piecePrefix = (String) LM.findProperty("piecePrefixIP").read(session, new DataObject(ip));
-                if (weightPrefix != null && idBarcode.length() == 13 && (idBarcode.startsWith(weightPrefix) || idBarcode.startsWith(piecePrefix)))
+                if (idBarcode.length() == 13 && (weightPrefix != null && idBarcode.startsWith(weightPrefix) || piecePrefix != null && idBarcode.startsWith(piecePrefix)))
                     idBarcode = idBarcode.substring(2, 7);
                 ObjectValue stockObject = LM.findProperty("stockIP[VARSTRING[100]]").readClasses(session, new DataObject(ip));
                 ObjectValue skuObject = LM.findProperty("skuBarcode[VARSTRING[15]]").readClasses(session, new DataObject(idBarcode));
