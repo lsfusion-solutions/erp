@@ -414,7 +414,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         setObject(ps, transaction.nppGroupMachinery, 2, offset); //PRCLEVELID
                         BigDecimal packPrice = item.price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(item.price, 100);
                         setObject(ps, packPrice, 3, offset); //PACKPRICE
-                        setObject(ps, item.flags == null || ((item.flags & 16) == 0) ? HandlerUtils.safeMultiply(item.price, 100) : item.minPrice != null ? HandlerUtils.safeMultiply(item.minPrice, 100) : BigDecimal.ZERO, 4, offset); //PACKMINPRICE
+                        setObject(ps, (item.flags == null || ((item.flags & 16) == 0)) && HandlerUtils.safeMultiply(item.price, 100) != null ? HandlerUtils.safeMultiply(item.price, 100) : HandlerUtils.safeMultiply(item.minPrice, 100) != null ? HandlerUtils.safeMultiply(item.minPrice, 100) : BigDecimal.ZERO, 4, offset); //PACKMINPRICE
                         setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
                         setObject(ps, "0", 6, offset); //DELFLAG
 
