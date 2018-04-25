@@ -492,7 +492,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         clientObject.put("name", name.trim()); //ФИО клиента
         clientObject.put("text", name.trim()); //текст
         clientObject.put("sex", card.sexContact); //пол клиента
-        if(card.birthdayContact != null)
+        if(card.birthdayContact != null && card.birthdayContact.compareTo(new Date(0, 0, 1)) > 0 )
             clientObject.put("birthday", new SimpleDateFormat("yyyy-MM-dd").format(card.birthdayContact)); //день рождения, год рождения должен быть больше 1900
         rootObject.put("command", "addClient");
         return rootObject.toString();
