@@ -619,6 +619,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         for (int i = 0; i < inventPositionsArray.length(); i++) {
                                             JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
                                             String invoiceNumber = inventPosition.getString("additionalbarcode");
+                                            invoiceNumber = invoiceNumber.substring(invoiceNumber.length() - 7);
                                             softCheckLogger.info(logPrefix + "found softCheck " + invoiceNumber);
                                             result.put(invoiceNumber, dateTimeReceipt);
                                         }

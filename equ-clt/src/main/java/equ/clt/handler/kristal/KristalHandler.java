@@ -496,7 +496,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     ResultSet rs = statement.executeQuery(queryString);
                     int count = 0;
                     while (rs.next()) {
-                        result.put(/*fillLeadingZeroes(*/rs.getString(1)/*)*/, rs.getTimestamp(2));
+                        result.put(fillLeadingZeroes(rs.getString(1)), rs.getTimestamp(2));
                         count++;
                     }
 
@@ -1314,13 +1314,13 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
         return input.trim();
     }
 
-    /*private String fillLeadingZeroes(String input) {
+    private String fillLeadingZeroes(String input) {
         if (input == null)
             return null;
         while (input.length() < 7)
             input = "0" + input;
         return input;
-    }*/
+    }
 
     private String makeIdItemGroup(List<ItemGroup> hierarchyItemGroup, boolean type3) {
         return makeIdItemGroup(hierarchyItemGroup, type3, false);
