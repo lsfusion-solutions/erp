@@ -1,0 +1,135 @@
+MODULE SaleEInvoice;
+
+REQUIRE EDI, SaleInvoice, ConsignmentBy, ConsignmentDashboard;
+
+PRIORITY Sale;
+
+NAMESPACE EDI;
+
+eInvoice = ABSTRACT EInvoice (Invoice);
+eInvoice = DATA EInvoice (UserInvoice);
+eInvoice(UserInvoice i) += eInvoice(i);
+
+invoice = GROUP BY eInvoice(Invoice i) AGGR i;
+numberInvoice 'Номер накладной (продажа)' (EInvoice i) = number(invoice(i));
+
+numberEInvoice 'Серия и номер'(Invoice i) = deliveryNoteNumber(eInvoice(i));
+
+createEInvoice 'Создать электронную накладную' (Invoice invoice) = {
+    IF NOT eInvoice(invoice) THEN NEWSESSION {
+        NEW ei = EInvoice {
+            deliveryNoteNumber(ei) <- number(invoice);
+            deliveryNoteDateTime(ei) <- dateTime(invoice);
+            supplier(ei) <- supplier(invoice);
+            supplierStock(ei) <- supplierStock(invoice);
+            customer(ei) <- customer(invoice);
+            customerStock(ei) <- customerStock(invoice);
+            contactCustomerStock(ei) <- '';
+            eInvoice(invoice) <- ei;
+            
+            FOR invoice(InvoiceDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
+                eInvoice(ed) <- ei;
+                lineItemID(ed) <- idBarcodeSku(detail);
+                lineItemBuyerID(ed) <- idSku(detail);
+                lineItemName(ed) <- nameSku(detail);
+                quantityDespatched(ed) <- quantity(detail);
+                valueVAT(ed) <- valueVAT(detail);
+                lineItemPrice(ed) <- price(detail);
+                lineItemAmountWithoutCharges(ed) <- sum(detail);
+                lineItemAmount(ed) <- sum(detail);
+                lineItemAmountCharges(ed) <- VATSum(detail);
+                grossWeightValue(ed) <- sumGrossWeight(detail);
+                lineItemQuantityUOM(ed) <- extraCodeUOM(UOM(sku(detail)));
+                despatchUnitQuantityDespatched(ed) <- packQuantity(detail);
+                taxRate(ed) <- numberVAT(detail);
+            }
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM eInvoices
+    PROPERTIES (e) READONLY numberInvoice
+;
+
+UNPfullNamePayer (Invoice i) = CONCAT ', ', UNPPayer(i), fullNamePayer(i);
+UNPfullNameSupplier (Invoice i) = CONCAT ', ', UNPSupplier(i), fullNameSupplier[Consignment](i);
+addressSupplierAddressSupplierStock (Invoice i) = CONCAT ', ', addressSupplier[Consignment](i), addressSupplierStock[Consignment](i);
+infoCustomerBase (Invoice i) = CONCAT ', ', UNPCustomer(i), fullNameCustomer[Consignment](i), addressCustomer[Consignment](i), shipmentBase(i);
+numberDate (Invoice i) = CONCAT ', ', number(i), toDateDDMMYY(date(i));
+
+FORM consignmentEInvoice 'РЕЕСТР'
+    OBJECTS i = Invoice PANEL
+    PROPERTIES(i) READONLY UNPfullNamePayer, addressPayer, UNPfullNameSupplier, addressSupplierAddressSupplierStock,
+                           date, nameTruck, overWaybill, nameDriver, trailer, number, numberDate, infoCustomerBase,
+                           grossWeightConsignmentDetail, overPackQuantityConsignmentDetail, sumVATConsignmentDetail,
+                           sumInvoiceConsignmentDetail, forwarder, overGoodsAccepted
+;
+
+FORM attachmentEInvoice 'Приложение'
+    OBJECTS i = Invoice PANEL
+    PROPERTIES(i) READONLY number, date
+    
+    OBJECTS d = InvoiceDetail
+    PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, quantity, price, sum, valueVAT, VATSum, invoiceSum,
+                           packQuantity, sumGrossWeight, idSku
+    FILTERS invoice(d) == i
+;
+
+printConsignmentEInvoiceXLSX 'Реестр ТТН (xlsx)' (Invoice i) = {
+    PRINT consignmentEInvoice OBJECTS i = i XLSX;
+    PRINT attachmentEInvoice OBJECTS i = i XLSX;
+} IMAGE 'print.png';
+
+include 'Вкл.' = DATA LOCAL BOOLEAN (Invoice);
+countInclude() = GROUP SUM 1 IF include(Invoice i);
+maxInclude() = GROUP MAX Invoice i IF include(i);
+
+UNPfullNamePayer () = CONCAT ', ', UNPPayer(maxInclude()), fullNamePayer(maxInclude());
+addressPayer () = addressPayer(maxInclude());
+UNPfullNameSupplier () = CONCAT ', ', UNPSupplier(maxInclude()), fullNameSupplier[Consignment](maxInclude());
+addressSupplier () = addressSupplier[Consignment](maxInclude());
+date () = date(maxInclude());
+nameTruck () = nameTruck(maxInclude());
+overWaybill () = overWaybill(maxInclude());
+nameDriver () = nameDriver(maxInclude());
+forwarder () = forwarder(maxInclude());
+infoCustomer (Invoice i) = CONCAT ', ', UNPCustomer(i), fullNameCustomer[Consignment](i), addressCustomer[Consignment](i);
+
+
+FORM consignmentEInvoices 'РЕЕСТР'
+    PROPERTIES() UNPfullNamePayer, addressPayer, UNPfullNameSupplier, addressSupplier, date, nameTruck, overWaybill, nameDriver, forwarder
+    OBJECTS i = Invoice
+    PROPERTIES(i) READONLY numberDate, infoCustomer, overGoodsAccepted
+    FILTERS include(i)
+;
+
+printConsignmentEInvoicesXLSX 'Реестр ТТН (xlsx) (несколько)' () = {
+    PRINT consignmentEInvoices XLSX;
+    FOR include(Invoice i) DO {
+        PRINT attachmentEInvoice OBJECTS i = i XLSX;
+    }
+} IMAGE 'print.png';
+
+EXTEND FORM consignmentDashboard
+    PROPERTIES READONLY PANEL numberEInvoice(i)
+    PROPERTIES(i) createEInvoice
+    PROPERTIES(i) include BEFORE isPosted(i), printConsignmentEInvoiceXLSX SHOWIF eInvoice[Invoice](i)
+    PROPERTIES() printConsignmentEInvoicesXLSX SHOWIF countInclude()
+;
+
+DESIGN consignmentDashboard {
+    tabContainer {
+        NEW eInvoice {
+            caption = 'Электронная накладная';
+            NEW createEI {
+                MOVE PROPERTY(numberEInvoice(i));
+                MOVE PROPERTY(createEInvoice(i));
+            }
+            NEW printEI {
+                MOVE PROPERTY (printConsignmentEInvoiceXLSX(i));
+                MOVE PROPERTY (printConsignmentEInvoicesXLSX());
+            }
+        }
+    }
+}
