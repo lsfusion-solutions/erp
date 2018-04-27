@@ -141,7 +141,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 return action ?
                         String.format("<html><body bgcolor=\"#FFFF00\">Наименование: <b>%s</b><br/><b><font color=\"#FF0000\">Акция</font></b> Цена: <b>%s</b>, Скидка: <b>%s</b></body></html>",
                                 nameSkuBarcode, String.valueOf(price.doubleValue()), String.valueOf(oldPrice.doubleValue() - price.doubleValue()))
-                        : String.format("<html><body>Наименование: <b>%s</b><br/>Цена: <b>%s</b></body></html>",
+                        : String.format("<html><body><div align=center><font size=+4><b>%s</b><br><br><br>Цена: <b>%s</b></font></div></body></html>",
                         nameSkuBarcode, price == null ? "0" : String.valueOf(price.doubleValue()));
             } else return null;
 
