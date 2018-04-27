@@ -19,3 +19,42 @@ DESIGN userInvoice {
         }
     }
 }
+
+@defineOption(PurchaseUseTerminalDocumentDialog, 'Запрашивать выбор документа ТСД при создании накладной на основе заказа', invoicePurchase);
+
+inPurchase 'Для накладных закупки'= DATA BOOLEAN (TerminalDocumentType);
+
+EXTEND FORM groupTerminalDocumentType 
+    PROPERTIES (tdt) inPurchase;
+EXTEND FORM groupTerminalDocumentTypes 
+    PROPERTIES (tdt) READONLY inPurchase;
+
+countDocuments = GROUP BY stock(TerminalDocument td) SUM 1 IF NOT used(td) AND NOT isClosed(td) AND inPurchase((terminalDocumentType(td)));
+
+beforeCreateInvoice(Purchase.Order o) += {
+
+    IF countDocuments(customerStock(o)) AND PurchaseUseTerminalDocumentDialog() THEN {
+        in(TerminalDocumentType t) <- inPurchase(t);
+        filterStock() <- customerStock(o);
+        DIALOG terminalDocuments OBJECTS td INPUT DO {
+            NEW i = Purchase.UserInvoice {
+                fillHeader(i, o);
+                userInvoice(o) <- i;
+                used(td) <- TRUE;
+                overAddDialogTerminalUserInvoice(i, td);
+    
+                FOR terminalDocument(TerminalDocumentDetail tdd) == td ORDER number(tdd) NEW d = Purchase.UserInvoiceDetail DO {
+                    userInvoice(d) <- i;
+                    sku(d) <- sku(tdd);
+                    quantity(d) <- quantity(tdd);
+                    overAddDetailDialogTerminalUserInvoiceDetail(d, tdd);
+                }
+                include(o,i) <- TRUE;
+                overCreate (o, i);
+            }
+
+            invoiceCreated(o) <- TRUE;
+        }
+    }
+
+}
