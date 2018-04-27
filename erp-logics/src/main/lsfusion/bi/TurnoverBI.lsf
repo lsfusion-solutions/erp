@@ -117,7 +117,8 @@ captionGroup1() = GROUP MAX captionGroup(INTEGER i) IF order(i) == 1;
 captionGroup2() = GROUP MAX captionGroup(INTEGER i) IF order(i) == 2;
 captionGroup3() = GROUP MAX captionGroup(INTEGER i) IF order(i) == 3;
 
-nameGroups = CONCAT ', ', (OVERRIDE nameGroup1(), '\'\'') + ' AS nameGroup1', (OVERRIDE nameGroup2(), '\'\'') + ' AS nameGroup2', (OVERRIDE nameGroup3(), '\'\'') + ' AS nameGroup3';
+nameGroups = CONCAT ', ', (OVERRIDE nameGroup1(), '\'\'') + ' AS nameGroup1', (OVERRIDE nameGroup2(), '\'\'') + ' AS nameGroup2', (OVERRIDE nameGroup3(), '\'\'') + ' AS nameGroup3',
+                              (IF gSku() THEN 'barcodeSku' ELSE '\'\'') + ' AS barcodeSku';
 
 isTimeGroup() = gMonth() OR gWeek() OR gDay();
 
@@ -129,6 +130,7 @@ printSumGroup2() = TRUE IF NOT isTimeGroup() OR NOT isTimeGroup3();
 nameGroup1 = DATA LOCAL VARSTRING[255] (INTEGER);
 nameGroup2 = DATA LOCAL VARSTRING[255] (INTEGER);
 nameGroup3 = DATA LOCAL VARSTRING[255] (INTEGER);
+barcodeSku = DATA LOCAL VARSTRING[15] (INTEGER);
 
 quantitySold 'Продано (кол-во)' = DATA LOCAL NUMERIC[16,5] (INTEGER);
 costSumSold 'Продано (себестоимость)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
@@ -437,6 +439,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
     nameGroup1(INTEGER i) <- NULL;
     nameGroup2(INTEGER i) <- NULL;
     nameGroup3(INTEGER i) <- NULL;
+    barcodeSku(INTEGER i) <- NULL;
     
     quantitySold(INTEGER i) <- NULL;
     costSumSold(INTEGER i) <- NULL;
@@ -476,7 +479,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
              + nameGroups() + ' FROM turnover'
              + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
              + filter()
-             + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3())
+             + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3(), IF gSku() THEN 'barcodeSku' ELSE NULL)
              + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
         IMPORT JSON FROM queryResult() TO nameGroup1 = nameGroup1, nameGroup2 = nameGroup2, nameGroup3 = nameGroup3, 
@@ -486,13 +489,14 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
                                           quantityPurchase = quantityPurchase, sumMinusVATPurchase = sumMinusVATPurchase,
                                           sumVATPurchase = sumVATPurchase, sumPurchase = sumPurchase, sumPricePurchase = sumPricePurchase,
                                           turnover = turnover, costBalance = costBalance, balanceA = balanceA, costBalanceA = costBalanceA,
-                                          costVATBalanceA = costVATBalanceA, sumBalanceA = sumBalanceA, daysOnStock = daysOnStock;
+                                          costVATBalanceA = costVATBalanceA, sumBalanceA = sumBalanceA, daysOnStock = daysOnStock,
+                                          barcodeSku = barcodeSku;
     } ELSE {
         query(replace('SELECT ' + values() 
              + nameGroups() + ' FROM turnover'
              + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
              + filter()
-             + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3())
+             + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3(), IF gSku() THEN 'barcodeSku' ELSE NULL)
              + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
         IMPORT JSON FROM queryResult() TO nameGroup1 = nameGroup1, nameGroup2 = nameGroup2, nameGroup3 = nameGroup3, 
@@ -501,11 +505,13 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
                                           sumVATSold = sumVATSold, sumSold = sumSold, sumPriceSold = sumPriceSold,
                                           quantityPurchase = quantityPurchase, sumMinusVATPurchase = sumMinusVATPurchase,
                                           sumVATPurchase = sumVATPurchase, sumPurchase = sumPurchase, sumPricePurchase = sumPricePurchase,
-                                          turnover = turnover, costBalance = costBalance, daysOnStock = daysOnStock;
+                                          turnover = turnover, costBalance = costBalance, daysOnStock = daysOnStock,
+                                          barcodeSku = barcodeSku;
         
         LOCAL localNameGroup1 = VARSTRING[255] (INTEGER);
         LOCAL localNameGroup2 = VARSTRING[255] (INTEGER);
         LOCAL localNameGroup3 = VARSTRING[255] (INTEGER);
+        LOCAL localBarcodeSku = VARSTRING[15] (INTEGER);
         LOCAL localBalanceB = NUMERIC[16,5] (INTEGER);
         LOCAL localCostBalanceB = NUMERIC[18,4] (INTEGER);
         LOCAL localCostVATBalanceB = NUMERIC[18,4] (INTEGER);
@@ -523,14 +529,14 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
             + nameGroups() + ' FROM turnover'
             + ' WHERE __time = TIME_PARSE(\'' + sum(dateFrom,-1) + '\',\'yyyy-MM-dd\')'
             + filter()
-            + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3())
+            + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3(), IF gSku() THEN 'barcodeSku' ELSE NULL)
             + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
         IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
                                           localBalanceB = balanceB, localCostBalanceB = costBalanceB, localCostVATBalanceB = costVATBalanceB,
-                                          localSumBalanceB = sumBalanceB;
+                                          localSumBalanceB = sumBalanceB, localBarcodeSku = barcodeSku;
         
-        FOR imported(INTEGER i) AND INTEGER number = [= GROUP BY nameGroup1(INTEGER n), nameGroup2(n), nameGroup3(n) LAST n ORDER n](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i)) DO {
+        FOR imported(INTEGER i) AND INTEGER number = [= GROUP BY nameGroup1(INTEGER n), nameGroup2(n), nameGroup3(n), barcodeSku(n) LAST n ORDER n](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
             balanceB(number) <- localBalanceB(i);
             costBalanceB(number) <- localCostBalanceB(i);
             costVATBalanceB(number) <- localCostVATBalanceB(i);
@@ -545,14 +551,14 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
             + nameGroups() + ' FROM turnover'
             + ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
             + filter()
-            + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3())
+            + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3(), IF gSku() THEN 'barcodeSku' ELSE NULL)
             + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
         IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
                                           localBalanceA = balanceA, localCostBalanceA = costBalanceA, localCostVATBalanceA = costVATBalanceA,
-                                          localSumBalanceA = sumBalanceA;
+                                          localSumBalanceA = sumBalanceA, localBarcodeSku = barcodeSku;
         
-        FOR imported(INTEGER i) AND INTEGER number = [= GROUP BY nameGroup1(INTEGER n), nameGroup2(n), nameGroup3(n) LAST n ORDER n](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i)) DO {
+        FOR imported(INTEGER i) AND INTEGER number = [= GROUP BY nameGroup1(INTEGER n), nameGroup2(n), nameGroup3(n), barcodeSku(n) LAST n ORDER n](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
             balanceA(number) <- localBalanceA(i);
             costBalanceA(number) <- localCostBalanceA(i);
             costVATBalanceA(number) <- localCostVATBalanceA(i);
@@ -572,7 +578,7 @@ FORM printTurnoverReport 'Оборачиваемость'
                  printSumGroup1, printSumGroup2
     
     OBJECTS i = INTEGER
-    PROPERTIES(i) READONLY nameGroup1, nameGroup2, nameGroup3
+    PROPERTIES(i) READONLY nameGroup1, nameGroup2, nameGroup3, barcodeSku SHOWIF gSku()
     PROPERTIES(i) READONLY balanceB SHOWIF (isBalanceB() AND isQuantity()),
                            costBalanceB SHOWIF (isBalanceB() AND overIsCost()),
                            costVATBalanceB SHOWIF (isBalanceB() AND isCostVAT()),
@@ -600,7 +606,7 @@ FORM printTurnoverReport 'Оборачиваемость'
     FILTERS nameGroup1(i) AND dt IS DATE AND df IS DATE,
             balanceB(i) OR quantitySold(i) OR balanceA(i)
             
-    ORDER nameGroup1(i), nameGroup2(i), nameGroup3(i)
+    ORDER nameGroup1(i), nameGroup2(i), nameGroup3(i), barcodeSku(i)
 ;
 
 printTurnoverReportXLSX 'С группировкой (XLSX)' (DATE dateFrom, DATE dateTo) = {
@@ -623,7 +629,7 @@ FORM printTurnoverReportTable 'Оборачиваемость'
                  captionGroup1, captionGroup2, captionGroup3
     
     OBJECTS i = INTEGER
-    PROPERTIES(i) READONLY nameGroup1, nameGroup2, nameGroup3
+    PROPERTIES(i) READONLY nameGroup1, nameGroup2, nameGroup3, barcodeSku SHOWIF gSku()
     PROPERTIES(i) READONLY balanceB SHOWIF (isBalanceB() AND isQuantity()),
                            costBalanceB SHOWIF (isBalanceB() AND overIsCost()),
                            costVATBalanceB SHOWIF (isBalanceB() AND isCostVAT()),
@@ -651,7 +657,7 @@ FORM printTurnoverReportTable 'Оборачиваемость'
     FILTERS nameGroup1(i) AND dt IS DATE AND df IS DATE,
             balanceB(i) OR quantitySold(i) OR balanceA(i)
             
-    ORDER nameGroup1(i), nameGroup2(i), nameGroup3(i)
+    ORDER nameGroup1(i), nameGroup2(i), nameGroup3(i), barcodeSku(i)
 ;
 
 printTurnoverReportTableXLSX 'Без группировки (XLSX)' (DATE dateFrom, DATE dateTo) = {
