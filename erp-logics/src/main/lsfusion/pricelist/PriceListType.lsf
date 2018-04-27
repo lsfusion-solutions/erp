@@ -400,19 +400,19 @@ DESIGN options {
     }
 }
 
-META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, form)
+META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, dateTimeProp, form)
     prevList (priceListType, detail) = ABSTRACT CASE NUMERIC[16,4] (PriceListType, ###detail); 
     prevList (PriceListType priceListType, ###detail detail) += WHEN priceListType IS PriceListType AND sku(detail) THEN  
                                                          prevPriceB(priceListType,
                                                                     sku(detail),
                                                                     stockProp(detail),
-                                                                    dateTime(detail));
+                                                                    dateTimeProp(detail));
 
     prevList (PriceListType priceListType, ###detail detail) += WHEN priceListType IS PriceListType AND batch(detail) THEN
                                                           prevPriceB(priceListType,
                                                                      batch(detail),
                                                                      stockProp(detail),
-                                                                     dateTime(detail));
+                                                                     dateTimeProp(detail));
 
     prevListMVAT (PriceListType priceListType, ###detail detail) =
         round2(
@@ -434,7 +434,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
     
     WHEN LOCAL FORMS form GOAFTER valueVAT[###detail] // цены берем на начало сессии, а не этого event'а
             (((CHANGED(stockProp(###detail d)) OR
-             CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
+             CHANGED(dateTimeProp(d))) AND NOT isPosted(d)) OR
              (CHANGED(priceListType(d)) OR
              CHANGED(batch(d)) OR
              CHANGED(sku(d))))
@@ -446,7 +446,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
 
     WHEN LOCAL FORMS form GOAFTER valueVAT[###detail] // цены берем на начало сессии, а не этого event'а
             (((CHANGED(stockProp(###detail d)) OR
-             CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
+             CHANGED(dateTimeProp(d))) AND NOT isPosted(d)) OR
              (CHANGED(priceListType(d)) OR
              CHANGED(batch(d)) OR
              CHANGED(sku(d))))
@@ -479,6 +479,15 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
         overRecalculatePrice###detail();
     } ASON CONTEXTMENU price[###detail];
 
+END
+
+META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, form)
+    @deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, dateTime, form);
+END
+
+
+META deriveDocumentDetailPricePriceListTypeVATBatch (object, stockProp, dateTimeProp, form)
+    @deriveDocumentDetailPricePriceListTypeVATBatchCustom (object##Detail, stockProp, dateTimeProp, form);
 END
 
 META deriveDocumentDetailPricePriceListTypeVATBatch (object, stockProp, form)

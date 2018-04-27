@@ -367,7 +367,7 @@ DESIGN options {
     }
 }
 
-META defineDocumentSkuStockPriceListTypeAgreement(object, stockProp)
+META defineDocumentSkuStockPriceListTypeAgreement(object, stockProp, dateTimeProp)
     @defineDocumentSkuStock(object, sku, stockProp);
     priceListType(###object object, Sku sku) = OVERRIDE priceListType(agreement(object), sku), priceListType(object) IF sku IS Sku;
 
@@ -380,7 +380,7 @@ META defineDocumentSkuStockPriceListTypeAgreement(object, stockProp)
 
     updateViewPrice (Sku sku, Stock stock, ###object object) = {
         FOR PriceListType pt == priceListType(object, sku) AND stock IS Stock NOINLINE (pt) DO
-            viewPrice(sku, stock, object) <- prevPriceB(pt, sku, IF overPriceStockUser(object) THEN overPriceStockUser(object) ELSE stock, dateTime(object));
+            viewPrice(sku, stock, object) <- prevPriceB(pt, sku, IF overPriceStockUser(object) THEN overPriceStockUser(object) ELSE stock, dateTimeProp(object));
     }
 END
 META defineDocumentSkuStockPriceListTypeSystemLedger(object, stockProp)
@@ -518,7 +518,7 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
     }
 END
 
-META extendFormDocumentSkuStockPriceListTypeAgreement(object, form, concrete, legalEntityProp, stockProp)
+META extendFormDocumentSkuStockPriceListTypeAgreement(object, form, concrete, legalEntityProp, stockProp, dateTimeProp)
     @extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockProp);
     
     current###form###form() = DATA LOCAL NESTED Object ();
@@ -529,7 +529,7 @@ META extendFormDocumentSkuStockPriceListTypeAgreement(object, form, concrete, le
     ;
 
     WHEN LOCAL FORMS form (SET([= VIEW form.sts](St##concrete##ck stock, Sku sku)) AND current###form###form() == ###concrete##bject concrete) OR 
-                            ((CHANGED(dateTime[###form](concrete)) OR
+                            ((CHANGED(dateTimeProp[###form](concrete)) OR
                               CHANGED(priceListType[###form](concrete)) OR
                               CHANGED(agreement[###form](concrete))) AND [= VIEW form.sts](stock, sku)) DO 
         updateViewPrice(sku, stock, concrete);
@@ -538,12 +538,12 @@ END
 
 // ----------- Подбор (партия / несколько складов)---------------//      Не забывать имплементить цвет, если нужно!!!!!!!!
 
-META defineDocumentBatchStockPriceListTypeAgreement(object, stockProp)
+META defineDocumentBatchStockPriceListTypeAgreement(object, stockProp, dateTimeProp)
     @defineDocumentBatchStock(object, batch, sku, stockProp);
     priceListType(###object object, Batch batch) = OVERRIDE priceListType(agreement(object), sku(batch)), priceListType(object) IF batch IS Batch;
 
 //    priceBatchStock###object 'Цена' (batch, stock, object) = prevPriceBPriceListTypeBatchStockDateTime(priceListType###object###batch(object, batch), batch, stock, dateTime###object(object));
-    ledgerPrice 'Цена (базовая)' (Batch batch, Stock stock, ###object object) = prevPriceB[PriceListType,Batch,Stock,DATETIME](ledgerPriceListType(priceListType(object, batch)), batch, stock, dateTime(object));
+    ledgerPrice 'Цена (базовая)' (Batch batch, Stock stock, ###object object) = prevPriceB[PriceListType,Batch,Stock,DATETIME](ledgerPriceListType(priceListType(object, batch)), batch, stock, dateTimeProp(object));
 
     viewPrice 'Цена' (batch, stock, object) = DATA LOCAL NESTED NUMERIC[16,4] (Batch, Stock, ###object);
 
@@ -551,7 +551,7 @@ META defineDocumentBatchStockPriceListTypeAgreement(object, stockProp)
 
     updateViewPrice (Batch batch, Stock stock, ###object object) = {
         FOR PriceListType pt == priceListType(object, batch) AND stock IS Stock NOINLINE (pt) DO
-            viewPrice(batch, stock, object) <- prevPriceB(pt, batch, IF overPriceStockUser(object) THEN overPriceStockUser(object) ELSE stock, dateTime(object));
+            viewPrice(batch, stock, object) <- prevPriceB(pt, batch, IF overPriceStockUser(object) THEN overPriceStockUser(object) ELSE stock, dateTimeProp(object));
     }
 END
 META defineDocumentBatchStockPriceListTypeSystemLedger(object, stockProp)

@@ -293,8 +293,11 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
     overPriceStockUser = ABSTRACT CASE Stock (Order) MATERIALIZED;
     priceStockUser(Order o) = OVERRIDE overPriceStockUser(o), stockProp##Stock(o);
-    notPriceStockUser(Order o) = NOT priceStockUser(o); 
     priceStock(UserOrderDetail d) = priceStockUser(userOrder(d)); 
+
+    priceDateTime = ABSTRACT CASE DATETIME (UserOrder) MATERIALIZED;
+    priceDateTime (UserOrder o) += WHEN o IS UserOrder THEN dateTime(o); 
+    priceDateTime(UserOrderDetail d) = priceDateTime(userOrder(d)); 
 
     @defineDocumentInterfaceDetailVAT(order, country###stockProp###stock, , ); // объявляем шкалу
     
@@ -578,8 +581,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     }
 
     @addEventGenerateNumberOnForm(userOrder, o, userOrder);
-    @defineDocumentSkuStockPriceListTypeAgreement(userOrder, stockProp);
-    @extendFormDocumentSkuStockPriceListTypeAgreement(userOrder, userOrder, o, legalEntityProp, stockProp);
+    @defineDocumentSkuStockPriceListTypeAgreement(userOrder, stockProp, priceDateTime);
+    @extendFormDocumentSkuStockPriceListTypeAgreement(userOrder, userOrder, o, legalEntityProp, stockProp, priceDateTime);
 
     isUserOpened(UserOrder o)=  isOpened[Order](o) AND is(o);
 
@@ -837,7 +840,7 @@ META defineOrderBatch(legalEntityProp, stockProp, char)
     } 
     replace(Sku s, Batch b) += { sku(UserOrderDetail detail) <- s WHERE batch(detail) == b;}
     // Пишем в цену заказа из вида цен в зависимости от партии
-    @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, priceStock, userOrder);
+    @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, priceStock, priceDateTime, userOrder);
 
     // История по правой кнопке
     @defineBalancesBatch(orderDetail); //-- показываем по нажатию правой клавиши остатки партии
@@ -846,7 +849,7 @@ META defineOrderBatch(legalEntityProp, stockProp, char)
     @defineMovementBatch(userOrderDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение по партии
 
     // Подбор
-    @defineDocumentBatchStockPriceListTypeAgreement(userOrder, stockProp);
+    @defineDocumentBatchStockPriceListTypeAgreement(userOrder, stockProp, priceDateTime);
     @extendFormDocumentBatchStockPriceListTypeAgreement(userOrder, userOrder, o, legalEntityProp, stockProp);
     @implementDocumentBatch(order);
     

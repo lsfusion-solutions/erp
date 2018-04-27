@@ -5,6 +5,236 @@ REQUIRE Order, PurchaseOperation, PurchasePack, PriceListLedger;
 NAMESPACE Purchase;
 
 @defineOrder(' (закупка)', customer, customer, supplier, company, company, , Purchase, p);
+
+    isUserOpened(UserOrder o)=  isOpened[Order](o) AND is(o);
+
+    overCopy = ABSTRACT LIST (UserOrderDetail, OrderDetail);
+    overCopy = ABSTRACT LIST (Order, UserOrder);
+    copy 'Копировать'(Order order) = {
+	NEWSESSION {
+	        NEW o = UserOrder {
+	            supplier(o) <- supplier(order);
+	            supplierStock(o) <- supplierStock(order) IF active(supplierStock(order));
+	            customer(o) <- customer(order);
+	            customerStock(o) <- customerStock(order) IF active(customerStock(order));
+	            currency(o) <- currency(order);
+	            agreement(o) <- agreement(order);
+	            priceListType(o) <- priceListType(order);
+	            note(o) <- note(order);
+	
+	            overCopy(order, o);
+	
+	            FOR order(OrderDetail orderDetail) == order DO {
+	                NEW d=UserOrderDetail {
+	                    userOrder(d) <- o;
+	                    sku(d) <- sku(orderDetail);
+	                    quantity(d) <- quantity(orderDetail);
+	                    
+	                    overCopy(d, orderDetail);
+	                }
+	            }
+	
+	            SHOW userOrder OBJECTS o = o DOCKED;
+	        }
+	    }
+} TOOLBAR;
+    
+//-- Копирование строк     
+    overCopy = ABSTRACT LIST (UserOrderDetail, UserOrderDetail);
+
+    copy 'Копировать'(UserOrderDetail detail) = {
+        NEW d = UserOrderDetail {          
+
+            userOrder(d) <- userOrder(detail);
+            sku(d) <- sku(detail);
+            quantity(d) <- quantity(detail);
+            price(d) <- price(detail);
+            priceListType(d) <- priceListType(detail);      
+            shipmentDataDate(d) <- shipmentDataDate(detail);         
+            shipmentDataTime(d) <- shipmentDataTime(detail);        
+            closeDataDate(d) <- closeDataDate(detail);  
+            
+            EXEC overCopy(d, detail);                              
+        }
+    } CHANGEKEY 'F5' TOOLBAR;
+    
+    EXTEND FORM userOrder PROPERTIES(d) copy ;
+    DESIGN userOrder { PROPERTY(copy(d)) { focusable = FALSE; } }
+    
+    filterOrderDateFrom 'Дата с' = DATA LOCAL DATE ();
+    filterDateFrom (Order o) = date(o) >= filterOrderDateFrom() OR (o IS Order AND NOT filterOrderDateFrom());      
+    
+    filterOrderDateTo 'Дата по' = DATA LOCAL DATE ();
+    filterDateTo (Order o) = date(o) <= filterOrderDateTo() OR (o IS Order AND NOT filterOrderDateTo());      
+    
+    filterOrderCustomer  = DATA LOCAL LegalEntity ();
+    nameFilterOrderCustomer 'Покупатель' = name(filterOrderCustomer()) CHARWIDTH 15;          
+    filterCustomer (Order o) = customer(o) == filterOrderCustomer() OR (o IS Order AND NOT filterOrderCustomer());    
+
+    filterOrderCustomerStock  = DATA LOCAL Stock ();
+    nameFilterOrderCustomerStock 'Склад покупателя' = name(filterOrderCustomerStock()) CHARWIDTH 15;          
+    filterCustomerStock (Order o) = customerStock(o) == filterOrderCustomerStock() OR (o IS Order AND NOT filterOrderCustomerStock());  
+
+    filterOrderSupplier = DATA LOCAL LegalEntity ();
+    nameFilterOrderSupplier 'Поставщик' = name(filterOrderSupplier()) CHARWIDTH 15;          
+    filterSupplier (Order o) = supplier(o) == filterOrderSupplier() OR (o IS Order AND NOT filterOrderSupplier());      
+
+    filterOrderSupplierStock  = DATA LOCAL Stock ();
+    nameFilterOrderSupplierStock 'Склад поставщика' = name(filterOrderSupplierStock()) CHARWIDTH 15;          
+    filterSupplierStock (Order o) = supplierStock(o) == filterOrderSupplierStock() OR (o IS Order AND NOT filterOrderSupplierStock()); 
+           
+    filterOrderCustomUser  = DATA LOCAL CustomUser ();
+    nameFilterOrderCustomUser 'Создан пользователем' = name[Contact](filterOrderCustomUser()) CHARWIDTH 15;          
+    filterCustomUser (Order i) = createdUser[UserOrder](i) == filterOrderCustomUser() OR (i IS Order AND NOT filterOrderCustomUser());  
+
+    filterOrderComputer = DATA LOCAL Computer ();
+    nameFilterOrderComputer 'Создан на компьютере' = hostname(filterOrderComputer()) CHARWIDTH 15;          
+    filterComputer (Order i) = createdComputer(i) == filterOrderComputer() OR (i IS Order AND NOT filterOrderComputer());
+    
+    overShowEdit = ABSTRACT VALUE BOOLEAN (Order);
+    overShowDelete = ABSTRACT VALUE BOOLEAN (Order);      
+    skipShowEdit = ABSTRACT VALUE BOOLEAN (Order);
+    skipShowDelete = ABSTRACT VALUE BOOLEAN (Order);
+    
+    backgroundDraft 'Цвет' (Order o) = RGB(212,255,212) IF isDraft(o);      
+    overBackgroundDraft(Order o) = OVERRIDE backgroundSku(o), backgroundDraft(o);
+    
+    backgroundShipmentDate 'Цвет' = ABSTRACT VALUE COLOR (Order);
+    backgroundShipmentDate(Order o) += backgroundSku(o);
+    
+    FORM orders 'Заказы' AUTOREFRESH 60 
+    
+        PROPERTIES() filterOrderDateFrom, filterOrderDateTo, nameFilterOrderSupplier, nameFilterOrderSupplierStock, 
+                     nameFilterOrderCustomer, nameFilterOrderCustomerStock, nameFilterOrderCustomUser, nameFilterOrderComputer
+        FILTERS isSupplier(filterOrderSupplier())    
+            
+        OBJECTS o = Order LAST
+        PROPERTIES (o) selected
+        PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundSku(o) isClosed
+        PROPERTIES (o) READONLYIF isReadonly() BACKGROUND overBackgroundDraft(o) isPosted, number, series, date, time
+        PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundSku(o) nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock, nameCurrency,
+                                nameAgreement, seriesNumberContractSku
+        PROPERTIES (o) READONLY BACKGROUND backgroundSku(o) countOrderDetail, quantityOrderDetail, sumOrderDetail,
+                                VATSumOrderDetail, invoiceSumOrderDetail
+        PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundShipmentDate(o) shipmentDate, shipmentTime
+        PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundSku(o) closeDate, note
+
+        PROPERTIES (o) READONLY PANEL createdNameUser[UserOrder], createdTime, createdHostnameComputer, 
+                                            postedNameUser, postedTime, postedHostnameComputer
+
+        PROPERTIES (o) NEWSESSION addUserOrder = NEW[UserOrder], editO = EDIT  SHOWIF overShowEdit(o)
+        PROPERTIES (o) copy
+        PROPERTIES (o) close[UserOrder] SHOWIF isOpened[UserOrder](o), open SHOWIF isClosed[UserOrder](o)
+        PROPERTIES     NEWSESSION deleteo=DELETE(o) SHOWIF overShowDelete(o) //isUserOpenedOrder(o)
+
+        OBJECTS d=OrderDetail
+        PROPERTIES (d) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku
+        PROPERTIES (d) READONLY quantity BACKGROUND backgroundParam(d), namePriceListType, 
+                       price BACKGROUND backgroundParam(d), sum,
+                       numberVAT, valueVAT, VATSum, invoiceSum,
+                       nameCustomerStock, shipmentDate, shipmentTime
+        ORDER index(d)
+
+        FILTERS order(d) == o
+        FILTERS filterDateFrom(o), 
+                filterDateTo(o),
+                filterSupplier(o),
+                filterSupplierStock(o),
+                filterCustomer(o),
+                filterCustomerStock(o),
+                filterCustomUser(o),
+                filterComputer(o)                            
+        
+        LIST Order OBJECT o
+    ;
+
+    DESIGN orders 'Заказы (закупка)' {
+        NEW documentContainer BEFORE TOOLBARBOX {
+            fill = 1;
+            type = SPLITV;
+
+            NEW filtersBox {                       
+                fill = 1;
+                NEW topFilters {  
+                    caption = 'Фильтры';
+                    type = CONTAINERV; 
+                    NEW topFilters1 {
+                        type = CONTAINERH; 
+                        MOVE PROPERTY(filterOrderDateFrom());
+                        MOVE PROPERTY(filterOrderDateTo());                            
+                        MOVE PROPERTY(nameFilterOrderSupplier());
+                        MOVE PROPERTY(nameFilterOrderSupplierStock());     
+                        MOVE PROPERTY(nameFilterOrderCustomer());
+                        MOVE PROPERTY(nameFilterOrderCustomerStock());                                               
+                    }
+                    NEW topFilters2 {
+                        type = CONTAINERH; 
+                        MOVE PROPERTY(nameFilterOrderCustomUser());
+                        MOVE PROPERTY(nameFilterOrderComputer());                            
+                    }                
+                }
+                MOVE BOX(o) {
+                    fill = 1;
+                }
+            }
+//            NEW BOX(o) {
+//                fill = 2;
+//            }
+
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE BOX(d) {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+                    type = CONTAINERV;
+
+                    MOVE GROUP(created,o);
+                    MOVE GROUP(posted,o);
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                        type = CONTAINERV;
+                    }
+                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERH;
+                    NEW createdContainer {
+                        caption = 'Создание на основе';
+                        type = CONTAINERV;
+
+                        MOVE PROPERTY(copy(o)) { caption = 'Заказ (закупка)';}
+                    }
+                }
+            }
+        }
+    }
+    @extendFormEditable(orders);
+    @defineFilterIsOpened (order, orders, o); 
+    @defineDocumentLogForm(orders, o);
+ 
+    edit(UserOrderDetail d) += { DIALOG userOrder OBJECTS o = userOrder(d), d = d DOCKED; }
+    
+    show 'Просмотреть' (UserOrder i) =  {
+        NEWSESSION{
+            SHOW userOrder OBJECTS o = i DOCKED READONLY;
+        }
+        
+    }TOOLBAR;
+        
+    showToShow (UserOrder i) = is(i) AND NOT overShowEdit(i);
+    EXTEND FORM orders 
+        PROPERTIES show(o) SHOWIF showToShow(o) BEFORE editO
+    
+    ;  
+};
 @extendFormFilterAccessStock(Order, o, orders, customerStock, company);
 
 externalStock (Order o) += supplierStock(o);
@@ -13,12 +243,24 @@ in(Order o) += o IS Order;
 
 @defineOrderBatch(customer, customer, p);
 
+usePriceShipmentDateTime 'Использовать дату/время поставки при определении цены поставщика' = DATA BOOLEAN () COMPLEX;
+EXTEND FORM options
+    PROPERTIES() usePriceShipmentDateTime
+;
+DESIGN options {
+    orders {
+        MOVE PROPERTY(usePriceShipmentDateTime());
+    }
+}
+
+priceDateTime(UserOrder d) += WHEN usePriceShipmentDateTime() AND d IS UserOrder THEN shipmentDateTime(d);
+
 prevList (LedgerPriceListType priceListType, UserOrderDetail userOrderDetail) += WHEN sku(userOrderDetail) AND differentOrganizations(priceListType) AND NOT overPriceStockUser(userOrder(userOrderDetail)) THEN  
                                                      prevPriceA(priceListType,
                                                                 sku(userOrderDetail),
                                                                 priceStock(userOrderDetail),
                                                                 supplier(userOrderDetail),
-                                                                dateTime(userOrderDetail));
+                                                                priceDateTime(userOrderDetail));
 
 @defineOrderBatchDialog();
 
