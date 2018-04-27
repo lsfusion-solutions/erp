@@ -216,11 +216,11 @@ overMinDeviationPrice 'Мин. цена' (InvoiceDetail d) = IF orderDetail(d) A
                                                                                                                       
 skipMaxDeviationPrice = ABSTRACT BOOLEAN (InvoiceDetail);                                                                                                                     
 
-CONSTRAINT (SETCHANGED(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND 
+CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND 
            isPosted(d) AND price(d) > overMaxDeviationPrice(d) AND NOT skipMaxDeviationPrice(d)   
            MESSAGE 'Для строки накладной превышен максимальный допустимый процент отклонения по цене';    
 
-CONSTRAINT (SETCHANGED(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND 
+CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND 
            isPosted(d) AND price(d) < overMinDeviationPrice(d) AND NOT skipMaxDeviationPrice(d)      
            MESSAGE 'Для строки накладной превышен минимальный допустимый процент отклонения по цене';    
            
@@ -238,11 +238,11 @@ EXTEND FORM agreements
     PROPERTIES (a) READONLY banNotAgreementsPrice AFTER toDateTime(a)
 ;
 
-CONSTRAINT (SETCHANGED(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d))) AND 
+CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d))) AND 
     isPosted(d) AND banNotAgreementsPrice(agreement(d)) AND NOT agreementsPrice(d) AND NOT skipMaxDeviationPrice(d)
         MESSAGE 'Запрещено оприходование накладных без прайса';
                    
-CONSTRAINT (SETCHANGED(isPosted(OrderDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d))) AND 
+CONSTRAINT (SET(isPosted(OrderDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d))) AND 
     isPosted(d) AND banNotAgreementsPrice(agreement(d)) AND NOT agreementsPrice(d)
         MESSAGE 'Запрещен ввод заказа без прайса';                       
                            
@@ -253,7 +253,7 @@ EXTEND FORM agreement
     PROPERTIES(a) deviationNotOrderInvoice 
 ;
 
-CONSTRAINT (CHANGED(isPosted(InvoiceDetail d)) OR CHANGED(agreement(invoice(d)))) AND isPosted(d) AND deviationNotOrderInvoice(agreement(invoice(d))) AND NOT isPosted(orderDetail(d))    
+CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR CHANGED(agreement(invoice(d)))) AND isPosted(d) AND deviationNotOrderInvoice(agreement(invoice(d))) AND NOT isPosted(orderDetail(d))    
     MESSAGE 'Накладную запрещено оприходовать без заказа';   
 
 

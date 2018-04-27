@@ -2150,16 +2150,16 @@ EXTEND FORM orders
 countProductDetail = GROUP BY order(ProductDetail pd), BOM(pd) SUM 1;
 countComponentDetail = GROUP BY order(ComponentDetail pd), BOM(pd) SUM 1;
 
-CONSTRAINT (CHANGED(isPosted(ProductDetail pd)) OR CHANGED(BOM(pd)) OR CHANGED(operation(pd))) 
+CONSTRAINT (SET(isPosted(ProductDetail pd)) OR CHANGED(BOM(pd)) OR CHANGED(operation(pd))) 
     AND isComponents(operation(pd)) AND isPosted(pd)
     AND NOT countComponentDetail(order(pd), BOM(pd))
         MESSAGE 'Внимание!!! Для изделий должны быть компоненты.';
         
-CONSTRAINT (CHANGED(isPosted(ComponentDetail cd)) OR CHANGED(BOM(cd)) OR CHANGED(operation(cd))) 
+CONSTRAINT (SET(isPosted(ComponentDetail cd)) OR CHANGED(BOM(cd)) OR CHANGED(operation(cd))) 
     AND isComponents(operation(cd)) AND isPosted(cd)
     AND NOT countProductDetail(order(cd), BOM(cd))
         MESSAGE 'Внимание!!! Для компонентов должны быть изделия.';
         
-CONSTRAINT CHANGED (isPosted(ProductDetail d)) AND NOT product(d) AND NOT isNotProduct(operation(d))
+CONSTRAINT SET(isPosted(ProductDetail d)) AND isPosted(d) AND NOT product(d) AND NOT isNotProduct(operation(d))
     MESSAGE 'Для строки изделия не заполнено поле Изделие';
         
