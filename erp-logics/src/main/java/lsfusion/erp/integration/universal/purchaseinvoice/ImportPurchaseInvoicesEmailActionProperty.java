@@ -53,6 +53,8 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
         super.executeCustom(context);
         try {
 
+            List<String> errors = new ArrayList<>();
+
             DataSession session = context.getSession();
 
             LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) is(findClass("ImportType"));
@@ -129,6 +131,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                             try {
                                 fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
                             } catch (Exception e) {
+                                errors.add(e.getLocalizedMessage());
                                 logImportError(context, attachmentEmailObject, e.getLocalizedMessage(), isOld);
                                 ServerLoggers.importLogger.error("ImportPurchaseInvoices Error for attachment: " + nameAttachmentEmail, e);
                             }
@@ -138,12 +141,16 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                 if (nameAttachmentEmail != null) {
                                     if (nameAttachmentEmail.toLowerCase().endsWith(".rar")) {
                                         files = unpackRARFile(fileAttachment, fileExtension);
-                                        if (files.isEmpty())
+                                        if (files.isEmpty()) {
+                                            errors.add("Архив пуст или повреждён");
                                             logImportError(context, attachmentEmailObject, "Архив пуст или повреждён", isOld);
+                                        }
                                     } else if (nameAttachmentEmail.toLowerCase().endsWith(".zip")) {
                                         files = unpackZIPFile(fileAttachment, fileExtension);
-                                        if (files.isEmpty())
+                                        if (files.isEmpty()) {
+                                            errors.add("Архив пуст или повреждён");
                                             logImportError(context, attachmentEmailObject, "Архив пуст или повреждён", isOld);
+                                        }
                                     } else
                                         files.add(Pair.create(nameAttachmentEmail, fileAttachment));
                                 }
@@ -177,17 +184,21 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                                 String result = currentSession.applyMessage(context);
                                                 if (result != null) {
                                                     importResult = IMPORT_RESULT_ERROR;
+                                                    errors.add(file.first + ": " + result);
                                                     logImportError(context, attachmentEmailObject, file.first + ": " + result, isOld);
                                                 }
                                             }
                                             if (importResult < IMPORT_RESULT_EMPTY) {
                                                 imported = false;
-                                                if(importResult == IMPORT_RESULT_DOCUMENTS_CLOSED_DATE)
+                                                if(importResult == IMPORT_RESULT_DOCUMENTS_CLOSED_DATE) {
+                                                    errors.add(file.first + ": " + "Запрещено принимать инвоисы по закрытым документам");
                                                     logImportError(context, attachmentEmailObject, file.first + ": " + "Запрещено принимать инвоисы по закрытым документам", isOld);
+                                                }
                                             }
 
                                         } catch (Exception e) {
                                             imported = false;
+                                            errors.add(file.first + ": " + e.toString());
                                             logImportError(context, attachmentEmailObject, file.first + ": " + e.toString(), isOld);
                                             ServerLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
                                         }
@@ -210,6 +221,13 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         }
                     }
                 }
+            }
+            if(!errors.isEmpty()) {
+                String error = "";
+                for(String e : errors) {
+                    error += error.isEmpty() ? e : ("\n" + e);
+                }
+                throw new RuntimeException(error);
             }
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
