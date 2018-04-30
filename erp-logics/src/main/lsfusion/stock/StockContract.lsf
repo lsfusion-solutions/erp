@@ -12,9 +12,8 @@ META defineInStockGroupObject(prop, object, objectClass)
 
     dataIn###prop 'Отм.' = DATA BOOLEAN (StockGroup, objectClass);
 
-    levelParent###prop##Stock (object, stockGroup) =
-        GROUP
-              BY (###object object), StockGroup stockGroup MIN level(stockGroup, StockGroup parent) IF dataIn###prop(parent, object) MATERIALIZED;
+    levelParent###prop##Stock (###object object, StockGroup stockGroup) =
+        GROUP MIN level(stockGroup, StockGroup parent) IF dataIn###prop(parent, object) MATERIALIZED;
     nearestParent###prop##contract (###object object, StockGroup stockGroup) = stockGroup(stockGroup, levelParent###prop##Stock(object, stockGroup));
     nearestIn###prop (StockGroup stockGroup, ###object object) =
         dataIn###prop(nearestParent###prop##contract(object, stockGroup), object) MATERIALIZED;
@@ -32,7 +31,7 @@ META defineInStockGroupObject(prop, object, objectClass)
     replace(Stock s, Stock o) += {dataIn###prop(o, ###object object) <- TRUE WHERE in###prop(s, object) AND NOT in###prop(o, object);}
     preReplace(###object c, ###object object) += {dataIn###prop(Stock s, object) <- TRUE WHERE in###prop(s, c) AND NOT in###prop(s, object);}                 
                  
-    countDataIn###prop##StockGroups = GROUP BY (###object object) SUM 1 IF  dataIn###prop(StockGroup stockGroup, object);            
+    countDataIn###prop##StockGroups(###object object) = GROUP SUM 1 IF dataIn###prop(StockGroup stockGroup, object);            
                                   
     backgroundAll###prop##Stocks 'Цвет' (###object object) = IF all###prop##Stocks(object) THEN RGB(0,0,0)
         ELSE RGB(203,203,203) IF countDataIn###prop##StockGroups(object);      

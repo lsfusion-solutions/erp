@@ -854,8 +854,7 @@ META defineItemDefaultValue(property, caption, type, typeIdentity, object)
     data##type caption = DATA type (###object, ItemGroup);
     data###typeIdentity##type caption (###object object, ItemGroup itemGroup) = name(data##type(object, itemGroup)) IN defaultItemGroup;
     
-    levelParent##type (object, itemGroup) = GROUP
-                                                                  BY (###object object), ItemGroup itemGroup MIN level(itemGroup, ItemGroup parent) IF data##type(object, parent) MATERIALIZED;    
+    levelParent##type (###object object, ItemGroup itemGroup) = GROUP MIN level(itemGroup, ItemGroup parent) IF data##type(object, parent) MATERIALIZED;    
     nearestParent##type (###object object, ItemGroup itemGroup) = itemGroup(itemGroup, levelParent##type(object, itemGroup));
     nearest##type (###object object, ItemGroup itemGroup) = data##type(object, nearestParent##type (object, itemGroup));
     
@@ -869,8 +868,7 @@ END
 META defineItemDefaultValueCustom(property, caption, type, object)
     data###property caption = DATA type (###object, ItemGroup);
     
-    levelParent###property (object, itemGroup) = GROUP
-                                                                  BY (###object object), ItemGroup itemGroup MIN level(itemGroup, ItemGroup parent) IF data###property(object, parent) MATERIALIZED;    
+    levelParent###property (###object object, ItemGroup itemGroup) = GROUP MIN level(itemGroup, ItemGroup parent) IF data###property(object, parent) MATERIALIZED;    
     nearestParent###property (###object object, ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###property(object, itemGroup));
     nearest###property (###object object, ItemGroup itemGroup) = data###property(object, nearestParent###property (object, itemGroup));
     
@@ -878,11 +876,9 @@ META defineItemDefaultValueCustom(property, caption, type, object)
         OVERRIDE data###property(object, itemGroup), 
                  nearest###property (object, itemGroup) MATERIALIZED;
                  
-    quantityChild###property (object, itemGroup) = GROUP 
-            BY (###object object), ItemGroup itemGroup SUM 1 IF 
+    quantityChild###property (###object object, ItemGroup itemGroup) = GROUP SUM 1 IF 
         data###property(object, ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
-    quantityParent###property (object, itemGroup) = GROUP 
-            BY (###object object), ItemGroup itemGroup SUM 1 IF 
+    quantityParent###property (###object object, ItemGroup itemGroup) = GROUP SUM 1 IF 
         data###property(object, ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;                 
 
     backgroundWith###property (###object object, ItemGroup itemGroup) =
@@ -939,8 +935,7 @@ META defineItemFilterValue(object, captionProp, o)
       
     dataIn 'Вкл' = DATA BOOLEAN (###object, ItemGroup);
     
-    levelParentIn (object, itemGroup) = GROUP
-                                                                  BY (###object object), ItemGroup itemGroup MIN level(itemGroup, ItemGroup parent) IF dataIn(object, parent) MATERIALIZED;    
+    levelParentIn (###object object, ItemGroup itemGroup) = GROUP BY MIN level(itemGroup, ItemGroup parent) IF dataIn(object, parent) MATERIALIZED;    
     nearestParentIn (###object object, ItemGroup itemGroup) = itemGroup(itemGroup, levelParentIn(object, itemGroup));
     nearestIn (###object object, ItemGroup itemGroup) = dataIn(object, nearestParentIn (object, itemGroup));
     
@@ -948,11 +943,9 @@ META defineItemFilterValue(object, captionProp, o)
         OVERRIDE dataIn(object, itemGroup), 
                  nearestIn (object, itemGroup) MATERIALIZED;    
                  
-    quantityChild (object, itemGroup) = GROUP 
-            BY (###object object), ItemGroup itemGroup SUM 1 IF 
+    quantityChild (###object object, ItemGroup itemGroup) = GROUP SUM 1 IF 
         dataIn(object, ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
-    quantityParent (object, itemGroup) = GROUP 
-            BY (###object object), ItemGroup itemGroup SUM 1 IF 
+    quantityParent (###object object, ItemGroup itemGroup) = GROUP SUM 1 IF 
         dataIn(object, ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;                 
 
     backgroundWith (###object object, ItemGroup itemGroup) =
@@ -962,10 +955,9 @@ META defineItemFilterValue(object, captionProp, o)
             RGB(203,203,206) IF quantityChild (object, itemGroup) != descendantNumber(itemGroup)
                              AND NOT quantityParent (object, itemGroup);
  
-    countRec 'Кол-во (рек.)' (object, itemGroup)= GROUP 
-            BY (###object object), ItemGroup parent SUM 1 IF 
+    countRec 'Кол-во (рек.)' (###object object, ItemGroup parent) = GROUP SUM 1 IF 
         in(object, ItemGroup child) AND isParent(child, parent) MATERIALIZED;              
-    countDataItemGroup 'Кол-во групп' (object) = GROUP BY (###object object) SUM 1 IF 
+    countDataItemGroup 'Кол-во групп' (###object object) = GROUP SUM 1 IF 
         dataIn(object, ItemGroup itemGroup) MATERIALIZED;            
 
     WHEN autoSetGroupAttribute(mainRole[CustomUser](currentUser())) AND (CHANGED(object(Item item)) OR CHANGED(itemGroup(item))) AND countDataItemGroup(object(item)) AND NOT countRec(object(item), itemGroup(item)) DO {
