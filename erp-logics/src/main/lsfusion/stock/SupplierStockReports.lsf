@@ -26,11 +26,11 @@ supplierSumPurchaseSupplierFromTo 'Закуплено за интервал (с�
     SUM supplierSumPurchaseSupplierFromTo(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(skuGroup(sku));
 
 //-- реализация         
-quantitySoldSupplier 'Реализация (кол-во)' (sku, supplierStock, dateFrom, dateTo)= GROUP
-        BY sku(Batch batch), supplierStock(batch), DATE dateFrom, DATE dateTo SUM 
+quantitySoldSupplier 'Реализация (кол-во)' (sku, supplierStock, DATE dateFrom, DATE dateTo)= GROUP
+        BY sku(Batch batch), supplierStock(batch) SUM 
     quantitySold(batch, Stock stock, dateFrom, dateTo) IF inReport(stock); 
-sumSoldSupplier 'Реализация (сумма)' (sku, supplierStock, dateFrom, dateTo)= GROUP
-        BY sku(Batch batch), supplierStock(batch), DATE dateFrom, DATE dateTo SUM 
+sumSoldSupplier 'Реализация (сумма)' (sku, supplierStock, DATE dateFrom, DATE dateTo)= GROUP
+        BY sku(Batch batch), supplierStock(batch) SUM 
     sumSold(batch, Stock stock, dateFrom, dateTo) IF inReport(stock);  
 averagePriceSupplier 'Средняя цена реализации' =  sumSoldSupplier(Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) /
     (quantitySoldSupplier(sku, supplierStock, dateFrom, dateTo) IF quantitySoldSupplier(sku, supplierStock, dateFrom, dateTo) !=0);
@@ -41,14 +41,14 @@ sumSoldSupplierFromTo 'Реализация (сумма)' (Stock supplierStock, 
     SUM sumSoldSupplier(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(skuGroup(sku));
 
 //-- р-ия в ценах поставщика  
-sumSaleSupplier 'Продано за интервал (сумма с НДС)' (batch, stock, dateFrom, dateTo)= GROUP
-        BY sku(Batch batch), supplierStock(batch), DATE dateFrom, DATE dateTo SUM 
-    quantitySold(batch, Stock stock, DATE date)* invoicePriceInvoiceDetail(batch)
-    IF date >= dateFrom AND date <= dateTo AND inReport(stock);   
-supplierSumSaleSupplier 'Продано за интервал (сумма без НДС)' (batch, stock, dateFrom, dateTo)= GROUP
-        BY sku(Batch batch), supplierStock(batch), DATE dateFrom, DATE dateTo SUM 
-    quantitySold(batch, Stock stock, DATE date)* priceInvoiceDetail(batch)
-    IF date >= dateFrom AND date <= dateTo AND inReport(stock);    
+sumSaleSupplier 'Продано за интервал (сумма с НДС)' (batch, stock, DATE dateFrom, DATE dateTo)= GROUP
+        BY sku(Batch bbatch), supplierStock(bbatch) SUM 
+    quantitySold(bbatch, Stock sstock, DATE date)* invoicePriceInvoiceDetail(bbatch)
+    IF date >= dateFrom AND date <= dateTo AND inReport(sstock);   
+supplierSumSaleSupplier 'Продано за интервал (сумма без НДС)' (batch, stock, DATE dateFrom, DATE dateTo)= GROUP
+        BY sku(Batch bbatch), supplierStock(bbatch) SUM 
+    quantitySold(bbatch, Stock sstock, DATE date)* priceInvoiceDetail(bbatch)
+    IF date >= dateFrom AND date <= dateTo AND inReport(sstock);    
 averageSalePriceSupplier 'Средняя цена реализации с НДС' =  sumSaleSupplier(Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) /
     (quantitySoldSupplier(sku, supplierStock, dateFrom, dateTo) IF quantitySoldSupplier(sku, supplierStock, dateFrom, dateTo) !=0);        
 

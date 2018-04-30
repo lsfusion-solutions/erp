@@ -635,14 +635,14 @@ createSaleDetail 'Добавить строку продажи'(Receipt receipt,
     }
 }
 
-countBatch (sk, st, r) = GROUP
-                                              BY sku(Batch batch), Stock stock, Receipt receipt SUM 1 
-                                                  IF (currentBalance(batch, stock) (-) 
+countBatch (sk, Stock st, Receipt r) = GROUP
+                                              BY sku(Batch batch) SUM 1 
+                                                  IF (currentBalance(batch, st) (-) 
                                                       [= GROUP 
-                                                              BY batch(ReceiptSaleDetail d), receipt(d) SUM quantity(d)] (batch, receipt)) > 0; 
-defaultBatch 'Партия по умолчанию' (sku, stock, receipt) = 
+                                                              BY batch(ReceiptSaleDetail d), receipt(d) SUM quantity(d)] (batch, r)) > 0; 
+defaultBatch 'Партия по умолчанию' (sku, Stock stock, Receipt receipt) = 
     GROUP
-          BY sku(Batch batch), Stock stock, Receipt receipt MIN batch IF (currentBalance(batch, stock) (-)
+          BY sku(Batch batch) MIN batch IF (currentBalance(batch, stock) (-)
                         [= GROUP 
                                  BY batch(ReceiptSaleDetail d), receipt(d) SUM quantity(d)] (batch, receipt)) > 0; 
 

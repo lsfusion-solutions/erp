@@ -9,7 +9,7 @@ TABLE articleUserPriceListDataPriceListType (Article, UserPriceList, DataPriceLi
 // Подбор по артикулу
 countDetail(article, priceList) = GROUP BY article(sku(UserPriceListDetail detail)), userPriceList(detail) SUM 1;
 
-countDetailSkus(article, priceList) = GROUP BY article(Item sku), UserPriceList priceList SUM 1 IF detail(sku, priceList); 
+countDetailSkus(article, UserPriceList priceList) = GROUP BY article(Item sku) SUM 1 IF detail(sku, priceList); 
 
 in 'Вкл.' (Article article, UserPriceList priceList) = TRUE IF countDetail(article, priceList);
 backgroundIn 'Цвет' (Article article, UserPriceList priceList) = RGB(213, 213, 213) IF (countItem(article)!=countDetailSkus(article, priceList));
@@ -38,19 +38,19 @@ changePrice(Article article, UserPriceList priceList, DataPriceListType type) = 
     }
 }
 
-maxCurrentPriceData 'Макс. цена' (article, priceList, dataPriceListType, stock) = 
+maxCurrentPriceData 'Макс. цена' (article, PriceList priceList, PriceListType dataPriceListType, Stock stock) = 
     GROUP 
-        BY article(Item sku), PriceList priceList, PriceListType dataPriceListType, Stock stock MAX currentPriceUser(sku, priceList, dataPriceListType, stock);
-minCurrentPriceData 'Мин. цена' (article, priceList, dataPriceListType, stock) = 
+        BY article(Item sku) MAX currentPriceUser(sku, priceList, dataPriceListType, stock);
+minCurrentPriceData 'Мин. цена' (article, PriceList priceList, PriceListType dataPriceListType, Stock stock) = 
     GROUP 
-        BY article(Item sku), PriceList priceList, PriceListType dataPriceListType, Stock stock MIN currentPriceUser(sku, priceList, dataPriceListType, stock);
+        BY article(Item sku) MIN currentPriceUser(sku, priceList, dataPriceListType, stock);
 headerNameMaxCurrentData (PriceListType dataPriceListType) =
     name(dataPriceListType) + ' (старая max)' CHARWIDTH 30;
 headerNameMinCurrentData (PriceListType dataPriceListType) =
     name(dataPriceListType) + ' (старая min)' CHARWIDTH 30;    
     
-maxCurrentPrice 'Текущая цена (max)' (article, userPriceList, stock)= 
-    GROUP BY article(Item sku), UserPriceList userPriceList, Stock stock MAX currentPrice (sku, userPriceList, stock);
+maxCurrentPrice 'Текущая цена (max)' (article, UserPriceList userPriceList, Stock stock)= 
+    GROUP BY article(Item sku) MAX currentPrice (sku, userPriceList, stock);
  
     
 EXTEND FORM userPriceList

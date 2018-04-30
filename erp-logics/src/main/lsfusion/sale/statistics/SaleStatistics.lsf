@@ -264,12 +264,12 @@ group (StatisticGroupType statisticGroupType, Sku sku) += WHEN CLASS(statistic (
 
 skipStatistic 'Исключить из розн. статистики' = ABSTRACT VALUE BOOLEAN (SaleLedger) MATERIALIZED;
 
-quantitySoldStatistic(sku, stock, dateFrom, dateTo) = GROUP
-        BY sku(SaleLedger ledger), stock(ledger), DATE df, DATE dt SUM quantity(ledger) 
-    IF active(ledger) AND NOT skipStatistic(ledger) AND date(ledger) >= df AND date(ledger) <= dt;
-sumSoldStatistic(sku, stock, dateFrom, dateTo) = GROUP
-        BY sku(SaleLedger ledger), stock(ledger), DATE df, DATE dt SUM sum(ledger) 
-    IF active(ledger) AND NOT skipStatistic(ledger) AND date(ledger) >= df AND date(ledger) <= dt;
+quantitySoldStatistic(sku, stock, DATE dateFrom, DATE dateTo) = GROUP
+        BY sku(SaleLedger ledger), stock(ledger) SUM quantity(ledger) 
+    IF active(ledger) AND NOT skipStatistic(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo;
+sumSoldStatistic(sku, stock, DATE dateFrom, DATE dateTo) = GROUP
+        BY sku(SaleLedger ledger), stock(ledger) SUM sum(ledger) 
+    IF active(ledger) AND NOT skipStatistic(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo;
         
 netWeightSoldStatistic 'Вес проданного товара, кг' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) =
     quantitySoldStatistic(sku, stock, dateFrom, dateTo) * netWeight(sku);
@@ -651,19 +651,19 @@ valueResidentByTo 'Остаток на конец отеч. пр-ва' (Statisti
         ELSE 0 IF group IS StatisticGroup AND legalEntity IS LegalEntity AND region IS Region AND date IS DATE
     ;
 
-totalSumSoldBy 'Продано, руб.' (group, legalEntity, region, dateFrom, dateTo)=
+totalSumSoldBy 'Продано, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
     GROUP
-    BY StatisticGroup group, legalEntity(Stock stock), region(stock), DATE dateFrom, DATE dateTo SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isParent(group, sku);
+    BY legalEntity(Stock stock), region(stock) SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isParent(group, sku);
 
-totalSumResidentSoldBy 'В т.ч.отеч., руб.' (group, legalEntity, region, dateFrom, dateTo)=
+totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
     GROUP
-    BY StatisticGroup group, legalEntity(Stock stock), region(stock), DATE dateFrom, DATE dateTo SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF resident (group, sku);
+    BY legalEntity(Stock stock), region(stock) SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF resident (group, sku);
 
 // суммовые показатели
 
-sumBalanceABy 'Сумма остатка на конец, руб.' (group, legalEntity, region, date) =
+sumBalanceABy 'Сумма остатка на конец, руб.' (StatisticGroup group, legalEntity, region, DATE date) =
     GROUP
-    BY StatisticGroup group, legalEntity(Stock stock), region(stock), DATE dateTo SUM sumA (Sku sku, stock, dateTo) IF isParent(group, sku);
+    BY legalEntity(Stock stock), region(stock) SUM sumA (Sku sku, stock, date) IF isParent(group, sku);
 
 
 //------------------------------------- остатки и продажи по складу-------------------------------------//

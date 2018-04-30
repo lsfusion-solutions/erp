@@ -54,25 +54,25 @@ DESIGN options {
 
 lastPromotionPriceListDetailB (Sku sk, DATETIME dt) = 
     GROUP
-          BY sku(PriceListDetail d, Stock st), DATETIME dt LAST d
+          BY sku(PriceListDetail d, Stock st) LAST d
           ORDER fromDateTime(d, st), d
           WHERE fromDateTime(d, st) < dt COMPLEX;
 
 promotionPriceListDetailA (Sku sk, Stock st, DATETIME dt) = 
     GROUP
-          BY sku(PriceListDetail d, Stock st), st, DATETIME dt LAST d
+          BY sku(PriceListDetail d, st) LAST d
           ORDER fromDateTime(d, st), d
           WHERE fromDateTime(d, st) <= dt AND NOT toDateTime(d, st) < dt COMPLEX;
           
 promotionPriceListDetailA (Sku sk, Stock st, DATE dt) = 
   GROUP
-        BY sku(PriceListDetail d, Stock st), st, DATE dt LAST d
+        BY sku(PriceListDetail d, st) LAST d
         ORDER fromDateTime(d, st), d
         WHERE fromDateTime(d, st) < DATETIME(sum(dt, 1)) AND NOT toDateTime(d, st) < DATETIME(dt) COMPLEX;
 
 lastPromotionPriceListDetail (Sku sk, Stock st) = GROUP 
-                                                                           BY sku(PriceListDetail d, Stock s), s LAST d
-                                                                           ORDER fromDateTime(d, s), d;
+                                                                           BY sku(PriceListDetail d, st) LAST d
+                                                                           ORDER fromDateTime(d, st), d;
 
 promotionPriceListDetailA (Sku sku, Stock stock) = 
     promotionPriceListDetailA(sku, stock, currentDateTime());

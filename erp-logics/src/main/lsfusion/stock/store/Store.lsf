@@ -229,7 +229,7 @@ region(DepartmentStore stock) += region(store(stock));
 
 @defineHistorizable(tradingSquare, , 'Торговая площадь', NUMERIC[10,2], departmentStore, nameDepartmentStore, public);
 
-tradingSquare (store, date) = GROUP BY store(DepartmentStore departmentStore), DATE date SUM tradingSquare(departmentStore, date);
+tradingSquare (store, DATE date) = GROUP BY store(DepartmentStore departmentStore) SUM tradingSquare(departmentStore, date);
 tradingSquare 'Торговая площадь' (Store store) = tradingSquare(store, currentDate());
 
 cashAccount 'Счет' = DATA Cash.Account (DepartmentStore);
@@ -250,8 +250,8 @@ in (ChainStores chainStores, StoreType storeType, DepartmentStore departmentStor
 inactive 'Неактивный' = DATA BOOLEAN (DepartmentStore);
 inactive(DepartmentStore st) += inactive(st);
 
-in 'Сотрудник магазина' (store, employee) = GROUP
-    BY store(DepartmentStore d), Employee employee SUM 1 IF in(d, employee);
+in 'Сотрудник магазина' (store, Employee employee) = GROUP
+    BY store(DepartmentStore d) SUM 1 IF in(d, employee);
     
 CONSTRAINT chairman(Store store) AND NOT in(store, chairman(store))
     CHECKED BY chairman[Store] MESSAGE 'Работник должен быть сотрудником магазина';

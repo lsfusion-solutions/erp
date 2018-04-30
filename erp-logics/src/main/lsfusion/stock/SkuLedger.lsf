@@ -339,9 +339,9 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
                                                                                         BY sku(SkuLedger ledger), stock(ledger) SUM signedQuantityActive(ledger) IF dateTime(ledger) > dateTime](sku, stock);
     prevBalanceA 'Остаток (после)'###caption (Sku sku, Stock stock, DATETIME dateTime) = PREV(balanceA(sku, stock, dateTime) IF dateTime IS DATETIME);
 
-    balanceA 'Остаток (после)'###caption (group,  stock, dateTime) =
+    balanceA 'Остаток (после)'###caption (Group group,  stock, DATETIME dateTime) =
         GROUP
-        BY Group group, stock(SkuLedger ledger), DATETIME dateTime SUM balanceA (Sku sku, Stock stock, dateTime) IF isParent(group, sku);
+        BY stock(SkuLedger ledger) SUM balanceA (Sku sku, Stock sstock, dateTime) IF isParent(group, sku);
         
     balanceB 'Остаток на начало дня'(Stock stock, DATE date)  = GROUP SUM balanceB(Sku sku, stock, date);
 
@@ -352,8 +352,8 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     signedActiveCostSum 'Себестоимость' (SkuLedger ledger, Batch batch) = NUMERIC[16,4](signedQuantityActive(ledger, batch) * cost(batch));
     signedActiveCostSum 'Себестоимость' (SkuLedger ledger) = GROUP SUM signedActiveCostSum(ledger, Batch batch);
     
-    currentBalance 'Текущий остаток'###caption (batch, stock) = GROUP
-                                                                                           BY Batch batch, stock(SkuLedger ledger) SUM signedQuantityActive(ledger, batch) MATERIALIZED;
+    currentBalance 'Текущий остаток'###caption (Batch batch, stock) = GROUP
+                                                                                           BY stock(SkuLedger ledger) SUM signedQuantityActive(ledger, batch) MATERIALIZED;
     negativeBalance (Batch batch, Stock stock) = currentBalance(batch, stock) < 0;
     
     skuCurrentBalance (Batch batch, Stock stock) = sku(batch) IF currentBalance(batch, stock) MATERIALIZED;
@@ -361,59 +361,59 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     prevCurrentBalance 'Текущий остаток'###caption (Batch batch, Stock stock) = PREV(currentBalance(batch, stock));
     prevCurrentBalance 'Текущий остаток'###caption(Batch batch)  = GROUP SUM prevCurrentBalance(batch, Stock stock);    
 
-    countBatch 'Кол-во партий' (sku, stock) = GROUP
-                                                                 BY sku(Batch batch), Stock stock SUM 1  IF currentBalance(batch, stock);
-    defaultBatch 'Партия по умолчанию' (sku, stock)= GROUP
-                                                                        BY sku(Batch batch), Stock stock MIN batch IF currentBalance(batch, stock);
+    countBatch 'Кол-во партий' (sku, Stock stock) = GROUP
+                                                                 BY sku(Batch batch) SUM 1  IF currentBalance(batch, stock);
+    defaultBatch 'Партия по умолчанию' (sku, Stock stock)= GROUP
+                                                                        BY sku(Batch batch) MIN batch IF currentBalance(batch, stock);
     
-    countPositiveBatch 'Кол-во партий' (sku, stock) = GROUP
-                                                                 BY sku(Batch batch), Stock stock SUM 1  IF currentBalance(batch, stock) >0;
-    defaultPositiveBatch 'Партия по умолчанию' (sku, stock)= GROUP
-                                                                        BY sku(Batch batch), Stock stock MIN batch IF currentBalance(batch, stock) >0;
+    countPositiveBatch 'Кол-во партий' (sku, Stock stock) = GROUP
+                                                                 BY sku(Batch batch) SUM 1  IF currentBalance(batch, stock) >0;
+    defaultPositiveBatch 'Партия по умолчанию' (sku, Stock stock)= GROUP
+                                                                        BY sku(Batch batch) MIN batch IF currentBalance(batch, stock) >0;
 
     TABLE extraBatchStock(Batch, Stock);
-    countLedger 'Кол-во движений'###caption (batch, stock) =
-        GROUP BY Batch batch, stock(SkuLedger ledger) SUM 1 IF signedQuantityActive(ledger, batch) MATERIALIZED TABLE extraBatchStock;
+    countLedger 'Кол-во движений'###caption (Batch batch, stock) =
+        GROUP BY stock(SkuLedger ledger) SUM 1 IF signedQuantityActive(ledger, batch) MATERIALIZED TABLE extraBatchStock;
     prevCountLedger 'Кол-во движений'###caption (Batch b, Stock s) = PREV(countLedger(b, s));
 
     countLedger 'Кол-во движений'###caption (Batch b, Stock s, DATETIME dt) = 
-        GROUP BY Batch batch, stock(SkuLedger ledger), DATETIME dt SUM 1 IF signedQuantityActive(ledger, batch) AND dateTime(ledger) < dt;
+        GROUP BY stock(SkuLedger ledger) SUM 1 IF signedQuantityActive(ledger, b) AND dateTime(ledger) < dt;
     prevCountLedger 'Кол-во движений'###caption (Batch b, Stock s, DATETIME dt) = PREV(countLedger(b, s, dt));
             
     skuLedger (Batch batch, Stock stock) = sku(batch) IF countLedger(batch, stock) MATERIALIZED TABLE extraBatchStock;
     INDEX skuLedger (Batch batch, Stock stock), stock;
 
-    countLedger 'Кол-во движений за период'###caption (batch, stock, dateFrom, dateTo) =
+    countLedger 'Кол-во движений за период'###caption (Batch batch, stock, DATE dateFrom, DATE dateTo) =
         GROUP
-        BY Batch batch, stock(SkuLedger ledger), DATE dateFrom, DATE dateTo SUM 1 IF signedQuantityActive(ledger, batch) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo;
+        BY stock(SkuLedger ledger) SUM 1 IF signedQuantityActive(ledger, batch) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo;
         
-    lastOrderBatch(sku, stock)  =
+    lastOrderBatch(sku, Stock stock)  =
         GROUP
-              BY skuLedger(Batch batch, Stock stock), stock LAST batch
+              BY skuLedger(Batch batch, stock) LAST batch
               ORDER dateTime(batch), batch MATERIALIZED TABLE extraSkuStock;
               
               
-    lastOrderBatchA(sku, stock, date)  =
+    lastOrderBatchA(sku, Stock stock, DATE date)  =
         GROUP
-              BY skuLedger(Batch batch, Stock stock), stock, DATE dateIn LAST batch
+              BY skuLedger(Batch batch, stock) LAST batch
               ORDER dateTime(batch), batch
-              WHERE date(batch) <= dateIn;   
+              WHERE date(batch) <= date;   
                          
-    lastOrderBatchA(sku, stock, dateTimeIn)  =
+    lastOrderBatchA(sku, Stock stock, DATETIME dateTimeIn)  =
         GROUP
-              BY skuLedger(Batch batch, Stock stock), stock, DATETIME dateTimeIn LAST batch
+              BY skuLedger(Batch batch, stock) LAST batch
               ORDER dateTime(batch), batch
               WHERE dateTime(batch) <= dateTimeIn;   
                
-    lastOrderBatchB(sku, stock, date)  =
+    lastOrderBatchB(sku, Stock stock, DATE date)  =
         GROUP
-              BY skuLedger(Batch batch, Stock stock), stock, DATE dateIn LAST batch
+              BY skuLedger(Batch batch, stock) LAST batch
               ORDER dateTime(batch), batch
-              WHERE date(batch) < dateIn;   
+              WHERE date(batch) < date;   
                          
-    lastOrderBatchB(sku, stock, dateTimeIn)  =
+    lastOrderBatchB(sku, Stock stock, DATETIME dateTimeIn)  =
         GROUP
-              BY skuLedger(Batch batch, Stock stock), stock, DATETIME dateTimeIn LAST batch
+              BY skuLedger(Batch batch, stock) LAST batch
               ORDER dateTime(batch), batch
               WHERE dateTime(batch) < dateTimeIn;                 
                
@@ -430,15 +430,15 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     lastBatchManufactureDate 'Дата изготовления последней партии' (Sku sku, Stock stock) = manufactureDate(lastOrderBatch(sku, stock));
     lastBatchExpiryDate 'Срок годности последней партии' (Sku sku, Stock stock) = expiryDate(lastOrderBatch(sku, stock));
 
-    batchLastManufactureDate (sku, stock)  =
+    batchLastManufactureDate (sku, Stock stock)  =
         GROUP
-              BY skuLedger(Batch batch, Stock stock), stock LAST manufactureDate(batch)
+              BY skuLedger(Batch batch, stock) LAST manufactureDate(batch)
               ORDER dateTime(batch), batch
               WHERE manufactureDate(batch) COMPLEX;
               
-    batchLastExpiryDate (sku, stock)  =
+    batchLastExpiryDate (sku, Stock stock)  =
         GROUP
-              BY skuLedger(Batch batch, Stock stock), stock LAST expiryDate(batch)
+              BY skuLedger(Batch batch, stock) LAST expiryDate(batch)
               ORDER dateTime(batch), batch
               WHERE expiryDate(batch) COMPLEX;    
     
@@ -496,9 +496,9 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     sumB 'Сумма на начало дня'(Stock stock, DATE date)  = GROUP SUM sumB(Sku sku, stock, date);
 
-    sumBSku 'Сумма на начало дня (по группе)' (group, stock, date) =
+    sumBSku 'Сумма на начало дня (по группе)' (group, Stock stock, DATE date) =
         GROUP
-        BY group(GroupType groupType, Sku sku), Stock stock, DATE date SUM sumB (sku, stock, date);
+        BY group(GroupType groupType, Sku sku) SUM sumB (sku, stock, date);
 
     sumRecBSku 'Сумма на начало дня (всего)'(Group group, Stock stock, DATE date)  =
         GROUP
@@ -509,9 +509,9 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
                                                                      (-) (GROUP
                                                                                 SUM signedSum (sku, stock, DATE dateIn) IF dateIn > date);
 
-    sumASku 'Сумма на конец дня (по группе)' (group, stock, date) =
+    sumASku 'Сумма на конец дня (по группе)' (group, Stock stock, DATE date) =
         GROUP
-        BY group(GroupType groupType, Sku sku), Stock stock, DATE date SUM sumA (sku, stock, date);
+        BY group(GroupType groupType, Sku sku) SUM sumA (sku, stock, date);
 
     sumRecASku 'Сумма на конец дня (всего)'(Group group, Stock stock, DATE date)  =
         GROUP
@@ -523,7 +523,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
                                                                                 BY sku(SkuLedger ledger), stock(ledger) SUM signedSumActive(ledger) IF dateTime(ledger) >= dateTime](sku, stock);
     //-- использовать только при условии explicitBatchLedger для склада                                                                            
     sumB 'Сумма (до)'###caption (Batch batch, Stock stock, DATETIME dateTime) = GROUP
-                                                                                    BY batch(SkuLedger ledger), stock(ledger), DATETIME dateTime SUM signedSumActive(ledger) IF dateTime(ledger) < dateTime;
+                                                                                    BY batch(SkuLedger ledger), stock(ledger) SUM signedSumActive(ledger) IF dateTime(ledger) < dateTime;
                                                                                        
                                                                                        
     sumRecBSku 'Учетная сумма (всего)'(Group group, Stock stock, DATETIME dateTime)  =
@@ -545,9 +545,9 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     sumIn 'Сумма товара пришедшего за период'(Sku sku, Stock stock, DATE dateFrom, DATE dateTo)  =
         GROUP
                SUM sumIn(sku, stock, DATE dateIn) IF dateIn >= dateFrom AND dateIn <= dateTo;
-    sumInSku 'Сумма товара пришедшего за период(по группе)' (group, stock, dateFrom, dateTo) =
+    sumInSku 'Сумма товара пришедшего за период(по группе)' (group, Stock stock, DATE dateFrom, DATE dateTo) =
         GROUP
-        BY group(GroupType groupType, Sku sku), Stock stock, DATE dateFrom, DATE dateTo SUM sumIn (sku, stock, dateFrom, dateTo);
+        BY group(GroupType groupType, Sku sku) SUM sumIn (sku, stock, dateFrom, dateTo);
     sumRecInSku 'Сумма товара пришедшего за период(всего)'(Group group, Stock stock, DATE dateFrom, DATE dateTo)  =
         GROUP
         SUM sumIn (Sku sku, stock, dateFrom, dateTo) IF isParent(group, sku);
@@ -555,9 +555,9 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     sumOut 'Сумма товара ушедшего за период'(Sku sku, Stock stock, DATE dateFrom, DATE dateTo)  =
         GROUP
                SUM sumOut(sku, stock, DATE dateOut) IF dateOut >= dateFrom AND dateOut <= dateTo;
-    sumOutSku 'Сумма товара ушедшего за период(по группе)' (group, stock, dateFrom, dateTo) =
+    sumOutSku 'Сумма товара ушедшего за период(по группе)' (group, Stock stock, DATE dateFrom, DATE dateTo) =
         GROUP
-        BY group(GroupType groupType, Sku sku), Stock stock, DATE dateFrom, DATE dateTo SUM sumOut (sku, stock, dateFrom, dateTo);
+        BY group(GroupType groupType, Sku sku) SUM sumOut (sku, stock, dateFrom, dateTo);
     sumRecOutSku 'Сумма товара ушедшего за период(всего)'(Group group, Stock stock, DATE dateFrom, DATE dateTo)  =
         GROUP
         SUM sumOut (Sku sku, stock, dateFrom, dateTo) IF isParent(group, sku);
@@ -637,16 +637,16 @@ costA 'Себестоимость на конец дня' (Stock s, DATE d) = GR
 
 //---------------------------------------------- За период ------------------------------------------//
 
-costInBalance 'Приход' (batch, stock, dateFrom, dateTo) = GROUP
-    BY Batch batch, stock(InSkuLedger ledger), DATE dateFrom, DATE dateTo SUM cost (ledger, batch)
+costInBalance 'Приход' (Batch batch, stock, DATE dateFrom, DATE dateTo) = GROUP
+    BY stock(InSkuLedger ledger) SUM cost (ledger, batch)
     IF ledger IS InSkuLedger AND isPosted(ledger)
     AND date(ledger) >= dateFrom AND date(ledger)<= dateTo;
 
 costSumInBalance 'Сумма прихода' (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) =
     cost(batch) * costInBalance(batch, stock, dateFrom, dateTo);
 
-costOutBalance 'Расход' (batch, stock, dateFrom, dateTo) = GROUP
-    BY Batch batch, stock(OutSkuLedger ledger), DATE dateFrom, DATE dateTo SUM cost (ledger, batch)
+costOutBalance 'Расход' (Batch batch, stock, DATE dateFrom, DATE dateTo) = GROUP
+    BY stock(OutSkuLedger ledger) SUM cost (ledger, batch)
     IF ledger IS OutSkuLedger AND isPosted(ledger)
     AND date(ledger) >= dateFrom AND date(ledger)<= dateTo;
 
@@ -659,10 +659,10 @@ currentCostSum 'Текущая себестоимость' (sku, stock) =
     GROUP BY sku(SkuLedger ledger), stock(ledger) SUM signedActiveCostSum(ledger);
     
 // без учета текущей даты/времени
-costSumB 'Себестоимость на начало дня' (sku, stock, date) = GROUP BY sku(Batch batch), Stock stock, DATE date SUM costB(batch, stock, date);
+costSumB 'Себестоимость на начало дня' (sku, Stock stock, DATE date) = GROUP BY sku(Batch batch) SUM costB(batch, stock, date);
 
 // с учетом текущей даты/времени
-costSumA 'Себестоимость на конец дня' (sku, stock, date) = GROUP BY sku(Batch batch), Stock stock, DATE date SUM costA(batch, stock, date); 
+costSumA 'Себестоимость на конец дня' (sku, Stock stock, DATE date) = GROUP BY sku(Batch batch) SUM costA(batch, stock, date); 
 
 // ------------------------------------------------ Формы для партий ------------------------------ //
 FORM batches 'Партии'

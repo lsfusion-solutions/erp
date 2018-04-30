@@ -80,7 +80,7 @@ in (Range range, TaxUnit taxUnit) => isUnitsType(range) RESOLVE RIGHT;
 extra 'Дополнительная' = DATA BOOLEAN (Range); // Когда несколько расчетных ставок
 note 'Примечание' = DATA VARISTRING[100] (Range);
 
-range 'Шкала по налогу и субъекту' (tax, taxUnit) = GROUP BY tax(Range range), TaxUnit taxUnit AGGR range
+range 'Шкала по налогу и субъекту' (tax, TaxUnit taxUnit) = GROUP BY tax(Range range) AGGR range
                                                                        WHERE in(range, taxUnit) AND Tax.taxVAT == tax(range) AND NOT extra(range);
 
 rangeVAT 'Шкала субъекту' (TaxUnit taxUnit) = range (Tax.taxVAT, taxUnit);
@@ -99,17 +99,17 @@ quantityRate 'Количество историй' (range) = GROUP BY range(Rate
 value 'Значение ставки' = DATA NUMERIC[10,5] (Rate) IN recognize NONULL;
 dateFrom 'Действует с' = DATA DATE (Rate) IN base INDEXED;
 
-valueRate 'На дату' (range, date) =
+valueRate 'На дату' (range, DATE date) =
                              GROUP
-                                   BY range(Rate rate), DATE date LAST value(rate)
+                                   BY range(Rate rate) LAST value(rate)
                                    ORDER dateFrom(rate), rate
                                    WHERE dateFrom(rate) <= date COMPLEX;
 
 INDEX range(Rate rate), dateFrom(rate), rate;
 
-dateFromRate 'Действует (с)' (range, date) =
+dateFromRate 'Действует (с)' (range, DATE date) =
                              GROUP
-                                   BY range(Rate rate), DATE date LAST dateFrom(rate)
+                                   BY range(Rate rate) LAST dateFrom(rate)
                                    ORDER dateFrom(rate), rate
                                    WHERE dateFrom(rate) <= date COMPLEX;
 

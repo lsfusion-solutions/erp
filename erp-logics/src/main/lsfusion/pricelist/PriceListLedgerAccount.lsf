@@ -39,11 +39,11 @@ currentAccountSum 'Сумма учетная' (Batch batch, Stock stock) =
 currentCostSum 'Сумма себестоимости' (Batch batch, Stock stock) =
     currentBalance(batch, stock) * cost(batch);    
 
-currentAccountSumBatch 'Сумма учетная по партиям' (sku, stock) =
-    GROUP BY sku(Batch batch), Stock stock SUM currentAccountSum(batch, stock);
+currentAccountSumBatch 'Сумма учетная по партиям' (sku, Stock stock) =
+    GROUP BY sku(Batch batch) SUM currentAccountSum(batch, stock);
      
-currentCostSumBatch 'Сумма себестоимости по партиям' (sku, stock) =
-    GROUP BY sku(Batch batch), Stock stock SUM currentCostSum(batch, stock);
+currentCostSumBatch 'Сумма себестоимости по партиям' (sku, Stock stock) =
+    GROUP BY sku(Batch batch) SUM currentCostSum(batch, stock);
      
 averageCostPriceBatch 'Себестоимость (средневзв.)' = 
     currentCostSumBatch(Sku sku, Stock stock) / currentBalance(sku, stock);   
@@ -61,16 +61,16 @@ accountSumABatches 'Учетная сумма склада(по партиям) 
     GROUP
     SUM accountSumA(Batch batch, stock, date);
 
-accountSumBSkuBatch 'Учетная сумма на начало дня(по партиям)' (group, stock, date) =
+accountSumBSkuBatch 'Учетная сумма на начало дня(по партиям)' (group, Stock stock, DATE date) =
     GROUP
-    BY group(GroupType groupType, sku(Batch batch)), Stock stock, DATE date SUM accountSumB(batch, stock, date);
+    BY group(GroupType groupType, sku(Batch batch)) SUM accountSumB(batch, stock, date);
 accountSumRecBSkuBatch 'Учетная сумма на начало дня(по партиям)' (Group group, Stock stock, DATE date) =
     GROUP
     SUM accountSumB(Batch batch, stock, date) IF isParent(group, batch);
 
-accountSumASkuBatch 'Учетная сумма на конец дня(по партиям)' (group, stock, date) =
+accountSumASkuBatch 'Учетная сумма на конец дня(по партиям)' (group, Stock stock, DATE date) =
     GROUP
-    BY group(GroupType groupType, sku(Batch batch)), Stock stock, DATE date SUM accountSumA(batch, stock, date);
+    BY group(GroupType groupType, sku(Batch batch)) SUM accountSumA(batch, stock, date);
 accountSumRecASkuBatch 'Учетная сумма на конец дня(по партиям)' (Group group, Stock stock, DATE date) =
     GROUP
     SUM accountSumA(Batch batch, stock, date) IF isParent(group, batch);   
@@ -82,12 +82,12 @@ accountSumB 'Сумма учетная' (Batch batch, Stock stock, DATETIME date
 accountSumA 'Сумма учетная' (Batch batch, Stock stock, DATETIME dateTime) =
     balanceA(batch, stock, dateTime) * accountPriceA(batch, stock, dateTime);
 
-accountSumBatchB 'Сумма учетная по партиям' (sku, stock, dateTime) =
-    GROUP BY sku(Batch batch), Stock stock, DATETIME dateTime SUM accountSumB(batch, stock, dateTime); 
+accountSumBatchB 'Сумма учетная по партиям' (sku, Stock stock, DATETIME dateTime) =
+    GROUP BY sku(Batch batch) SUM accountSumB(batch, stock, dateTime); 
     
-accountSumBSkuBatch 'Учетная сумма на начало дня(по партиям)' (group, stock, dateTime) =
+accountSumBSkuBatch 'Учетная сумма на начало дня(по партиям)' (group, Stock stock, DATETIME dateTime) =
     GROUP
-    BY group(GroupType groupType, sku(Batch batch)), Stock stock, DATETIME dateTime SUM accountSumB(batch, stock, dateTime);
+    BY group(GroupType groupType, sku(Batch batch)) SUM accountSumB(batch, stock, dateTime);
 accountSumRecBSkuBatch 'Учетная сумма (по партиям)' (Group group, Stock stock, DATETIME dateTime) =
     GROUP
     SUM accountSumB(Batch batch, stock, dateTime) IF isParent(group, batch);

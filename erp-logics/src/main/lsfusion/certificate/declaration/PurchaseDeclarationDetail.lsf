@@ -924,7 +924,7 @@ chargeSumRound 'Услуги (округление)' (Declaration d) = chargeSum
 
 // Пошлина
 dutySumUserInvoiceDetail 'Пошлина (по накладным)' (d) =
-    GROUP BY declaration(UserInvoiceDetail d) SUM dutySum(d) CHARWIDTH 15;
+    GROUP BY declaration(UserInvoiceDetail ud) SUM dutySum(ud) CHARWIDTH 15;
 dutySumRound 'Пошлина (округление)' (Declaration d) = adjustDutySum(d) (-) dutySumUserInvoiceDetail(d);
 
 // Таможенный сбор
@@ -932,11 +932,11 @@ registrationSum 'Таможенный сбор' = DATA NUMERIC[18,4] (Declaratio
 
 // НДС
 VATSumUserInvoiceDetail 'НДС (по накладным)' (d) =
-    GROUP BY declaration(UserInvoiceDetail d) SUM quantity(d) * VATPrice[InvoiceDetail](d) CHARWIDTH 15;
+    GROUP BY declaration(UserInvoiceDetail ud) SUM quantity(ud) * VATPrice[InvoiceDetail](ud) CHARWIDTH 15;
 VATSumRound 'НДС (округление)' (Declaration d) = adjustVATSum(d) (-) VATSumUserInvoiceDetail(d);
 
 registrationSumUserInvoiceDetail 'Таможенный сбор (по накладным)' (d) =
-    GROUP BY declaration(UserInvoiceDetail d) SUM registrationSum(d) CHARWIDTH 15;
+    GROUP BY declaration(UserInvoiceDetail ud) SUM registrationSum(ud) CHARWIDTH 15;
 registrationSumRound 'Таможенный сбор (округление)' (Declaration d) = registrationSum(d) (-) registrationSumUserInvoiceDetail(d);
 
 EXTEND FORM declaration
@@ -1064,7 +1064,7 @@ registrationSum 'Таможенный сбор (валют.)' (DeclarationDetail
     registration(customsGroup(d), date(d));
 
 maxRegistrationSum 'Таможенный сбор (валют.)' (d) =
-    GROUP BY declaration(DeclarationDetail d) MAX registrationSum(d);
+    GROUP BY declaration(DeclarationDetail dd) MAX registrationSum(dd);
 
 calcRegistrationSum 'Таможенный сбор' (Declaration d) = round(maxRegistrationSum(d) *
                                                                           rateExchangeCustomsZone(d),
@@ -1082,7 +1082,7 @@ countDeclarationInvoiceDetail(DeclarationDetail dd) = countDeclarationDetail(dec
 //inDeclarationInvoiceDetailDeclarationDetail 'Вкл.' (id, dd) = declarationDetailDeclarationInvoiceDetail(id) == dd;
 
 in (DeclarationDetail d, UserInvoiceDetail i) = declarationInvoiceDetail(d) == declarationInvoiceDetail(i);
-in (d, i) = GROUP BY DeclarationDetail d, userInvoice(UserInvoiceDetail i) SUM 1 IF in (d, i);
+in (DeclarationDetail d, i) = GROUP BY userInvoice(UserInvoiceDetail ui) SUM 1 IF in (d, ui);
 
 invoices 'Накладные' (DeclarationDetail d) =
     GROUP
@@ -1098,9 +1098,9 @@ nameSupplier 'Поставщики' (DeclarationDetail d) =
 
 // --------------------------------- Ограничение на строки декларации ----------------------------------- //
 
-sumNetWeightDeclarationDetail (d) = GROUP BY declarationInvoiceDetail(DeclarationDetail d) SUM sumNetWeight(d); 
-sumGrossWeightDeclarationDetail (d) = GROUP BY declarationInvoiceDetail(DeclarationDetail d) SUM sumGrossWeight(d);
-sumDeclarationDetail (d) = GROUP BY declarationInvoiceDetail(DeclarationDetail d) SUM sum(d);
+sumNetWeightDeclarationDetail (d) = GROUP BY declarationInvoiceDetail(DeclarationDetail dd) SUM sumNetWeight(dd); 
+sumGrossWeightDeclarationDetail (d) = GROUP BY declarationInvoiceDetail(DeclarationDetail dd) SUM sumGrossWeight(dd);
+sumDeclarationDetail (d) = GROUP BY declarationInvoiceDetail(DeclarationDetail dd) SUM sum(dd);
 
 CONSTRAINT sumNetWeightDeclarationDetail(DeclarationInvoiceDetail d) != sumNetWeight(d) 
     MESSAGE 'Вес нетто строк деклараций не соответствует весу нетто позиции декларации'; 

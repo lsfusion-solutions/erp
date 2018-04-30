@@ -121,11 +121,11 @@ CONSTRAINT CHANGED(countSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < 
 CONSTRAINT CHANGED(depth(range(RangeRev v), RangeLevel l)) AND rangeRev(range(v), currentDate()) == v AND  depth(range(v), l) < countSku(v,l) AND NOT (notCheckDepthRange() OR notCheckDepthLoc())
     MESSAGE 'Превышено максимально количество товаров по матрице для действующей версии';
 
-countSkus 'Кол-во наименований (всего)' (v, supplier, pt, d) = GROUP
-    BY RangeRev v, companyA(LedgerPriceListType pt, Sku sku, Stock d, dateTime(v)), pt, d SUM 1 IF level(v, sku);
+countSkus 'Кол-во наименований (всего)' (RangeRev v, supplier, LedgerPriceListType pt, Stock d) = GROUP
+    BY companyA(pt, Sku sku, d, dateTime(v)) SUM 1 IF level(v, sku);
     
-countSkus 'Кол-во наименований' (v,l,supplier,pt,d) = GROUP
-    BY RangeRev v, level(v, Sku sku), companyA(LedgerPriceListType pt, sku, Stock d, dateTime(v)), pt, d SUM 1;
+countSkus 'Кол-во наименований' (RangeRev v,l,supplier,LedgerPriceListType pt,Stock d) = GROUP
+    BY level(v, Sku sku), companyA(pt, sku, d, dateTime(v)) SUM 1;
     
 TABLE rangeRevRangeLevelSku (RangeRev, RangeLevel, Sku);
 
@@ -379,8 +379,8 @@ countFilter 'Кол-во с продажей или остатком' (Range ran
 
 countFilter 'Кол-во с продажей или остатком' (RangeRev v, Store store, DATE dateFrom) = countFilter(range(v), store, dateFrom);
 
-currentBalance 'Остаток (ассортимент)' (range, store) = GROUP
-        BY Range range, store(DepartmentStore stock) SUM currentBalance(Sku sku,stock) IF inChild(range, sku);
+currentBalance 'Остаток (ассортимент)' (Range range, store) = GROUP
+        BY store(DepartmentStore stock) SUM currentBalance(Sku sku,stock) IF inChild(range, sku);
 
 currentBalance 'Остаток (ассортимент)' (RangeRev v, Store store) = currentBalance(range(v),store);
 
@@ -472,7 +472,7 @@ EXTEND FORM rangeRev
     PROPERTIES (v, dFrom, pt, d) fill TODRAW s
 ;
 
-in (r, s) = GROUP BY range(RangeRev v), Sku s SUM 1 IF level(v, s);
+in (r, Sku s) = GROUP BY range(RangeRev v) SUM 1 IF level(v, s);
 
 ranges 'Ассортиментные матрицы' (Sku s, DATE d) = GROUP CONCAT name(Range r) IF level(r, s, d) ,', ' CHARWIDTH 30; 
 

@@ -4,26 +4,26 @@ REQUIRE Stock, ItemArticle;
 
 NAMESPACE Stock;
 
-balanceB 'Остаток на начало дня' (article, stock, date) = GROUP BY article(Item sku), Stock stock, DATE date SUM balanceB(sku,stock,date);
-balanceA 'Остаток на конец дня' (article, stock, date) = GROUP BY article(Item sku), Stock stock, DATE date SUM balanceA(sku,stock,date);
+balanceB 'Остаток на начало дня' (article, Stock stock, DATE date) = GROUP BY article(Item sku) SUM balanceB(sku,stock,date);
+balanceA 'Остаток на конец дня' (article, Stock stock, DATE date) = GROUP BY article(Item sku) SUM balanceA(sku,stock,date);
 
-defaultSku 'Товар по умолчанию' (article, stock)= GROUP
-                                                                BY article(Item sku), Stock stock MIN sku IF currentBalance(sku, stock);
+defaultSku 'Товар по умолчанию' (article, Stock stock)= GROUP
+                                                                BY article(Item sku) MIN sku IF currentBalance(sku, stock);
                                                                 
 defaultSku 'Товар по умолчанию' (article)= GROUP
                                                                 BY article(Item sku) MIN sku IF currentBalance(sku, Stock stock);                                                                
 
-currentBalance 'Текущий остаток' (article, stock) = GROUP BY article(Item sku), Stock stock SUM currentBalance(sku,stock);
+currentBalance 'Текущий остаток' (article, Stock stock) = GROUP BY article(Item sku) SUM currentBalance(sku,stock);
 prevCurrentBalance 'Текущий остаток' (Article article, Stock stock) = PREV(currentBalance(article, stock));
 prevCurrentBalance 'Текущий остаток' (Article article) = GROUP SUM prevCurrentBalance(article, Stock stock);
 
-currentBalance 'Текущий остаток' (article, color, size, stock)= GROUP
-    BY article(Item sku), calcColor(sku), calcSize(sku), Stock stock SUM currentBalance(sku, stock);
+currentBalance 'Текущий остаток' (article, color, size, Stock stock)= GROUP
+    BY article(Item sku), calcColor(sku), calcSize(sku) SUM currentBalance(sku, stock);
 prevCurrentBalance 'Текущий остаток' (Article article, Color color, Size size, Stock stock)= PREV(currentBalance(article, color, size, stock));
 
-currentBalance 'Текущий остаток' (skuGroup, stock) = GROUP BY skuGroup(Sku sku), Stock stock SUM currentBalance(sku,stock);
+currentBalance 'Текущий остаток' (skuGroup, Stock stock) = GROUP BY skuGroup(Sku sku) SUM currentBalance(sku,stock);
 recCurrentBalance 'Текущий остаток' (SkuGroup parent, Stock stock) = GROUP 
     SUM currentBalance(SkuGroup group, stock) IF isParent(group, parent);
 
-quantity (article, stock, date) = GROUP BY article(Item sku), Stock stock, DATE date SUM quantity(sku,stock,date); 
-signedQuantity (article, stock, date) = GROUP BY article(Item sku), Stock stock, DATE date SUM signedQuantity(sku,stock,date); 
+quantity (article, Stock stock, DATE date) = GROUP BY article(Item sku) SUM quantity(sku,stock,date); 
+signedQuantity (article, Stock stock, DATE date) = GROUP BY article(Item sku) SUM signedQuantity(sku,stock,date); 

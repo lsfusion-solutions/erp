@@ -392,9 +392,9 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                        date[Order](userOrder)==dateOrder(scheduleOrderDetail) AND
                        isOpened(scheduleOrderDetail) MATERIALIZED;
                
-    lastScheduleOrderDetailSupplierCustomer (d,s,ss,c,cs) = 
+    lastScheduleOrderDetailSupplierCustomer (DATE d,s,ss,c,cs) = 
         GROUP
-               BY DATE d, supplier(ScheduleOrderDetail sd), supplierStock(sd), customer(sd), customerStock(sd) LAST sd
+               BY supplier(ScheduleOrderDetail sd), supplierStock(sd), customer(sd), customerStock(sd) LAST sd
                ORDER dateOrder(sd), sd 
                WHERE dateOrder(sd) <= (d AS DATE) AND isOpened(sd);             
     isLast (ScheduleOrderDetail sd,DATE d)= lastScheduleOrderDetailSupplierCustomer(d,supplier(sd), supplierStock(sd), customer(sd), customerStock(sd)) == sd;           
@@ -966,11 +966,11 @@ DESIGN legalEntity {
 
 META defineScheduleOrderDashboard(sign, stockFilter)
 
-    countRemaining 'Кол-во оставшихся заказов'##sign (scheduleOrder,date) = GROUP 
-                                                                                            BY scheduleOrder(ScheduleOrderDetail d), DATE date SUM 1 IF dateSupply(d) >= (date AS DATE); 
-    lastScheduleOrderSupplierCustomer (s,ss,c,cs) = 
+    countRemaining 'Кол-во оставшихся заказов'##sign (scheduleOrder,DATE date) = GROUP 
+                                                                                            BY scheduleOrder(ScheduleOrderDetail d) SUM 1 IF dateSupply(d) >= (date AS DATE); 
+    lastScheduleOrderSupplierCustomer (s,ss,c,Stock cs) = 
         GROUP
-               BY supplier(ScheduleOrder scheduleOrder), supplierStock(scheduleOrder), customer(scheduleOrder), Stock customerStock LAST scheduleOrder IF endDate(scheduleOrder) AND in(scheduleOrder, customerStock)
+               BY supplier(ScheduleOrder scheduleOrder), supplierStock(scheduleOrder), customer(scheduleOrder) LAST scheduleOrder IF endDate(scheduleOrder) AND in(scheduleOrder, cs)
                ORDER endDate(scheduleOrder), scheduleOrder 
                WHERE scheduleOrder IS ScheduleOrder;  
                                                                                                                                                                                        

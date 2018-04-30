@@ -137,19 +137,19 @@ include(Stock stock, StopListDetail detail) = active(stock, detail) AND NOT excl
 fromDateTime(Stock stock, StopListDetail detail) = fromDateTime(detail) IF active(stock, detail) MATERIALIZED; 
 toDateTime(Stock stock, StopListDetail detail) = toDateTime(detail) IF active(stock, detail) MATERIALIZED; 
    
-inStopList (sku, stock, dateTime) =
+inStopList (sku, Stock stock, DATETIME dateTime) =
     GROUP
-          BY   sku(Stock stock, StopListDetail detail), stock, DATETIME dateTimeIn LAST include(stock, detail)
+          BY   sku(stock, StopListDetail detail) LAST include(stock, detail)
           ORDER fromDateTime(stock, detail) , detail 
-          WHERE dateTimeIn >= fromDateTime(stock, detail) 
-                AND NOT dateTimeIn >  toDateTime(stock, detail) COMPLEX;        
+          WHERE dateTime >= fromDateTime(stock, detail) 
+                AND NOT dateTime >  toDateTime(stock, detail) COMPLEX;        
 
-lastStopListDetail (sku, stock, dateTime) =
+lastStopListDetail (sku, Stock stock, DATETIME dateTime) =
     GROUP
-          BY   sku(Stock stock, StopListDetail detail), stock, DATETIME dateTimeIn LAST detail IF include(stock, detail)
+          BY   sku(stock, StopListDetail detail) LAST detail IF include(stock, detail)
           ORDER fromDateTime(stock, detail) , detail 
-          WHERE dateTimeIn >= fromDateTime(stock, detail) 
-                AND NOT dateTimeIn >  toDateTime(stock, detail) COMPLEX;        
+          WHERE dateTime >= fromDateTime(stock, detail) 
+                AND NOT dateTime >  toDateTime(stock, detail) COMPLEX;        
 
 skipMachineryPriceTransaction(Sku sku, Stock stock, DATETIME dateTime) += inStopList(sku, stock, dateTime); 
 

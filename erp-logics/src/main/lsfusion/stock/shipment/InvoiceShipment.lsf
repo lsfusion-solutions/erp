@@ -133,7 +133,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     cost = ABSTRACT NUMERIC[16,5] (ShipmentDetail, Batch) MATERIALIZED;
 
     TABLE invoiceDetailBatch (InvoiceDetail, Batch);
-    cost (invoiceDetail, batch) = GROUP BY invoiceDetail(ShipmentDetail shipmentDetail), Batch batch SUM cost(shipmentDetail, batch) MATERIALIZED;
+    cost (invoiceDetail, Batch batch) = GROUP BY invoiceDetail(ShipmentDetail shipmentDetail) SUM cost(shipmentDetail, batch) MATERIALIZED;
     in (InvoiceDetail invoiceDetail, Batch batch) = [= GROUP BY invoiceDetail(ShipmentDetail shipmentDetail) SUM 1 IF cost(shipmentDetail, batch)](invoiceDetail) OR 
                                                      batch(invoiceDetail) == batch MATERIALIZED; // приходится делать OR, так как если количество 0, то партии не расписываются
 
@@ -256,10 +256,10 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     shipmentDimension = ABSTRACT ShipmentDimension (UserInvoiceDetail);
     nameShipmentDimension 'Регистр хранения' (UserInvoiceDetail detail) = name(shipmentDimension(detail));
     shipmentDimension(UserInvoiceDetail detail) += shipmentDimension(detail);
-    defaultInvoiceDetail (sku, userShipment) = GROUP
-        BY sku(InvoiceDetail detail), UserShipment userShipment MAX detail IF include(invoice(detail), userShipment);
-    defaultInvoiceDetail (sku, dimension, userShipment) = GROUP
-        BY sku(InvoiceDetail detail), shipmentDimension(detail), UserShipment userShipment MAX detail IF include(invoice(detail), userShipment);
+    defaultInvoiceDetail (sku, UserShipment userShipment) = GROUP
+        BY sku(InvoiceDetail detail) MAX detail IF include(invoice(detail), userShipment);
+    defaultInvoiceDetail (sku, dimension, UserShipment userShipment) = GROUP
+        BY sku(InvoiceDetail detail), shipmentDimension(detail) MAX detail IF include(invoice(detail), userShipment);
 
     fillInvoiceDetail 'Привязать поставку к накладным'(UserShipmentDetail detail, ShipmentDimension dimension) = {
 

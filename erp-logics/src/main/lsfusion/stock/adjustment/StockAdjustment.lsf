@@ -638,17 +638,17 @@ resetSelectedGroups  'Сбросить отмеченные'() = {
     dataInSession(SkuGroup g) <- NULL WHERE g IS SkuGroup ;    
 }  
 
-toAdjustment (s,st,dt) = GROUP
-        BY sku(Batch b),Stock st,DATETIME dt SUM 1 IF 
+toAdjustment (s,Stock st,DATETIME dt) = GROUP
+        BY sku(Batch b) SUM 1 IF 
     balanceB(b,st,dt) >0 AND balanceB(Batch b1,st,dt) <0 AND b !=b1 AND sku(b) == sku(b1);
 toAdjustment (Stock st,DATETIME dt) = GROUP SUM 1 IF toAdjustment (Sku s,st,dt);
 //abs
 
-toPositiveAdjustment (s,st,dt) = GROUP 
-        BY sku(Batch b),Stock st,DATETIME dt SUM balanceB(b,st,dt) IF 
+toPositiveAdjustment (s,Stock st,DATETIME dt) = GROUP 
+        BY sku(Batch b) SUM balanceB(b,st,dt) IF 
     balanceB(b,st,dt) >0;
-toNegativeAdjustment (s,st,dt) = GROUP 
-        BY sku(Batch b),Stock st,DATETIME dt SUM balanceB(b,st,dt) IF 
+toNegativeAdjustment (s,Stock st,DATETIME dt) = GROUP 
+        BY sku(Batch b) SUM balanceB(b,st,dt) IF 
     balanceB(b,st,dt) <0;
         
 FORM selectParamsAdjustment 'Параметры пересорта'

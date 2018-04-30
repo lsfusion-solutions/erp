@@ -8,17 +8,17 @@ countOrders (Ramp r, DATE d, DATE dateFrom, DATE dateTo) = GROUP
         SUM 1 IF 
     order(r,Interval i,d) AND d >= (dateFrom AS DATE) AND d <= (dateTo AS DATE);
         
-countOrders (stock, date, dateFrom, dateTo) = GROUP
-        BY stock(Ramp r), DATE d, DATE dateFrom, DATE dateTo SUM 1 IF 
-    order(r,Interval i,d) AND d >= (dateFrom AS DATE) AND d <= (dateTo AS DATE);     
+countOrders (stock, DATE date, DATE dateFrom, DATE dateTo) = GROUP
+        BY stock(Ramp r) SUM 1 IF 
+    order(r,Interval i,date) AND date >= (dateFrom AS DATE) AND date <= (dateTo AS DATE);     
 countDates 'Кол-во дней' (Stock stock, DATE dateFrom, DATE dateTo) = GROUP
         SUM 1 IF 
     countOrders (stock, DATE date, dateFrom, dateTo); 
                    
 countLoadInterval (Ramp r, DATE d) = GROUP SUM 1 IF 
     order(r,Interval i,d);  
-countLoadInterval (stock, date) = GROUP BY stock(Ramp r), DATE d SUM 1 IF
-    order(r,Interval i,d);
+countLoadInterval (stock, DATE date) = GROUP BY stock(Ramp r) SUM 1 IF
+    order(r,Interval i,date);
            
 percInterval '% загрузки рампы' (Ramp r,DATE d) = countLoadInterval (r, d) * 100.00 / countInterval(r);            
 percInterval '% загрузки рампы' (Stock st,DATE d) = countLoadInterval (st, d)* 100.00 / countInterval(st) ;          

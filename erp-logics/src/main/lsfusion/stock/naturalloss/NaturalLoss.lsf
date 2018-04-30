@@ -282,15 +282,15 @@ quantity (NaturalLossDetail naturalLossDetail) <- percent(naturalLossDetail) * q
     WHEN CHANGED(percent(naturalLossDetail)) OR
          CHANGED(quantityLoss(naturalLossDetail));
 
-quantitySaleDepartment 'Продано' (sku, stock, dateFrom, dateTo, subNaturalLossGroupDetail) =
+quantitySaleDepartment 'Продано' (sku, stock, DATE dateFrom, DATE dateTo, SubNaturalLossGroupDetail subNaturalLossGroupDetail) =
     GROUP
-              BY sku(SaleLedger ledger), stock(ledger), DATE dateFrom, DATE dateTo, SubNaturalLossGroupDetail subNaturalLossGroupDetail SUM quantity(ledger) IF active(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo
+              BY sku(SaleLedger ledger), stock(ledger) SUM quantity(ledger) IF active(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo
               AND inInterval(date(ledger), subNaturalLossGroupDetail)
               AND subNaturalLossGroup(country(stock(ledger)), sku(ledger)) == subNaturalLossGroup(subNaturalLossGroupDetail);
               
-quantitySaleDepartment 'Продано' (sku, stock, dateFrom, dateTo, subNaturalLossGroupDetail, price) =
+quantitySaleDepartment 'Продано' (sku, stock, DATE dateFrom, DATE dateTo, SubNaturalLossGroupDetail subNaturalLossGroupDetail, price) =
     GROUP
-              BY sku(SaleLedger ledger), stock(ledger), DATE dateFrom, DATE dateTo, SubNaturalLossGroupDetail subNaturalLossGroupDetail, price(ledger) SUM quantity(ledger) IF active(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo
+              BY sku(SaleLedger ledger), stock(ledger), price(ledger) SUM quantity(ledger) IF active(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo
               AND inInterval(date(ledger), subNaturalLossGroupDetail)
               AND subNaturalLossGroup(country(stock(ledger)), sku(ledger)) == subNaturalLossGroup(subNaturalLossGroupDetail);              
 
@@ -339,9 +339,9 @@ toSaleFillDetail 'Заполнить на основе продаж'(NaturalLoss
 //--
 skipNatulassLoss = ABSTRACT BOOLEAN (PurchaseLedger);
 
-quantityPurchaseDepartment 'Поступило' (sku, stock, dateFrom, dateTo, subNaturalLossGroupDetail) =
+quantityPurchaseDepartment 'Поступило' (sku, stock, DATE dateFrom, DATE dateTo, SubNaturalLossGroupDetail subNaturalLossGroupDetail) =
     GROUP
-              BY sku(PurchaseLedger ledger), stock(ledger), DATE dateFrom, DATE dateTo, SubNaturalLossGroupDetail subNaturalLossGroupDetail SUM quantity(ledger) IF active(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo AND NOT skipNatulassLoss(ledger)
+              BY sku(PurchaseLedger ledger), stock(ledger) SUM quantity(ledger) IF active(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo AND NOT skipNatulassLoss(ledger)
               AND inInterval(date(ledger), subNaturalLossGroupDetail)
               AND subNaturalLossGroup(country(stock(ledger)), sku(ledger)) == subNaturalLossGroup(subNaturalLossGroupDetail);
               

@@ -24,7 +24,7 @@ recCountNotCompletedCustomsArticles 'Не обработано (к-во)' (ItemG
 
 // Не заполнены атрибуты
 nullCustoms 'Без атрибутов' (Country country, Item item) =  item IS Item AND country IS Country AND NOT customsGroup(country, item) AND NOT completedCustoms(item);
-nullCustoms 'Без атрибутов' (country, article) = GROUP BY Country country, article(Item item) SUM 1 IF item IS Item AND country IS Country AND NOT customsGroup(country, item) AND NOT completedCustoms(item);
+nullCustoms 'Без атрибутов' (Country country, article) = GROUP BY article(Item item) SUM 1 IF item IS Item AND country IS Country AND NOT customsGroup(country, item) AND NOT completedCustoms(item);
 
 // todo : workaround, так как нельзя в сессионных событиях обращаться к форме
 dateArticleCustomsDashboard 'Дата' = DATA DATE (User);
@@ -216,8 +216,8 @@ WHEN LOCAL FORMS articleCustomsDashboard
 // ------------------------- Автоматическое заполнение свойств --------------------------- //
 
 // ----- ТНВЭД
-count (customsGroup, country, caption, composition) = GROUP
-    BY customsGroup(Country country,Item item), country, caption(item),  composition(item) SUM 1;
+count (customsGroup, Country country, caption, composition) = GROUP
+    BY customsGroup(country,Item item), caption(item),  composition(item) SUM 1;
 
 defaultCustomsGroup (Country country, VARISTRING[255] caption, VARSTRING[255] composition) =
     GROUP
@@ -225,8 +225,8 @@ defaultCustomsGroup (Country country, VARISTRING[255] caption, VARSTRING[255] co
         ORDER count(customsGroup, country, caption, composition), customsGroup
         WHERE count(customsGroup, country, caption, composition);
 
-count (customsGroup, country, caption, composition, gender, originalCustomsGroup) = GROUP
-    BY customsGroup(Country country,Item item), country, caption(item),  composition(item), gender(item), originalCustomsGroup(item) SUM 1;
+count (customsGroup, Country country, caption, composition, gender, originalCustomsGroup) = GROUP
+    BY customsGroup(country,Item item), caption(item),  composition(item), gender(item), originalCustomsGroup(item) SUM 1;
 
 defaultCustomsGroup (Country country, VARISTRING[255] caption, VARSTRING[255] composition, Gender gender, STRING[10] originalCustomsGroup) =
     GROUP
@@ -328,8 +328,8 @@ fillDefaultCustomsGroupItemGender 'Заполнить текущий ТН ВЭД
 } ASON CONTEXTMENU codeCustomsGroup[Country,Item];
 
 // ----- Группы сертификации
-count (complianceGroup, country, caption, composition) = GROUP
-    BY complianceGroup(Country country,Item item), country, caption(item),  composition(item) SUM 1;
+count (complianceGroup, Country country, caption, composition) = GROUP
+    BY complianceGroup(country,Item item), caption(item),  composition(item) SUM 1;
 
 defaultComplianceGroup (Country country, VARISTRING[255] caption, VARSTRING[255] composition) =
     GROUP

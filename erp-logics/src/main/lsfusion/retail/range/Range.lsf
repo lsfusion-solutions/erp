@@ -158,23 +158,23 @@ sumSoldDepartments 'Продано за интервал (сумма) (все м
         SUM
         sumSold(sku, DepartmentStore stock, DATE date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore;
 
-currentBalance 'Остаток (все магазины)' (sku, store) = GROUP  BY Sku sku, store(DepartmentStore stock) SUM currentBalance(sku, stock) IF stock IS DepartmentStore;
-quantitySold 'Продано за интервал (кол-во)' (store, sku, dateFrom, dateTo) = GROUP
-        BY store(DepartmentStore stock), Sku sku, DATE dateFrom, DATE dateTo SUM
+currentBalance 'Остаток (все магазины)' (Sku sku, store) = GROUP  BY store(DepartmentStore stock) SUM currentBalance(sku, stock) IF stock IS DepartmentStore;
+quantitySold 'Продано за интервал (кол-во)' (store, Sku sku, DATE dateFrom, DATE dateTo) = GROUP
+        BY store(DepartmentStore stock) SUM
         quantitySold(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore;
-sumSold 'Продано за интервал (сумма)' (store, sku, dateFrom, dateTo) = GROUP
-        BY store(DepartmentStore stock), Sku sku, DATE dateFrom, DATE dateTo SUM
+sumSold 'Продано за интервал (сумма)' (store, Sku sku, DATE dateFrom, DATE dateTo) = GROUP
+        BY store(DepartmentStore stock) SUM
         sumSold(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore;
 
 dateTimeLastMoved 'Время последнего движения' = GROUP BY Sku sku, store(DepartmentStore stock) MAX dateTimeLastMoved (sku, stock);
 dateLastMoved 'Дата последнего движения'= toDate(dateTimeLastMoved(Sku s,Store st));
                                                                                        
-hasSkus 'Кол-во наименований по всему поставщику' (v, supplier, pt, d) = GROUP 
-    BY RangeRev v, companyA(LedgerPriceListType pt, Sku sku, Stock d, dateTime(v)), pt, d SUM 1 IF inChild(range(v), sku);
+hasSkus 'Кол-во наименований по всему поставщику' (RangeRev v, supplier, LedgerPriceListType pt, Stock d) = GROUP 
+    BY companyA(pt, Sku sku, d, dateTime(v)) SUM 1 IF inChild(range(v), sku);
     
-lastOrderBatch (sku, store) =
+lastOrderBatch (Sku sku, store) =
     GROUP
-        BY Sku sku, store(DepartmentStore stock) LAST lastOrderBatch(sku, stock)
+        BY store(DepartmentStore stock) LAST lastOrderBatch(sku, stock)
         ORDER dateTimeLastOrderBatch(sku, stock), lastOrderBatch(sku, stock)
         WHERE lastOrderBatch(sku, stock);
 dateTimeLastOrderBatch 'Дата последнего прихода' (Sku sku,Store store) = dateTime(lastOrderBatch(sku,store));

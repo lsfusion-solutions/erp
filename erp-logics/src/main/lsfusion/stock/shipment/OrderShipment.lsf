@@ -203,29 +203,29 @@ META defineOrderShipmentExecution (dumb)
 END
 META defineOrderInvoiceSupplierExecution (NS, sign)
                                                       
-    shippedShipmentDetail (supplier, dateFrom, dateTo)= GROUP
-            BY supplier(Order order), DATE dateFrom, DATE dateTo SUM shippedShipmentDetail(order) 
+    shippedShipmentDetail (supplier, DATE dateFrom, DATE dateTo)= GROUP
+            BY supplier(Order order) SUM shippedShipmentDetail(order) 
         IF date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order);                                                   
-    quantityShipmentDetail (supplier, dateFrom, dateTo)= GROUP
-            BY supplier(Order order), DATE dateFrom, DATE dateTo SUM quantityOrderDetail(order) 
+    quantityShipmentDetail (supplier, DATE dateFrom, DATE dateTo)= GROUP
+            BY supplier(Order order) SUM quantityOrderDetail(order) 
         IF date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order);                                                                         
     percentQuantityExecution '% исп. заявки (кол-во)' (LegalEntity supplier, DATE dateFrom, DATE dateTo)= shippedShipmentDetail (supplier, dateFrom, dateTo)*100.00 /
         (quantityShipmentDetail(supplier, dateFrom, dateTo) IF quantityShipmentDetail(supplier, dateFrom, dateTo)!= 0);                                                              
 //--    
-    countShipped (supplier, dateFrom, dateTo)= GROUP
-            BY supplier(Order order), DATE dateFrom, DATE dateTo SUM countShippedOrderDetail(order) 
+    countShipped (supplier, DATE dateFrom, DATE dateTo)= GROUP
+            BY supplier(Order order) SUM countShippedOrderDetail(order) 
         IF date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order);                                                   
-    count (supplier, dateFrom, dateTo)= GROUP
-            BY supplier(Order order), DATE dateFrom, DATE dateTo SUM countOrderDetail(order) 
+    count (supplier, DATE dateFrom, DATE dateTo)= GROUP
+            BY supplier(Order order) SUM countOrderDetail(order) 
         IF date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order);      
     percentCountExecution '% исп. заявки (позиции)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) = countShipped (supplier, dateFrom, dateTo)*100.00 /
         (count(supplier, dateFrom, dateTo) IF count(supplier, dateFrom, dateTo)!=0);
 //--    
-    sumShipped (supplier, dateFrom, dateTo)= GROUP
-            BY supplier(Order order), DATE dateFrom, DATE dateTo SUM sumShippedOrderDetail(order) 
+    sumShipped (supplier, DATE dateFrom, DATE dateTo)= GROUP
+            BY supplier(Order order) SUM sumShippedOrderDetail(order) 
         IF date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order);                                                   
-    sum (supplier, dateFrom, dateTo)= GROUP
-            BY supplier(Order order), DATE dateFrom, DATE dateTo SUM sumOrderDetail(order) 
+    sum (supplier, DATE dateFrom, DATE dateTo)= GROUP
+            BY supplier(Order order) SUM sumOrderDetail(order) 
         IF date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order);      
     percentSumExecution '% исп. заявки (сумма)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) = sumShipped(supplier, dateFrom, dateTo)*100.00 /
         (sum(supplier, dateFrom, dateTo) IF sum(supplier, dateFrom, dateTo)!=0);    

@@ -36,14 +36,14 @@ META defineContractLedgerPrefix (caption, prefix)
 
     balanceB###prefix 'Задолженность на начало дня'###caption (Contract contract, DATE date) =
         GROUP
-              BY contract(Contract###prefix##Ledger contract###prefix##Ledger), DATE date SUM sum(contract###prefix##Ledger) IF active(contract###prefix##Ledger)
+              BY contract(Contract###prefix##Ledger contract###prefix##Ledger) SUM sum(contract###prefix##Ledger) IF active(contract###prefix##Ledger)
                   AND date(contract###prefix##Ledger) < date;
 
     prevBalanceB###prefix 'Задолженность на начало дня'###caption (Contract contract, DATE date) = PREV(balanceB###prefix(contract, date));
 
     balanceA###prefix 'Задолженность на конец дня'###caption (Contract contract, DATE date) =
         GROUP
-              BY contract(Contract###prefix##Ledger contract###prefix##Ledger), DATE date SUM sum(contract###prefix##Ledger) IF active(contract###prefix##Ledger)
+              BY contract(Contract###prefix##Ledger contract###prefix##Ledger) SUM sum(contract###prefix##Ledger) IF active(contract###prefix##Ledger)
                   AND date(contract###prefix##Ledger) <= date;
 
 END
@@ -295,8 +295,8 @@ minDateContractLedger = GROUP BY inContractLedger(ContractLedger l) MIN date(l) 
 
 //------------------------------------------- Платеж по договору -----------------------------------------------------//
 
-debtSum 'Долг по документам на дату' (contract, date) = GROUP
-                                                                  BY contract(InContractLedger inContractLedger), DATE date SUM debt(inContractLedger, date) IF
+debtSum 'Долг по документам на дату' (contract, DATE date) = GROUP
+                                                                  BY contract(InContractLedger inContractLedger) SUM debt(inContractLedger, date) IF
                                                                             active(inContractLedger) AND
                                                                             date(inContractLedger) <= date;
 

@@ -40,11 +40,11 @@ prevStatus 'Статус качества сервиса'  =
 
 isChange = DATA LOCAL NESTED BOOLEAN (ContractSku);
 
-sumShippedService (contract, dateFrom, dateTo)= GROUP
-        BY contractSku(Order order), DATE dateFrom, DATE dateTo SUM sumShippedOrderDetail(order) 
+sumShippedService (contract, DATE dateFrom, DATE dateTo)= GROUP
+        BY contractSku(Order order) SUM sumShippedOrderDetail(order) 
     IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order);                                                   
-sumService (contract, dateFrom, dateTo)= GROUP
-        BY contractSku(Order order), DATE dateFrom, DATE dateTo SUM sumOrderDetail(order) 
+sumService (contract, DATE dateFrom, DATE dateTo)= GROUP
+        BY contractSku(Order order) SUM sumOrderDetail(order) 
     IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order);      
 percentSumExecutionService '% исп. заявки (сумма)' (ContractSku c, DATE dateFrom, DATE dateTo) = sumShippedService(c, dateFrom, dateTo)*100.00 /
     (sumService(c, dateFrom, dateTo) IF sumService(c, dateFrom, dateTo)!=0);   

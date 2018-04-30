@@ -1390,8 +1390,8 @@ countProducts (sku) = GROUP BY sku(Product p) SUM 1 MATERIALIZED ;
 isActiveBOM (sku) = GROUP BY sku(Product p) SUM 1 IF isActive(BOM(p));
 //defaultProductSku (sku)= GROUP MIN product BY skuProduct(product);
 
-countProducts (sku, stock, date) = GROUP BY sku(Product p), Stock stock, DATE date SUM 1 IF isActive(BOM(p), date) AND in(BOM(p), stock);
-defaultProduct (sku, stock, date)= GROUP BY sku(Product p), Stock stock, DATE date MIN p IF isActive(BOM(p), date) AND in(BOM(p), stock);
+countProducts (sku, Stock stock, DATE date) = GROUP BY sku(Product p) SUM 1 IF isActive(BOM(p), date) AND in(BOM(p), stock);
+defaultProduct (sku, Stock stock, DATE date)= GROUP BY sku(Product p) MIN p IF isActive(BOM(p), date) AND in(BOM(p), stock);
 
 WHEN LOCAL FORMS order CHANGED(sku(ProductDetail d)) AND NOT CHANGED(product(d)) AND countProducts(sku(d), componentsStock(d), date(d)) == 1 NOINLINE DO {
     product(d) <- defaultProduct(sku(d), componentsStock(d), date(d));
@@ -1412,8 +1412,8 @@ EXTEND FORM BOMs
     FILTERGROUP bom1 FILTER 'Активные' isActive(b1) 'F7' DEFAULT                                                     
     FILTERGROUP bom2 FILTER 'Активные' isActive(b2) 'F7' DEFAULT                                                     
 ;                                                               
-countComponents (material, stock, date) = GROUP BY material(Component c) AS Sku, Stock stock, DATE date SUM 1 IF isActive(BOM(c), date) AND in(BOM(c),stock);
-defaultComponents (material, stock, date)= GROUP BY material(Component c) AS Sku, Stock stock, DATE date MIN c IF isActive(BOM(c), date) AND in(BOM(c),stock);                                                                  
+countComponents (material, Stock stock, DATE date) = GROUP BY material(Component c) AS Sku SUM 1 IF isActive(BOM(c), date) AND in(BOM(c),stock);
+defaultComponents (material, Stock stock, DATE date)= GROUP BY material(Component c) AS Sku MIN c IF isActive(BOM(c), date) AND in(BOM(c),stock);                                                                  
                                                                      
 //WHEN LOCAL FORMS order CHANGED(bruttoSkuComponentDetail(d)) NOINLINE DO {
 //    componentComponentDetail(d) <- defaultComponentsSku(bruttoSkuComponentDetail(d))

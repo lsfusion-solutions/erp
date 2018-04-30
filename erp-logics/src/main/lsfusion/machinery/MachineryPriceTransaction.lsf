@@ -156,8 +156,8 @@ dateTimeSucceeded 'Время загрузки' = DATA DATETIME(Machinery, Machi
 
 countSucceededMachineries'Кол-во загруженного оборудования' (t) = 
     GROUP 
-          BY priceTransactionDocument(MachineryPriceTransaction t) SUM 1 IF succeeded(Machinery m, t) OR 
-                   (succeeded(t) AND groupMachinery(m) == groupMachinery(t)) MATERIALIZED;
+          BY priceTransactionDocument(MachineryPriceTransaction mt) SUM 1 IF succeeded(Machinery m, mt) OR 
+                   (succeeded(mt) AND groupMachinery(m) == groupMachinery(mt)) MATERIALIZED;
     
 countSucceededMachineries'Кол-во загруженного оборудования' (MachineryPriceTransaction t) = GROUP SUM 1 
     IF succeeded(Machinery m,t) MATERIALIZED;
@@ -200,9 +200,9 @@ dateTimeIn = dateTime(MachineryPriceTransaction transaction) IF in(transaction, 
     
 INDEX groupIn(MachineryPriceTransaction t, Barcode b), b, dateTimeIn(t,b), t;
     
-lastTransaction (barcode, groupMachinery) = 
+lastTransaction (Barcode barcode, groupMachinery) = 
     GROUP 
-          BY Barcode barcode, groupIn(MachineryPriceTransaction transaction, barcode) LAST transaction
+          BY groupIn(MachineryPriceTransaction transaction, barcode) LAST transaction
           ORDER dateTimeIn(transaction, barcode), transaction
           WHERE NOT canceled(transaction) MATERIALIZED;
 
@@ -212,9 +212,9 @@ lastTransaction (sku, stock) =
           ORDER dateTimeIn(lastTransaction(b, g), b), lastTransaction(b, g)
           WHERE lastTransaction(b, g);
           
-lastFullTransaction (barcode, groupMachinery) = 
+lastFullTransaction (Barcode barcode, groupMachinery) = 
     GROUP 
-          BY Barcode barcode, groupMachinery(MachineryPriceTransaction transaction) LAST transaction
+          BY groupMachinery(MachineryPriceTransaction transaction) LAST transaction
           ORDER dateTime(transaction), transaction
           WHERE in(transaction, barcode) AND NOT canceled(transaction);
           
@@ -228,11 +228,11 @@ transactionPrice 'Текущая цена в оборудовании' (Barcode 
     price(lastTransaction(barcode, groupMachinery), barcode) MATERIALIZED;
 prevTransactionPrice (Barcode barcode, GroupMachinery groupMachinery) = price(prevLastTransaction(barcode, groupMachinery),barcode);
 
-transactionPrice 'Текущая цена в оборудовании' (barcode, stock) =
+transactionPrice 'Текущая цена в оборудовании' (Barcode barcode, stock) =
     GROUP 
-          BY Barcode b, stock(GroupMachinery g) LAST transactionPrice(b, g)
-          ORDER dateTimeIn(lastTransaction(b, g), b), lastTransaction(b, g)
-          WHERE lastTransaction(b, g);
+          BY stock(GroupMachinery g) LAST transactionPrice(barcode, g)
+          ORDER dateTimeIn(lastTransaction(barcode, g), barcode), lastTransaction(barcode, g)
+          WHERE lastTransaction(barcode, g);
 
 transactionPrice 'Текущая цена в оборудовании' (Sku sku, Stock stock) =
     transactionPrice(barcode(sku), stock) MATERIALIZED TABLE extraSkuStock;
@@ -267,11 +267,11 @@ machineryPriceTransaction 'Транзакция (ID)' = DATA MachineryPriceTrans
 quantityMachineryPriceTransactionError 'Количество ошибок' (MachineryPriceTransaction) = GROUP BY machineryPriceTransaction (MachineryPriceTransactionError machineryPriceTransactionError) SUM 1 MATERIALIZED IN base;
 lastDateMachineryPriceTransactionError 'Время последней ошибки' (MachineryPriceTransaction) = GROUP BY machineryPriceTransaction (MachineryPriceTransactionError machineryPriceTransactionError) MAX date(machineryPriceTransactionError) MATERIALIZED;
 
-lastTransaction (barcode, stock) =
+lastTransaction (Barcode barcode, stock) =
     GROUP
-          BY Barcode b, stock(GroupMachinery g) LAST lastTransaction(b, g)
-          ORDER dateTimeIn(lastTransaction(b, g), b), lastTransaction(b, g)
-          WHERE lastTransaction(b, g);
+          BY stock(GroupMachinery g) LAST lastTransaction(barcode, g)
+          ORDER dateTimeIn(lastTransaction(barcode, g), barcode), lastTransaction(barcode, g)
+          WHERE lastTransaction(barcode, g);
 
 backgroundLastTransaction (Sku sku, Stock stock) = RGB (255,0,0) IF quantityMachineryPriceTransactionError(lastTransaction(barcode(sku), stock)) AND NOT
     succeeded(lastTransaction (barcode(sku), stock));  

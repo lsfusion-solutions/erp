@@ -136,11 +136,11 @@ META defineOrderInvoice(sign, stockProp)
 
     // ------------------------------- Создание нового инвойса на основе заказов ---------------------------- //
 
-    inSupplier (order, supplierStock) = GROUP BY order(OrderDetail orderDetail), Stock supplierStock SUM 1 IF supplierStock(orderDetail) == supplierStock;
-    inSupplier (order, legalEntity) = GROUP BY order(OrderDetail orderDetail), LegalEntity supplier SUM 1 IF legalEntity(supplierStock(orderDetail)) == supplier;
+    inSupplier (order, Stock supplierStock) = GROUP BY order(OrderDetail orderDetail) SUM 1 IF supplierStock(orderDetail) == supplierStock;
+    inSupplier (order, LegalEntity legalEntity) = GROUP BY order(OrderDetail orderDetail) SUM 1 IF legalEntity(supplierStock(orderDetail)) == legalEntity;
 
-    inCustomer (order, customerStock) = GROUP BY order(OrderDetail orderDetail), Stock customerStock SUM 1 IF customerStock(orderDetail) == customerStock;
-    inCustomer (order, legalEntity) = GROUP BY order(OrderDetail orderDetail), LegalEntity customer SUM 1 IF legalEntity(customerStock(orderDetail)) == customer;
+    inCustomer (order, Stock customerStock) = GROUP BY order(OrderDetail orderDetail) SUM 1 IF customerStock(orderDetail) == customerStock;
+    inCustomer (order, LegalEntity legalEntity) = GROUP BY order(OrderDetail orderDetail) SUM 1 IF legalEntity(customerStock(orderDetail)) == legalEntity;
 
     useExplicitBatchDetailUserInvoice = ABSTRACT BOOLEAN (Order);
     forceExplicitBatchDetailUserInvoice = ABSTRACT BOOLEAN (Order);
@@ -529,11 +529,11 @@ META defineOrderInvoice(sign, stockProp)
     defaultOrder (UserInvoice i) = GROUP MAX Order o IF include(o, i);
     skipSetContractSku(UserInvoice o) += contractSku(defaultOrder(o)) IS ContractSku; 
 
-    defaultOrderDetail (batch, userInvoice) = GROUP 
-        BY batch(OrderDetail detail), UserInvoice userInvoice MAX detail IF include(order(detail), userInvoice);
+    defaultOrderDetail (batch, UserInvoice userInvoice) = GROUP 
+        BY batch(OrderDetail detail) MAX detail IF include(order(detail), userInvoice);
 
-    defaultOrderDetail (sku, userInvoice) = GROUP 
-        BY sku(OrderDetail detail), UserInvoice userInvoice MAX detail IF include(order(detail), userInvoice);
+    defaultOrderDetail (sku, UserInvoice userInvoice) = GROUP 
+        BY sku(OrderDetail detail) MAX detail IF include(order(detail), userInvoice);
     
     defaultOrderDetail(UserInvoiceDetail detail) = OVERRIDE defaultOrderDetail(batch(detail), userInvoice(detail)), defaultOrderDetail(sku(detail), userInvoice(detail));
 

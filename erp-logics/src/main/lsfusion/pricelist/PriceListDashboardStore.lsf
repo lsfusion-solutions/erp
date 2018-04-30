@@ -5,26 +5,26 @@ REQUIRE PriceListDashboard, StoreSkuLedger, PriceListStore;
 // -------------------- В прайсе ----------------- //
 
 // по организациям
-countDepartmentStoreA 'В прайсе' (type, sku, store, company, dateTime) =
+countDepartmentStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, store, LegalEntity company, DATETIME dateTime) =
     GROUP
-    BY LedgerPriceListType type, Sku sku, store(DepartmentStore stock), LegalEntity company, DATETIME dateTime SUM 1 IF priceA(type, sku, stock, company, dateTime);
+    BY store(DepartmentStore stock) SUM 1 IF priceA(type, sku, stock, company, dateTime);
 
-countStoreA 'В прайсе' (type, sku, storeType, company, dateTime) =
+countStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, storeType, LegalEntity company, DATETIME dateTime) =
     GROUP
-    BY LedgerPriceListType type, Sku sku, storeType(Store store), LegalEntity company, DATETIME dateTime SUM 1 IF countDepartmentStoreA(type, sku, store, company, dateTime);
+    BY storeType(Store store) SUM 1 IF countDepartmentStoreA(type, sku, store, company, dateTime);
 
 countStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime) =
     GROUP
     SUM 1 IF countDepartmentStoreA(type, sku, Store store, company, dateTime);
 
 // по складам
-countDepartmentStoreA 'В прайсе' (type, sku, store, dateTime) =
+countDepartmentStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, store, DATETIME dateTime) =
     GROUP
-    BY LedgerPriceListType type, Sku sku, store(DepartmentStore stock), DATETIME dateTime SUM 1 IF priceA(type, sku, stock, dateTime);
+    BY store(DepartmentStore stock) SUM 1 IF priceA(type, sku, stock, dateTime);
 
-countStoreA 'В прайсе' (type, sku, storeType, dateTime) =
+countStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, storeType, DATETIME dateTime) =
     GROUP
-    BY LedgerPriceListType type, Sku sku, storeType(Store store), DATETIME dateTime SUM 1 IF countDepartmentStoreA(type, sku, store, dateTime);
+    BY storeType(Store store) SUM 1 IF countDepartmentStoreA(type, sku, store, dateTime);
 
 countStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, DATETIME dateTime) =
     GROUP
@@ -32,9 +32,9 @@ countStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, DATETIME dateT
 
 // --------------------- В наличии ---------------- //
 
-countStoreA 'В наличии' (sku, storeType, dateTime) =
+countStoreA 'В наличии' (Sku sku, storeType, DATETIME dateTime) =
     GROUP
-    BY Sku sku, storeType(Store store), DATETIME dateTime SUM 1 IF balanceA(sku, store, dateTime);
+    BY storeType(Store store) SUM 1 IF balanceA(sku, store, dateTime);
 
 EXTEND FORM priceListDashboard
     // --- По организациям

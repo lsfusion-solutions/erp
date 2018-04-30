@@ -93,17 +93,17 @@ usdCurrency = currencyShortName('USD') MATERIALIZED;
 blrCurrency = currencyShortName('BYN') MATERIALIZED;
 pharmacyExchange (price, DATE date) = price / rateOn(pharmacyTypeExchange(), usdCurrency(), date);
 
-wholesaleMarkupPharmacy 'Оптовая надбавка' (priceGroup, price, date) =
+wholesaleMarkupPharmacy 'Оптовая надбавка' (priceGroup, NUMERIC[16,4] price, DATE date) =
     GROUP
-          BY pharmacyGroupPharmacy(PharmacyPriceInterval interval), NUMERIC[16,4] price, DATE date LAST wholesaleMarkup(interval)
+          BY pharmacyGroupPharmacy(PharmacyPriceInterval interval) LAST wholesaleMarkup(interval)
           ORDER pricePharmacy(interval), interval
           WHERE pharmacyExchange(price AS NUMERIC[16,4], date) > pricePharmacy(interval) AND
                 date >= fromDatePharmacy(interval) AND NOT date > toDatePharmacy(interval) COMPLEX;
 prevWholesaleMarkupPharmacy 'Оптовая надбавка (пред.)' (PharmacyPriceGroup priceGroup, NUMERIC[16,4] price, DATE date) = PREV(wholesaleMarkupPharmacy(priceGroup, price, date)) COMPLEX;
 
-retailMarkupPharmacy 'Оптовая надбавка' (priceGroup, price, date) =
+retailMarkupPharmacy 'Оптовая надбавка' (priceGroup, NUMERIC[16,4] price, DATE date) =
     GROUP
-          BY pharmacyGroupPharmacy(PharmacyPriceInterval interval), NUMERIC[16,4] price, DATE date LAST retailMarkup(interval)
+          BY pharmacyGroupPharmacy(PharmacyPriceInterval interval) LAST retailMarkup(interval)
           ORDER pricePharmacy(interval), interval
           WHERE pharmacyExchange(price AS NUMERIC[16,4], date) > pricePharmacy(interval) AND
                 date >= fromDatePharmacy(interval) AND NOT date > toDatePharmacy(interval) COMPLEX;

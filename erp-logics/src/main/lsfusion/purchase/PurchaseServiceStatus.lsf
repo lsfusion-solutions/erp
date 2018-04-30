@@ -79,11 +79,11 @@ overExcludeService  = ABSTRACT VALUE BOOLEAN (Purchase.Order);
 excludeService 'Исключить из подстчета "Качество сервиса"' (Purchase.Order o) = [ = GROUP BY order(OrderDetail idetail) SUM 1 IF sum(idetail) AND excludePercService(skuGroup(sku(idetail)))](o)
                                                                                    OR overExcludeService(o);
 
-sumShippedService (supplier, dateFrom, dateTo)= GROUP
-        BY supplier(Order order), DATE dateFrom, DATE dateTo SUM sumShippedOrderDetail(order) 
+sumShippedService (supplier, DATE dateFrom, DATE dateTo)= GROUP
+        BY supplier(Order order) SUM sumShippedOrderDetail(order) 
     IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order);                                                   
-sumService (supplier, dateFrom, dateTo)= GROUP
-        BY supplier(Order order), DATE dateFrom, DATE dateTo SUM sumOrderDetail(order) 
+sumService (supplier, DATE dateFrom, DATE dateTo)= GROUP
+        BY supplier(Order order) SUM sumOrderDetail(order) 
     IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order);      
 percentSumExecutionService '% исп. заявки (сумма)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) = sumShippedService(supplier, dateFrom, dateTo)*100.00 /
     (sumService(supplier, dateFrom, dateTo) IF sumService(supplier, dateFrom, dateTo)!=0);   
