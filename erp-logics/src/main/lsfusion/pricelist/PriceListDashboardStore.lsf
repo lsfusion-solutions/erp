@@ -6,12 +6,12 @@ REQUIRE PriceListDashboard, StoreSkuLedger, PriceListStore;
 
 // по организациям
 countDepartmentStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, store, LegalEntity company, DATETIME dateTime) =
-    GROUP
-    BY store(DepartmentStore stock) SUM 1 IF priceA(type, sku, stock, company, dateTime);
+    GROUP SUM 1 IF priceA(type, sku, DepartmentStore stock, company, dateTime)
+    BY store(stock);
 
 countStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, storeType, LegalEntity company, DATETIME dateTime) =
-    GROUP
-    BY storeType(Store store) SUM 1 IF countDepartmentStoreA(type, sku, store, company, dateTime);
+    GROUP SUM 1 IF countDepartmentStoreA(type, sku, Store store, company, dateTime)
+    BY storeType(store);
 
 countStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime) =
     GROUP
@@ -19,12 +19,12 @@ countStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, LegalEntity co
 
 // по складам
 countDepartmentStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, store, DATETIME dateTime) =
-    GROUP
-    BY store(DepartmentStore stock) SUM 1 IF priceA(type, sku, stock, dateTime);
+    GROUP SUM 1 IF priceA(type, sku, DepartmentStore stock, dateTime)
+    BY store(stock);
 
 countStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, storeType, DATETIME dateTime) =
-    GROUP
-    BY storeType(Store store) SUM 1 IF countDepartmentStoreA(type, sku, store, dateTime);
+    GROUP SUM 1 IF countDepartmentStoreA(type, sku, Store store, dateTime)
+    BY storeType(store);
 
 countStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, DATETIME dateTime) =
     GROUP
@@ -33,8 +33,8 @@ countStoreA 'В прайсе' (LedgerPriceListType type, Sku sku, DATETIME dateT
 // --------------------- В наличии ---------------- //
 
 countStoreA 'В наличии' (Sku sku, storeType, DATETIME dateTime) =
-    GROUP
-    BY storeType(Store store) SUM 1 IF balanceA(sku, store, dateTime);
+    GROUP SUM 1 IF balanceA(sku, Store store, dateTime)
+    BY storeType(store);
 
 EXTEND FORM priceListDashboard
     // --- По организациям
@@ -130,14 +130,14 @@ createRetailPricesCompany(LegalEntity company, DATETIME dateTime, PriceListType 
 
 // Изменение цен
 modifyRetailPricesData 'Изменить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = {
-    FOR [= GROUP BY companyA(dataPriceListType, Sku s, stock, dateTime) SUM 1 IF in(s)] (LegalEntity company) DO {
+    FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(dataPriceListType, s, stock, dateTime)] (LegalEntity company) DO {
         createRetailPricesCompany(company, dateTime, dataPriceListType, stock);
     }
 }
 
 // Исключение из ассортимента
 excludeRetailData 'Исключить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = {
-    FOR [= GROUP BY companyA(dataPriceListType, Sku s, stock, dateTime) SUM 1 IF in(s)] (LegalEntity company) DO {
+    FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(dataPriceListType, s, stock, dateTime)] (LegalEntity company) DO {
         createRetailCompany(company, dateTime, dataPriceListType, stock);
     }
 }

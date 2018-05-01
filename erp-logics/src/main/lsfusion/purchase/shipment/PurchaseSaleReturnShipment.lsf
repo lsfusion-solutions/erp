@@ -69,7 +69,7 @@ overCopy[SaleReturn.UserShipmentDetail,SaleReturn.UserShipmentDetail](SaleReturn
     shipmentDetail(d) <- shipmentDetail(detail);             
 } 
 
-quantityShipmentDetail (purchaseReturn, saleReturn) = GROUP BY shipment(shipmentDetail(SaleReturn.ShipmentDetail detail)), shipment(detail) SUM quantity(detail);
+quantityShipmentDetail (purchaseReturn, saleReturn) = GROUP SUM quantity(SaleReturn.ShipmentDetail detail) BY shipment(shipmentDetail(detail)), shipment(detail);
 
 saleShipments 'Поставки (закупка-возврат)' (SaleReturn.Shipment saleReturn) = GROUP
                                                         CONCAT VARSTRING[255](description(Shipment purchaseReturn)) IF quantityShipmentDetail(purchaseReturn, saleReturn) , ', '
@@ -77,8 +77,8 @@ saleShipments 'Поставки (закупка-возврат)' (SaleReturn.Shi
 
 relationSaleReturn 'Связь' (SaleReturn.Shipment saleReturn) = GROUP SUM quantityShipmentDetail (Shipment purchaseReturn, saleReturn) MATERIALIZED;
 
-shipped 'Кол-во (поставлено)' (shipmentDetail) = GROUP
-                                                                   BY shipmentDetail(SaleReturn.ShipmentDetail detail) SUM quantity(detail) IF isPosted(detail) MATERIALIZED;
+shipped 'Кол-во (поставлено)' (shipmentDetail) = GROUP SUM quantity(SaleReturn.ShipmentDetail detail) IF isPosted(detail)
+                                                                   BY shipmentDetail(detail) MATERIALIZED;
 
 toShip 'Не поставлено' (ShipmentDetail shipmentDetail) = quantity (shipmentDetail) (-) shipped(shipmentDetail);
 

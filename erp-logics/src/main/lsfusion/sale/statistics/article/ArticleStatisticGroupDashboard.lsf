@@ -18,7 +18,7 @@ DESIGN options {
 }
 
 completedStatisticGroup 'Обработан' = DATA BOOLEAN (Item);
-notCompletedStatisticGroup 'Не обработан' (article) = GROUP BY article(Item i) SUM 1 IF i IS Item AND NOT completedStatisticGroup(i);
+notCompletedStatisticGroup 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedStatisticGroup(i) BY article(i);
 completedStatisticGroup 'Обработан' = Article a IS Article AND NOT notCompletedStatisticGroup(a);
 
 changeCompletedStatisticGroup (Article article) = {
@@ -28,13 +28,13 @@ changeCompletedStatisticGroup (Article article) = {
 
 // Подсчет непереведенных артикулов для групп
 countNotCompletedStatisticGroupArticles 'Не обработано (к-во)' (group) = 
-    GROUP BY itemGroup(Article article) SUM 1 IF completedTranslate(article) AND notCompletedStatisticGroup(article) AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser()));
+    GROUP SUM 1 IF completedTranslate(Article article) AND notCompletedStatisticGroup(article) AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser())) BY itemGroup(article);
 recCountNotCompletedStatisticGroupArticles 'Не обработано (к-во)' (ItemGroup parent) = GROUP SUM countNotCompletedStatisticGroupArticles(ItemGroup child) IF isParent(child, parent);
 
 // Не заполнены атрибуты
 
 nullStatisticGroup (Item item)= item IS Item AND NOT completedStatisticGroup(item) AND NOT statistic(statisticGroupTypeProcessesGroup(), item);  
-nullStatisticGroup (article)= GROUP BY article(Item item) SUM 1 IF nullStatisticGroup(item) AND NOT completedStatisticGroup(item);    
+nullStatisticGroup (article)= GROUP SUM 1 IF nullStatisticGroup(Item item) AND NOT completedStatisticGroup(item) BY article(item);    
 
 filterStatisticInvoice = DATA LOCAL Purchase.Invoice ();
 descriptionFilterStatisticInvoice 'Накладная' = description(filterStatisticInvoice());

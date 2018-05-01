@@ -12,7 +12,7 @@ picking = DATA Picking (InternetOrderDetail) INDEXED;
 in 'Вкл.' (Picking o, InternetOrderDetail d) = picking(d) == o;
 @defineDocumentHeaderCount(picking, InternetOrderDetail);
 
-relation = GROUP BY Picking o, internetOrder(InternetOrderDetail d) SUM 1 IF in(o, d);
+relation = GROUP SUM 1 IF in(Picking o, InternetOrderDetail d) BY o, internetOrder(d);
 
 seriesNumberInternetOrders 'Интернет-заказы' (Picking picking) = GROUP
                                                  CONCAT seriesNumber(InternetOrder order) IF relation(picking, order) , ', '
@@ -25,7 +25,7 @@ defaultPickingIndex 'Номер строки (авт.)' (InternetOrderDetail d) 
 indexPicking 'Номер строки' (InternetOrderDetail d) = OVERRIDE dataPickingIndex(d), defaultPickingIndex(d) IN recognize;  
 
 sortOrder 'Порядок сортировки' (d) = ABSTRACT VARSTRING[100] (InternetOrderDetail);
-sortOrderInternetOrderDetail = GROUP BY picking(InternetOrderDetail d) SUM 1 IF sortOrder(d);
+sortOrderInternetOrderDetail = GROUP SUM 1 IF sortOrder(InternetOrderDetail d) BY picking(d);
 
 updateSortOrder 'Сортировать'(InternetOrderDetail detail) = {
     IF sortOrderInternetOrderDetail(picking(detail)) THEN {    
@@ -91,9 +91,9 @@ calcPickingSum(InternetOrderDetail internetOrderDetail) += NUMERIC[18,4](round(p
 pickingSum (InternetOrderDetail internetOrderDetail) <- calcPickingSum(internetOrderDetail)
                 WHEN DO CHANGED(pickingQuantity(internetOrderDetail)) OR CHANGED (price(internetOrderDetail)) OR CHANGED(currency(internetOrderDetail));
 
-pickingSumInternetOrderDetail 'Сумма (всего) собрано'  = GROUP BY internetOrder(InternetOrderDetail idetail) SUM pickingSum(idetail) IN documentSum MATERIALIZED;
-pickingSumInternetOrderDetail 'Сумма (всего) собрано'  = GROUP BY picking(InternetOrderDetail idetail) SUM pickingSum(idetail) IN documentSum MATERIALIZED;
-pickingQuantityInternetOrderDetail 'Кол-во (всего) собрано'  = GROUP BY picking(InternetOrderDetail idetail) SUM pickingQuantity(idetail) IN documentSum MATERIALIZED;
+pickingSumInternetOrderDetail 'Сумма (всего) собрано'  = GROUP SUM pickingSum(InternetOrderDetail idetail) BY internetOrder(idetail) IN documentSum MATERIALIZED;
+pickingSumInternetOrderDetail 'Сумма (всего) собрано'  = GROUP SUM pickingSum(InternetOrderDetail idetail) BY picking(idetail) IN documentSum MATERIALIZED;
+pickingQuantityInternetOrderDetail 'Кол-во (всего) собрано'  = GROUP SUM pickingQuantity(InternetOrderDetail idetail) BY picking(idetail) IN documentSum MATERIALIZED;
 
 discountSumPicking 'Сумма со скидкой' (InternetOrderDetail d) = NUMERIC[18,4](round(pickingQuantity(d) * discountPrice(d), currency(d))); 
 diffDiscountSumPicking(InternetOrderDetail d) = pickingSum(d) (-) discountSumPicking(d);
@@ -263,8 +263,8 @@ skipFilter = ABSTRACT BOOLEAN (InternetOrderDetail);
 filterDashboard (InternetOrderDetail detail)= select(internetOrder(detail)) AND status(internetOrder(detail)) == StatusInternetOrder.agreed  
     AND NOT picking(detail) AND NOT skipFilter(detail);
     
-filterDashboard = GROUP  
-    BY internetOrder(InternetOrderDetail detail) SUM 1 IF status(internetOrder(detail)) == StatusInternetOrder.agreed AND NOT picking(detail) AND NOT skipFilter(detail) AND NOT isClosed(detail);
+filterDashboard = GROUP SUM 1 IF status(internetOrder(InternetOrderDetail detail)) == StatusInternetOrder.agreed AND NOT picking(detail) AND NOT skipFilter(detail) AND NOT isClosed(detail)  
+    BY internetOrder(detail);
     
 createPicking 'Создать комплектацию' (InternetOrder order) = {
     IF NOT countInternetOrders() THEN {
@@ -273,7 +273,7 @@ createPicking 'Создать комплектацию' (InternetOrder order) = 
     IF countInternetOrders() THEN  {      
         LOCAL NESTED  ok = BOOLEAN ();
         ok() <- NULL;
-        FOR [=GROUP BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail d), carrier(internetOrder(d)) SUM 1 IF select(internetOrder(d)) AND NOT picking(d) AND filterDashboard(d)](Stock stock, Carrier carrier) DO {
+        FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT picking(d) AND filterDashboard(d) BY Sale.supplierStock[InternetOrderDetail](d), carrier(internetOrder(d))](Stock stock, Carrier carrier) DO {
             NEWSESSION {
                 NEW p = Picking{
                     stock(p) <- stock;

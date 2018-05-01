@@ -4,10 +4,10 @@ REQUIRE EVAT, SaleInvoiceEvat;
 
 NAMESPACE EVAT;
 
-countEVAT 'К-во док-ов' = GROUP BY EVATDocument(EVAT e) SUM 1 IF NOT statusServerStatus(e) == EVATServerStatus.cancelled CHARWIDTH 10;
-countCompletedEVAT 'К-во док-ов (COMPLETED)' = GROUP BY EVATDocument(EVAT e) SUM 1 IF statusServerStatus(e) == EVATServerStatus.completed CHARWIDTH 10;
-countErrorEVAT 'К-во док-ов (ERROR)' = GROUP BY EVATDocument(EVAT e) SUM 1 IF statusServerStatus(e) == EVATServerStatus.error;
-VATSumEVAT 'Сумма НДС док-ов' = GROUP  BY EVATDocument(EVAT e) SUM totalVATSum(e) IF NOT statusServerStatus(e) == EVATServerStatus.cancelled CHARWIDTH 10;
+countEVAT 'К-во док-ов' = GROUP SUM 1 IF NOT statusServerStatus(EVAT e) == EVATServerStatus.cancelled BY EVATDocument(e) CHARWIDTH 10;
+countCompletedEVAT 'К-во док-ов (COMPLETED)' = GROUP SUM 1 IF statusServerStatus(EVAT e) == EVATServerStatus.completed BY EVATDocument(e) CHARWIDTH 10;
+countErrorEVAT 'К-во док-ов (ERROR)' = GROUP SUM 1 IF statusServerStatus(EVAT e) == EVATServerStatus.error BY EVATDocument(e);
+VATSumEVAT 'Сумма НДС док-ов' = GROUP SUM totalVATSum(EVAT e) IF NOT statusServerStatus(e) == EVATServerStatus.cancelled  BY EVATDocument(e) CHARWIDTH 10;
 
 filterTypeReport = DATA LOCAL EVATType ();
 nameFilterTypeReport 'Тип' = name(filterTypeReport());
@@ -84,31 +84,31 @@ EXTEND FORM EVATReport
 // -------------------------------- Отчет с разбивкой по ставкам НДС --------------------------------------------------
 
 docVATSumRate10 'Сумма НДС по ставке 10% документа' (EVATDocument e) = GROUP SUM VATSumRange(e, Range r) IF valueCurrentRate(r) == 10.0;
-VATSumRate10 'Сумма НДС по ставке 10%' = GROUP BY evat(EVATDetail d) SUM vatSum(d) IF vatRate(d) == 10.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled;
-sumWithVATRate10 'Сумма с НДС по ставке 10%' = GROUP BY evat(EVATDetail d) SUM sumWithVAT(d) IF vatRate(d) == 10.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled;
-docVATSumRate10EVAT 'Сумма НДС по ставке 10% ЭСЧФ' = GROUP BY EVATDocument(EVAT e) SUM VATSumRate10(e);
-docSumWithVATRate10EVAT 'Сумма с НДС по ставке 10% ЭСЧФ' = GROUP BY EVATDocument(EVAT e) SUM sumWithVATRate10(e);
+VATSumRate10 'Сумма НДС по ставке 10%' = GROUP SUM vatSum(EVATDetail d) IF vatRate(d) == 10.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled BY evat(d);
+sumWithVATRate10 'Сумма с НДС по ставке 10%' = GROUP SUM sumWithVAT(EVATDetail d) IF vatRate(d) == 10.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled BY evat(d);
+docVATSumRate10EVAT 'Сумма НДС по ставке 10% ЭСЧФ' = GROUP SUM VATSumRate10(EVAT e) BY EVATDocument(e);
+docSumWithVATRate10EVAT 'Сумма с НДС по ставке 10% ЭСЧФ' = GROUP SUM sumWithVATRate10(EVAT e) BY EVATDocument(e);
 
 docVATSumRate20 'Сумма НДС по ставке 20% документа' (EVATDocument e) = GROUP SUM VATSumRange(e, Range r) IF valueCurrentRate(r) == 20.0;
-VATSumRate20 'Сумма НДС по ставке 20%' = GROUP BY evat(EVATDetail d) SUM vatSum(d) IF vatRate(d) == 20.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled;
-sumWithVATRate20 'Сумма с НДС по ставке 20%' = GROUP BY evat(EVATDetail d) SUM sumWithVAT(d) IF vatRate(d) == 20.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled;
-docVATSumRate20EVAT 'Сумма НДС по ставке 20% ЭСЧФ' =  GROUP BY EVATDocument(EVAT e) SUM VATSumRate20(e);
-docSumWithVATRate20EVAT 'Сумма с НДС по ставке 20% ЭСЧФ' = GROUP BY EVATDocument(EVAT e) SUM sumWithVATRate20(e);
+VATSumRate20 'Сумма НДС по ставке 20%' = GROUP SUM vatSum(EVATDetail d) IF vatRate(d) == 20.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled BY evat(d);
+sumWithVATRate20 'Сумма с НДС по ставке 20%' = GROUP SUM sumWithVAT(EVATDetail d) IF vatRate(d) == 20.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled BY evat(d);
+docVATSumRate20EVAT 'Сумма НДС по ставке 20% ЭСЧФ' =  GROUP SUM VATSumRate20(EVAT e) BY EVATDocument(e);
+docSumWithVATRate20EVAT 'Сумма с НДС по ставке 20% ЭСЧФ' = GROUP SUM sumWithVATRate20(EVAT e) BY EVATDocument(e);
 
 docVATSumRate0 'Сумма НДС по ставке 0% документа' (EVATDocument e) = GROUP SUM VATSumRange(e, Range r) IF valueCurrentRate(r) == 0.0;
-VATSumRate0 'Сумма НДС по ставке 0%' = GROUP BY evat(EVATDetail d) SUM vatSum(d) IF vatRate(d) == 0.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled;
-sumWithVATRate0 'Сумма с НДС по ставке 0%' = GROUP BY evat(EVATDetail d) SUM sumWithVAT(d) IF vatRate(d) == 0.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled;
-docVATSumRate0EVAT 'Сумма НДС по ставке 0% ЭСЧФ' = GROUP BY EVATDocument(EVAT e) SUM VATSumRate0(e);
-docSumWithVATRate0EVAT 'Сумма с НДС по ставке 0% ЭСЧФ' = GROUP BY EVATDocument(EVAT e) SUM sumWithVATRate0(e);
+VATSumRate0 'Сумма НДС по ставке 0%' = GROUP SUM vatSum(EVATDetail d) IF vatRate(d) == 0.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled BY evat(d);
+sumWithVATRate0 'Сумма с НДС по ставке 0%' = GROUP SUM sumWithVAT(EVATDetail d) IF vatRate(d) == 0.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled BY evat(d);
+docVATSumRate0EVAT 'Сумма НДС по ставке 0% ЭСЧФ' = GROUP SUM VATSumRate0(EVAT e) BY EVATDocument(e);
+docSumWithVATRate0EVAT 'Сумма с НДС по ставке 0% ЭСЧФ' = GROUP SUM sumWithVATRate0(EVAT e) BY EVATDocument(e);
 
 docVATSumRateOther 'Сумма НДС по расчетной ставке документа' (EVATDocument e) = GROUP SUM VATSumRange(e, Range r) 
     IF valueCurrentRate(r) != 10.0 AND valueCurrentRate(r) != 20.0 AND valueCurrentRate(r) != 0.0;
-VATSumRateOther 'Сумма НДС по расчетной ставке' = GROUP BY evat(EVATDetail d) SUM vatSum(d) 
-    IF vatRate(d) != 10.0 AND vatRate(d) != 20.0 AND vatRate(d) != 0.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled;
-sumWithVATRateOther 'Сумма с НДС по расчетной ставке' = GROUP BY evat(EVATDetail d) SUM sumWithVAT(d) 
-    IF vatRate(d) != 10.0 AND vatRate(d) != 20.0 AND vatRate(d) != 0.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled;
-docVATSumRateOtherEVAT 'Сумма НДС по расчетной ставке ЭСЧФ' = GROUP BY EVATDocument(EVAT e) SUM VATSumRateOther(e);
-docSumWithVATRateOtherEVAT 'Сумма с НДС по расчетной ставке ЭСЧФ' = GROUP BY EVATDocument(EVAT e) SUM sumWithVATRateOther(e);
+VATSumRateOther 'Сумма НДС по расчетной ставке' = GROUP SUM vatSum(EVATDetail d) 
+    IF vatRate(d) != 10.0 AND vatRate(d) != 20.0 AND vatRate(d) != 0.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled BY evat(d);
+sumWithVATRateOther 'Сумма с НДС по расчетной ставке' = GROUP SUM sumWithVAT(EVATDetail d) 
+    IF vatRate(d) != 10.0 AND vatRate(d) != 20.0 AND vatRate(d) != 0.0 AND NOT statusServerStatus(evat(d)) == EVATServerStatus.cancelled BY evat(d);
+docVATSumRateOtherEVAT 'Сумма НДС по расчетной ставке ЭСЧФ' = GROUP SUM VATSumRateOther(EVAT e) BY EVATDocument(e);
+docSumWithVATRateOtherEVAT 'Сумма с НДС по расчетной ставке ЭСЧФ' = GROUP SUM sumWithVATRateOther(EVAT e) BY EVATDocument(e);
 
 sumWithVAT 'Сумма с НДС' (EVATDocument e) = GROUP SUM sumWithVATRange(e, Range r);
 

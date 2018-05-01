@@ -59,7 +59,7 @@ namePartyBStocks 'Склады покупателя' (Contract contract) = GROUP
                                                  ORDER stock CHARWIDTH 30 MATERIALIZED;
 
 countContract 'Кол-во договоров' (partyA, Stock stockA, partyB, Stock stockB) =
-    GROUP BY partyA(Contract contract), partyB(contract) SUM 1 IF inPartyA(stockA, contract) AND inPartyB(stockB, contract);
+    GROUP SUM 1 IF inPartyA(stockA, Contract contract) AND inPartyB(stockB, contract) BY partyA(contract), partyB(contract);
 
 GROUP payment 'Оплата' : public;
 
@@ -224,47 +224,47 @@ META defineContractDefault (contract, contractClass, partyAClass, stockAClass, p
     isDefault(###contract contract) += isDataDefault(contract);
     skipContract 'По умолчанию' = ABSTRACT BOOLEAN (###contract) MATERIALIZED;
     
-    count###contract###prefixA###prefixB (pA, pB, DATE dateIn)= GROUP
-            BY prefixA(###contract contract), prefixB(contract) SUM 1 
-        IF dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract);
+    count###contract###prefixA###prefixB (pA, pB, DATE dateIn)= GROUP SUM 1 
+        IF dateFrom(###contract contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract), prefixB(contract);
 
-    single###contract###prefixA###prefixB (pA, pB, DATE dateIn) = GROUP
-            BY prefixA(###contract contract), prefixB(contract) MAX (contract) 
-        IF dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract);
+    single###contract###prefixA###prefixB (pA, pB, DATE dateIn) = GROUP MAX (###contract contract) 
+        IF dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract), prefixB(contract);
 
-    default###contract###prefixA###prefixB (pA, pB, DATE dateIn) = GROUP
-            BY prefixA(###contract contract), prefixB(contract) MAX (contract) IF isDataDefault(contract) 
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract);
+    default###contract###prefixA###prefixB (pA, pB, DATE dateIn) = GROUP MAX (###contract contract) IF isDataDefault(contract) 
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract), prefixB(contract);
         
     default###contract###prefixA###prefixB(stockAClass sA, stockAClass sB, DATE dateIn)  = GROUP
             MAX (###contract contract) 
         IF in###prefixA(sA,contract) AND in###prefixB(sB,contract)
         AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract);
             
-    default###contract###prefixA (pA, stockAClass sA, DATE dateIn) = GROUP
-            BY prefixA(###contract contract) MAX (contract) 
+    default###contract###prefixA (pA, stockAClass sA, DATE dateIn) = GROUP MAX (###contract contract) 
         IF in###prefixA(sA,contract) //AND inCustomerStockContractSku(sB,contract)
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract);      
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract);      
                   
-    count###contract###prefixA (pA, stockAClass sA, DATE dateIn) = GROUP
-            BY prefixA(###contract contract) SUM 1 
-        IF in###prefixA(sA,contract) //AND inCustomerStockContractSku(sB,contract)
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract);  
+    count###contract###prefixA (pA, stockAClass sA, DATE dateIn) = GROUP SUM 1 
+        IF in###prefixA(sA,###contract contract) //AND inCustomerStockContractSku(sB,contract)
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract);  
                                 
-    default###contract###prefixA###prefixB (pA, stockAClass sA, pB, DATE dateIn) = GROUP
-            BY prefixA(###contract contract), prefixB(contract) MAX (contract) 
+    default###contract###prefixA###prefixB (pA, stockAClass sA, pB, DATE dateIn) = GROUP MAX (###contract contract) 
         IF in###prefixA(sA,contract) //AND inCustomerStockContractSku(sB,contract)
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract);      
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract), prefixB(contract);      
                   
-    count###contract###prefixA###prefixB (pA, stockAClass sA, pB, DATE dateIn) = GROUP
-            BY prefixA(###contract contract), prefixB(contract) SUM 1 
-        IF in###prefixA(sA,contract) //AND inCustomerStockContractSku(sB,contract)
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract);
+    count###contract###prefixA###prefixB (pA, stockAClass sA, pB, DATE dateIn) = GROUP SUM 1 
+        IF in###prefixA(sA,###contract contract) //AND inCustomerStockContractSku(sB,contract)
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract), prefixB(contract);
             
-    default###contract###prefixA###prefixB (pA, stockAClass sB, DATE dateIn) = GROUP
-            BY prefixA(###contract contract) MAX (contract) 
+    default###contract###prefixA###prefixB (pA, stockAClass sB, DATE dateIn) = GROUP MAX (###contract contract) 
         IF in###prefixB[stockAClass,contractClass](sB,contract)
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract);    
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract);    
                   
 END
 

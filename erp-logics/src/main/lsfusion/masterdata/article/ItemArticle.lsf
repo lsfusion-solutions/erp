@@ -194,7 +194,7 @@ captionArticle 'Aртикула' (Item item) = caption(article(item));
 imageArticle 'Изображение (артикул)' (Item item) = image(article(item));
 overImage (Item item) += imageArticle (item);
 
-countItem 'Кол-во товаров' (a) = GROUP BY article(Item i) SUM 1;
+countItem 'Кол-во товаров' (a) = GROUP SUM 1 BY article(Item i);
 prevCountItem (Article a) = PREV(countItem(a));
 
 
@@ -219,7 +219,7 @@ TABLE color (Color);
 
 @defineExternalizable(color, VARSTRING[100]);
 name 'Наименование' = DATA VARISTRING[50](Color);
-colorName 'Цвет' = GROUP BY name(Color color) AGGR color;
+colorName 'Цвет' = GROUP AGGR Color color BY name(color);
 
 FORM color 'Цвет товара'
     OBJECTS t=Color PANEL
@@ -255,7 +255,7 @@ EXTEND CLASS Color  {
     none 'None'
 }
 calcColor (Item item)= OVERRIDE color(item), (Color.none IF item IS Item);
-count 'Кол-во цветов для артикля' (color,article) = GROUP BY calcColor(Item item), article(item) SUM 1 MATERIALIZED;
+count 'Кол-во цветов для артикля' (color,article) = GROUP SUM 1 BY calcColor(Item item), article(item) MATERIALIZED;
 
 color  = DATA Color(Article);
 nameColor 'Цвет' (Article Article) = name(color(Article)) IN itemArticle;
@@ -354,7 +354,7 @@ TABLE size(Size);
 @defineExternalizable(size, VARSTRING[100]);
 
 name 'Наименование' = DATA VARISTRING[50](Size) CHARWIDTH 5;
-sizeName = GROUP BY name(Size size) MAX size;
+sizeName = GROUP MAX Size size BY name(size);
 shortName 'Краткое наименование' = DATA ISTRING[10](Size);
 order 'Порядок' = DATA INTEGER (Size);
 
@@ -398,10 +398,10 @@ EXTEND CLASS Size  {
     none 'None'
 }
 calcSize (Item item)= OVERRIDE size(item), (Size.none IF item IS Item);
-count 'Кол-во размеров для артикля' (size,article) = GROUP BY calcSize(Item item), article(item) SUM 1 MATERIALIZED;
+count 'Кол-во размеров для артикля' (size,article) = GROUP SUM 1 BY calcSize(Item item), article(item) MATERIALIZED;
 
-maxSku (article, color, size) = GROUP
-    BY article(Item sku), calcColor(sku), calcSize(sku) MAX sku;
+maxSku (article, color, size) = GROUP MAX Item sku
+    BY article(sku), calcColor(sku), calcSize(sku);
 
 overCopy(Item s, Item d) += {
     article(d) <- article(s);

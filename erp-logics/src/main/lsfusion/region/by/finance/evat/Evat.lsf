@@ -166,7 +166,7 @@ nameServerStatus 'Статус на сервере'(EVAT e) = staticName(statusS
 captionServerStatus 'Статус на сервере'(EVAT e) = staticCaption(statusServerStatus(e));  
 
 EVATDocument 'Регистр' = DATA EVATDocument (EVAT) INDEXED;
-EVAT 'ЭСЧФ' (EVATDocument d) = GROUP BY EVATDocument(EVAT e) MAX e;
+EVAT 'ЭСЧФ' (EVATDocument d) = GROUP MAX EVAT e BY EVATDocument(e);
 
 @defineOption(notNullEVATDocument, 'Запрет на отсутствие исходного документа для ЭСЧФ', EVAT);
 
@@ -214,7 +214,7 @@ exportYear 'Год для экспорта' = DATA INTEGER (EVAT);
 
 exportNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + (OVERRIDE exportYear(e), Time.extractYear(currentDate()) IF e IS EVAT ) + '-' + VARSTRING[100](lpad(number(e), 10, '0'));
 exportDNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + exportYear(e) + '-' + VARSTRING[100](lpad(number(e), 10, '0'));
-EVATExportNumber 'ЭСЧФ по номеру для экспорта' = GROUP BY exportDNumber(EVAT e) AGGR e; 
+EVATExportNumber 'ЭСЧФ по номеру для экспорта' = GROUP AGGR EVAT e BY exportDNumber(e); 
 
 WHEN SET(exported(EVAT e)) 
      DO exportYear(e) <- Time.extractYear(currentDate());
@@ -335,11 +335,11 @@ descriptionType = DATA DescriptionType(EVATDetail);
 nameDescriptionType (EVATDetail evatDetail) = staticName(descriptionType(evatDetail));
 captionDescriptionType 'Описание' (EVATDetail evatDetail)= staticCaption(descriptionType(evatDetail));
 
-totalSum 'Сумма (всего)'(EVAT evat) = GROUP BY evat(EVATDetail evatDetail) SUM sum(evatDetail);  
-totalExciseSum 'Сумма акциза (всего)' (EVAT evat) = GROUP BY evat(EVATDetail evatDetail) SUM exciseSum(evatDetail);  
-totalVATSum 'Сумма НДС (всего)' (EVAT evat) = GROUP BY evat(EVATDetail evatDetail) SUM vatSum(evatDetail);  
-totalSumWithVAT 'Сумма с НДС (всего)' (EVAT evat) = GROUP BY evat(EVATDetail evatDetail) SUM sumWithVAT(evatDetail);  
-totalQuantity'Количество (всего)'(EVAT evat) = GROUP BY evat(EVATDetail evatDetail) SUM quantity(evatDetail);  
+totalSum 'Сумма (всего)'(EVAT evat) = GROUP SUM sum(EVATDetail evatDetail) BY evat(evatDetail);  
+totalExciseSum 'Сумма акциза (всего)' (EVAT evat) = GROUP SUM exciseSum(EVATDetail evatDetail) BY evat(evatDetail);  
+totalVATSum 'Сумма НДС (всего)' (EVAT evat) = GROUP SUM vatSum(EVATDetail evatDetail) BY evat(evatDetail);  
+totalSumWithVAT 'Сумма с НДС (всего)' (EVAT evat) = GROUP SUM sumWithVAT(EVATDetail evatDetail) BY evat(evatDetail);  
+totalQuantity'Количество (всего)'(EVAT evat) = GROUP SUM quantity(EVATDetail evatDetail) BY evat(evatDetail);  
 
 FORM evat 'Электронная счёт-фактура'
     OBJECTS e=EVAT PANEL

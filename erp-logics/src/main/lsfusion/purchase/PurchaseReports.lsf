@@ -22,8 +22,8 @@ inSession 'Отм.' (Group group) = OVERRIDE
     inParent(group);
 
 sessionConcatGroups 'Группы' (groupType) =
-    GROUP
-    BY groupType(Group group) CONCAT name(group) IF inSession(group) AND NOT inSession(parent(group)),',';
+    GROUP CONCAT name(Group group) IF inSession(group) AND NOT inSession(parent(group)),','
+    BY groupType(group);
 
 //суммы поступлений по группе
 sumVATPurchasesStock 'Сумма НДС (по группе)'(Group group, DATE dateFrom, DATE dateTo) =
@@ -44,15 +44,15 @@ sumRecPurchasesSkuStock 'Сумма поступлений (всего)' (Group 
 //суммы поступлений по поставщику
 
 sumVATPurchasesStock 'Сумма НДС (по поставщику)'(GroupType groupType, supplier, DATE dateFrom, DATE dateTo) =
-    GROUP
-    BY supplier(PurchaseLedger l) SUM sumVAT(l) IF active(l) AND inPurchaseReport(stock(l)) AND
+    GROUP SUM sumVAT(PurchaseLedger l) IF active(l) AND inPurchaseReport(stock(l)) AND
                                                       inSession(group(groupType, sku(l))) AND
-                                                      date(l) >= dateFrom AND date(l) <= dateTo;
+                                                      date(l) >= dateFrom AND date(l) <= dateTo
+    BY supplier(l);
 sumPurchasesStock 'Сумма поступлений (по поставщику)' (GroupType groupType, supplier, DATE dateFrom, DATE dateTo) =
-    GROUP
-    BY supplier(PurchaseLedger l) SUM sum(l) IF active(l) AND inPurchaseReport(stock(l)) AND
+    GROUP SUM sum(PurchaseLedger l) IF active(l) AND inPurchaseReport(stock(l)) AND
                                                    inSession(group(groupType, sku(l))) AND
-                                                   date(l) >= dateFrom AND date(l) <= dateTo;
+                                                   date(l) >= dateFrom AND date(l) <= dateTo
+    BY supplier(l);
 
 //итоговые суммы поступлений
 sumVATPurchasesStock 'Итоговая сумма НДС поступлений' (GroupType groupType, DATE dateFrom, DATE dateTo) =

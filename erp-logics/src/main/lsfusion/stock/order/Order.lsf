@@ -71,7 +71,7 @@ idBatch 'Код партии' (OrderDetail d)= id(batch(d));
 @defineDocumentAbstractDetailQuantity(order);
 @defineDocumentDetailGrossWeight(order, sku);
 @defineDocumentAbstractDetailQuantityPrefix(order, pack, ' (упаковок)');
-packQuantityOrderDetail 'Кол-во (упаковок)(всего)' (order) = GROUP BY order(OrderDetail idetail) SUM packQuantity(idetail) IN documentSum MATERIALIZED;
+packQuantityOrderDetail 'Кол-во (упаковок)(всего)' (order) = GROUP SUM packQuantity(OrderDetail idetail) BY order(idetail) IN documentSum MATERIALIZED;
 
 @defineDocumentHeaderSkuQuantity(order, sku);
 
@@ -90,11 +90,11 @@ createdNameUser 'Создан пользователем' (Order order) = name[C
 operation = ABSTRACT Operation.Operation (Order) MATERIALIZED;
 nameOperation 'Операция' (Order order) = name(operation(order));  ////
 
-quantityFrom 'Кол-во со склада' (order, stock) = GROUP BY order(OrderDetail orderDetail),
-                                                                                                         fromStock(orderDetail) SUM quantity(orderDetail);
+quantityFrom 'Кол-во со склада' (order, stock) = GROUP SUM quantity(OrderDetail orderDetail) BY order(orderDetail),
+                                                                                                         fromStock(orderDetail);
 
-quantityTo 'Кол-во на склад' (order, stock) = GROUP BY order(OrderDetail orderDetail),
-                                                                                                      toStock(orderDetail) SUM quantity(orderDetail);
+quantityTo 'Кол-во на склад' (order, stock) = GROUP SUM quantity(OrderDetail orderDetail) BY order(orderDetail),
+                                                                                                      toStock(orderDetail);
 
 in 'Приходный' = ABSTRACT BOOLEAN (Order) MATERIALIZED;
 out 'Расходный' (Order order) = order IS Order AND NOT in(order) MATERIALIZED;
@@ -259,10 +259,10 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentInterfaceAgreement(order);
     @deriveDocumentHeaderAgreement (userOrder, supplier, customer, 'заказ'###sign, NS);
 
-    maxAgreementInSku (order) = GROUP
-            BY userOrder(UserOrderDetail d) MAX Agreement agreement IF in(agreement,sku(d)) 
+    maxAgreementInSku (order) = GROUP MAX Agreement agreement IF in(agreement,sku(UserOrderDetail d)) 
         AND fromDateTime(agreement) <= dateTime(d) AND NOT (toDateTime(agreement) < dateTime(d))
-        AND inSupplier(agreement, supplier(d)) AND inCustomer(agreement, customer(d));
+        AND inSupplier(agreement, supplier(d)) AND inCustomer(agreement, customer(d))
+            BY userOrder(d);
 
     @defineDocumentInterfaceDetailSku(order, sku);
     INDEX sku(OrderDetail d), customerStock(d);
@@ -364,7 +364,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
     noAgreement (UserOrder order) = order IS UserOrder AND NOT agreement(order);
 
-    countOrderDetail 'Кол-во строк по складу '(stock, order) = GROUP BY stockProp##Stock(OrderDetail orderDetail), order(orderDetail) SUM 1;
+    countOrderDetail 'Кол-во строк по складу '(stock, order) = GROUP SUM 1 BY stockProp##Stock(OrderDetail orderDetail), order(orderDetail);
 
 //-- Дата следующей поставки
     @defineDocumentInterfaceDatePrefix (order, nextShipment, ' следующей поставки');

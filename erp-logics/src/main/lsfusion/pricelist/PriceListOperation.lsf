@@ -250,11 +250,11 @@ DESIGN operation {
 // Подсчет цен по прайс-листам
 
 priceListDetailA  (DataPriceListType type, sku, Stock stock, DATETIME dateTime, operation) =
-    GROUP
-          BY sku(PriceListDetail detail), operation(detail) LAST detail
+    GROUP LAST PriceListDetail detail
           ORDER fromDateTime(detail), detail
           WHERE in(detail, type) AND isPosted(detail) AND in(priceList(detail),stock) AND
-                fromDateTime(detail) <= dateTime AND NOT toDateTime(detail) < dateTime COMPLEX;
+                fromDateTime(detail) <= dateTime AND NOT toDateTime(detail) < dateTime
+          BY sku(detail), operation(detail) COMPLEX;
 
 
 //-- Фильтр
@@ -310,11 +310,11 @@ DESIGN userPriceList{
 setToDateTime 'Установить дату действия по' (UserPriceList p) = {
     LOCAL toDateTime = DATETIME();
     
-    toDateTime() <- [= GROUP 
-                             BY userPriceList(UserPriceListDetail d) MAX (OVERRIDE [= GROUP 
-                                                    BY sku(UserPriceListDetail ud), DataPriceListType t, Stock st, DATETIME dt MIN fromDateTime(ud) IF isPosted(userPriceList(ud)) AND NOT PREV(toDateTime(ud)) 
-                                                        AND in(ud, t) AND in(ud, st) AND fromDateTime(ud) > dt](sku(d), DataPriceListType t, Stock s, fromDateTime(d)), 2040_01_01_00:00) 
-                                  IF in(d, t) AND in(d, s)](p);
+    toDateTime() <- [= GROUP MAX (OVERRIDE [= GROUP MIN fromDateTime(UserPriceListDetail ud) IF isPosted(userPriceList(ud)) AND NOT PREV(toDateTime(ud)) 
+                                                        AND in(ud, DataPriceListType t) AND in(ud, Stock st) AND fromDateTime(ud) > DATETIME dt 
+                                                    BY sku(ud), t, st, dt](sku(UserPriceListDetail d), DataPriceListType t, Stock s, fromDateTime(d)), 2040_01_01_00:00) 
+                                  IF in(d, t) AND in(d, s) 
+                             BY userPriceList(d)](p);
     IF toDateTime() < 2040_01_01_00:00 THEN {
         toDate(p) <- DATE(toDateTime());
         toTime(p) <- TIME(toDateTime());

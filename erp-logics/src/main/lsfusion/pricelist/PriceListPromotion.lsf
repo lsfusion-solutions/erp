@@ -53,26 +53,26 @@ DESIGN options {
 }   
 
 lastPromotionPriceListDetailB (Sku sk, DATETIME dt) = 
-    GROUP
-          BY sku(PriceListDetail d, Stock st) LAST d
-          ORDER fromDateTime(d, st), d
-          WHERE fromDateTime(d, st) < dt COMPLEX;
+    GROUP LAST PriceListDetail d
+          ORDER fromDateTime(d, Stock st), d
+          WHERE fromDateTime(d, st) < dt
+          BY sku(d, st) COMPLEX;
 
 promotionPriceListDetailA (Sku sk, Stock st, DATETIME dt) = 
-    GROUP
-          BY sku(PriceListDetail d, st) LAST d
+    GROUP LAST PriceListDetail d
           ORDER fromDateTime(d, st), d
-          WHERE fromDateTime(d, st) <= dt AND NOT toDateTime(d, st) < dt COMPLEX;
+          WHERE fromDateTime(d, st) <= dt AND NOT toDateTime(d, st) < dt
+          BY sku(d, st) COMPLEX;
           
 promotionPriceListDetailA (Sku sk, Stock st, DATE dt) = 
-  GROUP
-        BY sku(PriceListDetail d, st) LAST d
+  GROUP LAST PriceListDetail d
         ORDER fromDateTime(d, st), d
-        WHERE fromDateTime(d, st) < DATETIME(sum(dt, 1)) AND NOT toDateTime(d, st) < DATETIME(dt) COMPLEX;
+        WHERE fromDateTime(d, st) < DATETIME(sum(dt, 1)) AND NOT toDateTime(d, st) < DATETIME(dt)
+        BY sku(d, st) COMPLEX;
 
-lastPromotionPriceListDetail (Sku sk, Stock st) = GROUP 
-                                                                           BY sku(PriceListDetail d, st) LAST d
-                                                                           ORDER fromDateTime(d, st), d;
+lastPromotionPriceListDetail (Sku sk, Stock st) = GROUP LAST PriceListDetail d
+                                                                           ORDER fromDateTime(d, st), d 
+                                                                           BY sku(d, st);
 
 promotionPriceListDetailA (Sku sku, Stock stock) = 
     promotionPriceListDetailA(sku, stock, currentDateTime());
@@ -111,8 +111,8 @@ prevToDatePromotion 'Дата окончания предыдущей акции
 
 regularPeriodBeforePromotion 'Кол-во дней между акциями' (PriceListDetail d, Stock st) = daysBetweenDates(fromDate(d, st), prevToDatePromotion(d, st)) - 1;
 
-lastRegularPromotionDetail = GROUP
-                                                      BY sku(PriceListDetail d, Stock s), s LAST d
-                                                      ORDER fromDateTime(d, s), d
-                                                      WHERE NOT regularPeriodBeforePromotion(d, s) < 2;                                                      
+lastRegularPromotionDetail = GROUP LAST PriceListDetail d
+                                                      ORDER fromDateTime(d, Stock s), d
+                                                      WHERE NOT regularPeriodBeforePromotion(d, s) < 2
+                                                      BY sku(d, s), s;                                                      
                                                            

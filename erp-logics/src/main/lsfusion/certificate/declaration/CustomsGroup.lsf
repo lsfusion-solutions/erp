@@ -15,7 +15,7 @@ TABLE customsZone(CustomsZone);
 
 name 'Наименование' = DATA VARISTRING[50](CustomsZone) IN recognize;
 
-customsZone (name) = GROUP BY name(CustomsZone customsZone) AGGR customsZone WHERE customsZone IS CustomsZone;
+customsZone (name) = GROUP AGGR CustomsZone customsZone WHERE customsZone IS CustomsZone BY name(customsZone);
 
 currency = DATA Currency(CustomsZone);
 nameCurrency 'Валюта' (CustomsZone customsZone) = name(currency(customsZone)) IN base;
@@ -33,7 +33,7 @@ dateFrom 'Дата с' = DATA DATE (CustomsGroup) IN base;
 dateTo 'Дата по' = DATA DATE (CustomsGroup) IN base;
 code 'Код' = DATA VARSTRING[10](CustomsGroup) IN base CHARWIDTH 10;
 
-customsGroup (code) = GROUP BY code(CustomsGroup customsGroup) AGGR customsGroup WHERE customsGroup IS CustomsGroup;
+customsGroup (code) = GROUP AGGR CustomsGroup customsGroup WHERE customsGroup IS CustomsGroup BY code(customsGroup);
 nearestCustomsGroup (STRING[10] code) = GROUP MIN CustomsGroup customsGroup IF startsWith(code(customsGroup), code AS STRING[10]) == 1;
 
 number 'Номер строки' = DATA INTEGER(CustomsGroup) IN base;
@@ -68,11 +68,11 @@ META defineCustomsRate(class, object, caption)
     codeCustomsGroup 'ТН ВЭД (код)' (class customsRate) = code(customsGroup(customsRate)) IN base;
     nameCustomsGroup 'ТН ВЭД' (class customsRate) = name(customsGroup(customsRate)) IN base;
 
-    object (CustomsGroup customsGroup, DATE date) = GROUP
-                                                                    BY customsGroup(class object) LAST object IF
+    object (CustomsGroup customsGroup, DATE date) = GROUP LAST class object IF
                                                                        (dateFrom(object) < date AND
                                                                        dateTo(object) > date)
-                                                                    ORDER dateFrom(object), object;
+                                                                    ORDER dateFrom(object), object
+                                                                    BY customsGroup(object);
 END
 
 @defineCustomsRate(VATCustomsRate, VATCustomsRate, 'Ставка НДС');
@@ -119,7 +119,7 @@ registration 'Таможенный сбор' (CustomsGroup customsGroup) = regis
 // Льгота НДС
 name 'Наименование' = DATA VARISTRING[150](VATCustomsException) IN base;
 number 'Номер' (VATCustomsException VATCustomsException) = PARTITION SUM 1 ORDER VATCustomsException BY customsGroup(VATCustomsException);
-VATCustomsException (customsGroup, number) = GROUP BY code(customsGroup(VATCustomsException VATCustomsException)), number(VATCustomsException) AGGR VATCustomsException;
+VATCustomsException (customsGroup, number) = GROUP AGGR VATCustomsException VATCustomsException BY code(customsGroup(VATCustomsException)), number(VATCustomsException);
 
 range = DATA Range(VATCustomsException);
 numberRange 'Льгота НДС, номер' (VATCustomsException VATCustomsException) = number(range(VATCustomsException)) IN base;
@@ -130,9 +130,9 @@ valueCurrent 'Льгота НДС, %' (VATCustomsException VATCustomsException) 
 rangeVATCustomsException 'Льгота НДС' (CustomsGroup customsGroup, DATE date) = range(VATCustomsException(customsGroup, date));
 dataValueVATCustomsException 'Льгота НДС, %' (CustomsGroup customsGroup, DATE date) = valueRate(rangeVATCustomsException(customsGroup, date), date);
 
-countVATCustomsException 'Кол-во льгот' (customsGroup) = GROUP BY customsGroup(VATCustomsException VATCustomsException) SUM 1 IF VATCustomsException IS VATCustomsException MATERIALIZED;
+countVATCustomsException 'Кол-во льгот' (customsGroup) = GROUP SUM 1 IF VATCustomsException VATCustomsException IS VATCustomsException BY customsGroup(VATCustomsException) MATERIALIZED;
 
-nameVATCustomsException 'Наименование' (customsGroup) = GROUP BY customsGroup(VATCustomsException VATCustomsException) CONCAT VARSTRING[255](name(VATCustomsException))  , ', ';
+nameVATCustomsException 'Наименование' (customsGroup) = GROUP CONCAT VARSTRING[255](name(VATCustomsException VATCustomsException))  , ', ' BY customsGroup(VATCustomsException);
 
 //
 customsGroup = ABSTRACT CustomsGroup(Country, Sku);

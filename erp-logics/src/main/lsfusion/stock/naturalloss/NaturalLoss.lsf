@@ -22,11 +22,11 @@ TABLE subNaturalLossGroupDetail(SubNaturalLossGroupDetail);
 parent = DATA NaturalLossGroup (SubNaturalLossGroup) AUTOSET;
 nameParent 'Родительская группа' (SubNaturalLossGroup subNaturalLossGroup) = name(parent(subNaturalLossGroup));
 code 'Код нормы естественной убыли' = DATA STRING[3] (SubNaturalLossGroup);
-subNaturalLossGroupId (name) = GROUP BY code(SubNaturalLossGroup subNaturalLossGroup) AGGR subNaturalLossGroup WHERE subNaturalLossGroup IS SubNaturalLossGroup;
+subNaturalLossGroupId (name) = GROUP AGGR SubNaturalLossGroup subNaturalLossGroup WHERE subNaturalLossGroup IS SubNaturalLossGroup BY code(subNaturalLossGroup);
 
-subNaturalLossGroupName = GROUP BY name(SubNaturalLossGroup g) NAGGR g WHERE g IS SubNaturalLossGroup;
+subNaturalLossGroupName = GROUP NAGGR SubNaturalLossGroup g WHERE g IS SubNaturalLossGroup BY name(g);
 
-naturalLossGroup (name) = GROUP BY name(NaturalLossGroup naturalLossGroup) AGGR naturalLossGroup WHERE naturalLossGroup IS NaturalLossGroup;
+naturalLossGroup (name) = GROUP AGGR NaturalLossGroup naturalLossGroup WHERE naturalLossGroup IS NaturalLossGroup BY name(naturalLossGroup);
 subNaturalLossGroup = DATA SubNaturalLossGroup (SubNaturalLossGroupDetail) NONULL DELETE;
 dayFrom 'День' = DATA INTEGER (SubNaturalLossGroupDetail);
 monthFrom = DATA Month (SubNaturalLossGroupDetail);
@@ -55,9 +55,9 @@ castInterval (SubNaturalLossGroupDetail subNaturalLossGroupDetail) =
     nameMonthTo(subNaturalLossGroupDetail);
 
 concatDetail (subNaturalLossGroup) =
-    GROUP
-        BY subNaturalLossGroup(SubNaturalLossGroupDetail subNaturalLossGroupDetail) CONCAT VARSTRING[15](percent(subNaturalLossGroupDetail)), ','
+    GROUP CONCAT VARSTRING[15](percent(SubNaturalLossGroupDetail subNaturalLossGroupDetail)), ','
         ORDER subNaturalLossGroupDetail
+        BY subNaturalLossGroup(subNaturalLossGroupDetail)
         CHARWIDTH 10;
 
 in (SubNaturalLossGroup subNaturalLossGroup, SubNaturalLossGroupDetail subNaturalLossGroupDetail) =
@@ -254,8 +254,8 @@ code 'Код нормы естественной убыли' =
     code(subNaturalLossGroup(NaturalLossDetail naturalLossDetail));
 
 quantityLoss 'Кол-во' = DATA NUMERIC[14,3] (NaturalLossDetail);
-quantityLossNaturalLossDetail 'Кол-во (всего)' (naturalLoss) = GROUP 
-    BY naturalLoss(NaturalLossDetail idetail) SUM quantityLoss(idetail) IN documentSum MATERIALIZED;
+quantityLossNaturalLossDetail 'Кол-во (всего)' (naturalLoss) = GROUP SUM quantityLoss(NaturalLossDetail idetail) 
+    BY naturalLoss(idetail) IN documentSum MATERIALIZED;
 @showDocumentDetailBatch(naturalLoss);
 @defineDocumentDetailBatchCustomPrefix(naturalLossDetail, batch, );
 quantityLoss(NaturalLossDetail naturalLossDetail) <- shippedQuantity(batch(naturalLossDetail))
@@ -283,24 +283,24 @@ quantity (NaturalLossDetail naturalLossDetail) <- percent(naturalLossDetail) * q
          CHANGED(quantityLoss(naturalLossDetail));
 
 quantitySaleDepartment 'Продано' (sku, stock, DATE dateFrom, DATE dateTo, SubNaturalLossGroupDetail subNaturalLossGroupDetail) =
-    GROUP
-              BY sku(SaleLedger ledger), stock(ledger) SUM quantity(ledger) IF active(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo
+    GROUP SUM quantity(SaleLedger ledger) IF active(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo
               AND inInterval(date(ledger), subNaturalLossGroupDetail)
-              AND subNaturalLossGroup(country(stock(ledger)), sku(ledger)) == subNaturalLossGroup(subNaturalLossGroupDetail);
+              AND subNaturalLossGroup(country(stock(ledger)), sku(ledger)) == subNaturalLossGroup(subNaturalLossGroupDetail)
+              BY sku(ledger), stock(ledger);
               
 quantitySaleDepartment 'Продано' (sku, stock, DATE dateFrom, DATE dateTo, SubNaturalLossGroupDetail subNaturalLossGroupDetail, price) =
-    GROUP
-              BY sku(SaleLedger ledger), stock(ledger), price(ledger) SUM quantity(ledger) IF active(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo
+    GROUP SUM quantity(SaleLedger ledger) IF active(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo
               AND inInterval(date(ledger), subNaturalLossGroupDetail)
-              AND subNaturalLossGroup(country(stock(ledger)), sku(ledger)) == subNaturalLossGroup(subNaturalLossGroupDetail);              
+              AND subNaturalLossGroup(country(stock(ledger)), sku(ledger)) == subNaturalLossGroup(subNaturalLossGroupDetail)
+              BY sku(ledger), stock(ledger), price(ledger);              
 
 sum 'Сумма' (naturalLossDetail) = DATA NUMERIC[18,4] (NaturalLossDetail);
 sum (NaturalLossDetail naturalLossDetail) <- price(naturalLossDetail) * quantity(naturalLossDetail)
     WHEN CHANGED(price(naturalLossDetail)) OR
          CHANGED(quantity(naturalLossDetail));
 
-sum 'Сумма' (naturalLoss) = GROUP
-    BY naturalLoss(NaturalLossDetail naturalLossDetail) SUM sum(naturalLossDetail) IN documentSum;
+sum 'Сумма' (naturalLoss) = GROUP SUM sum(NaturalLossDetail naturalLossDetail)
+    BY naturalLoss(naturalLossDetail) IN documentSum;
 
 overFillDetail = ABSTRACT LIST (NaturalLoss);
 
@@ -340,10 +340,10 @@ toSaleFillDetail 'Заполнить на основе продаж'(NaturalLoss
 skipNatulassLoss = ABSTRACT BOOLEAN (PurchaseLedger);
 
 quantityPurchaseDepartment 'Поступило' (sku, stock, DATE dateFrom, DATE dateTo, SubNaturalLossGroupDetail subNaturalLossGroupDetail) =
-    GROUP
-              BY sku(PurchaseLedger ledger), stock(ledger) SUM quantity(ledger) IF active(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo AND NOT skipNatulassLoss(ledger)
+    GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo AND NOT skipNatulassLoss(ledger)
               AND inInterval(date(ledger), subNaturalLossGroupDetail)
-              AND subNaturalLossGroup(country(stock(ledger)), sku(ledger)) == subNaturalLossGroup(subNaturalLossGroupDetail);
+              AND subNaturalLossGroup(country(stock(ledger)), sku(ledger)) == subNaturalLossGroup(subNaturalLossGroupDetail)
+              BY sku(ledger), stock(ledger);
               
 toPurchaseFillDetail 'Заполнить на основе поступлений'(NaturalLoss naturalLoss) = {
 

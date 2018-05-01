@@ -41,7 +41,7 @@ quantity 'Кол-во для компонента, если он полуфаб�
     (quantity[Product](material(component)) IF quantity[Product](material(component))!=0) *
     (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)
     ;
-quantityBom 'Кол-во по спец. для полуфабрикатов' (BOM, Sku sku, DATE date) = GROUP BY BOM(Component component) SUM quantity(component, sku, date);
+quantityBom 'Кол-во по спец. для полуфабрикатов' (BOM, Sku sku, DATE date) = GROUP SUM quantity(Component component, sku, date) BY BOM(component);
 quantity 'Итого сырья на полуфабрикаты' (Component component, DATE date) = GROUP SUM quantity(component, Sku sku, date);
 
 drynessQuantityBom 'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBom(BOM BOM, Item sku, DATE date)*percentDryness(sku)/100;
@@ -53,7 +53,7 @@ drynessQuantity 'Кол-во для комонента(товар) в сухих
                                                                                        (OVERRIDE overNetWeight(cc), 1.0 IF cc IS Component) *
                                                                                        percentDryness(cc)/100;
 drynessQuantity 'Кол-во для комонентов сухих веществах' (Component c) = overNettoNetWeight(c) * percentDryness(c)/100;
-drynessQuantityComponents 'Кол-во по комонентам в сухих веществах' (b) = GROUP BY BOM(Component c) SUM drynessQuantity(c);
+drynessQuantityComponents 'Кол-во по комонентам в сухих веществах' (b) = GROUP SUM drynessQuantity(Component c) BY BOM(c);
 calcPercentHumidity 'Массовая доля сухих веществ, %' (BOM b)= drynessQuantityComponents(b)/(overNettoNetWeightComponent(b) IF overNettoNetWeightComponent(b)!=0)*100; 
 
 //--
@@ -77,9 +77,9 @@ nettoQuantity 'Кол-во нетто' (BOM BOM) = GROUP SUM nettoQuantity(BOM,S
 overDrynessQuantity 'Кол-вов сухих веществах для нетто' (BOM BOM) = GROUP SUM drynessQuantity(BOM,Item sku);
 overCalcPercentHumidity 'Массовая доля сухих веществ, %' (BOM b)= overDrynessQuantity(b)/(nettoQuantity(b) IF nettoQuantity(b)!=0)*100;                                                                                                                                                     
 
-productsUOM 'Изделия' (BOM) = GROUP
-                                       BY BOM(Product p) CONCAT VARSTRING[255](shortNameUOM(p)), ', '
-                                       ORDER index(p) CHARWIDTH 30 MATERIALIZED;
+productsUOM 'Изделия' (BOM) = GROUP CONCAT VARSTRING[255](shortNameUOM(Product p)), ', '
+                                       ORDER index(p)
+                                       BY BOM(p) CHARWIDTH 30 MATERIALIZED;
 
 FORM productionRecipe 'Производственная рецептура'
     OBJECTS dt=DATE PANEL

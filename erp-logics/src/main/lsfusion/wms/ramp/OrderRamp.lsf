@@ -11,8 +11,8 @@ CONSTRAINT in(Order o,Ramp r,Interval i) AND NOT in(r,i)
     MESSAGE 'В заказ включены рампа и интервал, у которых нет связи';    
     
 //orderRampIntervalDate (r,i,d)= GROUP NAGGR o BY r,i,shipmentDateOrder(o) WHERE inOrderRampInterval(o,r,i);   
-order (Ramp r,Interval i,d)= GROUP BY shipmentDate(Order o) MAX o IF in(o,r,i);   
-countSupplier (Ramp r,Interval i,d,s)= GROUP BY shipmentDate(Order o), supplier(o) SUM 1 IF in(o,r,i); 
+order (Ramp r,Interval i,d)= GROUP MAX Order o IF in(o,r,i) BY shipmentDate(o);   
+countSupplier (Ramp r,Interval i,d,s)= GROUP SUM 1 IF in(Order o,r,i) BY shipmentDate(o), supplier(o); 
 
 countSuppliers (Ramp r,Interval i,DATE d)= GROUP SUM 1 IF countSupplier (r,i,d,LegalEntity s); 
   
@@ -26,9 +26,9 @@ CONSTRAINT countSuppliers (Ramp r,Interval i,DATE d) >1 AND banDiffSupplier(r)
 
 //descriptionOrdersRampIntervalDate 'Заказ' (r,i,d)= descriptionOrder(orderRampIntervalDate(r,i,d));   
 descriptionOrders 'Заказы' (Ramp r,Interval i,d)= 
-    GROUP 
-    BY shipmentDate(Order o) CONCAT description(o) IF in(o,r,i), ', '
+    GROUP CONCAT description(Order o) IF in(o,r,i), ', '
     ORDER o 
+    BY shipmentDate(o) 
     CHARWIDTH 30;   
 
 //nameSupplierOrdersRampIntervalDate 'Поставщик' (r,i,d) = nameSupplierOrder(orderRampIntervalDate(r,i,d));
@@ -39,7 +39,7 @@ nameSupplierOrders 'Поставщики' (Ramp r,Interval i,DATE d)=
     CHARWIDTH 30;   
     
 //nameCustomerOrdersRampIntervalDate 'Покупатель' (r,i,d) = nameCustomerOrder(orderRampIntervalDate(r,i,d)); 
-countCustomer (Ramp r,Interval i,d,c)= GROUP BY shipmentDate(Order o), customer(o) SUM 1 IF in(o,r,i); 
+countCustomer (Ramp r,Interval i,d,c)= GROUP SUM 1 IF in(Order o,r,i) BY shipmentDate(o), customer(o); 
 nameCustomerOrders 'Покупатели' (Ramp r,Interval i,DATE d)= 
     GROUP 
     CONCAT name(LegalEntity c) IF countCustomer (r,i,d,c), ', '
@@ -61,7 +61,7 @@ backgroundOrders 'Цвет (свой заказ)' (r,i,o) = ABSTRACT CASE COLOR(
 
 backgroundOrders(Ramp r,Interval i,Order o) +=  WHEN in(o,r,i) THEN  RGB(204,255,204);
 
-in (Ramp ramp, order) = GROUP BY order(OrderDetail detail) SUM 1 IF (in(ramp, sku(detail)) OR (ramp IS Ramp AND NOT countSkuGroups(ramp) AND sku(detail)));
+in (Ramp ramp, order) = GROUP SUM 1 IF (in(ramp, sku(OrderDetail detail)) OR (ramp IS Ramp AND NOT countSkuGroups(ramp) AND sku(detail))) BY order(detail);
 
 FORM orderRamp 'Рампы'
     OBJECTS o=Order PANEL 

@@ -10,11 +10,11 @@ in 'Включен' (Trip trip, Shipment shipment) = trip(shipment)==trip;
 
 filter(Trip trip, Shipment shipment) = trip(shipment)==trip OR (trip IS Trip AND shipment IS Shipment AND NOT trip(shipment));
 
-grossWeightShipped 'Суммарный вес поставок' (trip) = GROUP BY trip(Shipment shipment) SUM grossWeightShipmentDetail(shipment);
+grossWeightShipped 'Суммарный вес поставок' (trip) = GROUP SUM grossWeightShipmentDetail(Shipment shipment) BY trip(shipment);
 
-quantityShipmentDetail (trip, Shipment shipment) = GROUP BY trip(Order order) SUM quantityShipmentDetail (order, shipment);
+quantityShipmentDetail (trip, Shipment shipment) = GROUP SUM quantityShipmentDetail (Order order, shipment) BY trip(order);
 
-quantityShipped 'Кол-во в поставках' (trip, sku) = GROUP BY trip(shipment(ShipmentDetail shipmentDetail)), sku(shipmentDetail) SUM quantity(shipmentDetail);
+quantityShipped 'Кол-во в поставках' (trip, sku) = GROUP SUM quantity(ShipmentDetail shipmentDetail) BY trip(shipment(shipmentDetail)), sku(shipmentDetail);
 
 EXTEND FORM trip
     PROPERTIES (t) READONLY grossWeightShipped

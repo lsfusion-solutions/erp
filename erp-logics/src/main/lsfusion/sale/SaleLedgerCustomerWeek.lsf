@@ -4,12 +4,12 @@ REQUIRE SaleLedger;
 
 NAMESPACE SaleLedger;
 
-quantitySold 'Продано за неделю (кол-во)'  = GROUP
-        BY Sku sku, LegalEntity customer, extractWeek(DATE date), DATE dateFrom, DATE dateTo SUM
-        quantitySold(sku, Stock stock, customer, date) IF date >= dateFrom AND date <= dateTo AND isCompany(stock);
-quantitySold 'Продано за неделю (кол-во)'  = GROUP
-        BY LegalEntity customer, extractWeek(DATE date), DATE dateFrom, DATE dateTo SUM
-        quantitySold(Sku sku, Stock stock, customer, date) IF date >= dateFrom AND date <= dateTo AND isCompany(stock);
+quantitySold 'Продано за неделю (кол-во)'  = GROUP SUM
+        quantitySold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND isCompany(stock)
+        BY sku, customer, extractWeek(date), dateFrom, dateTo;
+quantitySold 'Продано за неделю (кол-во)'  = GROUP SUM
+        quantitySold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND isCompany(stock)
+        BY customer, extractWeek(date), dateFrom, dateTo;
 quantitySoldTotal 'Продано итого (кол-во)' (Sku sku, LegalEntity customer, DATE dateFrom, DATE dateTo)  = GROUP
         SUM
         quantitySold(sku, Stock stock, customer, DATE date) IF date >= dateFrom AND date <= dateTo AND isCompany(stock);       
@@ -52,15 +52,15 @@ selectStocks '' () = { SHOW selectStock  ; }
 
 
 
-sumSoldSelect 'Продано за неделю (сумма)'  = GROUP
-        BY LegalEntity customer, extractWeek(DATE date), DATE dateFrom, DATE dateTo SUM
-        sumSold(Sku sku, Stock stock, customer, date) IF date >= dateFrom AND date <= dateTo AND inReport(stock);
+sumSoldSelect 'Продано за неделю (сумма)'  = GROUP SUM
+        sumSold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND inReport(stock)
+        BY customer, extractWeek(date), dateFrom, dateTo;
 sumSoldSelect 'Продано за неделю (сумма)' (LegalEntity customer, DATE dateFrom, DATE dateTo)  = GROUP
         SUM
         sumSold(Sku sku, Stock stock, customer, DATE date) IF date >= dateFrom AND date <= dateTo AND inReport(stock);
-sumSoldSelect 'Продано за неделю (сумма)'  = GROUP
-        BY extractWeek(DATE date), DATE dateFrom, DATE dateTo SUM
-        sumSold(Sku sku, Stock stock, LegalEntity customer, date) IF date >= dateFrom AND date <= dateTo AND inReport(stock);
+sumSoldSelect 'Продано за неделю (сумма)'  = GROUP SUM
+        sumSold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND inReport(stock)
+        BY extractWeek(date), dateFrom, dateTo;
                         
 weekString = FORMULA STRING[4] 'CAST($1 AS character(4))' FIXEDCHARWIDTH 4;
 

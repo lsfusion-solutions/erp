@@ -83,9 +83,9 @@ sumReturn 'Возврат с НДС' = DATA NUMERIC[18,4] (SaleReportDetail);
 quantityBalanceB 'Остаток количество (начало)' = DATA NUMERIC[16,5] (SaleReportDetail);
 quantityBalanceA 'Остаток количество (конец)' = DATA NUMERIC[16,5] (SaleReportDetail);
 
-sumBalanceBReportDetail 'Остаток с НДС (начало)' (saleReport) = GROUP BY saleReport(SaleReportDetail idetail) SUM sumBalanceB(idetail) IN documentSum MATERIALIZED;
-sumBalanceAReportDetail 'Остаток с НДС (конец)' (saleReport) = GROUP BY saleReport(SaleReportDetail idetail) SUM sumBalanceA(idetail) IN documentSum MATERIALIZED;
-sumReturnReportDetail 'Возврат с НДС' (saleReport) = GROUP BY saleReport(SaleReportDetail idetail) SUM sumReturn(idetail) IN documentSum MATERIALIZED;
+sumBalanceBReportDetail 'Остаток с НДС (начало)' (saleReport) = GROUP SUM sumBalanceB(SaleReportDetail idetail) BY saleReport(idetail) IN documentSum MATERIALIZED;
+sumBalanceAReportDetail 'Остаток с НДС (конец)' (saleReport) = GROUP SUM sumBalanceA(SaleReportDetail idetail) BY saleReport(idetail) IN documentSum MATERIALIZED;
+sumReturnReportDetail 'Возврат с НДС' (saleReport) = GROUP SUM sumReturn(SaleReportDetail idetail) BY saleReport(idetail) IN documentSum MATERIALIZED;
 
 CONSTRAINT tax(VAT(SaleReportDetail d)) != Tax.taxVAT OR
            country(VAT(d)) != country(legalEntity(companyStock(d)))
@@ -106,28 +106,28 @@ EXTEND FORM options
     PROPERTIES (s) inSalereport
 ;
        
-quantitySoldCompanyFromTo 'Продано за интервал (кол-во)' = GROUP
-    BY  Batch bt,legalEntity(Stock st),DATE dFrom,DATE dTo SUM quantitySold(bt,st,dFrom,dTo) IF inSalereport(st);  
+quantitySoldCompanyFromTo 'Продано за интервал (кол-во)' = GROUP SUM quantitySold(Batch bt,Stock st,DATE dFrom,DATE dTo) IF inSalereport(st)
+    BY  bt,legalEntity(st),dFrom,dTo;  
        
-balanceBCompanyFrom 'Остаток начало (кол-во)' = GROUP
-    BY  Batch bt,legalEntity(Stock st),DATE dFrom SUM balanceB(bt,st,dFrom) IF inSalereport(st);          
-balanceACompanyTo 'Остаток конец (кол-во)' = GROUP
-    BY  Batch bt,legalEntity(Stock st),DATE dTo SUM balanceA(bt,st,dTo) IF inSalereport(st); 
+balanceBCompanyFrom 'Остаток начало (кол-во)' = GROUP SUM balanceB(Batch bt,Stock st,DATE dFrom) IF inSalereport(st)
+    BY  bt,legalEntity(st),dFrom;          
+balanceACompanyTo 'Остаток конец (кол-во)' = GROUP SUM balanceA(Batch bt,Stock st,DATE dTo) IF inSalereport(st)
+    BY  bt,legalEntity(st),dTo; 
      
-quantityReturnFromTo 'Возвращено' = GROUP
-    BY Batch batch, stock(PurchaseLedger ledger), DATE dateFrom, DATE dateTo SUM (-cost(ledger, batch)) IF cost(ledger, batch) <0 
-    AND date(ledger) >= dateFrom AND date(ledger) <= dateTo;
+quantityReturnFromTo 'Возвращено' = GROUP SUM (-cost(PurchaseLedger ledger, Batch batch)) IF cost(ledger, batch) <0 
+    AND date(ledger) >= DATE dateFrom AND date(ledger) <= DATE dateTo
+    BY batch, stock(ledger), dateFrom, dateTo;
 
-quantityReturnCompanyFromTo 'Возвращено' = GROUP
-    BY Batch batch, legalEntity(stock(PurchaseLedger ledger)), DATE dateFrom, DATE dateTo SUM (-cost(ledger, batch)) IF cost(ledger, batch) <0 
-    AND date(ledger) >= dateFrom AND date(ledger) <= dateTo AND inSalereport(stock(ledger));
+quantityReturnCompanyFromTo 'Возвращено' = GROUP SUM (-cost(PurchaseLedger ledger, Batch batch)) IF cost(ledger, batch) <0 
+    AND date(ledger) >= DATE dateFrom AND date(ledger) <= DATE dateTo AND inSalereport(stock(ledger))
+    BY batch, legalEntity(stock(ledger)), dateFrom, dateTo;
 
 prevStocksReport 'Предыдущий отчет' (SaleReport saleReport) = PARTITION PREV saleReport IF companyStock(saleReport) ORDER toDate(saleReport)
     BY companyStock(saleReport), supplier(saleReport), contractSku(saleReport);
 prevCompaniesReport 'Предыдущий отчет' (SaleReport saleReport) = PARTITION PREV saleReport IF NOT companyStock(saleReport) ORDER toDate(saleReport)
     BY company(saleReport), supplier(saleReport), contractSku(saleReport);
 
-detail (b,r)= GROUP BY batch(SaleReportDetail d), saleReport(d) MAX d;             
+detail (b,r)= GROUP MAX SaleReportDetail d BY batch(d), saleReport(d);             
 
 skipSaleReport = ABSTRACT BOOLEAN (Batch);     
        
@@ -510,8 +510,8 @@ EXTEND FORM contractSkus
     PROPERTIES (c) READONLY  partSale
 ;
 
-filterSoldCompanyFromTo = GROUP
-    BY legalEntity(Stock stock), contractSku(invoice(invoiceDetail(Batch batch))), DATE dateFrom, DATE dateTo SUM quantitySold(batch, stock, dateFrom, dateTo) IF inSalereport(stock);   
+filterSoldCompanyFromTo = GROUP SUM quantitySold(Batch batch, Stock stock, DATE dateFrom, DATE dateTo) IF inSalereport(stock)
+    BY legalEntity(stock), contractSku(invoice(invoiceDetail(batch))), dateFrom, dateTo;   
 
 createAutoSaleReport 'Создать акты реализации'(LegalEntity company, DATE dateFrom, DATE dateTo) = {
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
@@ -543,7 +543,7 @@ lastSaleDate = lastDayOfMonth(sumMonth(currentDate(), -1));
 fromDateFull(ContractSku c) = IF partSale(c) THEN sum(firstSaleDate(),15)
                                       ELSE firstSaleDate();
 
-saleReport = GROUP BY companyStock(SaleReport r), contractSku(r), fromDate(r), toDate(r) MAX r;
+saleReport = GROUP MAX SaleReport r BY companyStock(r), contractSku(r), fromDate(r), toDate(r);
 
 createAutoSaleReportdFull 'Создать акты реализации (месяц)'(LegalEntity company) = {
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
@@ -641,7 +641,7 @@ DESIGN options {
     }
 }
 
-maxToDatePostedSaleSupplier(SaleReport report, s,l,c) = GROUP BY companyStock(SaleReport r), supplier(r), contractSku(r) MAX toDate(r) IF isPosted(r) AND NOT r == report;
+maxToDatePostedSaleSupplier(SaleReport report, s,l,c) = GROUP MAX toDate(SaleReport r) IF isPosted(r) AND NOT r == report BY companyStock(r), supplier(r), contractSku(r);
 
 CONSTRAINT (SETCHANGED (fromDate(SaleReport r) ) OR SET(isPosted(r))) 
     AND fromDate(r) <= maxToDatePostedSaleSupplier(r, companyStock(r), supplier(r), contractSku(r)) 

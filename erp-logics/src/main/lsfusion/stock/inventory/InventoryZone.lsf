@@ -75,15 +75,15 @@ skipDelete (TerminalDocument d) += (GROUP SUM 1 IF in(Inventory i, d)) > 0;
 zone (TerminalDocumentDetail d) = zone(terminalDocument(d)) MATERIALIZED;
 commission (TerminalDocumentDetail d) = commission(terminalDocument(d)) MATERIALIZED;
 
-in = GROUP BY Inventory i, commission(TerminalDocument d) SUM 1 IF in(i, d);
-in = GROUP BY Inventory i, zone(TerminalDocument d) SUM 1 IF in(i, d);
+in = GROUP SUM 1 IF in(Inventory i, TerminalDocument d) BY i, commission(d);
+in = GROUP SUM 1 IF in(Inventory i, TerminalDocument d) BY i, zone(d);
 
 TABLE inventoryZoneSku(Inventory, Zone, Sku);
 dataQuantity = DATA NUMERIC[14,3](Inventory, Zone, Sku);
-quantity = GROUP BY Inventory i, zone(TerminalDocumentDetail d), sku(d) SUM quantity(d) IF in(i, d);
+quantity = GROUP SUM quantity(TerminalDocumentDetail d) IF in(Inventory i, d) BY i, zone(d), sku(d);
 
-quantity = GROUP BY Inventory i, zone(TerminalDocumentDetail d), commission(d), sku(d) SUM quantity(d) IF in(i, d);
-countValue = GROUP BY quantity(Inventory i, Zone z, Commission c, Sku s), i,z,s SUM 1;
+quantity = GROUP SUM quantity(TerminalDocumentDetail d) IF in(Inventory i, d) BY i, zone(d), commission(d), sku(d);
+countValue = GROUP SUM 1 BY quantity(Inventory i, Zone z, Commission c, Sku s), i,z,s;
 overToQuantity (Inventory i,Zone z,Sku s) = GROUP MIN NUMERIC[14,3] q IF countValue( q, i, z, s) >= countCommissions(i); 
 
 toQuantity 'В опись' (Inventory i, Zone z, Sku s) = OVERRIDE  dataQuantity(i,z,s), overToQuantity(i,z,s);
@@ -163,22 +163,22 @@ zone = DATA Zone (ListInventory);
 nameZone 'Зона' (ListInventory li) = name(zone(li));
 
 nameListInventories 'Описи'  = 
-    GROUP 
-    BY inventory(ListInventory li), zone(li) CONCAT name(li)  , ', ' 
-    ORDER name(li), li
+    GROUP CONCAT name(ListInventory li)  , ', ' 
+    ORDER name(li), li 
+    BY inventory(li), zone(li)
     CHARWIDTH 30;  
 
 commissionDocumentTitles 'Документы ТСД'  =
-    GROUP
-    BY Inventory in, zone(TerminalDocument td), idTerminalHandbookType2(td) CONCAT title(td)  , ', ' 
-    IF in(in, zone(td)) AND in(in,td)  
-    ORDER date(td), time(td); 
+    GROUP CONCAT title(TerminalDocument td)  , ', ' 
+    IF in(Inventory in, zone(td)) AND in(in,td)  
+    ORDER date(td), time(td)
+    BY in, zone(td), idTerminalHandbookType2(td); 
 
 commissionDocumentTitles 'Документы ТСД'  =
-    GROUP
-    BY Inventory in, idTerminalHandbookType2(TerminalDocument td) CONCAT title(td)  , ', ' 
-    IF in(in, td) AND diffQuantityInitial(in, zone(td))  
-    ORDER date(td), time(td); 
+    GROUP CONCAT title(TerminalDocument td)  , ', ' 
+    IF in(Inventory in, td) AND diffQuantityInitial(in, zone(td))  
+    ORDER date(td), time(td)
+    BY in, idTerminalHandbookType2(td); 
 
 showCreateList (Inventory i, Zone z) = NOT diffQuantity(i,z) AND NOT nameListInventories(i, z);    
 
@@ -210,7 +210,7 @@ createListInventoryZones 'Создать описи по зонам' (Inventory 
     LOCAL qty = NUMERIC[14,3](Inventory, Zone, Sku);
     qty(in, Zone z, Sku s) <- toQuantity(in, z, s);
     
-    FOR [= GROUP BY Zone z SUM qty(in, z, Sku s) ](Zone z) NEW li = ListInventory DO {
+    FOR [= GROUP SUM qty(in, Zone z, Sku s) BY z ](Zone z) NEW li = ListInventory DO {
     
         inventory(li) <- in;
         zone(li) <- z;

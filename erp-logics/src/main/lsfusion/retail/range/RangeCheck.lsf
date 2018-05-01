@@ -37,8 +37,8 @@ counInclude 'Кол-во товаров' (RangeRev v,Sku s) = GROUP SUM 1 IF inc
 counInclude 'Кол-во товаров' (RangeRev v) = GROUP SUM 1 IF counInclude(v, Sku s);
 counInclude'Кол-во товаров' (Range r, DATE dt) = counInclude(rangeRev(r,dt));
 counInclude'Кол-во товаров' (Range r, Sku s, DATE dt) = counInclude(rangeRev(r,dt),s);
-counInclude 'Кол-во товаров' = GROUP BY range(RangeRev v),Sku s SUM 1 IF include(v, Store st, s);
-counInclude 'Кол-во товаров' = GROUP BY range(RangeRev v),Store st,Sku s SUM 1 IF include(v, st, s);
+counInclude 'Кол-во товаров' = GROUP SUM 1 IF include(RangeRev v, Store st, Sku s) BY range(v),s;
+counInclude 'Кол-во товаров' = GROUP SUM 1 IF include(RangeRev v, Store st, Sku s) BY range(v),st,s;
 
 EXTEND FORM range
     PROPERTIES (v)       READONLY counInclude
@@ -91,7 +91,7 @@ EXTEND FORM storeRange
     FILTERS include(rn, ds, sk, d)
 ;
 
-WHEN autoSetGroupAttribute(mainRole(currentUser())) AND [= GROUP BY range(RangeRev v), itemGroup(Item item) SUM 1 IF CHANGED(itemGroup(item)) AND include(v, Store store, item) AND NOT inChild(range(v), item)](Range r, ItemGroup g) DO {
+WHEN autoSetGroupAttribute(mainRole(currentUser())) AND [= GROUP SUM 1 IF CHANGED(itemGroup(Item item)) AND include(RangeRev v, Store store, item) AND NOT inChild(range(v), item) BY range(v), itemGroup(item)](Range r, ItemGroup g) DO {
     inData(r, g) <- TRUE;
 }
 

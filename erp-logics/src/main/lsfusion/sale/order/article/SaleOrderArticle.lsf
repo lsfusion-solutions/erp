@@ -121,9 +121,9 @@ DESIGN userOrder {
 }
 
 // Реализация по складу, артикулу, цвету, размеру за период
-quantitySold 'Продано за интервал (кол-во)' (article, color, size, Stock stock, DATE dateFrom, DATE dateTo) = GROUP
-        BY article(Item sku), calcColor(sku), calcSize(sku) SUM
-        quantitySold(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
+quantitySold 'Продано за интервал (кол-во)' (article, color, size, Stock stock, DATE dateFrom, DATE dateTo) = GROUP SUM
+        quantitySold(Item sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo
+        BY article(sku), calcColor(sku), calcSize(sku);
         
 quantitySoldOneWeek 'Продано за последнюю неделю (кол-во)' (Article article, Color color, Size size, UserOrder order)= quantitySold(article, color, size, customerStock(order), subtract(date(order),7), date(order));        
 quantitySoldTwoWeek 'Продано за предпоследнюю неделю (кол-во)' (Article article, Color color, Size size, UserOrder order)= quantitySold(article, color, size, customerStock(order), subtract(date(order),14), subtract(date(order),7));        

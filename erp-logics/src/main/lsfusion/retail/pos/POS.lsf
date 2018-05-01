@@ -78,7 +78,7 @@ closedCurrentZReport() = NOT currentZReport();
 //                                                                                         ELSE prevTotalSumReceipt (receipt);
 // Расчет сумм скидок
 
-setUserPromotion (receipt) = GROUP  BY receipt (ReceiptSaleDetail receiptSaleDetail) SUM 1 IF setUserPromotion (receiptSaleDetail, PromotionCondition promotionCondition);
+setUserPromotion (receipt) = GROUP SUM 1 IF setUserPromotion (ReceiptSaleDetail receiptSaleDetail, PromotionCondition promotionCondition)  BY receipt (receiptSaleDetail);
 
 promotionSum (ReceiptSaleDetail detail) = GROUP
                                                SUM promotionSum(detail, PromotionCondition condition) IF NOT useBonus(condition);
@@ -123,7 +123,7 @@ isAppliedPromotion 'Акция применяется' (ReceiptSaleDetail receip
       ELSE receiptSaleDetail IS ReceiptSaleDetail AND promotionCondition IS PromotionCondition;
 
 // оптимизация
-possible = GROUP BY receipt(ReceiptSaleDetail detail), promotion(PromotionCondition promotionCondition) SUM 1 IF in(promotionCondition, sku(detail)) IF quantity(detail);
+possible = GROUP SUM 1 IF in(PromotionCondition promotionCondition, sku(ReceiptSaleDetail detail)) IF quantity(detail) BY receipt(detail), promotion(promotionCondition);
 
 beforeCalculatePromotions = ABSTRACT LIST (Receipt);
 overCalculatePromotions = ABSTRACT LIST (Receipt);
@@ -406,7 +406,7 @@ prePost(Receipt receipt) = {
 incorrectReceipt = ABSTRACT CASE TEXT (Receipt);
 
 post 'Смешанная'(Receipt receipt) = {
-    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP BY receipt(ReceiptReturnDetail d) SUM 1 IF discountCard(d)](receipt) THEN {
+    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
     } 
@@ -446,7 +446,7 @@ post 'Смешанная'(Receipt receipt) = {
 } CHANGEKEY 'F9' IN receiptAction;
 
 postCard 'Карточкой'(Receipt receipt) = {
-    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP BY receipt(ReceiptReturnDetail d) SUM 1 IF discountCard(d)](receipt) THEN {
+    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
     } 
@@ -477,7 +477,7 @@ postCard 'Карточкой'(Receipt receipt) = {
 } CHANGEKEY 'F10' CONFIRM IN receiptAction;
 
 postCash 'Наличными'(Receipt receipt) = {
-    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP BY receipt(ReceiptReturnDetail d) SUM 1 IF discountCard(d)](receipt) THEN {
+    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
     } 
@@ -635,16 +635,16 @@ createSaleDetail 'Добавить строку продажи'(Receipt receipt,
     }
 }
 
-countBatch (sk, Stock st, Receipt r) = GROUP
-                                              BY sku(Batch batch) SUM 1 
-                                                  IF (currentBalance(batch, st) (-) 
-                                                      [= GROUP 
-                                                              BY batch(ReceiptSaleDetail d), receipt(d) SUM quantity(d)] (batch, r)) > 0; 
+countBatch (sk, Stock st, Receipt r) = GROUP SUM 1 
+                                                  IF (currentBalance(Batch batch, st) (-) 
+                                                      [= GROUP SUM quantity(ReceiptSaleDetail d) 
+                                                              BY batch(d), receipt(d)] (batch, r)) > 0
+                                              BY sku(batch); 
 defaultBatch 'Партия по умолчанию' (sku, Stock stock, Receipt receipt) = 
-    GROUP
-          BY sku(Batch batch) MIN batch IF (currentBalance(batch, stock) (-)
-                        [= GROUP 
-                                 BY batch(ReceiptSaleDetail d), receipt(d) SUM quantity(d)] (batch, receipt)) > 0; 
+    GROUP MIN Batch batch IF (currentBalance(batch, stock) (-)
+                        [= GROUP SUM quantity(ReceiptSaleDetail d) 
+                                 BY batch(d), receipt(d)] (batch, receipt)) > 0
+          BY sku(batch); 
 
 createSaleDetail 'Добавить строку продажи'(Receipt receipt, Sku sku, VARSTRING[30] barcode) = {
     NEW d = ReceiptSaleDetail {
@@ -964,7 +964,7 @@ scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = {
 // Поиск
 
 unreturned (ReceiptSaleDetail d) = quantity[ReceiptDetail](d) (-) quantityReturned(d);
-unreturned (Receipt) = GROUP BY receipt(ReceiptSaleDetail d) SUM 1 IF unreturned (d) > 0.0;
+unreturned (Receipt) = GROUP SUM 1 IF unreturned (ReceiptSaleDetail d) > 0.0 BY receipt(d);
 
 FORM searchSkuReturnReceipt 'Поиск строки возврата'
     OBJECTS st = DepartmentStore PANEL

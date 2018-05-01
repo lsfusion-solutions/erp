@@ -15,17 +15,17 @@ toSku = DATA Sku(Substitute);
 idToSku 'Код товара на' (Substitute substitute)= id(toSku(substitute)) CHARWIDTH 10;
 nameToSku 'Товар на' (Substitute substitute)= name(toSku(substitute)) IN recognize;
 
-uniqueSubstituteFromTo = GROUP BY fromSku(Substitute substitute), toSku(substitute) AGGR substitute WHERE substitute IS Substitute;
-countSubstituteFromTo = GROUP BY fromSku(Substitute substitute), toSku(substitute) SUM 1;
-countSubstitutes = GROUP BY fromSku(Substitute substitute) SUM 1;
+uniqueSubstituteFromTo = GROUP AGGR Substitute substitute WHERE substitute IS Substitute BY fromSku(substitute), toSku(substitute);
+countSubstituteFromTo = GROUP SUM 1 BY fromSku(Substitute substitute), toSku(substitute);
+countSubstitutes = GROUP SUM 1 BY fromSku(Substitute substitute);
 
-lastSubstituteFrom = GROUP
-                                     BY   fromSku(Substitute substitute) LAST substitute
-                                     ORDER substitute;
+lastSubstituteFrom = GROUP LAST Substitute substitute
+                                     ORDER substitute
+                                     BY   fromSku(substitute);
 
-lastSubstituteTo = GROUP
-                                     BY   toSku(Substitute substitute) LAST substitute
-                                     ORDER substitute;
+lastSubstituteTo = GROUP LAST Substitute substitute
+                                     ORDER substitute
+                                     BY   toSku(substitute);
 
 multiplier 'Коэффициент' = DATA NUMERIC[10,5] (Substitute) IN recognize;
 
@@ -55,9 +55,9 @@ use 'Можно использовать' (Substitute substitute, BOM BOM) =
     (allBOMs(substitute) AND BOM IS BOM AND NOT exclude(substitute, BOM)) OR 
     (include(substitute, BOM) AND NOT allBOMs(substitute)) COMPLEX;
 
-countComponent (material) = GROUP BY material(Component component) SUM 1;
+countComponent (material) = GROUP SUM 1 BY material(Component component);
 
-relation (material, BOM)  = GROUP BY material(Component c), BOM(c) SUM 1; 
+relation (material, BOM)  = GROUP SUM 1 BY material(Component c), BOM(c); 
 
 useDefaultComponentFilter 'Не использовать фильтр по спецификациям по умолчанию в заменах' = DATA BOOLEAN ();
 

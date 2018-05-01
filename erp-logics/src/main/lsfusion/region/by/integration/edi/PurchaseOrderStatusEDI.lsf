@@ -9,7 +9,7 @@ NAMESPACE EDI;
 
 backgroundQuantityResponseEDI(Purchase.OrderDetail d) += RGB(255,0,0) IF quantityResponseEDI(d) != originalQuantity(d);
 
-skuWithoutPrice 'Товары без цены' (Order o) = GROUP BY order(OrderDetail d) CONCAT idSku(d) + ' ' + nameSku(d), '\n' IF NOT price(d);
+skuWithoutPrice 'Товары без цены' (Order o) = GROUP CONCAT idSku(OrderDetail d) + ' ' + nameSku(d), '\n' IF NOT price(d) BY order(d);
 
 overEmailCustomer(Order.Order order) += {
     IF NOT consumedEmailCustomer(order ) AND isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
@@ -95,7 +95,7 @@ orderConfirmation(UserOrder o) += isEOrder(o);
 notEqualPriceEDI = ABSTRACT CASE OVERRIDE BOOLEAN (Purchase.OrderDetail);
 notEqualPriceEDI(OrderDetail d) += WHEN d IS Purchase.OrderDetail AND NOT priceResponseEDI(d) == price(d) THEN TRUE ;
 
-notEqualResponseEDI(Purchase.Order o) =  o IS Purchase.Order AND NOT quantityResponseEDI(o) == quantityOrderDetail(o) OR [=GROUP BY order(OrderDetail d) SUM 1 IF notEqualPriceEDI(d) ](o);
+notEqualResponseEDI(Purchase.Order o) =  o IS Purchase.Order AND NOT quantityResponseEDI(o) == quantityOrderDetail(o) OR [=GROUP SUM 1 IF notEqualPriceEDI(OrderDetail d) BY order(d) ](o);
 skipPostConfirmed(Purchase.Order o) += WHEN isEOrder(o AS Order) AND notEqualResponseEDI(o) THEN TRUE;
 
 showAgree(Purchase.Order o) = isConfirmed(o) AND isEOrder(o) AND notEqualResponseEDI(o);
@@ -132,7 +132,7 @@ status(Purchase.Order o) += WHEN isEOrder(o AS UserOrder) AND isConfirmed(o) AND
 backgroundStatus(Purchase.Order o) += WHEN isConfirmed(o) THEN RGB(212,255,212);
 backgroundStatus(Purchase.Order o) += WHEN isEOrder(o AS UserOrder) AND isConfirmed(o) AND NOT quantityResponseEDI(o) == quantityOrderDetail(o) THEN RGB(255,255,128);
 
-currentOrderMessage = GROUP BY eOrder(EOrderMessage m) LAST m ORDER dateTime(m), m;
+currentOrderMessage = GROUP LAST EOrderMessage m ORDER dateTime(m), m BY eOrder(m);
 statusDescription 'Статус отправки EDI'(EOrder o) = CONCAT ' ', code(currentOrderMessage(o)), description(currentOrderMessage(o)) CHARWIDTH 15;
 
 backgroundStatusEDI(Purchase.Order o) = IF currentOrderMessage(o) THEN IF good(currentOrderMessage(o)) THEN RGB(212,255,212) ELSE RGB (255,128,128);

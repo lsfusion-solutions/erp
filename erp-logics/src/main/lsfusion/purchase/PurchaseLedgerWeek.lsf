@@ -4,13 +4,13 @@ REQUIRE PurchaseLedger;
 
 NAMESPACE PurchaseLedger;
 
-quantityPurchase 'Закуплено за неделю (кол-во)' (Sku sku, Stock stock, week, DATE dateFrom, DATE dateTo) = GROUP
-        BY extractWeek(DATE date) SUM
-        quantityPurchase(sku, stock, date) IF date >= dateFrom AND date <= dateTo;
+quantityPurchase 'Закуплено за неделю (кол-во)' (Sku sku, Stock stock, week, DATE dateFrom, DATE dateTo) = GROUP SUM
+        quantityPurchase(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo
+        BY extractWeek(date);
 
-sumPurchase 'Закуплено за неделю (сумма)' (Sku sku, Stock stock, week, DATE dateFrom, DATE dateTo) = GROUP
-        BY extractWeek(DATE date) SUM
-        sumPurchase(sku, stock, date) IF date >= dateFrom AND date <= dateTo;
+sumPurchase 'Закуплено за неделю (сумма)' (Sku sku, Stock stock, week, DATE dateFrom, DATE dateTo) = GROUP SUM
+        sumPurchase(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo
+        BY extractWeek(date);
 
 averagePricePurchase 'Средняя цена за неделю' (Sku sku, Stock stock, INTEGER week, DATE dateFrom, DATE dateTo)=  round2(sumPurchase(sku, stock, week, dateFrom, dateTo) /
         quantityPurchase(sku, stock, week, dateFrom, dateTo));

@@ -165,7 +165,7 @@ DESIGN options {
     }
 }
 
-CONSTRAINT denyRepeatSkuOrder() AND [= GROUP BY sku(ProductDetail d), order(d) SUM 1](Sku s, Order o) > 1 MESSAGE 'Изделие может быть включено в заказ только один раз';
+CONSTRAINT denyRepeatSkuOrder() AND [= GROUP SUM 1 BY sku(ProductDetail d), order(d)](Sku s, Order o) > 1 MESSAGE 'Изделие может быть включено в заказ только один раз';
 
 // Кол-во
 @defineDocumentDetailQuantityCustom (productDetail);
@@ -183,10 +183,10 @@ quantityPrice 'Кол-во для расчета цены' = IF calcBOMPrice(Pro
                                                             quantityBOM(d) ELSE
                                                             quantity(d) MATERIALIZED;
 
-quantityProductDetail 'Кол-во изделий в документе' (sku, order) =  GROUP
-    BY sku(ProductDetail productDetail), order(productDetail) SUM quantity(productDetail); 
+quantityProductDetail 'Кол-во изделий в документе' (sku, order) =  GROUP SUM quantity(ProductDetail productDetail)
+    BY sku(productDetail), order(productDetail); 
 countProductDetail 'Кол-во строк изделий в документе' (sku, order) = 
-    GROUP BY  sku(ProductDetail idetail), order(idetail) SUM 1;  
+    GROUP SUM 1 BY  sku(ProductDetail idetail), order(idetail);  
     
 //Процент и коэффициент цены
 pricePercent 'Удельный вес цены,%' = DATA NUMERIC[16,10] (ProductDetail);
@@ -238,7 +238,7 @@ sum(ProductDetail productDetail) <-
          CHANGED (price(productDetail)) OR
          CHANGED (currency(productDetail));
 
-sumProductDetail 'Сумма заказанных изделий' (order) = GROUP BY order(ProductDetail idetail) SUM sum(idetail) IN documentSum;
+sumProductDetail 'Сумма заказанных изделий' (order) = GROUP SUM sum(ProductDetail idetail) BY order(idetail) IN documentSum;
 
 // ------------- Компоненты ----------- //
 CLASS ComponentDetail 'Строка компонента';
@@ -248,7 +248,7 @@ TABLE sessionComponentDetail (Session, ComponentDetail);
 order = DATA Order (ComponentDetail) NONULL DELETE AGGR;
 
 countComponentDetail 'Кол-во строк' (o) =
-    GROUP BY order(ComponentDetail d) SUM 1 MATERIALIZED IN documentSum;
+    GROUP SUM 1 BY order(ComponentDetail d) MATERIALIZED IN documentSum;
 
 @defineDocumentDetailIndex (order, ComponentDetail);
 @defineDocumentDetailActionsCustom (order, ComponentDetail);
@@ -327,10 +327,10 @@ quantityPrice 'Кол-во для расчета цены' (ComponentDetail d) =
 @defineDocumentDetailDataSum (component);
 @deriveDocumentDetailSum(component, quantity);
 
-sumComponentDetail 'Сумма заказанных компонент' (order) = GROUP BY order(ComponentDetail idetail) SUM sum(idetail) IN documentSum;
+sumComponentDetail 'Сумма заказанных компонент' (order) = GROUP SUM sum(ComponentDetail idetail) BY order(idetail) IN documentSum;
 
 @defineDocumentHeaderQuantityCustomPrefix (order, componentDetail, , ' (компонент)');
-quantityComponentDetail 'Кол-во (всего) (компонент)' (sku, order) = GROUP BY sku(ComponentDetail idetail), order(idetail) SUM quantity(idetail) IN documentSum MATERIALIZED;
+quantityComponentDetail 'Кол-во (всего) (компонент)' (sku, order) = GROUP SUM quantity(ComponentDetail idetail) BY sku(idetail), order(idetail) IN documentSum MATERIALIZED;
 
 //-- Партия для строки компонента
 
@@ -377,12 +377,12 @@ CONSTRAINT sku(batch(ComponentDetail cd)) != sku(cd) CHECKED BY batch[ComponentD
 // ------------- Заполнение компонентов из спецификаций --------------- //
 
 TABLE productOrder(Product, Order);
-quantity 'Кол-во изделий в заказе' (product, order) = GROUP
-    BY product(ProductDetail productDetail), order(productDetail) SUM quantity(productDetail) MATERIALIZED;
+quantity 'Кол-во изделий в заказе' (product, order) = GROUP SUM quantity(ProductDetail productDetail)
+    BY product(productDetail), order(productDetail) MATERIALIZED;
 
 TABLE BOMOrder(BOM, Order);
-quantityProducts 'Кол-во спецификаций' (BOM BOM, Order order) = [= GROUP
-    BY BOM(Product product) MAX NUMERIC[19,8](quantity(product, order)) / quantity(product)](BOM) MATERIALIZED;
+quantityProducts 'Кол-во спецификаций' (BOM BOM, Order order) = [= GROUP MAX NUMERIC[19,8](quantity(Product product, order)) / quantity(product)
+    BY BOM(product)](BOM) MATERIALIZED;
     
 BOM = DATA BOM (ComponentDetail);
 INDEX BOM(ComponentDetail cd), order(cd);
@@ -453,8 +453,8 @@ updateComponentsOrder 'Пересчитать кол-во для всех'(order
 // ------------- Заполнение изделий из спецификаций --------------- //
 
 quantityComponents 'Кол-во спецификаций' (BOM BOM, Order order) =
-    [= GROUP
-    BY BOM(component(ComponentDetail componentDetail)), order(componentDetail) MAX NUMERIC[19,8](bruttoQuantity(componentDetail)) / bruttoQuantity(component(componentDetail), date(componentDetail))](BOM, order);
+    [= GROUP MAX NUMERIC[19,8](bruttoQuantity(ComponentDetail componentDetail)) / bruttoQuantity(component(componentDetail), date(componentDetail))
+    BY BOM(component(componentDetail)), order(componentDetail)](BOM, order);
 
 overCreateProducts = ABSTRACT LIST (Order);
 sortOrder = ABSTRACT  VARSTRING[100](Product, Order);
@@ -522,19 +522,19 @@ TABLE skuOrder(Sku, Order);
 TABLE substituteSkuOrder(Sku, Order);                                                                   
 
 // --- Основной компонент --- //
-bruttoQuantity 'Количество брутто' (sku, order) = GROUP
-                                                                BY bruttoSku(ComponentDetail componentDetail),
-                                                                   order(componentDetail) SUM bruttoQuantity(componentDetail) MATERIALIZED;
+bruttoQuantity 'Количество брутто' (sku, order) = GROUP SUM bruttoQuantity(ComponentDetail componentDetail)
+                                                                BY bruttoSku(componentDetail),
+                                                                   order(componentDetail) MATERIALIZED;
              
-bruttoNotSubstituteQuantity 'Количество без замены' (sku, order) = GROUP
-    BY bruttoSku(ComponentDetail componentDetail),
-       order(componentDetail) SUM bruttoQuantity(componentDetail) 
-    IF NOT substituteQuantity(componentDetail) MATERIALIZED;                                                                     
+bruttoNotSubstituteQuantity 'Количество без замены' (sku, order) = GROUP SUM bruttoQuantity(ComponentDetail componentDetail) 
+    IF NOT substituteQuantity(componentDetail)
+    BY bruttoSku(componentDetail),
+       order(componentDetail) MATERIALIZED;                                                                     
 
-bruttoSubstituteQuantity (sku, order) = GROUP
-    BY bruttoSku(ComponentDetail componentDetail),
-       order(componentDetail) SUM bruttoQuantity(componentDetail) 
-    IF substituteQuantity(componentDetail) MATERIALIZED TABLE substituteSkuOrder;                                                                                                                                   
+bruttoSubstituteQuantity (sku, order) = GROUP SUM bruttoQuantity(ComponentDetail componentDetail) 
+    IF substituteQuantity(componentDetail)
+    BY bruttoSku(componentDetail),
+       order(componentDetail) MATERIALIZED TABLE substituteSkuOrder;                                                                                                                                   
                                                                                                                                  
 // цены по товару
 dataBruttoPrice 'Цена' = DATA NUMERIC[16,4] (Sku, Order);
@@ -547,7 +547,7 @@ WHEN LOCAL (CHANGED(priceListType(Order order)) OR CHANGED(componentsStock(order
                                                                                     componentsStock(order),
                                                                                     dateTime(order));
 
-calcCost 'Себестоимость' (Sku sku, Stock stock) = [= GROUP BY skuCurrentBalance(Batch b, stock) SUM cost(b) * currentBalance(b, stock)](sku) /
+calcCost 'Себестоимость' (Sku sku, Stock stock) = [= GROUP SUM cost(Batch b) * currentBalance(b, stock) BY skuCurrentBalance(b, stock)](sku) /
     (currentBalance(sku, stock) IF currentBalance(sku, stock) != 0);   
 
 WHEN LOCAL (CHANGED(quantityComponentDetail(Sku sku, Order order)) OR CHANGED(componentsStock(order)))
@@ -697,7 +697,7 @@ change(Substitute substitute, Sku sku, Order order) = {
 }
 
 // коэффициенты цен
-calcQuantityComponentsProductDetailProduct 'Кол-во компонентов' = GROUP BY BOM(ProductDetail d), order(d) SUM quantityPrice(d) MATERIALIZED;
+calcQuantityComponentsProductDetailProduct 'Кол-во компонентов' = GROUP SUM quantityPrice(ProductDetail d) BY BOM(d), order(d) MATERIALIZED;
 calcQuantityComponents 'Кол-во компонентов' = calcQuantityComponentsProductDetailProduct(BOM(ProductDetail detail), order(detail));
             
 calcPriceCoeff 'Коэффициент цены' (ProductDetail productDetail) = NUMERIC[20,5](calcQuantityComponents(productDetail) * pricePercent(productDetail) 
@@ -713,11 +713,11 @@ nameSku 'Итоговый sku' (Sku sku,Order order)= name(sku (sku,order));
 idBarcodeSku 'Штрихкод' (Sku sku,Order order) = idBarcode(sku (sku, order));
 shortNameUOMSku 'Ед.изм.' (Sku sku,Order order) = shortNameUOM(sku (sku, order));
 
-sumComponentDetail 'Сумма' (BOM, sku, order) = GROUP BY BOM(ComponentDetail d), sku(d), order(d) SUM sum(d);
+sumComponentDetail 'Сумма' (BOM, sku, order) = GROUP SUM sum(ComponentDetail d) BY BOM(d), sku(d), order(d);
 
-sumComponentDetail = GROUP BY BOM(ComponentDetail d), order(d) SUM sum(d);
-quantityComponentDetail = GROUP BY BOM(ComponentDetail d), order(d) SUM quantity(d);
-BOMQuantityComponentDetail = GROUP BY BOM(ComponentDetail d), order(d) SUM BOMQuantity(d);
+sumComponentDetail = GROUP SUM sum(ComponentDetail d) BY BOM(d), order(d);
+quantityComponentDetail = GROUP SUM quantity(ComponentDetail d) BY BOM(d), order(d);
+BOMQuantityComponentDetail = GROUP SUM BOMQuantity(ComponentDetail d) BY BOM(d), order(d);
 
 priceComponents (BOM b, Order o) = sumComponentDetail(b, o) / quantityComponentDetail(b, o);  
 
@@ -737,7 +737,7 @@ calcComponentsPrice 'Цена расчетная с/с' (ProductDetail d) = IF c
                                                                                     priceComponents (d) // Цена компонентов за единицу 
                                                                                     * pricePercent(d) / 100.0; // удельная цена
                     
-costSumComponents =  GROUP BY BOM(ComponentDetail d), order(d) SUM quantity(d) * cost(d);
+costSumComponents =  GROUP SUM quantity(ComponentDetail d) * cost(d) BY BOM(d), order(d);
 costComponents (BOM b, Order o) = costSumComponents(b, o) / quantityComponentDetail(b, o);
 
 calcCost 'Себестоимость расчетная' (ProductDetail d)= IF calcBOMPrice(d) THEN // считаем цены от цены спецификации * коэффициент (чтобы избежать проблем с округлением)
@@ -897,8 +897,8 @@ skip(d) = ABSTRACT BOOLEAN (ComponentDetail);
 
 valueVAT(ComponentDetail d) = OVERRIDE valueVAT(batch(d)) IF (valueVAT(batch(d)) !=0.0), valueVAT(sku(d), order(d)) MATERIALIZED;
 sumVAT (ComponentDetail d) = sum(d) * valueVAT(d) / (100.0 + valueVAT(d));
-sumVATComponents (ProductDetail d) = [= GROUP BY BOM(ComponentDetail cd), order(cd) SUM sumVAT(cd) IF NOT skip(cd)](BOM(d), order(d)); 
-sumVATComponentDetail = GROUP BY BOM(ComponentDetail d), order(d) SUM sum(d) IF NOT skip(d);                                                            
+sumVATComponents (ProductDetail d) = [= GROUP SUM sumVAT(ComponentDetail cd) IF NOT skip(cd) BY BOM(cd), order(cd)](BOM(d), order(d)); 
+sumVATComponentDetail = GROUP SUM sum(ComponentDetail d) IF NOT skip(d) BY BOM(d), order(d);                                                            
       
 useVATItem 'НДС изделия из карточки' = DATA BOOLEAN (Operation);
 EXTEND FORM operation PROPERTIES (o) useVATItem;
@@ -1094,8 +1094,8 @@ backgroundMarkup = ABSTRACT CASE COLOR (ProductDetail);
   
   //toSkuSubstitute(substitute)
 bruttoBalance 'Текущий остаток с учетом замен' (Sku sku,Order order) = currentBalance(sku, componentsStock(order)) (+) 
-    [ = GROUP 
-        BY fromSku(Substitute substitute) SUM NUMERIC[19,8](currentBalance(substitute, order)) / (multiplier(substitute) IF multiplier(substitute) != 0)](sku);  
+    [ = GROUP SUM NUMERIC[19,8](currentBalance(Substitute substitute, order)) / (multiplier(substitute) IF multiplier(substitute) != 0) 
+        BY fromSku(substitute)](sku);  
  
 bruttoBalanceToSku 'Текущий остаток с учетом замен' (Substitute su, Order order)= bruttoBalance(toSku(su), order); 
 
@@ -1386,19 +1386,19 @@ WHEN LOCAL FORMS order CHANGED(cost(sku(ComponentDetail detail), order(detail)))
 WHEN LOCAL FORMS order CHANGED(product(ProductDetail detail)) DO
     sku(detail) <- sku(product(detail));                 
               
-countProducts (sku) = GROUP BY sku(Product p) SUM 1 MATERIALIZED ;
-isActiveBOM (sku) = GROUP BY sku(Product p) SUM 1 IF isActive(BOM(p));
+countProducts (sku) = GROUP SUM 1 BY sku(Product p) MATERIALIZED ;
+isActiveBOM (sku) = GROUP SUM 1 IF isActive(BOM(Product p)) BY sku(p);
 //defaultProductSku (sku)= GROUP MIN product BY skuProduct(product);
 
-countProducts (sku, Stock stock, DATE date) = GROUP BY sku(Product p) SUM 1 IF isActive(BOM(p), date) AND in(BOM(p), stock);
-defaultProduct (sku, Stock stock, DATE date)= GROUP BY sku(Product p) MIN p IF isActive(BOM(p), date) AND in(BOM(p), stock);
+countProducts (sku, Stock stock, DATE date) = GROUP SUM 1 IF isActive(BOM(Product p), date) AND in(BOM(p), stock) BY sku(p);
+defaultProduct (sku, Stock stock, DATE date)= GROUP MIN Product p IF isActive(BOM(p), date) AND in(BOM(p), stock) BY sku(p);
 
 WHEN LOCAL FORMS order CHANGED(sku(ProductDetail d)) AND NOT CHANGED(product(d)) AND countProducts(sku(d), componentsStock(d), date(d)) == 1 NOINLINE DO {
     product(d) <- defaultProduct(sku(d), componentsStock(d), date(d));
 }     
                                                                      
-countBOMsSku (material) = GROUP BY material(Component c) SUM 1 IF material(c) AS Sku MATERIALIZED;
-isActiveBOMSku (material) = GROUP BY material(Component c) SUM 1 IF isActive(BOM(c)) AND material(c) AS Sku;
+countBOMsSku (material) = GROUP SUM 1 IF material(Component c) AS Sku BY material(c) MATERIALIZED;
+isActiveBOMSku (material) = GROUP SUM 1 IF isActive(BOM(Component c)) AND material(c) AS Sku BY material(c);
 
 EXTEND FORM BOMs
     FILTERGROUP prod 
@@ -1412,8 +1412,8 @@ EXTEND FORM BOMs
     FILTERGROUP bom1 FILTER 'Активные' isActive(b1) 'F7' DEFAULT                                                     
     FILTERGROUP bom2 FILTER 'Активные' isActive(b2) 'F7' DEFAULT                                                     
 ;                                                               
-countComponents (material, Stock stock, DATE date) = GROUP BY material(Component c) AS Sku SUM 1 IF isActive(BOM(c), date) AND in(BOM(c),stock);
-defaultComponents (material, Stock stock, DATE date)= GROUP BY material(Component c) AS Sku MIN c IF isActive(BOM(c), date) AND in(BOM(c),stock);                                                                  
+countComponents (material, Stock stock, DATE date) = GROUP SUM 1 IF isActive(BOM(Component c), date) AND in(BOM(c),stock) BY material(c) AS Sku;
+defaultComponents (material, Stock stock, DATE date)= GROUP MIN Component c IF isActive(BOM(c), date) AND in(BOM(c),stock) BY material(c) AS Sku;                                                                  
                                                                      
 //WHEN LOCAL FORMS order CHANGED(bruttoSkuComponentDetail(d)) NOINLINE DO {
 //    componentComponentDetail(d) <- defaultComponentsSku(bruttoSkuComponentDetail(d))
@@ -1886,11 +1886,11 @@ CONSTRAINT isPosted(ComponentDetail d) AND isBatch(operation(d)) AND sku(d) AND 
     MESSAGE 'Для строки компонента в производственном заказе должна быть задана партия';
 
 //-------------------- Подбор изделий -----------------//
-productDetail (order,product) =  GROUP
-    BY order(ProductDetail productDetail), product(productDetail) MAX productDetail;
+productDetail (order,product) =  GROUP MAX ProductDetail productDetail
+    BY order(productDetail), product(productDetail);
 
-quantity 'Кол-во изделий в документе' (order,product) =  GROUP
-    BY order(ProductDetail productDetail), product(productDetail) SUM quantity(productDetail);    
+quantity 'Кол-во изделий в документе' (order,product) =  GROUP SUM quantity(ProductDetail productDetail)
+    BY order(productDetail), product(productDetail);    
     
 changeQuantity(Product product, Order order) = {
     INPUT n = NUMERIC[16,5] DO
@@ -1962,11 +1962,11 @@ show 'Просмотреть' (ProductDetail d) = {
 	}
 }
 //-------------------- Подбор компонентов -----------------//
-componentDetailBrutto (order,bruttoSku) =  GROUP
-    BY order(ComponentDetail componentDetail), bruttoSku(componentDetail) MAX componentDetail;
+componentDetailBrutto (order,bruttoSku) =  GROUP MAX ComponentDetail componentDetail
+    BY order(componentDetail), bruttoSku(componentDetail);
 
-bruttoQuantityBrutto 'Кол-во брутто компонентов в документе' (order,bruttoSku) =  GROUP
-    BY order(ComponentDetail componentDetail), bruttoSku(componentDetail) SUM bruttoQuantity(componentDetail);    
+bruttoQuantityBrutto 'Кол-во брутто компонентов в документе' (order,bruttoSku) =  GROUP SUM bruttoQuantity(ComponentDetail componentDetail)
+    BY order(componentDetail), bruttoSku(componentDetail);    
     
 changeBruttoQuantityBrutto(Sku bruttoSku, Order order) = {
     INPUT n = NUMERIC[16,5] DO
@@ -2147,8 +2147,8 @@ showToShow (Order o) = o IS Order AND NOT overShowEdit(o);
 EXTEND FORM orders
     PROPERTIES show(o) SHOWIF showToShow(o) BEFORE editO
 ;
-countProductDetail = GROUP BY order(ProductDetail pd), BOM(pd) SUM 1;
-countComponentDetail = GROUP BY order(ComponentDetail pd), BOM(pd) SUM 1;
+countProductDetail = GROUP SUM 1 BY order(ProductDetail pd), BOM(pd);
+countComponentDetail = GROUP SUM 1 BY order(ComponentDetail pd), BOM(pd);
 
 CONSTRAINT (SET(isPosted(ProductDetail pd)) OR CHANGED(BOM(pd)) OR CHANGED(operation(pd))) 
     AND isComponents(operation(pd)) AND isPosted(pd)

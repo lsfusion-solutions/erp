@@ -16,7 +16,7 @@ GTIN = ABSTRACT VARSTRING[15](Sku);
 GTIN(Item s) += GTIN(s);
 
 GTINBarcode 'GTIN' (Sku s) = OVERRIDE GTIN(s), idBarcode(s);
-skuGTINa = GROUP BY GTINBarcode(Sku s) NAGGR s;
+skuGTINa = GROUP NAGGR Sku s BY GTINBarcode(s);
 skuGTIN(VARSTRING[15] s) = OVERRIDE skuGTINa(s), skuBarcode(s);
 
 CLASS ABSTRACT EOrder 'EDI Заказ';
@@ -34,7 +34,7 @@ sendDateTime (EOrder o) = OVERRIDE currentDateTime() IF sendCurrentDateTime() AN
 shipmentDateTime 'Дата/время поставки' = ABSTRACT DATETIME (EOrder);
 
 number 'Номер' = ABSTRACT VARSTRING[28] (EOrder);
-eOrder (number) = GROUP BY number(EOrder e) AGGR e;
+eOrder (number) = GROUP AGGR EOrder e BY number(e);
 
 supplier 'Поставщик' = ABSTRACT LegalEntity (EOrder);
 nameSupplier 'Поставщик' (EOrder o) = name(supplier(o));
@@ -86,7 +86,7 @@ DESIGN EDIProviders {
 
 
 GLN 'GLN' = DATA VARSTRING[13] (LegalEntity);
-legalEntityGLN (legalEntity) = GROUP BY GLN(LegalEntity llegalEntity) AGGR llegalEntity;
+legalEntityGLN (legalEntity) = GROUP AGGR LegalEntity llegalEntity BY GLN(llegalEntity);
 GLNSupplier(EOrder e) = GLN(supplier(e));
 GLNCustomer(EOrder e) = GLN(customer(e));
 
@@ -109,9 +109,9 @@ nameEDIProvider'Провайдер EDI'(EOrder o) = nameEDIProvider(supplier(o))
 dataGLN 'GLN' = DATA VARSTRING[13] (Stock);
 GLN 'GLN' (Stock s) = OVERRIDE dataGLN(s), GLN(legalEntity(s)) IF countStock(legalEntity(s)) == 1 OR s IS Stock AND notCompany(s);
 
-companyStockGLN = GROUP BY GLN(Stock stock) AGGR stock WHERE isCompany(stock);
+companyStockGLN = GROUP AGGR Stock stock WHERE isCompany(stock) BY GLN(stock);
 
-stockGLN = GROUP BY GLN(Stock stock) MAX stock;
+stockGLN = GROUP MAX Stock stock BY GLN(stock);
 legalEntityStockGLN(VARSTRING[13] GLN) = legalEntity(stockGLN(GLN));
 
 GLNSupplierStock 'GLN поставщика' (EOrder e) = GLN(supplierStock(e));
@@ -187,7 +187,7 @@ CLASS EOrderMessage 'Сообщение по заказу EDI';
 TABLE eOrderMessage(EOrderMessage);
 
 number 'Номер' = DATA VARSTRING[24] (EOrderMessage);
-eOrderMessage (number) = GROUP BY number(EOrderMessage e) AGGR e;
+eOrderMessage (number) = GROUP AGGR EOrderMessage e BY number(e);
 eOrder 'Заказ' = DATA EOrder (EOrderMessage) NONULL DELETE INDEXED;
 numberEOrder 'Заказ' (EOrderMessage m) = number(eOrder(m));
 dateTime 'Дата/время сообщения' = DATA DATETIME (EOrderMessage);
@@ -349,24 +349,24 @@ dateTimeCreated(EInvoice i) <- currentDateTime() WHEN (i IS EInvoice);
 @defineExternalizable(eInvoice, VARSTRING[100]);
 dateTime 'Дата/время документа' = DATA DATETIME (EInvoice);
 number 'Номер' = DATA VARSTRING[28] (EInvoice);
-eInvoiceNumber (number) = GROUP BY number(EInvoice e) NAGGR e;
+eInvoiceNumber (number) = GROUP NAGGR EInvoice e BY number(e);
 
 blrapn = DATA VARSTRING[14] (EInvoice);
-eInvoiceBlrapn (number) = GROUP BY blrapn(EInvoice e) MAX e;
+eInvoiceBlrapn (number) = GROUP MAX EInvoice e BY blrapn(e);
 numberEInvoiceBlrapn(number) = number(eInvoiceBlrapn(number));
 blrwbr = DATA VARSTRING[14] (EInvoice);
-eInvoiceBlrwbr (number) = GROUP BY blrwbr(EInvoice e) MAX e;
+eInvoiceBlrwbr (number) = GROUP MAX EInvoice e BY blrwbr(e);
 numberEInvoiceBlrwbr(number) = number(eInvoiceBlrwbr(number));
 blrwbl = DATA VARSTRING[14] (EInvoice);
 blrwblDate = DATA DATETIME (EInvoice);
-eInvoiceBlrwbl (number) = GROUP BY blrwbl(EInvoice e) MAX e;
+eInvoiceBlrwbl (number) = GROUP MAX EInvoice e BY blrwbl(e);
 
 reportId 'Номер акта' = DATA VARSTRING[70] (EInvoice);
 reportDate 'Дата составления акта' = DATA DATE (EInvoice);
 reportName 'Вид  акта' = DATA VARSTRING[512] (EInvoice);
 
 deliveryNoteNumber 'Серия и номер бумажной накладной' = DATA VARSTRING[28] (EInvoice) IN recognize;
-eInvoiceDeliveryNoteNumber (number) = GROUP BY deliveryNoteNumber(EInvoice e) NAGGR e;
+eInvoiceDeliveryNoteNumber (number) = GROUP NAGGR EInvoice e BY deliveryNoteNumber(e);
 deliveryNoteDateTime 'Дата бумажной накладной' = DATA DATETIME (EInvoice);
 sealIDReceiver 'Номер пломбы (грузоотправитель)' = DATA VARSTRING[35] (EInvoice);
 
@@ -422,7 +422,7 @@ currency '3-х буквенный код валюты, в которой ука�
 
 isCancel 'Отмена накладной' = DATA BOOLEAN (EInvoice);
 isCancelNumber (EInvoice e) = IF isCancel(e) THEN 1 ELSE 0;
-eInvoiceDeliveryNoteNumberIsCancel (number, isCancel) = GROUP BY deliveryNoteNumber(EInvoice e), isCancelNumber(e) NAGGR e;
+eInvoiceDeliveryNoteNumberIsCancel (number, isCancel) = GROUP NAGGR EInvoice e BY deliveryNoteNumber(e), isCancelNumber(e);
 
 CLASS EInvoiceDetail 'Строка электронной накладной EDI';
 TABLE eInvoiceDetail(EInvoiceDetail); 
@@ -487,21 +487,21 @@ lineItemAmountWithoutCharges 'Стоимость товарной позиции
 lineItemAmount 'Стоимость товарной позиции с НДС' = DATA NUMERIC[16,4] (EInvoiceDetail);
 lineItemAmountCharges 'Сумма НДС' = DATA NUMERIC[16,4] (EInvoiceDetail);
 
-totalAmountWithoutCharges 'Общая сумма без НДС' (eInvoice) = GROUP BY eInvoice(EInvoiceDetail d) SUM lineItemAmountWithoutCharges(d);
-totalAmountCharges 'Общая сумма НДС' (eInvoice) = GROUP BY eInvoice(EInvoiceDetail d) SUM lineItemAmountCharges(d);
-totalAmount 'Общая сумма с НДС' (eInvoice) = GROUP BY eInvoice(EInvoiceDetail d) SUM lineItemAmount(d);
-totalLineItem 'Всего количество товарных позиций' (eInvoice) = GROUP BY eInvoice(EInvoiceDetail d) SUM 1;
-totalLineItemQuantity 'Всего количество единиц' (eInvoice) = GROUP BY eInvoice(EInvoiceDetail d) SUM quantityDespatched(d);
-totalGrossWeight 'Всего масса груза в тоннах' (eInvoice) = GROUP BY eInvoice(EInvoiceDetail d) SUM grossWeightValue(d);
-totalDespatchUnitQuantity 'Всего грузовых мест' (eInvoice) = GROUP BY eInvoice(EInvoiceDetail d) SUM despatchUnitQuantityDespatched(d);
-totalAmountExcise 'Всего сумма акциза' (eInvoice) = GROUP BY eInvoice(EInvoiceDetail d) SUM lineItemAmountExcise(d);
+totalAmountWithoutCharges 'Общая сумма без НДС' (eInvoice) = GROUP SUM lineItemAmountWithoutCharges(EInvoiceDetail d) BY eInvoice(d);
+totalAmountCharges 'Общая сумма НДС' (eInvoice) = GROUP SUM lineItemAmountCharges(EInvoiceDetail d) BY eInvoice(d);
+totalAmount 'Общая сумма с НДС' (eInvoice) = GROUP SUM lineItemAmount(EInvoiceDetail d) BY eInvoice(d);
+totalLineItem 'Всего количество товарных позиций' (eInvoice) = GROUP SUM 1 BY eInvoice(EInvoiceDetail d);
+totalLineItemQuantity 'Всего количество единиц' (eInvoice) = GROUP SUM quantityDespatched(EInvoiceDetail d) BY eInvoice(d);
+totalGrossWeight 'Всего масса груза в тоннах' (eInvoice) = GROUP SUM grossWeightValue(EInvoiceDetail d) BY eInvoice(d);
+totalDespatchUnitQuantity 'Всего грузовых мест' (eInvoice) = GROUP SUM despatchUnitQuantityDespatched(EInvoiceDetail d) BY eInvoice(d);
+totalAmountExcise 'Всего сумма акциза' (eInvoice) = GROUP SUM lineItemAmountExcise(EInvoiceDetail d) BY eInvoice(d);
 
 //-----------------------------------------Сообщение по накладной EDI-----------------------------------------//
 CLASS EInvoiceMessage 'Сообщение по накладной EDI';
 TABLE eInvoiceMessage(EInvoiceMessage);
 
 number 'Номер' = DATA VARSTRING[24] (EInvoiceMessage);
-eInvoiceMessage (number) = GROUP BY number(EInvoiceMessage e) AGGR e;
+eInvoiceMessage (number) = GROUP AGGR EInvoiceMessage e BY number(e);
 eInvoice 'Заказ' = DATA EInvoice (EInvoiceMessage) NONULL DELETE;
 numberEInvoice 'Заказ' (EInvoiceMessage m) = number(eInvoice(m));
 dateTime 'Дата/время сообщения' = DATA DATETIME (EInvoiceMessage);

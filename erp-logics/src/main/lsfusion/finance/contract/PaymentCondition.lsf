@@ -67,7 +67,7 @@ description 'Условия оплаты' (PaymentCondition paymentCondition) = 
     WHEN isRequirementType(paymentCondition) THEN 'Требование '+ descriptionPeriod(paymentCondition)
     WHEN type(paymentCondition) == AgreementPaymentType.prepayment THEN descriptionPeriod(paymentCondition)
     WHEN paymentCondition IS PaymentCondition THEN (CONCAT '', staticCaption(type(paymentCondition)), extraDescription(paymentCondition)) CHARWIDTH 20;
-paymentConditionDescription = GROUP BY description(PaymentCondition c) MAX c;
+paymentConditionDescription = GROUP MAX PaymentCondition c BY description(c);
 
 shortDescription 'Условия оплаты' (PaymentCondition paymentCondition) = CASE 
     WHEN isRequirementType(paymentCondition) THEN 'Требование '+ shortDescriptionPeriod(paymentCondition)
@@ -78,7 +78,7 @@ documentDescription 'Описание для документов' = DATA VARSTR
 // Бонусы
 
 
-sumPercent(paymentCondition) = GROUP BY paymentCondition(PaymentPeriod paymentPeriod) SUM percent(paymentPeriod);
+sumPercent(paymentCondition) = GROUP SUM percent(PaymentPeriod paymentPeriod) BY paymentCondition(paymentPeriod);
 CONSTRAINT sumPercent(PaymentCondition paymentCondition) != 100.0 CHECKED BY sumPercent[PaymentCondition]
     MESSAGE 'Сумма процентов рассрочки должна быть равна 100';
 

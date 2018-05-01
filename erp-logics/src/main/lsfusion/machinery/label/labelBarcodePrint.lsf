@@ -58,7 +58,7 @@ createInvoiceLabelTransaction 'Распечатать ценники'(Purchase.I
 	    
 	    ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(invoice) OR NOT (dateTime(invoice) <= currentDateTime()) DO { 
 	        LOCAL in = BOOLEAN (Sku);
-	        IF [=GROUP BY invoice(Purchase.InvoiceDetail detail) SUM 1 IF select(detail)](invoice) THEN {
+	        IF [=GROUP SUM 1 IF select(Purchase.InvoiceDetail detail) BY invoice(detail)](invoice) THEN {
 	            FOR select(Purchase.InvoiceDetail detail) AND invoice(detail) DO {
 	                in(Sku sku) <- TRUE IF select(detail) AND sku(detail) == sku;        
 	            }
@@ -68,7 +68,7 @@ createInvoiceLabelTransaction 'Распечатать ценники'(Purchase.I
 	    
 	        // бежим по всем типам ценников из управленческих параметров
 	        // для каждого создаем по операции печати ценников
-	        FOR ([= GROUP BY LabelType labelType, DepartmentStore departmentStore SUM 1 IF in(Sku sku) AND inPrint(labelType, sku, departmentStore)](LabelType labelType, customerStock(invoice)))
+	        FOR ([= GROUP SUM 1 IF in(Sku sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, customerStock(invoice)))
 	            NEW t = LabelTransaction DO {
 	                departmentStore(t) <- customerStock(invoice);
 	                priceTransactionDocument(t) <- invoice;

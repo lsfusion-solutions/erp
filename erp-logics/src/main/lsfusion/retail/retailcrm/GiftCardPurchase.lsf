@@ -82,7 +82,7 @@ WHEN CHANGED (sku(GiftCardPurchaseDetail d)) AND giftCardPurchaseDetail(GiftCard
     price(g) <- price(d);
 }
 
-CONSTRAINT SET (GiftCardPurchaseDetail d IS GiftCardPurchaseDetail) AND NOT [=GROUP BY giftCardPurchaseDetail(GiftCard g) SUM 1](d)
+CONSTRAINT SET (GiftCardPurchaseDetail d IS GiftCardPurchaseDetail) AND NOT [=GROUP SUM 1 BY giftCardPurchaseDetail(GiftCard g)](d)
     MESSAGE 'Сгенерируйте номера сертификатов';
 
 numberReport 'Номер' (GiftCard g) = OVERRIDE 
@@ -93,8 +93,8 @@ numberReport 'Номер' (GiftCard g) = OVERRIDE
     
 select 'Отм.' = DATA LOCAL BOOLEAN (GiftCard); 
 
-relation = GROUP BY sku(GiftCard g), numberReport(g) SUM 1 IF select(g);
-relation = GROUP BY sku(GiftCard g) SUM 1 IF select(g);
+relation = GROUP SUM 1 IF select(GiftCard g) BY sku(g), numberReport(g);
+relation = GROUP SUM 1 IF select(GiftCard g) BY sku(g);
 
 fromN 'Номер с' = DATA LOCAL INTEGER (Sku); 
 toN 'Номер по' = DATA LOCAL INTEGER (Sku); 
@@ -102,7 +102,7 @@ toN 'Номер по' = DATA LOCAL INTEGER (Sku);
 FORM selectGiftCards 'Выбор ПС'
     OBJECTS s = Sku
     PROPERTIES (s) READONLY idBarcode, name,  fromN CHANGEABLE , toN CHANGEABLE
-    FILTERS [ = GROUP BY sku(GiftCard gg) SUM 1](s)
+    FILTERS [ = GROUP SUM 1 BY sku(GiftCard gg)](s)
     
     OBJECTS g = GiftCard
     PROPERTIES (g) select

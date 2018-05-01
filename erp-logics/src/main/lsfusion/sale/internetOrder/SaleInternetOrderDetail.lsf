@@ -52,13 +52,13 @@ WHEN LOCAL SET(Sale.supplierStock[InternetOrderDetail](InternetOrderDetail d)) D
 WHEN LOCAL DROPPED(Sale.supplierStock[InternetOrderDetail](InternetOrderDetail d)) DO
     status(d) <- StatusInternetOrderDetail.new;
 
-WHEN SET([= GROUP BY internetOrder(InternetOrderDetail d) SUM 1 IF status(d) == StatusInternetOrderDetail.new](InternetOrder o)) DO
+WHEN SET([= GROUP SUM 1 IF status(InternetOrderDetail d) == StatusInternetOrderDetail.new BY internetOrder(d)](InternetOrder o)) DO
     status(o) <- StatusInternetOrder.new;
   
-countCompletedDetail = GROUP 
-                              BY internetOrder(InternetOrderDetail d) SUM 1 IF status(d) == StatusInternetOrderDetail.notAvailable OR 
+countCompletedDetail = GROUP SUM 1 IF status(InternetOrderDetail d) == StatusInternetOrderDetail.notAvailable OR 
                                               status(d) == StatusInternetOrderDetail.canceled OR 
-                                              status(d) == StatusInternetOrderDetail.completed;  
+                                              status(d) == StatusInternetOrderDetail.completed 
+                              BY internetOrder(d);  
                               
 CONSTRAINT isPicked(InternetOrderDetail d) AND NOT Sale.supplierStock[InternetOrderDetail](d) OR 
            isAssigned(d) AND NOT Sale.supplierStock[InternetOrderDetail](d) MESSAGE 'Должен быть выбран склад поставщика';

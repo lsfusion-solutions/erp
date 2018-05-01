@@ -12,7 +12,7 @@ TABLE UOM (UOM);
 @defineExternalizable(UOM, VARSTRING[100]);
 
 name 'Наименование' = DATA VARISTRING[50](UOM) CHARWIDTH 7;
-UOMName = GROUP BY name(UOM uom) AGGR uom; 
+UOMName = GROUP AGGR UOM uom BY name(uom); 
 shortName 'Краткое наименование' = DATA VARISTRING[100](UOM) CHARWIDTH 3;  ////
 
 base = DATA UOM(UOM);
@@ -133,7 +133,7 @@ name(CustomGroupType type) += name(type) IF type IS CustomGroupType;
 customGroupType = DATA CustomGroupType (CustomGroup) AUTOSET NONULL DELETE;
 nameCustomGroupType 'Тип классификатора' (CustomGroup customGroup) = name(customGroupType(customGroup));
 
-customGroupIdCustomGroup (id, idType) = GROUP BY id(CustomGroup customGroup), id(customGroupType(customGroup)) AGGR customGroup;
+customGroupIdCustomGroup (id, idType) = GROUP AGGR CustomGroup customGroup BY id(customGroup), id(customGroupType(customGroup));
 
 CONSTRAINT customGroupType(parent(CustomGroup group)) != customGroupType(group)
            CHECKED BY parent[CustomGroup] MESSAGE 'Родительский объект классификатора SKU имеет неправильный тип';
@@ -537,7 +537,7 @@ META defineDocumentInterfaceDetailNetWeight (object, skuProp)
 END
 
 META defineDocumentHeaderNetWeightCustomPrefix (object, detail, prefix, caption)
-    prefix##NetWeight###detail 'Вес нетто (всего)'###caption (object) = GROUP BY object(###detail idetail) SUM prefix##NetWeight(idetail) IN documentSum MATERIALIZED;
+    prefix##NetWeight###detail 'Вес нетто (всего)'###caption (object) = GROUP SUM prefix##NetWeight(###detail idetail) BY object(idetail) IN documentSum MATERIALIZED;
 END
 META defineDocumentInterfaceHeaderNetWeightCustomPrefix (object, detail, prefix, caption)
     @defineDocumentHeaderNetWeightCustomPrefix (object, detail, prefix, caption);
@@ -603,7 +603,7 @@ END
 
 // Итоги
 META defineDocumentHeaderGrossWeightCustomPrefix (object, detail, prefix, caption)
-    prefix###grossWeight###detail 'Вес брутто (всего)'###caption (object) = GROUP BY object(###detail idetail) SUM prefix###grossWeight(idetail) IN documentSum MATERIALIZED;
+    prefix###grossWeight###detail 'Вес брутто (всего)'###caption (object) = GROUP SUM prefix###grossWeight(###detail idetail) BY object(idetail) IN documentSum MATERIALIZED;
 END
 META defineDocumentInterfaceHeaderGrossWeightCustomPrefix (object, detail, prefix, caption)
     @defineDocumentHeaderGrossWeightCustomPrefix (object, detail, prefix, caption);
@@ -655,10 +655,10 @@ END
 
 META defineDocumentHeaderSkuQuantity (object, detail, skuProp, caption)
     quantity###detail 'Кол-во товара в документе'###caption  = 
-        GROUP
-              BY  skuProp(###detail idetail), object(idetail) SUM quantity(idetail);
+        GROUP SUM quantity(###detail idetail)
+              BY  skuProp(idetail), object(idetail);
     count###detail 'Кол-во строк товара в документе'###caption  = 
-        GROUP BY skuProp(###detail idetail), object(idetail) SUM 1;              
+        GROUP SUM 1 BY skuProp(###detail idetail), object(idetail);              
 END
 
 META defineDocumentHeaderSkuQuantity (object, detail, skuProp)
@@ -672,23 +672,17 @@ END
 // -------------------------------------- Количество в документе по товару, таре, услугам ----------------------------- //
 META defineDocumentHeaderItemQuantityCustomPrefix (object, detail, prefixA, prefixB)
     quantityItem###detail 'Кол-во (всего), товар' (object) =
-        GROUP
-            BY object(###detail idetail) SUM quantity(idetail) IF isItem(sku(idetail)) IN documentSum;
+        GROUP SUM quantity(###detail idetail) IF isItem(sku(idetail)) BY object(idetail) IN documentSum;
     quantityContainer###detail 'Кол-во (всего), тара' (object) =
-        GROUP
-            BY object(###detail idetail) SUM quantity(idetail) IF isContainer(sku(idetail)) IN documentSum;
+        GROUP SUM quantity(###detail idetail) IF isContainer(sku(idetail)) BY object(idetail) IN documentSum;
     quantityCharge###detail 'Кол-во (всего), услуги' (object) =
-        GROUP
-            BY object(###detail idetail) SUM quantity(idetail) IF isCharge(sku(idetail)) IN documentSum;
+        GROUP SUM quantity(###detail idetail) IF isCharge(sku(idetail)) BY object(idetail) IN documentSum;
     quantityNotCharge###detail 'Кол-во (всего), кроме услуг' (object) =
-        GROUP
-            BY object(###detail idetail) SUM quantity(idetail) IF isNotCharge(sku(idetail)) IN documentSum;
+        GROUP SUM quantity(###detail idetail) IF isNotCharge(sku(idetail)) BY object(idetail) IN documentSum;
     quantityNotItem###detail 'Кол-во (всего), кроме товара' (object) =
-        GROUP
-            BY object(###detail idetail) SUM quantity(idetail) IF isNotItem(sku(idetail)) IN documentSum;
+        GROUP SUM quantity(###detail idetail) IF isNotItem(sku(idetail)) BY object(idetail) IN documentSum;
     quantityNotContainer###detail 'Кол-во (всего), кроме тары' (object) =
-        GROUP
-            BY object(###detail idetail) SUM quantity(idetail) IF isNotContainer(sku(idetail)) IN documentSum;
+        GROUP SUM quantity(###detail idetail) IF isNotContainer(sku(idetail)) BY object(idetail) IN documentSum;
 
 END 
 META defineDocumentHeaderItemQuantityPrefix (object, prefixA, prefixB)
@@ -706,23 +700,17 @@ END
 
 META defineDocumentHeaderItemCountCustomPrefix (object, detail, prefixA, prefixB)
     countItem###detail 'Кол-во строк (всего), товар' (object) =
-        GROUP
-            BY object(###detail idetail) SUM 1 IF isItem(sku(idetail)) IN documentSum;
+        GROUP SUM 1 IF isItem(sku(###detail idetail)) BY object(idetail) IN documentSum;
     countContainer###detail 'Кол-во строк (всего), тара' (object) =
-        GROUP
-            BY object(###detail idetail) SUM 1 IF isContainer(sku(idetail)) IN documentSum;
+        GROUP SUM 1 IF isContainer(sku(###detail idetail)) BY object(idetail) IN documentSum;
     countCharge###detail 'Кол-во строк (всего), услуги' (object) =
-        GROUP
-            BY object(###detail idetail) SUM 1 IF isCharge(sku(idetail)) IN documentSum;
+        GROUP SUM 1 IF isCharge(sku(###detail idetail)) BY object(idetail) IN documentSum;
     countNotCharge###detail 'Кол-во строк (всего), кроме услуг' (object) =
-        GROUP
-            BY object(###detail idetail) SUM 1 IF isNotCharge(sku(idetail)) IN documentSum;
+        GROUP SUM 1 IF isNotCharge(sku(###detail idetail)) BY object(idetail) IN documentSum;
     countNotItem###detail 'Кол-во строк (всего), кроме товара' (object) =
-        GROUP
-            BY object(###detail idetail) SUM 1 IF isNotItem(sku(idetail)) IN documentSum;
+        GROUP SUM 1 IF isNotItem(sku(###detail idetail)) BY object(idetail) IN documentSum;
     countNotContainer###detail 'Кол-во строк (всего), кроме тары' (object) =
-        GROUP
-            BY object(###detail idetail) SUM 1 IF isNotContainer(sku(idetail)) IN documentSum;
+        GROUP SUM 1 IF isNotContainer(sku(###detail idetail)) BY object(idetail) IN documentSum;
 
 END 
 META defineDocumentHeaderItemCountPrefix (object, prefixA, prefixB)
@@ -740,23 +728,23 @@ END
 
 META defineDocumentHeaderItemSumCustom (object, detail, prefixA, prefixB)
     prefixB###sumItem###detail 'Сумма, товар' (object) =
-        GROUP BY object(###detail idetail)
-            SUM prefixA###sum(idetail) IF isItem(sku(idetail)) IN documentSum;
+        GROUP
+            SUM prefixA###sum(###detail idetail) IF isItem(sku(idetail)) BY object(idetail) IN documentSum;
     prefixB###sumContainer###detail 'Сумма, тара' (object) =
-        GROUP BY object(###detail idetail) 
-            SUM prefixA###sum(idetail) IF isContainer(sku(idetail))IN documentSum;
+        GROUP 
+            SUM prefixA###sum(###detail idetail) IF isContainer(sku(idetail)) BY object(idetail)IN documentSum;
     prefixB###sumCharge###detail 'Сумма услуг' (object) =
-        GROUP BY object(###detail idetail)
-            SUM prefixA###sum(idetail) IF isCharge(sku(idetail)) IN documentSum;
+        GROUP
+            SUM prefixA###sum(###detail idetail) IF isCharge(sku(idetail)) BY object(idetail) IN documentSum;
     prefixB###sumNotCharge###detail 'Сумма кроме услуг' (object) =
-        GROUP BY object(###detail idetail)
-            SUM prefixA###sum(idetail) IF isNotCharge(sku(idetail)) IN documentSum;
+        GROUP
+            SUM prefixA###sum(###detail idetail) IF isNotCharge(sku(idetail)) BY object(idetail) IN documentSum;
     prefixB###sumNotItem###detail 'Сумма кроме товара' (object) =
-        GROUP BY object(###detail idetail)
-            SUM prefixA###sum(idetail) IF isNotItem(sku(idetail)) IN documentSum;
+        GROUP
+            SUM prefixA###sum(###detail idetail) IF isNotItem(sku(idetail)) BY object(idetail) IN documentSum;
     prefixB###sumNotContainer###detail 'Сумма кроме тары' (object) =
-        GROUP BY object(###detail idetail)
-            SUM prefixA###sum(idetail) IF isNotContainer(sku(idetail)) IN documentSum;
+        GROUP
+            SUM prefixA###sum(###detail idetail) IF isNotContainer(sku(idetail)) BY object(idetail) IN documentSum;
 
 END
 META defineDocumentHeaderItemSum (object, prefixA, prefixB)
@@ -769,48 +757,48 @@ END
 
 META defineDocumentHeaderItemSumCustomNS (object, detail, prefixA, prefixB, NS)
     prefixB###sumItem###detail 'Сумма, товар' (object) =
-        GROUP
-            BY NS.object(NS.###detail idetail) SUM prefixA###sum(idetail) IF isItem(NS.sku(idetail)) IN documentSum;
+        GROUP SUM prefixA###sum(NS.###detail idetail) IF isItem(NS.sku(idetail))
+            BY NS.object(idetail) IN documentSum;
     prefixB###sumContainer###detail 'Сумма, тара' (object) =
-        GROUP
-            BY NS.object(NS.###detail idetail) SUM prefixA###sum(idetail) IF isContainer(NS.sku(idetail)) IN documentSum;
+        GROUP SUM prefixA###sum(NS.###detail idetail) IF isContainer(NS.sku(idetail))
+            BY NS.object(idetail) IN documentSum;
     prefixB###sumCharge###detail 'Сумма услуг' (object) =
-        GROUP
-            BY NS.object(NS.###detail idetail) SUM prefixA###sum(idetail) IF isCharge(NS.sku(idetail)) IN documentSum;
+        GROUP SUM prefixA###sum(NS.###detail idetail) IF isCharge(NS.sku(idetail))
+            BY NS.object(idetail) IN documentSum;
     prefixB###sumNotCharge###detail 'Сумма кроме услуг' (object) =
-        GROUP
-            BY NS.object(NS.###detail idetail) SUM prefixA###sum(idetail) IF isNotCharge(NS.sku(idetail)) IN documentSum;
+        GROUP SUM prefixA###sum(NS.###detail idetail) IF isNotCharge(NS.sku(idetail))
+            BY NS.object(idetail) IN documentSum;
     prefixB###sumNotItem###detail 'Сумма кроме товара' (object) =
-        GROUP
-            BY NS.object(NS.###detail idetail) SUM prefixA###sum(idetail) IF isNotItem(NS.sku(idetail)) IN documentSum;
+        GROUP SUM prefixA###sum(NS.###detail idetail) IF isNotItem(NS.sku(idetail))
+            BY NS.object(idetail) IN documentSum;
     prefixB###sumNotContainer###detail 'Сумма кроме тары' (object) =
-        GROUP
-            BY NS.object(NS.###detail idetail) SUM prefixA###sum(idetail) IF isNotContainer(NS.sku(idetail)) IN documentSum;
+        GROUP SUM prefixA###sum(NS.###detail idetail) IF isNotContainer(NS.sku(idetail))
+            BY NS.object(idetail) IN documentSum;
 
 END
 
 //-  Суммы по товару, таре, услугам по двум объектам (первый из них документ)
 META defineDocumentHeaderItemSumDoubleCustom (object1, object2, detail, prefixA, prefixB, prefixC, object2Prop)
     prefixB###sum###detail 'Сумма, товар' (object1, object2) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) BY object1(idetail), object2Prop(idetail) IN documentSum;
     prefixB###sumItem###detail 'Сумма, товар' (object1, object2) =
-        GROUP
-            BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IF isItem(sku(idetail)) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) IF isItem(sku(idetail))
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
     prefixB###sumContainer###detail 'Сумма, тара' (object1, object2) =
-        GROUP
-            BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IF isContainer(sku(idetail)) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) IF isContainer(sku(idetail))
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
     prefixB###sumCharge###detail 'Сумма услуг' (object1, object2) =
-        GROUP
-            BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IF isCharge(sku(idetail)) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) IF isCharge(sku(idetail))
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
     prefixB###sumNotCharge###detail 'Сумма кроме услуг' (object1, object2) =
-        GROUP
-            BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IF isNotCharge(sku(idetail)) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) IF isNotCharge(sku(idetail))
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
     prefixB###sumNotItem###detail 'Сумма кроме товара' (object1, object2) =
-        GROUP
-            BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IF isNotItem(sku(idetail)) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) IF isNotItem(sku(idetail))
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
     prefixB###sumNotContainer###detail 'Сумма кроме тары' (object1, object2) =
-        GROUP
-            BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IF isNotContainer(sku(idetail)) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) IF isNotContainer(sku(idetail))
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
 END
 META defineDocumentHeaderItemSumDouble (object1, object2, prefixA, prefixB, prefixC, object2Prop)
     @defineDocumentHeaderItemSumDoubleCustom(object1, object2, object1##Detail, prefixA, prefixB, prefixC, object2Prop);
@@ -822,25 +810,25 @@ END
 //-- с условием
 META defineDocumentHeaderItemSumDoubleCustomExtra (object1, object2, detail, prefixA, prefixB, prefixC, object2Prop, extraProp)
     prefixB###sum###detail 'Сумма, товар' (object1, object2) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IF extraProp(idetail) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) IF extraProp(idetail) BY object1(idetail), object2Prop(idetail) IN documentSum;
     prefixB###sumItem###detail 'Сумма, товар' (object1, object2) =
-        GROUP
-            BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IF isItem(sku(idetail)) AND extraProp(idetail) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) IF isItem(sku(idetail)) AND extraProp(idetail)
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
     prefixB###sumContainer###detail 'Сумма, тара' (object1, object2) =
-        GROUP
-            BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IF isContainer(sku(idetail)) AND extraProp(idetail) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) IF isContainer(sku(idetail)) AND extraProp(idetail)
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
     prefixB###sumCharge###detail 'Сумма услуг' (object1, object2) =
-        GROUP
-            BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IF isCharge(sku(idetail)) AND extraProp(idetail) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) IF isCharge(sku(idetail)) AND extraProp(idetail)
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
     prefixB###sumNotCharge###detail 'Сумма кроме услуг' (object1, object2) =
-        GROUP
-            BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IF isNotCharge(sku(idetail)) AND extraProp(idetail) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) IF isNotCharge(sku(idetail)) AND extraProp(idetail)
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
     prefixB###sumNotItem###detail 'Сумма кроме товара' (object1, object2) =
-        GROUP
-            BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IF isNotItem(sku(idetail)) AND extraProp(idetail) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) IF isNotItem(sku(idetail)) AND extraProp(idetail)
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
     prefixB###sumNotContainer###detail 'Сумма кроме тары' (object1, object2) =
-        GROUP
-            BY object1(###detail idetail), object2Prop(idetail) SUM prefixA###sum(idetail) IF isNotContainer(sku(idetail)) AND extraProp(idetail) IN documentSum;
+        GROUP SUM prefixA###sum(###detail idetail) IF isNotContainer(sku(idetail)) AND extraProp(idetail)
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
 END
 META defineDocumentHeaderItemSumDoubleExtra (object1, object2, prefixA, prefixB, prefixC, object2Prop, extraProp)
     @defineDocumentHeaderItemSumDoubleCustomExtra(object1, object2, object1##Detail, prefixA, prefixB, prefixC, object2Prop, extraProp);
@@ -853,26 +841,26 @@ END
 //-  Суммы по товару, таре, услугам по трем объектам (первый из них документ)
 META defineDocumentHeaderItemSumTripleCustom (object1, object2, object3, detail, prefixA, prefixB, prefixC, prefixD, object2Prop, object3Prop)
     prefixB###sum###detail 'Сумма, товар' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail) 
-            SUM prefixB###sum(idetail) IN documentSum;
+        GROUP SUM prefixB###sum(###detail idetail) 
+            BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
     prefixB###sumItem###detail 'Сумма, товар' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail)
-            SUM prefixB###sum(idetail) IF isItem(object3(idetail)) IN documentSum;
+        GROUP SUM prefixB###sum(###detail idetail) IF isItem(object3(idetail)) 
+            BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
     prefixB###sumContainer###detail 'Сумма, тара' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail)
-            SUM prefixB###sum(idetail) IF isContainer(object3(idetail)) IN documentSum;
+        GROUP SUM prefixB###sum(###detail idetail) IF isContainer(object3(idetail))
+             BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
     prefixB###sumCharge###detail 'Сумма услуг' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail) 
-            SUM prefixB###sum(idetail) IF isCharge(object3(idetail)) IN documentSum;
+        GROUP SUM prefixB###sum(###detail idetail) IF isCharge(object3(idetail))
+             BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
     prefixB###sumNotCharge###detail 'Сумма кроме услуг' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail)
-            SUM prefixB###sum(idetail) IF isNotCharge(object3(idetail)) IN documentSum;
+        GROUP SUM prefixB###sum(###detail idetail) IF isNotCharge(object3(idetail))
+             BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
     prefixB###sumNotItem###detail 'Сумма кроме товара' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail)
-            SUM prefixB###sum(idetail) IF isNotItem(object3(idetail)) IN documentSum;
+        GROUP SUM prefixB###sum(###detail idetail) IF isNotItem(object3(idetail))
+             BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
     prefixB###sumNotContainer###detail 'Сумма кроме тары' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail)
-            SUM prefixB###sum(idetail) IF isNotContainer(object3(idetail)) IN documentSum;
+        GROUP SUM prefixB###sum(###detail idetail) IF isNotContainer(object3(idetail))
+             BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
 END
 META defineDocumentHeaderItemSumTriple (object1, object2, object3, prefixA, prefixB, prefixC, prefixD, object2Prop, object3Prop)
     @defineDocumentHeaderItemSumTripleCustom(object1, object2, object3, object1##Detail, prefixA, prefixB, prefixC, prefixD, object2Prop, object3Prop);
@@ -884,26 +872,26 @@ END
 //-  Количество по товару, таре, услугам по трем объектам (первый из них документ)
 META defineDocumentHeaderItemQuantityTripleCustom (object1, object2, object3, detail, prefixA, prefixB, prefixC, prefixD, object2Prop, object3Prop)
     prefixB###quantity###detail 'Количество, товар' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail) 
-            SUM prefixB###quantity(idetail) IN documentSum;
+        GROUP SUM prefixB###quantity(###detail idetail)
+             BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
     prefixB###quantityItem###detail 'Количество, товар' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail)
-            SUM prefixB###quantity(idetail) IF isItem(object3(idetail)) IN documentSum;
+        GROUP SUM prefixB###quantity(###detail idetail) IF isItem(object3(idetail))
+             BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
     prefixB###quantityContainer###detail 'Количество, тара' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail)
-            SUM prefixB###quantity(idetail) IF isContainer(object3(idetail)) IN documentSum;
+        GROUP SUM prefixB###quantity(###detail idetail) IF isContainer(object3(idetail))
+             BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
     prefixB###quantityCharge###detail 'Количество услуг' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail)
-            SUM prefixB###quantity(idetail) IF isCharge(object3(idetail)) IN documentSum;
+        GROUP SUM prefixB###quantity(###detail idetail) IF isCharge(object3(idetail))
+             BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
     prefixB###quantityNotCharge###detail 'Количество кроме услуг' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail)
-            SUM prefixB###quantity(idetail) IF isNotCharge(object3(idetail)) IN documentSum;
+        GROUP SUM prefixB###quantity(###detail idetail) IF isNotCharge(object3(idetail))
+             BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
     prefixB###quantityNotItem###detail 'Количество кроме товара' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail)
-            SUM prefixB###quantity(idetail) IF isNotItem(object3(idetail)) IN documentSum;
+        GROUP SUM prefixB###quantity(###detail idetail) IF isNotItem(object3(idetail))
+             BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
     prefixB###quantityNotContainer###detail 'Количество кроме тары' (object1, object2, object3) =
-        GROUP BY object1(###detail idetail), object2Prop(idetail), object3(idetail)
-            SUM prefixB###quantity(idetail) IF isNotContainer(object3(idetail)) IN documentSum;
+        GROUP SUM prefixB###quantity(###detail idetail) IF isNotContainer(object3(idetail))
+             BY object1(idetail), object2Prop(idetail), object3(idetail) IN documentSum;
 END
 META defineDocumentHeaderItemQuantityTriple (object1, object2, object3, prefixA, prefixB, prefixC, prefixD, object2Prop, object3Prop)
     @defineDocumentHeaderItemQuantityTripleCustom(object1, object2, object3, object1##Detail, prefixA, prefixB, prefixC, prefixD, object2Prop, object3Prop);

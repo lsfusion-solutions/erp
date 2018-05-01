@@ -35,7 +35,7 @@ CLASS PromotionType 'Тип акции';
 TABLE promotionType (PromotionType);
 
 id 'Код' = DATA VARISTRING[100] (PromotionType) IN base;
-promotionType(id) = GROUP BY id(PromotionType type) AGGR (type);
+promotionType(id) = GROUP AGGR (PromotionType type) BY id(type);
 
 name 'Наименование' = DATA VARSTRING[100] (PromotionType) IN base CHARWIDTH 10;
 
@@ -51,7 +51,7 @@ CLASS ExtraPromotionType 'Тип подакции';
 TABLE extraPromotionType (ExtraPromotionType);
 
 id 'Код' = DATA VARSTRING[100] (ExtraPromotionType) IN base;
-extraPromotionType(id) = GROUP BY id(ExtraPromotionType type) AGGR (type);
+extraPromotionType(id) = GROUP AGGR (ExtraPromotionType type) BY id(type);
 
 name 'Наименование' = DATA VARSTRING[100] (ExtraPromotionType) IN base CHARWIDTH 10;
 
@@ -76,7 +76,7 @@ nameSku 'Товар' (PromotionDetail detail) = name(sku(detail));
 TABLE promotionDetailLegalEntity (PromotionDetail, LegalEntity);
 countStocks 'Количество складов компании' = DATA INTEGER (PromotionDetail, LegalEntity);
 nameSuppliers 'Поставщики' (PromotionDetail detail) = GROUP CONCAT name(LegalEntity company) IF countStocks(detail, company), ', '  CHARWIDTH 30;
-in (Promotion p, LegalEntity c) = TRUE IF [= GROUP BY promotion(PromotionDetail detail) SUM countStocks(detail, c)](p);
+in (Promotion p, LegalEntity c) = TRUE IF [= GROUP SUM countStocks(PromotionDetail detail, c) BY promotion(detail)](p);
 
 recalculateCountStocks (PromotionDetail d) = {
     countStocks(d, LegalEntity company) <- (GROUP SUM 1 IF priceA(defaultPriceListType(),sku(d), Stock stock, company, toDateTime(fromDate(d))));
@@ -86,7 +86,7 @@ CLASS Flyer 'Листовка';
 TABLE flyer (Flyer);
 
 id 'Код' = DATA VARSTRING[100] (Flyer) IN base;
-flyer(id) = GROUP BY id(Flyer flyer) AGGR (flyer);
+flyer(id) = GROUP AGGR (Flyer flyer) BY id(flyer);
 
 name 'Наименование' = DATA VARSTRING[100] (Flyer) IN base CHARWIDTH 10;
 
@@ -127,7 +127,7 @@ CLASS StatusSku 'Статус товара';
 TABLE statusSku (StatusSku);
 
 id 'Код' = DATA VARSTRING[100] (StatusSku) IN base;
-statusSku(id) = GROUP BY id(StatusSku status) AGGR (status);
+statusSku(id) = GROUP AGGR (StatusSku status) BY id(status);
 
 name 'Наименование' = DATA VARSTRING[100] (StatusSku) IN base CHARWIDTH 10;
 
@@ -138,7 +138,7 @@ CLASS PromoType 'Тип промо';
 TABLE promoType (PromoType);
 
 id 'Код' = DATA VARSTRING[100] (PromoType) IN base;
-promoType(id) = GROUP BY id(PromoType type) AGGR (type);
+promoType(id) = GROUP AGGR (PromoType type) BY id(type);
 
 name 'Наименование' = DATA VARSTRING[100] (PromoType) IN base CHARWIDTH 10;
 
@@ -154,7 +154,7 @@ CLASS DiscountType 'Тип скидки';
 TABLE discountType (DiscountType);
 
 id 'Код' = DATA VARSTRING[100] (DiscountType) IN base;
-discountType(id) = GROUP BY id(DiscountType type) AGGR (type);
+discountType(id) = GROUP AGGR (DiscountType type) BY id(type);
 
 name 'Наименование' = DATA VARSTRING[100] (DiscountType) IN base CHARWIDTH 10;
 
@@ -165,7 +165,7 @@ CLASS DiscountingType 'Тип начисления скидки';
 TABLE discountingType (DiscountingType);
 
 id 'Код' = DATA VARSTRING[100] (DiscountingType) IN base;
-discountingType(id) = GROUP BY id(DiscountingType type) AGGR (type);
+discountingType(id) = GROUP AGGR (DiscountingType type) BY id(type);
 
 name 'Наименование' = DATA VARSTRING[100] (DiscountingType) IN base CHARWIDTH 10;
 
@@ -553,7 +553,7 @@ createPriceList 'Создать прайсы' (Promotion p) = {
             currency(priceList) <- defaultCurrency(operation(priceList));
             note(priceList) <- name(p);
             
-            dataIn(priceList, Stock stock) <- TRUE IF [= GROUP BY promotion(PromotionDetail d), DATETIME dateTime SUM 1 IF prevPriceA(defaultPriceListType(), sku(d), stock, company, dateTime)](p, toDateTime(fromDate(p))) ;
+            dataIn(priceList, Stock stock) <- TRUE IF [= GROUP SUM 1 IF prevPriceA(defaultPriceListType(), sku(PromotionDetail d), stock, company, DATETIME dateTime) BY promotion(d), dateTime](p, toDateTime(fromDate(p))) ;
             
             in(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
             show(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();

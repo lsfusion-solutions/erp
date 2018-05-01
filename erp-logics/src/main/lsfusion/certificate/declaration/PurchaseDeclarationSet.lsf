@@ -24,9 +24,9 @@ percentSum '% суммы' = DATA NUMERIC[8,2] (SetDetail);
 percentNetWeight '% вес нетто' = DATA NUMERIC[8,2] (SetDetail);
 percentGrossWeight '% вес брутто' = DATA NUMERIC[8,2] (SetDetail);
 
-sumPercentSumSetDetail 'Итого % суммы' (set) = GROUP BY set(SetDetail detail) SUM percentSum(detail) IN documentSum;
-sumPercentNetWeightSetDetail 'Итого % вес нетто' (set) = GROUP BY set(SetDetail detail) SUM percentNetWeight(detail) IN documentSum;
-sumPercentGrossWeightSetDetail 'Итого % вес брутто' (set) = GROUP BY set(SetDetail detail) SUM percentGrossWeight(detail) IN documentSum;
+sumPercentSumSetDetail 'Итого % суммы' (set) = GROUP SUM percentSum(SetDetail detail) BY set(detail) IN documentSum;
+sumPercentNetWeightSetDetail 'Итого % вес нетто' (set) = GROUP SUM percentNetWeight(SetDetail detail) BY set(detail) IN documentSum;
+sumPercentGrossWeightSetDetail 'Итого % вес брутто' (set) = GROUP SUM percentGrossWeight(SetDetail detail) BY set(detail) IN documentSum;
 
 backgroundPercentSum 'Цвет' (Set set)= RGB(255,128,128) IF sumPercentSumSetDetail(set) != 100.0;
 backgroundPercentNetWeight 'Цвет' (Set set)= RGB(255,128,128) IF sumPercentNetWeightSetDetail(set) != 100.0;
@@ -73,12 +73,12 @@ FORM sets 'Комплекты'
 DESIGN sets { BOX { size = (600, 400); } }
 
 in 'Отм.' = DATA LOCAL BOOLEAN (DeclarationInvoiceDetail);
-inDeclarationInvoiceDetail (declaration)= GROUP BY  declaration(DeclarationInvoiceDetail d) SUM 1 IF in(d);
+inDeclarationInvoiceDetail (declaration)= GROUP SUM 1 IF in(DeclarationInvoiceDetail d) BY  declaration(d);
 
 overCreateSetDeclarationInvoice = ABSTRACT LIST (DeclarationDetail);
 set= DATA Set (DeclarationInvoiceDetail);
 nameSet 'Комплект' (DeclarationInvoiceDetail d) = name(set(d)) CHARWIDTH 15;
-countSetDeclarationInvoiceDetail (declaration)= GROUP BY  declaration(DeclarationInvoiceDetail d) SUM 1 IF set(d);
+countSetDeclarationInvoiceDetail (declaration)= GROUP SUM 1 IF set(DeclarationInvoiceDetail d) BY  declaration(d);
 
 //maxUserNumberDeclarationDetailDeclaration (declaration) = GROUP MAX userNumberDeclarationDetail(declarationDetail) BY declarationDeclarationDetail(declarationDetail);
 //minSetDetailSet (set) = GROUP MIN indexSetDetail(d) BY setSetDetail(d);

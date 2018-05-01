@@ -17,36 +17,36 @@ META defineOrderReceipt(sign, stockProp, supplierProp, customerProp, prop)
 
     descriptionIndexOrderDetail 'Строка заказа' (ReceiptDetail detail) = descriptionIndex(orderDetail(detail));
 
-    quantityReceiptDetail (order, receipt) = GROUP BY order(orderDetail(ReceiptDetail receiptDetail)), receipt(receiptDetail) SUM quantity(receiptDetail);
-    sumReceiptDetail (order, receipt) = GROUP BY order(orderDetail(ReceiptDetail receiptDetail)), receipt(receiptDetail) SUM sum(receiptDetail);
+    quantityReceiptDetail (order, receipt) = GROUP SUM quantity(ReceiptDetail receiptDetail) BY order(orderDetail(receiptDetail)), receipt(receiptDetail);
+    sumReceiptDetail (order, receipt) = GROUP SUM sum(ReceiptDetail receiptDetail) BY order(orderDetail(receiptDetail)), receipt(receiptDetail);
     relationOrder 'Связь'(Receipt receipt)  = GROUP SUM 1 IF quantityReceiptDetail (Order order, receipt);
 
     orders 'Заказы'(Receipt receipt)  = GROUP
                                                     CONCAT VARSTRING[255](description(Order order)) IF quantityReceiptDetail(order, receipt) , ', '
                                                     ORDER order IN order CHARWIDTH 30 MATERIALIZED;
 
-    receipted 'Кол-во (по чеку)' (orderDetail) = GROUP BY orderDetail(ReceiptDetail receiptDetail) SUM quantity(receiptDetail) //IF isPostedReceiptDetail(receiptDetail)
+    receipted 'Кол-во (по чеку)' (orderDetail) = GROUP SUM quantity(ReceiptDetail receiptDetail) BY orderDetail(receiptDetail) //IF isPostedReceiptDetail(receiptDetail)
                                                                         MATERIALIZED;
                                                                        
-    receipted 'Кол-во (по чеку)' (order) = GROUP
-                                                                       BY order(OrderDetail detail) SUM receipted(detail) IF isPosted(detail) MATERIALIZED;    
+    receipted 'Кол-во (по чеку)' (order) = GROUP SUM receipted(OrderDetail detail) IF isPosted(detail)
+                                                                       BY order(detail) MATERIALIZED;    
                                                                                                                                           
     receiptQuantityOrderDetail 'Кол-во товара в документе' (sku, order) = 
-        GROUP
-              BY  sku(OrderDetail idetail),
-                  order(idetail) SUM receipted(idetail);
+        GROUP SUM receipted(OrderDetail idetail)
+              BY  sku(idetail),
+                  order(idetail);
                                                                                                                                                               
     notReceipted = NOT receipted(Order order);
 
     toReceipt 'Не отпущено (по чеку)' (OrderDetail orderDetail) = quantity (orderDetail) (-) receipted(orderDetail);
 
-    toReceiptOrderDetail 'Не отпущено (по чеку))' (order) = GROUP
-                                                                       BY order(OrderDetail detail) SUM toReceipt(detail) IF isPosted(detail) MATERIALIZED; 
+    toReceiptOrderDetail 'Не отпущено (по чеку))' (order) = GROUP SUM toReceipt(OrderDetail detail) IF isPosted(detail)
+                                                                       BY order(detail) MATERIALIZED; 
     backgroundReceipted 'Цвет' (Order order) = RGB(255, 224, 255) IF order IS Order;
     backgroundReceipted (OrderDetail detail) = backgroundReceipted(order(detail));
     
-    sumReceipt 'Сумма оплаты' = GROUP 
-                                                                     BY order(orderDetail(ReceiptDetail receiptDetail)) SUM sum(receiptDetail) MATERIALIZED;
+    sumReceipt 'Сумма оплаты' = GROUP SUM sum(ReceiptDetail receiptDetail) 
+                                                                     BY order(orderDetail(receiptDetail)) MATERIALIZED;
 
     FORM receiptOrders 'Заказы'###sign
         OBJECTS s = LegalEntity PANEL

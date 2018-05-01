@@ -7,8 +7,8 @@ CLASS GiftCard 'Подарочный сертификат';
 TABLE giftCard(GiftCard);
 
 id 'Код' = DATA VARSTRING[100] (GiftCard) IN recognize INDEXED CHARWIDTH 10;
-giftCard (id) = GROUP BY id (GiftCard giftCard) MAX (giftCard);
-countGiftCard = GROUP BY id (GiftCard giftCard) SUM 1;
+giftCard (id) = GROUP MAX (GiftCard giftCard) BY id (giftCard);
+countGiftCard = GROUP SUM 1 BY id (GiftCard giftCard);
 
 CONSTRAINT GiftCard giftCard IS GiftCard AND countGiftCard(id(giftCard)) >1
     MESSAGE 'Нарушена уникальность свойства "Код" для подарочного сертификата' ;
@@ -22,8 +22,8 @@ active 'Активный' (GiftCard g) = g IS GiftCard AND NOT inactive(g);
 
 // Уникальность
 giftCardSeriesNumber (string) =
-    GROUP
-        BY seriesNumber(GiftCard giftCard) AGGR giftCard WHERE giftCard IS GiftCard;
+    GROUP AGGR GiftCard giftCard WHERE giftCard IS GiftCard
+        BY seriesNumber(giftCard);
 
 
 date 'Дата' = DATA DATE(GiftCard);
@@ -53,8 +53,8 @@ CLASS ABSTRACT SaleGiftCard 'Продажа подарочных сертифи�
 isSold 'Продан' = ABSTRACT BOOLEAN (SaleGiftCard);
 isReturn 'Возвращен' = ABSTRACT BOOLEAN (SaleGiftCard);
 
-sold = GROUP
-        BY giftCard(SaleGiftCard detail) LAST detail ORDER dateTime(detail), detail WHERE isSold(detail) AND NOT isReturn(detail) MATERIALIZED;
+sold = GROUP LAST SaleGiftCard detail ORDER dateTime(detail), detail WHERE isSold(detail) AND NOT isReturn(detail)
+        BY giftCard(detail) MATERIALIZED;
 
 isSold 'Продан' (GiftCard g) = isSold(sold(g));
 CONSTRAINT DROPPED (GiftCard g IS GiftCard) AND PREV (isSold(g))
@@ -113,10 +113,10 @@ signedSum(ReceiptGiftCardSaleDetail detail) += sum(detail);
 
 isReturn 'Возвратный' = DATA BOOLEAN (ReceiptGiftCardSaleDetail);
 
-sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (receiptDetail) = GROUP BY receipt[ReceiptDetail](ReceiptGiftCardSaleDetail d) SUM sum[ReceiptDetail](d) IF d IS ReceiptGiftCardSaleDetail;
-sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (zReport)= GROUP BY zReport[ReceiptDetail](ReceiptGiftCardSaleDetail d) SUM sum[ReceiptDetail](d) IF d IS ReceiptGiftCardSaleDetail IN documentSum;
+sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (receiptDetail) = GROUP SUM sum[ReceiptDetail](ReceiptGiftCardSaleDetail d) IF d IS ReceiptGiftCardSaleDetail BY receipt[ReceiptDetail](d);
+sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (zReport)= GROUP SUM sum[ReceiptDetail](ReceiptGiftCardSaleDetail d) IF d IS ReceiptGiftCardSaleDetail BY zReport[ReceiptDetail](d) IN documentSum;
 
-namePaymentType 'Тип платежа' (ReceiptGiftCardSaleDetail d) = [= GROUP BY receipt(Payment p) CONCAT namePaymentType(p), ', '](receipt(d));
+namePaymentType 'Тип платежа' (ReceiptGiftCardSaleDetail d) = [= GROUP CONCAT namePaymentType(Payment p), ', ' BY receipt(p)](receipt(d));
 
 //имплемент в GiftCardLedger
 isSold(ReceiptGiftCardSaleDetail detail) += detail IS ReceiptGiftCardSaleDetail;
@@ -263,8 +263,8 @@ NAVIGATOR {
 CLASS ABSTRACT UseGiftCard 'Гашение подарочных сертификатов' : GiftCardLedger;
 
 used =
-    GROUP
-        BY giftCard(UseGiftCard ledger) AGGR ledger WHERE ledger IS UseGiftCard;
+    GROUP AGGR UseGiftCard ledger WHERE ledger IS UseGiftCard
+        BY giftCard(ledger);
 isUsed 'Погашен' (GiftCard giftCard) = TRUE IF used(giftCard);
 dateUsed 'Дата использования'(GiftCard g) = DATE (dateTime(used(g)));
 nameDepartmentStoreUsed 'Где использован' (GiftCard g) = nameDepartmentStore(used(g));
@@ -305,8 +305,8 @@ show(PaymentGiftCard d) += { show(d); }
 allowPartiallyPayGiftCard 'Разрешить гасить сертификат частично' = DATA BOOLEAN ();
 
 sumGiftCard 'Сумма подарочных сертификатов в чеке' (receipt) =
-    GROUP
-    BY receipt(PaymentGiftCard payment) SUM sum[Payment](payment) IF payment IS PaymentGiftCard;
+    GROUP SUM sum[Payment](PaymentGiftCard payment) IF payment IS PaymentGiftCard
+    BY receipt(payment);
     
 CONSTRAINT sumGiftCard(Receipt receipt) > sumReceiptDetail(receipt) AND NOT allowPartiallyPayGiftCard()
     CHECKED BY sumGiftCard[Receipt] MESSAGE 'Сумма сертификатов не может превышать суммы всего чека';
@@ -353,8 +353,8 @@ overLoadDefaultPaymentTypes() += {
     loadDefaultType('Подарочный сертификат', PaymentMeans.paymentMeansGiftCard, 'giftcard');
 }
 
-sumGiftCardPayment 'Сумма продаж (сертификат)' (receipt) = GROUP BY receipt(Payment payment) SUM sum(payment) IF paymentMeans(payment) == PaymentMeans.paymentMeansGiftCard;
-sumGiftCardPayment 'Сумма продаж (сертификат)' (zReport) = GROUP BY zReport(Receipt r) SUM sumGiftCardPayment(r) MATERIALIZED IN documentSum;
+sumGiftCardPayment 'Сумма продаж (сертификат)' (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(payment) == PaymentMeans.paymentMeansGiftCard BY receipt(payment);
+sumGiftCardPayment 'Сумма продаж (сертификат)' (zReport) = GROUP SUM sumGiftCardPayment(Receipt r) BY zReport(r) MATERIALIZED IN documentSum;
 
 minGiftCardPaymentType() = GROUP MIN PaymentType paymentType IF paymentMeans(paymentType) == PaymentMeans.paymentMeansGiftCard;
 

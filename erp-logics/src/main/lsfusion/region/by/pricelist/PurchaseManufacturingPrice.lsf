@@ -65,12 +65,12 @@ homeManufacturingPrice 'Цена (конв.)' (UserInvoiceDetail detail) =
 incomeManufacturingPrice (InvoiceDetail detail) = IF isHomeCurrency(invoice(detail)) THEN
                                                     homeManufacturingPrice(detail)
                                                     ELSE price(detail);
-incomeManufacturingSum(invoice) = GROUP BY invoice(InvoiceDetail detail) SUM incomeManufacturingPrice(detail) * quantity(detail);
+incomeManufacturingSum(invoice) = GROUP SUM incomeManufacturingPrice(InvoiceDetail detail) * quantity(detail) BY invoice(detail);
 
 incomeManufacturingPrice (UserInvoiceDetail detail) = IF isHomeCurrency(userInvoice(detail)) THEN
                                                         homeManufacturingPrice(detail)
                                                         ELSE price(detail);
-incomeManufacturingSum(invoice) = GROUP BY userInvoice(UserInvoiceDetail detail) SUM incomeManufacturingPrice(detail) * quantity(detail);
+incomeManufacturingSum(invoice) = GROUP SUM incomeManufacturingPrice(UserInvoiceDetail detail) * quantity(detail) BY userInvoice(detail);
 
 costManufacturingPrice(InvoiceDetail detail) = NUMERIC[16,4] (incomeManufacturingPrice(detail) (+) extraCostPrice(detail) (+)
                                                             customCostPrice(detail) (+) certificateCostPrice(detail));

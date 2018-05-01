@@ -13,17 +13,17 @@ nameBalanceA (Stock stock)= name(stock) + ' (остаток на конец)' CH
 //----------- Изменение кол-ва для строки при изменении кол-ва для Артикула (несколько складов)---------------//
 
 META defineDocumentArticleStockCustom(object, detail, skuProp, stockProp)
-    detail###stockProp (article, color, size, ###object object, Stock stock) =  GROUP
-        BY article(Item skuProp), calcColor(skuProp), calcSize(skuProp) MAX detail###stockProp (sku, object, stock);
+    detail###stockProp (article, color, size, ###object object, Stock stock) =  GROUP MAX detail###stockProp (Item sku, object, stock)
+        BY article(skuProp), calcColor(skuProp), calcSize(skuProp);
 
-    quantity###stockProp 'Кол-во товара в документе' (article, color, size, ###object object, Stock stock) = GROUP
-        BY article(Item skuProp), calcColor(skuProp), calcSize(skuProp) SUM quantity###stockProp(sku, object, stock);
+    quantity###stockProp 'Кол-во товара в документе' (article, color, size, ###object object, Stock stock) = GROUP SUM quantity###stockProp(Item sku, object, stock)
+        BY article(skuProp), calcColor(skuProp), calcSize(skuProp);
 
-    quantity###stockProp 'Кол-во товара в документе' (article, ###object object, Stock stock) = GROUP
-        BY article(Item skuProp) SUM quantity###stockProp(sku, object, stock);        
+    quantity###stockProp 'Кол-во товара в документе' (article, ###object object, Stock stock) = GROUP SUM quantity###stockProp(Item sku, object, stock)
+        BY article(skuProp);        
 
-    calcQuantity###stockProp 'Кол-во товара в документе' (skuGroup, ###object object, Stock stock) = GROUP
-        BY skuProp##Group(###skuProp skuProp) SUM quantity###stockProp(sku, object, stock); 
+    calcQuantity###stockProp 'Кол-во товара в документе' (skuGroup, ###object object, Stock stock) = GROUP SUM quantity###stockProp(###skuProp sku, object, stock)
+        BY skuProp##Group(skuProp); 
         
     recQuantity###stockProp 'Кол-во товара в документе рек.' (###skuProp##Group parent, ###object object, Stock stock) = GROUP SUM calcQuantity###stockProp(###skuProp##Group group, object, stock) 
         IF isParent(group, parent);
@@ -115,20 +115,20 @@ END
 //----------- Изменение кол-ва для строки при изменении кол-ва для Артикула (один склад)---------------//
 
 META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
-    detail (article, color, size, ###object object) =  GROUP
-        BY article(Item skuProp), calcColor(skuProp), calcSize(skuProp) MAX detail (sku, object);
+    detail (article, color, size, ###object object) =  GROUP MAX detail (Item sku, object)
+        BY article(skuProp), calcColor(skuProp), calcSize(skuProp);
 
-    quantity 'Кол-во товара в документе' (article, color, size, ###object object) = GROUP
-        BY article(Item skuProp), calcColor(skuProp), calcSize(skuProp) SUM quantity###detail(sku, object);
+    quantity 'Кол-во товара в документе' (article, color, size, ###object object) = GROUP SUM quantity###detail(Item sku, object)
+        BY article(skuProp), calcColor(skuProp), calcSize(skuProp);
 
-    quantity 'Кол-во товара в документе' (article, ###object object) = GROUP
-        BY article(Item skuProp) SUM quantity###detail(sku, object);
+    quantity 'Кол-во товара в документе' (article, ###object object) = GROUP SUM quantity###detail(Item sku, object)
+        BY article(skuProp);
          
-    calcQuantity 'Кол-во товара в документе' (skuGroup, ###object object) = GROUP
-        BY skuProp##Group(###skuProp skuProp) SUM quantity###detail(sku, object);    
+    calcQuantity 'Кол-во товара в документе' (skuGroup, ###object object) = GROUP SUM quantity###detail(###skuProp sku, object)
+        BY skuProp##Group(skuProp);    
               
-    recQuantity 'Кол-во товара в документе рек.' (skuGroup, ###object object) = GROUP BY (###skuProp##Group parent) SUM calcQuantity(###skuProp##Group group, object) 
-        IF isParent(group, parent);              
+    recQuantity 'Кол-во товара в документе рек.' (skuGroup, ###object object) = GROUP SUM calcQuantity(###skuProp##Group group, object) 
+        IF isParent(group, ###skuProp##Group parent) BY (parent);              
 
     priceBalance  (Article article, Color color, Size size, ###object object) = CONCAT ', ', prevCurrentBalance(article, color, size, stockProp(object)),price(max###skuProp (article,color,size), object);
 

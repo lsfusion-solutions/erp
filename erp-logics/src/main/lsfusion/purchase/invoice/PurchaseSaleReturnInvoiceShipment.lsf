@@ -111,12 +111,12 @@ deleteCreate (SaleReturn.InvoiceShipment shipment)+= WHEN invoice(shipment) IS S
 };
 
 //-- возврат поставщику
-quantitySaleReturnShipmentDetail 'Поставлено' (purchaseReturnInvoiceDetail) = GROUP BY PurchaseSaleReturnInvoice.invoiceDetail(invoiceDetail(SaleReturn.ShipmentDetail d)) SUM quantity(d);
+quantitySaleReturnShipmentDetail 'Поставлено' (purchaseReturnInvoiceDetail) = GROUP SUM quantity(SaleReturn.ShipmentDetail d) BY PurchaseSaleReturnInvoice.invoiceDetail(invoiceDetail(d));
 
 quantitySaleReturn 'Поставлено' (ShipmentDetail d) = quantitySaleReturnShipmentDetail(invoiceDetail(d));
-quantitySaleReturnShipmentDetail 'Поставлено' (d) = GROUP BY shipmentDetail(SaleReturn.ShipmentDetail sd) SUM quantity(sd);
+quantitySaleReturnShipmentDetail 'Поставлено' (d) = GROUP SUM quantity(SaleReturn.ShipmentDetail sd) BY shipmentDetail(sd);
 
-quantityShippedPurchaseReturn 'Поставлено (кол-во)' (s) = GROUP BY shipment(ShipmentDetail d) SUM (quantitySaleReturnShipmentDetail(d) (+) quantitySaleReturn(d));
+quantityShippedPurchaseReturn 'Поставлено (кол-во)' (s) = GROUP SUM (quantitySaleReturnShipmentDetail(ShipmentDetail d) (+) quantitySaleReturn(d)) BY shipment(d);
 
 isTransitPurchaseReturn 'В пути' (Shipment s) = isCompany(supplier(s)) AND isCompany(customer(s)) AND supplier(s) == customer(s) AND NOT quantityShippedPurchaseReturn(s);
 

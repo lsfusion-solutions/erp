@@ -84,18 +84,18 @@ CONSTRAINT rebateAgreement(Sale.UserInvoice o)
       
 exDescription (Sale.Invoice i) = CONCAT '', 'Ретро-бонусы № '+seriesNumber(i), ' от '+date(i), ' за период с '+fromDate(i), ' по '+toDate(i);  
                
-lastInvoice = GROUP 
-    BY supplier(Invoice i), customer(i), rebateAgreement(i) LAST i
+lastInvoice = GROUP LAST Invoice i
     ORDER toDate(i), i
-    WHERE isPosted(i) COMPLEX;
+    WHERE isPosted(i) 
+    BY supplier(i), customer(i), rebateAgreement(i) COMPLEX;
 
 descriptionLastInvoice 'Последняя накладная' (LegalEntity c, LegalEntity s, Agreement a) = exDescription(lastInvoice(c,s,a));
     
-defaultSupplierStock (Operation operation, LegalEntity) = GROUP
-                                                        BY legalEntity(Stock stock) MIN stock IF inSupplier(stock,operation) 
+defaultSupplierStock (Operation operation, LegalEntity) = GROUP MIN Stock stock IF inSupplier(stock,operation) 
                                                     AND isCompany(stock) 
                                                     AND inSupplier(legalEntity(stock),operation)
-                                                    AND isSeller(legalEntity(stock));  
+                                                    AND isSeller(legalEntity(stock))
+                                                        BY legalEntity(stock);  
     
 createInvoice  'Создать накладые' (LegalEntity c, DATE df, DATE dt) = {
     IF rebateSku() AND rebateOperation()  THEN {

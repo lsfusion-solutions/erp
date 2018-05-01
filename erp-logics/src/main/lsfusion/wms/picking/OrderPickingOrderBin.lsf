@@ -17,10 +17,10 @@ META defineOrderPickingOrderBin(stockProp)
 
     @deriveDocumentOperationProperty(UserOrder, showBin);
 
-    countUserOrderDetail 'Кол-во строк' = GROUP BY userOrder(UserOrderDetail d), bin(d) SUM 1;
-    quantity 'Кол-во' = GROUP BY userOrder(UserOrderDetail d), bin(d) SUM quantity(d);
+    countUserOrderDetail 'Кол-во строк' = GROUP SUM 1 BY userOrder(UserOrderDetail d), bin(d);
+    quantity 'Кол-во' = GROUP SUM quantity(UserOrderDetail d) BY userOrder(d), bin(d);
 
-    pickingNumber 'Номер комплектации' = GROUP BY userOrder(UserOrderDetail d), bin(d) MAX pickingNumber(d);
+    pickingNumber 'Номер комплектации' = GROUP MAX pickingNumber(UserOrderDetail d) BY userOrder(d), bin(d);
     changePickingNumber(UserOrder o, Bin b) = {
         INPUT i = INTEGER DO
             pickingNumber(UserOrderDetail d) <- i WHERE userOrder(d) == o AND bin(d) == b;

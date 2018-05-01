@@ -5,10 +5,10 @@ REQUIRE Range, PriceListLedgerAccount;
 NAMESPACE Range;
 
 priceB 'Цена' (LedgerPriceListType type, sku, store, DATETIME dateTime) =
-    GROUP
-          BY sku(PriceListLedger ledger, type, Stock stock), store(stock) LAST price(ledger, type, stock)
+    GROUP LAST price(PriceListLedger ledger, type, Stock stock)
           ORDER fromDateTime(ledger, type, stock), ledger
-          WHERE fromDateTime(ledger, type, stock) < dateTime AND NOT toDateTime(ledger, type, stock) < dateTime COMPLEX;
+          WHERE fromDateTime(ledger, type, stock) < dateTime AND NOT toDateTime(ledger, type, stock) < dateTime
+          BY sku(ledger, type, stock), store(stock) COMPLEX;
 prevPriceB 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Store store, DATETIME dateTime) = PREV(priceB(type, sku, store, dateTime)) COMPLEX;
                                                                                         
 lastAccountPrice 'Учетная цена' (Sku sku, Store store) = prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku, store, currentDateTime());                                                                                      

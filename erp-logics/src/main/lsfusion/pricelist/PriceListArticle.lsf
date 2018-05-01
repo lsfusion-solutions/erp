@@ -7,9 +7,9 @@ NAMESPACE PriceList;
 TABLE articleUserPriceListDataPriceListType (Article, UserPriceList, DataPriceListType);
 
 // Подбор по артикулу
-countDetail(article, priceList) = GROUP BY article(sku(UserPriceListDetail detail)), userPriceList(detail) SUM 1;
+countDetail(article, priceList) = GROUP SUM 1 BY article(sku(UserPriceListDetail detail)), userPriceList(detail);
 
-countDetailSkus(article, UserPriceList priceList) = GROUP BY article(Item sku) SUM 1 IF detail(sku, priceList); 
+countDetailSkus(article, UserPriceList priceList) = GROUP SUM 1 IF detail(Item sku, priceList) BY article(sku); 
 
 in 'Вкл.' (Article article, UserPriceList priceList) = TRUE IF countDetail(article, priceList);
 backgroundIn 'Цвет' (Article article, UserPriceList priceList) = RGB(213, 213, 213) IF (countItem(article)!=countDetailSkus(article, priceList));
@@ -39,18 +39,18 @@ changePrice(Article article, UserPriceList priceList, DataPriceListType type) = 
 }
 
 maxCurrentPriceData 'Макс. цена' (article, PriceList priceList, PriceListType dataPriceListType, Stock stock) = 
-    GROUP 
-        BY article(Item sku) MAX currentPriceUser(sku, priceList, dataPriceListType, stock);
+    GROUP MAX currentPriceUser(Item sku, priceList, dataPriceListType, stock) 
+        BY article(sku);
 minCurrentPriceData 'Мин. цена' (article, PriceList priceList, PriceListType dataPriceListType, Stock stock) = 
-    GROUP 
-        BY article(Item sku) MIN currentPriceUser(sku, priceList, dataPriceListType, stock);
+    GROUP MIN currentPriceUser(Item sku, priceList, dataPriceListType, stock) 
+        BY article(sku);
 headerNameMaxCurrentData (PriceListType dataPriceListType) =
     name(dataPriceListType) + ' (старая max)' CHARWIDTH 30;
 headerNameMinCurrentData (PriceListType dataPriceListType) =
     name(dataPriceListType) + ' (старая min)' CHARWIDTH 30;    
     
 maxCurrentPrice 'Текущая цена (max)' (article, UserPriceList userPriceList, Stock stock)= 
-    GROUP BY article(Item sku) MAX currentPrice (sku, userPriceList, stock);
+    GROUP MAX currentPrice (Item sku, userPriceList, stock) BY article(sku);
  
     
 EXTEND FORM userPriceList

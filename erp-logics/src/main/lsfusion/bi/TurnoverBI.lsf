@@ -362,7 +362,7 @@ commaBarcodeId 'Список ШК' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDT
 
 addCommaBarcodeId 'Добавить' () = {
     IF commaBarcodeId() THEN {
-        dataInclude(Sku sku) <- TRUE WHERE [=GROUP BY sku(Barcode barcode) SUM 1 IF isWordInCSV(id(barcode), replace(commaBarcodeId(),' ',',')) == 1](sku);
+        dataInclude(Sku sku) <- TRUE WHERE [=GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(commaBarcodeId(),' ',',')) == 1 BY sku(barcode)](sku);
         commaBarcodeId() <- NULL;
     }
 }
@@ -409,7 +409,7 @@ changeIncludeSkus() = {
 }
 changeIncludeBarcodes() = {
     INPUT s = VARISTRING[4000] DO {
-        dataInclude(Sku sku) <- TRUE IF [=GROUP BY sku(Barcode barcode) SUM 1 IF isWordInCSV(id(barcode), replace(s,' ',',')) == 1](sku);
+        dataInclude(Sku sku) <- TRUE IF [=GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(s,' ',',')) == 1 BY sku(barcode)](sku);
     }
 }
 
@@ -539,7 +539,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
                                           localBalanceB = balanceB, localCostBalanceB = costBalanceB, localCostVATBalanceB = costVATBalanceB,
                                           localSumBalanceB = sumBalanceB, localBarcodeSku = barcodeSku;
         
-        FOR imported(INTEGER i) AND INTEGER number = [= GROUP BY nameGroup1(INTEGER n), nameGroup2(n), nameGroup3(n), barcodeSku(n) LAST n ORDER n](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
+        FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1(n), nameGroup2(n), nameGroup3(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
             balanceB(number) <- localBalanceB(i);
             costBalanceB(number) <- localCostBalanceB(i);
             costVATBalanceB(number) <- localCostVATBalanceB(i);
@@ -561,7 +561,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
                                           localBalanceA = balanceA, localCostBalanceA = costBalanceA, localCostVATBalanceA = costVATBalanceA,
                                           localSumBalanceA = sumBalanceA, localBarcodeSku = barcodeSku;
         
-        FOR imported(INTEGER i) AND INTEGER number = [= GROUP BY nameGroup1(INTEGER n), nameGroup2(n), nameGroup3(n), barcodeSku(n) LAST n ORDER n](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
+        FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1(n), nameGroup2(n), nameGroup3(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
             balanceA(number) <- localBalanceA(i);
             costBalanceA(number) <- localCostBalanceA(i);
             costVATBalanceA(number) <- localCostVATBalanceA(i);

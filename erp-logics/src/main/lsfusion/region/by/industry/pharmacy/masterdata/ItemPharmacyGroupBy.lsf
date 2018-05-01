@@ -94,19 +94,19 @@ blrCurrency = currencyShortName('BYN') MATERIALIZED;
 pharmacyExchange (price, DATE date) = price / rateOn(pharmacyTypeExchange(), usdCurrency(), date);
 
 wholesaleMarkupPharmacy 'Оптовая надбавка' (priceGroup, NUMERIC[16,4] price, DATE date) =
-    GROUP
-          BY pharmacyGroupPharmacy(PharmacyPriceInterval interval) LAST wholesaleMarkup(interval)
+    GROUP LAST wholesaleMarkup(PharmacyPriceInterval interval)
           ORDER pricePharmacy(interval), interval
           WHERE pharmacyExchange(price AS NUMERIC[16,4], date) > pricePharmacy(interval) AND
-                date >= fromDatePharmacy(interval) AND NOT date > toDatePharmacy(interval) COMPLEX;
+                date >= fromDatePharmacy(interval) AND NOT date > toDatePharmacy(interval)
+          BY pharmacyGroupPharmacy(interval) COMPLEX;
 prevWholesaleMarkupPharmacy 'Оптовая надбавка (пред.)' (PharmacyPriceGroup priceGroup, NUMERIC[16,4] price, DATE date) = PREV(wholesaleMarkupPharmacy(priceGroup, price, date)) COMPLEX;
 
 retailMarkupPharmacy 'Оптовая надбавка' (priceGroup, NUMERIC[16,4] price, DATE date) =
-    GROUP
-          BY pharmacyGroupPharmacy(PharmacyPriceInterval interval) LAST retailMarkup(interval)
+    GROUP LAST retailMarkup(PharmacyPriceInterval interval)
           ORDER pricePharmacy(interval), interval
           WHERE pharmacyExchange(price AS NUMERIC[16,4], date) > pricePharmacy(interval) AND
-                date >= fromDatePharmacy(interval) AND NOT date > toDatePharmacy(interval) COMPLEX;
+                date >= fromDatePharmacy(interval) AND NOT date > toDatePharmacy(interval)
+          BY pharmacyGroupPharmacy(interval) COMPLEX;
 
 wholesaleMarkupPharmacy 'Оптовая надбавка' (Sku sku, NUMERIC[16,4] price, DATE date) =  wholesaleMarkupPharmacy(pharmacyPriceGroup(sku), price, date) COMPLEX;
 prevWholesaleMarkupPharmacy 'Оптовая надбавка (пред.)' (Sku sku, NUMERIC[16,4] price, DATE date) =  prevWholesaleMarkupPharmacy(pharmacyPriceGroup(sku), price, date);

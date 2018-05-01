@@ -26,7 +26,7 @@ CLASS ScalesModel 'Модель весов' : Model;
 
 name 'Наименование' = DATA VARISTRING[110](ScalesModel);
 
-scalesName (scalesModel) = GROUP BY name (ScalesModel sscalesModel) AGGR sscalesModel WHERE sscalesModel IS ScalesModel;
+scalesName (scalesModel) = GROUP AGGR ScalesModel sscalesModel WHERE sscalesModel IS ScalesModel BY name (sscalesModel);
 
 name(ScalesModel model) += name(model) IF model IS ScalesModel;
 
@@ -61,8 +61,8 @@ model(GroupScales groupMachinery) += scalesModel(groupMachinery);
 number 'Заводской(серийный) номер' = DATA VARSTRING[100] (Scales) IN base;
 date 'Дата следующей обязательной поверки' = DATA DATE (Scales) IN base;
 
-groupScales (npp) = GROUP BY npp(GroupScales groupScales) AGGR groupScales WHERE groupScales IS GroupScales;  
-scalesNppGroupScales (g, npp) = GROUP BY npp(groupScales(Scales scales)), npp(scales) AGGR scales;  
+groupScales (npp) = GROUP AGGR GroupScales groupScales WHERE groupScales IS GroupScales BY npp(groupScales);  
+scalesNppGroupScales (g, npp) = GROUP AGGR Scales scales BY npp(groupScales(scales)), npp(scales);  
 
 inactive 'Неактивный' = DATA BOOLEAN (Scales);
 overInactive(Scales scales) += inactive(scales);
@@ -128,8 +128,8 @@ groupScales = DATA GroupScales (CellScales);
 description 'Ячейка' = DATA TEXT (CellScales);
 number 'Номер' = PARTITION SUM 1 IF CellScales c IS CellScales ORDER c BY groupScales (c);
 
-cellScales (groupScales, description) = GROUP
-            BY groupScales (CellScales cellScales), description (cellScales) AGGR cellScales WHERE cellScales IS CellScales;
+cellScales (groupScales, description) = GROUP AGGR CellScales cellScales WHERE cellScales IS CellScales
+            BY groupScales (cellScales), description (cellScales);
 
 FORM cellScales 'Ячейки весов'
     OBJECTS grs=GroupScales
@@ -162,7 +162,7 @@ TABLE labelFormat (LabelFormat);
 name 'Наименование' = DATA VARISTRING[50](LabelFormat);
 
 id 'Код формата этикетки' = DATA INTEGER (LabelFormat) IN base;
-idTo (labelFormat) = GROUP BY id(LabelFormat llabelFormat) AGGR llabelFormat WHERE llabelFormat IS LabelFormat;
+idTo (labelFormat) = GROUP AGGR LabelFormat llabelFormat WHERE llabelFormat IS LabelFormat BY id(llabelFormat);
 
 file = DATA CUSTOMFILE (LabelFormat);
 loadFile 'Загрузить файл этикетки' (LabelFormat labelFormat) = { INPUT =file(labelFormat) CHANGE; } IN base;

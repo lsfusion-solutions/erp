@@ -4,7 +4,7 @@ REQUIRE PurchaseOrderInvoiceDashboard;
 
 NAMESPACE Purchase;
 
-countInvoiceDetails = GROUP BY orderDetail(InvoiceDetail id) SUM 1;
+countInvoiceDetails = GROUP SUM 1 BY orderDetail(InvoiceDetail id);
 backgroundInvoiceDetails = RGB (212,255,212) IF OrderDetail d IS OrderDetail AND countInvoiceDetails(d);
 perform = ABSTRACT LIST (UserInvoiceDetail, OrderDetail);
 
@@ -156,7 +156,7 @@ extraCreateMultiUserInvoice 'Создать накладную (без стро�
 }
 
 numberInvoice 'Номер накладной' = DATA LOCAL NESTED INTEGER (OrderDetail);
-countNumberInvoice = GROUP BY order(OrderDetail d) SUM 1 IF numberInvoice(d); 
+countNumberInvoice = GROUP SUM 1 IF numberInvoice(OrderDetail d) BY order(d); 
 
 FORM selectOrderOrderDetail 'Формирование нескольких накладных'
 
@@ -204,7 +204,7 @@ extraCreateInvoices 'Создать несколько накладных'(Order
     numberInvoice(OrderDetail od) <- NULL WHERE order(od) == order;
     DIALOG selectOrderOrderDetail OBJECTS o = order DO {
         IF countNumberInvoice(order) THEN {
-            FOR [ = GROUP BY numberInvoice(OrderDetail d), order(d) SUM 1](INTEGER num,order) DO {
+            FOR [ = GROUP SUM 1 BY numberInvoice(OrderDetail d), order(d)](INTEGER num,order) DO {
                 NEWSESSION {
                     NEW i = UserInvoice {
         

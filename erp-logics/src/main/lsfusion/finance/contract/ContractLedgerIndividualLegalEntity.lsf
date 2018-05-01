@@ -6,12 +6,12 @@ defaultRoundConditionPaymentInstallments  = DATA RoundCondition ();
 nameDefaultRoundConditionPaymentInstallments 'Условия округления рассрочки' = name(defaultRoundConditionPaymentInstallments());
 
 countContractSkuSupplierCustomer = 
-    GROUP
-    BY currency(ContractSku c), supplier(c), customer(c), DATE dateIn SUM 1 IF dateFrom(c) <= dateIn AND NOT dateTo(c) < dateIn;
+    GROUP SUM 1 IF dateFrom(ContractSku c) <= DATE dateIn AND NOT dateTo(c) < dateIn
+    BY currency(c), supplier(c), customer(c), dateIn;
 
 defaultContractSkCurrencyuSupplierCustomer = 
-    GROUP
-    BY currency(ContractSku c), supplier(c), customer(c), DATE dateIn LAST c IF dateFrom(c) <= dateIn AND NOT dateTo(c) < dateIn;
+    GROUP LAST ContractSku c IF dateFrom(c) <= DATE dateIn AND NOT dateTo(c) < dateIn
+    BY currency(c), supplier(c), customer(c), dateIn;
 
 EXTEND FORM options
     PROPERTIES() nameDefaultRoundConditionPaymentInstallments
@@ -35,8 +35,8 @@ balanceACurrencyPaymentInstallments 'Задолженность по расср�
     GROUP
     SUM balanceA(Contract contract, date) IF partyB(contract) == legalEntity AND currency(contract) == defaultCurrencyPaymentInstallments();
 balanceADefaultCurrencyCurrencyPaymentInstallments 'Задолженность по рассрочке(основная валюта)' = 
-    GROUP
-    BY partyBContract(InContractLedger ledger), DATE date SUM debtDefaultCurrency(ledger, date);
+    GROUP SUM debtDefaultCurrency(InContractLedger ledger, DATE date)
+    BY partyBContract(ledger), date;
 
 balanceADefaultCurrency 'Задолженность по предоплате' (LegalEntity legalEntity, DATE date) = 
     GROUP

@@ -198,7 +198,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     shipmentTime 'Кол-во дней до поставки' (ScheduleOrderTime d) = OVERRIDE distanceDOWDOW(orderDOW(d), shipmentDOW(d)), 
                                                                         0 IF d IS ScheduleOrderTime;
 
-    shipmentScheduleOrderTime = GROUP BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d) AGGR d; 
+    shipmentScheduleOrderTime = GROUP AGGR ScheduleOrderTime d BY scheduleOrder(d), shipmentDOW(d); 
 
     toShowGenDay (ScheduleOrder scheduleOrder) = type(scheduleOrder) == GenType.genDays;
     toShowGenNumber (ScheduleOrder scheduleOrder) = type(scheduleOrder) == GenType.genNumber;
@@ -248,8 +248,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     customerStock(scheduleOrderDetail) = DATA Stock (ScheduleOrderDetail);
     nameCustomerStock 'Склад покупателя' (ScheduleOrderDetail scheduleOrderDetail) = name(customerStock(scheduleOrderDetail)) IN recognize;
     
-    countDetails (scheduleOrder, dateSupply, dateOrder, customerStock)= GROUP
-        BY  scheduleOrder(ScheduleOrderDetail d), dateSupply(d), dateOrder(d), customerStock(d) SUM 1;   
+    countDetails (scheduleOrder, dateSupply, dateOrder, customerStock)= GROUP SUM 1
+        BY  scheduleOrder(ScheduleOrderDetail d), dateSupply(d), dateOrder(d), customerStock(d);   
         
     CONSTRAINT scheduleOrder(ScheduleOrderDetail scheduleOrderDetail1) == scheduleOrder(ScheduleOrderDetail scheduleOrderDetail2) AND
                dateSupply(scheduleOrderDetail1) == dateSupply(scheduleOrderDetail2) AND
@@ -266,8 +266,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     overCreate = ABSTRACT LIST (ScheduleOrderDetail); 
     
-    lastShipment = GROUP BY scheduleOrder(ScheduleOrderDetail d), DATE date MAX dateSupply(d) IF dateSupply(d) <= date;
-    lastDateSupply = GROUP BY scheduleOrder(ScheduleOrderDetail d), customerStock(d) MAX dateSupply(d);
+    lastShipment = GROUP MAX dateSupply(ScheduleOrderDetail d) IF dateSupply(d) <= DATE date BY scheduleOrder(d), date;
+    lastDateSupply = GROUP MAX dateSupply(ScheduleOrderDetail d) BY scheduleOrder(d), customerStock(d);
 
     create 'Сгенерировать предварительные заказы'(ScheduleOrder scheduleOrder) = {
         LOCAL toDate = DATE ();    
@@ -362,12 +362,12 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         //EXEC apply();
     } TOOLBAR;
     
-    countDetailsCurrent = GROUP  
-        BY scheduleOrder[ScheduleOrderDetail](ScheduleOrderDetail d) SUM 1 IF isOpened[ScheduleOrderDetail](d) AND dateOrder[ScheduleOrderDetail](d) >= currentDate(); 
+    countDetailsCurrent = GROUP SUM 1 IF isOpened[ScheduleOrderDetail](ScheduleOrderDetail d) AND dateOrder[ScheduleOrderDetail](d) >= currentDate()  
+        BY scheduleOrder[ScheduleOrderDetail](d); 
     
     addScheduleOrderDetail() = {
 
-        FOR [ = GROUP BY supplier(ScheduleOrder o) SUM 1 IF o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) AND NOT countDetailsCurrent(o)))](LegalEntity l) DO NEWSESSION {
+        FOR [ = GROUP SUM 1 IF ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) AND NOT countDetailsCurrent(o))) BY supplier(o)](LegalEntity l) DO NEWSESSION {
             FOR ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) AND NOT countDetailsCurrent(o))) AND supplier(o) == l DO {
                 EXEC create(o);
             }             
@@ -393,30 +393,30 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                        isOpened(scheduleOrderDetail) MATERIALIZED;
                
     lastScheduleOrderDetailSupplierCustomer (DATE d,s,ss,c,cs) = 
-        GROUP
-               BY supplier(ScheduleOrderDetail sd), supplierStock(sd), customer(sd), customerStock(sd) LAST sd
+        GROUP LAST ScheduleOrderDetail sd
                ORDER dateOrder(sd), sd 
-               WHERE dateOrder(sd) <= (d AS DATE) AND isOpened(sd);             
+               WHERE dateOrder(sd) <= (d AS DATE) AND isOpened(sd)
+               BY supplier(sd), supplierStock(sd), customer(sd), customerStock(sd);             
     isLast (ScheduleOrderDetail sd,DATE d)= lastScheduleOrderDetailSupplierCustomer(d,supplier(sd), supplierStock(sd), customer(sd), customerStock(sd)) == sd;           
 
     lastScheduleOrderDetailSupplierCustomer (s,ss,c,cs) = 
-        GROUP
-               BY supplier(ScheduleOrderDetail sd), supplierStock(sd), customer(sd), customerStock(sd) LAST sd
+        GROUP LAST ScheduleOrderDetail sd
                ORDER dateOrder(sd), sd 
-               WHERE isOpened(sd);             
+               WHERE isOpened(sd)
+               BY supplier(sd), supplierStock(sd), customer(sd), customerStock(sd);             
     isLast (ScheduleOrderDetail sd)= lastScheduleOrderDetailSupplierCustomer(supplier(sd), supplierStock(sd), customer(sd), customerStock(sd)) == sd;   
 
     isCycled 'Циклический' = DATA BOOLEAN (ScheduleOrder);
     
     lastCreatedOrder (ScheduleOrder o) = 
-        GROUP 
-            BY scheduleOrder(scheduleOrderDetail(Order order)) LAST order 
-            ORDER date(order), order;
+        GROUP LAST Order order 
+            ORDER date(order), order 
+            BY scheduleOrder(scheduleOrderDetail(order));
  
     prevLastCreatedOrder (ScheduleOrder o) = PREV(lastCreatedOrder(o));
     
     reCreate  'Перегенерировать предварительные заказы'(ScheduleOrder scheduleOrder) = {
-        DELETE ScheduleOrderDetail d WHERE d IS ScheduleOrderDetail AND scheduleOrder(d) == scheduleOrder AND isOpened(d) AND NOT [ = GROUP BY scheduleOrderDetail( UserOrder o) SUM 1](d);
+        DELETE ScheduleOrderDetail d WHERE d IS ScheduleOrderDetail AND scheduleOrder(d) == scheduleOrder AND isOpened(d) AND NOT [ = GROUP SUM 1 BY scheduleOrderDetail( UserOrder o)](d);
         create(scheduleOrder);    
     } TOOLBAR;
     
@@ -463,8 +463,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
     @defineDocumentDialogSupplierCustomerLegalEntity(scheduleOrder, supplierFilter, customerFilter);
        
-    countShipmentScheduleOrderTime (scheduleOrder, dow) = GROUP BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d) SUM 1;   
-    scheduleOrderTimeIn 'Вкл.' (ScheduleOrder scheduleOrder, DOW dow)= TRUE IF [ = GROUP BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d) SUM 1](scheduleOrder, dow);   
+    countShipmentScheduleOrderTime (scheduleOrder, dow) = GROUP SUM 1 BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d);   
+    scheduleOrderTimeIn 'Вкл.' (ScheduleOrder scheduleOrder, DOW dow)= TRUE IF [ = GROUP SUM 1 BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d)](scheduleOrder, dow);   
 
     setScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow) = {
         IF NOT scheduleOrderTimeIn(scheduleOrder, dow) THEN {
@@ -549,7 +549,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     change(ScheduleOrder s, DOW dow) = {
         IF scheduleOrderTimeIn(s, dow) THEN
-            SEEK scheduleOrder.d = [= GROUP BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d) MAX d](s, dow);
+            SEEK scheduleOrder.d = [= GROUP MAX ScheduleOrderTime d BY scheduleOrder(d), shipmentDOW(d)](s, dow);
     }
     EXTEND FORM scheduleOrder
         EVENTS
@@ -966,13 +966,13 @@ DESIGN legalEntity {
 
 META defineScheduleOrderDashboard(sign, stockFilter)
 
-    countRemaining 'Кол-во оставшихся заказов'##sign (scheduleOrder,DATE date) = GROUP 
-                                                                                            BY scheduleOrder(ScheduleOrderDetail d) SUM 1 IF dateSupply(d) >= (date AS DATE); 
+    countRemaining 'Кол-во оставшихся заказов'##sign (scheduleOrder,DATE date) = GROUP SUM 1 IF dateSupply(ScheduleOrderDetail d) >= (date AS DATE) 
+                                                                                            BY scheduleOrder(d); 
     lastScheduleOrderSupplierCustomer (s,ss,c,Stock cs) = 
-        GROUP
-               BY supplier(ScheduleOrder scheduleOrder), supplierStock(scheduleOrder), customer(scheduleOrder) LAST scheduleOrder IF endDate(scheduleOrder) AND in(scheduleOrder, cs)
+        GROUP LAST ScheduleOrder scheduleOrder IF endDate(scheduleOrder) AND in(scheduleOrder, cs)
                ORDER endDate(scheduleOrder), scheduleOrder 
-               WHERE scheduleOrder IS ScheduleOrder;  
+               WHERE scheduleOrder IS ScheduleOrder
+               BY supplier(scheduleOrder), supplierStock(scheduleOrder), customer(scheduleOrder);  
                                                                                                                                                                                        
 //isLastScheduleOrder 'Последний график' (s)= 
 //    lastScheduleOrderSupplierStockCustomerStock(supplierScheduleOrder(s),supplierStockScheduleOrder(s),customerScheduleOrder(s),customerStockScheduleOrder(s)) ==s;

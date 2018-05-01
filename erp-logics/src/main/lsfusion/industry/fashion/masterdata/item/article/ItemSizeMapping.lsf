@@ -102,7 +102,7 @@ EXTEND FORM sizeMappings
     PROPERTIES(mx) BACKGROUND background(mx) isEACArticle
 ;
 
-sizeMapping (g, s, b)= GROUP BY itemGroup(SizeMapping m), size(m), brand(m) MAX m;
+sizeMapping (g, s, b)= GROUP MAX SizeMapping m BY itemGroup(m), size(m), brand(m);
 
 TABLE itemGroupSizeBrand (ItemGroup, Size, Brand); 
 levelParentSizeMapping (ItemGroup itemGroup, Size size, Brand brand) = GROUP
@@ -116,7 +116,7 @@ overSizeMapping 'Соответствие по умолчанию' (ItemGroup it
 
              
 TABLE itemGroupSize (ItemGroup, Size);
-sizeMapping (g, s)= GROUP BY itemGroup(SizeMapping m), size(m) MAX m;
+sizeMapping (g, s)= GROUP MAX SizeMapping m BY itemGroup(m), size(m);
 levelParentSizeMapping (ItemGroup itemGroup, Size size) = GROUP
                                                                   MIN level(itemGroup, ItemGroup parent) IF sizeMapping(parent, size) MATERIALIZED;    
 nearestParentSizeMapping (ItemGroup itemGroup, Size size) = itemGroup(itemGroup, levelParentSizeMapping(itemGroup, size));
@@ -176,7 +176,7 @@ META createSizeMappingAttribute(attribute, type)
     @createSizeMappingAttribute(attribute, type, attribute);
 END
 META createSizeMappingAttribute(attribute, type, postfix)
-    count###postfix = GROUP BY itemGroup(Item i), size(i), brand(i), attribute(i) SUM 1;
+    count###postfix = GROUP SUM 1 BY itemGroup(Item i), size(i), brand(i), attribute(i);
     best###attribute(ItemGroup itemGroup, Size size, Brand brand) = GROUP
                                                          LAST type attribute 
                                                          ORDER count###postfix(itemGroup, size, brand, attribute), attribute

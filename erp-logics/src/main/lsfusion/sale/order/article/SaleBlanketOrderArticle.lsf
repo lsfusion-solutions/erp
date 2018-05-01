@@ -4,16 +4,16 @@ REQUIRE SaleBlanketOrder, OrderLedgerArticle, SaleLedgerItemArticle;
 
 NAMESPACE Sale;
 
-quantitySupplier 'Кол-во товара в документе' (article, BlanketOrder blanketOrder, Stock supplierStock) = GROUP
-    BY article(Item sku) SUM quantitySupplier(sku, blanketOrder, supplierStock);    
+quantitySupplier 'Кол-во товара в документе' (article, BlanketOrder blanketOrder, Stock supplierStock) = GROUP SUM quantitySupplier(Item sku, blanketOrder, supplierStock)
+    BY article(sku);    
     
-quantitySupplierCustomer 'Кол-во товара в документе' (article, BlanketOrder blanketOrder, Stock supplierStock, Stock customerStock) = GROUP      
-    BY article(Item sku) SUM quantitySupplierCustomer(sku, blanketOrder, supplierStock, customerStock); 
+quantitySupplierCustomer 'Кол-во товара в документе' (article, BlanketOrder blanketOrder, Stock supplierStock, Stock customerStock) = GROUP SUM quantitySupplierCustomer(Item sku, blanketOrder, supplierStock, customerStock)      
+    BY article(sku); 
     
-availableQuantity 'Доступное к-во (всего)' (article, Stock stock)= GROUP BY article(Item sku) SUM availableQuantity(sku, stock); 
+availableQuantity 'Доступное к-во (всего)' (article, Stock stock)= GROUP SUM availableQuantity(Item sku, stock) BY article(sku); 
     
-prevAvailableQuantity 'Доступное к-во (всего)' (article, Stock stock)= GROUP BY article(Item sku) SUM prevAvailableQuantity(sku, stock); 
-prevAvailableQuantity 'Доступное к-во ' (article, Stock stock, BlanketOrder order)= GROUP BY article(Item sku) SUM prevAvailableQuantity(sku, stock, shipmentDateTime(order));           
+prevAvailableQuantity 'Доступное к-во (всего)' (article, Stock stock)= GROUP SUM prevAvailableQuantity(Item sku, stock) BY article(sku); 
+prevAvailableQuantity 'Доступное к-во ' (article, Stock stock, BlanketOrder order)= GROUP SUM prevAvailableQuantity(Item sku, stock, shipmentDateTime(order)) BY article(sku);           
                      
 prevAvailableQuantity 'Доступное к-во (всего)' (Article article, BlanketOrder order, Stock stock) = prevAvailableQuantity(article, stock) (+) (PREV(quantitySupplier(article, order, stock)) IF isPosted(order));
 prevAvailableQuantity 'Доступное к-во (всего)' (Batch batch, BlanketOrder order, Stock stock) = prevAvailableQuantity(batch, stock) (+) (PREV(quantitySupplier(batch, order, stock)) IF isPosted(order));
@@ -21,8 +21,8 @@ prevAvailableQuantity 'Доступное к-во (всего)' (Sku sku, Blanke
 
 prevAvailableQuantity 'Доступное к-во (всего)' (Batch batch, BlanketOrder order, Stock supplierStock, Stock customerStock) =
     prevAvailableQuantity(batch, order, supplierStock) (-)
-    [= GROUP  
-             BY batch(BlanketOrderDetail d), blanketOrder(d), supplierStock(d) SUM quantity(d) IF customerStock(d) != customerStock](batch, order, supplierStock);
+    [= GROUP SUM quantity(BlanketOrderDetail d) IF customerStock(d) != customerStock  
+             BY batch(d), blanketOrder(d), supplierStock(d)](batch, order, supplierStock);
 //    prevAvailableQuantityBatchStock(batch, stock) (+) (PREV(quantityBatchBlanketOrderSupplierStock(batch, order, stock)) IF isPostedBlanketOrder(order));
 
 //quantitySoldArticleStockBlanketOrderOneWeek 'Продано за последнюю неделю (кол-во)' (article, stock, blanketOrder)= quantitySoldArticleStockDateFromTo(article, stock, subtractDate(dateBlanketOrder(blanketOrder),7), dateBlanketOrder(blanketOrder));        

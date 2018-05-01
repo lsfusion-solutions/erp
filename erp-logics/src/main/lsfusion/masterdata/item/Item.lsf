@@ -131,7 +131,7 @@ DESIGN options {
 id 'Код' = DATA VARSTRING[100] (Item) IN recognize INDEXED CHARWIDTH 10;
 
 TABLE itemId (VARSTRING[100]);
-item (id) = GROUP BY id (Item item) AGGR (item) MATERIALIZED TABLE itemId; // нужно MATERIALIZED, чтобы не допускало одинаковых кодов, а кидала UPDATE_CONFLICT
+item (id) = GROUP AGGR (Item item) BY id (item) MATERIALIZED TABLE itemId; // нужно MATERIALIZED, чтобы не допускало одинаковых кодов, а кидала UPDATE_CONFLICT
 
 @defineOption(replaceSpacesInItemId, 'Замещать пробелы в коде товара', items);
 WHEN LOCAL CHANGED (id(Item i)) AND replaceSpacesInItemId()  INLINE DO id(i) <- replace(id(i), ' ', '');
@@ -146,7 +146,7 @@ CONSTRAINT active(Sku sku) AND sku IS Item AND NOT idBarcode(sku) AND setIdBarco
 // Связь с группой товаров
 itemGroup 'Группа товара' = DATA ItemGroup(Item) AUTOSET INDEXED;
 skuGroup(Item item) += itemGroup(item);
-countItem 'Кол-во товаров' (g) = GROUP BY itemGroup(Item i) SUM 1;
+countItem 'Кол-во товаров' (g) = GROUP SUM 1 BY itemGroup(Item i);
 
 nameItemGroup 'Группа товара' (Item item) = name(itemGroup(item)) IN recognize;
 canonicalNameItemGroup 'Группа товара' (Item item) = canonicalName(itemGroup(item)) IN base;
@@ -915,13 +915,13 @@ META defineObjectItemAttribute(attribute, attributeClass, identity, caption, gro
     attribute = DATA attributeClass (Item);
     deleteUnusedAttributes() += { 
         NEWSESSION { 
-            FOR (attributeClass o IS attributeClass) AND NOT [= GROUP BY attribute(Item item) SUM 1](o) DO DELETE o; 
+            FOR (attributeClass o IS attributeClass) AND NOT [= GROUP SUM 1 BY attribute(Item item)](o) DO DELETE o; 
             apply();
         }
     };    
     identity###attribute caption (Item item) = identity(attribute(item)) IN group;
 
-    CONSTRAINT DROPPED(attributeClass o IS attributeClass) AND [= GROUP BY PREV(attribute(Item io)) SUM 1 IF NOT attribute(io)](o)
+    CONSTRAINT DROPPED(attributeClass o IS attributeClass) AND [= GROUP SUM 1 IF NOT attribute(Item io) BY PREV(attribute(io))](o)
         MESSAGE 'Запрещено удалять атрибут ('##caption##'), так как на него есть ссылки в справочнике товаров';
 
     @defineItemAttributeForm(attribute, identity, caption, group);
@@ -1101,7 +1101,7 @@ EXTEND FORM extractStringAttributeItem
 META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
     extract###object##FromCaption 'Выделить из названия'(Item i) = {
         IF i IS Item THEN {
-            possibleStringAttributeValue(VARSTRING[100] s) <- TRUE IF [= GROUP BY name(###object object), ItemGroup g SUM 1 IF in(object, g)](s, itemGroup(i));
+            possibleStringAttributeValue(VARSTRING[100] s) <- TRUE IF [= GROUP SUM 1 IF in(###object object, ItemGroup g) BY name(object), g](s, itemGroup(i));
             DIALOG extractStringAttributeItem OBJECTS from INPUT, to INPUT DO {
                 LOCAL object = ###object();
                 object() <- identityObject(trim(to));
@@ -1113,7 +1113,7 @@ META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
                 }
                 LOCAL selected = BOOLEAN (Item);
                 selected(Item item) <- isSubstring(caption(item), from) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
-                dataIn(###object a, ItemGroup g) <- TRUE WHERE a == object() AND [= GROUP BY itemGroup(Item item) SUM 1 IF selected(item)](g);
+                dataIn(###object a, ItemGroup g) <- TRUE WHERE a == object() AND [= GROUP SUM 1 IF selected(Item item) BY itemGroup(item)](g);
                 object(Item item) <- object() WHERE selected(item);
                 // вырезаем двойные пробелы, а также ненужные символы в начале и конце
                 caption(Item item) <- rtrim(
@@ -1294,7 +1294,7 @@ EXTEND CLASS Brand {
 @defineExternalizable(brand, VARSTRING[100]);
 
 name 'Наименование' = DATA VARISTRING[50](Brand);
-brandName = GROUP BY name(Brand brand) NAGGR brand;
+brandName = GROUP NAGGR Brand brand BY name(brand);
 
 emptyName 'Наименование' (Brand b) = OVERRIDE name(b), 'Не задан';
 
@@ -1358,7 +1358,7 @@ TABLE manufacturer(Manufacturer);
 @defineExternalizable(manufacturer, VARSTRING[200]);
 
 name 'Наименование' = DATA VARISTRING[200](Manufacturer) IN recognize CHARWIDTH 15;
-manufacturerName = GROUP BY name(Manufacturer m) NAGGR m;
+manufacturerName = GROUP NAGGR Manufacturer m BY name(m);
 address 'Адрес производителя' = DATA VARSTRING[255] (Manufacturer) CHARWIDTH 20;
 
 originalName 'Наименование (ориг.)' = DATA VARISTRING[100](Manufacturer) CHARWIDTH 15;

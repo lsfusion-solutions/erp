@@ -73,7 +73,7 @@ CONSTRAINT showPriceBefore(UserPriceList p) AND isPosted(p) AND
     MESSAGE 'Дата с (Цена до) и Дата по (Цена до)не могут быть в интервале самого прайса';
     
 CONSTRAINT showPriceBefore(UserPriceList p) AND isPosted(p) AND NOT skipConstraintPriceBefore(operation(p)) AND 
-            (NOT fromPriceBeforeDateTime(p) OR NOT toPriceBeforeDateTime(p)) AND [= GROUP BY userPriceList(UserPriceListDetail d) SUM 1 IF priceBefore(d)](p)
+            (NOT fromPriceBeforeDateTime(p) OR NOT toPriceBeforeDateTime(p)) AND [= GROUP SUM 1 IF priceBefore(UserPriceListDetail d) BY userPriceList(d)](p)
     MESSAGE 'Дата с (Цена до) и Дата по (Цена до) должны быть заданы для прайса';
     
 CONSTRAINT showPriceBefore(userPriceList(UserPriceListDetail d)) AND isPosted(userPriceList(d))
@@ -129,9 +129,9 @@ show[PriceListLedger] (PriceListBeforeLedger ledger) += {show(priceListDetail(le
 
 // Расчет цены до для склада и sku
 lastBeforePriceListLedger 'Цена' (LedgerPriceListType type, sku, Stock stock, DATETIME dateTime) =
-    GROUP
-          BY sku(PriceListBeforeLedger ledger, type, stock) LAST ledger
+    GROUP LAST PriceListBeforeLedger ledger
           ORDER fromDateTime(ledger, type, stock), ledger
-          WHERE ledger IS PriceListBeforeLedger AND NOT toDateTime(ledger, type, stock) < dateTime;
+          WHERE ledger IS PriceListBeforeLedger AND NOT toDateTime(ledger, type, stock) < dateTime
+          BY sku(ledger, type, stock);
 
 priceBefore 'Цена до' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dt) = priceBefore(priceListDetail(lastBeforePriceListLedger(type, sku, stock, dt)));

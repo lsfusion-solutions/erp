@@ -7,7 +7,7 @@ NAMESPACE Item;
 // Обработка статуса
 
 completedSticker 'Обработан' = DATA BOOLEAN (Item);
-notCompletedSticker 'Не обработан' (article) = GROUP BY article(Item i) SUM 1 IF i IS Item AND NOT completedSticker(i);
+notCompletedSticker 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedSticker(i) BY article(i);
 completedSticker 'Обработан' = Article a IS Article AND NOT notCompletedSticker(a);
 
 changeCompletedSticker (Article article) = {
@@ -16,7 +16,7 @@ changeCompletedSticker (Article article) = {
 }
 
 // Подсчет артикулов с незаполненными стикерами для групп
-countNotStickerArticles 'Не обработано (к-во)' (group) = GROUP BY itemGroup(Article article) SUM 1 IF completedTranslate(article) AND NOT completedSticker(article) AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser()));
+countNotStickerArticles 'Не обработано (к-во)' (group) = GROUP SUM 1 IF completedTranslate(Article article) AND NOT completedSticker(article) AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser())) BY itemGroup(article);
 recCountNotStickerArticles 'Не обработано (к-во)' (ItemGroup parent) = GROUP SUM countNotStickerArticles(ItemGroup child) IF isParent(child, parent);
 
 // ----------------- Типы ценников ----------------- //
@@ -24,7 +24,7 @@ recCountNotStickerArticles 'Не обработано (к-во)' (ItemGroup pare
 defaultLabelType (Sku sku) = GROUP MAX LabelType type IF in(type, sku);
 nameLabelType 'Тип ценника' (Sku sku)= name(defaultLabelType(sku)) CHARWIDTH 15;
 
-defaultLabelType (article) = GROUP BY article(Item sku) MAX LabelType type IF in(type, sku);
+defaultLabelType (article) = GROUP MAX LabelType type IF in(type, Item sku) BY article(sku);
 nameLabelType 'Тип ценника' (Article article)= name(defaultLabelType(article)) CHARWIDTH 15;
 
 changeDefaultLabelType(Article article) = {
@@ -39,7 +39,7 @@ changeDefaultLabelType(Sku sku) = {
 
 // Не заполнены атрибуты
 nullSticker 'Без атрибутов' (Item item) =  item IS Item AND NOT defaultLabelType(item) AND NOT completedSticker(item);
-nullSticker 'Без атрибутов' (article) = GROUP BY article(Item item) SUM 1 IF item IS Item AND NOT defaultLabelType(item) AND NOT completedSticker(item);
+nullSticker 'Без атрибутов' (article) = GROUP SUM 1 IF Item item IS Item AND NOT defaultLabelType(item) AND NOT completedSticker(item) BY article(item);
 
 filterStickerInvoice= DATA LOCAL Purchase.Invoice ();
 descriptionFilterStickerInvoice 'Накладная' = description(filterStickerInvoice());
@@ -71,7 +71,7 @@ checkInCurrentUser(ItemGroup itemGroup) = {
         dataIn(User user, itemGroup) <- b WHERE user == currentUser();    
 }
 
-inPurchase = GROUP BY sku(Purchase.InvoiceDetail d) SUM 1 IF inPurchase(invoice(d), currentUser()); 
+inPurchase = GROUP SUM 1 IF inPurchase(invoice(Purchase.InvoiceDetail d), currentUser()) BY sku(d); 
 
 FORM articleStickerDashboard 'Стикеровка'
 
@@ -355,7 +355,7 @@ EXTEND FORM articleStickerDashboard
 ;
 
 countInLabelArticles 'Кол-во отм.' = GROUP SUM 1 IF inLabel(Article a, DepartmentStore st);
-countLabelTypeArticles  = GROUP SUM 1 IF [= GROUP BY defaultLabelType(Article a) SUM 1 IF inLabel(a, DepartmentStore st)](LabelType type);
+countLabelTypeArticles  = GROUP SUM 1 IF [= GROUP SUM 1 IF inLabel(Article a, DepartmentStore st) BY defaultLabelType(a)](LabelType type);
 countInDepartmentStores (DepartmentStore st) = GROUP SUM 1 IF inLabel(Article a, st);
 
 dataLastBatch = ABSTRACT Batch (Sku);

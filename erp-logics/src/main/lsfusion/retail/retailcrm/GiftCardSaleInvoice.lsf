@@ -36,10 +36,10 @@ isGiftCard(Sale.Invoice i) = isGiftCard(operation(i));
 
 in 'Отм' = DATA LOCAL BOOLEAN (GiftCard);
 quantityInvoiceGiftCardSaleDetail 'Кол-во сертификатов в документе'  = 
-    GROUP
-          BY  sku(giftCard(InvoiceGiftCardSaleDetail gd)), invoice(gd) SUM NUMERIC[16,5](1) IF giftCard(gd);
+    GROUP SUM NUMERIC[16,5](1) IF giftCard(InvoiceGiftCardSaleDetail gd)
+          BY  sku(giftCard(gd)), invoice(gd);
 toShip 'Подобрать' (Sku i, Sale.Invoice o) = quantityInvoiceDetail(i, o)(-) 
-                                                                (NUMERIC[16,5]([ = GROUP BY sku(GiftCard c) SUM 1 IF in(c)](i)) IF o IS Sale.Invoice) (-)
+                                                                (NUMERIC[16,5]([ = GROUP SUM 1 IF in(GiftCard c) BY sku(c)](i)) IF o IS Sale.Invoice) (-)
                                                                 quantityInvoiceGiftCardSaleDetail(i,o);
 
 toShip 'Подобрать' (Sale.Invoice o) = GROUP SUM toShip(Sku i, o);                                                               
@@ -354,7 +354,7 @@ hideShiped = ABSTRACT BOOLEAN (Sale.Invoice);
 showShiped (Sale.Invoice i) = toShip(i) AND NOT hideShiped(i);
 
 relation   = 
-    GROUP BY giftCard(InvoiceGiftCardSaleDetail gd), invoice(gd) SUM 1;
+    GROUP SUM 1 BY giftCard(InvoiceGiftCardSaleDetail gd), invoice(gd);
 
 FORM saleGiftCardDashboard 'Выписка подарочных сертификатов' 
     OBJECTS i = Sale.Invoice LAST

@@ -31,20 +31,20 @@ META defineContractLedgerPrefix (caption, prefix)
     sum 'Сумма' (contract###prefix##Ledger) = ABSTRACT NUMERIC[18,4] (Contract###prefix##Ledger) MATERIALIZED;
 
     currentBalance###prefix 'Текущая задолженность'###caption (contract)=
-        GROUP
-              BY contract(Contract###prefix##Ledger contract###prefix##Ledger) SUM sum(contract###prefix##Ledger) IF active(contract###prefix##Ledger);
+        GROUP SUM sum(Contract###prefix##Ledger contract###prefix##Ledger) IF active(contract###prefix##Ledger)
+              BY contract(contract###prefix##Ledger);
 
     balanceB###prefix 'Задолженность на начало дня'###caption (Contract contract, DATE date) =
-        GROUP
-              BY contract(Contract###prefix##Ledger contract###prefix##Ledger) SUM sum(contract###prefix##Ledger) IF active(contract###prefix##Ledger)
-                  AND date(contract###prefix##Ledger) < date;
+        GROUP SUM sum(Contract###prefix##Ledger contract###prefix##Ledger) IF active(contract###prefix##Ledger)
+                  AND date(contract###prefix##Ledger) < date
+              BY contract(contract###prefix##Ledger);
 
     prevBalanceB###prefix 'Задолженность на начало дня'###caption (Contract contract, DATE date) = PREV(balanceB###prefix(contract, date));
 
     balanceA###prefix 'Задолженность на конец дня'###caption (Contract contract, DATE date) =
-        GROUP
-              BY contract(Contract###prefix##Ledger contract###prefix##Ledger) SUM sum(contract###prefix##Ledger) IF active(contract###prefix##Ledger)
-                  AND date(contract###prefix##Ledger) <= date;
+        GROUP SUM sum(Contract###prefix##Ledger contract###prefix##Ledger) IF active(contract###prefix##Ledger)
+                  AND date(contract###prefix##Ledger) <= date
+              BY contract(contract###prefix##Ledger);
 
 END
 
@@ -94,10 +94,10 @@ META implementContractPrepaymentLedgerInner(object, classPrefix, sumProp, contra
     description(###object##ContractLedger object##ContractLedger) += description(object(object##ContractLedger));
     sum(###object##ContractLedger l) +=
         NUMERIC[18,4]((OVERRIDE contractSum(invoice(l)), invoiceSumInvoiceDetail(invoice(l))) * percent(paymentPeriod(l)) / 100.0);
-    descriptionPaymentDatesPercent 'Дата оплаты'  = GROUP
-            BY object(###object##ContractLedger l) CONCAT 
-        (toDateDDMMYYYY(date(l)) +'-'+ percent(paymentPeriod(l)) +'%') , ', '
-            ORDER date(l) CHARWIDTH 30;
+    descriptionPaymentDatesPercent 'Дата оплаты'  = GROUP CONCAT 
+        (toDateDDMMYYYY(date(###object##ContractLedger l)) +'-'+ percent(paymentPeriod(l)) +'%') , ', '
+            ORDER date(l)
+            BY object(l) CHARWIDTH 30;
 END
 
 //--------------------------------------------- Логика приходов и расходов ------------------------------------------------------//
@@ -291,18 +291,18 @@ END
 inContractLedger = ABSTRACT InContractLedger (ContractLedger) MATERIALIZED;
 INDEX inContractLedger (ContractLedger l), l;
 
-minDateContractLedger = GROUP BY inContractLedger(ContractLedger l) MIN date(l) MATERIALIZED;
+minDateContractLedger = GROUP MIN date(ContractLedger l) BY inContractLedger(l) MATERIALIZED;
 
 //------------------------------------------- Платеж по договору -----------------------------------------------------//
 
-debtSum 'Долг по документам на дату' (contract, DATE date) = GROUP
-                                                                  BY contract(InContractLedger inContractLedger) SUM debt(inContractLedger, date) IF
+debtSum 'Долг по документам на дату' (contract, DATE date) = GROUP SUM debt(InContractLedger inContractLedger, date) IF
                                                                             active(inContractLedger) AND
-                                                                            date(inContractLedger) <= date;
+                                                                            date(inContractLedger) <= date
+                                                                  BY contract(inContractLedger);
 
-debtSum 'Долг по документам' (contract) = GROUP
-                                                                  BY contract(InContractLedger inContractLedger) SUM debt(inContractLedger) IF
-                                                                            active(inContractLedger);      
+debtSum 'Долг по документам' (contract) = GROUP SUM debt(InContractLedger inContractLedger) IF
+                                                                            active(inContractLedger)
+                                                                  BY contract(inContractLedger);      
 //----------------------------------------------- Цвета --------------------------------------------------------------//
 
 backgroundSum 'Цвет' (ContractLedger contractLedger, DATE date) = OVERRIDE RGB(255,160,160) IF date(contractLedger) > date,

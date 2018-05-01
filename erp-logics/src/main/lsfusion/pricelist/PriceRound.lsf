@@ -40,14 +40,14 @@ inInterval (NUMERIC[22,10] price, PriceInterval interval) =
     price >= from(interval) AND mod(price, denominatorPrice(interval)) < to(interval);
 
 onStarted () += {
-    minPrice(RoundCondition c) <- NULL WHERE NOT [= GROUP BY roundCondition(PriceInterval i) SUM 1](c);
+    minPrice(RoundCondition c) <- NULL WHERE NOT [= GROUP SUM 1 BY roundCondition(PriceInterval i)](c);
 } 
 
 priceInterval (NUMERIC[22,10] price, RoundCondition roundCondition) =
-    GROUP
-          BY roundCondition(PriceInterval interval) LAST floor(price AS NUMERIC[22,10], denominatorPrice(interval)) + modifier(interval)
+    GROUP LAST floor(price AS NUMERIC[22,10], denominatorPrice(PriceInterval interval)) + modifier(interval)
           ORDER interval
-          WHERE inInterval(price, interval);
+          WHERE inInterval(price, interval)
+          BY roundCondition(interval);
 
 round (NUMERIC[16,4] price, RoundCondition roundCondition) = NUMERIC[16,4](
     IF (price AS NUMERIC[22,10]) > minPrice(roundCondition)

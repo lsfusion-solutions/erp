@@ -11,7 +11,7 @@ sid 'Код валюты' = DATA STRING[3] (Currency);
 symbol 'Символ' = DATA STRING[5] (Currency);
 shortName 'Наименование (сокр.)' = DATA STRING[3] (Currency);
 documentName 'Наименование (в документах)' = DATA STRING[10] (Currency);
-currencyShortName (string) = GROUP BY shortName(Currency currency) AGGR currency WHERE currency IS Currency;
+currencyShortName (string) = GROUP AGGR Currency currency WHERE currency IS Currency BY shortName(currency);
 
 onStarted() += {
     NEWSESSION {
@@ -24,7 +24,7 @@ onStarted() += {
 defaultCurrency = DATA Currency (); 
 nameDefaultCurrency 'Валюта по умолчанию' = name(defaultCurrency()) CHARWIDTH 30;
 
-currency (sid) = GROUP BY sid(Currency currency) AGGR (currency);
+currency (sid) = GROUP AGGR (Currency currency) BY sid(currency);
 
 // Формы
 
@@ -75,7 +75,7 @@ FORM typeExchange 'Тип обмена'
 // Расчет курсов на дату
 
 rate 'Курс обмена' = DATA NUMERIC[20,13] (TypeExchange, Currency, DATE);
-typeExchange (name) = GROUP BY name(TypeExchange typeExchange) AGGR typeExchange WHERE typeExchange IS TypeExchange;
+typeExchange (name) = GROUP AGGR TypeExchange typeExchange WHERE typeExchange IS TypeExchange BY name(typeExchange);
 
 rateOn 'Курс обмена' (TypeExchange typeExchange, Currency currency, DATE date) =
     GROUP

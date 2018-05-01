@@ -126,7 +126,7 @@ toTime(UserPriceList userPriceList) += toTime(userPriceList);
 
 //@defineDocumentInterfaceLegalEntity(priceList, company, 'Организация');
 @defineDocumentInterfaceDataLegalEntity(priceList, company, 'Организация');
-userPriceList (legalEntity) = GROUP BY company(UserPriceList userPriceList) MAX userPriceList;
+userPriceList (legalEntity) = GROUP MAX UserPriceList userPriceList BY company(userPriceList);
 @defineDocumentInterfaceDataStock(priceList, stock, 'Склад организации', company);
 CONSTRAINT company(UserPriceList priceList) AND companyStock(priceList) AND NOT
 in(company(priceList), companyStock(priceList))
@@ -354,7 +354,7 @@ backgroundChange 'Цвет' (DataPriceListType dataPriceListType) = RGB(232,184,
 background 'Цвет' (DataPriceListType dataPriceListType) = RGB(213,249,185) IF dataPriceListType IS DataPriceListType;
 
 // Подбор товаров SKU
-detail= GROUP BY sku(UserPriceListDetail detail), userPriceList(detail) SUM 1;
+detail= GROUP SUM 1 BY sku(UserPriceListDetail detail), userPriceList(detail);
 
 in 'Вкл.' (Sku sku, UserPriceList price) = TRUE IF detail(sku, price);
 
@@ -372,8 +372,8 @@ changeIn(Sku sku, UserPriceList priceList) = {
 }
 
 // Подбор товаров batch
-detail(batch, price) = GROUP
-                                           BY batch(UserPriceListDetail detail), userPriceList(detail) SUM 1 IF Batch bbatch == batch(detail) AND UserPriceList uprice == userPriceList(detail);
+detail(batch, price) = GROUP SUM 1 IF Batch bbatch == batch(UserPriceListDetail detail) AND UserPriceList uprice == userPriceList(detail)
+                                           BY batch(detail), userPriceList(detail);
 
 in 'Вкл.' (Batch batch, UserPriceList price) = TRUE IF detail(batch, price);
 
@@ -933,8 +933,8 @@ DESIGN chooseMarkUpSkuUserPriceList {
 isSelected 'Отм' = DATA LOCAL BOOLEAN (UserPriceListDetail);
 changeMarkUpChosenSku 'Изменить цену для отмеченных строк'(UserPriceList userPriceList, Stock stock) = {
     DIALOG chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList, pt INPUT, nt INPUT, m INPUT, n INPUT DO {
-        IF NOT [= GROUP
-                      BY userPriceList(UserPriceListDetail priceListDetail) SUM 1 IF isSelected(priceListDetail)](userPriceList) THEN
+        IF NOT [= GROUP SUM 1 IF isSelected(UserPriceListDetail priceListDetail)
+                      BY userPriceList(priceListDetail)](userPriceList) THEN
             MESSAGE 'Выберите хотя бы одну позицию';
         ELSE {
             LOCAL prev = NUMERIC[16,4] (UserPriceListDetail);
@@ -1349,7 +1349,7 @@ DESIGN legalEntity{
 
 // ------------------------------------------------- Сравнение прайсов ---------------------------- //
 
-count (sku, priceList) = GROUP BY sku(PriceListDetail detail), priceList(detail) SUM 1;
+count (sku, priceList) = GROUP SUM 1 BY sku(PriceListDetail detail), priceList(detail);
 
 countSkus (PriceList priceList) = GROUP
     SUM 1 IF count(Sku sku, priceList);
@@ -1380,7 +1380,7 @@ EXTEND FORM migrationData
     PROPERTIES() findEqualsPriceLists
 ;
 
-countPriceListDetail 'Кол-во строк' (sku, priceList) = GROUP BY sku(PriceListDetail d), priceList(d) SUM 1;
+countPriceListDetail 'Кол-во строк' (sku, priceList) = GROUP SUM 1 BY sku(PriceListDetail d), priceList(d);
 
 priceLimit 'Максимально допустимая цена' = DATA NUMERIC[16,4] (Currency);
 
@@ -1401,4 +1401,4 @@ show[PriceListLedger] (PriceListDetail ledger) += {show(ledger);};
 
 // Храним количество прайс-листов для поставщика и вида цен
 TABLE dataPriceListTypeLegalEntitySku (DataPriceListType, LegalEntity, Sku);
-countPriceListDetail = GROUP BY DataPriceListType t, company(PriceListDetail d), sku(d) SUM 1 IF in(d, t) MATERIALIZED; 
+countPriceListDetail = GROUP SUM 1 IF in(PriceListDetail d, DataPriceListType t) BY t, company(d), sku(d) MATERIALIZED; 

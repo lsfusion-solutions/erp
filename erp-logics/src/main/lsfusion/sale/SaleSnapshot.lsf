@@ -105,43 +105,43 @@ saleCostVATSupplier 'С/С с НДС продажа' = saleVATSupplier(Stock sto
 
 //-- По поставщикам
 saleQuantityBatch 'Кол-во продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplier(Batch batch) SUM saleQuantity (batch, Stock stock, snapshot);
+    GROUP SUM saleQuantity (Batch batch, Stock stock, snapshot) BY supplier(batch);
 saleNetWeightBatch 'Вес продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplier(Batch batch) SUM saleNetWeight (batch, Stock stock, snapshot);    
+    GROUP SUM saleNetWeight (Batch batch, Stock stock, snapshot) BY supplier(batch);    
 saleSumBatch 'Сумма продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplier(Batch batch) SUM saleSum (batch, Stock stock, snapshot);      
+    GROUP SUM saleSum (Batch batch, Stock stock, snapshot) BY supplier(batch);      
 saleCostSumBatch 'Себестоимость продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplier(Batch batch) SUM saleCostSum (batch, Stock stock, snapshot);
+    GROUP SUM saleCostSum (Batch batch, Stock stock, snapshot) BY supplier(batch);
 saleVATSumBatch 'НДС продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplier(Batch batch) SUM saleVATSum (batch, Stock stock, snapshot);        
+    GROUP SUM saleVATSum (Batch batch, Stock stock, snapshot) BY supplier(batch);        
 saleMarkupSumBatch 'Надбавка продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplier(Batch batch) SUM saleMarkupSum (batch, Stock stock, snapshot);     
+    GROUP SUM saleMarkupSum (Batch batch, Stock stock, snapshot) BY supplier(batch);     
 saleMarkupPercBatch 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSumBatch(LegalEntity supplier, Snapshot snapshot)*100.00 / saleCostSumBatch(supplier, snapshot));
 saleMarkupPercRetBatch 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSumBatch(LegalEntity supplier, Snapshot snapshot)*100.00 / saleSumBatch(supplier, snapshot));
 
 saleVATSupplierBatch 'НДС поставщика продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplier(Batch batch) SUM saleVATSupplier (batch, Stock stock, snapshot);
+    GROUP SUM saleVATSupplier (Batch batch, Stock stock, snapshot) BY supplier(batch);
 saleCostVATSupplierBatch 'С/С с НДС продажа' = saleVATSupplierBatch(LegalEntity supplier, Snapshot snapshot) (+) 
                                                                      saleCostSumBatch(supplier, snapshot); 
 
 //-- По складам поставщика
 saleQuantityBatchSupplier 'Кол-во продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplierStock(Batch batch) SUM saleQuantity (batch, Stock stock, snapshot);
+    GROUP SUM saleQuantity (Batch batch, Stock stock, snapshot) BY supplierStock(batch);
 saleNetWeightBatchSupplier 'Вес продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplierStock(Batch batch) SUM saleNetWeight (batch, Stock stock, snapshot);    
+    GROUP SUM saleNetWeight (Batch batch, Stock stock, snapshot) BY supplierStock(batch);    
 saleSumBatchSupplier 'Сумма продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplierStock(Batch batch) SUM saleSum (batch, Stock stock, snapshot);      
+    GROUP SUM saleSum (Batch batch, Stock stock, snapshot) BY supplierStock(batch);      
 saleCostSumBatchSupplier 'Себестоимость продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplierStock(Batch batch) SUM saleCostSum (batch, Stock stock, snapshot);
+    GROUP SUM saleCostSum (Batch batch, Stock stock, snapshot) BY supplierStock(batch);
 saleVATSumBatchSupplier 'НДС продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplierStock(Batch batch) SUM saleVATSum (batch, Stock stock, snapshot);        
+    GROUP SUM saleVATSum (Batch batch, Stock stock, snapshot) BY supplierStock(batch);        
 saleMarkupSumBatchSupplier 'Надбавка продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplierStock(Batch batch) SUM saleMarkupSum (batch, Stock stock, snapshot);     
+    GROUP SUM saleMarkupSum (Batch batch, Stock stock, snapshot) BY supplierStock(batch);     
 saleMarkupPercBatchSupplier 'Надбавка, % средн.' = NUMERIC[10,2](saleMarkupSumBatchSupplier(Stock supplier, Snapshot snapshot)*100.00 / saleCostSumBatchSupplier(supplier, snapshot));
 saleMarkupPercRetBatchSupplier 'Надбавка, % от цены' = NUMERIC[10,2](saleMarkupSumBatchSupplier(Stock supplier, Snapshot snapshot)*100.00 / saleSumBatchSupplier(supplier, snapshot));
 
 saleVATSupplierBatchSupplier 'НДС поставщика продажа' (supplier, Snapshot snapshot) =
-    GROUP BY supplierStock(Batch batch) SUM saleVATSupplier (batch, Stock stock, snapshot);
+    GROUP SUM saleVATSupplier (Batch batch, Stock stock, snapshot) BY supplierStock(batch);
 saleCostVATSupplierBatchSupplier 'С/С с НДС продажа' = saleVATSupplierBatchSupplier(Stock supplier, Snapshot snapshot) (+) 
                                                                      saleCostSumBatchSupplier(supplier, snapshot);           
           
@@ -589,7 +589,7 @@ turnover 'Товарооборачиваемость, дн.' (Batch batch, Stock
     
 //-- По поставщикам   
 cumBalance 'Накопленный остаток' (supplier, Snapshot snapshot) =
-    GROUP BY supplier(Batch batch) SUM cumBalance(batch, Stock stock, snapshot);  
+    GROUP SUM cumBalance(Batch batch, Stock stock, snapshot) BY supplier(batch);  
     
 turnover 'Товарооборачиваемость, дн.' (LegalEntity supplier, Snapshot snapshot) = NUMERIC[12,3](cumBalance(supplier, snapshot) /
     saleSumBatch(supplier, snapshot));      

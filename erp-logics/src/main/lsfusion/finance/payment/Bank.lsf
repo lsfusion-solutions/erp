@@ -81,7 +81,7 @@ active 'Активная' (Account a) = a IS Account AND NOT inactive(a);
 number 'Номер расчетного счета'  = DATA VARSTRING[50] (Account) IN account FIXEDCHARWIDTH 28;
 numberNew 'Номер расчетного счета IBAN'  = DATA VARSTRING[50] (Account) IN account FIXEDCHARWIDTH 28;
 
-account (number) = GROUP BY number(Account account) MAX account; // WHERE account IS Account;
+account (number) = GROUP MAX Account account BY number(account); // WHERE account IS Account;
 
 // Банк
 bank = DATA Bank (Account);
@@ -95,7 +95,7 @@ CBUBank 'ЦБУ банка' (Account account) = CBU(bank(account)) IN account;
 legalEntity = DATA LegalEntity (Account) NONULL DELETE AUTOSET;
 nameLegalEntity 'Организация' (Account account) = name(legalEntity(account));
 
-defaultAccount(legalEntity) = GROUP BY legalEntity(Account account) MAX account IF active(account);
+defaultAccount(legalEntity) = GROUP MAX Account account IF active(account) BY legalEntity(account);
 
 userAccount = DATA Account (LegalEntity);
 CONSTRAINT legalEntity(userAccount(LegalEntity legalEntity)) != legalEntity CHECKED MESSAGE 'ошибка: Р/сч. по умолчанию должен соответствовать р/сч. Ю.Л.';
@@ -110,7 +110,7 @@ MFOBank 'Код BIC банка покупателя' (LegalEntity legalEntity) =
     
 equals 'Основной' (LegalEntity legalEntity, Account account) = userAccount(legalEntity) == account;
 
-accountID 'Расчетный счет по номеру' (number, legalEntityId) = GROUP BY number(Account account), id(legalEntity(account)) AGGR account WHERE account IS Account;
+accountID 'Расчетный счет по номеру' (number, legalEntityId) = GROUP AGGR Account account WHERE account IS Account BY number(account), id(legalEntity(account));
 legalEntityAccount (VARSTRING[20] number) = legalEntity(account(number)); 
 
 // Валюта

@@ -26,9 +26,9 @@ nameTax 'Налог' (Range range) = staticCaption(tax(range)) IN recognize;
 country = DATA Country (Range) NONULL AUTOSET;
 nameCountry 'Страна' (Range range) = name(country(range)) IN recognize;
 
-countRange 'Кол-во шкал' (tax, country) = GROUP BY tax(Range range), country(range) SUM 1 IF range IS Range;
+countRange 'Кол-во шкал' (tax, country) = GROUP SUM 1 IF Range range IS Range BY tax(range), country(range);
 
-maxDataRange(Tax tax, Country country) = OVERRIDE [= GROUP BY tax(Range range), country(range) MAX number(range)](tax, country), 0 IF tax IS Tax AND country IS Country;
+maxDataRange(Tax tax, Country country) = OVERRIDE [= GROUP MAX number(Range range) BY tax(range), country(range)](tax, country), 0 IF tax IS Tax AND country IS Country;
 addNewRange 'Добавить шкалу'(Tax tax, Country country) = {
     NEW r = Range {
         number(r) <- maxDataRange(tax, country) + 1;
@@ -80,8 +80,8 @@ in (Range range, TaxUnit taxUnit) => isUnitsType(range) RESOLVE RIGHT;
 extra 'Дополнительная' = DATA BOOLEAN (Range); // Когда несколько расчетных ставок
 note 'Примечание' = DATA VARISTRING[100] (Range);
 
-range 'Шкала по налогу и субъекту' (tax, TaxUnit taxUnit) = GROUP BY tax(Range range) AGGR range
-                                                                       WHERE in(range, taxUnit) AND Tax.taxVAT == tax(range) AND NOT extra(range);
+range 'Шкала по налогу и субъекту' (tax, TaxUnit taxUnit) = GROUP AGGR Range range
+                                                                       WHERE in(range, taxUnit) AND Tax.taxVAT == tax(range) AND NOT extra(range) BY tax(range);
 
 rangeVAT 'Шкала субъекту' (TaxUnit taxUnit) = range (Tax.taxVAT, taxUnit);
 
@@ -94,31 +94,31 @@ TABLE rate(Rate);
 @defineCreated(Rate);
 
 range = DATA Range (Rate);
-quantityRate 'Количество историй' (range) = GROUP BY range(Rate rate) SUM 1 IF rate;
+quantityRate 'Количество историй' (range) = GROUP SUM 1 IF Rate rate BY range(rate);
 
 value 'Значение ставки' = DATA NUMERIC[10,5] (Rate) IN recognize NONULL;
 dateFrom 'Действует с' = DATA DATE (Rate) IN base INDEXED;
 
 valueRate 'На дату' (range, DATE date) =
-                             GROUP
-                                   BY range(Rate rate) LAST value(rate)
+                             GROUP LAST value(Rate rate)
                                    ORDER dateFrom(rate), rate
-                                   WHERE dateFrom(rate) <= date COMPLEX;
+                                   WHERE dateFrom(rate) <= date
+                                   BY range(rate) COMPLEX;
 
 INDEX range(Rate rate), dateFrom(rate), rate;
 
 dateFromRate 'Действует (с)' (range, DATE date) =
-                             GROUP
-                                   BY range(Rate rate) LAST dateFrom(rate)
+                             GROUP LAST dateFrom(Rate rate)
                                    ORDER dateFrom(rate), rate
-                                   WHERE dateFrom(rate) <= date COMPLEX;
+                                   WHERE dateFrom(rate) <= date
+                                   BY range(rate) COMPLEX;
 
 valueCurrentRate 'Действующая ставка' (Range range) = valueRate(range, currentDate()) IN base MATERIALIZED;
 
 dateFromCurrentRate 'Действует (с)' (Range range) = dateFromRate(range, currentDate()) IN base;
 
 // для импорта
-valueCurrentVAT 'Шкала НДС по значению' (country, doubleValue) = GROUP BY country(Range range), valueCurrentRate (range) MIN range;
+valueCurrentVAT 'Шкала НДС по значению' (country, doubleValue) = GROUP MIN Range range BY country(range), valueCurrentRate (range);
 
 valueCurrentVATDefault 'Шкала по значению' (NUMERIC[10,5] doubleValue) = valueCurrentVAT(defaultCountry(), doubleValue);
 
@@ -556,8 +556,8 @@ META deriveDocumentDetailReverseVATSumRoundPrefix(object, prefixA, prefixB, roun
 END
 //-- Сумма НДС в документе
 META defineDocumentHeaderVATSum (object, detail, prefix)
-    VATSum###detail 'Сумма НДС' (object) = GROUP BY object(###detail idetail) SUM VATSum(idetail) IN documentSum;
-    prefix##Sum###detail 'Сумма с НДС' (object) = GROUP BY object(###detail idetail) SUM prefix##Sum(idetail) IN documentSum;
+    VATSum###detail 'Сумма НДС' (object) = GROUP SUM VATSum(###detail idetail) BY object(idetail) IN documentSum;
+    prefix##Sum###detail 'Сумма с НДС' (object) = GROUP SUM prefix##Sum(###detail idetail) BY object(idetail) IN documentSum;
 END
 META defineDocumentInterfaceHeaderVATSum (object, detail, prefix)
     @defineDocumentHeaderVATSum(object, detail, prefix);

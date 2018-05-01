@@ -5,10 +5,10 @@ REQUIRE SaleInternetOrderInvoice, SaleReturnShipment;
 NAMESPACE SaleReturn;
 
 internetOrderDetail = DATA InternetOrderDetail (UserInvoiceDetail);
-userInvoiceDetailReturn = GROUP BY internetOrderDetail(UserInvoiceDetail d) MAX d;
+userInvoiceDetailReturn = GROUP MAX UserInvoiceDetail d BY internetOrderDetail(d);
 
-relation = GROUP BY deliveryReport(internetOrderDetail(UserInvoiceDetail d)), userInvoice(d) SUM 1;
-countDeliveryReport = GROUP BY deliveryReport(internetOrderDetail(UserInvoiceDetail d)) SUM 1;
+relation = GROUP SUM 1 BY deliveryReport(internetOrderDetail(UserInvoiceDetail d)), userInvoice(d);
+countDeliveryReport = GROUP SUM 1 BY deliveryReport(internetOrderDetail(UserInvoiceDetail d));
 notDeliveryReport (DeliveryReport r)= returnQuantityInternetOrderDetail(r) AND NOT countDeliveryReport(r) ;
 
 overCreateReturnInvoice = ABSTRACT LIST (UserInvoiceDetail);
@@ -16,7 +16,7 @@ overCreateReturnInvoice = ABSTRACT LIST (UserInvoiceDetail);
 createReturnInvoice 'Создать возврат' (DeliveryReport r) = {
     IF returnQuantityInternetOrderDetail(r) AND NOT countDeliveryReport(r) THEN {
         NEWSESSION {
-            FOR [ = GROUP BY deliveryReport(InternetOrderDetail d), Sale.supplierStock[InternetOrderDetail](d) SUM returnQuantity(d)](r, Stock st) NEW i = UserInvoice DO {
+            FOR [ = GROUP SUM returnQuantity(InternetOrderDetail d) BY deliveryReport(d), Sale.supplierStock[InternetOrderDetail](d)](r, Stock st) NEW i = UserInvoice DO {
                 SaleReturn.date(i) <- currentDate();
                 SaleReturn.time(i) <- currentTime();
                 SaleReturn.supplier(i) <- legalEntity(st);

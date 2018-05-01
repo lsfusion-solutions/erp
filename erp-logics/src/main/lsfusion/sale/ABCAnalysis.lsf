@@ -44,8 +44,8 @@ inSession 'Отм.' (Group group) = OVERRIDE
     inParent(group);
 
 sessionConcatGroups 'Группы' (groupType) =
-    GROUP
-    BY groupType(Group group) CONCAT name(group) IF inSession(group) AND NOT inSession(parent(group)),'; ';
+    GROUP CONCAT name(Group group) IF inSession(group) AND NOT inSession(parent(group)),'; '
+    BY groupType(group);
     
 
 quantityChildWithSession (Group parent) = GROUP SUM 1 IF dataInSession(Group child) AND isParent(child, parent) MATERIALIZED;
@@ -58,7 +58,7 @@ backgroundInSession 'Цвет' (Group g) = CASE
   
   
   
-countInSessionSkuGroups  = GROUP BY groupType(Group g) SUM 1 IF dataInSession(g);
+countInSessionSkuGroups  = GROUP SUM 1 IF dataInSession(Group g) BY groupType(g);
 
 resetSelectedGroups  'Сбросить отмеченные'() = {
     dataInSession(Group g) <- NULL WHERE g IS Group ;    
@@ -202,13 +202,13 @@ partitionSumBest  (Sku s)= PARTITION SUM sumSold(s) ORDER indexSumBest(s) BY sku
 partitionMarkupBest  (Sku s)= PARTITION SUM markupSumSold(s) ORDER indexMarkupBest(s) BY skuType(s)  CHARWIDTH 3 CHARWIDTH 6;
 partitionQuantityBest (Sku s)= PARTITION SUM quantitySold(s) ORDER indexQuantityBest(s) BY skuType(s)  CHARWIDTH 3 CHARWIDTH 6;
 
-sumBest = GROUP BY groupType(Group g) SUM sumSold(g) IF indexSumBest(g) <= best(); 
-markupBest = GROUP BY groupType(Group g) SUM markupSumSold(g) IF indexMarkupBest(g) <= best(); 
-quantityBest = GROUP BY groupType(Group g) SUM quantitySold(g) IF indexQuantityBest(g) <= best(); 
+sumBest = GROUP SUM sumSold(Group g) IF indexSumBest(g) <= best() BY groupType(g); 
+markupBest = GROUP SUM markupSumSold(Group g) IF indexMarkupBest(g) <= best() BY groupType(g); 
+quantityBest = GROUP SUM quantitySold(Group g) IF indexQuantityBest(g) <= best() BY groupType(g); 
 
-sumBestSku = GROUP BY groupType(skuGroup(Sku s)) SUM sumSold(s) IF indexSumBest(s) <= best(); 
-markupBestSku = GROUP BY groupType(skuGroup(Sku s)) SUM markupSumSold(s) IF indexMarkupBest(s) <= best(); 
-quantityBestSku = GROUP BY groupType(skuGroup(Sku s)) SUM quantitySold(s) IF indexQuantityBest(s) <= best(); 
+sumBestSku = GROUP SUM sumSold(Sku s) IF indexSumBest(s) <= best() BY groupType(skuGroup(s)); 
+markupBestSku = GROUP SUM markupSumSold(Sku s) IF indexMarkupBest(s) <= best() BY groupType(skuGroup(s)); 
+quantityBestSku = GROUP SUM quantitySold(Sku s) IF indexQuantityBest(s) <= best() BY groupType(skuGroup(s)); 
 
 percInSumBest 'Уд. вес' (GroupType t, Group g) = round4(sumSold(g)*100.00 / sumBest(t)); 
 percInMarkupBest 'Уд. вес'(GroupType t, Group g) = round4(markupSumSold(g)*100.00 / markupBest(t)); 
@@ -300,12 +300,12 @@ partitionSumWorst  (Sku s)= PARTITION SUM  sumSold(s) ORDER indexSumWorst(s) BY 
 partitionMarkupWorst  (Sku s)= PARTITION SUM markupSumSold(s) ORDER indexMarkupWorst(s) BY groupType(skuGroup(s))  CHARWIDTH 3 CHARWIDTH 6;
 partitionQuantityWorst (Sku s)= PARTITION SUM quantitySold(s) ORDER indexQuantityWorst(s) BY groupType(skuGroup(s))  CHARWIDTH 3 CHARWIDTH 6;
 
-sumWorst = GROUP BY groupType(Group g) SUM sumSold(g) IF indexSumWorst(g) <= worst(); 
-markupWorst = GROUP BY groupType(Group g) SUM markupSumSold(g) IF indexMarkupWorst(g) <= worst(); 
-quantityWorst = GROUP BY groupType(Group g) SUM quantitySold(g) IF indexQuantityWorst(g) <= worst(); 
-sumWorstSku = GROUP BY groupType(skuGroup(Sku s)) SUM sumSold(s) IF indexSumWorst(s) <= worst(); 
-markupWorstSku = GROUP BY groupType(skuGroup(Sku s)) SUM markupSumSold(s) IF indexMarkupWorst(s) <= worst(); 
-quantityWorstSku = GROUP BY groupType(skuGroup(Sku s)) SUM quantitySold(s) IF indexQuantityWorst(s) <= worst(); 
+sumWorst = GROUP SUM sumSold(Group g) IF indexSumWorst(g) <= worst() BY groupType(g); 
+markupWorst = GROUP SUM markupSumSold(Group g) IF indexMarkupWorst(g) <= worst() BY groupType(g); 
+quantityWorst = GROUP SUM quantitySold(Group g) IF indexQuantityWorst(g) <= worst() BY groupType(g); 
+sumWorstSku = GROUP SUM sumSold(Sku s) IF indexSumWorst(s) <= worst() BY groupType(skuGroup(s)); 
+markupWorstSku = GROUP SUM markupSumSold(Sku s) IF indexMarkupWorst(s) <= worst() BY groupType(skuGroup(s)); 
+quantityWorstSku = GROUP SUM quantitySold(Sku s) IF indexQuantityWorst(s) <= worst() BY groupType(skuGroup(s)); 
 
 
 percInSumWorst(GroupType t, Group g) = round4(sumSold(g)*100.00 / sumWorst(t)); 

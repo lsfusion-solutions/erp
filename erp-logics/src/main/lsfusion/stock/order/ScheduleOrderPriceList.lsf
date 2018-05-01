@@ -6,14 +6,14 @@ NAMESPACE  ScheduleOrder;
 
 //--
 META addScheduleOrder(filter, cap, filterStock) 
-    countPriceLists 'Поставщики, у которых есть действующие прайсы' (filter, Stock stock, DATE date) = GROUP
-            BY filterStock(PriceList priceList) SUM 1 
-        IF is###filter(filterStock(priceList)) AND isPosted(priceList) AND fromDate(priceList) <= (date AS DATE) 
-        AND NOT (toDate(priceList) < (date AS DATE)) AND in(priceList, stock);
+    countPriceLists 'Поставщики, у которых есть действующие прайсы' (filter, Stock stock, DATE date) = GROUP SUM 1 
+        IF is###filter(filterStock(PriceList priceList)) AND isPosted(priceList) AND fromDate(priceList) <= (date AS DATE) 
+        AND NOT (toDate(priceList) < (date AS DATE)) AND in(priceList, stock)
+            BY filterStock(priceList);
         
-    countScheduleOrders 'Поставщики, у которых есть действующие и будующие графики заказов' (filter, Stock stock, DATE date) = GROUP
-         BY filter(ScheduleOrder order) SUM 1 IF 
-        startDate(order) AND NOT (endDate(order) < (date AS DATE)) AND in(order, stock);  
+    countScheduleOrders 'Поставщики, у которых есть действующие и будующие графики заказов' (filter, Stock stock, DATE date) = GROUP SUM 1 IF 
+        startDate(ScheduleOrder order) AND NOT (endDate(order) < (date AS DATE)) AND in(order, stock)
+         BY filter(order);  
           
     filterLegalEntity 'Поставщики, у которых есть прайсы и нет графика заказов' (LegalEntity filter, Stock stock, DATE date) = countPriceLists  (filter, stock, date) IF NOT countScheduleOrders (filter, stock, date);
     filterLegalEntity 'Поставщики, у которых есть прайсы и нет графика заказов'(LegalEntity filter, DATE date) = GROUP SUM 1 IF filterLegalEntity(filter, Stock stock, date);

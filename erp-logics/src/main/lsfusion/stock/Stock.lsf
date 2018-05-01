@@ -76,7 +76,7 @@ fullNameLegalEntity 'Компания' (Stock st)= fullName(legalEntity(st));
 
 idLegalEntity 'Компания' (Stock stock) = id(legalEntity(stock));
 
-countStock 'Кол-во складов компании' = GROUP BY legalEntity(Stock stock) SUM 1 MATERIALIZED;
+countStock 'Кол-во складов компании' = GROUP SUM 1 BY legalEntity(Stock stock) MATERIALIZED;
 
 quantityDaysCloseOrders 'Срок автоматического закрытия заказов' = ABSTRACT INTEGER(Stock) MATERIALIZED;
 autoCloseOrders 'Автоматически закрывать заказы' = ABSTRACT BOOLEAN (Stock) MATERIALIZED;
@@ -109,7 +109,7 @@ in 'Отм.' (LegalEntity legalEntity, Stock stock) = (legalEntity(stock) == leg
 isDefault 'Свой склад' (LegalEntity legalEntity, Stock stock) = legalEntity(stock) == legalEntity;
 
 default 'По умолч.' = DATA BOOLEAN (Stock); 
-dataDefaultStock = GROUP BY legalEntity(Stock stock) AGGR stock WHERE default(stock);
+dataDefaultStock = GROUP AGGR Stock stock WHERE default(stock) BY legalEntity(stock);
 
 countStocks (LegalEntity legalEntity) = GROUP SUM 1 IF in(legalEntity, Stock stock);
 minStock 'Первый склад' (LegalEntity legalEntity)= GROUP MIN Stock stock IF in(legalEntity, stock);
@@ -184,7 +184,7 @@ replace 'Объединить'(Stock stock) = {
 } CONFIRM;
 
 dataStock = DATA Stock (LegalEntity);
-stock(LegalEntity legalEntity) = OVERRIDE dataStock(legalEntity) IF active(legalEntity), [= GROUP BY legalEntity(Stock stock) MIN stock](legalEntity) MATERIALIZED;
+stock(LegalEntity legalEntity) = OVERRIDE dataStock(legalEntity) IF active(legalEntity), [= GROUP MIN Stock stock BY legalEntity(stock)](legalEntity) MATERIALIZED;
 
 primaryLegalEntity 'Основной' (Stock stock) = stock(legalEntity(stock)) == stock;
 changePrimary(LegalEntity legalEntity, Stock stock) = {

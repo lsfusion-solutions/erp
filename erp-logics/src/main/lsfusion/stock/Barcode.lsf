@@ -15,10 +15,10 @@ date 'Дата действия' = OVERRIDE dataDate(Barcode barcode), (2001_01_
 caption 'Описание' = DATA VARISTRING[30](Barcode);
 
 barcode (id, DATE date) =
-    GROUP
-          BY id(Barcode barcode) LAST barcode
+    GROUP LAST Barcode barcode
           ORDER date(barcode), barcode
-          WHERE date(barcode) <= (date AS DATE) COMPLEX;
+          WHERE date(barcode) <= (date AS DATE)
+          BY id(barcode) COMPLEX;
 
 barcode (VARSTRING[15] id) = barcode(id, currentDate());
 active 'Активный' (Barcode barcode) = barcode(id(barcode)) == barcode MATERIALIZED;
@@ -106,8 +106,8 @@ CONSTRAINT sku(dataBarcode(Sku item)) != item CHECKED BY dataBarcode[Sku] MESSAG
 
 replace(Sku s, Sku d) += {sku(Barcode barcode) <- d WHERE sku(barcode) == s;}
 
-barcode(Sku sku) = OVERRIDE dataBarcode(sku) IF active(dataBarcode(sku)), [= GROUP
-                        BY sku(Barcode barcode) MIN barcode IF id(barcode) AND amount(barcode) == 1.0 AND active(barcode)](sku) MATERIALIZED INDEXED;
+barcode(Sku sku) = OVERRIDE dataBarcode(sku) IF active(dataBarcode(sku)), [= GROUP MIN Barcode barcode IF id(barcode) AND amount(barcode) == 1.0 AND active(barcode)
+                        BY sku(barcode)](sku) MATERIALIZED INDEXED;
 
 primary 'Основной' (Barcode barcode) = barcode(sku(barcode)) == barcode;
 changePrimary(Barcode barcode, Sku sku) = {
@@ -116,7 +116,7 @@ changePrimary(Barcode barcode, Sku sku) = {
             dataBarcode(sku) <- barcode;
 }
 
-allBarcodes 'Все штрих-коды' = GROUP BY sku(Barcode b) CONCAT id(b) IF id(b), ',' ORDER id(b), b;
+allBarcodes 'Все штрих-коды' = GROUP CONCAT id(Barcode b) IF id(b), ',' ORDER id(b), b BY sku(b);
 
 idBarcode 'Штрихкод' (Sku sku) = id(barcode(sku)) IN base MATERIALIZED INDEXED;
 idBarcodeSku 'Штрихкод' (VARSTRING[100] id) = id(barcode(sku(id)));
@@ -246,7 +246,7 @@ DESIGN options {
 }
 
 META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuProp)
-    idetail(object, sku) = GROUP BY object(###idetail detail), skuProp(detail) MAX (detail);
+    idetail(object, sku) = GROUP MAX (###idetail detail) BY object(detail), skuProp(detail);
 
 create###idetail##New (###object object, VARSTRING[15] barcode, Sku skuProp) = {
     LOCAL dialogBarcodeDetail = idetailClass();

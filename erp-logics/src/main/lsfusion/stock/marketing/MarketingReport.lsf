@@ -67,9 +67,9 @@ calcVATSum 'Сумма НДС' = IF in[Invoice](invoice(MarketingReportDetail d)
 calcInvoiceSum 'Сумма с НДС' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN invoiceSumInvoiceDetail[Invoice](invoice(d)) ELSE - invoiceSumInvoiceDetail[Invoice](invoice(d));
 calcMarketingSum 'Сумма маркетинга' = IF in[Invoice](invoice(MarketingReportDetail d)) THEN marketingSumInvoiceDetail[Invoice](invoice(d)) ELSE - marketingSumInvoiceDetail[Invoice](invoice(d));
 
-marketingSumInvoiceDetailEx 'Сумма маркетинга'  = GROUP 
-        BY invoice(InvoiceDetail d), ContractMarketing c SUM marketingSum(d) 
-    IF include(c, sku(d)) AND contractSku(c) == contractSku(invoice(d)); 
+marketingSumInvoiceDetailEx 'Сумма маркетинга'  = GROUP SUM marketingSum(InvoiceDetail d) 
+    IF include(ContractMarketing c, sku(d)) AND contractSku(c) == contractSku(invoice(d)) 
+        BY invoice(d), c; 
 calcMarketingSumEx 'Сумма маркетинга' (MarketingReportDetail d )= IF in[Invoice](invoice(d)) THEN marketingSumInvoiceDetailEx(invoice(d), contract(marketingReport(d))) ELSE - marketingSumInvoiceDetailEx(invoice(d), contract(marketingReport(d)));
 
 sum 'Сумма' = DATA NUMERIC[18,4](MarketingReportDetail);
@@ -85,7 +85,7 @@ nameCustomerStock 'Склад покупателя' (MarketingReportDetail d) = 
 @defineDocumentHeaderSumPrefix (marketingReport, invoice, ' с НДС');
 @defineDocumentHeaderSumPrefix (marketingReport, marketing, ' маркетинга');
 
-sumNetWeightMarketingReportDetail 'Вес нетто, кг.' (marketingReport) = GROUP BY marketingReport(MarketingReportDetail idetail) SUM sumNetWeight(idetail) IN documentSum;
+sumNetWeightMarketingReportDetail 'Вес нетто, кг.' (marketingReport) = GROUP SUM sumNetWeight(MarketingReportDetail idetail) BY marketingReport(idetail) IN documentSum;
 
 countCustomerStocks (ContractMarketing c) = GROUP SUM 1 IF inCustomer(Stock stock, c);
 
@@ -125,7 +125,7 @@ skipMarketingReport 'Не создавать маркетинговый отче
 
 firstMarketingDate = firstDayOfMonth(sumMonth(currentDate(), -1));
 lastMarketingDate = lastDayOfMonth(sumMonth(currentDate(), -1));
-marketingReport = GROUP BY contract(MarketingReport r), fromDate(r), toDate(r) MAX r IF isPosted(r);
+marketingReport = GROUP MAX MarketingReport r IF isPosted(r) BY contract(r), fromDate(r), toDate(r);
 overFillData = ABSTRACT LIST (MarketingReport);
 createAutoMarketingReportFull 'Создать маркетинговый отчет (месяц)'(DATE df, DATE dt) = {
     FOR ContractMarketing c IS ContractMarketing 

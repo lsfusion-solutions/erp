@@ -85,9 +85,9 @@ fillGroupBalanceSkusStock 'Сформировать'(GroupType gt, DATETIME d) =
     costVATSum(Sku sk, Stock st) <- NULL;
     
     balanceB(Sku sk, Stock st) <- NUMERIC[16,5]((GROUP SUM balanceB(sk, st, d) IF inBackSheet(st)));
-    costSumB(Sku sk, Stock st) <- NUMERIC[32,9]([ = GROUP BY DATE dd SUM costSumB(sk, st, dd) IF inBackSheet(st)](toDate(d)));
+    costSumB(Sku sk, Stock st) <- NUMERIC[32,9]([ = GROUP SUM costSumB(sk, st, DATE dd) IF inBackSheet(st) BY dd](toDate(d)));
     sumB(Sku sk, Stock st) <- NUMERIC[18,4]((GROUP SUM sumB(sk, st, d) IF inBackSheet(st)));
-    costVATSum(Sku sk, Stock st) <- NUMERIC[26,8]([ = GROUP BY sku(Batch b), DATE dt SUM costB(b, st, dt)*(1 + Stock.valueVAT(b)/100) IF inBackSheet(st)](sk, toDate(d)));
+    costVATSum(Sku sk, Stock st) <- NUMERIC[26,8]([ = GROUP SUM costB(Batch b, st, DATE dt)*(1 + Stock.valueVAT(b)/100) IF inBackSheet(st) BY sku(b), dt](sk, toDate(d)));
   
     setNameGroup1();
     setNameGroup2();

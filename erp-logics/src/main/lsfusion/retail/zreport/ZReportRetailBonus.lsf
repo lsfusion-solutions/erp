@@ -11,13 +11,13 @@ bonusSum 'Начислено бонусов' = ABSTRACT NUMERIC[18,4] (ReceiptDe
 bonusSum(ReceiptSaleDetail d) += bonusSum(d);
 bonusSum(ReceiptReturnDetail d) += bonusSum(d);
 
-bonusSum 'Начислено бонусов' (Receipt r) = GROUP BY receipt(ReceiptDetail d) SUM bonusSum(d);
+bonusSum 'Начислено бонусов' (Receipt r) = GROUP SUM bonusSum(ReceiptDetail d) BY receipt(d);
 
 signedBonusSum 'Начислено бонусов' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) MATERIALIZED;
 signedBonusSum(ReceiptSaleDetail d) += bonusSum(d);
 signedBonusSum(ReceiptReturnDetail d) += -bonusSum(d);
 
-signedBonusSum 'Начислено бонусов' (Receipt r) = GROUP BY receipt(ReceiptDetail d) SUM signedBonusSum(d);
+signedBonusSum 'Начислено бонусов' (Receipt r) = GROUP SUM signedBonusSum(ReceiptDetail d) BY receipt(d);
 
 bonusPaid 'Оплачено бонусами' = DATA NUMERIC[18,4] (ReceiptSaleDetail);
 bonusPaid 'Оплачено бонусами' = DATA NUMERIC[18,4] (ReceiptReturnDetail);
@@ -27,34 +27,34 @@ bonusPaid(ReceiptSaleDetail d) += bonusPaid(d);
 bonusPaid(ReceiptReturnDetail d) += bonusPaid(d);
 extraDiscountSum(ReceiptSaleDetail d) += bonusPaid(d);
 
-bonusPaid 'Оплачено бонусами' (Receipt r) = GROUP BY receipt(ReceiptDetail d) SUM bonusPaid(d);
+bonusPaid 'Оплачено бонусами' (Receipt r) = GROUP SUM bonusPaid(ReceiptDetail d) BY receipt(d);
 
-bonusPaidSale 'Оплачено бонусами' = GROUP
-    BY zReport(receipt(ReceiptDetail d)) SUM bonusPaid(d) IF d IS ReceiptSaleDetail;
+bonusPaidSale 'Оплачено бонусами' = GROUP SUM bonusPaid(ReceiptDetail d) IF d IS ReceiptSaleDetail
+    BY zReport(receipt(d));
 
-bonusPaidReturn 'Оплачено бонусами' = GROUP
-    BY zReport(receipt(ReceiptDetail d)) SUM bonusPaid(d) IF d IS ReceiptReturnDetail;
+bonusPaidReturn 'Оплачено бонусами' = GROUP SUM bonusPaid(ReceiptDetail d) IF d IS ReceiptReturnDetail
+    BY zReport(receipt(d));
 
-bonusPaid 'Оплачено бонусами' = GROUP
-    BY zReport(receipt(ReceiptDetail d)) SUM bonusPaid(d);
+bonusPaid 'Оплачено бонусами' = GROUP SUM bonusPaid(ReceiptDetail d)
+    BY zReport(receipt(d));
 
 signedBonusPaid 'Оплачено бонусами' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) MATERIALIZED;
 signedBonusPaid(ReceiptSaleDetail d) += bonusPaid(d);
 signedBonusPaid(ReceiptReturnDetail d) += -bonusPaid(d);
 
-signedBonusPaid 'Оплачено бонусами' (Receipt r) = GROUP BY receipt(ReceiptDetail d) SUM signedBonusPaid(d);
+signedBonusPaid 'Оплачено бонусами' (Receipt r) = GROUP SUM signedBonusPaid(ReceiptDetail d) BY receipt(d);
 
-signedBonusSum 'Начислено бонусов' = GROUP
-    BY zReport(receipt(ReceiptDetail d)) SUM signedBonusSum(d);
+signedBonusSum 'Начислено бонусов' = GROUP SUM signedBonusSum(ReceiptDetail d)
+    BY zReport(receipt(d));
 
-signedBonusPaidSale 'Оплачено бонусами' = GROUP
-    BY zReport(receipt(ReceiptDetail d)) SUM signedBonusPaid(d) IF d IS ReceiptSaleDetail;
+signedBonusPaidSale 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail d) IF d IS ReceiptSaleDetail
+    BY zReport(receipt(d));
 
-signedBonusPaidReturn 'Оплачено бонусами' = GROUP
-    BY zReport(receipt(ReceiptDetail d)) SUM signedBonusPaid(d) IF d IS ReceiptReturnDetail;
+signedBonusPaidReturn 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail d) IF d IS ReceiptReturnDetail
+    BY zReport(receipt(d));
 
-signedBonusPaid 'Оплачено бонусами' = GROUP
-    BY zReport(receipt(ReceiptDetail d)) SUM signedBonusPaid(d);
+signedBonusPaid 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail d)
+    BY zReport(receipt(d));
 
 EXTEND FORM zReport
     PROPERTIES(b) SHOWIF useBonus() signedBonusSum, signedBonusPaid  
@@ -67,26 +67,26 @@ EXTEND FORM zReports
     PROPERTIES(d) READONLY SHOWIF useBonus() signedBonusSum, signedBonusPaid  
 ;
 
-bonusPaidSaleReceiptDetailSale 'Сумма бонусов (продажи)' (receipt) = GROUP
-    BY receipt (ReceiptSaleDetail receiptDetail) SUM bonusPaid(receiptDetail) IN documentSum;
-bonusPaidReturnReceiptDetailReturn 'Сумма бонусов (возврат)' (receipt) = GROUP
-    BY receipt (ReceiptReturnDetail receiptDetail) SUM bonusPaid(receiptDetail) IN documentSum;
+bonusPaidSaleReceiptDetailSale 'Сумма бонусов (продажи)' (receipt) = GROUP SUM bonusPaid(ReceiptSaleDetail receiptDetail)
+    BY receipt (receiptDetail) IN documentSum;
+bonusPaidReturnReceiptDetailReturn 'Сумма бонусов (возврат)' (receipt) = GROUP SUM bonusPaid(ReceiptReturnDetail receiptDetail)
+    BY receipt (receiptDetail) IN documentSum;
 bonusPaidReceiptDetail 'Сумма бонусов' (Receipt receipt) = bonusPaidSaleReceiptDetailSale(receipt) (-) bonusPaidReturnReceiptDetailReturn(receipt) MATERIALIZED;
-bonusPaidReceiptDetail 'Сумма бонусов Z-отчета' (zReport) = GROUP BY zReport(Receipt receipt) SUM bonusPaidReceiptDetail(receipt) MATERIALIZED IN documentSum;
+bonusPaidReceiptDetail 'Сумма бонусов Z-отчета' (zReport) = GROUP SUM bonusPaidReceiptDetail(Receipt receipt) BY zReport(receipt) MATERIALIZED IN documentSum;
 
 EXTEND FORM zReports
     PROPERTIES(z)READONLY bonusPaidReceiptDetail
 ;    
 
-cumulativeBonuses 'Накоплено бонусов' (DiscountCard dc) = GROUP BY discountCard(ReceiptDetail rd) SUM signedBonusSum(rd) MATERIALIZED;
+cumulativeBonuses 'Накоплено бонусов' (DiscountCard dc) = GROUP SUM signedBonusSum(ReceiptDetail rd) BY discountCard(rd) MATERIALIZED;
 
-returnBonusSum = GROUP BY receiptSaleDetail(ReceiptReturnDetail rrd) SUM bonusSum(rrd) MATERIALIZED;
+returnBonusSum = GROUP SUM bonusSum(ReceiptReturnDetail rrd) BY receiptSaleDetail(rrd) MATERIALIZED;
 blockedBonuses 'Заблокировано бонусов' (DiscountCard dc) = 
-    GROUP BY discountCard(ReceiptSaleDetail rsd) SUM (bonusSum(rsd) (-) returnBonusSum(rsd)) IF date(rsd) > subtract(currentDate(), blockDaysBonus());
+    GROUP SUM (bonusSum(ReceiptSaleDetail rsd) (-) returnBonusSum(rsd)) IF date(rsd) > subtract(currentDate(), blockDaysBonus()) BY discountCard(rsd);
 externalBlockedBonuses 'Дополнительные заблокированные бонусы' = ABSTRACT NUMERIC[18,4] (DiscountCard);  
 totalBlockedBonuses 'Всего заблокировано бонусов' (DiscountCard dc)= blockedBonuses(dc) (+) externalBlockedBonuses(dc);
 
-paidBonuses 'Оплачено бонусами' = GROUP BY discountCard(ReceiptDetail rd) SUM signedBonusPaid(rd) MATERIALIZED;
+paidBonuses 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail rd) BY discountCard(rd) MATERIALIZED;
 
 availableBonuses 'Доступно бонусов (основная)' (DiscountCard dc) = cumulativeBonuses(dc) (+) sumBonusLedger(dc) (-) blockedBonuses(dc) (-) paidBonuses(dc) MATERIALIZED;
 prevAvailableBonuses (DiscountCard dc) = PREV(availableBonuses(dc)); 
@@ -100,8 +100,8 @@ totalBonuses 'Доступно бонусов' (Receipt r) = prevTotalBonuses(di
 //-- Скидки с учетом бонусов
 discountBonusSumVAT 'Сумма НДС в скидке' (ReceiptDetail d) = round((discountSum(d) (+) bonusPaid(d))* valueVAT(d) / (100 + valueVAT(d)), currency(d));
  
-discountBonusSumVATSale 'Сумма НДС в скидке (продажа)' (zReport)= GROUP BY zReport[ReceiptDetail](ReceiptSaleDetail d) SUM discountBonusSumVAT(d) IF d IS ReceiptSaleDetail;
-discountBonusSumVATReturn 'Сумма НДС в скидке (возврат)' (zReport)= GROUP BY zReport[ReceiptDetail](ReceiptReturnDetail d) SUM discountBonusSumVAT(d) IF d IS ReceiptReturnDetail;
+discountBonusSumVATSale 'Сумма НДС в скидке (продажа)' (zReport)= GROUP SUM discountBonusSumVAT(ReceiptSaleDetail d) IF d IS ReceiptSaleDetail BY zReport[ReceiptDetail](d);
+discountBonusSumVATReturn 'Сумма НДС в скидке (возврат)' (zReport)= GROUP SUM discountBonusSumVAT(ReceiptReturnDetail d) IF d IS ReceiptReturnDetail BY zReport[ReceiptDetail](d);
 
 discountBonusSumVAT 'Сумма НДС в скидке' (ZReport zReport)= discountBonusSumVATSale(zReport) (-) discountBonusSumVATReturn(zReport);
 

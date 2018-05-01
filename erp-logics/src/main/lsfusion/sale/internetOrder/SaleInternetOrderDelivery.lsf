@@ -23,7 +23,7 @@ in 'Вкл' (DeliveryReport o, InternetOrderDetail d) = deliveryReport(d) == o;
 
 @defineDocumentHeaderCount(deliveryReport, InternetOrderDetail);
 
-relation = GROUP BY DeliveryReport o, internetOrder(InternetOrderDetail d) SUM 1 IF in(o, d);
+relation = GROUP SUM 1 IF in(DeliveryReport o, InternetOrderDetail d) BY o, internetOrder(d);
 
 seriesNumberInternetOrders 'Интернет-заказы' (DeliveryReport deliveryReport) = GROUP
                                                  CONCAT seriesNumber(InternetOrder order) IF relation(deliveryReport, order) , ', '
@@ -35,16 +35,16 @@ defaultDeliveryReportIndex 'Номер строки (авт.)' (InternetOrderDet
     ORDER internetOrder(d),d BY deliveryReport(d) CHARWIDTH 4;
 indexDeliveryReport 'Номер строки' (InternetOrderDetail d) = OVERRIDE dataDeliveryReportIndex(d), defaultDeliveryReportIndex(d) IN recognize;
 
-pickingQuantityInternetOrderDetail 'Кол-во (всего) собрано' = GROUP 
-    BY deliveryReport(InternetOrderDetail d) SUM pickingQuantity(d) IN documentSum;
+pickingQuantityInternetOrderDetail 'Кол-во (всего) собрано' = GROUP SUM pickingQuantity(InternetOrderDetail d) 
+    BY deliveryReport(d) IN documentSum;
 
-pickingSumInternetOrderDetail'Сумма (всего) собрано' = GROUP 
-    BY deliveryReport(InternetOrderDetail d) SUM pickingSum(d) IN documentSum;
+pickingSumInternetOrderDetail'Сумма (всего) собрано' = GROUP SUM pickingSum(InternetOrderDetail d) 
+    BY deliveryReport(d) IN documentSum;
 
 // Возврат
 returnQuantity 'Возвращено' = DATA NUMERIC[16,5](InternetOrderDetail);
-returnQuantityInternetOrderDetail'Кол-во (всего) возвращено' = GROUP 
-    BY deliveryReport(InternetOrderDetail d) SUM returnQuantity(d) IN documentSum;
+returnQuantityInternetOrderDetail'Кол-во (всего) возвращено' = GROUP SUM returnQuantity(InternetOrderDetail d) 
+    BY deliveryReport(d) IN documentSum;
 
 
 CLASS StatusDeliveryReport 'Статус' {
@@ -71,9 +71,9 @@ seriesNumberPicking 'Номер комплектации' (InternetOrderDetail d
 
 
 countInternetOrderDetail 'Кол-во строк товара в документе'  = 
-    GROUP
-          BY  sku(InternetOrderDetail idetail),
-              deliveryReport(idetail) SUM 1 IF sku(idetail);   
+    GROUP SUM 1 IF sku(InternetOrderDetail idetail)
+          BY  sku(idetail),
+              deliveryReport(idetail);   
 editReturnQuantity  = ABSTRACT BOOLEAN (InternetOrderDetail);
 
 FORM deliveryReport 'Отчет курьера'
@@ -175,7 +175,7 @@ createDeliveryReport 'Создать отчет курьера' (InternetOrder o
     IF countInternetOrders() THEN  {       
     
         NEWSESSION {
-            FOR [=GROUP BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail d), carrier(internetOrder(d)) SUM 1 IF select(internetOrder(d)) AND NOT deliveryReport(d)](Stock stock, Carrier carrier) NEW r = DeliveryReport DO {
+            FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT deliveryReport(d) BY Sale.supplierStock[InternetOrderDetail](d), carrier(internetOrder(d))](Stock stock, Carrier carrier) NEW r = DeliveryReport DO {
                 carrier(r) <- carrier;
                 FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND carrier(internetOrder(detail)) == carrier AND select(internetOrder(detail)) AND NOT deliveryReport(detail) DO {
                     deliveryReport(detail) <- r;                        
@@ -190,11 +190,11 @@ createDeliveryReport 'Создать отчет курьера' (InternetOrder o
 }
 
 
-filterDashboardDelivery = GROUP 
-        BY internetOrder(InternetOrderDetail detail) SUM 1 IF detail IS InternetOrderDetail AND NOT deliveryReport(detail);
+filterDashboardDelivery = GROUP SUM 1 IF InternetOrderDetail detail IS InternetOrderDetail AND NOT deliveryReport(detail) 
+        BY internetOrder(detail);
 
 
-inStockDeliveryReport = GROUP BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail), deliveryReport(detail) SUM 1; 
+inStockDeliveryReport = GROUP SUM 1 BY Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail), deliveryReport(detail); 
 supplierStocks 'Склады поставщика' (DeliveryReport deliveryReport) = GROUP  
                                                                         CONCAT name(Stock stock) IF inStockDeliveryReport(stock, deliveryReport), ', ' 
                                                                         ORDER name(stock) CHARWIDTH 30;

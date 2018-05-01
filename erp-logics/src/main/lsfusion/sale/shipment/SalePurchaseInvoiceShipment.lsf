@@ -114,11 +114,11 @@ deleteCreate (Purchase.InvoiceShipment shipment)+= WHEN invoice(shipment) IS Pur
 //-- Расчет документов, которые в пути
 
 // продажа
-quantityPurchaseShipmentDetail 'Поставлено' (saleInvoiceDetail) = GROUP BY invoiceDetail(invoiceDetail(Purchase.ShipmentDetail d)) SUM quantity(d);
+quantityPurchaseShipmentDetail 'Поставлено' (saleInvoiceDetail) = GROUP SUM quantity(Purchase.ShipmentDetail d) BY invoiceDetail(invoiceDetail(d));
 
 quantityPurchase 'Поставлено' (ShipmentDetail d) = quantityPurchaseShipmentDetail(invoiceDetail(d));
-quantityPurchaseShipmentDetail 'Поставлено' (d) = GROUP BY shipmentDetail(Purchase.ShipmentDetail pd) SUM quantity(pd);
+quantityPurchaseShipmentDetail 'Поставлено' (d) = GROUP SUM quantity(Purchase.ShipmentDetail pd) BY shipmentDetail(pd);
 
-quantityShippedSale 'Поставлено (кол-во)' (s) = GROUP BY shipment(ShipmentDetail d) SUM (quantityPurchaseShipmentDetail(d) (+) quantityPurchase(d));
+quantityShippedSale 'Поставлено (кол-во)' (s) = GROUP SUM (quantityPurchaseShipmentDetail(ShipmentDetail d) (+) quantityPurchase(d)) BY shipment(d);
 
 isTransitSale 'В пути' (Shipment s) = isCompany(supplier(s)) AND isCompany(customer(s)) AND customer(s) == supplier(s) AND NOT quantityShippedSale(s);

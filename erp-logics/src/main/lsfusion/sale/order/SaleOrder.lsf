@@ -193,8 +193,8 @@ overShowEdit (Order i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShow
 overShowDelete (UserOrder i) += showEditDeleteUser(i) AND isUserOpened(i) AND NOT skipShowEdit(i); 
 
 firstOrderBatchAvailable(Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q) =
-    GROUP BY skuLedger(Batch batch, stock) LAST batch IF prevAvailableQuantity(batch, stock, dateTime) >= q
-        ORDER DESC dateTime(batch), batch;
+    GROUP LAST Batch batch IF prevAvailableQuantity(batch, stock, dateTime) >= q
+        ORDER DESC dateTime(batch), batch BY skuLedger(batch, stock);
 
 fillBatch 'Проставить партию'(UserOrderDetail d)  = {    
     batch(d) <- firstOrderBatchAvailable(sku(d), supplierStock(d), dateTime(d), quantity(d)) 

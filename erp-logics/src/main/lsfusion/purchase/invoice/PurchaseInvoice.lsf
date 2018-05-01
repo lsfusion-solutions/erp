@@ -126,12 +126,12 @@ certificateCostPrice(UserInvoiceDetail detail) += certificateCostPrice(detail);
 incomePrice (InvoiceDetail detail) = IF isHomeCurrency(invoice(detail)) THEN
                                        homePrice(detail)
                                     ELSE price(detail);
-incomeSum(invoice) = GROUP BY invoice(InvoiceDetail detail) SUM incomePrice(detail) * quantity(detail);
+incomeSum(invoice) = GROUP SUM incomePrice(InvoiceDetail detail) * quantity(detail) BY invoice(detail);
 
 incomePrice (UserInvoiceDetail detail) = IF isHomeCurrency(userInvoice(detail)) THEN
                                            homePrice(detail)
                                         ELSE price(detail);
-incomeSum(invoice) = GROUP BY userInvoice(UserInvoiceDetail detail) SUM incomePrice(detail) * quantity(detail);
+incomeSum(invoice) = GROUP SUM incomePrice(UserInvoiceDetail detail) * quantity(detail) BY userInvoice(detail);
 
 // todo : переделать на обычный +, чтобы incomePriceInvoiceDetail суммировался с остальными через OVERRIDE, 0
 costPrice(InvoiceDetail detail) = NUMERIC[16,4] (incomePrice(detail) (+) extraCostPrice(detail) (+)
@@ -338,15 +338,15 @@ purchaseInvoiceStockSumABatches 'Сумма поставщика (на вече�
     SUM purchaseInvoiceStockSumA(Batch batch, stock, date);
 
 purchaseInvoiceStockSumBSkuBatch 'Сумма поставщика (на утро)' (group, Stock stock, DATE date) =
-    GROUP
-    BY group(GroupType groupType, sku(Batch batch)) SUM purchaseInvoiceStockSumB(batch, stock, date);
+    GROUP SUM purchaseInvoiceStockSumB(Batch batch, stock, date)
+    BY group(GroupType groupType, sku(batch));
 purchaseInvoiceStockSumRecBSkuBatch 'Сумма поставщика (на утро)' (Group group, Stock stock, DATE date) =
     GROUP
     SUM purchaseInvoiceStockSumB(Batch batch, stock, date) IF isParent(group, batch);
 
 purchaseInvoiceStockSumASkuBatch 'Сумма поставщика (на вечер)' (group, Stock stock, DATE date) =
-    GROUP
-    BY group(GroupType groupType, sku(Batch batch)) SUM purchaseInvoiceStockSumA(batch, stock, date);
+    GROUP SUM purchaseInvoiceStockSumA(Batch batch, stock, date)
+    BY group(GroupType groupType, sku(batch));
 purchaseInvoiceStockSumRecASkuBatch 'Сумма поставщика на (вечер)' (Group group, Stock stock, DATE date) =
     GROUP
     SUM purchaseInvoiceStockSumA(Batch batch, stock, date) IF isParent(group, batch);
@@ -367,8 +367,8 @@ purchaseInvoiceStockSumB 'Сумма поставщика' (Batch batch, Stock s
     balanceB(batch, stock, dateTime) * purchaseInvoiceStockPriceB(batch, stock, dateTime);
 
 purchaseInvoiceStockSumBSkuBatch 'Сумма поставщика (на утро)' (group, Stock stock, DATETIME dateTime) =
-    GROUP
-    BY group(GroupType groupType, sku(Batch batch)) SUM purchaseInvoiceStockSumB(batch, stock, dateTime);
+    GROUP SUM purchaseInvoiceStockSumB(Batch batch, stock, dateTime)
+    BY group(GroupType groupType, sku(batch));
 purchaseInvoiceStockSumRecBSkuBatch 'Сумма поставщика (на утро)' (Group group, Stock stock, DATETIME dateTime) =
     GROUP
     SUM purchaseInvoiceStockSumB(Batch batch, stock, dateTime) IF isParent(group, batch);

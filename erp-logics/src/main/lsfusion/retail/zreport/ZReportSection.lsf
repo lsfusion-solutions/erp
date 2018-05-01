@@ -12,17 +12,17 @@ EXTEND FORM zReports
     
 TABLE receiptSection (Receipt, Section);
 
-sumReceipDetail 'Сумма для секции' (r, s) = GROUP
-    BY receipt(ReceiptDetail d), section(d) SUM signedSum(d) 
-    IF isPosted(d)  MATERIALIZED;
-sum = GROUP 
-    BY departmentStore(Receipt r), Section sek, date(zReport(r)) SUM sumReceipDetail(r, sek);
+sumReceipDetail 'Сумма для секции' (r, s) = GROUP SUM signedSum(ReceiptDetail d) 
+    IF isPosted(d)
+    BY receipt(d), section(d)  MATERIALIZED;
+sum = GROUP SUM sumReceipDetail(Receipt r, Section sek) 
+    BY departmentStore(r), sek, date(zReport(r));
 sum 'Продано, руб.' (DepartmentStore ds, Section sek, DATE dateFrom, DATE dateTo) = GROUP 
     SUM sum(ds, sek, DATE date)
     IF date >= dateFrom AND date <= dateTo;
 
-discountSumReceipDetail 'Сумма скидки для секции' (r, s) = GROUP
-    BY receipt(ReceiptDetail d), section(d) SUM signedDiscountSum(d) 
-    IF isPosted(d) MATERIALIZED;
-discountSum = GROUP 
-    BY departmentStore(Receipt r), Section sek, date(zReport(r)) SUM discountSumReceipDetail(r, sek);
+discountSumReceipDetail 'Сумма скидки для секции' (r, s) = GROUP SUM signedDiscountSum(ReceiptDetail d) 
+    IF isPosted(d)
+    BY receipt(d), section(d) MATERIALIZED;
+discountSum = GROUP SUM discountSumReceipDetail(Receipt r, Section sek) 
+    BY departmentStore(r), sek, date(zReport(r));

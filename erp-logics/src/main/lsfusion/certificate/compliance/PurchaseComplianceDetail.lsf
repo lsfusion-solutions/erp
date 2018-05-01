@@ -59,7 +59,7 @@ WHEN LOCAL FORMS userInvoice CHANGED(complianceGroup(UserInvoiceDetail d)) AND c
     dataCompliance(d) <- compliance(userInvoice(d), complianceGroup(d));
 
 count 'Кол-во' (invoice, complianceGroup) =
-    GROUP BY userInvoice(UserInvoiceDetail detail), complianceGroup(detail) SUM 1 MATERIALIZED;
+    GROUP SUM 1 BY userInvoice(UserInvoiceDetail detail), complianceGroup(detail) MATERIALIZED;
 
 // ------------------- Заполнение сертификата, если он один для группы --------------------- //
 
@@ -91,8 +91,8 @@ complianceSum(UserInvoiceDetail d) <- quantity(d) * compliancePrice(d) WHEN CHAN
 certificateCostPrice[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += compliancePrice(invoiceDetail);
 certificateCostSum[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += complianceSum(invoiceDetail);
 
-complianceSumUserInvoiceDetail 'Сертификация' = GROUP
-                                                                BY compliance(UserInvoiceDetail d) SUM complianceSum(d) CHARWIDTH 15 MATERIALIZED;
+complianceSumUserInvoiceDetail 'Сертификация' = GROUP SUM complianceSum(UserInvoiceDetail d)
+                                                                BY compliance(d) CHARWIDTH 15 MATERIALIZED;
                                                                 
 overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += {      
     compliancePrice(d) <- compliancePrice(detail);

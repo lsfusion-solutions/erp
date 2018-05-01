@@ -16,10 +16,10 @@ overPercService 'Качество сервиса (контроль), %' = DATA N
 dataPercService 'Качество сервиса (контроль), %' (ContractSku c) = OVERRIDE overPercService(c), dataPercService(supplier(c));
 
 lastServiceStatusDetail   =
-    GROUP
-        BY contractSku(ServiceStatusDetail d) LAST d
+    GROUP LAST ServiceStatusDetail d
         ORDER toDate(d), d
-        WHERE d IS ServiceStatusDetail;
+        WHERE d IS ServiceStatusDetail
+        BY contractSku(d);
         
 nameServiceStatus 'Статус качества сервиса' (ContractSku c) = staticCaption(serviceStatus(lastServiceStatusDetail(c))); 
 percService 'Качество сервиса, %' (ContractSku c) = percService(lastServiceStatusDetail(c)); 
@@ -32,20 +32,20 @@ backgroundServiceStatus (ContractSku c) = CASE
 ;
 
 prevStatus 'Статус качества сервиса'  =
-    GROUP
-        BY contractSku(ServiceStatusDetail d), DATE date LAST serviceStatus(d)
+    GROUP LAST serviceStatus(ServiceStatusDetail d)
         ORDER toDate(d), d
-        WHERE date >= fromDate(d) AND date <= toDate(d) AND NOT isChange(d);
+        WHERE DATE date >= fromDate(d) AND date <= toDate(d) AND NOT isChange(d)
+        BY contractSku(d), date;
 
 
 isChange = DATA LOCAL NESTED BOOLEAN (ContractSku);
 
-sumShippedService (contract, DATE dateFrom, DATE dateTo)= GROUP
-        BY contractSku(Order order) SUM sumShippedOrderDetail(order) 
-    IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order);                                                   
-sumService (contract, DATE dateFrom, DATE dateTo)= GROUP
-        BY contractSku(Order order) SUM sumOrderDetail(order) 
-    IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order);      
+sumShippedService (contract, DATE dateFrom, DATE dateTo)= GROUP SUM sumShippedOrderDetail(Order order) 
+    IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order)
+        BY contractSku(order);                                                   
+sumService (contract, DATE dateFrom, DATE dateTo)= GROUP SUM sumOrderDetail(Order order) 
+    IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order)
+        BY contractSku(order);      
 percentSumExecutionService '% исп. заявки (сумма)' (ContractSku c, DATE dateFrom, DATE dateTo) = sumShippedService(c, dateFrom, dateTo)*100.00 /
     (sumService(c, dateFrom, dateTo) IF sumService(c, dateFrom, dateTo)!=0);   
 

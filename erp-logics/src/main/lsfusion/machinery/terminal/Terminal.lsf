@@ -42,12 +42,12 @@ groupMachinery(Terminal machinery) += groupTerminal(machinery);
 
 directory 'Директория обмена с ТСД' = DATA VARSTRING[100] (GroupTerminal) IN base;
 directory (GroupTerminal groupMachinery) += directory(groupMachinery);
-groupTerminalDirectory (npp) = GROUP BY directory(GroupTerminal groupTerminal) MAX groupTerminal;
+groupTerminalDirectory (npp) = GROUP MAX GroupTerminal groupTerminal BY directory(groupTerminal);
 
 terminalModel = DATA TerminalModel (GroupTerminal);
 model(GroupTerminal groupMachinery) += terminalModel(groupMachinery);
 
-groupTerminal (npp) = GROUP BY npp(GroupTerminal groupTerminal) AGGR groupTerminal WHERE groupTerminal IS GroupTerminal;  
+groupTerminal (npp) = GROUP AGGR GroupTerminal groupTerminal WHERE groupTerminal IS GroupTerminal BY npp(groupTerminal);  
 
 FORM terminal 'ТСД'
     OBJECTS t=Terminal PANEL
@@ -231,7 +231,7 @@ TABLE terminalDocument (TerminalDocument);
 TABLE terminalDocumentId(VARISTRING[1000]);
 
 id 'Код' = DATA VARSTRING[1000] (TerminalDocument) IN recognize INDEXED CHARWIDTH 10;
-terminalDocument (id) = GROUP BY id (TerminalDocument td) AGGR (td) MATERIALIZED TABLE terminalDocumentId;
+terminalDocument (id) = GROUP AGGR (TerminalDocument td) BY id (td) MATERIALIZED TABLE terminalDocumentId;
 
 title 'Имя' = DATA VARSTRING[1000] (TerminalDocument) IN base CHARWIDTH 20;
 comment 'Комментарий' = DATA VARSTRING[100] (TerminalDocument) IN base CHARWIDTH 20;
@@ -305,8 +305,8 @@ WHEN LOCAL SETCHANGED(barcode(TerminalDocumentDetail d)) DO {
     sku(d) <- OVERRIDE skuBarcode(barcode(d)), sku(barcode(d));
 }
 
-terminalIdTerminalId (documentDetail, document) = GROUP 
-    BY id (terminalDocument(TerminalDocumentDetail terminalDocumentDetail)), id(terminalDocumentDetail) AGGR terminalDocumentDetail;    
+terminalIdTerminalId (documentDetail, document) = GROUP AGGR TerminalDocumentDetail terminalDocumentDetail 
+    BY id (terminalDocument(terminalDocumentDetail)), id(terminalDocumentDetail);    
 
 description 'Название документа' (TerminalDocument o) =
     'Документ ТСД' + ' № ' + id(o) + ' от ' + date(o) CHARWIDTH 30;
@@ -505,15 +505,15 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
                 
                 IF explicitBatchLedger(stockProp(object)) THEN {      
                     LOCAL quantity = NUMERIC[16,5] (Sku);
-                    quantity(Sku sku) <- [=GROUP BY skuProp(TerminalDocumentDetail tdd) SUM quantity(tdd) IF include(terminalDocument(tdd))](sku);   
-                    FOR [=GROUP BY skuProp(TerminalDocumentDetail tdd) SUM quantity(tdd) IF include(terminalDocument(tdd))](Sku sku) DO {
+                    quantity(Sku sku) <- [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY skuProp(tdd)](sku);   
+                    FOR [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY skuProp(tdd)](Sku sku) DO {
                         FOR explicitBatchLedger(stockProp(object)) AND quantity(sku(Batch b)) AND sku(b) == sku AND 
-                            prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP BY batch(class##Detail detail), object(detail) SUM quantity(detail)](b, object) > 0.0 
+                            prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object) > 0.0 
                             ORDER dateTime(b) NEW o = class##Detail DO {
                             object(o) <- object;
                             sku(o) <- sku;
-                            quantity(o) <- IF quantity(sku(b)) > (prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP BY batch(class##Detail detail), object(detail) SUM quantity(detail)](b, object))
-                                THEN prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP BY batch(class##Detail detail), object(detail) SUM quantity(detail)](b, object)
+                            quantity(o) <- IF quantity(sku(b)) > (prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object))
+                                THEN prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object)
                                 ELSE quantity(sku(b));
                             IF NOT skipFillBatch(o) THEN {
                                 batch(o) <- b;
@@ -548,7 +548,7 @@ END
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
-terminalSID (model) = GROUP BY sid (TerminalModel tmodel) IF tmodel IS TerminalModel MAX tmodel;
+terminalSID (model) = GROUP MAX TerminalModel tmodel BY sid (tmodel) IF tmodel IS TerminalModel;
 
 // Модели терминалов сбора данных
 loadDefaultTerminalModel 'Добавить модель терминала'(VARSTRING[20] sid, VARISTRING[110] name, VARSTRING[200] handler) = {

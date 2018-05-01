@@ -128,36 +128,36 @@ in (ReceiptReport r, ReceiptDetail d) =
     AND (in(group(groupType(r), sku(d)), r) OR (sku(d) AND NOT countInDataGroup(r)))
     AND (in(supplierLastOrderBatch(sku(d), departmentStore(d)),r) OR (sku(d) AND NOT countInLegalEntity(r)));
 
-in (ReceiptReport report, receipt) = GROUP BY receipt(ReceiptDetail d) SUM 1 IF in (report, d);
+in (ReceiptReport report, receipt) = GROUP SUM 1 IF in (report, ReceiptDetail d) BY receipt(d);
 
-countBon 'Кол-во чеков' = GROUP BY store(Receipt receipt), ReceiptReport report SUM 1 IF in(report, receipt);
-countBonDetail 'Кол-во позиций в выбранных чеках' = GROUP BY store(Receipt receipt), ReceiptReport report SUM countReceiptDetail(receipt) IF in (report, receipt);
-in 'Кол-во выбранных позиций' = GROUP BY ReceiptReport report, store(ReceiptDetail d) SUM 1 IF in (report, d);
-sumBonDetail 'Сумма выбранных чеков' = GROUP BY store(Receipt receipt), ReceiptReport report SUM sumReceiptDetail(receipt) IF in (report, receipt);
-sumSelectedBonDetail 'Сумма выбранных позиций' = GROUP BY store(ReceiptDetail d), ReceiptReport report SUM sum(d) IF in (report, d);
+countBon 'Кол-во чеков' = GROUP SUM 1 IF in(ReceiptReport report, Receipt receipt) BY store(receipt), report;
+countBonDetail 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetail(Receipt receipt) IF in (ReceiptReport report, receipt) BY store(receipt), report;
+in 'Кол-во выбранных позиций' = GROUP SUM 1 IF in (ReceiptReport report, ReceiptDetail d) BY report, store(d);
+sumBonDetail 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetail(Receipt receipt) IF in (ReceiptReport report, receipt) BY store(receipt), report;
+sumSelectedBonDetail 'Сумма выбранных позиций' = GROUP SUM sum(ReceiptDetail d) IF in (ReceiptReport report, d) BY store(d), report;
 
 //-- С диапазонами сумм
 in (ReceiptReport report, Receipt receipt, IntervalReport interval) = in (report, receipt) IF
     receiptReport(interval) == report AND sumReceiptDetail(receipt) <= sum(interval) AND 
     ((fromSumIntervalReportReceipt(interval) < sumReceiptDetail(receipt)) OR  (NOT fromSumIntervalReportReceipt(interval)));
 
-countBon 'Кол-во чеков' = GROUP 
-        BY store(Receipt receipt), ReceiptReport report, IntervalReport interval SUM 1 IF
-    in(report, receipt, interval);
-countBonDetail 'Кол-во позиций в выбранных чеках' = GROUP 
-        BY store(Receipt receipt), ReceiptReport report, IntervalReport interval SUM countReceiptDetail(receipt) IF 
-    in(report, receipt, interval);        
+countBon 'Кол-во чеков' = GROUP SUM 1 IF
+    in(ReceiptReport report, Receipt receipt, IntervalReport interval) 
+        BY store(receipt), report, interval;
+countBonDetail 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetail(Receipt receipt) IF 
+    in(ReceiptReport report, receipt, IntervalReport interval) 
+        BY store(receipt), report, interval;        
         
-in 'Кол-во выбранных позиций' = GROUP  
-        BY ReceiptReport report, store(ReceiptDetail d), IntervalReport interval SUM 1 IF 
-    in (report, d) AND in(report, receipt(d), interval);
+in 'Кол-во выбранных позиций' = GROUP SUM 1 IF 
+    in (ReceiptReport report, ReceiptDetail d) AND in(report, receipt(d), IntervalReport interval)  
+        BY report, store(d), interval;
         
-sumBonDetail 'Сумма выбранных чеков' = GROUP 
-        BY store(Receipt receipt), ReceiptReport report, IntervalReport interval SUM sumReceiptDetail(receipt) IF
-     in(report, receipt, interval);
-sumSelectedBonDetail 'Сумма выбранных позиций' = GROUP  
-        BY store(ReceiptDetail d), ReceiptReport report, IntervalReport interval SUM sum(d) IF
-    in (report, d) AND in(report, receipt(d), interval);
+sumBonDetail 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetail(Receipt receipt) IF
+     in(ReceiptReport report, receipt, IntervalReport interval) 
+        BY store(receipt), report, interval;
+sumSelectedBonDetail 'Сумма выбранных позиций' = GROUP SUM sum(ReceiptDetail d) IF
+    in (ReceiptReport report, d) AND in(report, receipt(d), IntervalReport interval)  
+        BY store(d), report, interval;
 
 
 //--

@@ -6,9 +6,9 @@ REQUIRE StockDocument, ZReport;
 CLASS RetailSales 'Розничные продажи';
 TABLE retailSales (RetailSales);
 
-sumReceiptDetail (stock,date) = GROUP 
-    BY departmentStore(ZReport z), date(z) SUM 
-    sumSkuReceiptDetail(z) IF isPosted(z);
+sumReceiptDetail (stock,date) = GROUP SUM 
+    sumSkuReceiptDetail(ZReport z) IF isPosted(z) 
+    BY departmentStore(z), date(z);
 
 @defineAggregationClass (departmentStore, DepartmentStore, date, DATE, retailSales, RetailSales, sumReceiptDetail);
 dateTime 'Дата/время' (RetailSales o) =  toDateTime(date(o));
@@ -41,8 +41,8 @@ skip (RetailSales ledger) += date(ledger) < startDateGroupCashRegister(departmen
 CLASS ZReportRepricing 'Скидка по кассе';
 TABLE zReportRepricing (ZReportRepricing);
 
-discountSum  (stock, date) = GROUP 
-    BY departmentStore(ZReport z), date(z) SUM discountSum(z);
+discountSum  (stock, date) = GROUP SUM discountSum(ZReport z) 
+    BY departmentStore(z), date(z);
 
 @defineAggregationClass (departmentStore, DepartmentStore, date, DATE, ZReportRepricing, ZReportRepricing, discountSum);
 dateTime 'Дата/время' (ZReportRepricing o) =  toDateTime(date(o));

@@ -277,11 +277,11 @@ CONSTRAINT stock(UserPicking picking) != stock(pickingOrder(picking))
 descriptionPickingOrder 'Заказ' (Picking picking) = description(pickingOrder(picking)) CHARWIDTH 30 IN pickingOrders;
 notePickingOrder 'Примечание (заказ)' (Picking p) = note(pickingOrder(p)); 
 
-quantityPickings 'Количество комплектаций' (pickingOrder) = GROUP BY pickingOrder(Picking picking) SUM 1 MATERIALIZED;
+quantityPickings 'Количество комплектаций' (pickingOrder) = GROUP SUM 1 BY pickingOrder(Picking picking) MATERIALIZED;
 
-pickings 'Комплектации' (pickingOrder) = GROUP
-                                         BY pickingOrder(Picking picking) CONCAT VARSTRING[255](description(picking)), ', '
+pickings 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255](description(Picking picking)), ', '
                                          ORDER picking
+                                         BY pickingOrder(picking)
 //                                         IN order
                                          CHARWIDTH 30 MATERIALIZED;
 
@@ -373,13 +373,13 @@ notCount 'Не учитывать' = ABSTRACT BOOLEAN (Picking);
 
 countPickingOrderSku 'Кол-во наименований' (PickingOrder pickingOrder) = GROUP SUM 1 IF quantityPickingOrderDetail(Sku sku, pickingOrder);
 
-quantityPickingDetail 'Кол-во в комплектациях' (Sku sku, pickingOrder) = GROUP BY pickingOrder(Picking picking) SUM quantityPickingDetail(sku, picking) IF NOT notCount(picking);
+quantityPickingDetail 'Кол-во в комплектациях' (Sku sku, pickingOrder) = GROUP SUM quantityPickingDetail(sku, Picking picking) IF NOT notCount(picking) BY pickingOrder(picking);
 countEqualPickingOrderSku 'Кол-во наименований с равным кол-ом товара' (PickingOrder pickingOrder) = GROUP SUM 1 IF quantityPickingDetail(Sku sku, pickingOrder) == quantityPickingOrderDetail(sku, pickingOrder);
 
 calcFull 'Полностью собран' (PickingOrder pickingOrder) = countPickingOrderSku(pickingOrder) == countEqualPickingOrderSku(pickingOrder) MATERIALIZED;
 calcPart 'Частично собран' (PickingOrder pickingOrder) = quantityPickings(pickingOrder) AND NOT calcFull(pickingOrder);
 
-packQuantity 'Кол-во собранных мест' (pickingOrder) = GROUP BY pickingOrder(Picking picking) SUM packQuantity(picking);
+packQuantity 'Кол-во собранных мест' (pickingOrder) = GROUP SUM packQuantity(Picking picking) BY pickingOrder(picking);
 
 accepted 'Принят в работу' = DATA BOOLEAN (PickingOrder);
 notAccepted(PickingOrder o) = NOT accepted(o);

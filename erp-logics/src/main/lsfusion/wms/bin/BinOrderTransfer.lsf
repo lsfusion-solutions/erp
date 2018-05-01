@@ -27,8 +27,8 @@ GROUP binOrder 'Информация о заказе' : public;
 descriptionBinOrder 'Заказ' (BinTransferDetail binTransferDetail) = description(binOrderDetail(binTransferDetail)) IN binOrder;
 descriptionBinOrder 'Заказ' (UserBinTransferDetail userBinTransferDetail) = description(binOrderDetail(userBinTransferDetail)) IN binOrder;
 
-quantityBinTransferDetail (binOrder, binTransfer) = GROUP BY binOrder(binOrderDetail(BinTransferDetail binTransferDetail)), binTransfer(binTransferDetail) SUM quantity(binTransferDetail);
-countBinTransferDetail(binOrder, binTransfer) = GROUP BY binOrder(binOrderDetail(BinTransferDetail binTransferDetail)), binTransfer(binTransferDetail) SUM 1;
+quantityBinTransferDetail (binOrder, binTransfer) = GROUP SUM quantity(BinTransferDetail binTransferDetail) BY binOrder(binOrderDetail(binTransferDetail)), binTransfer(binTransferDetail);
+countBinTransferDetail(binOrder, binTransfer) = GROUP SUM 1 BY binOrder(binOrderDetail(BinTransferDetail binTransferDetail)), binTransfer(binTransferDetail);
 binOrders 'Заказы' (BinTransfer binTransfer) = GROUP
                                          CONCAT VARSTRING[255](description(BinOrder binOrder)) IF quantityBinTransferDetail(binOrder, binTransfer) , ', '
                                          ORDER binOrder
@@ -39,22 +39,22 @@ binTransfers 'Перемещения' (BinOrder binOrder) = GROUP
                                          ORDER binTransfer
                                          IN binTransfer CHARWIDTH 30;                                             
 
-binTransfered 'Кол-во (перемещено)' (BinOrderDetail binOrderDetail) = GROUP
-                                                           BY binOrderDetail(BinTransferDetail binTransferDetail) SUM quantity(binTransferDetail) IF isPosted(binTransferDetail) MATERIALIZED;
+binTransfered 'Кол-во (перемещено)' (BinOrderDetail binOrderDetail) = GROUP SUM quantity(BinTransferDetail binTransferDetail) IF isPosted(binTransferDetail)
+                                                           BY binOrderDetail(binTransferDetail) MATERIALIZED;
                                                            
-binTransferdBinOrderDetail 'Кол-во (перемещено)' (binOrder) = GROUP BY binOrder(BinOrderDetail binOrderDetail) SUM binTransfered(binOrderDetail) IN documentSum;
+binTransferdBinOrderDetail 'Кол-во (перемещено)' (binOrder) = GROUP SUM binTransfered(BinOrderDetail binOrderDetail) BY binOrder(binOrderDetail) IN documentSum;
 
 toBinTransfer 'Не перемещено' (BinOrderDetail binOrderDetail) = MAX quantity (binOrderDetail) (-) binTransfered(binOrderDetail), 0.0;
 prevToBinTransfer (BinOrderDetail binOrderDetail) = PREV(toBinTransfer(binOrderDetail));
-toBinTransfer (binOrder) = GROUP BY binOrder(BinOrderDetail binOrderDetail) SUM toBinTransfer(binOrderDetail) IF toBinTransfer(binOrderDetail) >0;
+toBinTransfer (binOrder) = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF toBinTransfer(binOrderDetail) >0 BY binOrder(binOrderDetail);
 
 backgroundBinTransfer 'Цвет' (BinOrder binOrder) = RGB(175, 255, 175) IF binOrder IS BinOrder;
 
 quantityBinOrder 'К-во заказа' (BinTransferDetail d) = quantity(binOrderDetail(d)); 
 priceBinOrder 'Цена заказа' (BinTransferDetail d) = price(binOrderDetail(d));
 
-fromBinTransfer 'Заказано' = GROUP BY sku(BinOrderDetail binOrderDetail), outBin(binOrderDetail) SUM toBinTransfer(binOrderDetail) IF isOpened(binOrder(binOrderDetail)) AND isPosted(binOrderDetail) MATERIALIZED;
-toBinTransfer 'Заказано' = GROUP BY sku(BinOrderDetail binOrderDetail), inBin(binOrderDetail) SUM toBinTransfer(binOrderDetail) IF isOpened(binOrder(binOrderDetail)) AND isPosted(binOrderDetail) MATERIALIZED;
+fromBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) AND isPosted(binOrderDetail) BY sku(binOrderDetail), outBin(binOrderDetail) MATERIALIZED;
+toBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) AND isPosted(binOrderDetail) BY sku(binOrderDetail), inBin(binOrderDetail) MATERIALIZED;
 
 extraFromBinTransfer 'Заказано (доп.)' = ABSTRACT NUMERIC[16,5](Sku, Stock);
 prevFromBinTransfer 'Заказано' (Sku sku, Bin bin) = PREV(fromBinTransfer(sku, bin));
@@ -82,7 +82,7 @@ EXTEND FORM userBinOrder
 
 // ------------------------------- Создание нового инвойса на основе заказов ---------------------------- //
 
-inStock = GROUP BY binOrder(BinOrderDetail binOrderDetail), Stock stock SUM 1 IF stock(binOrderDetail) == stock;
+inStock = GROUP SUM 1 IF stock(BinOrderDetail binOrderDetail) == Stock stock BY binOrder(binOrderDetail), stock;
 
 in (BinOrderDetail binOrderDetail, UserBinTransfer userBinTransfer) = (binOrderDetail IS BinOrderDetail AND userBinTransfer IS UserBinTransfer) OR
                                                        stock(binOrderDetail)==stock(userBinTransfer);
@@ -335,7 +335,7 @@ FORM includeBinOrdersUserBinTransfer 'Заказы'
     PROPERTIES(o,i) BACKGROUND backgroundBinTransfer(o) include BEFORE isPosted(o)
 ;
 
-relationBinTransferDetail (binOrder, binTransfer) = GROUP BY binOrder(binOrderDetail(BinTransferDetail binTransferDetail)), binTransfer(binTransferDetail) SUM 1;
+relationBinTransferDetail (binOrder, binTransfer) = GROUP SUM 1 BY binOrder(binOrderDetail(BinTransferDetail binTransferDetail)), binTransfer(binTransferDetail);
 notRelationBinTransferDetailBinOrder 'Включенные заказы, но по которым не созданы строки' (UserBinTransfer binTransfer)= GROUP SUM 1 
     IF include(BinOrder binOrder, binTransfer) AND NOT  relationBinTransferDetail(binOrder, binTransfer); 
 
@@ -365,11 +365,11 @@ dialogIncludeBinOrdersUser 'Включить заказы в перемещен�
     }                 
 } IN binOrders;
 
-defaultBinOrderDetail (batch, UserBinTransfer userBinTransfer) = GROUP 
-    BY batch(BinOrderDetail detail) MAX detail IF include(binOrder(detail), userBinTransfer);
+defaultBinOrderDetail (batch, UserBinTransfer userBinTransfer) = GROUP MAX BinOrderDetail detail IF include(binOrder(detail), userBinTransfer) 
+    BY batch(detail);
 
-defaultBinOrderDetail (sku, UserBinTransfer userBinTransfer) = GROUP 
-    BY sku(BinOrderDetail detail) MAX detail IF include(binOrder(detail), userBinTransfer);
+defaultBinOrderDetail (sku, UserBinTransfer userBinTransfer) = GROUP MAX BinOrderDetail detail IF include(binOrder(detail), userBinTransfer) 
+    BY sku(detail);
 
 defaultBinOrderDetail(UserBinTransferDetail detail) = OVERRIDE defaultBinOrderDetail(batch(detail), userBinTransfer(detail)), defaultBinOrderDetail(sku(detail), userBinTransfer(detail));
 

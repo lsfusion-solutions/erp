@@ -46,10 +46,10 @@ groupMachinery(PriceChecker machinery) += groupPriceChecker(machinery);
 priceCheckerModel = DATA PriceCheckerModel (GroupPriceChecker);
 model(GroupPriceChecker groupMachinery) += priceCheckerModel(groupMachinery);
 
-groupPriceChecker (npp) = GROUP BY npp(GroupPriceChecker groupPriceChecker) AGGR groupPriceChecker WHERE groupPriceChecker IS GroupPriceChecker;  
+groupPriceChecker (npp) = GROUP AGGR GroupPriceChecker groupPriceChecker WHERE groupPriceChecker IS GroupPriceChecker BY npp(groupPriceChecker);  
 
 ip 'IP' = DATA VARSTRING[100] (PriceChecker);
-priceChecker (ip) = GROUP BY ip (PriceChecker priceChecker) AGGR priceChecker;
+priceChecker (ip) = GROUP AGGR PriceChecker priceChecker BY ip (priceChecker);
 stockIP(VARSTRING[100] ip) = stock(groupPriceChecker(priceChecker(ip)));
 
 weightPrefix 'Весовой префикс' = DATA VARSTRING[2] (GroupPriceChecker);
@@ -107,7 +107,7 @@ DESIGN groupsPriceChecker {
 @extendFormFilterAccessStock(GroupPriceChecker, grch, groupsPriceChecker, stock, company);
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
-priceCheckerSID (model) = GROUP BY sid (PriceCheckerModel pmodel) IF pmodel IS PriceCheckerModel MAX pmodel;
+priceCheckerSID (model) = GROUP MAX PriceCheckerModel pmodel BY sid (pmodel) IF pmodel IS PriceCheckerModel;
 
 loadDefaultPriceCheckerModel 'Добавить модель прайс-чекера'(VARISTRING[110] name, VARSTRING[20] sid, VARSTRING[200] handler) = {
     IF NOT priceCheckerSID(sid) THEN {

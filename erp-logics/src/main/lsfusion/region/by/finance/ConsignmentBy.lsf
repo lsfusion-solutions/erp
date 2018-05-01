@@ -515,7 +515,7 @@ switchSum (ConsignmentDetail d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);
 sum 'Стоимость' (ConsignmentDetail d) = IF NOT switchSum(d) THEN dataSum(d) ELSE dataSumInvoice(d);
 
 useEmptyVAT 'Нет НДС' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);     
-useEmptyVATConsignmentDetail = GROUP BY consignment(ConsignmentDetail d) SUM 1 IF useEmptyVAT(d); // todo : рефакторить
+useEmptyVATConsignmentDetail = GROUP SUM 1 IF useEmptyVAT(ConsignmentDetail d) BY consignment(d); // todo : рефакторить
 vat 'НДС, %' (ConsignmentDetail d) = dataVAT(d) IF NOT useEmptyVAT(d);
 sumVAT 'Сумма НДС' (ConsignmentDetail d) = dataSumVAT(d) IF NOT useEmptyVAT(d);
 
@@ -548,24 +548,24 @@ note 'Примечание' (ConsignmentDetail d) = OVERRIDE overNote(d), dataNo
 
 extraDescription 'Доп. наименование' (d) = ABSTRACT VARSTRING[1500] (ConsignmentDetail) CHARWIDTH 30;
 
-countConsignmentDetail 'Количество строк' (consignment) = GROUP
-                                                            BY consignment(ConsignmentDetail d) SUM 1 IF d IS ConsignmentDetail AND NOT skip(d) IN sumConsignment;
+countConsignmentDetail 'Количество строк' (consignment) = GROUP SUM 1 IF ConsignmentDetail d IS ConsignmentDetail AND NOT skip(d)
+                                                            BY consignment(d) IN sumConsignment;
 
-quantityConsignmentDetail 'Количество (всего)' (consignment) = GROUP
-                                                            BY consignment(ConsignmentDetail d) SUM quantity(d) IF NOT skip(d) IN sumConsignment;
+quantityConsignmentDetail 'Количество (всего)' (consignment) = GROUP SUM quantity(ConsignmentDetail d) IF NOT skip(d)
+                                                            BY consignment(d) IN sumConsignment;
 
-packQuantityConsignmentDetail 'Общее количество грузовых мест' (consignment) = GROUP
-                                                            BY consignment(ConsignmentDetail d) SUM packQuantity(d) IF quantity(d) AND NOT skip(d) IN sumConsignment;
+packQuantityConsignmentDetail 'Общее количество грузовых мест' (consignment) = GROUP SUM packQuantity(ConsignmentDetail d) IF quantity(d) AND NOT skip(d)
+                                                            BY consignment(d) IN sumConsignment;
 
 packQuantity 'Общее количество грузовых мест' = ABSTRACT CASE NUMERIC[8,2] (Consignment);
 overPackQuantityConsignmentDetail 'Общее количество грузовых мест' (Consignment consignment) = OVERRIDE packQuantity(consignment),
                                                                                                        packQuantityConsignmentDetail(consignment);
 
-grossWeightTonConsignmentDetail 'Общая масса груза, т.' (consignment) = GROUP
-                                                            BY consignment(ConsignmentDetail d) SUM grossWeightTon(d) IF NOT skip(d) IN sumConsignment;
+grossWeightTonConsignmentDetail 'Общая масса груза, т.' (consignment) = GROUP SUM grossWeightTon(ConsignmentDetail d) IF NOT skip(d)
+                                                            BY consignment(d) IN sumConsignment;
 
-grossWeightConsignmentDetail 'Общая масса груза, кг.'(consignment) = GROUP
-                                                            BY consignment(ConsignmentDetail d) SUM grossWeight(d) IF NOT skip(d) IN sumConsignment;
+grossWeightConsignmentDetail 'Общая масса груза, кг.'(consignment) = GROUP SUM grossWeight(ConsignmentDetail d) IF NOT skip(d)
+                                                            BY consignment(d) IN sumConsignment;
 
 grossWeight 'Общая масса груза, кг' = ABSTRACT CASE NUMERIC[8,2] (Consignment);
 overGrossWeightConsignmentDetail 'Общая масса груза, кг' = OVERRIDE grossWeight(Consignment consignment),
@@ -581,18 +581,18 @@ shortNameCurrency 'Валюта' (Consignment consignment) = shortName(currency(
 documentNameCurrency 'Валюта (сокр.)' (Consignment consignment) = documentName(currency(consignment));
 isCurrency 'Выбрана валюта' (Consignment consignment) = TRUE IF currency(consignment);
 
-sumConsignmentDetail 'Сумма с посудой без НДС (всего)' (consignment) = GROUP
-                                                            BY consignment(ConsignmentDetail d) SUM sum(d) IF NOT skip(d) IN sumConsignment;
+sumConsignmentDetail 'Сумма с посудой без НДС (всего)' (consignment) = GROUP SUM sum(ConsignmentDetail d) IF NOT skip(d)
+                                                            BY consignment(d) IN sumConsignment;
 //
 //sumVATIaWConsignmentDetail 'Сумма НДС' (d) = sumVATConsignmentDetail(d) (+) wareVATSumConsignmentDetail(d);
 overSumVATIaW = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
 sumVATIaW (ConsignmentDetail detail) = OVERRIDE overSumVATIaW(detail), sumVAT(detail);
 
-sumVATConsignmentDetail 'Сумма НДС (всего)' (consignment) = GROUP
-                                                            BY consignment(ConsignmentDetail d) SUM sumVATIaW(d) IF NOT skip(d) IN sumConsignment;
+sumVATConsignmentDetail 'Сумма НДС (всего)' (consignment) = GROUP SUM sumVATIaW(ConsignmentDetail d) IF NOT skip(d)
+                                                            BY consignment(d) IN sumConsignment;
 //
-sumInvoiceConsignmentDetail 'Сумма с НДС (всего)' (consignment) = GROUP
-                                                            BY consignment(ConsignmentDetail d) SUM sumInvoice(d) IF NOT skip(d) IN sumConsignment;
+sumInvoiceConsignmentDetail 'Сумма с НДС (всего)' (consignment) = GROUP SUM sumInvoice(ConsignmentDetail d) IF NOT skip(d)
+                                                            BY consignment(d) IN sumConsignment;
 
 //----------проверка на заполнение атрибутов ---------
 

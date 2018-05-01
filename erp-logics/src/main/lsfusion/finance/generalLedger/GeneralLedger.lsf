@@ -148,15 +148,15 @@ META defineGLAccountBalance (caption, prefix)
     prefix###balanceBGL 'Сальдо на конец дня '###caption (GLAccount GLAccount, LegalEntity company, DATE date) =  prefix###sumBDebit(GLAccount, company, date) (-) prefix###sumBCredit(GLAccount, company, date);
 END
 
-sumCredit 'Сумма (кредит)' (GLAccount, company)= GROUP BY credit(GeneralLedger ledger), legalEntity(ledger) SUM sum(ledger) IF isPosted(ledger);
-sumDebit 'Сумма (дебет)' (GLAccount, company)= GROUP BY debit(GeneralLedger ledger), legalEntity(ledger) SUM sum(ledger) IF isPosted(ledger);
+sumCredit 'Сумма (кредит)' (GLAccount, company)= GROUP SUM sum(GeneralLedger ledger) IF isPosted(ledger) BY credit(ledger), legalEntity(ledger);
+sumDebit 'Сумма (дебет)' (GLAccount, company)= GROUP SUM sum(GeneralLedger ledger) IF isPosted(ledger) BY debit(ledger), legalEntity(ledger);
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company)= sumDebit(GLAccount, company) (-) sumCredit(GLAccount, company);
 
 TABLE GLAccountLegalEntityDate(GLAccount, LegalEntity, DATE);
-sumCredit 'Сумма (кредит)' (GLAccount, company, date)= GROUP
-    BY credit(GeneralLedger ledger), legalEntity(ledger), date(ledger) SUM sum(ledger) IF isPosted(ledger);
-sumDebit 'Сумма (дебет)' (GLAccount, company, date)= GROUP
-    BY debit(GeneralLedger ledger), legalEntity(ledger), date(ledger) SUM sum(ledger) IF isPosted(ledger);
+sumCredit 'Сумма (кредит)' (GLAccount, company, date)= GROUP SUM sum(GeneralLedger ledger) IF isPosted(ledger)
+    BY credit(ledger), legalEntity(ledger), date(ledger);
+sumDebit 'Сумма (дебет)' (GLAccount, company, date)= GROUP SUM sum(GeneralLedger ledger) IF isPosted(ledger)
+    BY debit(ledger), legalEntity(ledger), date(ledger);
 balance 'Сальдо' (GLAccount GLAccount, LegalEntity company, DATE date) =
     sumDebit(GLAccount, company, date) (-) sumCredit(GLAccount, company, date);
 

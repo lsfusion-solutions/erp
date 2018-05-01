@@ -9,10 +9,10 @@ numberVAT 'НДС партии, шкала' = number(VAT(Batch batch));
 valueVAT 'НДС партии, %' = ABSTRACT NUMERIC[10,5](Batch) MATERIALIZED;
 prevValueVAT(Batch b) = PREV(valueVAT(b));
 
-lastValueVAT(s, Stock st, DATETIME dt) = GROUP
-                                                                                   BY skuLedger(Batch b, st) LAST valueVAT(b)
+lastValueVAT(s, Stock st, DATETIME dt) = GROUP LAST valueVAT(Batch b)
                                                                                    ORDER dateTime(b), b
-                                                                                   WHERE valueVAT(b) AND dateTime(b) < dt COMPLEX;
+                                                                                   WHERE valueVAT(b) AND dateTime(b) < dt
+                                                                                   BY skuLedger(b, st) COMPLEX;
 prevLastValueVAT(Sku s, Stock st, DATETIME dt) = PREV(lastValueVAT(s, st, dt));
                                                                                    
 valueVAT 'НДС, %' (Stock stock, Batch batch, DATE date)= OVERRIDE valueVAT(batch) IF stock IS Stock AND date IS DATE, valueRate(VAT(sku(batch), stock), date);

@@ -8,7 +8,7 @@ TABLE eurooptItemGroup (EurooptItemGroup);
 title 'Заголовок' = DATA VARSTRING[100] (EurooptItemGroup);
 url 'URL' = DATA VARSTRING[255] (EurooptItemGroup) INDEXED;
 in 'Вкл.' = DATA LOCAL BOOLEAN (EurooptItemGroup);
-eurooptItemGroup = GROUP BY url(EurooptItemGroup e) AGGR e; 
+eurooptItemGroup = GROUP AGGR EurooptItemGroup e BY url(e); 
 
 CLASS EurooptItemList 'Список товаров';
 TABLE eurooptItemList (EurooptItemList);
@@ -17,7 +17,7 @@ eurooptItemGroup = DATA EurooptItemGroup(EurooptItemList);
 url 'URL' = DATA VARSTRING[255] (EurooptItemList) INDEXED;
 dataIn 'Вкл.' = DATA LOCAL BOOLEAN (EurooptItemList);
 in 'Вкл.'(EurooptItemList e) = OVERRIDE dataIn(e), in(eurooptItemGroup(e));
-eurooptItemList = GROUP BY url(EurooptItemList e) AGGR e; 
+eurooptItemList = GROUP AGGR EurooptItemList e BY url(e); 
 
 CLASS EurooptItem 'Товар';
 TABLE eurooptItem (EurooptItem);
@@ -30,7 +30,7 @@ name 'Наименование' (EurooptItem e) = name(sku(e));
 url 'URL' = DATA VARSTRING[255] (EurooptItem) INDEXED;
 dataIn 'Вкл.' = DATA LOCAL BOOLEAN (EurooptItem);
 in 'Вкл.'(EurooptItem e) = OVERRIDE dataIn(e), in(eurooptItemList(e));
-eurooptItem = GROUP BY url(EurooptItem e) AGGR e;
+eurooptItem = GROUP AGGR EurooptItem e BY url(e);
 
 useTor 'Использовать Tor' = DATA BOOLEAN();
 synchronizeItemsAction 'Синхронизировать списки товаров' = CUSTOM 'lsfusion.erp.region.by.euroopt.SynchronizeItemsEurooptActionProperty' ();
@@ -74,19 +74,19 @@ importEuroopt 'Импорт товаров (xls)' () = {
         IMPORT XLS
                       FROM f AS EXCELFILE TO titleItemGroup=B, urlItemGroup=C, urlItemList=D, url=E, noBarcode=F, idBarcode=G;
                       
-        FOR INTEGER i == [=GROUP BY lower(urlItemGroup(INTEGER ii)) MIN ii IF ii >= 2](VARSTRING[255] url) AND NOT eurooptItemGroup(url) NEW eig = EurooptItemGroup DO {
+        FOR INTEGER i == [=GROUP MIN INTEGER ii IF ii >= 2 BY lower(urlItemGroup(ii))](VARSTRING[255] url) AND NOT eurooptItemGroup(url) NEW eig = EurooptItemGroup DO {
             url(eig) <- urlItemGroup(i);
             title(eig) <- titleItemGroup(i);
         }
         apply();
         
-        FOR INTEGER i == [=GROUP BY lower(urlItemList(INTEGER ii)) MIN ii IF ii >= 2](VARSTRING[255] url) AND NOT eurooptItemList(url) NEW eil = EurooptItemList DO {
+        FOR INTEGER i == [=GROUP MIN INTEGER ii IF ii >= 2 BY lower(urlItemList(ii))](VARSTRING[255] url) AND NOT eurooptItemList(url) NEW eil = EurooptItemList DO {
             url(eil) <- urlItemList(i);
             eurooptItemGroup(eil) <- eurooptItemGroup(urlItemGroup(i));
         }
         apply();
         
-        FOR INTEGER i == [=GROUP BY lower(url(INTEGER ii)) MIN ii IF ii >= 2](VARSTRING[255] url) AND NOT eurooptItem(url) NEW ei = EurooptItem DO {
+        FOR INTEGER i == [=GROUP MIN INTEGER ii IF ii >= 2 BY lower(url(ii))](VARSTRING[255] url) AND NOT eurooptItem(url) NEW ei = EurooptItem DO {
             url(ei) <- url(i);
             eurooptItemList(ei) <- eurooptItemList(urlItemList(i));
             noBarcode(ei) <- TRUE IF noBarcode(i) == '1';

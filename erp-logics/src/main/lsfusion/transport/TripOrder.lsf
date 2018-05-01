@@ -17,8 +17,8 @@ numberTrip 'Номер рейса' = number(trip(Order order));
 
 filter(Trip trip, Order order) = trip(order)==trip OR (trip IS Trip AND order IS Order AND NOT trip(order));
 
-quantityFrom (trip, Stock stock) = GROUP BY trip(Order order) SUM 1 IF quantityFrom(order, stock);
-quantityTo (trip, Stock stock) = GROUP BY trip(Order order) SUM 1 IF quantityTo(order, stock);
+quantityFrom (trip, Stock stock) = GROUP SUM 1 IF quantityFrom(Order order, stock) BY trip(order);
+quantityTo (trip, Stock stock) = GROUP SUM 1 IF quantityTo(Order order, stock) BY trip(order);
 quantity(Trip trip, Stock stock) = quantityFrom(trip, stock) (+) quantityTo(trip, stock);
 
 TABLE tripStock(Trip, Stock);
@@ -38,11 +38,11 @@ index 'Номер' (Trip trip, Order order) = maxNumber(trip) - number(toStock(o
 CONSTRAINT number(Stock stock1, trip(Order order)) >= number(Stock stock2, trip(order)) IF quantityFrom(order, stock1)>0 AND quantityTo(order, stock2)>0
     MESSAGE 'Номер не соответствует направлению заказа';
 
-grossWeightOrdered 'Суммарный вес заказов' (trip) = GROUP BY trip(Order order) SUM grossWeightOrderDetail(order);
+grossWeightOrdered 'Суммарный вес заказов' (trip) = GROUP SUM grossWeightOrderDetail(Order order) BY trip(order);
 
-grossWeightTo 'Вес' = GROUP BY trip(Order order), toStock(order) SUM round3(grossWeightOrderDetail(order)/1000);
+grossWeightTo 'Вес' = GROUP SUM round3(grossWeightOrderDetail(Order order)/1000) BY trip(order), toStock(order);
 
-quantityOrdered 'Кол-во в заказах' (trip, sku) = GROUP BY trip(order(OrderDetail orderDetail)), sku(orderDetail) SUM quantity(orderDetail);
+quantityOrdered 'Кол-во в заказах' (trip, sku) = GROUP SUM quantity(OrderDetail orderDetail) BY trip(order(orderDetail)), sku(orderDetail);
 
 // отображение на карте
 showPoints 'Показать путь на карте' (Trip trip) = {
@@ -148,8 +148,8 @@ DESIGN trips {
 }
 
 // Показываем отмеченные заказы на карте
-filteredFromTrip (stock) = GROUP BY fromStock(Order order) SUM 1 IF [= FILTER trip.o](order);
-filteredToTrip (stock) = GROUP BY toStock(Order order) SUM 1 IF [= FILTER trip.o](order);
+filteredFromTrip (stock) = GROUP SUM 1 IF [= FILTER trip.o](Order order) BY fromStock(order);
+filteredToTrip (stock) = GROUP SUM 1 IF [= FILTER trip.o](Order order) BY toStock(order);
 filteredTrip(Stock stock) = filteredFromTrip(stock) (+) filteredToTrip(stock);
 
 showPointOrders 'Показать отобранные заказы' () = {

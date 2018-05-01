@@ -196,7 +196,7 @@ cost(ShipmentDetail detail, Batch batch) += cost[SkuLedger,Batch](detail, batch)
 show[SkuLedger](ShipmentDetail d) += { show(d); }
 
 // ------------------------------- Себестоимость продажи ------------------------ //
-costSale (invoiceDetail) = GROUP BY invoiceDetail(ShipmentDetail shipmentDetail) SUM costSum[SkuLedger](shipmentDetail);
+costSale (invoiceDetail) = GROUP SUM costSum[SkuLedger](ShipmentDetail shipmentDetail) BY invoiceDetail(shipmentDetail);
 costSum(InvoiceDetail ledger) += WHEN ledger IS Sale.InvoiceDetail THEN costSale(ledger);
 cost(InvoiceDetail ledger, Batch batch) += cost (ledger, batch);
 
@@ -207,7 +207,7 @@ NAVIGATOR {
 }
 
 sumWholesaleMarkup(InvoiceDetail detail) = sum(detail) - shipmentSum(detail);
-sumWholesaleMarkupInvoiceDetail(invoice) = GROUP BY invoice(InvoiceDetail detail) SUM sumWholesaleMarkup(detail);
+sumWholesaleMarkupInvoiceDetail(invoice) = GROUP SUM sumWholesaleMarkup(InvoiceDetail detail) BY invoice(detail);
 
 //-- Запрет на изменение документа другим пользователем
 @defineOperationChangesDocument(shipment, UserShipment, preventChangesDocument, created);

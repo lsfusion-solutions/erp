@@ -8,7 +8,7 @@ currentBalancePriceStock 'Текущий остаток' (Batch batch, Order ord
 prevCurrentBalancePriceStock 'Текущий остаток' (Batch batch, Order order) = prevCurrentBalance(batch, priceStock(order)); 
 priceStock 'Цена' (Batch batch, Order order)= OVERRIDE prevPriceB(priceListType(order), batch, priceStock(order), dateTime(order)), priceStock(sku(batch),order);                                                                                                                                                               
 
-quantityComponentDetail (bt,s,o)=  GROUP  BY  batch(ComponentDetail d), sku(d), order(d) SUM quantity(d);
+quantityComponentDetail (bt,s,o)=  GROUP SUM quantity(ComponentDetail d)  BY  batch(d), sku(d), order(d);
 nameBatches 'Партии' (Sku s,Order o) = GROUP
     CONCAT name(Batch bt) IF quantityComponentDetail(bt,s,o) , ', '
     ORDER bt CHARWIDTH 30;
@@ -19,10 +19,10 @@ use 'Использовать партию'(Batch bt,Sku sk,Order o)  = {
     valueVAT(sk, o) <- valueVAT(bt);
 }
 
-defaultBatchPriceStock = GROUP
-    BY sku(Batch batch), Order order LAST batch
-    ORDER currentBalancePriceStock(batch,order), batch
-    WHERE currentBalancePriceStock(batch,order) >0;
+defaultBatchPriceStock = GROUP LAST Batch batch
+    ORDER currentBalancePriceStock(batch,Order order), batch
+    WHERE currentBalancePriceStock(batch,order) >0
+    BY sku(batch), order;
 
 useBatchSkuAll 'Партия с max остатком (для всех)'(Order o)  = {
     batch(ComponentDetail d) <- defaultBatchPriceStock(sku(d), o) WHERE  order(d) == o AND defaultBatchPriceStock(sku(d), o);//skuComponentDetail(d) == sk
@@ -76,7 +76,7 @@ EXTEND FORM BOM
     PROPERTIES(c) productionNorm
 ;
 
-countProductionNormComponent(s) = GROUP BY sku(Component c) SUM 1 IF productionNorm(c) MATERIALIZED;
+countProductionNormComponent(s) = GROUP SUM 1 IF productionNorm(Component c) BY sku(c) MATERIALIZED;
 
 productionCoeff 'Параметры партии' = ABSTRACT NUMERIC[20,9] (Batch) MATERIALIZED;
 productionCoeff (ComponentDetail d) += NUMERIC[20,9]((100.0 - (productionNorm(component(d)) - productionCoeff(batch(d)))) / 100.0);

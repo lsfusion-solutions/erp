@@ -348,7 +348,7 @@ selectInvoices 'Выбрать накладные'(Declaration declaration) = {
 } TOOLBAR;
 
 // --------- Подобранные накладные
-in (invoice, declaration)= GROUP BY invoice(InvoiceDetail d), declaration(d) SUM 1;
+in (invoice, declaration)= GROUP SUM 1 BY invoice(InvoiceDetail d), declaration(d);
 
 invoices 'Накладные' (Declaration declaration) =
     GROUP
@@ -437,8 +437,8 @@ sum 'Стоимость' (d) = DATA NUMERIC[18,4] (DeclarationInvoiceDetail);
 sum (DeclarationInvoiceDetail d) <- quantity(d) * price(d)
     WHEN CHANGED(quantity(d)) OR CHANGED(price(d));
 
-sumDeclarationInvoiceDetail 'Сумма (по позициям декларации)' = GROUP
-                                                                               BY declaration(DeclarationInvoiceDetail d) SUM sum(d) CHARWIDTH 15;
+sumDeclarationInvoiceDetail 'Сумма (по позициям декларации)' = GROUP SUM sum(DeclarationInvoiceDetail d)
+                                                                               BY declaration(d) CHARWIDTH 15;
 
 noneVATCustomsException(UserInvoiceDetail d) = OVERRIDE VATCustomsException(d), VATCustomsException.none;
 
@@ -450,49 +450,49 @@ EXTEND FORM brand
 
 overridePriceUser(InvoiceDetail d) = OVERRIDE 1 IF notPrice(brand(sku(d))), price[UserInvoiceDetail](d);
 
-indexDeclaration 'Кол-во' = GROUP
-                                           BY declaration(UserInvoiceDetail d),
+indexDeclaration 'Кол-во' = GROUP MAX index(UserInvoiceDetail d)
+                                           BY declaration(d),
                                               nameCustoms(d),
                                               UOM(d),
                                               customsGroup(d),
                                               noneVATCustomsException(d),
                                               countrySkuUser(d),
-                                              overridePriceUser(d) MAX index(d); 
+                                              overridePriceUser(d); 
 
-quantityDeclaration 'Кол-во' = GROUP
-                                           BY declaration(UserInvoiceDetail d),
+quantityDeclaration 'Кол-во' = GROUP SUM quantity(UserInvoiceDetail d)
+                                           BY declaration(d),
                                               nameCustoms(d),
                                               UOM(d),
                                               customsGroup(d),
                                               noneVATCustomsException(d),
                                               countrySkuUser(d),
-                                              overridePriceUser(d) SUM quantity(d); 
+                                              overridePriceUser(d); 
 
-sumDeclaration 'Стоимость' = GROUP
-                                           BY declaration(UserInvoiceDetail d),
+sumDeclaration 'Стоимость' = GROUP SUM sum(UserInvoiceDetail d)
+                                           BY declaration(d),
                                               nameCustoms(d),
                                               UOM(d),
                                               customsGroup(d),
                                               noneVATCustomsException(d),
                                               countrySkuUser(d),
-                                              overridePriceUser(d) SUM sum(d); 
+                                              overridePriceUser(d); 
                                               
-countNotQuantity 'Кол-во строк' = GROUP
-    BY declaration(UserInvoiceDetail d) SUM 1 IF NOT quantity(d);                                                                           
-countNotSum 'Кол-во строк' = GROUP
-    BY declaration(UserInvoiceDetail d) SUM 1 IF NOT sum(d);                                                                             
-countNotName 'Кол-во строк' = GROUP
-    BY declaration(UserInvoiceDetail d) SUM 1 IF NOT nameCustoms(d); 
-countNotUOM 'Кол-во строк' = GROUP
-    BY declaration(UserInvoiceDetail d) SUM 1 IF NOT UOM(d);  
-countNotCustomsGroup 'Кол-во строк' = GROUP
-    BY declaration(UserInvoiceDetail d) SUM 1 IF NOT customsGroup(d);                                                                                                                                                                                                                                       
-countNotVATCustomsException 'Кол-во строк' = GROUP
-    BY declaration(UserInvoiceDetail d) SUM 1 IF NOT noneVATCustomsException(d);  
-countNotCountrySku 'Кол-во строк' = GROUP
-    BY declaration(UserInvoiceDetail d) SUM 1 IF NOT countrySkuUser(d);  
-countNotPrice 'Кол-во строк' = GROUP
-    BY declaration(UserInvoiceDetail d) SUM 1 IF NOT price(d);  
+countNotQuantity 'Кол-во строк' = GROUP SUM 1 IF NOT quantity(UserInvoiceDetail d)
+    BY declaration(d);                                                                           
+countNotSum 'Кол-во строк' = GROUP SUM 1 IF NOT sum(UserInvoiceDetail d)
+    BY declaration(d);                                                                             
+countNotName 'Кол-во строк' = GROUP SUM 1 IF NOT nameCustoms(UserInvoiceDetail d)
+    BY declaration(d); 
+countNotUOM 'Кол-во строк' = GROUP SUM 1 IF NOT UOM(UserInvoiceDetail d)
+    BY declaration(d);  
+countNotCustomsGroup 'Кол-во строк' = GROUP SUM 1 IF NOT customsGroup(UserInvoiceDetail d)
+    BY declaration(d);                                                                                                                                                                                                                                       
+countNotVATCustomsException 'Кол-во строк' = GROUP SUM 1 IF NOT noneVATCustomsException(UserInvoiceDetail d)
+    BY declaration(d);  
+countNotCountrySku 'Кол-во строк' = GROUP SUM 1 IF NOT countrySkuUser(UserInvoiceDetail d)
+    BY declaration(d);  
+countNotPrice 'Кол-во строк' = GROUP SUM 1 IF NOT price(UserInvoiceDetail d)
+    BY declaration(d);  
     
 filterUserInvoiceDetail = countNotName(Declaration declaration) OR
                                                 countNotUOM(declaration) OR 
@@ -541,8 +541,8 @@ createDeclarationInvoiceDetail 'Создать позиции'(Declaration decla
                 overridePriceUser(id) == price;
         }
     
-        sumNetWeight(DeclarationInvoiceDetail dd) <- [= GROUP BY declarationInvoiceDetail(UserInvoiceDetail d) SUM sumNetWeight(d)](dd) WHERE declaration(dd) == declaration;
-        sumGrossWeight(DeclarationInvoiceDetail dd) <- [= GROUP BY declarationInvoiceDetail(UserInvoiceDetail d) SUM sumGrossWeight(d)](dd) WHERE declaration(dd) == declaration;
+        sumNetWeight(DeclarationInvoiceDetail dd) <- [= GROUP SUM sumNetWeight(UserInvoiceDetail d) BY declarationInvoiceDetail(d)](dd) WHERE declaration(dd) == declaration;
+        sumGrossWeight(DeclarationInvoiceDetail dd) <- [= GROUP SUM sumGrossWeight(UserInvoiceDetail d) BY declarationInvoiceDetail(d)](dd) WHERE declaration(dd) == declaration;
         
         overCreateDeclarationInvoiceDetail(declaration);
     } ELSE {
@@ -658,10 +658,10 @@ sum(DeclarationDetail d) <- price(d) * quantity(d)
 sumNetWeight 'Вес нетто' = DATA NUMERIC[9,3] (DeclarationDetail);
 sumGrossWeight 'Вес брутто' = DATA NUMERIC[9,3] (DeclarationDetail);
 
-sumNetWeightDeclarationDetail 'Вес нетто' (declaration)= GROUP 
-    BY declaration(DeclarationDetail detail) SUM sumNetWeight(detail);
-sumGrossWeightDeclarationDetail 'Вес брутто' (declaration)= GROUP 
-    BY declaration(DeclarationDetail detail) SUM sumGrossWeight(detail);
+sumNetWeightDeclarationDetail 'Вес нетто' (declaration)= GROUP SUM sumNetWeight(DeclarationDetail detail) 
+    BY declaration(detail);
+sumGrossWeightDeclarationDetail 'Вес брутто' (declaration)= GROUP SUM sumGrossWeight(DeclarationDetail detail) 
+    BY declaration(detail);
     
 netWeight 'Вес нетто (за ед.)' (DeclarationDetail d)= sumNetWeight(d)/(quantity(d) IF quantity(d)!=0.0); 
 grossWeight 'Вес нетто (за ед.)' (DeclarationDetail d) = sumGrossWeight(d)/(quantity(d) IF quantity(d)!=0.0); 
@@ -745,7 +745,7 @@ fillExported (Declaration declaration) = {
     userNumber(DeclarationDetail d) <- number(d) WHERE declaration(d)== declaration;
 }
 
-maxNumberDeclarationDetail = GROUP BY declaration(DeclarationDetail d) MAX number(d);
+maxNumberDeclarationDetail = GROUP MAX number(DeclarationDetail d) BY declaration(d);
 maxNumber 'Макс. номер.'= maxNumberDeclarationDetail(declaration(DeclarationDetail d));
 
 WHEN LOCAL FORMS declaration SET (DeclarationDetail d IS DeclarationDetail) IF isExported(d) AND  NOT userNumber(d) DO {
@@ -773,24 +773,24 @@ changeNumber(DeclarationDetail d) = {
 
     
 // Делаем, чтобы номера были уникальными
-declarationDetail (declaration, number) = GROUP BY declaration(DeclarationDetail d), number(d) AGGR d WHERE d IS DeclarationDetail;
+declarationDetail (declaration, number) = GROUP AGGR DeclarationDetail d WHERE d IS DeclarationDetail BY declaration(d), number(d);
 
 // Итоги по декларации
 
-sumDeclarationDetail 'Стоимость' = GROUP
-                                                BY declaration(DeclarationDetail declarationDetail) SUM sum(declarationDetail) CHARWIDTH 15 MATERIALIZED;
+sumDeclarationDetail 'Стоимость' = GROUP SUM sum(DeclarationDetail declarationDetail)
+                                                BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 
-deliverySumDeclarationDetail 'Транспортные расходы' = GROUP
-                                                                       BY declaration(DeclarationDetail declarationDetail) SUM deliverySum(declarationDetail) CHARWIDTH 15 MATERIALIZED;
+deliverySumDeclarationDetail 'Транспортные расходы' = GROUP SUM deliverySum(DeclarationDetail declarationDetail)
+                                                                       BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 
-chargeSumDeclarationDetail 'Услуги' = GROUP
-                                                       BY declaration(DeclarationDetail declarationDetail) SUM chargeSum(declarationDetail) CHARWIDTH 15 MATERIALIZED;
+chargeSumDeclarationDetail 'Услуги' = GROUP SUM chargeSum(DeclarationDetail declarationDetail)
+                                                       BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 
-homeSumDeclarationDetail 'Стоимость (декл.)' = GROUP
-                                                            BY declaration(DeclarationDetail declarationDetail) SUM homeSum(declarationDetail) CHARWIDTH 15 MATERIALIZED;
+homeSumDeclarationDetail 'Стоимость (декл.)' = GROUP SUM homeSum(DeclarationDetail declarationDetail)
+                                                            BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 
-dutySumDeclarationDetail 'Пошлина' (declaration) = GROUP
-                                                                    BY declaration(DeclarationDetail declarationDetail) SUM dutySum(declarationDetail) CHARWIDTH 15 MATERIALIZED;
+dutySumDeclarationDetail 'Пошлина' (declaration) = GROUP SUM dutySum(DeclarationDetail declarationDetail)
+                                                                    BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 dataDutySum 'Пошлина' (declaration) = DATA NUMERIC[18,4] (Declaration) CHARWIDTH 15;                                                                 
 dutySum 'Пошлина' (Declaration declaration)  =  OVERRIDE dataDutySum(declaration), dutySumDeclarationDetail(declaration);                                                                    
 backgroundDutySum = RGB(222,222,222) IF dataDutySum(Declaration declaration);
@@ -801,8 +801,8 @@ changeDutySum(Declaration declaration) = {
         }
 }
 
-VATSumDeclarationDetail 'НДС' (declaration) = GROUP
-                                                                   BY declaration(DeclarationDetail declarationDetail) SUM VATSum(declarationDetail) CHARWIDTH 15 MATERIALIZED;
+VATSumDeclarationDetail 'НДС' (declaration) = GROUP SUM VATSum(DeclarationDetail declarationDetail)
+                                                                   BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 dataVATSum 'НДС' (declaration) = DATA NUMERIC[18,4] (Declaration) CHARWIDTH 15;  
 VATSum 'НДС' (Declaration declaration)  = OVERRIDE dataVATSum(declaration), VATSumDeclarationDetail(declaration);
 backgroundVATSum = RGB(222,222,222) IF dataVATSum(Declaration declaration);
@@ -822,7 +822,7 @@ TABLE declarationAdjustmentDeclarationDetail(DeclarationAdjustment, DeclarationD
 declaration = DATA Declaration(DeclarationAdjustment) NONULL DELETE;//
 
 number 'Номер' (DeclarationAdjustment declarationAdjustment) = DATA INTEGER (DeclarationAdjustment);
-declarationAdjustment (declarationAdjustment, number) = GROUP BY declaration(DeclarationAdjustment d), number(d) AGGR d;
+declarationAdjustment (declarationAdjustment, number) = GROUP AGGR DeclarationAdjustment d BY declaration(d), number(d);
 
 date 'Дата' = DATA DATE (DeclarationAdjustment);
 name 'Наименование' = DATA VARISTRING[150] (DeclarationAdjustment);
@@ -899,16 +899,16 @@ adjustHomeSum 'Стоимость (корр.)' (DeclarationDetail d) = OVERRIDE 
 adjustHomePrice 'Цена (корр.)' (DeclarationDetail d) = adjustHomeSum(d) / quantity(d);
 
 adjustDutySum 'Пошлина (корр.)' (DeclarationDetail d) = OVERRIDE dutySum(defaultDutyDeclarationAdjustment(d),d), dutySum(d);
-adjustDutySumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP
-                                                                    BY declaration(DeclarationDetail declarationDetail) SUM adjustDutySum(declarationDetail) CHARWIDTH 15 MATERIALIZED;
+adjustDutySumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP SUM adjustDutySum(DeclarationDetail declarationDetail)
+                                                                    BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 
 adjustDutySum 'Пошлина (корр.)' (Declaration d) = OVERRIDE dataDutySum(d), adjustDutySumDeclarationDetail(d); 
 
 adjustVATSum 'Сумма НДС (корр.)'(DeclarationDetail d) = OVERRIDE VATSum(defaultVATDeclarationAdjustment(d),d), VATSum(d);
 adjustVATPrice 'НДС за ед. (корр.)' (DeclarationDetail d) = adjustVATSum(d) / quantity(d);
 
-adjustVATSumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP
-                                                                    BY declaration(DeclarationDetail declarationDetail) SUM adjustVATSum(declarationDetail) CHARWIDTH 15 MATERIALIZED;
+adjustVATSumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP SUM adjustVATSum(DeclarationDetail declarationDetail)
+                                                                    BY declaration(declarationDetail) CHARWIDTH 15 MATERIALIZED;
 
 adjustVATSum 'НДС (корр.)' (Declaration d) = OVERRIDE dataVATSum(d), adjustVATSumDeclarationDetail(d); 
 
@@ -924,7 +924,7 @@ chargeSumRound 'Услуги (округление)' (Declaration d) = chargeSum
 
 // Пошлина
 dutySumUserInvoiceDetail 'Пошлина (по накладным)' (d) =
-    GROUP BY declaration(UserInvoiceDetail ud) SUM dutySum(ud) CHARWIDTH 15;
+    GROUP SUM dutySum(UserInvoiceDetail ud) BY declaration(ud) CHARWIDTH 15;
 dutySumRound 'Пошлина (округление)' (Declaration d) = adjustDutySum(d) (-) dutySumUserInvoiceDetail(d);
 
 // Таможенный сбор
@@ -932,11 +932,11 @@ registrationSum 'Таможенный сбор' = DATA NUMERIC[18,4] (Declaratio
 
 // НДС
 VATSumUserInvoiceDetail 'НДС (по накладным)' (d) =
-    GROUP BY declaration(UserInvoiceDetail ud) SUM quantity(ud) * VATPrice[InvoiceDetail](ud) CHARWIDTH 15;
+    GROUP SUM quantity(UserInvoiceDetail ud) * VATPrice[InvoiceDetail](ud) BY declaration(ud) CHARWIDTH 15;
 VATSumRound 'НДС (округление)' (Declaration d) = adjustVATSum(d) (-) VATSumUserInvoiceDetail(d);
 
 registrationSumUserInvoiceDetail 'Таможенный сбор (по накладным)' (d) =
-    GROUP BY declaration(UserInvoiceDetail ud) SUM registrationSum(ud) CHARWIDTH 15;
+    GROUP SUM registrationSum(UserInvoiceDetail ud) BY declaration(ud) CHARWIDTH 15;
 registrationSumRound 'Таможенный сбор (округление)' (Declaration d) = registrationSum(d) (-) registrationSumUserInvoiceDetail(d);
 
 EXTEND FORM declaration
@@ -1064,7 +1064,7 @@ registrationSum 'Таможенный сбор (валют.)' (DeclarationDetail
     registration(customsGroup(d), date(d));
 
 maxRegistrationSum 'Таможенный сбор (валют.)' (d) =
-    GROUP BY declaration(DeclarationDetail dd) MAX registrationSum(dd);
+    GROUP MAX registrationSum(DeclarationDetail dd) BY declaration(dd);
 
 calcRegistrationSum 'Таможенный сбор' (Declaration d) = round(maxRegistrationSum(d) *
                                                                           rateExchangeCustomsZone(d),
@@ -1075,14 +1075,14 @@ calcRegistrationSum 'Таможенный сбор' (Declaration d) = round(maxR
 declarationInvoiceDetail = DATA DeclarationInvoiceDetail(DeclarationDetail);
 in 'Вкл.' (DeclarationInvoiceDetail id, DeclarationDetail dd) = declarationInvoiceDetail(dd) == id;
 
-countDeclarationDetail(did) = GROUP BY declarationInvoiceDetail(DeclarationDetail d) SUM 1;
+countDeclarationDetail(did) = GROUP SUM 1 BY declarationInvoiceDetail(DeclarationDetail d);
 countDeclarationInvoiceDetail(DeclarationDetail dd) = countDeclarationDetail(declarationInvoiceDetail(dd));
 
 //declarationDetailDeclarationInvoiceDetail = DATA DeclarationDetail(DeclarationInvoiceDetail);
 //inDeclarationInvoiceDetailDeclarationDetail 'Вкл.' (id, dd) = declarationDetailDeclarationInvoiceDetail(id) == dd;
 
 in (DeclarationDetail d, UserInvoiceDetail i) = declarationInvoiceDetail(d) == declarationInvoiceDetail(i);
-in (DeclarationDetail d, i) = GROUP BY userInvoice(UserInvoiceDetail ui) SUM 1 IF in (d, ui);
+in (DeclarationDetail d, i) = GROUP SUM 1 IF in (d, UserInvoiceDetail ui) BY userInvoice(ui);
 
 invoices 'Накладные' (DeclarationDetail d) =
     GROUP
@@ -1098,9 +1098,9 @@ nameSupplier 'Поставщики' (DeclarationDetail d) =
 
 // --------------------------------- Ограничение на строки декларации ----------------------------------- //
 
-sumNetWeightDeclarationDetail (d) = GROUP BY declarationInvoiceDetail(DeclarationDetail dd) SUM sumNetWeight(dd); 
-sumGrossWeightDeclarationDetail (d) = GROUP BY declarationInvoiceDetail(DeclarationDetail dd) SUM sumGrossWeight(dd);
-sumDeclarationDetail (d) = GROUP BY declarationInvoiceDetail(DeclarationDetail dd) SUM sum(dd);
+sumNetWeightDeclarationDetail (d) = GROUP SUM sumNetWeight(DeclarationDetail dd) BY declarationInvoiceDetail(dd); 
+sumGrossWeightDeclarationDetail (d) = GROUP SUM sumGrossWeight(DeclarationDetail dd) BY declarationInvoiceDetail(dd);
+sumDeclarationDetail (d) = GROUP SUM sum(DeclarationDetail dd) BY declarationInvoiceDetail(dd);
 
 CONSTRAINT sumNetWeightDeclarationDetail(DeclarationInvoiceDetail d) != sumNetWeight(d) 
     MESSAGE 'Вес нетто строк деклараций не соответствует весу нетто позиции декларации'; 
@@ -1273,7 +1273,7 @@ WHEN LOCAL FORMS declaration
 
 // Пошлина
 //dutySum(d) = GROUP SUM dutySum(DeclarationDetail dd) BY declarationInvoiceDetail(dd);
-dutySum(d) = GROUP BY declarationInvoiceDetail(DeclarationDetail dd) SUM adjustDutySum(dd) MATERIALIZED; 
+dutySum(d) = GROUP SUM adjustDutySum(DeclarationDetail dd) BY declarationInvoiceDetail(dd) MATERIALIZED; 
 
 calcDutySum (UserInvoiceDetail d) =
     PARTITION UNGROUP dutySum
@@ -1297,7 +1297,7 @@ calcRegistrationSum 'Таможенный сбор' (UserInvoiceDetail d) =
 
 // НДС
 //VATSum(d) = GROUP SUM VATSum(DeclarationDetail dd) BY declarationInvoiceDetail(dd);
-VATSum(d) = GROUP BY declarationInvoiceDetail(DeclarationDetail dd) SUM adjustVATSum(dd) MATERIALIZED; 
+VATSum(d) = GROUP SUM adjustVATSum(DeclarationDetail dd) BY declarationInvoiceDetail(dd) MATERIALIZED; 
 
 calcVATSum (UserInvoiceDetail d) =
     PARTITION UNGROUP VATSum
@@ -1347,7 +1347,7 @@ recalculateDutyPriceInvoice 'Рассчитать пошлины (за ед.)'(D
         IF dutySumRound(declaration) AND NOT notPaintRounding() THEN {
             LOCAL int = INTEGER();
             int() <-0;
-            FOR UserInvoiceDetail d == [ = GROUP BY declaration(UserInvoiceDetail ud), quantity(ud), dutyPrice(ud) MAX ud IF dutyPrice(ud)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, -price DO {
+            FOR UserInvoiceDetail d == [ = GROUP MAX UserInvoiceDetail ud IF dutyPrice(ud) BY declaration(ud), quantity(ud), dutyPrice(ud)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, -price DO {
                 dutyPrice(d) <- Utils.round(((dutySumRound(declaration) / quantity(d)) (+) dutyPrice(d)), round(declaration));
                 int()<- int() + 1;    
                 IF int() > 20 OR NOT dutySumRound(declaration) THEN BREAK; // выход
@@ -1364,9 +1364,9 @@ recalculateRegistrationPriceInvoice 'Рассчитать сбор (за ед.)'
         
         // устраняем отрицательные
         LOCAL negative = NUMERIC[18,4] ();
-        negative () <- [= GROUP BY declaration(UserInvoiceDetail d) SUM registrationSum(d) IF registrationSum(d) < 0](declaration);
+        negative () <- [= GROUP SUM registrationSum(UserInvoiceDetail d) IF registrationSum(d) < 0 BY declaration(d)](declaration);
         registrationSum(UserInvoiceDetail d) <- 0 WHERE declaration(d) == declaration AND registrationSum(d) < 0;
-        registrationSum(UserInvoiceDetail d) <- registrationSum(d) (+) negative() WHERE d == [= GROUP BY declaration(UserInvoiceDetail ud) LAST ud ORDER sum(ud), ud](declaration); 
+        registrationSum(UserInvoiceDetail d) <- registrationSum(d) (+) negative() WHERE d == [= GROUP LAST UserInvoiceDetail ud ORDER sum(ud), ud BY declaration(ud)](declaration); 
         
         registrationPrice(UserInvoiceDetail d) <- Utils.round(registrationSum(d) / quantity(d), round(declaration(d))) WHERE declaration(d) == declaration;
     } ELSE {    
@@ -1375,7 +1375,7 @@ recalculateRegistrationPriceInvoice 'Рассчитать сбор (за ед.)'
             LOCAL int = INTEGER();
             int() <-0;
             
-            FOR UserInvoiceDetail d == [ = GROUP BY declaration(UserInvoiceDetail ud), quantity(ud), registrationPrice(ud) MAX ud IF registrationPrice(ud)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, -price DO {
+            FOR UserInvoiceDetail d == [ = GROUP MAX UserInvoiceDetail ud IF registrationPrice(ud) BY declaration(ud), quantity(ud), registrationPrice(ud)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, -price DO {
                 registrationPrice(d)<- Utils.round(((registrationSumRound(declaration) / quantity(d)) (+) registrationPrice(d)), round(declaration));
                 int()<- int() + 1;    
                 IF int() > 20 OR NOT registrationSumRound(declaration) THEN BREAK; // выход
@@ -1403,7 +1403,7 @@ recalculateVATPriceInvoice 'Рассчитать НДС (за ед.)'(Declaratio
         IF VATSumRound(declaration) AND NOT notPaintRounding() THEN {
             LOCAL int = INTEGER();
             int() <-0;
-            FOR UserInvoiceDetail d == [ = GROUP BY declaration(UserInvoiceDetail ud), quantity(ud), VATPrice(ud) MAX ud IF VATPrice(ud)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, - price DO {
+            FOR UserInvoiceDetail d == [ = GROUP MAX UserInvoiceDetail ud IF VATPrice(ud) BY declaration(ud), quantity(ud), VATPrice(ud)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, - price DO {
                 VATPrice(d)<- Utils.round(((VATSumRound(declaration) / quantity(d)) (+) VATPrice(d)), round(declaration));
                 int()<- int() + 1;    
                 IF int() > 20 OR NOT VATSumRound(declaration) THEN BREAK; // выход
@@ -1576,8 +1576,8 @@ rateExchange(Payment p) <- calcRateExchange(p) WHEN CHANGED (date(declaration(p)
 
 isCharge 'Услуга' = DATA BOOLEAN (Payment);
 
-sumIsCgargePayment 'Сумма платежей по услугам (конверт.)' (declaration) = GROUP BY declaration(Payment p) SUM rateSum(p) IF isCharge(p);
-sumNotCgargePayment 'Сумма платежей не по услугам (конверт.)'(declaration) = GROUP BY declaration(Payment p) SUM rateSum(p) IF NOT isCharge(p);
+sumIsCgargePayment 'Сумма платежей по услугам (конверт.)' (declaration) = GROUP SUM rateSum(Payment p) IF isCharge(p) BY declaration(p);
+sumNotCgargePayment 'Сумма платежей не по услугам (конверт.)'(declaration) = GROUP SUM rateSum(Payment p) IF NOT isCharge(p) BY declaration(p);
 
 WHEN LOCAL FORMS declaration
     CHANGED(sumIsCgargePayment(Declaration d)) DO

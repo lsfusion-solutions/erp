@@ -41,7 +41,7 @@ repricing = DATA Repricing (Invoice) INDEXED;
 repricing (InvoiceDetail d) = repricing(invoice(d));
 descriptionRepricing 'Дооценка' (Invoice i) = description(repricing(i)) CHARWIDTH 25;
 
-defaultInvoice = GROUP BY repricing(Invoice i) MAX i;
+defaultInvoice = GROUP MAX Invoice i BY repricing(i);
 descriptionInvoice 'Основание (ТТН)' (Repricing r) = description(defaultInvoice(r)) CHARWIDTH 25;
 descriptionInvoice 'Основание (ТТН)' (RepricingDetail d) = description(defaultInvoice(repricing(d))) CHARWIDTH 25;
 
@@ -53,12 +53,12 @@ prevRetailPricingPriceB 'Цена розничная до' (InvoiceDetail detail
 //        BY sku(d), departmentStore(d), price(d), dateTime; 
 
 calcSkuLedgerAhead 'Кол-во движения по старой цене' (sku, stock, price, fromDateTime) = 
-    GROUP
-          BY sku(SkuLedger l), stock(l) SUM quantity(l) IF dateTime(l) >= fromDateTime AND abs(price - (sum(l) / quantity(l))) < 0.01;
+    GROUP SUM quantity(SkuLedger l) IF dateTime(l) >= fromDateTime AND abs(price - (sum(l) / quantity(l))) < 0.01
+          BY sku(l), stock(l);
            
 calcRepricingAhead 'Кол-во движения по старой цене' (sku, stock, price, fromDateTime) = 
-    GROUP 
-          BY sku(RepricingDetail d), departmentStore(d), curRetailPrice(d) SUM quantity(d) IF dateTime(d) >= fromDateTime; 
+    GROUP SUM quantity(RepricingDetail d) IF dateTime(d) >= fromDateTime 
+          BY sku(d), departmentStore(d), curRetailPrice(d); 
 
 toRepricingQuantity 'Кол-во к дооценке' (Sku sku, Stock stock, NUMERIC[16,4] price, DATETIME dateTime) = prevBalanceB (sku, stock, dateTime) (-) calcSkuLedgerAhead(sku, stock, price, dateTime) (-) calcRepricingAhead(sku, stock, price, dateTime);         
 toRepricingQuantity 'Кол-во к дооценке' (InvoiceDetail detail) = toRepricingQuantity(sku(detail), customerStock(detail), prevRetailPricingPriceB(detail), shipmentDateTime(detail));
@@ -76,12 +76,12 @@ filterToRepricing 'Фильтр' (Invoice invoice, Stock department, DATETIME ti
 //        BY sku(d), departmentStore(d), price(d), fromDateTime, toDateTime; 
 
 calcSkuLedgerAhead 'Кол-во движения по старой цене' (sku, stock, NUMERIC[16,4] price, DATETIME fromDateTime, DATETIME toDateTime) = 
-    GROUP
-          BY sku(SkuLedger l), stock(l) SUM quantity(l) IF dateTime(l) >= fromDateTime AND dateTime(l) <= toDateTime AND abs(price - (sum(l) / quantity(l))) < 0.01 AND active(l);
+    GROUP SUM quantity(SkuLedger l) IF dateTime(l) >= fromDateTime AND dateTime(l) <= toDateTime AND abs(price - (sum(l) / quantity(l))) < 0.01 AND active(l)
+          BY sku(l), stock(l);
            
 calcRepricingAhead 'Кол-во движения по старой цене' (sku, stock, price, DATETIME fromDateTime, DATETIME toDateTime) = 
-    GROUP 
-          BY sku(RepricingDetail d), departmentStore(d), curRetailPrice(d) SUM quantity(d) IF dateTime(d) >= fromDateTime AND dateTime(d) <= toDateTime AND isPosted(d); 
+    GROUP SUM quantity(RepricingDetail d) IF dateTime(d) >= fromDateTime AND dateTime(d) <= toDateTime AND isPosted(d) 
+          BY sku(d), departmentStore(d), curRetailPrice(d); 
 
         
 toRepricingQuantityDateTime 'Кол-во к дооценке' (Sku sku, Stock stock, NUMERIC[16,4] price, DATETIME fromDateTime, DATETIME toDateTime) = 
@@ -104,9 +104,9 @@ overExtraRevertValuation = ABSTRACT LIST (RepricingDetail, InvoiceDetail);
 
 skipExtraValuation = ABSTRACT BOOLEAN (Sku, Stock);        
         
-maxInvoiceDetail = GROUP 
-    BY sku(InvoiceDetail detail), invoice(detail) LAST detail 
-    ORDER quantityInvoiceDetail(sku(detail), invoice(detail)), detail;
+maxInvoiceDetail = GROUP LAST InvoiceDetail detail 
+    ORDER quantityInvoiceDetail(sku(detail), invoice(detail)), detail 
+    BY sku(detail), invoice(detail);
        
 repricingForm =  DATA LOCAL UserRepricing();                      
 

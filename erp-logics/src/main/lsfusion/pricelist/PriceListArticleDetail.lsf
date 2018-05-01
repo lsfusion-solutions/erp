@@ -38,11 +38,11 @@ price(APriceListDetail d, DataPriceListType t) += price(userAPriceListDetail(d),
 // Действующие цены
 
 priceB 'Цена' (DataPriceListType type, Article article, DATETIME dateTime) =
-    GROUP
-          BY article(UserAPriceListDetail detail) LAST price(detail, type)
+    GROUP LAST price(UserAPriceListDetail detail, type)
           ORDER fromDateTime(detail), detail
           WHERE isPosted(detail) AND in(userPriceList(detail), type) AND
-                fromDateTime(detail) < dateTime AND NOT toDateTime(detail) < dateTime COMPLEX;
+                fromDateTime(detail) < dateTime AND NOT toDateTime(detail) < dateTime
+          BY article(detail) COMPLEX;
 
 prevPriceB 'Цена' (DataPriceListType type, Article article, DATETIME dateTime) = PREV(priceB(type, article, dateTime));
 

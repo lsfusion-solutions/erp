@@ -11,12 +11,12 @@ in 'Включен' (Trip trip, Invoice invoice) = trip(invoice) == trip;
 
 countInvoice 'Кол-во накладных в рейсе' (Trip trip) = GROUP SUM 1 IF in(trip, Invoice invoice) MATERIALIZED;
 
-quantityInvoiced 'Кол-во в накладных' (trip, sku) = GROUP BY trip(invoice(InvoiceDetail invoiceDetail)), sku(invoiceDetail) SUM quantity(invoiceDetail);
+quantityInvoiced 'Кол-во в накладных' (trip, sku) = GROUP SUM quantity(InvoiceDetail invoiceDetail) BY trip(invoice(invoiceDetail)), sku(invoiceDetail);
 
-invoiceSum 'Сумма с НДС накладных' (trip) = GROUP BY trip(Invoice invoice) SUM invoiceSumInvoiceDetail(invoice);
+invoiceSum 'Сумма с НДС накладных' (trip) = GROUP SUM invoiceSumInvoiceDetail(Invoice invoice) BY trip(invoice);
 
-grossWeightInvoiced 'Суммарный вес накладных' (trip) = GROUP BY trip(Invoice invoice) SUM sumGrossWeightInvoiceDetail(invoice);
-netWeightInvoiced 'Суммарный вес накладных (нетто)' (trip) = GROUP BY trip(Invoice invoice) SUM sumNetWeightInvoiceDetail(invoice);
+grossWeightInvoiced 'Суммарный вес накладных' (trip) = GROUP SUM sumGrossWeightInvoiceDetail(Invoice invoice) BY trip(invoice);
+netWeightInvoiced 'Суммарный вес накладных (нетто)' (trip) = GROUP SUM sumNetWeightInvoiceDetail(Invoice invoice) BY trip(invoice);
 
 EXTEND FORM trip
 

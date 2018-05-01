@@ -7,7 +7,7 @@ NAMESPACE Item;
 // Обработка статуса
 
 completedTranslate 'Обработан' = DATA BOOLEAN (Item);
-notCompletedTranslate 'Не обработан' (article) = GROUP BY article(Item i) SUM 1 IF i IS Item AND NOT completedTranslate(i);
+notCompletedTranslate 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedTranslate(i) BY article(i);
 completedTranslate 'Обработан' = Article a IS Article AND NOT notCompletedTranslate(a);
 prevCompletedTranslate (Article article) = PREV(completedTranslate(article));
 
@@ -18,7 +18,7 @@ changeCompletedTranslate (Article article) = {
 
 // Не заполнены атрибуты
 nullTranslate 'Без атрибутов' (Item item) = item IS Item AND NOT (caption(item) AND composition(item)) AND NOT completedTranslate(item);
-nullTranslate 'Без атрибутов' (article) = GROUP BY article(Item item) SUM 1 IF item IS Item AND NOT (caption(item) AND composition(item)) AND NOT completedTranslate(item);
+nullTranslate 'Без атрибутов' (article) = GROUP SUM 1 IF Item item IS Item AND NOT (caption(item) AND composition(item)) AND NOT completedTranslate(item) BY article(item);
 
 hintEditableBackground = RGB(224, 224, 255) IF TRUE;
 
@@ -99,26 +99,26 @@ quantityInvoiceDetail 'Кол-во товара в документе' (Sku sku,
         SUM quantityInvoiceDetail(sku, Purchase.Invoice invoice) IF inPurchase(invoice, user);
 
 quantityInvoiceDetail 'Кол-во товара в документе' (article, invoice) = 
-    GROUP
-          BY  article(sku(Purchase.InvoiceDetail idetail)),
-              invoice(idetail) SUM quantity(idetail);
+    GROUP SUM quantity(Purchase.InvoiceDetail idetail)
+          BY  article(sku(idetail)),
+              invoice(idetail);
 quantityInvoiceDetail 'Кол-во товара в документе' (Article article, User user) = 
     GROUP
         SUM quantityInvoiceDetail(article, Purchase.Invoice invoice) IF inPurchase(invoice, user);
         
 defaultPurchaseInvoice (sku) =
-    GROUP
-          BY sku(Purchase.InvoiceDetail detail) LAST invoice(detail)
+    GROUP LAST invoice(Purchase.InvoiceDetail detail)
           ORDER date(detail), detail
           WHERE isPosted(detail) AND quantity(detail) 
                 AND (inPurchase(invoice(detail), currentUser()) OR NOT inPurchaseInvoices(currentUser()))
-                AND NOT isCompanySupplier(detail) COMPLEX;
+                AND NOT isCompanySupplier(detail)
+          BY sku(detail) COMPLEX;
 
 descriptionDefaultPurchaseInvoice 'Последний инвойс' (Sku sku)= CONCAT ' ', seriesNumber(defaultPurchaseInvoice(sku)),
                                                                           'от ' + date(defaultPurchaseInvoice(sku)) CHARWIDTH 10;
 // Подсчет непереведенных артикулов для групп
 countNotCompletedTranslateArticles 'Не обработано (к-во)' (group) = 
-    GROUP BY itemGroup(Article article) SUM 1 IF notCompletedTranslate(article)  AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser()));
+    GROUP SUM 1 IF notCompletedTranslate(Article article)  AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser())) BY itemGroup(article);
 recCountNotCompletedTranslateArticles 'Не обработано (к-во)' (ItemGroup parent) = GROUP SUM countNotCompletedTranslateArticles(ItemGroup child) IF isParent(child, parent);
         
 dictionaryComposition = DATA Dictionary ();   
@@ -270,7 +270,7 @@ EXTEND FORM  articleTranslateDashboard
 ;
 
 // ------------------------- Автоматическое заполнение свойств --------------------------- //
-countArticleCaption (string, original) = GROUP BY caption(Article article), originalCaption(article) SUM 1;
+countArticleCaption (string, original) = GROUP SUM 1 BY caption(Article article), originalCaption(article);
 defaultCaptionArticleOriginalCaption (VARISTRING[100] original) = GROUP 
                                                            LAST VARISTRING[255] caption
                                                            ORDER countArticleCaption(caption, original), caption
@@ -311,7 +311,7 @@ translateCompositionArticles 'Перевести для всех состав п
 } ASON CONTEXTMENU composition[Article];
 
 //--
-countArticleComposition (string, original) = GROUP BY composition(Article article), originalComposition(article) SUM 1;
+countArticleComposition (string, original) = GROUP SUM 1 BY composition(Article article), originalComposition(article);
 defaultCompositionArticleOriginal (VARSTRING[255] original) = GROUP 
                                                                    LAST VARSTRING[255] composition
                                                                    ORDER countArticleComposition(composition, original), composition
