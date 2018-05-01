@@ -70,10 +70,10 @@ limitBalance (Batch batch, PageInventory page, NUMERIC[16,4] price) = IF prevBal
     THEN prevBalanceB(batch, page, price)
     ELSE quantityPurchase(batch, page, price);
 
-calculatedQuantity (Batch batch, PageInventory page, NUMERIC[16,4] price) = PARTITION
-    BY sku(batch), page, price UNGROUP calculatedQuantity
+calculatedQuantity (Batch batch, PageInventory page, NUMERIC[16,4] price) = PARTITION UNGROUP calculatedQuantity
     LIMIT STRICT limitBalance(batch, page, price)
-    ORDER DESC expiryDate(batch), date(batch), batch;
+    ORDER DESC expiryDate(batch), date(batch), batch
+    BY sku(batch), page, price;
 
 changeQuantity (Sku sku, PageInventory page, NUMERIC[16,5] price) =  {
     INPUT quantity = NUMERIC[16,5] DO {
@@ -140,10 +140,10 @@ limitBlisterBalance (Batch batch, PageInventory page, NUMERIC[16,4] price) = IF 
     THEN prevBalanceB(batch, page, price)*blisterAmount(batch)
     ELSE quantityPurchase(batch, page, price)*blisterAmount(batch);
 
-calculatedBlisterQuantity (Batch batch, PageInventory page, NUMERIC[16,4] price) = PARTITION
-    BY sku(batch), page, price UNGROUP numCalculatedBlisterQuantity
+calculatedBlisterQuantity (Batch batch, PageInventory page, NUMERIC[16,4] price) = PARTITION UNGROUP numCalculatedBlisterQuantity
     LIMIT STRICT limitBlisterBalance(batch, page, price)
-    ORDER DESC expiryDate(batch), date(batch), batch;
+    ORDER DESC expiryDate(batch), date(batch), batch
+    BY sku(batch), page, price;
 
 changeBlisterQuantity (Sku sku, PageInventory page, NUMERIC[16,5] price) =  {
     INPUT quantity = INTEGER DO {

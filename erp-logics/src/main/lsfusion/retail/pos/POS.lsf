@@ -199,53 +199,53 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = {
                     //-- начиная с самой дешевой и по умолчанию                                                                                  
                     WHEN orderPromotionType(promotion) == OrderPromotionType.ascending OR (promotion IS Promotion AND NOT orderPromotionType(promotion)) THEN {                                                                        
                                
-                        taken (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION
-                                                                                                   BY condition UNGROUP taken
+                        taken (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP taken
                                                                                                    LIMIT leftQuantity(detail) 
                                                                                                          IF in(condition, sku(detail))  
                                                                                                          AND isAppliedPromotion(detail, condition)
-                                                                                                   ORDER leftSum(detail)/quantity(detail), detail);
+                                                                                                   ORDER leftSum(detail)/quantity(detail), detail
+                                                                                                   BY condition);
                         IF useAllQuantity(promotion) THEN {
-                            use (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION
-                                                                                                       BY condition UNGROUP use
+                            use (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP use
                                                                                                        LIMIT leftQuantity(detail) 
                                                                                                              IF in(condition, sku(detail))  
                                                                                                              AND isAppliedPromotion(detail, condition)
-                                                                                                       ORDER leftSum(detail)/quantity(detail), detail);
+                                                                                                       ORDER leftSum(detail)/quantity(detail), detail
+                                                                                                       BY condition);
                         }
                     }
                     //-- начиная с самой дорогой
                     WHEN orderPromotionType(promotion) == OrderPromotionType.descending  THEN {                
-                        taken (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION
-                                                                                                   BY condition UNGROUP taken
+                        taken (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP taken
                                                                                                    LIMIT leftQuantity(detail) 
                                                                                                          IF in(condition, sku(detail))  
                                                                                                          AND isAppliedPromotion(detail, condition)
-                                                                                                   ORDER DESC leftSum(detail)/quantity(detail), detail);
+                                                                                                   ORDER DESC leftSum(detail)/quantity(detail), detail
+                                                                                                   BY condition);
                         IF useAllQuantity(promotion) THEN {
-                            use (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION
-                                                                                                       BY condition UNGROUP use
+                            use (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP use
                                                                                                        LIMIT leftQuantity(detail) 
                                                                                                              IF in(condition, sku(detail))  
                                                                                                              AND isAppliedPromotion(detail, condition)
-                                                                                                       ORDER DESC leftSum(detail)/quantity(detail), detail);
+                                                                                                       ORDER DESC leftSum(detail)/quantity(detail), detail
+                                                                                                       BY condition);
                         }
                     }                        
                     //-- по позиции в чеке
                     WHEN orderPromotionType(promotion) == OrderPromotionType.index THEN {   
-                        taken (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION
-                                                                                                   BY condition UNGROUP taken
+                        taken (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP taken
                                                                                                    LIMIT leftQuantity(detail) 
                                                                                                          IF in(condition, sku(detail))  
                                                                                                          AND isAppliedPromotion(detail, condition)
-                                                                                                   ORDER detail);   
+                                                                                                   ORDER detail
+                                                                                                   BY condition);   
                         IF useAllQuantity(promotion) THEN {
-                            use (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION
-                                                                                                       BY condition UNGROUP use
+                            use (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP use
                                                                                                        LIMIT leftQuantity(detail) 
                                                                                                              IF in(condition, sku(detail))  
                                                                                                              AND isAppliedPromotion(detail, condition)
-                                                                                                       ORDER detail);
+                                                                                                       ORDER detail
+                                                                                                       BY condition);
                         }
                     }                                                                                        
                 // Считаем сколько товара использовали из каждой строки чека
@@ -277,10 +277,10 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = {
                 leftSum(PromotionCondition c) <- NULL WHERE leftSum(c) <= 0.0;
 
                 promotionSum (ReceiptSaleDetail detail, PromotionCondition condition) <-
-                    PARTITION
-                            BY condition UNGROUP leftSum
+                    PARTITION UNGROUP leftSum
                             PROPORTION STRICT ROUND(2) leftSum(detail) IF taken(detail, condition)
                             ORDER detail
+                            BY condition
                     WHERE taken(detail, condition) AND (sumReceipt(condition) OR sumReceiptDiscount(condition));
 
                 promotionSum (ReceiptSaleDetail detail, PromotionCondition condition) <-
@@ -529,10 +529,10 @@ changeToPayBonuses (Receipt r) = {
 }
 
 sumBonusFIFOReceiptSaleDetail (ReceiptSaleDetail detail) =
-    PARTITION 
-        BY receipt(detail) UNGROUP toPayBonuses
+    PARTITION UNGROUP toPayBonuses
         PROPORTION STRICT ROUND(2) min((sum(detail) (-) minBonusSum()), ((sum(detail) (-) minBonusSum())/(sumReceiptDetail(detail) (-) minBonusSum()*countReceiptDetail(receipt(detail))))) IF sum(detail) > minBonusSum()
-        ORDER detail; 
+        ORDER detail 
+        BY receipt(detail); 
 //    PARTITION UNGROUP toPayBonuses
 //        LIMIT min((sum(detail) (-) minBonusSum()), round(toPayBonuses(receipt(detail)) * sum(detail) / sumReceiptDetail(detail), roundCondition(departmentStore(receipt(detail)))))
 //        BY receipt(detail)
@@ -1199,7 +1199,7 @@ changeDiscountSumReceipt (Receipt receipt) = {
             LOCAL input = NUMERIC[18,4](Receipt);
             input(receipt) <- n;
             FOR receipt(ReceiptSaleDetail detail) == receipt DO {
-                discountSum(detail) <- PARTITION BY receipt(detail) UNGROUP input PROPORTION STRICT ROUND(2) quantity(detail)*price(detail) ORDER index(detail), detail;
+                discountSum(detail) <- PARTITION UNGROUP input PROPORTION STRICT ROUND(2) quantity(detail)*price(detail) ORDER index(detail), detail BY receipt(detail);
             }    
         }
     }

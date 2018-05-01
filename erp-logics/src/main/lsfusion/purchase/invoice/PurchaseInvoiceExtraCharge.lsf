@@ -159,17 +159,17 @@ fillExtraChargePriceUser 'Расписать услуги'(Invoice i) = {
     IF currency(i) THEN {    
         IF toWeightExtraCharge(i) THEN {
             extraChargeSum(i, UserInvoiceDetail d) <- 
-                PARTITION 
-                                    BY i UNGROUP calcChargeSum
-                                    PROPORTION STRICT ROUND(2) sumGrossWeight(d) IF inExtraCharge(i, d) AND isNotCharge(sku(d));
+                PARTITION UNGROUP calcChargeSum
+                                    PROPORTION STRICT ROUND(2) sumGrossWeight(d) IF inExtraCharge(i, d) AND isNotCharge(sku(d)) 
+                                    BY i;
             extraChargePrice(i, UserInvoiceDetail d) <-
                 extraChargeSum(i, d) / quantity(d) WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
         
         } ELSE {
             extraChargeSum(i, UserInvoiceDetail d) <- 
-                PARTITION
-                                  BY i UNGROUP calcChargeSum
-                                  PROPORTION STRICT ROUND(2) (IF isHomeCurrency(d) THEN homeSum(d) ELSE sum(d)) IF inExtraCharge(i, d) AND isNotCharge(sku(d));
+                PARTITION UNGROUP calcChargeSum
+                                  PROPORTION STRICT ROUND(2) (IF isHomeCurrency(d) THEN homeSum(d) ELSE sum(d)) IF inExtraCharge(i, d) AND isNotCharge(sku(d))
+                                  BY i;
             extraChargePrice(i, UserInvoiceDetail d) <-
                 extraChargeSum(i, d) / quantity(d) WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
         }

@@ -9,7 +9,7 @@ useDaysChange 'Расчитывать дни на складе регламен�
 // нужно чтобы не пропускать NULL signedQuantity
 adjSignedQuantity(Sku sku, Stock stock, DATE date, DATE dateFrom, DATE dateTo) = IF quantity(sku, stock, date) > 0 AND date >= dateFrom AND date <= dateTo THEN (OVERRIDE signedQuantity(sku, stock, date), 0);
 
-newQuantity(Sku sku, Stock stock, DATE date, DATE dateFrom, DATE dateTo) = balanceB(sku, stock, dateFrom) (+) (PARTITION BY sku, stock, dateFrom, dateTo SUM adjSignedQuantity(sku, stock, date, dateFrom, dateTo) ORDER date);
+newQuantity(Sku sku, Stock stock, DATE date, DATE dateFrom, DATE dateTo) = balanceB(sku, stock, dateFrom) (+) (PARTITION SUM adjSignedQuantity(sku, stock, date, dateFrom, dateTo) ORDER date BY sku, stock, dateFrom, dateTo);
 prevQuantity(Sku sku, Stock stock, DATE date, DATE dateFrom, DATE dateTo) = newQuantity(sku, stock, date, dateFrom, dateTo) (-) adjSignedQuantity(sku, stock, date, dateFrom, dateTo);
 
 daysChange = DATA INTEGER (Sku, Stock, DATE);

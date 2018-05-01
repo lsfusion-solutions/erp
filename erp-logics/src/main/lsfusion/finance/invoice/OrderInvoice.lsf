@@ -163,10 +163,10 @@ META defineOrderInvoice(sign, stockProp)
         }
     }
 
-    toInvoice (Batch b, OrderDetail d) = PARTITION
-                                                               BY d UNGROUP toInvoice
+    toInvoice (Batch b, OrderDetail d) = PARTITION UNGROUP toInvoice
                                                                LIMIT STRICT currentBalance(b, stockProp##Stock(d)) IF skuCurrentBalance(b, stockProp##Stock(d)) == sku(d)
-                                                               ORDER dateTime(b), b;
+                                                               ORDER dateTime(b), b
+                                                               BY d;
 
     orderCreateUserInvoice = ABSTRACT STRING[100] (OrderDetail);
     skipCreateUserInvoice = ABSTRACT BOOLEAN (OrderDetail);

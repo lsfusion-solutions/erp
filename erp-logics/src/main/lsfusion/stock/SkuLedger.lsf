@@ -792,10 +792,10 @@ limitNew = IF InLIFOSkuLedger ledger IS InLIFOSkuLedger THEN (
                                                         skuLedger(batch, stock[SkuLedger](ledger)) == sku[SkuLedger](ledger));
 
 quantity (InLIFOSkuLedger ledger, Batch batch) =
-        PARTITION
-                  BY ledger UNGROUP quantity[SkuLedger]
+        PARTITION UNGROUP quantity[SkuLedger]
                   LIMIT STRICT limitNew(ledger, batch)
-                  ORDER DESC order(ledger, batch), dateTime(batch), batch;
+                  ORDER DESC order(ledger, batch), dateTime(batch), batch
+                  BY ledger;
 
 order = ABSTRACT LONG (OutFIFOSkuLedger, Batch);
 limitNew = IF OutFIFOSkuLedger ledger IS OutFIFOSkuLedger THEN (
@@ -807,10 +807,10 @@ limitNew = IF OutFIFOSkuLedger ledger IS OutFIFOSkuLedger THEN (
 //                                                               0.0 IF skuLedger(batch, stock[SkuLedger](ledger)) == sku[SkuLedger](ledger));
 
 quantity (OutFIFOSkuLedger ledger, Batch batch) =
-        PARTITION
-                  BY ledger UNGROUP quantity[SkuLedger]
+        PARTITION UNGROUP quantity[SkuLedger]
                   LIMIT STRICT limitNew(ledger, batch)
-                  ORDER order(ledger, batch), dateTime(batch), batch;
+                  ORDER order(ledger, batch), dateTime(batch), batch
+                  BY ledger;
 
 quantity (DataSkuLedger ledger, Batch batch) = MULTI quantity[InLIFOSkuLedger,Batch](ledger, batch) (+) 0, // (+) 0 делается, чтобы все 0 стали NULL 
                                                    quantity[OutFIFOSkuLedger,Batch](ledger, batch);
@@ -824,7 +824,7 @@ updateDataSkuLedgerBatchCost() = {
     cost(DataSkuLedger ledger, Batch batch) <- NULL WHERE changedSession(ledger);
 
     LOCAL ordered = INTEGER (DataSkuLedger);
-    ordered(DataSkuLedger ledger) <- PARTITION BY sku[SkuLedger](ledger) SUM 1 IF changedSession(ledger) ORDER dateTime[SkuLedger](ledger), ledger;
+    ordered(DataSkuLedger ledger) <- PARTITION SUM 1 IF changedSession(ledger) ORDER dateTime[SkuLedger](ledger), ledger BY sku[SkuLedger](ledger);
 
     FOR iterate(INTEGER i, 1, (GROUP MAX ordered(DataSkuLedger ledger))) DO {
         it(DataSkuLedger ledger) <- ordered(ledger) == i; // чтобы определились классы

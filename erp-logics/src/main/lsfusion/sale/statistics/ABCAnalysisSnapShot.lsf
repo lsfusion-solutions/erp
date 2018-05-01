@@ -482,8 +482,8 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)  = {
         // считать проценты относительно общей суммы всех товаров
         
         percInMarkupSold (Sku sku, snapshot) <- round4(markupSumSold(sku, snapshot)*100.00 / markupSumSold(snapshot)) WHERE include(snapshot, sku);
-        indexMarkupBest(Sku sku, snapshot) <- PARTITION BY snapshot SUM 1 IF markupSumSold(sku, snapshot) ORDER DESC markupSumSold(sku, snapshot), name(sku) WHERE include(snapshot, sku);
-        partitionMarkupBest(Sku sku, snapshot) <- PARTITION BY snapshot SUM markupSumSold(sku, snapshot) ORDER indexMarkupBest(sku, snapshot) WHERE include(snapshot, sku);
+        indexMarkupBest(Sku sku, snapshot) <- PARTITION SUM 1 IF markupSumSold(sku, snapshot) ORDER DESC markupSumSold(sku, snapshot), name(sku) BY snapshot WHERE include(snapshot, sku);
+        partitionMarkupBest(Sku sku, snapshot) <- PARTITION SUM markupSumSold(sku, snapshot) ORDER indexMarkupBest(sku, snapshot) BY snapshot WHERE include(snapshot, sku);
         percMarkupOrder(Sku sku, snapshot) <- round4(partitionMarkupBest(sku, snapshot)*100.00 / markupSumSold(snapshot)) WHERE include(snapshot, sku);
         
         statusMarkup (Sku sku, snapshot) <- CASE 
@@ -493,8 +493,8 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)  = {
         ;
         
         percInSumSold (Sku sku, snapshot) <- round4(sumSold(sku, snapshot)*100.00 / sumSold(snapshot)) WHERE include(snapshot, sku);
-        indexSumBest(Sku sku, snapshot) <- PARTITION BY snapshot SUM 1 IF sumSold(sku, snapshot) ORDER DESC sumSold(sku, snapshot), name(sku) WHERE include(snapshot, sku);
-        partitionSumBest(Sku sku, snapshot) <- PARTITION BY snapshot SUM sumSold(sku, snapshot) ORDER indexSumBest(sku, snapshot) WHERE include(snapshot, sku);
+        indexSumBest(Sku sku, snapshot) <- PARTITION SUM 1 IF sumSold(sku, snapshot) ORDER DESC sumSold(sku, snapshot), name(sku) BY snapshot WHERE include(snapshot, sku);
+        partitionSumBest(Sku sku, snapshot) <- PARTITION SUM sumSold(sku, snapshot) ORDER indexSumBest(sku, snapshot) BY snapshot WHERE include(snapshot, sku);
         percSumOrder(Sku sku, snapshot) <- round4(partitionSumBest(sku, snapshot)*100.00 / sumSold(snapshot)) WHERE include(snapshot, sku);
         
         statusSum (Sku sku, snapshot) <- CASE 
@@ -510,11 +510,11 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)  = {
         percInMarkupSold (Sku sku, snapshot) <- round4(markupSumSold(sku, snapshot)*100.00 /
                 markupSumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot)) WHERE include(snapshot, sku);
         
-        indexMarkupBest(Sku sku, snapshot) <- PARTITION
-                BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot SUM 1 IF markupSumSold(sku, snapshot)  ORDER DESC markupSumSold(sku, snapshot), name(sku) WHERE include(snapshot, sku);
+        indexMarkupBest(Sku sku, snapshot) <- PARTITION SUM 1 IF markupSumSold(sku, snapshot)  ORDER DESC markupSumSold(sku, snapshot), name(sku)
+                BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot WHERE include(snapshot, sku);
                 
-        partitionMarkupBest(Sku sku, snapshot) <- PARTITION 
-                BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot SUM markupSumSold(sku, snapshot) ORDER indexMarkupBest(sku, snapshot) WHERE include(snapshot, sku);
+        partitionMarkupBest(Sku sku, snapshot) <- PARTITION SUM markupSumSold(sku, snapshot) ORDER indexMarkupBest(sku, snapshot) 
+                BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot WHERE include(snapshot, sku);
                 
         percMarkupOrder(Sku sku, snapshot) <- round4(partitionMarkupBest(sku, snapshot)*100.00 / 
                 markupSumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot)) WHERE include(snapshot, sku);
@@ -528,11 +528,11 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)  = {
         percInSumSold (Sku sku, snapshot) <- round4(sumSold(sku, snapshot)*100.00 /
                 sumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot)) WHERE include(snapshot, sku);
                 
-        indexSumBest(Sku sku, snapshot) <- PARTITION
-                BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot SUM 1 IF sumSold(sku, snapshot)  ORDER DESC sumSold(sku, snapshot), name(sku) WHERE include(snapshot, sku);
+        indexSumBest(Sku sku, snapshot) <- PARTITION SUM 1 IF sumSold(sku, snapshot)  ORDER DESC sumSold(sku, snapshot), name(sku)
+                BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot WHERE include(snapshot, sku);
                 
-        partitionSumBest(Sku sku, snapshot) <- PARTITION 
-                BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot SUM sumSold(sku, snapshot) ORDER indexSumBest(sku, snapshot) WHERE include(snapshot, sku);
+        partitionSumBest(Sku sku, snapshot) <- PARTITION SUM sumSold(sku, snapshot) ORDER indexSumBest(sku, snapshot) 
+                BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot WHERE include(snapshot, sku);
                 
         percSumOrder(Sku sku, snapshot) <- round4(partitionSumBest(sku, snapshot)*100.00 / 
                 sumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot)) WHERE include(snapshot, sku);
@@ -717,7 +717,7 @@ deleteSnapshotsABC 'Удалить старые ABC-отчеты'()= {
         };
 }
 
-orderSort 'Порядок (внутри группы)' (SkuGroup g) = PARTITION BY groupType(g), parent(g) SUM 1 ORDER sort(g);
+orderSort 'Порядок (внутри группы)' (SkuGroup g) = PARTITION SUM 1 ORDER sort(g) BY groupType(g), parent(g);
 canonicalOrderSort 'Порядок' (SkuGroup g) = VARSTRING[250]((GROUP CONCAT lpad(VARSTRING[3](orderSort(SkuGroup parent)), 3, '0') , '.' ORDER DESC level(g, parent)));
 nameLevel4 'Наименование' (SkuGroup g) = VARSTRING[100](repeat('    ', INTEGER(level(g))-1)) + name(g);
 

@@ -92,10 +92,10 @@ WHEN LOCAL CHANGED (quantity(ReceiptGiftCardSaleDetail detail)) OR CHANGED (pric
 
 
 sumBonusFIFOReceiptGiftCardSaleDetail (ReceiptGiftCardSaleDetail detail) =
-    PARTITION 
-        BY receipt(detail) UNGROUP toPayBonuses 
+    PARTITION UNGROUP toPayBonuses 
         PROPORTION STRICT ROUND(2) (sum(detail) (-) minBonusSum())/(sumReceiptDetail(detail) (-) minBonusSum()*countReceiptDetail(receipt(detail)))
-        ORDER detail;       
+        ORDER detail 
+        BY receipt(detail);       
 //    PARTITION UNGROUP toPayBonuses
 //        LIMIT round(toPayBonuses(receipt(detail)) * sum(detail) / sumReceiptDetail(detail), roundCondition(departmentStore(receipt(detail))))
 //        BY receipt(detail)

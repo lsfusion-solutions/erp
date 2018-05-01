@@ -15,10 +15,10 @@ createPickingUserInvoicePosted 'Создать проведенную накла
 
 META defineOrderInvoicePickingOrder (sign)
 
-    picking (Batch b, OrderDetail d) = PARTITION
-                                                               BY d UNGROUP pickingQuantity
+    picking (Batch b, OrderDetail d) = PARTITION UNGROUP pickingQuantity
                                                                LIMIT STRICT currentBalance(b, supplierStock(d)) IF skuCurrentBalance(b, supplierStock(d)) == sku(d)
-                                                               ORDER dateTime(b), b;
+                                                               ORDER dateTime(b), b
+                                                               BY d;
 
     createPickingDetail(UserInvoice userInvoice, Order.Order order) = {
         IF useExplicitBatchDetailUserInvoice(order) AND (explicitBatchLedger(fromStock(order)) OR forceExplicitBatchDetailUserInvoice(order)) THEN {

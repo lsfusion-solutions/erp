@@ -12,10 +12,10 @@ coeffUserInvoice 'Удельный вес' (UserInvoiceDetail d) =
     NUMERIC[22,8](sum(d)) / sumUserInvoiceDetail(userInvoice(d));
 
 calcRegistrationSumDeclaration 'Таможенный сбор' (UserInvoiceDetail d) =
-    PARTITION
-              BY userInvoice(d) UNGROUP dataRegistrationSumDeclaration
+    PARTITION UNGROUP dataRegistrationSumDeclaration
               PROPORTION ROUND(8) coeffUserInvoice(d)
-              ORDER d;
+              ORDER d
+              BY userInvoice(d);
 
 calcRegistrationPriceDeclaration 'Таможенный сбор (ед.)' (UserInvoiceDetail d) = Utils.round(calcRegistrationSumDeclaration(d) / (quantity(d) IF quantity(d) != 0), 8);
                                                                                   
