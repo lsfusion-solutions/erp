@@ -48,6 +48,15 @@ retailStock (UserInvoiceDetail d) = OVERRIDE
     overRetailStock(d), 
     (IF useSupplierStock(userInvoice(d)) THEN supplierStock(d) ELSE customerStock(d));
 
+useSupplierStock 'Использовать склад поставщика' (invoice) = ABSTRACT BOOLEAN(Purchase.Invoice) MATERIALIZED IN documentPrm;
+useSupplierStock 'Использовать склад поставщика' (userInvoice) = DATA BOOLEAN(Purchase.UserInvoice) IN documentPrm;
+useSupplierStock (Purchase.UserInvoice invoice) += useSupplierStock(invoice);
+
+useSupplierStock (Purchase.UserInvoice invoice) <- useSupplierStock(pricingOperation(invoice))   
+        WHEN CHANGED(pricingOperation(invoice));        
+   
+retailStock (Purchase.UserInvoiceDetail d) += WHEN useSupplierStock(userInvoice(d)) THEN supplierStock(d);    
+
 WHEN LOCAL // цены берем на начало сессии, а не этого event'а
    (CHANGED(calcPurchaseRetailPriceListType(UserInvoiceDetail detail)) OR
     CHANGED(calcPurchaseRetailCalcPriceListType(detail)) OR
