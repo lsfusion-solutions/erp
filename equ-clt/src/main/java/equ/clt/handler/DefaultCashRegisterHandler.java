@@ -45,6 +45,8 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
                     stockSet = new HashSet();
                 if (cashRegister.idDepartmentStore != null)
                     stockSet.add(cashRegister.idDepartmentStore);
+                if(requestExchange.idStock != null)
+                    stockSet.add(requestExchange.idStock);
                 directoryStockMap.put(cashRegister.directory, stockSet);
             }
         }
