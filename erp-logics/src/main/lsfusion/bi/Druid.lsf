@@ -1,6 +1,6 @@
 MODULE Druid;
 
-REQUIRE Utils, Time;
+REQUIRE Utils, Time, Authentication;
 
 host 'Хост для подключения' = DATA VARSTRING[100] ();
 maxRowCount 'Максимальное количество записей' = DATA INTEGER ();
@@ -70,9 +70,29 @@ runKillTask(VARSTRING[100] id, DATE dFrom, DATE dTo) = {
 queryResult = DATA LOCAL CUSTOMFILE();
 
 // example : 'SELECT columns FROM dataset GROUP BY group';
+
+CLASS QueryLog 'Query Log';
+TABLE queryLog (QueryLog);
+
+customUser = DATA CustomUser (QueryLog);
+dateTimeStart 'Время начала' = DATA DATETIME(QueryLog);
+dateTimeEnd 'Время окончания' = DATA DATETIME(QueryLog);
+
 query(TEXT q) = {
+    LOCAL startTime = DATETIME();
+    startTime() <- currentDateTime();
+    
 	stringToCustomFile('\{"query": "' + q + '"\}','UTF-8','json');
 	EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/sql' PARAMS resultCustomFile() TO queryResult;
+	
+	NEWSESSION NESTED (startTime) {
+	    NEW l = QueryLog {
+	        customUser(l) <- currentUser();
+	        dateTimeStart(l) <- startTime();
+	        dateTimeEnd(l) <- currentDateTime();
+	    }
+        APPLY;
+	}
 }
 // example : IMPORT JSON TO columns = columns FROM result();
 
