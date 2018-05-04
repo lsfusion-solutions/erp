@@ -1,0 +1,14 @@
+MODULE RetailTaxBy;
+
+REQUIRE TaxBy;
+
+NAMESPACE Tax;
+
+EXTEND CLASS Tax {
+    calcMarkup 'Расчетная надбавка'
+}
+
+rangeMarkup 'Шкала по налогу и субъекту' (tax, TaxUnit taxUnit) = GROUP AGGR Range range
+                                                                       WHERE in(range, taxUnit) AND Tax.calcMarkup == tax(range) AND NOT extra(range) BY tax(range);
+
+rangeMarkup 'Шкала субъекту' (TaxUnit taxUnit) = range (Tax.taxVAT, taxUnit);
