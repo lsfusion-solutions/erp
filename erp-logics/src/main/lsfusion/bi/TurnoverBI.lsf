@@ -416,13 +416,14 @@ changeIncludeBarcodes() = {
     }
 }
 
+filterGroups() = CONCAT ' OR', ' group1 IN (' + nameIncludeSkuGroups1() + ')',
+                                       ' group2 IN (' + nameIncludeSkuGroups2() + ')',
+                                       ' group3 IN (' + nameIncludeSkuGroups3() + ')',
+                                       ' group4 IN (' + nameIncludeSkuGroups4() + ')';
 filter() = (OVERRIDE ' AND nameStock IN (' + (GROUP CONCAT TEXT('\''+ name(Stock s) +'\'') IF include(s),',') + ')','')
                     + (OVERRIDE ' AND nameSupplier IN (' + (GROUP CONCAT TEXT('\''+ name(LegalEntity le) +'\'') IF include(le),',') + ')','')
                     + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ (OVERRIDE replace(name(Brand b),'\'','\'\''),'') +'\'') IF include(b),',') + ')','')
-                    + (OVERRIDE ' AND group1 IN (' + nameIncludeSkuGroups1() + ')','')
-                    + (OVERRIDE ' AND group2 IN (' + nameIncludeSkuGroups2() + ')','')
-                    + (OVERRIDE ' AND group3 IN (' + nameIncludeSkuGroups3() + ')','')
-                    + (OVERRIDE ' AND group4 IN (' + nameIncludeSkuGroups4() + ')','')
+                    + (OVERRIDE ' AND (' + filterGroups() + ')','')
                     + (OVERRIDE ' AND barcodeSku IN (' + (GROUP CONCAT TEXT('\''+ idBarcode(Sku sku) +'\'') IF dataInclude(sku),',') + ')','');
 values() = (IF overIsOut() AND isQuantity() THEN 'SUM(quantitySold)' ELSE '\'\'') + ' AS quantitySold, '
                             + (IF overIsOut() AND overIsCost() THEN 'SUM(costSumSold)' ELSE '\'\'') + ' AS costSumSold, '
