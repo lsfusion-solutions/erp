@@ -31,6 +31,32 @@ name 'Наименование' (PromotionDetail detail) = name(promotion(detail
 fromDate 'Дата с' (PromotionDetail detail) = fromDate(promotion(detail));
 toDate 'Дата по' (PromotionDetail detail) = toDate(promotion(detail));
 
+//склады
+TABLE promotionStockGroup (Promotion, StockGroup);
+TABLE promotionStock (Promotion, Stock);
+
+allStocks 'Отм' = DATA BOOLEAN (Promotion);
+dataIn 'Отм' = DATA BOOLEAN (Promotion, StockGroup);
+dataIn 'Отм' = DATA BOOLEAN (Promotion, Stock);
+
+levelParent (Promotion promotion, StockGroup stockGroup) = GROUP MIN level(stockGroup, StockGroup parent) IF dataIn(promotion, parent) MATERIALIZED;
+inParent (Promotion promotion, StockGroup stockGroup) = TRUE IF levelParent(promotion, stockGroup) MATERIALIZED;
+in 'Отм' (Promotion promotion, StockGroup stockGroup) = OVERRIDE
+    dataIn(promotion, stockGroup),
+    inParent (promotion, stockGroup),
+    allStocks(promotion) AND stockGroup IS StockGroup;
+in 'Отм' (Promotion promotion, Stock stock) =
+    OVERRIDE dataIn(promotion, stock),
+             (in(promotion, stockGroup(stock)) AND active(stock)) MATERIALIZED;
+
+@defineBackgroundNearestBoolean(allStocks, in, promotion, stock, inParent, isCompany);
+
+stocks 'Склады' (Promotion promotion) = GROUP
+                                       CONCAT VARISTRING[250] (name(Stock stock)) IF in(promotion, stock) , ', '
+                                       ORDER stock CHARWIDTH 20 MATERIALIZED;
+stocks 'Склады' (PromotionDetail d) = stocks(promotion(d));
+
+
 CLASS PromotionType 'Тип акции';
 TABLE promotionType (PromotionType);
 
@@ -266,6 +292,23 @@ FORM promotion 'Акция'
     ORDER nameSku(dd)
     FILTERS promotion(dd) == p,
             access(currentUser(), sku(dd)) OR NOT sku(dd)
+    
+    TREE stockTree a=STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
+    PROPERTIES(p) allStocks[Promotion] TODRAW a BACKGROUND backgroundAllStocks(p)
+    PROPERTIES(p, sg) in BACKGROUND backgroundIn(p,sg)
+    ORDER sgTreeName
+    FILTERS stringEqualsAll(a)
+    FILTERS countCompanyStock(sg)
+    
+    OBJECTS ts = Stock
+    PROPERTIES READONLY  name(ts), nameLegalEntity(ts)
+    PROPERTIES(p, ts)    in BACKGROUND backgroundIn(p,ts)
+    FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParent(sg, ts),
+                isCompany(ts)
+    FILTERGROUP filters2
+                FILTER 'Выбранные склады' in(p, ts) 'F10'
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
                  
     EDIT Promotion OBJECT p
 ;
@@ -309,14 +352,27 @@ DESIGN promotion {
         type = TABBED;
         MOVE BOX(d);
         MOVE BOX(dd) { caption = 'Строка акции (доп.)'; }
+        NEW stocks {
+            fill = 1;
+            caption = 'Склады';
+            type = SPLITH;
+            NEW stockGroups {
+                fill = 1;
+                MOVE BOX(TREE stockTree) {
+                    caption = 'Группы складов';
+                }
+            }
+            MOVE BOX(ts) {
+                fill = 2;
+            }
+        }
     }
-
     MOVE TOOLBARBOX;
 }
 
 FORM promotions 'Акции'
     OBJECTS p = Promotion
-    PROPERTIES(p) READONLY name, fromDate, toDate, namePromotionType, nameExtraPromotionType, namePromoType, nameFlyer, proposeDate, approveDate
+    PROPERTIES(p) READONLY name, fromDate, toDate, namePromotionType, nameExtraPromotionType, namePromoType, nameFlyer, proposeDate, approveDate, stocks
     PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
     ORDER fromDate(p), name(p) 
     
@@ -433,8 +489,9 @@ FORM promotionsStock 'Акции (магазин)'
             accessCompany(s)
 
     OBJECTS p = Promotion
-    PROPERTIES(p) READONLY name, fromDate, toDate, proposeDate, approveDate
+    PROPERTIES(p) READONLY name, fromDate, toDate, proposeDate, approveDate, stocks
     ORDER toDate(p) DESC, name(p)
+    FILTERS in(p,s) OR NOT stocks(p)
     FILTERGROUP current
         FILTER 'Действующие' currentDate() >= fromDate(p) AND currentDate() <= toDate(p) DEFAULT
     
@@ -527,9 +584,9 @@ createPriceList 'Создать прайсы' (Promotion p) = {
             currency(priceList) <- defaultCurrency(operation(priceList));
             note(priceList) <- name(p);
             
-            allStocks(priceList) <- allStocks(operation(priceList));
-            dataIn(priceList, StockGroup stockGroup) <- dataIn(stockGroup, operation(priceList));
-            dataIn(priceList, Stock stock) <- dataIn(stock, operation(priceList));
+            allStocks(priceList) <- allStocks(p);
+            dataIn(priceList, StockGroup stockGroup) <- dataIn(p,stockGroup);
+            dataIn(priceList, Stock stock) <- dataIn(p,stock);
 
             in(priceList, DataPriceListType type) <- change(type, operation(priceList));
             show(priceList, DataPriceListType type) <- show(type, operation(priceList));
@@ -553,7 +610,7 @@ createPriceList 'Создать прайсы' (Promotion p) = {
             currency(priceList) <- defaultCurrency(operation(priceList));
             note(priceList) <- name(p);
             
-            dataIn(priceList, Stock stock) <- TRUE IF [= GROUP SUM 1 IF prevPriceA(defaultPriceListType(), sku(PromotionDetail d), stock, company, DATETIME dateTime) BY promotion(d), dateTime](p, toDateTime(fromDate(p))) ;
+            dataIn(priceList, Stock stock) <- TRUE IF [= GROUP SUM 1 IF prevPriceA(defaultPriceListType(), sku(PromotionDetail d), stock, company, DATETIME dateTime) AND in(promotion(d),stock) BY promotion(d), dateTime](p, toDateTime(fromDate(p))) ;
             
             in(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
             show(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
