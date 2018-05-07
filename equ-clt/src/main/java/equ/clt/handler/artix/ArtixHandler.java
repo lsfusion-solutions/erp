@@ -1014,6 +1014,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         List<SalesInfo> currentSalesInfoList = new ArrayList<>();
 
                         Map<String, BigDecimal> externalSumMap = new HashMap<>();
+                        Map<String, Long> dateTimeShiftMap = new HashMap<>();
                         Pattern shiftPattern = Pattern.compile("(?:.*)?### shift info begin ###(.*)### shift info end ###(?:.*)?");
                         Matcher shiftMatcher = shiftPattern.matcher(fileContent);
                         if (shiftMatcher.matches()) {
@@ -1025,8 +1026,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
                                     String numberZReport = String.valueOf(documentObject.getInt("shift"));
                                     BigDecimal sumGain = BigDecimal.valueOf(documentObject.getDouble("sumGain"));
+                                    long timestamp = parseDateTime(documentObject.getString("timeBeg"));
 
                                     externalSumMap.put(numberCashRegister + "/" + numberZReport, sumGain);
+                                    dateTimeShiftMap.put(numberCashRegister + "/" + numberZReport, timestamp);
                                 }
                             }
                         }
@@ -1054,6 +1057,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         long dateTimeReceipt = parseDateTime(documentObject.getString("timeEnd"));
                                         Date dateReceipt = new Date(dateTimeReceipt);
                                         Time timeReceipt = new Time(dateTimeReceipt);
+
+                                        Long dateTimeShift = dateTimeShiftMap.get(numberCashRegister + "/" + numberZReport);
+                                        Date dateZReport = dateTimeShift == null ? dateReceipt : new Date(dateTimeShift);
+                                        Time timeZReport = dateTimeShift == null ? timeReceipt : new Time(dateTimeShift);
 
                                         BigDecimal sumCard = BigDecimal.ZERO;
                                         BigDecimal sumCash = BigDecimal.ZERO;
@@ -1151,7 +1158,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 if (sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                                     sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
                                                 currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
-                                                        dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
+                                                        dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
                                                         sumCard, sumCash, sumGiftCardMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
                                                         numberReceiptDetail, fileName, null, cashRegister));
