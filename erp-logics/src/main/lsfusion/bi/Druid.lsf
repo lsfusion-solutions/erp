@@ -75,8 +75,19 @@ CLASS QueryLog 'Query Log';
 TABLE queryLog (QueryLog);
 
 customUser = DATA CustomUser (QueryLog);
+nameCustomUser 'Пользователь' (QueryLog l) = name(customUser(l));
 dateTimeStart 'Время начала' = DATA DATETIME(QueryLog);
 dateTimeEnd 'Время окончания' = DATA DATETIME(QueryLog);
+
+EXTEND FORM integrationData
+    OBJECTS ql = QueryLog
+    PROPERTIES(ql) READONLY nameCustomUser, dateTimeStart, dateTimeEnd
+;
+DESIGN integrationData {
+    druid {
+        MOVE BOX(ql);
+    }
+}
 
 query(TEXT q) = {
     LOCAL startTime = DATETIME();
