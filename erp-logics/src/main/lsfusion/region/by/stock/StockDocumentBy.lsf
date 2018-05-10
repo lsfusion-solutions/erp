@@ -161,3 +161,112 @@ DESIGN sumStockDocumentLedger{
         MOVE PROPERTY(printDocumentOperationByXlsx(dtFrom,dtTo,ds));
     }
 }
+
+FORM printStockDocumentOperationLegalEntityBy 'Товарный отчет'
+    OBJECTS params = (dtFrom = DATE, dtTo = DATE) PANEL,
+            ds = Stock PANEL
+    PROPERTIES objFrom = VALUE(dtFrom), objTo = VALUE(dtTo)
+    PROPERTIES(ds) SELECTOR fullName, nameLegalEntity, nameCustomUserResponsiblePerson, namePositionResponsiblePerson, nameCustomUserBooker,
+                            namePositionBooker, nameCustomUserController, namePositionController, UNP
+
+    PROPERTIES sumAccountBDocumentLedger(ds, dtFrom), sumItemAccountBDocumentLedger(ds, dtFrom), sumContainerAccountBDocumentLedger(ds, dtFrom),
+               sumItemAccountADocumentLedger(ds, dtTo), sumContainerAccountADocumentLedger(ds, dtTo), sumAccountADocumentLedger(ds, dtTo)
+    PROPERTIES(ds, dtFrom, dtTo) countIncStockDocumentInterval, countOutStockDocumentInterval,
+               sumItemIncStockDocumentInterval, sumContainerIncStockDocumentInterval,
+               subtotalItemIncStockDocumentInterval, subtotalContainerIncStockDocumentInterval,
+               sumItemOutStockDocumentInterval, sumContainerOutStockDocumentInterval
+//-- Приход                 
+    OBJECTS o1 = Operation           
+    PROPERTIES(o1) name, id
+    PROPERTIES(ds,dtFrom,dtTo,o1) countIncStockDocumentInterval, sumItemIncStockDocumentInterval,
+               sumContainerIncStockDocumentInterval            
+    
+    FILTERS countIncStockDocumentInterval(ds,dtFrom,dtTo,o1)
+    
+    OBJECTS ile = LegalEntity
+    PROPERTIES name(ile)
+    
+    OBJECTS il = IncStockDocumentLedger
+    PROPERTIES(il) dateTime, objectClassName, description,
+                   sumItem, sumContainer, sum
+    FILTERS isPosted(il),
+            stock(il) == ds,
+            date(il) >= dtFrom,
+            date(il) <= dtTo,
+            operation(il) == o1,
+            legalEntity(il) == ile              
+    ORDER dateTime(il)
+    
+    
+    PROPERTIES(ds,dtFrom,dtTo) countNotOperationIncStockDocumentInterval, sumItemNotOperationIncStockDocumentInterval,
+               sumContainerNotOperationIncStockDocumentInterval  
+    
+    OBJECTS ile1 = LegalEntity
+    PROPERTIES name(ile1)
+    
+    OBJECTS il1 = IncStockDocumentLedger
+    PROPERTIES(il1) dateTime, objectClassName, description,
+                   sumItem, sumContainer, sum
+    FILTERS isPosted(il1) AND NOT operation(il1),
+            stock(il1) == ds,
+            date(il1) >= dtFrom,
+            date(il1) <= dtTo,
+            legalEntity(il1) == ile1
+    ORDER dateTime(il1)                       
+//-- Расход    
+    OBJECTS o2 = Operation           
+    PROPERTIES(o2) name, id
+    PROPERTIES(ds,dtFrom,dtTo,o2) countOutStockDocumentInterval, sumItemOutStockDocumentInterval,
+               sumContainerOutStockDocumentInterval                       
+    FILTERS countOutStockDocumentInterval(ds,dtFrom,dtTo,o2)
+     
+    OBJECTS ole = LegalEntity
+    PROPERTIES name(ole)
+       
+    OBJECTS ol = OutStockDocumentLedger
+    PROPERTIES(ol) dateTime, objectClassName, description,
+                   sumItem, sumContainer, sum
+    FILTERS isPosted(ol),
+            stock(ol) == ds,
+            date(ol) >= dtFrom,
+            date(ol) <= dtTo,
+            operation(ol) == o2,
+            legalEntity(ol) == ole
+    ORDER dateTime(ol)
+    
+
+    PROPERTIES(ds,dtFrom,dtTo) countNotOperationOutStockDocumentInterval, sumItemNotOperationOutStockDocumentInterval,
+               sumContainerNotOperationOutStockDocumentInterval     
+    
+    OBJECTS ole2 = LegalEntity
+    PROPERTIES name(ole2)
+           
+    OBJECTS ol2 = OutStockDocumentLedger
+    PROPERTIES(ol2) dateTime, objectClassName, description,
+                   sumItem, sumContainer, sum
+    FILTERS isPosted(ol2) AND NOT operation(ol2),
+            stock(ol2) == ds,
+            date(ol2) >= dtFrom,
+            date(ol2) <= dtTo,
+            legalEntity(ol2) == ole2
+            
+    ORDER dateTime(ol2)
+;
+
+printStockDocumentOperationLegalEntityBy 'По операциям и контрагентам' (DATE dateFrom, DATE dateTo, Stock stock) =
+    { PRINT printStockDocumentOperationLegalEntityBy OBJECTS dtFrom = dateFrom, dtTo = dateTo, ds = stock; }   IMAGE 'print.png' IN print;
+
+printStockDocumentOperationLegalEntityByXlsx 'По операциям и контрагентам (xlsx)' (DATE dateFrom, DATE dateTo, Stock stock) =
+    { PRINT printStockDocumentOperationLegalEntityBy OBJECTS dtFrom = dateFrom, dtTo = dateTo, ds = stock XLSX; } IMAGE 'print.png' IN print;
+
+EXTEND FORM sumStockDocumentLedger
+
+    PROPERTIES printStockDocumentOperationLegalEntityBy(dtFrom, dtTo, ds), printStockDocumentOperationLegalEntityByXlsx(dtFrom, dtTo, ds)  TODRAW params 
+;
+
+DESIGN sumStockDocumentLedger{
+    print {
+        MOVE PROPERTY(printStockDocumentOperationLegalEntityBy(dtFrom,dtTo,ds));
+        MOVE PROPERTY(printStockDocumentOperationLegalEntityByXlsx(dtFrom,dtTo,ds));
+    }
+}
