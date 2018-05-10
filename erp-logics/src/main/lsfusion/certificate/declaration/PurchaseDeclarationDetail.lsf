@@ -513,9 +513,60 @@ createDeclarationInvoiceDetail 'Создать позиции'(Declaration decla
     IF NOT filterUserInvoiceDetail(declaration) THEN {
         DELETE DeclarationInvoiceDetail d WHERE declaration(d) == declaration;
     
-        FOR NUMERIC[16,5] quantity == quantityDeclaration(declaration, VARISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) AND
-            NUMERIC[18,4] sum == sumDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) ORDER
-            indexDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) NEW dd=DeclarationInvoiceDetail DO {
+        LOCAL dNameCustoms = VARISTRING[255] (UserInvoiceDetail);
+        dNameCustoms(UserInvoiceDetail d) <- nameCustoms(d) WHERE declaration(d) == declaration;
+    
+        LOCAL dUOM = UOM (UserInvoiceDetail);
+        dUOM(UserInvoiceDetail d) <- UOM(d) WHERE declaration(d) == declaration;
+        
+        LOCAL dCustomsGroup = CustomsGroup (UserInvoiceDetail);
+        dCustomsGroup(UserInvoiceDetail d) <- customsGroup(d) WHERE declaration(d) == declaration;
+
+        LOCAL dVATCustomsException = VATCustomsException (UserInvoiceDetail);
+        dVATCustomsException(UserInvoiceDetail d) <- noneVATCustomsException(d) WHERE declaration(d) == declaration;
+
+        LOCAL dCountry = Country (UserInvoiceDetail);
+        dCountry(UserInvoiceDetail d) <- countrySkuUser(d) WHERE declaration(d) == declaration;
+
+        LOCAL dPrice = NUMERIC[16,4] (UserInvoiceDetail);
+        dPrice(UserInvoiceDetail d) <- overridePriceUser(d) WHERE declaration(d) == declaration;
+        
+        LOCAL quantity = NUMERIC[16,5] (VARISTRING[255], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[16,4]);
+        quantity(VARISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) <- 
+            [= GROUP SUM quantity(UserInvoiceDetail d) IF declaration(d) == declaration
+                                           BY declaration(d),
+                                              dNameCustoms(d),
+                                              dUOM(d),
+                                              dCustomsGroup(d),
+                                              dVATCustomsException(d),
+                                              dCountry(d),
+                                              dPrice(d)](declaration, customsName, UOM, customsGroup, customsException, country, price);
+                                               
+        LOCAL sum = NUMERIC[18,4] (VARISTRING[255], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[16,4]);
+        sum(VARISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) <- 
+            [= GROUP SUM sum(UserInvoiceDetail d)
+                                           BY declaration(d),
+                                              dNameCustoms(d),
+                                              dUOM(d),
+                                              dCustomsGroup(d),
+                                              dVATCustomsException(d),
+                                              dCountry(d),
+                                              dPrice(d)](declaration, customsName, UOM, customsGroup, customsException, country, price);
+
+        LOCAL index = INTEGER (VARISTRING[255], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[16,4]);
+        index(VARISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) <- 
+            [= GROUP MAX index(UserInvoiceDetail d)
+                                           BY declaration(d),
+                                              dNameCustoms(d),
+                                              dUOM(d),
+                                              dCustomsGroup(d),
+                                              dVATCustomsException(d),
+                                              dCountry(d),
+                                              dPrice(d)](declaration, customsName, UOM, customsGroup, customsException, country, price);
+    
+        FOR NUMERIC[16,5] quantity == quantity(VARISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) AND
+            NUMERIC[18,4] sum == sum(customsName, UOM, customsGroup, customsException, country, price) ORDER
+            index(customsName, UOM, customsGroup, customsException, country, price) NEW dd=DeclarationInvoiceDetail DO {
             // Ключи
             declaration(dd) <- declaration;
             nameCustoms(dd) <- customsName;
@@ -533,12 +584,12 @@ createDeclarationInvoiceDetail 'Создать позиции'(Declaration decla
             // связываем строки накладной и декларации
             declarationInvoiceDetail(UserInvoiceDetail id) <- dd WHERE
                 declaration(id) == declaration AND
-                nameCustoms(id) == customsName AND
-                UOM(id) == UOM AND
-                customsGroup(id) == customsGroup AND
-                noneVATCustomsException(id) == customsException AND
-                countrySkuUser(id) == country AND
-                overridePriceUser(id) == price;
+                dNameCustoms(id) == customsName AND
+                dUOM(id) == UOM AND
+                dCustomsGroup(id) == customsGroup AND
+                dVATCustomsException(id) == customsException AND
+                dCountry(id) == country AND
+                dPrice(id) == price;
         }
     
         sumNetWeight(DeclarationInvoiceDetail dd) <- [= GROUP SUM sumNetWeight(UserInvoiceDetail d) BY declarationInvoiceDetail(d)](dd) WHERE declaration(dd) == declaration;
