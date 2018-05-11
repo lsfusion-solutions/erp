@@ -15,11 +15,14 @@ import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+
+import static equ.clt.handler.HandlerUtils.safeMultiply;
 
 public class AclasHandler extends ScalesHandler {
 
@@ -145,9 +148,9 @@ public class AclasHandler extends ScalesHandler {
         }
     }
 
-    public static String receiveScaleStatus(UDPPort port) throws IOException {
+    public static byte[] receiveScaleStatus(UDPPort port) throws IOException {
         byte[] response = port.receiveCommand(259);
-        return new String(Arrays.copyOfRange(response, 1, 7), "cp866"); //0x02 is ok, 0x52 is fail
+        return Arrays.copyOfRange(response, 4, 10);
     }
 
     private byte[] getHexBytes(String value) {
@@ -178,12 +181,12 @@ public class AclasHandler extends ScalesHandler {
     }
 
     private boolean disconnect(UDPPort udpPort) throws CommunicationException, IOException {
-        sendCommand(udpPort, (byte) 0x0e, new byte[]{0x02, 0x00}, getDisconnectBytes256());
+        sendCommand(udpPort, (byte) 0x0e, new byte[]{0x02, 0x00}, new byte[]{0x01, 0x00, 0x00, 0x00});
         return receiveReply(udpPort);
     }
 
-    private String getScaleStatus(UDPPort udpPort) throws CommunicationException, IOException {
-        sendCommand(udpPort, (byte) 0x0e, new byte[]{0x03, 0x00}, getScaleStatusBytes256());
+    private byte[] getScaleStatus(UDPPort udpPort) throws CommunicationException, IOException {
+        sendCommand(udpPort, (byte) 0x0e, new byte[]{0x03, 0x00}, new byte[] {(byte) 0xff, 0x0f});
         return receiveScaleStatus(udpPort);
     }
 
@@ -223,46 +226,24 @@ public class AclasHandler extends ScalesHandler {
         return bytes.array();
     }
 
-    private byte[] getDisconnectBytes256() {
-        ByteBuffer bytes = ByteBuffer.allocate(256);
-        bytes.order(ByteOrder.LITTLE_ENDIAN);
-
-        //scale id, 4 bytes
-        bytes.put(new byte[]{0x01, 0x00, 0x00, 0x00});
-
-        return bytes.array();
-    }
-
-    private byte[] getScaleStatusBytes256() {
-        ByteBuffer bytes = ByteBuffer.allocate(/*256*/2);
-        bytes.order(ByteOrder.LITTLE_ENDIAN);
-
-        //2 bytes
-        bytes.put((byte) 0xff);
-        bytes.put((byte) 0x0f);
-
-        return bytes.array();
-    }
-
-
     private byte[] getClearDataBytes256(int step) {
         ByteBuffer bytes = ByteBuffer.allocate(4);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
         if(step == 1) {
             //When 0..1 is 0x400,2..3 is 0x400+(4096 / 4 -1),the datas will be kept as the low in front while the high in back
-            bytes.putShort((short) 1024/*400*/);
-            bytes.putShort((short) 2047/*1423*/);
+            bytes.putShort((short) 1024);
+            bytes.putShort((short) 2047);
         } else if (step == 2){
             //when 0...1 is 0x200, 2...3 is 0x200+(1024 / 4 -1),then the datas are kept as the low in front while the high in back
-            bytes.putShort((short) 512/*200*/);
-            bytes.putShort((short) 767/*455*/);
+            bytes.putShort((short) 512);
+            bytes.putShort((short) 767);
         } else { //step == 3
             //(if the edition is LB1.00 from scale status, 0..1 0x300 2..3 0x300+196)
             //(If the edition is not LB1.00 from scale status, 0..1 0x138 2..3 0x138+196)
             //datas are kept. And the low is in front while the high in back
-            bytes.putShort((short) 768/*300*/);
-            bytes.putShort((short) 964/*496*/);
+            bytes.putShort((short) 768);
+            bytes.putShort((short) 964);
         }
         return bytes.array();
     }
@@ -271,194 +252,57 @@ public class AclasHandler extends ScalesHandler {
         ByteBuffer bytes = ByteBuffer.allocate(256);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
-        boolean newAttempt = true;
-        if(!newAttempt) {
+        // PLU Name, 36 bytes
+        //todo: в интерфейсе можно задать до 248 символов названия, но непонятно, как это сделать тут
+        bytes.put(fillTrailingSpaces(item.name, 36).getBytes(Charset.forName("cp1251")));
 
+        //lfcode, 3 bytes
+        bytes.put(getHexBytes(fillLeadingZeroes(item.idBarcode, 6)));
 
-            // PLU Name, 10 bytes
-            String pluName = "testtestte";
-            bytes.put(getHexBytes(pluName));
+        //multilable, 1 byte
+        bytes.put((byte) 0);
 
-            // Department Id, 1 byte
-            byte departmentId = 1;
-            bytes.put(departmentId);
+        //rebate, 1 byte
+        bytes.put((byte) 0);
 
-            // UnitPrice, 4 bytes
-            int price = 1234;
-            bytes.put(getHexBytes(fillLeadingZeroes(String.valueOf(price), 4)));
+        // Department, 1 byte
+        bytes.put((byte) 1);
 
-            // Reserve, 1 byte
-            bytes.put((byte) 0x00);
+        //barcodeType, 1 byte
+        bytes.put((byte) 1);
 
-            // Barcode, 7 bytes
-            //bytes.put(new byte[] {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+        // UnitPrice, 4 bytes
+        bytes.put(getHexBytes(fillLeadingZeroes(String.valueOf(safeMultiply(item.price, 100).intValue()), 8)));
 
-            String prefix = "21";//pieceCode != null && pieceItem ? pieceCode : weightCode;
-            boolean pieceItem = false;
-            String barcode = fillTrailingZeroes(prefix + item.idBarcode, 13) + (pieceItem ? 2 : 1);
-            bytes.put(getHexBytes(barcode));
+        //weightUnit, 1 byte; 1 - весовой, 100(#4) - штучный (цена за кг))
+        bytes.put((byte) (item.passScalesItem && item.splitItem ? 1 : 100));
 
-            // Stock, 4 bytes
-            String stock = "1234";
-            bytes.put(getHexBytes(fillLeadingZeroes(stock, 4)));
+        //shelftime, 2 bytes
+        bytes.putShort(item.daysExpiry == null ? 0 : item.daysExpiry.shortValue());
 
-            // Reserve, 5 bytes
-            bytes.put(new byte[]{0x00, 0x00, 0x00, 0x00, 0x00});
+        //message1, 1 byte
+        bytes.put((byte) 0);
 
+        //message2, 1 byte
+        bytes.put((byte) 0);
 
-        } else {
+        //package weight, 3 bytes
+        bytes.put(getHexBytes(fillLeadingZeroes(0, 6)));
 
-            // PLU Name, 36 bytes
-            String pluName = "testtesttesttesttesttesttesttesttest";
-            bytes.put(getHexBytes(pluName));
+        //package type, 1 byte
+        bytes.put((byte) 0);
 
-            //lfcode
-            String barcode = fillTrailingZeroes(item.idBarcode, 6);
-            bytes.put(getHexBytes(barcode));
+        //tolerance, 1 byte
+        bytes.put((byte) 0);
 
-            //multilable
-            bytes.put((byte) 0);
+        //tare, 3 bytes
+        bytes.put(getHexBytes(fillLeadingZeroes(0, 6)));
 
-            //rebate
-            bytes.put((byte) 0);
-
-            // Department Id, 1 byte
-            byte departmentId = 1;
-            bytes.put(departmentId);
-
-            //barcodeType
-            bytes.put((byte) 1);
-
-            // UnitPrice, 4 bytes
-            int price = 1234;
-            bytes.put(getHexBytes(fillLeadingZeroes(String.valueOf(price), 4)));
-
-            //weightUnit
-            bytes.put((byte) 1);
-
-            //shelftime
-            bytes.putShort((short) 1);
-
-            //message1
-            bytes.put((byte) 0);
-
-            //message2
-            bytes.put((byte) 0);
-
-            //package weight
-            bytes.put(new byte[] {(byte) 0, (byte) 0, (byte) 0});
-
-            //package type
-            bytes.put((byte) 0);
-
-            //tolerance
-            bytes.put((byte) 0);
-
-            //tare
-            bytes.put(new byte[] {(byte) 0, (byte) 0, (byte) 0});
-
-            //code
-            bytes.put(new byte[] {(byte) 1, (byte) 0, (byte) 0, (byte) 0, (byte) 0});
-
-        }
-        return bytes.array();
-    }
-
-    private byte[] getCommandBytes259(byte[] commandBytes256) {
-        ByteBuffer bytes = ByteBuffer.allocate(259);
-        bytes.order(ByteOrder.LITTLE_ENDIAN);
-
-        byte[] controlSumBytes = getControlSum(commandBytes256);
-
-        bytes.put((byte) 0x03); //1 byte, stx
-        bytes.put(commandBytes256); //256 bytes
-        bytes.put(controlSumBytes); //2 bytes
+        //code, 5 bytes
+        bytes.put(getHexBytes(fillLeadingZeroes("1", 8)));
 
         return bytes.array();
     }
-
-    private byte[] getCommandBytes300(byte[] commandBytes259) {
-        ByteBuffer bytes = ByteBuffer.allocate(300);
-        bytes.order(ByteOrder.LITTLE_ENDIAN);
-
-        //total 297 bytes
-        for (int i = 0; i < 37; i = i + 7) {
-            bytes.put(appendEightsByte(Arrays.copyOfRange(commandBytes259, i, i + 7)));
-        }
-
-        byte[] totalBytes = getTotalBytes(commandBytes259);
-        bytes.put(totalBytes); //2 bytes
-
-        bytes.put((byte) (totalBytes[0] + totalBytes[1])); //300th byte
-        return bytes.array();
-    }
-
-    private byte[] getCommandBytes302(byte[] commandBytes256) {
-
-        byte[] commandBytes259 = getCommandBytes259(commandBytes256);
-        byte[] commandBytes300 = getCommandBytes300(commandBytes259);
-
-        ByteBuffer bytes = ByteBuffer.allocate(302);
-        bytes.order(ByteOrder.LITTLE_ENDIAN);
-
-        //first byte (stx) skip
-        for(int i = 1; i < 300; i++) {
-            commandBytes300[i] = setBit(commandBytes300[i], 7);
-        }
-
-        bytes.put(commandBytes300);
-        bytes.put((byte) 0x04); //etx
-        bytes.put((byte) 0xff); //finish pack
-        return bytes.array();
-    }
-
-    private byte[] getControlSum(byte[] command) {
-        short sum = 0;
-        for (byte b : command) {
-            sum += b;
-        }
-
-        ByteBuffer b = ByteBuffer.allocate(2);
-        b.putShort(sum);
-
-        return b.array();
-    }
-
-    private byte[] appendEightsByte(byte[] sevenBytes) {
-        byte eightByte = 0;
-        for (int i = 0; i < 7; i++) {
-            Byte b = sevenBytes[i];
-            if (getBit(b, 7)) {
-                eightByte = setBit(eightByte, i);
-            }
-        }
-        ByteBuffer buffer = ByteBuffer.allocate(8);
-        buffer.put(sevenBytes);
-        buffer.put(eightByte);
-        return buffer.array();
-    }
-
-    private byte[] getTotalBytes(byte[] connectionBytes259) {
-        byte min1 = (byte) 255;
-        byte min2 = (byte) 255;
-        for (byte b : connectionBytes259) {
-            if (b < min1) {
-                min1 = b;
-            } else if (b < min2) {
-                min2 = b;
-            }
-        }
-        return new byte[]{min1, min2};
-    }
-
-    boolean getBit(byte n, int k) {
-        return ((n >> k) & 1) == 1;
-    }
-
-    private byte setBit(byte byteValue, int pos) {
-        return (byte) (byteValue | (1 << pos));
-    }
-
 
     protected void logError(List<String> errors, String errorText) {
         logError(errors, errorText, null);
@@ -469,21 +313,24 @@ public class AclasHandler extends ScalesHandler {
         processTransactionLogger.error(errorText, t);
     }
 
-    private String fillTrailingZeroes(String input, int length) {
-        if (input == null)
-            return null;
-        while (input.length() < length)
-            input = input + "0";
+    private String fillTrailingSpaces(String input, int length) {
+        if (input != null) {
+            if (input.length() > length) {
+                input = input.substring(0, length);
+            } else while (input.length() < length) {
+                input = input + " ";
+            }
+        }
         return input;
     }
 
     private void sendCommand(UDPPort udpPort, byte command, byte[] address, byte[] commandBytes256) throws CommunicationException {
-        ByteBuffer bytes = ByteBuffer.allocate(commandBytes256.length + 3/*305*/);
+        ByteBuffer bytes = ByteBuffer.allocate(commandBytes256.length + 3);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
         bytes.put(command);//1 byte
         bytes.put(address);//2 bytes
-        bytes.put(/*getCommandBytes302(*/commandBytes256/*)*/); //302 bytes
+        bytes.put(commandBytes256); //256 bytes
 
         udpPort.sendCommand(bytes.array());
     }
@@ -520,7 +367,7 @@ public class AclasHandler extends ScalesHandler {
                         if (cleared || !needToClear) {
                             processTransactionLogger.info(logPrefix + "Sending items..." + scales.port);
                             if (localErrors.isEmpty()) {
-                                String ascCode = getScaleStatus(udpPort);
+                                //byte[] ascCode = getScaleStatus(udpPort);
                                 int count = 0;
                                 for (ScalesItemInfo item : transaction.itemsList) {
                                     count++;
