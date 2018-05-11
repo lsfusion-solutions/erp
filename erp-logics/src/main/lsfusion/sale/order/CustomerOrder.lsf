@@ -1,0 +1,446 @@
+MODULE CustomerOrder;
+
+REQUIRE SaleOrder;
+
+NAMESPACE Sale;
+
+CLASS CustomerOrder 'Предварительный заказ' : Document;
+CLASS CustomerOrderDetail 'Строка предварительного заказа' : DocumentDetail;
+
+
+saleOrder= DATA Sale.Order (CustomerOrder);
+countSaleOrders =  GROUP SUM 1 BY saleOrder(CustomerOrder o);
+
+@defineDocument(customerOrder);
+@deriveDocumentHeaderTimePrefix(CustomerOrder, );
+
+@defineDocumentHeaderNumber(CustomerOrder);
+@defineNumeratedDefault(CustomerOrder, 'Предварительный заказ', 'ПО');
+
+@defineDocumentHeaderLegalEntity(customerOrder, supplier, 'Поставщик');
+@defineDocumentDetailLegalEntity(customerOrder, customerOrderDetail, supplier, 'Поставщик');
+
+
+@defineDocumentDataStock(customerOrder, stock, 'Склад поставщика', supplier);
+
+@defineDocumentHeaderLegalEntity(customerOrder, customer, 'Покупатель');
+@defineDocumentDetailLegalEntity(customerOrder, customerOrderDetail, customer, 'Поставщик');
+@defineDocumentDataStock(customerOrder, stock, 'Склад покупателя', customer);
+
+
+@defineDocumentDialogSupplierCustomerStock(customerOrder, company, customer);
+@defineDocumentDialogSupplierCustomerLegalEntity(customerOrder, company, customer);
+
+CONSTRAINT supplier(CustomerOrder o) AND supplierStock(o) AND NOT
+in(supplier(o), supplierStock(o))
+    CHECKED BY supplierStock[CustomerOrder]
+        MESSAGE 'Поставщик и склад поставщика для предварительного заказа не имеют связи';
+CONSTRAINT customer(CustomerOrder o) AND customerStock(o) AND NOT
+in(customer(o), customerStock(o))
+    CHECKED BY customerStock[CustomerOrder]
+        MESSAGE 'Покупатель и склад покупателя для предварительного заказа не имеют связи';
+            
+
+
+@defineDocumentDescription (customerOrder, 'Предварительный заказ');
+
+@defineDocumentDetailSkuCustomPrefix(customerOrderDetail, sku, , );
+@defineDocumentDetailBatchCustomPrefix(customerOrderDetail, batch, );
+
+@defineDocumentHeaderPosted(CustomerOrder);
+@defineDocumentDetailPosted(customerOrder);
+@defineDocumentHeaderClosed(CustomerOrder);
+@defineDocumentDetailClosed(customerOrder);
+
+@defineDocumentDetailQuantityCustomPrefix (customerOrderDetail, , );
+@defineDocumentHeaderQuantity(customerOrder);
+
+@defineAddDetailDialogSkuStock(customerOrder, sku, supplierStock, dialogSku);
+@defineAddDetailDialogBarcode(customerOrder, sku);
+
+disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (CustomerOrder); 
+overPrePost 'Провести' (CustomerOrder o) = {
+    IF NOT disablePosted(o) THEN {
+        isPosted(o) <- TRUE;
+    } 
+}
+
+@defineDocumentHeaderTimePrefix(CustomerOrder, shipment, ' поставки');
+@defineDocumentDetailDataTimePrefix(customerOrder, CustomerOrderDetail, shipment, ' поставки');
+
+overCloseDate  = ABSTRACT DATE (CustomerOrder);
+closeDate 'Дата автоматического закрытия' = DATA DATE (CustomerOrder) IN documentPrm;
+
+overCloseDate  = ABSTRACT DATE (CustomerOrderDetail);
+closeDataDate 'Дата автоматического закрытия' = DATA DATE (CustomerOrderDetail) IN documentPrm;
+
+closeDate 'Дата автоматического закрытия' (CustomerOrderDetail detail) = OVERRIDE closeDataDate(detail), closeDate(customerOrder(detail)) MATERIALIZED;
+
+closeDataDate(CustomerOrderDetail detail) <- OVERRIDE overCloseDate(detail), sum(shipmentDate(detail), quantityDaysCloseOrders(supplierStock(detail)))
+    WHEN CHANGED(shipmentDate(detail)) OR CHANGED(supplierStock(detail)) OR CHANGED(overCloseDate(detail));
+closeDate(CustomerOrder order) <- OVERRIDE overCloseDate(order), sum(shipmentDate(order), quantityDaysCloseOrders(supplierStock(order)))
+        WHEN CHANGED(shipmentDate(order)) OR CHANGED(supplierStock(order)) OR CHANGED(overCloseDate(order));    
+
+WHEN SET (closeDate(CustomerOrder order) <= currentDate()) DO isClosed(order) <- TRUE;
+
+
+// Операция
+operation = DATA Sale.Operation (CustomerOrder);
+nameOperation 'Операция' (CustomerOrder o) = name(operation(o));
+idOperation 'ID операции' (CustomerOrder o) = id(operation(o));
+
+operation 'Операция' (CustomerOrderDetail d) = operation(customerOrder(d));
+nameOperation 'Операция' (CustomerOrderDetail d) = name(operation(d));
+
+shipmentDate(CustomerOrder order) <- sum(date(order), (OVERRIDE daysBeforeShipmentDate(operation(order)), 0)) WHEN CHANGED(date(order));
+shipmentTime(CustomerOrder order) <- time(order) WHEN CHANGED(time(order));
+
+isClosed[Document](CustomerOrder customerOrder) += isClosed(customerOrder);
+isPosted[Document](CustomerOrder customerOrder) += isPosted(customerOrder);
+number[Document](CustomerOrder customerOrder) += number(customerOrder);
+series[Document](CustomerOrder customerOrder) += series(customerOrder);
+date[Document](CustomerOrder customerOrder) += date(customerOrder);
+
+index[DocumentDetail](CustomerOrderDetail detail) += index(detail);
+sku[DocumentDetail](CustomerOrderDetail detail) += sku(detail);
+quantity[DocumentDetail](CustomerOrderDetail detail) += quantity(detail);
+
+document[DocumentDetail](CustomerOrderDetail detail) += customerOrder(detail);
+
+supplierStock[Document](CustomerOrder o) += supplierStock(o);
+
+FORM customerOrder 'Предварительный заказ'
+
+    OBJECTS o = CustomerOrder PANEL
+    PROPERTIES (o) isPosted, nameSupplier ON CHANGE changeSupplierCompany(o), nameSupplierStock ON CHANGE changeSupplierStockCompany(o),
+                   nameCustomer ON CHANGE changeCustomerCustomer(o), nameCustomerStock ON CHANGE changeCustomerStockCustomer(o),
+                   nameOperation, nameNumerator, number, series, date, time, note, shipmentDate, shipmentTime, closeDate
+                  
+
+    PROPERTIES (o) READONLY quantityCustomerOrderDetail, countCustomerOrderDetail                        
+
+    OBJECTS d = CustomerOrderDetail
+    PROPERTIES (d) index
+    PROPERTIES (d) idBarcodeSku, idSku, nameSku, shortNameUOMSku//, nameBatch
+    PROPERTIES (d) quantity                
+                
+    PROPERTIES (d) NEW, deleteid=DELETE GRID
+    
+    ORDER index(d)
+    
+    FILTERS customerOrder(d) == o
+    
+    PROPERTIES(o) TODRAW d addDetailDialogSkuStockCustomerOrderDetail,
+                           addDetailInputBarcodeCustomerOrderDetail, deleteCustomerOrderDetail    
+
+    EDIT CustomerOrder OBJECT o
+    
+    EVENTS
+        ON OK overPrePost(o)
+;
+
+DESIGN customerOrder {
+    BOX {
+        size = (1024, 768);
+        NEW mainTabbed {
+            type = TABBED;
+            fill = 1;
+            NEW documentBox{
+                fill = 1;
+                caption = 'Предварительный заказ';            
+                NEW headerBox {
+                    type = CONTAINERH;
+                    
+                    NEW headerParams {  
+                        fill = 1;
+                        type = CONTAINERV;
+                        MOVE GROUP(documentHeader,o) {
+                            alignment = STRETCH;
+                            type = CONTAINERV;
+                            NEW first {
+                                alignment = STRETCH;
+                                type = CONTAINERH;
+                                MOVE PROPERTY(isPosted(o));
+                                MOVE PROPERTY(nameOperation(o)) {charWidth = 30;} 
+                            }
+                            NEW second {
+                                alignment = STRETCH;
+                                type = CONTAINERH;
+                                MOVE PROPERTY(nameNumerator(o));
+                                MOVE PROPERTY(number(o)) { flex = 200; };
+                                MOVE PROPERTY(series(o));
+                                MOVE PROPERTY(date(o));
+                                MOVE PROPERTY(time(o));
+                            }    
+                        }
+                        NEW headerLegalEntity {
+                            type = CONTAINERH;
+                            alignment = STRETCH;
+                            
+                            NEW headerSupplier {
+                                caption = 'Поставщик';
+                                type = CONTAINERH;
+                                fill = 1;
+                                MOVE PROPERTY(nameSupplier(o)) { caption = ''; };
+                                MOVE PROPERTY(nameSupplierStock(o)) { caption = 'Склад'; };
+                            }
+                            NEW headerCustomer {
+                                caption = 'Покупатель';
+                                type = CONTAINERH;
+                                fill = 1;
+                                MOVE PROPERTY(nameCustomer(o)) { caption = ''; };
+                                MOVE PROPERTY(nameCustomerStock(o)) { caption = 'Склад'; };
+                            }
+                        }  
+                        NEW bottomGroup {
+                            type = CONTAINERH;                            
+                            NEW documentShipmentGroup {
+                                caption = 'Исполнение';
+                                type = CONTAINERH;      
+                                MOVE PROPERTY(shipmentDate(o));
+                                MOVE PROPERTY(shipmentTime(o));
+                            } 
+                            NEW headerDate {
+                                caption = 'Автоматическое закрытие';
+                                type = CONTAINERV;
+                                MOVE PROPERTY(closeDate(o)) { caption = 'Дата закрытия';}
+                            } 
+                            MOVE GROUP(documentPrm,o);                        
+                        }                 
+
+                    }
+                    MOVE GROUP(documentSum,o) {
+                        columns = 1;
+                    }
+                }        
+                NEW specificationBox {
+                    fill = 1;
+                    MOVE BOX(d) {
+                        caption = 'Спецификация';
+                    }
+                }
+                MOVE TOOLBARBOX;
+                PROPERTY(formOk()) {
+                    caption = 'Провести';
+                }
+            } 
+        }
+    }
+}
+
+FORM customerOrders 'Предварительные заказы'
+
+    OBJECTS o = CustomerOrder 
+    PROPERTIES (o) READONLY isClosed, isPosted, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock, nameOperation, 
+                   number, series, date, time, note
+                
+    PROPERTIES (o) READONLY countCustomerOrderDetail
+    PROPERTIES (o) NEWSESSION NEW, EDIT, deleter=DELETE   
+    PROPERTIES (o) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer 
+    PROPERTIES (o) close SHOWIF isOpened(o), open SHOWIF isClosed(o)
+        
+    OBJECTS d = CustomerOrderDetail
+    PROPERTIES (d) READONLY index
+    PROPERTIES (d) READONLY idBarcodeSku, idSku, nameSku, shortNameUOMSku//, nameBatch                   
+    PROPERTIES (d) READONLY quantity     
+    ORDER index(d)
+
+    FILTERS customerOrder(d) == o
+                
+    LIST CustomerOrder OBJECT o
+;
+DESIGN customerOrders {
+    BOX {
+        size = (1024, 768);
+
+        NEW documentContainer BEFORE TOOLBARBOX {
+            fill = 1;
+
+            type = SPLITV;
+            MOVE BOX(o);    
+
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE BOX(d) {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+                    type = CONTAINERV;
+
+                    MOVE GROUP(created,o);                       
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                        type = CONTAINERV;
+                    }
+                }
+            }
+        }
+    }
+}
+
+@defineFilterIsOpened (customerOrder, customerOrders, o);   
+
+@defineDocumentLogForm(customerOrders, o);
+
+NAVIGATOR {
+    saleSaleNavigator {
+        NEW customerOrders BEFORE orders;
+    }
+}
+
+CONSTRAINT isPosted(CustomerOrderDetail d) AND banNegativeQuantityInvoice(operation(d)) AND (quantity(d) < 0.0) //AND isPosted(d)
+    MESSAGE 'Запрещено вводить отрицательное количество в предварительный заказ';            
+
+@extendFormFilterRoleAccess(customerOrder, o, customerOrders);
+@defineDocumentOperationConstraint(customerOrder, 'предварительный заказ', Sale);
+
+@defineDocumentOperationLegalEntity(customerOrder, supplier, 'Поставщик');
+@deriveDocumentOperationLegalEntity(customerOrder, supplier, customerOrder);
+@defineDocumentOperationLegalEntity(customerOrder, customer, 'Покупатель');
+@deriveDocumentOperationLegalEntity(customerOrder, customer, customerOrder);
+@defineDocumentOperationStock(customerOrder, supplier, 'Склад поставщика');
+@deriveDocumentOperationStock(customerOrder, supplier, customerOrder);
+@defineDocumentOperationStock(customerOrder, customer, 'Склад покупателя');
+@deriveDocumentOperationStock(customerOrder, customer, customerOrder);
+
+@defineDocumentOperationRole(customerOrder);
+
+//------------------------------ Ограничение на выбор контрагентов -----------------------------//
+
+CONSTRAINT supplier(CustomerOrder o) AND NOT isCompany(supplier(o))
+    CHECKED BY supplier[CustomerOrder] MESSAGE 'Для предварительного заказа выбрана в качестве поставщика организация, не являющаяся компанией: продажа';
+CONSTRAINT customer(CustomerOrder o) AND NOT isCustomer(customer(o))
+    CHECKED BY customer[CustomerOrder] MESSAGE 'Для предварительного заказа выбрана в качестве покупателя организация, не являющаяся покупателем: продажа';
+
+//---------------------- Проведение по регистру ------------------------//
+
+edit(CustomerOrderDetail d) += { DIALOG customerOrder OBJECTS o = customerOrder(d), d = d DOCKED; }
+
+//orderedOrderDetail 'Израсходовано' (CustomerOrderDetail pd) = GROUP
+//    SUM quantity(Sale.OrderDetail d) 
+//    IF isPosted(d) AND dateTime(d) >= fromDateTime(pd) AND operation(pd) == operation(d) AND supplierStock(pd) == supplierStock(d) AND sku(pd) == sku(d);
+//orderedOrderDetail 'Израсходовано' (CustomerOrderDetail pd, so) = GROUP SUM quantity(Sale.OrderDetail d) 
+//    IF isPosted(d) AND dateTime(d) >= fromDateTime(pd) AND operation(pd) == operation(d) AND supplierStock(pd) == supplierStock(d) AND sku(pd) == sku(d)
+//    BY Sale.order(d);    
+//orders 'Заказы' (CustomerOrderDetail d) = GROUP
+//                                       CONCAT seriesNumber(Sale.Order so) IF orderedOrderDetail(d, so) , ', '
+//                                       ORDER Sale.dateTime(so), so CHARWIDTH 20;
+//    
+//    
+//calcQuantity 'Доступно' (CustomerOrderDetail pd) = IF  (quantity(pd) (-) orderedOrderDetail(pd)) >0 THEN (quantity(pd) (-) orderedOrderDetail(pd)) ELSE 0.0;
+//
+//EXTEND FORM customerOrder
+//    PROPERTIES (d) READONLY BEFORE deleteid orderedOrderDetail, orders, calcQuantity
+//;
+//EXTEND FORM customerOrders
+//    PROPERTIES (d) READONLY orderedOrderDetail, orders, calcQuantity
+//;
+@defineDocumentSkuStock(customerOrder, customerOrderDetail, sku, supplier);
+
+//-- чтобы не переделывать метакод нужна цена. Заполнение в каждой логике свое.
+viewPrice 'Цена'  = DATA LOCAL NESTED NUMERIC[16,4] (Sku, Stock, CustomerOrder);
+
+price 'Цена' (Sku sku, Stock stock, CustomerOrder o) = viewPrice(sku, stock, o);
+
+updateViewPrice = ABSTRACT LIST (Sku, Stock , CustomerOrder );
+
+@extendFormDocumentSkuStock(customerOrder, customerOrder, o, supplier, supplier);
+
+EXTEND FORM customerOrder
+
+    FILTERGROUP filter
+        FILTER 'С остатком ' prevCurrentBalance(ks, st) OR quantitySupplier(ks, o, st) 'F10' DEFAULT
+        FILTER 'В заказе ' quantitySupplier(ks, o, st) 'F9'
+;
+
+
+currentCustomerOrderCustomerOrder() = DATA LOCAL NESTED Object ();
+setCurrentCustomerOrderCustomerOrder(Object o) = { currentCustomerOrderCustomerOrder() <- o; }
+EXTEND FORM customerOrder
+    EVENTS ON CHANGE o setCurrentCustomerOrderCustomerOrder(o)
+;
+
+WHEN LOCAL FORMS customerOrder (SET([= VIEW customerOrder.sts](Stock stock, Sku sku)) AND currentCustomerOrderCustomerOrder() == Object o) OR 
+                        ((CHANGED(dateTime[CustomerOrder](o)) ) AND [= VIEW customerOrder.sts](stock, sku)) DO 
+    updateViewPrice[Sku,Stock,CustomerOrder](sku, stock, o);
+;
+@defineDocumentDetailGrossWeight(customerOrder, sku);
+@defineDocumentHeaderGrossWeight(customerOrder);
+
+//------------------------------ Автоматическое проставление свойств -----------------------------//
+
+@deriveDocumentLegalEntityDefaultStock(CustomerOrder, customer, customerOrder);
+
+@defineDocumentLegalEntityStockAccess(CustomerOrder, supplier, company, customerOrder);
+
+//------------------------------ Ввод в упаковках -----------------------------//
+skipChangePackQuantity = ABSTRACT CASE BOOLEAN (CustomerOrderDetail);
+skipChangeQuantity = ABSTRACT CASE BOOLEAN (CustomerOrderDetail);
+@defineDocumentHeaderProperty (customerOrder, showPack, 'Упаковка');    
+@defineDocumentDetailProperty(customerOrder, customerOrderDetail, showPack, 'Упаковка'); 
+@defineDocumentDetailBarcodeCustomPrefix(customerOrderDetail, sku, , ); 
+@deriveDocumentDetailBarcodeCustom (customerOrderDetail, sku, showPack); 
+@defineDocumentDetailQuantityCustomPrefix (customerOrderDetail, pack, ' упаковок');
+// Автоматически проставляем кол-во упаковок из количества
+packQuantity(CustomerOrderDetail d) <- quantity(d) / (amountPack(d) IF amountPack(d) != 0)
+    WHEN CHANGED(quantity(d)) OR CHANGED(amountPack(d));
+
+// Объявляем действия по изменению количества в упаковке и количества упаковок
+overChangeAmountPackUser = ABSTRACT LIST (CustomerOrderDetail, NUMERIC[14,3]); 
+changeAmountPackUser(CustomerOrderDetail customerOrderDetail) = {
+    INPUT n = NUMERIC[14,3] DO {
+        amountPack(customerOrderDetail) <- n;
+        IF NOT skipChangeQuantity(customerOrderDetail) THEN {
+            quantity(customerOrderDetail) <-  NUMERIC[16,5](packQuantity(customerOrderDetail)*(OVERRIDE amountPack(customerOrderDetail), 1.0));
+        }        
+        overChangeAmountPackUser(customerOrderDetail, n);
+    }
+}
+
+changePackQuantity(CustomerOrderDetail customerOrderDetail) = {
+    INPUT n = NUMERIC[16,5] DO {
+        packQuantity(customerOrderDetail) <- n;
+        IF NOT skipChangeQuantity(customerOrderDetail) THEN {
+            quantity(customerOrderDetail) <- NUMERIC[16,5](packQuantity(customerOrderDetail)*(OVERRIDE amountPack(customerOrderDetail), 1.0));
+        }
+    }
+}
+
+// Расширяем формы
+EXTEND FORM customerOrder
+    PROPERTIES (o) showPack
+    PROPERTIES (d) SHOWIF showPack(o) BEFORE quantity(d)
+                   idBarcodePack, shortNameUOMPack,
+                   amountPack ON CHANGE changeAmountPackUser(d), packQuantity ON CHANGE changePackQuantity(d)
+;
+
+EXTEND FORM customerOrders
+    PROPERTIES(d) READONLY SHOWIF showPack(o) BEFORE quantity(d)
+                  idBarcodePack, shortNameUOMPack,
+                  amountPack, packQuantity
+;
+
+
+DESIGN customerOrder {
+    GROUP(documentPrm,o) {        
+        MOVE PROPERTY(showPack(o));
+    }    
+}
+
+@defineDocumentPackSkuStock(customerOrder, sku, supplier);
+@extendFormDocumentPackSkuStock(customerOrder, customerOrder, o, supplier);
+
+overChangeQuantityValueSku(CustomerOrderDetail detail) += {
+    IF packBarcode(sku(detail)) AND NOT skipChangePackQuantity(detail) THEN {
+        packQuantity(detail) <- quantity(detail)/amountPack(detail);
+    }
+}
+
+@deriveDocumentOperationProperty(CustomerOrder, showPack);
