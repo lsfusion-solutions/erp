@@ -1,6 +1,6 @@
 MODULE ProductionOrder;
 
-REQUIRE Substitute, PriceListType, PriceListCalc, StockTax, ProductionOperation, SkuLedgerTax, StockMovement;
+REQUIRE Substitute, PriceListType, PriceListCalc, StockTax, ProductionOperation, SkuLedgerTax, StockMovement, PurchaseLedger;
 
 NAMESPACE Production;
 
@@ -72,6 +72,8 @@ DESIGN operation {
     }
 }
 
+keepSupplier 'Сохранять поставщика' = DATA BOOLEAN (Order);
+
 // ---------------- Изделия ------------------- //
 
 CLASS ProductDetail 'Строка изделия';
@@ -116,6 +118,9 @@ product 'Изделие' = DATA Product (ProductDetail) INDEXED;
 nameProduct 'Изделие' (ProductDetail productDetail) = name(product(productDetail)) IN recognize;
 idProduct 'Код изделия' (ProductDetail d) = id(product(d));
 BOM 'Спецификация' (ProductDetail d) = BOM(product(d));
+
+supplier = DATA LegalEntity (ProductDetail);
+nameSupplier 'Поставщик' (ProductDetail d) = name(supplier(d));
 
 isNotProduct 'Разрешить проводить документ без изделия ' = DATA BOOLEAN (Operation);
 
@@ -465,6 +470,8 @@ createProducts 'Заполнить изделия из спецификации 
         product(d) <- product;
         quantity(d) <- round3(quantity(product) * q);
         BOMQuantity(d) <- quantity(product);
+        supplier(d) <- OVERRIDE (GROUP LAST supplier(batch(ComponentDetail cd)) WHERE order(cd) == order AND keepSupplier(order)),
+                                (GROUP LAST lastSupplier(componentsStock(order), sku(ComponentDetail ccd)) WHERE order(ccd) == order AND keepSupplier(order));
     }
     overCreateProducts(order);
 } TOOLBAR;
@@ -1119,10 +1126,10 @@ FORM order 'Производственный заказ'
     PROPERTIES(o) isPosted, nameCompany, nameComponentsStock ON CHANGE changeComponentsStockCompany(o), 
                   nameProductsStock ON CHANGE changeProductsStockCompany(o), nameNumerator, number, series,
                   date, time, fromDate, toDate, note, quantityProductDetail, sumProductDetail, 
-                  quantityComponentDetail, sumComponentDetail, calcBOMPrice, isPricePercent, isPriceCoeff 
+                  quantityComponentDetail, sumComponentDetail, calcBOMPrice, isPricePercent, isPriceCoeff , keepSupplier
     PROPERTIES(o)   nameCalcPriceListType, nameProductsPriceListType, VATProduct, showBOMQuantity
     OBJECTS pd=ProductDetail
-    PROPERTIES(pd) BACKGROUND background(pd) index, nameSku ON EDIT editSku(pd), idProduct SHOWIF showIDs(), nameProduct, shortNameUOM
+    PROPERTIES(pd) BACKGROUND background(pd) index, nameSku ON EDIT editSku(pd), idProduct SHOWIF showIDs(), nameProduct, shortNameUOM, nameSupplier
     PROPERTIES(pd) expiryDate, manufactureDate, BOMQuantity READONLY SHOWIF showBOMQuantity(o), quantity,
                    calcComponentsPrice READONLY, componentsPrice ON CHANGE changeComponentsPrice(pd),
                    costPrice
@@ -1307,6 +1314,7 @@ DESIGN order {
                     MOVE PROPERTY (isPricePercent(o));
                     MOVE PROPERTY (isPriceCoeff(o));
                     MOVE PROPERTY (showBOMQuantity(o)); 
+                    MOVE PROPERTY (keepSupplier(o)); 
                 } 
             }
 
@@ -1494,7 +1502,7 @@ FORM orders 'Производственные заказы'
                                         postedNameUser, postedTime, postedHostnameComputer
 
     OBJECTS pd=ProductDetail
-    PROPERTIES(pd) READONLY index, nameSku, idProduct SHOWIF showIDs(), nameProduct, 
+    PROPERTIES(pd) READONLY index, nameSku, idProduct SHOWIF showIDs(), nameProduct, nameSupplier,
                    shortNameUOM, expiryDate, manufactureDate, BOMQuantity SHOWIF showBOMQuantity(o), quantity, 
                    calcComponentsPrice, componentsPrice, 
                    costPrice, markup, pricePercent SHOWIF isPricePercent(o), calcPriceCoeff SHOWIF isPriceCoeff(o),
@@ -1882,6 +1890,8 @@ DESIGN operation {
 
 @deriveDocumentOperationProperty(order, calcBOMPrice);
 
+@deriveDocumentOperationProperty(order, keepSupplier);
+
 CONSTRAINT isPosted(ComponentDetail d) AND isBatch(operation(d)) AND sku(d) AND NOT batch(d) 
     MESSAGE 'Для строки компонента в производственном заказе должна быть задана партия';
 
@@ -2163,3 +2173,5 @@ CONSTRAINT (SET(isPosted(ComponentDetail cd)) OR CHANGED(BOM(cd)) OR CHANGED(ope
 CONSTRAINT SET(isPosted(ProductDetail d)) AND isPosted(d) AND NOT product(d) AND NOT isNotProduct(operation(d))
     MESSAGE 'Для строки изделия не заполнено поле Изделие';
         
+CONSTRAINT ((SET (ProductDetail d IS ProductDetail) AND NOT supplier(d)) OR DROPPED (supplier(d))) 
+    AND needSupplier(operation(d)) MESSAGE 'Для изделия не задан поставщик';
