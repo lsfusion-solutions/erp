@@ -11,7 +11,29 @@ CLASS PromotionDetail 'Строка акции';
 TABLE promotionDetail (PromotionDetail);
 
 @defineNumbered(Promotion);
-@defineNumeratedDefault(Promotion, 'Акции', '');
+
+@defineNumerated(Promotion);
+
+docDefaultNumeratorPromotion = DATA Numerator ();
+nameDocDefaultNumeratorPromotion 'Акции' = name(docDefaultNumeratorPromotion()) IN defaultNumerator;
+
+numerator(Promotion o) <- docDefaultNumeratorPromotion() WHEN SET(o IS Promotion);
+
+EXTEND FORM defaultNumerators
+    PROPERTIES() nameDocDefaultNumeratorPromotion = nameDocDefaultNumeratorPromotion
+;
+
+loadDefaultNumerators() += {
+    NEW n = Numerator {
+        name(n) <- 'Акции (документы)';
+        series(n) <- '';
+        minValue(n) <- 1L;
+        maxValue(n) <- 99999L;
+        stringLength(n) <- 5;
+
+        docDefaultNumeratorPromotion() <- n;
+    }
+}
 
 changedTime 'Время последнего изменения'= DATA DATETIME (PromotionDetail);
 changedTime (PromotionDetail detail) <- currentDateTime() WHEN CHANGED(detail IS PromotionDetail);
