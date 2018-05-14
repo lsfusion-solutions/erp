@@ -1,0 +1,33 @@
+MODULE ReceiptBI;
+
+REQUIRE BI, ZReport, GiftCard, Druid;
+
+NAMESPACE BI;
+
+exportReceipt 'Выгрузить Чеки' (DATE dFrom, DATE dTo) = {
+    FOR iterate(DATE date, dFrom, dTo) DO {
+        EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(Receipt r)),
+                            number = number(r), overNumberCashRegister = overNumberCashRegister(r), nameEmployee = nameEmployee(r),
+                            idEmployee = idEmployee(r), sumReceiptDetail = sumReceiptDetail(r), discountSum = discountSum(r),
+                            sumVATReceiptDetail = sumVATReceiptDetail(r), countReceiptDetail = countReceiptDetail(r),
+                            quantityReceiptDetail = quantityReceiptDetail(r), sumCashPayment = sumCashPayment(r),
+                            sumCardPayment = sumCardPayment(r), sumGiftCardPayment = sumGiftCardPayment(r),
+                            sumReceiptDetailGiftCard = sumReceiptDetailGiftCard(r)
+            WHERE date(r) == date AND isPosted(r);
+        ingestBatch('receipt', date);
+    }
+    runKillTask('receiptdetail', dFrom, dTo);
+    FOR iterate(DATE date, dFrom, dTo) DO {
+        EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(ReceiptDetail d)),
+                            overNumberCashRegister = overNumberCashRegister(receipt(d)), nameEmployee = nameEmployee(d),
+                            idEmployee = idEmployee(receipt(d)), nameSku = nameSku(d), idBarcode = idBarcode(d), idSku = idSku(d),
+                            quantity = signedQuantity(d), price = price(d), sum = signedSum(d), discountSum = signedDiscountSum(d),
+                            sumVAT = signedSumVAT(d)
+            WHERE date(d) == date AND isPosted(d);
+        ingestBatch('receiptdetail', date);
+    }
+} CONFIRM;
+
+EXTEND FORM integrationData
+    PROPERTIES exportReceipt(druidFrom, druidTo)
+;
