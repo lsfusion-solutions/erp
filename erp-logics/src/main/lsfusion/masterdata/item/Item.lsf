@@ -1905,11 +1905,18 @@ EXTEND FORM item
 TABLE customGroupTypeItemGroup(CustomGroupType, ItemGroup);
 @defineItemDefaultValue(customGroup, 'Дополнительная группа (по умолчанию)', CustomGroup, nameCustomGroup, customGroupType);
 
+assignCustomGroupItems 'Назначить всем товарам группы' (ItemGroup group) = {
+	NEWSESSION {
+	    customGroup(CustomGroupType t, Item i) <- customGroup(t, itemGroup(i)) WHERE isParent(group, i);
+	    apply();
+	}
+} TOOLBAR CONFIRM;
 
 EXTEND FORM itemGroup
     OBJECTS dc=CustomGroupType 
     PROPERTIES(dc)   READONLY name, id
-    PROPERTIES(dc, g) nameCustomGroup    
+    PROPERTIES(dc, g) nameCustomGroup
+    PROPERTIES(g) assignCustomGroupItems TODRAW dc
 ;    
 DESIGN itemGroup {
 
