@@ -16,7 +16,7 @@ exportReceipt 'Выгрузить Чеки' (DATE dFrom, DATE dTo) = {
             WHERE date(r) == date AND isPosted(r);
         ingestBatch('receipt', date);
     }
-    runKillTask('receiptdetail', dFrom, dTo);
+    runKillTask('receipt', dFrom, dTo);
     FOR iterate(DATE date, dFrom, dTo) DO {
         EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(ReceiptDetail d)),
                             overNumberCashRegister = overNumberCashRegister(receipt(d)), nameEmployee = nameEmployee(d),
@@ -26,6 +26,7 @@ exportReceipt 'Выгрузить Чеки' (DATE dFrom, DATE dTo) = {
             WHERE date(d) == date AND isPosted(d);
         ingestBatch('receiptdetail', date);
     }
+    runKillTask('receiptdetail', dFrom, dTo);
 } CONFIRM;
 
 EXTEND FORM integrationData
