@@ -73,6 +73,7 @@ public class DigiHandler extends ScalesHandler {
             DigiSettings digiSettings = springContext.containsBean("digiSettings") ? (DigiSettings) springContext.getBean("digiSettings") : null;
             Integer maxLineLength = digiSettings != null ? digiSettings.getMaxLineLength() : null;
             maxLineLength = maxLineLength == null ? 50 : maxLineLength;
+            Integer maxNameLength = digiSettings != null ? digiSettings.getMaxNameLength() : null;
 
             List<MachineryInfo> succeededScalesList = new ArrayList<>();
             List<MachineryInfo> clearedScalesList = new ArrayList<>();
@@ -94,7 +95,7 @@ public class DigiHandler extends ScalesHandler {
                                 errors.put(scales.port, Collections.singletonList(String.format("Broken ip: %s, error: %s", scales.port, brokenPortError)));
                             } else {
                                 ips.add(scales.port);
-                                taskList.add(new SendTransactionTask(transaction, scales, maxLineLength));
+                                taskList.add(new SendTransactionTask(transaction, scales, maxLineLength, maxNameLength));
                             }
                         }
                     }
@@ -148,7 +149,7 @@ public class DigiHandler extends ScalesHandler {
             throw new RuntimeException(getLogPrefix() + "No IP-addresses defined");
     }
 
-    private byte[] makeRecord(ScalesItemInfo item, String weightCode, String pieceCode, Integer maxLineLength) throws UnsupportedEncodingException {
+    private byte[] makeRecord(ScalesItemInfo item, String weightCode, String pieceCode, Integer maxLineLength, Integer maxNameLength) throws UnsupportedEncodingException {
         boolean hasDescription = item.description != null && !item.description.isEmpty();
         String[] splittedDescription = hasDescription ? item.description.split("@@") : null;
 
@@ -186,7 +187,11 @@ public class DigiHandler extends ScalesHandler {
 
         if(compositionLines.size() > 9)
             compositionLines = compositionLines.subList(0, 9);
-        int length = 36 + item.name.length() +
+
+        int itemNameLength = maxNameLength != null ? Math.min(item.name.length(), maxNameLength) : item.name.length();
+        String itemName = item.name.substring(0, itemNameLength);
+
+        int length = 36 + itemNameLength +
                 compositionLength + (compositionLines.isEmpty() ? 0 : compositionLines.size() * 2) +
                 expiryLength + (expiryLines.isEmpty() ? 0 : expiryLines.size() * 2);
 
@@ -266,10 +271,10 @@ public class DigiHandler extends ScalesHandler {
         bytes.put((byte) 4);
 
         //длина наименования
-        bytes.put((byte) item.name.length());
+        bytes.put((byte) itemNameLength);
 
         // Наименование товара
-        bytes.put(getBytes(item.name));
+        bytes.put(getBytes(itemName));
 
         //если будет разбиение на строки
         //терминатор первой строки
@@ -428,11 +433,13 @@ public class DigiHandler extends ScalesHandler {
         TransactionScalesInfo transaction;
         ScalesInfo scales;
         int maxLineLength;
+        Integer maxNameLength;
 
-        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, int maxLineLength) {
+        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, int maxLineLength, Integer maxNameLength) {
             this.transaction = transaction;
             this.scales = scales;
             this.maxLineLength = maxLineLength;
+            this.maxNameLength = maxNameLength;
         }
 
         @Override
@@ -458,7 +465,7 @@ public class DigiHandler extends ScalesHandler {
                                 int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                 int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
                                 if(item.idBarcode.length() <= 5) {
-                                    byte[] record = makeRecord(item, getWeightCode(scales), getPieceCode(scales), maxLineLength);
+                                    byte[] record = makeRecord(item, getWeightCode(scales), getPieceCode(scales), maxLineLength, maxNameLength);
                                     processTransactionLogger.info(String.format(getLogPrefix() + "Sending item %s to scales %s", pluNumber, scales.port));
                                     int reply = sendRecord(socket, cmdWrite, filePLU, record);
                                     if (reply != 0) {
