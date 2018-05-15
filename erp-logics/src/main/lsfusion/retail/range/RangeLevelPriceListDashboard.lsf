@@ -1,0 +1,27 @@
+MODULE RangeLevelPriceListDashboard;
+
+REQUIRE PriceListDashboard, RangeLevel;
+
+NAMESPACE PriceList;
+
+countRange 'В ассортименте' (Sku sk, StoreType t, DATETIME dt) = 
+    GROUP SUM countRange(sk, DepartmentStore s, DATE(dt)) IF active(s) BY storeType(s);
+
+nameLevel 'Уровень' (Range.Range r, Sku s, DATETIME dt) = nameLevel(rangeRev(r, DATE (dt)), s);
+
+nameRangeLevels 'Ассортиментные матрицы' (Sku s, DATETIME dt) =
+    (GROUP CONCAT name(Range.Range r) + '/' + nameLevel(r, s, dt), ', ' IF nameLevel(r, s, dt) ORDER r) CHARWIDTH 75;
+    
+EXTEND FORM priceListDashboard 
+    PROPERTIES countRange(csk, ctp, dt), countRange(ssk, stp, dt), nameRangeLevels(csk, dt)
+    
+    OBJECTS r = Range.Range
+    PROPERTIES name(r), nameGroup(r), nameLevel(r, csk, dt)
+    FILTERS nameLevel(r, csk, dt)
+;
+
+DESIGN priceListDashboard {
+    cDetail {
+        MOVE BOX (r);
+    }
+}
