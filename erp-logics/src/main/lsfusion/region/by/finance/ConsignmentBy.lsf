@@ -514,6 +514,8 @@ price 'Цена' (ConsignmentDetail d) = IF NOT isInvoicePrice(d) THEN dataPrice
 switchSum (ConsignmentDetail d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);
 sum 'Стоимость' (ConsignmentDetail d) = IF NOT switchSum(d) THEN dataSum(d) ELSE dataSumInvoice(d);
 
+printWithoutVAT 'Печатать вместо ставки 0 "Без НДС"' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);     
+
 useEmptyVAT 'Нет НДС' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);     
 useEmptyVATConsignmentDetail = GROUP SUM 1 IF useEmptyVAT(ConsignmentDetail d) BY consignment(d); // todo : рефакторить
 vat 'НДС, %' (ConsignmentDetail d) = dataVAT(d) IF NOT useEmptyVAT(d);
@@ -634,7 +636,7 @@ META defineConsignmentFormSimple(form, caption)
 
         PROPERTIES(d) order, index, nameSku, shortNameUOM, quantity, price,
                       sum, vat, useEmptyVAT, sumVAT, sumInvoice,
-                      note, extraDescription
+                      note, extraDescription, printWithoutVAT
         ORDER order(d), index(d)
         FILTERS consignment(d) == c,
                 quantity(d),
@@ -663,7 +665,7 @@ META defineConsignmentFormSimpleExtra(form, caption)
 
         PROPERTIES(d) order, index, nameSku, shortNameUOM, quantity, price,
                       sum, vat, useEmptyVAT, sumVAT, sumInvoice,
-                      note, extraDescription
+                      note, extraDescription, printWithoutVAT
         ORDER order(d), index(d)
         FILTERS consignment(d) == c,
                 quantity(d),
@@ -788,7 +790,7 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
 
         PROPERTIES(prefix##d) prefix##orderConsignmentDetail= order, prefix##indexConsignmentDetail=index, prefix##nameSkuConsignmentDetail=nameSku, prefix##shortNameUOMConsignmentDetail=shortNameUOM, 
                       prefix##quantityConsignmentDetail=quantity, prefix##priceConsignmentDetail=price,
-                      prefix##sumConsignmentDetail=sum, prefix##vatConsignmentDetail=vat, prefix##useEmptyVATConsignmentDetail=useEmptyVAT,
+                      prefix##sumConsignmentDetail=sum, prefix##vatConsignmentDetail=vat, prefix##useEmptyVATConsignmentDetail=useEmptyVAT, prefix##printWithoutVATConsignmentDetail= printWithoutVAT,
                       prefix##sumVATConsignmentDetail=sumVAT, prefix##sumInvoiceConsignmentDetail=sumInvoice,
                       prefix##packQuantityConsignmentDetail=packQuantity, prefix##grossWeightTonConsignmentDetail=grossWeightTon,
                       prefix##grossWeightConsignmentDetail=grossWeight,prefix##noteConsignmentDetail=note, 
