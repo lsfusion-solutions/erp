@@ -1,0 +1,121 @@
+MODULE ReportBI;
+
+NAMESPACE BI;
+
+order 'Номер' = DATA LOCAL INTEGER(INTEGER);
+nameGroup 'Группировка' = DATA LOCAL VARSTRING[100](INTEGER);
+
+countGroup = OVERRIDE [=GROUP MAX order(INTEGER i)](), 0;
+
+addGroup(INTEGER i, VARSTRING[100] name) = {
+    nameGroup(i) <- name;
+    order(i) <- (OVERRIDE [=GROUP MAX order(INTEGER in)](), 0) + 1;
+}
+reorderGroup() = {
+    order(INTEGER i) <- PARTITION SUM 1 IF nameGroup(i) ORDER order(i);
+}
+deleteGroup(INTEGER i) = {
+    nameGroup(i) <- NULL;
+    order(i) <- NULL;
+    reorderGroup();
+}
+
+META defineReport(id, name)
+    nameGroupDB###id = ABSTRACT CASE VARSTRING[50](INTEGER);
+    captionGroup###id = ABSTRACT CASE VARSTRING[50](INTEGER);
+    
+    nameGroup1###id() = GROUP MAX nameGroupDB###id(INTEGER i) IF order(i) == 1;
+    nameGroup2###id() = GROUP MAX nameGroupDB###id(INTEGER i) IF order(i) == 2;
+    nameGroup3###id() = GROUP MAX nameGroupDB###id(INTEGER i) IF order(i) == 3;
+    
+    captionGroup1###id() = GROUP MAX captionGroup###id(INTEGER i) IF order(i) == 1;
+    captionGroup2###id() = GROUP MAX captionGroup###id(INTEGER i) IF order(i) == 2;
+    captionGroup3###id() = GROUP MAX captionGroup###id(INTEGER i) IF order(i) == 3;
+    
+    FORM id##Report name
+        OBJECTS df=DATE PANEL
+        PROPERTIES dateFrom = VALUE(df)
+       
+        OBJECTS dt=DATE PANEL
+        PROPERTIES dateTo = VALUE(dt)
+        
+        OBJECTS gr = INTEGER 
+        PROPERTIES(gr) READONLY order, nameGroup
+        ORDER order(gr)
+        FILTERS nameGroup(gr)
+        
+        EVENTS 
+            ON INIT {
+                SEEK id##Report.df = sum(currentDate(), -1);
+                SEEK id##Report.dt = sum(currentDate(), -1);
+            }
+    ;
+    
+    DESIGN id##Report {
+        NEW topContainer {
+            type = CONTAINERV;
+            alignment = STRETCH;
+            NEW dates {
+                type = CONTAINERH;
+                caption = 'Период';
+                MOVE PROPERTY(dateFrom){caption = 'Дата (с)';}
+                MOVE PROPERTY(dateTo){caption = 'Дата (по)';}
+            }
+            NEW filters {
+                type = CONTAINERV;
+                alignment = STRETCH;
+                caption = 'Фильтры';
+            }
+        }
+        NEW bottomContainer {
+            fill = 2;
+            type = CONTAINERH;
+            NEW rhContainer {
+                fill = 1;
+                type = CONTAINERH;
+                caption = 'Группировка';
+                NEW checkBoxContainer {
+                    type = CONTAINERV;
+                }
+                MOVE BOX(gr) { caption = 'Порядок группировки'; };
+            }
+            NEW lhContainer {
+                type = CONTAINERH;
+                caption = 'Данные';
+            }
+        }
+        NEW print {
+            type = COLUMNS;
+            columns = 2;
+            alignment = STRETCH;
+        }
+        MOVE TOOLBARBOX;
+    }
+    
+    NAVIGATOR {
+        BI {
+           NEW id##Report;
+        }
+    }
+END 
+
+META createGroup(id, object, name, number, nameDB, caption)
+    g###object###id name = DATA LOCAL BOOLEAN();
+    WHEN LOCAL SET(g###object###id()) AND countGroup() < 3 DO addGroup(number, name);
+    WHEN LOCAL SET(g###object###id()) AND countGroup() == 3 DO { g###object###id() <- NULL; };
+    WHEN LOCAL DROPPED(g###object###id()) DO deleteGroup(number);
+    
+    nameGroupDB###id(INTEGER i) += WHEN i == number THEN nameDB;
+    captionGroup###id(INTEGER i) += WHEN i == number THEN caption;
+    
+    hide###object###id = ABSTRACT BOOLEAN();
+    
+    EXTEND FORM id##Report
+        PROPERTIES() g###object###id SHOWIF NOT hide###object###id()
+    ;
+    DESIGN id##Report {
+        checkBoxContainer {
+            MOVE PROPERTY(g###object###id());
+        }
+    }
+END 

@@ -1,6 +1,6 @@
 MODULE TurnoverBI;
 
-REQUIRE BI, PurchaseLedger, SaleLedger, Pricing, Item, Druid;
+REQUIRE BI, PurchaseLedger, SaleLedger, Pricing, Item, Druid, ReportBI;
 
 NAMESPACE BI;
 
@@ -45,97 +45,39 @@ EXTEND FORM integrationData
 ;
 
 
-META createGroup(object, name, number)
-    g###object name = DATA LOCAL BOOLEAN();
-    WHEN LOCAL SET(g###object()) AND countGroup() < 3 DO addGroup(number, name);
-    WHEN LOCAL SET(g###object()) AND countGroup() == 3 DO { g###object() <- NULL; };
-    WHEN LOCAL DROPPED(g###object()) DO deleteGroup(number);   
-END 
-
-order 'Номер' = DATA LOCAL INTEGER(INTEGER);
-nameGroup 'Группировка' = DATA LOCAL VARSTRING[100](INTEGER);
-
-countGroup = OVERRIDE [=GROUP MAX order(INTEGER i)](), 0;
-
-addGroup(INTEGER i, VARSTRING[100] name) = {
-    nameGroup(i) <- name;
-    order(i) <- (OVERRIDE [=GROUP MAX order(INTEGER in)](), 0) + 1;
-}
-reorderGroup() = {
-    order(INTEGER i) <- PARTITION SUM 1 IF nameGroup(i) ORDER order(i);
-}
-deleteGroup(INTEGER i) = {
-    nameGroup(i) <- NULL;
-    order(i) <- NULL;
-    reorderGroup();
-}
-
-@createGroup(stock, 'По магазину', 1);
-@createGroup(supplier, 'По поставщику', 2);
-@createGroup(group1, 'По направлению', 3);
-@createGroup(group2, 'По группе', 4);
-@createGroup(group3, 'По подгруппе', 5);
-@createGroup(group4, 'По субгруппе', 6);
-@createGroup(sku, 'По товару', 7);
-@createGroup(brand, 'По бренду', 8);
-@createGroup(month, 'По месяцам', 9);
-@createGroup(week, 'По неделям', 10);
-@createGroup(day, 'По дням', 11);
-@createGroup(supplierStock, 'По складу поставщика', 12);
-@createGroup(UOM, 'По еденице измерения', 13);
+@defineReport(turnover, 'Оборачиваемость');
 
 
-nameGroupDB = ABSTRACT CASE VARSTRING[50](INTEGER);
-nameGroupDB(INTEGER i) += WHEN i == 1 THEN 'nameStock';
-nameGroupDB(INTEGER i) += WHEN i == 2 THEN 'nameSupplier';
-nameGroupDB(INTEGER i) += WHEN i == 3 THEN 'group1';
-nameGroupDB(INTEGER i) += WHEN i == 4 THEN 'group2';
-nameGroupDB(INTEGER i) += WHEN i == 5 THEN 'group3';
-nameGroupDB(INTEGER i) += WHEN i == 6 THEN 'group4';
-nameGroupDB(INTEGER i) += WHEN i == 7 THEN 'nameSku';
-nameGroupDB(INTEGER i) += WHEN i == 8 THEN 'brand';
-nameGroupDB(INTEGER i) += WHEN i == 9 THEN 'TIME_FORMAT(__time,\'yyyy-MM\')';
-nameGroupDB(INTEGER i) += WHEN i == 10 THEN 'TIME_FORMAT(__time,\'yyyy неделя ww\')';
-nameGroupDB(INTEGER i) += WHEN i == 11 THEN 'TIME_FORMAT(__time,\'yyyy-MM-dd\')';
-nameGroupDB(INTEGER i) += WHEN i == 12 THEN 'nameSupplierStock';
-nameGroupDB(INTEGER i) += WHEN i == 13 THEN 'nameUOM';
+@createGroup(turnover, stock, 'По магазину', 1, 'nameStock', 'Магазин');
+@createGroup(turnover, supplier, 'По поставщику', 2, 'nameSupplier', 'Поставщик');
+@createGroup(turnover, group1, 'По направлению', 3, 'group1', 'Направление');
+@createGroup(turnover, group2, 'По группе', 4, 'group2', 'Группа');
+@createGroup(turnover, group3, 'По подгруппе', 5, 'group3', 'Подгруппа');
+@createGroup(turnover, group4, 'По субгруппе', 6, 'group4', 'Субгруппа');
+@createGroup(turnover, sku, 'По товару', 7, 'nameSku', 'Товар');
+@createGroup(turnover, brand, 'По бренду', 8, 'brand', 'Бренд');
+@createGroup(turnover, month, 'По месяцам', 9, 'TIME_FORMAT(__time,\'yyyy-MM\')', 'Месяц');
+@createGroup(turnover, week, 'По неделям', 10, 'TIME_FORMAT(__time,\'yyyy неделя ww\')', 'Неделя');
+@createGroup(turnover, day, 'По дням', 11, 'TIME_FORMAT(__time,\'yyyy-MM-dd\')', 'День');
+@createGroup(turnover, supplierStock, 'По складу поставщика', 12, 'nameSupplierStock', 'Склад поставщика');
+@createGroup(turnover, UOM, 'По еденице измерения', 13, 'nameUOM', 'Еденица измерения');
 
-captionGroup = ABSTRACT CASE VARSTRING[50](INTEGER);
-captionGroup(INTEGER i) += WHEN i == 1 THEN 'Магазин';
-captionGroup(INTEGER i) += WHEN i == 2 THEN 'Поставщик';
-captionGroup(INTEGER i) += WHEN i == 3 THEN 'Направление';
-captionGroup(INTEGER i) += WHEN i == 4 THEN 'Группа';
-captionGroup(INTEGER i) += WHEN i == 5 THEN 'Подгруппа';
-captionGroup(INTEGER i) += WHEN i == 6 THEN 'Субгруппа';
-captionGroup(INTEGER i) += WHEN i == 7 THEN 'Товар';
-captionGroup(INTEGER i) += WHEN i == 8 THEN 'Бренд';
-captionGroup(INTEGER i) += WHEN i == 9 THEN 'Месяц';
-captionGroup(INTEGER i) += WHEN i == 10 THEN 'Неделя';
-captionGroup(INTEGER i) += WHEN i == 11 THEN 'День';
-captionGroup(INTEGER i) += WHEN i == 12 THEN 'Склад поставщика';
-captionGroup(INTEGER i) += WHEN i == 13 THEN 'Еденица измерения';
 
-nameGroup1() = GROUP MAX nameGroupDB(INTEGER i) IF order(i) == 1;
-nameGroup2() = GROUP MAX nameGroupDB(INTEGER i) IF order(i) == 2;
-nameGroup3() = GROUP MAX nameGroupDB(INTEGER i) IF order(i) == 3;
+nameGroupsTurnover = CONCAT ', ', (OVERRIDE nameGroup1Turnover(), '\'\'') + ' AS nameGroup1',
+                                           (OVERRIDE nameGroup2Turnover(), '\'\'') + ' AS nameGroup2',
+                                           (OVERRIDE nameGroup3Turnover(), '\'\'') + ' AS nameGroup3',
+                                           (IF gSkuTurnover() THEN 'barcodeSku' ELSE '\'\'') + ' AS barcodeSku';
 
-captionGroup1() = GROUP MAX captionGroup(INTEGER i) IF order(i) == 1;
-captionGroup2() = GROUP MAX captionGroup(INTEGER i) IF order(i) == 2;
-captionGroup3() = GROUP MAX captionGroup(INTEGER i) IF order(i) == 3;
-
-nameGroups = CONCAT ', ', (OVERRIDE nameGroup1(), '\'\'') + ' AS nameGroup1', (OVERRIDE nameGroup2(), '\'\'') + ' AS nameGroup2', (OVERRIDE nameGroup3(), '\'\'') + ' AS nameGroup3',
-                              (IF gSku() THEN 'barcodeSku' ELSE '\'\'') + ' AS barcodeSku';
-
-isTimeGroup() = gMonth() OR gWeek() OR gDay();
+isTimeGroup() = gMonthTurnover() OR gWeekTurnover() OR gDayTurnover();
 
 isTimeGroup2() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 2 AND ( i == 9 OR i == 10 OR i == 11));
 isTimeGroup3() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 3 AND ( i == 9 OR i == 10 OR i == 11));
 printSumGroup1() = TRUE IF NOT isTimeGroup() OR NOT (isTimeGroup2() OR isTimeGroup3());
 printSumGroup2() = TRUE IF NOT isTimeGroup() OR NOT isTimeGroup3();
 
-nameGroup1 = DATA LOCAL VARSTRING[255] (INTEGER);
-nameGroup2 = DATA LOCAL VARSTRING[255] (INTEGER);
-nameGroup3 = DATA LOCAL VARSTRING[255] (INTEGER);
+nameGroup1Turnover = DATA LOCAL VARSTRING[255] (INTEGER);
+nameGroup2Turnover = DATA LOCAL VARSTRING[255] (INTEGER);
+nameGroup3Turnover = DATA LOCAL VARSTRING[255] (INTEGER);
 barcodeSku = DATA LOCAL VARSTRING[15] (INTEGER);
 
 quantitySold 'Продано (кол-во)' = DATA LOCAL NUMERIC[16,5] (INTEGER);
@@ -168,7 +110,7 @@ costVATBalanceA 'Остаток (себестоимость с НДС)' = DATA L
 sumBalanceA 'Остаток (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 
 
-countRows 'Количество строк' () = GROUP SUM 1 IF nameGroup1(INTEGER i);
+countRowsTurnover 'Количество строк' () = GROUP SUM 1 IF nameGroup1Turnover(INTEGER i);
 
 isBalanceB 'Остаток на начало' = DATA LOCAL BOOLEAN ();
 isIn 'Приход' = DATA LOCAL BOOLEAN ();
@@ -443,9 +385,9 @@ values() = (IF overIsOut() AND isQuantity() THEN 'SUM(quantitySold)' ELSE '\'\''
                             + (IF isDaysOnStock() THEN 'COUNT(DISTINCT __time)' ELSE '\'\'') + ' AS daysOnStock, ';
 
 fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
-    nameGroup1(INTEGER i) <- NULL;
-    nameGroup2(INTEGER i) <- NULL;
-    nameGroup3(INTEGER i) <- NULL;
+    nameGroup1Turnover(INTEGER i) <- NULL;
+    nameGroup2Turnover(INTEGER i) <- NULL;
+    nameGroup3Turnover(INTEGER i) <- NULL;
     barcodeSku(INTEGER i) <- NULL;
     
     quantitySold(INTEGER i) <- NULL;
@@ -479,17 +421,17 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
     
     IF isTimeGroup() THEN {
         query(replace('SELECT ' + values() 
-             + (IF isBalanceA() AND isQuantity() THEN 'SUM(balance)' + (IF gDay() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS balanceA, '
-             + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' + (IF gDay() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costBalanceA, '
-             + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' + (IF gDay() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costVATBalanceA, '
-             + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' + (IF gDay() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS sumBalanceA, '
-             + nameGroups() + ' FROM turnover'
+             + (IF isBalanceA() AND isQuantity() THEN 'SUM(balance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS balanceA, '
+             + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costBalanceA, '
+             + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costVATBalanceA, '
+             + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS sumBalanceA, '
+             + nameGroupsTurnover() + ' FROM turnover'
              + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
              + filter()
-             + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3(), IF gSku() THEN 'barcodeSku' ELSE NULL)
+             + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), IF gSkuTurnover() THEN 'barcodeSku' ELSE NULL)
              + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
-        IMPORT JSON FROM queryResult() TO nameGroup1 = nameGroup1, nameGroup2 = nameGroup2, nameGroup3 = nameGroup3, 
+        IMPORT JSON FROM queryResult() TO nameGroup1Turnover = nameGroup1, nameGroup2Turnover = nameGroup2, nameGroup3Turnover = nameGroup3, 
                                           quantitySold = quantitySold, costSumSold = costSumSold, costSumVATSold = costSumVATSold,
                                           markupSumSold = markupSumSold, percMarkupSumSold = percMarkupSumSold,
                                           sumVATSold = sumVATSold, sumSold = sumSold, sumPriceSold = sumPriceSold,
@@ -500,13 +442,13 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
                                           barcodeSku = barcodeSku;
     } ELSE {
         query(replace('SELECT ' + values() 
-             + nameGroups() + ' FROM turnover'
+             + nameGroupsTurnover() + ' FROM turnover'
              + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
              + filter()
-             + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3(), IF gSku() THEN 'barcodeSku' ELSE NULL)
+             + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), IF gSkuTurnover() THEN 'barcodeSku' ELSE NULL)
              + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
-        IMPORT JSON FROM queryResult() TO nameGroup1 = nameGroup1, nameGroup2 = nameGroup2, nameGroup3 = nameGroup3, 
+        IMPORT JSON FROM queryResult() TO nameGroup1Turnover = nameGroup1, nameGroup2Turnover = nameGroup2, nameGroup3Turnover = nameGroup3, 
                                           quantitySold = quantitySold, costSumSold = costSumSold, costSumVATSold = costSumVATSold,
                                           markupSumSold = markupSumSold, percMarkupSumSold = percMarkupSumSold,
                                           sumVATSold = sumVATSold, sumSold = sumSold, sumPriceSold = sumPriceSold,
@@ -533,17 +475,17 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
             + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceB, '
             + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceB, '
             + (IF isBalanceB() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceB, '
-            + nameGroups() + ' FROM turnover'
+            + nameGroupsTurnover() + ' FROM turnover'
             + ' WHERE __time = TIME_PARSE(\'' + sum(dateFrom,-1) + '\',\'yyyy-MM-dd\')'
             + filter()
-            + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3(), IF gSku() THEN 'barcodeSku' ELSE NULL)
+            + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), IF gSkuTurnover() THEN 'barcodeSku' ELSE NULL)
             + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
         IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
                                           localBalanceB = balanceB, localCostBalanceB = costBalanceB, localCostVATBalanceB = costVATBalanceB,
                                           localSumBalanceB = sumBalanceB, localBarcodeSku = barcodeSku;
         
-        FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1(n), nameGroup2(n), nameGroup3(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
+        FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1Turnover(n), nameGroup2Turnover(n), nameGroup3Turnover(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
             balanceB(number) <- localBalanceB(i);
             costBalanceB(number) <- localCostBalanceB(i);
             costVATBalanceB(number) <- localCostVATBalanceB(i);
@@ -555,17 +497,17 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
             + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceA, '
             + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceA, '
             + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceA, '
-            + nameGroups() + ' FROM turnover'
+            + nameGroupsTurnover() + ' FROM turnover'
             + ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
             + filter()
-            + ' GROUP BY ' + (CONCAT ', ', nameGroup1(), nameGroup2(), nameGroup3(), IF gSku() THEN 'barcodeSku' ELSE NULL)
+            + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), IF gSkuTurnover() THEN 'barcodeSku' ELSE NULL)
             + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
         IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
                                           localBalanceA = balanceA, localCostBalanceA = costBalanceA, localCostVATBalanceA = costVATBalanceA,
                                           localSumBalanceA = sumBalanceA, localBarcodeSku = barcodeSku;
         
-        FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1(n), nameGroup2(n), nameGroup3(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
+        FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1Turnover(n), nameGroup2Turnover(n), nameGroup3Turnover(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
             balanceA(number) <- localBalanceA(i);
             costBalanceA(number) <- localCostBalanceA(i);
             costVATBalanceA(number) <- localCostVATBalanceA(i);
@@ -581,11 +523,11 @@ FORM printTurnoverReport 'Оборачиваемость'
     OBJECTS dt=DATE PANEL
     PROPERTIES dateTo = VALUE(dt)
        
-    PROPERTIES() countGroup, countRows, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeSkuGroups, nameIncludeSkus, 
+    PROPERTIES() countGroup, countRowsTurnover, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeSkuGroups, nameIncludeSkus, 
                  printSumGroup1, printSumGroup2
     
     OBJECTS i = INTEGER
-    PROPERTIES(i) READONLY nameGroup1, nameGroup2, nameGroup3, barcodeSku SHOWIF gSku()
+    PROPERTIES(i) READONLY nameGroup1Turnover, nameGroup2Turnover, nameGroup3Turnover, barcodeSku SHOWIF gSkuTurnover()
     PROPERTIES(i) READONLY balanceB SHOWIF (isBalanceB() AND isQuantity()),
                            costBalanceB SHOWIF (isBalanceB() AND overIsCost()),
                            costVATBalanceB SHOWIF (isBalanceB() AND isCostVAT()),
@@ -610,10 +552,10 @@ FORM printTurnoverReport 'Оборачиваемость'
                            costBalanceA SHOWIF (isBalanceA() AND overIsCost()),
                            costVATBalanceA SHOWIF (isBalanceA() AND isCostVAT()),
                            sumBalanceA SHOWIF (isBalanceA() AND isSum())
-    FILTERS nameGroup1(i) AND dt IS DATE AND df IS DATE,
+    FILTERS nameGroup1Turnover(i) AND dt IS DATE AND df IS DATE,
             balanceB(i) OR quantitySold(i) OR balanceA(i)
             
-    ORDER nameGroup1(i), nameGroup2(i), nameGroup3(i), barcodeSku(i)
+    ORDER nameGroup1Turnover(i), nameGroup2Turnover(i), nameGroup3Turnover(i), barcodeSku(i)
 ;
 
 printTurnoverReportXLSX 'С группировкой (XLSX)' (DATE dateFrom, DATE dateTo) = {
@@ -632,11 +574,11 @@ FORM printTurnoverReportTable 'Оборачиваемость'
     OBJECTS dt=DATE PANEL
     PROPERTIES dateTo = VALUE(dt)
        
-    PROPERTIES() countGroup, countRows, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeSkuGroups, nameIncludeSkus,
-                 captionGroup1, captionGroup2, captionGroup3
+    PROPERTIES() countGroup, countRowsTurnover, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeSkuGroups, nameIncludeSkus,
+                 captionGroup1Turnover, captionGroup2Turnover, captionGroup3Turnover
     
     OBJECTS i = INTEGER
-    PROPERTIES(i) READONLY nameGroup1, nameGroup2, nameGroup3, barcodeSku SHOWIF gSku()
+    PROPERTIES(i) READONLY nameGroup1Turnover, nameGroup2Turnover, nameGroup3Turnover, barcodeSku SHOWIF gSkuTurnover()
     PROPERTIES(i) READONLY balanceB SHOWIF (isBalanceB() AND isQuantity()),
                            costBalanceB SHOWIF (isBalanceB() AND overIsCost()),
                            costVATBalanceB SHOWIF (isBalanceB() AND isCostVAT()),
@@ -661,10 +603,10 @@ FORM printTurnoverReportTable 'Оборачиваемость'
                            costBalanceA SHOWIF (isBalanceA() AND overIsCost()),
                            costVATBalanceA SHOWIF (isBalanceA() AND isCostVAT()),
                            sumBalanceA SHOWIF (isBalanceA() AND isSum())
-    FILTERS nameGroup1(i) AND dt IS DATE AND df IS DATE,
+    FILTERS nameGroup1Turnover(i) AND dt IS DATE AND df IS DATE,
             balanceB(i) OR quantitySold(i) OR balanceA(i)
             
-    ORDER nameGroup1(i), nameGroup2(i), nameGroup3(i), barcodeSku(i)
+    ORDER nameGroup1Turnover(i), nameGroup2Turnover(i), nameGroup3Turnover(i), barcodeSku(i)
 ;
 
 printTurnoverReportTableXLSX 'Без группировки (XLSX)' (DATE dateFrom, DATE dateTo) = {
@@ -680,14 +622,12 @@ showGroup1 = GROUP SUM 1 IF level(SkuGroup skuGroup) == 2;
 showGroup2 = GROUP SUM 1 IF level(SkuGroup skuGroup) == 3;
 showGroup3 = GROUP SUM 1 IF level(SkuGroup skuGroup) == 4;
 showGroup4 = GROUP SUM 1 IF level(SkuGroup skuGroup) == 5;
+hideGroup1Turnover() += TRUE IF NOT showGroup1();
+hideGroup2Turnover() += TRUE IF NOT showGroup2();
+hideGroup3Turnover() += TRUE IF NOT showGroup3();
+hideGroup4Turnover() += TRUE IF NOT showGroup4();
 
-FORM turnoverReport 'Оборачиваемость'
-    OBJECTS df=DATE PANEL
-    PROPERTIES dateFrom = VALUE(df)
-   
-    OBJECTS dt=DATE PANEL
-    PROPERTIES dateTo = VALUE(dt)
-    
+EXTEND FORM turnoverReport    
     PROPERTIES() isBalanceB, isIn, overIsOut, isBalanceA,
                  isQuantity, overIsCost, isCostVAT, isMarkup, isSum, isTurnover, isDaysOnStock
     
@@ -699,106 +639,40 @@ FORM turnoverReport 'Оборачиваемость'
     PROPERTIES nameIncludeSkus() ON CHANGE changeIncludeSkus()
     PROPERTIES nameIncludeBarcodes() ON CHANGE changeIncludeBarcodes()
     
-//-- выбор группировки    
-    PROPERTIES() gStock, gSupplier, gGroup1 SHOWIF showGroup1(), gGroup2 SHOWIF showGroup2(), gGroup3 SHOWIF showGroup3(),
-                 gGroup4 SHOWIF showGroup4(), gSku, gBrand, gMonth, gWeek, gDay, gSupplierStock, gUOM
-    
-    OBJECTS gr = INTEGER 
-    PROPERTIES(gr) READONLY order, nameGroup
-    ORDER order(gr)
-    FILTERS nameGroup(gr)
-    
     PROPERTIES(df,dt) printTurnoverReportXLSX, printTurnoverReportTableXLSX
-    
-    EVENTS 
-        ON INIT {
-            SEEK turnoverReport.df = sum(currentDate(), -1);
-            SEEK turnoverReport.dt = sum(currentDate(), -1);
-        }
 ;
 
 DESIGN turnoverReport {
-    NEW topContainer {
-        type = CONTAINERV;
-        alignment = STRETCH;
-        NEW dates {
-            type = CONTAINERH;
-            caption = 'Период';
-            MOVE PROPERTY(dateFrom){caption = 'Дата (с)';}
-            MOVE PROPERTY(dateTo){caption = 'Дата (по)';}
-        }
-        NEW filters {
+    filters {
+        MOVE PROPERTY(nameIncludeStockGroups());
+        MOVE PROPERTY(nameIncludeStocks());
+        MOVE PROPERTY(nameIncludeLegalEntities());
+        MOVE PROPERTY(nameIncludeBrands());
+        MOVE PROPERTY(nameIncludeSkuGroups());
+        MOVE PROPERTY(nameIncludeSkus());
+        MOVE PROPERTY(nameIncludeBarcodes());
+    }
+    lhContainer {
+        NEW col1 {
             type = CONTAINERV;
-            alignment = STRETCH;
-            caption = 'Фильтры';
-            MOVE PROPERTY(nameIncludeStockGroups());
-            MOVE PROPERTY(nameIncludeStocks());
-            MOVE PROPERTY(nameIncludeLegalEntities());
-            MOVE PROPERTY(nameIncludeBrands());
-            MOVE PROPERTY(nameIncludeSkuGroups());
-            MOVE PROPERTY(nameIncludeSkus());
-            MOVE PROPERTY(nameIncludeBarcodes());
+            MOVE PROPERTY(isBalanceB());
+            MOVE PROPERTY(isIn());
+            MOVE PROPERTY(overIsOut());
+            MOVE PROPERTY(isBalanceA());
+        }
+        NEW col2 {
+            type = CONTAINERV;
+            MOVE PROPERTY(isQuantity());
+            MOVE PROPERTY(overIsCost());
+            MOVE PROPERTY(isCostVAT());
+            MOVE PROPERTY(isMarkup());
+            MOVE PROPERTY(isSum());
+            MOVE PROPERTY(isTurnover());
+            MOVE PROPERTY(isDaysOnStock());
         }
     }
-    NEW bottomContainer {
-        fill = 2;
-        type = CONTAINERH;
-        NEW rhContainer {
-            fill = 1;
-            type = CONTAINERH;
-            caption = 'Группировка';
-            NEW checkBoxContainer{
-                type = CONTAINERV;
-                MOVE PROPERTY(gStock());
-                MOVE PROPERTY(gSupplier());
-                MOVE PROPERTY(gSupplierStock());
-                MOVE PROPERTY(gGroup1());
-                MOVE PROPERTY(gGroup2());
-                MOVE PROPERTY(gGroup3());
-                MOVE PROPERTY(gGroup4());
-                MOVE PROPERTY(gSku());
-                MOVE PROPERTY(gBrand());
-                MOVE PROPERTY(gMonth());
-                MOVE PROPERTY(gWeek());
-                MOVE PROPERTY(gDay());
-                MOVE PROPERTY(gUOM());
-            }
-            MOVE BOX(gr) { caption = 'Порядок группировки'; };
-        }
-        NEW lhContainer {
-            type = CONTAINERH;
-            caption = 'Данные';
-            NEW col1 {
-                type = CONTAINERV;
-                MOVE PROPERTY(isBalanceB());
-                MOVE PROPERTY(isIn());
-                MOVE PROPERTY(overIsOut());
-                MOVE PROPERTY(isBalanceA());
-            }
-            NEW col2 {
-                type = CONTAINERV;
-                MOVE PROPERTY(isQuantity());
-                MOVE PROPERTY(overIsCost());
-                MOVE PROPERTY(isCostVAT());
-                MOVE PROPERTY(isMarkup());
-                MOVE PROPERTY(isSum());
-                MOVE PROPERTY(isTurnover());
-                MOVE PROPERTY(isDaysOnStock());
-            }
-        }
-    }
-    NEW print {
-        type = COLUMNS;
-        columns = 2;
-        alignment = STRETCH;
+    print {
         MOVE PROPERTY (printTurnoverReportXLSX(df,dt)) {fill = 1; valueSize = (-1,40);};
         MOVE PROPERTY (printTurnoverReportTableXLSX(df,dt)) {fill = 1; valueSize = (-1,40);};
-    }
-    MOVE TOOLBARBOX;
-}
-
-NAVIGATOR {
-    BI {
-       NEW turnoverReport;
     }
 }
