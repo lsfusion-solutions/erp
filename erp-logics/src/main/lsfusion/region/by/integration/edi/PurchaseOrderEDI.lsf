@@ -36,8 +36,22 @@ DESIGN warehouse {
     }
 }
 
-isEOrder(Purchase.Order o) = EDIProvider(supplier(o)) IS EDIProvider AND NOT skipEDI(supplierStock(o));
-isEOrder(Purchase.UserOrder o) = EDIProvider(supplier(o)) IS EDIProvider AND NOT skipEDI(supplierStock(o));
+skipEDI 'Не использовать EDI' = DATA BOOLEAN (DepartmentStore);
+EXTEND FORM departmentStore
+    PROPERTIES (d) skipEDI;
+
+DESIGN departmentStore {
+    EDI{
+        MOVE PROPERTY (skipEDI(d));
+    }
+}
+
+skipEDI = ABSTRACT BOOLEAN (Stock);
+skipEDI(Warehouse w) += skipEDI(w);
+skipEDI(DepartmentStore d) += skipEDI(d);
+
+isEOrder(Purchase.Order o) = EDIProvider(supplier(o)) IS EDIProvider AND NOT skipEDI(supplierStock(o)) AND NOT skipEDI(customerStock(o));
+isEOrder(Purchase.UserOrder o) = EDIProvider(supplier(o)) IS EDIProvider AND NOT skipEDI(supplierStock(o)) AND NOT skipEDI(customerStock(o));
 isEOrder(Purchase.OrderDetail d) = isEOrder(order(d));
 isEOrder(Purchase.UserOrderDetail d) = isEOrder(userOrder(d));
 
