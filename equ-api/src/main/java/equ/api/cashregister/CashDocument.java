@@ -14,9 +14,15 @@ public class CashDocument implements Serializable {
     public Integer nppMachinery;
     public String numberZReport;
     public BigDecimal sumCashDocument;
+    public String idEmployee;
 
-    public CashDocument(String idCashDocument, String numberCashDocument, Date dateCashDocument, Time timeCashDocument, Integer nppGroupMachinery, 
+    public CashDocument(String idCashDocument, String numberCashDocument, Date dateCashDocument, Time timeCashDocument, Integer nppGroupMachinery,
                         Integer nppMachinery, String numberZReport, BigDecimal sumCashDocument) {
+        this(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument, nppGroupMachinery, nppMachinery, numberZReport, sumCashDocument, null);
+    }
+
+    public CashDocument(String idCashDocument, String numberCashDocument, Date dateCashDocument, Time timeCashDocument, Integer nppGroupMachinery,
+                        Integer nppMachinery, String numberZReport, BigDecimal sumCashDocument, String idEmployee) {
         this.idCashDocument = idCashDocument;
         this.numberCashDocument = numberCashDocument;
         this.dateCashDocument = dateCashDocument;
@@ -25,5 +31,6 @@ public class CashDocument implements Serializable {
         this.nppMachinery = nppMachinery;
         this.numberZReport = numberZReport;
         this.sumCashDocument = sumCashDocument;
+        this.idEmployee = idEmployee;
     }
 }

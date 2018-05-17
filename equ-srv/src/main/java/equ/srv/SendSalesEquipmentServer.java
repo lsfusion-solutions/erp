@@ -203,6 +203,21 @@ public class SendSalesEquipmentServer {
                 propsOutcome.add(new ImportProperty(sumCashOutcomeCashOperationField, cashOperationLM.findProperty("sumCash[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
                 fieldsOutcome.add(sumCashOutcomeCashOperationField);
 
+                ImportField idEmployeeField = new ImportField(cashOperationLM.findProperty("id[Employee]"));
+                ImportKey<?> employeeKey = new ImportKey((CustomClass) cashOperationLM.findClass("Employee"), cashOperationLM.findProperty("employee[VARSTRING[100]]").getMapping(idEmployeeField));
+
+                keysIncome.add(employeeKey);
+                propsIncome.add(new ImportProperty(idEmployeeField, cashOperationLM.findProperty("id[Employee]").getMapping(employeeKey)));
+                propsIncome.add(new ImportProperty(idEmployeeField, cashOperationLM.findProperty("employee[IncomeCashOperation]").getMapping(incomeCashOperationKey),
+                        cashOperationLM.object(cashOperationLM.findClass("Employee")).getMapping(employeeKey)));
+                fieldsIncome.add(idEmployeeField);
+
+                keysOutcome.add(employeeKey);
+                propsOutcome.add(new ImportProperty(idEmployeeField, cashOperationLM.findProperty("id[Employee]").getMapping(employeeKey)));
+                propsOutcome.add(new ImportProperty(idEmployeeField, cashOperationLM.findProperty("employee[OutcomeCashOperation]").getMapping(outcomeCashOperationKey),
+                        cashOperationLM.object(cashOperationLM.findClass("Employee")).getMapping(employeeKey)));
+                fieldsOutcome.add(idEmployeeField);
+
                 ImportField idZReportField = new ImportField(cashOperationLM.findProperty("id[ZReport]"));
                 ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) cashOperationLM.findClass("ZReport"), cashOperationLM.findProperty("zReport[VARSTRING[100]]").getMapping(idZReportField));
                 zReportKey.skipKey = true;
@@ -222,10 +237,10 @@ public class SendSalesEquipmentServer {
                         String idZReport = cashDocument.nppGroupMachinery + "_" + cashDocument.nppMachinery + "_" + cashDocument.numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(cashDocument.dateCashDocument);
                         if (cashDocument.sumCashDocument.compareTo(BigDecimal.ZERO) >= 0)
                             dataIncome.add(Arrays.asList((Object) cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
-                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument, idZReport));
+                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument, cashDocument.idEmployee, idZReport));
                         else
                             dataOutcome.add(Arrays.asList((Object) cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
-                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument.negate(), idZReport));
+                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument.negate(), cashDocument.idEmployee, idZReport));
                     }
                 }
 

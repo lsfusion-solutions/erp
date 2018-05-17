@@ -709,6 +709,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             if (in || out) {
 
                                                 String numberCashDocument = documentObject.getString("docNum");
+                                                String idEmployee = documentObject.getString("userCode");
 
                                                 BigDecimal sumCashDocument = BigDecimal.valueOf(documentObject.getDouble("docSum"));
                                                 sumCashDocument = in ? sumCashDocument : safeNegate(sumCashDocument);
@@ -723,7 +724,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                     if (cashRegister.startDate == null || dateCashDocument.compareTo(cashRegister.startDate) >= 0) {
                                                         String idCashDocument = cashRegister.numberGroup + "/" + numberCashRegister + "/" + numberCashDocument;
                                                         cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
-                                                                cashRegister.numberGroup, numberCashRegister, null, sumCashDocument));
+                                                                cashRegister.numberGroup, numberCashRegister, null, sumCashDocument, idEmployee));
                                                     }
                                                 }
                                                 count++;
