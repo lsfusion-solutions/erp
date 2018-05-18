@@ -58,6 +58,7 @@ inSkuLedger = DATA LOCAL BOOLEAN (SkuLedger);
 nameGroup1 = DATA LOCAL VARSTRING[255] (SkuLedger);
 nameGroup2 = DATA LOCAL VARSTRING[255] (SkuLedger);
 nameGroup3 = DATA LOCAL VARSTRING[255] (SkuLedger);
+barcodeSku = DATA LOCAL VARSTRING[15] (SkuLedger);
 
 META setNameGroup(number)
     setNameGroup##number () ={
@@ -92,7 +93,9 @@ END
 
 fillReportGroupOperationFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt) = {  
     inSkuLedger(SkuLedger sl) <- inBackSheet(stock(sl)) AND date(sl) >= df AND date(sl) <= dt AND include(gt, sku(sl)) AND isPosted(sl) AND ((inSession(operation(sl)) AND NOT isReturn(sl)) OR (inReturn(operation(sl)) AND isReturn(sl)));
- 
+    
+    barcodeSku(SkuLedger sl) <- (OVERRIDE idBarcodeSku(sl), 'Не задано') IF sl IS SkuLedger AND gSku() WHERE inSkuLedger(sl);
+    
     setNameGroup1();
     setNameGroup2();
     setNameGroup3();
@@ -117,7 +120,7 @@ FORM printGroupOperation 'Отчет по операциям'
     PROPERTIES() countGroup
     
     OBJECTS sl = SkuLedger
-    PROPERTIES(sl) nameGroup1, nameGroup2, nameGroup3
+    PROPERTIES(sl) nameGroup1, nameGroup2, nameGroup3, barcodeSku SHOWIF gSku()
     PROPERTIES(sl) sum, sumVAT, costSumVAT, costSum, costVATSum, markup, quantity
     FILTERS inSkuLedger(sl) 
             
