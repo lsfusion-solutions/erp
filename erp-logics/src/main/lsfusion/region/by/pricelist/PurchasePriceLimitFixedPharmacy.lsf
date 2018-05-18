@@ -1,6 +1,6 @@
 MODULE PurchasePriceLimitFixedPharmacy;
 
-REQUIRE PricingPurchase, PriceList, PricingPurchasePriceDivider;
+REQUIRE PricingPurchase, PriceList, PricingPurchasePriceDivider, NegativeRepricingPurchaseInvoice;
 
 NAMESPACE Purchase;
 
@@ -24,7 +24,7 @@ DESIGN options {
 maxLimitPrice 'Максимальная цена' (UserInvoiceDetail d) = prevPriceA(maxLimitPriceListType(), sku(d), customerStock(d), pricingDateTime(d));
 WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             SETCHANGED(retailPrice(UserInvoiceDetail d))
-            AND maxLimitPrice(d) < retailPrice(d) DO {
+            AND maxLimitPrice(d) < retailPrice(d) AND NOT afterRetailPrice(d) DO {
     retailPrice(d) <- maxLimitPrice(d);        
     retailPrice(d) <- CASE WHEN round2(retailPrice(d)/priceDivider(d))*priceDivider(d) < retailPrice(d) AND 
                                 round2(retailPrice(d)/priceDivider(d)/(1(+)valueRetailVAT(d)/100.0))*priceDivider(d) > price(d) 
@@ -38,7 +38,7 @@ WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail]
 minLimitPrice 'Минимальная цена' (UserInvoiceDetail d) = prevPriceA(minLimitPriceListType(), sku(d), customerStock(d), pricingDateTime(d));
 WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             SETCHANGED(retailPrice(UserInvoiceDetail d))
-            AND minLimitPrice(d) > retailPrice(d) DO {
+            AND minLimitPrice(d) > retailPrice(d) AND NOT afterRetailPrice(d) DO {
     retailPrice(d) <- minLimitPrice(d);                
     retailPrice(d) <- CASE WHEN round2(retailPrice(d)/priceDivider(d))*priceDivider(d) < retailPrice(d) AND 
                                 round2(retailPrice(d)/priceDivider(d)/(1(+)valueRetailVAT(d)/100.0))*priceDivider(d) > price(d) 
