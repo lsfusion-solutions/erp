@@ -1,0 +1,163 @@
+MODULE BOMDoubleTreatment;
+
+REQUIRE BOMBy;
+NAMESPACE BOM;
+
+//-- 2 процента для холодной и два для горячей обработки
+
+textDescription 'Описание'  = DATA VARSTRING[255] (Component) CHARWIDTH 20;
+semifinishedWeight 'Вес полуфабриката'  = DATA NUMERIC[16,5] (Component);
+
+wastageHeat1 'Отходы при тепловой обработке 1, %' = DATA NUMERIC[10,5] (Component); 
+wastageCold1 'Отходы при холодной обработке 1, %' = DATA NUMERIC[10,5] (Component);   
+
+wastageHeat2 'Отходы при тепловой обработке 2, %' = DATA NUMERIC[10,5] (Component); 
+wastageCold2 'Отходы при холодной обработке 2, %' = DATA NUMERIC[10,5] (Component);   
+
+middleWeight 'Вес нетто' = DATA NUMERIC[16,5](Component); //-- который получается после холодной обработки
+middleWeightComponent 'Вес нетто' (BOM) = GROUP SUM middleWeight(Component idetail) BY BOM(idetail) IN documentSum MATERIALIZED;            
+
+calculatePercWastage 'Рассчитывать процент обработки' = DATA BOOLEAN (BOM) IN documentPrm;
+calculatePercWastage 'Рассчитывать процент обработки' (Component c) = calculatePercWastage(BOM(c));
+
+netWeight (Component c)=  OVERRIDE overNetWeight(c), 1.0 IF c IS Component;
+
+changeWastageCold1 (Component c) = {
+    INPUT n = NUMERIC[10,5] DO {
+        wastageCold1(c) <- n;
+        bruttoQuantity(c) <-  NUMERIC[16,5]((middleWeight(c)*10000.0 / (100.0 (-) wastageCold1(c))/ (100.0 (-) wastageCold2(c))) / netWeight(c));
+    }
+}
+changeWastageCold2 (Component c) = {
+    INPUT n = NUMERIC[10,5] DO {
+        wastageCold2(c) <- n;
+        bruttoQuantity(c) <-  NUMERIC[16,5]((middleWeight(c)*10000.0 / (100.0 (-) wastageCold1(c))/ (100.0 (-) wastageCold2(c))) / netWeight(c));    
+    }
+}
+changeWastageHeat1 (Component c) = {
+    INPUT n = NUMERIC[10,5] DO {
+        wastageHeat1(c) <- n;
+        nettoQuantity(c) <-  NUMERIC[16,5]((middleWeight(c)/10000.0 * (100.0 (-) wastageHeat1(c))* (100.0 (-) wastageHeat2(c))) / netWeight(c)); 
+    }
+}
+changeWastageHeat2 (Component c) = {
+    INPUT n = NUMERIC[10,5] DO {
+        wastageHeat2(c) <- n;
+        nettoQuantity(c) <-  NUMERIC[16,5]((middleWeight(c)/10000.0 * (100.0 (-) wastageHeat1(c))* (100.0 (-) wastageHeat2(c))) / netWeight(c));     
+    }
+}
+changeOverBruttoNetWeight (Component c) = {
+    INPUT n = NUMERIC[16,5] DO {
+        bruttoQuantity(c) <-  NUMERIC[16,5](n / netWeight(c));  
+        wastageCold1(c) <- NUMERIC[10,5]((overBruttoNetWeight(c) (-) (middleWeight(c)/(100.0 (-) wastageCold2(c)) *100.0))/overBruttoNetWeight(c)*100.0);
+    }
+}
+
+changeOverNettoNetWeight (Component c) = {
+    INPUT n = NUMERIC[16,5] DO {
+        nettoQuantity(c) <-  NUMERIC[16,5](n / netWeight(c));  
+        wastageHeat1(c) <- NUMERIC[10,5]((middleWeight(c) (-) (overNettoNetWeight(c)/(100.0 (-) wastageHeat2(c))*100.0 ))/middleWeight(c)*100.0);
+    }
+}
+changeMiddleWeight (Component c) = {
+    INPUT n = NUMERIC[16,5] DO {
+        middleWeight(c) <- n;
+        IF NOT calculatePercWastage(c) THEN {
+            bruttoQuantity(c) <-  NUMERIC[16,5]((middleWeight(c)*10000.0 / (100.0 (-) wastageCold1(c))/ (100.0 (-) wastageCold2(c))) / netWeight(c));
+            nettoQuantity(c) <-  NUMERIC[16,5]((middleWeight(c)/10000.0 * (100.0 (-) wastageHeat1(c))* (100.0 (-) wastageHeat2(c))) / netWeight(c));
+        } ELSE {
+            wastageCold1(c) <- NUMERIC[10,5]((overBruttoNetWeight(c) (-)middleWeight(c))/overBruttoNetWeight(c)*100.0);
+            wastageHeat1(c) <- NUMERIC[10,5]((middleWeight(c) (-) overNettoNetWeight(c))/middleWeight(c)*100.0);
+        }   
+    }
+}
+
+
+EXTEND FORM BOM
+    PROPERTIES (b) calculatePercWastage, middleWeightComponent
+    PROPERTIES  middleWeight(c) ON CHANGE changeMiddleWeight(c), overBruttoNetWeight = overBruttoNetWeight(c) ON CHANGE changeOverBruttoNetWeight(c), 
+                wastageCold1(c) ON CHANGE changeWastageCold1(c), wastageCold2(c) ON CHANGE changeWastageCold2(c), 
+                wastageHeat1(c) ON CHANGE changeWastageHeat1(c), wastageHeat2(c) ON CHANGE changeWastageHeat2(c),
+                overNettoNetWeight = overNettoNetWeight(c) ON CHANGE changeOverNettoNetWeight(c),
+                textDescription(c), semifinishedWeight(c)
+;
+DESIGN BOM {
+    BOX(b) {        
+        NEW sum {    
+            type = CONTAINERH;
+            MOVE GROUP(documentSum,b);
+            NEW sum2{
+                type = CONTAINERV;
+                MOVE PROPERTY (middleWeightComponent(b));
+                MOVE PROPERTY (overNettoNetWeightComponent(b)){caption ='Выход';}
+                MOVE PROPERTY (overBruttoNetWeightyComponent(b)){caption ='Вес брутто';}      
+                MOVE PROPERTY (actQuantity(b)) {caption = 'Количетсво блюд';}       
+            }
+        }         
+    }    
+    PROPERTY (wastage(c)) {hide = TRUE;}
+    PROPERTY (nettoQuantity(c)) {hide = TRUE;}
+    PROPERTY (overNettoNetWeight(c)) {hide = TRUE;}    
+    PROPERTY (bruttoQuantity(c)) {hide = TRUE;}
+    PROPERTY (overBruttoNetWeight(c)) {hide = TRUE;}    
+    
+    PROPERTY (overBruttoNetWeight) {caption = 'Вес брутто';}
+    PROPERTY (overNettoNetWeight) {caption = 'Выход';}    
+
+    GRID(c) {
+        headerHeight = 60;
+    }    
+}
+
+
+//-----------------------
+
+actNettoNetWeightD 'Вес нетто изделия для акта г' (Product p) = actQuantity(BOM(p))* (OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product)*1000;
+nameSkusD 'Компоненты (все)' (BOM BOM) = GROUP CONCAT Stock.name(Sku sku) IF (GROUP SUM 1 IF sku(Component c) == sku AND BOM(c) == BOM), ', ' ORDER Stock.name(sku);
+netWeightProductD 'Вес' (BOM) = GROUP SUM netWeight(sku(Product p))*1000 BY BOM(p);   
+actBruttoNetWeightD 'Выход полуфабриката брутто, г' (Component c)= bruttoQuantity(c)* (OVERRIDE overNetWeight(c), 1.0 IF c IS Component)*actQuantity(BOM(c))*1000.0/quantityProduct(BOM(c));
+actNettoNetWeightD 'Выход полуфабриката нетто, г' (Component c)=nettoQuantity(c)*actQuantity(BOM(c))*1000*(OVERRIDE overNetWeight(c), 1.0 IF c IS Component)/quantityProduct(BOM(c));
+actMiddleNetWeightD 'Выход полуфабриката нетто, г' (Component c)=middleWeight(c)*actQuantity(BOM(c))*1000*(OVERRIDE overNetWeight(c), 1.0 IF c IS Component)/quantityProduct(BOM(c));
+
+netWeightProductDD 'Выход'  = GROUP SUM quantity(Product p)*actQuantity(BOM(p))*1000*(OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product)/quantityProduct(BOM(p))BY BOM(p);   
+
+overFullNameCompanyD (BOM b) = OVERRIDE fullName(company(b)), fullNameLegalEntity(actStock(b));
+
+FORM actStudyOfCulinaryDoubleTreatment 'Акт контрольной проработки'
+    OBJECTS dt=DATE PANEL
+    PROPERTIES (dt) date = VALUE , extractYearBOMs 
+
+    OBJECTS b=BOM PANEL 
+    PROPERTIES(b)  READONLY products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightComponent, pricePercent, note
+    PROPERTIES(b) nameOwnershipCompany, nameCompany, overFullNameCompanyD, shortNameOwnershipCompany, recipes, extractYearFromDate,
+                  actQuantity, nameActStock, actStudyOfCulinaryCommittee, commonNameEmployeeCommittee, netWeightProductD, date, netWeightProductDD    
+   
+    PROPERTIES(b,dt) firstShortNameChief, namePositionChief
+    PROPERTIES nameSkusD(b)
+
+    OBJECTS p = Product
+    PROPERTIES(p) READONLY nameSku, shortNameUOM 
+    PROPERTIES READONLY actNettoNetWeightD(p)
+                  
+    FILTERS       BOM(p) == b
+    
+    OBJECTS cc = Component
+    PROPERTIES(cc) READONLY nameMaterial, shortNameUOM, overNettoNetWeight
+    PROPERTIES    READONLY  wastageCold1(cc), wastageCold2(cc), wastageHeat1(cc), wastageHeat2(cc), actBruttoNetWeightD(cc), actNettoNetWeightD(cc),
+                  actMiddleNetWeightD(cc)                                    
+                  
+    FILTERS       BOM(cc) == b
+                  
+    OBJECTS e=Employee
+    PROPERTIES(e) READONLY name[Contact], namePosition
+    FILTERS       inCommittee(b,e)                  
+              
+;
+actStudyOfCulinaryDoubleTreatment 'Акт контрольной проработки (new)'(BOM BOM)  = {
+    DIALOG dialogDate OBJECTS d INPUT DO
+        PRINT actStudyOfCulinaryDoubleTreatment OBJECTS dt = d, b = BOM ;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM BOMs
+    PROPERTIES(b)  actStudyOfCulinaryDoubleTreatment   
+;
