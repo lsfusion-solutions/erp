@@ -274,7 +274,7 @@ public class AclasHandler extends ScalesHandler {
         bytes.put((byte) 1);
 
         //barcodeType, 1 byte
-        bytes.put((byte) 1);
+        bytes.put((byte) 7);
 
         // UnitPrice, 4 bytes
         bytes.put(getHexBytes(fillLeadingZeroes(String.valueOf(safeMultiply(item.price, 100).intValue()), 8)));
@@ -304,7 +304,7 @@ public class AclasHandler extends ScalesHandler {
         bytes.put(getHexBytes(fillLeadingZeroes(0, 6)));
 
         //code, 5 bytes
-        bytes.put(getHexBytes(fillLeadingZeroes("1", 8)));
+        bytes.put(getHexBytes(fillLeadingZeroes(item.idBarcode, 8)));
 
         return bytes.array();
     }
