@@ -207,10 +207,15 @@ public class AclasHandler extends ScalesHandler {
     private boolean loadPLU(UDPPort udpPort, ScalesItemInfo item) throws CommunicationException, IOException {
         ByteBuffer addressBytes = ByteBuffer.allocate(2);
         addressBytes.order(ByteOrder.LITTLE_ENDIAN);
-        addressBytes.putShort(Short.parseShort(item.idBarcode));//2 bytes
+        addressBytes.putShort(parseMessageNumber(item));//2 bytes
 
         sendCommand(udpPort, (byte) 0x0b, addressBytes.array(), getPLUBytes256(item));
         return receiveReply(udpPort);
+    }
+
+    private short parseMessageNumber(ScalesItemInfo item) {
+        Integer messageNumber = Integer.parseInt(item.idBarcode);
+        return (short) (messageNumber > Short.MAX_VALUE ? messageNumber % Short.MAX_VALUE : messageNumber);
     }
 
     private byte[] getConnectBytes256() {
