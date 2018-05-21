@@ -226,7 +226,7 @@ public class AclasHandler extends ScalesHandler {
         bytes.put(new byte[]{0x01, 0x00, 0x00, 0x00});
 
         //current date-time, 6 bytes
-        String dateTime = new SimpleDateFormat("yymmddhhmmss").format(Calendar.getInstance().getTime());
+        String dateTime = new SimpleDateFormat("yyMMddhhmmss").format(Calendar.getInstance().getTime());
         bytes.put(getHexBytes(dateTime));
         return bytes.array();
     }
