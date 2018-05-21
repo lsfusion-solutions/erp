@@ -57,6 +57,15 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                                         (DataObject) importTypeObject, file, fileExtension, settings,
                                         staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, false, false);
 
+                                if(invoiceObject != null) {
+                                    findProperty("currentInvoice[]").change(invoiceObject, currentSession);
+                                }
+                                String script = (String) findProperty("script[ImportType]").read(currentSession, importTypeObject);
+                                if(script != null && !script.isEmpty()) {
+                                    findProperty("executionScript[ImportType]").change(String.format("run() = {%s;\n};", script), currentSession, (DataObject) importTypeObject);
+                                    findAction("executeScript[ImportType]").execute(currentSession, context.stack, importTypeObject);
+                                }
+
                                 findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
 
                                 currentSession.apply(context);
