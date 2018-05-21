@@ -204,12 +204,12 @@ public class AclasHandler extends ScalesHandler {
         return result;
     }
 
-    private boolean loadPLU(UDPPort udpPort, ScalesItemInfo item) throws CommunicationException, IOException {
+    private boolean loadPLU(UDPPort udpPort, ScalesInfo scales, ScalesItemInfo item) throws CommunicationException, IOException {
         ByteBuffer addressBytes = ByteBuffer.allocate(2);
         addressBytes.order(ByteOrder.LITTLE_ENDIAN);
         addressBytes.putShort(parseMessageNumber(item));//2 bytes
 
-        sendCommand(udpPort, (byte) 0x0b, addressBytes.array(), getPLUBytes256(item));
+        sendCommand(udpPort, (byte) 0x0b, addressBytes.array(), getPLUBytes256(scales, item));
         return receiveReply(udpPort);
     }
 
@@ -253,7 +253,7 @@ public class AclasHandler extends ScalesHandler {
         return bytes.array();
     }
 
-    private byte[] getPLUBytes256(ScalesItemInfo item) {
+    private byte[] getPLUBytes256(ScalesInfo scales, ScalesItemInfo item) {
         ByteBuffer bytes = ByteBuffer.allocate(256);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -270,8 +270,10 @@ public class AclasHandler extends ScalesHandler {
         //rebate, 1 byte
         bytes.put((byte) 0);
 
+        boolean weightItem = item.passScalesItem && item.splitItem;
+
         // Department, 1 byte
-        bytes.put((byte) 1);
+        bytes.put(parseDepartmentNumber(weightItem ? scales.weightCodeGroupScales : scales.pieceCodeGroupScales));
 
         //barcodeType, 1 byte
         bytes.put((byte) 7);
@@ -280,7 +282,7 @@ public class AclasHandler extends ScalesHandler {
         bytes.put(getHexBytes(fillLeadingZeroes(String.valueOf(safeMultiply(item.price, 100).intValue()), 8)));
 
         //weightUnit, 1 byte; 1 - весовой, 100(#4) - штучный (цена за кг))
-        bytes.put((byte) (item.passScalesItem && item.splitItem ? 1 : 100));
+        bytes.put((byte) (weightItem ? 1 : 100));
 
         //shelftime, 2 bytes
         bytes.putShort(item.daysExpiry == null ? 0 : item.daysExpiry.shortValue());
@@ -307,6 +309,13 @@ public class AclasHandler extends ScalesHandler {
         bytes.put(getHexBytes(fillLeadingZeroes(item.idBarcode, 8)));
 
         return bytes.array();
+    }
+
+    private byte parseDepartmentNumber(String value) {
+        if (value != null) {
+            return getHexBytes(fillLeadingZeroes(value, 2))[0];
+
+        } else return 1;
     }
 
     protected void logError(List<String> errors, String errorText) {
@@ -382,7 +391,7 @@ public class AclasHandler extends ScalesHandler {
                                             int attempts = 0;
                                             Boolean result = null;
                                             while ((result == null || !result) && attempts < 3) {
-                                                result = loadPLU(udpPort, item);
+                                                result = loadPLU(udpPort, scales, item);
                                                 attempts++;
                                             }
                                             if (!result) {
