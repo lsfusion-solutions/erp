@@ -314,7 +314,7 @@ public class FiscalAbsolut {
                 double discountSum = formatPrice(discSum);
                 if (discountSum != 0.0) {
                     boolean discount = discountSum < 0;
-                    logAction("NacSkd", discount ? 0 : 1, Math.abs(discountSum), 0);
+                    logAction("NacSkd", discount ? 0 : 1, discSum.abs(), 0);
                     return absolutDLL.absolut.NacSkd(discount ? 0 : 1, Math.abs(discountSum), 0);
                 } else return true;
             } else return false;
@@ -337,7 +337,7 @@ public class FiscalAbsolut {
             }
             int tax = groupPaymentsByVAT ? (item.valueVAT == 20.0 ? 1 : item.valueVAT == 10.0 ? 2 : item.valueVAT == 0.0 ? 3 : 0) : 0;
             String plu = item.barcode +  (groupPaymentsByVAT ? (item.valueVAT == 20.0 ? "1" : item.valueVAT == 10.0 ? "2" : item.valueVAT == 0.0 ? "3" : "0") : "");
-            logAction("FullProd", plu, price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, item.barcode);
+            logAction("FullProd", plu, item.price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, item.barcode);
             return absolutDLL.absolut.FullProd(plu, price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, getBytes(item.barcode), getCodeType(useSKNO));
         } catch (UnsupportedEncodingException e) {
             return false;
@@ -360,7 +360,7 @@ public class FiscalAbsolut {
         if (discSum == 0)
             return true;
         boolean discount = discSum < 0;
-        logAction("NacSkd", discount ? 0 : 1, Math.abs(discSum), 0, "discountCard: " + numberDiscountCard);
+        logAction("NacSkd", discount ? 0 : 1, item.articleDiscSum - item.bonusPaid, 0, "discountCard: " + numberDiscountCard);
         return absolutDLL.absolut.NacSkd(discount ? 0 : 1, Math.abs(discSum), 0);
     }
 
@@ -369,7 +369,7 @@ public class FiscalAbsolut {
             return true;
         boolean discount = receipt.sumDisc.compareTo(BigDecimal.ZERO) < 0;
         double sumDisc = formatAbsPrice(receipt.sumDisc);
-        logAction("NacSkd", discount ? "Скидка" : "Наценка", sumDisc, discount ? 3 : 1, "discountCard: " + receipt.numberDiscountCard);
+        logAction("NacSkd", discount ? "Скидка" : "Наценка", receipt.sumDisc, discount ? 3 : 1, "discountCard: " + receipt.numberDiscountCard);
         return absolutDLL.absolut.NacSkd(discount ? 4 :5, sumDisc, 0);
     }
     
