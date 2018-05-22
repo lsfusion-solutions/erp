@@ -1,13 +1,15 @@
 MODULE OrderTerminalOrder;
 
-REQUIRE Order, TerminalOrder;
+REQUIRE Order, TerminalOrder, TerminalHandler;
 
 NAMESPACE Order;
 
 EXTEND CLASS Order : TerminalOrder;
 EXTEND CLASS OrderDetail : TerminalOrderDetail;
 
-date[TerminalOrder] (Order order) += date(order);
+@defineOption(useShipmentDateTerminal, 'Использовать дату поставки для заказов', terminalServer);
+
+date[TerminalOrder] (Order order) += IF useShipmentDateTerminal() THEN shipmentDate(order) ELSE date(order);
 number[TerminalOrder] (Order o) += number(o);
 idSupplier[TerminalOrder] (Order o) += idExternalStock(o);
 isOpened[TerminalOrder] (Order o) += isOpened(o);
@@ -22,7 +24,7 @@ nameSku[TerminalOrderDetail] (OrderDetail d) += nameSku(d);
 price[TerminalOrderDetail] (OrderDetail d) += price(d);
 orderQuantity[TerminalOrderDetail] (OrderDetail d) += quantity(d);
 
-nameManufacturerSku (Order.OrderDetail d) = name(manufacturer(sku(d)));
+nameManufacturerSku (Order.OrderDetail d) = name(Item.manufacturer(sku(d)));
 nameManufacturerSku[TerminalOrderDetail] (Order.OrderDetail d) += nameManufacturerSku(d);
 
 passScalesSku(Order.OrderDetail d) = passScales(sku(d));
