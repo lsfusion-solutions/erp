@@ -303,7 +303,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 boolean isTerminalPriceTransaction = terminalLM != null && transactionObject.objectClass.equals(terminalLM.findClass("TerminalPriceTransaction"));
                 
                 String handlerModelGroupMachinery = (String) equLM.findProperty("handlerModel[GroupMachinery]").read(session, groupMachineryObject);
-                String nameModelGroupMachinery = (String) equLM.findProperty("nameModel[GroupMachinery]").read(session, groupMachineryObject);
 
                 ValueExpr transactionExpr = transactionObject.getExpr();
                 KeyExpr barcodeExpr = new KeyExpr("barcode");
@@ -443,7 +442,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Boolean disableSalesCashRegister = row.get("disableSalesCashRegister") != null;
                         boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
                         cashRegisterInfoList.add(new CashRegisterInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
-                                nameModelGroupMachinery, handlerModelGroupMachinery, portMachinery, directoryCashRegister,
+                                null, handlerModelGroupMachinery, portMachinery, directoryCashRegister,
                                 startDateGroupCashRegister, overDepartmentNumberGroupCashRegister, idDepartmentStoreGroupCashRegister, notDetailedGroupCashRegister,
                                 disableSalesCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister, sectionGroupCashRegister, null));
                     }
@@ -540,7 +539,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         }
                         if(active)
                             scalesInfoList.add(new ScalesInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
-                                nameModelGroupMachinery, handlerModelGroupMachinery, portMachinery, directory,
+                                null, handlerModelGroupMachinery, portMachinery, directory,
                                 pieceCodeGroupScales, weightCodeGroupScales));
                     }
                     //если все отмеченные - неактивные, то не посылаем весы вообще
@@ -609,7 +608,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
                         Boolean cleared = row.get("clearedMachineryMachineryPriceTransaction") != null;
                         priceCheckerInfoList.add(new PriceCheckerInfo(enabled, cleared, succeeded, nppGroupMachinery, (Integer) row.get("nppMachinery"),
-                                nameModelGroupMachinery, handlerModelGroupMachinery, trim((String) row.get("portMachinery"))));
+                                null, handlerModelGroupMachinery, trim((String) row.get("portMachinery"))));
                     }
 
                     List<PriceCheckerItemInfo> priceCheckerItemInfoList = new ArrayList<>();
@@ -667,7 +666,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
                         Boolean cleared = row.get("clearedMachineryMachineryPriceTransaction") != null;
                         terminalInfoList.add(new TerminalInfo(enabled, cleared, succeeded, nppGroupMachinery, (Integer) row.get("nppMachinery"),
-                                nameModelGroupMachinery, handlerModelGroupMachinery, getRowValue(row, "portMachinery"),
+                                null, handlerModelGroupMachinery, getRowValue(row, "portMachinery"),
                                 directoryGroupTerminal, idPriceListType));
                     }
 
