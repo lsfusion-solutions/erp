@@ -76,6 +76,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
                 boolean skipScalesInfo = kristalSettings != null && kristalSettings.getSkipScalesInfo() != null && kristalSettings.getSkipScalesInfo();
                 boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+                boolean skipUseShopIndicesMinPrice = kristalSettings != null && kristalSettings.getSkipUseShopIndicesMinPrice() != null && kristalSettings.getSkipUseShopIndicesMinPrice();
                 String weightShopIndices = kristalSettings != null ? kristalSettings.getWeightShopIndices() : null;
                 boolean useIdItemInRestriction = kristalSettings != null && kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
                 List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
@@ -150,6 +151,24 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             }
 
                             rootElement.addContent(good);
+
+                            if(item.minPrice != null) {
+                                //parent: rootElement
+                                Element minPriceRestriction = new Element("min-price-restriction");
+                                setAttribute(minPriceRestriction, "id", useIdItemInRestriction ? idItem : barcodeItem);
+                                setAttribute(minPriceRestriction, "subject-type", "GOOD");
+                                setAttribute(minPriceRestriction, "subject-code", idItem);
+                                setAttribute(minPriceRestriction, "type", "MIN_PRICE");
+                                setAttribute(minPriceRestriction, "value", item.minPrice != null ? item.minPrice : BigDecimal.ZERO);
+                                addStringElement(minPriceRestriction, "since-date", currentDate());
+                                addStringElement(minPriceRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2021-01-01T23:59:59"));
+                                addStringElement(minPriceRestriction, "since-time", "00:00:00");
+                                addStringElement(minPriceRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
+                                addStringElement(minPriceRestriction, "deleted", item.flags != null && ((item.flags & 16) == 0) ? "false" : "true");
+                                if (useShopIndices && !skipUseShopIndicesMinPrice)
+                                    addStringElement(minPriceRestriction, "shop-indices", shopIndices);
+                                rootElement.addContent(minPriceRestriction);
+                            }
 
                             //parent: rootElement
                             Element maxDiscountRestriction = new Element("max-discount-restriction");

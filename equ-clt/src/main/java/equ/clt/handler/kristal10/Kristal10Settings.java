@@ -11,6 +11,7 @@ public class Kristal10Settings implements Serializable{
     private Boolean skipWeightPrefix;
     private Boolean skipScalesInfo;
     private Boolean useShopIndices;
+    private Boolean skipUseShopIndicesMinPrice;
     private String weightShopIndices;
     private Boolean ignoreSalesDepartmentNumber;
     private Boolean useIdItemInRestriction;
@@ -76,6 +77,14 @@ public class Kristal10Settings implements Serializable{
 
     public void setUseShopIndices(Boolean useShopIndices) {
         this.useShopIndices = useShopIndices;
+    }
+
+    public Boolean getSkipUseShopIndicesMinPrice() {
+        return skipUseShopIndicesMinPrice;
+    }
+
+    public void setSkipUseShopIndicesMinPrice(Boolean skipUseShopIndicesMinPrice) {
+        this.skipUseShopIndicesMinPrice = skipUseShopIndicesMinPrice;
     }
 
     public String getWeightShopIndices() {
