@@ -1,7 +1,7 @@
 MODULE SocialPlan;
 
 REQUIRE Utils, Integration, Sku, SaleOrder;
-
+PRIORITY Sale;
 NAMESPACE Social;
 
 //--Отпуск продуктов питания детям первых лет жизни
@@ -140,6 +140,8 @@ NAVIGATOR {
 
 }
 
+@defineOperationProperty(isSocial, 'Бесплатные продукты', BOOLEAN, paramsContainer);
+
 child = ABSTRACT Child(Sale.Order);
 child = DATA Child(Sale.UserOrder);
 child(Sale.UserOrder o) += child(o);
@@ -148,7 +150,7 @@ nameChild 'Получатель' (Sale.UserOrder o) = name(child(o)) CHARWIDTH 2
 nameChild 'Получатель' (Sale.Order o) = name(child(o)) CHARWIDTH 20 ;
 
 EXTEND FORM userOrder
-    PROPERTIES (o) SHOWIF id(operation(o)) =='social' nameChild
+    PROPERTIES (o) SHOWIF isSocial(operation(o)) nameChild
 ;
 DESIGN userOrder{
     headerRow11 {
