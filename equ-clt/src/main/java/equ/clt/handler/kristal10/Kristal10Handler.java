@@ -154,7 +154,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                             //parent: rootElement
                             Element minPriceRestriction = new Element("min-price-restriction");
-                            setAttribute(minPriceRestriction, "id", useIdItemInRestriction ? idItem : barcodeItem);
+                            setAttribute(minPriceRestriction, "id", "MP-" + (useIdItemInRestriction ? idItem : barcodeItem) + "-" + shopIndices);
                             setAttribute(minPriceRestriction, "subject-type", "GOOD");
                             setAttribute(minPriceRestriction, "subject-code", idItem);
                             setAttribute(minPriceRestriction, "type", "MIN_PRICE");
