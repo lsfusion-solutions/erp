@@ -260,14 +260,17 @@ EXTEND FORM userRole
 showApproved (PromotionDetail detail) = currentDate() >= proposeDate(promotion(detail));
 showExcluded (PromotionDetail detail) = currentDate() >= approveDate(promotion(detail));
 
-CONSTRAINT DROPPED(PromotionDetail detail IS PromotionDetail) AND currentDate() >= proposeDate(PREV(promotion(detail))) AND 
-    (NOT allowEditProposedPromotionDetail(mainRole(currentUser())) OR currentDate() >= approveDate(PREV(promotion(detail))))
+CONSTRAINT DROPPED(PromotionDetail detail IS PromotionDetail) AND 
+   ((currentDate() >= proposeDate(PREV(promotion(detail))) AND NOT allowEditProposedPromotionDetail(mainRole(currentUser()))) OR  
+    (currentDate() >= approveDate(PREV(promotion(detail))) AND NOT allowEditApprovedPromotionDetail(mainRole(currentUser()))) )
         MESSAGE 'Запрещено удалять строки акции после наступления даты предложения (утверждения)';
-CONSTRAINT SET(PromotionDetail detail IS PromotionDetail) AND currentDate() >= proposeDate(promotion(detail)) AND 
-    (NOT allowEditProposedPromotionDetail(mainRole(currentUser())) OR currentDate() >= approveDate(PREV(promotion(detail))))
+CONSTRAINT SET(PromotionDetail detail IS PromotionDetail) AND    
+    ((currentDate() >= proposeDate(PREV(promotion(detail))) AND NOT allowEditProposedPromotionDetail(mainRole(currentUser()))) OR  
+     (currentDate() >= approveDate(PREV(promotion(detail))) AND NOT allowEditApprovedPromotionDetail(mainRole(currentUser()))) )
         MESSAGE 'Запрещено добавлять строки акции после наступления даты предложения (утверждения)';
-CONSTRAINT DROPCHANGED(sku(PromotionDetail detail)) AND currentDate() >= proposeDate(promotion(detail)) AND 
-    (NOT allowEditProposedPromotionDetail(mainRole(currentUser())) OR currentDate() >= approveDate(PREV(promotion(detail))))
+CONSTRAINT DROPCHANGED(sku(PromotionDetail detail)) AND 
+   ((currentDate() >= proposeDate(PREV(promotion(detail))) AND NOT allowEditProposedPromotionDetail(mainRole(currentUser()))) OR  
+    (currentDate() >= approveDate(PREV(promotion(detail))) AND NOT allowEditApprovedPromotionDetail(mainRole(currentUser()))) )
         MESSAGE 'Запрещено изменять товар после наступления даты предложения (утверждения)';
 
 //CONSTRAINT DROPCHANGED(PromotionDetail detail) AND currentDate() >= approveDate(promotion(detail)) AND NOT allowEditApprovedPromotionDetail(mainRole(currentUser()))
