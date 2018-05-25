@@ -309,18 +309,18 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                             scheduleOrder(o) <- scheduleOrder;
                             customerStock(o) <- stock;                            
                             // если попали на субботу или воскресенье
-//                            IF extractDOWNumber(tmpDateS()) == 0 OR extractDOWNumber(tmpDateS()) == 6 THEN {
-//                                IF number(transferDay(scheduleOrder)) == 1 THEN {
-//                                // если нужно переносить на понедельник, то добавляем
-//                                    WHILE extractDOWNumber(tmpDateS()) != 1 DO tmpDateS() <- sum(tmpDateS(), 1);
-//                                }
-//                                ELSE {
-//                                    // если нужно переносить на пятницу, то отнимаем
-//                                    WHILE extractDOWNumber(tmpDateS()) != 5 DO tmpDateS() <- subtract(tmpDateS(), 1);
-//                                }
-//                            }
+                            IF extractDOWNumber(tmpDateS()) == 0 OR extractDOWNumber(tmpDateS()) == 6 THEN {
+                                IF number(transferDay(scheduleOrder)) == 1 THEN {
+                                // если нужно переносить на понедельник, то добавляем
+                                    WHILE extractDOWNumber(tmpDateS()) != 1 DO tmpDateS() <- sum(tmpDateS(), 1);
+                                }
+                                ELSE {
+                                    // если нужно переносить на пятницу, то отнимаем
+                                    WHILE extractDOWNumber(tmpDateS()) != 5 DO tmpDateS() <- subtract(tmpDateS(), 1);
+                                }
+                            }
                             dateSupply(o) <- tmpDateS();
-                            //dateOrder(o) <- subtract(tmpDateS(), dayBefore(scheduleOrder));
+                            dateOrder(o) <- subtract(tmpDateS(), dayBefore(scheduleOrder));
                             
                             IF (extractDOWNumber(subtract(tmpDateS(), dayBefore(scheduleOrder))) == 0 OR extractDOWNumber(subtract(tmpDateS(), dayBefore(scheduleOrder))) == 6) THEN {
                                 dateOrder(o) <- subtract(tmpDateS(), dayBefore(scheduleOrder)+(IF extractDOWNumber(subtract(tmpDateS(), dayBefore(scheduleOrder))) == 0 THEN 2 ELSE 1));                                    
@@ -503,7 +503,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                        startDate, endDate, nameType, 
                        overPeriod SHOWIF toShowGenDayMonth(s), inAllMonth SHOWIF toShowGenDayMonth(s), dayBefore,
                        dayLastOrder SHOWIF toShowGenDay(s), dayAfter SHOWIF toShowGenDay(s), 
-                       stringNumber SHOWIF toShowGenNumber(s), //nameTransferDay SHOWIF toShowGenNumber(s),
+                       stringNumber SHOWIF toShowGenNumber(s), nameTransferDay SHOWIF toShowGenNumber(s),
                        note
 
         OBJECTS dow=DOW GRID 
@@ -638,7 +638,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                             MOVE PROPERTY(dayLastOrder(s));
                             MOVE PROPERTY(dayAfter(s));
                             MOVE PROPERTY(stringNumber(s));
-//                            MOVE PROPERTY(nameTransferDay(s));
+                            MOVE PROPERTY(nameTransferDay(s));
                         }
                     }
     
