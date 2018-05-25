@@ -153,22 +153,24 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             rootElement.addContent(good);
 
                             //parent: rootElement
-                            Element minPriceRestriction = new Element("min-price-restriction");
-                            setAttribute(minPriceRestriction, "id", "MP-" + (useIdItemInRestriction ? idItem : barcodeItem) + "-" + shopIndices);
-                            setAttribute(minPriceRestriction, "subject-type", "GOOD");
-                            setAttribute(minPriceRestriction, "subject-code", idItem);
-                            setAttribute(minPriceRestriction, "type", "MIN_PRICE");
-                            setAttribute(minPriceRestriction, "value", item.minPrice != null ? item.minPrice : BigDecimal.ZERO);
-                            addStringElement(minPriceRestriction, "since-date", currentDate());
-                            addStringElement(minPriceRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2021-01-01T23:59:59"));
-                            addStringElement(minPriceRestriction, "since-time", "00:00:00");
-                            addStringElement(minPriceRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
-                            addStringElement(minPriceRestriction, "deleted", item.minPrice != null && item.minPrice.compareTo(BigDecimal.ZERO) != 0 ? "false" : "true");
-                            addStringElement(minPriceRestriction, "days-of-week", "MO TU WE TH FR SA SU");
-                            if (useShopIndices && !skipUseShopIndicesMinPrice)
-                                addStringElement(minPriceRestriction, "shop-indices", shopIndices);
-                            rootElement.addContent(minPriceRestriction);
-
+                            if (item.minPrice != null) {
+                                Element minPriceRestriction = new Element("min-price-restriction");
+                                setAttribute(minPriceRestriction, "id", "MP-" + (useIdItemInRestriction ? idItem : barcodeItem) + "-" + shopIndices);
+                                setAttribute(minPriceRestriction, "subject-type", "GOOD");
+                                setAttribute(minPriceRestriction, "subject-code", idItem);
+                                setAttribute(minPriceRestriction, "type", "MIN_PRICE");
+                                setAttribute(minPriceRestriction, "value", item.minPrice != null ? item.minPrice : BigDecimal.ZERO);
+                                addStringElement(minPriceRestriction, "since-date", currentDate());
+                                addStringElement(minPriceRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2021-01-01T23:59:59"));
+                                addStringElement(minPriceRestriction, "since-time", "00:00:00");
+                                addStringElement(minPriceRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
+                                addStringElement(minPriceRestriction, "deleted", item.minPrice.compareTo(BigDecimal.ZERO) != 0 ? "false" : "true");
+                                addStringElement(minPriceRestriction, "days-of-week", "MO TU WE TH FR SA SU");
+                                if (useShopIndices && !skipUseShopIndicesMinPrice)
+                                    addStringElement(minPriceRestriction, "shop-indices", shopIndices);
+                                rootElement.addContent(minPriceRestriction);
+                            }
+                                
                             //parent: rootElement
                             Element maxDiscountRestriction = new Element("max-discount-restriction");
                             setAttribute(maxDiscountRestriction, "id", useIdItemInRestriction ? idItem : barcodeItem);
