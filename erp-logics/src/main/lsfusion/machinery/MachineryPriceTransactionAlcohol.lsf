@@ -4,4 +4,11 @@ REQUIRE MachineryPriceTransaction, PriceLimitAlcohol;
 
 NAMESPACE Machinery;
 
-dataMinPrice(Barcode b, Stock st) += (IF sid(country(sku(b))) == '112' THEN minAlcoholLimitPriceRB(sku(b), currentDateTime()) ELSE minAlcoholLimitPrice(sku(b), currentDateTime())) IF st IS Stock;
+defaultMinPrice = ABSTRACT NUMERIC[16,4] (Barcode, Stock); 
+dataMinPrice(Barcode b, Stock st) +=
+    OVERRIDE ( 
+        (IF sid(country(sku(b))) == '112' THEN 
+            minAlcoholLimitPriceRB(sku(b), currentDateTime()) 
+        ELSE 
+            minAlcoholLimitPrice(sku(b), currentDateTime())) 
+        IF st IS Stock), defaultMinPrice(b, st);
