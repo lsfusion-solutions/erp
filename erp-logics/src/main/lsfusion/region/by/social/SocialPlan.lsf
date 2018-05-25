@@ -1,0 +1,199 @@
+MODULE SocialPlan;
+
+REQUIRE Utils, Integration, Sku, SaleOrder;
+
+NAMESPACE Social;
+
+//--Отпуск продуктов питания детям первых лет жизни
+
+CLASS Child 'Получатель';//ребёнок
+TABLE child (Child);
+
+name 'ФИО' = DATA VARSTRING[255] (Child) CHARWIDTH 20 IN recognize;
+address 'Адрес' = DATA VARSTRING[255] (Child) CHARWIDTH 20;
+decision 'Решение' = DATA VARSTRING[255] (Child) CHARWIDTH 20;
+birthday 'День рождения' = DATA DATE (Child) CHARWIDTH 15;
+parent 'Родитель' = DATA VARSTRING[255] (Child) CHARWIDTH 20 IN recognize;
+
+@defineExternalizable(child, VARSTRING[100]);
+
+FORM child 'Получатель бесплатных продуктов (дети)'
+    OBJECTS c=Child PANEL
+    PROPERTIES(c) id SHOWIF showIDs(), name, address, birthday, parent, decision 
+    EDIT Child OBJECT c
+;
+
+FORM childs 'Получатели бесплатных продуктов (дети)'
+    OBJECTS c=Child
+    PROPERTIES(c) READONLY  id SHOWIF showIDs(), name, address, birthday, parent, decision         
+    
+    PROPERTIES(c) NEWSESSION  NEW, EDIT, deleteb=DELETE
+    ORDER name(c)
+//    LIST Child OBJECT c
+;
+DESIGN childs { BOX { size = (1024, 768); } }
+
+FORM childsDialog 'Получатели бесплатных продуктов (дети)'
+    OBJECTS c=Child
+    PROPERTIES(c) READONLY  id SHOWIF showIDs(), name, address, birthday, parent, decision             
+    ORDER name(c)
+    LIST Child OBJECT c
+;
+DESIGN childs { BOX { size = (1024, 768); } }
+CLASS Interval 'Период';
+TABLE interval (Interval);
+
+dateFrom 'Дата с' = DATA DATE (Interval) NONULL IN recognize;
+dateTo 'Дата по' = DATA DATE (Interval) NONULL IN recognize;
+child = DATA Child (Interval) NONULL;
+nameChild 'Получатель' (Interval i) = name(child(i)) IN recognize;
+
+groupType = DATA GroupType (Child) NONULL;
+nameGroupType 'Тип классификтора SKU' (Child c) = name(groupType(c)) CHARWIDTH 20;
+
+TABLE groupInterval (Group,Interval);
+quantity 'Норма (граммов)'  = DATA NUMERIC[16,5](Group,Interval);
+
+intersectsInterval (Interval d, Interval ud) = 
+     child(ud) == child(d) AND ud != d    
+    AND NOT (dateFrom(ud) > dateTo(d)) 
+    AND NOT (dateTo(ud) < dateFrom(d));
+
+CONSTRAINT intersectsInterval(Interval d, Interval ud) 
+    MESSAGE 'Внимание, пересечение интервалов!';  
+    
+//CONSTRAINT quantity(Group g,Interval i) AND child(i) AND NOT groupType(child(i)) == groupType(g)
+//    MESSAGE 'Норма (граммов) задаы не для того тип классификтора SKU';
+//
+//defaultInterval  = GROUP MIN Interval i IF dateFrom(i) <= DATE dt AND dateTo(i) >= dt AND quantity(Group g, i) BY g,child(i),dt; 
+//quantity 'Норма (граммов)' (Group g, Child c, DATE dt) = quantity(g,defaultInterval(g,c,dt));
+
+EXTEND FORM child
+
+    PROPERTIES (c) nameGroupType
+    
+    OBJECTS i = Interval
+    PROPERTIES (i) dateFrom, dateTo,  NEW, DELETE GRID
+    FILTERS child(i) == c
+    
+    OBJECTS g = Group
+    PROPERTIES (g) READONLY id SHOWIF showIDs(), name  
+    PROPERTIES quantity(g,i)
+    FILTERS groupType(g) == groupType(c)
+;
+DESIGN child {
+    OBJECTS {
+        MOVE BOX(c);
+        NEW specification {
+            fill = 1;
+            type = SPLITH ;
+            MOVE BOX(i);
+            MOVE BOX(g) {
+                caption = 'Группы';
+                fill = 3.5;
+            }               
+        }
+
+    }
+}
+EXTEND FORM childsDialog
+    PROPERTIES (c) READONLY nameGroupType
+;
+EXTEND FORM childs
+
+    PROPERTIES (c) READONLY nameGroupType
+    
+    OBJECTS i = Interval
+    PROPERTIES (i) READONLY dateFrom, dateTo
+    FILTERS child(i) == c
+    
+    OBJECTS g = Group
+    PROPERTIES (g) READONLY id SHOWIF showIDs(), name
+    PROPERTIES READONLY quantity(g,i)
+    FILTERS groupType(g) == groupType(c)
+;
+DESIGN childs {
+    OBJECTS {
+        NEW top {
+            type = SPLITV;
+            fill = 1;  
+            MOVE BOX(c);
+            NEW specification {
+                type = SPLITH;
+                fill = 1;
+                MOVE BOX(i);
+                MOVE BOX(g) {
+                    caption = 'Группы';
+                    fill = 3.5;
+                }         
+            }                  
+        }
+    }
+}
+
+NAVIGATOR {
+    saleNavigator{
+        NEW FOLDER childNavigator 'Продукты питания детям' {
+             NEW childs;
+        }
+    }
+
+}
+
+child = ABSTRACT Child(Sale.Order);
+child = DATA Child(Sale.UserOrder);
+child(Sale.UserOrder o) += child(o);
+
+nameChild 'Получатель' (Sale.UserOrder o) = name(child(o)) CHARWIDTH 20;
+nameChild 'Получатель' (Sale.Order o) = name(child(o)) CHARWIDTH 20 ;
+
+EXTEND FORM userOrder
+    PROPERTIES (o) SHOWIF id(operation(o)) =='social' nameChild
+;
+DESIGN userOrder{
+    headerRow11 {
+        NEW headerRow119 {
+            caption = 'Бесплатные продукты';
+            MOVE PROPERTY (nameChild(o));
+        }
+    }
+}
+EXTEND FORM orders
+    PROPERTIES (o) READONLY nameChild
+;
+
+FORM childNorm 'Персональная ведомость бесплатных продуктов'
+    OBJECTS i = Interval PANEL 
+    PROPERTIES  dateFromI =dateFrom(i), 
+                dateToI=dateTo(i),
+                nameI = name(child(i)),
+                addressI = address(child(i)),
+                decisionI = decision(child(i)),
+                birthdayI = birthday(child(i)),
+                parentI = parent(child(i))
+    
+    OBJECTS g = Group   
+    PROPERTIES  name(g)
+    FILTERS groupType(g) == groupType(child(i))
+    PROPERTIES quantity(g,i)
+    
+    OBJECTS d = Sale.OrderDetail
+    PROPERTIES (d) date, nameSku, idSku, idBarcodeSku, quantity, invoicePrice, invoiceSum
+    PROPERTIES netWeight = round2(netWeight(sku(d))*1000.0), 
+               netWeightQ = round2(netWeight(sku(d))*1000.0)*quantity(d)
+    FILTERS isPosted(d),
+            group(groupType(child(i)),sku(d)) == g,
+            child(order(d)) == child(i),
+            iterate(date(d),dateFrom(i),dateTo(i))
+;
+childNorm 'Персональная ведомость' (Interval i) = {
+    PRINT childNorm OBJECTS i = i;
+} IMAGE 'print.png' IN print TOOLBAR;
+
+EXTEND FORM childs
+    PROPERTIES (i) childNorm
+;
+
+
+
+
