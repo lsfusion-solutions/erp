@@ -164,6 +164,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             addStringElement(minPriceRestriction, "since-time", "00:00:00");
                             addStringElement(minPriceRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
                             addStringElement(minPriceRestriction, "deleted", item.minPrice != null && item.minPrice.compareTo(BigDecimal.ZERO) != 0 ? "false" : "true");
+                            addStringElement(minPriceRestriction, "days-of-week", "MO TU WE TH FR SA SU");
                             if (useShopIndices && !skipUseShopIndicesMinPrice)
                                 addStringElement(minPriceRestriction, "shop-indices", shopIndices);
                             rootElement.addContent(minPriceRestriction);
