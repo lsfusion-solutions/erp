@@ -895,7 +895,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         for (int i = result.size() - 1; i >= 0; i--) {
             CashierTime ct = result.get(i);
-            ct.idCashierTime = ct.numberCashier + "/" + ct.numberCashRegister + "/" + ct.logOnCashier + "/" + ct.logOffCashier + "/" + (ct.isZReport != null ? "1" : "0");
+            ct.idCashierTime = ct.numberCashier + "/" + ct.numberCashRegister + "/" + ct.numberGroupCashRegister + "/" + ct.logOnCashier + "/" + ct.logOffCashier + "/" + (ct.isZReport != null ? "1" : "0");
         }
 
         return result;
