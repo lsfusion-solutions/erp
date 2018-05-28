@@ -49,11 +49,11 @@ public class SendSalesEquipmentServer {
 
                         requestSalesInfo(remote, sidEquipmentServer, getSalesInfoExchangeList(requestExchangeList), handler);
 
-                        readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList, mergeBatches);
+                        SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
 
                         sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
-                        SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
+                        readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList, mergeBatches);
 
                         extraCheckZReportSum(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
