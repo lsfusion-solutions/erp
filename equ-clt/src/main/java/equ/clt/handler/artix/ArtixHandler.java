@@ -1027,10 +1027,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
                                     String numberZReport = String.valueOf(documentObject.getInt("shift"));
                                     BigDecimal sumGain = BigDecimal.valueOf(documentObject.getDouble("sumGain"));
-                                    long timestamp = parseDateTime(documentObject.getString("timeBeg"));
+                                    String timeBeg = documentObject.getString("timeBeg");
+                                    
+                                    if (!timeBeg.equals("null")) {
+                                        long timestamp = parseDateTime(timeBeg);
 
-                                    externalSumMap.put(numberCashRegister + "/" + numberZReport, sumGain);
-                                    dateTimeShiftMap.put(numberCashRegister + "/" + numberZReport, timestamp);
+                                        externalSumMap.put(numberCashRegister + "/" + numberZReport, sumGain);
+                                        dateTimeShiftMap.put(numberCashRegister + "/" + numberZReport, timestamp);
+                                    }
                                 }
                             }
                         }
