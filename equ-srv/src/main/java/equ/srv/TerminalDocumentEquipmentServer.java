@@ -56,9 +56,9 @@ public class TerminalDocumentEquipmentServer {
                     query.addProperty(terminalNames[i], terminalProperties[i].getExpr(terminalExpr));
                 }
 
-                String[] groupTerminalNames = new String[]{"nameModelGroupMachinery", "handlerModelGroupMachinery",
+                String[] groupTerminalNames = new String[]{"handlerModelGroupMachinery",
                         "directoryGroupTerminal", "idPriceListTypeGroupMachinery", "nppGroupMachinery"};
-                LCP[] groupTerminalProperties = terminalLM.findProperties("nameModel[GroupMachinery]", "handlerModel[GroupMachinery]",
+                LCP[] groupTerminalProperties = terminalLM.findProperties("handlerModel[GroupMachinery]",
                         "directory[GroupTerminal]", "idPriceListType[GroupMachinery]", "npp[GroupMachinery]");
                 for (int i = 0; i < groupTerminalProperties.length; i++) {
                     query.addProperty(groupTerminalNames[i], groupTerminalProperties[i].getExpr(groupTerminalExpr));
@@ -74,7 +74,7 @@ public class TerminalDocumentEquipmentServer {
 
                 for (ImMap<Object, Object> row : result.values()) {
                     terminalInfoList.add(new TerminalInfo(true, false, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
-                            (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
+                            null, (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
                             trim((String) row.get("directoryGroupTerminal")), (String) row.get("idPriceListTypeGroupMachinery")));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException e) {

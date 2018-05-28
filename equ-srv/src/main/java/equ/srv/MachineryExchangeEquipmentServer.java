@@ -430,8 +430,8 @@ public class MachineryExchangeEquipmentServer {
                     query.addProperty(machineryNames[i], machineryProperties[i].getExpr(machineryExpr));
                 }
 
-                String[] groupMachineryNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery"};
-                LCP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "nameModel[GroupMachinery]");
+                String[] groupMachineryNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery"};
+                LCP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]");
                 for (int i = 0; i < groupMachineryProperties.length; i++) {
                     query.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
                 }
@@ -445,7 +445,7 @@ public class MachineryExchangeEquipmentServer {
 
                 for (ImMap<Object, Object> row : result.values()) {
                     machineryInfoList.add(new MachineryInfo(true, false, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
-                            (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), trim((String) row.get("portMachinery")),
+                            null, (String) row.get("handlerModelGroupMachinery"), trim((String) row.get("portMachinery")),
                             trim((String) row.get("overDirectoryMachinery"))));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {

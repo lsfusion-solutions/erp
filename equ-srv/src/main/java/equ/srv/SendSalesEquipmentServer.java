@@ -68,10 +68,10 @@ public class SendSalesEquipmentServer {
                     query.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterExpr));
                 }
 
-                String[] groupCashRegisterNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery",
+                String[] groupCashRegisterNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery",
                         "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister",
                         "idStockGroupMachinery", "section", "documentsClosedDate"};
-                LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "nameModel[GroupMachinery]",
+                LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]",
                         "overDepartmentNumberCashRegister[GroupMachinery]", "pieceCode[GroupCashRegister]", "weightCode[GroupCashRegister]", "idStock[GroupMachinery]",
                         "section[GroupCashRegister]", "documentsClosedDate[GroupCashRegister]");
                 for (int i = 0; i < groupCashRegisterProperties.length; i++) {
@@ -88,7 +88,7 @@ public class SendSalesEquipmentServer {
 
                 for (ImMap<Object, Object> row : result.values()) {
                     CashRegisterInfo c = new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
-                            (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), trim((String) row.get("portMachinery")),
+                            null, (String) row.get("handlerModelGroupMachinery"), trim((String) row.get("portMachinery")),
                             trim((String) row.get("overDirectoryMachinery")), (Integer) row.get("overDepartmentNumberGroupCashRegister"),
                             (String) row.get("idStockGroupMachinery"), row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
                             (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"), (Date) row.get("documentsClosedDate"));
