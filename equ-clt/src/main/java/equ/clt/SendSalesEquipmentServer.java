@@ -205,13 +205,14 @@ public class SendSalesEquipmentServer {
                         stockSet.add(entry.idDepartmentStore);
 
                     for (String idStock : stockSet) {
-                        Map<String, List<Object>> zReportSumMap = remote.readRequestZReportSumMap(idStock, request.dateFrom, request.dateTo);
-                        Map<Integer, List<List<Object>>> cashRegisterMap = remote.readCashRegistersStock(idStock);
-                        for(Map.Entry<Integer, List<List<Object>>> cashRegisterEntry : cashRegisterMap.entrySet()) {
-                            List<List<Object>> checkSumResult = zReportSumMap.isEmpty() ? null :
-                                    handler.checkZReportSum(zReportSumMap, cashRegisterEntry.getValue());
-                            if (checkSumResult != null) {
-                                remote.logRequestZReportSumCheck(request.requestExchange, cashRegisterEntry.getKey(), checkSumResult);
+                        if(idStock != null) {
+                            Map<String, List<Object>> zReportSumMap = remote.readRequestZReportSumMap(idStock, request.dateFrom, request.dateTo);
+                            Map<Integer, List<List<Object>>> cashRegisterMap = remote.readCashRegistersStock(idStock);
+                            for (Map.Entry<Integer, List<List<Object>>> cashRegisterEntry : cashRegisterMap.entrySet()) {
+                                List<List<Object>> checkSumResult = zReportSumMap.isEmpty() ? null : handler.checkZReportSum(zReportSumMap, cashRegisterEntry.getValue());
+                                if (checkSumResult != null) {
+                                    remote.logRequestZReportSumCheck(request.requestExchange, cashRegisterEntry.getKey(), checkSumResult);
+                                }
                             }
                         }
                     }
