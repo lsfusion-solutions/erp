@@ -583,7 +583,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             File[] filesList = dir.listFiles(new FileFilter() {
                 @Override
                 public boolean accept(File pathname) {
-                    return pathname.getName().startsWith("soft") && pathname.getPath().endsWith(".json");
+                    return pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json");
                 }
             });
             if (filesList != null)
@@ -627,8 +627,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                 }
                             }
                         }
-                        copyToSuccess(file, disable);
-                        safeFileDelete(file, false);
+//                        copyToSuccess(file, disable);
+//                        safeFileDelete(file, false);
                     } catch (Throwable e) {
                         softCheckLogger.error("File: " + file.getAbsolutePath(), e);
                     }

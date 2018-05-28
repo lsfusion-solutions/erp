@@ -47,13 +47,13 @@ public class SendSalesEquipmentServer {
                     if(clsHandler instanceof CashRegisterHandler) {
                         CashRegisterHandler handler = (CashRegisterHandler) clsHandler;
 
-                        SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
-
                         requestSalesInfo(remote, sidEquipmentServer, getSalesInfoExchangeList(requestExchangeList), handler);
+
+                        readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList, mergeBatches);
 
                         sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
-                        readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList, mergeBatches);
+                        SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
 
                         extraCheckZReportSum(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
