@@ -41,6 +41,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
     String encoding = "utf-8";
 
+    private Set<File> readFiles = new HashSet<>();
+
     private FileSystemXmlApplicationContext springContext;
 
     public ArtixHandler(FileSystemXmlApplicationContext springContext) {
@@ -572,8 +574,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         Map<String, Timestamp> result = new HashMap<>();
         softCheckLogger.info(logPrefix + "reading SoftCheckInfo");
 
-        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
-        boolean disable = artixSettings != null && artixSettings.isDisableCopyToSuccess();
+        //ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
+        //boolean disable = artixSettings != null && artixSettings.isDisableCopyToSuccess();
 
         List<File> files = new ArrayList<>();
         //правильнее брать только только нужные подпапки, как в readSales, но для этого пришлось бы менять equ-api.
@@ -589,6 +591,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             if (filesList != null)
                 files.addAll(Arrays.asList(filesList));
         }
+
+        readFiles = new HashSet<>(files);
 
         if (files.isEmpty())
             softCheckLogger.info(logPrefix + "No soft check files found");
@@ -689,7 +693,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                 if (filesList != null && filesList.length > 0) {
                     for (File file : filesList) {
-                        if (!Thread.currentThread().isInterrupted()) {
+                        if (!Thread.currentThread().isInterrupted() && readFiles.contains(file)) {
                             try {
                                 sendSalesLogger.info(logPrefix + "reading " + file.getName());
 
@@ -1004,7 +1008,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             //Set<String> usedBarcodes = new HashSet<>();
 
             for (File file : files) {
-                if (!Thread.currentThread().isInterrupted()) {
+                if (!Thread.currentThread().isInterrupted() && readFiles.contains(file)) {
                     try {
 
                         String fileName = file.getName();
