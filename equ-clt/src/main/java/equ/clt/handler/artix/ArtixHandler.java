@@ -278,10 +278,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 inventObject.put("barcodes", barcodesArray);
             }
 
+            boolean noMinPrice = item.flags == null || (item.flags & 16) == 0;
+            boolean disableInventBack = item.flags != null && (item.flags & 32) != 0;
+            boolean ageVerify = item.flags != null && (item.flags & 64) != 0;
+
             //основной штрих-код
             inventObject.put("deptcode", 1); //код отдела
             inventObject.put("price", item.price); //цена
-            inventObject.put("minprice", item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO); //минимальная цена
+            inventObject.put("minprice", noMinPrice ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO); //минимальная цена
             //inventObject.put("isInvent", true);
             inventObject.put("isInventItem", true); //признак это товар (1) или группа (0)
             inventObject.put("articul", item.idItem); //артикул
@@ -296,6 +300,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             if (itemGroupList != null) {
                 inventObject.put("inventgroup", itemGroupList.get(0).extIdItemGroup); //код родительской группы товаров
             }
+
+            JSONObject inventItemOptions = new JSONObject();
+            inventItemOptions.put("disableinventback", disableInventBack ? 1 : 0);
+            inventItemOptions.put("ageverify", ageVerify ? 1 : 0);
+            JSONObject itemOptions = new JSONObject();
+            itemOptions.put("inventitemoptions", inventItemOptions);
+
+            inventObject.put("options", itemOptions);
+
             rootObject.put("command", "addInventItem");
             return rootObject.toString();
         } else return null;
