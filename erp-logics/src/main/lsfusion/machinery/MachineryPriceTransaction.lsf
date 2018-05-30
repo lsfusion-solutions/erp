@@ -969,6 +969,7 @@ META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, sto
 	                IF snapshotDocumentMachineryPriceTransaction() THEN
 	                    createMachineryPriceTransactionSnapshot() <- TRUE;
 	                createMachineryPriceTransaction(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
+	                exclude(GroupMachinery group) <- skipMachineryPriceTransaction(group);
 	                createMachineryPriceTransactionDocument() <- document;
 	                createMachineryPriceTransaction(stockProp(document));
 	                sent(document) <- TRUE WHERE isPosted(document) AND (GROUP SUM 1 IF createMachineryPriceTransaction(###skuProp sku));
@@ -987,6 +988,7 @@ META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, sto
 	                createMachineryPriceTransactionSnapshot() <- TRUE;
 	                createMachineryPriceTransaction(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
 	                createMachineryPriceTransactionDocument() <- document;
+	                exclude(GroupMachinery group) <- skipMachineryPriceTransaction(group);
 	                createMachineryPriceTransaction(stockProp(document));
 	                sent(document) <- TRUE WHERE isPosted(document);
 	                isClosed(document) <- TRUE WHERE isPosted(document) AND closeDocumentMachineryPriceTransaction();
@@ -1099,6 +1101,7 @@ createSelectedSkuStockPriceTransactionDocument 'Загрузить в обору
 	        FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](Stock stock) DO {
 	            createMachineryPriceTransactionSnapshot() <- TRUE;
 	            createMachineryPriceTransaction(Sku sku) <- TRUE IF select(sku, stock);
+	            exclude(GroupMachinery group) <- skipMachineryPriceTransaction(group);
 	            createMachineryPriceTransaction(stock);
 	        }
 	        IF NOT notResetMachinerySelectSku() THEN {
