@@ -651,6 +651,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         List<AstronRecord> recordList = new ArrayList<>();
 
         createExtraColumns(conn);
+        createFusionProcessedIndex(conn);
+        createSalesIndex(conn);
 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, sales.SALESTAG, sales.SALESBARC, " +
@@ -792,6 +794,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     try (Connection conn = getConnection(params.connectionString, params.user, params.password)) {
 
                         createExtraColumns(conn);
+                        createFusionProcessedIndex(conn);
 
                         Statement statement = null;
                         try {
@@ -856,6 +859,25 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     private void createExtraColumns(Connection conn) {
         try (Statement statement = conn.createStatement()) {
             String query = "IF COL_LENGTH('SALES', 'FUSION_PROCESSED') IS NULL BEGIN ALTER TABLE SALES ADD FUSION_PROCESSED INT NULL; END";
+            statement.execute(query);
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    private void createFusionProcessedIndex(Connection conn) {
+        try (Statement statement = conn.createStatement()) {
+            String query = "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'fusion', 'IndexId') > 0) BEGIN CREATE INDEX fusion ON SALES (FUSION_PROCESSED) END";
+            statement.execute(query);
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+
+    private void createSalesIndex(Connection conn) {
+        try (Statement statement = conn.createStatement()) {
+            String query = "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'sale', 'IndexId') > 0) BEGIN CREATE INDEX sale ON SALES (SALESNUM, SESSID, SYSTEMID, SAREAID) END";
             statement.execute(query);
         } catch (SQLException e) {
             throw Throwables.propagate(e);
