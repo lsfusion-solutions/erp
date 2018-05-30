@@ -860,6 +860,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         try (Statement statement = conn.createStatement()) {
             String query = "IF COL_LENGTH('SALES', 'FUSION_PROCESSED') IS NULL BEGIN ALTER TABLE SALES ADD FUSION_PROCESSED INT NULL; END";
             statement.execute(query);
+            conn.commit();
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
@@ -869,6 +870,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         try (Statement statement = conn.createStatement()) {
             String query = "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'fusion', 'IndexId') > 0) BEGIN CREATE INDEX fusion ON SALES (FUSION_PROCESSED) END";
             statement.execute(query);
+            conn.commit();
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
@@ -879,6 +881,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         try (Statement statement = conn.createStatement()) {
             String query = "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'sale', 'IndexId') > 0) BEGIN CREATE INDEX sale ON SALES (SALESNUM, SESSID, SYSTEMID, SAREAID) END";
             statement.execute(query);
+            conn.commit();
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
