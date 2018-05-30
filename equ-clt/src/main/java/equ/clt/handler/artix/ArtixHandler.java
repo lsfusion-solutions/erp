@@ -574,11 +574,17 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         boolean disable = artixSettings != null && artixSettings.isDisableCopyToSuccess();
 
         sendSalesLogger.info(logPrefix + "Finish Reading started");
+        RuntimeException error = null;
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
 
-            copyToSuccess(f, disable);
+            RuntimeException copyResult = copyToSuccess(f, disable);
+            if(error == null)
+                error = copyResult;
             safeFileDelete(f, true);
+        }
+        if(error != null) {
+            throw error;
         }
     }
 
@@ -918,16 +924,19 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return result;
     }
 
-    private void copyToSuccess(File file, boolean disable) {
+    private RuntimeException copyToSuccess(File file, boolean disable) {
+        RuntimeException result = null;
         if (!disable) {
             try {
                 String directory = file.getParent() + "/success-" + formatDate(new Date(System.currentTimeMillis())) + "/";
                 if (new File(directory).exists() || new File(directory).mkdirs())
                     FileCopyUtils.copy(file, new File(directory + file.getName()));
             } catch (IOException e) {
-                throw new RuntimeException("The file " + file.getAbsolutePath() + " can not be copied to success files", e);
+                sendSalesLogger.error("The file " + file.getAbsolutePath() + " can not be copied to success files", e);
+                result = new RuntimeException("The file " + file.getAbsolutePath() + " can not be copied to success files", e);
             }
         }
+        return result;
     }
 
     private Timestamp parseTimestamp(String value) throws ParseException {
