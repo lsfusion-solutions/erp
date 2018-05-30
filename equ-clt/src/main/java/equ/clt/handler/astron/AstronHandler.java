@@ -654,7 +654,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, sales.SALESTAG, sales.SALESBARC, " +
-                    "sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART " +
+                    "sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, " +
+                    "sales.SALESREFUND, COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART " +
                     "FROM SALES sales LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID AND NOT (sales.SYSTEMID = 301 AND sales.SESSID < 3) " + // временная доп проверка
                     "WHERE (FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0) AND SALESCANC = 0 ORDER BY SALESTIME, SALESNUM";
@@ -666,6 +667,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             BigDecimal sumCash = null;
             BigDecimal sumCard = null;
             BigDecimal sumGiftCard = null;
+            String idSaleReceiptReceiptReturnDetail = null;
             while (rs.next()) {
 
                 Integer nppCashRegister = rs.getInt("SYSTEMID");
@@ -694,20 +696,21 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 Integer recordType = rs.getInt("SALESTAG");
 
                 switch (recordType) {
-                    case 0: //товарная позиция
-                    case 3: {//Возвращенная товарная позиция
+                    case 0: {//товарная позиция
+                    // case 3: //Возвращенная товарная позиция - игнорируем эту запись. В дополнение к ней создаётся новая, с SALESTAG = 0 и SALESREFUND = 1
                         String idBarcode = rs.getString("SALESBARC");
                         String idItem = String.valueOf(rs.getInt("SALESCODE"));
                         BigDecimal totalQuantity = safeDivide(rs.getBigDecimal("SALESCOUNT"), isWeight ? 1000 : 1);
                         BigDecimal price = safeDivide(rs.getBigDecimal("SALESPRICE"), 100);
                         BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
                         BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
-                        boolean isReturn = recordType == 3;
+                        boolean isReturn = rs.getInt("SALESREFUND") == 1;
                         totalQuantity = isCancellation ^ isReturn ? totalQuantity.negate() : totalQuantity; //cancellation XOR return
                         sumReceiptDetail = isCancellation ^ isReturn ? sumReceiptDetail.negate() : sumReceiptDetail; //cancellation XOR return
                         curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport,
                                 numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem,
-                                null, null, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, null, salesNum, null, null, cashRegister));
+                                null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, null,
+                                salesNum, null, null, cashRegister));
                         break;
                     }
                     case 1: {//оплата
@@ -740,6 +743,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         sumGiftCard = null;
                         salesInfoList.addAll(curSalesInfoList);
                         curSalesInfoList = new ArrayList<>();
+
+                        if (rs.getInt("SALESREFUND") == 1) { //чек возврата
+                            String salesAttrs = rs.getString("SALESATTRS");
+                            String[] salesAttrsSplitted = salesAttrs != null ? salesAttrs.split(":") : new String[0];
+                            String numberReceiptOriginal = salesAttrsSplitted.length > 3 ? salesAttrsSplitted[3] : null;
+                            String numberZReportOriginal = salesAttrsSplitted.length > 4 ? salesAttrsSplitted[4] : null;
+                            String numberCashRegisterOriginal = salesAttrsSplitted.length > 5 ? salesAttrsSplitted[5] : null;
+                            Date dateReceiptOriginal = salesAttrsSplitted.length > 7 ? new Date(DateUtils.parseDate(salesAttrsSplitted[7], "yyyyMMddHHmmss").getTime()) : null;
+                            idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_"
+                                    + new SimpleDateFormat("ddMMyyyy").format(dateReceiptOriginal) + "_" + numberReceiptOriginal;
+                        } else {
+                            idSaleReceiptReceiptReturnDetail = null;
+                        }
+
                         break;
                     }
                 }
