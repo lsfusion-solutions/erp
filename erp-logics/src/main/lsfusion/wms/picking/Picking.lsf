@@ -277,7 +277,9 @@ CONSTRAINT stock(UserPicking picking) != stock(pickingOrder(picking))
 descriptionPickingOrder 'Заказ' (Picking picking) = description(pickingOrder(picking)) CHARWIDTH 30 IN pickingOrders;
 notePickingOrder 'Примечание (заказ)' (Picking p) = note(pickingOrder(p)); 
 
-quantityPickings 'Количество комплектаций' (pickingOrder) = GROUP SUM 1 BY pickingOrder(Picking picking) MATERIALIZED;
+notCount 'Не учитывать' = ABSTRACT BOOLEAN (Picking);
+
+quantityPickings 'Количество комплектаций' (pickingOrder) = GROUP SUM 1 IF NOT notCount(Picking picking) BY pickingOrder(picking) MATERIALIZED;
 
 pickings 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255](description(Picking picking)), ', '
                                          ORDER picking
@@ -368,8 +370,6 @@ EXTEND FORM pickings
 ;
 
 //------------------------- Определение стадий комплектации--------------------//
-
-notCount 'Не учитывать' = ABSTRACT BOOLEAN (Picking);
 
 countPickingOrderSku 'Кол-во наименований' (PickingOrder pickingOrder) = GROUP SUM 1 IF quantityPickingOrderDetail(Sku sku, pickingOrder);
 
