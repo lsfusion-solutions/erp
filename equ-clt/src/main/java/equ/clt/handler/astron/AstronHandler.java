@@ -795,17 +795,21 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         Statement statement = null;
                         try {
-                            StringBuilder where = new StringBuilder();
+                            StringBuilder dateWhere = new StringBuilder();
                             Long dateFrom = entry.dateFrom.getTime();
                             Long dateTo = entry.dateTo.getTime();
                             while (dateFrom <= dateTo) {
                                 String dateString = new SimpleDateFormat("yyyyMMdd").format(new Date(dateFrom));
-                                where.append((where.length() == 0) ? "" : " OR ").append("SALESTIME LIKE '").append(dateString).append("%'");
+                                dateWhere.append((dateWhere.length() == 0) ? "" : " OR ").append("SALESTIME LIKE '").append(dateString).append("%'");
                                 dateFrom += 86400000;
                             }
-                            if (where.length() > 0) {
+                            StringBuilder stockWhere = new StringBuilder();
+                            for(CashRegisterInfo cashRegister : getCashRegisterSet(entry, true)) {
+                                stockWhere.append((stockWhere.length() == 0) ? "" : " OR ").append("SYSTEMID = ").append(cashRegister.number);
+                            }
+                            if (dateWhere.length() > 0) {
                                 statement = conn.createStatement();
-                                String query = "UPDATE [SALES] SET FUSION_PROCESSED = 0 WHERE " + where;
+                                String query = "UPDATE [SALES] SET FUSION_PROCESSED = 0 WHERE (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "");
                                 statement.executeUpdate(query);
                                 conn.commit();
                             }
