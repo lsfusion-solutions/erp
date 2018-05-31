@@ -448,6 +448,15 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                             boolean isReturnGiftCard = isGiftCard && totalQuantity != null && totalQuantity.compareTo(BigDecimal.ZERO) < 0;
 
+                            boolean isDiscountCard = getBit(flags, 4);
+                            boolean discountCardRecord = (idBarcode == null || idBarcode.isEmpty()) && isDiscountCard;
+                            if(discountCardRecord) {
+                                for (SalesInfo s : currentSalesInfoList) {
+                                    if (s.seriesNumberDiscountCard == null) {
+                                        s.seriesNumberDiscountCard = discountCard;
+                                    }
+                                }
+                            }
                             boolean isDiscount = getBit(flags, 1);
                             boolean discountRecord = (idBarcode == null || idBarcode.isEmpty()) && isDiscount;
                             if (discountRecord) {
