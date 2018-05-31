@@ -4,28 +4,26 @@ REQUIRE BI, PurchaseLedger, SaleLedger, Pricing, Item, Druid, ReportBI;
 
 NAMESPACE BI;
 
-overExportTurnover = DATA BOOLEAN ();
 overExportTurnover = ABSTRACT (DATE, DATE);
+overExportTurnover = DATA LOCAL BOOLEAN ();
 
 exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, DATE dTo) = {
-    IF overExportTurnover() THEN {
+    LOCAL balance = NUMERIC[16,5] (Batch, Stock);
+    balance(Batch b, Stock st) <- balanceA(b, st, dTo);
+    
+    LOCAL balance = NUMERIC[16,5] (Sku, Stock);
+    balance(Sku s, Stock st) <- balanceA(s, st, dTo);
+
+    LOCAL sum = NUMERIC[18,4] (Sku, Stock);
+    sum(Sku s, Stock st) <- sumA(s, st, dTo);
+
+    LOCAL date = DATE ();
+    date() <- dTo;
+    
+    WHILE date() >= dFrom DO {
+        printToLog('' + currentDateTime() + ' Started EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balance(Batch b, Stock st)));
         overExportTurnover(dFrom,dTo);
-    }
-    ELSE {
-        LOCAL balance = NUMERIC[16,5] (Batch, Stock);
-        balance(Batch b, Stock st) <- balanceA(b, st, dTo);
-        
-        LOCAL balance = NUMERIC[16,5] (Sku, Stock);
-        balance(Sku s, Stock st) <- balanceA(s, st, dTo);
-    
-        LOCAL sum = NUMERIC[18,4] (Sku, Stock);
-        sum(Sku s, Stock st) <- sumA(s, st, dTo);
-    
-        LOCAL date = DATE ();
-        date() <- dTo;
-        
-        WHILE date() >= dFrom DO {
-            printToLog('' + currentDateTime() + ' Started EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balance(Batch b, Stock st)));
+        IF NOT overExportTurnover() THEN {
             EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
                                 nameStock = name(Stock st), nameFormatStock = nameParent(stockGroup(st)), nameLegalEntityStock = nameLegalEntity(st),
                                 nameSku = replace(nameSku(Batch b), '\n', ''), barcodeSku = idBarcodeSku(b), idSku = idSku(b), nameSupplier = nameSupplier(b), nameSupplierStock = nameSupplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
@@ -35,17 +33,17 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
                                 quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
                                 quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
                    WHERE balance(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
-    
-            ingestBatch('turnover', date());
-    
-            balance(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date()); 
-            balance(Sku s, Stock st) <- balance(s, st) (-) signedQuantity(s, st, date()) WHERE signedQuantity(s, st, date()); 
-            sum(Sku s, Stock st) <- sum(s, st) (-) signedSum(s, st, date()) WHERE signedSum(s, st, date()); 
-            date() <- subtract(date(), 1);
         }
-        
-        runKillTask('turnover', dFrom, dTo);
+
+        ingestBatch('turnover', date());
+
+        balance(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date()); 
+        balance(Sku s, Stock st) <- balance(s, st) (-) signedQuantity(s, st, date()) WHERE signedQuantity(s, st, date()); 
+        sum(Sku s, Stock st) <- sum(s, st) (-) signedSum(s, st, date()) WHERE signedSum(s, st, date()); 
+        date() <- subtract(date(), 1);
     }
+    
+    runKillTask('turnover', dFrom, dTo);
      
 } CONFIRM;
 
