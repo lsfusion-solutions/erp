@@ -696,6 +696,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 boolean isWeight = type == 0 || type == 2;
 
                 Integer recordType = rs.getInt("SALESTAG");
+                boolean isReturn = rs.getInt("SALESREFUND") != 0; // 0 - продажа, 1 - возврат, 2 - аннулирование
 
                 switch (recordType) {
                     case 0: {//товарная позиция
@@ -706,7 +707,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         BigDecimal price = safeDivide(rs.getBigDecimal("SALESPRICE"), 100);
                         BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
                         BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
-                        boolean isReturn = rs.getInt("SALESREFUND") == 1;
                         totalQuantity = isCancellation ^ isReturn ? totalQuantity.negate() : totalQuantity; //cancellation XOR return
                         sumReceiptDetail = isCancellation ^ isReturn ? sumReceiptDetail.negate() : sumReceiptDetail; //cancellation XOR return
                         curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport,
@@ -723,6 +723,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             isCancellation = cancellationReceipt != null;
                         }
                         BigDecimal sum = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
+                        if(isReturn)
+                            sum = safeNegate(sum);
                         switch (type) {
                             case 1:
                                 sumCard = safeAdd(sumCard, sum);
@@ -746,7 +748,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         salesInfoList.addAll(curSalesInfoList);
                         curSalesInfoList = new ArrayList<>();
 
-                        if (rs.getInt("SALESREFUND") == 1) { //чек возврата
+                        if (isReturn) { //чек возврата
                             String salesAttrs = rs.getString("SALESATTRS");
                             String[] salesAttrsSplitted = salesAttrs != null ? salesAttrs.split(":") : new String[0];
                             String numberReceiptOriginal = salesAttrsSplitted.length > 3 ? salesAttrsSplitted[3] : null;
