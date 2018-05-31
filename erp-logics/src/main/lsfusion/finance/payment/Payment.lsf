@@ -260,13 +260,15 @@ in 'Отм.' = DATA LOCAL BOOLEAN (Payment);
 countIn = GROUP SUM 1 IF in(Payment payment);
 
 delete 'Удалить' (Payment payment) = {
-    IF countIn() THEN {
-        DELETE Payment p WHERE in(p) AND overShowDelete(p);
+    NEWSESSION NESTED LOCAL {
+        IF countIn() THEN {
+            DELETE Payment p WHERE in(p) AND overShowDelete(p);
+        }
+        ELSE {
+            DELETE Payment p WHERE p == payment;
+        }
+        apply();
     }
-    ELSE {
-        DELETE Payment p WHERE p == payment;
-    }
-    apply();
 } CONFIRM IMAGE 'delete.png';    
     
 FORM payments 'Платежи'
