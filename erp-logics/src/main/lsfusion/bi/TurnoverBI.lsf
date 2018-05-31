@@ -4,11 +4,14 @@ REQUIRE BI, PurchaseLedger, SaleLedger, Pricing, Item, Druid, ReportBI;
 
 NAMESPACE BI;
 
-overExportTurnover = ABSTRACT (DATE, DATE);
+overExportTurnover = ABSTRACT (DATE);
 overExportTurnover = DATA LOCAL BOOLEAN ();
 
+balance = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
+balance = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+sum = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
+
 exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, DATE dTo) = {
-    LOCAL balance = NUMERIC[16,5] (Batch, Stock);
     balance(Batch b, Stock st) <- balanceA(b, st, dTo);
     
     LOCAL balance = NUMERIC[16,5] (Sku, Stock);
@@ -22,7 +25,7 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
     
     WHILE date() >= dFrom DO {
         printToLog('' + currentDateTime() + ' Started EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balance(Batch b, Stock st)));
-        overExportTurnover(dFrom,dTo);
+        overExportTurnover(date());
         IF NOT overExportTurnover() THEN {
             EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
                                 nameStock = name(Stock st), nameFormatStock = nameParent(stockGroup(st)), nameLegalEntityStock = nameLegalEntity(st),
