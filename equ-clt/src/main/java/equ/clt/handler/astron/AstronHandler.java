@@ -660,7 +660,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     "sales.SALESREFUND, COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART " +
                     "FROM SALES sales LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID AND NOT (sales.SYSTEMID = 301 AND sales.SESSID < 3) " + // временная доп проверка
-                    "WHERE (FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0) AND SALESCANC = 0 ORDER BY SALESTIME, SALESNUM";
+                    "WHERE (FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0) AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SALESTIME, SALESNUM";
             ResultSet rs = statement.executeQuery(query);
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
