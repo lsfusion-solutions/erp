@@ -455,7 +455,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("valueVAT"));
 
                 ImportField dateField = new ImportField(DateClass.instance);
-                props.add(new ImportProperty(dateField, findProperty("dataDate[Barcode]").getMapping(barcodeKey)));
+                props.add(new ImportProperty(dateField, findProperty("dataDate[Barcode]").getMapping(barcodeKey), true));
                 fields.add(dateField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).dateVAT);
