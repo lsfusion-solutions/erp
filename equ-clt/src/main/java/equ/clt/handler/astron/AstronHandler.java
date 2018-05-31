@@ -839,12 +839,19 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             if (params.connectionString != null && salesBatch.recordList != null) {
 
                 try (Connection conn = getConnection(params.connectionString, params.user, params.password); PreparedStatement ps = conn.prepareStatement("UPDATE [SALES] SET FUSION_PROCESSED = 1 WHERE SALESNUM = ? AND SESSID = ? AND SYSTEMID = ? AND SAREAID = ?")) {
+                    int count = 0;
                     for (AstronRecord record : salesBatch.recordList) {
                         ps.setInt(1, record.salesNum);
                         ps.setInt(2, record.sessId);
                         ps.setInt(3, record.systemId);
                         ps.setInt(4, record.sAreaId);
                         ps.addBatch();
+                        count++;
+                        if(count > 20000) {
+                            ps.executeBatch();
+                            conn.commit();
+                            count = 0;
+                        }
                     }
                     ps.executeBatch();
                     conn.commit();
