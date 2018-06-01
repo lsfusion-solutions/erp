@@ -169,7 +169,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                                     checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
 
                                             findProperty("original[Purchase.Invoice]").change(
-                                                    new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)), currentSession, invoiceObject);
+                                                    new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, false)), currentSession, invoiceObject);
                                             findProperty("currentInvoice[]").change(invoiceObject, currentSession);
 
                                             String script = (String) findProperty("script[ImportType]").read(currentSession, importTypeObject);

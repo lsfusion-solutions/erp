@@ -152,7 +152,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
 
         findProperty("original[UserPriceList]").change(new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()),
-                DynamicFormatFileClass.get(false, true)), context, userPriceListObject);
+                DynamicFormatFileClass.get(false, false)), context, userPriceListObject);
         if(apply)
             context.apply();
         
