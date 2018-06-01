@@ -72,10 +72,10 @@ incomeManufacturingPrice (UserInvoiceDetail detail) = IF isHomeCurrency(userInvo
                                                         ELSE price(detail);
 incomeManufacturingSum(invoice) = GROUP SUM incomeManufacturingPrice(UserInvoiceDetail detail) * quantity(detail) BY userInvoice(detail);
 
-costManufacturingPrice(InvoiceDetail detail) = NUMERIC[16,4] (incomeManufacturingPrice(detail) (+) extraCostPrice(detail) (+)
+costManufacturingPrice(InvoiceDetail detail) = NUMERIC[20,8] (incomeManufacturingPrice(detail) (+) extraCostPrice(detail) (+)
                                                             customCostPrice(detail) (+) certificateCostPrice(detail));
 
-costManufacturingPrice(UserInvoiceDetail detail) = NUMERIC[16,4] (incomeManufacturingPrice(detail) (+) extraCostPrice(detail) (+)
+costManufacturingPrice(UserInvoiceDetail detail) = NUMERIC[20,8] (incomeManufacturingPrice(detail) (+) extraCostPrice(detail) (+)
                                                                 customCostPrice(detail) (+) certificateCostPrice(detail));
 
 @defineDocumentInterfaceProperty (invoice, showManufacturingPrice, 'Цена изготовителя');
@@ -145,7 +145,7 @@ addCostPriceToManufacturingPrice(UserInvoice invoice) <- addCostPriceToManufactu
     WHEN CHANGED(operation(invoice));
 
 calcBaseManufacturingPrice (UserInvoiceDetail detail) = IF addCostPriceToManufacturingPrice(userInvoice(detail)) THEN costManufacturingPrice(detail)
-                                        ELSE incomeManufacturingPrice(detail);
+                                        ELSE NUMERIC[20,8](incomeManufacturingPrice(detail));
 
 baseManufacturingPrice (UserInvoiceDetail detail) = calcBaseManufacturingPrice (detail) * (100.0 + manufacturingMarkup(detail))/100;
 baseReverseManufacturingPrice (UserInvoiceDetail detail) = calcBaseManufacturingPrice (detail) / (100.0 + manufacturingMarkup(detail))*100;
