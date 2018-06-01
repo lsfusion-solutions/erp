@@ -665,7 +665,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
 
-            boolean isCancellation = false;
             BigDecimal sumCash = null;
             BigDecimal sumCard = null;
             BigDecimal sumGiftCard = null;
@@ -707,8 +706,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         BigDecimal price = safeDivide(rs.getBigDecimal("SALESPRICE"), 100);
                         BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
                         BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
-                        totalQuantity = isCancellation ^ isReturn ? totalQuantity.negate() : totalQuantity; //cancellation XOR return
-                        sumReceiptDetail = isCancellation ^ isReturn ? sumReceiptDetail.negate() : sumReceiptDetail; //cancellation XOR return
+                        totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
+                        sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
                         curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport,
                                 numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem,
                                 null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, null,
@@ -716,12 +715,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         break;
                     }
                     case 1: {//оплата
-                        String salesAttrs = rs.getString("SALESATTRS");
-                        String[] salesAttrsSplitted = salesAttrs != null ? salesAttrs.split(":") : new String[0];
-                        if(salesAttrsSplitted.length == 3 || salesAttrsSplitted.length == 4) {
-                            Integer cancellationReceipt = parseInt(salesAttrsSplitted[2]);
-                            isCancellation = cancellationReceipt != null;
-                        }
                         BigDecimal sum = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
                         if(isReturn)
                             sum = safeNegate(sum);
@@ -741,7 +734,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         break;
                     }
                     case 2: {//пролог чека
-                        isCancellation = false;
                         sumCash = null;
                         sumCard = null;
                         sumGiftCard = null;
@@ -777,14 +769,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             throw Throwables.propagate(e);
         }
         return new AstronSalesBatch(salesInfoList, recordList, directory);
-    }
-
-    private Integer parseInt(String value) {
-        try {
-            return Integer.parseInt(value);
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     @Override
