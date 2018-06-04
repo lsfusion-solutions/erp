@@ -425,6 +425,7 @@ NAVIGATOR {
     }
 }
 
+selected 'Отм.' = DATA LOCAL BOOLEAN (SaleReport); 
 isSent 'Отправлен' (o) = DATA BOOLEAN (SaleReport);
 sentDateTime 'Дата отправления' (o) = DATA DATETIME (SaleReport);
 
@@ -453,7 +454,7 @@ FORM messageSaleReports 'Сообщение'
 ;
 
 calcEmailSupplier 'Отправить акт поставщику' (SaleReport report) = { EMAIL
-    FROM fromEmailOrders()
+    FROM OVERRIDE email(createdUser(report)), fromEmailOrders()
     SUBJECT 'Акт реализации по магазину ' + nameCompanyStock(report)+ ' за период с '  + fromDate(report)+ ' по ' + toDate(report)
     TO email(supplier(report))
     INLINE messageSaleReports OBJECTS s=report
@@ -462,23 +463,31 @@ calcEmailSupplier 'Отправить акт поставщику' (SaleReport r
            detailSaleReport OBJECTS r=report
 ; }
     
-emailSupplier 'Отправить акт поставщику' (SaleReport report)= {
-    IF email(supplier(report)) THEN {
-        NEWSESSION {
-            isSent(report) <- TRUE;
-            IF NOT disableDocumentLog() THEN logSendDocumentSaleReport(report);
-            sentDateTime(report) <- currentDateTime();
-               
-            calcEmailSupplier(report);
-            apply();
-        }
-
-    } ELSE {
-        MESSAGE 'У поставщика не задан e-mail';
+emailSupplierSingle  'Отправить акт поставщику' (SaleReport report)= {
+    NEWSESSION {
+            IF email(supplier(report)) THEN { 
+        
+                isSent(report) <- TRUE;
+                IF NOT disableDocumentLog() THEN logSendDocumentSaleReport(report);
+                sentDateTime(report) <- currentDateTime();
+                calcEmailSupplier(report);
+                
+            } ELSE  MESSAGE 'У поставщика не задан e-mail';
+        apply();
     }
+}
+
+emailSupplier 'Отправить акты поставщикам' (SaleReport report)= {
+    selected(report) <- TRUE;
+    
+    FOR selected(SaleReport r) DO 
+        emailSupplierSingle (r);
+        
+    selected(SaleReport r) <- NULL;
 } TOOLBAR;
 
 EXTEND FORM reportsSales
+    PROPERTIES (r) selected BEFORE isClosed(r)
     PROPERTIES (r) READONLY isSent, sentDateTime
     PROPERTIES (r) emailSupplier
 ;
