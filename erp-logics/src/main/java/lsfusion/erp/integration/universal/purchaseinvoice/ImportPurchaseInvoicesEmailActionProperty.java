@@ -6,6 +6,7 @@ import com.github.junrar.impl.FileVolumeManager;
 import com.github.junrar.rarfile.FileHeader;
 import com.google.common.base.Throwables;
 import lsfusion.base.BaseUtils;
+import lsfusion.base.ExceptionUtils;
 import lsfusion.base.IOUtils;
 import lsfusion.base.Pair;
 import lsfusion.base.col.MapFact;
@@ -168,9 +169,10 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                                     settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN,
                                                     checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
 
-                                            findProperty("original[Purchase.Invoice]").change(
-                                                    new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, false)), currentSession, invoiceObject);
-                                            findProperty("currentInvoice[]").change(invoiceObject, currentSession);
+                                            if(invoiceObject != null) {
+                                                findProperty("original[Purchase.Invoice]").change(new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, false)), currentSession, invoiceObject);
+                                                findProperty("currentInvoice[]").change(invoiceObject, currentSession);
+                                            }
 
                                             String script = (String) findProperty("script[ImportType]").read(currentSession, importTypeObject);
                                             if(script != null && !script.isEmpty()) {
@@ -198,8 +200,9 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                                         } catch (Exception e) {
                                             imported = false;
-                                            errors.add(file.first + ": " + e.toString());
-                                            logImportError(context, attachmentEmailObject, file.first + ": " + e.toString(), isOld);
+                                            String error = file.first + ": " + e.toString() + "\n" + ExceptionUtils.getStackTrace(e);
+                                            errors.add(error);
+                                            logImportError(context, attachmentEmailObject, error, isOld);
                                             ServerLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
                                         }
                                     }
