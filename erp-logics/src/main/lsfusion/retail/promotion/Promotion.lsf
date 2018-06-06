@@ -471,7 +471,7 @@ WHEN LOCAL (CHANGED(retailPrice(PromotionDetail detail)) OR CHANGED(valueVAT(det
     markup(detail) <- NUMERIC[8,3]((((retailPrice(detail)/(1.0+valueVAT(detail)/100.0))-price(detail))/price(detail)) * 100.0);
 }
 WHEN LOCAL (CHANGED(promotionPrice(PromotionDetail detail)) OR CHANGED(valueVAT(detail))) DO {
-    promotionVATPrice(detail) <- NUMERIC[16,4](promotionPrice(detail)*(1.0+valueVAT(detail)/100.0));
+    promotionVATPrice(detail) <- NUMERIC[16,4](round2(promotionPrice(detail)*(1.0+valueVAT(detail)/100.0)));
 }
 WHEN LOCAL (CHANGED(promotionMarkupSum(PromotionDetail detail)) OR CHANGED(promotionPrice(detail))) AND promotionPrice(detail) > 0.0 DO {
     promotionMarkup(detail) <- NUMERIC[8,3]((promotionMarkupSum(detail)/promotionPrice(detail)) * 100.0);
@@ -483,7 +483,7 @@ WHEN LOCAL (CHANGED(proposedPromotionPrice(PromotionDetail detail)) OR CHANGED(r
     discount(detail) <- NUMERIC[8,3]((1.0-proposedPromotionPrice(detail)/retailPrice(detail)) * 100.0);
 }
 WHEN LOCAL (CHANGED(discount(PromotionDetail detail)) AND NOT CHANGED (proposedPromotionPrice(detail))) DO {
-    proposedPromotionPrice(detail) <- NUMERIC[16,4] (retailPrice(detail) * (1.0 - discount(detail) / 100));
+    proposedPromotionPrice(detail) <- NUMERIC[16,4] (round2(retailPrice(detail) * (1.0 - discount(detail) / 100)));
 }
 
 supplier 'Поставщик' (Stock stock, PromotionDetail detail) = companyA(defaultPriceListType(), sku(detail), stock, toDateTime(fromDate(detail)));
