@@ -51,11 +51,10 @@ class DeleteBarcodeEquipmentServer {
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "deleteBarcode", deleteBarcodeExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
                 String[] names = new String[]{"barcodeObject", "barcode", "idSku", "nameSku", "idUOMSku", "shortNameUOMSku",
-                        "nppGroupMachinery", "overDepartmentNumberGroupMachinery",
-                        "handlerModelGroupMachinery", "valueVATSku", "idItemGroup", "nameItemGroup", "directoryGroupMachinery",};
+                        "nppGroupMachinery", "handlerModelGroupMachinery", "valueVATSku", "idItemGroup", "nameItemGroup", "directoryGroupMachinery",};
                 LCP[] properties = deleteBarcodeLM.findProperties("barcodeObject[DeleteBarcode]", "barcode[DeleteBarcode]", "idSku[DeleteBarcode]", "nameSku[DeleteBarcode]",
                         "idUOMSku[DeleteBarcode]", "shortNameUOMSku[DeleteBarcode]",
-                        "nppGroupMachinery[DeleteBarcode]", "overDepartmentNumberGroupMachinery[DeleteBarcode]", "handlerModelGroupMachinery[DeleteBarcode]",
+                        "nppGroupMachinery[DeleteBarcode]", "handlerModelGroupMachinery[DeleteBarcode]",
                         "valueVATSku[DeleteBarcode]", "idItemGroup[DeleteBarcode]", "nameItemGroup[DeleteBarcode]", "directoryGroupMachinery[DeleteBarcode]");
                 for (int i = 0; i < properties.length; i++) {
                     query.addProperty(names[i], properties[i].getExpr(deleteBarcodeExpr));
@@ -73,7 +72,6 @@ class DeleteBarcodeEquipmentServer {
                     String idUOM = (String) value.get("idUOMSku");
                     String shortNameUOM = (String) value.get("shortNameUOMSku");
                     Integer nppGroupMachinery = (Integer) value.get("nppGroupMachinery");
-                    Integer overDepartmentNumberGroupMachinery = (Integer) value.get("overDepartmentNumberGroupMachinery");
                     String handlerModelGroupMachinery = (String) value.get("handlerModelGroupMachinery");
                     BigDecimal valueVAT = (BigDecimal) value.get("valueVATSku");
                     String idItemGroup = (String) value.get("idItemGroup");
@@ -83,7 +81,7 @@ class DeleteBarcodeEquipmentServer {
                     DeleteBarcodeInfo deleteBarcodeInfo = barcodeMap.get(key);
                     if(deleteBarcodeInfo == null)
                         deleteBarcodeInfo = new DeleteBarcodeInfo(new ArrayList<CashRegisterItemInfo>(), nppGroupMachinery,
-                                overDepartmentNumberGroupMachinery, handlerModelGroupMachinery, directory);
+                                null, handlerModelGroupMachinery, directory);
                     deleteBarcodeInfo.barcodeList.add(new CashRegisterItemInfo(idSku, barcode, name, null, false, null, null,
                             false, valueVAT, null, null, idItemGroup, nameItemGroup, idUOM, shortNameUOM, null, null, null, null, null, null,
                             null, null, null, null, null, null, null, null, barcodeObject, null));
