@@ -359,9 +359,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 
                 if (scalesItemLM != null) {
                     String[] scalesSkuNames = new String[]{"hoursExpiryMachineryPriceTransactionBarcode",
-                            "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode", "descriptionNumberMachineryPriceTransactionBarcode"};
+                            "descriptionMachineryPriceTransactionBarcode", "descriptionNumberMachineryPriceTransactionBarcode"};
                     LCP[] scalesSkuProperties = scalesItemLM.findProperties("hoursExpiry[MachineryPriceTransaction,Barcode]",
-                            "labelFormat[MachineryPriceTransaction,Barcode]", "description[MachineryPriceTransaction,Barcode]", "descriptionNumber[MachineryPriceTransaction,Barcode]");
+                            "description[MachineryPriceTransaction,Barcode]", "descriptionNumber[MachineryPriceTransaction,Barcode]");
                     for (int i = 0; i < scalesSkuProperties.length; i++) {
                         skuQuery.addProperty(scalesSkuNames[i], scalesSkuProperties[i].getExpr(transactionExpr, barcodeExpr));
                     }
@@ -559,7 +559,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
                         Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
                         Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode");
-                        Integer labelFormat = (Integer) row.get("labelFormatMachineryPriceTransactionBarcode");
                         String description = (String) row.get("descriptionMachineryPriceTransactionBarcode");
                         Integer descriptionNumberCellScales = (Integer) row.get("descriptionNumberMachineryPriceTransactionBarcode");
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
@@ -575,7 +574,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                         scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate,
                                 passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup, hoursExpiry,
-                                labelFormat, description, descriptionNumberCellScales, idUOM, shortNameUOM, extraPercent,
+                                null, description, descriptionNumberCellScales, idUOM, shortNameUOM, extraPercent,
                                 retailPrice));
                     }
 
