@@ -195,6 +195,9 @@ EXTEND FORM ranges
 TABLE rangeStoreTypeDate(Range, StoreType, DATE);
 excludeLevel = DATA BOOLEAN (Range, StoreType, DATE);
 dataLevel = DATA RangeLevel (Range, StoreType, DATE);
+dateTime 'Дата/время' = DATA DATETIME (Range, StoreType, DATE);
+user = DATA User (Range, StoreType, DATE);
+nameUser 'Пользователь' (Range r, StoreType s, DATE d) = name(user(r, s, d));
 hasLevel (Range r, StoreType s, DATE d) = dataLevel(r, s, d) OR excludeLevel(r, s, d) MATERIALIZED;
 
 CONSTRAINT dataLevel(Range r, StoreType t, DATE d) AND NOT in(r, dataLevel(r, t, d))
@@ -216,6 +219,8 @@ nameLevel 'Уровень' (Range r, StoreType t, DATE d)= name(level(r, t, d));
 changeLevel (Range r, StoreType t, DATE d)= {
     DIALOG dialogRangeLevels OBJECTS l = dataLevel(r, t, d) CHANGE DO {
         excludeLevel (r, t, d) <- NOT l;
+        dateTime(r, t, d) <- currentDateTime();
+        user(r, t, d) <- currentUser();
     }
 }
 
@@ -226,6 +231,9 @@ countSku 'Кол-во товаров' (Range r, StoreType t, DATE d) = countRecS
 TABLE rangeStoreDate(Range, Store, DATE);
 dataLevel = DATA RangeLevel (Range, Store, DATE);
 excludeLevel = DATA BOOLEAN (Range, Store, DATE);
+dateTime 'Дата/время' = DATA DATETIME (Range, Store, DATE);
+user = DATA User (Range, Store, DATE);
+nameUser 'Пользователь' (Range r, Store s, DATE d) = name(user(r, s, d));
 hasLevel (Range r, Store s, DATE d) = dataLevel(r, s, d) OR excludeLevel(r, s, d) MATERIALIZED;
    
 CONSTRAINT dataLevel(Range r, Store st, DATE d) AND NOT in(r, dataLevel(r, st, d))
@@ -245,6 +253,8 @@ date (Range range, Store st, DATE date) = GROUP
 changeLevel (Range r, Store st, DATE d)= {
     DIALOG dialogRangeLevels OBJECTS l = dataLevel(r, st, d) CHANGE DO {
         excludeLevel (r, st, d) <- NOT l;
+        dateTime(r, st, d) <- currentDateTime();
+        user(r, st, d) <- currentUser();
     }
 }              
 
@@ -266,6 +276,9 @@ overLevel(Range r, Store st, DATE d) = OVERRIDE level(r, st, d), level(r, storeT
 overDate 'Дата включения' (Range r, Store st, DATE d) = OVERRIDE date(r, st, d), date(r, storeType(st), d);  
 nameOverLevel 'Уровень (перегруженный)' (Range r, Store st, DATE d)= name(overLevel(r, st, d));               
 nameLevel 'Уровень' (Range r, Store st, DATE d)= name(level(r, st, d));
+overUser (Range r, Store st, DATE d) = OVERRIDE user(r, st, d), user(r, storeType(st), d);
+nameOverUser 'Пользователь' (Range r, Store st, DATE d) = name(overUser(r, st, d));
+overDateTime 'Дата/время' (Range r, Store st, DATE d) = OVERRIDE dateTime(r, st, d), dateTime(r, storeType(st), d);
 
 countSku 'Кол-во товаров' (Range r, Store st, DATE d) = countRecSku(rangeRev(r, d), overLevel(r, st, d));
 
@@ -584,3 +597,70 @@ createNewTopLevel 'Добавить верхний уровень'() = {
     APPLY;
 
 }
+
+allowChangePast 'Разрешить изменять уровни за прошедшие дни' = DATA BOOLEAN();
+
+EXTEND FORM options PROPERTIES allowChangePast();
+
+DESIGN options {
+    range {
+        MOVE PROPERTY (allowChangePast());
+    }
+}
+
+CONSTRAINT (CHANGED (dataLevel(Range r, Store s, DATE d)) OR  CHANGED (dataLevel(r, storeType(s), d))) AND r IS Range AND s IS Store
+    AND NOT allowChangePast() AND d < currentDate() MESSAGE 'Запрещено изменять уровень для прошедшего дня';
+
+FORM rangeLevelLog 'Лог изменений уровня'
+    OBJECTS r = Range PANEL 
+    PROPERTIES READONLY name(r)
+    
+    OBJECTS sd = (s = Store, st = StoreType, d = DATE)
+    
+    PROPERTIES READONLY vd = VALUE (d), name(s), nameOverLevel(r, s, d), name(st), nameLevel(r, st, d), dateTime(r, s, d), nameUser(r, s, d)
+    ORDER vd, name(s)
+    FILTERS hasLevel(r, s, d) OR hasLevel(r, st, d), storeType(s) == st
+;
+
+showRangeLevelLog 'Лог изменения уровня' (Range r) = {
+    SHOW rangeLevelLog OBJECTS r = r;
+} ASON CONTEXTMENU name[Range];
+
+FORM rangeLevelStoreLog 'Лог изменений уровня'
+    
+    OBJECTS r = Range PANEL 
+    PROPERTIES READONLY name(r)
+    
+    OBJECTS s = Store PANEL 
+    PROPERTIES READONLY name(s)
+    
+    OBJECTS d = DATE
+    
+    PROPERTIES READONLY vd = VALUE (d), nameOverLevel(r, s, d), overDateTime(r, s, d), nameOverUser(r, s, d)
+    ORDER vd, name(s)
+    FILTERS hasLevel(r, s, d) OR hasLevel(r, storeType(s), d)
+;
+
+showRangeLevelStoreLog 'Лог изменения уровня' (Range r, Store s) = {
+    SHOW rangeLevelStoreLog OBJECTS r = r, s = s;
+} ASON CONTEXTMENU nameOverLevel[Range, Store, DATE];
+
+
+FORM rangeLevelStoreTypeLog 'Лог изменений уровня'
+    
+    OBJECTS r = Range PANEL 
+    PROPERTIES READONLY name(r)
+    
+    OBJECTS s = StoreType PANEL 
+    PROPERTIES READONLY name(s)
+    
+    OBJECTS d = DATE
+    
+    PROPERTIES READONLY vd = VALUE (d), nameLevel(r, s, d), dateTime(r, s, d), nameUser(r, s, d)
+    ORDER vd, name(s)
+    FILTERS hasLevel(r, s, d)
+;
+
+showRangeLevelStoreTypeLog 'Лог изменения уровня' (Range r, StoreType s) = {
+    SHOW rangeLevelStoreTypeLog OBJECTS r = r, s = s;
+} ASON CONTEXTMENU nameLevel[Range, StoreType, DATE];
