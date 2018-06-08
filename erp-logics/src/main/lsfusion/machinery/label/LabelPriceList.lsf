@@ -5,23 +5,28 @@ REQUIRE PriceListOperation, Label;
 //--------------- Акционные ценники -------------//
 
 labelType = ABSTRACT LabelType (PriceList);
+labelType = ABSTRACT LabelType (PriceListDetail) MATERIALIZED ;
 nameLabelType 'Тип ценника' = name(labelType(PriceList p));
-labelType (PriceListDetail d) = labelType(priceList(d));
+nameLabelType 'Тип ценника' = name(labelType(PriceListDetail p));
 
 labelType = DATA LabelType (UserPriceList);
 nameLabelType 'Тип ценника' = name(labelType(UserPriceList p)) IN documentPrm;
-labelType (UserPriceListDetail d) = labelType(userPriceList(d));
+dataLabelType = DATA LabelType (UserPriceListDetail);
+labelType  (UserPriceListDetail d) = OVERRIDE dataLabelType(d),labelType(userPriceList(d));
+nameLabelType 'Тип ценника' (UserPriceListDetail d) = name(labelType(d));
 
 labelType(UserPriceList p) += labelType(p);
+labelType(UserPriceListDetail d) += labelType(d);
+
 
 EXTEND FORM  userPriceList  
     PROPERTIES (p) SHOWIF showLabelType(p) nameLabelType 
-
+    PROPERTIES (d) SHOWIF showLabelType(p) nameLabelType 
 ;
 
 EXTEND FORM  priceLists  
     PROPERTIES (p) READONLYIF isReadonly() nameLabelType
-
+    PROPERTIES (d) READONLYIF isReadonly() nameLabelType SHOWIF showLabelType(p)
 ;
 
 ledgerPriceListType = DATA DataPriceListType (LabelType);
