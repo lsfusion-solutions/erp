@@ -1,6 +1,6 @@
 MODULE PurchaseReports;
 
-REQUIRE PurchaseLedger;
+REQUIRE PurchaseLedger, Item;
 
 //отчет по поступлениям
 
@@ -24,6 +24,28 @@ inSession 'Отм.' (Group group) = OVERRIDE
 sessionConcatGroups 'Группы' (groupType) =
     GROUP CONCAT name(Group group) IF inSession(group) AND NOT inSession(parent(group)),','
     BY groupType(group);
+    
+// --------------------------------- Оптимизация с хранимыми свойствами ------------------------------------- //
+
+quantityStock 'Количество' = DATA LOCAL NUMERIC[16,5] (Sku); 
+sumVATStock 'Сумма НДС' = DATA LOCAL NUMERIC[18,4] (Sku);
+sumStock 'Сумма' = DATA LOCAL NUMERIC[18,4] (Sku);
+
+overfillPurchaseReportFromTo = ABSTRACT (GroupType, DATE, DATE);
+
+fillPurchaseReportFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt) = {
+
+    quantityStock(Sku sk) <- NULL;           
+    sumStock(Sku sk) <- NULL;  
+    sumVATStock(Sku sk) <- NULL;  
+    
+    quantityStock(Sku sk) <- NUMERIC[16,5]((GROUP SUM quantityPurchase(sk, Stock st, df, dt) IF inPurchaseReport(st)));           
+    sumStock(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumPurchase(sk, Stock st, df, dt) IF inPurchaseReport(st)));   
+    sumVATStock(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumVATPurchase(sk, Stock st, df, dt) IF inPurchaseReport(st)));   
+
+    overfillPurchaseReportFromTo(gt, df, dt);
+}
+    
 
 //суммы поступлений по группе
 sumVATPurchasesStock 'Сумма НДС (по группе)'(Group group, DATE dateFrom, DATE dateTo) =
@@ -387,25 +409,31 @@ DESIGN dialogStocksPurchaseReport {
     }
 }
 @extendFormFilterStockAccess(s, dialogStocksPurchaseReport, company);    
-changeStocksPurchaseReport() = {
-    SHOW dialogStocksPurchaseReport ;
+changeStocksPurchaseReport(GroupType gt, DATE df, DATE dt) = {
+    DIALOG dialogStocksPurchaseReport DO {
+        fillPurchaseReportFromTo(gt, df, dt);
+    }
 }
 
+showMovementSkuStocksPurchase 'Показать движение товара по складу' (Sku sku) = { NEWSESSION NESTED(inPurchaseReport) SHOW movementSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inPurchaseReport(st)) ; }
+showMovementPriceSkuStocksPurchase 'Показать изменение цены товара по складу' (Sku sku) = { NEWSESSION NESTED(inPurchaseReport) SHOW movementPriceSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inPurchaseReport(st)) ; }
 
+filterStock (Sku s) =   quantityStock(s) OR 
+                                   sumVATStock(s) OR
+                                   sumStock(s);
 
 FORM purchasesReport 'Отчет по поступлениям'
     OBJECTS df=DATE PANEL
     PROPERTIES dateFrom = VALUE(df)
 
     OBJECTS dt=DATE PANEL
-    PROPERTIES dateTo = VALUE(dt)
-    
-    PROPERTIES inPurchaseReportStocks() ON CHANGE changeStocksPurchaseReport()
+    PROPERTIES dateTo = VALUE(dt)        
 
     OBJECTS gt = GroupType PANEL
     PROPERTIES(gt) SELECTOR name
     PROPERTIES(gt, df, dt) READONLY sumPurchasesStock
 //    PROPERTIES(gt) READONLY sessionConcatGroups
+    PROPERTIES inPurchaseReportStocks() ON CHANGE changeStocksPurchaseReport(gt, df, dt)
 
     TREE skuTree sk = Group PARENT parent
     PROPERTIES inSession(sk)
@@ -414,6 +442,15 @@ FORM purchasesReport 'Отчет по поступлениям'
     ORDER order(sk), skuTreeName
     FILTERS groupType(sk) == gt
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+    
+    
+    OBJECTS sku = Sku
+    PROPERTIES(sku) in
+    PROPERTIES(sku) READONLY name ON CONTEXTMENU showMovementSkuStocksPurchase[Sku](sku) ON CONTEXTMENU showMovementPriceSkuStocksPurchase[Sku](sku), id SHOWIF showIDs()
+    PROPERTIES(sku) READONLY nameManufacturer, quantityStock, sumVATStock, sumStock
+    FILTERS isParent(sk, sku),
+            active(sku),
+            filterStock(sku)        
 
     OBJECTS p = PurchaseLedger
     PROPERTIES(p) READONLY dateTime, nameSupplier, nameSku, description,
@@ -437,12 +474,12 @@ DESIGN purchasesReport {
             MOVE PROPERTY(dateFrom){caption = 'Дата (с)';}
             MOVE PROPERTY(dateTo){caption = 'Дата (по)';}
         }
+        MOVE BOX(gt);        
         NEW stocks {
             caption = 'Склады';
             type = CONTAINERH;
             MOVE PROPERTY(inPurchaseReportStocks());        
         }
-        MOVE BOX(gt);
         NEW sumContainer{
             caption = 'Итоговые суммы';
             type = CONTAINERV;
@@ -457,6 +494,7 @@ DESIGN purchasesReport {
         NEW tabContainer{
             type = TABBED;
             fill = 2;
+            MOVE BOX(sku) { caption = 'Товар';}
             MOVE BOX(p) {caption = 'Регистр';}
             NEW printPurchasesContainer{
                 type = CONTAINERV;
