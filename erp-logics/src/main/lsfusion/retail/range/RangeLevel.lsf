@@ -291,6 +291,80 @@ countTypeRange (Store st, Sku sk, DATE d) = GROUP SUM 1 IF level(Range r, storeT
 statusRange 'Вид ассортимента' (Store st, Sku s, DATE d) = CASE WHEN countRange(st, s, d) THEN 'Магазин'
     WHEN countTypeRange(st, s, d) THEN 'Формат';
     
+
+oneLevel 'Один уровень ассортиментной матрицы' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () oneLevel
+;
+DESIGN options {
+    range{
+        MOVE PROPERTY (oneLevel());
+    }
+}
+    
+addCommaStoreId 'Список магазинов (код)' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDTH 30;
+addCommaRangeLevel = DATA LOCAL RangeLevel(Range);
+nameAddCommaRangeLevel 'Уровень' (Range r) = name(addCommaRangeLevel(r));
+
+addCommaStoreId 'Заполнить' (Range r, DATE dt) = {
+    IF addCommaStoreId() THEN { 
+        IF oneLevel() THEN {
+            dataLevel (r, Store st, dt) <-  (GROUP MIN RangeLevel l IF l IS RangeLevel) WHERE isWordInCSV(id(st), replace(addCommaStoreId(),' ',',')) == 1;
+            addCommaStoreId() <- NULL; 
+        } ELSE {
+            IF NOT nameAddCommaRangeLevel(r) THEN {
+                MESSAGE 'Не выбран уровень';                
+            } ELSE {
+                dataLevel (r, Store st, dt) <-  addCommaRangeLevel(r) WHERE isWordInCSV(id(st), replace(addCommaStoreId(),' ',',')) == 1;
+                addCommaStoreId() <- NULL;        
+            }                
+        }   
+    } ELSE {
+        MESSAGE 'Не задан список магазинов';
+    }
+}
+deleteCommaStoreId 'Сбросить' (Range r, DATE dt) = {
+    IF addCommaStoreId() THEN { 
+        excludeLevel (r, Store st, dt) <-  TRUE WHERE isWordInCSV(id(st), replace(addCommaStoreId(),' ',',')) == 1;
+        addCommaStoreId() <- NULL;        
+    } ELSE {
+        MESSAGE 'Не задан список магазинов';
+    }
+}   
+ 
+EXTEND FORM range
+    OBJECTS td = DATE PANEL 
+    PROPERTIES valTd = VALUE(td)
+    PROPERTIES addCommaStoreId(), nameAddCommaRangeLevel(r) SHOWIF (NOT oneLevel()), addCommaStoreId(r,td), deleteCommaStoreId(r,td)
+    OBJECTS ss = Store
+    PROPERTIES (ss) READONLY id, name
+    PROPERTIES nameOverLevel(r, ss, td) BACKGROUND backgroundLevel(r, ss, td) ON CHANGE changeLevel(r, ss, td) ON CHANGEWYS changeWYSLevel(r, ss, td)   
+//    PROPERTIES (r, ss, td) dataLevel, excludeLevel
+;    
+DESIGN range{
+    tabs {
+        NEW storeRange {
+            caption = 'Ассортимент магазинов';
+            fill = 1;
+            NEW topR {
+                type = CONTAINERH;
+                
+                MOVE BOX(td);
+                NEW filterR {
+                    type = CONTAINERH; 
+                    caption = 'Привязка к магазину';  
+                    MOVE PROPERTY (addCommaStoreId());
+                    MOVE PROPERTY (nameAddCommaRangeLevel(r));
+                    MOVE PROPERTY (addCommaStoreId(r,td));
+                    MOVE PROPERTY (deleteCommaStoreId(r,td));
+                }
+            };
+            MOVE BOX(ss);
+        }
+    }
+}
+    
 EXTEND FORM storeRange 
     OBJECTS c = ChainStores PANEL AFTER d
     PROPERTIES(c) SELECTOR name
@@ -544,10 +618,15 @@ importXls 'Импорт' (RangeRev v) = {
         IMPORT XLS FROM f TO barcode = A, name = B, level = C;
         
         FOR imported(INTEGER i) DO {
-            level(v, Sku s) <- rangeLevel(level(i)) WHERE sku(barcode(barcode(i), currentDate())) == s; 
+            IF NOT oneLevel() THEN {
+                level(v, Sku s) <- rangeLevel(level(i)) WHERE sku(barcode(barcode(i), currentDate())) == s; 
+            } ELSE {
+                level(v, Sku s) <- (GROUP MIN RangeLevel l IF l IS RangeLevel) WHERE sku(barcode(barcode(i), currentDate())) == s; 
+            }
+            
         }
-        IF (GROUP SUM 1 IF NOT barcode(barcode(INTEGER i), currentDate())) THEN 
-            MESSAGE 'Не найдены следующие штрих-коды : \n' + (GROUP CONCAT (CONCAT ' : ', barcode(INTEGER i), name(i)) IF NOT barcode(barcode(i), currentDate()), '\n');
+        IF (GROUP SUM 1 IF imported(INTEGER i) AND NOT barcode(barcode(i), currentDate())) THEN 
+            MESSAGE 'Не найдены следующие штрих-коды : \n' + (GROUP CONCAT (CONCAT ' : ', barcode(INTEGER i), name(i)) IF imported(i) AND NOT barcode(barcode(i), currentDate()), '\n');
     }
 }
 
