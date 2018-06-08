@@ -238,7 +238,6 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             if(!skipGoodsInReadBase) {
                 boolean currentPrice = terminalHandlerLM.findProperty("useCurrentPriceInTerminal").read(session) != null;
                 boolean currentQuantity = terminalHandlerLM.findProperty("useCurrentQuantityInTerminal").read(session) != null;
-                boolean filterCurrentQuantity = terminalHandlerLM.findProperty("filterCurrentQuantityInTerminal").read(session) != null;
                 boolean skipFilterPrice = terminalHandlerLM.findProperty("skipFilterPrice[]").read(session) != null;
 
                 KeyExpr barcodeExpr = new KeyExpr("barcode");
@@ -261,7 +260,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 }
                 if (currentQuantity)
                     barcodeQuery.addProperty("quantity", terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
-                if (filterCurrentQuantity)
+                if (stockObject instanceof DataObject)
                     barcodeQuery.and(terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
 
                 barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
