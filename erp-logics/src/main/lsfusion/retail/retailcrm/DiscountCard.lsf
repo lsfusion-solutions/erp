@@ -8,7 +8,22 @@ CLASS DiscountCard 'Дисконтная карта';
 TABLE discountCard (DiscountCard);
 @defineExternalizable(discountCard, VARSTRING[100]);
 
-@defineNumbered(DiscountCard);
+number 'Номер' = DATA VARSTRING[28] (DiscountCard) IN numbered INDEXED CHARWIDTH 13;
+series 'Серия' = DATA STRING[2] (DiscountCard) IN numbered FIXEDCHARWIDTH 3;
+ 
+WHEN useLoweredNumber() AND CHANGED(number(DiscountCard o))
+     INLINE DO number(o) <- lower(number(o));
+     
+WHEN useUpperedSeries() AND CHANGED(series(DiscountCard o))
+     INLINE DO series(o) <- upper(series(o));
+
+WHEN CHANGED(number(DiscountCard o)) AND NOT keepNumberSpaces()
+    INLINE DO number(o) <- replace(number(o), ' ', '');
+
+seriesNumber 'Серия/Номер' (DiscountCard o) = 
+    CONCAT '', series(o), number(o) 
+    CHARWIDTH 7 INDEXED MATERIALIZED;
+
 @defineNumeratedDefault(DiscountCard, 'Дисконтные карты', 'ДС');
 
 discountSeriesNumber (discountCard) = GROUP AGGR DiscountCard ddiscountCard WHERE ddiscountCard IS DiscountCard BY seriesNumber (ddiscountCard);
