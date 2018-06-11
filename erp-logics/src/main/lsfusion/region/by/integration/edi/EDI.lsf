@@ -62,7 +62,7 @@ nameSku 'Наименование' (EOrderDetail o) = name(sku(o));
 idBarcode 'Штрихкод' (EOrderDetail o) = idBarcode(sku(o));
 GTINBarcode 'GTIN' (EOrderDetail o) = GTINBarcode(sku(o));
 
-extraCodeUOM 'Ед. изм. (EDI)' = DATA VARSTRING[10] (UOM);
+extraCodeUOM 'Ед. изм. (EDI)' = DATA VARSTRING[3] (UOM);
 extraCodeUOMSku 'Ед. изм.(EDI)' (EOrderDetail o) = extraCodeUOM(UOM(sku(o)));
 EXTEND FORM UOMs PROPERTIES(u) READONLY extraCodeUOM;
 EXTEND FORM UOM PROPERTIES(u) extraCodeUOM;
@@ -475,7 +475,7 @@ eInvoice = DATA EInvoice(EInvoiceDetail) NONULL DELETE;
 
 lineItemID 'GTIN товара' = DATA VARSTRING[100] (EInvoiceDetail);
 lineItemBuyerID 'Код товара в ERP системе покупателя (грузополучателя)'= DATA VARSTRING[100] (EInvoiceDetail);
-lineItemName 'Наименование товара' = DATA VARSTRING[100] (EInvoiceDetail);
+lineItemName 'Наименование товара' = DATA VARSTRING[255] (EInvoiceDetail);
 grossWeightValue 'Масса груза' = DATA NUMERIC[12,6] (EInvoiceDetail);
 lineItemQuantityUOM 'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета' = DATA VARSTRING[3] (EInvoiceDetail);
 despatchUnitQuantityDespatched 'Количество в грузовых местах' = DATA NUMERIC[12,5] (EInvoiceDetail);
@@ -487,9 +487,9 @@ quantityDespatched 'Кол-во отгружаемого товара' = DATA NU
 valueVAT 'НДС, %' = DATA NUMERIC[16,5] (EInvoiceDetail);
 
 lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,4] (EInvoiceDetail);
-lineItemAmountWithoutCharges 'Стоимость товарной позиции без НДС' = DATA NUMERIC[16,4] (EInvoiceDetail);
-lineItemAmount 'Стоимость товарной позиции с НДС' = DATA NUMERIC[16,4] (EInvoiceDetail);
-lineItemAmountCharges 'Сумма НДС' = DATA NUMERIC[16,4] (EInvoiceDetail);
+lineItemAmountWithoutCharges 'Стоимость товарной позиции без НДС' = DATA NUMERIC[18,4] (EInvoiceDetail);
+lineItemAmount 'Стоимость товарной позиции с НДС' = DATA NUMERIC[18,4] (EInvoiceDetail);
+lineItemAmountCharges 'Сумма НДС' = DATA NUMERIC[18,4] (EInvoiceDetail);
 
 totalAmountWithoutCharges 'Общая сумма без НДС' (eInvoice) = GROUP SUM lineItemAmountWithoutCharges(EInvoiceDetail d) BY eInvoice(d);
 totalAmountCharges 'Общая сумма НДС' (eInvoice) = GROUP SUM lineItemAmountCharges(EInvoiceDetail d) BY eInvoice(d);
@@ -529,7 +529,7 @@ FORM eInvoices 'Электронные накладные EDI'
     PROPERTIES(e) in
     PROPERTIES(e) READONLYIF isReadonly() exportedSupplier, importedCustomer, exportedCustomer, importedSupplier
     PROPERTIES(e) READONLY isCancel, dateTime BACKGROUND background(e), number BACKGROUND background(e), deliveryNoteNumber, deliveryNoteDateTime, glnSupplier, nameSupplier, addressSupplier, unpSupplier, 
-                           nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock, dateTimeCreated
+                           nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock, dateTimeCreated, contractDate, contractId
     PROPERTIES(e) contactCustomerStock, reportId, reportDate, reportName
     FILTERGROUP notExported
         FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(e) 'F8'
@@ -574,5 +574,18 @@ NAVIGATOR {
             NEW eOrderDespatchAdvices;
             NEW eInvoices;
         }
+    }
+}
+
+FORM eInvoice 'Электронная накладная EDI'
+    OBJECTS e = EInvoice PANEL 
+    PROPERTIES(e)  dateTime BACKGROUND background(e), number BACKGROUND background(e), deliveryNoteNumber, deliveryNoteDateTime, 
+                nameSupplier, addressSupplier, unpSupplier, contactSupplier, contactSupplierStock, nameCustomer, addressCustomer, unpCustomer, nameCustomerStock,
+                dateTimeCreated, contractDate, contractId, sealIDReceiver, transportContact, waybillId, deliveryContact, transportID, currency
+;
+
+DESIGN eInvoice {
+    GROUP (,e) {
+        type = CONTAINERV;
     }
 }

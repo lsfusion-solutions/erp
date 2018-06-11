@@ -13,19 +13,51 @@ eInvoice(UserInvoice i) += eInvoice(i);
 invoice = GROUP AGGR Invoice i BY eInvoice(i);
 numberInvoice 'Номер накладной (продажа)' (EInvoice i) = number(invoice(i));
 
-numberEInvoice 'Серия и номер'(Invoice i) = deliveryNoteNumber(eInvoice(i));
+numberEInvoice 'Номер'(Invoice i) = deliveryNoteNumber(eInvoice(i));
+
+
+defaultNumeratorDeliveryNoteNumber = DATA Numerator ();
+nameDefaultNumeratorDeliveryNote 'DeliveryNoteNumber Накладные (продажа)' = name(defaultNumeratorDeliveryNoteNumber()) IN defaultNumerator;
+
+EXTEND FORM defaultNumerators
+    PROPERTIES() nameSaleDefaultNumeratorDeliveryNote = nameDefaultNumeratorDeliveryNote
+;
+
+loadDefaultNumerators() += {
+    NEW n = Numerator {
+        name(n) <- 'DeliveryNoteNumber Накладные (продажа)';
+        series(n) <- '';
+        minValue(n) <- 1L;
+        maxValue(n) <- 9999999999L;
+        stringLength(n) <- 10;
+
+        defaultNumeratorDeliveryNoteNumber() <- n;
+    }
+}
+
+generateSeriesNumber 'Сгенерировать номер'(EInvoice o) = {
+    deliveryNoteNumber(o) <- '001-' + GLN(supplier(o)) + '-' + curStringValue(defaultNumeratorDeliveryNoteNumber()); //ССС-GGGGGGGGGGGGG-NNNNNNNNNN
+    incrementValueSession(defaultNumeratorDeliveryNoteNumber());
+}
+
+WHEN SET(EInvoice o IS EInvoice) 
+     DO generateSeriesNumber(o) ;
 
 createEInvoice 'Создать электронную накладную' (Invoice invoice) = {
     IF NOT eInvoice(invoice) THEN NEWSESSION {
         NEW ei = EInvoice {
-            deliveryNoteNumber(ei) <- number(invoice);
+            eInvoice(invoice) <- ei;
+            number(ei) <- number(invoice);
+            dateTime(ei) <- dateTime(invoice);
             deliveryNoteDateTime(ei) <- dateTime(invoice);
             supplier(ei) <- supplier(invoice);
             supplierStock(ei) <- supplierStock(invoice);
             customer(ei) <- customer(invoice);
             customerStock(ei) <- customerStock(invoice);
             contactCustomerStock(ei) <- '';
-            eInvoice(invoice) <- ei;
+            contractId(ei) <- seriesNumberContractSku(invoice);
+            contractDate(ei) <- dateFromContractSku(invoice);
+            currency(ei) <- shortNameCurrency(invoice);
             
             FOR invoice(InvoiceDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
                 eInvoice(ed) <- ei;
@@ -38,9 +70,9 @@ createEInvoice 'Создать электронную накладную' (Invoi
                 lineItemAmountWithoutCharges(ed) <- sum(detail);
                 lineItemAmount(ed) <- sum(detail);
                 lineItemAmountCharges(ed) <- VATSum(detail);
-                grossWeightValue(ed) <- sumGrossWeight(detail);
+                grossWeightValue(ed) <- OVERRIDE NUMERIC[12,6](sumGrossWeight(detail)), 0.0;
                 lineItemQuantityUOM(ed) <- extraCodeUOM(UOM(sku(detail)));
-                despatchUnitQuantityDespatched(ed) <- packQuantity(detail);
+                despatchUnitQuantityDespatched(ed) <- OVERRIDE NUMERIC[12,5](packQuantity(detail)), 0.0;
                 taxRate(ed) <- numberVAT(detail);
             }
         }
@@ -51,6 +83,12 @@ createEInvoice 'Создать электронную накладную' (Invoi
 EXTEND FORM eInvoices
     PROPERTIES (e) READONLY numberInvoice
 ;
+
+signAndSendSupplierEDI 'Подписать и отправить'(Invoice i) = {
+    in(EInvoice e) <- e = eInvoice(i);
+    signAndSendSupplierEDI();
+    in(EInvoice e) <- NULL;
+}
 
 UNPfullNamePayer (Invoice i) = CONCAT ', ', UNPPayer(i), fullNamePayer(i);
 UNPfullNameSupplier (Invoice i) = CONCAT ', ', UNPSupplier(i), fullNameSupplier[Consignment](i);
@@ -63,7 +101,7 @@ FORM consignmentEInvoice 'РЕЕСТР'
     PROPERTIES(i) READONLY UNPfullNamePayer, addressPayer, UNPfullNameSupplier, addressSupplierAddressSupplierStock,
                            date, nameTruck, overWaybill, nameDriver, trailer, number, numberDate, infoCustomerBase,
                            grossWeightConsignmentDetail, overPackQuantityConsignmentDetail, sumVATConsignmentDetail,
-                           sumInvoiceConsignmentDetail, forwarder, overGoodsAccepted
+                           sumInvoiceConsignmentDetail, forwarder, overGoodsAccepted, numberEInvoice
 ;
 
 FORM attachmentEInvoice 'Приложение'
@@ -76,9 +114,21 @@ FORM attachmentEInvoice 'Приложение'
     FILTERS invoice(d) == i
 ;
 
-printConsignmentEInvoiceXLSX 'Реестр ТТН (xlsx)' (Invoice i) = {
+printConsignmentEInvoiceAttachment 'Реестр ТТН с приложением' (Invoice i) = {
+    PRINT consignmentEInvoice OBJECTS i = i;
+    PRINT attachmentEInvoice OBJECTS i = i;
+} IMAGE 'print.png';
+
+printConsignmentEInvoice 'Реестр ТТН' (Invoice i) = {
+    PRINT consignmentEInvoice OBJECTS i = i;
+} IMAGE 'print.png';
+
+printConsignmentEAttachment 'Приложение' (Invoice i) = {
+    PRINT consignmentEInvoice OBJECTS i = i;
+} IMAGE 'print.png';
+
+printConsignmentEAttachmentXLSX 'Приложение (xlsx)' (Invoice i) = {
     PRINT consignmentEInvoice OBJECTS i = i XLSX;
-    PRINT attachmentEInvoice OBJECTS i = i XLSX;
 } IMAGE 'print.png';
 
 include 'Вкл.' = DATA LOCAL BOOLEAN (Invoice);
@@ -111,11 +161,18 @@ printConsignmentEInvoicesXLSX 'Реестр ТТН (xlsx) (несколько)' 
     }
 } IMAGE 'print.png';
 
+editAttributesEInvoice 'Заполнить атрибуты накладной' (Invoice i) = {
+	NEWSESSION {   
+	    SHOW eInvoice OBJECTS e = eInvoice(i) DOCKED; 
+	}
+} IMAGE 'edit.png';
+
 EXTEND FORM consignmentDashboard
     PROPERTIES READONLY PANEL numberEInvoice(i)
-    PROPERTIES(i) createEInvoice
-    PROPERTIES(i) include BEFORE isPosted(i), printConsignmentEInvoiceXLSX SHOWIF eInvoice[Invoice](i)
-    PROPERTIES() printConsignmentEInvoicesXLSX SHOWIF countInclude()
+    PROPERTIES(i) createEInvoice SHOWIF (NOT eInvoice[Invoice](i)), signAndSendSupplierEDI SHOWIF eInvoice[Invoice](i)
+    PROPERTIES(i) SHOWIF eInvoice[Invoice](i) editAttributesEInvoice, printConsignmentEInvoiceAttachment,  printConsignmentEInvoice, 
+                  printConsignmentEAttachment, printConsignmentEAttachmentXLSX
+    //PROPERTIES() printConsignmentEInvoicesXLSX SHOWIF countInclude()
 ;
 
 DESIGN consignmentDashboard {
@@ -123,12 +180,21 @@ DESIGN consignmentDashboard {
         NEW eInvoice {
             caption = 'Электронная накладная';
             NEW createEI {
+                type = CONTAINERH;
                 MOVE PROPERTY(numberEInvoice(i));
                 MOVE PROPERTY(createEInvoice(i));
+                MOVE PROPERTY(editAttributesEInvoice(i));
+                MOVE PROPERTY(signAndSendSupplierEDI(i));
             }
             NEW printEI {
-                MOVE PROPERTY (printConsignmentEInvoiceXLSX(i));
-                MOVE PROPERTY (printConsignmentEInvoicesXLSX());
+                type = CONTAINERH;
+                MOVE PROPERTY (printConsignmentEInvoiceAttachment(i));
+                MOVE PROPERTY (printConsignmentEInvoice(i));
+                MOVE PROPERTY (printConsignmentEAttachment(i));
+            }
+            NEW exportEI {
+                type = CONTAINERH;
+                MOVE PROPERTY (printConsignmentEAttachmentXLSX(i));
             }
         }
     }
