@@ -21,6 +21,9 @@ stock (ZReportCash ledger) += departmentStore(zReport(ledger));
 description (ZReportCash ledger) += description(ledger);
 number(ZReportCash ledger) += number(zReport(ledger));
 
+sumCashNotSku (ZReport z) = GROUP SUM negMin(sumCashPayment(ReceiptDetail d), sum(d)) IF NOT sku(d) BY zReport(d) MATERIALIZED;
+sumCashSku 'Сумма наличных по товарам Z-отчета' (ZReport z) = sumCash(z) - OVERRIDE sumCashNotSku(z), 0.0; 
+
 type(ZReportCash l) += 'Продажа наличные' IF l IS ZReportCash;
 sumItem (ZReportCash ledger) += sumCashSku(zReport(ledger));
 sumContainer (ZReportCash ledger) += 0.0 IF ledger IS ZReportCash;
@@ -45,6 +48,9 @@ isClosed (ZReportCard ledger) += isClosed(zReport(ledger));
 stock (ZReportCard ledger) += departmentStore(zReport(ledger));
 description (ZReportCard ledger) += description(ledger);
 number(ZReportCard ledger) += number(zReport(ledger));
+
+sumCardNotSku (ZReport z) = GROUP SUM negMin(sumCardPayment(ReceiptDetail d), sum(d)) IF NOT sku(d) BY zReport(d) MATERIALIZED;
+sumCardSku 'Сумма по карточкам по товарам Z-отчета' (ZReport z) = sumCard(z) - OVERRIDE sumCardNotSku(z), 0.0; 
 
 type(ZReportCard l) += 'Продажа безнал' IF l IS ZReportCard;
 sumItem (ZReportCard ledger) += sumCardSku(zReport(ledger));
