@@ -987,7 +987,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             List<Element> cardsList = purchaseNode.getChildren("card");
                             for (Element card : cardsList) {
                                 String type = card.getAttributeValue("type");
-                                if(type != null && type.equals("COUPON_CARD"))
+                                if(type != null && (type.equals("COUPON_CARD") || type.equals("UNIQUE_COUPON")))
                                     couponsList.add(card.getAttributeValue("number"));
                             }
 
