@@ -136,7 +136,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table var", transaction.id));
                                     exportVar(conn, transaction, useBarcodeAsId, weightCode, appendBarcode, version);
 
-                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table signal", transaction.id));
+                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table signal (%s)", transaction.id, "incr"));
                                     exportSignals(conn, transaction, version, true, timeout, false);
                                     versionTransactionMap.put(version, transaction.id);
                                 }
@@ -150,7 +150,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist_items", transaction.id));
                                 exportPriceListItems(conn, transaction, nppGroupMachinery, useBarcodeAsId, appendBarcode, version);
 
-                                processTransactionLogger.info(logPrefix + String.format("transaction %s, table signal", transaction.id));
+                                processTransactionLogger.info(logPrefix + String.format("transaction %s, table signal (%s)", transaction.id,
+                                        transaction.snapshot ? "cumm" : "incr"));
                                 exportSignals(conn, transaction, version, false, timeout, false);
                                 versionTransactionMap.put(version, transaction.id);
 
