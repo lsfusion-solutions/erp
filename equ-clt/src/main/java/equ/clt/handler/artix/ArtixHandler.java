@@ -664,18 +664,20 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     private List<File> getSoftCheckDirectories(Set<String> directorySet) {
         List<File> directories = new ArrayList<>();
         for(String directory : directorySet) {
-            File[] subDirectoryList = new File(directory).listFiles(new FileFilter() {
-                @Override
-                public boolean accept(File file) {
-                    return file.isDirectory();
-                }
-            });
-            if(subDirectoryList != null) {
-                for (File subDirectory : subDirectoryList) {
-                    directories.add(subDirectory);
-                    File onlineDir = new File(subDirectory.getAbsolutePath() + "/online");
-                    if(onlineDir.exists())
-                        directories.add(onlineDir);
+            if(directory != null) {
+                File[] subDirectoryList = new File(directory).listFiles(new FileFilter() {
+                    @Override
+                    public boolean accept(File file) {
+                        return file.isDirectory();
+                    }
+                });
+                if (subDirectoryList != null) {
+                    for (File subDirectory : subDirectoryList) {
+                        directories.add(subDirectory);
+                        File onlineDir = new File(subDirectory.getAbsolutePath() + "/online");
+                        if (onlineDir.exists())
+                            directories.add(onlineDir);
+                    }
                 }
             }
         }
