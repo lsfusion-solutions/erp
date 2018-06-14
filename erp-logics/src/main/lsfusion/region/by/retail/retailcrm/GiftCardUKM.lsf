@@ -8,6 +8,7 @@ NAMESPACE GiftCard;
 connectionStringExportGiftCards 'Строка подключения' = DATA VARSTRING[255] ();
 userExportGiftCards 'Пользователь' = DATA VARSTRING[255] ();
 passwordExportGiftCards 'Пароль' = DATA VARSTRING[255] ();
+checkUnderpayExportGiftCards 'check_underpay' = DATA INTEGER ();
 
 inExportGiftCards 'Экспорт' = DATA LOCAL BOOLEAN (GiftCard);
 exportedExportGiftCards 'Экспортирован' = DATA BOOLEAN (GiftCard);
@@ -20,7 +21,7 @@ isDefect = ABSTRACT BOOLEAN (GiftCard);
 
 exportGiftCards 'Экспорт в УКМ' () = {
 
-    inExportGiftCards(GiftCard g) <- NULL WHERE inExportGiftCards(g) AND (exportedActive(g) OR isSold(g));
+    inExportGiftCards(GiftCard g) <- TRUE;//NULL WHERE inExportGiftCards(g) AND (exportedActive(g) OR isSold(g));
 
     exportGiftCardsUKMCustom();
 };
@@ -30,8 +31,14 @@ EXTEND FORM giftCards
     PROPERTIES() exportGiftCards BEFORE generateGiftCards() TODRAW g TOOLBAR
 ;
 
+DESIGN giftCards {
+    PROPERTY(exportGiftCards()) {
+        toolTip = '0 - не разрешено, 1 - разрешено, 2 - решение принимает кассир';
+    }
+}
+
 EXTEND FORM integrationData 
-    PROPERTIES() connectionStringExportGiftCards, userExportGiftCards, passwordExportGiftCards
+    PROPERTIES() connectionStringExportGiftCards, userExportGiftCards, passwordExportGiftCards, checkUnderpayExportGiftCards
 ;
 
 DESIGN integrationData {
@@ -41,6 +48,7 @@ DESIGN integrationData {
             MOVE PROPERTY(connectionStringExportGiftCards());
             MOVE PROPERTY(userExportGiftCards());
             MOVE PROPERTY(passwordExportGiftCards());
+            MOVE PROPERTY(checkUnderpayExportGiftCards());
         }    
     }
 }
