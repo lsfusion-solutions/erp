@@ -338,9 +338,9 @@ fillPropertySku 'Заполнить' (GroupType t, ABCType type, DATE df, DATE d
         sumSold(t) <- NULL;               
     
 
-        markupSumSold(Sku s) <- NUMERIC[18,4](markupSumSold(t,s,df,dt)) WHERE inSession(group(t, s)) AND isLeaf(skuGroup(s)) AND groupType(skuGroup(s)) == t;
-        quantitySold(Sku s) <- NUMERIC[18,4](quantitySold(t,s,df,dt)) WHERE inSession(group(t, s)) AND isLeaf(skuGroup(s)) AND groupType(skuGroup(s)) == t;
-        sumSold(Sku s) <- NUMERIC[18,4](sumSold(t,s,df,dt)) WHERE inSession(group(t, s)) AND isLeaf(skuGroup(s)) AND groupType(skuGroup(s)) == t;
+        markupSumSold(Sku s) <- NUMERIC[18,4](markupSumSold(t,s,df,dt)) WHERE inSession(group(t, s)) AND isLeaf(skuGroup(s));
+        quantitySold(Sku s) <- NUMERIC[18,4](quantitySold(t,s,df,dt)) WHERE inSession(group(t, s)) AND isLeaf(skuGroup(s));
+        sumSold(Sku s) <- NUMERIC[18,4](sumSold(t,s,df,dt)) WHERE inSession(group(t, s)) AND isLeaf(skuGroup(s));
         
         markupSumSold(t) <- NUMERIC[18,4](markupSumSold(t,df,dt));
         quantitySold(t) <- NUMERIC[18,4](quantitySold(t,df,dt));
@@ -507,8 +507,7 @@ FORM abcAnalysis 'ABC анализ'
     
     OBJECTS s=Sku
     PROPERTIES READONLY  index(s,type), name(s)
-    FILTERS groupType(skuGroup(s)) == t,
-            inSession(skuGroup(s)),
+    FILTERS inSession(group(t, s)),
             percOrder(t,s,type), 
             sumSold(s)  OR quantitySold(s) OR markupSumSold(s)
 
@@ -567,7 +566,7 @@ DESIGN abcAnalysis {
             }
             
             MOVE BOX(gg){caption = 'Результат по группам'; }
-            MOVE BOX(s){caption = 'Результат по товаром'; }
+            MOVE BOX(s){caption = 'Результат по товарам'; }
            
         }
          
