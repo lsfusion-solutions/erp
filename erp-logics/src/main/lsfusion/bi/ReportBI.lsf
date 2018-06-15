@@ -22,12 +22,17 @@ deleteGroup(INTEGER i) = {
 
 META defineReport(id, name)
     nameGroupDB###id = ABSTRACT CASE VARSTRING[50](INTEGER);
+    exprGroupDB###id = ABSTRACT CASE VARSTRING[50](INTEGER);
     captionGroup###id = ABSTRACT CASE VARSTRING[50](INTEGER);
     
     nameGroup1###id() = GROUP MAX nameGroupDB###id(INTEGER i) IF order(i) == 1;
     nameGroup2###id() = GROUP MAX nameGroupDB###id(INTEGER i) IF order(i) == 2;
     nameGroup3###id() = GROUP MAX nameGroupDB###id(INTEGER i) IF order(i) == 3;
     
+    exprGroup1###id() = GROUP MAX exprGroupDB###id(INTEGER i) IF order(i) == 1;
+    exprGroup2###id() = GROUP MAX exprGroupDB###id(INTEGER i) IF order(i) == 2;
+    exprGroup3###id() = GROUP MAX exprGroupDB###id(INTEGER i) IF order(i) == 3;
+
     captionGroup1###id() = GROUP MAX captionGroup###id(INTEGER i) IF order(i) == 1;
     captionGroup2###id() = GROUP MAX captionGroup###id(INTEGER i) IF order(i) == 2;
     captionGroup3###id() = GROUP MAX captionGroup###id(INTEGER i) IF order(i) == 3;
@@ -99,13 +104,14 @@ META defineReport(id, name)
     }
 END 
 
-META createGroup(id, object, name, number, nameDB, caption)
+META createGroup(id, object, name, number, nameDB, expr, caption)
     g###object###id name = DATA LOCAL BOOLEAN();
     WHEN LOCAL SET(g###object###id()) AND countGroup() < 3 DO addGroup(number, name);
     WHEN LOCAL SET(g###object###id()) AND countGroup() == 3 DO { g###object###id() <- NULL; };
     WHEN LOCAL DROPPED(g###object###id()) DO deleteGroup(number);
     
     nameGroupDB###id(INTEGER i) += WHEN i == number THEN nameDB;
+    exprGroupDB###id(INTEGER i) += WHEN i == number THEN expr;
     captionGroup###id(INTEGER i) += WHEN i == number THEN caption;
     
     hide###object###id = ABSTRACT BOOLEAN();
@@ -119,3 +125,7 @@ META createGroup(id, object, name, number, nameDB, caption)
         }
     }
 END 
+
+META createGroup(id, object, name, number, nameDB, caption)
+    @createGroup(id, object, name, number, nameDB, nameDB, caption);
+END

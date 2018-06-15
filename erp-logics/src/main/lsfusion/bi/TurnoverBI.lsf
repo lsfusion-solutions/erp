@@ -1,6 +1,6 @@
 MODULE TurnoverBI;
 
-REQUIRE BI, PurchaseLedger, SaleLedger, Pricing, Item, Druid, ReportBI;
+REQUIRE BI, PurchaseLedger, SaleLedger, Pricing, Item, Druid, ReportBI, DefaultLookupBI;
 
 NAMESPACE BI;
 
@@ -24,17 +24,17 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
         overExportTurnover(date());
         IF NOT overExportTurnover() THEN {
             EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
-                                nameStock = name(Stock st), nameFormatStock = nameParent(stockGroup(st)), nameLegalEntityStock = nameLegalEntity(st),
-                                nameSku = replace(nameSku(Batch b), '\n', ''), barcodeSku = idBarcodeSku(b), idSku = idSku(b), nameSupplier = nameSupplier(b), nameSupplierStock = nameSupplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
-                                group1 = nameSkuGroup2(sku(b)), group2 = nameSkuGroup3(sku(b)), group3 = nameSkuGroup4(sku(b)), group4 = nameSkuGroup5(sku(b)),
-                                brand = nameBrand(sku(b)), price = DOUBLE(sum(sku(b), st) / balance(sku(b), st)), nameUOM = shortNameUOM(b),
+                                stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
+                                sku = sku(Batch b), supplier = supplier(b), supplierStock = supplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
+                                group1 = skuGroup2(sku(b)), group2 = skuGroup3(sku(b)), group3 = skuGroup4(sku(b)), group4 = skuGroup5(sku(b)),
+                                brand = brand(sku(b)), price = DOUBLE(sum(sku(b), st) / balance(sku(b), st)), UOM = UOM(sku(b)),
                                 balance = DOUBLE(balance(b, st)),
                                 quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
                                 quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
                    WHERE balance(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
         }
 
-        ingestBatch('turnover', date());
+        ingestBatch('turnovertest', date());
 
         balance(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date()); 
         balance(Sku s, Stock st) <- balance(s, st) (-) signedQuantity(s, st, date()) WHERE signedQuantity(s, st, date()); 
@@ -42,7 +42,7 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
         date() <- subtract(date(), 1);
     }
     
-    runKillTask('turnover', dFrom, dTo);
+    runKillTask('turnovertest', dFrom, dTo);
      
 } CONFIRM;
 
@@ -54,25 +54,25 @@ EXTEND FORM integrationData
 @defineReport(turnover, 'Оборачиваемость');
 
 
-@createGroup(turnover, stock, 'По магазину', 1, 'nameStock', 'Магазин');
-@createGroup(turnover, supplier, 'По поставщику', 2, 'nameSupplier', 'Поставщик');
-@createGroup(turnover, group1, 'По направлению', 3, 'group1', 'Направление');
-@createGroup(turnover, group2, 'По группе', 4, 'group2', 'Группа');
-@createGroup(turnover, group3, 'По подгруппе', 5, 'group3', 'Подгруппа');
-@createGroup(turnover, group4, 'По субгруппе', 6, 'group4', 'Субгруппа');
-@createGroup(turnover, sku, 'По товару', 7, 'nameSku', 'Товар');
-@createGroup(turnover, brand, 'По бренду', 8, 'brand', 'Бренд');
+@createGroup(turnover, stock, 'По магазину', 1, 'stock', 'LOOKUP(stock,\'stock_name\')', 'Магазин');
+@createGroup(turnover, supplier, 'По поставщику', 2, 'supplier', 'LOOKUP(supplier,\'legalEntity_name\')', 'Поставщик');
+@createGroup(turnover, group1, 'По направлению', 3, 'group1', 'LOOKUP(group1,\'group_name\')', 'Направление');
+@createGroup(turnover, group2, 'По группе', 4, 'group2', 'LOOKUP(group2,\'group_name\')', 'Группа');
+@createGroup(turnover, group3, 'По подгруппе', 5, 'group3', 'LOOKUP(group3,\'group_name\')', 'Подгруппа');
+@createGroup(turnover, group4, 'По субгруппе', 6, 'group4', 'LOOKUP(group4,\'group_name\')', 'Субгруппа');
+@createGroup(turnover, sku, 'По товару', 7, 'sku', 'LOOKUP(sku,\'sku_name\')', 'Товар');
+@createGroup(turnover, brand, 'По бренду', 8, 'brand', 'LOOKUP(brand,\'brand_name\')', 'Бренд');
 @createGroup(turnover, month, 'По месяцам', 9, 'TIME_FORMAT(__time,\'yyyy-MM\')', 'Месяц');
 @createGroup(turnover, week, 'По неделям', 10, 'TIME_FORMAT(__time,\'yyyy неделя ww\')', 'Неделя');
 @createGroup(turnover, day, 'По дням', 11, 'TIME_FORMAT(__time,\'yyyy-MM-dd\')', 'День');
-@createGroup(turnover, supplierStock, 'По складу поставщика', 12, 'nameSupplierStock', 'Склад поставщика');
-@createGroup(turnover, UOM, 'По единице измерения', 13, 'nameUOM', 'Еденица измерения');
+@createGroup(turnover, supplierStock, 'По складу поставщика', 12, 'supplierStock', 'LOOKUP(supplierStock,\'stock_name\')', 'Склад поставщика');
+@createGroup(turnover, UOM, 'По единице измерения', 13, 'UOM', 'LOOKUP(UOM,\'UOM_name\')', 'Еденица измерения');
 
 
-nameGroupsTurnover = CONCAT ', ', (OVERRIDE nameGroup1Turnover(), '\'\'') + ' AS nameGroup1',
-                                           (OVERRIDE nameGroup2Turnover(), '\'\'') + ' AS nameGroup2',
-                                           (OVERRIDE nameGroup3Turnover(), '\'\'') + ' AS nameGroup3',
-                                           (IF gSkuTurnover() THEN 'barcodeSku' ELSE '\'\'') + ' AS barcodeSku';
+nameGroupsTurnover = CONCAT ', ', (OVERRIDE exprGroup1Turnover(), '\'\'') + ' AS nameGroup1',
+                                           (OVERRIDE exprGroup2Turnover(), '\'\'') + ' AS nameGroup2',
+                                           (OVERRIDE exprGroup3Turnover(), '\'\'') + ' AS nameGroup3',
+                                           (IF gSkuTurnover() THEN 'LOOKUP(sku,\'sku_barcode\')' ELSE '\'\'') + ' AS barcodeSku';
 
 isTimeGroup() = gMonthTurnover() OR gWeekTurnover() OR gDayTurnover();
 
@@ -290,10 +290,10 @@ deleteIncludeSkuGroups 'Сбросить отмеченные'() = {
 };
 
 nameIncludeSkuGroups 'Группы товаров (все)' ()= GROUP CONCAT TEXT(name(SkuGroup skuGroup)) IF dataInclude(skuGroup), ', ' ORDER skuGroup CHARWIDTH 20;
-nameIncludeSkuGroups1 'Направления (все)' = GROUP CONCAT TEXT('\''+ (OVERRIDE name(SkuGroup skuGroup),'') +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 2, ', ' ORDER skuGroup CHARWIDTH 20;
-nameIncludeSkuGroups2 'Группы (все)' = GROUP CONCAT TEXT('\''+ (OVERRIDE name(SkuGroup skuGroup),'') +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 3, ', ' ORDER skuGroup CHARWIDTH 20;
-nameIncludeSkuGroups3 'Подгруппы (все)' = GROUP CONCAT TEXT('\''+ (OVERRIDE name(SkuGroup skuGroup),'') +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 4, ', ' ORDER skuGroup CHARWIDTH 20;
-nameIncludeSkuGroups4 'Субгруппы (все)' = GROUP CONCAT TEXT('\''+ (OVERRIDE name(SkuGroup skuGroup),'') +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 5, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups1 'Направления (все)' = GROUP CONCAT TEXT('\''+ SkuGroup skuGroup +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 2, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups2 'Группы (все)' = GROUP CONCAT TEXT('\''+ SkuGroup skuGroup +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 3, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups3 'Подгруппы (все)' = GROUP CONCAT TEXT('\''+ SkuGroup skuGroup +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 4, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups4 'Субгруппы (все)' = GROUP CONCAT TEXT('\''+ SkuGroup skuGroup +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 5, ', ' ORDER skuGroup CHARWIDTH 20;
 
 //------- Товары -------
 dataInclude 'Вкл' = DATA LOCAL BOOLEAN (Sku);
@@ -368,11 +368,11 @@ filterGroups() = CONCAT ' OR', ' group1 IN (' + nameIncludeSkuGroups1() + ')',
                                        ' group2 IN (' + nameIncludeSkuGroups2() + ')',
                                        ' group3 IN (' + nameIncludeSkuGroups3() + ')',
                                        ' group4 IN (' + nameIncludeSkuGroups4() + ')';
-filter() = (OVERRIDE ' AND nameStock IN (' + (GROUP CONCAT TEXT('\''+ name(Stock s) +'\'') IF include(s),',') + ')','')
-                    + (OVERRIDE ' AND nameSupplier IN (' + (GROUP CONCAT TEXT('\''+ name(LegalEntity le) +'\'') IF include(le),',') + ')','')
-                    + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ (OVERRIDE replace(name(Brand b),'\'','\'\''),'') +'\'') IF include(b),',') + ')','')
+filter() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ Stock s +'\'') IF include(s),',') + ')','')
+                    + (OVERRIDE ' AND supplier IN (' + (GROUP CONCAT TEXT('\''+ LegalEntity le +'\'') IF include(le),',') + ')','')
+                    + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ OVERRIDE Brand b +'\'') IF include(b),',') + ')','')
                     + (OVERRIDE ' AND (' + filterGroups() + ')','')
-                    + (OVERRIDE ' AND barcodeSku IN (' + (GROUP CONCAT TEXT('\''+ idBarcode(Sku sku) +'\'') IF dataInclude(sku),',') + ')','');
+                    + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ Sku sku +'\'') IF dataInclude(sku),',') + ')','');
 values() = (IF overIsOut() AND isQuantity() THEN 'SUM(quantitySold)' ELSE '\'\'') + ' AS quantitySold, '
                             + (IF overIsOut() AND overIsCost() THEN 'SUM(costSumSold)' ELSE '\'\'') + ' AS costSumSold, '
                             + (IF overIsOut() AND isCostVAT() THEN 'SUM(costSumVATSold)' ELSE '\'\'') + ' AS costSumVATSold, '
@@ -431,10 +431,10 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
              + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costBalanceA, '
              + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costVATBalanceA, '
              + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS sumBalanceA, '
-             + nameGroupsTurnover() + ' FROM turnover'
+             + nameGroupsTurnover() + ' FROM turnovertest'
              + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
              + filter()
-             + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), IF gSkuTurnover() THEN 'barcodeSku' ELSE NULL)
+             + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
              + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
         IMPORT JSON FROM queryResult() TO nameGroup1Turnover = nameGroup1, nameGroup2Turnover = nameGroup2, nameGroup3Turnover = nameGroup3, 
@@ -448,10 +448,10 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
                                           barcodeSku = barcodeSku;
     } ELSE {
         query(replace('SELECT ' + values() 
-             + nameGroupsTurnover() + ' FROM turnover'
+             + nameGroupsTurnover() + ' FROM turnovertest'
              + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
              + filter()
-             + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), IF gSkuTurnover() THEN 'barcodeSku' ELSE NULL)
+             + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
              + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
         IMPORT JSON FROM queryResult() TO nameGroup1Turnover = nameGroup1, nameGroup2Turnover = nameGroup2, nameGroup3Turnover = nameGroup3, 
@@ -481,10 +481,10 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
             + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceB, '
             + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceB, '
             + (IF isBalanceB() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceB, '
-            + nameGroupsTurnover() + ' FROM turnover'
+            + nameGroupsTurnover() + ' FROM turnovertest'
             + ' WHERE __time = TIME_PARSE(\'' + sum(dateFrom,-1) + '\',\'yyyy-MM-dd\')'
             + filter()
-            + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), IF gSkuTurnover() THEN 'barcodeSku' ELSE NULL)
+            + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
             + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
         IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
@@ -503,10 +503,10 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
             + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceA, '
             + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceA, '
             + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceA, '
-            + nameGroupsTurnover() + ' FROM turnover'
+            + nameGroupsTurnover() + ' FROM turnovertest'
             + ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
             + filter()
-            + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), IF gSkuTurnover() THEN 'barcodeSku' ELSE NULL)
+            + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
             + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
         IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,

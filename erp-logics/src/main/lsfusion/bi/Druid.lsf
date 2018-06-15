@@ -56,6 +56,36 @@ ingestBatch (VARSTRING[100] id, DATE date) = {
     runImportTask(id, date);
 }
 
+loadLookups 'Загрузить справочники' = ABSTRACT LIST ();
+loadLookups () += {
+    stringToCustomFile('\{\}', 'UTF-8', 'json');
+    LOCAL result = CUSTOMFILE();
+    TRY { EXTERNAL HTTP 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config' PARAMS resultCustomFile() TO result; }
+}
+
+escapeJSONValue (TEXT t) = replace(replace(replace(t, '\\', '\\\\'), '"', '\\"'), '\n', '');
+
+loadLookup (VARSTRING[100] id, TEXT json) = {
+    IF json != '' THEN {
+        printToLog('' + currentDateTime() + ' Started Load lookup ' + id);    
+        stringToCustomFile('\{ "version": "' + lpad(TEXT([= FORMULA LONG 'SELECT EXTRACT (epoch FROM ($1))'](currentDateTime())), 12, '0') + '", "lookupExtractorFactory": \{ "type": "map", "injective" : true, "map": \{' + json + ' \} \} \}', 'UTF-8', 'json');
+        LOCAL result = CUSTOMFILE();
+//        WRITE 'file://d:/temp/test.json' FROM resultCustomFile(); 
+        // todo : с версии 1.3.5 убрать TRY, так как там нормально отрабатывает 202 сообщение
+        TRY { EXTERNAL HTTP 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config/__default/' + id PARAMS resultCustomFile() TO result; } 
+        printToLog('' + currentDateTime() + 'Ended Load lookup ' + id);
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() loadLookups
+;
+
+DESIGN integrationData {
+    druid {
+        MOVE PROPERTY(loadLookups());
+    }
+}
 
 runKillTask(VARSTRING[100] id, DATE dFrom, DATE dTo) = {
     stringToCustomFile('\{ "type":"kill", "dataSource" : "' + id + '", "interval" : "' + dFrom + '/' + sum(dTo, 1) + '" \}' 
