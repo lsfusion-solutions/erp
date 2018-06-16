@@ -34,7 +34,7 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
                    WHERE balance(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
         }
 
-        ingestBatch('turnovertest', date());
+        ingestBatch('turnover', date());
 
         balance(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date()); 
         balance(Sku s, Stock st) <- balance(s, st) (-) signedQuantity(s, st, date()) WHERE signedQuantity(s, st, date()); 
@@ -42,7 +42,7 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
         date() <- subtract(date(), 1);
     }
     
-    runKillTask('turnovertest', dFrom, dTo);
+    runKillTask('turnover', dFrom, dTo);
      
 } CONFIRM;
 
@@ -431,7 +431,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
              + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costBalanceA, '
              + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costVATBalanceA, '
              + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS sumBalanceA, '
-             + nameGroupsTurnover() + ' FROM turnovertest'
+             + nameGroupsTurnover() + ' FROM turnover'
              + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
              + filter()
              + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
@@ -448,7 +448,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
                                           barcodeSku = barcodeSku;
     } ELSE {
         query(replace('SELECT ' + values() 
-             + nameGroupsTurnover() + ' FROM turnovertest'
+             + nameGroupsTurnover() + ' FROM turnover'
              + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
              + filter()
              + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
@@ -481,7 +481,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
             + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceB, '
             + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceB, '
             + (IF isBalanceB() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceB, '
-            + nameGroupsTurnover() + ' FROM turnovertest'
+            + nameGroupsTurnover() + ' FROM turnover'
             + ' WHERE __time = TIME_PARSE(\'' + sum(dateFrom,-1) + '\',\'yyyy-MM-dd\')'
             + filter()
             + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
@@ -503,7 +503,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
             + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceA, '
             + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceA, '
             + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceA, '
-            + nameGroupsTurnover() + ' FROM turnovertest'
+            + nameGroupsTurnover() + ' FROM turnover'
             + ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
             + filter()
             + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
