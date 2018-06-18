@@ -242,6 +242,9 @@ nameCustomer 'Покупатель' (EOrderResponse o) = name(customer(o));
 customerStock 'Склад покупателя' = DATA Stock (EOrderResponse);
 nameCustomerStock 'Склад покупателя' (EOrderResponse o) = name(customerStock(o));
 
+dateTimeCreated 'Дата/время создания' = DATA DATETIME (EOrderResponse);
+dateTimeCreated(EOrderResponse e) <- currentDateTime() WHEN SET(e IS EOrderResponse);
+
 CLASS EOrderResponseDetail 'Строка ответа по заказу EDI';
 TABLE eOrderResponseDetail(EOrderResponseDetail); 
 @defineExternalizable(eOrderResponseDetail, VARSTRING[100]);
@@ -272,14 +275,14 @@ sumNoNDS 'Сумма без НДС' = DATA NUMERIC[16,4] (EOrderResponseDetail);
 sumNDS 'Сумма с НДС' = DATA NUMERIC[16,4] (EOrderResponseDetail);
 
 FORM eOrderResponses 'Ответы по Заказам EDI'
-OBJECTS o = EOrderResponse
-PROPERTIES(o) READONLY dateTime, number, numberEOrder, captionResponseType, nameSupplier, nameEDIProvider, nameCustomer, 
-nameCustomerStock, deliveryDateTime, deliveryDateTimeSecond, note
+    OBJECTS o = EOrderResponse
+    PROPERTIES(o) READONLY dateTime, number, numberEOrder, captionResponseType, nameSupplier, nameEDIProvider, nameCustomer, 
+                           nameCustomerStock, deliveryDateTime, deliveryDateTimeSecond, dateTimeCreated, note
 
-OBJECTS d = EOrderResponseDetail
-PROPERTIES(d) READONLY idBarcode, dataGTIN, GTINBarcode, nameSku, captionAction, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS
+    OBJECTS d = EOrderResponseDetail
+    PROPERTIES(d) READONLY idBarcode, dataGTIN, GTINBarcode, nameSku, captionAction, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS
 
-FILTERS orderResponse(d) == o
+    FILTERS orderResponse(d) == o
 ;
 
 //--------------------------------------Уведомление об отгрузке EDI-----------------------------------------//
