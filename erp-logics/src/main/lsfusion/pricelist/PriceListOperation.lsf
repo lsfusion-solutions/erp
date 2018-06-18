@@ -248,8 +248,20 @@ DESIGN operation {
 }
 
 // Подсчет цен по прайс-листам
+priceListDetailB (DataPriceListType type, Sku sku, Stock stock, DATETIME dateTime, Operation operation) =
+    GROUP LAST PriceListDetail detail
+          ORDER fromDateTime(detail), detail
+          WHERE in(detail, type) AND isPosted(detail) AND in(priceList(detail),stock) AND
+                fromDateTime(detail) < dateTime AND NOT toDateTime(detail) < dateTime
+          BY sku(detail), operation(detail) COMPLEX;
 
-priceListDetailA  (DataPriceListType type, sku, Stock stock, DATETIME dateTime, operation) =
+pricePriceListDetailB(DataPriceListType type, Sku sku, Stock stock, DATETIME dateTime, Operation operation) = 
+    price(priceListDetailB(type, sku, stock, dateTime, operation), type);
+    
+prevPricePriceListDetailB (DataPriceListType type, Sku sku, Stock stock, DATETIME dateTime, Operation operation) =
+    PREV(pricePriceListDetailB(type, sku, stock, dateTime, operation));
+
+priceListDetailA (DataPriceListType type, Sku sku, Stock stock, DATETIME dateTime, Operation operation) =
     GROUP LAST PriceListDetail detail
           ORDER fromDateTime(detail), detail
           WHERE in(detail, type) AND isPosted(detail) AND in(priceList(detail),stock) AND
