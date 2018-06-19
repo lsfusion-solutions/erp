@@ -290,10 +290,10 @@ deleteIncludeSkuGroups 'Сбросить отмеченные'() = {
 };
 
 nameIncludeSkuGroups 'Группы товаров (все)' ()= GROUP CONCAT TEXT(name(SkuGroup skuGroup)) IF dataInclude(skuGroup), ', ' ORDER skuGroup CHARWIDTH 20;
-nameIncludeSkuGroups1 'Направления (все)' = GROUP CONCAT TEXT('\''+ SkuGroup skuGroup +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 2, ', ' ORDER skuGroup CHARWIDTH 20;
-nameIncludeSkuGroups2 'Группы (все)' = GROUP CONCAT TEXT('\''+ SkuGroup skuGroup +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 3, ', ' ORDER skuGroup CHARWIDTH 20;
-nameIncludeSkuGroups3 'Подгруппы (все)' = GROUP CONCAT TEXT('\''+ SkuGroup skuGroup +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 4, ', ' ORDER skuGroup CHARWIDTH 20;
-nameIncludeSkuGroups4 'Субгруппы (все)' = GROUP CONCAT TEXT('\''+ SkuGroup skuGroup +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 5, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups1 'Направления (все)' = GROUP CONCAT TEXT('\''+ TEXT(SkuGroup skuGroup) +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 2, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups2 'Группы (все)' = GROUP CONCAT TEXT('\''+ TEXT(SkuGroup skuGroup) +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 3, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups3 'Подгруппы (все)' = GROUP CONCAT TEXT('\''+ TEXT(SkuGroup skuGroup) +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 4, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups4 'Субгруппы (все)' = GROUP CONCAT TEXT('\''+ TEXT(SkuGroup skuGroup) +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 5, ', ' ORDER skuGroup CHARWIDTH 20;
 
 //------- Товары -------
 dataInclude 'Вкл' = DATA LOCAL BOOLEAN (Sku);
@@ -368,11 +368,11 @@ filterGroups() = CONCAT ' OR', ' group1 IN (' + nameIncludeSkuGroups1() + ')',
                                        ' group2 IN (' + nameIncludeSkuGroups2() + ')',
                                        ' group3 IN (' + nameIncludeSkuGroups3() + ')',
                                        ' group4 IN (' + nameIncludeSkuGroups4() + ')';
-filter() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ Stock s +'\'') IF include(s),',') + ')','')
-                    + (OVERRIDE ' AND supplier IN (' + (GROUP CONCAT TEXT('\''+ LegalEntity le +'\'') IF include(le),',') + ')','')
-                    + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ OVERRIDE Brand b +'\'') IF include(b),',') + ')','')
+filter() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) +'\'') IF include(s),',') + ')','')
+                    + (OVERRIDE ' AND supplier IN (' + (GROUP CONCAT TEXT('\''+ TEXT(LegalEntity le) +'\'') IF include(le),',') + ')','')
+                    + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Brand b) +'\'') IF include(b),',') + ')','')
                     + (OVERRIDE ' AND (' + filterGroups() + ')','')
-                    + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ Sku sku +'\'') IF dataInclude(sku),',') + ')','');
+                    + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataInclude(sku),',') + ')','');
 values() = (IF overIsOut() AND isQuantity() THEN 'SUM(quantitySold)' ELSE '\'\'') + ' AS quantitySold, '
                             + (IF overIsOut() AND overIsCost() THEN 'SUM(costSumSold)' ELSE '\'\'') + ' AS costSumSold, '
                             + (IF overIsOut() AND isCostVAT() THEN 'SUM(costSumVATSold)' ELSE '\'\'') + ' AS costSumVATSold, '
