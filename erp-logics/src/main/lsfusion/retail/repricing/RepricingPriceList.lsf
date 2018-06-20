@@ -45,6 +45,10 @@ createDashboardRepricingNotForm 'Создать переоценку'(Stock d, O
             date(r) <- toDate(dt);
             time(r) <- toTime(dt);  
             isPosted(r) <- TRUE;
+            
+            incrementValue(defaultNumeratorUserRepricing());
+            number(r) <- incrementedValue();
+            series(r) <- series(defaultNumeratorUserRepricing());
     
             FOR inDashboardRepricing(Sku sku) AND NOT skipRepricing(sku, d) ORDER orderRepricingDetail(sku) NEW rd = UserRepricingDetail DO {
                 userRepricing(rd) <- r;
@@ -71,19 +75,35 @@ nameToManagementRepricingOperation 'Операция для переоценки
 
 createOverManagementRepricing = ABSTRACT LIST (Stock);
 
+createManagementRepricingAll 'Создать автоматическую переоценку упр.'(DepartmentStore department) = {
+    NEWSESSION {
+        calculateDashboardManagementRepricing(department, toManagementRepricingOperation(), currentDateTime());
+        createDashboardRepricingNotForm(department, toManagementRepricingOperation(), currentDateTime()); 
+        createOverManagementRepricing(department);
+        APPLY;
+    }
+}
+
 createManagementRepricingAllStocks 'Создать автоматическую переоценку упр.'() = {
     FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementRepricing(department)  DO {
-    	NEWSESSION {
-            calculateDashboardManagementRepricing(department, toManagementRepricingOperation(), currentDateTime());
-            createDashboardRepricingNotForm(department, toManagementRepricingOperation(), currentDateTime()); 
-            createOverManagementRepricing(department);
-            APPLY;
-        }
+    	createManagementRepricingAll(department);
 	}
 }
 
+dataCountTreadsRepricingAllStocks = DATA INTEGER ();
+countTreadsRepricingAllStocks 'Количество потоков для создания переоценок'() = OVERRIDE dataCountTreadsRepricingAllStocks(), 4;
+
+createManagementRepricingAllStocksMultithread 'Создать автоматическую переоценку упр. (Многопоточно)'() = {
+    NEWEXECUTOR 
+        FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementRepricing(department)  DO 
+            NEWTHREAD NEWSESSION NEWSQL {
+                createManagementRepricingAll(department);
+            } 
+	THREADS countTreadsRepricingAllStocks();
+}
+
 EXTEND FORM options
-    PROPERTIES() nameToManagementRepricingOperation, createManagementRepricingAllStocks
+    PROPERTIES() nameToManagementRepricingOperation, createManagementRepricingAllStocks, countTreadsRepricingAllStocks, createManagementRepricingAllStocksMultithread
 ;
 DESIGN options {
     rPanel {
@@ -91,6 +111,8 @@ DESIGN options {
             caption = 'Автоматическая переоценка упр.';
             MOVE PROPERTY(nameToManagementRepricingOperation());
             MOVE PROPERTY(createManagementRepricingAllStocks());
+            MOVE PROPERTY(countTreadsRepricingAllStocks());
+            MOVE PROPERTY(createManagementRepricingAllStocksMultithread());
         }
     }
 }
