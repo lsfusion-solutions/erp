@@ -67,16 +67,16 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 Integer version = null;
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
-                    boolean failed = false;
-                    for (SendTransactionBatch entry : sendTransactionBatchMap.values()) {
-                        if (entry.exception != null) {
-                            failed = true;
+                    Long failedTransaction = null;
+                    for (Map.Entry<Long, SendTransactionBatch> entry : sendTransactionBatchMap.entrySet()) {
+                        if (entry.getValue().exception != null) {
+                            failedTransaction = entry.getKey();
                             break;
                         }
                     }
 
-                    if (failed) {
-                        String error = "One of previous transactions failed";
+                    if (failedTransaction != null) {
+                        String error = "One of previous transactions failed: " + failedTransaction;
                         processTransactionLogger.error(logPrefix + error);
                         sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(new RuntimeException(error)));
                     } else {
