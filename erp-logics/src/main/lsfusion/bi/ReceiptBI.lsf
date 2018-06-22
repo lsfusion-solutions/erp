@@ -4,12 +4,16 @@ REQUIRE BI, ZReport, GiftCard, Druid, ReportBI;
 
 NAMESPACE BI;
 
+loadLookups () += {
+    loadLookup('cashregister_npp', [= GROUP CONCAT TEXT('"' + TEXT(CashRegister r) + '":"' + escapeJSONValue(overNpp(r)) + '"'), ',']());
+}
+
 exportReceipt 'Выгрузить Чеки' (DATE dFrom, DATE dTo) = {
     FOR iterate(DATE date, dFrom, dTo) DO {
         EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(Receipt r)),
-                            nameDepartmentStore = nameDepartmentStore(r), idDepartmentStore = idDepartmentStore(r),
-                            number = number(r), overNumberCashRegister = overNumberCashRegister(r), nameEmployee = nameEmployee(r),
-                            idEmployee = idEmployee(r), sumReceiptDetail = sumReceiptDetail(r), discountSum = discountSum(r),
+                            departmentStore = departmentStore(r),
+                            number = number(r), cashRegister = cashRegister(r), employee = employee(r),
+                            sumReceiptDetail = sumReceiptDetail(r), discountSum = discountSum(r),
                             sumVATReceiptDetail = sumVATReceiptDetail(r), countReceiptDetail = countReceiptDetail(r),
                             quantityReceiptDetail = quantityReceiptDetail(r), sumCashPayment = sumCashPayment(r),
                             sumCardPayment = sumCardPayment(r), sumGiftCardPayment = sumGiftCardPayment(r),
@@ -20,10 +24,10 @@ exportReceipt 'Выгрузить Чеки' (DATE dFrom, DATE dTo) = {
     runKillTask('receipt', dFrom, dTo);
     FOR iterate(DATE date, dFrom, dTo) DO {
         EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(ReceiptDetail d)),
-                            nameDepartmentStore = nameDepartmentStore(d), idDepartmentStore = id(departmentStore(d)),
-                            overNumberCashRegister = overNumberCashRegister(receipt(d)), nameEmployee = nameEmployee(d),
-                            idEmployee = idEmployee(receipt(d)), nameSku = nameSku(d), barcodeSku = idBarcode(d), idSku = idSku(d),
-                            quantity = signedQuantity(d), price = price(d), sum = signedSum(d), discountSum = signedDiscountSum(d),
+                            departmentStore = departmentStore(d),
+                            cashRegister = cashRegister(receipt(d)), employee = employee(receipt(d)),
+                            sku = sku(d), group1 = skuGroup2(sku(d)), group2 = skuGroup3(sku(d)), group3 = skuGroup4(sku(d)), group4 = skuGroup5(sku(d)), 
+                            receipt = receipt(d), quantity = signedQuantity(d), price = price(d), sum = signedSum(d), discountSum = signedDiscountSum(d),
                             sumVAT = signedSumVAT(d)
             WHERE date(d) == date AND isPosted(d);
         ingestBatch('receiptdetail', date);
@@ -37,16 +41,16 @@ EXTEND FORM integrationData
 
 @defineReport(receipt, 'Продажа (по чекам)');
 
-@createGroup(receipt, stock, 'По магазину', 1, 'nameDepartmentStore', 'Магазин');
+@createGroup(receipt, stock, 'По магазину', 1, 'departmentStore', 'LOOKUP(stock,\'stock_name\')', 'Магазин');
 @createGroup(receipt, cashRegister, 'По кассе', 2, 'overNumberCashRegister', 'Касса');
-@createGroup(receipt, employee, 'По кассиру', 3, 'nameEmployee', 'Кассир');
+@createGroup(receipt, employee, 'По кассиру', 3, 'employee', 'LOOKUP(employee,\'employee_name\')', 'Кассир');
 @createGroup(receipt, month, 'По месяцам', 4, 'TIME_FORMAT(__time,\'yyyy-MM\')', 'Месяц');
 @createGroup(receipt, week, 'По неделям', 5, 'TIME_FORMAT(__time,\'yyyy неделя ww\')', 'Неделя');
 @createGroup(receipt, day, 'По дням', 6, 'TIME_FORMAT(__time,\'yyyy-MM-dd\')', 'День');
 
-nameGroupsReceipt = CONCAT ', ', (OVERRIDE nameGroup1Receipt(), '\'\'') + ' AS nameGroup1',
-                                           (OVERRIDE nameGroup2Receipt(), '\'\'') + ' AS nameGroup2',
-                                           (OVERRIDE nameGroup3Receipt(), '\'\'') + ' AS nameGroup3';
+nameGroupsReceipt = CONCAT ', ', (OVERRIDE exprGroup1Receipt(), '\'\'') + ' AS nameGroup1',
+                                           (OVERRIDE exprGroup2Receipt(), '\'\'') + ' AS nameGroup2',
+                                           (OVERRIDE exprGroup3Receipt(), '\'\'') + ' AS nameGroup3';
 
 nameGroup1Receipt = DATA LOCAL VARSTRING[255] (INTEGER);
 nameGroup2Receipt = DATA LOCAL VARSTRING[255] (INTEGER);
@@ -71,7 +75,7 @@ deleteIncludeDepartmentStores 'Сбросить отмеченные'() = {
     include (DepartmentStore ds) <- NULL;
 };
 
-nameIncludeDepartmentStores 'Отделы магазина (все)' ()= GROUP CONCAT TEXT(name(DepartmentStore ds)) IF include(ds), ', ' ORDER ds CHARWIDTH 20;
+nameIncludeDepartmentStores 'Отделы магазина (все)' ()= GROUP CONCAT TEXT(DepartmentStore ds) IF include(ds), ', ' ORDER ds CHARWIDTH 20;
 
 FORM dialogDepartmentStores 'Магазины'
     OBJECTS s = DepartmentStore
@@ -123,7 +127,7 @@ fillReceiptReport (DATE dateFrom, DATE dateTo) = {
         + 'SUM(sumCardPayment) AS sumCardPayment, SUM(sumGiftCardPayment) AS sumGiftCardPayment, SUM(sumReceiptDetailGiftCard) AS sumReceiptDetailGiftCard, '
         + nameGroupsReceipt() + ' FROM receipt'
         + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + ' 00:00:00' + '\',\'yyyy-MM-dd HH:mm:ss\') AND TIME_PARSE(\'' + dateTo + ' 23:59:59' + '\',\'yyyy-MM-dd HH:mm:ss\')'
-        + (OVERRIDE ' AND nameDepartmentStore IN (' + (GROUP CONCAT TEXT('\''+ name(DepartmentStore s) +'\'') IF include(s),',') + ')','')
+        + (OVERRIDE ' AND departmentStore IN (' + (GROUP CONCAT TEXT('\''+ TEXT(DepartmentStore s) +'\'') IF include(s),',') + ')','')
         + ' GROUP BY ' + (CONCAT ', ', nameGroup1Receipt(), nameGroup2Receipt(), nameGroup3Receipt())
         + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
         
