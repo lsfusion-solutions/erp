@@ -74,16 +74,36 @@ NAVIGATOR {
     }
 }
 
+CLASS TypeDirectPrint 'Тип печати'{
+    dpl 'DPL',
+    zpl 'ZPL'
+};
+TABLE barcodeTypePrint (TypeDirectPrint);
+
+name 'Наименование' (TypeDirectPrint o) = staticCaption(o) IF o IS TypeDirectPrint CHARWIDTH 15;
+
+FORM dialogTypeDirectPrints 'Тип печати'
+    OBJECTS o = TypeDirectPrint
+    PROPERTIES(o) READONLY name
+    
+    LIST TypeDirectPrint OBJECT o
+;
+
+dataTypeDirectPrint = DATA TypeDirectPrint(LabelType);
+typeDirectPrint(LabelType lt) = OVERRIDE dataTypeDirectPrint(lt), TypeDirectPrint.dpl;
+nameTypeDirectPrint 'Тип печати' (LabelType lt) = name(typeDirectPrint(lt));
+
 textTemplate 'Текст шаблона' = DATA TEXT (LabelType);
 
-EXTEND FORM labelType PROPERTIES textTemplate(l);
+EXTEND FORM labelType PROPERTIES textTemplate(l), nameTypeDirectPrint(l);
 
 DESIGN labelType {
     specification{
         NEW itemtextCase{
             caption = 'Текст шаблона';
             fill = 1;
-            MOVE PROPERTY (textTemplate(l) ){valueSize = (600, 600);};
+            MOVE PROPERTY (textTemplate(l) ){valueSize = (600, 600); panelCaptionAbove = TRUE;};
+            MOVE PROPERTY (nameTypeDirectPrint(l) );
         }
     }
     
@@ -211,10 +231,10 @@ customPrint(LabelTransaction labelTrans) += {
         } ELSE charset() <-  'CP866';         
         
         formattedText() <- replace(formattedText(),'@6.18.4@', CONCAT '/', 'руб', lower(shortNameUOMSku(ld)));
-        formattedText() <- replace(formattedText(),'@32.1@', CASE WHEN charLength(idBarcode(ld)) == 8 THEN 'G'
-                                                                WHEN charLength(idBarcode(ld)) == 12 THEN 'B'
-                                                                WHEN charLength(idBarcode(ld)) == 13 OR charLength(idBarcode(ld)) == 5 THEN 'F' 
-                                                                ELSE 'E' );
+        formattedText() <- replace(formattedText(),'@32.1@', CASE WHEN charLength(idBarcode(ld)) == 8 THEN IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'B8' ELSE 'G'
+                                                                WHEN charLength(idBarcode(ld)) == 12 THEN IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BU' ELSE'B'
+                                                                WHEN charLength(idBarcode(ld)) == 13 OR charLength(idBarcode(ld)) == 5 THEN IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BE' ELSE 'F' 
+                                                                ELSE IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BC' ELSE 'E' );
 
         IF completedIdBarcode(ld) THEN {
             formattedText() <- replace(formattedText(),'@31.13.8@', completedIdBarcode(ld));
