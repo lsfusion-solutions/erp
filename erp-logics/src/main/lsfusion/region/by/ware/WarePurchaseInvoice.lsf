@@ -29,4 +29,10 @@ prevList(PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND
 WHEN LOCAL 
      (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(shipmentQuantity(detail))) AND
      ware(sku(detail)) AND NOT skipCreateWare(detail) DO
-        shipmentQuantity(UserInvoiceDetail d) <- shipmentQuantity(detail) WHERE d == wareUserInvoiceDetail(detail); 
+        shipmentQuantity(UserInvoiceDetail d) <- shipmentQuantity(detail) WHERE d == wareUserInvoiceDetail(detail);
+        
+toShipNotWareInvoiceDetail 'Не поставлено по накладной (кроме услуг и посуды)' (invoice) =
+    GROUP SUM toShip(UserInvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0 AND isNotCharge(sku(invoiceDetail)) AND NOT itemWareUserInvoiceDetail(invoiceDetail)
+          BY invoice(invoiceDetail);
+          
+statusShipped (Invoice invoice) += WHEN isShipped(invoice) AND toShipNotChargeInvoiceDetail(invoice) AND NOT toShipNotWareInvoiceDetail(invoice) THEN StatusShipped.shipped;                     
