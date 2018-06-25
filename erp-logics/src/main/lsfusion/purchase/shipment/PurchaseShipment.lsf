@@ -43,35 +43,23 @@ overCostPrice(d) = ABSTRACT NUMERIC[16,4] (ShipmentDetail);
 extraCostPrice(d) = ABSTRACT NUMERIC[16,4] (ShipmentDetail);
 costPrice(ShipmentDetail d) = OVERRIDE extraCostPrice(d), overCostPrice(d), price(d);
 
-isShipped = shipped(Invoice invoice) OR (invoice IS Invoice AND NOT quantityNotChargeInvoiceDetail(invoice) > 0.0);
+isShipped = shipped(Invoice invoice) OR NOT quantityNotChargeInvoiceDetail(invoice) > 0.0;
 
-CLASS StatusShipped {
-    differ 'Расхождение',
-    shipped 'Оприходована',
-    notShipped  'Не оприходована'
-}
-
-statusShipped 'Статус приемки' = ABSTRACT CASE StatusShipped (Invoice) MATERIALIZED;
-nameStatusShipped 'Статус приемки' (Invoice invoice) = staticCaption(statusShipped(invoice)) CHARWIDTH 15;
-//statusShipped 'Статус приемки' (Invoice invoice)= IF isShipped (invoice) AND toShipNotChargeInvoiceDetail(invoice)  
-//                                                    THEN 'Расхождение'
-//                                                    ELSE 
-//                                                        IF isShipped (invoice) 
-//                                                            THEN 'Оприходована' 
-//                                                            ELSE 'Не оприходована' IF invoice IS Invoice;
-
-statusShipped (Invoice invoice) += WHEN isShipped (invoice) AND toShipNotChargeInvoiceDetail(invoice) THEN StatusShipped.differ;
-statusShipped (Invoice invoice) += WHEN isShipped(invoice) AND NOT toShipNotChargeInvoiceDetail(invoice) THEN StatusShipped.shipped;
-statusShipped (Invoice invoice) += WHEN invoice IS Invoice AND NOT isShipped(invoice) THEN StatusShipped.notShipped;
+statusShipped 'Статус приемки' (Invoice invoice)= IF isShipped (invoice) AND toShipNotChargeInvoiceDetail(invoice)  
+                                                    THEN 'Расхождение'
+                                                    ELSE 
+                                                        IF isShipped (invoice) 
+                                                            THEN 'Оприходована' 
+                                                            ELSE 'Не оприходована' IF invoice IS Invoice;
                                                                                                                                                                                                                      
 backgroundShip 'Цвет' (Invoice invoice)= RGB(212,255,212) IF invoice IS Invoice AND NOT isShipped(invoice);  
 
 EXTEND FORM invoices
-    PROPERTIES (i) READONLY nameStatusShipped BACKGROUND backgroundShip(i) AFTER isCommission(i)
+    PROPERTIES (i) READONLY statusShipped BACKGROUND backgroundShip(i) AFTER isCommission(i)
     
     FILTERGROUP shipped 
-        FILTER 'Не оприходованы' statusShipped(i)==StatusShipped.notShipped 'F11'
-        FILTER 'Оприходованы' statusShipped(i)==StatusShipped.shipped OR statusShipped(i)==StatusShipped.differ 'F10'
+        FILTER 'Не оприходованы' i IS Invoice AND NOT isShipped(i) 'F11'
+        FILTER 'Оприходованы' isShipped(i) 'F10'
 ;   
 @defineOrderShipmentExecution(); 
 @defineOrderInvoiceSupplierExecution(purchase, ' (закупка)');
