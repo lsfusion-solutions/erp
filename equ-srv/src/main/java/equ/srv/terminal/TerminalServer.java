@@ -66,6 +66,7 @@ public class TerminalServer extends MonitorServer {
     public static final byte SAVE_PALLET = 9;
 
     private static final Logger logger = Logger.getLogger("TerminalLogger");
+    private static final Logger priceCheckerLogger = Logger.getLogger("PriceCheckerLogger");
 
     private static ConcurrentHashMap<String, UserInfo> userMap = new ConcurrentHashMap<>();
 
@@ -197,8 +198,6 @@ public class TerminalServer extends MonitorServer {
             DataInputStream inFromClient = null;
             DataOutputStream outToClient = null;
             try {
-                logger.info("before read");
-
                 inFromClient = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
                 outToClient = new DataOutputStream(socket.getOutputStream());
                 //Thread.sleep(2000);
@@ -351,7 +350,7 @@ public class TerminalServer extends MonitorServer {
                             logger.info("requested getItemHtml");
                             String[] params = readParams(inFromClient);
                             if (params.length == 2) {
-                                logger.info(String.format("requested barcode %s, stock %s", params[0], params[1]));
+                                priceCheckerLogger.info(String.format("requested barcode '%s', stock '%s'", params[0], params[1]));
                                 String barcode = params[0];
                                 String idStock = params[1];
                                 result = readItemHtml(barcode, idStock);
@@ -364,7 +363,7 @@ public class TerminalServer extends MonitorServer {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("GetItemHtml Unknown error: ", e);
+                            priceCheckerLogger.error("request failed: ", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
