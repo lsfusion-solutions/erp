@@ -11,6 +11,7 @@ public class ArtixSettings implements Serializable{
     private boolean readCashDocuments;
     private boolean exportClients;
     private boolean exportSoftCheckItem;
+    private Integer maxFilesCount;
 
     public ArtixSettings() {
     }
@@ -69,5 +70,13 @@ public class ArtixSettings implements Serializable{
 
     public void setExportSoftCheckItem(boolean exportSoftCheckItem) {
         this.exportSoftCheckItem = exportSoftCheckItem;
+    }
+
+    public Integer getMaxFilesCount() {
+        return maxFilesCount;
+    }
+
+    public void setMaxFilesCount(Integer maxFilesCount) {
+        this.maxFilesCount = maxFilesCount;
     }
 }
