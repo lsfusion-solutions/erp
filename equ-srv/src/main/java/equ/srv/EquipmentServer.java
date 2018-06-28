@@ -2248,10 +2248,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             equLM.findProperty("machineryPriceTransaction[MachineryPriceTransactionError]").change(transactionID, session, errorObject);
             equLM.findProperty("data[MachineryPriceTransactionError]").change(e.toString(), session, errorObject);
             equLM.findProperty("date[MachineryPriceTransactionError]").change(getCurrentTimestamp(), session, errorObject);
-            OutputStream os = new ByteArrayOutputStream();
-            e.printStackTrace(new PrintStream(os));
-            equLM.findProperty("errorTrace[MachineryPriceTransactionError]").change(os.toString(), session, errorObject);
 
+            DataObject transactionObject = session.getDataObject(((CustomClass) equLM.findClass("MachineryPriceTransaction")), transactionID);
+            boolean logStackTrace = equLM.findProperty("logStackTrace[MachineryPriceTransaction]").read(session, transactionObject) != null;
+            if(logStackTrace) {
+                OutputStream os = new ByteArrayOutputStream();
+                e.printStackTrace(new PrintStream(os));
+                equLM.findProperty("errorTrace[MachineryPriceTransactionError]").change(os.toString(), session, errorObject);
+            }
             session.apply(getBusinessLogics(), getStack());
         } catch (Exception e2) {
             throw Throwables.propagate(e2);

@@ -26,6 +26,7 @@ minutesTroubleMachineryGroup 'Минимальный возраст пробле
 selectTop 'Кол-во считываемых транзакций' = DATA INTEGER (EquipmentServer) IN base;
 ignoreReceiptsAfterDocumentsClosedDate 'Не принимать реализацию по закрытым документам' = DATA BOOLEAN (EquipmentServer) IN base;
 ignoreReceiptsAfterDocumentsClosedDate(VARSTRING[100] sid) = ignoreReceiptsAfterDocumentsClosedDate(sidTo(sid));
+logStackTrace 'Логировать Stack Trace' = DATA BOOLEAN (EquipmentServer) IN base;
 //---------------------------- Ошибки сервера оборудования ----------------------------//
 
 CLASS EquipmentServerError 'Ошибки';
@@ -66,7 +67,7 @@ FORM equipmentServer 'Сервер оборудования'
     OBJECTS es = EquipmentServer PANEL
     PROPERTIES(es) name, timeId, sid, timeFrom, timeTo, delay, numberAtATime, maxThreads,
                    sendSalesDelay, skipTroublesDelay, minutesTroubleMachineryGroup, selectTop,
-                   ignoreReceiptsAfterDocumentsClosedDate
+                   ignoreReceiptsAfterDocumentsClosedDate, logStackTrace
     
     EDIT EquipmentServer OBJECT es
 ;
@@ -75,7 +76,7 @@ FORM dialogEquipmentServer 'Серверы оборудования'
     OBJECTS es = EquipmentServer
     PROPERTIES(es) READONLY name, timeId, sid, timeFrom, timeTo, delay, numberAtATime, maxThreads,
                             sendSalesDelay, skipTroublesDelay, minutesTroubleMachineryGroup, selectTop,
-                            ignoreReceiptsAfterDocumentsClosedDate
+                            ignoreReceiptsAfterDocumentsClosedDate, logStackTrace
     
     LIST EquipmentServer OBJECT es
 ;
@@ -84,7 +85,7 @@ FORM equipmentServers 'Серверы оборудования'
     OBJECTS es = EquipmentServer
     PROPERTIES(es)  READONLY name, timeId, sid, timeFrom, timeTo, delay, numberAtATime, maxThreads,
                              sendSalesDelay, skipTroublesDelay, minutesTroubleMachineryGroup, selectTop,
-                             ignoreReceiptsAfterDocumentsClosedDate
+                             ignoreReceiptsAfterDocumentsClosedDate, logStackTrace
     PROPERTIES(es)  NEWSESSION NEW, EDIT, DELETE 
 
     OBJECTS e = EquipmentServerError LAST 
@@ -148,4 +149,4 @@ equipmentServer (MachineryPriceTransaction transaction) = equipmentServer(groupM
 sidEquipmentServer (MachineryPriceTransaction transaction) = sid(equipmentServer (transaction));
 
 cashRegister (npp, equipmentServer) = GROUP NAGGR Machinery cashRegister BY npp (cashRegister), sid(equipmentServer(groupMachinery(cashRegister))); 
-
+logStackTrace(MachineryPriceTransaction mpt) = logStackTrace(equipmentServer(mpt));
