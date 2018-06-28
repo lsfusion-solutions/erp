@@ -347,7 +347,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено сообщений по накладным: %s", invoiceMessagesFailed);
 
             boolean succeeded = true;
-            if (succeededMap.isEmpty())
+            if (succeededMap.isEmpty() && importResultList.isEmpty() && blrwbrList.isEmpty())
                 message += (message.isEmpty() ? "" : "\n") + "Не найдено новых сообщений";
             else if (!disableConfirmation) {
 
