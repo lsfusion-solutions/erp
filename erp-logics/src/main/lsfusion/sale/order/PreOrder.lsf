@@ -44,6 +44,25 @@ idOperation 'ID операции' (PreOrder o) = id(operation(o));
 operation 'Операция' (PreOrderDetail d) = operation(preOrder(d));
 nameOperation 'Операция' (PreOrderDetail d) = name(operation(d));
 
+TABLE preOrderOperation (PreOrder, Sale.Operation);
+in 'Вкл.' = DATA BOOLEAN (PreOrder, Sale.Operation);
+includeOperations 'Дополнительные операции' (PreOrder o) = GROUP CONCAT name(Sale.Operation op) IF in(o,op), ', ' CHARWIDTH 30;
+
+in 'Вкл.' (PreOrderDetail d, Sale.Operation op) = in(preOrder(d),op) MATERIALIZED;
+
+FORM preOrderOperations
+    OBJECTS o = PreOrder PANEL
+    
+    OBJECTS op = Sale.Operation
+    PROPERTIES(o,op) in
+    PROPERTIES(op) READONLY name, id
+    FILTERS NOT op == operation(o)
+;
+
+changeIncludeOperations(PreOrder o) = {
+    DIALOG preOrderOperations OBJECTS o = o;
+}
+
 @defineDocumentDataTimePrefix(preOrder, from, ' с') ;
 
 fromDate(PreOrder order) <- date(order) WHEN CHANGED(date(order));
@@ -67,8 +86,8 @@ FORM preOrder 'Резерв'
 
     OBJECTS o = PreOrder PANEL
     PROPERTIES (o) isPosted, nameSupplierStock ON CHANGE changeSupplierStockCompany(o),
-                   nameOperation, nameNumerator, number, series, date, time, note, 
-                   fromDate, fromTime
+                   nameOperation, includeOperations ON CHANGE changeIncludeOperations(o),
+                   nameNumerator, number, series, date, time, note, fromDate, fromTime
 
     PROPERTIES (o) READONLY quantityPreOrderDetail, countPreOrderDetail                        
 
@@ -106,7 +125,8 @@ DESIGN preOrder {
                     NEW first {
                         type = CONTAINERH;
                         MOVE PROPERTY (isPosted(o));         
-                        MOVE PROPERTY (nameOperation(o));         
+                        MOVE PROPERTY (nameOperation(o));
+                        MOVE PROPERTY (includeOperations(o));       
                         MOVE PROPERTY(nameSupplierStock(o));                                 
                     }
                     NEW second { 
@@ -148,7 +168,7 @@ DESIGN preOrder {
 FORM preOrders 'Резервы'
 
     OBJECTS o = PreOrder 
-    PROPERTIES (o) READONLY isClosed, isPosted, nameSupplierStock, nameOperation, 
+    PROPERTIES (o) READONLY isClosed, isPosted, nameSupplierStock, nameOperation, includeOperations,
                    number, series, date, time, note
                 
     PROPERTIES (o) READONLY countPreOrderDetail
@@ -219,9 +239,9 @@ edit(PreOrderDetail d) += { DIALOG preOrder OBJECTS o = preOrder(d), d = d DOCKE
 
 orderedOrderDetail 'Израсходовано' (PreOrderDetail pd) = GROUP
     SUM quantity(Sale.OrderDetail d) 
-    IF isPosted(d) AND dateTime(d) >= fromDateTime(pd) AND operation(pd) == operation(d) AND supplierStock(pd) == supplierStock(d) AND sku(pd) == sku(d);
+    IF isPosted(d) AND dateTime(d) >= fromDateTime(pd) AND (operation(pd) == operation(d) OR in(pd, operation(d))) AND supplierStock(pd) == supplierStock(d) AND sku(pd) == sku(d);
 orderedOrderDetail 'Израсходовано' (PreOrderDetail pd, so) = GROUP SUM quantity(Sale.OrderDetail d) 
-    IF isPosted(d) AND dateTime(d) >= fromDateTime(pd) AND operation(pd) == operation(d) AND supplierStock(pd) == supplierStock(d) AND sku(pd) == sku(d)
+    IF isPosted(d) AND dateTime(d) >= fromDateTime(pd) AND (operation(pd) == operation(d) OR in(pd, operation(d))) AND supplierStock(pd) == supplierStock(d) AND sku(pd) == sku(d)
     BY Sale.order(d);    
 orders 'Заказы' (PreOrderDetail d) = GROUP
                                        CONCAT seriesNumber(Sale.Order so) IF orderedOrderDetail(d, so) , ', '
@@ -255,8 +275,8 @@ operation[OrderLedger](PreOrderDetail ledger) += operation(ledger);
 TABLE operationStockSku (Sale.Operation,Stock,Sku);
 
 quantityPreOrder 'Резерв операции' (o,st,s) = GROUP SUM calcQuantity(PreOrderDetail d) 
-    IF isPosted(d) AND NOT isClosed(d) 
-    BY operation(d), sku(d), supplierStock(d) MATERIALIZED;
+    IF isPosted(d) AND NOT isClosed(d) AND (operation(d) == Sale.Operation op OR in(d,op)) 
+    BY op, sku(d), supplierStock(d) MATERIALIZED;
 prevQuantityPreOrder 'Резерв операции' (Sale.Operation o, Sku s, Stock st) = PREV(quantityPreOrder(o, s, st));
     
 prevQuantityPreOrder 'Резерв операции' (Sku s, Stock st, UserOrder o) = prevQuantityPreOrder(operation(o), s, st);  
@@ -264,8 +284,8 @@ prevQuantityPreOrder 'Резерв операции' (Sku s, Stock st, UserOrder
 TABLE operationStockBatch (Sale.Operation,Stock,Batch);
 
 quantityPreOrder 'Резерв операции' (o,st,s) = GROUP SUM calcQuantity(PreOrderDetail d) 
-    IF isPosted(d) AND NOT isClosed(d) 
-    BY operation(d), batch(d), supplierStock(d) MATERIALIZED;
+    IF isPosted(d) AND NOT isClosed(d) AND (operation(d) == Sale.Operation op OR in(d,op))
+    BY op, batch(d), supplierStock(d) MATERIALIZED;
 prevQuantityPreOrder 'Резерв операции' (Sale.Operation o, Batch b, Stock st) = PREV(quantityPreOrder(o, b, st));
     
 prevQuantityPreOrder 'Резерв операции' (Batch b, Stock st, UserOrder o) = prevQuantityPreOrder(operation(o), b, st);  
