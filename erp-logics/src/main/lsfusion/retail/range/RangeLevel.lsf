@@ -744,3 +744,22 @@ FORM rangeLevelStoreTypeLog 'Лог изменений уровня'
 showRangeLevelStoreTypeLog 'Лог изменения уровня' (Range r, StoreType s) = {
     SHOW rangeLevelStoreTypeLog OBJECTS r = r, s = s;
 } ASON CONTEXTMENU nameLevel[Range, StoreType, DATE];
+
+//----------------------------------
+countFilterRangeRev 'Количество версий в фильтре' = DATA INTEGER ();
+
+EXTEND FORM options
+    PROPERTIES () countFilterRangeRev
+;
+DESIGN options {
+    range {
+        MOVE PROPERTY (countFilterRangeRev());
+    }
+}
+
+index 'Номер' (RangeRev v) = PARTITION SUM 1 ORDER DESC dateTime(v) BY range(v);
+
+EXTEND FORM range
+    FILTERGROUP index
+        FILTER 'Показывать последние N версий' index(v) <= countFilterRangeRev() OR NOT countFilterRangeRev() DEFAULT
+;
