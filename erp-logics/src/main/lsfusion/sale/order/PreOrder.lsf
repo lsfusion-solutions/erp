@@ -293,3 +293,37 @@ prevQuantityPreOrder 'Резерв операции' (Batch b, Stock st, UserOrd
 EXTEND FORM userOrder
     PROPERTIES READONLY prevQuantityPreOrder(ks, st, o) AFTER prevCurrentReserveSale(ks,st)
 ;
+
+//------------------------- Значения по умолчанию ------------------------
+
+preOrderRetailOperation 'Операция (розница)' = DATA Sale.Operation ();
+namePreOrderRetailOperation 'Операция (розница)' () = name(preOrderRetailOperation());
+inPreOrderRetail 'Розница' = DATA BOOLEAN (Sale.Operation);
+
+preOrderWholesaleOperation 'Операция (опт)' = DATA Sale.Operation ();
+namePreOrderWholesaleOperation 'Операция (опт)' () = name(preOrderWholesaleOperation());
+inPreOrderWholesale 'Опт' = DATA BOOLEAN (Sale.Operation);
+
+preOrderProductionOperation 'Операция (производство)' = DATA Sale.Operation ();
+namePreOrderProductionOperation 'Операция (производство)' () = name(preOrderProductionOperation());
+inPreOrderProduction 'Производство' = DATA BOOLEAN (Sale.Operation);
+
+EXTEND FORM options
+    PROPERTIES() namePreOrderRetailOperation, namePreOrderWholesaleOperation, namePreOrderProductionOperation
+    OBJECTS sop = Sale.Operation
+    PROPERTIES(sop) READONLY name, id
+    PROPERTIES(sop) inPreOrderRetail, inPreOrderWholesale, inPreOrderProduction
+;
+
+DESIGN options {
+    pane {
+        NEW preOrder  {
+            type = CONTAINERV;
+            caption = 'Резерв';
+            MOVE PROPERTY(namePreOrderRetailOperation());
+            MOVE PROPERTY(namePreOrderWholesaleOperation());
+            MOVE PROPERTY(namePreOrderProductionOperation());
+            MOVE BOX(sop);
+        }
+    }
+}
