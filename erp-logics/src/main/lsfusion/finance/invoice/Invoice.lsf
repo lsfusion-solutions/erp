@@ -1007,14 +1007,16 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
         BY invoiceDetail(iinvoiceDetail) MATERIALIZED;
     returnQuantityInvoiceDetail 'Кол-во (возвращено)' (invoice) =  GROUP SUM returnQuantity(nsdir.InvoiceDetail invoiceDetail) BY invoice(invoiceDetail) MATERIALIZED;
     toReturnQuantity 'Кол-во доступно к возврату' (nsdir.InvoiceDetail invoiceDetail)= quantity(invoiceDetail) (-) returnQuantity(invoiceDetail);    
-
+    
+    skipCheckInvoceReturnSupplier = ABSTRACT BOOLEAN (Invoice);
+    
     CONSTRAINT returnQuantity(invoiceDetail(InvoiceDetail d)) > quantity((invoiceDetail(d)))
         MESSAGE 'Количество строки возврата больше чем количество строки основания';
 
     CONSTRAINT sku(invoiceDetail(UserInvoiceDetail d)) != sku(d) CHECKED BY invoiceDetail[UserInvoiceDetail]
         MESSAGE 'SKU строки основания должен соответствовать SKU строки возврата';
 
-    CONSTRAINT supplier(invoiceDetail(UserInvoiceDetail d)) != supplier(d) CHECKED BY invoiceDetail[UserInvoiceDetail]
+    CONSTRAINT supplier(invoiceDetail(UserInvoiceDetail d)) != supplier(d) AND NOT skipCheckInvoceReturnSupplier(invoice(d)) CHECKED BY invoiceDetail[UserInvoiceDetail]
         MESSAGE 'Поставщик строки основания должен соответствовать Поставщик строки возврата';
 
     CONSTRAINT customer(invoiceDetail(UserInvoiceDetail d)) != customer(d) CHECKED BY invoiceDetail[UserInvoiceDetail]
