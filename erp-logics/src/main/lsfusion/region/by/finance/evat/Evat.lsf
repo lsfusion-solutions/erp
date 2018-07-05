@@ -212,8 +212,11 @@ descriptionDoc 'Дополнительные сведения' = DATA VARSTRING[
 unpSender 'Субъект хозяйствования, составляющий ЭСЧФ' = DATA VARSTRING[100](EVAT);
 exportYear 'Год для экспорта' = DATA INTEGER (EVAT);
 
-exportNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + (OVERRIDE exportYear(e), Time.extractYear(currentDate()) IF e IS EVAT ) + '-' + VARSTRING[100](lpad(number(e), 10, '0'));
-exportDNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + exportYear(e) + '-' + VARSTRING[100](lpad(number(e), 10, '0'));
+padNumber = ABSTRACT VALUE VARSTRING[20] (EVAT);
+padNumber (EVAT e) += VARSTRING[20](lpad(number(e), 10, '0'));
+
+exportNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + (OVERRIDE exportYear(e), Time.extractYear(currentDate()) IF e IS EVAT ) + '-' + padNumber(e);
+exportDNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + exportYear(e) + '-' + padNumber(e);
 EVATExportNumber 'ЭСЧФ по номеру для экспорта' = GROUP AGGR EVAT e BY exportDNumber(e); 
 
 WHEN SET(exported(EVAT e)) 
