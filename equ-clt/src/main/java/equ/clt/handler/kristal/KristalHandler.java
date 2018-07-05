@@ -130,10 +130,15 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 boolean isWeightItem = item.passScalesItem && item.splitItem;
                                 Object code = useIdItem ? item.idItem : item.idBarcode;
                                 String barcode = (isWeightItem ? weightPrefix : "") + (item.idBarcode == null ? "" : item.idBarcode);
+
+                                int vat = item.vat == null ? 0 : item.vat.intValue();
+                                if(vat != 10 && vat != 20) {
+                                    vat = 0;
+                                }
                                 String record = "+|" + code + "|" + barcode + "|" + item.name + "|" +
                                         (isWeightItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
                                         departmentNumber + "|"/*section*/ + item.price + "|" + "0|"/*fixprice*/ +
-                                        (item.splitItem ? "0.001|" : "1|") + idItemGroup + "|" + (item.vat == null ? "0" : item.vat) + "|0";
+                                        (item.splitItem ? "0.001|" : "1|") + idItemGroup + "|" + vat + "|0";
                                 writer.println(record);
                             }
                         }
