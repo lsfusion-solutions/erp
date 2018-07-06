@@ -2022,8 +2022,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     private boolean overDocumentsClosedDate(SalesInfo salesInfo, boolean ignoreReceiptsAfterDocumentsClosedDate, List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList) {
         return ignoreReceiptsAfterDocumentsClosedDate && !allowReceiptsAfterDocumentsClosedDateCashRegisterList.contains(salesInfo.nppGroupMachinery) &&
-                salesInfo.dateReceipt != null && salesInfo.cashRegisterInfo != null && salesInfo.cashRegisterInfo.documentsClosedDate != null &&
-                salesInfo.dateReceipt.compareTo(salesInfo.cashRegisterInfo.documentsClosedDate) < 0;
+                ((salesInfo.dateReceipt != null && salesInfo.cashRegisterInfo != null && salesInfo.cashRegisterInfo.documentsClosedDate != null &&
+                salesInfo.dateReceipt.compareTo(salesInfo.cashRegisterInfo.documentsClosedDate) < 0) ||
+                (salesInfo.dateZReport != null && salesInfo.cashRegisterInfo != null && salesInfo.cashRegisterInfo.documentsClosedDate != null &&
+                salesInfo.dateZReport.compareTo(salesInfo.cashRegisterInfo.documentsClosedDate) < 0));
     }
 
     private String logCompleteMessageMultiThread(ExecutionStack stack, DataSession mainSession, List<SalesInfo> salesInfoList, int start, int finish, int dataSize, int left, Timestamp timeStart, String sidEquipmentServer, String directory) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
