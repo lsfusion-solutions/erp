@@ -1289,7 +1289,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         addStringElement(topNamespace, sendDocumentElement, "username", login);
         addStringElement(topNamespace, sendDocumentElement, "password", password);
         addStringElement(topNamespace, sendDocumentElement, "documentDate", currentDate);
-        addStringElement(topNamespace, sendDocumentElement, "documentNumber", "error_" + documentId);
+        addStringElement(topNamespace, sendDocumentElement, "documentNumber", documentId);
 
         addStringElement(topNamespace, sendDocumentElement, "documentType", "SYSTEMMESSAGE");
         addStringElement(topNamespace, sendDocumentElement, "content", contentSubXML);
