@@ -1318,9 +1318,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Document doc = new Document(rootElement);
         doc.setRootElement(rootElement);
 
-        addStringElement(rootElement, "documentNumber", "error_" + documentId);
+        addStringElement(rootElement, "documentNumber", documentId);
 
-        Element referenceElement = new Element("Reference");
+        Element referenceElement = new Element("reference");
         addStringElement(referenceElement, "documentNumber", documentNumber);
         addStringElement(referenceElement, "code", "1450");
         addStringElement(referenceElement, "description", error);
