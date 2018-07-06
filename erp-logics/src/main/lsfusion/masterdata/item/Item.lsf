@@ -809,11 +809,16 @@ META defineItemGroupObject(property, caption, type, typeIdentity, group)
     nearest###property (ItemGroup itemGroup) = data###property(nearestParent###property (itemGroup));
     property (ItemGroup itemGroup) =
         OVERRIDE data###property(itemGroup), 
-                 nearest###property (itemGroup) MATERIALIZED;    
+                 nearest###property (itemGroup) MATERIALIZED;
+                 
+    prev###property (ItemGroup itemGroup) =     
+        OVERRIDE data###property(itemGroup), 
+                 PREV(nearest###property (itemGroup));
     
-    typeIdentity caption (ItemGroup itemGroup) = name(property(itemGroup)) IN group;    
+    typeIdentity caption (ItemGroup itemGroup) = name(property(itemGroup)) IN group;
+    prev###typeIdentity caption (ItemGroup itemGroup) = name(prev###property(itemGroup)) IN group;    
 
-    EXTEND FORM itemGroup PROPERTIES(g) typeIdentity;
+    EXTEND FORM itemGroup PROPERTIES(g) prev###typeIdentity;
 END 
 
 META defineItemGroupObject(property, caption, type, typeIdentity)
@@ -841,8 +846,12 @@ META defineItemGroupValue(property, caption, type, group)
     property caption (ItemGroup itemGroup) =
         OVERRIDE data###property(itemGroup), 
                  nearest###property (itemGroup) MATERIALIZED IN group;        
+
+    prev###property caption (ItemGroup itemGroup) =
+        OVERRIDE data###property(itemGroup), 
+                 PREV(nearest###property (itemGroup)) IN group;        
     
-    EXTEND FORM itemGroup PROPERTIES(g) property; 
+    EXTEND FORM itemGroup PROPERTIES(g) prev###property; 
 END 
 
 META defineItemGroupValue(property, caption, type)
@@ -867,8 +876,13 @@ META defineItemDefaultValue(property, caption, type, typeIdentity, object)
     property (###object object, ItemGroup itemGroup) =
         OVERRIDE data##type(object, itemGroup), 
                  nearest##type (object, itemGroup) MATERIALIZED;    
+
+    prev###property (###object object, ItemGroup itemGroup) =
+        OVERRIDE data##type(object, itemGroup), 
+                 PREV(nearest##type (object, itemGroup));    
     
     typeIdentity caption (###object object, ItemGroup itemGroup) = name(property(object, itemGroup)) IN defaultItemGroup;
+    prev###typeIdentity caption (###object object, ItemGroup itemGroup) = name(prev###property(object, itemGroup)) IN defaultItemGroup;
 END 
 
 META defineItemDefaultValueCustom(property, caption, type, object)
@@ -1653,8 +1667,10 @@ barcodeNumerator(Item item) += OVERRIDE overNumerator(item), pieceNumerator(item
 DESIGN itemGroup {
     BOX {
         NEW itemGroupHeader BEFORE TOOLBARBOX {
+            alignment = STRETCH ;
             NEW itemGroupHeader1 {
                 caption = 'Товарная группа';
+                alignment = STRETCH;
                 type = COLUMNS;
                 columns = 3;
                 MOVE PROPERTY(name(g));
@@ -1921,7 +1937,7 @@ assignCustomGroupItems 'Назначить всем товарам группы'
 EXTEND FORM itemGroup
     OBJECTS dc=CustomGroupType 
     PROPERTIES(dc)   READONLY name, id
-    PROPERTIES(dc, g) nameCustomGroup
+    PROPERTIES(dc, g) prevNameCustomGroup
     PROPERTIES(g) assignCustomGroupItems TODRAW dc
 ;    
 DESIGN itemGroup {
@@ -1932,8 +1948,9 @@ DESIGN itemGroup {
             caption = 'Значения по умолчанию';
             MOVE GROUP(defaultItemGroup,g) {
                 caption ='';
+                alignment = STRETCH;
                 columns = 3;
-                PROPERTY(caption(g)) {charWidth = 20;}
+                PROPERTY(prevCaption(g)) {charWidth = 20;}
             }
             NEW defaultPane {
                 fill = 1;
