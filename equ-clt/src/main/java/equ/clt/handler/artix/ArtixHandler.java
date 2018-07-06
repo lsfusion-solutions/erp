@@ -857,19 +857,17 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         List<CashierTime> result = new ArrayList<>();
 
         //Для каждой кассы отдельная директория, куда приходит реализация (cashierTime) только по этой кассе плюс в подпапке online могут быть текущие продажи
-        Map<Integer, MachineryInfo> departNumberCashRegisterMap = new HashMap<>();
-        Set<String> directorySet = new HashSet<>();
+        Map<File, MachineryInfo> directoryCashRegisterMap = new HashMap<>();
         for (MachineryInfo c : getCashRegisterSet(requestExchange, true)) {
             if (c.directory != null) {
-                departNumberCashRegisterMap.put(c.number, c);
-                directorySet.add(c.directory + "/sale" + c.number);
-                directorySet.add(c.directory + "/sale" + c.number + "/online");
+                directoryCashRegisterMap.put(new File(c.directory + "/sale" + c.number), c);
+                directoryCashRegisterMap.put(new File(c.directory + "/sale" + c.number + "/online"), c);
             }
         }
 
         List<File> files = new ArrayList<>();
-        for (String dir : directorySet) {
-            File[] filesList = new File(dir).listFiles(new FileFilter() {
+        for (File dir : directoryCashRegisterMap.keySet()) {
+            File[] filesList = dir.listFiles(new FileFilter() {
                 @Override
                 public boolean accept(File pathname) {
                     return pathname.getName().startsWith("cashier") && pathname.getPath().endsWith(".json");
@@ -910,7 +908,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         Timestamp logOffCashier = parseTimestamp(documentObject.getString("optime"));
 
                                         Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashcode"));
-                                        MachineryInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
+                                        MachineryInfo cashRegister = directoryCashRegisterMap.get(file.getParentFile());
                                         Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
 
                                         result.add(new CashierTime(null, numberCashier, numberCashRegister, numberGroupCashRegister, logOnCashier, logOffCashier, false));
