@@ -88,9 +88,9 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
             case 7:
                 return new Date(DateUtils.parseDate(value, new String[]{"MM.yyyy", "MM-yyyy"}).getTime());
             case 8:
-                return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd/MM/yy"}).getTime());
+                return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd-MM-yyyy", "dd-MM-yy"}).getTime());
             case 10:
-                return new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy", "dd/MM/yyyy", "yyyy-MM-dd"}).getTime());
+                return new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy", "dd/MM/yyyy", "yyyy-MM-dd", "dd-MM-yyyy"}).getTime());
             case 16:
                 return new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy HH:mm"}).getTime());
             case 19:
