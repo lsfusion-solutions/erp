@@ -612,10 +612,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 }
             });
             if (filesList != null) {
-                int filesCount = 0;
                 for (File file : filesList) {
-                    filesCount++;
-                    if (maxFilesCount == null || filesCount <= maxFilesCount)
+                    if (maxFilesCount == null || files.size() <= maxFilesCount)
                         files.add(file);
                     else
                         break;
