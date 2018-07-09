@@ -1,0 +1,76 @@
+MODULE ItemBrandGroup;
+
+REQUIRE Item;
+
+NAMESPACE Item;
+
+CLASS BrandGroup 'Группа бренда';
+TABLE brandGroup(BrandGroup);
+
+@defineExternalizable(brandGroup, VARSTRING[100]);
+
+name 'Наименование' = DATA VARSTRING[200](BrandGroup) IN base CHARWIDTH 20;
+
+@defineHierarchy(brandGroup);
+
+brandGroup = DATA BrandGroup (Brand);
+nameBrandGroup 'Группа бренда' (Brand b) = name(brandGroup(b)) CHARWIDTH 15;
+
+FORM brandGroup 'Группа бренда'
+    OBJECTS o = BrandGroup PANEL
+    PROPERTIES(o) name, nameParent 
+    
+    EDIT BrandGroup OBJECT o
+;
+
+FORM brandGroups 'Группы бренда'
+
+    TREE treeGroups g=BrandGroup PARENT parent
+    PROPERTIES(g) READONLY name
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogBrandGroups 'Группы бренда'
+    TREE treeGroups g=BrandGroup PARENT parent
+    PROPERTIES(g) name, NEW, DELETE
+    
+    LIST BrandGroup OBJECT g
+;
+
+EXTEND FORM brands PROPERTIES READONLY nameBrandGroup(t);
+EXTEND FORM brand PROPERTIES nameBrandGroup(t);
+
+FORM brandsTreeGroup 'Бренды'
+
+    TREE treeGroups g=BrandGroup PARENT parent
+    PROPERTIES (g) READONLY name
+    PROPERTIES (g) NEWSESSION NEW, EDIT, DELETE 
+    
+    OBJECTS b = Brand
+    PROPERTIES (b) READONLYIF isReadonly() id, name, nameBrandGroup
+    PROPERTIES (b) NEWSESSION NEW, EDIT, DELETE 
+    
+    FILTERS isParent(brandGroup(b), g) OR NOT brandGroup(b)
+;
+
+@extendFormEditable(brandsTreeGroup);
+
+DESIGN brandsTreeGroup {
+    OBJECTS {
+        type = CONTAINERH;
+        BOX (TREE treeGroups) {
+            fill = 1;
+        }
+        BOX (b) {
+            fill = 4;
+        }
+    }
+}
+
+NAVIGATOR {
+    masterData {
+        skuNavigator {
+            NEW brandsTreeGroup;
+        }
+    }
+}

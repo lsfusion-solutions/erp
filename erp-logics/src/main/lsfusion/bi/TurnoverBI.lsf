@@ -1,6 +1,6 @@
 MODULE TurnoverBI;
 
-REQUIRE BI, PurchaseLedger, SaleLedger, Pricing, Item, Druid, ReportBI, DefaultLookupBI;
+REQUIRE BI, PurchaseLedger, SaleLedger, Pricing, Item, Druid, ReportBI, DefaultLookupBI, ItemBrandGroup;
 
 NAMESPACE BI;
 
@@ -259,16 +259,25 @@ addCommaBrandId 'Добавить' () = {
 }
 
 FORM dialogBrand 'Брэнды'
+
+    TREE treeGroups g = BrandGroup PARENT parent
+    PROPERTIES READONLY name(g)
+    
     OBJECTS b = Brand
     PROPERTIES PANEL commaBrandId(), addCommaBrandId()
     PROPERTIES include(b)
     PROPERTIES(b) READONLY id, name
     ORDER name(b)
+    FILTERS isParent(brandGroup(b), g) OR NOT brandGroup(b)
     FILTERGROUP inBrand FILTER 'Отмеченные' include(b)
     PROPERTIES deleteIncludeBrands() TODRAW b TOOLBAR    
 ;
 DESIGN dialogBrand {
     BOX { size = (1024, 768); }
+    OBJECTS {
+        type = CONTAINERH;
+        MOVE BOX (TREE treeGroups) FIRST;
+    }
 }
 
 changeIncludeBrands() = {
