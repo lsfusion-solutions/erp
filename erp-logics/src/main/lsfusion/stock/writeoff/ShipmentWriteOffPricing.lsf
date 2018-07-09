@@ -1,0 +1,64 @@
+MODULE ShipmentWriteOffPricing;
+
+REQUIRE PricingWriteOff, WriteOffSale, Invoice, PricingPurchase;
+
+PRIORITY Purchase; 
+
+NAMESPACE WriteOff;
+
+// Создание акта расценки
+@defineDocumentInterfaceProperty (invoice, createWriteOffPricing, 'Создать акт расценки при списании веревок');
+createPricing (ShipmentWriteOff shipmentWriteOff) += createWriteOffPricing(invoice(shipment(shipmentWriteOff)));
+
+
+@defineDocumentInterfaceOperationPrefix (invoice, shipmentWriteOffPricing, Pricing, ' (расценка при списании веревок)');
+pricingOperation (ShipmentWriteOff shipmentWriteOff) += shipmentWriteOffPricingOperation(invoice(shipment(shipmentWriteOff)));
+
+createWriteOffPricing 'Акт расценки при списании веревок' = DATA BOOLEAN (Purchase.Operation);
+
+shipmentWriteOffPricingOperation  = DATA Pricing.Operation (Purchase.Operation);
+nameshipmentWriteOffPricingOperation 'Операция (расценка при списании веревок)' (Purchase.Operation operation)=
+    name(shipmentWriteOffPricingOperation(operation));
+
+
+
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) createWriteOffPricing, nameshipmentWriteOffPricingOperation
+;
+DESIGN Purchase.operation {
+    createContainer {
+        MOVE PROPERTY(createWriteOffPricing(o));
+        MOVE PROPERTY(nameshipmentWriteOffPricingOperation(o)) AFTER PROPERTY(createWriteOffPricing(o));
+    }
+}
+
+@deriveDocumentOperationProperty(UserInvoice, createWriteOffPricing);
+shipmentWriteOffPricingOperation (UserInvoice i) <- shipmentWriteOffPricingOperation(operation(i))
+        WHEN CHANGED(operation(i));
+
+//createWriteOffPricing (UserInvoice i) <- NULL WHEN DROPCHANGED (createPricing (i));
+WHEN LOCAL FORMS userInvoice CHANGED (createPricing(UserInvoice i)) AND NOT createPricing (i) DO {
+    createWriteOffPricing (i) <- NULL;
+}
+
+retailMarkup (ShipmentWriteOffDetail shipmentWriteOffDetail) += retailMarkup(invoiceDetail(shipmentDetail(shipmentWriteOffDetail)));
+supplierPrice (ShipmentWriteOffDetail shipmentWriteOffDetail) += pricingPrice(invoiceDetail(shipmentDetail(shipmentWriteOffDetail)));
+retailVAT (ShipmentWriteOffDetail shipmentWriteOffDetail) += retailVAT(invoiceDetail(shipmentDetail(shipmentWriteOffDetail)));
+valueRetailVAT (ShipmentWriteOffDetail shipmentWriteOffDetail) += valueRetailVAT(invoiceDetail(shipmentDetail(shipmentWriteOffDetail)));
+retailPrice (ShipmentWriteOffDetail shipmentWriteOffDetail) += retailPrice(invoiceDetail(shipmentDetail(shipmentWriteOffDetail)));
+
+createPurchaseWriteOffAndPricing(UserInvoice i) = createPurchaseWriteOff(i) AND createPricing(i);
+createPurchaseWriteOffAndPricingForOperation(UserInvoice i) = createPurchaseWriteOffAndPricing(i) AND createWriteOffPricing(i);
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) SHOWIF createPurchaseWriteOffAndPricing(i) createWriteOffPricing
+    PROPERTIES(i) SHOWIF createPurchaseWriteOffAndPricingForOperation(i) nameShipmentWriteOffPricingOperation
+;
+DESIGN userInvoice {
+    headerCreateDocuments {
+        headerCreateWriteOff {
+            MOVE PROPERTY(createWriteOffPricing(i));
+            MOVE PROPERTY(nameShipmentWriteOffPricingOperation(i));
+        }
+    }
+}
