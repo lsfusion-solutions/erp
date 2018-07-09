@@ -57,7 +57,10 @@ sold = GROUP LAST SaleGiftCard detail ORDER dateTime(detail), detail WHERE isSol
         BY giftCard(detail) MATERIALIZED;
 
 isSold 'Продан' (GiftCard g) = isSold(sold(g));
-CONSTRAINT DROPPED (GiftCard g IS GiftCard) AND PREV (isSold(g))
+
+skipSoldConstraint = ABSTRACT BOOLEAN (GiftCard);
+
+CONSTRAINT DROPPED (GiftCard g IS GiftCard) AND PREV (isSold(g)) AND NOT PREV(skipSoldConstraint(g))
     MESSAGE 'Запрещено удалять проданные сертификаты';
     
 dateSold 'Дата продажи' (GiftCard g) = DATE (dateTime(sold(g))) MATERIALIZED;
