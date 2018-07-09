@@ -76,19 +76,15 @@ META defineReport(id, name)
             fill = 2;
             type = CONTAINERH;
             NEW rhContainer {
-                fill = 1;
-                type = CONTAINERH;
-                caption = 'Группировка';
                 NEW checkBoxContainer {
-                    type = COLUMNS;
-                    columns = 2;
+                    caption = 'Группировка';
                 }
-                MOVE BOX(gr) { caption = 'Порядок группировки'; };
+                NEW lhContainer {
+                    type = CONTAINERH;
+                    caption = 'Данные';
+                }
             }
-            NEW lhContainer {
-                type = CONTAINERH;
-                caption = 'Данные';
-            }
+            MOVE BOX(gr) { caption = 'Порядок группировки'; };
         }
         NEW print {
             type = COLUMNS;
@@ -105,7 +101,7 @@ META defineReport(id, name)
     }
 END 
 
-META createGroup(id, object, name, number, nameDB, expr, caption)
+META createGroup(id, object, name, number, nameDB, expr, caption, container)
     g###object###id name = DATA LOCAL BOOLEAN();
     WHEN LOCAL SET(g###object###id()) AND countGroup() < 3 DO addGroup(number, name);
     WHEN LOCAL SET(g###object###id()) AND countGroup() == 3 DO { g###object###id() <- NULL; };
@@ -121,12 +117,12 @@ META createGroup(id, object, name, number, nameDB, expr, caption)
         PROPERTIES() g###object###id SHOWIF NOT hide###object###id()
     ;
     DESIGN id##Report {
-        checkBoxContainer {
+        container {
             MOVE PROPERTY(g###object###id());
         }
     }
 END 
 
-META createGroup(id, object, name, number, nameDB, caption)
-    @createGroup(id, object, name, number, nameDB, nameDB, caption);
+META createGroup(id, object, name, number, nameDB, caption, container)
+    @createGroup(id, object, name, number, nameDB, nameDB, caption, container);
 END
