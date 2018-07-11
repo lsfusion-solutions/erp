@@ -10,6 +10,9 @@ order = ABSTRACT Order (PickingOrder) MATERIALIZED INDEXED;
 order = DATA Order (UserPickingOrder);
 order(UserPickingOrder pickingOrder) += order(pickingOrder);
 
+order (PickingDetail d) = order(pickingOrder(picking(d))) MATERIALIZED;
+INDEX order(PickingDetail d), sku(d);
+
 CONSTRAINT stock(UserPickingOrder pickingOrder) != fromStock(order(pickingOrder))
     CHECKED BY order[UserPickingOrder]
         MESSAGE 'Склад в заказе на комплектацию и в заказе должны соответствовать друг другу';
@@ -53,7 +56,7 @@ addressToStock 'Пункт разгрузки' = address(toStock(Picking picking
 // ------------------------------------ Кол-во по заказам -------------------------------------- //
 
 pickingPickingDetail 'Скомплектовано' (order, sku) = GROUP SUM quantity(PickingDetail pickingDetail)
-                                                           BY order(pickingOrder(picking(pickingDetail))), sku(pickingDetail);
+                                                           BY order(pickingDetail), sku(pickingDetail);
 pickingQuantity 'Кол-во (скомплектовано)' (OrderDetail orderDetail) = PARTITION UNGROUP pickingPickingDetail
                                                           LIMIT STRICT quantity (orderDetail)
                                                           ORDER orderDetail
