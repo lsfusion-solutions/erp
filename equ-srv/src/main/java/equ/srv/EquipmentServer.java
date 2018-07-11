@@ -57,7 +57,7 @@ import java.util.concurrent.Future;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class EquipmentServer extends RmiServer implements EquipmentServerInterface, InitializingBean {
-    private static final Logger logger = ServerLoggers.equipmentLogger;
+    private static final Logger logger = EquipmentLoggers.equipmentLogger;
 
     public static final String EXPORT_NAME = "EquipmentServer";
 
