@@ -1,5 +1,6 @@
 package equ.srv.terminal;
 
+import equ.srv.EquipmentLoggers;
 import lsfusion.server.context.ExecutorFactory;
 import lsfusion.server.lifecycle.LifecycleEvent;
 import lsfusion.server.lifecycle.MonitorServer;
@@ -8,10 +9,7 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.time.DateUtils;
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
-import org.apache.log4j.RollingFileAppender;
 
 import java.io.*;
 import java.math.BigDecimal;
@@ -26,7 +24,9 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 
 import static lsfusion.base.BaseUtils.trimToNull;
 
@@ -69,21 +69,7 @@ public class TerminalServer extends MonitorServer {
     public static final byte SAVE_PALLET = 9;
 
     private static final Logger logger = Logger.getLogger("TerminalLogger");
-
-    //todo: переделать после перехода на 1.3.5
-    static Logger priceCheckerLogger;
-    static {
-        try {
-            priceCheckerLogger = Logger.getLogger("PriceCheckerLogger");
-            priceCheckerLogger.setLevel(Level.INFO);
-            RollingFileAppender fileAppender = new RollingFileAppender(new PatternLayout("%d %p %c %x - %m%n"), "logs/pricechecker.log");
-            fileAppender.setMaxBackupIndex(9);
-            fileAppender.setMaxFileSize("10485760"); //10MB
-            priceCheckerLogger.removeAllAppenders();
-            priceCheckerLogger.addAppender(fileAppender);
-        } catch (Exception ignored) {
-        }
-    }
+    private static final Logger priceCheckerLogger = EquipmentLoggers.priceCheckerLogger;
 
     private static ConcurrentHashMap<String, UserInfo> userMap = new ConcurrentHashMap<>();
 
