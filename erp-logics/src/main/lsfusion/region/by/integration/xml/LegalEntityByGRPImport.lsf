@@ -1,0 +1,54 @@
+MODULE LegalEntityByGRPImport;
+
+REQUIRE LegalEntityBy;
+
+urlGRP 'URL Государственного реестра плательщиков Республики Беларусь по УНП' = DATA VARSTRING[255] ();
+upperNameGRP 'Импортировать наименование в верхнем регистре' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() urlGRP, upperNameGRP
+;
+
+DESIGN options {
+    legalEntity {
+        MOVE PROPERTY(urlGRP());
+        MOVE PROPERTY(upperNameGRP());
+    }
+}
+
+fillGRP 'Заполнить из ГРП' (LegalEntity l) = {
+    IF urlGRP() THEN NEWSESSION {
+        LOCAL xml = CUSTOMFILE ();
+        
+        EXTERNAL HTTP urlGRP() + UNP(l) TO xml;     
+        
+        LOCAL NESTED VUNP = VARSTRING[9] ();
+        LOCAL NESTED VNAIMP = VARISTRING[200] ();
+        LOCAL NESTED VNAIMK = VARISTRING[150] ();
+        LOCAL NESTED VPADRES = VARSTRING[150] ();
+        
+        IMPORT XML ROOT 'ROW' LIST FROM xml() TO VUNP = VUNP, VNAIMP = VNAIMP, VNAIMK = VNAIMK, VPADRES = VPADRES;
+            
+        IF VUNP() == UNP(l) THEN {
+            IF upperNameGRP() THEN {
+                fullName(l) <- upper(VNAIMP()) WHERE VNAIMP();
+                name(l) <- upper(VNAIMK()) WHERE VNAIMK();
+            } ELSE {
+                fullName(l) <- VNAIMP() WHERE VNAIMP();
+                name(l) <- VNAIMK() WHERE VNAIMK();
+            }
+            dataAddress(l, DATE d) <- VPADRES() WHERE VPADRES() AND d == currentDate();
+        }
+    } ELSE 
+        MESSAGE 'Не задан URL Государственного реестра плательщиков Республики Беларусь по УНП';
+}
+
+EXTEND FORM legalEntity
+    PROPERTIES(l) SHOWIF UNP(l) fillGRP
+;
+
+DESIGN legalEntity {
+    GROUP(law,l) {
+        MOVE PROPERTY(fillGRP(l)) BEFORE PROPERTY(fullName(l));
+    }
+}
