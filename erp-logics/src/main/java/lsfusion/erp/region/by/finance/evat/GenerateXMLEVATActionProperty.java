@@ -133,6 +133,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
             String invoice = trim((String) findProperty("invoice[EVAT]").read(context, evatObject));
             String dateCancelled = formatDate((Date) findProperty("dateCancelled[EVAT]").read(context, evatObject));
+            boolean allowZeroVAT = findProperty("allowZeroVAT[EVAT]").read(context, evatObject) != null;
 
             Namespace xmlns = Namespace.getNamespace("http://www.w3schools.com");
             Namespace xs = Namespace.getNamespace("xs", "http://www.w3.org/2001/XMLSchema");
@@ -181,10 +182,10 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                         rootElement.addContent(createSenderReceiverElement(context, evatObject, addressSupplier, addressCustomer, namespace));
                         rootElement.addContent(createDeliveryConditionElement(context, evatObject, numberDoc, namespace));
                     }
-                    rootElement.addContent(createRosterElement(context, evatObject, namespace));
+                    rootElement.addContent(createRosterElement(context, evatObject, namespace, allowZeroVAT));
                     break;
                 case "additional":
-                    rootElement.addContent(createRosterElement(context, evatObject, namespace));
+                    rootElement.addContent(createRosterElement(context, evatObject, namespace, allowZeroVAT));
                 case "cancelled":
                     break;
             }
@@ -428,7 +429,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     }
 
     //parent: rootElement
-    private Element createRosterElement(ExecutionContext context, DataObject evatObject, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createRosterElement(ExecutionContext context, DataObject evatObject, Namespace namespace, boolean allowZeroVAT) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         BigDecimal totalSum = (BigDecimal) findProperty("totalSum[EVAT]").read(context, evatObject);
         BigDecimal totalExciseSum = (BigDecimal) findProperty("totalExciseSum[EVAT]").read(context, evatObject);
@@ -485,7 +486,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             addStringElement(namespace, rosterItemElement, "summaExcise", bigDecimalToString(exciseSum));
             Element vatElement = new Element("vat", namespace);
             addStringElement(namespace, vatElement, "rate", bigDecimalToString(vatRate));
-            addStringElement(namespace, vatElement, "rateType", getRateType(vatRate));
+            addStringElement(namespace, vatElement, "rateType", getRateType(vatRate, allowZeroVAT));
             addStringElement(namespace, vatElement, "summaVat", bigDecimalToString(vatSum));
             rosterItemElement.addContent(vatElement);
             addStringElement(namespace, rosterItemElement, "costVat", bigDecimalToString(sumWithVat));
@@ -534,11 +535,11 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         return value == null ? defaultValue : BaseUtils.bigDecimalToString("##0.####", value).replace(",", ".");
     }
 
-    private String getRateType(BigDecimal vatRate) {
+    private String getRateType(BigDecimal vatRate, boolean allowZeroVAT) {
         String result = null;
         if(vatRate != null) {
             if(vatRate.compareTo(BigDecimal.ZERO) == 0)
-                result = "NO_VAT";
+                result = allowZeroVAT ? "DECIMAL" : "NO_VAT";
             else if(vatRate.compareTo(BigDecimal.valueOf(10)) == 0 || vatRate.compareTo(BigDecimal.valueOf(20)) == 0)
                 result = "DECIMAL";
             else

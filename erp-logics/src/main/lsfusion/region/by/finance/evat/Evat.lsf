@@ -211,6 +211,7 @@ numberDoc 'Номер' = DATA VARSTRING[100] (EVAT);
 descriptionDoc 'Дополнительные сведения' = DATA VARSTRING[100] (EVAT);
 unpSender 'Субъект хозяйствования, составляющий ЭСЧФ' = DATA VARSTRING[100](EVAT);
 exportYear 'Год для экспорта' = DATA INTEGER (EVAT);
+allowZeroVAT 'Разрешён нулевой НДС' = DATA BOOLEAN (EVAT);
 
 padNumber = ABSTRACT VALUE VARSTRING[20] (EVAT);
 padNumber (EVAT e) += VARSTRING[20](lpad(number(e), 10, '0'));
@@ -358,7 +359,7 @@ FORM evat 'Электронная счёт-фактура'
                   branchCodeSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
                   numberTaxesSupplier, dateTaxesSupplier, branchCodeCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer,
                   skipDeliveryCondition, numberContract, dateContract, codeDocType, valueDocType, blankCodeDoc, dateDoc, seriesDoc, numberDoc, descriptionDoc, 
-                  totalSum, totalExciseSum, totalVATSum, totalSumWithVAT
+                  totalSum, totalExciseSum, totalVATSum, totalSumWithVAT, allowZeroVAT
 
     OBJECTS d = EVATDetail
     PROPERTIES(d) name, evatCodeUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType, NEW, DELETE
@@ -385,6 +386,7 @@ DESIGN evat {
             MOVE PROPERTY(sendToRecipient(e));
             MOVE PROPERTY(result(e));
             MOVE PROPERTY(captionServerStatus(e));
+            MOVE PROPERTY(allowZeroVAT(e));
             MOVE PROPERTY(exported(e));
             MOVE GROUP(register,e);
         }
@@ -477,7 +479,7 @@ FORM evats 'Электронные счета-фактуры'
     PROPERTIES(e) READONLYIF isReadonly() exported, captionStatus, captionServerStatus, dateEVATDocument, seriesNumberEVATDocument, unpSender, number, exportYear, exportNumber, invoice, date, dateDoc, numberDoc, seriesDoc, dateCancelled, sendToRecipient, numberInvoicePrincipal,
                   dateInvoicePrincipal, numberInvoiceVendor, dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
                   numberTaxesSupplier, dateTaxesSupplier, nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer, totalSum,
-                  totalExciseSum, totalVATSum, totalSumWithVAT
+                  totalExciseSum, totalVATSum, totalSumWithVAT, allowZeroVAT
     PROPERTIES(e) TOOLBAR generateXMLAction, signAndSend SHOWIF showSendEvat()
     PROPERTIES() TOOLBAR TODRAW e getStatus SHOWIF showSendEvat()
     PROPERTIES(e) NEWSESSION NEW, EDIT, DELETE 
