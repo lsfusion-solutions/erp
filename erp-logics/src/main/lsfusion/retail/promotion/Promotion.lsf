@@ -142,13 +142,14 @@ nameOverExtraPromotionType 'Тип подакции' (PromotionDetail detail) = 
 
 sku 'Товар' = DATA Sku (PromotionDetail);
 
-idBarcodeSku 'Штрихкод' (PromotionDetail detail) = idBarcode(sku(detail));
+idBarcodeSku 'Штрихкод' (PromotionDetail detail) = idBarcode(sku(detail)) IN recognize;
 nameSkuGroup2 'Направление' (PromotionDetail detail) = nameSkuGroup2(sku(detail));
 nameSkuGroup3 'Группа' (PromotionDetail detail) = nameSkuGroup3(sku(detail));
 nameSkuGroup4 'Подгруппа' (PromotionDetail detail) = nameSkuGroup4(sku(detail));
 nameBrand 'Бренд' (PromotionDetail detail) = nameBrand(sku(detail));
 nameCustomUser 'Категорийный менеджер' (PromotionDetail detail) = nameCustomUser(skuGroup(sku(detail)));
-nameSku 'Товар' (PromotionDetail detail) = name(sku(detail));
+nameSku 'Товар' (PromotionDetail detail) = name(sku(detail)) IN recognize;
+idSku 'Код' (PromotionDetail detail) = id(sku(detail)) IN recognize;
 
 TABLE promotionDetailLegalEntity (PromotionDetail, LegalEntity);
 countStocks 'Количество складов компании' = DATA INTEGER (PromotionDetail, LegalEntity);
@@ -705,3 +706,19 @@ DESIGN promotions {
         MOVE BOX(pl);
     }
 }
+
+//----------------------- Запрет на участие товара в двух акциях -------------------------------
+banSkuMultiPromotion 'Запретить участие товара в нескольких акциях' = DATA BOOLEAN ();
+EXTEND FORM options PROPERTIES banSkuMultiPromotion();
+DESIGN options { 
+    items {
+        MOVE PROPERTY(banSkuMultiPromotion()) BEFORE PROPERTY(replaceSpacesInItemId());        
+    } 
+}
+
+countCommonStocks (PromotionDetail d1, PromotionDetail d2) = GROUP SUM 1 IF Stock st IS Stock AND d1 IS PromotionDetail AND d2 IS PromotionDetail AND
+    (in(promotion(d1), st) OR NOT stocks(d1)) AND (in(promotion(d2), st) OR NOT stocks(d2));
+
+CONSTRAINT banSkuMultiPromotion() AND (SETCHANGED(sku(PromotionDetail d)) OR SETCHANGED(fromDate(d)) OR SETCHANGED(toDate(d)) OR CHANGED(stocks(d))) AND
+    sku(PromotionDetail dd) == sku(d) AND dd != d AND fromDate(d) <= toDate(dd) AND toDate(d) >= fromDate(dd) AND countCommonStocks(d,dd)
+            MESSAGE 'Товару запрещено участвовать в нескольких акциях';
