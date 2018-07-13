@@ -5,6 +5,10 @@ REQUIRE LegalEntityBy;
 urlGRP 'URL Государственного реестра плательщиков Республики Беларусь по УНП' = DATA VARSTRING[255] ();
 upperNameGRP 'Импортировать наименование в верхнем регистре' = DATA BOOLEAN ();
 
+onStarted() += {
+    urlGRP() <- 'http://www.portal.nalog.gov.by/grp/getData?unp=' WHERE NOT urlGRP();
+}
+
 EXTEND FORM options
     PROPERTIES() urlGRP, upperNameGRP
 ;
@@ -17,7 +21,7 @@ DESIGN options {
 }
 
 fillGRP 'Заполнить из ГРП' (LegalEntity l) = {
-    IF urlGRP() THEN NEWSESSION {
+    IF urlGRP() THEN {
         LOCAL xml = CUSTOMFILE ();
         
         EXTERNAL HTTP urlGRP() + UNP(l) TO xml;     
@@ -32,10 +36,10 @@ fillGRP 'Заполнить из ГРП' (LegalEntity l) = {
         IF VUNP() == UNP(l) THEN {
             IF upperNameGRP() THEN {
                 fullName(l) <- upper(VNAIMP()) WHERE VNAIMP();
-                name(l) <- upper(VNAIMK()) WHERE VNAIMK();
+                name(l) <- upper(VNAIMK()) WHERE VNAIMK() AND NOT name(l);
             } ELSE {
                 fullName(l) <- VNAIMP() WHERE VNAIMP();
-                name(l) <- VNAIMK() WHERE VNAIMK();
+                name(l) <- VNAIMK() WHERE VNAIMK() AND NOT name(l);
             }
             dataAddress(l, DATE d) <- VPADRES() WHERE VPADRES() AND d == currentDate();
         }
