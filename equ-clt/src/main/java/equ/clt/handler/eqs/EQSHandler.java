@@ -125,7 +125,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 conn.setAutoCommit(false);
                 ps = conn.prepareStatement(
                         "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, energvalue, cancelled, updecr)" +
-                                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
+                                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
                                 " description=VALUES(description), department=VALUES(department), grp=VALUES(grp), flags=VALUES(flags)," +
                                 " price=VALUES(price), exp=VALUES(exp), weight=VALUES(weight), piece=VALUES(piece), text=VALUES(text)," +
                                 " energvalue=VALUES(energvalue), cancelled=VALUES(cancelled), updecr=VALUES(updecr)");
