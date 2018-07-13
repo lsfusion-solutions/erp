@@ -124,13 +124,17 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 }
                 conn.setAutoCommit(false);
                 ps = conn.prepareStatement(
-                        "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, cancelled, updecr)" +
+                        "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, energvalue, cancelled, updecr)" +
                                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
                                 " description=VALUES(description), department=VALUES(department), grp=VALUES(grp), flags=VALUES(flags)," +
                                 " price=VALUES(price), exp=VALUES(exp), weight=VALUES(weight), piece=VALUES(piece), text=VALUES(text)," +
-                                " cancelled=VALUES(cancelled), updecr=VALUES(updecr)");
+                                " energvalue=VALUES(energvalue), cancelled=VALUES(cancelled), updecr=VALUES(updecr)");
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
+                    String[] splittedDescription = item.description != null ? item.description.split("@@") : null;
+                    String composition = splittedDescription != null ? splittedDescription[0] : null;
+                    String energValue = splittedDescription != null ? splittedDescription[1] : null;
+
                     ps.setString(1, skipIdDepartmentStore ? "" : trim(transaction.idDepartmentStoreGroupCashRegister, 10)); //store, код торговой точки
                     ps.setString(2, removeCheckDigitFromBarcode(trim(item.idBarcode, 20), appendBarcode)); //barcode, Штрих-код товара
                     ps.setString(3, trim(item.idItem, 20)); //art, Артикул
@@ -143,9 +147,10 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     ps.setDate(9, item.expiryDate); //exp, Срок годности
                     ps.setInt(10, item.splitItem ? 1 : 0); //weight, Флаг весового товара (1 – весовой, 0 – нет)
                     ps.setInt(11, item.splitItem ? 0 : 1); //weight, Флаг штучного товара (1 – штучный, 0 – нет)
-                    ps.setString(12, item.description); //text, Текст состава
-                    ps.setInt(13, 0); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
-                    ps.setLong(14, 4294967295L); //UpdEcr, Флаг обновления* КСА
+                    ps.setString(12, composition); //text, Текст состава
+                    ps.setString(13, energValue); //energvalue, Энергетическая ценность
+                    ps.setInt(14, 0); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
+                    ps.setLong(15, 4294967295L); //UpdEcr, Флаг обновления* КСА
                     ps.addBatch();
                 }
 
