@@ -132,15 +132,20 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                 findProperty("currentInvoice[]").change(userInvoiceObject, session);
                             }
 
+                            boolean cancelSession = false;
                             String script = (String) findProperty("script[ImportType]").read(context, importTypeObject);
                             if(script != null && !script.isEmpty()) {
                                 needToApply = true;
-                                findProperty("executionScript[ImportType]").change(String.format("run() = {%s;\n};", script), session, (DataObject) importTypeObject);
                                 findAction("executeScript[ImportType]").execute(context, importTypeObject);
+                                cancelSession = findProperty("cancelSession[]").read(session) != null;
                             }
 
-                            if(needToApply)
-                                session.apply(context);
+                            if(needToApply) {
+                                if(cancelSession)
+                                    session.cancel(context.stack);
+                                else
+                                    session.apply(context);
+                            }
 
                             findAction("formRefresh[]").execute(context);
                         }

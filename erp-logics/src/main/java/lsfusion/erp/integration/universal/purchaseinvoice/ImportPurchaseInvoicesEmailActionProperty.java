@@ -176,7 +176,6 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                                             String script = (String) findProperty("script[ImportType]").read(currentSession, importTypeObject);
                                             if(script != null && !script.isEmpty()) {
-                                                findProperty("executionScript[ImportType]").change(String.format("run() = {%s;\n};", script), currentSession, (DataObject) importTypeObject);
                                                 findAction("executeScript[ImportType]").execute(currentSession, context.stack, importTypeObject);
                                             }
 
