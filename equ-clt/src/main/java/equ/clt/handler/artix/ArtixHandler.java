@@ -844,96 +844,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         }
     }
 
-    @Override
-    public List<CashierTime> requestCashierTime(RequestExchange requestExchange, List<MachineryInfo> cashRegisterInfoList) {
-
-        machineryExchangeLogger.info(logPrefix + "requesting CashierTime");
-
-        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
-        boolean disable = artixSettings != null && artixSettings.isDisableCopyToSuccess();
-
-        List<CashierTime> result = new ArrayList<>();
-
-        //Для каждой кассы отдельная директория, куда приходит реализация (cashierTime) только по этой кассе плюс в подпапке online могут быть текущие продажи
-        Map<File, MachineryInfo> directoryCashRegisterMap = new HashMap<>();
-        for (MachineryInfo c : getCashRegisterSet(requestExchange, true)) {
-            if (c.directory != null) {
-                directoryCashRegisterMap.put(new File(c.directory + "/sale" + c.number), c);
-                directoryCashRegisterMap.put(new File(c.directory + "/sale" + c.number + "/online"), c);
-            }
-        }
-
-        List<File> files = new ArrayList<>();
-        for (File dir : directoryCashRegisterMap.keySet()) {
-            File[] filesList = dir.listFiles(new FileFilter() {
-                @Override
-                public boolean accept(File pathname) {
-                    return pathname.getName().startsWith("cashier") && pathname.getPath().endsWith(".json");
-                }
-            });
-            if (filesList != null)
-                files.addAll(Arrays.asList(filesList));
-        }
-
-        machineryExchangeLogger.info(logPrefix + "found files with CashierTime: " + files.size());
-
-        for (File file : files) {
-            try {
-                machineryExchangeLogger.info(logPrefix + "reading " + file.getName());
-                String fileContent = readFile(file.getAbsolutePath(), encoding);
-
-                Pattern p = Pattern.compile("(?:.*)?### securitylog info begin ###(.*)### securitylog info end ###(?:.*)?");
-                Matcher m = p.matcher(fileContent);
-                if (m.matches()) {
-                    String[] documents = m.group(1).split("---");
-
-                    Timestamp logOnCashier = null;
-                    for (String document : documents) {
-
-                        if(!document.isEmpty()) {
-                            JSONObject documentObject = new JSONObject(document);
-
-                            Integer opcode = documentObject.getInt("opcode");
-
-                            switch (opcode) {
-                                case 3:
-                                    logOnCashier = parseTimestamp(documentObject.getString("optime"));
-                                    break;
-                                case 4:
-                                case 13:
-                                    if (logOnCashier != null) {
-                                        String numberCashier = documentObject.getString("cashiercard");
-                                        Timestamp logOffCashier = parseTimestamp(documentObject.getString("optime"));
-
-                                        Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashcode"));
-                                        MachineryInfo cashRegister = directoryCashRegisterMap.get(file.getParentFile());
-                                        Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
-
-                                        result.add(new CashierTime(null, numberCashier, numberCashRegister, numberGroupCashRegister, logOnCashier, logOffCashier, false));
-                                        logOnCashier = null;
-                                    }
-                                    break;
-                            }
-                        }
-                    }
-                }
-
-                copyToSuccess(file, disable);
-                safeFileDelete(file, true);
-            } catch (Throwable e) {
-                machineryExchangeLogger.error("File: " + file.getAbsolutePath(), e);
-                throw Throwables.propagate(e);
-            }
-        }
-
-        for (int i = result.size() - 1; i >= 0; i--) {
-            CashierTime ct = result.get(i);
-            ct.idCashierTime = ct.numberCashier + "/" + ct.numberCashRegister + "/" + ct.numberGroupCashRegister + "/" + ct.logOnCashier + "/" + ct.logOffCashier + "/" + (ct.isZReport != null ? "1" : "0");
-        }
-
-        return result;
-    }
-
     private RuntimeException copyToSuccess(File file, boolean disable) {
         RuntimeException result = null;
         if (!disable) {
@@ -1018,7 +928,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         }
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
-        List<String> filePathList = new ArrayList<>();
+        List<CashierTime> cashierTimeList = new ArrayList<>();
+        Set<String> filePathSet = new HashSet<>();
 
         List<File> files = new ArrayList<>();
         for(String dir : directorySet) {
@@ -1073,6 +984,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     }
                                 }
                             }
+                        }
+
+                        List<CashierTime> currentCashierTimeList = readCashierTime(file, fileContent, departNumberCashRegisterMap);
+                        if(!currentCashierTimeList.isEmpty()) {
+                            cashierTimeList.addAll(currentCashierTimeList);
                         }
 
                         Pattern p = Pattern.compile("(?:.*)?### sales data begin ###(.*)### sales data end ###(?:.*)?");
@@ -1214,17 +1130,66 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                 }
                             }
                             salesInfoList.addAll(currentSalesInfoList);
-                            filePathList.add(file.getAbsolutePath());
-                        } else
+                        }
+
+                        if(currentCashierTimeList.isEmpty() && currentSalesInfoList.isEmpty()) {
                             safeFileDelete(file, false);
+                        } else {
+                            filePathSet.add(file.getAbsolutePath());
+                        }
                     } catch (Throwable e) {
                         sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
                     }
                 }
             }
         }
-        return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
-                new ArtixSalesBatch(salesInfoList, filePathList);
+        return (cashierTimeList.isEmpty() && salesInfoList.isEmpty() && filePathSet.isEmpty()) ? null :
+                new ArtixSalesBatch(salesInfoList, cashierTimeList, filePathSet);
+    }
+
+    public List<CashierTime> readCashierTime(File file, String fileContent, Map<Integer, CashRegisterInfo> departNumberCashRegisterMap) throws JSONException, ParseException {
+        List<CashierTime> result = new ArrayList<>();
+
+        Pattern p = Pattern.compile("(?:.*)?### securitylog info begin ###(.*)### securitylog info end ###(?:.*)?");
+        Matcher m = p.matcher(fileContent);
+        if (m.matches()) {
+            String[] documents = m.group(1).split("---");
+
+            Timestamp logOnCashier = null;
+            String numberCashier = null;
+            for (String document : documents) {
+                if (!document.isEmpty()) {
+                    JSONObject documentObject = new JSONObject(document);
+                    Integer opcode = documentObject.getInt("opcode");
+                    switch (opcode) {
+                        case 3:
+                            logOnCashier = parseTimestamp(documentObject.getString("optime"));
+                            numberCashier = documentObject.getString("cashiercard");
+                            break;
+                        case 4:
+                        case 13:
+                            if (logOnCashier != null) {
+                                Timestamp logOffCashier = parseTimestamp(documentObject.getString("optime"));
+
+                                Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashcode"));
+                                CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
+                                if (cashRegister == null)
+                                    sendSalesLogger.error(logPrefix + String.format("CashRegister %s not found (file %s)", numberCashRegister, file.getAbsolutePath()));
+                                Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
+
+                                Boolean isZReport = opcode == 13 ? true : null;
+                                String idCashierTime = numberCashier + "/" + numberCashRegister + "/" + nppGroupMachinery + "/" + logOnCashier + "/" + logOffCashier + "/" + (isZReport != null ? "1" : "0");
+                                result.add(new CashierTime(idCashierTime, numberCashier, numberCashRegister, nppGroupMachinery, logOnCashier, logOffCashier, isZReport));
+                                logOnCashier = null;
+                            }
+                            break;
+                    }
+                }
+            }
+        }
+        if(!result.isEmpty())
+            machineryExchangeLogger.info(logPrefix + "found " + result.size() + "CashierTime(s) in " + file.getName());
+        return result;
     }
 
     static String readFile(String path, String encoding) throws IOException {

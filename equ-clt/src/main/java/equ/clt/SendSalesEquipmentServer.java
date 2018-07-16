@@ -158,15 +158,28 @@ public class SendSalesEquipmentServer {
     }
 
     static void sendSalesInfo(EquipmentServerInterface remote, SalesBatch salesBatch, String sidEquipmentServer, String directory, CashRegisterHandler handler) throws RemoteException, SQLException {
-        if (salesBatch == null || salesBatch.salesInfoList == null || salesBatch.salesInfoList.isEmpty()) {
-            sendSalesLogger.info("SalesInfo is empty");
+        boolean noSalesInfo = salesBatch == null || salesBatch.salesInfoList == null || salesBatch.salesInfoList.isEmpty();
+        boolean noCashierTime = salesBatch == null || salesBatch.cashierTimeList == null || salesBatch.cashierTimeList.isEmpty();
+        if (noSalesInfo && noCashierTime) {
+            sendSalesLogger.info("SalesBatch is empty");
         } else {
-            sendSalesLogger.info("Sending SalesInfo : " + salesBatch.salesInfoList.size() + " receiptDetails");
+            String result = null;
             try {
-                String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, directory);
-                if (result != null) {
-                    EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
-                } else {
+                if (!noSalesInfo) {
+                    sendSalesLogger.info("Sending SalesInfo: " + salesBatch.salesInfoList.size());
+                    result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, directory);
+                    if (result != null) {
+                        EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
+                    }
+                }
+                if (result == null && !noCashierTime) {
+                    sendSalesLogger.info("Sending CashierTime: " + salesBatch.cashierTimeList.size());
+                    result = remote.sendCashierTimeList(salesBatch.cashierTimeList);
+                    if (result != null) {
+                        EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
+                    }
+                }
+                if (result == null) {
                     sendSalesLogger.info("Finish Reading starts");
                     handler.finishReadingSalesInfo(salesBatch);
                 }
