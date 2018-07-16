@@ -236,14 +236,28 @@ NAVIGATOR {
 
 //---------------------- Проведение по регистру ------------------------//
 
+preOrderDetail 'Резерв' = DATA PreOrderDetail (Sale.OrderDetail) INDEXED;
+seriesNumberPreOrderDetail 'Резерв' (Sale.OrderDetail d) = seriesNumber(preOrder(preOrderDetail(d)));
+
+CONSTRAINT preOrderDetail(Sale.OrderDetail d) AND (NOT sku(d) == sku(preOrderDetail(d)) OR dateTime(d) < fromDateTime(preOrderDetail(d)) 
+    OR NOT supplierStock(preOrderDetail(d)) == supplierStock(d) OR NOT (operation(preOrderDetail(d)) == operation(d) OR in(preOrderDetail(d), operation(d))))
+    CHECKED BY preOrderDetail[Sale.OrderDetail] MESSAGE 'Товар строки резерва должен совпадать с товаром строки накладной';
+
+EXTEND FORM orders
+    PROPERTIES(d) READONLY seriesNumberPreOrderDetail
+;
+
+EXTEND FORM userOrder
+    PROPERTIES(d) seriesNumberPreOrderDetail
+;
+
+
 edit(PreOrderDetail d) += { DIALOG preOrder OBJECTS o = preOrder(d), d = d DOCKED; }
 
 orderedOrderDetail 'Израсходовано' (PreOrderDetail pd) = GROUP
-    SUM quantity(Sale.OrderDetail d) 
-    IF isPosted(d) AND dateTime(d) >= fromDateTime(pd) AND (operation(pd) == operation(d) OR in(pd, operation(d))) AND supplierStock(pd) == supplierStock(d) AND sku(pd) == sku(d);
+    SUM quantity(Sale.OrderDetail d) IF isPosted(d) AND preOrderDetail(d) == pd;
 orderedOrderDetail 'Израсходовано' (PreOrderDetail pd, so) = GROUP SUM quantity(Sale.OrderDetail d) 
-    IF isPosted(d) AND dateTime(d) >= fromDateTime(pd) AND (operation(pd) == operation(d) OR in(pd, operation(d))) AND supplierStock(pd) == supplierStock(d) AND sku(pd) == sku(d)
-    BY Sale.order(d);    
+    IF isPosted(d) AND preOrderDetail(d) == pd BY Sale.order(d);    
 orders 'Заказы' (PreOrderDetail d) = GROUP
                                        CONCAT seriesNumber(Sale.Order so) IF orderedOrderDetail(d, so) , ', '
                                        ORDER Sale.dateTime(so), so CHARWIDTH 20;
@@ -256,6 +270,23 @@ EXTEND FORM preOrder
 ;
 EXTEND FORM preOrders
     PROPERTIES (d) READONLY orderedOrderDetail, orders, calcQuantity
+;
+
+WHEN FORMS userOrder (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d))) DO {
+    preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) > 0.0 AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
+                               AND supplierStock(d) == supplierStock(pd) AND (operation(pd) == operation(d) OR in(pd,operation(d)))
+                               ORDER DESC fromDate(pd), pd;
+}
+
+fillPreOrderDetail 'Проставить в заказы на продажу ссылки на резерв' () = {
+    preOrderDetail(Sale.OrderDetail d) <- [= GROUP LAST PreOrderDetail pd IF calcQuantity(pd) > 0.0 AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
+                                                   AND supplierStock(d) == supplierStock(pd) AND (operation(pd) == operation(d) OR in(pd,operation(d)))
+                                                   ORDER DESC fromDate(pd), pd]() WHERE NOT preOrderDetail(d);
+    APPLY;
+}
+
+EXTEND FORM options
+    PROPERTIES() fillPreOrderDetail
 ;
 
 EXTEND CLASS PreOrderDetail : OrderLedger;
@@ -324,6 +355,7 @@ DESIGN options {
             MOVE PROPERTY(namePreOrderRetailOperation());
             MOVE PROPERTY(namePreOrderWholesaleOperation());
             MOVE PROPERTY(namePreOrderProductionOperation());
+            MOVE PROPERTY(fillPreOrderDetail());
             MOVE BOX(sop);
         }
     }
