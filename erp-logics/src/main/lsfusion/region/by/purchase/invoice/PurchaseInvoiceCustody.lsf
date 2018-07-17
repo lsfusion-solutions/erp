@@ -1,0 +1,54 @@
+MODULE PurchaseInvoiceCustody;
+
+REQUIRE PurchaseInvoiceConsignmentBy, Warehouse;
+
+NAMESPACE Purchase;
+
+
+custodyWarehouse 'Склад ответственного хранения' = DATA Stock(Stock);
+nameCustodyWarehouse 'Склад ответственного хранения' (Stock st) = name(custodyWarehouse(st));
+
+custodyContract 'Договор ответственного хранения' = DATA VARSTRING[100](Stock);
+custodyContractDate 'Дата договор' = DATA DATE(Stock);
+
+EXTEND FORM warehouse
+    PROPERTIES (w) SHOWIF isCompany(w) nameCustodyWarehouse, custodyContract, custodyContractDate
+;
+DESIGN warehouse{
+    headerMainParams {
+        MOVE PROPERTY (nameCustodyWarehouse(w));
+        MOVE PROPERTY (custodyContract(w));
+        MOVE PROPERTY (custodyContractDate(w));
+    }
+}
+
+overSupplier (Invoice c) += customer(c);
+overCustomer(Invoice c) += legalEntity(custodyWarehouse(customerStock(c)));
+dataShipmentBase (Invoice consignment) += VARSTRING[100] (CONCAT '', custodyContract(customerStock(consignment)), ' от ' + custodyContractDate(customerStock(consignment)));
+
+isTransferredCustody 'Передано на ОХ' = ABSTRACT BOOLEAN (Invoice);
+isTransferredCustody 'Передано на ОХ' = DATA BOOLEAN (UserInvoice);
+isTransferredCustody(UserInvoice i) += isTransferredCustody(i);
+
+
+closeTransferredCustody 'Проставить признак "Передано на ОХ"' (UserInvoice o) = {
+	NEWSESSION { isTransferredCustody(o) <- TRUE; apply(); }
+} TOOLBAR;
+openTransferredCustody 'Снять признак "Передано на ОХ"' (UserInvoice o) = {
+	NEWSESSION { isTransferredCustody(o) <- NULL; apply(); }
+} TOOLBAR;
+
+showCloseTransferredCustody(Invoice i) = i IS UserInvoice AND supplierStock(i) IS Warehouse AND NOT isTransferredCustody(i);  
+showOpenTransferredCustody(Invoice i) = i IS UserInvoice AND supplierStock(i) IS Warehouse AND isTransferredCustody(i);  
+
+EXTEND FORM invoices
+    PROPERTIES (i) READONLY isTransferredCustody
+    PROPERTIES (i) closeTransferredCustody SHOWIF showCloseTransferredCustody(i), openTransferredCustody SHOWIF showOpenTransferredCustody(i)
+;
+DESIGN invoices {
+    tn2 {
+        type = CONTAINERH;
+        MOVE PROPERTY(closeTransferredCustody(i));
+        MOVE PROPERTY(openTransferredCustody(i));              
+    }    
+}

@@ -1,0 +1,61 @@
+MODULE PurchaseInvoiceConsignmentBy;
+
+REQUIRE PurchaseInvoice,
+        PurchaseOperationConsignmentBy,
+        InvoiceConsignmentBy;
+
+NAMESPACE Purchase;
+
+@defineInvoiceConsignment(supplier, customer);
+
+@implementConsignmentDocumentHeaderPrefix (invoice, invoice, Invoice);
+
+consignmentType (Invoice consignment) += consignmentType(operation(consignment));
+ownerTrackType (Invoice consignment) += ownerTrackType(operation(consignment));
+banPrint (Invoice consignment) += WHEN banOpenedPrint(operation(consignment)) AND NOT isPosted(consignment)THEN TRUE;
+
+@deriveConsignmentPropertyALL(supplierStock);
+
+notUseDriverTruck(Invoice c) += notUseDriverTruck(operation(c));
+
+isInvoicePrice(InvoiceDetail d) += WHEN isInvoicePriceConsignment(operation(d)) THEN TRUE;
+switchSum(InvoiceDetail d) += WHEN switchSumConsignment(operation(d)) THEN TRUE;
+useEmptyVAT(InvoiceDetail d) += WHEN useEmptyVATConsignment(operation(d)) THEN TRUE;
+printWithoutVAT(InvoiceDetail d) += WHEN printWithoutVAT(operation(d)) THEN TRUE;
+switchSumInvoice(InvoiceDetail d) += WHEN switchSumInvoiceConsignment(operation(d)) THEN TRUE;
+
+notUseIssuanceAllowed(Invoice c) += notUseIssuanceAllowed(operation(c));
+notUseIssuanceExecuted(Invoice c) += notUseIssuanceExecuted(operation(c));
+notPrintGr(Invoice c) += notPrintGr(operation(c));
+useGoodsAccepted(Invoice c) += useGoodsAccepted(operation(c));
+skipWaybill (Invoice consignment) += WHEN skipWaybill(operation(consignment)) THEN skipWaybill(operation(consignment));
+skipTruck (Invoice consignment) += WHEN skipTruck(operation(consignment)) THEN skipTruck(operation(consignment));
+skipDriver (Invoice consignment) += WHEN skipDriver(operation(consignment)) THEN skipDriver(operation(consignment));
+
+defaultTruck(Invoice consignment) += WHEN isSupplier(operation(consignment)) AND truck(supplier(consignment)) THEN truck(supplier(consignment));
+defaultTruck(Invoice consignment) += WHEN NOT isSupplier(operation(consignment)) AND truck(customer(consignment)) THEN truck(customer(consignment));
+
+driver(Invoice consignment) += WHEN isSupplier(operation(consignment)) AND driver(supplier(consignment)) THEN driver(supplier(consignment));
+driver(Invoice consignment) += WHEN NOT isSupplier(operation(consignment)) AND driver(customer(consignment)) THEN driver(customer(consignment));
+
+invoiceNumber 'Номер ТТН' = DATA VARSTRING[28] (Invoice) IN numbered CHARWIDTH 7;
+invoiceSeries 'Серия ТТН' = DATA STRING[2] (Invoice) IN numbered FIXEDCHARWIDTH 3; 
+
+overSeriesNumber(Invoice c) += STRING[31](CONCAT '', invoiceSeries(c), invoiceNumber(c));
+
+EXTEND FORM invoices
+    PROPERTIES (i) READONLY invoiceNumber, invoiceSeries
+;
+EXTEND FORM consignment
+    PROPERTIES (c) invoiceNumber, invoiceSeries
+;
+DESIGN consignment {
+    mainTab {
+        NEW conNumber AFTER misc {
+            type = CONTAINERH;
+            caption = 'Печать ТТН';
+            MOVE PROPERTY (invoiceNumber(c));
+            MOVE PROPERTY (invoiceSeries(c));
+        }
+    }
+}
