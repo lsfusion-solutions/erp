@@ -195,7 +195,8 @@ showCurrenct (Batch batch) = batch IS Batch AND currentPharmacyListInventory();
 
 number 'Номер инвентаризации' (PageInventory page) = number(inventory(listInventory(page)));
 date 'Дата инвентаризации' (PageInventory page)= date(listInventory(page));
-nameStock 'Склад' (PageInventory page) = nameStock(listInventory(page));
+stock (PageInventory page) = stock(listInventory(page));
+nameStock 'Склад' (PageInventory page) = name(stock(page));
 
 showBalanceB 'Показывать остаток по партии в инвентаризационной описи' = DATA BOOLEAN ();
 
@@ -235,6 +236,8 @@ DESIGN options {
     }
 }
 
+overCreatePageInventory = ABSTRACT LIST (PageInventory);
+
 createRetailPharmacyInventory 'Создать инвентаризацию' () = {
     DIALOG departmentStores OBJECTS d INPUT DO {
         NEW in = Inventory {
@@ -245,7 +248,8 @@ createRetailPharmacyInventory 'Создать инвентаризацию' () =
                 stock(li) <- d;
                 inventory(li) <- in;
                 NEW pi = PageInventory {
-                    listInventory(pi) <- li;    
+                    listInventory(pi) <- li;   
+                    overCreatePageInventory(pi); 
                 }
 	        }
         }
