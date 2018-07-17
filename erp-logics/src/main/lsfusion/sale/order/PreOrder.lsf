@@ -1,6 +1,6 @@
 MODULE PreOrder;
 
-REQUIRE OrderLedger, SaleOrder;
+REQUIRE OrderLedger, SaleOrder, WriteOff;
 
 CLASS PreOrder 'Резерв' : Document;
 CLASS PreOrderDetail 'Строка резерва' : DocumentDetail;
@@ -251,6 +251,20 @@ EXTEND FORM userOrder
     PROPERTIES(d) seriesNumberPreOrderDetail
 ;
 
+preOrderDetail 'Резерв' = DATA PreOrderDetail (WriteOffDetail) INDEXED;
+seriesNumberPreOrderDetail 'Резерв' (WriteOffDetail d) = seriesNumber(preOrder(preOrderDetail(d)));
+
+CONSTRAINT preOrderDetail(WriteOffDetail d) AND (NOT sku(d) == sku(preOrderDetail(d)) OR dateTime(d) < fromDateTime(preOrderDetail(d)) 
+    OR NOT supplierStock(preOrderDetail(d)) == stock(d))
+    CHECKED BY preOrderDetail[Sale.OrderDetail] MESSAGE 'Товар строки резерва должен совпадать с товаром строки списания';
+
+EXTEND FORM writeOffs
+    PROPERTIES(d) READONLY seriesNumberPreOrderDetail
+;
+
+EXTEND FORM userWriteOff
+    PROPERTIES(d) seriesNumberPreOrderDetail
+;
 
 edit(PreOrderDetail d) += { DIALOG preOrder OBJECTS o = preOrder(d), d = d DOCKED; }
 
@@ -261,21 +275,39 @@ orderedOrderDetail 'Израсходовано' (PreOrderDetail pd, so) = GROUP 
 orders 'Заказы' (PreOrderDetail d) = GROUP
                                        CONCAT seriesNumber(Sale.Order so) IF orderedOrderDetail(d, so) , ', '
                                        ORDER Sale.dateTime(so), so CHARWIDTH 20;
-    
-    
-calcQuantity 'Доступно' (PreOrderDetail pd) = IF  (quantity(pd) (-) orderedOrderDetail(pd)) >0 THEN (quantity(pd) (-) orderedOrderDetail(pd)) ELSE 0.0;
+
+orderedWriteOffDetail 'Израсходовано' (PreOrderDetail pd) = GROUP
+    SUM quantity(WriteOffDetail d) IF isPosted(d) AND preOrderDetail(d) == pd;
+orderedWriteOffDetail 'Израсходовано' (PreOrderDetail pd, wo) = GROUP SUM quantity(WriteOffDetail d) 
+    IF isPosted(d) AND preOrderDetail(d) == pd BY writeOff(d);
+writeOffs 'Списания' (PreOrderDetail d) = GROUP
+                                       CONCAT seriesNumber(WriteOff wo) IF orderedWriteOffDetail(d, wo) , ', '
+                                       ORDER dateTime(wo), wo CHARWIDTH 20;
+
+ordered 'Израсходовано' (PreOrderDetail pd) = orderedOrderDetail(pd) (+) orderedWriteOffDetail(pd); 
+calcQuantity 'Доступно' (PreOrderDetail pd) = IF  (quantity(pd) (-) ordered(pd)) >0 
+    THEN (quantity(pd) (-) ordered(pd)) ELSE 0.0;
 
 EXTEND FORM preOrder
-    PROPERTIES (d) READONLY BEFORE deleteid orderedOrderDetail, orders, calcQuantity
+    PROPERTIES (d) READONLY BEFORE deleteid ordered, orders, writeOffs, calcQuantity
 ;
 EXTEND FORM preOrders
-    PROPERTIES (d) READONLY orderedOrderDetail, orders, calcQuantity
+    PROPERTIES (d) READONLY ordered, orders, writeOffs, calcQuantity
 ;
 
 WHEN FORMS userOrder (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d))) DO {
     preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) > 0.0 AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
                                AND supplierStock(d) == supplierStock(pd) AND (operation(pd) == operation(d) OR in(pd,operation(d)))
                                ORDER DESC fromDate(pd), pd;
+}
+
+WHEN FORMS userWriteOff (SETCHANGED(sku(WriteOffDetail d)) OR SETCHANGED(stock(d))) DO {
+    preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) > 0.0 AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
+                                   AND stock(d) == supplierStock(pd) AND NOT operation(pd) ==  Sale.operation('saleWarehouseStore')
+                                   ORDER DESC fromDate(pd), pd;
+    preOrderDetail(d) <- [= GROUP LAST PreOrderDetail pd IF calcQuantity(pd) > 0.0 AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
+                                   AND stock(d) == supplierStock(pd) AND operation(pd) ==  Sale.operation('saleWarehouseStore')
+                                   ORDER DESC fromDate(pd), pd]() WHERE NOT preOrderDetail(d);
 }
 
 fillPreOrderDetail 'Проставить в заказы на продажу ссылки на резерв' () = {
