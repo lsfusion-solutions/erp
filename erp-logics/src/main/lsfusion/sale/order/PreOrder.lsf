@@ -256,7 +256,7 @@ seriesNumberPreOrderDetail 'Резерв' (WriteOffDetail d) = seriesNumber(preO
 
 CONSTRAINT preOrderDetail(WriteOffDetail d) AND (NOT sku(d) == sku(preOrderDetail(d)) OR dateTime(d) < fromDateTime(preOrderDetail(d)) 
     OR NOT supplierStock(preOrderDetail(d)) == stock(d))
-    CHECKED BY preOrderDetail[Sale.OrderDetail] MESSAGE 'Товар строки резерва должен совпадать с товаром строки списания';
+    CHECKED BY preOrderDetail[WriteOffDetail] MESSAGE 'Товар строки резерва должен совпадать с товаром строки списания';
 
 EXTEND FORM writeOffs
     PROPERTIES(d) READONLY seriesNumberPreOrderDetail
@@ -316,6 +316,49 @@ fillPreOrderDetail 'Проставить в заказы на продажу с�
                                                        AND supplierStock(d) == supplierStock(pd) AND (operation(pd) == operation(d) OR in(pd,operation(d)))
                                                        ORDER DESC fromDate(pd), pd]() WHERE order(d) == o AND NOT preOrderDetail(d);
         IF [= GROUP SUM 1 IF CHANGED(preOrderDetail(Sale.OrderDetail d))]() THEN APPLY;
+    }
+}
+
+EXTEND FORM preOrder
+    OBJECTS od = Sale.OrderDetail
+    PROPERTIES(od) READONLY seriesNumber, date, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity
+    PROPERTIES(od) seriesNumberPreOrderDetail
+    FILTERS preOrder(preOrderDetail(od)) == o AND isPosted(od)
+    
+    OBJECTS wd = WriteOffDetail
+    PROPERTIES(wd) READONLY seriesNumber, date, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity
+    PROPERTIES(wd) seriesNumberPreOrderDetail
+    FILTERS preOrder(preOrderDetail(wd)) == o AND isPosted(wd)
+;
+DESIGN preOrder {
+    specificationBox {
+        type = TABBED;
+        MOVE BOX(od) {
+            caption = 'Заказы';
+        }
+        MOVE BOX(wd) {
+            caption = 'Списания';
+        }
+    }
+}
+
+EXTEND FORM preOrders
+    OBJECTS od = Sale.OrderDetail
+    PROPERTIES(od) READONLY seriesNumber, date, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity, seriesNumberPreOrderDetail
+    FILTERS preOrder(preOrderDetail(od)) == o AND isPosted(od)
+    
+    OBJECTS wd = WriteOffDetail
+    PROPERTIES(wd) READONLY seriesNumber, date, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity, seriesNumberPreOrderDetail
+    FILTERS preOrder(preOrderDetail(wd)) == o AND isPosted(wd)
+;
+DESIGN preOrders {
+    documentDetail {
+        MOVE BOX(od) AFTER BOX(d) {
+            caption = 'Заказы';
+        }
+        MOVE BOX(wd) AFTER BOX(od) {
+            caption = 'Списания';
+        }
     }
 }
 
