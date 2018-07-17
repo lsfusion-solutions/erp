@@ -229,11 +229,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             addStringElement(priceEntry, "number", "1");
                             good.addContent(priceEntry);
 
-                            int vat = item.vat == null ? 0 : item.vat.intValue();
-                            if(vat != 10 && vat != 20) {
-                                vat = 0;
-                            }
-                            addStringElement(good, "vat", String.valueOf(vat));
+                            addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
 
                             //parent: priceEntry
                             Element department = new Element("department");
