@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.machinery.board;
 
+import lsfusion.erp.ERPLoggers;
 import lsfusion.interop.DaemonThreadFactory;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.context.ExecutorFactory;
@@ -25,7 +26,7 @@ import java.util.concurrent.Executors;
 
 public abstract class BoardDaemon extends MonitorServer implements InitializingBean {
     protected static final Logger startLogger = ServerLoggers.startLogger;
-    protected static final Logger terminalLogger = Logger.getLogger("TerminalLogger");
+    protected static final Logger terminalLogger = ERPLoggers.terminalLogger;
 
     protected BusinessLogics businessLogics;
     protected DBManager dbManager;

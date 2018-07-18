@@ -68,7 +68,7 @@ public class TerminalServer extends MonitorServer {
     public static final byte GET_ALL_BASE = 8;
     public static final byte SAVE_PALLET = 9;
 
-    private static final Logger logger = Logger.getLogger("TerminalLogger");
+    private static final Logger logger = EquipmentLoggers.terminalLogger;
     private static final Logger priceCheckerLogger = EquipmentLoggers.priceCheckerLogger;
 
     private static ConcurrentHashMap<String, UserInfo> userMap = new ConcurrentHashMap<>();

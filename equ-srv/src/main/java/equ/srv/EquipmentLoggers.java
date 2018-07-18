@@ -8,4 +8,6 @@ public class EquipmentLoggers {
 
     public static final Logger priceCheckerLogger = Logger.getLogger("PriceCheckerLogger");
 
+    public static final Logger terminalLogger = Logger.getLogger("TerminalLogger");
+
 }
