@@ -284,15 +284,16 @@ writeOffs 'Списания' (PreOrderDetail d) = GROUP
                                        CONCAT seriesNumber(WriteOff wo) IF orderedWriteOffDetail(d, wo) , ', '
                                        ORDER dateTime(wo), wo CHARWIDTH 20;
 
-ordered 'Израсходовано' (PreOrderDetail pd) = orderedOrderDetail(pd) (+) orderedWriteOffDetail(pd); 
-calcQuantity 'Доступно' (PreOrderDetail pd) = IF  (quantity(pd) (-) ordered(pd)) >0 
-    THEN (quantity(pd) (-) ordered(pd)) ELSE 0.0;
+ordered 'Израсходовано' (PreOrderDetail pd) = orderedOrderDetail(pd) (+) orderedWriteOffDetail(pd);
+inventory 'Списано инвентаризацией' = DATA NUMERIC[16,5] (PreOrderDetail);
+calcQuantity 'Доступно' (PreOrderDetail pd) = IF  (quantity(pd) (-) ordered(pd) (-) inventory(pd)) >0 
+    THEN (quantity(pd) (-) ordered(pd) (-) inventory(pd)) ELSE 0.0;
 
 EXTEND FORM preOrder
-    PROPERTIES (d) READONLY BEFORE deleteid ordered, orders, writeOffs, calcQuantity
+    PROPERTIES (d) READONLY BEFORE deleteid ordered, inventory, orders, writeOffs, calcQuantity
 ;
 EXTEND FORM preOrders
-    PROPERTIES (d) READONLY ordered, orders, writeOffs, calcQuantity
+    PROPERTIES (d) READONLY ordered, inventory, orders, writeOffs, calcQuantity
 ;
 
 WHEN FORMS userOrder (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d))) DO {
