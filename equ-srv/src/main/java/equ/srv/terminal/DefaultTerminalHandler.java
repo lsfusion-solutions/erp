@@ -249,6 +249,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 barcodeQuery.addProperty("idSkuBarcode", terminalHandlerLM.findProperty("idSku[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("nameManufacturer", terminalHandlerLM.findProperty("nameManufacturer[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("passScales", terminalHandlerLM.findProperty("passScales[Barcode]").getExpr(barcodeExpr));
+                barcodeQuery.addProperty("extInfo", terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 if (currentPrice) {
                     barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                     if(stockObject instanceof DataObject)
@@ -280,8 +281,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     String nameManufacturer = trim((String) entry.get("nameManufacturer"));
                     String isWeight = entry.get("passScales") != null ? "1" : "0";
                     String mainBarcode = trim((String) entry.get("mainBarcode"));
+                    String extInfo = trim((String) entry.get("extInfo"));
 
-                    result.add(new TerminalBarcode(idBarcode, nameSkuBarcode, price, quantityBarcodeStock, idSkuBarcode, nameManufacturer, isWeight, mainBarcode));
+                    result.add(new TerminalBarcode(idBarcode, nameSkuBarcode, price, quantityBarcodeStock, idSkuBarcode, nameManufacturer, isWeight, mainBarcode, extInfo));
 
                 }
             }
@@ -400,7 +402,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " image   TEXT," +
                 " weight  TEXT," +
                 " main_barcode TEXT," +
-                " color TEXT)";
+                " color TEXT," +
+                " ticket TEXT)";
         statement.executeUpdate(sql);
         statement.close();
     }
@@ -410,7 +413,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, '', '', '', '', ?, ?, '');";
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, '', '', '', '', ?, ?, '', ?);";
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
                 for (TerminalBarcode barcode : barcodeList) {
@@ -423,6 +426,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(6, formatValue(barcode.nameManufacturer)); //manufacturer
                         statement.setObject(7, formatValue(barcode.isWeight)); //weight
                         statement.setObject(8, formatValue(barcode.mainBarcode)); //main_barcode
+                        statement.setObject(9, formatValue(barcode.extInfo)); //ticket
                         statement.addBatch();
                         usedBarcodes.add(barcode.idBarcode);
                     }
@@ -440,7 +444,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                     statement.setObject(5, formatValue(order.idItem)); //idItem
                                     statement.setObject(6, formatValue(order.manufacturer)); //manufacturer
                                     statement.setObject(7, formatValue(order.weight)); //weight
-                                    statement.setObject(8, formatValue(order.barcode));
+                                    statement.setObject(8, formatValue(order.barcode)); //main_barcode
+                                    statement.setObject(9, ""); //ticket
                                     statement.addBatch();
                                 }
                             }
@@ -453,7 +458,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                 statement.setObject(5, formatValue(order.idItem)); //idItem
                                 statement.setObject(6, formatValue(order.manufacturer)); //manufacturer
                                 statement.setObject(7, formatValue(order.weight)); //weight
-                                statement.setObject(8, formatValue(order.barcode)); //idBarcode
+                                statement.setObject(8, formatValue(order.barcode)); //main_barcode
+                                statement.setObject(9, ""); //ticket
                                 statement.addBatch();
                             }
                         }
@@ -819,9 +825,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         String nameManufacturer;
         String isWeight;
         String mainBarcode;
+        String extInfo;
 
         public TerminalBarcode(String idBarcode, String nameSkuBarcode, BigDecimal price, BigDecimal quantityBarcodeStock,
-                               String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode) {
+                               String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode, String extInfo) {
             this.idBarcode = idBarcode;
             this.nameSkuBarcode = nameSkuBarcode;
             this.price = price;
@@ -830,6 +837,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             this.nameManufacturer = nameManufacturer;
             this.isWeight = isWeight;
             this.mainBarcode = mainBarcode;
+            this.extInfo = extInfo;
         }
     }
 
