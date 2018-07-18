@@ -301,11 +301,11 @@ WHEN FORMS userOrder (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplier
                                ORDER DESC fromDate(pd), pd;
 }
 
-WHEN FORMS userWriteOff (SETCHANGED(sku(WriteOffDetail d)) OR SETCHANGED(stock(d))) DO {
-    preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) > 0.0 AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
+WHEN FORMS userWriteOff (SETCHANGED(sku(WriteOffDetail d)) OR SETCHANGED(stock(d)) OR SETCHANGED(quantity(d))) DO {
+    preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
                                    AND stock(d) == supplierStock(pd) AND NOT operation(pd) ==  Sale.operation('saleWarehouseStore')
                                    ORDER DESC fromDate(pd), pd;
-    preOrderDetail(d) <- [= GROUP LAST PreOrderDetail pd IF calcQuantity(pd) > 0.0 AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
+    preOrderDetail(d) <- [= GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
                                    AND stock(d) == supplierStock(pd) AND operation(pd) ==  Sale.operation('saleWarehouseStore')
                                    ORDER DESC fromDate(pd), pd]() WHERE NOT preOrderDetail(d);
 }
