@@ -57,7 +57,7 @@ nameGroup2Receipt = DATA LOCAL VARSTRING[255] (INTEGER);
 nameGroup3Receipt = DATA LOCAL VARSTRING[255] (INTEGER);
 
 sumReceiptDetail 'Сумма' = DATA LOCAL NUMERIC[18,4] (INTEGER);
-discountSum 'Сумма скидки' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+discountSumReceiptDetail 'Сумма скидки' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 sumVATReceiptDetail 'Сумма НДС' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 countReceiptDetail 'Кол-во строк' = DATA LOCAL INTEGER (INTEGER);
 quantityReceiptDetail 'Кол-во' = DATA LOCAL NUMERIC[16,5] (INTEGER);
@@ -112,7 +112,7 @@ fillReceiptReport (DATE dateFrom, DATE dateTo) = {
     nameGroup2Receipt(INTEGER i) <- NULL;
     nameGroup3Receipt(INTEGER i) <- NULL;
     sumReceiptDetail(INTEGER i) <- NULL;
-    discountSum(INTEGER i) <- NULL;
+    discountSumReceiptDetail(INTEGER i) <- NULL;
     sumVATReceiptDetail(INTEGER i) <- NULL;
     countReceiptDetail(INTEGER i) <- NULL;
     quantityReceiptDetail(INTEGER i) <- NULL;
@@ -122,7 +122,7 @@ fillReceiptReport (DATE dateFrom, DATE dateTo) = {
     sumReceiptDetailGiftCard(INTEGER i) <- NULL;
     
     query(replace('SELECT ' 
-        + 'SUM(sumReceiptDetail) AS sumReceiptDetail, SUM(discountSum) AS discountSum, SUM(sumVATReceiptDetail) AS sumVATReceiptDetail, '
+        + 'SUM(sumReceiptDetail) AS sumReceiptDetail, SUM(discountSumReceiptDetail) AS discountSumReceiptDetail, SUM(sumVATReceiptDetail) AS sumVATReceiptDetail, '
         + 'SUM(countReceiptDetail) AS countReceiptDetail, SUM(quantityReceiptDetail) AS quantityReceiptDetail, SUM(sumCashPayment) AS sumCashPayment, '
         + 'SUM(sumCardPayment) AS sumCardPayment, SUM(sumGiftCardPayment) AS sumGiftCardPayment, SUM(sumReceiptDetailGiftCard) AS sumReceiptDetailGiftCard, '
         + nameGroupsReceipt() + ' FROM receipt'
@@ -132,7 +132,7 @@ fillReceiptReport (DATE dateFrom, DATE dateTo) = {
         + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
         
         IMPORT JSON FROM queryResult() TO nameGroup1Receipt = nameGroup1, nameGroup2Receipt = nameGroup2, nameGroup3Receipt = nameGroup3, 
-                                          sumReceiptDetail = sumReceiptDetail, discountSum = discountSum, sumVATReceiptDetail = sumVATReceiptDetail,
+                                          sumReceiptDetail = sumReceiptDetail, discountSumReceiptDetail = discountSumReceiptDetail, sumVATReceiptDetail = sumVATReceiptDetail,
                                           countReceiptDetail = countReceiptDetail, quantityReceiptDetail = quantityReceiptDetail, sumCashPayment = sumCashPayment,
                                           sumCardPayment = sumCardPayment, sumGiftCardPayment = sumGiftCardPayment, sumReceiptDetailGiftCard = sumReceiptDetailGiftCard;
 }
@@ -148,7 +148,7 @@ FORM printReceiptReport 'Продажа (по чекам)'
     
     OBJECTS i = INTEGER
     PROPERTIES(i) READONLY nameGroup1Receipt, nameGroup2Receipt, nameGroup3Receipt
-    PROPERTIES(i) READONLY sumReceiptDetail, discountSum, sumVATReceiptDetail, countReceiptDetail, quantityReceiptDetail,
+    PROPERTIES(i) READONLY sumReceiptDetail, discountSumReceiptDetail, sumVATReceiptDetail, countReceiptDetail, quantityReceiptDetail,
                            sumCashPayment, sumCardPayment, sumGiftCardPayment, sumReceiptDetailGiftCard
     FILTERS nameGroup1Receipt(i) AND dt IS DATE AND df IS DATE,
             sumReceiptDetail(i)
@@ -177,7 +177,7 @@ FORM printReceiptReportTable 'Продажа (по чекам)'
     
     OBJECTS i = INTEGER
     PROPERTIES(i) READONLY nameGroup1Receipt, nameGroup2Receipt, nameGroup3Receipt
-    PROPERTIES(i) READONLY sumReceiptDetail, discountSum, sumVATReceiptDetail, countReceiptDetail, quantityReceiptDetail,
+    PROPERTIES(i) READONLY sumReceiptDetail, discountSumReceiptDetail, sumVATReceiptDetail, countReceiptDetail, quantityReceiptDetail,
                            sumCashPayment, sumCardPayment, sumGiftCardPayment, sumReceiptDetailGiftCard
     FILTERS nameGroup1Receipt(i) AND dt IS DATE AND df IS DATE,
             sumReceiptDetail(i)
