@@ -308,6 +308,45 @@ changeIncludeBrands() = {
     }
 }
 
+//------- Производители -------
+include 'Вкл' = DATA LOCAL BOOLEAN (Manufacturer);
+
+deleteIncludeManufacturers 'Сбросить отмеченные'() = {
+    include(Manufacturer m) <- NULL;
+};
+
+nameIncludeManufacturers 'Производитель (все)' () = GROUP CONCAT TEXT((OVERRIDE name(Manufacturer m),'')) IF include(m), ', ' ORDER m CHARWIDTH 20;
+
+commaManufacturerId 'Список кодов' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDTH 30;
+
+addCommaManufacturerId 'Добавить' () = {
+    IF commaManufacturerId() THEN {
+        include(Manufacturer m) <- TRUE WHERE (GROUP SUM 1 IF isWordInCSV(id(m), replace(commaManufacturerId(),' ',',')) == 1);
+        commaManufacturerId() <- NULL;
+    }
+}
+
+FORM dialogManufacturer 'Производители'
+    OBJECTS m = Manufacturer
+    PROPERTIES PANEL commaManufacturerId(), addCommaManufacturerId()
+    PROPERTIES include(m)
+    PROPERTIES(m) READONLY id, name
+    ORDER name(m)
+    FILTERGROUP inManufacturer FILTER 'Отмеченные' include(m)
+    PROPERTIES deleteIncludeManufacturers() TODRAW m TOOLBAR    
+;
+DESIGN dialogManufacturer {
+    BOX { size = (1024, 768); }
+}
+
+changeIncludeManufacturers() = {
+    DIALOG dialogManufacturer OBJECTS m INPUT DO {
+        IF NOT (GROUP SUM 1 IF include(Manufacturer mr)) THEN
+            include(m) <- TRUE;
+    }
+}
+
+
 //------- Группы товаров -------
 dataInclude 'Вкл' = DATA LOCAL BOOLEAN (SkuGroup);
 
@@ -403,6 +442,7 @@ filterGroups() = CONCAT ' OR', ' group1 IN (' + nameIncludeSkuGroups1() + ')',
 filter() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) +'\'') IF include(s),',') + ')','')
                     + (OVERRIDE ' AND supplier IN (' + (GROUP CONCAT TEXT('\''+ TEXT(LegalEntity le) +'\'') IF include(le),',') + ')','')
                     + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Brand b) +'\'') IF include(b),',') + ')','')
+                    + (OVERRIDE ' AND manufacturer IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Manufacturer b) +'\'') IF include(b),',') + ')','')
                     + (OVERRIDE ' AND (' + filterGroups() + ')','')
                     + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataInclude(sku),',') + ')','');
 values() = (IF overIsOut() AND isQuantity() THEN 'SUM(quantitySold)' ELSE '\'\'') + ' AS quantitySold, '
@@ -561,7 +601,7 @@ FORM printTurnoverReport 'Оборачиваемость'
     OBJECTS dt=DATE PANEL
     PROPERTIES dateTo = VALUE(dt)
        
-    PROPERTIES() countGroup, countRowsTurnover, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeSkuGroups, nameIncludeSkus, 
+    PROPERTIES() countGroup, countRowsTurnover, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeManufacturers, nameIncludeSkuGroups, nameIncludeSkus, 
                  printSumGroup1, printSumGroup2
     
     OBJECTS i = INTEGER
@@ -612,7 +652,7 @@ FORM printTurnoverReportTable 'Оборачиваемость'
     OBJECTS dt=DATE PANEL
     PROPERTIES dateTo = VALUE(dt)
        
-    PROPERTIES() countGroup, countRowsTurnover, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeSkuGroups, nameIncludeSkus,
+    PROPERTIES() countGroup, countRowsTurnover, maxRowCount, nameIncludeStockGroupsStock, nameIncludeLegalEntities, nameIncludeBrands, nameIncludeManufacturers, nameIncludeSkuGroups, nameIncludeSkus,
                  captionGroup1Turnover, captionGroup2Turnover, captionGroup3Turnover
     
     OBJECTS i = INTEGER
@@ -673,6 +713,7 @@ EXTEND FORM turnoverReport
     PROPERTIES nameIncludeStocks() ON CHANGE changeIncludeStockGroupsStock()
     PROPERTIES nameIncludeLegalEntities() ON CHANGE changeIncludeLegalEntities()
     PROPERTIES nameIncludeBrands() ON CHANGE changeIncludeBrands()
+    PROPERTIES nameIncludeManufacturers() ON CHANGE changeIncludeManufacturers()
     PROPERTIES nameIncludeSkuGroups() ON CHANGE changeIncludeSkus()
     PROPERTIES nameIncludeSkus() ON CHANGE changeIncludeSkus()
     PROPERTIES nameIncludeBarcodes() ON CHANGE changeIncludeBarcodes()
@@ -688,6 +729,7 @@ DESIGN turnoverReport {
         MOVE PROPERTY(nameIncludeStocks()) { panelCaptionAbove = TRUE; }
         MOVE PROPERTY(nameIncludeLegalEntities()) { panelCaptionAbove = TRUE; }
         MOVE PROPERTY(nameIncludeBrands()) { panelCaptionAbove = TRUE; }
+        MOVE PROPERTY(nameIncludeManufacturers()) { panelCaptionAbove = TRUE; }
         MOVE PROPERTY(nameIncludeSkuGroups()) { panelCaptionAbove = TRUE; }
         MOVE PROPERTY(nameIncludeSkus()) { panelCaptionAbove = TRUE; }
         MOVE PROPERTY(nameIncludeBarcodes()) { panelCaptionAbove = TRUE; }
