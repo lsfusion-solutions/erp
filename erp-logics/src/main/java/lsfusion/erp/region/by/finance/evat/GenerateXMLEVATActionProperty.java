@@ -539,7 +539,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         String result = null;
         if(vatRate != null) {
             if(vatRate.compareTo(BigDecimal.ZERO) == 0)
-                result = allowZeroVAT ? "DECIMAL" : "NO_VAT";
+                result = allowZeroVAT ? "CALCULATED" : "NO_VAT";
             else if(vatRate.compareTo(BigDecimal.valueOf(10)) == 0 || vatRate.compareTo(BigDecimal.valueOf(20)) == 0)
                 result = "DECIMAL";
             else
