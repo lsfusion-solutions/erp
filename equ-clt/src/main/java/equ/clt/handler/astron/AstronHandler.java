@@ -700,6 +700,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 switch (recordType) {
                     case 0: {//товарная позиция
                     // case 3: //Возвращенная товарная позиция - игнорируем эту запись. В дополнение к ней создаётся новая, с SALESTAG = 0 и SALESREFUND = 1
+                        //временный лог для того, чтобы выявить, откуда попадают лишние оплаты в чек
+                        sendSalesLogger.info(String.format("sale: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
+                                rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
                         String idBarcode = rs.getString("SALESBARC");
                         String idItem = String.valueOf(rs.getInt("SALESCODE"));
                         BigDecimal totalQuantity = safeDivide(rs.getBigDecimal("SALESCOUNT"), isWeight ? 1000 : 1);
@@ -715,6 +718,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         break;
                     }
                     case 1: {//оплата
+                        //временный лог для того, чтобы выявить, откуда попадают лишние оплаты в чек
+                        sendSalesLogger.info(String.format("payment: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
+                                rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
                         BigDecimal sum = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
                         if(isReturn)
                             sum = safeNegate(sum);
@@ -734,6 +740,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         break;
                     }
                     case 2: {//пролог чека
+                        //временный лог для того, чтобы выявить, откуда попадают лишние оплаты в чек
+                        sendSalesLogger.info(String.format("prolog: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
+                                rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
                         sumCash = null;
                         sumCard = null;
                         sumGiftCard = null;
