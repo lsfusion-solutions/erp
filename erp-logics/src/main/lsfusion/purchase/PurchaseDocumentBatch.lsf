@@ -1,0 +1,104 @@
+MODULE PurchaseDocumentBatch;
+
+REQUIRE PricingPurchase;
+
+NAMESPACE Purchase;
+
+defaultFakeBatchesOperation = DATA Purchase.Operation();
+nameDefaultFakeBatchesOperation 'Операция (закупка)' () = name(defaultFakeBatchesOperation());
+
+defaultFakeBatchesStock = DATA Stock();
+nameefaultFakeBatchesStock 'Склад поставщика' () = name(defaultFakeBatchesStock());
+
+defaultFakeBatchesPerc '% розн. надбавки' = DATA NUMERIC[8,2]();
+
+CONSTRAINT defaultFakeBatchesOperation() AND defaultFakeBatchesStock () AND NOT inSupplier(defaultFakeBatchesStock(), defaultFakeBatchesOperation())
+    MESSAGE 'Склад для создания партий не включен в операцию.';
+formFake = DATA LOCAL Purchase.UserInvoice();
+
+createFakeBatchesCustom 'Создать партии' (Stock stock) = {
+	
+	    LOCAL filterNoBatch = INTEGER (Sku, Stock);
+	    LOCAL documentDate = DATE ();
+	    LOCAL priceNoBatch =  NUMERIC[16,4] (Sku, Stock);
+	    formFake() <- NULL;
+	    
+	    filterNoBatch(Sku s, stock) <- [= GROUP SUM 1 IF quantity(SkuLedger l) AND active(l) AND NOT lastOrderBatch(sku(l), stock(l)) BY sku(l), stock(l)](s, stock);
+	    documentDate() <- [=GROUP MIN date(SkuLedger l) IF filterNoBatch(sku(l), stock(l)) AND active(l) BY stock(l)](stock);
+	    priceNoBatch(Sku s, stock) <- round2(
+	        OVERRIDE currentRetailPricingPrice(s, stock), 
+            [=GROUP LAST signedPrice(SkuLedger l) ORDER date(l), l WHERE filterNoBatch(sku(l), stock(l)) AND active(l)  BY sku(l), stock(l)](s, stock))
+                                WHERE filterNoBatch(s,stock);
+	
+	    IF (GROUP SUM 1 IF filterNoBatch(Sku s, stock)) THEN {
+            NEW inv = Purchase.UserInvoice {
+            
+                date(inv) <- DATE(documentDate());
+                time(inv) <- 00:00;
+                supplierStock(inv) <- defaultFakeBatchesStock();
+                supplier(inv) <- legalEntity(supplierStock(inv));
+                customerStock(inv) <- stock;
+                customer(inv) <- legalEntity(stock);
+                operation(inv) <- defaultFakeBatchesOperation();
+                isPosted(inv) <- TRUE;
+                note(inv) <- 'Автоматическая генерация партий';
+                
+                FOR filterNoBatch(Sku sku, stock) NEW d = Purchase.UserInvoiceDetail DO {
+                    userInvoice(d) <- inv;
+                    sku(d) <- sku;
+                    quantity(d) <- 0.0;
+                    price(d) <- round2(priceNoBatch(sku, stock) / (1 (+) valueVAT[Item](sku)/100.0) / (1 (+) (OVERRIDE defaultFakeBatchesPerc(), overMarkup(retailCalcPriceListType(stock), sku)) / 100.0));
+                    valueVAT(d) <- valueVAT[Item](sku);
+                    retailPrice(d) <- priceNoBatch(sku, stock);
+                }
+                formFake() <- inv;	        
+            }	
+        }
+}
+createFakeBatches 'Создать партии' (Stock stock) = {
+	NEWSESSION {
+	    createFakeBatchesCustom(stock);
+	    SHOW userInvoice OBJECTS i = formFake() DOCKED NOCANCEL;
+	    formFake()<- NULL;
+	}
+}
+createFakeBatchesAll 'Создать партии (Все магазины)' () = {
+    IF 	defaultFakeBatchesOperation() AND  defaultFakeBatchesStock() THEN {
+        FOR active(DepartmentStore ds) AND isCompany(ds) AND ds IS DepartmentStore DO {
+            NEWSESSION {  
+                createFakeBatchesCustom(ds);
+                setNoCancelInTransaction();
+                APPLY;	    
+            }                            
+        }    
+    } ELSE {
+        MESSAGE 'Не заданы операция или склад для создания партий';
+    }
+}
+
+EXTEND FORM options
+    OBJECTS ds9 = DepartmentStore  
+    PROPERTIES (ds9)  name READONLY , nameLegalEntity READONLY, createFakeBatches TOOLBAR 
+    PROPERTIES nameDefaultFakeBatchesOperation(), nameefaultFakeBatchesStock(), defaultFakeBatchesPerc(), createFakeBatchesAll()
+    FILTERS active(ds9)
+;
+DESIGN options {
+
+    pane {
+        NEW  fakeBatches{
+            caption = 'Создание партий';
+            fill = 1;
+            type = CONTAINERV;
+            NEW paramsBatches {
+                type = CONTAINERH;
+                caption = 'Параметры';
+                MOVE PROPERTY (nameDefaultFakeBatchesOperation());
+                MOVE PROPERTY (nameefaultFakeBatchesStock()); 
+                MOVE PROPERTY (defaultFakeBatchesPerc());    
+                MOVE PROPERTY (createFakeBatchesAll());                
+            }
+             MOVE BOX(ds9);
+        }    
+    }
+    
+}
