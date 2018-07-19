@@ -1,0 +1,13 @@
+MODULE RepricingDisparityTax;
+
+REQUIRE RepricingDisparity, SkuLedgerTax;
+
+NAMESPACE Disparity;
+
+lastValueVAT(DisparityDetail d) = prevLastValueVAT(sku(d), stock(d), dateTime(d));  
+
+overDeriveValueCurInputVAT(DisparityDetail d) += OVERRIDE valueVAT(batch(d)), lastValueVAT(d);
+overDeriveValueAfterInputVAT(DisparityDetail d) += OVERRIDE valueVAT(batch(d)), lastValueVAT(d);
+
+changedValueCurInputVAT (DisparityDetail d) += CHANGED(batch(d)) OR CHANGED(sku(d));
+changedValueAfterInputVAT (DisparityDetail d) += CHANGED(batch(d)) OR CHANGED(sku(d));

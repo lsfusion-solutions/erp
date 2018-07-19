@@ -1,0 +1,12 @@
+MODULE DisparitySum;
+
+REQUIRE Disparity, SkuLedgerSum, SkuLedgerTax;
+
+sum [SkuLedger](DisparityDetail detail) += sum(detail);
+sum [SkuLedger](InputDisparityDetail detail) += sum(detail);
+
+costSum [SkuLedger](DisparityDetail detail) += NUMERIC[18,4](round2(costBatch(detail)*quantity(detail)));
+costSum [SkuLedger](InputDisparityDetail detail) += NUMERIC[18,4](round2(costBatch(detail)*quantity(detail)));
+
+costSumVAT[SkuLedger](InputDisparityDetail detail) += NUMERIC[18,4]((GROUP SUM costSum(disparityDetail(detail), Batch batch)*Stock.valueVAT(batch)/100)) 
+                                                                    IF NOT valueVAT(sku(detail), stock(detail), date(detail));

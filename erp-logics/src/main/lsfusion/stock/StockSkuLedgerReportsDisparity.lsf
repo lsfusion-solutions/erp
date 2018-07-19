@@ -1,0 +1,19 @@
+MODULE StockSkuLedgerReportsDisparity;
+
+REQUIRE StockSkuLedgerReports, DisparityOperation, DisparitySum;
+
+NAMESPACE StockSkuLedgerReports;
+
+nameReturn 'Наименование (расход)' = DATA VARISTRING[100](Disparity.Operation);
+nameReturn(Disparity.Operation operation) += nameReturn(operation);
+
+EXTEND FORM Disparity.operation 
+    PROPERTIES(o)  nameReturn AFTER name(o)
+;
+DESIGN Disparity.operation {
+    propertyContainer{
+        MOVE PROPERTY(nameReturn(o)) AFTER PROPERTY(name(o));
+    }
+}
+
+isReturn[SkuLedger](DisparityDetail ledger) += ledger IS DisparityDetail;
