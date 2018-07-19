@@ -218,15 +218,19 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                     if (!FiscalAbsolut.discountItem(item, receipt.numberDiscountCard))
                         return false;
                     DecimalFormat formatter = getFormatter();
-                    if(printSumWithDiscount && item.articleDiscSum != 0.0)
-                        FiscalAbsolut.printFiscalText(getFiscalString("Сумма со скидкой", formatter.format(item.sumPos)));
+                    if(printSumWithDiscount && item.articleDiscSum != 0.0) {
+                        if (!FiscalAbsolut.printFiscalText(getFiscalString("Сумма со скидкой", formatter.format(item.sumPos))))
+                            return false;
+                    }
                     if (item.bonusSum != 0.0) {
                         FiscalAbsolut.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
-                        FiscalAbsolut.printFiscalText("Начислено бонусных баллов:\n" + formatter.format(item.bonusSum));
+                        if (!FiscalAbsolut.printFiscalText("Начислено бонусных баллов:\n" + formatter.format(item.bonusSum)))
+                            return false;
                     }
                     if (item.bonusPaid != 0.0) {
                         FiscalAbsolut.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
-                        FiscalAbsolut.printFiscalText("Оплачено бонусными баллами:\n" + formatter.format(item.bonusPaid));
+                        if (!FiscalAbsolut.printFiscalText("Оплачено бонусными баллами:\n" + formatter.format(item.bonusPaid)))
+                            return false;
                     }
                 }
 
@@ -235,7 +239,8 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                 if (!FiscalAbsolut.discountReceipt(receipt))
                     return false;
 
-                FiscalAbsolut.printFiscalText(receiptBottom);
+                if (!FiscalAbsolut.printFiscalText(receiptBottom))
+                    return false;
 
                 if (!FiscalAbsolut.totalGiftCard(receipt.sumGiftCard))
                     return false;
