@@ -166,6 +166,11 @@ DESIGN preOrder {
     }
 }
 
+overShowEdit = ABSTRACT BOOLEAN (PreOrder);
+overShowDelete = ABSTRACT BOOLEAN (PreOrder);
+skipShowEdit = ABSTRACT BOOLEAN (PreOrder);
+skipShowDelete = ABSTRACT BOOLEAN (PreOrder);
+
 FORM preOrders 'Резервы'
 
     OBJECTS o = PreOrder 
@@ -173,7 +178,7 @@ FORM preOrders 'Резервы'
                    number, series, date, time, note
                 
     PROPERTIES (o) READONLY countPreOrderDetail
-    PROPERTIES (o) NEWSESSION NEW, EDIT, deleter=DELETE   
+    PROPERTIES (o) NEWSESSION NEW, editr = EDIT SHOWIF overShowEdit(o), deleter=DELETE  SHOWIF overShowDelete(o)
     PROPERTIES (o) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer 
     PROPERTIES (o) close SHOWIF isOpened(o), open SHOWIF isClosed(o)
         
@@ -438,3 +443,24 @@ DESIGN options {
         }
     }
 }
+
+//-- Запрет на изменение документа другим пользователем
+@defineOperationChangesDocument(preOrder, PreOrder, preventChangesDocument, created);
+
+overShowEdit (PreOrder i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
+overShowDelete (PreOrder i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowDelete(i); 
+
+skipShowEdit(PreOrder i)+= documentsClosedDate(supplierStock(i)) > date(i);
+
+show 'Просмотреть' (PreOrder o) =  {
+    NEWSESSION{
+        SHOW preOrder OBJECTS o = o DOCKED READONLY;
+    }
+    
+}TOOLBAR;
+    
+showToShow (PreOrder o) = is(o) AND NOT overShowEdit(o);
+EXTEND FORM preOrders 
+    PROPERTIES show(o) SHOWIF showToShow(o) BEFORE editr
+
+;
