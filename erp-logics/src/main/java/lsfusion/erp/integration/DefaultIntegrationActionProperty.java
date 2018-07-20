@@ -64,7 +64,7 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
         if (value == null) return defaultValue;
         value = value.trim();
         if (value.isEmpty() || value.replace(".", "").trim().isEmpty()) return defaultValue;
-        if (value.length() == 8 && !value.contains(".")) {
+        if (value.matches("\\d{8}")) {
             try {
                 //чит для отличия ddMMyyyy от yyyyMMdd
                 Integer intValue = Integer.parseInt(value.substring(4, 6));
@@ -88,7 +88,7 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
             case 7:
                 return new Date(DateUtils.parseDate(value, new String[]{"MM.yyyy", "MM-yyyy"}).getTime());
             case 8:
-                return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd-MM-yyyy", "dd-MM-yy"}).getTime());
+                return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd-MM-yy"}).getTime());
             case 10:
                 return new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy", "dd/MM/yyyy", "yyyy-MM-dd", "dd-MM-yyyy"}).getTime());
             case 16:
