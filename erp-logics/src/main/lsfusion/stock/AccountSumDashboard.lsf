@@ -1,0 +1,128 @@
+MODULE AccountSumDashboard;
+
+REQUIRE StockDocument, PriceListAccount, StockMovementItem;
+
+sumLedgerA 'Сумма на конец дня (по товарному отчету)' = DATA LOCAL NUMERIC[18,2](Stock);
+sumSkuA 'Сумма на конец дня (по товарам)' = DATA LOCAL NUMERIC[18,2](Sku, Stock);
+sumSkuA 'Сумма на конец дня (по товарам)' = DATA LOCAL NUMERIC[18,2](Stock);
+sumAccountA 'Сумма на конец дня (в учетных ценах)' = DATA LOCAL NUMERIC[18,2](Sku, Stock);
+sumAccountA 'Сумма на конец дня (в учетных ценах)' = DATA LOCAL NUMERIC[18,2](Stock);
+
+fillSum 'Заполнить данные' (DATE d) = {
+    sumLedgerA (Stock st) <- sumAccountADocumentLedger(st, d);
+    sumSkuA (Sku sk, Stock st) <- sumA(sk, st, d);
+    sumSkuA (Stock st) <- GROUP SUM sumA(Sku sk, st, d);
+    sumAccountA (Sku sk, Stock st) <-  balanceA(sk, st, d) * prevAccountPriceA(sk, st, DATETIME (d));
+    sumAccountA (Stock st) <- GROUP SUM sumAccountA(Sku sk, st);
+}
+
+sumLedgerA 'Сумма на конец дня (по товарному отчету)' (StockGroup g) = GROUP SUM sumLedgerA(Stock st) IF isParent(g, st);
+sumSkuA 'Сумма на конец дня (по товарам)' (StockGroup g) = GROUP SUM sumSkuA(Stock st) IF isParent(g, st);
+sumAccountA 'Сумма на конец дня (в учетных ценах)' (StockGroup g) = GROUP SUM sumAccountA(Stock st) IF isParent(g, st);
+
+sumSkuA 'Сумма на конец дня (по товарам)' (ItemGroup g, Stock st) = GROUP SUM sumSkuA(Sku sk, st) IF isParent(g, sk);
+sumAccountA 'Сумма на конец дня (в учетных ценах)' (ItemGroup g, Stock st) = GROUP SUM sumAccountA(Sku sk, st) IF isParent(g, sk);
+
+diff12 'Разница 1 и 2' (Stock s) = sumLedgerA(s) - sumSkuA(s);
+percentDiff12 '% разницы 1 и 2' (Stock s) = NUMERIC[5,2] (abs(diff12(s)/sumLedgerA(s) * 100)) CHARWIDTH 8;
+diff13 'Разница 1 и 3' (Stock s) = sumLedgerA(s) - sumAccountA(s);
+percentDiff13 '% разницы 1 и 3' (Stock s) = NUMERIC[5,2] (abs(diff13(s)/sumAccountA(s) * 100)) CHARWIDTH 8;
+diff23 'Разница 2 и 3' (Stock s) = sumSkuA(s) - sumAccountA(s);
+percentDiff23 '% разницы 2 и 3' (Stock s) = NUMERIC[5,2] (abs(diff23(s)/sumAccountA(s) * 100)) CHARWIDTH 8;
+
+diff 'Разница' (Sku sk, Stock st) = sumSkuA(sk, st) - sumAccountA(sk, st);
+percentDiff '% разницы' (Sku sk, Stock st) = NUMERIC[5,2](abs(diff(sk, st)/sumSkuA(sk, st) * 100)) CHARWIDTH 8;
+
+diff 'Разница' (ItemGroup sk, Stock st) = sumSkuA(sk, st) - sumAccountA(sk, st);
+percentDiff '% разницы' (ItemGroup sk, Stock st) = NUMERIC[5,2](abs(diff(sk, st)/sumSkuA(sk, st) * 100)) CHARWIDTH 8;
+
+backgroundPercent (NUMERIC[18,2] n) = n > 10;
+
+FORM stockSumCompare 'Суммы остатков'
+    OBJECTS d = DATE PANEL 
+    PROPERTIES VALUE (d), fillSum(d)
+    
+    TREE stockGroupTree stg = StockGroup PARENT parent
+    PROPERTIES (stg) READONLY name
+    
+    OBJECTS st = Stock
+    PROPERTIES (st) READONLY name, sumLedgerA, diff12 BACKGROUND backgroundPercent(percentDiff12(st)), 
+                             percentDiff12 BACKGROUND backgroundPercent(percentDiff12(st)), sumSkuA, 
+                             diff13 BACKGROUND backgroundPercent(percentDiff13(st)), percentDiff13 BACKGROUND backgroundPercent(percentDiff13(st)), 
+                             sumAccountA, diff23 BACKGROUND backgroundPercent(percentDiff23(st)), 
+                             percentDiff23 BACKGROUND backgroundPercent(percentDiff23(st))
+                             
+    FILTERS isParent(stg, st)
+    FILTERS sumLedgerA(st) OR sumSkuA(st) OR sumAccountA(st)
+    
+    TREE itemGroupTree ig = ItemGroup PARENT parent
+    PROPERTIES READONLY name(ig), sumSkuA(ig, st), diff(ig, st) BACKGROUND backgroundPercent(percentDiff(ig, st)), 
+                        percentDiff(ig, st) BACKGROUND backgroundPercent(percentDiff(ig, st)), sumAccountA(ig, st)
+    
+    OBJECTS sk = Item
+    PROPERTIES READONLY id(sk), idBarcode(sk), nameAttribute(sk), sumSkuA(sk, st), 
+                        diff(sk, st) BACKGROUND backgroundPercent(percentDiff(sk, st)), 
+                        percentDiff(sk, st) BACKGROUND backgroundPercent(percentDiff(sk, st)), sumAccountA(sk, st)
+    FILTERS isParent(ig, sk)
+    FILTERS sumSkuA(sk, st) OR sumAccountA(sk, st), sumAccountA(sk, st)
+;
+
+DESIGN stockSumCompare {
+    MOVE BOX (d) FIRST;
+    NEW stock AFTER BOX (d) {
+        type = CONTAINERH;
+        fill = 1;
+        MOVE BOX (TREE stockGroupTree){
+            fill = 1;
+        }
+        MOVE BOX (st){
+            fill = 4;
+        }
+    }
+    NEW item AFTER stock {
+        type = SPLITH;
+        fill = 1;
+        MOVE BOX (TREE itemGroupTree){
+            fill = 2;
+        }
+        MOVE BOX (sk){
+            fill = 3;
+        }
+    }
+//    PROPERTY (diff12(st)){
+//        valueWidth = 18;
+//    }
+//    PROPERTY (diff13(st)){
+//        valueWidth = 18;
+//    }
+//    PROPERTY (diff23(st)){
+//        valueWidth = 18;
+//    }
+//    PROPERTY (percentDiff12(st)){
+//        valueWidth = 22;
+//    }
+//    PROPERTY (percentDiff13(st)){
+//        valueWidth = 22;
+//    }
+//    PROPERTY (percentDiff23(st)){
+//        valueWidth = 22;
+//    }
+//    PROPERTY (diff(sk, st)){
+//        valueWidth = 17;
+//    }
+//    PROPERTY (percentDiff(sk, st)){
+//        valueWidth = 22;
+//    }
+//    PROPERTY (diff(ig, st)){
+//        valueWidth = 17;
+//    }
+//    PROPERTY (percentDiff(ig, st)){
+//        valueWidth = 22;
+//    }
+}
+
+NAVIGATOR {
+    stockReports {
+        NEW stockSumCompare;
+    }
+}
