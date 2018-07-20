@@ -27,7 +27,7 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
                                 stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
                                 sku = sku(Batch b), supplier = supplier(b), supplierStock = supplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
                                 group1 = skuGroup2(sku(b)), group2 = skuGroup3(sku(b)), group3 = skuGroup4(sku(b)), group4 = skuGroup5(sku(b)),
-                                brand = brand(sku(b)), manufacturer = manufacturer(sku(b)),
+                                brand = brand(sku(b)), manufacturer = manufacturer(sku(b)), country = country(sku(b)),
                                 price = DOUBLE(sum(sku(b), st) / balance(sku(b), st)), UOM = UOM(sku(b)),
                                 balance = DOUBLE(balance(b, st)),
                                 quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
@@ -91,6 +91,7 @@ DESIGN turnoverReport {
 @createGroup(turnover, supplierStock, 'По складу поставщика', 13, 'supplierStock', 'LOOKUP(supplierStock,\'stock_name\')', 'Склад поставщика', supplierContainer);
 @createGroup(turnover, UOM, 'По единице измерения', 14, 'UOM', 'LOOKUP(UOM,\'UOM_name\')', 'Единица измерения', itemContainer);
 
+@createGroup(turnover, Country, 'По стране', 15, 'Country', 'LOOKUP(Country,\'Country_name\')', 'Страна', itemContainer);
 
 nameGroupsTurnover = CONCAT ', ', (OVERRIDE exprGroup1Turnover(), '\'\'') + ' AS nameGroup1',
                                            (OVERRIDE exprGroup2Turnover(), '\'\'') + ' AS nameGroup2',
@@ -346,6 +347,44 @@ changeIncludeManufacturers() = {
     }
 }
 
+//------- Производители -------
+include 'Вкл' = DATA LOCAL BOOLEAN (Country);
+
+deleteIncludeCountries 'Сбросить отмеченные'() = {
+    include(Country c) <- NULL;
+};
+
+nameIncludeCountries 'Страны (все)' () = GROUP CONCAT TEXT((OVERRIDE name(Country c),'')) IF include(c), ', ' ORDER c CHARWIDTH 20;
+
+commaCountryId 'Список кодов' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDTH 30;
+
+addCommaCountryId 'Добавить' () = {
+    IF commaCountryId() THEN {
+        include(Country c) <- TRUE WHERE (GROUP SUM 1 IF isWordInCSV(sid(c), replace(commaCountryId(),' ',',')) == 1);
+        commaCountryId() <- NULL;
+    }
+}
+
+FORM dialogCountry 'Страны'
+    OBJECTS c = Country
+    PROPERTIES PANEL commaCountryId(), addCommaCountryId()
+    PROPERTIES include(c)
+    PROPERTIES(c) READONLY sid, name
+    ORDER name(c)
+    FILTERGROUP inCountry FILTER 'Отмеченные' include(c)
+    PROPERTIES deleteIncludeCountries() TODRAW c TOOLBAR    
+;
+DESIGN dialogCountry {
+    BOX { size = (1024, 768); }
+}
+
+changeIncludeCountries() = {
+    DIALOG dialogCountry OBJECTS c INPUT DO {
+        IF NOT (GROUP SUM 1 IF include(Country cr)) THEN
+            include(c) <- TRUE;
+    }
+}
+
 
 //------- Группы товаров -------
 dataInclude 'Вкл' = DATA LOCAL BOOLEAN (SkuGroup);
@@ -443,6 +482,7 @@ filter() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) 
                     + (OVERRIDE ' AND supplier IN (' + (GROUP CONCAT TEXT('\''+ TEXT(LegalEntity le) +'\'') IF include(le),',') + ')','')
                     + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Brand b) +'\'') IF include(b),',') + ')','')
                     + (OVERRIDE ' AND manufacturer IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Manufacturer b) +'\'') IF include(b),',') + ')','')
+                    + (OVERRIDE ' AND country IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Country c) +'\'') IF include(c),',') + ')','')
                     + (OVERRIDE ' AND (' + filterGroups() + ')','')
                     + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataInclude(sku),',') + ')','');
 values() = (IF overIsOut() AND isQuantity() THEN 'SUM(quantitySold)' ELSE '\'\'') + ' AS quantitySold, '
@@ -714,6 +754,7 @@ EXTEND FORM turnoverReport
     PROPERTIES nameIncludeLegalEntities() ON CHANGE changeIncludeLegalEntities()
     PROPERTIES nameIncludeBrands() ON CHANGE changeIncludeBrands()
     PROPERTIES nameIncludeManufacturers() ON CHANGE changeIncludeManufacturers()
+    PROPERTIES nameIncludeCountries() ON CHANGE changeIncludeCountries()
     PROPERTIES nameIncludeSkuGroups() ON CHANGE changeIncludeSkus()
     PROPERTIES nameIncludeSkus() ON CHANGE changeIncludeSkus()
     PROPERTIES nameIncludeBarcodes() ON CHANGE changeIncludeBarcodes()
@@ -730,6 +771,7 @@ DESIGN turnoverReport {
         MOVE PROPERTY(nameIncludeLegalEntities()) { panelCaptionAbove = TRUE; }
         MOVE PROPERTY(nameIncludeBrands()) { panelCaptionAbove = TRUE; }
         MOVE PROPERTY(nameIncludeManufacturers()) { panelCaptionAbove = TRUE; }
+        MOVE PROPERTY(nameIncludeCountries()) { panelCaptionAbove = TRUE; }
         MOVE PROPERTY(nameIncludeSkuGroups()) { panelCaptionAbove = TRUE; }
         MOVE PROPERTY(nameIncludeSkus()) { panelCaptionAbove = TRUE; }
         MOVE PROPERTY(nameIncludeBarcodes()) { panelCaptionAbove = TRUE; }
