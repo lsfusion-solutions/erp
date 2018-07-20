@@ -16,6 +16,9 @@ nameImportTypeUserInvoices 'Тип импорта' () = name(importTypeUserInvoi
 importPurchaseInvoicesDirectoryDataAction 'Импортировать накладные из папки' = CUSTOM 'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesDirectoryActionProperty' ();
 importPurchaseInvoicesEmailDataAction 'Импортировать накладные из почты' = CUSTOM 'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesEmailActionProperty' ();
 
+importPurchaseInvoicesEmailLastDays 'За сколько дней импортировать накладные из почты' = DATA INTEGER();
+skip(AttachmentEmail ae) = importPurchaseInvoicesEmailLastDays() AND (daysBetweenDates(currentDate(), DATE (dateTimeSent(email(ae)))) > importPurchaseInvoicesEmailLastDays());
+
 ignoreInvoicesAfterDocumentsClosedDate 'Не принимать инвоисы по закрытым документам' = DATA BOOLEAN ();
 
 original 'Файл оригинала накладной'  = DATA CUSTOMFILE (Purchase.Invoice);
@@ -105,7 +108,7 @@ DESIGN userInvoice{
 EXTEND FORM invoices
     PROPERTIES() TODRAW d TOOLBAR importPurchaseInvoicesDataAction, nameImportTypeUserInvoices, 
                  importPurchaseInvoicesDirectoryDataAction, importPurchaseInvoicesEmailDataAction,
-                 ignoreInvoicesAfterDocumentsClosedDate
+                 ignoreInvoicesAfterDocumentsClosedDate, importPurchaseInvoicesEmailLastDays
 ;
 
 DESIGN invoices{
@@ -120,6 +123,7 @@ DESIGN invoices{
                 alignment = CENTER;
                 MOVE PROPERTY(importPurchaseInvoicesEmailDataAction());
                 MOVE PROPERTY(ignoreInvoicesAfterDocumentsClosedDate());
+                MOVE PROPERTY(importPurchaseInvoicesEmailLastDays());
             }
         }
     }
@@ -127,7 +131,7 @@ DESIGN invoices{
 
 EXTEND FORM integrationData
     PROPERTIES() TOOLBAR importPurchaseInvoicesDirectoryDataAction, importPurchaseInvoicesEmailDataAction,
-                 ignoreInvoicesAfterDocumentsClosedDate
+                 ignoreInvoicesAfterDocumentsClosedDate, importPurchaseInvoicesEmailLastDays
 ;
 
 DESIGN integrationData {
@@ -139,6 +143,7 @@ DESIGN integrationData {
                 alignment = CENTER;
                 MOVE PROPERTY(importPurchaseInvoicesEmailDataAction());
                 MOVE PROPERTY(ignoreInvoicesAfterDocumentsClosedDate());
+                MOVE PROPERTY(importPurchaseInvoicesEmailLastDays());
             }
         }
     }

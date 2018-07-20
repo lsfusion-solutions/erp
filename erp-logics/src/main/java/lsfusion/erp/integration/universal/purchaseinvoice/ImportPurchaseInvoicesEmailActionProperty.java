@@ -106,6 +106,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                     emailQuery.and(findProperty("account[Email]").getExpr(session.getModifier(), emailExpr).compare(accountObject.getExpr(), Compare.EQUALS));
                     emailQuery.and(findProperty("notImported[AttachmentEmail]").getExpr(session.getModifier(), attachmentEmailExpr).getWhere());
                     emailQuery.and(findProperty("file[AttachmentEmail]").getExpr(session.getModifier(), attachmentEmailExpr).getWhere());
+                    emailQuery.and(findProperty("skip[AttachmentEmail]").getExpr(session.getModifier(), attachmentEmailExpr).getWhere().not());
 
                     ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> emailResult = emailQuery.executeClasses(session);
 
