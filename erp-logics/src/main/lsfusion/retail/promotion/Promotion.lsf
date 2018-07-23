@@ -188,7 +188,7 @@ recalculateValueVAT (PromotionDetail d) = {
 
 price 'Стандартная цена без НДС' = DATA NUMERIC[16,4] (PromotionDetail);
 recalculatePrice (PromotionDetail d) = {
-    price(d) <- (GROUP MAX prevPriceA(defaultPriceListType(), sku(d), Stock stock, toDateTime(fromDate(d))));
+    price(d) <- (GROUP MAX prevPriceA(defaultPriceListType(), sku(d), Stock stock, toDateTime(fromDate(d)))) WHERE NOT CHANGED(price(d));
 }
 
 markup 'Стандартная наценка' = DATA NUMERIC[8,3] (PromotionDetail);
@@ -666,7 +666,7 @@ createPriceList 'Создать прайсы' (Promotion p, BOOLEAN skipCompany)
         }
         
         IF NOT skipCompany THEN {
-            FOR in(p, LegalEntity company) NEW priceList = UserPriceList DO {
+            FOR in(p, LegalEntity company) AND (GROUP SUM 1 IF promotion(PromotionDetail pd) == p AND countStocks(pd,company) AND NOT price(pd) = promotionPrice(pd)) NEW priceList = UserPriceList DO {
                 isPosted(priceList) <- TRUE;
                 fromDate(priceList) <- fromDate(p);
                 fromTime(priceList) <- 00:00;
@@ -681,7 +681,7 @@ createPriceList 'Создать прайсы' (Promotion p, BOOLEAN skipCompany)
                 in(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
                 show(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
                 
-                FOR promotion(PromotionDetail pd) == p AND countStocks(pd,company) NEW detail = UserPriceListDetail DO {
+                FOR promotion(PromotionDetail pd) == p AND countStocks(pd,company) AND NOT price(pd) = promotionPrice(pd) NEW detail = UserPriceListDetail DO {
                     priceList(detail) <- priceList;
                     sku(detail) <- sku(pd);
                     price(detail, DataPriceListType type) <- promotionPrice(pd) WHERE in(priceList, type);
