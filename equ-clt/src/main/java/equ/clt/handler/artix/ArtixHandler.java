@@ -927,9 +927,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
         }
 
-        List<SalesInfo> salesInfoList = new ArrayList<>();
-        List<CashierTime> cashierTimeList = new ArrayList<>();
         Set<String> filePathSet = new HashSet<>();
+
+        List<SalesInfo> salesInfoList = new ArrayList<>();
 
         List<File> files = new ArrayList<>();
         for(String dir : directorySet) {
@@ -984,11 +984,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     }
                                 }
                             }
-                        }
-
-                        List<CashierTime> currentCashierTimeList = readCashierTime(file, fileContent, departNumberCashRegisterMap);
-                        if(!currentCashierTimeList.isEmpty()) {
-                            cashierTimeList.addAll(currentCashierTimeList);
                         }
 
                         Pattern p = Pattern.compile("(?:.*)?### sales data begin ###(.*)### sales data end ###(?:.*)?");
@@ -1132,7 +1127,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             salesInfoList.addAll(currentSalesInfoList);
                         }
 
-                        if(currentCashierTimeList.isEmpty() && currentSalesInfoList.isEmpty()) {
+                        if(currentSalesInfoList.isEmpty()) {
                             safeFileDelete(file, false);
                         } else {
                             filePathSet.add(file.getAbsolutePath());
@@ -1143,13 +1138,52 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 }
             }
         }
+
+        List<CashierTime> cashierTimeList = new ArrayList<>();
+
+        List<File> cashierFiles = new ArrayList<>();
+        for(String dir : directorySet) {
+            File[] filesList = new File(dir).listFiles(new FileFilter() {
+                @Override
+                public boolean accept(File pathname) {
+                    return pathname.getName().startsWith("cashier") && pathname.getPath().endsWith(".json");
+                }
+            });
+            if(filesList != null)
+                cashierFiles.addAll(Arrays.asList(filesList));
+        }
+
+        if (!cashierFiles.isEmpty()) {
+            sendSalesLogger.info(String.format(logPrefix + "found %s file(s) in %s", cashierFiles.size(), directory));
+
+            for (File file : cashierFiles) {
+                if (!Thread.currentThread().isInterrupted()) {
+                    try {
+                        sendSalesLogger.info(logPrefix + "reading " + file.getName());
+                        List<CashierTime> currentCashierTimeList = readCashierTime(file, departNumberCashRegisterMap);
+                        if(!currentCashierTimeList.isEmpty()) {
+                            cashierTimeList.addAll(currentCashierTimeList);
+                        }
+                        if(currentCashierTimeList.isEmpty()) {
+                            safeFileDelete(file, false);
+                        } else {
+                            filePathSet.add(file.getAbsolutePath());
+                        }
+                    } catch (Throwable e) {
+                        sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
+                    }
+                }
+            }
+        }
+
         return (cashierTimeList.isEmpty() && salesInfoList.isEmpty() && filePathSet.isEmpty()) ? null :
                 new ArtixSalesBatch(salesInfoList, cashierTimeList, filePathSet);
     }
 
-    public List<CashierTime> readCashierTime(File file, String fileContent, Map<Integer, CashRegisterInfo> departNumberCashRegisterMap) throws JSONException, ParseException {
+    public List<CashierTime> readCashierTime(File file, Map<Integer, CashRegisterInfo> departNumberCashRegisterMap) throws JSONException, ParseException, IOException {
         List<CashierTime> result = new ArrayList<>();
 
+        String fileContent = readFile(file.getAbsolutePath(), encoding);
         Pattern p = Pattern.compile("(?:.*)?### securitylog info begin ###(.*)### securitylog info end ###(?:.*)?");
         Matcher m = p.matcher(fileContent);
         if (m.matches()) {
@@ -1166,7 +1200,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             logOnCashier = parseTimestamp(documentObject.getString("optime"));
                             numberCashier = documentObject.getString("cashiercard");
                             break;
-                        case 4:
                         case 13:
                             if (logOnCashier != null) {
                                 Timestamp logOffCashier = parseTimestamp(documentObject.getString("optime"));
@@ -1177,9 +1210,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     sendSalesLogger.error(logPrefix + String.format("CashRegister %s not found (file %s)", numberCashRegister, file.getAbsolutePath()));
                                 Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
-                                Boolean isZReport = opcode == 13 ? true : null;
-                                String idCashierTime = numberCashier + "/" + numberCashRegister + "/" + nppGroupMachinery + "/" + logOnCashier + "/" + logOffCashier + "/" + (isZReport != null ? "1" : "0");
-                                result.add(new CashierTime(idCashierTime, numberCashier, numberCashRegister, nppGroupMachinery, logOnCashier, logOffCashier, isZReport));
+                                String idCashierTime = numberCashier + "/" + numberCashRegister + "/" + nppGroupMachinery + "/" + formatTimestamp(logOnCashier) + "/" + formatTimestamp(logOffCashier);
+                                result.add(new CashierTime(idCashierTime, numberCashier, numberCashRegister, nppGroupMachinery, logOnCashier, logOffCashier, true));
                                 logOnCashier = null;
                             }
                             break;
@@ -1213,9 +1245,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(value).getTime();
     }
 
-/*    private String formatDateTime(long value) throws ParseException {
-        return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(value);
-    }*/
+    private String formatTimestamp(Timestamp date) {
+        return date == null ? null : new SimpleDateFormat("dd.MM.yyyy H:mm:ss").format(date);
+    }
 
     private String formatDate(Date value) {
         return value == null ? null : new SimpleDateFormat("yyyy-MM-dd").format(value);
