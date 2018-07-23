@@ -98,10 +98,19 @@ nameGroupsTurnover = CONCAT ', ', (OVERRIDE exprGroup1Turnover(), '\'\'') + ' AS
                                            (OVERRIDE exprGroup3Turnover(), '\'\'') + ' AS nameGroup3',
                                            (IF gSkuTurnover() THEN 'LOOKUP(sku,\'sku_barcode\')' ELSE '\'\'') + ' AS barcodeSku';
 
-isTimeGroup() = gMonthTurnover() OR gWeekTurnover() OR gDayTurnover();
+//isTimeGroup() = gMonthTurnover() OR gWeekTurnover() OR gDayTurnover();
+isTimeGroup = ABSTRACT CASE BOOLEAN ();
+isTimeGroup() += WHEN gMonthTurnover() THEN TRUE;
+isTimeGroup() += WHEN gWeekTurnover() THEN TRUE;
+isTimeGroup() += WHEN gDayTurnover() THEN TRUE;
 
-isTimeGroup2() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 2 AND ( i == 9 OR i == 10 OR i == 11));
-isTimeGroup3() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 3 AND ( i == 9 OR i == 10 OR i == 11));
+isTimeGroup = ABSTRACT CASE BOOLEAN (INTEGER);
+isTimeGroup(INTEGER i) += WHEN i == 10 THEN TRUE;
+isTimeGroup(INTEGER i) += WHEN i == 11 THEN TRUE;
+isTimeGroup(INTEGER i) += WHEN i == 12 THEN TRUE;
+
+isTimeGroup2() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 2 AND isTimeGroup(i));
+isTimeGroup3() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 3 AND isTimeGroup(i));
 printSumGroup1() = TRUE IF NOT isTimeGroup() OR NOT (isTimeGroup2() OR isTimeGroup3());
 printSumGroup2() = TRUE IF NOT isTimeGroup() OR NOT isTimeGroup3();
 
@@ -131,11 +140,13 @@ daysOnStock 'Дней на складе' = DATA LOCAL INTEGER (INTEGER);
 
 balanceB 'Остаток (кол-во)' = DATA LOCAL NUMERIC[16,5] (INTEGER);
 costBalanceB 'Остаток (себестоимость)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+VATSupplierB 'НДС поставщика' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 costVATBalanceB 'Остаток (себестоимость с НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 sumBalanceB 'Остаток (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 
 balanceA 'Остаток (кол-во)' = DATA LOCAL NUMERIC[16,5] (INTEGER);
 costBalanceA 'Остаток (себестоимость)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+VATSupplierA 'НДС поставщика' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 costVATBalanceA 'Остаток (себестоимость с НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 sumBalanceA 'Остаток (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 
@@ -149,6 +160,7 @@ isBalanceA 'Остаток на конец' = DATA LOCAL BOOLEAN ();
 
 isQuantity 'Количество' = DATA LOCAL BOOLEAN ();
 isCost 'Себестоимость' = DATA LOCAL BOOLEAN ();
+isVATSupplier 'НДС поставщика' = DATA LOCAL BOOLEAN ();
 isCostVAT 'Себестоимость с НДС' = DATA LOCAL BOOLEAN ();
 isMarkup 'Надбавка' = DATA LOCAL BOOLEAN ();
 isSum 'Сумма' = DATA LOCAL BOOLEAN ();
@@ -529,11 +541,13 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
     
     balanceB(INTEGER i) <- NULL;
     costBalanceB(INTEGER i) <- NULL;
+    VATSupplierB(INTEGER i) <- NULL;
     costVATBalanceB(INTEGER i) <- NULL;
     sumBalanceB(INTEGER i) <- NULL;
     
     balanceA(INTEGER i) <- NULL;
     costBalanceA(INTEGER i) <- NULL;
+    VATSupplierA(INTEGER i) <- NULL;
     costVATBalanceA(INTEGER i) <- NULL;
     sumBalanceA(INTEGER i) <- NULL;
     
@@ -541,6 +555,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
         query(replace('SELECT ' + values() 
              + (IF isBalanceA() AND isQuantity() THEN 'SUM(balance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS balanceA, '
              + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costBalanceA, '
+             + (IF isBalanceA() AND isVATSupplier() THEN '(SUM(costVATBalance)-SUM(costBalance))' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS VATSupplierA, '
              + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costVATBalanceA, '
              + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS sumBalanceA, '
              + nameGroupsTurnover() + ' FROM turnover'
@@ -556,8 +571,8 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
                                           quantityPurchase = quantityPurchase, sumMinusVATPurchase = sumMinusVATPurchase,
                                           sumVATPurchase = sumVATPurchase, sumPurchase = sumPurchase, sumPricePurchase = sumPricePurchase,
                                           turnover = turnover, costBalance = costBalance, balanceA = balanceA, costBalanceA = costBalanceA,
-                                          costVATBalanceA = costVATBalanceA, sumBalanceA = sumBalanceA, daysOnStock = daysOnStock,
-                                          barcodeSku = barcodeSku;
+                                          VATSupplierA = VATSupplierA, costVATBalanceA = costVATBalanceA, sumBalanceA = sumBalanceA,
+                                          daysOnStock = daysOnStock, barcodeSku = barcodeSku;
     } ELSE {
         query(replace('SELECT ' + values() 
              + nameGroupsTurnover() + ' FROM turnover'
@@ -581,16 +596,19 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
         LOCAL localBarcodeSku = VARSTRING[15] (INTEGER);
         LOCAL localBalanceB = NUMERIC[16,5] (INTEGER);
         LOCAL localCostBalanceB = NUMERIC[18,4] (INTEGER);
+        LOCAL localVATSupplierB = NUMERIC[18,4] (INTEGER);
         LOCAL localCostVATBalanceB = NUMERIC[18,4] (INTEGER);
         LOCAL localSumBalanceB = NUMERIC[18,4] (INTEGER);
         LOCAL localBalanceA = NUMERIC[16,5] (INTEGER);
         LOCAL localCostBalanceA = NUMERIC[18,4] (INTEGER);
+        LOCAL localVATSupplierA = NUMERIC[18,4] (INTEGER);
         LOCAL localCostVATBalanceA = NUMERIC[18,4] (INTEGER);
         LOCAL localSumBalanceA = NUMERIC[18,4] (INTEGER);
         
         query(replace('SELECT '
             + (IF isBalanceB() AND isQuantity() THEN 'SUM(balance)' ELSE '\'\'') + ' AS balanceB, '
             + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceB, '
+            + (IF isBalanceB() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance)' ELSE '\'\'') + ' AS VATSupplierB, '
             + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceB, '
             + (IF isBalanceB() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceB, '
             + nameGroupsTurnover() + ' FROM turnover'
@@ -600,12 +618,13 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
             + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
         IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
-                                          localBalanceB = balanceB, localCostBalanceB = costBalanceB, localCostVATBalanceB = costVATBalanceB,
-                                          localSumBalanceB = sumBalanceB, localBarcodeSku = barcodeSku;
+                                          localBalanceB = balanceB, localCostBalanceB = costBalanceB, localVATSupplierB = VATSupplierB,
+                                          localCostVATBalanceB = costVATBalanceB, localSumBalanceB = sumBalanceB, localBarcodeSku = barcodeSku;
         
         FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1Turnover(n), nameGroup2Turnover(n), nameGroup3Turnover(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
             balanceB(number) <- localBalanceB(i);
             costBalanceB(number) <- localCostBalanceB(i);
+            VATSupplierB(number) <- localVATSupplierB(i);
             costVATBalanceB(number) <- localCostVATBalanceB(i);
             sumBalanceB(number) <- localSumBalanceB(i);
         }
@@ -613,6 +632,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
         query(replace('SELECT '
             + (IF isBalanceA() AND isQuantity() THEN 'SUM(balance)' ELSE '\'\'') + ' AS balanceA, '
             + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceA, '
+            + (IF isBalanceA() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance)' ELSE '\'\'') + ' AS VATSupplierA, '
             + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceA, '
             + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceA, '
             + nameGroupsTurnover() + ' FROM turnover'
@@ -622,12 +642,13 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
             + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
             
         IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
-                                          localBalanceA = balanceA, localCostBalanceA = costBalanceA, localCostVATBalanceA = costVATBalanceA,
-                                          localSumBalanceA = sumBalanceA, localBarcodeSku = barcodeSku;
+                                          localBalanceA = balanceA, localCostBalanceA = costBalanceA, localVATSupplierA = VATSupplierA,
+                                          localCostVATBalanceA = costVATBalanceA, localSumBalanceA = sumBalanceA, localBarcodeSku = barcodeSku;
         
         FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1Turnover(n), nameGroup2Turnover(n), nameGroup3Turnover(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
             balanceA(number) <- localBalanceA(i);
             costBalanceA(number) <- localCostBalanceA(i);
+            VATSupplierA(number) <- localVATSupplierA(i);
             costVATBalanceA(number) <- localCostVATBalanceA(i);
             sumBalanceA(number) <- localSumBalanceA(i);
         }
