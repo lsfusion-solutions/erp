@@ -6,7 +6,123 @@ REQUIRE PurchaseInvoice,
 
 NAMESPACE Purchase;
 
-@defineInvoiceConsignment(supplier, customer);
+TABLE purchaseConsignmentInvoice(Invoice);
+
+payer (invoice) = DATA LegalEntity (Invoice) TABLE purchaseConsignmentInvoice IN carConsignment;
+
+dataTruck (invoice) = DATA Truck (Invoice) TABLE purchaseConsignmentInvoice;
+nameDataTruck 'Автомобиль' (Invoice invoice) = name(dataTruck(invoice)) IN carConsignment;
+dataTrailer 'Прицеп' (invoice) = DATA VARSTRING[50] (Invoice) TABLE purchaseConsignmentInvoice IN carConsignment;
+dataEmployee (invoice) = DATA Employee (Invoice) TABLE purchaseConsignmentInvoice;
+nameDataEmployee 'Водитель' (Invoice invoice) = name[Contact](dataEmployee(invoice)) IN carConsignment;
+waybill 'Путевой лист' (invoice) = DATA VARSTRING[20] (Invoice) TABLE purchaseConsignmentInvoice IN carConsignment;
+
+dataAddressSupplierStock 'Пункт погрузки' (invoice) = DATA VARSTRING[150] (Invoice) TABLE purchaseConsignmentInvoice;
+dataAddressCustomerStock 'Пункт разгрузки' (invoice) = DATA VARSTRING[150] (Invoice) TABLE purchaseConsignmentInvoice;
+
+readdressing 'Переадресовка' (invoice) = DATA VARSTRING[50] (Invoice) TABLE purchaseConsignmentInvoice IN carConsignment;
+
+overShipmentBase 'Основание отпуска' (invoice) = DATA VARSTRING[100] (Invoice) TABLE purchaseConsignmentInvoice IN issuanceConsignment;
+
+issuanceAllowed (invoice) = DATA Employee(Invoice) TABLE purchaseConsignmentInvoice;
+
+issuanceExecuted (invoice) = DATA Employee(Invoice) TABLE purchaseConsignmentInvoice;
+
+dataForwarder (invoice) = DATA Employee (Invoice) TABLE purchaseConsignmentInvoice IN issuanceConsignment;
+forwarder 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (Invoice invoice)= name[Contact](dataForwarder(invoice));
+
+warrant 'По доверенности (номер, дата)' (invoice) = DATA VARSTRING[30] (Invoice) TABLE purchaseConsignmentInvoice IN issuanceConsignment;
+warrantHolder 'По доверенности выданной (наименование орг-ии)' (invoice) = DATA VARSTRING[200] (Invoice) TABLE purchaseConsignmentInvoice IN issuanceConsignment;
+
+goodsAccepted 'Принял грузополучатель' (invoice) = DATA VARSTRING[150] (Invoice) TABLE purchaseConsignmentInvoice IN issuanceConsignment;    
+sealNumberSupplier (invoice) = DATA VARSTRING[50] (Invoice) TABLE purchaseConsignmentInvoice IN issuanceConsignment;
+sealNumberCustomer (invoice) = DATA VARSTRING[50] (Invoice) TABLE purchaseConsignmentInvoice IN issuanceConsignment;
+
+loadingExecuter (invoice) = DATA LegalEntity(Invoice) TABLE purchaseConsignmentInvoice;
+wayOfLoading (invoice) = DATA WayOfLoading(Invoice) TABLE purchaseConsignmentInvoice;
+
+unloadingExecuter (invoice) = DATA LegalEntity(Invoice) TABLE purchaseConsignmentInvoice;
+wayOfUnloading (invoice) = DATA WayOfLoading(Invoice) TABLE purchaseConsignmentInvoice;
+
+codeLoading 'Код ПРР' (invoice) = DATA STRING[3] (Invoice) TABLE purchaseConsignmentInvoice IN loadingConsignment;
+
+defaultArrivalTime = ABSTRACT DATETIME(Invoice);
+arrivalTime 'Время прибытия' (invoice) = DATA DATETIME(Invoice) TABLE purchaseConsignmentInvoice IN carConsignment;
+downtime 'Время простоя' (invoice) = DATA INTEGER (Invoice) TABLE purchaseConsignmentInvoice IN carConsignment;
+defaultDowntime (invoice) = ABSTRACT INTEGER (Invoice) IN carConsignment;
+raceQuantity 'Количество ездок' (invoice) = DATA INTEGER (Invoice) TABLE purchaseConsignmentInvoice IN carConsignment;
+raceQuantity(Invoice o) <- 1 WHEN SET(o IS Invoice);
+
+countPages 'Кол-во страниц в приложении' (invoice) = DATA INTEGER (Invoice) TABLE purchaseConsignmentInvoice;
+
+additionalDocuments 'С товаром переданы документы' (invoice) = DATA VARSTRING[250] (Invoice) TABLE purchaseConsignmentInvoice;
+
+EXTEND FORM  invoices
+    PROPERTIES(i)  editAttributes
+    PROPERTIES(i) SHOWIF showTTN1(i) READONLYIF banPrint(i)
+                     printVerticalA, printVerticalAB, printHorizontalA,
+                     printVerticalB, printHorizontalB, printAttach, printVerticalABAttach,
+                     printVertical, printHorizontal, printHorizontalAB, printAttachXLS, printSimpleAttachXLS, 
+                     printVerticalAttach, printHorizontalAttach 
+    PROPERTIES(i) SHOWIF showTN2(i) READONLYIF banPrint(i)
+                     printSimpleHorizontal, printSimpleVertical, printSimpleAttach, printSimpleVerticalAttach, printSimpleHorizontalAttach
+;
+
+DESIGN invoices {
+    printTab {
+        NEW consignmentRow1 {
+            align = START;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(i)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn2 {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'ТН-2';
+                MOVE PROPERTY(printSimpleVertical(i));
+                MOVE PROPERTY(printSimpleHorizontal(i));
+                MOVE PROPERTY(printSimpleAttach(i));
+                MOVE PROPERTY(printSimpleVerticalAttach(i));
+                MOVE PROPERTY(printSimpleHorizontalAttach(i));
+            }
+        }
+        NEW consignmentRow2 {
+            align = START;
+            type = COLUMNS;
+            columns = 3;
+            caption = 'ТТН-1';
+            MOVE PROPERTY(printVerticalA(i));
+            MOVE PROPERTY(printVerticalAB(i));
+            MOVE PROPERTY(printHorizontalA(i));
+            MOVE PROPERTY(printVerticalB(i));
+            MOVE PROPERTY(printHorizontalB(i));                
+            MOVE PROPERTY(printAttach(i));      
+            MOVE PROPERTY(printVertical(i));  
+            MOVE PROPERTY(printHorizontal(i));
+            MOVE PROPERTY(printHorizontalAB(i));
+            MOVE PROPERTY(printVerticalAttach(i));                
+            MOVE PROPERTY(printVerticalABAttach(i)); 
+            MOVE PROPERTY(printHorizontalAttach(i));                
+        }
+        NEW consignmentRow3 {
+            type = CONTAINERH;            
+            NEW export {
+                type = CONTAINERH;
+                caption = 'Экспорт';  
+                MOVE PROPERTY(printAttachXLS(i));  
+                MOVE PROPERTY(printSimpleAttachXLS(i));                                                 
+            }
+        }    
+    }
+}
 
 @implementConsignmentDocumentHeaderPrefix (invoice, invoice, Invoice);
 
@@ -14,7 +130,7 @@ consignmentType (Invoice consignment) += consignmentType(operation(consignment))
 ownerTrackType (Invoice consignment) += ownerTrackType(operation(consignment));
 banPrint (Invoice consignment) += WHEN banOpenedPrint(operation(consignment)) AND NOT isPosted(consignment)THEN TRUE;
 
-@deriveConsignmentPropertyALL(supplierStock);
+@deriveConsignmentPropertyALL(invoice ,supplierStock);
 
 notUseDriverTruck(Invoice c) += notUseDriverTruck(operation(c));
 
@@ -38,8 +154,8 @@ defaultTruck(Invoice consignment) += WHEN NOT isSupplier(operation(consignment))
 driver(Invoice consignment) += WHEN isSupplier(operation(consignment)) AND driver(supplier(consignment)) THEN driver(supplier(consignment));
 driver(Invoice consignment) += WHEN NOT isSupplier(operation(consignment)) AND driver(customer(consignment)) THEN driver(customer(consignment));
 
-invoiceNumber 'Номер ТТН' = DATA VARSTRING[28] (Invoice) IN numbered CHARWIDTH 7;
-invoiceSeries 'Серия ТТН' = DATA STRING[2] (Invoice) IN numbered FIXEDCHARWIDTH 3; 
+invoiceNumber 'Номер ТТН' = DATA VARSTRING[28] (Invoice) TABLE purchaseConsignmentInvoice IN numbered CHARWIDTH 7;
+invoiceSeries 'Серия ТТН' = DATA STRING[2] (Invoice) TABLE purchaseConsignmentInvoice IN numbered FIXEDCHARWIDTH 3; 
 
 overSeriesNumber(Invoice c) += STRING[31](CONCAT '', invoiceSeries(c), invoiceNumber(c));
 
