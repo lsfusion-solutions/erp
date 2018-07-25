@@ -50,6 +50,7 @@ active (OrderLedger ledger) = isPosted(ledger) AND isOpened(ledger) AND NOT skip
 activePurchase (OrderLedger ledger) = active(ledger) AND isPurchase(ledger);
 activeSale (OrderLedger ledger) = active(ledger) AND NOT isPurchase(ledger);
 
+show 'Просмотреть' = ABSTRACT MULTI (OrderLedger) TOOLBAR;
 //-------------------------------Продажа----------------------------------//
 
 //по SKU
@@ -196,6 +197,10 @@ prevAvailableQuantity 'Доступное к-во' (Batch batch, Stock stock, DA
 
 //---------------------------------------------- Формы продаж -------------------------------------//
 
+overShowEdit = ABSTRACT BOOLEAN (OrderLedger);
+skipShowEdit = ABSTRACT BOOLEAN (OrderLedger);
+showToShow (OrderLedger o) = o IS OrderLedger AND NOT overShowEdit(o);
+
 FORM orderSkuLedgerStocksNotDate 'Резерв товара'
 
     OBJECTS sk = Sku PANEL
@@ -205,7 +210,8 @@ FORM orderSkuLedgerStocksNotDate 'Резерв товара'
     PROPERTIES(s) READONLY BACKGROUND backgroundReserve(s) statusReserve
     PROPERTIES(s) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description, nameStock,
                   toShipQuantity, quantity
-    PROPERTIES(s) NEWSESSION EDIT
+    PROPERTIES show(s) SHOWIF showToShow(s)
+    PROPERTIES(s) NEWSESSION EDIT SHOWIF overShowEdit(s)
     ORDER statusReserve(s), dateTime(s)
     FILTERS sku(s)==sk
 
@@ -240,7 +246,8 @@ FORM orderSkuLedgerNotDate 'Резерв товара по складу'
     PROPERTIES(s) READONLY BACKGROUND backgroundReserve(s) statusReserve
     PROPERTIES(s) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                   toShipQuantity, quantity
-    PROPERTIES(s) NEWSESSION EDIT
+    PROPERTIES show(s) SHOWIF showToShow(s)                  
+    PROPERTIES(s) NEWSESSION EDIT SHOWIF overShowEdit(s)
     ORDER statusReserve(s), dateTime(s)
     FILTERS stock(s)==st,
             sku(s)==sk
@@ -312,7 +319,8 @@ FORM orderSkuLedger 'Резерв по позициям на дату'
     PROPERTIES(s) READONLY BACKGROUND background(s,t) date, 
                   dateTime, nameContact, nameContactStock, description,
                   toShipQuantity, quantity
-    PROPERTIES(s) NEWSESSION EDIT
+    PROPERTIES show(s) SHOWIF showToShow(s)                  
+    PROPERTIES(s) NEWSESSION EDIT SHOWIF overShowEdit(s)
     ORDER statusReserve(s)
     FILTERS stock(s)==st,
             sku(s)==sk
@@ -357,7 +365,8 @@ FORM orderBatchLedgerNotDate 'Резерв по партиям'
     PROPERTIES(s) READONLY date, 
                   dateTime, nameContact, nameContactStock, description,
                   toShipQuantity, quantity
-    PROPERTIES(s) NEWSESSION EDIT
+    PROPERTIES show(s) SHOWIF showToShow(s)                  
+    PROPERTIES(s) NEWSESSION EDIT SHOWIF overShowEdit(s)
     ORDER statusReserve(s), dateTime(s)
     FILTERS stock(s)==st,
             batch(s)==bt
@@ -400,7 +409,8 @@ FORM orderBatchLedger 'Резерв по партиям'
     PROPERTIES(s) READONLY BACKGROUND background(s,t) date, 
                   dateTime, nameContact, nameContactStock, description,
                   toShipQuantity, quantity
-    PROPERTIES(s) NEWSESSION EDIT
+    PROPERTIES show(s) SHOWIF showToShow(s)                  
+    PROPERTIES(s) NEWSESSION EDIT SHOWIF overShowEdit(s)
     ORDER statusReserve(s)
     FILTERS stock(s)==st,
             batch(s)==bt
@@ -545,7 +555,8 @@ EXTEND FORM currentBalanceSkuStock
     OBJECTS l = OrderLedger
     PROPERTIES(l) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                   quantity, toShipQuantity
-
+    PROPERTIES show(l) SHOWIF showToShow(l)                   
+    PROPERTIES(l) NEWSESSION EDIT SHOWIF overShowEdit(l)
     FILTERS stock(l)==st,
             sku(l)==s
 
@@ -554,7 +565,8 @@ EXTEND FORM currentBalanceSkuStock
     OBJECTS ll = OrderLedger
     PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                    quantity, toShipQuantity
-    PROPERTIES(ll) NEWSESSION EDIT
+    PROPERTIES show(ll) SHOWIF showToShow(ll)                   
+    PROPERTIES(ll) NEWSESSION EDIT SHOWIF overShowEdit(ll)
 
     FILTERS stock(ll)==st,
             sku(ll)==s
@@ -577,7 +589,8 @@ EXTEND FORM currentBalanceBatchStock
     OBJECTS l = OrderLedger
     PROPERTIES(l) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                   quantity, toShipQuantity
-
+    PROPERTIES show(l) SHOWIF showToShow(l)                   
+    PROPERTIES(l) NEWSESSION EDIT SHOWIF overShowEdit(l)
     FILTERS stock(l)==st,
             batch(l)==bt
 
@@ -586,7 +599,8 @@ EXTEND FORM currentBalanceBatchStock
     OBJECTS ll = OrderLedger
     PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                    quantity, toShipQuantity
-    PROPERTIES(ll) NEWSESSION EDIT
+    PROPERTIES show(ll) SHOWIF showToShow(ll)                   
+    PROPERTIES(ll) NEWSESSION EDIT SHOWIF overShowEdit(ll)
 
     FILTERS stock(ll)==st,
             batch(ll)==bt
@@ -614,7 +628,8 @@ EXTEND FORM balanceSkuStock
     OBJECTS l = OrderLedger
     PROPERTIES(l) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                   quantity, toShipQuantity
-
+    PROPERTIES show(l) SHOWIF showToShow(l)                   
+    PROPERTIES(l) NEWSESSION EDIT SHOWIF overShowEdit(l)
     FILTERS stock(l)==st,
             sku(l)==s,
             dateTime(l) <= t
@@ -624,7 +639,8 @@ EXTEND FORM balanceSkuStock
     OBJECTS ll = OrderLedger
     PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                    quantity, toShipQuantity
-    PROPERTIES(ll) NEWSESSION EDIT
+    PROPERTIES show(ll) SHOWIF showToShow(ll)                   
+    PROPERTIES(ll) NEWSESSION EDIT SHOWIF overShowEdit(ll)
 
     FILTERS stock(ll)==st,
             sku(ll)==s,
@@ -648,7 +664,8 @@ EXTEND FORM balanceBatchStock
     OBJECTS l = OrderLedger
     PROPERTIES(l) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                   quantity, toShipQuantity
-
+    PROPERTIES show(l) SHOWIF showToShow(l)                   
+    PROPERTIES(l) NEWSESSION EDIT SHOWIF overShowEdit(l)
     FILTERS stock(l)==st,
             batch(l)==bt,
             dateTime(l) <= t
@@ -658,7 +675,8 @@ EXTEND FORM balanceBatchStock
     OBJECTS ll = OrderLedger
     PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                    quantity, toShipQuantity
-    PROPERTIES(ll) NEWSESSION EDIT
+    PROPERTIES show(ll) SHOWIF showToShow(ll)                   
+    PROPERTIES(ll) NEWSESSION EDIT SHOWIF overShowEdit(ll)
 
     FILTERS stock(ll)==st,
             batch(ll)==bt,
@@ -901,3 +919,8 @@ META extendFormDocumentBatchStockOrderLedgerAll(object, form, concrete)
         PROPERTIES SHOWIF sh##concrete##wBatch(concrete) AFTER prevAvailableQuantity(b, sto, concrete) allAvailable###object (b, sto) ON CHANGE changeAllAvailable(b, concrete, sto)
     ;
 END
+
+//-- Запрет на изменение документа другим пользователем
+@defineOperationChangesDocument(orderLedger, OrderLedger, preventChangesDocument, created);
+
+overShowEdit (OrderLedger i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);

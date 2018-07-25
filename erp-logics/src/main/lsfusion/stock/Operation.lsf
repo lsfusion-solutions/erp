@@ -12,6 +12,10 @@ overName 'Наименование' = OVERRIDE nameReturn(Operation o), name(o) 
 id 'ID' = ABSTRACT VARISTRING[100](Operation);
 
 preventChangesDocument 'Запретить редактирование' = ABSTRACT BOOLEAN (UserRole, Operation);
+preventChangesDocument (User user, Operation operation) = preventChangesDocument(mainRole(user), operation);
+
+countDaysDocument 'Количество дней для запрета' = ABSTRACT INTEGER (UserRole, Operation);
+countDaysDocument (User user, Operation operation) = countDaysDocument(mainRole(user), operation);
 
 FORM operationDialogOperations 'Операции'
     OBJECTS o = Operation.Operation
@@ -511,6 +515,7 @@ META defineOperationRole(dumb)
     
     countDaysDocument 'Количество дней для запрета' = DATA INTEGER (UserRole, Operation);
     countDaysDocument (User user, Operation operation) = countDaysDocument(mainRole(user), operation);
+    Operation.countDaysDocument (UserRole role, Operation operation) += countDaysDocument(role, operation);
     
     preventCloseDocument 'Запретить закрытие' = DATA BOOLEAN (UserRole, Operation);
     preventCloseDocument (User user, Operation operation) = preventCloseDocument(mainRole(user), operation);
