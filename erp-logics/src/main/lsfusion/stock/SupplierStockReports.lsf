@@ -156,39 +156,39 @@ FORM supplierStockReportPrint 'По поставщикам'
 supplierReportPrint 'Отчет по поставщику (xls)' (Stock st,DATE dFrom,DATE dTo) = {
     resetLocSup();
     
-    quantityPurchaseSupplierFromToLocal (Sku sku) <- (GROUP SUM quantityPurchaseSupplier(sku, Stock stock, st, DATE date) IF date >= dFrom AND date <= dTo 
-        AND inReport(stock)) WHERE inSession(sku);
-    sumPurchaseSupplierFromToLocal (Sku sku) <- (GROUP SUM sumPurchaseSupplier(sku, Stock stock, st, DATE date) IF date >= dFrom AND date <= dTo 
-        AND inReport(stock)) WHERE inSession(sku);   
-    averagePricePurchaseSupplierLocal (Sku sku) <- NUMERIC[18,4](sumPurchaseSupplierFromToLocal(sku) / quantityPurchaseSupplierFromToLocal(sku) IF quantityPurchaseSupplierFromToLocal(sku)!=0.0) WHERE inSession(sku);         
+    quantityPurchaseSupplierFromToLocal (Sku sku) <- GROUP SUM quantityPurchaseSupplier(sku, Stock stock, st, DATE date) IF date >= dFrom AND date <= dTo 
+        AND inReport(stock) AND inSession(sku);
+    sumPurchaseSupplierFromToLocal (Sku sku) <- GROUP SUM sumPurchaseSupplier(sku, Stock stock, st, DATE date) IF date >= dFrom AND date <= dTo 
+        AND inReport(stock) AND inSession(sku);   
+    averagePricePurchaseSupplierLocal (Sku sku) <- NUMERIC[18,4](sumPurchaseSupplierFromToLocal(sku) / quantityPurchaseSupplierFromToLocal(sku) IF quantityPurchaseSupplierFromToLocal(sku)!=0.0 AND inSession(sku));         
 
-    quantitySoldSupplierLocal (Sku sku) <- [= GROUP SUM quantitySold(Batch batch, Stock stock, DATE date) IF date >= dFrom AND date <= dTo AND inReport(stock) 
-        BY sku(batch), supplierStock(batch)](sku, st) WHERE inSession(sku); 
-    sumSoldSupplierLocal (Sku sku) <- [= GROUP SUM sumSold(Batch batch, Stock stock, DATE date) IF date >= dFrom AND date <= dTo AND inReport(stock) 
-        BY sku(batch), supplierStock(batch)](sku, st) WHERE inSession(sku);    
-    averagePriceSupplierLocal (Sku sku) <- NUMERIC[18,4](sumSoldSupplierLocal(sku) / (quantitySoldSupplierLocal(sku) IF quantitySoldSupplierLocal(sku) !=0)) WHERE inSession(sku);
+    quantitySoldSupplierLocal (Sku sku) <- [= GROUP SUM quantitySold(Batch batch, Stock stock, DATE date) IF date >= dFrom AND date <= dTo AND inReport(stock) AND inSession(sku(batch))  
+        BY sku(batch), supplierStock(batch)](sku, st); 
+    sumSoldSupplierLocal (Sku sku) <- [= GROUP SUM sumSold(Batch batch, Stock stock, DATE date) IF date >= dFrom AND date <= dTo AND inReport(stock) AND inSession(sku(batch)) 
+        BY sku(batch), supplierStock(batch)](sku, st);    
+    averagePriceSupplierLocal (Sku sku) <- NUMERIC[18,4](sumSoldSupplierLocal(sku) / (quantitySoldSupplierLocal(sku) IF quantitySoldSupplierLocal(sku) !=0) AND inSession(sku));
 
     sumSaleSupplierLocal (Sku sku) <- NUMERIC[18,4]([= GROUP SUM quantitySold(Batch batch, Stock stock, DATE date)* invoicePriceInvoiceDetail(batch)
-        IF date >= dFrom AND date <= dTo AND inReport(stock) BY sku(batch), supplierStock(batch)](sku, st)) WHERE inSession(sku);   
-    averageSalePriceSupplierLocal (Sku sku) <-  NUMERIC[18,4](sumSaleSupplierLocal(sku) / (quantitySoldSupplierLocal(sku) IF quantitySoldSupplierLocal(sku) !=0)) WHERE inSession(sku);     
+        IF date >= dFrom AND date <= dTo AND inReport(stock) AND inSession(sku(batch)) BY sku(batch), supplierStock(batch)](sku, st));   
+    averageSalePriceSupplierLocal (Sku sku) <-  NUMERIC[18,4](sumSaleSupplierLocal(sku) / (quantitySoldSupplierLocal(sku) IF quantitySoldSupplierLocal(sku) !=0) AND inSession(sku));     
 
-    balanceASupplierToLocal(Sku sku)  <- [= GROUP SUM balanceA(Batch batch, Stock stock, dTo) IF inReport(stock) BY sku(batch), supplierStock(batch)](sku, st) WHERE inSession(sku);    
+    balanceASupplierToLocal(Sku sku)  <- [= GROUP SUM balanceA(Batch batch, Stock stock, dTo) IF inReport(stock) AND inSession(sku(batch)) BY sku(batch), supplierStock(batch)](sku, st);    
 
     supplierSumPurchaseSupplierFromToLocal(Sku sku) <- (GROUP SUM (sumPurchaseSupplier(sku, Stock stock, st, DATE date) (-)
-        sumVATPurchaseSupplier (sku, stock, st, date)) IF date >= dFrom AND date <= dTo AND inReport(stock)) WHERE inSession(sku);  
+        sumVATPurchaseSupplier (sku, stock, st, date)) IF date >= dFrom AND date <= dTo AND inReport(stock) AND inSession(sku));  
     supplierSumSaleSupplierLocal(Sku sku) <- NUMERIC[18,4]([= GROUP SUM quantitySold(Batch batch, Stock stock, DATE date)* priceInvoiceDetail(batch) 
-        IF date >= dFrom AND date <= dTo AND inReport(stock) BY sku(batch), supplierStock(batch)](sku, st)) WHERE inSession(sku); 
-    balanceBSupplierFromLocal(Sku sku) <- [= GROUP SUM balanceB(Batch batch, Stock stock, dFrom) IF inReport(stock) BY sku(batch), supplierStock(batch)](sku, st) WHERE inSession(sku);
+        IF date >= dFrom AND date <= dTo AND inReport(stock) AND inSession(sku(batch)) BY sku(batch), supplierStock(batch)](sku, st)); 
+    balanceBSupplierFromLocal(Sku sku) <- [= GROUP SUM balanceB(Batch batch, Stock stock, dFrom) IF inReport(stock) AND inSession(sku(batch)) BY sku(batch), supplierStock(batch)](sku, st);
 
     sumBSupplierFromLocal(Sku sku) <- NUMERIC[18,4]([= GROUP SUM balanceB(Batch batch, Stock stock, dFrom) * invoicePriceInvoiceDetail(batch) 
-        IF inReport(stock) BY sku(batch), supplierStock(batch)](sku, st)) WHERE inSession(sku); 
+        IF inReport(stock) AND inSession(sku(batch)) BY sku(batch), supplierStock(batch)](sku, st)); 
     sumASupplierToLocal(Sku sku) <- NUMERIC[18,4]([= GROUP SUM balanceA(Batch batch, Stock stock, dTo) * invoicePriceInvoiceDetail(batch) 
-        IF inReport(stock) BY sku(batch), supplierStock(batch)](sku, st)) WHERE inSession(sku);
+        IF inReport(stock) AND inSession(sku(batch))  BY sku(batch), supplierStock(batch)](sku, st));
     
     supplierSumBSupplierFromLocal(Sku sku) <- NUMERIC[18,4]([= GROUP SUM balanceB(Batch batch, Stock stock, dFrom) * priceInvoiceDetail(batch) 
-        IF inReport(stock) BY sku(batch), supplierStock(batch)](sku, st)) WHERE inSession(sku);
+        IF inReport(stock) AND inSession(sku(batch)) BY sku(batch), supplierStock(batch)](sku, st));
     supplierSumASupplierToLocal(Sku sku) <- NUMERIC[18,4]([= GROUP SUM balanceA(Batch batch, Stock stock, dTo) * priceInvoiceDetail(batch) 
-        IF inReport(stock) BY sku(batch), supplierStock(batch)](sku, st)) WHERE inSession(sku); 
+        IF inReport(stock) AND inSession(sku(batch)) BY sku(batch), supplierStock(batch)](sku, st)); 
 }
 
 supplierReportPrintXLS 'Отчет по поставщику (xls)' (Stock st,DATE dFrom,DATE dTo) = {
