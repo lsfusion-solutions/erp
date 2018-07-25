@@ -605,52 +605,56 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
         LOCAL localCostVATBalanceA = NUMERIC[18,4] (INTEGER);
         LOCAL localSumBalanceA = NUMERIC[18,4] (INTEGER);
         
-        query(replace('SELECT '
-            + (IF isBalanceB() AND isQuantity() THEN 'SUM(balance)' ELSE '\'\'') + ' AS balanceB, '
-            + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceB, '
-            + (IF isBalanceB() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance)' ELSE '\'\'') + ' AS VATSupplierB, '
-            + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceB, '
-            + (IF isBalanceB() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceB, '
-            + nameGroupsTurnover() + ' FROM turnover'
-            + ' WHERE __time = TIME_PARSE(\'' + sum(dateFrom,-1) + '\',\'yyyy-MM-dd\')'
-            + filter()
-            + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
-            + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+        IF isBalanceB() THEN {
+            query(replace('SELECT '
+                + (IF isBalanceB() AND isQuantity() THEN 'SUM(balance)' ELSE '\'\'') + ' AS balanceB, '
+                + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceB, '
+                + (IF isBalanceB() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance)' ELSE '\'\'') + ' AS VATSupplierB, '
+                + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceB, '
+                + (IF isBalanceB() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceB, '
+                + nameGroupsTurnover() + ' FROM turnover'
+                + ' WHERE __time = TIME_PARSE(\'' + sum(dateFrom,-1) + '\',\'yyyy-MM-dd\')'
+                + filter()
+                + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
+                + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+                
+            IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
+                                              localBalanceB = balanceB, localCostBalanceB = costBalanceB, localVATSupplierB = VATSupplierB,
+                                              localCostVATBalanceB = costVATBalanceB, localSumBalanceB = sumBalanceB, localBarcodeSku = barcodeSku;
             
-        IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
-                                          localBalanceB = balanceB, localCostBalanceB = costBalanceB, localVATSupplierB = VATSupplierB,
-                                          localCostVATBalanceB = costVATBalanceB, localSumBalanceB = sumBalanceB, localBarcodeSku = barcodeSku;
-        
-        FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1Turnover(n), nameGroup2Turnover(n), nameGroup3Turnover(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
-            balanceB(number) <- localBalanceB(i);
-            costBalanceB(number) <- localCostBalanceB(i);
-            VATSupplierB(number) <- localVATSupplierB(i);
-            costVATBalanceB(number) <- localCostVATBalanceB(i);
-            sumBalanceB(number) <- localSumBalanceB(i);
+            FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1Turnover(n), nameGroup2Turnover(n), nameGroup3Turnover(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
+                balanceB(number) <- localBalanceB(i);
+                costBalanceB(number) <- localCostBalanceB(i);
+                VATSupplierB(number) <- localVATSupplierB(i);
+                costVATBalanceB(number) <- localCostVATBalanceB(i);
+                sumBalanceB(number) <- localSumBalanceB(i);
+            }
         }
         
-        query(replace('SELECT '
-            + (IF isBalanceA() AND isQuantity() THEN 'SUM(balance)' ELSE '\'\'') + ' AS balanceA, '
-            + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceA, '
-            + (IF isBalanceA() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance)' ELSE '\'\'') + ' AS VATSupplierA, '
-            + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceA, '
-            + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceA, '
-            + nameGroupsTurnover() + ' FROM turnover'
-            + ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
-            + filter()
-            + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
-            + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+        IF isBalanceA() THEN {
+            query(replace('SELECT '
+                + (IF isBalanceA() AND isQuantity() THEN 'SUM(balance)' ELSE '\'\'') + ' AS balanceA, '
+                + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceA, '
+                + (IF isBalanceA() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance)' ELSE '\'\'') + ' AS VATSupplierA, '
+                + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceA, '
+                + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceA, '
+                + nameGroupsTurnover() + ' FROM turnover'
+                + ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+                + filter()
+                + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
+                + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+                
+            IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
+                                              localBalanceA = balanceA, localCostBalanceA = costBalanceA, localVATSupplierA = VATSupplierA,
+                                              localCostVATBalanceA = costVATBalanceA, localSumBalanceA = sumBalanceA, localBarcodeSku = barcodeSku;
             
-        IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3,
-                                          localBalanceA = balanceA, localCostBalanceA = costBalanceA, localVATSupplierA = VATSupplierA,
-                                          localCostVATBalanceA = costVATBalanceA, localSumBalanceA = sumBalanceA, localBarcodeSku = barcodeSku;
-        
-        FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1Turnover(n), nameGroup2Turnover(n), nameGroup3Turnover(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
-            balanceA(number) <- localBalanceA(i);
-            costBalanceA(number) <- localCostBalanceA(i);
-            VATSupplierA(number) <- localVATSupplierA(i);
-            costVATBalanceA(number) <- localCostVATBalanceA(i);
-            sumBalanceA(number) <- localSumBalanceA(i);
+            FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1Turnover(n), nameGroup2Turnover(n), nameGroup3Turnover(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
+                balanceA(number) <- localBalanceA(i);
+                costBalanceA(number) <- localCostBalanceA(i);
+                VATSupplierA(number) <- localVATSupplierA(i);
+                costVATBalanceA(number) <- localCostVATBalanceA(i);
+                sumBalanceA(number) <- localSumBalanceA(i);
+            }
         }
     }                                
 }
