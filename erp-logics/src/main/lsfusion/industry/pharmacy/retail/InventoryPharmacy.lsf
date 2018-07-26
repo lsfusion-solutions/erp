@@ -22,6 +22,9 @@ CONSTRAINT isRetailPharmacy(Inventory li) AND countListInventory(li)>1.0
 TABLE batchPageInventory (Batch, PageInventory);    
 currentPrice 'Розничная цена' (Batch batch, PageInventory li) = prevAccountPriceB(batch, stock(listInventory(li)), dateTime(listInventory(li))) MATERIALIZED;
 
+quantity 'Кол-во в описи' = DATA LOCAL NESTED NUMERIC[16,5] (PageInventory, Batch);
+quantity 'Кол-во в описи' = DATA LOCAL NESTED NUMERIC[16,5] (PageInventory, Sku, NUMERIC[16,4]);
+
 changeQuantityValue (Batch batch, PageInventory li, NUMERIC[16,5] n) =  {
     IF pageInventoryDetail(batch, li) THEN {
         quantity(PageInventoryDetail detail) <- OVERRIDE n, 0.0 WHERE detail == pageInventoryDetail(batch, li);
@@ -36,17 +39,22 @@ changeQuantityValue (Batch batch, PageInventory li, NUMERIC[16,5] n) =  {
         }
         APPLY {};
     }
+    quantity(li,batch) <- n;
 }
 
-quantity 'Кол-во в описи' = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
-    BY pageInventory(pageInventoryDetail), batch(pageInventoryDetail);
-quantity 'Кол-во в описи' = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
-    BY pageInventory(pageInventoryDetail), sku(batch(pageInventoryDetail)), currentPrice(batch(pageInventoryDetail), pageInventory(pageInventoryDetail));
+//quantity 'Кол-во в описи' = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+    //BY pageInventory(pageInventoryDetail), batch(pageInventoryDetail);
+//quantity 'Кол-во в описи' = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+    //BY pageInventory(pageInventoryDetail), sku(batch(pageInventoryDetail)), currentPrice(batch(pageInventoryDetail), pageInventory(pageInventoryDetail));
 prevBalanceB 'Тек. остаток' (Batch batch, PageInventory li) = prevBalanceB(batch, stock(listInventory(li)), dateTime(listInventory(li)));
 
 changeQuantity(Batch batch, PageInventory li) = {
-    INPUT n = NUMERIC[16,5] DO
-        changeQuantityValue(batch, li, n);
+    INPUT n = NUMERIC[16,5] DO {
+        changeQuantityValue(batch, li, (OVERRIDE n,0.0));
+        quantity(li, Sku sk, NUMERIC[16,4] price) <- (OVERRIDE [= GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+            BY pageInventory(pageInventoryDetail), sku(batch(pageInventoryDetail)), currentPrice(batch(pageInventoryDetail), pageInventory(pageInventoryDetail))](li,sk,price), 0.0) 
+            WHERE sk == sku(batch) AND price == currentPrice(batch,li); 
+    }
 }
 
 prevBalanceB (Batch batch, PageInventory page, NUMERIC[16,4] price) = prevBalanceB(batch, page) 
@@ -80,11 +88,13 @@ changeQuantity (Sku sku, PageInventory page, NUMERIC[16,5] price) =  {
     INPUT quantity = NUMERIC[16,5] DO {
         calculatedQuantity(sku, page, price) <- quantity;
         FOR quantity(Batch batch, page, price) AND sku(batch)==sku DO {
-            quantity(PageInventoryDetail detail) <- NULL WHERE batch(detail)==batch AND pageInventory(detail)==page;
+            quantity(PageInventoryDetail detail) <- 0.0 WHERE batch(detail)==batch AND pageInventory(detail)==page;
+            quantity(page,batch) <- 0.0;
         }
         FOR NUMERIC[16,4] q == calculatedQuantity(Batch batch, page, price) DO {
             changeQuantityValue(batch, page, q);
         }
+        quantity(page,sku,price) <- OVERRIDE quantity, 0.0;
     }
 }
 
@@ -96,25 +106,6 @@ readOnlyBlisterQuantity (Sku sku, PageInventory li) = li IS PageInventory AND NO
 
 backgroundBlisterQuantity 'Цвет' (Batch batch, PageInventory li)  = RGB(250, 236, 199) IF li IS PageInventory AND blisterAmount(batch);
 backgroundBlisterQuantity 'Цвет' (Sku sku, PageInventory li)  = RGB(250, 236, 199) IF li IS PageInventory AND blisterAmount(sku);
-
-changeBlisterQuantity(Batch batch, PageInventory li) = {
-    INPUT i = INTEGER DO
-        IF pageInventoryDetail(batch, li) THEN {
-            quantity(PageInventoryDetail detail) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), 3)) WHERE detail == pageInventoryDetail(batch, li);;
-            APPLY {};
-        } ELSE {
-            IF i != 0 THEN {
-                NEW d = PageInventoryDetail {
-                    pageInventory(d) <- li;
-                    sku(d) <- sku(batch);
-                    batch(d) <- batch;
-                    quantity(d) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), 3));
-                    price (d)  <- prevAccountPriceB(batch(d), stock(d), dateTime(d));
-                }
-                APPLY {};
-            }
-    }
-}
 
 changeBlisterQuantityValue (Batch batch, PageInventory li, NUMERIC[16,4] i) = {
     IF pageInventoryDetail(batch, li) THEN {
@@ -132,7 +123,18 @@ changeBlisterQuantityValue (Batch batch, PageInventory li, NUMERIC[16,4] i) = {
             APPLY {};
         }
     }
+    quantity(li,batch) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), 3));
 }
+
+changeBlisterQuantity(Batch batch, PageInventory li) = {
+    INPUT i = INTEGER DO {
+        changeBlisterQuantityValue(batch,li,NUMERIC[16,4](OVERRIDE i,0.0));
+        quantity(li, Sku sk, NUMERIC[16,4] price) <- (OVERRIDE [= GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+                    BY pageInventory(pageInventoryDetail), sku(batch(pageInventoryDetail)), currentPrice(batch(pageInventoryDetail), pageInventory(pageInventoryDetail))](li,sk,price), 0.0) 
+                    WHERE sk == sku(batch) AND price == currentPrice(batch,li);
+    }
+}
+
 //
 calculatedBlisterQuantity = DATA LOCAL NESTED INTEGER(Sku, PageInventory, NUMERIC[16,4]);
 numCalculatedBlisterQuantity (Sku sku, PageInventory page, NUMERIC[16,4] price) = NUMERIC[16,5](calculatedBlisterQuantity(sku, page, price));
@@ -150,11 +152,13 @@ changeBlisterQuantity (Sku sku, PageInventory page, NUMERIC[16,5] price) =  {
     INPUT quantity = INTEGER DO {
         calculatedBlisterQuantity(sku, page, price) <- quantity;
         FOR quantity(Batch batch, page, price) AND sku(batch)==sku DO {
-            quantity(PageInventoryDetail detail) <- NULL WHERE batch(detail)==batch AND pageInventory(detail)==page;
+            quantity(PageInventoryDetail detail) <- 0.0 WHERE batch(detail)==batch AND pageInventory(detail)==page;
+            quantity(page,batch) <- 0.0;
         }
         FOR NUMERIC[16,4] q == calculatedBlisterQuantity(Batch batch, page, price) DO {
             changeBlisterQuantityValue(batch, page, q);
         }
+        quantity(page,sku,price) <- OVERRIDE NUMERIC[16,5](round(NUMERIC[16,5](quantity)/blisterAmount(sku), 3)), 0.0;
     }
 }
 
@@ -168,9 +172,12 @@ filterBarcode 'Ввести штрихкод' (Sku sku) = (filterBarcode() AND s
 
 checkPurchaseQuantity 'Контролировать в инвентаризации превышение количества по приходу' = DATA BOOLEAN ();
 
-quantityBatchInSku 'Кол-во партий по товару+цена+стр.инвентар.'  = GROUP SUM 1 IF currentPrice(Batch batch, PageInventory li) BY sku(batch), currentPrice(batch,li), li ; 
-quantityBatchInSkuOst 'Кол-во партий с остатком по товару+цена+стр.инвентар.' = GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND prevBalanceB(bt, li) BY sku(bt), currentPrice(bt,li), li ;
-quantityBatchInSkuDvi 'Кол-во партий с движением по товару+цена+стр.инвентар.' = GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND countLedger(bt, li) AND currentPrice(bt, li) BY sku(bt), currentPrice(bt,li), li ;
+quantityBatchInSku 'Кол-во партий по товару+цена+стр.инвентар.' = DATA LOCAL NESTED INTEGER (Sku, NUMERIC[16,4], PageInventory);
+quantityBatchInSkuOst 'Кол-во партий с остатком по товару+цена+стр.инвентар.' = DATA LOCAL NESTED INTEGER (Sku, NUMERIC[16,4], PageInventory);
+quantityBatchInSkuDvi 'Кол-во партий с движением по товару+цена+стр.инвентар.' = DATA LOCAL NESTED INTEGER (Sku, NUMERIC[16,4], PageInventory);
+//quantityBatchInSku 'Кол-во партий по товару+цена+стр.инвентар.'  = GROUP SUM 1 IF currentPrice(Batch batch, PageInventory li) BY sku(batch), currentPrice(batch,li), li ; 
+//quantityBatchInSkuOst 'Кол-во партий с остатком по товару+цена+стр.инвентар.' = GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND prevBalanceB(bt, li) BY sku(bt), currentPrice(bt,li), li ;
+//quantityBatchInSkuDvi 'Кол-во партий с движением по товару+цена+стр.инвентар.' = GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND countLedger(bt, li) AND currentPrice(bt, li) BY sku(bt), currentPrice(bt,li), li ;
 
 filterPrice 'Ввести цену' (Sku sku, PageInventory li) = (filterPrice() AND quantityBatchInSku(sku, filterPrice(), li)) OR NOT filterPrice();
 
@@ -214,7 +221,27 @@ DESIGN options {
    
 currentPharmacyListInventoryBalanceB() = currentPharmacyListInventory() AND showBalanceB();
 
+fillLocal(PageInventory page) = {
+    quantityBatchInSku(Sku sk, NUMERIC[16,4] n, PageInventory pi) <- NULL;
+    quantityBatchInSkuOst(Sku sk, NUMERIC[16,4] n, PageInventory pi) <- NULL;
+    quantityBatchInSkuDvi(Sku sk, NUMERIC[16,4] n, PageInventory pi) <- NULL;
+
+    quantity(PageInventory pi, Batch bt) <- NULL;
+    quantity(PageInventory pi, Sku sk, NUMERIC[16,4] n) <- NULL;
+    
+    quantityBatchInSku(Sku sk, NUMERIC[16,4] n, page) <- [= GROUP SUM 1 IF currentPrice(Batch batch, PageInventory li) BY sku(batch), currentPrice(batch,li), li](sk,n,page);
+    quantityBatchInSkuOst(Sku sk, NUMERIC[16,4] n, page) <- [= GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND prevBalanceB(bt, li) BY sku(bt), currentPrice(bt,li), li](sk,n,page);
+    quantityBatchInSkuDvi(Sku sk, NUMERIC[16,4] n, page) <- [= GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND countLedger(bt, li) AND currentPrice(bt, li) BY sku(bt), currentPrice(bt,li), li](sk,n,page);
+    
+    quantity(page, Batch bt) <- (OVERRIDE [= GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+        BY pageInventory(pageInventoryDetail), batch(pageInventoryDetail)](page,bt), 0.0) WHERE currentPrice(bt,page);
+    quantity(page, Sku sk, NUMERIC[16,4] n) <- (OVERRIDE [= GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+        BY pageInventory(pageInventoryDetail), sku(batch(pageInventoryDetail)), currentPrice(batch(pageInventoryDetail), pageInventory(pageInventoryDetail))](page,sk,n), 0.0) 
+        WHERE quantityBatchInSku(sk,n,page);
+}
+
 setCurrentPharmacyListInventory 'Открыть' (Inventory inventory) = {
+    fillLocal(pageInventory(inventory));
     currentPharmacyListInventory() <- pageInventory(inventory);
 } TOOLBAR CONFIRM IMAGE 'edit.png';
 
@@ -255,7 +282,7 @@ createRetailPharmacyInventory 'Создать инвентаризацию' () =
         }
         APPLY {};   
     }
-} TOOLBAR IMAGE 'add.png'; 
+} TOOLBAR IMAGE 'add.png';
 
 FORM inventoryPharmacyDashboard 'Инвентаризационные описи'
     OBJECTS in=Inventory LAST
@@ -283,7 +310,7 @@ FORM inventoryPharmacyDashboard 'Инвентаризационные описи
     FILTERGROUP balancessku
         FILTER 'С остатком в аптеке' quantityBatchInSkuOst(s,n,li)
         FILTER 'С движением в аптеке' quantityBatchInSkuDvi(s,n,li) DEFAULT
-        FILTER 'В описи' quantity(li, s, n)
+        FILTER 'В описи' quantity(li, s, n) > 0.0
    
     OBJECTS bt = Batch GRID
     PROPERTIES (bt) READONLY SHOWIF currentPharmacyListInventory() prevNameSku
