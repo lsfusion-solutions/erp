@@ -1,6 +1,6 @@
 MODULE Promotion;
 
-REQUIRE ItemManager, PriceListDashboard, PriceListPromotion, PurchaseOrder;
+REQUIRE ItemManager, PriceListDashboard, PriceListPromotion, PurchaseOrder, Store;
 
 NAMESPACE Promotion;
 
@@ -140,7 +140,7 @@ nameExtraPromotionType 'Тип подакции' (PromotionDetail detail) = name
 overExtraPromotionType 'Тип подакции' (PromotionDetail detail) = OVERRIDE extraPromotionType(detail), extraPromotionType(promotion(detail));
 nameOverExtraPromotionType 'Тип подакции' (PromotionDetail detail) = name(overExtraPromotionType(detail));
 
-sku 'Товар' = DATA Sku (PromotionDetail);
+sku 'Товар' = DATA Sku (PromotionDetail) INDEXED;
 
 idBarcodeSku 'Штрихкод' (PromotionDetail detail) = idBarcode(sku(detail)) IN recognize;
 nameSkuGroup2 'Направление' (PromotionDetail detail) = nameSkuGroup2(sku(detail));
@@ -712,7 +712,7 @@ DESIGN promotions {
 }
 
 //----------------------- Запрет на участие товара в двух акциях -------------------------------
-banSkuMultiPromotion 'Запретить участие товара в нескольких акциях' = DATA BOOLEAN ();
+banSkuMultiPromotion 'Запретить участие товара в нескольких акциях' = DATA BOOLEAN () COMPLEX;
 EXTEND FORM options PROPERTIES banSkuMultiPromotion();
 DESIGN options { 
     items {
@@ -720,8 +720,8 @@ DESIGN options {
     } 
 }
 
-countCommonStocks (PromotionDetail d1, PromotionDetail d2) = GROUP SUM 1 IF Stock st IS Stock AND d1 IS PromotionDetail AND d2 IS PromotionDetail AND
-    (in(promotion(d1), st) OR NOT stocks(d1)) AND (in(promotion(d2), st) OR NOT stocks(d2));
+countCommonStocks (PromotionDetail d1, PromotionDetail d2) = GROUP SUM 1 IF DepartmentStore ds IS DepartmentStore AND d1 IS PromotionDetail AND d2 IS PromotionDetail AND
+    (in(promotion(d1), ds) OR NOT stocks(d1)) AND (in(promotion(d2), ds) OR NOT stocks(d2));
 
 CONSTRAINT banSkuMultiPromotion() AND (SETCHANGED(sku(PromotionDetail d)) OR SETCHANGED(fromDate(d)) OR SETCHANGED(toDate(d)) OR CHANGED(stocks(d))) AND
     sku(PromotionDetail dd) == sku(d) AND dd != d AND fromDate(d) <= toDate(dd) AND toDate(d) >= fromDate(dd) AND countCommonStocks(d,dd)
