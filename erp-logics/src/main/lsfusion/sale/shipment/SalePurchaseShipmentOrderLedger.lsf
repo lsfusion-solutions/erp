@@ -1,0 +1,24 @@
+MODULE SalePurchaseShipmentOrderLedger;
+
+REQUIRE SalePurchaseInvoiceShipment, ShipmentOrderLedger;
+
+PRIORITY Sale;
+
+
+@defineDocumentInterfaceProperty (invoice, createPurchaseOrderLedger, 'Создать резерв (закупка)');
+
+EXTEND FORM userInvoice 
+    PROPERTIES(i) BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) createPurchaseOrderLedger
+;
+
+DESIGN userInvoice {
+    headerCreatePurchaseShipment {
+        MOVE PROPERTY(createPurchaseOrderLedger(i));
+    }
+}
+
+// -- Операция
+@defineOperationProperty(createPurchaseOrderLedger, 'Создать резерв (закупка)', purchaseContainer);
+@deriveDocumentOperationProperty(UserInvoice, createPurchaseOrderLedger);
+
+createOrderLedger(PurchaseInvoice invoice) += createPurchaseOrderLedger(invoice(invoice));
