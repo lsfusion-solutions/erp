@@ -100,7 +100,7 @@ changeQuantity (Sku sku, PageInventory page, NUMERIC[16,5] price) =  {
         calculatedQuantity(sku, page, price) <- quantity;
         quantity(PageInventoryDetail detail) <- 0.0 WHERE quantity(batch(detail), page, price) AND pageInventory(detail)==page AND sku(detail)== sku;
         quantity(page, Batch batch) <- 0.0 WHERE quantity(batch, page, price) AND sku(batch)==sku;
-        FOR NUMERIC[16,4] q == calculatedQuantity(Batch batch, page, price) DO {
+        FOR NUMERIC[16,4] q == calculatedQuantity(Batch batch, page, price) AND sku(batch)==sku DO {
             changeQuantityValue(batch, page, q);
         }
         quantity(page,sku,price) <- OVERRIDE quantity, 0.0;
@@ -108,6 +108,19 @@ changeQuantity (Sku sku, PageInventory page, NUMERIC[16,5] price) =  {
 }
 
 //блистеры
+
+quantityInventoryRoundCondition 'Кол-во знаков после запятой в описи' = DATA INTEGER ();
+
+EXTEND FORM options
+    PROPERTIES quantityInventoryRoundCondition()
+;
+
+DESIGN options {
+    inventory{
+        MOVE PROPERTY(quantityInventoryRoundCondition());
+    }
+}
+
 blisterQuantity 'Кол-во блистеров' (Batch batch, PageInventory li) = round0(quantity(li, batch)*blisterAmount(batch));
 
 readOnlyBlisterQuantity (Batch batch, PageInventory li) = li IS PageInventory AND NOT blisterAmount(batch);
@@ -118,7 +131,7 @@ backgroundBlisterQuantity 'Цвет' (Sku sku, PageInventory li)  = RGB(250, 236
 
 changeBlisterQuantityValue (Batch batch, PageInventory li, NUMERIC[16,4] i) = {
     IF pageInventoryDetail(batch, li) THEN {
-        quantity(PageInventoryDetail detail) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), 3)) WHERE detail == pageInventoryDetail(batch, li);;
+        quantity(PageInventoryDetail detail) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), quantityInventoryRoundCondition())) WHERE detail == pageInventoryDetail(batch, li);;
         APPLY {};
     } ELSE {
         IF i != 0 THEN {
@@ -126,13 +139,13 @@ changeBlisterQuantityValue (Batch batch, PageInventory li, NUMERIC[16,4] i) = {
                 pageInventory(d) <- li;
                 sku(d) <- sku(batch);
                 batch(d) <- batch;
-                quantity(d) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), 3));
+                quantity(d) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), quantityInventoryRoundCondition()));
                 price (d)  <- prevAccountPriceB(batch(d), stock(d), dateTime(d));
             }
             APPLY {};
         }
     }
-    quantity(li,batch) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), 3));
+    quantity(li,batch) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), quantityInventoryRoundCondition()));
 }
 
 changeBlisterQuantity(Batch batch, PageInventory li) = {
@@ -164,10 +177,10 @@ changeBlisterQuantity (Sku sku, PageInventory page, NUMERIC[16,5] price) =  {
             quantity(PageInventoryDetail detail) <- 0.0 WHERE batch(detail)==batch AND pageInventory(detail)==page;
             quantity(page,batch) <- 0.0;
         }
-        FOR NUMERIC[16,4] q == calculatedBlisterQuantity(Batch batch, page, price) DO {
+        FOR NUMERIC[16,4] q == calculatedBlisterQuantity(Batch batch, page, price) AND sku(batch)==sku DO {
             changeBlisterQuantityValue(batch, page, q);
         }
-        quantity(page,sku,price) <- OVERRIDE NUMERIC[16,5](round(NUMERIC[16,5](quantity)/blisterAmount(sku), 3)), 0.0;
+        quantity(page,sku,price) <- OVERRIDE NUMERIC[16,5](round(NUMERIC[16,5](quantity)/blisterAmount(sku), quantityInventoryRoundCondition())), 0.0;
     }
 }
 
