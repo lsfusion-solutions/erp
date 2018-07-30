@@ -127,6 +127,39 @@ FORM printGroupOperation 'Отчет по операциям'
     ORDER nameGroup1(sl), nameGroup2(sl), nameGroup3(sl)
 ;
 
+isPrintGroupOperationNew 'Новый отчет по операциям' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES isPrintGroupOperationNew()
+;
+DESIGN options {
+    stock {
+        MOVE PROPERTY(isPrintGroupOperationNew());
+    }
+}
+
+barcodeSku(VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP MAX barcodeSku(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+sum 'Сумма' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM sum(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+sumVAT 'Сумма НДС' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM sumVAT(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+costSumVAT 'Сумма НДС поставщика' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM costSumVAT(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+costSum 'Сумма поставщика без НДС' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM costSum(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+costVATSum 'Сумма поставщика с НДС' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM costVATSum(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+markup 'Торговая надбавка' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM markup(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+quantity 'Количество' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM quantity(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+
+FORM printGroupOperationNew 'Отчет по операциям'   
+    PROPERTIES inBackSheetStocks()
+
+    PROPERTIES() countGroup
+    
+    OBJECTS d = (g1 = VARSTRING[255], g2 = VARSTRING[255], g3 = VARSTRING[255])
+    PROPERTIES nameGroup1 = VALUE(g1), nameGroup2 = VALUE(g2), nameGroup3 = VALUE(g3)
+    PROPERTIES(g1,g2,g3) barcodeSku SHOWIF gSku(),
+                         sum, sumVAT, costSumVAT, costSum, costVATSum, markup, quantity
+    FILTERS sum(g1,g2,g3) OR quantity(g1,g2,g3)
+    ORDER nameGroup1, nameGroup2, nameGroup3
+;
+
 printGroupOperation 'Отчет по операциям' (DATE dateFrom, DATE dateTo, GroupType gt) = {
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
@@ -141,7 +174,7 @@ printGroupOperation 'Отчет по операциям' (DATE dateFrom, DATE da
         RETURN;
     }
     fillReportGroupOperationFromTo(gt, dateFrom, dateTo);
-    PRINT printGroupOperation;
+    IF isPrintGroupOperationNew() THEN {PRINT printGroupOperationNew;} ELSE PRINT printGroupOperation;
 }  IMAGE 'print.png' IN print;
     
 xlsxGroupOperation 'Отчет по операциям (XLSX)' (DATE dateFrom, DATE dateTo, GroupType gt) = {
@@ -158,7 +191,7 @@ xlsxGroupOperation 'Отчет по операциям (XLSX)' (DATE dateFrom, D
         RETURN;
     }
     fillReportGroupOperationFromTo(gt, dateFrom, dateTo);
-    PRINT printGroupOperation XLSX;
+    IF isPrintGroupOperationNew() THEN {PRINT printGroupOperationNew XLSX;} ELSE PRINT printGroupOperation XLSX;
 } IMAGE 'print.png' IN print;
 
 FORM dialogStocksBackSheet 'Выбор складов'
