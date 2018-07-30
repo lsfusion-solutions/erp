@@ -261,6 +261,10 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     CONSTRAINT scheduleOrder(ScheduleOrderDetail d) AND customerStock(d) AND NOT in[ScheduleOrder, Stock](scheduleOrder(d), customerStock(d))
         MESSAGE 'Для предварительного заказа выбран склад покупателя, который не включен в график поставок.';                                     
 
+    timeToOrder 'Время, до которого сделать заказ' = DATA TIME (ScheduleOrderTime);
+    timeToOrder 'Время, до которого сделать заказ' = DATA TIME (ScheduleOrderDetail);
+    timeToOrder 'Время, до которого сделать заказ' = DATA TIME (ScheduleOrder);
+    
     tmpDate = DATA LOCAL DATE();
     tmpDateP = DATA LOCAL DATE();
     tmpDateS = DATA LOCAL DATE();
@@ -286,6 +290,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                             dateOrder(o) <- subtract(tmpDate(), dayBefore(scheduleOrder));
                             dateSupply(o) <- tmpDate();
                             scheduleOrder(o) <- scheduleOrder;
+                            timeToOrder(o) <- timeToOrder(scheduleOrder); 
                             customerStock(o) <- stock;
                             
                             // удаляем ненужны, т.е. если уже был заказ с аналогичными датами заказа, поставки и складом покупателя
@@ -321,6 +326,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                             }
                             dateSupply(o) <- tmpDateS();
                             dateOrder(o) <- subtract(tmpDateS(), dayBefore(scheduleOrder));
+                            timeToOrder(o) <- timeToOrder(scheduleOrder); 
                             
                             IF (extractDOWNumber(subtract(tmpDateS(), dayBefore(scheduleOrder))) == 0 OR extractDOWNumber(subtract(tmpDateS(), dayBefore(scheduleOrder))) == 6) THEN {
                                 dateOrder(o) <- subtract(tmpDateS(), dayBefore(scheduleOrder)+(IF extractDOWNumber(subtract(tmpDateS(), dayBefore(scheduleOrder))) == 0 THEN 2 ELSE 1));                                    
@@ -352,7 +358,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                                 dateOrder(o) <- orderDate();
                                 dateSupply(o) <- tmpDate();
                                 scheduleOrder(o) <- scheduleOrder;
-                                customerStock(o) <- stock;   
+                                customerStock(o) <- stock; 
+                                timeToOrder(o) <- OVERRIDE timeToOrder(shipmentScheduleOrderTime(scheduleOrder, extractDOW(tmpDate()))), timeToOrder(scheduleOrder); 
                                 overCreate(o);                                                                                                                                                               
                             }
                         }
@@ -500,7 +507,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         PROPERTIES (s) nameSupplier ON CHANGE changeSupplier###supplierFilter(s), 
                        nameSupplierStock ON CHANGE changeSupplierStock###supplierFilter(s), 
                        nameCustomer ON CHANGE changeCustomer###customerFilter(s), nameOperation,
-                       startDate, endDate, nameType, 
+                       startDate, endDate, nameType, timeToOrder,
                        overPeriod SHOWIF toShowGenDayMonth(s), inAllMonth SHOWIF toShowGenDayMonth(s), dayBefore,
                        dayLastOrder SHOWIF toShowGenDay(s), dayAfter SHOWIF toShowGenDay(s), 
                        stringNumber SHOWIF toShowGenNumber(s), nameTransferDay SHOWIF toShowGenNumber(s),
@@ -515,7 +522,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         PROPERTIES(s, m) inScheduleOrder SHOWIF toShowMonths(s)
 
         OBJECTS d=ScheduleOrderTime GRID
-        PROPERTIES(d) SHOWIF toShowGenDayMonth(s) orderNameDOW, shipmentNameDOW, shipmentTime, NEW, DELETE GRID
+        PROPERTIES(d) SHOWIF toShowGenDayMonth(s) orderNameDOW, shipmentNameDOW, shipmentTime, timeToOrder, NEW, DELETE GRID
         FILTERS scheduleOrder(d) == s
         
         TREE stockTree a=STRING[3], sg = StockGroup PARENT parent
@@ -538,7 +545,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
         OBJECTS sd=ScheduleOrderDetail
         PROPERTIES (sd) isClosed, dateOrder, dateSupply
-        PROPERTIES (sd) READONLY monthInDate, DOWInDate,
+        PROPERTIES (sd) READONLY timeToOrder, monthInDate, DOWInDate,
                         nameSupplier, nameSupplierStock,
                         nameCustomer, nameCustomerStock,
                         nameOperation
@@ -628,6 +635,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                             type = CONTAINERH;
                             MOVE PROPERTY(nameType(s));
                             MOVE PROPERTY(dayBefore(s));
+                            MOVE PROPERTY(timeToOrder(s));
                         }
     
                         NEW paramsCustom {
@@ -736,8 +744,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         PROPERTIES () nameSupplier, nameCustomer, nameSupplierStock, nameCustomerStock
 
         OBJECTS sd=ScheduleOrderDetail
-        PROPERTIES (sd) READONLY BACKGROUND  background(sd) isClosed, dateOrder, dateSupply,
-                        monthInDate, DOWInDate,
+        PROPERTIES (sd) READONLY BACKGROUND  background(sd) isClosed, dateOrder, dateSupply, timeToOrder,
+                        monthInDate, DOWInDate, 
                         nameSupplier, nameSupplierStock,
                         nameCustomer, nameCustomerStock, nameOperation, quantityOrders
         PROPERTIES (sd) createScheduleUser, EDIT NEWSESSION, show
@@ -829,7 +837,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE 
 
         OBJECTS sd=ScheduleOrderDetail
-        PROPERTIES(sd) READONLY isClosed, dateOrder, dateSupply,
+        PROPERTIES(sd) READONLY isClosed, dateOrder, dateSupply, timeToOrder, 
                        monthInDate, DOWInDate,
                        nameSupplier, nameSupplierStock,
                        nameCustomer, nameCustomerStock
