@@ -101,7 +101,7 @@ GROUP management 'Управление' : public;
 // Должность ФИО
 positionNameManager 'Руководитель' (LegalEntity legalEntity) = positionName(chief(legalEntity)) IN management; 
 positionNameAccountant 'Главный бухгалтер' (LegalEntity legalEntity) = positionName(booker(legalEntity)) IN management;
-
+     
 GROUP doc 'Для договора' : public;
 GROUP order 'Для заказов' : public;
 
@@ -266,12 +266,44 @@ replace 'Объединить'(LegalEntity legalEntity) = {
 
 // ---------------------------------------- Формы для ввода компаний ------------------------------------- //
 
+dataNameBooker 'ФИО главного бухгалтера' = DATA VARISTRING[250](LegalEntity);
+nameBooker 'Главный бухгалтер' (LegalEntity l) = OVERRIDE dataNameBooker(l), nameCustomUserBooker(l) IN management;
+
+changeBooker(LegalEntity le) = {    
+    IF NOT isCompany(le) THEN {
+        INPUT s = dataNameBooker(le) DO {
+            dataNameBooker(le) <- s;  
+        }               
+    } ELSE {
+        dialogBooker(le);
+    }
+}
+
+deleteBooker 'Удалить' (LegalEntity l, DATE d) = { dataBooker(l, d) <- NULL; } IMAGE 'delete.png';
+EXTEND FORM dialogBookerLegalEntity PROPERTIES deleteBooker(a, d) TOOLBAR;
+
+dataNameChief 'ФИО руководителя' = DATA VARISTRING[250](LegalEntity);
+nameChief 'Руководитель' (LegalEntity l) = OVERRIDE dataNameChief(l), nameCustomUserChief(l) IN management;
+
+changeChief(LegalEntity le) = {    
+    IF NOT isCompany(le) THEN {
+        INPUT s = dataNameChief(le) DO {
+            dataNameChief(le) <- s;  
+        }               
+    } ELSE {
+        dialogChief(le);
+    }
+}
+
+deleteChief 'Удалить' (LegalEntity l, DATE d) = { dataChief(l, d) <- NULL; }
+EXTEND FORM dialogChiefLegalEntity PROPERTIES deleteChief(a, d) TOOLBAR;
+
 FORM legalEntity 'Организация'
     OBJECTS l=LegalEntity PANEL
     PROPERTIES(l)  name, nameLegalEntityGroup, nameOwnership, shortNameOwnership,
                    nameCountry, nameLanguage, nameCurrency, inactive
     PROPERTIES(l)  SHOWIF toShow(l) fullName ON CONTEXTMENU setFullName(l),
-                   address, postAddress, nameCustomUserChief, nameCustomUserBooker, phone,
+                   address, postAddress, nameChief ON CHANGE changeChief(l), nameBooker ON CHANGE changeBooker(l), phone,
                    email, site, contacts
     PROPERTIES(l)  isSupplier, isCompany, isCustomer, id SHOWIF showIDs()
     PROPERTIES(l)  differentStocksInDetails SHOWIF isCompany(l)
