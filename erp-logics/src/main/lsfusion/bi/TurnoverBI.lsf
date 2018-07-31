@@ -150,6 +150,9 @@ VATSupplierA 'НДС поставщика' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 costVATBalanceA 'Остаток (себестоимость с НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 sumBalanceA 'Остаток (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 
+extra 'Дополнительное поле' = DATA LOCAL VARSTRING[255] (INTEGER);
+extraQuery = ABSTRACT VARSTRING[255]();
+
 
 countRowsTurnover 'Количество строк' () = GROUP SUM 1 IF nameGroup1Turnover(INTEGER i);
 
@@ -512,7 +515,10 @@ values() = (IF overIsOut() AND isQuantity() THEN 'SUM(quantitySold)' ELSE '\'\''
                             + (IF isIn() AND isSum() THEN 'SUM(sumPricePurchase)' ELSE '\'\'') + ' AS sumPricePurchase, '
                             + (IF isTurnover() THEN 'SUM(costBalance)/SUM(costSumSold)' ELSE '\'\'') + ' AS turnover, '
                             + (IF isTurnover() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalance, '
-                            + (IF isDaysOnStock() THEN 'COUNT(DISTINCT __time)' ELSE '\'\'') + ' AS daysOnStock, ';
+                            + (IF isDaysOnStock() THEN 'COUNT(DISTINCT __time)' ELSE '\'\'') + ' AS daysOnStock, '
+                            + (OVERRIDE extraQuery(),'\'\'') + ' AS extra, ';
+
+overFillTurnoverReport = ABSTRACT LIST (DATE, DATE);
 
 fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
     nameGroup1Turnover(INTEGER i) <- NULL;
@@ -551,6 +557,8 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
     costVATBalanceA(INTEGER i) <- NULL;
     sumBalanceA(INTEGER i) <- NULL;
     
+    extra(INTEGER i) <- NULL;
+    
     IF isTimeGroup() THEN {
         query(replace('SELECT ' + values() 
              + (IF isBalanceA() AND isQuantity() THEN 'SUM(balance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS balanceA, '
@@ -572,7 +580,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
                                           sumVATPurchase = sumVATPurchase, sumPurchase = sumPurchase, sumPricePurchase = sumPricePurchase,
                                           turnover = turnover, costBalance = costBalance, balanceA = balanceA, costBalanceA = costBalanceA,
                                           VATSupplierA = VATSupplierA, costVATBalanceA = costVATBalanceA, sumBalanceA = sumBalanceA,
-                                          daysOnStock = daysOnStock, barcodeSku = barcodeSku;
+                                          daysOnStock = daysOnStock, barcodeSku = barcodeSku, extra = extra;
     } ELSE {
         query(replace('SELECT ' + values() 
              + nameGroupsTurnover() + ' FROM turnover'
@@ -588,7 +596,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
                                           quantityPurchase = quantityPurchase, sumMinusVATPurchase = sumMinusVATPurchase,
                                           sumVATPurchase = sumVATPurchase, sumPurchase = sumPurchase, sumPricePurchase = sumPricePurchase,
                                           turnover = turnover, costBalance = costBalance, daysOnStock = daysOnStock,
-                                          barcodeSku = barcodeSku;
+                                          barcodeSku = barcodeSku, extra = extra;
         
         LOCAL localNameGroup1 = VARSTRING[255] (INTEGER);
         LOCAL localNameGroup2 = VARSTRING[255] (INTEGER);
@@ -656,7 +664,8 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
                 sumBalanceA(number) <- localSumBalanceA(i);
             }
         }
-    }                                
+    }
+    overFillTurnoverReport(dateFrom,dateTo);                                
 }
 
 FORM printTurnoverReport 'Оборачиваемость'
