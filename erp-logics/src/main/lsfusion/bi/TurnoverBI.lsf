@@ -834,3 +834,25 @@ DESIGN turnoverReport {
         MOVE PROPERTY (printTurnoverReportTableXLSX(df,dt)) {fill = 1; valueSize = (-1,40);};
     }
 }
+
+META defineSelectFromXls (in, class)
+    set###in###class##Xls 'Отметка из xls' () = {
+    
+        LOCAL barcode = VARSTRING[13](INTEGER);
+        
+        INPUT f = EXCELFILE DO {
+            IMPORT XLS FROM f AS EXCELFILE TO barcode;
+            
+            FOR imported(INTEGER i) AND idBarcode(###class sk) ==  barcode(i) DO {
+                in(sk) <- TRUE;             
+            }
+        }
+    } ASON CONTEXTMENU in[###class];
+    
+END
+
+@defineSelectFromXls(include, sku);
+
+EXTEND FORM dialogSku PROPERTIES TODRAW sku TOOLBAR setIncludeSkuXls();
+
+@defineSelectFromXls(in, item);
