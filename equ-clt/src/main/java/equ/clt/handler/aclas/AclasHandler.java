@@ -282,7 +282,7 @@ public class AclasHandler extends ScalesHandler {
         bytes.put(getHexBytes(fillLeadingZeroes(String.valueOf(safeMultiply(item.price, 100).intValue()), 8)));
 
         //weightUnit, 1 byte; 1 - весовой, 100(#4) - штучный (цена за кг))
-        bytes.put((byte) (weightItem ? 1 : 100));
+        bytes.put(getWeightUnit(weightItem));
 
         //shelftime, 2 bytes
         bytes.putShort(item.daysExpiry == null ? 0 : item.daysExpiry.shortValue());
@@ -309,6 +309,10 @@ public class AclasHandler extends ScalesHandler {
         bytes.put(getHexBytes(fillLeadingZeroes(item.idBarcode, 8)));
 
         return bytes.array();
+    }
+
+    protected byte getWeightUnit(boolean weightItem) {
+        return (byte) (weightItem ? 1 : 100);
     }
 
     private byte parseDepartmentNumber(String value) {
