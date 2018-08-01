@@ -17,6 +17,9 @@ DESIGN operation {
         NEW paramsContainer {
             caption = 'Параметры';
         }
+        NEW showContainer {
+            caption = 'Отображение свойств';
+        }
     }
 }
 
@@ -67,3 +70,18 @@ DESIGN operation {
 @extendFormFilterRoleAccess(disparity, dis, disparities);
 
 operation[StockDocumentLedger] (Disparity ledger) += operation(ledger);
+
+
+//кратность
+@defineOperationProperty(showRate, 'Кратность', BOOLEAN, showContainer);
+
+rate 'Кратность'  = DATA NUMERIC[15,4] (DisparityDetail);
+
+EXTEND FORM disparity
+    PROPERTIES(d) rate SHOWIF showRate(operation(d)) BEFORE inputIdBarcodeSku(d)
+;
+
+WHEN LOCAL (CHANGED(rate(DisparityDetail d)) OR CHANGED (quantity(d)) OR CHANGED(price(d))) AND rate(d) DO {
+    inputQuantity(d) <- quantity(d)*rate(d);
+    inputPrice(d) <- round2(price(d)/rate(d));
+}

@@ -83,9 +83,26 @@ curInputMarkup(DisparityDetail disparityDetail)  <- [= round2((((X - X*Y/(100+Y)
 @defineDocumentDetailMarkupSumCustomPrefix (disparityDetail, curInput, ' до');
 @deriveDocumentDetailMarkupSumPrefix(disparity, curInput, curInputRetail, curInput);
 
-@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, supplierPricingPriceListType, curInput, sku, stock);
+//@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, supplierPricingPriceListType, curInput, sku, stock){
+curInputPrice (DisparityDetail detail)  <- round2(prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                        sku(detail),
+                                                                                        stock(detail),
+                                                                                        dateTime(detail))/(OVERRIDE rate(detail), 1))
+                                                WHEN DO CHANGED(sku(detail)) OR
+                                                     CHANGED(stock(detail)) OR
+                                                     CHANGED(dateTime(detail)) OR
+                                                     CHANGED(rate(detail));
+
 @deriveDocumentDetailVAT (disparity, curInput, beforeDate, sku, stock);
-@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, retailPricingPriceListType, curInputRetail, sku, stock);
+//@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, retailPricingPriceListType, curInputRetail, sku, stock){
+curInputRetailPrice (DisparityDetail detail)  <- round2(prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                        sku(detail),
+                                                                                        stock(detail),
+                                                                                        dateTime(detail))/(OVERRIDE rate(detail), 1))
+                                                WHEN DO CHANGED(sku(detail)) OR
+                                                     CHANGED(stock(detail)) OR
+                                                     CHANGED(dateTime(detail))OR
+                                                     CHANGED(rate(detail));
 
 @changeDocumentDetailMarkupCustomPrefix(disparityDetail, curInputRetail, curInput, curInput, curInput);
 roundCondition(DisparityDetail disparityDetail) = roundCondition(stock(disparityDetail));
