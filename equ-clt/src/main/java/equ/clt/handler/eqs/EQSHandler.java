@@ -124,11 +124,11 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 }
                 conn.setAutoCommit(false);
                 ps = conn.prepareStatement(
-                        "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, energvalue, cancelled, updecr)" +
+                        "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, energvalue, cancelled, updecr, updscale)" +
                                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
                                 " description=VALUES(description), department=VALUES(department), grp=VALUES(grp), flags=VALUES(flags)," +
                                 " price=VALUES(price), exp=VALUES(exp), weight=VALUES(weight), piece=VALUES(piece), text=VALUES(text)," +
-                                " energvalue=VALUES(energvalue), cancelled=VALUES(cancelled), updecr=VALUES(updecr)");
+                                " energvalue=VALUES(energvalue), cancelled=VALUES(cancelled), updecr=VALUES(updecr), updscale=VALUES(updscale)");
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     String[] splittedDescription = item.description != null ? item.description.split("@@") : null;
@@ -151,6 +151,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     ps.setString(13, energValue); //energvalue, Энергетическая ценность
                     ps.setInt(14, 0); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
                     ps.setLong(15, 4294967295L); //UpdEcr, Флаг обновления* КСА
+                    ps.setLong(16, 4294967295L); //UpdScale, Флаг обновления* весов
                     ps.addBatch();
                 }
 
@@ -188,9 +189,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         processStopListLogger.info(logPrefix + "executing stopLists, table pricelist_var");
 
                         ps = conn.prepareStatement(
-                                "INSERT INTO plu (store, barcode, art, cancelled, updecr)" +
+                                "INSERT INTO plu (store, barcode, art, cancelled, updecr, updscale)" +
                                         " VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
-                                        " cancelled=VALUES(cancelled), updecr=VALUES(updecr)");
+                                        " cancelled=VALUES(cancelled), updecr=VALUES(updecr), updscale=VALUES(updscale)");
                         for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                             if (item.idBarcode != null) {
                                 for (String idStock : stopListInfo.idStockSet) {
@@ -199,6 +200,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                     ps.setString(3, trim(item.idItem, 20)); //art, Артикул
                                     ps.setInt(4, stopListInfo.exclude ? 0 : 1); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
                                     ps.setLong(5, 4294967295L); //UpdEcr, Флаг обновления* КСА
+                                    ps.setLong(6, 4294967295L); //UpdScale, Флаг обновления* весов
                                     ps.addBatch();
                                 }
                             }
