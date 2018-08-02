@@ -9,6 +9,11 @@ public class AclasOldHandler extends AclasHandler {
     }
 
     @Override
+    public String getLogPrefix() {
+        return "Aclas old: ";
+    }
+
+    @Override
     protected byte getWeightUnit(boolean weightItem) {
         return (byte) (weightItem ? 100 : 10); //10 - значение для штучных товаров не проверялось, взято с потолка
     }

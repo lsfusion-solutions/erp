@@ -26,8 +26,6 @@ import static equ.clt.handler.HandlerUtils.safeMultiply;
 
 public class AclasHandler extends ScalesHandler {
 
-    private static String logPrefix = "Aclas: ";
-
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
 
     protected FileSystemXmlApplicationContext springContext;
@@ -41,16 +39,20 @@ public class AclasHandler extends ScalesHandler {
         return "aclas";
     }
 
+    protected String getLogPrefix() {
+        return "Aclas: ";
+    }
+
     @Override
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionInfoList) throws IOException {
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         Map<String, String> brokenPortsMap = new HashMap<>();
         if(transactionInfoList.isEmpty()) {
-            processTransactionLogger.error(logPrefix + "Empty transaction list!");
+            processTransactionLogger.error(getLogPrefix() + "Empty transaction list!");
         }
         for(TransactionScalesInfo transaction : transactionInfoList) {
-            processTransactionLogger.info(logPrefix + "Send Transaction # " + transaction.id);
+            processTransactionLogger.info(getLogPrefix() + "Send Transaction # " + transaction.id);
 
             List<MachineryInfo> succeededScalesList = new ArrayList<>();
             List<MachineryInfo> clearedScalesList = new ArrayList<>();
@@ -63,7 +65,7 @@ public class AclasHandler extends ScalesHandler {
                     Map<String, List<String>> errors = new HashMap<>();
                     Set<String> ips = new HashSet<>();
 
-                    processTransactionLogger.info(logPrefix + "Starting sending to " + enabledScalesList.size() + " scales...");
+                    processTransactionLogger.info(getLogPrefix() + "Starting sending to " + enabledScalesList.size() + " scales...");
                     Collection<Callable<SendTransactionResult>> taskList = new LinkedList<>();
                     for (ScalesInfo scales : enabledScalesList) {
                         if (scales.port != null) {
@@ -135,7 +137,7 @@ public class AclasHandler extends ScalesHandler {
             }
             throw new RuntimeException(message);
         } else if (ips.isEmpty() && brokenPortsMap.isEmpty())
-            throw new RuntimeException(logPrefix + "No IP-addresses defined");
+            throw new RuntimeException(getLogPrefix() + "No IP-addresses defined");
     }
 
     public static boolean receiveReply(UDPPort port) throws IOException {
@@ -143,7 +145,7 @@ public class AclasHandler extends ScalesHandler {
             byte[] response = port.receiveCommand(200);
             return response[0] == 0x02; //0x02 is ok, 0x52 is fail
         } catch (SocketTimeoutException e) {
-            processTransactionLogger.error(logPrefix, e);
+            processTransactionLogger.error("Aclas error: ", e);
             return false;
         }
     }
@@ -383,7 +385,7 @@ public class AclasHandler extends ScalesHandler {
                         }
 
                         if (cleared || !needToClear) {
-                            processTransactionLogger.info(logPrefix + "Sending items..." + scales.port);
+                            processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
                             if (localErrors.isEmpty()) {
                                 //byte[] ascCode = getScaleStatus(udpPort);
                                 int count = 0;
@@ -391,7 +393,7 @@ public class AclasHandler extends ScalesHandler {
                                     count++;
                                     if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                         if (item.idBarcode != null && item.idBarcode.length() <= 5) {
-                                            processTransactionLogger.info(String.format(logPrefix + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                            processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                             int attempts = 0;
                                             Boolean result = null;
                                             while ((result == null || !result) && attempts < 3) {
@@ -399,11 +401,11 @@ public class AclasHandler extends ScalesHandler {
                                                 attempts++;
                                             }
                                             if (!result) {
-                                                logError(localErrors, String.format(logPrefix + "IP %s, Result %s, item %s", scales.port, result, item.idItem));
+                                                logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, item %s", scales.port, result, item.idItem));
                                                 globalError++;
                                             }
                                         } else {
-                                            processTransactionLogger.info(String.format(logPrefix + "IP %s, Transaction #%s, item #%s: incorrect barcode %s", scales.port, transaction.id, count, item.idBarcode));
+                                            processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, item #%s: incorrect barcode %s", scales.port, transaction.id, count, item.idBarcode));
                                         }
                                     } else break;
                                 }
@@ -412,20 +414,20 @@ public class AclasHandler extends ScalesHandler {
                             }
                         }
                     } else {
-                        logError(localErrors, String.format(logPrefix + "IP %s, failed to connect", scales.port));
+                        logError(localErrors, String.format(getLogPrefix() + "IP %s, failed to connect", scales.port));
                     }
                 } catch (Exception e) {
-                    logError(localErrors, String.format(logPrefix + "IP %s error, transaction %s;", scales.port, transaction.id), e);
+                    logError(localErrors, String.format(getLogPrefix() + "IP %s error, transaction %s;", scales.port, transaction.id), e);
                 } finally {
-                    processTransactionLogger.info(logPrefix + "Finally disconnecting..." + scales.port);
+                    processTransactionLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
                     disconnect(udpPort);
                 }
             } catch (Exception e) {
-                logError(localErrors, String.format(logPrefix + "IP %s error, transaction %s;", scales.port, transaction.id), e);
+                logError(localErrors, String.format(getLogPrefix() + "IP %s error, transaction %s;", scales.port, transaction.id), e);
             } finally {
                 udpPort.close();
             }
-            processTransactionLogger.info(logPrefix + "Completed ip: " + scales.port);
+            processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
             return new SendTransactionResult(scales, localErrors, cleared);
         }
 
