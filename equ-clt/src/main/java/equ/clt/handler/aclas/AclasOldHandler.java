@@ -15,6 +15,7 @@ public class AclasOldHandler extends AclasHandler {
 
     @Override
     protected byte getWeightUnit(boolean weightItem) {
+        processTransactionLogger.info(getLogPrefix() + "weightUnit " + (weightItem ? 100 : 10));
         return (byte) (weightItem ? 100 : 10); //10 - значение для штучных товаров не проверялось, взято с потолка
     }
 }

@@ -314,6 +314,7 @@ public class AclasHandler extends ScalesHandler {
     }
 
     protected byte getWeightUnit(boolean weightItem) {
+        processTransactionLogger.info(getLogPrefix() + "weightUnit " + (weightItem ? 1 : 100));
         return (byte) (weightItem ? 1 : 100);
     }
 
