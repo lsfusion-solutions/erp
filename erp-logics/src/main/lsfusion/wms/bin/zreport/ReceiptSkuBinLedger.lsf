@@ -108,12 +108,12 @@ nameInBin 'Ячейка (в)' (DepartmentStore departmentStore) = name(inBin(dep
 outBin 'Ячейка (из)' = DATA Bin (DepartmentStore);
 nameOutBin 'Ячейка (из)' (DepartmentStore departmentStore) = name(outBin(departmentStore));
 
-setInBin (DepartmentStore departmentStore) = {
+setInBin (DepartmentStore departmentStore)  { 
     DIALOG dialogBinStock OBJECTS s = departmentStore, b = inBin(departmentStore) INPUT NULL DO
         inBin(departmentStore) <- b;
 }
    
-setOutBin (DepartmentStore departmentStore) = {
+setOutBin (DepartmentStore departmentStore)  { 
     DIALOG dialogBinStock OBJECTS s = departmentStore, b = outBin(departmentStore) INPUT NULL DO 
         outBin(departmentStore) <- b;
 }
@@ -139,7 +139,7 @@ DESIGN departmentStore {
 
 skipGenerateBinLedgers = ABSTRACT BOOLEAN (ReceiptSaleSkuLedger);
 
-generateReceiptSaleSkuLedgers 'Создать продажи по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = {
+generateReceiptSaleSkuLedgers 'Создать продажи по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo)  { 
     FOR date(ReceiptSaleSkuLedger ledger)>= dFrom AND date(ledger)<= dTo AND departmentStore(ledger) == departmentStore AND 
         outBin(departmentStore) AND NOT skipGenerateBinLedgers(ledger) AND receiptSaleSkuLedger(ledger) DO
             quantity(ReceiptSaleSkuBinLedger saleBinLedger) <- quantity[DataSkuLedger](ledger) WHERE saleBinLedger == receiptSaleSkuLedger(ledger);
@@ -159,7 +159,7 @@ generateReceiptSaleSkuLedgers 'Создать продажи по ячейкам
 
 skipGenerateBinLedgers = ABSTRACT BOOLEAN (ReceiptReturnSkuLedger);
 
-generateReceiptReturnSkuLedgers 'Создать возвраты по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = {
+generateReceiptReturnSkuLedgers 'Создать возвраты по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo)  { 
     FOR date(ReceiptReturnSkuLedger ledger) >= dFrom AND date(ledger)<= dTo AND departmentStore(ledger) == departmentStore AND 
         outBin(departmentStore) AND NOT skipGenerateBinLedgers(ledger) AND receiptReturnSkuLedger(ledger) DO
             quantity(ReceiptReturnSkuBinLedger returnBinLedger) <- quantity[DataSkuLedger](ledger) WHERE returnBinLedger == receiptReturnSkuLedger(ledger);
@@ -177,19 +177,19 @@ generateReceiptReturnSkuLedgers 'Создать возвраты по ячейк
     APPLY;
 }
 
-generateReceiptSkuLedgers 'Создать продажи по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = {
+generateReceiptSkuLedgers 'Создать продажи по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo)  { 
     generateReceiptSaleSkuLedgers(departmentStore, dFrom, dTo);
     generateReceiptReturnSkuLedgers(departmentStore, dFrom, dTo);   
 } CONFIRM;
 
-deleteReceiptSkuLedgers 'Очистить' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = {
+deleteReceiptSkuLedgers 'Очистить' (DepartmentStore departmentStore, DATE dFrom, DATE dTo)  { 
     DELETE ReceiptSkuBinLedger ledger WHERE date(ledger)>= dFrom AND date(ledger)<= dTo AND departmentStore(ledger)==departmentStore;
     APPLY;
 } CONFIRM;
 
 autoCreateReceiptSkuLedgers 'Автоматически создать продажи по ячейкам' = DATA BOOLEAN (DepartmentStore);
 
-generateReceiptSkuLedgers 'Создать продажи по ячейкам' (DATE dFrom, DATE dTo) = {
+generateReceiptSkuLedgers 'Создать продажи по ячейкам' (DATE dFrom, DATE dTo)  { 
     FOR autoCreateReceiptSkuLedgers(DepartmentStore departmentStore) DO {
         generateReceiptSaleSkuLedgers(departmentStore, dFrom, dTo);
         generateReceiptReturnSkuLedgers(departmentStore, dFrom, dTo); 

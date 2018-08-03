@@ -27,7 +27,7 @@ indexPicking 'Номер строки' (InternetOrderDetail d) = OVERRIDE dataPi
 sortOrder 'Порядок сортировки' (d) = ABSTRACT VARSTRING[100] (InternetOrderDetail);
 sortOrderInternetOrderDetail = GROUP SUM 1 IF sortOrder(InternetOrderDetail d) BY picking(d);
 
-updateSortOrder 'Сортировать'(InternetOrderDetail detail) = {
+updateSortOrder 'Сортировать'(InternetOrderDetail detail)  { 
     IF sortOrderInternetOrderDetail(picking(detail)) THEN {    
         LOCAL int = INTEGER();
         int() <- NULL;
@@ -108,10 +108,10 @@ EXTEND FORM internetOrder
 EXTEND FORM internetOrders
     PROPERTIES (d) READONLY pickingQuantity
 ;
-overChangeStatus = ABSTRACT LIST (Picking);
+overChangeStatus  ABSTRACT LIST ( Picking);
 isOverChangeStatus = ABSTRACT BOOLEAN (Picking);
 
-changeStatus (Picking picking) = {
+changeStatus (Picking picking)  { 
     IF NOT isOverChangeStatus(picking) THEN  {      
         DIALOG statusPicking OBJECTS o = status(picking) INPUT DO {
             status(picking) <- o;
@@ -266,7 +266,7 @@ filterDashboard (InternetOrderDetail detail)= select(internetOrder(detail)) AND 
 filterDashboard = GROUP SUM 1 IF status(internetOrder(InternetOrderDetail detail)) == StatusInternetOrder.agreed AND NOT picking(detail) AND NOT skipFilter(detail) AND NOT isClosed(detail)  
     BY internetOrder(detail);
     
-createPicking 'Создать комплектацию' (InternetOrder order) = {
+createPicking 'Создать комплектацию' (InternetOrder order)  { 
     IF NOT countInternetOrders() THEN {
         select(order) <- TRUE;
     } 
@@ -392,7 +392,7 @@ EXTEND FORM internetOrderPrint
     PROPERTIES (d) discountSumPicking, diffDiscountSumPicking, pickingSum, pickingQuantity
     
 ;
-internetOrderPickingPrint 'Счет-заказ (собрано)' (InternetOrder o) = {
+internetOrderPickingPrint 'Счет-заказ (собрано)' (InternetOrder o)  { 
     in(InternetOrder order) <- NULL;
     skip(InternetOrderDetail d) <- NULL;   
      

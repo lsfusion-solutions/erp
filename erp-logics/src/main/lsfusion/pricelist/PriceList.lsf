@@ -69,7 +69,7 @@ DESIGN priceListTypes {
     }
 }
 
-overCopy (DataPriceListType priceListType) += {
+overCopy (DataPriceListType priceListType) + { 
 	NEWSESSION {
 	    IF priceListType IS DataPriceListType THEN {
 	        NEW p = DataPriceListType {
@@ -256,12 +256,12 @@ createdComputer (UserPriceListDetail d) += createdComputer(userPriceList(d));
 @defineDocumentInterfaceDetailBatch(priceList, batch);
 //@deriveDocumentDetailPricePriceListTypeVATBatch(userPriceList, stockProp, userPriceList);
 
-changePurchaseBatch(UserPriceListDetail userPriceListDetail) = {
+changePurchaseBatch(UserPriceListDetail userPriceListDetail)  { 
     DIALOG dialogBatch OBJECTS sk = sku(userPriceListDetail), bt = batch(userPriceListDetail) INPUT NULL NEWSESSION DO
         batch(userPriceListDetail) <- bt;
 }
 
-replace(Sku s, Batch b) += { sku(UserPriceListDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) + {  sku(UserPriceListDetail detail) <- s WHERE batch(detail) == b;}
 //@defineBalancesBatch(priceListDetail); //-- показываем по нажатию правой клавиши остатки партии
 //@defineBalancesBatch(userPriceListDetail); //-- показываем по нажатию правой клавиши остатки партии
 //@defineMovementBatch(priceListDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
@@ -307,11 +307,11 @@ currentPrice 'Действующая цена' (UserPriceListDetail priceListDet
 // Рассчитываем цены для строк
 viewPrice 'Цена' = DATA LOCAL NUMERIC[16,4] (UserPriceListDetail, PriceListType);
 
-updateViewPriceDetail(UserPriceListDetail d, PriceListType t, Stock s) = {
+updateViewPriceDetail(UserPriceListDetail d, PriceListType t, Stock s)  { 
     viewPrice(d, t) <- currentPrice(d, t, s);
 }
 
-updateViewPriceDetail (UserPriceListDetail d, Stock s) = {
+updateViewPriceDetail (UserPriceListDetail d, Stock s)  { 
     FOR show(userPriceList(d), PriceListType t) NOINLINE (t) DO
         updateViewPriceDetail(d, t, s);
 }
@@ -358,7 +358,7 @@ detail= GROUP SUM 1 BY sku(UserPriceListDetail detail), userPriceList(detail);
 
 in 'Вкл.' (Sku sku, UserPriceList price) = TRUE IF detail(sku, price);
 
-changeIn(Sku sku, UserPriceList priceList) = {
+changeIn(Sku sku, UserPriceList priceList)  { 
     INPUT b = BOOLEAN DO
         IF detail(sku, priceList) THEN {
             IF NOT b THEN
@@ -377,7 +377,7 @@ detail(batch, price) = GROUP SUM 1 IF Batch bbatch == batch(UserPriceListDetail 
 
 in 'Вкл.' (Batch batch, UserPriceList price) = TRUE IF detail(batch, price);
 
-changeIn(Batch batch, UserPriceList priceList) = {
+changeIn(Batch batch, UserPriceList priceList)  { 
     INPUT b = BOOLEAN DO
         IF detail(batch, priceList) THEN {
             IF NOT b THEN
@@ -408,7 +408,7 @@ document(PriceListDetail detail) += priceList(detail);
 
 @implementDocumentForm(priceList, pl, 'Прайс');
 
-fillDocument 'Подбор документа'(UserPriceList userPriceList) = {
+fillDocument 'Подбор документа'(UserPriceList userPriceList)  { 
     DIALOG documents DO
         FOR inSession(document(DocumentDetail documentDetail)) NEW i = UserPriceListDetail DO {
             userPriceList(i) <- userPriceList;
@@ -469,7 +469,7 @@ filterPriceListType (UserPriceList userPriceList, Batch batch, Stock stock) =
     currentPrice (batch, userPriceList, stock) OR
     (batch IS Batch AND stock IS Stock AND NOT filterPriceListType(userPriceList));
     
-editSku 'Редактировать SKU' (UserPriceListDetail d) = { NEWSESSION { edit(sku(d)); } }   
+editSku 'Редактировать SKU' (UserPriceListDetail d)  { NEWSESSION { edit(sku(d)); } }   
    
 nameCompanyB 'Организация' (LedgerPriceListType type, Stock stock, UserPriceListDetail d) = name(companyB(type, sku(d), stock ,fromDateTime[PriceListDetail](d)));    
 toShow (PriceList p, LedgerPriceListType to) = show(p, to) AND to IS LedgerPriceListType AND differentOrganizations(to);          
@@ -667,7 +667,7 @@ nameDefaultPriceListStock 'Предпочтительный склад в пра
 EXTEND FORM options PROPERTIES() nameDefaultPriceListStock;
 DESIGN options { price { MOVE PROPERTY(nameDefaultPriceListStock()); } }
 
-seekDefaultPriceListStock = { SEEK userPriceList.tt = defaultPriceListStock(); }
+seekDefaultPriceListStock  { SEEK userPriceList.tt = defaultPriceListStock(); }
 EXTEND FORM userPriceList
     EVENTS ON INIT seekDefaultPriceListStock()
 ;
@@ -863,7 +863,7 @@ DESIGN userPriceList {
     }
 }
 
-edit(UserPriceListDetail d) += { DIALOG userPriceList OBJECTS p = userPriceList(d), d = d DOCKED; }
+edit(UserPriceListDetail d) + {  DIALOG userPriceList OBJECTS p = userPriceList(d), d = d DOCKED; }
     
 // -------------------------------- Изменение цен для строк ------------------------------ //
 
@@ -931,7 +931,7 @@ DESIGN chooseMarkUpSkuUserPriceList {
 
 // ----------------------- Для отмеченных строк ------------------------ //
 isSelected 'Отм' = DATA LOCAL BOOLEAN (UserPriceListDetail);
-changeMarkUpChosenSku 'Изменить цену для отмеченных строк'(UserPriceList userPriceList, Stock stock) = {
+changeMarkUpChosenSku 'Изменить цену для отмеченных строк'(UserPriceList userPriceList, Stock stock)  { 
     DIALOG chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList, pt INPUT, nt INPUT, m INPUT, n INPUT DO {
         IF NOT [= GROUP SUM 1 IF isSelected(UserPriceListDetail priceListDetail)
                       BY userPriceList(priceListDetail)](userPriceList) THEN
@@ -1001,7 +1001,7 @@ DESIGN userPriceList{
 }
 
 // ---------------------- Для всех строк ----------------------- //
-changeMarkUpSku 'Изменить цену для всех строк'(UserPriceList userPriceList, Stock stock) = {
+changeMarkUpSku 'Изменить цену для всех строк'(UserPriceList userPriceList, Stock stock)  { 
     DIALOG chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList, pt INPUT, nt INPUT, m INPUT, n INPUT DO {
         LOCAL prev = NUMERIC[16,4] (UserPriceListDetail);
         IF pt != nt AND in[UserPriceList,DataPriceListType](userPriceList, pt) THEN {
@@ -1068,9 +1068,9 @@ DESIGN userPriceList{
 
 // ------------------ Копирование прайс-листов ------------------- //
 
-copyAbstractData = ABSTRACT LIST (PriceList, UserPriceList);
+copyAbstractData  ABSTRACT LIST ( PriceList, UserPriceList);
 
-copyData(PriceList priceList, UserPriceList userPriceList) = {
+copyData(PriceList priceList, UserPriceList userPriceList)  { 
         currency(userPriceList) <- currency[UserPriceList](priceList);
         company(userPriceList) <- company[UserPriceList](priceList);
         companyStock(userPriceList) <- companyStock[UserPriceList](priceList);
@@ -1088,7 +1088,7 @@ copyData(PriceList priceList, UserPriceList userPriceList) = {
         }
 }
 
-copySession 'Копировать'(PriceList priceList) = {
+copySession 'Копировать'(PriceList priceList)  { 
 
     NEW u = UserPriceList {
         EXEC copyData(priceList, u);
@@ -1096,7 +1096,7 @@ copySession 'Копировать'(PriceList priceList) = {
     }
 }
 
-copy 'Копировать'(PriceList priceList) = {
+copy 'Копировать'(PriceList priceList)  { 
 	NEWSESSION {
 	
 	    NEW u = UserPriceList {
@@ -1106,7 +1106,7 @@ copy 'Копировать'(PriceList priceList) = {
 	}
 }
 
-updateSession 'Обновить'(PriceList priceList) = {
+updateSession 'Обновить'(PriceList priceList)  { 
 	NESTEDSESSION {
 	
 	    NEW u = UserPriceList {
@@ -1119,7 +1119,7 @@ updateSession 'Обновить'(PriceList priceList) = {
 	
 	}
 }
-update 'Обновить'(PriceList priceList) = {
+update 'Обновить'(PriceList priceList)  { 
 	NEWSESSION {
 	
 	    NEW u = UserPriceList {
@@ -1133,7 +1133,7 @@ update 'Обновить'(PriceList priceList) = {
 	}
 }
 
-print 'Распечатать' = ABSTRACT LIST (PriceList);
+print 'Распечатать'  ABSTRACT LIST ( PriceList);
 
 skipChange = ABSTRACT BOOLEAN (PriceList);
 showChange(PriceList p) = p IS PriceList AND NOT skipChange(p) ;
@@ -1272,7 +1272,7 @@ NAVIGATOR {
 
 // Заполнение на основании
 
-addUnderPriceList 'Заполнить на основании'(UserPriceList p) = {
+addUnderPriceList 'Заполнить на основании'(UserPriceList p)  { 
     DIALOG priceLists OBJECTS p INPUT pt DO
         FOR priceList(PriceListDetail detail) == pt NEW d = UserPriceListDetail DO {
             userPriceList(d) <- p;
@@ -1308,14 +1308,14 @@ FORM printPriceList 'Прайс'
     FILTERS priceList(d) == p
 ;
 
-printPrint 'Распечатать' (PriceList priceList) =
+printPrint 'Распечатать' (PriceList priceList) 
     { PRINT printPriceList OBJECTS p = priceList; }   IMAGE 'print.png' IN print;
 
-print(PriceList priceList) += { printPrint(priceList); }
+print(PriceList priceList) + {  printPrint(priceList); }
 
 // ------------------------- Расширяем форму LegalEntity ----------------------- //
-overAdd= ABSTRACT LIST (UserPriceList);
-addUserPriceList 'Добавить'(LegalEntity legalEntity) = {
+overAdd ABSTRACT LIST ( UserPriceList);
+addUserPriceList 'Добавить'(LegalEntity legalEntity)  { 
 	NESTEDSESSION {
 	    NEW u = UserPriceList {
 	        company(u) <- legalEntity;
@@ -1365,7 +1365,7 @@ equals (PriceList priceList1, PriceList priceList2) = company(priceList1) == com
                                                     priceList1 != priceList2;
 
 
-findEqualsPriceLists 'Найти дубликаты прайсов'() = {
+findEqualsPriceLists 'Найти дубликаты прайсов'()  { 
     FOR UserPriceList p1 IS UserPriceList NOINLINE DO {
         FOR equals(p1, PriceList p2) NOINLINE DO {
             dataIn[UserPriceList,Stock](p2, Stock s) <- dataIn(p1, s) WHERE dataIn(p1, s);
@@ -1390,14 +1390,14 @@ EXTEND FORM currency
 CONSTRAINT (SETCHANGED (price(PriceListDetail d, DataPriceListType t)) OR SET (isPosted(d))) AND isPosted(d) AND price(d,t) > priceLimit(currency(t))
     MESSAGE 'Превышена максимально допустимая для валюты цена ';
     
-show 'Просмотреть' = ABSTRACT LIST  (PriceListDetail) TOOLBAR;
-show(UserPriceListDetail d) = {
+show 'Просмотреть'  ABSTRACT LIST  ( PriceListDetail) TOOLBAR;
+show(UserPriceListDetail d)  { 
 	NEWSESSION {
 	    SHOW userPriceList OBJECTS p = userPriceList(d), d = d DOCKED READONLY ;
 	}
 }
-show(UserPriceListDetail d) += { show(d); }    
-show[PriceListLedger] (PriceListDetail ledger) += {show(ledger);};
+show(UserPriceListDetail d) + {  show(d); }    
+show[PriceListLedger] (PriceListDetail ledger) + { show(ledger);};
 
 // Храним количество прайс-листов для поставщика и вида цен
 TABLE dataPriceListTypeLegalEntitySku (DataPriceListType, LegalEntity, Sku);

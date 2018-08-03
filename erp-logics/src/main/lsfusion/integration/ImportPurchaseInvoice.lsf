@@ -5,16 +5,16 @@ REQUIRE System,
         Item,
         PurchaseInvoice;
 
-importPurchaseDataAction 'Импортировать накладную' = CUSTOM 'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoiceActionProperty' (Purchase.UserInvoice);
+importPurchaseDataAction 'Импортировать накладную'  CUSTOM  'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoiceActionProperty' (Purchase.UserInvoice);
 importType = DATA ImportType(UserInvoice);
 nameImportType 'Тип импорта' (UserInvoice userInvoice) = name(importType(userInvoice));
 
-importPurchaseInvoicesDataAction 'Импортировать накладные' = CUSTOM 'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesActionProperty' ();
+importPurchaseInvoicesDataAction 'Импортировать накладные'  CUSTOM  'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesActionProperty' ();
 importTypeUserInvoices = DATA ImportType();
 nameImportTypeUserInvoices 'Тип импорта' () = name(importTypeUserInvoices());
 
-importPurchaseInvoicesDirectoryDataAction 'Импортировать накладные из папки' = CUSTOM 'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesDirectoryActionProperty' ();
-importPurchaseInvoicesEmailDataAction 'Импортировать накладные из почты' = CUSTOM 'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesEmailActionProperty' ();
+importPurchaseInvoicesDirectoryDataAction 'Импортировать накладные из папки'  CUSTOM  'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesDirectoryActionProperty' ();
+importPurchaseInvoicesEmailDataAction 'Импортировать накладные из почты'  CUSTOM  'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesEmailActionProperty' ();
 
 importPurchaseInvoicesEmailLastDays 'За сколько дней импортировать накладные из почты' = DATA INTEGER();
 skip(AttachmentEmail ae) = importPurchaseInvoicesEmailLastDays() AND (daysBetweenDates(currentDate(), DATE (dateTimeSent(email(ae)))) > importPurchaseInvoicesEmailLastDays());
@@ -22,8 +22,8 @@ skip(AttachmentEmail ae) = importPurchaseInvoicesEmailLastDays() AND (daysBetwee
 ignoreInvoicesAfterDocumentsClosedDate 'Не принимать инвоисы по закрытым документам' = DATA BOOLEAN ();
 
 original 'Файл оригинала накладной'  = DATA CUSTOMFILE (Purchase.Invoice);
-saveOriginal 'Загрузить файл оригинала накладной' (Purchase.Invoice i) = { INPUT =original(i) CHANGE; }
-openOriginal 'Просмотреть оригинал накладной' (Purchase.Invoice i) = { open(original(i)); }
+saveOriginal 'Загрузить файл оригинала накладной' (Purchase.Invoice i)  { INPUT =original(i) CHANGE; }
+openOriginal 'Просмотреть оригинал накладной' (Purchase.Invoice i)  { open(original(i)); }
 
 countDaysClearPurchaseInvoiceCustomfiles 'За сколько дней хранить файлы импорта(накладная-закупка)' = DATA INTEGER (); 
 
@@ -36,7 +36,7 @@ DESIGN options {
     }
 }
         
-clearApplicationLog () += {
+clearApplicationLog () + { 
     NEWSESSION {
         IF countDaysClearPurchaseInvoiceCustomfiles() THEN {
             original(Purchase.Invoice i) <- NULL IF date(i) <= subtract(currentDate(), countDaysClearPurchaseInvoiceCustomfiles());
@@ -54,7 +54,7 @@ completeIdItemAsEAN 'Дополнять код товара контрольны
 currentInvoice = DATA LOCAL Purchase.Invoice ();
 cancelSession 'Отменить изменения' = DATA LOCAL BOOLEAN (); 
 script 'Пост-скрипт' = DATA TEXT (ImportType);
-executeScript (ImportType i) = { IF script(i) THEN EVAL 'run() = \{' + script(i) + ';\};'; };
+executeScript (ImportType i)  { IF script(i) THEN EVAL 'run() = \{' + script(i) + ';\};'; };
 
 
 EXTEND FORM importTypes

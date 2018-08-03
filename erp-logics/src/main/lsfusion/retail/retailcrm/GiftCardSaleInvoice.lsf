@@ -83,7 +83,7 @@ DESIGN dialogGiftCard {
     MOVE TOOLBARBOX;
 }
 
-fillDetailDialogSkuGiftCard 'Подбор сертификатов'(Sale.Invoice invoice) = {
+fillDetailDialogSkuGiftCard 'Подбор сертификатов'(Sale.Invoice invoice)  { 
     in(GiftCard g) <- NULL;
     DIALOG dialogGiftCard OBJECTS o = invoice NOMANAGESESSION DO {
         FOR in(GiftCard g) NEW gd = InvoiceGiftCardSaleDetail DO {
@@ -117,14 +117,14 @@ DESIGN Sale.userInvoice {
 }
 
 
-edit(InvoiceGiftCardSaleDetail d) += { DIALOG Sale.userInvoice OBJECTS i = invoice(d), gd = d DOCKED; }
+edit(InvoiceGiftCardSaleDetail d) + {  DIALOG Sale.userInvoice OBJECTS i = invoice(d), gd = d DOCKED; }
 
-show(InvoiceGiftCardSaleDetail d) = {
+show(InvoiceGiftCardSaleDetail d)  { 
 	NEWSESSION {
 	    SHOW Sale.userInvoice OBJECTS i = invoice(d), gd = d DOCKED READONLY;
 	}
 }
-show(InvoiceGiftCardSaleDetail d) += { show(d); }  
+show(InvoiceGiftCardSaleDetail d) + {  show(d); }  
 
 //рабочий стол
 
@@ -134,22 +134,22 @@ nameGiftCardLegalEntityGroup 'Группа организаций для пок�
 EXTEND FORM options PROPERTIES() nameGiftCardLegalEntityGroup;
 DESIGN options { giftCards { MOVE PROPERTY(nameGiftCardLegalEntityGroup()); } }
 
-beforeApplyCustomer(LegalEntity l) = {
+beforeApplyCustomer(LegalEntity l)  { 
     fullName(l) <- name(l);
 }
 
-changeAddress (LegalEntity l) = {
+changeAddress (LegalEntity l)  { 
     INPUT s = VARSTRING[150] DO
         dataAddress(l, DATE d) <- s WHERE d == 2001_01_01;
 }
 
-changePhone (LegalEntity l) = {
+changePhone (LegalEntity l)  { 
     INPUT s = VARSTRING[100] DO
         dataPhone(l, DATE d) <- s WHERE d == 2001_01_01;
 }
 
 
-changeAccount (LegalEntity l) = {
+changeAccount (LegalEntity l)  { 
     INPUT s = VARSTRING[50] DO
         IF NOT account(l) THEN {
             NEW a = Bank.Account {
@@ -161,7 +161,7 @@ changeAccount (LegalEntity l) = {
             number(Bank.Account a) <- s WHERE a == account(l);
 }
 
-changeBank (LegalEntity l) = {
+changeBank (LegalEntity l)  { 
     DIALOG dialogBanks OBJECTS b INPUT DO {
         IF NOT account(l) THEN {
             NEW a = Bank.Account {
@@ -177,13 +177,13 @@ changeBank (LegalEntity l) = {
 defaultContract(LegalEntity l) = defaultContractSkuSupplierCustomer(defaultCompany(), l, currentDate());
 
 dateFromContract 'Дата'(LegalEntity l) = dateFrom(defaultContract(l));
-changeDateFromContract (LegalEntity l) = {
+changeDateFromContract (LegalEntity l)  { 
     INPUT d = DATE DO
         dateFrom(UserContractSku c) <- d WHERE c == defaultContract(l);
 }
 
 numberContract 'Номер'(LegalEntity l) = number(defaultContract(l));
-changeNumberContract(LegalEntity l) = {
+changeNumberContract(LegalEntity l)  { 
     INPUT s = VARISTRING[28] DO
         number(UserContractSku c) <- s WHERE c == defaultContract(l);
 }
@@ -214,7 +214,7 @@ DESIGN giftCardSaleCustomer{
     MOVE TOOLBARBOX;
 }
 
-addCustomer 'Добавить'() = {
+addCustomer 'Добавить'()  { 
 	NEWSESSION {
 	    NEW  l = LegalEntity {
 	        legalEntityGroup(l) <- giftCardLegalEntityGroup();
@@ -234,7 +234,7 @@ addCustomer 'Добавить'() = {
 	}
 } IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
 
-editCustomer 'Редактировать' (LegalEntity l) = {
+editCustomer 'Редактировать' (LegalEntity l)  { 
 	NEWSESSION {
 	        SHOW giftCardSaleCustomer OBJECTS l = l NOCANCEL;
 	}
@@ -254,7 +254,7 @@ quantity 'Кол-во' = DATA LOCAL NUMERIC[16,5] (Item);
 customer = DATA LOCAL LegalEntity ();
 nameCustomer 'Покупатель'= name(customer());
 
-changeCustomer() = {
+changeCustomer()  { 
     DIALOG giftCardLegalEntitys OBJECTS l = customer() INPUT NULL DO
         customer() <- l;
 }
@@ -262,7 +262,7 @@ changeCustomer() = {
 supplierStock = DATA LOCAL Stock ();
 nameSupplierStock 'Склад'= name(supplierStock());
 
-changeSupplierStock() = {
+changeSupplierStock()  { 
     DIALOG stocksCompany OBJECTS s = supplierStock() INPUT NULL DO
         supplierStock() <- s;
 }
@@ -289,7 +289,7 @@ DESIGN skuGift {
 }
 
 
-addGiftCardInvoice 'Продажа сертификатов'() = {
+addGiftCardInvoice 'Продажа сертификатов'()  { 
 	NEWSESSION {
 	    quantity(Item i) <- NULL;
 	    supplierStock() <- stock(currentUser());
@@ -328,7 +328,7 @@ addGiftCardInvoice 'Продажа сертификатов'() = {
 } TOOLBAR IMAGE 'add.png';
 
 
-shiped 'Отпуск сертификатов покупателю'(Sale.UserInvoice invoice) = {
+shiped 'Отпуск сертификатов покупателю'(Sale.UserInvoice invoice)  { 
 	NEWSESSION {
 	    createShipment(invoice) <- TRUE;
 	    shipmentDate(invoice) <- currentDate();

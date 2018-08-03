@@ -32,7 +32,7 @@ averagePriceStore 'Средневзв. цена реализации в розн
 maxPrice 'Максимальная розничная цена' = DATA LOCAL NUMERIC[16,4] (Sku); 
 averageMarkup 'Средневзв. наценка реализованного товара, %' = DATA LOCAL NUMERIC[18,2] (Sku); 
 
-fillFromToBalance 'Заполнить с остатками' (GroupType gt, DATE df, DATE dt) = {
+fillFromToBalance 'Заполнить с остатками' (GroupType gt, DATE df, DATE dt)  { 
     
     balanceAStore(Sku sk) <- NULL;           
     balanceAWarehouse(Sku sk) <- NULL;  
@@ -53,31 +53,31 @@ fillFromToBalance 'Заполнить с остатками' (GroupType gt, DATE
     fillSaleReportFromTo(gt, df, dt);                 
 }
 
-fillFromToPrice 'Сформировать цену' (GroupType gt, DATE df, DATE dt) = {
+fillFromToPrice 'Сформировать цену' (GroupType gt, DATE df, DATE dt)  { 
     maxPrice(Sku sk) <- NULL;  
     maxPrice(Sku sk) <- NUMERIC[16,4]([ = GROUP MAX averagePrice(SaleLedger l) IF active(l) AND inSaleReport(stock(l)) AND date(l) >= df AND date(l) <= dt BY sku(l)](sk));   
 }
 
-changeWarehousesSalesReport(GroupType gt, DATE df, DATE dt) = {
+changeWarehousesSalesReport(GroupType gt, DATE df, DATE dt)  { 
     DIALOG dialogWarehousesSaleReport DO 
         fillFromToBalance(gt, df, dt);
 }
 
-checkFromToBalance (GroupType gt, DATE df, DATE dt) = {
+checkFromToBalance (GroupType gt, DATE df, DATE dt)  { 
     INPUT b = BOOLEAN DO {
         showBalanceSku() <- b;
         IF showBalanceSku() THEN fillFromToBalance(gt, df, dt);
     }
 }
 
-checkFromToPrice(GroupType gt, DATE df, DATE dt) = {
+checkFromToPrice(GroupType gt, DATE df, DATE dt)  { 
     INPUT b = BOOLEAN DO {
         showMaxRetailPrice() <- b;
         IF showMaxRetailPrice() THEN fillFromToPrice(gt, df, dt);
     }    
 }
 
-fillFromToBalanceAndPrice 'Пересчитать остатки и цену'(GroupType gt, DATE df, DATE dt) = {
+fillFromToBalanceAndPrice 'Пересчитать остатки и цену'(GroupType gt, DATE df, DATE dt)  { 
     IF showBalanceSku() THEN
         fillFromToBalance(gt, df, dt);
     ELSE fillSaleReportFromTo(gt, df, dt);

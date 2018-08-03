@@ -81,7 +81,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
     countBlanketOrderDetail 'Кол-во строк по складу '(stock, blanketOrder) = GROUP SUM 1 BY supplierStock(BlanketOrderDetail blanketOrderDetail), blanketOrder(blanketOrderDetail);
     in 'В заказе' (blanketOrder, stock) = DATA BOOLEAN (BlanketOrder, Stock); //customerStock
     in###customerFilter 'Отм.' (BlanketOrder blanketOrder, Stock stock) = in(customerFilter(blanketOrder), stock);
-    replace(Stock s, Stock o) += {in(BlanketOrder blanketOrder, o) <- TRUE WHERE in(blanketOrder, s) AND NOT in(blanketOrder, o);}   
+    replace(Stock s, Stock o) + { in(BlanketOrder blanketOrder, o) <- TRUE WHERE in(blanketOrder, s) AND NOT in(blanketOrder, o);}   
 
     @defineDocumentHeaderAgreement (blanketOrder);
     @deriveDocumentHeaderAgreement (blanketOrder, supplier, customer, 'множественный заказ'###sign, NS);
@@ -284,14 +284,14 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
         }
     }
 
-    edit(BlanketOrderDetail d) += { DIALOG blanketOrder OBJECTS o = blanketOrder(d), d = d DOCKED; }
+    edit(BlanketOrderDetail d) + {  DIALOG blanketOrder OBJECTS o = blanketOrder(d), d = d DOCKED; }
 
 //-- SKU
     @defineDocumentSkuStockExtra(blanketOrder, sku, supplierStock, customerStock);
     @extendFormDocumentSkuStockExtraCustom(blanketOrder, blanketOrder, o, supplier, supplierStock, customerStock);
     
     currentBlanketOrderBlanketOrder() = DATA LOCAL Object ();
-    setCurrentBlanketOrderBlanketOrder(Object o) = { currentBlanketOrderBlanketOrder() <- o; }
+    setCurrentBlanketOrderBlanketOrder(Object o)  { currentBlanketOrderBlanketOrder() <- o; }
     
     EXTEND FORM blanketOrder
         EVENTS ON CHANGE o setCurrentBlanketOrderBlanketOrder(o)
@@ -308,9 +308,9 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
         
     @defineDocumentSkuStockSupplier (blanketOrder, blanketOrder, o);
     
-    overCopy = ABSTRACT LIST (BlanketOrder, BlanketOrder);
-    overCopy = ABSTRACT LIST (BlanketOrderDetail, BlanketOrderDetail);
-    copy 'Копировать'(BlanketOrder order) = {
+    overCopy  ABSTRACT LIST ( BlanketOrder, BlanketOrder);
+    overCopy  ABSTRACT LIST ( BlanketOrderDetail, BlanketOrderDetail);
+    copy 'Копировать'(BlanketOrder order)  { 
 	NEWSESSION {
 	        NEW o = BlanketOrder {
 	            supplier(o) <- supplier(order);
@@ -490,7 +490,7 @@ META defineOrderBlanketOrder(sign)
     invoiceSum(BlanketOrderOrderDetail detail) += invoiceSum(blanketOrderDetail(detail));
     VATSum(BlanketOrderOrderDetail detail) += VATSum(blanketOrderDetail(detail));
 
-    edit(BlanketOrderOrder order) += { edit(blanketOrder(order)); }
+    edit(BlanketOrderOrder order) + {  edit(blanketOrder(order)); }
     createdUser(BlanketOrderOrder order) += createdUser(blanketOrder(order));
 
 END
@@ -499,7 +499,7 @@ END
 META defineBlanketOrderBatch(legalEntityProp, stockProp, stockExtra)
     @defineDocumentDetailBatch(blanketOrder, batch);
     idBatch 'Код партии' (BlanketOrderDetail d) = id(batch(d));
-    overCopy(BlanketOrderDetail d, BlanketOrderDetail detail) += {      
+    overCopy(BlanketOrderDetail d, BlanketOrderDetail detail) + {       
         batch(d) <- batch(detail);
     } 
 
@@ -521,7 +521,7 @@ META defineBlanketOrderBatch(legalEntityProp, stockProp, stockExtra)
 END
 
 META defineBlanketOrderBatchDialogStock(stockProp)
-    changeBatch(BlanketOrderDetail blanketOrderDetail) = {
+    changeBatch(BlanketOrderDetail blanketOrderDetail)  { 
         DIALOG dialogBatchStockOut OBJECTS st = stockProp(blanketOrderDetail),
                                       t = dateTime(blanketOrderDetail),
                                       sk = sku(blanketOrderDetail),

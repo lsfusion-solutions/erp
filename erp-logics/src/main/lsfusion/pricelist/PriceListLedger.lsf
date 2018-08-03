@@ -30,7 +30,7 @@ TABLE priceListLedger(PriceListLedger);
 
 @defineCreatedAbstract(PriceListLedger);
 
-show 'Просмотреть' = ABSTRACT MULTI (PriceListLedger) TOOLBAR;
+show 'Просмотреть'  ABSTRACT MULTI ( PriceListLedger) TOOLBAR;
 
 fromDateTime 'Дата/время с' = ABSTRACT DATETIME (PriceListLedger) MATERIALIZED INDEXED;
 toDateTime 'Дата/время по' = ABSTRACT DATETIME (PriceListLedger) MATERIALIZED INDEXED;
@@ -625,7 +625,7 @@ META implementSystemLedgerPriceListType (type, objectClass, companyProp, stockPr
 
     in (objectClass ledger, ###stockProp stock) += stockProp(ledger) == stock;
     
-    show[PriceListLedger] (objectClass ledger) += {show(ledger);};
+    show[PriceListLedger] (objectClass ledger) + { show(ledger);};
 END
 
 META implementSystemLedgerPriceListType (type, objectClass, companyProp, stockProp)
@@ -887,48 +887,48 @@ DESIGN movementPriceSkuStocks {
 }
 
 META defineMovementPriceSku(detail, stockProp)
-    showMovementPriceSkuStock 'Показать изменение цены товара по складу' (###detail detail) = {
+    showMovementPriceSkuStock 'Показать изменение цены товара по складу' (###detail detail)  { 
         FOR s == sku(detail) AND st == stockProp(detail) DO
             NEWSESSION SHOW movementPriceSkuStock OBJECTS s = s, st = st; } 
     ASON CONTEXTMENU nameSku[###detail];
     
-    showMovementPriceSkuStocks 'Показать изменение цены товара' (###detail detail) = {
+    showMovementPriceSkuStocks 'Показать изменение цены товара' (###detail detail)  { 
         FOR s == sku(detail) DO 
             NEWSESSION SHOW movementPriceSkuStocks OBJECTS s = s; } 
     ASON CONTEXTMENU nameSku[###detail];
 END
 META defineMovementPriceSku(detail)
-    showMovementPriceSkuStock 'Показать изменение цены товара по складу' (###detail detail) = {
+    showMovementPriceSkuStock 'Показать изменение цены товара по складу' (###detail detail)  { 
         FOR s == sku(detail) DO
             NEWSESSION SHOW movementPriceSkuStock OBJECTS s = s; } 
     ASON CONTEXTMENU nameSku[###detail];
     
-    showMovementPriceSkuStocks 'Показать изменение цены товара' (###detail detail) = {
+    showMovementPriceSkuStocks 'Показать изменение цены товара' (###detail detail)  { 
         FOR s == sku(detail) DO
             NEWSESSION SHOW movementPriceSkuStocks OBJECTS s = s; } 
     ASON CONTEXTMENU nameSku[###detail];
 END
 
-showMovementPriceSku 'Показать изменение цены товара по складу' (Sku sku, Stock stock) = { NEWSESSION SHOW movementPriceSkuStock OBJECTS s = sku, st = stock ; }
-showBalancePriceSku(Sku sku, Stock stock) += { showMovementPriceSku(sku, stock); } 
-showMovementPriceSkuStocks 'Показать изменение цены товара по складу' (Sku sku) = { NEWSESSION SHOW movementPriceSkuStock OBJECTS s = sku ; }
-showMovementPriceStocks 'Показать изменение цены товара' (Sku sku) = { NEWSESSION SHOW movementPriceSkuStocks OBJECTS s = sku; }  ASON CONTEXTMENU name[Sku];
+showMovementPriceSku 'Показать изменение цены товара по складу' (Sku sku, Stock stock)  { NEWSESSION SHOW movementPriceSkuStock OBJECTS s = sku, st = stock ; }
+showBalancePriceSku(Sku sku, Stock stock) + {  showMovementPriceSku(sku, stock); } 
+showMovementPriceSkuStocks 'Показать изменение цены товара по складу' (Sku sku)  { NEWSESSION SHOW movementPriceSkuStock OBJECTS s = sku ; }
+showMovementPriceStocks 'Показать изменение цены товара' (Sku sku)  { NEWSESSION SHOW movementPriceSkuStocks OBJECTS s = sku; }  ASON CONTEXTMENU name[Sku];
 
-showMovementPriceSku 'Показать изменение цены товара по складу' (Batch batch, Stock stock) = {
+showMovementPriceSku 'Показать изменение цены товара по складу' (Batch batch, Stock stock)  { 
     FOR s == sku(batch) DO
         NEWSESSION SHOW movementPriceSkuStock OBJECTS s = s, st = stock ; }
 
-showMovementPriceSkuStocks 'Показать изменение цены товара по складу' (Batch batch) = {
+showMovementPriceSkuStocks 'Показать изменение цены товара по складу' (Batch batch)  { 
     FOR s == sku(batch) DO 
         NEWSESSION SHOW movementPriceSkuStock OBJECTS s = s; } 
 ASON CONTEXTMENU nameSku[Batch];
 
-showMovementPriceStocks 'Показать изменение цены товара' (Batch batch) = {
+showMovementPriceStocks 'Показать изменение цены товара' (Batch batch)  { 
     FOR s == sku(batch) DO
         NEWSESSION SHOW movementPriceSkuStocks OBJECTS s = s; } 
 ASON CONTEXTMENU nameSku[Batch];
 
-showMovementPriceSkuStock 'Показать изменение цены товара по складу возникновения партии' (Batch batch) = {
+showMovementPriceSkuStock 'Показать изменение цены товара по складу возникновения партии' (Batch batch)  { 
     FOR s == sku(batch) AND st == stock(batch) DO
         NEWSESSION SHOW movementPriceSkuStock OBJECTS s = s, st = st; } 
 ASON CONTEXTMENU nameSku[Batch];

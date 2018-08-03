@@ -19,14 +19,14 @@ nameGroup 'Группировка' = DATA LOCAL VARSTRING[100](INTEGER);
 
 countGroup = OVERRIDE (GROUP MAX order(INTEGER i)), 0;
 
-addGroup(INTEGER i, VARSTRING[100] name) = {
+addGroup(INTEGER i, VARSTRING[100] name)  { 
     nameGroup(i) <- name;
     order(i) <- (OVERRIDE (GROUP MAX order(INTEGER in)), 0) + 1;
 }
-reorderGroup() = {
+reorderGroup()  { 
     order(INTEGER i) <- PARTITION SUM 1 IF nameGroup(i) ORDER order(i);
 }
-deleteGroup(INTEGER i) = {
+deleteGroup(INTEGER i)  { 
     nameGroup(i) <- NULL;
     order(i) <- NULL;
     reorderGroup();
@@ -61,7 +61,7 @@ nameGroup3 = DATA LOCAL VARSTRING[255] (SkuLedger);
 barcodeSku = DATA LOCAL VARSTRING[15] (SkuLedger);
 
 META setNameGroup(number)
-    setNameGroup##number () ={
+    setNameGroup##number () { 
         nameGroup##number(SkuLedger sl) <- NULL;
         IF order(1) == number THEN {
             nameGroup##number(SkuLedger sl) <- (OVERRIDE numberDocument(sl) + ' от ' + date(stockDocumentLedger(sl)), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
@@ -91,7 +91,7 @@ END
 @setNameGroup(2);
 @setNameGroup(3);
 
-fillReportGroupOperationFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt) = {  
+fillReportGroupOperationFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt)  {  
     inSkuLedger(SkuLedger sl) <- inBackSheet(stock(sl)) AND date(sl) >= df AND date(sl) <= dt AND include(gt, sku(sl)) AND isPosted(sl) AND ((inSession(operation(sl)) AND NOT isReturn(sl)) OR (inReturn(operation(sl)) AND isReturn(sl)));
     
     barcodeSku(SkuLedger sl) <- (OVERRIDE idBarcodeSku(sl), 'Не задано') IF sl IS SkuLedger AND gSku() WHERE inSkuLedger(sl);
@@ -160,7 +160,7 @@ FORM printGroupOperationNew 'Отчет по операциям'
     ORDER nameGroup1, nameGroup2, nameGroup3
 ;
 
-printGroupOperation 'Отчет по операциям' (DATE dateFrom, DATE dateTo, GroupType gt) = {
+printGroupOperation 'Отчет по операциям' (DATE dateFrom, DATE dateTo, GroupType gt)  { 
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
         RETURN;
@@ -177,7 +177,7 @@ printGroupOperation 'Отчет по операциям' (DATE dateFrom, DATE da
     IF isPrintGroupOperationNew() THEN {PRINT printGroupOperationNew;} ELSE PRINT printGroupOperation;
 }  IMAGE 'print.png' IN print;
     
-xlsxGroupOperation 'Отчет по операциям (XLSX)' (DATE dateFrom, DATE dateTo, GroupType gt) = {
+xlsxGroupOperation 'Отчет по операциям (XLSX)' (DATE dateFrom, DATE dateTo, GroupType gt)  { 
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
         RETURN;
@@ -237,7 +237,7 @@ DESIGN dialogStocksBackSheet {
 }
 
 @extendFormFilterStockAccess(s, dialogStocksBackSheet, company);
-changeStocksBackSheet(GroupType gt, DATE df, DATE dt) = {
+changeStocksBackSheet(GroupType gt, DATE df, DATE dt)  { 
     DIALOG dialogStocksBackSheet OBJECTS s INPUT DO {
         IF NOT (GROUP SUM 1 IF inBackSheet(Stock st)) THEN
             inBackSheet(s) <- TRUE;
@@ -280,7 +280,7 @@ FORM reportGroupOperation 'Отчет по операциям'
     }
 ;
 
-onInitReportGroupOperation() = {
+onInitReportGroupOperation()  { 
     IF countAccessCompanyStock(currentUser()) ==1 THEN {
         inBackSheet(Stock st)  <- TRUE WHERE  defaultCompanyStock(currentUser())== st; 
     }    

@@ -45,11 +45,11 @@ toShipNotChargeInvoiceDetail 'Не поставлено по накладной 
     GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0 AND isNotCharge(sku(invoiceDetail))
           BY invoice(invoiceDetail);                       
           
-addUserShipment  = ABSTRACT CASE (Invoice);
+addUserShipment   ABSTRACT CASE ( Invoice);
 
-receiveShipment 'Принять полностью' = ABSTRACT LIST (Invoice);
+receiveShipment 'Принять полностью'  ABSTRACT LIST ( Invoice);
 
-createMultiShipment 'Принять полностью'(Invoice invoice) = {
+createMultiShipment 'Принять полностью'(Invoice invoice)  { 
 	NEWSESSION {
 	    IF createShipment(invoice) THEN {
 	        MESSAGE 'Для данного инвойса уже создана накладная'; 
@@ -60,8 +60,8 @@ createMultiShipment 'Принять полностью'(Invoice invoice) = {
 	}
 }
 
-deleteCreate  = ABSTRACT CASE (Shipment);
-deleteMulti 'Удалить полностью'(Shipment shipment) = {
+deleteCreate   ABSTRACT CASE ( Shipment);
+deleteMulti 'Удалить полностью'(Shipment shipment)  { 
 	NEWSESSION {
 	    IF shipment IS Shipment AND NOT isUser(shipment) THEN {
 	        deleteCreate(shipment); 
@@ -89,7 +89,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     invoiceDetail(UserShipmentDetail shipmentDetail) += invoiceDetail(shipmentDetail);
     invoiceDetail[Shipment.ShipmentDetail](ShipmentDetail shipmentDetail) += invoiceDetail(shipmentDetail);
     
-    overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) += {      
+    overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) + {       
         invoiceDetail(d) <- invoiceDetail(detail);             
     }   
 
@@ -199,10 +199,10 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
             MOVE TOOLBARBOX;
         }
     }
-    overFillInvoice = ABSTRACT LIST (UserShipment, Invoice);                          // документ
-    overFillInvoice = ABSTRACT LIST (UserShipmentDetail, InvoiceDetail);  // детайл
+    overFillInvoice  ABSTRACT LIST ( UserShipment, Invoice);                          // документ
+    overFillInvoice  ABSTRACT LIST ( UserShipmentDetail, InvoiceDetail);  // детайл
 
-    fillInvoice 'Заполнить на основе накладной'(UserShipment userShipment) =  {
+    fillInvoice 'Заполнить на основе накладной'(UserShipment userShipment)   { 
         DIALOG shipmentInvoices OBJECTS s = supplier(userShipment), c = customer(userShipment), i INPUT DO {
             overFillInvoice(userShipment, i);
 
@@ -249,7 +249,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
         PROPERTIES(i,s) BACKGROUND backgroundShipped(i) include BEFORE isPosted(i)
     ;
 
-    dialogIncludeInvoices 'Включить накладные в поставку' (UserShipment userShipment) = { SHOW includeInvoicesUserShipment OBJECTS s = userShipment; }  IN invoices;
+    dialogIncludeInvoices 'Включить накладные в поставку' (UserShipment userShipment)  { SHOW includeInvoicesUserShipment OBJECTS s = userShipment; }  IN invoices;
 
     shipmentDimension = ABSTRACT ShipmentDimension (InvoiceDetail);
     nameShipmentDimension 'Регистр хранения' (InvoiceDetail detail) = name(shipmentDimension(detail));
@@ -261,19 +261,19 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     defaultInvoiceDetail (sku, dimension, UserShipment userShipment) = GROUP MAX InvoiceDetail detail IF include(invoice(detail), userShipment)
         BY sku(detail), shipmentDimension(detail);
 
-    fillInvoiceDetail 'Привязать поставку к накладным'(UserShipmentDetail detail, ShipmentDimension dimension) = {
+    fillInvoiceDetail 'Привязать поставку к накладным'(UserShipmentDetail detail, ShipmentDimension dimension)  { 
 
         invoiceDetail(detail) <- IF dimension IS ShipmentDimension
                                     THEN defaultInvoiceDetail(sku(detail), dimension, userShipment(detail))
                                     ELSE defaultInvoiceDetail(sku(detail), userShipment(detail));
     };
 
-    fillInvoiceDetail 'Привязать поставку к накладным'(UserShipment userShipment, ShipmentDimension dimension) = {
+    fillInvoiceDetail 'Привязать поставку к накладным'(UserShipment userShipment, ShipmentDimension dimension)  { 
         FOR userShipment(UserShipmentDetail detail) == userShipment DO {
             fillInvoiceDetail(detail, dimension);
         }
     } IN invoices;
-    fillInvoiceDetail 'Привязать поставку к накладным' (UserShipment userShipment) = { fillInvoiceDetail(userShipment, shipmentDimension(userShipment)); } IN invoices;
+    fillInvoiceDetail 'Привязать поставку к накладным' (UserShipment userShipment)  { fillInvoiceDetail(userShipment, shipmentDimension(userShipment)); } IN invoices;
 
     WHEN LOCAL FORMS userShipment
         (CHANGED(shipmentDimension(UserShipmentDetail detail)) OR CHANGED(sku(detail))) AND NOT invoiceDetail(detail) AND ShipmentDimension s==shipmentDimension(detail)
@@ -364,7 +364,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     CONSTRAINT isPosted(UserInvoice i) AND conformityShipmentDateInvoices() AND NOT (shipmentDate(i)==date(i))
         MESSAGE 'Дата поставки должна быть равна дате накладной '##sign; 
     
-    overCopy(UserInvoice s, UserInvoice d) += {
+    overCopy(UserInvoice s, UserInvoice d) + { 
         createShipment(d) <- createShipment(s);
     }
 
@@ -422,7 +422,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
         PROPERTIES (d) READONLY BACKGROUND backgroundShipped(i)  toShip, shipmentPrice
     ;
     
-    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += {
+    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) + { 
         manufactureDate(d) <- manufactureDate(detail);  
         expiryDate(d) <- expiryDate(detail);
         //shipmentPriceUserInvoiceDetail(d) <- shipmentPriceUserInvoiceDetail(detail);           
@@ -493,10 +493,10 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
 
     invoiceDetail(InvoiceShipmentDetail shipmentDetail) += invoiceDetail(shipmentDetail);
 
-    edit(InvoiceShipment shipment) += { edit(invoice(shipment)); }
-    close(InvoiceShipment shipment) += { close(invoice(shipment)); }
-    edit(InvoiceShipmentDetail d) += { edit(invoiceDetail(d)); }
-    show(InvoiceShipmentDetail d) += { show(invoiceDetail(d)); }
+    edit(InvoiceShipment shipment) + {  edit(invoice(shipment)); }
+    close(InvoiceShipment shipment) + {  close(invoice(shipment)); }
+    edit(InvoiceShipmentDetail d) + {  edit(invoiceDetail(d)); }
+    show(InvoiceShipmentDetail d) + {  show(invoiceDetail(d)); }
     createdUser(InvoiceShipment shipment) += createdUser(invoice(shipment));
     
     // цены в подборе
@@ -509,7 +509,7 @@ META defineInvoiceShipmentBatch(dumb)
         PROPERTIES (d) READONLY nameBatch AFTER shortNameUOMSku(d)
     ;
 
-    overFillInvoice (UserShipmentDetail sd, InvoiceDetail id) += { batch (sd) <- batch(id); }
+    overFillInvoice (UserShipmentDetail sd, InvoiceDetail id) + {  batch (sd) <- batch(id); }
 
     @defineDocumentAggregationDetailBatch (invoice, invoiceShipment);
     batch (InvoiceShipmentDetail shipmentDetail) += batch(shipmentDetail);
@@ -524,7 +524,7 @@ META defineInvoiceShipmentPack(dumb)
                        idBarcodePack, shortNameUOMPack,
                        amountPack, packQuantity
     ;
-    overFillInvoice(UserShipmentDetail s, InvoiceDetail i) += {
+    overFillInvoice(UserShipmentDetail s, InvoiceDetail i) + { 
         barcodePack(s) <- barcodePack(i);
         amountPack(s) <- amountPack(i);
         packQuantity(s) <- toShip(i)/amountPack(i);
@@ -539,7 +539,7 @@ END
 //-- Действие
 
 META defineInvoiceShipmentAction (sign)
-    addUserShipment 'Поставка'###sign(Invoice invoice) =  {
+    addUserShipment 'Поставка'###sign(Invoice invoice)   { 
 	NEWSESSION{
 	
 	        NEW s = UserShipment {
@@ -570,7 +570,7 @@ META defineInvoiceShipmentAction (sign)
 	        }
 	    }
 } TOOLBAR;
-    addUserShipment(Invoice invoice) += WHEN invoice IS Invoice THEN { addUserShipment(invoice); }
+    addUserShipment(Invoice invoice) + WHEN invoice IS Invoice THEN {  addUserShipment(invoice); }
 
     EXTEND FORM invoices
         PROPERTIES(i) addUserShipment

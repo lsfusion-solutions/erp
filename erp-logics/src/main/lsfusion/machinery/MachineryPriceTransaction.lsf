@@ -55,8 +55,8 @@ META implementPriceTransactionDocumentStock(concrete, st, legalEntity)
     isClosed[PriceTransactionDocument] (concrete document) += isClosed(document);
 END
 
-createMachineryPriceTransaction 'Загрузить в оборудование' = ABSTRACT (PriceTransactionDocument) TOOLBAR CONFIRM;
-createSnapshotMachineryPriceTransaction 'Перегрузить все позиции' = ABSTRACT (PriceTransactionDocument) TOOLBAR CONFIRM;
+createMachineryPriceTransaction 'Загрузить в оборудование'  ABSTRACT ( PriceTransactionDocument) TOOLBAR CONFIRM;
+createSnapshotMachineryPriceTransaction 'Перегрузить все позиции'  ABSTRACT ( PriceTransactionDocument) TOOLBAR CONFIRM;
 
 showCreateMachineryPriceTransaction = ABSTRACT BOOLEAN (PriceTransactionDocument);
 
@@ -243,7 +243,7 @@ countDaysClearMachineryPriceTransaction 'За сколько дней храни
 EXTEND FORM options PROPERTIES countDaysClearMachineryPriceTransaction();
 DESIGN options { log { MOVE PROPERTY(countDaysClearMachineryPriceTransaction());} }    
 
-clearApplicationLog () += {
+clearApplicationLog () + { 
 	NEWSESSION {
 	    IF countDaysClearMachineryPriceTransaction() THEN {
 	    in(MachineryPriceTransaction t, Barcode b) <- NULL WHERE NOT t == lastTransaction(b, groupMachinery(t)) AND date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
@@ -548,9 +548,9 @@ DESIGN requestExchange {
     }
 }
 
-overCopy = ABSTRACT (RequestExchange, RequestExchange);
+overCopy  ABSTRACT ( RequestExchange, RequestExchange);
 
-copy 'Копировать'(RequestExchange request) = {
+copy 'Копировать'(RequestExchange request)  { 
 	NEWSESSION {
 	    NEW r = RequestExchange {
 	        stock(r) <- stock(request);
@@ -628,7 +628,7 @@ DESIGN requestExchanges {
     }
 }
 
-createMachineryPriceTransaction = ABSTRACT LIST (GroupMachinery);
+createMachineryPriceTransaction  ABSTRACT LIST ( GroupMachinery);
 
 skipIn = ABSTRACT CASE BOOLEAN (GroupMachinery, Sku);
 in 'Вкл' (GroupMachinery groupMachinery, Sku sku) = groupMachinery IS GroupMachinery
@@ -642,11 +642,11 @@ skipMachineryPriceTransaction 'Не загружыть в оборудовани
 skip(GroupMachinery groupMachinery, Barcode barcode) += WHEN groupMachinery IS GroupMachinery AND skipMachineryPriceTransaction(barcode) THEN TRUE;
 
 // Перезагрузка целиком
-snapshotAttribute = ABSTRACT LIST (MachineryPriceTransaction, GroupMachinery);
+snapshotAttribute  ABSTRACT LIST ( MachineryPriceTransaction, GroupMachinery);
 
 addedTransaction = DATA LOCAL MachineryPriceTransaction();
 
-snapshotGroupMachinery 'Ранее загруженные'(Stock stock) = {
+snapshotGroupMachinery 'Ранее загруженные'(Stock stock)  { 
 	NEWSESSION {
 	    DIALOG groupMachineryInput OBJECTS s = stock DO {
 	        FOR selected(GroupMachinery groupMachinery) DO {
@@ -703,9 +703,9 @@ createMachineryPriceTransaction = DATA LOCAL BOOLEAN (Sku);
 createMachineryPriceTransactionDocument = DATA LOCAL PriceTransactionDocument();
 createMachineryPriceTransactionComment = DATA LOCAL VARSTRING[100] ();
 
-createAttribute = ABSTRACT LIST (MachineryPriceTransaction);
-createAttribute = ABSTRACT LIST (MachineryPriceTransaction, Stock);
-createAttribute = ABSTRACT LIST (MachineryPriceTransaction, GroupMachinery);
+createAttribute  ABSTRACT LIST ( MachineryPriceTransaction);
+createAttribute  ABSTRACT LIST ( MachineryPriceTransaction, Stock);
+createAttribute  ABSTRACT LIST ( MachineryPriceTransaction, GroupMachinery);
 
 
 exclude = DATA LOCAL BOOLEAN (GroupMachinery);
@@ -713,7 +713,7 @@ exclude = DATA LOCAL BOOLEAN (GroupMachinery);
 supressNoNeedMessage() = DATA LOCAL BOOLEAN (); // не выдавать сообщение если загрузка не требуется
 skipChangePrice = ABSTRACT VALUE BOOLEAN (Barcode);
 
-createMachineryPriceTransaction 'Создать транзакцию'(Stock stock) = {
+createMachineryPriceTransaction 'Создать транзакцию'(Stock stock)  { 
     LOCAL message = TEXT();
     LOCAL sentSomething = BOOLEAN();
     message() <- TEXT('Принято к загрузке в оборудование : \n');
@@ -776,7 +776,7 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
             MESSAGE 'Загрузка прайса в оборудование не требуется.' NOWAIT;
 };
 
-createBalanceMachineryPriceTransaction 'Остатки'(Stock stock) = {
+createBalanceMachineryPriceTransaction 'Остатки'(Stock stock)  { 
 	NEWSESSION {
 	    createMachineryPriceTransaction(Sku sku) <- TRUE IF currentBalance(sku, stock);
 	    createMachineryPriceTransactionComment() <- 'Инкрементная загрузка остатков';
@@ -785,7 +785,7 @@ createBalanceMachineryPriceTransaction 'Остатки'(Stock stock) = {
 	}
 } CONFIRM IN incrementMachineryPrice;
 
-createBalanceSnapshotMachineryPriceTransaction 'Остатки (целиком)'(Stock stock) = {
+createBalanceSnapshotMachineryPriceTransaction 'Остатки (целиком)'(Stock stock)  { 
 	NEWSESSION {
 	    createMachineryPriceTransaction(Sku sku) <- TRUE IF currentBalance(sku, stock);
 	    createMachineryPriceTransactionComment() <- 'Загрузка остатков (целиком)';
@@ -795,7 +795,7 @@ createBalanceSnapshotMachineryPriceTransaction 'Остатки (целиком)'
 	}
 } CONFIRM IN incrementMachineryPrice;
 
-createPriceMachineryPriceTransaction 'Все товары'(Stock stock) = {
+createPriceMachineryPriceTransaction 'Все товары'(Stock stock)  { 
 	NEWSESSION {
 	    createMachineryPriceTransaction(Sku sku) <- TRUE;
 	    createMachineryPriceTransactionComment() <- 'Инкрементная загрузка товаров';
@@ -839,7 +839,7 @@ DESIGN options {
     }
 }
 
-createBalanceSelectMachineryPriceTransaction 'Остатки'(Stock stock) = {
+createBalanceSelectMachineryPriceTransaction 'Остатки'(Stock stock)  { 
 	NEWSESSION {
 	    DIALOG selectGroupMachinery OBJECTS st = stock DO
 	        IF [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
@@ -854,7 +854,7 @@ createBalanceSelectMachineryPriceTransaction 'Остатки'(Stock stock) = {
 	}
 } IN snapshotMachineryPrice;
 
-createSelectMachineryPriceTransaction 'Все товары'(Stock stock) = {
+createSelectMachineryPriceTransaction 'Все товары'(Stock stock)  { 
 	NEWSESSION {
 	    DIALOG selectGroupMachinery OBJECTS st = stock DO
 	        IF [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
@@ -872,7 +872,7 @@ createSelectMachineryPriceTransaction 'Все товары'(Stock stock) = {
 
 
 GROUP documentMachineryPrice 'Из документа' : public;
-createDocumentMachineryPriceTransaction 'Из документа'(Stock stock) = {
+createDocumentMachineryPriceTransaction 'Из документа'(Stock stock)  { 
 	NEWSESSION {
 	    DIALOG documents DO {
 	        createMachineryPriceTransaction(Sku sku) <- TRUE WHERE countDocumentDetail(sku, (GROUP MAX Document d IF inSession(d)));
@@ -903,8 +903,8 @@ META defineMachineryPriceTransactionAttributeBase(object, caption, nameProp)
     prevTransaction###object caption###' (тек.)' (Barcode barcode, GroupMachinery groupMachinery)  =
         object(prevLastTransaction(barcode, groupMachinery), barcode);
 
-    snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +=
-        { object(t, Barcode barcode) <- prevTransaction###object(barcode, groupMachinery) WHERE in(t, barcode); }
+    snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
+        {  object(t, Barcode barcode) <- prevTransaction###object(barcode, groupMachinery) WHERE in(t, barcode); }
 
     EXTEND FORM machineryPriceTransaction PROPERTIES(t, b) nameProp###object;
     EXTEND FORM machineryPriceTransactions PROPERTIES(t, b) READONLY nameProp###object;
@@ -914,7 +914,7 @@ END
 META defineMachineryPriceTransactionAttributeAction(object, caption, type, nameProp)
     @defineMachineryPriceTransactionAttributeBase(object, caption, nameProp);
     over###object = ABSTRACT type (MachineryPriceTransaction, Barcode);
-    createAttribute(MachineryPriceTransaction t) += { object(t, Barcode barcode) <- OVERRIDE over###object(t, barcode), object(barcode)
+    createAttribute(MachineryPriceTransaction t) + {  object(t, Barcode barcode) <- OVERRIDE over###object(t, barcode), object(barcode)
                                                           WHERE in(t, barcode); }
 END
 
@@ -934,7 +934,7 @@ END
 
 META defineMachineryPriceTransactionAttributeStockAction(object, caption, nameProp)
     @defineMachineryPriceTransactionAttributeBase(object, caption, nameProp);
-    createAttribute(MachineryPriceTransaction t, Stock stock) += { object(t, Barcode barcode) <- object(barcode, stock)
+    createAttribute(MachineryPriceTransaction t, Stock stock) + {  object(t, Barcode barcode) <- object(barcode, stock)
                                                                       WHERE in(t, barcode); }
 END
 META defineMachineryPriceTransactionAttributeStock(object, caption, type)
@@ -964,7 +964,7 @@ DESIGN options {
 
 // Подключение свойств к документу
 META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, stockProp)
-    createMachineryPriceTransaction 'Загрузить в оборудование'(###document document) = {
+    createMachineryPriceTransaction 'Загрузить в оборудование'(###document document)  { 
 	NEWSESSION {
 	        IF is(document) THEN
 	            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO { 
@@ -981,9 +981,9 @@ META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, sto
 	    }
 } TOOLBAR CONFIRM;
     
-    createMachineryPriceTransaction(###document document) += { createMachineryPriceTransaction(document); }
+    createMachineryPriceTransaction(###document document) + {  createMachineryPriceTransaction(document); }
     
-    createSnapshotMachineryPriceTransaction 'Перегрузить все позиции'(###document document) = {
+    createSnapshotMachineryPriceTransaction 'Перегрузить все позиции'(###document document)  { 
 	NEWSESSION {
 	        IF is(document) THEN
 	            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO { 
@@ -999,7 +999,7 @@ META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, sto
 	    }
 } CONFIRM;
     
-    createSnapshotMachineryPriceTransaction(###document document) += { createSnapshotMachineryPriceTransaction(document); }
+    createSnapshotMachineryPriceTransaction(###document document) + {  createSnapshotMachineryPriceTransaction(document); }
 
     showCreateMachineryPriceTransaction 'Показывать' (###document document) = isPosted(document) AND NOT Machinery.skip(document)
                                                                                                            AND NOT sent(document);
@@ -1070,7 +1070,7 @@ DESIGN options {
     }
 }
 
-createSelectedSkuPriceTransactionDocument 'Загрузить в оборудование'(Stock stock) = {
+createSelectedSkuPriceTransactionDocument 'Загрузить в оборудование'(Stock stock)  { 
 	NEWSESSION NESTED (select[Sku]) {
 	    IF (GROUP SUM 1 IF select(Sku sku)) THEN {
 	        createMachineryPriceTransactionSnapshot() <- TRUE;
@@ -1090,14 +1090,14 @@ createSelectedSkuPriceTransactionDocument 'Загрузить в оборудо�
 	}
 } TOOLBAR ;
 
-createApplySelectedSkuPriceTransactionDocument 'Загрузить в оборудование'(Stock stock) = {
+createApplySelectedSkuPriceTransactionDocument 'Загрузить в оборудование'(Stock stock)  { 
     APPLY NESTED (select[Sku]);
     IF NOT canceled() THEN {
         createSelectedSkuPriceTransactionDocument(stock);
     }
 }
 
-createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование'() = {
+createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование'()  { 
 	NEWSESSION NESTED (select[Sku,Stock], createMachineryPriceTransactionSnapshot[], createMachineryPriceTransaction[Sku]) {
 	    IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
 	        FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](Stock stock) DO {

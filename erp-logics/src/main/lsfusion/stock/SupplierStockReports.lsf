@@ -107,7 +107,7 @@ sumASupplierToLocal 'Сумма с НДС конец' =  DATA LOCAL NUMERIC[18,4
 supplierSumBSupplierFromLocal 'Сумма без НДС начало' =  DATA LOCAL NUMERIC[18,4](Sku); 
 supplierSumASupplierToLocal 'Сумма без НДС конец' =  DATA LOCAL NUMERIC[18,4](Sku);  
 
-resetLocSup() = {
+resetLocSup()  { 
     quantityPurchaseSupplierFromToLocal(Sku sk) <- NULL;
     quantitySoldSupplierLocal(Sku sk) <- NULL;
     balanceASupplierToLocal(Sku sk) <- NULL;
@@ -153,7 +153,7 @@ FORM supplierStockReportPrint 'По поставщикам'
     FILTERS inSession(skuGroup(sk)) AND st IS Stock AND dFrom IS DATE 
 ;
 
-supplierReportPrint 'Отчет по поставщику (xls)' (Stock st,DATE dFrom,DATE dTo) = {
+supplierReportPrint 'Отчет по поставщику (xls)' (Stock st,DATE dFrom,DATE dTo)  { 
     resetLocSup();
     
     quantityPurchaseSupplierFromToLocal (Sku sku) <- GROUP SUM quantityPurchaseSupplier(sku, Stock stock, st, DATE date) IF date >= dFrom AND date <= dTo 
@@ -191,12 +191,12 @@ supplierReportPrint 'Отчет по поставщику (xls)' (Stock st,DATE 
         IF inReport(stock) AND inSession(sku(batch)) BY sku(batch), supplierStock(batch)](sku, st)); 
 }
 
-supplierReportPrintXLS 'Отчет по поставщику (xls)' (Stock st,DATE dFrom,DATE dTo) = {
+supplierReportPrintXLS 'Отчет по поставщику (xls)' (Stock st,DATE dFrom,DATE dTo)  { 
     supplierReportPrint(st,dFrom,dTo);
     PRINT supplierStockReportPrint OBJECTS st=st, dFrom = dFrom, dTo=dTo XLS;
 }IMAGE 'print.png' IN print;    
 
-supplierReportPrintXLSX 'Отчет по поставщику (xlsx)' (Stock st,DATE dFrom,DATE dTo) = {
+supplierReportPrintXLSX 'Отчет по поставщику (xlsx)' (Stock st,DATE dFrom,DATE dTo)  { 
     supplierReportPrint(st,dFrom,dTo);
     PRINT supplierStockReportPrint OBJECTS st=st, dFrom = dFrom, dTo=dTo XLSX;
 }IMAGE 'print.png' IN print;    
@@ -274,7 +274,7 @@ balanceASupplierToLocal 'Остаток на конец' = DATA LOCAL NUMERIC[16
 sumASupplierToLocal 'Сумма с НДС конец' = DATA LOCAL NUMERIC[18,4](Stock); 
 supplierSumASupplierToLocal 'Сумма без НДС конец' = DATA LOCAL NUMERIC[18,4](Stock);
  
-resetSupLoc ()= {
+resetSupLoc () { 
     quantityPurchaseSupplierFromToLocal(Stock st) <- NULL; 
     sumPurchaseSupplierFromToLocal(Stock st) <- NULL; 
     supplierSumPurchaseSupplierFromToLocal(Stock st) <- NULL; 
@@ -305,7 +305,7 @@ FORM supplierStockReportPrintAll 'По поставщикам'
     PROPERTIES(st) balanceASupplierToLocal,  sumASupplierToLocal,  supplierSumASupplierToLocal                              
 ;
 
-supplierReportPrintAllCustom  (Stock st, DATE dFrom, DATE  dTo) = {
+supplierReportPrintAllCustom  (Stock st, DATE dFrom, DATE  dTo)  { 
     quantityPurchaseSupplierFromToLocal (st) <- (GROUP SUM quantityPurchaseSupplier(Sku sku, Stock stock, st, DATE date) IF date >= dFrom AND date <= dTo 
         AND inReport(stock) AND inSession(skuGroup(sku)));
     sumPurchaseSupplierFromToLocal (st) <- (GROUP SUM sumPurchaseSupplier(Sku sku, Stock stock, st, DATE date) IF date >= dFrom AND date <= dTo 
@@ -334,7 +334,7 @@ supplierReportPrintAllCustom  (Stock st, DATE dFrom, DATE  dTo) = {
         IF inReport(stock) AND inSession(skuGroup(sku(batch))) BY supplierStock(batch)](st)); 
 }
 
-supplierReportPrintAll 'Отчет по поставщику итог (xls)' (Stock st, DATE dFrom, DATE  dTo) = {
+supplierReportPrintAll 'Отчет по поставщику итог (xls)' (Stock st, DATE dFrom, DATE  dTo)  { 
     resetSupLoc ();
     supplierReportPrintAllCustom(st,dFrom,dTo);
 
@@ -344,7 +344,7 @@ supplierReportPrintAll 'Отчет по поставщику итог (xls)' (St
     inSupplierStockReport(Stock stock) <- NULL;
 }IMAGE 'print.png' IN print;
 
-supplierReportPrintAllSelect 'Отчет по поставщикам (xls)' (DATE dFrom, DATE dTo) = {
+supplierReportPrintAllSelect 'Отчет по поставщикам (xls)' (DATE dFrom, DATE dTo)  { 
     inSupplierStockReport(Stock st) <- NULL;
     resetSupLoc ();
     DIALOG dialogSupplierStocks OBJECTS dFrom = dFrom, dTo = dTo DO {

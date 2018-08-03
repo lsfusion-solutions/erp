@@ -5,7 +5,7 @@ REQUIRE System,
 
 
 needDLL() = GROUP SUM 1 IF computer(CashRegister c) == currentComputer() AND sidModel(groupMachinery(c)) == 'Absolut';
-onClientStarted() += {
+onClientStarted() + { 
 	IF needDLL() THEN {
 	    IF is64Java(currentComputer()) THEN
 	        loadLibrary('lib/win64/absolut.dll');
@@ -14,42 +14,42 @@ onClientStarted() += {
 	}
 };
 
-loadDefaultCashRegisterModels() += { EXEC loadDefaultCashRegisterModel('Фискальный регистратор Absolut', 'Absolut', NULL, NULL, TRUE, NULL); };
+loadDefaultCashRegisterModels() + {  EXEC loadDefaultCashRegisterModel('Фискальный регистратор Absolut', 'Absolut', NULL, NULL, TRUE, NULL); };
 
-fiscalAbsolutPrint 'Напечатать фискальный чек' = CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutPrintReceiptActionProperty' (Receipt);
-postPrint(Receipt receipt) += { IF sidCashRegisterModel(receipt) == 'Absolut' THEN fiscalAbsolutPrint(receipt); }
+fiscalAbsolutPrint 'Напечатать фискальный чек'  CUSTOM  'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutPrintReceiptActionProperty' (Receipt);
+postPrint(Receipt receipt) + {  IF sidCashRegisterModel(receipt) == 'Absolut' THEN fiscalAbsolutPrint(receipt); }
 
 fiscalAbsolutReceiptTitle 'Заголовок чека Absolut' = ABSTRACT TEXT ();
 fiscalAbsolutTop 'Дополнительный текст перед чеком Absolut' = ABSTRACT TEXT (Receipt);
 fiscalAbsolutBottom 'Дополнительный текст после чека Absolut' = ABSTRACT TEXT (Receipt);
 
-fiscalAbsolutPrintCopyReceipt 'Копия чека' = CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutPrintCopyReceiptActionProperty' ();
-fiscalPrintCopyReceipt() += { IF sidModelCurrentCashRegister() == 'Absolut' THEN fiscalAbsolutPrintCopyReceipt(); }
+fiscalAbsolutPrintCopyReceipt 'Копия чека'  CUSTOM  'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutPrintCopyReceiptActionProperty' ();
+fiscalPrintCopyReceipt() + {  IF sidModelCurrentCashRegister() == 'Absolut' THEN fiscalAbsolutPrintCopyReceipt(); }
 
-fiscalAbsolutXReport 'X-отчёт' = CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutXReportActionProperty' ();
-fiscalXReport() += { IF sidModelCurrentCashRegister() == 'Absolut' THEN fiscalAbsolutXReport(); }
+fiscalAbsolutXReport 'X-отчёт'  CUSTOM  'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutXReportActionProperty' ();
+fiscalXReport() + {  IF sidModelCurrentCashRegister() == 'Absolut' THEN fiscalAbsolutXReport(); }
 
-fiscalAbsolutZReport 'Z-отчёт' = CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutZReportActionProperty' ();
-fiscalZReport() += { IF sidModelCurrentCashRegister() == 'Absolut' THEN fiscalAbsolutZReport(); }
+fiscalAbsolutZReport 'Z-отчёт'  CUSTOM  'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutZReportActionProperty' ();
+fiscalZReport() + {  IF sidModelCurrentCashRegister() == 'Absolut' THEN fiscalAbsolutZReport(); }
 
 fiscalAbsolutReportTop 'Заголовок отчёта Absolut' = ABSTRACT TEXT ();
 
-fiscalAbsolutService 'Перемещение денег' = CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutServiceInOutActionProperty' (CashOperation);
-fiscalService(CashOperation cashOperation) += { IF sidCashRegisterModel(cashOperation) == 'Absolut' THEN fiscalAbsolutService(cashOperation); }
+fiscalAbsolutService 'Перемещение денег'  CUSTOM  'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutServiceInOutActionProperty' (CashOperation);
+fiscalService(CashOperation cashOperation) + {  IF sidCashRegisterModel(cashOperation) == 'Absolut' THEN fiscalAbsolutService(cashOperation); }
 
 showDisplayText 'Показывать текст на дисплей' = DATA BOOLEAN (CashRegisterModel);
 isAbsolut (CashRegisterModel m) = sid(m) == 'Absolut';
 EXTEND FORM cashRegisterModel PROPERTIES(c) showDisplayText SHOWIF isAbsolut(c); 
 
-fiscalAbsolutDisplayText 'Вывести текст на дисплей' = CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutDisplayTextActionProperty' (ReceiptDetail);
-fiscalDisplayText (ReceiptDetail receiptDetail) += { IF sidCashRegisterModel(receiptDetail) == 'Absolut' AND showDisplayText(cashRegisterModel(receipt(receiptDetail))) THEN fiscalAbsolutDisplayText(receiptDetail); }
+fiscalAbsolutDisplayText 'Вывести текст на дисплей'  CUSTOM  'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutDisplayTextActionProperty' (ReceiptDetail);
+fiscalDisplayText (ReceiptDetail receiptDetail) + {  IF sidCashRegisterModel(receiptDetail) == 'Absolut' AND showDisplayText(cashRegisterModel(receipt(receiptDetail))) THEN fiscalAbsolutDisplayText(receiptDetail); }
 
-fiscalAbsolutCancel 'Отменить чек' = CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutCancelReceiptActionProperty' (Receipt);
-fiscalCancel(Receipt receipt) += { IF sidModelCurrentCashRegister() == 'Absolut' THEN fiscalAbsolutCancel(receipt); }
+fiscalAbsolutCancel 'Отменить чек'  CUSTOM  'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutCancelReceiptActionProperty' (Receipt);
+fiscalCancel(Receipt receipt) + {  IF sidModelCurrentCashRegister() == 'Absolut' THEN fiscalAbsolutCancel(receipt); }
 
 printZeroReceipt 'Нулевой чек при открытии z-отчёта (Absolut)' = DATA BOOLEAN ();
-fiscalAbsolutOpenZReport 'Z-отчёт' = CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutOpenZReportActionProperty' ();
-fiscalOpenZReport() += { IF sidModelCurrentCashRegister() == 'Absolut' AND printZeroReceipt() THEN fiscalAbsolutOpenZReport(); }
+fiscalAbsolutOpenZReport 'Z-отчёт'  CUSTOM  'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutOpenZReportActionProperty' ();
+fiscalOpenZReport() + {  IF sidModelCurrentCashRegister() == 'Absolut' AND printZeroReceipt() THEN fiscalAbsolutOpenZReport(); }
 
 saveCommentOnFiscalTapeAbsolut 'Сохранять комментарий для контрольной ленты' = DATA BOOLEAN ();
 groupPaymentsByVAT 'Разбивать оплату по ставкам НДС' = DATA BOOLEAN ();
@@ -77,7 +77,7 @@ DESIGN options {
     }
 }
 
-overChangeBarcodeSale(VARSTRING[30] string, Receipt receipt) += {
+overChangeBarcodeSale(VARSTRING[30] string, Receipt receipt) + { 
     IF startsWith(string, fiscalAbsolutPrefixCode128()) == 1 AND receipt IS Receipt AND string IS VARSTRING[30] THEN {
         FOR VARSTRING[30](Receipt r AS Receipt) == substrFrom(string, 5) DO {
             DIALOG searchSkuReturnReceipt OBJECTS st = departmentStore(r), c = cashRegister(r), s = r INPUT, r INPUT rd DO {

@@ -395,12 +395,12 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 // --------------------------- Формы Заказа ---------------------------------
     backgroundSku 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrderDetail);
 
-    editSku 'Редактировать SKU' (UserOrderDetail d) = { NEWSESSION { edit(sku(d)); } }
+    editSku 'Редактировать SKU' (UserOrderDetail d)  { NEWSESSION { edit(sku(d)); } }
     
     backgroundParam = RGB(212,255,212) IF OrderDetail orderDetail IS OrderDetail; 
     backgroundQuantityParam = OVERRIDE backgroundQuantity(OrderDetail d), backgroundParam(d);
     disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (UserOrder); 
-    overPrePost 'Провести' (UserOrder o) = {
+    overPrePost 'Провести' (UserOrder o)  { 
         IF NOT disablePosted(o) THEN {
             isPosted(o) <- TRUE;
         } 
@@ -586,9 +586,9 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
     isUserOpened(UserOrder o)=  isOpened[Order](o) AND is(o);
 
-    overCopy = ABSTRACT LIST (UserOrderDetail, OrderDetail);
-    overCopy = ABSTRACT LIST (Order, UserOrder);
-    copy 'Копировать'(Order order) = {
+    overCopy  ABSTRACT LIST ( UserOrderDetail, OrderDetail);
+    overCopy  ABSTRACT LIST ( Order, UserOrder);
+    copy 'Копировать'(Order order)  { 
 	NEWSESSION {
 	        NEW o = UserOrder {
 	            supplier(o) <- supplier(order);
@@ -618,9 +618,9 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 } TOOLBAR;
     
 //-- Копирование строк     
-    overCopy = ABSTRACT LIST (UserOrderDetail, UserOrderDetail);
+    overCopy  ABSTRACT LIST ( UserOrderDetail, UserOrderDetail);
 
-    copy 'Копировать'(UserOrderDetail detail) = {
+    copy 'Копировать'(UserOrderDetail detail)  { 
         NEW d = UserOrderDetail {          
 
             userOrder(d) <- userOrder(detail);
@@ -804,15 +804,15 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineFilterIsOpened (order, orders, o); 
     @defineDocumentLogForm(orders, o);
  
-    edit(UserOrderDetail d) += { DIALOG userOrder OBJECTS o = userOrder(d), d = d DOCKED; }
+    edit(UserOrderDetail d) + {  DIALOG userOrder OBJECTS o = userOrder(d), d = d DOCKED; }
     
-    show 'Просмотреть' (UserOrder i) =  {
+    show 'Просмотреть' (UserOrder i)   { 
         NEWSESSION{
             SHOW userOrder OBJECTS o = i DOCKED READONLY;
         }
         
     }TOOLBAR;
-    show 'Просмотреть' (UserOrderDetail i) =  {
+    show 'Просмотреть' (UserOrderDetail i)   { 
         NEWSESSION{
             SHOW userOrder OBJECTS o = userOrder(i), d = i DOCKED READONLY;
         }
@@ -844,13 +844,13 @@ META defineOrderBatch(legalEntityProp, stockProp, char)
     @defineDocumentInterfaceDetailBatch(order, batch);
     batch[Order.OrderDetail](OrderDetail d) += batch(d);
     
-    overCopy[UserOrderDetail,UserOrderDetail](UserOrderDetail d, UserOrderDetail detail) += {      
+    overCopy[UserOrderDetail,UserOrderDetail](UserOrderDetail d, UserOrderDetail detail) + {       
         batch(d) <- batch(detail);
     } 
-    overCopy(UserOrderDetail d, OrderDetail detail) += {      
+    overCopy(UserOrderDetail d, OrderDetail detail) + {       
         batch(d) <- batch(detail);
     } 
-    replace(Sku s, Batch b) += { sku(UserOrderDetail detail) <- s WHERE batch(detail) == b;}
+    replace(Sku s, Batch b) + {  sku(UserOrderDetail detail) <- s WHERE batch(detail) == b;}
     // Пишем в цену заказа из вида цен в зависимости от партии
     @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, priceStock, priceDateTime, userOrder);
 
@@ -871,7 +871,7 @@ META defineOrderBatch(legalEntityProp, stockProp, char)
 END
 
 META defineOrderBatchDialog(dumb)
-    changeBatch(UserOrderDetail userOrderDetail) = {
+    changeBatch(UserOrderDetail userOrderDetail)  { 
         DIALOG dialogBatch OBJECTS sk = sku(userOrderDetail), bt = batch(userOrderDetail) INPUT NULL NEWSESSION DO {
             batch(userOrderDetail) <- bt;
         }
@@ -884,7 +884,7 @@ META defineOrderBatchDialog(dumb)
 END
 
 META defineOrderBatchDialogStock(stockProp, dialog)
-    changeBatch(UserOrderDetail d) = {
+    changeBatch(UserOrderDetail d)  { 
         DIALOG dialogBatchStock##dialog OBJECTS st = stockProp(d),
                                  t = dateTime(d),
                                  sk = sku(d),

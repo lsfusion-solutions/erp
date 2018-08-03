@@ -16,7 +16,7 @@ CONSTRAINT defaultFakeBatchesOperation() AND defaultFakeBatchesStock () AND NOT 
     MESSAGE 'Склад для создания партий не включен в операцию.';
 formFake = DATA LOCAL Purchase.UserInvoice();
 
-createFakeBatchesCustom 'Создать партии' (Stock stock) = {
+createFakeBatchesCustom 'Создать партии' (Stock stock)  { 
 	
 	    LOCAL filterNoBatch = INTEGER (Sku, Stock);
 	    LOCAL documentDate = DATE ();
@@ -55,14 +55,14 @@ createFakeBatchesCustom 'Создать партии' (Stock stock) = {
             }	
         }
 }
-createFakeBatches 'Создать партии' (Stock stock) = {
+createFakeBatches 'Создать партии' (Stock stock)  { 
 	NEWSESSION {
 	    createFakeBatchesCustom(stock);
 	    SHOW userInvoice OBJECTS i = formFake() DOCKED NOCANCEL;
 	    formFake()<- NULL;
 	}
 }
-createFakeBatchesAll 'Создать партии (Все магазины)' () = {
+createFakeBatchesAll 'Создать партии (Все магазины)' ()  { 
     IF 	defaultFakeBatchesOperation() AND  defaultFakeBatchesStock() THEN {
         FOR active(DepartmentStore ds) AND isCompany(ds) AND ds IS DepartmentStore DO {
             NEWSESSION {  

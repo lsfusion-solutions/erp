@@ -89,11 +89,11 @@ supplierStocks 'Склады поставщика' (InternetOrder order) = GROUP
                                                                         CONCAT name(Stock stock) IF inStockInternetOrder(stock, order), ', ' 
                                                                         ORDER name(stock) CHARWIDTH 30;
 
-changeSupplierStock(InternetOrderDetail o) = {
+changeSupplierStock(InternetOrderDetail o)  { 
     DIALOG stocksCompany OBJECTS s = Sale.supplierStock[InternetOrderDetail](o) CHANGE;
 }
 
-selectSupplierStock 'Выбрать' (InternetOrderDetail d, Stock s) = {
+selectSupplierStock 'Выбрать' (InternetOrderDetail d, Stock s)  { 
     Sale.supplierStock[InternetOrderDetail](d) <- s;
 } TOOLBAR;
                                  
@@ -136,8 +136,8 @@ discountPercent 'Процент скидки' (InternetOrderDetail d)= DATA NUME
 backgroundDiscount (InternetOrder o) = RGB(204, 255, 204) IF o IS InternetOrder;
 
 useOwn = ABSTRACT BOOLEAN ();
-overChangeDiscountPrice = ABSTRACT LIST (InternetOrderDetail, NUMERIC[16,4]);
-changeDiscountPrice(InternetOrderDetail detail) = {
+overChangeDiscountPrice  ABSTRACT LIST ( InternetOrderDetail, NUMERIC[16,4]);
+changeDiscountPrice(InternetOrderDetail detail)  { 
     INPUT n = NUMERIC[16,4] DO {
         IF NOT useOwn() THEN {
             discountPrice(detail) <- n;
@@ -148,8 +148,8 @@ changeDiscountPrice(InternetOrderDetail detail) = {
 
     }    
 } 
-overChangeDiscountPercent = ABSTRACT LIST (InternetOrderDetail, NUMERIC[8,3]);
-changeDiscountPercent(InternetOrderDetail detail) = {
+overChangeDiscountPercent  ABSTRACT LIST ( InternetOrderDetail, NUMERIC[8,3]);
+changeDiscountPercent(InternetOrderDetail detail)  { 
     INPUT n = NUMERIC[8,3] DO {
         IF NOT useOwn() THEN {
             discountPercent(detail) <- n;
@@ -178,7 +178,7 @@ prevAvailableQuantity 'Доступное кол-во' (InternetOrderDetail d, S
 prevCurrentBalance 'Текущий остаток' (InternetOrderDetail d, Stock st) = prevCurrentBalance(sku(d), st); 
 prevCurrentReserve 'Текущий резерв' (InternetOrderDetail d, Stock st) = prevCurrentReserve(sku(d), st); 
 
-reviewReserve 'Резерв' (InternetOrderDetail d, Stock st) = {
+reviewReserve 'Резерв' (InternetOrderDetail d, Stock st)  { 
     IF dateTime(d) THEN {
         FOR t == dateTime(d) AND sk == sku(d) DO
             NEWSESSION SHOW orderSkuLedger OBJECTS t = t, st = st, sk = sk ;
@@ -201,7 +201,7 @@ numberDiscountCard 'Номер дисконтной карты'(InternetOrder o)
 issueCard 'Оформить карту' = DATA BOOLEAN (InternetOrder);
 
 original 'Файл XML' = DATA CUSTOMFILE (InternetOrder);
-openOriginal 'Файл XML'(InternetOrder o) = { open(original(o)); }
+openOriginal 'Файл XML'(InternetOrder o)  { open(original(o)); }
 
 discountCard (InternetOrderDetail detail) = discountCard(internetOrder(detail));  
 numberDiscountCard 'Номер дисконтной карты'(InternetOrderDetail detail) = numberDiscountCard(internetOrder(detail));
@@ -446,7 +446,7 @@ DESIGN internetOrder {
 
 //-- Копирование строк     
 
-copy 'Копировать'(InternetOrderDetail detail) = {
+copy 'Копировать'(InternetOrderDetail detail)  { 
     NEW d = InternetOrderDetail {          
         internetOrder(d) <- internetOrder(detail);
         sku(d) <- sku(detail);
@@ -460,10 +460,10 @@ copy 'Копировать'(InternetOrderDetail detail) = {
 EXTEND FORM internetOrder PROPERTIES(d) copy ;
 DESIGN internetOrder { PROPERTY(copy(d)) { focusable = FALSE; } }
 
-edit (InternetOrderDetail d) += { DIALOG internetOrder OBJECTS o = internetOrder(d), d = d DOCKED; }
+edit (InternetOrderDetail d) + {  DIALOG internetOrder OBJECTS o = internetOrder(d), d = d DOCKED; }
 
-overCopy = ABSTRACT LIST (InternetOrder, InternetOrder);
-copy 'Копировать'(InternetOrder internetOrder) = {
+overCopy  ABSTRACT LIST ( InternetOrder, InternetOrder);
+copy 'Копировать'(InternetOrder internetOrder)  { 
 	NEWSESSION {
 	    NEW o = InternetOrder {
 	        currency(o) <- currency(internetOrder);
@@ -604,15 +604,15 @@ NAVIGATOR {
 
 idBatch 'Код партии' (InternetOrderDetail d) = id(batch(d));
 cost 'Себестоимость' (InternetOrderDetail d) = cost(batch(d));
-overFillBatch = ABSTRACT LIST (InternetOrderDetail); 
-overFillBatchPicking = ABSTRACT LIST (InternetOrderDetail); 
+overFillBatch  ABSTRACT LIST ( InternetOrderDetail); 
+overFillBatchPicking  ABSTRACT LIST ( InternetOrderDetail); 
 
-fillBatch 'Проставить партию'(InternetOrderDetail d)  = {    
+fillBatch 'Проставить партию'(InternetOrderDetail d)   {    
     batch(d) <- firstOrderBatchBalance(sku(d), Sale.supplierStock[InternetOrderDetail](d), dateTime(d), quantity(d)) WHERE isItem(sku(d)); 
     overFillBatch(d);
 } ASON CONTEXTMENU nameBatch[InternetOrderDetail];
 
-fillAllBatch 'Проставить партии для всех'(InternetOrderDetail detail) = {
+fillAllBatch 'Проставить партии для всех'(InternetOrderDetail detail)  { 
    FOR internetOrder(detail) == internetOrder(InternetOrderDetail d) AND NOT batch(d) DO
        fillBatch(d);
 } ASON CONTEXTMENU nameBatch[InternetOrderDetail];
@@ -630,7 +630,7 @@ WHEN LOCAL (CHANGED(Sale.supplierStock[InternetOrderDetail](InternetOrderDetail 
     overFillBatch(detail);
 }
 
-changeBatch(InternetOrderDetail d) = {
+changeBatch(InternetOrderDetail d)  { 
     DIALOG dialogBatchStockOut OBJECTS st = Sale.supplierStock[InternetOrderDetail](d),
                                  t = dateTime(d),
                                  sk = sku(d),
@@ -672,7 +672,7 @@ FORM  internetOrderPrint 'Интернет-заказ'
             NOT skip(d)   
 
 ;
-internetOrderPrint 'Счет-заказ' (InternetOrder o) = {
+internetOrderPrint 'Счет-заказ' (InternetOrder o)  { 
     in(InternetOrder order) <- NULL;
     skip(InternetOrderDetail d) <- NULL;   
      
@@ -731,7 +731,7 @@ viewPrice 'Цена' (sku, stock, internetOrder) = DATA LOCAL NESTED NUMERIC[16,
 
 price 'Цена' (Sku sku, Stock stock, InternetOrder internetOrder) = viewPrice(sku, stock, internetOrder);
 
-updateViewPrice (Sku sku, Stock stock, InternetOrder internetOrder) = {
+updateViewPrice (Sku sku, Stock stock, InternetOrder internetOrder)  { 
     FOR PriceListType pt == priceListType(internetOrder) AND sku IS Sku AND stock IS Stock NOINLINE (pt) DO
         viewPrice(sku, stock, internetOrder) <- prevPriceB(pt, sku, stock, dateTime(internetOrder));
 }
@@ -816,7 +816,7 @@ DESIGN internetOrder {
 
     
 currentInternetOrderInternetOrder() = DATA LOCAL NESTED Object ();
-setCurrentInternetOrderInternetOrder(Object o) = { currentInternetOrderInternetOrder() <- o; }
+setCurrentInternetOrderInternetOrder(Object o)  { currentInternetOrderInternetOrder() <- o; }
 
 EXTEND FORM internetOrder
     EVENTS ON CHANGE o setCurrentInternetOrderInternetOrder(o)

@@ -25,7 +25,7 @@ EXTEND FORM options PROPERTIES() requestInputChangeCustomsCode;
 DESIGN options { customs { MOVE PROPERTY(requestInputChangeCustomsCode()); } }
 
 // Действие по изменению кода ТНВЭД через ручной ввод
-changeCodeCustomsGroup(Country country, Item item) = {
+changeCodeCustomsGroup(Country country, Item item)  { 
     IF requestInputChangeCustomsCode() THEN {
         INPUT s = STRING[10] DO {
             IF customsGroup(rpad(s, 10, '0')) OR NOT s THEN {
@@ -44,7 +44,7 @@ changeCodeCustomsGroup(Country country, Item item) = {
     }
 }
 
-changeCustomsGroupDefaultCountry(Item item) = {
+changeCustomsGroupDefaultCountry(Item item)  { 
     DIALOG customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = customsGroup(defaultCountry(), item) INPUT NULL DO 
         customsGroup(Country country, item) <- cg WHERE country == defaultCountry();
 }
@@ -61,7 +61,7 @@ dataValueVATCustomsException 'Льгота НДС, %' (Country country, Item ite
 
 rangeVATCustomsException(Country country, Item item) = range(VATCustomsException(country, item));
 
-changeCustomsExceptionDefaultCountry(Item item) = {
+changeCustomsExceptionDefaultCountry(Item item)  { 
     DIALOG VATCustomsExceptions OBJECTS vce = VATCustomsException(defaultCountry(), item) INPUT NULL DO
         VATCustomsException(Country country, item) <- vce WHERE country == defaultCountry();
 }
@@ -73,7 +73,7 @@ CONSTRAINT customsGroup(Country country, Item item) AND VATCustomsException(coun
 
 background 'Цвет' (Country country, Sku sku) = RGB(212, 255, 212) IF countVATCustomsException(customsGroup(country, sku)) > 0;
 
-changeCustomsGroup(Country country, Item item, DATE date) = {
+changeCustomsGroup(Country country, Item item, DATE date)  { 
     DIALOG customsGroups OBJECTS cg = customsGroup(country, item) INPUT NULL DO {
         customsGroup(country, item) <- cg;
         IF NOT customsGroup(VATCustomsException(country, item)) == cg THEN
@@ -86,7 +86,7 @@ changeCustomsGroup(Country country, Item item, DATE date) = {
     } 
 }
 
-changeVATCustomsException(Country country, Item item, DATE date) = {
+changeVATCustomsException(Country country, Item item, DATE date)  { 
     DIALOG VATCustomsExceptions OBJECTS cg = customsGroup(country, item), vce = VATCustomsException(country, item) INPUT NULL DO {
         VATCustomsException(country, item) <- vce;
         VAT(item, country) <- IF vce IS VATCustomsException THEN
@@ -116,7 +116,7 @@ EXTEND FORM items
     PROPERTIES(i) READONLYIF isReadonly() codeCustomsGroupDefaultCountry ON CHANGE changeCustomsGroupDefaultCountry(i), canonicalNameCustomsGroupDefaultCountry
 ;
 
-overCopy(Item s, Item d) += {
+overCopy(Item s, Item d) + { 
     customsGroup(Country c,d) <- customsGroup(c,s) WHERE customsGroup(c,s);
     originalCustomsGroup(d) <- originalCustomsGroup(s); 
 }

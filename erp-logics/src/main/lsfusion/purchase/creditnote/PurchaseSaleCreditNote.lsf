@@ -88,7 +88,7 @@ DESIGN creditNoteCreditNotes {
 }
 
 
-fillCreditNote 'Заполнить на основе акта расхождения (закупка)'(Sale.UserCreditNote userCreditNote) =  {
+fillCreditNote 'Заполнить на основе акта расхождения (закупка)'(Sale.UserCreditNote userCreditNote)   { 
     DIALOG creditNoteCreditNotes OBJECTS s = supplier(userCreditNote), c = customer(userCreditNote),
                                    ss = supplierStock(userCreditNote), cs = customerStock(userCreditNote),
                                    t = date(userCreditNote), o INPUT DO {
@@ -134,7 +134,7 @@ dateFromReturnContractSku 'Дата договора' (UserCreditNote o) = dateF
 
 descriptionReturnContractSku 'Описание договора' (UserCreditNote o)= CONCAT ' ', seriesNumberReturnContractSku(o), ' от ' + dateFromReturnContractSku(o);
 
-replace(ContractSku c, ContractSku o) += {contractSku(UserCreditNote object) <- o WHERE contractSku(object) == c;}
+replace(ContractSku c, ContractSku o) + { contractSku(UserCreditNote object) <- o WHERE contractSku(object) == c;}
 
 isCommissionReturn 'Продажа на комиссию' = DATA BOOLEAN (UserCreditNote) IN documentPrm;
 isCommissionReturn(UserCreditNote o) <- type(returnContractSku(o)) == ContractSkuType.commission
@@ -282,16 +282,16 @@ valueVAT(SaleCreditNoteDetail creditNoteDetail) += valueVAT(creditNoteDetail(cre
 VATSum(SaleCreditNoteDetail creditNoteDetail) += VATSum(creditNoteDetail(creditNoteDetail));
 invoiceSum(SaleCreditNoteDetail creditNoteDetail) += invoiceSum(creditNoteDetail(creditNoteDetail));
 
-edit(SaleCreditNote creditNote) += { edit(creditNote(creditNote)); }
+edit(SaleCreditNote creditNote) + {  edit(creditNote(creditNote)); }
 
 creditNoteDetail(SaleCreditNoteDetail creditNoteDetail) += creditNoteDetail(creditNoteDetail);
 
 //-- Действие
 
-overFillCreditNote = ABSTRACT LIST (Sale.UserCreditNote, CreditNote);
-overFillCreditNote = ABSTRACT LIST (Sale.UserCreditNoteDetail, CreditNoteDetail);
+overFillCreditNote  ABSTRACT LIST ( Sale.UserCreditNote, CreditNote);
+overFillCreditNote  ABSTRACT LIST ( Sale.UserCreditNoteDetail, CreditNoteDetail);
 
-moveUserCreditNote 'Акт расхождения (продажа)'(CreditNote creditNote) =  {
+moveUserCreditNote 'Акт расхождения (продажа)'(CreditNote creditNote)   { 
 	NEWSESSION{
 	
 	    NEW i = Sale.UserCreditNote {

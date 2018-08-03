@@ -20,7 +20,7 @@ nameSuppliers 'Поставщики' (Invoice charge) =GROUP
 seriesNumberSuppliers 'Накладные' (Invoice charge) =GROUP 
     CONCAT  seriesNumber(Invoice invoice) IF inExtraCharge(charge, invoice), '; ' ORDER invoice CHARWIDTH 20;  
 
-overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) += {      
+overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) + {       
     inDataExtraCharge(Invoice i,d) <- inDataExtraCharge(i,detail);
 } 
 
@@ -38,7 +38,7 @@ extraChargeSum (Invoice i,UserInvoiceDetail d) += extraChargeSum(i,d);
 extraChargePrice(Invoice i, UserInvoiceDetail d) => inExtraCharge(i, d) RESOLVE RIGHT;
 extraChargeSum(Invoice i, UserInvoiceDetail d) => inExtraCharge(i, d) RESOLVE RIGHT;
 
-changeExtraChargeSum(Invoice i, UserInvoiceDetail d) = {
+changeExtraChargeSum(Invoice i, UserInvoiceDetail d)  { 
     INPUT n = NUMERIC[18,4] DO {
         extraChargeSum(i,d) <- n;
         IF n THEN
@@ -107,7 +107,7 @@ DESIGN extraChargeInvoices {
     }
 }
 
-selectExtraCharge 'Выбрать накладные'(UserInvoice i) = {   
+selectExtraCharge 'Выбрать накладные'(UserInvoice i)  {   
     filterOperationExtraCharge(i) <- operation('purchase_external'); // todo: пока пишем явно операцию
     SHOW extraChargeInvoices OBJECTS i=i ;
 } TOOLBAR;
@@ -155,7 +155,7 @@ EXTEND FORM invoices
 
 calcChargeSum(Invoice i) = NUMERIC[18,4](IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i));
 
-fillExtraChargePriceUser 'Расписать услуги'(Invoice i) = {
+fillExtraChargePriceUser 'Расписать услуги'(Invoice i)  { 
     IF currency(i) THEN {    
         IF toWeightExtraCharge(i) THEN {
             extraChargeSum(i, UserInvoiceDetail d) <- 
@@ -216,17 +216,17 @@ DESIGN extraCharge {
     }
     MOVE TOOLBARBOX;
 }
-showExtraChargePrice 'Показать доп. услуги' (InvoiceDetail d) = {
+showExtraChargePrice 'Показать доп. услуги' (InvoiceDetail d)  { 
 	NEWSESSION { SHOW extraCharge OBJECTS d = d; }
 } ASON CONTEXTMENU chargePrice[InvoiceDetail];
-showExtraChargeSum 'Показать доп. услуги' (InvoiceDetail d) = {
+showExtraChargeSum 'Показать доп. услуги' (InvoiceDetail d)  { 
 	NEWSESSION { SHOW extraCharge OBJECTS d = d; }
 } ASON CONTEXTMENU chargeSum[InvoiceDetail];
 
-showExtraChargePrice 'Показать доп. услуги' (UserInvoiceDetail d) = {
+showExtraChargePrice 'Показать доп. услуги' (UserInvoiceDetail d)  { 
 	NEWSESSION { SHOW extraCharge OBJECTS d = d; }
 } ASON CONTEXTMENU chargePrice[UserInvoiceDetail];
-showExtraChargeSum 'Показать доп. услуги' (UserInvoiceDetail d) = {
+showExtraChargeSum 'Показать доп. услуги' (UserInvoiceDetail d)  { 
 	NEWSESSION { SHOW extraCharge OBJECTS d = d; }
 } ASON CONTEXTMENU chargeSum[UserInvoiceDetail];    
     
@@ -276,10 +276,10 @@ DESIGN extraChargeParams {
     }
 }
 
-seekDefaultOperatioParams() = {
+seekDefaultOperatioParams()  { 
     SEEK extraChargeParams.o = operation('purchase_charge');
 }
-changeDefaultCurrencyParams(LegalEntity s) = {
+changeDefaultCurrencyParams(LegalEntity s)  { 
     SEEK extraChargeParams.c = currency(s);
 }    
 
@@ -288,7 +288,7 @@ EXTEND FORM extraChargeParams
     EVENTS ON CHANGE s changeDefaultCurrencyParams(s)
 ;
     
-createExtraChargeUser 'Накладная (закупка) доп. услуги' (Invoice invoice) = {
+createExtraChargeUser 'Накладная (закупка) доп. услуги' (Invoice invoice)  { 
 	NEWSESSION {   
 	    DIALOG extraChargeParams OBJECTS o INPUT, s INPUT, sk INPUT, nu INPUT, c INPUT DO {
 	        NEW i = UserInvoice {

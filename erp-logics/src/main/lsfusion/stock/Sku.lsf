@@ -161,7 +161,7 @@ FORM moveCustomGroup 'Дополнительные группы'
     ORDER canonicalName(g)
 ;
 
-move 'Перенести отмеченные группы'(CustomGroupType customGroupType) = {
+move 'Перенести отмеченные группы'(CustomGroupType customGroupType)  { 
     DIALOG moveCustomGroup OBJECTS t = customGroupType, g INPUT DO {
         parent(CustomGroup customGroup) <- g WHERE in(customGroup);
         in(CustomGroup customGroup) <- NULL;
@@ -358,8 +358,8 @@ inactive 'Неактивная' = ABSTRACT BOOLEAN (SkuGroup) MATERIALIZED;
 active 'Активный' (SkuGroup group) = group IS SkuGroup AND NOT inactive(group);
 inactive(SkuGroup group) += inactive(group);
 
-replace = ABSTRACT LIST (Sku, Sku);
-overReplace = ABSTRACT LIST (Sku);
+replace  ABSTRACT LIST ( Sku, Sku);
+overReplace  ABSTRACT LIST ( Sku);
 
 countSku 'Кол-во непосредственных товаров в группе' (Group group, GroupType groupType) =
     GROUP
@@ -368,10 +368,10 @@ countSku 'Кол-во непосредственных товаров в гру�
 // ----------------------- Действия по изменению Sku ----------------------------------- //
 disallowEditing 'Запретить редактирование' = ABSTRACT BOOLEAN (Sku);
 
-addSku 'Добавить' = ABSTRACT LIST () IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
+addSku 'Добавить'  ABSTRACT LIST ( ) IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
 
 addedSku = DATA LOCAL Sku ();
-copy 'Копировать' = ABSTRACT LIST (Sku) CHANGEKEY 'F5' TOOLBAR;
+copy 'Копировать'  ABSTRACT LIST ( Sku) CHANGEKEY 'F5' TOOLBAR;
 
 // ------------------------- Формы ------------------------------------ //
 
@@ -455,7 +455,7 @@ META defineDocumentDetailSkuCustomPrefixInner (detail, skuClass, skuClassUpper, 
     prefix###shortNameUOM###skuClass 'Ед. изм.'###caption = shortNameUOM(prefix###skuClass(###detail detail)) IN recognize;
     prefix###idBarcode###skuClass 'Штрихкод'###caption (###detail detail) = idBarcode(prefix###skuClass(detail)) IN recognize;
     prefix###nameCountry###skuClass 'Страна'###caption (###detail detail) = nameCountry(prefix###skuClass(detail));
-    replace(###skuClass s, ###skuClass d) += {prefix###skuClass(###detail detail) <- d WHERE prefix###skuClass(detail) == s;}
+    replace(###skuClass s, ###skuClass d) + { prefix###skuClass(###detail detail) <- d WHERE prefix###skuClass(detail) == s;}
 END
 
 META defineDocumentAbstractDetailSkuCustomPrefix (detail, skuClass, prefix, caption)
@@ -905,7 +905,7 @@ META defineDocumentInterfaceHeaderItemQuantityTriple (object1, object2, object3,
 END
 // ------------------------------------------------ Стандартные значения --------------------------------------- //
 
-loadDefaultUOM 'Добавить ед.изм.'(VARISTRING[50] stringOne, VARISTRING[100] stringTwo, NUMERIC[14,3] numeric, BOOLEAN split, NUMERIC[11,5] netWeight, NUMERIC[11,5] grossWeight) = {
+loadDefaultUOM 'Добавить ед.изм.'(VARISTRING[50] stringOne, VARISTRING[100] stringTwo, NUMERIC[14,3] numeric, BOOLEAN split, NUMERIC[11,5] netWeight, NUMERIC[11,5] grossWeight)  { 
     NEW u = UOM {
        name(u) <- stringOne;
        shortName(u) <- stringTwo;
@@ -917,7 +917,7 @@ loadDefaultUOM 'Добавить ед.изм.'(VARISTRING[50] stringOne, VARISTR
     }
 }
 
-loadDefaultUOMs 'Загрузить стандартные единицы измерений'() = {
+loadDefaultUOMs 'Загрузить стандартные единицы измерений'()  { 
     EXEC loadDefaultUOM('Штука', 'шт', 1.0, NULL, NULL, NULL);
     EXEC loadDefaultUOM('Килограмм', 'кг', 1.0, TRUE, 1.0, 1.0);
     EXEC loadDefaultUOM('Литр', 'л', 1.0, NULL, NULL, NULL);

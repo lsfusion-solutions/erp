@@ -236,7 +236,7 @@ negativeSumInLIFO (OutContractLedger outContractLedger, InContractLedger inContr
               BY outContractLedger;
               
 skipCost = ABSTRACT BOOLEAN (OutContractLedger); 
-writeFIFO 'Расписать по FIFO'(OutContractLedger outContractLedger) = {
+writeFIFO 'Расписать по FIFO'(OutContractLedger outContractLedger)  { 
     IF NOT skipCost(outContractLedger) THEN {
         cost(outContractLedger, InContractLedger inContractLedger) <- NULL;
         IF isReturn(outContractLedger) THEN {
@@ -247,18 +247,18 @@ writeFIFO 'Расписать по FIFO'(OutContractLedger outContractLedger) = 
     }
 }
 
-writeFIFOApply 'Расписать по FIFO'(OutContractLedger outContractLedger) = {
+writeFIFOApply 'Расписать по FIFO'(OutContractLedger outContractLedger)  { 
     writeFIFO(outContractLedger);
     apply();
 }
 
-writeLIFO 'Расписать по LIFO'(OutContractLedger outContractLedger) = {
+writeLIFO 'Расписать по LIFO'(OutContractLedger outContractLedger)  { 
 
     cost(outContractLedger, InContractLedger inContractLedger) <- NULL;
     cost(outContractLedger, InContractLedger inContractLedger) <- sumInLIFO(outContractLedger, inContractLedger);
 }
 
-writeLIFOApply 'Расписать по LIFO'(OutContractLedger outContractLedger) = {
+writeLIFOApply 'Расписать по LIFO'(OutContractLedger outContractLedger)  { 
     writeLIFO(outContractLedger);
     apply();
 }
@@ -327,7 +327,7 @@ namePartyB 'Организация (покупатель)' = name(partyB());
 
 isCosted 'Расписан' (OutContractLedger outContractLedger) = abs(sum(outContractLedger)) (-) abs(costedInContractLedger(outContractLedger)) MATERIALIZED;
 
-writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразнесенные по FIFO'() = {
+writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразнесенные по FIFO'()  { 
 
     APPLY SINGLE {
         LOCAL changed = BOOLEAN (OutContractLedger);
@@ -350,13 +350,13 @@ writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразн
     }
 }
 
-writeNotCostedOutContractLedgerLIFOApply 'Расписать все неразнесенные по LIFO'() = {
+writeNotCostedOutContractLedgerLIFOApply 'Расписать все неразнесенные по LIFO'()  { 
     FOR isCosted(OutContractLedger ledger) ORDER DESC dateTime(ledger) DO {
         writeLIFO(ledger);
     }
     apply();
 }
-writeOutContractLedgerFIFOApplyDate 'Расписать по FIFO с даты' (ContractSku c) = {
+writeOutContractLedgerFIFOApplyDate 'Расписать по FIFO с даты' (ContractSku c)  { 
     DIALOG dialogDate OBJECTS d INPUT DO {
         APPLY SINGLE {
             LOCAL changed = BOOLEAN (OutContractLedger);

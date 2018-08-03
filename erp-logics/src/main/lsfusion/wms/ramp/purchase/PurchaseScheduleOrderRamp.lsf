@@ -85,7 +85,7 @@ CONSTRAINT in(ScheduleOrderDetail o,Ramp r,Interval i) AND NOT in(r,i)
 CONSTRAINT in(ScheduleOrderDetail o,Ramp r,Interval i) AND NOT stock(r)==customerStock(o)
     MESSAGE 'Для предварительного заказа и склада включена рампа, у которой нет связи со складом';                      
       
-overCreate(ScheduleOrderDetail o) += {
+overCreate(ScheduleOrderDetail o) + { 
     in(o,Ramp ramp,Interval interval) <- in(
                                                             customerStock(o),
                                                             shipmentScheduleOrderTime(scheduleOrder(o),extractDOW(dateSupply(o))),
@@ -99,7 +99,7 @@ descriptionRamps 'Рампы' (ScheduleOrderDetail o)=
     ORDER name(r), time(i) 
     CHARWIDTH 20; 
       
-overCreate(UserOrder o) += {
+overCreate(UserOrder o) + { 
     IF o IS UserOrder THEN {
         in(o,Ramp r,Interval i) <-  in(scheduleOrderDetail(o),r,i); 
         shipmentTime(o) <- OVERRIDE defaultShipmentTimeDate(o), currentTime();
@@ -183,7 +183,7 @@ countInclude = GROUP SUM 1 IF isOpened(ScheduleOrderDetail d) AND dateSupply(d) 
     in(d,Ramp r,Interval i) 
         BY extractDOW(dateSupply(d)), r, i, date;
                
-editScheduleOrder 'Редактировать' (ScheduleOrderTime d, Ramp r, Interval in, Stock tts) = {
+editScheduleOrder 'Редактировать' (ScheduleOrderTime d, Ramp r, Interval in, Stock tts)  { 
     FOR includeShipmentDowScheduleOrderCustomer(shipmentDOW(d), ScheduleOrder o,  r, in, startDate(scheduleOrder(d))) AND o != scheduleOrder(d) DO {
         SHOW  scheduleOrder OBJECTS s = o, d = shipmentScheduleOrderTime(o,shipmentDOW(d)), tts = tts, r = r, in = in DOCKED;
     }    
@@ -216,7 +216,7 @@ FORM listScheduleOrderDetail 'Список предварительных зак
     FILTERGROUP curDate
         FILTER 'Больше текущей даты' dateSupply(d) > currentDate() 'F9'
 ;
-showListDetail 'Показать список предварительных заказов' (ScheduleOrderTime d,Ramp r,Interval in) = {
+showListDetail 'Показать список предварительных заказов' (ScheduleOrderTime d,Ramp r,Interval in)  { 
     SHOW listScheduleOrderDetail OBJECTS dt = startDate(scheduleOrder(d)), 
                                          dow = shipmentDOW(d),
                                          c = customer(scheduleOrder(d)),

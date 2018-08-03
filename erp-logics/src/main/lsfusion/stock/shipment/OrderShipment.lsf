@@ -18,7 +18,7 @@ META defineOrderShipment(sign, stockProp)
     
     order(ShipmentDetail d) = order(orderDetail(d));
     
-    overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) += {      
+    overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) + {       
         orderDetail(d) <- orderDetail(detail);             
     } 
 
@@ -112,9 +112,9 @@ META defineOrderShipment(sign, stockProp)
         THEN orderDetail IS OrderDetail AND userShipment IS UserShipment
         ELSE supplierStock(orderDetail) == supplierStock(userShipment);
 
-    overFillOrder = ABSTRACT LIST (UserShipmentDetail, OrderDetail);
+    overFillOrder  ABSTRACT LIST ( UserShipmentDetail, OrderDetail);
 
-    fillOrder 'Заполнить на основе заказа'(UserShipment userShipment) =  {
+    fillOrder 'Заполнить на основе заказа'(UserShipment userShipment)   { 
         DIALOG shipmentOrders OBJECTS s = supplier(userShipment), ss = supplierStock(userShipment),
                                     c = customer(userShipment), cs = customerStock(userShipment), o INPUT DO {
             FOR order(OrderDetail orderDetail) == o AND
@@ -172,7 +172,7 @@ META defineOrderShipmentPack(showPackage)
                        amountPack, packQuantity
     ;
 
-    overFillOrder(UserShipmentDetail s, OrderDetail o) += {
+    overFillOrder(UserShipmentDetail s, OrderDetail o) + { 
         barcodePack(s) <- barcodePack(o);
         amountPack(s) <- amountPack(o);
         packQuantity (s) <- toShip(o)/amountPack(o);
@@ -243,8 +243,8 @@ META defineOrderInvoiceSupplierExecution (NS, sign)
     selectOrder 'Вкл.' = DATA LOCAL BOOLEAN (Stock);    
     selectOrder 'Вкл.' = DATA LOCAL BOOLEAN (OrderDetail);  
     
-    fillSelectOrder  'Заполнить данные ' = ABSTRACT LIST (DATE, DATE);
-    resetSelectOrder () = { 
+    fillSelectOrder  'Заполнить данные '  ABSTRACT LIST ( DATE, DATE);
+    resetSelectOrder ()  { 
         selectOrder(OrderDetail d) <- NULL; 
         formRefresh();
     }

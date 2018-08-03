@@ -7,9 +7,9 @@ NAMESPACE SaleReport;
 invoiceSumBalance 'Сумма остатка товара с НДС' = GROUP 
     SUM round2(prevCurrentBalance(Batch batch, Stock stock)*price(invoiceDetail(batch))*(valueVAT(batch) (+) 100)/100) BY contractSku(invoiceDetail(batch));
 
-overCreateReportSales = ABSTRACT LIST (SaleReport);
+overCreateReportSales  ABSTRACT LIST ( SaleReport);
 
-createReportSales 'Создать акт реализации' (Contract contract) = {
+createReportSales 'Создать акт реализации' (Contract contract)  { 
     IF currentBalanceA(contract) (-) currentBalance(contract) (-) invoiceSumBalance(contract) THEN {
         NEW r = SaleReport {
             company(r) <- partyB(contract);
@@ -27,7 +27,7 @@ createReportSales 'Создать акт реализации' (Contract contrac
     }
 }
 
-createReportsSales 'Создать по остаткам' () = {
+createReportsSales 'Создать по остаткам' ()  { 
     DIALOG contracts OBJECTS c INPUT DO {
         IF NOT (GROUP SUM 1 IF in(Contract cc)) THEN
             in(c) <- TRUE;
@@ -42,7 +42,7 @@ EXTEND FORM reportsSales
     PROPERTIES createReportsSales() TOOLBAR TODRAW r;
 ;
 
-createReportsSalesAll 'Создать по остаткам' () = {
+createReportsSalesAll 'Создать по остаткам' ()  { 
     FOR type(paymentCondition(ContractSku c)) == AgreementPaymentType.implement AND isCompany(partyB(c)) AND NOT skipSaleLedger(c) DO {
         createReportSales(c);
     }

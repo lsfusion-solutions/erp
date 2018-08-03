@@ -16,14 +16,14 @@ countGroup = OVERRIDE (GROUP MAX order(INTEGER i)), 0;
 
 isSkuLastGroup = order(2) == countGroup();
 
-addGroup(INTEGER i, VARSTRING[100] name) = {
+addGroup(INTEGER i, VARSTRING[100] name)  { 
     nameGroup(i) <- name;
     order(i) <- (OVERRIDE (GROUP MAX order(INTEGER in)), 0) + 1;
 }
-reorderGroup() = {
+reorderGroup()  { 
     order(INTEGER i) <- PARTITION SUM 1 IF nameGroup(i) ORDER order(i);
 }
-deleteGroup(INTEGER i) = {
+deleteGroup(INTEGER i)  { 
     nameGroup(i) <- NULL;
     order(i) <- NULL;
     reorderGroup();
@@ -70,8 +70,8 @@ nameGroup2 = DATA LOCAL VARSTRING[255] (Sku, Stock);
 nameGroup3 = DATA LOCAL VARSTRING[255] (Sku, Stock);
 
 META setNameGroup(number)
-    overSetNameGroup##number = ABSTRACT ();
-    setNameGroup##number () ={
+    overSetNameGroup##number  ABSTRACT ( );
+    setNameGroup##number () { 
         nameGroup##number(Sku sk, Stock st) <- NULL;
         IF order(1) == number THEN {
             nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(st), 'Не задано') IF sk IS Sku WHERE inSkuStock(sk, st);
@@ -96,7 +96,7 @@ END
 @setNameGroup(2);
 @setNameGroup(3);
 
-fillReportGroupBackSheetFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt) = {
+fillReportGroupBackSheetFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt)  { 
 
     balanceB(Sku sk, Stock st) <- NULL; 
     sumB(Sku sk, Stock st) <- NULL;
@@ -161,7 +161,7 @@ FORM printGroupBackSheet 'Товарооборот'
     PROPERTIES nameGroup(gt, s)
 ;
 
-printGroupBackSheet 'Отчет по товарообороту' (DATE dateFrom, DATE dateTo, GroupType gt) = {
+printGroupBackSheet 'Отчет по товарообороту' (DATE dateFrom, DATE dateTo, GroupType gt)  { 
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
         RETURN;
@@ -178,7 +178,7 @@ printGroupBackSheet 'Отчет по товарообороту' (DATE dateFrom,
     PRINT printGroupBackSheet OBJECTS gt = gt;
 }  IMAGE 'print.png' IN print;
     
-xlsxGroupBackSheet 'Отчет по товарообороту (XLSX)' (DATE dateFrom, DATE dateTo, GroupType gt) = {
+xlsxGroupBackSheet 'Отчет по товарообороту (XLSX)' (DATE dateFrom, DATE dateTo, GroupType gt)  { 
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
         RETURN;

@@ -11,7 +11,7 @@ percR '%' = DATA LOCAL NESTED NUMERIC[18,4] (Agreement,LegalEntity);
 sumRebate 'Сумма услуги' = DATA LOCAL NESTED NUMERIC[18,4] (Agreement,LegalEntity);
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Agreement,LegalEntity);
-resetSelect 'Сбросить отмеченные' () = { 
+resetSelect 'Сбросить отмеченные' ()  { 
     select(Agreement a,LegalEntity l) <- NULL;
 }
 
@@ -22,17 +22,17 @@ invoiceSumR (Invoice.Invoice i) = CASE
     WHEN i IS Purchase.Invoice THEN invoiceSumInvoiceDetail(i)
     WHEN i IS PurchaseReturn.Invoice THEN -invoiceSumInvoiceDetail(i);  
 
-resetPropRebate ()= {
+resetPropRebate () { 
     sumR (Agreement a,LegalEntity l) <- NULL;
     invoiceSumR (Agreement a,LegalEntity l) <- NULL;
     percR (Agreement a,LegalEntity l) <- NULL;
     sumRebate (Agreement a,LegalEntity l) <- NULL;
 }
-resetPropRebateEx ()= {
+resetPropRebateEx () { 
     resetPropRebate();
     select (Agreement a,LegalEntity l) <- NULL;
 }         
-fillPropRebate 'Заполнить данные' (LegalEntity c, DATE df, DATE dt) = {
+fillPropRebate 'Заполнить данные' (LegalEntity c, DATE df, DATE dt)  { 
     IF (GROUP SUM 1 IF select(Agreement a,LegalEntity l)) THEN {
         resetPropRebate();
         LOCAL inc = BOOLEAN (Invoice.Invoice);

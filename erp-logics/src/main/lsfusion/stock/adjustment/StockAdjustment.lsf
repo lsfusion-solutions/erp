@@ -48,7 +48,7 @@ CLASS UserAdjustmentDetail 'Строка изменения остатков (п
 @showDocumentInterfaceDetailBatch(adjustment);
 @defineDocumentInterfaceDetailBatch(adjustment, batch);
 
-replace(Sku s, Batch b) += { sku(UserAdjustmentDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) + {  sku(UserAdjustmentDetail detail) <- s WHERE batch(detail) == b;}
 
 @defineDocumentInterfaceDetailQuantity(adjustment);
 @defineDocumentInterfaceDetailPrice(adjustment);
@@ -98,7 +98,7 @@ supplierStock(Adjustment adjustment) += stock(adjustment);
 
 // --------------------------- Формы ---------------------------------- //
 
-batchDialog(UserAdjustmentDetail userAdjustmentDetail) = {
+batchDialog(UserAdjustmentDetail userAdjustmentDetail)  { 
     DIALOG dialogBatchStockOut OBJECTS st = stock(userAdjustmentDetail), 
                                        t = dateTime(userAdjustmentDetail),
                                        sk = sku(userAdjustmentDetail),
@@ -253,7 +253,7 @@ showDelete(UserAdjustment a) = showEditDeleteUser(a) AND isOpened(a) AND is(a) A
 
 actualBalance 'Остаток фактический' (Sku sku, UserAdjustment userAdjustment, Stock stock)= currentBalance(sku, stock) (+) quantity(sku, userAdjustment, stock);
 
-changeActualQuantity(Sku sku, UserAdjustment userAdjustment, Stock stock) = {
+changeActualQuantity(Sku sku, UserAdjustment userAdjustment, Stock stock)  { 
     INPUT n = NUMERIC[16,5] DO
         changeQuantityValue(sku, userAdjustment, stock, n (-) currentBalance(sku, stock));
 }
@@ -263,7 +263,7 @@ EXTEND FORM userAdjustment
 ;
 actualBalance 'Остаток фактический' (Batch batch, UserAdjustment userAdjustment, Stock stock)= currentBalance(batch, stock) (+) quantity(batch, userAdjustment, stock);
 
-changeActualQuantity(Batch batch, UserAdjustment userAdjustment, Stock stock) = {
+changeActualQuantity(Batch batch, UserAdjustment userAdjustment, Stock stock)  { 
     INPUT n = NUMERIC[16,5] DO
         changeQuantityValue(batch, userAdjustment, stock, n (-) currentBalance(batch, stock));
 }
@@ -462,21 +462,21 @@ quantity (InAdjustmentSkuDetail ledger) += quantity(ledger) IF NOT skipSkuLedger
 @implementSkuLedgerInLIFOBatchBalance(inAdjustmentSkuDetail, stock);
 sum (InAdjustmentSkuDetail ledger) += sum(ledger) IF NOT skipSkuLedger(ledger);
 
-edit(UserAdjustmentDetail d) += { DIALOG userAdjustment OBJECTS i = userAdjustment(d), d = d DOCKED; }
+edit(UserAdjustmentDetail d) + {  DIALOG userAdjustment OBJECTS i = userAdjustment(d), d = d DOCKED; }
 
-edit(InAdjustmentSkuDetail d) += { edit(adjustmentDetail(d)); }
-edit(OutAdjustmentSkuDetail d) += { edit(adjustmentDetail(d)); }
+edit(InAdjustmentSkuDetail d) + {  edit(adjustmentDetail(d)); }
+edit(OutAdjustmentSkuDetail d) + {  edit(adjustmentDetail(d)); }
 
-show 'Просмотреть' = ABSTRACT LIST  (AdjustmentDetail) TOOLBAR;
-show(UserAdjustmentDetail d) = {
+show 'Просмотреть'  ABSTRACT LIST  ( AdjustmentDetail) TOOLBAR;
+show(UserAdjustmentDetail d)  { 
 	NEWSESSION {
 	    SHOW userAdjustment OBJECTS i = userAdjustment(d), d = d DOCKED READONLY;
 	}
 }
 
-show(UserAdjustmentDetail d) += { show(d); }    
-show(InAdjustmentSkuDetail d) += { show(adjustmentDetail(d)); }
-show(OutAdjustmentSkuDetail d) += { show(adjustmentDetail(d)); }
+show(UserAdjustmentDetail d) + {  show(d); }    
+show(InAdjustmentSkuDetail d) + {  show(adjustmentDetail(d)); }
+show(OutAdjustmentSkuDetail d) + {  show(adjustmentDetail(d)); }
 
 quantityPositiveAdjustmentDetail 'Кол-во приход (всего)' (adjustment) = GROUP SUM quantity(AdjustmentDetail idetail) IF quantity(idetail) >=0
     BY adjustment(idetail) IN documentSum MATERIALIZED;
@@ -515,7 +515,7 @@ FORM printAdjustment 'Изменения остатков'
             quantity(dd)<0
 
 ;
-print 'Изменение остатков' (Adjustment adjustment) =
+print 'Изменение остатков' (Adjustment adjustment) 
     { PRINT printAdjustment OBJECTS i = adjustment; }   IMAGE 'print.png' IN print;
     
 notPrint = ABSTRACT BOOLEAN (Adjustment);
@@ -570,8 +570,8 @@ stock (OutAdjustment ledger) += stock(adjustment(ledger));
 description (OutAdjustment ledger) += description(adjustment(ledger));                                                                                                                                                                                                                                   
 sumContainer(OutAdjustment ledger) += -sumContainerAdjustmentDetail(adjustment(ledger));
 sumItem(OutAdjustment ledger) += -sumItemAdjustmentDetail(adjustment(ledger));
-edit(OutAdjustment ledger) += { edit(adjustment(ledger)); }
-close(OutAdjustment ledger) += { close(adjustment(ledger)); }
+edit(OutAdjustment ledger) + {  edit(adjustment(ledger)); }
+close(OutAdjustment ledger) + {  close(adjustment(ledger)); }
 type(OutAdjustment ledger) += 'Изменение остатков расход' IF ledger IS OutAdjustment;
 skip(OutAdjustment ledger) += ledger IS OutAdjustment AND NOT active(adjustment(ledger));
 operation[StockDocumentLedger](OutAdjustment ledger) += operation(adjustment(ledger));
@@ -589,8 +589,8 @@ stock (InAdjustment ledger) += stock(adjustment(ledger));
 description (InAdjustment ledger) += description(adjustment(ledger));                                                                                                                                                                                                                                   
 sumContainer(InAdjustment ledger) += sumContainerAdjustmentDetail(adjustment(ledger));
 sumItem(InAdjustment ledger) += sumItemAdjustmentDetail(adjustment(ledger));
-edit(InAdjustment ledger) += { edit(adjustment(ledger)); }
-close(InAdjustment ledger) += { close(adjustment(ledger)); }
+edit(InAdjustment ledger) + {  edit(adjustment(ledger)); }
+close(InAdjustment ledger) + {  close(adjustment(ledger)); }
 type(InAdjustment ledger) += 'Изменение остатков приход' IF ledger IS InAdjustment;
 skip(InAdjustment ledger) += ledger IS InAdjustment AND NOT active(adjustment(ledger));
 operation[StockDocumentLedger](InAdjustment ledger) += operation(adjustment(ledger));
@@ -601,7 +601,7 @@ stockDocumentLedger(InAdjustmentSkuDetail d) += [=OVERRIDE OutAdjustment(A), InA
 calcSumB (Sku sku,Stock st,DATETIME dateTime) = balanceB(sku,st,dateTime) * prevAccountPriceB(sku, st, dateTime);
 needCreateAdjustment = (calcSumB (Sku sku,Stock st,DATETIME dateTime) OR  sumB (sku,st,dateTime)) AND NOT (calcSumB (sku,st,dateTime) ==  sumB (sku,st,dateTime));  
 
-createUserAdjustment(DATETIME dateTime) = {
+createUserAdjustment(DATETIME dateTime)  { 
     FOR [ = GROUP SUM 1 IF needCreateAdjustment(Sku sku,Stock st,dateTime) BY st](Stock st) AND isCompany(st) DO {
         NEWSESSION {
             NEW a = UserAdjustment {
@@ -634,7 +634,7 @@ sessionConcatSkuGroups 'Группы' () =
     GROUP CONCAT name(SkuGroup group) IF inSession(group) AND NOT inSession(parent(group)),'; ' CHARWIDTH 30;
 
 countInSessionSkuGroups  = GROUP SUM 1 IF dataInSession(SkuGroup g);
-resetSelectedGroups  'Сбросить отмеченные'() = {
+resetSelectedGroups  'Сбросить отмеченные'()  { 
     dataInSession(SkuGroup g) <- NULL WHERE g IS SkuGroup ;    
 }  
 
@@ -686,7 +686,7 @@ DESIGN selectParamsAdjustment {
 inAdjustment = DATA LOCAL NESTED BOOLEAN (Sku);
 inAdjustment = DATA LOCAL NESTED BOOLEAN (Stock);
 
-createBatchUserAdjustmentDetail(UserAdjustment adjustment) = {
+createBatchUserAdjustmentDetail(UserAdjustment adjustment)  { 
 
     FOR Stock stock == stock(adjustment) AND DATETIME dateTime == dateTime(adjustment) DO {
 
@@ -735,7 +735,7 @@ DESIGN options {
     }
 }
 
-createDialogBatchUserAdjustment 'Пересорт по партиям'() = {
+createDialogBatchUserAdjustment 'Пересорт по партиям'()  { 
 	NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
 	    DIALOG selectParamsAdjustment OBJECTS o = defaultOperationBatch() NULL, st INPUT, dt INPUT, o INPUT DO
 	        IF countInSessionSkuGroups() THEN       
@@ -762,7 +762,7 @@ DESIGN adjustments {
     }    
 }
 
-createBatchUserAdjustment 'Документ пересорта'(Stock stock) = {
+createBatchUserAdjustment 'Документ пересорта'(Stock stock)  { 
 
     IF toAdjustment(stock,currentDateTime()) THEN NEWSESSION {
         NEW adjustment = UserAdjustment {  
@@ -781,11 +781,11 @@ createBatchUserAdjustment 'Документ пересорта'(Stock stock) = {
 }//-- для планировщика
 
 //-- Для всех складов
-overCreateBatchUserAdjustment = ABSTRACT LIST (UserAdjustment);
+overCreateBatchUserAdjustment  ABSTRACT LIST ( UserAdjustment);
 
-createBatchUserAdjustmentDetailEx  = ABSTRACT LIST (UserAdjustment);
+createBatchUserAdjustmentDetailEx   ABSTRACT LIST ( UserAdjustment);
 
-createBatchUserAdjustment 'Документ пересорта'() = {
+createBatchUserAdjustment 'Документ пересорта'()  { 
     FOR inAdjustment(Stock st) NEW a = UserAdjustment DO {  
         stock(a) <- st;
         date(a) <- currentDate();
@@ -822,7 +822,7 @@ DESIGN options {
 accountSumB 'Учетная сумма'  (Sku s, Stock st, DATETIME dt)= balanceB(s,st,dt) * prevAccountPriceB(s, st, dt);
 diff 'Разница' (Sku s, Stock st, DATETIME dt) = sumB(s,st,dt)(-) accountSumB(s,st,dt);
 
-createSumUserAdjustment (UserAdjustment adjustment) = {
+createSumUserAdjustment (UserAdjustment adjustment)  { 
 
     // todo : деноминация
     FOR NUMERIC[32,9] sumDiff == diff(Sku s, stock(adjustment), dateTime(adjustment)) AND abs(sumDiff) > (OVERRIDE minSumAdjustment(), 0.1) AND inAdjustment(s) ORDER name(s) NEW d = UserAdjustmentDetail DO {            
@@ -833,7 +833,7 @@ createSumUserAdjustment (UserAdjustment adjustment) = {
     }
 }
 
-createDialogSumUserAdjustment 'Корректировка суммы ТО'() = {
+createDialogSumUserAdjustment 'Корректировка суммы ТО'()  { 
 	NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
 	    DIALOG selectParamsAdjustment OBJECTS o = defaultOperationSum() NULL, st INPUT, dt INPUT, o INPUT DO       
 	        IF countInSessionSkuGroups() THEN 
@@ -862,9 +862,9 @@ DESIGN adjustments {
 }
 
 //-- Для всех складов
-overCreateSumUserAdjustment = ABSTRACT LIST (UserAdjustment);
+overCreateSumUserAdjustment  ABSTRACT LIST ( UserAdjustment);
 
-createSumUserAdjustment 'Корректировка суммы ТО'() = {
+createSumUserAdjustment 'Корректировка суммы ТО'()  { 
     FOR inAdjustment(Stock st) NEW a = UserAdjustment DO {  
         stock(a) <- st;
         date(a) <- currentDate();
@@ -878,7 +878,7 @@ createSumUserAdjustment 'Корректировка суммы ТО'() = {
     }
 }//-- для планировщика
 
-show 'Просмотреть' (UserAdjustment i) = {
+show 'Просмотреть' (UserAdjustment i)  { 
 	NEWSESSION {
 	    SHOW userAdjustment OBJECTS i = i DOCKED READONLY;
 	}

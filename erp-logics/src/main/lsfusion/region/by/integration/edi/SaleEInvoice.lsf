@@ -23,7 +23,7 @@ EXTEND FORM defaultNumerators
     PROPERTIES() nameSaleDefaultNumeratorDeliveryNote = nameDefaultNumeratorDeliveryNote
 ;
 
-loadDefaultNumerators() += {
+loadDefaultNumerators() + { 
     NEW n = Numerator {
         name(n) <- 'DeliveryNoteNumber Накладные (продажа)';
         series(n) <- '';
@@ -35,7 +35,7 @@ loadDefaultNumerators() += {
     }
 }
 
-generateSeriesNumber 'Сгенерировать номер'(EInvoice o) = {
+generateSeriesNumber 'Сгенерировать номер'(EInvoice o)  { 
     deliveryNoteNumber(o) <- '001-' + GLN(supplier(o)) + '-' + curStringValue(defaultNumeratorDeliveryNoteNumber()); //ССС-GGGGGGGGGGGGG-NNNNNNNNNN
     incrementValueSession(defaultNumeratorDeliveryNoteNumber());
 }
@@ -43,7 +43,7 @@ generateSeriesNumber 'Сгенерировать номер'(EInvoice o) = {
 WHEN SET(EInvoice o IS EInvoice) 
      DO generateSeriesNumber(o) ;
 
-createEInvoice 'Создать электронную накладную' (Invoice invoice) = {
+createEInvoice 'Создать электронную накладную' (Invoice invoice)  { 
     IF NOT eInvoice(invoice) THEN NEWSESSION {
         NEW ei = EInvoice {
             eInvoice(invoice) <- ei;
@@ -84,7 +84,7 @@ EXTEND FORM eInvoices
     PROPERTIES (e) READONLY numberInvoice
 ;
 
-signAndSendSupplierEDI 'Подписать и отправить'(Invoice i) = {
+signAndSendSupplierEDI 'Подписать и отправить'(Invoice i)  { 
     in(EInvoice e) <- e = eInvoice(i);
     signAndSendSupplierEDI();
     in(EInvoice e) <- NULL;
@@ -114,20 +114,20 @@ FORM attachmentEInvoice 'Приложение'
     FILTERS invoice(d) == i
 ;
 
-printConsignmentEInvoiceAttachment 'Реестр ТТН с приложением' (Invoice i) = {
+printConsignmentEInvoiceAttachment 'Реестр ТТН с приложением' (Invoice i)  { 
     PRINT consignmentEInvoice OBJECTS i = i;
     PRINT attachmentEInvoice OBJECTS i = i;
 } IMAGE 'print.png';
 
-printConsignmentEInvoice 'Реестр ТТН' (Invoice i) = {
+printConsignmentEInvoice 'Реестр ТТН' (Invoice i)  { 
     PRINT consignmentEInvoice OBJECTS i = i;
 } IMAGE 'print.png';
 
-printConsignmentEAttachment 'Приложение' (Invoice i) = {
+printConsignmentEAttachment 'Приложение' (Invoice i)  { 
     PRINT consignmentEInvoice OBJECTS i = i;
 } IMAGE 'print.png';
 
-printConsignmentEAttachmentXLSX 'Приложение (xlsx)' (Invoice i) = {
+printConsignmentEAttachmentXLSX 'Приложение (xlsx)' (Invoice i)  { 
     PRINT consignmentEInvoice OBJECTS i = i XLSX;
 } IMAGE 'print.png';
 
@@ -154,14 +154,14 @@ FORM consignmentEInvoices 'РЕЕСТР'
     FILTERS include(i)
 ;
 
-printConsignmentEInvoicesXLSX 'Реестр ТТН (xlsx) (несколько)' () = {
+printConsignmentEInvoicesXLSX 'Реестр ТТН (xlsx) (несколько)' ()  { 
     PRINT consignmentEInvoices XLSX;
     FOR include(Invoice i) DO {
         PRINT attachmentEInvoice OBJECTS i = i XLSX;
     }
 } IMAGE 'print.png';
 
-editAttributesEInvoice 'Заполнить атрибуты накладной' (Invoice i) = {
+editAttributesEInvoice 'Заполнить атрибуты накладной' (Invoice i)  { 
 	NEWSESSION {   
 	    SHOW eInvoice OBJECTS e = eInvoice(i) DOCKED; 
 	}

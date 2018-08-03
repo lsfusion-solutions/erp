@@ -69,7 +69,7 @@ expiryDate(UserOutputDetail outputDetail) += expiryDate (outputDetail);
 @implementDocumentForm(output, o, 'Производство');
 
 customerStock(Output output) += stock(output);
-close[StockDocumentLedger](Output l) += { close(l); }
+close[StockDocumentLedger](Output l) + {  close(l); }
 
 //--  Связь заказа и акта производства
 
@@ -179,7 +179,7 @@ DESIGN outputOrders {
     }
 }
 
-fillOrder 'Заполнить на основе производственного заказа'(UserOutput userOutput) =  {
+fillOrder 'Заполнить на основе производственного заказа'(UserOutput userOutput)   { 
     DIALOG outputOrders OBJECTS s = stock(userOutput), o INPUT DO {
         FOR order(ProductDetail productDetail) == o NEW d = UserOutputDetail DO {
             userOutput(d) <- userOutput;
@@ -239,8 +239,8 @@ outputProductsSum(ProductDetail productDetail) <-
          CHANGED (price(productDetail)) OR
          CHANGED(currency(productDetail));
 
-overFillOutputQuantityProductDetail = ABSTRACT (Order);
-fillOutputQuantityProductDetail 'Заполнить из остатков' (Order order) = {
+overFillOutputQuantityProductDetail  ABSTRACT ( Order);
+fillOutputQuantityProductDetail 'Заполнить из остатков' (Order order)  { 
     createOutput(order) <- TRUE;
 
     outputQuantity(ProductDetail d) <- (- balanceA(sku(d), productsStock(d), date(d))) 
@@ -348,8 +348,8 @@ priceListType(OrderOutputDetail outputDetail) += calcPriceListType(productDetail
 price(OrderOutputDetail outputDetail) += price(productDetail(outputDetail));
 sum(OrderOutputDetail outputDetail) += outputProductsSum(productDetail(outputDetail));
 
-edit(OrderOutput output) += { edit(order(output)); }
-close(OrderOutput output) += { isClosed(Order o) <- TRUE WHERE o == order(output); }
+edit(OrderOutput output) + {  edit(order(output)); }
+close(OrderOutput output) + {  isClosed(Order o) <- TRUE WHERE o == order(output); }
 
 valueVAT (OrderOutputDetail batch) += valueVAT(productDetail(batch)) IF VATProduct(productDetail(batch));
 
@@ -435,22 +435,22 @@ DESIGN userOutput {
     }
 }
 
-show 'Просмотреть' = ABSTRACT LIST  (OutputDetail) TOOLBAR;
-show(UserOutputDetail d) = {
+show 'Просмотреть'  ABSTRACT LIST  ( OutputDetail) TOOLBAR;
+show(UserOutputDetail d)  { 
 	NEWSESSION {
 	    SHOW userOutput OBJECTS o = userOutput(d), d = d DOCKED READONLY ;
 	}
 }
-show(UserOutputDetail d) += { show(d); }
+show(UserOutputDetail d) + {  show(d); }
 
-edit(UserOutputDetail d) += { DIALOG userOutput OBJECTS o = userOutput(d), d = d DOCKED; }
-edit(OrderOutputDetail d) += { edit(productDetail(d)); }
+edit(UserOutputDetail d) + {  DIALOG userOutput OBJECTS o = userOutput(d), d = d DOCKED; }
+edit(OrderOutputDetail d) + {  edit(productDetail(d)); }
 
-show[SkuLedger](OutputDetail batch) += { show(batch); }
-show(OrderOutputDetail d) += { show(productDetail(d)); }                       
+show[SkuLedger](OutputDetail batch) + {  show(batch); }
+show(OrderOutputDetail d) + {  show(productDetail(d)); }                       
 //-- SKU
 
-copy 'Копировать'(UserOutput userOutput) = {
+copy 'Копировать'(UserOutput userOutput)  { 
 	NEWSESSION {
 	    NEW o = UserOutput {
 	        stock(o) <- stock(userOutput);

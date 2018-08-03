@@ -104,7 +104,7 @@ shortDescription (Invoice invoice) = seriesNumber(invoice) + ' от ' + date(inv
 
 extraDescription 'Доп. наименование' (invoiceDetail) = ABSTRACT VARSTRING[1500] (InvoiceDetail) CHARWIDTH 30;
 
-editSku 'Редактировать SKU' (InvoiceDetail d) = { NEWSESSION { edit(sku(d)); } } TOOLBAR;
+editSku 'Редактировать SKU' (InvoiceDetail d)  { NEWSESSION { edit(sku(d)); } } TOOLBAR;
 
 @defineDocumentAbstractHeaderAgreement(invoice);
 
@@ -430,7 +430,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     @defineDocumentHeaderNetWeightCustomPrefix (userInvoice, userInvoiceDetail, sum, ', кг');  
     @defineDocumentHeaderGrossWeightCustomPrefix (invoice, invoiceDetail, sum, ', кг');
     @defineDocumentHeaderGrossWeightCustomPrefix (userInvoice, userInvoiceDetail, sum, ', кг'); 
-    changeGrossWeight(Invoice invoice)  = {
+    changeGrossWeight(Invoice invoice)   { 
         INPUT n = NUMERIC[16,3] DO 
             sumGrossWeight(InvoiceDetail d) <- NUMERIC[9,3](sumNetWeight(d)/(sumNetWeightInvoiceDetail(invoice) IF sumNetWeightInvoiceDetail(invoice) != 0) * n) WHERE invoice(d) == invoice;
     } 
@@ -464,7 +464,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
         
     skipShowQuantity = ABSTRACT BOOLEAN (Invoice);
     showQuantity (Invoice i) = i IS Invoice AND NOT skipShowQuantity(i);
-    editSku 'Редактировать SKU' (UserInvoiceDetail d) = { NEWSESSION { edit(sku(d)); } }
+    editSku 'Редактировать SKU' (UserInvoiceDetail d)  { NEWSESSION { edit(sku(d)); } }
     
     backgroundCustomer 'Цвет'  (d)= ABSTRACT CASE COLOR (UserInvoice);
         
@@ -658,10 +658,10 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     @defineDocumentSkuPriceListTypeAgreement(userInvoice, stockProp, priceListTypePrefix);
     @extendFormDocumentSkuPriceListTypeAgreement(userInvoice, userInvoice, i, stockProp###stock);
 
-    overCopy = ABSTRACT LIST (Invoice, UserInvoice);
-    overCopy = ABSTRACT LIST (UserInvoiceDetail, InvoiceDetail);
+    overCopy  ABSTRACT LIST ( Invoice, UserInvoice);
+    overCopy  ABSTRACT LIST ( UserInvoiceDetail, InvoiceDetail);
     
-    copy 'Копировать'(Invoice invoice) = {
+    copy 'Копировать'(Invoice invoice)  { 
 	NEWSESSION {
 	        NEW i = UserInvoice {
 	            supplier(i) <- supplier(invoice);
@@ -694,9 +694,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 } TOOLBAR;
     
 //-- Копирование строк     
-    overCopy = ABSTRACT LIST (UserInvoiceDetail, UserInvoiceDetail);
+    overCopy  ABSTRACT LIST ( UserInvoiceDetail, UserInvoiceDetail);
 
-    copy 'Копировать'(UserInvoiceDetail detail) = {
+    copy 'Копировать'(UserInvoiceDetail detail)  { 
         NEW d = UserInvoiceDetail {          
 
             userInvoice(d) <- userInvoice(detail);
@@ -900,17 +900,17 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
          OR (valueVAT(d) == overSetValueVAT(d))) 
             THEN RGB(255,0,0); 
             
-    edit(UserInvoiceDetail d) += { DIALOG userInvoice OBJECTS i = userInvoice(d), d = d; }
+    edit(UserInvoiceDetail d) + {  DIALOG userInvoice OBJECTS i = userInvoice(d), d = d; }
     
-    show 'Просмотреть' = ABSTRACT LIST (InvoiceDetail) TOOLBAR;
-    show(UserInvoiceDetail d) = {
+    show 'Просмотреть'  ABSTRACT LIST ( InvoiceDetail) TOOLBAR;
+    show(UserInvoiceDetail d)  { 
     	NEWSESSION {
 	        SHOW userInvoice OBJECTS i = userInvoice(d), d = d DOCKED READONLY;
 	    }
     }
-    show(UserInvoiceDetail d) += { show(d); }
+    show(UserInvoiceDetail d) + {  show(d); }
     
-    show 'Просмотреть' (UserInvoice i) =  {
+    show 'Просмотреть' (UserInvoice i)   { 
         NEWSESSION{
             SHOW userInvoice OBJECTS i = i DOCKED READONLY;
         }
@@ -934,10 +934,10 @@ META defineInvoiceBatch(stockProp, priceListTypePrefix, NS, sign, char)
     
     @defineDocumentInterfaceDetailBatch(invoice, batch); 
     
-    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += {      
+    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) + {       
         batch(d) <- batch(detail);
     }  
-    overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) += {      
+    overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) + {       
         batch(d) <- batch(detail);
     }  
     
@@ -959,14 +959,14 @@ META defineInvoiceBatch(stockProp, priceListTypePrefix, NS, sign, char)
     
     @implementDocumentBatchForm(char##i);
    
-    replace(Sku s, Batch b) += { sku(UserInvoiceDetail detail) <- s WHERE batch[Invoice.InvoiceDetail](detail) == b;} 
+    replace(Sku s, Batch b) + {  sku(UserInvoiceDetail detail) <- s WHERE batch[Invoice.InvoiceDetail](detail) == b;} 
     
 END
 
 // Партии с диалогом по складам
 META defineInvoiceBatchDialogStock(stockProp, dialog)
 
-    changeBatch(UserInvoiceDetail d) = {
+    changeBatch(UserInvoiceDetail d)  { 
         DIALOG dialogBatchStock##dialog OBJECTS 
                                     st = stockProp(d),
                                     t = dateTime(d),
@@ -986,7 +986,7 @@ END
 
 // Партии на приходе
 META defineInvoiceBatchDialog(dumb)
-    changeBatch(UserInvoiceDetail d) = {
+    changeBatch(UserInvoiceDetail d)  { 
         DIALOG dialogBatch OBJECTS sk = sku(d), bt = batch(d) INPUT NULL NEWSESSION DO {
             batch(d) <- bt;
         }
@@ -1064,7 +1064,7 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
         }
     } 
     
-    change##nsdir##InvoiceDetail(InvoiceDetail detail) = {
+    change##nsdir##InvoiceDetail(InvoiceDetail detail)  { 
         DIALOG baseInvoiceDetail OBJECTS 
                                     sk = sku(detail), 
                                     st = stockProp(detail), 
@@ -1095,14 +1095,14 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
 //                                             CHANGED(nsret.stockProp###invoiceDetail(detail)) OR
 //                                             CHANGED(nsret.dateTimeInvoiceDetail(detail));
 
-//    overRecalculatedPrice = ABSTRACT LIST (nsret.UserInvoiceDetail);
+//    overRecalculatedPrice  ABSTRACT LIST ( nsret.UserInvoiceDetail);
 //    priceReturn  = ABSTRACT CASE NUMERIC[16,4] (UserInvoiceDetail); 
 //    invoicePriceReturn  = ABSTRACT CASE NUMERIC[16,4] (UserInvoiceDetail); 
 //    priceReturn (UserInvoiceDetail d) += WHEN d IS UserInvoiceDetail AND invoiceDetail(d)  THEN (IF notUseRound2() THEN price(invoiceDetail(d)) ELSE round2(price(invoiceDetail(d))));
 //    invoicePriceReturn (UserInvoiceDetail d) += WHEN d IS UserInvoiceDetail AND invoiceDetail(d)  THEN (IF notUseRound2() THEN invoicePrice(invoiceDetail(d)) ELSE round2(invoicePrice(invoiceDetail(d))));    
     
     prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND invoiceDetail(d) THEN NUMERIC[16,4](price(invoiceDetail(d)) * IF includeVAT(t) THEN (100.0 (+) calcValueVAT(d)) / 100.0 ELSE 1.0);
-//    recalculatedPrice(UserInvoiceDetail detail) = {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
+//    recalculatedPrice(UserInvoiceDetail detail)  {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
 //        IF invoiceDetail(detail) THEN {
 //            price(detail) <-  priceReturn(detail);               
 //            invoicePrice(detail) <-  invoicePriceReturn(detail);       
@@ -1175,14 +1175,14 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
     balanceReturnQuantity(nsdir.InvoiceDetail detail) = quantity(detail) (-) returnQuantity(detail);
     
     //-- пока берем без учета того, что в данной накладной может быть несколько строк с одним товаром
-    fillInvoiceDetail 'Проставить основание'(UserInvoiceDetail d)  = {    
+    fillInvoiceDetail 'Проставить основание'(UserInvoiceDetail d)   {    
         invoiceDetail(d) <- maxSaleInvoiceDetail(d)
             WHERE NOT invoiceDetail(d)  AND countSaleInvoiceDetails(d) == 1 AND        
             balanceReturnQuantity(maxSaleInvoiceDetail(d)) >= quantity(d);
     } ASON CONTEXTMENU descriptionInvoiceDetail[UserInvoiceDetail];
     
     
-    fillAllInvoiceDetail 'Проставить основание для всех'(UserInvoiceDetail detail) = {
+    fillAllInvoiceDetail 'Проставить основание для всех'(UserInvoiceDetail detail)  { 
        FOR userInvoice(detail) == userInvoice(UserInvoiceDetail d) DO
            fillInvoiceDetail(d);
     } ASON CONTEXTMENU descriptionInvoiceDetail[UserInvoiceDetail];               
@@ -1258,7 +1258,7 @@ META defineInvoiceHomeCurrency(companyProp)
     homePrice 'Цена (конв.)' = DATA NUMERIC[16,4](UserInvoiceDetail);
     homePrice(UserInvoiceDetail d) += homePrice(d);
     
-    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += {      
+    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) + {       
         dataRateExchange(d) <- dataRateExchange(detail);
     }  
 
@@ -1311,7 +1311,7 @@ END
 
 META defineInvoicePayment(dumb)
 
-    addPaymentInvoice 'Оплатить'(InContractLedger invoice) = {
+    addPaymentInvoice 'Оплатить'(InContractLedger invoice)  { 
         currentInContractLedger() <- invoice;
         NEW p = Payment{
             operation(p) <- defaultPaymentOperation();        
@@ -1333,7 +1333,7 @@ META defineInvoicePayment(dumb)
         }
     }
 
-    editInvoice 'Редактировать'(Payment payment, InContractLedger invoice) = {
+    editInvoice 'Редактировать'(Payment payment, InContractLedger invoice)  { 
         currentInContractLedger() <- invoice;
         SHOW payment OBJECTS p=payment ;
     }

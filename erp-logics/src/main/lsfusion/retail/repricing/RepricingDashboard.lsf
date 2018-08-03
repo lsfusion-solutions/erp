@@ -6,7 +6,7 @@ NAMESPACE Repricing;
 
 //------------------------ Управленческая переоценка ----------------------------//
 
-createRepricingLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore, Operation operation, DATETIME dateTime) = {
+createRepricingLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore, Operation operation, DATETIME dateTime)  { 
 	NEWSESSION NESTED (select[Sku], inDashboardRepricing[Sku], managementRetailPrice[Sku], managementPriceListPrice[Sku]) {
 	    IF (GROUP SUM 1 IF inDashboardRepricing(Sku sku)) THEN {
 	        select(Sku sku, LabelType labelType, departmentStore) <- inDashboardRepricing(sku) AND inPrint(labelType, sku, departmentStore);   
@@ -64,8 +64,8 @@ createRepricingLabelTransaction 'Распечатать ценники'(Departme
 //    }
 //    apply();
 //} TOOLBAR;
-overCreateRepricingLabel = ABSTRACT LIST (LabelTransaction);
-createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore, Operation operation, DATETIME dateTime) = {
+overCreateRepricingLabel  ABSTRACT LIST ( LabelTransaction);
+createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore, Operation operation, DATETIME dateTime)  { 
     IF countSelectSkus() THEN  NEWSESSION NESTED (select[Sku], inDashboardRepricing[Sku], managementRetailPrice[Sku], managementPriceListPrice[Sku]) {
         DIALOG selectLabelTypes OBJECTS ds = departmentStore, l INPUT NOMANAGESESSION DO { 
 
@@ -230,7 +230,7 @@ DESIGN repricingDashboard {
 @extendFormFilterRoleAccess(repricing, p, repricingDashboard); 
 
 
-createDashboardRepricing 'Создать переоценку'(Stock d, Operation o, DATETIME dt) = {
+createDashboardRepricing 'Создать переоценку'(Stock d, Operation o, DATETIME dt)  { 
 	NEWSESSION NESTED LOCAL  {
 	    createDashboardRepricingNotForm(d, o, dt);
 	    DIALOG userRepricing OBJECTS p = repForm() DOCKED NOCANCEL DO {

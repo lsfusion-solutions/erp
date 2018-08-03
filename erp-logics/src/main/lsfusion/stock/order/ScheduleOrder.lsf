@@ -26,7 +26,7 @@ TABLE scheduleOrder(ScheduleOrder);
 CLASS ABSTRACT ScheduleOrderDetail 'Заказ по графику';
 TABLE scheduleOrderDetail(ScheduleOrderDetail);
 
-show 'Просмотреть' = ABSTRACT MULTI (ScheduleOrder) TOOLBAR;
+show 'Просмотреть'  ABSTRACT MULTI ( ScheduleOrder) TOOLBAR;
 
 //isClosedScheduleOrderDetail 'Аннулирован' = ABSTRACT BOOLEAN (ScheduleOrderDetail);
 //isOpenedScheduleOrderDetail= d IS ScheduleOrderDetail AND NOT isClosedScheduleOrderDetail(d);
@@ -56,12 +56,12 @@ nameSupplierStock 'Склад поставщика' (ScheduleOrder scheduleOrder
 
 stocks 'Склады' (scheduleOrder) = ABSTRACT VARSTRING[500] (ScheduleOrder) CHARWIDTH 20 MATERIALIZED;
 
-addScheduleOrderSupplierCustomer 'Добавить' = ABSTRACT LIST (LegalEntity, LegalEntity) IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
+addScheduleOrderSupplierCustomer 'Добавить'  ABSTRACT LIST ( LegalEntity, LegalEntity) IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
 
 GROUP schedule 'График' : public;
 countDaysPreOrders 'Кол-во дней для предварительных заказов' = DATA INTEGER () IN schedule;
 
-addScheduleOrderDetail 'Сгенерировать заказы по графикам без даты окончания' = ABSTRACT LIST () IN schedule;
+addScheduleOrderDetail 'Сгенерировать заказы по графикам без даты окончания'  ABSTRACT LIST ( ) IN schedule;
 
 defaultGenType = DATA GenType ();
 nameDefaultGenType 'Тип генерации (по умолчанию)' ()= staticCaption(defaultGenType()) IN schedule;
@@ -213,11 +213,11 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     isClosed  'Аннулирован' = DATA BOOLEAN (ScheduleOrderDetail );
     isOpened  'Не аннулирован' (ScheduleOrderDetail o) = o IS ScheduleOrderDetail  AND NOT isClosed (o) MATERIALIZED INDEXED;
 
-    close  'Аннулировать' (ScheduleOrderDetail o) = {
+    close  'Аннулировать' (ScheduleOrderDetail o)  { 
 	NEWSESSION { isClosed (o) <- TRUE; apply(); }
 } TOOLBAR CONFIRM;
 
-    open  'Отменить аннулирование' (ScheduleOrderDetail o) = {
+    open  'Отменить аннулирование' (ScheduleOrderDetail o)  { 
 	NEWSESSION { isClosed (o) <- NULL; apply(); }
 } TOOLBAR CONFIRM;
     
@@ -269,12 +269,12 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     tmpDateP = DATA LOCAL DATE();
     tmpDateS = DATA LOCAL DATE();
     
-    overCreate = ABSTRACT LIST (ScheduleOrderDetail); 
+    overCreate  ABSTRACT LIST ( ScheduleOrderDetail); 
     
     lastShipment = GROUP MAX dateSupply(ScheduleOrderDetail d) IF dateSupply(d) <= DATE date BY scheduleOrder(d), date;
     lastDateSupply = GROUP MAX dateSupply(ScheduleOrderDetail d) BY scheduleOrder(d), customerStock(d);
 
-    create 'Сгенерировать предварительные заказы'(ScheduleOrder scheduleOrder) = {
+    create 'Сгенерировать предварительные заказы'(ScheduleOrder scheduleOrder)  { 
         LOCAL toDate = DATE ();    
         toDate() <- OVERRIDE endDate(scheduleOrder), sum(currentDate(), countDaysPreOrders());
     
@@ -377,7 +377,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     countDetailsCurrent = GROUP SUM 1 IF isOpened[ScheduleOrderDetail](ScheduleOrderDetail d) AND dateOrder[ScheduleOrderDetail](d) >= currentDate()  
         BY scheduleOrder[ScheduleOrderDetail](d); 
     
-    addScheduleOrderDetail() = {
+    addScheduleOrderDetail()  { 
 
         FOR [ = GROUP SUM 1 IF ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) AND NOT countDetailsCurrent(o))) BY supplier(o)](LegalEntity l) DO NEWSESSION {
             FOR ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) AND NOT countDetailsCurrent(o))) AND supplier(o) == l DO {
@@ -387,7 +387,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         }                	    
     }  
     
-    addScheduleOrderDetail() += { addScheduleOrderDetail(); }
+    addScheduleOrderDetail() + {  addScheduleOrderDetail(); }
 
     monthInDate 'Месяц'(ScheduleOrderDetail scheduleOrderDetail) = extractMonthName(dateSupply(scheduleOrderDetail));
     DOWInDate 'День недели'(ScheduleOrderDetail scheduleOrderDetail) = extractDOWName(dateSupply(scheduleOrderDetail));
@@ -427,16 +427,16 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
  
     prevLastCreatedOrder (ScheduleOrder o) = PREV(lastCreatedOrder(o));
     
-    reCreate  'Перегенерировать предварительные заказы'(ScheduleOrder scheduleOrder) = {
+    reCreate  'Перегенерировать предварительные заказы'(ScheduleOrder scheduleOrder)  { 
         DELETE ScheduleOrderDetail d WHERE d IS ScheduleOrderDetail AND scheduleOrder(d) == scheduleOrder AND isOpened(d) AND NOT [ = GROUP SUM 1 BY scheduleOrderDetail( UserOrder o)](d);
         create(scheduleOrder);    
     } TOOLBAR;
     
  
-    overCreate = ABSTRACT LIST (UserOrder);
-    overCreateDetail = ABSTRACT LIST (UserOrder);
+    overCreate  ABSTRACT LIST ( UserOrder);
+    overCreateDetail  ABSTRACT LIST ( UserOrder);
     isRecommended = DATA LOCAL BOOLEAN (UserOrder);
-    createScheduleUser 'Создать заказ'(ScheduleOrderDetail scheduleOrderDetail) = {
+    createScheduleUser 'Создать заказ'(ScheduleOrderDetail scheduleOrderDetail)  { 
 	NEWSESSION {
 	        isRecommended(o) <- NULL;
 	        
@@ -478,7 +478,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     countShipmentScheduleOrderTime (scheduleOrder, dow) = GROUP SUM 1 BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d);   
     scheduleOrderTimeIn 'Вкл.' (ScheduleOrder scheduleOrder, DOW dow)= TRUE IF [ = GROUP SUM 1 BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d)](scheduleOrder, dow);   
 
-    setScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow) = {
+    setScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow)  { 
         IF NOT scheduleOrderTimeIn(scheduleOrder, dow) THEN {
             LOCAL transfer = INTEGER();
             NEW  t = ScheduleOrderTime {
@@ -494,7 +494,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         }
     }
     
-    changeScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow) = {
+    changeScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow)  { 
         INPUT b = BOOLEAN DO
             IF b THEN
                 setScheduleOrderTimeIn(scheduleOrder, dow);
@@ -560,7 +560,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         EDIT ScheduleOrder OBJECT s
     ;
     
-    change(ScheduleOrder s, DOW dow) = {
+    change(ScheduleOrder s, DOW dow)  { 
         IF scheduleOrderTimeIn(s, dow) THEN
             SEEK scheduleOrder.d = [= GROUP MAX ScheduleOrderTime d BY scheduleOrder(d), shipmentDOW(d)](s, dow);
     }
@@ -669,8 +669,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         }
     }
     
-    overCopy = ABSTRACT LIST (ScheduleOrder, ScheduleOrder);
-    copy 'Копировать'(ScheduleOrder scheduleOrder) = {
+    overCopy  ABSTRACT LIST ( ScheduleOrder, ScheduleOrder);
+    copy 'Копировать'(ScheduleOrder scheduleOrder)  { 
 	NEWSESSION {
 	        NEW o = ScheduleOrder {
 	            supplier(o) <- supplier(scheduleOrder);
@@ -699,16 +699,16 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 	    }
 } TOOLBAR;
                 
-    edit (ScheduleOrderDetail detail) += { edit(scheduleOrder(detail)); }
-    show 'Просмотреть' (ScheduleOrder s) = {
+    edit (ScheduleOrderDetail detail) + {  edit(scheduleOrder(detail)); }
+    show 'Просмотреть' (ScheduleOrder s)  { 
     	NEWSESSION {
     	    SHOW scheduleOrder OBJECTS s = s DOCKED READONLY;
     	}
     } TOOLBAR;
-    show(ScheduleOrder.ScheduleOrder o) += { show[ScheduleOrder](o); }
+    show(ScheduleOrder.ScheduleOrder o) + {  show[ScheduleOrder](o); }
     
-    show 'Просмотреть' (ScheduleOrderDetail detail) = { show(scheduleOrder(detail)); } TOOLBAR;
-    addScheduleOrderSupplierCustomer 'Добавить'##sign(LegalEntity supplier, LegalEntity customer) = {
+    show 'Просмотреть' (ScheduleOrderDetail detail)  { show(scheduleOrder(detail)); } TOOLBAR;
+    addScheduleOrderSupplierCustomer 'Добавить'##sign(LegalEntity supplier, LegalEntity customer)  { 
 	NESTEDSESSION {
 	        NEW s = ScheduleOrder {
 	            supplier(s) <- supplier;
@@ -719,7 +719,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 	    }
 } IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
 
-    addScheduleOrderSupplierCustomer(LegalEntity supplier, LegalEntity customer) += { addScheduleOrderSupplierCustomer(supplier, customer); }
+    addScheduleOrderSupplierCustomer(LegalEntity supplier, LegalEntity customer) + {  addScheduleOrderSupplierCustomer(supplier, customer); }
 
     supplier = DATA LOCAL LegalEntity();
     nameSupplier 'Поставщик' = name(supplier());

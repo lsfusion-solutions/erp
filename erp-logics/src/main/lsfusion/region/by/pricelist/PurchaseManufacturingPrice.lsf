@@ -154,7 +154,7 @@ skipChangeManufacturingPrice 'Пропустить' = ABSTRACT BOOLEAN (UserInvo
 calcReversePrice(UserInvoiceDetail d) =     
     round(NUMERIC[16,4](manufacturingPrice (d) * (100.0 (+) manufacturingMarkup(d))/100), currency(d));  
 
-updateManufacturingPrice(UserInvoiceDetail d) = {
+updateManufacturingPrice(UserInvoiceDetail d)  { 
     IF reverseManufacturingPrice(d) THEN {
         price(d) <- calcReversePrice(d);
     } ELSE {
@@ -165,7 +165,7 @@ updateManufacturingPrice(UserInvoiceDetail d) = {
                 NUMERIC[16,4](baseManufacturingPrice(d));    
     }
 }
-overChangePrice (UserInvoiceDetail d) += {
+overChangePrice (UserInvoiceDetail d) + { 
     IF reverseManufacturingPrice(d) THEN {
         manufacturingPrice(d)<- baseReverseManufacturingPrice(d);    
     }
@@ -182,8 +182,8 @@ ON LOCAL FORMS userInvoice {
 calcManufacturingMarkup(UserInvoiceDetail d) =     
     NUMERIC[8,3]((manufacturingPrice(d) * 100.0 / calcBaseManufacturingPrice(d)) - 100.0);
 
-overChangeManufacturingPrice = ABSTRACT LIST (UserInvoiceDetail);
-changeManufacturingPrice(UserInvoiceDetail d) = {
+overChangeManufacturingPrice  ABSTRACT LIST ( UserInvoiceDetail);
+changeManufacturingPrice(UserInvoiceDetail d)  { 
     INPUT n = NUMERIC[16,4] DO {
         manufacturingPrice(d) <- n;      
         IF reverseManufacturingPrice(d) THEN {
@@ -196,12 +196,12 @@ changeManufacturingPrice(UserInvoiceDetail d) = {
     }
 }
 
-toFillMarkup 'Проставить надбавку из вида цен'(UserInvoiceDetail detail) = {
+toFillMarkup 'Проставить надбавку из вида цен'(UserInvoiceDetail detail)  { 
     manufacturingMarkup(detail) <- markup(manufacturingCalcPriceListType(detail), sku(detail));
         EXEC updateManufacturingPrice(detail);
 } ASON CONTEXTMENU manufacturingMarkup[UserInvoiceDetail];
 
-toFillMarkupDetails 'Проставить надбавку из вида цен для всех'(UserInvoiceDetail detail) = {
+toFillMarkupDetails 'Проставить надбавку из вида цен для всех'(UserInvoiceDetail detail)  { 
     FOR [= FILTER userInvoice.d](UserInvoiceDetail det) AND detail IS UserInvoiceDetail DO {
         EXEC toFillMarkup(det);
     }

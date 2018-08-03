@@ -29,7 +29,7 @@ nameCountry 'Страна' (Range range) = name(country(range)) IN recognize;
 countRange 'Кол-во шкал' (tax, country) = GROUP SUM 1 IF Range range IS Range BY tax(range), country(range);
 
 maxDataRange(Tax tax, Country country) = OVERRIDE [= GROUP MAX number(Range range) BY tax(range), country(range)](tax, country), 0 IF tax IS Tax AND country IS Country;
-addNewRange 'Добавить шкалу'(Tax tax, Country country) = {
+addNewRange 'Добавить шкалу'(Tax tax, Country country)  { 
     NEW r = Range {
         number(r) <- maxDataRange(tax, country) + 1;
         country(r) <- country;
@@ -456,8 +456,8 @@ END
 
 // Изменение цены без НДС
 META defineDocumentDetailPriceVATOnChangeCustom (detail)
-    overChangePrice = ABSTRACT (###detail);
-    changePrice (###detail detail) = {
+    overChangePrice  ABSTRACT ( ###detail);
+    changePrice (###detail detail)  { 
         INPUT n = NUMERIC[16,4] DO {
             price (detail) <- n;
             invoicePrice (detail) <- price (detail) * (100 + calcValueVAT(detail)) / 100;
@@ -472,7 +472,7 @@ END
 
 // Изменение щкалы НДС
 META defineDocumentDetailNumberVATOnChangeCustom (detail, stockProp)
-    changeNumberVAT (###detail detail) = {
+    changeNumberVAT (###detail detail)  { 
         DIALOG rangeDialog OBJECTS c = country###stockProp(detail), r = VAT(detail) INPUT NULL DO {
             VAT (detail) <- r;
             invoicePrice (detail) <- round2(price (detail) * (100 + calcValueVAT(detail))/100);
@@ -486,7 +486,7 @@ END
 
 // Изменение ставки НДС
 META defineDocumentDetailValueVATOnChangeCustom (detail)
-    changeValueVAT (###detail detail) = {
+    changeValueVAT (###detail detail)  { 
         INPUT n = NUMERIC[10,5] DO {
             valueVAT (detail) <- n;
             VAT(detail) <- valueCurrentVAT(countrySupplierStock(detail), n);
@@ -501,7 +501,7 @@ END
 
 // Изменение цены с НДС
 META defineDocumentDetailInvoicePriceVATOnChangeCustom (detail)
-    changeInvoicePrice (###detail detail) = {
+    changeInvoicePrice (###detail detail)  { 
         INPUT n = NUMERIC[16,4] DO {
             invoicePrice (detail) <- n;
             price (detail) <- round2(invoicePrice (detail) * 100/(100 + calcValueVAT(detail)));
@@ -577,7 +577,7 @@ END
 
 // ------------------------------------------------------- Стандартные данные ----------------------------------- //
 
-loadDefaultVAT 'Добавить значение НДС'(STRING[3] idCountry, INTEGER number, NUMERIC[10,5] value) = {
+loadDefaultVAT 'Добавить значение НДС'(STRING[3] idCountry, INTEGER number, NUMERIC[10,5] value)  { 
     NEW rn = Range {
        rangeType(rn) <- RangeType.common;
        tax(rn) <- Tax.taxVAT;
@@ -591,6 +591,6 @@ loadDefaultVAT 'Добавить значение НДС'(STRING[3] idCountry, I
     };
 };
 
-loadDefaultVATs 'Загрузить стандартные НДС' = ABSTRACT LIST () IN loadDefault;
+loadDefaultVATs 'Загрузить стандартные НДС'  ABSTRACT LIST ( ) IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultVATs);

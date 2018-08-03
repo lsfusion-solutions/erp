@@ -65,7 +65,7 @@ needToRepricingSaleStore 'Фильтр' (InvoiceDetail d, Stock department, DATE
     shipmentDateTime(d) <= timeTo 
 ; 
 
-createRepricingSaleStoreOver 'Создать переоценку'(Invoice i) = {
+createRepricingSaleStoreOver 'Создать переоценку'(Invoice i)  { 
     NEW r = UserRepricing {
         departmentStore(r) <-  supplierStock(i);
         operation(r) <- toRepricingOperationSaleStore();        
@@ -93,7 +93,7 @@ createRepricingSaleStoreOver 'Создать переоценку'(Invoice i) = 
  
 } 
 
-createRepricingSaleStore 'Создать переоценку'(Invoice i) = {
+createRepricingSaleStore 'Создать переоценку'(Invoice i)  { 
     IF repricingSaleStore(i) THEN {
         MESSAGE 'Документ переоценки был создан ранее';
     } ELSE {
@@ -140,7 +140,7 @@ filterToRepricingDateSaleStore 'Фильтр' (Invoice d, Stock department, DATE
     shipmentDateTime(d) <= timeTo
 ; 
 
-createRepricingSaleStore 'Создать переоценку'(Stock department, DATETIME timeFrom, DATETIME timeTo) = {
+createRepricingSaleStore 'Создать переоценку'(Stock department, DATETIME timeFrom, DATETIME timeTo)  { 
 
     inSaleStore(InvoiceDetail d) <- NULL;           
     inSaleStore(InvoiceDetail d) <- needToRepricingSaleStore(d,department, timeFrom, timeTo);
@@ -152,7 +152,7 @@ createRepricingSaleStore 'Создать переоценку'(Stock department,
     }    
 } 
 // для планировщика
-createRepricingSaleStore 'Создать переоценку по накладным (продажа)'() = {
+createRepricingSaleStore 'Создать переоценку по накладным (продажа)'()  { 
 	NEWSESSION {  
         FOR DepartmentStore department IS DepartmentStore AND active(department) AND isCompany(department) DO {
             createRepricingSaleStore(department, toRepricingDateTimeSaleStore(), toRepricingDateTimeToSaleStore());                                     

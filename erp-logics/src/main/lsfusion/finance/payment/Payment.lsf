@@ -85,7 +85,7 @@ CONSTRAINT currencyAccountFrom(Payment payment) != currencyAccountTo(payment)
     CHECKED BY accountFrom[Payment], accountTo[Payment] MESSAGE 'Валюта счета(с) должна совпадать с валютой счета(на)';
     
 //объединение организаций
-replace(LegalEntity l, LegalEntity o) += {
+replace(LegalEntity l, LegalEntity o) + { 
     payer(Payment payment) <- o WHERE payer(payment) == l;
     beneficiary(Payment payment) <- o WHERE beneficiary(payment) == l;
 }     
@@ -210,9 +210,9 @@ DESIGN payment {
 
 //----------------------------------------- Копирование платежей ----------------------------------------------------//
 
-overCopy = ABSTRACT LIST (Payment, Payment); 
+overCopy  ABSTRACT LIST ( Payment, Payment); 
 
-copyData(Payment payment, Payment p) = {
+copyData(Payment payment, Payment p)  { 
     operation(p) <- operation(payment);
     isReturn(p) <- isReturn(payment);
     order(p) <- order(payment);
@@ -225,7 +225,7 @@ copyData(Payment payment, Payment p) = {
     overCopy(payment, p);
 }
     
-copy 'Копировать'(Payment payment) = {
+copy 'Копировать'(Payment payment)  { 
 	NEWSESSION {
 	    NEW p = Payment {
 	        EXEC copyData(payment, p);
@@ -259,7 +259,7 @@ showOpen (Payment p) = isClosed(p) AND NOT skipOpen(p);
 in 'Отм.' = DATA LOCAL BOOLEAN (Payment);
 countIn = GROUP SUM 1 IF in(Payment payment);
 
-delete 'Удалить' (Payment payment) = {
+delete 'Удалить' (Payment payment)  { 
     NEWSESSION NESTED LOCAL {
         IF countIn() THEN {
             DELETE Payment p WHERE in(p) AND overShowDelete(p);
@@ -342,7 +342,7 @@ CONSTRAINT (SET(isPosted(Payment p)) OR CHANGED(operation(p))) AND isPosted(p) A
 CONSTRAINT (SET(isPosted(Payment p)) OR CHANGED(operation(p))) AND isPosted(p) AND accountBeneficiary(operation(p))  AND NOT (accountTo(p)) 
     MESSAGE 'Должен быть задан расчетный счет бенифициара';
     
-show 'Просмотреть' (Payment p) = {
+show 'Просмотреть' (Payment p)  { 
 	NEWSESSION {
 	    SHOW payment OBJECTS p = p DOCKED READONLY;
 	}

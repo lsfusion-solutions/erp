@@ -5,7 +5,7 @@ REQUIRE ContractLedger, Payment;
 contract 'Контракт' (payment) = DATA Contract (Payment);
 seriesNumberContract 'Номер договора' (Payment payment) = seriesNumber(contract(payment));
 
-replace(Contract c, Contract o) += {contract(Payment object) <- o WHERE contract(object) == c;}
+replace(Contract c, Contract o) + { contract(Payment object) <- o WHERE contract(object) == c;}
 
 currencyContract(Payment payment) = currency(contract(payment)) MATERIALIZED;
 nameCurrencyContract 'Валюта' (Payment payment) = name(currencyContract(payment));
@@ -122,7 +122,7 @@ sum[OutContractLedger](Payment outContractLedger) += IF isReturn(outContractLedg
 
 //------------------------------------------- Actions --------------------------------------------------------------//
 
-setRateExchangeContract(Payment payment) = {
+setRateExchangeContract(Payment payment)  { 
     INPUT n = NUMERIC[18,4] DO
         rateExchangeContract(payment) <- NUMERIC[15,8](n/sum(payment));
 }
@@ -204,9 +204,9 @@ WHEN LOCAL FORMS payment
 
 //------------------------------------- Платежи по договору --------------------------------------------------------//
 overSum = ABSTRACT NUMERIC[18,4] (Currency, DATE);
-overCreate = ABSTRACT LIST (Payment);
+overCreate  ABSTRACT LIST ( Payment);
 
-pay 'Оплатить по договору'(Contract contract, DATE date) = {
+pay 'Оплатить по договору'(Contract contract, DATE date)  { 
 	NEWSESSION {
 	    NEW pm = Payment {
 	        date(pm) <- date;
@@ -224,7 +224,7 @@ pay 'Оплатить по договору'(Contract contract, DATE date) = {
 
 //------------------------------------------- Платеж по договору --------------------------------------------//
 
-addPayment 'Оплатить'(Contract contract) = {
+addPayment 'Оплатить'(Contract contract)  { 
 	NEWSESSION{
 	    NEW p = Payment{
 	        operation(p) <- defaultPaymentOperation();    

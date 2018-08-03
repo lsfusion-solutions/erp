@@ -33,7 +33,7 @@ CONSTRAINT selectGLStock(Stock st) AND NOT isCompany(st)
 CONSTRAINT countSelectGLStock() AND (GROUP SUM 1 IF [ = GROUP SUM 1 IF selectGLStock(Stock st) BY legalEntity(st)](LegalEntity l))>1
     MESSAGE 'Выбранные склады должны принадлежать одной компании.';
 notResetStock() = DATA LOCAL BOOLEAN ();   
-resetSelectGLStock () = {
+resetSelectGLStock ()  { 
     IF NOT notResetStock() THEN{
         selectGLStock(Stock st) <- NULL;  
     }
@@ -87,7 +87,7 @@ DESIGN companyStocksEx {
 @extendFormFilterStockGroupAccess(sg, companyStocksEx, company);
 @extendFormFilterStockAccess(s, companyStocksEx, company);
 
-changeSelectGLStock (LegalEntity l) = {
+changeSelectGLStock (LegalEntity l)  { 
     DIALOG companyStocksEx OBJECTS l = l, s INPUT NULL DO {
         IF NOT countSelectGLStock() THEN {
             selectGLStock(s) <- TRUE;
@@ -111,9 +111,9 @@ EXTEND FORM generalLedgers
 //-- Для одного объекта
 
 META defineGeneralLedgerStock (object, idGL, companyProp, stockProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType)
-    overCreate###idGL###object = ABSTRACT LIST (UserGeneralLedger, ###object);  
+    overCreate###idGL###object  ABSTRACT LIST ( UserGeneralLedger, ###object);  
 
-    createUserGeneralLedgerALL###idGL###object##FromTo 'Создать проводки за период'(LegalEntity l, DATE dateProp, DATE dateProp##To) = {     
+    createUserGeneralLedgerALL###idGL###object##FromTo 'Создать проводки за период'(LegalEntity l, DATE dateProp, DATE dateProp##To)  {     
         FOR property(###object object) AND dateProp(object) >= (date AS DATE) AND dateProp(object) <= (dateTo AS DATE) AND companyProp(object) == l NEW u = UserGeneralLedger DO  {
             GLDocument(u) <- object;
             legalEntity(u) <- companyProp(object);
@@ -129,7 +129,7 @@ META defineGeneralLedgerStock (object, idGL, companyProp, stockProp, property, d
             EXEC overCreate###idGL###object(u, object); 
         }    
     }
-    createGeneralLedgerFromTo(LegalEntity l, DATE date,DATE dateTo) += { createUserGeneralLedgerALL###idGL###object##FromTo(l, date,dateTo); }
+    createGeneralLedgerFromTo(LegalEntity l, DATE date,DATE dateTo) + {  createUserGeneralLedgerALL###idGL###object##FromTo(l, date,dateTo); }
 END
 // дата 
 META defineGeneralLedgerStock (object, idGL, companyProp, stockProp, property, descriptionProp, debitV, creditV, accountType)
@@ -161,10 +161,10 @@ END
 
 META defineGeneralLedgerDoubleStock (object1, object2, idGL, companyProp, stockProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType)
 
-    overCreate##idGL###object1###object2 = ABSTRACT LIST (UserGeneralLedger, ###object1);  
-    overCreate##idGL###object1###object2 = ABSTRACT LIST (UserGeneralLedger, Dimension, ###object1);  
+    overCreate##idGL###object1###object2  ABSTRACT LIST ( UserGeneralLedger, ###object1);  
+    overCreate##idGL###object1###object2  ABSTRACT LIST ( UserGeneralLedger, Dimension, ###object1);  
     
-    createUserGeneralLedgerALL##idGL###object1###object2##FromTo 'Создать проводки'(LegalEntity l, DATE dateProp,DATE dateProp##To) = {     
+    createUserGeneralLedgerALL##idGL###object1###object2##FromTo 'Создать проводки'(LegalEntity l, DATE dateProp,DATE dateProp##To)  {     
         FOR property(###object1 object1, ###object2 object2) AND dateProp(object1) >= (date AS DATE) AND dateProp(object1) <= (dateTo AS DATE) AND companyProp(object1) == l NEW u = UserGeneralLedger DO  {
             GLDocument(u) <- object1;
             legalEntity(u) <- companyProp(object1);
@@ -181,7 +181,7 @@ META defineGeneralLedgerDoubleStock (object1, object2, idGL, companyProp, stockP
             overCreate##idGL###object1###object2(u, object1); 
         }    
     }
-    createGeneralLedgerFromTo(LegalEntity l, DATE date,DATE dateTo) += { createUserGeneralLedgerALL##idGL###object1###object2##FromTo(l, date, dateTo); }
+    createGeneralLedgerFromTo(LegalEntity l, DATE date,DATE dateTo) + {  createUserGeneralLedgerALL##idGL###object1###object2##FromTo(l, date, dateTo); }
 END
 // дата 
 META defineGeneralLedgerDoubleStock (object1, object2, idGL, companyProp, stockProp, property, descriptionProp, debitV, creditV, accountType)

@@ -76,7 +76,7 @@ CONSTRAINT country(ownership(LegalEntity legalEntity)) != country(legalEntity)
 
 fullName 'Полное наименование' = DATA VARISTRING[200] (LegalEntity) IN law CHARWIDTH 50;
 
-setFullName 'Заполнить из наименования' (LegalEntity l) = {
+setFullName 'Заполнить из наименования' (LegalEntity l)  { 
     fullName(l) <- CONCAT ' ', nameOwnership(l), name(l);
 }
 
@@ -239,10 +239,10 @@ DESIGN confirmReplaceLegalEntity {
     MOVE TOOLBARBOX;
 }
 
-replace = ABSTRACT LIST (LegalEntity, LegalEntity);
-preReplace = ABSTRACT LIST (LegalEntity, LegalEntity);
+replace  ABSTRACT LIST ( LegalEntity, LegalEntity);
+preReplace  ABSTRACT LIST ( LegalEntity, LegalEntity);
 
-replace 'Объединить'(LegalEntity legalEntity) = {
+replace 'Объединить'(LegalEntity legalEntity)  { 
     setNoEventsInTransaction();
     
     DIALOG confirmReplaceLegalEntity OBJECTS l=legalEntity DO {
@@ -269,7 +269,7 @@ replace 'Объединить'(LegalEntity legalEntity) = {
 dataNameBooker 'ФИО главного бухгалтера' = DATA VARISTRING[250](LegalEntity);
 nameBooker 'Главный бухгалтер' (LegalEntity l) = OVERRIDE dataNameBooker(l), nameCustomUserBooker(l) IN management;
 
-changeBooker(LegalEntity le) = {    
+changeBooker(LegalEntity le)  {    
     IF NOT isCompany(le) THEN {
         INPUT s = dataNameBooker(le) DO {
             dataNameBooker(le) <- s;  
@@ -279,13 +279,13 @@ changeBooker(LegalEntity le) = {
     }
 }
 
-deleteBooker 'Удалить' (LegalEntity l, DATE d) = { dataBooker(l, d) <- NULL; } IMAGE 'delete.png';
+deleteBooker 'Удалить' (LegalEntity l, DATE d)  { dataBooker(l, d) <- NULL; } IMAGE 'delete.png';
 EXTEND FORM dialogBookerLegalEntity PROPERTIES deleteBooker(a, d) TOOLBAR;
 
 dataNameChief 'ФИО руководителя' = DATA VARISTRING[250](LegalEntity);
 nameChief 'Руководитель' (LegalEntity l) = OVERRIDE dataNameChief(l), nameCustomUserChief(l) IN management;
 
-changeChief(LegalEntity le) = {    
+changeChief(LegalEntity le)  {    
     IF NOT isCompany(le) THEN {
         INPUT s = dataNameChief(le) DO {
             dataNameChief(le) <- s;  
@@ -295,7 +295,7 @@ changeChief(LegalEntity le) = {
     }
 }
 
-deleteChief 'Удалить' (LegalEntity l, DATE d) = { dataChief(l, d) <- NULL; }
+deleteChief 'Удалить' (LegalEntity l, DATE d)  { dataChief(l, d) <- NULL; }
 EXTEND FORM dialogChiefLegalEntity PROPERTIES deleteChief(a, d) TOOLBAR;
 
 FORM legalEntity 'Организация'
@@ -421,7 +421,7 @@ DESIGN dialogLegalEntities {
     }
 }
 
-copy 'Копировать' (LegalEntity l) = {
+copy 'Копировать' (LegalEntity l)  { 
     NEWSESSION {
         NEW newL = LegalEntity {
             name(newL) <- name(l);
@@ -610,7 +610,7 @@ DESIGN customerLegalEntities {
     }
 }
 META defineDocumentDialogLegalEntity(objectClass, filter, prefix)
-    change###prefix###filter(###objectClass o) = {
+    change###prefix###filter(###objectClass o)  { 
         DIALOG filter###legalEntities OBJECTS l = prefix(o) CHANGE;
     }
 END
@@ -630,7 +630,7 @@ META defineDocumentHeaderLegalEntity (object, contact, contactCaption)
     name###contact contactCaption (###object object)= name(contact(object)) IN documentPrm CHARWIDTH 20;
     fullName###contact contactCaption###' (полное наименование)' (###object object)= fullName(contact(object)) IN documentPrm CHARWIDTH 20;    
     address###contact contactCaption###' (адрес)' (###object object)= address(contact(object)) IN documentPrm CHARWIDTH 20;    
-    replace(LegalEntity l, LegalEntity o) += {contact(###object object) <- o WHERE contact(object) == l;} 
+    replace(LegalEntity l, LegalEntity o) + { contact(###object object) <- o WHERE contact(object) == l;} 
 END
 META defineDocumentAbstractHeaderLegalEntity (object, contact, contactCaption)
     contact (object) = ABSTRACT LegalEntity (###object) MATERIALIZED;

@@ -17,7 +17,7 @@ FORM selectDepartmentStore 'Выбор отделов магазина для п
         FILTER 'Активный' active(d) 'F10' DEFAULT    
 ;
 
-createPriceListLabel 'Распечатать ценники'(PriceTransactionDocument priceList) = {
+createPriceListLabel 'Распечатать ценники'(PriceTransactionDocument priceList)  { 
 	NEWSESSION {
 	    DIALOG selectDepartmentStore OBJECTS p = priceList, d INPUT DO {
 	        select(Sku sku, LabelType labelType, d) <- countPriceListDetail(sku,priceList) AND inPrint(labelType, sku, d);   
@@ -50,7 +50,7 @@ FORM selectDepartmentStoreLabelType 'Выбор магазина и ценник
     FILTERGROUP inactive FILTER 'Активные' active(l) 'F10' DEFAULT
 ;
 
-createSelectedSkuStockSnapshotLabel 'Перепечатать ценники'(PriceTransactionDocument priceList) = {    
+createSelectedSkuStockSnapshotLabel 'Перепечатать ценники'(PriceTransactionDocument priceList)  {    
     DIALOG selectDepartmentStoreLabelType OBJECTS p = priceList, d INPUT, l INPUT DO {
         select(Sku sku) <- TRUE IF countPriceListDetail(sku,priceList);  
         IF NOT (GROUP SUM 1 IF select(LabelType type, d)) THEN {
@@ -67,7 +67,7 @@ createSelectedSkuStockSnapshotLabel 'Перепечатать ценники'(Pr
 
 priceDoc = DATA LOCAL UserPriceList ();
 
-createSelectedSkuStockSnapshotPriceList 'Перепечатать ценники (цены из прайса)'(PriceTransactionDocument priceList) = {    
+createSelectedSkuStockSnapshotPriceList 'Перепечатать ценники (цены из прайса)'(PriceTransactionDocument priceList)  {    
     DIALOG selectDepartmentStoreLabelType OBJECTS p = priceList, d INPUT, l INPUT DO { 
         select(Sku sku) <- TRUE IF countPriceListDetail(sku,priceList);
         priceDoc() <- priceList; 
@@ -83,7 +83,7 @@ createSelectedSkuStockSnapshotPriceList 'Перепечатать ценники
 } TOOLBAR;
 
 defaultDataPriceListType (UserPriceList p) = GROUP MAX DataPriceListType type IF in( p, type);
-overCreate(LabelTransaction t) += {
+overCreate(LabelTransaction t) + { 
     IF  priceDoc() THEN {        
         price(LabelTransactionDetail d) <- price(userPriceListDetail(priceDoc(),sku(d)), overPriceListType(t) AS DataPriceListType) WHERE labelTransaction(d) == t;
         retailPrice(LabelTransactionDetail d) <- priceBefore(userPriceListDetail(priceDoc(),sku(d))) WHERE labelTransaction(d) == t;                
@@ -105,8 +105,8 @@ DESIGN priceLists {
     }
 }
 
-overFillDocument = ABSTRACT (LabelTransactionDetail, DocumentDetail); 
-fillDocument 'Подбор документа'(LabelTransaction labelTransaction) = {
+overFillDocument  ABSTRACT ( LabelTransactionDetail, DocumentDetail); 
+fillDocument 'Подбор документа'(LabelTransaction labelTransaction)  { 
     DIALOG documents DO {
         FOR inSession(document(DocumentDetail documentDetail)) NEW i = LabelTransactionDetail DO {
             labelTransaction(i) <- labelTransaction;
@@ -118,7 +118,7 @@ fillDocument 'Подбор документа'(LabelTransaction labelTransaction
     }
 } TOOLBAR;
 
-overFillDocument (LabelTransactionDetail i, DocumentDetail d) += {
+overFillDocument (LabelTransactionDetail i, DocumentDetail d) + { 
     batch(i) <- batch(d);
 }
 

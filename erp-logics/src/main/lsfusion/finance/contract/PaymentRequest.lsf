@@ -23,7 +23,7 @@ contract 'Контракт' (paymentRequest) = DATA Contract (PaymentRequest) AU
 seriesNumberContract 'Номер контракта' (PaymentRequest paymentRequest) = seriesNumber(contract(paymentRequest));
 dateContract 'Дата контракта' (PaymentRequest paymentRequest)= dateFrom(contract(paymentRequest));
 
-replace(Contract c, Contract o) += {contract(PaymentRequest object) <- o WHERE contract(object) == c;}
+replace(Contract c, Contract o) + { contract(PaymentRequest object) <- o WHERE contract(object) == c;}
 
 note 'Примечание' (paymentRequest) = DATA VARSTRING[200] (PaymentRequest);
 
@@ -91,11 +91,11 @@ sumInLIFO(PaymentRequest paymentRequest, InContractLedger inContractLedger) =
               ORDER DESC date(inContractLedger), number(inContractLedger), inContractLedger
               BY paymentRequest;
 
-writeFIFO 'Расписать по FIFO'(PaymentRequest paymentRequest) = {
+writeFIFO 'Расписать по FIFO'(PaymentRequest paymentRequest)  { 
     cost(paymentRequest, InContractLedger inContractLedger) <- sumInFIFO(paymentRequest, inContractLedger);
 }
 
-writeLIFO 'Расписать по LIFO'(PaymentRequest paymentRequest) = {
+writeLIFO 'Расписать по LIFO'(PaymentRequest paymentRequest)  { 
     cost(paymentRequest, InContractLedger inContractLedger) <- sumInLIFO(paymentRequest, inContractLedger);
 }
 
@@ -209,8 +209,8 @@ requestedDebt 'Неоплаченных требований' (contract) =
 
 toRequest 'Необходимо выставить требований' (Contract contract, DATE date) = balanceA(contract, date) (-) requestedDebt(contract);
 
-overCreateRequests = ABSTRACT LIST (PaymentRequest);
-createPaymentRequest 'Выставить платежное требование'(Contract contract, DATE date) = {
+overCreateRequests  ABSTRACT LIST ( PaymentRequest);
+createPaymentRequest 'Выставить платежное требование'(Contract contract, DATE date)  { 
 	NEWSESSION {
 	    NEW pr = PaymentRequest {
 	        date(pr) <- date;
@@ -255,7 +255,7 @@ DESIGN contractLedger {
     }
 }
 
-createPaymentRequests 'Выставить платежные требования'(DATE date) = {
+createPaymentRequests 'Выставить платежные требования'(DATE date)  { 
     LOCAL count = INTEGER();
     count() <- 0;
     FOR toRequest(Contract contract, date) > 0 AND (partyA(contract) == partyA() OR (isCompany(partyA(contract)) AND NOT partyA()))

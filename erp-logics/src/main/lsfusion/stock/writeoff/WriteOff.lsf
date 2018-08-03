@@ -206,14 +206,14 @@ addressLegalEntity 'Адрес' (UserWriteOff userWriteOff) = address(legalEntit
 // Для инвентаризации по партиям
 @showDocumentInterfaceDetailBatch(writeOff);
 @defineDocumentInterfaceDetailBatch(writeOff, batch);
-changeBatch(UserWriteOffDetail detail) = {
+changeBatch(UserWriteOffDetail detail)  { 
     DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
                              t = dateTime(detail),
                              sk = sku(detail),
                              bt = batch(detail) INPUT NULL NEWSESSION DO
         batch(detail) <- bt;
 }
-replace(Sku s, Batch b) += { sku(UserWriteOffDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) + {  sku(UserWriteOffDetail detail) <- s WHERE batch(detail) == b;}
 
 @defineDocumentInterfaceDetailQuantity(writeOff);
 @defineDocumentInterfaceDetailPrice(writeOff);
@@ -645,7 +645,7 @@ sumContainer (WriteOff ledger) += sumContainerWriteOffDetail(ledger);
 legalEntity(WriteOff ledger) += contact(ledger);  
 
 operation[StockDocumentLedger](WriteOff ledger) += operation(ledger);
-close[StockDocumentLedger](WriteOff l) += { close(l); }
+close[StockDocumentLedger](WriteOff l) + {  close(l); }
 skip(WriteOff l) += skipStockDocumentLedger(l);
 
 
@@ -658,18 +658,18 @@ sum[OutSkuLedger] (WriteOffDetail ledger) += sum(ledger);
 
 stockDocumentLedger(WriteOffDetail ledger) += writeOff(ledger); 
 
-edit(UserWriteOffDetail d) += { DIALOG userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED; }
+edit(UserWriteOffDetail d) + {  DIALOG userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED; }
 
-show 'Просмотреть' = ABSTRACT LIST (WriteOffDetail) TOOLBAR;
-show(UserWriteOffDetail d) = {
+show 'Просмотреть'  ABSTRACT LIST ( WriteOffDetail) TOOLBAR;
+show(UserWriteOffDetail d)  { 
 	NEWSESSION {
 	    SHOW userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED READONLY;
 	}
 }
-show(UserWriteOffDetail d) += { show(d); }
-show[SkuLedger](WriteOffDetail d) += { show(d); }
+show(UserWriteOffDetail d) + {  show(d); }
+show[SkuLedger](WriteOffDetail d) + {  show(d); }
 
-show 'Просмотреть' (UserWriteOff w) = {
+show 'Просмотреть' (UserWriteOff w)  { 
 	NEWSESSION {
 	    SHOW userWriteOff OBJECTS w = w DOCKED READONLY;
 	}
@@ -685,11 +685,11 @@ firstOrderBatchBalance (Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q
                                                    BY skuLedger(batch, stock) COMPLEX;
 
 
-fillBatch 'Проставить партию'(UserWriteOffDetail d)  = {    
+fillBatch 'Проставить партию'(UserWriteOffDetail d)   {    
     batch(d) <- firstOrderBatchBalance(sku(d), stock(d), dateTime(d), quantity(d)); 
 } ASON CONTEXTMENU nameBatch[UserWriteOffDetail];
 
-fillAllBatch 'Проставить партии для всех'(UserWriteOffDetail detail) = {
+fillAllBatch 'Проставить партии для всех'(UserWriteOffDetail detail)  { 
    FOR userWriteOff(detail) == userWriteOff(UserWriteOffDetail d) AND NOT batch(d) DO
        fillBatch(d);
 } ASON CONTEXTMENU nameBatch[UserWriteOffDetail];

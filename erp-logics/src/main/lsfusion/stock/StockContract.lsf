@@ -28,8 +28,8 @@ META defineInStockGroupObject(prop, object, objectClass)
     in###prop 'Отм' (Stock stock, ###object object) =
         (OVERRIDE dataIn###prop(stock, object),
                  in###prop(stockGroup(stock), object)) IF in(prop(object), stock) MATERIALIZED;
-    replace(Stock s, Stock o) += {dataIn###prop(o, ###object object) <- TRUE WHERE in###prop(s, object) AND NOT in###prop(o, object);}
-    preReplace(###object c, ###object object) += {dataIn###prop(Stock s, object) <- TRUE WHERE in###prop(s, c) AND NOT in###prop(s, object);}                 
+    replace(Stock s, Stock o) + { dataIn###prop(o, ###object object) <- TRUE WHERE in###prop(s, object) AND NOT in###prop(o, object);}
+    preReplace(###object c, ###object object) + { dataIn###prop(Stock s, object) <- TRUE WHERE in###prop(s, c) AND NOT in###prop(s, object);}                 
                  
     countDataIn###prop##StockGroups(###object object) = GROUP SUM 1 IF dataIn###prop(StockGroup stockGroup, object);            
                                   
@@ -57,8 +57,8 @@ CLASS ABSTRACT ContractSku 'Договор на поставку' : Contract;
 TABLE contractSku(ContractSku);
 
 word 'Файл договора'  = ABSTRACT WORDFILE (ContractSku);
-saveWord 'Загрузить файл договора' (ContractSku contractSku) = { INPUT =word(contractSku) CHANGE; }
-openWord 'Просмотреть файл договора' (ContractSku contractSku) = { open(word(contractSku)); }
+saveWord 'Загрузить файл договора' (ContractSku contractSku)  { INPUT =word(contractSku) CHANGE; }
+openWord 'Просмотреть файл договора' (ContractSku contractSku)  { open(word(contractSku)); }
 word(ContractSku contract) += word(contract);
 
 id 'Код' = ABSTRACT VARSTRING[100] (ContractSku) IN recognize CHARWIDTH 10;
@@ -77,8 +77,8 @@ series (ContractSku contract) += series(contract);
 @defineNumeratedDefault(UserContractSku, 'Договоры', 'ДП');
 
 word 'Файл договора' (UserContractSku) = DATA WORDFILE (UserContractSku);
-saveWord 'Загрузить файл договора' (UserContractSku userContractSku) = { INPUT =word(userContractSku) CHANGE; }
-openWord 'Просмотреть файл договора' (UserContractSku userContractSku) = { open(word(userContractSku)); }
+saveWord 'Загрузить файл договора' (UserContractSku userContractSku)  { INPUT =word(userContractSku) CHANGE; }
+openWord 'Просмотреть файл договора' (UserContractSku userContractSku)  { open(word(userContractSku)); }
 word(UserContractSku contract) += word(contract);
 
 supplier = DATA LegalEntity (ContractSku);
@@ -114,7 +114,7 @@ TABLE supplierCustomer(LegalEntity, LegalEntity);
 @defineContractDefault(contractSku, LegalEntity, Stock, LegalEntity, Stock, supplier, customer);
 
 //объединение организаций
-replace(LegalEntity l, LegalEntity o) += {
+replace(LegalEntity l, LegalEntity o) + { 
     supplier(ContractSku contract) <- o WHERE supplier(contract) == l;
     customer(ContractSku contract) <- o WHERE customer(contract) == l;
 }   
@@ -251,7 +251,7 @@ WHEN LOCAL FORMS userContractSku SETCHANGED(supplier(UserContractSku contract)) 
     currency(contract) <- OVERRIDE currency(supplier(contract)), defaultCurrency();
 }
 
-addUserContractSkuSupplierCustomer 'Добавить'(LegalEntity supplier, LegalEntity customer) = {
+addUserContractSkuSupplierCustomer 'Добавить'(LegalEntity supplier, LegalEntity customer)  { 
 	NESTEDSESSION{
 	    NEW uc = UserContractSku {
 	        supplier(uc) <- supplier;

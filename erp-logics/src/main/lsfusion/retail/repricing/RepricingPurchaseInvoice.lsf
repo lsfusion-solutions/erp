@@ -99,8 +99,8 @@ filterToRepricingDate 'Фильтр' (Invoice invoice, Stock department, DATETIM
     repricing(invoice)
 ;                
                   
-overExtraValuation = ABSTRACT LIST (RepricingDetail, InvoiceDetail);  
-overExtraRevertValuation = ABSTRACT LIST (RepricingDetail, InvoiceDetail);
+overExtraValuation  ABSTRACT LIST ( RepricingDetail, InvoiceDetail);  
+overExtraRevertValuation  ABSTRACT LIST ( RepricingDetail, InvoiceDetail);
 
 skipExtraValuation = ABSTRACT BOOLEAN (Sku, Stock);        
         
@@ -122,8 +122,8 @@ DESIGN options {
     }
 }  
 
-overPositive = ABSTRACT LIST (InvoiceDetail); 
-overNegative= ABSTRACT LIST (InvoiceDetail); 
+overPositive  ABSTRACT LIST ( InvoiceDetail); 
+overNegative ABSTRACT LIST ( InvoiceDetail); 
 
 positive =  DATA LOCAL BOOLEAN (InvoiceDetail);
 negative =  DATA LOCAL BOOLEAN (InvoiceDetail);    
@@ -158,14 +158,14 @@ backgroundShowDataSkipRepricing (SkuGroup skuGroup) =
         RGB(203,203,206) IF quantityChildWithDataSkipRepricing (skuGroup) != descendantNumber(skuGroup)
                          AND NOT quantityParentWithDataSkipRepricing (skuGroup);
 
-setNullShowDataSkipRepricing 'Снять признак для всех потомков'(SkuGroup skuGroup) = {
+setNullShowDataSkipRepricing 'Снять признак для всех потомков'(SkuGroup skuGroup)  { 
     FOR isParent (SkuGroup childGroup, skuGroup) DO {
         skipRepricing(childGroup) <- NULL;
     }
 } ASON CONTEXTMENU skipRepricing[SkuGroup] CONFIRM;
   
-createExtraValuationStockTimeOperationNotForm= ABSTRACT LIST (UserRepricing);
-createExtraValuationNotForm 'Создать дооценку'(Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation) = {
+createExtraValuationStockTimeOperationNotForm ABSTRACT LIST ( UserRepricing);
+createExtraValuationNotForm 'Создать дооценку'(Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation)  { 
     LOCAL in = BOOLEAN (Invoice);
     in(Invoice invoice) <- filterToRepricingDate (invoice, department, timeFrom, timeTo);
     IF (GROUP SUM 1 IF in(Invoice invoice)) THEN {
@@ -257,7 +257,7 @@ createExtraValuationNotForm 'Создать дооценку'(Stock department, 
     }
 }                  
                    
-createExtraValuation 'Создать дооценку'(Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation) = {
+createExtraValuation 'Создать дооценку'(Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation)  { 
 	NEWSESSION {
 	    createExtraValuationNotForm(department, timeFrom, timeTo, operation);
 	    SHOW userRepricing  OBJECTS p = repricingForm() DOCKED NOCANCEL;  
@@ -265,14 +265,14 @@ createExtraValuation 'Создать дооценку'(Stock department, DATETIM
 	}
 }                 
                                                     
-createExtraValuation 'Создать дооценку'() = {
+createExtraValuation 'Создать дооценку'()  { 
 	NEWSESSION {
 	    DIALOG extraValuation OBJECTS d INPUT, tf INPUT, tt INPUT, o = toRepricingOperation() NULL INPUT DO
 	        createExtraValuation(d, tf, tt, o);                               
 	}
 } TOOLBAR ;
 
-recreateExtraValuation(DATE dateFrom, DATE dateTo) = {
+recreateExtraValuation(DATE dateFrom, DATE dateTo)  { 
     FOR iterate(DATE d, dateFrom, dateTo) DO {
         DELETE UserRepricing u WHERE operation(u) == toRepricingOperation() AND date(u) == d;
         apply();
@@ -297,10 +297,10 @@ DESIGN repricings {
     }
 }
   
-createOverExtraValuationAllStocks = ABSTRACT LIST ();
+createOverExtraValuationAllStocks  ABSTRACT LIST ( );
 isOverExtraValuationAllStocks = ABSTRACT BOOLEAN ();
 
-createExtraValuationAllStocks 'Создать автоматическую дооценку'() = {
+createExtraValuationAllStocks 'Создать автоматическую дооценку'()  { 
 	NEWSESSION {
 	    IF isOverExtraValuationAllStocks() THEN {
 	        createOverExtraValuationAllStocks();

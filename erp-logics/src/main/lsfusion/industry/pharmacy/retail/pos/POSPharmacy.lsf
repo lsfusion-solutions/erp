@@ -32,7 +32,7 @@ DESIGN options {
 
 //blisterAmount 'Кол-во блистеров' (Batch batch) = blisterAmount(sku(batch));
         
-//changeQuantityValue (Batch batch, Receipt receipt, NUMERIC[16,5] n) =  {
+//changeQuantityValue (Batch batch, Receipt receipt, NUMERIC[16,5] n)   { 
 //    IF receipt IS Receipt AND blisterAmount(sku(batch)) AND n AND NOT trunc(n*blisterAmount(sku(batch)),0) == n*blisterAmount(sku(batch)) AND checkBlisterAmount() THEN {
 //        MESSAGE 'Количество блистеров должно быть целым';
 //    } ELSE 
@@ -68,7 +68,7 @@ DESIGN options {
 //    }
 //}  
 
-changeQuantityValue (Batch batch, Receipt receipt, NUMERIC[16,5] n) =  {
+changeQuantityValue (Batch batch, Receipt receipt, NUMERIC[16,5] n)   { 
     IF receipt IS Receipt AND blisterAmount(batch) AND n AND NOT trunc(n*blisterAmount(batch),0) == n*blisterAmount(batch) AND checkBlisterAmount() THEN {
         MESSAGE 'Количество блистеров должно быть целым';
     } ELSE 
@@ -97,7 +97,7 @@ changeQuantityValue (Batch batch, Receipt receipt, NUMERIC[16,5] n) =  {
     }
 }    
         
-changeQuantity(Batch batch, Receipt receipt) = {
+changeQuantity(Batch batch, Receipt receipt)  { 
     INPUT n = NUMERIC[16,5] DO
         changeQuantityValue(batch, receipt, n);
 }
@@ -124,7 +124,7 @@ readOnlyBlisterQuantity (Batch batch, Receipt receipt) = receipt IS Receipt AND 
 
 backgroundBlisterQuantity 'Цвет' (Batch batch, Receipt receipt)  = RGB(250, 236, 199) IF receipt IS Receipt AND blisterAmount(batch);
 
-//changeBlisterQuantity(Batch batch, Receipt receipt) = {
+//changeBlisterQuantity(Batch batch, Receipt receipt)  { 
 //    INPUT i = INTEGER DO
 //        IF receiptDetail(batch, receipt) THEN {
 //            IF (i AND NOT deleteNullDetail()) OR (deleteNullDetail() AND i != 0) THEN {
@@ -156,7 +156,7 @@ backgroundBlisterQuantity 'Цвет' (Batch batch, Receipt receipt)  = RGB(250, 
 //        }
 //}
 
-changeBlisterQuantity(Batch batch, Receipt receipt) = {
+changeBlisterQuantity(Batch batch, Receipt receipt)  { 
     INPUT i = INTEGER DO {
         IF receiptDetail(batch, receipt) THEN {
             IF (i AND NOT deleteNullDetail()) OR (deleteNullDetail() AND i != 0) THEN {
@@ -217,7 +217,7 @@ filterNameSku 'Поиск по наименованию' = DATA LOCAL NESTED VAR
 filterNameSku 'Ввести наименование' (Batch bt) = isISubstring(prevNameSku(bt), filterNameSku()) OR NOT filterNameSku();
 filterNameSku 'Ввести наименование' (Sku sku) = isISubstring(name(sku), filterNameSku()) OR NOT filterNameSku();
 
-skipFilters 'Обнулить поиск' () = {
+skipFilters 'Обнулить поиск' ()  { 
     filterBarcode() <- NULL;
     filterPrice() <- NULL;
     filterNameSku() <- NULL; 
@@ -225,7 +225,7 @@ skipFilters 'Обнулить поиск' () = {
 
 backgroundQuantity(ReceiptDetail detail) += IF detail IS ReceiptDetail THEN #D4FFD4;
 
-changeQuantity(ReceiptDetail detail) += WHEN detail IS ReceiptDetail THEN {
+changeQuantity(ReceiptDetail detail) + WHEN detail IS ReceiptDetail THEN { 
     INPUT n = NUMERIC[16,5] DO {
         IF n THEN {
             IF detail IS ReceiptDetail AND blisterAmount(batch(detail)) AND n AND NOT trunc(n*blisterAmount(batch(detail)),0) == n*blisterAmount(batch(detail)) AND checkBlisterAmount() THEN {
@@ -250,7 +250,7 @@ readOnlyBlisterQuantity (ReceiptDetail detail) = detail IS ReceiptDetail AND NOT
 
 returnQuantity(ReceiptReturnDetail detail) += IF quantity(receiptSaleDetail(detail)) < 1.0 THEN quantity(receiptSaleDetail(detail));                                                         
 
-changeBlisterQuantity(ReceiptDetail detail) = {
+changeBlisterQuantity(ReceiptDetail detail)  { 
     INPUT i = INTEGER DO {
         IF (i AND NOT deleteNullDetail()) OR (deleteNullDetail() AND i != 0) THEN {
             IF prevCurrentBalance(batch(detail), departmentStore(detail)) != trunc(prevCurrentBalance(batch(detail), departmentStore(detail)), 0) AND blisterAmount(batch(detail)) AND
@@ -316,13 +316,13 @@ DESIGN POS {
     PROPERTY(blisterPrice(d)) {font = '18';}
 }
 
-changeAnalogueBlisterQuantity(Batch batch, Receipt receipt) = {
+changeAnalogueBlisterQuantity(Batch batch, Receipt receipt)  { 
     changeBlisterQuantity(batch, receipt);
     ACTIVATE PROPERTY POS.quantityReceiptGrid;
     SEEK POS.bt = batch;
 }
 
-changeAnalogueQuantity(Batch batch, Receipt receipt) = {
+changeAnalogueQuantity(Batch batch, Receipt receipt)  { 
     INPUT n = NUMERIC[16,5] DO {
         changeQuantityValue(batch, receipt, n);
         ACTIVATE PROPERTY POS.quantityReceiptGrid;
@@ -423,7 +423,7 @@ DESIGN POS {
     REMOVE PROPERTY(sumPanel);
 }
 
-overChangeBatch(ReceiptDetail d) += {
+overChangeBatch(ReceiptDetail d) + { 
     ACTIVATE PROPERTY POS.quantityReceiptGrid;
     SEEK POS.bt = batch(d);
 };

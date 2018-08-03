@@ -136,7 +136,7 @@ DESIGN statisticGroup {
     MOVE TOOLBARBOX;
 }
 
-add 'Добавить'(StatisticGroup group, StatisticGroupType type) = {
+add 'Добавить'(StatisticGroup group, StatisticGroupType type)  { 
 	NEWSESSION {
 	    NEW g = StatisticGroup {
 	        parent(g) <- group;
@@ -146,7 +146,7 @@ add 'Добавить'(StatisticGroup group, StatisticGroupType type) = {
 	}
 } TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
 
-add 'Добавить' (StatisticGroup group)= { add(group, groupType(group)); } TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
+add 'Добавить' (StatisticGroup group) { add(group, groupType(group)); } TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
 
 TABLE statisticGroupTypeSku (StatisticGroupType, Sku);
 statistic = ABSTRACT StatisticGroup (StatisticGroupType, Sku) MATERIALIZED;
@@ -738,7 +738,7 @@ showPrint (Stock st) = st IS Stock AND NOT skipPrint(st);
  
 //---------------------------------------------- Автоматическое заполнение -----------------------------------------------------//
 
-loadDefaultStatisticGroupType 'Добавить значение классификатора стат.групп'(VARISTRING[100] iname, VARSTRING[20] isid, STRING[3] isidCountry) = {
+loadDefaultStatisticGroupType 'Добавить значение классификатора стат.групп'(VARISTRING[100] iname, VARSTRING[20] isid, STRING[3] isidCountry)  { 
     NEW t = StatisticGroupType {
         name(t) <- iname;
         id (t) <- isid;
@@ -746,7 +746,7 @@ loadDefaultStatisticGroupType 'Добавить значение классиф�
     }
 }
 
-loadDefaultStatistic 'Добавить значение статистические группы'(VARSTRING[20] sidType, STRING[12] sidParent, VARISTRING[250] iname, STRING[12] isid, GroupStatic groupStatic, value) = {
+loadDefaultStatistic 'Добавить значение статистические группы'(VARSTRING[20] sidType, STRING[12] sidParent, VARISTRING[250] iname, STRING[12] isid, GroupStatic groupStatic, value)  { 
     NEW g = StatisticGroup {
         groupType(g) <- statisticGroupTypeId(sidType);
         parent(g) <- groupIdTypeIdGroup(sidType, sidParent);
@@ -758,15 +758,15 @@ loadDefaultStatistic 'Добавить значение статистическ
     }
 }
 
-loadDefaultResidentCountry 'Добавить отеч. производ'(STRING[3] idCountry, STRING[3] idCountry2) = {
+loadDefaultResidentCountry 'Добавить отеч. производ'(STRING[3] idCountry, STRING[3] idCountry2)  { 
     resident(Country a,Country b) <- TRUE WHERE a == country(idCountry) AND b == country(idCountry2);
 }
 
-loadDefaultStatisticGroups 'Загрузить стандартные статистические группы и классификатор' () = ABSTRACT LIST ()  IN loadDefault;
+loadDefaultStatisticGroups 'Загрузить стандартные статистические группы и классификатор' ()  ABSTRACT LIST ( )  IN loadDefault;
 @implementLoadDefaultData(loadDefaultStatisticGroups);
 
 statisticGroupTypeDefault = DATA LOCAL NESTED StatisticGroupType();
-copy 'Копировать' (StatisticGroupType type) = {
+copy 'Копировать' (StatisticGroupType type)  { 
 	NEWSESSION NESTED (statisticGroupTypeDefault){
 	    statisticGroupTypeDefault() <- NULL;
 	       
@@ -1155,11 +1155,11 @@ FORM statisticalReportStockSelectPrint 'Статистический отчет'
                                   
 ;
 
-printStatisticalReportStockSelect 'Статистический отчет по складам' (StatisticGroupType c, DATE dFrom, DATE dTo, Stock s) = {
+printStatisticalReportStockSelect 'Статистический отчет по складам' (StatisticGroupType c, DATE dFrom, DATE dTo, Stock s)  { 
     dataIn(s) <- TRUE WHERE NOT countInStat();
     PRINT statisticalReportStockSelectPrint OBJECTS c = c , dFrom = dFrom, dTo = dTo ;
 } IMAGE 'print.png' IN print;  
-printXLSStatisticalReportStockSelect 'Статистический отчет по складам (XLS)' (StatisticGroupType c, DATE dFrom, DATE dTo, Stock s) = {
+printXLSStatisticalReportStockSelect 'Статистический отчет по складам (XLS)' (StatisticGroupType c, DATE dFrom, DATE dTo, Stock s)  { 
     dataIn(s) <- TRUE WHERE NOT countInStat();
     PRINT statisticalReportStockSelectPrint OBJECTS c = c , dFrom = dFrom, dTo = dTo XLS;
 } IMAGE 'print.png' IN print;
@@ -1196,11 +1196,11 @@ FORM statisticalReportStockInStatPrint 'Статистический отчет 
     FILTERS groupType(g) == c, inStat(s)
 ;
 
-printStatisticalReportStockInStat 'Статистический отчет с разбиением по складам' (StatisticGroupType c, DATE dFrom, DATE dTo, Stock s) = {
+printStatisticalReportStockInStat 'Статистический отчет с разбиением по складам' (StatisticGroupType c, DATE dFrom, DATE dTo, Stock s)  { 
     dataIn(s) <- TRUE WHERE NOT countInStat();
     PRINT statisticalReportStockInStatPrint OBJECTS c = c, dFrom = dFrom, dTo = dTo ;
 } IMAGE 'print.png' IN print;  
-printStatisticalReportStockInStatXls 'Статистический отчет с разбиением по складам (XLS)' (StatisticGroupType c, DATE dFrom, DATE dTo, Stock s) = {
+printStatisticalReportStockInStatXls 'Статистический отчет с разбиением по складам (XLS)' (StatisticGroupType c, DATE dFrom, DATE dTo, Stock s)  { 
     dataIn(s) <- TRUE WHERE NOT countInStat();
     PRINT statisticalReportStockInStatPrint OBJECTS c = c, dFrom = dFrom, dTo = dTo XLS;
 } IMAGE 'print.png' IN print; 
@@ -1237,7 +1237,7 @@ FORM statisticalReportStockSelect 'Статистический отчет'
                                   printStatisticalReportStockInStat, printStatisticalReportStockInStatXls
 ;
 
-setDefaultStatisticGroupType() = {
+setDefaultStatisticGroupType()  { 
     SEEK statisticalReportStockSelect.c = defaultStatisticGroupType();
 }
 

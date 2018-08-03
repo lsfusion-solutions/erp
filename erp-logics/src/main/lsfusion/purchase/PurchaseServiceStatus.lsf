@@ -88,10 +88,10 @@ sumService (supplier, DATE dateFrom, DATE dateTo)= GROUP SUM sumOrderDetail(Orde
 percentSumExecutionService '% исп. заявки (сумма)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) = sumShippedService(supplier, dateFrom, dateTo)*100.00 /
     (sumService(supplier, dateFrom, dateTo) IF sumService(supplier, dateFrom, dateTo)!=0);   
 
-overCreateServiceStatusDetail = ABSTRACT LIST ();
+overCreateServiceStatusDetail  ABSTRACT LIST ( );
 skipCreateServiceStatus = ABSTRACT VALUE BOOLEAN (); 
-extraCreateServiceStatusDetail = ABSTRACT LIST (DATE ,DATE);
-createServiceStatusDetail 'Заполнить статусы качества' (DATE dFrom, DATE dTo) = {
+extraCreateServiceStatusDetail  ABSTRACT LIST ( DATE ,DATE);
+createServiceStatusDetail 'Заполнить статусы качества' (DATE dFrom, DATE dTo)  { 
     IF NOT skipCreateServiceStatus() THEN {
         NEWSESSION {
             isChange(LegalEntity l) <- NULL;
@@ -124,11 +124,11 @@ createServiceStatusDetail 'Заполнить статусы качества' (
     }
 }
 
-createServiceStatusDetail() = {
+createServiceStatusDetail()  { 
     createServiceStatusDetail(firstDayOfMonth(sumMonth (currentDate(), -1)), lastDayOfMonth(sumMonth (currentDate(), -1)));
 };
 
-changeServiceStatusDetail (LegalEntity l) = {
+changeServiceStatusDetail (LegalEntity l)  { 
     IF NOT skipCreateServiceStatus() THEN {   
         NEWSESSION {
             IF NOT notCalcServiceStatus(l) THEN {

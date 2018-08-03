@@ -11,7 +11,7 @@ backgroundQuantityResponseEDI(Purchase.OrderDetail d) += RGB(255,0,0) IF quantit
 
 skuWithoutPrice 'Товары без цены' (Order o) = GROUP CONCAT idSku(OrderDetail d) + ' ' + nameSku(d), '\n' IF NOT price(d) BY order(d);
 
-overEmailCustomer(Order.Order order) += {
+overEmailCustomer(Order.Order order) + { 
     IF NOT consumedEmailCustomer(order ) AND isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
         
         consumedEmailCustomer(order) <- TRUE;
@@ -42,7 +42,7 @@ overEmailCustomer(Order.Order order) += {
 
 provider(Purchase.Order o) += WHEN isEOrder(o) THEN VARSTRING[20]('EDI:' + nameEDIProvider(supplier(o)));
 
-cancel (EOrder o) += {
+cancel (EOrder o) + { 
     IF email(supplier(o)) THEN {
         FOR o == eOrder(EOrderResponse r) DO
             EMAIL
@@ -55,7 +55,7 @@ cancel (EOrder o) += {
     }
 }
 
-cancel 'Отменить заказ'(Order.Order order) = {
+cancel 'Отменить заказ'(Order.Order order)  { 
     IF isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
         isRejected[UserOrder](order) <- TRUE;
         cancel[EOrder](order);        
@@ -99,9 +99,9 @@ notEqualResponseEDI(Purchase.Order o) =  o IS Purchase.Order AND NOT quantityRes
 skipPostConfirmed(Purchase.Order o) += WHEN isEOrder(o AS Order) AND notEqualResponseEDI(o) THEN TRUE;
 
 showAgree(Purchase.Order o) = isConfirmed(o) AND isEOrder(o) AND notEqualResponseEDI(o);
-overAgree = ABSTRACT LIST (UserOrder);
+overAgree  ABSTRACT LIST ( UserOrder);
 
-agree 'Подтвердить и провести'(UserOrder o) = {
+agree 'Подтвердить и провести'(UserOrder o)  { 
 	NEWSESSION {
 	
 	    quantity(UserOrderDetail d) <- quantityResponseEDI(d) WHERE userOrder(d) == o;

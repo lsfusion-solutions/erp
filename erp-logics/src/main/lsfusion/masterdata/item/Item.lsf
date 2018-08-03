@@ -32,7 +32,7 @@ parent (ItemGroup itemGroup) += parent(itemGroup);
 
 in 'Отм.' = DATA LOCAL BOOLEAN (ItemGroup);
 
-moveItemGroup 'Перенести отмеченные группы в текущую'(itemGroup) = {
+moveItemGroup 'Перенести отмеченные группы в текущую'(itemGroup)  { 
 
     FOR in(ItemGroup i) DO{
         IF i != itemGroup THEN {
@@ -196,14 +196,14 @@ CONSTRAINT customGroupType(customGroup(CustomGroupType type, Item item)) != type
 
 // Атрибуты
 dataImage 'Изображение' = DATA IMAGEFILE (Item);
-loadImage 'Загрузить изображение' (Item item) = { INPUT =dataImage(item) CHANGE; }
+loadImage 'Загрузить изображение' (Item item)  { INPUT =dataImage(item) CHANGE; }
 overImage '' = ABSTRACT VALUE IMAGEFILE (Item);
 
 image (Item item) = OVERRIDE dataImage (item), overImage (item);
-openImage 'Открыть изображение' (Item item) = { open(image(item)); }
+openImage 'Открыть изображение' (Item item)  { open(image(item)); }
 hasImage (Item item) = TRUE IF image(item) MATERIALIZED;
 
-nullImage 'Сбросить'(Item item) = {
+nullImage 'Сбросить'(Item item)  { 
     image(item) <- NULL;
 }
 
@@ -321,7 +321,7 @@ DESIGN item {
 }
 
 seekBarcode 'Штрихкод' = DATA LOCAL VARSTRING[15] ();
-seekSkuBarcode() = {
+seekSkuBarcode()  { 
     INPUT s = VARSTRING[15] DO {
         seek(skuBarcode(s, currentDate()));
         IF NOT skuBarcode(s, currentDate()) THEN
@@ -333,14 +333,14 @@ disallowEditing 'Запретить редактирование' = ABSTRACT BOO
 enableEditing = Item s IS Item AND NOT disallowEditing(s);
 disallowEditing[Sku](Item sku) += disallowEditing(sku);
 
-edit(Item item) += {
+edit(Item item) + { 
     IF NOT disallowEditing(item) THEN {
         DIALOG EDIT Item = item DOCKED;
     } ELSE {
         MESSAGE 'Запрещено редактировать товар после обработки.';
     } 
 };
-addItem() = {
+addItem()  { 
     NEWSESSION {
         NEW i=Item AUTOSET
             REQUEST 
@@ -349,7 +349,7 @@ addItem() = {
                 seek(i);
     }
 }
-addSku () += { addItem(); }
+addSku () + {  addItem(); }
 
 background = ABSTRACT CASE COLOR (Item);
 
@@ -372,7 +372,7 @@ FORM items 'Товары'
     LIST Item OBJECT i  
 ;
 
-seekSkuGroupType() = { SEEK items.gt = SystemGroupType.skuGroupType; }
+seekSkuGroupType()  { SEEK items.gt = SystemGroupType.skuGroupType; }
 EXTEND FORM items
     EVENTS
         ON INIT seekSkuGroupType()
@@ -460,7 +460,7 @@ META defineItemAttribute (attribute, caption, group)
             RGB(203,203,206) IF quantityChildWith###attribute (itemGroup) != descendantNumber(itemGroup)
                              AND NOT quantityParentWith###attribute (itemGroup);
 
-    setNullShow###attribute 'Снять признак для всех потомков'(ItemGroup itemGroup) = {
+    setNullShow###attribute 'Снять признак для всех потомков'(ItemGroup itemGroup)  { 
         FOR isParent (ItemGroup childGroup, itemGroup) DO {
             userShow###attribute(childGroup) <- NULL;
         }
@@ -611,8 +611,8 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
         MOVE TOOLBARBOX;
     }
     
-    overReplace(oTo, oFrom) = ABSTRACT LIST (###object, ###object);
-    replace 'Объединить'(###object object) = {   
+    overReplace(oTo, oFrom)  ABSTRACT LIST ( ###object, ###object);
+    replace 'Объединить'(###object object)  {   
         DIALOG confirmReplace###object OBJECTS o=object DO {
             allowReplace###object() <- TRUE;
             FOR in(###object o) AND allowReplace###object() DO{
@@ -662,7 +662,7 @@ END
 
 META defineUniteFilterAttributeItem(object, nameProp, caption1, caption2, object2)
     @defineUniteAttributeItem(object, nameProp, caption1, caption2, object2);
-    overReplace(###object oTo, ###object oFrom) += { 
+    overReplace(###object oTo, ###object oFrom) + {  
         dataIn (oTo, ###object2##Group g) <- dataIn (oFrom, g) WHERE dataIn(oFrom, g);
     }
 END
@@ -698,7 +698,7 @@ META defineUniteAttributeItemWithoutExtendForm(object, nameProp, caption1, capti
         MOVE TOOLBARBOX;
     }
     
-    replace 'Объединить'(###object object) = {
+    replace 'Объединить'(###object object)  { 
         DIALOG confirmReplace###object OBJECTS o=object DO {
             FOR in(###object o) DO {
                 IF o != object THEN {
@@ -920,7 +920,7 @@ META defineItemAttributeForm(attribute, formProperty, caption, group)
     background###attribute = ABSTRACT COLOR (Item);
 END
 
-deleteUnusedAttributes 'Удалить неиспользуемые атрибуты' = ABSTRACT LIST();
+deleteUnusedAttributes 'Удалить неиспользуемые атрибуты'  ABSTRACT LIST( );
 trimAttributes 'Удалять пробелы в начале и в конце наименования атрибутов' = DATA BOOLEAN ();
 EXTEND FORM options PROPERTIES() deleteUnusedAttributes, trimAttributes;
 DESIGN options {
@@ -932,7 +932,7 @@ DESIGN options {
 
 META defineObjectItemAttribute(attribute, attributeClass, identity, caption, group)
     attribute = DATA attributeClass (Item);
-    deleteUnusedAttributes() += { 
+    deleteUnusedAttributes() + {  
         NEWSESSION { 
             FOR (attributeClass o IS attributeClass) AND NOT [= GROUP SUM 1 BY attribute(Item item)](o) DO DELETE o; 
             apply();
@@ -1032,7 +1032,7 @@ META defineItemFilterValue(object, captionProp, o)
     ;
     DESIGN object##s###session { BOX { size = (600, 400); } }    
   
-    add###object 'Добавить'(ItemGroup gg) = {
+    add###object 'Добавить'(ItemGroup gg)  { 
         DIALOG object###session OBJECTS gg = gg, v INPUT DO {
             LOCAL loc = ###object();
             LOCAL localName = VARISTRING[100]();
@@ -1057,7 +1057,7 @@ META defineItemFilterValue(object, captionProp, o)
         PROPERTIES NEWSESSION add###object(gg) TODRAW t, EDIT(t), deletet = DELETE(t) 
     ; 
     
-    change###object(Item i) = {
+    change###object(Item i)  { 
         DIALOG object##s###session OBJECTS gg = itemGroup(i), t = object(i) CHANGE;
     }    
     EXTEND FORM item PROPERTIES(i) name###object SHOWIF show###object(i) BACKGROUND background###object(i) ON CHANGE change###object(i);
@@ -1079,7 +1079,7 @@ FORM extractStringAttributeItem 'Выделение атрибута'
 ;
 
 possibleStringAttributeValue = DATA LOCAL BOOLEAN (VARSTRING[100]);
-changePossibleStringAttributeValue(VARSTRING[100] v) = {
+changePossibleStringAttributeValue(VARSTRING[100] v)  { 
     SEEK extractStringAttributeItem.to = v;
 }
  
@@ -1109,7 +1109,7 @@ DESIGN extractStringAttributeItem {
     }
 }
 
-assignStringToFrom(VARSTRING[100] from) = {
+assignStringToFrom(VARSTRING[100] from)  { 
     SEEK extractStringAttributeItem.to = from; 
 } 
 EXTEND FORM extractStringAttributeItem
@@ -1118,7 +1118,7 @@ EXTEND FORM extractStringAttributeItem
 ;
 
 META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
-    extract###object##FromCaption 'Выделить из названия'(Item i) = {
+    extract###object##FromCaption 'Выделить из названия'(Item i)  { 
         IF i IS Item THEN {
             possibleStringAttributeValue(VARSTRING[100] s) <- TRUE IF [= GROUP SUM 1 IF in(###object object, ItemGroup g) BY name(object), g](s, itemGroup(i));
             DIALOG extractStringAttributeItem OBJECTS from INPUT, to INPUT DO {
@@ -1154,7 +1154,7 @@ META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
 END
 
 META defineItemExtractPrimitiveAttribute(property, form)
-    extract###property##FromCaption 'Выделить из названия'(Item i) = {
+    extract###property##FromCaption 'Выделить из названия'(Item i)  { 
         IF i IS Item THEN {
             possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
             DIALOG form OBJECTS from INPUT, to INPUT DO {
@@ -1208,7 +1208,7 @@ DESIGN extractDoubleAttributeItem {
     }
 }
 
-assignDoubleToFrom(VARSTRING[100] from) = {
+assignDoubleToFrom(VARSTRING[100] from)  { 
     SEEK extractDoubleAttributeItem.to = toInteger(replace(from AS VARSTRING[100], '%', ''));
 } 
 EXTEND FORM extractDoubleAttributeItem
@@ -1256,7 +1256,7 @@ WHEN LOCAL FORMS item, items SETCHANGED (caption(Item i)) AND trimAttributes() D
 @defineItemAttributeBatch (caption, 'Название');
 @implementItemAttribute(caption, 'Название', String, itemCaption);
 
-extractStringCaption 'Заменить в названии'(Item i) = {
+extractStringCaption 'Заменить в названии'(Item i)  { 
     IF i IS Item THEN {
         possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
         DIALOG extractStringAttributeItem OBJECTS from INPUT, to INPUT DO {
@@ -1528,7 +1528,7 @@ DESIGN item {
     }
 }
 
-loadDefaultItemAttributes 'Загрузить стандартные атрибуты товаров' = ABSTRACT LIST ();
+loadDefaultItemAttributes 'Загрузить стандартные атрибуты товаров'  ABSTRACT LIST ( );
 @implementLoadDefaultData(loadDefaultItemAttributes);
 
 // ---------------------------------------------- Формирование наименований -------------------------------------- //
@@ -1561,20 +1561,20 @@ CONSTRAINT  constraintRequired(ItemAttribute a, Item i)
 @defineItemAttributeName( , , recognize);
 
 
-saveImage 'Сохранить изображение' (Item item) = {
+saveImage 'Сохранить изображение' (Item item)  { 
     LOCAL fileName=VARSTRING[255]();
     fileName() <- nameAttribute(item);
     WRITE CLIENT DIALOG fileName() FROM image(item);
 } ASON CONTEXTMENU image[Item];
 
 backgroundNameAttribute = RGB(127,199,255) IF overName(Item i);
-changeNameAttribute = ABSTRACT (Item);
+changeNameAttribute  ABSTRACT ( Item);
 
 EXTEND FORM item PROPERTIES(i) nameAttribute BACKGROUND backgroundNameAttribute(i) ON CHANGE changeNameAttribute(i);
 DESIGN item { itemHeader {MOVE PROPERTY(nameAttribute(i)); } }
 
 name(Item item) += nameAttribute(item);
-loadDefaultItemAttributes() += {
+loadDefaultItemAttributes() + { 
     numberInName(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 
@@ -1598,14 +1598,14 @@ DESIGN items {
 @defineItemAttributeName(cashRegister, ' (кассы)', public);
 dataTitleCashRegister 'Наименование для касс' = DATA VARSTRING[100] (Barcode);
 titleCashRegister 'Наименование для касс' = OVERRIDE dataTitleCashRegister(Barcode barcode), nameCashRegisterAttribute(sku(barcode)) CHARWIDTH 30;
-loadDefaultItemAttributes() += {
+loadDefaultItemAttributes() + { 
     numberInNameCashRegister(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 // Весы
 @defineItemAttributeName(scales, ' (весы)', public);
 dataTitleScales 'Наименование для весов' = DATA VARSTRING[100] (Barcode);
 titleScales 'Наименование для весов' = OVERRIDE dataTitleScales(Barcode barcode), nameScalesAttribute(sku(barcode)) CHARWIDTH 30;
-loadDefaultItemAttributes() += {
+loadDefaultItemAttributes() + { 
     numberInNameScales(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 
@@ -1716,12 +1716,12 @@ DESIGN itemGroup {
 }
 
 // ---------------------------------------- Копирование товара ----------------------- //
-overCopy = ABSTRACT LIST (Item, Item);
-overCopyEx = ABSTRACT LIST (Item, Item);
-overCopyItem = ABSTRACT LIST (Barcode, Barcode, Sku);
+overCopy  ABSTRACT LIST ( Item, Item);
+overCopyEx  ABSTRACT LIST ( Item, Item);
+overCopyItem  ABSTRACT LIST ( Barcode, Barcode, Sku);
 toCopy = ABSTRACT CASE BOOLEAN (Barcode);
 
-copyDataItem(Item item, Item i) = {
+copyDataItem(Item item, Item i)  { 
     itemGroup(i) <- itemGroup(item);
     caption(i) <- caption(item);
     originalCaption(i) <- originalCaption(item);
@@ -1759,7 +1759,7 @@ copyDataItem(Item item, Item i) = {
     overCopyEx(item, i);
 }
 
-copy 'Копировать' (Item item)= {
+copy 'Копировать' (Item item) { 
     IF (item IS Item) THEN {
         NEWSESSION NESTED (addedSku[]) {
             NEW i = Item {
@@ -1772,7 +1772,7 @@ copy 'Копировать' (Item item)= {
     }
 } CHANGEKEY 'F5' TOOLBAR;
 
-copyItems 'Копировать' (Item item) = {
+copyItems 'Копировать' (Item item)  { 
     copy(item);
     IF (addedSku()) THEN {
         SEEK items.i = addedSku();
@@ -1782,9 +1782,9 @@ copyItems 'Копировать' (Item item) = {
 EXTEND FORM items PROPERTIES (i) copyItems;
 DESIGN items { PROPERTY(copyItems(i)) { focusable = FALSE; } }
 
-copy(Item sku) += { copy(sku); }
+copy(Item sku) + {  copy(sku); }
 
-createItemBarcode (VARSTRING[15] barcode, DATE date)= {
+createItemBarcode (VARSTRING[15] barcode, DATE date) { 
 	NEWSESSION {
 	
 	    LOCAL copy = BOOLEAN();
@@ -1818,13 +1818,13 @@ createItemBarcode (VARSTRING[15] barcode, DATE date)= {
 	}
 }
 
-createSkuBarcode(VARSTRING[15] barcode, DATE date) += { createItemBarcode(barcode, date); }
+createSkuBarcode(VARSTRING[15] barcode, DATE date) + {  createItemBarcode(barcode, date); }
 
 in 'Отм.' = DATA LOCAL BOOLEAN (Item);
 
 countInItem = GROUP SUM 1 IF in(Item item);
 
-checkReplace = ABSTRACT (Item);
+checkReplace  ABSTRACT ( Item);
 
 FORM confirmReplaceItem 'Объединяемые товары'
     OBJECTS item = Item PANEL 
@@ -1854,11 +1854,11 @@ DESIGN confirmReplaceItem {
     MOVE TOOLBARBOX;
 }
 
-replaceBefore = ABSTRACT (Sku, Sku);
-replaceAfter = ABSTRACT (Sku);
+replaceBefore  ABSTRACT ( Sku, Sku);
+replaceAfter  ABSTRACT ( Sku);
 replaceDelNames 'Удаленные товары' = DATA LOCAL NESTED VARSTRING[500]();
 
-replace 'Объединить' (Item item)= {
+replace 'Объединить' (Item item) { 
     IF noEventsInTransactionItem() THEN setNoEventsInTransaction();
     DIALOG confirmReplaceItem OBJECTS i=item DO {
         allowReplaceItem() <- TRUE;
@@ -1883,7 +1883,7 @@ replace 'Объединить' (Item item)= {
     IF noEventsInTransactionItem() THEN dropNoEventsInTransaction();   
 } CONFIRM;
 
-changeGroupItem 'Изменить группу' () = {
+changeGroupItem 'Изменить группу' ()  { 
     DIALOG dialogItemGroups OBJECTS g INPUT DO
         FOR in(Item i) DO {
             itemGroup(i) <- g;
@@ -1913,7 +1913,7 @@ DESIGN options {
     } 
 }
 
-seekItemDate() = {
+seekItemDate()  { 
     IF defaultItemDate() THEN {
         SEEK item.dtr = defaultItemDate();
     }
@@ -1926,7 +1926,7 @@ EXTEND FORM item
 TABLE customGroupTypeItemGroup(CustomGroupType, ItemGroup);
 @defineItemDefaultValue(customGroup, 'Дополнительная группа (по умолчанию)', CustomGroup, nameCustomGroup, customGroupType);
 
-assignCustomGroupItems 'Назначить всем товарам группы' (ItemGroup group) = {
+assignCustomGroupItems 'Назначить всем товарам группы' (ItemGroup group)  { 
 	NEWSESSION {
 	    customGroup(CustomGroupType t, Item i) <- customGroup(t, itemGroup(i)) WHERE isParent(group, i);
 	    apply();
@@ -1989,7 +1989,7 @@ FORM itemInfo 'Информация по товару'
     FILTERS sku(b) == s
 ;
 
-setDates() = {
+setDates()  { 
     SEEK itemInfo.df = sum(currentDate(), -7);
 }
 
@@ -2042,11 +2042,11 @@ DESIGN itemInfo {
     MOVE TOOLBARBOX;
 }
 
-showInfoSku 'Показать информацию по товару' (Item item) = { NEWSESSION { SHOW itemInfo OBJECTS s = item AS Item; } } ASON CONTEXTMENU name[Item];
-showInfoSkuA 'Показать информацию по товару' (Item item) = { NEWSESSION { SHOW itemInfo OBJECTS s = item AS Item; } } ASON CONTEXTMENU nameAttribute[Item];
+showInfoSku 'Показать информацию по товару' (Item item)  { NEWSESSION { SHOW itemInfo OBJECTS s = item AS Item; } } ASON CONTEXTMENU name[Item];
+showInfoSkuA 'Показать информацию по товару' (Item item)  { NEWSESSION { SHOW itemInfo OBJECTS s = item AS Item; } } ASON CONTEXTMENU nameAttribute[Item];
 
 META defineInfoSku(detail)
-    showInfoSku 'Показать информацию по товару' (###detail detail) = {
+    showInfoSku 'Показать информацию по товару' (###detail detail)  { 
         FOR s == sku(detail) DO
             SHOW itemInfo OBJECTS s = s; }  
     ASON CONTEXTMENU nameSku[###detail];

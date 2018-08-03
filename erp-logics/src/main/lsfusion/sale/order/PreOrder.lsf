@@ -31,7 +31,7 @@ CLASS PreOrderDetail 'Строка резерва' : DocumentDetail;
 @defineAddDetailDialogBarcode(preOrder, sku);
 
 disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (PreOrder); 
-overPrePost 'Провести' (PreOrder o) = {
+overPrePost 'Провести' (PreOrder o)  { 
     IF NOT disablePosted(o) THEN {
         isPosted(o) <- TRUE;
     } 
@@ -60,7 +60,7 @@ FORM preOrderOperations
     FILTERS NOT op == operation(o)
 ;
 
-changeIncludeOperations(PreOrder o) = {
+changeIncludeOperations(PreOrder o)  { 
     DIALOG preOrderOperations OBJECTS o = o;
 }
 
@@ -271,7 +271,7 @@ EXTEND FORM userWriteOff
     PROPERTIES(d) seriesNumberPreOrderDetail
 ;
 
-edit(PreOrderDetail d) += { DIALOG preOrder OBJECTS o = preOrder(d), d = d DOCKED; }
+edit(PreOrderDetail d) + {  DIALOG preOrder OBJECTS o = preOrder(d), d = d DOCKED; }
 
 orderedOrderDetail 'Израсходовано' (PreOrderDetail pd) = GROUP
     SUM quantity(Sale.OrderDetail d) IF isPosted(d) AND preOrderDetail(d) == pd;
@@ -317,7 +317,7 @@ WHEN FORMS userWriteOff (SETCHANGED(sku(WriteOffDetail d)) OR SETCHANGED(stock(d
                                    ORDER DESC fromDate(pd), pd]() WHERE NOT preOrderDetail(d);
 }
 
-fillPreOrderDetail 'Проставить в заказы на продажу ссылки на резерв' () = {
+fillPreOrderDetail 'Проставить в заказы на продажу ссылки на резерв' ()  { 
     FOR Sale.Order o IS Sale.Order AND dateTime(o) >= [= GROUP MIN fromDateTime(PreOrder po)]() DO {
         preOrderDetail(Sale.OrderDetail d) <- [= GROUP LAST PreOrderDetail pd IF calcQuantity(pd) > 0.0 AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
                                                        AND supplierStock(d) == supplierStock(pd) AND (operation(pd) == operation(d) OR in(pd,operation(d)))
@@ -387,13 +387,13 @@ toShipQuantity (PreOrderDetail ledger) += calcQuantity(ledger);
 //contact (PreOrderDetail ledger) += legalEntityCustomerStock(ledger);
 //contactStock (PreOrderDetail ledger) += customerStock(ledger);   
 operation[OrderLedger](PreOrderDetail ledger) += operation(ledger);
-show 'Просмотреть' (PreOrderDetail d) =  {
+show 'Просмотреть' (PreOrderDetail d)   { 
     NEWSESSION{
         SHOW preOrder OBJECTS o = preOrder(d), d = d DOCKED READONLY;
     }
     
 }TOOLBAR;
-show[OrderLedger](PreOrderDetail ledger) += {show(ledger);};
+show[OrderLedger](PreOrderDetail ledger) + { show(ledger);};
 
 TABLE operationStockSku (Sale.Operation,Stock,Sku);
 
@@ -460,7 +460,7 @@ overShowDelete (PreOrder i) += showEditDeleteUser(i) AND isOpened(i) AND NOT ski
 
 skipShowEdit(PreOrder i)+= documentsClosedDate(supplierStock(i)) > date(i);
 
-show 'Просмотреть' (PreOrder o) =  {
+show 'Просмотреть' (PreOrder o)   { 
     NEWSESSION{
         SHOW preOrder OBJECTS o = o DOCKED READONLY;
     }

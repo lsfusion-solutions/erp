@@ -12,7 +12,7 @@ quantityComponentDetail (bt,s,o)=  GROUP SUM quantity(ComponentDetail d)  BY  ba
 nameBatches 'Партии' (Sku s,Order o) = GROUP
     CONCAT name(Batch bt) IF quantityComponentDetail(bt,s,o) , ', '
     ORDER bt CHARWIDTH 30;
-use 'Использовать партию'(Batch bt,Sku sk,Order o)  = {
+use 'Использовать партию'(Batch bt,Sku sk,Order o)   { 
     batch(ComponentDetail d) <- bt WHERE sku(d) == sk AND order(d) == o;
     cost(sk,o) <- cost(bt);
     dataBruttoPrice(sk,o) <- priceStock(bt,o);
@@ -24,7 +24,7 @@ defaultBatchPriceStock = GROUP LAST Batch batch
     WHERE currentBalancePriceStock(batch,order) >0
     BY sku(batch), order;
 
-useBatchSkuAll 'Партия с max остатком (для всех)'(Order o)  = {
+useBatchSkuAll 'Партия с max остатком (для всех)'(Order o)   { 
     batch(ComponentDetail d) <- defaultBatchPriceStock(sku(d), o) WHERE  order(d) == o AND defaultBatchPriceStock(sku(d), o);//skuComponentDetail(d) == sk
     cost(Sku sk,o) <- cost(defaultBatchPriceStock(sk, o)) WHERE defaultBatchPriceStock(sk, o) AND quantityComponentDetail(sk,o);
     dataBruttoPrice(Sku sk,o) <- priceStock(defaultBatchPriceStock(sk, o),o) WHERE defaultBatchPriceStock(sk, o) AND quantityComponentDetail(sk,o); 
@@ -32,7 +32,7 @@ useBatchSkuAll 'Партия с max остатком (для всех)'(Order o)
 }
 maxBatch (Sku s,Order o)=  GROUP MAX Batch bt IF quantityComponentDetail (bt,s,o);
 
-changeBatch(Sku s,Order o) = {
+changeBatch(Sku s,Order o)  { 
     DIALOG dialogBatchStockOrder OBJECTS st = componentsStock(o),
                              t = dateTime(o),
                              sk = s ,
@@ -69,7 +69,7 @@ DESIGN order {
 }
 
 productionNorm 'Норма партии' = DATA NUMERIC[20,9] (Component);
-overCopy (Component c, Component component) += {    
+overCopy (Component c, Component component) + {     
     productionNorm(c) <- productionNorm(component);
 }
 EXTEND FORM BOM

@@ -29,7 +29,7 @@ calcCurrentPrice 'Розничная цена' (Batch batch, PageInventory li) =
 quantity 'Кол-во в описи' = DATA LOCAL NESTED NUMERIC[16,5] (PageInventory, Batch);
 quantity 'Кол-во в описи' = DATA LOCAL NESTED NUMERIC[16,5] (PageInventory, Sku, NUMERIC[16,4]);
 
-changeQuantityValue (Batch batch, PageInventory li, NUMERIC[16,5] n) =  {
+changeQuantityValue (Batch batch, PageInventory li, NUMERIC[16,5] n)   { 
     IF pageInventoryDetail(batch, li) THEN {
         quantity(PageInventoryDetail detail) <- OVERRIDE n, 0.0 WHERE detail == pageInventoryDetail(batch, li);
         APPLY {};
@@ -53,7 +53,7 @@ changeQuantityValue (Batch batch, PageInventory li, NUMERIC[16,5] n) =  {
 prevBalanceB 'Тек. остаток' = DATA LOCAL NESTED NUMERIC[16,5] (Batch, PageInventory);
 calcPrevBalanceB 'Тек. остаток' (Batch batch, PageInventory li) = prevBalanceB(batch, stock(listInventory(li)), dateTime(listInventory(li)));
 
-changeQuantity(Batch batch, PageInventory li) = {
+changeQuantity(Batch batch, PageInventory li)  { 
     INPUT n = NUMERIC[16,5] DO {
         changeQuantityValue(batch, li, (OVERRIDE n,0.0));
         quantity(li, Sku sk, NUMERIC[16,4] price) <- (OVERRIDE [= GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
@@ -95,7 +95,7 @@ calculatedQuantity (Batch batch, PageInventory page, NUMERIC[16,4] price) = PART
     ORDER DESC expiryDate(batch), date(batch), batch
     BY sku(batch), page, price;
 
-changeQuantity (Sku sku, PageInventory page, NUMERIC[16,5] price) =  {
+changeQuantity (Sku sku, PageInventory page, NUMERIC[16,5] price)   { 
     INPUT quantity = NUMERIC[16,5] DO {
         calculatedQuantity(sku, page, price) <- quantity;
         quantity(PageInventoryDetail detail) <- 0.0 WHERE quantity(batch(detail), page, price) AND pageInventory(detail)==page AND sku(detail)== sku;
@@ -129,7 +129,7 @@ readOnlyBlisterQuantity (Sku sku, PageInventory li) = li IS PageInventory AND NO
 backgroundBlisterQuantity 'Цвет' (Batch batch, PageInventory li)  = RGB(250, 236, 199) IF li IS PageInventory AND blisterAmount(batch);
 backgroundBlisterQuantity 'Цвет' (Sku sku, PageInventory li)  = RGB(250, 236, 199) IF li IS PageInventory AND blisterAmount(sku);
 
-changeBlisterQuantityValue (Batch batch, PageInventory li, NUMERIC[16,4] i) = {
+changeBlisterQuantityValue (Batch batch, PageInventory li, NUMERIC[16,4] i)  { 
     IF pageInventoryDetail(batch, li) THEN {
         quantity(PageInventoryDetail detail) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), quantityInventoryRoundCondition())) WHERE detail == pageInventoryDetail(batch, li);;
         APPLY {};
@@ -148,7 +148,7 @@ changeBlisterQuantityValue (Batch batch, PageInventory li, NUMERIC[16,4] i) = {
     quantity(li,batch) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), quantityInventoryRoundCondition()));
 }
 
-changeBlisterQuantity(Batch batch, PageInventory li) = {
+changeBlisterQuantity(Batch batch, PageInventory li)  { 
     INPUT i = INTEGER DO {
         changeBlisterQuantityValue(batch,li,NUMERIC[16,4](OVERRIDE i,0.0));
         quantity(li, Sku sk, NUMERIC[16,4] price) <- (OVERRIDE [= GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
@@ -170,7 +170,7 @@ calculatedBlisterQuantity (Batch batch, PageInventory page, NUMERIC[16,4] price)
     ORDER DESC expiryDate(batch), date(batch), batch
     BY sku(batch), page, price;
 
-changeBlisterQuantity (Sku sku, PageInventory page, NUMERIC[16,5] price) =  {
+changeBlisterQuantity (Sku sku, PageInventory page, NUMERIC[16,5] price)   { 
     INPUT quantity = INTEGER DO {
         calculatedBlisterQuantity(sku, page, price) <- quantity;
         FOR quantity(Batch batch, page, price) AND sku(batch)==sku DO {
@@ -243,9 +243,9 @@ DESIGN options {
    
 currentPharmacyListInventoryBalanceB() = currentPharmacyListInventory() AND showBalanceB();
 
-overFillLocal = ABSTRACT LIST (PageInventory);
+overFillLocal  ABSTRACT LIST ( PageInventory);
 
-fillLocal(PageInventory page) = {
+fillLocal(PageInventory page)  { 
     quantityBatchInSku(Sku sk, NUMERIC[16,4] n, page) <- NULL;
     quantityBatchInSkuOst(Sku sk, NUMERIC[16,4] n, page) <- NULL;
     quantityBatchInSkuDvi(Sku sk, NUMERIC[16,4] n, page) <- NULL;
@@ -282,12 +282,12 @@ fillLocal(PageInventory page) = {
     overFillLocal(page);    
 }
 
-setCurrentPharmacyListInventory 'Открыть' (Inventory inventory) = {
+setCurrentPharmacyListInventory 'Открыть' (Inventory inventory)  { 
     fillLocal(pageInventory(inventory));
     currentPharmacyListInventory() <- pageInventory(inventory);
 } TOOLBAR CONFIRM IMAGE 'edit.png';
 
-skipCurrentPharmacyListInventory 'Закрыть' () = {
+skipCurrentPharmacyListInventory 'Закрыть' ()  { 
     currentPharmacyListInventory() <- NULL;
 } TOOLBAR CONFIRM; 
 
@@ -305,9 +305,9 @@ DESIGN options {
     }
 }
 
-overCreatePageInventory = ABSTRACT LIST (PageInventory);
+overCreatePageInventory  ABSTRACT LIST ( PageInventory);
 
-createRetailPharmacyInventory 'Создать инвентаризацию' () = {
+createRetailPharmacyInventory 'Создать инвентаризацию' ()  { 
     DIALOG departmentStores OBJECTS d INPUT DO {
         NEW in = Inventory {
             include(d, in) <- TRUE;

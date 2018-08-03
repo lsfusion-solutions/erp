@@ -20,8 +20,8 @@ seriesNumber 'Серия/Номер' (Contract o) =
     CHARWIDTH 7 INDEXED MATERIALIZED;
 
 word 'Файл договора'  = ABSTRACT WORDFILE (Contract);
-saveWord 'Загрузить файл договора' (Contract contract) = { INPUT =word(contract) CHANGE; }
-openWord 'Просмотреть файл договора' (Contract contract) = { open(word(contract)); }
+saveWord 'Загрузить файл договора' (Contract contract)  { INPUT =word(contract) CHANGE; }
+openWord 'Просмотреть файл договора' (Contract contract)  { open(word(contract)); }
 
 
 //numberContract 'Номер договора' = DATA STRING[30] (Contract) IN contract;
@@ -172,10 +172,10 @@ DESIGN confirmReplaceContract {
     MOVE TOOLBARBOX;
 }
 
-replace = ABSTRACT LIST (Contract, Contract);
-preReplace = ABSTRACT LIST (Contract, Contract);
+replace  ABSTRACT LIST ( Contract, Contract);
+preReplace  ABSTRACT LIST ( Contract, Contract);
 
-replace 'Объединить'(Contract contract) = {
+replace 'Объединить'(Contract contract)  { 
     setNoEventsInTransaction();
     DIALOG confirmReplaceContract OBJECTS contract = contract DO {
         FOR in(Contract c) AND contract IS Contract DO {
@@ -284,7 +284,7 @@ META defineDocumentContract (objectClass, contractType, contractTypeClass, prefi
 
     description###contractType 'Описание договора' (objectClass o)= CONCAT ' ', seriesNumber###contractType(o), ' от ' + dateFrom###contractType(o);
     
-    replace(contractTypeClass c, contractTypeClass o) += {contractType(objectClass object) <- o WHERE contractType(object) == c;}
+    replace(contractTypeClass c, contractTypeClass o) + { contractType(objectClass object) <- o WHERE contractType(object) == c;}
 
     isCommission 'Продажа на комиссию' = DATA BOOLEAN (objectClass) IN documentPrm;
     isCommission(objectClass o) <- type(contractType(o)) == ContractSkuType.commission

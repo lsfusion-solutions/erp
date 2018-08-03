@@ -40,9 +40,9 @@ inSaleReportStocks 'Склады' () =
     GROUP CONCAT name(Stock st) IF inSaleReport(st) ,', ' CHARWIDTH 30;
 defaultStockSaleReport = GROUP MIN Stock st IF inSaleReport(st);
 
-overfillSaleReportFromTo = ABSTRACT (GroupType, DATE, DATE);
+overfillSaleReportFromTo  ABSTRACT ( GroupType, DATE, DATE);
 
-fillSaleReportFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt) = {
+fillSaleReportFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt)  { 
 
     quantityStock(Sku sk) <- NULL;           
     sumStock(Sku sk) <- NULL;  
@@ -108,7 +108,7 @@ sumStockCompare 'Сумма (сравнение)' = DATA LOCAL NUMERIC[18,4] (Gr
 
 compare 'Сравнить с' = DATA LOCAL BOOLEAN ();
 
-fillSaleReportFromToCompare 'Сформировать'(GroupType gt, DATE df, DATE dt) =  {
+fillSaleReportFromToCompare 'Сформировать'(GroupType gt, DATE df, DATE dt)   { 
     IF compare() THEN {
         quantityStockCompare(Sku sk) <- NULL;           
         sumStockCompare(Sku sk) <- NULL;  
@@ -304,9 +304,9 @@ FORM printListSalesReport 'Отчет по продажам'
             inSession(group(gt, sku(s)))
 ;
 
-printListSalesReport 'Списком' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printListSalesReport 'Списком' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printListSalesReport OBJECTS  gt = groupType, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
-printListSalesReportXLS 'Списком (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printListSalesReportXLS 'Списком (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printListSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo XLS; } IMAGE 'print.png' IN print;    
     
 inReport= DATA LOCAL BOOLEAN (Sku);
@@ -345,13 +345,13 @@ FORM printListSkuSalesReport 'Отчет по продажам'
             inReport(s) AND dt IS DATE AND df IS DATE
 ;
 
-printListSkuSalesReport 'Списком(по товарам)' (GroupType groupType, DATE dateFrom, DATE dateTo) = {
+printListSkuSalesReport 'Списком(по товарам)' (GroupType groupType, DATE dateFrom, DATE dateTo)  { 
     inReport(Sku sku) <- NULL;
     inReport(Sku sku) <- filterStock (sku) WHERE filterStock (sku);
     PRINT printListSkuSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo ;
     
 } IMAGE 'print.png' IN print;
-printListSkuSalesReportXLS 'Списком(по товарам) (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) = {
+printListSkuSalesReportXLS 'Списком(по товарам) (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo)  { 
     inReport(Sku sku) <- NULL;
     inReport(Sku sku) <- filterStock (sku) WHERE filterStock (sku);
     PRINT printListSkuSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo XLS;
@@ -391,9 +391,9 @@ FORM printSalesReport 'Отчет по продажам'
             group(gt, sku(s)) == sk
 ;
 
-printSalesReport 'По группам' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printSalesReport 'По группам' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
-printSalesReportXLS 'По группам (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printSalesReportXLS 'По группам (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo XLS; } IMAGE 'print.png' IN print;
     
 FORM printSkuSalesReport 'Отчет по продажам'
@@ -424,9 +424,9 @@ FORM printSkuSalesReport 'Отчет по продажам'
             filterStock(s) AND dt IS DATE AND df IS DATE
 ;
 
-printSkuSalesReport 'По товарам(группы)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printSkuSalesReport 'По товарам(группы)' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printSkuSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
-printSkuSalesReportXLS 'По товарам(группы) (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printSkuSalesReportXLS 'По товарам(группы) (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printSkuSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo XLS; } IMAGE 'print.png' IN print;
     
 FORM printGroupSalesReport 'Отчет по продажам'
@@ -451,9 +451,9 @@ FORM printGroupSalesReport 'Отчет по продажам'
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 ;
 
-printGrSalesReport 'По группам' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printGrSalesReport 'По группам' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printGroupSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
-printGrSalesReportXLS 'По группам (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printGrSalesReportXLS 'По группам (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printGroupSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo XLS; } IMAGE 'print.png' IN print;
     
 FORM printGroupCustomerSalesReport 'Отчет по продажам'
@@ -488,9 +488,9 @@ FORM printGroupCustomerSalesReport 'Отчет по продажам'
             customer(s) == l
 ;
 
-printGrCustomerSalesReport 'По покупателям' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printGrCustomerSalesReport 'По покупателям' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printGroupCustomerSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
-printGrCustomerSalesReportXLS 'По покупателям (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printGrCustomerSalesReportXLS 'По покупателям (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printGroupCustomerSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo XLS; } IMAGE 'print.png' IN print;
 
 
@@ -575,14 +575,14 @@ FORM printGroupCustomerStockSalesReport 'Отчет по продажам'
             date(s) <= dt,
             customerStock(s) == l
 ;
-printGrCustomerStockSalesReport 'По складам покупателя' (GroupType groupType, DATE dateFrom, DATE dateTo) = {
+printGrCustomerStockSalesReport 'По складам покупателя' (GroupType groupType, DATE dateFrom, DATE dateTo)  { 
     inCustomerStockSaleReport(Stock l) <- NULL;
     DIALOG dialogCustomerStocksSaleReport OBJECTS gt = groupType, dFrom = dateFrom, dTo = dateTo DO
         PRINT printGroupCustomerStockSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo;
     inCustomerStockSaleReport(Stock l) <- NULL;     
     
 }   IMAGE 'print.png' IN print;
-printGrCustomerStockSalesReportXLS 'По складам покупателя (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) = {
+printGrCustomerStockSalesReportXLS 'По складам покупателя (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo)  { 
     inCustomerStockSaleReport(Stock l) <- NULL;
     DIALOG dialogCustomerStocksSaleReport OBJECTS gt = groupType, dFrom = dateFrom, dTo = dateTo DO
         PRINT printGroupCustomerStockSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo XLS;
@@ -643,9 +643,9 @@ FORM printGroupCustomerSkuSalesReport 'Отчет по продажам'
             sumSold(s, l, df, dt)
 ;
 
-printGroupCustomerSkuSalesReport 'По товарам(покупатели)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printGroupCustomerSkuSalesReport 'По товарам(покупатели)' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printGroupCustomerSkuSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
-printGroupCustomerSkuSalesReportXLS 'По товарам(покупатели) (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printGroupCustomerSkuSalesReportXLS 'По товарам(покупатели) (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printGroupCustomerSkuSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo XLS; } IMAGE 'print.png' IN print;
     
 FORM printCustomerSalesReport 'Отчет по продажам'
@@ -671,9 +671,9 @@ FORM printCustomerSalesReport 'Отчет по продажам'
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT        
 ;
 
-printCustomerSalesReport 'По покупателям' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printCustomerSalesReport 'По покупателям' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printCustomerSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
-printCustomerSalesReportXLS 'По покупателям (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+printCustomerSalesReportXLS 'По покупателям (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) 
     { PRINT printCustomerSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo XLS; } IMAGE 'print.png' IN print;
     
 FORM printCustomerStockSalesReport 'Отчет по продажам'
@@ -699,14 +699,14 @@ FORM printCustomerStockSalesReport 'Отчет по продажам'
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT        
 ;
 
-printCustomerStockSalesReport 'По складам покупателя' (GroupType groupType, DATE dateFrom, DATE dateTo) = {
+printCustomerStockSalesReport 'По складам покупателя' (GroupType groupType, DATE dateFrom, DATE dateTo)  { 
     inCustomerStockSaleReport(Stock l) <- NULL;
     DIALOG dialogCustomerStocksSaleReport OBJECTS gt = groupType, dFrom = dateFrom, dTo = dateTo DO
         PRINT printCustomerStockSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo ;
     inCustomerStockSaleReport(Stock l) <- NULL;     
     
 }   IMAGE 'print.png' IN print;
-printCustomerStockSalesReportXLS 'По складам покупателя (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) = {
+printCustomerStockSalesReportXLS 'По складам покупателя (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo)  { 
     inCustomerStockSaleReport(Stock l) <- NULL;
     DIALOG dialogCustomerStocksSaleReport OBJECTS gt = groupType, dFrom = dateFrom, dTo = dateTo DO
         PRINT printCustomerStockSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo XLS;
@@ -769,15 +769,15 @@ DESIGN dialogStocksSaleReport {
     }
 }
 @extendFormFilterStockAccess(s, dialogStocksSaleReport, company);    
-changeStocksSalesReport(GroupType gt, DATE df, DATE dt, DATE dfc, DATE dtc) = {
+changeStocksSalesReport(GroupType gt, DATE df, DATE dt, DATE dfc, DATE dtc)  { 
     DIALOG dialogStocksSaleReport DO {
         fillSaleReportFromTo(gt, df, dt);
         fillSaleReportFromToCompare(gt, dfc, dtc);
     }
 }
  
-showMovementSkuStocksSale 'Показать движение товара по складу' (Sku sku) = { NEWSESSION NESTED(inSaleReport) SHOW movementSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inSaleReport(st)) ; }
-showMovementPriceSkuStocksSale 'Показать изменение цены товара по складу' (Sku sku) = { NEWSESSION NESTED(inSaleReport) SHOW movementPriceSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inSaleReport(st)) ; }
+showMovementSkuStocksSale 'Показать движение товара по складу' (Sku sku)  { NEWSESSION NESTED(inSaleReport) SHOW movementSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inSaleReport(st)) ; }
+showMovementPriceSkuStocksSale 'Показать изменение цены товара по складу' (Sku sku)  { NEWSESSION NESTED(inSaleReport) SHOW movementPriceSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inSaleReport(st)) ; }
     
 FORM salesReport 'Отчет по продажам'
     OBJECTS df=DATE PANEL
@@ -850,7 +850,7 @@ FORM salesReport 'Отчет по продажам'
     }
 ;
 
-setDateToCompare(DATE dateFromCompare, DATE dateFrom, DATE dateTo) = {
+setDateToCompare(DATE dateFromCompare, DATE dateFrom, DATE dateTo)  { 
     SEEK salesReport.dtc = sum(dateFromCompare, daysInclBetweenDates(dateTo, dateFrom) - 1);
 }
 
@@ -978,7 +978,7 @@ DESIGN salesReport {
     MOVE TOOLBARBOX;
 }
 
-onInitSalesReport() = {
+onInitSalesReport()  { 
     IF countAccessCompanyStock(currentUser()) ==1 THEN {
         inSaleReport(Stock st)  <- TRUE WHERE  defaultCompanyStock(currentUser())== st; 
         fillSaleReportFromTo(SystemGroupType.skuGroupType,currentDate(),currentDate());
@@ -1010,7 +1010,7 @@ FORM saleReportGroupTree 'Отчет по продажам'
     FILTERS groupType(g) == gt
 ;
 
-printSaleReportGroupTreeXls 'Экспорт в xls' (GroupType gt) = {
+printSaleReportGroupTreeXls 'Экспорт в xls' (GroupType gt)  { 
     PRINT saleReportGroupTree OBJECTS gt = gt XLS;
 }
 

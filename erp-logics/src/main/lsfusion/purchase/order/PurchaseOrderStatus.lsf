@@ -124,7 +124,7 @@ FORM messageOrders 'Сообщение'
     PROPERTIES () messageEmailOrders TODRAW o
 ;
 
-calcEmailCustomer 'Отправить заказ поставщику' (Order.Order order) = { EMAIL
+calcEmailCustomer 'Отправить заказ поставщику' (Order.Order order)  { EMAIL
     FROM OVERRIDE email(createdUser(order)), fromEmailOrders()
     SUBJECT 'Заказ №' + seriesNumber(order) + ' на '  + shipmentDate(order)+ ' от ' + nameCustomer(order)
     TO (OVERRIDE email(supplierStock(order)), email(supplier(order)))
@@ -142,7 +142,7 @@ EXTEND CLASS TypeChange{
 
 notEmailSend = DATA VARSTRING[10](Purchase.Order);
 
-logSendDocumentOrder(Purchase.Order o) = {
+logSendDocumentOrder(Purchase.Order o)  { 
 	NEW d = DocumentLog {
 	    document(d) <- o;
 	    typeDocument(d) <- objectClassName(o);
@@ -166,10 +166,10 @@ logSendDocumentOrder(Purchase.Order o) = {
 	}
 }
 
-overEmailCustomer = ABSTRACT LIST (Order.Order);
+overEmailCustomer  ABSTRACT LIST ( Order.Order);
 consumedEmailCustomer = DATA LOCAL BOOLEAN (Order.Order);
 
-emailCustomerSingle 'Отправить заказ поставщику' (Purchase.Order order) = {
+emailCustomerSingle 'Отправить заказ поставщику' (Purchase.Order order)  { 
 	NEWSESSION {
 	    
 	    overEmailCustomer(order);
@@ -188,7 +188,7 @@ emailCustomerSingle 'Отправить заказ поставщику' (Purcha
 	}
 } TOOLBAR;
 
-emailCustomer 'Отправить заказы поставщикам' (Purchase.Order order)= {
+emailCustomer 'Отправить заказы поставщикам' (Purchase.Order order) { 
     selected(order) <- TRUE;
     
     FOR selected(Order o) DO 
@@ -242,7 +242,7 @@ disablePosted (UserOrder o) += (orderConfirmation(agreement(o)) OR orderConfirma
 
 //для планировщика
 skipPostConfirmed = ABSTRACT CASE BOOLEAN (Order); 
-postConfirmedOrders 'Провести подтвержденные заказы'() = {
+postConfirmedOrders 'Провести подтвержденные заказы'()  { 
     FOR isConfirmed(Purchase.Order o) AND  isDraft(o) AND isOpened(o) AND NOT skipPostConfirmed(o) DO NEWSESSION {
         isPosted(o) <- TRUE;
         APPLY;

@@ -378,7 +378,7 @@ FORM terminalDocumentPrint 'Документ ТСД'
 
     FILTERS terminalDocument(tdd) == td
 ;
-terminalDocumentPrint 'Печать документа ТСД' (TerminalDocument td) = { PRINT terminalDocumentPrint OBJECTS td = td; }  IMAGE 'print.png' IN print;
+terminalDocumentPrint 'Печать документа ТСД' (TerminalDocument td)  { PRINT terminalDocumentPrint OBJECTS td = td; }  IMAGE 'print.png' IN print;
 
 in = DATA LOCAL BOOLEAN (TerminalDocumentType);
 filterStock = DATA LOCAL Stock ();
@@ -464,10 +464,10 @@ DESIGN terminalDocuments {
 //
 //META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
 //    in = ABSTRACT BOOLEAN (TerminalDocumentType, class);
-//    overAddDialogTerminal##class = ABSTRACT (class, TerminalDocument);
-//    overAddDetailDialogTerminal##class##Detail = ABSTRACT (class##Detail, TerminalDocumentDetail);
+//    overAddDialogTerminal##class  ABSTRACT ( class, TerminalDocument);
+//    overAddDetailDialogTerminal##class##Detail  ABSTRACT ( class##Detail, TerminalDocumentDetail);
 //    
-//    addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object) = {
+//    addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object)  { 
 //        in(TerminalDocumentType t) <- in(t, object);
 //        filterStock() <- stockProp(object);
 //        
@@ -491,10 +491,10 @@ END
 
 META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
     in = ABSTRACT BOOLEAN (TerminalDocumentType, class);
-    overAddDialogTerminal##class = ABSTRACT (class, TerminalDocument);
-    overAddDetailDialogTerminal##class##Detail = ABSTRACT (class##Detail, TerminalDocumentDetail);
+    overAddDialogTerminal##class  ABSTRACT ( class, TerminalDocument);
+    overAddDetailDialogTerminal##class##Detail  ABSTRACT ( class##Detail, TerminalDocumentDetail);
 
-    addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object) = {
+    addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object)  { 
         IF isPosted(object) THEN {
             MESSAGE 'Вы пытаетесь импортировать в проведенный документ. Распроведите его.';
         } ELSE {
@@ -555,7 +555,7 @@ END
 terminalSID (model) = GROUP MAX TerminalModel tmodel BY sid (tmodel) IF tmodel IS TerminalModel;
 
 // Модели терминалов сбора данных
-loadDefaultTerminalModel 'Добавить модель терминала'(VARSTRING[20] sid, VARISTRING[110] name, VARSTRING[200] handler) = {
+loadDefaultTerminalModel 'Добавить модель терминала'(VARSTRING[20] sid, VARISTRING[110] name, VARSTRING[200] handler)  { 
     IF NOT terminalSID(sid) THEN {
         NEW tm = TerminalModel {
              sid(tm) <- sid;   
@@ -565,25 +565,25 @@ loadDefaultTerminalModel 'Добавить модель терминала'(VARS
     }
 }
 
-loadDefaultTerminalModels 'Загрузить стандартные модели ТСД'() = ABSTRACT LIST () IN loadDefault;
+loadDefaultTerminalModels 'Загрузить стандартные модели ТСД'()  ABSTRACT LIST ( ) IN loadDefault;
 @implementLoadDefaultData(loadDefaultTerminalModels);
 
 // Виды справочников терминалов сбора данных
-loadDefaultTerminalHandbookType 'Добавить вид справочника ТСД'(VARSTRING[100] n, VARSTRING[100] s) = {
+loadDefaultTerminalHandbookType 'Добавить вид справочника ТСД'(VARSTRING[100] n, VARSTRING[100] s)  { 
     NEW t = TerminalHandbookType {
         name(t) <- n;
         id(t) <- s;
     }
 }
 
-loadDefaultTerminalHandbookTypes 'Загрузить стандартные виды справочников ТСД'() = {
+loadDefaultTerminalHandbookTypes 'Загрузить стандартные виды справочников ТСД'()  { 
     loadDefaultTerminalHandbookType('Организация', 'ПС');
 } IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultTerminalHandbookTypes);
 
 // Типы документов терминалов сбора данных
-loadDefault 'Добавить тип документа ТСД'(VARSTRING[200] nameString, GroupTerminalDocumentType gtdt, VARSTRING[100] idTypeString, INTEGER flagInteger, VARSTRING[100] handbook1String, VARSTRING[100] handbook2String) = {
+loadDefault 'Добавить тип документа ТСД'(VARSTRING[200] nameString, GroupTerminalDocumentType gtdt, VARSTRING[100] idTypeString, INTEGER flagInteger, VARSTRING[100] handbook1String, VARSTRING[100] handbook2String)  { 
     NEW tdt = TerminalDocumentType {
         name(tdt) <- nameString;
         groupTerminalDocumentType(tdt) <- gtdt;
@@ -594,7 +594,7 @@ loadDefault 'Добавить тип документа ТСД'(VARSTRING[200] n
     }
 }
 
-loadDefaultTerminalDocumentTypes 'Загрузить стандартные типы документов ТСД'() = {
+loadDefaultTerminalDocumentTypes 'Загрузить стандартные типы документов ТСД'()  { 
     NEW gtdt = GroupTerminalDocumentType {
         name(gtdt) <- 'Группа типов документов';
         EXEC loadDefault('Инвентаризация', gtdt, '01', 31, ' ', ' ');
@@ -606,7 +606,7 @@ loadDefaultTerminalDocumentTypes 'Загрузить стандартные ти
 @implementLoadDefaultData(loadDefaultTerminalDocumentTypes);
 
 // ------------------------------------------ Генерация групп терминалов сбора данных ------------------------------ //
-loadDefault 'Сгенерировать группу терминалов'(Stock stock, TerminalModel model, GroupTerminalDocumentType gtdt, INTEGER num) = {
+loadDefault 'Сгенерировать группу терминалов'(Stock stock, TerminalModel model, GroupTerminalDocumentType gtdt, INTEGER num)  { 
     NEW g = GroupTerminal {
         stock(g) <- stock;
         name(g) <- 'Группа ТСД по умолчанию';
@@ -677,7 +677,7 @@ skipDelete = ABSTRACT BOOLEAN (TerminalDocument);
 EXTEND FORM options PROPERTIES countDaysClearTerminalDocument();
 DESIGN options { log { MOVE PROPERTY(countDaysClearTerminalDocument());} }    
         
-clearApplicationLog () += {
+clearApplicationLog () + { 
 	NEWSESSION {
 	    IF countDaysClearTerminalDocument() THEN {
 	        DELETE TerminalDocument d WHERE d IS TerminalDocument AND date(d) <= subtract(currentDate(), countDaysClearTerminalDocument()) AND NOT skipDelete(d);

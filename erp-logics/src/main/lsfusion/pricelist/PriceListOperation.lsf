@@ -134,10 +134,10 @@ WHEN LOCAL CHANGED(operation(UserPriceList priceList)) AND dataLegalEntity(opera
 WHEN LOCAL CHANGED(operation(UserPriceList priceList)) AND defaultCurrency(operation(priceList)) DO
     currency(priceList) <- defaultCurrency(operation(priceList));
 
-copyOperation(UserPriceList priceList, UserPriceList userPriceList) = {
+copyOperation(UserPriceList priceList, UserPriceList userPriceList)  { 
     operation(userPriceList) <- operation(priceList);
 }
-copyAbstractData(UserPriceList priceList, UserPriceList userPriceList) += { copyOperation(priceList, userPriceList); }
+copyAbstractData(UserPriceList priceList, UserPriceList userPriceList) + {  copyOperation(priceList, userPriceList); }
 
 CONSTRAINT operation(UserPriceList priceList) AND company(priceList) AND NOT in(company(priceList), operation(priceList))
     CHECKED BY company[UserPriceList] MESSAGE 'Компания прайса должна соответствовать ограничениям операции';
@@ -320,7 +320,7 @@ DESIGN userPriceList{
 
 // Установка даты действия по для прайсов
 
-setToDateTime 'Установить дату действия по' (UserPriceList p) = {
+setToDateTime 'Установить дату действия по' (UserPriceList p)  { 
     LOCAL toDateTime = DATETIME();
     
     toDateTime() <- [= GROUP MAX (OVERRIDE [= GROUP MIN fromDateTime(UserPriceListDetail ud) IF isPosted(userPriceList(ud)) AND NOT PREV(toDateTime(ud)) 
@@ -334,7 +334,7 @@ setToDateTime 'Установить дату действия по' (UserPriceLi
     }
 }
 
-excludePriceListsToDate 'Исключить прайсы из регистра до даты' () = {
+excludePriceListsToDate 'Исключить прайсы из регистра до даты' ()  { 
     exclude(UserPriceListDetail d) <- TRUE WHERE toDate(d) < subtract(currentDate(), countDaysToExcludePriceLists(operation(d))) AND NOT exclude(d) AND countDaysToExcludePriceLists(operation(d));
     APPLY ;
 }
@@ -342,7 +342,7 @@ excludePriceListsToDate 'Исключить прайсы из регистра �
 EXTEND FORM options PROPERTIES() excludePriceListsToDate;
 DESIGN options { price { MOVE PROPERTY(excludePriceListsToDate()); } }
 
-clearApplicationLog () += {
+clearApplicationLog () + { 
     NEWSESSION {
         excludePriceListsToDate();
     } 

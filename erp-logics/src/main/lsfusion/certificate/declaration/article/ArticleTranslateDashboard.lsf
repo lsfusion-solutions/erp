@@ -11,7 +11,7 @@ notCompletedTranslate 'Не обработан' (article) = GROUP SUM 1 IF Item 
 completedTranslate 'Обработан' = Article a IS Article AND NOT notCompletedTranslate(a);
 prevCompletedTranslate (Article article) = PREV(completedTranslate(article));
 
-changeCompletedTranslate (Article article) = {
+changeCompletedTranslate (Article article)  { 
     INPUT b = BOOLEAN DO
         completedTranslate(Item item) <- b WHERE article(item) == article;
 }
@@ -89,10 +89,10 @@ DESIGN purchaseInvoices {
     }
 }
 
-selectPurchaseInvoices 'Выбрать накладные'(User user) = {
+selectPurchaseInvoices 'Выбрать накладные'(User user)  { 
     SHOW purchaseInvoices OBJECTS u=user ;
 } TOOLBAR;
-selectPurchaseInvoicesCurrentUser 'Выбрать накладные' = { selectPurchaseInvoices(currentUser()); }
+selectPurchaseInvoicesCurrentUser 'Выбрать накладные'  { selectPurchaseInvoices(currentUser()); }
 
 quantityInvoiceDetail 'Кол-во товара в документе' (Sku sku, User user) = 
     GROUP
@@ -249,7 +249,7 @@ DESIGN articleTranslateDashboard {
 WHEN LOCAL FORMS articleTranslateDashboard CHANGED(caption(article(Item i))) AND NOT CHANGED(caption(i)) DO         
     caption(i) <- caption(article(i));           
            
-completeArticleTranslateDashboard 'Подтвердить все'() = {   
+completeArticleTranslateDashboard 'Подтвердить все'()  {   
     LOCAL k = INTEGER ();
     k() <- 0;
     
@@ -276,35 +276,35 @@ defaultCaptionArticleOriginalCaption (VARISTRING[100] original) = GROUP
                                                            ORDER countArticleCaption(caption, original), caption
                                                            WHERE countArticleCaption(caption, original);
 
-fillDefaultCaption 'Перевести название'(Article article) = {
+fillDefaultCaption 'Перевести название'(Article article)  { 
     caption(article) <- defaultCaptionArticleOriginalCaption(originalCaption(article))
         WHERE defaultCaptionArticleOriginalCaption(originalCaption(article));
 } ASON CONTEXTMENU caption[Article];
 
-fillDefaultCaptionArticles 'Перевести для всех название'() = {
+fillDefaultCaptionArticles 'Перевести для всех название'()  { 
     FOR [= FILTER articleTranslateDashboard.a](Article article) DO {
         fillDefaultCaption(article);
     }
 } ASON CONTEXTMENU caption[Article];
 
   
-translateCaption 'Перевести название по словарю'(Article article) = {
+translateCaption 'Перевести название по словарю'(Article article)  { 
     translate(dictionaryCaption(), originalCaption(article));
     caption(article) <- VARISTRING[100](translationResult());
 } ASON CONTEXTMENU caption[Article];  
 
-translateCaptionArticles 'Перевести для всех название по словарю'() = {
+translateCaptionArticles 'Перевести для всех название по словарю'()  { 
     FOR [= FILTER articleTranslateDashboard.a](Article article) DO {
         translateCaption(article);
     }
 } ASON CONTEXTMENU caption[Article];
 //--
-translateComposition 'Перевести состав по словарю'(Article article) = {
+translateComposition 'Перевести состав по словарю'(Article article)  { 
     translate(dictionaryComposition(), originalComposition(article));
     composition(article) <- VARSTRING[255](translationResult());
 } ASON CONTEXTMENU composition[Article];  
 
-translateCompositionArticles 'Перевести для всех состав по словарю'() = {
+translateCompositionArticles 'Перевести для всех состав по словарю'()  { 
     FOR [= FILTER articleTranslateDashboard.a](Article article) DO {
         translateComposition(article);
     }
@@ -317,12 +317,12 @@ defaultCompositionArticleOriginal (VARSTRING[255] original) = GROUP
                                                                    ORDER countArticleComposition(composition, original), composition
                                                                    WHERE countArticleComposition(composition, original);
 
-fillDefaultComposition 'Перевести состав'(Article article) = {
+fillDefaultComposition 'Перевести состав'(Article article)  { 
     composition(article) <- defaultCompositionArticleOriginal(originalComposition(article))
         WHERE defaultCompositionArticleOriginal(originalComposition(article));
 } ASON CONTEXTMENU composition[Article];
 
-fillDefaultCompositionArticles 'Перевести для всех состав'() = {
+fillDefaultCompositionArticles 'Перевести для всех состав'()  { 
    FOR [= FILTER articleTranslateDashboard.a](Article article) DO {
         fillDefaultComposition(article);
    }

@@ -18,26 +18,26 @@ DESIGN options {
     }
 }
 
-overPriceListUser = ABSTRACT LIST (RepricingDetail);
+overPriceListUser  ABSTRACT LIST ( RepricingDetail);
 
-calculateDashboardRepricing 'По надбавкам и прайсам'(DepartmentStore d, Operation o, DATETIME dt) = {
+calculateDashboardRepricing 'По надбавкам и прайсам'(DepartmentStore d, Operation o, DATETIME dt)  { 
     calculateDashboardRepricing(d, (OVERRIDE calcPriceListType(o), retailCalcPriceListType(d)), (OVERRIDE priceListType(o), retailPriceListType(d)), dt);
 } TOOLBAR;
 
-calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, Operation o, DATETIME dt) = {
+calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, Operation o, DATETIME dt)  { 
     calculateDashboardManagementRepricing(d, (OVERRIDE priceListType(o), retailPriceListType(d)), dt);
 }
 
-calculateDashboardManagementRepricingForm 'По прайсам'(DepartmentStore d, Operation o, DATETIME dt) = {
+calculateDashboardManagementRepricingForm 'По прайсам'(DepartmentStore d, Operation o, DATETIME dt)  { 
     calculateDashboardManagementRepricing(d, o, dt);
     formRefresh();
 } TOOLBAR;
 
 repForm =  DATA LOCAL UserRepricing();  
 
-overCreateDashboardRepricingNotForm = ABSTRACT LIST (UserRepricing);
+overCreateDashboardRepricingNotForm  ABSTRACT LIST ( UserRepricing);
 
-createDashboardRepricingNotForm 'Создать переоценку'(Stock d, Operation o, DATETIME dt) = {
+createDashboardRepricingNotForm 'Создать переоценку'(Stock d, Operation o, DATETIME dt)  { 
     IF (GROUP SUM 1 IF inDashboardRepricing(Sku sku)) THEN {
         NEW r = UserRepricing {
             departmentStore(r) <- d;
@@ -73,9 +73,9 @@ skipManagementRepricing = ABSTRACT BOOLEAN (DepartmentStore);
 toManagementRepricingOperation  = DATA Repricing.Operation ();
 nameToManagementRepricingOperation 'Операция для переоценки упр.' = name(toManagementRepricingOperation());
 
-createOverManagementRepricing = ABSTRACT LIST (Stock);
+createOverManagementRepricing  ABSTRACT LIST ( Stock);
 
-createManagementRepricingAll 'Создать автоматическую переоценку упр.'(DepartmentStore department) = {
+createManagementRepricingAll 'Создать автоматическую переоценку упр.'(DepartmentStore department)  { 
     NEWSESSION {
         calculateDashboardManagementRepricing(department, toManagementRepricingOperation(), currentDateTime());
         createDashboardRepricingNotForm(department, toManagementRepricingOperation(), currentDateTime()); 
@@ -84,7 +84,7 @@ createManagementRepricingAll 'Создать автоматическую пер
     }
 }
 
-createManagementRepricingAllStocks 'Создать автоматическую переоценку упр.'() = {
+createManagementRepricingAllStocks 'Создать автоматическую переоценку упр.'()  { 
     FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementRepricing(department)  DO {
     	createManagementRepricingAll(department);
 	}
@@ -93,7 +93,7 @@ createManagementRepricingAllStocks 'Создать автоматическую 
 dataCountTreadsRepricingAllStocks = DATA INTEGER ();
 countTreadsRepricingAllStocks 'Количество потоков для создания переоценок'() = OVERRIDE dataCountTreadsRepricingAllStocks(), 4;
 
-createManagementRepricingAllStocksMultithread 'Создать автоматическую переоценку упр. (Многопоточно)'() = {
+createManagementRepricingAllStocksMultithread 'Создать автоматическую переоценку упр. (Многопоточно)'()  { 
     NEWEXECUTOR 
         FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementRepricing(department)  DO 
             NEWTHREAD NEWSESSION NEWSQL {

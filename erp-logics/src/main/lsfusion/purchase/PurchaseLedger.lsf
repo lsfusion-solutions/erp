@@ -15,7 +15,7 @@ shipmentDate 'Дата поставки' (PurchaseLedger ledger) = toDate(shipme
 
 isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) MATERIALIZED;
 
-show 'Просмотреть' = ABSTRACT MULTI (PurchaseLedger) TOOLBAR;
+show 'Просмотреть'  ABSTRACT MULTI ( PurchaseLedger) TOOLBAR;
 
 isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger);
 skipShowEdit = ABSTRACT BOOLEAN (PurchaseLedger);
@@ -273,7 +273,7 @@ skuStockAveragePurchaseInterval 'Интервал расчета закупок 
 
 averagePurchase 'Закупок в день' = DATA NUMERIC[14,3] (Sku, Stock);
 
-calcQuantityPurchaseInterval(DATE dateFrom, DATE dateTo) = {
+calcQuantityPurchaseInterval(DATE dateFrom, DATE dateTo)  { 
     LOCAL balance = NUMERIC[14,3] (Sku, Stock);
     LOCAL days = INTEGER (Sku, Stock);
     LOCAL dateCur = DATE();
@@ -291,7 +291,7 @@ calcQuantityPurchaseInterval(DATE dateFrom, DATE dateTo) = {
 
     averagePurchase(Sku sku, Stock stock) <- quantityPurchase (sku, stock, dateFrom, dateTo) / days(sku, stock);
 }
-calcCurrentQuantityPurchaseInterval 'Пересчитать однодневные закупки'() = {
+calcCurrentQuantityPurchaseInterval 'Пересчитать однодневные закупки'()  { 
 	NEWSESSION {
 	    EXEC calcQuantityPurchaseInterval(subtract(currentDate(), skuStockAveragePurchaseInterval()), subtract(currentDate(), 1));
 	    apply();
@@ -332,7 +332,7 @@ DESIGN options {
 
 isShipmentDate 'По дате поставки' = DATA LOCAL BOOLEAN ();
 
-onInitPurchaseLedger() = {
+onInitPurchaseLedger()  { 
     isShipmentDate() <- isShipmentDatePurchaseLedger();    
 }
 
@@ -416,7 +416,7 @@ META implementPurchaseLedgerCustom(concrete, skuProp, stockProp)
     stock[PurchaseLedger] (concrete##Detail ledger) += stockProp(ledger);
     operation[PurchaseLedger] (concrete##Detail ledger) += operation(ledger);
     description[PurchaseLedger] (concrete##Detail ledger) += description(ledger);
-    show[PurchaseLedger] (concrete##Detail ledger) += {show(ledger);};
+    show[PurchaseLedger] (concrete##Detail ledger) + { show(ledger);};
 END
 META implementPurchaseLedger(concrete, skuProp, stockProp)
     EXTEND CLASS concrete##Detail : PurchaseLedger;

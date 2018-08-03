@@ -32,13 +32,13 @@ price 'Цена' = DATA NUMERIC[16,4] (UserInvoiceArticleDetail);
 
 userInvoiceArticleDetail = DATA UserInvoiceArticleDetail (UserInvoiceDetail);
 
-replace(Article a, Article article) += {article(UserInvoiceArticleDetail d) <- article WHERE article(d) == a;}
+replace(Article a, Article article) + { article(UserInvoiceArticleDetail d) <- article WHERE article(d) == a;}
 
 //CONSTRAINT  d IS UserInvoiceDetail AND userInvoiceArticleDetailUserInvoiceDetail(d) 
 //    AND NOT articleUserInvoiceArticleDetail(userInvoiceArticleDetailUserInvoiceDetail(d)) == articleItem(skuUserInvoiceDetail(d))
 //        MESSAGE 'Артикул для строки накладной/артикул (польз.) (закупка) и артикл товара для строки накладной (польз.) (закупка) не соответствуют друг другу';
 
-changeIdArticle(UserInvoiceArticleDetail detail) = {
+changeIdArticle(UserInvoiceArticleDetail detail)  { 
     INPUT s = VARSTRING[100] DO
         IF article(s) OR NOT s THEN {
             article(detail) <- article(s);    
@@ -52,7 +52,7 @@ changeIdArticle(UserInvoiceArticleDetail detail) = {
         }
     } 
 
-changeOriginalCaptionArticle(UserInvoiceArticleDetail detail) = {
+changeOriginalCaptionArticle(UserInvoiceArticleDetail detail)  { 
     INPUT s = VARISTRING[100] DO
         IF article(detail) THEN {
             originalCaption(Article a) <- s WHERE  article(detail) == a;
@@ -61,7 +61,7 @@ changeOriginalCaptionArticle(UserInvoiceArticleDetail detail) = {
         }
 }
 
-changeOriginalCompositionArticle(UserInvoiceArticleDetail detail) = {
+changeOriginalCompositionArticle(UserInvoiceArticleDetail detail)  { 
     INPUT s = VARSTRING[255] DO
         IF article(detail) THEN {
             originalComposition(Article a) <- s WHERE  article(detail) == a;
@@ -70,7 +70,7 @@ changeOriginalCompositionArticle(UserInvoiceArticleDetail detail) = {
         }
 }
 
-changeOriginalCustomsGroupArticle(UserInvoiceArticleDetail detail) = {
+changeOriginalCustomsGroupArticle(UserInvoiceArticleDetail detail)  { 
     INPUT s = STRING[10] DO
         IF article(detail) THEN {
             originalCustomsGroup(Article a) <- s WHERE  article(detail) == a;
@@ -79,7 +79,7 @@ changeOriginalCustomsGroupArticle(UserInvoiceArticleDetail detail) = {
         }
 }
 
-changeSizeGroupArticle(UserInvoiceArticleDetail detail) = {
+changeSizeGroupArticle(UserInvoiceArticleDetail detail)  { 
     DIALOG sizeGroups OBJECTS t INPUT DO 
         IF article(detail) THEN {
             sizeGroup(Article a) <- t WHERE article(detail) == a;
@@ -88,7 +88,7 @@ changeSizeGroupArticle(UserInvoiceArticleDetail detail) = {
         }
 }
 
-changeCountryArticle(UserInvoiceArticleDetail detail) = {
+changeCountryArticle(UserInvoiceArticleDetail detail)  { 
     DIALOG countries OBJECTS c INPUT DO
         IF article(detail) THEN {
             country(Article a) <- c WHERE article(detail) == a;
@@ -96,7 +96,7 @@ changeCountryArticle(UserInvoiceArticleDetail detail) = {
             MESSAGE 'Задайте вначале код артикула';   
         }
 }
-changeBrandArticle(UserInvoiceArticleDetail detail) = {
+changeBrandArticle(UserInvoiceArticleDetail detail)  { 
     DIALOG brands OBJECTS t INPUT DO
         IF article(detail) THEN {
             brand(Article a) <- t WHERE  article(detail) == a;
@@ -104,7 +104,7 @@ changeBrandArticle(UserInvoiceArticleDetail detail) = {
             MESSAGE 'Задайте вначале код артикула';   
         }
 }
-changeItemGroupArticle(UserInvoiceArticleDetail detail) = {
+changeItemGroupArticle(UserInvoiceArticleDetail detail)  { 
     DIALOG dialogItemGroups OBJECTS g INPUT DO
         IF article(detail) THEN {
             itemGroup(Article a) <- g WHERE  article(detail) == a;
@@ -128,7 +128,7 @@ userInvoiceDetail (color, size, detail, stock) = GROUP MAX UserInvoiceDetail use
 
 userInvoiceDetail (Color color, Size size, UserInvoiceArticleDetail detail)= userInvoiceDetail(color, size, detail, customerStock(userInvoice(detail)));
                        
-changeQuantityValue(Color color, Size size, UserInvoiceArticleDetail articleDetail, NUMERIC[14,3] n) = {
+changeQuantityValue(Color color, Size size, UserInvoiceArticleDetail articleDetail, NUMERIC[14,3] n)  { 
     IF userInvoiceDetail(color, size, articleDetail) THEN {
         IF n THEN {
             quantity(UserInvoiceDetail d) <- n WHERE d == userInvoiceDetail(color, size, articleDetail);
@@ -167,7 +167,7 @@ changeQuantityValue(Color color, Size size, UserInvoiceArticleDetail articleDeta
           
     }
 }
-changeQuantity(Color color, Size size, UserInvoiceArticleDetail articleDetail) = {
+changeQuantity(Color color, Size size, UserInvoiceArticleDetail articleDetail)  { 
     INPUT n = NUMERIC[14,3] DO
         changeQuantityValue(color, size, articleDetail, n);
 }                                       

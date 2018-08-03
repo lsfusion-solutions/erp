@@ -113,9 +113,9 @@ invoiceDetail = ABSTRACT InvoiceDetail (Purchase.InvoiceDetail) MATERIALIZED IND
 invoiceDetail = DATA InvoiceDetail (Purchase.UserInvoiceDetail) INDEXED;
 invoiceDetail(Purchase.UserInvoiceDetail invoiceDetail) += invoiceDetail(invoiceDetail);
 
-setPropertiesPurchaseSale = ABSTRACT LIST (Purchase.UserInvoiceDetail, InvoiceDetail);
-setPropertiesPurchaseSale = ABSTRACT LIST (Purchase.UserInvoice);
-fillInvoice 'Заполнить на основе накладной'(Purchase.UserInvoice userInvoice) =  {
+setPropertiesPurchaseSale  ABSTRACT LIST ( Purchase.UserInvoiceDetail, InvoiceDetail);
+setPropertiesPurchaseSale  ABSTRACT LIST ( Purchase.UserInvoice);
+fillInvoice 'Заполнить на основе накладной'(Purchase.UserInvoice userInvoice)   { 
     DIALOG invoiceInvoices OBJECTS s = supplier(userInvoice), c = customer(userInvoice),
                                    ss = supplierStock(userInvoice), cs = customerStock(userInvoice),
                                    t = date(userInvoice), o INPUT DO {
@@ -128,7 +128,7 @@ fillInvoice 'Заполнить на основе накладной'(Purchase.U
     }
 } IN Purchase.invoice;
 
-setPropertiesPurchaseSale(Purchase.UserInvoiceDetail d, InvoiceDetail invoiceDetail) += {
+setPropertiesPurchaseSale(Purchase.UserInvoiceDetail d, InvoiceDetail invoiceDetail) + { 
             sku(d) <- sku(invoiceDetail);
             batch(d) <- batch(invoiceDetail)  WHERE NOT (notUseBatchPurchaseInvoice(operation(invoice(invoiceDetail))) OR skipFillBatch(d));
             barcodePack(d) <- barcodePack(invoiceDetail);
@@ -304,8 +304,8 @@ invoiceSum(PurchaseInvoiceDetail invoiceDetail) += invoiceSum(invoiceDetail(invo
 sumNetWeight(PurchaseInvoiceDetail invoiceDetail) += sumNetWeight(invoiceDetail(invoiceDetail));
 sumGrossWeight(PurchaseInvoiceDetail invoiceDetail) += sumGrossWeight(invoiceDetail(invoiceDetail));
 
-edit(PurchaseInvoice invoice) += { edit(invoice(invoice)); }
-close(PurchaseInvoice invoice) += { close(invoice(invoice)); }
+edit(PurchaseInvoice invoice) + {  edit(invoice(invoice)); }
+close(PurchaseInvoice invoice) + {  close(invoice(invoice)); }
 createdUser(PurchaseInvoice invoice) += createdUser(invoice(invoice));
 
 showPack(PurchaseInvoice invoice) +=  showPack(invoice(invoice));
@@ -315,7 +315,7 @@ packQuantity(PurchaseInvoiceDetail invoiceDetail) +=  packQuantity(invoiceDetail
 
 invoiceDetail(PurchaseInvoiceDetail invoiceDetail) += invoiceDetail(invoiceDetail);
 
-edit(PurchaseInvoiceDetail d) += { edit(invoiceDetail(d)); }
+edit(PurchaseInvoiceDetail d) + {  edit(invoiceDetail(d)); }
 
 //------------------------------ Создание агрегированных объектов через операции -----------------------------//
 
@@ -353,10 +353,10 @@ DESIGN userInvoice {
 
 //-- Действие
 
-overFillInvoice = ABSTRACT LIST (Purchase.UserInvoice, Invoice);
-overFillInvoice = ABSTRACT LIST (Purchase.UserInvoiceDetail, InvoiceDetail);
+overFillInvoice  ABSTRACT LIST ( Purchase.UserInvoice, Invoice);
+overFillInvoice  ABSTRACT LIST ( Purchase.UserInvoiceDetail, InvoiceDetail);
 
-moveUserInvoice 'Накладная (закупка)'(Invoice invoice) =  {
+moveUserInvoice 'Накладная (закупка)'(Invoice invoice)   { 
 	NEWSESSION{
 	
 	    NEW i = Purchase.UserInvoice {

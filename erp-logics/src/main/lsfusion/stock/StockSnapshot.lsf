@@ -628,7 +628,7 @@ include 'Вкл' (Snapshot snapshot, Stock stock) =
              include(snapshot, stockGroup(stock))) IF isCompany(stock) MATERIALIZED;
 countIncludeStocks (Snapshot r)= GROUP SUM 1 IF include(r,Stock st);
 
-deleteIncludeStocks 'Сбросить отмеченные'(Snapshot r) = {
+deleteIncludeStocks 'Сбросить отмеченные'(Snapshot r)  { 
     allStockInclude (r) <- NULL;
     dataInclude(r,StockGroup g) <- NULL;
     dataInclude (r,Stock st) <- NULL;
@@ -685,7 +685,7 @@ nameIncludeSkuGroups 'Группы товаров (все)' (Snapshot document)=
 dataInclude (Snapshot o,SkuGroup g) <- dataInclude(snapshotType(o),g) IF g IS SkuGroup
     WHEN CHANGED(snapshotType(o));  
 
-deleteIncludeSkuGroups 'Сбросить отмеченные'(Snapshot r) = {
+deleteIncludeSkuGroups 'Сбросить отмеченные'(Snapshot r)  { 
     dataInclude(r,SkuGroup g) <- NULL;
 };
 
@@ -694,7 +694,7 @@ TABLE snapshotLegalEntity (Snapshot, LegalEntity);
 
 include 'Вкл' = DATA BOOLEAN (Snapshot, LegalEntity);
 
-deleteIncludeLegalEntities 'Сбросить отмеченные'(Snapshot r) = {
+deleteIncludeLegalEntities 'Сбросить отмеченные'(Snapshot r)  { 
     include(r,LegalEntity l) <- NULL;
 };
 
@@ -705,7 +705,7 @@ TABLE snapshotBrand (Snapshot, Brand);
 
 include 'Вкл' = DATA BOOLEAN (Snapshot, Brand);
 
-deleteIncludeBrands 'Сбросить отмеченные'(Snapshot r) = {
+deleteIncludeBrands 'Сбросить отмеченные'(Snapshot r)  { 
     include(r,Brand b) <- NULL;
 };
 
@@ -733,13 +733,13 @@ include 'Вкл' (Snapshot snapshot, Sku sku) =
              
 countIncludeSku 'Вкл' (Snapshot snapshot) = GROUP SUM 1 IF include(snapshot, Sku sku);
 
-deleteIncludeSkus 'Сбросить отмеченные'(Snapshot r) = {
+deleteIncludeSkus 'Сбросить отмеченные'(Snapshot r)  { 
     dataInclude(r,Sku b) <- NULL;
 };
 
 addCommaBarcodeId 'Список ШК' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDTH 30;
 
-addCommaBarcodeId 'Добавить' (Snapshot s) = {
+addCommaBarcodeId 'Добавить' (Snapshot s)  { 
     IF addCommaBarcodeId() THEN {
         dataInclude(s, Sku sku) <- TRUE WHERE [=GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(addCommaBarcodeId(),' ',',')) == 1 BY sku(barcode)](sku);
         addCommaBarcodeId() <- NULL;
@@ -758,9 +758,9 @@ DESIGN options{
 }
     
 //------------------------------- ACTION -------------------------------//   
-overTakeFromTo= ABSTRACT LIST (Snapshot, DATE, DATE); 
-overTakeSkuFromTo= ABSTRACT LIST (Snapshot, DATE, DATE);
-overTakeBatchFromTo= ABSTRACT LIST (Snapshot, DATE, DATE);
+overTakeFromTo ABSTRACT LIST ( Snapshot, DATE, DATE); 
+overTakeSkuFromTo ABSTRACT LIST ( Snapshot, DATE, DATE);
+overTakeBatchFromTo ABSTRACT LIST ( Snapshot, DATE, DATE);
 
 status 'Статус отчета' (Snapshot snapshot) = CASE
                                           WHEN finishTime(snapshot) THEN 'Сформирован'
@@ -775,7 +775,7 @@ backgroundStatus 'Цвет' (Snapshot snapshot) =  CASE
 
 singleStock = DATA LOCAL Stock();
 
-takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = {
+takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   { 
     IF currentUser() IS Employee AND (GROUP SUM 1 IF include(snapshot, Stock st) AND NOT accessCompany(currentUser(), st)) THEN {
         dataInclude(snapshot, Stock st) <- include(snapshot, st) AND accessCompany(currentUser(), st);
         allStockInclude(snapshot) <- NULL;
@@ -1229,7 +1229,7 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = {
     }           
 };
 
-takeData 'Сформировать отчет' (Snapshot snapshot) = { 
+takeData 'Сформировать отчет' (Snapshot snapshot)  { 
     IF finishTime(snapshot) THEN {
         ASK 'Вы действительно хотите выполнить действие "Сформировать отчет?"' DO            
             takeFromTo(snapshot, fromDate(snapshot), toDate(snapshot));
@@ -1391,7 +1391,7 @@ DESIGN snapshotType {
 in (SnapshotType type, DATE date) = ((countDOWsIn(type) AND in(type, extractDOW(date))) OR (type IS SnapshotType AND date IS DATE AND NOT countDOWsIn(type))) AND
                               ((countDaysIn(type) AND inDays(type, extractDay(date))) OR (type IS SnapshotType AND date IS DATE AND NOT countDaysIn(type)));            
   
-createSnapshotString 'Создать отчет'(STRING[100] string, DATE dateTo) = {
+createSnapshotString 'Создать отчет'(STRING[100] string, DATE dateTo)  { 
 	NEWSESSION { 
 	    FOR idReport(SnapshotType type) == string  DO {
 	        IF in(type, currentDate()) AND countDays(type) THEN {     
@@ -1436,7 +1436,7 @@ DESIGN options{
     }
 }
 
-deleteSnapshots 'Удалить старые аналитические отчеты'()= {
+deleteSnapshots 'Удалить старые аналитические отчеты'() { 
     FOR sum(date(Snapshot r),countDaysDelete(snapshotType(r))) < currentDate()
         OR (NOT snapshotType(r) AND sum(date(r), countDaysDeleteSnapshots()) < currentDate()) DO {
             DELETE  r;
@@ -1449,7 +1449,7 @@ nameFilterSnapshotSupplier 'Поставщики' = GROUP CONCAT name(LegalEntit
 filterSupplierSnapshot (Batch bt) = in(supplier(bt)) OR (bt IS Batch AND NOT nameFilterSnapshotSupplier());
 filterSupplierSnapshot (Sku s,Stock st)   = in(supplierLastOrderBatch(s, st)) OR (s IS Sku AND st IS Stock AND NOT nameFilterSnapshotSupplier());  
 
-changeFilterSnapshotSupplier() = {
+changeFilterSnapshotSupplier()  { 
     DIALOG dialogLegalEntities OBJECTS l INPUT DO {
         IF NOT (GROUP SUM 1 IF in(LegalEntity le)) THEN
             in(l) <- TRUE;

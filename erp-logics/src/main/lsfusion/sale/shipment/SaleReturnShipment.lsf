@@ -54,13 +54,13 @@ operation[Shipment.Shipment](Shipment s)+=operation(s);
 
 @deriveDocumentOperationProperty(UserInvoice, createShipment);
 
-overFillInvoice(UserShipment s, Invoice i) += {
+overFillInvoice(UserShipment s, Invoice i) + { 
     operation(s) <- operation(i);
 }
 operation(InvoiceShipment shipment) += operation(invoice(shipment));
 
 // Добавляем в копирование поставок
-overCopy(Shipment s, UserShipment d) += {
+overCopy(Shipment s, UserShipment d) + { 
     operation(d) <- operation(s);
 }
 @defineOperationFilterProperty(shipment, s, shipments, nameFilterShipmentSupplier);
@@ -160,7 +160,7 @@ legalEntityStock(Shipment ledger) += customerStock(ledger);
 
 operation[StockDocumentLedger](Shipment ledger) += operation(ledger);
 isReturn(Shipment ledger) += ledger IS Shipment;
-close[StockDocumentLedger](Shipment l) += { close(l); }
+close[StockDocumentLedger](Shipment l) + {  close(l); }
 
 // ------------------------------- Проведение по регистру остатков ------------------------ //
 @implementSkuLedgerInLIFO(ShipmentDetail, sku, supplierStock);
@@ -172,19 +172,19 @@ sum[InSkuLedger](ShipmentDetail ledger) += sum(ledger);
 stockDocumentLedger(ShipmentDetail ledger) += shipment(ledger);
 cost(ShipmentDetail detail, Batch batch) += cost[SkuLedger,Batch](detail, batch) IF detail IS ShipmentDetail;
   
-show[SkuLedger](ShipmentDetail d) += { show(d); }
+show[SkuLedger](ShipmentDetail d) + {  show(d); }
 // ------------------------------- Себестоимость продажи ------------------------ //
 costSale (invoiceDetail) = GROUP SUM costSum(ShipmentDetail shipmentDetail) BY invoiceDetail(shipmentDetail);
 costSum(InvoiceDetail ledger) += WHEN ledger IS SaleReturn.InvoiceDetail THEN -costSale(ledger);
 cost(InvoiceDetail ledger, Batch batch) += -cost (ledger, batch) ;
 
-receiveShipment (UserInvoice invoice)+= {
+receiveShipment (UserInvoice invoice)+ { 
     IF invoice IS UserInvoice THEN {
         createShipment(invoice) <- TRUE;           
     }
 };
 
-deleteCreate (InvoiceShipment shipment)+= WHEN invoice(shipment) IS UserInvoice THEN  {
+deleteCreate (InvoiceShipment shipment)+ WHEN invoice(shipment) IS UserInvoice THEN  { 
     createShipment(Invoice invoice) <- NULL WHERE invoice == invoice(shipment);          
 };
 

@@ -4,11 +4,11 @@ REQUIRE BI, ZReport, GiftCard, Druid, ReportBI;
 
 NAMESPACE BI;
 
-loadLookups () += {
+loadLookups () + { 
     loadLookup('cashregister_npp', [= GROUP CONCAT TEXT('"' + TEXT(CashRegister r) + '":"' + escapeJSONValue(overNpp(r)) + '"'), ',']());
 }
 
-exportReceipt 'Выгрузить Чеки' (DATE dFrom, DATE dTo) = {
+exportReceipt 'Выгрузить Чеки' (DATE dFrom, DATE dTo)  { 
     FOR iterate(DATE date, dFrom, dTo) DO {
         EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(Receipt r)),
                             departmentStore = departmentStore(r),
@@ -71,7 +71,7 @@ countRowsReceipt 'Количество строк' () = GROUP SUM 1 IF nameGroup
 //------- Магазины -------
 include 'Вкл' = DATA LOCAL BOOLEAN (DepartmentStore);
 
-deleteIncludeDepartmentStores 'Сбросить отмеченные'() = {
+deleteIncludeDepartmentStores 'Сбросить отмеченные'()  { 
     include (DepartmentStore ds) <- NULL;
 };
 
@@ -103,11 +103,11 @@ DESIGN dialogDepartmentStores {
     }
 }
 
-changeIncludeDepartmentStores() = {
+changeIncludeDepartmentStores()  { 
     DIALOG dialogDepartmentStores;
 }
 
-fillReceiptReport (DATE dateFrom, DATE dateTo) = {
+fillReceiptReport (DATE dateFrom, DATE dateTo)  { 
     nameGroup1Receipt(INTEGER i) <- NULL;
     nameGroup2Receipt(INTEGER i) <- NULL;
     nameGroup3Receipt(INTEGER i) <- NULL;
@@ -156,7 +156,7 @@ FORM printReceiptReport 'Продажа (по чекам)'
     ORDER nameGroup1Receipt(i), nameGroup2Receipt(i), nameGroup3Receipt(i)
 ;
 
-printReceiptReportXLSX 'С группировкой (XLSX)' (DATE dateFrom, DATE dateTo) = {
+printReceiptReportXLSX 'С группировкой (XLSX)' (DATE dateFrom, DATE dateTo)  { 
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
         RETURN;
@@ -185,7 +185,7 @@ FORM printReceiptReportTable 'Продажа (по чекам)'
     ORDER nameGroup1Receipt(i), nameGroup2Receipt(i), nameGroup3Receipt(i)
 ;
 
-printReceiptReportTableXLSX 'Без группировки (XLSX)' (DATE dateFrom, DATE dateTo) = {
+printReceiptReportTableXLSX 'Без группировки (XLSX)' (DATE dateFrom, DATE dateTo)  { 
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
         RETURN;
@@ -248,7 +248,7 @@ nearestIncludeReceiptDetail(SkuGroup skuGroup) = dataIncludeReceiptDetail(neares
 
 includeReceiptDetail 'Вкл' (SkuGroup skuGroup) = OVERRIDE dataIncludeReceiptDetail(skuGroup), nearestIncludeReceiptDetail(skuGroup);
 
-deleteIncludeSkuGroupsReceiptDetail 'Сбросить отмеченные'() = {
+deleteIncludeSkuGroupsReceiptDetail 'Сбросить отмеченные'()  { 
     dataIncludeReceiptDetail(SkuGroup g) <- NULL;
 };
 
@@ -265,7 +265,7 @@ includeSkuGroupReceiptDetail (Sku sku) = TRUE IF (GROUP MAX 1 IF includeReceiptD
 
 includeReceiptDetail 'Вкл' (Sku sku) = OVERRIDE dataIncludeReceiptDetail(sku), includeSkuGroupReceiptDetail(sku);
 
-deleteIncludeSkusReceiptDetail 'Сбросить отмеченные'() = {
+deleteIncludeSkusReceiptDetail 'Сбросить отмеченные'()  { 
     dataIncludeReceiptDetail(Sku b) <- NULL;
 };
 
@@ -274,7 +274,7 @@ nameIncludeBarcodesReceiptDetail 'ШК (все)' = GROUP CONCAT TEXT(idBarcode(S
 
 commaBarcodeIdReceiptDetail 'Список ШК' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDTH 30;
 
-addCommaBarcodeIdReceiptDetail 'Добавить' () = {
+addCommaBarcodeIdReceiptDetail 'Добавить' ()  { 
     IF commaBarcodeIdReceiptDetail() THEN {
         dataIncludeReceiptDetail(Sku sku) <- TRUE WHERE [=GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(commaBarcodeIdReceiptDetail(),' ',',')) == 1 BY sku(barcode)](sku);
         commaBarcodeIdReceiptDetail() <- NULL;
@@ -318,10 +318,10 @@ DESIGN dialogSkuReceiptDetail {
     }
 }
 
-changeIncludeSkusReceiptDetail() = {
+changeIncludeSkusReceiptDetail()  { 
     DIALOG dialogSkuReceiptDetail;
 }
-changeIncludeBarcodesReceiptDetail() = {
+changeIncludeBarcodesReceiptDetail()  { 
     INPUT s = VARISTRING[4000] DO {
         dataIncludeReceiptDetail(Sku sku) <- TRUE IF [=GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(s,' ',',')) == 1 BY sku(barcode)](sku);
     }
@@ -331,7 +331,7 @@ filterGroupsReceiptDetail() = CONCAT ' OR', ' group1 IN (' + nameIncludeSkuGroup
                                        ' group2 IN (' + nameIncludeSkuGroups2ReceiptDetail() + ')',
                                        ' group3 IN (' + nameIncludeSkuGroups3ReceiptDetail() + ')',
                                        ' group4 IN (' + nameIncludeSkuGroups4ReceiptDetail() + ')';
-fillReceiptDetailReport (DATE dateFrom, DATE dateTo) = {
+fillReceiptDetailReport (DATE dateFrom, DATE dateTo)  { 
     nameGroup1ReceiptDetail(INTEGER i) <- NULL;
     nameGroup2ReceiptDetail(INTEGER i) <- NULL;
     nameGroup3ReceiptDetail(INTEGER i) <- NULL;
@@ -372,7 +372,7 @@ FORM printReceiptDetailReport 'Продажа (по строкам чеков)'
     ORDER nameGroup1ReceiptDetail(i), nameGroup2ReceiptDetail(i), nameGroup3ReceiptDetail(i)
 ;
 
-printReceiptDetailReportXLSX 'С группировкой (XLSX)' (DATE dateFrom, DATE dateTo) = {
+printReceiptDetailReportXLSX 'С группировкой (XLSX)' (DATE dateFrom, DATE dateTo)  { 
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
         RETURN;
@@ -400,7 +400,7 @@ FORM printReceiptDetailReportTable 'Продажа (по строкам чеко
     ORDER nameGroup1ReceiptDetail(i), nameGroup2ReceiptDetail(i), nameGroup3ReceiptDetail(i)
 ;
 
-printReceiptDetailReportTableXLSX 'Без группировки (XLSX)' (DATE dateFrom, DATE dateTo) = {
+printReceiptDetailReportTableXLSX 'Без группировки (XLSX)' (DATE dateFrom, DATE dateTo)  { 
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
         RETURN;

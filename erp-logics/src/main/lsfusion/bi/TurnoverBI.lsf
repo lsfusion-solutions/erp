@@ -4,14 +4,14 @@ REQUIRE BI, PurchaseLedger, SaleLedger, Pricing, Item, Druid, ReportBI, DefaultL
 
 NAMESPACE BI;
 
-overExportTurnover = ABSTRACT (DATE);
+overExportTurnover  ABSTRACT ( DATE);
 overExportTurnover = DATA LOCAL BOOLEAN ();
 
 balance = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
 balance = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 sum = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
 
-exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, DATE dTo) = {
+exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, DATE dTo)  { 
     balance(Batch b, Stock st) <- balanceA(b, st, dTo);
     balance(Sku s, Stock st) <- balanceA(s, st, dTo);
     sum(Sku s, Stock st) <- sumA(s, st, dTo);
@@ -182,7 +182,7 @@ nearestInclude(StockGroup stockGroup) = dataInclude(nearestParentInclude(stockGr
 
 include 'Вкл' (StockGroup stockGroup) = OVERRIDE dataInclude(stockGroup), nearestInclude (stockGroup);
 
-deleteIncludeStockGroups 'Сбросить отмеченные'() = {
+deleteIncludeStockGroups 'Сбросить отмеченные'()  { 
     dataInclude(StockGroup g) <- NULL;
 };
 
@@ -193,7 +193,7 @@ dataInclude 'Вкл' = DATA LOCAL BOOLEAN (Stock);
 
 include 'Вкл' (Stock stock) = (OVERRIDE dataInclude(stock), include(stockGroup(stock))) IF isCompany(stock);
 
-deleteIncludeStocks 'Сбросить отмеченные'() = {
+deleteIncludeStocks 'Сбросить отмеченные'()  { 
     dataInclude (Stock st) <- NULL;
 };
 
@@ -244,14 +244,14 @@ DESIGN dialogStockGroupsStock {
     }
 }
 
-changeIncludeStockGroupsStock() = {
+changeIncludeStockGroupsStock()  { 
     DIALOG dialogStockGroupsStock;
 }
 
 //------- Поставщики -------
 include 'Вкл' = DATA LOCAL BOOLEAN (LegalEntity);
 
-deleteIncludeLegalEntities 'Сбросить отмеченные'() = {
+deleteIncludeLegalEntities 'Сбросить отмеченные'()  { 
     include(LegalEntity l) <- NULL;
 };
 
@@ -270,7 +270,7 @@ DESIGN dialogLegalEntity {
     BOX { size = (1024, 768); }
 }
 
-changeIncludeLegalEntities() = {
+changeIncludeLegalEntities()  { 
     DIALOG dialogLegalEntity OBJECTS le INPUT DO {
         IF NOT (GROUP SUM 1 IF include(LegalEntity l)) THEN
             include(le) <- TRUE;
@@ -280,7 +280,7 @@ changeIncludeLegalEntities() = {
 //------- Брэнды -------
 include 'Вкл' = DATA LOCAL BOOLEAN (Brand);
 
-deleteIncludeBrands 'Сбросить отмеченные'() = {
+deleteIncludeBrands 'Сбросить отмеченные'()  { 
     include(Brand b) <- NULL;
 };
 
@@ -288,7 +288,7 @@ nameIncludeBrands 'Брэнд (все)' () = GROUP CONCAT TEXT((OVERRIDE name(Br
 
 commaBrandId 'Список кодов' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDTH 30;
 
-addCommaBrandId 'Добавить' () = {
+addCommaBrandId 'Добавить' ()  { 
     IF commaBrandId() THEN {
         include(Brand b) <- TRUE WHERE (GROUP SUM 1 IF isWordInCSV(id(b), replace(commaBrandId(),' ',',')) == 1);
         commaBrandId() <- NULL;
@@ -317,7 +317,7 @@ DESIGN dialogBrand {
     }
 }
 
-changeIncludeBrands() = {
+changeIncludeBrands()  { 
     DIALOG dialogBrand OBJECTS b INPUT DO {
         IF NOT (GROUP SUM 1 IF include(Brand br)) THEN
             include(b) <- TRUE;
@@ -327,7 +327,7 @@ changeIncludeBrands() = {
 //------- Производители -------
 include 'Вкл' = DATA LOCAL BOOLEAN (Manufacturer);
 
-deleteIncludeManufacturers 'Сбросить отмеченные'() = {
+deleteIncludeManufacturers 'Сбросить отмеченные'()  { 
     include(Manufacturer m) <- NULL;
 };
 
@@ -335,7 +335,7 @@ nameIncludeManufacturers 'Производитель (все)' () = GROUP CONCAT
 
 commaManufacturerId 'Список кодов' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDTH 30;
 
-addCommaManufacturerId 'Добавить' () = {
+addCommaManufacturerId 'Добавить' ()  { 
     IF commaManufacturerId() THEN {
         include(Manufacturer m) <- TRUE WHERE (GROUP SUM 1 IF isWordInCSV(id(m), replace(commaManufacturerId(),' ',',')) == 1);
         commaManufacturerId() <- NULL;
@@ -355,7 +355,7 @@ DESIGN dialogManufacturer {
     BOX { size = (1024, 768); }
 }
 
-changeIncludeManufacturers() = {
+changeIncludeManufacturers()  { 
     DIALOG dialogManufacturer OBJECTS m INPUT DO {
         IF NOT (GROUP SUM 1 IF include(Manufacturer mr)) THEN
             include(m) <- TRUE;
@@ -365,7 +365,7 @@ changeIncludeManufacturers() = {
 //------- Производители -------
 include 'Вкл' = DATA LOCAL BOOLEAN (Country);
 
-deleteIncludeCountries 'Сбросить отмеченные'() = {
+deleteIncludeCountries 'Сбросить отмеченные'()  { 
     include(Country c) <- NULL;
 };
 
@@ -373,7 +373,7 @@ nameIncludeCountries 'Страны (все)' () = GROUP CONCAT TEXT((OVERRIDE na
 
 commaCountryId 'Список кодов' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDTH 30;
 
-addCommaCountryId 'Добавить' () = {
+addCommaCountryId 'Добавить' ()  { 
     IF commaCountryId() THEN {
         include(Country c) <- TRUE WHERE (GROUP SUM 1 IF isWordInCSV(sid(c), replace(commaCountryId(),' ',',')) == 1);
         commaCountryId() <- NULL;
@@ -393,7 +393,7 @@ DESIGN dialogCountry {
     BOX { size = (1024, 768); }
 }
 
-changeIncludeCountries() = {
+changeIncludeCountries()  { 
     DIALOG dialogCountry OBJECTS c INPUT DO {
         IF NOT (GROUP SUM 1 IF include(Country cr)) THEN
             include(c) <- TRUE;
@@ -410,7 +410,7 @@ nearestInclude(SkuGroup skuGroup) = dataInclude(nearestParentInclude (skuGroup))
 
 include 'Вкл' (SkuGroup skuGroup) = OVERRIDE dataInclude(skuGroup), nearestInclude(skuGroup);
 
-deleteIncludeSkuGroups 'Сбросить отмеченные'() = {
+deleteIncludeSkuGroups 'Сбросить отмеченные'()  { 
     dataInclude(SkuGroup g) <- NULL;
 };
 
@@ -427,7 +427,7 @@ includeSkuGroup (Sku sku) = TRUE IF (GROUP MAX 1 IF include(SkuGroup g) AND isPa
 
 include 'Вкл' (Sku sku) = OVERRIDE dataInclude(sku), includeSkuGroup(sku);
 
-deleteIncludeSkus 'Сбросить отмеченные'() = {
+deleteIncludeSkus 'Сбросить отмеченные'()  { 
     dataInclude(Sku b) <- NULL;
 };
 
@@ -436,7 +436,7 @@ nameIncludeBarcodes 'ШК (все)' = GROUP CONCAT TEXT(idBarcode(Sku sku)) IF d
 
 commaBarcodeId 'Список ШК' = DATA LOCAL VARISTRING[4000]() FIXEDCHARWIDTH 30;
 
-addCommaBarcodeId 'Добавить' () = {
+addCommaBarcodeId 'Добавить' ()  { 
     IF commaBarcodeId() THEN {
         dataInclude(Sku sku) <- TRUE WHERE [=GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(commaBarcodeId(),' ',',')) == 1 BY sku(barcode)](sku);
         commaBarcodeId() <- NULL;
@@ -480,10 +480,10 @@ DESIGN dialogSku {
     }
 }
 
-changeIncludeSkus() = {
+changeIncludeSkus()  { 
     DIALOG dialogSku;
 }
-changeIncludeBarcodes() = {
+changeIncludeBarcodes()  { 
     INPUT s = VARISTRING[4000] DO {
         dataInclude(Sku sku) <- TRUE IF [=GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(s,' ',',')) == 1 BY sku(barcode)](sku);
     }
@@ -518,9 +518,9 @@ values() = (IF overIsOut() AND isQuantity() THEN 'SUM(quantitySold)' ELSE '\'\''
                             + (IF isDaysOnStock() THEN 'COUNT(DISTINCT __time)' ELSE '\'\'') + ' AS daysOnStock, '
                             + (OVERRIDE extraQuery(),'\'\'') + ' AS extra, ';
 
-overFillTurnoverReport = ABSTRACT LIST (DATE, DATE);
+overFillTurnoverReport  ABSTRACT LIST ( DATE, DATE);
 
-fillTurnoverReport (DATE dateFrom, DATE dateTo) = {
+fillTurnoverReport (DATE dateFrom, DATE dateTo)  { 
     nameGroup1Turnover(INTEGER i) <- NULL;
     nameGroup2Turnover(INTEGER i) <- NULL;
     nameGroup3Turnover(INTEGER i) <- NULL;
@@ -710,7 +710,7 @@ FORM printTurnoverReport 'Оборачиваемость'
     ORDER nameGroup1Turnover(i), nameGroup2Turnover(i), nameGroup3Turnover(i), barcodeSku(i)
 ;
 
-printTurnoverReportXLSX 'С группировкой (XLSX)' (DATE dateFrom, DATE dateTo) = {
+printTurnoverReportXLSX 'С группировкой (XLSX)' (DATE dateFrom, DATE dateTo)  { 
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
         RETURN;
@@ -761,7 +761,7 @@ FORM printTurnoverReportTable 'Оборачиваемость'
     ORDER nameGroup1Turnover(i), nameGroup2Turnover(i), nameGroup3Turnover(i), barcodeSku(i)
 ;
 
-printTurnoverReportTableXLSX 'Без группировки (XLSX)' (DATE dateFrom, DATE dateTo) = {
+printTurnoverReportTableXLSX 'Без группировки (XLSX)' (DATE dateFrom, DATE dateTo)  { 
     IF countGroup() == 0 THEN {
         MESSAGE 'Не задана группировка';
         RETURN;
@@ -836,7 +836,7 @@ DESIGN turnoverReport {
 }
 
 META defineSelectFromXls (in, class)
-    set###in###class##Xls 'Отметка из xls' () = {
+    set###in###class##Xls 'Отметка из xls' ()  { 
     
         LOCAL barcode = VARSTRING[13](INTEGER);
         

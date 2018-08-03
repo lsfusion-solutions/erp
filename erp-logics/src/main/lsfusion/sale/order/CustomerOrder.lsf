@@ -59,7 +59,7 @@ in(customer(o), customerStock(o))
 @defineAddDetailDialogBarcode(customerOrder, sku);
 
 disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (CustomerOrder); 
-overPrePost 'Провести' (CustomerOrder o) = {
+overPrePost 'Провести' (CustomerOrder o)  { 
     IF NOT disablePosted(o) THEN {
         isPosted(o) <- TRUE;
     } 
@@ -321,7 +321,7 @@ CONSTRAINT customer(CustomerOrder o) AND NOT isCustomer(customer(o))
 
 //---------------------- Проведение по регистру ------------------------//
 
-edit(CustomerOrderDetail d) += { DIALOG customerOrder OBJECTS o = customerOrder(d), d = d DOCKED; }
+edit(CustomerOrderDetail d) + {  DIALOG customerOrder OBJECTS o = customerOrder(d), d = d DOCKED; }
 
 //orderedOrderDetail 'Израсходовано' (CustomerOrderDetail pd) = GROUP
 //    SUM quantity(Sale.OrderDetail d) 
@@ -349,7 +349,7 @@ viewPrice 'Цена'  = DATA LOCAL NESTED NUMERIC[16,4] (Sku, Stock, CustomerOrd
 
 price 'Цена' (Sku sku, Stock stock, CustomerOrder o) = viewPrice(sku, stock, o);
 
-updateViewPrice = ABSTRACT LIST (Sku, Stock , CustomerOrder );
+updateViewPrice  ABSTRACT LIST ( Sku, Stock , CustomerOrder );
 
 @extendFormDocumentSkuStock(customerOrder, customerOrder, o, supplier, supplier);
 
@@ -362,7 +362,7 @@ EXTEND FORM customerOrder
 
 
 currentCustomerOrderCustomerOrder() = DATA LOCAL NESTED Object ();
-setCurrentCustomerOrderCustomerOrder(Object o) = { currentCustomerOrderCustomerOrder() <- o; }
+setCurrentCustomerOrderCustomerOrder(Object o)  { currentCustomerOrderCustomerOrder() <- o; }
 EXTEND FORM customerOrder
     EVENTS ON CHANGE o setCurrentCustomerOrderCustomerOrder(o)
 ;
@@ -393,8 +393,8 @@ packQuantity(CustomerOrderDetail d) <- quantity(d) / (amountPack(d) IF amountPac
     WHEN CHANGED(quantity(d)) OR CHANGED(amountPack(d));
 
 // Объявляем действия по изменению количества в упаковке и количества упаковок
-overChangeAmountPackUser = ABSTRACT LIST (CustomerOrderDetail, NUMERIC[14,3]); 
-changeAmountPackUser(CustomerOrderDetail customerOrderDetail) = {
+overChangeAmountPackUser  ABSTRACT LIST ( CustomerOrderDetail, NUMERIC[14,3]); 
+changeAmountPackUser(CustomerOrderDetail customerOrderDetail)  { 
     INPUT n = NUMERIC[14,3] DO {
         amountPack(customerOrderDetail) <- n;
         IF NOT skipChangeQuantity(customerOrderDetail) THEN {
@@ -404,7 +404,7 @@ changeAmountPackUser(CustomerOrderDetail customerOrderDetail) = {
     }
 }
 
-changePackQuantity(CustomerOrderDetail customerOrderDetail) = {
+changePackQuantity(CustomerOrderDetail customerOrderDetail)  { 
     INPUT n = NUMERIC[16,5] DO {
         packQuantity(customerOrderDetail) <- n;
         IF NOT skipChangeQuantity(customerOrderDetail) THEN {
@@ -437,7 +437,7 @@ DESIGN customerOrder {
 @defineDocumentPackSkuStock(customerOrder, sku, supplier);
 @extendFormDocumentPackSkuStock(customerOrder, customerOrder, o, supplier);
 
-overChangeQuantityValueSku(CustomerOrderDetail detail) += {
+overChangeQuantityValueSku(CustomerOrderDetail detail) + { 
     IF packBarcode(sku(detail)) AND NOT skipChangePackQuantity(detail) THEN {
         packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }

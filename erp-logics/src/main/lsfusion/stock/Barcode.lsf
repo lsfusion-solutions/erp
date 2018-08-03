@@ -104,13 +104,13 @@ idSkuBarcode (VARSTRING[15] id) = id(skuBarcode(id));
 dataBarcode = DATA Barcode (Sku);
 CONSTRAINT sku(dataBarcode(Sku item)) != item CHECKED BY dataBarcode[Sku] MESSAGE 'Выбран неверный sku для штрихкода';
 
-replace(Sku s, Sku d) += {sku(Barcode barcode) <- d WHERE sku(barcode) == s;}
+replace(Sku s, Sku d) + { sku(Barcode barcode) <- d WHERE sku(barcode) == s;}
 
 barcode(Sku sku) = OVERRIDE dataBarcode(sku) IF active(dataBarcode(sku)), [= GROUP MIN Barcode barcode IF id(barcode) AND amount(barcode) == 1.0 AND active(barcode)
                         BY sku(barcode)](sku) MATERIALIZED INDEXED;
 
 primary 'Основной' (Barcode barcode) = barcode(sku(barcode)) == barcode;
-changePrimary(Barcode barcode, Sku sku) = {
+changePrimary(Barcode barcode, Sku sku)  { 
     INPUT b = BOOLEAN DO
         IF b THEN
             dataBarcode(sku) <- barcode;
@@ -131,7 +131,7 @@ UOM = OVERRIDE dataUOM(Barcode barcode), UOM(sku(barcode)) MATERIALIZED;
 shortNameUOM 'Единица измерения' (Barcode barcode) = shortName(UOM(barcode));
 idUOM 'Код единицы измерения' (Barcode barcode) = id(UOM(barcode));
 
-changeBarcode(Sku sku) = {
+changeBarcode(Sku sku)  { 
     INPUT s = VARSTRING[15] DO
         IF s THEN { 
             IF barcode(sku) THEN {
@@ -163,9 +163,9 @@ expiryDate 'Годен до' (Barcode barcode, Stock stock) = lastExpiryDate(sku
 // Генерация штрихкодов
 
 barcodeNumerator = ABSTRACT Numerator (Sku);
-overGenerateBarcode = ABSTRACT LIST (Sku);
+overGenerateBarcode  ABSTRACT LIST ( Sku);
 
-generateBarcode 'Сгенерировать штрихкод'(Sku sku) = {
+generateBarcode 'Сгенерировать штрихкод'(Sku sku)  { 
     NEW b = Barcode {
         sku(b) <- sku;
         incrementValue(barcodeNumerator(sku));
@@ -191,7 +191,7 @@ processedBarcode (VARSTRING[15] b) = OVERRIDE overPreprocessedBarcode(b), b AS V
 // ----------------------------------- Форма по вводу штрихкода ---------------------------- //
 
 barcodeInput 'Штрихкод' = DATA LOCAL VARSTRING[15] () EVENTID 'SCANNER';
-changeBarcodeInput() = {
+changeBarcodeInput()  { 
     INPUT s = VARSTRING[15] DO {
         barcodeInput() <- processedBarcode(s);
         formOk();
@@ -215,10 +215,10 @@ DESIGN barcodeInput {
 
 sessionSku = DATA LOCAL Sku();
 
-createSkuBarcode = ABSTRACT LIST (VARSTRING[15], DATE);
+createSkuBarcode  ABSTRACT LIST ( VARSTRING[15], DATE);
 
 skuAdded = DATA Sku(User);
-setAddedUser(Sku sku) = {
+setAddedUser(Sku sku)  { 
 	NEWSESSION {
 	    skuAdded(User u) <- sku WHERE u == currentUser();
 	    apply();
@@ -248,7 +248,7 @@ DESIGN options {
 META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuProp)
     idetail(object, sku) = GROUP MAX (###idetail detail) BY object(detail), skuProp(detail);
 
-create###idetail##New (###object object, VARSTRING[15] barcode, Sku skuProp) = {
+create###idetail##New (###object object, VARSTRING[15] barcode, Sku skuProp)  { 
     LOCAL dialogBarcodeDetail = idetailClass();
     dialogBarcodeDetail() <- idetail(object, skuProp);
     IF dialogBarcodeDetail() IS idetailClass THEN {
@@ -267,7 +267,7 @@ create###idetail##New (###object object, VARSTRING[15] barcode, Sku skuProp) = {
     setAddedUser(skuProp);
 }
 
-    addDetailBarcode###idetail(###object object, VARSTRING[15] barcode) = {
+    addDetailBarcode###idetail(###object object, VARSTRING[15] barcode)  { 
         LOCAL dialogBarcode###skuProp = Sku ();
         dialogBarcode###skuProp() <- skuProp##Barcode(barcode, date(object));
 
@@ -301,12 +301,12 @@ create###idetail##New (###object object, VARSTRING[15] barcode, Sku skuProp) = {
         }
     }
 
-    addDetailDialogBarcode###idetail 'Ввод штрихкода'(###object object) = {
+    addDetailDialogBarcode###idetail 'Ввод штрихкода'(###object object)  { 
         DIALOG barcodeInput DO
             addDetailBarcode###idetail(object, barcodeInput());
     } TOOLBAR CHANGEKEY 'F4';
 
-    changeAddDetailInputBarcode###idetail(###object object) = {
+    changeAddDetailInputBarcode###idetail(###object object)  { 
         INPUT s = VARSTRING[15] DO
             addDetailBarcode###idetail(object, processedBarcode(s));
     };
@@ -321,7 +321,7 @@ END
 // ----------------------------------- Расширение подбора товаров ---------------------------- //
 
 seekBarcode 'Штрихкод' = DATA LOCAL VARSTRING[15] ();
-seekSkuBarcode() = {
+seekSkuBarcode()  { 
     INPUT s = VARSTRING[15] DO {
         seekBarcode() <- NULL;
         seekBarcode() <- s;
@@ -497,10 +497,10 @@ DESIGN barcodeSku {
     }
 }
 
-showBarcode'Показать штрихкоды' (Sku sku) = { SHOW barcodeSku OBJECTS s = sku; }  ASON CONTEXTMENU idBarcode[Sku];
+showBarcode'Показать штрихкоды' (Sku sku)  { SHOW barcodeSku OBJECTS s = sku; }  ASON CONTEXTMENU idBarcode[Sku];
 
 META defineBarcodeSku(detail)
-    showBarcodeSku 'Показать штрихкоды' (###detail detail) = {
+    showBarcodeSku 'Показать штрихкоды' (###detail detail)  { 
         FOR s == sku(detail) DO
             SHOW barcodeSku OBJECTS s = s; }  
     ASON CONTEXTMENU idBarcodeSku[###detail];

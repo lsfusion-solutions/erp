@@ -30,7 +30,7 @@ overNumber = ABSTRACT VARSTRING[28](Picking);
 @defineDocumentInterfaceDetailQuantity(picking);
 @showDocumentInterfaceDetailBatch(picking);
 @defineDocumentInterfaceDetailBatch(picking, batch);
-replace(Sku s, Batch b) += { sku(UserPickingDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) + {  sku(UserPickingDetail detail) <- s WHERE batch(detail) == b;}
 
 @defineDocumentInterfaceHeaderQuantity(picking);
 
@@ -61,7 +61,7 @@ replace(Sku s, Batch b) += { sku(UserPickingDetail detail) <- s WHERE batch(deta
 @defineInfoSku(pickingDetail); //-- показываем по нажатию правой клавиши информацию по товару
 @defineInfoSku(userPickingDetail); //-- показываем по нажатию правой клавиши информацию по товару
 
-changeBatch(UserPickingDetail detail) = {
+changeBatch(UserPickingDetail detail)  { 
     DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
                                   t = dateTime(detail),
                                   sk = sku(detail),
@@ -75,7 +75,7 @@ packQuantity(UserPicking picking) += packQuantity(picking);
 
 // --------------------------- Формы Заказа ---------------------------------
 
-editSku 'Редактировать SKU' (UserPickingDetail d) = { NEWSESSION { edit(sku(d)); } }
+editSku 'Редактировать SKU' (UserPickingDetail d)  { NEWSESSION { edit(sku(d)); } }
 FORM userPicking 'Комплектация'
     OBJECTS o = UserPicking PANEL
     PROPERTIES (o) nameStock,// ON CHANGE changeCustomerStock###customerFilter###userPicking(o),
@@ -152,8 +152,8 @@ DESIGN userPicking {
 
 
 
-overCopy = ABSTRACT LIST (UserPickingDetail, PickingDetail);
-copy 'Копировать'(Picking picking) = {
+overCopy  ABSTRACT LIST ( UserPickingDetail, PickingDetail);
+copy 'Копировать'(Picking picking)  { 
 	NEWSESSION {
 	    NEW o = UserPicking {
 	
@@ -287,10 +287,10 @@ pickings 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255]
 //                                         IN order
                                          CHARWIDTH 30 MATERIALIZED;
 
-overFillUserPicking = ABSTRACT LIST (UserPickingDetail, PickingOrderDetail);
-overFillUserPicking = ABSTRACT LIST (UserPicking);
+overFillUserPicking  ABSTRACT LIST ( UserPickingDetail, PickingOrderDetail);
+overFillUserPicking  ABSTRACT LIST ( UserPicking);
 
-moveUserPicking 'Комплектация'(PickingOrder pickingOrder) = {
+moveUserPicking 'Комплектация'(PickingOrder pickingOrder)  { 
 	NEWSESSION {
 	    NEW p = UserPicking {
 	        pickingOrder(p) <- pickingOrder;
@@ -337,7 +337,7 @@ FORM pickingsOrderPickings 'Заказы на комплектацию'
     FILTERS pickingOrder(d) == o,
             stock(o) == s
 ;
-fillUserPickingOrder 'Заполнить на основании заказа на комплектацию'(UserPicking userPicking) = {
+fillUserPickingOrder 'Заполнить на основании заказа на комплектацию'(UserPicking userPicking)  { 
     DIALOG pickingsOrderPickings OBJECTS s = stock(userPicking), o INPUT DO {
         pickingOrder(userPicking) <- o;
 
@@ -422,7 +422,7 @@ backgroundStatusPicking 'Цвет' (PickingOrder order) =  CASE
 status 'Статус' = statusPicking(pickingOrder(Picking picking));
 backgroundStatus = backgroundStatusPicking(pickingOrder(Picking picking));
 
-accept 'Принять'(PickingOrder pickingOrder) = {
+accept 'Принять'(PickingOrder pickingOrder)  { 
 	NEWSESSION {
 	    accepted(pickingOrder) <- TRUE;
 	    performer(pickingOrder) <- currentUser();
@@ -432,7 +432,7 @@ accept 'Принять'(PickingOrder pickingOrder) = {
 	
 	}
 } TOOLBAR CHANGEKEY 'ctrl ENTER';
-unaccept 'Отменить'(PickingOrder pickingOrder) = {
+unaccept 'Отменить'(PickingOrder pickingOrder)  { 
 	NEWSESSION {
 	    accepted(pickingOrder) <- NULL;
 	    performer(pickingOrder) <- NULL;
@@ -459,7 +459,7 @@ DESIGN packQuantity {
     }
 }
 
-fullyAssembled 'Собран полностью'(PickingOrder pickingOrder) = {
+fullyAssembled 'Собран полностью'(PickingOrder pickingOrder)  { 
 	NEWSESSION {
 	    DIALOG packQuantity OBJECTS n INPUT DO {
 	        finishDate(pickingOrder) <- currentDate();
@@ -482,7 +482,7 @@ fullyAssembled 'Собран полностью'(PickingOrder pickingOrder) = {
 	}
 } TOOLBAR CHANGEKEY 'F10';
 
-partiallyAssembled 'Собран частично'(PickingOrder pickingOrder) = {
+partiallyAssembled 'Собран частично'(PickingOrder pickingOrder)  { 
 	NEWSESSION{
 	    DIALOG packQuantity OBJECTS n INPUT DO {
 	        finishDate(pickingOrder) <- currentDate();
@@ -550,7 +550,7 @@ FORM printPickingOrder 'Заказ на комплектацию'
     FILTERS pickingOrder(d) == o
 ;
 
-print 'Заказ на комплектацию' (PickingOrder order) = { PRINT printPickingOrder OBJECTS o = order; }  IMAGE 'print.png' IN print;
+print 'Заказ на комплектацию' (PickingOrder order)  { PRINT printPickingOrder OBJECTS o = order; }  IMAGE 'print.png' IN print;
 
 EXTEND FORM pickingOrders
     PROPERTIES(o)  print

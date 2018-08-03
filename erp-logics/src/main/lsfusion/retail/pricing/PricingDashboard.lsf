@@ -19,15 +19,15 @@ DESIGN options {
     }
 }
 
-calculateDashboardRepricing 'По надбавкам и прайсам'(DepartmentStore d, Operation o, DATETIME dt) = {
+calculateDashboardRepricing 'По надбавкам и прайсам'(DepartmentStore d, Operation o, DATETIME dt)  { 
     calculateDashboardRepricing(d, (OVERRIDE pricingCalcPriceListType(o), retailCalcPriceListType(d)), (OVERRIDE pricingPriceListType(o), retailPriceListType(d)), dt);
 } TOOLBAR;
 
-calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, Operation o, DATETIME dt) = {
+calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, Operation o, DATETIME dt)  { 
     calculateDashboardManagementRepricing(d, (OVERRIDE pricingPriceListType(o), retailPriceListType(d)), dt);
 }
 
-calculateDashboardManagementRepricingForm 'По прайсам'(DepartmentStore d, Operation o, DATETIME dt) = {
+calculateDashboardManagementRepricingForm 'По прайсам'(DepartmentStore d, Operation o, DATETIME dt)  { 
     calculateDashboardManagementRepricing(d, o, dt);
     formRefresh();
 } TOOLBAR;
@@ -37,7 +37,7 @@ calculateDashboardManagementRepricingForm 'По прайсам'(DepartmentStore 
 repForm =  DATA LOCAL UserPricing();  
 
 createDashboardRepricing 'Создать расценку' = DATA LOCAL NESTED BOOLEAN (Sku);
-createDashboardRepricingNotForm 'Создать расценку'(Stock d, Operation o, DATETIME dt) = {
+createDashboardRepricingNotForm 'Создать расценку'(Stock d, Operation o, DATETIME dt)  { 
     IF (GROUP SUM 1 IF createDashboardRepricing(Sku sku)) THEN {
         NEW r = UserPricing {
             departmentStore(r) <- d;
@@ -57,9 +57,9 @@ createDashboardRepricingNotForm 'Создать расценку'(Stock d, Opera
     }
 } TOOLBAR;
 
-checkFormFilter = ABSTRACT ();
+checkFormFilter  ABSTRACT ( );
 
-createRepricingAll 'Создать расценки по всем магазинам'() = {
+createRepricingAll 'Создать расценки по всем магазинам'()  { 
 	NEWSESSION {
 	    FOR (DepartmentStore d IS DepartmentStore) DO {
 	        calculateDashboardManagementRepricing(d, defaultPricingOperation(), currentDateTime());
@@ -163,7 +163,7 @@ DESIGN pricingDashboard {
 
 // Проставляем операцию по умолчанию
 
-createDashboardRepricing 'Создать расценку'(Stock d, Operation o, DATETIME dt) = {
+createDashboardRepricing 'Создать расценку'(Stock d, Operation o, DATETIME dt)  { 
     createDashboardRepricing(Sku sku) <- inDashboardRepricing(sku) AND [= FILTER pricingDashboard.sk](sku);
 	
 	NEWSESSION NESTED LOCAL  {
@@ -175,7 +175,7 @@ createDashboardRepricing 'Создать расценку'(Stock d, Operation o,
 	}
 }  
 
-seekDefaultOperation () = {
+seekDefaultOperation ()  { 
     IF defaultPricingOperation() THEN
         SEEK pricingDashboard.o = defaultPricingOperation();
 }

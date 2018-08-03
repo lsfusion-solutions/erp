@@ -7,7 +7,7 @@ NAMESPACE Purchase;
 contractSku = DATA ContractSku(ServiceStatusDetail);// NONULL;
 descriptionContractSku 'Договор' (ServiceStatusDetail d) = description(contractSku(d)) IN recognize;
 
-replace(ContractSku c, ContractSku o) += {contractSku(ServiceStatusDetail object) <- o WHERE contractSku(object) == c;}
+replace(ContractSku c, ContractSku o) + { contractSku(ServiceStatusDetail object) <- o WHERE contractSku(object) == c;}
 
 CONSTRAINT legalEntity(ServiceStatusDetail d) AND contractSku(d) AND NOT supplier(contractSku(d)) == legalEntity(d)
     MESSAGE 'Поставщик "Статус качества" не соответствует поставщику договора';
@@ -49,8 +49,8 @@ sumService (contract, DATE dateFrom, DATE dateTo)= GROUP SUM sumOrderDetail(Orde
 percentSumExecutionService '% исп. заявки (сумма)' (ContractSku c, DATE dateFrom, DATE dateTo) = sumShippedService(c, dateFrom, dateTo)*100.00 /
     (sumService(c, dateFrom, dateTo) IF sumService(c, dateFrom, dateTo)!=0);   
 
-overCreateServiceStatusDetailContract = ABSTRACT LIST ();
-extraCreateServiceStatusDetail  (DATE dFrom, DATE dTo) += {
+overCreateServiceStatusDetailContract  ABSTRACT LIST ( );
+extraCreateServiceStatusDetail  (DATE dFrom, DATE dTo) + { 
 
     isChange(ContractSku c) <- NULL;
     
@@ -98,11 +98,11 @@ extraCreateServiceStatusDetail  (DATE dFrom, DATE dTo) += {
     overCreateServiceStatusDetailContract();	
 }
 
-//createServiceStatusDetailContract() = {
+//createServiceStatusDetailContract()  { 
 //    createServiceStatusDetailContract(firstDayOfMonth(sumMonth (currentDate(), -1)), lastDayOfMonth(sumMonth (currentDate(), -1)));
 //};
 
-changeServiceStatusContract (ContractSku c) = {
+changeServiceStatusContract (ContractSku c)  { 
     NEWSESSION {
         IF NOT notCalcServiceStatus(supplier(c)) THEN {
             DIALOG serviceStatus OBJECTS t INPUT DO {

@@ -85,7 +85,7 @@ WHEN LOCAL FORMS userInvoice
      AND NOT skipSetRetailPriceListType(detail) DO
      retailPriceListType(detail) <- OVERRIDE extraCalcRetailCalcPriceListType(detail), calcRetailCalcPriceListType(detail);     
 
-edit (InvoicePricingDetail d)+= { edit(invoiceDetail(d)); }
+edit (InvoicePricingDetail d)+ {  edit(invoiceDetail(d)); }
 
 retailPriceListType(InvoicePricingDetail pricingDetail) += retailPriceListType(invoiceDetail(pricingDetail));
 
@@ -143,7 +143,7 @@ EXTEND FORM invoices PROPERTIES(d) SHOWIF createPricing[UserInvoice](i) BACKGROU
 @deriveDocumentDetailBatchOnSessionPriceListType(UserInvoiceDetail, retail, pricing, retailStock, userInvoice, pricing);
 @recalculateDocumentDetailBatchOnSessionPriceListType (UserInvoiceDetail, retail, pricing, retailStock, userInvoice, pricing, '', pd);
 
-recalculateRetailPriceAndType 'Пересчитать вид цен и розничную цену' () = {
+recalculateRetailPriceAndType 'Пересчитать вид цен и розничную цену' ()  { 
     FOR sku(UserInvoiceDetail detail) AND PriceListType pt == calcRetailPriceListType(detail)
         AND NOT skipSetRetailPriceListType(detail) 
         AND [= FILTER userInvoice.pd](detail) NOINLINE (pt) INLINE DO {
@@ -189,7 +189,7 @@ EXTEND FORM userInvoice
 ;
 
 // Копирование документа
-overCopy(UserInvoice s, UserInvoice d) += {
+overCopy(UserInvoice s, UserInvoice d) + { 
     createPricing(d) <- createPricing(s);
     pricingOperation(d) <- pricingOperation(s);
     calcRetailPriceListType(d) <- calcRetailPriceListType(s);

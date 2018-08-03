@@ -40,9 +40,9 @@ backgroundCountVATCustomsException 'Цвет' (Country country,Sku item) = RGB(2
 // todo : workaround, так как нельзя в сессионных событиях обращаться к форме
 dateArticleCustomsAttributesDashboard 'Дата' = DATA DATE (User);
 dateArticleCustomsAttributesDashboard 'Дата' () = dateArticleCustomsAttributesDashboard(currentUser());
-setDateArticleCustomsAttributesDashboard() = { dateArticleCustomsAttributesDashboard(User u) <- currentDate() WHERE u == currentUser(); }
+setDateArticleCustomsAttributesDashboard()  { dateArticleCustomsAttributesDashboard(User u) <- currentDate() WHERE u == currentUser(); }
 
-changeDateArticleCustomsAttributesDashboard() = {
+changeDateArticleCustomsAttributesDashboard()  { 
     INPUT d = DATE DO
         dateArticleCustomsAttributesDashboard(User u) <- d WHERE u == currentUser();
 }
@@ -173,7 +173,7 @@ DESIGN articleCustomsAttributesDashboard {
 }
 
 // -- Проставляем страну по умолчанию
-seekDefaultCountryArticleCustomsAttributesDashboard() = {
+seekDefaultCountryArticleCustomsAttributesDashboard()  { 
     IF defaultCountry() THEN {
         SEEK articleCustomsAttributesDashboard.c = defaultCountry();
     }
@@ -183,7 +183,7 @@ EXTEND FORM articleCustomsAttributesDashboard
 ;
 
 
-completeArticleCustomsAttributesDashboard 'Подтвердить все'(Country country) = {   
+completeArticleCustomsAttributesDashboard 'Подтвердить все'(Country country)  {   
     LOCAL k = INTEGER ();
     k() <- 0;
     
@@ -238,13 +238,13 @@ defaultVATCustomsException (Country country, Item item, DATE date) =
               (surelySizeHips(customsGroup(exception)) AND toInteger(sizeHipsCustoms(item)) > limitSizeHips(exception)) AND NOT
               (surelySizeWaist(customsGroup(exception)) AND toInteger(sizeWaistCustoms(item)) > limitSizeWaist(exception));
 
-fillDefaultVATCustomsException 'Рассчитать льготу'(Country country, Item item) = {
+fillDefaultVATCustomsException 'Рассчитать льготу'(Country country, Item item)  { 
     VATCustomsException(country, item) <- defaultVATCustomsException (country, item, dateArticleCustomsAttributesDashboard())
         WHERE defaultVATCustomsException (country, item, dateArticleCustomsAttributesDashboard());
 
 } ASON CONTEXTMENU nameVATCustomsException[Country,Item];
 
-fillDefaultVATCustomsException 'Рассчитать льготу для всех'(Country country) = {
+fillDefaultVATCustomsException 'Рассчитать льготу для всех'(Country country)  { 
     FOR [= FILTER articleCustomsAttributesDashboard.i](Item item) DO {
         fillDefaultVATCustomsException(country, item);
     }
@@ -263,24 +263,24 @@ countDefaultShortVATCustomsException (Country country, Item item, DATE date) =
               dateFrom(exception) <= date AND NOT
               dateTo(exception) < date;
           
-fillDefaultShortVATCustomsException 'Установить льготу'(Country country, Item item) = {
+fillDefaultShortVATCustomsException 'Установить льготу'(Country country, Item item)  { 
     VATCustomsException(country, item) <- defaultShortVATCustomsException (country, item, dateArticleCustomsAttributesDashboard())
         WHERE defaultShortVATCustomsException (country, item, dateArticleCustomsAttributesDashboard()) AND countDefaultShortVATCustomsException(country, item, dateArticleCustomsAttributesDashboard())==1;
 
 } ASON CONTEXTMENU nameVATCustomsException[Country,Item];
 
-fillDefaultShortVATCustomsException 'Установить льготу для всех'(Country country) = {
+fillDefaultShortVATCustomsException 'Установить льготу для всех'(Country country)  { 
     FOR [= FILTER articleCustomsAttributesDashboard.i](Item item) DO {
         fillDefaultShortVATCustomsException(country, item);
     }
 } ASON CONTEXTMENU nameVATCustomsException[Country,Item];           
           
 // -- Заполнение по матрице
-inMapC () = {
+inMapC ()  { 
     inMap(Item i) <- [= FILTER articleCustomsAttributesDashboard.i](i);
 }
 
-mapCustomsAttributesItem 'Заполнить атрибуты для всех по соответствию'() = {
+mapCustomsAttributesItem 'Заполнить атрибуты для всех по соответствию'()  { 
     inMapC();
     mapExSize();
     mapSizeHeightCustoms();
@@ -297,7 +297,7 @@ mapCustomsAttributesItem 'Заполнить атрибуты для всех п
 EXTEND FORM articleCustomsAttributesDashboard
     PROPERTIES mapCustomsAttributesItem() TODRAW i;
 
-mapAllExSizeItem 'Заполнить размер (бел) для всех по соответствию'() = {
+mapAllExSizeItem 'Заполнить размер (бел) для всех по соответствию'()  { 
     inMapC();
     mapExSize();
 };
@@ -310,39 +310,39 @@ DESIGN articleCustomsAttributesDashboard {
     PROPERTY(exSize(i)) { charWidth = 3;} 
 }
 
-mapAllSizeHeightItem 'Заполнить рост для всех по соответствию'() = {
+mapAllSizeHeightItem 'Заполнить рост для всех по соответствию'()  { 
     inMapC();
     mapSizeHeightCustoms();
 } ASON CONTEXTMENU nameSizeHeightCustoms[Item];
-mapAllSizeChestItem 'Заполнить обхват груди для всех по соответствию'() = {
+mapAllSizeChestItem 'Заполнить обхват груди для всех по соответствию'()  { 
     inMapC();
     mapSizeChestCustoms();
 } ASON CONTEXTMENU sizeChestCustoms[Item];
-mapAllSizeNeckItem 'Заполнить обхват шеи для всех по соответствию'() = {
+mapAllSizeNeckItem 'Заполнить обхват шеи для всех по соответствию'()  { 
     inMapC();   
     mapSizeNeckCustoms();
 } ASON CONTEXTMENU sizeNeckCustoms[Item];
-mapAllFootLengthItem 'Заполнить длину стопы для всех по соответствию'() = {
+mapAllFootLengthItem 'Заполнить длину стопы для всех по соответствию'()  { 
     inMapC();
     mapFootLengthCustoms();
 } ASON CONTEXTMENU footLengthCustoms[Item];
-mapAllInsoleLengthItem 'Заполнить длину стельки для всех по соответствию'() = {
+mapAllInsoleLengthItem 'Заполнить длину стельки для всех по соответствию'()  { 
     inMapC();
     mapInsoleLengthCustoms();
 } ASON CONTEXTMENU insoleLengthCustoms[Item];
-mapAllSizeHeadItem 'Заполнить обхват головы для всех по соответствию'() = {
+mapAllSizeHeadItem 'Заполнить обхват головы для всех по соответствию'()  { 
     inMapC();
     mapSizeHeadCustoms();
 } ASON CONTEXTMENU sizeHeadCustoms[Item];
-mapAllSizeBrushItem 'Заполнить обхват кисти для всех по соответствию'() = {
+mapAllSizeBrushItem 'Заполнить обхват кисти для всех по соответствию'()  { 
     inMapC();
     mapSizeBrushCustoms();
 } ASON CONTEXTMENU sizeBrushCustoms[Item];
-mapAllSizeHipsItem 'Заполнить обхват бедер для всех по соответствию'() = {
+mapAllSizeHipsItem 'Заполнить обхват бедер для всех по соответствию'()  { 
     inMapC();
     mapSizeHipsCustoms();
 } ASON CONTEXTMENU sizeHipsCustoms[Item];
-mapAllSizeWaistItem 'Заполнить обхват талии для всех по соответствию'() = {
+mapAllSizeWaistItem 'Заполнить обхват талии для всех по соответствию'()  { 
     inMapC();
     mapSizeWaistCustoms();
 } ASON CONTEXTMENU sizeWaistCustoms[Item];

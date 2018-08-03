@@ -55,7 +55,7 @@ zScore 'Z-оценка' (Sku sk) = safetyCoeff(skuGroup(sk));
 lastYearCurrent = DATE(sumYear(currentDate(),-1));
 skipCoeffSeason = ABSTRACT BOOLEAN (Stock);
 
-calcQuantitySoldInterval 'Рассчитать однодневные продажи'() = {
+calcQuantitySoldInterval 'Рассчитать однодневные продажи'()  { 
     averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](quantitySold (sku, stock, fromSoldDate(sku), toSoldDate(sku)) / countSoldDays(skuGroup(sku)));
     APPLY;
 
@@ -72,7 +72,7 @@ calcQuantitySoldInterval 'Рассчитать однодневные прода
 
 isPromotion = ABSTRACT CASE BOOLEAN (PriceListDetail);
 
-calcQuantityPromotionSoldInterval 'Рассчитать однодневные продажи (акции)'() = {
+calcQuantityPromotionSoldInterval 'Рассчитать однодневные продажи (акции)'()  { 
 
     dateFromPromotion(Sku s, Stock st) <- NULL;
     dateFromPromotion(Sku s, Stock st) <- [= GROUP MIN fromDate(PriceListDetail d) IF isPromotion(d) AND toDate(d) >= subtract(currentDate(), countSoldDays(skuGroup(sku(d)))) AND in(priceList(d), st) BY sku(d)](s);  
@@ -102,7 +102,7 @@ calcQuantityPromotionSoldInterval 'Рассчитать однодневные �
     APPLY;
 }
 
-calcQuantityPromotionSoldIntervalNew 'Рассчитать однодневные продажи (акции)' () = {
+calcQuantityPromotionSoldIntervalNew 'Рассчитать однодневные продажи (акции)' ()  { 
 
     promotionDetail(Sku s, Stock st) <- NULL;
     promotionDetail(Sku s, Stock st) <- lastPromotionPriceListDetail(s, st) WHERE toDate(lastPromotionPriceListDetail(s, st), st) >= subtract(currentDate(), countSoldDays(skuGroup(s)));

@@ -45,13 +45,13 @@ grossWeightTo 'Вес' = GROUP SUM round3(grossWeightOrderDetail(Order order)/10
 quantityOrdered 'Кол-во в заказах' (trip, sku) = GROUP SUM quantity(OrderDetail orderDetail) BY trip(order(orderDetail)), sku(orderDetail);
 
 // отображение на карте
-showPoints 'Показать путь на карте' (Trip trip) = {
+showPoints 'Показать путь на карте' (Trip trip)  { 
     numberPath(POI stock) <- OVERRIDE number(stock, trip), 1 IF quantity(trip, stock) > 0;
     EXEC showOnPath(showMapProvider());
 
 } TOOLBAR;
 
-createPath 'Рассчитать путь' (Trip trip) = {
+createPath 'Рассчитать путь' (Trip trip)  { 
     startPathPOI() <- firstStock(trip);
     inPath(POI stock) <- TRUE IF quantity(trip, stock);
     EXEC calculatePath();
@@ -73,7 +73,7 @@ FORM ordersTrip
     FILTERS quantityOrdered(t, s) > 0
 ;
 
-printOrders 'Печать заказов' (Trip trip) = {
+printOrders 'Печать заказов' (Trip trip)  { 
     PRINT ordersTrip OBJECTS t = trip ;
 } TOOLBAR;
 
@@ -152,7 +152,7 @@ filteredFromTrip (stock) = GROUP SUM 1 IF [= FILTER trip.o](Order order) BY from
 filteredToTrip (stock) = GROUP SUM 1 IF [= FILTER trip.o](Order order) BY toStock(order);
 filteredTrip(Stock stock) = filteredFromTrip(stock) (+) filteredToTrip(stock);
 
-showPointOrders 'Показать отобранные заказы' () = {
+showPointOrders 'Показать отобранные заказы' ()  { 
     numberPath(POI stock) <- 1 IF filteredTrip(stock);
     showOnPath(showMapProvider());
 } TOOLBAR;

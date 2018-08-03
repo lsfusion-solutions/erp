@@ -19,8 +19,8 @@ CLASS ABSTRACT DataSkuLedger 'Изменение остатка с первич�
 CLASS ABSTRACT InLIFOSkuLedger 'Приход по LIFO' : InSkuLedger, DataSkuLedger;
 CLASS ABSTRACT OutFIFOSkuLedger 'Расход по FIFO' : OutSkuLedger, DataSkuLedger;
 
-show 'Просмотреть' = ABSTRACT MULTI (SkuLedger) TOOLBAR;
-replace = ABSTRACT LIST (Sku, Batch);
+show 'Просмотреть'  ABSTRACT MULTI ( SkuLedger) TOOLBAR;
+replace  ABSTRACT LIST ( Sku, Batch);
 // --------------------------------- Партии ------------------------------------------------ //
 
 TABLE batch(Batch);
@@ -819,9 +819,9 @@ quantity (DataSkuLedger ledger, Batch batch) = MULTI quantity[InLIFOSkuLedger,Ba
 changedSession = DATA LOCAL BOOLEAN (DataSkuLedger);
 
 it = DATA LOCAL BOOLEAN (DataSkuLedger);
-overCostSkuLedgerBatch = ABSTRACT (); 
+overCostSkuLedgerBatch  ABSTRACT ( ); 
 
-updateDataSkuLedgerBatchCost() = {
+updateDataSkuLedgerBatchCost()  { 
     cost(DataSkuLedger ledger, Batch batch) <- NULL WHERE changedSession(ledger);
 
     LOCAL ordered = INTEGER (DataSkuLedger);
@@ -857,13 +857,13 @@ ON { // eventChangeLedger - так как внутрь рекурсивного 
 WHEN SETCHANGED(sku(Batch b)) AND PREV(sku(b)) DO
     cost(SkuLedger l, b) <- NULL;
 
-resetCost 'Перерассчитать себестоимость'(DataSkuLedger ledger) = { //NEWSESSION AUTOAPPLY {
+resetCost 'Перерассчитать себестоимость'(DataSkuLedger ledger)  { //NEWSESSION AUTOAPPLY {
     changedSession(DataSkuLedger l) <- NULL;
     changedSession(ledger) <- TRUE;
     updateDataSkuLedgerBatchCost();
 }
 
-setDataSkuLedgerBatchCost 'Дорассчитать себестоимость'() = {
+setDataSkuLedgerBatchCost 'Дорассчитать себестоимость'()  { 
 	NEWSESSION {
 	    APPLY SINGLE { 
 	        changedSession(DataSkuLedger ledger) <- needToCost(ledger);
@@ -872,7 +872,7 @@ setDataSkuLedgerBatchCost 'Дорассчитать себестоимость'(
 	}
 } CONFIRM;
 
-resetDataSkuLedgerBatchCost 'Перерассчитать себестоимость'() = {
+resetDataSkuLedgerBatchCost 'Перерассчитать себестоимость'()  { 
 	NEWSESSION {
 	    DIALOG dialogDate OBJECTS d INPUT DO
 	        APPLY SINGLE { 
@@ -882,7 +882,7 @@ resetDataSkuLedgerBatchCost 'Перерассчитать себестоимос
 	}
 } CONFIRM;
 
-clearDataSkuLedgerBatchCost 'Сбросить всю себестоимость'() = {
+clearDataSkuLedgerBatchCost 'Сбросить всю себестоимость'()  { 
 	NEWSESSION {
 	    cost(DataSkuLedger ledger, Batch batch) <- NULL;
 	    apply();
@@ -988,12 +988,12 @@ DESIGN costSkuBatchLedger {
 // ------------------------------------------------ Остатки по товарам ---------------------------------------- //
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Sku) CHANGEKEY 'F3';
-resetAllSelectedSku 'Сбросить для всех'() = {
+resetAllSelectedSku 'Сбросить для всех'()  { 
     select(Sku sku) <- NULL WHERE select(sku);
 } ASON CONTEXTMENU select[Sku];
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Sku, Stock) CHANGEKEY 'F3';
-resetAllSelectedSkuStock 'Сбросить для всех'() = {
+resetAllSelectedSkuStock 'Сбросить для всех'()  { 
     select(Sku sku, Stock stock) <- NULL WHERE select(sku, stock);
 } ASON CONTEXTMENU select[Sku,Stock];
 
@@ -1004,9 +1004,9 @@ multipleStores 'Несколько складов' = DATA LOCAL BOOLEAN ();
 singleStore = NOT multipleStores();
 
 // Пока вот так, так иначе будет циклическая зависимость, а Extend'ить ON CONTEXTMENU нельзя
-showBalanceMovementSku 'Показать движение товара по складу' (sku, stock) = ABSTRACT (Sku, Stock);
-showBalancePriceSku 'Показать изменение цены товара по складу' (sku, stock) = ABSTRACT (Sku, Stock);
-showBalanceReserveSku 'Показать резерв товара по складу' (sku, stock) = ABSTRACT (Sku, Stock);
+showBalanceMovementSku 'Показать движение товара по складу' (sku, stock)  ABSTRACT ( Sku, Stock);
+showBalancePriceSku 'Показать изменение цены товара по складу' (sku, stock)  ABSTRACT ( Sku, Stock);
+showBalanceReserveSku 'Показать резерв товара по складу' (sku, stock)  ABSTRACT ( Sku, Stock);
 
 backgroundBalance  = ABSTRACT CASE COLOR (Sku, Stock);
 backgroundBalance  = ABSTRACT CASE COLOR (Sku, Stock, DATETIME);
@@ -1742,7 +1742,7 @@ END
 //замена товара у партии
 allowReplaceItem = DATA LOCAL BOOLEAN ();
 
-setSku 'Сменить товар'(Batch batch) = {
+setSku 'Сменить товар'(Batch batch)  { 
     DIALOG skus OBJECTS s INPUT DO {  
         allowReplaceItem() <- TRUE;
         replace(s, batch);

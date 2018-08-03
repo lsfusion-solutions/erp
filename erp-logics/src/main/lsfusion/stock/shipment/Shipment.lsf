@@ -217,7 +217,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     userShipmentDetail(shipment, sku, dimension) = GROUP MAX UserShipmentDetail detail BY userShipment(detail), sku(detail), shipmentDimension(detail);
     userShipmentDetail(shipment, sku) = GROUP MAX UserShipmentDetail detail BY userShipment(detail), sku(detail);
 
-    addDetailBarcodeUserShipmentDetail(UserShipment shipment, VARSTRING[15] barcode, ShipmentDimension dimension) = {
+    addDetailBarcodeUserShipmentDetail(UserShipment shipment, VARSTRING[15] barcode, ShipmentDimension dimension)  { 
         LOCAL dialogBarcodeSku = Sku ();
         dialogBarcodeSku() <- skuBarcode(barcode, date(shipment));
 
@@ -266,7 +266,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         }
     }
 
-    changeAddDetailInputBarcodeDimensionUserShipmentDetail(UserShipment userShipment) = {
+    changeAddDetailInputBarcodeDimensionUserShipmentDetail(UserShipment userShipment)  { 
         INPUT s = VARSTRING[15] DO
             addDetailBarcodeUserShipmentDetail(userShipment, processedBarcode(s), shipmentDimension(userShipment));
     };
@@ -277,7 +277,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 
     backgroundSku 'Цвет'  (d)= ABSTRACT CASE COLOR (UserShipmentDetail);
  
-    editSku 'Редактировать SKU' (UserShipmentDetail d) = { NEWSESSION { edit(sku(d)); } }
+    editSku 'Редактировать SKU' (UserShipmentDetail d)  { NEWSESSION { edit(sku(d)); } }
     FORM userShipment 'Поставка'###sign
         OBJECTS s = UserShipment PANEL
         PROPERTIES (s) isPosted, nameSupplier ON CHANGE changeSupplier###supplierFilter(s),
@@ -407,10 +407,10 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @defineDocumentSkuPriceListTypeSystemLedger(userShipment, stock, stockProp);
     @extendFormDocumentSku(userShipment, userShipmentDetail, userShipment, s, sku, stockProp##Stock);
     
-    overCopy = ABSTRACT LIST (UserShipmentDetail, ShipmentDetail);
-    overCopy = ABSTRACT LIST (Shipment, UserShipment);
+    overCopy  ABSTRACT LIST ( UserShipmentDetail, ShipmentDetail);
+    overCopy  ABSTRACT LIST ( Shipment, UserShipment);
 
-    copy 'Копировать'(Shipment shipment) = {
+    copy 'Копировать'(Shipment shipment)  { 
 	NEWSESSION {
 	        NEW s = UserShipment {
 	            supplier(s) <- supplier(shipment);
@@ -441,9 +441,9 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 } TOOLBAR;
     
 //-- Копирование строк     
-    overCopy = ABSTRACT LIST (UserShipmentDetail, UserShipmentDetail);
+    overCopy  ABSTRACT LIST ( UserShipmentDetail, UserShipmentDetail);
 
-    copy 'Копировать'(UserShipmentDetail detail) = {
+    copy 'Копировать'(UserShipmentDetail detail)  { 
         NEW d = UserShipmentDetail {          
 
             userShipment(d) <- userShipment(detail);
@@ -601,26 +601,26 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @extendFormEditable(shipments);
     @defineFilterIsOpened (shipment, shipments, s);
     @defineDocumentLogForm(shipments, s);
-    edit(UserShipmentDetail d) += { DIALOG userShipment OBJECTS s = userShipment(d), d = d DOCKED; }
+    edit(UserShipmentDetail d) + {  DIALOG userShipment OBJECTS s = userShipment(d), d = d DOCKED; }
     
-    show 'Просмотреть' = ABSTRACT LIST  (ShipmentDetail) TOOLBAR;
-    show(UserShipmentDetail d) = {
+    show 'Просмотреть'  ABSTRACT LIST  ( ShipmentDetail) TOOLBAR;
+    show(UserShipmentDetail d)  { 
 	NEWSESSION {
 	        SHOW userShipment OBJECTS s = userShipment(d), d = d DOCKED READONLY;
 	    }
 }
     
-    show(UserShipmentDetail d) += { show(d); }          
+    show(UserShipmentDetail d) + {  show(d); }          
     
 END
 
 META defineShipmentBatch(stockProp)
     @showDocumentInterfaceDetailBatch(shipment);
     @defineDocumentInterfaceDetailBatch(shipment, batch);
-    overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) += {      
+    overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) + {       
         batch(d) <- batch(detail);
     } 
-    overCopy(UserShipmentDetail d, ShipmentDetail detail) += {      
+    overCopy(UserShipmentDetail d, ShipmentDetail detail) + {       
         batch(d) <- batch(detail);
     }     
 
@@ -634,12 +634,12 @@ META defineShipmentBatch(stockProp)
     @defineDocumentBatchPriceListTypeSystemLedger(userShipment, stock, supplier);
     @extendFormDocumentBatch(userShipment, userShipment, s);
 
-    replace(Sku s, Batch b) += { sku(UserShipmentDetail detail) <- s WHERE batch[ShipmentDetail](detail) == b;}
+    replace(Sku s, Batch b) + {  sku(UserShipmentDetail detail) <- s WHERE batch[ShipmentDetail](detail) == b;}
 END
 
 META defineShipmentBatchDialogStock(stockProp, dialog)
 
-    changeBatch(UserShipmentDetail userShipmentDetail) = {
+    changeBatch(UserShipmentDetail userShipmentDetail)  { 
         DIALOG dialogBatchStock##dialog OBJECTS st = stockProp(userShipmentDetail),
                                  t = dateTime(userShipmentDetail),
                                  sk = sku(userShipmentDetail),
@@ -653,7 +653,7 @@ END
 
 META defineShipmentBatchDialog(dumb)
 
-    changeBatch(UserShipmentDetail userShipmentDetail) = {
+    changeBatch(UserShipmentDetail userShipmentDetail)  { 
         DIALOG dialogBatch OBJECTS sk = sku(userShipmentDetail), bt = batch(userShipmentDetail) INPUT NULL NEWSESSION DO
             batch(userShipmentDetail) <- bt;
     }

@@ -63,22 +63,22 @@ FORM printToTransferBinOrder 'Заказ на перемещение'
     FILTERS binOrder(d) == o, toBinTransfer(d) > 0.0
 ;
 
-printToTransferBinOrder 'Печать заказа' (BinOrder order) = {
+printToTransferBinOrder 'Печать заказа' (BinOrder order)  { 
     PRINT printToTransferBinOrder OBJECTS o = order;
 } IMAGE 'print.png' IN print;
 
-accept 'Принять' (UserBinOrder order, Employee employee) = {
+accept 'Принять' (UserBinOrder order, Employee employee)  { 
     performer(order) <- employee;
     startPerformDateTime(order) <- currentDateTime();
     apply();
 }
 
-accept 'Принять' (UserBinOrder order) = {
+accept 'Принять' (UserBinOrder order)  { 
     accept(order, currentUser());      
     printToTransferBinOrder(order);  
 } CONFIRM;
 
-skip 'Отменить' (UserBinOrder order) = {
+skip 'Отменить' (UserBinOrder order)  { 
     performer(order) <- NULL;
     startPerformDateTime(order) <- NULL;
     apply();  
@@ -90,13 +90,13 @@ showSkip (UserBinOrder order) = order IS UserBinOrder AND startPerformDateTime(o
     //AND performer(order)==currentUser() 
     AND NOT finishPerformDateTime(order);
     
-fullComplete 'Закончен полностью' (UserBinOrder order) = {
+fullComplete 'Закончен полностью' (UserBinOrder order)  { 
     createUserBinTransferPosted(order);
     finishPerformDateTime(order) <- currentDateTime();    
     apply();
 } CONFIRM;
 
-partiallyComplete 'Закончен с отклон.' (UserBinOrder order) = {
+partiallyComplete 'Закончен с отклон.' (UserBinOrder order)  { 
     createAndShowUserBinTransfer(order);
     IF binTransferdBinOrderDetail(order) THEN {
         finishPerformDateTime(order) <- currentDateTime();      

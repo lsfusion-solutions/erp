@@ -23,7 +23,7 @@ EXTEND FORM defaultNumerators
     PROPERTIES() nameDocDefaultNumeratorPromotion = nameDocDefaultNumeratorPromotion
 ;
 
-loadDefaultNumerators() += {
+loadDefaultNumerators() + { 
     NEW n = Numerator {
         name(n) <- 'Акции (документы)';
         series(n) <- '';
@@ -156,7 +156,7 @@ countStocks 'Количество складов компании' = DATA INTEGE
 nameSuppliers 'Поставщики' (PromotionDetail detail) = GROUP CONCAT name(LegalEntity company) IF countStocks(detail, company), ', '  CHARWIDTH 30;
 in (Promotion p, LegalEntity c) = TRUE IF [= GROUP SUM countStocks(PromotionDetail detail, c) BY promotion(detail)](p);
 
-recalculateCountStocks (PromotionDetail d) = {
+recalculateCountStocks (PromotionDetail d)  { 
     countStocks(d, LegalEntity company) <- (GROUP SUM 1 IF prevPriceA(defaultPriceListType(),sku(d), Stock stock, company, toDateTime(fromDate(d))));
 }
 
@@ -182,12 +182,12 @@ decreaseSupplierPercent 'Уменьшение % маркетинга поста�
 supplierPromotionDiscount 'Скидка поставщика в Акцию' = DATA NUMERIC[8,3] (PromotionDetail);
 
 valueVAT 'Ставка НДС' = DATA NUMERIC[10,5] (PromotionDetail);
-recalculateValueVAT (PromotionDetail d) = {
+recalculateValueVAT (PromotionDetail d)  { 
     valueVAT(d) <- valueVAT(sku(d));
 }
 
 price 'Стандартная цена без НДС' = DATA NUMERIC[16,4] (PromotionDetail);
-recalculatePrice (PromotionDetail d) = {
+recalculatePrice (PromotionDetail d)  { 
     price(d) <- (GROUP MAX prevPriceA(defaultPriceListType(), sku(d), Stock stock, toDateTime(fromDate(d)))) WHERE NOT CHANGED(price(d));
 }
 
@@ -461,14 +461,14 @@ DESIGN promotions {
     }
 }
 
-recalculatePrices (PromotionDetail d) = {
+recalculatePrices (PromotionDetail d)  { 
     recalculateValueVAT(d);
     recalculatePrice(d);
     
     recalculateCountStocks (d);
 }
 
-recalculatePrices 'Пересчитать цены поставщиков' () = {
+recalculatePrices 'Пересчитать цены поставщиков' ()  { 
     FOR [= FILTER promotion.d](PromotionDetail d) DO
         recalculatePrices(d);
 } CONFIRM;
@@ -525,7 +525,7 @@ status 'Статус' (PromotionDetail detail) = CASE
 currentBalance 'Текущий остаток' (Stock stock, PromotionDetail detail) = currentBalance(sku(detail),stock);
 averageSold 'Продаж в день' (Stock stock, PromotionDetail detail) = averageSold(sku(detail),stock);
 
-createOrder 'Создать заказ' (Stock stock, PromotionDetail detail) = {
+createOrder 'Создать заказ' (Stock stock, PromotionDetail detail)  { 
     NEWSESSION {
         NEW o = Purchase.UserOrder {
             customer(o) <- legalEntity(stock);
@@ -593,7 +593,7 @@ NAVIGATOR {
     }
 }
 
-createOrderSupplier 'Создать заказ по поставщику' (Stock stock, PromotionDetail detail) = {
+createOrderSupplier 'Создать заказ по поставщику' (Stock stock, PromotionDetail detail)  { 
     LOCAL NESTED in = BOOLEAN (PromotionDetail);
     in(PromotionDetail d) <-  [= FILTER promotionsStock.d](d);
     NEWSESSION {
@@ -632,7 +632,7 @@ DESIGN options {
     }
 }
 
-createPriceList 'Создать прайсы' (Promotion p, BOOLEAN skipCompany) = { 
+createPriceList 'Создать прайсы' (Promotion p, BOOLEAN skipCompany)  { 
     IF NOT stocks(p) THEN {
         MESSAGE 'Не выбран ни один склад. Прайсы не созданы';
         RETURN;
@@ -693,7 +693,7 @@ createPriceList 'Создать прайсы' (Promotion p, BOOLEAN skipCompany)
     }
 } CONFIRM;
 
-createPriceList 'Создать прайсы' (Promotion p) = { createPriceList(p, NULL); }
+createPriceList 'Создать прайсы' (Promotion p)  { createPriceList(p, NULL); }
 
 EXTEND FORM promotions
     PROPERTIES(p) createPriceList TOOLBAR

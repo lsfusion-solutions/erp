@@ -94,7 +94,7 @@ FORM sizeMappings 'Соответствие размеров'
 
 isEACArticle 'EAC для артикула' = DATA BOOLEAN (SizeMappingEx);
 countMappingExIsEAC(Article a)= GROUP SUM 1 IF  isISubstring(caption(a), name(SizeMappingEx mx)) == 1 AND isEACArticle(mx);
-mapIsEAC 'Заполнить "EAC" по наименованию' (Article a) =  {
+mapIsEAC 'Заполнить "EAC" по наименованию' (Article a)   { 
     isEAC(a) <- TRUE WHERE  countMappingExIsEAC (a); 
 } ASON CONTEXTMENU isEAC[Article]; 
 
@@ -135,11 +135,11 @@ META createSizeMappingExAttribute(property, mappingProp, captionProp, shortcutPr
     mappingProp###prefix##SizeMapping (ItemGroup g, Size s, Brand b) = mappingProp(overSizeMapping(g, s, b));  //  sizeMappingItemGroupSizeBrand
     mappingProp###prefix##SizeMapping (ItemGroup g, Size s) = mappingProp(overSizeMapping(g, s));
     mappingProp###prefix##SizeMapping (Item i) = OVERRIDE mappingProp##SizeMapping(itemGroup(i), size(i), brand(i)), mappingProp##SizeMapping(itemGroup(i), size(i));
-    map###property###prefix 'Заполнить '##captionProp##' по соответствию' () =  {
+    map###property###prefix 'Заполнить '##captionProp##' по соответствию' ()   { 
         property###prefix(Item i) <- mappingProp###prefix##SizeMapping(i) 
             WHERE countMappingEx###property###prefix(i) AND inMap(i) AND mappingProp###prefix##SizeMapping(i); 
     } 
-    map###property###prefix 'Заполнить '##captionProp##' по соответствию' (Item i) = {
+    map###property###prefix 'Заполнить '##captionProp##' по соответствию' (Item i)  { 
         inMap(Item item) <- NULL;
         inMap(i) <- TRUE;
         map###property###prefix();
@@ -169,7 +169,7 @@ NAVIGATOR {
     }
 }
 //-- Заполнение матрицы
-updateSizeMapping 'Обновить матрицу из товаров' = ABSTRACT LIST () TOOLBAR;
+updateSizeMapping 'Обновить матрицу из товаров'  ABSTRACT LIST ( ) TOOLBAR;
 EXTEND FORM sizeMappings PROPERTIES() updateSizeMapping TODRAW m;
 
 META createSizeMappingAttribute(attribute, type)
@@ -182,7 +182,7 @@ META createSizeMappingAttribute(attribute, type, postfix)
                                                          ORDER count###postfix(itemGroup, size, brand, attribute), attribute
                                                          WHERE count###postfix(itemGroup, size, brand, attribute);
     
-    updateSizeMapping() += {
+    updateSizeMapping() + { 
         FOR best###attribute(ItemGroup itemGroup, Size size, Brand brand) DO {
             IF NOT sizeMapping(itemGroup, size, brand) THEN {
                 NEW m = SizeMapping {

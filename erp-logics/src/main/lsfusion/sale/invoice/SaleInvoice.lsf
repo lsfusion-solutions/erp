@@ -47,7 +47,7 @@ CONSTRAINT isPosted(InvoiceDetail d) AND banNegativeQuantityInvoice(operation(d)
 operation[Invoice.Invoice](Invoice o) += operation(o);
 
 // Добавляем в копирование инвойсов
-overCopy(Invoice s, UserInvoice d) += {
+overCopy(Invoice s, UserInvoice d) + { 
     operation(d) <- operation(s);
 }
 
@@ -108,12 +108,12 @@ DESIGN userInvoice {
 @defineDocumentPackSku(userInvoice, sku, supplierStock);
 @extendFormDocumentPackSku(userInvoice, userInvoice, i);
 
-overChangeQuantityValueSku(UserInvoiceDetail detail) += {
+overChangeQuantityValueSku(UserInvoiceDetail detail) + { 
     IF packBarcode(sku(detail)) AND NOT skipChangePackQuantity(detail) THEN {
         packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }
 }
-overChangeQuantityValueBatch(UserInvoiceDetail detail) += {
+overChangeQuantityValueBatch(UserInvoiceDetail detail) + { 
     IF packBarcode(sku(batch(detail))) THEN {
         packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }
@@ -222,11 +222,11 @@ firstOrderBatchBalance (Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q
                                                    BY skuLedger(batch, stock) COMPLEX;
 //firstOrderBatchBalance(Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q) = orderBatchBalance(sku, stock, dateTime, q)[2];
 
-fillBatch 'Проставить партию'(UserInvoiceDetail d)  = {    
+fillBatch 'Проставить партию'(UserInvoiceDetail d)   {    
     batch(d) <- firstOrderBatchBalance(sku(d), supplierStock(d), dateTime(d), quantity(d)); 
 } ASON CONTEXTMENU nameBatch[UserInvoiceDetail];
 
-fillAllBatch 'Проставить партии для всех'(UserInvoiceDetail detail) = {
+fillAllBatch 'Проставить партии для всех'(UserInvoiceDetail detail)  { 
    FOR userInvoice(detail) == userInvoice(UserInvoiceDetail d) AND NOT batch(d) DO
        fillBatch(d);
 } ASON CONTEXTMENU nameBatch[UserInvoiceDetail];

@@ -101,9 +101,9 @@ invoiceDetail = ABSTRACT InvoiceDetail (Sale.InvoiceDetail) MATERIALIZED INDEXED
 invoiceDetail = DATA InvoiceDetail (Sale.UserInvoiceDetail) INDEXED;
 invoiceDetail(Sale.UserInvoiceDetail invoiceDetail) += invoiceDetail(invoiceDetail);
 
-setPropertiesSaleSale = ABSTRACT LIST (Sale.UserInvoiceDetail, InvoiceDetail);
+setPropertiesSaleSale  ABSTRACT LIST ( Sale.UserInvoiceDetail, InvoiceDetail);
 
-fillInvoice 'Заполнить на основе накладной (закупка)'(Sale.UserInvoice userInvoice) =  {
+fillInvoice 'Заполнить на основе накладной (закупка)'(Sale.UserInvoice userInvoice)   { 
     DIALOG invoiceInvoices OBJECTS c = supplier(userInvoice),
                                    cs = supplierStock(userInvoice),
                                    t = date(userInvoice), o INPUT DO {
@@ -115,7 +115,7 @@ fillInvoice 'Заполнить на основе накладной (закуп
     }
 } IN Sale.invoice;
 
-setPropertiesSaleSale(Sale.UserInvoiceDetail d, InvoiceDetail invoiceDetail) += {
+setPropertiesSaleSale(Sale.UserInvoiceDetail d, InvoiceDetail invoiceDetail) + { 
     sku(d) <- sku(invoiceDetail);
     batch(d) <- batch(invoiceDetail)  WHERE NOT (notUseBatchSaleInvoice(operation(invoice(invoiceDetail))) OR skipFillBatch(d));
     barcodePack(d) <- barcodePack(invoiceDetail);
@@ -146,10 +146,10 @@ DESIGN Sale.userInvoice { headerCreateDetail{ MOVE GROUP(invoice,i) { type = CON
 
 //-- Действие
 
-overFillInvoice = ABSTRACT LIST (Sale.UserInvoice, Invoice);
-overFillInvoice = ABSTRACT LIST (Sale.UserInvoiceDetail, InvoiceDetail);
+overFillInvoice  ABSTRACT LIST ( Sale.UserInvoice, Invoice);
+overFillInvoice  ABSTRACT LIST ( Sale.UserInvoiceDetail, InvoiceDetail);
 
-moveUserInvoice 'Накладная (продажа)'(Invoice invoice) =  {
+moveUserInvoice 'Накладная (продажа)'(Invoice invoice)   { 
 	NEWSESSION{
 	
 	    NEW i = Sale.UserInvoice {

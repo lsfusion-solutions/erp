@@ -153,7 +153,7 @@ EXTEND  FORM rangeRev
     ORDER name(su)
     FILTERS countSkus(v, su, pt, d)      
 ;
-overCopy(RangeRev r, RangeRev pr) += {
+overCopy(RangeRev r, RangeRev pr) + { 
     level(r, Sku s) <- level(pr, s);
 }
 
@@ -177,7 +177,7 @@ calcCountSkuNotSupplier 'Кол-во товаров без поставщика'
 
 countSkuNotSupplier 'Кол-во товаров без поставщика' = DATA LOCAL INTEGER (DataPriceListType, DepartmentStore, Range, DATE);
 
-fillCountSkuNotSupplier 'Обновить'(DataPriceListType pt, DepartmentStore d, DATE dt) = {
+fillCountSkuNotSupplier 'Обновить'(DataPriceListType pt, DepartmentStore d, DATE dt)  { 
     countSkuNotSupplier(pt, d, Range r, dt) <- calcCountSkuNotSupplier(pt, d, r, dt) WHERE r IS Range;   
 }
 EXTEND FORM ranges
@@ -216,7 +216,7 @@ date (Range range, StoreType storeType, DATE date) = GROUP
                                               
 nameLevel 'Уровень' (Range r, StoreType t, DATE d)= name(level(r, t, d)); 
 
-changeLevel (Range r, StoreType t, DATE d)= {
+changeLevel (Range r, StoreType t, DATE d) { 
     DIALOG dialogRangeLevels OBJECTS l = dataLevel(r, t, d) CHANGE DO {
         excludeLevel (r, t, d) <- NOT l;
         dateTime(r, t, d) <- currentDateTime();
@@ -250,7 +250,7 @@ date (Range range, Store st, DATE date) = GROUP
                                               ORDER dateIn
                                               WHERE dataLevel(range, st, dateIn) AND dateIn <= (date AS DATE); 
 
-changeLevel (Range r, Store st, DATE d)= {
+changeLevel (Range r, Store st, DATE d) { 
     DIALOG dialogRangeLevels OBJECTS l = dataLevel(r, st, d) CHANGE DO {
         excludeLevel (r, st, d) <- NOT l;
         dateTime(r, st, d) <- currentDateTime();
@@ -258,7 +258,7 @@ changeLevel (Range r, Store st, DATE d)= {
     }
 }              
 
-changeWYSLevel (Range r, Store st, DATE d)= {
+changeWYSLevel (Range r, Store st, DATE d) { 
     INPUT s = VARISTRING[10] DO 
         IF s THEN {
             dataLevel (r, st, d) <- [= GROUP MAX RangeLevel l BY name(l)](s);
@@ -307,7 +307,7 @@ addCommaStoreId 'Список магазинов (код)' = DATA LOCAL VARISTRI
 addCommaRangeLevel = DATA LOCAL RangeLevel(Range);
 nameAddCommaRangeLevel 'Уровень' (Range r) = name(addCommaRangeLevel(r));
 
-addCommaStoreId 'Заполнить' (Range r, DATE dt) = {
+addCommaStoreId 'Заполнить' (Range r, DATE dt)  { 
     IF addCommaStoreId() THEN { 
         IF oneLevel() THEN {
             dataLevel (r, Store st, dt) <-  (GROUP MIN RangeLevel l IF l IS RangeLevel) WHERE isWordInCSV(id(st), replace(addCommaStoreId(),' ',',')) == 1;
@@ -324,7 +324,7 @@ addCommaStoreId 'Заполнить' (Range r, DATE dt) = {
         MESSAGE 'Не задан список магазинов';
     }
 }
-deleteCommaStoreId 'Сбросить' (Range r, DATE dt) = {
+deleteCommaStoreId 'Сбросить' (Range r, DATE dt)  { 
     IF addCommaStoreId() THEN { 
         excludeLevel (r, Store st, dt) <-  TRUE WHERE isWordInCSV(id(st), replace(addCommaStoreId(),' ',',')) == 1;
         addCommaStoreId() <- NULL;        
@@ -543,7 +543,7 @@ FORM param 'Параметры заполнения ассортиментной
     
 ;
 
-fill 'Заполнить матрицу по остаткам и продажам'(RangeRev rangeRev, DATE dateFrom, LedgerPriceListType pt, Stock stock) = {
+fill 'Заполнить матрицу по остаткам и продажам'(RangeRev rangeRev, DATE dateFrom, LedgerPriceListType pt, Stock stock)  { 
     DIALOG param OBJECTS v = rangeRev DO { 
         IF countRangeLevels(range(rangeRev)) THEN {
             level(rangeRev,Sku sku) <- level (sku, rangeRev, dateFrom, pt, stock) WHERE level (sku, rangeRev, dateFrom, pt, stock) ;
@@ -609,7 +609,7 @@ DESIGN storeRange{
 
 // ---------- Импорт версии матрицы
 
-importXls 'Импорт' (RangeRev v) = {
+importXls 'Импорт' (RangeRev v)  { 
     INPUT f = EXCELFILE DO {
         LOCAL barcode = VARSTRING[15] (INTEGER);
         LOCAL name = VARSTRING[255] (INTEGER);
@@ -657,7 +657,7 @@ DESIGN ranges {
     }
 }
 
-createNewTopLevel 'Добавить верхний уровень'() = {
+createNewTopLevel 'Добавить верхний уровень'()  { 
 
     NEW l = RangeLevel;
     
@@ -702,7 +702,7 @@ FORM rangeLevelLog 'Лог изменений уровня'
     FILTERS hasLevel(r, s, d) OR hasLevel(r, st, d), storeType(s) == st
 ;
 
-showRangeLevelLog 'Лог изменения уровня' (Range r) = {
+showRangeLevelLog 'Лог изменения уровня' (Range r)  { 
     SHOW rangeLevelLog OBJECTS r = r;
 } ASON CONTEXTMENU name[Range];
 
@@ -721,7 +721,7 @@ FORM rangeLevelStoreLog 'Лог изменений уровня'
     FILTERS hasLevel(r, s, d) OR hasLevel(r, storeType(s), d)
 ;
 
-showRangeLevelStoreLog 'Лог изменения уровня' (Range r, Store s) = {
+showRangeLevelStoreLog 'Лог изменения уровня' (Range r, Store s)  { 
     SHOW rangeLevelStoreLog OBJECTS r = r, s = s;
 } ASON CONTEXTMENU nameOverLevel[Range, Store, DATE];
 
@@ -741,7 +741,7 @@ FORM rangeLevelStoreTypeLog 'Лог изменений уровня'
     FILTERS hasLevel(r, s, d)
 ;
 
-showRangeLevelStoreTypeLog 'Лог изменения уровня' (Range r, StoreType s) = {
+showRangeLevelStoreTypeLog 'Лог изменения уровня' (Range r, StoreType s)  { 
     SHOW rangeLevelStoreTypeLog OBJECTS r = r, s = s;
 } ASON CONTEXTMENU nameLevel[Range, StoreType, DATE];
 

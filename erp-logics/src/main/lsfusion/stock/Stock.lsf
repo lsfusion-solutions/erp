@@ -128,7 +128,7 @@ language (Stock stock) = language(legalEntity(stock)) MATERIALIZED;
 
 // ------------------------------------ объединение организаций -------------------------- //
 
-replace(LegalEntity l, LegalEntity o) += {
+replace(LegalEntity l, LegalEntity o) + { 
     legalEntity(Stock stock) <- o WHERE legalEntity(stock) == l;
 } 
 
@@ -165,9 +165,9 @@ DESIGN confirmReplaceStock {
     MOVE TOOLBARBOX;
 }
 
-replace = ABSTRACT LIST (Stock, Stock);
+replace  ABSTRACT LIST ( Stock, Stock);
 
-replace 'Объединить'(Stock stock) = {   
+replace 'Объединить'(Stock stock)  {   
     DIALOG confirmReplaceStock OBJECTS s = stock DO {    
         FOR in(Stock s) AND stock IS Stock AND NOT isCompany(s) AND NOT isCompany(stock) DO {
             IF s != stock THEN {
@@ -187,7 +187,7 @@ dataStock = DATA Stock (LegalEntity);
 stock(LegalEntity legalEntity) = OVERRIDE dataStock(legalEntity) IF active(legalEntity), [= GROUP MIN Stock stock BY legalEntity(stock)](legalEntity) MATERIALIZED;
 
 primaryLegalEntity 'Основной' (Stock stock) = stock(legalEntity(stock)) == stock;
-changePrimary(LegalEntity legalEntity, Stock stock) = {
+changePrimary(LegalEntity legalEntity, Stock stock)  { 
     INPUT b = BOOLEAN DO
         IF b THEN
             dataStock(legalEntity) <- stock;
@@ -225,7 +225,7 @@ DESIGN confirmReplaceStockLegalEntity {
     MOVE TOOLBARBOX;
 }
 
-preReplace(LegalEntity l, LegalEntity o) += {
+preReplace(LegalEntity l, LegalEntity o) + { 
     in(Stock s) <- TRUE WHERE legalEntity(s) == l;
     DIALOG confirmReplaceStockLegalEntity OBJECTS l=o, l2=l DO {        
         FOR in(Stock s) AND l==legalEntity(s) AND legalEntity(Stock stock) == o AND primaryLegalEntity(stock) AND NOT isCompany(s) AND NOT isCompany(stock) DO {
@@ -359,7 +359,7 @@ META defineDocumentHeaderStockInner (object, stockClass, stockClassUpper, stockC
             CHARWIDTH 20;
     fullName###prefix###stockClass stockCaption (###object object) = fullName(prefix###stockClass(object)) IN documentHeader
             CHARWIDTH 20;
-    replace(###stockClass s, ###stockClass o) += {prefix###stockClass(###object object) <- o WHERE prefix###stockClass(object) == s;}             
+    replace(###stockClass s, ###stockClass o) + { prefix###stockClass(###object object) <- o WHERE prefix###stockClass(object) == s;}             
             
     prefix###legalEntityStock (###object object) = legalEntity(prefix###stockClass(object));
     name###prefix##LegalEntityStock 'Компания ('###stockCaption###')' (###object object) = name(prefix###legalEntityStock (object));
@@ -709,13 +709,13 @@ DESIGN customerStocks {
 
 
 META defineDocumentDialogStockEx(objectClass, filter, prefix, dataProp)
-    change###dataProp###prefix##Stock###filter(###objectClass o) = {
+    change###dataProp###prefix##Stock###filter(###objectClass o)  { 
         DIALOG filter###stocks OBJECTS l = prefix(o), s = dataProp###prefix##Stock(o) CHANGE;
     }
 END
 
 META defineDocumentDialogStock(objectClass, filter, prefix, dataProp)
-    change###dataProp###prefix##Stock###filter(###objectClass o) = {
+    change###dataProp###prefix##Stock###filter(###objectClass o)  { 
         IF prefix(o) THEN {
             DIALOG filter###stocks OBJECTS l = prefix(o), s = dataProp###prefix##Stock(o) CHANGE;
         } ELSE {
@@ -727,7 +727,7 @@ META defineDocumentDialogStock(objectClass, filter, prefix, dataProp)
     }
 END
 META defineDocumentDialogStock(objectClass, filter, prefixA, prefixB, dataProp)
-    change###prefixA##Stock###filter(###objectClass o) = {
+    change###prefixA##Stock###filter(###objectClass o)  { 
         IF filter(o) THEN {
             DIALOG filter###stocks OBJECTS l = filter(o), s = prefixA##Stock(o) CHANGE;
         } ELSE {
@@ -872,7 +872,7 @@ DESIGN customersStock {
 }
 
 META defineDocumentDialogStocks(objectClass, stockClass, filter, prefix, dataProp)
-    change###stockClass###filter(###objectClass o) = {
+    change###stockClass###filter(###objectClass o)  { 
         DIALOG filter##s###stock OBJECTS s = stockClass(o) CHANGE;
     }
 END
@@ -907,7 +907,7 @@ DESIGN chooseStocks {
     MOVE TOOLBARBOX;
 }
 
-chooseStocks 'Выбрать склады'(LegalEntity legalEntity) = {
+chooseStocks 'Выбрать склады'(LegalEntity legalEntity)  { 
 
     SHOW chooseStocks OBJECTS l = legalEntity ;
 }

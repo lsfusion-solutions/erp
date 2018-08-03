@@ -40,14 +40,14 @@ CONSTRAINT stock(UserConsumption o) AND NOT  isCompany(stock(o))
 
 @showDocumentInterfaceDetailBatch(consumption);
 @defineDocumentInterfaceDetailBatch(consumption, batch);
-changeBatch(UserConsumptionDetail detail) = {
+changeBatch(UserConsumptionDetail detail)  { 
     DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
                              t = dateTime(detail),
                              sk = sku(detail),
                              bt = batch(detail) INPUT NULL NEWSESSION DO
         batch(detail) <- bt;
 }
-replace(Sku s, Batch b) += { sku(UserConsumptionDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) + {  sku(UserConsumptionDetail detail) <- s WHERE batch(detail) == b;}
 
 
     
@@ -182,7 +182,7 @@ calcComponentConsumedQuantity (ComponentDetail d) =
 calcSkuConsumedQuantity (ComponentDetail d) = 
     round((recBruttoQuantityOutput(BOM(d), order(d), bruttoSku(d)) * quantityCoeff(d) * OVERRIDE multiplierSubstituteTo(bruttoSku(d), substituteSku(d)), 1.0), overQuantityRound(d));
     
-createOutputComponent 'Заполнить списание'(Order order) = {
+createOutputComponent 'Заполнить списание'(Order order)  { 
     consumedQuantity(ComponentDetail d) <- calcComponentConsumedQuantity(d) WHERE order(d) == order AND component(d);
     consumedQuantity(ComponentDetail d) <- calcSkuConsumedQuantity(d) WHERE order(d) == order AND NOT component(d);
 } TOOLBAR;
@@ -269,7 +269,7 @@ DESIGN consumptionOrders {
     }
 }
 
-fillOrder 'Заполнить на основе производственного заказа'(UserConsumption userConsumption) =  {
+fillOrder 'Заполнить на основе производственного заказа'(UserConsumption userConsumption)   { 
     DIALOG consumptionOrders OBJECTS s = stock(userConsumption), o INPUT DO {
         FOR order(ComponentDetail componentDetail) == o NEW d = UserConsumptionDetail DO {
             userConsumption(d) <- userConsumption;
@@ -291,7 +291,7 @@ sumItemOutStockDocumentLedger 'Сумма расхода, товар' (ledger) =
 type(Consumption l) += OVERRIDE typeStockDocumentLedger(l), 'Списание сырья (пр-во)' IF l IS Consumption;
 sumItem (Consumption ledger) += OVERRIDE sumItemOutStockDocumentLedger(ledger), sumItemConsumptionDetail(ledger);
 sumContainer (Consumption ledger) += sumContainerConsumptionDetail(ledger);
-close[StockDocumentLedger](Consumption l) += { close(l); }
+close[StockDocumentLedger](Consumption l) + {  close(l); }
 
 // Проводим по регистру
 @implementSkuLedgerOutFIFO(ConsumptionDetail, sku, stock);
@@ -389,8 +389,8 @@ quantity(OrderConsumptionDetail consumptionDetail) += consumedQuantity(component
 price(OrderConsumptionDetail consumptionDetail) += price(componentDetail(consumptionDetail));
 sum(OrderConsumptionDetail consumptionDetail) += consumedSum(componentDetail(consumptionDetail));
 
-edit(OrderConsumption consumption) += { edit(order(consumption)); }
-close(OrderConsumption consumption) += { isClosed(Order o) <- TRUE WHERE o == order(consumption); }
+edit(OrderConsumption consumption) + {  edit(order(consumption)); }
+close(OrderConsumption consumption) + {  isClosed(Order o) <- TRUE WHERE o == order(consumption); }
 
 operation(OrderConsumption output) += operation(order(output));
 // --------------------------- Формы Списания ---------------------------------
@@ -486,29 +486,29 @@ WHEN LOCAL FORMS userConsumption CHANGED(batch(UserConsumptionDetail detail)) DO
 //                    THEN priceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batchUserConsumptionDetail(detail), stockUserConsumptionDetail(detail), dateTimeUserConsumptionDetail(detail))
 //                    ELSE priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, skuUserConsumptionDetail(detail), stockUserConsumptionDetail(detail), dateTimeUserConsumptionDetail(detail));
                     
-edit(UserConsumptionDetail d) += { edit(userConsumption(d)); }
+edit(UserConsumptionDetail d) + {  edit(userConsumption(d)); }
 
-edit(ComponentDetail d) += { DIALOG order OBJECTS o = order(d), cd = d DOCKED; }
+edit(ComponentDetail d) + {  DIALOG order OBJECTS o = order(d), cd = d DOCKED; }
 
-edit(OrderConsumptionDetail d) += { edit(componentDetail(d)); }
+edit(OrderConsumptionDetail d) + {  edit(componentDetail(d)); }
 
-show 'Просмотреть' = ABSTRACT LIST  (ConsumptionDetail) TOOLBAR;
-show(UserConsumptionDetail d) = {
+show 'Просмотреть'  ABSTRACT LIST  ( ConsumptionDetail) TOOLBAR;
+show(UserConsumptionDetail d)  { 
 	NEWSESSION {
 	    SHOW userConsumption OBJECTS o = userConsumption(d), d = d DOCKED READONLY ;
 	}
 }
 
-show(UserConsumptionDetail d) += { show(d); }
-show[SkuLedger](ConsumptionDetail batch) += { show(batch); }
+show(UserConsumptionDetail d) + {  show(d); }
+show[SkuLedger](ConsumptionDetail batch) + {  show(batch); }
                        
-show(ComponentDetail d) = {
+show(ComponentDetail d)  { 
 	NEWSESSION {
 	    SHOW order OBJECTS o = order(d), cd = d DOCKED READONLY;
 	}
 }
 
-show(OrderConsumptionDetail d) += { show(componentDetail(d)); }
+show(OrderConsumptionDetail d) + {  show(componentDetail(d)); }
 
 
 
@@ -537,7 +537,7 @@ show(OrderConsumptionDetail d) += { show(componentDetail(d)); }
 @defineInfoSku(consumptionDetail); //-- показываем по нажатию правой клавиши информацию по товару
 @defineInfoSku(userConsumptionDetail); //-- показываем по нажатию правой клавиши информацию по товару
 
-copy 'Копировать'(UserConsumption userConsumption) = {
+copy 'Копировать'(UserConsumption userConsumption)  { 
 	NEWSESSION {
 	    NEW o = UserConsumption {
 	        stock(o) <- stock(userConsumption);
@@ -645,7 +645,7 @@ requiredQuantitySubstitute 'Кол-во (всего) (компонент)' (orde
 balance = DATA LOCAL NUMERIC[16,3] (Sku);
 left = DATA LOCAL NUMERIC[16,3] (Sku);
 
-addUserConsumptionProduction 'Списание сырья'(Order order) =  {
+addUserConsumptionProduction 'Списание сырья'(Order order)   { 
 	NEWSESSION {
 	    balance(Sku sku) <-  NUMERIC[16,3](balanceB(sku, componentsStock(order), dateTime(order)));
 	    left(Sku sku) <-  NUMERIC[16,3](requiredQuantitySubstitute(order, sku));

@@ -56,9 +56,9 @@ inBackSheetDialog 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 inBackSheetStocks 'Склады' () =
     GROUP CONCAT name(Stock st) IF inBackSheet(st) ,', ' CHARWIDTH 50;
 
-overFillReportBackSheetFromTo = ABSTRACT (GroupType, DATE, DATE);
+overFillReportBackSheetFromTo  ABSTRACT ( GroupType, DATE, DATE);
 
-fillReportBackSheetFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt) = {
+fillReportBackSheetFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt)  { 
 
     balanceB(Sku sk) <- NULL;           
     quantityIn(Sku sk) <- NULL;  
@@ -123,9 +123,9 @@ fillBatch 'По партиям' = DATA LOCAL BOOLEAN ();
 filterGroups 'Для отмеченных групп' = DATA LOCAL BOOLEAN ();
 inGroup (GroupType gt, Sku sk) = IF filterGroups() THEN (inSession(group(gt,sk))) ELSE TRUE;
 
-overFillReportBalanceData = ABSTRACT (GroupType, DATETIME);
+overFillReportBalanceData  ABSTRACT ( GroupType, DATETIME);
 
-fillReportBalanceData 'Рассчитать'(GroupType gt, DATETIME dt) = {
+fillReportBalanceData 'Рассчитать'(GroupType gt, DATETIME dt)  { 
 
     IF (GROUP SUM 1 IF inBackSheet(Stock st)) == 1 THEN
     {
@@ -183,7 +183,7 @@ FORM printListBalanceSkusStock 'Остатки по товарам'
     FILTERS s IS Sku AND d IS DATETIME // фильтр, чтобы сохранилась старая иерархия
 ;
 
-printListBalanceSkus 'Списком' (DATETIME dateTime, GroupType gtype, Group g) = { 
+printListBalanceSkus 'Списком' (DATETIME dateTime, GroupType gtype, Group g)  { 
     IF NOT countInSessionGroups() THEN {
         setInSession() <- TRUE;
         dataInSession(g) <- TRUE;       
@@ -231,7 +231,7 @@ FORM printBalanceSkusStock 'Остатки по товарам'
     FILTERS balanceB(s)
 ;
 
-printBalanceSkus 'По группам' (DATETIME dateTime, GroupType gtype, Group g) = { 
+printBalanceSkus 'По группам' (DATETIME dateTime, GroupType gtype, Group g)  { 
     IF NOT countInSessionGroups() THEN {
         setInSession() <- TRUE;
         dataInSession(g) <- TRUE;       
@@ -297,7 +297,7 @@ DESIGN dialogStocksBackSheet {
 
 @extendFormFilterStockAccess(s, dialogStocksBackSheet, company); 
 
-changeStocksBalance(GroupType gt, DATETIME dt) = {
+changeStocksBalance(GroupType gt, DATETIME dt)  { 
     DIALOG dialogStocksBackSheet OBJECTS s INPUT DO {
         IF NOT (GROUP SUM 1 IF inBackSheet(Stock st)) THEN
             inBackSheet(s) <- TRUE;
@@ -305,34 +305,34 @@ changeStocksBalance(GroupType gt, DATETIME dt) = {
     }
 }
 
-changeFillBalance(GroupType gt, DATETIME dt) = {
+changeFillBalance(GroupType gt, DATETIME dt)  { 
     INPUT b = BOOLEAN DO {
         fillBatch() <- b;
         fillReportBalanceData(gt, dt);
     }
 }
 
-showMovementSkuBackSheet 'Показать движение товара по складу' (Sku sku) = { 
+showMovementSkuBackSheet 'Показать движение товара по складу' (Sku sku)  { 
     NEWSESSION NESTED(inBackSheet) 
         SHOW movementSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inBackSheet(st)) ; 
 }
 
-showMovementPriceSkuBackSheet 'Показать изменение цены товара по складу' (Sku sku) = { 
+showMovementPriceSkuBackSheet 'Показать изменение цены товара по складу' (Sku sku)  { 
     NEWSESSION NESTED(inBackSheet) 
         SHOW movementPriceSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inBackSheet(st)) ; 
 }
 
-showReserveSkuBackSheet 'Показать резерв товара по складу' (Sku sku) = { 
+showReserveSkuBackSheet 'Показать резерв товара по складу' (Sku sku)  { 
     NEWSESSION NESTED(inBackSheet) 
         SHOW orderSkuLedgerNotDate OBJECTS sk = sku, st = (GROUP MIN Stock st IF inBackSheet(st)) ;
 }
 
-showMovementBatchBackSheet 'Показать движение по партии и складу' (Batch batch) = { 
+showMovementBatchBackSheet 'Показать движение по партии и складу' (Batch batch)  { 
     NEWSESSION NESTED(inBackSheet)
         SHOW movementBatchStock OBJECTS bt = batch, st = (GROUP MIN Stock st IF inBackSheet(st)) ; 
 }
 
-showMovementSkuBackSheet 'Показать движение товара по складу' (Batch batch) = {
+showMovementSkuBackSheet 'Показать движение товара по складу' (Batch batch)  { 
     FOR s == sku(batch) DO
         NEWSESSION NESTED(inBackSheet)
             SHOW movementSkuStock OBJECTS s = s, st = (GROUP MIN Stock st IF inBackSheet(st)) ;
@@ -465,9 +465,9 @@ FORM printListBackSheet 'Оборотная ведомость'
     FILTERS s IS Sku AND df IS DATE AND dt IS DATE // фильтр, чтобы сохранилась старая иерархия
 ;
 
-printListBackSheet 'Списком' (DATE dateFrom, DATE dateTo, GroupType gt) =
+printListBackSheet 'Списком' (DATE dateFrom, DATE dateTo, GroupType gt) 
     { PRINT printListBackSheet OBJECTS df = dateFrom, dt = dateTo, gt = gt; }  IMAGE 'print.png' IN print;
-xlsListBackSheet 'Списком (XLS)' (DATE dateFrom, DATE dateTo, GroupType gt) =
+xlsListBackSheet 'Списком (XLS)' (DATE dateFrom, DATE dateTo, GroupType gt) 
     { PRINT printListBackSheet OBJECTS df = dateFrom, dt = dateTo, gt = gt XLS; } IMAGE 'print.png' IN print;
 
 FORM printBackSheet 'Оборотная ведомость'
@@ -506,13 +506,13 @@ FORM printBackSheet 'Оборотная ведомость'
     FILTERS s IS Sku AND df IS DATE AND dt IS DATE // фильтр, чтобы сохранилась старая иерархия
 ;
 
-printBackSheet 'По группам' (DATE dateFrom, DATE dateTo, GroupType gt) =
+printBackSheet 'По группам' (DATE dateFrom, DATE dateTo, GroupType gt) 
     { PRINT printBackSheet OBJECTS df = dateFrom, dt = dateTo, gt = gt; }  IMAGE 'print.png' IN print;
 
-xlsBackSheet 'По группам (XLS)' (DATE dateFrom, DATE dateTo, GroupType gt) =
+xlsBackSheet 'По группам (XLS)' (DATE dateFrom, DATE dateTo, GroupType gt) 
     { PRINT printBackSheet OBJECTS df = dateFrom, dt = dateTo,  gt=gt XLS; } IMAGE 'print.png' IN print;
 
-fillDocumentReport 'Подбор документа'(GroupType gt, DATE df, DATE dt) = {
+fillDocumentReport 'Подбор документа'(GroupType gt, DATE df, DATE dt)  { 
     DIALOG documents DO {
         include(Sku sku) <- TRUE WHERE [ = GROUP SUM 1 IF inSession(document(DocumentDetail d)) BY sku(d)](sku);
         formRefresh();
@@ -520,13 +520,13 @@ fillDocumentReport 'Подбор документа'(GroupType gt, DATE df, DATE
     }
 } TOOLBAR;
 
-deleteInDataSessionReport 'Очистить выборку'(GroupType gt, DATE df, DATE dt) = {
+deleteInDataSessionReport 'Очистить выборку'(GroupType gt, DATE df, DATE dt)  { 
     include(Sku sku) <- NULL;
     formRefresh();
     fillReportBackSheetFromTo(gt, df, dt);
 } TOOLBAR;
    
-changeStocksBackSheet(GroupType gt, DATE df, DATE dt) = {
+changeStocksBackSheet(GroupType gt, DATE df, DATE dt)  { 
     DIALOG dialogStocksBackSheet OBJECTS s INPUT DO {
         IF NOT (GROUP SUM 1 IF inBackSheet(Stock st)) THEN
             inBackSheet(s) <- TRUE;
@@ -580,7 +580,7 @@ FORM reportBackSheet 'Отчет по товарообороту'
     }
 ;
 
-onInitReportBackSheet() = {
+onInitReportBackSheet()  { 
     IF countAccessCompanyStock(currentUser()) ==1 THEN {
         inBackSheet(Stock st)  <- TRUE WHERE  defaultCompanyStock(currentUser())== st; 
         fillReportBackSheetFromTo(SystemGroupType.skuGroupType,currentDate(),currentDate());

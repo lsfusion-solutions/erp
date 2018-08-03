@@ -47,7 +47,7 @@ fullNamePartyBContractMarketing 'Покупатель (полное)' (Marketing
 
 descriptionContractMarketing 'Описание договора' (MarketingReport o)= CONCAT ' ', seriesNumberContractMarketing(o), ' от ' + dateFromContractMarketing(o);
 
-replace(Contract c, Contract o) += {contract(MarketingReport object) <- o WHERE contract(object) == c;}
+replace(Contract c, Contract o) + { contract(MarketingReport object) <- o WHERE contract(object) == c;}
 
 currency (MarketingReport marketingReport) <- currency(contract(marketingReport)) WHEN CHANGED(contract(marketingReport));
 
@@ -89,8 +89,8 @@ sumNetWeightMarketingReportDetail 'Вес нетто, кг.' (marketingReport) =
 
 countCustomerStocks (ContractMarketing c) = GROUP SUM 1 IF inCustomer(Stock stock, c);
 
-fillDataEx = ABSTRACT LIST (MarketingReport);
-fillData 'Заполнить данные'(MarketingReport report) = {
+fillDataEx  ABSTRACT LIST ( MarketingReport);
+fillData 'Заполнить данные'(MarketingReport report)  { 
     IF contract(report) THEN {
         DELETE MarketingReportDetail d WHERE d IS MarketingReportDetail AND marketingReport(d)== report;
         
@@ -126,8 +126,8 @@ skipMarketingReport 'Не создавать маркетинговый отче
 firstMarketingDate = firstDayOfMonth(sumMonth(currentDate(), -1));
 lastMarketingDate = lastDayOfMonth(sumMonth(currentDate(), -1));
 marketingReport = GROUP MAX MarketingReport r IF isPosted(r) BY contract(r), fromDate(r), toDate(r);
-overFillData = ABSTRACT LIST (MarketingReport);
-createAutoMarketingReportFull 'Создать маркетинговый отчет (месяц)'(DATE df, DATE dt) = {
+overFillData  ABSTRACT LIST ( MarketingReport);
+createAutoMarketingReportFull 'Создать маркетинговый отчет (месяц)'(DATE df, DATE dt)  { 
     FOR ContractMarketing c IS ContractMarketing 
         //AND inSalereport(Stock stock) AND partyB(c) == company
         AND NOT marketingReport(c, df, dt)
@@ -151,7 +151,7 @@ createAutoMarketingReportFull 'Создать маркетинговый отч�
         }
     }
 }
-createAutoMarketingReportFull 'Создать маркетинговый отчет (месяц)'() = {
+createAutoMarketingReportFull 'Создать маркетинговый отчет (месяц)'()  { 
     createAutoMarketingReportFull(firstMarketingDate(), lastMarketingDate());
 
 }

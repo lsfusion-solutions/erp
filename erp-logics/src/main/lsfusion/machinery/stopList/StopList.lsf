@@ -114,7 +114,7 @@ count 'Вкл.' (Sku sku, StopList stopList) =  TRUE IF [ = GROUP SUM 1
 in (GroupMachinery groupMachinery, Sku sku, StopList stopList) =count(sku, stopList) AND in(groupMachinery, sku);
 in (GroupMachinery groupMachinery, StopListDetail stopListDetail) =in(groupMachinery, sku(stopListDetail), stopList(stopListDetail));                                         
     
-changeValue(Sku sku, StopList stopList) = {
+changeValue(Sku sku, StopList stopList)  { 
     INPUT b = BOOLEAN DO
         IF stopListDetail(sku, stopList) THEN {
             IF NOT b THEN {
@@ -364,7 +364,7 @@ DESIGN options {
 
 skip 'Отм.' = ABSTRACT BOOLEAN (Sku, Stock);
 
-createRequestStopList 'Включить в стоп-лист'()  = {
+createRequestStopList 'Включить в стоп-лист'()   { 
 
     IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
@@ -385,7 +385,7 @@ createRequestStopList 'Включить в стоп-лист'()  = {
     }
 
 } TOOLBAR;
-excludeRequestStopList 'Исключить из стоп-листа'()  = {
+excludeRequestStopList 'Исключить из стоп-листа'()   { 
 
     IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
@@ -443,7 +443,7 @@ DESIGN historyStopList {
     REMOVE BOX(s);
 }
 
-showHistoryStopList 'Показать историю запрета продаж товара на кассе' (Sku sku, Stock stock) = 
+showHistoryStopList 'Показать историю запрета продаж товара на кассе' (Sku sku, Stock stock)  
     { SHOW historyStopList OBJECTS s = sku, st = stock; }  ASON CONTEXTMENU statusStopList[Sku,Stock];
 
 countDaysClearStopList 'За сколько дней хранить стоп-листы' = DATA INTEGER (); 
@@ -453,7 +453,7 @@ DESIGN options { log { MOVE PROPERTY(countDaysClearStopList());} }
         
 lastStopListDetail (StopListDetail d) = GROUP SUM 1 IF in(Stock s, stopList(d)) AND d == lastStopListDetail(sku(d), s, currentDateTime());
 
-clearApplicationLog () += {
+clearApplicationLog () + { 
 	NEWSESSION {
 	    IF countDaysClearStopList() THEN {
             DELETE StopListDetail d WHERE d IS StopListDetail AND date(d) <= subtract(currentDate(), countDaysClearStopList()) AND NOT lastStopListDetail(d);

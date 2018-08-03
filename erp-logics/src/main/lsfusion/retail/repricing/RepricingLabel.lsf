@@ -12,7 +12,7 @@ skip[PriceTransactionDocument](Repricing document) += skipChangeLedger(document)
 @defineDocumentLabelTransaction(repricing, Repricing, sku, batch, departmentStore);
 @extendFormDocumentLabelTransaction(repricings, p, repricing, skipChangeLedger, machineryContainer);
 
-createAttribute (RepricingDetail r, LabelTransactionDetail t) += {
+createAttribute (RepricingDetail r, LabelTransactionDetail t) + { 
     retailPrice(t) <- curRetailPrice(r) WHERE curRetailPrice(r) > retailPrice(r) AND NOT overRetailPrice(t);
 }
 EXTEND FORM repricings
@@ -39,7 +39,7 @@ DESIGN repricings {
 
 printExistingPrice (LabelTransaction t) += printExistingPrice() AND priceTransactionDocument(t) IS Repricing;
 
-createLabelTransaction 'Сформировать ценники' (DATE date) = {
+createLabelTransaction 'Сформировать ценники' (DATE date)  { 
     NEWEXECUTOR 
         FOR NOT labelTransaction(Repricing repricing) AND date(repricing) == date DO NEWTHREAD NEWSESSION NEWSQL {  
             inLabel(Sku sku) <- TRUE IF countRepricingDetail(sku, repricing);

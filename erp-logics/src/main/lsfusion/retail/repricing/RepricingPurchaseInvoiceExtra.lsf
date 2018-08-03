@@ -17,7 +17,7 @@ EXTEND FORM invoices
 
 //-- Одна дооценка к одной накладной
 
-createExtraValuationNotFormExtra 'Создать дооценку'(Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation) = {
+createExtraValuationNotFormExtra 'Создать дооценку'(Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation)  { 
     LOCAL in = BOOLEAN (Invoice);
     in(Invoice invoice) <- filterToRepricingDate (invoice, department, timeFrom, timeTo);
     IF (GROUP SUM 1 IF in(Invoice invoice)) THEN {
@@ -113,7 +113,7 @@ createExtraValuationNotFormExtra 'Создать дооценку'(Stock departm
 } 
 
 isOverExtraValuationAllStocks () += TRUE;
-createOverExtraValuationAllStocks () += {
+createOverExtraValuationAllStocks () + { 
     FOR DepartmentStore department IS DepartmentStore AND isCompany(department) DO {
         createExtraValuationNotFormExtra(department, toRepricingDateTime(), toRepricingDateTimeTo(), toRepricingOperation());                           
     }  
@@ -122,7 +122,7 @@ createOverExtraValuationAllStocks () += {
 
 toRepricingDateTimeToInvoice 'Дата/время документа (по)' (Invoice i) = OVERRIDE dateTimeToDateTime(sum(shipmentDate(i), 2), shipmentTime(i)), currentDateTime(); 
 
-createRepricing 'Акт переоценки (дооценка)'(Invoice i) = {
+createRepricing 'Акт переоценки (дооценка)'(Invoice i)  { 
     IF isPosted(i) AND createShipment(i) AND NOT costLedger(customerStock(i)) AND NOT explicitBatchLedger[DepartmentStore](customerStock(i)) THEN {
         LOCAL to = BOOLEAN ();
         to() <- NULL;

@@ -13,7 +13,7 @@ type 'Тип процесса' (ledger) = ABSTRACT VARSTRING[50] (StockDocumentL
 overOrder  (ledger) = ABSTRACT INTEGER (StockDocumentLedger);
 order 'Порядок' = OVERRIDE overOrder(StockDocumentLedger l), 1000000 IF l IS StockDocumentLedger;
 
-close 'Закрыть' = ABSTRACT LIST (StockDocumentLedger) TOOLBAR;
+close 'Закрыть'  ABSTRACT LIST ( StockDocumentLedger) TOOLBAR;
 
 dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (StockDocumentLedger) MATERIALIZED INDEXED;
 date 'Дата' (StockDocumentLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED INDEXED IN recognize;
@@ -519,7 +519,7 @@ CONSTRAINT  CHANGED(date(StockDocumentLedger d)) AND PREV(active(d))
     MESSAGE 'Запрещено изменять дату документам для склада до даты закрытия';
     
 
-closeDocumentsStocks 'Закрыть документы до Дата (по)'(DATE date, Stock stock) = {
+closeDocumentsStocks 'Закрыть документы до Дата (по)'(DATE date, Stock stock)  { 
     IF sum(date, 1) > currentDate() THEN {
         MESSAGE 'Запрещено закрывать период позже текущей даты';
         RETURN;
@@ -757,8 +757,8 @@ stock (OutUserStockDocumentDetail ledger) += stock(userStockDocumentDetail(ledge
 description (OutUserStockDocumentDetail ledger) += description(userStockDocumentDetail(ledger));                                                                                                                                                                                                                                   
 sumContainer(OutUserStockDocumentDetail ledger) += -sumContainer(userStockDocumentDetail(ledger));
 sumItem(OutUserStockDocumentDetail ledger) += -sumItem(userStockDocumentDetail(ledger));
-edit(OutUserStockDocumentDetail ledger) += { edit(userStockDocumentDetail(ledger)); }
-close(OutUserStockDocumentDetail ledger) += { isClosed(UserStockDocument s) <- TRUE WHERE s == userStockDocument(userStockDocumentDetail(ledger)); }
+edit(OutUserStockDocumentDetail ledger) + {  edit(userStockDocumentDetail(ledger)); }
+close(OutUserStockDocumentDetail ledger) + {  isClosed(UserStockDocument s) <- TRUE WHERE s == userStockDocument(userStockDocumentDetail(ledger)); }
 type(OutUserStockDocumentDetail l) += 'Учетный документ (польз.) расход' IF l IS OutUserStockDocumentDetail;
 
 needToInLedger = sumItem(UserStockDocumentDetail d) > 0 OR sumContainer(d) > 0;
@@ -773,8 +773,8 @@ stock (InUserStockDocumentDetail ledger) += stock(userStockDocumentDetail(ledger
 description (InUserStockDocumentDetail ledger) += description(userStockDocumentDetail(ledger));                                                                                                                                                                                                                                   
 sumContainer(InUserStockDocumentDetail ledger) += sumContainer(userStockDocumentDetail(ledger));
 sumItem(InUserStockDocumentDetail ledger) += sumItem(userStockDocumentDetail(ledger));
-edit(InUserStockDocumentDetail ledger) += { edit(userStockDocumentDetail(ledger)); }
-close(InUserStockDocumentDetail ledger) += { isClosed(UserStockDocument s) <- TRUE WHERE s == userStockDocument(userStockDocumentDetail(ledger)); }
+edit(InUserStockDocumentDetail ledger) + {  edit(userStockDocumentDetail(ledger)); }
+close(InUserStockDocumentDetail ledger) + {  isClosed(UserStockDocument s) <- TRUE WHERE s == userStockDocument(userStockDocumentDetail(ledger)); }
 type(InUserStockDocumentDetail l) += 'Учетный документ (польз.) приход' IF l IS InUserStockDocumentDetail;
 
 //EXTEND CLASS UserStockDocumentDetail : IncStockDocumentLedger;
@@ -796,7 +796,7 @@ type(InUserStockDocumentDetail l) += 'Учетный документ (поль�
 //-------------------- Групповое закрытие периода по магазинам --------------------
 isSelect 'Вкл.'= DATA LOCAL BOOLEAN (Stock);
 
-closeDocumentsStocks 'Закрыть документы'() = {
+closeDocumentsStocks 'Закрыть документы'()  { 
     IF NOT GROUP SUM 1 IF isSelect(Stock s) THEN MESSAGE 'Не отмечены склады';
     FOR StockDocumentLedger ledger AND isSelect(stock(ledger)) AND date(ledger) < documentsClosedDate(stock(ledger)) AND isOpened(ledger) DO {
         close(ledger);

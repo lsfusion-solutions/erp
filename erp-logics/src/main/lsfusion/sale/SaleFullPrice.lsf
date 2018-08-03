@@ -19,7 +19,7 @@ percDiscount(UserOrderDetail d) += percDiscount(d);
 prevList (PriceListType t, UserOrderDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) AND percDiscount(userOrder(d)) THEN
                     round2(NUMERIC[16,4](prevPriceB(t, sku(d), priceStock(d), dateTime(d)) * (100.0 (-) percDiscount(userOrder(d))) / 100.0));
 
-recalculateDiscountPrice(UserOrderDetail d) = {
+recalculateDiscountPrice(UserOrderDetail d)  { 
     price(d) <- round2(NUMERIC[16,4](fullPrice(d) * (100.0 (-) percDiscount (d)) / 100.0));
     invoicePrice(d) <- round2(price (d) * (100 + calcValueVAT(d)) / 100);
 }
@@ -82,7 +82,7 @@ WHEN LOCAL FORMS userOrder GOAFTER fullPrice[UserOrderDetail]
 }
 
 // при изменении цены меняется % скидки
-overChangePrice(UserOrderDetail d) += {
+overChangePrice(UserOrderDetail d) + { 
     IF fullPrice(d) AND isItem(sku(d)) THEN {
         dataPercDiscount(d) <- NUMERIC[8,4](round2((1.0 - (price(d)/fullPrice(d)))*100.0));     
     }   
@@ -93,9 +93,9 @@ WHEN LOCAL FORMS userOrder GOAFTER price[UserOrderDetail] (CHANGED(price(UserOrd
     dataPercDiscount(d) <- NUMERIC[8,4](round2((1.0 - (price(d)/fullPrice(d)))*100.0));
 }
 
-overRecalculateFullPrice = ABSTRACT LIST (UserOrderDetail);
+overRecalculateFullPrice  ABSTRACT LIST ( UserOrderDetail);
 
-recalculateFullPriceUserOrderDetail 'Пересчитать цены'() = {
+recalculateFullPriceUserOrderDetail 'Пересчитать цены'()  { 
     FOR PriceListType pt == priceListType(UserOrderDetail d) AND isItem(sku(d)) AND [= FILTER userOrder.d](d) NOINLINE (pt) DO {
         fullPrice(d) <- IF prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), customerStock(d), dateTime(d)) 
                     THEN round2(prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), customerStock(d), dateTime(d)))
@@ -119,12 +119,12 @@ EXTEND FORM orders
 
 skipSetAgreement(UserOrder o) += priceListType(agreement(o)) IS CalcPriceListType;
 
-overCopy (UserOrder o, UserOrder order) += {
+overCopy (UserOrder o, UserOrder order) + { 
     percDiscount(order) <- percDiscount(o);  
 } 
 
 // только для копирования строки, при копировании документа заполняется стандартными значениями
-overCopy[UserOrderDetail, UserOrderDetail](UserOrderDetail d, UserOrderDetail detail) += {
+overCopy[UserOrderDetail, UserOrderDetail](UserOrderDetail d, UserOrderDetail detail) + { 
     fullPrice(d) <- fullPrice(detail);  
     dataPercDiscount(d) <- dataPercDiscount(detail);  
 } 
@@ -144,7 +144,7 @@ percDiscount(UserInvoiceDetail d) += percDiscount(d);
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) AND percDiscount(userInvoice(d)) THEN
                     round2(NUMERIC[16,4](prevPriceB(t, sku(d), supplierStock(d), dateTime(d)) * (100.0 (-) percDiscount(userInvoice(d))) / 100.0));
 
-recalculateDiscountPrice(UserInvoiceDetail d) = {
+recalculateDiscountPrice(UserInvoiceDetail d)  { 
     price(d) <- round2(NUMERIC[16,4](fullPrice(d) * (100.0 (-) percDiscount (d)) / 100.0));
     invoicePrice(d) <- round2(price (d) * (100 + calcValueVAT(d)) / 100);
 }
@@ -210,7 +210,7 @@ WHEN LOCAL //FORMS userInvoice
 }
 
 // при изменении цены меняется % скидки
-overChangePrice(UserInvoiceDetail d) += {
+overChangePrice(UserInvoiceDetail d) + { 
     IF fullPrice(d) AND isItem(sku(d)) THEN {
         dataPercDiscount(d) <- NUMERIC[8,4](round2((1.0 - (price(d)/fullPrice(d)))*100.0));     
     }   
@@ -221,9 +221,9 @@ WHEN LOCAL FORMS userInvoice GOAFTER price[UserInvoiceDetail] (CHANGED(price(Use
     dataPercDiscount(d) <- NUMERIC[8,4](round2((1.0 - (price(d)/fullPrice(d)))*100.0));
 }
 
-overRecalculateFullPrice = ABSTRACT LIST (UserInvoiceDetail);
+overRecalculateFullPrice  ABSTRACT LIST ( UserInvoiceDetail);
 
-recalculateFullPriceUserInvoiceDetail 'Пересчитать цены'() = {
+recalculateFullPriceUserInvoiceDetail 'Пересчитать цены'()  { 
     FOR PriceListType pt == priceListType(UserInvoiceDetail d) AND isItem(sku(d)) AND [= FILTER userInvoice.d](d) NOINLINE (pt) DO {
         fullPrice(d) <- IF prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), customerStock(d), dateTime(d)) 
                     THEN round2(prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), customerStock(d), dateTime(d)))
@@ -248,20 +248,20 @@ CONSTRAINT agreement(Order o) != agreement(UserInvoice i) AND include(o,i) AND N
 
 skipSetAgreement(UserInvoice i) += priceListType(agreement(i)) IS CalcPriceListType;
 
-overFill (UserInvoice i, Order o) += {
+overFill (UserInvoice i, Order o) + { 
     percDiscount(i) <- percDiscount(o);
 }
-overFill (UserInvoiceDetail id, OrderDetail od) += {
+overFill (UserInvoiceDetail id, OrderDetail od) + { 
     fullPrice(id) <- fullPrice(od);  
     dataPercDiscount(id) <- dataPercDiscount(od);  
 }
 
-overCopy (UserInvoice i, UserInvoice invoice) += {
+overCopy (UserInvoice i, UserInvoice invoice) + { 
     percDiscount(invoice) <- percDiscount(i);  
 } 
 
 // только для копирования строки, при копировании документа заполняется стандартными значениями
-overCopy[UserInvoiceDetail, UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += {
+overCopy[UserInvoiceDetail, UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) + { 
     fullPrice(d) <- fullPrice(detail);  
     dataPercDiscount(d) <- dataPercDiscount(detail);  
 } 

@@ -24,7 +24,7 @@ CLASS SaleReportDetail 'Строка акта реализации';
 @defineDocumentDetailBatchCustomPrefix(saleReportDetail, batch, );
 idBatch 'Код партии' (SaleReportDetail d) = id(batch(d)) CHARWIDTH 10;
 
-replace(Sku s, Batch b) += { sku(SaleReportDetail detail) <- s WHERE batch(detail) == b;} 
+replace(Sku s, Batch b) + {  sku(SaleReportDetail detail) <- s WHERE batch(detail) == b;} 
 
 @defineDocumentPosted(saleReport);
 
@@ -52,7 +52,7 @@ contractSku = DATA ContractSku (SaleReport);
 numberContractSku 'Договор (номер)' (SaleReport o) = number[Contract](contractSku(o)) IN documentPrm;
 descriptionContractSku 'Договор' (SaleReport o) = description(contractSku(o)) IN documentPrm;
 
-replace(ContractSku c, ContractSku o) += {contractSku(SaleReport object) <- o WHERE contractSku(object) == c;}
+replace(ContractSku c, ContractSku o) + { contractSku(SaleReport object) <- o WHERE contractSku(object) == c;}
 
 CONSTRAINT contractSku(SaleReport o) AND NOT company(o) == partyB(contractSku(o))
     CHECKED BY contractSku[SaleReport] MESSAGE 'Организация (покупатель) договора не соответствует компании в акте реализации';    
@@ -131,7 +131,7 @@ detail (b,r)= GROUP MAX SaleReportDetail d BY batch(d), saleReport(d);
 
 skipSaleReport = ABSTRACT BOOLEAN (Batch);     
        
-fillData 'Заполнить данные'(SaleReport report) = {    
+fillData 'Заполнить данные'(SaleReport report)  {    
     IF supplier(report) AND contractSku(report) AND company(report) THEN {
         DELETE SaleReportDetail d WHERE d IS SaleReportDetail AND saleReport(d)== report;
         IF companyStock(report) THEN {
@@ -405,7 +405,7 @@ FORM detailSaleReport 'Акт реализации'
     ORDER index(d)    
     FILTERS saleReport(d) == r
 ;
-printDetail 'Акт реализации' (SaleReport report) =
+printDetail 'Акт реализации' (SaleReport report) 
     { PRINT detailSaleReport OBJECTS r = report; }   IMAGE 'print.png' IN print;
 
 EXTEND FORM reportsSales
@@ -429,7 +429,7 @@ selected 'Отм.' = DATA LOCAL BOOLEAN (SaleReport);
 isSent 'Отправлен' (o) = DATA BOOLEAN (SaleReport);
 sentDateTime 'Дата отправления' (o) = DATA DATETIME (SaleReport);
 
-logSendDocumentSaleReport(Object o) = {
+logSendDocumentSaleReport(Object o)  { 
 	NEW d = DocumentLog {
 	        document(d) <- o;
 	        typeDocument(d) <- objectClassName(o);
@@ -453,7 +453,7 @@ FORM messageSaleReports 'Сообщение'
     PROPERTIES () messageEmailOrders TODRAW s
 ;
 
-calcEmailSupplier 'Отправить акт поставщику' (SaleReport report) = { EMAIL
+calcEmailSupplier 'Отправить акт поставщику' (SaleReport report)  { EMAIL
     FROM OVERRIDE email(createdUser(report)), fromEmailOrders()
     SUBJECT 'Акт реализации по магазину ' + nameCompanyStock(report)+ ' за период с '  + fromDate(report)+ ' по ' + toDate(report)
     TO email(supplier(report))
@@ -463,7 +463,7 @@ calcEmailSupplier 'Отправить акт поставщику' (SaleReport r
            detailSaleReport OBJECTS r=report
 ; }
     
-emailSupplierSingle  'Отправить акт поставщику' (SaleReport report)= {
+emailSupplierSingle  'Отправить акт поставщику' (SaleReport report) { 
     NEWSESSION {
             IF email(supplier(report)) THEN { 
         
@@ -477,7 +477,7 @@ emailSupplierSingle  'Отправить акт поставщику' (SaleRepor
     }
 }
 
-emailSupplier 'Отправить акты поставщикам' (SaleReport report)= {
+emailSupplier 'Отправить акты поставщикам' (SaleReport report) { 
     selected(report) <- TRUE;
     
     FOR selected(SaleReport r) DO 
@@ -522,7 +522,7 @@ EXTEND FORM contractSkus
 filterSoldCompanyFromTo = GROUP SUM quantitySold(Batch batch, Stock stock, DATE dateFrom, DATE dateTo) IF inSalereport(stock)
     BY legalEntity(stock), contractSku(invoice(invoiceDetail(batch))), dateFrom, dateTo;   
 
-createAutoSaleReport 'Создать акты реализации'(LegalEntity company, DATE dateFrom, DATE dateTo) = {
+createAutoSaleReport 'Создать акты реализации'(LegalEntity company, DATE dateFrom, DATE dateTo)  { 
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
         AND inSalereport(Stock stock) AND partyB(c) == company AND NOT skipSaleLedger(c) DO {
         NEWSESSION  {
@@ -554,7 +554,7 @@ fromDateFull(ContractSku c) = IF partSale(c) THEN sum(firstSaleDate(),15)
 
 saleReport = GROUP MAX SaleReport r BY companyStock(r), contractSku(r), fromDate(r), toDate(r);
 
-createAutoSaleReportdFull 'Создать акты реализации (месяц)'(LegalEntity company) = {
+createAutoSaleReportdFull 'Создать акты реализации (месяц)'(LegalEntity company)  { 
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
         AND inSalereport(Stock stock) AND partyB(c) == company
         AND NOT saleReport(stock, c, fromDateFull(c), lastSaleDate())
@@ -579,7 +579,7 @@ createAutoSaleReportdFull 'Создать акты реализации (мес�
         }
     }
 }
-createAutoSaleReportdPart 'Создать акты реализации (полмесяца)'(LegalEntity company) = {
+createAutoSaleReportdPart 'Создать акты реализации (полмесяца)'(LegalEntity company)  { 
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
         AND inSalereport(Stock stock) AND partyB(c) == company AND  partSale(c) 
         AND NOT saleReport(stock, c, firstDateCurrentMonth(), sum(firstDateCurrentMonth(),14)) 
@@ -603,18 +603,18 @@ createAutoSaleReportdPart 'Создать акты реализации (пол�
     }
 }
 
-createAutoSaleReportPrevMonth 'Создать акты реализации (за пред.месяц)'(LegalEntity company) = {
+createAutoSaleReportPrevMonth 'Создать акты реализации (за пред.месяц)'(LegalEntity company)  { 
     createAutoSaleReport(company, firstSaleDate(), lastSaleDate());    
 }
 
 
-createSchedulerAutoSaleReportdFull 'Создать акты реализации (за месяц)'() = {
+createSchedulerAutoSaleReportdFull 'Создать акты реализации (за месяц)'()  { 
     FOR isCompany(LegalEntity l) DO {
         createAutoSaleReportdFull(l);    
     }
 }
 
-createSchedulerAutoSaleReportdPart 'Создать акты реализации (за полмесяца)'() = {
+createSchedulerAutoSaleReportdPart 'Создать акты реализации (за полмесяца)'()  { 
     FOR isCompany(LegalEntity l) DO {
         createAutoSaleReportdPart(l);    
     }    

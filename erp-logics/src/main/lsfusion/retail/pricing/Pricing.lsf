@@ -58,7 +58,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
                                                          WHERE prefix###priceListType(detail) == priceListType;
         }
     skipMarkup = ABSTRACT CASE BOOLEAN (###idetail);
-    recalculate###prefix##Markup (###idetail detail) = {
+    recalculate###prefix##Markup (###idetail detail)  { 
         prefix##Markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
                                                            prefix###price(detail),
                                                            prefixP###price(detail),
@@ -73,9 +73,9 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
 END
 
 META recalculateDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form, prefixTime, cap, concrete)
-    overRecalculate###prefix##Price = ABSTRACT LIST ();
+    overRecalculate###prefix##Price  ABSTRACT LIST ( );
 
-    recalculate###prefix##Price 'Пересчитать розн. цену'###cap () = {
+    recalculate###prefix##Price 'Пересчитать розн. цену'###cap ()  { 
         FOR sku(###idetail detail)  AND CalcPriceListType priceListType == prefix##PriceListType(detail) 
             AND RoundCondition roundCondition == roundCondition(priceListType, sku(detail))    
             AND pricingDocument(priceListType) AND [= FILTER form.concrete](detail) NOINLINE (priceListType, roundCondition) INLINE DO {
@@ -112,7 +112,7 @@ META changeDocumentDetailMarkupCustomPrefix(detail, prefixA, prefixB, prefixC, p
         prefixB###price(detail),
         value###prefixD##VAT(detail)));
 
-    change###prefixA##Price(###detail detail) = {
+    change###prefixA##Price(###detail detail)  { 
         INPUT n = NUMERIC[16,4] DO {
             prefixA###price(detail) <- n;
             prefixD###markup(detail) <- calc###prefixD##Markup(detail) WHERE calc###prefixD##Markup(detail);
@@ -127,7 +127,7 @@ META changeDocumentDetailPriceCustomPrefix(detail, prefixA, prefixB, prefixC, pr
         prefixD###markup(detail),
         value###prefixD##VAT(detail))), prefixCondition###roundCondition(detail));
 
-    change###prefixD##Markup(###detail detail) = {
+    change###prefixD##Markup(###detail detail)  { 
         INPUT n = NUMERIC[8,3] DO {
             prefixD###markup(detail) <- n;
             prefixA###price(detail) <- calc###prefixA##Price(detail) WHERE calc###prefixA##Price(detail);
@@ -162,7 +162,7 @@ META changeDocumentDetailPricePrefix(detail, prefixA, prefixB, prefixC, prefixD,
         prefixE###markup(detail),
         value###prefixE##VAT(detail))), roundCondition(detail));
 
-    change###prefixA##Price(###detail detail) = {
+    change###prefixA##Price(###detail detail)  { 
         INPUT n = NUMERIC[16,4] DO {
             prefixA##Price(detail) <- n;
             IF n THEN
@@ -312,7 +312,7 @@ descriptionDocument 'Документы-основания' = ABSTRACT VARSTRING
 @showDocumentInterfaceDetailBatch(pricing);
 @defineDocumentInterfaceDetailBatch(pricing, batch);
 
-changeBatch(UserPricingDetail detail) = {
+changeBatch(UserPricingDetail detail)  { 
     DIALOG dialogBatchStockOut OBJECTS st = departmentStore(detail),
                              t = dateTime(detail),
                              sk = sku(detail),
@@ -428,7 +428,7 @@ groupType (UserPricing p) = SystemGroupType.skuGroupType IF p IS UserPricing;
 
 isUserOpened(UserPricing p)=  isOpened[Pricing](p) AND is(p);
 
-edit(UserPricingDetail d) += { edit(userPricing(d)); }
+edit(UserPricingDetail d) + {  edit(userPricing(d)); }
 
 FORM pricings 'Акты расценки' 
     OBJECTS p = Pricing LAST
@@ -729,14 +729,14 @@ in (PricingDetail ledger, Batch batch) += batch(ledger) == batch;
 in (PricingDetail ledger, DepartmentStore stock) += departmentStore(ledger) == stock;
 
 
-show 'Просмотреть' = ABSTRACT LIST  (PricingDetail) TOOLBAR;
-show(UserPricingDetail d) = {
+show 'Просмотреть'  ABSTRACT LIST  ( PricingDetail) TOOLBAR;
+show(UserPricingDetail d)  { 
 	NEWSESSION {
 	    SHOW userPricing OBJECTS p = userPricing(d), d = d DOCKED READONLY ;
 	}
 }
-show(UserPricingDetail d) += { show(d); }    
-show[PriceListLedger] (PricingDetail ledger) += {show(ledger);};
+show(UserPricingDetail d) + {  show(d); }    
+show[PriceListLedger] (PricingDetail ledger) + { show(ledger);};
 
 // ------ Расширяем форму остатков
 

@@ -43,7 +43,7 @@ numberDocument 'Документ' = ABSTRACT VARSTRING[30](GiftCardLedger);
 departmentStore = ABSTRACT DepartmentStore (GiftCardLedger);
 nameDepartmentStore 'Отдел магазина' (GiftCardLedger g) = name(departmentStore(g));
 
-show 'Просмотреть' = ABSTRACT LIST (GiftCardLedger) TOOLBAR;
+show 'Просмотреть'  ABSTRACT LIST ( GiftCardLedger) TOOLBAR;
 
 namePaymentType 'Тип платежа' = ABSTRACT VARISTRING[110] (GiftCardLedger);
 
@@ -132,15 +132,15 @@ departmentStore(ReceiptGiftCardSaleDetail detail) += departmentStore(receipt(det
 isReturn(ReceiptGiftCardSaleDetail detail) += isReturn(detail);
 namePaymentType(ReceiptGiftCardSaleDetail detail) += VARISTRING[110](namePaymentType(detail));
 
-edit (ReceiptGiftCardSaleDetail d) += { DIALOG zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED; }
+edit (ReceiptGiftCardSaleDetail d) + {  DIALOG zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED; }
 
-show(ReceiptGiftCardSaleDetail d) = {
+show(ReceiptGiftCardSaleDetail d)  { 
 	NEWSESSION {
 	    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED READONLY;
 	}
 }
 
-show(ReceiptGiftCardSaleDetail d) += { show(d); }  
+show(ReceiptGiftCardSaleDetail d) + {  show(d); }  
 
 legalEntityGiftCard = DATA LegalEntity ();
 nameLegalEntityGiftCard 'Эмитент подарочных сертификатов' = name(legalEntityGiftCard()); 
@@ -186,9 +186,9 @@ DESIGN generationGiftCards {
     }
 }
 
-overGenerateGiftCards = ABSTRACT LIST (GiftCard);
+overGenerateGiftCards  ABSTRACT LIST ( GiftCard);
 
-generateGiftCards 'Сгенерировать ПС'() = {
+generateGiftCards 'Сгенерировать ПС'()  { 
     DIALOG generationGiftCards OBJECTS n = defaultNumeratorGiftCard() INPUT, l = legalEntityGiftCard() INPUT,
                                        quantityCards INPUT, priceCards INPUT, dt INPUT, d INPUT DO {
         LOCAL num = INTEGER();
@@ -290,20 +290,20 @@ description(PaymentGiftCard payment) += 'Погашение' IF payment IS Payme
 numberDocument(PaymentGiftCard payment) += VARSTRING[30](number(receipt(payment))) IF payment IS PaymentGiftCard;
 departmentStore(PaymentGiftCard payment) += departmentStore(receipt(payment)) IF payment IS PaymentGiftCard;
 
-edit(PaymentGiftCard d) += {
+edit(PaymentGiftCard d) + { 
     IF d IS PaymentGiftCard THEN {
         DIALOG zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d DOCKED;
     }
 }
 
-show(PaymentGiftCard d) = {
+show(PaymentGiftCard d)  { 
 	NEWSESSION {
 	    IF d IS PaymentGiftCard THEN {
 	        SHOW zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d DOCKED READONLY;
 	    }
 	}
 }
-show(PaymentGiftCard d) += { show(d); }  
+show(PaymentGiftCard d) + {  show(d); }  
 
 allowPartiallyPayGiftCard 'Разрешить гасить сертификат частично' = DATA BOOLEAN ();
 
@@ -352,7 +352,7 @@ EXTEND FORM giftCards
 EXTEND CLASS PaymentMeans { paymentMeansGiftCard 'Подарочный сертификат'}
 order(PaymentMeans p) += WHEN p == PaymentMeans.paymentMeansGiftCard THEN 3;
 
-overLoadDefaultPaymentTypes() += {
+overLoadDefaultPaymentTypes() + { 
     loadDefaultType('Подарочный сертификат', PaymentMeans.paymentMeansGiftCard, 'giftcard');
 }
 
@@ -375,7 +375,7 @@ EXTEND FORM zReports
     PROPERTIES (b) READONLY AFTER sumCardPayment(b) sumGiftCardPayment    
 ;
 
-addGiftCardpayment 'Добавить ПС' (Receipt r) = { NEW p = PaymentGiftCard receipt(p) <- r; } 
+addGiftCardpayment 'Добавить ПС' (Receipt r)  { NEW p = PaymentGiftCard receipt(p) <- r; } 
 
 EXTEND FORM zReport
     PROPERTIES (b)  addGiftCardpayment TOOLBAR TODRAW p
@@ -384,7 +384,7 @@ EXTEND FORM zReport
 EXTEND FORM zReports
     PROPERTIES (p) READONLY seriesNumber[GiftCardLedger];
 
-overCopy(ReceiptGiftCardSaleDetail detail,Receipt r) += {
+overCopy(ReceiptGiftCardSaleDetail detail,Receipt r) + { 
     IF detail IS ReceiptGiftCardSaleDetail THEN {
         NEW d=ReceiptGiftCardSaleDetail {
             receipt(d) <- r;

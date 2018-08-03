@@ -13,15 +13,15 @@ dateTime[EVATDocument](Invoice document) += dateTime(document);
 
 @defineOperationProperty(eVAT, 'Создавать ЭСЧФ', createContainer);
 
-overCreateEVATPurchaseInvoice = ABSTRACT LIST (EVATDetail, InvoiceDetail);
-overCreateEVATPurchaseInvoice = ABSTRACT LIST (EVAT, Invoice);
-overCreateEVATPurchaseInvoice 'Накладные (закупка-возврат)' = ABSTRACT LIST (DATE, DATE);//-- для возвратов
+overCreateEVATPurchaseInvoice  ABSTRACT LIST ( EVATDetail, InvoiceDetail);
+overCreateEVATPurchaseInvoice  ABSTRACT LIST ( EVAT, Invoice);
+overCreateEVATPurchaseInvoice 'Накладные (закупка-возврат)'  ABSTRACT LIST ( DATE, DATE);//-- для возвратов
 skipEVAT = ABSTRACT CASE BOOLEAN (Invoice);
 
 EXTEND CLASS EVATType { purchase 'Закупка' }
 type[EVATDocument](Invoice i) += EVATType.purchase IF i IS Invoice;
 
-createEVATPurchaseInvoice (EVAT e, Invoice i) = {
+createEVATPurchaseInvoice (EVAT e, Invoice i)  { 
     EVATDocument(e) <- i;
     type(e) <- EVATType.purchase;
     status(e) <- EVATStatus.original;
@@ -63,7 +63,7 @@ createEVATPurchaseInvoice (EVAT e, Invoice i) = {
     overCreateEVATPurchaseInvoice(e,i);
 } 
 
-createEVATPurchaseInvoice (EVAT e, InvoiceDetail id, EVATDetail ed) = {
+createEVATPurchaseInvoice (EVAT e, InvoiceDetail id, EVATDetail ed)  { 
     evat(ed) <- e;
     
     name(ed) <- VARSTRING[255](OVERRIDE documentNameSku(id), nameSku(id));
@@ -96,9 +96,9 @@ customer[EVATDocument](Purchase.Invoice i) += customer(i);
 //priceRound (InvoiceDetail d) += WHEN currency(d) THEN defaultRound(currency(d));
 inEVAT = DATA LOCAL BOOLEAN (Invoice);
 inEVAT = DATA LOCAL BOOLEAN ();
-createEVATPurchaseInvoiceOver  = ABSTRACT LIST (DATE, DATE);
+createEVATPurchaseInvoiceOver   ABSTRACT LIST ( DATE, DATE);
 
-createEVATPurchaseInvoice 'Накладные (закупка)' (DATE dFrom, DATE dTo) = {
+createEVATPurchaseInvoice 'Накладные (закупка)' (DATE dFrom, DATE dTo)  { 
     inEVAT() <- NULL;
     createEVATPurchaseInvoiceOver(dFrom,dTo); // разная фильтрация накладных
     

@@ -168,7 +168,7 @@ skipTruck 'Пропустить проверку автомобиля' = ABSTRAC
 
 notUseDriverTruck = ABSTRACT BOOLEAN(Consignment);
 
-changeTruck (Consignment consignment) = {    
+changeTruck (Consignment consignment)  {    
     IF notUseDriverTruck(consignment) THEN {
         INPUT s = dataNameTruck(consignment) DO {
             dataNameTruck(consignment) <- s;
@@ -180,14 +180,14 @@ changeTruck (Consignment consignment) = {
     }        
 }
 
-pickTuck 'Выбрать автомобиль из справочника' (Consignment consignment) = {
+pickTuck 'Выбрать автомобиль из справочника' (Consignment consignment)  { 
     DIALOG trucks OBJECTS t = dataTruck(consignment) INPUT NULL DO {
         dataTruck(consignment) <- t;
         dataNameTruck(consignment) <- NULL;
     }
 } ASON CONTEXTMENU nameTruck[Consignment];
 
-editTuck 'Ввести автомобиль' (Consignment consignment) = {
+editTuck 'Ввести автомобиль' (Consignment consignment)  { 
     DIALOG dialogString OBJECTS s = nameTruck(consignment) INPUT NULL DO {
         dataNameTruck(consignment) <- s;
     }
@@ -239,9 +239,9 @@ nameDriver 'Водитель' (Consignment consignment) = OVERRIDE dataNameDrive
                                                           shortName(driver(consignment)) CHARWIDTH 15 IN carConsignment;
 skipDriver 'Пропустить проверку водителя' = ABSTRACT CASE BOOLEAN (Consignment);
 
-overChangeDriver = ABSTRACT (Consignment);
+overChangeDriver  ABSTRACT ( Consignment);
                                                           
-changeDriver(Consignment consignment) = {
+changeDriver(Consignment consignment)  { 
     IF notUseDriverTruck(consignment) THEN {
         INPUT s = dataNameDriver(consignment) DO {
             dataNameDriver(consignment) <- s;
@@ -304,7 +304,7 @@ shipmentBase 'Основание отпуска' (Consignment consignment) = OVE
                                                                       dataShipmentBase(consignment),
                                                                       VARSTRING[100](descriptionContract(consignment)) IN issuanceConsignment CHARWIDTH 20;
                                                                       
-changeShipmentBase (Consignment consignment) = {   
+changeShipmentBase (Consignment consignment)  {   
     INPUT s = shipmentBase(consignment) DO {
         overShipmentBase(consignment) <- s;  
     }                       
@@ -317,7 +317,7 @@ issuanceAllowed (consignment) = ABSTRACT Employee (Consignment);
 nameIssuanceAllowed 'Отпуск разрешил' (Consignment consignment) = OVERRIDE dataIssuanceAllowed(consignment),
                                                                                               positionShortName(issuanceAllowed(consignment)), // для агрегированных объектов (накладная на основании накладной)
                                                                                               positionShortName(overIssuanceAllowed(consignment)) IN issuanceConsignment CHARWIDTH 20;
-changeIssuanceAllowed(Consignment consignment) = {    
+changeIssuanceAllowed(Consignment consignment)  {    
     IF notUseIssuanceAllowed(consignment) THEN {
         INPUT s = dataIssuanceAllowed(consignment) DO {
             dataIssuanceAllowed(consignment) <- s;  
@@ -347,7 +347,7 @@ issuanceExecuted (consignment) = ABSTRACT Employee(Consignment);
 nameIssuanceExecuted 'Отпуск произвел' (Consignment consignment) = OVERRIDE  dataIssuanceExecuted(consignment),
                                                                                                 positionShortName(issuanceExecuted(consignment)),
                                                                                                 positionShortName(overIssuanceExecuted(consignment)) IN issuanceConsignment CHARWIDTH 20;
-changeIssuanceExecuted(Consignment consignment) = {    
+changeIssuanceExecuted(Consignment consignment)  {    
     IF notUseIssuanceExecuted(consignment) THEN {
         INPUT s = dataIssuanceExecuted(consignment) DO {
             dataIssuanceExecuted(consignment) <- s;
@@ -373,7 +373,7 @@ forwarder 'Товар к перевозке принял (экспедитор),
     overNameForwarder(consignment),
     positionShortName(dataForwarder(consignment)) IN issuanceConsignment CHARWIDTH 30;
 
-changeForwarder(Consignment consignment) = {
+changeForwarder(Consignment consignment)  { 
     
     IF notUseDriverTruck(consignment) THEN {
         INPUT s = dataNameForwarder(consignment) DO {
@@ -397,7 +397,7 @@ overGoodsAccepted 'Принял грузополучатель'  = OVERRIDE
     goodsAccepted(Consignment consignment), 
     positionShortName(dataGoodsAccepted(consignment)) IN issuanceConsignment CHARWIDTH 20;
     
-changeGoodsAccepted(Consignment consignment) = {    
+changeGoodsAccepted(Consignment consignment)  {    
     IF useGoodsAccepted(consignment) THEN {
         DIALOG employees OBJECTS e = dataGoodsAccepted(consignment) INPUT NULL DO {
             dataGoodsAccepted(consignment) <- e;
@@ -609,11 +609,11 @@ sumInvoiceConsignmentDetail 'Сумма с НДС (всего)' (consignment) = 
 
 stopPrintConsignment = DATA LOCAL BOOLEAN ();
 
-checkMandatoryAttribute = ABSTRACT LIST (Consignment);
+checkMandatoryAttribute  ABSTRACT LIST ( Consignment);
 
 META checkConsignmentAttribute(type, attrib, msg, skipProp)
 
-checkMandatoryAttribute(Consignment c) += {
+checkMandatoryAttribute(Consignment c) + { 
     IF is##type(c) AND NOT attrib(c) AND NOT skipProp(c) THEN {
         stopPrintConsignment() <- TRUE;
         MESSAGE msg NOWAIT;
@@ -651,8 +651,8 @@ META defineConsignmentFormSimple(form, caption)
                 quantity(d),
                 NOT skip(d)
     ;
-    printSimple###form caption (Consignment consignment) = { PRINT consignmentSimple###form OBJECTS c = consignment; }  IMAGE 'print.png' IN print;
-    printSimple###form##Auto caption (Consignment consignment) = { PRINT consignmentSimple###form OBJECTS c = consignment NOPREVIEW; } IMAGE 'print.png' IN print;
+    printSimple###form caption (Consignment consignment)  { PRINT consignmentSimple###form OBJECTS c = consignment; }  IMAGE 'print.png' IN print;
+    printSimple###form##Auto caption (Consignment consignment)  { PRINT consignmentSimple###form OBJECTS c = consignment NOPREVIEW; } IMAGE 'print.png' IN print;
 END
 
 
@@ -680,7 +680,7 @@ META defineConsignmentFormSimpleExtra(form, caption)
                 quantity(d),
                 NOT skip(d)
     ;
-    printSimple###form caption (Consignment consignment) = {
+    printSimple###form caption (Consignment consignment)  { 
 	NEWSESSION {        
 	        PRINT consignmentSimple###form OBJECTS c = consignment ;
 	        countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
@@ -689,13 +689,13 @@ META defineConsignmentFormSimpleExtra(form, caption)
 	    }
 } IMAGE 'print.png' IN print;
     
-    printSimple###form##Auto caption (Consignment consignment) = { PRINT consignmentSimple###form OBJECTS c = consignment NOPREVIEW; } IMAGE 'print.png' IN print;        
+    printSimple###form##Auto caption (Consignment consignment)  { PRINT consignmentSimple###form OBJECTS c = consignment NOPREVIEW; } IMAGE 'print.png' IN print;        
 END
 
 @defineConsignmentFormSimple(vertical, 'ТН-2, вертикальная');
 @defineConsignmentFormSimple(horizontal, 'ТН-2, горизонтальная');
 @defineConsignmentFormSimpleExtra(attach, 'Приложение к ТН-2');
-printSimpleVerticalAttach 'ТН-2, вертикальная с приложением' (Consignment consignment) = {
+printSimpleVerticalAttach 'ТН-2, вертикальная с приложением' (Consignment consignment)  { 
 	NEWSESSION {
 	    LOCAL countRowsSimpleVerticalLocal = INTEGER ();
 	    LOCAL countRowsSimpleHorizontalLocal = INTEGER ();
@@ -715,7 +715,7 @@ printSimpleVerticalAttach 'ТН-2, вертикальная с приложен�
 	    apply();
 	}
 } IMAGE 'print.png' IN print;
-printSimpleHorizontalAttach 'ТН-2, горизонтальная с приложением' (Consignment consignment) = {
+printSimpleHorizontalAttach 'ТН-2, горизонтальная с приложением' (Consignment consignment)  { 
 	NEWSESSION {
 	    LOCAL countRowsSimpleVerticalLocal = INTEGER ();
         LOCAL countRowsSimpleHorizontalLocal = INTEGER ();
@@ -812,19 +812,19 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
           
 END 
 META definePrintConsignmentForm(form, caption, prefix)  //печать накладной по сторонам
-    print###form caption (Consignment consignment) = {
+    print###form caption (Consignment consignment)  { 
         stopPrintConsignment() <- NULL;
         checkMandatoryAttribute(consignment);
         IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment ;
     } IMAGE 'print.png' IN print;
-    print###form##Auto caption (Consignment consignment) = {
+    print###form##Auto caption (Consignment consignment)  { 
         stopPrintConsignment() <- NULL;
         checkMandatoryAttribute(consignment);
         IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment NOPREVIEW;
     } IMAGE 'print.png' IN print; 
 END 
 META definePrintConsignmentFormExtra(form, caption, prefix)  //печать накладной по сторонам
-    print###form caption (Consignment consignment) = {
+    print###form caption (Consignment consignment)  { 
 	    NEWSESSION {
             //stopPrintConsignment() <- NULL;
             checkMandatoryAttribute(consignment);
@@ -836,7 +836,7 @@ META definePrintConsignmentFormExtra(form, caption, prefix)  //печать на
             }
         }
 } IMAGE 'print.png' IN print;
-    print###form##Auto caption (Consignment consignment) = {
+    print###form##Auto caption (Consignment consignment)  { 
         stopPrintConsignment() <- NULL;
         checkMandatoryAttribute(consignment);
         IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment NOPREVIEW;
@@ -844,12 +844,12 @@ META definePrintConsignmentFormExtra(form, caption, prefix)  //печать на
 END 
   
 META defineExtendPrintConsignmentFormAll(form, caption, prefixA, prefixB)       //печать накладной сквозная
-    print###form caption (Consignment consignment) = {
+    print###form caption (Consignment consignment)  { 
         stopPrintConsignment() <- NULL;
         checkMandatoryAttribute(consignment);
         IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefixA = consignment, prefixB = consignment ;            
     } IMAGE 'print.png' IN print;
-    print###form###attach caption###' с приложением' (Consignment consignment) = {
+    print###form###attach caption###' с приложением' (Consignment consignment)  { 
         NEWSESSION {
 ///            stopPrintConsignment() <- NULL;
             checkMandatoryAttribute(consignment);
@@ -878,7 +878,7 @@ META defineExtendPrintConsignmentFormAll(form, caption, prefixA, prefixB)       
         }
     } IMAGE 'print.png' IN print;        
                        
-    print###form###prefixA##uto caption (Consignment consignment) = {
+    print###form###prefixA##uto caption (Consignment consignment)  { 
         stopPrintConsignment() <- NULL;
         checkMandatoryAttribute(consignment);
         PRINT consignment###form OBJECTS prefixA = consignment, prefixB = consignment NOPREVIEW;
@@ -921,7 +921,7 @@ END
 @definePrintConsignmentFormExtra(attach, 'Приложение к ТТН-1', c);
 @definePrintConsignmentFormExtra(attachHorizontal, 'Приложение к ТТН-1 (гор.)', c);
 
-printVerticalABAttach 'ТТН-1 вертикальная (А/Б) с приложением' (Consignment consignment) = {
+printVerticalABAttach 'ТТН-1 вертикальная (А/Б) с приложением' (Consignment consignment)  { 
 	NEWSESSION {
 	    checkMandatoryAttribute(consignment);
 	    IF NOT stopPrintConsignment() THEN {
@@ -948,7 +948,7 @@ printVerticalABAttach 'ТТН-1 вертикальная (А/Б) с прилож
 	    }
 	}
 } IMAGE 'print.png' IN print;
-printHorizontalABAttach 'ТТН-1 горизонтальная (А/Б) с приложением' (Consignment consignment) = {
+printHorizontalABAttach 'ТТН-1 горизонтальная (А/Б) с приложением' (Consignment consignment)  { 
 	NEWSESSION {
 	    checkMandatoryAttribute(consignment);
 	    IF NOT stopPrintConsignment() THEN {
@@ -976,8 +976,8 @@ printHorizontalABAttach 'ТТН-1 горизонтальная (А/Б) с при
 	}
 } IMAGE 'print.png' IN print;
 
-printAttachXLS 'Приложение к ТТН-1 (xls)' (Consignment consignment) = { PRINT consignmentAttach OBJECTS c = consignment XLSX; } IN print;
-printSimpleAttachXLS 'Приложение к ТН-2 (xls)' (Consignment consignment) = { PRINT consignmentSimpleAttach OBJECTS c = consignment XLSX; } IN print;
+printAttachXLS 'Приложение к ТТН-1 (xls)' (Consignment consignment)  { PRINT consignmentAttach OBJECTS c = consignment XLSX; } IN print;
+printSimpleAttachXLS 'Приложение к ТН-2 (xls)' (Consignment consignment)  { PRINT consignmentSimpleAttach OBJECTS c = consignment XLSX; } IN print;
 @definePrintConsignmentForm(verticalAB, 'ТТН-1, вертикальная (сторона А/Б)', a);
 @definePrintConsignmentForm(horizontalAB, 'ТТН-1, горизонтальная (сторона А/Б)', a);
 
@@ -1008,7 +1008,7 @@ banSeries = ABSTRACT BOOLEAN (Consignment);
 toShowSeries = Consignment c IS Consignment AND NOT banSeries(c);
 
 META changeConsignment(property)
-    change###property(Consignment c) = {
+    change###property(Consignment c)  { 
         INPUT s = data###property(c) DO {
             data###property(c) <- s;
         }
@@ -1154,7 +1154,7 @@ DESIGN consignment {
     MOVE TOOLBARBOX;
 }
 
-editAttributes 'Заполнить атрибуты накладной' (Consignment consignment) = {
+editAttributes 'Заполнить атрибуты накладной' (Consignment consignment)  { 
 	NEWSESSION {
 	    IF NOT isArrivalTime(consignment) AND NOT dataArrivalTime(consignment) THEN {
 	//        dataArrivalTime(consignment) <- currentDateTime();
@@ -1230,7 +1230,7 @@ DESIGN printConsignment {
     }
 }
 
-print 'Печать' (Consignment consignment) = { SHOW printConsignment OBJECTS c = consignment; }  IMAGE 'print.png';
+print 'Печать' (Consignment consignment)  { SHOW printConsignment OBJECTS c = consignment; }  IMAGE 'print.png';
 
 
 // ------------------------------------- Метакод по объявлению и имплементации накладных ------------------ //

@@ -35,7 +35,7 @@ DESIGN integrationData {
     }
 } 
 
-runImportTask(VARSTRING[100] id, DATE date) = {
+runImportTask(VARSTRING[100] id, DATE date)  { 
     LOCAL template = CUSTOMFILE();
     READ 'file://bi/' + id + '.json' TO template;
     customFileToString(template(), 'UTF-8');
@@ -48,7 +48,7 @@ runImportTask(VARSTRING[100] id, DATE date) = {
     EXTERNAL HTTP 'http://' + host() + ':8090/druid/indexer/v1/task' PARAMS resultCustomFile() TO result;
 }
 
-ingestBatch (VARSTRING[100] id, DATE date) = {
+ingestBatch (VARSTRING[100] id, DATE date)  { 
     printToLog('' + currentDateTime() + ' Started WRITE ');
     WRITE exportDirectory() + id + date FROM exportFile();
     printToLog('' + currentDateTime() + 'Ended WRITE ');
@@ -56,8 +56,8 @@ ingestBatch (VARSTRING[100] id, DATE date) = {
     runImportTask(id, date);
 }
 
-loadLookups 'Загрузить справочники' = ABSTRACT LIST ();
-loadLookups () += {
+loadLookups 'Загрузить справочники'  ABSTRACT LIST ( );
+loadLookups () + { 
     stringToCustomFile('\{\}', 'UTF-8', 'json');
     LOCAL result = CUSTOMFILE();
     TRY { EXTERNAL HTTP 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config' PARAMS resultCustomFile() TO result; }
@@ -65,7 +65,7 @@ loadLookups () += {
 
 escapeJSONValue (TEXT t) = replace(replace(replace(replace(t, '\\', '\\\\'), '"', '\\"'), '\n', ''), '\r', '');
 
-loadLookup (VARSTRING[100] id, TEXT json) = {
+loadLookup (VARSTRING[100] id, TEXT json)  { 
     IF json != '' THEN {
         printToLog('' + currentDateTime() + ' Started Load lookup ' + id);    
         stringToCustomFile('\{ "version": "' + lpad(TEXT([= FORMULA LONG 'SELECT EXTRACT (epoch FROM ($1))'](currentDateTime())), 12, '0') + '", "lookupExtractorFactory": \{ "type": "map", "injective" : true, "map": \{' + json + ' \} \} \}', 'UTF-8', 'json');
@@ -87,7 +87,7 @@ DESIGN integrationData {
     }
 }
 
-runKillTask(VARSTRING[100] id, DATE dFrom, DATE dTo) = {
+runKillTask(VARSTRING[100] id, DATE dFrom, DATE dTo)  { 
     stringToCustomFile('\{ "type":"kill", "dataSource" : "' + id + '", "interval" : "' + dFrom + '/' + sum(dTo, 1) + '" \}' 
                                                        , 'UTF-8', 'json');
     
@@ -123,7 +123,7 @@ DESIGN integrationData {
     }
 }
 
-query(TEXT q) = {
+query(TEXT q)  { 
     LOCAL startTime = DATETIME();
     startTime() <- currentDateTime();
 
@@ -147,7 +147,7 @@ query(TEXT q) = {
 
 dataSource 'Данные' = DATA LOCAL VARSTRING[100] (INTEGER);
 
-readDataSource() = {
+readDataSource()  { 
     LOCAL result = CUSTOMFILE();
     EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/datasources' TO result;
         
@@ -163,7 +163,7 @@ readDataSource() = {
 dimension 'Измерения' = DATA LOCAL VARSTRING[100] (INTEGER);
 measure 'Метрики' = DATA LOCAL VARSTRING[100] (INTEGER);
 
-readDimensionsAndMeasures (VARSTRING[100] ds) = {
+readDimensionsAndMeasures (VARSTRING[100] ds)  { 
     LOCAL result = CUSTOMFILE();
     EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/datasources/' + ds  TO result;
     
@@ -188,7 +188,7 @@ readDimensionsAndMeasures (VARSTRING[100] ds) = {
 selD 'Вкл' = DATA LOCAL BOOLEAN (INTEGER);
 selM 'Вкл' = DATA LOCAL BOOLEAN (INTEGER);
 
-runQuery 'Выполнить' (VARSTRING[100] ds) = {
+runQuery 'Выполнить' (VARSTRING[100] ds)  { 
 
     LOCAL dimensions = TEXT();
     dimensions () <- (GROUP CONCAT dimension(INTEGER i) IF selD(i), ',');

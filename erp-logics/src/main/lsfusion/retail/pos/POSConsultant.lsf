@@ -84,11 +84,11 @@ CONSTRAINT consultant(ReceiptReturnDetail r) AND NOT isConsultant(consultant(r))
 consultant[ReceiptDetail](ReceiptSaleDetail d) += consultant(d);
 consultant[ReceiptDetail](ReceiptReturnDetail d) += consultant(d);
 
-changeConsultant (Receipt r) = {
+changeConsultant (Receipt r)  { 
     DIALOG consultants OBJECTS d = departmentStore(r), e = consultant(r) CHANGE;
 }
 
-changeConsultant (ReceiptDetail d) = {
+changeConsultant (ReceiptDetail d)  { 
     DIALOG consultants OBJECTS d = departmentStore(d), e = consultant(d) INPUT NULL DO {
         IF d IS ReceiptSaleDetail THEN
             consultant[ReceiptSaleDetail](d) <- e;
@@ -151,14 +151,14 @@ DESIGN saleLedger {
 
 //задание продавца по штрихкоду для чека
 
-overChangeBarcodeConsultant(VARSTRING[30] string, Receipt receipt) = {
+overChangeBarcodeConsultant(VARSTRING[30] string, Receipt receipt)  { 
     IF employeeBarcode(string) AND isConsultant(employeeBarcode(string)) AND receipt IS Receipt AND string IS VARSTRING[30]  THEN {
         consultant(receipt) <- employeeBarcode(string);        
         consumedChangeBarcodeSaleReceipt() <- TRUE;
     }
 } TOOLBAR;
 
-overChangeBarcodeSale(VARSTRING[30] string, Receipt receipt) += { overChangeBarcodeConsultant(string, receipt); }
+overChangeBarcodeSale(VARSTRING[30] string, Receipt receipt) + {  overChangeBarcodeConsultant(string, receipt); }
 
 
 

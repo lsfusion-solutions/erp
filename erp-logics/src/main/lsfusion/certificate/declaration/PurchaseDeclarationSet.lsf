@@ -75,7 +75,7 @@ DESIGN sets { BOX { size = (600, 400); } }
 in 'Отм.' = DATA LOCAL BOOLEAN (DeclarationInvoiceDetail);
 inDeclarationInvoiceDetail (declaration)= GROUP SUM 1 IF in(DeclarationInvoiceDetail d) BY  declaration(d);
 
-overCreateSetDeclarationInvoice = ABSTRACT LIST (DeclarationDetail);
+overCreateSetDeclarationInvoice  ABSTRACT LIST ( DeclarationDetail);
 set= DATA Set (DeclarationInvoiceDetail);
 nameSet 'Комплект' (DeclarationInvoiceDetail d) = name(set(d)) CHARWIDTH 15;
 countSetDeclarationInvoiceDetail (declaration)= GROUP SUM 1 IF set(DeclarationInvoiceDetail d) BY  declaration(d);
@@ -84,7 +84,7 @@ countSetDeclarationInvoiceDetail (declaration)= GROUP SUM 1 IF set(DeclarationIn
 //minSetDetailSet (set) = GROUP MIN indexSetDetail(d) BY setSetDetail(d);
 
 
-createOverSetDeclarationDetail(DeclarationInvoiceDetail did) = {                         
+createOverSetDeclarationDetail(DeclarationInvoiceDetail did)  {                         
         
     FOR set(SetDetail sd) == set(did) NEW dd = DeclarationDetail DO {
 
@@ -113,11 +113,11 @@ createOverSetDeclarationDetail(DeclarationInvoiceDetail did) = {
     } 
 }
 isSet(DeclarationInvoiceDetail did) += TRUE IF set(did);
-overSet (DeclarationInvoiceDetail did) += {
+overSet (DeclarationInvoiceDetail did) + { 
     EXEC createOverSetDeclarationDetail(did);
 }
 
-createSetInvoiceDetail 'Разбить комплекты'(Declaration declaration) = {
+createSetInvoiceDetail 'Разбить комплекты'(Declaration declaration)  { 
     IF inDeclarationInvoiceDetail(declaration) THEN {     
         IF  inDeclarationInvoiceDetail(declaration) == countSetDeclarationInvoiceDetail (declaration) THEN {          
             DELETE DeclarationDetail d WHERE declaration(d) == declaration AND in(declarationInvoiceDetail(d)) AND set(declarationInvoiceDetail(d));           

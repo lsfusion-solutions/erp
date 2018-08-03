@@ -76,8 +76,8 @@ EXTEND FORM invoices
 @defineOrderShipmentExecution(); 
 @defineOrderInvoiceSupplierExecution(purchase, ' (закупка)');
 skipSelectSku = ABSTRACT BOOLEAN ();
-fillSelectSku = ABSTRACT LIST (DATE, DATE);
-fillSelectOrder(DATE df, DATE dt) += {
+fillSelectSku  ABSTRACT LIST ( DATE, DATE);
+fillSelectOrder(DATE df, DATE dt) + { 
     IF df IS DATE AND dt IS DATE THEN {
         selectOrder(OrderDetail d) <- NULL;
         IF NOT (GROUP SUM 1 IF selectOrder(LegalEntity l))  THEN {
@@ -130,13 +130,13 @@ CONSTRAINT (CHANGED(expiryDate(UserShipmentDetail d)) OR CHANGED(operation(d)) O
 CONSTRAINT (CHANGED(expiryDate(UserInvoiceDetail d)) OR CHANGED(operation(d)) OR SET(isPosted(d))) AND checkExpiryDate(operation(d)) AND expiryDate(d) < date(d) AND isPosted(d)
         MESSAGE 'Срок годности товара должен быть больше либо равен дате документа'; 
 
-overFillInvoice(UserShipment s, Invoice i) += {
+overFillInvoice(UserShipment s, Invoice i) + { 
     operation(s) <- operation(i);
 }
 operation(InvoiceShipment shipment) += operation(invoice(shipment));
 
 // Добавляем в копирование поставок
-overCopy(Shipment s, UserShipment d) += {
+overCopy(Shipment s, UserShipment d) + { 
     operation(d) <- operation(s);
 }
 @defineOperationFilterProperty(shipment, s, shipments, nameFilterShipmentSupplier);
@@ -260,7 +260,7 @@ legalEntityStock(Shipment ledger) += supplierStock(ledger);
 
 operation[StockDocumentLedger](Shipment ledger) += operation(ledger);
 
-close[StockDocumentLedger](Shipment l) += { close(l); }
+close[StockDocumentLedger](Shipment l) + {  close(l); }
 
 
 overSkipStockDocumentLedger = ABSTRACT BOOLEAN (Shipment);
@@ -297,8 +297,8 @@ quantity(ShipmentBatch b) += quantity(b);
 price (ShipmentBatch batch) = price(shipmentDetail(batch));
 costPrice (ShipmentBatch batch) = costPrice(shipmentDetail(batch));
 
-replace(Sku s, ShipmentBatch b) += { sku(UserShipmentDetail detail) <- s WHERE shipmentBatch(detail) == b;}
-replace(Sku s, ShipmentBatch b) += { sku(UserInvoiceDetail detail) <- s WHERE detail == invoiceDetail[UserShipmentDetail](shipmentDetail(b));}
+replace(Sku s, ShipmentBatch b) + {  sku(UserShipmentDetail detail) <- s WHERE shipmentBatch(detail) == b;}
+replace(Sku s, ShipmentBatch b) + {  sku(UserInvoiceDetail detail) <- s WHERE detail == invoiceDetail[UserShipmentDetail](shipmentDetail(b));}
 
 @implementBatch(ShipmentBatch, sku, stock, costPrice);
 manufactureDate(ShipmentBatch batch) += manufactureDate(shipmentDetail(batch)); 
@@ -324,8 +324,8 @@ in (InvoiceDetail ledger, Batch batch) += TRUE IF in(ledger, batch);
 name(ShipmentBatch batch) += VARISTRING[200](CONCAT '', STRING[10](date(shipmentDetail(batch))), '/ ' + seriesNumber(shipment(shipmentDetail(batch))),
                              '/ ' + fullNameSupplier(shipmentDetail(batch)));
   
-edit(ShipmentBatch batch) += { edit(shipmentDetail(batch)); }
-show[SkuLedger](ShipmentBatch batch) += { show(shipmentDetail(batch)); }
+edit(ShipmentBatch batch) + {  edit(shipmentDetail(batch)); }
+show[SkuLedger](ShipmentBatch batch) + {  show(shipmentDetail(batch)); }
 
 // Создаем просто inLIFOSkuLedger
 createSkuLedger (ShipmentDetail detail) = detail IS ShipmentDetail AND NOT createBatch(detail);
@@ -366,8 +366,8 @@ cost(ShipmentDetail detail, Batch batch) += quantity(detail) IF batch == ledgerB
 
 batch[Invoice.InvoiceDetail](InvoiceDetail d) += OVERRIDE ledgerBatch(invoiceShipmentDetail(d)), batch(d);
 
-edit(ShipmentSkuLedger shipmentSkuLedger) += { edit(shipmentDetail(shipmentSkuLedger)); }
-show[SkuLedger](ShipmentSkuLedger shipmentSkuLedger) += { show(shipmentDetail(shipmentSkuLedger)); }
+edit(ShipmentSkuLedger shipmentSkuLedger) + {  edit(shipmentDetail(shipmentSkuLedger)); }
+show[SkuLedger](ShipmentSkuLedger shipmentSkuLedger) + {  show(shipmentDetail(shipmentSkuLedger)); }
 
 overBatch(InvoiceDetail detail)= OVERRIDE ledgerBatch(invoiceShipmentDetail(detail)), batch(detail);  
 
@@ -377,7 +377,7 @@ defaultUserShipmentDetail (sku, shipment, price) = GROUP MIN UserShipmentDetail 
 
 defaultUserShipmentDetail(UserShipmentDetail detail) = defaultUserShipmentDetail(sku(detail), userShipment(detail), price(detail));
 
-mergeBatch 'Соединить партии'(UserShipment shipment) = {
+mergeBatch 'Соединить партии'(UserShipment shipment)  { 
     ASK 'Документ будет автоматически сохранен, вы действительно хотите выполнить действие "Соединить партии?"' DO {
         apply();
         FOR userShipment(UserShipmentDetail detail) == shipment
@@ -412,14 +412,14 @@ shortNameCurrencyInvoiceDetail 'Валюта закупки' (Batch batch) = sho
 rateExchangeInvoiceDetail 'Курс' (Batch batch) = rateExchange(invoiceDetail(batch));
 homePriceInvoiceDetail 'Цена закупки (кон.)' (Batch batch) = homePrice(invoiceDetail(batch));
 
-receiveShipment (UserInvoice invoice)+= {
+receiveShipment (UserInvoice invoice)+ { 
     IF invoice IS UserInvoice THEN {
         createShipment(invoice) <- TRUE;           
     }
 };
 
 
-deleteCreate (InvoiceShipment shipment)+= WHEN invoice(shipment) IS UserInvoice THEN  {
+deleteCreate (InvoiceShipment shipment)+ WHEN invoice(shipment) IS UserInvoice THEN  { 
     createShipment(Invoice invoice) <- NULL WHERE invoice == invoice(shipment);          
 };
 

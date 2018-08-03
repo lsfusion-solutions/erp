@@ -6,8 +6,8 @@ NAMESPACE Label;
 
 //печать серии
 seriesPharmacy 'Серия лекарственного средства'  = DATA VARSTRING[20] (LabelTransactionDetail);
-createAttribute(LabelTransactionDetail d) +=
-    { seriesPharmacy(d) <- seriesPharmacy(batch(d)); }
+createAttribute(LabelTransactionDetail d) +
+    {  seriesPharmacy(d) <- seriesPharmacy(batch(d)); }
 
 EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY seriesPharmacy;
 EXTEND FORM customLabelTransaction PROPERTIES(d) seriesPharmacy;
@@ -15,7 +15,7 @@ EXTEND FORM labelTransactions PROPERTIES(dt) READONLY seriesPharmacy PROPERTIES(
 
 //печать по отмеченным партиям
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Batch, Stock) CHANGEKEY 'F3';
-resetAllSelectedSkuStock 'Сбросить для всех'() = {
+resetAllSelectedSkuStock 'Сбросить для всех'()  { 
     select(Batch batch, Stock stock) <- NULL WHERE select(batch, stock);
 } ASON CONTEXTMENU select[Batch,Stock];
 
@@ -29,7 +29,7 @@ EXTEND FORM currentBalanceBatchStock
 ;
 
 //печать по партиям из остатков
-createBatchLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore) = {
+createBatchLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore)  { 
     // бежим по всем типам ценников из управленческих параметров
     // для каждого создаем по операции печати ценников
     FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,departmentStore) AND NOT exclude(l,s) BY l](LabelType labelType) NEW t = LabelTransaction DO { 
@@ -69,7 +69,7 @@ createBatchLabelTransaction 'Распечатать ценники'(DepartmentSt
     }
 } TOOLBAR;
 
-createSelectedBatchStockLabelTransaction 'Распечатать ценники'() = {
+createSelectedBatchStockLabelTransaction 'Распечатать ценники'()  { 
     IF (GROUP SUM 1 IF select(Batch batch, Stock stock)) THEN {
         NEWSESSION NESTED (select[Batch,Stock]) {
             FOR [= GROUP SUM 1 IF select(Batch batch, Stock stock) BY stock] (DepartmentStore stock) AND stock IS DepartmentStore DO {        
@@ -85,7 +85,7 @@ createSelectedBatchStockLabelTransaction 'Распечатать ценники'
     }
 } TOOLBAR;
 
-createBatchSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore, LabelType labelType) = {
+createBatchSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore, LabelType labelType)  { 
 
     NEW t = LabelTransaction {
         departmentStore(t) <- departmentStore;
@@ -139,7 +139,7 @@ createBatchSnapshotLabelTransactionDepartmentStore 'Перепечатать ц�
 } TOOLBAR ;
 
 
-createSelectedBatchStockSnapshotLabelTransaction 'Перепечатать ценники'() = {
+createSelectedBatchStockSnapshotLabelTransaction 'Перепечатать ценники'()  { 
     IF (GROUP SUM 1 IF select(Batch batch, Stock stock)) THEN {            
         NEWSESSION NESTED (select[Batch,Stock]) {
 

@@ -23,14 +23,14 @@ company (InvoicePriceListLedger ledger) += supplier(invoiceDetail(ledger));
 
 in (InvoicePriceListLedger ledger, Stock stock) += isCompany(stock) AND priceStockGroup(customerStock(invoiceDetail(ledger))) == priceStockGroup(stock);
 
-show[PriceListLedger] (InvoicePriceListLedger ledger) += {show(invoiceDetail(ledger));};
+show[PriceListLedger] (InvoicePriceListLedger ledger) + { show(invoiceDetail(ledger));};
 
 EXTEND CLASS SystemLedgerPriceListType { purchaseInvoicePriceListType 'Закупки (последняя по ценовой группе)' }
 batch (SystemLedgerPriceListType type, Stock stock) += WHEN type == SystemLedgerPriceListType.purchaseInvoicePriceListType AND isCompany(stock)
                                                THEN TRUE; //priceBatchLedgerStock(stock); для закупки последняя по складу, всегда свои цены для складов
 in (InvoicePriceListLedger ledger, SystemLedgerPriceListType type) += WHEN price(invoiceDetail(ledger)) AND type == SystemLedgerPriceListType.purchaseInvoicePriceListType THEN TRUE;
 price (InvoicePriceListLedger ledger, SystemLedgerPriceListType type) += WHEN price(invoiceDetail(ledger)) AND type == SystemLedgerPriceListType.purchaseInvoicePriceListType THEN price(invoiceDetail(ledger));
-edit(InvoicePriceListLedger d) += { edit(invoiceDetail(d)); }      
+edit(InvoicePriceListLedger d) + {  edit(invoiceDetail(d)); }      
 differentOrganizations(SystemLedgerPriceListType type) += WHEN type == SystemLedgerPriceListType.purchaseInvoicePriceListType THEN TRUE;   
         
 EXTEND CLASS SystemLedgerPriceListType { rateExchangePriceListType 'Курс обмена (последний по ценовой группе)' }

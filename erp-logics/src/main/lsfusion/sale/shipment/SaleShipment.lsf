@@ -32,7 +32,7 @@ expiryDate(UserShipmentDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHAN
 
 @defineOrderShipmentExecution(); 
 @defineOrderInvoiceSupplierExecution(sale, ' (продажа)');
-fillSelectOrder(DATE df, DATE dt) += {
+fillSelectOrder(DATE df, DATE dt) + { 
     IF df IS DATE AND dt IS DATE THEN {
         selectOrder(OrderDetail d) <- NULL;
         IF NOT (GROUP SUM 1 IF selectOrder(LegalEntity l))  THEN {
@@ -73,13 +73,13 @@ operation[Shipment.Shipment](Shipment s)+=operation(s);
 @defineOperationProperty(createShipment, 'Поставка', createContainer);
 @deriveDocumentOperationProperty(UserInvoice, createShipment);
 
-overFillInvoice(UserShipment s, Invoice i) += {
+overFillInvoice(UserShipment s, Invoice i) + { 
     operation(s) <- operation(i);
 }
 operation(InvoiceShipment shipment) += operation(invoice(shipment));
 
 // Добавляем в копирование поставок
-overCopy(Shipment s, UserShipment d) += {
+overCopy(Shipment s, UserShipment d) + { 
     operation(d) <- operation(s);
 }
 @defineOperationFilterProperty(shipment, s, shipments, nameFilterShipmentSupplier);
@@ -180,7 +180,7 @@ legalEntityStock(Shipment ledger) += customerStock(ledger);
 
 operation[StockDocumentLedger](Shipment ledger) += operation(ledger);
 
-close[StockDocumentLedger](Shipment l) += { close(l); }
+close[StockDocumentLedger](Shipment l) + {  close(l); }
 
 // ------------------------------- Проведение по регистру остатков ------------------------ //
 @implementSkuLedgerOutFIFO(ShipmentDetail, sku, supplierStock);
@@ -193,7 +193,7 @@ stockDocumentLedger(ShipmentDetail ledger) += shipment(ledger);
 
 cost(ShipmentDetail detail, Batch batch) += cost[SkuLedger,Batch](detail, batch) IF detail IS ShipmentDetail;
 
-show[SkuLedger](ShipmentDetail d) += { show(d); }
+show[SkuLedger](ShipmentDetail d) + {  show(d); }
 
 // ------------------------------- Себестоимость продажи ------------------------ //
 costSale (invoiceDetail) = GROUP SUM costSum[SkuLedger](ShipmentDetail shipmentDetail) BY invoiceDetail(shipmentDetail);
@@ -215,9 +215,9 @@ sumWholesaleMarkupInvoiceDetail(invoice) = GROUP SUM sumWholesaleMarkup(InvoiceD
 overShowEdit (Shipment i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
 overShowDelete (UserShipment i) += showEditDeleteUser(i) AND isUserOpened(i) AND NOT skipShowDelete(i); 
 
-overFillShipmentPriceAll = ABSTRACT LIST ();
+overFillShipmentPriceAll  ABSTRACT LIST ( );
 
-fillShipmentPriceAll 'Переписать учетную цену в накладных (продажа)'()  = {
+fillShipmentPriceAll 'Переписать учетную цену в накладных (продажа)'()   { 
     shipmentPrice (UserInvoiceDetail detail)  <- prevAccountPriceB(batch(detail), supplierStock(detail), dateTime(detail)) WHERE isOpened(detail) AND NOT disableUpdateShipmentPrice(detail) AND batch(detail);
     shipmentPrice (UserInvoiceDetail detail)  <- prevAccountPriceB(sku(detail), supplierStock(detail), dateTime(detail)) WHERE isOpened(detail) AND NOT disableUpdateShipmentPrice(detail) AND NOT batch(detail); 
     overFillShipmentPriceAll();

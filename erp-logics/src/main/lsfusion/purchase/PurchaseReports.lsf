@@ -31,9 +31,9 @@ quantityStock 'Количество' = DATA LOCAL NUMERIC[16,5] (Sku);
 sumVATStock 'Сумма НДС' = DATA LOCAL NUMERIC[18,4] (Sku);
 sumStock 'Сумма' = DATA LOCAL NUMERIC[18,4] (Sku);
 
-overfillPurchaseReportFromTo = ABSTRACT (GroupType, DATE, DATE);
+overfillPurchaseReportFromTo  ABSTRACT ( GroupType, DATE, DATE);
 
-fillPurchaseReportFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt) = {
+fillPurchaseReportFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt)  { 
 
     quantityStock(Sku sk) <- NULL;           
     sumStock(Sku sk) <- NULL;  
@@ -115,7 +115,7 @@ FORM printListPurchasesReport 'Отчет по поступлениям'
             inSession(group(gt, sku(p)))
 ;
 
-printListPurchasesReport 'Списком' (GroupType gt, DATE dateFrom, DATE dateTo) =
+printListPurchasesReport 'Списком' (GroupType gt, DATE dateFrom, DATE dateTo) 
     { PRINT printListPurchasesReport OBJECTS gt = gt, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
 
 quantityPurchasesStock 'Закуплено за интервал (кол-во)' (Sku sku, DATE dateFrom, DATE dateTo) = GROUP
@@ -154,7 +154,7 @@ FORM printListSkuPurchasesReport 'Отчет по поступлениям'
             sumPurchasesStock(s, df, dt)
 ;
 
-printListSkuPurchasesReport 'Списком(по товарам)' (GroupType gt, DATE dateFrom, DATE dateTo) =
+printListSkuPurchasesReport 'Списком(по товарам)' (GroupType gt, DATE dateFrom, DATE dateTo) 
     { PRINT printListSkuPurchasesReport OBJECTS gt =gt, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
 
 
@@ -190,7 +190,7 @@ FORM printPurchasesReport 'Отчет по поступлениям'
             group(gt, sku(p)) == sk
 ;
 
-printPurchasesReportDetail 'По группам' (GroupType gt, DATE dateFrom, DATE dateTo) =
+printPurchasesReportDetail 'По группам' (GroupType gt, DATE dateFrom, DATE dateTo) 
     { PRINT printPurchasesReport OBJECTS gt = gt, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
 
 FORM printSkuPurchasesReport 'Отчет по поступлениям'
@@ -225,7 +225,7 @@ FORM printSkuPurchasesReport 'Отчет по поступлениям'
             sumPurchasesStock(s, df, dt)
 ;
 
-printSkuPurchasesReport 'По товарам(группы)' (GroupType gt, DATE dateFrom, DATE dateTo) =
+printSkuPurchasesReport 'По товарам(группы)' (GroupType gt, DATE dateFrom, DATE dateTo) 
     { PRINT printSkuPurchasesReport OBJECTS gt = gt, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
 
 FORM printGroupPurchasesReport 'Отчет по поступлениям'
@@ -252,7 +252,7 @@ FORM printGroupPurchasesReport 'Отчет по поступлениям'
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 ;
 
-printPurchasesReport 'По группам' (GroupType gt, DATE dateFrom, DATE dateTo) =
+printPurchasesReport 'По группам' (GroupType gt, DATE dateFrom, DATE dateTo) 
     { PRINT printGroupPurchasesReport OBJECTS gt = gt, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
 
 FORM printGroupSupplierPurchasesReport 'Отчет по поступлениям'
@@ -287,7 +287,7 @@ FORM printGroupSupplierPurchasesReport 'Отчет по поступлениям
             supplier(p) == l
 ;
 
-printGroupSupplierPurchasesReportDetail 'По поставщикам' (GroupType gt, DATE dateFrom, DATE dateTo) =
+printGroupSupplierPurchasesReportDetail 'По поставщикам' (GroupType gt, DATE dateFrom, DATE dateTo) 
     { PRINT printGroupSupplierPurchasesReport OBJECTS gt = gt, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
 
 //по складу, поставщику и SKU
@@ -333,7 +333,7 @@ FORM printGroupSupplierSkuPurchasesReport 'Отчет по поступлени�
             sumPurchasesStock(s, l, df, dt)
 ;
 
-printGroupSupplierSkuPurchasesReport 'По товарам(поставщики)' (GroupType gt, DATE dateFrom, DATE dateTo) =
+printGroupSupplierSkuPurchasesReport 'По товарам(поставщики)' (GroupType gt, DATE dateFrom, DATE dateTo) 
     { PRINT printGroupSupplierSkuPurchasesReport OBJECTS gt = gt, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
 
 FORM printSupplierPurchasesReport 'Отчет по поступлениям'
@@ -359,7 +359,7 @@ FORM printSupplierPurchasesReport 'Отчет по поступлениям'
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
 ;
 
-printSupplierPurchasesReport 'По поставщикам' (GroupType gt, DATE dateFrom, DATE dateTo) =
+printSupplierPurchasesReport 'По поставщикам' (GroupType gt, DATE dateFrom, DATE dateTo) 
     { PRINT printSupplierPurchasesReport OBJECTS gt = gt, df = dateFrom, dt = dateTo; }   IMAGE 'print.png' IN print;
 
 
@@ -409,14 +409,14 @@ DESIGN dialogStocksPurchaseReport {
     }
 }
 @extendFormFilterStockAccess(s, dialogStocksPurchaseReport, company);    
-changeStocksPurchaseReport(GroupType gt, DATE df, DATE dt) = {
+changeStocksPurchaseReport(GroupType gt, DATE df, DATE dt)  { 
     DIALOG dialogStocksPurchaseReport DO {
         fillPurchaseReportFromTo(gt, df, dt);
     }
 }
 
-showMovementSkuStocksPurchase 'Показать движение товара по складу' (Sku sku) = { NEWSESSION NESTED(inPurchaseReport) SHOW movementSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inPurchaseReport(st)) ; }
-showMovementPriceSkuStocksPurchase 'Показать изменение цены товара по складу' (Sku sku) = { NEWSESSION NESTED(inPurchaseReport) SHOW movementPriceSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inPurchaseReport(st)) ; }
+showMovementSkuStocksPurchase 'Показать движение товара по складу' (Sku sku)  { NEWSESSION NESTED(inPurchaseReport) SHOW movementSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inPurchaseReport(st)) ; }
+showMovementPriceSkuStocksPurchase 'Показать изменение цены товара по складу' (Sku sku)  { NEWSESSION NESTED(inPurchaseReport) SHOW movementPriceSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inPurchaseReport(st)) ; }
 
 filterStock (Sku s) =   quantityStock(s) OR 
                                    sumVATStock(s) OR

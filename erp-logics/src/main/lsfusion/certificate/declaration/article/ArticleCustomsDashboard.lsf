@@ -13,7 +13,7 @@ completedCustoms 'Обработан' = DATA BOOLEAN (Item);
 notCompletedCustoms 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedCustoms(i) BY article(i);
 completedCustoms 'Обработан' = Article a IS Article AND NOT notCompletedCustoms(a);
 
-changeCompletedCustoms (Article article) = {
+changeCompletedCustoms (Article article)  { 
     INPUT b = BOOLEAN DO
         completedCustoms(Item item) <- b WHERE article(item) == article; 
 }
@@ -29,9 +29,9 @@ nullCustoms 'Без атрибутов' (Country country, article) = GROUP SUM 1
 // todo : workaround, так как нельзя в сессионных событиях обращаться к форме
 dateArticleCustomsDashboard 'Дата' = DATA DATE (User);
 dateArticleCustomsDashboard 'Дата' () = dateArticleCustomsDashboard(currentUser());
-setDateArticleCustomsDashboard() = { dateArticleCustomsDashboard(User u) <- currentDate() WHERE u == currentUser(); }
+setDateArticleCustomsDashboard()  { dateArticleCustomsDashboard(User u) <- currentDate() WHERE u == currentUser(); }
 
-changeDateArticleCustomsDashboard() = {
+changeDateArticleCustomsDashboard()  { 
     INPUT d = DATE DO
         dateArticleCustomsDashboard(User u) <- d WHERE u == currentUser();
 }
@@ -160,7 +160,7 @@ DESIGN articleCustomsDashboard {
 }
 
 // -- Проставляем страну по умолчанию
-seekDefaultCountryArticleCustomsDashboard() = {
+seekDefaultCountryArticleCustomsDashboard()  { 
     IF defaultCountry() THEN {
         SEEK articleCustomsDashboard.c = defaultCountry();
     }
@@ -169,7 +169,7 @@ EXTEND FORM articleCustomsDashboard
     EVENTS ON INIT seekDefaultCountryArticleCustomsDashboard()
 ;
 
-completeArticleCustomsDashboard 'Подтвердить все'(Country country) = {   
+completeArticleCustomsDashboard 'Подтвердить все'(Country country)  {   
     LOCAL k = INTEGER ();
     k() <- 0;
     
@@ -235,7 +235,7 @@ defaultCustomsGroup (Country country, VARISTRING[255] caption, VARSTRING[255] co
         WHERE count(customsGroup, country, caption, composition, gender, originalCustomsGroup);
 
 // Артикулы
-fillDefaultCustomsGroup 'Заполнить ТН ВЭД по названию/составу'(Country country, Article article) = {
+fillDefaultCustomsGroup 'Заполнить ТН ВЭД по названию/составу'(Country country, Article article)  { 
     customsGroup(country,article) <- defaultCustomsGroup(
                                                             country,
                                                             caption(article),
@@ -244,26 +244,26 @@ fillDefaultCustomsGroup 'Заполнить ТН ВЭД по названию/с
 
 } ASON CONTEXTMENU codeCustomsGroup[Country,Article];
 
-fillDefaultCustomsGroup 'Заполнить ТН ВЭД по названию/составу для всех'(Country country) = {
+fillDefaultCustomsGroup 'Заполнить ТН ВЭД по названию/составу для всех'(Country country)  { 
    FOR [= FILTER articleCustomsDashboard.a](Article article) DO {
        fillDefaultCustomsGroup(country,article);
    }
 } ASON CONTEXTMENU codeCustomsGroup[Country,Article];
 
-fillOriginalCustomsGroup 'Заполнить ТН ВЭД по оригиналу ТНВЭД'(Country country, Article article) = {
+fillOriginalCustomsGroup 'Заполнить ТН ВЭД по оригиналу ТНВЭД'(Country country, Article article)  { 
     customsGroup(country,article) <- customsGroup(rpad(originalCustomsGroup(article), 10, '0'))
         WHERE customsGroup(rpad(originalCustomsGroup(article), 10, '0'));
 
 } ASON CONTEXTMENU codeCustomsGroup[Country,Article];
 
-fillOriginalCustomsGroup 'Заполнить ТН ВЭД по оригиналу ТНВЭД для всех'(Country country) = {
+fillOriginalCustomsGroup 'Заполнить ТН ВЭД по оригиналу ТНВЭД для всех'(Country country)  { 
    FOR [= FILTER articleCustomsDashboard.a](Article article) DO {
        fillOriginalCustomsGroup(country,article);
    }
 } ASON CONTEXTMENU codeCustomsGroup[Country,Article];
 
 
-fillDefaultCustomsGroupGender 'Заполнить ТН ВЭД по названию/составу/полу/ТНВЭД'(Country country, Article article) = {
+fillDefaultCustomsGroupGender 'Заполнить ТН ВЭД по названию/составу/полу/ТНВЭД'(Country country, Article article)  { 
     customsGroup(country,article) <- defaultCustomsGroup(
                                                             country,
                                                             caption(article),
@@ -274,13 +274,13 @@ fillDefaultCustomsGroupGender 'Заполнить ТН ВЭД по назван�
 
 } ASON CONTEXTMENU codeCustomsGroup[Country,Article];
 
-fillDefaultCustomsGroupArticleGender 'Заполнить ТН ВЭД по названию/составу/полу/ТНВЭД для всех'(Country country) = {
+fillDefaultCustomsGroupArticleGender 'Заполнить ТН ВЭД по названию/составу/полу/ТНВЭД для всех'(Country country)  { 
     FOR [= FILTER articleCustomsDashboard.a](Article article) DO {
         fillDefaultCustomsGroupGender(country,article);
     }
 } ASON CONTEXTMENU codeCustomsGroup[Country,Article];
 
-fillDefaultCustomsGroupArticleGender 'Заполнить текущий ТН ВЭД по названию/составу/полу/ТНВЭД для всех'(Country country, Article article) = {
+fillDefaultCustomsGroupArticleGender 'Заполнить текущий ТН ВЭД по названию/составу/полу/ТНВЭД для всех'(Country country, Article article)  { 
     FOR [= FILTER articleCustomsDashboard.a](Article a1) AND country(article)==country(a1) AND caption(article)==caption(a1)
         AND composition(article)==composition(a1) AND gender(article)==gender(a1) AND originalCustomsGroup(article)==originalCustomsGroup(a1) DO {
         customsGroup(country,a1) <- customsGroup(country, article);
@@ -288,7 +288,7 @@ fillDefaultCustomsGroupArticleGender 'Заполнить текущий ТН В�
 } ASON CONTEXTMENU codeCustomsGroup[Country,Article];
 
 // Товары
-fillDefaultCustomsGroup 'Заполнить ТН ВЭД по названию/составу'(Country country, Item item) = {
+fillDefaultCustomsGroup 'Заполнить ТН ВЭД по названию/составу'(Country country, Item item)  { 
     customsGroup(country,item) <- defaultCustomsGroup(
                                                             country,
                                                             caption(item),
@@ -297,13 +297,13 @@ fillDefaultCustomsGroup 'Заполнить ТН ВЭД по названию/с
 
 } ASON CONTEXTMENU codeCustomsGroup[Country,Item];
 
-fillDefaultCustomsGroupItem 'Заполнить ТН ВЭД по названию/составу/ТНВЭД для всех'(Country country) = {
+fillDefaultCustomsGroupItem 'Заполнить ТН ВЭД по названию/составу/ТНВЭД для всех'(Country country)  { 
     FOR [= FILTER articleCustomsDashboard.i](Item item) DO {
         fillDefaultCustomsGroup(country,item);
     }
 } ASON CONTEXTMENU codeCustomsGroup[Country,Item];
 
-fillDefaultCustomsGroupGender 'Заполнить ТН ВЭД по названию/составу/полу/ТНВЭД'(Country country, Item item) = {
+fillDefaultCustomsGroupGender 'Заполнить ТН ВЭД по названию/составу/полу/ТНВЭД'(Country country, Item item)  { 
     customsGroup(country,item) <- defaultCustomsGroup(
                                                             country,
                                                             caption(item),
@@ -314,13 +314,13 @@ fillDefaultCustomsGroupGender 'Заполнить ТН ВЭД по назван�
 
 } ASON CONTEXTMENU codeCustomsGroup[Country,Item];
 
-fillDefaultCustomsGroupItemGender 'Заполнить ТН ВЭД по названию/составу/полу/ТНВЭД для всех'(Country country) = {
+fillDefaultCustomsGroupItemGender 'Заполнить ТН ВЭД по названию/составу/полу/ТНВЭД для всех'(Country country)  { 
     FOR [= FILTER articleCustomsDashboard.i](Item item) DO {
         fillDefaultCustomsGroupGender(country,item);
     }
 } ASON CONTEXTMENU codeCustomsGroup[Country,Item];
 
-fillDefaultCustomsGroupItemGender 'Заполнить текущий ТН ВЭД по названию/составу/полу/ТНВЭД для всех'(Country country, Item item) = {
+fillDefaultCustomsGroupItemGender 'Заполнить текущий ТН ВЭД по названию/составу/полу/ТНВЭД для всех'(Country country, Item item)  { 
     FOR [= FILTER articleCustomsDashboard.i](Item i1) AND country(item)==country(i1) AND caption(item)==caption(i1)
         AND composition(item)==composition(i1) AND gender(item)==gender(i1) AND originalCustomsGroup(item)==originalCustomsGroup(i1) DO {
         customsGroup(country,i1) <- customsGroup(country, item);
@@ -338,7 +338,7 @@ defaultComplianceGroup (Country country, VARISTRING[255] caption, VARSTRING[255]
         WHERE count(complianceGroup, country, caption, composition);
 
 // Артикулы
-fillDefaultComplianceGroup 'Заполнить группу сертификации'(Country country, Article article) = {
+fillDefaultComplianceGroup 'Заполнить группу сертификации'(Country country, Article article)  { 
     complianceGroup(country,article) <- defaultComplianceGroup(
                                                             country,
                                                             caption(article),
@@ -347,14 +347,14 @@ fillDefaultComplianceGroup 'Заполнить группу сертификац
 
 } ASON CONTEXTMENU nameComplianceGroup[Country,Article];
 
-fillDefaultComplianceGroup 'Заполнить группу сертификации для всех'(Country country) = {
+fillDefaultComplianceGroup 'Заполнить группу сертификации для всех'(Country country)  { 
    FOR [= FILTER articleCustomsDashboard.a](Article article) DO {
        fillDefaultComplianceGroup(country,article);
    }
 } ASON CONTEXTMENU nameComplianceGroup[Country,Article];
 
 // Товары
-fillDefaultComplianceGroup 'Заполнить группу сертификации'(Country country, Item item) = {
+fillDefaultComplianceGroup 'Заполнить группу сертификации'(Country country, Item item)  { 
     complianceGroup(country,item) <- defaultComplianceGroup(
                                                             country,
                                                             caption(item),
@@ -362,7 +362,7 @@ fillDefaultComplianceGroup 'Заполнить группу сертификац
         WHERE defaultComplianceGroup(country, caption(item), composition(item));
 } ASON CONTEXTMENU nameComplianceGroup[Country,Item];
 
-fillDefaultComplianceGroupItem 'Заполнить группу сертификации для всех'(Country country) = {
+fillDefaultComplianceGroupItem 'Заполнить группу сертификации для всех'(Country country)  { 
     FOR [= FILTER articleCustomsDashboard.i](Item item) DO {
         fillDefaultComplianceGroup(country,item);
     }

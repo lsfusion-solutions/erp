@@ -278,7 +278,7 @@ include 'Вкл' (SnapshotABC snapshot, Stock stock) =
              include(snapshot, stockGroup(stock))) IF isCompany(stock) MATERIALIZED;
 countIncludeStocks (SnapshotABC r)= GROUP SUM 1 IF include(r,Stock st);
 
-deleteIncludeStocks 'Сбросить отмеченные'(SnapshotABC r) = {
+deleteIncludeStocks 'Сбросить отмеченные'(SnapshotABC r)  { 
     allStockInclude (r) <- NULL;
     dataInclude(r,StockGroup g) <- NULL;
     dataInclude (r,Stock st) <- NULL;
@@ -339,7 +339,7 @@ nameIncludeSkuGroups 'Группы товаров (все)' (SnapshotABC documen
 dataInclude (SnapshotABC o,SkuGroup g) <- dataInclude(operation(o),g) IF g IS SkuGroup
     WHEN CHANGED(operation(o));  
 
-deleteIncludeSkuGroups 'Сбросить отмеченные'(SnapshotABC r) = {
+deleteIncludeSkuGroups 'Сбросить отмеченные'(SnapshotABC r)  { 
     dataInclude(r,SkuGroup g) <- NULL;
 };
 
@@ -407,9 +407,9 @@ sumSold 'Выручка'(group, SnapshotABC snapshot) =
     BY groupRoot(group(groupType(snapshot), sk), levelGroup(snapshot));
 
 //------------------------------- ACTION -------------------------------//   
-//overTakeFromTo= ABSTRACT LIST (SnapshotABC, DATE, DATE); 
-//overTakeSkuFromTo= ABSTRACT LIST (SnapshotABC, DATE, DATE);
-//overTakeBatchFromTo= ABSTRACT LIST (SnapshotABC, DATE, DATE);
+//overTakeFromTo ABSTRACT LIST ( SnapshotABC, DATE, DATE); 
+//overTakeSkuFromTo ABSTRACT LIST ( SnapshotABC, DATE, DATE);
+//overTakeBatchFromTo ABSTRACT LIST ( SnapshotABC, DATE, DATE);
 
 status 'Статус отчета' (SnapshotABC snapshot) = CASE
                                           WHEN finishTime(snapshot) THEN 'Сформирован'
@@ -422,7 +422,7 @@ backgroundStatus 'Цвет' (SnapshotABC snapshot) =  CASE
                                       ;
 
 
-takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)  = {
+takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)   { 
     
     IF currentUser() IS Employee AND (GROUP SUM 1 IF include(snapshot, Stock st) AND NOT accessCompany(currentUser(), st)) THEN {
         dataInclude(snapshot, Stock st) <- include(snapshot, st) AND accessCompany(currentUser(), st);
@@ -587,7 +587,7 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)  = {
 
 
 
-takeData 'Сформировать отчет' (SnapshotABC snapshot) = { 
+takeData 'Сформировать отчет' (SnapshotABC snapshot)  { 
     IF finishTime(snapshot) THEN {
         ASK 'Вы действительно хотите выполнить действие "Сформировать отчет?"' DO            
             takeFromTo(snapshot, fromDate(snapshot), toDate(snapshot));
@@ -665,7 +665,7 @@ in (Operation type, DATE date) = ((countDOWsIn(type) AND in(type, extractDOW(dat
 
 
   
-createSnapshotString 'Создать отчет'(STRING[100] string, DATE dateTo) = {
+createSnapshotString 'Создать отчет'(STRING[100] string, DATE dateTo)  { 
 	NEWSESSION { 
 	    FOR idReport(Operation type) == string  DO {
 	        IF in(type, currentDate()) AND countDays(type) THEN {     
@@ -709,7 +709,7 @@ DESIGN options{
     }
 }
 
-deleteSnapshotsABC 'Удалить старые ABC-отчеты'()= {
+deleteSnapshotsABC 'Удалить старые ABC-отчеты'() { 
     FOR sum(date(SnapshotABC r),countDaysDelete(operation(r))) < currentDate()
         OR (NOT operation(r) AND sum(date(r), countDaysDeleteSnapshotsABC()) < currentDate()) DO {
             DELETE  r;

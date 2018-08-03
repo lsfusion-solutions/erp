@@ -24,7 +24,7 @@ FORM printOrientations 'Ориентации'
     LIST PrintOrientation OBJECT o
 ;
 
-onStarted() += {
+onStarted() + { 
     fileTemplate(PrintOrientation o) <- 'Label_printLabelTransaction.jrxml' WHERE o == PrintOrientation.landscape; 
     fileTemplate(PrintOrientation o) <- 'Label_printLabelTransaction_P.jrxml' WHERE o == PrintOrientation.portrait; 
 }
@@ -288,8 +288,8 @@ META implementPriceTransactionDocument(concrete)
     description[PriceTransactionDocument] (concrete document) += description(document);
 END
 
-createLabelTransaction 'Распечатать ценники' = ABSTRACT (PriceTransactionDocument) TOOLBAR CONFIRM;
-createSnapshotLabelTransaction 'Перепечатать ценники' = ABSTRACT (PriceTransactionDocument) TOOLBAR;
+createLabelTransaction 'Распечатать ценники'  ABSTRACT ( PriceTransactionDocument) TOOLBAR CONFIRM;
+createSnapshotLabelTransaction 'Перепечатать ценники'  ABSTRACT ( PriceTransactionDocument) TOOLBAR;
 
 showPrintLabelTransaction = ABSTRACT BOOLEAN (PriceTransactionDocument);
 
@@ -424,12 +424,12 @@ FORM printLabelTransaction 'Печать ценников'
 
 notPrint = DATA LOCAL NESTED BOOLEAN (); 
 needCustomPrint = ABSTRACT BOOLEAN (LabelTransaction);
-customPrint = ABSTRACT (LabelTransaction);
+customPrint  ABSTRACT ( LabelTransaction);
 labelPrintAuto = DATA LOCAL NESTED BOOLEAN ();
 
 customPrinter(LabelTransaction l) = customPrinter(labelType(l), currentComputer());
 
-print(LabelTransaction t) = {
+print(LabelTransaction t)  { 
     IF NOT notPrint() THEN {
         IF needCustomPrint(t) THEN
             customPrint(t);
@@ -443,11 +443,11 @@ print(LabelTransaction t) = {
 }
 
 selected 'Отм.' = DATA LOCAL BOOLEAN (LabelTransactionDetail);
-deleteNotSelectedDetail 'Удалить кроме отмеченных'(LabelTransaction t) = {
+deleteNotSelectedDetail 'Удалить кроме отмеченных'(LabelTransaction t)  { 
     DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT selected(d);
 } TOOLBAR;
 
-changeBarcode(LabelTransactionDetail d)  = {
+changeBarcode(LabelTransactionDetail d)   { 
     IF [= GROUP SUM 1 IF id(Barcode b) BY sku(b)](sku(d)) > 1 THEN {
         DIALOG barcodeSku OBJECTS s = sku(d), b = dataBarcode(d) INPUT NULL DO
             dataBarcode(d) <- b;
@@ -465,7 +465,7 @@ FORM labelTypesDialog 'Доступные типы ценников'
 ;
 DESIGN labelTypesDialog { BOX { size = (800, 600); } } 
 
-changeLabelType(LabelTransaction t)  = {
+changeLabelType(LabelTransaction t)   { 
     DIALOG labelTypesDialog OBJECTS ds = departmentStore(t), l = labelType(t) INPUT NULL DO
         labelType(t) <- l;
 }
@@ -511,7 +511,7 @@ DESIGN customLabelTransaction {
 
 @extendFormFilterAccessStock(labelTransaction, l, customLabelTransaction, departmentStore, company);
 
-addLabelTransaction 'Добавить'(DepartmentStore dep) = {
+addLabelTransaction 'Добавить'(DepartmentStore dep)  { 
 	NEWSESSION {
 	    NEW l = LabelTransaction {
 	        departmentStore(l) <- dep;
@@ -522,21 +522,21 @@ addLabelTransaction 'Добавить'(DepartmentStore dep) = {
 	}
 } TOOLBAR IMAGE 'add.png';
 
-printTo 'Печать ценников' (LabelTransaction labelTransaction) = {
+printTo 'Печать ценников' (LabelTransaction labelTransaction)  { 
         print(labelTransaction);
 } IMAGE 'print.png' IN print;
 
 select 'Отм.' = DATA LOCAL BOOLEAN (LabelTransactionDetail);
 countSelectLabelTransactionDetails = GROUP SUM 1 IF select(LabelTransactionDetail d);
 
-deleteSelect 'Очистить все' () = {
+deleteSelect 'Очистить все' ()  { 
     select(LabelTransactionDetail d) <- NULL;   
 } ASON CONTEXTMENU select[LabelTransactionDetail];
 
 
 countSelectedLabelTransactions (t)  =   GROUP SUM 1 IF select(LabelTransactionDetail d) BY labelTransaction(d);
 
-printLabelTransactionDetails 'Печать ценников'()  = {
+printLabelTransactionDetails 'Печать ценников'()   { 
     IF countSelectLabelTransactionDetails() THEN NEWSESSION NESTED (select[LabelTransactionDetail]) {
         FOR countSelectedLabelTransactions(t)  DO {
             skipPrint(LabelTransactionDetail d) <- TRUE WHERE labelTransaction(d) ==t AND NOT select(d);
@@ -548,7 +548,7 @@ printLabelTransactionDetails 'Печать ценников'()  = {
     }
 
 }
-printLabelTransactionDetail 'Печать ценника' (LabelTransactionDetail d) = {
+printLabelTransactionDetail 'Печать ценника' (LabelTransactionDetail d)  { 
     select(d) <- TRUE;  
     printLabelTransactionDetails();
 }
@@ -642,7 +642,7 @@ lastTransaction 'Текущая цена на ценниках' (sku, stock) =
           WHERE d IS LabelTransactionDetail
           BY sku(d), departmentStore(d);
 
-clearApplicationLog () += {
+clearApplicationLog () + { 
 	NEWSESSION {
 	    IF countDaysClearLabelTransaction() THEN {
 	        DELETE LabelTransactionDetail d WHERE d IS LabelTransactionDetail AND NOT d == lastTransaction(sku(d), departmentStore(d)) AND date(d) <= subtract(currentDate(), countDaysClearLabelTransaction());
@@ -654,12 +654,12 @@ clearApplicationLog () += {
 	}
 }
 
-createAttribute = ABSTRACT LIST (LabelTransactionDetail);
+createAttribute  ABSTRACT LIST ( LabelTransactionDetail);
 
 // -------------------------------- Добавление новых атрибутов -------------------------- //
 META defineLabelTransactionAttributeAction(object, skuClass, skuProp)
-    createAttribute(LabelTransactionDetail d) +=
-        { object(d) <- skuProp(sku(d)); }
+    createAttribute(LabelTransactionDetail d) +
+        {  object(d) <- skuProp(sku(d)); }
 
     EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY object;
     EXTEND FORM customLabelTransaction PROPERTIES(d) object;
@@ -706,12 +706,12 @@ WHEN LOCAL FORMS customLabelTransaction
 
 @defineLabelTransactionAttribute(nameCountrySku, 'Страна изготовления', VARSTRING[50], Sku, nameCountry);
 manufactureDateBatch 'Дата изготовления'  = DATA DATE (LabelTransactionDetail);
-createAttribute(LabelTransactionDetail d) +=
-    { manufactureDateBatch(d) <- manufactureDate(lastOrderBatch(sku(d), departmentStore(d))); }
+createAttribute(LabelTransactionDetail d) +
+    {  manufactureDateBatch(d) <- manufactureDate(lastOrderBatch(sku(d), departmentStore(d))); }
 
 expiryDateBatch 'Годен до'  = DATA DATE (LabelTransactionDetail);
-createAttribute(LabelTransactionDetail d) +=
-    { expiryDateBatch(d) <- expiryDate(lastOrderBatch(sku(d), departmentStore(d))); }
+createAttribute(LabelTransactionDetail d) +
+    {  expiryDateBatch(d) <- expiryDate(lastOrderBatch(sku(d), departmentStore(d))); }
 
 EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY manufactureDateBatch, expiryDateBatch;
 EXTEND FORM customLabelTransaction PROPERTIES(d) manufactureDateBatch, expiryDateBatch;
@@ -751,7 +751,7 @@ EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressPhoneLegalEntit
 
 //-------------------------------------- Подбор ------------------------//
 
-addDetailDialogSkuLabelTransactionDetail 'Подбор товаров'(LabelTransaction labelTransaction) = {
+addDetailDialogSkuLabelTransactionDetail 'Подбор товаров'(LabelTransaction labelTransaction)  { 
     DIALOG dialogSku DO {
         FOR dialogQuantity(Sku sku) INLINE NEW w = LabelTransactionDetail DO {
             labelTransaction(w) <- labelTransaction;
@@ -764,7 +764,7 @@ addDetailDialogSkuLabelTransactionDetail 'Подбор товаров'(LabelTran
     dialogQuantity(Sku sku) <- NULL;
 } TOOLBAR;
 
-addDetailDialogSkuStockLabelTransactionDetail 'Подбор товаров'(LabelTransaction labelTransaction) = {
+addDetailDialogSkuStockLabelTransactionDetail 'Подбор товаров'(LabelTransaction labelTransaction)  { 
     dialogSkuStock() <- departmentStore(labelTransaction);
     dialogAll(Sku sku) <- NULL;
 
@@ -793,7 +793,7 @@ currentBalance 'Остаток' (Sku sku, LabelTransaction labelTransaction) = c
 prevCurrentBalance 'Остаток' (Sku sku, LabelTransaction labelTransaction) = prevCurrentBalance(sku, departmentStore(labelTransaction));
 backgroundQuantity 'Цвет' (sku, labelTransaction) = ABSTRACT CASE COLOR (Sku, LabelTransaction);  
 
-changeQuantityValue(Sku sku, LabelTransaction labelTransaction, NUMERIC[14,3] n) = {
+changeQuantityValue(Sku sku, LabelTransaction labelTransaction, NUMERIC[14,3] n)  { 
     IF labelTransactionDetail(sku, labelTransaction) THEN {
         IF n THEN {
             quantity(LabelTransactionDetail labelTransactionDetail) <- INTEGER(n) WHERE labelTransactionDetail == labelTransactionDetail(sku, labelTransaction);
@@ -816,14 +816,14 @@ changeQuantityValue(Sku sku, LabelTransaction labelTransaction, NUMERIC[14,3] n)
     }
 }
 
-changeQuantity(Sku sku, LabelTransaction labelTransaction) = {
+changeQuantity(Sku sku, LabelTransaction labelTransaction)  { 
     INPUT n = NUMERIC[14,3] DO
         changeQuantityValue(sku, labelTransaction, n);
 }
 
 // Выбор всего остатка
 allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, LabelTransaction);
-changeAllQuantity(Sku sku, LabelTransaction labelTransaction) = {
+changeAllQuantity(Sku sku, LabelTransaction labelTransaction)  { 
     INPUT b = BOOLEAN DO {
         allQuantity (sku,labelTransaction) <- b;
         changeQuantityValue(sku, labelTransaction, prevCurrentBalance(sku,labelTransaction) IF b);
@@ -868,9 +868,9 @@ DESIGN selectLabelSkus{
 
 META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchProp, stockProp, prefix)
 
-    createAttribute = ABSTRACT LIST (###detailProp##Detail, LabelTransactionDetail);    
+    createAttribute  ABSTRACT LIST ( ###detailProp##Detail, LabelTransactionDetail);    
     
-    createLabelTransactionParam (cls document) = {       
+    createLabelTransactionParam (cls document)  {       
         // бежим по всем типам ценников из управленческих параметров
         // для каждого создаем по операции печати ценников
         FOR ([= GROUP SUM 1 IF inLabel(###skuProp sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stockProp(document)))
@@ -925,7 +925,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
         }   
     };      
     
-    createLabelTransaction 'Распечатать ценники'(cls document) = {
+    createLabelTransaction 'Распечатать ценники'(cls document)  { 
         IF document IS cls THEN {
             IF printExistingPrice(labelTransaction(document)) THEN {
                 FOR LabelTransaction t == labelTransaction(document, LabelType type) DO {
@@ -950,7 +950,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
         }
     } TOOLBAR CONFIRM;
     
-    createLabelTransactionChoice 'Распечатать ценники (частично)'(cls document) = {
+    createLabelTransactionChoice 'Распечатать ценники (частично)'(cls document)  { 
         NEWSESSION {       		       	    
             ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO {             
                 Label.ok() <- NULL;
@@ -975,9 +975,9 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
 
 
     
-    createLabelTransaction(cls document) += { createLabelTransaction(document); }
+    createLabelTransaction(cls document) + {  createLabelTransaction(document); }
 
-    createSnapshotLabelTransactionParam (cls document) = {
+    createSnapshotLabelTransactionParam (cls document)  { 
 	                
         DIALOG selectLabelTypes OBJECTS ds = stockProp(document), l INPUT NOMANAGESESSION DO {
             IF NOT countSelectType() THEN {  
@@ -1040,7 +1040,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
     } TOOLBAR;
 
 
-    createSnapshotLabelTransaction 'Перепечатать ценники'(cls document) = {
+    createSnapshotLabelTransaction 'Перепечатать ценники'(cls document)  { 
 	NEWSESSION {	
 	        IF is(document) THEN 
 	            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO{ 
@@ -1053,7 +1053,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
 	    }
     } TOOLBAR;
 
-    createSnapshotLabelTransactionChoice 'Перепечатать ценники (частично)'(cls document) = { // todo: пока не используется, возможно со временем
+    createSnapshotLabelTransactionChoice 'Перепечатать ценники (частично)'(cls document)  { // todo: пока не используется, возможно со временем
 	    NEWSESSION {	
 	        IF is(document) THEN 
 	            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO{ 
@@ -1073,7 +1073,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
     } TOOLBAR;
 
     
-    createSnapshotLabelTransaction(cls document) += { createSnapshotLabelTransaction(document); }
+    createSnapshotLabelTransaction(cls document) + {  createSnapshotLabelTransaction(document); }
 
     showPrintLabelTransaction 'Показывать' (cls document) = isPosted(document) AND NOT Label.skip(document);
                                                                                                //AND NOT printedPriceTransactionDocument(document);
@@ -1120,7 +1120,7 @@ NAVIGATOR {
 }
 
 select = DATA LOCAL BOOLEAN (Sku, LabelType, DepartmentStore);
-overCreate = ABSTRACT LIST (LabelTransaction);
+overCreate  ABSTRACT LIST ( LabelTransaction);
 overQuantityPrint = DATA LOCAL NESTED INTEGER (Sku);
 
 addedTransaction = DATA LOCAL LabelTransaction();
@@ -1128,7 +1128,7 @@ addedTransaction = DATA LOCAL LabelTransaction();
 notCheckEqualRetailPrice 'Не печатать ценники только БЕЗ цены до' = DATA BOOLEAN ();
 skipDelete = ABSTRACT VALUE BOOLEAN (LabelTransactionDetail);
 
-createLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore) = {
+createLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore)  { 
     // бежим по всем типам ценников из управленческих параметров
     // для каждого создаем по операции печати ценников
     FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,departmentStore) AND NOT exclude(l,s) BY l](LabelType labelType) NEW t = LabelTransaction DO { 
@@ -1173,7 +1173,7 @@ countLabel 'Количество ценников' = DATA LOCAL INTEGER (Departm
 countSelectType = GROUP SUM 1 IF select(LabelType t);
 
 
-createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore, LabelType labelType) = {
+createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore, LabelType labelType)  { 
 
     NEW t = LabelTransaction {
         departmentStore(t) <- departmentStore;
@@ -1248,7 +1248,7 @@ DESIGN options {
     }
 }
 
-createSelectedSkuStockLabelTransaction 'Распечатать ценники'() = {
+createSelectedSkuStockLabelTransaction 'Распечатать ценники'()  { 
     IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
             FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock] (DepartmentStore stock) AND stock IS DepartmentStore DO {        
@@ -1278,7 +1278,7 @@ FORM selectLabelTypes 'Доступные типы ценников'
 
 DESIGN selectLabelTypes { BOX { size = (600, 400); } }  
 
-createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники'() = {
+createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники'()  { 
     IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {            
         NEWSESSION NESTED (select[Sku,Stock]) {
 
@@ -1306,7 +1306,7 @@ EXTEND  FORM currentBalanceSkuStock
 ;
 // --------------------------------- Печать ценников по отмеченным по sku ------------------------- //
 
-printSelectedSkuLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore) = {
+printSelectedSkuLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore)  { 
     IF (GROUP SUM 1 IF select(Sku sku)) THEN {
         NEWSESSION NESTED (select[Sku]) {
             select(Sku sku, LabelType labelType, departmentStore) <- select(sku) AND inPrint(labelType, sku, departmentStore);   
@@ -1320,7 +1320,7 @@ printSelectedSkuLabelTransaction 'Распечатать ценники'(Departm
         MESSAGE 'Не отмечены товары, для которых необходима печать ценников.';
     }
 } TOOLBAR;
-printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore) = {
+printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore)  { 
     IF (GROUP SUM 1 IF select(Sku sku)) THEN  { 
         NEWSESSION NESTED (select[Sku]) {
             DIALOG selectLabelTypes OBJECTS ds = departmentStore, l INPUT NOMANAGESESSION DO {       
@@ -1347,7 +1347,7 @@ GROUP incrementMachineryLabel 'Инкрементная печать ценни�
 needLabelTransactionDepartmentStore (PriceListType type, Sku sku, Stock stock) = 
     prevPriceA(type, sku, stock, currentDateTime()) AND NOT prevPriceA(type,  sku, stock, currentDateTime()) == priceLabelTransactionDetail(sku, stock); 
 
-createAllLabelTransaction 'Все товары'(DepartmentStore stock) = {
+createAllLabelTransaction 'Все товары'(DepartmentStore stock)  { 
     select(Sku sku, LabelType labelType, stock) <- needLabelTransactionDepartmentStore(priceListType(labelType), sku, stock) 
                 AND inPrint(labelType, sku, stock);   
     
@@ -1359,7 +1359,7 @@ createAllLabelTransaction 'Все товары'(DepartmentStore stock) = {
     }        
 } IN incrementMachineryLabel;
 
-createBalanceLabelTransaction 'Остатки'(DepartmentStore stock) = {
+createBalanceLabelTransaction 'Остатки'(DepartmentStore stock)  { 
     select(Sku sku, LabelType labelType, stock) <- needLabelTransactionDepartmentStore(priceListType(labelType), sku, stock) 
                 AND inPrint(labelType, sku, stock) AND balanceA(sku, stock, currentDateTime());   
                 
@@ -1416,9 +1416,9 @@ EXTEND FORM labelTransactions
 
 //базовое изображение для ценников
 imageLabel = DATA IMAGEFILE ();
-loadLabel 'Загрузить изображение на ценник' () = { INPUT =imageLabel() CHANGE; }
-openLabel 'Просмотреть изображение на ценник' () = { open(imageLabel()); }
-deleteLabel 'Удалить изображение на ценник' () = { imageLabel() <- NULL; }
+loadLabel 'Загрузить изображение на ценник' ()  { INPUT =imageLabel() CHANGE; }
+openLabel 'Просмотреть изображение на ценник' ()  { open(imageLabel()); }
+deleteLabel 'Удалить изображение на ценник' ()  { imageLabel() <- NULL; }
 
 EXTEND FORM options
     PROPERTIES() loadLabel, openLabel, deleteLabel

@@ -11,7 +11,7 @@ countInCreatePickingUserInvoicePostedOrderParams = GROUP SUM 1 IF inCreatePickin
                                                          BY from(o), to(o), fromStock(o), toStock(o);
 countParamsInCreatePickingUserInvoicePostedOrder = GROUP SUM 1 IF countInCreatePickingUserInvoicePostedOrderParams(LegalEntity from, LegalEntity to, Stock fromStock, Stock toStock); 
 
-createPickingUserInvoicePosted 'Создать проведенную накладную' = ABSTRACT (Order);
+createPickingUserInvoicePosted 'Создать проведенную накладную'  ABSTRACT ( Order);
 
 META defineOrderInvoicePickingOrder (sign)
 
@@ -20,7 +20,7 @@ META defineOrderInvoicePickingOrder (sign)
                                                                ORDER dateTime(b), b
                                                                BY d;
 
-    createPickingDetail(UserInvoice userInvoice, Order.Order order) = {
+    createPickingDetail(UserInvoice userInvoice, Order.Order order)  { 
         IF useExplicitBatchDetailUserInvoice(order) AND (explicitBatchLedger(fromStock(order)) OR forceExplicitBatchDetailUserInvoice(order)) THEN {
             FOR order(OrderDetail orderDetail) == order AND picking(Batch batch, orderDetail) AND NOT batch(orderDetail)
                 ORDER orderCreateUserInvoice(orderDetail) 
@@ -76,7 +76,7 @@ META defineOrderInvoicePickingOrder (sign)
         }
     }
 
-    fillPicking(UserInvoice userInvoice, Order.Order order) = {
+    fillPicking(UserInvoice userInvoice, Order.Order order)  { 
         fillHeader(userInvoice, order);
         createPickingDetail(userInvoice, order);
         fillPrice(userInvoice, order);
@@ -86,7 +86,7 @@ META defineOrderInvoicePickingOrder (sign)
     packQuantity 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (UserInvoice);
     packQuantity(UserInvoice invoice) += packQuantity(invoice);
 
-    createPickingUserInvoice 'Создать накладную по комплектации'(Order order) = {
+    createPickingUserInvoice 'Создать накладную по комплектации'(Order order)  { 
         IF order IS Order THEN {
             userInvoice(order) <- NULL;
             NEW i = UserInvoice {
@@ -99,7 +99,7 @@ META defineOrderInvoicePickingOrder (sign)
         }
     }
 
-    createPickingUserInvoicePosted 'Создать проведенную накладную по комплектации'(Order order) = {
+    createPickingUserInvoicePosted 'Создать проведенную накладную по комплектации'(Order order)  { 
         IF order IS Order THEN {
             userInvoice(order) <- NULL;
             IF countInCreatePickingUserInvoicePostedOrder() THEN {
@@ -128,9 +128,9 @@ META defineOrderInvoicePickingOrder (sign)
             }
         }
     }
-    createPickingUserInvoicePosted(Order o) += { createPickingUserInvoicePosted(o); } 
+    createPickingUserInvoicePosted(Order o) + {  createPickingUserInvoicePosted(o); } 
 
-    addPickingUserInvoice 'Накладная по комплектации'###sign(Order order) =  {
+    addPickingUserInvoice 'Накладная по комплектации'###sign(Order order)   { 
 	NEWSESSION{
 	        IF order IS Order THEN {
 	            createPickingUserInvoice(order);

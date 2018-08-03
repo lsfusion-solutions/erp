@@ -16,7 +16,7 @@ FORM priceLabelTransactionDetails 'Цена на ценниках'
     FILTERS sku(d) == s,
             departmentStore(d) == st
 ;
-showPriceLabelTransactionDetail 'Показать изменение цены' (Sku sku, Stock stock) = { SHOW priceLabelTransactionDetails OBJECTS s = sku, st = stock; }  ASON CONTEXTMENU priceLabelTransactionDetail[Sku,DepartmentStore];
+showPriceLabelTransactionDetail 'Показать изменение цены' (Sku sku, Stock stock)  { SHOW priceLabelTransactionDetails OBJECTS s = sku, st = stock; }  ASON CONTEXTMENU priceLabelTransactionDetail[Sku,DepartmentStore];
 
 FORM priceMachineryPriceTransactionBarcode 'Цена в оборудовании' 
     
@@ -32,7 +32,7 @@ FORM priceMachineryPriceTransactionBarcode 'Цена в оборудовании
             in(t,b),
             NOT canceled(t)
 ;
-showPriceMachineryPriceTransaction 'Показать изменение цены' (Sku sku, Stock stock) = { SHOW priceMachineryPriceTransactionBarcode OBJECTS b = barcode(sku), st = stock; }  ASON CONTEXTMENU transactionPrice[Sku,Stock];
+showPriceMachineryPriceTransaction 'Показать изменение цены' (Sku sku, Stock stock)  { SHOW priceMachineryPriceTransactionBarcode OBJECTS b = barcode(sku), st = stock; }  ASON CONTEXTMENU transactionPrice[Sku,Stock];
 
 useCurrentPriceUpdatePriceDashboard 'Использовать текущие цены в обновлении цен' = DATA BOOLEAN ();
 EXTEND FORM options
@@ -46,14 +46,14 @@ DESIGN options {
 }
 
 useCurrentPrice = DATA LOCAL BOOLEAN();
-initUseCurrentPrice() = {
+initUseCurrentPrice()  { 
     useCurrentPrice() <- useCurrentPriceUpdatePriceDashboard();
 }
 updatePrice 'Розничная цена' (Sku sku, Stock stock) = IF useCurrentPrice() THEN currentRetailPricingPrice(sku, stock) ELSE retailPricingPriceA(sku, stock);   
 updateDescription 'Описание' (Sku sku, Stock stock) = IF useCurrentPrice() THEN currentRetailPricingDescription(sku, stock) ELSE retailPricingDescriptionA(sku, stock);   
 updateFromDateTime 'Дата/время с' (Sku sku, Stock stock) = IF useCurrentPrice() THEN currentRetailPricingFromDateTime(sku, stock) ELSE retailPricingFromDateTimeA(sku, stock);   
 
-showMovementPriceSkuStocks 'Показать изменение цены товара' (Sku sku, Stock stock) = {
+showMovementPriceSkuStocks 'Показать изменение цены товара' (Sku sku, Stock stock)  { 
     dialogPriceListType(sku, stock) <- SystemLedgerPriceListType.retailPricingPriceListType;
     SHOW movementPriceSkuStock OBJECTS s = sku, st = stock ;
 } ASON CONTEXTMENU updatePrice[Sku,Stock];

@@ -14,17 +14,17 @@ importNBRBExchangeRateDateTo 'Дата по' = DATA DATE () IN nbrb;
 
 importNBRBExchangeRateDaysCount 'Кол-во дней' = DATA INTEGER() IN nbrb;
 
-importNBRBExchangeRateDateFromDateToAction 'Импортировать курсы НБРБ' = CUSTOM 'lsfusion.erp.region.by.masterdata.ImportNBRBExchangeRateDateFromDateToActionProperty' (Currency) IN nbrb;
-importNBRBExchangeRateLastDaysAction 'Импортировать последние курсы НБРБ' = CUSTOM 'lsfusion.erp.region.by.masterdata.ImportNBRBExchangeRateLastDaysActionProperty' (Currency) IN nbrb;
+importNBRBExchangeRateDateFromDateToAction 'Импортировать курсы НБРБ'  CUSTOM  'lsfusion.erp.region.by.masterdata.ImportNBRBExchangeRateDateFromDateToActionProperty' (Currency) IN nbrb;
+importNBRBExchangeRateLastDaysAction 'Импортировать последние курсы НБРБ'  CUSTOM  'lsfusion.erp.region.by.masterdata.ImportNBRBExchangeRateLastDaysActionProperty' (Currency) IN nbrb;
 
-importNBRBExchangeRateDateFromDateTo 'Импортировать курсы НБРБ'() = {
+importNBRBExchangeRateDateFromDateTo 'Импортировать курсы НБРБ'()  { 
     FOR Currency c IS Currency DO {
         EXEC importNBRBExchangeRateDateFromDateToAction(c);
     }
     EXEC apply();
 } IN nbrb;
 
-importNBRBExchangeRateLastDays 'Импортировать последние курсы НБРБ'() = {
+importNBRBExchangeRateLastDays 'Импортировать последние курсы НБРБ'()  { 
     FOR Currency c IS Currency DO {
         EXEC importNBRBExchangeRateLastDaysAction(c);
     }
@@ -48,12 +48,12 @@ DESIGN typeExchangeCurrencyDate {
     }
 }
 
-loadDefaultScheduledTasks () += { 
+loadDefaultScheduledTasks () + {  
     loadDefaultScheduledTask ('Загрузка курсов НБРБ', 2014_07_01_15:00, 43200, SchedulerStartType.afterFinish);
     loadDefaultScheduledTaskDetail ('Загрузка курсов НБРБ', 1, 'NBRB.importNBRBExchangeRateLastDays[]');
 }
 
-fillCrossFromTo 'Пересчитать обратный и кросс-курс за период'(DATE dateFrom, DATE dateTo) = {
+fillCrossFromTo 'Пересчитать обратный и кросс-курс за период'(DATE dateFrom, DATE dateTo)  { 
     LOCAL dateCur = DATE();
     
     dateCur() <- dateFrom;
@@ -71,7 +71,7 @@ fillCrossFromTo 'Пересчитать обратный и кросс-курс 
     }
 }
 
-fillCrossPeriod 'Пересчитать обратный и кросс-курс за период'() = {
+fillCrossPeriod 'Пересчитать обратный и кросс-курс за период'()  { 
     IF importNBRBExchangeRateDateFrom() AND importNBRBExchangeRateDateTo() THEN {
         fillCrossFromTo(importNBRBExchangeRateDateFrom(), importNBRBExchangeRateDateTo());
         apply();
@@ -80,7 +80,7 @@ fillCrossPeriod 'Пересчитать обратный и кросс-курс 
     }    
 } IN nbrb;
 
-fillCrossLastDays 'Пересчитать обратный и кросс-курс последние'() = {    
+fillCrossLastDays 'Пересчитать обратный и кросс-курс последние'()  {    
     IF importNBRBExchangeRateDaysCount() THEN {        
         fillCrossFromTo(subtract(currentDate(), importNBRBExchangeRateDaysCount()), currentDate());
         apply();

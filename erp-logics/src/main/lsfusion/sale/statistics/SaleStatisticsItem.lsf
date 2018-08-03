@@ -14,7 +14,7 @@ CONSTRAINT groupType(parent(StatisticGroup group)) != groupType(group)
 
 statistic (StatisticGroupType type, Item sku) += statistic (type, sku);
 
-overCopy(Item s, Item d) += {
+overCopy(Item s, Item d) + { 
     statistic(StatisticGroupType type, d) <- statistic(type, s) WHERE statistic(type, s);
 }
 
@@ -37,7 +37,7 @@ dataSidStatisticGroupStatisticGroup 'Код группы' (StatisticGroupType st
 sidStatisticGroup 'Код группы' (StatisticGroupType statisticGroupType, ItemGroup itemGroup) = sid(statisticGroup(statisticGroupType, itemGroup)) IN defaultItemGroup;
 prevSidStatisticGroup 'Код группы' (StatisticGroupType statisticGroupType, ItemGroup itemGroup) = sid(prevStatisticGroup(statisticGroupType, itemGroup)) IN defaultItemGroup;
 
-assignStatisticGroupItems 'Назначить всем товарам группы' (ItemGroup group) = {
+assignStatisticGroupItems 'Назначить всем товарам группы' (ItemGroup group)  { 
 	NEWSESSION {
 	    statistic(StatisticGroupType t, Item i) <- statisticGroup(t, itemGroup(i)) WHERE isParent(group, i);
 	    apply();
@@ -83,16 +83,16 @@ WHEN LOCAL CHANGED(statisticGroup(StatisticGroupType type,itemGroup(Item item)))
     
 
 
-change(StatisticGroupType type, Item item) = {
+change(StatisticGroupType type, Item item)  { 
     DIALOG statisticGroupDialog OBJECTS c = type, s = statistic(type, item) INPUT NULL DO
         statistic(type, item) <- s;
 }
-changeData(StatisticGroupType type, ItemGroup itemGroup) = {
+changeData(StatisticGroupType type, ItemGroup itemGroup)  { 
     DIALOG statisticGroupDialog OBJECTS c = type, s = dataStatisticGroup(type, itemGroup) INPUT NULL DO   
         dataStatisticGroup(type, itemGroup) <- s;
 }
 
-fill 'Заполнить стат. группу для всех товаров'(StatisticGroupType type, ItemGroup itemGroup) = {
+fill 'Заполнить стат. группу для всех товаров'(StatisticGroupType type, ItemGroup itemGroup)  { 
     statistic(type, Item item) <- statisticGroup(type,itemGroup) WHERE isParent(itemGroup,item);
 } TOOLBAR;
 
@@ -113,12 +113,12 @@ FORM statisticGroupsPrint 'Привязка групп'
     FILTERS  active(sk) 
 ;
 
-statisticGroupsPrint 'Привязка групп (xlsx)' (Country ss, StatisticGroupType c) = {
+statisticGroupsPrint 'Привязка групп (xlsx)' (Country ss, StatisticGroupType c)  { 
     isLeaf() <- NULL;
     PRINT statisticGroupsPrint OBJECTS ss=ss, c=c XLSX;
 } IMAGE 'print.png' IN print;
 
-statisticGroupsLeafPrint 'Привязка групп (xlsx) только листья' (Country ss, StatisticGroupType c) = {
+statisticGroupsLeafPrint 'Привязка групп (xlsx) только листья' (Country ss, StatisticGroupType c)  { 
     isLeaf() <- TRUE;
     PRINT statisticGroupsPrint OBJECTS ss=ss, c=c XLSX;
 } IMAGE 'print.png' IN print;

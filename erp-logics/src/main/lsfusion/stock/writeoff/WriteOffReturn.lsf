@@ -39,7 +39,7 @@ addressLegalEntity 'Адрес' (UserWriteOff userWriteOff) = address(legalEntit
 // Для инвентаризации по партиям
 @showDocumentInterfaceDetailBatch(writeOff);
 @defineDocumentInterfaceDetailBatch(writeOff, batch);
-changeBatch(UserWriteOffDetail userWriteOffDetail) = {
+changeBatch(UserWriteOffDetail userWriteOffDetail)  { 
     DIALOG dialogBatchStockIn OBJECTS st = stock(userWriteOffDetail),
                              t = dateTime(userWriteOffDetail),
                              sk = sku(userWriteOffDetail),
@@ -321,7 +321,7 @@ EXTEND FORM writeOffs
 //descriptionWriteOffDetail 'Основание' (WriteOffDetail writeOffDetail) = description(writeOffDetail(writeOffDetail));
 //descriptionWriteOffDetail 'Основание' (UserWriteOffDetail userWriteOffDetail) = description(writeOffDetail(userWriteOffDetail));
 //
-//recalculatedPrice(UserWriteOffDetail detail) = {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
+//recalculatedPrice(UserWriteOffDetail detail)  {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
 //    IF writeOffDetail(detail) THEN {
 //        price(detail) <-  price(writeOffDetail(detail));
 //    }
@@ -374,7 +374,7 @@ sumContainer (WriteOff ledger) += sumContainerWriteOffDetail(ledger);
 
 legalEntity(WriteOff ledger) += contact(ledger);  
 operation[StockDocumentLedger](WriteOff ledger) += operation(ledger);
-close[StockDocumentLedger](WriteOff l) += { close(l); }
+close[StockDocumentLedger](WriteOff l) + {  close(l); }
 
 // ------------------------------- Проведение по регистру остатков ------------------------ //
 @implementSkuLedgerInLIFO(WriteOffDetail, sku, stock);
@@ -385,14 +385,14 @@ sum[InSkuLedger](WriteOffDetail ledger) += sum(ledger);
 
 stockDocumentLedger(WriteOffDetail ledger) += writeOff(ledger); 
 
-edit(UserWriteOffDetail d) += { DIALOG userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED; }
+edit(UserWriteOffDetail d) + {  DIALOG userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED; }
 
-show 'Просмотреть' = ABSTRACT LIST (WriteOffDetail) TOOLBAR;
-show(UserWriteOffDetail d) = {
+show 'Просмотреть'  ABSTRACT LIST ( WriteOffDetail) TOOLBAR;
+show(UserWriteOffDetail d)  { 
 	NEWSESSION {
 	    SHOW userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED READONLY;
 	}
 }
-show(UserWriteOffDetail d) += { show(d); }
-show[SkuLedger](WriteOffDetail d) += { show(d); }
+show(UserWriteOffDetail d) + {  show(d); }
+show[SkuLedger](WriteOffDetail d) + {  show(d); }
 
