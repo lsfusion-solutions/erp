@@ -87,7 +87,7 @@ EXTEND FORM zReports
     PROPERTIES(d) READONLY seriesNumberGiftCard SHOWIF isReceiptGiftCardSaleDetail(d) 
 ;
 
-receipt = DATA Receipt (ReceiptGiftCardSaleDetail) NONULL DELETE;
+receipt = DATA Receipt (ReceiptGiftCardSaleDetail) NONULL DELETE INDEXED AGGR;
 receipt(ReceiptGiftCardSaleDetail detail) += receipt(detail);
 zReport(ReceiptGiftCardSaleDetail d) = zReport(receipt(d)); 
 
@@ -116,8 +116,8 @@ signedSum(ReceiptGiftCardSaleDetail detail) += sum(detail);
 
 isReturn 'Возвратный' = DATA BOOLEAN (ReceiptGiftCardSaleDetail);
 
-sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (receiptDetail) = GROUP SUM sum[ReceiptDetail](ReceiptGiftCardSaleDetail d) IF d IS ReceiptGiftCardSaleDetail BY receipt[ReceiptDetail](d);
-sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (zReport)= GROUP SUM sum[ReceiptDetail](ReceiptGiftCardSaleDetail d) IF d IS ReceiptGiftCardSaleDetail BY zReport[ReceiptDetail](d) IN documentSum;
+sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (receiptDetail) = GROUP SUM sum(ReceiptGiftCardSaleDetail d) BY receipt(d);
+sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (zReport)= GROUP SUM sum(ReceiptGiftCardSaleDetail d) BY zReport(d) IN documentSum;
 
 namePaymentType 'Тип платежа' (ReceiptGiftCardSaleDetail d) = [= GROUP CONCAT namePaymentType(Payment p), ', ' BY receipt(p)](receipt(d));
 
