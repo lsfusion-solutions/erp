@@ -133,7 +133,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     String[] splittedDescription = item.description != null ? item.description.split("@@") : null;
                     String composition = splittedDescription != null ? splittedDescription[0] : null;
-                    String energValue = splittedDescription != null ? splittedDescription[1] : null;
+                    String energValue = splittedDescription != null && splittedDescription.length > 1 ? splittedDescription[1] : null;
 
                     ps.setString(1, skipIdDepartmentStore ? "" : trim(transaction.idDepartmentStoreGroupCashRegister, 10)); //store, код торговой точки
                     ps.setString(2, removeCheckDigitFromBarcode(trim(item.idBarcode, 20), appendBarcode)); //barcode, Штрих-код товара
