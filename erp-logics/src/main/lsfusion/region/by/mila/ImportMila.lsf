@@ -1,0 +1,26 @@
+MODULE ImportMila;
+
+REQUIRE System;
+
+importMilaFile = DATA LOCAL FILE ();
+importMila 'Импортировать'  INTERNAL  'lsfusion.erp.region.by.mila.ImportMilaActionProperty' (BOOLEAN);
+
+importMilaLight 'Импорт списка товаров' () { importMila(NULL); open(importMilaFile()); }
+importMilaFull 'Импорт всей информации по товарам' () { importMila(TRUE); open(importMilaFile()); }
+
+FORM importMilaEuroopt 'Импорт Mila'
+    PROPERTIES() importMilaLight, importMilaFull
+;
+
+EXTEND FORM integrationData
+    PROPERTIES() importMilaLight, importMilaFull   
+;
+DESIGN integrationData {
+    pane {
+        NEW mila {
+            caption = 'Мила';
+            MOVE PROPERTY(importMilaLight());          
+            MOVE PROPERTY(importMilaFull());          
+        }
+    }
+}
