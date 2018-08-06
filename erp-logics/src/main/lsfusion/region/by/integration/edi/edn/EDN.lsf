@@ -16,7 +16,7 @@ archiveDirEDN 'Папка принятых сообщений' = DATA VARSTRING[
 outputDirEDN 'Папка отправленных сообщений' = DATA VARSTRING[100] ();
 disableConfirmationEDN 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 receiveSupplierMessagesEDN 'Получать сообщения для поставщика' = DATA BOOLEAN ();
-receiveEDN 'Получить сообщения'  CUSTOM  'lsfusion.erp.region.by.integration.edi.edn.ReceiveMessagesEDNActionProperty' ();
+receiveEDN 'Получить сообщения'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.ReceiveMessagesEDNActionProperty' ();
 
 loginInvoiceEDN 'Имя пользователя EDN' = DATA VARSTRING[100] ();
 passwordInvoiceEDN 'Пароль EDN' = DATA VARSTRING[100] () ECHO;
@@ -29,7 +29,7 @@ hostEDSServiceEDN 'Хост EDSService' = DATA VARSTRING[100] ();
 portEDSServiceEDN 'Порт EDSService' = DATA INTEGER ();
 useEDSServiceForCustomerEDN 'Использовать EDSService для подписи покупателем' = DATA BOOLEAN ();
 
-receiveInvoiceEDN 'Получить сообщения по электронным накладным'  CUSTOM  'lsfusion.erp.region.by.integration.edi.edn.ReceiveInvoiceMessagesEDNActionProperty' ();
+receiveInvoiceEDN 'Получить сообщения по электронным накладным'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.ReceiveInvoiceMessagesEDNActionProperty' ();
 
 EXTEND FORM integrationData
     PROPERTIES() loginEDN, passwordEDN, hostEDN, portEDN, receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN, receiveSupplierMessagesEDN,
@@ -71,14 +71,14 @@ DESIGN integrationData {
     }
 }
 
-sendEDN 'Отправить'  CUSTOM  'lsfusion.erp.region.by.integration.edi.edn.SendEOrderEDNActionProperty' (EOrder);
+sendEDN 'Отправить'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.SendEOrderEDNActionProperty' (EOrder);
 
 send(EOrder o) + {  IF EDIProvider(supplier(o)) == EDIProvider.edn THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendEDN(o); }
 
 good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1252') THEN TRUE;
 
-signAndSendCustomerEDN 'Подписать и отправить (покупатель)'  CUSTOM  'lsfusion.erp.region.by.integration.edi.edn.SendEInvoiceCustomerEDNActionProperty' (EInvoice);
+signAndSendCustomerEDN 'Подписать и отправить (покупатель)'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.SendEInvoiceCustomerEDNActionProperty' (EInvoice);
 signAndSendCustomer(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.edn THEN IF exportedCustomer(e) THEN MESSAGE 'Накладная (покупатель) уже отправлена'; ELSE signAndSendCustomerEDN(e); }
 
-signAndSendSupplierEDN 'Подписать и отправить (поставщик)'  CUSTOM  'lsfusion.erp.region.by.integration.edi.edn.SendEInvoiceSupplierEDNActionProperty' (EInvoice);
+signAndSendSupplierEDN 'Подписать и отправить (поставщик)'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.SendEInvoiceSupplierEDNActionProperty' (EInvoice);
 signAndSendSupplier(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.edn THEN IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена'; ELSE signAndSendSupplierEDN(e); }

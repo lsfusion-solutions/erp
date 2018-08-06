@@ -42,7 +42,7 @@ dateTimeStart 'Дата/время начала' = ABSTRACT DATETIME (Task) MATE
 description 'Описание' = ABSTRACT VARISTRING[1000](Task) MATERIALIZED CHARWIDTH 30;
 run 'Выполнить'  ABSTRACT ( Task);
 endOfTheDay 'До конца дня' = ABSTRACT BOOLEAN (Task) MATERIALIZED;
-countDays 'Кол-во дней' = ABSTRACT INTEGER (Task) MATERIALIZED FIXEDCHARWIDTH 3;
+countDays 'Кол-во дней' = ABSTRACT INTEGER (Task) MATERIALIZED CHARWIDTH 3 FIXED;
 id 'ИД' = ABSTRACT VARSTRING[30] (Task) MATERIALIZED; 
 
 dateStart 'Дата начала' (Task t) = DATE(dateTimeStart(t));
@@ -178,7 +178,7 @@ notificationStart = ABSTRACT RICHTEXT (Task);
 subjectNotificationStart = ABSTRACT VARSTRING[100] (Task);
 
 hasAttachment = ABSTRACT BOOLEAN (Task);
-attachment = ABSTRACT CUSTOMFILE (Task);
+attachment = ABSTRACT FILE (Task);
 attachmentName = ABSTRACT VARSTRING[100] (Task);
 
 generateAttachment (Task t)  ABSTRACT LIST ( Task);
@@ -202,7 +202,7 @@ emailNotificationStart 'Отправить' (CustomUser u, Task t)  {
             SUBJECT (OVERRIDE subjectNotificationStart(t), 'Уведомление по задаче от ' + dateStart(t))
             TO email(u)
             INLINE notification OBJECTS r = notificationStart(t)
-            ATTACH FILE attachment(t) NAME attachmentName(t);
+            ATTACH attachment(t) NAME attachmentName(t);
     } ELSE
         EMAIL 
             FROM emailTask()

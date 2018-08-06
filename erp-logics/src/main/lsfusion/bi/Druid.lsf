@@ -36,7 +36,7 @@ DESIGN integrationData {
 } 
 
 runImportTask(VARSTRING[100] id, DATE date)  { 
-    LOCAL template = CUSTOMFILE();
+    LOCAL template = FILE();
     READ 'file://bi/' + id + '.json' TO template;
     customFileToString(template(), 'UTF-8');
     
@@ -44,7 +44,7 @@ runImportTask(VARSTRING[100] id, DATE date)  {
                                                        '<FILE>', id + date + '.csv')
                                                        , 'UTF-8', 'json');
     
-    LOCAL result = CUSTOMFILE();
+    LOCAL result = FILE();
     EXTERNAL HTTP 'http://' + host() + ':8090/druid/indexer/v1/task' PARAMS resultCustomFile() TO result;
 }
 
@@ -59,7 +59,7 @@ ingestBatch (VARSTRING[100] id, DATE date)  {
 loadLookups 'Загрузить справочники'  ABSTRACT LIST ( );
 loadLookups () + { 
     stringToCustomFile('\{\}', 'UTF-8', 'json');
-    LOCAL result = CUSTOMFILE();
+    LOCAL result = FILE();
     TRY { EXTERNAL HTTP 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config' PARAMS resultCustomFile() TO result; }
 }
 
@@ -69,7 +69,7 @@ loadLookup (VARSTRING[100] id, TEXT json)  {
     IF json != '' THEN {
         printToLog('' + currentDateTime() + ' Started Load lookup ' + id);    
         stringToCustomFile('\{ "version": "' + lpad(TEXT([= FORMULA LONG 'SELECT EXTRACT (epoch FROM ($1))'](currentDateTime())), 12, '0') + '", "lookupExtractorFactory": \{ "type": "map", "injective" : true, "map": \{' + json + ' \} \} \}', 'UTF-8', 'json');
-        LOCAL result = CUSTOMFILE();
+        LOCAL result = FILE();
 //        WRITE 'file://d:/temp/test.json' FROM resultCustomFile(); 
         EXTERNAL HTTP 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config/__default/' + id PARAMS resultCustomFile() TO result; 
         printToLog('' + currentDateTime() + 'Ended Load lookup ' + id);
@@ -90,13 +90,13 @@ runKillTask(VARSTRING[100] id, DATE dFrom, DATE dTo)  {
     stringToCustomFile('\{ "type":"kill", "dataSource" : "' + id + '", "interval" : "' + dFrom + '/' + sum(dTo, 1) + '" \}' 
                                                        , 'UTF-8', 'json');
     
-    LOCAL result = CUSTOMFILE();
+    LOCAL result = FILE();
     EXTERNAL HTTP 'http://' + host() + ':8090/druid/indexer/v1/task' PARAMS resultCustomFile() TO result;
 }
 
 // ----------------- Запросы ------------------- //
 
-queryResult = DATA LOCAL CUSTOMFILE();
+queryResult = DATA LOCAL FILE();
 
 // example : 'SELECT columns FROM dataset GROUP BY group';
 
@@ -147,7 +147,7 @@ query(TEXT q)  {
 dataSource 'Данные' = DATA LOCAL VARSTRING[100] (INTEGER);
 
 readDataSource()  { 
-    LOCAL result = CUSTOMFILE();
+    LOCAL result = FILE();
     EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/datasources' TO result;
         
     customFileToString(result(), 'UTF-8');
@@ -163,7 +163,7 @@ dimension 'Измерения' = DATA LOCAL VARSTRING[100] (INTEGER);
 measure 'Метрики' = DATA LOCAL VARSTRING[100] (INTEGER);
 
 readDimensionsAndMeasures (VARSTRING[100] ds)  { 
-    LOCAL result = CUSTOMFILE();
+    LOCAL result = FILE();
     EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/datasources/' + ds  TO result;
     
     LOCAL dimensions = TEXT();
@@ -203,7 +203,7 @@ runQuery 'Выполнить' (VARSTRING[100] ds)  {
 	
 	stringToCustomFile('\{"query": "' + query() + '"\}','UTF-8','json');
 
-	LOCAL result = CUSTOMFILE();
+	LOCAL result = FILE();
 	EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/sql' PARAMS resultCustomFile() TO result;
 
     open(result());
@@ -212,16 +212,16 @@ runQuery 'Выполнить' (VARSTRING[100] ds)  {
 }
 
 FORM druidConnector
-    OBJECTS s = INTEGER 'Данные'
+    OBJECTS s 'Данные' = INTEGER
     PROPERTIES(s) READONLY dataSource
     FILTERS dataSource(s)
     
-    OBJECTS d = INTEGER 'Измерения'
+    OBJECTS d 'Измерения' = INTEGER
     PROPERTIES(d) selD
     PROPERTIES(d) READONLY dimension
     FILTERS dimension(d)
 
-    OBJECTS m = INTEGER 'Метрики'
+    OBJECTS m 'Метрики' = INTEGER
     PROPERTIES(m) selM
     PROPERTIES(m) READONLY measure
     FILTERS measure(m)

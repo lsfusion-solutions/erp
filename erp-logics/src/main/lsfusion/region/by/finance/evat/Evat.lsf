@@ -13,7 +13,7 @@ overNeedCreateEVAT (EVATDocument d) = needCreateEVAT(d) AND isPosted(d);
 
 name 'Регистр-основание' = ABSTRACT VARISTRING[200] (EVATDocument) ;
 number 'Номер' = ABSTRACT VARSTRING[100] (EVATDocument) IN numbered CHARWIDTH 7;
-series 'Серия' = ABSTRACT STRING[2] (EVATDocument) IN numbered FIXEDCHARWIDTH 3;
+series 'Серия' = ABSTRACT STRING[2] (EVATDocument) IN numbered CHARWIDTH 3 FIXED;
 seriesNumber 'Серия/Номер' (EVATDocument d) = CONCAT '', series(d), number(d) CHARWIDTH 7;
 
 VATSum 'Сумма НДС' = ABSTRACT NUMERIC[18,4] (EVATDocument) CHARWIDTH 10;
@@ -136,14 +136,14 @@ DESIGN options {
     }
 }
 
-generateXMLAction 'Сгенерировать XML'  CUSTOM  'lsfusion.erp.region.by.finance.evat.GenerateXMLEVATActionProperty'(EVAT); 
-generateAndSave 'Сгенерировать XML'  CUSTOM  'lsfusion.erp.region.by.finance.evat.GenerateAndSaveXMLEVATActionProperty'(EVAT); 
-generatedXML 'Сгенерированный XML' = DATA LOCAL CUSTOMFILE ();
-evatAction  CUSTOM  'lsfusion.erp.region.by.finance.evat.EVATActionProperty'(INTEGER); 
+generateXMLAction 'Сгенерировать XML'  INTERNAL  'lsfusion.erp.region.by.finance.evat.GenerateXMLEVATActionProperty'(EVAT); 
+generateAndSave 'Сгенерировать XML'  INTERNAL  'lsfusion.erp.region.by.finance.evat.GenerateAndSaveXMLEVATActionProperty'(EVAT); 
+generatedXML 'Сгенерированный XML' = DATA LOCAL FILE ();
+evatAction  INTERNAL  'lsfusion.erp.region.by.finance.evat.EVATActionProperty'(INTEGER); 
 signAndSend 'Сгенерировать, подписать и отправить' (EVAT evat)  { evatAction(0); }
 getStatus 'Получить статус ЭСЧФ' ()  { evatAction(1); }
 
-exportFile() = DATA LOCAL CUSTOMFILE ();
+exportFile() = DATA LOCAL FILE ();
 
 type = DATA EVATType (EVAT);
 nameType 'Тип' (EVAT evat) = name(type(evat));

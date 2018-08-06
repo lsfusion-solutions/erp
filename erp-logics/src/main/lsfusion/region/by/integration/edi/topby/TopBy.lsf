@@ -16,7 +16,7 @@ archiveDirTopBy 'Папка принятых сообщений' = DATA VARSTRIN
 outputDirTopBy 'Папка отправленных сообщений' = DATA VARSTRING[100] ();
 disableConfirmationTopBy 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 receiveSupplierMessagesTopBy 'Получать сообщения для поставщика' = DATA BOOLEAN ();
-receiveTopBy 'Получить сообщения'  CUSTOM  'lsfusion.erp.region.by.integration.edi.topby.ReceiveMessagesTopByActionProperty' ();
+receiveTopBy 'Получить сообщения'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.ReceiveMessagesTopByActionProperty' ();
 
 loginInvoiceTopBy 'Имя пользователя TopBy' = DATA VARSTRING[100] ();
 passwordInvoiceTopBy 'Пароль TopBy' = DATA VARSTRING[100] () ECHO;
@@ -29,7 +29,7 @@ hostEDSServiceTopBy 'Хост EDSService' = DATA VARSTRING[100] ();
 portEDSServiceTopBy 'Порт EDSService' = DATA INTEGER ();
 useEDSServiceForCustomerTopBy 'Использовать EDSService для подписи покупателем' = DATA BOOLEAN ();
 
-receiveInvoiceTopBy 'Получить сообщения по электронным накладным'  CUSTOM  'lsfusion.erp.region.by.integration.edi.topby.ReceiveInvoiceMessagesTopByActionProperty' ();
+receiveInvoiceTopBy 'Получить сообщения по электронным накладным'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.ReceiveInvoiceMessagesTopByActionProperty' ();
 
 EXTEND FORM integrationData
     PROPERTIES() loginTopBy, passwordTopBy, hostTopBy, portTopBy, archiveDirTopBy, outputDirTopBy, disableConfirmationTopBy, receiveSupplierMessagesTopBy, receiveTopBy,
@@ -71,14 +71,14 @@ DESIGN integrationData {
     }
 }
 
-sendTopBy 'Отправить'  CUSTOM  'lsfusion.erp.region.by.integration.edi.topby.SendEOrderTopByActionProperty' (EOrder);
+sendTopBy 'Отправить'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.SendEOrderTopByActionProperty' (EOrder);
 
 send(EOrder o) + {  IF EDIProvider(supplier(o)) == EDIProvider.topBy THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendTopBy(o); }
 
 good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1251' OR code(m) == '1252') THEN TRUE ;
 
-signAndSendCustomerTopBy 'Подписать и отправить (покупатель)'  CUSTOM  'lsfusion.erp.region.by.integration.edi.topby.SendEInvoiceCustomerTopByActionProperty' (EInvoice);
+signAndSendCustomerTopBy 'Подписать и отправить (покупатель)'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.SendEInvoiceCustomerTopByActionProperty' (EInvoice);
 signAndSendCustomer(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.topBy THEN IF exportedCustomer(e) THEN MESSAGE 'Накладная (покупатель) уже отправлена'; ELSE signAndSendCustomerTopBy(e); }
 
-signAndSendSupplierTopBy 'Подписать и отправить (поставщик)'  CUSTOM  'lsfusion.erp.region.by.integration.edi.topby.SendEInvoiceSupplierTopByActionProperty' (EInvoice);
+signAndSendSupplierTopBy 'Подписать и отправить (поставщик)'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.SendEInvoiceSupplierTopByActionProperty' (EInvoice);
 signAndSendSupplier(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.topBy THEN IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена'; ELSE signAndSendSupplierTopBy(e); }
