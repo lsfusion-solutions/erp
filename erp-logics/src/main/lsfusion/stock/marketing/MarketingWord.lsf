@@ -1,0 +1,158 @@
+MODULE MarketingWord;
+
+REQUIRE MarketingInvoice, MarketingContract, LegalEntityBy, Word;
+
+NAMESPACE Marketing;
+
+wordFile = DATA WORDFILE (ContractType, LegalEntity);
+loadWordFile 'Загрузить шаблон'(ContractType t, LegalEntity l)  { INPUT =wordFile(t, l) CHANGE; }
+openWordFile 'Открыть шаблон'(ContractType t, LegalEntity l)  { open(wordFile(t, l)); }
+isLoad 'Есть шаблон' (ContractType t, LegalEntity l) = TRUE IF wordFile(t, l);
+
+wordFile = DATA WORDFILE (ContractMarketing);
+loadWordFile 'Загрузить шаблон'(ContractMarketing i)  { INPUT =wordFile(i) CHANGE; }
+openWordFile 'Открыть шаблон'(ContractMarketing i)  { open(wordFile(i)); }
+isLoad 'Есть шаблон' (ContractMarketing i) = TRUE IF wordFile(i);
+
+FORM templates 'Шаблоны'
+    OBJECTS (t = ContractType, l = LegalEntity)
+    PROPERTIES isLoad(t, l) READONLY, staticCaption(t) READONLY, name(l) READONLY, loadWordFile(t, l), openWordFile(t, l) SHOWIF isLoad(t, l)
+    
+    FILTERS isCompany(l) AND NOT inactive(l)
+    
+    OBJECTS i = ContractMarketing
+    PROPERTIES (i) READONLY isLoad, number, dateFrom, dateTo, prolongation, nameSupplier, nameCustomer, paymentDelay, 
+                   nameContractType, namePeriod, fromCount, fromPayment
+    PROPERTIES (i) loadWordFile, openWordFile SHOWIF isLoad(i)
+;
+
+NAVIGATOR {
+    marketing {
+        NEW templates;
+    }
+}
+
+toCharRus (NUMERIC[18,2] n) = replace(replace(TEXT (n), ',', ' '), '.', ',');
+toChar (object, format) = FORMULA TEXT 'to_char(($1),($2))'; 
+toText = FORMULA TEXT 'to_text($1,$2,$3)';
+numSpelled = FORMULA TEXT 'num_spelled($1,$2,string_to_array($3,\',\'),$4,string_to_array($5,\',\'),$6)';
+numSpelledRouble (NUMERIC[14,2] number, VARSTRING[10] decFormat) = numSpelled(number, 'M', 'рубль,рубля,рублей', 'F', 'копейка,копейки,копеек', decFormat);
+
+template = DATA Template (MarketingInvoice);
+
+createTask 'Задание и Акт' (MarketingInvoice i)  { 
+    NEWSESSION {
+        NEW t = Template {
+            template(i) <- t;
+            file(t) <- OVERRIDE wordFile(contract(i)), wordFile(contractType(contract(i)), customer(contract(i)));
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'NUMBER_ACT'; description(e) <- 'Номер акта'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'NUMBER_TASK'; description(e) <- 'Номер задания'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'NUMBER_ATTACHMENT'; description(e) <- 'Номер приложения'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'NUMBER_AGREEMENT'; description(e) <- 'Номер соглашения'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'NUMBER_PROTOCOL'; description(e) <- 'Номер протокола'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'DATE_ACT'; description(e) <- 'Дата акта'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'DATE_TASK'; description(e) <- 'Дата задания'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'DATE_ATTACHMENT'; description(e) <- 'Дата приложения'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'DATE_AGREEMENT'; description(e) <- 'Дата соглашения'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'DATE_FROM_PROTOCOL'; description(e) <- 'Дата с протокола'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'DATE_TO_PROTOCOL'; description(e) <- 'Дата по протокола'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'CURRENT_DATE'; description(e) <- 'Текущая дата'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'DATE_FROM_CONTRACT'; description(e) <- 'Дата начала договора'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'DATE_TO_CONTRACT'; description(e) <- 'Дата окончания договора'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'FIRST_DAY_MONTH'; description(e) <- 'Первый день месяца'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'LAST_DAY_MONTH'; description(e) <- 'Последний день месяца'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'FIRST_WORK_DAY_MONTH'; description(e) <- 'Первый рабочий день месяца'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'LAST_WORK_DAY_MONTH'; description(e) <- 'Последний рабочий день месяца'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'NUMBER_CONTRACT'; description(e) <- 'Номер договора'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'NAME_LEGAL_ENTITY'; description(e) <- 'Юр. лицо'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'NAME_CUSTOMER'; description(e) <- 'Заказчик'; } 
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'PERSON_CUSTOMER'; description(e) <- 'в лице'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'BASED_ON_CUSTOMER'; description(e) <- 'на основании'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'DATE_FROM_ACT'; description(e) <- 'Дата с'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'DATE_TO_ACT'; description(e) <- 'Дата по'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'DATE_AFTER'; description(e) <- 'Срок проведения'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'MIN_SUM_PURCHASE'; description(e) <- 'Минимальная сумма закупок'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'VALUE_VAT'; description(e) <- 'НДС'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'MARKETING_PERCENT'; description(e) <- 'Процент маркетинга'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'SUM_VAT_NUMERIC'; description(e) <- 'Общая стоимость (число)'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'VAT_SUM_NUMERIC'; description(e) <- 'Сумма НДС (число)'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'SUM_VAT_WORDS'; description(e) <- 'Общая стоимость (прописью)'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'VAT_SUM_WORDS'; description(e) <- 'Сумма НДС (прописью)'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'SUM_WITHOUT_VAT_NUMERIC'; description(e) <- 'Сумма без НДС (число)'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'SUM_WITHOUT_VAT_WORDS'; description(e) <- 'Сумма без НДС (прописью)'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'SUM_CALC_BASE_NUMERIC'; description(e) <- 'Сумма согл. базе расчета (число)'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'SUM_CALC_BASE_WORDS'; description(e) <- 'Сумма согл. базе расчета (прописью)'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'ADDRESS_LE'; description(e) <- 'Адрес исполнителя'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'IBAN_LE'; description(e) <- 'Номер р/с исполнителя'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'BANK_LE'; description(e) <- 'Банк исполнителя'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'MFO_LE'; description(e) <- 'BIC банка исполнителя'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'UNP_LE'; description(e) <- 'УНП исполнителя'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'OKPO_LE'; description(e) <- 'ОКПО исполнителя'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'PHONE_LE'; description(e) <- 'Телефон/факс исполнителя'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'ADDRESS_CUSTOMER'; description(e) <- 'Адрес заказчика'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'IBAN_CUSTOMER'; description(e) <- 'Номер р/с заказчика'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'BANK_CUSTOMER'; description(e) <- 'Банк заказчика'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'MFO_CUSTOMER'; description(e) <- 'BIC банка заказчика'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'UNP_CUSTOMER'; description(e) <- 'УНП заказчика'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'OKPO_CUSTOMER'; description(e) <- 'ОКПО заказчика'; }
+            NEW e = TemplateEntry { template(e) <- t; key(e) <- 'PHONE_CUSTOMER'; description(e) <- 'Телефон/факс заказчика'; }
+        }
+
+        value(TemplateEntry d) <- TEXT (numberTask(i)) WHERE key(d) = 'NUMBER_TASK' AND template(d) == template(i);
+        value(TemplateEntry d) <- number(i) WHERE key(d) = 'NUMBER_ACT' AND template (d) == template(i);
+        value(TemplateEntry d) <- number(contract(i)) WHERE key(d) = 'NUMBER_CONTRACT' AND template (d) == template(i);
+        value(TemplateEntry d) <- numberAttachment(i) WHERE key(d) = 'NUMBER_ATTACHMENT' AND template (d) == template(i);
+        value(TemplateEntry d) <- numberAgreement(i) WHERE key(d) = 'NUMBER_AGREEMENT' AND template (d) == template(i);
+        value(TemplateEntry d) <- numberProtocol(i) WHERE key(d) = 'NUMBER_PROTOCOL' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(dateTask(i))) WHERE key(d) = 'DATE_TASK' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(date(i))) WHERE key(d) = 'DATE_ACT' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(dateAttachment(i))) WHERE key(d) = 'DATE_ATTACHMENT' AND template (d) == template(i);                        
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(dateAgreement(i))) WHERE key(d) = 'DATE_AGREEMENT' AND template (d) == template(i); 
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(dateFromProtocol(i))) WHERE key(d) = 'DATE_FROM_PROTOCOL' AND template (d) == template(i); 
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(dateToProtocol(i))) WHERE key(d) = 'DATE_TO_PROTOCOL' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(dateFrom(contract(i)))) WHERE key(d) = 'DATE_FROM_CONTRACT' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(dateTo(contract(i)))) WHERE key(d) = 'DATE_TO_CONTRACT' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(firstDayOfMonth(dateFrom(i)))) WHERE key(d) = 'FIRST_DAY_MONTH' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(lastDayOfMonth(dateFrom(i)))) WHERE key(d) = 'LAST_DAY_MONTH' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(jumpWorkdays(defaultCountry(), subtract(firstDayOfMonth(dateFrom(i)), 1), 1))) WHERE key(d) = 'FIRST_WORK_DAY_MONTH' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(jumpWorkdays(defaultCountry(), sum(lastDayOfMonth(dateTo(i)), 1), -1))) WHERE key(d) = 'LAST_WORK_DAY_MONTH' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(currentDate())) WHERE key(d) = 'CURRENT_DATE' AND template (d) == template(i);
+        value(TemplateEntry d) <- nameCustomer(i) WHERE key(d) = 'NAME_LEGAL_ENTITY' AND template (d) == template(i);
+        value(TemplateEntry d) <- nameSuppler(i) WHERE key(d) = 'NAME_CUSTOMER' AND template (d) == template(i);
+        value(TemplateEntry d) <- personSupplier(contract(i)) WHERE key(d) = 'PERSON_CUSTOMER' AND template (d) == template(i);
+        value(TemplateEntry d) <- basedOnSupplier(contract(i)) WHERE key(d) = 'BASED_ON_CUSTOMER' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(dateFrom(i))) WHERE key(d) = 'DATE_FROM_ACT' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(dateTo(i))) WHERE key(d) = 'DATE_TO_ACT' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (toDateDDMMYY(sum(dateTo(i), 2))) WHERE key(d) = 'DATE_AFTER' AND template (d) == template(i);
+        value(TemplateEntry d) <- toCharRus(overMinSum(i)) WHERE key(d) = 'MIN_SUM_PURCHASE' AND template (d) == template(i);
+        value(TemplateEntry d) <- TEXT (valueVAT(i)) WHERE key(d) = 'VALUE_VAT' AND template (d) == template(i);
+        value(TemplateEntry d) <- toCharRus(VATSum(i)) WHERE key(d) = 'VAT_SUM_NUMERIC' AND template (d) == template(i);
+        value(TemplateEntry d) <- numSpelledRouble(VATSum(i), '00d') WHERE key(d) = 'VAT_SUM_WORDS' AND template (d) == template(i);
+        value(TemplateEntry d) <- toCharRus(overSumVAT(i)) WHERE key(d) = 'SUM_VAT_NUMERIC' AND template (d) == template(i);
+        value(TemplateEntry d) <- numSpelledRouble(overSumVAT(i), '00d') WHERE key(d) = 'SUM_VAT_WORDS' AND template (d) == template(i);
+        value(TemplateEntry d) <- toCharRus(sum(i)) WHERE key(d) = 'SUM_WITHOUT_VAT_NUMERIC' AND template (d) == template(i);
+        value(TemplateEntry d) <- numSpelledRouble(sum(i), '00d') WHERE key(d) = 'SUM_WITHOUT_VAT_WORDS' AND template (d) == template(i);
+        value(TemplateEntry d) <- toCharRus(overSumCalcBase(i)) WHERE key(d) = 'SUM_CALC_BASE_NUMERIC' AND template (d) == template(i);
+        value(TemplateEntry d) <- numSpelledRouble(overSumCalcBase(i), '00d') WHERE key(d) = 'SUM_CALC_BASE_WORDS' AND template (d) == template(i);
+        value(TemplateEntry d) <- replace(TEXT (NUMERIC[7,2](overAverageMarketingPercent(i))), '.', ',') WHERE key(d) = 'MARKETING_PERCENT' AND template (d) == template(i);  
+        value(TemplateEntry d) <- OVERRIDE (address(customer(i))), '' WHERE key(d) = 'ADDRESS_LE' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (number(account(customer(i)))), '' WHERE key(d) = 'IBAN_LE' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (nameBank(account(customer(i)))), '' WHERE key(d) = 'BANK_LE' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (MFOBank(account(customer(i)))), '' WHERE key(d) = 'MFO_LE' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (UNP(customer(i))), '' WHERE key(d) = 'UNP_LE' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (OKPO(customer(i))), '' WHERE key(d) = 'OKPO_LE' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (phone(customer(i))), '' WHERE key(d) = 'PHONE_LE' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (address(supplier(i))), '' WHERE key(d) = 'ADDRESS_CUSTOMER' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (number(account(supplier(i)))), '' WHERE key(d) = 'IBAN_CUSTOMER' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (nameBank(account(supplier(i)))), '' WHERE key(d) = 'BANK_CUSTOMER' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (MFOBank(account(supplier(i)))), '' WHERE key(d) = 'MFO_CUSTOMER' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (UNP(supplier(i))), '' WHERE key(d) = 'UNP_CUSTOMER' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (OKPO(supplier(i))), '' WHERE key(d) = 'OKPO_CUSTOMER' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (phone(supplier(i))), '' WHERE key(d) = 'PHONE_CUSTOMER' AND template (d) == template(i);
+
+        process(template(i));
+        open(resultTemplate());
+    }
+}
+
+EXTEND FORM marketingInvoices PROPERTIES TODRAW i TOOLBAR createTask(i) BEFORE createMarketingInvoices();

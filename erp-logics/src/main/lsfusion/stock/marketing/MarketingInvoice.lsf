@@ -1,0 +1,523 @@
+MODULE MarketingInvoice;
+
+REQUIRE MarketingContract, PurchaseInvoice, PurchaseReturnInvoice;
+
+NAMESPACE Marketing;
+
+CLASS MarketingInvoice 'Акт на оплату';
+TABLE marketingInvoice(MarketingInvoice);
+
+contract = DATA ContractMarketing(MarketingInvoice);
+numberContract 'Номер договора маркетинга' (MarketingInvoice i) = number(contract(i));
+nameContract 'Наименование договора' (MarketingInvoice i) = name(contract(i));
+date 'Дата акта' = DATA DATE (MarketingInvoice);
+dateTime 'Дата/время создания' = DATA DATETIME (MarketingInvoice);
+dateFromContract 'Дата с (договора)' (MarketingInvoice i) = dateFrom(contract(i));
+dateToContract 'Дата по (договора)' (MarketingInvoice i) = dateTo(contract(i));
+nameContractType 'Тип договора' (MarketingInvoice i) = name(contractType(contract(i)));
+dateFrom 'Дата с' = DATA DATE (MarketingInvoice);
+dateTo 'Дата по' = DATA DATE (MarketingInvoice);
+supplier = DATA LegalEntity (MarketingInvoice);
+nameSuppler 'Поставщик' (MarketingInvoice i) = name(supplier(i));
+customer = DATA LegalEntity (MarketingInvoice);
+nameCustomer 'Покупатель' (MarketingInvoice i)= name(customer(i));
+
+scanFile 'Файл' = DATA FILE (MarketingInvoice);
+
+inputScanFile 'Загрузить' (MarketingInvoice i)  { INPUT f = FILE DO { scanFile(i) <- f; } }
+openScanFile 'Просмотреть' (MarketingInvoice i)  { open(scanFile(i)); }
+deleteScanFile 'Удалить' (MarketingInvoice i)  { scanFile(i) <- NULL; }
+
+@defineDocumentHeaderNumber(MarketingInvoice);
+
+@defineNumeratedDefault(MarketingInvoice, 'Акты оплаты маркетинга', 'АМ');
+
+@defineDocumentHeaderPosted(MarketingInvoice);
+     
+CLASS MarketingInvoiceDetail 'Строка акта на оплату';
+TABLE marketingInvoiceDetail(MarketingInvoiceDetail);
+
+marketingInvoice 'Акт' = DATA MarketingInvoice (MarketingInvoiceDetail) NONULL DELETE INDEXED;
+
+@defineDocumentDetailPosted(marketingInvoice, MarketingInvoiceDetail);
+
+sku = DATA Sku (MarketingInvoiceDetail);
+nameSku 'Товар' (MarketingInvoiceDetail d) = name(sku(d));
+
+stock = DATA Stock (MarketingInvoiceDetail);
+nameStock 'Склад' (MarketingInvoiceDetail d) = name(stock(d));
+
+conditionTypeMarketing = DATA ConditionType(MarketingInvoiceDetail);
+nameConditionType 'Вид маркетинга' (MarketingInvoiceDetail d) = name(conditionTypeMarketing(d));
+
+in (MarketingInvoice i, ConditionType t) = GROUP SUM 1 BY marketingInvoice(MarketingInvoiceDetail d), conditionTypeMarketing(d);
+marketingTypes 'Виды маркетинга' (MarketingInvoice i) = GROUP CONCAT name(ConditionType t) IF in(i, t), ', ' CHARWIDTH 25;
+
+calcBase = DATA CalcBase (MarketingInvoiceDetail);
+nameCalcBase 'База расчета' (MarketingInvoiceDetail d) = name(calcBase(d));
+
+marketingPercent 'Процент маркетинга' = DATA NUMERIC[5,2] (MarketingInvoiceDetail);
+quantity 'Кол-во' = DATA NUMERIC[16,5] (MarketingInvoiceDetail);
+sum 'Сумма (согл. базе расчета)' = DATA NUMERIC[18,2] (MarketingInvoiceDetail);
+returnSum 'Сумма возврата' = DATA NUMERIC[18,2] (MarketingInvoiceDetail);
+sumMarketing 'Сумма маркетинга' = DATA NUMERIC[18,2] (MarketingInvoiceDetail);
+
+isCreated 'Создан' (ContractMarketing c, DATE df, DATE dt) =
+    GROUP SUM 1 IF contract(MarketingInvoice i) == c AND dateFrom(i) == df AND dateTo(i) == dt;
+
+sumVAT 'Сумма' (MarketingInvoice i) = 
+    GROUP SUM sumMarketing(MarketingInvoiceDetail d) BY marketingInvoice(d);
+
+userSumVAT = DATA NUMERIC[18,2](MarketingInvoice);
+overSumVAT 'Сумма с НДС' (MarketingInvoice i) = OVERRIDE userSumVAT(i), sumVAT(i);
+
+sum 'Сумма' (MarketingInvoice i) = 
+    IF contractType(contract(i)) == ContractType.tradeBonus THEN overSumVAT(i) ELSE round2(overSumVAT(i) / 1.2);
+
+VATSum 'Сумма НДС' (MarketingInvoice i) = OVERRIDE (overSumVAT(i) (-) sum(i)), 0;
+valueVAT 'НДС' (MarketingInvoice i) = (OVERRIDE (20 IF VATSum(i) > 0), 0);
+
+averageMarketingPercent 'Процент маркетинга' (MarketingInvoice i) = 
+    NUMERIC[7,2] (100 * overSumVAT(i) / [=GROUP SUM sum(MarketingInvoiceDetail d) BY marketingInvoice(d)](i));
+
+sumCalcBase 'Сумма (согл. базе расчета)' = GROUP SUM (sum(MarketingInvoiceDetail d) (-) returnSum(d)) BY marketingInvoice(d);
+
+sumClacBaseCustomer (Sku sk, Stock st, MarketingInvoice i) = 
+    GROUP MAX (sum(MarketingInvoiceDetail d) (-) returnSum(d)) IF legalEntity(stock(d)) == customer(marketingInvoice(d)) BY sku(d), stock(d), marketingInvoice(d);
+sumCalcBaseCustomer 'Сумма (согл. базе расчета) (получателя)' (MarketingInvoice i) = GROUP SUM sumClacBaseCustomer(Sku sk, Stock st, i);
+averageMarketingPercentCustomer 'Процент маркетинга (получателя)' (MarketingInvoice i) = NUMERIC[7,2] (overSumVAT(i) / sumCalcBaseCustomer(i) * 100);
+
+overSumCalcBase 'Сумма (согл. базе расчета)' (MarketingInvoice i) = CASE 
+                                WHEN NOT contractType(contract(i)) == ContractType.tradeBonus THEN sumCalcBase(i)
+                                WHEN contractType(contract(i)) == ContractType.tradeBonus THEN sumCalcBaseCustomer(i);
+
+overAverageMarketingPercent 'Процент маркетинга' (MarketingInvoice i) = CASE 
+                       WHEN NOT contractType(contract(i)) == ContractType.tradeBonus THEN averageMarketingPercent(i)
+                       WHEN contractType(contract(i)) == ContractType.tradeBonus THEN averageMarketingPercentCustomer(i);
+
+numberTask 'Номер задания' = DATA VARSTRING[15] (MarketingInvoice);
+dateTask 'Дата задания' = DATA DATE (MarketingInvoice);
+numberAttachment 'Номер приложения' = DATA VARSTRING[15] (MarketingInvoice);
+dateAttachment 'Дата приложения' = DATA DATE (MarketingInvoice);
+numberAgreement 'Номер соглашения' = DATA VARSTRING[15] (MarketingInvoice);
+dateAgreement 'Дата соглашения' = DATA DATE (MarketingInvoice);
+numberProtocol 'Номер протокола' = DATA VARSTRING[15] (MarketingInvoice);
+dateFromProtocol 'Дата с протокола' = DATA DATE (MarketingInvoice);
+dateToProtocol 'Дата по протокола' = DATA DATE (MarketingInvoice);
+
+overMinSum 'Минимальная сумма закупок' (MarketingInvoice i) = CASE 
+    WHEN sumCalcBase(i) >= 10000 AND NOT contractType(contract(i)) == ContractType.tradeBonus THEN (floor(sumCalcBase(i)/1000))*1000
+    WHEN sumCalcBase(i) < 10000 AND NOT contractType(contract(i)) == ContractType.tradeBonus  THEN (floor(sumCalcBase(i)/100))*100
+    WHEN sumCalcBaseCustomer(i) >= 10000 AND contractType(contract(i)) == ContractType.tradeBonus THEN (floor(sumCalcBaseCustomer(i)/1000))*1000
+    WHEN sumCalcBaseCustomer(i) < 10000 AND contractType(contract(i)) == ContractType.tradeBonus  THEN (floor(sumCalcBaseCustomer(i)/100))*100;
+
+numberLE (VARSTRING[100] c) = CASE 
+                                    WHEN isSubstring(upper(c), upper('Либретик')) THEN 'Л'
+                                    WHEN isSubstring(upper(c), upper('Чистые Родники')) THEN 'ЧР'
+                                    WHEN isSubstring(upper(c), upper('Наваколле')) THEN 'Н'
+                                    WHEN isSubstring(upper(c), upper('Фудлогистик')) THEN 'Ф'
+                                    WHEN isSubstring(upper(c), upper('Зорина')) THEN 'З'
+                                    WHEN isSubstring(upper(c), upper('Либретик Групп')) THEN 'ЛГ';
+
+numberCT (VARSTRING[100] c) = CASE 
+                                    WHEN isSubstring(upper(c), upper('Торговая премия')) THEN 'Т'
+                                    WHEN isSubstring(upper(c), upper('Информационные услуги')) THEN 'И'
+                                    WHEN isSubstring(upper(c), upper('Рекламные услуги')) THEN 'Р'
+                                    WHEN isSubstring(upper(c), upper('Аудио-реклама')) THEN 'А';
+
+marketingCondition (LegalEntity sp, ConditionType t, Stock st, Sku sk, DATE d) = 
+    GROUP LAST MarketingCondition c ORDER c
+    WHERE inConditionStock(c, st)
+    AND d >= dateFrom(c) AND NOT d > dateTo(c)
+    AND (brand(sk) == brand(c) OR NOT brand(c)) 
+    AND (country(sk) == country(c) OR NOT country(c))
+    AND (isParent(itemGroup(sk), itemGroup(c)) OR NOT itemGroup(c)) 
+    AND (sk == item(c) OR NOT item(c))
+    AND ((passScales(sk) AND weighted(c) == Weighted.yes) OR (NOT passScales(sk) AND weighted(c) == Weighted.no) OR NOT weighted(c))
+    BY supplier(c), conditionType(c);
+
+marketingCondition (ContractMarketing cm, ConditionType t, Stock st, Sku sk, DATE d) = 
+    GROUP LAST MarketingCondition c ORDER c
+    WHERE inConditionStock(c, st)
+    AND d >= dateFrom(c) AND NOT d > dateTo(c)
+    AND (brand(sk) == brand(c) OR NOT brand(c)) 
+    AND (country(sk) == country(c) OR NOT country(c))
+    AND (isParent(itemGroup(sk), itemGroup(c)) OR NOT itemGroup(c)) 
+    AND (sk == item(c) OR NOT item(c))
+    AND ((passScales(sk) AND weighted(c) == Weighted.yes) OR (NOT passScales(sk) AND weighted(c) == Weighted.no) OR NOT weighted(c))
+    BY contractMarketing(c), conditionType(c);
+
+WHEN LOCAL (CHANGED (sum(MarketingInvoiceDetail d)) OR CHANGED (returnSum(d))) AND NOT CHANGED (sumMarketing(d)) DO {
+        sumMarketing(d) <- (sum(d) (-) returnSum(d)) * marketingPercent(d) / 100;
+}
+
+condition = DATA MarketingCondition (MarketingInvoiceDetail);
+
+createMarketingInvoice 'Создать акт на оплату' (ContractMarketing c, DATE df, DATE dt)  { 
+    NEWSESSION NEW i = MarketingInvoice {
+    
+        contract(i) <- c;
+                 
+        date(i) <- IF contractType(c) == ContractType.tradeBonus THEN lastDayOfMonth(dt)
+                   ELSE jumpWorkdays(defaultCountry(), lastDayOfMonth(dt), 1);
+                   
+        dateTask(i) <- jumpWorkdays(defaultCountry(), subtract(firstDayOfMonth(df), 1), 1);
+        dateAttachment(i) <- firstDayOfMonth(dt);                        
+        dateAgreement(i) <- IF contractType(c) == ContractType.tradeBonus THEN lastDayOfMonth(dt) ELSE currentDate();                          
+        dateFromProtocol(i) <- jumpWorkdays(defaultCountry(), subtract(firstDayOfMonth(df), 1), 1); 
+        dateToProtocol(i) <- jumpWorkdays(defaultCountry(), lastDayOfMonth(dt), 1);
+        dateFrom (i) <- df;
+        dateTo (i) <- dt;
+        supplier(i) <- supplier(c);
+        customer(i) <- customer(c);
+        dateTime(i) <- currentDateTime();
+
+//        number(i) <- CONCAT '/', extractDay(currentDate()) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c));      
+//        numberAttachment(i) <- CONCAT '/', extractDay(firstDayOfMonth(dt)) + lpad(TEXT (extractMonthNumber(firstDayOfMonth(dt))),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c));                    
+//        numberAgreement(i) <- CONCAT '/', extractDay(currentDate()) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'),  numberLE(nameCustomer(c)), numberCT(nameContractType(c));        
+//        numberProtocol(i) <- CONCAT '/', extractDay(jumpWorkdays(defaultCountry(), subtract(firstDayOfMonth(df), 1), 1)) + lpad(TEXT (extractMonthNumber(jumpWorkdays(defaultCountry(), subtract(firstDayOfMonth(df), 1), 1))),2,'0'),  numberLE(nameCustomer(c)), numberCT(nameContractType(c));        
+        number(i) <-CONCAT '/', extractDay(date(i)) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c)); 
+        numberAttachment(i) <- CONCAT '/', extractDay(date(i)) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c)); 
+        numberAgreement(i) <- CONCAT '/', extractDay(date(i)) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c)); 
+        numberProtocol(i) <- CONCAT '/', extractDay(date(i)) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c)); 
+        numberTask(i) <- CONCAT '/', extractDay(date(i)) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c)); 
+        
+        LOCAL in = BOOLEAN (Purchase.UserInvoiceDetail);
+        in(Purchase.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d);
+
+        LOCAL marketingCondition = MarketingCondition (Purchase.UserInvoiceDetail, ConditionType);
+        marketingCondition (Purchase.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d)) WHERE in(d);
+
+        LOCAL in = BOOLEAN (PurchaseReturn.UserInvoiceDetail);
+        in(PurchaseReturn.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d);
+        
+        LOCAL marketingCondition = MarketingCondition (PurchaseReturn.UserInvoiceDetail, ConditionType);
+        marketingCondition (PurchaseReturn.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d)) WHERE in(d);
+        
+        LOCAL quantityPurchase = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
+        quantityPurchase(MarketingCondition mc, Sku sk, Stock st) <- [= GROUP SUM quantity(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+
+        LOCAL quantityPurchaseReturn = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
+        quantityPurchaseReturn(MarketingCondition mc, Sku sk, Stock st) <- [= GROUP SUM quantity(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+        
+        FOR (quantityPurchase(MarketingCondition mc, Sku sk, Stock st) OR quantityPurchaseReturn(mc, sk, st))
+            AND (calcBase(mc) == CalcBase.supplier 
+            OR calcBase(mc) == CalcBase.supplierVAT)
+            NEW md = MarketingInvoiceDetail DO {
+            marketingInvoice(md) <- i;
+            condition(md) <- mc;
+            conditionTypeMarketing(md) <- conditionType(mc);
+            calcBase(md) <- calcBase(mc);
+            sku(md) <- sk;
+            stock(md) <- st;
+            quantity(md) <- quantityPurchase(mc, sk, st) (-) quantityPurchaseReturn(mc, sk, st);
+            marketingPercent(md) <- marketingPercent(mc);
+            sum (md) <- CASE 
+                            WHEN calcBase(mc) == CalcBase.supplierVAT THEN 
+                                [= GROUP SUM invoiceSum(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
+                            WHEN calcBase(mc) == CalcBase.supplier THEN 
+                                [= GROUP SUM sum(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+            returnSum(md) <- CASE 
+                                WHEN calcBase(mc) == CalcBase.supplierVAT THEN 
+                                    [= GROUP SUM invoiceSum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
+                                WHEN calcBase(mc) == CalcBase.supplier THEN
+                                    [= GROUP SUM sum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+        }
+        
+        IF (GROUP SUM 1 IF contractMarketing(MarketingCondition mc) = c AND (calcBase(mc) == CalcBase.turnoverVAT 
+                                                                            OR calcBase(mc) == CalcBase.turnover
+                                                                            OR calcBase(mc) == CalcBase.turnoverCost
+                                                                            OR calcBase(mc) == CalcBase.turnoverCostVAT)) THEN {
+
+            LOCAL quantity = NUMERIC[16,5] (Sku, Stock);
+            quantity(Sku sk, Stock st) <- GROUP SUM quantitySold(Batch b, st, DATE d) IF d >= df AND d <= dt AND supplier(b) == supplier(c) AND sku(b) == sk;
+            
+            LOCAL marketingCondition = MarketingCondition (Sku, Stock, ConditionType);
+            marketingCondition (Sku sk, Stock st, ConditionType t) <- marketingCondition(c, t, st, sk, df) WHERE quantity(sk, st);
+            
+            FOR NUMERIC[16,5] q == [= GROUP SUM quantity(Sku sk, Stock st) BY marketingCondition(sk, st, ConditionType t), sk, st](MarketingCondition mc, Sku sk, Stock st)
+                AND CalcBase cb = calcBase(mc) AND  
+                (cb == CalcBase.turnoverVAT 
+                 OR cb == CalcBase.turnover
+                 OR cb == CalcBase.turnoverCost
+                 OR cb == CalcBase.turnoverCostVAT)
+                 NOINLINE (cb) NEW md = MarketingInvoiceDetail DO {
+                marketingInvoice(md) <- i;
+                conditionTypeMarketing(md) <- conditionType(mc);
+                calcBase(md) <- calcBase(mc);
+                sku(md) <- sk;
+                stock(md) <- st;
+                quantity(md) <- q;
+                marketingPercent(md) <- marketingPercent(mc);
+                sum (md) <- CASE
+                                WHEN cb == CalcBase.turnoverVAT THEN
+                                    [= GROUP SUM sumSold(Batch b, Stock s, DATE d) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st) 
+                                WHEN cb == CalcBase.turnover THEN 
+                                    [= GROUP SUM (sumSold(Batch b, Stock s, DATE d) (-) sumVATSold(b, s, d)) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st) 
+                                WHEN cb == CalcBase.turnoverCost THEN
+                                    [= GROUP SUM costSumSold(Batch b, Stock s, DATE d) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st) 
+                                WHEN cb == CalcBase.turnoverCostVAT THEN
+                                    [= GROUP SUM (costSumSold(Batch b, Stock s, DATE d) * (100 + valueVAT(b))/100) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st); 
+            }
+        }
+        FOR contractMarketing(FixedMarketingCondition mc) == c NEW md = MarketingInvoiceDetail DO {
+            marketingInvoice(md) <- i;
+            conditionTypeMarketing(md) <- ConditionType.fixed;
+            sumMarketing(md) <- CASE 
+                                    WHEN daysInclBetweenDates(df, dt) <= 31 THEN monthSum(mc) * rateOn(typeExchange('НБРБ (BYR)'), currency(mc), date(i))
+                                    WHEN daysInclBetweenDates(df, dt) >= 90 THEN monthSum(mc) * 3 * rateOn(typeExchange('НБРБ (BYR)'), currency(mc), date(i));
+        }
+        APPLY;
+    }
+}
+
+selected 'Отм.' = DATA LOCAL BOOLEAN (ContractMarketing);
+
+resetAllSelected 'Сбросить все отмеченные' ()  { 
+    FOR selected(ContractMarketing c) DO {
+        selected(c) <- NULL;
+    }
+} 
+
+createMarketingInvoiceMonth 'Отметить договоры за месяц' (DATE df, DATE dt)  { 
+    FOR dateFrom(ContractMarketing c) <= dt AND NOT dateTo(c) < df AND period(c) == Period.month DO {
+        selected(c) <- TRUE;
+    }
+}
+
+createMarketingInvoiceQuarter 'Отметить договоры за квартал' (DATE df, DATE dt)  { 
+    FOR dateFrom(ContractMarketing c) <= dt AND NOT dateTo(c) < df AND period(c) == Period.quarter DO {
+        selected(c) <- TRUE;
+    }
+}
+
+CONSTRAINT dateFrom(MarketingInvoice i1) == dateFrom(MarketingInvoice i2) AND dateTo(i1) == dateTo(i2) AND contract(i1) == contract(i2) AND i1 != i2 
+    MESSAGE 'Акт на оплату с такими датами уже существует';
+
+FORM marketingInvoicesCreate 'Договоры маркетинга'   
+
+    OBJECTS dates = (df = DATE , dt = DATE ) PANEL 
+    PROPERTIES dFrom 'Дата с' = VALUE (df), dTo 'Дата по' = VALUE (dt)
+
+    OBJECTS c = ContractMarketing
+    PROPERTIES selected(c)
+    PROPERTIES (c) READONLY number, dateFrom, dateTo, prolongation, nameSupplier, nameCustomer, nameContractType, namePeriod, fromCount, fromPayment
+    FILTERS (dateFrom(c) <= dt AND NOT dateTo(c) < df)
+    
+    PROPERTIES TODRAW c TOOLBAR resetAllSelected(), createMarketingInvoiceMonth(df, dt), createMarketingInvoiceQuarter(df, dt)
+    
+    EVENTS ON OK {
+        FOR selected(ContractMarketing cm) DO { 
+            IF (NOT isCreated(cm, df, dt)) THEN {
+                createMarketingInvoice(cm, df, dt);
+            }
+            selected(cm) <- NULL;
+        }
+    }
+;
+
+createMarketingInvoices 'Создать акты' ()  { 
+        SHOW marketingInvoicesCreate;
+}
+
+copyMarketingInvoice 'Копировать акт' (MarketingInvoice i)  { 
+    NEWSESSION NEW ni = MarketingInvoice {
+        date(ni) <- date(i);
+        dateTime(ni) <- currentDateTime();
+        dateFrom(ni) <- dateFrom(i);
+        dateTo(ni) <- dateTo(i);
+        numerator(ni) <- numerator(i);
+        series(ni) <- series(i);
+        number(ni) <- number(i);
+        customer(ni) <- customer(i);
+        supplier(ni) <- supplier(i);
+        contract(ni) <- contract(i);
+        dateTask(ni) <-  dateTask(i);
+        dateAttachment(ni) <- dateAttachment(i);                        
+        dateAgreement(ni) <- dateAgreement(i);                          
+        dateFromProtocol(ni) <- dateFromProtocol(i); 
+        dateToProtocol(ni) <- dateToProtocol(i);
+        number(ni) <- number(i);      
+        numberAttachment(ni) <- numberAttachment(i);                    
+        numberAgreement(ni) <- numberAgreement(i);        
+        numberProtocol(ni) <- numberProtocol(i);        
+        numberTask(ni) <-  numberTask(i); 
+        scanFile(ni) <- scanFile(i);
+        FOR marketingInvoice(MarketingInvoiceDetail d) == i NEW nd = MarketingInvoiceDetail DO {
+            marketingInvoice(nd) <- ni;
+            conditionTypeMarketing(nd) <- conditionTypeMarketing(d);
+            calcBase(nd) <- calcBase(d);
+            sku(nd) <- sku(d);
+            stock(nd) <- stock(d);
+            quantity(nd) <- quantity(d);
+            marketingPercent(nd) <- marketingPercent(d);
+            sum (nd) <- sum(d);
+            returnSum(nd) <- returnSum(d);
+            
+        }
+        SHOW EDIT MarketingInvoice = ni DOCKED;
+    }
+}
+
+backgroundSum (MarketingInvoice i) = userSumVAT(i) == overSumVAT(i);
+
+FORM marketingInvoice 'Акт на оплату'
+    OBJECTS i = MarketingInvoice PANEL 
+    PROPERTIES (i) isPosted, date, dateTime, nameNumerator, number, series, dateFrom, dateTo, nameSuppler, nameCustomer, 
+                   numberContract, dateFromContract, dateToContract, nameContract, nameContractType,
+                   numberTask, dateTask,
+                   numberAttachment, dateAttachment,
+                   numberAgreement, dateAgreement,
+                   numberProtocol, dateFromProtocol, dateToProtocol
+                            
+    PROPERTIES (i) sum, VATSum, overSumVAT BACKGROUND backgroundSum(i), inputScanFile, openScanFile, deleteScanFile
+    
+    OBJECTS d = MarketingInvoiceDetail
+    PROPERTIES (d) nameSku, nameStock, nameConditionType, marketingPercent, nameCalcBase, quantity, sum, returnSum, sumMarketing, NEW, DELETE 
+    FILTERS marketingInvoice(d) = i
+    
+    PROPERTIES post(i)
+    
+    EDIT MarketingInvoice OBJECT i
+;
+
+DESIGN marketingInvoice {
+    NEW head FIRST {
+        type = CONTAINERH;
+        NEW left {
+            caption = 'Параметры';
+            MOVE GROUP (numbered, i) FIRST;
+            NEW first {
+                type = CONTAINERH;
+                MOVE PROPERTY (isPosted(i));
+                MOVE PROPERTY (date(i));
+                MOVE PROPERTY (dateFrom(i));
+                MOVE PROPERTY (dateTo(i));
+            }
+            NEW second {
+                type = CONTAINERH;
+                MOVE PROPERTY (dateTime(i));
+                MOVE PROPERTY (nameNumerator(i));
+                MOVE PROPERTY (number(i));
+                MOVE PROPERTY (series(i));
+            }
+            NEW third {
+                type = CONTAINERH;
+                MOVE PROPERTY (nameSuppler(i));
+                MOVE PROPERTY (nameCustomer(i));
+            }
+            NEW contract {
+                type = CONTAINERV;
+                caption = 'Договор маркетиинга';
+                NEW top {
+                    type = CONTAINERH;
+                    MOVE PROPERTY (numberContract(i)){
+                        caption = 'Номер';
+                    }
+                    MOVE PROPERTY (nameContract(i)){
+                        caption = 'Наименование';
+                    }
+                }
+                NEW bottom {
+                type = CONTAINERH;
+                    MOVE PROPERTY (dateFromContract(i)){
+                        caption = 'Дата с';
+                    }
+                    MOVE PROPERTY (dateToContract(i)){
+                        caption = 'Дата по';
+                    }
+                    MOVE PROPERTY (nameContractType(i));
+                }
+            }
+            NEW file {
+                type = CONTAINERH;
+                caption = 'Файл документа';
+                MOVE PROPERTY (inputScanFile(i));
+                MOVE PROPERTY (openScanFile(i));
+                MOVE PROPERTY (deleteScanFile(i));
+            }
+        }
+        NEW right {
+            NEW sums {
+                caption = 'Суммы';
+                type = CONTAINERH;
+                MOVE PROPERTY (sum(i));
+                MOVE PROPERTY (VATSum(i));
+                MOVE PROPERTY (overSumVAT(i));
+            }
+            NEW attachments {
+                caption = 'Приложения';
+                NEW task {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(numberTask(i));
+                    MOVE PROPERTY(dateTask(i));
+                }
+                NEW attachment {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(numberAttachment(i));
+                    MOVE PROPERTY(dateAttachment(i));
+                }
+                NEW agreement {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(numberAgreement(i));
+                    MOVE PROPERTY(dateAgreement(i));
+                }
+                NEW protocol {
+                    MOVE PROPERTY(numberProtocol(i));
+                    NEW protocolDates {
+                        type = CONTAINERH;
+                        MOVE PROPERTY(dateFromProtocol(i));
+                        MOVE PROPERTY(dateToProtocol(i));
+                    }
+                }
+            }
+        }
+    }
+    TOOLBARRIGHT {
+        MOVE PROPERTY (post(i)) BEFORE PROPERTY (formApply());
+    }
+}
+
+FORM marketingInvoices 'Акты на оплату'
+    OBJECTS i = MarketingInvoice
+    PROPERTIES (i) READONLY isPosted, series, number, date, dateTime, dateFrom, dateTo, nameSuppler, nameCustomer, 
+                   numberContract, nameContractType, marketingTypes, sum, VATSum, overSumVAT, overMinSum, averageMarketingPercent, sumCalcBase,
+                   sumCalcBaseCustomer, averageMarketingPercentCustomer
+    PROPERTIES (i) NEWSESSION EDIT, DELETE 
+
+    OBJECTS d = MarketingInvoiceDetail
+    PROPERTIES (d) READONLY nameSku, nameStock, nameConditionType, nameCalcBase, marketingPercent, quantity, sum, returnSum, sumMarketing
+    FILTERS marketingInvoice(d) = i
+     
+    OBJECTS c = MarketingCondition PANEL 
+    PROPERTIES (c) READONLY nameItemGroup, nameBrand, nameCountry, nameWeighted , nameRegion, stockGroups, stocks, nameItem, isException
+    PROPERTIES ig 'Группа товара' = name(itemGroup(sku(d))), br 'Бренд' = name(brand(sku(d))) , ct 'Страна' = name(country(sku(d))), 
+               w 'Весовой' = passScales(sku(d)), rg 'Регион' = name(region(stock(d)))
+    FILTERS condition(d) == c
+        
+    PROPERTIES TODRAW i TOOLBAR createMarketingInvoices(), copyMarketingInvoice(i),  prePost(i)
+;
+
+DESIGN marketingInvoices {
+    OBJECTS {
+        NEW pane {
+            fill = 1;
+            type = SPLITV;
+            MOVE BOX(i);
+            NEW invoiceDetails {
+                height = 400;
+                fill = 1;
+                MOVE BOX(c);
+                MOVE BOX(d);
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    dashboardNavigator {
+        marketing 'Маркетинг' {
+            NEW marketingInvoices BEFORE stockGroupMarketings;
+        }
+    }
+}
