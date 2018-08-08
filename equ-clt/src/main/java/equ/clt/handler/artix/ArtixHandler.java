@@ -929,6 +929,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         Set<String> filePathSet = new HashSet<>();
 
+        List<CashierTime> cashierTimeList = new ArrayList<>();
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
         List<File> files = new ArrayList<>();
@@ -948,14 +949,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         else {
             sendSalesLogger.info(String.format(logPrefix + "found %s file(s) in %s", files.size(), directory));
 
-            //Set<String> usedBarcodes = new HashSet<>();
-
             for (File file : files) {
                 if (!Thread.currentThread().isInterrupted() && readFiles.contains(file)) {
                     try {
 
                         String fileName = file.getName();
                         sendSalesLogger.info(logPrefix + "reading " + fileName);
+
+                        List<CashierTime> currentCashierTimeList = readCashierTime(file, departNumberCashRegisterMap);
+                        cashierTimeList.addAll(currentCashierTimeList);
 
                         String fileContent = readFile(file.getAbsolutePath(), encoding);
 
@@ -1127,44 +1129,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             salesInfoList.addAll(currentSalesInfoList);
                         }
 
-                        if(currentSalesInfoList.isEmpty()) {
-                            safeFileDelete(file, false);
-                        } else {
-                            filePathSet.add(file.getAbsolutePath());
-                        }
-                    } catch (Throwable e) {
-                        sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
-                    }
-                }
-            }
-        }
-
-        List<CashierTime> cashierTimeList = new ArrayList<>();
-
-        List<File> cashierFiles = new ArrayList<>();
-        for(String dir : directorySet) {
-            File[] filesList = new File(dir).listFiles(new FileFilter() {
-                @Override
-                public boolean accept(File pathname) {
-                    return pathname.getName().startsWith("cashier") && pathname.getPath().endsWith(".json");
-                }
-            });
-            if(filesList != null)
-                cashierFiles.addAll(Arrays.asList(filesList));
-        }
-
-        if (!cashierFiles.isEmpty()) {
-            sendSalesLogger.info(String.format(logPrefix + "found %s file(s) in %s", cashierFiles.size(), directory));
-
-            for (File file : cashierFiles) {
-                if (!Thread.currentThread().isInterrupted()) {
-                    try {
-                        sendSalesLogger.info(logPrefix + "reading " + file.getName());
-                        List<CashierTime> currentCashierTimeList = readCashierTime(file, departNumberCashRegisterMap);
-                        if(!currentCashierTimeList.isEmpty()) {
-                            cashierTimeList.addAll(currentCashierTimeList);
-                        }
-                        if(currentCashierTimeList.isEmpty()) {
+                        if (currentCashierTimeList.isEmpty() && currentSalesInfoList.isEmpty()) {
                             safeFileDelete(file, false);
                         } else {
                             filePathSet.add(file.getAbsolutePath());
