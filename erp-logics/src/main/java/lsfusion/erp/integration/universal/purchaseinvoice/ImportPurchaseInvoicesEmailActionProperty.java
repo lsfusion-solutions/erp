@@ -175,15 +175,23 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                                 findProperty("currentInvoice[]").change(invoiceObject, currentSession);
                                             }
 
+                                            boolean cancelSession = false;
                                             String script = (String) findProperty("script[ImportType]").read(currentSession, importTypeObject);
                                             if(script != null && !script.isEmpty()) {
                                                 findAction("executeScript[ImportType]").execute(currentSession, context.stack, importTypeObject);
+                                                cancelSession = findProperty("cancelSession[]").read(currentSession) != null;
                                             }
 
                                             findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
 
                                             if (importResult >= IMPORT_RESULT_OK) {
-                                                String result = currentSession.applyMessage(context);
+                                                String result;
+                                                if(cancelSession) {
+                                                    currentSession.cancel(context.stack);
+                                                    result = "Session canceled";
+                                                } else
+                                                    result = currentSession.applyMessage(context);
+
                                                 if (result != null) {
                                                     importResult = IMPORT_RESULT_ERROR;
                                                     errors.add(file.first + ": " + result);
