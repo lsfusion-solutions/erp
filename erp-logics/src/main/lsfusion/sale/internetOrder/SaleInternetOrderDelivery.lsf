@@ -173,14 +173,16 @@ createDeliveryReport 'Создать отчет курьера' (InternetOrder o
         select(order) <- TRUE;
     } 
     IF countInternetOrders() THEN  {       
-    
-        NEWSESSION {
-            FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT deliveryReport(d) BY Sale.supplierStock[InternetOrderDetail](d), carrier(internetOrder(d))](Stock stock, Carrier carrier) NEW r = DeliveryReport DO {
-                carrier(r) <- carrier;
-                FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND carrier(internetOrder(detail)) == carrier AND select(internetOrder(detail)) AND NOT deliveryReport(detail) DO {
-                    deliveryReport(detail) <- r;                        
-                }
-                SHOW deliveryReport OBJECTS r = r DOCKED NOCANCEL;
+            
+        FOR [=GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT deliveryReport(d) BY Sale.supplierStock[InternetOrderDetail](d), carrier(internetOrder(d))](Stock stock, Carrier carrier) DO {
+            NEWSESSION {
+                NEW r = DeliveryReport {
+                    carrier(r) <- carrier;
+                    FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND carrier(internetOrder(detail)) == carrier AND select(internetOrder(detail)) AND NOT deliveryReport(detail) DO {
+                        deliveryReport(detail) <- r;                        
+                    }
+                    SHOW deliveryReport OBJECTS r = r DOCKED NOCANCEL;
+                }    
             }
         }        
         select(InternetOrder o) <- NULL;
