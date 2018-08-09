@@ -23,14 +23,11 @@ WHEN SET(quantityReceiptSaleDetail(ZReport zr, Sku sku, NUMERIC[16,4] price)) DO
     VATReceiptSaleDetail (zr, sku, price) <- VAT (sku, country(zr));
 }
 
-zReport = DATA ZReport (ZReportSaleSkuLedger);
-sku = DATA Sku (ZReportSaleSkuLedger) INDEXED;
-price = DATA NUMERIC[16,4] (ZReportSaleSkuLedger) INDEXED;
-
+zReportSaleSkuLedger = AGGR ZReportSaleSkuLedger WHERE countReceiptSaleDetail(ZReport zReport, Sku sku, NUMERIC[16,4] price) MATERIALIZED;
+INDEX sku(ZReportSaleSkuLedger ledger);
+INDEX price(ZReportSaleSkuLedger ledger);
+INDEX zReportReturnSkuLedger(ZReport zReport, Sku sku, NUMERIC[16,4] price);
 INDEX zReport(ZReportSaleSkuLedger o), sku(o), price(o);
-
-@defineAggregationCustom(zReportReceiptSaleSkuLedger, skuReceiptSaleSkuLedger, priceReceiptSaleSkuLedger, zReport, ZReport, sku, Sku, price, NUMERIC[16,4], zReportSaleSkuLedger, ZReportSaleSkuLedger, countReceiptSaleDetail);
-
 
 dateTime[DataSkuLedger] (ZReportSaleSkuLedger ledger) += dateTime(zReport(ledger));
 isPosted[DataSkuLedger] (ZReportSaleSkuLedger ledger) += isPosted(zReport(ledger));
@@ -91,13 +88,11 @@ WHEN SET(quantityReceiptReturnDetail(ZReport zr, Sku sku, NUMERIC[16,4] price)) 
     VATReceiptReturnDetail (zr, sku, price) <- VAT(sku, country(zr));
 }
 
-zReport = DATA ZReport(ZReportReturnSkuLedger);
-sku = DATA Sku (ZReportReturnSkuLedger) INDEXED;
-price = DATA NUMERIC[16,4] (ZReportReturnSkuLedger) INDEXED;
-
+zReportReturnSkuLedger = AGGR ZReportReturnSkuLedger WHERE countReceiptReturnDetail(ZReport zReport, Sku sku, NUMERIC[16,4] price) MATERIALIZED;
+INDEX sku(ZReportReturnSkuLedger ledger);
+INDEX price(ZReportReturnSkuLedger ledger);
+INDEX zReportReturnSkuLedger(ZReport zReport, Sku sku, NUMERIC[16,4] price);
 INDEX zReport(ZReportReturnSkuLedger o), sku(o), price(o);
-
-@defineAggregationCustom(zReportReceiptReturnSkuLedger, skuReceiptReturnSkuLedger, priceReceiptReturnSkuLedger, zReport, ZReport, sku, Sku, price, NUMERIC[16,4], zReportReturnSkuLedger, ZReportReturnSkuLedger, countReceiptReturnDetail);
 
 dateTime[DataSkuLedger] (ZReportReturnSkuLedger ledger) += dateTime(zReport(ledger));
 isPosted[DataSkuLedger] (ZReportReturnSkuLedger ledger) += isPosted(zReport(ledger));

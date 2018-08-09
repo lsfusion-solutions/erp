@@ -1006,19 +1006,43 @@ sumContainer (CollationSheet ledger) += sumContainerShortage(ledger);
 includeRegister(Stock stock, Inventory inventory) =
     include(stock, inventory) AND typeOfAddition(stock, inventory) == TypeOfAddition.register;
 
-@defineAggregationCustom(stockCollationSheet, inventoryCollationSheet, stock, inventory, registerCollationSheet, includeRegister);
+// ручная агрегация (AGGR) так как stock и inventory одинаковый для всех
+registerCollationSheet (stock, inventory) =
+    GROUP AGGR RegisterCollationSheet registerCollationSheet
+    WHERE registerCollationSheet IS RegisterCollationSheet BY stock(registerCollationSheet), inventory(registerCollationSheet);
+
+includeRegister(Stock stock, Inventory inventory) => registerCollationSheet(stock, inventory) RESOLVE LEFT;
+
+is(RegisterCollationSheet registerCollationSheet) = registerCollationSheet IS RegisterCollationSheet;
+is(RegisterCollationSheet registerCollationSheet) => includeRegister(stock(registerCollationSheet), inventory(registerCollationSheet)) RESOLVE RIGHT;
 
 // автоматическое создание сличительной ведомости (по остаткам) //
 includeRemains(Stock stock, Inventory inventory) =
     include(stock, inventory) AND typeOfAddition(stock, inventory) == TypeOfAddition.remains;
 
-@defineAggregationCustom(stockCollationSheet, inventoryCollationSheet, stock, inventory, remainsCollationSheet, includeRemains);
+// ручная агрегация (AGGR) так как stock и inventory одинаковый для всех
+remainsCollationSheet (stock, inventory) =
+    GROUP AGGR RemainsCollationSheet remainsCollationSheet
+    WHERE remainsCollationSheet IS RemainsCollationSheet BY stock(remainsCollationSheet), inventory(remainsCollationSheet);
+
+includeRemains(Stock stock, Inventory inventory) => remainsCollationSheet(stock, inventory) RESOLVE LEFT;
+
+is(RemainsCollationSheet remainsCollationSheet) = remainsCollationSheet IS RemainsCollationSheet;
+is(RemainsCollationSheet remainsCollationSheet) => includeRemains(stock(remainsCollationSheet), inventory(remainsCollationSheet)) RESOLVE RIGHT;
 
 // автоматическое создание сличительной ведомости (по множеству товаров) //
 includeMany(Stock stock, Inventory inventory) =
     include(stock, inventory) AND typeOfAddition(stock, inventory) == TypeOfAddition.many;
 
-@defineAggregationCustom(stockCollationSheet, inventoryCollationSheet, stock, inventory, manyCollationSheet, includeMany);
+// ручная агрегация (AGGR) так как stock и inventory одинаковый для всех
+manyCollationSheet (stock, inventory) =
+    GROUP AGGR ManyCollationSheet manyCollationSheet
+    WHERE manyCollationSheet IS ManyCollationSheet BY stock(manyCollationSheet), inventory(manyCollationSheet);
+
+includeMany(Stock stock, Inventory inventory) => manyCollationSheet(stock, inventory) RESOLVE LEFT;
+
+is(ManyCollationSheet manyCollationSheet) = manyCollationSheet IS ManyCollationSheet;
+is(ManyCollationSheet manyCollationSheet) => includeMany(stock(manyCollationSheet), inventory(manyCollationSheet)) RESOLVE RIGHT;
 
 //---------------------------- Изменение остатка инвентаризации sku----------------------------//
 

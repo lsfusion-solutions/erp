@@ -91,13 +91,9 @@ WHEN SET(quantityReceiptReturnDetail(DepartmentStore department, Sku sku, DATE d
     VATReceiptReturnDetail (department, sku, date, price) <- VAT (sku, country(department));
 }
 
-departmentStore = DATA DepartmentStore (ReceiptReturnSkuLedger) INDEXED;
-sku = DATA Sku (ReceiptReturnSkuLedger);
-date = DATA DATE (ReceiptReturnSkuLedger);
-price = DATA NUMERIC[16,4] (ReceiptReturnSkuLedger);
-
-@defineAggregationCustom(departmentStoreReceiptReturnSkuLedger, skuReceiptReturnSkuLedger, dateReceiptReturnSkuLedger, priceReceiptReturnSkuLedger, departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[16,4], receiptReturnSkuLedger, ReceiptReturnSkuLedger, countReceiptReturnDetail);
-
+receiptReturnSkuLedger = AGGR ReceiptReturnSkuLedger WHERE countReceiptReturnDetail(DepartmentStore departmentStore, Sku sku, DATE date, NUMERIC[16,4] price) MATERIALIZED;
+INDEX receiptReturnSkuLedger(DepartmentStore departmentStore, Sku sku, DATE date, NUMERIC[16,4] price);
+INDEX departmentStore(ReceiptReturnSkuLedger o);
 INDEX sku(ReceiptReturnSkuLedger o), departmentStore(o);
 INDEX price(ReceiptReturnSkuLedger o), departmentStore(o), date(o);
 INDEX date(ReceiptReturnSkuLedger o), departmentStore(o), sku(o), price(o);
