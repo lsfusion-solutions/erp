@@ -747,7 +747,7 @@ CONSTRAINT isPosted(UserStockDocumentDetail d) AND sumItem(d) AND sumContainer(d
     MESSAGE 'Суммы по строке учетного документа (польз.) должны быть одновременно либо положительные, либо отрицательные.';
 needToOutLedger = sumItem(UserStockDocumentDetail d) < 0 OR sumContainer(d) <0;
 
-@defineAggregationClass(userStockDocumentDetail, UserStockDocumentDetail, OutUserStockDocumentDetail, OutUserStockDocumentDetail, needToOutLedger);
+OutUserStockDocumentDetail = AGGR OutUserStockDocumentDetail WHERE needToOutLedger(UserStockDocumentDetail userStockDocumentDetail) MATERIALIZED INDEXED;
 isPosted (OutUserStockDocumentDetail ledger) += isPosted(userStockDocumentDetail(ledger));  
 isClosed (OutUserStockDocumentDetail ledger) += isClosed(userStockDocumentDetail(ledger));                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 series (OutUserStockDocumentDetail ledger) += series(userStockDocumentDetail(ledger));
@@ -762,7 +762,7 @@ close(OutUserStockDocumentDetail ledger) + {  isClosed(UserStockDocument s) <- T
 type(OutUserStockDocumentDetail l) += 'Учетный документ (польз.) расход' IF l IS OutUserStockDocumentDetail;
 
 needToInLedger = sumItem(UserStockDocumentDetail d) > 0 OR sumContainer(d) > 0;
-@defineAggregationClass(userStockDocumentDetail, UserStockDocumentDetail, InUserStockDocumentDetail, InUserStockDocumentDetail, needToInLedger);
+InUserStockDocumentDetail = AGGR InUserStockDocumentDetail WHERE needToInLedger(UserStockDocumentDetail userStockDocumentDetail) MATERIALIZED INDEXED;
                                                                           
 isPosted (InUserStockDocumentDetail ledger) += isPosted(userStockDocumentDetail(ledger));  
 isClosed (InUserStockDocumentDetail ledger) += isClosed(userStockDocumentDetail(ledger));                                                                                                                                                                                                                                                                                                                                                                                                                                                             

@@ -1065,8 +1065,8 @@ needToInLedger (CollationSheet collationSheet, Sku sku) = (quantityShortage(coll
     AND NOT isBatch(collationSheet)
     AND isPosted(collationSheet);
 
-@defineAggregationClass(collationSheet, CollationSheet, sku, Sku, outInventorySkuDetail, OutInventorySkuDetail, needToOutLedger);
-@defineAggregationClass(collationSheet, CollationSheet, sku, Sku, inInventorySkuDetail, InInventorySkuDetail, needToInLedger);
+outInventorySkuDetail = AGGR OutInventorySkuDetail WHERE needToOutLedger(CollationSheet collationSheet, Sku sku) MATERIALIZED INDEXED;
+inInventorySkuDetail = AGGR InInventorySkuDetail WHERE needToInLedger(CollationSheet collationSheet, Sku sku) MATERIALIZED INDEXED;
 
 collationSheet(InventorySkuDetail inventorySkuDetail) = MULTI collationSheet[OutInventorySkuDetail](inventorySkuDetail),
                                                              collationSheet[InInventorySkuDetail](inventorySkuDetail);
@@ -1169,8 +1169,8 @@ needToInLedger (CollationSheet collationSheet, Batch batch) =
     AND isBatch(collationSheet)
     AND isPosted(collationSheet); 
 
-@defineAggregationClass(collationSheet, CollationSheet, batch, Batch, outInventoryBatchDetail, OutInventoryBatchDetail, needToOutLedger);
-@defineAggregationClass(collationSheet, CollationSheet, batch, Batch, inInventoryBatchDetail, InInventoryBatchDetail, needToInLedger);
+outInventoryBatchDetail = AGGR OutInventoryBatchDetail WHERE needToOutLedger(CollationSheet collationSheet, Batch batch) MATERIALIZED INDEXED;
+inInventoryBatchDetail = AGGR InInventoryBatchDetail WHERE needToInLedger(CollationSheet collationSheet, Batch batch) MATERIALIZED INDEXED;
 
 collationSheet(InventoryBatchDetail inventoryBatchDetail) = MULTI collationSheet[OutInventoryBatchDetail](inventoryBatchDetail),
                                                                  collationSheet[InInventoryBatchDetail](inventoryBatchDetail);

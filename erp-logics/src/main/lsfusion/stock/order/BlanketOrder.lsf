@@ -422,7 +422,7 @@ META defineOrderBlanketOrder(sign)
         AND isPosted(blanketOrder);
 
 //-- object
-    @defineAggregationClass(blanketOrder, BlanketOrder, stock, Stock, blanketOrderOrder, BlanketOrderOrder, needToOrder);
+    blanketOrderOrder = AGGR BlanketOrderOrder WHERE needToOrder(BlanketOrder blanketOrder, Stock stock) MATERIALIZED INDEXED;
 
     supplier(BlanketOrderOrder order) += supplier(blanketOrder(order));
     customer(BlanketOrderOrder order) += customer(blanketOrder(order));
@@ -448,7 +448,7 @@ META defineOrderBlanketOrder(sign)
         number(blanketOrder(blanketOrderOrder), stock(blanketOrderOrder));
 
 //-- detail
-    @defineAggregationClass(blanketOrderDetail, BlanketOrderDetail, stock, Stock, blanketOrderOrderDetail, BlanketOrderOrderDetail, needToOrder);
+    blanketOrderOrderDetail = AGGR BlanketOrderOrderDetail WHERE needToOrder(BlanketOrderDetail blanketOrderDetail, Stock stock) MATERIALIZED INDEXED;
 
     blanketOrderOrder (BlanketOrderOrderDetail blanketOrderOrderDetail) =
         blanketOrderOrder(blanketOrder(blanketOrderDetail(blanketOrderOrderDetail)),

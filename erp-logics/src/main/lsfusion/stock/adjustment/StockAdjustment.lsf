@@ -393,8 +393,8 @@ needToInLedger (AdjustmentDetail adjustmentDetail) = isPosted(adjustmentDetail) 
 needToInLedger (adjustment) = GROUP SUM 1 IF needToInLedger(AdjustmentDetail adjustmentDetail)
     BY adjustment(adjustmentDetail);
 
-@defineAggregationClass(adjustmentDetail, AdjustmentDetail, outAdjustmentSkuDetail, OutAdjustmentSkuDetail, needToOutLedger);
-@defineAggregationClass(adjustmentDetail, AdjustmentDetail, inAdjustmentSkuDetail, InAdjustmentSkuDetail, needToInLedger);
+outAdjustmentSkuDetail = AGGR OutAdjustmentSkuDetail WHERE needToOutLedger(AdjustmentDetail adjustmentDetail) MATERIALIZED INDEXED;
+inAdjustmentSkuDetail = AGGR InAdjustmentSkuDetail WHERE needToInLedger(AdjustmentDetail adjustmentDetail) MATERIALIZED INDEXED;
 
 adjustmentDetail(AdjustmentSkuDetail adjustmentSkuDetail) = MULTI adjustmentDetail[OutAdjustmentSkuDetail](adjustmentSkuDetail),
                                                                  adjustmentDetail[InAdjustmentSkuDetail](adjustmentSkuDetail);
@@ -559,7 +559,7 @@ CLASS InAdjustment 'Изменение остатков приход' : IncStock
 
 //-- Расход
 needToOutStockLedger = Adjustment l IS Adjustment AND NOT sumAdjustmentDetail(l) > 0; //activeAdjustment(l) AND  
-@defineAggregationClass(adjustment, Adjustment, OutAdjustment, OutAdjustment, needToOutStockLedger);
+OutAdjustment = AGGR OutAdjustment WHERE needToOutStockLedger(Adjustment adjustment) MATERIALIZED INDEXED;
 
 isPosted (OutAdjustment ledger) += isPosted(adjustment(ledger));  
 isClosed (OutAdjustment ledger) += isClosed(adjustment(ledger));                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
@@ -578,7 +578,7 @@ operation[StockDocumentLedger](OutAdjustment ledger) += operation(adjustment(led
 
 //-- Приход
 needToInStockLedger = sumAdjustmentDetail(Adjustment l) > 0; //activeAdjustment(l) AND  
-@defineAggregationClass(adjustment, Adjustment, InAdjustment, InAdjustment, needToInStockLedger);
+InAdjustment = AGGR InAdjustment WHERE needToInStockLedger(Adjustment adjustment) MATERIALIZED INDEXED;
 
 isPosted (InAdjustment ledger) += isPosted(adjustment(ledger));  
 isClosed (InAdjustment ledger) += isClosed(adjustment(ledger));                                                                                                                                                                                                                                                                                                                                                                                                                                                                    

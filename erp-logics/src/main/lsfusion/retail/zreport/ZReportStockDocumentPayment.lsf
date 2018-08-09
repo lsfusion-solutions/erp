@@ -7,7 +7,7 @@ REQUIRE ZReport, StockDocumentSkuLedger;
 CLASS ZReportCash 'Продажа наличные';
 TABLE zReportCash (ZReportCash);
 
-@defineAggregationClass(zReport, ZReport, zReportCash, ZReportCash, sumCash);
+zReportCash = AGGR ZReportCash WHERE sumCash(ZReport zReport) MATERIALIZED INDEXED;
 
 
 description (ZReportCash l) =
@@ -35,7 +35,7 @@ close(ZReportCash ledger) + {  isClosed(ZReport z) <- TRUE WHERE zReport(ledger)
 CLASS ZReportCard 'Продажа безнал';
 TABLE zReportCard (ZReportCard);
     
-@defineAggregationClass(zReport, ZReport, zReportCard, ZReportCard, sumCard);
+zReportCard = AGGR ZReportCard WHERE sumCard(ZReport zReport) MATERIALIZED INDEXED;
 
 description (ZReportCard zReportCard) =
     VARSTRING[200](CONCAT ' ', 'Продажа безнал отдела', name(departmentStore(zReport(zReportCard))), 'от' , date(zReport(zReportCard)));

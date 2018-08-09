@@ -80,11 +80,11 @@ CLASS OrderPickingOrderDetail 'Строка заказа на комплекта
 quantityPickingNumber = GROUP SUM quantity(OrderDetail d) BY order(d), pickingNumber(d);
 overQuantity (Order order, INTEGER pickingNumber) = quantityPickingNumber (order, pickingNumber) AND createPickingOrder(order);
 
-@defineAggregationClass(order, Order, pickingNumber, INTEGER, orderPickingOrder, OrderPickingOrder, overQuantity);
+orderPickingOrder = AGGR OrderPickingOrder WHERE overQuantity(Order order, INTEGER pickingNumber) MATERIALIZED INDEXED;
 @defineDocumentAggregationHeaderTime(order, orderPickingOrder);
 
 
-@defineAggregationClass(orderDetail, OrderDetail, orderPickingOrderDetail, OrderPickingOrderDetail, createPickingOrder);
+orderPickingOrderDetail = AGGR OrderPickingOrderDetail WHERE createPickingOrder(OrderDetail orderDetail) MATERIALIZED INDEXED;
 
 orderPickingOrder (OrderPickingOrderDetail detail) = orderPickingOrder(order(orderDetail(detail)), pickingNumber(orderDetail(detail)));
 

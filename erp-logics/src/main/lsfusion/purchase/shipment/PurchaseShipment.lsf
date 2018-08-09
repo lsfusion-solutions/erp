@@ -288,7 +288,7 @@ createBatch (ShipmentDetail detail) = detail IS ShipmentDetail AND NOT batch(det
 
 // Создаем партию
 CLASS ShipmentBatch 'Партия на основе закупки';
-@defineAggregationClass(shipmentDetail, ShipmentDetail, shipmentBatch, ShipmentBatch, createBatch);
+shipmentBatch = AGGR ShipmentBatch WHERE createBatch(ShipmentDetail shipmentDetail) MATERIALIZED INDEXED;
 
 @defineSkuLedgerAggregation(shipmentDetail, shipmentBatch, sku, customerStock);
 
@@ -332,7 +332,7 @@ createSkuLedger (ShipmentDetail detail) = detail IS ShipmentDetail AND NOT creat
 
 CLASS ShipmentSkuLedger 'Изменение остатка на основе закупки';
 TABLE shipmentSkuLedger (ShipmentSkuLedger);
-@defineAggregationClass(shipmentDetail, ShipmentDetail, shipmentSkuLedger, ShipmentSkuLedger, createSkuLedger);
+shipmentSkuLedger = AGGR ShipmentSkuLedger WHERE createSkuLedger(ShipmentDetail shipmentDetail) MATERIALIZED INDEXED;
 
 @defineSkuLedgerAggregation(shipmentDetail, shipmentSkuLedger, sku, customerStock);
 
