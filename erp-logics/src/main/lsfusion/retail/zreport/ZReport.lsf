@@ -38,7 +38,11 @@ TABLE zReport (ZReport);
 @defineDocumentHeaderClosed(ZReport);
 @defineDocumentClosedConstraint(ZReport);
 
-@deriveDocumentHeaderTimePrefix(ZReport, );
+WHEN LOCAL SET(ZReport o IS ZReport) DO {
+    IF o IS ZReport AND NOT date(o) THEN date(o) <- currentDate();
+    IF o IS ZReport AND NOT time(o) THEN time(o) <- currentTime();
+};
+
 @defineDocumentHeaderDepartmentStore(zReport);
 
 @defineDocumentHeaderNumber(ZReport);
@@ -106,7 +110,10 @@ nameEmployee 'Кассир' (Receipt receipt) = name[Contact](employee(receipt))
 employee(Receipt receipt) <- currentUser() WHEN SET(receipt IS Receipt);
 
 @defineDocumentHeaderTime(Receipt);
-@deriveDocumentHeaderTimePrefix(Receipt, );
+WHEN LOCAL SET(Receipt o IS Receipt) DO {
+    IF o IS Receipt AND NOT date(o) THEN date(o) <- currentDate();
+    IF o IS Receipt AND NOT time(o) THEN time(o) <- currentTime();
+};
 
 hour 'Час' (Receipt r) = extractHour(dateTime(r));  
 
