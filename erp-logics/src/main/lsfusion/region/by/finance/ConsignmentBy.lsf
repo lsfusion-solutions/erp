@@ -110,6 +110,8 @@ DESIGN options {
 }
 
 // ---------------------------------- Юридические лица ---------------------- //
+printedConsignment 'Распечатан' = DATA BOOLEAN (Consignment);
+
 dataSupplier = ABSTRACT LegalEntity (Consignment);
 overSupplier = ABSTRACT LegalEntity (Consignment);
 supplier (Consignment consignment)= OVERRIDE overSupplier(consignment), dataSupplier(consignment);
@@ -651,7 +653,13 @@ META defineConsignmentFormSimple(form, caption)
                 quantity(d),
                 NOT skip(d)
     ;
-    printSimple###form caption (Consignment consignment)  { PRINT consignmentSimple###form OBJECTS c = consignment; }  IMAGE 'print.png' IN print;
+    printSimple###form caption (Consignment consignment)  { 
+        IF NOT printedConsignment(consignment) THEN NEWSESSION {
+            printedConsignment(consignment) <- TRUE;
+            APPLY;
+        }
+        PRINT consignmentSimple###form OBJECTS c = consignment; 
+    }  IMAGE 'print.png' IN print;
     printSimple###form##Auto caption (Consignment consignment)  { PRINT consignmentSimple###form OBJECTS c = consignment NOPREVIEW; } IMAGE 'print.png' IN print;
 END
 
@@ -682,6 +690,7 @@ META defineConsignmentFormSimpleExtra(form, caption)
     ;
     printSimple###form caption (Consignment consignment)  { 
 	NEWSESSION {        
+	    
 	        PRINT consignmentSimple###form OBJECTS c = consignment ;
 	        countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
 	        apply();
@@ -815,7 +824,13 @@ META definePrintConsignmentForm(form, caption, prefix)  //печать накл�
     print###form caption (Consignment consignment)  { 
         stopPrintConsignment() <- NULL;
         checkMandatoryAttribute(consignment);
-        IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefix = consignment ;
+        IF NOT stopPrintConsignment() THEN {
+            IF NOT printedConsignment(consignment) THEN NEWSESSION {
+                printedConsignment(consignment) <- TRUE;
+                APPLY;
+            }
+            PRINT consignment###form OBJECTS prefix = consignment; 
+        }
     } IMAGE 'print.png' IN print;
     print###form##Auto caption (Consignment consignment)  { 
         stopPrintConsignment() <- NULL;
@@ -847,7 +862,14 @@ META defineExtendPrintConsignmentFormAll(form, caption, prefixA, prefixB)       
     print###form caption (Consignment consignment)  { 
         stopPrintConsignment() <- NULL;
         checkMandatoryAttribute(consignment);
-        IF NOT stopPrintConsignment() THEN PRINT consignment###form OBJECTS prefixA = consignment, prefixB = consignment ;            
+        IF NOT stopPrintConsignment() THEN {
+            IF NOT printedConsignment(consignment) THEN NEWSESSION {
+                printedConsignment(consignment) <- TRUE;
+                APPLY;
+            }
+            PRINT consignment###form OBJECTS prefixA = consignment, prefixB = consignment ;                          
+        }
+              
     } IMAGE 'print.png' IN print;
     print###form###attach caption###' с приложением' (Consignment consignment)  { 
         NEWSESSION {
@@ -873,6 +895,9 @@ META defineExtendPrintConsignmentFormAll(form, caption, prefixA, prefixB)       
                     countRowsVerticalAB() <- countRowsVerticalABLocal();
                     countRowsHorizontal() <- countRowsHorizontalLocal();
                 }
+                IF NOT printedConsignment(consignment) THEN  {
+                    printedConsignment(consignment) <- TRUE;
+                }                
                 apply();
             }            
         }
@@ -944,6 +969,9 @@ printVerticalABAttach 'ТТН-1 вертикальная (А/Б) с прилож
                 countRowsVerticalAB() <- countRowsVerticalABLocal();
                 countRowsHorizontal() <- countRowsHorizontalLocal();
             }
+            IF NOT printedConsignment(consignment) THEN {
+                printedConsignment(consignment) <- TRUE;                ;
+            }
 	        apply();
 	    }
 	}
@@ -971,6 +999,9 @@ printHorizontalABAttach 'ТТН-1 горизонтальная (А/Б) с при
                 countRowsVerticalAB() <- countRowsVerticalABLocal();
                 countRowsHorizontal() <- countRowsHorizontalLocal();
             }
+            IF NOT printedConsignment(consignment) THEN {
+                printedConsignment(consignment) <- TRUE;                ;
+            }            
 	        apply();
 	    }
 	}
