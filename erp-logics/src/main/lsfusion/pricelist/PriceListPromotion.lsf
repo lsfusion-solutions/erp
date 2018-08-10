@@ -28,7 +28,7 @@ namePromotionPriceListType 'Вид цены акции' = name(promotionPriceLis
 promotionStartDateTime 'Дата/время определения акций' = DATA DATETIME ();
 
 TABLE promotionPriceListDetailStock (PriceListDetail, Stock);
-isPromotion (PriceListDetail d) = in(d, promotionPriceListType()) AND isPromotion(operation(d)) AND isPosted(d) AND NOT toDateTime(d) < promotionStartDateTime(); 
+isPromotion (PriceListDetail d) = (in(d, promotionPriceListType()) OR NOT promotionPriceListType()) AND isPromotion(operation(d)) AND isPosted(d) AND NOT toDateTime(d) < promotionStartDateTime(); 
 isPromotion (PriceListDetail d, Stock st) = isPromotion(d) AND in(priceList(d), st) MATERIALIZED TABLE promotionPriceListDetailStock;
 
 sku (PriceListDetail d, Stock st) = sku(d) IF isPromotion(d, st) MATERIALIZED TABLE promotionPriceListDetailStock;
