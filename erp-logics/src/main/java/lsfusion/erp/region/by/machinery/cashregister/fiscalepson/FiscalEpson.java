@@ -72,11 +72,16 @@ public class FiscalEpson {
     }
 
     public static void closeReceipt() {
-        //временные логи, чтобы убедиться, что тормозит именно CloseReceipt
-        logger.info("Epson CloseReceipt started");
-        long time = System.currentTimeMillis();
-        Dispatch.call(epsonDispatch, "CloseReceipt");
-        logger.info(String.format("Epson CloseReceipt finished: %s ms", (System.currentTimeMillis() - time)));
+        try {
+            //временные логи, чтобы убедиться, что тормозит именно CloseReceipt
+            logger.info("Epson CloseReceipt started");
+            long time = System.currentTimeMillis();
+            Dispatch.call(epsonDispatch, "CloseReceipt");
+            logger.info(String.format("Epson CloseReceipt finished: %s ms", (System.currentTimeMillis() - time)));
+        } catch (Exception e) {
+            logger.error("Epson CloseReceipt error: ", e);
+            throw e;
+        }
         checkErrors(true);
     }
 
@@ -162,9 +167,12 @@ public class FiscalEpson {
 
     public static void registerItem(ReceiptItem item) throws RuntimeException {
         boolean useBlisters = item.useBlisters && item.blisterQuantity != null;
+        double price = useBlisters ? item.blisterPrice.doubleValue() : item.price.doubleValue();
+        double quantity = useBlisters ? item.blisterQuantity.doubleValue() : item.quantity.doubleValue();
+        logger.info(String.format("Epson Sale: name %s, price %s, quantity %s", item.name, price, quantity));
         epsonActiveXComponent.setProperty("Article", new Variant(item.name));
-        epsonActiveXComponent.setProperty("Price", new Variant(useBlisters ? item.blisterPrice.doubleValue() : item.price.doubleValue()));
-        epsonActiveXComponent.setProperty("Quantity", new Variant(useBlisters ? item.blisterQuantity.doubleValue() : item.quantity.doubleValue()));
+        epsonActiveXComponent.setProperty("Price", new Variant(price));
+        epsonActiveXComponent.setProperty("Quantity", new Variant(quantity));
         epsonActiveXComponent.setProperty("QuantityUnit", new Variant(useBlisters ? "блист." : ""));
         epsonActiveXComponent.setProperty("ForcePrintSingleQuantity", new Variant(1));
         epsonActiveXComponent.setProperty("Department", new Variant(item.section != null ? item.section : (item.isGiftCard ? 3 : 0)));
