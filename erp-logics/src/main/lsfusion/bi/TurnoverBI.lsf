@@ -4,7 +4,7 @@ REQUIRE BI, PurchaseLedger, SaleLedger, Pricing, Item, Druid, ReportBI, DefaultL
 
 NAMESPACE BI;
 
-overExportTurnover  ABSTRACT ( DATE);
+overExportTurnover  ABSTRACT (DATE);
 overExportTurnover = DATA LOCAL BOOLEAN ();
 
 balance = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
@@ -49,6 +49,13 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
 
 EXTEND FORM integrationData
     PROPERTIES exportTurnover(druidFrom, druidTo)
+;
+
+//Использовать оборачиваемость по товарам
+useTurnoverSkuBI 'Использовать по товарам' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES useTurnoverSkuBI() TODRAW dates
 ;
 
 
@@ -113,6 +120,10 @@ isTimeGroup2() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 2 AND isTimeGroup(i
 isTimeGroup3() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 3 AND isTimeGroup(i));
 printSumGroup1() = TRUE IF NOT isTimeGroup() OR NOT (isTimeGroup2() OR isTimeGroup3());
 printSumGroup2() = TRUE IF NOT isTimeGroup() OR NOT isTimeGroup3();
+
+isSupplierGroup = ABSTRACT CASE BOOLEAN ();
+isSupplierGroup() += WHEN gSupplierTurnover() THEN TRUE;
+isSupplierGroup() += WHEN gSupplierStockTurnover() THEN TRUE;
 
 nameGroup1Turnover = DATA LOCAL VARSTRING[255] (INTEGER);
 nameGroup2Turnover = DATA LOCAL VARSTRING[255] (INTEGER);
@@ -566,7 +577,8 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
              + (IF isBalanceA() AND isVATSupplier() THEN '(SUM(costVATBalance)-SUM(costBalance))' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS VATSupplierA, '
              + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costVATBalanceA, '
              + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS sumBalanceA, '
-             + nameGroupsTurnover() + ' FROM turnover'
+             + nameGroupsTurnover()
+             + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
              + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
              + filter()
              + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
@@ -583,7 +595,8 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
                                           daysOnStock = daysOnStock, barcodeSku = barcodeSku, extra = extra;
     } ELSE {
         query(replace('SELECT ' + values() 
-             + nameGroupsTurnover() + ' FROM turnover'
+             + nameGroupsTurnover()
+             + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
              + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
              + filter()
              + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
@@ -620,7 +633,8 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
                 + (IF isBalanceB() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance)' ELSE '\'\'') + ' AS VATSupplierB, '
                 + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceB, '
                 + (IF isBalanceB() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceB, '
-                + nameGroupsTurnover() + ' FROM turnover'
+                + nameGroupsTurnover()
+                + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
                 + ' WHERE __time = TIME_PARSE(\'' + sum(dateFrom,-1) + '\',\'yyyy-MM-dd\')'
                 + filter()
                 + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
@@ -646,7 +660,8 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
                 + (IF isBalanceA() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance)' ELSE '\'\'') + ' AS VATSupplierA, '
                 + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceA, '
                 + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceA, '
-                + nameGroupsTurnover() + ' FROM turnover'
+                + nameGroupsTurnover()
+                + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
                 + ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
                 + filter()
                 + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())

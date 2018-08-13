@@ -1,0 +1,49 @@
+MODULE TurnoverSkuBI;
+
+REQUIRE BI, Druid, PurchaseLedger, SaleLedger;
+
+NAMESPACE BI;
+
+overExportTurnoverSku  ABSTRACT (DATE);
+overExportTurnoverSku = DATA LOCAL BOOLEAN ();
+
+balanceSku = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+sumSku = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
+
+exportTurnoverSku 'Выгрузить Оборачиваемость по товарам' (DATE dFrom, DATE dTo)  { 
+    balanceSku(Sku s, Stock st) <- balanceA(s,st,dTo);
+    sumSku(Sku s, Stock st) <- sumA(s,st,dTo);
+
+    LOCAL date = DATE ();
+    date() <- dTo;
+    
+    WHILE date() >= dFrom DO {
+        printToLog('' + currentDateTime() + ' Started EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balanceSku(Sku s, Stock st)));
+        overExportTurnoverSku(date());
+        IF NOT overExportTurnoverSku() THEN {
+            EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
+                                stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
+                                sku = Sku s, cost = DOUBLE(cost(lastOrderBatch(s))), valueVAT = DOUBLE(valueVAT(s)),
+                                group1 = skuGroup2(s), group2 = skuGroup3(s), group3 = skuGroup4(s), group4 = skuGroup5(s),
+                                brand = brand(s), manufacturer = manufacturer(s), country = country(s),
+                                price = DOUBLE(sumSku(s,st) / balanceSku(s,st)), UOM = UOM(s),
+                                balance = DOUBLE(balanceSku(s,st)),
+                                quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(s,st,date()),0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(s,st,date()),0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(s,st,date()),0), 
+                                quantitySold = DOUBLE(OVERRIDE quantitySold(s,st,date()),0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(s,st,date()),0), sumSold = DOUBLE(OVERRIDE sumSold(s,st,date()),0) 
+                   WHERE balanceSku(s,st) OR quantityPurchase(s,st,date()) OR quantitySold(s,st,date()) OR sumSold(s,st,date());
+        }
+
+        ingestBatch('turnoverSku',date());
+
+        balanceSku(Sku s, Stock st) <- balanceSku(s,st) (-) signedQuantity(s,st,date()) WHERE signedQuantity(s,st,date()); 
+        sumSku(Sku s, Stock st) <- sumSku(s,st) (-) signedSum(s,st,date()) WHERE signedSum(s,st,date()); 
+        date() <- subtract(date(),1);
+    }
+    
+    runKillTask('turnoverSku',dFrom,dTo);
+     
+} CONFIRM;
+
+EXTEND FORM integrationData
+    PROPERTIES exportTurnoverSku(druidFrom,druidTo)
+;
