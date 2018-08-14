@@ -165,9 +165,11 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
                     if (c_class.equals("price-left")) {
                         addKeyValue("", "price1", getPrice(getItemValue(item, "span[class=pr]", "", 0)), ",");
                         addKeyValue("", "price2", getPrice(getItemValue(item, "span[class=pr]", "", 1)), ",");
+                        addKeyValue("","price3","0.00",",");
                     } else {
-                        addKeyValue("", "price1", getPrice(getItemValue(item, "a[class=price]", "", null)), ",");
+                        addKeyValue("", "price1", getPrice(getItemValue(item, "a[class=price]", "",null)), ",");
                         addKeyValue("", "price2", getPrice(getItemValue(item, "a[class=price]", "", null)), ",");
+                        addKeyValue("", "price3", getItemValue(item,"div[class=dashed-price]","",null), ",");
                     }
                     addKeyValue("", "picture", " ", ",");
                     addKeyValue("", "url", c_url, "}");
@@ -183,7 +185,7 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
 
     //  Получаем расширенную информацию по конкретному товару
     private boolean getProduct(String url) throws IOException {
-        String cid = "", c_pic = "";
+        String cid = "", c_pic = "", c1 = "";
         readSite oRS = new readSite();
         if (!oRS.loadUrl(url)) return errbox(oRS.errMsg);
         for (Element item : oRS.doc.getElementsByTag("div")) {
@@ -191,12 +193,20 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
             if (!cid.equals("catalogElement")) continue;
             c_pic = getItemValue(item, "a", "href", null);
             if (c_pic.length() > 0) c_pic = baseUrl + c_pic;
-            addKeyValue("{", "tname", getItemValue(item, "div[class=short-desc]", "", null), ",");
-            addKeyValue("", "tcode", getItemValue(item, "div[class=num]", "", null), ",");
-            addKeyValue("", "price1", getItemValue(item, "div[class=value]", "", 0), ",");
-            addKeyValue("", "price2", getItemValue(item, "div[class=value]", "", 1), ",");
-            addKeyValue("", "picture", c_pic, ",");
-            addKeyValue("", "url", url, "}");
+            c1 = getItemValue(item,"div[class=price dashed]","",null).trim();
+            addKeyValue("{","tname",getItemValue(item,"div[class=short-desc]","",null),",");
+            addKeyValue("","tcode",getItemValue(item,"div[class=num]","",null),",");
+            if (c1.length() == 0) {
+                addKeyValue("", "price1", getItemValue(item, "div[class=value]", "", 1), ",");
+                addKeyValue("", "price2", getItemValue(item, "div[class=value]", "", 0), ",");
+                addKeyValue("", "price3","0.00",",");
+            } else {
+                addKeyValue("", "price1", getItemValue(item, "div[class=value]", "", 1), ",");
+                addKeyValue("", "price2", getItemValue(item, "div[class=value]", "", 1), ",");
+                addKeyValue("", "price3", getItemValue(item, "div[class=value]", "", 0), ",");
+            }
+            addKeyValue("","picture",c_pic,",");
+            addKeyValue("","url",url,"}");
         }
         return true;
     }
