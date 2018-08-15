@@ -165,11 +165,11 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
                     if (c_class.equals("price-left")) {
                         addKeyValue("", "price1", getPrice(getItemValue(item, "span[class=pr]", "", 0)), ",");
                         addKeyValue("", "price2", getPrice(getItemValue(item, "span[class=pr]", "", 1)), ",");
-                        addKeyValue("","price3","0.00",",");
+                        addKeyValue("","price3","0,00",",");
                     } else {
                         addKeyValue("", "price1", getPrice(getItemValue(item, "a[class=price]", "",null)), ",");
                         addKeyValue("", "price2", getPrice(getItemValue(item, "a[class=price]", "", null)), ",");
-                        addKeyValue("", "price3", getItemValue(item,"div[class=dashed-price]","",null), ",");
+                        addKeyValue("", "price3", getPriceValue(item,"div[class=dashed-price]","",null), ",");
                     }
                     addKeyValue("", "picture", " ", ",");
                     addKeyValue("", "url", c_url, "}");
@@ -197,13 +197,13 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
             addKeyValue("{","tname",getItemValue(item,"div[class=short-desc]","",null),",");
             addKeyValue("","tcode",getItemValue(item,"div[class=num]","",null),",");
             if (c1.length() == 0) {
-                addKeyValue("", "price1", getItemValue(item, "div[class=value]", "", 1), ",");
-                addKeyValue("", "price2", getItemValue(item, "div[class=value]", "", 0), ",");
-                addKeyValue("", "price3","0.00",",");
+                addKeyValue("", "price1", getPriceValue(item, "div[class=value]", "", 1), ",");
+                addKeyValue("", "price2", getPriceValue(item, "div[class=value]", "", 0), ",");
+                addKeyValue("", "price3","0,00",",");
             } else {
-                addKeyValue("", "price1", getItemValue(item, "div[class=value]", "", 1), ",");
-                addKeyValue("", "price2", getItemValue(item, "div[class=value]", "", 1), ",");
-                addKeyValue("", "price3", getItemValue(item, "div[class=value]", "", 0), ",");
+                addKeyValue("", "price1", getPriceValue(item, "div[class=value]", "", 1), ",");
+                addKeyValue("", "price2", getPriceValue(item, "div[class=value]", "", 1), ",");
+                addKeyValue("", "price3", getPriceValue(item, "div[class=value]", "", 0), ",");
             }
             addKeyValue("","picture",c_pic,",");
             addKeyValue("","url",url,"}");
@@ -226,6 +226,13 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
         }
         return " ";
     }
+    
+    private String getPriceValue(Element item, String cExpr, String cAtr, Integer nIndex) {
+        String result = getItemValue(item, cExpr, cAtr, nIndex);
+        if (result != null)
+            result = result.replace('.', ',').trim();
+        return result;
+    }
 
     private void print(String cMsg) {
         ServerLoggers.importLogger.info(cMsg);
@@ -233,12 +240,12 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
 
     //  Возвращает выражение цены
     private String getPrice(String price) {
-        String cRet = "0.00";
+        String cRet = "0,00";
         if (price.contains("руб.")) price = price.substring(0, price.length() - 5);
         price = price.trim();
         if (price.length() > 2)
-            cRet = price.substring(0, price.length() - 2) + "." + price.substring(price.length() - 2);
-        return cRet;
+            cRet = price.substring(0, price.length() - 2) + "," + price.substring(price.length() - 2);
+        return cRet.trim();
     }
 
     //  Конструктур JSON выражений
