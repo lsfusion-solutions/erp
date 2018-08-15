@@ -37,10 +37,11 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
-
-            ObjectValue countryBelarus = findProperty("country[STRING[3]]").readClasses(context, new DataObject("112", StringClass.get(3)));
-            findProperty("defaultCountry[]").change(countryBelarus, context);
-            context.getSession().apply(context);
+            if(findProperty("defaultCountry[]").read(context) == null) {
+                ObjectValue countryBelarus = findProperty("country[STRING[3]]").readClasses(context, new DataObject("112", StringClass.get(3)));
+                findProperty("defaultCountry[]").change(countryBelarus, context);
+                context.getSession().apply(context);
+            }
 
             CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы DBF", "dbf");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
