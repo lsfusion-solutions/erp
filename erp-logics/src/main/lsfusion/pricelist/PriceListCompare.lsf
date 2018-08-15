@@ -52,12 +52,19 @@ DESIGN userPriceList{
     }
 }
 
+priceBA 'Цена' = DATA LOCAL NUMERIC[16,4] (Sku);
+priceBB 'Цена' = DATA LOCAL NUMERIC[16,4] (Sku);
 
-percent 'Отклонение цены, %' (PriceListType pa,PriceListType pb,Sku sk,Stock sa,Stock sb,DATETIME da,DATETIME db)  = NUMERIC[20,2]((priceB(pb,sk,sb,db) - priceB(pa,sk,sa,da))*100.00/
-                                                                           priceB(pb,sk,sb,db));
+fillPriceBA 'Заполнить цены' (PriceListType type, Stock st, DATETIME dt) {
+    priceBA(Sku sk) <- priceB(type,sk,st,dt);
+}
+fillPriceBB 'Заполнить цены' (PriceListType type, Stock st, DATETIME dt) {
+    priceBB(Sku sk) <- priceB(type,sk,st,dt);
+}
 
-backgroundPercent  = IF percent(PriceListType pa,PriceListType pb,Sku sk,Stock sa,Stock sb,DATETIME da,DATETIME db) < 0 THEN RGB(255,100,100) 
-                                   ELSE IF percent(pa,pb,sk,sa,sb,da,db)> 0 THEN RGB(100,255,100);
+percent 'Отклонение цены, %' (Sku sk) = NUMERIC[20,2]((priceBB(sk) - priceBA(sk))*100.00/priceBB(sk));
+
+backgroundPercent = IF percent(Sku sk) < 0 THEN RGB(255,100,100) ELSE IF percent(sk)> 0 THEN RGB(100,255,100);
 backgroundCompareA = RGB(250,225,225);
 backgroundCompareB = RGB(225,225,250);
 isDifferent(a,b) = IF a != b THEN TRUE;
@@ -69,7 +76,9 @@ FORM comparePriceList 'Сравнение цен '
     FILTERS active(sa), isCompany(sa), active(sb), isCompany(sb)    
     
     OBJECTS da 'Дата' = DATETIME PANEL, db 'Дата' = DATETIME PANEL 
-    PROPERTIES VALUE (da) BACKGROUND backgroundCompareA(), VALUE (db) BACKGROUND backgroundCompareB()     
+    PROPERTIES VALUE (da) BACKGROUND backgroundCompareA(), VALUE (db) BACKGROUND backgroundCompareB()
+    
+    PROPERTIES fillPriceBA(pa,sa,da) BACKGROUND backgroundCompareA(), fillPriceBB(pb,sb,db) BACKGROUND backgroundCompareB()
     
     OBJECTS           t=GroupType PANEL 
     PROPERTIES(t)     SELECTOR name        
@@ -82,16 +91,16 @@ FORM comparePriceList 'Сравнение цен '
 
     OBJECTS sk = Sku GRID 
     PROPERTIES READONLY idBarcode(sk),name(sk)
-    PROPERTIES READONLY BACKGROUND backgroundCompareA() currentBalance(sk,sa), dateTimeLastOrderBatch(sk,sa), priceB(pa,sk,sa,da)
+    PROPERTIES READONLY BACKGROUND backgroundCompareA() currentBalance(sk,sa), dateTimeLastOrderBatch(sk,sa), priceBA(sk)//priceB(pa,sk,sa,da)
     PROPERTIES READONLY BACKGROUND backgroundCompareB() currentBalance(sk,sb) SHOWIF isDifferent(sa,sb),dateTimeLastOrderBatch(sk,sb) SHOWIF isDifferent(sa,sb),
-                                                        priceB(pb,sk,sb,db)
-    PROPERTIES READONLY percent(pa,pb,sk,sa,sb,da,db) BACKGROUND backgroundPercent(pa,pb,sk,sa,sb,da,db)
-    FILTERS priceB(pa,sk,sa,da) OR priceB(pb,sk,sb,db), isParent(g,sk)
+                                                        priceBB(sk)//priceB(pb,sk,sb,db)
+    PROPERTIES READONLY percent(sk) BACKGROUND backgroundPercent(sk)
+    FILTERS priceBA(sk) OR priceBB(sk), isParent(g,sk)
     FILTERGROUP ostFilter
         FILTER 'Есть остаток' currentBalance(sk,sa) OR currentBalance(sk,sb) 'F8' 
     FILTERGROUP compareFilter
-        FILTER 'Первая цена выше' percent(pa,pb,sk,sa,sb,da,db) < 0 'F9' 
-        FILTER 'Вторая цена выше' percent(pa,pb,sk,sa,sb,da,db) > 0 'F10'
+        FILTER 'Первая цена выше' percent(sk) < 0 'F9' 
+        FILTER 'Вторая цена выше' percent(sk) > 0 'F10'
     
     EVENTS ON INIT {
         SEEK comparePriceList.t = defaultGroupType() IF defaultGroupType();
@@ -109,6 +118,8 @@ DESIGN comparePriceList {
             MOVE BOX(sb);
             MOVE BOX(da);
             MOVE BOX(db);
+            MOVE PROPERTY(fillPriceBA(pa,sa,da));
+            MOVE PROPERTY(fillPriceBB(pb,sb,db));
         } 
     }
     NEW bottom AFTER top {
