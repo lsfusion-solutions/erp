@@ -459,6 +459,25 @@ level (Sku sku, RangeRev v, DATE dateFrom, LedgerPriceListType pt, Stock stock) 
     GROUP
           MIN RangeLevel level IF indexGroup(v, sku, dateFrom, pt, stock) <= total(range(v), level);
 
+indexGroupSale 'Порядок' (RangeRev v, Sku sku, DATE dateFrom, DATE dateTo) =
+    PARTITION SUM 1
+    ORDER DESC (OVERRIDE sumSoldDepartments(sku, dateFrom, dateTo), 0) IF level(v, sku), sku
+    BY v, dateFrom, dateTo; 
+
+countSkus = DATA LOCAL INTEGER (RangeLevel);
+
+totalSkus 'Накоплено' (RangeRev v, RangeLevel level) =
+    PARTITION SUM countSkus(level) 
+    ORDER  level
+    BY v;
+    
+levelFact (Sku sku, RangeRev v, DATE dateFrom, DATE dateTo) = 
+    GROUP
+          MIN RangeLevel level IF indexGroupSale(v, sku, dateFrom, dateTo) <= totalSkus(v, level);
+          
+nameLevel 'Уровень фактический за период' (Sku sku, RangeRev v, DATE dateFrom, DATE dateTo) = name(levelFact(sku, v, dateFrom, dateTo));
+
+EXTEND FORM rangeRev PROPERTIES nameLevel(s, v, dFrom, dTo);
 
 countFilter 'Кол-во с продажей или остатком' (Range range, Store store, DATE dateFrom) = GROUP
         SUM 1 IF countFilterRange(Sku sku, store, dateFrom) 
@@ -554,10 +573,20 @@ fill 'Заполнить матрицу по остаткам и продажа�
     }
 } TOOLBAR ;
 
+fill 'Заполнить' (Sku s, RangeRev r, DATE df, DATE dt)  {
+    countSkus(RangeLevel l) <- countSkus(r, l);
+} ASON CONTEXTMENU nameLevel[Sku, RangeRev, DATE, DATE];
 
 EXTEND FORM rangeRev
     PROPERTIES (v, dFrom, pt, d) fill TODRAW s
+    FILTERGROUP levelFact FILTER 'Не соответствует уровень' NOT levelFact(s, v, dFrom, dTo) == level(v, s)
 ;
+
+DESIGN rangeRev {
+    FILTERGROUPS (s) {
+        MOVE FILTERGROUP (levelFact) FIRST;
+    }
+}
 
 in (r, Sku s) = GROUP SUM 1 IF level(RangeRev v, s) BY range(v);
 
