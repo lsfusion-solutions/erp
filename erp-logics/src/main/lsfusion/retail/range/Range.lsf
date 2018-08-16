@@ -36,11 +36,11 @@ backgroundIn 'Цвет' (Range range, SkuGroup skuGroup) = CASE
     WHEN inData(range, skuGroup) THEN RGB(0,0,0)
     WHEN quantityChildWith (skuGroup,range) != descendantNumber(skuGroup) AND NOT quantityParentWith (skuGroup,range) THEN RGB(203,203,203);    
 
-
+daysToRevision 'Дней до пересмотра' = DATA INTEGER (Range);
 
 FORM range 'Ассортиментная матрица'
     OBJECTS r = Range PANEL
-    PROPERTIES(r) name
+    PROPERTIES(r) name, daysToRevision
 
     TREE skuTree sg = SkuGroup PARENT parent
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
@@ -181,6 +181,14 @@ dateTimeLastOrderBatch 'Дата последнего прихода' (Sku sku,S
 dateLastOrderBatch 'Дата последнего прихода'= toDate(dateTimeLastOrderBatch(Sku s,Store st));
 
 nameSupplierLastBatch 'Последний поставщик' (Sku sku,Store store) = nameSupplier(lastOrderBatch(sku,store)) CHARWIDTH 15;
+
+dateLastRangeRev 'Дата последней версии' (Range r) = GROUP LAST date(RangeRev v) ORDER date(v) BY range(v);
+dateRevision 'Дата пересмотра' (Range r) = sum(dateLastRangeRev(r), daysToRevision(r));
+
+EXTEND FORM ranges 
+    PROPERTIES READONLY dateRevision(r)
+    FILTERGROUP revision FILTER 'Требуется пересмотр' dateRevision(r) <= currentDate()
+;
 
 FORM currentBalanceSku 'Текущие остатки'
     OBJECTS s = Sku PANEL 

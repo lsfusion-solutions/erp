@@ -6,7 +6,7 @@ NAMESPACE Range;
 
 depth 'Глубина матрицы' = DATA INTEGER (Range);
 EXTEND FORM range
-    PROPERTIES (r) depth
+    PROPERTIES (r) depth BEFORE daysToRevision(r)
 ;
 EXTEND FORM ranges
     PROPERTIES (r)  READONLY depth
@@ -131,15 +131,19 @@ TABLE rangeRevRangeLevelSku (RangeRev, RangeLevel, Sku);
 
 nameQuantity (RangeLevel rl) = CONCAT ' / ', '('+name(rl)+')', 'к-во на полке'; 
 
-EXTEND  FORM rangeRev
+dateTimePrevRev 'Действует (с) пред. версии' (RangeRev v) = GROUP LAST dateTime(RangeRev vv) ORDER dateTime(vv) IF range(v) == range(vv) AND dateTime(vv) < dateTime(v);
+
+EXTEND FORM rangeRev
     OBJECTS rl = RangeLevel AFTER dates  
     FILTERS in(v, rl)     
                                
     PROPERTIES(v, s) nameLevel AFTER markupA(pt, s, d, v)
-
+    PROPERTIES (v) READONLY dateTimePrevRev
+    
     FILTERGROUP filters
-        FILTER 'Включен' level(v, s)  DEFAULT
-        FILTER 'Без поставщиков' level(v, s) AND NOT priceA(pt, s, d, dateTime(v))   
+        FILTER 'Включен' level(v, s) DEFAULT
+        FILTER 'Без поставщиков' level(v, s) AND NOT priceA(pt, s, d, dateTime(v))  
+        FILTER 'Новинка' [=GROUP SUM 1 IF (dateTime(UserPriceListDetail pd) > dateTimePrevRev(RangeRev vv)) AND price(pd, pt) BY sku(pd), vv](s, v)
         
     OBJECTS l = RangeLevel AFTER store
     PROPERTIES READONLY name(l), depth(v,l), countSkus(v,l)  
@@ -158,6 +162,9 @@ overCopy(RangeRev r, RangeRev pr) + {
 }
 
 DESIGN rangeRev {
+    GROUP (,v) {
+        type = CONTAINERV;
+    }
     PROPERTY(nameLevel(v,s)) {
         background = #CCCCFF;
     }
