@@ -2061,3 +2061,33 @@ DESIGN options {
         MOVE PROPERTY(nameDefaultGroupType());
     }
 }
+
+// Ценовой сегмент
+
+CLASS PriceSegment 'Ценовой сегмент';
+TABLE priceSegment (PriceSegment);
+
+name 'Наименование' = DATA VARISTRING[100](PriceSegment) CHARWIDTH 10;
+priceSegment = GROUP AGGR PriceSegment p BY name(p);
+
+FORM priceSegment 'Ценовые сегменты'
+    OBJECTS t = PriceSegment PANEL
+    PROPERTIES(t) name
+    EDIT PriceSegment OBJECT t
+;
+
+FORM priceSegments 'Ценовые сегменты'
+    OBJECTS t = PriceSegment
+    PROPERTIES(t) NEWSESSION name READONLY, DELETE 
+    PROPERTIES(t) NEWSESSION NEW, EDIT
+    ORDER name(t)
+    LIST PriceSegment OBJECT t
+;
+DESIGN priceSegments { BOX { size = (600, 400); } }
+
+@defineObjectItemAttribute(priceSegment, PriceSegment, name, 'Ценовой сегмент', itemBase);
+
+priceSegmentName = GROUP NAGGR PriceSegment p BY name(p);
+
+EXTEND FORM item PROPERTIES(i) namePriceSegment SHOWIF showPriceSegment(i) BACKGROUND backgroundPriceSegment(i) ;
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei namePriceSegment SHOWIF showAnyPriceSegment(g);

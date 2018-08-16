@@ -1,6 +1,6 @@
 MODULE RangeLevel;
 
-REQUIRE Range;
+REQUIRE Range, ItemDescription;
 
 NAMESPACE Range;
 
@@ -533,32 +533,62 @@ DESIGN rangeRev {
         }                   
         header {
             type = TABBED;
-            details {                
-                NEW supplier1 AFTER BOX(s){
-                    fill = 1;
-                    caption = 'Итого по поставщикам';
-                    MOVE BOX(su);
-                    REMOVE BOX(l2);
-                }
-                
-            }
-            NEW store {
+            NEW summary {
                 caption = 'Итоги';
                 fill = 1;
-                type = SPLITH;
+                type = TABBED;
                 NEW store1 {
-                    type = SPLITV;  
+                    type = SPLITH; 
+                caption = 'По магазинам'; 
                     fill = 1;
                     MOVE BOX(t);
                     MOVE BOX(st);            
+                }               
+                NEW supplier1 {
+                    fill = 1;
+                    caption = 'По поставщикам';
+                    MOVE BOX(su);
+                    REMOVE BOX(l2);
                 }
-                MOVE supplier1 { fill = 1;}
             }            
         }
     }
     MOVE TOOLBARBOX;
 }
 
+META defineRangeRevSummaryType (nameType, captionTab)
+    countSkus 'Кол-во наименований (всего)' (RangeRev v, ###nameType nameType) =
+        GROUP SUM 1 IF level(v, Sku sk) BY nameType(sk);
+        
+    countSkus 'Кол-во наименований (всего)' (RangeRev v, RangeLevel l, ###nameType nameType) = 
+        GROUP SUM 1 IF level(v, Sku sk) BY level(v, sk), nameType(sk);   
+        
+    EXTEND FORM rangeRev
+        OBJECTS nameType##Level = RangeLevel GRID AFTER store
+        FILTERS in(v, nameType##Level)  
+        
+        OBJECTS nameType = ###nameType
+        PROPERTIES name(nameType), countSkus(v, nameType), countSkus(v, nameType##Level, nameType) COLUMNS (nameType##Level) HEADER name(nameType##Level)
+        FILTERS countSkus(v, nameType)
+    ;
+    
+    DESIGN rangeRev {
+        summary {
+            NEW nameType {
+                caption = captionTab;
+                MOVE BOX (nameType);
+            }
+        }
+    }
+END
+
+@defineRangeRevSummaryType (priceSegment, 'По ценовым сегментам');
+
+@defineRangeRevSummaryType (brand, 'По брендам');
+
+@defineRangeRevSummaryType (packType, 'По упаковкам');
+
+@defineRangeRevSummaryType (pack, 'По фасовкам');
 
 FORM param 'Параметры заполнения ассортиментной матрицы'
     OBJECTS v = RangeRev PANEL 
