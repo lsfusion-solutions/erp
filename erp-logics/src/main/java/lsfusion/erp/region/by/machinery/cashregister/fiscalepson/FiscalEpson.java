@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalepson;
 
 import com.jacob.activeX.ActiveXComponent;
+import com.jacob.com.ComFailException;
 import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
 import org.apache.log4j.EnhancedPatternLayout;
@@ -72,17 +73,27 @@ public class FiscalEpson {
     }
 
     public static void closeReceipt() {
+        boolean checkErrors = true;
         try {
-            //временные логи, чтобы убедиться, что тормозит именно CloseReceipt
             logger.info("Epson CloseReceipt started");
             long time = System.currentTimeMillis();
             Dispatch.call(epsonDispatch, "CloseReceipt");
             logger.info(String.format("Epson CloseReceipt finished: %s ms", (System.currentTimeMillis() - time)));
+        } catch (ComFailException e) {
+            if (e.getMessage() != null && e.getMessage().contains("таймаут связи с СКНО")) {
+                checkErrors = false;
+                logger.info("Epson CloseReceipt error: таймаут связи с СКНО");
+            } else {
+                logger.error("Epson CloseReceipt error: ", e);
+                throw e;
+            }
         } catch (Exception e) {
             logger.error("Epson CloseReceipt error: ", e);
             throw e;
         }
-        checkErrors(true);
+        if (checkErrors) {
+            checkErrors(true);
+        }
     }
 
     public static void cancelReceipt(boolean throwException) throws RuntimeException {
