@@ -40,12 +40,12 @@ runImportTask(VARSTRING[100] id, DATE date)  {
     READ 'file://bi/' + id + '.json' TO template;
     fileToString(template(), 'UTF-8');
     
-    stringToCustomFile(replace(replace(resultString(), '<DIRECTORY>', importDirectory()),
+    stringToFile(replace(replace(resultString(), '<DIRECTORY>', importDirectory()),
                                                        '<FILE>', id + date + '.csv')
                                                        , 'UTF-8', 'json');
     
     LOCAL result = FILE();
-    EXTERNAL HTTP 'http://' + host() + ':8090/druid/indexer/v1/task' PARAMS resultCustomFile() TO result;
+    EXTERNAL HTTP 'http://' + host() + ':8090/druid/indexer/v1/task' PARAMS resultFile() TO result;
 }
 
 ingestBatch (VARSTRING[100] id, DATE date)  { 
@@ -58,9 +58,9 @@ ingestBatch (VARSTRING[100] id, DATE date)  {
 
 loadLookups 'Загрузить справочники'  ABSTRACT LIST ( );
 loadLookups () + { 
-    stringToCustomFile('\{\}', 'UTF-8', 'json');
+    stringToFile('\{\}', 'UTF-8', 'json');
     LOCAL result = FILE();
-    TRY { EXTERNAL HTTP 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config' PARAMS resultCustomFile() TO result; }
+    TRY { EXTERNAL HTTP 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config' PARAMS resultFile() TO result; }
 }
 
 escapeJSONValue (TEXT t) = replace(replace(replace(replace(t, '\\', '\\\\'), '"', '\\"'), '\n', ''), '\r', '');
@@ -68,10 +68,10 @@ escapeJSONValue (TEXT t) = replace(replace(replace(replace(t, '\\', '\\\\'), '"'
 loadLookup (VARSTRING[100] id, TEXT json)  { 
     IF json != '' THEN {
         printToLog('' + currentDateTime() + ' Started Load lookup ' + id);    
-        stringToCustomFile('\{ "version": "' + lpad(TEXT([= FORMULA LONG 'SELECT EXTRACT (epoch FROM ($1))'](currentDateTime())), 12, '0') + '", "lookupExtractorFactory": \{ "type": "map", "injective" : true, "map": \{' + json + ' \} \} \}', 'UTF-8', 'json');
+        stringToFile('\{ "version": "' + lpad(TEXT([= FORMULA LONG 'SELECT EXTRACT (epoch FROM ($1))'](currentDateTime())), 12, '0') + '", "lookupExtractorFactory": \{ "type": "map", "injective" : true, "map": \{' + json + ' \} \} \}', 'UTF-8', 'json');
         LOCAL result = FILE();
 //        WRITE 'file://d:/temp/test.json' FROM resultCustomFile(); 
-        EXTERNAL HTTP 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config/__default/' + id PARAMS resultCustomFile() TO result; 
+        EXTERNAL HTTP 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config/__default/' + id PARAMS resultFile() TO result; 
         printToLog('' + currentDateTime() + 'Ended Load lookup ' + id);
     }
 }
@@ -87,11 +87,11 @@ DESIGN integrationData {
 }
 
 runKillTask(VARSTRING[100] id, DATE dFrom, DATE dTo)  { 
-    stringToCustomFile('\{ "type":"kill", "dataSource" : "' + id + '", "interval" : "' + dFrom + '/' + sum(dTo, 1) + '" \}' 
+    stringToFile('\{ "type":"kill", "dataSource" : "' + id + '", "interval" : "' + dFrom + '/' + sum(dTo, 1) + '" \}' 
                                                        , 'UTF-8', 'json');
     
     LOCAL result = FILE();
-    EXTERNAL HTTP 'http://' + host() + ':8090/druid/indexer/v1/task' PARAMS resultCustomFile() TO result;
+    EXTERNAL HTTP 'http://' + host() + ':8090/druid/indexer/v1/task' PARAMS resultFile() TO result;
 }
 
 // ----------------- Запросы ------------------- //
@@ -136,8 +136,8 @@ query(TEXT q)  {
         APPLY;
 	}
     
-	stringToCustomFile('\{"query": "' + q + '"\}','UTF-8','json');
-	EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/sql' PARAMS resultCustomFile() TO queryResult;
+	stringToFile('\{"query": "' + q + '"\}','UTF-8','json');
+	EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/sql' PARAMS resultFile() TO queryResult;
 	
 }
 // example : IMPORT JSON TO columns = columns FROM result();
@@ -201,10 +201,10 @@ runQuery 'Выполнить' (VARSTRING[100] ds)  {
 	LOCAL query = TEXT();
 	query() <- 'SELECT ' + dimensions() + ',' + sumMeasures() + ' FROM ' + ds + ' GROUP BY ' + dimensions();
 	
-	stringToCustomFile('\{"query": "' + query() + '"\}','UTF-8','json');
+	stringToFile('\{"query": "' + query() + '"\}','UTF-8','json');
 
 	LOCAL result = FILE();
-	EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/sql' PARAMS resultCustomFile() TO result;
+	EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/sql' PARAMS resultFile() TO result;
 
     open(result());
 //	IMPORT JSON TO columns = columns FROM result();
