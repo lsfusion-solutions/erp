@@ -231,6 +231,8 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
         String result = getItemValue(item, cExpr, cAtr, nIndex);
         if (result != null)
             result = result.replace('.', ',').trim();
+        if (result == null || result.isEmpty())
+            result = "0,00";
         return result;
     }
 
@@ -245,6 +247,8 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
         price = price.trim();
         if (price.length() > 2)
             cRet = price.substring(0, price.length() - 2) + "," + price.substring(price.length() - 2);
+        if (cRet.isEmpty())
+            cRet = "0,00";
         return cRet.trim();
     }
 
