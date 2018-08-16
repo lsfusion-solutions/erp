@@ -374,7 +374,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             statement = conn.createStatement();
             //sql_no_cache is workaround of the bug: https://bugs.mysql.com/bug.php?id=31353
             String query = "SELECT sql_no_cache type, ecr, doc, barcode, code, qty, price, amount, discount, department, flags, date, id," +
-                    " zreport, payment, customer, `change`, pdiscount FROM history WHERE new = 1 ORDER BY ecr, id";
+                    " zreport, payment, customer, `change`, pdiscount, operator FROM history WHERE new = 1 ORDER BY ecr, id";
             ResultSet rs = statement.executeQuery(query);
 
             sendSalesLogger.info(logPrefix + "readSales query executed");
@@ -488,9 +488,11 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                     }
                                 }
                             } else {
+                                String idCashier = rs.getString("operator"); //operator, id кассира
+                                String nameCashier = idCashier != null ? ("Кассир " + idCashier) : null;
                                 SalesInfo salesInfo = new SalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, cash_id, numberZReport,
-                                        dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null,
-                                        null, null, null, null, null, idBarcode, idItem, null, null, totalQuantity,
+                                        dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idCashier,
+                                        nameCashier, null, null, null, null, idBarcode, idItem, null, null, totalQuantity,
                                         price, sum, discountPercent, discountSum, null, discountCard,
                                         position, null, idSection);
                                 //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки
