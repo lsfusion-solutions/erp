@@ -482,13 +482,13 @@ levelFact (Sku sku, RangeRev v, DATE dateFrom, DATE dateTo) =
 
 levelFact (Sku sk) = DATA LOCAL RangeLevel (Sku); 
 
-fill 'Заполнить' (Sku s, RangeRev r, DATE df, DATE dt)  {
-    levelFact(s) <- levelFact(s, r, df, dt);
+fill 'Заполнить' (RangeRev r, DATE df, DATE dt)  {
+    levelFact(Sku s) <- levelFact(s, r, df, dt) WHERE level(r, s);
 };
           
 nameLevelFact 'Уровень фактический за период' (Sku sku) = name(levelFact(sku));
 
-EXTEND FORM rangeRev PROPERTIES nameLevelFact(s) AFTER nameLevel(v, s) BACKGROUND RGB(255,224,224) IF levelFact(s) != level(v, s) ON CONTEXTMENU fill(s, v, dFrom, dTo);
+EXTEND FORM rangeRev PROPERTIES nameLevelFact(s) AFTER nameLevel(v, s) BACKGROUND RGB(255,224,224) IF levelFact(s) != level(v, s) ON CONTEXTMENU fill(v, dFrom, dTo);
 
 countFilter 'Кол-во с продажей или остатком' (Range range, Store store, DATE dateFrom) = GROUP
         SUM 1 IF countFilterRange(Sku sku, store, dateFrom) 
