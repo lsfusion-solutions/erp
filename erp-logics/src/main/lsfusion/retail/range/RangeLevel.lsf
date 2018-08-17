@@ -14,7 +14,7 @@ EXTEND FORM ranges
 
 CLASS RangeLevel 'Уровень ассортимента';
 TABLE rangeLevel(RangeLevel);
-name 'Название' = DATA VARISTRING[10] (RangeLevel) IN recognize;
+name 'Название' = DATA VARISTRING[10] (RangeLevel) CHARWIDTH 3 FIXED IN recognize;
 rangeLevel (name) = GROUP AGGR (RangeLevel level) BY name (level);
 
 FORM rangeLevel 'Уровень ассортимента'
@@ -471,20 +471,24 @@ indexGroupSale 'Порядок' (RangeRev v, Sku sku, DATE dateFrom, DATE dateTo
     ORDER DESC (OVERRIDE sumSoldDepartments(sku, dateFrom, dateTo), 0) IF level(v, sku), sku
     BY v, dateFrom, dateTo; 
 
-countSkus = DATA LOCAL INTEGER (RangeLevel);
-
 totalSkus 'Накоплено' (RangeRev v, RangeLevel level) =
-    PARTITION SUM countSkus(level) 
+    PARTITION SUM countSkus(v, level) 
     ORDER  level
     BY v;
     
 levelFact (Sku sku, RangeRev v, DATE dateFrom, DATE dateTo) = 
     GROUP
           MIN RangeLevel level IF indexGroupSale(v, sku, dateFrom, dateTo) <= totalSkus(v, level);
-          
-nameLevel 'Уровень фактический за период' (Sku sku, RangeRev v, DATE dateFrom, DATE dateTo) = name(levelFact(sku, v, dateFrom, dateTo));
 
-EXTEND FORM rangeRev PROPERTIES nameLevel(s, v, dFrom, dTo);
+levelFact (Sku sk) = DATA LOCAL RangeLevel (Sku); 
+
+fill 'Заполнить' (Sku s, RangeRev r, DATE df, DATE dt)  {
+    levelFact(s) <- levelFact(s, r, df, dt);
+};
+          
+nameLevelFact 'Уровень фактический за период' (Sku sku) = name(levelFact(sku));
+
+EXTEND FORM rangeRev PROPERTIES nameLevelFact(s) AFTER nameLevel(v, s) BACKGROUND RGB(255,224,224) IF levelFact(s) != level(v, s) ON CONTEXTMENU fill(s, v, dFrom, dTo);
 
 countFilter 'Кол-во с продажей или остатком' (Range range, Store store, DATE dateFrom) = GROUP
         SUM 1 IF countFilterRange(Sku sku, store, dateFrom) 
@@ -609,10 +613,6 @@ fill 'Заполнить матрицу по остаткам и продажа�
     
     }
 } TOOLBAR ;
-
-fill 'Заполнить' (Sku s, RangeRev r, DATE df, DATE dt)  {
-    countSkus(RangeLevel l) <- countSkus(r, l);
-} ASON CONTEXTMENU nameLevel[Sku, RangeRev, DATE, DATE];
 
 EXTEND FORM rangeRev
     PROPERTIES (v, dFrom, pt, d) fill TODRAW s
