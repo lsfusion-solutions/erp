@@ -47,8 +47,8 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
         AND NOT CHANGED(prefix###price(detail))
         AND prefixSku###sku(detail) AND PriceListType priceListType == prefix###priceListType(detail) AND NOT pricingDocument(priceListType) NOINLINE (priceListType) INLINE DO {
 
-            prefix###price(detail) <- IF batch(detail) THEN prevPriceB(priceListType, batch(detail), stockProp(detail), prefixTime###dateTime(detail))
-                                                      ELSE prevPriceB(priceListType, prefixSku###sku(detail), stockProp(detail), prefixTime###dateTime(detail))
+            prefix###price(detail) <- IF batch(detail) THEN prevPriceA(priceListType, batch(detail), stockProp(detail), prefixTime###dateTime(detail))
+                                                      ELSE prevPriceA(priceListType, prefixSku###sku(detail), stockProp(detail), prefixTime###dateTime(detail))
                                                          WHERE prefix###priceListType(detail) == priceListType;
                                                          
             prefix###markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
@@ -92,8 +92,8 @@ META recalculateDocumentDetailBatchOnSessionPriceListType (idetail, prefix, pref
         FOR sku(###idetail detail) AND PriceListType priceListType == prefix##PriceListType(detail) 
             AND NOT pricingDocument(priceListType) AND [= FILTER form.concrete](detail) NOINLINE (priceListType) INLINE DO {
     
-            prefix##Price(detail) <- IF batch(detail) THEN prevPriceB(priceListType, batch(detail), stockProp(detail), prefixTime###dateTime(detail))
-                                                    ELSE prevPriceB(priceListType, sku(detail), stockProp(detail), prefixTime###dateTime(detail))
+            prefix##Price(detail) <- IF batch(detail) THEN prevPriceA(priceListType, batch(detail), stockProp(detail), prefixTime###dateTime(detail))
+                                                    ELSE prevPriceA(priceListType, sku(detail), stockProp(detail), prefixTime###dateTime(detail))
                                                          WHERE prefix##PriceListType(detail) == priceListType;
                                                          
             prefix##Markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
@@ -553,11 +553,11 @@ WHEN LOCAL FORMS userPricing
         CHANGED(dateTime(detail))) AND PriceListType priceListType == basePriceListType(calcRetailCalcPriceListType(detail)) NOINLINE (priceListType) INLINE DO {
             price (detail)  <- IF batch(detail)
         
-                                                            THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](priceListType,
+                                                            THEN prevPriceA[PriceListType,Batch,Stock,DATETIME](priceListType,
                                                                                                            batch(detail),
                                                                                                            departmentStore(detail),
                                                                                                            dateTime(detail))
-                                                            ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](priceListType,
+                                                            ELSE prevPriceA[PriceListType,Sku,Stock,DATETIME](priceListType,
                                                                                                          sku(detail),
                                                                                                          departmentStore(detail),
                                                                                                          dateTime(detail));
