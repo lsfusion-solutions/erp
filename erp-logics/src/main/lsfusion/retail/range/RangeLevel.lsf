@@ -131,7 +131,8 @@ TABLE rangeRevRangeLevelSku (RangeRev, RangeLevel, Sku);
 
 nameQuantity (RangeLevel rl) = CONCAT ' / ', '('+name(rl)+')', 'к-во на полке'; 
 
-backgroundLevel (RangeRev v, Sku s) = IF v IS RangeRev AND s IS Sku AND NOT level(v, s) == level(prevRangeRev(v), s) THEN RGB(192,192,255) ELSE RGB(232,232,255);
+changedLevel (RangeRev v, Sku s) = (level(v, s) OR level(prevRangeRev(v), s)) AND NOT level(v, s) == level(prevRangeRev(v), s);
+backgroundLevel (RangeRev v, Sku s) = IF changedLevel(v, s) THEN RGB(192,192,255) ELSE RGB(232,232,255);
 
 EXTEND FORM rangeRev
     OBJECTS rl = RangeLevel AFTER dates  
@@ -144,6 +145,7 @@ EXTEND FORM rangeRev
         FILTER 'Включен' level(v, s) DEFAULT
         FILTER 'Без поставщиков' level(v, s) AND NOT priceA(pt, s, d, dateTime(v))  
         FILTER 'Новинка' [=GROUP SUM 1 IF (date(UserPriceListDetail pd) >= DATE df) AND price(pd, pt) BY sku(pd), df](s, dFrom)
+        FILTER 'Изменившиеся' changedLevel(v, s)
         
     OBJECTS l = RangeLevel AFTER store
     PROPERTIES READONLY name(l), depth(v,l), countSkus(v,l)  
