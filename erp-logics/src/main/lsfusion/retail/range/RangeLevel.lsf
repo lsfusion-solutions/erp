@@ -144,7 +144,7 @@ EXTEND FORM rangeRev
     FILTERGROUP filters
         FILTER 'Включен' level(v, s) DEFAULT
         FILTER 'Без поставщиков' level(v, s) AND NOT priceA(pt, s, d, dateTime(v))  
-        FILTER 'Новинка' [=GROUP SUM 1 IF (date(UserPriceListDetail pd) >= DATE df) AND price(pd, pt) BY sku(pd), df](s, dFrom)
+        FILTER 'Новинка' [=GROUP SUM 1 IF (date(UserPriceListDetail pd) >= DATE df) AND price(pd, pt) BY sku(pd), df](s, dFrom) AND NOT level(prevRangeRev(v), s)
         FILTER 'Изменившиеся' changedLevel(v, s)
         
     OBJECTS l = RangeLevel AFTER store
@@ -571,7 +571,7 @@ META defineRangeRevSummaryType (nameType, captionTab)
         FILTERS in(v, nameType##Level)  
         
         OBJECTS nameType = ###nameType
-        PROPERTIES name(nameType), countSkus(v, nameType), countSkus(v, nameType##Level, nameType) COLUMNS (nameType##Level) HEADER name(nameType##Level)
+        PROPERTIES READONLY name(nameType), countSkus(v, nameType), countSkus(v, nameType##Level, nameType) COLUMNS (nameType##Level) HEADER name(nameType##Level)
         FILTERS countSkus(v, nameType)
     ;
     
