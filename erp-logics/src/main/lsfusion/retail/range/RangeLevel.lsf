@@ -131,19 +131,19 @@ TABLE rangeRevRangeLevelSku (RangeRev, RangeLevel, Sku);
 
 nameQuantity (RangeLevel rl) = CONCAT ' / ', '('+name(rl)+')', 'к-во на полке'; 
 
-dateTimePrevRev 'Действует (с) пред. версии' (RangeRev v) = GROUP LAST dateTime(RangeRev vv) ORDER dateTime(vv) IF range(v) == range(vv) AND dateTime(vv) < dateTime(v);
+backgroundLevel (RangeRev v, Sku s) = IF v IS RangeRev AND s IS Sku AND NOT level(v, s) == level(prevRangeRev(v), s) THEN RGB(192,192,255) ELSE RGB(232,232,255);
 
 EXTEND FORM rangeRev
     OBJECTS rl = RangeLevel AFTER dates  
     FILTERS in(v, rl)     
                                
-    PROPERTIES(v, s) nameLevel AFTER markupA(pt, s, d, v)
-    PROPERTIES (v) READONLY dateTimePrevRev
+    PROPERTIES(v, s) nameLevel AFTER markupA(pt, s, d, v) BACKGROUND backgroundLevel(v, s)
+    PROPERTIES (v) READONLY dateTimePrevRangeRev
     
     FILTERGROUP filters
         FILTER 'Включен' level(v, s) DEFAULT
         FILTER 'Без поставщиков' level(v, s) AND NOT priceA(pt, s, d, dateTime(v))  
-        FILTER 'Новинка' [=GROUP SUM 1 IF (dateTime(UserPriceListDetail pd) > dateTimePrevRev(RangeRev vv)) AND price(pd, pt) BY sku(pd), vv](s, v)
+        FILTER 'Новинка' [=GROUP SUM 1 IF (date(UserPriceListDetail pd) >= DATE df) AND price(pd, pt) BY sku(pd), df](s, dFrom)
         
     OBJECTS l = RangeLevel AFTER store
     PROPERTIES READONLY name(l), depth(v,l), countSkus(v,l)  
@@ -164,9 +164,6 @@ overCopy(RangeRev r, RangeRev pr) + {
 DESIGN rangeRev {
     GROUP (,v) {
         type = CONTAINERV;
-    }
-    PROPERTY(nameLevel(v,s)) {
-        background = #CCCCFF;
     }
 }
 
@@ -426,8 +423,8 @@ DESIGN storeRange {
             MOVE BOX(r) {
                 fill = 2;
                 PROPERTY(countSku(r, t, d)) {
-                    background = #FFEEFF;
                 }
+                    background = #FFEEFF;
             }
             MOVE BOX(s);
         }

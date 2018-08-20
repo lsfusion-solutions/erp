@@ -126,6 +126,11 @@ range 'Ассортиментная матрица' = DATA Range(RangeRev) NONUL
 nameRange 'Ассортиментная матрица'(RangeRev v) = name(range(v)) IN recognize;
 
 INDEX range(RangeRev v), date(v), v;
+
+prevRangeRev 'Предыдущая версия' (RangeRev v) = PARTITION PREV v ORDER dateTime(v), v BY range(v) MATERIALIZED;
+dateTimePrevRangeRev 'Предыдущая версия' (RangeRev v) = dateTime(prevRangeRev(v));
+datePrevRangeRev 'Предыдущая версия' (RangeRev v) = DATE(dateTimePrevRangeRev(v));
+
 rangeRev 'Версия' = GROUP LAST RangeRev rev
                                        ORDER date(rev), rev
                                        WHERE date(rev) <= (DATE date AS DATE)
@@ -286,6 +291,14 @@ FORM rangeRev 'Версия ассортиментной матрицы'
                 
           
     EDIT RangeRev OBJECT v
+;
+
+EXTEND FORM rangeRev
+    
+    EVENTS ON INIT {
+        IF dateTimePrevRangeRev(v) THEN
+            SEEK rangeRev.dFrom = datePrevRangeRev(v); 
+    }
 ;
 
 defaultDepartmentStore = DATA DepartmentStore();
