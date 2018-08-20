@@ -63,7 +63,7 @@ companyStock = ABSTRACT Stock (PriceListLedger) MATERIALIZED INDEXED;
 
 TABLE priceListLedgerLedgerPriceListType(PriceListLedger, LedgerPriceListType);
 in = ABSTRACT BOOLEAN (PriceListLedger, LedgerPriceListType) MATERIALIZED;
-price 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListLedger, LedgerPriceListType) MATERIALIZED;
+price 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListLedger, LedgerPriceListType) MATERIALIZED CHARWIDTH 7;
 
 priceListTypes 'Цены' (PriceListLedger priceList) = GROUP
                                                                 CONCAT name(LedgerPriceListType type) IF in(priceList, type) , ', '
@@ -150,7 +150,7 @@ active(PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
     active(ledger, type) AND in(ledger, stock) AND NOT skip(type, stock) MATERIALIZED;
 
 price 'Цена' (PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
-    price(ledger, type) IF active(ledger, type, stock) MATERIALIZED;
+    price(ledger, type) IF active(ledger, type, stock) MATERIALIZED CHARWIDTH 7;
 
 sku(PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
     sku(ledger) IF active(ledger, type, stock) MATERIALIZED;
@@ -258,20 +258,20 @@ activePriceA 'Цена' (LedgerPriceListType type, sku, company, DATETIME dateTi
     GROUP LAST price(PriceListLedger ledger, type, Stock stock)
           ORDER fromDateTime(ledger, type, stock), ledger
           WHERE price(ledger, type, stock) AND fromDateTime(ledger, type, stock) <= dateTime AND NOT toDateTime(ledger, type, stock) < dateTime
-          BY sku(ledger, type, stock), company(ledger, type, stock) COMPLEX;
+          BY sku(ledger, type, stock), company(ledger, type, stock) COMPLEX CHARWIDTH 7;
                                 
 // Только с ценами
 priceB 'Цена' (LedgerPriceListType type, sku, Stock stock, DATETIME dateTime) =
     GROUP LAST price(PriceListLedger ledger, type, stock)
           ORDER fromDateTime(ledger, type, stock), ledger
           WHERE fromDateTime(ledger, type, stock) < dateTime AND NOT toDateTime(ledger, type, stock) < dateTime
-          BY sku(ledger, type, stock) COMPLEX;
+          BY sku(ledger, type, stock) COMPLEX CHARWIDTH 7;
 
 priceA 'Цена' (LedgerPriceListType type, sku, Stock stock, DATETIME dateTime) =
     GROUP LAST price(PriceListLedger ledger, type, stock)
           ORDER fromDateTime(ledger, type, stock), ledger
           WHERE fromDateTime(ledger, type, stock) <= dateTime AND NOT toDateTime(ledger, type, stock) < dateTime
-          BY sku(ledger, type, stock) COMPLEX;
+          BY sku(ledger, type, stock) COMPLEX CHARWIDTH 7;
 
 priceListLedgerA (LedgerPriceListType type, sku, Stock stock, DATETIME dateTime) =
     GROUP LAST PriceListLedger ledger

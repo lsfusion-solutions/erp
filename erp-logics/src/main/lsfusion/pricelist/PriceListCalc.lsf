@@ -77,7 +77,7 @@ overCoeff(CalcPriceListType t, Sku s) = OVERRIDE coeff(t,s), 1.0 IF t IS CalcPri
 
 markup 'Надбавка, %' (CalcPriceListType type, Sku sku) = OVERRIDE
     NUMERIC[8,2](overMarkup(type, sku)*overCoeff(type,sku)),
-    overMarkup(parent(type), sku) MATERIALIZED;
+    overMarkup(parent(type), sku) MATERIALIZED CHARWIDTH 6;
     
 multiplier (CalcPriceListType type, Sku sku) = NUMERIC[10,4]((100.0 + markup(type, sku)) / 100.0) MATERIALIZED;
 
@@ -111,9 +111,9 @@ nameRoundCondition 'Условие округления' (CalcPriceListType type
 // --------------- Расчет значения цены --------------- //
 
 priceB(BasePriceListType base, CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
-    round(priceB(base, sku, stock, dateTime) * multiplier(type, sku) * VAT(type, sku, DATE(dateTime)), roundCondition(type, sku)) COMPLEX;
+    round(priceB(base, sku, stock, dateTime) * multiplier(type, sku) * VAT(type, sku, DATE(dateTime)), roundCondition(type, sku)) COMPLEX CHARWIDTH 7;
 priceA(BasePriceListType base, CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
-    round(priceA(base, sku, stock, dateTime) * multiplier(type, sku) * VAT(type, sku, DATE(dateTime)), roundCondition(type, sku)) COMPLEX;
+    round(priceA(base, sku, stock, dateTime) * multiplier(type, sku) * VAT(type, sku, DATE(dateTime)), roundCondition(type, sku)) COMPLEX CHARWIDTH 7;
 
 priceB(CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
     priceB(basePriceListType(type), type, sku, stock, dateTime) COMPLEX;
