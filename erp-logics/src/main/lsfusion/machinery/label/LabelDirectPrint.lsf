@@ -162,6 +162,7 @@ beforeDirectPrint  ABSTRACT LIST ( LabelTransaction);
 overDirectPrint  ABSTRACT LIST ( LabelTransactionDetail);
 
 overPrintNameSku = ABSTRACT VARSTRING[255](LabelTransactionDetail);
+overLabelDirectDate = ABSTRACT VARISTRING[50](LabelTransaction);
 
 DESIGN options {
     label{
@@ -240,7 +241,7 @@ customPrint(LabelTransaction labelTrans) + {
             formattedText() <- replace(formattedText(),'@31.13.8@', completedIdBarcode(ld));
         } ELSE formattedText() <- replace(formattedText(),'@31.13.8@', '');
         
-        formattedText() <- replace(formattedText(),'@11.10.2@', lpad(VARSTRING[10](toDateDDMMYYYYUS(date(labelTrans))), 10,' '));
+        formattedText() <- replace(formattedText(),'@11.10.2@', (OVERRIDE overLabelDirectDate(labelTrans), lpad(VARSTRING[10](toDateDDMMYYYYUS(date(labelTrans))), 10,' ')));
       
         IF nameSku(ld) THEN { 
             formattedText() <- replaceFirst(formattedText(),'@10.30.1@', substrToWrap(nameSku(ld), 30));
