@@ -286,6 +286,10 @@ nameCountry 'Страна изготовитель' (MarketingCondition c) = nam
 region = DATA Region (MarketingCondition);
 nameRegion 'Регион' (MarketingCondition c) = name(region(c));
 
+in 'Вкл.' = DATA BOOLEAN (Item, MarketingCondition);
+countItems (MarketingCondition c) = GROUP SUM 1 IF in(Item i, c);
+items 'Товары' (MarketingCondition c) = GROUP CONCAT name(Item i) IF in(i, c), ', ' CHARWIDTH 50;
+
 item = DATA Item (MarketingCondition);
 nameItem 'Товар' (MarketingCondition c) = name(item(c));
 
@@ -396,6 +400,25 @@ dialogTreeItemGroups (MarketingCondition mc)  {
     DIALOG dialogTreeItemGroups OBJECTS tg = itemGroup(mc) CHANGE;
 }
 
+FORM dialogItems
+    OBJECTS c = MarketingCondition PANEL 
+    OBJECTS i = Item
+    PROPERTIES in(i, c)
+    PROPERTIES (i) READONLY id, idBarcode, name, nameItemGroup
+    
+    FILTERGROUP select FILTER 'Отмеченные' in(i, c)
+;
+DESIGN dialogItems { size = (1024, 768); }
+
+selectItems (MarketingCondition c) {
+    DIALOG dialogItems OBJECTS c = c, i INPUT DO {
+        IF NOT countItems(c) > 1 THEN {
+            in(Item ii, c) <- NULL;
+            in(i, c) <- TRUE;
+        }
+    }
+}
+
 META defineConditionTypeMarketing(nameType, captionType)
     EXTEND CLASS ConditionType {
         nameType ''###captionType
@@ -413,7 +436,7 @@ META defineConditionTypeMarketing(nameType, captionType)
         
         OBJECTS nameType = MarketingCondition
         PROPERTIES (##nameType) READONLY nameItemGroup, nameBrand, nameCountry, nameWeighted , nameRegion, legalEntities, stockGroups,
-                       stocks, nameItem, marketingPercent, isException
+                       stocks, items, marketingPercent, isException
         FILTERS conditionList(##nameType) = l, conditionType(##nameType) = ConditionType.nameType
     ;
     
@@ -437,7 +460,7 @@ META defineConditionTypeMarketing(nameType, captionType)
         
         OBJECTS nameType = MarketingCondition
         PROPERTIES (##nameType) READONLY nameItemGroup, nameBrand, nameCountry, nameWeighted , nameRegion, legalEntities, stockGroups,
-                       stocks, nameItem, marketingPercent, isException
+                       stocks, items, marketingPercent, isException
         FILTERS conditionList(##nameType) = l, conditionType(##nameType) = ConditionType.##nameType
     ;
     
@@ -466,7 +489,7 @@ META defineConditionTypeMarketing(nameType, captionType)
         OBJECTS nameType = MarketingCondition
         PROPERTIES (##nameType) nameItemGroup ON CHANGE dialogTreeItemGroups(##nameType), nameBrand, nameCountry, nameWeighted , nameRegion,  
                         legalEntities ON CHANGE showSelectLegalEntities(##nameType), stockGroups ON CHANGE dialogStockGroupsMarketingCondition(##nameType),
-                        stocks ON CHANGE showSelectStocks(##nameType), nameItem, marketingPercent, isException, NEW, DELETE 
+                        stocks ON CHANGE showSelectStocks(##nameType), items ON CHANGE selectItems(nameType), marketingPercent, isException, NEW, DELETE 
         FILTERS conditionList(##nameType) = l, conditionType(##nameType) = ConditionType.##nameType
     ;
     
@@ -485,11 +508,11 @@ META defineConditionTypeMarketing(nameType, captionType)
     }
 END
 
-@defineConditionTypeMarketing(retail, 'маркетинг розничный');
+@defineConditionTypeMarketing(retail, 'Маркетинг розничный');
 
-@defineConditionTypeMarketing(logistic, 'логистический бонус');
+@defineConditionTypeMarketing(logistic, 'Логистический бонус');
 
-@defineConditionTypeMarketing(merch, 'мерчендайзинг');
+@defineConditionTypeMarketing(merch, 'Мерчендайзинг');
 
 //-------------------------------------Маркетинг фиксированный--------------------------------------------//
 
@@ -563,7 +586,7 @@ DESIGN conditionList {
     }
 }
 
-@defineConditionTypeMarketing(defects, 'браки');
+@defineConditionTypeMarketing(defects, 'Браки');
 
 inConditionStock (MarketingCondition c, DepartmentStore st) = st IS DepartmentStore AND active(st) AND 
     ((inStock(c, st) OR NOT countStocks(c)) AND (region(st) == region(c) OR NOT region(c)) AND (inGroup(c, st) OR NOT countStockGroups(c))
@@ -795,3 +818,15 @@ EXTEND FORM contractMarketings PROPERTIES TODRAW c TOOLBAR importContractMarketi
 
 CONSTRAINT ContractMarketing c IS ContractMarketing AND NOT isCompany(customer(c)) CHECKED BY customer[ContractMarketing] 
     MESSAGE 'Получатель не является компанией';
+    
+migratedItemCondition = DATA BOOLEAN ();
+onStarted() + { 
+    IF NOT migratedItemCondition() THEN {
+        NEWSESSION {
+            setNoCancelInTransaction();
+            migratedItemCondition() <- TRUE;
+            in(Item i, MarketingCondition c) <- i == item(c);
+            APPLY;
+        }    
+    }
+}
