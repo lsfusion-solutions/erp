@@ -407,8 +407,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             if (showField(userPriceListDetailList, "dateUserPriceList")) {
                 ImportField dateUserPriceListField = new ImportField(findProperty("date[UserPriceList]"));
-                props.add(new ImportProperty(dateUserPriceListField, findProperty("date[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "date")));
-                props.add(new ImportProperty(dateUserPriceListField, findProperty("fromDate[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "date")));
+                props.add(new ImportProperty(dateUserPriceListField, findProperty("date[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "dateUserPriceList")));
+                props.add(new ImportProperty(dateUserPriceListField, findProperty("fromDate[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "dateUserPriceList")));
                 fields.add(dateUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).dateUserPriceList);
