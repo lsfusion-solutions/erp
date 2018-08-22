@@ -119,7 +119,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         List<UserPriceListDetail> userPriceListDetailList;
         
         Date dateDocument = (Date) findProperty("date[UserPriceList]").read(context, userPriceListObject);
-        dateDocument = dateDocument == null ? new Date(Calendar.getInstance().getTime().getTime()) : dateDocument;
+        Date dateFromDocument = (Date) findProperty("fromDate[UserPriceList]").read(context, userPriceListObject);
+        if(dateFromDocument == null)
+            dateFromDocument = dateDocument == null ? new Date(Calendar.getInstance().getTime().getTime()) : dateDocument;
         String fileExtension = settings.getFileExtension();
 
         List<String> stringFields = Arrays.asList("idUserPriceList", "idItemGroup", "extraBarcodeItem", "articleItem", "captionItem", 
@@ -131,16 +133,16 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         switch (fileExtension) {
             case "DBF":
-                userPriceListDetailList = importUserPriceListsFromDBF(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateDocument);
+                userPriceListDetailList = importUserPriceListsFromDBF(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateFromDocument);
                 break;
             case "XLS":
-                userPriceListDetailList = importUserPriceListsFromXLS(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateDocument);
+                userPriceListDetailList = importUserPriceListsFromXLS(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateFromDocument);
                 break;
             case "XLSX":
-                userPriceListDetailList = importUserPriceListsFromXLSX(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateDocument);
+                userPriceListDetailList = importUserPriceListsFromXLSX(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateFromDocument);
                 break;
             case "CSV":
-                userPriceListDetailList = importUserPriceListsFromCSV(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateDocument);
+                userPriceListDetailList = importUserPriceListsFromCSV(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateFromDocument);
                 break;
             default:
                 userPriceListDetailList = null;
@@ -407,8 +409,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             if (showField(userPriceListDetailList, "dateUserPriceList")) {
                 ImportField dateUserPriceListField = new ImportField(findProperty("date[UserPriceList]"));
-                props.add(new ImportProperty(dateUserPriceListField, findProperty("date[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "dateUserPriceList")));
-                props.add(new ImportProperty(dateUserPriceListField, findProperty("fromDate[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "dateUserPriceList")));
+                props.add(new ImportProperty(dateUserPriceListField, findProperty("date[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "date")));
+                props.add(new ImportProperty(dateUserPriceListField, findProperty("fromDate[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "date")));
                 fields.add(dateUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).dateUserPriceList);
@@ -693,7 +695,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     private List<UserPriceListDetail> importUserPriceListsFromXLS(byte[] importFile, DataObject userPriceListObject, ImportPriceListSettings settings, 
                                                                   Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                   Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
-                                                                  List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
+                                                                  List<String> bigDecimalFields, List<String> dateFields, Date dateFromDocument)
             throws IOException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
@@ -737,7 +739,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("barcodeItem")), 5, settings.isBarcodeMaybeUPC());
                 String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("packBarcode")), 5, settings.isBarcodeMaybeUPC());
                 Date dateUserPriceList = getXLSDateFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("dateUserPriceList"));
-                Date dateFrom = getXLSDateFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("dateFrom"), dateDocument);
+                Date dateFrom = getXLSDateFieldValue(formulaEvaluator, sheet, i, defaultColumns.get("dateFrom"), dateFromDocument);
                 Date dateVAT = dateUserPriceList == null ? dateFrom : dateUserPriceList;
                 BigDecimal quantityAdjustment = getXLSBigDecimalFieldValue(formulaEvaluator, sheet, i, new ImportColumnDetail("quantityAdjustment", settings.getQuantityAdjustmentColumn(), false));
                 String idUserPriceListDetail = makeIdUserPriceListDetail((String) fieldValues.get("idUserPriceList"), userPriceListObject, i);
@@ -768,7 +770,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     private List<UserPriceListDetail> importUserPriceListsFromCSV(byte[] importFile, DataObject userPriceListObject, ImportPriceListSettings settings, 
                                                                   Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                   Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
-                                                                  List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
+                                                                  List<String> bigDecimalFields, List<String> dateFields, Date dateFromDocument)
             throws IOException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
@@ -818,7 +820,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, defaultColumns.get("packBarcode"), count), 5, settings.isBarcodeMaybeUPC());
                     String idItem = getCSVFieldValue(valuesList, defaultColumns.get("idItem"), count);
                     Date dateUserPriceList = getCSVDateFieldValue(valuesList, defaultColumns.get("dateFrom"), count);
-                    Date dateFrom = getCSVDateFieldValue(valuesList, defaultColumns.get("dateFrom"), count, dateDocument);
+                    Date dateFrom = getCSVDateFieldValue(valuesList, defaultColumns.get("dateFrom"), count, dateFromDocument);
                     Date dateVAT = dateUserPriceList == null ? dateFrom : dateUserPriceList;
                     BigDecimal quantityAdjustment = getCSVBigDecimalFieldValue(valuesList, new ImportColumnDetail("quantityAdjustment", settings.getQuantityAdjustmentColumn(), false), count);
                     String idUserPriceListDetail = makeIdUserPriceListDetail((String) fieldValues.get("idUserPriceList"), userPriceListObject, count);
@@ -849,7 +851,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     private List<UserPriceListDetail> importUserPriceListsFromXLSX(byte[] importFile, DataObject userPriceListObject, ImportPriceListSettings settings, 
                                                                    Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                    Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
-                                                                   List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
+                                                                   List<String> bigDecimalFields, List<String> dateFields, Date dateFromDocument)
             throws IOException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
@@ -893,7 +895,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, defaultColumns.get("packBarcode")), 5, settings.isBarcodeMaybeUPC());
                 BigDecimal quantityAdjustment = getXLSXBigDecimalFieldValue(sheet, i, new ImportColumnDetail("quantityAdjustment", settings.getQuantityAdjustmentColumn(), false));
                 Date dateUserPriceList = getXLSXDateFieldValue(sheet, i, defaultColumns.get("dateUserPriceList"));
-                Date dateFrom = getXLSXDateFieldValue(sheet, i, defaultColumns.get("dateFrom"), dateDocument);
+                Date dateFrom = getXLSXDateFieldValue(sheet, i, defaultColumns.get("dateFrom"), dateFromDocument);
                 Date dateVAT = dateUserPriceList == null ? dateFrom : dateUserPriceList;
 
                 String idUserPriceListDetail = makeIdUserPriceListDetail((String) fieldValues.get("idUserPriceList"), userPriceListObject, i);
@@ -923,7 +925,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     private List<UserPriceListDetail> importUserPriceListsFromDBF(byte[] importFile, DataObject userPriceListObject, ImportPriceListSettings settings, 
                                                                   Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
                                                                   Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
-                                                                  List<String> bigDecimalFields, List<String> dateFields, Date dateDocument)
+                                                                  List<String> bigDecimalFields, List<String> dateFields, Date dateFromDocument)
             throws IOException, UniversalImportException, JDBFException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
@@ -981,7 +983,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 String idItem = getJDBFFieldValue(entry, fieldNamesMap, defaultColumns.get("idItem"), i);
                 BigDecimal quantityAdjustment = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, new ImportColumnDetail("quantityAdjustment", settings.getQuantityAdjustmentColumn(), false), i);
                 Date dateUserPriceList = getJDBFDateFieldValue(entry, fieldNamesMap, defaultColumns.get("dateUserPriceList"), i);
-                Date dateFrom = getJDBFDateFieldValue(entry, fieldNamesMap, defaultColumns.get("dateFrom"), i, dateDocument);
+                Date dateFrom = getJDBFDateFieldValue(entry, fieldNamesMap, defaultColumns.get("dateFrom"), i, dateFromDocument);
                 String idUserPriceListDetail = makeIdUserPriceListDetail((String) fieldValues.get("idUserPriceList"), userPriceListObject, i);
                 String extIdPackBarcode = packBarcode == null ? ((settings.getItemKeyType().equals("barcode") ? barcodeItem : idItem) + "_pack") : packBarcode;
 
