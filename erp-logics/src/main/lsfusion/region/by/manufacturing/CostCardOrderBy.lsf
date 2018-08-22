@@ -10,7 +10,7 @@ calcMultiplier(Sku sku, Order order)= OVERRIDE multiplier(sku, order), (1.000 IF
 
 quantity (BOM BOM, Sku sku, Order order) = (GROUP
     SUM recBruttoNodeQuantity (BOM, sku, date(order)) * calcMultiplier(sku, order)) IF bruttoQuantity(sku, order);
-quantity 'Норма' (ProductDetail productDetail, Sku sku) = quantity(BOM(product(productDetail)), sku, order(productDetail));
+quantity 'Норма' (ProductDetail productDetail, Sku sku) = quantity(BOM(productDetail), sku, order(productDetail));
 
 quantityInBOM 'Кол-во изделий в спец.'(ProductDetail productDetail)= quantity(product(productDetail));
 productsSumInBOM 'Сумма изделий в спец.' = round((quantityInBOM(ProductDetail productDetail) * price(productDetail)), currency(productDetail));
@@ -22,7 +22,7 @@ productsSumInBOM 'Сумма изделий в спец.' = round((quantityInBOM
 //    productProductDetail(productDetail), sku, orderProductDetail(productDetail)); // св-во необходимо, т.к. в BOM-ах есть уд.вес цены => мы его включаем в норму. Пока так, в будущем возможно надо будет включать в надбавку.
 
 //--
-descriptionBOM 'Спецификация'(ProductDetail productDetail) = description(BOM(product(productDetail)));
+descriptionBOM 'Спецификация'(ProductDetail productDetail) = description(BOM(productDetail));
 shortNameUOMProduct 'Ед.изм. в спец.'(ProductDetail productDetail)= shortNameUOM(product(productDetail));
 recipes 'Номер по сборнику рецептов' (ProductDetail productDetail)= recipes(product(productDetail));
 //--
@@ -56,7 +56,7 @@ retailVATPrice 'Цена НДС (ед.)' (ProductDetail productDetail)= overReta
 nettoQuantity (BOM BOM, Sku sku, Order order) = (GROUP
     SUM recNettoNodeQuantity (BOM, sku) * calcMultiplier(sku, order)) IF bruttoQuantity(sku, order);
 
-nettoQuantity 'Нетто' (ProductDetail productDetail, Sku sku) = nettoQuantity(BOM(product(productDetail)), sku, order(productDetail));
+nettoQuantity 'Нетто' (ProductDetail productDetail, Sku sku) = nettoQuantity(BOM(productDetail), sku, order(productDetail));
 fats 'Жиры'(ProductDetail productDetail, Item sku) = nettoQuantity (productDetail, sku)*netWeight(sku)*10*fats(sku);
 carbohydrates 'Углеводы' (ProductDetail productDetail, Item sku) = nettoQuantity (productDetail, sku)*netWeight(sku)*10*carbohydrates(sku);
 proteins 'Белки' (ProductDetail productDetail, Item sku) = nettoQuantity (productDetail, sku)*netWeight(sku)*10*proteins(sku);
@@ -116,7 +116,7 @@ FORM costCardOrderBy 'Калькуляционная карта' // с заме�
     PROPERTIES(cd) nameSku, idBarcode, shortNameUOMSku, price, valueVAT
     
     FILTERS order(cd)==o             
-    FILTERS BOM(cd)== BOM(product(pd))        
+    FILTERS BOM(cd)== BOM(pd)        
 ;
 printCostCard 'Калькуляционная карта' (Order order)  { PRINT costCardOrderBy OBJECTS o = order; }   IMAGE 'print.png' IN print;
   
@@ -148,7 +148,7 @@ FORM costCardOrderNotSubstituteBy 'Калькуляционная карта' //
     PROPERTIES (cd) bruttoNameSku, bruttoIdBarcodeSku, bruttoIdSku, bruttoShortNameUOMSku, coeffSubstitute, priceCard
     
     FILTERS order(cd)==o             
-    FILTERS BOM(cd)== BOM(product(pd))        
+    FILTERS BOM(cd)== BOM(pd)        
 ;
 printCostCardNotSubstitute 'Калькуляционная карта (без замен)' (Order order)  { PRINT costCardOrderNotSubstituteBy OBJECTS o = order; }   IMAGE 'print.png' IN print;
   
@@ -160,17 +160,17 @@ supplierPrice 'Цена поставщика' (ComponentDetail cd) = price(invoi
 
 quantityProductDetails 'Кол-во' (ComponentDetail cd) = GROUP
         SUM quantity(ProductDetail pd) IF 
-    BOM(cd)== BOM(product(pd)) AND order(cd) == order(pd);      
+    BOM(cd)== BOM(pd) AND order(cd) == order(pd);      
 percOrder 'Норма выхода, %' (ProductDetail pd,ComponentDetail cd)=  quantity(pd) *100 /  (quantity(cd) IF (quantity(cd)!=0));  
 percProductDetail'Норма выхода, %' (ComponentDetail cd) = GROUP
         SUM percOrder(ProductDetail pd,cd) IF 
-    BOM(cd)== BOM(product(pd)) AND order(cd) == order(pd);       
+    BOM(cd)== BOM(pd) AND order(cd) == order(pd);       
 //percOrderProductDetail 'Норма выхода, %' (d)= quantityProductDetail(d) *100 /  (quantityProductDetailOrder(orderProductDetail(d)) IF quantityProductDetailOrder(orderProductDetail(d))!=0);               
 
 
 sumProductDetails 'Сумма' (ComponentDetail cd) = GROUP
         SUM sum(ProductDetail pd) IF 
-    BOM(cd)== BOM(product(pd)) AND order(cd) == order(pd);    
+    BOM(cd)== BOM(pd) AND order(cd) == order(pd);    
 
 diffSum (ComponentDetail cd) = sum(cd)- sumProductDetails(cd);
 
@@ -209,7 +209,7 @@ FORM cuttingBy 'Разруб'
 
     FILTERS order(pd)==o                   
 
-    FILTERS BOM(cd)== BOM(product(pd))        
+    FILTERS BOM(cd)== BOM(pd)        
 ;
 printCutting 'Разруб' (Order order)  { PRINT cuttingBy OBJECTS o = order; }   IMAGE 'print.png' IN print;
 
@@ -243,7 +243,7 @@ FORM actOfCuttingBy 'Акт о разделке сырья'
 
     FILTERS order(pd)==o                   
 
-    FILTERS BOM(cd)== BOM(product(pd))        
+    FILTERS BOM(cd)== BOM(pd)        
 ;
 printActOfCuttingBy 'Акт о разделке сырья' (Order order)  { PRINT actOfCuttingBy OBJECTS o = order; }   IMAGE 'print.png' IN print;
 
