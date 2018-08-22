@@ -1260,7 +1260,7 @@ META implementDocumentPrefix(object, prefixP, prefixQ)
     series[Document](###object object) += series(object);
     date[Document](###object object) += date(object);
 
-    index[DocumentDetail](User###object##Detail detail) += index(detail);
+    index[DocumentDetail](###object##Detail detail) += index(detail);
     sku[DocumentDetail](###object##Detail detail) += sku(detail);
     quantity[DocumentDetail](###object##Detail detail) += quantity(detail);
     price[DocumentDetail](###object##Detail detail) += prefixP###price(detail);
@@ -1379,13 +1379,13 @@ DESIGN options {
 }
 
 document = DATA Document (DocumentLog) INDEXED;
+documentId = DATA LONG (DocumentLog) INDEXED;
 
 numberDocument 'Номер документа' = DATA VARSTRING[28] (DocumentLog) IN recognize;
 seriesDocument 'Серия документа' = DATA STRING[2] (DocumentLog) IN recognize;
 dateDocument 'Дата документа' = DATA DATE(DocumentLog) IN recognize;
 typeDocument 'Тип документа' = DATA ISTRING[100] (DocumentLog) IN recognize; 
 
-session = DATA Session (DocumentLog); 
 hostnameComputer 'Имя компьютера' = DATA VARISTRING[100] (DocumentLog); 
 userLogin 'Логин пользователя' = DATA STRING[30] (DocumentLog); 
 nameContact 'Имя пользователя' =  DATA VARSTRING[100] (DocumentLog) IN recognize;
@@ -1401,11 +1401,6 @@ nameCustomerStock 'Склад покупателя'(DocumentLog d) = name(custom
 
 @defineLog (DocumentLog, 'изменений документов', log, dateSession);
 
-//hostnameComputerDocumentLog 'Имя компьютера' = hostnameComputerConnectionSession(sessionDocumentLog(l)) IN recognize;
-//userLoginDocumentLog 'Логин пользователя' = userLoginConnectionSession(sessionDocumentLog(l)) IN recognize;
-//nameContactDocumentLog 'Имя пользователя' =  nameUserSession (sessionDocumentLog(l)) IN recognize;
-//dateTimeSessionDocumentLog 'Время' = dateTimeSession(sessionDocumentLog(l)) IN recognize;
-
 CLASS TypeChange 'Тип изменения' {
     add 'Добавление',
     delete 'Удаление',
@@ -1415,7 +1410,8 @@ CLASS TypeChange 'Тип изменения' {
     changeSupplierStock 'Изменение склада поставщика',
     changeCustomerStock 'Изменение склада покупателя',
     changePosted 'Проведение/Распроведение',
-    changeClosed 'Закрытие/Открытие'
+    changeClosed 'Закрытие/Открытие',
+    changeDate 'Изменение даты'
 }
 
 typeChange= DATA TypeChange (DocumentLog);
@@ -1430,12 +1426,12 @@ showFile = enableDocumentLog() AND file(DocumentLog dLog);
 WHEN SET(Document o IS Document) IF NOT disableDocumentLog() DO {
     NEW d = DocumentLog {        
         document(d) <- o;
+        documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
         typeChange(d) <- TypeChange.add;
-        session(d) <- currentSession();
         hostnameComputer(d) <- hostnameComputerConnection(currentSession());
         userLogin(d) <- userLoginConnection(currentSession()); 
         nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
@@ -1447,13 +1443,12 @@ WHEN SET(Document o IS Document) IF NOT disableDocumentLog() DO {
 }
 WHEN DROPPED(Document o IS Document) IF NOT disableDocumentLog() DO {
     NEW d = DocumentLog {       
-
+        documentId(d) <- LONG(PREV(o AS Document));
         typeDocument(d) <- prevObjectClassName(o);
         numberDocument(d) <- PREV(number(o));  
         seriesDocument(d) <- PREV(series(o)); 
         dateDocument(d) <- PREV(date(o));   
         typeChange(d) <- TypeChange.delete;
-        session(d) <- currentSession();
         hostnameComputer(d) <- hostnameComputerConnection(currentSession());
         userLogin(d) <- userLoginConnection(currentSession()); 
         nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
@@ -1467,13 +1462,13 @@ WHEN DROPPED(Document o IS Document) IF NOT disableDocumentLog() DO {
 WHEN ((SETCHANGED(number(Document o)) AND PREV(number(o))) OR (SETCHANGED(series(o)) AND PREV(series(o))) ) IF NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
         document(d) <- o;
+        documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
         typeChange(d) <- TypeChange.changeSeriesNumber;
         note(d) <- VARSTRING[255]('Предыдущее значение серия/номер: '+(CONCAT '', PREV(series(o)), PREV(number(o))));      
-        session(d) <- currentSession();  
         hostnameComputer(d) <- hostnameComputerConnection(currentSession());
         userLogin(d) <- userLoginConnection(currentSession()); 
         nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
@@ -1486,13 +1481,13 @@ WHEN ((SETCHANGED(number(Document o)) AND PREV(number(o))) OR (SETCHANGED(series
 WHEN (INTEGER x== [ = GROUP SUM 1 IF SET(DocumentDetail d IS DocumentDetail) BY document(d)](Document o)) IF NOT disableDocumentLog() DO {
     NEW d = DocumentLog {
         document(d) <- o;
+        documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
         typeChange(d) <- TypeChange.addRow;
         note(d) <- VARSTRING[255]('Количество добавленных строк: '+x);  
-        session(d) <- currentSession();      
         hostnameComputer(d) <- hostnameComputerConnection(currentSession());
         userLogin(d) <- userLoginConnection(currentSession()); 
         nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
@@ -1505,13 +1500,13 @@ WHEN (INTEGER x== [ = GROUP SUM 1 IF SET(DocumentDetail d IS DocumentDetail) BY 
 WHEN INTEGER x==[= GROUP SUM 1 IF DROPPED(DocumentDetail d IS DocumentDetail) BY PREV(document(d))](Document o) AND o IS Document AND NOT disableDocumentLog() NOINLINE DO {
     NEW d = DocumentLog {
         document(d) <- o;
+        documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
         typeChange(d) <- TypeChange.deleteRow;
         note(d) <- VARSTRING[255]('Количество удаленных строк: '+x);  
-        session(d) <- currentSession();   
         hostnameComputer(d) <- hostnameComputerConnection(currentSession());
         userLogin(d) <- userLoginConnection(currentSession()); 
         nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
@@ -1524,13 +1519,13 @@ WHEN INTEGER x==[= GROUP SUM 1 IF DROPPED(DocumentDetail d IS DocumentDetail) BY
 WHEN (CHANGED(supplierStock(Document o)) AND PREV(supplierStock(o)) AND o IS Document) IF NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
         document(d) <- o;
+        documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
         typeChange(d) <- TypeChange.changeSupplierStock;
         note(d) <- VARSTRING[255](CONCAT '','Предыдущее значение : ', PREV(nameSupplierStock(o)));      
-        session(d) <- currentSession();  
         hostnameComputer(d) <- hostnameComputerConnection(currentSession());
         userLogin(d) <- userLoginConnection(currentSession()); 
         nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
@@ -1543,13 +1538,13 @@ WHEN (CHANGED(supplierStock(Document o)) AND PREV(supplierStock(o)) AND o IS Doc
 WHEN (CHANGED(customerStock(Document o)) AND PREV(customerStock(o)) AND o IS Document) IF NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
         document(d) <- o;
+        documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
         typeChange(d) <- TypeChange.changeCustomerStock;
         note(d) <- VARSTRING[255](CONCAT '','Предыдущее значение : ', PREV(nameCustomerStock(o)));      
-        session(d) <- currentSession();  
         hostnameComputer(d) <- hostnameComputerConnection(currentSession());
         userLogin(d) <- userLoginConnection(currentSession()); 
         nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
@@ -1562,13 +1557,13 @@ WHEN (CHANGED(customerStock(Document o)) AND PREV(customerStock(o)) AND o IS Doc
 WHEN (CHANGED (isPosted(Document o))) AND o IS Document IF NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
         document(d) <- o;
+        documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
         typeChange(d) <- TypeChange.changePosted;
         note(d) <- VARSTRING[255](IF isPosted(o) THEN 'Проведен' ELSE 'Распроведен');      
-        session(d) <- currentSession();  
         hostnameComputer(d) <- hostnameComputerConnection(currentSession());
         userLogin(d) <- userLoginConnection(currentSession()); 
         nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
@@ -1581,13 +1576,13 @@ WHEN (CHANGED (isPosted(Document o))) AND o IS Document IF NOT disableDocumentLo
 WHEN (CHANGED (isClosed(Document o))) AND o IS Document IF NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
         document(d) <- o;
+        documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
         typeChange(d) <- TypeChange.changeClosed;
         note(d) <- VARSTRING[255](IF isClosed(o) THEN 'Закрыт' ELSE 'Открыт');      
-        session(d) <- currentSession();  
         hostnameComputer(d) <- hostnameComputerConnection(currentSession());
         userLogin(d) <- userLoginConnection(currentSession()); 
         nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
@@ -1596,11 +1591,31 @@ WHEN (CHANGED (isClosed(Document o))) AND o IS Document IF NOT disableDocumentLo
         customerStock(d) <- customerStock(o);
     }
 }
+    
+WHEN (SETCHANGED(date(Document o)) AND PREV(date(o))) IF NOT disableDocumentLog()  DO {
+    NEW d = DocumentLog {
+        document(d) <- o;
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);  
+        seriesDocument(d) <- series(o); 
+        dateDocument(d) <- date(o);   
+        typeChange(d) <- TypeChange.changeDate;
+        note(d) <- VARSTRING[255]('Предыдущее значение Даты: '+toDateDDMMYYYY(PREV(date(o))));      
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());   
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
+    }
+}    
 
 CLASS DocumentDetailLog 'Запись лога строк документов';
 TABLE DocumentDetailLog(DocumentDetailLog);
 
 document = DATA Document (DocumentDetailLog) INDEXED;
+documentId = DATA LONG (DocumentDetailLog) INDEXED;
 
 index 'Номер строки' = DATA INTEGER (DocumentDetailLog);        
 
@@ -1626,11 +1641,6 @@ date 'Дата изменения' (DocumentDetailLog d) = DATE(dateTime(d));
 
 note 'Примечание' = DATA VARSTRING[20] (DocumentDetailLog);
 
-idSupplierStock 'Код склад поставщика' (DocumentDetailLog d) = id(supplierStock(document(d)));
-idCustomerStock 'Код склад покупателя' (DocumentDetailLog d) = id(customerStock(document(d)));
-nameSupplierrStock 'Cклад поставщика'(DocumentDetailLog d) = name(supplierStock(document(d)));
-nameCustomerStock 'Cклад покупателя'(DocumentDetailLog d) = name(customerStock(document(d)));
-
 @defineLog (DocumentDetailLog, 'строк документов', log, date);
 
 overSet  ABSTRACT LIST( DocumentDetailLog, DocumentDetail);
@@ -1638,6 +1648,7 @@ overSet  ABSTRACT LIST( DocumentDetailLog, DocumentDetail);
 WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO  
     NEW l = DocumentDetailLog{
         document(l) <- document(d);
+        documentId(l) <- LONG (document(d));
         index(l) <- index(d);
         numberDocument(l) <- number(document(d));
         seriesDocument(l) <- series(document(d));
@@ -1646,7 +1657,7 @@ WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         sku(l) <- sku(d);
         quantity(l) <- quantity(d);
         price(l) <- price(d);
-        nameUser(l) <- name(currentUser());
+        nameUser(l) <- VARISTRING[100](name(currentUser()));
         dateTime(l) <- currentDateTime();
         note(l) <- 'Добавление';
         overSet(l,d);
@@ -1657,6 +1668,7 @@ skipChange = ABSTRACT CASE BOOLEAN (DocumentDetail);
 WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d)) OR CHANGED(sku(d)) OR skipChange(d)) AND NOT DROPPED(d IS DocumentDetail) AND NOT SET(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
     NEW l = DocumentDetailLog{
         document(l) <- document(d);
+        documentId(l) <- LONG (document(d));
         index(l) <- index(d);
         numberDocument(l) <- number(document(d));
         seriesDocument(l) <- series(document(d));
@@ -1666,7 +1678,7 @@ WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d)) OR CHANGED(sku(d)
         prevQuantity(l) <- PREV(quantity(d)); 
         quantity(l) <- quantity(d);
         price(l) <- price(d);
-        nameUser(l) <- name(currentUser());
+        nameUser(l) <- VARISTRING[100](name(currentUser()));
         dateTime(l) <- currentDateTime();
         note(l) <- 'Изменение';
         overSet(l,d);
@@ -1677,6 +1689,7 @@ overDropped  ABSTRACT LIST( DocumentDetailLog, DocumentDetail);
 WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO  
     NEW l = DocumentDetailLog{
         document(l) <- PREV(document(d));
+        documentId(l) <- LONG(PREV(document(d)));
         index(l) <- PREV(index(d));
         numberDocument(l) <- PREV(number(document(d)));
         seriesDocument(l) <- PREV(series(document(d)));
@@ -1685,7 +1698,7 @@ WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         sku(l) <- PREV(sku(d));
         quantity(l) <- PREV(quantity(d));
         price(l) <- PREV(price(d));
-        nameUser(l) <- name(currentUser());
+        nameUser(l) <- VARISTRING[100](name(currentUser()));
         dateTime(l) <- currentDateTime();
         note(l) <- 'Удаление';
         overDropped(l,d);
@@ -1732,14 +1745,13 @@ END
 FORM documentLogs 'Журнал изменения документов'
     OBJECTS d=DocumentLog
     PROPERTIES(d) READONLY numberDocument, seriesDocument, dateDocument, nameSupplierStock, nameCustomerStock, typeDocument,
-                  hostnameComputer, userLogin, dateSession, timeSession, nameTypeChange,
-                  note
+                  hostnameComputer, userLogin, nameContact, dateSession, timeSession, nameTypeChange, note
                   
     OBJECTS l = DocumentDetailLog
-    PROPERTIES (l) READONLY seriesDocument, numberDocument, dateDocument,typeDocument, 
-                   index, idSku, nameSku, quantity, price, 
-                   nameUser, date, time, note
+    PROPERTIES (l) READONLY seriesDocument, numberDocument, dateDocument, typeDocument, 
+                   index, idSku, nameSku, quantity, price, nameUser, date, time, note
     FILTERGROUP documents
+        FILTER 'Фильтр по ID документа' documentId(d) == documentId(l) 'F19' 
         FILTER 'Фильтр по документу' document(d) == document(l) 'F10' DEFAULT
         FILTER 'Фильтр по номеру документа' numberDocument(d) == numberDocument(l) 'F11'
 ;
