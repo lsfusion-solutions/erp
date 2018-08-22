@@ -842,8 +842,10 @@ EXTEND FORM range
         FILTER 'Показывать последние N версий' index(v) <= countFilterRangeRev() OR NOT countFilterRangeRev() DEFAULT
 ;
 
+dataInStore = GROUP SUM 1 IF dataLevel(Range r, Store ss, DATE dt) BY r, dataLevel(r,ss,dt);
+
 moveUpLevel 'Сместить на уровень вверх' (Range r) {
-    IF NOT ( GROUP SUM 1 IF in(r,RangeLevel l) AND NOT nextLevel(l)) THEN {
+    IF NOT ( GROUP SUM 1 IF (in(r,RangeLevel l) OR dataInStore(r,l)) AND NOT nextLevel(l))  THEN {
         NEWSESSION {
             LOCAL NESTED ok =  BOOLEAN ();
             ok() <- allowChangePast();
@@ -853,8 +855,9 @@ moveUpLevel 'Сместить на уровень вверх' (Range r) {
                 }
             } 
             in(r,RangeLevel level) <- TRUE WHERE  (GROUP SUM countSku(RangeRev v,level) IF range(v)==r);  
-            in(r,RangeLevel level) <- NULL WHERE  NOT (GROUP SUM countSku(RangeRev v,level) IF range(v)==r);  
+//            in(r,RangeLevel level) <- NULL WHERE  NOT (GROUP SUM countSku(RangeRev v,level) IF range(v)==r);  
             dataLevel(r, Store ss, DATE dt) <- nextLevel(dataLevel(r, ss, dt)) WHERE dataLevel(r, ss, dt);
+            in(r,RangeLevel level) <- TRUE WHERE  (GROUP SUM 1 IF dataLevel(r,Store ss, DATE dt) == level );  
             IF NOT ok() THEN {
                  allowChangePast() <- TRUE;
                  APPLY;
@@ -872,7 +875,7 @@ moveUpLevel 'Сместить на уровень вверх' (Range r) {
 
 }
 moveDownLevel 'Сместить на уровень вниз' (Range r) {
-    IF NOT ( GROUP SUM 1 IF in(r,RangeLevel l) AND NOT prevLevel(l)) THEN {
+    IF NOT ( GROUP SUM 1 IF (in(r,RangeLevel l) OR dataInStore(r,l)) AND NOT prevLevel(l)) THEN {
         NEWSESSION {
             LOCAL NESTED ok =  BOOLEAN ();
             ok() <- allowChangePast();       
@@ -882,8 +885,9 @@ moveDownLevel 'Сместить на уровень вниз' (Range r) {
                 }
             } 
             in(r,RangeLevel level) <- TRUE WHERE  (GROUP SUM countSku(RangeRev v,level) IF range(v)==r);  
-            in(r,RangeLevel level) <- NULL WHERE  NOT (GROUP SUM countSku(RangeRev v,level) IF range(v)==r); 
+            //in(r,RangeLevel level) <- NULL WHERE  NOT (GROUP SUM countSku(RangeRev v,level) IF range(v)==r); 
             dataLevel(r, Store ss, DATE dt) <- prevLevel(dataLevel(r, ss, dt)) WHERE dataLevel(r, ss, dt); 
+            in(r,RangeLevel level) <- TRUE WHERE  (GROUP SUM 1 IF dataLevel(r,Store ss, DATE dt) == level );              
             IF NOT ok() THEN {
                  allowChangePast() <- TRUE;
                  APPLY;
