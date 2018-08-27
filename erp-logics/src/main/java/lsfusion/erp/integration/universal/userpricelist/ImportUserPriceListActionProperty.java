@@ -565,16 +565,11 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.getSession();
-            if(apply)
-                session.pushVolatileStats("UPL_PLD");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
+            IntegrationService service = new IntegrationService(context.getSession(), table, keys, props);
             service.synchronize(true, false);
             String result = null;
-            if (apply) {
-                result = session.applyMessage(context);
-                session.popVolatileStats();
-            }
+            if (apply)
+                result = context.applyMessage();
 
             findAction("formRefresh[]").execute(context);
 
@@ -674,16 +669,11 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.getSession();
-            if(apply)
-                session.pushVolatileStats("UPL_AD");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
+            IntegrationService service = new IntegrationService(context.getSession(), table, keys, props);
             service.synchronize(true, false);
             String result = null;
-            if (apply) {
-                result = session.applyMessage(context);
-                session.popVolatileStats();
-            }
+            if (apply)
+                result = context.applyMessage();
 
             findAction("formRefresh[]").execute(context);
 
