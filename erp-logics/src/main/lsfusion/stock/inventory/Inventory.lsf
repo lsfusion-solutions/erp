@@ -213,10 +213,9 @@ userTypeOfAddition(Stock stock, Inventory inventory) => include(stock, inventory
 
 // ---------------------------------------------- Описи -------------------------------------- //
 
-CLASS ListInventory 'Опись (открытая)';
+CLASS ListInventory 'Опись (открытая)' : Document;
 TABLE listInventory (ListInventory);
 
-@defineDocumentHeaderPosted(ListInventory);
 @defineDocumentHeaderStock(listInventory, stock, 'Склад');
 @defineDocumentHeaderNote(ListInventory);
 
@@ -262,7 +261,7 @@ pageInventoryIndex = GROUP MAX PageInventory pi BY listInventory(pi), index(pi);
 
 // --------------------------------------------- Строки описи -------------------------------------------- //
 
-CLASS PageInventoryDetail 'Строка';
+CLASS PageInventoryDetail 'Строка' :DocumentDetail;
 TABLE pageInventoryDetail (PageInventoryDetail);
 
 @defineDocumentRelation(pageInventory);
@@ -1503,8 +1502,6 @@ EXTEND FORM listInventory
 
 // --------------------------------------------- Формы инвентаризаций ------------------------------------- //
 
-dumb (PageInventory p) = ' ' IF p IS PageInventory;
-
 
 sumPageInventoryDetail 'Сумма по описям' (CollationSheet cs, SkuGroup group) = GROUP
     SUM sumPageInventoryDetail(cs,Sku sku) IF isParent(group, sku) AND include(cs, sku) MATERIALIZED;
@@ -1551,12 +1548,11 @@ FORM inventory 'Инвентаризация'
     PROPERTIES(ds, in) READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail
     PROPERTIES(ds, in) addListInventory SHOWIF saved(in)
 
-    PROPERTIES(li)   READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail, isPosted
+    PROPERTIES(li)   READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail
 
-    PROPERTIES(li)   NEWSESSION editLI = EDIT SHOWIF saved(in), deleteli=DELETE SHOWIF saved(in),
-                     post SHOWIF saved(in), unpost SHOWIF isPosted(li)
+    PROPERTIES(li)   NEWSESSION editLI = EDIT SHOWIF saved(in), deleteli=DELETE SHOWIF saved(in)
 
-    PROPERTIES(pl)   READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail, dumb
+    PROPERTIES(pl)   READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail
 
     OBJECTS          dp=PageInventoryDetail GRID
     PROPERTIES (dp)  READONLY index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, idBatch SHOWIF isBatch(li), nameBatch  SHOWIF isBatch(li),
@@ -1684,19 +1680,6 @@ DESIGN inventory {
             caption = 'Описи';
             type = SPLITH;
             MOVE BOX(TREE treeStock) {
-                PROPERTY(isPosted(li)) {
-                        charWidth = 15;
-                }
-                PROPERTY (dumb(pl)) {
-                    caption = 'Статус';
-                    charWidth = 15;
-                }
-                PROPERTY (post(li)) {
-                    caption = 'Закрыть';
-                }
-                PROPERTY (unpost(li)) {
-                    caption = 'Открыть';
-                }
                 PROPERTY (editLI) {
                     caption = 'Редактировать';
                 }
@@ -2123,3 +2106,17 @@ DESIGN options {
 WHEN SET (isPosted(Inventory i)) AND fillClosedDate() DO {
     documentsClosedDate(Stock st) <- date(i) WHERE include(st,i);
 }
+
+isClosed[Document](ListInventory d) += isClosed(inventory(d));
+isPosted[Document](ListInventory d) += isPosted(inventory(d));
+number[Document](ListInventory d) += VARSTRING[28](CONCAT '/', number(inventory(d)), name(d));
+series[Document](ListInventory d) += series(inventory(d));
+date[Document](ListInventory d) += date(d);
+supplierStock[Document](ListInventory d) += stock(d);
+
+index[DocumentDetail](PageInventoryDetail detail) += index(detail);
+sku[DocumentDetail](PageInventoryDetail detail) += sku(detail);
+quantity[DocumentDetail](PageInventoryDetail detail) += quantity(detail);
+price[DocumentDetail](PageInventoryDetail detail) += price(detail);
+
+document[DocumentDetail](PageInventoryDetail detail) += listInventory(detail);
