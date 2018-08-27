@@ -84,8 +84,8 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                                         DataObject orderObject = currentSession.addObject((ConcreteCustomClass) findClass("Sale.UserOrder"));
                                         try {
 
-                                            boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context.getBL(),
-                                                    currentSession, context.stack, orderObject, importColumns, IOUtils.getFileBytes(f), settings,
+                                            boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context,
+                                                    currentSession, orderObject, importColumns, IOUtils.getFileBytes(f), settings,
                                                     fileExtension, operationObject, supplierObject, supplierStockObject, customerObject,
                                                     customerStockObject);
 

@@ -17,7 +17,6 @@ import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.classes.ValueClass;
-import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.BusinessLogics;
@@ -92,10 +91,10 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                         for (Map.Entry<String, byte[]> file : fileList.entrySet()) {
 
                             try {
-                                makeImport(context.getBL(), session, context.stack, orderObject, importColumns, file.getValue(), settings, fileExtension,
+                                makeImport(context, session, orderObject, importColumns, file.getValue(), settings, fileExtension,
                                         operationObject, supplierObject, supplierStockObject, customerObject, customerStockObject);
 
-                                session.apply(context);
+                                context.apply();
 
                                 findAction("formRefresh[]").execute(context);
                             } catch (IOException | xBaseJException | ParseException | ScriptingErrorLog.SemanticErrorException | BiffException e) {
@@ -114,34 +113,27 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         }
     }
 
-    public boolean makeImport(BusinessLogics BL, DataSession session, ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
-                              byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject, ObjectValue supplierObject,
-                              ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
+    public boolean makeImport(ExecutionContext context, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
-        this.saleManufacturingPriceLM = BL.getModule("SaleManufacturingPrice");
+        this.saleManufacturingPriceLM = context.getBL().getModule("SaleManufacturingPrice");
 
         List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(session, (Long) orderObject.object,
                 importColumns, file, fileExtension, settings.getStartRow(), settings.isPosted(), settings.getSeparator(),
                 settings.getPrimaryKeyType(), settings.isCheckExistence(), settings.getSecondaryKeyType(), settings.isKeyIsDigit());
 
-        boolean importResult1 = (orderDetailsList != null && orderDetailsList.size() >= 1) && importOrders(orderDetailsList.get(0),
-                BL, session, stack, orderObject, importColumns, settings.getPrimaryKeyType(), operationObject, supplierObject, supplierStockObject,
+        boolean importResult1 = (orderDetailsList != null && orderDetailsList.size() >= 1) && importOrders(orderDetailsList.get(0), context, session, orderObject, importColumns, settings.getPrimaryKeyType(), operationObject, supplierObject, supplierStockObject,
                 customerObject, customerStockObject);
 
-        boolean importResult2 = (orderDetailsList != null && orderDetailsList.size() >= 2) && importOrders(orderDetailsList.get(1),
-                BL, session, stack, orderObject, importColumns, settings.getSecondaryKeyType(), operationObject, supplierObject, supplierStockObject,
+        boolean importResult2 = (orderDetailsList != null && orderDetailsList.size() >= 2) && importOrders(orderDetailsList.get(1), context, session, orderObject, importColumns, settings.getSecondaryKeyType(), operationObject, supplierObject, supplierStockObject,
                 customerObject, customerStockObject);
 
-        findAction("formRefresh[]").execute(session, stack);
+        findAction("formRefresh[]").execute(session, context.stack);
 
         return importResult1 && importResult2;
     }
 
-    public boolean importOrders(List<SaleOrderDetail> orderDetailsList, BusinessLogics BL, DataSession session,
-                                ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType,
-                                ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject,
-                                ObjectValue customerObject, ObjectValue customerStockObject)
+    public boolean importOrders(List<SaleOrderDetail> orderDetailsList, ExecutionContext context, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (orderDetailsList != null) {
@@ -337,7 +329,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             session.pushVolatileStats("SOA_OR");
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
-            String result = session.applyMessage(BL, stack);
+            String result = session.applyMessage(context);
             session.popVolatileStats();
 
             return result == null;

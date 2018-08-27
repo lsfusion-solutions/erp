@@ -76,7 +76,7 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
                             if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
                                 try (DataSession currentSession = context.createSession()) {
                                     try {
-                                        boolean importResult = new ImportProductionOrderActionProperty(LM).makeImport(context.getBL(), currentSession, context.stack, null,
+                                        boolean importResult = new ImportProductionOrderActionProperty(LM).makeImport(context, currentSession, null,
                                                 importColumns, IOUtils.getFileBytes(f), settings, fileExtension, operationObject);
 
                                         if (importResult)
