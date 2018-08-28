@@ -10,7 +10,6 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
 
 import java.sql.SQLException;
 import java.util.Calendar;
@@ -38,7 +37,7 @@ public class FillDaysOffActionProperty extends ScriptingActionProperty {
     }
 
     private void generateDates(ExecutionContext<ClassPropertyInterface> context, DataObject countryObject) throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
-        try (DataSession session = context.createSession()) {
+        try (ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
             Calendar current = Calendar.getInstance();
             int currentYear = current.get(Calendar.YEAR);
             //если проставлен выходной 1 января через 2 года, пропускаем генерацию
@@ -54,7 +53,7 @@ public class FillDaysOffActionProperty extends ScriptingActionProperty {
                 cal.add(Calendar.DAY_OF_MONTH, 1);
                 int day = cal.get(Calendar.DAY_OF_WEEK);
                 if (day == 1 || day == 7) {
-                    addDayOff(context, session, countryObject, cal.getTimeInMillis());
+                    addDayOff(newContext, countryObject, cal.getTimeInMillis());
                 }
             }
 
@@ -62,14 +61,14 @@ public class FillDaysOffActionProperty extends ScriptingActionProperty {
                 Calendar calendar = new GregorianCalendar(currentYear + i, 0, 1);
                 int day = calendar.get(Calendar.DAY_OF_WEEK);
                 if (day != 1 && day != 7)
-                    addDayOff(context, session, countryObject, calendar.getTimeInMillis());
+                    addDayOff(newContext, countryObject, calendar.getTimeInMillis());
             }
 
-            session.apply(context);
+            newContext.apply();
         }
     }
 
-    private void addDayOff(ExecutionContext<ClassPropertyInterface> context, DataSession session, DataObject countryObject, long timeInMillis) throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
-        context.getBL().getModule("Country").findProperty("isDayOff[Country,DATE]").change(true, session, countryObject, new DataObject(new java.sql.Date(timeInMillis), DateClass.instance));
+    private void addDayOff(ExecutionContext<ClassPropertyInterface> context, DataObject countryObject, long timeInMillis) throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
+        context.getBL().getModule("Country").findProperty("isDayOff[Country,DATE]").change(true, context, countryObject, new DataObject(new java.sql.Date(timeInMillis), DateClass.instance));
     }
 }

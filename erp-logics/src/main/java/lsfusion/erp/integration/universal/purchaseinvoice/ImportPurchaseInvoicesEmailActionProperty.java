@@ -10,6 +10,7 @@ import lsfusion.base.ExceptionUtils;
 import lsfusion.base.IOUtils;
 import lsfusion.base.Pair;
 import lsfusion.base.col.MapFact;
+import lsfusion.base.col.SetFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
@@ -28,6 +29,7 @@ import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.property.PropertyInterface;
+import lsfusion.server.logics.property.SessionDataProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
@@ -159,38 +161,38 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                                 boolean imported = true;
                                 for (Pair<String, byte[]> file : files) {
-                                    try (DataSession currentSession = context.createSession()) {
-                                        DataObject invoiceObject = multipleDocuments ? null : currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
+                                    try (ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
+                                        DataObject invoiceObject = multipleDocuments ? null : newContext.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
 
                                         try {
 
                                             boolean ignoreInvoicesAfterDocumentsClosedDate = findProperty("ignoreInvoicesAfterDocumentsClosedDate[]").read(session) != null;
-                                            int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context,
-                                                    currentSession, invoiceObject, importTypeObject, file.second, fileExtension,
+                                            int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(
+                                                    newContext, invoiceObject, importTypeObject, file.second, fileExtension,
                                                     settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN,
                                                     checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
 
                                             if(invoiceObject != null) {
-                                                findProperty("original[Purchase.Invoice]").change(new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, false)), currentSession, invoiceObject);
-                                                findProperty("currentInvoice[]").change(invoiceObject, currentSession);
+                                                findProperty("original[Purchase.Invoice]").change(new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, false)), newContext, invoiceObject);
+                                                findProperty("currentInvoice[]").change(invoiceObject, newContext);
                                             }
 
                                             boolean cancelSession = false;
-                                            String script = (String) findProperty("script[ImportType]").read(currentSession, importTypeObject);
+                                            String script = (String) findProperty("script[ImportType]").read(newContext, importTypeObject);
                                             if(script != null && !script.isEmpty()) {
-                                                findAction("executeScript[ImportType]").execute(currentSession, context.stack, importTypeObject);
-                                                cancelSession = findProperty("cancelSession[]").read(currentSession) != null;
+                                                findAction("executeScript[ImportType]").execute(newContext, importTypeObject);
+                                                cancelSession = findProperty("cancelSession[]").read(newContext) != null;
                                             }
 
-                                            findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
+                                            findAction("executeLocalEvents[TEXT]").execute(newContext, new DataObject("Purchase.UserInvoice"));
 
                                             if (importResult >= IMPORT_RESULT_OK) {
                                                 String result;
                                                 if(cancelSession) {
-                                                    currentSession.cancel(context.stack);
+                                                    newContext.cancel(SetFact.<SessionDataProperty>EMPTY());
                                                     result = "Session canceled";
-                                                } else
-                                                    result = currentSession.applyMessage(context);
+                                                } else 
+                                                    result = newContext.applyMessage();
 
                                                 if (result != null) {
                                                     importResult = IMPORT_RESULT_ERROR;
@@ -217,14 +219,14 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                 }
 
                                 if (imported) {
-                                    try (DataSession postImportSession = context.createSession()) {
-                                        findProperty("imported[AttachmentEmail]").change(true, postImportSession, (DataObject) attachmentEmailObject);
-                                        postImportSession.apply(context);
+                                    try (ExecutionContext.NewSession newContext = context.newSession()) {
+                                        findProperty("imported[AttachmentEmail]").change(true, newContext, (DataObject) attachmentEmailObject);
+                                        newContext.apply();
                                     }
                                 } else if (isOld) {
-                                    try (DataSession postImportSession = context.createSession()) {
-                                        findProperty("importError[AttachmentEmail]").change(true, postImportSession, (DataObject) attachmentEmailObject);
-                                        postImportSession.apply(context);
+                                    try (ExecutionContext.NewSession newContext = context.newSession()) {
+                                        findProperty("importError[AttachmentEmail]").change(true, newContext, (DataObject) attachmentEmailObject);
+                                        newContext.apply();
                                     }
                                 }
                             }
@@ -246,11 +248,11 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
     }
 
     private void logImportError(ExecutionContext context, ObjectValue attachmentEmailObject, String error, boolean isOld) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-        try (DataSession postImportSession = context.createSession()) {
-            findProperty("lastError[AttachmentEmail]").change(error, postImportSession, (DataObject) attachmentEmailObject);
+        try (ExecutionContext.NewSession newContext = context.newSession()) {
+            findProperty("lastError[AttachmentEmail]").change(error, newContext, (DataObject) attachmentEmailObject);
             if (isOld)
-                findProperty("importError[AttachmentEmail]").change(true, postImportSession, (DataObject) attachmentEmailObject);
-            postImportSession.apply(context);
+                findProperty("importError[AttachmentEmail]").change(true, newContext, (DataObject) attachmentEmailObject);
+            newContext.apply();
         }
     }
     

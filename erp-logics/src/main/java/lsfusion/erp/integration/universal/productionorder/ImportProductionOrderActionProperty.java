@@ -65,7 +65,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
                 ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(session, (DataObject) importTypeObject);
 
-                Map<String, ImportColumnDetail> importColumns = readImportColumns(context, session, importTypeObject).get(0);
+                Map<String, ImportColumnDetail> importColumns = readImportColumns(context, importTypeObject).get(0);
                 ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
                 String fileExtension = settings.getFileExtension();
 
@@ -78,7 +78,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
                         for (byte[] file : fileList) {
 
-                            makeImport(context, context.getSession(), orderObject, importColumns, file, settings, fileExtension, operationObject);
+                            makeImport(context, orderObject, importColumns, file, settings, fileExtension, operationObject);
 
                             context.apply();
                             
@@ -95,19 +95,19 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         }
     }
 
-    public boolean makeImport(ExecutionContext context, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject)
+    public boolean makeImport(ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject)
             throws ParseException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
         List<ProductionOrderDetail> orderDetailsList = importOrdersFromFile(orderObject, importColumns, file, fileExtension, settings.getStartRow(), settings.isPosted(), settings.getSeparator());
 
-        boolean importResult = importOrders(orderDetailsList, context, session, orderObject, importColumns, operationObject);
+        boolean importResult = importOrders(orderDetailsList, context, orderObject, importColumns, operationObject);
 
-        findAction("formRefresh[]").execute(session, context.stack);
+        findAction("formRefresh[]").execute(context);
 
         return importResult;
     }
 
-    public boolean importOrders(List<ProductionOrderDetail> orderDetailsList, ExecutionContext context, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, ObjectValue operationObject)
+    public boolean importOrders(List<ProductionOrderDetail> orderDetailsList, ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, ObjectValue operationObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (orderDetailsList != null && (orderObject !=null || showField(orderDetailsList, "idOrder"))) {
@@ -275,11 +275,9 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
             ImportTable table = new ImportTable(fields, data);
 
-            session.pushVolatileStats("POA_IO");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
+            IntegrationService service = new IntegrationService(context, table, keys, props);
             service.synchronize(true, false);
-            String result = session.applyMessage(context);
-            session.popVolatileStats();
+            String result = context.applyMessage();
 
             return result == null;
         }

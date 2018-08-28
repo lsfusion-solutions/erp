@@ -69,8 +69,7 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
                 String glnCustomerStock = (String) findProperty("glnCustomerStock[EInvoice]").read(context, eInvoiceObject);
                 boolean isCancel = findProperty("isCancel[EInvoice]").read(context, eInvoiceObject) != null;
 
-                try (DataSession session = context.createSession()) {
-
+                try {
                     //создаём BLRWBL, подписываем и отправляем
                     String blrwbl = createBLRWBL(context, eInvoiceObject, outputDir, documentNumber, documentDate, glnSupplier, glnCustomer, glnCustomerStock, isCancel);
                     String signedBLRWBL = signDocument("BLRWBL", referenceNumber, hostEDSService, portEDSService, blrwbl, aliasEDSService, passwordEDSService, charset);
@@ -78,10 +77,12 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
                         sendDocument(context, url, login, password, host, port, provider, referenceNumber, generateXML(login, password, referenceNumber,
                                 documentDate, glnSupplier, glnCustomer, glnCustomerStock, new String(Base64.encodeBase64(signedBLRWBL.getBytes())), "BLRWBL"),
                                 eInvoiceObject, true, isCancel, 1);
-                        findProperty("blrwbl[EInvoice]").change(documentNumber, session, eInvoiceObject);
-                        findProperty("blrwblDate[EInvoice]").change(new Timestamp(currentTime), session, eInvoiceObject);
+                        try (ExecutionContext.NewSession newContext = context.newSession()) {
+                            findProperty("blrwbl[EInvoice]").change(documentNumber, newContext, eInvoiceObject);
+                            findProperty("blrwblDate[EInvoice]").change(new Timestamp(currentTime), newContext, eInvoiceObject);
+                            newContext.apply();
+                        }
                     }
-                    session.apply(context);
                 } catch (Exception e) {
                     ServerLoggers.importLogger.error(String.format("%s SendEInvoice error", provider), e);
                     throw Throwables.propagate(e);

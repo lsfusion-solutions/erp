@@ -88,54 +88,54 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
                     String signedBLRWBR = signDocument("BLRWBR", referenceNumber, hostEDSService, portEDSService, blrwbr, aliasEDSService, passwordEDSService, charset);
 
                     if (signedBLRAPN != null && (signedBLRWBR != null || isCancel)) {
-                        try (DataSession session = context.createSession()) {
+                        try (ExecutionContext.NewSession newContext = context.newSession()) {
                             sendDocument(context, url, login, password, host, port, provider, referenceNumber, generateXML(login, password, referenceNumber,
                                     documentDate, glnCustomer, glnCustomer, glnCustomerStock, new String(Base64.encodeBase64(signedBLRAPN.getBytes())), "BLRAPN"),
                                     eInvoiceObject, isCancel, isCancel, 3);
-                            findProperty("blrapn[EInvoice]").change(documentNumberBLRAPN, session, eInvoiceObject);
+                            findProperty("blrapn[EInvoice]").change(documentNumberBLRAPN, newContext, eInvoiceObject);
 
                             if(signedBLRWBR != null) {
                                 sendDocument(context, url, login, password, host, port, provider, invoiceNumber, generateXML(login, password, referenceNumber,
                                         documentDate, glnCustomer, glnCustomer, glnCustomerStock, new String(Base64.encodeBase64(signedBLRWBR.getBytes())), "BLRWBL"),
                                         eInvoiceObject, true, isCancel, 3);
-                                findProperty("blrwbr[EInvoice]").change(documentNumberBLRWBR, session, eInvoiceObject);
+                                findProperty("blrwbr[EInvoice]").change(documentNumberBLRWBR, newContext, eInvoiceObject);
                             }
 
-                            session.apply(context);
+                            newContext.apply();
                         }
                     }
 
                 } else {
 
                     //создаём BLRAPN и BLRWBR
-                    try (DataSession session = context.createSession()) {
-                        byte[] blrapn = createBLRAPN(context, eInvoiceObject, documentNumberBLRAPN, documentDate, referenceNumber, referenceDate, glnCustomer);
-                        if (blrapn == null)
+                    byte[] blrapn = createBLRAPN(context, eInvoiceObject, documentNumberBLRAPN, documentDate, referenceNumber, referenceDate, glnCustomer);
+                    if (blrapn == null)
+                        return;
+                    xmls.add(blrapn);
+                    if (!isCancel) {
+                        byte[] blrwbr = createBLRWBR(context, eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, referenceDate, glnCustomer, glnCustomerStock);
+                        if (blrwbr == null)
                             return;
-                        xmls.add(blrapn);
-                        if (!isCancel) {
-                            byte[] blrwbr = createBLRWBR(context, eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, referenceDate, glnCustomer, glnCustomerStock);
-                            if (blrwbr == null)
-                                return;
-                            xmls.add(blrwbr);
-                        }
+                        xmls.add(blrwbr);
+                    }
 
-                        //Подписываем
-                        Object signResult = context.requestUserInteraction(new SignEDIClientAction(xmls, signerPathEDI, outputEDI, certificateEDI, passwordEDI));
+                    //Подписываем
+                    Object signResult = context.requestUserInteraction(new SignEDIClientAction(xmls, signerPathEDI, outputEDI, certificateEDI, passwordEDI));
 
-                        if (signResult instanceof List) {
+                    if (signResult instanceof List) {
 
-                            //Отправляем
-                            if (sendBLRAPN(context, url, login, password, host, port, provider, ((ArrayList) signResult).get(0), eInvoiceObject,
-                                    documentNumberBLRAPN, documentDate, invoiceNumber, glnCustomer, glnCustomerStock, isCancel)) {
-                                findProperty("blrapn[EInvoice]").change(documentNumberBLRAPN, session, eInvoiceObject);
+                        //Отправляем
+                        if (sendBLRAPN(context, url, login, password, host, port, provider, ((ArrayList) signResult).get(0), eInvoiceObject,
+                                documentNumberBLRAPN, documentDate, invoiceNumber, glnCustomer, glnCustomerStock, isCancel)) {
+                            try (ExecutionContext.NewSession newContext = context.newSession()) {
+                                findProperty("blrapn[EInvoice]").change(documentNumberBLRAPN, newContext, eInvoiceObject);
                                 if (!isCancel && sendBLRWBR(context, url, login, password, host, port, provider, ((ArrayList) signResult).get(1), eInvoiceObject, documentNumberBLRWBR, documentDate, invoiceNumber, glnCustomer, glnCustomerStock))
-                                    findProperty("blrwbr[EInvoice]").change(documentNumberBLRWBR, session, eInvoiceObject);
+                                    findProperty("blrwbr[EInvoice]").change(documentNumberBLRWBR, newContext, eInvoiceObject);
+                                newContext.apply();
                             }
-                            session.apply(context);
-                        } else {
-                            context.delayUserInteraction(new MessageClientAction((String) signResult, "Ошибка"));
                         }
+                    } else {
+                        context.delayUserInteraction(new MessageClientAction((String) signResult, "Ошибка"));
                     }
                 }
 

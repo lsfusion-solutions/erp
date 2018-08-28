@@ -118,7 +118,7 @@ public class ImportDeclarationAdjustmentXMLActionProperty extends DefaultImportA
                     properties.add(new ImportProperty(homeSumDeclarationAdjustmentField, findProperty("homeSum[DeclarationAdjustment, DeclarationDetail]").getMapping(declarationAdjustmentKey, declarationDetailKey)));
                     fields.add(homeSumDeclarationAdjustmentField);
 
-                    IntegrationService integrationService = new IntegrationService(context.getSession(), new ImportTable(fields, data), keys, properties);
+                    IntegrationService integrationService = new IntegrationService(context, new ImportTable(fields, data), keys, properties);
                     integrationService.synchronize(true, false);
                     context.requestUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт КТС"));
                 }

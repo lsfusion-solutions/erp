@@ -86,11 +86,11 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                         Boolean isError = (Boolean) entry.get(2);
                         if (isError)
                             error += message + "\n";
-                        try (DataSession session = context.createSession()) {
+                        try (ExecutionContext.NewSession newContext = context.newSession()) {
                             DataObject evatObject = new DataObject(evat, (ConcreteCustomClass) findClass("EVAT"));
-                            findProperty("result[EVAT]").change(message, session, evatObject);
-                            findProperty("exported[EVAT]").change(isError ? null : true, session, evatObject);
-                            String applyResult = session.applyMessage(context);
+                            findProperty("result[EVAT]").change(message, newContext, evatObject);
+                            findProperty("exported[EVAT]").change(isError ? null : true, newContext, evatObject);
+                            String applyResult = newContext.applyMessage();
                             if (applyResult != null)
                                 ServerLoggers.importLogger.info("EVAT: apply result: " + applyResult);
                         }
@@ -123,11 +123,11 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                         String number = (String) entry.get(3);
                         ServerLoggers.importLogger.info(String.format("EVAT %s: settings status started", number));
                         resultMessage += String.format("EVAT %s: %s\n", number, message);
-                        try (DataSession session = context.createSession()) {
+                        try (ExecutionContext.NewSession newContext = context.newSession()) {
                             DataObject evatObject = new DataObject(evat, (ConcreteCustomClass) findClass("EVAT"));
-                            findProperty("statusServerStatus[EVAT]").change(getServerStatusObject(status, number), session, evatObject);
-                            findProperty("result[EVAT]").change(message, session, evatObject);
-                            String applyResult = session.applyMessage(context);
+                            findProperty("statusServerStatus[EVAT]").change(getServerStatusObject(status, number), newContext, evatObject);
+                            findProperty("result[EVAT]").change(message, newContext, evatObject);
+                            String applyResult = newContext.applyMessage();
                             if (applyResult != null)
                                 resultMessage += String.format("EVAT %s: %s\n", number, applyResult);
                         }

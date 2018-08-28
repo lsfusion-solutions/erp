@@ -565,7 +565,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             ImportTable table = new ImportTable(fields, data);
 
-            IntegrationService service = new IntegrationService(context.getSession(), table, keys, props);
+            IntegrationService service = new IntegrationService(context, table, keys, props);
             service.synchronize(true, false);
             String result = null;
             if (apply)
@@ -669,7 +669,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             ImportTable table = new ImportTable(fields, data);
 
-            IntegrationService service = new IntegrationService(context.getSession(), table, keys, props);
+            IntegrationService service = new IntegrationService(context, table, keys, props);
             service.synchronize(true, false);
             String result = null;
             if (apply)

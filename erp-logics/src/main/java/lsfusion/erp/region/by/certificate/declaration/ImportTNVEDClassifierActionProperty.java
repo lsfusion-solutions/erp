@@ -40,7 +40,7 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
             if(findProperty("defaultCountry[]").read(context) == null) {
                 ObjectValue countryBelarus = findProperty("country[STRING[3]]").readClasses(context, new DataObject("112", StringClass.get(3)));
                 findProperty("defaultCountry[]").change(countryBelarus, context);
-                context.getSession().apply(context);
+                context.apply();
             }
 
             CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы DBF", "dbf");
@@ -121,11 +121,11 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
         ImportTable table = new ImportTable(Arrays.asList(codeCustomsGroupField, nameCustomsGroupField,
                 numberCustomsGroupField, nameCustomsZoneField, hasCodeCustomsGroupField, vatField, dateField), data);
 
-        try (DataSession session = context.createSession()) {
-            IntegrationService service = new IntegrationService(session, table,
+        try (ExecutionContext.NewSession newContext = context.newSession()) {
+            IntegrationService service = new IntegrationService(newContext, table,
                     Arrays.asList(customsGroupKey, customsZoneKey, VATKey), properties);
             service.synchronize(true, false);
-            session.apply(context);
+            newContext.apply();
         }
     }
 
@@ -181,11 +181,11 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
 
         ImportTable table = new ImportTable(Arrays.asList(groupIDField, parentIDField), data);
 
-        try (DataSession session = context.createSession()) {
-            IntegrationService service = new IntegrationService(session, table,
+        try (ExecutionContext.NewSession newContext = context.newSession()) {
+            IntegrationService service = new IntegrationService(newContext, table,
                     Arrays.asList(customsGroupKey, parentCustomsGroupKey), properties);
             service.synchronize(true, false);
-            session.apply(context);
+            newContext.apply();
         }
     }
 }

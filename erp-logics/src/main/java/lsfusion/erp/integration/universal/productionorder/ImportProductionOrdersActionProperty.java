@@ -63,7 +63,7 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
                 
                 ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(session, (DataObject) importTypeObject);
 
-                Map<String, ImportColumnDetail> importColumns = readImportColumns(context, session, importTypeObject).get(0);
+                Map<String, ImportColumnDetail> importColumns = readImportColumns(context, importTypeObject).get(0);
                 ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
                 String fileExtension = settings.getFileExtension();
                 
@@ -74,9 +74,9 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
 
                         for (File f : dir.listFiles()) {
                             if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
-                                try (DataSession currentSession = context.createSession()) {
+                                try(ExecutionContext.NewSession newContext = context.newSession()) {
                                     try {
-                                        boolean importResult = new ImportProductionOrderActionProperty(LM).makeImport(context, currentSession, null,
+                                        boolean importResult = new ImportProductionOrderActionProperty(LM).makeImport(newContext, null,
                                                 importColumns, IOUtils.getFileBytes(f), settings, fileExtension, operationObject);
 
                                         if (importResult)

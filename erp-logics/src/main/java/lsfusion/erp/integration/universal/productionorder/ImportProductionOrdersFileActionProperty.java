@@ -42,7 +42,7 @@ public class ImportProductionOrdersFileActionProperty extends ImportDocumentActi
 
                 ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(session, (DataObject) importTypeObject);
 
-                Map<String, ImportColumnDetail> importColumns = readImportColumns(context, session, importTypeObject).get(0);
+                Map<String, ImportColumnDetail> importColumns = readImportColumns(context, importTypeObject).get(0);
                 ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
                 String fileExtension = settings.getFileExtension();
 
@@ -55,7 +55,7 @@ public class ImportProductionOrdersFileActionProperty extends ImportDocumentActi
 
                         for (byte[] file : fileList) {
 
-                            new ImportProductionOrderActionProperty(LM).makeImport(context, context.getSession(), null, importColumns, file, settings, fileExtension, operationObject);
+                            new ImportProductionOrderActionProperty(LM).makeImport(context, null, importColumns, file, settings, fileExtension, operationObject);
 
                             context.apply();
                             

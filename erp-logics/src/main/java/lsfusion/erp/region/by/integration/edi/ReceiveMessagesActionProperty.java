@@ -474,12 +474,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportTable table = new ImportTable(fields, importData);
 
-            try (DataSession session = context.createSession()) {
-                session.pushVolatileStats("EDI_OM");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try (ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                message = session.applyMessage(context);
-                session.popVolatileStats();
+                message = newContext.applyMessage();
             } catch (Exception e) {
                 ServerLoggers.importLogger.error("ImportOrderMessages Error: ", e);
                 message = e.getMessage();
@@ -700,12 +698,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportTable table = new ImportTable(fields, importData);
 
-            try (DataSession session = context.createSession()) {
-                session.pushVolatileStats("EDI_OR");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try (ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                message = session.applyMessage(context);
-                session.popVolatileStats();
+                message = newContext.applyMessage();
             } catch (Exception e) {
                 ServerLoggers.importLogger.error("ImportOrderResponses Error: ", e);
                 message = e.getMessage();
@@ -912,12 +908,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportTable table = new ImportTable(fields, importData);
 
-            try (DataSession session = context.createSession()) {
-                session.pushVolatileStats("EDI_DA");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try (ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                message = session.applyMessage(context);
-                session.popVolatileStats();
+                message = newContext.applyMessage();
             } catch (Exception e) {
                 ServerLoggers.importLogger.error("ImportDespatchAdvice Error: ", e);
                 message = e.getMessage();
@@ -980,28 +974,28 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
 
-            try (DataSession session = context.createSession()) {
+            try (ExecutionContext.NewSession newContext = context.newSession()) {
 
-                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumberIsCancel[VARSTRING[28], INTEGER]").readClasses(session, new DataObject(blrwbl.deliveryNoteNumber), new DataObject(blrwbl.isCancel != null ? 1 : 0));
+                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumberIsCancel[VARSTRING[28], INTEGER]").readClasses(newContext, new DataObject(blrwbl.deliveryNoteNumber), new DataObject(blrwbl.isCancel != null ? 1 : 0));
                 if (eInvoiceObject instanceof NullValue) {
-                    eInvoiceObject = session.addObject((ConcreteCustomClass) findClass("EInvoice"));
+                    eInvoiceObject = newContext.addObject((ConcreteCustomClass) findClass("EInvoice"));
 
-                    findProperty("importedCustomer[EInvoice]").change(true, session, (DataObject) eInvoiceObject);
-                    findProperty("id[EInvoice]").change(blrwbl.id, session, (DataObject) eInvoiceObject);
-                    findProperty("number[EInvoice]").change(blrwbl.documentNumber, session, (DataObject) eInvoiceObject);
-                    findProperty("dateTime[EInvoice]").change(blrwbl.dateTime, session, (DataObject) eInvoiceObject);
-                    findProperty("deliveryNoteDateTime[EInvoice]").change(blrwbl.dateTime, session, (DataObject) eInvoiceObject);
-                    findProperty("deliveryNoteNumber[EInvoice]").change(blrwbl.deliveryNoteNumber, session, (DataObject) eInvoiceObject);
-                    findProperty("isCancel[EInvoice]").change(blrwbl.isCancel, session, (DataObject) eInvoiceObject);
+                    findProperty("importedCustomer[EInvoice]").change(true, newContext, (DataObject) eInvoiceObject);
+                    findProperty("id[EInvoice]").change(blrwbl.id, newContext, (DataObject) eInvoiceObject);
+                    findProperty("number[EInvoice]").change(blrwbl.documentNumber, newContext, (DataObject) eInvoiceObject);
+                    findProperty("dateTime[EInvoice]").change(blrwbl.dateTime, newContext, (DataObject) eInvoiceObject);
+                    findProperty("deliveryNoteDateTime[EInvoice]").change(blrwbl.dateTime, newContext, (DataObject) eInvoiceObject);
+                    findProperty("deliveryNoteNumber[EInvoice]").change(blrwbl.deliveryNoteNumber, newContext, (DataObject) eInvoiceObject);
+                    findProperty("isCancel[EInvoice]").change(blrwbl.isCancel, newContext, (DataObject) eInvoiceObject);
 
-                    ObjectValue supplierObject = findProperty("legalEntityStockGLN[VARSTRING[13]]").readClasses(session, new DataObject(blrwbl.supplierGLN));
-                    findProperty("supplier[EInvoice]").change(supplierObject, session, (DataObject) eInvoiceObject);
+                    ObjectValue supplierObject = findProperty("legalEntityStockGLN[VARSTRING[13]]").readClasses(newContext, new DataObject(blrwbl.supplierGLN));
+                    findProperty("supplier[EInvoice]").change(supplierObject, newContext, (DataObject) eInvoiceObject);
 
-                    ObjectValue customerObject = findProperty("legalEntityGLN[VARSTRING[13]]").readClasses(session, new DataObject(blrwbl.customerGLN));
-                    findProperty("customer[EInvoice]").change(customerObject, session, (DataObject) eInvoiceObject);
+                    ObjectValue customerObject = findProperty("legalEntityGLN[VARSTRING[13]]").readClasses(newContext, new DataObject(blrwbl.customerGLN));
+                    findProperty("customer[EInvoice]").change(customerObject, newContext, (DataObject) eInvoiceObject);
 
-                    ObjectValue customerStockObject = findProperty("companyStockGLN[VARSTRING[13]]").readClasses(session, new DataObject(blrwbl.customerStockGLN));
-                    findProperty("customerStock[EInvoice]").change(customerStockObject, session, (DataObject) eInvoiceObject);
+                    ObjectValue customerStockObject = findProperty("companyStockGLN[VARSTRING[13]]").readClasses(newContext, new DataObject(blrwbl.customerStockGLN));
+                    findProperty("customerStock[EInvoice]").change(customerStockObject, newContext, (DataObject) eInvoiceObject);
 
                     ImportField idEInvoiceDetailField = new ImportField(findProperty("id[EInvoiceDetail]"));
                     ImportKey<?> eInvoiceDetailKey = new ImportKey((CustomClass) findClass("EInvoiceDetail"),
@@ -1050,14 +1044,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
                     ImportTable table = new ImportTable(fields, importData);
 
-                    session.pushVolatileStats("EDI_DA");
-                    IntegrationService service = new IntegrationService(session, table, keys, props);
+                    IntegrationService service = new IntegrationService(newContext, table, keys, props);
                     service.synchronize(true, false);
-                    message = session.applyMessage(context);
-                    session.popVolatileStats();
+                    message = newContext.applyMessage();
                 } else {
-                    findProperty("importedCustomer[EInvoice]").change(true, session, (DataObject) eInvoiceObject);
-                    message = session.applyMessage(context);
+                    findProperty("importedCustomer[EInvoice]").change(true, newContext, (DataObject) eInvoiceObject);
+                    message = newContext.applyMessage();
                 }
             } catch (Exception e) {
                 ServerLoggers.importLogger.error("ImportEInvoice Error: ", e);
@@ -1173,12 +1165,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportTable table = new ImportTable(fields, importData);
 
-            try (DataSession session = context.createSession()) {
-                session.pushVolatileStats("EDI_IM");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try (ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                message = session.applyMessage(context);
-                session.popVolatileStats();
+                message = newContext.applyMessage();
             } catch (Exception e) {
                 ServerLoggers.importLogger.error("ImportInvoiceMessages Error: ", e);
                 message = e.getMessage();
@@ -1191,22 +1181,22 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         String message = null;
         if (invoiceMessage != null && invoiceMessage.invoiceNumber != null) {
 
-            try (DataSession session = context.createSession()) {
+            try (ExecutionContext.NewSession newContext = context.newSession()) {
 
-                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumber[VARSTRING[24]]").readClasses(session, new DataObject(invoiceMessage.invoiceNumber));
+                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumber[VARSTRING[24]]").readClasses(newContext, new DataObject(invoiceMessage.invoiceNumber));
                 if (eInvoiceObject instanceof DataObject) {
 
-                    ObjectValue eInvoiceMessageObject = findProperty("eInvoiceMessage[VARSTRING[24]]").readClasses(session, new DataObject(invoiceMessage.documentNumber));
+                    ObjectValue eInvoiceMessageObject = findProperty("eInvoiceMessage[VARSTRING[24]]").readClasses(newContext, new DataObject(invoiceMessage.documentNumber));
                     if (eInvoiceMessageObject instanceof NullValue) {
-                        eInvoiceMessageObject = session.addObject((ConcreteCustomClass) findClass("EInvoiceMessage"));
-                        findProperty("number[EInvoiceMessage]").change(invoiceMessage.documentNumber, session, (DataObject) eInvoiceMessageObject);
+                        eInvoiceMessageObject = newContext.addObject((ConcreteCustomClass) findClass("EInvoiceMessage"));
+                        findProperty("number[EInvoiceMessage]").change(invoiceMessage.documentNumber, newContext, (DataObject) eInvoiceMessageObject);
                     }
-                    findProperty("dateTime[EInvoiceMessage]").change(invoiceMessage.dateTime, session, (DataObject) eInvoiceMessageObject);
-                    findProperty("code[EInvoiceMessage]").change(invoiceMessage.code, session, (DataObject) eInvoiceMessageObject);
-                    findProperty("description[EInvoiceMessage]").change(invoiceMessage.description, session, (DataObject) eInvoiceMessageObject);
-                    findProperty("eInvoice[EInvoiceMessage]").change(eInvoiceObject, session, (DataObject) eInvoiceMessageObject);
+                    findProperty("dateTime[EInvoiceMessage]").change(invoiceMessage.dateTime, newContext, (DataObject) eInvoiceMessageObject);
+                    findProperty("code[EInvoiceMessage]").change(invoiceMessage.code, newContext, (DataObject) eInvoiceMessageObject);
+                    findProperty("description[EInvoiceMessage]").change(invoiceMessage.description, newContext, (DataObject) eInvoiceMessageObject);
+                    findProperty("eInvoice[EInvoiceMessage]").change(eInvoiceObject, newContext, (DataObject) eInvoiceMessageObject);
 
-                    message = session.applyMessage(context);
+                    message = newContext.applyMessage();
                 }
             } catch (Exception e) {
                 ServerLoggers.importLogger.error("importInvoiceSystemMessage Error: ", e);

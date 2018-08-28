@@ -87,12 +87,10 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
 
         ImportTable table = new ImportTable(fields, data);
 
-        try (DataSession session = context.createSession()) {
-            session.pushVolatileStats("IE_IM");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
+        try (ExecutionContext.NewSession newContext = context.newSession()) {
+            IntegrationService service = new IntegrationService(newContext, table, keys, props);
             service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
+            newContext.apply();
         }
     }
 
@@ -161,12 +159,10 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
 
         ImportTable table = new ImportTable(fields, data);
 
-        try (DataSession session = context.createSession()) {
-            session.pushVolatileStats("IE_PL");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
+        try (ExecutionContext.NewSession newContext = context.newSession()) {
+            IntegrationService service = new IntegrationService(newContext, table, keys, props);
             service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
+            newContext.apply();
         }
     }
 

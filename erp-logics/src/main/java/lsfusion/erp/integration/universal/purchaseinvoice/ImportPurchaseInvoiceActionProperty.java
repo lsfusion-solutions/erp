@@ -8,6 +8,7 @@ import lsfusion.base.BaseUtils;
 import lsfusion.base.IOUtils;
 import lsfusion.base.Pair;
 import lsfusion.base.col.MapFact;
+import lsfusion.base.col.SetFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
@@ -28,6 +29,7 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.property.SessionDataProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
@@ -85,7 +87,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 String[] splittedFieldImportType = nameFieldImportType == null ? null : nameFieldImportType.split("\\.");
                 String staticNameImportType = splittedFieldImportType == null ? null : splittedFieldImportType[splittedFieldImportType.length - 1];
                 
-                List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(context, session, importTypeObject);
+                List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(context, importTypeObject);
                 Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, checkInvoiceExistence);
 
                 ImportDocumentSettings importSettings = readImportDocumentSettings(session, importTypeObject);
@@ -100,7 +102,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                         for (byte[] file : fileList) {
 
-                            List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, session,
+                            List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, 
                                     userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence,
                                     file, fileExtension, importSettings, staticNameImportType, staticCaptionImportType);
 
@@ -108,7 +110,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                             if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 1) {
                                 if(notNullNorEmpty(userInvoiceDetailData.get(0)))
                                     needToApply = true;
-                                Pair<Integer, DataObject> result = importUserInvoices(userInvoiceDetailData.get(0), context, session, importColumns.get(0),
+                                Pair<Integer, DataObject> result = importUserInvoices(userInvoiceDetailData.get(0), context, importColumns.get(0),
                                         importColumns.get(1), userInvoiceObject, importSettings.getPrimaryKeyType(), importSettings.getCountryKeyType(),
                                         operationObject, supplierObject, supplierStockObject, customerObject,
                                         customerStockObject, false);
@@ -119,7 +121,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                             if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 2) {
                                 if(notNullNorEmpty(userInvoiceDetailData.get(1)))
                                     needToApply = true;
-                                Pair<Integer, DataObject> result = importUserInvoices(userInvoiceDetailData.get(1), context, session, importColumns.get(0),
+                                Pair<Integer, DataObject> result = importUserInvoices(userInvoiceDetailData.get(1), context, importColumns.get(0),
                                         importColumns.get(1), userInvoiceObject, importSettings.getSecondaryKeyType(), importSettings.getCountryKeyType(),
                                         operationObject, supplierObject, supplierStockObject, customerObject,
                                         customerStockObject, false);
@@ -142,9 +144,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                             if(needToApply) {
                                 if(cancelSession)
-                                    session.cancel(context.stack);
-                                else
-                                    session.apply(context);
+                                    context.cancel(SetFact.<SessionDataProperty>EMPTY());
+                                else 
+                                    context.apply();
                             }
 
                             findAction("formRefresh[]").execute(context);
@@ -160,15 +162,15 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         }
     }
 
-    public int makeImport(ExecutionContext<ClassPropertyInterface> context, DataSession session, DataObject userInvoiceObject,
+    public int makeImport(ExecutionContext<ClassPropertyInterface> context, DataObject userInvoiceObject,
                           DataObject importTypeObject, byte[] file, String fileExtension, ImportDocumentSettings importSettings,
                           String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN,
                           boolean checkInvoiceExistence, boolean ignoreInvoicesAfterDocumentsClosedDate)
             throws SQLHandledException, ParseException, UniversalImportException, IOException, SQLException, BiffException,
             xBaseJException, ScriptingErrorLog.SemanticErrorException {
         
-        List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(context, session, importTypeObject);
-        Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, checkInvoiceExistence);
+        List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(context, importTypeObject);
+        Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(context.getSession(), checkInvoiceExistence);
 
         ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);
         ObjectValue supplierObject = findProperty("autoImportSupplier[ImportType]").readClasses(context, (DataObject) importTypeObject);
@@ -176,17 +178,17 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         ObjectValue customerObject = findProperty("autoImportCustomer[ImportType]").readClasses(context, (DataObject) importTypeObject);
         ObjectValue customerStockObject = findProperty("autoImportCustomerStock[ImportType]").readClasses(context, (DataObject) importTypeObject);
 
-        List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, session,
+        List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context,
                 userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence, file, fileExtension,
                 importSettings, staticNameImportType, staticCaptionImportType);
 
         Integer result1 = (userInvoiceDetailData == null || userInvoiceDetailData.size() < 1) ? IMPORT_RESULT_EMPTY :
-            importUserInvoices(userInvoiceDetailData.get(0), context, session, importColumns.get(0), importColumns.get(1),
+            importUserInvoices(userInvoiceDetailData.get(0), context, importColumns.get(0), importColumns.get(1),
                     userInvoiceObject, importSettings.getPrimaryKeyType(), importSettings.getCountryKeyType(), operationObject, supplierObject,
                     supplierStockObject, customerObject, customerStockObject, ignoreInvoicesAfterDocumentsClosedDate).first;
 
         Integer result2 = (userInvoiceDetailData == null || userInvoiceDetailData.size() < 2) ? IMPORT_RESULT_EMPTY :
-            importUserInvoices(userInvoiceDetailData.get(1), context, session, importColumns.get(0), importColumns.get(1),
+            importUserInvoices(userInvoiceDetailData.get(1), context, importColumns.get(0), importColumns.get(1),
                     userInvoiceObject, importSettings.getSecondaryKeyType(), importSettings.getCountryKeyType(), operationObject, supplierObject,
                     supplierStockObject, customerObject, customerStockObject, ignoreInvoicesAfterDocumentsClosedDate).first;
 
@@ -197,7 +199,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         else return result1 + result2;
     }
 
-    public Pair<Integer, DataObject> importUserInvoices(List<PurchaseInvoiceDetail> userInvoiceDetailsList, ExecutionContext context, DataSession session,
+    public Pair<Integer, DataObject> importUserInvoices(List<PurchaseInvoiceDetail> userInvoiceDetailsList, ExecutionContext context,
                                   LinkedHashMap<String, ImportColumnDetail> defaultColumns, LinkedHashMap<String, ImportColumnDetail> customColumns,
                                   DataObject userInvoiceObject, String keyType, String countryKeyType, ObjectValue operationObject,
                                   ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject,
@@ -244,7 +246,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).idUserInvoice);
                 } else if (userInvoiceObject == null) {
-                    userInvoiceObject = session.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
+                    userInvoiceObject = context.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
                 }
                 Object invoiceKey = multipleInvoices ? userInvoiceKey : userInvoiceObject;
 
@@ -535,7 +537,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                         countryData.add(Collections.singletonList(country));
                     }
 
-                    new IntegrationService(session, new ImportTable(Collections.singletonList(countryIdImportCodeField), countryData), Arrays.asList(countryKey, importCodeKey), countryProps).synchronize(true, false);
+                    new IntegrationService(context, new ImportTable(Collections.singletonList(countryIdImportCodeField), countryData), Arrays.asList(countryKey, importCodeKey), countryProps).synchronize(true, false);
                 }
 
 
@@ -821,10 +823,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                 ImportTable table = new ImportTable(fields, data);
 
-                session.pushVolatileStats("PIA_UI");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+                IntegrationService service = new IntegrationService(context, table, keys, props);
                 service.synchronize(true, false);
-                session.popVolatileStats();
                 return Pair.create(IMPORT_RESULT_OK, userInvoiceObject);
             } else {
                 return Pair.create(IMPORT_RESULT_DOCUMENTS_CLOSED_DATE, userInvoiceObject);
@@ -844,7 +844,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         }
     }
 
-    protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(ExecutionContext context, DataSession session, DataObject userInvoiceObject,
+    protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(ExecutionContext context, DataObject userInvoiceObject,
                                                                            Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, 
                                                                            Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN, boolean checkInvoiceExistence,
                                                                            byte[] file, String fileExtension, ImportDocumentSettings importSettings,
@@ -871,23 +871,23 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
         switch (fileExtension) {
             case "DBF":
-                userInvoiceDetailsList = importUserInvoicesFromDBF(context, session, file, defaultColumns, customColumns,
+                userInvoiceDetailsList = importUserInvoicesFromDBF(context, file, defaultColumns, customColumns,
                         stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence,
                         importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
                 break;
             case "XLS":
-                userInvoiceDetailsList = importUserInvoicesFromXLS(context, session, file, defaultColumns, customColumns,
+                userInvoiceDetailsList = importUserInvoicesFromXLS(context, file, defaultColumns, customColumns,
                         stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence,
                         importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
                 break;
             case "XLSX":
-                userInvoiceDetailsList = importUserInvoicesFromXLSX(context, session, file, defaultColumns, customColumns,
+                userInvoiceDetailsList = importUserInvoicesFromXLSX(context, file, defaultColumns, customColumns,
                         stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence,
                         importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
                 break;
             case "CSV":
             case "TXT":
-                userInvoiceDetailsList = importUserInvoicesFromCSV(context, session, file, defaultColumns, customColumns,
+                userInvoiceDetailsList = importUserInvoicesFromCSV(context, file, defaultColumns, customColumns,
                         stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence,
                         importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
                 break;
@@ -899,7 +899,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         return userInvoiceDetailsList;
     }
 
-    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(ExecutionContext context, DataSession session, byte[] importFile, 
+    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(ExecutionContext context, byte[] importFile, 
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                         List<String> stringFields, List<String> bigDecimalFields,  List<String> dateFields, List<String> timeFields,
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
@@ -950,7 +950,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     case "idCustomerStock":
                         value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
                         fieldValues.put("idCustomerStock", value);
-                        fieldValues.put("idCustomer", readIdCustomer(session, value));
+                        fieldValues.put("idCustomer", readIdCustomer(context.getSession(), value));
                         break;
                     default:
                         fieldValues.put(field, value);
@@ -1020,7 +1020,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                 String primaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
                 String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), session, importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context.getSession(), importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
                     primaryList.add(purchaseInvoiceDetail);
                 else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
                     secondaryList.add(purchaseInvoiceDetail);
@@ -1028,11 +1028,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         }
         currentTimestamp = null;
 
-        return checkArticles(context, session, importSettings.getPropertyImportType(), staticNameImportType, staticCaptionImportType,
+        return checkArticles(context, importSettings.getPropertyImportType(), staticNameImportType, staticCaptionImportType,
                 primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
-    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(ExecutionContext context, DataSession session, byte[] importFile, 
+    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(ExecutionContext context, byte[] importFile, 
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                         List<String> stringFields, List<String> bigDecimalFields,  List<String> dateFields, List<String> timeFields,
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
@@ -1078,7 +1078,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     case "idCustomerStock":
                         value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
                         fieldValues.put("idCustomerStock", value);
-                        fieldValues.put("idCustomer", readIdCustomer(session, value));
+                        fieldValues.put("idCustomer", readIdCustomer(context.getSession(), value));
                         break;
                     default:
                         fieldValues.put(field, value);
@@ -1147,7 +1147,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                 String primaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(primaryKeyColumn), count);
                 String secondaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(secondaryKeyColumn), count);
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), session,
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context.getSession(),
                         importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
                     primaryList.add(purchaseInvoiceDetail);
                 else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
@@ -1156,11 +1156,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         }
         currentTimestamp = null;
 
-        return checkArticles(context, session, importSettings.getPropertyImportType(), staticNameImportType, staticCaptionImportType, 
+        return checkArticles(context, importSettings.getPropertyImportType(), staticNameImportType, staticCaptionImportType, 
                 primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
-    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(ExecutionContext context, DataSession session, byte[] importFile, 
+    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(ExecutionContext context, byte[] importFile, 
                                                                          Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, 
                                                                          List<String> stringFields, List<String> bigDecimalFields,  List<String> dateFields, List<String> timeFields,
                                                                          Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
@@ -1201,7 +1201,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     case "idCustomerStock":
                         value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
                         fieldValues.put("idCustomerStock", value);
-                        fieldValues.put("idCustomer", readIdCustomer(session, value));
+                        fieldValues.put("idCustomer", readIdCustomer(context.getSession(), value));
                         break;
                     default:
                         fieldValues.put(field, value);
@@ -1271,7 +1271,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
                 String secondaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
                 if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(),
-                        session, importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
+                        context.getSession(), importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
                     primaryList.add(purchaseInvoiceDetail);
                 else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
                     primaryList.add(purchaseInvoiceDetail);
@@ -1279,11 +1279,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         }
         currentTimestamp = null;
 
-        return checkArticles(context, session, importSettings.getPropertyImportType(), staticNameImportType, staticCaptionImportType, 
+        return checkArticles(context, importSettings.getPropertyImportType(), staticNameImportType, staticCaptionImportType, 
                 primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
-    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(ExecutionContext context, DataSession session, byte[] importFile, 
+    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(ExecutionContext context, byte[] importFile, 
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                         List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
@@ -1340,7 +1340,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                         case "idCustomerStock":
                             value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
                             fieldValues.put("idCustomerStock", value);
-                            fieldValues.put("idCustomer", readIdCustomer(session, value));
+                            fieldValues.put("idCustomer", readIdCustomer(context.getSession(), value));
                             break;
                         default:
                             fieldValues.put(field, value);
@@ -1410,7 +1410,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                     String primaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(primaryKeyColumn), i, charset);
                     String secondaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(secondaryKeyColumn), i, charset);
-                    if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), session,
+                    if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context.getSession(),
                             importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
                         primaryList.add(purchaseInvoiceDetail);
                     else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
@@ -1427,7 +1427,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 tempFile.deleteOnExit();
         }
        
-        return checkArticles(context, session, importSettings.getPropertyImportType(), staticNameImportType, staticCaptionImportType, 
+        return checkArticles(context, importSettings.getPropertyImportType(), staticNameImportType, staticCaptionImportType, 
                 primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
@@ -1435,7 +1435,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         return !checkInvoiceExistence || !invoiceSet.contains(idInvoice);
     }
 
-    private boolean checkArticles(ExecutionContext context, DataSession session, String propertyImportType, String staticNameImportType, 
+    private boolean checkArticles(ExecutionContext context, String propertyImportType, String staticNameImportType, 
                                   String staticCaptionImportType, List<PurchaseInvoiceDetail> primaryList, List<PurchaseInvoiceDetail> secondaryList)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (propertyImportType != null) {
@@ -1444,7 +1444,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 ScriptingLogicsModule itemArticleLM = context.getBL().getModule("ItemArticle");
                 LCP<?> idArticleProp = itemArticleLM.findProperty("id[Article]");
 
-                List<Object> articles = getArticlesMap(session, idArticleProp, sidProp);
+                List<Object> articles = getArticlesMap(context.getSession(), idArticleProp, sidProp);
                 Set<String> articleSet = (Set<String>) articles.get(0);
                 Map<String, String> articlePropertyMap = (Map<String, String>) articles.get(1);
                 Map<String, Object[]> duplicateArticles = new HashMap<>();

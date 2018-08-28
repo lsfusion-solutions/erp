@@ -145,21 +145,19 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
                 ImportTable table = new ImportTable(fields, data);
 
-                try(DataSession session = context.createSession()) {
-                    session.pushVolatileStats("EO_PL");
-                    IntegrationService service = new IntegrationService(session, table, keys, props);
+                try(ExecutionContext.NewSession newContext = context.newSession()) {
+                    IntegrationService service = new IntegrationService(newContext, table, keys, props);
                     service.synchronize(true, false);
-                    session.apply(context);
-                    session.popVolatileStats();
+                    newContext.apply();
                 }
             }
         }
     }
 
     private void finishImportOrder(ExecutionContext context, DataObject orderObject) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-        try (DataSession session = context.createSession()) {
-            findProperty("importedOrder[AttachmentEmail]").change(true, session, (DataObject) orderObject);
-            session.apply(context);
+        try(ExecutionContext.NewSession newContext = context.newSession()) {
+            findProperty("importedOrder[AttachmentEmail]").change(true, newContext, (DataObject) orderObject);
+            newContext.apply();
         }
     }
 

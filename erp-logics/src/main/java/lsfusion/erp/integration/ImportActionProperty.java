@@ -75,7 +75,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ObjectValue countryBelarus = findProperty("country[STRING[3]]").readClasses(context.getSession(), new DataObject("112", StringClass.get(3)));
             findProperty("defaultCountry[]").change(countryBelarus, context.getSession());
-            context.getSession().apply(context);
+            context.apply();
 
             importItemGroups(importData.getItemGroupsList());
 
@@ -147,12 +147,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            try (DataSession session = context.createSession()) {
-                session.pushVolatileStats("IA_PG");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try(ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
+                newContext.apply();
             }
         }
     }
@@ -186,12 +184,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            try(DataSession session = context.createSession()) {
-                session.pushVolatileStats("IA_IG");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try(ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
+                newContext.apply();
             }
         }
     }
@@ -231,12 +227,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            try(DataSession session = context.createSession()) {
-                session.pushVolatileStats("IA_WRE");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try(ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
+                newContext.apply();
             }
         }
     }
@@ -293,12 +287,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         ImportTable table = new ImportTable(fields, data);
 
-        try (DataSession session = context.createSession()) {
-            session.pushVolatileStats("IA_UOM");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
+        try(ExecutionContext.NewSession newContext = context.newSession()) {
+            IntegrationService service = new IntegrationService(newContext, table, keys, props);
             service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
+            newContext.apply();
         }
     }
 
@@ -635,12 +627,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         ImportTable table = new ImportTable(fields, data);
 
-        try (DataSession session = context.createSession()) {
-            session.pushVolatileStats("IA_POI");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
+        try(ExecutionContext.NewSession newContext = context.newSession()) {
+            IntegrationService service = new IntegrationService(newContext, table, keys, props);
             service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
+            newContext.apply();
         }
     }
 
@@ -1125,12 +1115,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ImportTable table = new ImportTable(fields, data);
 
-                try(DataSession session = context.createSession()) {
-                    session.pushVolatileStats("IA_UI");
-                    IntegrationService service = new IntegrationService(session, table, keys, props);
+                try(ExecutionContext.NewSession newContext = context.newSession()) {
+                    IntegrationService service = new IntegrationService(newContext, table, keys, props);
                     service.synchronize(true, false);
-                    session.apply(context);
-                    session.popVolatileStats();
+                    newContext.apply();
                 }
             }
         }
@@ -1153,16 +1141,15 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ServerLoggers.importLogger.info("importPriceListStores " + dataPriceListStores.size());
 
-                try (DataSession session = context.createSession()) {
-                    session.pushVolatileStats("IA_PLSE");
+                try(ExecutionContext.NewSession newContext = context.newSession()) {
 
-                    ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[VARSTRING[100]]").readClasses(session, new DataObject("Coordinated", StringClass.get(100)));
+                    ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[VARSTRING[100]]").readClasses(newContext, new DataObject("Coordinated", StringClass.get(100)));
                     if (dataPriceListTypeObject instanceof NullValue) {
-                        dataPriceListTypeObject = session.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
-                        ObjectValue defaultCurrency = findProperty("currencyShortName[STRING[3]]").readClasses(session, new DataObject("BYN", StringClass.get(3)));
-                        findProperty("name[PriceListType]").change("Поставщика (согласованная)", session, (DataObject) dataPriceListTypeObject);
-                        findProperty("currency[DataPriceListType]").change(defaultCurrency, session, (DataObject) dataPriceListTypeObject);
-                        findProperty("id[DataPriceListType]").change("Coordinated", session, (DataObject) dataPriceListTypeObject);
+                        dataPriceListTypeObject = newContext.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
+                        ObjectValue defaultCurrency = findProperty("currencyShortName[STRING[3]]").readClasses(newContext, new DataObject("BYN", StringClass.get(3)));
+                        findProperty("name[PriceListType]").change("Поставщика (согласованная)", newContext, (DataObject) dataPriceListTypeObject);
+                        findProperty("currency[DataPriceListType]").change(defaultCurrency, newContext, (DataObject) dataPriceListTypeObject);
+                        findProperty("id[DataPriceListType]").change("Coordinated", newContext, (DataObject) dataPriceListTypeObject);
                     }
 
                     List<ImportProperty<?>> props = new ArrayList<>();
@@ -1244,10 +1231,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                     ImportTable table = new ImportTable(fields, data);
 
-                    IntegrationService service = new IntegrationService(session, table, keys, props);
+                    IntegrationService service = new IntegrationService(newContext, table, keys, props);
                     service.synchronize(true, false);
-                    session.apply(context);
-                    session.popVolatileStats();
+                    newContext.apply();
                 }
             }
         }
@@ -1270,16 +1256,14 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ServerLoggers.importLogger.info("importPriceListSuppliers " + dataPriceListSuppliers.size());
 
-                try (DataSession session = context.createSession()) {
-                    session.pushVolatileStats("IA_PLSR");
-
-                    ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[VARSTRING[100]]").readClasses(session, new DataObject("Offered", StringClass.get(100)));
+                try (ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
+                    ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[VARSTRING[100]]").readClasses(newContext, new DataObject("Offered", StringClass.get(100)));
                     if (dataPriceListTypeObject instanceof NullValue) {
-                        dataPriceListTypeObject = session.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
-                        ObjectValue defaultCurrency = findProperty("currencyShortName[STRING[3]]").readClasses(session, new DataObject("BYN", StringClass.get(3)));
-                        findProperty("name[PriceListType]").change("Поставщика (предлагаемая)", session, (DataObject) dataPriceListTypeObject);
-                        findProperty("currency[DataPriceListType]").change(defaultCurrency, session, (DataObject) dataPriceListTypeObject);
-                        findProperty("id[DataPriceListType]").change("Offered", session, (DataObject) dataPriceListTypeObject);
+                        dataPriceListTypeObject = newContext.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
+                        ObjectValue defaultCurrency = findProperty("currencyShortName[STRING[3]]").readClasses(newContext, new DataObject("BYN", StringClass.get(3)));
+                        findProperty("name[PriceListType]").change("Поставщика (предлагаемая)", newContext, (DataObject) dataPriceListTypeObject);
+                        findProperty("currency[DataPriceListType]").change(defaultCurrency, newContext, (DataObject) dataPriceListTypeObject);
+                        findProperty("id[DataPriceListType]").change("Offered", newContext, (DataObject) dataPriceListTypeObject);
                     }
 
                     List<ImportProperty<?>> props = new ArrayList<>();
@@ -1353,10 +1337,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                     ImportTable table = new ImportTable(fields, data);
 
-                    IntegrationService service = new IntegrationService(session, table, keys, props);
+                    IntegrationService service = new IntegrationService(newContext, table, keys, props);
                     service.synchronize(true, false);
-                    session.apply(context);
-                    session.popVolatileStats();
+                    newContext.apply();
                 }
             }
         }
@@ -1536,12 +1519,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
             
             ImportTable table = new ImportTable(fields, data);
 
-            try(DataSession session = context.createSession()) {
-                session.pushVolatileStats("IA_LE");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try(ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
+                newContext.apply();
             }
         }
     }
@@ -1598,12 +1579,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            try(DataSession session = context.createSession()) {
-                session.pushVolatileStats("IA_EE");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try(ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
+                newContext.apply();
             }
         }
     }
@@ -1637,12 +1616,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            try(DataSession session = context.createSession()) {
-                session.pushVolatileStats("IA_WG");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try(ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
+                newContext.apply();
             }
         }
     }
@@ -1703,12 +1680,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            try(DataSession session = context.createSession()) {
-                session.pushVolatileStats("IA_WE");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try(ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
+                newContext.apply();
             }
         }
     }
@@ -1780,12 +1755,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            try (DataSession session = context.createSession()) {
-                session.pushVolatileStats("IA_SE");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try(ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
+                newContext.apply();
             }
         }
     }
@@ -1829,12 +1802,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            try(DataSession session = context.createSession()) {
-                session.pushVolatileStats("IA_DS");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try(ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
+                newContext.apply();
             }
         }
     }
@@ -1892,12 +1863,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            try (DataSession session = context.createSession()) {
-                session.pushVolatileStats("IA_BK");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try(ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
+                newContext.apply();
             }
         }
     }
@@ -1947,12 +1916,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            try (DataSession session = context.createSession()) {
-                session.pushVolatileStats("IA_RW");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try(ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
+                newContext.apply();
             }
         }
     }
@@ -2030,12 +1997,10 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            try(DataSession session = context.createSession()) {
-                session.pushVolatileStats("IA_CT");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
+            try(ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
+                newContext.apply();
             }
         }
     }

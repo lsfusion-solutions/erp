@@ -55,7 +55,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         skuImportCodeLM = context.getBL().getModule("SkuImportCode");
     }
 
-    protected List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(ExecutionContext context, DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         LinkedHashMap<String, ImportColumnDetail> defaultColumns = new LinkedHashMap<>();
         LinkedHashMap<String, ImportColumnDetail> customColumns = new LinkedHashMap<>();
@@ -71,7 +71,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         query.addProperty("replaceOnlyNullImportTypeImportTypeDetail", findProperty("replaceOnlyNull[ImportType,ImportTypeDetail]").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
         query.addProperty("indexImportTypeImportTypeDetail", findProperty("index[ImportType,ImportTypeDetail]").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
         query.and(findProperty("index[ImportType,ImportTypeDetail]").getExpr(importTypeObject.getExpr(), importTypeDetailExpr).getWhere());
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
 

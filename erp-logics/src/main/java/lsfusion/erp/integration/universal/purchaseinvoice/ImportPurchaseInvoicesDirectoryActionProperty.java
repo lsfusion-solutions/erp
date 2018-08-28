@@ -70,13 +70,13 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                         if (listFiles != null) {
                             for (File f : listFiles) {
                                 if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
-                                    try (DataSession currentSession = context.createSession()) {
-                                        DataObject invoiceObject = multipleDocuments ? null : currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
+                                    try (ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
+                                        DataObject invoiceObject = multipleDocuments ? null : newContext.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
                                         try {
 
-                                            findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
+                                            findAction("executeLocalEvents[TEXT]").execute(newContext, new DataObject("Purchase.UserInvoice"));
 
-                                            int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
+                                            int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(newContext, invoiceObject,
                                                     importTypeObject, IOUtils.getFileBytes(f), fileExtension, settings, staticNameImportType, staticCaptionImportType,
                                                     completeIdItemAsEAN, false, false);
 
@@ -87,7 +87,7 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                                             ServerLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
                                         }
 
-                                        currentSession.apply(context);
+                                        newContext.apply();
                                     }
                                 }
                             }

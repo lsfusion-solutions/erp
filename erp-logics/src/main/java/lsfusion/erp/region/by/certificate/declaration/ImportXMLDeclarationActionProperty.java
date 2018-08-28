@@ -128,7 +128,7 @@ public class ImportXMLDeclarationActionProperty extends DefaultImportActionPrope
                         properties.add(new ImportProperty(nameUOMField, findProperty("shortName[UOM]").getMapping(UOMKey)));
                         fields.add(nameUOMField);
 
-                        IntegrationService integrationService = new IntegrationService(context.getSession(), new ImportTable(fields, declaration.data), keys, properties);
+                        IntegrationService integrationService = new IntegrationService(context, new ImportTable(fields, declaration.data), keys, properties);
                         integrationService.synchronize(true, false);
 
                         if (declaration.declarationDate != null)

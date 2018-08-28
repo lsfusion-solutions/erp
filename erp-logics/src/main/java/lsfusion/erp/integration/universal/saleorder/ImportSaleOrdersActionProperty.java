@@ -68,7 +68,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                 ObjectValue customerObject = entryValue.get("autoImportCustomerImportType");
                 ObjectValue customerStockObject = entryValue.get("autoImportCustomerStockImportType");
 
-                Map<String, ImportColumnDetail> importColumns = readImportColumns(context, session, importTypeObject).get(0);
+                Map<String, ImportColumnDetail> importColumns = readImportColumns(context, importTypeObject).get(0);
                 ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
                 String fileExtension = settings.getFileExtension();
 
@@ -80,12 +80,12 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                         if(files != null) {
                             for (File f : files) {
                                 if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
-                                    try (DataSession currentSession = context.createSession()) {
-                                        DataObject orderObject = currentSession.addObject((ConcreteCustomClass) findClass("Sale.UserOrder"));
+                                    try (ExecutionContext.NewSession newContext = context.newSession()) {
+                                        DataObject orderObject = newContext.addObject((ConcreteCustomClass) findClass("Sale.UserOrder"));
                                         try {
 
-                                            boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context,
-                                                    currentSession, orderObject, importColumns, IOUtils.getFileBytes(f), settings,
+                                            boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(
+                                                    newContext, orderObject, importColumns, IOUtils.getFileBytes(f), settings,
                                                     fileExtension, operationObject, supplierObject, supplierStockObject, customerObject,
                                                     customerStockObject);
 

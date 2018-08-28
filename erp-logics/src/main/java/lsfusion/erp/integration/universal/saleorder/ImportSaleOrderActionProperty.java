@@ -19,7 +19,6 @@ import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
-import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
@@ -77,7 +76,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 ObjectValue customerObject = findProperty("autoImportCustomer[ImportType]").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue customerStockObject = findProperty("autoImportCustomerStock[ImportType]").readClasses(session, (DataObject) importTypeObject);
 
-                Map<String, ImportColumnDetail> importColumns = readImportColumns(context, session, importTypeObject).get(0);
+                Map<String, ImportColumnDetail> importColumns = readImportColumns(context, importTypeObject).get(0);
                 ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
                 String fileExtension = settings.getFileExtension();
 
@@ -91,7 +90,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                         for (Map.Entry<String, byte[]> file : fileList.entrySet()) {
 
                             try {
-                                makeImport(context, session, orderObject, importColumns, file.getValue(), settings, fileExtension,
+                                makeImport(context, orderObject, importColumns, file.getValue(), settings, fileExtension,
                                         operationObject, supplierObject, supplierStockObject, customerObject, customerStockObject);
 
                                 context.apply();
@@ -113,27 +112,27 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         }
     }
 
-    public boolean makeImport(ExecutionContext context, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
+    public boolean makeImport(ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
         this.saleManufacturingPriceLM = context.getBL().getModule("SaleManufacturingPrice");
 
-        List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(session, (Long) orderObject.object,
+        List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(context.getSession(), (Long) orderObject.object,
                 importColumns, file, fileExtension, settings.getStartRow(), settings.isPosted(), settings.getSeparator(),
                 settings.getPrimaryKeyType(), settings.isCheckExistence(), settings.getSecondaryKeyType(), settings.isKeyIsDigit());
 
-        boolean importResult1 = (orderDetailsList != null && orderDetailsList.size() >= 1) && importOrders(orderDetailsList.get(0), context, session, orderObject, importColumns, settings.getPrimaryKeyType(), operationObject, supplierObject, supplierStockObject,
+        boolean importResult1 = (orderDetailsList != null && orderDetailsList.size() >= 1) && importOrders(orderDetailsList.get(0), context, orderObject, importColumns, settings.getPrimaryKeyType(), operationObject, supplierObject, supplierStockObject,
                 customerObject, customerStockObject);
 
-        boolean importResult2 = (orderDetailsList != null && orderDetailsList.size() >= 2) && importOrders(orderDetailsList.get(1), context, session, orderObject, importColumns, settings.getSecondaryKeyType(), operationObject, supplierObject, supplierStockObject,
+        boolean importResult2 = (orderDetailsList != null && orderDetailsList.size() >= 2) && importOrders(orderDetailsList.get(1), context, orderObject, importColumns, settings.getSecondaryKeyType(), operationObject, supplierObject, supplierStockObject,
                 customerObject, customerStockObject);
 
-        findAction("formRefresh[]").execute(session, context.stack);
+        findAction("formRefresh[]").execute(context);
 
         return importResult1 && importResult2;
     }
 
-    public boolean importOrders(List<SaleOrderDetail> orderDetailsList, ExecutionContext context, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
+    public boolean importOrders(List<SaleOrderDetail> orderDetailsList, ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (orderDetailsList != null) {
@@ -326,11 +325,9 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             ImportTable table = new ImportTable(fields, data);
 
-            session.pushVolatileStats("SOA_OR");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
+            IntegrationService service = new IntegrationService(context, table, keys, props);
             service.synchronize(true, false);
-            String result = session.applyMessage(context);
-            session.popVolatileStats();
+            String result = context.applyMessage();
 
             return result == null;
         }

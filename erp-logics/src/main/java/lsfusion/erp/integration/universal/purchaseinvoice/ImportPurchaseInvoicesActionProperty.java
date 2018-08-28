@@ -2,6 +2,7 @@ package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import com.google.common.base.Throwables;
 import jxl.read.biff.BiffException;
+import lsfusion.base.col.SetFact;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
@@ -12,6 +13,7 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.property.SessionDataProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
@@ -50,29 +52,29 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                     List<byte[]> listFiles = valueClass.getFiles(objectValue.getValue());
                     if (listFiles != null) {
                         for (byte[] file : listFiles) {
-                            try (DataSession currentSession = context.createSession()) {
-                                DataObject invoiceObject = multipleDocuments ? null : currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
+                            try(ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
+                                DataObject invoiceObject = multipleDocuments ? null : newContext.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
 
-                                new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
+                                new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, invoiceObject,
                                         (DataObject) importTypeObject, file, fileExtension, settings,
                                         staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, false, false);
 
                                 if(invoiceObject != null) {
-                                    findProperty("currentInvoice[]").change(invoiceObject, currentSession);
+                                    findProperty("currentInvoice[]").change(invoiceObject, newContext);
                                 }
                                 boolean cancelSession = false;
-                                String script = (String) findProperty("script[ImportType]").read(currentSession, importTypeObject);
+                                String script = (String) findProperty("script[ImportType]").read(newContext, importTypeObject);
                                 if(script != null && !script.isEmpty()) {
-                                    findAction("executeScript[ImportType]").execute(currentSession, context.stack, importTypeObject);
-                                    cancelSession = findProperty("cancelSession[]").read(currentSession) != null;
+                                    findAction("executeScript[ImportType]").execute(newContext, importTypeObject);
+                                    cancelSession = findProperty("cancelSession[]").read(newContext) != null;
                                 }
 
-                                findAction("executeLocalEvents[TEXT]").execute(currentSession, context.stack, new DataObject("Purchase.UserInvoice"));
+                                findAction("executeLocalEvents[TEXT]").execute(newContext, new DataObject("Purchase.UserInvoice"));
 
                                 if(cancelSession) {
-                                    currentSession.cancel(context.stack);
+                                    newContext.cancel(SetFact.<SessionDataProperty>EMPTY());
                                 } else {
-                                    currentSession.apply(context);
+                                    newContext.apply();
                                 }
                             }
                         }

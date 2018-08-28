@@ -101,7 +101,7 @@ public class ImportDeclarationAdjustmentDBFActionProperty extends DefaultImportD
 
             ImportTable table = new ImportTable(fields, data);
 
-            IntegrationService service = new IntegrationService(context.getSession(), table, keys, props);
+            IntegrationService service = new IntegrationService(context, table, keys, props);
             service.synchronize(true, false);
             context.requestUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт КТС"));
         }

@@ -74,7 +74,7 @@ public class ImportFormularActionProperty extends ScriptingActionProperty {
         Collection<? extends ImportKey<?>> keys = Arrays.asList(itemGroupKey, parentGroupKey);
         Collection<ImportProperty<?>> properties = Arrays.asList(itemGroupIDProperty, itemGroupNameProperty, parentGroupProperty);
 
-        new IntegrationService(context.getSession(),
+        new IntegrationService(context,
                 new ImportTable(Arrays.asList(idItemGroup, itemGroupName, idParentGroup), createData(rs)),
                 keys,
                 properties).synchronize();
