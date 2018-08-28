@@ -1424,8 +1424,7 @@ openFile 'Открыть Файл' (DocumentLog l)  { open((file(l))); } TOOLBAR
 showFile = enableDocumentLog() AND file(DocumentLog dLog);
 
 WHEN SET(Document o IS Document) IF NOT disableDocumentLog() DO {
-    NEW d = DocumentLog {        
-        document(d) <- o;
+    NEW d = DocumentLog {
         documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1461,7 +1460,6 @@ WHEN DROPPED(Document o IS Document) IF NOT disableDocumentLog() DO {
 
 WHEN ((SETCHANGED(number(Document o)) AND PREV(number(o))) OR (SETCHANGED(series(o)) AND PREV(series(o))) ) IF NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
-        document(d) <- o;
         documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1480,7 +1478,6 @@ WHEN ((SETCHANGED(number(Document o)) AND PREV(number(o))) OR (SETCHANGED(series
 
 WHEN (INTEGER x== [ = GROUP SUM 1 IF SET(DocumentDetail d IS DocumentDetail) BY document(d)](Document o)) IF NOT disableDocumentLog() DO {
     NEW d = DocumentLog {
-        document(d) <- o;
         documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1499,7 +1496,6 @@ WHEN (INTEGER x== [ = GROUP SUM 1 IF SET(DocumentDetail d IS DocumentDetail) BY 
 
 WHEN INTEGER x==[= GROUP SUM 1 IF DROPPED(DocumentDetail d IS DocumentDetail) BY PREV(document(d))](Document o) AND o IS Document AND NOT disableDocumentLog() NOINLINE DO {
     NEW d = DocumentLog {
-        document(d) <- o;
         documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1518,7 +1514,6 @@ WHEN INTEGER x==[= GROUP SUM 1 IF DROPPED(DocumentDetail d IS DocumentDetail) BY
 
 WHEN (CHANGED(supplierStock(Document o)) AND PREV(supplierStock(o)) AND o IS Document) IF NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
-        document(d) <- o;
         documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1537,7 +1532,6 @@ WHEN (CHANGED(supplierStock(Document o)) AND PREV(supplierStock(o)) AND o IS Doc
 
 WHEN (CHANGED(customerStock(Document o)) AND PREV(customerStock(o)) AND o IS Document) IF NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
-        document(d) <- o;
         documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1556,7 +1550,6 @@ WHEN (CHANGED(customerStock(Document o)) AND PREV(customerStock(o)) AND o IS Doc
 
 WHEN (CHANGED (isPosted(Document o))) AND o IS Document IF NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
-        document(d) <- o;
         documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1575,7 +1568,6 @@ WHEN (CHANGED (isPosted(Document o))) AND o IS Document IF NOT disableDocumentLo
 
 WHEN (CHANGED (isClosed(Document o))) AND o IS Document IF NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
-        document(d) <- o;
         documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1594,7 +1586,6 @@ WHEN (CHANGED (isClosed(Document o))) AND o IS Document IF NOT disableDocumentLo
     
 WHEN (SETCHANGED(date(Document o)) AND PREV(date(o))) IF NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
-        document(d) <- o;
         documentId(d) <- LONG(o);
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number(o);  
@@ -1614,7 +1605,7 @@ WHEN (SETCHANGED(date(Document o)) AND PREV(date(o))) IF NOT disableDocumentLog(
 CLASS DocumentDetailLog 'Запись лога строк документов';
 TABLE DocumentDetailLog(DocumentDetailLog);
 
-document = DATA Document (DocumentDetailLog) INDEXED;
+document = DATA Document (DocumentDetailLog) INDEXED; //todo: потом перенести в виталюр
 documentId = DATA LONG (DocumentDetailLog) INDEXED;
 
 index 'Номер строки' = DATA INTEGER (DocumentDetailLog);        
@@ -1647,7 +1638,6 @@ overSet  ABSTRACT LIST( DocumentDetailLog, DocumentDetail);
 
 WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO  
     NEW l = DocumentDetailLog{
-        document(l) <- document(d);
         documentId(l) <- LONG (document(d));
         index(l) <- index(d);
         numberDocument(l) <- number(document(d));
@@ -1667,7 +1657,6 @@ skipChange = ABSTRACT CASE BOOLEAN (DocumentDetail);
 
 WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d)) OR CHANGED(sku(d)) OR skipChange(d)) AND NOT DROPPED(d IS DocumentDetail) AND NOT SET(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
     NEW l = DocumentDetailLog{
-        document(l) <- document(d);
         documentId(l) <- LONG (document(d));
         index(l) <- index(d);
         numberDocument(l) <- number(document(d));
@@ -1688,7 +1677,6 @@ overDropped  ABSTRACT LIST( DocumentDetailLog, DocumentDetail);
    
 WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO  
     NEW l = DocumentDetailLog{
-        document(l) <- PREV(document(d));
         documentId(l) <- LONG(PREV(document(d)));
         index(l) <- PREV(index(d));
         numberDocument(l) <- PREV(number(document(d)));
@@ -1704,17 +1692,17 @@ WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         overDropped(l,d);
     }    
 
-//migratedDocumentLog = DATA BOOLEAN ();
-//onStarted() + { 
-//    IF NOT migratedDocumentLog() THEN {
-//        NEWSESSION {
-//            migratedDocumentLog() <- TRUE;
-//            documentId(DocumentLog dl) <- LONG (document(dl)) WHERE document(dl) AND NOT documentId(dl);
-//            documentId(DocumentDetailLog dl) <- LONG (document(dl)) WHERE document(dl) AND NOT documentId(dl);
-//            APPLY;
-//        }    
-//    }
-//} 
+migratedDocumentLog = DATA BOOLEAN ();
+onStarted() + { 
+    IF NOT migratedDocumentLog() THEN {
+        NEWSESSION {
+            migratedDocumentLog() <- TRUE;
+            documentId(DocumentLog dl) <- LONG (document(dl)) WHERE document(dl) AND NOT documentId(dl);
+            documentId(DocumentDetailLog dl) <- LONG (document(dl)) WHERE document(dl) AND NOT documentId(dl);
+            APPLY;
+        }    
+    }
+} 
 
 META defineDocumentLogForm(form, concrete)
     @defineDocumentLogForm(form, concrete, documentHistory);
@@ -1727,12 +1715,11 @@ META defineDocumentLogForm(form, concrete, container)
                       hostnameComputer, userLogin, nameContact, dateSession, timeSession, nameTypeChange,
                       note
         PROPERTIES (dLog) openFile SHOWIF showFile(dLog)
-        FILTERS document(dLog) == concrete
+        FILTERS documentId(dLog) == LONG(concrete)
 
         OBJECTS ddLog = DocumentDetailLog GRID
-        PROPERTIES (ddLog) SHOWIF enableDocumentLog() READONLY index, idSku, nameSku, quantity,
-                       price, nameUser, date, time, note
-        FILTERS document(ddLog) == concrete
+        PROPERTIES (ddLog) SHOWIF enableDocumentLog() READONLY index, idSku, nameSku, quantity, price, nameUser, date, time, note
+        FILTERS documentId(ddLog) == LONG(concrete)
     ;
     
     DESIGN form {
@@ -1763,8 +1750,7 @@ FORM documentLogs 'Журнал изменения документов'
     PROPERTIES (l) READONLY seriesDocument, numberDocument, dateDocument, typeDocument, 
                    index, idSku, nameSku, quantity, price, nameUser, date, time, note
     FILTERGROUP documents
-        FILTER 'Фильтр по ID документа' documentId(d) == documentId(l) 'F9' 
-        FILTER 'Фильтр по документу' document(d) == document(l) 'F10' DEFAULT
+        FILTER 'Фильтр по ID документа' documentId(d) == documentId(l) 'F10' DEFAULT
         FILTER 'Фильтр по номеру документа' numberDocument(d) == numberDocument(l) 'F11'
 ;
 
