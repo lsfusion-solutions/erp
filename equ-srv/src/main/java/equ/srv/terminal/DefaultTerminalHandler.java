@@ -748,7 +748,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 }
                 terminalHandlerLM.findAction("process[TerminalDocument]").execute(session, stack, terminalDocumentObject);
                 ServerLoggers.importLogger.info("start applying terminal document " + idTerminalDocument);
-                return session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
+                String result = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
+                if(result != null) {
+                    ServerLoggers.importLogger.error(String.format("Apply terminal document %s error: %s", idTerminalDocument, result));
+                }
+                return result;
 
             } else return "-1";
 

@@ -334,7 +334,7 @@ public class TerminalServer extends MonitorServer {
                                         result = importTerminalDocumentDetail(idDocument, userInfo.user, userInfo.idTerminal, terminalDocumentDetailList, emptyDocument);
                                         if (result != null) {
                                             errorCode = PROCESS_DOCUMENT_ERROR;
-                                            errorText = PROCESS_DOCUMENT_ERROR_TEXT;
+                                            errorText = PROCESS_DOCUMENT_ERROR_TEXT + ": " + result;
                                         }
                                     }
                                 }
