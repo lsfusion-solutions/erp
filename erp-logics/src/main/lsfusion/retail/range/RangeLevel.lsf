@@ -709,6 +709,25 @@ importXls 'Импорт' (RangeRev v)  {
     }
 }
 
+changeXls 'Импорт (замена)' (RangeRev v)  { 
+    INPUT f = EXCELFILE DO {
+        LOCAL barcode = VARSTRING[15] (INTEGER);
+        LOCAL name = VARSTRING[255] (INTEGER);
+        LOCAL level = VARSTRING[10] (INTEGER);
+        
+        LOCAL message = TEXT ();
+        IMPORT XLS FROM f TO barcode = A, name = B, level = C;
+        FOR imported(INTEGER i) DO {
+            IF NOT oneLevel() THEN {
+                level(v, Sku s) <- rangeLevel(level(i)) WHERE sku(barcode(barcode(i), currentDate())) == s AND level(v,s); 
+            } ELSE {
+                level(v, Sku s) <- (GROUP MIN RangeLevel l IF l IS RangeLevel) WHERE sku(barcode(barcode(i), currentDate())) == s AND level(v,s);  
+            }            
+        }        
+    }
+}
+
+
 EXTEND FORM rangeRev
     PROPERTIES(v) importXls TODRAW s TOOLBAR
 ;
