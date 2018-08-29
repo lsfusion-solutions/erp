@@ -307,7 +307,7 @@ public class SendSalesEquipmentServer {
                             dateZReport, nameDepartmentStore));
                 }
 
-                session.apply(BL, stack);
+                session.applyException(BL, stack);
             } catch (ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
@@ -349,7 +349,7 @@ public class SendSalesEquipmentServer {
                 for (String idZReport : idZReportList) {
                     try (DataSession session = dbManager.createSession()) {
                         zReportLM.findProperty("succeededExtraCheck[ZReport]").change(true, session, (DataObject) zReportLM.findProperty("zReport[VARSTRING[100]]").readClasses(session, new DataObject(idZReport)));
-                        session.apply(BL, stack);
+                        session.applyException(BL, stack);
                     }
                 }
 
@@ -372,7 +372,7 @@ public class SendSalesEquipmentServer {
                     machineryPriceTransactionLM.findProperty("machinery[RequestExchangeLog]").change(cashRegisterObject, session, logObject);
                     machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeLog]").change(idRequestExchange, session, logObject);
                 }
-                session.apply(BL, stack);
+                session.applyException(BL, stack);
             } catch (Exception e) {
                 throw Throwables.propagate(e);
             }

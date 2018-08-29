@@ -167,7 +167,7 @@ public class MachineryExchangeEquipmentServer {
 
                     }
                 }
-                session.apply(BL, stack);
+                session.applyException(BL, stack);
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
@@ -209,7 +209,7 @@ public class MachineryExchangeEquipmentServer {
                 for (Map.Entry<Long, Throwable> request : failedRequestsMap.entrySet()) {
                     errorRequestExchange(session, request.getKey(), request.getValue());
                 }
-                session.apply(BL, stack);
+                session.applyException(BL, stack);
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
@@ -220,7 +220,7 @@ public class MachineryExchangeEquipmentServer {
         if (machineryPriceTransactionLM != null) {
             try (DataSession session = dbManager.createSession()) {
                 errorRequestExchange(session, requestExchange, t);
-                session.apply(BL, stack);
+                session.applyException(BL, stack);
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
@@ -244,7 +244,7 @@ public class MachineryExchangeEquipmentServer {
                     machineryPriceTransactionLM.findProperty("succeeded[RequestExchange]").change(true, session, requestExchangeObject);
                     machineryPriceTransactionLM.findProperty("dateTimeSucceeded[RequestExchange]").change(getCurrentTimestamp(), session, requestExchangeObject);
                 }
-                session.apply(BL, stack);
+                session.applyException(BL, stack);
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }

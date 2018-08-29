@@ -42,7 +42,7 @@ public class ProcessMonitorEquipmentServer {
                 equLM.findProperty("date[EquipmentServerLog]").change(getCurrentTimestamp(), session, logObject);
 
                 equLM.findProperty("needLogProcesses[EquipmentServer]").change((Object) null, session, (DataObject) equipmentServerObject);
-                session.apply(BL, stack);
+                session.applyException(BL, stack);
             }
         } catch (Exception e) {
             throw Throwables.propagate(e);

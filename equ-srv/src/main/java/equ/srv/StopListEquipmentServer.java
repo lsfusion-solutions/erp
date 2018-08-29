@@ -280,7 +280,7 @@ public class StopListEquipmentServer {
                 e.printStackTrace(new PrintStream(os));
                 stopListLM.findProperty("errorTrace[StopListError]").change(os.toString(), session, errorObject);
 
-                session.apply(BL, stack);
+                session.applyException(BL, stack);
             } catch (Exception e2) {
                 throw Throwables.propagate(e2);
             }
@@ -295,7 +295,7 @@ public class StopListEquipmentServer {
                     DataObject stockObject = (DataObject) stopListLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
                     stopListLM.findProperty("succeeded[Stock,StopList]").change(true, session, stockObject, stopListObject);
                 }
-                session.apply(BL, stack);
+                session.applyException(BL, stack);
             } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
