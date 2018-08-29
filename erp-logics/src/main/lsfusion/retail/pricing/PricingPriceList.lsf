@@ -30,8 +30,14 @@ overSetMarkupManagementRetailPrice  ABSTRACT LIST( DepartmentStore, DATETIME);
 overSetManagementRetailPrice  ABSTRACT LIST ( DepartmentStore, DATETIME);
 
 includeExtraDashboardRepricing  ABSTRACT ( DepartmentStore, PriceListType, DATETIME);
+
+skipDialog = DATA LOCAL BOOLEAN ();
+
 calculateDashboardRepricing 'По надбавкам и прайсам'(DepartmentStore d, CalcPriceListType ct, PriceListType pt, DATETIME dt)  { 
-    DIALOG dialogSkuGroup DO {              
+    IF NOT skipDialog() THEN {
+        DIALOG dialogSkuGroup;
+    }
+    IF NOT requestCanceled() THEN {
         IF onStockPriceListRepricing() THEN {
             managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt) 
                 IF NOT skipManagementPriceList(pt, sku, d, dt) AND inSession(skuGroup(sku));

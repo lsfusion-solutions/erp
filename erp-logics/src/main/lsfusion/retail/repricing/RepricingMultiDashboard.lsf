@@ -1,0 +1,195 @@
+MODULE RepricingMultiDashboard;
+
+REQUIRE RepricingPriceList;
+
+NAMESPACE Repricing;
+
+managementRetailPrice 'Цена (управленческая)' = DATA LOCAL NESTED NUMERIC[16,4] (Sku, DepartmentStore);
+inDashboardRepricing 'Вкл' = DATA LOCAL NESTED BOOLEAN (Sku, DepartmentStore);
+
+clearMultiDashboardRepricing()  { 
+    inDashboardRepricing(Sku sk, DepartmentStore ds) <- NULL;
+    managementRetailPrice(Sku sk, DepartmentStore ds) <- NULL;
+}
+
+include 'Вкл.' = DATA LOCAL BOOLEAN (DepartmentStore);
+
+FORM departmentStoresCompany 'Отделы магазинов'
+    TREE treeStore a=STRING[3], t=ChainStores, st=StoreType, s=Store
+    PROPERTIES READONLY VALUE(a), name(t), name(st), name(s)
+    FILTERS stringEqualsAll(a), in (t, st), in(st, s)
+    FILTERGROUP activeStore FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+
+    OBJECTS d=DepartmentStore
+    PROPERTIES(d) include
+    PROPERTIES(d) READONLY id SHOWIF showIDs(), depName = name, fullName
+    FILTERS in(t, st, s, d),
+            isCompany(d)
+    ORDER depName
+    FILTERGROUP activeDS FILTER 'Активный' active(d) 'F10' DEFAULT
+
+    LIST DepartmentStore OBJECT d
+;
+
+DESIGN departmentStoresCompany {
+    BOX {
+        size = (1024, 768);
+
+        NEW topContainer {
+            fill = 1;
+            type = SPLITH;
+
+            MOVE BOX(TREE treeStore) {
+                caption = 'Склады';
+            }
+
+            MOVE BOX(d) {
+                fill = 3;
+                GRID(d) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+@extendFormFilterStockAccess(d, departmentStores, company);
+
+nameIncludeDepartmentStores 'Магазины' = GROUP CONCAT name(DepartmentStore ds) IF include(ds), ', ' ORDER ds CHARWIDTH 20;
+changeIncludeDepartmentStores() {
+    DIALOG departmentStoresCompany;
+    clearMultiDashboardRepricing();
+    clearDashboardRepricing();
+}
+
+calculateDashboardRepricing 'По надбавкам и прайсам'(Operation o, DATETIME dt)  { 
+    managementRetailPrice(Sku sku, DepartmentStore d) <- NULL;
+    inDashboardRepricing(Sku sku, DepartmentStore d) <- NULL;
+    FOR include(DepartmentStore d) DO {
+        calculateDashboardRepricing(d, (OVERRIDE calcPriceListType(o), retailCalcPriceListType(d)), (OVERRIDE priceListType(o), retailPriceListType(d)), dt);
+        managementRetailPrice(Sku sku, d) <- managementRetailPrice(sku);
+        inDashboardRepricing(Sku sku, d) <- inDashboardRepricing(sku);
+        skipDialog() <- TRUE;
+    }
+    skipDialog() <- NULL;
+} TOOLBAR;
+
+calculateDashboardManagementRepricingForm 'По прайсам'(Operation o, DATETIME dt)  {
+    managementRetailPrice(Sku sku, DepartmentStore d) <- NULL;
+    inDashboardRepricing(Sku sku, DepartmentStore d) <- NULL;
+    FOR include(DepartmentStore d) DO {
+        calculateDashboardManagementRepricing(d, o, dt);
+        managementRetailPrice(Sku sku, d) <- managementRetailPrice(sku);
+        inDashboardRepricing(Sku sku, d) <- inDashboardRepricing(sku);
+    }
+    formRefresh();
+} TOOLBAR;
+
+FORM repricingMultiDashboard 'Переоценка по магазинам'
+    PROPERTIES nameIncludeDepartmentStores() ON CHANGE changeIncludeDepartmentStores()
+        
+    OBJECTS o = Repricing.Operation PANEL
+    PROPERTIES (o) SELECTOR name
+    FILTERS in(currentUser(), o)
+
+    OBJECTS t=DATETIME PANEL
+    PROPERTIES(t) VALUE
+    
+    TREE skuTree sg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg), skuTreeName = name(sg)
+    ORDER order(sg), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sg) DEFAULT
+    
+    OBJECTS d = (sk=Sku, ds=DepartmentStore)
+    PROPERTIES(sk,ds) inDashboardRepricing, select
+    PROPERTIES(ds) READONLY name
+    PROPERTIES(sk) READONLY idBarcode, id, name ON CONTEXTMENU showMovementSku(sk, ds) ON CONTEXTMENU showMovementPriceSku(sk, ds), shortNameUOM
+    PROPERTIES     READONLY dateTimeLastMoved(sk, ds), dateTimeLastOrderBatch(sk, ds), nameSupplierLastOrderBatch(sk, ds), nameCountry(sk), currentBalance(sk,ds), 
+                   managementRetailPrice(sk,ds), retailPricingPriceB(sk,ds,t) 
+    PROPERTIES (o,t) TODRAW d TOOLBAR calculateDashboardRepricing, calculateDashboardManagementRepricingForm
+    PROPERTIES() READONLY countSelectSkus SHOWIF countSelectSkus()                                          
+    FILTERS inDashboardRepricing(sk,ds), isParent(sg, sk) 
+
+    OBJECTS p = Repricing
+    PROPERTIES (p) READONLY isPosted, number, series, date, time, beforeDate,
+                   nameDepartmentStore, countRepricingDetail, diffSumRepricingDetail,
+                   diffMarkupSumRepricingDetail, diffVATSumRepricingDetail,
+                   diffRetailSumRepricingDetail, numberDisposal, skipChangeLedger,
+                   note                      
+    
+    PROPERTIES (p) TOOLBAR print, printXls                                          
+    PROPERTIES (p) NEWSESSION NEW[UserRepricing], EDIT SHOWIF showEditUser(p), deletep=DELETE SHOWIF showDeleteUser(p)  
+                       
+    FILTERGROUP filters FILTER 'Переоценки на дату' date(p)==toDate(t) 'F5' DEFAULT                         
+;
+
+DESIGN repricingMultiDashboard {
+    BOX {
+        NEW topContainer {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(nameIncludeDepartmentStores());
+            MOVE BOX(o);
+            MOVE BOX(t);
+        }
+        NEW bodyContainer{
+            type = SPLITV;
+            fill = 1;
+            NEW skuBox {
+                type = SPLITH;
+                fill = 1;
+                MOVE BOX(TREE skuTree) { caption = 'Группы SKU'; fill=0.5; }
+                MOVE BOX(d) {
+                    caption = 'Товары, для которых необходима переоценка';
+                    PROPERTY(retailPricingPriceB(sk,ds,t)) {
+                        caption = 'Цена (текущая)';
+                    }
+                }
+            }   
+            NEW tanContainer {
+                fill = 1;
+                type = TABBED;
+                MOVE BOX(p);
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+@extendFormFilterStockAccess(ds, repricingMultiDashboard);
+@extendFormFilterAccessStock(Repricing, p, repricingMultiDashboard, departmentStore, company);
+@extendFormFilterRoleAccess(repricing, p, repricingMultiDashboard);
+
+createMultiDashboardRepricing 'Создать переоценку'(Operation o, DATETIME dt)  { 
+	NEWSESSION NESTED LOCAL {
+	    FOR include(DepartmentStore d) DO {
+	        repForm() <- NULL;
+	        inDashboardRepricing(Sku sku) <- NULL;
+	        inDashboardRepricing(Sku sku) <- inDashboardRepricing(sku,d);
+	        managementRetailPrice(Sku sku) <- managementRetailPrice(sku,d);
+            createDashboardRepricingNotForm(d, o, dt);
+            isPosted(UserRepricing r) <- TRUE WHERE r == repForm();
+            APPLY NESTED LOCAL;
+            IF canceled() THEN {
+                DIALOG userRepricing OBJECTS p = repForm() DOCKED NOCANCEL;
+            }
+            
+	    }
+	    repForm() <- NULL;
+	    inDashboardRepricing(Sku sku, DepartmentStore d) <- NULL;
+	    IF updateDateTime() THEN {
+            SEEK repricingMultiDashboard.t = currentDateTime();
+        }
+	}
+} 
+
+EXTEND FORM  repricingMultiDashboard
+    PROPERTIES (o,t)  TODRAW d  TOOLBAR AFTER calculateDashboardManagementRepricingForm(o,t) createMultiDashboardRepricing
+;
+
+NAVIGATOR {
+    retailDashboardNavigator {
+        NEW repricingMultiDashboard;
+    }
+}
