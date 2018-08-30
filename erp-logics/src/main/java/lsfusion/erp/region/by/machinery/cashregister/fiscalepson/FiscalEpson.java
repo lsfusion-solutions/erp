@@ -80,7 +80,7 @@ public class FiscalEpson {
             Dispatch.call(epsonDispatch, "CloseReceipt");
             logger.info(String.format("Epson CloseReceipt finished: %s ms", (System.currentTimeMillis() - time)));
         } catch (ComFailException e) {
-            if (e.getMessage() != null && e.getMessage().contains("таймаут связи с СКНО")) {
+            if (e.getMessage() != null && e.getMessage().contains("ФБ: таймаут связи с СКНО")) {
                 checkErrors = false;
                 logger.info("Epson CloseReceipt error: таймаут связи с СКНО");
             } else {
