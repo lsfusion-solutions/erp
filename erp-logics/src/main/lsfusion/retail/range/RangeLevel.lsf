@@ -295,7 +295,10 @@ overDateTime 'Дата/время' (Range r, Store st, DATE d) = OVERRIDE dateTi
 countSku 'Кол-во товаров' (Range r, Store st, DATE d) = countRecSku(rangeRev(r, d), overLevel(r, st, d));
 
 countRange 'В ассортименте' (Sku s, Range r, Store st, DATE d) =  overLevel(r, st, d) >= level(r, s, d);
-in (Sku s, Range r, Store st, DATE d) += overLevel(r, st, d) >= level(r, s, d);
+
+skipRange = ABSTRACT BOOLEAN (Sku, Store);
+
+in (Sku s, Range r, Store st, DATE d) += overLevel(r, st, d) >= level(r, s, d) AND NOT skipRange(s,st);
 
 countRange (Store st, Sku sk, DATE d) = GROUP SUM 1 IF level(Range r, st, d) >= level(r, sk, d);
 countTypeRange (Store st, Sku sk, DATE d) = GROUP SUM 1 IF level(Range r, storeType(st), d) >= level(r, sk, d);
