@@ -16,21 +16,21 @@ order 'Порядок' = OVERRIDE overOrder(StockDocumentLedger l), 1000000 IF l
 close 'Закрыть'  ABSTRACT LIST ( StockDocumentLedger) TOOLBAR;
 
 dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (StockDocumentLedger) MATERIALIZED INDEXED;
-date 'Дата' (StockDocumentLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED INDEXED IN recognize;
+date 'Дата' (StockDocumentLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED INDEXED IN id;
 
 isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) MATERIALIZED;
 isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) MATERIALIZED;
 isOpened 'Не закрыт' (StockDocumentLedger ledger) = ledger IS StockDocumentLedger AND NOT isClosed(ledger);
 
 stock (ledger) = ABSTRACT Stock (StockDocumentLedger) MATERIALIZED INDEXED;
-nameStock 'Склад' (StockDocumentLedger ledger) = name(stock(ledger)) IN recognize;
+nameStock 'Склад' (StockDocumentLedger ledger) = name(stock(ledger)) IN id;
 
 number 'Номер документа' (ledger) = ABSTRACT VARSTRING[28] (StockDocumentLedger) MATERIALIZED;
 series 'Серия документа' (ledger) = ABSTRACT STRING[2] (StockDocumentLedger) MATERIALIZED;
 seriesNumber 'Серия/номер документа' (StockDocumentLedger ledger) = CONCAT '', series(ledger), number(ledger) CHARWIDTH 7; 
 
 legalEntity 'Контрагент' (ledger) = ABSTRACT LegalEntity (StockDocumentLedger) MATERIALIZED;
-nameLegalEntity 'Контрагент' (StockDocumentLedger ledger) = name(legalEntity(ledger)) IN recognize;
+nameLegalEntity 'Контрагент' (StockDocumentLedger ledger) = name(legalEntity(ledger)) IN id;
 
 legalEntityStock 'Склад контрагента' (ledger) = ABSTRACT Stock (StockDocumentLedger) MATERIALIZED;
 nameLegalEntityStock 'Склад контрагента' = name(legalEntityStock(StockDocumentLedger ledger));
@@ -45,7 +45,7 @@ nameOperation 'Операция' (StockDocumentLedger ledger) = IF isReturn(ledg
     THEN OVERRIDE returnCaptionStockDocument(operation(ledger)), overName(operation(ledger))
     ELSE OVERRIDE captionStockDocument(operation(ledger)), name(operation(ledger));
 
-description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (StockDocumentLedger) MATERIALIZED IN recognize;
+description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (StockDocumentLedger) MATERIALIZED IN id;
 
 skip 'Не проводить' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) MATERIALIZED;
 active (StockDocumentLedger ledger) = isPosted(ledger) AND NOT skip(ledger);

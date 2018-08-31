@@ -38,8 +38,8 @@ isClosed 'Закрыт' (batch) = ABSTRACT BOOLEAN (Batch);
 
 sku (batch) = ABSTRACT Sku (Batch) MATERIALIZED INDEXED;
 prevSku (Batch b) = PREV(sku(b));
-idSku 'Код товара' = id(sku(Batch b)) IN recognize;
-nameSku 'Наименование' (Batch batch) = name(sku(batch)) IN recognize;
+idSku 'Код товара' = id(sku(Batch b)) IN id;
+nameSku 'Наименование' (Batch batch) = name(sku(batch)) IN id;
 
 // Наименование для документов
 overDocumentNameSku = ABSTRACT VARISTRING[255] (Batch) MATERIALIZED;
@@ -66,7 +66,7 @@ lastBatch (sku) = GROUP LAST Batch batch
 
 netWeightSku 'Вес нетто' (Batch batch) = netWeight(sku(batch));
 grossWeightSku 'Вес брутто' (Batch batch) = grossWeight(sku(batch));
-prevNameSku 'Наименование' (Batch batch) = PREV(name(sku(batch))) IN recognize;
+prevNameSku 'Наименование' (Batch batch) = PREV(name(sku(batch))) IN id;
 activeSku 'Активные' (Batch batch) = active(sku(batch));
 
 UOM(Batch batch)= UOM(sku(batch));
@@ -81,8 +81,8 @@ nameStock 'Склад' (Batch batch) = name(stock(batch));
 cost 'Себестоимость' (batch) = ABSTRACT NUMERIC[16,4] (Batch) MATERIALIZED;
 prevCost 'Себестоимость' (Batch batch) = PREV(cost(batch));
 
-description 'Описание' (batch) = ABSTRACT VARISTRING[200] (Batch) MATERIALIZED IN recognize CHARWIDTH 30;
-name 'Название' (batch) = ABSTRACT VARISTRING[200] (Batch) MATERIALIZED IN recognize CHARWIDTH 30;
+description 'Описание' (batch) = ABSTRACT VARISTRING[200] (Batch) MATERIALIZED IN id CHARWIDTH 30;
+name 'Название' (batch) = ABSTRACT VARISTRING[200] (Batch) MATERIALIZED IN id CHARWIDTH 30;
 
 expiryDate 'Годен до' (batch) = ABSTRACT DATE (Batch) MATERIALIZED INDEXED;
 prevExpiryDate 'Годен до' (Batch batch) = PREV(expiryDate(batch));
@@ -109,7 +109,7 @@ supplierStock = ABSTRACT Stock (Batch) MATERIALIZED;
 nameSupplierStock 'Склад поставщика' (Batch batch) = name(supplierStock(batch));
 prevSupplierStock (Batch batch) = PREV(supplierStock(batch));
 
-id 'Код' = ABSTRACT VARSTRING[100] (Batch) MATERIALIZED INDEXED CHARWIDTH 10 IN recognize;
+id 'Код' = ABSTRACT VARSTRING[100] (Batch) MATERIALIZED INDEXED CHARWIDTH 10 IN id;
 batch = GROUP MAX Batch b BY id(b);
 
 @defineOption(disableUniqueIdBatch, 'Не контролировать уникальность кодов партий', stock1);
@@ -150,7 +150,7 @@ changed = ABSTRACT BOOLEAN (DataSkuLedger);
 
 // -------------------------------- Для всего ledger'а -------------------- //
 
-dateTime 'Дата/время' (SkuLedger ledger) = MULTI dateTime[DataSkuLedger] (ledger), dateTime[Batch] (ledger) MATERIALIZED INDEXED IN recognize;
+dateTime 'Дата/время' (SkuLedger ledger) = MULTI dateTime[DataSkuLedger] (ledger), dateTime[Batch] (ledger) MATERIALIZED INDEXED IN id;
 date 'Дата' (SkuLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED INDEXED;
 
 isPosted 'Проведен' (SkuLedger ledger) = MULTI isPosted[DataSkuLedger] (ledger), isPosted[Batch] (ledger) MATERIALIZED;
@@ -158,8 +158,8 @@ isPosted 'Проведен' (SkuLedger ledger) = MULTI isPosted[DataSkuLedger] (
 isClosed 'Закрыт' (SkuLedger ledger) = MULTI isClosed[DataSkuLedger] (ledger), isClosed[Batch] (ledger);
 
 sku (SkuLedger ledger) = MULTI sku[DataSkuLedger] (ledger), sku[Batch] (ledger) MATERIALIZED;
-idSku 'ИД Sku' (SkuLedger ledger) = id(sku(ledger)) IN recognize;
-nameSku 'SKU' (SkuLedger ledger) = name(sku(ledger)) IN recognize;
+idSku 'ИД Sku' (SkuLedger ledger) = id(sku(ledger)) IN id;
+nameSku 'SKU' (SkuLedger ledger) = name(sku(ledger)) IN id;
 
 INDEX sku(SkuLedger l), dateTime(l), l;
 
@@ -168,14 +168,14 @@ canonicalNameSkuGroup 'Группа' (SkuLedger ledger) = canonicalName[Group](s
 countSkuLedger = GROUP SUM 1 BY sku(SkuLedger ledger);
 
 stock (SkuLedger ledger) = MULTI stock[DataSkuLedger] (ledger), stock[Batch] (ledger) MATERIALIZED;
-nameStock 'Склад' (SkuLedger ledger) = name(stock(ledger)) IN recognize;
+nameStock 'Склад' (SkuLedger ledger) = name(stock(ledger)) IN id;
 isCompanyStock (SkuLedger ledger) = isCompany(stock(ledger));
 idStock (SkuLedger ledger) = id(stock(ledger));
 
 INDEX stock(SkuLedger l), sku(l), dateTime(l), l;
 
 TABLE descriptionSkuLedger(SkuLedger);
-description 'Описание' (SkuLedger ledger) = MULTI description[DataSkuLedger] (ledger), description[Batch] (ledger) MATERIALIZED TABLE descriptionSkuLedger IN recognize;
+description 'Описание' (SkuLedger ledger) = MULTI description[DataSkuLedger] (ledger), description[Batch] (ledger) MATERIALIZED TABLE descriptionSkuLedger IN id;
 
 isItem 'Товар' = isItem(sku(SkuLedger l));
 isContainer 'Тара' = isContainer(sku(SkuLedger l));

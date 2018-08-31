@@ -55,7 +55,7 @@ TABLE group(Group);
 
 name 'Наименование' = ABSTRACT VARISTRING[250](Group) MATERIALIZED INDEXED;
 order 'Порядок' = ABSTRACT INTEGER (Group) MATERIALIZED CHARWIDTH 2;
-id 'Код' = ABSTRACT VARSTRING[100] (Group) IN recognize CHARWIDTH 10;
+id 'Код' = ABSTRACT VARSTRING[100] (Group) IN id CHARWIDTH 10;
 
 TABLE groupGroup(Group, Group);
 @defineHierarchyAbstract(group);
@@ -219,7 +219,7 @@ TABLE skuGroup (SkuGroup);
 
 name 'Наименование' = ABSTRACT VARISTRING[250](SkuGroup) MATERIALIZED INDEXED CHARWIDTH 20;
 order 'Порядок' = ABSTRACT INTEGER (SkuGroup) CHARWIDTH 2;
-id 'Код' = ABSTRACT VARSTRING[100] (SkuGroup) IN recognize CHARWIDTH 10;
+id 'Код' = ABSTRACT VARSTRING[100] (SkuGroup) IN id CHARWIDTH 10;
 
 sort = OVERRIDE lpad(VARSTRING[250](order(SkuGroup g)), 20, '0'), name(g);  
 
@@ -450,10 +450,10 @@ END
 
 META defineDocumentDetailSkuCustomPrefixInner (detail, skuClass, skuClassUpper, prefix, caption)
     prefix###skuClass = DATA skuClassUpper (###detail) INDEXED;
-    prefix###id###skuClass 'Код'###caption (###detail detail) = id(prefix###skuClass(detail)) IN recognize;
-    prefix###name###skuClass 'Наименование'###caption (###detail detail) = name(prefix###skuClass(detail)) IN recognize  CHARWIDTH 40;
-    prefix###shortNameUOM###skuClass 'Ед. изм.'###caption = shortNameUOM(prefix###skuClass(###detail detail)) IN recognize;
-    prefix###idBarcode###skuClass 'Штрихкод'###caption (###detail detail) = idBarcode(prefix###skuClass(detail)) IN recognize;
+    prefix###id###skuClass 'Код'###caption (###detail detail) = id(prefix###skuClass(detail)) IN id;
+    prefix###name###skuClass 'Наименование'###caption (###detail detail) = name(prefix###skuClass(detail)) IN id  CHARWIDTH 40;
+    prefix###shortNameUOM###skuClass 'Ед. изм.'###caption = shortNameUOM(prefix###skuClass(###detail detail)) IN id;
+    prefix###idBarcode###skuClass 'Штрихкод'###caption (###detail detail) = idBarcode(prefix###skuClass(detail)) IN id;
     prefix###nameCountry###skuClass 'Страна'###caption (###detail detail) = nameCountry(prefix###skuClass(detail));
     replace(###skuClass s, ###skuClass d) + { prefix###skuClass(###detail detail) <- d WHERE prefix###skuClass(detail) == s;}
 END
@@ -466,9 +466,9 @@ META defineDocumentAbstractDetailSkuCustomPrefixInner (detail, skuClass, skuClas
     skuClass = ABSTRACT skuClassUpper (###detail) MATERIALIZED;
     INDEX skuClass(###detail d), dateTime(d);
     id###skuClass 'Код'###caption (###detail detail) = id(skuClass(detail));
-    name###skuClass 'Наименование'###caption (###detail detail) = name(skuClass(detail)) IN recognize;
+    name###skuClass 'Наименование'###caption (###detail detail) = name(skuClass(detail)) IN id;
     shortNameUOM###skuClass 'Ед. изм.'###caption = shortNameUOM(skuClass(###detail detail)) IN base;
-    idBarcode###skuClass 'Штрихкод'###caption (###detail detail) = idBarcode(skuClass(detail)) IN recognize;
+    idBarcode###skuClass 'Штрихкод'###caption (###detail detail) = idBarcode(skuClass(detail)) IN id;
     allBarcodes###skuClass 'Все штрих-коды'###caption (###detail detail) = allBarcodes(skuClass(detail));
     nameCountry###skuClass 'Страна'###caption (###detail detail) = nameCountry(skuClass(detail));
 END

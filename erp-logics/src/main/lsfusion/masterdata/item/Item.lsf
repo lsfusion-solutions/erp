@@ -134,7 +134,7 @@ DESIGN options {
 };
 
 
-id 'Код' = DATA VARSTRING[100] (Item) IN recognize INDEXED CHARWIDTH 10;
+id 'Код' = DATA VARSTRING[100] (Item) IN id INDEXED CHARWIDTH 10;
 
 TABLE itemId (VARSTRING[100]);
 item (id) = GROUP AGGR (Item item) BY id (item) MATERIALIZED TABLE itemId; // нужно MATERIALIZED, чтобы не допускало одинаковых кодов, а кидала UPDATE_CONFLICT
@@ -154,7 +154,7 @@ itemGroup 'Группа товара' = DATA ItemGroup(Item) AUTOSET INDEXED;
 skuGroup(Item item) += itemGroup(item);
 countItem 'Кол-во товаров' (g) = GROUP SUM 1 BY itemGroup(Item i);
 
-nameItemGroup 'Группа товара' (Item item) = name(itemGroup(item)) IN recognize;
+nameItemGroup 'Группа товара' (Item item) = name(itemGroup(item)) IN id;
 canonicalNameItemGroup 'Группа товара' (Item item) = canonicalName(itemGroup(item)) IN base;
 idItemGroup 'Код группы товаров' (Item item) = id(itemGroup(item));
 
@@ -1380,7 +1380,7 @@ TABLE manufacturer(Manufacturer);
 
 @defineExternalizable(manufacturer, VARSTRING[200]);
 
-name 'Наименование' = DATA VARISTRING[200](Manufacturer) IN recognize CHARWIDTH 15;
+name 'Наименование' = DATA VARISTRING[200](Manufacturer) IN id CHARWIDTH 15;
 manufacturerName = GROUP NAGGR Manufacturer m BY name(m);
 address 'Адрес производителя' = DATA VARSTRING[255] (Manufacturer) CHARWIDTH 20;
 
@@ -1562,7 +1562,7 @@ CONSTRAINT  constraintRequired(ItemAttribute a, Item i)
                     constraintRequired(ia,Item ii), '\n');
 
 // Базовое наименование
-@defineItemAttributeName( , , recognize);
+@defineItemAttributeName( , , id);
 
 
 saveImage 'Сохранить изображение' (Item item)  { 

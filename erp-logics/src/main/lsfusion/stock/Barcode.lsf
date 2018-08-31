@@ -5,7 +5,7 @@ REQUIRE System, Integration, Numerator, SkuLedger, Utils, Document;
 CLASS Barcode 'Штрих код';
 TABLE barcode (Barcode);
 
-id 'Штрих код' = DATA VARSTRING[15] (Barcode) IN recognize CHARWIDTH 15 FIXED INDEXED DEFAULTCOMPARE 'CONTAINS';
+id 'Штрих код' = DATA VARSTRING[15] (Barcode) IN id CHARWIDTH 15 FIXED INDEXED DEFAULTCOMPARE 'CONTAINS';
 WHEN SETCHANGED (id(Barcode b)) INLINE DO id(b) <- replace(id(b), ' ','');
 @defineExternalizable(barcode, VARSTRING[100], ext);
 
@@ -93,9 +93,9 @@ DESIGN options {
 
 // Sku
 sku = DATA Sku(Barcode) IN base NONULL DELETE INDEXED;
-nameSku 'Наименование' (Barcode barcode) = name(sku(barcode)) IN recognize;
+nameSku 'Наименование' (Barcode barcode) = name(sku(barcode)) IN id;
 
-idSku 'Код SKU' (Barcode b) = id(sku(b)) IN recognize;
+idSku 'Код SKU' (Barcode b) = id(sku(b)) IN id;
 
 skuBarcode (VARSTRING[15] id, DATE date) = sku(barcode(id, date));
 skuBarcode (VARSTRING[15] id) = skuBarcode(id, currentDate());

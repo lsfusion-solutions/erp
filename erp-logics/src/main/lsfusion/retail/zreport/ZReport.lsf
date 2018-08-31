@@ -63,7 +63,7 @@ departmentStore(ZReport zReport) <- departmentStore(cashRegister(zReport))
 
 description 'Название документа' (ZReport zReport) =  VARSTRING[200] (CONCAT '', 'Продажа по кассе ' +overNumberCashRegister(zReport),
                                             ' отдела ' + nameDepartmentStore(zReport),
-                                            ' от ' + date(zReport)) IN recognize;
+                                            ' от ' + date(zReport)) IN id;
     
 succeededExtraCheck 'Проверено' (zReport) = DATA BOOLEAN(ZReport);   
 //----------------------------------------------- Чеки ---------------------------------------------------//
@@ -91,11 +91,11 @@ is(ReceiptReturnDetail receiptReturnDetail) = receiptReturnDetail IS ReceiptRetu
 number 'Номер позиции чека' = DATA INTEGER (ReceiptDetail); 
 
 @defineDocumentRelation(zReport, Receipt);
-numberZReport 'Номер Z-отчета' (Receipt receipt) = number(zReport(receipt)) IN recognize;
+numberZReport 'Номер Z-отчета' (Receipt receipt) = number(zReport(receipt)) IN id;
 cashRegister (Receipt receipt) = cashRegister(zReport(receipt));
-numberCashRegister 'Номер кассы' (Receipt receipt) = npp(cashRegister(receipt)) IN recognize;
-overNumberCashRegister 'Номер кассы' (Receipt receipt) = overNpp(cashRegister(receipt)) IN recognize;
-numberGroupCashRegister 'Номер кассы' (Receipt receipt) = nppGroupMachinery(cashRegister(receipt)) IN recognize;
+numberCashRegister 'Номер кассы' (Receipt receipt) = npp(cashRegister(receipt)) IN id;
+overNumberCashRegister 'Номер кассы' (Receipt receipt) = overNpp(cashRegister(receipt)) IN id;
+numberGroupCashRegister 'Номер кассы' (Receipt receipt) = nppGroupMachinery(cashRegister(receipt)) IN id;
 
 groupCashRegister (Receipt receipt) = groupCashRegister(cashRegister(receipt)) COMPLEX;
 
@@ -262,7 +262,7 @@ changeBatch(ReceiptDetail detail)  {
         batch(detail) <- bt;
 }
 
-nameSku 'Товар' (ReceiptDetail d) = IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d)) IN recognize CHARWIDTH 20;
+nameSku 'Товар' (ReceiptDetail d) = IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d)) IN id CHARWIDTH 20;
 
 nameCashRegisterSku (ReceiptDetail d) = OVERRIDE nameCashRegisterAttribute(sku(d)), nameSku(d);
 
@@ -507,10 +507,10 @@ FORM paymentMeans
 CLASS PaymentType 'Тип платежа';
 TABLE paymentType (PaymentType);
 
-name 'Наименование' = DATA VARISTRING[110](PaymentType) IN recognize CHARWIDTH 10;
+name 'Наименование' = DATA VARISTRING[110](PaymentType) IN id CHARWIDTH 10;
 
 paymentMeans (paymentType) = DATA PaymentMeans (PaymentType);
-namePaymentMeans 'Форма оплаты' (PaymentType paymentType) = staticCaption(paymentMeans(paymentType)) IN recognize CHARWIDTH 10;
+namePaymentMeans 'Форма оплаты' (PaymentType paymentType) = staticCaption(paymentMeans(paymentType)) IN id CHARWIDTH 10;
 
 sid 'Идентификатор' = DATA STRING[10] (PaymentType) IN base;
 typePaymentSID (tp) = GROUP AGGR PaymentType paymentType WHERE paymentType IS PaymentType BY sid(paymentType);
