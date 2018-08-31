@@ -792,7 +792,7 @@ END
 CLASS DoubleItemAttribute 'Дробный атрибут' : ItemAttribute;
 
 value = ABSTRACT CASE EXCLUSIVE DOUBLE (Item, DoubleItemAttribute) MATERIALIZED;
-string(Item item, DoubleItemAttribute attribute) = VARSTRING[255]([= FORMULA TEXT PG 'convert_numeric_to_string(CAST(($1) AS numeric))', MS 'dbo.convert_numeric_to_string(CAST(($1) AS numeric(38,19)))'](value(item, attribute)));
+string(Item item, DoubleItemAttribute attribute) = VARSTRING[255]([ FORMULA TEXT PG 'convert_numeric_to_string(CAST(($1) AS numeric))', MS 'dbo.convert_numeric_to_string(CAST(($1) AS numeric(38,19)))'](value(item, attribute)));
 value(Item item, DoubleItemAttribute attribute) += string(item, attribute);
 
 META defineDoubleItemAttribute(attribute, type, caption, group)
@@ -938,13 +938,13 @@ META defineObjectItemAttribute(attribute, attributeClass, identity, caption, gro
     attribute = DATA attributeClass (Item);
     deleteUnusedAttributes() + {  
         NEWSESSION { 
-            FOR (attributeClass o IS attributeClass) AND NOT [= GROUP SUM 1 BY attribute(Item item)](o) DO DELETE o; 
+            FOR (attributeClass o IS attributeClass) AND NOT [ GROUP SUM 1 BY attribute(Item item)](o) DO DELETE o; 
             apply();
         }
     };    
     identity###attribute caption (Item item) = identity(attribute(item)) IN group;
 
-    CONSTRAINT DROPPED(attributeClass o IS attributeClass) AND [= GROUP SUM 1 IF NOT attribute(Item io) BY PREV(attribute(io))](o)
+    CONSTRAINT DROPPED(attributeClass o IS attributeClass) AND [ GROUP SUM 1 IF NOT attribute(Item io) BY PREV(attribute(io))](o)
         MESSAGE 'Запрещено удалять атрибут ('##caption##'), так как на него есть ссылки в справочнике товаров';
 
     @defineItemAttributeForm(attribute, identity, caption, group);
@@ -1124,7 +1124,7 @@ EXTEND FORM extractStringAttributeItem
 META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
     extract###object##FromCaption 'Выделить из названия'(Item i)  { 
         IF i IS Item THEN {
-            possibleStringAttributeValue(VARSTRING[100] s) <- TRUE IF [= GROUP SUM 1 IF in(###object object, ItemGroup g) BY name(object), g](s, itemGroup(i));
+            possibleStringAttributeValue(VARSTRING[100] s) <- TRUE IF [ GROUP SUM 1 IF in(###object object, ItemGroup g) BY name(object), g](s, itemGroup(i));
             DIALOG extractStringAttributeItem OBJECTS from INPUT, to INPUT DO {
                 LOCAL object = ###object();
                 object() <- identityObject(trim(to));
@@ -1135,8 +1135,8 @@ META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
                     }
                 }
                 LOCAL selected = BOOLEAN (Item);
-                selected(Item item) <- isSubstring(caption(item), from) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
-                dataIn(###object a, ItemGroup g) <- TRUE WHERE a == object() AND [= GROUP SUM 1 IF selected(Item item) BY itemGroup(item)](g);
+                selected(Item item) <- isSubstring(caption(item), from) == 1 AND [ FILTER items.i](item) AND NOT skipExtractAttribute(item);
+                dataIn(###object a, ItemGroup g) <- TRUE WHERE a == object() AND [ GROUP SUM 1 IF selected(Item item) BY itemGroup(item)](g);
                 object(Item item) <- object() WHERE selected(item);
                 // вырезаем двойные пробелы, а также ненужные символы в начале и конце
                 caption(Item item) <- rtrim(
@@ -1163,7 +1163,7 @@ META defineItemExtractPrimitiveAttribute(property, form)
             possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
             DIALOG form OBJECTS from INPUT, to INPUT DO {
                 LOCAL selected = BOOLEAN (Item);
-                selected(Item item) <- isSubstring(caption(item), from) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
+                selected(Item item) <- isSubstring(caption(item), from) == 1 AND [ FILTER items.i](item) AND NOT skipExtractAttribute(item);
                 property(Item item) <- trim(to) WHERE selected(item);
                 // вырезаем двойные пробелы, а также ненужные символы в начале и конце
                 caption(Item item) <- rtrim(
@@ -1265,7 +1265,7 @@ extractStringCaption 'Заменить в названии'(Item i)  {
         possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
         DIALOG extractStringAttributeItem OBJECTS from INPUT, to INPUT DO {
             LOCAL selected = BOOLEAN (Item);
-            selected(Item item) <- isSubstring(caption(item), from) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
+            selected(Item item) <- isSubstring(caption(item), from) == 1 AND [ FILTER items.i](item) AND NOT skipExtractAttribute(item);
             // вырезаем двойные пробелы, а также ненужные символы в начале и конце
             caption(Item item) <- rtrim(
                                     ltrim(

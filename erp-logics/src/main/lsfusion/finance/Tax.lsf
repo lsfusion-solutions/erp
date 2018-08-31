@@ -28,7 +28,7 @@ nameCountry 'Страна' (Range range) = name(country(range)) IN recognize;
 
 countRange 'Кол-во шкал' (tax, country) = GROUP SUM 1 IF Range range IS Range BY tax(range), country(range);
 
-maxDataRange(Tax tax, Country country) = OVERRIDE [= GROUP MAX number(Range range) BY tax(range), country(range)](tax, country), 0 IF tax IS Tax AND country IS Country;
+maxDataRange(Tax tax, Country country) = OVERRIDE [ GROUP MAX number(Range range) BY tax(range), country(range)](tax, country), 0 IF tax IS Tax AND country IS Country;
 addNewRange 'Добавить шкалу'(Tax tax, Country country)  { 
     NEW r = Range {
         number(r) <- maxDataRange(tax, country) + 1;
@@ -534,7 +534,7 @@ META defineDocumentInterfaceDetailVATDataSumPrefix (object, prefix)
 END
 
 META deriveDocumentDetailReverseVATSumCustomPrefix(detail, prefixA, prefixB, currencyProp)
-    prefixA##VATSum (###detail detail)  <- round([= X*Y/(100+Y)](prefixB###sum(detail), calcValue###prefixA##VAT(detail)), currencyProp(detail))
+    prefixA##VATSum (###detail detail)  <- round([ X*Y/(100+Y)](prefixB###sum(detail), calcValue###prefixA##VAT(detail)), currencyProp(detail))
                     WHEN CHANGED(prefixB###sum(detail)) OR CHANGED (calcValue###prefixA##VAT(detail)) OR CHANGED (currencyProp(detail));
 
 END
@@ -545,7 +545,7 @@ META deriveDocumentDetailReverseVATSumPrefix(object, prefixA, prefixB)
     @deriveDocumentDetailReverseVATSumPrefix(object, prefixA, prefixB, currency);
 END
 META deriveDocumentDetailReverseVATSumRoundCustomPrefix(detail, prefixA, prefixB, currencyProp, roundProp)
-    prefixA##VATSum (###detail detail)  <- NUMERIC[18,4](Utils.round([= X*Y/(100+Y)](prefixA##Sum(detail), calcValue###prefixA##VAT(detail)), roundProp(detail)))
+    prefixA##VATSum (###detail detail)  <- NUMERIC[18,4](Utils.round([ X*Y/(100+Y)](prefixA##Sum(detail), calcValue###prefixA##VAT(detail)), roundProp(detail)))
                     WHEN CHANGED(prefixA##Sum(detail)) OR CHANGED (calcValue###prefixA##VAT(detail)) OR CHANGED (currencyProp(detail));
 END
 META deriveDocumentDetailReverseVATSumRoundPrefix(object, prefixA, prefixB, currencyProp,roundProp)

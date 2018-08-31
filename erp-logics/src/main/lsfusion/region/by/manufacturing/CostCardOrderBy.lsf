@@ -16,7 +16,7 @@ quantityInBOM 'Кол-во изделий в спец.'(ProductDetail productDet
 productsSumInBOM 'Сумма изделий в спец.' = round((quantityInBOM(ProductDetail productDetail) * price(productDetail)), currency(productDetail));
 
 //--
-//quantityProductSkuOrder (product, sku, order) = [= GROUP SUM recPricePercentProductSkuDate (product, sku, dateOrder(order))* calcMultiplierSkuOrder(sku, order)/100 BY product, sku, order](product, sku, order) IF bruttoQuantitySkuOrder(sku, order);
+//quantityProductSkuOrder (product, sku, order) = [ GROUP SUM recPricePercentProductSkuDate (product, sku, dateOrder(order))* calcMultiplierSkuOrder(sku, order)/100 BY product, sku, order](product, sku, order) IF bruttoQuantitySkuOrder(sku, order);
 //
 //quantityProductProductDetailSku 'Норма с учетом коэфф.цены'(productDetail, sku) = quantityProductSkuOrder(
 //    productProductDetail(productDetail), sku, orderProductDetail(productDetail)); // св-во необходимо, т.к. в BOM-ах есть уд.вес цены => мы его включаем в норму. Пока так, в будущем возможно надо будет включать в надбавку.
@@ -29,10 +29,10 @@ recipes 'Номер по сборнику рецептов' (ProductDetail produ
 componentsSumInBOM 'Сумма компонента для изделий в спец.' (ProductDetail productDetail)= componentsPrice(productDetail)*quantityInBOM(productDetail);
 //--
 VATMarkupSumInBOM 'НДС и надбавка в спец' (ProductDetail productDetail) =  productsSumInBOM(productDetail) (-) componentsSumInBOM(productDetail);
-retailVATSumInBOM 'Сумма НДС в спец' (ProductDetail productDetail) = [= X*Y/(100+Y)](VATMarkupSumInBOM(productDetail), valueVAT(productDetail));
+retailVATSumInBOM 'Сумма НДС в спец' (ProductDetail productDetail) = [ X*Y/(100+Y)](VATMarkupSumInBOM(productDetail), valueVAT(productDetail));
 retailMarkupSumInBOM 'Сумма надбавки' (ProductDetail productDetail) =  VATMarkupSumInBOM(productDetail) (-) retailVATSumInBOM(productDetail);
 
-VATMarkupSumInBOMIsVAT 'Сумма НДС' (ProductDetail productDetail) = (round([= X*Y/(100+Y)](productsSumInBOM(productDetail), valueVAT(productDetail)), currency(productDetail)));
+VATMarkupSumInBOMIsVAT 'Сумма НДС' (ProductDetail productDetail) = (round([ X*Y/(100+Y)](productsSumInBOM(productDetail), valueVAT(productDetail)), currency(productDetail)));
 retMarkupSumIsVAT 'Сумма надбавки' (ProductDetail productDetail) = (round(productsSumInBOM(productDetail) (-) VATMarkupSumInBOMIsVAT(productDetail) (-) componentsSumInBOM(productDetail), currency(productDetail)));
 
 overRetailVATSumInBOM 'Сумма НДС' (ProductDetail d) = IF VATProduct(d) THEN VATMarkupSumInBOMIsVAT(d) ELSE retailVATSumInBOM(d);
@@ -174,7 +174,7 @@ sumProductDetails 'Сумма' (ComponentDetail cd) = GROUP
 
 diffSum (ComponentDetail cd) = sum(cd)- sumProductDetails(cd);
 
-calcRetailMarkup 'Надбавка' (ComponentDetail cd)  = [= round2(((X/Z*100/(100+Y))-1)*100)](
+calcRetailMarkup 'Надбавка' (ComponentDetail cd)  = [ round2(((X/Z*100/(100+Y))-1)*100)](
     price(cd),
     supplierPrice(cd) IF supplierPrice(cd) != 0.0,
     valueVAT(cd));

@@ -23,11 +23,11 @@ createFakeBatchesCustom 'Создать партии' (Stock stock)  {
 	    LOCAL priceNoBatch =  NUMERIC[16,4] (Sku, Stock);
 	    formFake() <- NULL;
 	    
-	    filterNoBatch(Sku s, stock) <- [= GROUP SUM 1 IF quantity(SkuLedger l) AND active(l) AND NOT lastOrderBatch(sku(l), stock(l)) BY sku(l), stock(l)](s, stock);
-	    documentDate() <- [=GROUP MIN date(SkuLedger l) IF filterNoBatch(sku(l), stock(l)) AND active(l) BY stock(l)](stock);
+	    filterNoBatch(Sku s, stock) <- [ GROUP SUM 1 IF quantity(SkuLedger l) AND active(l) AND NOT lastOrderBatch(sku(l), stock(l)) BY sku(l), stock(l)](s, stock);
+	    documentDate() <- [GROUP MIN date(SkuLedger l) IF filterNoBatch(sku(l), stock(l)) AND active(l) BY stock(l)](stock);
 	    priceNoBatch(Sku s, stock) <- round2(
 	        OVERRIDE currentRetailPricingPrice(s, stock), 
-            [=GROUP LAST signedPrice(SkuLedger l) ORDER date(l), l WHERE filterNoBatch(sku(l), stock(l)) AND active(l)  BY sku(l), stock(l)](s, stock))
+            [GROUP LAST signedPrice(SkuLedger l) ORDER date(l), l WHERE filterNoBatch(sku(l), stock(l)) AND active(l)  BY sku(l), stock(l)](s, stock))
                                 WHERE filterNoBatch(s,stock);
 	
 	    IF (GROUP SUM 1 IF filterNoBatch(Sku s, stock)) THEN {

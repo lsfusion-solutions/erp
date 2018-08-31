@@ -23,7 +23,7 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
         printToLog('' + currentDateTime() + ' Started EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balance(Batch b, Stock st)));
         overExportTurnover(date());
         IF NOT overExportTurnover() THEN {
-            EXPORT CSV ',' FROM dateTime = [=FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
+            EXPORT CSV ',' FROM dateTime = [FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
                                 stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
                                 sku = sku(Batch b), supplier = supplier(b), supplierStock = supplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
                                 group1 = skuGroup2(sku(b)), group2 = skuGroup3(sku(b)), group3 = skuGroup4(sku(b)), group4 = skuGroup5(sku(b)),
@@ -455,7 +455,7 @@ commaBarcodeId 'Список ШК' = DATA LOCAL VARISTRING[4000]() CHARWIDTH 30 
 
 addCommaBarcodeId 'Добавить' ()  { 
     IF commaBarcodeId() THEN {
-        dataInclude(Sku sku) <- TRUE WHERE [=GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(commaBarcodeId(),' ',',')) == 1 BY sku(barcode)](sku);
+        dataInclude(Sku sku) <- TRUE WHERE [GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(commaBarcodeId(),' ',',')) == 1 BY sku(barcode)](sku);
         commaBarcodeId() <- NULL;
     }
 }
@@ -502,7 +502,7 @@ changeIncludeSkus()  {
 }
 changeIncludeBarcodes()  { 
     INPUT s = VARISTRING[4000] DO {
-        dataInclude(Sku sku) <- TRUE IF [=GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(s,' ',',')) == 1 BY sku(barcode)](sku);
+        dataInclude(Sku sku) <- TRUE IF [GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(s,' ',',')) == 1 BY sku(barcode)](sku);
     }
 }
 
@@ -650,7 +650,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
                                               localBalanceB = balanceB, localCostBalanceB = costBalanceB, localVATSupplierB = VATSupplierB,
                                               localCostVATBalanceB = costVATBalanceB, localSumBalanceB = sumBalanceB, localBarcodeSku = barcodeSku;
             
-            FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1Turnover(n), nameGroup2Turnover(n), nameGroup3Turnover(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
+            FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY nameGroup1Turnover(n), nameGroup2Turnover(n), nameGroup3Turnover(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
                 balanceB(number) <- localBalanceB(i);
                 costBalanceB(number) <- localCostBalanceB(i);
                 VATSupplierB(number) <- localVATSupplierB(i);
@@ -677,7 +677,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
                                               localBalanceA = balanceA, localCostBalanceA = costBalanceA, localVATSupplierA = VATSupplierA,
                                               localCostVATBalanceA = costVATBalanceA, localSumBalanceA = sumBalanceA, localBarcodeSku = barcodeSku;
             
-            FOR imported(INTEGER i) AND INTEGER number = [= GROUP LAST INTEGER n ORDER n BY nameGroup1Turnover(n), nameGroup2Turnover(n), nameGroup3Turnover(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
+            FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY nameGroup1Turnover(n), nameGroup2Turnover(n), nameGroup3Turnover(n), barcodeSku(n)](localNameGroup1(i), localNameGroup2(i), localNameGroup3(i), localBarcodeSku(i)) DO {
                 balanceA(number) <- localBalanceA(i);
                 costBalanceA(number) <- localCostBalanceA(i);
                 VATSupplierA(number) <- localVATSupplierA(i);

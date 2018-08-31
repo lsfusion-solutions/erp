@@ -73,7 +73,7 @@ closedCurrentZReport() = NOT currentZReport();
 //    PROPERTIES(d) READONLY AFTER initialSumDiscountCard(d) posSumDiscountCard, posReturnSumDiscountCard, cumulativeSumDiscountCard, externalSumDiscountCard, totalSumDiscountCard
 //;
 //
-//prevTotalSumReceipt 'Накопленная сумма' (receipt) = OVERRIDE 0 IF receipt IS Receipt, [= PREV(totalSumDiscountCard(discountCard))](discountCardReceipt(receipt));
+//prevTotalSumReceipt 'Накопленная сумма' (receipt) = OVERRIDE 0 IF receipt IS Receipt, [ PREV(totalSumDiscountCard(discountCard))](discountCardReceipt(receipt));
 //totalSumReceiptPromotion (receipt, promotion) = IF useCurrentReceiptPromotion(promotion) THEN totalSumDiscountCard(discountCardReceipt(receipt))
 //                                                                                         ELSE prevTotalSumReceipt (receipt);
 // Расчет сумм скидок
@@ -185,7 +185,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
 
                 // Размазываем его по "Sku"
 //                LOCAL takenSkuPromotionCondition = NUMERIC[14,3] (Sku, PromotionCondition);
-//                takenSkuPromotionCondition(sku, promotionCondition) <- [= PARTITION UNGROUP takenPromotionCondition
+//                takenSkuPromotionCondition(sku, promotionCondition) <- [ PARTITION UNGROUP takenPromotionCondition
 //                                                                                  LIMIT leftSku (sku)
 //                                                                                        IF inPromotionConditionSku(promotionCondition, sku)
 //                                                                                  BY promotionCondition
@@ -261,7 +261,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
 
                 // Считаем сколько использовали каждый товар
 //                LOCAL takenSku = NUMERIC[14,3] (Sku);
-//                takenSku(sku) <- [= GROUP SUM takenReceiptSaleDetail(detail) BY skuReceiptSaleDetail(detail)] (sku);
+//                takenSku(sku) <- [ GROUP SUM takenReceiptSaleDetail(detail) BY skuReceiptSaleDetail(detail)] (sku);
 
                 IF useAllQuantity(promotion) THEN
                     quantity(ReceiptSaleDetail detail, PromotionCondition condition) <- use(detail, condition)
@@ -406,7 +406,7 @@ prePost(Receipt receipt)  {
 incorrectReceipt = ABSTRACT CASE TEXT (Receipt);
 
 post 'Смешанная'(Receipt receipt)  { 
-    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
+    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
     } 
@@ -446,7 +446,7 @@ post 'Смешанная'(Receipt receipt)  {
 } CHANGEKEY 'F9' IN receiptAction;
 
 postCard 'Карточкой'(Receipt receipt)  { 
-    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
+    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
     } 
@@ -477,7 +477,7 @@ postCard 'Карточкой'(Receipt receipt)  {
 } CHANGEKEY 'F10' CONFIRM IN receiptAction;
 
 postCash 'Наличными'(Receipt receipt)  { 
-    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
+    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
     } 
@@ -637,12 +637,12 @@ createSaleDetail 'Добавить строку продажи'(Receipt receipt,
 
 countBatch (sk, Stock st, Receipt r) = GROUP SUM 1 
                                                   IF (currentBalance(Batch batch, st) (-) 
-                                                      [= GROUP SUM quantity(ReceiptSaleDetail d) 
+                                                      [ GROUP SUM quantity(ReceiptSaleDetail d) 
                                                               BY batch(d), receipt(d)] (batch, r)) > 0
                                               BY sku(batch); 
 defaultBatch 'Партия по умолчанию' (sku, Stock stock, Receipt receipt) = 
     GROUP MIN Batch batch IF (currentBalance(batch, stock) (-)
-                        [= GROUP SUM quantity(ReceiptSaleDetail d) 
+                        [ GROUP SUM quantity(ReceiptSaleDetail d) 
                                  BY batch(d), receipt(d)] (batch, receipt)) > 0
           BY sku(batch); 
 

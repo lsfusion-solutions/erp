@@ -235,13 +235,13 @@ completeArticleStickerDashboard 'Подтвердить все'()  {
     LOCAL k = INTEGER ();
     k() <- 0;
     
-    FOR [= FILTER articleStickerDashboard.sta](Article article, DepartmentStore dep) AND nullSticker(article) DO{   
+    FOR [ FILTER articleStickerDashboard.sta](Article article, DepartmentStore dep) AND nullSticker(article) DO{   
         k() <- k() + 1;              
     }    
     IF k() > 0 THEN {
         MESSAGE 'Для артикула не задан тип ценника ('+k()+' шт.)';
     } ELSE {
-        FOR [= FILTER articleStickerDashboard.sta](Article article, DepartmentStore dep) DO {
+        FOR [ FILTER articleStickerDashboard.sta](Article article, DepartmentStore dep) DO {
             completedSticker(Item item) <- TRUE WHERE article(item) == article;
         }
     }      
@@ -255,7 +255,7 @@ EXTEND FORM  articleStickerDashboard
 overMapStickerItem  ABSTRACT LIST ( );
 
 inMap ()  { 
-    inMap(Item i) <- [= FILTER articleStickerDashboard.i](i);
+    inMap(Item i) <- [ FILTER articleStickerDashboard.i](i);
 }
 
 mapStickerItem 'Заполнить атрибуты для всех по соответствию'()  { 
@@ -329,7 +329,7 @@ mapAllFootLengthStickerItem 'Заполнить длину стопы для в�
 } ASON CONTEXTMENU footLength[Item];  
 
 mapAllIsEACArticle 'Заполнить "EAC" для всех по наименованию'()  { 
-   FOR [= FILTER articleStickerDashboard.sta](Article a, DepartmentStore dep)  DO 
+   FOR [ FILTER articleStickerDashboard.sta](Article a, DepartmentStore dep)  DO 
        mapIsEAC(a);
 } ASON CONTEXTMENU isEAC[Article]; 
 
@@ -355,7 +355,7 @@ EXTEND FORM articleStickerDashboard
 ;
 
 countInLabelArticles 'Кол-во отм.' = GROUP SUM 1 IF inLabel(Article a, DepartmentStore st);
-countLabelTypeArticles  = GROUP SUM 1 IF [= GROUP SUM 1 IF inLabel(Article a, DepartmentStore st) BY defaultLabelType(a)](LabelType type);
+countLabelTypeArticles  = GROUP SUM 1 IF [ GROUP SUM 1 IF inLabel(Article a, DepartmentStore st) BY defaultLabelType(a)](LabelType type);
 countInDepartmentStores (DepartmentStore st) = GROUP SUM 1 IF inLabel(Article a, st);
 
 dataLastBatch = ABSTRACT Batch (Sku);
@@ -384,7 +384,7 @@ createSnapshotPricing 'Пример ценника'(Article article, DepartmentS
             MESSAGE 'Отмечены артикулы с разными типами ценников';
         }
     } ELSE {
-        NEW t = LabelTransaction {          // [=GROUP MAX supplierUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d)](chosenObject('d'))
+        NEW t = LabelTransaction {          // [GROUP MAX supplierUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d)](chosenObject('d'))
             departmentStore(t) <- dep;
             labelType(t) <- defaultLabelType(article);
             FOR article (Item item) ==article  NEW d = LabelTransactionDetail DO {

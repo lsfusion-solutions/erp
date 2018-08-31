@@ -680,17 +680,17 @@ WHEN LOCAL FORMS userPriceList CHANGED(company(UserPriceList o)) DO {
         companyStock(o) <- NULL;
 }
 
-WHEN LOCAL FORMS userPriceList (SET([= VIEW userPriceList.d](UserPriceListDetail d)) OR // изменились строки
+WHEN LOCAL FORMS userPriceList (SET([ VIEW userPriceList.d](UserPriceListDetail d)) OR // изменились строки
                                   CHANGED(sku(d)) OR // или изменился sku
                                   CHANGED(fromDateTime(d)) OR // или изменился дата с
-                                  CHANGED([= VIEW userPriceList.tt](Stock s))) // или изменился склад
-                                 AND [= VIEW userPriceList.d](d)
-                                 AND [= VIEW userPriceList.tt](s) DO
+                                  CHANGED([ VIEW userPriceList.tt](Stock s))) // или изменился склад
+                                 AND [ VIEW userPriceList.d](d)
+                                 AND [ VIEW userPriceList.tt](s) DO
     updateViewPriceDetail(d, s);
 
 WHEN LOCAL FORMS userPriceList CHANGED(show(userPriceList(UserPriceListDetail d), PriceListType t))
-                                 AND [= VIEW userPriceList.d](d)
-                                 AND [= VIEW userPriceList.tt](Stock s) NOINLINE (t) DO
+                                 AND [ VIEW userPriceList.d](d)
+                                 AND [ VIEW userPriceList.tt](Stock s) NOINLINE (t) DO
     updateViewPriceDetail(d, t, s);
 
 // Оптимизация с преподсчетом видов цен в сессионное свойство
@@ -707,13 +707,13 @@ WHEN LOCAL FORMS userPriceList CHANGED(show(userPriceList(UserPriceListDetail d)
 //        ON CHANGE p setCurrentUserPriceList(p)
 //;
 //
-//WHEN LOCAL FORMS userPriceList SET([= VIEW userPriceList.d](d)) AND p == currentUserPriceList() DO
+//WHEN LOCAL FORMS userPriceList SET([ VIEW userPriceList.d](d)) AND p == currentUserPriceList() DO
 //    FOR showUserPriceListPriceListType(p, pt) AND isCompanyStock(s) NOINLINE (pt) DO
 //        viewCurrentPricePriceListDetailDataPriceListTypeStock(d, pt, s) <- currentPricePriceListDetailDataPriceListTypeStock(d, pt, s);  
 //
 //WHEN LOCAL FORMS userPriceList CHANGED(showUserPriceListPriceListType(p, pt)) NOINLINE (pt) DO
 //    viewCurrentPricePriceListDetailDataPriceListTypeStock(d, pt, s) <- currentPricePriceListDetailDataPriceListTypeStock(d, pt, s) 
-//        WHERE [= VIEW userPriceList.d](d) AND isCompanyStock(s);  
+//        WHERE [ VIEW userPriceList.d](d) AND isCompanyStock(s);  
 //
 //WHEN LOCAL FORMS userPriceList CHANGED(skuUserPriceListDetail(d)) OR CHANGED(fromDateTimeUserPriceListDetail(d)) DO
 //    viewCurrentPricePriceListDetailDataPriceListTypeStock(d, pt, s) <- currentPricePriceListDetailDataPriceListTypeStock(d, pt, s) 
@@ -933,7 +933,7 @@ DESIGN chooseMarkUpSkuUserPriceList {
 isSelected 'Отм' = DATA LOCAL BOOLEAN (UserPriceListDetail);
 changeMarkUpChosenSku 'Изменить цену для отмеченных строк'(UserPriceList userPriceList, Stock stock)  { 
     DIALOG chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList, pt INPUT, nt INPUT, m INPUT, n INPUT DO {
-        IF NOT [= GROUP SUM 1 IF isSelected(UserPriceListDetail priceListDetail)
+        IF NOT [ GROUP SUM 1 IF isSelected(UserPriceListDetail priceListDetail)
                       BY userPriceList(priceListDetail)](userPriceList) THEN
             MESSAGE 'Выберите хотя бы одну позицию';
         ELSE {
@@ -1012,7 +1012,7 @@ changeMarkUpSku 'Изменить цену для всех строк'(UserPrice
                                  WHERE userPriceList(detail) == userPriceList;
         }
 
-        FOR [= FILTER userPriceList.d](UserPriceListDetail detail) DO {
+        FOR [ FILTER userPriceList.d](UserPriceListDetail detail) DO {
             IF m == TypeMarkUpSkuUserPriceList.percent AND includeVAT[PriceListType](nt) AND NOT includeVAT[PriceListType](pt) THEN {
                 price(detail, nt) <-
                     round(prev(detail) * (valueVAT(detail) + 100.0) / 100.0 * (n + 100.0) / 100.0, roundCondition(nt))

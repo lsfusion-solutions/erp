@@ -126,22 +126,22 @@ META defineBinSkuLedgerBalanceProperties(postfix, caption)
 
     // без учета текущей даты/времени
     balanceB 'Остаток на начало дня'###caption (Sku sku, Stock stock, Bin bin, DATE date) = currentBalance(sku, stock, bin)
-                                                                      (-) [= GROUP SUM signedQuantity (Sku sku, Stock stock, Bin bin, DATE dateIn) IF dateIn >= DATE date
+                                                                      (-) [ GROUP SUM signedQuantity (Sku sku, Stock stock, Bin bin, DATE dateIn) IF dateIn >= DATE date
                                                                                  BY sku, stock, bin, date](sku, stock, bin, date);
 
     // с учетом текущей даты/времени
     balanceA 'Остаток на конец дня'###caption (Sku sku, Stock stock, Bin bin, DATE date) = currentBalance(sku, stock, bin)
-                                                                     (-) [= GROUP SUM signedQuantity (Sku sku, Stock stock, Bin bin, DATE dateIn) IF dateIn > DATE date
+                                                                     (-) [ GROUP SUM signedQuantity (Sku sku, Stock stock, Bin bin, DATE dateIn) IF dateIn > DATE date
                                                                                 BY sku, stock, bin, date](sku, stock, bin, date);
 
     // без учета текущей даты/времени
     balanceB 'Остаток (до)'###caption (Sku sku, Stock stock, Bin bin, DATETIME dateTime) = currentBalance(sku, stock, bin)
-                                                                              (-) [= GROUP SUM signedQuantityActive(SkuLedger ledger) IF dateTime(ledger) >= DATETIME dateTime
+                                                                              (-) [ GROUP SUM signedQuantityActive(SkuLedger ledger) IF dateTime(ledger) >= DATETIME dateTime
                                                                                          BY sku(ledger), stock(ledger), bin(ledger), dateTime](sku, stock, bin, dateTime);
 
     // с учетом текущей даты/времени
     balanceA 'Остаток (после)'###caption (Sku sku, Stock stock, Bin bin, DATETIME dateTime) = currentBalance(sku, stock, bin)
-                                                                             (-) [= GROUP SUM signedQuantityActive(SkuLedger ledger) IF dateTime(ledger) > DATETIME dateTime
+                                                                             (-) [ GROUP SUM signedQuantityActive(SkuLedger ledger) IF dateTime(ledger) > DATETIME dateTime
                                                                                         BY sku(ledger), stock(ledger), bin(ledger), dateTime](sku, stock, bin, dateTime);
 
     currentBalance 'Остаток (всего)'###caption (sku, bin) = GROUP SUM currentBalance(Sku sku, Stock stock, Bin bin) BY sku, bin MATERIALIZED;
@@ -167,12 +167,12 @@ META defineBinSkuLedgerBalanceProperties(postfix, caption)
 
     // без учета текущей даты/времени
     sumB 'Сумма на начало дня'###caption (Sku sku, Stock stock, Bin bin, DATE date) = currentSum(sku, stock, bin)
-                                                                      (-) [= GROUP SUM signedSum (Sku sku, Stock stock, Bin bin, DATE dateIn) IF dateIn >= DATE date
+                                                                      (-) [ GROUP SUM signedSum (Sku sku, Stock stock, Bin bin, DATE dateIn) IF dateIn >= DATE date
                                                                                  BY sku, stock, bin, date](sku, stock, bin, date);
 
     // с учетом текущей даты/времени
     sumA 'Сумма на конец дня'###caption (Sku sku, Stock stock, Bin bin, DATE date) = currentSum(sku, stock, bin)
-                                                                     (-) [= GROUP SUM signedSum (Sku sku, Stock stock, Bin bin, DATE dateIn) IF dateIn > DATE date
+                                                                     (-) [ GROUP SUM signedSum (Sku sku, Stock stock, Bin bin, DATE dateIn) IF dateIn > DATE date
                                                                                 BY sku, stock, bin, date](sku, stock, bin, date);
 
     averagePrice 'Цена (средневзв.)'###caption (Sku sku, Stock stock, Bin bin) = currentSum(sku, stock, bin) / currentBalance(sku, stock, bin);

@@ -595,14 +595,14 @@ type(InAdjustment ledger) += 'Изменение остатков приход' 
 skip(InAdjustment ledger) += ledger IS InAdjustment AND NOT active(adjustment(ledger));
 operation[StockDocumentLedger](InAdjustment ledger) += operation(adjustment(ledger));
 
-stockDocumentLedger(OutAdjustmentSkuDetail d) += [=OVERRIDE OutAdjustment(A), InAdjustment(A)] (adjustment(adjustmentDetail[OutAdjustmentSkuDetail](d)));
-stockDocumentLedger(InAdjustmentSkuDetail d) += [=OVERRIDE OutAdjustment(A), InAdjustment(A)](adjustment(adjustmentDetail[InAdjustmentSkuDetail](d)));
+stockDocumentLedger(OutAdjustmentSkuDetail d) += [OVERRIDE OutAdjustment(A), InAdjustment(A)] (adjustment(adjustmentDetail[OutAdjustmentSkuDetail](d)));
+stockDocumentLedger(InAdjustmentSkuDetail d) += [OVERRIDE OutAdjustment(A), InAdjustment(A)](adjustment(adjustmentDetail[InAdjustmentSkuDetail](d)));
 
 calcSumB (Sku sku,Stock st,DATETIME dateTime) = balanceB(sku,st,dateTime) * prevAccountPriceB(sku, st, dateTime);
 needCreateAdjustment = (calcSumB (Sku sku,Stock st,DATETIME dateTime) OR  sumB (sku,st,dateTime)) AND NOT (calcSumB (sku,st,dateTime) ==  sumB (sku,st,dateTime));  
 
 createUserAdjustment(DATETIME dateTime)  { 
-    FOR [ = GROUP SUM 1 IF needCreateAdjustment(Sku sku,Stock st,dateTime) BY st](Stock st) AND isCompany(st) DO {
+    FOR [GROUP SUM 1 IF needCreateAdjustment(Sku sku,Stock st,dateTime) BY st](Stock st) AND isCompany(st) DO {
         NEWSESSION {
             NEW a = UserAdjustment {
                 stock(a) <- st;
@@ -696,7 +696,7 @@ createBatchUserAdjustmentDetail(UserAdjustment adjustment)  {
         
         LOCAL adjust = NUMERIC[16,5] (Sku);
         adjust (Sku s) <- NULL; 
-        adjust (Sku s) <- min(-[= GROUP SUM balance(Batch b) IF balance(b) < 0 BY sku(b)](s), [= GROUP SUM balance(Batch b) IF balance(b) > 0 BY sku(b)](s));
+        adjust (Sku s) <- min(-[ GROUP SUM balance(Batch b) IF balance(b) < 0 BY sku(b)](s), [ GROUP SUM balance(Batch b) IF balance(b) > 0 BY sku(b)](s));
         
         LOCAL adjust = NUMERIC[16,5] (Batch);
         adjust(Batch b) <- NULL; 

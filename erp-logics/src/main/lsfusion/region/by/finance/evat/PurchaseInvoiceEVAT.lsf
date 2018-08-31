@@ -89,8 +89,8 @@ VATSum= ABSTRACT CASE NUMERIC[18,4](Purchase.Invoice);
 VATSum (Purchase.Invoice i) += WHEN i IS Purchase.Invoice THEN NUMERIC[18,4](customsVATSumInvoiceDetail(i));
 VATSum[EVATDocument] (Purchase.Invoice i) += NUMERIC[18,4](VATSum(i));
 
-VATSumRange[EVATDocument, Range](Purchase.Invoice i, Range r) += [= GROUP SUM VATSum(InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
-sumWithVATRange[EVATDocument, Range](Purchase.Invoice i, Range r) += [= GROUP SUM invoiceSum(InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
+VATSumRange[EVATDocument, Range](Purchase.Invoice i, Range r) += [ GROUP SUM VATSum(InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
+sumWithVATRange[EVATDocument, Range](Purchase.Invoice i, Range r) += [ GROUP SUM invoiceSum(InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
 customer[EVATDocument](Purchase.Invoice i) += customer(i);
 
 //priceRound (InvoiceDetail d) += WHEN currency(d) THEN defaultRound(currency(d));
@@ -113,10 +113,10 @@ createEVATPurchaseInvoice 'Накладные (закупка)' (DATE dFrom, DAT
         FOR invoice(InvoiceDetail id) == i AND quantity(id) > 0 NEW ed = EVATDetail DO {
             createEVATPurchaseInvoice(e,id,ed);
         }
-        FOR NUMERIC[16,5] vatSum == [= GROUP SUM customsVATSum(InvoiceDetail id) BY invoice(id),valueVAT(sku(id), date(id))](i, NUMERIC[10,5] vat) NEW ed = EVATDetail DO {
+        FOR NUMERIC[16,5] vatSum == [ GROUP SUM customsVATSum(InvoiceDetail id) BY invoice(id),valueVAT(sku(id), date(id))](i, NUMERIC[10,5] vat) NEW ed = EVATDetail DO {
             evat(ed) <- e;
             name(ed) <- 'Сумма НДС, уплаченная при ввозе';
-            code(ed) <- [= GROUP MAX codeCustomsGroup(InvoiceDetail id) BY invoice(id), valueVAT(sku(id), date(id))](i, vat);
+            code(ed) <- [ GROUP MAX codeCustomsGroup(InvoiceDetail id) BY invoice(id), valueVAT(sku(id), date(id))](i, vat);
             sum(ed) <- 0;
             exciseSum(ed) <- 0;
             vatRate(ed) <- vat;

@@ -626,7 +626,7 @@ quantityPageInventoryDetail 'Кол-во по описям' (CollationSheet cs, 
          
 //quantityPageInventoryDetail 'Кол-во по описям' (collationSheet, batch) = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
 //    BY collationSheet(pageInventoryDetail), batch(pageInventoryDetail);
-pricePageInventoryDetail 'Цена по описям' (CollationSheet collationSheet, Batch batch) = OVERRIDE [ =GROUP MAX price(PageInventoryDetail d) BY collationSheet(listInventory(d)), batch(d)](collationSheet, batch), 
+pricePageInventoryDetail 'Цена по описям' (CollationSheet collationSheet, Batch batch) = OVERRIDE [GROUP MAX price(PageInventoryDetail d) BY collationSheet(listInventory(d)), batch(d)](collationSheet, batch), 
     priceBalance(collationSheet, batch);
     
 priceMaxPageInventoryDetail 'Цена по описям' (collationSheet, batch) = GROUP MAX price(PageInventoryDetail d) 
@@ -689,7 +689,7 @@ quantityPageInventoryDetail 'Кол-во по описям' (collationSheet) =
 
 sumPageInventoryDetail 'Сумма по описям' (CollationSheet cs) = IF isSkuBatch(cs)
     THEN (GROUP SUM batchSumPageInventoryDetail(cs, Batch batch))
-    ELSE [ = GROUP SUM sum(PageInventoryDetail d) BY collationSheet(d)](cs) MATERIALIZED;
+    ELSE [GROUP SUM sum(PageInventoryDetail d) BY collationSheet(d)](cs) MATERIALIZED;
     
 // ------------------------------ Определение состава сличительной ведомости (Sku) ------------------------------------ //
 
@@ -707,7 +707,7 @@ priceBalance(CollationSheet collationSheet, Sku sku) <- OVERRIDE prevAccountPric
 
 include(collationSheet, batch) = DATA BOOLEAN (CollationSheet, Batch);
 include(CollationSheet collationSheet, Batch batch) <- include(collationSheet, PREV(sku(batch))) AND isBatch(collationSheet)
-                        WHEN [= CHANGED(include(collationSheet, Sku sku))](PREV(sku(batch)));
+                        WHEN [ CHANGED(include(collationSheet, Sku sku))](PREV(sku(batch)));
 
 priceBalance(CollationSheet collationSheet, Batch batch) <- prevAccountPriceB(
                 batch, stock(collationSheet), dateTime(inventory(collationSheet)))

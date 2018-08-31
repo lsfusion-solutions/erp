@@ -491,7 +491,7 @@ date 'Время' = DATA DATETIME (RequestExchangeError);
 requestExchange = DATA RequestExchange (RequestExchangeError);
 note 'Примечание' = DATA VARSTRING[100] (RequestExchange) CHARWIDTH 30;
 
-inGroupMachinery (Stock stock) = [= GROUP SUM 1 BY stock(GroupMachinery gr)](stock);
+inGroupMachinery (Stock stock) = [ GROUP SUM 1 BY stock(GroupMachinery gr)](stock);
 CONSTRAINT stock(RequestExchange r) AND NOT inGroupMachinery(stock(r)) CHECKED BY stock[RequestExchange]
     MESSAGE 'Склад без групп касс';
 
@@ -742,7 +742,7 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
         LOCAL countBarcode = INTEGER();
         countBarcode() <- (GROUP SUM 1 IF in(Barcode barcode));
         LOCAL countSku = INTEGER();
-        countSku() <- (GROUP SUM 1 IF [= GROUP SUM 1 IF in(Barcode barcode) BY sku(barcode)](Sku sku));        
+        countSku() <- (GROUP SUM 1 IF [ GROUP SUM 1 IF in(Barcode barcode) BY sku(barcode)](Sku sku));        
         
         IF countBarcode() THEN {
             addedTransaction() <- NULL;
@@ -842,7 +842,7 @@ DESIGN options {
 createBalanceSelectMachineryPriceTransaction 'Остатки'(Stock stock)  { 
 	NEWSESSION {
 	    DIALOG selectGroupMachinery OBJECTS st = stock DO
-	        IF [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
+	        IF [ GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
 	            exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
 	            
 	            createMachineryPriceTransaction(Sku sku) <-  currentBalance(sku, stock) OR sum(DATE(dateTimeLastMoved(sku, stock)), countSendAllMovedDays()) > currentDate();
@@ -857,7 +857,7 @@ createBalanceSelectMachineryPriceTransaction 'Остатки'(Stock stock)  {
 createSelectMachineryPriceTransaction 'Все товары'(Stock stock)  { 
 	NEWSESSION {
 	    DIALOG selectGroupMachinery OBJECTS st = stock DO
-	        IF [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
+	        IF [ GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
 	            exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
 	            
 	            createMachineryPriceTransaction(Sku sku) <- TRUE;
@@ -1100,7 +1100,7 @@ createApplySelectedSkuPriceTransactionDocument 'Загрузить в обору
 createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование'()  { 
 	NEWSESSION NESTED (select[Sku,Stock], createMachineryPriceTransactionSnapshot[], createMachineryPriceTransaction[Sku]) {
 	    IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
-	        FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](Stock stock) DO {
+	        FOR [ GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](Stock stock) DO {
 	            createMachineryPriceTransactionSnapshot() <- TRUE;
 	            createMachineryPriceTransaction(Sku sku) <- TRUE IF select(sku, stock);
 	            exclude(GroupMachinery group) <- skipMachineryPriceTransaction(group);

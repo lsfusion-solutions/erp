@@ -102,13 +102,13 @@ importInitCustom 'Импорт остатков' ()  {
     
     
     //шапки
-    FOR [=GROUP MIN INTEGER r IF date(r) AND sku(r) BY idCustomerStock(r), idSupplier(r), seriesNumber(r)](VARISTRING[100] idCustomerStock, VARISTRING[100] idSupplier, VARISTRING[100] num) 
+    FOR [GROUP MIN INTEGER r IF date(r) AND sku(r) BY idCustomerStock(r), idSupplier(r), seriesNumber(r)](VARISTRING[100] idCustomerStock, VARISTRING[100] idSupplier, VARISTRING[100] num) 
         AND NOT Purchase.userInvoice(CONCAT '_', VARSTRING[100](idCustomerStock), VARSTRING[100](idSupplier), VARSTRING[100](num)) 
         NEW i = Purchase.UserInvoice DO {
         
         id(i) <- CONCAT '_', VARSTRING[100](idCustomerStock), VARSTRING[100](idSupplier), VARSTRING[100](num);
     }
-    FOR INTEGER r == [=GROUP MIN INTEGER ir IF date(ir) AND  sku(ir) BY idCustomerStock(ir), idSupplier(ir), seriesNumber(ir)](VARISTRING[100] idCustomerStock, VARISTRING[100] idSupplier, VARISTRING[100] num) 
+    FOR INTEGER r == [GROUP MIN INTEGER ir IF date(ir) AND  sku(ir) BY idCustomerStock(ir), idSupplier(ir), seriesNumber(ir)](VARISTRING[100] idCustomerStock, VARISTRING[100] idSupplier, VARISTRING[100] num) 
         AND Purchase.UserInvoice i == Purchase.userInvoice(CONCAT '_', VARSTRING[100](idCustomerStock), VARSTRING[100](idSupplier), VARSTRING[100](num)) DO {
         
         supplier(i) <- legalEntity(idSupplier(r));
@@ -158,7 +158,7 @@ importInitCustom 'Импорт остатков' ()  {
     FOR Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(CONCAT '_', idCustomerStock(INTEGER r), idSupplier(r), seriesNumber(r), item(r), part(r)) AND indexBatch(r) > 1 DO {
         batch(d) <- batch(part(r));
     }
-    FOR [ = GROUP SUM 1 BY operation(INTEGER in),customerStock(in)](Purchase.Operation o, Stock st) DO {
+    FOR [GROUP SUM 1 BY operation(INTEGER in),customerStock(in)](Purchase.Operation o, Stock st) DO {
         quantity(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == customerStock(d) AND NOT incl(d);
         shipmentQuantity(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == customerStock(d) AND NOT incl(d);
         shipmentSum(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == customerStock(d) AND NOT incl(d);     

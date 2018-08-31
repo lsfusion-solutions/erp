@@ -379,7 +379,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     addScheduleOrderDetail()  { 
 
-        FOR [ = GROUP SUM 1 IF ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) AND NOT countDetailsCurrent(o))) BY supplier(o)](LegalEntity l) DO NEWSESSION {
+        FOR [GROUP SUM 1 IF ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) AND NOT countDetailsCurrent(o))) BY supplier(o)](LegalEntity l) DO NEWSESSION {
             FOR ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) AND NOT countDetailsCurrent(o))) AND supplier(o) == l DO {
                 EXEC create(o);
             }             
@@ -428,7 +428,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     prevLastCreatedOrder (ScheduleOrder o) = PREV(lastCreatedOrder(o));
     
     reCreate  'Перегенерировать предварительные заказы'(ScheduleOrder scheduleOrder)  { 
-        DELETE ScheduleOrderDetail d WHERE d IS ScheduleOrderDetail AND scheduleOrder(d) == scheduleOrder AND isOpened(d) AND NOT [ = GROUP SUM 1 BY scheduleOrderDetail( UserOrder o)](d);
+        DELETE ScheduleOrderDetail d WHERE d IS ScheduleOrderDetail AND scheduleOrder(d) == scheduleOrder AND isOpened(d) AND NOT [GROUP SUM 1 BY scheduleOrderDetail( UserOrder o)](d);
         create(scheduleOrder);    
     } TOOLBAR;
     
@@ -476,7 +476,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     @defineDocumentDialogSupplierCustomerLegalEntity(scheduleOrder, supplierFilter, customerFilter);
        
     countShipmentScheduleOrderTime (scheduleOrder, dow) = GROUP SUM 1 BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d);   
-    scheduleOrderTimeIn 'Вкл.' (ScheduleOrder scheduleOrder, DOW dow)= TRUE IF [ = GROUP SUM 1 BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d)](scheduleOrder, dow);   
+    scheduleOrderTimeIn 'Вкл.' (ScheduleOrder scheduleOrder, DOW dow)= TRUE IF [GROUP SUM 1 BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d)](scheduleOrder, dow);   
 
     setScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow)  { 
         IF NOT scheduleOrderTimeIn(scheduleOrder, dow) THEN {
@@ -562,7 +562,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     change(ScheduleOrder s, DOW dow)  { 
         IF scheduleOrderTimeIn(s, dow) THEN
-            SEEK scheduleOrder.d = [= GROUP MAX ScheduleOrderTime d BY scheduleOrder(d), shipmentDOW(d)](s, dow);
+            SEEK scheduleOrder.d = [ GROUP MAX ScheduleOrderTime d BY scheduleOrder(d), shipmentDOW(d)](s, dow);
     }
     EXTEND FORM scheduleOrder
         EVENTS

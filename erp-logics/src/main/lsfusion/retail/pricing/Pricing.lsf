@@ -29,7 +29,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
         AND pricingDocument(priceListType) NOINLINE (priceListType, roundCondition) INLINE DO {
             prefix###markup(detail) <- markup(priceListType, prefixSku###sku(detail))
                                                          WHERE prefix###priceListType(detail) == priceListType;
-            prefix###price(detail) <- round([= X*(Y+100)*(Z+100)/10000](
+            prefix###price(detail) <- round([ X*(Y+100)*(Z+100)/10000](
                                                                     prefixP###price(detail),
                                                                     prefix###markup(detail),
                                                                     value###prefix##VAT(detail)), roundCondition)
@@ -51,7 +51,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
                                                       ELSE prevPriceA(priceListType, prefixSku###sku(detail), stockProp(detail), prefixTime###dateTime(detail))
                                                          WHERE prefix###priceListType(detail) == priceListType;
                                                          
-            prefix###markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+            prefix###markup(detail) <- [ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
                                                                prefix###price(detail),
                                                                prefixP###price(detail),
                                                                value###prefix##VAT(detail))
@@ -59,7 +59,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
         }
     skipMarkup = ABSTRACT CASE BOOLEAN (###idetail);
     recalculate###prefix##Markup (###idetail detail)  { 
-        prefix##Markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+        prefix##Markup(detail) <- [ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
                                                            prefix###price(detail),
                                                            prefixP###price(detail),
                                                            value###prefix##VAT(detail));
@@ -78,11 +78,11 @@ META recalculateDocumentDetailBatchOnSessionPriceListType (idetail, prefix, pref
     recalculate###prefix##Price 'Пересчитать розн. цену'###cap ()  { 
         FOR sku(###idetail detail)  AND CalcPriceListType priceListType == prefix##PriceListType(detail) 
             AND RoundCondition roundCondition == roundCondition(priceListType, sku(detail))    
-            AND pricingDocument(priceListType) AND [= FILTER form.concrete](detail) NOINLINE (priceListType, roundCondition) INLINE DO {
+            AND pricingDocument(priceListType) AND [ FILTER form.concrete](detail) NOINLINE (priceListType, roundCondition) INLINE DO {
             
             prefix##Markup(detail) <- markup(priceListType, sku(detail))
                                                          WHERE prefix##PriceListType(detail) == priceListType;
-            prefix##Price(detail) <- round([= X*(Y+100)*(Z+100)/10000](
+            prefix##Price(detail) <- round([ X*(Y+100)*(Z+100)/10000](
                                                                     prefixP##Price(detail),
                                                                     prefix##Markup(detail),
                                                                     value###prefix##VAT(detail)), roundCondition)
@@ -90,13 +90,13 @@ META recalculateDocumentDetailBatchOnSessionPriceListType (idetail, prefix, pref
         } 
            
         FOR sku(###idetail detail) AND PriceListType priceListType == prefix##PriceListType(detail) 
-            AND NOT pricingDocument(priceListType) AND [= FILTER form.concrete](detail) NOINLINE (priceListType) INLINE DO {
+            AND NOT pricingDocument(priceListType) AND [ FILTER form.concrete](detail) NOINLINE (priceListType) INLINE DO {
     
             prefix##Price(detail) <- IF batch(detail) THEN prevPriceA(priceListType, batch(detail), stockProp(detail), prefixTime###dateTime(detail))
                                                     ELSE prevPriceA(priceListType, sku(detail), stockProp(detail), prefixTime###dateTime(detail))
                                                          WHERE prefix##PriceListType(detail) == priceListType;
                                                          
-            prefix##Markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+            prefix##Markup(detail) <- [ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
                                                                prefix##Price(detail),
                                                                prefixP##Price(detail),
                                                                value###prefix##VAT(detail))
@@ -107,7 +107,7 @@ META recalculateDocumentDetailBatchOnSessionPriceListType (idetail, prefix, pref
 END 
 
 META changeDocumentDetailMarkupCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD)
-    calc###prefixD###markup(###detail detail)  = NUMERIC[8,3]([= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+    calc###prefixD###markup(###detail detail)  = NUMERIC[8,3]([ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
         prefixA###price(detail),
         prefixB###price(detail),
         value###prefixD##VAT(detail)));
@@ -122,7 +122,7 @@ END
 
 META changeDocumentDetailPriceCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD, prefixCondition)
 
-    calc###prefixA##Price(###detail detail)  = round(NUMERIC[16,4]([= X*(Y+100)*(Z+100)/10000](
+    calc###prefixA##Price(###detail detail)  = round(NUMERIC[16,4]([ X*(Y+100)*(Z+100)/10000](
         prefixB###price(detail),
         prefixD###markup(detail),
         value###prefixD##VAT(detail))), prefixCondition###roundCondition(detail));
@@ -140,7 +140,7 @@ END
 
 //-- Для общего случая
 META changeDocumentDetailMarkupPrefixInner(detail, prefixA, prefixB, prefixC, prefixD, prefixE, prefixF)
-    calc###prefixB###markup###detail(detail)  = [= round2(((X/Z*100/(100+Y))-1)*100)](
+    calc###prefixB###markup###detail(detail)  = [ round2(((X/Z*100/(100+Y))-1)*100)](
         prefixC###price###detail(detail),
         prefixD###price###detail(detail) IF prefixD###price###detail(detail) != 0.0,
         value###prefixE###VAT###detail(detail));
@@ -157,7 +157,7 @@ END
 
 META changeDocumentDetailPricePrefix(detail, prefixA, prefixB, prefixC, prefixD, prefixE, prefixF)
 
-    calc###prefixB##Price(###detail detail)  = round(NUMERIC[16,4]([= X*(Y+100)*(Z+100)/10000](
+    calc###prefixB##Price(###detail detail)  = round(NUMERIC[16,4]([ X*(Y+100)*(Z+100)/10000](
         prefixD##Price(detail),
         prefixE###markup(detail),
         value###prefixE##VAT(detail))), roundCondition(detail));
@@ -533,7 +533,7 @@ WHEN LOCAL FORMS userPricing // цены берем на начало сесси
 // Проставление надбавки и розничной цены при изменении sku, склада, времени, вида цен, цены расценки, НДС в форме userPricing
 //overLimitPriceUserPricingDetail = ABSTRACT NUMERIC[16,4] (UserPricingDetail);
 //
-//minRetailPriceUserPricingDetail 'Минимальная розничная цена' (detail)= MIN roundPriceRoundCondition([= X*(Y+100)*(Z+100)/10000](
+//minRetailPriceUserPricingDetail 'Минимальная розничная цена' (detail)= MIN roundPriceRoundCondition([ X*(Y+100)*(Z+100)/10000](
 //                                                                        pricingPriceUserPricingDetail(detail),
 //                                                                        retailMarkupUserPricingDetail(detail),
 //                                                                        valueRetailVATUserPricingDetail(detail)), roundConditionPriceListType(calcRetailCalcPriceListTypeUserPricingDetail(detail))),

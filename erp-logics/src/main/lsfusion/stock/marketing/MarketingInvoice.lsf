@@ -78,7 +78,7 @@ VATSum 'Сумма НДС' (MarketingInvoice i) = OVERRIDE (overSumVAT(i) (-) su
 valueVAT 'НДС' (MarketingInvoice i) = (OVERRIDE (20 IF VATSum(i) > 0), 0);
 
 averageMarketingPercent 'Процент маркетинга' (MarketingInvoice i) = 
-    NUMERIC[7,2] (100 * overSumVAT(i) / [=GROUP SUM sum(MarketingInvoiceDetail d) BY marketingInvoice(d)](i));
+    NUMERIC[7,2] (100 * overSumVAT(i) / [GROUP SUM sum(MarketingInvoiceDetail d) BY marketingInvoice(d)](i));
 
 sumCalcBase 'Сумма (согл. базе расчета)' = GROUP SUM (sum(MarketingInvoiceDetail d) (-) returnSum(d)) BY marketingInvoice(d);
 
@@ -195,10 +195,10 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
         marketingCondition (PurchaseReturn.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d)) WHERE in(d);
         
         LOCAL quantityPurchase = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
-        quantityPurchase(MarketingCondition mc, Sku sk, Stock st) <- [= GROUP SUM quantity(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+        quantityPurchase(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantity(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
 
         LOCAL quantityPurchaseReturn = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
-        quantityPurchaseReturn(MarketingCondition mc, Sku sk, Stock st) <- [= GROUP SUM quantity(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+        quantityPurchaseReturn(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantity(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
         
         FOR (quantityPurchase(MarketingCondition mc, Sku sk, Stock st) OR quantityPurchaseReturn(mc, sk, st))
             AND (calcBase(mc) == CalcBase.supplier 
@@ -214,14 +214,14 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
             marketingPercent(md) <- marketingPercent(mc);
             sum (md) <- CASE 
                             WHEN calcBase(mc) == CalcBase.supplierVAT THEN 
-                                [= GROUP SUM invoiceSum(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
+                                [ GROUP SUM invoiceSum(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
                             WHEN calcBase(mc) == CalcBase.supplier THEN 
-                                [= GROUP SUM sum(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+                                [ GROUP SUM sum(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
             returnSum(md) <- CASE 
                                 WHEN calcBase(mc) == CalcBase.supplierVAT THEN 
-                                    [= GROUP SUM invoiceSum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
+                                    [ GROUP SUM invoiceSum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
                                 WHEN calcBase(mc) == CalcBase.supplier THEN
-                                    [= GROUP SUM sum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+                                    [ GROUP SUM sum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
         }
         
         IF (GROUP SUM 1 IF contractMarketing(MarketingCondition mc) = c AND (calcBase(mc) == CalcBase.turnoverVAT 
@@ -235,7 +235,7 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
             LOCAL marketingCondition = MarketingCondition (Sku, Stock, ConditionType);
             marketingCondition (Sku sk, Stock st, ConditionType t) <- marketingCondition(c, t, st, sk, df) WHERE quantity(sk, st);
             
-            FOR NUMERIC[16,5] q == [= GROUP SUM quantity(Sku sk, Stock st) BY marketingCondition(sk, st, ConditionType t), sk, st](MarketingCondition mc, Sku sk, Stock st)
+            FOR NUMERIC[16,5] q == [ GROUP SUM quantity(Sku sk, Stock st) BY marketingCondition(sk, st, ConditionType t), sk, st](MarketingCondition mc, Sku sk, Stock st)
                 AND CalcBase cb = calcBase(mc) AND  
                 (cb == CalcBase.turnoverVAT 
                  OR cb == CalcBase.turnover
@@ -251,13 +251,13 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
                 marketingPercent(md) <- marketingPercent(mc);
                 sum (md) <- CASE
                                 WHEN cb == CalcBase.turnoverVAT THEN
-                                    [= GROUP SUM sumSold(Batch b, Stock s, DATE d) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st) 
+                                    [ GROUP SUM sumSold(Batch b, Stock s, DATE d) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st) 
                                 WHEN cb == CalcBase.turnover THEN 
-                                    [= GROUP SUM (sumSold(Batch b, Stock s, DATE d) (-) sumVATSold(b, s, d)) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st) 
+                                    [ GROUP SUM (sumSold(Batch b, Stock s, DATE d) (-) sumVATSold(b, s, d)) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st) 
                                 WHEN cb == CalcBase.turnoverCost THEN
-                                    [= GROUP SUM costSumSold(Batch b, Stock s, DATE d) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st) 
+                                    [ GROUP SUM costSumSold(Batch b, Stock s, DATE d) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st) 
                                 WHEN cb == CalcBase.turnoverCostVAT THEN
-                                    [= GROUP SUM (costSumSold(Batch b, Stock s, DATE d) * (100 + valueVAT(b))/100) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st); 
+                                    [ GROUP SUM (costSumSold(Batch b, Stock s, DATE d) * (100 + valueVAT(b))/100) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st); 
             }
         }
         FOR contractMarketing(FixedMarketingCondition mc) == c NEW md = MarketingInvoiceDetail DO {

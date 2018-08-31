@@ -24,7 +24,7 @@ DESIGN options {
     } 
 }
 
-VATSum[EVATDocument] (Declaration i) += NUMERIC[18,4]([= GROUP SUM adjustVATSum(DeclarationDetail id) BY declaration(id)](i));
+VATSum[EVATDocument] (Declaration i) += NUMERIC[18,4]([ GROUP SUM adjustVATSum(DeclarationDetail id) BY declaration(id)](i));
 createEVATDeclaration 'Таможенные декларации' (LegalEntity l, DATE dFrom, DATE dTo)  { 
     FOR date(Declaration d) >= dFrom AND
         NOT EVAT(d) AND
@@ -35,19 +35,19 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         
         date(e) <- date(d);
         
-        numberContract (e) <- number([= GROUP MIN contractSku(InvoiceDetail id) IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
-        dateContract (e) <- dateFrom([= GROUP MIN contractSku(InvoiceDetail id) IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
+        numberContract (e) <- number([ GROUP MIN contractSku(InvoiceDetail id) IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
+        dateContract (e) <- dateFrom([ GROUP MIN contractSku(InvoiceDetail id) IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
         
         legalEntityStatusSupplier(e) <- LegalEntityStatus.foreignOrganization;
         legalEntityStatusCustomer(e) <- LegalEntityStatus.customer;
         codeDocType (e) <- 609;
-        dateDoc(e) <- date([= GROUP MIN InvoiceDetail id IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
-        seriesDoc(e) <- series([= GROUP MIN InvoiceDetail id IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
-        numberDoc(e) <- number([= GROUP MIN InvoiceDetail id IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
+        dateDoc(e) <- date([ GROUP MIN InvoiceDetail id IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
+        seriesDoc(e) <- series([ GROUP MIN InvoiceDetail id IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
+        numberDoc(e) <- number([ GROUP MIN InvoiceDetail id IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
         unpSender(e) <- UNP(l);
         
         //Поставщик
-        supplier(e) <- [= GROUP MIN supplier(InvoiceDetail id) IF currency(id) == currency(declaration(id)) BY declaration(id)](d);
+        supplier(e) <- [ GROUP MIN supplier(InvoiceDetail id) IF currency(id) == currency(declaration(id)) BY declaration(id)](d);
 //        branchCodeSupplier(e) <- branchCode(supplierStock(i));
         
         declarationSupplier(e) <- OVERRIDE number(d), 'не задан';
@@ -61,13 +61,13 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         consignor(e) <- VARISTRING[200](OVERRIDE fullName(supplier(e)), name(supplier(e)));
         unpConsignor (e) <- OVERRIDE UNPForeign(supplier(e)), UNP(supplier(e)); 
         countryCodeConsignor (e) <- sid(country(supplier(e)));
-        shippingAddressConsignor(e) <- address([= GROUP MIN supplierStock(InvoiceDetail id) IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
+        shippingAddressConsignor(e) <- address([ GROUP MIN supplierStock(InvoiceDetail id) IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
         
         //Грузополучатель
         consignee(e) <- VARISTRING[200](OVERRIDE fullName(customer(e)), name(customer(e)));
         countryCodeConsignee (e) <- sid(country(customer(e)));
         unpConsignee (e) <- UNP(customer(e)); 
-        shippingAddressConsignee(e) <- address([= GROUP MIN customerStock(InvoiceDetail id) IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
+        shippingAddressConsignee(e) <- address([ GROUP MIN customerStock(InvoiceDetail id) IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
                 
         FOR declaration(DeclarationDetail id) == d NEW ed = EVATDetail DO {
             evat(ed) <- e;
@@ -86,10 +86,10 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
             
             descriptionType(ed) <- DescriptionType.importVAT;
         }
-        FOR NUMERIC[16,5] vatSum == [= GROUP SUM adjustVATSum(DeclarationDetail id) BY declaration(id), percentVAT(id)](d, NUMERIC[10,5] vat) NEW ed = EVATDetail DO {
+        FOR NUMERIC[16,5] vatSum == [ GROUP SUM adjustVATSum(DeclarationDetail id) BY declaration(id), percentVAT(id)](d, NUMERIC[10,5] vat) NEW ed = EVATDetail DO {
             evat(ed) <- e;
             name(ed) <- 'Сумма НДС, уплаченная при ввозе';
-            code(ed) <- [= GROUP MAX codeCustomsGroup(DeclarationDetail id) BY declaration(id), percentVAT(id)](d, vat);
+            code(ed) <- [ GROUP MAX codeCustomsGroup(DeclarationDetail id) BY declaration(id), percentVAT(id)](d, vat);
             sum(ed) <- 0;
             exciseSum(ed) <- 0;
             vatRate(ed) <- vat;

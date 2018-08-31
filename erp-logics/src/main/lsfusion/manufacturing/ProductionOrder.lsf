@@ -173,7 +173,7 @@ DESIGN options {
     }
 }
 
-CONSTRAINT denyRepeatSkuOrder() AND [= GROUP SUM 1 BY sku(ProductDetail d), order(d)](Sku s, Order o) > 1 MESSAGE 'Изделие может быть включено в заказ только один раз';
+CONSTRAINT denyRepeatSkuOrder() AND [ GROUP SUM 1 BY sku(ProductDetail d), order(d)](Sku s, Order o) > 1 MESSAGE 'Изделие может быть включено в заказ только один раз';
 
 // Кол-во
 @defineDocumentDetailQuantityCustom (productDetail);
@@ -389,7 +389,7 @@ quantity 'Кол-во изделий в заказе' (product, order) = GROUP S
     BY product(productDetail), order(productDetail) MATERIALIZED;
 
 TABLE BOMOrder(BOM, Order);
-quantityProducts 'Кол-во спецификаций' (BOM BOM, Order order) = [= GROUP MAX NUMERIC[19,8](quantity(Product product, order)) / quantity(product)
+quantityProducts 'Кол-во спецификаций' (BOM BOM, Order order) = [ GROUP MAX NUMERIC[19,8](quantity(Product product, order)) / quantity(product)
     BY BOM(product)](BOM) MATERIALIZED;
     
 BOM = DATA BOM (ComponentDetail);
@@ -461,7 +461,7 @@ updateComponentsOrder 'Пересчитать кол-во для всех'(order
 // ------------- Заполнение изделий из спецификаций --------------- //
 
 quantityComponents 'Кол-во спецификаций' (BOM BOM, Order order) =
-    [= GROUP MAX NUMERIC[19,8](bruttoQuantity(ComponentDetail componentDetail)) / bruttoQuantity(component(componentDetail), date(componentDetail))
+    [ GROUP MAX NUMERIC[19,8](bruttoQuantity(ComponentDetail componentDetail)) / bruttoQuantity(component(componentDetail), date(componentDetail))
     BY BOM(component(componentDetail)), order(componentDetail)](BOM, order);
 
 overCreateProducts  ABSTRACT LIST ( Order);
@@ -557,7 +557,7 @@ WHEN LOCAL (CHANGED(priceListType(Order order)) OR CHANGED(componentsStock(order
                                                                                     componentsStock(order),
                                                                                     dateTime(order));
 
-calcCost 'Себестоимость' (Sku sku, Stock stock) = [= GROUP SUM cost(Batch b) * currentBalance(b, stock) BY skuCurrentBalance(b, stock)](sku) /
+calcCost 'Себестоимость' (Sku sku, Stock stock) = [ GROUP SUM cost(Batch b) * currentBalance(b, stock) BY skuCurrentBalance(b, stock)](sku) /
     (currentBalance(sku, stock) IF currentBalance(sku, stock) != 0);   
 
 WHEN LOCAL (CHANGED(quantityComponentDetail(Sku sku, Order order)) OR CHANGED(componentsStock(order)))
@@ -821,11 +821,11 @@ changeMarkup (ProductDetail detail)  {
     }
 }
 
-calcMarkupIsVAT(ProductDetail d)  = [= round2(((X/Z*100/(100+Y))-1)*100)](
+calcMarkupIsVAT(ProductDetail d)  = [ round2(((X/Z*100/(100+Y))-1)*100)](
     price(d),
     calcComponentsPrice(d) IF calcComponentsPrice(d) != 0.0,
     valueVAT(d));
-calcMarkup(ProductDetail d)  = [= round2((X/Y-1)*100)](
+calcMarkup(ProductDetail d)  = [ round2((X/Y-1)*100)](
     price(d),
     calcComponentsPrice(d) IF calcComponentsPrice(d) != 0.0);    
 
@@ -883,21 +883,21 @@ WHEN LOCAL (CHANGED(componentsCountry(Order order)) OR
     valueVAT(sku, order) <- valueVAT(sku, componentsCountry(order), date(order));
 }
      
-//calcPriceVATProductDetail 'Цена НДС' (d) = [= GROUP SUM bruttoSumComponentsBOMSkuOrder(b, s, o) * valueVATSkuOrder(s, o) / (100.0 + valueVATSkuOrder(s, o)) BY b, o] (BOMProductDetail(d), orderProductDetail(d)) 
+//calcPriceVATProductDetail 'Цена НДС' (d) = [ GROUP SUM bruttoSumComponentsBOMSkuOrder(b, s, o) * valueVATSkuOrder(s, o) / (100.0 + valueVATSkuOrder(s, o)) BY b, o] (BOMProductDetail(d), orderProductDetail(d)) 
 //                                                            * (pricePercentProductDetail(d) / 100.0) // удельная цена
 //                                                            / quantityProductDetail(d) // за единицу
 //                                                            / coeffPercentProductDetail(d); 
 //              
-//calcValueVATProductDetail 'НДС, %' (productDetail)= [= 100*X/(Y-X)](
+//calcValueVATProductDetail 'НДС, %' (productDetail)= [ 100*X/(Y-X)](
 //    calcPriceVATProductDetail(productDetail), calcComponentsPriceProductDetail(productDetail));
 //    
 ////--  если стоит галочка isVATOrder    
-//calcPriceIsVATProductDetail 'Цена НДС' (d) = [= GROUP SUM bruttoSumComponentsBOMSkuOrder(b, s, o) * valueVATSkuOrder(s, o) / 100.0 BY b, o] (BOMProductDetail(d), orderProductDetail(d)) 
+//calcPriceIsVATProductDetail 'Цена НДС' (d) = [ GROUP SUM bruttoSumComponentsBOMSkuOrder(b, s, o) * valueVATSkuOrder(s, o) / 100.0 BY b, o] (BOMProductDetail(d), orderProductDetail(d)) 
 //                                                         * (pricePercentProductDetail(d) / 100.0) // удельная цена
 //                                                         / quantityProductDetail(d) // за единицу
 //                                                         / coeffPercentProductDetail(d);       
 //   
-//calcValueIsVATProductDetail 'НДС, %' (productDetail)= [= 100*X/Y](
+//calcValueIsVATProductDetail 'НДС, %' (productDetail)= [ 100*X/Y](
 //    calcPriceIsVATProductDetail(productDetail), calcComponentsPriceProductDetail(productDetail) IF calcComponentsPriceProductDetail(productDetail)!= 0);    
 //
 
@@ -907,7 +907,7 @@ skip(d) = ABSTRACT BOOLEAN (ComponentDetail);
 
 valueVAT(ComponentDetail d) = OVERRIDE valueVAT(batch(d)) IF (valueVAT(batch(d)) !=0.0), valueVAT(sku(d), order(d)) MATERIALIZED;
 sumVAT (ComponentDetail d) = sum(d) * valueVAT(d) / (100.0 + valueVAT(d));
-sumVATComponents (ProductDetail d) = [= GROUP SUM sumVAT(ComponentDetail cd) IF NOT skip(cd) BY BOM(cd), order(cd)](BOM(d), order(d)); 
+sumVATComponents (ProductDetail d) = [ GROUP SUM sumVAT(ComponentDetail cd) IF NOT skip(cd) BY BOM(cd), order(cd)](BOM(d), order(d)); 
 sumVATComponentDetail = GROUP SUM sum(ComponentDetail d) IF NOT skip(d) BY BOM(d), order(d);                                                            
       
 useVATItem 'НДС изделия из карточки' = DATA BOOLEAN (Operation);
@@ -1112,7 +1112,7 @@ backgroundMarkup = ABSTRACT CASE COLOR (ProductDetail);
   
   //toSkuSubstitute(substitute)
 bruttoBalance 'Текущий остаток с учетом замен' (Sku sku,Order order) = currentBalance(sku, componentsStock(order)) (+) 
-    [ = GROUP SUM NUMERIC[19,8](currentBalance(Substitute substitute, order)) / (multiplier(substitute) IF multiplier(substitute) != 0) 
+    [GROUP SUM NUMERIC[19,8](currentBalance(Substitute substitute, order)) / (multiplier(substitute) IF multiplier(substitute) != 0) 
         BY fromSku(substitute)](sku);  
  
 bruttoBalanceToSku 'Текущий остаток с учетом замен' (Substitute su, Order order)= bruttoBalance(toSku(su), order); 

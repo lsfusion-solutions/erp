@@ -108,7 +108,7 @@ quantityStopListError 'Количество ошибок' (StopList) = GROUP SUM
 stopListDetail (sku, stopList) =  GROUP MAX StopListDetail stopListDetail
     BY sku(stopListDetail), stopList(stopListDetail);
 
-count 'Вкл.' (Sku sku, StopList stopList) =  TRUE IF [ = GROUP SUM 1 
+count 'Вкл.' (Sku sku, StopList stopList) =  TRUE IF [GROUP SUM 1 
     BY sku(StopListDetail stopListDetail), stopList(stopListDetail)](sku, stopList);    
 
 in (GroupMachinery groupMachinery, Sku sku, StopList stopList) =count(sku, stopList) AND in(groupMachinery, sku);
@@ -370,7 +370,7 @@ createRequestStopList 'Включить в стоп-лист'()   {
         NEWSESSION NESTED (select[Sku,Stock]) {
             NEW sl = StopList {
                 in(Stock st, sl) <- TRUE WHERE (GROUP SUM 1 IF select(Sku sku, st));  
-                FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) AND NOT skip(sku, stock) BY sku](Sku sku) NEW d = StopListDetail DO {
+                FOR [ GROUP SUM 1 IF select(Sku sku, Stock stock) AND NOT skip(sku, stock) BY sku](Sku sku) NEW d = StopListDetail DO {
                     stopList(d) <- sl;
                     sku(d) <- sku;            
                 } 
@@ -392,7 +392,7 @@ excludeRequestStopList 'Исключить из стоп-листа'()   {
             NEW sl = StopList {
                 exclude(sl) <- TRUE;
                 in(Stock st, sl) <- TRUE WHERE (GROUP SUM 1 IF select(Sku sku, st));  
-                FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY sku](Sku sku) NEW d = StopListDetail DO {
+                FOR [ GROUP SUM 1 IF select(Sku sku, Stock stock) BY sku](Sku sku) NEW d = StopListDetail DO {
                     stopList(d) <- sl;
                     sku(d) <- sku;            
                 } 
@@ -459,7 +459,7 @@ clearApplicationLog () + {
             DELETE StopListDetail d WHERE d IS StopListDetail AND date(d) <= subtract(currentDate(), countDaysClearStopList()) AND NOT lastStopListDetail(d);
 	        apply();
 	        
-	        DELETE StopList s WHERE s IS StopList AND NOT [= GROUP SUM 1 BY stopList(StopListDetail d)](s);
+	        DELETE StopList s WHERE s IS StopList AND NOT [ GROUP SUM 1 BY stopList(StopListDetail d)](s);
 	        apply();
 	    }
 	}

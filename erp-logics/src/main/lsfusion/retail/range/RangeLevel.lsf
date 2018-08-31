@@ -150,7 +150,7 @@ EXTEND FORM rangeRev
     FILTERGROUP filters
         FILTER 'Включен' level(v, s) DEFAULT
         FILTER 'Без поставщиков' level(v, s) AND NOT priceA(pt, s, d, dateTime(v))  
-        FILTER 'Новинка' [=GROUP SUM 1 IF (date(UserPriceListDetail pd) >= DATE df) AND price(pd, pt) BY sku(pd), df](s, dFrom) AND NOT level(prevRangeRev(v), s)
+        FILTER 'Новинка' [GROUP SUM 1 IF (date(UserPriceListDetail pd) >= DATE df) AND price(pd, pt) BY sku(pd), df](s, dFrom) AND NOT level(prevRangeRev(v), s)
         FILTER 'Изменившиеся' changedLevel(v, s)
         
     OBJECTS l = RangeLevel AFTER store
@@ -273,7 +273,7 @@ changeLevel (Range r, Store st, DATE d) {
 changeWYSLevel (Range r, Store st, DATE d) { 
     INPUT s = VARISTRING[10] DO 
         IF s THEN {
-            dataLevel (r, st, d) <- [= GROUP MAX RangeLevel l BY name(l)](s);
+            dataLevel (r, st, d) <- [ GROUP MAX RangeLevel l BY name(l)](s);
             excludeLevel (r, st, d) <- NULL;
         } ELSE {
             dataLevel (r, st, d) <- NULL;
@@ -699,7 +699,7 @@ importXls 'Импорт' (RangeRev v)  {
              message() <- 'Не найдены следующие штрих-коды:\n' + (GROUP CONCAT (CONCAT ' : ', barcode(INTEGER i), name(i)) IF imported(i) AND (barcode(i) OR name(i)) AND NOT barcode(barcode(i), currentDate()), '\n');        
         }
         LOCAL inImport = BOOLEAN (SkuGroup);
-        inImport(SkuGroup g) <- TRUE WHERE [ = GROUP SUM 1 IF imported(INTEGER i) BY  skuGroup(sku(barcode(barcode(i), currentDate()))) ](g) AND NOT inChild(range(v),g);
+        inImport(SkuGroup g) <- TRUE WHERE [GROUP SUM 1 IF imported(INTEGER i) BY  skuGroup(sku(barcode(barcode(i), currentDate()))) ](g) AND NOT inChild(range(v),g);
         IF (GROUP SUM 1 IF inImport(SkuGroup g)) THEN {
             message() <- CONCAT '\n', message(), 'Товары из следующих групп не были импортированы, т.к. они не включены в матрицу:', (GROUP CONCAT name(SkuGroup g) IF inImport(g),'\n') ;
         }
@@ -736,7 +736,7 @@ EXTEND FORM rangeRev
 filterStore = DATA LOCAL Store();
 nameFilterStore 'Магазин' = name(filterStore());
 
-CONSTRAINT filterStore() AND NOT [=GROUP SUM 1 IF accessCompany(currentUser(), DepartmentStore ds) BY store(ds)](filterStore())
+CONSTRAINT filterStore() AND NOT [GROUP SUM 1 IF accessCompany(currentUser(), DepartmentStore ds) BY store(ds)](filterStore())
     CHECKED BY filterStore[]
     MESSAGE 'В фильтре выбран Магазин, к которому нет доступа';
     

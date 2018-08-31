@@ -155,7 +155,7 @@ idSku 'Код' (PromotionDetail detail) = id(sku(detail)) IN recognize;
 TABLE promotionDetailLegalEntity (PromotionDetail, LegalEntity);
 countStocks 'Количество складов компании' = DATA INTEGER (PromotionDetail, LegalEntity);
 nameSuppliers 'Поставщики' (PromotionDetail detail) = GROUP CONCAT name(LegalEntity company) IF countStocks(detail, company), ', '  CHARWIDTH 30;
-in (Promotion p, LegalEntity c) = TRUE IF [= GROUP SUM countStocks(PromotionDetail detail, c) BY promotion(detail)](p);
+in (Promotion p, LegalEntity c) = TRUE IF [ GROUP SUM countStocks(PromotionDetail detail, c) BY promotion(detail)](p);
 
 recalculateCountStocks (PromotionDetail d)  { 
     countStocks(d, LegalEntity company) <- (GROUP SUM 1 IF prevPriceA(defaultPriceListType(),sku(d), Stock stock, company, toDateTime(fromDate(d))));
@@ -470,7 +470,7 @@ recalculatePrices (PromotionDetail d)  {
 }
 
 recalculatePrices 'Пересчитать цены поставщиков' ()  { 
-    FOR [= FILTER promotion.d](PromotionDetail d) DO
+    FOR [ FILTER promotion.d](PromotionDetail d) DO
         recalculatePrices(d);
 } CONFIRM;
 
@@ -596,7 +596,7 @@ NAVIGATOR {
 
 createOrderSupplier 'Создать заказ по поставщику' (Stock stock, PromotionDetail detail)  { 
     LOCAL NESTED in = BOOLEAN (PromotionDetail);
-    in(PromotionDetail d) <-  [= FILTER promotionsStock.d](d);
+    in(PromotionDetail d) <-  [ FILTER promotionsStock.d](d);
     NEWSESSION {
         NEW o = Purchase.UserOrder {
             customer(o) <- legalEntity(stock);
@@ -677,7 +677,7 @@ createPriceList 'Создать прайсы' (Promotion p, BOOLEAN skipCompany)
                 currency(priceList) <- defaultCurrency(operation(priceList));
                 note(priceList) <- name(p);
                 
-                dataIn(priceList, Stock stock) <- TRUE IF [= GROUP SUM 1 IF prevPriceA(defaultPriceListType(), sku(PromotionDetail d), stock, company, DATETIME dateTime) AND in(promotion(d),stock) BY promotion(d), dateTime](p, toDateTime(fromDate(p))) ;
+                dataIn(priceList, Stock stock) <- TRUE IF [ GROUP SUM 1 IF prevPriceA(defaultPriceListType(), sku(PromotionDetail d), stock, company, DATETIME dateTime) AND in(promotion(d),stock) BY promotion(d), dateTime](p, toDateTime(fromDate(p))) ;
                 
                 in(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
                 show(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();

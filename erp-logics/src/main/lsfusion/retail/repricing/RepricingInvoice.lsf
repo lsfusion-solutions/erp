@@ -37,7 +37,7 @@ META defineRepricingAggregation(sign, stockProp)
     @deriveDocumentDetailPriceSystemLedgerPriceListType(userInvoice, retailPricingPriceListType, curRetail, sku, stockProp###stock);
 
     // Расчет надбавки обратным счетом
-    curMarkup(UserInvoiceDetail userInvoiceDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+    curMarkup(UserInvoiceDetail userInvoiceDetail)  <- [ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
         curRetailPrice(userInvoiceDetail),
         valueCurVAT(userInvoiceDetail),
         curRepricingPrice(userInvoiceDetail) IF curRepricingPrice(userInvoiceDetail)!=0.0)
@@ -78,7 +78,7 @@ META defineRepricingAggregation(sign, stockProp)
     // Расчет сумм обратным счетом
     afterRetailSum (UserInvoiceDetail detail)  <- round(balanceBSku(detail) * retailPrice(detail), currency(detail))
                         WHEN CHANGED(balanceBSku(detail)) OR CHANGED (retailPrice(detail)) OR CHANGED(currency(detail));
-    afterRetailVATSum (UserInvoiceDetail detail)  <- round([= X*Y/(100+Y)](afterRetailSum(detail), valueRetailVAT(detail)), currency(detail))
+    afterRetailVATSum (UserInvoiceDetail detail)  <- round([ X*Y/(100+Y)](afterRetailSum(detail), valueRetailVAT(detail)), currency(detail))
                     WHEN CHANGED(afterRetailSum(detail)) OR CHANGED (valueRetailVAT(detail)) OR CHANGED (currency(detail));
     afterRetailMarkupSum(UserInvoiceDetail detail) <- afterRetailSum(detail) (-) afterRetailVATSum (detail) (-) afterSum(detail)
                     WHEN CHANGED(afterRetailVATSum(detail)) OR CHANGED (afterRetailVATSum (detail)) OR CHANGED (afterSum(detail));

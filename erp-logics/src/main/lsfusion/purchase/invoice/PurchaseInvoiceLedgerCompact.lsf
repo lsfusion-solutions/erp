@@ -14,7 +14,7 @@ compactLedger 'Очистить регистр цен'(DATE dFrom, DATE dTo)  {
     NEWSESSION {
         
         LOCAL countMove = INTEGER (Sku, DepartmentStore);
-        countMove(Sku s, DepartmentStore st) <- [= GROUP SUM 1 IF date(UserInvoiceDetail d) >= dFrom AND date(d) <= dTo BY sku(d), customerStock(d)](s, st);
+        countMove(Sku s, DepartmentStore st) <- [ GROUP SUM 1 IF date(UserInvoiceDetail d) >= dFrom AND date(d) <= dTo BY sku(d), customerStock(d)](s, st);
         MESSAGE 'Общее число строк: ' + (GROUP SUM countMove(Sku s, DepartmentStore st)) NOWAIT;
         
         LOCAL NESTED price = NUMERIC[16,5] (Sku, DepartmentStore);
@@ -39,7 +39,7 @@ compactLedger 'Очистить регистр цен'(DATE dFrom, DATE dTo)  {
                 }
             }
 
-            countMove(Sku s, DepartmentStore st) <- [= GROUP SUM 1 BY sku(UserInvoiceDetail d), customerStock(d), date( d)](s, st, dt);
+            countMove(Sku s, DepartmentStore st) <- [ GROUP SUM 1 BY sku(UserInvoiceDetail d), customerStock(d), date( d)](s, st, dt);
             IF (GROUP SUM 1 IF countMove(Sku s, DepartmentStore st)) THEN 
                 MESSAGE CONCAT '', VARSTRING[10](dt), ' - Всего:' + (GROUP SUM 1 IF countMove(Sku s, DepartmentStore st)), ' Очищено:' + (GROUP SUM 1 IF CHANGED (dataSkipChangeLedger(InvoiceDetail d))) NOWAIT;
             

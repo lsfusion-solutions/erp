@@ -56,7 +56,7 @@ calcPrevBalanceB 'Тек. остаток' (Batch batch, PageInventory li) = prev
 changeQuantity(Batch batch, PageInventory li)  { 
     INPUT n = NUMERIC[16,5] DO {
         changeQuantityValue(batch, li, (OVERRIDE n,0.0));
-        quantity(li, Sku sk, NUMERIC[16,4] price) <- (OVERRIDE [= GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+        quantity(li, Sku sk, NUMERIC[16,4] price) <- (OVERRIDE [ GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
             BY pageInventory(pageInventoryDetail), sku(batch(pageInventoryDetail)), currentPrice(batch(pageInventoryDetail), pageInventory(pageInventoryDetail))](li,sk,price), 0.0) 
             WHERE sk == sku(batch) AND price == currentPrice(batch,li); 
     }
@@ -151,7 +151,7 @@ changeBlisterQuantityValue (Batch batch, PageInventory li, NUMERIC[16,4] i)  {
 changeBlisterQuantity(Batch batch, PageInventory li)  { 
     INPUT i = INTEGER DO {
         changeBlisterQuantityValue(batch,li,NUMERIC[16,4](OVERRIDE i,0.0));
-        quantity(li, Sku sk, NUMERIC[16,4] price) <- (OVERRIDE [= GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+        quantity(li, Sku sk, NUMERIC[16,4] price) <- (OVERRIDE [ GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
                     BY pageInventory(pageInventoryDetail), sku(batch(pageInventoryDetail)), currentPrice(batch(pageInventoryDetail), pageInventory(pageInventoryDetail))](li,sk,price), 0.0) 
                     WHERE sk == sku(batch) AND price == currentPrice(batch,li);
     }
@@ -269,13 +269,13 @@ fillLocal(PageInventory page)  {
     quantityPurchase (Batch bt, page, NUMERIC[16,4] n) <- calcQuantityPurchase(bt, page, n) WHERE calcQuantityPurchase(bt, page, n);
     quantityPurchase (Sku sku, page, NUMERIC[16,4] n) <- calcQuantityPurchase(sku, page, n) WHERE calcQuantityPurchase(sku, page, n);    
     
-    quantityBatchInSku(Sku sk, NUMERIC[16,4] n, page) <- [= GROUP SUM 1 IF currentPrice(Batch batch, PageInventory li) BY sku(batch), currentPrice(batch,li), li](sk,n,page) WHERE currentPrice(sk, page)==n;
-    quantityBatchInSkuOst(Sku sk, NUMERIC[16,4] n, page) <- [= GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND prevBalanceB(bt, li) BY sku(bt), currentPrice(bt,li), li](sk,n,page) WHERE currentPrice(sk, page)==n;
-    quantityBatchInSkuDvi(Sku sk, NUMERIC[16,4] n, page) <- [= GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND countLedger(bt, li) AND currentPrice(bt, li) BY sku(bt), currentPrice(bt,li), li](sk,n,page) WHERE currentPrice(sk, page)==n;
+    quantityBatchInSku(Sku sk, NUMERIC[16,4] n, page) <- [ GROUP SUM 1 IF currentPrice(Batch batch, PageInventory li) BY sku(batch), currentPrice(batch,li), li](sk,n,page) WHERE currentPrice(sk, page)==n;
+    quantityBatchInSkuOst(Sku sk, NUMERIC[16,4] n, page) <- [ GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND prevBalanceB(bt, li) BY sku(bt), currentPrice(bt,li), li](sk,n,page) WHERE currentPrice(sk, page)==n;
+    quantityBatchInSkuDvi(Sku sk, NUMERIC[16,4] n, page) <- [ GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND countLedger(bt, li) AND currentPrice(bt, li) BY sku(bt), currentPrice(bt,li), li](sk,n,page) WHERE currentPrice(sk, page)==n;
     
-    quantity(page, Batch bt) <- (OVERRIDE [= GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+    quantity(page, Batch bt) <- (OVERRIDE [ GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
         BY pageInventory(pageInventoryDetail), batch(pageInventoryDetail)](page,bt), 0.0) WHERE currentPrice(bt,page);
-    quantity(page, Sku sk, NUMERIC[16,4] n) <- (OVERRIDE [= GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+    quantity(page, Sku sk, NUMERIC[16,4] n) <- (OVERRIDE [ GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
         BY pageInventory(pageInventoryDetail), sku(batch(pageInventoryDetail)), currentPrice(batch(pageInventoryDetail), pageInventory(pageInventoryDetail))](page,sk,n), 0.0) 
         WHERE quantityBatchInSku(sk,n,page);
         

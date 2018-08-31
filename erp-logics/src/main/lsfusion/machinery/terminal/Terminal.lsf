@@ -509,15 +509,15 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
                 
                 IF explicitBatchLedger(stockProp(object)) THEN {      
                     LOCAL quantity = NUMERIC[16,5] (Sku);
-                    quantity(Sku sku) <- [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY skuProp(tdd)](sku);   
-                    FOR [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY skuProp(tdd)](Sku sku) DO {
+                    quantity(Sku sku) <- [GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY skuProp(tdd)](sku);   
+                    FOR [GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY skuProp(tdd)](Sku sku) DO {
                         FOR explicitBatchLedger(stockProp(object)) AND quantity(sku(Batch b)) AND sku(b) == sku AND 
-                            prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object) > 0.0 
+                            prevAvailableQuantity(b, stockProp(object)) (-) [GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object) > 0.0 
                             ORDER dateTime(b) NEW o = class##Detail DO {
                             object(o) <- object;
                             sku(o) <- sku;
-                            quantity(o) <- IF quantity(sku(b)) > (prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object))
-                                THEN prevAvailableQuantity(b, stockProp(object)) (-) [=GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object)
+                            quantity(o) <- IF quantity(sku(b)) > (prevAvailableQuantity(b, stockProp(object)) (-) [GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object))
+                                THEN prevAvailableQuantity(b, stockProp(object)) (-) [GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object)
                                 ELSE quantity(sku(b));
                             IF NOT skipFillBatch(o) THEN {
                                 batch(o) <- b;

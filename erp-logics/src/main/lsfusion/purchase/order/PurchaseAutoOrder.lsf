@@ -62,8 +62,8 @@ calcQuantitySoldInterval 'Рассчитать однодневные прода
         averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](quantitySold (sku, stock, fromSoldDate(sku), toSoldDate(sku)) / countSoldDays(skuGroup(sku)));
     APPLY;
 
-    coeffSeason(SkuGroup sk) <- max (min([ = X/Y]([ = GROUP SUM sumSold(Sku s, Stock st, lastYearCurrent(), sum(lastYearCurrent(), countSeason(skuGroup(s))-1)) IF isCompany(st) AND NOT skipCoeffSeason(st) BY skuGroup(s)](sk), 
-                                         [ = GROUP SUM sumSold(Sku s, Stock st, subtract(lastYearCurrent(), countSeason(skuGroup(s))), subtract(lastYearCurrent(),1)) IF isCompany(st) AND NOT skipCoeffSeason(st) BY skuGroup(s)](sk)), 5), 0.2); 
+    coeffSeason(SkuGroup sk) <- max (min([X/Y]([GROUP SUM sumSold(Sku s, Stock st, lastYearCurrent(), sum(lastYearCurrent(), countSeason(skuGroup(s))-1)) IF isCompany(st) AND NOT skipCoeffSeason(st) BY skuGroup(s)](sk), 
+                                         [GROUP SUM sumSold(Sku s, Stock st, subtract(lastYearCurrent(), countSeason(skuGroup(s))), subtract(lastYearCurrent(),1)) IF isCompany(st) AND NOT skipCoeffSeason(st) BY skuGroup(s)](sk)), 5), 0.2); 
                                              
     APPLY;
     
@@ -78,10 +78,10 @@ isPromotion = ABSTRACT CASE BOOLEAN (PriceListDetail);
 //calcQuantityPromotionSoldInterval 'Рассчитать однодневные продажи (акции)'()  { 
 //
 //    dateFromPromotion(Sku s, Stock st) <- NULL;
-//    dateFromPromotion(Sku s, Stock st) <- [= GROUP MIN fromDate(PriceListDetail d) IF isPromotion(d) AND toDate(d) >= subtract(currentDate(), countSoldDays(skuGroup(sku(d)))) AND in(priceList(d), st) BY sku(d)](s);  
+//    dateFromPromotion(Sku s, Stock st) <- [ GROUP MIN fromDate(PriceListDetail d) IF isPromotion(d) AND toDate(d) >= subtract(currentDate(), countSoldDays(skuGroup(sku(d)))) AND in(priceList(d), st) BY sku(d)](s);  
 //
 //    dateToPromotion(Sku s, Stock st) <- NULL;
-//    dateToPromotion(Sku s, Stock st) <- [= GROUP MIN toDate(PriceListDetail d) IF isPromotion(d) AND toDate(d) >= subtract(currentDate(), countSoldDays(skuGroup(sku(d)))) AND in(priceList(d), st) BY sku(d) ](s) WHERE dateFromPromotion(s, st);
+//    dateToPromotion(Sku s, Stock st) <- [ GROUP MIN toDate(PriceListDetail d) IF isPromotion(d) AND toDate(d) >= subtract(currentDate(), countSoldDays(skuGroup(sku(d)))) AND in(priceList(d), st) BY sku(d) ](s) WHERE dateFromPromotion(s, st);
 //
 //    APPLY;
 //

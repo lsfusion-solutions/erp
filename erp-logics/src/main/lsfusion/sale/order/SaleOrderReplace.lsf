@@ -12,20 +12,20 @@ additionalCheckException = ABSTRACT VARSTRING[100]();
 countSelectedOrder 'Кол-во отм.' = GROUP SUM 1 IF selected(Order order);
 countSelectedUserOrder 'Кол-во отм. (польз.)' = GROUP SUM 1 IF selected(UserOrder order) AND order IS UserOrder;
 
-countSelectedSupplier 'Кол-во поставщиков' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY supplier(order)](LegalEntity supplier);
-minSupplier = GROUP MIN LegalEntity supplier IF [= GROUP SUM 1 IF selected(Order order) BY supplier(order)](supplier);
+countSelectedSupplier 'Кол-во поставщиков' = GROUP SUM 1 IF [ GROUP SUM 1 IF selected(Order order) BY supplier(order)](LegalEntity supplier);
+minSupplier = GROUP MIN LegalEntity supplier IF [ GROUP SUM 1 IF selected(Order order) BY supplier(order)](supplier);
 
-countSelectedCustomer 'Кол-во покупателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY customer(order)](LegalEntity customer);
-minCustomer = GROUP MIN LegalEntity customer IF [= GROUP SUM 1 IF selected(Order order) BY customer(order)](customer);
+countSelectedCustomer 'Кол-во покупателей' = GROUP SUM 1 IF [ GROUP SUM 1 IF selected(Order order) BY customer(order)](LegalEntity customer);
+minCustomer = GROUP MIN LegalEntity customer IF [ GROUP SUM 1 IF selected(Order order) BY customer(order)](customer);
 
-countSelectedSupplierStock 'Кол-во складов поставщика' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY supplierStock(order)](Stock supplierStock);
-minSupplierStock = GROUP MIN Stock supplierStock IF [= GROUP SUM 1 IF selected(Order order) BY supplierStock(order)](supplierStock);       
+countSelectedSupplierStock 'Кол-во складов поставщика' = GROUP SUM 1 IF [ GROUP SUM 1 IF selected(Order order) BY supplierStock(order)](Stock supplierStock);
+minSupplierStock = GROUP MIN Stock supplierStock IF [ GROUP SUM 1 IF selected(Order order) BY supplierStock(order)](supplierStock);       
 
-countSelectedCustomerStock 'Кол-во складов покупателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY customerStock(order)](Stock customerStock);
-minCustomerStock = GROUP MIN Stock customerStock IF [= GROUP SUM 1 IF selected(Order order) BY customerStock(order)](customerStock);
+countSelectedCustomerStock 'Кол-во складов покупателей' = GROUP SUM 1 IF [ GROUP SUM 1 IF selected(Order order) BY customerStock(order)](Stock customerStock);
+minCustomerStock = GROUP MIN Stock customerStock IF [ GROUP SUM 1 IF selected(Order order) BY customerStock(order)](customerStock);
 
-countSelectedOperation 'Кол-во операций' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY operation(order)](Operation operation);
-minOperation = GROUP MIN Operation operation IF [= GROUP SUM 1 IF selected(Order order) BY operation(order)](operation);
+countSelectedOperation 'Кол-во операций' = GROUP SUM 1 IF [ GROUP SUM 1 IF selected(Order order) BY operation(order)](Operation operation);
+minOperation = GROUP MIN Operation operation IF [ GROUP SUM 1 IF selected(Order order) BY operation(order)](operation);
 
 
 @defineOption(groupSkuSaleOrderReplace, 'Группировать строки по товару при объединении заказов (продажа)', optionsContainer);
@@ -57,16 +57,16 @@ replace 'Объединить'(UserOrder order)  {
                             selected(order) <- TRUE;
                                                     
                             LOCAL qty = NUMERIC[16,5](Sku);
-                            qty(Sku s) <- [=GROUP SUM quantity(UserOrderDetail d) IF selected(userOrder(d)) BY sku(d)](s);
+                            qty(Sku s) <- [GROUP SUM quantity(UserOrderDetail d) IF selected(userOrder(d)) BY sku(d)](s);
                             
                             LOCAL maxDetail = UserOrderDetail(Sku);
-                            maxDetail(Sku s) <- [=GROUP MAX UserOrderDetail d IF selected(userOrder(d)) BY sku(d)](s);
+                            maxDetail(Sku s) <- [GROUP MAX UserOrderDetail d IF selected(userOrder(d)) BY sku(d)](s);
                             
                             FOR qty(Sku s) AND s == sku(UserOrderDetail nd) AND userOrder(nd) == order DO {
                                 quantity(nd) <- qty(s);
                             }
                             
-                            FOR qty(Sku s) AND NOT [= GROUP SUM 1  BY sku(UserOrderDetail nd), userOrder(nd)](s, order) NEW d = UserOrderDetail DO {
+                            FOR qty(Sku s) AND NOT [ GROUP SUM 1  BY sku(UserOrderDetail nd), userOrder(nd)](s, order) NEW d = UserOrderDetail DO {
                                 userOrder(d) <- order;
                                 sku(d) <- s;
                                 quantity(d) <- qty(s);

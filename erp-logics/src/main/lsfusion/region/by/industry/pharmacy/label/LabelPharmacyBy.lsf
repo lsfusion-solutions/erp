@@ -32,7 +32,7 @@ EXTEND FORM currentBalanceBatchStock
 createBatchLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore)  { 
     // бежим по всем типам ценников из управленческих параметров
     // для каждого создаем по операции печати ценников
-    FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,departmentStore) AND NOT exclude(l,s) BY l](LabelType labelType) NEW t = LabelTransaction DO { 
+    FOR [ GROUP SUM 1 IF select(Sku s,LabelType l,departmentStore) AND NOT exclude(l,s) BY l](LabelType labelType) NEW t = LabelTransaction DO { 
         departmentStore(t) <- departmentStore;
         labelType(t) <- labelType;
         addedTransaction() <- t;
@@ -72,7 +72,7 @@ createBatchLabelTransaction 'Распечатать ценники'(DepartmentSt
 createSelectedBatchStockLabelTransaction 'Распечатать ценники'()  { 
     IF (GROUP SUM 1 IF select(Batch batch, Stock stock)) THEN {
         NEWSESSION NESTED (select[Batch,Stock]) {
-            FOR [= GROUP SUM 1 IF select(Batch batch, Stock stock) BY stock] (DepartmentStore stock) AND stock IS DepartmentStore DO {        
+            FOR [ GROUP SUM 1 IF select(Batch batch, Stock stock) BY stock] (DepartmentStore stock) AND stock IS DepartmentStore DO {        
                 select(Sku sku, LabelType labelType, stock) <- countSelectBatch(sku, stock) AND inPrint(labelType, sku, stock);
                 createBatchLabelTransaction(stock);
             }
@@ -143,7 +143,7 @@ createSelectedBatchStockSnapshotLabelTransaction 'Перепечатать це�
     IF (GROUP SUM 1 IF select(Batch batch, Stock stock)) THEN {            
         NEWSESSION NESTED (select[Batch,Stock]) {
 
-            FOR [= GROUP SUM 1 IF select(Batch batch, Stock stock) BY stock](DepartmentStore stock) AND stock IS DepartmentStore DO {  
+            FOR [ GROUP SUM 1 IF select(Batch batch, Stock stock) BY stock](DepartmentStore stock) AND stock IS DepartmentStore DO {  
                 DIALOG selectLabelTypes OBJECTS ds = stock, l INPUT NOMANAGESESSION DO { 
                     select(Sku sku) <- TRUE IF countSelectBatch(sku);     
                     IF NOT countSelectType() THEN {

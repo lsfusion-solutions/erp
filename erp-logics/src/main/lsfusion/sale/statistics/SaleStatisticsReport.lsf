@@ -725,11 +725,11 @@ balanceResident  = GROUP LAST balanceResident(StatisticReportDetail d)
 
 createSumReport 'Создать суммарный отчет'() { 
 	NEWSESSION {
-	    IF (GROUP SUM 1 IF [=GROUP SUM 1 IF in(StatisticReport r) BY statisticReportType(r) ](StatisticReportType str)) > 1 THEN {
+	    IF (GROUP SUM 1 IF [GROUP SUM 1 IF in(StatisticReport r) BY statisticReportType(r) ](StatisticReportType str)) > 1 THEN {
 	        MESSAGE 'Выбраны отчеты разных типов';
 	        RETURN;
 	    }
-	    IF (GROUP SUM 1 IF [=GROUP SUM 1 IF in(StatisticReport r) BY reportKind(r) ](ReportKind str)) > 1 THEN {
+	    IF (GROUP SUM 1 IF [GROUP SUM 1 IF in(StatisticReport r) BY reportKind(r) ](ReportKind str)) > 1 THEN {
 	        MESSAGE 'Выбраны отчеты разных видов';
 	        RETURN;
 	    }
@@ -740,7 +740,7 @@ createSumReport 'Создать суммарный отчет'() {
 	    NEW s = StatisticReport {
 	        statisticReportType(s) <- (GROUP MAX statisticReportType(StatisticReport r) IF in(r));
 	        reportKind(s) <- ReportKind.consolidate;
-	        consolidateStocks(s) <- OVERRIDE (GROUP CONCAT [=GROUP MAX nameStockRegion(StatisticReport r) IF in(r) BY nameStockRegion(r) ](VARISTRING[255] str), ',');
+	        consolidateStocks(s) <- OVERRIDE (GROUP CONCAT [GROUP MAX nameStockRegion(StatisticReport r) IF in(r) BY nameStockRegion(r) ](VARISTRING[255] str), ',');
 	        fromDate(s) <- (GROUP MIN fromDate(StatisticReport r) IF in(r));
 	        toDate(s) <- (GROUP MAX toDate(StatisticReport r) IF in(r));
 	        name(s) <- 'Суммарный отчет ' + name(statisticReportType(s));
@@ -755,17 +755,17 @@ createSumReport 'Создать суммарный отчет'() {
 	            nameUOM(d) <- nameUOM(detail);
 	            round(d) <- round(detail);
 	            
-	            sold(d) <- [=GROUP SUM sold(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
-	            soldResident(d) <- [=GROUP SUM soldResident(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
-	            balance(d) <- IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.stock THEN [= GROUP SUM balance(Stock ss,StatisticGroup sg) BY sg](statisticGroup(d))
-	                ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.region THEN [= GROUP SUM balance(Region rs,StatisticGroup sg) BY sg](statisticGroup(d));
-	            balanceResident(d) <- IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.stock THEN [= GROUP SUM balanceResident(Stock ss,StatisticGroup sg) BY sg](statisticGroup(d))
-	                ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.region THEN [= GROUP SUM balanceResident(Region rs,StatisticGroup sg) BY sg](statisticGroup(d));
+	            sold(d) <- [GROUP SUM sold(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
+	            soldResident(d) <- [GROUP SUM soldResident(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
+	            balance(d) <- IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.stock THEN [ GROUP SUM balance(Stock ss,StatisticGroup sg) BY sg](statisticGroup(d))
+	                ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.region THEN [ GROUP SUM balance(Region rs,StatisticGroup sg) BY sg](statisticGroup(d));
+	            balanceResident(d) <- IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.stock THEN [ GROUP SUM balanceResident(Stock ss,StatisticGroup sg) BY sg](statisticGroup(d))
+	                ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.region THEN [ GROUP SUM balanceResident(Region rs,StatisticGroup sg) BY sg](statisticGroup(d));
 	                
-	            soldSum(d) <- [=GROUP SUM soldSum(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
-	            soldSumResident(d) <- [=GROUP SUM soldSumResident(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
-	            balanceSum(d) <- IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.stock THEN [= GROUP SUM balanceSum(Stock ss,StatisticGroup sg) BY sg](statisticGroup(d))
-	                ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.region THEN [= GROUP SUM balanceSum(Region rs,StatisticGroup sg) BY sg](statisticGroup(d));
+	            soldSum(d) <- [GROUP SUM soldSum(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
+	            soldSumResident(d) <- [GROUP SUM soldSumResident(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
+	            balanceSum(d) <- IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.stock THEN [ GROUP SUM balanceSum(Stock ss,StatisticGroup sg) BY sg](statisticGroup(d))
+	                ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.region THEN [ GROUP SUM balanceSum(Region rs,StatisticGroup sg) BY sg](statisticGroup(d));
 	        }
 	        SHOW statisticReport OBJECTS r = s DOCKED NOCANCEL;
 	    }
@@ -813,19 +813,19 @@ fillSumReport 'Заполнить данные'(StatisticReport s) {
     balanceSum(StatisticReportDetail d) <-  NULL WHERE statisticReport(d) == s;
     
     //--------------
-    sold(StatisticReportDetail d) <- [=GROUP SUM sold(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
-    soldResident(StatisticReportDetail d) <- [=GROUP SUM soldResident(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;            
-    soldSum(StatisticReportDetail d) <-  [=GROUP SUM soldSum(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
-    soldSumResident(StatisticReportDetail d) <-  [=GROUP SUM soldSumResident(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
+    sold(StatisticReportDetail d) <- [GROUP SUM sold(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
+    soldResident(StatisticReportDetail d) <- [GROUP SUM soldResident(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;            
+    soldSum(StatisticReportDetail d) <-  [GROUP SUM soldSum(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
+    soldSumResident(StatisticReportDetail d) <-  [GROUP SUM soldSumResident(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
     
     IF isPeriod(s) THEN {
-        balance(StatisticReportDetail d) <- [=GROUP SUM balance(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
-        balanceResident(StatisticReportDetail d) <- [=GROUP SUM balanceResident(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
-        balanceSum(StatisticReportDetail d) <-  [=GROUP SUM balanceSum(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
+        balance(StatisticReportDetail d) <- [GROUP SUM balance(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
+        balanceResident(StatisticReportDetail d) <- [GROUP SUM balanceResident(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
+        balanceSum(StatisticReportDetail d) <-  [GROUP SUM balanceSum(StatisticReportDetail sd) IF in(s, statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
     } ELSE {
-        balance(StatisticReportDetail d) <- [=GROUP SUM balance(StatisticReportDetail sd) IF in(s, statisticReport(sd)) AND toDate(s) == toDate(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
-        balanceResident(StatisticReportDetail d) <- [=GROUP SUM balanceResident(StatisticReportDetail sd) IF in(s, statisticReport(sd)) AND toDate(s) == toDate(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
-        balanceSum(StatisticReportDetail d) <-  [=GROUP SUM balanceSum(StatisticReportDetail sd) IF in(s, statisticReport(sd)) AND toDate(s) == toDate(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;    
+        balance(StatisticReportDetail d) <- [GROUP SUM balance(StatisticReportDetail sd) IF in(s, statisticReport(sd)) AND toDate(s) == toDate(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
+        balanceResident(StatisticReportDetail d) <- [GROUP SUM balanceResident(StatisticReportDetail sd) IF in(s, statisticReport(sd)) AND toDate(s) == toDate(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;
+        balanceSum(StatisticReportDetail d) <-  [GROUP SUM balanceSum(StatisticReportDetail sd) IF in(s, statisticReport(sd)) AND toDate(s) == toDate(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d)) WHERE statisticReport(d) == s;    
     }
 } 
 

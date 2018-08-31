@@ -448,7 +448,7 @@ deleteNotSelectedDetail 'Удалить кроме отмеченных'(LabelTr
 } TOOLBAR;
 
 changeBarcode(LabelTransactionDetail d)   { 
-    IF [= GROUP SUM 1 IF id(Barcode b) BY sku(b)](sku(d)) > 1 THEN {
+    IF [ GROUP SUM 1 IF id(Barcode b) BY sku(b)](sku(d)) > 1 THEN {
         DIALOG barcodeSku OBJECTS s = sku(d), b = dataBarcode(d) INPUT NULL DO
             dataBarcode(d) <- b;
     }
@@ -648,7 +648,7 @@ clearApplicationLog () + {
 	        DELETE LabelTransactionDetail d WHERE d IS LabelTransactionDetail AND NOT d == lastTransaction(sku(d), departmentStore(d)) AND date(d) <= subtract(currentDate(), countDaysClearLabelTransaction());
 	        apply();
 	        
-	        DELETE LabelTransaction t WHERE  t IS LabelTransaction AND NOT [= GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](t);
+	        DELETE LabelTransaction t WHERE  t IS LabelTransaction AND NOT [ GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](t);
 	        apply();
 	    }
 	}
@@ -873,7 +873,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
     createLabelTransactionParam (cls document)  {       
         // бежим по всем типам ценников из управленческих параметров
         // для каждого создаем по операции печати ценников
-        FOR ([= GROUP SUM 1 IF inLabel(###skuProp sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stockProp(document)))
+        FOR ([ GROUP SUM 1 IF inLabel(###skuProp sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stockProp(document)))
             NEW t = LabelTransaction DO {
                 departmentStore(t) <- stockProp(document);
                 priceTransactionDocument(t) <- document;
@@ -915,7 +915,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                 
                 DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND passScales(sku(d)) AND notPrintNetItem(d);
                     
-                IF [ = GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](t) THEN {
+                IF [GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](t) THEN {
                     Label.ok() <- TRUE;
                     print(t);
                 } ELSE {
@@ -1131,7 +1131,7 @@ skipDelete = ABSTRACT VALUE BOOLEAN (LabelTransactionDetail);
 createLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore)  { 
     // бежим по всем типам ценников из управленческих параметров
     // для каждого создаем по операции печати ценников
-    FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,departmentStore) AND NOT exclude(l,s) BY l](LabelType labelType) NEW t = LabelTransaction DO { 
+    FOR [ GROUP SUM 1 IF select(Sku s,LabelType l,departmentStore) AND NOT exclude(l,s) BY l](LabelType labelType) NEW t = LabelTransaction DO { 
         departmentStore(t) <- departmentStore;
         labelType(t) <- labelType;
         addedTransaction() <- t;
@@ -1251,7 +1251,7 @@ DESIGN options {
 createSelectedSkuStockLabelTransaction 'Распечатать ценники'()  { 
     IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
-            FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock] (DepartmentStore stock) AND stock IS DepartmentStore DO {        
+            FOR [ GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock] (DepartmentStore stock) AND stock IS DepartmentStore DO {        
                 select(Sku sku, LabelType labelType, stock) <- select(sku, stock) AND inPrint(labelType, sku, stock);   
                 createLabelTransaction(stock);
             }
@@ -1282,7 +1282,7 @@ createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать цен�
     IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {            
         NEWSESSION NESTED (select[Sku,Stock]) {
 
-            FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](DepartmentStore stock) AND stock IS DepartmentStore DO {  
+            FOR [ GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](DepartmentStore stock) AND stock IS DepartmentStore DO {  
                 DIALOG selectLabelTypes OBJECTS ds = stock, l INPUT NOMANAGESESSION DO { 
                     select(Sku sku) <- select(sku, stock);     
                     IF NOT countSelectType() THEN {

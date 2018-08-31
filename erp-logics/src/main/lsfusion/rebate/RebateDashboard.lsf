@@ -39,8 +39,8 @@ fillPropRebate 'Заполнить данные' (LegalEntity c, DATE df, DATE d
         inc(Invoice.Invoice i) <- TRUE WHERE Invoice.isPosted(i) AND select(agreement(i),Invoice.supplier(i)) AND Invoice.date(i) >= df 
             AND Invoice.date(i) <= dt AND  Invoice.customer(i) == c AND ((i IS Purchase.Invoice) OR (i IS PurchaseReturn.Invoice));
         
-        sumR (Agreement a,LegalEntity s) <- [ = GROUP SUM sumR (Invoice.Invoice i) IF inc(i) BY agreement(i), supplier(i)](a,s) WHERE select(a,s);
-        invoiceSumR (Agreement a,LegalEntity s) <- [ = GROUP SUM invoiceSumR (Invoice.Invoice i) IF inc(i) BY agreement(i), supplier(i)](a,s) WHERE select(a,s);
+        sumR (Agreement a,LegalEntity s) <- [GROUP SUM sumR (Invoice.Invoice i) IF inc(i) BY agreement(i), supplier(i)](a,s) WHERE select(a,s);
+        invoiceSumR (Agreement a,LegalEntity s) <- [GROUP SUM invoiceSumR (Invoice.Invoice i) IF inc(i) BY agreement(i), supplier(i)](a,s) WHERE select(a,s);
         
         percR (Agreement a,LegalEntity s) <- percDefaultCondition(invoiceSumR(a,s),a) WHERE select(a,s) AND includeVATRebate(a);
         sumRebate (Agreement a,LegalEntity s) <- round2(NUMERIC[18,4](invoiceSumR(a,s)*percR(a,s)/100.0)) WHERE select(a,s) AND includeVATRebate(a);
