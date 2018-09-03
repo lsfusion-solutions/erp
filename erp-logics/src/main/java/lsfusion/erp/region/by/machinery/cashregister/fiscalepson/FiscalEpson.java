@@ -82,7 +82,7 @@ public class FiscalEpson {
         } catch (ComFailException e) {
             if (e.getMessage() != null && e.getMessage().contains("ФБ: таймаут связи с СКНО")) {
                 checkErrors = false;
-                logger.info("Epson CloseReceipt error: таймаут связи с СКНО");
+                logger.info("Epson CloseReceipt error: ФБ: таймаут связи с СКНО");
             } else {
                 logger.error("Epson CloseReceipt error: ", e);
                 throw e;
