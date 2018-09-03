@@ -40,3 +40,25 @@ defaultTruck(Invoice consignment) += WHEN NOT isSupplier(operation(consignment))
 
 driver(Invoice consignment) += WHEN isSupplier(operation(consignment)) AND driver(supplier(consignment)) THEN driver(supplier(consignment));
 driver(Invoice consignment) += WHEN NOT isSupplier(operation(consignment)) AND driver(customer(consignment)) THEN driver(customer(consignment));
+
+invoiceNumber 'Номер ТТН' = DATA VARSTRING[28] (Invoice) IN numbered CHARWIDTH 7;
+invoiceSeries 'Серия ТТН' = DATA STRING[2] (Invoice) IN numbered CHARWIDTH 3 FIXED; 
+
+overSeriesNumber(Invoice c) += STRING[31](CONCAT '', invoiceSeries(c), invoiceNumber(c));
+
+EXTEND FORM invoices
+    PROPERTIES (i) READONLY invoiceNumber, invoiceSeries
+;
+EXTEND FORM consignment
+    PROPERTIES (c) saleInvoiceNumber = invoiceNumber, saleInvoiceSeries = invoiceSeries
+;
+DESIGN consignment {
+    mainTab {
+        NEW conNumber AFTER misc {
+            type = CONTAINERH;
+            caption = 'Печать ТТН';
+            MOVE PROPERTY (saleInvoiceNumber);
+            MOVE PROPERTY (saleInvoiceSeries);
+        }
+    }
+}
