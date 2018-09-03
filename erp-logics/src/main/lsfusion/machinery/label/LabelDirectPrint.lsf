@@ -94,16 +94,18 @@ typeDirectPrint(LabelType lt) = OVERRIDE dataTypeDirectPrint(lt), TypeDirectPrin
 nameTypeDirectPrint 'Тип печати' (LabelType lt) = name(typeDirectPrint(lt));
 
 textTemplate 'Текст шаблона' = DATA TEXT (LabelType);
+printMessage 'Сообщение перед печатью' = DATA  VARSTRING[250] (LabelType) CHARWIDTH 50;
 
-EXTEND FORM labelType PROPERTIES textTemplate(l), nameTypeDirectPrint(l);
+EXTEND FORM labelType PROPERTIES textTemplate(l), nameTypeDirectPrint(l), printMessage(l);
 
 DESIGN labelType {
     specification{
         NEW itemtextCase{
             caption = 'Текст шаблона';
             fill = 1;
-            MOVE PROPERTY (textTemplate(l) ){valueSize = (600, 600); panelCaptionAbove = TRUE;};
+            MOVE PROPERTY (textTemplate(l) ){valueSize = (600, 500); panelCaptionAbove = TRUE;};
             MOVE PROPERTY (nameTypeDirectPrint(l) );
+            MOVE PROPERTY (printMessage(l) );
         }
     }
     
@@ -315,7 +317,9 @@ customPrint(LabelTransaction labelTrans) + {
     }
     
     IF countNetworkPrinter(departmentStore(labelTrans)) AND [ GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](labelTrans) THEN {
-
+        
+        IF printMessage(labelType(labelTrans)) THEN MESSAGE printMessage(labelType(labelTrans));
+        
         sendToNetworkPrinter(departmentStore(labelTrans));
         
         IF NOT printed() THEN {
