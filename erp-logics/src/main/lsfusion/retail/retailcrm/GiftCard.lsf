@@ -272,6 +272,11 @@ dateUsed 'Дата использования'(GiftCard g) = DATE (dateTime(used
 nameDepartmentStoreUsed 'Где использован' (GiftCard g) = nameDepartmentStore(used(g));
 numberReceiptUsed 'Номер чека (погашение)' (GiftCard g) = numberDocument(used(g));
 
+WHEN SETCHANGED(giftCard(UseGiftCard l)) AND [GROUP SUM 1 BY giftCard(UseGiftCard ledger)](giftCard(l))>1 AND NOT isSumPaymentReceipt() DO {
+    MESSAGE 'Нельзя повторно использовать сертификат' NOWAIT;
+    cancel();
+}    
+
 //использование подарочных сертификатов при оплате
 CLASS PaymentGiftCard : Payment, UseGiftCard;
 TABLE paymentGiftCard(PaymentGiftCard);

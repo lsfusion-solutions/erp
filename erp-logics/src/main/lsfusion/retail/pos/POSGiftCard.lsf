@@ -38,7 +38,7 @@ overChangeBarcodeSale(VARSTRING[30] string, Receipt receipt) + {  overChangeBarc
 addPaymentGiftCard 'Оплатить сертификатом'(Receipt receipt)  { 
     DIALOG barcodeInput DO
         IF isSold(giftCardSeriesNumber(barcodeInput())) AND barcodeInput() IS VARSTRING[15] AND 
-           NOT isExpiredDate(giftCardSeriesNumber(barcodeInput())) THEN {
+           NOT isExpiredDate(giftCardSeriesNumber(barcodeInput())) AND NOT used(giftCardSeriesNumber(barcodeInput())) THEN {
             NEW pg = PaymentGiftCard {
                 LOCAL giftCard = GiftCard();
                 giftCard() <- giftCardSeriesNumber(barcodeInput());
@@ -48,7 +48,7 @@ addPaymentGiftCard 'Оплатить сертификатом'(Receipt receipt) 
                 sum[Payment](pg) <- MIN price(giftCard()), (sumReceiptDetail(receipt) (-) sumGiftCardPayment(receipt));
             }
         } ELSE
-            MESSAGE 'Сертификат не найден или истек';
+            MESSAGE 'Сертификат не найден, истек или использован';
 }
 
 EXTEND FORM groupCashRegister PROPERTIES(grc) giftCardAsNotPayment;
