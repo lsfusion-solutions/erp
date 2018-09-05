@@ -150,8 +150,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     ps.setString(12, composition); //text, Текст состава
                     ps.setString(13, energValue); //energvalue, Энергетическая ценность
                     ps.setInt(14, 0); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
-                    ps.setLong(15, 4294967295L); //UpdEcr, Флаг обновления* КСА
-                    ps.setLong(16, 4294967295L); //UpdScale, Флаг обновления* весов
+                    ps.setLong(15, 9223372036854775807L); //UpdEcr, Флаг обновления* КСА
+                    ps.setLong(16, 9223372036854775807L); //UpdScale, Флаг обновления* весов
                     ps.addBatch();
                 }
 
@@ -199,8 +199,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                     ps.setString(2, removeCheckDigitFromBarcode(trim(item.idBarcode, 20), appendBarcode)); //barcode, Штрих-код товара
                                     ps.setString(3, trim(item.idItem, 20)); //art, Артикул
                                     ps.setInt(4, stopListInfo.exclude ? 0 : 1); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
-                                    ps.setLong(5, 4294967295L); //UpdEcr, Флаг обновления* КСА
-                                    ps.setLong(6, 4294967295L); //UpdScale, Флаг обновления* весов
+                                    ps.setLong(5, 9223372036854775807L); //UpdEcr, Флаг обновления* КСА
+                                    ps.setLong(6, 9223372036854775807L); //UpdScale, Флаг обновления* весов
                                     ps.addBatch();
                                 }
                             }
@@ -294,7 +294,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             ps.setString(2, trim(name, 50)); //description
                             ps.setInt(3, card.percentDiscountCard == null ? 0 : -card.percentDiscountCard.intValue()); //discount
                             ps.setString(4, trim(idDepartmentStore, 10)); //store, код торговой точки;
-                            ps.setLong(5, 4294967295L); //UpdEcr, Флаг обновления* КСА
+                            ps.setLong(5, 9223372036854775807L); //UpdEcr, Флаг обновления* КСА
                             ps.addBatch();
                             count++;
                         }
