@@ -198,7 +198,7 @@ public class FiscalEpson {
             epsonActiveXComponent.setProperty("CorrectionAmount", new Variant(Math.abs(isReturn ? item.quantity.multiply(item.discount).doubleValue() : item.discount.doubleValue())));
             Dispatch.call(epsonDispatch, item.discount.doubleValue() > 0 ? "Surcharge" : "Discount");
             checkErrors(true);
-            printLine(getFiscalString("Сумма со скидкой", formatter.format(item.sumPos)));
+            printLine(getFiscalString("Сумма со скидкой", item.sumPos != null ? formatter.format(item.sumPos) : "0,00"));
         }
     }
 
