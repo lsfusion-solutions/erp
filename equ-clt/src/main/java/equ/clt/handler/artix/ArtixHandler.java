@@ -916,6 +916,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
         String giftCardRegexp = artixSettings != null ? artixSettings.getGiftCardRegexp() : null;
+        boolean bonusesInDiscountPositions = artixSettings != null && artixSettings.isBonusesInDiscountPositions();
 
         //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
         Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
@@ -1092,17 +1093,37 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             quantity = isReturn ? safeNegate(quantity) : quantity;
 
                                             BigDecimal price = BigDecimal.valueOf(inventPosition.getDouble("price"));
-                                            BigDecimal discountSumReceiptDetail = BigDecimal.valueOf(inventPosition.getDouble("disc_abs"));
-
                                             BigDecimal sumReceiptDetail = BigDecimal.valueOf((inventPosition.getDouble("posSum")));
-                                            sumReceiptDetail = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
 
+                                            BigDecimal discountSumReceiptDetail = null;
                                             BigDecimal discountPercentReceiptDetail = null;
+
+                                            boolean hasBonus = false;
                                             JSONArray discountPositionsArray = inventPosition.getJSONArray("discountPositions");
                                             for (int j = 0; j < discountPositionsArray.length(); j++) {
                                                 JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
-                                                discountPercentReceiptDetail = safeAdd(discountPercentReceiptDetail, BigDecimal.valueOf(discountPosition.getDouble("discSize")));
+                                                String discType = discountPosition.getString("discType");
+                                                if(discType != null && discType.equals("bonus"))
+                                                    hasBonus = true;
                                             }
+
+                                            if(bonusesInDiscountPositions && hasBonus) {
+                                                sumReceiptDetail = BigDecimal.valueOf((inventPosition.getDouble("baseSum")));
+                                                for (int j = 0; j < discountPositionsArray.length(); j++) {
+                                                    JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
+                                                    BigDecimal discSum = BigDecimal.valueOf(discountPosition.getDouble("discSum"));
+                                                    discountSumReceiptDetail = safeAdd(discountPercentReceiptDetail, discSum);
+                                                }
+                                                discountPercentReceiptDetail = safeMultiply(safeDivide(discountSumReceiptDetail, sumReceiptDetail), BigDecimal.valueOf(100));
+                                            } else {
+                                                discountSumReceiptDetail = BigDecimal.valueOf(inventPosition.getDouble("disc_abs"));
+                                                for (int j = 0; j < discountPositionsArray.length(); j++) {
+                                                    JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
+                                                    discountPercentReceiptDetail = safeAdd(discountPercentReceiptDetail, BigDecimal.valueOf(discountPosition.getDouble("discSize")));
+                                                }
+                                            }
+
+                                            sumReceiptDetail = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
 
                                             CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
                                             if (cashRegister == null)
