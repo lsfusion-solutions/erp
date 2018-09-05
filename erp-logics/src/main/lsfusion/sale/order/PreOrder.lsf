@@ -321,7 +321,9 @@ EXTEND FORM preOrders
     PROPERTIES (d) READONLY ordered, inventory, orders, writeOffs, calcQuantity
 ;
 
-WHEN FORMS userOrder (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d))) DO {
+batchReserve 'Резерв по партиям' = DATA BOOLEAN ();
+
+WHEN FORMS userOrder (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d))) AND NOT batchReserve() DO {
     preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) > 0.0 AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
                                AND supplierStock(d) == supplierStock(pd) AND (operation(pd) == operation(d) OR in(pd,operation(d)))
                                ORDER DESC fromDate(pd), pd;
@@ -396,6 +398,7 @@ DESIGN preOrders {
     }
 }
 
+
 EXTEND FORM options
     PROPERTIES() fillPreOrderDetail
 ;
@@ -459,7 +462,7 @@ namePreOrderProductionOperation 'Операция (производство)' ()
 inPreOrderProduction 'Производство' = DATA BOOLEAN (Sale.Operation);
 
 EXTEND FORM options
-    PROPERTIES() namePreOrderRetailOperation, namePreOrderWholesaleOperation, namePreOrderProductionOperation
+    PROPERTIES() namePreOrderRetailOperation, namePreOrderWholesaleOperation, namePreOrderProductionOperation, batchReserve
     OBJECTS sop = Sale.Operation
     PROPERTIES(sop) READONLY name, id
     PROPERTIES(sop) inPreOrderRetail, inPreOrderWholesale, inPreOrderProduction
@@ -473,6 +476,7 @@ DESIGN options {
             MOVE PROPERTY(namePreOrderRetailOperation());
             MOVE PROPERTY(namePreOrderWholesaleOperation());
             MOVE PROPERTY(namePreOrderProductionOperation());
+            MOVE PROPERTY(batchReserve());
             MOVE PROPERTY(fillPreOrderDetail());
             MOVE BOX(sop);
         }
