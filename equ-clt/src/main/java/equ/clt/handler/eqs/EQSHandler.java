@@ -230,10 +230,11 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
         EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
         int discountCardThreadCount = eqsSettings != null ? eqsSettings.getDiscountCardThreadCount() : 0;
+        boolean skipIdDepartmentStore = eqsSettings != null && eqsSettings.getSkipIdDepartmentStore() != null && eqsSettings.getSkipIdDepartmentStore();
 
         Collection<Callable<Exception>> taskList = new ArrayList<>();
         for (String directory : getDirectorySet(requestExchange)) {
-            taskList.add(new SendDiscountCardsTask(discountCardList, directory));
+            taskList.add(new SendDiscountCardsTask(discountCardList, directory, skipIdDepartmentStore ? "" : requestExchange.idStock));
         }
 
         if (!taskList.isEmpty()) {
@@ -257,10 +258,12 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     class SendDiscountCardsTask implements Callable<Exception> {
         List<DiscountCard> discountCardList;
         String directory;
+        String idDepartmentStore;
 
-        public SendDiscountCardsTask(List<DiscountCard> discountCardList, String directory) {
+        public SendDiscountCardsTask(List<DiscountCard> discountCardList, String directory, String idDepartmentStore) {
             this.discountCardList = discountCardList;
             this.directory = directory;
+            this.idDepartmentStore = idDepartmentStore;
         }
 
         @Override
@@ -277,8 +280,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     conn.setAutoCommit(false);
 
                     ps = conn.prepareStatement(
-                            "INSERT INTO customers (code, description, discount, updecr)" +
-                                    " VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
+                            "INSERT INTO customers (code, description, discount, store, updecr)" +
+                                    " VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
                                     " description=VALUES(description), discount=VALUES(discount), updecr=VALUES(updecr)");
 
                     int count = 0;
@@ -290,7 +293,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                     + (card.middleNameContact == null ? "" : card.middleNameContact);
                             ps.setString(2, trim(name, 50)); //description
                             ps.setInt(3, card.percentDiscountCard == null ? 0 : -card.percentDiscountCard.intValue()); //discount
-                            ps.setLong(4, 4294967295L); //UpdEcr, Флаг обновления* КСА
+                            ps.setString(4, trim(idDepartmentStore, 10)); //store, код торговой точки;
+                            ps.setLong(5, 4294967295L); //UpdEcr, Флаг обновления* КСА
                             ps.addBatch();
                             count++;
                         }
