@@ -291,16 +291,18 @@ calcQuantity 'Доступно' (PreOrderDetail pd) = IF  (quantity(pd) (-) orde
     THEN (quantity(pd) (-) ordered(pd) (-) inventory(pd)) ELSE 0.0;
 
 FORM dialogPreOrderDetail 'Резерв'
-    OBJECTS s = Sku PANEL 
-    PROPERTIES (s) READONLY idBarcode, name, shortNameUOM
+    OBJECTS s = UserOrderDetail PANEL 
+    PROPERTIES (s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
     
     OBJECTS d = PreOrderDetail
     PROPERTIES (d) READONLY descriptionIndex, calcQuantity
-    FILTERS sku(d) == s
+    FILTERS sku(d) == sku(s), operation(s) == operation(d)
+    
+    FILTERGROUP q FILTER 'Доступно' calcQuantity(d) > 0 DEFAULT 
 ;
 
 changePreOrder (UserOrderDetail od) {
-    DIALOG dialogPreOrderDetail OBJECTS s = sku(od), d INPUT DO {
+    DIALOG dialogPreOrderDetail OBJECTS s = od, d INPUT DO {
         preOrderDetail(od) <- d; 
     }
 }
