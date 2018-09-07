@@ -6,8 +6,8 @@ NAMESPACE SaleReports;
 
 //////////////////////Акты реализацииа////////////////////////////
 
-CLASS SaleReport 'Акт реализации';
-CLASS SaleReportDetail 'Строка акта реализации';
+CLASS SaleReport 'Акт реализации' : Document;
+CLASS SaleReportDetail 'Строка акта реализации' : DocumentDetail;
 
 @defineDocument(saleReport);
 @deriveDocumentHeaderTimePrefix(SaleReport, );
@@ -363,6 +363,8 @@ DESIGN reportsSales {
 }
 
 @defineFilterIsOpened(saleReport, reportsSales, r);
+@defineDocumentLogForm(reportsSales, r);
+
 
 //aa 'склад' = seriesNumberSaleReport (prevStocksReportSaleReport(r));
 //bb 'орг-ия' = seriesNumberSaleReport (prevCompaniesReportSaleReport(r));
@@ -464,15 +466,15 @@ calcEmailSupplier 'Отправить акт поставщику' (SaleReport r
     
 emailSupplierSingle  'Отправить акт поставщику' (SaleReport report) { 
     NEWSESSION {
-            IF email(supplier(report)) THEN { 
-        
-                isSent(report) <- TRUE;
-                IF NOT disableDocumentLog() THEN logSendDocumentSaleReport(report);
-                sentDateTime(report) <- currentDateTime();
-                calcEmailSupplier(report);
-                
-            } ELSE  MESSAGE 'У поставщика не задан e-mail';
-        apply();
+        IF email(supplier(report)) THEN { 
+    
+            isSent(report) <- TRUE;
+            IF NOT disableDocumentLog() THEN logSendDocumentSaleReport(report);
+            sentDateTime(report) <- currentDateTime();
+            calcEmailSupplier(report);
+            
+            APPLY;
+        } ELSE  MESSAGE 'У поставщика ' + nameSupplier(report) + ' не задан e-mail';
     }
 }
 
@@ -661,3 +663,20 @@ WHEN LOCAL FORMS saleReport SET (SaleReport r IS SaleReport) OR SETCHANGED (comp
 WHEN LOCAL FORMS saleReport SET (SaleReport r IS SaleReport) DO {
     toDate(r) <- lastDayOfMonth(currentDate());
 }
+
+isClosed[Document](SaleReport saleReport) += isClosed(saleReport);
+isPosted[Document](SaleReport saleReport) += isPosted(saleReport);
+number[Document](SaleReport saleReport) += number(saleReport);
+series[Document](SaleReport saleReport) += series(saleReport);
+date[Document](SaleReport saleReport) += date(saleReport);
+
+supplier[Document](SaleReport saleReport) += supplier(saleReport);
+customer[Document](SaleReport saleReport) += company(saleReport);
+customerStock[Document](SaleReport saleReport) += companyStock(saleReport);
+
+index[DocumentDetail](SaleReportDetail detail) += index(detail);
+sku[DocumentDetail](SaleReportDetail detail) += sku(detail);
+quantity[DocumentDetail](SaleReportDetail detail) += quantity(detail);
+price[DocumentDetail](SaleReportDetail detail) += price(detail);
+
+document[DocumentDetail](SaleReportDetail detail) += saleReport(detail);
