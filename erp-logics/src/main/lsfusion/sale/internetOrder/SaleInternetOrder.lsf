@@ -827,12 +827,13 @@ WHEN LOCAL FORMS internetOrder (SET([ VIEW internetOrder.sts](Stock stock, Sku s
                           CHANGED(priceListType[UserOrder](o))) AND [ VIEW internetOrder.sts](stock, sku)) DO 
     updateViewPrice[Sku,Stock,InternetOrder](sku, stock, o);
 
+skipChangePriceStock = ABSTRACT BOOLEAN (InternetOrderDetail);
 
 WHEN LOCAL FORMS internetOrder 
     (CHANGED(sku(InternetOrderDetail detail)) OR
-    CHANGED(batch(detail)) OR     
+    (CHANGED(batch(detail)) AND NOT skipChangePriceStock(detail)) OR     
     CHANGED(priceListType(detail)) OR
-    CHANGED(Sale.supplierStock[InternetOrderDetail](detail)) OR
+    (CHANGED(Sale.supplierStock[InternetOrderDetail](detail)) AND NOT skipChangePriceStock(detail)) OR
     (CHANGED (dateTime(detail)) AND NOT isPosted(detail))) AND NOT CHANGED (price(detail)) AND sku(detail) AND PriceListType pt == priceListType(detail) NOINLINE  (pt) DO {
     
     price (detail)  <- IF batch(detail)
