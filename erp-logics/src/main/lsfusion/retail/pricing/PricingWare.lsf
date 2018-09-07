@@ -45,7 +45,7 @@ invoiceSum (PricingDetail d) = invoiceSum(invoiceDetail(d)) (-) invoiceSum(invoi
 
 valueVAT (PricingDetail d) = IF (invoice(invoiceDetail(d)) IS Sale.Invoice) THEN valueVAT(lastOrderBatchA(sku(d),stock(d),dateTime(d))) ELSE valueVAT(invoiceDetail(d));
 sumSupplier 'Сумма поставщика без НДС'(PricingDetail d) = IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN supplierSum[Sale.InvoiceDetail](invoiceDetail(d)) ELSE sumCNote(d);
-VATSum 'Сумма НДС'(PricingDetail d) = IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN sumSupplier(d)*valueVAT(d)/100 
+VATSum 'Сумма НДС'(PricingDetail d) = IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN round2(sumSupplier(d)*valueVAT(d)/100) 
                                                         ELSE VATSum(invoiceDetail(d)) (-) VATSum(invoiceCreditNoteDetail(invoiceDetail(d)));
 sumSupplierWithVAT 'Сумма поставщика с НДС' (PricingDetail d) =  IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN sumSupplier(d) (+) extraRetailSum(d) (+) VATSum(d) ELSE invoiceSum(d);
 
