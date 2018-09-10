@@ -1,0 +1,288 @@
+MODULE Loya;
+
+REQUIRE System, Item, PriceListOperation;
+
+PRIORITY PriceList;
+
+sessionKeyLoya 'Сессионный ключ' = DATA VARSTRING[200] ();
+
+ipLoya 'IP адрес' = DATA VARSTRING[100] ();
+portLoya 'Порт' = DATA VARSTRING[100] ();
+emailLoya 'Email' = DATA VARSTRING[100] ();
+passwordLoya 'Пароль' = DATA VARSTRING[100] () ECHO;
+idPartnerLoya 'Собственный ID' = DATA INTEGER ();
+
+CLASS LoyaItemGroup 'Группа товаров Loya';
+TABLE loyaItemGroup (LoyaItemGroup);
+
+@defineExternalizable(loyaItemGroup, LONG);
+
+active 'Активная' = DATA BOOLEAN (LoyaItemGroup);
+name 'Наименование' = DATA VARSTRING[100] (LoyaItemGroup);
+description 'Описание' = DATA VARSTRING[100] (LoyaItemGroup);
+createdDate 'Дата создания' = DATA DATE (LoyaItemGroup);
+createdDate(LoyaItemGroup g) <- currentDate() WHEN SET (g IS LoyaItemGroup);
+
+fromDateTime 'Дата/время начала акции' = DATA DATETIME (LoyaItemGroup) NONULL;
+toDateTime 'Дата/время окончания акции' = DATA DATETIME (LoyaItemGroup) NONULL;
+
+loyaItemGroup 'Группа товаров Loya' = DATA LoyaItemGroup (UserPriceList);
+nameLoyaItemGroup 'Группа товаров Loya' (UserPriceList p) = name(loyaItemGroup(p));
+
+loyaItemGroup 'Группа товаров Loya' = ABSTRACT LoyaItemGroup (PriceList);
+nameLoyaItemGroup 'Группа товаров Loya' (PriceList p) = name(loyaItemGroup(p));
+
+loyaItemGroup(UserPriceList p) += loyaItemGroup(p);
+
+isData 'Ручной' = DATA BOOLEAN (LoyaItemGroup);
+
+TABLE itemLoyaItemGroup (Item, LoyaItemGroup);
+
+dataIn 'Вкл.' = DATA BOOLEAN (Item, LoyaItemGroup);
+quantity 'Количество' = DATA NUMERIC[14,3] (Item, LoyaItemGroup);
+
+in 'Вкл.' (Item s, LoyaItemGroup g) = OVERRIDE dataIn(s, g), [GROUP SUM 1 IF in(s , UserPriceList userPriceList) 
+                                        BY loyaItemGroup(userPriceList)](g) > 0; 
+                                       
+CONSTRAINT isData(LoyaItemGroup g) AND in(Item i, g) AND quantity(i, g) <= 0.0 
+    MESSAGE 'Количество товара должно быть положительным.';
+    
+    
+in (SkuGroup skuGroup, LoyaItemGroup loyaItemGroup) = GROUP SUM 1 IF isParent(skuGroup, Sku sku) AND in(sku, loyaItemGroup);
+in (SkuGroup skuGroup) = GROUP SUM in(skuGroup, LoyaItemGroup loyaItemGroup) IF active(loyaItemGroup);
+
+empty 'Без товаров' (LoyaItemGroup g) = g IS LoyaItemGroup AND NOT (GROUP SUM 1 IF in(Sku sku, g));
+
+synchronizeLoya 'Синхронизировать'  INTERNAL  'lsfusion.erp.region.by.ukm.SynchronizeLoyaActionProperty' ();
+disableSynchronizeItemsLoya 'Отключить синхронизацию товаров' = DATA BOOLEAN ();
+deleteInactiveItemGroupsLoya 'Удалять неактивные группы товаров' = DATA BOOLEAN ();
+
+idLoya 'Идентификатор бренда (Loya)' = DATA INTEGER (Brand);
+uploadLoya 'Загрузить бренд'  INTERNAL  'lsfusion.erp.region.by.ukm.UploadBrandLoyaActionProperty' (Brand);
+deleteLoya 'Удалить бренд'  INTERNAL  'lsfusion.erp.region.by.ukm.DeleteBrandLoyaActionProperty' (Brand);
+
+idUOM 'Единица измерения' (Item item) = id(UOM(item)) IN itemBase;
+overIdSkuGroup 'Группа' (Sku sku)= overId(skuGroup(sku));
+
+//операция
+isLoya 'Использовать группу товаров LOYA' = DATA BOOLEAN (PriceList.Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) isLoya
+;
+DESIGN operation {
+    paramsContainer {
+        MOVE PROPERTY(isLoya(o));
+    }
+}
+    
+isLoya(UserPriceList p) = isLoya(operation(p));
+isLoya(PriceList p) = isLoya(operation(p));
+isLoya(PriceListDetail d) = isLoya(operation(d));
+
+EXTEND FORM userPriceList
+    PROPERTIES (p) nameLoyaItemGroup SHOWIF isLoya(p);
+
+DESIGN userPriceList{
+    first {
+        MOVE PROPERTY(nameLoyaItemGroup(p))
+        {charWidth = 30;} 
+    }
+}
+
+CONSTRAINT isLoya(UserPriceList p) AND (SET (isPosted( p))  AND  NOT loyaItemGroup(p) OR DROPPED (loyaItemGroup(p)) AND isPosted(p)) 
+    MESSAGE 'Для прайса должна быть задана группа товаров LOYA';
+
+include 'Вкл' = DATA LOCAL BOOLEAN (Sku);
+
+FORM dialogSkuLoya 'Подбор товаров'
+    TREE skuTree sk = ItemGroup PARENT parent
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDER order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+
+    OBJECTS s=Item
+    PROPERTIES READONLY    include(s) CHANGEABLE, idBarcode(s), id(s) SHOWIF showIDs(), inputName = name(s)
+    PROPERTIES(s)          dialogQuantity
+    PROPERTIES             EDIT(s) NEWSESSION
+
+    FILTERS                isParent(sk, s)
+    FILTERGROUP activeSku FILTER 'Активные' active(s) DEFAULT
+    ORDER inputName
+
+    OBJECTS si=Item
+    PROPERTIES READONLY     include(si) CHANGEABLE, idBarcode(si), selectedName = name(si)
+    PROPERTIES(si)          dialogQuantity
+    FILTERS                 dialogQuantity(si) OR include(si)
+    ORDER selectedName
+;
+
+DESIGN dialogSkuLoya {
+    BOX {
+        size = (1024, 768);
+        NEW skuContainer BEFORE TOOLBARBOX {
+            fill = 1;
+            type = SPLITH;
+
+            MOVE BOX(TREE skuTree);
+            NEW inputContainer {
+                fill = 2;
+                type = CONTAINERV;
+
+                NEW filterContainer {
+                    align = STRETCH;
+                    type = CONTAINERH;
+                }
+
+                NEW inputSkuContainer {
+                    fill = 1;
+                    type = SPLITV;
+
+                    MOVE BOX(s) {
+                        fill = 3;
+                    }
+                    MOVE BOX(si);
+                }
+            }
+        }
+    }
+}
+
+addItems 'Подбор товаров'(LoyaItemGroup g)  { 
+    DIALOG dialogSkuLoya DO {
+        dataIn(Item i, g) <- TRUE WHERE dialogQuantity(i) > 0.0 OR include(i);
+        quantity(Item i, g) <- NUMERIC[14,3](dialogQuantity(i)) WHERE dialogQuantity(i);
+    }
+    dialogQuantity(Sku sku) <- NULL;
+} TOOLBAR;
+
+importXls 'Импорт из XLS'(LoyaItemGroup g)  { 
+    INPUT f = EXCELFILE DO {
+        LOCAL a = VARSTRING[100](INTEGER );
+        
+        IMPORT XLS FROM f TO a;
+        
+        FOR Item i == skuBarcode(a(INTEGER r)) DO
+            dataIn(i, g) <- TRUE;
+    }
+} TOOLBAR;
+
+//формы
+FORM loyaItemGroup 'Группа товаров Loya'
+    OBJECTS g=LoyaItemGroup PANEL
+    PROPERTIES(g) active, isData, id SHOWIF showIDs(), fromDateTime, toDateTime, name, description
+   
+    OBJECTS i=Item
+    PROPERTIES(i) READONLY id, idBarcode, nameAttribute
+    PROPERTIES (i, g) READONLYIF NOT dataIn(i, g) in SHOWIF isData(g) BEFORE id(i), quantity
+    PROPERTIES (g) TODRAW i SHOWIF isData(g) addItems, importXls
+                                                                    
+    FILTERS in(i, g)  
+    EDIT LoyaItemGroup OBJECT g
+;
+
+DESIGN loyaItemGroup {
+    OBJECTS {
+        NEW mainData {
+            type = COLUMNS ;
+            MOVE PROPERTY (active(g));
+            MOVE PROPERTY (id(g));
+            MOVE PROPERTY (name(g));
+            MOVE PROPERTY (description(g));
+        }
+        NEW dates {
+            type = CONTAINERH;
+            MOVE PROPERTY (fromDateTime(g));
+            MOVE PROPERTY (toDateTime(g));
+        }
+        MOVE BOX(i);
+    }
+}
+
+FORM loyaItemGroups 'Группы товаров Loya'
+    OBJECTS g=LoyaItemGroup
+    PROPERTIES(g) READONLY active, id SHOWIF showIDs(), fromDateTime, toDateTime, name, description
+    FILTERGROUP active
+        FILTER 'Активные' active(g) 'F5' DEFAULT
+    FILTERS NOT isData(g)
+    
+    LIST LoyaItemGroup OBJECT g
+;
+
+FORM loya 'Группы товаров Loya'
+    OBJECTS p = PriceList
+    PROPERTIES(p) READONLY BACKGROUND background(p) isPosted , number, series, date, time,
+           fromDate, fromTime, toDate, toTime, countPriceListDetail, stocks, nameLoyaItemGroup CHANGEABLE
+    
+    FILTERS isLoya(p)            
+    FILTERGROUP inactivePriceList
+        FILTER 'Текущие' isActive(p) 'F11'            
+        FILTER 'Активные' isActive(p) OR (fromDateTime(p) > currentDateTime()) 'F10' DEFAULT
+                    
+    OBJECTS d = PriceListDetail
+    PROPERTIES (d) READONLY exclude
+    PROPERTIES(d) READONLY BACKGROUND background(d) index, idBarcodeSku, idSku SHOWIF showIDs(),nameSku,
+                           shortNameUOMSku, nameBatch, nameCompany
+    PROPERTIES(d) READONLY AFTER nameSku(d) originalIdBarcodeSku SHOWIF showOriginalIdBarcodeSku(p), originalNameSku SHOWIF showOriginalNameSku(p)
+    
+    ORDER index(d)
+    FILTERS priceList(d) == p
+                    
+    OBJECTS g=LoyaItemGroup
+    PROPERTIES(g) READONLY active CHANGEABLE, id SHOWIF showIDs(), createdDate, fromDateTime, toDateTime,  name, description
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
+    FILTERGROUP active
+        FILTER 'Активные' active(g) 'F5' 
+    
+    OBJECTS i=Item
+    PROPERTIES(i) READONLY id, idBarcode, nameAttribute
+    PROPERTIES (i, g) READONLY in BEFORE id(i), quantity
+    PROPERTIES() synchronizeLoya TOOLBAR
+                                                                    
+    FILTERS in(i, g)        
+;
+
+DESIGN loya {
+    NEW pane BEFORE TOOLBARBOX {
+        type = TABBED;
+        flex = 1;
+        align = STRETCH;
+        NEW priceLists {
+            caption = 'Прайс-листы';
+            MOVE BOX(p);
+            MOVE BOX(d);
+        }
+        NEW itemGroups {
+            caption = 'Группы товаров Loya';
+            MOVE BOX(g);
+            MOVE BOX(i);
+            MOVE PROPERTY(synchronizeLoya());
+        }
+    }
+}
+
+
+EXTEND FORM integrationData
+    PROPERTIES() ipLoya, portLoya, emailLoya, passwordLoya, idPartnerLoya, disableSynchronizeItemsLoya, deleteInactiveItemGroupsLoya
+;
+
+DESIGN integrationData {
+    pane {
+        NEW loyaContainer {
+            caption = 'Loya';
+            MOVE PROPERTY(ipLoya());
+            MOVE PROPERTY(portLoya());
+            MOVE PROPERTY(emailLoya());
+            MOVE PROPERTY(passwordLoya());
+            MOVE PROPERTY(idPartnerLoya());	
+            MOVE PROPERTY(disableSynchronizeItemsLoya());
+            MOVE PROPERTY(deleteInactiveItemGroupsLoya());
+        }
+    }
+}
+
+NAVIGATOR {
+    priceListMasterData {
+        NEW loya;
+    }
+}
