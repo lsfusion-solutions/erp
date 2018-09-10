@@ -664,6 +664,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             ResultSet rs = statement.executeQuery(query);
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
+            List<AstronRecord> curRecordList = new ArrayList<>();
+            BigDecimal prologSum = BigDecimal.ZERO;
 
             BigDecimal sumCash = null;
             BigDecimal sumCard = null;
@@ -671,6 +673,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             String idSaleReceiptReceiptReturnDetail = null;
             while (rs.next()) {
 
+                Integer sAreaId = rs.getInt("SAREAID");
                 Integer nppCashRegister = rs.getInt("SYSTEMID");
                 CashRegisterInfo cashRegister = machineryMap.get(nppCashRegister);
                 Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
@@ -699,7 +702,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                 switch (recordType) {
                     case 0: {//товарная позиция
-                    // case 3: //Возвращенная товарная позиция - игнорируем эту запись. В дополнение к ней создаётся новая, с SALESTAG = 0 и SALESREFUND = 1
                         //временный лог для того, чтобы выявить, откуда попадают лишние оплаты в чек
                         sendSalesLogger.info(String.format("sale: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
                                 rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
@@ -715,6 +717,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem,
                                 null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, null,
                                 salesNum, null, null, cashRegister));
+                        curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
+                        prologSum = safeSubtract(prologSum, rs.getBigDecimal("SALESSUM"));
                         break;
                     }
                     case 1: {//оплата
@@ -736,7 +740,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 sumCash = safeAdd(sumCash, sum);
                                 break;
                         }
-
+                        curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                         break;
                     }
                     case 2: {//пролог чека
@@ -746,8 +750,16 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         sumCash = null;
                         sumCard = null;
                         sumGiftCard = null;
-                        salesInfoList.addAll(curSalesInfoList);
+                        if(prologSum.compareTo(BigDecimal.ZERO) == 0) {
+                            salesInfoList.addAll(curSalesInfoList);
+                            recordList.addAll(curRecordList);
+                        } else {
+                            sendSalesLogger.info(String.format("prolog sum differs: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
+                                    rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
+                        }
                         curSalesInfoList = new ArrayList<>();
+                        curRecordList = new ArrayList<>();
+                        prologSum = rs.getBigDecimal("SALESSUM");
 
                         if (isReturn) { //чек возврата
                             String salesAttrs = rs.getString("SALESATTRS");
@@ -761,16 +773,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         } else {
                             idSaleReceiptReceiptReturnDetail = null;
                         }
-
+                        curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
+                        break;
+                    }
+                    case 3: {//Возвращенная товарная позиция - игнорируем эту запись. В дополнение к ней создаётся новая, с SALESTAG = 0 и SALESREFUND = 1
+                        curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                         break;
                     }
                 }
-
-                Integer sAreaId = rs.getInt("SAREAID");
-                recordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
             }
 
-            salesInfoList.addAll(curSalesInfoList);
+            if(prologSum.compareTo(BigDecimal.ZERO) == 0) {
+                salesInfoList.addAll(curSalesInfoList);
+                recordList.addAll(curRecordList);
+            }
 
             if (salesInfoList.size() > 0)
                 sendSalesLogger.info(logPrefix + String.format("found %s records", salesInfoList.size()));
