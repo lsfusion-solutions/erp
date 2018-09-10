@@ -1108,13 +1108,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             }
 
                                             if(bonusesInDiscountPositions && hasBonus) {
-                                                sumReceiptDetail = BigDecimal.valueOf((inventPosition.getDouble("baseSum")));
+                                                BigDecimal baseSum = BigDecimal.valueOf((inventPosition.getDouble("baseSum")));
                                                 for (int j = 0; j < discountPositionsArray.length(); j++) {
                                                     JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
                                                     BigDecimal discSum = BigDecimal.valueOf(discountPosition.getDouble("discSum"));
-                                                    discountSumReceiptDetail = safeAdd(discountPercentReceiptDetail, discSum);
+                                                    discountSumReceiptDetail = safeAdd(discountSumReceiptDetail, discSum);
                                                 }
-                                                discountPercentReceiptDetail = safeMultiply(safeDivide(discountSumReceiptDetail, sumReceiptDetail), BigDecimal.valueOf(100));
+                                                sumReceiptDetail = safeSubtract(baseSum, discountSumReceiptDetail);
+                                                discountPercentReceiptDetail = safeMultiply(safeDivide(discountSumReceiptDetail, baseSum), BigDecimal.valueOf(100));
                                             } else {
                                                 discountSumReceiptDetail = BigDecimal.valueOf(inventPosition.getDouble("disc_abs"));
                                                 for (int j = 0; j < discountPositionsArray.length(); j++) {
