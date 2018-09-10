@@ -36,6 +36,7 @@ CLASS ABSTRACT GiftCardLedger 'Движение подарочных серти�
 
 giftCard = ABSTRACT GiftCard (GiftCardLedger);
 dateTime 'Дата/время' = ABSTRACT DATETIME (GiftCardLedger);
+date 'Дата' = ABSTRACT DATE (GiftCardLedger);
 seriesNumber 'Серия/Номер' (GiftCardLedger l) = seriesNumber(giftCard(l));
 sum 'Сумма' = ABSTRACT NUMERIC[18,4] (GiftCardLedger);
 description 'Описание' = ABSTRACT VARSTRING[100] (GiftCardLedger);
@@ -63,7 +64,7 @@ skipSoldConstraint = ABSTRACT BOOLEAN (GiftCard);
 CONSTRAINT DROPPED (GiftCard g IS GiftCard) AND PREV (isSold(g)) AND NOT PREV(skipSoldConstraint(g))
     MESSAGE 'Запрещено удалять проданные сертификаты';
     
-dateSold 'Дата продажи' (GiftCard g) = DATE (dateTime(sold(g))) MATERIALIZED;
+dateSold 'Дата продажи' (GiftCard g) = date(sold(g)) MATERIALIZED;
 departmentStoreSold 'Где продан' (GiftCard g) = departmentStore(sold(g));
 nameDepartmentStoreSold 'Где продан' (GiftCard g) = nameDepartmentStore(sold(g));
 numberReceiptSold 'Номер чека (продажа)' (GiftCard g) = numberDocument(sold(g));
@@ -125,6 +126,7 @@ namePaymentType 'Тип платежа' (ReceiptGiftCardSaleDetail d) = [ GROUP 
 isSold(ReceiptGiftCardSaleDetail detail) += detail IS ReceiptGiftCardSaleDetail;
 giftCard(ReceiptGiftCardSaleDetail detail) += giftCard(detail);
 dateTime(ReceiptGiftCardSaleDetail detail) += dateTime(receipt(detail));
+date(ReceiptGiftCardSaleDetail detail) += date(receipt(detail));
 sum(ReceiptGiftCardSaleDetail detail) += sum(detail);
 description(ReceiptGiftCardSaleDetail detail) += OVERRIDE 'Возврат' IF isReturn(detail), 'Продажа' IF detail IS ReceiptGiftCardSaleDetail;
 numberDocument(ReceiptGiftCardSaleDetail detail) += VARSTRING[30](number(receipt(detail)));
@@ -268,7 +270,7 @@ CLASS ABSTRACT UseGiftCard 'Гашение подарочных сертифик
 used = GROUP LAST UseGiftCard ledger  ORDER dateTime(ledger), ledger WHERE ledger IS UseGiftCard AND sum(ledger) > 0
         BY giftCard(ledger);
 isUsed 'Погашен' (GiftCard giftCard) = TRUE IF used(giftCard);
-dateUsed 'Дата использования'(GiftCard g) = DATE (dateTime(used(g)));
+dateUsed 'Дата использования'(GiftCard g) = date(used(g));
 nameDepartmentStoreUsed 'Где использован' (GiftCard g) = nameDepartmentStore(used(g));
 numberReceiptUsed 'Номер чека (погашение)' (GiftCard g) = numberDocument(used(g));
 
@@ -289,6 +291,7 @@ seriesNumberGiftCard 'Серия/номер' (PaymentGiftCard payment) = seriesN
 //имплемент в GiftCardLedger
 giftCard(PaymentGiftCard payment) += giftCard(payment);
 dateTime(PaymentGiftCard payment) += dateTime(receipt(payment)) IF payment IS PaymentGiftCard;
+date(PaymentGiftCard payment) += date(receipt(payment)) IF payment IS PaymentGiftCard;
 sum(PaymentGiftCard payment) += sum[Payment](payment) IF payment IS PaymentGiftCard;
 description(PaymentGiftCard payment) += 'Погашение' IF payment IS PaymentGiftCard;
 numberDocument(PaymentGiftCard payment) += VARSTRING[30](number(receipt(payment))) IF payment IS PaymentGiftCard;
