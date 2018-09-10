@@ -136,7 +136,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
                 for (int i = 0; i < propertyDrawsList.size(); i++) {
                     PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
                     if (instance.toDraw != null) {
-                        headerString += instance.propertyObject.property.caption.toString() + separator;
+                        headerString += instance.getValueProperty().property.caption.toString() + separator;
                     }
                 }
                 headerString = headerString.isEmpty() ? headerString : headerString.substring(0, headerString.length() - separator.length());
