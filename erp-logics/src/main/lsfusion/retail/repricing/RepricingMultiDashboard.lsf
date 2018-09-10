@@ -163,24 +163,51 @@ DESIGN repricingMultiDashboard {
 
 createMultiDashboardRepricing 'Создать переоценку'(Operation o, DATETIME dt)  { 
 	NEWSESSION NESTED LOCAL {
-	    FOR include(DepartmentStore d) DO {
-	        repForm() <- NULL;
-	        inDashboardRepricing(Sku sku) <- NULL;
-	        inDashboardRepricing(Sku sku) <- inDashboardRepricing(sku,d);
-	        managementRetailPrice(Sku sku) <- managementRetailPrice(sku,d);
-            createDashboardRepricingNotForm(d, o, dt);
-            isPosted(UserRepricing r) <- TRUE WHERE r == repForm();
-            APPLY NESTED LOCAL;
-            IF canceled() THEN {
-                DIALOG userRepricing OBJECTS p = repForm() DOCKED NOCANCEL;
-            }
-            
+	    LOCAL executed = BOOLEAN();
+	    IF (GROUP SUM 1 IF select(Sku sk, DepartmentStore ds)) THEN {
+	        ASK 'Включить только отмеченные товары?' DO {
+	            executed() <- TRUE;
+	            FOR include(DepartmentStore d) DO {
+                    repForm() <- NULL;
+                    inDashboardRepricing(Sku sku) <- NULL;
+                    inDashboardRepricing(Sku sku) <- select(sku,d);
+                    managementRetailPrice(Sku sku) <- managementRetailPrice(sku,d);
+                    createDashboardRepricingNotForm(d, o, dt);
+                    isPosted(UserRepricing r) <- TRUE WHERE r == repForm();
+                    APPLY NESTED LOCAL;
+                    IF canceled() THEN {
+                        DIALOG userRepricing OBJECTS p = repForm() DOCKED NOCANCEL;
+                    }
+                    
+                }
+                repForm() <- NULL;
+                inDashboardRepricing(Sku sku, DepartmentStore d) <- NULL WHERE select(sku,d);
+                select(Sku sku, DepartmentStore d) <- NULL;
+                IF updateDateTime() THEN {
+                    SEEK repricingMultiDashboard.t = currentDateTime();
+                }
+	        }
 	    }
-	    repForm() <- NULL;
-	    inDashboardRepricing(Sku sku, DepartmentStore d) <- NULL;
-	    IF updateDateTime() THEN {
-            SEEK repricingMultiDashboard.t = currentDateTime();
-        }
+	    IF NOT executed() THEN {
+	        FOR include(DepartmentStore d) DO {
+                repForm() <- NULL;
+                inDashboardRepricing(Sku sku) <- NULL;
+                inDashboardRepricing(Sku sku) <- inDashboardRepricing(sku,d);
+                managementRetailPrice(Sku sku) <- managementRetailPrice(sku,d);
+                createDashboardRepricingNotForm(d, o, dt);
+                isPosted(UserRepricing r) <- TRUE WHERE r == repForm();
+                APPLY NESTED LOCAL;
+                IF canceled() THEN {
+                    DIALOG userRepricing OBJECTS p = repForm() DOCKED NOCANCEL;
+                }
+                
+            }
+            repForm() <- NULL;
+            inDashboardRepricing(Sku sku, DepartmentStore d) <- NULL;
+            IF updateDateTime() THEN {
+                SEEK repricingMultiDashboard.t = currentDateTime();
+            }
+	    }
 	}
 } 
 
