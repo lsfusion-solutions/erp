@@ -117,9 +117,9 @@ public class LoyaActionProperty extends ScriptingActionProperty {
             else {
                 String email = (String) findProperty("emailLoya[]").read(context);
                 String password = (String) findProperty("passwordLoya[]").read(context);
-                if(email != null && password != null) {
+                String apiKey = (String) findProperty("apiKeyLoya[]").read(context);
+                if(email != null && password != null && apiKey != null) {
                     String sha1Password = DigestUtils.shaHex(password);
-                    String apiKey = "41a9f34b559c959733544d1529da90bc6025fa81";
 
                     HttpPost postRequest = new HttpPost(url + "login");
                     JSONObject keyArg = new JSONObject();
@@ -138,7 +138,7 @@ public class LoyaActionProperty extends ScriptingActionProperty {
                     if (sessionKey == null)
                         error = getResponseMessage(response);
                 } else {
-                    error = "Не задан email и/или пароль";
+                    error = "Не задан email / пароль / api key";
                 }
             }
         }
