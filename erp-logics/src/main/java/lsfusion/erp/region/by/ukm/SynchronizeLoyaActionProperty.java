@@ -45,19 +45,15 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         try {
             boolean disableSynchronizeItems = findProperty("disableSynchronizeItemsLoya").read(context) != null;
             boolean deleteInactiveItemGroups = findProperty("deleteInactiveItemGroupsLoya").read(context) != null;
-            List<Object> data = readItems(context, deleteInactiveItemGroups);
-            List<List<Object>> itemsList = (List<List<Object>>) data.get(0);
-            Map<DataObject, List<Object>> itemGroupsMap = (Map<DataObject, List<Object>>) data.get(1);
-            Map<Long, List<GoodGroupLink>> itemItemGroupsMap = (Map<Long, List<GoodGroupLink>>) data.get(2);
-            List<Long> deleteItemGroupsList = (List<Long>) data.get(3);
+            SynchronizeData data = readItems(context, deleteInactiveItemGroups);
             List<Category> categoriesList = readCategories(context);
 
             SettingsLoya settings = login(context);
             if (settings.error == null) {
                 if ((disableSynchronizeItems || uploadCategories(context, settings, categoriesList)) &&
-                        (disableSynchronizeItems || uploadItems(context, settings, itemsList)) &&
-                        uploadItemGroups(context, settings, itemItemGroupsMap, itemGroupsMap, deleteItemGroupsList) &&
-                        uploadItemItemGroups(context, settings, itemItemGroupsMap))
+                        (disableSynchronizeItems || uploadItems(context, settings, data.itemsList)) &&
+                        uploadItemGroups(context, settings, data.itemItemGroupsMap, data.itemGroupsMap, data.deleteItemGroupsList) &&
+                        uploadItemItemGroups(context, settings, data.itemItemGroupsMap))
                     context.delayUserInteraction(new MessageClientAction("Синхронизация успешно завершена", "Loya"));
             } else
                 context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
@@ -116,7 +112,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return result;
     }
 
-    private List<Object> readItems(ExecutionContext<ClassPropertyInterface> context, boolean deleteInactiveItemGroups) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private SynchronizeData readItems(ExecutionContext<ClassPropertyInterface> context, boolean deleteInactiveItemGroups) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<List<Object>> itemsList = new ArrayList<>();
         Map<DataObject, List<Object>> itemGroupsMap = new HashMap<>();
         Map<Long, List<GoodGroupLink>> itemItemGroupsMap = new HashMap<>();
@@ -187,7 +183,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             if(!active && idLoyaItemGroup != null && deleteInactiveItemGroups)
                 deleteItemGroupsList.add(idLoyaItemGroup);
         }
-        return Arrays.asList(itemsList, itemGroupsMap, itemItemGroupsMap, deleteItemGroupsList);
+        return new SynchronizeData(itemsList, itemGroupsMap, itemItemGroupsMap, deleteItemGroupsList);
     }
 
     private boolean uploadItemGroups(ExecutionContext context, SettingsLoya settings, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, Map<DataObject, List<Object>> itemGroupsMap,
@@ -241,7 +237,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         }
     }
 
-    private boolean existsItemGroup(SettingsLoya settings, Long idItemGroup) throws IOException, JSONException {
+    private boolean existsItemGroup(SettingsLoya settings, Long idItemGroup) throws IOException {
         HttpGet getRequest = new HttpGet(settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup);
         return requestSucceeded(executeRequest(getRequest, settings.sessionKey));
     }
@@ -271,8 +267,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded ? new JSONObject(responseMessage).getLong("id") : null;
     }
 
-    private boolean deleteItemGroup(ExecutionContext context, SettingsLoya settings, Long idItemGroup)
-            throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JSONException {
+    private boolean deleteItemGroup(ExecutionContext context, SettingsLoya settings, Long idItemGroup) throws IOException {
         HttpDeleteWithBody deleteRequest = new HttpDeleteWithBody(settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup);
         deleteRequest.setEntity(new StringEntity("[" + idItemGroup + "]"));
         HttpResponse response = executeRequest(deleteRequest, settings.sessionKey);
@@ -282,7 +277,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
-    private boolean uploadCategories(ExecutionContext context, SettingsLoya settings, List<Category> categoriesList) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private boolean uploadCategories(ExecutionContext context, SettingsLoya settings, List<Category> categoriesList) throws IOException, JSONException {
         boolean succeeded = true;
         for (Category category : categoriesList) {
             if (!uploadCategory(context, settings, category))
@@ -291,8 +286,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
-    private boolean uploadCategory(ExecutionContext context, SettingsLoya settings, Category category)
-            throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private boolean uploadCategory(ExecutionContext context, SettingsLoya settings, Category category) throws JSONException, IOException {
 
         ServerLoggers.importLogger.info("Loya: synchronizing category " + category.overId + " started");
         JSONObject requestBody = new JSONObject();
@@ -317,7 +311,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return requestSucceeded(executeRequest(getRequest, settings.sessionKey));
     }
 
-    private boolean modifyCategory(ExecutionContext context, SettingsLoya settings, Long categoryId, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private boolean modifyCategory(ExecutionContext context, SettingsLoya settings, Long categoryId, JSONObject requestBody) throws IOException {
         HttpPost postRequest = new HttpPost(settings.url + "category/" + settings.partnerId + "/" + categoryId);
         HttpResponse response = executeRequest(postRequest, requestBody, settings.sessionKey);
         boolean succeeded = requestSucceeded(response);
@@ -326,8 +320,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
-    private boolean createCategory(ExecutionContext context, String url, String sessionKey, JSONObject requestBody)
-            throws IOException, JSONException, SQLException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
+    private boolean createCategory(ExecutionContext context, String url, String sessionKey, JSONObject requestBody) throws IOException {
         HttpPut putRequest = new HttpPut(url + "category");
         HttpResponse response = executeRequest(putRequest, requestBody, sessionKey);
         boolean succeeded = requestSucceeded(response);
@@ -336,7 +329,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
-    private boolean uploadItems(ExecutionContext context, SettingsLoya settings, List<List<Object>> itemsList) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private boolean uploadItems(ExecutionContext context, SettingsLoya settings, List<List<Object>> itemsList) throws IOException, JSONException {
         boolean succeeded = true;
         for (List<Object> entry : itemsList) {
             if (!uploadItem(context, settings, entry))
@@ -345,8 +338,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
-    private boolean uploadItem(ExecutionContext context, SettingsLoya settings, List<Object> itemData)
-            throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private boolean uploadItem(ExecutionContext context, SettingsLoya settings, List<Object> itemData) throws JSONException, IOException {
 
         String idItem = (String) itemData.get(0);
         String captionItem = (String) itemData.get(2);
@@ -388,7 +380,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return requestSucceeded(executeRequest(getRequest, settings.sessionKey));
     }
 
-    private boolean modifyItem(ExecutionContext context, SettingsLoya settings, String idItem, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private boolean modifyItem(ExecutionContext context, SettingsLoya settings, String idItem, JSONObject requestBody) throws IOException {
         HttpPost postRequest = new HttpPost(settings.url + "good/" + settings.partnerId + "/" + idItem);
         HttpResponse response = executeRequest(postRequest, requestBody, settings.sessionKey);
         boolean succeeded = requestSucceeded(response);
@@ -397,8 +389,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
-    private boolean createItem(ExecutionContext context, String url, String sessionKey, JSONObject requestBody)
-            throws IOException, JSONException, SQLException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
+    private boolean createItem(ExecutionContext context, String url, String sessionKey, JSONObject requestBody) throws IOException {
         HttpPut putRequest = new HttpPut(url + "good");
         HttpResponse response = executeRequest(putRequest, requestBody, sessionKey);
         boolean succeeded = requestSucceeded(response);
@@ -407,7 +398,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
-    private boolean uploadItemItemGroups(ExecutionContext context, SettingsLoya settings, Map<Long, List<GoodGroupLink>> itemItemGroupsMap) throws JSONException, IOException {
+    private boolean uploadItemItemGroups(ExecutionContext context, SettingsLoya settings, Map<Long, List<GoodGroupLink>> itemItemGroupsMap) throws IOException {
         boolean succeeded = true;
         ServerLoggers.importLogger.info("Loya: synchronizing goodGroupLinks");
         for (Map.Entry<Long, List<GoodGroupLink>> entry : itemItemGroupsMap.entrySet()) {
@@ -423,10 +414,14 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
                 for (int i = 0; i < itemsArray.length(); i++) {
                     JSONObject item = itemsArray.getJSONObject(i);
                     String sku = item.getString("sku");
-                    if (itemsList.contains(sku)) {
-                        itemsList.remove(sku);
-                    } else {
-                        deleteList += (deleteList.isEmpty() ? "" : ",") + "\"" + sku + "\"";
+                    Iterator<GoodGroupLink> iterator = itemsList.iterator();
+                    while(iterator.hasNext()) {
+                        GoodGroupLink goodGroupLink = iterator.next();
+                        if (goodGroupLink.sku.equals(sku)) {
+                            iterator.remove();
+                        } else {
+                            deleteList += (deleteList.isEmpty() ? "" : ",") + "\"" + sku + "\"";
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -488,6 +483,20 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         limitsMap.put("maxAllowBonus", null);
         limitsMap.put("maxAwardBonus", null);
         return limitsMap;
+    }
+
+    private class SynchronizeData {
+        public List<List<Object>> itemsList;
+        public Map<DataObject, List<Object>> itemGroupsMap;
+        public Map<Long, List<GoodGroupLink>> itemItemGroupsMap;
+        public List<Long> deleteItemGroupsList;
+
+        public SynchronizeData(List<List<Object>> itemsList, Map<DataObject, List<Object>> itemGroupsMap, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, List<Long> deleteItemGroupsList) {
+            this.itemsList = itemsList;
+            this.itemGroupsMap = itemGroupsMap;
+            this.itemItemGroupsMap = itemItemGroupsMap;
+            this.deleteItemGroupsList = deleteItemGroupsList;
+        }
     }
 
     private class Category {
