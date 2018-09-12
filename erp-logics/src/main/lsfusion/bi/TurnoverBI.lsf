@@ -538,9 +538,9 @@ values() = (IF overIsOut() AND isQuantity() THEN 'SUM(quantitySold)' ELSE '\'\''
                             + (IF overIsOut() AND isSum() THEN 'SUM(sumPriceSold)' ELSE '\'\'') + ' AS sumPriceSold, '
                             + (IF isIn() AND isQuantity() THEN 'SUM(quantityPurchase)' ELSE '\'\'') + ' AS quantityPurchase, '
                             + (IF isIn() AND isQuantity() AND isStatisticUOM() THEN 'SUM(statisticUOMPurchase)' ELSE '\'\'') + ' AS statisticUOMPurchase, '
-                            + (IF isIn() AND isSum() THEN 'SUM(sumPurchase)-SUM(sumVATPurchase)' ELSE '\'\'') + ' AS sumMinusVATPurchase, '
-                            + (IF isIn() AND isSum() THEN 'SUM(sumVATPurchase)' ELSE '\'\'') + ' AS sumVATPurchase, '
-                            + (IF isIn() AND isSum() THEN 'SUM(sumPurchase)' ELSE '\'\'') + ' AS sumPurchase, '
+                            + (IF isIn() AND (isSum() OR overIsCost()) THEN 'SUM(sumPurchase)-SUM(sumVATPurchase)' ELSE '\'\'') + ' AS sumMinusVATPurchase, '
+                            + (IF isIn() AND (isSum() OR overIsCost()) THEN 'SUM(sumVATPurchase)' ELSE '\'\'') + ' AS sumVATPurchase, '
+                            + (IF isIn() AND (isSum() OR isCostVAT()) THEN 'SUM(sumPurchase)' ELSE '\'\'') + ' AS sumPurchase, '
                             + (IF isIn() AND isSum() THEN 'SUM(sumPricePurchase)' ELSE '\'\'') + ' AS sumPricePurchase, '
                             + (IF isTurnover() THEN 'SUM(costBalance)/SUM(costSumSold)' ELSE '\'\'') + ' AS turnover, '
                             + (IF isTurnover() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalance, '
@@ -740,9 +740,9 @@ FORM printTurnoverReport 'Оборачиваемость'
                            sumSold SHOWIF (overIsOut() AND isSum()),
                            sumPriceSold SHOWIF (overIsOut() AND isSum())
     PROPERTIES(i) READONLY quantityPurchase SHOWIF (isIn() AND isQuantity()),
-                           sumMinusVATPurchase SHOWIF (isIn() AND isSum()),
-                           sumVATPurchase SHOWIF (isIn() AND isSum()),
-                           sumPurchase SHOWIF (isIn() AND isSum()),
+                           sumMinusVATPurchase SHOWIF (isIn() AND (isSum() OR overIsCost())),
+                           sumVATPurchase SHOWIF (isIn() AND (isSum() OR isCostVAT())),
+                           sumPurchase SHOWIF (isIn() AND (isSum() OR isCostVAT())),
                            sumPricePurchase SHOWIF (isIn() AND isSum())
     PROPERTIES(i) READONLY turnover SHOWIF isTurnover(),
                            costBalance SHOWIF isTurnover(),
