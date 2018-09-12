@@ -488,6 +488,9 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 result = decimalFormat.format(((NumberFormulaCell) cell).getValue());
             } else {
                 result = (cell.getContents().isEmpty()) ? defaultValue : trim(cell.getContents());
+                if(importColumnDetail.isBoolean) {
+                   result = parseBoolean(result);
+                }
             }
             return result;
         } catch (ArrayIndexOutOfBoundsException e) {
@@ -744,6 +747,9 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 case Cell.CELL_TYPE_STRING:
                 default:
                     result = (xssfCell.getStringCellValue().isEmpty()) ? defaultValue : trim(xssfCell.getStringCellValue());
+                    if(importColumnDetail.isBoolean) {
+                        result = parseBoolean(result);
+                    }
                     break;
             }
             return result;
@@ -1317,6 +1323,15 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     private String parseBoolean(double value) {
         return value == 1 ? "true" : null;
+    }
+
+    private String parseBoolean(String value) {
+        //сохраняем обратную совместимость: да - true, нет - null, всё остальное - как раньше
+        if (value != null) {
+            return value.toLowerCase().equals("да") ? "true" : value.toLowerCase().equals("нет") ? null : value;
+        } else {
+            return null;
+        }
     }
 
     private String checkedSum(String summedValue, String argument, int c, boolean isNumeric) {
