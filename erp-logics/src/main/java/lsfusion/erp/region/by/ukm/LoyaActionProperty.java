@@ -22,6 +22,7 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 
 public class LoyaActionProperty extends ScriptingActionProperty {
@@ -59,7 +60,7 @@ public class LoyaActionProperty extends ScriptingActionProperty {
         return new DefaultHttpClient().execute(request);
     }
 
-    protected String getCookieResponse(HttpResponse response, int statusCode) throws IOException {
+    protected String getCookieResponse(HttpResponse response, int statusCode) {
         if (statusCode >= 200 && statusCode < 300) {
             Header[] headers = response.getHeaders("set-cookie");
             if (headers.length > 0) {
@@ -75,7 +76,7 @@ public class LoyaActionProperty extends ScriptingActionProperty {
 
     protected String getResponseMessage(HttpResponse response) throws IOException {
         StringBuilder result = new StringBuilder();
-        BufferedReader br = new BufferedReader(new InputStreamReader((response.getEntity().getContent()), "utf-8"));
+        BufferedReader br = new BufferedReader(new InputStreamReader((response.getEntity().getContent()), StandardCharsets.UTF_8));
         String output;
         while ((output = br.readLine()) != null) {
             result.append(output);
@@ -83,12 +84,11 @@ public class LoyaActionProperty extends ScriptingActionProperty {
         return result.toString();
     }
 
-    protected boolean requestSucceeded(HttpResponse response) throws IOException {
+    protected boolean requestSucceeded(HttpResponse response) {
         return response.getStatusLine().getStatusCode() == 200;
     }
 
-    protected void setIdLoyaItemGroup(ExecutionContext context, DataObject itemGroupObject, Long id)
-            throws IOException, JSONException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    protected void setIdLoyaItemGroup(ExecutionContext context, DataObject itemGroupObject, Long id) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (ExecutionContext.NewSession newContext = context.newSession()) {
             findProperty("id[LoyaItemGroup]").change(id, newContext, itemGroupObject);
             newContext.apply();

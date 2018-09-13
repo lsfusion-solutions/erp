@@ -46,22 +46,64 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             boolean disableSynchronizeItems = findProperty("disableSynchronizeItemsLoya[]").read(context) != null;
             boolean deleteInactiveItemGroups = findProperty("deleteInactiveItemGroupsLoya[]").read(context) != null;
             Map<String, Integer> discountLimits = getDiscountLimits(context);
-            SynchronizeData data = readItems(context, deleteInactiveItemGroups);
-            List<Category> categoriesList = readCategories(context);
+
+            boolean succeeded = true;
 
             SettingsLoya settings = login(context);
             if (settings.error == null) {
-                if ((disableSynchronizeItems || uploadCategories(context, settings, categoriesList, discountLimits)) &&
-                        (disableSynchronizeItems || uploadItems(context, settings, data.itemsList, discountLimits)) &&
-                        uploadItemGroups(context, settings, data.itemItemGroupsMap, data.itemGroupsMap, data.deleteItemGroupsList, discountLimits) &&
-                        uploadItemItemGroups(context, settings, data.itemItemGroupsMap))
-                    context.delayUserInteraction(new MessageClientAction("Синхронизация успешно завершена", "Loya"));
+
+                //synchronize brands
+                if(!disableSynchronizeItems) {
+                    List<Brand> brandsList = readBrands(context);
+                    if(!uploadBrands(context, settings, brandsList)) {
+                        succeeded = false;
+                    }
+                }
+
+                if(succeeded) {
+
+                    SynchronizeData data = readItems(context, deleteInactiveItemGroups);
+                    List<Category> categoriesList = readCategories(context);
+
+                    if ((disableSynchronizeItems || uploadCategories(context, settings, categoriesList, discountLimits)) &&
+                            (disableSynchronizeItems || uploadItems(context, settings, data.itemsList, discountLimits)) &&
+                            uploadItemGroups(context, settings, data.itemItemGroupsMap, data.itemGroupsMap, data.deleteItemGroupsList, discountLimits) &&
+                            uploadItemItemGroups(context, settings, data.itemItemGroupsMap))
+                        context.delayUserInteraction(new MessageClientAction("Синхронизация успешно завершена", "Loya"));
+
+                }
             } else
                 context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
         } catch (Exception e) {
             ServerLoggers.importLogger.error(failCaption, e);
             context.delayUserInteraction(new MessageClientAction(e.getMessage(), failCaption));
         }
+    }
+
+    private List<Brand> readBrands(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<Brand> result = new ArrayList<>();
+
+        KeyExpr brandExpr = new KeyExpr("Brand");
+        ImRevMap<Object, KeyExpr> brandKeys = MapFact.singletonRev((Object) "brand", brandExpr);
+        QueryBuilder<Object, Object> brandQuery = new QueryBuilder<>(brandKeys);
+
+        String[] brandNames = new String[]{"idLoya", "name"};
+        LCP[] brandProperties = findProperties("idLoya[Brand]", "name[Brand]");
+        for (int i = 0; i < brandProperties.length; i++) {
+            brandQuery.addProperty(brandNames[i], brandProperties[i].getExpr(brandExpr));
+        }
+        brandQuery.and(findProperty("Loya.in[Brand]").getExpr(brandExpr).getWhere());
+        brandQuery.and(findProperty("name[Brand]").getExpr(brandExpr).getWhere());
+
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> itemGroupResult = brandQuery.executeClasses(context);
+
+        for (int i = 0; i < itemGroupResult.size(); i++) {
+            DataObject brandObject = itemGroupResult.getKey(i).singleValue();
+            Integer idLoya = (Integer) itemGroupResult.getValue(i).get("idLoya").getValue();
+            String name = (String) itemGroupResult.getValue(i).get("name").getValue();
+            result.add(new Brand(idLoya, name, brandObject));
+        }
+        return result;
     }
 
     private List<Category> readCategories(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -114,7 +156,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     private SynchronizeData readItems(ExecutionContext<ClassPropertyInterface> context, boolean deleteInactiveItemGroups) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        List<List<Object>> itemsList = new ArrayList<>();
+        List<Item> itemsList = new ArrayList<>();
         Map<DataObject, List<Object>> itemGroupsMap = new HashMap<>();
         Map<Long, List<GoodGroupLink>> itemItemGroupsMap = new HashMap<>();
         List<Long> deleteItemGroupsList = new ArrayList<>();
@@ -133,6 +175,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         query.addProperty("idUOMItem", findProperty("idUOM[Item]").getExpr(skuExpr));
         query.addProperty("splitItem", findProperty("split[Item]").getExpr(skuExpr));
         query.addProperty("idSkuGroup", findProperty("overIdSkuGroup[Item]").getExpr(skuExpr));
+        query.addProperty("idLoyaBrand", findProperty("idLoyaBrand[Item]").getExpr(skuExpr));
         query.and(findProperty("active[LoyaItemGroup]").getExpr(groupExpr).getWhere());
         query.and(findProperty("id[Sku]").getExpr(skuExpr).getWhere());
         query.and(findProperty("in[Item,LoyaItemGroup]").getExpr(skuExpr, groupExpr).getWhere());
@@ -150,7 +193,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             String idUOMItem = trim((String) valueEntry.get("idUOMItem").getValue());
             Boolean splitItem = valueEntry.get("splitItem").getValue() != null;
             String idSkuGroup = trim((String) valueEntry.get("idSkuGroup").getValue());
-            itemsList.add(Arrays.asList((Object) idSku, idLoyaItemGroup, captionItem, idUOMItem, splitItem, idSkuGroup));
+            Integer idLoyaBrand = (Integer) valueEntry.get("idLoyaBrand").getValue();
+            itemsList.add(new Item(idSku, idLoyaItemGroup, captionItem, idUOMItem, splitItem, idSkuGroup, idLoyaBrand));
             itemGroupsMap.put(groupObject, Arrays.asList(idLoyaItemGroup == null ? groupObject.getValue() : idLoyaItemGroup, nameItemGroup, descriptionItemGroup));
             List<GoodGroupLink> skuList = itemItemGroupsMap.get(idLoyaItemGroup);
             if (skuList == null)
@@ -279,6 +323,61 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
+    private boolean uploadBrands(ExecutionContext context, SettingsLoya settings, List<Brand> brandsList) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+        boolean succeeded = true;
+        for (Brand brand : brandsList) {
+            if (!uploadBrand(context, settings, brand))
+                succeeded = false;
+        }
+        return succeeded;
+    }
+
+    private boolean uploadBrand(ExecutionContext context, SettingsLoya settings, Brand brand) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+
+        ServerLoggers.importLogger.info("Loya: synchronizing brand " + brand.name + " started");
+
+        JSONObject requestBody = new JSONObject();
+        requestBody.put("id", brand.id);
+        requestBody.put("name", brand.name);
+        requestBody.put("description", brand.name);
+
+        if(existsBrand(settings, brand.id)) {
+            ServerLoggers.importLogger.info("Loya: modifying brand " + brand.name);
+            return modifyBrand(context, settings, brand.id, requestBody);
+        } else {
+            ServerLoggers.importLogger.info("Loya: creating brand " + brand.name);
+            return createBrand(context, brand.brandObject, settings.url, settings.sessionKey, requestBody);
+        }
+    }
+
+    private boolean existsBrand(SettingsLoya settings, Integer idBrand) throws IOException {
+        HttpGet getRequest = new HttpGet(settings.url + "brand/" + idBrand);
+        return requestSucceeded(executeRequest(getRequest, settings.sessionKey));
+    }
+
+    private boolean modifyBrand(ExecutionContext context, SettingsLoya settings, Integer idBrand, JSONObject requestBody) throws IOException {
+        HttpPost postRequest = new HttpPost(settings.url + "brand/" + idBrand);
+        HttpResponse response = executeRequest(postRequest, requestBody, settings.sessionKey);
+        boolean succeeded = requestSucceeded(response);
+        if (!succeeded)
+            context.delayUserInteraction(new MessageClientAction(getResponseMessage(response), "Loya: Modify Brand Error"));
+        return succeeded;
+    }
+
+    private boolean createBrand(ExecutionContext context, DataObject brandObject, String url, String sessionKey, JSONObject requestBody)
+            throws IOException, JSONException, SQLException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
+        HttpPut putRequest = new HttpPut(url + "brand");
+        HttpResponse response = executeRequest(putRequest, requestBody, sessionKey);
+        boolean succeeded = requestSucceeded(response);
+        if (succeeded) {
+            JSONObject responseObject = new JSONObject(getResponseMessage(response));
+            setIdLoyaBrand(context, brandObject, responseObject.getInt("id"));
+        } else {
+            context.delayUserInteraction(new MessageClientAction(getResponseMessage(response), "Loya: Create Brand Error"));
+        }
+        return succeeded;
+    }
+
     private boolean uploadCategories(ExecutionContext context, SettingsLoya settings, List<Category> categoriesList, Map<String, Integer> discountLimits) throws IOException, JSONException {
         boolean succeeded = true;
         for (Category category : categoriesList) {
@@ -331,39 +430,33 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
-    private boolean uploadItems(ExecutionContext context, SettingsLoya settings, List<List<Object>> itemsList, Map<String, Integer> discountLimits) throws IOException, JSONException {
+    private boolean uploadItems(ExecutionContext context, SettingsLoya settings, List<Item> itemsList, Map<String, Integer> discountLimits) throws IOException, JSONException {
         boolean succeeded = true;
-        for (List<Object> entry : itemsList) {
-            if (!uploadItem(context, settings, entry, discountLimits))
+        for (Item item : itemsList) {
+            if (!uploadItem(context, settings, item, discountLimits))
                 succeeded = false;
         }
         return succeeded;
     }
 
-    private boolean uploadItem(ExecutionContext context, SettingsLoya settings, List<Object> itemData, Map<String, Integer> discountLimits) throws JSONException, IOException {
-
-        String idItem = (String) itemData.get(0);
-        String captionItem = (String) itemData.get(2);
-        String idUOMItem = (String) itemData.get(3);
-        boolean isWeight = (Boolean) itemData.get(4);
-        Long categoryId = parseGroup((String) itemData.get(5));
-
-        ServerLoggers.importLogger.info("Loya: synchronizing good " + idItem + " started");
+    private boolean uploadItem(ExecutionContext context, SettingsLoya settings, Item item, Map<String, Integer> discountLimits) throws JSONException, IOException {
+        ServerLoggers.importLogger.info("Loya: synchronizing good " + item.id + " started");
         JSONObject requestBody = new JSONObject();
         requestBody.put("partnerId", settings.partnerId);
-        requestBody.put("sku", idItem);
-        requestBody.put("categoryId", categoryId);
-        requestBody.put("name", captionItem);
-        requestBody.put("measurement", idUOMItem);
+        requestBody.put("sku", item.id);
+        requestBody.put("categoryId", parseGroup(item.idSkuGroup));
+        requestBody.put("brandId", item.idLoyaBrand);
+        requestBody.put("name", item.caption);
+        requestBody.put("measurement", item.idUOM);
         requestBody.put("margin", 0);
-        requestBody.put("dimension", isWeight ? "weight" : "piece");
+        requestBody.put("dimension", item.split ? "weight" : "piece");
         requestBody.put("limits", discountLimits);
 
-        if (existsItem(settings, idItem)) {
-            ServerLoggers.importLogger.info("Loya: modifying good " + idItem);
-            return modifyItem(context, settings, idItem, requestBody);
+        if (existsItem(settings, item.id)) {
+            ServerLoggers.importLogger.info("Loya: modifying good " + item.id);
+            return modifyItem(context, settings, item.id, requestBody);
         } else {
-            ServerLoggers.importLogger.info("Loya: creating good " + idItem);
+            ServerLoggers.importLogger.info("Loya: creating good " + item.id);
             return createItem(context, settings.url, settings.sessionKey, requestBody);
         }
     }
@@ -493,16 +586,28 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     private class SynchronizeData {
-        public List<List<Object>> itemsList;
+        public List<Item> itemsList;
         public Map<DataObject, List<Object>> itemGroupsMap;
         public Map<Long, List<GoodGroupLink>> itemItemGroupsMap;
         public List<Long> deleteItemGroupsList;
 
-        public SynchronizeData(List<List<Object>> itemsList, Map<DataObject, List<Object>> itemGroupsMap, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, List<Long> deleteItemGroupsList) {
+        public SynchronizeData(List<Item> itemsList, Map<DataObject, List<Object>> itemGroupsMap, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, List<Long> deleteItemGroupsList) {
             this.itemsList = itemsList;
             this.itemGroupsMap = itemGroupsMap;
             this.itemItemGroupsMap = itemItemGroupsMap;
             this.deleteItemGroupsList = deleteItemGroupsList;
+        }
+    }
+
+    private class Brand {
+        Integer id;
+        String name;
+        DataObject brandObject;
+
+        public Brand(Integer id, String name, DataObject brandObject) {
+            this.id = id;
+            this.name = name;
+            this.brandObject = brandObject;
         }
     }
 
@@ -515,6 +620,26 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             this.overId = overId;
             this.name = name;
             this.parentId = parentId;
+        }
+    }
+
+    private class Item {
+        String id;
+        Long idLoyaItemGroup;
+        String caption;
+        String idUOM;
+        Boolean split;
+        String idSkuGroup;
+        Integer idLoyaBrand;
+
+        public Item(String id, Long idLoyaItemGroup, String caption, String idUOM, Boolean split, String idSkuGroup, Integer idLoyaBrand) {
+            this.id = id;
+            this.idLoyaItemGroup = idLoyaItemGroup;
+            this.caption = caption;
+            this.idUOM = idUOM;
+            this.split = split;
+            this.idSkuGroup = idSkuGroup;
+            this.idLoyaBrand = idLoyaBrand;
         }
     }
 
