@@ -417,15 +417,11 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
                 for (int i = 0; i < itemsArray.length(); i++) {
                     JSONObject item = itemsArray.getJSONObject(i);
                     String sku = item.getString("sku");
-                    Iterator<GoodGroupLink> iterator = itemsList.iterator();
-                    while(iterator.hasNext()) {
-                        GoodGroupLink goodGroupLink = iterator.next();
-                        if (goodGroupLink.sku.equals(sku)) {
-                            iterator.remove();
-                        } else {
-                            deleteList += (deleteList.isEmpty() ? "" : ",") + "\"" + sku + "\"";
-                            deleteCount++;
-                        }
+                    if (itemsList.contains(sku)) {
+                        itemsList.remove(sku);
+                    } else {
+                        deleteList += (deleteList.isEmpty() ? "" : ",") + "\"" + sku + "\"";
+                        deleteCount++;
                     }
                 }
             } catch (Exception e) {
