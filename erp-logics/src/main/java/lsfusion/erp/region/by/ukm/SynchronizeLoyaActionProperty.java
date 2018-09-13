@@ -408,6 +408,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             List<GoodGroupLink> itemsList = entry.getValue();
 
             String deleteList = "";
+            int deleteCount = 0;
             HttpResponse getResponse = executeRequest(new HttpGet(settings.url + "goodgrouplink/" + settings.partnerId + "/" + idItemGroup), settings.sessionKey);
             String responseMessage = getResponseMessage(getResponse);
             try {
@@ -423,6 +424,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
                             iterator.remove();
                         } else {
                             deleteList += (deleteList.isEmpty() ? "" : ",") + "\"" + sku + "\"";
+                            deleteCount++;
                         }
                     }
                 }
@@ -459,7 +461,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
                         succeeded = false;
                 }
             }
-            ServerLoggers.importLogger.info(String.format("Loya: synchronizing goodGroupLinks. Group %s: deleted %s items, added %s items", idItemGroup, deleteList.length(), itemsList.size()));
+            ServerLoggers.importLogger.info(String.format("Loya: synchronizing goodGroupLinks. Group %s: deleted %s items, added %s items", idItemGroup, deleteCount, itemsList.size()));
         }
         return succeeded;
     }
