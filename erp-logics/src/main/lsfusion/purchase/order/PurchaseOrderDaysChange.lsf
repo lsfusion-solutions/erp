@@ -1,0 +1,12 @@
+MODULE PurchaseOrderDaysChange;
+
+REQUIRE PurchaseOrder, StockDaysChange, PurchaseDemand;
+
+percentBalanceDays 'Дней в наличии, %' (Sku sk, Stock st, DATE df, DATE dt) = NUMERIC[7,4] (daysOnStock(sk, st, df, dt)) / (daysInclBetweenDates(df, dt)) * 100;
+
+
+backgroundPercentBalanceDays (Sku sk, Stock st, DATE df, DATE dt) = RGB (255, 190, 190) IF percentBalanceDays(sk, st, df, dt) < 100.0;
+
+EXTEND FORM userOrder 
+    PROPERTIES READONLY SHOWIF useDaysChange() percentBalanceDays 'Дней в наличии, %' = percentBalanceDays(ks, st, dateFromSoldPeriod(o), dateToSoldPeriod(o)) 
+                        BACKGROUND backgroundPercentBalanceDays(ks, st, dateFromSoldPeriod(o), dateToSoldPeriod(o));

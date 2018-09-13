@@ -84,3 +84,22 @@ DESIGN userOrder {
         }
     }
 }
+    
+EXTEND FORM userOrder 
+    OBJECTS day = DATE
+    PROPERTIES READONLY VALUE(day), balanceB(ks, st, day), 'Продано за день' = quantitySold(ks, st, day),
+                        price 'Средняя цена' = NUMERIC[16,2] (sumSold(ks, st, day) / quantitySold(ks, st, day)) 
+    
+    FILTERS iterate(day, dateFromSoldPeriod(o), dateToSoldPeriod(o))
+;
+
+DESIGN userOrder {
+    itemBox {
+        NEW days FIRST {
+            fill = 1;
+            type = SPLITV;
+            MOVE skuFilters { fill = 2; }
+            MOVE BOX (day) { fill = 1; }
+        }
+    }
+}
