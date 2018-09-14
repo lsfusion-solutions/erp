@@ -108,13 +108,15 @@ recalculateFullPriceUserOrderDetail 'Пересчитать цены'()  {
 
 @defineOption(readonlySaleReturnDiscount, 'Запретить редактирование % скидки в строках (продажа-возврат)', sale);
 
+showFullPrice 'Показывать полную цену и скидку' = ABSTRACT BOOLEAN (Order);
+
 EXTEND FORM userOrder
     PROPERTIES (o) percDiscount 
-    PROPERTIES (d) BEFORE  price(d) fullPrice, percDiscount READONLYIF readonlySaleDiscount()
+    PROPERTIES (d) SHOWIF showFullPrice(o) BEFORE price(d) fullPrice, percDiscount READONLYIF readonlySaleDiscount()
 ;
 
 EXTEND FORM orders
-    PROPERTIES (d) READONLY BEFORE  price(d) fullPrice, percDiscount
+    PROPERTIES (d) READONLY  SHOWIF showFullPrice(o) BEFORE price(d) fullPrice, percDiscount
 ;
 
 skipSetAgreement(UserOrder o) += priceListType(agreement(o)) IS CalcPriceListType;
@@ -232,13 +234,15 @@ recalculateFullPriceUserInvoiceDetail 'Пересчитать цены'()  {
     }
 } ASON CONTEXTMENU fullPrice[UserInvoiceDetail];
 
+showFullPrice 'Показывать полную цену и скидку' = ABSTRACT BOOLEAN (Invoice);
+
 EXTEND FORM userInvoice
     PROPERTIES (i) percDiscount 
-    PROPERTIES (d) BEFORE  price(d) fullPrice, percDiscount READONLYIF readonlySaleDiscount()
+    PROPERTIES (d) SHOWIF showFullPrice(i) BEFORE price(d) fullPrice, percDiscount READONLYIF readonlySaleDiscount()
 ;
 
 EXTEND FORM invoices
-    PROPERTIES (d) READONLY BEFORE  price(d) fullPrice, percDiscount
+    PROPERTIES (d) READONLY SHOWIF showFullPrice(i) BEFORE price(d) fullPrice, percDiscount
 ;
 
 skipEqualAgreements = ABSTRACT BOOLEAN (UserInvoice);
