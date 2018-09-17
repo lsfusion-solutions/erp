@@ -166,11 +166,11 @@ supplierReportPrint 'Отчет по поставщику (xls)' (Stock st,DATE 
         BY sku(batch), supplierStock(batch)](sku, st); 
     sumSoldSupplierLocal (Sku sku) <- [ GROUP SUM sumSold(Batch batch, Stock stock, DATE date) IF date >= dFrom AND date <= dTo AND inReport(stock) AND inSession(sku(batch)) 
         BY sku(batch), supplierStock(batch)](sku, st);    
-    averagePriceSupplierLocal (Sku sku) <- NUMERIC[18,4](sumSoldSupplierLocal(sku) / (quantitySoldSupplierLocal(sku) IF quantitySoldSupplierLocal(sku) !=0) AND inSession(sku));
+    averagePriceSupplierLocal (Sku sku) <- NUMERIC[18,4](sumSoldSupplierLocal(sku) / quantitySoldSupplierLocal(sku) IF quantitySoldSupplierLocal(sku) !=0 AND inSession(sku));
 
     sumSaleSupplierLocal (Sku sku) <- NUMERIC[18,4]([ GROUP SUM quantitySold(Batch batch, Stock stock, DATE date)* invoicePriceInvoiceDetail(batch)
         IF date >= dFrom AND date <= dTo AND inReport(stock) AND inSession(sku(batch)) BY sku(batch), supplierStock(batch)](sku, st));   
-    averageSalePriceSupplierLocal (Sku sku) <-  NUMERIC[18,4](sumSaleSupplierLocal(sku) / (quantitySoldSupplierLocal(sku) IF quantitySoldSupplierLocal(sku) !=0) AND inSession(sku));     
+    averageSalePriceSupplierLocal (Sku sku) <-  NUMERIC[18,4](sumSaleSupplierLocal(sku) / quantitySoldSupplierLocal(sku) IF quantitySoldSupplierLocal(sku) !=0 AND inSession(sku));     
 
     balanceASupplierToLocal(Sku sku)  <- [ GROUP SUM balanceA(Batch batch, Stock stock, dTo) IF inReport(stock) AND inSession(sku(batch)) BY sku(batch), supplierStock(batch)](sku, st);    
 
