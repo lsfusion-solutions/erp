@@ -50,7 +50,16 @@ CLASS InvoiceRepricingN 'Акт переоценки (отрицательные
 CLASS InvoiceRepricingNDetail 'Строка акта переоценки (отрицательные ТН)': RepricingDetail;
 
 @defineDocumentTables(invoiceRepricingN);
-@defineDocumentAggregation(invoice, invoiceRepricingN, afterRetailPrice);
+
+invoiceRepricingN = AGGR InvoiceRepricingN WHERE afterRetailPrice(Invoice invoice) MATERIALIZED INDEXED;
+@defineDocumentAggregationHeaderNote(invoice, invoiceRepricingN);
+
+date 'Дата' (InvoiceRepricingN o) = pricingDate(invoice(o));
+time 'Время' (InvoiceRepricingN o) = pricingTime(invoice(o));
+dateTime 'Дата/время' (InvoiceRepricingN o) = pricingDateTime(invoice(o));
+
+@defineDocumentAggregationDetail(invoice, invoiceRepricingN, afterRetailPrice);
+    @defineDocumentHeaderCount(invoiceRepricingN);
 
 repricing(InvoiceRepricingNDetail detail) += invoiceRepricingN(detail);
 
