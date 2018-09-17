@@ -290,7 +290,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
 
     private boolean modifyItemGroup(ExecutionContext context, SettingsLoya settings, Long idItemGroup, DataObject itemGroupObject, JSONObject requestBody)
             throws IOException, JSONException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-        HttpPost postRequest = new HttpPost(settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup);
+        String requestURL = settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup;
+        HttpPost postRequest = new HttpPost(requestURL);
         HttpResponse response = executeRequest(postRequest, requestBody, settings.sessionKey);
         boolean succeeded = requestSucceeded(response);
         if (succeeded)
@@ -302,7 +303,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
 
     private Long createItemGroup(ExecutionContext context, DataObject itemGroupObject, String url, String sessionKey, JSONObject requestBody)
             throws IOException, JSONException, SQLException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
-        HttpPut putRequest = new HttpPut(url + "goodgroup");
+        String requestURL = url + "goodgroup";
+        HttpPut putRequest = new HttpPut(requestURL);
         HttpResponse response = executeRequest(putRequest, requestBody, sessionKey);
         boolean succeeded = requestSucceeded(response);
         String responseMessage = getResponseMessage(response);
@@ -314,8 +316,10 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     private boolean deleteItemGroup(ExecutionContext context, SettingsLoya settings, Long idItemGroup) throws IOException {
-        HttpDeleteWithBody deleteRequest = new HttpDeleteWithBody(settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup);
-        deleteRequest.setEntity(new StringEntity("[" + idItemGroup + "]"));
+        String requestURL = settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup;
+        String requestBody = "[" + idItemGroup + "]";
+        HttpDeleteWithBody deleteRequest = new HttpDeleteWithBody(requestURL);
+        deleteRequest.setEntity(new StringEntity(requestBody));
         HttpResponse response = executeRequest(deleteRequest, settings.sessionKey);
         boolean succeeded = requestSucceeded(response);
         if (!succeeded)
@@ -356,7 +360,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     private boolean modifyBrand(ExecutionContext context, SettingsLoya settings, Integer idBrand, JSONObject requestBody) throws IOException {
-        HttpPost postRequest = new HttpPost(settings.url + "brand/" + idBrand);
+        String requestURL = settings.url + "brand/" + idBrand;
+        HttpPost postRequest = new HttpPost(requestURL);
         HttpResponse response = executeRequest(postRequest, requestBody, settings.sessionKey);
         boolean succeeded = requestSucceeded(response);
         if (!succeeded)
@@ -366,7 +371,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
 
     private boolean createBrand(ExecutionContext context, DataObject brandObject, String url, String sessionKey, JSONObject requestBody)
             throws IOException, JSONException, SQLException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
-        HttpPut putRequest = new HttpPut(url + "brand");
+        String requestURL = url + "brand";
+        HttpPut putRequest = new HttpPut(requestURL);
         HttpResponse response = executeRequest(putRequest, requestBody, sessionKey);
         boolean succeeded = requestSucceeded(response);
         if (succeeded) {
@@ -413,7 +419,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     private boolean modifyCategory(ExecutionContext context, SettingsLoya settings, Long categoryId, JSONObject requestBody) throws IOException {
-        HttpPost postRequest = new HttpPost(settings.url + "category/" + settings.partnerId + "/" + categoryId);
+        String requestURL = settings.url + "category/" + settings.partnerId + "/" + categoryId;
+        HttpPost postRequest = new HttpPost(requestURL);
         HttpResponse response = executeRequest(postRequest, requestBody, settings.sessionKey);
         boolean succeeded = requestSucceeded(response);
         if (!succeeded)
@@ -422,7 +429,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     private boolean createCategory(ExecutionContext context, String url, String sessionKey, JSONObject requestBody) throws IOException {
-        HttpPut putRequest = new HttpPut(url + "category");
+        String requestURL = url + "category";
+        HttpPut putRequest = new HttpPut(requestURL);
         HttpResponse response = executeRequest(putRequest, requestBody, sessionKey);
         boolean succeeded = requestSucceeded(response);
         if (!succeeded)
@@ -476,7 +484,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     private boolean modifyItem(ExecutionContext context, SettingsLoya settings, String idItem, JSONObject requestBody) throws IOException {
-        HttpPost postRequest = new HttpPost(settings.url + "good/" + settings.partnerId + "/" + idItem);
+        String requestURL = settings.url + "good/" + settings.partnerId + "/" + idItem;
+        HttpPost postRequest = new HttpPost(requestURL);
         HttpResponse response = executeRequest(postRequest, requestBody, settings.sessionKey);
         boolean succeeded = requestSucceeded(response);
         if (!succeeded)
@@ -485,7 +494,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     private boolean createItem(ExecutionContext context, String url, String sessionKey, JSONObject requestBody) throws IOException {
-        HttpPut putRequest = new HttpPut(url + "good");
+        String requestURL = url + "good";
+        HttpPut putRequest = new HttpPut(requestURL);
         HttpResponse response = executeRequest(putRequest, requestBody, sessionKey);
         boolean succeeded = requestSucceeded(response);
         if (!succeeded)
@@ -529,8 +539,10 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             }
             if (!deleteList.isEmpty()) {
                 //удаляем более не существующие
-                HttpPost postRequest = new HttpPost(settings.url + "goodgrouplink/" + settings.partnerId + "/" + idItemGroup + "/deleteList");
-                HttpResponse response = executeRequest(postRequest, "[" + deleteList + "]", settings.sessionKey);
+                String requestURL = settings.url + "goodgrouplink/" + settings.partnerId + "/" + idItemGroup + "/deleteList";
+                String requestBody = "[" + deleteList + "]";
+                HttpPost postRequest = new HttpPost(requestURL);
+                HttpResponse response = executeRequest(postRequest, requestBody, settings.sessionKey);
                 if (!requestSucceeded(response)) {
                     String error = String.format("Loya: delete GoodGroupLinks (%s) error", deleteList);
                     ServerLoggers.importLogger.error(error + ": " + getResponseMessage(response));
@@ -563,7 +575,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     private boolean createGoodGroupLink(ExecutionContext context, SettingsLoya settings, Long idItemGroup, GoodGroupLink goodGroupLink) throws IOException {
-        HttpPost postRequest = new HttpPost(settings.url + "goodgrouplink/" + settings.partnerId + "/" + idItemGroup + "/upload");
+        String requestURL = settings.url + "goodgrouplink/" + settings.partnerId + "/" + idItemGroup + "/upload";
+        HttpPost postRequest = new HttpPost(requestURL);
         String query = goodGroupLink.quantity == null ? String.format("[{\"sku\":\"%s\"}]", goodGroupLink.sku) :
                 String.format("[{\"sku\":\"%s\",\"quantity\":%s}]", goodGroupLink.sku, goodGroupLink.quantity);
         HttpResponse response = executeRequest(postRequest, query, settings.sessionKey);
