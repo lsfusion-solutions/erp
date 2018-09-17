@@ -921,14 +921,24 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
             IF isCost(snapshot) THEN {
                 IF isBalanceA(snapshot) THEN {
                     costA(Sku sku, Stock stock, snapshot) <- NULL;
-                    costA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumA(sku, stock, dateTo);
+                    IF singleStock() THEN {
+                        costA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)) 
+                            WHERE stock == singleStock() AND include(snapshot, sku) AND costSumA(sku, stock, dateTo);
+                    } ELSE { 
+                        costA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumA(sku, stock, dateTo);
+                    }
                 }
                                    
                 IF isBalanceB(snapshot) THEN {
                     costB(Sku sku, Stock stock, snapshot) <- NULL;
-                    costB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumB(sku, stock, dateFrom);
+                    IF singleStock() THEN {
+                        costB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)) 
+                            WHERE stock == singleStock() AND include(snapshot, sku) AND costSumB(sku, stock, dateFrom);
+                    } ELSE {
+                        costB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumB(sku, stock, dateFrom);
+                    }
                 }        
             }      
             IF isVATSupplier(snapshot) THEN {
