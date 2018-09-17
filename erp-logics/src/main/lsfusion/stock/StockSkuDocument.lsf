@@ -324,7 +324,7 @@ END
 //задание цены для подбора
 
 META extendFormDocumentAccountPriceSku (object, stockProp, caption, form, char, showif)
-    priceAccountPriceListType 'Цена'##caption (Sku sku, ###form object) = prevAccountPriceB(sku, stockProp(object), dateTime(object));
+    priceAccountPriceListType 'Цена'##caption (Sku sku, ###form object) = prevAccountPriceB(sku, stockProp(object), dateTime(object)) CHARWIDTH 6;
 
     EXTEND FORM form
         PROPERTIES(ks, char) READONLY priceAccountPriceListType SHOWIF showif(char)
@@ -345,6 +345,9 @@ META extendFormDocumentPriceSku (object, priceListTypeProp, stockProp, caption, 
     EXTEND FORM form
         PROPERTIES(ks, char) READONLY price###priceListTypeProp SHOWIF showif(char)
     ;
+    DESIGN form {
+        PROPERTY(price###priceListTypeProp(ks, char))  {charWidth = 6;}        
+    }
 END
 
 META extendFormDocumentPriceBatch (object, priceListTypeProp, stockProp, caption, form, char, showif)
@@ -393,7 +396,7 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
         BY skuProp(detail), object(detail), stockProp###stock(detail);
 
     quantity###stockProp 'Кол-во товара в документе' (sku, object, stock) = GROUP SUM quantity(###detail detail)
-        BY skuProp(detail), object(detail), stockProp###stock(detail);
+        BY skuProp(detail), object(detail), stockProp###stock(detail) CHARWIDTH 6;
 
 //    backgroundQuantitySku###object###Stock 'Цвет' (sku, object, stock) = RGB(255,128,128) IF quantitySku###object###stockProp(sku, object, stock) AND NOT
 //        (quantitySku###object###stockProp(sku, object, stock) <= currentBalanceSkuStock(sku, stock));
@@ -513,8 +516,10 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
                 }
             }
         }
-        PROPERTY(prevCurrentBalance(ks, st)) { background = #FFEEEE; }
-        PROPERTY(quantity###stockProp(ks, concrete, st)) { background = #D4FFD4; }
+        PROPERTY(prevCurrentBalance(ks, st)) { background = #FFEEEE; charWidth = 6;}
+        PROPERTY(quantity###stockProp(ks, concrete, st)) { background = #D4FFD4; charWidth = 6;}
+        PROPERTY(price(ks, st, concrete)) { charWidth = 6;}
+        
     }
 END
 
