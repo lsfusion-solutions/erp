@@ -18,7 +18,7 @@ FORM taxDialog
 
 CLASS Range 'Шкала';
 TABLE range(Range);
-number 'Шкала' = DATA INTEGER (Range) IN id;
+number 'Шкала' = DATA INTEGER (Range) IN id CHARWIDTH 4;
 
 tax = DATA Tax (Range) NONULL;
 nameTax 'Налог' (Range range) = staticCaption(tax(range)) IN id;
@@ -261,7 +261,7 @@ NAVIGATOR {
 META defineDocumentDetailVATCustom(detail, countryProp, prefix, caption)
     prefix##VAT(detail) = DATA Range (###detail);
     number###prefix##VAT 'НДС, номер'###caption (###detail detail) = number(prefix##VAT(detail));
-    value###prefix##VAT 'НДС, %'###caption (detail) = DATA NUMERIC[10,5] (###detail);
+    value###prefix##VAT 'НДС, %'###caption (detail) = DATA NUMERIC[10,5] (###detail) CHARWIDTH 7;
 
     overValue###prefix##VAT 'НДС (для расчета), %'###caption (detail) = ABSTRACT NUMERIC[10,5] (###detail);
     calcValue###prefix##VAT 'НДС (перегруженный), %'###caption (###detail detail) = OVERRIDE overValue###prefix##VAT (detail), value###prefix##VAT (detail);
@@ -275,7 +275,7 @@ END
 META defineDocumentAbstractDetailVATCustom(detail, prefix, caption)
     prefix##VAT(detail) = ABSTRACT Range (###detail) MATERIALIZED;
     number###prefix##VAT 'НДС, номер'###caption (###detail detail) = number(prefix##VAT(detail));
-    value###prefix##VAT 'НДС, %'###caption (detail) = ABSTRACT NUMERIC[10,5] (###detail) MATERIALIZED;
+    value###prefix##VAT 'НДС, %'###caption (detail) = ABSTRACT NUMERIC[10,5] (###detail) CHARWIDTH 7 MATERIALIZED;
     calcValue###prefix##VAT 'НДС (перегруженный), %'###caption (detail) = ABSTRACT NUMERIC[10,5] (###detail) MATERIALIZED;
 
 END
@@ -404,12 +404,12 @@ END
 
 //-- Сумма НДС в detail
 META defineDocumentDetailVATDataSumCustom (detail, prefix)
-    VATSum 'Сумма НДС' (detail) = DATA NUMERIC[18,4] (###detail);
-    prefix##Sum 'Сумма с НДС' (detail) = DATA NUMERIC[18,4] (###detail);
+    VATSum 'Сумма НДС' (detail) = DATA NUMERIC[18,4] (###detail) CHARWIDTH 8;
+    prefix##Sum 'Сумма с НДС' (detail) = DATA NUMERIC[18,4] (###detail) CHARWIDTH 9;
 END
 META defineDocumentAbstractDetailVATDataSumCustom (detail, prefix)
-    VATSum 'Сумма НДС' (detail) = ABSTRACT NUMERIC[18,4] (###detail) MATERIALIZED;
-    prefix##Sum 'Сумма с НДС' (detail) = ABSTRACT NUMERIC[18,4] (###detail) MATERIALIZED;
+    VATSum 'Сумма НДС' (detail) = ABSTRACT NUMERIC[18,4] (###detail) MATERIALIZED CHARWIDTH 8;
+    prefix##Sum 'Сумма с НДС' (detail) = ABSTRACT NUMERIC[18,4] (###detail) MATERIALIZED CHARWIDTH 9;
 END
 META defineDocumentInterfaceDetailVATDataSumCustom (detail, prefix)
     @defineDocumentAbstractDetailVATDataSumCustom(detail, prefix);
@@ -516,10 +516,10 @@ END
 //-- НДС - Розничный
 
 META defineDocumentDetailVATDataSumCustomPrefix (detail, prefix, caption)
-    prefix##VATSum 'Сумма НДС'###caption = DATA NUMERIC[18,4] (###detail);
+    prefix##VATSum 'Сумма НДС'###caption = DATA NUMERIC[18,4] (###detail) CHARWIDTH 8;
 END
 META defineDocumentAbstractDetailVATDataSumCustomPrefix (detail, prefix, caption)
-    prefix##VATSum 'Сумма НДС'###caption = ABSTRACT NUMERIC[18,4] (###detail) MATERIALIZED;
+    prefix##VATSum 'Сумма НДС'###caption = ABSTRACT NUMERIC[18,4] (###detail) CHARWIDTH 8 MATERIALIZED;
 END
 META defineDocumentInterfaceDetailVATDataSumCustomPrefix (detail, prefix, caption)
     @defineDocumentAbstractDetailVATDataSumCustomPrefix(detail, prefix, caption);
@@ -556,8 +556,8 @@ META deriveDocumentDetailReverseVATSumRoundPrefix(object, prefixA, prefixB, roun
 END
 //-- Сумма НДС в документе
 META defineDocumentHeaderVATSum (object, detail, prefix)
-    VATSum###detail 'Сумма НДС' (object) = GROUP SUM VATSum(###detail idetail) BY object(idetail) IN documentSum;
-    prefix##Sum###detail 'Сумма с НДС' (object) = GROUP SUM prefix##Sum(###detail idetail) BY object(idetail) IN documentSum;
+    VATSum###detail 'Сумма НДС' (object) = GROUP SUM VATSum(###detail idetail) BY object(idetail) CHARWIDTH 9 IN documentSum;
+    prefix##Sum###detail 'Сумма с НДС' (object) = GROUP SUM prefix##Sum(###detail idetail) BY object(idetail) CHARWIDTH 10 IN documentSum;
 END
 META defineDocumentInterfaceHeaderVATSum (object, detail, prefix)
     @defineDocumentHeaderVATSum(object, detail, prefix);

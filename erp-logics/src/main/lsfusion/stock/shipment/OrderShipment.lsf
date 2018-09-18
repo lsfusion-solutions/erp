@@ -45,7 +45,7 @@ META defineOrderShipment(sign, stockProp)
 //-- Подсчет поставленного к-ва по заказу
 
     shipped 'Кол-во (поставлено)' (OrderDetail orderDetail) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
-                                                                                                                    BY orderDetail(shipmentDetail) MATERIALIZED;
+                                                                                                                    BY orderDetail(shipmentDetail) CHARWIDTH 7 MATERIALIZED;
                                                               
     shipped(OrderDetail d) += shipped(d);
     toShip 'Не поставлено' (OrderDetail orderDetail) = IF (quantity (orderDetail) (-) shipped(orderDetail)) > 0.0 
@@ -55,7 +55,7 @@ META defineOrderShipment(sign, stockProp)
     toShipOrderDetail 'Не поставлено по складу' (stock, order) = GROUP SUM toShip(OrderDetail orderDetail) IF toShip(orderDetail) > 0
                                                                                      BY stockProp(orderDetail), order(orderDetail);
 
-    shippedOrderDetail 'Кол-во (поставлено)' (order) = GROUP SUM shipped(OrderDetail orderDetail) BY order(orderDetail) IN documentSum MATERIALIZED;
+    shippedOrderDetail 'Кол-во (поставлено)' (order) = GROUP SUM shipped(OrderDetail orderDetail) BY order(orderDetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
 
     // Создание поставки на основе заказа //
     FORM shipmentOrders 'Заказы'###sign

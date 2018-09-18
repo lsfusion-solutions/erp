@@ -305,8 +305,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
 //    @defineDocumentDetailGrossWeight(invoice, sku);
 
-    price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
-    price 'Цена' = DATA NUMERIC[16,4] (UserInvoiceDetail);
+    price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+    price 'Цена' = DATA NUMERIC[16,4] (UserInvoiceDetail) CHARWIDTH 7;
     price (UserInvoiceDetail invoiceDetail) += price(invoiceDetail);
     
     price[Invoice.InvoiceDetail](InvoiceDetail detail) += price(detail);
@@ -373,8 +373,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 //    @deriveDocumentDetailPricePriceListTypeVAT (userInvoice, stockProp); // записываем цены с НДС и без НДС на основе priceListType
 
     // объявляем сумму без НДС
-    sum 'Сумма' = ABSTRACT NUMERIC[18,4] (InvoiceDetail) MATERIALIZED;
-    sum 'Сумма' = DATA NUMERIC[18,4] (UserInvoiceDetail);
+    sum 'Сумма' = ABSTRACT NUMERIC[18,4] (InvoiceDetail) CHARWIDTH 9 MATERIALIZED;
+    sum 'Сумма' = DATA NUMERIC[18,4] (UserInvoiceDetail) CHARWIDTH 9;
     sum (UserInvoiceDetail detail) += sum(detail);
         
     @deriveDocumentDetailSumCustomRoundPrefix(userInvoiceDetail, , currency, quantity, priceRound);
@@ -382,11 +382,11 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
 
     // объявляем свойства суммы НДС и суммы с НДС
-    VATSum 'Сумма НДС' (invoiceDetail) = ABSTRACT NUMERIC[18,4] (InvoiceDetail) MATERIALIZED;
-    invoiceSum 'Сумма с НДС' (invoiceDetail) = ABSTRACT NUMERIC[18,4] (InvoiceDetail) MATERIALIZED;
+    VATSum 'Сумма НДС' (invoiceDetail) = ABSTRACT NUMERIC[18,4] (InvoiceDetail) CHARWIDTH 8 MATERIALIZED;
+    invoiceSum 'Сумма с НДС' (invoiceDetail) = ABSTRACT NUMERIC[18,4] (InvoiceDetail) CHARWIDTH 9 MATERIALIZED;
     
-    VATSum 'Сумма НДС' (userInvoiceDetail) = DATA NUMERIC[18,4] (UserInvoiceDetail);
-    invoiceSum 'Сумма с НДС' (userInvoiceDetail) = DATA NUMERIC[18,4] (UserInvoiceDetail);
+    VATSum 'Сумма НДС' (userInvoiceDetail) = DATA NUMERIC[18,4] (UserInvoiceDetail) CHARWIDTH 8;
+    invoiceSum 'Сумма с НДС' (userInvoiceDetail) = DATA NUMERIC[18,4] (UserInvoiceDetail) CHARWIDTH 9;
     
     VATSum (UserInvoiceDetail invoiceDetail) += VATSum(invoiceDetail);
     invoiceSum (UserInvoiceDetail invoiceDetail) += invoiceSum (invoiceDetail);
@@ -1012,8 +1012,8 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
     invoiceDetail(UserInvoiceDetail detail) += invoiceDetail(detail);
 
     returnQuantity 'Кол-во (возвращено)' (invoiceDetail)= GROUP SUM quantity(InvoiceDetail iinvoiceDetail) IF isPosted(iinvoiceDetail) 
-        BY invoiceDetail(iinvoiceDetail) MATERIALIZED;
-    returnQuantityInvoiceDetail 'Кол-во (возвращено)' (invoice) =  GROUP SUM returnQuantity(nsdir.InvoiceDetail invoiceDetail) BY invoice(invoiceDetail) MATERIALIZED;
+        BY invoiceDetail(iinvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+    returnQuantityInvoiceDetail 'Кол-во (возвращено)' (invoice) =  GROUP SUM returnQuantity(nsdir.InvoiceDetail invoiceDetail) BY invoice(invoiceDetail) CHARWIDTH 8 MATERIALIZED;
     toReturnQuantity 'Кол-во доступно к возврату' (nsdir.InvoiceDetail invoiceDetail)= quantity(invoiceDetail) (-) returnQuantity(invoiceDetail);    
     
     skipCheckInvoceReturnSupplier = ABSTRACT BOOLEAN (Invoice);

@@ -74,8 +74,8 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     extraPricingPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail);
     extraPricingPrice (User###concrete##Detail detail) += extraPricingPrice(detail);    
 
-    pricingPrice 'Цена входная' (User###concrete##Detail detail) = (OVERRIDE overPricingPrice(detail), price(detail)) (+) extraPricingPrice(detail) MATERIALIZED;
-    pricingPrice 'Цена входная' (###concrete##Detail detail) = (OVERRIDE overPricingPrice(detail), price(detail)) (+) extraPricingPrice(detail) MATERIALIZED;
+    pricingPrice 'Цена входная' (User###concrete##Detail detail) = (OVERRIDE overPricingPrice(detail), price(detail)) (+) extraPricingPrice(detail) CHARWIDTH 7 MATERIALIZED;
+    pricingPrice 'Цена входная' (###concrete##Detail detail) = (OVERRIDE overPricingPrice(detail), price(detail)) (+) extraPricingPrice(detail) CHARWIDTH 7 MATERIALIZED;
 
     // Надбавка
     @defineDocumentInterfaceDetailMarkupPrefix (invoice, retail, );
@@ -87,8 +87,8 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
 
     // Розничная
     @defineDocumentInterfaceDetailPricePrefix(invoice, retail, ' розничная');
-    extraRetailPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
-    retailExtraPrice 'Цена (полная)' = retailPrice(###concrete##Detail d) + OVERRIDE extraRetailPrice(d), 0; 
+    extraRetailPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+    retailExtraPrice 'Цена (полная)' = retailPrice(###concrete##Detail d) + OVERRIDE extraRetailPrice(d), 0 CHARWIDTH 7; 
     
     CONSTRAINT stockProp##Stock(User###concrete##Detail d) IS DepartmentStore AND date(d) >= dateBanRetailPrice(stockProp##Stock(d)) AND isPosted(d) AND isItem(sku(d)) AND NOT retailPrice(d)
         MESSAGE 'Не задана розничная цена в строке накладной'##sign;
