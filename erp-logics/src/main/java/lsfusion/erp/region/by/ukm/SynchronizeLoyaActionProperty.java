@@ -46,6 +46,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             boolean disableSynchronizeItems = findProperty("disableSynchronizeItemsLoya[]").read(context) != null;
             boolean deleteInactiveItemGroups = findProperty("deleteInactiveItemGroupsLoya[]").read(context) != null;
             boolean logRequests = findProperty("logRequestsLoya[]").read(context) != null;
+            boolean useBarcodeAsId = findProperty("useBarcodeAsIdLoya[]").read(context) != null;
             Map<String, Integer> discountLimits = getDiscountLimits(context);
 
             boolean succeeded = true;
@@ -63,7 +64,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
 
                 if(succeeded) {
 
-                    SynchronizeData data = readItems(context, deleteInactiveItemGroups);
+                    SynchronizeData data = readItems(context, deleteInactiveItemGroups, useBarcodeAsId);
                     List<Category> categoriesList = readCategories(context);
 
                     if ((disableSynchronizeItems || uploadCategories(context, settings, categoriesList, discountLimits, logRequests)) &&
@@ -156,9 +157,9 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return result;
     }
 
-    private SynchronizeData readItems(ExecutionContext<ClassPropertyInterface> context, boolean deleteInactiveItemGroups) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private SynchronizeData readItems(ExecutionContext<ClassPropertyInterface> context, boolean deleteInactiveItemGroups, boolean useBarcodeAsId) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<Item> itemsList = new ArrayList<>();
-        Map<DataObject, List<Object>> itemGroupsMap = new HashMap<>();
+        Map<DataObject, GoodGroup> itemGroupsMap = new HashMap<>();
         Map<Long, List<GoodGroupLink>> itemItemGroupsMap = new HashMap<>();
         List<Long> deleteItemGroupsList = new ArrayList<>();
 
@@ -172,6 +173,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         query.addProperty("quantity", findProperty("quantity[Item, LoyaItemGroup]").getExpr(skuExpr, groupExpr));
         query.addProperty("descriptionLoyaItemGroup", findProperty("description[LoyaItemGroup]").getExpr(groupExpr));
         query.addProperty("idSku", findProperty("id[Sku]").getExpr(skuExpr));
+        query.addProperty("barcode", findProperty("idBarcode[Sku]").getExpr(skuExpr));
         query.addProperty("captionItem", findProperty("nameAttribute[Item]").getExpr(skuExpr));
         query.addProperty("idUOMItem", findProperty("idUOM[Item]").getExpr(skuExpr));
         query.addProperty("splitItem", findProperty("split[Item]").getExpr(skuExpr));
@@ -186,21 +188,24 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             DataObject groupObject = result.getKey(i).get("loyaItemGroup");
             ImMap<Object, ObjectValue> valueEntry = result.getValue(i);
             Long idLoyaItemGroup = (Long) valueEntry.get("idLoyaItemGroup").getValue();
+            idLoyaItemGroup = idLoyaItemGroup == null ? (Long) groupObject.getValue() : idLoyaItemGroup;
             String nameItemGroup = trim((String) valueEntry.get("nameLoyaItemGroup").getValue());
             BigDecimal quantity = (BigDecimal) valueEntry.get("quantity").getValue();
             String descriptionItemGroup = trim((String) valueEntry.get("descriptionLoyaItemGroup").getValue());
             String idSku = trim((String) valueEntry.get("idSku").getValue());
+            String barcode = trim((String) valueEntry.get("barcode").getValue());
+            String id = useBarcodeAsId ? barcode : idSku;
             String captionItem = trimToEmpty((String) valueEntry.get("captionItem").getValue());
             String idUOMItem = trim((String) valueEntry.get("idUOMItem").getValue());
             Boolean splitItem = valueEntry.get("splitItem").getValue() != null;
             String idSkuGroup = trim((String) valueEntry.get("idSkuGroup").getValue());
             Integer idLoyaBrand = (Integer) valueEntry.get("idLoyaBrand").getValue();
-            itemsList.add(new Item(idSku, idLoyaItemGroup, captionItem, idUOMItem, splitItem, idSkuGroup, idLoyaBrand));
-            itemGroupsMap.put(groupObject, Arrays.asList(idLoyaItemGroup == null ? groupObject.getValue() : idLoyaItemGroup, nameItemGroup, descriptionItemGroup));
+            itemsList.add(new Item(id, idLoyaItemGroup, captionItem, idUOMItem, splitItem, idSkuGroup, idLoyaBrand));
+            itemGroupsMap.put(groupObject, new GoodGroup(idLoyaItemGroup, nameItemGroup, descriptionItemGroup));
             List<GoodGroupLink> skuList = itemItemGroupsMap.get(idLoyaItemGroup);
             if (skuList == null)
                 skuList = new ArrayList<>();
-            skuList.add(new GoodGroupLink(idSku, quantity));
+            skuList.add(new GoodGroupLink(id, quantity));
             itemItemGroupsMap.put(idLoyaItemGroup, skuList);
         }
 
@@ -213,7 +218,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         emptyQuery.addProperty("empty", findProperty("empty[LoyaItemGroup]").getExpr(emptyGroupExpr));
         emptyQuery.addProperty("active", findProperty("active[LoyaItemGroup]").getExpr(emptyGroupExpr));
         emptyQuery.and(findProperty("empty[LoyaItemGroup]").getExpr(emptyGroupExpr).getWhere().or(findProperty("active[LoyaItemGroup]").getExpr(emptyGroupExpr).getWhere().not()));
-        emptyQuery.and(findProperty("name[LoyaItemGroup]").getExpr(emptyGroupExpr).getWhere());//emptyQuery.and(findProperty("empty[LoyaItemGroup]").getExpr(emptyGroupExpr).getWhere().or(findProperty("active[LoyaItemGroup]").getExpr(emptyGroupExpr).getWhere().not()));
+        emptyQuery.and(findProperty("name[LoyaItemGroup]").getExpr(emptyGroupExpr).getWhere());
 
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> emptyResult = emptyQuery.executeClasses(context);
         for (int i = 0; i < emptyResult.size(); i++) {
@@ -225,19 +230,19 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             boolean empty = valueEntry.get("empty").getValue() != null;
             boolean active = valueEntry.get("active").getValue() != null;
             if(active && empty)
-                itemGroupsMap.put(groupObject, Arrays.asList(idLoyaItemGroup == null ? groupObject.getValue() : idLoyaItemGroup, nameItemGroup, descriptionItemGroup));
+                itemGroupsMap.put(groupObject, new GoodGroup(idLoyaItemGroup == null ? (Long) groupObject.getValue() : idLoyaItemGroup, nameItemGroup, descriptionItemGroup));
             if(!active && idLoyaItemGroup != null && deleteInactiveItemGroups)
                 deleteItemGroupsList.add(idLoyaItemGroup);
         }
         return new SynchronizeData(itemsList, itemGroupsMap, itemItemGroupsMap, deleteItemGroupsList);
     }
 
-    private boolean uploadItemGroups(ExecutionContext context, SettingsLoya settings, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, Map<DataObject, List<Object>> itemGroupsMap,
+    private boolean uploadItemGroups(ExecutionContext context, SettingsLoya settings, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, Map<DataObject, GoodGroup> itemGroupsMap,
                                      List<Long> deleteItemGroupsList, Map<String, Integer> discountLimits, boolean logRequests) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         boolean succeeded = true;
-        for (Map.Entry<DataObject, List<Object>> entry : itemGroupsMap.entrySet()) {
+        for (Map.Entry<DataObject, GoodGroup> entry : itemGroupsMap.entrySet()) {
             DataObject itemGroupObject = entry.getKey();
-            List<Object> itemGroupData = entry.getValue();
+            GoodGroup itemGroupData = entry.getValue();
             if (!uploadItemGroup(context, settings, itemItemGroupsMap, itemGroupData, itemGroupObject, discountLimits, logRequests))
                 succeeded = false;
         }
@@ -252,33 +257,28 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     private boolean uploadItemGroup(ExecutionContext context, SettingsLoya settings, Map<Long, List<GoodGroupLink>> itemItemGroupsMap,
-                                    List<Object> itemGroupData, DataObject itemGroupObject, Map<String, Integer> discountLimits, boolean logRequests)
+                                    GoodGroup goodGroup, DataObject itemGroupObject, Map<String, Integer> discountLimits, boolean logRequests)
             throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-
-        Long id = (Long) itemGroupData.get(0);
-        String name = (String) itemGroupData.get(1);
-        String description = (String) itemGroupData.get(2);
-
-        ServerLoggers.importLogger.info("Loya: synchronizing goodGroup " + id + " started");
+        ServerLoggers.importLogger.info("Loya: synchronizing goodGroup " + goodGroup.id + " started");
         JSONObject requestBody = new JSONObject();
         requestBody.put("partnerId", settings.partnerId);
-        requestBody.put("id", id);
-        requestBody.put("name", name == null ? "" : name);
-        requestBody.put("description", description == null ? "" : description);
+        requestBody.put("id", goodGroup.id);
+        requestBody.put("name", goodGroup.name == null ? "" : goodGroup.name);
+        requestBody.put("description", goodGroup.description == null ? "" : goodGroup.description);
         requestBody.put("limits", discountLimits);
 
-        if (existsItemGroup(settings, id)) {
-            ServerLoggers.importLogger.info("Loya: modifying goodGroup " + id);
-            return modifyItemGroup(context, settings, id, itemGroupObject, requestBody, logRequests);
+        if (existsItemGroup(settings, goodGroup.id)) {
+            ServerLoggers.importLogger.info("Loya: modifying goodGroup " + goodGroup.id);
+            return modifyItemGroup(context, settings, goodGroup.id, itemGroupObject, requestBody, logRequests);
         } else {
-            ServerLoggers.importLogger.info("Loya: creating goodGroup " + id);
+            ServerLoggers.importLogger.info("Loya: creating goodGroup " + goodGroup.id);
             Long idItemGroup = createItemGroup(context, itemGroupObject, settings.url, settings.sessionKey, requestBody, logRequests);
             if (idItemGroup != null) {//id группы изменился
-                List<GoodGroupLink> skuList = itemItemGroupsMap.get(id);
+                List<GoodGroupLink> skuList = itemItemGroupsMap.get(goodGroup.id);
                 if(skuList == null)
                     skuList = new ArrayList<>();
                 itemItemGroupsMap.put(idItemGroup, skuList);
-                itemItemGroupsMap.remove(id);
+                itemItemGroupsMap.remove(goodGroup.id);
             }
             return idItemGroup != null;
         }
@@ -634,11 +634,11 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
 
     private class SynchronizeData {
         public List<Item> itemsList;
-        public Map<DataObject, List<Object>> itemGroupsMap;
+        public Map<DataObject, GoodGroup> itemGroupsMap;
         public Map<Long, List<GoodGroupLink>> itemItemGroupsMap;
         public List<Long> deleteItemGroupsList;
 
-        public SynchronizeData(List<Item> itemsList, Map<DataObject, List<Object>> itemGroupsMap, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, List<Long> deleteItemGroupsList) {
+        public SynchronizeData(List<Item> itemsList, Map<DataObject, GoodGroup> itemGroupsMap, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, List<Long> deleteItemGroupsList) {
             this.itemsList = itemsList;
             this.itemGroupsMap = itemGroupsMap;
             this.itemItemGroupsMap = itemItemGroupsMap;
@@ -687,6 +687,18 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             this.split = split;
             this.idSkuGroup = idSkuGroup;
             this.idLoyaBrand = idLoyaBrand;
+        }
+    }
+
+    private class GoodGroup {
+        Long id;
+        String name;
+        String description;
+
+        public GoodGroup(Long id, String name, String description) {
+            this.id = id;
+            this.name = name;
+            this.description = description;
         }
     }
 
