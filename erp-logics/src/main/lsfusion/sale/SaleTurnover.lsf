@@ -41,22 +41,23 @@ takeSupplier 'Рассчитать товарооборачиваемость (�
 	            
 	        dateCur() <- sum(date, -1);
 	
-	        balance(LegalEntity su, Stock st) <- NUMERIC[16,2]( [ GROUP SUM balanceA(Batch batch, st, DATE dt)*cost(batch) BY supplier(batch),dt](su,dateCur())) WHERE isCompany(st) AND active(st) AND isSupplier(su);
+	        balance(LegalEntity su, Stock st) <- NUMERIC[16,2]( [ GROUP SUM balanceA(Batch batch, st, DATE dt)*cost(batch) BY supplier(batch),dt](su,dateCur())) 
+	            WHERE isCompany(st) AND active(st) AND isSupplier(su) AND [ GROUP SUM balanceA(Batch batch, st, DATE dt)*cost(batch) BY supplier(batch),dt](su,dateCur());
 	        
 	        WHILE dateCur() >= sum(date, -daysToTurnover()) DO {
 	                  
 	
 	                                        
 	            soldSum (LegalEntity su, Stock st, DATE dt) <- NUMERIC[16,2]( [ GROUP SUM sumSold(Batch batch, st, dt) BY supplier(batch)](su)) 
-	                                        WHERE isCompany(st) AND active(st) AND isSupplier(su) AND dt == dateCur();                 
+	                                        WHERE isCompany(st) AND active(st) AND isSupplier(su) AND dt == dateCur() AND [ GROUP SUM sumSold(Batch batch, st, dt) BY supplier(batch)](su);                 
 	            
 	            
 	            balance(LegalEntity su, Stock st) <- balance(su, st) (-)
 	                                                 NUMERIC[16,2]( [ GROUP SUM signedQuantity(Batch batch, st, DATE dt)*cost(batch) BY supplier(batch),dt](su,dateCur())) 
-	                                        WHERE isCompany(st) AND active(st) AND isSupplier(su); 
+	                                        WHERE isCompany(st) AND active(st) AND isSupplier(su) AND [ GROUP SUM signedQuantity(Batch batch, st, DATE dt)*cost(batch) BY supplier(batch),dt](su,dateCur()); 
 	                                                   
 	            cumBalance (LegalEntity su, Stock st, DATE dt) <- balance(su, st)
-	                                        WHERE isCompany(st) AND active(st) AND isSupplier(su) AND dt == dateCur();                                                   
+	                                        WHERE isCompany(st) AND active(st) AND isSupplier(su) AND dt == dateCur() AND balance(su, st);                                                   
 	            
 	            dateCur() <- sum(dateCur(), -1);
 	        }
