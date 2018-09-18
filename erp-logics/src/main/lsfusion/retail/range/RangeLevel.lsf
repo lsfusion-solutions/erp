@@ -235,6 +235,16 @@ changeLevel (Range r, StoreType t, DATE d) {
         user(r, t, d) <- currentUser();
     }
 }
+changeWYSLevel (Range r, StoreType t, DATE d) { 
+    INPUT s = VARISTRING[10] DO 
+        IF s THEN {
+            dataLevel (r, t, d) <- [ GROUP MAX RangeLevel l BY name(l)](s);
+            excludeLevel (r, t, d) <- NULL;
+        } ELSE {
+            dataLevel (r, t, d) <- NULL;
+            excludeLevel (r, t, d) <- TRUE;
+        }
+}    
 
 backgroundLevel(Range range, StoreType storeType, DATE dateIn) = (dataLevel(range, storeType, dateIn) OR excludeLevel(range, storeType, dateIn));
 
@@ -391,7 +401,7 @@ EXTEND FORM storeRange
 
     OBJECTS r = Range
     PROPERTIES(r) READONLY name
-    PROPERTIES(r, t, d) nameLevel COLUMNS (t) HEADER name(t) BACKGROUND backgroundLevel(r, t, d) ON CHANGE changeLevel(r, t, d),
+    PROPERTIES(r, t, d) nameLevel COLUMNS (t) HEADER name(t) BACKGROUND backgroundLevel(r, t, d) ON CHANGE changeLevel(r, t, d) ON CHANGEWYS changeWYSLevel(r, t, d),
                         countSku COLUMNS(t) HEADER name(t)
     FILTERS inParent(r, sg) OR NOT countSkuGroup(r)
     ORDER name(r)
