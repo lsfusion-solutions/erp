@@ -6,6 +6,7 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
@@ -38,6 +39,10 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
 
     public SynchronizeLoyaActionProperty(ScriptingLogicsModule LM) {
         super(LM);
+    }
+
+    public SynchronizeLoyaActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+        super(LM, classes);
     }
 
     @Override
@@ -200,7 +205,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             Boolean splitItem = valueEntry.get("splitItem").getValue() != null;
             String idSkuGroup = trim((String) valueEntry.get("idSkuGroup").getValue());
             Integer idLoyaBrand = (Integer) valueEntry.get("idLoyaBrand").getValue();
-            itemsList.add(new Item(id, idLoyaItemGroup, captionItem, idUOMItem, splitItem, idSkuGroup, idLoyaBrand));
+            itemsList.add(new Item(id, captionItem, idUOMItem, splitItem, idSkuGroup, idLoyaBrand));
             itemGroupsMap.put(groupObject, new GoodGroup(idLoyaItemGroup, nameItemGroup, descriptionItemGroup));
             List<GoodGroupLink> skuList = itemItemGroupsMap.get(idLoyaItemGroup);
             if (skuList == null)
@@ -346,7 +351,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
-    private boolean uploadBrand(ExecutionContext context, SettingsLoya settings, Brand brand, boolean logRequests) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected boolean uploadBrand(ExecutionContext context, SettingsLoya settings, Brand brand, boolean logRequests) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         ServerLoggers.importLogger.info("Loya: synchronizing brand " + brand.name + " started");
 
@@ -400,7 +405,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
-    private boolean uploadCategories(ExecutionContext context, SettingsLoya settings, List<Category> categoriesList, Map<String, Integer> discountLimits, boolean logRequests) throws IOException, JSONException {
+    protected boolean uploadCategories(ExecutionContext context, SettingsLoya settings, List<Category> categoriesList, Map<String, Integer> discountLimits, boolean logRequests) throws IOException, JSONException {
         boolean succeeded = true;
         for (Category category : categoriesList) {
             if (!uploadCategory(context, settings, category, discountLimits, logRequests))
@@ -469,7 +474,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
-    private boolean uploadItem(ExecutionContext context, SettingsLoya settings, Item item, Map<String, Integer> discountLimits, boolean logRequests) throws JSONException, IOException {
+    protected boolean uploadItem(ExecutionContext context, SettingsLoya settings, Item item, Map<String, Integer> discountLimits, boolean logRequests) throws JSONException, IOException {
         ServerLoggers.importLogger.info("Loya: synchronizing good " + item.id + " started");
         JSONObject requestBody = new JSONObject();
         requestBody.put("partnerId", settings.partnerId);
@@ -624,7 +629,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
-    private Map<String, Integer> getDiscountLimits(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected Map<String, Integer> getDiscountLimits(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, Integer> limitsMap = new HashMap<>();
         limitsMap.put("maxDiscount", (Integer) findProperty("maxDiscountLoya[]").read(context));
         limitsMap.put("maxAllowBonus", (Integer) findProperty("maxAllowBonusLoya[]").read(context));
@@ -646,7 +651,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         }
     }
 
-    private class Brand {
+    protected class Brand {
         Integer id;
         String name;
         DataObject brandObject;
@@ -658,7 +663,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         }
     }
 
-    private class Category {
+    protected class Category {
         Long overId;
         String name;
         Long parentId;
@@ -670,18 +675,16 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         }
     }
 
-    private class Item {
+    protected class Item {
         String id;
-        Long idLoyaItemGroup;
         String caption;
         String idUOM;
         Boolean split;
         String idSkuGroup;
         Integer idLoyaBrand;
 
-        public Item(String id, Long idLoyaItemGroup, String caption, String idUOM, Boolean split, String idSkuGroup, Integer idLoyaBrand) {
+        public Item(String id, String caption, String idUOM, Boolean split, String idSkuGroup, Integer idLoyaBrand) {
             this.id = id;
-            this.idLoyaItemGroup = idLoyaItemGroup;
             this.caption = caption;
             this.idUOM = idUOM;
             this.split = split;
