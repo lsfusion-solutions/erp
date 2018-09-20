@@ -388,7 +388,9 @@ overBruttoNetWeight 'Вес (брутто)' (Component c) = bruttoQuantity(c) * 
 overNettoNetWeight 'Вес (нетто)' (Product p) = quantity(p) * (OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product);
 
 overNettoNetWeightProduct 'Вес нетто изд. (всего)' (BOM) = GROUP SUM overNettoNetWeight(Product idetail) BY BOM(idetail) IN documentSum MATERIALIZED;
-overNettoNetWeightComponent 'Вес нетто ком. (всего)' (BOM) = GROUP SUM overNettoNetWeight(Component idetail) BY BOM(idetail) IN documentSum MATERIALIZED;            
+dataNettoNetWeightComponent 'Вес нетто ком. (всего) (ручной)' = DATA NUMERIC[27,10](BOM);
+overNettoNetWeightComponent 'Вес нетто ком. (всего)' (BOM bom) = OVERRIDE dataNettoNetWeightComponent(bom), 
+    [GROUP SUM overNettoNetWeight(Component idetail) BY BOM(idetail)](bom) IN documentSum MATERIALIZED;            
 overBruttoNetWeightyComponent 'Вес брутто ком. (всего)' (c)= GROUP SUM overBruttoNetWeight(Component cc) BY BOM(cc) IN documentSum MATERIALIZED;
 
 
@@ -464,13 +466,26 @@ DESIGN products {
         MOVE TOOLBARBOX;
     }
 }                                                                                    
+
+useChangeableNettoNetWeightComponent 'Изменять Выход спецификации вручную' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () useChangeableNettoNetWeightComponent
+;
+
+DESIGN options {
+    manufacturing {
+        MOVE PROPERTY(useChangeableNettoNetWeightComponent());
+    }
+}
                                                                                         
 FORM BOM 'Спецификация'
 
     OBJECTS b=BOM PANEL
 
     PROPERTIES(b) inactive, name, nameNumerator, number, series, date, time, note, fromDate, toDate 
-    PROPERTIES(b) READONLY overNettoNetWeightProduct, overNettoNetWeightComponent, overBruttoNetWeightyComponent, 
+    PROPERTIES(b) overNettoNetWeightProduct READONLY, overNettoNetWeightComponent READONLYIF NOT useChangeableNettoNetWeightComponent()
+    PROPERTIES(b) READONLY overBruttoNetWeightyComponent, 
                   overCurBruttoNetWeightyComponent BACKGROUND backgroundBruttoQuantity(b), pricePercent
     OBJECTS p = Product
     PROPERTIES(p) index 
