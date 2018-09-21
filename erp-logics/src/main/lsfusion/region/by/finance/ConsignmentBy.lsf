@@ -242,6 +242,9 @@ nameDriver 'Водитель' (Consignment consignment) = OVERRIDE dataNameDrive
 skipDriver 'Пропустить проверку водителя' = ABSTRACT CASE BOOLEAN (Consignment);
 
 overChangeDriver  ABSTRACT ( Consignment);
+
+customSelectDriver = ABSTRACT BOOLEAN (Consignment);
+overSelectDriver ABSTRACT (Consignment);
                                                           
 changeDriver(Consignment consignment)  { 
     IF notUseDriverTruck(consignment) THEN {
@@ -249,9 +252,12 @@ changeDriver(Consignment consignment)  {
             dataNameDriver(consignment) <- s;
         }
     } ELSE {
-        DIALOG employees OBJECTS e = dataEmployee(consignment) INPUT NULL DO {
-            dataEmployee(consignment) <- e;
-        }
+        IF customSelectDriver(consignment) THEN
+            overSelectDriver(consignment);
+        ELSE
+            DIALOG employees OBJECTS e = dataEmployee(consignment) INPUT NULL DO {
+                dataEmployee(consignment) <- e;
+            }
     }   
     overChangeDriver(consignment);     
 }
