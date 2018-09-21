@@ -281,6 +281,9 @@ isReturn 'Обратный' = ABSTRACT BOOLEAN (Pricing);
 
 isInvoice 'По накладной' = ABSTRACT BOOLEAN (Pricing);
 
+overPricingReportFile = ABSTRACT VARSTRING[100](Pricing);
+pricingReportFile (Pricing pricing) =  OVERRIDE overPricingReportFile(pricing), 'Pricing_pricing_d.jrxml' IF pricing IS Pricing; 
+
 FORM pricing 'Акт расценки (печать)'
     OBJECTS p=Pricing PANEL
     PROPERTIES (p) SELECTOR isPosted
@@ -299,9 +302,11 @@ FORM pricing 'Акт расценки (печать)'
                    quantity, overPricingPrice, pricingPrice, price, sum,
                    retailMarkup, retailMarkupSum, numberRetailVAT, valueRetailVAT, retailVATSum,
                    retailPrice, retailSum
-    ORDER index(d)                   
+    ORDER index(d)                 
 
     FILTERS pricing(d) == p
+    
+    REPORTFILES d pricingReportFile(p)
 ;
 
 print 'Акт расценки' (Pricing pricing)  { PRINT pricing OBJECTS p = pricing; }   IMAGE 'print.png' IN print;
