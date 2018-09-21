@@ -715,7 +715,7 @@ countIncludeBrands (Snapshot s) = GROUP SUM 1 IF include(s, Brand b);
 TABLE snapshotSku (Snapshot, Sku);
 
 dataInclude 'Вкл' = DATA BOOLEAN (Snapshot, Sku);
-
+dataExclude 'Искл.' = DATA BOOLEAN (Snapshot, Sku);
 includeSkuGroup (Snapshot snapshot, Sku sku) = (GROUP MAX 1 IF include(snapshot, SkuGroup g) AND isParent(g, sku));
 includeBrand (Snapshot snapshot, Sku sku) = include(snapshot, brand(sku)) OR NOT countIncludeBrands(snapshot);
 includeLegalEntity (Snapshot snapshot, Sku sku) = include(snapshot, supplierLastOrderBatch(sku)) OR NOT countIncludeLegalEntities(snapshot);
@@ -725,8 +725,11 @@ includeLegalEntity (Snapshot snapshot, Sku sku) = include(snapshot, supplierLast
 filterLocal = DATA LOCAL BOOLEAN ();
 includeLocal = DATA LOCAL BOOLEAN (Sku);
 
+//include 'Вкл' (Snapshot snapshot, Sku sku) =
+//    (includeSkuGroup(snapshot, sku) AND (NOT filterLocal() OR includeLocal(sku))) OR dataInclude(snapshot, sku);
+
 include 'Вкл' (Snapshot snapshot, Sku sku) =
-    (includeSkuGroup(snapshot, sku) AND (NOT filterLocal() OR includeLocal(sku))) OR dataInclude(snapshot, sku);
+    ((includeSkuGroup(snapshot, sku) AND (NOT filterLocal() OR includeLocal(sku))) OR dataInclude(snapshot, sku)) AND NOT dataExclude(snapshot,sku);
     
     //OVERRIDE dataInclude(snapshot, sku),
              //(includeSkuGroup(snapshot, sku) AND includeBrand(snapshot, sku)) AND NOT skip(snapshot, sku);
@@ -774,7 +777,7 @@ backgroundStatus 'Цвет' (Snapshot snapshot) =  CASE
 //overNetWeightSkuBatch (batch)= OVERRIDE overNetWeightSku(skuBatch(batch)), (sumNetWeightInvoiceDetail(invoiceDetailBatch(batch))/(quantityInvoiceDetail(invoiceDetailBatch(batch)) IF quantityInvoiceDetail(invoiceDetailBatch(batch))!=0));
 
 singleStock = DATA LOCAL Stock();
-
+excludeSku  ABSTRACT LIST (Snapshot);
 takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   { 
     IF currentUser() IS Employee AND (GROUP SUM 1 IF include(snapshot, Stock st) AND NOT accessCompany(currentUser(), st)) THEN {
         dataInclude(snapshot, Stock st) <- include(snapshot, st) AND accessCompany(currentUser(), st);
@@ -798,7 +801,7 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
             includeLocal(Sku sku) <- TRUE WHERE (GROUP SUM 1 IF include(snapshot, supplierLastOrderBatch(sku, Stock st)) AND include(snapshot, st));
         } 
     }
-    
+    excludeSku(snapshot);
     singleStock() <- (GROUP MAX Stock stock IF include(snapshot, stock) AND countIncludeStocks(snapshot) == 1);
        
     IF countIncludeSku(snapshot) AND countIncludeStock(snapshot) THEN {
