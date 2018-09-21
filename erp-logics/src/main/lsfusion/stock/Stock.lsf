@@ -1,6 +1,6 @@
 MODULE Stock;
 
-REQUIRE System, MasterData, Utils, Hierarchy, LegalEntity, I18n, Geo, Employee, Finance, Dashboard;
+REQUIRE System, MasterData, Utils, Hierarchy, LegalEntity, I18n, Geo, EmployeeLegalEntity, Finance, Dashboard;
 
 // ----------------------------------- Склады ------------------------------------------ //
 CLASS ABSTRACT StockGroup 'Группа складов';
@@ -312,7 +312,7 @@ FORM stocks 'Склады'
     OBJECTS s = Stock
     PROPERTIES(s) READONLY id, stockName = name, nameLegalEntity, nameCountry, address, email
     ORDER stockName
-    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg), accessCompany(currentUser(), legalEntity(s))
 
     FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
 
@@ -757,7 +757,7 @@ FORM companysStock 'Склады'
     PROPERTIES(s) NEWSESSION EDIT
     ORDER stockName
     FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
-            isCompany(s)
+            isCompany(s), accessCompany(currentUser(), legalEntity(s))
 
     FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT        
 ;
