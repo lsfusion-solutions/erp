@@ -188,9 +188,12 @@ calcRetailPriceUp(UserInvoiceDetail d)  = round(NUMERIC[16,4]([ X*(Y+100)*(Z+100
     retailMarkup(d),
     valueRetailVAT(d))), (OVERRIDE roundConditionMax('До копеек (вверх)',currency(d)), roundCondition(d)));
 
+overCheckedMarkup = ABSTRACT NUMERIC[8,3] (InvoiceDetail);
+checkedMarkup (UserInvoiceDetail detail) = OVERRIDE overCheckedMarkup(detail), retailMarkup(detail);
+
 createAfterRetailPrice 'Проверить отриц. ТН' (UserInvoice i)  { 
-    afterRetailPrice(UserInvoiceDetail d) <- retailPrice(d) WHERE userInvoice(d) == i AND retailMarkup(d) <0.0;
-    needRepricing(UserInvoiceDetail d) <- TRUE WHERE userInvoice(d) == i AND retailMarkup(d) <0.0;    
+    afterRetailPrice(UserInvoiceDetail d) <- retailPrice(d) WHERE userInvoice(d) == i AND checkedMarkup(d) <0.0;
+    needRepricing(UserInvoiceDetail d) <- TRUE WHERE userInvoice(d) == i AND checkedMarkup(d) <0.0;    
     retailMarkup(UserInvoiceDetail d) <- 0.0 WHERE needRepricing(d);  
     retailPrice(UserInvoiceDetail d) <- calcRetailPriceUp(d) WHERE needRepricing(d);    
 } 
