@@ -29,7 +29,20 @@ INDEX price(ZReportSaleSkuLedger ledger);
 INDEX ZReportSaleSkuLedger(ZReport zReport, Sku sku, NUMERIC[16,4] price);
 INDEX zReport(ZReportSaleSkuLedger o), sku(o), price(o);
 
-dateTime[DataSkuLedger] (ZReportSaleSkuLedger ledger) += dateTime(zReport(ledger));
+inFixTime'Проводить в SkuLedger 23:59'() = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () inFixTime
+;
+    
+DESIGN options {
+    zReport {
+        MOVE PROPERTY(inFixTime());
+    }    
+}   
+
+overDateTime (ZReportSaleSkuLedger ledger) = OVERRIDE dateTimeToDateTime(date(zReport(ledger)),'23:59' IF inFixTime()) ,dateTime(zReport(ledger));
+dateTime[DataSkuLedger] (ZReportSaleSkuLedger ledger) += overDateTime(ledger);
 isPosted[DataSkuLedger] (ZReportSaleSkuLedger ledger) += isPosted(zReport(ledger));
 isClosed[DataSkuLedger] (ZReportSaleSkuLedger ledger) += isClosed(zReport(ledger));
 sku[DataSkuLedger] (ZReportSaleSkuLedger ledger) += sku(ledger);
