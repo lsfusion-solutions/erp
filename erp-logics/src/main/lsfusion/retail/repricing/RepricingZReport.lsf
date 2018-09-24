@@ -70,3 +70,44 @@ NAVIGATOR {
         NEW returnReceiptDetail;       
     } 
 }
+
+toRepricingReceiptReturnOperation 'Операция для автоматической переоценки по возвратам через кассу' = DATA Operation ();
+nameToRepricingReceiptReturnOperation 'Операция для автоматической переоценки по возвратам через кассу' = name(toRepricingReceiptReturnOperation());
+
+createRepricingReceiptReturnAllStocks 'Создать автоматическую переоценку по возвратам через кассу' ()  { 
+    FOR toRepricingReceiptReturnDetail (DepartmentStore stock) DO {
+        NEW p = UserRepricing {
+            departmentStore(p) <- stock;
+            date(p) <- currentDate();
+            time(p) <- currentTime();
+            skipChangeLedger(p) <- TRUE;
+            operation(p) <- toRepricingReceiptReturnOperation();
+            
+            FOR toRepricing(ReceiptReturnDetail detail) AND departmentStore[ReceiptDetail](detail) == stock NEW d = UserRepricingDetail DO {
+                userRepricing(d) <- p;   
+                userRepricingDetail(detail) <- d;  
+                                
+                sku(d) <- sku(detail);
+                quantity(d) <- quantity(detail);
+                curRetailPrice(d) <- soldPrice(detail);
+                retailPrice(d) <- retailPricingPriceB(detail);
+            } 
+            isPosted(p)<- TRUE;
+        }
+    }
+    APPLY;
+}
+
+EXTEND FORM options
+    PROPERTIES() nameToRepricingReceiptReturnOperation, createRepricingReceiptReturnAllStocks
+;
+
+DESIGN options {
+    rPanel {
+        NEW repricingReceiptReturn {
+            caption = 'Автоматическая переоценка по возвратам через кассу';
+            MOVE PROPERTY(nameToRepricingReceiptReturnOperation());
+            MOVE PROPERTY(createRepricingReceiptReturnAllStocks());
+        }
+    }
+}
