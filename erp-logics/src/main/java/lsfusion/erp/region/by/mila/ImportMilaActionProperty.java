@@ -292,7 +292,7 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
 // Класс парсеровки сайта: через URL или локально, из файла
     class readSite {
         Document doc = null;
-        Integer timeout = 10000;
+        Integer timeout = 100000;
         String cAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36";
         String errMsg = "Неизвестная ошибка";
 
