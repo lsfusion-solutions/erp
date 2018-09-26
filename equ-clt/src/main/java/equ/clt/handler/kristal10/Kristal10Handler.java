@@ -255,7 +255,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             if (item.idUOM == null || item.shortNameUOM == null) {
                                 String error = "Kristal10: Error! UOM not specified for item with barcode " + barcodeItem;
                                 processTransactionLogger.error(error);
-                                throw Throwables.propagate(new RuntimeException(error));
+                                throw new RuntimeException(error);
                             }
                             Element measureType = new Element("measure-type");
                             setAttribute(measureType, "id", item.idUOM);
@@ -618,7 +618,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
             if (stopListInfo.dateFrom == null || stopListInfo.timeFrom == null) {
                 String error = "Kristal10: Error! Start DateTime not specified for stopList " + stopListInfo.number;
                 processStopListLogger.error(error);
-                throw Throwables.propagate(new RuntimeException(error));
+                throw new RuntimeException(error);
             }
 
             if (stopListInfo.dateTo == null || stopListInfo.timeTo == null) {

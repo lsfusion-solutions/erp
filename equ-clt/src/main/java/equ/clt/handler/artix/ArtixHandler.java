@@ -519,7 +519,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             try {
                 count++;
                 if (count >= 180)
-                    throw Throwables.propagate(new RuntimeException(String.format(logPrefix + "file %s has been created but not processed by server", file.getAbsolutePath())));
+                    throw new RuntimeException(String.format(logPrefix + "file %s has been created but not processed by server", file.getAbsolutePath()));
                 else
                     Thread.sleep(1000);
             } catch (InterruptedException e) {

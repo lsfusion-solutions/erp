@@ -212,7 +212,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                 disconnect(ftpClient);
             }
         } else {
-            throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file"));
+            throw new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file");
         }
     }
 
@@ -246,7 +246,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                 disconnect(ftpClient);
             }
         } else {
-            throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file"));
+            throw new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file");
         }
     }
 
@@ -277,7 +277,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                 disconnect(ftpClient);
             }
         } else {
-            throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file"));
+            throw new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file");
         }
     }
 
@@ -323,16 +323,16 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                     inputStream.close();
                     if(!done) {
                         processTransactionLogger.error(String.format("BelCoopSoyuz: Failed writing file to %s", path));
-                        throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Some error occurred while writing file to ftp"));
+                        throw new RuntimeException("BelCoopSoyuz: Some error occurred while writing file to ftp");
                     }
                 } else {
-                    throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect login or password. Writing file from ftp failed"));
+                    throw new RuntimeException("BelCoopSoyuz: Incorrect login or password. Writing file from ftp failed");
                 }
             } finally {
                 disconnect(ftpClient);
             }
         } else {
-            throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file"));
+            throw new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file");
         }
     }
 

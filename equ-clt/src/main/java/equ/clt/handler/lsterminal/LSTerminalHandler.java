@@ -99,7 +99,7 @@ public class LSTerminalHandler extends TerminalHandler {
 
             } else {
                 machineryExchangeLogger.error("Directory " + directory.getAbsolutePath() + " doesn't exist");
-                throw Throwables.propagate(new RuntimeException("Directory " + directory.getAbsolutePath() + " doesn't exist"));
+                throw new RuntimeException("Directory " + directory.getAbsolutePath() + " doesn't exist");
             }
 
             if (machinery.directory != null) {
@@ -170,7 +170,7 @@ public class LSTerminalHandler extends TerminalHandler {
             }
         } else {
             processTransactionLogger.error("Directory " + directory.getAbsolutePath() + " doesn't exist");
-            throw Throwables.propagate(new RuntimeException("Directory " + directory.getAbsolutePath() + " doesn't exist"));
+            throw new RuntimeException("Directory " + directory.getAbsolutePath() + " doesn't exist");
         }
     }
 

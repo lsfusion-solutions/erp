@@ -12,7 +12,6 @@ import org.springframework.util.FileCopyUtils;
 import java.io.*;
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.ParseException;
@@ -158,7 +157,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
     private File createGoodsFlagFile(String exchangeDirectory) {
         File goodsFlagFile = new File(exchangeDirectory + "goods-flag.txt");
         if (goodsFlagFile.exists())
-            throw Throwables.propagate(new RuntimeException("Goods flag file already exists"));
+            throw new RuntimeException("Goods flag file already exists");
         return goodsFlagFile;
     }
 

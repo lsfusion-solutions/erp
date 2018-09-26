@@ -83,7 +83,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
                         boolean done = ftpClient.storeFile(remoteFile, inputStream);
                         inputStream.close();
                         if (!done) {
-                            throw Throwables.propagate(new RuntimeException("Some error occurred while uploading file to ftp"));
+                            throw new RuntimeException("Some error occurred while uploading file to ftp");
                         }
 
                     } catch (IOException e) {

@@ -30,7 +30,6 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static equ.clt.handler.HandlerUtils.getDate;
-import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
 public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch> {
@@ -305,7 +304,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 try {
                     count++;
                     if(count>=180)
-                        throw Throwables.propagate(new RuntimeException(createdButNotProcessedMessage(file)));
+                        throw new RuntimeException(createdButNotProcessedMessage(file));
                     else
                         Thread.sleep(1000);
                 } catch (InterruptedException e) {
@@ -365,7 +364,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 //                        try {
 //                            count++;
 //                            if(count>=60) {
-//                                throw Throwables.propagate(new RuntimeException(createdButNotProcessedMessage(softFile)));
+//                                throw new RuntimeException(createdButNotProcessedMessage(softFile));
 //                            }
 //                            Thread.sleep(1000);
 //                        } catch (InterruptedException e) {
