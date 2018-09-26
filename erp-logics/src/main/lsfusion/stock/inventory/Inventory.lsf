@@ -1531,6 +1531,9 @@ showMovementSkuStock 'Показать движение товара по скл
         NEWSESSION SHOW movementSkuStock OBJECTS s = s, st = st; 
 }
 
+notShowAddListInventory = ABSTRACT BOOLEAN(Inventory);
+notShowDeleteListInventory = ABSTRACT BOOLEAN(Inventory);
+
 FORM inventory 'Инвентаризация'
     OBJECTS          in=Inventory PANEL
     PROPERTIES (in)  isBatch, isPrice, isShortageStockDocument, nameNumerator, number, series,
@@ -1548,11 +1551,11 @@ FORM inventory 'Инвентаризация'
                               listInventory(pl) == li
     FILTERGROUP inactiveStock FILTER 'Активный' active(ds) 'ctrl F10' DEFAULT
     PROPERTIES(ds, in) READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail
-    PROPERTIES(ds, in) addListInventory SHOWIF saved(in)
+    PROPERTIES(ds, in) addListInventory SHOWIF (saved(in) AND NOT notShowAddListInventory(in))
 
     PROPERTIES(li)   READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail
 
-    PROPERTIES(li)   NEWSESSION editLI = EDIT SHOWIF saved(in), deleteli=DELETE SHOWIF saved(in)
+    PROPERTIES(li)   NEWSESSION editLI = EDIT SHOWIF saved(in), deleteli=DELETE SHOWIF (saved(in) AND NOT notShowDeleteListInventory(in))
 
     PROPERTIES(pl)   READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail
 
