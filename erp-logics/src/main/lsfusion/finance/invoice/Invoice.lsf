@@ -41,8 +41,14 @@ CLASS ABSTRACT InvoiceDetail 'Строка накладной' : DocumentDetail;
 idCustomerStock(Invoice invoice) = id(customerStock(invoice));
 idSupplierStock(Invoice invoice) = id(supplierStock(invoice));
 
-@defineDocumentAbstractDataStock(invoice, stock, 'Склад отправителя', from);
-@defineDocumentAbstractDataStock(invoice, stock, 'Склад получателя', to);
+@defineDocumentAbstractHeaderStock(invoice, stock, 'Склад отправителя', from);
+fromStock (InvoiceDetail idetail) = fromStock(invoice(idetail));
+nameFromStock 'Склад отправителя' (InvoiceDetail idetail) = name(fromStock(idetail)) CHARWIDTH 10;
+
+@defineDocumentAbstractHeaderStock(invoice, stock, 'Склад получателя', to);
+
+toStock (InvoiceDetail idetail) = toStock(invoice(idetail));
+nameToStock 'Склад получателя' (InvoiceDetail idetail) = name(toStock(idetail)) CHARWIDTH 10;
 
 idFromStock (Invoice i) = id(fromStock(i)); 
 
@@ -73,7 +79,9 @@ sumGrossWeightTon 'Вес брутто, т' (InvoiceDetail d) = round6(sumGrossW
 @defineDocumentHeaderSkuQuantity(invoice, sku);
 
 @defineDocumentAbstractHeaderCurrency (invoice);
-@defineDocumentDetailCurrency (invoice, invoiceDetail);
+
+currency (InvoiceDetail idetail) = currency(invoice(idetail));
+shortNameCurrency 'Валюта (сокр.)' (InvoiceDetail idetail) = shortName(currency(idetail));
 
 price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
 

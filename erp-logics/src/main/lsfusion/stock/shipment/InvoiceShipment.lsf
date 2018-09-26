@@ -30,17 +30,11 @@ shipped 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantit
                                                                    
 shipped 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shipped(InvoiceDetail detail)
                                                                    BY invoice(detail) MATERIALIZED;   
-shippedNotCharge 'Кол-во (поставлено) по накладной (кроме услуг)' (invoice) = GROUP SUM shipped(InvoiceDetail detail) IF isNotCharge(sku(detail))
-                                                                   BY invoice(detail) MATERIALIZED;   
                                                                    
 notShipped (Invoice invoice) = invoice IS Invoice AND NOT shipped(invoice);
                                                                                                                                        
 toShip 'Не поставлено' (InvoiceDetail invoiceDetail) = quantity (invoiceDetail) (-) shipped(invoiceDetail);
 
-toShipInvoiceDetail 'Не поставлено по накладной' (invoice) =
-    GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0
-          BY invoice(invoiceDetail); 
-                       
 toShipNotChargeInvoiceDetail 'Не поставлено по накладной (кроме услуг)' (invoice) =
     GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0 AND isNotCharge(sku(invoiceDetail))
           BY invoice(invoiceDetail);                       
