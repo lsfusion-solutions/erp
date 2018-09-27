@@ -7,6 +7,7 @@ NAMESPACE BOM;
 
 textDescription 'Описание'  = DATA VARSTRING[255] (Component) CHARWIDTH 20;
 semifinishedWeight 'Вес полуфабриката'  = DATA NUMERIC[16,5] (Component);
+semifinishedWeightGr(Component c) = semifinishedWeight(c)*1000.0;
 
 wastageHeat1 'Отходы при тепловой обработке 1, %' = DATA NUMERIC[10,5] (Component); 
 wastageCold1 'Отходы при холодной обработке 1, %' = DATA NUMERIC[10,5] (Component);   
@@ -112,14 +113,24 @@ DESIGN BOM {
 
 //-----------------------
 
-actNettoNetWeightD 'Вес нетто изделия для акта г' (Product p) = actQuantity(BOM(p))* (OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product)*1000;
+//actNettoNetWeightD 'Вес нетто изделия для акта г' (Product p) = actQuantity(BOM(p))* (OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product)*1000;
+//nameSkusD 'Компоненты (все)' (BOM BOM) = GROUP CONCAT Stock.name(Sku sku) IF (GROUP SUM 1 IF sku(Component c) == sku AND BOM(c) == BOM), ', ' ORDER Stock.name(sku);
+//netWeightProductD 'Вес' (BOM) = GROUP SUM netWeight(sku(Product p))*1000 BY BOM(p);   
+//actBruttoNetWeightD 'Выход полуфабриката брутто, г' (Component c)= bruttoQuantity(c)* (OVERRIDE overNetWeight(c), 1.0 IF c IS Component)*actQuantity(BOM(c))*1000.0/quantityProduct(BOM(c));
+//actNettoNetWeightD 'Выход полуфабриката нетто, г' (Component c)=nettoQuantity(c)*actQuantity(BOM(c))*1000*(OVERRIDE overNetWeight(c), 1.0 IF c IS Component)/quantityProduct(BOM(c));
+//actMiddleNetWeightD 'Выход полуфабриката нетто, г' (Component c)=middleWeight(c)*actQuantity(BOM(c))*1000*(OVERRIDE overNetWeight(c), 1.0 IF c IS Component)/quantityProduct(BOM(c));
+//
+//netWeightProductDD 'Выход'  = GROUP SUM quantity(Product p)*actQuantity(BOM(p))*1000*(OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product)/quantityProduct(BOM(p))BY BOM(p);   
+
+actNettoNetWeightD 'Вес нетто изделия для акта г' (Product p) =  (OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product)*1000/actQuantity(BOM(p));
 nameSkusD 'Компоненты (все)' (BOM BOM) = GROUP CONCAT Stock.name(Sku sku) IF (GROUP SUM 1 IF sku(Component c) == sku AND BOM(c) == BOM), ', ' ORDER Stock.name(sku);
 netWeightProductD 'Вес' (BOM) = GROUP SUM netWeight(sku(Product p))*1000 BY BOM(p);   
-actBruttoNetWeightD 'Выход полуфабриката брутто, г' (Component c)= bruttoQuantity(c)* (OVERRIDE overNetWeight(c), 1.0 IF c IS Component)*actQuantity(BOM(c))*1000.0/quantityProduct(BOM(c));
-actNettoNetWeightD 'Выход полуфабриката нетто, г' (Component c)=nettoQuantity(c)*actQuantity(BOM(c))*1000*(OVERRIDE overNetWeight(c), 1.0 IF c IS Component)/quantityProduct(BOM(c));
-actMiddleNetWeightD 'Выход полуфабриката нетто, г' (Component c)=middleWeight(c)*actQuantity(BOM(c))*1000*(OVERRIDE overNetWeight(c), 1.0 IF c IS Component)/quantityProduct(BOM(c));
+actBruttoNetWeightD 'Выход полуфабриката брутто, г' (Component c)= bruttoQuantity(c)* (OVERRIDE overNetWeight(c), 1.0 IF c IS Component)/actQuantity(BOM(c))*1000.0;
+actNettoNetWeightD 'Выход полуфабриката нетто, г' (Component c)=nettoQuantity(c)/actQuantity(BOM(c))*1000*(OVERRIDE overNetWeight(c), 1.0 IF c IS Component);
+actMiddleNetWeightD 'Выход полуфабриката нетто, г' (Component c)=middleWeight(c)/actQuantity(BOM(c))*1000*(OVERRIDE overNetWeight(c), 1.0 IF c IS Component);
 
-netWeightProductDD 'Выход'  = GROUP SUM quantity(Product p)*actQuantity(BOM(p))*1000*(OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product)/quantityProduct(BOM(p))BY BOM(p);   
+netWeightProductDD 'Выход'  = GROUP SUM quantity(Product p)/actQuantity(BOM(p))*1000*(OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product) BY BOM(p);   
+
 
 overFullNameCompanyD (BOM b) = OVERRIDE fullName(company(b)), fullNameLegalEntity(actStock(b));
 
@@ -144,7 +155,7 @@ FORM actStudyOfCulinaryDoubleTreatment 'Акт контрольной прора
     OBJECTS cc = Component
     PROPERTIES(cc) READONLY nameMaterial, shortNameUOM, overNettoNetWeight
     PROPERTIES    READONLY  wastageCold1(cc), wastageCold2(cc), wastageHeat1(cc), wastageHeat2(cc), actBruttoNetWeightD(cc), actNettoNetWeightD(cc),
-                  actMiddleNetWeightD(cc)                                    
+                  actMiddleNetWeightD(cc), textDescription(cc), semifinishedWeight(cc), semifinishedWeightGr(cc)                                    
                   
     FILTERS       BOM(cc) == b
                   
