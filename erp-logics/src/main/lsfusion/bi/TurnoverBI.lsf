@@ -592,7 +592,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
                  + (IF isBalanceA() AND isVATSupplier() THEN '(SUM(costVATBalance)-SUM(costBalance))' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS VATSupplierA, '
                  + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costVATBalanceA, '
                  + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS sumBalanceA, '
-                 + nameGroupsTurnover()
+                 + nameGroupsTurnover() + ', ' + groupsTurnover()
                  + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
                  + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
                  + filter()
@@ -600,6 +600,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
                  + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
                 
             IMPORT JSON FROM queryResult() TO nameGroup1Turnover = nameGroup1, nameGroup2Turnover = nameGroup2, nameGroup3Turnover = nameGroup3, 
+                                              group1Turnover = group1, group2Turnover = group2, group3Turnover = group3,
                                               quantitySold = quantitySold, costSumSold = costSumSold, costSumVATSold = costSumVATSold,
                                               markupSumSold = markupSumSold, percMarkupSumSold = percMarkupSumSold,
                                               sumVATSold = sumVATSold, sumSold = sumSold, sumPriceSold = sumPriceSold,
