@@ -947,13 +947,23 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
             IF isVATSupplier(snapshot) THEN {
                 IF isBalanceA(snapshot) THEN {
                     VATSupplierA(Sku sku, Stock stock, snapshot) <- NULL;
-                    VATSupplierA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)*valueVAT(sku,country(stock),dateTo)/100) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumA(sku, stock, dateTo);               
+                    IF singleStock() THEN {
+                        VATSupplierA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)*valueVAT(sku,country(stock),dateTo)/100) 
+                            WHERE stock == singleStock() AND include(snapshot, sku) AND costSumA(sku, stock, dateTo);
+                    } ELSE {
+                        VATSupplierA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)*valueVAT(sku,country(stock),dateTo)/100) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumA(sku, stock, dateTo);
+                    }               
                 }
                 IF isBalanceB(snapshot) THEN {
                     VATSupplierB(Sku sku, Stock stock, snapshot) <- NULL;
-                    VATSupplierB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)*valueVAT(sku,country(stock),dateTo)/100) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumB(sku, stock, dateFrom);
+                    IF singleStock() THEN {
+                        VATSupplierB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)*valueVAT(sku,country(stock),dateTo)/100) 
+                            WHERE stock == singleStock() AND include(snapshot, sku) AND costSumB(sku, stock, dateFrom);
+                    } ELSE {
+                        VATSupplierB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)*valueVAT(sku,country(stock),dateTo)/100) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumB(sku, stock, dateFrom);
+                    }
                 }        
             } 
             IF isNetWeight(snapshot) THEN {         
