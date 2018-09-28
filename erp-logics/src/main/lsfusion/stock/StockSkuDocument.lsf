@@ -1378,7 +1378,6 @@ DESIGN options {
     } 
 }
 
-document = DATA Document (DocumentLog) INDEXED;
 documentId = DATA LONG (DocumentLog) INDEXED;
 
 numberDocument 'Номер документа' = DATA VARSTRING[28] (DocumentLog) IN id CHARWIDTH 8;
@@ -1605,7 +1604,6 @@ WHEN (SETCHANGED(date(Document o)) AND PREV(date(o))) IF NOT disableDocumentLog(
 CLASS DocumentDetailLog 'Запись лога строк документов';
 TABLE DocumentDetailLog(DocumentDetailLog);
 
-document = DATA Document (DocumentDetailLog) INDEXED; //todo: потом перенести в виталюр
 documentId = DATA LONG (DocumentDetailLog) INDEXED;
 
 index 'Номер строки' = DATA INTEGER (DocumentDetailLog);        
@@ -1691,18 +1689,6 @@ WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         note(l) <- 'Удаление';
         overDropped(l,d);
     }    
-
-migratedDocumentLog = DATA BOOLEAN ();
-onStarted() + { 
-    IF NOT migratedDocumentLog() THEN {
-        NEWSESSION {
-            migratedDocumentLog() <- TRUE;
-            documentId(DocumentLog dl) <- LONG (document(dl)) WHERE document(dl) AND NOT documentId(dl);
-            documentId(DocumentDetailLog dl) <- LONG (document(dl)) WHERE document(dl) AND NOT documentId(dl);
-            APPLY;
-        }    
-    }
-} 
 
 META defineDocumentLogForm(form, concrete)
     @defineDocumentLogForm(form, concrete, documentHistory);
