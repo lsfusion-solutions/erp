@@ -45,46 +45,10 @@ proteins 'Белки 100г, г' = DATA NUMERIC[8,2](Product);
 energy 'Энерг.ценность на 100г, ккал' = DATA NUMERIC[8,2](Product);
 productYield 'Выход' = DATA VARSTRING[100] (Product) CHARWIDTH 20;
 
-//@changeNutrition(product, sku, fats){
-//    changeFatsProduct  = (product) {
-//        REQUEST  NUMERIC[8,2] INPUT ;
-//        IF requestedNumeric() THEN {
-//            fatsItem(item) <- requestedNumeric() WHERE item == skuProduct(product);
-//        } ELSE {
-//            fatsItem(item) <- NULL WHERE item == skuProduct(product);
-//        }    
-//    };
-//};
-//@changeNutrition(product, sku, carbohydrates){
-//    changeCarbohydratesProduct  = (product) {
-//        REQUEST  NUMERIC[8,2] INPUT ;
-//        IF requestedNumeric() THEN {
-//            carbohydratesItem(item) <- requestedNumeric() WHERE item == skuProduct(product);
-//        } ELSE {
-//            carbohydratesItem(item) <- NULL WHERE item == skuProduct(product);
-//        }    
-//    };
-//};
-//@changeNutrition(product, sku, proteins){
-//    changeProteinsProduct  = (product) {
-//        REQUEST  NUMERIC[8,2] INPUT ;
-//        IF requestedNumeric() THEN {
-//            proteinsItem(item) <- requestedNumeric() WHERE item == skuProduct(product);
-//        } ELSE {
-//            proteinsItem(item) <- NULL WHERE item == skuProduct(product);
-//        }    
-//    };
-//};
-//@changeNutrition(product, sku, energy){
-//    changeEnergyProduct  = (product) {
-//        REQUEST  NUMERIC[8,2] INPUT ;
-//        IF requestedNumeric() THEN {
-//            energyItem(item) <- requestedNumeric() WHERE item == skuProduct(product);
-//        } ELSE {
-//            energyItem(item) <- NULL WHERE item == skuProduct(product);
-//        }    
-//    };
-//};
+fatsItem 'Жиры 100г, г (товар)' (Product p) = fats(sku(p));
+carbohydratesItem 'Углеводы 100г, г (товар)' (Product p) = carbohydrates(sku(p));
+proteinsItem 'Белки 100г, г (товар)' (Product p) = proteins(sku(p));
+energyItem 'Энерг.ценность на 100г, ккал (товар)' (Product p) = energy(sku(p));
 
 composition 'Состав' = DATA VARSTRING[2550] (Product) CHARWIDTH 30;
 components 'Компоненты' (Product product)= components(BOM(product));
@@ -92,7 +56,7 @@ composition(Product product) <- components(product) WHEN CHANGED(components(prod
 
 changeComposition 'Записать в товар'(Product product)  { 
     FOR sku(product) == Sku item DO {
-        composition[Item](item) <- composition(product);
+        composition[Item](item) <- VARSTRING[255](composition(product));
     }
 } ASON CONTEXTMENU composition[Product];
 
@@ -135,24 +99,52 @@ nameStateStandart 'СТБ' (BOM BOM) = name(stateStandart(BOM));
 numberStateStandart 'СТБ' (Product p) = numberStateStandart(BOM(p));
 nameStateStandart 'СТБ' (Product p) = nameStateStandart(BOM(p));
 
+
+backgroundFast (Product p) = IF (fats(p) OR fatsItem(p)) AND NOT fatsItem(p) == fats(p) THEN RGB(255,153,153) ELSE RGB(244,255,189);
+backgroundCarbohydrates (Product p) = IF (carbohydrates(p) OR carbohydratesItem(p)) AND NOT carbohydratesItem(p) == carbohydrates(p) THEN RGB(255,153,153) ELSE RGB(244,255,189);
+backgroundProteins (Product p) = IF (proteins(p) OR proteinsItem(p)) AND NOT proteinsItem(p) == proteins(p) THEN RGB(255,153,153) ELSE RGB(244,255,189);
+backgroundEnergy (Product p) = IF (energy(p) OR energyItem(p)) AND NOT energyItem(p) == energy(p) THEN RGB(255,153,153) ELSE RGB(244,255,189);
+
 // Расширяем формы
+showNutritionBOM = ABSTRACT VALUE BOOLEAN (BOM);
+showNutritionBOM(BOM b) += showNutrition(b);
 EXTEND FORM BOM
     PROPERTIES(b) showNutrition
     PROPERTIES(b) recipes, numberStateStandart //SHOWIF showNutritionBOM(b)
-    PROPERTIES(p) SHOWIF showNutrition(b) BEFORE deletep 
-                  fats,// ON CHANGE changeFatsProduct(p), 
-                  carbohydrates,// ON CHANGE changeCarbohydratesProduct(p), 
-                  proteins,// ON CHANGE changeProteinsProduct(p), 
-                  energy,// ON CHANGE changeEnergyProduct(p), 
-                  composition, productYield
-    PROPERTIES(c) BACKGROUND background(c)SHOWIF showNutrition(b) BEFORE deletec fats ON CHANGE changeFats(c), carbohydrates ON CHANGE changeCarbohydrates(c), 
-                  proteins ON CHANGE changeProteins(c), energy ON CHANGE changeEnergy(c)
+    
+    
+    OBJECTS pp = Product
+    PROPERTIES(pp) index 
+    PROPERTIES(pp) READONLY idBarcodeSku, id SHOWIF showIDs(), nameSku, shortNameUOM     
+    
+    PROPERTIES(pp) READONLY quantity, overNettoNetWeight, pricePercent, calcPriceCoeff 
+    FILTERS       BOM(pp) == b
+    PROPERTIES(pp) SHOWIF showNutrition(b) fats BACKGROUND backgroundFast(pp), carbohydrates BACKGROUND backgroundCarbohydrates(pp), 
+                   proteins BACKGROUND backgroundProteins(pp), energy BACKGROUND backgroundEnergy(pp), composition, productYield
+    PROPERTIES(pp) SHOWIF showNutrition(b) READONLY fatsItem, carbohydratesItem, proteinsItem, energyItem
+                  
+    OBJECTS cc = Component
+    PROPERTIES(cc) READONLY BACKGROUND background(cc) index 
+    PROPERTIES(cc) READONLY BACKGROUND background(cc) idBarcodeSku, id SHOWIF showIDs(), nameMaterial, shortNameUOM 
+    PROPERTIES(cc) READONLY BACKGROUND background(cc) nettoQuantity, overNettoNetWeight, wastage, bruttoQuantity, overBruttoNetWeight
+    ORDER index(cc)
+    FILTERS       BOM(cc) == b
+                
+    PROPERTIES(cc) SHOWIF showNutrition(b) BACKGROUND background(cc) fats ON CHANGE changeFats(cc), carbohydrates ON CHANGE changeCarbohydrates(cc), 
+                  proteins ON CHANGE changeProteins(cc), energy ON CHANGE changeEnergy(cc)
 ;
 
 DESIGN BOM {
-//    BOX(b) {
-//        NEW b.nutrition {type = CONTAINERV;}
-//    }
+    specificationBox {
+        NEW nutrition {
+            showIf = showNutritionBOM(b);
+            fill = 1;
+            caption = 'Энерг. ценность / Влажность';
+            type = SPLITV;
+            MOVE BOX(pp);
+            MOVE BOX (cc);
+        }
+    }
     kitchen {
         MOVE PROPERTY(showNutrition(b));
         MOVE PROPERTY(recipes(b));

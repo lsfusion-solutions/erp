@@ -8,13 +8,17 @@ GROUP humidity 'Влажность' : base;
 
 showHumidity 'Отображать влажность' = DATA BOOLEAN(BOM) IN documentPrm;
 
+percentHumidity 'Влажность, %' = DATA NUMERIC[8,2] (Product) IN itemHumidity;
+percentDryness 'Массовая доля сухих веществ, %' (Product p) = 100 - (OVERRIDE percentHumidity(p), 0 IF p IS Product) IN itemHumidity; 
+percentHumidityItem 'Влажность, % (товар)' (Product p) = percentHumidity(sku(p));
+percentDrynessItem 'Массовая доля сухих веществ, % (товар)' (Product p) = percentDryness(sku(p));
 // Влажность изделия
-percentHumidity 'Влажность, %' (Product p) = percentHumidity(sku(p)) IN itemHumidity;
+//percentHumidity 'Влажность, %' (Product p) = percentHumidity(sku(p)) IN itemHumidity;
 @changeNutrition(product, sku, percentHumidity) ;
-percentDryness 'Массовая доля сухих веществ, %' (Product p) = percentDryness(sku(p)) IN itemHumidity;
+//percentDryness 'Массовая доля сухих веществ, %' (Product p) = percentDryness(sku(p)) IN itemHumidity;
 changePercentDryness(Product product)   { 
     INPUT n = NUMERIC[8,2] DO
-        percentHumidity(Item item) <- (100-n) WHERE item == sku(product);
+        percentHumidity(product) <- NUMERIC[8,2](100-n);
 }
 
 // Влажность компонент
@@ -174,15 +178,44 @@ calcNetEnergyGramsQuantity'Энергетическая ценность в ре
     netFatsGramsQuantity(p,d)*9 (+)
     netCarbohydratesGramsQuantity(p,d)*4;
     
-fillNutrition 'Записать энерг.ценность' (BOM BOM)  { 
+//fillNutrition 'Записать энерг.ценность' (BOM BOM)  { 
+//    FOR BOM(Product p) == BOM DO {
+//        proteins(Item item)<- NUMERIC[8,2](netProteinsGramsQuantity(p,currentDate())) WHERE item == sku(p);
+//        fats(Item item)<- NUMERIC[8,2](netFatsGramsQuantity(p,currentDate())) WHERE item == sku(p);     
+//        carbohydrates(Item item)<- NUMERIC[8,2](netCarbohydratesGramsQuantity(p,currentDate())) WHERE item == sku(p); 
+//        energy(Item item)<- NUMERIC[8,2](calcNetEnergyGramsQuantity(p,currentDate())) WHERE item == sku(p); 
+//        percentHumidity(Item item) <- NUMERIC[8,2](gramsQuantityComponents(p)) WHERE item == sku(p); 
+//    }
+//} TOOLBAR; 
+
+fillNutritionItem 'Записать в карточку товара' (BOM BOM)  { 
     FOR BOM(Product p) == BOM DO {
-        proteins(Item item)<- NUMERIC[8,2](netProteinsGramsQuantity(p,currentDate())) WHERE item == sku(p);
-        fats(Item item)<- NUMERIC[8,2](netFatsGramsQuantity(p,currentDate())) WHERE item == sku(p);     
-        carbohydrates(Item item)<- NUMERIC[8,2](netCarbohydratesGramsQuantity(p,currentDate())) WHERE item == sku(p); 
-        energy(Item item)<- NUMERIC[8,2](calcNetEnergyGramsQuantity(p,currentDate())) WHERE item == sku(p); 
-        percentHumidity(Item item) <- gramsQuantityComponents(p) WHERE item == sku(p); 
+        IF showNutrition(BOM) THEN {
+            proteins(Item item)<- proteins(p);
+            fats(Item item)<- fats(p);
+            carbohydrates(Item item)<- carbohydrates(p);
+            energy(Item item)<- energy(p);         
+        }
+        IF showHumidity(BOM) THEN {
+            percentHumidity(Item item) <-  percentHumidity(p);        
+        }
     }
-} TOOLBAR;    
+} TOOLBAR; 
+
+fillNutrition 'Записать в изделие' (BOM BOM)  { 
+    FOR BOM(Product p) == BOM DO {
+        IF showNutrition(BOM) THEN {
+            proteins(p)<- NUMERIC[8,2](netProteinsGramsQuantity(p,currentDate()));
+            fats(p)<- NUMERIC[8,2](netFatsGramsQuantity(p,currentDate()));     
+            carbohydrates(p)<- NUMERIC[8,2](netCarbohydratesGramsQuantity(p,currentDate())); 
+            energy(p)<- NUMERIC[8,2](calcNetEnergyGramsQuantity(p,currentDate()));
+        }
+        IF showHumidity(BOM) THEN {
+            percentHumidity(p) <-  NUMERIC[8,2](round2(gramsQuantityComponents(p)));    
+        } 
+    }
+} TOOLBAR; 
+   
 
 FORM nutritionalValue 'Пищевая ценность'
     OBJECTS dt=DATE PANEL
@@ -222,14 +255,18 @@ printNutritionalValue 'Расчет пищевой ценности'(BOM BOM)   
 
 
 // Расширяем формы
+showNutritionBOM(BOM b) += showHumidity(b);
+
+backgroundPercentHumidity (Product p) = IF (percentHumidity(p) OR percentHumidityItem(p)) AND NOT percentHumidityItem(p) == percentHumidity(p) THEN RGB(255,153,153) ELSE RGB(244,255,189);
 EXTEND FORM BOM
     PROPERTIES(b) showHumidity
-    PROPERTIES(p) SHOWIF showHumidity(b) BEFORE deletep percentHumidity ON CHANGE changePercentHumidity(p),
-                  percentDryness ON CHANGE changePercentDryness(p)
-    PROPERTIES(c) BACKGROUND  background(c) SHOWIF showHumidity(b) BEFORE deletec percentHumidity ON CHANGE  changePercentHumidity(c),
-                   percentDryness ON CHANGE changePercentDryness(c)
+    PROPERTIES(pp) AFTER energy (pp) SHOWIF showHumidity(b) percentHumidity BACKGROUND backgroundPercentHumidity(pp), percentDryness ON CHANGE changePercentDryness(pp) BACKGROUND backgroundPercentHumidity(pp)
+    PROPERTIES(pp) SHOWIF showHumidity(b) AFTER energyItem (pp) READONLY percentHumidityItem, percentDrynessItem
+        
+    PROPERTIES(cc) BACKGROUND  background(cc) SHOWIF showHumidity(b) percentHumidity ON CHANGE  changePercentHumidity(cc),
+                   percentDryness ON CHANGE changePercentDryness(cc)
                    
-    PROPERTIES(b) fillNutrition TODRAW p              
+    PROPERTIES(b) TOOLBAR  TODRAW pp fillNutrition, fillNutritionItem                       
 ;
 
 DESIGN BOM {
