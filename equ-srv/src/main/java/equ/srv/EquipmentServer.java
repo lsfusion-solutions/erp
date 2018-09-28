@@ -134,7 +134,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     @Override
     protected void onInit(LifecycleEvent event) {
         equLM = getBusinessLogics().getModule("Equipment");
-        Assert.notNull(equLM, "can't find Equipment module");
+//        Assert.notNull(equLM, "can't find Equipment module");
         cashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
         cashRegisterItemLM = getBusinessLogics().getModule("CashRegisterItem");
         discountCardLM = getBusinessLogics().getModule("DiscountCard");

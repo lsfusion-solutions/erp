@@ -105,7 +105,7 @@ public class TerminalServer extends MonitorServer {
 
             try {
                 List<Object> hostPort = terminalHandlerInterface.readHostPort(createSession());
-                if (hostPort.get(0) != null && hostPort.get(1) != null) {
+                if (hostPort.size() >= 2 && hostPort.get(0) != null && hostPort.get(1) != null) {
                     String host = (String) hostPort.get(0);
                     Integer port = (Integer) hostPort.get(1);
                     logger.info("Binding Terminal Server.");
