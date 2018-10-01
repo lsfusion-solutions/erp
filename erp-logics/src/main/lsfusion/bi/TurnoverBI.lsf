@@ -585,13 +585,13 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
     
     overFillTurnoverReport(dateFrom,dateTo);
     IF NOT overFillTurnoverReport() THEN {
-        IF isTimeGroup() THEN {
+        IF gDayTurnover() THEN {
             query(replace('SELECT ' + values() 
-                 + (IF isBalanceA() AND isQuantity() THEN 'SUM(balance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS balanceA, '
-                 + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costBalanceA, '
-                 + (IF isBalanceA() AND isVATSupplier() THEN '(SUM(costVATBalance)-SUM(costBalance))' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS VATSupplierA, '
-                 + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS costVATBalanceA, '
-                 + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' + (IF gDayTurnover() THEN '' ELSE '/COUNT(DISTINCT __time)') ELSE '\'\'') + ' AS sumBalanceA, '
+                 + (IF isBalanceA() AND isQuantity() THEN 'SUM(balance)' ELSE '\'\'') + ' AS balanceA, '
+                 + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceA, '
+                 + (IF isBalanceA() AND isVATSupplier() THEN '(SUM(costVATBalance)-SUM(costBalance))' ELSE '\'\'') + ' AS VATSupplierA, '
+                 + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance)' ELSE '\'\'') + ' AS costVATBalanceA, '
+                 + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceA, '
                  + nameGroupsTurnover() + ', ' + groupsTurnover()
                  + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
                  + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
@@ -647,7 +647,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
             LOCAL localStatisticUOMBalanceB = NUMERIC[16,5] (INTEGER);
             LOCAL localStatisticUOMBalanceA = NUMERIC[16,5] (INTEGER);
             
-            IF isBalanceB() THEN {
+            IF isBalanceB() AND NOT isTimeGroup() THEN {
                 query(replace('SELECT '
                     + (IF isBalanceB() AND isQuantity() THEN 'SUM(balance)' ELSE '\'\'') + ' AS balanceB, '
                     + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceB, '
@@ -675,7 +675,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
                 }
             }
             
-            IF isBalanceA() THEN {
+            IF isBalanceA() THEN {                        
                 query(replace('SELECT '
                     + (IF isBalanceA() AND isQuantity() THEN 'SUM(balance)' ELSE '\'\'') + ' AS balanceA, '
                     + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance)' ELSE '\'\'') + ' AS costBalanceA, '
@@ -684,7 +684,9 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
                     + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance)' ELSE '\'\'') + ' AS sumBalanceA, '
                     + nameGroupsTurnover() + ', ' + groupsTurnover()
                     + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
-                    + ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+                    + (IF isTimeGroup() THEN ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')' ELSE ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')')
+                    + (IF gWeekTurnover() THEN ' AND EXTRACT(WEEK FROM __time) <> EXTRACT(WEEK FROM TIMESTAMPADD(DAY, 1, __time))' ELSE
+                       IF gMonthTurnover() THEN ' AND EXTRACT(MONTH FROM __time) <> EXTRACT(MONTH FROM TIMESTAMPADD(DAY, 1, __time))' ELSE '')
                     + filter()
                     + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
                     + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
