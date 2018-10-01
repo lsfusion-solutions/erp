@@ -291,7 +291,9 @@ createMarketingInvoiceQuarter 'Отметить договоры за кварт
     }
 }
 
-CONSTRAINT dateFrom(MarketingInvoice i1) == dateFrom(MarketingInvoice i2) AND dateTo(i1) == dateTo(i2) AND contract(i1) == contract(i2) AND i1 != i2 
+skip = ABSTRACT BOOLEAN(MarketingInvoice, MarketingInvoice);
+
+CONSTRAINT dateFrom(MarketingInvoice i1) == dateFrom(MarketingInvoice i2) AND dateTo(i1) == dateTo(i2) AND contract(i1) == contract(i2) AND i1 != i2 AND NOT skip(i1, i2)
     MESSAGE 'Акт на оплату с такими датами уже существует';
 
 FORM marketingInvoicesCreate 'Договоры маркетинга'   
@@ -491,7 +493,7 @@ FORM marketingInvoices 'Акты на оплату'
      
     OBJECTS c = MarketingCondition PANEL 
     PROPERTIES (c) READONLY nameItemGroup, nameBrand, nameCountry, nameWeighted , nameRegion, stockGroups, stocks, nameItem, isException
-    PROPERTIES ig 'Группа товара' = name(itemGroup(sku(d))), br 'Бренд' = name(brand(sku(d))) , ct 'Страна' = name(country(sku(d))), 
+    PROPERTIES READONLY ig 'Группа товара' = name(itemGroup(sku(d))), br 'Бренд' = name(brand(sku(d))) , ct 'Страна' = name(country(sku(d))), 
                w 'Весовой' = passScales(sku(d)), rg 'Регион' = name(region(stock(d)))
     FILTERS condition(d) == c
         
