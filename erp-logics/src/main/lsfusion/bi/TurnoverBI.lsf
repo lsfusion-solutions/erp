@@ -237,7 +237,8 @@ FORM dialogStockGroupsStock 'Склады'
     PROPERTIES deleteIncludeStocks() TODRAW s TOOLBAR
     FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
             isCompany(s),
-            countCompanyStock(sg)
+            countCompanyStock(sg),
+            accessCompany(currentUser(),s)
 
     FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
     FILTERGROUP select FILTER 'Отм.' include(s) 'F9'
@@ -516,7 +517,7 @@ filterGroups() = CONCAT ' OR', ' group1 IN (' + nameIncludeSkuGroups1() + ')',
                                        ' group2 IN (' + nameIncludeSkuGroups2() + ')',
                                        ' group3 IN (' + nameIncludeSkuGroups3() + ')',
                                        ' group4 IN (' + nameIncludeSkuGroups4() + ')';
-filter() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) +'\'') IF include(s),',') + ')','')
+filter() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) +'\'') IF (include(s) OR NOT (GROUP SUM 1 IF include(Stock stock))) AND limitAccess(currentUser()) AND accessCompany(currentUser(),s),',') + ')','')
                     + (OVERRIDE ' AND supplier IN (' + (GROUP CONCAT TEXT('\''+ TEXT(LegalEntity le) +'\'') IF include(le),',') + ')','')
                     + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Brand b) +'\'') IF include(b),',') + ')','')
                     + (OVERRIDE ' AND manufacturer IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Manufacturer b) +'\'') IF include(b),',') + ')','')
