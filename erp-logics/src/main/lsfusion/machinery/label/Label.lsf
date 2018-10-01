@@ -881,16 +881,16 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                 LOCAL lastPriceLabel = NUMERIC[16,4] (LabelTransactionDetail);
                 
                 FOR document(###detailProp##Detail dd) == document AND 
-                    inLabel(###skuProp sku) AND sku == skuProp(dd) AND 
-                    inPrint(labelType, sku, stockProp(document)) AND 
-                    PriceListType pt == overPriceListType(t) ORDER index(dd), dd NOINLINE (pt) INLINE 
+                    inLabel(skuProp(dd)) AND 
+                    inPrint(labelType, skuProp(dd), stockProp(document)) AND 
+                    PriceListType pt == overPriceListType(t) NOINLINE (pt) INLINE 
                     NEW d = LabelTransactionDetail DO {
     
                     IF notChangePrintPrice(t) THEN {
-                        lastPriceLabel(d) <- NUMERIC[16,4](priceLabelTransactionDetail(sku, departmentStore(t)));
+                        lastPriceLabel(d) <- NUMERIC[16,4](priceLabelTransactionDetail(skuProp(dd), departmentStore(t)));
                     }
                     labelTransaction(d) <- t;
-                    skuProp(d) <- sku;
+                    skuProp(d) <- skuProp(dd);
                     batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
                     name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
                     createAttribute(d);
@@ -988,11 +988,11 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                 priceTransactionDocument(t) <- document;
                 labelType(t) <- type;
     
-                FOR document(###detailProp##Detail dd) == document AND inLabel(###skuProp sku) AND sku == skuProp(dd)
-                    AND PriceListType pt == overPriceListType(t) AND NOT exclude(type, sku) ORDER index(dd), dd NOINLINE (pt) INLINE
+                FOR document(###detailProp##Detail dd) == document AND inLabel(skuProp(dd))
+                    AND PriceListType pt == overPriceListType(t) AND NOT exclude(type, skuProp(dd)) NOINLINE (pt) INLINE
                     NEW d = LabelTransactionDetail DO {
                         labelTransaction(d) <- t;
-                        skuProp(d) <- sku;
+                        skuProp(d) <- skuProp(dd);
                         batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
     
                         name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
