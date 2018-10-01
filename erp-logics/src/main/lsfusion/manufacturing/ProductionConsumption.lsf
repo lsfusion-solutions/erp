@@ -904,3 +904,54 @@ CONSTRAINT (SET(isPosted(Order o)) OR CHANGED(consumedSumComponentDetail(o)) OR 
     AND orderPercSum(operation(o)) AND isPosted(o)
     AND NOT ((OVERRIDE outputProductsSumProductDetail(o), 0.0) >= (OVERRIDE fromOutputProductsSum(o), 0.0) AND (OVERRIDE outputProductsSumProductDetail(o), 0.0) <= (OVERRIDE toOutputProductsSum(o), 0.0))
         MESSAGE 'Внимание!!! Отклонение между компонентом и изделиями не попадает в допустимый процент по сумме. Весь заказ.';        
+
+consumedQuantityComponentDetail (Batch bt, Order o) = GROUP SUM consumedQuantity(ComponentDetail idetail) BY batch(idetail), order(idetail);
+consumedQuantityComponentDetail (Sku s, Order o) = GROUP SUM consumedQuantity(ComponentDetail idetail) BY sku(idetail), order(idetail);
+
+prevBalancePriceStock(Batch bt, Order o) = (prevCurrentBalance(bt, priceStock(o)) (+) (PREV(consumedQuantityComponentDetail(bt, o) IF isPosted(o) AND createConsumption(o))));
+ 
+
+useBatchSkuAllFIFO 'Заполнить партии (ФИФО)'(Order o)   { 
+    LOCAL balance = NUMERIC[16,5](Batch);
+    LOCAL toOrder = NUMERIC[16,5](Batch,ComponentDetail);
+    LOCAL toOrder = NUMERIC[16,5](ComponentDetail);    
+
+    
+    IF createConsumption(o) THEN {
+        balance(Batch bt) <- prevBalancePriceStock(bt,o) WHERE consumedQuantityComponentDetail(sku(bt),o);
+        toOrder(ComponentDetail cd) <- consumedQuantity(cd) WHERE order(cd)==o;
+        
+        FOR balance(Batch bt)  ORDER dateTime(bt), bt DO {
+ 
+            toOrder (bt, ComponentDetail cd) <-  (PARTITION UNGROUP balance[Batch]
+                                                                   LIMIT toOrder(cd)  IF  sku(cd) == sku(bt) AND toOrder(cd) AND order(cd)==o AND balance(bt) >= toOrder(cd)
+                                                                   ORDER consumedQuantity(cd), cd
+                                                                   BY bt)
+                                                                   WHERE sku(cd) == sku(bt) AND toOrder(cd) AND order(cd)==o AND balance(bt) >= toOrder(cd); 
+            toOrder(ComponentDetail cd) <- (toOrder(cd) (-) ( toOrder (bt, cd))) WHERE toOrder (bt, cd);
+            
+        }
+        batch(ComponentDetail cd) <- (GROUP MIN Batch bt IF toOrder (bt, cd) == consumedQuantity(cd)) WHERE order(cd)==o;
+        
+    } ELSE {    
+        balance(Batch bt) <- prevBalancePriceStock(bt,o) WHERE quantityComponentDetail(sku(bt),o);
+        toOrder(ComponentDetail cd) <- quantity(cd) WHERE order(cd)==o;   
+        
+        FOR balance(Batch bt)  ORDER dateTime(bt), bt DO {
+ 
+            toOrder (bt, ComponentDetail cd) <-  (PARTITION UNGROUP balance[Batch]
+                                                                   LIMIT toOrder(cd) IF  sku(cd) == sku(bt) AND toOrder(cd) AND order(cd)==o AND balance(bt) >= toOrder(cd) 
+                                                                   ORDER quantity(cd), cd
+                                                                   BY bt)
+                                                                   WHERE sku(cd) == sku(bt) AND toOrder(cd) AND order(cd)==o AND balance(bt) >= toOrder(cd); 
+            toOrder(ComponentDetail cd) <- (toOrder(cd) (-) ( toOrder (bt, cd))) WHERE toOrder (bt, cd);
+            
+        } 
+        batch(ComponentDetail cd) <- (GROUP MIN Batch bt IF toOrder (bt, cd) == quantity(cd)) WHERE order(cd)==o;            
+    }        
+}
+
+
+EXTEND FORM order
+    PROPERTIES useBatchSkuAllFIFO(o) TOOLBAR TODRAW sk
+;
