@@ -880,31 +880,32 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                 labelType(t) <- labelType;
                 LOCAL lastPriceLabel = NUMERIC[16,4] (LabelTransactionDetail);
                 
-                FOR document(###detailProp##Detail dd) == document AND 
-                    inLabel(skuProp(dd)) AND 
-                    inPrint(labelType, skuProp(dd), stockProp(document)) AND 
-                    PriceListType pt == overPriceListType(t) NOINLINE (pt) INLINE 
-                    NEW d = LabelTransactionDetail DO {
-    
-                    IF notChangePrintPrice(t) THEN {
-                        lastPriceLabel(d) <- NUMERIC[16,4](priceLabelTransactionDetail(skuProp(dd), departmentStore(t)));
+                FOR PriceListType pt == overPriceListType(t) NOINLINE DO {
+                    FOR document(###detailProp##Detail dd) == document AND 
+                        inLabel(skuProp(dd)) AND 
+                        inPrint(labelType, skuProp(dd), stockProp(document)) ORDER index(dd), dd INLINE 
+                        NEW d = LabelTransactionDetail DO {
+        
+                        IF notChangePrintPrice(t) THEN {
+                            lastPriceLabel(d) <- NUMERIC[16,4](priceLabelTransactionDetail(skuProp(dd), departmentStore(t)));
+                        }
+                        labelTransaction(d) <- t;
+                        skuProp(d) <- skuProp(dd);
+                        batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
+                        name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
+                        createAttribute(d);
+        
+                        quantity(d) <- IF include(labelType, skuProp(d))
+                                                                THEN INTEGER(prefix###quantity(dd))
+                                                             ELSE count(labelType, skuProp(d));
+        
+                        price(d) <- calcPrice(pt, d);
+                        IF notChangePrintPrice(t) THEN {
+                            DELETE d WHERE price(d) == lastPriceLabel(d);
+                        }
+                        retailPrice(d) <- overRetailPrice(d);
+                        createAttribute(dd, d);
                     }
-                    labelTransaction(d) <- t;
-                    skuProp(d) <- skuProp(dd);
-                    batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
-                    name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
-                    createAttribute(d);
-    
-                    quantity(d) <- IF include(labelType, skuProp(d))
-                                                            THEN INTEGER(prefix###quantity(dd))
-                                                         ELSE count(labelType, skuProp(d));
-    
-                    price(d) <- calcPrice(pt, d);
-                    IF notChangePrintPrice(t) THEN {
-                        DELETE d WHERE price(d) == lastPriceLabel(d);
-                    }
-                    retailPrice(d) <- overRetailPrice(d);
-                    createAttribute(dd, d);
                 }
                 DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
             
@@ -988,27 +989,29 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                 priceTransactionDocument(t) <- document;
                 labelType(t) <- type;
     
-                FOR document(###detailProp##Detail dd) == document AND inLabel(skuProp(dd))
-                    AND PriceListType pt == overPriceListType(t) AND NOT exclude(type, skuProp(dd)) NOINLINE (pt) INLINE
-                    NEW d = LabelTransactionDetail DO {
-                        labelTransaction(d) <- t;
-                        skuProp(d) <- skuProp(dd);
-                        batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
-    
-                        name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
-                        documentQuantity(d) <- prefix###quantity(dd); 
-                        
-                        price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
-                        retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
-                                                                   
-                        quantity(d) <- IF NOT countLabel(departmentStore(d)) 
-                                                                 THEN (IF include(labelType(d), skuProp(d)) 
-                                                                    THEN INTEGER(documentQuantity(d))
-                                                                     ELSE count(labelType(d), skuProp(d)))
-                                                                 ELSE countLabel(departmentStore(d));                                             
-                                                                                                                                                                                      
-                        createAttribute(d);
-                        createAttribute(dd, d);
+                FOR PriceListType pt == overPriceListType(t) NOINLINE DO {
+                    FOR document(###detailProp##Detail dd) == document AND inLabel(skuProp(dd))
+                        AND NOT exclude(type, skuProp(dd)) ORDER index(dd), dd INLINE
+                        NEW d = LabelTransactionDetail DO {
+                            labelTransaction(d) <- t;
+                            skuProp(d) <- skuProp(dd);
+                            batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
+        
+                            name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
+                            documentQuantity(d) <- prefix###quantity(dd); 
+                            
+                            price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
+                            retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
+                                                                       
+                            quantity(d) <- IF NOT countLabel(departmentStore(d)) 
+                                                                     THEN (IF include(labelType(d), skuProp(d)) 
+                                                                        THEN INTEGER(documentQuantity(d))
+                                                                         ELSE count(labelType(d), skuProp(d)))
+                                                                     ELSE countLabel(departmentStore(d));                                             
+                                                                                                                                                                                          
+                            createAttribute(d);
+                            createAttribute(dd, d);
+                    }
                 }
                 overCreate(t);
                 IF change(stockProp(document)) THEN {
