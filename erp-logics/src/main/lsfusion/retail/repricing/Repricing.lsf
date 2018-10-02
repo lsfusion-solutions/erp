@@ -602,6 +602,8 @@ FORM repricingPeriod 'Акт переоценки (печать)'
 
 @defineDocumentOperationRolePrefix(userRepricing, );
 
+overToFillQuantityUserRepricingDetail ABSTRACT (UserRepricing);
+
 toFillQuantityUserRepricingDetail 'Записать в кол-во остатки'(UserRepricing repricing)  { 
     quantity(UserRepricingDetail d) <- IF batch(d) THEN balanceB(batch(d),   
                                                         departmentStore(d), 
@@ -610,6 +612,7 @@ toFillQuantityUserRepricingDetail 'Записать в кол-во остатк�
                                                         departmentStore(d), 
                                                         dateTime(d))                                                                      
                                                  WHERE userRepricing(d) == repricing;
+    overToFillQuantityUserRepricingDetail(repricing);
                                                                      
     quantity(UserRepricingDetail d) <- NULL WHERE quantity(d) < 0.0 AND userRepricing(d) == repricing;
 }
