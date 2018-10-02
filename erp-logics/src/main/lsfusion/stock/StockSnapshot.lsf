@@ -1205,12 +1205,22 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
                 }  
                 IF isVATSupplier(snapshot) THEN {
                     VATSupplierA(Batch batch, Stock stock, snapshot) <- NULL;
-                    VATSupplierA(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](balanceA(batch, stock, dateTo)*cost(batch)*valueVAT(sku(batch),country(stock),dateTo)/100) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND isBalanceA(snapshot) AND balanceA(batch, stock, dateTo); 
+                    IF singleStock () THEN {
+                        VATSupplierA(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](balanceA(batch, stock, dateTo)*cost(batch)*valueVAT(sku(batch),country(stock),dateTo)/100) 
+                            WHERE stock = singleStock() AND include(snapshot, sku(batch)) AND isBalanceA(snapshot) AND balanceA(batch, stock, dateTo);
+                    } ELSE {
+                        VATSupplierA(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](balanceA(batch, stock, dateTo)*cost(batch)*valueVAT(sku(batch),country(stock),dateTo)/100) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND isBalanceA(snapshot) AND balanceA(batch, stock, dateTo);
+                    } 
                         
                     VATSupplierB(Batch batch, Stock stock, snapshot) <- NULL;    
-                    VATSupplierB(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](balanceB(batch, stock, dateFrom)*cost(batch)*valueVAT(sku(batch),country(stock),dateTo)/100) 
-                        WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND isBalanceB(snapshot) AND balanceB(batch, stock, dateFrom);                                   
+                    IF singleStock () THEN {
+                        VATSupplierB(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](balanceB(batch, stock, dateFrom)*cost(batch)*valueVAT(sku(batch),country(stock),dateTo)/100) 
+                            WHERE stock = singleStock() AND include(snapshot, sku(batch)) AND isBalanceB(snapshot) AND balanceB(batch, stock, dateFrom);
+                    } ELSE {
+                        VATSupplierB(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](balanceB(batch, stock, dateFrom)*cost(batch)*valueVAT(sku(batch),country(stock),dateTo)/100) 
+                            WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND isBalanceB(snapshot) AND balanceB(batch, stock, dateFrom);
+                    }                                                               
                 }
                 //-- todo: может надо брать вес от инвойса для партии 
                 IF isNetWeight(snapshot) THEN {
