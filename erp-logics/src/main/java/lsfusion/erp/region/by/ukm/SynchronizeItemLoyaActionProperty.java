@@ -43,7 +43,7 @@ public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProp
                 String idSku = (String) findProperty("id[Item]").read(context, itemObject);
                 String barcode = (String) findProperty("idBarcode[Item]").read(context, itemObject);
                 String id = useBarcodeAsId ? barcode : idSku;
-                String caption = StringUtils.trimToEmpty((String) findProperty("caption[Item]").read(context, itemObject));
+                String caption = StringUtils.trimToEmpty((String) findProperty("nameAttribute[Item]").read(context, itemObject));
                 String idUOM = (String) findProperty("idUOM[Item]").read(context, itemObject);
                 boolean split = findProperty("split[Item]").read(context, itemObject) != null;
                 String idSkuGroup = trim((String) findProperty("idSkuGroup[Item]").read(context, itemObject));
