@@ -334,8 +334,13 @@ overTakeBatchFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + {
         } 
         IF isVATSupplier(snapshot) THEN {
             saleVATSupplier(Batch batch, Stock stock, snapshot) <- NULL;
-            saleVATSupplier(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](costSumSold(batch, stock, dateFrom, dateTo)*valueVAT(sku(batch),country(stock),dateTo)/100) 
-                WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND costSumSold(batch, stock, dateFrom, dateTo);
+            IF singleStock () THEN {
+                saleVATSupplier(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](costSumSold(batch, stock, dateFrom, dateTo)*valueVAT(sku(batch),country(stock),dateTo)/100) 
+                    WHERE stock = singleStock() AND include(snapshot, sku(batch)) AND costSumSold(batch, stock, dateFrom, dateTo);
+            } ELSE {
+                saleVATSupplier(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](costSumSold(batch, stock, dateFrom, dateTo)*valueVAT(sku(batch),country(stock),dateTo)/100) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND costSumSold(batch, stock, dateFrom, dateTo);
+            }
         }                 
                 
     }      
