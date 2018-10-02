@@ -56,7 +56,8 @@ isReturn 'Возвращен' = ABSTRACT BOOLEAN (SaleGiftCard);
 
 sold = GROUP LAST SaleGiftCard detail ORDER dateTime(detail), detail WHERE isSold(detail) AND NOT isReturn(detail)
         BY giftCard(detail) MATERIALIZED;
-
+soldReturn = GROUP LAST SaleGiftCard detail ORDER dateTime(detail), detail WHERE isSold(detail) AND isReturn(detail)
+        BY giftCard(detail) MATERIALIZED;
 isSold 'Продан' (GiftCard g) = isSold(sold(g));
 
 skipSoldConstraint = ABSTRACT BOOLEAN (GiftCard);
@@ -65,6 +66,7 @@ CONSTRAINT DROPPED (GiftCard g IS GiftCard) AND PREV (isSold(g)) AND NOT PREV(sk
     MESSAGE 'Запрещено удалять проданные сертификаты';
     
 dateSold 'Дата продажи' (GiftCard g) = date(sold(g)) MATERIALIZED;
+dateSoldReturn 'Дата возврата' (GiftCard g) = date(soldReturn(g)) MATERIALIZED;
 departmentStoreSold 'Где продан' (GiftCard g) = departmentStore(sold(g));
 nameDepartmentStoreSold 'Где продан' (GiftCard g) = nameDepartmentStore(sold(g));
 numberReceiptSold 'Номер чека (продажа)' (GiftCard g) = numberDocument(sold(g));
