@@ -88,6 +88,20 @@ toRepricingQuantityDateTime 'Кол-во к дооценке' (Sku sku, Stock st
     prevBalanceB (sku, stock, fromDateTime) (-) calcSkuLedgerAhead(sku, stock, price, fromDateTime, toDateTime) (-) calcRepricingAhead(sku, stock, price, fromDateTime, toDateTime);
              
 toRepricingQuantityTo 'Кол-во к дооценке' (InvoiceDetail detail, DATETIME toDateTime) = toRepricingQuantityDateTime(sku(detail), customerStock(detail), prevRetailPricingPriceB(detail), shipmentDateTime(detail), toDateTime); 
+
+skipRepricing 'Не дооценивать на приходе' = DATA BOOLEAN (Purchase.Operation);
+skipRepricing 'Не дооценивать на приходе'(Invoice i) = skipRepricing(operation(i));
+
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) skipRepricing
+;
+
+DESIGN Purchase.operation {
+    paramsContainer {
+        MOVE PROPERTY(skipRepricing(o));
+    }
+}
+
 filterToRepricingDate 'Фильтр' (Invoice invoice, Stock department, DATETIME timeFrom, DATETIME timeTo)= 
     customerStock(invoice) == department AND         
     shipmentDateTime(invoice) >= timeFrom AND
@@ -96,7 +110,8 @@ filterToRepricingDate 'Фильтр' (Invoice invoice, Stock department, DATETIM
     shipmentDateTime(invoice) <= timeTo AND NOT
     costLedger(department) AND NOT
     explicitBatchLedger[DepartmentStore](department) AND NOT
-    repricing(invoice)
+    repricing(invoice) AND NOT 
+    skipRepricing(invoice)
 ;                
                   
 overExtraValuation  ABSTRACT LIST ( RepricingDetail, InvoiceDetail);  
