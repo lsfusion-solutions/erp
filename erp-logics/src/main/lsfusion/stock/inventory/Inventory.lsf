@@ -877,36 +877,37 @@ sumContainerManageShortage 'Сумма недостачи / излишка, та
 
 // Объединение товаров                                                                               
 
-overReplace(Sku d) + { 
+replace(Sku od, Sku d) + { 
     quantityBalance(CollationSheet collationSheet, d) <- balanceB(d, stock(collationSheet), dateTime(inventory(collationSheet)))
-        WHERE countPageInventoryDetail(collationSheet, d);
-        
-    sumBalance(CollationSheet collationSheet, d)
-        <- NUMERIC[18,4](sumB(d, stock(collationSheet), dateTime(inventory(collationSheet))))
-        WHERE countPageInventoryDetail(collationSheet, d) AND NOT isPrice(inventory(collationSheet));        
-    sumBalance(CollationSheet collationSheet, d)
-        <- NUMERIC[18,4](round(balanceB(d, stock(collationSheet), dateTime(inventory(collationSheet)))*priceBalance(collationSheet, d), currency(stock(collationSheet))))
-        WHERE countPageInventoryDetail(collationSheet, d) AND isPrice(inventory(collationSheet));    
-    
-    quantityBalance(CollationSheet collationSheet, Batch batch)
-        <- balanceB(batch, stock(collationSheet), dateTime(inventory(collationSheet)))
-        WHERE sku(batch)==d AND countPageInventoryDetail(collationSheet, d) AND isBatch(inventory(collationSheet));        
-        
+        WHERE quantityBalance(collationSheet, od) OR PREV(countPageInventoryDetail(collationSheet, od));
+
     priceBalance(CollationSheet collationSheet, d)
         <- OVERRIDE prevAccountPriceB(d, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, d)
-        WHERE countPageInventoryDetail(collationSheet, d);
-
+        WHERE priceBalance(collationSheet, od) OR PREV(countPageInventoryDetail(collationSheet, od));
+        
     sumBalance(CollationSheet collationSheet, d)
         <- NUMERIC[18,4](sumB(d, stock(collationSheet), dateTime(inventory(collationSheet))))
-        WHERE countPageInventoryDetail(collationSheet, d) AND NOT isPrice(inventory(collationSheet));
-                
+        WHERE (sumBalance(collationSheet, od) OR PREV(countPageInventoryDetail(collationSheet, od))) AND NOT isPrice(inventory(collationSheet));     
+           
     sumBalance(CollationSheet collationSheet, d)
         <- NUMERIC[18,4](round(balanceB(d, stock(collationSheet), dateTime(inventory(collationSheet)))*priceBalance(collationSheet, d), currency(stock(collationSheet))))
-        WHERE countPageInventoryDetail(collationSheet, d) AND isPrice(inventory(collationSheet));
+        WHERE (sumBalance(collationSheet, od) OR PREV(countPageInventoryDetail(collationSheet, od))) AND isPrice(inventory(collationSheet));    
+
+    quantityBalance(CollationSheet collationSheet, Batch batch)
+        <- balanceB(batch, stock(collationSheet), dateTime(inventory(collationSheet)))
+        WHERE sku(batch) == d AND PREV(countPageInventoryDetail(collationSheet, od)) AND isBatch(collationSheet);        
         
     priceBalance(CollationSheet collationSheet, Batch batch)
         <- prevAccountPriceB(batch, stock(collationSheet), dateTime(inventory(collationSheet)))
-        WHERE sku(batch)==d  AND countPageInventoryDetail(collationSheet, d) AND isBatch(collationSheet);     
+        WHERE sku(batch) == d  AND PREV(countPageInventoryDetail(collationSheet, d)) AND isBatch(collationSheet);     
+
+    sumBalance(CollationSheet collationSheet, Batch batch)
+        <- NUMERIC[18,4](sumB(batch, stock(collationSheet), dateTime(inventory(collationSheet))))
+        WHERE sku(batch) == d AND PREV(countPageInventoryDetail(collationSheet, od)) AND NOT isPrice(inventory(collationSheet)) AND isBatch(collationSheet);
+
+    sumBalance(CollationSheet collationSheet, Batch batch)
+        <- NUMERIC[18,4](round(balanceB(batch, stock(collationSheet), dateTime(inventory(collationSheet))) * priceBalance(collationSheet, batch), currency(stock(collationSheet))))
+        WHERE sku(batch) == d AND PREV(countPageInventoryDetail(collationSheet, od)) AND isPrice(inventory(collationSheet)) AND isBatch(collationSheet);
 }                                                                                
 
 //-------------------------------------- Проведение по товарному отчету ----------------------------------------------------//
