@@ -686,8 +686,8 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
                     + nameGroupsTurnover() + ', ' + groupsTurnover()
                     + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
                     + (IF isTimeGroup() THEN ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')' ELSE ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')')
-                    + (IF gWeekTurnover() THEN ' AND EXTRACT(WEEK FROM __time) <> EXTRACT(WEEK FROM TIMESTAMPADD(DAY, 1, __time))' ELSE
-                       IF gMonthTurnover() THEN ' AND EXTRACT(MONTH FROM __time) <> EXTRACT(MONTH FROM TIMESTAMPADD(DAY, 1, __time))' ELSE '')
+                    + (IF gWeekTurnover() THEN ' AND (EXTRACT(WEEK FROM __time) <> EXTRACT(WEEK FROM TIMESTAMPADD(DAY, 1, __time)) OR EXTRACT(WEEK FROM __time) = EXTRACT(WEEK FROM TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')))' ELSE
+                       IF gMonthTurnover() THEN ' AND (EXTRACT(MONTH FROM __time) <> EXTRACT(MONTH FROM TIMESTAMPADD(DAY, 1, __time)) OR EXTRACT(MONTH FROM __time) = EXTRACT(MONTH FROM TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')))' ELSE '')
                     + filter()
                     + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover())
                     + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
