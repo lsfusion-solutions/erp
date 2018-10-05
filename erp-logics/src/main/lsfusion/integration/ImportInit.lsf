@@ -35,16 +35,19 @@ nameUOM 'Ед.изм.' = DATA LOCAL NESTED VARSTRING[255](INTEGER);
 UOM (INTEGER i) = OVERRIDE  UOMName(nameUOM(i)), UOM(nameUOM(i));
 idSkuGroup 'Код группы' = DATA LOCAL NESTED VARSTRING[100](INTEGER);
 splitSku 'Дробный (0/1)'  = DATA LOCAL NESTED VARSTRING[100](INTEGER);
-sku (INTEGER i) = OVERRIDE sku(skuMapping(i)), sku(idSku(i)), skuBarcode(barcode(i)) IF NOT splitSku(i) == '1', sku(barcode(i));
-item (INTEGER i) = OVERRIDE idSku(i), barcode(i);
+sku (INTEGER i) = OVERRIDE sku(skuMapping(i)), 
+                                  sku(idSku(i)), 
+                                  skuBarcode(barcode(i)),// IF NOT splitSku(i) == '1', 
+                                  sku(barcode(i));
+item (INTEGER i) = OVERRIDE skuMapping(i), idSku(i), barcode(i);
 
 part 'Код партии'=  DATA LOCAL NESTED VARSTRING[100](INTEGER );
 indexBatch(INTEGER i) =PARTITION SUM 1 ORDER idCustomerStock(i), i BY part(i);
 quantity 'Количество'= DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
 price 'Цена'= DATA LOCAL NESTED NUMERIC[14,4](INTEGER);
 manPrice 'Цена изготовитля'= DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
-vat 'Ставка НДС поставщика'= DATA LOCAL NESTED NUMERIC[8,2](INTEGER);
-vatr 'Ставка розничного НДС'= DATA LOCAL NESTED NUMERIC[8,2](INTEGER);
+vat 'Ставка НДС поставщика'= DATA LOCAL NESTED NUMERIC[10,5](INTEGER);
+vatr 'Ставка розничного НДС'= DATA LOCAL NESTED NUMERIC[10,5](INTEGER);
 shipPrice 'Цена учетная розничная ' = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
 shipSum 'Учетная сумма' = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 expiry 'Годен до (дата)'= DATA LOCAL NESTED DATE (INTEGER);
@@ -153,7 +156,30 @@ importInitCustom 'Импорт остатков' ()  {
                     }                 
                 }               
             }
-        }    
+        } 
+        FOR INTEGER  rr = [GROUP MIN INTEGER r IF supplier(r) AND NOT sku(r) BY barcode(r)](VARSTRING[100] bar)  NEW it = Item DO {
+            IF defaultNumeratorItem() THEN {
+                id(it) <- CONCAT '', series(defaultNumeratorItem()), curStringValue(defaultNumeratorItem());  
+                incrementValueSession(defaultNumeratorItem());
+            } 
+            caption(it) <- nameSku(rr);
+            itemGroup(it) <- itemGroup(idSkuGroup(rr));
+            UOM(it) <- UOM(rr);
+            split(it) <- TRUE IF splitSku(rr) == '1';
+            passScales(it) <- TRUE IF splitSku(rr) == '1';
+            skuType(it) <- SkuType.skuTypeItem;
+            
+            IF barcode(rr) THEN {
+                IF splitSku(rr) == '1' THEN {
+                    generateBarcode(it);
+                } ELSE {
+                    NEW b = Barcode {
+                        id(b) <- VARSTRING[15](barcode(rr));
+                        sku(b) <- it;
+                    }                 
+                }               
+            }
+        }                            
     }    
     
     //шапки
